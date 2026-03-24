@@ -257,10 +257,9 @@ func TestT352_PreToolUseFiltersFeedbackLoop(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("#369"), "must reference the widening issue for traceability")
 }
 
-// TestT370_HooksJSONSessionStartSyncAsync verifies hooks.json has two
-// SessionStart entries: sync (session-start-sync.sh) and async
-// (session-start.sh with async: true) (#370).
-func TestT370_HooksJSONSessionStartSyncAsync(t *testing.T) {
+// TestT370_HooksJSONSessionStartSingle verifies hooks.json has a single
+// SessionStart entry pointing to session-start.sh (sync output + background fork) (#370).
+func TestT370_HooksJSONSessionStartSingle(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -300,30 +299,18 @@ func TestT370_HooksJSONSessionStartSyncAsync(t *testing.T) {
 	}
 
 	entries := parsed.Hooks["SessionStart"]
-	g.Expect(entries).To(HaveLen(2), "expected two SessionStart hook groups (sync + async)")
+	g.Expect(entries).To(HaveLen(1), "expected single SessionStart hook group (sync+fork)")
 
-	if len(entries) < 2 {
+	if len(entries) < 1 {
 		return
 	}
 
-	// First entry: sync (session-start-sync.sh, no async field).
 	g.Expect(entries[0].Hooks).To(HaveLen(1))
 
 	if len(entries[0].Hooks) > 0 {
-		syncHook := entries[0].Hooks[0]
-		g.Expect(syncHook.Command).To(ContainSubstring("session-start-sync.sh"))
-		g.Expect(syncHook.Async).To(BeNil(), "sync hook must not have async field")
-	}
-
-	// Second entry: async (session-start.sh, async: true).
-	g.Expect(entries[1].Hooks).To(HaveLen(1))
-
-	if len(entries[1].Hooks) > 0 {
-		asyncHook := entries[1].Hooks[0]
-		g.Expect(asyncHook.Command).To(ContainSubstring("session-start.sh"))
-		g.Expect(asyncHook.Command).NotTo(ContainSubstring("session-start-sync.sh"))
-		g.Expect(asyncHook.Async).NotTo(BeNil(), "async hook must have async field")
-		g.Expect(*asyncHook.Async).To(BeTrue(), "async hook must be async: true")
+		hook := entries[0].Hooks[0]
+		g.Expect(hook.Command).To(ContainSubstring("session-start.sh"))
+		g.Expect(hook.Async).To(BeNil(), "hook must not have async field — background work is forked internally")
 	}
 }
 
@@ -414,10 +401,10 @@ func TestT370_PreToolUsePendingCheck(t *testing.T) {
 		"pending check must come before Bash-only exit")
 }
 
-// TestT370_SessionStartAsyncWritesPendingFile verifies session-start.sh writes
-// to pending-maintenance.json instead of stdout, uses atomic rename, and deletes
+// TestT370_SessionStartWritesPendingFile verifies session-start.sh background
+// fork writes to pending-maintenance.json, uses atomic rename, and deletes
 // stale files (#370).
-func TestT370_SessionStartAsyncWritesPendingFile(t *testing.T) {
+func TestT370_SessionStartWritesPendingFile(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -434,7 +421,7 @@ func TestT370_SessionStartAsyncWritesPendingFile(t *testing.T) {
 
 	script := string(content)
 
-	// Must write to pending file, not stdout.
+	// Must write to pending file in background fork.
 	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
 	// Must use atomic write (temp + mv).
 	g.Expect(script).To(ContainSubstring(".tmp"))
@@ -444,45 +431,15 @@ func TestT370_SessionStartAsyncWritesPendingFile(t *testing.T) {
 	// Must use atomic build (temp + mv).
 	g.Expect(script).To(ContainSubstring("ENGRAM_BIN.tmp"))
 	// Must still run maintain.
-	g.Expect(script).To(ContainSubstring("engram maintain"), "async hook must run maintain")
-	// Must NOT emit the old stdout JSON assembly.
-	g.Expect(script).NotTo(ContainSubstring("{systemMessage: $sys"))
-	// Must NOT contain /recall or mid-turn note (moved to sync hook).
-	g.Expect(script).NotTo(ContainSubstring("Mid-turn user messages"))
-	// Must reference #370.
-	g.Expect(script).To(ContainSubstring("#370"))
-}
-
-// TestT370_SessionStartSyncEmitsStaticContext verifies session-start-sync.sh
-// emits the /recall reminder and mid-turn note without any build or maintain calls (#370).
-func TestT370_SessionStartSyncEmitsStaticContext(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "session-start-sync.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	// Must emit static context.
+	g.Expect(script).To(ContainSubstring("engram maintain"), "background fork must run maintain")
+	// Must fork background work (& disown).
+	g.Expect(script).To(ContainSubstring("disown"), "maintain must run in background fork")
+	// Sync portion emits static context via jq.
+	g.Expect(script).To(ContainSubstring("{systemMessage: $sys"))
 	g.Expect(script).To(ContainSubstring("/recall"))
 	g.Expect(script).To(ContainSubstring("Mid-turn user messages"))
-	g.Expect(script).To(ContainSubstring("systemMessage"))
-	g.Expect(script).To(ContainSubstring("additionalContext"))
-	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
-
-	// Must NOT contain slow operations.
-	g.Expect(script).NotTo(ContainSubstring("go build"))
-	g.Expect(script).NotTo(ContainSubstring("engram maintain"))
-	g.Expect(script).NotTo(ContainSubstring("NEEDS_BUILD"))
+	// Must reference #370.
+	g.Expect(script).To(ContainSubstring("#370"))
 }
 
 // TestT43_SessionStartHookSurfaces verifies hooks/session-start.sh calls
@@ -504,8 +461,7 @@ func TestT43_SessionStartHookSurfaces(t *testing.T) {
 
 	script := string(content)
 
-	// session-start.sh is the async hook — build, maintain, write pending file (#370).
-	// Static context (/recall, mid-turn note) moved to session-start-sync.sh.
+	// session-start.sh emits sync context then forks build+maintain (#370).
 	g.Expect(script).To(ContainSubstring("bin/engram"))
 	g.Expect(script).To(ContainSubstring("CLAUDE_PLUGIN_ROOT"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
@@ -684,8 +640,7 @@ func TestT99_SessionStartCreationInSystemMessage(t *testing.T) {
 
 	script := string(content)
 
-	// session-start.sh is now async — writes to pending-maintenance.json instead of stdout (#370).
-	// Static context (/recall, mid-turn note) moved to session-start-sync.sh.
+	// session-start.sh background fork writes to pending-maintenance.json (#370).
 	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
 	g.Expect(script).To(ContainSubstring("ENGRAM_BIN.tmp"))
 	g.Expect(script).To(ContainSubstring("#370"))
