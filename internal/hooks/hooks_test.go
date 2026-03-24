@@ -257,6 +257,234 @@ func TestT352_PreToolUseFiltersFeedbackLoop(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("#369"), "must reference the widening issue for traceability")
 }
 
+// TestT370_HooksJSONSessionStartSyncAsync verifies hooks.json has two
+// SessionStart entries: sync (session-start-sync.sh) and async
+// (session-start.sh with async: true) (#370).
+func TestT370_HooksJSONSessionStartSyncAsync(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	hooksPath := filepath.Join(root, "hooks", "hooks.json")
+
+	hooksData, err := os.ReadFile(hooksPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	type hookEntry struct {
+		Type    string `json:"type"`
+		Command string `json:"command"`
+		Timeout int    `json:"timeout"`
+		Async   *bool  `json:"async"`
+	}
+
+	type hookGroup struct {
+		Hooks []hookEntry `json:"hooks"`
+	}
+
+	type hooksFile struct {
+		Hooks map[string][]hookGroup `json:"hooks"`
+	}
+
+	var parsed hooksFile
+
+	parseErr := json.Unmarshal(hooksData, &parsed)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	entries := parsed.Hooks["SessionStart"]
+	g.Expect(entries).To(HaveLen(2), "expected two SessionStart hook groups (sync + async)")
+
+	if len(entries) < 2 {
+		return
+	}
+
+	// First entry: sync (session-start-sync.sh, no async field).
+	g.Expect(entries[0].Hooks).To(HaveLen(1))
+
+	if len(entries[0].Hooks) > 0 {
+		syncHook := entries[0].Hooks[0]
+		g.Expect(syncHook.Command).To(ContainSubstring("session-start-sync.sh"))
+		g.Expect(syncHook.Async).To(BeNil(), "sync hook must not have async field")
+	}
+
+	// Second entry: async (session-start.sh, async: true).
+	g.Expect(entries[1].Hooks).To(HaveLen(1))
+
+	if len(entries[1].Hooks) > 0 {
+		asyncHook := entries[1].Hooks[0]
+		g.Expect(asyncHook.Command).To(ContainSubstring("session-start.sh"))
+		g.Expect(asyncHook.Command).NotTo(ContainSubstring("session-start-sync.sh"))
+		g.Expect(asyncHook.Async).NotTo(BeNil(), "async hook must have async field")
+		g.Expect(*asyncHook.Async).To(BeTrue(), "async hook must be async: true")
+	}
+}
+
+// TestT370_PostToolUsePendingCheck verifies post-tool-use.sh checks for
+// pending-maintenance.json after the engram filter but before all early-exit
+// paths (Write/Edit advisory, Bash-only exit) (#370).
+func TestT370_PostToolUsePendingCheck(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "post-tool-use.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must check for pending file.
+	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
+	g.Expect(script).To(ContainSubstring("PENDING_SYS"))
+	g.Expect(script).To(ContainSubstring("PENDING_CTX"))
+	// Must use atomic consumption (mv).
+	g.Expect(script).To(ContainSubstring("mv "))
+	// Must reference #370.
+	g.Expect(script).To(ContainSubstring("#370"))
+
+	// Verify ordering: pending check before Write/Edit advisory and Bash-only exit.
+	engramFilterIdx := strings.Index(script, "#352")
+	pendingCheckIdx := strings.Index(script, "pending-maintenance.json")
+	advisoryIdx := strings.Index(script, "Write/Edit")
+	bashOnlyIdx := strings.Index(script, `"$TOOL_NAME" != "Bash"`)
+
+	g.Expect(pendingCheckIdx).To(BeNumerically(">", engramFilterIdx),
+		"pending check must come after engram filter")
+	g.Expect(pendingCheckIdx).To(BeNumerically("<", advisoryIdx),
+		"pending check must come before Write/Edit advisory")
+	g.Expect(pendingCheckIdx).To(BeNumerically("<", bashOnlyIdx),
+		"pending check must come before Bash-only exit")
+}
+
+// TestT370_PreToolUsePendingCheck verifies pre-tool-use.sh checks for
+// pending-maintenance.json after the engram filter but before the Bash-only
+// exit (#370).
+func TestT370_PreToolUsePendingCheck(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "pre-tool-use.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must check for pending file.
+	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
+	g.Expect(script).To(ContainSubstring("PENDING_SYS"))
+	g.Expect(script).To(ContainSubstring("PENDING_CTX"))
+	// Must use atomic consumption (mv).
+	g.Expect(script).To(ContainSubstring("mv "))
+	// Must reference #370.
+	g.Expect(script).To(ContainSubstring("#370"))
+
+	// Verify ordering: pending check must appear AFTER engram filter
+	// but BEFORE the Bash-only exit.
+	engramFilterIdx := strings.Index(script, "#352")
+	pendingCheckIdx := strings.Index(script, "pending-maintenance.json")
+	bashOnlyIdx := strings.Index(script, `"$TOOL_NAME" != "Bash"`)
+
+	g.Expect(engramFilterIdx).To(BeNumerically(">", -1))
+	g.Expect(pendingCheckIdx).To(BeNumerically(">", -1))
+	g.Expect(bashOnlyIdx).To(BeNumerically(">", -1))
+	g.Expect(pendingCheckIdx).To(BeNumerically(">", engramFilterIdx),
+		"pending check must come after engram filter")
+	g.Expect(pendingCheckIdx).To(BeNumerically("<", bashOnlyIdx),
+		"pending check must come before Bash-only exit")
+}
+
+// TestT370_SessionStartAsyncWritesPendingFile verifies session-start.sh writes
+// to pending-maintenance.json instead of stdout, uses atomic rename, and deletes
+// stale files (#370).
+func TestT370_SessionStartAsyncWritesPendingFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "session-start.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must write to pending file, not stdout.
+	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
+	// Must use atomic write (temp + mv).
+	g.Expect(script).To(ContainSubstring(".tmp"))
+	g.Expect(script).To(ContainSubstring("mv "))
+	// Must delete stale pending file at start.
+	g.Expect(script).To(ContainSubstring("rm -f"))
+	// Must use atomic build (temp + mv).
+	g.Expect(script).To(ContainSubstring("ENGRAM_BIN.tmp"))
+	// Must still run maintain.
+	g.Expect(script).To(ContainSubstring("engram maintain"), "async hook must run maintain")
+	// Must NOT emit the old stdout JSON assembly.
+	g.Expect(script).NotTo(ContainSubstring("{systemMessage: $sys"))
+	// Must NOT contain /recall or mid-turn note (moved to sync hook).
+	g.Expect(script).NotTo(ContainSubstring("Mid-turn user messages"))
+	// Must reference #370.
+	g.Expect(script).To(ContainSubstring("#370"))
+}
+
+// TestT370_SessionStartSyncEmitsStaticContext verifies session-start-sync.sh
+// emits the /recall reminder and mid-turn note without any build or maintain calls (#370).
+func TestT370_SessionStartSyncEmitsStaticContext(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "session-start-sync.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must emit static context.
+	g.Expect(script).To(ContainSubstring("/recall"))
+	g.Expect(script).To(ContainSubstring("Mid-turn user messages"))
+	g.Expect(script).To(ContainSubstring("systemMessage"))
+	g.Expect(script).To(ContainSubstring("additionalContext"))
+	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+
+	// Must NOT contain slow operations.
+	g.Expect(script).NotTo(ContainSubstring("go build"))
+	g.Expect(script).NotTo(ContainSubstring("engram maintain"))
+	g.Expect(script).NotTo(ContainSubstring("NEEDS_BUILD"))
+}
+
 // TestT43_SessionStartHookSurfaces verifies hooks/session-start.sh calls
 // engram surface with --mode session-start (T-43).
 func TestT43_SessionStartHookSurfaces(t *testing.T) {
@@ -461,164 +689,6 @@ func TestT99_SessionStartCreationInSystemMessage(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
 	g.Expect(script).To(ContainSubstring("ENGRAM_BIN.tmp"))
 	g.Expect(script).To(ContainSubstring("#370"))
-}
-
-// TestT370_SessionStartSyncEmitsStaticContext verifies session-start-sync.sh
-// emits the /recall reminder and mid-turn note without any build or maintain calls (#370).
-func TestT370_SessionStartSyncEmitsStaticContext(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "session-start-sync.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	// Must emit static context.
-	g.Expect(script).To(ContainSubstring("/recall"))
-	g.Expect(script).To(ContainSubstring("Mid-turn user messages"))
-	g.Expect(script).To(ContainSubstring("systemMessage"))
-	g.Expect(script).To(ContainSubstring("additionalContext"))
-	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
-
-	// Must NOT contain slow operations.
-	g.Expect(script).NotTo(ContainSubstring("go build"))
-	g.Expect(script).NotTo(ContainSubstring("engram maintain"))
-	g.Expect(script).NotTo(ContainSubstring("NEEDS_BUILD"))
-}
-
-// TestT370_SessionStartAsyncWritesPendingFile verifies session-start.sh writes
-// to pending-maintenance.json instead of stdout, uses atomic rename, and deletes
-// stale files (#370).
-func TestT370_SessionStartAsyncWritesPendingFile(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "session-start.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	// Must write to pending file, not stdout.
-	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
-	// Must use atomic write (temp + mv).
-	g.Expect(script).To(ContainSubstring(".tmp"))
-	g.Expect(script).To(ContainSubstring("mv "))
-	// Must delete stale pending file at start.
-	g.Expect(script).To(ContainSubstring("rm -f"))
-	// Must use atomic build (temp + mv).
-	g.Expect(script).To(ContainSubstring("ENGRAM_BIN.tmp"))
-	// Must still run maintain.
-	g.Expect(script).To(ContainSubstring("engram maintain"), "async hook must run maintain")
-	// Must NOT emit the old stdout JSON assembly.
-	g.Expect(script).NotTo(ContainSubstring("{systemMessage: $sys"))
-	// Must NOT contain /recall or mid-turn note (moved to sync hook).
-	g.Expect(script).NotTo(ContainSubstring("Mid-turn user messages"))
-	// Must reference #370.
-	g.Expect(script).To(ContainSubstring("#370"))
-}
-
-// TestT370_PreToolUsePendingCheck verifies pre-tool-use.sh checks for
-// pending-maintenance.json after the engram filter but before the Bash-only
-// exit (#370).
-func TestT370_PreToolUsePendingCheck(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "pre-tool-use.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	// Must check for pending file.
-	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
-	g.Expect(script).To(ContainSubstring("PENDING_SYS"))
-	g.Expect(script).To(ContainSubstring("PENDING_CTX"))
-	// Must use atomic consumption (mv).
-	g.Expect(script).To(ContainSubstring("mv "))
-	// Must reference #370.
-	g.Expect(script).To(ContainSubstring("#370"))
-
-	// Verify ordering: pending check must appear AFTER engram filter
-	// but BEFORE the Bash-only exit.
-	engramFilterIdx := strings.Index(script, "#352")
-	pendingCheckIdx := strings.Index(script, "pending-maintenance.json")
-	bashOnlyIdx := strings.Index(script, `"$TOOL_NAME" != "Bash"`)
-
-	g.Expect(engramFilterIdx).To(BeNumerically(">", -1))
-	g.Expect(pendingCheckIdx).To(BeNumerically(">", -1))
-	g.Expect(bashOnlyIdx).To(BeNumerically(">", -1))
-	g.Expect(pendingCheckIdx).To(BeNumerically(">", engramFilterIdx),
-		"pending check must come after engram filter")
-	g.Expect(pendingCheckIdx).To(BeNumerically("<", bashOnlyIdx),
-		"pending check must come before Bash-only exit")
-}
-
-// TestT370_PostToolUsePendingCheck verifies post-tool-use.sh checks for
-// pending-maintenance.json after the engram filter but before all early-exit
-// paths (Write/Edit advisory, Bash-only exit) (#370).
-func TestT370_PostToolUsePendingCheck(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "post-tool-use.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	// Must check for pending file.
-	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
-	g.Expect(script).To(ContainSubstring("PENDING_SYS"))
-	g.Expect(script).To(ContainSubstring("PENDING_CTX"))
-	// Must use atomic consumption (mv).
-	g.Expect(script).To(ContainSubstring("mv "))
-	// Must reference #370.
-	g.Expect(script).To(ContainSubstring("#370"))
-
-	// Verify ordering: pending check before Write/Edit advisory and Bash-only exit.
-	engramFilterIdx := strings.Index(script, "#352")
-	pendingCheckIdx := strings.Index(script, "pending-maintenance.json")
-	advisoryIdx := strings.Index(script, "Write/Edit")
-	bashOnlyIdx := strings.Index(script, `"$TOOL_NAME" != "Bash"`)
-
-	g.Expect(pendingCheckIdx).To(BeNumerically(">", engramFilterIdx),
-		"pending check must come after engram filter")
-	g.Expect(pendingCheckIdx).To(BeNumerically("<", advisoryIdx),
-		"pending check must come before Write/Edit advisory")
-	g.Expect(pendingCheckIdx).To(BeNumerically("<", bashOnlyIdx),
-		"pending check must come before Bash-only exit")
 }
 
 // repoRoot returns the engram repository root by walking up from the test file.
