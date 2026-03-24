@@ -18,6 +18,7 @@ internal/memory/embeddings.db
 # Claude local state
 .claude/projects/
 .claude/settings.local.json
+.claude/worktrees/
 
 # Session logs (local to developer, not committed)
 docs/session-logs/
