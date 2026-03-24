@@ -461,6 +461,38 @@ func TestT99_SessionStartCreationInSystemMessage(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("/recall"))
 }
 
+// TestT370_SessionStartSyncEmitsStaticContext verifies session-start-sync.sh
+// emits the /recall reminder and mid-turn note without any build or maintain calls (#370).
+func TestT370_SessionStartSyncEmitsStaticContext(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "session-start-sync.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must emit static context.
+	g.Expect(script).To(ContainSubstring("/recall"))
+	g.Expect(script).To(ContainSubstring("Mid-turn user messages"))
+	g.Expect(script).To(ContainSubstring("systemMessage"))
+	g.Expect(script).To(ContainSubstring("additionalContext"))
+	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+
+	// Must NOT contain slow operations.
+	g.Expect(script).NotTo(ContainSubstring("go build"))
+	g.Expect(script).NotTo(ContainSubstring("engram maintain"))
+	g.Expect(script).NotTo(ContainSubstring("NEEDS_BUILD"))
+}
+
 // repoRoot returns the engram repository root by walking up from the test file.
 func repoRoot(t *testing.T) string {
 	t.Helper()
