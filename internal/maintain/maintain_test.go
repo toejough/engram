@@ -91,6 +91,86 @@ func TestGenerate_HiddenGem_NonJSONResponse_WrapsAsString(t *testing.T) {
 	g.Expect(detailsBytes).NotTo(gomega.BeEmpty())
 }
 
+// T-372: LLM failure during refine_keywords falls back gracefully without Details.
+func TestGenerate_HighIrrelevance_LLMFailure_ProposesWithoutDetails(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	llmCaller := func(
+		_ context.Context, _, _, _ string,
+	) (string, error) {
+		return "", errors.New("LLM unavailable")
+	}
+
+	gen := maintain.New(
+		maintain.WithNow(fixedNow),
+		maintain.WithLLMCaller(llmCaller),
+	)
+
+	classified := []review.ClassifiedMemory{
+		{Name: "llm-fail-mem", Quadrant: review.Working},
+	}
+	memories := map[string]*memory.Stored{
+		"llm-fail-mem": {
+			Title:             "LLM Fail Memory",
+			Keywords:          []string{"broad"},
+			FollowedCount:     2,
+			IrrelevantCount:   8,
+			IrrelevantQueries: []string{"some query"},
+			UpdatedAt:         fixedNow(),
+		},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].Action).To(gomega.Equal("refine_keywords"))
+	g.Expect(proposals[0].Diagnosis).To(
+		gomega.ContainSubstring("irrelevant"),
+	)
+}
+
+// T-372: High-irrelevance memory with no queries skips LLM call.
+func TestGenerate_HighIrrelevance_NoQueries_NoLLMCall(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	llmCalled := false
+
+	llmCaller := func(
+		_ context.Context, _, _, _ string,
+	) (string, error) {
+		llmCalled = true
+
+		return "{}", nil
+	}
+
+	gen := maintain.New(
+		maintain.WithNow(fixedNow),
+		maintain.WithLLMCaller(llmCaller),
+	)
+
+	classified := []review.ClassifiedMemory{
+		{Name: "no-queries-mem", Quadrant: review.Working},
+	}
+	memories := map[string]*memory.Stored{
+		"no-queries-mem": {
+			Title:           "No Queries Memory",
+			Keywords:        []string{"generic"},
+			FollowedCount:   2,
+			IrrelevantCount: 8,
+			UpdatedAt:       fixedNow(),
+		},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].Action).To(gomega.Equal("refine_keywords"))
+	g.Expect(proposals[0].Details).To(gomega.BeEmpty())
+	g.Expect(llmCalled).To(gomega.BeFalse())
+}
+
 // T-343: High-irrelevance memory produces refine_keywords proposal.
 func TestGenerate_HighIrrelevance_ProposesRefineKeywords(t *testing.T) {
 	t.Parallel()
@@ -117,6 +197,57 @@ func TestGenerate_HighIrrelevance_ProposesRefineKeywords(t *testing.T) {
 	g.Expect(proposals[0].MemoryPath).To(gomega.Equal("generic-mem"))
 	g.Expect(proposals[0].Action).To(gomega.Equal("refine_keywords"))
 	g.Expect(proposals[0].Diagnosis).To(gomega.ContainSubstring("irrelevant"))
+}
+
+// T-372: High-irrelevance memory with queries calls LLM for keyword suggestions.
+func TestGenerate_HighIrrelevance_WithQueries_CallsLLM(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var capturedUserPrompt string
+
+	llmCaller := func(
+		_ context.Context, _, _, userPrompt string,
+	) (string, error) {
+		capturedUserPrompt = userPrompt
+
+		return `{"remove_keywords":["code"],"add_keywords":["go-testing"],"rationale":"too generic"}`, nil
+	}
+
+	gen := maintain.New(
+		maintain.WithNow(fixedNow),
+		maintain.WithLLMCaller(llmCaller),
+	)
+
+	classified := []review.ClassifiedMemory{
+		{Name: "generic-mem", Quadrant: review.Working},
+	}
+	memories := map[string]*memory.Stored{
+		"generic-mem": {
+			Title:             "Generic Memory",
+			Keywords:          []string{"code"},
+			Principle:         "Some principle",
+			FollowedCount:     3,
+			IrrelevantCount:   8,
+			IrrelevantQueries: []string{"how to test", "dependency injection"},
+			UpdatedAt:         fixedNow(),
+		},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].Action).To(gomega.Equal("refine_keywords"))
+	g.Expect(proposals[0].Details).NotTo(gomega.BeEmpty())
+	g.Expect(string(proposals[0].Details)).To(
+		gomega.ContainSubstring("remove_keywords"),
+	)
+	g.Expect(capturedUserPrompt).To(
+		gomega.ContainSubstring("how to test"),
+	)
+	g.Expect(capturedUserPrompt).To(
+		gomega.ContainSubstring("dependency injection"),
+	)
 }
 
 // T-176: Insufficient data memory produces no proposal.

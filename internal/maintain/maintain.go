@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"engram/internal/memory"
@@ -74,6 +75,7 @@ func (g *Generator) Generate(
 // the threshold (60%) with sufficient total feedback (>=5). Returns (proposal, true)
 // if the check triggers, or (zero, false) to fall through to quadrant handling.
 func (g *Generator) checkIrrelevance(
+	ctx context.Context,
 	classifiedMem review.ClassifiedMemory,
 	stored *memory.Stored,
 ) (Proposal, bool) {
@@ -94,7 +96,7 @@ func (g *Generator) checkIrrelevance(
 
 	const percentMultiplier = 100
 
-	return Proposal{
+	proposal := Proposal{
 		MemoryPath: classifiedMem.Name,
 		Quadrant:   string(classifiedMem.Quadrant),
 		Action:     actionRefineKeywords,
@@ -102,7 +104,20 @@ func (g *Generator) checkIrrelevance(
 			"%d%% of feedback is irrelevant — keywords may be too generic",
 			int(ratio*percentMultiplier),
 		),
-	}, true
+	}
+
+	// Enrich with LLM-suggested keyword changes if query evidence exists.
+	if g.llmCaller != nil && len(stored.IrrelevantQueries) > 0 {
+		systemPrompt := refineKeywordsSystemPrompt
+		userPrompt := buildRefineDescription(classifiedMem, stored)
+
+		response, llmErr := g.llmCaller(ctx, maintainModel, systemPrompt, userPrompt)
+		if llmErr == nil {
+			proposal.Details = safeLLMDetails(response)
+		}
+	}
+
+	return proposal, true
 }
 
 // generateOne produces a proposal for a single classified memory.
@@ -113,7 +128,7 @@ func (g *Generator) generateOne(
 	stored *memory.Stored,
 ) (Proposal, bool) {
 	// Check for high-irrelevance memories — propose keyword refinement (#343).
-	if proposal, ok := g.checkIrrelevance(classifiedMem, stored); ok {
+	if proposal, ok := g.checkIrrelevance(ctx, classifiedMem, stored); ok {
 		return proposal, true
 	}
 
@@ -321,7 +336,13 @@ const (
 	maintainModel                      = "claude-haiku-4-5-20251001"
 	refineKeywordsIrrelevanceThreshold = 0.6
 	refineKeywordsMinFeedback          = 5
-	stalenessThresholdDays             = 90
+	refineKeywordsSystemPrompt         = "You are a memory maintenance assistant. " +
+		"A memory keeps surfacing in irrelevant contexts. " +
+		"Given the memory's current keywords and the queries that caused false matches, " +
+		"identify which keywords are too generic and suggest specific replacements. " +
+		"Output: " +
+		`{"remove_keywords":[...],"add_keywords":[...],"rationale":"..."}`
+	stalenessThresholdDays = 90
 )
 
 //nolint:tagliatelle // DES-23 specifies snake_case JSON field names.
@@ -358,6 +379,19 @@ func buildMemoryDescription(
 		classifiedMem.SurfacedCount,
 		classifiedMem.EffectivenessScore,
 		classifiedMem.EvaluationCount,
+	)
+}
+
+func buildRefineDescription(
+	classifiedMem review.ClassifiedMemory,
+	stored *memory.Stored,
+) string {
+	base := buildMemoryDescription(classifiedMem, stored)
+
+	return fmt.Sprintf(
+		"%s\nIrrelevant queries that caused false matches:\n- %s",
+		base,
+		strings.Join(stored.IrrelevantQueries, "\n- "),
 	)
 }
 
