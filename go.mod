@@ -25,7 +25,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/toejough/go-reorder v0.0.0-20260123033158-812dc6e76018 // indirect
+	github.com/toejough/go-reorder v0.0.0-20260323214627-2c2148c725b2 // indirect
 	github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e // indirect
 	github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
