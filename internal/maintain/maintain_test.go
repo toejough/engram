@@ -49,6 +49,48 @@ func TestGenerate_HiddenGemBroaden(t *testing.T) {
 	g.Expect(proposals[0].Details).NotTo(gomega.BeEmpty())
 }
 
+// T-370: Non-JSON LLM response produces valid JSON Details (not a marshal crash).
+func TestGenerate_HiddenGem_NonJSONResponse_WrapsAsString(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	nonJSONResponse := "# Here are my suggestions\n- Add keyword: debugging"
+
+	fakeLLM := func(_ context.Context, _, _, _ string) (string, error) {
+		return nonJSONResponse, nil
+	}
+
+	gen := maintain.New(
+		maintain.WithLLMCaller(fakeLLM),
+		maintain.WithNow(fixedNow),
+	)
+
+	classified := []review.ClassifiedMemory{
+		{Name: "gem-mem", Quadrant: review.HiddenGem},
+	}
+	memories := map[string]*memory.Stored{
+		"gem-mem": {
+			Title:    "Good memory",
+			Keywords: []string{"testing"},
+		},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+
+	// Details must be valid JSON — either the raw response if it was JSON,
+	// or the response wrapped as a JSON string.
+	detailsBytes, marshalErr := json.Marshal(proposals[0].Details)
+	g.Expect(marshalErr).NotTo(gomega.HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	g.Expect(detailsBytes).NotTo(gomega.BeEmpty())
+}
+
 // T-343: High-irrelevance memory produces refine_keywords proposal.
 func TestGenerate_HighIrrelevance_ProposesRefineKeywords(t *testing.T) {
 	t.Parallel()
@@ -197,6 +239,46 @@ func TestGenerate_LeechRewrite(t *testing.T) {
 	g.Expect(proposals[0].Quadrant).To(gomega.Equal("Leech"))
 	g.Expect(proposals[0].Action).To(gomega.Equal("rewrite"))
 	g.Expect(proposals[0].Details).NotTo(gomega.BeEmpty())
+}
+
+// T-371: Non-JSON LLM response for leech also produces valid JSON Details.
+func TestGenerate_Leech_NonJSONResponse_WrapsAsString(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	nonJSONResponse := "The memory needs rewriting because..."
+
+	fakeLLM := func(_ context.Context, _, _, _ string) (string, error) {
+		return nonJSONResponse, nil
+	}
+
+	gen := maintain.New(
+		maintain.WithLLMCaller(fakeLLM),
+		maintain.WithNow(fixedNow),
+	)
+
+	classified := []review.ClassifiedMemory{
+		{Name: "leech-mem", Quadrant: review.Leech},
+	}
+	memories := map[string]*memory.Stored{
+		"leech-mem": {
+			Title:    "Bad memory",
+			Keywords: []string{"testing"},
+		},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+
+	detailsBytes, marshalErr := json.Marshal(proposals[0].Details)
+	g.Expect(marshalErr).NotTo(gomega.HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	g.Expect(detailsBytes).NotTo(gomega.BeEmpty())
 }
 
 // T-343b: Low-irrelevance memory does not trigger refine_keywords.
@@ -486,7 +568,6 @@ func TestGenerate_WorkingWithinThreshold(t *testing.T) {
 	g.Expect(proposals).To(gomega.BeEmpty())
 }
 
-// stubConsolidator implements the BeforeRemove interface for testing.
 type stubConsolidator struct {
 	result maintain.ConsolidateResult
 	err    error

@@ -162,7 +162,7 @@ func (g *Generator) handleHiddenGem(
 		Quadrant:   string(classifiedMem.Quadrant),
 		Diagnosis:  "Memory has high follow-through but is rarely surfaced",
 		Action:     actionBroadenKeywords,
-		Details:    json.RawMessage(response),
+		Details:    safeLLMDetails(response),
 	}, true
 }
 
@@ -191,7 +191,7 @@ func (g *Generator) handleLeech(
 		Quadrant:   string(classifiedMem.Quadrant),
 		Diagnosis:  "Memory is frequently surfaced but rarely followed",
 		Action:     actionRewrite,
-		Details:    json.RawMessage(response),
+		Details:    safeLLMDetails(response),
 	}, true
 }
 
@@ -374,4 +374,19 @@ func marshalEvidence(
 	})
 
 	return data
+}
+
+// safeLLMDetails wraps an LLM response as json.RawMessage. If the response is
+// valid JSON it's used directly; otherwise it's marshaled as a JSON string so
+// that Proposal serialization never fails due to malformed LLM output.
+func safeLLMDetails(response string) json.RawMessage {
+	if json.Valid([]byte(response)) {
+		return json.RawMessage(response)
+	}
+
+	// Wrap non-JSON response as a quoted string — cannot fail for string input.
+	//nolint:errchkjson // json.Marshal on a string cannot fail.
+	escaped, _ := json.Marshal(response)
+
+	return escaped
 }
