@@ -22,6 +22,23 @@ var (
 	errFeedbackMissingSlug = errors.New("feedback: slug argument required")
 )
 
+// appendIrrelevantQuery appends the surfacing query to the memory's
+// IrrelevantQueries list (capped at 20, dropping oldest on overflow).
+func appendIrrelevantQuery(
+	record *memory.MemoryRecord, irrelevant bool, query string,
+) {
+	const maxIrrelevantQueries = 20
+
+	if !irrelevant || query == "" {
+		return
+	}
+
+	record.IrrelevantQueries = append(record.IrrelevantQueries, query)
+	if len(record.IrrelevantQueries) > maxIrrelevantQueries {
+		record.IrrelevantQueries = record.IrrelevantQueries[len(record.IrrelevantQueries)-maxIrrelevantQueries:]
+	}
+}
+
 // applyFeedbackCounters updates the appropriate counter in record based on flags.
 // Returns the label describing the feedback type.
 func applyFeedbackCounters(
@@ -113,6 +130,7 @@ func runFeedback(args []string, stdout io.Writer) error {
 	}
 
 	label := applyFeedbackCounters(record, *relevant, *used, *notused)
+	appendIrrelevantQuery(record, *irrelevant, *surfacingQuery)
 
 	writeErr := writeFeedbackTOML(memPath, record, slug)
 	if writeErr != nil {

@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -104,6 +105,87 @@ last_surfaced_at = "2024-06-01T00:00:00Z"
 	g.Expect(record.LastSurfacedAt).To(Equal("2024-06-01T00:00:00Z"))
 }
 
+func TestFeedback_IrrelevantQueries_CappedAt20(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Pre-populate with 20 existing queries.
+	var queryLines strings.Builder
+
+	for i := range 20 {
+		fmt.Fprintf(&queryLines, "  \"query-%d\",\n", i)
+	}
+
+	tomlContent := fmt.Sprintf(
+		"title = \"cap-test\"\nsurfaced_count = 1\n"+
+			"irrelevant_queries = [\n%s]\n",
+		queryLines.String(),
+	)
+	err = os.WriteFile(
+		filepath.Join(memDir, "cap-test.toml"),
+		[]byte(tomlContent),
+		0o640,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "feedback",
+			"--name", "cap-test",
+			"--data-dir", dataDir,
+			"--surfacing-query", "new query",
+			"--irrelevant",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	data, readErr := os.ReadFile(filepath.Join(memDir, "cap-test.toml"))
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	var record memory.MemoryRecord
+
+	_, decErr := toml.Decode(string(data), &record)
+	g.Expect(decErr).NotTo(HaveOccurred())
+
+	if decErr != nil {
+		return
+	}
+
+	const maxIrrelevantQueries = 20
+
+	g.Expect(record.IrrelevantQueries).To(HaveLen(maxIrrelevantQueries))
+	// Oldest ("query-0") dropped, newest ("new query") appended.
+	g.Expect(record.IrrelevantQueries[0]).To(Equal("query-1"))
+	g.Expect(record.IrrelevantQueries[maxIrrelevantQueries-1]).To(
+		Equal("new query"),
+	)
+}
+
 func TestFeedback_Irrelevant_IncrementsIrrelevantCount(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -169,6 +251,72 @@ ignored_count = 1
 	g.Expect(record.FollowedCount).To(Equal(3))
 	g.Expect(record.IgnoredCount).To(Equal(1))
 	g.Expect(record.IrrelevantCount).To(Equal(1))
+}
+
+func TestFeedback_Irrelevant_WithSurfacingQuery_PersistsQuery(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	tomlContent := "title = \"persist-query\"\nsurfaced_count = 1\n"
+	err = os.WriteFile(
+		filepath.Join(memDir, "persist-query.toml"),
+		[]byte(tomlContent),
+		0o640,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "feedback",
+			"--name", "persist-query",
+			"--data-dir", dataDir,
+			"--surfacing-query", "how to test",
+			"--irrelevant",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Re-read the TOML and verify query was persisted.
+	data, readErr := os.ReadFile(
+		filepath.Join(memDir, "persist-query.toml"),
+	)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	var record memory.MemoryRecord
+
+	_, decErr := toml.Decode(string(data), &record)
+	g.Expect(decErr).NotTo(HaveOccurred())
+
+	if decErr != nil {
+		return
+	}
+
+	g.Expect(record.IrrelevantQueries).To(Equal([]string{"how to test"}))
 }
 
 func TestFeedback_Irrelevant_WithSurfacingQuery_PrintsContextMessage(t *testing.T) {
