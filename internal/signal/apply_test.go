@@ -190,6 +190,79 @@ func TestApply_EscalateZeroLevel(t *testing.T) {
 	g.Expect(result.Success).To(gomega.BeFalse())
 }
 
+func TestApply_RefineKeywords(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	writer := &stubMemoryWriter{written: make(map[string]*memory.Stored)}
+
+	applier := signal.NewApplier(
+		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
+			return &memory.Stored{
+				Title:             "Noisy",
+				Keywords:          []string{"code", "testing", "specific-good"},
+				IrrelevantQueries: []string{"how to test", "dependency injection"},
+			}, nil
+		}),
+		signal.WithWriteMemory(writer),
+	)
+
+	action := signal.ApplyAction{
+		Action: "refine_keywords",
+		Memory: "memories/noisy.toml",
+		Fields: map[string]any{
+			"remove_keywords": []any{"code", "testing"},
+			"add_keywords":    []any{"go-test-isolation", "parallel-test-state"},
+		},
+	}
+
+	result, err := applier.Apply(context.Background(), action)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Success).To(gomega.BeTrue())
+
+	stored := writer.written["memories/noisy.toml"]
+	g.Expect(stored).NotTo(gomega.BeNil())
+
+	if stored == nil {
+		return
+	}
+
+	// "code" and "testing" removed, two new ones added (normalized), "specific-good" kept.
+	g.Expect(stored.Keywords).To(gomega.ConsistOf(
+		"specific-good", "go_test_isolation", "parallel_test_state",
+	))
+	// IrrelevantQueries cleared after refinement.
+	g.Expect(stored.IrrelevantQueries).To(gomega.BeEmpty())
+}
+
+func TestApply_RefineKeywordsNilMemory(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	applier := signal.NewApplier(
+		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
+			return nil, nil //nolint:nilnil // testing nil memory path
+		}),
+	)
+
+	action := signal.ApplyAction{
+		Action: "refine_keywords",
+		Memory: "memories/gone.toml",
+		Fields: map[string]any{
+			"remove_keywords": []any{"old"},
+			"add_keywords":    []any{"new"},
+		},
+	}
+
+	_, err := applier.Apply(context.Background(), action)
+	g.Expect(err).To(gomega.HaveOccurred())
+}
+
 func TestApply_Remove(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)

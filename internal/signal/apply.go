@@ -54,6 +54,8 @@ func (a *Applier) Apply(_ context.Context, action ApplyAction) (ApplyResult, err
 		err = a.applyRewrite(action)
 	case actionBroadenKeywords:
 		err = a.applyBroaden(action)
+	case actionRefineKeywords:
+		err = a.applyRefine(action)
 	case actionEscalate:
 		err = a.applyEscalate(action)
 	default:
@@ -112,6 +114,40 @@ func (a *Applier) applyEscalate(action ApplyAction) error {
 	return maintain.ApplyEscalationProposal(
 		proposal, a.enforcementApplier,
 	)
+}
+
+func (a *Applier) applyRefine(action ApplyAction) error {
+	stored, err := a.readMemory(action.Memory)
+	if err != nil {
+		return fmt.Errorf("reading memory for refine: %w", err)
+	}
+
+	if stored == nil {
+		return fmt.Errorf("reading memory for refine: %w", os.ErrNotExist)
+	}
+
+	removeSet := toStringSet(action.Fields["remove_keywords"])
+	addKeywords := toStringSlice(action.Fields["add_keywords"])
+
+	// Remove specified keywords.
+	filtered := make([]string, 0, len(stored.Keywords))
+
+	for _, kw := range stored.Keywords {
+		if !removeSet[kw] {
+			filtered = append(filtered, kw)
+		}
+	}
+
+	filtered = append(filtered, keyword.NormalizeAll(addKeywords)...)
+	stored.Keywords = filtered
+	stored.IrrelevantQueries = nil
+
+	writeErr := a.writeMem.Write(action.Memory, stored)
+	if writeErr != nil {
+		return fmt.Errorf("writing refined memory: %w", writeErr)
+	}
+
+	return nil
 }
 
 func (a *Applier) applyRemove(action ApplyAction) error {
@@ -200,6 +236,7 @@ func WithWriteMemory(w MemoryWriter) ApplierOption {
 const (
 	actionBroadenKeywords = "broaden_keywords"
 	actionEscalate        = "escalate"
+	actionRefineKeywords  = "refine_keywords"
 	actionRemove          = "remove"
 	actionRewrite         = "rewrite"
 )
@@ -259,4 +296,38 @@ func applyStringField(stored *memory.Stored, key string, val any) {
 	case "anti_pattern":
 		stored.AntiPattern = strVal
 	}
+}
+
+func toStringSet(val any) map[string]bool {
+	set := make(map[string]bool)
+
+	items, ok := val.([]any)
+	if !ok {
+		return set
+	}
+
+	for _, item := range items {
+		if s, ok := item.(string); ok {
+			set[s] = true
+		}
+	}
+
+	return set
+}
+
+func toStringSlice(val any) []string {
+	items, ok := val.([]any)
+	if !ok {
+		return nil
+	}
+
+	result := make([]string, 0, len(items))
+
+	for _, item := range items {
+		if s, ok := item.(string); ok {
+			result = append(result, s)
+		}
+	}
+
+	return result
 }
