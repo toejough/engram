@@ -11,17 +11,8 @@ FILE_PATH="$(echo "$STDIN_JSON" | jq -r '.tool_input.file_path // empty')"
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
 
-# Don't surface memories for any engram CLI calls (#352, #369)
-if [[ "$TOOL_NAME" == "Bash" ]]; then
-    BASH_CMD="$(echo "$STDIN_JSON" | jq -r '.tool_input.command // empty')"
-    # Normalize ~/... to $HOME/... so both path forms match (#369)
-    BASH_CMD_NORMALIZED="${BASH_CMD//\~\//$HOME/}"
-    if [[ "$BASH_CMD_NORMALIZED" == *"$ENGRAM_BIN"* ]]; then
-        exit 0
-    fi
-fi
-
 # Consume pending maintenance results from async SessionStart (#370)
+# Must run BEFORE the engram filter — first tool call may be an engram command
 PENDING_SYS=""
 PENDING_CTX=""
 PENDING_FILE="$ENGRAM_HOME/pending-maintenance.json"
@@ -30,6 +21,36 @@ if [[ -f "$PENDING_FILE" ]] && mv "$PENDING_FILE" "$PENDING_TMP" 2>/dev/null; th
     PENDING_SYS="$(jq -r '.systemMessage // empty' "$PENDING_TMP")"
     PENDING_CTX="$(jq -r '.additionalContext // empty' "$PENDING_TMP")"
     rm -f "$PENDING_TMP"
+fi
+
+# Helper: emit pending content and exit
+emit_pending_and_exit() {
+    if [[ -n "$PENDING_SYS" || -n "$PENDING_CTX" ]]; then
+        jq -n \
+            --arg sys "$PENDING_SYS" \
+            --arg ctx "$PENDING_CTX" \
+            '{
+                systemMessage: $sys,
+                continue: true,
+                suppressOutput: false,
+                hookSpecificOutput: {
+                    hookEventName: "PostToolUse",
+                    additionalContext: $ctx
+                }
+            }'
+    fi
+    exit 0
+}
+
+# Don't surface memories for any engram CLI calls (#352, #369)
+# But still emit pending maintenance content if available
+if [[ "$TOOL_NAME" == "Bash" ]]; then
+    BASH_CMD="$(echo "$STDIN_JSON" | jq -r '.tool_input.command // empty')"
+    # Normalize ~/... to $HOME/... so both path forms match (#369)
+    BASH_CMD_NORMALIZED="${BASH_CMD//\~\//$HOME/}"
+    if [[ "$BASH_CMD_NORMALIZED" == *"$ENGRAM_BIN"* ]]; then
+        emit_pending_and_exit
+    fi
 fi
 
 # Skill/command file advisory for Write/Edit
@@ -56,22 +77,7 @@ fi
 
 # Only surface memories for Bash tool calls
 if [[ "$TOOL_NAME" != "Bash" ]]; then
-    # Emit pending content if available before exiting (#370)
-    if [[ -n "$PENDING_SYS" || -n "$PENDING_CTX" ]]; then
-        jq -n \
-            --arg sys "$PENDING_SYS" \
-            --arg ctx "$PENDING_CTX" \
-            '{
-                systemMessage: $sys,
-                continue: true,
-                suppressOutput: false,
-                hookSpecificOutput: {
-                    hookEventName: "PostToolUse",
-                    additionalContext: $ctx
-                }
-            }'
-    fi
-    exit 0
+    emit_pending_and_exit
 fi
 
 # Surface memories relevant to this tool call and its output
@@ -105,17 +111,4 @@ if [[ -x "$ENGRAM_BIN" ]]; then
 fi
 
 # No surfacing output — emit pending content standalone if available (#370)
-if [[ -n "$PENDING_SYS" || -n "$PENDING_CTX" ]]; then
-    jq -n \
-        --arg sys "$PENDING_SYS" \
-        --arg ctx "$PENDING_CTX" \
-        '{
-            systemMessage: $sys,
-            continue: true,
-            suppressOutput: false,
-            hookSpecificOutput: {
-                hookEventName: "PostToolUse",
-                additionalContext: $ctx
-            }
-        }'
-fi
+emit_pending_and_exit

@@ -315,8 +315,8 @@ func TestT370_HooksJSONSessionStartSingle(t *testing.T) {
 }
 
 // TestT370_PostToolUsePendingCheck verifies post-tool-use.sh checks for
-// pending-maintenance.json after the engram filter but before all early-exit
-// paths (Write/Edit advisory, Bash-only exit) (#370).
+// pending-maintenance.json BEFORE the engram filter so pending content is
+// always consumed even when the first tool call is an engram command (#370).
 func TestT370_PostToolUsePendingCheck(t *testing.T) {
 	t.Parallel()
 
@@ -343,23 +343,27 @@ func TestT370_PostToolUsePendingCheck(t *testing.T) {
 	// Must reference #370.
 	g.Expect(script).To(ContainSubstring("#370"))
 
-	// Verify ordering: pending check before Write/Edit advisory and Bash-only exit.
+	// Verify ordering: pending check BEFORE engram filter, Write/Edit advisory, and Bash-only exit.
 	engramFilterIdx := strings.Index(script, "#352")
 	pendingCheckIdx := strings.Index(script, "pending-maintenance.json")
 	advisoryIdx := strings.Index(script, "Write/Edit")
 	bashOnlyIdx := strings.Index(script, `"$TOOL_NAME" != "Bash"`)
 
-	g.Expect(pendingCheckIdx).To(BeNumerically(">", engramFilterIdx),
-		"pending check must come after engram filter")
+	g.Expect(pendingCheckIdx).To(BeNumerically("<", engramFilterIdx),
+		"pending check must come before engram filter")
 	g.Expect(pendingCheckIdx).To(BeNumerically("<", advisoryIdx),
 		"pending check must come before Write/Edit advisory")
 	g.Expect(pendingCheckIdx).To(BeNumerically("<", bashOnlyIdx),
 		"pending check must come before Bash-only exit")
+
+	// Engram filter must emit pending content, not bare exit 0.
+	g.Expect(script).To(ContainSubstring("emit_pending_and_exit"),
+		"engram filter must use emit_pending_and_exit, not bare exit 0")
 }
 
 // TestT370_PreToolUsePendingCheck verifies pre-tool-use.sh checks for
-// pending-maintenance.json after the engram filter but before the Bash-only
-// exit (#370).
+// pending-maintenance.json BEFORE the engram filter so pending content is
+// always consumed even when the first tool call is an engram command (#370).
 func TestT370_PreToolUsePendingCheck(t *testing.T) {
 	t.Parallel()
 
@@ -386,8 +390,7 @@ func TestT370_PreToolUsePendingCheck(t *testing.T) {
 	// Must reference #370.
 	g.Expect(script).To(ContainSubstring("#370"))
 
-	// Verify ordering: pending check must appear AFTER engram filter
-	// but BEFORE the Bash-only exit.
+	// Verify ordering: pending check BEFORE engram filter and Bash-only exit.
 	engramFilterIdx := strings.Index(script, "#352")
 	pendingCheckIdx := strings.Index(script, "pending-maintenance.json")
 	bashOnlyIdx := strings.Index(script, `"$TOOL_NAME" != "Bash"`)
@@ -395,10 +398,14 @@ func TestT370_PreToolUsePendingCheck(t *testing.T) {
 	g.Expect(engramFilterIdx).To(BeNumerically(">", -1))
 	g.Expect(pendingCheckIdx).To(BeNumerically(">", -1))
 	g.Expect(bashOnlyIdx).To(BeNumerically(">", -1))
-	g.Expect(pendingCheckIdx).To(BeNumerically(">", engramFilterIdx),
-		"pending check must come after engram filter")
+	g.Expect(pendingCheckIdx).To(BeNumerically("<", engramFilterIdx),
+		"pending check must come before engram filter")
 	g.Expect(pendingCheckIdx).To(BeNumerically("<", bashOnlyIdx),
 		"pending check must come before Bash-only exit")
+
+	// Engram filter must emit pending content, not bare exit 0.
+	g.Expect(script).To(ContainSubstring("emit_pending_and_exit"),
+		"engram filter must use emit_pending_and_exit, not bare exit 0")
 }
 
 // TestT370_SessionStartWritesPendingFile verifies session-start.sh background

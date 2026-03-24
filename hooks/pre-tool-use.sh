@@ -27,17 +27,8 @@ STDIN_JSON="$(cat)"
 TOOL_NAME="$(echo "$STDIN_JSON" | jq -r '.tool_name // empty')"
 TOOL_INPUT="$(echo "$STDIN_JSON" | jq -c '.tool_input // {}')"
 
-# Don't surface memories for any engram CLI calls (#352, #369)
-if [[ "$TOOL_NAME" == "Bash" ]]; then
-    BASH_CMD="$(echo "$STDIN_JSON" | jq -r '.tool_input.command // empty')"
-    # Normalize ~/... to $HOME/... so both path forms match (#369)
-    BASH_CMD_NORMALIZED="${BASH_CMD//\~\//$HOME/}"
-    if [[ "$BASH_CMD_NORMALIZED" == *"$ENGRAM_BIN"* ]]; then
-        exit 0
-    fi
-fi
-
 # Consume pending maintenance results from async SessionStart (#370)
+# Must run BEFORE the engram filter — first tool call may be an engram command
 PENDING_SYS=""
 PENDING_CTX=""
 PENDING_FILE="$ENGRAM_HOME/pending-maintenance.json"
@@ -48,9 +39,8 @@ if [[ -f "$PENDING_FILE" ]] && mv "$PENDING_FILE" "$PENDING_TMP" 2>/dev/null; th
     rm -f "$PENDING_TMP"
 fi
 
-# Only surface memories for Bash tool calls — non-Bash tools produce near-random BM25 matches
-if [[ "$TOOL_NAME" != "Bash" ]]; then
-    # Emit pending content if available before exiting (#370)
+# Helper: emit pending content and exit
+emit_pending_and_exit() {
     if [[ -n "$PENDING_SYS" || -n "$PENDING_CTX" ]]; then
         jq -n \
             --arg sys "$PENDING_SYS" \
@@ -68,6 +58,22 @@ if [[ "$TOOL_NAME" != "Bash" ]]; then
             }'
     fi
     exit 0
+}
+
+# Don't surface memories for any engram CLI calls (#352, #369)
+# But still emit pending maintenance content if available
+if [[ "$TOOL_NAME" == "Bash" ]]; then
+    BASH_CMD="$(echo "$STDIN_JSON" | jq -r '.tool_input.command // empty')"
+    # Normalize ~/... to $HOME/... so both path forms match (#369)
+    BASH_CMD_NORMALIZED="${BASH_CMD//\~\//$HOME/}"
+    if [[ "$BASH_CMD_NORMALIZED" == *"$ENGRAM_BIN"* ]]; then
+        emit_pending_and_exit
+    fi
+fi
+
+# Only surface memories for Bash tool calls — non-Bash tools produce near-random BM25 matches
+if [[ "$TOOL_NAME" != "Bash" ]]; then
+    emit_pending_and_exit
 fi
 
 # UC-2: Surface relevant memories before tool use
@@ -102,19 +108,4 @@ if [[ -n "$TOOL_NAME" ]]; then
 fi
 
 # No surfacing output — emit pending content standalone if available (#370)
-if [[ -n "$PENDING_SYS" || -n "$PENDING_CTX" ]]; then
-    jq -n \
-        --arg sys "$PENDING_SYS" \
-        --arg ctx "$PENDING_CTX" \
-        '{
-            systemMessage: $sys,
-            continue: true,
-            suppressOutput: false,
-            hookSpecificOutput: {
-                hookEventName: "PreToolUse",
-                permissionDecision: "allow",
-                permissionDecisionReason: "",
-                additionalContext: $ctx
-            }
-        }'
-fi
+emit_pending_and_exit
