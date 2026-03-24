@@ -275,11 +275,12 @@ func TestT43_SessionStartHookSurfaces(t *testing.T) {
 
 	script := string(content)
 
-	// Session-start no longer calls surface — memory surfacing is opt-in via /recall.
+	// session-start.sh is the async hook — build, maintain, write pending file (#370).
+	// Static context (/recall, mid-turn note) moved to session-start-sync.sh.
 	g.Expect(script).To(ContainSubstring("bin/engram"))
 	g.Expect(script).To(ContainSubstring("CLAUDE_PLUGIN_ROOT"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
-	g.Expect(script).To(ContainSubstring("/recall"))
+	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
 }
 
 // TestT44_UserPromptSubmitHookSurfaces verifies hooks/user-prompt-submit.sh
@@ -454,11 +455,11 @@ func TestT99_SessionStartCreationInSystemMessage(t *testing.T) {
 
 	script := string(content)
 
-	// Session-start no longer calls surface — memory surfacing is opt-in via /recall.
-	// Must still output JSON with systemMessage and additionalContext.
-	g.Expect(script).To(ContainSubstring("{systemMessage: $sys"))
-	g.Expect(script).To(ContainSubstring("additionalContext:"))
-	g.Expect(script).To(ContainSubstring("/recall"))
+	// session-start.sh is now async — writes to pending-maintenance.json instead of stdout (#370).
+	// Static context (/recall, mid-turn note) moved to session-start-sync.sh.
+	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
+	g.Expect(script).To(ContainSubstring("ENGRAM_BIN.tmp"))
+	g.Expect(script).To(ContainSubstring("#370"))
 }
 
 // TestT370_SessionStartSyncEmitsStaticContext verifies session-start-sync.sh
@@ -491,6 +492,45 @@ func TestT370_SessionStartSyncEmitsStaticContext(t *testing.T) {
 	g.Expect(script).NotTo(ContainSubstring("go build"))
 	g.Expect(script).NotTo(ContainSubstring("engram maintain"))
 	g.Expect(script).NotTo(ContainSubstring("NEEDS_BUILD"))
+}
+
+// TestT370_SessionStartAsyncWritesPendingFile verifies session-start.sh writes
+// to pending-maintenance.json instead of stdout, uses atomic rename, and deletes
+// stale files (#370).
+func TestT370_SessionStartAsyncWritesPendingFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "session-start.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must write to pending file, not stdout.
+	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
+	// Must use atomic write (temp + mv).
+	g.Expect(script).To(ContainSubstring(".tmp"))
+	g.Expect(script).To(ContainSubstring("mv "))
+	// Must delete stale pending file at start.
+	g.Expect(script).To(ContainSubstring("rm -f"))
+	// Must use atomic build (temp + mv).
+	g.Expect(script).To(ContainSubstring("ENGRAM_BIN.tmp"))
+	// Must still run maintain.
+	g.Expect(script).To(ContainSubstring("engram maintain"), "async hook must run maintain")
+	// Must NOT emit the old stdout JSON assembly.
+	g.Expect(script).NotTo(ContainSubstring("{systemMessage: $sys"))
+	// Must NOT contain /recall or mid-turn note (moved to sync hook).
+	g.Expect(script).NotTo(ContainSubstring("Mid-turn user messages"))
+	// Must reference #370.
+	g.Expect(script).To(ContainSubstring("#370"))
 }
 
 // repoRoot returns the engram repository root by walking up from the test file.

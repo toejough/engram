@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Async SessionStart hook — build, maintain, write pending file (#370).
+# Static context (recall reminder, mid-turn note) is in session-start-sync.sh.
+
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
+PENDING_FILE="${ENGRAM_HOME}/pending-maintenance.json"
+
+# Delete stale pending file from a previous session (#370)
+rm -f "$PENDING_FILE"
 
 # Build if missing or stale (source newer than binary)
+# Uses atomic temp+mv to avoid corrupting binary during concurrent reads (#370)
 NEEDS_BUILD=false
 if [[ ! -x "$ENGRAM_BIN" ]]; then
     NEEDS_BUILD=true
@@ -19,7 +27,8 @@ fi
 if [[ "$NEEDS_BUILD" == "true" ]]; then
     mkdir -p "${ENGRAM_HOME}/bin"
     cd "$PLUGIN_ROOT"
-    go build -o "$ENGRAM_BIN" ./cmd/engram/ 2>/dev/null || { echo "[engram] build failed — is Go installed?" >&2; exit 0; }
+    go build -o "$ENGRAM_BIN.tmp" ./cmd/engram/ 2>/dev/null || { echo "[engram] build failed — is Go installed?" >&2; exit 0; }
+    mv "$ENGRAM_BIN.tmp" "$ENGRAM_BIN"
 fi
 
 # UC-27: Create global symlink so engram is on PATH (fire-and-forget)
@@ -39,11 +48,8 @@ SYMLINK_TARGET="$HOME/.local/bin/engram"
     fi
 } || true
 
-# UC-28: Run maintenance classification (single source of truth for signals)
+# UC-28: Run engram maintain — single source of truth for signals
 SIGNAL_OUTPUT=$("$ENGRAM_BIN" maintain 2>/dev/null) || true
-
-# Static guidance for mid-turn message capture (issue #54)
-MIDTURN_NOTE="[engram] Mid-turn user messages (delivered via system-reminder) bypass engram hooks. If you receive a mid-turn correction or instruction, capture it by running: ~/.claude/engram/bin/engram correct --message '<the user message>'"
 
 # Parse maintain proposals (JSON array with quadrant, action, memory_path, diagnosis)
 PROPOSAL_COUNT=0
@@ -119,12 +125,9 @@ ${detail}
     done
 fi
 
-# Build short summary for systemMessage (user sees this in terminal)
-# Full details go in additionalContext for Claude to reference on request
-DIRECTIVE=""
-TRIAGE_CTX=""
+# Only write pending file if there are proposals (#370)
 if [[ "$PROPOSAL_COUNT" -gt 0 ]]; then
-    # Build a compact counts line
+    # Build compact counts line
     COUNTS=""
     [[ "$NOISE_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${NOISE_COUNT} noise"
     [[ "$HIDDEN_GEM_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${HIDDEN_GEM_COUNT} hidden gems"
@@ -133,27 +136,15 @@ if [[ "$PROPOSAL_COUNT" -gt 0 ]]; then
     [[ "$ESCALATION_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${ESCALATION_COUNT} escalation"
     DIRECTIVE="[engram] Memory triage: ${COUNTS} pending. Say \"triage\" to review, or ignore to proceed."
 
-    # Full details + commands go in additionalContext
     TRIAGE_CTX="[engram] Memory triage details (present interactively if user says 'triage'):
 ${TRIAGE_DETAILS}
 Use the engram:memory-triage skill for commands and presentation format.
 Present one category at a time. Ask what the user wants to do with each before moving to the next."
-fi
 
-# Assemble output
-ADDITIONAL_CTX="$MIDTURN_NOTE"
-if [[ -n "$TRIAGE_CTX" ]]; then
-    ADDITIONAL_CTX="${ADDITIONAL_CTX}
-${TRIAGE_CTX}"
+    # Write to temp file, then atomic rename (#370)
+    jq -n \
+        --arg directive "$DIRECTIVE" \
+        --arg triage "$TRIAGE_CTX" \
+        '{systemMessage: $directive, additionalContext: $triage}' > "$PENDING_FILE.tmp"
+    mv "$PENDING_FILE.tmp" "$PENDING_FILE"
 fi
-
-SYSTEM_MSG="[engram] Say /recall to load context from previous sessions, or /recall <query> to search session history."
-if [[ -n "$DIRECTIVE" ]]; then
-    SYSTEM_MSG="${DIRECTIVE}
-${SYSTEM_MSG}"
-fi
-
-jq -n \
-    --arg sys "$SYSTEM_MSG" \
-    --arg add "$ADDITIONAL_CTX" \
-    '{systemMessage: $sys, additionalContext: $add}'
