@@ -96,5 +96,6 @@ type Stored struct {
 	IrrelevantCount   int
 	IrrelevantQueries []string
 	UpdatedAt         time.Time
+	LastSurfacedAt    time.Time
 	FilePath          string
 }

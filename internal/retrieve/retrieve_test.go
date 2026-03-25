@@ -193,14 +193,84 @@ func TestT82_OldTrackingFieldsIgnored(t *testing.T) {
 	g.Expect(memories[0].FilePath).To(ContainSubstring("tracked.toml"))
 }
 
+// T-374a: TOML with last_surfaced_at parses into Stored.LastSurfacedAt correctly.
+func TestT374a_LastSurfacedAtParsed(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memoriesDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	writeTestTOML(t, memoriesDir, "surfaced.toml", tomlContent{
+		Title:          "Surfaced Memory",
+		Keywords:       []string{"surf"},
+		UpdatedAt:      "2026-03-10T00:00:00Z",
+		LastSurfacedAt: "2026-03-01T12:00:00Z",
+	})
+
+	r := retrieve.New()
+	memories, err := r.ListMemories(context.Background(), dataDir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(memories).To(HaveLen(1))
+	g.Expect(memories[0].LastSurfacedAt).To(Equal(time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)))
+}
+
+// T-374b: TOML without last_surfaced_at produces zero-value LastSurfacedAt.
+func TestT374b_LastSurfacedAtAbsentIsZero(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memoriesDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	writeTestTOML(t, memoriesDir, "no-surfaced.toml", tomlContent{
+		Title:     "No Surfaced Memory",
+		Keywords:  []string{"none"},
+		UpdatedAt: "2026-03-10T00:00:00Z",
+	})
+
+	r := retrieve.New()
+	memories, err := r.ListMemories(context.Background(), dataDir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(memories).To(HaveLen(1))
+	g.Expect(memories[0].LastSurfacedAt).To(BeZero())
+}
+
 // tomlContent is a test helper for writing memory TOML files.
 type tomlContent struct {
-	Title       string
-	Keywords    []string
-	Concepts    []string
-	AntiPattern string
-	UpdatedAt   string
-	Principle   string
+	Title          string
+	Keywords       []string
+	Concepts       []string
+	AntiPattern    string
+	UpdatedAt      string
+	Principle      string
+	LastSurfacedAt string
 }
 
 // formatTOMLStringArray formats a string slice as a TOML array literal.
@@ -241,6 +311,11 @@ confidence = "B"
 created_at = "2025-01-01T00:00:00Z"
 updated_at = "` + tc.UpdatedAt + `"
 `
+
+	if tc.LastSurfacedAt != "" {
+		content += `last_surfaced_at = "` + tc.LastSurfacedAt + `"
+`
+	}
 
 	path := filepath.Join(dir, filename)
 
