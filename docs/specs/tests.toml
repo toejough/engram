@@ -932,9 +932,9 @@ name = "Frecency activation computation — all components present"
 traces_to = ["ARCH-35", "REQ-46"]
 hash = "0f2ffdb0"
 body = '''
-**Given** a memory with SurfacedCount=10, LastSurfaced=2h ago, SurfacingContexts=["session-start","prompt","tool"], and effectiveness score of 80%,
+**Given** a memory with SurfacedCount=10, LastSurfaced=2h ago, SurfacingContexts=["prompt","tool"], and effectiveness score of 80%,
 **When** Activation is computed,
-**Then** the result combines: log(11) × 1/(1+2) × log(4) × 0.8. All four components are multiplied together to produce a positive activation score.
+**Then** the result combines: log(11) × 1/(1+2) × log(3) × 0.8. All four components are multiplied together to produce a positive activation score.
 
 - Type: example-based (verify formula components)
 '''
@@ -976,15 +976,11 @@ body = '''
 '''
 
 [T-169]
-name = "SessionStart uses pure frecency ranking"
+name = "SessionStart uses pure frecency ranking *(removed)*"
 traces_to = ["ARCH-35", "REQ-9"]
 hash = "58d00f33"
 body = '''
-**Given** 25 memories with varying surfacing history and effectiveness data,
-**When** surface is called with mode session-start,
-**Then** memories are ranked by pure frecency activation score (not BM25). Top 20 are surfaced. Higher frequency + recency + spread + effectiveness = higher rank.
-
-- Type: example-based (SessionStart frecency ranking)
+**Status:** Removed. SessionStart no longer surfaces memories (session-recall redesign, 2026-03-21).
 '''
 
 [T-170]
@@ -1368,7 +1364,7 @@ name = "Budget cap configuration loads from config.toml"
 traces_to = ["ARCH-40", "REQ-56"]
 hash = "0efff824"
 body = '''
-**Given** a config file with custom budget values (e.g., SessionStart = 1000),
+**Given** a config file with custom budget values (e.g., Prompt = 1000),
 **When** surface command loads config,
 **Then** the custom value is used. If config is missing, defaults are used.
 
@@ -1396,9 +1392,9 @@ name = "Budget warning triggers at >50% cap hit rate"
 traces_to = ["ARCH-41", "REQ-59"]
 hash = "845a196f"
 body = '''
-**Given** surfacing logs showing 6 out of 10 SessionStart invocations exceed budget cap,
+**Given** surfacing logs showing 6 out of 10 Prompt invocations exceed budget cap,
 **When** `engram review` computes cap hit rate,
-**Then** the warning is raised: "⚠ Hitting cap on 60% of invocations" for SessionStart hook.
+**Then** the warning is raised: "⚠ Hitting cap on 60% of invocations" for Prompt hook.
 
 - Verification: unit (mock surfacing log with synthetic cap hits)
 '''
@@ -2198,8 +2194,6 @@ body = '''
 
 
 ---
-
-## SessionStart Surfacing (ARCH-9, ARCH-12)
 '''
 
 [T-260]
@@ -2363,13 +2357,11 @@ All ARCH items have test coverage.
 '''
 
 [T-27]
-name = "SessionStart surfaces top 20 by recency"
+name = "SessionStart surfaces top 20 by recency *(removed)*"
 traces_to = ["ARCH-9", "ARCH-12", "REQ-9", "DES-5"]
 hash = "0b3bc5c6"
 body = '''
-**Given** a data directory with 25 memory files,
-**When** surface is called with mode session-start,
-**Then** output contains exactly 20 memory entries in DES-5 format, ordered by `updated_at` descending.
+**Status:** Removed. SessionStart no longer surfaces memories (session-recall redesign, 2026-03-21).
 '''
 
 [T-273]
@@ -2471,13 +2463,11 @@ Then: No new registrations, no removals, no content hash updates; surfacing incr
 '''
 
 [T-28]
-name = "SessionStart with fewer than 20 memories surfaces all"
+name = "SessionStart with fewer than 20 memories surfaces all *(removed)*"
 traces_to = ["ARCH-9", "ARCH-12", "REQ-9", "DES-5"]
 hash = "2d1094d3"
 body = '''
-**Given** a data directory with 3 memory files,
-**When** surface is called with mode session-start,
-**Then** output contains all 3 entries in DES-5 format.
+**Status:** Removed. SessionStart no longer surfaces memories (session-recall redesign, 2026-03-21).
 '''
 
 [T-280]
@@ -2495,29 +2485,19 @@ Then: Error logged to stderr; remaining entries still registered; no error retur
 '''
 
 [T-283]
-name = "Session-start mode triggers auto-registration"
+name = "Session-start mode triggers auto-registration *(removed)*"
 traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "26468c85"
 body = '''
-**Traces to:** ARCH-71
-
-Given: `engram surface --mode session-start --data-dir <dir>`
-When: CLI runs surface command
-Then: Registrar.Run is called before memory surfacing
-
----
+**Status:** Removed. SessionStart no longer surfaces memories (session-recall redesign, 2026-03-21).
 '''
 
 [T-284]
-name = "Non-session-start modes skip auto-registration"
+name = "Non-session-start modes skip auto-registration *(removed)*"
 traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "ecbc57f9"
 body = '''
-**Traces to:** ARCH-71
-
-Given: `engram surface --mode prompt --data-dir <dir>`
-When: CLI runs surface command
-Then: Registrar.Run is NOT called; only memory surfacing executes
+**Status:** Removed. SessionStart no longer surfaces memories (session-recall redesign, 2026-03-21).
 
 ---
 
@@ -3518,13 +3498,11 @@ Uses fake LLM returning appropriate tiers and anti-pattern values.
 '''
 
 [T-40]
-name = "Mode session-start routes to SessionStart surfacing"
+name = "Mode session-start routes to SessionStart surfacing *(removed)*"
 traces_to = ["ARCH-12", "REQ-14"]
 hash = "71b7974c"
 body = '''
-**Given** the surface subcommand with `--mode session-start --data-dir <tmpdir>`,
-**When** Run is called,
-**Then** it reads memories and produces DES-5 format output.
+**Status:** Removed. SessionStart no longer surfaces memories (session-recall redesign, 2026-03-21).
 '''
 
 [T-41]
@@ -4085,8 +4063,8 @@ traces_to = ["ARCH-19", "REQ-22"]
 hash = "636ecb16"
 body = '''
 **Given** a memory TOML file with `surfaced_count = 3`, `last_surfaced = "2026-03-01T00:00:00Z"`, and `surfacing_contexts = ["prompt", "tool", "prompt"]`,
-**When** `RecordSurfacing` is called with mode `"session-start"`,
-**Then** the file has `surfaced_count = 4`, `last_surfaced` updated to current time, and `surfacing_contexts = ["prompt", "tool", "prompt", "session-start"]`.
+**When** `RecordSurfacing` is called with mode `"prompt"`,
+**Then** the file has `surfaced_count = 4`, `last_surfaced` updated to current time, and `surfacing_contexts = ["prompt", "tool", "prompt", "prompt"]`.
 
 Example-based: verifying increment behavior on existing tracking state.
 '''
@@ -4307,39 +4285,27 @@ Example-based: verifying error propagation for unexpected read failures.
 '''
 
 [T-92]
-name = "SessionStart includes creation report before recency surfacing"
+name = "SessionStart includes creation report before recency surfacing *(removed)*"
 traces_to = ["ARCH-12", "ARCH-21", "REQ-24", "DES-5"]
 hash = "e25cc9d0"
 body = '''
-**Given** a creation log with 2 entries and 3 memory files in the data directory,
-**When** surface is called with mode session-start and --format json,
-**Then** the JSON `summary` includes both "[engram] Created 2 memories since last session:" and "[engram] Loaded 3 memories." The `context` includes both the creation report system-reminder block (with titles, tiers, filenames) and the recency surfacing system-reminder block.
-
-Example-based: verifying combined output with both sections.
+**Status:** Removed. SessionStart no longer surfaces memories (session-recall redesign, 2026-03-21).
 '''
 
 [T-93]
-name = "SessionStart with no creation log produces recency-only output"
+name = "SessionStart with no creation log produces recency-only output *(removed)*"
 traces_to = ["ARCH-12", "ARCH-21", "REQ-24", "DES-5"]
 hash = "303daa9f"
 body = '''
-**Given** no creation log exists and 3 memory files in the data directory,
-**When** surface is called with mode session-start and --format json,
-**Then** the output is identical to existing behavior (recency surfacing only, no creation report section).
-
-Example-based: verifying backward compatibility.
+**Status:** Removed. SessionStart no longer surfaces memories (session-recall redesign, 2026-03-21).
 '''
 
 [T-94]
-name = "SessionStart with creation log but no memories produces creation-only output"
+name = "SessionStart with creation log but no memories produces creation-only output *(removed)*"
 traces_to = ["ARCH-12", "ARCH-21", "REQ-24", "DES-5"]
 hash = "080a3e82"
 body = '''
-**Given** a creation log with 1 entry but no memory files in the data directory,
-**When** surface is called with mode session-start and --format json,
-**Then** the JSON `summary` includes "[engram] Created 1 memories since last session:" but no recency section. The creation log is cleared after reading.
-
-Example-based: verifying creation-only path.
+**Status:** Removed. SessionStart no longer surfaces memories (session-recall redesign, 2026-03-21).
 
 
 ---
@@ -4401,15 +4367,11 @@ Updates T-44 to verify creation goes to systemMessage.
 '''
 
 [T-99]
-name = "SessionStart hook puts creation report in systemMessage"
+name = "SessionStart hook puts creation report in systemMessage *(removed)*"
 traces_to = ["ARCH-13", "DES-5", "REQ-24"]
 hash = "b6e84807"
 body = '''
-**Given** the session-start hook script at `hooks/session-start.sh`,
-**When** its content is read,
-**Then** it calls `engram surface --mode session-start --format json` and reshapes the output so that both the creation report summary and recency summary appear in `systemMessage`.
-
-Updates T-43 to verify creation report visibility.
+**Status:** Removed. SessionStart no longer surfaces memories (session-recall redesign, 2026-03-21).
 
 
 ---
