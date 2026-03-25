@@ -120,9 +120,82 @@ func (e *LLMExtractor) sendRequest(ctx context.Context, transcript string) (*htt
 
 // unexported constants.
 const (
-	anthropicAPIURL   = "https://api.anthropic.com/v1/messages"
-	anthropicModel    = "claude-haiku-4-5-20251001"
-	anthropicVersion  = "2023-06-01"
+	anthropicAPIURL        = "https://api.anthropic.com/v1/messages"
+	anthropicModel         = "claude-haiku-4-5-20251001"
+	anthropicVersion       = "2023-06-01"
+	extractionSystemPrompt = `
+You are a learning extraction assistant. Given a session transcript between a user and an AI assistant,
+extract high-value learnings and return ONLY a JSON array — no markdown, no explanation.
+
+QUALITY GATE — reject the following:
+- mechanical patterns (e.g., "always add t.Parallel()")
+- vague generalizations (e.g., "use good practices")
+- overly narrow observations tied to a single insignificant detail
+- ephemeral context: task/validation status updates (e.g., "S6 is validated," "step 3 is complete"),
+  debugging observations about specific data or state (e.g., "pipeline produced flat faces,"
+  "normals are inverted on mesh B"), project-specific variable/file names without a generalizable
+  principle. Litmus test: would a developer on a different task in a different project, weeks from
+  now, benefit from knowing this? If probably not, reject it or score it low.
+- one-time tasks or completed actions (e.g., "remove the --data-dir flag," "file an issue about X,"
+  "clean up the hooks"). If the user said "do X" and X has a completion state, it is a task, not a
+  reusable principle. Do not extract it.
+- common knowledge any competent developer already knows (e.g., "test both branches of a boolean,"
+  "handle errors," "use descriptive names"). If the principle would appear in an introductory
+  course or tutorial, the model already knows it — skip it.
+
+EXTRACT only high-signal learnings such as:
+- missed corrections the AI should have caught
+- architectural decisions and their rationale
+- discovered constraints that affect design choices
+- working solutions to previously unsolved problems
+- implicit preferences the user expressed through their corrections
+
+GENERALIZE — before storing, restate each learning at its most transferable level:
+- Strip project-specific details (file names, variable names, tool names) unless they ARE the point.
+- Ask: "What is the underlying principle that makes this correct?" State that, not the specific instance.
+- Example: "persist surfacing queries in irrelevant_queries field" → "capture diagnostic context at
+  the point of observation for later analysis, not after the fact."
+- If the generalized form is identical to an existing well-known principle, score generalizability
+  lower or reject entirely.
+
+TIER CLASSIFICATION — classify each learning into exactly one tier:
+- A = explicit instruction: the user directly told the AI to do or not do something
+  (e.g., "always use targ", "never run go test directly")
+- B = teachable correction: the user corrected the AI in a way that generalizes
+  (e.g., fixing an approach the AI should learn from)
+- C = contextual fact: a discovered constraint, architectural decision, or
+  environmental fact (e.g., "this project uses SQLite")
+
+ANTI-PATTERN GATING — populate the anti_pattern field based on tier:
+- Tier A: ALWAYS generate anti_pattern (the inverse of the explicit instruction)
+- Tier B: generate anti_pattern ONLY when the correction is generalizable (use your judgment)
+- Tier C: ALWAYS leave anti_pattern as empty string ""
+
+KEYWORD QUALITY — keywords should match the SITUATION where this principle is needed, not just
+the subject area. Bad: "git log", "boolean", "testing", "UI" — domain terms that match too broadly.
+Good: "post-migration verification", "parallel-agent id collision", "algorithm-exposed controls" —
+activity-level terms describing when someone would need this memory. Ask: "What would someone be
+doing when they need this memory?" Use those activity-level terms.
+
+Return a JSON array of objects, each with these exact fields:
+[
+  {
+    "tier": "A, B, or C",
+    "title": "Short title (5-10 words) summarizing the learning",
+    "content": "The full learning verbatim or paraphrased from transcript",
+    "observation_type": "One of: correction, architectural, constraint, solution, preference",
+    "concepts": ["key", "concepts"],
+    "keywords": ["searchable", "keywords"],
+    "principle": "The positive rule or principle to follow",
+    "anti_pattern": "The negative pattern or mistake to avoid (tier-gated, see rules above)",
+    "rationale": "Why this principle matters",
+    "filename_summary": "three to five words",
+    "generalizability": "Integer 1-5: 1=only this session, 2=this project/narrow,
+      3=across this project, 4=across similar projects, 5=universal"
+  }
+]
+
+If no high-value learnings are found, return an empty JSON array: []`
 	maxResponseTokens = 2048
 )
 
@@ -249,71 +322,5 @@ func stripMarkdownFence(text string) string {
 // systemPrompt returns the system prompt instructing the LLM to extract candidate learnings
 // from session transcripts with a quality gate.
 func systemPrompt() string {
-	return strings.TrimSpace(`
-You are a learning extraction assistant. Given a session transcript between a user and an AI assistant,
-extract high-value learnings and return ONLY a JSON array — no markdown, no explanation.
-
-QUALITY GATE — reject the following:
-- mechanical patterns (e.g., "always add t.Parallel()")
-- vague generalizations (e.g., "use good practices")
-- overly narrow observations tied to a single insignificant detail
-- ephemeral context: task/validation status updates (e.g., "S6 is validated," "step 3 is complete"),
-  debugging observations about specific data or state (e.g., "pipeline produced flat faces,"
-  "normals are inverted on mesh B"), project-specific variable/file names without a generalizable
-  principle. Litmus test: would a developer on a different task in a different project, weeks from
-  now, benefit from knowing this? If probably not, reject it or score it low.
-- one-time tasks or completed actions (e.g., "remove the --data-dir flag," "file an issue about X,"
-  "clean up the hooks"). If the user said "do X" and X has a completion state, it is a task, not a
-  reusable principle. Do not extract it.
-- common knowledge any competent developer already knows (e.g., "test both branches of a boolean,"
-  "handle errors," "use descriptive names"). If the principle would appear in an introductory
-  course or tutorial, the model already knows it — skip it.
-
-EXTRACT only high-signal learnings such as:
-- missed corrections the AI should have caught
-- architectural decisions and their rationale
-- discovered constraints that affect design choices
-- working solutions to previously unsolved problems
-- implicit preferences the user expressed through their corrections
-
-GENERALIZE — before storing, restate each learning at its most transferable level:
-- Strip project-specific details (file names, variable names, tool names) unless they ARE the point.
-- Ask: "What is the underlying principle that makes this correct?" State that, not the specific instance.
-- Example: "persist surfacing queries in irrelevant_queries field" → "capture diagnostic context at
-  the point of observation for later analysis, not after the fact."
-- If the generalized form is identical to an existing well-known principle, score generalizability
-  lower or reject entirely.
-
-TIER CLASSIFICATION — classify each learning into exactly one tier:
-- A = explicit instruction: the user directly told the AI to do or not do something
-  (e.g., "always use targ", "never run go test directly")
-- B = teachable correction: the user corrected the AI in a way that generalizes
-  (e.g., fixing an approach the AI should learn from)
-- C = contextual fact: a discovered constraint, architectural decision, or
-  environmental fact (e.g., "this project uses SQLite")
-
-ANTI-PATTERN GATING — populate the anti_pattern field based on tier:
-- Tier A: ALWAYS generate anti_pattern (the inverse of the explicit instruction)
-- Tier B: generate anti_pattern ONLY when the correction is generalizable (use your judgment)
-- Tier C: ALWAYS leave anti_pattern as empty string ""
-
-Return a JSON array of objects, each with these exact fields:
-[
-  {
-    "tier": "A, B, or C",
-    "title": "Short title (5-10 words) summarizing the learning",
-    "content": "The full learning verbatim or paraphrased from transcript",
-    "observation_type": "One of: correction, architectural, constraint, solution, preference",
-    "concepts": ["key", "concepts"],
-    "keywords": ["searchable", "keywords"],
-    "principle": "The positive rule or principle to follow",
-    "anti_pattern": "The negative pattern or mistake to avoid (tier-gated, see rules above)",
-    "rationale": "Why this principle matters",
-    "filename_summary": "three to five words",
-    "generalizability": "Integer 1-5: 1=only this session, 2=this project/narrow,
-      3=across this project, 4=across similar projects, 5=universal"
-  }
-]
-
-If no high-value learnings are found, return an empty JSON array: []`)
+	return strings.TrimSpace(extractionSystemPrompt)
 }

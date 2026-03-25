@@ -191,6 +191,39 @@ func TestSystemPromptIncludesTierDefinitions(t *testing.T) {
 	g.Expect(reqBodyStr).To(ContainSubstring("anti_pattern"))
 }
 
+// TestSystemPrompt_GeneralizationGuidance verifies that the system prompt
+// instructs the LLM to generalize learnings before storing them.
+func TestSystemPrompt_GeneralizationGuidance(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	prompt := extract.SystemPromptForTest()
+	g.Expect(prompt).To(ContainSubstring("GENERALIZE"))
+	g.Expect(prompt).To(ContainSubstring("most transferable level"))
+}
+
+// TestSystemPrompt_KeywordGuidance verifies that the system prompt instructs
+// the LLM to use activity-level, situation-specific keywords.
+func TestSystemPrompt_KeywordGuidance(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	prompt := extract.SystemPromptForTest()
+	g.Expect(prompt).To(ContainSubstring("SITUATION where this principle is needed"))
+	g.Expect(prompt).To(ContainSubstring("activity-level terms"))
+}
+
+// TestSystemPrompt_RejectsTasksAndCommonKnowledge verifies that the system prompt
+// instructs the LLM to reject one-time tasks and common knowledge.
+func TestSystemPrompt_RejectsTasksAndCommonKnowledge(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	prompt := extract.SystemPromptForTest()
+	g.Expect(prompt).To(ContainSubstring("one-time tasks or completed actions"))
+	g.Expect(prompt).To(ContainSubstring("common knowledge any competent developer already knows"))
+}
+
 // TestT47_ExtractionWithTokenProducesCandidateLearnings verifies that a valid API
 // token and well-formed LLM response produce CandidateLearnings with all fields set.
 func TestT47_ExtractionWithTokenProducesCandidateLearnings(t *testing.T) {
@@ -484,39 +517,6 @@ func TestTierGatedAntiPattern(t *testing.T) {
 	// Tier C has empty anti_pattern.
 	g.Expect(learnings[1].Tier).To(Equal("C"))
 	g.Expect(learnings[1].AntiPattern).To(BeEmpty())
-}
-
-// TestSystemPrompt_RejectsTasksAndCommonKnowledge verifies that the system prompt
-// instructs the LLM to reject one-time tasks and common knowledge.
-func TestSystemPrompt_RejectsTasksAndCommonKnowledge(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	prompt := extract.SystemPromptForTest()
-	g.Expect(prompt).To(ContainSubstring("one-time tasks or completed actions"))
-	g.Expect(prompt).To(ContainSubstring("common knowledge any competent developer already knows"))
-}
-
-// TestSystemPrompt_GeneralizationGuidance verifies that the system prompt
-// instructs the LLM to generalize learnings before storing them.
-func TestSystemPrompt_GeneralizationGuidance(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	prompt := extract.SystemPromptForTest()
-	g.Expect(prompt).To(ContainSubstring("GENERALIZE"))
-	g.Expect(prompt).To(ContainSubstring("most transferable level"))
-}
-
-// TestSystemPrompt_KeywordGuidance verifies that the system prompt instructs
-// the LLM to use activity-level, situation-specific keywords.
-func TestSystemPrompt_KeywordGuidance(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	prompt := extract.SystemPromptForTest()
-	g.Expect(prompt).To(ContainSubstring("SITUATION where this principle is needed"))
-	g.Expect(prompt).To(ContainSubstring("activity-level terms"))
 }
 
 // fakeHTTPDoer is a test double for extract.HTTPDoer that returns a canned response.
