@@ -262,6 +262,12 @@ QUALITY GATE — reject the following:
   "normals are inverted on mesh B"), project-specific variable/file names without a generalizable
   principle. Litmus test: would a developer on a different task in a different project, weeks from
   now, benefit from knowing this? If probably not, reject it or score it low.
+- one-time tasks or completed actions (e.g., "remove the --data-dir flag," "file an issue about X,"
+  "clean up the hooks"). If the user said "do X" and X has a completion state, it is a task, not a
+  reusable principle. Do not extract it.
+- common knowledge any competent developer already knows (e.g., "test both branches of a boolean,"
+  "handle errors," "use descriptive names"). If the principle would appear in an introductory
+  course or tutorial, the model already knows it — skip it.
 
 EXTRACT only high-signal learnings such as:
 - missed corrections the AI should have caught
