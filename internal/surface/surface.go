@@ -186,18 +186,15 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		}
 	}
 
-	// Create frecency scorer with current time and effectiveness data (ARCH-35).
-	var frecencyEff map[string]frecency.EffectivenessStat
-	if effectiveness != nil {
-		frecencyEff = make(map[string]frecency.EffectivenessStat, len(effectiveness))
-		for path, stat := range effectiveness {
-			frecencyEff[path] = frecency.EffectivenessStat{
-				EffectivenessScore: stat.EffectivenessScore,
-			}
+	// Create frecency scorer with current time and corpus-wide max surfaced count (ARCH-35).
+	maxSurfaced := 0
+	for _, stat := range effectiveness {
+		if stat.SurfacedCount > maxSurfaced {
+			maxSurfaced = stat.SurfacedCount
 		}
 	}
 
-	scorer := frecency.New(time.Now(), frecencyEff)
+	scorer := frecency.New(time.Now(), maxSurfaced)
 
 	var (
 		result            Result
@@ -465,7 +462,7 @@ func (s *Surfacer) runPreCompact(
 	}, candidates, nil, nil
 }
 
-//nolint:cyclop,funlen // orchestration function: BM25 filtering + suppression + budget: inherent branching
+//nolint:cyclop,funlen,gocognit // BM25 filtering + suppression + budget + spreading: inherent branching
 func (s *Surfacer) runPrompt(
 	ctx context.Context,
 	dataDir, message, transcriptWindow string,
@@ -480,6 +477,51 @@ func (s *Surfacer) runPrompt(
 	matches := matchPromptMemories(message, memories, effectiveness)
 	if len(matches) == 0 {
 		return Result{}, nil, nil, nil
+	}
+
+	// BM25-seeded spreading activation: neighbors of BM25 matches join the candidate pool (#374).
+	if s.linkReader != nil {
+		// Index all memories by file path for neighbor lookup.
+		memByPath := make(map[string]*memory.Stored, len(memories))
+		for _, mem := range memories {
+			memByPath[mem.FilePath] = mem
+		}
+
+		// Build bm25Matches map from existing BM25 matches.
+		bm25Matches := make(map[string]float64, len(matches))
+		for _, match := range matches {
+			bm25Matches[match.mem.FilePath] = match.bm25Score
+		}
+
+		spreading := computeSpreading(bm25Matches, s.linkReader)
+
+		// Set spreading scores on existing BM25 matches.
+		for i := range matches {
+			matches[i].spreadingScore = spreading[matches[i].mem.FilePath]
+		}
+
+		// Add spreading-only neighbors not already in matches.
+		existingPaths := make(map[string]bool, len(matches))
+		for _, match := range matches {
+			existingPaths[match.mem.FilePath] = true
+		}
+
+		for neighborPath, spreadScore := range spreading {
+			if existingPaths[neighborPath] {
+				continue
+			}
+
+			neighborMem, ok := memByPath[neighborPath]
+			if !ok {
+				continue
+			}
+
+			matches = append(matches, promptMatch{
+				mem:            neighborMem,
+				bm25Score:      0,
+				spreadingScore: spreadScore,
+			})
+		}
 	}
 
 	// Re-rank by frecency activation (ARCH-35).
@@ -693,7 +735,7 @@ func (s *Surfacer) runSessionStart(
 	}, memories, suppressionEvents, nil
 }
 
-//nolint:unparam // []SuppressionEvent always nil here — suppression not yet applied in tool mode
+//nolint:cyclop,funlen,unparam // BM25 filtering + spreading activation + tool gate: inherent branching
 func (s *Surfacer) runTool(
 	ctx context.Context,
 	opts Options,
@@ -726,6 +768,54 @@ func (s *Surfacer) runTool(
 	candidates = filterToolMatchesByEffectivenessGate(candidates, effectiveness)
 	if len(candidates) == 0 {
 		return Result{}, nil, nil, nil
+	}
+
+	// BM25-seeded spreading activation: neighbors of BM25 matches join the candidate pool (#374).
+	// Only anti-pattern memories qualify as tool candidates.
+	if s.linkReader != nil {
+		// Index anti-pattern memories by file path for neighbor lookup.
+		memByPath := make(map[string]*memory.Stored, len(memories))
+		for _, mem := range memories {
+			if mem.AntiPattern != "" {
+				memByPath[mem.FilePath] = mem
+			}
+		}
+
+		// Build bm25Matches map from existing BM25 candidates.
+		bm25Matches := make(map[string]float64, len(candidates))
+		for _, candidate := range candidates {
+			bm25Matches[candidate.mem.FilePath] = candidate.bm25Score
+		}
+
+		spreading := computeSpreading(bm25Matches, s.linkReader)
+
+		// Set spreading scores on existing BM25 candidates.
+		for i := range candidates {
+			candidates[i].spreadingScore = spreading[candidates[i].mem.FilePath]
+		}
+
+		// Add spreading-only neighbors not already in candidates.
+		existingPaths := make(map[string]bool, len(candidates))
+		for _, candidate := range candidates {
+			existingPaths[candidate.mem.FilePath] = true
+		}
+
+		for neighborPath, spreadScore := range spreading {
+			if existingPaths[neighborPath] {
+				continue
+			}
+
+			neighborMem, ok := memByPath[neighborPath]
+			if !ok {
+				continue
+			}
+
+			candidates = append(candidates, toolMatch{
+				mem:            neighborMem,
+				bm25Score:      0,
+				spreadingScore: spreadScore,
+			})
+		}
 	}
 
 	// Re-rank by frecency activation (ARCH-35).
@@ -991,30 +1081,32 @@ const (
 	enforcementAdvisory              = "advisory"
 	enforcementEmphasizedAdvisory    = "emphasized_advisory"
 	enforcementReminder              = "reminder"
-	insufficientDataThreshold        = 5 // REQ-P4e-1: <5 surfacings → insufficient data, skip gating
 	irrelevancePenaltyHalfLife       = 5
-	minEffectivenessFloor            = 40.0 // REQ-P4e-1/REQ-P4e-4: gate threshold
+	minEffectivenessFloor            = 40.0 // gate threshold
 	minPreCompactEffectiveness       = 40.0
 	minRelevanceScore                = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
 	preCompactLimit                  = 5
 	promptLimit                      = 2
-	sessionStartDefaultEffectiveness = 50.0 // DES-P4e-1: default for memories with 1-4 surfacings
+	sessionStartDefaultEffectiveness = 50.0 // neutral default for memories with no effectiveness data
 	sessionStartLimit                = 7    // REQ-P4e-2: top-7
 	spreadingActivationDecay         = 0.3  // REQ-P3-6: spreading activation decay factor
 	toolLimit                        = 2    // REQ-P4e-4: top-2
 	unprovenBM25FloorPrompt          = 0.20
 	unprovenBM25FloorTool            = 0.30
-	unprovenDefaultEffectiveness     = 30.0
 )
 
 // promptMatch holds a memory for prompt mode.
 type promptMatch struct {
-	mem *memory.Stored
+	mem            *memory.Stored
+	bm25Score      float64
+	spreadingScore float64
 }
 
 // toolMatch holds a memory for tool mode.
 type toolMatch struct {
-	mem *memory.Stored
+	mem            *memory.Stored
+	bm25Score      float64
+	spreadingScore float64
 }
 
 // applyColdStartBudgetPrompt keeps all proven matches plus at most coldStartBudget unproven.
@@ -1150,6 +1242,43 @@ func bm25FloorForTool(
 	return minRelevanceScore
 }
 
+// computeSpreading computes BM25-seeded spreading activation scores.
+// For each BM25 match, its graph neighbors get a boost proportional to
+// the match's BM25 score × link weight, normalized by linker count.
+// Returns a map of memory file path → spreading score.
+func computeSpreading(
+	bm25Matches map[string]float64, // filePath → bm25 score
+	linkReader LinkReader,
+) map[string]float64 {
+	if linkReader == nil {
+		return nil
+	}
+
+	spreading := make(map[string]float64)
+	linkerCounts := make(map[string]int)
+
+	for matchPath, matchBM25 := range bm25Matches {
+		links, err := linkReader.GetEntryLinks(matchPath)
+		if err != nil {
+			continue
+		}
+
+		for _, link := range links {
+			spreading[link.Target] += matchBM25 * link.Weight
+			linkerCounts[link.Target]++
+		}
+	}
+
+	// Normalize by linker count.
+	for target, count := range linkerCounts {
+		if count > 0 {
+			spreading[target] /= float64(count)
+		}
+	}
+
+	return spreading
+}
+
 // concatenatePromptFields builds searchable text for prompt mode.
 func concatenatePromptFields(mem *memory.Stored) string {
 	var parts []string
@@ -1195,20 +1324,16 @@ func concatenateToolFields(mem *memory.Stored) string {
 }
 
 // effectivenessScoreFor returns the effectiveness score for a memory path.
-// Unproven memories (0 surfacings) get unprovenDefaultEffectiveness (30%).
-// Memories with 1-4 surfacings (insufficient data) get sessionStartDefaultEffectiveness (50%).
-// Memories with >=insufficientDataThreshold surfacings use their recorded score (REQ-P4e-1).
+// Two-tier logic:
+//   - No effectiveness data exists for path: sessionStartDefaultEffectiveness (50%) — neutral default
+//   - Data exists: recorded EffectivenessScore
 func effectivenessScoreFor(path string, effectiveness map[string]EffectivenessStat) float64 {
 	if effectiveness == nil {
-		return unprovenDefaultEffectiveness
+		return sessionStartDefaultEffectiveness
 	}
 
 	stat, ok := effectiveness[path]
 	if !ok || stat.SurfacedCount == 0 {
-		return unprovenDefaultEffectiveness
-	}
-
-	if stat.SurfacedCount < insufficientDataThreshold {
 		return sessionStartDefaultEffectiveness
 	}
 
@@ -1220,8 +1345,8 @@ func filenameSlug(path string) string {
 	return strings.TrimSuffix(filepath.Base(path), ".toml")
 }
 
-// filterByEffectivenessGate removes memories with sufficient data (>=5 surfacings) and low effectiveness (<=40%).
-// Memories with <5 surfacings or no data are always kept (REQ-P4e-1: insufficient data).
+// filterByEffectivenessGate removes memories with low effectiveness (<=40%).
+// Memories with no effectiveness data default to 50% and always pass the gate.
 func filterByEffectivenessGate(
 	memories []*memory.Stored,
 	effectiveness map[string]EffectivenessStat,
@@ -1229,12 +1354,9 @@ func filterByEffectivenessGate(
 	filtered := make([]*memory.Stored, 0, len(memories))
 
 	for _, mem := range memories {
-		if effectiveness != nil {
-			stat, ok := effectiveness[mem.FilePath]
-			if ok && stat.SurfacedCount >= insufficientDataThreshold &&
-				stat.EffectivenessScore <= minEffectivenessFloor {
-				continue // gated out
-			}
+		score := effectivenessScoreFor(mem.FilePath, effectiveness)
+		if score <= minEffectivenessFloor {
+			continue // gated out
 		}
 
 		filtered = append(filtered, mem)
@@ -1244,6 +1366,7 @@ func filterByEffectivenessGate(
 }
 
 // filterToolMatchesByEffectivenessGate applies effectiveness gating to tool matches (REQ-P4e-4).
+// Memories with no effectiveness data default to 50% and always pass the gate.
 func filterToolMatchesByEffectivenessGate(
 	candidates []toolMatch,
 	effectiveness map[string]EffectivenessStat,
@@ -1251,12 +1374,9 @@ func filterToolMatchesByEffectivenessGate(
 	filtered := make([]toolMatch, 0, len(candidates))
 
 	for _, candidate := range candidates {
-		if effectiveness != nil {
-			stat, ok := effectiveness[candidate.mem.FilePath]
-			if ok && stat.SurfacedCount >= insufficientDataThreshold &&
-				stat.EffectivenessScore <= minEffectivenessFloor {
-				continue // gated out
-			}
+		score := effectivenessScoreFor(candidate.mem.FilePath, effectiveness)
+		if score <= minEffectivenessFloor {
+			continue // gated out
 		}
 
 		filtered = append(filtered, candidate)
@@ -1350,7 +1470,7 @@ func matchPromptMemories(
 			continue
 		}
 
-		matches = append(matches, promptMatch{mem: mem})
+		matches = append(matches, promptMatch{mem: mem, bm25Score: penalizedScore})
 	}
 
 	return matches
@@ -1421,7 +1541,7 @@ func matchToolMemories(
 			continue
 		}
 
-		matches = append(matches, toolMatch{mem: mem})
+		matches = append(matches, toolMatch{mem: mem, bm25Score: penalizedScore})
 	}
 
 	return matches
@@ -1448,30 +1568,36 @@ func sortByEffectivenessScore(
 	})
 }
 
-// sortPromptMatchesByActivation sorts prompt matches by frecency activation descending.
+// sortPromptMatchesByActivation sorts prompt matches by combined score descending.
 func sortPromptMatchesByActivation(matches []promptMatch, scorer *frecency.Scorer) {
 	sort.SliceStable(matches, func(i, j int) bool {
-		return scorer.Activation(toFrecencyInput(matches[i].mem)) >
-			scorer.Activation(toFrecencyInput(matches[j].mem))
+		si := scorer.CombinedScore(matches[i].bm25Score, matches[i].spreadingScore, toFrecencyInput(matches[i].mem))
+		sj := scorer.CombinedScore(matches[j].bm25Score, matches[j].spreadingScore, toFrecencyInput(matches[j].mem))
+
+		return si > sj
 	})
 }
 
-// sortToolMatchesByActivation sorts tool matches by frecency activation descending.
+// sortToolMatchesByActivation sorts tool matches by combined score descending.
 func sortToolMatchesByActivation(matches []toolMatch, scorer *frecency.Scorer) {
 	sort.SliceStable(matches, func(i, j int) bool {
-		return scorer.Activation(toFrecencyInput(matches[i].mem)) >
-			scorer.Activation(toFrecencyInput(matches[j].mem))
+		si := scorer.CombinedScore(matches[i].bm25Score, matches[i].spreadingScore, toFrecencyInput(matches[i].mem))
+		sj := scorer.CombinedScore(matches[j].bm25Score, matches[j].spreadingScore, toFrecencyInput(matches[j].mem))
+
+		return si > sj
 	})
 }
 
 // toFrecencyInput converts a stored memory to a frecency input.
-// Tracking fields (SurfacedCount, LastSurfaced, SurfacingContexts) are no longer
-// stored inline in TOMLs — they default to zero, falling back to recency-only ranking.
-// Future: populate from instruction registry for full frecency scoring.
 func toFrecencyInput(mem *memory.Stored) frecency.Input {
 	return frecency.Input{
-		UpdatedAt: mem.UpdatedAt,
-		FilePath:  mem.FilePath,
+		SurfacedCount:     mem.SurfacedCount,
+		LastSurfacedAt:    mem.LastSurfacedAt,
+		UpdatedAt:         mem.UpdatedAt,
+		FollowedCount:     mem.FollowedCount,
+		ContradictedCount: mem.ContradictedCount,
+		IgnoredCount:      mem.IgnoredCount,
+		FilePath:          mem.FilePath,
 	}
 }
 

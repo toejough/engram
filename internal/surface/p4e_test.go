@@ -1,7 +1,7 @@
 package surface_test
 
 // P4-early: Budget quick wins — effectiveness gating + BM25 floor (issue #88)
-// REQ-P4e-1: SessionStart ranks by effectiveness, gates on >40% or <5 surfacings
+// REQ-P4e-1: SessionStart ranks by effectiveness, gates on >40% (no-data defaults to 50%)
 // REQ-P4e-2: SessionStart top-7 limit, 600 token default budget
 // REQ-P4e-3: UserPromptSubmit 250 token default budget
 // REQ-P4e-4: PreToolUse top-2 limit, effectiveness floor 40%, 150 token default budget
@@ -26,7 +26,7 @@ func TestTP4e1_SessionStartLimitsToTop7(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	// 12 memories all with <5 surfacings (insufficient data) → all pass gating.
+	// 12 memories all with 80% effectiveness → all pass gating.
 	eff := &fakeEffectivenessComputer{
 		stats: map[string]surface.EffectivenessStat{},
 	}
@@ -64,7 +64,7 @@ func TestTP4e1_SessionStartLimitsToTop7(t *testing.T) {
 	g.Expect(count).To(Equal(7), "expected 7 memories (top-7 limit), got %d", count)
 }
 
-// T-P4e-2: SessionStart gates out memories with >=5 surfacings AND effectiveness <= 40%.
+// T-P4e-2: SessionStart gates out memories with effectiveness <= 40%.
 func TestTP4e2_SessionStartEffectivenessGating(t *testing.T) {
 	t.Parallel()
 
@@ -104,21 +104,27 @@ func TestTP4e2_SessionStartEffectivenessGating(t *testing.T) {
 		NotTo(ContainSubstring("low-eff"), "low effectiveness memory should be gated out")
 }
 
-// T-P4e-3: SessionStart includes memories with <5 surfacings regardless of effectiveness.
-func TestTP4e3_SessionStartInsufficientDataAlwaysIncluded(t *testing.T) {
+// T-P4e-3: SessionStart surfaces memories with few evaluations by effectiveness score.
+// Memories with <5 surfacings are no longer given a blanket pass — they use the recorded score.
+// Memories with no data at all default to 50% and pass the gate.
+func TestTP4e3_SessionStartFewEvaluationsUsesRecordedScore(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Title: "New Memory", FilePath: "new-mem.toml", UpdatedAt: time.Now()},
+		{Title: "Good Memory", FilePath: "good-mem.toml", UpdatedAt: time.Now()},
+		{Title: "Bad Memory", FilePath: "bad-mem.toml", UpdatedAt: time.Now()},
 		{Title: "No Data", FilePath: "no-data.toml", UpdatedAt: time.Now()},
 	}
 
 	eff := &fakeEffectivenessComputer{
 		stats: map[string]surface.EffectivenessStat{
-			// 3 surfacings (< 5) but 0% effectiveness → still included (insufficient data).
-			"new-mem.toml": {SurfacedCount: 3, EffectivenessScore: 0.0},
+			// 2 surfacings (below old threshold) but >40% effectiveness → surfaces normally.
+			"good-mem.toml": {SurfacedCount: 2, EffectivenessScore: 65.0},
+			// 2 surfacings (below old threshold) but <=40% effectiveness → gated out.
+			"bad-mem.toml": {SurfacedCount: 2, EffectivenessScore: 20.0},
+			// no-data.toml absent → defaults to 50%, passes gate.
 		},
 	}
 
@@ -139,9 +145,11 @@ func TestTP4e3_SessionStartInsufficientDataAlwaysIncluded(t *testing.T) {
 	}
 
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("new-mem"), "insufficient-data memory should be included")
+	g.Expect(output).To(ContainSubstring("good-mem"), "memory with 2 evals and >40% effectiveness should surface")
 	g.Expect(output).
-		To(ContainSubstring("no-data"), "memory with no effectiveness data should be included")
+		NotTo(ContainSubstring("bad-mem"), "memory with 2 evals and <=40% effectiveness should be gated out")
+	g.Expect(output).
+		To(ContainSubstring("no-data"), "memory with no effectiveness data (50% default) should surface")
 }
 
 // T-P4e-4: SessionStart ranks by effectiveness descending (high-eff appears before low-eff).
@@ -260,7 +268,7 @@ func TestTP4e6_PreToolUseLimitsToTop2(t *testing.T) {
 	g.Expect(count).To(Equal(2), "expected 2 memories (top-2 limit), got %d", count)
 }
 
-// T-P4e-7: PreToolUse gates out memories with >=5 surfacings AND effectiveness <= 40%.
+// T-P4e-7: PreToolUse gates out memories with effectiveness <= 40%.
 func TestTP4e7_PreToolUseEffectivenessGating(t *testing.T) {
 	t.Parallel()
 

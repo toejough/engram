@@ -10,172 +10,251 @@ import (
 	"engram/internal/frecency"
 )
 
-// T-165: All components present — verify activation > 0.
-func TestT165_AllComponentsPresentActivationPositive(t *testing.T) {
+func TestCombinedScore_Basic(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	now := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
-	effectiveness := map[string]frecency.EffectivenessStat{
-		"mem/alpha.toml": {EffectivenessScore: 80.0},
-	}
-
-	scorer := frecency.New(now, effectiveness)
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+	scorer := frecency.New(now, 100)
 
 	input := frecency.Input{
-		SurfacedCount:     10,
-		LastSurfaced:      now.Add(-2 * time.Hour),
-		UpdatedAt:         now.Add(-24 * time.Hour),
-		SurfacingContexts: []string{"session-start", "prompt", "tool"},
-		FilePath:          "mem/alpha.toml",
+		SurfacedCount:  10,
+		LastSurfacedAt: now.Add(-24 * time.Hour),
+		FollowedCount:  3,
+		IgnoredCount:   1,
+		FilePath:       "mem/gamma.toml",
 	}
 
-	activation := scorer.Activation(input)
-	expected := math.Log(11) * (1.0 / 3.0) * math.Log(4) * 0.8
-	g.Expect(activation).To(BeNumerically("~", expected, 0.001))
+	relevance := 2.0
+	spreading := 0.5
+	quality := scorer.Quality(input)
+
+	combined := scorer.CombinedScore(relevance, spreading, input)
+
+	// (relevance + alpha*spreading) * (1 + quality)
+	// alpha defaults to 1.0
+	expected := (2.0 + 1.0*0.5) * (1.0 + quality)
+	g.Expect(combined).To(BeNumerically("~", expected, 0.0001))
 }
 
-// T-166: Never-surfaced memory — frequency=0 dominates, activation = 0.
-func TestT166_NeverSurfacedActivationZero(t *testing.T) {
+func TestCombinedScore_SpreadingOnly(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	now := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
-
-	scorer := frecency.New(now, nil)
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+	scorer := frecency.New(now, 100)
 
 	input := frecency.Input{
-		SurfacedCount:     0,
-		LastSurfaced:      time.Time{}, // zero value
-		UpdatedAt:         now.Add(-24 * time.Hour),
-		SurfacingContexts: nil,
-		FilePath:          "mem/beta.toml",
+		SurfacedCount:  5,
+		LastSurfacedAt: now.Add(-48 * time.Hour),
+		FollowedCount:  2,
+		IgnoredCount:   1,
+		FilePath:       "mem/epsilon.toml",
 	}
 
-	activation := scorer.Activation(input)
-	g.Expect(activation).To(BeNumerically("==", 0.0))
+	quality := scorer.Quality(input)
+	combined := scorer.CombinedScore(0.0, 0.8, input)
+
+	// (0 + 1.0*0.8) * (1 + quality)
+	expected := (0.0 + 1.0*0.8) * (1.0 + quality)
+	g.Expect(combined).To(BeNumerically("~", expected, 0.0001))
 }
 
-// T-167: No effectiveness data — uses default 0.5.
-func TestT167_NoEffectivenessDataUsesDefault(t *testing.T) {
+func TestCombinedScore_ZeroRelevanceZeroSpreading(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	now := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
-	// Effectiveness map exists but has no entry for this file path.
-	effectiveness := map[string]frecency.EffectivenessStat{
-		"mem/other.toml": {EffectivenessScore: 90.0},
-	}
-
-	scorer := frecency.New(now, effectiveness)
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+	scorer := frecency.New(now, 100)
 
 	input := frecency.Input{
-		SurfacedCount:     5,
-		LastSurfaced:      now.Add(-1 * time.Hour),
-		UpdatedAt:         now.Add(-48 * time.Hour),
-		SurfacingContexts: []string{"prompt"},
-		FilePath:          "mem/gamma.toml",
+		SurfacedCount:  10,
+		LastSurfacedAt: now.Add(-24 * time.Hour),
+		FollowedCount:  5,
+		FilePath:       "mem/delta.toml",
 	}
 
-	// Compute activation with default effectiveness (0.5).
-	activationDefault := scorer.Activation(input)
-
-	// Now compute with explicit 50% effectiveness — should be the same.
-	effectivenessExplicit := map[string]frecency.EffectivenessStat{
-		"mem/gamma.toml": {EffectivenessScore: 50.0},
-	}
-	scorerExplicit := frecency.New(now, effectivenessExplicit)
-	activationExplicit := scorerExplicit.Activation(input)
-
-	g.Expect(activationDefault).To(BeNumerically("~", activationExplicit, 0.0001))
-}
-
-// T-168: CombinedScore with BM25=0 — verify result is 0.0.
-func TestT168_CombinedScoreBM25ZeroReturnsZero(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	now := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
-	effectiveness := map[string]frecency.EffectivenessStat{
-		"mem/alpha.toml": {EffectivenessScore: 80.0},
-	}
-
-	scorer := frecency.New(now, effectiveness)
-
-	input := frecency.Input{
-		SurfacedCount:     10,
-		LastSurfaced:      now.Add(-1 * time.Hour),
-		UpdatedAt:         now.Add(-24 * time.Hour),
-		SurfacingContexts: []string{"prompt", "tool"},
-		FilePath:          "mem/alpha.toml",
-	}
-
-	combined := scorer.CombinedScore(0.0, input)
+	combined := scorer.CombinedScore(0.0, 0.0, input)
 	g.Expect(combined).To(BeNumerically("==", 0.0))
 }
 
-// T-170: CombinedScore re-ranking — verify ordering changes after combined scoring.
-func TestT170_CombinedScoreReRanking(t *testing.T) {
+func TestFrequency_Normalized(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+
+	const maxSurfaced = 50
+
+	scorer := frecency.New(now, maxSurfaced)
+
+	tests := []struct {
+		name          string
+		surfacedCount int
+		expected      float64
+	}{
+		{
+			name:          "max_surfaced_equals_one",
+			surfacedCount: maxSurfaced,
+			expected:      1.0,
+		},
+		{
+			name:          "zero_surfaced_equals_zero",
+			surfacedCount: 0,
+			expected:      0.0,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewGomegaWithT(t)
+
+			// Use zero times so recency=0, no evaluations so eff=0.5
+			// quality = 1.5*0.5 + 0.5*0 + 1.0*freq = 0.75 + freq
+			input := frecency.Input{
+				SurfacedCount: testCase.surfacedCount,
+				FilePath:      "mem/freq.toml",
+			}
+
+			quality := scorer.Quality(input)
+			freq := quality - 0.75 // subtract eff component
+
+			g.Expect(freq).To(
+				BeNumerically("~", testCase.expected, 0.0001),
+			)
+		})
+	}
+}
+
+func TestQuality_AllSignals(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	now := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
-	effectiveness := map[string]frecency.EffectivenessStat{
-		"mem/low-bm25-high-frecency.toml": {EffectivenessScore: 95.0},
-		"mem/high-bm25-low-frecency.toml": {EffectivenessScore: 10.0},
-		"mem/mid-bm25-mid-frecency.toml":  {EffectivenessScore: 50.0},
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+
+	const maxSurfaced = 1000
+
+	scorer := frecency.New(now, maxSurfaced)
+
+	input := frecency.Input{
+		SurfacedCount:  100,
+		LastSurfacedAt: now.Add(-84 * time.Hour), // 3.5 days ago
+		UpdatedAt:      now.Add(-168 * time.Hour),
+		FollowedCount:  4,
+		IgnoredCount:   1,
+		FilePath:       "mem/alpha.toml",
 	}
 
-	scorer := frecency.New(now, effectiveness)
+	quality := scorer.Quality(input)
 
-	// Memory A: low BM25 but high frecency (recently surfaced, many times, many contexts).
-	inputA := frecency.Input{
-		SurfacedCount:     20,
-		LastSurfaced:      now.Add(-30 * time.Minute),
-		UpdatedAt:         now.Add(-1 * time.Hour),
-		SurfacingContexts: []string{"session-start", "prompt", "tool", "extra"},
-		FilePath:          "mem/low-bm25-high-frecency.toml",
+	// eff = 4/5 = 0.8
+	// recency = 1 / (1 + 3.5/7) = 1/1.5 = 0.6667
+	// freq = ln(101) / ln(1001)
+	expectedEff := 0.8
+	expectedRecency := 1.0 / (1.0 + 3.5/7.0)
+	expectedFreq := math.Log(101) / math.Log(1001)
+	expected := 1.5*expectedEff + 0.5*expectedRecency + 1.0*expectedFreq
+
+	g.Expect(quality).To(BeNumerically("~", expected, 0.0001))
+}
+
+func TestQuality_NoEvaluations(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+	scorer := frecency.New(now, 100)
+
+	input := frecency.Input{
+		SurfacedCount:  10,
+		LastSurfacedAt: now.Add(-24 * time.Hour),
+		FilePath:       "mem/beta.toml",
 	}
 
-	// Memory B: high BM25 but low frecency (rarely surfaced, long ago).
-	inputB := frecency.Input{
-		SurfacedCount:     1,
-		LastSurfaced:      now.Add(-720 * time.Hour), // 30 days ago
-		UpdatedAt:         now.Add(-720 * time.Hour),
-		SurfacingContexts: []string{"session-start"},
-		FilePath:          "mem/high-bm25-low-frecency.toml",
+	quality := scorer.Quality(input)
+
+	// eff defaults to 0.5 when no evaluations
+	expectedEff := 0.5
+	expectedRecency := 1.0 / (1.0 + 1.0/7.0)
+	expectedFreq := math.Log(11) / math.Log(101)
+	expected := 1.5*expectedEff + 0.5*expectedRecency + 1.0*expectedFreq
+
+	g.Expect(quality).To(BeNumerically("~", expected, 0.0001))
+}
+
+func TestRecency_FallbackToUpdatedAt(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+	scorer := frecency.New(now, 0)
+
+	// LastSurfacedAt is zero → should use UpdatedAt (7 days ago → recency 0.5)
+	inputFallback := frecency.Input{
+		UpdatedAt: now.Add(-168 * time.Hour), // 7 days
+		FilePath:  "mem/fallback.toml",
 	}
 
-	// Memory C: mid BM25, mid frecency.
-	inputC := frecency.Input{
-		SurfacedCount:     5,
-		LastSurfaced:      now.Add(-12 * time.Hour),
-		UpdatedAt:         now.Add(-24 * time.Hour),
-		SurfacingContexts: []string{"prompt", "tool"},
-		FilePath:          "mem/mid-bm25-mid-frecency.toml",
+	// Explicit LastSurfacedAt at the same time
+	inputExplicit := frecency.Input{
+		LastSurfacedAt: now.Add(-168 * time.Hour),
+		FilePath:       "mem/explicit.toml",
 	}
 
-	bm25A := 6.0  // lowest BM25
-	bm25B := 10.0 // highest BM25
-	bm25C := 8.0  // middle BM25
+	qualityFallback := scorer.Quality(inputFallback)
+	qualityExplicit := scorer.Quality(inputExplicit)
 
-	// Before combined scoring: B > C > A by BM25 alone.
-	g.Expect(bm25B).To(BeNumerically(">", bm25C))
-	g.Expect(bm25C).To(BeNumerically(">", bm25A))
+	g.Expect(qualityFallback).To(
+		BeNumerically("~", qualityExplicit, 0.0001),
+	)
+}
 
-	combinedA := scorer.CombinedScore(bm25A, inputA)
-	combinedB := scorer.CombinedScore(bm25B, inputB)
-	combinedC := scorer.CombinedScore(bm25C, inputC)
+func TestRecency_HalfLife(t *testing.T) {
+	t.Parallel()
 
-	// After combined scoring: A should rank higher than B due to frecency boost.
-	g.Expect(combinedA).To(BeNumerically(">", combinedB),
-		"high-frecency memory should overtake high-BM25 memory after combined scoring")
-	// Verify ordering actually changed from pure BM25.
-	g.Expect(combinedA).To(BeNumerically(">", combinedC),
-		"high-frecency memory should also beat mid-BM25 memory")
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+	// maxSurfaced=0 and no evaluations → eff=0.5, freq=0
+	// quality = 1.5*0.5 + 0.5*recency + 1.0*0
+	// We can extract recency by: (quality - 0.75) / 0.5
+	scorer := frecency.New(now, 0)
+
+	tests := []struct {
+		name     string
+		daysAgo  float64
+		expected float64
+	}{
+		{name: "zero_days", daysAgo: 0, expected: 1.0},
+		{name: "seven_days", daysAgo: 7, expected: 0.5},
+		{name: "fourteen_days", daysAgo: 14, expected: 1.0 / 3.0},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewGomegaWithT(t)
+
+			input := frecency.Input{
+				LastSurfacedAt: now.Add(
+					-time.Duration(testCase.daysAgo*24) * time.Hour,
+				),
+				FilePath: "mem/recency.toml",
+			}
+
+			quality := scorer.Quality(input)
+			// quality = 1.5*0.5 + 0.5*recency + 1.0*0 = 0.75 + 0.5*recency
+			recency := (quality - 0.75) / 0.5
+
+			g.Expect(recency).To(
+				BeNumerically("~", testCase.expected, 0.0001),
+			)
+		})
+	}
 }

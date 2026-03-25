@@ -81,6 +81,11 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		return nil, fmt.Errorf("parsing updated_at: %w", err)
 	}
 
+	var lastSurfacedAt time.Time
+	if record.LastSurfacedAt != "" {
+		lastSurfacedAt, _ = time.Parse(time.RFC3339, record.LastSurfacedAt)
+	}
+
 	return &memory.Stored{
 		Title:             record.Title,
 		Content:           record.Content,
@@ -95,6 +100,7 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		IrrelevantCount:   record.IrrelevantCount,
 		IrrelevantQueries: record.IrrelevantQueries,
 		UpdatedAt:         updatedAt,
+		LastSurfacedAt:    lastSurfacedAt,
 		FilePath:          filePath,
 	}, nil
 }
