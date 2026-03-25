@@ -11,9 +11,7 @@
 Remove the mechanical merge path from `consolidate.go`:
 - `Consolidate()` — auto-merge entry point (returns `ConsolidateResult` — delete the struct too, or rename to avoid collision with `maintain.ConsolidateResult`)
 - `mergeCluster()` — performs mechanical merge
-- `selectSurvivor()` — picks winner by effectiveness
 - `processAbsorbed()` — backs up and deletes losers
-- `recomputeLinks()` — link recomputation after merge
 - `collectPrinciples()` — only called by `mergeCluster`
 - `countNewKeywords()` — only called by `mergeCluster`
 - `ConsolidateResult` struct (the batch result type with `ClustersFound`, `MemoriesMerged`, `Errors`)
@@ -26,7 +24,8 @@ Remove the mechanical merge path from `consolidate.go`:
 - `Plan()` — returns `[]MergePlan` (clusters without merging)
 - `buildClusters()` — Union-Find cluster detection
 - `clusterConfidence()` — TF-IDF similarity scoring
-- `NewConsolidator` and `Consolidator` struct (trimmed of dead fields)
+- `selectSurvivor()` — used by `Plan()` to pick the survivor
+- `NewConsolidator` and `Consolidator` struct (trimmed of merge-only fields, keep semantic-path fields)
 - `consolidate_semantic.go` — LLM-driven merge via `ExtractPrinciple()` (used at apply-time when user confirms)
 - `consolidate_transfer.go` — counter transfer rules
 - `consolidate_types.go` — shared types
