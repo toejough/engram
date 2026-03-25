@@ -90,16 +90,17 @@ type MemoryTracker interface {
 
 // Options configures a surface invocation.
 type Options struct {
-	Mode             string
-	DataDir          string
-	Message          string // for prompt mode
-	ToolName         string // for tool mode
-	ToolInput        string // for tool mode
-	ToolOutput       string // for tool mode: tool result or error text
-	ToolErrored      bool   // for tool mode: true if tool call failed
-	Format           string // output format: "" (plain) or "json"
-	Budget           int    // token budget override (precompact mode)
-	TranscriptWindow string // recent transcript text for transcript suppression (REQ-P4f-3)
+	Mode               string
+	DataDir            string
+	Message            string // for prompt mode
+	ToolName           string // for tool mode
+	ToolInput          string // for tool mode
+	ToolOutput         string // for tool mode: tool result or error text
+	ToolErrored        bool   // for tool mode: true if tool call failed
+	Format             string // output format: "" (plain) or "json"
+	Budget             int    // token budget override (precompact mode)
+	TranscriptWindow   string // recent transcript text for transcript suppression (REQ-P4f-3)
+	CurrentProjectSlug string // derived from data-dir for cross-project penalty
 }
 
 // Result holds the structured output of a surface invocation.
@@ -184,7 +185,8 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	switch opts.Mode {
 	case ModePrompt:
 		result, matched, suppressionEvents, err = s.runPrompt(
-			ctx, opts.DataDir, opts.Message, opts.TranscriptWindow, effectiveness, scorer,
+			ctx, opts.DataDir, opts.Message, opts.TranscriptWindow,
+			opts.CurrentProjectSlug, effectiveness, scorer,
 		)
 	case ModeTool:
 		result, matched, suppressionEvents, err = s.runTool(ctx, opts, effectiveness, scorer)
@@ -300,7 +302,7 @@ func (s *Surfacer) renderToolAdvisories(
 //nolint:cyclop,funlen,gocognit // BM25 filtering + suppression + budget + spreading: inherent branching
 func (s *Surfacer) runPrompt(
 	ctx context.Context,
-	dataDir, message, transcriptWindow string,
+	dataDir, message, transcriptWindow, currentProjectSlug string,
 	effectiveness map[string]EffectivenessStat,
 	scorer *frecency.Scorer,
 ) (Result, []*memory.Stored, []SuppressionEvent, error) {
@@ -360,7 +362,7 @@ func (s *Surfacer) runPrompt(
 	}
 
 	// Re-rank by frecency activation (ARCH-35).
-	sortPromptMatchesByActivation(matches, scorer)
+	sortPromptMatchesByActivation(matches, scorer, currentProjectSlug)
 
 	// #307: cold-start budget — limit unproven to 1 per invocation.
 	matches = applyColdStartBudgetPrompt(matches, effectiveness)
@@ -565,7 +567,7 @@ func (s *Surfacer) runTool(
 	}
 
 	// Re-rank by frecency activation (ARCH-35).
-	sortToolMatchesByActivation(candidates, scorer)
+	sortToolMatchesByActivation(candidates, scorer, opts.CurrentProjectSlug)
 
 	// #307: cold-start budget — limit unproven to 1 per invocation.
 	candidates = applyColdStartBudgetTool(candidates, effectiveness)
@@ -1126,20 +1128,28 @@ func matchToolMemories(
 }
 
 // sortPromptMatchesByActivation sorts prompt matches by combined score descending.
-func sortPromptMatchesByActivation(matches []promptMatch, scorer *frecency.Scorer) {
+func sortPromptMatchesByActivation(
+	matches []promptMatch, scorer *frecency.Scorer, currentProjectSlug string,
+) {
 	sort.SliceStable(matches, func(i, j int) bool {
-		si := scorer.CombinedScore(matches[i].bm25Score, matches[i].spreadingScore, toFrecencyInput(matches[i].mem))
-		sj := scorer.CombinedScore(matches[j].bm25Score, matches[j].spreadingScore, toFrecencyInput(matches[j].mem))
+		gi := GenFactor(matches[i].mem.Generalizability, matches[i].mem.ProjectSlug, currentProjectSlug)
+		gj := GenFactor(matches[j].mem.Generalizability, matches[j].mem.ProjectSlug, currentProjectSlug)
+		si := scorer.CombinedScore(matches[i].bm25Score, matches[i].spreadingScore, gi, toFrecencyInput(matches[i].mem))
+		sj := scorer.CombinedScore(matches[j].bm25Score, matches[j].spreadingScore, gj, toFrecencyInput(matches[j].mem))
 
 		return si > sj
 	})
 }
 
 // sortToolMatchesByActivation sorts tool matches by combined score descending.
-func sortToolMatchesByActivation(matches []toolMatch, scorer *frecency.Scorer) {
+func sortToolMatchesByActivation(
+	matches []toolMatch, scorer *frecency.Scorer, currentProjectSlug string,
+) {
 	sort.SliceStable(matches, func(i, j int) bool {
-		si := scorer.CombinedScore(matches[i].bm25Score, matches[i].spreadingScore, toFrecencyInput(matches[i].mem))
-		sj := scorer.CombinedScore(matches[j].bm25Score, matches[j].spreadingScore, toFrecencyInput(matches[j].mem))
+		gi := GenFactor(matches[i].mem.Generalizability, matches[i].mem.ProjectSlug, currentProjectSlug)
+		gj := GenFactor(matches[j].mem.Generalizability, matches[j].mem.ProjectSlug, currentProjectSlug)
+		si := scorer.CombinedScore(matches[i].bm25Score, matches[i].spreadingScore, gi, toFrecencyInput(matches[i].mem))
+		sj := scorer.CombinedScore(matches[j].bm25Score, matches[j].spreadingScore, gj, toFrecencyInput(matches[j].mem))
 
 		return si > sj
 	})

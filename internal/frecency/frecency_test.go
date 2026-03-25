@@ -30,12 +30,43 @@ func TestCombinedScore_Basic(t *testing.T) {
 	spreading := 0.5
 	quality := scorer.Quality(input)
 
-	combined := scorer.CombinedScore(relevance, spreading, input)
+	combined := scorer.CombinedScore(relevance, spreading, 1.0, input)
 
-	// (relevance + alpha*spreading) * (1 + quality)
+	// (relevance*genFactor + alpha*spreading) * (1 + quality), genFactor=1.0
 	// alpha defaults to 1.0
 	expected := (2.0 + 1.0*0.5) * (1.0 + quality)
 	g.Expect(combined).To(BeNumerically("~", expected, 0.0001))
+}
+
+func TestCombinedScore_GenFactorDoesNotAffectSpreading(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+	scorer := frecency.New(now, 0)
+	input := frecency.Input{}
+
+	a := scorer.CombinedScore(0.0, 1.0, 0.05, input)
+	b := scorer.CombinedScore(0.0, 1.0, 1.0, input)
+
+	g.Expect(a).To(Equal(b))
+}
+
+func TestCombinedScore_GenFactorReducesRelevance(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+	scorer := frecency.New(now, 0)
+	input := frecency.Input{}
+
+	full := scorer.CombinedScore(1.0, 0.0, 1.0, input)
+	halved := scorer.CombinedScore(1.0, 0.0, 0.5, input)
+
+	g.Expect(halved).To(BeNumerically("<", full))
+	g.Expect(halved).To(BeNumerically("~", full*0.5, 0.01))
 }
 
 func TestCombinedScore_SpreadingOnly(t *testing.T) {
@@ -55,7 +86,7 @@ func TestCombinedScore_SpreadingOnly(t *testing.T) {
 	}
 
 	quality := scorer.Quality(input)
-	combined := scorer.CombinedScore(0.0, 0.8, input)
+	combined := scorer.CombinedScore(0.0, 0.8, 1.0, input)
 
 	// (0 + 1.0*0.8) * (1 + quality)
 	expected := (0.0 + 1.0*0.8) * (1.0 + quality)
@@ -77,7 +108,7 @@ func TestCombinedScore_ZeroRelevanceZeroSpreading(t *testing.T) {
 		FilePath:       "mem/delta.toml",
 	}
 
-	combined := scorer.CombinedScore(0.0, 0.0, input)
+	combined := scorer.CombinedScore(0.0, 0.0, 1.0, input)
 	g.Expect(combined).To(BeNumerically("==", 0.0))
 }
 

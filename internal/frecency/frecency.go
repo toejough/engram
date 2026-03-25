@@ -55,9 +55,9 @@ func (s *Scorer) Alpha() float64 {
 	return s.alpha
 }
 
-// CombinedScore computes (relevance + alpha*spreading) * (1 + quality).
-func (s *Scorer) CombinedScore(relevance, spreading float64, input Input) float64 {
-	return (relevance + s.alpha*spreading) * (1.0 + s.Quality(input))
+// CombinedScore computes (relevance*genFactor + alpha*spreading) * (1 + quality).
+func (s *Scorer) CombinedScore(relevance, spreading, genFactor float64, input Input) float64 {
+	return (relevance*genFactor + s.alpha*spreading) * (1.0 + s.Quality(input))
 }
 
 // Quality computes the quality multiplier for a memory.
