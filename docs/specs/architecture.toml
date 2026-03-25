@@ -62,11 +62,11 @@ body = '''
 **Decision:** Single `surface` subcommand with mode flag routes to different behaviors.
 
 ```bash
-engram surface --mode <session-start|prompt|tool> --data-dir <path> [--format json] [mode-specific flags]
+engram surface --mode <prompt|tool> --data-dir <path> [--format json] [mode-specific flags]
 ```
 
 Routing:
-- `--mode session-start`: Read creation log (ARCH-21 LogReader.ReadAndClear) → emit creation report if entries exist. Then call MemoryRetriever.ListMemories, sort by UpdatedAt desc, take top 20, emit DES-5 format. Both sections combined in output.
+- `--mode session-start`: *(removed — session-recall redesign, 2026-03-21)* SessionStart hook now runs `engram maintain` and emits a `/recall` hint. No `engram surface` call.
 - `--mode prompt --message <text>`: Call MemoryRetriever.ListMemories, KeywordMatcher on message, emit DES-6 format.
 - `--mode tool --tool-name <name> --tool-input <json>`: Call MemoryRetriever.ListMemories, KeywordMatcher, emit DES-7 advisory format (no LLM judgment).
 
@@ -94,7 +94,7 @@ body = '''
 **Decision:** Existing hooks (session-start.sh, user-prompt-submit.sh) are extended. New PreToolUse hook added.
 
 Hook flow:
-- **SessionStart:** After build step, call `engram surface --mode session-start --format json`. Reshape into `{systemMessage, additionalContext}`. Creation report (from creation log, if any) is included in `systemMessage`.
+- **SessionStart:** After build step, run `engram maintain` (background triage). Emit static `/recall` hint in `systemMessage`. No `engram surface` call (session-recall redesign, 2026-03-21).
 - **UserPromptSubmit:** Run `engram correct` and `engram surface --mode prompt --format json` independently. Combine into `{systemMessage: (<surface_summary> + "\n" + <creation_output>), additionalContext: <surface_context>}`. Creation feedback always goes in `systemMessage` (user-visible), never in `additionalContext`.
 - **PreToolUse:** Hook script calls `engram surface --mode tool --format json`. Reshape into `{continue: true, hookSpecificOutput: {additionalContext}}`. Tool call is always allowed.
 
@@ -428,27 +428,13 @@ Implementation:
 3. Write atomically (write full content to temp file, rename).
 4. Fire-and-forget: errors logged to stderr, never fail the caller (ARCH-6 exit-0 contract).
 
-**Reader (used by SessionStart surfacing):**
+**Reader (deferred — no caller since session-recall redesign, 2026-03-21):**
 
-```go
-type LogReader struct {
-    readFile   func(string) ([]byte, error)
-    removeFile func(string) error
-}
-
-func (r *LogReader) ReadAndClear(dataDir string) ([]LogEntry, error)
-```
-
-Implementation:
-1. Read `<data-dir>/creation-log.jsonl`.
-2. Parse each line as JSON → `LogEntry`.
-3. Delete the file after successful read.
-4. Return entries (or empty slice if file missing).
-5. Read/delete errors logged to stderr, non-fatal.
+The `LogReader` and `ReadAndClear` method exist in `internal/creationlog/` but have no production caller. SessionStart no longer surfaces memories or reads the creation log. The reader is retained for potential future use.
 
 All I/O injected via functional options (`WithReadFile`, `WithWriteFile`, `WithRemoveFile`, `WithNow`). Default: real `os.*` functions and `time.Now`.
 
-**Traces to:** REQ-23 (creation log format), REQ-24 (read and clear at SessionStart), REQ-25 (write during learn)
+**Traces to:** REQ-23 (creation log format), REQ-24 (read and clear — deferred), REQ-25 (write during learn)
 
 ---
 '''
@@ -1350,17 +1336,6 @@ func (e *EscalationEngine) Analyze(leeches []Memory) ([]EscalationProposal, erro
 ---
 '''
 
-[ARCH-51]
-name = "Automation Generator Pipeline *(removed — Phase A-1/S1)*"
-traces_to = ["UC-22"]
-hash = "628dfb0f"
-body = '''
-**Status:** Removed. UC-22 removed in S1. The `internal/automate/` package and `engram automate` CLI command were deleted. Graduation signals replace the automation proposal concept.
-
-**Traces to:** REQ-90 (removed), REQ-91 (removed)
-
----
-
 ## L2 → ARCH Traceability (UC-21 & UC-22)
 
 | L2 Item | ARCH Coverage |
@@ -1715,17 +1690,6 @@ Core DI interfaces (summary — defined in detail by ARCH-2 through ARCH-5):
 ---
 '''
 
-[ARCH-70]
-name = "Extended Always-Loaded Classification (UC-26) — REMOVED (S4)"
-traces_to = ["UC-26"]
-hash = "49c5c09f"
-body = '''
-**Status:** Removed by S4 simplification. The `alwaysLoadedSources` map and binary Working/Leech classification for non-memory sources have been deleted from `internal/registry/classify.go`. The registry now only persists memory entries; `Classify` uses the standard 4-quadrant model for all entries.
-
-**Traces to:** REQ-116 (extended classification) — REQ-116 is unsatisfied; to be revisited if non-memory classification is needed in future.
-
----
-'''
 
 [ARCH-71]
 name = "CLI Integration and Hook Wiring (UC-26)"
