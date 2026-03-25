@@ -102,5 +102,7 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		UpdatedAt:         updatedAt,
 		LastSurfacedAt:    lastSurfacedAt,
 		FilePath:          filePath,
+		Generalizability:  record.Generalizability,
+		ProjectSlug:       record.ProjectSlug,
 	}, nil
 }

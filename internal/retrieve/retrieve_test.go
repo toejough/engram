@@ -155,6 +155,43 @@ func TestT26_ListMemoriesSkipsUnparseableFiles(t *testing.T) {
 	g.Expect(memories[1].Title).To(Equal("Valid One"))
 }
 
+// T-373: Generalizability and ProjectSlug are wired into Stored from TOML.
+func TestT373_GeneralizabilityAndProjectSlugWired(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memoriesDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	writeTestTOML(t, memoriesDir, "gen.toml", tomlContent{
+		Title:            "Gen Memory",
+		Keywords:         []string{"gen"},
+		UpdatedAt:        "2026-03-01T00:00:00Z",
+		Generalizability: 3,
+		ProjectSlug:      "my-project",
+	})
+
+	r := retrieve.New()
+	memories, err := r.ListMemories(context.Background(), dataDir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(memories).To(HaveLen(1))
+	g.Expect(memories[0].Generalizability).To(Equal(3))
+	g.Expect(memories[0].ProjectSlug).To(Equal("my-project"))
+}
+
 // T-374a: TOML with last_surfaced_at parses into Stored.LastSurfacedAt correctly.
 func TestT374a_LastSurfacedAtParsed(t *testing.T) {
 	t.Parallel()
@@ -264,13 +301,15 @@ func TestT82_OldTrackingFieldsIgnored(t *testing.T) {
 
 // tomlContent is a test helper for writing memory TOML files.
 type tomlContent struct {
-	Title          string
-	Keywords       []string
-	Concepts       []string
-	AntiPattern    string
-	UpdatedAt      string
-	Principle      string
-	LastSurfacedAt string
+	Title            string
+	Keywords         []string
+	Concepts         []string
+	AntiPattern      string
+	UpdatedAt        string
+	Principle        string
+	LastSurfacedAt   string
+	Generalizability int
+	ProjectSlug      string
 }
 
 // formatTOMLStringArray formats a string slice as a TOML array literal.
@@ -314,6 +353,15 @@ updated_at = "` + tc.UpdatedAt + `"
 
 	if tc.LastSurfacedAt != "" {
 		content += `last_surfaced_at = "` + tc.LastSurfacedAt + `"
+`
+	}
+
+	if tc.Generalizability != 0 {
+		content += fmt.Sprintf("generalizability = %d\n", tc.Generalizability)
+	}
+
+	if tc.ProjectSlug != "" {
+		content += `project_slug = "` + tc.ProjectSlug + `"
 `
 	}
 

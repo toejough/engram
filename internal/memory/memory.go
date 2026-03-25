@@ -98,4 +98,6 @@ type Stored struct {
 	UpdatedAt         time.Time
 	LastSurfacedAt    time.Time
 	FilePath          string
+	Generalizability  int
+	ProjectSlug       string
 }
