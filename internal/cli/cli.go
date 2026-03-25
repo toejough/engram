@@ -429,14 +429,13 @@ var (
 	errMaintainApplyMissingProposals = errors.New(
 		"maintain --apply: --proposals required",
 	)
-	errNilAPIResponse      = errors.New("calling Anthropic API: nil response")
-	errNoContentBlocks     = errors.New("API response contained no content blocks")
-	errSkillExists         = errors.New("skill already exists")
-	errSurfaceMissingFlags = errors.New(
-		"surface: --mode required",
-	)
-	errUnknownCommand = errors.New("unknown command")
-	errUsage          = errors.New(
+	errNilAPIResponse          = errors.New("calling Anthropic API: nil response")
+	errNoContentBlocks         = errors.New("API response contained no content blocks")
+	errSkillExists             = errors.New("skill already exists")
+	errSurfaceMissingFlags     = errors.New("surface: --mode required")
+	errSurfaceStopNoTranscript = errors.New("surface: --transcript-path required for stop mode")
+	errUnknownCommand          = errors.New("unknown command")
+	errUsage                   = errors.New(
 		"usage: engram <correct|surface|learn|recall" +
 			"|review|maintain|instruct|show|feedback> [flags]",
 	)
@@ -1018,6 +1017,50 @@ func cryptoRandFloat() float64 {
 	return float64(val) / float64(maxMantissa)
 }
 
+// extractAssistantDelta reads new transcript lines since the last stop offset,
+// strips JSONL to text, and returns only assistant content joined by newlines.
+func extractAssistantDelta(dataDir, transcriptPath, sessionID string) (string, error) {
+	offsetPath := filepath.Join(dataDir, "stop-surface-offset.json")
+	store := &osOffsetStore{}
+
+	stored, readErr := store.Read(offsetPath)
+	if readErr != nil {
+		stored = learn.Offset{}
+	}
+
+	offset := stored.Offset
+	if sessionID != stored.SessionID {
+		offset = 0
+	}
+
+	reader := &osFileReader{}
+	delta := sessionctx.NewDeltaReader(reader)
+
+	lines, newOffset, deltaErr := delta.Read(transcriptPath, offset)
+	if deltaErr != nil {
+		return "", fmt.Errorf("reading transcript delta: %w", deltaErr)
+	}
+
+	// Always update offset so next call resumes from here.
+	_ = store.Write(offsetPath, learn.Offset{Offset: newOffset, SessionID: sessionID})
+
+	if len(lines) == 0 {
+		return "", nil
+	}
+
+	stripped := sessionctx.Strip(lines)
+
+	var assistantLines []string
+
+	for _, line := range stripped {
+		if text, ok := strings.CutPrefix(line, "ASSISTANT: "); ok {
+			assistantLines = append(assistantLines, text)
+		}
+	}
+
+	return strings.Join(assistantLines, "\n"), nil
+}
+
 // formatTierBreakdown returns a string like "(A: 2, B: 1, C: 3)" from tier counts.
 func formatTierBreakdown(counts map[string]int) string {
 	if len(counts) == 0 {
@@ -1493,12 +1536,12 @@ func runStdinLearn(
 	return nil
 }
 
-//nolint:funlen // wired with flags, cross-ref checker, and transcript window
+//nolint:funlen,cyclop // wired with flags, cross-ref checker, transcript window, and stop-mode delegation
 func runSurface(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("surface", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
-	mode := fs.String("mode", "", "surface mode: prompt, tool")
+	mode := fs.String("mode", "", "surface mode: prompt, tool, stop")
 	dataDir := fs.String("data-dir", "", "path to data directory")
 	message := fs.String("message", "", "user message (prompt mode)")
 	toolName := fs.String("tool-name", "", "tool name (tool mode)")
@@ -1509,6 +1552,8 @@ func runSurface(args []string, stdout io.Writer) error {
 	budget := fs.Int("budget", 0, "token budget override")
 	transcriptWindow := fs.String("transcript-window", "", "recent transcript text for suppression (REQ-P4f-3)")
 	claudeDir := fs.String("claude-dir", "", "path to .claude directory for cross-source suppression (REQ-P4f-2)")
+	transcriptPath := fs.String("transcript-path", "", "transcript JSONL path (stop mode)")
+	sessionID := fs.String("session-id", "", "session ID (stop mode)")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -1522,6 +1567,24 @@ func runSurface(args []string, stdout io.Writer) error {
 
 	if *mode == "" {
 		return errSurfaceMissingFlags
+	}
+
+	if *mode == "stop" {
+		if *transcriptPath == "" {
+			return errSurfaceStopNoTranscript
+		}
+
+		assistantText, deltaErr := extractAssistantDelta(*dataDir, *transcriptPath, *sessionID)
+		if deltaErr != nil {
+			return fmt.Errorf("surface: %w", deltaErr)
+		}
+
+		if assistantText == "" {
+			return nil
+		}
+
+		*mode = surface.ModePrompt
+		*message = assistantText
 	}
 
 	currentProjectSlug := filepath.Base(*dataDir)
