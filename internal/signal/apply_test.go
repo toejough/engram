@@ -2,7 +2,9 @@ package signal_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/onsi/gomega"
@@ -117,6 +119,95 @@ func TestApply_BroadenReadError(t *testing.T) {
 	})
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(result.Success).To(gomega.BeFalse())
+}
+
+func TestApply_Consolidate(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	extractedMem := &memory.MemoryRecord{
+		Title:     "Consolidated principle",
+		Principle: "Generalized principle",
+		Keywords:  []string{"general"},
+	}
+	extractor := &stubExtractor{result: extractedMem}
+	archiver := &stubArchiver{}
+
+	records := map[string]*memory.MemoryRecord{
+		"/mem/a.toml": {Title: "Memory A", SourcePath: "/mem/a.toml", FollowedCount: 2},
+		"/mem/b.toml": {Title: "Memory B", SourcePath: "/mem/b.toml", FollowedCount: 1},
+		"/mem/c.toml": {Title: "Memory C", SourcePath: "/mem/c.toml", FollowedCount: 3},
+	}
+
+	writer := &stubMemoryWriter{written: make(map[string]*memory.Stored)}
+
+	applier := signal.NewApplier(
+		signal.WithWriteMemory(writer),
+		signal.WithApplyExtractor(extractor),
+		signal.WithApplyArchiver(archiver),
+		signal.WithLoadRecord(func(path string) (*memory.MemoryRecord, error) {
+			rec, ok := records[path]
+			if !ok {
+				return nil, fmt.Errorf("not found: %s", path)
+			}
+
+			return rec, nil
+		}),
+	)
+
+	membersJSON, marshalErr := json.Marshal([]map[string]string{
+		{"path": "/mem/a.toml", "title": "Memory A"},
+		{"path": "/mem/b.toml", "title": "Memory B"},
+		{"path": "/mem/c.toml", "title": "Memory C"},
+	})
+	g.Expect(marshalErr).NotTo(gomega.HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	action := signal.ApplyAction{
+		Action: "consolidate",
+		Memory: "/mem/a.toml",
+		Fields: map[string]any{
+			"members": json.RawMessage(membersJSON),
+		},
+	}
+
+	result, err := applier.Apply(context.Background(), action)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Success).To(gomega.BeTrue())
+
+	g.Expect(extractor.calledWith).NotTo(gomega.BeNil())
+
+	if extractor.calledWith == nil {
+		return
+	}
+
+	g.Expect(extractor.calledWith.Members).To(gomega.HaveLen(3))
+
+	g.Expect(archiver.archived).To(gomega.ConsistOf("/mem/b.toml", "/mem/c.toml"))
+}
+
+func TestApply_ConsolidateNilExtractor(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	applier := signal.NewApplier()
+
+	action := signal.ApplyAction{
+		Action: "consolidate",
+		Memory: "/mem/a.toml",
+		Fields: map[string]any{"members": json.RawMessage(`[{"path":"/mem/a.toml"}]`)},
+	}
+
+	_, err := applier.Apply(context.Background(), action)
+	g.Expect(err).To(gomega.HaveOccurred())
 }
 
 func TestApply_EscalateCallsEnforcementApplier(t *testing.T) {
@@ -514,6 +605,15 @@ func (e *errorWriter) Write(_ string, _ *memory.Stored) error {
 	return errors.New("write failed")
 }
 
+type stubArchiver struct {
+	archived []string
+}
+
+func (s *stubArchiver) Archive(path string) error {
+	s.archived = append(s.archived, path)
+	return nil
+}
+
 type stubEnforcementApplier struct {
 	calls []enforcementCall
 }
@@ -522,6 +622,18 @@ func (s *stubEnforcementApplier) SetEnforcementLevel(id, level, _ string) error 
 	s.calls = append(s.calls, enforcementCall{id: id, level: level})
 
 	return nil
+}
+
+type stubExtractor struct {
+	result     *memory.MemoryRecord
+	calledWith *signal.ConfirmedCluster
+}
+
+func (s *stubExtractor) ExtractPrinciple(
+	_ context.Context, cluster signal.ConfirmedCluster,
+) (*memory.MemoryRecord, error) {
+	s.calledWith = &cluster
+	return s.result, nil
 }
 
 type stubMemoryWriter struct {

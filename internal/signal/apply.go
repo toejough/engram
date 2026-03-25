@@ -2,9 +2,11 @@ package signal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"engram/internal/keyword"
 	"engram/internal/maintain"
@@ -14,6 +16,8 @@ import (
 // Exported variables.
 var (
 	ErrLevelOutOfRange   = errors.New("escalation level out of range")
+	ErrMissingDependency = errors.New("missing required dependency")
+	ErrMissingField      = errors.New("missing required field")
 	ErrUnsupportedAction = errors.New("unsupported action")
 	ErrZeroLevel         = errors.New("escalation requires non-zero level")
 )
@@ -24,6 +28,9 @@ type Applier struct {
 	writeMem           MemoryWriter
 	removeFile         func(string) error
 	enforcementApplier maintain.EnforcementApplier
+	extractor          Extractor
+	archiver           Archiver
+	loadRecord         func(string) (*memory.MemoryRecord, error)
 }
 
 // NewApplier creates an Applier with the given options.
@@ -39,7 +46,7 @@ func NewApplier(opts ...ApplierOption) *Applier {
 }
 
 // Apply dispatches the action to the appropriate handler.
-func (a *Applier) Apply(_ context.Context, action ApplyAction) (ApplyResult, error) {
+func (a *Applier) Apply(ctx context.Context, action ApplyAction) (ApplyResult, error) {
 	result := ApplyResult{
 		Action: action.Action,
 		Memory: action.Memory,
@@ -58,6 +65,8 @@ func (a *Applier) Apply(_ context.Context, action ApplyAction) (ApplyResult, err
 		err = a.applyRefine(action)
 	case actionEscalate:
 		err = a.applyEscalate(action)
+	case actionConsolidate:
+		err = a.applyConsolidate(ctx, action)
 	default:
 		return result, fmt.Errorf("%w: %s", ErrUnsupportedAction, action.Action)
 	}
@@ -91,6 +100,48 @@ func (a *Applier) applyBroaden(action ApplyAction) error {
 	}
 
 	return nil
+}
+
+func (a *Applier) applyConsolidate(ctx context.Context, action ApplyAction) error {
+	if a.extractor == nil {
+		return fmt.Errorf("consolidate extractor: %w", ErrMissingDependency)
+	}
+
+	if a.loadRecord == nil {
+		return fmt.Errorf("consolidate loadRecord: %w", ErrMissingDependency)
+	}
+
+	if a.writeMem == nil {
+		return fmt.Errorf("consolidate memory writer: %w", ErrMissingDependency)
+	}
+
+	memberPaths, parseErr := parseMemberPaths(action.Fields)
+	if parseErr != nil {
+		return fmt.Errorf("consolidate: %w", parseErr)
+	}
+
+	members, loadErr := a.loadMembers(memberPaths)
+	if loadErr != nil {
+		return loadErr
+	}
+
+	cluster := ConfirmedCluster{Members: members}
+
+	consolidated, extractErr := a.extractor.ExtractPrinciple(ctx, cluster)
+	if extractErr != nil {
+		return fmt.Errorf("consolidate: extracting principle: %w", extractErr)
+	}
+
+	TransferFields(consolidated, members, time.Now())
+
+	stored := recordToStored(consolidated)
+
+	writeErr := a.writeMem.Write(action.Memory, stored)
+	if writeErr != nil {
+		return fmt.Errorf("consolidate: writing: %w", writeErr)
+	}
+
+	return a.archiveNonSurvivors(memberPaths, action.Memory)
 }
 
 func (a *Applier) applyEscalate(action ApplyAction) error {
@@ -179,6 +230,40 @@ func (a *Applier) applyRewrite(action ApplyAction) error {
 	return nil
 }
 
+func (a *Applier) archiveNonSurvivors(memberPaths []string, survivor string) error {
+	if a.archiver == nil {
+		return nil
+	}
+
+	for _, path := range memberPaths {
+		if path == survivor {
+			continue
+		}
+
+		archErr := a.archiver.Archive(path)
+		if archErr != nil {
+			return fmt.Errorf("consolidate: archiving %s: %w", path, archErr)
+		}
+	}
+
+	return nil
+}
+
+func (a *Applier) loadMembers(paths []string) ([]*memory.MemoryRecord, error) {
+	members := make([]*memory.MemoryRecord, 0, len(paths))
+
+	for _, path := range paths {
+		rec, loadErr := a.loadRecord(path)
+		if loadErr != nil {
+			return nil, fmt.Errorf("consolidate: loading %s: %w", path, loadErr)
+		}
+
+		members = append(members, rec)
+	}
+
+	return members, nil
+}
+
 // ApplierOption configures an Applier.
 type ApplierOption func(*Applier)
 
@@ -204,11 +289,26 @@ type MemoryWriter interface {
 	Write(path string, stored *memory.Stored) error
 }
 
+// WithApplyArchiver sets the archiver for consolidation.
+func WithApplyArchiver(arch Archiver) ApplierOption {
+	return func(a *Applier) { a.archiver = arch }
+}
+
+// WithApplyExtractor sets the principle extractor for consolidation.
+func WithApplyExtractor(e Extractor) ApplierOption {
+	return func(a *Applier) { a.extractor = e }
+}
+
 // WithEnforcementApplier sets the enforcement level applier for escalation.
 func WithEnforcementApplier(applier maintain.EnforcementApplier) ApplierOption {
 	return func(a *Applier) {
 		a.enforcementApplier = applier
 	}
+}
+
+// WithLoadRecord sets the function to load a memory record by path.
+func WithLoadRecord(fn func(string) (*memory.MemoryRecord, error)) ApplierOption {
+	return func(a *Applier) { a.loadRecord = fn }
 }
 
 // WithReadMemory sets the memory reader function.
@@ -235,6 +335,7 @@ func WithWriteMemory(w MemoryWriter) ApplierOption {
 // unexported constants.
 const (
 	actionBroadenKeywords = "broaden_keywords"
+	actionConsolidate     = "consolidate"
 	actionEscalate        = "escalate"
 	actionRefineKeywords  = "refine_keywords"
 	actionRemove          = "remove"
@@ -295,6 +396,70 @@ func applyStringField(stored *memory.Stored, key string, val any) {
 		stored.Principle = strVal
 	case "anti_pattern":
 		stored.AntiPattern = strVal
+	}
+}
+
+func parseMemberPaths(fields map[string]any) ([]string, error) {
+	raw, ok := fields["members"]
+	if !ok {
+		return nil, fmt.Errorf("members: %w", ErrMissingField)
+	}
+
+	type memberEntry struct {
+		Path string `json:"path"`
+	}
+
+	var membersList []memberEntry
+
+	switch v := raw.(type) {
+	case json.RawMessage:
+		unmarshalErr := json.Unmarshal(v, &membersList)
+		if unmarshalErr != nil {
+			return nil, fmt.Errorf("parsing members: %w", unmarshalErr)
+		}
+	case []any:
+		for _, item := range v {
+			if m, isMap := item.(map[string]any); isMap {
+				if p, hasPath := m["path"].(string); hasPath {
+					membersList = append(membersList, memberEntry{Path: p})
+				}
+			}
+		}
+	default:
+		return nil, fmt.Errorf("members type %T: %w", raw, ErrUnsupportedAction)
+	}
+
+	paths := make([]string, 0, len(membersList))
+
+	for _, m := range membersList {
+		paths = append(paths, m.Path)
+	}
+
+	return paths, nil
+}
+
+func recordToStored(rec *memory.MemoryRecord) *memory.Stored {
+	updatedAt, _ := time.Parse(time.RFC3339, rec.UpdatedAt)
+	lastSurfacedAt, _ := time.Parse(time.RFC3339, rec.LastSurfacedAt)
+
+	return &memory.Stored{
+		Title:             rec.Title,
+		Content:           rec.Content,
+		Concepts:          rec.Concepts,
+		Keywords:          rec.Keywords,
+		AntiPattern:       rec.AntiPattern,
+		Principle:         rec.Principle,
+		SurfacedCount:     rec.SurfacedCount,
+		FollowedCount:     rec.FollowedCount,
+		ContradictedCount: rec.ContradictedCount,
+		IgnoredCount:      rec.IgnoredCount,
+		IrrelevantCount:   rec.IrrelevantCount,
+		IrrelevantQueries: rec.IrrelevantQueries,
+		UpdatedAt:         updatedAt,
+		LastSurfacedAt:    lastSurfacedAt,
+		FilePath:          rec.SourcePath,
+		Generalizability:  rec.Generalizability,
+		ProjectSlug:       rec.ProjectSlug,
 	}
 }
 
