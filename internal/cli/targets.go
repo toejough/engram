@@ -100,14 +100,16 @@ type ShowArgs struct {
 
 // SurfaceArgs holds parsed flags for the surface subcommand.
 type SurfaceArgs struct {
-	Mode        string `targ:"flag,name=mode,desc=surface mode: prompt or tool"`
-	DataDir     string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Message     string `targ:"flag,name=message,desc=user message (prompt mode)"`
-	ToolName    string `targ:"flag,name=tool-name,desc=tool name (tool mode)"`
-	ToolInput   string `targ:"flag,name=tool-input,desc=tool input JSON (tool mode)"`
-	ToolOutput  string `targ:"flag,name=tool-output,desc=tool output or error text (tool mode)"`
-	ToolErrored bool   `targ:"flag,name=tool-errored,desc=true if tool call failed (tool mode)"`
-	Format      string `targ:"flag,name=format,desc=output format: json"`
+	Mode           string `targ:"flag,name=mode,desc=surface mode: prompt or tool or stop"`
+	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	Message        string `targ:"flag,name=message,desc=user message (prompt mode)"`
+	ToolName       string `targ:"flag,name=tool-name,desc=tool name (tool mode)"`
+	ToolInput      string `targ:"flag,name=tool-input,desc=tool input JSON (tool mode)"`
+	ToolOutput     string `targ:"flag,name=tool-output,desc=tool output or error text (tool mode)"`
+	ToolErrored    bool   `targ:"flag,name=tool-errored,desc=true if tool call failed (tool mode)"`
+	Format         string `targ:"flag,name=format,desc=output format: json"`
+	TranscriptPath string `targ:"flag,name=transcript-path,desc=transcript JSONL path (stop mode)"`
+	SessionID      string `targ:"flag,name=session-id,desc=session ID (stop mode)"`
 }
 
 // AddBoolFlag appends a flag if the bool is true.
