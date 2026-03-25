@@ -51,7 +51,7 @@ body = '''
 
 - **TOML file output:** Same format and directory as UC-3. Memory written to `<data-dir>/memories/<slug>.toml`. The `confidence` field reflects the classified tier (A, B, or C).
 
-- **Creation visibility (deferred):** PreCompact and Stop/SessionEnd hooks have no output mechanism to show the user what was created. Instead, creation events are logged to a file (`<data-dir>/creation-log.jsonl`) with timestamp, title, tier, and file path. UC-2's SessionStart surfacing reports these at the start of the next session so the user sees what was learned. The log is cleared after successful reporting.
+- **Creation visibility (deferred):** PreCompact and Stop/SessionEnd hooks have no output mechanism to show the user what was created. Instead, creation events are logged to a file (`<data-dir>/creation-log.jsonl`) with timestamp, title, tier, and file path. The creation log is written but not yet surfaced — SessionStart no longer reads it (session-recall redesign, 2026-03-21).
 
 - **Idempotency:** If both PreCompact and Stop fire in the same session, each invocation extracts from its own transcript delta (determined by byte offset). Multiple PreCompact events in a long session each process only the new content since the previous PreCompact. Dedup handles any overlap across multiple extractions in the same session.
 
@@ -264,15 +264,15 @@ hash = "2e4dfd46"
 body = '''
 **Description:** Surface relevant memories at hook time as advisory system reminders. The agent uses these with full session context to exercise judgment.
 
-**Starting state:** The memory store contains TOML files written by UC-3. A hook fires (SessionStart, UserPromptSubmit, or PreToolUse).
+**Starting state:** The memory store contains TOML files written by UC-3. A hook fires (UserPromptSubmit or PreToolUse).
 
-**End state:** Relevant memories are surfaced as system reminders at all three hook points (SessionStart, UserPromptSubmit, PreToolUse). The agent uses these advisories with full session context to exercise judgment. Each surfacing event is recorded in the memory's TOML file (count, timestamp, context type) for effectiveness measurement.
+**End state:** Relevant memories are surfaced as system reminders at two hook points (UserPromptSubmit, PreToolUse). SessionStart runs `engram maintain` and emits a `/recall` hint but does not surface memories (session-recall redesign, 2026-03-21). Each surfacing event is recorded in the memory's TOML file (count, timestamp) for effectiveness measurement.
 
 **Actor:** System (hook scripts invoke Go binary for retrieval and surfacing).
 
 **Key interactions:**
 
-- **SessionStart — passive surfacing:** Surface the top 20 memories by recency as a system reminder. No matching needed — recency is the only signal. Provides context priming at session start. The reminder lists each surfaced memory's title and file path so the user can inspect or edit them. Additionally, if a creation log exists (`<data-dir>/creation-log.jsonl`), report the memories created during prior sessions (by UC-1 at PreCompact/SessionEnd) in the `systemMessage` so the user sees what was learned. Clear the log after reporting.
+- **SessionStart — maintain + recall hint:** Runs `engram maintain` for background triage and emits a static `/recall` reminder. No memory surfacing at session start — context loading is on-demand via the `/recall` skill (session-recall redesign, 2026-03-21).
 
 - **UserPromptSubmit — passive surfacing:** Keyword/concept match the user's message against memory `keywords` and `concepts` fields. Surface matching memories as a system reminder alongside the existing UC-3 correction detection. No blocking — informational only. The reminder lists each matched memory's title, file path, and which keywords matched.
 
@@ -287,7 +287,7 @@ body = '''
 - **Memory format extended for instrumentation:** Reads the same TOML files UC-3 writes. The `keywords`, `anti_pattern`, and `principle` fields already exist and drive the matching/enforcement. Three new optional fields are added to the TOML format for surfacing instrumentation:
   - `surfaced_count` (int) — incremented each time the memory is surfaced
   - `last_surfaced` (RFC 3339 timestamp) — updated to the current time on each surfacing event
-  - `surfacing_contexts` (string array) — bounded list of recent context types (`session-start`, `prompt`, `tool`), capped at 10 entries
+  - `surfacing_contexts` (string array) — bounded list of recent context types (`prompt`, `tool`), capped at 10 entries
 
 - **Surfacing instrumentation:** After each surfacing mode determines which memories matched, the system updates each matched memory's TOML file in-place with the new tracking fields. This is fire-and-forget: instrumentation errors are logged to stderr but never fail the surfacing operation (ARCH-6 exit-0 contract). The data collected here is the foundation for Phase 2 (outcome signals) and Phase 3 (effectiveness diagnosis).
 
@@ -348,18 +348,6 @@ body = '''
 - **Graduation lifecycle (P6-full):** When a memory reaches `graduated`, the signal is written to `graduation-queue.jsonl` with a stable ID and persists until the user accepts or dismisses it. At SessionStart, pending graduation signals are surfaced in `additionalContext` with instructions for the LLM to ask the user about GitHub issue creation. `engram graduate accept --id <id>` creates a GitHub issue and records the entry accepted; `engram graduate dismiss --id <id>` records it dismissed. Quality metric = accepted / (accepted + dismissed).
 
 **Dependencies:** UC-16 (maintain), UC-17 (budget), UC-18 (PostToolUse)
-
----
-'''
-
-[UC-22]
-name = "Mechanical Instruction Extraction *(removed — Phase A-1/S1)*"
-traces_to = []
-hash = "2ca1981e"
-body = '''
-**Status:** Removed. Engram's role is to diagnose and recommend — it does not generate enforcement mechanisms. Graduation signals (UC-28/Package 6) replace the automation proposal concept. The `internal/automate/` package and `engram automate` CLI command have been deleted.
-
-**Dependencies:** UC-21 (escalation — identifies automation candidates)
 
 ---
 '''
@@ -889,81 +877,6 @@ body = '''
 4. Fire-and-forget on errors (ARCH-6)
 
 **Dependencies:** UC-33 (merge infrastructure), UC-28 (signal-detect pipeline), UC-23 (registry), UC-P5f-1 (link recompute after merge)
-'''
-
-[UC-4]
-name = "Skill Generation [REMOVED — Issue #215]"
-traces_to = []
-hash = "169cfaed"
-body = '''
-> **REMOVED:** The promote/demote CLI commands and all promotion machinery have been deleted. Graduation via the escalation ladder (UC-16) replaces tier promotion.
-
-**Description:** Automatically promote memories to Claude Code skills (tier 2) when surfacing cost exceeds skill slot cost. A memory surfaced frequently enough would be cheaper as a skill that loads by context similarity rather than keyword matching on every prompt.
-
-**Starting state:** The instruction registry (UC-23) tracks surfacing frequency and effectiveness for all memories. Some memories have high surfacing counts, indicating they load on many prompts via keyword matching.
-
-**End state:** Memories that cross the promotion threshold are converted to skill files, registered with the Claude Code plugin, and the source memory is retired (merged into the skill's registry entry via UC-23 merge). The skill loads by context similarity instead of keyword matching.
-
-**Actor:** Developer via `engram promote --to-skill` CLI command.
-
-**Key interactions:**
-
-- **Candidate detection:** Query the registry for memories with surfacing_count above the promotion threshold. Compare surfacing cost (loaded every prompt via keyword match) vs skill slot cost (loaded only when context-similar). Candidates are memories where surfacing cost > skill cost.
-- **Skill file generation (LLM):** Generate a skill file from memory content — title becomes skill name, content/principle/anti_pattern become skill body, keywords/concepts inform the skill's triggering description.
-- **Plugin registration:** Write skill file to the plugin's skills directory. Update plugin manifest if needed.
-- **Source retirement:** Merge the memory's registry entry into the new skill's entry (preserving effectiveness history via UC-23 merge). Delete the source memory TOML.
-- **User confirmation:** Present the proposed promotion (source memory, generated skill preview) before executing. Never auto-promote.
-- **No graceful degradation:** If no API token, skip LLM generation. Candidate detection still works.
-- **Pure Go, no CGO.**
-- **DI everywhere.**
-
-**Constraints:**
-1. User confirms before any promotion — memories are user-curated artifacts
-2. Effectiveness history preserved via registry merge (not lost on promotion)
-3. Generated skill must be valid Claude Code skill format
-4. Fire-and-forget on registry write failures (ARCH-6)
-
-**Dependencies:** UC-23 (registry for effectiveness data and merge operations)
-
----
-'''
-
-[UC-5]
-name = "CLAUDE.md Management [REMOVED — Issue #215]"
-traces_to = []
-hash = "8aae7812"
-body = '''
-> **REMOVED:** The promote/demote CLI commands and all promotion machinery have been deleted along with UC-4.
-
-**Description:** Propose additions and removals to CLAUDE.md (tier 1, always-loaded guidance) based on measured effectiveness. Promote skills that prove universally useful; demote narrowly-specific CLAUDE.md entries back to skills.
-
-**Starting state:** The instruction registry (UC-23) tracks effectiveness for all instruction sources including CLAUDE.md entries and skills. Some skills have high effectiveness across contexts; some CLAUDE.md entries have low effectiveness (Leech quadrant).
-
-**End state:** Promotion candidates (high-effectiveness skills) are proposed for addition to CLAUDE.md. Demotion candidates (low-effectiveness CLAUDE.md entries) are proposed for removal from CLAUDE.md and conversion to skills. User confirms before any changes.
-
-**Actor:** Developer via `engram promote --to-claude-md` and `engram demote --to-skill` CLI commands.
-
-**Key interactions:**
-
-- **Promotion candidate detection:** Query the registry for skills in the Working quadrant with high surfacing frequency. These are universally useful and would benefit from always-loaded status.
-- **CLAUDE.md entry generation (LLM):** Generate a concise CLAUDE.md entry from skill content. Must fit the existing CLAUDE.md style and structure.
-- **Demotion candidate detection:** Query the registry for CLAUDE.md entries in the Leech quadrant — always loaded but rarely followed. These waste context budget.
-- **Skill file generation from CLAUDE.md entry:** Convert the demoted CLAUDE.md entry into a skill file that loads by context similarity.
-- **Registry merge:** On promotion, merge the skill's registry entry into the new CLAUDE.md entry's. On demotion, merge the CLAUDE.md entry's into the new skill's.
-- **User confirmation:** Present proposed changes with evidence (effectiveness data, quadrant classification) before executing. Never auto-modify CLAUDE.md.
-- **No graceful degradation:** If no API token, skip LLM generation. Candidate detection still works.
-- **Pure Go, no CGO.**
-- **DI everywhere.**
-
-**Constraints:**
-1. User confirms before any CLAUDE.md modification — CLAUDE.md is the highest-trust tier
-2. Effectiveness history preserved via registry merge
-3. CLAUDE.md edits are proposed as diffs, not applied blindly
-4. Fire-and-forget on registry write failures (ARCH-6)
-
-**Dependencies:** UC-23 (registry), UC-4 (skill generation for demotion path)
-
----
 '''
 
 [UC-6]
