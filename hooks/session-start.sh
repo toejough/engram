@@ -87,6 +87,7 @@ jq -n \
         LEECH_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.quadrant == "Leech")] | length' 2>/dev/null) || LEECH_COUNT=0
         REFINE_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.action == "refine_keywords")] | length' 2>/dev/null) || REFINE_COUNT=0
         ESCALATION_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.action == "escalation_escalate" or .action == "escalation_deescalate")] | length' 2>/dev/null) || ESCALATION_COUNT=0
+        CONSOLIDATE_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.action == "consolidate")] | length' 2>/dev/null) || CONSOLIDATE_COUNT=0
 
         # Build full details for additionalContext (Claude sees this if user says "triage")
         NOISE_DETAIL=$(echo "$SIGNAL_OUTPUT" | jq -r '
@@ -139,7 +140,17 @@ jq -n \
             end
         ' 2>/dev/null) || true
 
-        for detail in "$NOISE_DETAIL" "$HIDDEN_GEM_DETAIL" "$LEECH_DETAIL" "$REFINE_DETAIL" "$ESCALATION_DETAIL"; do
+        CONSOLIDATE_DETAIL=$(echo "$SIGNAL_OUTPUT" | jq -r '
+            [.[] | select(.action == "consolidate")] |
+            if length == 0 then empty else
+                "## Consolidation Candidates (\(length) groups)\nHighly similar memories — candidates for merging.\n" +
+                (to_entries | map(
+                    "  \(.key + 1). \(.value.memory_path | split("/") | last | rtrimstr(".toml")) — \(.value.diagnosis)"
+                ) | join("\n"))
+            end
+        ' 2>/dev/null) || true
+
+        for detail in "$NOISE_DETAIL" "$HIDDEN_GEM_DETAIL" "$LEECH_DETAIL" "$REFINE_DETAIL" "$ESCALATION_DETAIL" "$CONSOLIDATE_DETAIL"; do
             if [[ -n "$detail" ]]; then
                 TRIAGE_DETAILS="${TRIAGE_DETAILS}
 ${detail}
@@ -157,6 +168,7 @@ ${detail}
         [[ "$LEECH_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${LEECH_COUNT} leech"
         [[ "$REFINE_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${REFINE_COUNT} refine keywords"
         [[ "$ESCALATION_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${ESCALATION_COUNT} escalation"
+        [[ "$CONSOLIDATE_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${CONSOLIDATE_COUNT} consolidation"
         DIRECTIVE="[engram] Memory triage: ${COUNTS} pending. Say \"triage\" to review, or ignore to proceed."
 
         TRIAGE_CTX="[engram] Memory triage details (present interactively if user says 'triage'):
