@@ -426,26 +426,13 @@ One entry per memory created. The log file is created if missing, appended to if
 '''
 
 [REQ-24]
-name = "SessionStart creation report — read and clear creation log"
+name = "SessionStart creation report — read and clear creation log *(removed — session-recall redesign, 2026-03-21)*"
 traces_to = ["UC-2"]
 hash = "3be9fdb1"
 body = '''
-When a session starts (SessionStart hook), before surfacing the top 20 memories by recency, the system checks for a creation log (`<data-dir>/creation-log.jsonl`). If it exists:
+**Status:** Removed. SessionStart no longer surfaces memories or reads the creation log. The creation log is still written (REQ-23, REQ-25) but has no reader in the current hook flow.
 
-1. Read all entries from the log
-2. Format them as a report: "N memories created since last session: [titles and tiers]"
-3. Include the report in the hook's `systemMessage` so the user sees what was learned
-4. Delete the creation log after successful reporting
-
-Fire-and-forget: log read/delete errors are logged to stderr but don't fail the SessionStart operation (ARCH-6 exit-0 contract).
-
-- Traces to: UC-2 (SessionStart surfacing, creation visibility)
-- AC: (1) SessionStart checks for `creation-log.jsonl`. (2) If present, reads all JSONL entries. (3) Formats a report: "N memories created since last session: [list]". (4) Includes report in `systemMessage` alongside the recency surfacing. (5) Deletes the log after reporting. (6) If no log exists, no report is included. (7) Read/delete errors logged to stderr, don't fail the operation.
-- Verification: deterministic (log parsing, report format, file deletion)
-
----
-
-# UC-1 Requirements and Design
+- Traces to: UC-2 (SessionStart creation visibility — removed)
 
 ---
 '''
@@ -1285,18 +1272,6 @@ If a memory at an elevated enforcement level shows increasing contradictions (co
 ---
 '''
 
-[REQ-83]
-name = "~~REMOVED (S2)~~ Dimension routing before escalation"
-traces_to = ["UC-20"]
-hash = "ebebadde"
-body = '''
-> **Removed in Phase A-1 (S2).** Engram does not route to automation, rule files, or CLAUDE.md. It escalates within its advisory range (advisory → emphasized_advisory → reminder) and emits graduation signals (UC-28) when that range is exhausted. Mechanical pattern detection and the `route_automation` proposal type have been removed from `internal/maintain/escalation.go`.
-
-- Status: unsatisfiable — requirement removed from scope
-
----
-'''
-
 [REQ-84]
 name = "Escalation level stored per memory in TOML"
 traces_to = ["UC-20"]
@@ -1382,39 +1357,13 @@ Once automation is verified and user confirms, the memory gains a `retired_by` f
 '''
 
 [REQ-9]
-name = "SessionStart surfacing — top 20 by frecency"
+name = "SessionStart surfacing — top 20 by frecency *(removed — session-recall redesign, 2026-03-21)*"
 traces_to = ["UC-2"]
 hash = "87b4bf47"
 body = '''
-When a session starts (SessionStart hook), the system reads all memory TOML files from the data directory, ranks them by frecency activation score (ACT-R model), and surfaces the top 20 as a system reminder.
+**Status:** Removed. SessionStart no longer surfaces memories. The hook runs `engram maintain` and emits a `/recall` hint instead.
 
-- Traces to: UC-2 (SessionStart surfacing)
-- AC: (1) All `.toml` files in `<data-dir>/memories/` are read and parsed. (2) Frecency activation score computed per memory using ACT-R formula (REQ-46). (3) Sorted by activation score descending. (4) Top 20 are included in the system reminder. (5) If fewer than 20 memories exist, all are surfaced. (6) If no memories exist, no reminder is emitted (empty stdout). (7) Memories with no surfacing history fall back to updated_at for recency component.
-- Verification: deterministic (file listing, frecency scoring, sort, count)
-
----
-'''
-
-[REQ-90]
-name = "CLI command `engram automate` *(removed — Phase A-1/S1)*"
-traces_to = ["UC-22"]
-hash = "2ba6706a"
-body = '''
-**Status:** Unsatisfiable. UC-22 removed. `engram automate` subcommand deleted.
-
-- Traces to: UC-22 (removed)
-
----
-'''
-
-[REQ-91]
-name = "No graceful degradation for automate *(removed — Phase A-1/S1)*"
-traces_to = ["UC-22"]
-hash = "2ba6706a"
-body = '''
-**Status:** Unsatisfiable. UC-22 removed. `engram automate` subcommand deleted.
-
-- Traces to: UC-22 (removed)
+- Traces to: UC-2 (SessionStart — removed)
 
 ---
 '''
