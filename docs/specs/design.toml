@@ -379,42 +379,15 @@ No manual build step required — the `SessionStart` hook handles it (REQ-8). RE
 '''
 
 [DES-5]
-name = "SessionStart surfacing reminder format"
+name = "SessionStart surfacing reminder format *(removed — session-recall redesign, 2026-03-21)*"
 traces_to = ["UC-2"]
 hash = "49edc0cd"
 body = '''
-When memories are surfaced at session start, the output includes two sections:
+**Status:** Removed. SessionStart no longer surfaces memories or reads the creation log. The hook emits a static `/recall` hint and runs `engram maintain`.
 
-1. **Creation report (if creation log exists):** Before surfacing recency-based memories, the system reports memories created in prior sessions:
+The DES-5 format (creation report + recency surfacing in system-reminder XML) is no longer produced.
 
-```
-<system-reminder source="engram">
-[engram] Created N memories since last session:
-  - "<title1>" [A] (file1.toml)
-  - "<title2>" [B] (file2.toml)
-</system-reminder>
-```
-
-2. **Recency surfacing:** Then the top 20 by recency:
-
-```
-<system-reminder source="engram">
-[engram] Loaded M memories.
-  - "<title3>" (file3.toml)
-  - "<title4>" (file4.toml)
-  ...
-</system-reminder>
-```
-
-Format rules:
-- Creation report: "Created N memories since last session:" with title, tier, file path for each
-- Recency report: "Loaded M memories." with title and file path for each
-- Ordered by recency (most recent first) for recency section
-- If no creation log exists, skip creation report
-- If no memories exist for recency section, emit only creation report (if present)
-- With `--format json`: wrap both sections in `{"summary": "[engram] ...", "context": "<system-reminder>..."}`. Hook script reshapes into `{systemMessage, additionalContext}` for Claude Code visibility.
-
-- Traces to: UC-2 (SessionStart feedback, creation visibility)
+- Traces to: UC-2 (SessionStart — removed)
 
 ---
 '''
