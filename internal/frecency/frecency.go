@@ -13,11 +13,10 @@ type EffectivenessStat struct {
 
 // Input holds the data needed to compute activation for one memory.
 type Input struct {
-	SurfacedCount     int
-	LastSurfaced      time.Time
-	UpdatedAt         time.Time // fallback for never-surfaced
-	SurfacingContexts []string
-	FilePath          string // key for effectiveness lookup
+	SurfacedCount int
+	LastSurfaced  time.Time
+	UpdatedAt     time.Time // fallback for never-surfaced
+	FilePath      string    // key for effectiveness lookup
 }
 
 // Scorer computes frecency activation scores for memories.
@@ -32,7 +31,7 @@ func New(now time.Time, effectiveness map[string]EffectivenessStat) *Scorer {
 }
 
 // Activation computes the frecency activation score for a memory.
-// Formula: frequency x recency x spread x effectiveness.
+// Formula: frequency x recency x effectiveness.
 func (s *Scorer) Activation(input Input) float64 {
 	freq := math.Log(1 + float64(input.SurfacedCount))
 
@@ -49,8 +48,6 @@ func (s *Scorer) Activation(input Input) float64 {
 
 	recency := 1.0 / (1.0 + hoursSince)
 
-	spread := math.Log(1 + float64(len(input.SurfacingContexts)))
-
 	// Effectiveness: default 0.5 when no data, floor 0.1.
 	eff := defaultEffectiveness
 
@@ -60,7 +57,7 @@ func (s *Scorer) Activation(input Input) float64 {
 		}
 	}
 
-	return freq * recency * spread * eff
+	return freq * recency * eff
 }
 
 // CombinedScore computes BM25 x (1 + activation) for prompt/tool modes.

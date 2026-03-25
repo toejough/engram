@@ -24,15 +24,14 @@ func TestT165_AllComponentsPresentActivationPositive(t *testing.T) {
 	scorer := frecency.New(now, effectiveness)
 
 	input := frecency.Input{
-		SurfacedCount:     10,
-		LastSurfaced:      now.Add(-2 * time.Hour),
-		UpdatedAt:         now.Add(-24 * time.Hour),
-		SurfacingContexts: []string{"session-start", "prompt", "tool"},
-		FilePath:          "mem/alpha.toml",
+		SurfacedCount: 10,
+		LastSurfaced:  now.Add(-2 * time.Hour),
+		UpdatedAt:     now.Add(-24 * time.Hour),
+		FilePath:      "mem/alpha.toml",
 	}
 
 	activation := scorer.Activation(input)
-	expected := math.Log(11) * (1.0 / 3.0) * math.Log(4) * 0.8
+	expected := math.Log(11) * (1.0 / 3.0) * 0.8
 	g.Expect(activation).To(BeNumerically("~", expected, 0.001))
 }
 
@@ -47,11 +46,10 @@ func TestT166_NeverSurfacedActivationZero(t *testing.T) {
 	scorer := frecency.New(now, nil)
 
 	input := frecency.Input{
-		SurfacedCount:     0,
-		LastSurfaced:      time.Time{}, // zero value
-		UpdatedAt:         now.Add(-24 * time.Hour),
-		SurfacingContexts: nil,
-		FilePath:          "mem/beta.toml",
+		SurfacedCount: 0,
+		LastSurfaced:  time.Time{}, // zero value
+		UpdatedAt:     now.Add(-24 * time.Hour),
+		FilePath:      "mem/beta.toml",
 	}
 
 	activation := scorer.Activation(input)
@@ -73,11 +71,10 @@ func TestT167_NoEffectivenessDataUsesDefault(t *testing.T) {
 	scorer := frecency.New(now, effectiveness)
 
 	input := frecency.Input{
-		SurfacedCount:     5,
-		LastSurfaced:      now.Add(-1 * time.Hour),
-		UpdatedAt:         now.Add(-48 * time.Hour),
-		SurfacingContexts: []string{"prompt"},
-		FilePath:          "mem/gamma.toml",
+		SurfacedCount: 5,
+		LastSurfaced:  now.Add(-1 * time.Hour),
+		UpdatedAt:     now.Add(-48 * time.Hour),
+		FilePath:      "mem/gamma.toml",
 	}
 
 	// Compute activation with default effectiveness (0.5).
@@ -107,11 +104,10 @@ func TestT168_CombinedScoreBM25ZeroReturnsZero(t *testing.T) {
 	scorer := frecency.New(now, effectiveness)
 
 	input := frecency.Input{
-		SurfacedCount:     10,
-		LastSurfaced:      now.Add(-1 * time.Hour),
-		UpdatedAt:         now.Add(-24 * time.Hour),
-		SurfacingContexts: []string{"prompt", "tool"},
-		FilePath:          "mem/alpha.toml",
+		SurfacedCount: 10,
+		LastSurfaced:  now.Add(-1 * time.Hour),
+		UpdatedAt:     now.Add(-24 * time.Hour),
+		FilePath:      "mem/alpha.toml",
 	}
 
 	combined := scorer.CombinedScore(0.0, input)
@@ -133,31 +129,28 @@ func TestT170_CombinedScoreReRanking(t *testing.T) {
 
 	scorer := frecency.New(now, effectiveness)
 
-	// Memory A: low BM25 but high frecency (recently surfaced, many times, many contexts).
+	// Memory A: low BM25 but high frecency (recently surfaced, many times).
 	inputA := frecency.Input{
-		SurfacedCount:     20,
-		LastSurfaced:      now.Add(-30 * time.Minute),
-		UpdatedAt:         now.Add(-1 * time.Hour),
-		SurfacingContexts: []string{"session-start", "prompt", "tool", "extra"},
-		FilePath:          "mem/low-bm25-high-frecency.toml",
+		SurfacedCount: 20,
+		LastSurfaced:  now.Add(-30 * time.Minute),
+		UpdatedAt:     now.Add(-1 * time.Hour),
+		FilePath:      "mem/low-bm25-high-frecency.toml",
 	}
 
 	// Memory B: high BM25 but low frecency (rarely surfaced, long ago).
 	inputB := frecency.Input{
-		SurfacedCount:     1,
-		LastSurfaced:      now.Add(-720 * time.Hour), // 30 days ago
-		UpdatedAt:         now.Add(-720 * time.Hour),
-		SurfacingContexts: []string{"session-start"},
-		FilePath:          "mem/high-bm25-low-frecency.toml",
+		SurfacedCount: 1,
+		LastSurfaced:  now.Add(-720 * time.Hour), // 30 days ago
+		UpdatedAt:     now.Add(-720 * time.Hour),
+		FilePath:      "mem/high-bm25-low-frecency.toml",
 	}
 
 	// Memory C: mid BM25, mid frecency.
 	inputC := frecency.Input{
-		SurfacedCount:     5,
-		LastSurfaced:      now.Add(-12 * time.Hour),
-		UpdatedAt:         now.Add(-24 * time.Hour),
-		SurfacingContexts: []string{"prompt", "tool"},
-		FilePath:          "mem/mid-bm25-mid-frecency.toml",
+		SurfacedCount: 5,
+		LastSurfaced:  now.Add(-12 * time.Hour),
+		UpdatedAt:     now.Add(-24 * time.Hour),
+		FilePath:      "mem/mid-bm25-mid-frecency.toml",
 	}
 
 	bm25A := 6.0  // lowest BM25

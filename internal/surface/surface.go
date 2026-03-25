@@ -1465,8 +1465,8 @@ func sortToolMatchesByActivation(matches []toolMatch, scorer *frecency.Scorer) {
 }
 
 // toFrecencyInput converts a stored memory to a frecency input.
-// Tracking fields (SurfacedCount, LastSurfaced, SurfacingContexts) are no longer
-// stored inline in TOMLs — they default to zero, falling back to recency-only ranking.
+// Tracking fields (SurfacedCount, LastSurfaced) are not yet populated here —
+// they default to zero, falling back to recency-only ranking.
 // Future: populate from instruction registry for full frecency scoring.
 func toFrecencyInput(mem *memory.Stored) frecency.Input {
 	return frecency.Input{

@@ -155,44 +155,6 @@ func TestT26_ListMemoriesSkipsUnparseableFiles(t *testing.T) {
 	g.Expect(memories[1].Title).To(Equal("Valid One"))
 }
 
-// T-82: Old TOMLs with tracking fields parse without error (backward compat).
-// Tracking fields are now managed by the instruction registry (UC-23) and
-// are silently ignored by BurntSushi/toml when not in the struct.
-func TestT82_OldTrackingFieldsIgnored(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	memoriesDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memoriesDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Write a TOML with old tracking fields that should be silently ignored.
-	writeTestTOMLWithTracking(t, memoriesDir, "tracked.toml", tomlContent{
-		Title:     "Tracked Memory",
-		Keywords:  []string{"track"},
-		UpdatedAt: "2026-03-01T00:00:00Z",
-	})
-
-	r := retrieve.New()
-	memories, err := r.ListMemories(context.Background(), dataDir)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(memories).To(HaveLen(1))
-	g.Expect(memories[0].Title).To(Equal("Tracked Memory"))
-	g.Expect(memories[0].FilePath).To(ContainSubstring("tracked.toml"))
-}
-
 // T-374a: TOML with last_surfaced_at parses into Stored.LastSurfacedAt correctly.
 func TestT374a_LastSurfacedAtParsed(t *testing.T) {
 	t.Parallel()
@@ -260,6 +222,44 @@ func TestT374b_LastSurfacedAtAbsentIsZero(t *testing.T) {
 
 	g.Expect(memories).To(HaveLen(1))
 	g.Expect(memories[0].LastSurfacedAt).To(BeZero())
+}
+
+// T-82: Old TOMLs with tracking fields parse without error (backward compat).
+// Tracking fields are now managed by the instruction registry (UC-23) and
+// are silently ignored by BurntSushi/toml when not in the struct.
+func TestT82_OldTrackingFieldsIgnored(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memoriesDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Write a TOML with old tracking fields that should be silently ignored.
+	writeTestTOMLWithTracking(t, memoriesDir, "tracked.toml", tomlContent{
+		Title:     "Tracked Memory",
+		Keywords:  []string{"track"},
+		UpdatedAt: "2026-03-01T00:00:00Z",
+	})
+
+	r := retrieve.New()
+	memories, err := r.ListMemories(context.Background(), dataDir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(memories).To(HaveLen(1))
+	g.Expect(memories[0].Title).To(Equal("Tracked Memory"))
+	g.Expect(memories[0].FilePath).To(ContainSubstring("tracked.toml"))
 }
 
 // tomlContent is a test helper for writing memory TOML files.
