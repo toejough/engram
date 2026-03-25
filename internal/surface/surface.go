@@ -186,18 +186,15 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		}
 	}
 
-	// Create frecency scorer with current time and effectiveness data (ARCH-35).
-	var frecencyEff map[string]frecency.EffectivenessStat
-	if effectiveness != nil {
-		frecencyEff = make(map[string]frecency.EffectivenessStat, len(effectiveness))
-		for path, stat := range effectiveness {
-			frecencyEff[path] = frecency.EffectivenessStat{
-				EffectivenessScore: stat.EffectivenessScore,
-			}
+	// Create frecency scorer with current time and corpus-wide max surfaced count (ARCH-35).
+	maxSurfaced := 0
+	for _, stat := range effectiveness {
+		if stat.SurfacedCount > maxSurfaced {
+			maxSurfaced = stat.SurfacedCount
 		}
 	}
 
-	scorer := frecency.New(time.Now(), frecencyEff)
+	scorer := frecency.New(time.Now(), maxSurfaced)
 
 	var (
 		result            Result
@@ -1448,30 +1445,32 @@ func sortByEffectivenessScore(
 	})
 }
 
-// sortPromptMatchesByActivation sorts prompt matches by frecency activation descending.
+// sortPromptMatchesByQuality sorts prompt matches by frecency quality descending.
 func sortPromptMatchesByActivation(matches []promptMatch, scorer *frecency.Scorer) {
 	sort.SliceStable(matches, func(i, j int) bool {
-		return scorer.Activation(toFrecencyInput(matches[i].mem)) >
-			scorer.Activation(toFrecencyInput(matches[j].mem))
+		return scorer.Quality(toFrecencyInput(matches[i].mem)) >
+			scorer.Quality(toFrecencyInput(matches[j].mem))
 	})
 }
 
-// sortToolMatchesByActivation sorts tool matches by frecency activation descending.
+// sortToolMatchesByQuality sorts tool matches by frecency quality descending.
 func sortToolMatchesByActivation(matches []toolMatch, scorer *frecency.Scorer) {
 	sort.SliceStable(matches, func(i, j int) bool {
-		return scorer.Activation(toFrecencyInput(matches[i].mem)) >
-			scorer.Activation(toFrecencyInput(matches[j].mem))
+		return scorer.Quality(toFrecencyInput(matches[i].mem)) >
+			scorer.Quality(toFrecencyInput(matches[j].mem))
 	})
 }
 
 // toFrecencyInput converts a stored memory to a frecency input.
-// Tracking fields (SurfacedCount, LastSurfaced) are not yet populated here —
-// they default to zero, falling back to recency-only ranking.
-// Future: populate from instruction registry for full frecency scoring.
 func toFrecencyInput(mem *memory.Stored) frecency.Input {
 	return frecency.Input{
-		UpdatedAt: mem.UpdatedAt,
-		FilePath:  mem.FilePath,
+		SurfacedCount:     mem.SurfacedCount,
+		LastSurfacedAt:    mem.LastSurfacedAt,
+		UpdatedAt:         mem.UpdatedAt,
+		FollowedCount:     mem.FollowedCount,
+		ContradictedCount: mem.ContradictedCount,
+		IgnoredCount:      mem.IgnoredCount,
+		FilePath:          mem.FilePath,
 	}
 }
 
