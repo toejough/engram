@@ -276,6 +276,14 @@ EXTRACT only high-signal learnings such as:
 - working solutions to previously unsolved problems
 - implicit preferences the user expressed through their corrections
 
+GENERALIZE — before storing, restate each learning at its most transferable level:
+- Strip project-specific details (file names, variable names, tool names) unless they ARE the point.
+- Ask: "What is the underlying principle that makes this correct?" State that, not the specific instance.
+- Example: "persist surfacing queries in irrelevant_queries field" → "capture diagnostic context at
+  the point of observation for later analysis, not after the fact."
+- If the generalized form is identical to an existing well-known principle, score generalizability
+  lower or reject entirely.
+
 TIER CLASSIFICATION — classify each learning into exactly one tier:
 - A = explicit instruction: the user directly told the AI to do or not do something
   (e.g., "always use targ", "never run go test directly")
