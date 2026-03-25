@@ -988,30 +988,30 @@ const (
 	enforcementAdvisory              = "advisory"
 	enforcementEmphasizedAdvisory    = "emphasized_advisory"
 	enforcementReminder              = "reminder"
-	insufficientDataThreshold        = 5 // REQ-P4e-1: <5 surfacings → insufficient data, skip gating
 	irrelevancePenaltyHalfLife       = 5
-	minEffectivenessFloor            = 40.0 // REQ-P4e-1/REQ-P4e-4: gate threshold
+	minEffectivenessFloor            = 40.0 // gate threshold
 	minPreCompactEffectiveness       = 40.0
 	minRelevanceScore                = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
 	preCompactLimit                  = 5
 	promptLimit                      = 2
-	sessionStartDefaultEffectiveness = 50.0 // DES-P4e-1: default for memories with 1-4 surfacings
+	sessionStartDefaultEffectiveness = 50.0 // neutral default for memories with no evaluations
 	sessionStartLimit                = 7    // REQ-P4e-2: top-7
 	spreadingActivationDecay         = 0.3  // REQ-P3-6: spreading activation decay factor
 	toolLimit                        = 2    // REQ-P4e-4: top-2
-	unprovenBM25FloorPrompt          = 0.20
-	unprovenBM25FloorTool            = 0.30
-	unprovenDefaultEffectiveness     = 30.0
+	unprovenBM25FloorPrompt = 0.20
+	unprovenBM25FloorTool   = 0.30
 )
 
 // promptMatch holds a memory for prompt mode.
 type promptMatch struct {
-	mem *memory.Stored
+	mem       *memory.Stored
+	bm25Score float64
 }
 
 // toolMatch holds a memory for tool mode.
 type toolMatch struct {
-	mem *memory.Stored
+	mem       *memory.Stored
+	bm25Score float64
 }
 
 // applyColdStartBudgetPrompt keeps all proven matches plus at most coldStartBudget unproven.
@@ -1192,20 +1192,15 @@ func concatenateToolFields(mem *memory.Stored) string {
 }
 
 // effectivenessScoreFor returns the effectiveness score for a memory path.
-// Unproven memories (0 surfacings) get unprovenDefaultEffectiveness (30%).
-// Memories with 1-4 surfacings (insufficient data) get sessionStartDefaultEffectiveness (50%).
-// Memories with >=insufficientDataThreshold surfacings use their recorded score (REQ-P4e-1).
+// Memories with no evaluations (absent or SurfacedCount == 0) get sessionStartDefaultEffectiveness (50%).
+// All other memories use their recorded score directly.
 func effectivenessScoreFor(path string, effectiveness map[string]EffectivenessStat) float64 {
 	if effectiveness == nil {
-		return unprovenDefaultEffectiveness
+		return sessionStartDefaultEffectiveness
 	}
 
 	stat, ok := effectiveness[path]
 	if !ok || stat.SurfacedCount == 0 {
-		return unprovenDefaultEffectiveness
-	}
-
-	if stat.SurfacedCount < insufficientDataThreshold {
 		return sessionStartDefaultEffectiveness
 	}
 
@@ -1217,8 +1212,8 @@ func filenameSlug(path string) string {
 	return strings.TrimSuffix(filepath.Base(path), ".toml")
 }
 
-// filterByEffectivenessGate removes memories with sufficient data (>=5 surfacings) and low effectiveness (<=40%).
-// Memories with <5 surfacings or no data are always kept (REQ-P4e-1: insufficient data).
+// filterByEffectivenessGate removes memories with low effectiveness (<=40%).
+// Memories with no evaluations (absent or SurfacedCount == 0) are always kept.
 func filterByEffectivenessGate(
 	memories []*memory.Stored,
 	effectiveness map[string]EffectivenessStat,
@@ -1228,8 +1223,7 @@ func filterByEffectivenessGate(
 	for _, mem := range memories {
 		if effectiveness != nil {
 			stat, ok := effectiveness[mem.FilePath]
-			if ok && stat.SurfacedCount >= insufficientDataThreshold &&
-				stat.EffectivenessScore <= minEffectivenessFloor {
+			if ok && stat.SurfacedCount > 0 && stat.EffectivenessScore <= minEffectivenessFloor {
 				continue // gated out
 			}
 		}
@@ -1250,8 +1244,7 @@ func filterToolMatchesByEffectivenessGate(
 	for _, candidate := range candidates {
 		if effectiveness != nil {
 			stat, ok := effectiveness[candidate.mem.FilePath]
-			if ok && stat.SurfacedCount >= insufficientDataThreshold &&
-				stat.EffectivenessScore <= minEffectivenessFloor {
+			if ok && stat.SurfacedCount > 0 && stat.EffectivenessScore <= minEffectivenessFloor {
 				continue // gated out
 			}
 		}
@@ -1347,7 +1340,7 @@ func matchPromptMemories(
 			continue
 		}
 
-		matches = append(matches, promptMatch{mem: mem})
+		matches = append(matches, promptMatch{mem: mem, bm25Score: penalizedScore})
 	}
 
 	return matches
@@ -1418,7 +1411,7 @@ func matchToolMemories(
 			continue
 		}
 
-		matches = append(matches, toolMatch{mem: mem})
+		matches = append(matches, toolMatch{mem: mem, bm25Score: penalizedScore})
 	}
 
 	return matches
@@ -1445,19 +1438,23 @@ func sortByEffectivenessScore(
 	})
 }
 
-// sortPromptMatchesByQuality sorts prompt matches by frecency quality descending.
+// sortPromptMatchesByQuality sorts prompt matches by combined score descending.
 func sortPromptMatchesByActivation(matches []promptMatch, scorer *frecency.Scorer) {
 	sort.SliceStable(matches, func(i, j int) bool {
-		return scorer.Quality(toFrecencyInput(matches[i].mem)) >
-			scorer.Quality(toFrecencyInput(matches[j].mem))
+		si := scorer.CombinedScore(matches[i].bm25Score, 0, toFrecencyInput(matches[i].mem))
+		sj := scorer.CombinedScore(matches[j].bm25Score, 0, toFrecencyInput(matches[j].mem))
+
+		return si > sj
 	})
 }
 
-// sortToolMatchesByQuality sorts tool matches by frecency quality descending.
+// sortToolMatchesByQuality sorts tool matches by combined score descending.
 func sortToolMatchesByActivation(matches []toolMatch, scorer *frecency.Scorer) {
 	sort.SliceStable(matches, func(i, j int) bool {
-		return scorer.Quality(toFrecencyInput(matches[i].mem)) >
-			scorer.Quality(toFrecencyInput(matches[j].mem))
+		si := scorer.CombinedScore(matches[i].bm25Score, 0, toFrecencyInput(matches[i].mem))
+		sj := scorer.CombinedScore(matches[j].bm25Score, 0, toFrecencyInput(matches[j].mem))
+
+		return si > sj
 	})
 }
 
