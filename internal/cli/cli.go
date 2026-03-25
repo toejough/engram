@@ -296,11 +296,18 @@ func RunMaintain(
 
 	// Convert consolidation plans to proposals (#373).
 	for idx := range plans {
-		members := make([]string, 0, len(plans[idx].Absorbed)+1)
-		members = append(members, titleOrPath(memoryMap, plans[idx].Survivor))
+		memberCount := len(plans[idx].Absorbed) + 1
+		members := make([]consolidateMember, 0, memberCount)
+		members = append(members, consolidateMember{
+			Path:  plans[idx].Survivor,
+			Title: titleOrPath(memoryMap, plans[idx].Survivor),
+		})
 
 		for _, absorbed := range plans[idx].Absorbed {
-			members = append(members, titleOrPath(memoryMap, absorbed))
+			members = append(members, consolidateMember{
+				Path:  absorbed,
+				Title: titleOrPath(memoryMap, absorbed),
+			})
 		}
 
 		sharedKW := sharedKeywords(memoryMap, plans[idx].Survivor, plans[idx].Absorbed)
@@ -503,9 +510,15 @@ func (c *cliLLMCaller) Call(ctx context.Context, prompt string) (string, error) 
 
 //nolint:tagliatelle // DES-23 specifies snake_case JSON field names.
 type consolidateDetails struct {
-	Members        []string `json:"members"`
-	SharedKeywords []string `json:"shared_keywords"`
-	Confidence     float64  `json:"confidence"`
+	Members        []consolidateMember `json:"members"`
+	SharedKeywords []string            `json:"shared_keywords"`
+	Confidence     float64             `json:"confidence"`
+}
+
+// consolidateMember holds the file path and display title of one member in a consolidation cluster.
+type consolidateMember struct {
+	Path  string `json:"path"`
+	Title string `json:"title"`
 }
 
 // effectivenessAdapter bridges a pre-built stats map to surface.EffectivenessComputer.

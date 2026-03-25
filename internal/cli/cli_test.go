@@ -108,6 +108,102 @@ func TestCallAnthropicAPIServerErrors(t *testing.T) {
 	})
 }
 
+// TestConsolidationProposalMemberPaths verifies that consolidation proposals store
+// members as objects with path and title fields (not plain strings).
+func TestConsolidationProposalMemberPaths(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	survivorContent := `title = "Survivor Memory"
+content = "Keep this one"
+keywords = ["alpha", "beta", "gamma"]
+surfaced_count = 10
+updated_at = "2026-01-01T00:00:00Z"
+`
+	absorbedContent := `title = "Absorbed Memory"
+content = "Delete this one"
+keywords = ["alpha", "beta", "delta"]
+surfaced_count = 1
+updated_at = "2026-01-01T00:00:00Z"
+`
+
+	survivorPath := filepath.Join(memoriesDir, "survivor.toml")
+	absorbedPath := filepath.Join(memoriesDir, "absorbed.toml")
+
+	g.Expect(os.WriteFile(survivorPath, []byte(survivorContent), 0o640)).To(Succeed())
+	g.Expect(os.WriteFile(absorbedPath, []byte(absorbedContent), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain([]string{"--data-dir", dataDir}, "", &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var proposals []map[string]any
+
+	jsonErr := json.Unmarshal(stdout.Bytes(), &proposals)
+	g.Expect(jsonErr).NotTo(HaveOccurred())
+
+	if jsonErr != nil {
+		return
+	}
+
+	// Find the consolidation proposal.
+	var consolidation map[string]any
+
+	for _, proposal := range proposals {
+		if proposal["action"] == "consolidate" {
+			consolidation = proposal
+			break
+		}
+	}
+
+	g.Expect(consolidation).NotTo(BeNil(), "expected a consolidation proposal")
+
+	if consolidation == nil {
+		return
+	}
+
+	// details is a json.RawMessage decoded as map[string]any by json.Unmarshal.
+	details, ok := consolidation["details"].(map[string]any)
+	g.Expect(ok).To(BeTrue(), "details must be a JSON object")
+
+	if !ok {
+		return
+	}
+
+	members, ok := details["members"].([]any)
+	g.Expect(ok).To(BeTrue(), "details.members must be an array")
+
+	if !ok {
+		return
+	}
+
+	g.Expect(members).NotTo(BeEmpty())
+
+	for _, rawMember := range members {
+		member, isMap := rawMember.(map[string]any)
+		g.Expect(isMap).To(BeTrue(), "each member must be an object with path and title")
+
+		if !isMap {
+			return
+		}
+
+		g.Expect(member).To(HaveKey("path"), "member must have a path field")
+		g.Expect(member).To(HaveKey("title"), "member must have a title field")
+		g.Expect(member["path"]).NotTo(BeEmpty(), "member path must not be empty")
+		g.Expect(member["title"]).NotTo(BeEmpty(), "member title must not be empty")
+	}
+}
+
 func TestHaikuCallerAdapter_Call(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
