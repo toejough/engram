@@ -1081,20 +1081,18 @@ const (
 	enforcementAdvisory              = "advisory"
 	enforcementEmphasizedAdvisory    = "emphasized_advisory"
 	enforcementReminder              = "reminder"
-	insufficientDataThreshold        = 5 // min surfacings for effectiveness score to be trusted
 	irrelevancePenaltyHalfLife       = 5
 	minEffectivenessFloor            = 40.0 // gate threshold
 	minPreCompactEffectiveness       = 40.0
 	minRelevanceScore                = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
 	preCompactLimit                  = 5
 	promptLimit                      = 2
-	sessionStartDefaultEffectiveness = 50.0 // neutral default for memories with insufficient data
+	sessionStartDefaultEffectiveness = 50.0 // neutral default for memories with no effectiveness data
 	sessionStartLimit                = 7    // REQ-P4e-2: top-7
 	spreadingActivationDecay         = 0.3  // REQ-P3-6: spreading activation decay factor
 	toolLimit                        = 2    // REQ-P4e-4: top-2
 	unprovenBM25FloorPrompt          = 0.20
 	unprovenBM25FloorTool            = 0.30
-	unprovenDefaultEffectiveness     = 30.0 // default for memories never surfaced (cold-start)
 )
 
 // promptMatch holds a memory for prompt mode.
@@ -1326,21 +1324,16 @@ func concatenateToolFields(mem *memory.Stored) string {
 }
 
 // effectivenessScoreFor returns the effectiveness score for a memory path.
-// Three-tier logic:
-//   - SurfacedCount == 0 (or absent/nil): unprovenDefaultEffectiveness (30%) — cold-start
-//   - 0 < SurfacedCount < insufficientDataThreshold: sessionStartDefaultEffectiveness (50%) — insufficient data
-//   - SurfacedCount >= insufficientDataThreshold: recorded score — trusted
+// Two-tier logic:
+//   - No effectiveness data exists for path: sessionStartDefaultEffectiveness (50%) — neutral default
+//   - Data exists: recorded EffectivenessScore
 func effectivenessScoreFor(path string, effectiveness map[string]EffectivenessStat) float64 {
 	if effectiveness == nil {
-		return unprovenDefaultEffectiveness
+		return sessionStartDefaultEffectiveness
 	}
 
 	stat, ok := effectiveness[path]
 	if !ok || stat.SurfacedCount == 0 {
-		return unprovenDefaultEffectiveness
-	}
-
-	if stat.SurfacedCount < insufficientDataThreshold {
 		return sessionStartDefaultEffectiveness
 	}
 
@@ -1353,8 +1346,7 @@ func filenameSlug(path string) string {
 }
 
 // filterByEffectivenessGate removes memories with low effectiveness (<=40%).
-// Only memories with sufficient data (SurfacedCount >= insufficientDataThreshold) are gated.
-// Memories with no evaluations or insufficient surfacings are always kept.
+// Memories with no effectiveness data default to 50% and always pass the gate.
 func filterByEffectivenessGate(
 	memories []*memory.Stored,
 	effectiveness map[string]EffectivenessStat,
@@ -1362,11 +1354,9 @@ func filterByEffectivenessGate(
 	filtered := make([]*memory.Stored, 0, len(memories))
 
 	for _, mem := range memories {
-		if effectiveness != nil {
-			stat, ok := effectiveness[mem.FilePath]
-			if ok && stat.SurfacedCount >= insufficientDataThreshold && stat.EffectivenessScore <= minEffectivenessFloor {
-				continue // gated out
-			}
+		score := effectivenessScoreFor(mem.FilePath, effectiveness)
+		if score <= minEffectivenessFloor {
+			continue // gated out
 		}
 
 		filtered = append(filtered, mem)
@@ -1376,6 +1366,7 @@ func filterByEffectivenessGate(
 }
 
 // filterToolMatchesByEffectivenessGate applies effectiveness gating to tool matches (REQ-P4e-4).
+// Memories with no effectiveness data default to 50% and always pass the gate.
 func filterToolMatchesByEffectivenessGate(
 	candidates []toolMatch,
 	effectiveness map[string]EffectivenessStat,
@@ -1383,11 +1374,9 @@ func filterToolMatchesByEffectivenessGate(
 	filtered := make([]toolMatch, 0, len(candidates))
 
 	for _, candidate := range candidates {
-		if effectiveness != nil {
-			stat, ok := effectiveness[candidate.mem.FilePath]
-			if ok && stat.SurfacedCount >= insufficientDataThreshold && stat.EffectivenessScore <= minEffectivenessFloor {
-				continue // gated out
-			}
+		score := effectivenessScoreFor(candidate.mem.FilePath, effectiveness)
+		if score <= minEffectivenessFloor {
+			continue // gated out
 		}
 
 		filtered = append(filtered, candidate)

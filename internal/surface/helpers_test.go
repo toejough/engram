@@ -10,27 +10,27 @@ import (
 	"engram/internal/surface"
 )
 
-// TestEffectivenessScoreFor verifies the three-tier default logic.
+// TestEffectivenessScoreFor verifies the two-tier default logic.
 func TestEffectivenessScoreFor(t *testing.T) {
 	t.Parallel()
 
-	t.Run("nil map returns unprovenDefaultEffectiveness", func(t *testing.T) {
+	t.Run("nil map returns sessionStartDefaultEffectiveness", func(t *testing.T) {
 		t.Parallel()
 
 		g := NewGomegaWithT(t)
 		g.Expect(surface.ExportEffectivenessScoreFor("any.toml", nil)).
-			To(Equal(surface.ExportUnprovenDefaultEffectiveness))
+			To(Equal(surface.ExportSessionStartDefaultEffectiveness))
 	})
 
-	t.Run("absent path returns unprovenDefaultEffectiveness", func(t *testing.T) {
+	t.Run("absent path returns sessionStartDefaultEffectiveness", func(t *testing.T) {
 		t.Parallel()
 
 		g := NewGomegaWithT(t)
 		g.Expect(surface.ExportEffectivenessScoreFor("missing.toml", map[string]surface.EffectivenessStat{})).
-			To(Equal(surface.ExportUnprovenDefaultEffectiveness))
+			To(Equal(surface.ExportSessionStartDefaultEffectiveness))
 	})
 
-	t.Run("zero surfacings returns unprovenDefaultEffectiveness", func(t *testing.T) {
+	t.Run("zero surfacings returns sessionStartDefaultEffectiveness", func(t *testing.T) {
 		t.Parallel()
 
 		g := NewGomegaWithT(t)
@@ -38,26 +38,25 @@ func TestEffectivenessScoreFor(t *testing.T) {
 			"mem.toml": {SurfacedCount: 0, EffectivenessScore: 80},
 		}
 		g.Expect(surface.ExportEffectivenessScoreFor("mem.toml", eff)).
-			To(Equal(surface.ExportUnprovenDefaultEffectiveness))
-	})
-
-	t.Run("insufficient surfacings returns sessionStartDefaultEffectiveness", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewGomegaWithT(t)
-		eff := map[string]surface.EffectivenessStat{
-			"mem.toml": {SurfacedCount: 3, EffectivenessScore: 80},
-		}
-		g.Expect(surface.ExportEffectivenessScoreFor("mem.toml", eff)).
 			To(Equal(surface.ExportSessionStartDefaultEffectiveness))
 	})
 
-	t.Run("sufficient surfacings returns recorded score", func(t *testing.T) {
+	t.Run("few surfacings returns recorded score", func(t *testing.T) {
 		t.Parallel()
 
 		g := NewGomegaWithT(t)
 		eff := map[string]surface.EffectivenessStat{
-			"mem.toml": {SurfacedCount: surface.ExportInsufficientDataThreshold, EffectivenessScore: 72.5},
+			"mem.toml": {SurfacedCount: 2, EffectivenessScore: 80},
+		}
+		g.Expect(surface.ExportEffectivenessScoreFor("mem.toml", eff)).To(Equal(80.0))
+	})
+
+	t.Run("any surfacings returns recorded score", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewGomegaWithT(t)
+		eff := map[string]surface.EffectivenessStat{
+			"mem.toml": {SurfacedCount: 10, EffectivenessScore: 72.5},
 		}
 		g.Expect(surface.ExportEffectivenessScoreFor("mem.toml", eff)).To(Equal(72.5))
 	})
