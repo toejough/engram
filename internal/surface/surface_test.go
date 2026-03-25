@@ -796,6 +796,119 @@ func TestT35_PreFilterReturnsEmptyWhenNoKeywordsMatch(t *testing.T) {
 	g.Expect(buf.String()).To(BeEmpty())
 }
 
+// T373: Cross-project generalizability penalty penalizes narrow memories.
+func TestT373_GenPenalty_CrossProject(t *testing.T) {
+	t.Parallel()
+
+	// Memory A: narrow (gen=1), same project origin.
+	// Memory B: universal (gen=5), same project origin.
+	// Both have identical BM25-matchable content.
+	memNarrow := &memory.Stored{
+		Title:            "Deploy Narrow",
+		FilePath:         "deploy-narrow.toml",
+		Keywords:         []string{"deploy", "production"},
+		Principle:        "deploy safely",
+		Content:          "deploy to production safely",
+		ProjectSlug:      "proj-a",
+		Generalizability: 1,
+	}
+
+	memUniversal := &memory.Stored{
+		Title:            "Deploy Universal",
+		FilePath:         "deploy-universal.toml",
+		Keywords:         []string{"deploy", "production"},
+		Principle:        "deploy safely",
+		Content:          "deploy to production safely",
+		ProjectSlug:      "proj-a",
+		Generalizability: 5,
+	}
+
+	// Non-matching fillers for IDF contrast.
+	fillers := make([]*memory.Stored, 0, 5)
+	for _, name := range []string{
+		"logging", "testing", "config", "monitoring", "caching",
+	} {
+		fillers = append(fillers, &memory.Stored{
+			Title:    name + " guide",
+			FilePath: name + ".toml",
+			Keywords: []string{name},
+			Content:  name + " documentation",
+		})
+	}
+
+	allMems := make([]*memory.Stored, 0, 2+len(fillers))
+	allMems = append(allMems, memNarrow, memUniversal)
+	allMems = append(allMems, fillers...)
+
+	t.Run("cross-project penalizes narrow", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewGomegaWithT(t)
+
+		retriever := &fakeRetriever{memories: allMems}
+		s := surface.New(retriever)
+
+		var buf bytes.Buffer
+
+		err := s.Run(context.Background(), &buf, surface.Options{
+			Mode:               surface.ModePrompt,
+			DataDir:            "/tmp/data",
+			Message:            "deploy to production",
+			CurrentProjectSlug: "proj-b", // different project
+		})
+
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		output := buf.String()
+
+		// Both should appear (universal is unpenalized, narrow gets 0.05 factor).
+		g.Expect(output).To(ContainSubstring("deploy-universal"))
+		g.Expect(output).To(ContainSubstring("deploy-narrow"))
+
+		// Universal (gen=5, factor=1.0) should appear before narrow (gen=1, factor=0.05).
+		posUniversal := strings.Index(output, "deploy-universal")
+		posNarrow := strings.Index(output, "deploy-narrow")
+		g.Expect(posUniversal).To(
+			BeNumerically("<", posNarrow),
+			"universal memory should rank above narrow in cross-project context",
+		)
+	})
+
+	t.Run("same-project no penalty", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewGomegaWithT(t)
+
+		retriever := &fakeRetriever{memories: allMems}
+		s := surface.New(retriever)
+
+		var buf bytes.Buffer
+
+		err := s.Run(context.Background(), &buf, surface.Options{
+			Mode:               surface.ModePrompt,
+			DataDir:            "/tmp/data",
+			Message:            "deploy to production",
+			CurrentProjectSlug: "proj-a", // same project — no penalty
+		})
+
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		output := buf.String()
+
+		// Both should appear with no penalty applied.
+		g.Expect(output).To(ContainSubstring("deploy-universal"))
+		g.Expect(output).To(ContainSubstring("deploy-narrow"))
+	})
+}
+
 // T-42: Tool mode surfaces matching memories as advisory
 func TestT42_ToolModeEmitsAdvisoryReminder(t *testing.T) {
 	t.Parallel()
@@ -1194,119 +1307,6 @@ func TestToolOutput_EnrichesBM25Query(t *testing.T) {
 	}
 
 	g.Expect(buf.String()).To(ContainSubstring("stash-before-ops"))
-}
-
-// T373: Cross-project generalizability penalty penalizes narrow memories.
-func TestT373_GenPenalty_CrossProject(t *testing.T) {
-	t.Parallel()
-
-	// Memory A: narrow (gen=1), same project origin.
-	// Memory B: universal (gen=5), same project origin.
-	// Both have identical BM25-matchable content.
-	memNarrow := &memory.Stored{
-		Title:            "Deploy Narrow",
-		FilePath:         "deploy-narrow.toml",
-		Keywords:         []string{"deploy", "production"},
-		Principle:        "deploy safely",
-		Content:          "deploy to production safely",
-		ProjectSlug:      "proj-a",
-		Generalizability: 1,
-	}
-
-	memUniversal := &memory.Stored{
-		Title:            "Deploy Universal",
-		FilePath:         "deploy-universal.toml",
-		Keywords:         []string{"deploy", "production"},
-		Principle:        "deploy safely",
-		Content:          "deploy to production safely",
-		ProjectSlug:      "proj-a",
-		Generalizability: 5,
-	}
-
-	// Non-matching fillers for IDF contrast.
-	fillers := make([]*memory.Stored, 0, 5)
-	for _, name := range []string{
-		"logging", "testing", "config", "monitoring", "caching",
-	} {
-		fillers = append(fillers, &memory.Stored{
-			Title:    name + " guide",
-			FilePath: name + ".toml",
-			Keywords: []string{name},
-			Content:  name + " documentation",
-		})
-	}
-
-	allMems := make([]*memory.Stored, 0, 2+len(fillers))
-	allMems = append(allMems, memNarrow, memUniversal)
-	allMems = append(allMems, fillers...)
-
-	t.Run("cross-project penalizes narrow", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewGomegaWithT(t)
-
-		retriever := &fakeRetriever{memories: allMems}
-		s := surface.New(retriever)
-
-		var buf bytes.Buffer
-
-		err := s.Run(context.Background(), &buf, surface.Options{
-			Mode:               surface.ModePrompt,
-			DataDir:            "/tmp/data",
-			Message:            "deploy to production",
-			CurrentProjectSlug: "proj-b", // different project
-		})
-
-		g.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		output := buf.String()
-
-		// Both should appear (universal is unpenalized, narrow gets 0.05 factor).
-		g.Expect(output).To(ContainSubstring("deploy-universal"))
-		g.Expect(output).To(ContainSubstring("deploy-narrow"))
-
-		// Universal (gen=5, factor=1.0) should appear before narrow (gen=1, factor=0.05).
-		posUniversal := strings.Index(output, "deploy-universal")
-		posNarrow := strings.Index(output, "deploy-narrow")
-		g.Expect(posUniversal).To(
-			BeNumerically("<", posNarrow),
-			"universal memory should rank above narrow in cross-project context",
-		)
-	})
-
-	t.Run("same-project no penalty", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewGomegaWithT(t)
-
-		retriever := &fakeRetriever{memories: allMems}
-		s := surface.New(retriever)
-
-		var buf bytes.Buffer
-
-		err := s.Run(context.Background(), &buf, surface.Options{
-			Mode:               surface.ModePrompt,
-			DataDir:            "/tmp/data",
-			Message:            "deploy to production",
-			CurrentProjectSlug: "proj-a", // same project — no penalty
-		})
-
-		g.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		output := buf.String()
-
-		// Both should appear with no penalty applied.
-		g.Expect(output).To(ContainSubstring("deploy-universal"))
-		g.Expect(output).To(ContainSubstring("deploy-narrow"))
-	})
 }
 
 // TestUnknownModeReturnsError verifies that Run returns ErrUnknownMode for unrecognized modes.

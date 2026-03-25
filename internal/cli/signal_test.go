@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -46,41 +45,6 @@ func TestEffectivenessReaderAdapter_NotFound(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(hasData).To(BeFalse())
 	g.Expect(score).To(Equal(0.0))
-}
-
-// fileMergeExecutor.Merge is now pure in-memory (write+delete delegated to Consolidator).
-func TestFileMergeExecutor_InMemoryMerge(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	survivor := &memory.Stored{
-		Title:     "Survivor",
-		Keywords:  []string{"kw1"},
-		Concepts:  []string{"concept1"},
-		Principle: "short",
-		FilePath:  "survivor.toml",
-	}
-	absorbed := &memory.Stored{
-		Title:     "Absorbed",
-		Keywords:  []string{"kw1", "kw2"},
-		Concepts:  []string{"concept2"},
-		Principle: "longer principle",
-		FilePath:  "absorbed.toml",
-	}
-
-	executor := &fileMergeExecutor{}
-
-	err := executor.Merge(t.Context(), survivor, absorbed)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Survivor should have merged keywords, concepts, and longer principle.
-	g.Expect(survivor.Keywords).To(ConsistOf("kw1", "kw2"))
-	g.Expect(survivor.Concepts).To(ConsistOf("concept1", "concept2"))
-	g.Expect(survivor.Principle).To(Equal("longer principle"))
 }
 
 func TestFuncEnforcementApplier_SetEnforcementLevel(t *testing.T) {
@@ -140,61 +104,6 @@ func TestIsCoveredBySource(t *testing.T) {
 	})
 }
 
-func TestKeepLongerPrinciple(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	survivor := &memory.Stored{Principle: "short"}
-	absorbed := &memory.Stored{Principle: "much longer principle"}
-
-	keepLongerPrinciple(survivor, absorbed)
-	g.Expect(survivor.Principle).To(Equal("much longer principle"))
-}
-
-func TestKeepLongerPrinciple_SurvivorLonger(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	survivor := &memory.Stored{Principle: "already the longer one"}
-	absorbed := &memory.Stored{Principle: "short"}
-
-	keepLongerPrinciple(survivor, absorbed)
-	g.Expect(survivor.Principle).To(Equal("already the longer one"))
-}
-
-func TestLLMPrincipleSynthesizer_MergerError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	synthesizer := &llmPrincipleSynthesizer{
-		merger: &fakeMergeMemoryMerger{err: errors.New("LLM down")},
-	}
-
-	_, err := synthesizer.SynthesizePrinciples(
-		context.Background(),
-		[]string{"principle A", "principle B"},
-	)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("merging principles"))
-}
-
-func TestLLMPrincipleSynthesizer_TwoPrinciples(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	merger := &fakeMergeMemoryMerger{result: "synthesized"}
-	synthesizer := &llmPrincipleSynthesizer{merger: merger}
-
-	result, err := synthesizer.SynthesizePrinciples(
-		context.Background(),
-		[]string{"principle A", "principle B"},
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(result).To(Equal("synthesized"))
-	g.Expect(merger.calls).To(HaveLen(1))
-	g.Expect(merger.calls[0]).To(Equal([]string{"principle A", "principle B"}))
-}
-
 // TestLoadCrossRefSources covers the rules directory path.
 func TestLoadCrossRefSources(t *testing.T) {
 	t.Parallel()
@@ -227,88 +136,6 @@ func TestLoadCrossRefSources(t *testing.T) {
 
 	g.Expect(texts).To(ContainElement(ContainSubstring("targ")),
 		"CLAUDE.md bullet with 'targ' must appear in sources")
-}
-
-func TestNewPrincipleSynthesizer_NonEmptyToken(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	synthesizer := newPrincipleSynthesizer("test-token")
-	g.Expect(synthesizer).NotTo(BeNil())
-}
-
-func TestOsBackupWriter_Backup_Success(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	backupDir := filepath.Join(dir, "backup")
-	absorbedPath := filepath.Join(dir, "absorbed.toml")
-
-	writeErr := os.WriteFile(absorbedPath, []byte("content"), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	fixedTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	writer := &osBackupWriter{now: func() time.Time { return fixedTime }}
-
-	err := writer.Backup(absorbedPath, backupDir)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	entries, readErr := os.ReadDir(backupDir)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil || len(entries) == 0 {
-		return
-	}
-
-	g.Expect(entries).To(HaveLen(1))
-	g.Expect(entries[0].Name()).To(ContainSubstring("absorbed.toml"))
-}
-
-func TestOsFileDeleter_Delete_Error(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deleter := &osFileDeleter{}
-
-	err := deleter.Delete("/nonexistent/path/that/does/not/exist.toml")
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err).To(MatchError(ContainSubstring("deleting absorbed file")))
-}
-
-func TestOsFileDeleter_Delete_Success(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "to-delete.toml")
-
-	writeErr := os.WriteFile(path, []byte("content"), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	deleter := &osFileDeleter{}
-
-	err := deleter.Delete(path)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	_, statErr := os.Stat(path)
-	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
 }
 
 func TestReadStoredMemory_DecodeError(t *testing.T) {
@@ -749,51 +576,9 @@ func TestToRelID_HappyPath(t *testing.T) {
 	g.Expect(result).To(Equal("memories/test.toml"))
 }
 
-func TestUnionConcepts(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	survivor := &memory.Stored{Concepts: []string{"DI", "testing"}}
-	absorbed := &memory.Stored{Concepts: []string{"di", "refactoring"}}
-
-	unionConcepts(survivor, absorbed)
-	g.Expect(survivor.Concepts).To(ConsistOf("DI", "testing", "refactoring"))
-}
-
-func TestUnionKeywords(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	survivor := &memory.Stored{Keywords: []string{"alpha", "beta"}}
-	absorbed := &memory.Stored{Keywords: []string{"Beta", "gamma"}}
-
-	unionKeywords(survivor, absorbed)
-	g.Expect(survivor.Keywords).To(ConsistOf("alpha", "beta", "gamma"))
-}
-
 // failWriter always returns an error on Write.
 type failWriter struct{}
 
 func (failWriter) Write(_ []byte) (int, error) {
 	return 0, errors.New("write error")
-}
-
-// fakeMergeMemoryMerger implements merge.MemoryMerger for testing llmPrincipleSynthesizer.
-type fakeMergeMemoryMerger struct {
-	calls  [][]string
-	result string
-	err    error
-}
-
-func (f *fakeMergeMemoryMerger) MergePrinciples(
-	_ context.Context,
-	existing, candidate string,
-) (string, error) {
-	f.calls = append(f.calls, []string{existing, candidate})
-
-	if f.err != nil {
-		return "", f.err
-	}
-
-	return f.result, nil
 }

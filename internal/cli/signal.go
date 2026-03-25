@@ -15,9 +15,7 @@ import (
 
 	"engram/internal/crossref"
 	"engram/internal/effectiveness"
-	graph "engram/internal/graph"
 	"engram/internal/memory"
-	"engram/internal/merge"
 	"engram/internal/retrieve"
 	"engram/internal/signal"
 )
@@ -51,21 +49,6 @@ func (e *effectivenessReaderAdapter) EffectivenessScore(
 	return stat.EffectivenessScore, true, nil
 }
 
-// fileMergeExecutor computes the in-memory merge of two memories (UC-34).
-// I/O (write, delete, backup) is handled by the Consolidator's DI seams.
-type fileMergeExecutor struct{}
-
-func (f *fileMergeExecutor) Merge(
-	_ context.Context,
-	survivor, absorbed *memory.Stored,
-) error {
-	unionKeywords(survivor, absorbed)
-	unionConcepts(survivor, absorbed)
-	keepLongerPrinciple(survivor, absorbed)
-
-	return nil
-}
-
 // funcEnforcementApplier adapts a func to maintain.EnforcementApplier.
 type funcEnforcementApplier struct {
 	fn func(path, level, reason string) error
@@ -73,88 +56,6 @@ type funcEnforcementApplier struct {
 
 func (f *funcEnforcementApplier) SetEnforcementLevel(id, level, reason string) error {
 	return f.fn(id, level, reason)
-}
-
-// graphLinkRecomputer implements signal.LinkRecomputer using graph.Builder (REQ-138).
-//
-// readStoredMemory calls os.ReadFile directly: internal/cli is the I/O wiring edge,
-// so direct filesystem access in adapters here is intentional (not a DI violation).
-type graphLinkRecomputer struct {
-	builder *graph.Builder
-	dataDir string
-}
-
-func (r *graphLinkRecomputer) RecomputeAfterMerge(survivorPath, absorbedPath string) error {
-	survivor, err := readStoredMemory(survivorPath)
-	if err != nil {
-		return fmt.Errorf("reading survivor for link recompute: %w", err)
-	}
-
-	memoriesDir := filepath.Join(r.dataDir, "memories")
-	lister := &memoryDirLister{dir: memoriesDir, dataDir: r.dataDir}
-	writer := &readModifyWriteLinkWriter{dataDir: r.dataDir}
-
-	// Relativize paths to dataDir so they match link target format in TOML files.
-	survivorID := toRelID(r.dataDir, survivorPath)
-	absorbedID := toRelID(r.dataDir, absorbedPath)
-
-	result := graph.MergeResult{
-		MergedMemoryID:   survivorID,
-		AbsorbedMemoryID: absorbedID,
-		MergedTitle:      survivor.Title,
-		MergedContent:    survivor.Content,
-		MergedConceptSet: survivor.Keywords,
-	}
-
-	return r.builder.RecomputeMergeLinks(result, lister, writer)
-}
-
-// llmPrincipleSynthesizer wraps merge.MemoryMerger to implement signal.PrincipleSynthesizer (REQ-139).
-// Principles are folded left: merge(merge(p1, p2), p3), ...
-type llmPrincipleSynthesizer struct {
-	merger merge.MemoryMerger
-}
-
-func (s *llmPrincipleSynthesizer) SynthesizePrinciples(
-	ctx context.Context,
-	principles []string,
-) (string, error) {
-	if len(principles) == 0 {
-		return "", nil
-	}
-
-	result := principles[0]
-
-	for _, principle := range principles[1:] {
-		merged, mergeErr := s.merger.MergePrinciples(ctx, result, principle)
-		if mergeErr != nil {
-			return "", fmt.Errorf("merging principles: %w", mergeErr)
-		}
-
-		result = merged
-	}
-
-	return result, nil
-}
-
-// memoryDirLister implements graph.MemoryLister by reading all TOML files from a directory.
-// Paths are relativized to dataDir so they match the link target format stored in TOML.
-type memoryDirLister struct {
-	dir     string
-	dataDir string
-}
-
-func (l *memoryDirLister) ListAll() ([]memory.StoredRecord, error) {
-	records, err := memory.ListAll(l.dir)
-	if err != nil {
-		return nil, fmt.Errorf("listing memories: %w", err)
-	}
-
-	for i := range records {
-		records[i].Path = toRelID(l.dataDir, records[i].Path)
-	}
-
-	return records, nil
 }
 
 // memoryListerAdapter wraps retrieve.Retriever for the Consolidator.
@@ -165,64 +66,6 @@ type memoryListerAdapter struct {
 
 func (m *memoryListerAdapter) ListAll(ctx context.Context) ([]*memory.Stored, error) {
 	return m.retriever.ListMemories(ctx, m.dataDir)
-}
-
-// osBackupWriter copies absorbed memory files to a timestamped backup path (REQ-135).
-type osBackupWriter struct {
-	now func() time.Time
-}
-
-func (w *osBackupWriter) Backup(absorbedPath, backupDir string) error {
-	const dirPerms = 0o755
-
-	mkErr := os.MkdirAll(backupDir, dirPerms)
-	if mkErr != nil {
-		return fmt.Errorf("creating backup dir: %w", mkErr)
-	}
-
-	data, err := os.ReadFile(absorbedPath) //nolint:gosec // path from trusted internal source
-	if err != nil {
-		return fmt.Errorf("reading absorbed file for backup: %w", err)
-	}
-
-	ts := w.now().UTC().Format("20060102-150405.000000000")
-	filename := ts + "-" + filepath.Base(absorbedPath)
-	destPath := filepath.Join(backupDir, filename)
-
-	const filePerms = 0o600
-
-	writeErr := os.WriteFile(destPath, data, filePerms) //nolint:gosec // destPath uses filepath.Base, no traversal
-	if writeErr != nil {
-		return fmt.Errorf("writing backup: %w", writeErr)
-	}
-
-	return nil
-}
-
-// osFileDeleter deletes absorbed memory files after merge (REQ-136).
-type osFileDeleter struct{}
-
-func (d *osFileDeleter) Delete(path string) error {
-	rmErr := os.Remove(path)
-	if rmErr != nil {
-		return fmt.Errorf("deleting absorbed file: %w", rmErr)
-	}
-
-	return nil
-}
-
-// readModifyWriteLinkWriter implements graph.LinkWriter using memory.ReadModifyWrite.
-// Paths are relative to dataDir, so they are resolved back to absolute before writing.
-type readModifyWriteLinkWriter struct {
-	dataDir string
-}
-
-func (w *readModifyWriteLinkWriter) WriteLinks(path string, links []memory.LinkRecord) error {
-	absPath := filepath.Join(w.dataDir, path)
-
-	return memory.ReadModifyWrite(absPath, func(record *memory.MemoryRecord) {
-		record.Links = links
-	})
 }
 
 // sourceCrossRefChecker implements surface.CrossRefChecker using keyword overlap
@@ -312,12 +155,6 @@ func errNew(s string) error {
 	return fmt.Errorf("%s", s) //nolint:err113 // package-level sentinel via fmt.Errorf
 }
 
-func keepLongerPrinciple(survivor, absorbed *memory.Stored) {
-	if len(absorbed.Principle) > len(survivor.Principle) {
-		survivor.Principle = absorbed.Principle
-	}
-}
-
 // loadCrossRefSources reads CLAUDE.md and rules/*.md from claudeDir.
 func loadCrossRefSources(claudeDir string) []crossRefSourceEntry {
 	var sources []crossRefSourceEntry
@@ -359,25 +196,6 @@ func loadCrossRefSources(claudeDir string) []crossRefSourceEntry {
 	}
 
 	return sources
-}
-
-func newGraphLinkRecomputer(dataDir string) *graphLinkRecomputer {
-	return &graphLinkRecomputer{
-		builder: graph.New(),
-		dataDir: dataDir,
-	}
-}
-
-// newPrincipleSynthesizer returns an LLM-backed synthesizer when token is available,
-// or nil to use the fallback (longest principle). REQ-139 AC5.
-func newPrincipleSynthesizer(token string) signal.PrincipleSynthesizer {
-	if token == "" {
-		return nil
-	}
-
-	return &llmPrincipleSynthesizer{
-		merger: merge.New(&cliLLMCaller{token: token}),
-	}
 }
 
 // newSourceCrossRefChecker builds a real CrossRefChecker from claudeDir source files
@@ -529,34 +347,4 @@ func toRelID(dataDir, absPath string) string {
 	}
 
 	return rel
-}
-
-func unionConcepts(survivor, absorbed *memory.Stored) {
-	existing := make(map[string]struct{}, len(survivor.Concepts))
-
-	for _, concept := range survivor.Concepts {
-		existing[strings.ToLower(concept)] = struct{}{}
-	}
-
-	for _, concept := range absorbed.Concepts {
-		if _, ok := existing[strings.ToLower(concept)]; !ok {
-			survivor.Concepts = append(survivor.Concepts, concept)
-			existing[strings.ToLower(concept)] = struct{}{}
-		}
-	}
-}
-
-func unionKeywords(survivor, absorbed *memory.Stored) {
-	existing := make(map[string]struct{}, len(survivor.Keywords))
-
-	for _, keyword := range survivor.Keywords {
-		existing[strings.ToLower(keyword)] = struct{}{}
-	}
-
-	for _, keyword := range absorbed.Keywords {
-		if _, ok := existing[strings.ToLower(keyword)]; !ok {
-			survivor.Keywords = append(survivor.Keywords, keyword)
-			existing[strings.ToLower(keyword)] = struct{}{}
-		}
-	}
 }
