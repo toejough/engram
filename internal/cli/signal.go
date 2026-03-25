@@ -266,7 +266,7 @@ func readStoredMemory(path string) (*memory.Stored, error) {
 
 // runApplyProposal implements the apply-proposal subcommand (UC-28 Phase C).
 //
-//nolint:funlen // CLI flag parsing and DI wiring
+//nolint:funlen,cyclop // CLI flag parsing and DI wiring
 func runApplyProposal(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("apply-proposal", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -315,13 +315,36 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 		})
 	}
 
-	applier := signal.NewApplier(
+	var applierOpts []signal.ApplierOption
+
+	applierOpts = append(applierOpts,
 		signal.WithReadMemory(readStoredMemory),
 		signal.WithWriteMemory(newStoredMemoryWriter()),
 		signal.WithEnforcementApplier(&funcEnforcementApplier{fn: enforcementFunc}),
 	)
 
 	ctx := context.Background()
+
+	if *action == "consolidate" {
+		token := resolveToken(ctx)
+		if token != "" {
+			caller := makeAnthropicCaller(token)
+			extractor := signal.NewLLMExtractor(caller)
+			applierOpts = append(applierOpts, signal.WithApplyExtractor(extractor))
+		}
+
+		archiveDir := filepath.Join(*dataDir, "archive")
+
+		const dirPerms = 0o750
+
+		archiver := signal.NewFileArchiver(archiveDir, os.Rename, func(path string) error {
+			return os.MkdirAll(path, dirPerms)
+		})
+		applierOpts = append(applierOpts, signal.WithApplyArchiver(archiver))
+		applierOpts = append(applierOpts, signal.WithLoadRecord(readRecord))
+	}
+
+	applier := signal.NewApplier(applierOpts...)
 
 	applyAction := signal.ApplyAction{
 		Action:   *action,

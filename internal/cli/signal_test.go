@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -214,6 +215,55 @@ updated_at = "2024-01-01T00:00:00Z"
 	decodeErr := json.NewDecoder(&buf).Decode(&result)
 	g.Expect(decodeErr).NotTo(HaveOccurred())
 	g.Expect(result.Success).To(BeTrue())
+}
+
+// TestRunApplyProposal_ConsolidateRequiresToken verifies that --action consolidate reaches the
+// dispatcher (rather than returning "unsupported action"). Without a token the extractor is nil,
+// so the JSON result should contain an error about the missing extractor, not "unsupported action".
+func TestRunApplyProposal_ConsolidateRequiresToken(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	memPath := filepath.Join(dir, "memories", "test.toml")
+
+	mkdirErr := os.MkdirAll(filepath.Dir(memPath), 0o755)
+	if mkdirErr != nil {
+		return
+	}
+
+	writeErr := os.WriteFile(memPath, []byte(`title = "test"`), 0o600)
+	if writeErr != nil {
+		return
+	}
+
+	membersJSON := fmt.Sprintf(`{"members":[{"path":"%s","title":"test"}]}`, memPath)
+
+	var stdout bytes.Buffer
+
+	runErr := runApplyProposal([]string{
+		"--data-dir", dir,
+		"--action", "consolidate",
+		"--memory", memPath,
+		"--fields", membersJSON,
+	}, &stdout)
+
+	// runApplyProposal encodes errors into JSON result.Error, not a Go error return.
+	g.Expect(runErr).NotTo(HaveOccurred())
+
+	var result signal.ApplyResult
+
+	decodeErr := json.NewDecoder(&stdout).Decode(&result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	// The action should be dispatched as "consolidate" — not rejected as unsupported.
+	g.Expect(result.Action).To(Equal("consolidate"))
+	g.Expect(result.Error).NotTo(ContainSubstring("unsupported action"))
 }
 
 func TestRunApplyProposal_EscalateAction(t *testing.T) {
