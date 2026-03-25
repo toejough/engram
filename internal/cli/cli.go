@@ -1484,17 +1484,20 @@ func runSurface(args []string, stdout io.Writer) error {
 		return errSurfaceMissingFlags
 	}
 
+	currentProjectSlug := filepath.Base(*dataDir)
+
 	opts := surface.Options{
-		Mode:             *mode,
-		DataDir:          *dataDir,
-		Message:          *message,
-		ToolName:         *toolName,
-		ToolInput:        *toolInput,
-		ToolOutput:       *toolOutput,
-		ToolErrored:      *toolErrored,
-		Format:           *format,
-		Budget:           *budget,
-		TranscriptWindow: *transcriptWindow,
+		Mode:               *mode,
+		DataDir:            *dataDir,
+		Message:            *message,
+		ToolName:           *toolName,
+		ToolInput:          *toolInput,
+		ToolOutput:         *toolOutput,
+		ToolErrored:        *toolErrored,
+		Format:             *format,
+		Budget:             *budget,
+		TranscriptWindow:   *transcriptWindow,
+		CurrentProjectSlug: currentProjectSlug,
 	}
 
 	retriever := retrieve.New()
