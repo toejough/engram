@@ -13,6 +13,12 @@ import (
 	"engram/internal/review"
 )
 
+// Exported constants.
+const (
+	// ActionConsolidate is the action for consolidation proposals (#373).
+	ActionConsolidate = "consolidate"
+)
+
 // ConsolidateResultType describes the outcome of a BeforeRemove check.
 type ConsolidateResultType int
 

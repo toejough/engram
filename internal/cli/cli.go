@@ -263,29 +263,19 @@ func RunMaintain(
 
 	stats := effectiveness.FromMemories(memories)
 
-	// Consolidate duplicates before classification (UC-34).
-	backupDir := filepath.Join(*dataDir, "memories", ".backup")
-
+	// Detect duplicate clusters for consolidation proposals (UC-34).
 	consolidator := signal.NewConsolidator(
 		signal.WithLister(&memoryListerAdapter{
 			retriever: retriever,
 			dataDir:   *dataDir,
 		}),
-		signal.WithMerger(&fileMergeExecutor{}),
-		signal.WithFileWriter(newStoredMemoryWriter()),
-		signal.WithFileDeleter(&osFileDeleter{}),
-		signal.WithBackupWriter(&osBackupWriter{now: time.Now}, backupDir),
-		signal.WithEntryRemover(os.Remove),
 		signal.WithEffectiveness(&effectivenessReaderAdapter{stats: stats}),
-		signal.WithStderr(os.Stderr),
-		signal.WithPrincipleSynthesizer(newPrincipleSynthesizer(token)),
-		signal.WithLinkRecomputer(newGraphLinkRecomputer(*dataDir)),
 		signal.WithTextSimilarityScorer(tfidf.NewScorer()),
 	)
 
-	_, consolidateErr := consolidator.Consolidate(ctx)
-	if consolidateErr != nil {
-		return fmt.Errorf("maintain: consolidating: %w", consolidateErr)
+	plans, planErr := consolidator.Plan(ctx)
+	if planErr != nil {
+		fmt.Fprintf(os.Stderr, "[engram] consolidation plan: %v\n", planErr)
 	}
 
 	tracking := buildTrackingFromMemories(memories)
@@ -303,6 +293,36 @@ func RunMaintain(
 
 	generator := maintain.New(allOpts...)
 	proposals := generator.Generate(ctx, classified, memoryMap)
+
+	// Convert consolidation plans to proposals (#373).
+	for idx := range plans {
+		members := make([]string, 0, len(plans[idx].Absorbed)+1)
+		members = append(members, titleOrPath(memoryMap, plans[idx].Survivor))
+
+		for _, absorbed := range plans[idx].Absorbed {
+			members = append(members, titleOrPath(memoryMap, absorbed))
+		}
+
+		sharedKW := sharedKeywords(memoryMap, plans[idx].Survivor, plans[idx].Absorbed)
+
+		//nolint:errchkjson // consolidateDetails has only string/float fields; cannot fail.
+		details, _ := json.Marshal(consolidateDetails{
+			Members:        members,
+			SharedKeywords: sharedKW,
+			Confidence:     plans[idx].Confidence,
+		})
+
+		proposals = append(proposals, maintain.Proposal{
+			MemoryPath: plans[idx].Survivor,
+			Quadrant:   "",
+			Diagnosis: fmt.Sprintf(
+				"Cluster of %d memories with overlapping keywords (confidence %.2f)",
+				len(members), plans[idx].Confidence,
+			),
+			Action:  maintain.ActionConsolidate,
+			Details: details,
+		})
+	}
 
 	// UC-21: Run escalation engine on leech memories (ARCH-50).
 	leeches := buildEscalationMemories(classified, memoryMap)
@@ -479,6 +499,13 @@ func (c *cliLLMCaller) Call(ctx context.Context, prompt string) (string, error) 
 	caller := makeAnthropicCaller(c.token)
 
 	return caller(ctx, maintainModel, "You are a memory maintenance assistant.", prompt)
+}
+
+//nolint:tagliatelle // DES-23 specifies snake_case JSON field names.
+type consolidateDetails struct {
+	Members        []string `json:"members"`
+	SharedKeywords []string `json:"shared_keywords"`
+	Confidence     float64  `json:"confidence"`
 }
 
 // effectivenessAdapter bridges a pre-built stats map to surface.EffectivenessComputer.
@@ -1540,6 +1567,57 @@ func runSurface(args []string, stdout io.Writer) error {
 	surfacer := surface.New(retriever, surfacerOpts...)
 
 	return surfacer.Run(ctx, stdout, opts)
+}
+
+// sharedKeywords extracts keywords present in both the survivor and at least one absorbed memory.
+func sharedKeywords(
+	memMap map[string]*memory.Stored,
+	survivorPath string,
+	absorbedPaths []string,
+) []string {
+	survivor := memMap[survivorPath]
+	if survivor == nil {
+		return nil
+	}
+
+	survKW := make(map[string]struct{}, len(survivor.Keywords))
+	for _, kw := range survivor.Keywords {
+		survKW[strings.ToLower(kw)] = struct{}{}
+	}
+
+	shared := make(map[string]struct{})
+
+	for _, absPath := range absorbedPaths {
+		absorbed := memMap[absPath]
+		if absorbed == nil {
+			continue
+		}
+
+		for _, kw := range absorbed.Keywords {
+			lower := strings.ToLower(kw)
+			if _, ok := survKW[lower]; ok {
+				shared[kw] = struct{}{}
+			}
+		}
+	}
+
+	result := make([]string, 0, len(shared))
+	for kw := range shared {
+		result = append(result, kw)
+	}
+
+	sort.Strings(result)
+
+	return result
+}
+
+// titleOrPath returns the memory title if available, otherwise the path.
+func titleOrPath(memMap map[string]*memory.Stored, path string) string {
+	if mem := memMap[path]; mem != nil && mem.Title != "" {
+		return mem.Title
+	}
+
+	return path
 }
 
 func truncateTitle(title string) string {
