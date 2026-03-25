@@ -2,8 +2,8 @@ package surface
 
 // Exported variables.
 var (
-	ExportComputeSpreading                 = computeSpreading
-	ExportEffectivenessScoreFor            = effectivenessScoreFor
-	ExportIsUnproven                       = isUnproven
-	ExportSessionStartDefaultEffectiveness = sessionStartDefaultEffectiveness
+	ExportComputeSpreading      = computeSpreading
+	ExportDefaultEffectiveness  = defaultEffectiveness
+	ExportEffectivenessScoreFor = effectivenessScoreFor
+	ExportIsUnproven            = isUnproven
 )

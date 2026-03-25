@@ -25,14 +25,10 @@ type BudgetConfig struct {
 // ForMode returns the token budget for a given surface mode.
 func (c BudgetConfig) ForMode(mode string) int {
 	switch mode {
-	case ModeSessionStart:
-		return c.SessionStart
 	case ModePrompt:
 		return c.UserPromptSubmit
 	case ModeTool:
 		return c.PreToolUse
-	case ModePreCompact:
-		return c.PreCompact
 	default:
 		return 0
 	}

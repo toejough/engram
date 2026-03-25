@@ -20,191 +20,6 @@ import (
 	"engram/internal/surface"
 )
 
-// T-P4e-1: SessionStart limits to top 7 (down from 10).
-func TestTP4e1_SessionStartLimitsToTop7(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// 12 memories all with 80% effectiveness → all pass gating.
-	eff := &fakeEffectivenessComputer{
-		stats: map[string]surface.EffectivenessStat{},
-	}
-
-	memories := make([]*memory.Stored, 12)
-
-	for i := range 12 {
-		path := memPath(i)
-		memories[i] = &memory.Stored{
-			Title:     memTitle(i),
-			FilePath:  path,
-			UpdatedAt: time.Date(2025, 1, i+1, 0, 0, 0, 0, time.UTC),
-		}
-		eff.stats[path] = surface.EffectivenessStat{SurfacedCount: 2, EffectivenessScore: 80.0}
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, surface.WithEffectiveness(eff))
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := buf.String()
-	count := strings.Count(output, "  - memory-")
-	g.Expect(count).To(Equal(7), "expected 7 memories (top-7 limit), got %d", count)
-}
-
-// T-P4e-2: SessionStart gates out memories with effectiveness <= 40%.
-func TestTP4e2_SessionStartEffectivenessGating(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{Title: "High Eff", FilePath: "high-eff.toml", UpdatedAt: time.Now()},
-		{Title: "Low Eff", FilePath: "low-eff.toml", UpdatedAt: time.Now()},
-	}
-
-	eff := &fakeEffectivenessComputer{
-		stats: map[string]surface.EffectivenessStat{
-			"high-eff.toml": {SurfacedCount: 10, EffectivenessScore: 75.0},
-			"low-eff.toml":  {SurfacedCount: 10, EffectivenessScore: 20.0}, // below 40%
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, surface.WithEffectiveness(eff))
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := buf.String()
-	g.Expect(output).To(ContainSubstring("high-eff"))
-	g.Expect(output).
-		NotTo(ContainSubstring("low-eff"), "low effectiveness memory should be gated out")
-}
-
-// T-P4e-3: SessionStart surfaces memories with few evaluations by effectiveness score.
-// Memories with <5 surfacings are no longer given a blanket pass — they use the recorded score.
-// Memories with no data at all default to 50% and pass the gate.
-func TestTP4e3_SessionStartFewEvaluationsUsesRecordedScore(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{Title: "Good Memory", FilePath: "good-mem.toml", UpdatedAt: time.Now()},
-		{Title: "Bad Memory", FilePath: "bad-mem.toml", UpdatedAt: time.Now()},
-		{Title: "No Data", FilePath: "no-data.toml", UpdatedAt: time.Now()},
-	}
-
-	eff := &fakeEffectivenessComputer{
-		stats: map[string]surface.EffectivenessStat{
-			// 2 surfacings (below old threshold) but >40% effectiveness → surfaces normally.
-			"good-mem.toml": {SurfacedCount: 2, EffectivenessScore: 65.0},
-			// 2 surfacings (below old threshold) but <=40% effectiveness → gated out.
-			"bad-mem.toml": {SurfacedCount: 2, EffectivenessScore: 20.0},
-			// no-data.toml absent → defaults to 50%, passes gate.
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, surface.WithEffectiveness(eff))
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := buf.String()
-	g.Expect(output).To(ContainSubstring("good-mem"), "memory with 2 evals and >40% effectiveness should surface")
-	g.Expect(output).
-		NotTo(ContainSubstring("bad-mem"), "memory with 2 evals and <=40% effectiveness should be gated out")
-	g.Expect(output).
-		To(ContainSubstring("no-data"), "memory with no effectiveness data (50% default) should surface")
-}
-
-// T-P4e-4: SessionStart ranks by effectiveness descending (high-eff appears before low-eff).
-func TestTP4e4_SessionStartRanksByEffectiveness(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// low-eff listed first in retriever order to prove sorting overrides list order.
-	memories := []*memory.Stored{
-		{Title: "Low Scorer", FilePath: "low-scorer.toml", UpdatedAt: time.Now()},
-		{Title: "High Scorer", FilePath: "high-scorer.toml", UpdatedAt: time.Now()},
-	}
-
-	eff := &fakeEffectivenessComputer{
-		stats: map[string]surface.EffectivenessStat{
-			"low-scorer.toml":  {SurfacedCount: 10, EffectivenessScore: 50.0},
-			"high-scorer.toml": {SurfacedCount: 10, EffectivenessScore: 90.0},
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, surface.WithEffectiveness(eff))
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := buf.String()
-	highIdx := strings.Index(output, "high-scorer")
-	lowIdx := strings.Index(output, "low-scorer")
-	g.Expect(highIdx).
-		To(BeNumerically("<", lowIdx), "high-eff memory should appear before low-eff memory")
-}
-
-// T-P4e-5: Default budgets are 600/250/150 for SessionStart/UserPromptSubmit/PreToolUse.
-func TestTP4e5_DefaultBudgetsUpdated(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	g.Expect(surface.DefaultSessionStartBudget).To(Equal(600))
-	g.Expect(surface.DefaultUserPromptSubmitBudget).To(Equal(250))
-	g.Expect(surface.DefaultPreToolUseBudget).To(Equal(150))
-}
-
 // T-P4e-6: PreToolUse limits to top 2 (down from 3).
 func TestTP4e6_PreToolUseLimitsToTop2(t *testing.T) {
 	t.Parallel()
@@ -367,7 +182,19 @@ func TestTP4e8_InvocationTokenLoggerCalled(t *testing.T) {
 		{
 			Title:     "Alpha Memory",
 			FilePath:  "alpha.toml",
+			Keywords:  []string{"alphatoken"},
+			Principle: "always check alphatoken",
 			UpdatedAt: time.Now(),
+		},
+		{
+			Title:    "Filler B",
+			FilePath: "filler-b.toml",
+			Keywords: []string{"unrelated"},
+		},
+		{
+			Title:    "Filler C",
+			FilePath: "filler-c.toml",
+			Keywords: []string{"other"},
 		},
 	}
 
@@ -378,8 +205,9 @@ func TestTP4e8_InvocationTokenLoggerCalled(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
+		Mode:    surface.ModePrompt,
 		DataDir: "/tmp/data",
+		Message: "alphatoken check",
 	})
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -389,7 +217,7 @@ func TestTP4e8_InvocationTokenLoggerCalled(t *testing.T) {
 	}
 
 	g.Expect(tokenLogger.calls).To(HaveLen(1))
-	g.Expect(tokenLogger.calls[0].mode).To(Equal(surface.ModeSessionStart))
+	g.Expect(tokenLogger.calls[0].mode).To(Equal(surface.ModePrompt))
 	g.Expect(tokenLogger.calls[0].tokenCount).To(BeNumerically(">", 0))
 }
 

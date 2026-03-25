@@ -526,9 +526,9 @@ func TestSurfaceFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := cli.SurfaceFlags(cli.SurfaceArgs{Mode: "session-start", DataDir: "/data"})
+		result := cli.SurfaceFlags(cli.SurfaceArgs{Mode: "prompt", DataDir: "/data"})
 		g.Expect(result).
-			To(gomega.Equal([]string{"--mode", "session-start", "--data-dir", "/data"}))
+			To(gomega.Equal([]string{"--mode", "prompt", "--data-dir", "/data"}))
 	})
 
 	t.Run("empty fields skipped", func(t *testing.T) {

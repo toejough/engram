@@ -17,25 +17,39 @@ import (
 )
 
 // TestColdStartBudgetDoesNotLimitProvenMemories verifies that proven memories (SurfacedCount >= 1)
-// are not limited by the cold-start budget in session-start mode.
+// are not limited by the cold-start budget in tool mode.
 func TestColdStartBudgetDoesNotLimitProvenMemories(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	// 5 memories, all proven (SurfacedCount >= 1 in effectiveness stats).
-	memories := make([]*memory.Stored, 0, 5)
-	stats := make(map[string]surface.EffectivenessStat, 5)
+	// 2 proven anti-pattern memories matching "commit" + 8 fillers for IDF contrast.
+	// All proven (SurfacedCount >= 1 in effectiveness stats).
+	memories := make([]*memory.Stored, 0, 10)
+	stats := make(map[string]surface.EffectivenessStat, 2)
 
-	for i := range 5 {
+	for i := range 2 {
 		path := fmt.Sprintf("proven-%d.toml", i)
 		memories = append(memories, &memory.Stored{
-			Title:     fmt.Sprintf("Proven Memory %d", i),
-			FilePath:  path,
-			Principle: fmt.Sprintf("principle %d", i),
-			Keywords:  []string{fmt.Sprintf("keyword%d", i)},
+			Title:       fmt.Sprintf("Proven Commit Rule %d", i),
+			FilePath:    path,
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit", "git"},
+			Principle:   fmt.Sprintf("use /commit skill %d", i),
 		})
 		stats[path] = surface.EffectivenessStat{SurfacedCount: 1, EffectivenessScore: 60.0}
+	}
+
+	fillerKeywords := []string{"logging", "testing", "deploy", "config", "monitoring", "caching", "auth", "docs"}
+
+	for _, keyword := range fillerKeywords {
+		memories = append(memories, &memory.Stored{
+			Title:       keyword + " rule",
+			FilePath:    keyword + "-rule.toml",
+			AntiPattern: keyword + " violation",
+			Keywords:    []string{keyword},
+			Principle:   keyword + " standards",
+		})
 	}
 
 	eff := &fakeEffectivenessComputer{stats: stats}
@@ -45,8 +59,10 @@ func TestColdStartBudgetDoesNotLimitProvenMemories(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: "git commit -m 'fix bug'",
 	})
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -59,13 +75,14 @@ func TestColdStartBudgetDoesNotLimitProvenMemories(t *testing.T) {
 
 	surfaced := 0
 
-	for i := range 5 {
+	for i := range 2 {
 		if strings.Contains(output, fmt.Sprintf("proven-%d", i)) {
 			surfaced++
 		}
 	}
 
-	g.Expect(surfaced).To(Equal(5), "cold-start budget should not limit proven memories")
+	// Tool mode limits to top-2. Both are proven, so cold-start budget (1 unproven max) does not apply.
+	g.Expect(surfaced).To(Equal(2), "cold-start budget should not limit proven memories")
 }
 
 // TestColdStartBudgetLimitsUnprovenPromptMemories verifies that when all candidates are unproven,
@@ -130,56 +147,6 @@ func TestColdStartBudgetLimitsUnprovenPromptMemories(t *testing.T) {
 	}
 
 	g.Expect(surfaced).To(Equal(1), "cold-start budget should allow only 1 unproven memory in prompt mode")
-}
-
-// TestColdStartBudgetLimitsUnprovenSessionStart verifies that when all memories are unproven,
-// only 1 surfaces in session-start mode (cold-start budget = 1), not sessionStartLimit (7).
-func TestColdStartBudgetLimitsUnprovenSessionStart(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// 5 memories, all unproven (absent from effectiveness map).
-	memories := make([]*memory.Stored, 0, 5)
-
-	for i := range 5 {
-		memories = append(memories, &memory.Stored{
-			Title:     fmt.Sprintf("Unproven Memory %d", i),
-			FilePath:  fmt.Sprintf("unproven-%d.toml", i),
-			Principle: fmt.Sprintf("principle %d", i),
-			Keywords:  []string{fmt.Sprintf("keyword%d", i)},
-		})
-	}
-
-	// No effectiveness data → all memories are unproven.
-	eff := &fakeEffectivenessComputer{stats: map[string]surface.EffectivenessStat{}}
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, surface.WithEffectiveness(eff))
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := buf.String()
-
-	surfaced := 0
-
-	for i := range 5 {
-		if strings.Contains(output, fmt.Sprintf("unproven-%d", i)) {
-			surfaced++
-		}
-	}
-
-	g.Expect(surfaced).To(Equal(1), "cold-start budget should allow only 1 unproven memory in session-start mode")
 }
 
 // TestColdStartBudgetLimitsUnprovenToolMemories verifies that when all candidates are unproven,

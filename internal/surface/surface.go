@@ -9,14 +9,12 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"engram/internal/bm25"
 	"engram/internal/contradict"
-	"engram/internal/creationlog"
 	"engram/internal/frecency"
 	"engram/internal/memory"
 	"engram/internal/signal"
@@ -25,11 +23,9 @@ import (
 
 // Exported constants.
 const (
-	FormatJSON       = "json"
-	ModePreCompact   = "precompact"
-	ModePrompt       = "prompt"
-	ModeSessionStart = "session-start"
-	ModeTool         = "tool"
+	FormatJSON = "json"
+	ModePrompt = "prompt"
+	ModeTool   = "tool"
 )
 
 // Exported variables.
@@ -40,11 +36,6 @@ var (
 // ContradictionDetector detects contradicting memory pairs at surface time (UC-P1-1, ARCH-P1-2).
 type ContradictionDetector interface {
 	Check(ctx context.Context, candidates []*memory.Stored) ([]contradict.Pair, error)
-}
-
-// CreationLogReader reads and clears the creation log (ARCH-12).
-type CreationLogReader interface {
-	ReadAndClear(dataDir string) ([]LogEntry, error)
 }
 
 // CrossRefChecker checks if a memory is covered by an external source such as CLAUDE.md,
@@ -86,15 +77,6 @@ type LinkGraphLink struct {
 type LinkReader interface {
 	GetEntryLinks(id string) ([]LinkGraphLink, error)
 }
-
-// LinkUpdater reads and updates memory graph links (P3: co_surfacing, spreading activation).
-type LinkUpdater interface {
-	GetEntryLinks(id string) ([]LinkGraphLink, error)
-	SetEntryLinks(id string, links []LinkGraphLink) error
-}
-
-// LogEntry is an alias for creationlog.LogEntry (avoids coupling callers to creationlog package).
-type LogEntry = creationlog.LogEntry
 
 // MemoryRetriever lists stored memories from disk (ARCH-9).
 type MemoryRetriever interface {
@@ -141,7 +123,6 @@ type SuppressionEventLogger interface {
 type Surfacer struct {
 	retriever             MemoryRetriever
 	tracker               MemoryTracker
-	logReader             CreationLogReader
 	surfacingLogger       SurfacingEventLogger
 	invocationTokenLogger InvocationTokenLogger
 	effectivenessComputer EffectivenessComputer
@@ -150,10 +131,7 @@ type Surfacer struct {
 	enforcementReader     EnforcementReader
 	contradictionDetector ContradictionDetector
 	signalEmitter         SignalEmitter
-	linkUpdater           LinkUpdater            // P3: co_surfacing + spreading activation
 	linkReader            LinkReader             // P3: spreading activation + cluster notes
-	titleFetcher          TitleFetcher           // P3: cluster notes
-	clusterDedupReader    LinkReader             // P4f: cluster dedup (separate from spreading activation)
 	crossRefChecker       CrossRefChecker        // P4f: cross-source suppression
 	suppressionLogger     SuppressionEventLogger // P4f: suppression event logging
 	toolGate              ToolGater              // frecency gate for tool calls
@@ -204,25 +182,12 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	)
 
 	switch opts.Mode {
-	case ModeSessionStart:
-		result, matched, suppressionEvents, err = s.runSessionStart(ctx, opts.DataDir, effectiveness, opts)
 	case ModePrompt:
 		result, matched, suppressionEvents, err = s.runPrompt(
 			ctx, opts.DataDir, opts.Message, opts.TranscriptWindow, effectiveness, scorer,
 		)
 	case ModeTool:
 		result, matched, suppressionEvents, err = s.runTool(ctx, opts, effectiveness, scorer)
-	case ModePreCompact:
-		budget := opts.Budget
-		if budget == 0 && s.budgetConfig != nil {
-			budget = s.budgetConfig.ForMode(ModePreCompact)
-		}
-
-		if budget == 0 {
-			budget = DefaultPreCompactBudget
-		}
-
-		result, matched, suppressionEvents, err = s.runPreCompact(ctx, opts.DataDir, budget, effectiveness)
 	default:
 		return fmt.Errorf("%w: %s", ErrUnknownMode, opts.Mode)
 	}
@@ -270,49 +235,6 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	}
 
 	return nil
-}
-
-// appendClusterNotes adds top-linked memory titles as cluster annotations (P3, REQ-P3-7).
-func (s *Surfacer) appendClusterNotes(buf *strings.Builder, memories []*memory.Stored) {
-	const maxClusterNotes = 2
-
-	for _, mem := range memories {
-		links, err := s.linkReader.GetEntryLinks(mem.FilePath)
-		if err != nil || len(links) == 0 {
-			continue
-		}
-
-		// Sort by weight descending to pick top-2
-		sorted := make([]LinkGraphLink, len(links))
-		copy(sorted, links)
-		slices.SortFunc(sorted, func(a, b LinkGraphLink) int {
-			if a.Weight > b.Weight {
-				return -1
-			}
-
-			if a.Weight < b.Weight {
-				return 1
-			}
-
-			return 0
-		})
-
-		noteCount := 0
-
-		for _, link := range sorted {
-			if noteCount >= maxClusterNotes {
-				break
-			}
-
-			title, ok := s.titleFetcher.GetTitle(link.Target)
-			if !ok {
-				continue
-			}
-
-			_, _ = fmt.Fprintf(buf, "  • see also: %s\n", title)
-			noteCount++
-		}
-	}
 }
 
 // enforcementLevelFor returns the enforcement level for a memory path, defaulting to "advisory".
@@ -373,93 +295,6 @@ func (s *Surfacer) renderToolAdvisories(
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
 		Context: contextBuf.String(),
 	}, toolMems, nil
-}
-
-//nolint:cyclop,funlen,unparam // effectiveness filtering + budget enforcement; []SuppressionEvent always nil here
-func (s *Surfacer) runPreCompact(
-	ctx context.Context,
-	dataDir string,
-	budget int,
-	effectiveness map[string]EffectivenessStat,
-) (Result, []*memory.Stored, []SuppressionEvent, error) {
-	memories, err := s.retriever.ListMemories(ctx, dataDir)
-	if err != nil {
-		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
-	}
-
-	// Filter to memories with effectiveness >= minPreCompactEffectiveness.
-	candidates := make([]*memory.Stored, 0, len(memories))
-
-	for _, mem := range memories {
-		stat, ok := effectiveness[mem.FilePath]
-		if !ok || stat.EffectivenessScore < minPreCompactEffectiveness {
-			continue
-		}
-
-		candidates = append(candidates, mem)
-	}
-
-	if len(candidates) == 0 {
-		return Result{}, nil, nil, nil
-	}
-
-	// Sort by effectiveness descending.
-	sort.SliceStable(candidates, func(i, j int) bool {
-		return effectiveness[candidates[i].FilePath].EffectivenessScore >
-			effectiveness[candidates[j].FilePath].EffectivenessScore
-	})
-
-	// Apply top-5 count limit.
-	if len(candidates) > preCompactLimit {
-		candidates = candidates[:preCompactLimit]
-	}
-
-	// Apply token budget.
-	if budget > 0 {
-		accumulated := 0
-		limited := make([]*memory.Stored, 0, len(candidates))
-
-		for _, mem := range candidates {
-			tokens := EstimateTokens(mem.Principle)
-			if accumulated+tokens > budget {
-				break
-			}
-
-			accumulated += tokens
-
-			limited = append(limited, mem)
-		}
-
-		candidates = limited
-	}
-
-	if len(candidates) == 0 {
-		return Result{}, nil, nil, nil
-	}
-
-	const header = "[engram] Preserving top memories through compaction:"
-
-	var (
-		summaryBuf strings.Builder
-		contextBuf strings.Builder
-	)
-
-	_, _ = fmt.Fprintf(&summaryBuf, "%s\n", header)
-	_, _ = fmt.Fprintf(&contextBuf, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(&contextBuf, "%s\n", header)
-
-	for _, mem := range candidates {
-		line := fmt.Sprintf("- %s\n", mem.Principle)
-		_, _ = fmt.Fprint(&summaryBuf, line)
-		_, _ = fmt.Fprint(&contextBuf, line)
-	}
-
-	_, _ = fmt.Fprintf(&contextBuf, "</system-reminder>\n")
-
-	return Result{
-		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
-		Context: contextBuf.String(),
-	}, candidates, nil, nil
 }
 
 //nolint:cyclop,funlen,gocognit // BM25 filtering + suppression + budget + spreading: inherent branching
@@ -646,95 +481,6 @@ func (s *Surfacer) runPrompt(
 	}, finalMems, suppressionEvents, nil
 }
 
-//nolint:cyclop,funlen // session-start orchestration: reads log, loads memories, ranks, P3+P4f — inherent branching
-func (s *Surfacer) runSessionStart(
-	ctx context.Context,
-	dataDir string,
-	effectiveness map[string]EffectivenessStat,
-	opts Options,
-) (Result, []*memory.Stored, []SuppressionEvent, error) {
-	// Step 1: Read creation log (ARCH-12). Errors are fire-and-forget.
-	var logEntries []LogEntry
-
-	if s.logReader != nil {
-		entries, logErr := s.logReader.ReadAndClear(dataDir)
-		if logErr == nil {
-			logEntries = entries
-		}
-	}
-
-	// Step 2: List memories for surfacing (REQ-P4e-1: effectiveness-ranked + gated).
-	memories, err := s.retriever.ListMemories(ctx, dataDir)
-	if err != nil {
-		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
-	}
-
-	// REQ-P4e-1: gate out memories with sufficient data (>=5 surfacings) but low effectiveness (<=40%).
-	memories = filterByEffectivenessGate(memories, effectiveness)
-
-	// REQ-P4e-1: rank by effectiveness descending; insufficient-data memories use default score.
-	sortByEffectivenessScore(memories, effectiveness)
-
-	// REQ-P3-6: re-rank using spreading activation if link reader is available.
-	if s.linkReader != nil {
-		activated := applySpreadingActivation(memories, effectiveness, s.linkReader)
-		sortByActivatedScore(memories, activated)
-	}
-
-	// #307: cold-start budget — limit unproven to 1 per invocation.
-	memories = applyColdStartBudgetStored(memories, effectiveness)
-
-	// REQ-P4e-2: take top-7.
-	count := len(memories)
-	if count > sessionStartLimit {
-		count = sessionStartLimit
-		memories = memories[:count]
-	}
-
-	// Post-ranking: suppress contradicting memories (UC-P1-1).
-	memories = s.suppressContradictions(ctx, memories)
-
-	// REQ-P4f-1/2/3: cluster dedup, cross-source, transcript suppression passes.
-	memories, dedupEvents := suppressClusterDuplicates(memories, effectiveness, s.clusterDedupReader)
-	memories, crossEvents := suppressByCrossRef(memories, s.crossRefChecker)
-	memories, transcriptEvents := suppressByTranscript(memories, opts.TranscriptWindow)
-
-	suppressionEvents := make([]SuppressionEvent, 0, len(dedupEvents)+len(crossEvents)+len(transcriptEvents))
-	suppressionEvents = append(suppressionEvents, dedupEvents...)
-	suppressionEvents = append(suppressionEvents, crossEvents...)
-	suppressionEvents = append(suppressionEvents, transcriptEvents...)
-
-	count = len(memories)
-
-	// Nothing to surface at all.
-	if len(logEntries) == 0 && count == 0 {
-		return Result{}, nil, suppressionEvents, nil
-	}
-
-	var (
-		summaryBuf strings.Builder
-		contextBuf strings.Builder
-	)
-
-	writeCreationSection(&summaryBuf, &contextBuf, logEntries)
-	writeRecencySection(&summaryBuf, &contextBuf, memories[:count])
-
-	// P3: update co_surfacing links for memories surfaced together (REQ-P3-5).
-	if s.linkUpdater != nil && count > 0 {
-		s.updateCoSurfacingLinks(memories[:count])
-	}
-
-	// P3: annotate context with cluster notes from linked memories (REQ-P3-7).
-	if s.linkReader != nil && s.titleFetcher != nil && count > 0 {
-		s.appendClusterNotes(&contextBuf, memories[:count])
-	}
-
-	return Result{
-		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
-		Context: contextBuf.String(),
-	}, memories, suppressionEvents, nil
-}
-
 //nolint:cyclop,funlen,unparam // BM25 filtering + spreading activation + tool gate: inherent branching
 func (s *Surfacer) runTool(
 	ctx context.Context,
@@ -904,59 +650,6 @@ func (s *Surfacer) toolGateAllows(toolInput string) bool {
 	return shouldSurface
 }
 
-// updateCoSurfacingLinks increments co_surfacing link weights for all pairs in the surfaced set (P3, REQ-P3-5).
-func (s *Surfacer) updateCoSurfacingLinks(memories []*memory.Stored) {
-	const (
-		coSurfacingInitWeight = 0.1
-		coSurfacingIncrement  = 0.1
-		coSurfacingWeightCap  = 1.0
-	)
-
-	for i, mem := range memories {
-		existing, err := s.linkUpdater.GetEntryLinks(mem.FilePath)
-		if err != nil {
-			continue
-		}
-
-		updated := make([]LinkGraphLink, 0, len(existing))
-		updated = append(updated, existing...)
-
-		for j, peer := range memories {
-			if i == j {
-				continue
-			}
-
-			found := false
-
-			for linkIdx, link := range updated {
-				if link.Target == peer.FilePath {
-					updated[linkIdx].CoSurfacingCount++
-					updated[linkIdx].Weight += coSurfacingIncrement
-
-					if updated[linkIdx].Weight > coSurfacingWeightCap {
-						updated[linkIdx].Weight = coSurfacingWeightCap
-					}
-
-					found = true
-
-					break
-				}
-			}
-
-			if !found {
-				updated = append(updated, LinkGraphLink{
-					Target:           peer.FilePath,
-					Weight:           coSurfacingInitWeight,
-					Basis:            "co_surfacing",
-					CoSurfacingCount: 1,
-				})
-			}
-		}
-
-		_ = s.linkUpdater.SetEntryLinks(mem.FilePath, updated)
-	}
-}
-
 func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error {
 	if result.Context == "" {
 		return nil
@@ -984,20 +677,9 @@ type SurfacingEventLogger interface {
 	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
 }
 
-// TitleFetcher fetches memory titles for cluster notes (P3).
-type TitleFetcher interface {
-	GetTitle(id string) (string, bool)
-}
-
 // ToolGater decides whether to surface memories for a tool call.
 type ToolGater interface {
 	Check(commandKey string) (bool, error)
-}
-
-// WithClusterDedupReader sets the link reader used for cluster dedup (REQ-P4f-1).
-// Separate from WithLinkReader to avoid interfering with spreading activation.
-func WithClusterDedupReader(reader LinkReader) SurfacerOption {
-	return func(s *Surfacer) { s.clusterDedupReader = reader }
 }
 
 // WithContradictionDetector sets the contradiction detector for post-ranking suppression (UC-P1-1).
@@ -1030,16 +712,6 @@ func WithLinkReader(reader LinkReader) SurfacerOption {
 	return func(s *Surfacer) { s.linkReader = reader }
 }
 
-// WithLinkUpdater sets the link updater for co_surfacing and spreading activation (P3, REQ-P3-5, REQ-P3-6).
-func WithLinkUpdater(updater LinkUpdater) SurfacerOption {
-	return func(s *Surfacer) { s.linkUpdater = updater }
-}
-
-// WithLogReader sets the creation log reader for session-start mode.
-func WithLogReader(reader CreationLogReader) SurfacerOption {
-	return func(s *Surfacer) { s.logReader = reader }
-}
-
 // WithSignalEmitter sets the signal emitter for contradiction signals (UC-P1-1).
 func WithSignalEmitter(e SignalEmitter) SurfacerOption {
 	return func(s *Surfacer) { s.signalEmitter = e }
@@ -1060,11 +732,6 @@ func WithSurfacingRecorder(fn func(path string) error) SurfacerOption {
 	return func(s *Surfacer) { s.recordSurfacing = fn }
 }
 
-// WithTitleFetcher sets the title fetcher for cluster notes (P3, REQ-P3-7).
-func WithTitleFetcher(fetcher TitleFetcher) SurfacerOption {
-	return func(s *Surfacer) { s.titleFetcher = fetcher }
-}
-
 // WithToolGate sets the tool frecency gate.
 func WithToolGate(gate ToolGater) SurfacerOption {
 	return func(s *Surfacer) { s.toolGate = gate }
@@ -1077,22 +744,18 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
-	coldStartBudget                  = 1
-	enforcementAdvisory              = "advisory"
-	enforcementEmphasizedAdvisory    = "emphasized_advisory"
-	enforcementReminder              = "reminder"
-	irrelevancePenaltyHalfLife       = 5
-	minEffectivenessFloor            = 40.0 // gate threshold
-	minPreCompactEffectiveness       = 40.0
-	minRelevanceScore                = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
-	preCompactLimit                  = 5
-	promptLimit                      = 2
-	sessionStartDefaultEffectiveness = 50.0 // neutral default for memories with no effectiveness data
-	sessionStartLimit                = 7    // REQ-P4e-2: top-7
-	spreadingActivationDecay         = 0.3  // REQ-P3-6: spreading activation decay factor
-	toolLimit                        = 2    // REQ-P4e-4: top-2
-	unprovenBM25FloorPrompt          = 0.20
-	unprovenBM25FloorTool            = 0.30
+	coldStartBudget               = 1
+	defaultEffectiveness          = 50.0 // neutral default for memories with no effectiveness data
+	enforcementAdvisory           = "advisory"
+	enforcementEmphasizedAdvisory = "emphasized_advisory"
+	enforcementReminder           = "reminder"
+	irrelevancePenaltyHalfLife    = 5
+	minEffectivenessFloor         = 40.0 // gate threshold
+	minRelevanceScore             = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
+	promptLimit                   = 2
+	toolLimit                     = 2 // REQ-P4e-4: top-2
+	unprovenBM25FloorPrompt       = 0.20
+	unprovenBM25FloorTool         = 0.30
 )
 
 // promptMatch holds a memory for prompt mode.
@@ -1136,33 +799,6 @@ func applyColdStartBudgetPrompt(
 	return result
 }
 
-// applyColdStartBudgetStored keeps all proven memories plus at most coldStartBudget unproven.
-// No-op when effectiveness is nil (no data available to distinguish proven from unproven).
-func applyColdStartBudgetStored(
-	candidates []*memory.Stored,
-	effectiveness map[string]EffectivenessStat,
-) []*memory.Stored {
-	if effectiveness == nil {
-		return candidates
-	}
-
-	result := make([]*memory.Stored, 0, len(candidates))
-	unprovenCount := 0
-
-	for _, mem := range candidates {
-		if isUnproven(mem.FilePath, effectiveness) {
-			unprovenCount++
-			if unprovenCount > coldStartBudget {
-				continue
-			}
-		}
-
-		result = append(result, mem)
-	}
-
-	return result
-}
-
 // applyColdStartBudgetTool keeps all proven matches plus at most coldStartBudget unproven.
 // No-op when effectiveness is nil (no data available to distinguish proven from unproven).
 func applyColdStartBudgetTool(
@@ -1188,44 +824,6 @@ func applyColdStartBudgetTool(
 	}
 
 	return result
-}
-
-// applySpreadingActivation re-scores memories using the P3 spreading activation formula (REQ-P3-6):
-//
-//	activated[id] = base[id] + 0.3 × Σ(base[linked_id] × link.Weight)
-//
-// Only linked memories in the candidate set contribute to the spread term.
-// Returns a map from FilePath to activated score.
-func applySpreadingActivation(
-	memories []*memory.Stored,
-	effectiveness map[string]EffectivenessStat,
-	linkReader LinkReader,
-) map[string]float64 {
-	// Build base score index.
-	base := make(map[string]float64, len(memories))
-
-	for _, mem := range memories {
-		base[mem.FilePath] = effectivenessScoreFor(mem.FilePath, effectiveness)
-	}
-
-	activated := make(map[string]float64, len(memories))
-
-	for _, mem := range memories {
-		spread := 0.0
-
-		links, err := linkReader.GetEntryLinks(mem.FilePath)
-		if err == nil {
-			for _, link := range links {
-				if linkedBase, ok := base[link.Target]; ok {
-					spread += linkedBase * link.Weight
-				}
-			}
-		}
-
-		activated[mem.FilePath] = base[mem.FilePath] + spreadingActivationDecay*spread
-	}
-
-	return activated
 }
 
 // bm25FloorForTool returns the BM25 relevance floor for a tool-mode memory.
@@ -1325,16 +923,16 @@ func concatenateToolFields(mem *memory.Stored) string {
 
 // effectivenessScoreFor returns the effectiveness score for a memory path.
 // Two-tier logic:
-//   - No effectiveness data exists for path: sessionStartDefaultEffectiveness (50%) — neutral default
+//   - No effectiveness data exists for path: defaultEffectiveness (50%) — neutral default
 //   - Data exists: recorded EffectivenessScore
 func effectivenessScoreFor(path string, effectiveness map[string]EffectivenessStat) float64 {
 	if effectiveness == nil {
-		return sessionStartDefaultEffectiveness
+		return defaultEffectiveness
 	}
 
 	stat, ok := effectiveness[path]
 	if !ok || stat.SurfacedCount == 0 {
-		return sessionStartDefaultEffectiveness
+		return defaultEffectiveness
 	}
 
 	return stat.EffectivenessScore
@@ -1343,26 +941,6 @@ func effectivenessScoreFor(path string, effectiveness map[string]EffectivenessSt
 // filenameSlug strips directory path and .toml extension from a memory file path.
 func filenameSlug(path string) string {
 	return strings.TrimSuffix(filepath.Base(path), ".toml")
-}
-
-// filterByEffectivenessGate removes memories with low effectiveness (<=40%).
-// Memories with no effectiveness data default to 50% and always pass the gate.
-func filterByEffectivenessGate(
-	memories []*memory.Stored,
-	effectiveness map[string]EffectivenessStat,
-) []*memory.Stored {
-	filtered := make([]*memory.Stored, 0, len(memories))
-
-	for _, mem := range memories {
-		score := effectivenessScoreFor(mem.FilePath, effectiveness)
-		if score <= minEffectivenessFloor {
-			continue // gated out
-		}
-
-		filtered = append(filtered, mem)
-	}
-
-	return filtered
 }
 
 // filterToolMatchesByEffectivenessGate applies effectiveness gating to tool matches (REQ-P4e-4).
@@ -1547,27 +1125,6 @@ func matchToolMemories(
 	return matches
 }
 
-// sortByActivatedScore sorts memories by activated score descending (REQ-P3-6).
-func sortByActivatedScore(memories []*memory.Stored, scores map[string]float64) {
-	sort.SliceStable(memories, func(i, j int) bool {
-		return scores[memories[i].FilePath] > scores[memories[j].FilePath]
-	})
-}
-
-// sortByEffectivenessScore sorts memories by effectiveness score descending (REQ-P4e-1).
-// Insufficient-data memories use sessionStartDefaultEffectiveness.
-func sortByEffectivenessScore(
-	memories []*memory.Stored,
-	effectiveness map[string]EffectivenessStat,
-) {
-	sort.SliceStable(memories, func(i, j int) bool {
-		si := effectivenessScoreFor(memories[i].FilePath, effectiveness)
-		sj := effectivenessScoreFor(memories[j].FilePath, effectiveness)
-
-		return si > sj
-	})
-}
-
 // sortPromptMatchesByActivation sorts prompt matches by combined score descending.
 func sortPromptMatchesByActivation(matches []promptMatch, scorer *frecency.Scorer) {
 	sort.SliceStable(matches, func(i, j int) bool {
@@ -1599,54 +1156,4 @@ func toFrecencyInput(mem *memory.Stored) frecency.Input {
 		IgnoredCount:      mem.IgnoredCount,
 		FilePath:          mem.FilePath,
 	}
-}
-
-// writeCreationSection appends the creation report to summary and context buffers.
-func writeCreationSection(summaryBuf, contextBuf *strings.Builder, entries []LogEntry) {
-	if len(entries) == 0 {
-		return
-	}
-
-	creationSummary := fmt.Sprintf("[engram] Created %d memories since last session:", len(entries))
-
-	_, _ = fmt.Fprintf(summaryBuf, "%s\n", creationSummary)
-	_, _ = fmt.Fprintf(contextBuf, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(contextBuf, "%s\n", creationSummary)
-
-	for _, entry := range entries {
-		entryLine := fmt.Sprintf(
-			"  - \"%s\" [%s] (%s)\n",
-			entry.Title,
-			entry.Tier,
-			entry.Filename,
-		)
-		_, _ = fmt.Fprint(summaryBuf, entryLine)
-		_, _ = fmt.Fprint(contextBuf, entryLine)
-	}
-
-	_, _ = fmt.Fprintf(contextBuf, "</system-reminder>\n")
-}
-
-// writeRecencySection appends the recency surfacing section to summary and context buffers.
-func writeRecencySection(
-	summaryBuf, contextBuf *strings.Builder,
-	memories []*memory.Stored,
-) {
-	if len(memories) == 0 {
-		return
-	}
-
-	recencySummary := fmt.Sprintf("[engram] Loaded %d memories.", len(memories))
-
-	_, _ = fmt.Fprintf(summaryBuf, "%s\n", recencySummary)
-	_, _ = fmt.Fprintf(contextBuf, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(contextBuf, "%s\n", recencySummary)
-
-	for _, mem := range memories {
-		memLine := fmt.Sprintf("  - %s: %s\n", filenameSlug(mem.FilePath), mem.Principle)
-		_, _ = fmt.Fprint(summaryBuf, memLine)
-		_, _ = fmt.Fprint(contextBuf, memLine)
-	}
-
-	_, _ = fmt.Fprintf(contextBuf, "</system-reminder>\n")
 }

@@ -100,7 +100,7 @@ type ShowArgs struct {
 
 // SurfaceArgs holds parsed flags for the surface subcommand.
 type SurfaceArgs struct {
-	Mode        string `targ:"flag,name=mode,desc=surface mode: session-start or prompt or tool"`
+	Mode        string `targ:"flag,name=mode,desc=surface mode: prompt or tool"`
 	DataDir     string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	Message     string `targ:"flag,name=message,desc=user message (prompt mode)"`
 	ToolName    string `targ:"flag,name=tool-name,desc=tool name (tool mode)"`

@@ -1458,7 +1458,7 @@ func runSurface(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("surface", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
-	mode := fs.String("mode", "", "surface mode: session-start, prompt, tool, precompact")
+	mode := fs.String("mode", "", "surface mode: prompt, tool")
 	dataDir := fs.String("data-dir", "", "path to data directory")
 	message := fs.String("message", "", "user message (prompt mode)")
 	toolName := fs.String("tool-name", "", "tool name (tool mode)")
@@ -1466,7 +1466,7 @@ func runSurface(args []string, stdout io.Writer) error {
 	toolOutput := fs.String("tool-output", "", "tool output or error text (tool mode)")
 	toolErrored := fs.Bool("tool-errored", false, "true if tool call failed (tool mode)")
 	format := fs.String("format", "", "output format: json")
-	budget := fs.Int("budget", 0, "token budget override (precompact mode)")
+	budget := fs.Int("budget", 0, "token budget override")
 	transcriptWindow := fs.String("transcript-window", "", "recent transcript text for suppression (REQ-P4f-3)")
 	claudeDir := fs.String("claude-dir", "", "path to .claude directory for cross-source suppression (REQ-P4f-2)")
 
@@ -1499,7 +1499,6 @@ func runSurface(args []string, stdout io.Writer) error {
 
 	retriever := retrieve.New()
 	recorder := track.NewRecorder()
-	logReader := creationlog.NewLogReader()
 	surfLogger := surfacinglog.New(*dataDir)
 
 	ctx := context.Background()
@@ -1513,7 +1512,6 @@ func runSurface(args []string, stdout io.Writer) error {
 
 	surfacerOpts := []surface.SurfacerOption{
 		surface.WithTracker(recorder),
-		surface.WithLogReader(logReader),
 		surface.WithSurfacingLogger(surfLogger),
 		surface.WithEffectiveness(effAdapter),
 		surface.WithSurfacingRecorder(func(path string) error {

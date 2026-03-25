@@ -242,10 +242,8 @@ func TestT193_BudgetConfigCustomValues(t *testing.T) {
 		PreCompact:       400,
 	}
 
-	g.Expect(custom.ForMode(surface.ModeSessionStart)).To(Equal(1000))
 	g.Expect(custom.ForMode(surface.ModePrompt)).To(Equal(500))
 	g.Expect(custom.ForMode(surface.ModeTool)).To(Equal(300))
-	g.Expect(custom.ForMode(surface.ModePreCompact)).To(Equal(400))
 }
 
 // T-193: Budget cap configuration loads from config with defaults fallback (REQ-P4e-2/3/4: updated targets).

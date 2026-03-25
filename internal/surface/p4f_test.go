@@ -1,7 +1,6 @@
 package surface_test
 
-// P4-full: Cluster dedup + cross-source suppression + transcript suppression
-// REQ-P4f-1: Cluster dedup — keep highest-effectiveness linked pair member
+// P4-full: Cross-source suppression + transcript suppression
 // REQ-P4f-2: Cross-source suppression — skip if covered by CLAUDE.md/rule/skill
 // REQ-P4f-3: Transcript suppression — skip if keywords appear in recent window
 // REQ-P4f-4: Suppression logging — log each decision
@@ -20,176 +19,28 @@ import (
 	"engram/internal/surface"
 )
 
-// T-P4f-10: ClusterDedup suppression event has correct fields.
-func TestTP4f10_ClusterDedupEventFields(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{Title: "Winner", FilePath: "winner.toml", UpdatedAt: time.Now()},
-		{Title: "Loser", FilePath: "loser.toml", UpdatedAt: time.Now()},
-	}
-
-	eff := &fakeEffectivenessComputer{
-		stats: map[string]surface.EffectivenessStat{
-			"winner.toml": {SurfacedCount: 10, EffectivenessScore: 90.0},
-			"loser.toml":  {SurfacedCount: 10, EffectivenessScore: 55.0},
-		},
-	}
-
-	linkReader := &fakeP3LinkReaderByPath{
-		links: map[string][]surface.LinkGraphLink{
-			"winner.toml": {{Target: "loser.toml", Weight: 0.7, Basis: "concept_overlap"}},
-		},
-	}
-
-	logger := &fakeSuppressionLogger{}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever,
-		surface.WithEffectiveness(eff),
-		surface.WithClusterDedupReader(linkReader),
-		surface.WithSuppressionEventLogger(logger),
-	)
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Find the cluster_dedup event.
-	var dedupEvent *surface.SuppressionEvent
-
-	for i := range logger.events {
-		if logger.events[i].Reason == surface.SuppressionReasonClusterDedup {
-			dedupEvent = &logger.events[i]
-
-			break
-		}
-	}
-
-	g.Expect(dedupEvent).NotTo(BeNil(), "cluster_dedup suppression event should be logged")
-
-	if dedupEvent == nil {
-		return
-	}
-
-	g.Expect(dedupEvent.MemoryID).To(Equal("loser.toml"))
-	g.Expect(dedupEvent.SuppressedBy).To(Equal("winner.toml"))
-}
-
-// T-P4f-1: ClusterDedup keeps higher-effectiveness memory when linked pair both surface.
-func TestTP4f1_ClusterDedupKeepsHigherEffectiveness(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{
-			Title:     "High Eff Memory",
-			FilePath:  "high-eff.toml",
-			UpdatedAt: time.Now(),
-		},
-		{
-			Title:     "Low Eff Memory",
-			FilePath:  "low-eff.toml",
-			UpdatedAt: time.Now(),
-		},
-	}
-
-	eff := &fakeEffectivenessComputer{
-		stats: map[string]surface.EffectivenessStat{
-			"high-eff.toml": {SurfacedCount: 10, EffectivenessScore: 80.0},
-			"low-eff.toml":  {SurfacedCount: 10, EffectivenessScore: 50.0},
-		},
-	}
-
-	// Link high-eff → low-eff so they form a cluster.
-	linkReader := &fakeP3LinkReaderByPath{
-		links: map[string][]surface.LinkGraphLink{
-			"high-eff.toml": {
-				{Target: "low-eff.toml", Weight: 0.8, Basis: "concept_overlap"},
-			},
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever,
-		surface.WithEffectiveness(eff),
-		surface.WithClusterDedupReader(linkReader),
-	)
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := buf.String()
-	g.Expect(output).To(ContainSubstring("high-eff"), "higher-effectiveness memory should surface")
-	g.Expect(output).NotTo(ContainSubstring("low-eff"), "lower-effectiveness linked memory should be suppressed")
-}
-
-// T-P4f-2: ClusterDedup: two unlinked memories both surface normally.
-func TestTP4f2_ClusterDedupDoesNotSuppressUnlinkedMemories(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{Title: "Alpha", FilePath: "alpha.toml", UpdatedAt: time.Now()},
-		{Title: "Beta", FilePath: "beta.toml", UpdatedAt: time.Now()},
-	}
-
-	// No links between alpha and beta.
-	linkReader := &fakeP3LinkReader{}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, surface.WithClusterDedupReader(linkReader))
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := buf.String()
-	g.Expect(output).To(ContainSubstring("alpha"), "unlinked memory alpha should surface")
-	g.Expect(output).To(ContainSubstring("beta"), "unlinked memory beta should surface")
-}
-
-// T-P4f-3: CrossRefChecker suppresses covered memories in session-start.
+// T-P4f-3: CrossRefChecker suppresses covered memories in prompt mode.
 func TestTP4f3_CrossRefCheckerSuppressesCoveredMemory(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Title: "Covered Memory", FilePath: "covered.toml", UpdatedAt: time.Now()},
-		{Title: "Unique Memory", FilePath: "unique.toml", UpdatedAt: time.Now()},
+		{
+			Title:    "Covered Memory",
+			FilePath: "covered.toml",
+			Keywords: []string{"xyzcrossref"},
+			Content:  "xyzcrossref rule content",
+		},
+		{
+			Title:    "Unique Memory",
+			FilePath: "unique.toml",
+			Keywords: []string{"xyzcrossref"},
+			Content:  "xyzcrossref other content",
+		},
+		{Title: "Filler A", FilePath: "filler-a.toml", Keywords: []string{"logging"}},
+		{Title: "Filler B", FilePath: "filler-b.toml", Keywords: []string{"testing"}},
+		{Title: "Filler C", FilePath: "filler-c.toml", Keywords: []string{"deploy"}},
 	}
 
 	checker := &fakeCrossRefChecker{
@@ -204,8 +55,9 @@ func TestTP4f3_CrossRefCheckerSuppressesCoveredMemory(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
+		Mode:    surface.ModePrompt,
 		DataDir: "/tmp/data",
+		Message: "xyzcrossref rule",
 	})
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -227,17 +79,20 @@ func TestTP4f4_TranscriptSuppressionSkipsMatchingKeywords(t *testing.T) {
 
 	memories := []*memory.Stored{
 		{
-			Title:     "Targ Rule",
-			FilePath:  "targ-rule.toml",
-			Keywords:  []string{"targ", "build"},
-			UpdatedAt: time.Now(),
+			Title:    "Targ Rule",
+			FilePath: "targ-rule.toml",
+			Keywords: []string{"targ", "build"},
+			Content:  "xyztranscript targ build rule",
 		},
 		{
-			Title:     "Git Rule",
-			FilePath:  "git-rule.toml",
-			Keywords:  []string{"git", "commit"},
-			UpdatedAt: time.Now(),
+			Title:    "Git Rule",
+			FilePath: "git-rule.toml",
+			Keywords: []string{"git", "commit"},
+			Content:  "xyztranscript git commit rule",
 		},
+		{Title: "Filler A", FilePath: "filler-a.toml", Keywords: []string{"logging"}},
+		{Title: "Filler B", FilePath: "filler-b.toml", Keywords: []string{"testing"}},
+		{Title: "Filler C", FilePath: "filler-c.toml", Keywords: []string{"deploy"}},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -247,8 +102,9 @@ func TestTP4f4_TranscriptSuppressionSkipsMatchingKeywords(t *testing.T) {
 
 	// Transcript window mentions "targ" — should suppress targ-rule, not git-rule.
 	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:             surface.ModeSessionStart,
+		Mode:             surface.ModePrompt,
 		DataDir:          "/tmp/data",
+		Message:          "xyztranscript rule",
 		TranscriptWindow: "I ran targ check-full and it passed all tests",
 	})
 
@@ -271,11 +127,14 @@ func TestTP4f5_TranscriptSuppressionIsCaseInsensitive(t *testing.T) {
 
 	memories := []*memory.Stored{
 		{
-			Title:     "Deploy Rule",
-			FilePath:  "deploy-rule.toml",
-			Keywords:  []string{"Deploy"},
-			UpdatedAt: time.Now(),
+			Title:    "Deploy Rule",
+			FilePath: "deploy-rule.toml",
+			Keywords: []string{"Deploy"},
+			Content:  "xyzdeployrule content for matching",
 		},
+		{Title: "Filler A", FilePath: "filler-a.toml", Keywords: []string{"logging"}},
+		{Title: "Filler B", FilePath: "filler-b.toml", Keywords: []string{"testing"}},
+		{Title: "Filler C", FilePath: "filler-c.toml", Keywords: []string{"config"}},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -284,8 +143,9 @@ func TestTP4f5_TranscriptSuppressionIsCaseInsensitive(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:             surface.ModeSessionStart,
+		Mode:             surface.ModePrompt,
 		DataDir:          "/tmp/data",
+		Message:          "xyzdeployrule content",
 		TranscriptWindow: "we should deploy to staging first",
 	})
 
@@ -306,8 +166,21 @@ func TestTP4f6_SuppressionLoggerReceivesEvents(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Title: "Covered", FilePath: "covered.toml", UpdatedAt: time.Now()},
-		{Title: "Other", FilePath: "other.toml", UpdatedAt: time.Now()},
+		{
+			Title:    "Covered",
+			FilePath: "covered.toml",
+			Keywords: []string{"xyzsupplog"},
+			Content:  "xyzsupplog covered rule",
+		},
+		{
+			Title:    "Other",
+			FilePath: "other.toml",
+			Keywords: []string{"xyzsupplog"},
+			Content:  "xyzsupplog other rule",
+		},
+		{Title: "Filler A", FilePath: "filler-a.toml", Keywords: []string{"logging"}},
+		{Title: "Filler B", FilePath: "filler-b.toml", Keywords: []string{"testing"}},
+		{Title: "Filler C", FilePath: "filler-c.toml", Keywords: []string{"deploy"}},
 	}
 
 	checker := &fakeCrossRefChecker{
@@ -325,8 +198,9 @@ func TestTP4f6_SuppressionLoggerReceivesEvents(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
+		Mode:    surface.ModePrompt,
 		DataDir: "/tmp/data",
+		Message: "xyzsupplog rule",
 	})
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -348,10 +222,23 @@ func TestTP4f7_SuppressionStatsInResult(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	// 2 memories, 1 suppressed by cross-ref → rate = 1/2 = 0.5
+	// 2 matching memories, 1 suppressed by cross-ref → rate = 1/2 = 0.5
 	memories := []*memory.Stored{
-		{Title: "Covered", FilePath: "covered.toml", UpdatedAt: time.Now()},
-		{Title: "Surfaced", FilePath: "surfaced.toml", UpdatedAt: time.Now()},
+		{
+			Title:    "Covered",
+			FilePath: "covered.toml",
+			Keywords: []string{"xyzstatscheck"},
+			Content:  "xyzstatscheck covered rule",
+		},
+		{
+			Title:    "Surfaced",
+			FilePath: "surfaced.toml",
+			Keywords: []string{"xyzstatscheck"},
+			Content:  "xyzstatscheck surfaced rule",
+		},
+		{Title: "Filler A", FilePath: "filler-a.toml", Keywords: []string{"logging"}},
+		{Title: "Filler B", FilePath: "filler-b.toml", Keywords: []string{"testing"}},
+		{Title: "Filler C", FilePath: "filler-c.toml", Keywords: []string{"deploy"}},
 	}
 
 	checker := &fakeCrossRefChecker{
@@ -364,8 +251,9 @@ func TestTP4f7_SuppressionStatsInResult(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
+		Mode:    surface.ModePrompt,
 		DataDir: "/tmp/data",
+		Message: "xyzstatscheck rule",
 		Format:  surface.FormatJSON,
 	})
 
@@ -390,11 +278,14 @@ func TestTP4f8_EmptyTranscriptWindowNoSuppression(t *testing.T) {
 
 	memories := []*memory.Stored{
 		{
-			Title:     "Rule A",
-			FilePath:  "rule-a.toml",
-			Keywords:  []string{"targ", "build"},
-			UpdatedAt: time.Now(),
+			Title:    "Rule A",
+			FilePath: "rule-a.toml",
+			Keywords: []string{"targ", "build"},
+			Content:  "xyznosuppress targ build rule",
 		},
+		{Title: "Filler A", FilePath: "filler-a.toml", Keywords: []string{"logging"}},
+		{Title: "Filler B", FilePath: "filler-b.toml", Keywords: []string{"testing"}},
+		{Title: "Filler C", FilePath: "filler-c.toml", Keywords: []string{"deploy"}},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -403,8 +294,9 @@ func TestTP4f8_EmptyTranscriptWindowNoSuppression(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:             surface.ModeSessionStart,
+		Mode:             surface.ModePrompt,
 		DataDir:          "/tmp/data",
+		Message:          "xyznosuppress targ build",
 		TranscriptWindow: "", // empty — no suppression
 	})
 
