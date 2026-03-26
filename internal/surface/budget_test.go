@@ -126,107 +126,6 @@ func TestT191_PromptBudgetEnforcement(t *testing.T) {
 	g.Expect(count).To(Equal(2), "expected 2 memories within 40 token budget, got %d", count)
 }
 
-// T-192: matchToolMemories respects budget cap
-func TestT192_ToolBudgetEnforcement(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// 3 matching anti-pattern memories + 7 non-matching (BM25 needs <50% for positive IDF).
-	// Each matching: title "commit advisory" (15) + anti_pattern (40) + keyword "commit" (6) ≈ 63 chars → 15 tokens.
-	// Budget 35 → fits 2 (30 tokens), not 3 (45 tokens).
-	memories := []*memory.Stored{
-		{
-			Title:       "commit advisory",
-			AntiPattern: strings.Repeat("a", 40),
-			FilePath:    "mem-a.toml",
-			Keywords:    []string{"commit"},
-		},
-		{
-			Title:       "commit advisory",
-			AntiPattern: strings.Repeat("b", 40),
-			FilePath:    "mem-b.toml",
-			Keywords:    []string{"commit"},
-		},
-		{
-			Title:       "commit advisory",
-			AntiPattern: strings.Repeat("c", 40),
-			FilePath:    "mem-c.toml",
-			Keywords:    []string{"commit"},
-		},
-		{
-			Title:       "unrelated thing",
-			AntiPattern: "do not use alpha",
-			FilePath:    "mem-d.toml",
-			Keywords:    []string{"alpha"},
-		},
-		{
-			Title:       "another thing",
-			AntiPattern: "do not use beta",
-			FilePath:    "mem-e.toml",
-			Keywords:    []string{"beta"},
-		},
-		{
-			Title:       "other thing",
-			AntiPattern: "do not use gamma",
-			FilePath:    "mem-f.toml",
-			Keywords:    []string{"gamma"},
-		},
-		{
-			Title:       "more thing",
-			AntiPattern: "do not use delta",
-			FilePath:    "mem-g.toml",
-			Keywords:    []string{"delta"},
-		},
-		{
-			Title:       "extra thing",
-			AntiPattern: "do not use epsilon",
-			FilePath:    "mem-h.toml",
-			Keywords:    []string{"epsilon"},
-		},
-		{
-			Title:       "final thing",
-			AntiPattern: "do not use zeta",
-			FilePath:    "mem-i.toml",
-			Keywords:    []string{"zeta"},
-		},
-		{
-			Title:       "last thing",
-			AntiPattern: "do not use eta",
-			FilePath:    "mem-j.toml",
-			Keywords:    []string{"eta"},
-		},
-	}
-
-	budgetCfg := surface.BudgetConfig{
-		Tool:             35,
-		UserPromptSubmit: 300,
-		SessionStart:     800,
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, surface.WithBudgetConfig(budgetCfg))
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:      surface.ModeTool,
-		DataDir:   "/tmp/data",
-		ToolName:  "Bash",
-		ToolInput: "git commit -m something",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := buf.String()
-	count := strings.Count(output, "  - mem-")
-	g.Expect(count).To(Equal(2), "expected 2 memories within 35 token budget, got %d", count)
-}
-
 // T-193: Custom config values override defaults
 func TestT193_BudgetConfigCustomValues(t *testing.T) {
 	t.Parallel()
@@ -236,12 +135,10 @@ func TestT193_BudgetConfigCustomValues(t *testing.T) {
 	custom := surface.BudgetConfig{
 		SessionStart:     1000,
 		UserPromptSubmit: 500,
-		Tool:             300,
 		Stop:             600,
 	}
 
 	g.Expect(custom.ForMode(surface.ModePrompt)).To(Equal(500))
-	g.Expect(custom.ForMode(surface.ModeTool)).To(Equal(300))
 }
 
 // T-193: Budget cap configuration loads from config with defaults fallback (REQ-P4e-2/3/4: updated targets).

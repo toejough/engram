@@ -9,7 +9,6 @@ import (
 	"engram/internal/recall"
 	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
-	"engram/internal/toolgate"
 )
 
 // Exported variables.
@@ -37,11 +36,6 @@ func ExportNewCliConfirmer(
 	stdout io.Writer, stdin io.Reader, autoConfirm bool,
 ) maintain.Confirmer {
 	return &cliConfirmer{stdout: stdout, stdin: stdin, autoConfirm: autoConfirm}
-}
-
-// ExportNewFileCounterStore creates a fileCounterStore for testing.
-func ExportNewFileCounterStore(dataDir string) toolgate.CounterStore {
-	return newFileCounterStore(dataDir)
 }
 
 // ExportNewHaikuCallerAdapter creates a haikuCallerAdapter for testing.
