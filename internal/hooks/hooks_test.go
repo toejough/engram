@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -314,10 +313,10 @@ func TestT370_HooksJSONSessionStartSingle(t *testing.T) {
 	}
 }
 
-// TestT370_PostToolUsePendingCheck verifies post-tool-use.sh checks for
-// pending-maintenance.json BEFORE the engram filter so pending content is
-// always consumed even when the first tool call is an engram command (#370).
-func TestT370_PostToolUsePendingCheck(t *testing.T) {
+// TestT370_PostToolUseNoPending verifies post-tool-use.sh does NOT consume
+// pending-maintenance.json — that logic moved to user-prompt-submit.sh so
+// subagent tool calls don't eat it (#370 refactor).
+func TestT370_PostToolUseNoPending(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -334,37 +333,15 @@ func TestT370_PostToolUsePendingCheck(t *testing.T) {
 
 	script := string(content)
 
-	// Must check for pending file.
-	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
-	g.Expect(script).To(ContainSubstring("PENDING_SYS"))
-	g.Expect(script).To(ContainSubstring("PENDING_CTX"))
-	// Must use atomic consumption (mv).
-	g.Expect(script).To(ContainSubstring("mv "))
-	// Must reference #370.
-	g.Expect(script).To(ContainSubstring("#370"))
-
-	// Verify ordering: pending check BEFORE engram filter, Write/Edit advisory, and Bash-only exit.
-	engramFilterIdx := strings.Index(script, "#352")
-	pendingCheckIdx := strings.Index(script, "pending-maintenance.json")
-	advisoryIdx := strings.Index(script, "Write/Edit")
-	bashOnlyIdx := strings.Index(script, `"$TOOL_NAME" != "Bash"`)
-
-	g.Expect(pendingCheckIdx).To(BeNumerically("<", engramFilterIdx),
-		"pending check must come before engram filter")
-	g.Expect(pendingCheckIdx).To(BeNumerically("<", advisoryIdx),
-		"pending check must come before Write/Edit advisory")
-	g.Expect(pendingCheckIdx).To(BeNumerically("<", bashOnlyIdx),
-		"pending check must come before Bash-only exit")
-
-	// Engram filter must emit pending content, not bare exit 0.
-	g.Expect(script).To(ContainSubstring("emit_pending_and_exit"),
-		"engram filter must use emit_pending_and_exit, not bare exit 0")
+	// Pending logic must NOT be in post-tool-use — it lives in user-prompt-submit now.
+	g.Expect(script).NotTo(ContainSubstring("pending-maintenance.json"),
+		"pending consumption belongs in user-prompt-submit, not post-tool-use")
 }
 
-// TestT370_PreToolUsePendingCheck verifies pre-tool-use.sh checks for
-// pending-maintenance.json BEFORE the engram filter so pending content is
-// always consumed even when the first tool call is an engram command (#370).
-func TestT370_PreToolUsePendingCheck(t *testing.T) {
+// TestT370_PreToolUseNoPending verifies pre-tool-use.sh does NOT consume
+// pending-maintenance.json — that logic moved to user-prompt-submit.sh so
+// subagent tool calls don't eat it (#370 refactor).
+func TestT370_PreToolUseNoPending(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -381,31 +358,9 @@ func TestT370_PreToolUsePendingCheck(t *testing.T) {
 
 	script := string(content)
 
-	// Must check for pending file.
-	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
-	g.Expect(script).To(ContainSubstring("PENDING_SYS"))
-	g.Expect(script).To(ContainSubstring("PENDING_CTX"))
-	// Must use atomic consumption (mv).
-	g.Expect(script).To(ContainSubstring("mv "))
-	// Must reference #370.
-	g.Expect(script).To(ContainSubstring("#370"))
-
-	// Verify ordering: pending check BEFORE engram filter and Bash-only exit.
-	engramFilterIdx := strings.Index(script, "#352")
-	pendingCheckIdx := strings.Index(script, "pending-maintenance.json")
-	bashOnlyIdx := strings.Index(script, `"$TOOL_NAME" != "Bash"`)
-
-	g.Expect(engramFilterIdx).To(BeNumerically(">", -1))
-	g.Expect(pendingCheckIdx).To(BeNumerically(">", -1))
-	g.Expect(bashOnlyIdx).To(BeNumerically(">", -1))
-	g.Expect(pendingCheckIdx).To(BeNumerically("<", engramFilterIdx),
-		"pending check must come before engram filter")
-	g.Expect(pendingCheckIdx).To(BeNumerically("<", bashOnlyIdx),
-		"pending check must come before Bash-only exit")
-
-	// Engram filter must emit pending content, not bare exit 0.
-	g.Expect(script).To(ContainSubstring("emit_pending_and_exit"),
-		"engram filter must use emit_pending_and_exit, not bare exit 0")
+	// Pending logic must NOT be in pre-tool-use — it lives in user-prompt-submit now.
+	g.Expect(script).NotTo(ContainSubstring("pending-maintenance.json"),
+		"pending consumption belongs in user-prompt-submit, not pre-tool-use")
 }
 
 // TestT370_SessionStartWritesPendingFile verifies session-start.sh background
@@ -445,6 +400,35 @@ func TestT370_SessionStartWritesPendingFile(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("{systemMessage: $sys"))
 	g.Expect(script).To(ContainSubstring("/recall"))
 	g.Expect(script).To(ContainSubstring("Mid-turn user messages"))
+	// Must reference #370.
+	g.Expect(script).To(ContainSubstring("#370"))
+}
+
+// TestT370_UserPromptSubmitPendingCheck verifies user-prompt-submit.sh
+// consumes pending-maintenance.json with atomic rename (#370).
+func TestT370_UserPromptSubmitPendingCheck(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "user-prompt-submit.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must check for pending file.
+	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
+	g.Expect(script).To(ContainSubstring("PENDING_SYS"))
+	g.Expect(script).To(ContainSubstring("PENDING_CTX"))
+	// Must use atomic consumption (mv).
+	g.Expect(script).To(ContainSubstring("mv "))
 	// Must reference #370.
 	g.Expect(script).To(ContainSubstring("#370"))
 }
@@ -619,13 +603,11 @@ func TestT98_UserPromptSubmitCreationInSystemMessage(t *testing.T) {
 
 	script := string(content)
 
-	// When surface + correct both exist: systemMessage must contain surface summary AND correct output.
-	// The jq expression must build systemMessage from surface summary + correct output.
-	g.Expect(script).To(ContainSubstring("systemMessage: (.summary + "))
-	// Correct output must NOT be put into additionalContext alone — it goes in systemMessage.
-	g.Expect(script).NotTo(ContainSubstring("additionalContext: ($correct +"))
-	// When only correct output (no surface): must emit JSON with systemMessage, not bare plain text.
-	g.Expect(script).To(ContainSubstring(`{systemMessage: $correct`))
+	// Combined output uses jq --arg to build systemMessage from FINAL_SYS (merged pending + surface + correct).
+	g.Expect(script).To(ContainSubstring("FINAL_SYS"))
+	g.Expect(script).To(ContainSubstring("FINAL_CTX"))
+	// Must emit JSON with systemMessage and additionalContext via jq -n.
+	g.Expect(script).To(ContainSubstring(`{systemMessage: $sys, additionalContext: $ctx}`))
 }
 
 // TestT99_SessionStartCreationInSystemMessage verifies hooks/session-start.sh
