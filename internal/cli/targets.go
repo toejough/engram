@@ -294,6 +294,8 @@ func SurfaceFlags(a SurfaceArgs) []string {
 		"--tool-input", a.ToolInput,
 		"--tool-output", a.ToolOutput,
 		"--format", a.Format,
+		"--transcript-path", a.TranscriptPath,
+		"--session-id", a.SessionID,
 	)
 
 	return AddBoolFlag(flags, "--tool-errored", a.ToolErrored)

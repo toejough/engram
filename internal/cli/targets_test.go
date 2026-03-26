@@ -554,6 +554,26 @@ func TestSurfaceFlags(t *testing.T) {
 			"--format", "json",
 		}))
 	})
+
+	t.Run("stop mode with transcript path and session ID", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.SurfaceFlags(cli.SurfaceArgs{
+			Mode:           "stop",
+			DataDir:        "/data",
+			TranscriptPath: "/t.jsonl",
+			SessionID:      "s1",
+			Format:         "json",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--mode", "stop",
+			"--data-dir", "/data",
+			"--format", "json",
+			"--transcript-path", "/t.jsonl",
+			"--session-id", "s1",
+		}))
+	})
 }
 
 func TestTargets(t *testing.T) {

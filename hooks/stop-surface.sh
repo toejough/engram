@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Debug breadcrumb — remove after confirming Stop hooks fire
-echo "[engram-debug] stop-surface.sh invoked at $(date)" >> /tmp/engram-stop-debug.log
-
 set -euo pipefail
 
 # Stop hook: surface relevant memories when agent finishes responding.
