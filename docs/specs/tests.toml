@@ -20,18 +20,6 @@ body = '''
 **Then** the file is written to `<slug>-2.toml` (incrementing as needed).
 '''
 
-[T-100]
-name = "Tool mode with no matching memories produces empty output"
-traces_to = ["ARCH-12", "ARCH-10", "REQ-11"]
-hash = "67382df3"
-body = '''
-**Given** memories exist but none have keywords matching the tool input,
-**When** surface is called with mode tool and a tool input containing no matching keywords,
-**Then** stdout is empty (no advisory emitted).
-
-
----
-'''
 
 [T-101]
 name = "Surfacing log append writes JSONL entry"
@@ -280,7 +268,7 @@ name = "Hook scripts invoke engram evaluate after learn"
 traces_to = ["ARCH-25", "DES-15"]
 hash = "24597fa1"
 body = '''
-**Given** the PreCompact and SessionEnd hook scripts,
+**Given** the Stop and SessionEnd hook scripts,
 **When** the script content is examined,
 **Then** `engram evaluate` is invoked after `engram learn`, with `--data-dir` and transcript piped via stdin.
 '''
@@ -291,7 +279,7 @@ traces_to = ["ARCH-22", "REQ-26"]
 hash = "ddf7d6f4"
 body = '''
 **Given** a Surfacer with an injected SurfacingLogger,
-**When** SessionStart, Prompt, or Tool mode surfaces memories,
+**When** Prompt mode surfaces memories,
 **Then** each matched memory is logged via SurfacingLogger.LogSurfacing with correct mode.
 '''
 
@@ -774,17 +762,6 @@ body = '''
 - **Type:** example-based (hook configuration verification)
 '''
 
-[T-159]
-name = "Hook integration — PreCompact calls context-update synchronously"
-traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
-hash = "3049a6ad"
-body = '''
-- **Given** PreCompact hook is triggered
-- **When** hook script runs
-- **Then** `engram context-update` is called synchronously (no `&`) and waits for completion before returning
-- **Traces to:** ARCH-33, DES-19
-- **Type:** example-based (hook script execution)
-'''
 
 [T-16]
 name = "No signal — pipeline short-circuits"
@@ -899,17 +876,6 @@ body = '''
 - Type: example-based (verify top-N limiting in BM25 ranking)
 '''
 
-[T-163]
-name = "BM25 top-N limit — only top 2 results surfaced for tool mode"
-traces_to = ["ARCH-10", "REQ-11", "REQ-P4e-4"]
-hash = "905e08ad"
-body = '''
-**Given** 10 anti-pattern memories with varying relevance to a tool input (all with non-zero BM25 scores),
-**When** surface is called with mode tool,
-**Then** only the top 2 ranked candidates are surfaced (by BM25 relevance score, REQ-P4e-4: reduced from 5 to 2). Lower-ranked candidates 3–10 are not included.
-
-- Type: example-based (verify top-N limiting in PreToolUse)
-'''
 
 [T-164]
 name = "BM25 handles zero-score memories (relevance below threshold)"
@@ -932,7 +898,7 @@ name = "Frecency activation computation — all components present"
 traces_to = ["ARCH-35", "REQ-46"]
 hash = "0f2ffdb0"
 body = '''
-**Given** a memory with SurfacedCount=10, LastSurfaced=2h ago, SurfacingContexts=["prompt","tool"], and effectiveness score of 80%,
+**Given** a memory with SurfacedCount=10, LastSurfaced=2h ago, SurfacingContexts=["prompt","prompt"], and effectiveness score of 80%,
 **When** Activation is computed,
 **Then** the result combines: log(11) × 1/(1+2) × log(3) × 0.8. All four components are multiplied together to produce a positive activation score.
 
@@ -2978,8 +2944,6 @@ body = '''
 - Type: example-based (BM25 term frequency scoring)
 
 ---
-
-## PreToolUse BM25 Candidate Pruning (ARCH-10)
 '''
 
 [T-320]
@@ -3515,15 +3479,6 @@ body = '''
 **Then** it reads memories, matches keywords, and produces DES-6 format output.
 '''
 
-[T-42]
-name = "Mode tool routes to advisory surfacing"
-traces_to = ["ARCH-12", "REQ-14"]
-hash = "032b814c"
-body = '''
-**Given** the surface subcommand with `--mode tool --tool-name Bash --tool-input '{"command":"git commit"}' --data-dir <tmpdir>`,
-**When** Run is called,
-**Then** it reads memories, runs pre-filter, emits system-reminder advisory with matching memories (title, principle, file path) or no output if no matches.
-'''
 
 [T-43]
 name = "SessionStart hook calls surface after build"
@@ -3532,7 +3487,7 @@ hash = "5fb56b6d"
 body = '''
 **Given** the session-start hook script,
 **When** its content is read,
-**Then** it calls `engram surface --mode session-start --format json` after the build step, and reshapes the JSON output into `{systemMessage, additionalContext}` format for Claude Code.
+**Then** it runs `engram maintain` after the build step and emits a static `/recall` hint in the hook JSON output.
 '''
 
 [T-44]
@@ -3544,25 +3499,6 @@ body = '''
 **When** its content is read,
 **Then** it calls `engram correct` (capturing output) and `engram surface --mode prompt --format json`, combining both into a single JSON response with `{systemMessage, additionalContext}`. Correct output is prepended to additionalContext when present.
 '''
-
-[T-45]
-name = "PreToolUse hook registered in hooks.json"
-traces_to = ["ARCH-13", "DES-8"]
-hash = "9d9558e4"
-body = '''
-**Given** the hooks definition at `hooks/hooks.json`,
-**When** its content is read,
-**Then** it contains a `PreToolUse` entry pointing to a hook script.
-'''
-
-[T-46]
-name = "PreToolUse hook script calls surface with tool mode"
-traces_to = ["ARCH-13", "DES-8"]
-hash = "c09d52db"
-body = '''
-**Given** the pre-tool-use hook script,
-**When** its content is read,
-**Then** it reads tool call from stdin JSON and calls `engram surface --mode tool` with tool-name and tool-input flags.
 
 
 ---
@@ -3838,18 +3774,6 @@ body = '''
 ## Hook Script Integration (ARCH-18)
 '''
 
-[T-65]
-name = "hooks.json registers PreCompact hook"
-traces_to = ["ARCH-18", "DES-9"]
-hash = "23e66030"
-body = '''
-**Given** the hooks definition at `hooks/hooks.json`,
-**When** its content is read,
-**Then** it contains a `PreCompact` entry pointing to a hook script.
-
-- Verification: linter
-'''
-
 [T-66]
 name = "hooks.json registers SessionEnd hook"
 traces_to = ["ARCH-18", "DES-9"]
@@ -3858,18 +3782,6 @@ body = '''
 **Given** the hooks definition at `hooks/hooks.json`,
 **When** its content is read,
 **Then** it contains a `SessionEnd` entry pointing to a hook script.
-
-- Verification: linter
-'''
-
-[T-67]
-name = "PreCompact hook script reads transcript and calls engram learn"
-traces_to = ["ARCH-18", "DES-9"]
-hash = "52ec6f22"
-body = '''
-**Given** the PreCompact hook script,
-**When** its content is read,
-**Then** it reads transcript from stdin JSON, retrieves the OAuth token (platform-aware per DES-3), and pipes the transcript to `engram learn --data-dir`. It exits 0 always.
 
 - Verification: linter
 '''
@@ -3984,22 +3896,12 @@ body = '''
 **Then** stdout is a JSON object with `summary` (e.g., `"[engram] 1 relevant memories."`) and `context` (the full `<system-reminder>` XML block).
 '''
 
-[T-71]
-name = "Tool JSON format produces summary and context"
-traces_to = ["ARCH-12", "REQ-14", "DES-7"]
-hash = "ab4633cf"
-body = '''
-**Given** a memory with anti_pattern and matching keywords, and the surface subcommand is called with `--mode tool --format json`,
-**When** Run completes,
-**Then** stdout is a JSON object with `summary` (e.g., `"[engram] 1 tool advisories."`) and `context` (the full `<system-reminder>` XML block).
-'''
-
 [T-72]
 name = "No-match JSON format produces empty output"
 traces_to = ["ARCH-12", "REQ-14"]
 hash = "eb622ae1"
 body = '''
-**Given** no memories exist and the surface subcommand is called with `--mode session-start --format json`,
+**Given** no memories exist and the surface subcommand is called with `--mode prompt --format json`,
 **When** Run completes,
 **Then** stdout is empty (not an empty JSON object).
 
@@ -4026,9 +3928,9 @@ name = "ComputeUpdate appends to existing contexts"
 traces_to = ["ARCH-19", "REQ-21"]
 hash = "6001c4d2"
 body = '''
-**Given** a memory with `SurfacedCount` 5 and `SurfacingContexts` `["session-start", "prompt", "tool"]`,
+**Given** a memory with `SurfacedCount` 5 and `SurfacingContexts` `["session-start", "prompt", "prompt"]`,
 **When** `ComputeUpdate` is called with mode `"prompt"`,
-**Then** the returned update has `SurfacedCount` 6 and `SurfacingContexts` `["session-start", "prompt", "tool", "prompt"]`.
+**Then** the returned update has `SurfacedCount` 6 and `SurfacingContexts` `["session-start", "prompt", "prompt", "prompt"]`.
 
 Example-based: verifying append behavior.
 '''
@@ -4039,8 +3941,8 @@ traces_to = ["ARCH-19", "REQ-21"]
 hash = "fb92e57a"
 body = '''
 **Given** a memory with `SurfacingContexts` containing exactly 10 entries,
-**When** `ComputeUpdate` is called with mode `"tool"`,
-**Then** the returned update has 10 entries with the oldest dropped and `"tool"` appended at the end.
+**When** `ComputeUpdate` is called with mode `"prompt"`,
+**Then** the returned update has 10 entries with the oldest dropped and `"prompt"` appended at the end.
 
 Example-based: boundary condition for FIFO eviction.
 '''
@@ -4790,23 +4692,7 @@ name = "Default budgets are 600/250/150"
 traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "7bb2798c"
 body = '''
-Compile-time assertion on DefaultSessionStartBudget, DefaultUserPromptSubmitBudget, DefaultPreToolUseBudget. (unit)
-'''
-
-[T-P4e-6]
-name = "PreToolUse limits to top 2"
-traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
-hash = "42a956ae"
-body = '''
-5 matching memories → 2 surfaced. (unit)
-'''
-
-[T-P4e-7]
-name = "PreToolUse gates out low-effectiveness memories"
-traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
-hash = "7782a41d"
-body = '''
-Memory with SurfacedCount=10, score=15% excluded; score=75% included. (unit)
+Compile-time assertion on DefaultSessionStartBudget, DefaultUserPromptSubmitBudget. (unit)
 '''
 
 [T-P4e-8]
@@ -5027,34 +4913,6 @@ Then: Returns wrapped error containing "setting enforcement level"
 ---
 '''
 
-[T-P6e-11]
-name = "emphasized_advisory renders with IMPORTANT: prefix in tool mode"
-traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
-hash = "dc651f64"
-body = '''
-**Traces to:** ARCH-P6e-2 (REQ-P6e-5, DES-P6e-2)
-
-Given: Memory at emphasized_advisory level, tool mode surfacing
-When: Surface Run executes
-Then: Output contains "IMPORTANT:" and memory slug
-
----
-'''
-
-[T-P6e-12]
-name = "reminder renders with REMINDER: prefix in tool mode"
-traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
-hash = "7ccade95"
-body = '''
-**Traces to:** ARCH-P6e-2 (REQ-P6e-6, DES-P6e-2)
-
-Given: Memory at reminder level, tool mode surfacing
-When: Surface Run executes
-Then: Output contains "REMINDER:" and memory slug
-
----
-'''
-
 [T-P6e-13]
 name = "advisory level renders with normal format"
 traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
@@ -5063,22 +4921,12 @@ body = '''
 **Traces to:** ARCH-P6e-2 (REQ-P6e-5, DES-P6e-2)
 
 Given: No EnforcementReader set (all memories default to advisory)
-When: Surface Run executes in tool mode
+When: Surface Run executes in prompt mode
 Then: Output does NOT contain "IMPORTANT:" or "REMINDER:"
 
 ---
 '''
 
-[T-P6e-14]
-name = "emphasized_advisory memories sorted before advisory in tool mode"
-traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
-hash = "95545151"
-body = '''
-**Traces to:** ARCH-P6e-2 (REQ-P6e-7)
-
-Given: Two matching memories — one advisory, one emphasized_advisory
-When: Surface Run executes in tool mode
-Then: emphasized_advisory memory appears first in output
 
 ---
 
@@ -5087,7 +4935,7 @@ Then: emphasized_advisory memory appears first in output
 | ARCH Item | Test Coverage |
 |-----------|--------------|
 | ARCH-P6e-1 | T-P6e-1, T-P6e-2, T-P6e-3, T-P6e-4, T-P6e-5, T-P6e-6, T-P6e-7, T-P6e-8, T-P6e-9, T-P6e-10 |
-| ARCH-P6e-2 | T-P6e-11, T-P6e-12, T-P6e-13, T-P6e-14 |
+| ARCH-P6e-2 | T-P6e-13 |
 
 ---
 

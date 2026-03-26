@@ -37,19 +37,6 @@ When a user message is submitted (UserPromptSubmit hook), the system ranks all m
 ---
 '''
 
-[REQ-11]
-name = "PreToolUse advisory surfacing — BM25 + frecency ranking on anti-pattern candidates"
-traces_to = ["UC-2"]
-hash = "5dced9f7"
-body = '''
-When a tool call is about to execute (PreToolUse hook), the system ranks anti-pattern memories using BM25 scoring against the tool name and input, re-ranks by frecency, and surfaces the top 2 results as an advisory system reminder.
-
-- Traces to: UC-2 (PreToolUse advisory surfacing, tier-aware anti-pattern filtering)
-- AC: (1) Only memories with a non-empty `anti_pattern` field are candidates (tier A always, tier B sometimes, tier C never per REQ-7). (2) BM25 index is built from candidate memories' text fields (title, principle, anti_pattern, keywords). (3) Tool name and input are concatenated and scored against each candidate. (4) BM25 top candidates are re-ranked by combined score: BM25 relevance × frecency activation (REQ-46). (5) Top 2 ranked results (or fewer if fewer candidates exist) are surfaced as a system reminder with title, principle, and file path (REQ-P4e-4: reduced from 5 to 2). (6) If no candidates exist or all scores are zero, no output is emitted (zero overhead — no LLM call, no advisory). (7) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
-- Verification: probabilistic (BM25 + frecency scoring, ranking changes with tool input and usage history)
-
----
-'''
 
 [REQ-130]
 name = "Cluster detection — pairwise keyword overlap before classification"
@@ -236,10 +223,10 @@ name = "Go binary `surface` subcommand"
 traces_to = ["UC-2"]
 hash = "758ce9e8"
 body = '''
-The system adds a `surface` subcommand to the engram binary: `engram surface --mode <session-start|prompt|tool> --data-dir <path> [--format json]`. Mode-specific flags: `--message <text>` for prompt mode, `--tool-name <name> --tool-input <json>` for tool mode. The `--format json` flag outputs a JSON object with `summary` (brief human-readable message) and `context` (full system-reminder XML) instead of raw XML.
+The system adds a `surface` subcommand to the engram binary: `engram surface --mode <session-start|prompt> --data-dir <path> [--format json]`. Mode-specific flags: `--message <text>` for prompt mode. The `--format json` flag outputs a JSON object with `summary` (brief human-readable message) and `context` (full system-reminder XML) instead of raw XML.
 
 - Traces to: UC-2 (CLI entry point)
-- AC: (1) `engram surface --mode session-start --data-dir <path>` runs SessionStart surfacing. (2) `engram surface --mode prompt --message <text> --data-dir <path>` runs UserPromptSubmit surfacing. (3) `engram surface --mode tool --tool-name <name> --tool-input <json> --data-dir <path>` runs PreToolUse enforcement. (4) Exit 0 always — errors logged to stderr. (5) `--format json` outputs `{"summary": "...", "context": "..."}` instead of raw XML. (6) No matches produce empty stdout regardless of format.
+- AC: (1) `engram surface --mode session-start --data-dir <path>` runs SessionStart surfacing. (2) `engram surface --mode prompt --message <text> --data-dir <path>` runs UserPromptSubmit surfacing. (3) Exit 0 always — errors logged to stderr. (4) `--format json` outputs `{"summary": "...", "context": "..."}` instead of raw XML. (5) No matches produce empty stdout regardless of format.
 - Verification: deterministic (subcommand runs, correct mode dispatch)
 
 ---
@@ -250,7 +237,7 @@ name = "LLM extraction from transcript delta with unified tier criteria"
 traces_to = ["UC-1"]
 hash = "b4453e69"
 body = '''
-When a PreCompact or Stop hook fires, the system extracts only the new transcript content since the last extraction (delta), preprocesses it with Strip (removing low-value content), and sends the cleaned delta to an LLM (claude-haiku-4-5-20251001) which extracts candidate learnings and classifies each using the same A/B/C tier criteria as UC-3 (REQ-7). Each candidate has the same structured fields as UC-3 memories: title, content, observation_type, concepts, keywords, principle, anti_pattern (tier-gated), rationale, filename_summary.
+When a Stop hook fires, the system extracts only the new transcript content since the last extraction (delta), preprocesses it with Strip (removing low-value content), and sends the cleaned delta to an LLM (claude-haiku-4-5-20251001) which extracts candidate learnings and classifies each using the same A/B/C tier criteria as UC-3 (REQ-7). Each candidate has the same structured fields as UC-3 memories: title, content, observation_type, concepts, keywords, principle, anti_pattern (tier-gated), rationale, filename_summary.
 
 The LLM extracts from the delta:
 - Explicit instructions the real-time classifier missed (tier A)
@@ -311,7 +298,7 @@ name = "Idempotency across multiple triggers"
 traces_to = ["UC-1"]
 hash = "908d4859"
 body = '''
-If both PreCompact and SessionEnd fire in the same session, the second invocation deduplicates against memories created by the first. Multiple PreCompact events in a long session each extract from the new transcript portion only.
+If both Stop and SessionEnd fire in the same session, the second invocation deduplicates against memories created by the first.
 
 - Traces to: UC-1 (idempotency)
 - AC: (1) Each invocation reads existing memory files before writing (REQ-17 dedup covers this). (2) Memories written by a prior invocation in the same session are treated as existing memories for dedup. (3) No special session tracking is needed — file-based dedup is sufficient.
@@ -405,7 +392,7 @@ name = "Creation log format for deferred visibility"
 traces_to = ["UC-2"]
 hash = "2195f558"
 body = '''
-PreCompact and SessionEnd hooks cannot output to the user (no hook output mechanism). Instead, UC-1 learning logs creation events to `<data-dir>/creation-log.jsonl` in JSONL format (one JSON object per line). Each log entry contains:
+Stop and SessionEnd hooks cannot output to the user (no hook output mechanism). Instead, UC-1 learning logs creation events to `<data-dir>/creation-log.jsonl` in JSONL format (one JSON object per line). Each log entry contains:
 
 ```json
 {
@@ -442,7 +429,7 @@ name = "Creation log write for deferred visibility"
 traces_to = ["UC-1"]
 hash = "abde4eb7"
 body = '''
-During UC-1 learning (PreCompact/SessionEnd), each memory file successfully written is also logged to `<data-dir>/creation-log.jsonl` (see REQ-23 for format). Logging happens after the TOML file is written. See REQ-23 for JSONL format and fire-and-forget error handling.
+During UC-1 learning (Stop/SessionEnd), each memory file successfully written is also logged to `<data-dir>/creation-log.jsonl` (see REQ-23 for format). Logging happens after the TOML file is written. See REQ-23 for JSONL format and fire-and-forget error handling.
 
 - Traces to: UC-1 (creation visibility, deferred reporting)
 - AC: (1) For each memory file written, append one JSONL line to `creation-log.jsonl`. (2) Entry includes timestamp (RFC 3339), memory title, tier (A/B/C), and filename. (3) Appends are atomic (temp write + rename). (4) Write errors logged to stderr, don't fail the learning operation. (5) Creation log enables deferred visibility at next SessionStart (REQ-24).
@@ -456,7 +443,7 @@ name = "Surfacing log — write during surfacing, read-and-clear during evaluate
 traces_to = ["UC-15"]
 hash = "cdcc6b21"
 body = '''
-During each surfacing event (SessionStart, UserPromptSubmit, PreToolUse), the surfacer appends an entry to `<data-dir>/surfacing-log.jsonl` recording which memories were surfaced. The evaluate pass reads this file to determine what was surfaced during the session, then clears it.
+During each surfacing event (UserPromptSubmit), the surfacer appends an entry to `<data-dir>/surfacing-log.jsonl` recording which memories were surfaced. The evaluate pass reads this file to determine what was surfaced during the session, then clears it.
 
 - Traces to: UC-15 (surfacing log, session-scoped record)
 - AC: (1) Each surfacing event appends one entry per matched memory to surfacing-log.jsonl. (2) Entry includes memory file path, surfacing mode, and timestamp. (3) Evaluate pass reads all entries and clears the file. (4) Missing file → empty list (no error). (5) Write errors are fire-and-forget (ARCH-6 exit-0 contract). (6) Read-and-clear is atomic — no partial reads.
@@ -588,7 +575,7 @@ name = "Idempotency for evaluate across multiple triggers"
 traces_to = ["UC-15"]
 hash = "cbeba2d7"
 body = '''
-If both PreCompact and SessionEnd fire in the same session, the second evaluate invocation reads an empty surfacing log (cleared by the first) and produces no evaluation file. No duplicate evaluations.
+If both Stop and SessionEnd fire in the same session, the second evaluate invocation reads an empty surfacing log (cleared by the first) and produces no evaluation file. No duplicate evaluations.
 
 - Traces to: UC-15 (idempotency, same pattern as REQ-19)
 - AC: (1) First evaluate reads and clears surfacing log. (2) Second evaluate finds empty/missing log → no evaluation produced. (3) No duplicate entries in evaluation logs.
@@ -821,7 +808,7 @@ Each memory has a frecency activation score computed from four components:
 
 **Combined activation:** `frequency × recency × spread × effectiveness`
 
-For combined BM25 + frecency ranking (prompt/tool modes): `bm25_score × (1 + activation)` — the `(1 + activation)` factor boosts BM25 scores by frecency without allowing frecency alone to override BM25 relevance (BM25 of zero stays zero).
+For combined BM25 + frecency ranking (prompt mode): `bm25_score × (1 + activation)` — the `(1 + activation)` factor boosts BM25 scores by frecency without allowing frecency alone to override BM25 relevance (BM25 of zero stays zero).
 
 - Traces to: UC-2 (surfacing ranking)
 - AC: (1) Activation score computed from all four components. (2) Never-surfaced memories use updated_at for recency, 0 for frequency/spread, default effectiveness. (3) Combined score preserves BM25 relevance as primary signal. (4) All components are non-negative.
@@ -1054,7 +1041,7 @@ body = '''
 During evaluation, the system assesses whether the user's behavior complied with each surfaced memory. For each memory, one counter increments: followed (user complied), contradicted (user did opposite), ignored (no evidence of awareness).
 
 - Traces to: UC-23 (evaluation tracking)
-- AC: (1) Evaluation runs at session end or PreCompact. (2) For each surfaced memory, exactly one of the three counters increments in its TOML. (3) Counter update writes atomically. (4) Counters start at 0 (missing fields default to zero).
+- AC: (1) Evaluation runs at session end (Stop hook). (2) For each surfaced memory, exactly one of the three counters increments in its TOML. (3) Counter update writes atomically. (4) Counters start at 0 (missing fields default to zero).
 - Verification: integration (evaluate + TOML I/O)
 
 ---
@@ -1522,23 +1509,6 @@ Default token budget for UserPromptSubmit is 250 (down from 300). BM25 minimum r
 ---
 '''
 
-[REQ-P4e-4]
-name = "PreToolUse top-2 limit, effectiveness gate, 150 token budget (P4e)"
-traces_to = ["UC-2"]
-hash = "4878b8e4"
-body = '''
-PreToolUse mode limits to top-2 results (down from 3). Applies same effectiveness gate as SessionStart: memories with `SurfacedCount >= 5` and `EffectivenessScore <= 40.0` are excluded. Default token budget 150 (down from 200).
-
-- Traces to: UC-P4e-1
-- AC: (1) `toolLimit = 2`. (2) Gate applied post-BM25, pre-frecency sort. (3) `DefaultPreToolUseBudget = 150`.
-- Verification: deterministic (unit, surface pkg)
-
-### DES-P4e-4: filterToolMatchesByEffectivenessGate
-
-`filterToolMatchesByEffectivenessGate(candidates, effectiveness)` mirrors `filterByEffectivenessGate` for `[]toolMatch`. Applied in `runTool` after BM25 match, before frecency sort.
-
----
-'''
 
 [REQ-P4e-5]
 name = "InvocationTokenLogger records per-call token count (P4e)"
@@ -2020,19 +1990,6 @@ When a memory's registry enforcement level is `reminder`, the surface pipeline p
 ---
 '''
 
-[REQ-P6e-7]
-name = "Emphasized and reminder memories sorted first in tool mode (P6e)"
-traces_to = ["UC-21"]
-hash = "c5042af1"
-body = '''
-In tool mode, memories at `emphasized_advisory` or `reminder` level are sorted before `advisory`-level memories after BM25 ranking and budget application.
-
-- Traces to: UC-2 (tool mode surfacing), REQ-P6e-5
-- AC: (1) `isEmphasized(level)` returns true for `emphasized_advisory` and `reminder`. (2) `sort.SliceStable` applied after budget cap preserves relative order within tiers. (3) Emphasized memories appear before advisory memories in rendered output.
-- Verification: deterministic
-
----
-'''
 
 [REQ-P6f-1]
 name = "GraduationEntry model (P6f)"

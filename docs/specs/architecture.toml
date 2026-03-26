@@ -30,29 +30,6 @@ Three stages, each independently testable via DI. The Classifier replaces the ol
 ---
 '''
 
-[ARCH-10]
-name = "BM25 Candidate Pruning (ARCH-9 detail)"
-traces_to = ["UC-2"]
-hash = "1f70e6c1"
-body = '''
-**Decision:** Pre-query filtering in PreToolUse: only memories with non-empty `anti_pattern` field are indexed and ranked (tier-aware: tier A always, tier B sometimes, tier C never per REQ-7). Same BM25 scoring as UserPromptSubmit, applied to the filtered candidate set.
-
-Implementation:
-- Candidate selection: Filter all memories to keep only those with non-empty `anti_pattern` (respecting tier-awareness per REQ-7).
-- BM25 indexing: Build BM25 index from candidate memories' searchable fields (title, principle, anti_pattern, keywords).
-- Query: Concatenate tool name and input.
-- Scoring and ranking: Score query against each candidate, sort by relevance score descending.
-- Result limit: Return top 5 ranked candidates (or all if fewer than 5 exist).
-- Zero results: If no candidates exist or all scores are zero, return empty (zero overhead, no advisory).
-
-Design choices:
-- **BM25 ranking:** Same scoring algorithm as prompt mode, applied to the filtered candidate set. No regex matching.
-- **Fast:** Runs on every PreToolUse. BM25 index built per call from small candidate set (anti-pattern memories only).
-
-**Traces to:** REQ-11 (BM25 + frecency ranking for PreToolUse)
-
----
-'''
 
 [ARCH-12]
 name = "Surface Subcommand and Mode Routing"
@@ -62,13 +39,12 @@ body = '''
 **Decision:** Single `surface` subcommand with mode flag routes to different behaviors.
 
 ```bash
-engram surface --mode <prompt|tool> --data-dir <path> [--format json] [mode-specific flags]
+engram surface --mode prompt --data-dir <path> [--format json] [mode-specific flags]
 ```
 
 Routing:
 - `--mode session-start`: *(removed — session-recall redesign, 2026-03-21)* SessionStart hook now runs `engram maintain` and emits a `/recall` hint. No `engram surface` call.
 - `--mode prompt --message <text>`: Call MemoryRetriever.ListMemories, KeywordMatcher on message, emit DES-6 format.
-- `--mode tool --tool-name <name> --tool-input <json>`: Call MemoryRetriever.ListMemories, KeywordMatcher, emit DES-7 advisory format (no LLM judgment).
 
 Output format:
 - **Default (no --format):** Writes `<system-reminder>` XML directly to stdout (backward compatible).
@@ -77,11 +53,9 @@ Output format:
 
 Design choices:
 - **Unified entry point:** One surface subcommand, mode-specific logic inside.
-- **Hook scripts call surface with JSON format:** Hooks invoke `engram surface --mode ... --format json`, then reshape into hook-specific JSON with `systemMessage` (user-visible) and `additionalContext` (model context). PreToolUse nests `additionalContext` under `hookSpecificOutput` per Claude Code hook API.
-- **Advisory only (no blocking):** PreToolUse tool mode surfaces matching memories as advisory via system-reminder. Agent exercises judgment with full session context. No LLM call, no blocking decision from the Go binary.
-- **JSON tool input:** PreToolUse hook passes full tool call as JSON (tool name + argument struct).
+- **Hook scripts call surface with JSON format:** Hooks invoke `engram surface --mode prompt --format json`, then reshape into hook-specific JSON with `systemMessage` (user-visible) and `additionalContext` (model context).
 
-**Traces to:** REQ-14 (surface subcommand), REQ-9/10/11 (mode implementations)
+**Traces to:** REQ-14 (surface subcommand), REQ-9/10 (mode implementations)
 
 ---
 '''
@@ -91,16 +65,14 @@ name = "Hook Script Integration"
 traces_to = ["UC-2"]
 hash = "4cfa2e3a"
 body = '''
-**Decision:** Existing hooks (session-start.sh, user-prompt-submit.sh) are extended. New PreToolUse hook added.
+**Decision:** Existing hooks (session-start.sh, user-prompt-submit.sh) are extended.
 
 Hook flow:
 - **SessionStart:** After build step, run `engram maintain` (background triage). Emit static `/recall` hint in `systemMessage`. No `engram surface` call (session-recall redesign, 2026-03-21).
 - **UserPromptSubmit:** Run `engram correct` and `engram surface --mode prompt --format json` independently. Combine into `{systemMessage: (<surface_summary> + "\n" + <creation_output>), additionalContext: <surface_context>}`. Creation feedback always goes in `systemMessage` (user-visible), never in `additionalContext`.
-- **PreToolUse:** Hook script calls `engram surface --mode tool --format json`. Reshape into `{continue: true, hookSpecificOutput: {additionalContext}}`. Tool call is always allowed.
 
 Design choices:
 - **Creation always in systemMessage:** The user must see memory creation events. Whether creation happens alone or alongside surface matches, the creation output goes into `systemMessage`.
-- **PreToolUse is advisory only:** Hook script receives system-reminder text from `engram surface --mode tool`. No blocking decision from binary.
 - **Hook scripts are thin wrappers:** All logic in Go binary (MemoryRetriever, KeywordMatcher, CreationLog). Scripts just invoke and reshape output.
 
 **Traces to:** DES-8 (hook wiring), DES-3 (UserPromptSubmit creation + surface combining), DES-5 (SessionStart creation report)
@@ -249,26 +221,24 @@ Design choices:
 '''
 
 [ARCH-18]
-name = "Hook Script Integration for PreCompact and Stop"
+name = "Hook Script Integration for Stop"
 traces_to = ["UC-1"]
 hash = "2a2a76d9"
 body = '''
 **Decision:** Two new hook scripts invoke `engram learn` with incremental offset tracking. Registered in `hooks/hooks.json`.
 
 Hook flow:
-- **PreCompact:** `hooks/pre-compact.sh` extracts transcript_path and session_id from stdin JSON, invokes `engram learn --data-dir <path> --transcript-path <file> --session-id <id>`. Stderr feedback visible in logs.
 - **Stop:** `hooks/stop.sh` extracts transcript_path and session_id from stdin JSON, invokes `engram learn --data-dir <path> --transcript-path <file> --session-id <id>`. Stderr feedback visible in logs.
 
-Both scripts:
-1. Extract transcript_path and session_id from stdin JSON payload.
-2. Use same token retrieval as DES-3 (macOS Keychain fallback to env var).
-3. Invoke `engram learn --data-dir "$ENGRAM_DATA" --transcript-path "$TRANSCRIPT_PATH" --session-id "$SESSION_ID"`.
-4. Exit 0 always (synchronous, fire-and-forget per ARCH-6).
+The script:
+1. Extracts transcript_path and session_id from stdin JSON payload.
+2. Uses same token retrieval as DES-3 (macOS Keychain fallback to env var).
+3. Invokes `engram learn --data-dir "$ENGRAM_DATA" --transcript-path "$TRANSCRIPT_PATH" --session-id "$SESSION_ID"`.
+4. Exits 0 always (synchronous, fire-and-forget per ARCH-6).
 
 Design choices:
-- **Two separate scripts:** Allow future divergence if needed.
-- **Synchronous execution:** Both hooks must complete before context compaction (PreCompact) or session termination (Stop).
-- **Same binary:** Both invoke the same `engram learn` subcommand.
+- **Synchronous execution:** Hook must complete before session termination (Stop).
+- **Single binary:** Invokes `engram learn` subcommand.
 
 **Traces to:** DES-9 (hook wiring), REQ-19 (idempotency — multiple extractions in same session deduplicate), REQ-26 (offset tracking)
 
@@ -444,7 +414,7 @@ name = "Surfacing Log Infrastructure"
 traces_to = ["UC-15"]
 hash = "fc871a2a"
 body = '''
-**Decision:** Write surfacing events to a session-scoped JSONL file during each surfacing event (SessionStart, UserPromptSubmit, PreToolUse).
+**Decision:** Write surfacing events to a session-scoped JSONL file during each surfacing event (UserPromptSubmit, Stop).
 
 ```go
 type SurfacingLogger interface {
@@ -808,9 +778,8 @@ hash = "2a4f2317"
 body = '''
 Specifies how context updates are triggered and how context is restored.
 
-- Traces to: DES-18 (UserPromptSubmit pipeline), DES-19 (PreCompact flush), DES-22 (SessionStart injection)
+- Traces to: DES-18 (UserPromptSubmit pipeline), DES-22 (SessionStart injection)
 - UserPromptSubmit hook: Context-update runs as a separate async hook entry (`"async": true` in hooks.json) via `user-prompt-submit-async.sh`. The synchronous `user-prompt-submit.sh` handles correct/surface only.
-- PreCompact hook: Call `engram context-update` synchronously with same flags. Wait for completion (60s timeout available per hook config).
 - Stop hook: Call `engram context-update` with `--context-path` pointing to per-project path: `~/.claude/engram/data/projects/<slug>/session-context.md`, where `<slug>` is `$PWD` with `/` replaced by `-` (matching Claude Code's MEMORY.md convention).
 - SessionStart hook: Compute project slug from `$PWD`, read per-project context file (if exists) via ARCH-31. Extract summary and inject as `additionalContext` in hook JSON output. Annotate clearly so the model knows it's a session resumption summary.
 - Behavioral contract: Hooks remain responsive; background calls don't block. SessionStart always succeeds (missing file → no injection, no error). Context is project-specific — switching projects surfaces the correct project's context.
@@ -842,7 +811,7 @@ name = "Frecency Activation Scorer"
 traces_to = ["UC-2"]
 hash = "6656e8dd"
 body = '''
-**Decision:** Pure function that computes ACT-R frecency activation scores for memories. Used in all three surfacing modes.
+**Decision:** Pure function that computes ACT-R frecency activation scores for memories. Used in prompt mode surfacing.
 
 ```go
 type FrecencyScorer struct {
@@ -1960,7 +1929,7 @@ type Memory struct {
     Content           string
     Concepts          []string
     Keywords          []string
-    AntiPattern       string // for PreToolUse enforcement
+    AntiPattern       string // anti-pattern for behavior enforcement
     Principle         string
     UpdatedAt         time.Time
     FilePath          string
@@ -1973,10 +1942,10 @@ type Memory struct {
 Design choices:
 - **No persistent database:** Each TOML file is a Memory record. Scan all files in memories/ on each query. For small corpora (hundreds of memories), scanning is faster than database setup.
 - **BM25 indexing:** Per-query BM25 index built by concatenating searchable fields (title, content, principle, keywords, concepts, anti_pattern). No persistent index — rebuilt per call.
-- **Ranking:** BM25 algorithm produces relevance scores; memories sorted by score descending. Results are top-N limited (top 10 for UserPromptSubmit, top 5 for PreToolUse).
+- **Ranking:** BM25 algorithm produces relevance scores; memories sorted by score descending. Results are top-N limited (top 10 for UserPromptSubmit).
 - **File-based discovery:** `os.ReadDir(memdir)` + parse each `.toml` file. Errors on individual files don't block others.
 
-**Traces to:** REQ-9 (SessionStart lists all), REQ-10 (UserPromptSubmit BM25 ranking), REQ-11 (PreToolUse BM25 ranking on anti-pattern candidates)
+**Traces to:** REQ-9 (SessionStart lists all), REQ-10 (UserPromptSubmit BM25 ranking)
 
 ---
 '''

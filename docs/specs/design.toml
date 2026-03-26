@@ -66,7 +66,7 @@ Each line in `<data-dir>/surfacing-log.jsonl`:
 
 Fields:
 - `memory_path` (string) — absolute path to the memory TOML file
-- `mode` (string) — one of `session-start`, `prompt`, `tool`
+- `mode` (string) — one of `session-start`, `prompt`
 - `surfaced_at` (string) — RFC 3339 timestamp
 
 File is append-only within a session, read-and-cleared by `engram flush`.
@@ -121,8 +121,6 @@ Budget caps are configured in `<data-dir>/config.toml` under a `[budget]` sectio
 [budget]
 session_start = 800
 user_prompt = 300
-pre_tool = 200
-post_tool = 100
 stop_audit = 500
 ```
 
@@ -138,7 +136,7 @@ name = "Priority sorting in matchPromptMemories and matchToolMemories"
 traces_to = ["UC-14"]
 hash = "10a1acb3"
 body = '''
-In `internal/surface/surface.go`, both `matchPromptMemories` and `matchToolMemories` functions are updated to:
+In `internal/surface/surface.go`, the `matchPromptMemories` function is updated to:
 1. Compute `effectiveness × relevance` for each memory
 2. Sort by this score in descending order
 3. Apply budget limit by counting tokens and stopping when budget is exhausted
@@ -162,8 +160,6 @@ body = '''
 Hook                Budget   Surfaced   Utilization   Warning
 SessionStart        800      720        90%            —
 UserPromptSubmit    300      280        93%            ⚠ Frequently capped
-PreToolUse          200      200        100%           ⚠ Consistently capped
-PostToolUse         100      0          0%             —
 StopAudit           500      350        70%            —
 ```
 
@@ -418,39 +414,13 @@ Format rules:
 ---
 '''
 
-[DES-7]
-name = "PreToolUse advisory reminder format"
-traces_to = ["UC-2"]
-hash = "7e1a40a0"
-body = '''
-When memories match a tool call's keyword filter, the hook returns a system reminder. Note: only tier A and B memories (with anti-patterns per REQ-7) can match; tier C contextual facts have no anti-patterns and do not appear.
-
-```
-<system-reminder source="engram">
-[engram] Tool call advisory:
-  - "<title1>" — <principle1> (file1.toml) [tier A]
-  - "<title2>" — <principle2> (file2.toml) [tier B]
-</system-reminder>
-```
-
-Format rules:
-- Header: `[engram] Tool call advisory:`
-- Each memory: title in quotes, principle, file path and tier in brackets
-- If no matches, no output (tool call allowed silently)
-- The agent exercises judgment with full session context — not a block, an advisory for consideration
-- With `--format json`: wrapped in `{"summary": "[engram] N tool advisories.", "context": "<system-reminder>..."}`. Hook script reshapes into `{systemMessage, hookSpecificOutput: {additionalContext}}` per PreToolUse hook API.
-
-- Traces to: UC-2 (PreToolUse advisory surfacing, tier-aware filtering)
-
----
-'''
 
 [DES-8]
-name = "Hook wiring — SessionStart and PreToolUse"
+name = "Hook wiring — SessionStart and UserPromptSubmit"
 traces_to = ["UC-2"]
 hash = "cba192b8"
 body = '''
-SessionStart hook (`hooks/session-start.sh`) calls `engram surface --mode session-start --format json` after the existing build step, then reshapes into `{systemMessage, additionalContext}`. PreToolUse hook (`hooks/pre-tool-use.sh`) reads the tool call from stdin JSON, calls `engram surface --mode tool --format json`, and reshapes into `{systemMessage, hookSpecificOutput: {additionalContext}}`.
+SessionStart hook (`hooks/session-start.sh`) runs `engram maintain` after the existing build step and emits a static `/recall` hint. No `engram surface` call (session-recall redesign, 2026-03-21).
 
 UserPromptSubmit hook (`hooks/user-prompt-submit.sh`) captures `engram correct` output and `engram surface --mode prompt --format json` output separately, then combines into a single JSON response with `{systemMessage, additionalContext}`. Correct output is prepended to additionalContext when present.
 
@@ -460,15 +430,15 @@ UserPromptSubmit hook (`hooks/user-prompt-submit.sh`) captures `engram correct` 
 '''
 
 [DES-9]
-name = "Hook wiring — PreCompact and Stop"
+name = "Hook wiring — Stop"
 traces_to = ["UC-1"]
 hash = "34bc1ae5"
 body = '''
-PreCompact hook (`hooks/pre-compact.sh`) and Stop hook (`hooks/stop.sh`) are registered in `hooks/hooks.json`. Both invoke the same pipeline: extract transcript_path and session_id from stdin JSON, pass to `engram learn --data-dir <path> --transcript-path <file> --session-id <id>`.
+Stop hook (`hooks/stop.sh`) is registered in `hooks/hooks.json`. It invokes: extract transcript_path and session_id from stdin JSON, pass to `engram learn --data-dir <path> --transcript-path <file> --session-id <id>`.
 
 The hook reads transcript_path and session_id from the stdin JSON payload. Token retrieval uses the same platform-aware mechanism as DES-3 (macOS Keychain fallback to env var).
 
-Both hooks are synchronous (not async) — they must complete before context compaction or session termination. Fire-and-forget error handling (ARCH-6): errors logged to stderr, exit 0 always.
+The hook is synchronous (not async) — it must complete before session termination. Fire-and-forget error handling (ARCH-6): errors logged to stderr, exit 0 always.
 
 - Traces to: UC-1 (incremental hook wiring)
 
