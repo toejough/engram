@@ -52,7 +52,7 @@ if [[ "$SKILL_CMD" == /* ]]; then
             jq -n \
                 --arg sys "$PENDING_SYS" \
                 --arg ctx "$PENDING_CTX" \
-                '{systemMessage: $sys, additionalContext: $ctx}'
+                '{systemMessage: $sys, hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $ctx}}'
         fi
         exit 0
     fi
@@ -99,5 +99,5 @@ if [[ -n "$FINAL_SYS" || -n "$FINAL_CTX" ]]; then
     jq -n \
         --arg sys "$FINAL_SYS" \
         --arg ctx "$FINAL_CTX" \
-        '{systemMessage: $sys, additionalContext: $ctx}'
+        '{systemMessage: $sys, hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $ctx}}'
 fi
