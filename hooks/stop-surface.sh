@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
+# Debug breadcrumb — remove after confirming Stop hooks fire
+echo "[engram-debug] stop-surface.sh invoked at $(date)" >> /tmp/engram-stop-debug.log
+
 set -euo pipefail
+
+# Stop hook: surface relevant memories when agent finishes responding.
+# Uses the advanced JSON hook API (exit 0 + JSON stdout) required for
+# plugin Stop hooks per anthropics/claude-code#10875.
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENGRAM_HOME="${HOME}/.claude/engram"
@@ -25,6 +32,12 @@ fi
 HOOK_JSON="$(cat)"
 TRANSCRIPT_PATH="$(echo "$HOOK_JSON" | jq -r '.transcript_path // empty')"
 SESSION_ID="$(echo "$HOOK_JSON" | jq -r '.session_id // empty')"
+STOP_HOOK_ACTIVE="$(echo "$HOOK_JSON" | jq -r '.stop_hook_active // false')"
+
+# Prevent infinite loop: if we already blocked once, allow the stop
+if [[ "$STOP_HOOK_ACTIVE" == "true" ]]; then
+    exit 0
+fi
 
 if [[ -z "$TRANSCRIPT_PATH" ]]; then
     exit 0
@@ -37,19 +50,13 @@ SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode stop \
     --format json 2>/dev/null) || SURFACE_OUTPUT=""
 
 if [[ -n "$SURFACE_OUTPUT" ]]; then
-    SUMMARY=$(echo "$SURFACE_OUTPUT" | jq -r '.summary // empty')
     CONTEXT=$(echo "$SURFACE_OUTPUT" | jq -r '.context // empty')
     if [[ -n "$CONTEXT" ]]; then
-        jq -n \
-            --arg summary "$SUMMARY" \
-            --arg ctx "$CONTEXT" \
-            '{
-                systemMessage: $summary,
-                hookSpecificOutput: {
-                    hookEventName: "Stop",
-                    additionalContext: $ctx
-                }
-            }'
+        # Block the stop and inject surfaced memories as continuation context.
+        # Claude will see the reason, incorporate it, then stop again with
+        # stop_hook_active=true (which we allow above).
+        jq -n --arg reason "$CONTEXT" \
+            '{"decision":"block","reason":$reason}'
         exit 0
     fi
 fi
