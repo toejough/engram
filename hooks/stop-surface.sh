@@ -49,11 +49,11 @@ SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode stop \
 if [[ -n "$SURFACE_OUTPUT" ]]; then
     CONTEXT=$(echo "$SURFACE_OUTPUT" | jq -r '.context // empty')
     if [[ -n "$CONTEXT" ]]; then
-        # Block the stop and inject surfaced memories as continuation context.
-        # Claude will see the reason, incorporate it, then stop again with
-        # stop_hook_active=true (which we allow above).
+        # Experiment: try "continue" to surface memories without error framing.
+        # If this works, Claude sees the reason but the user doesn't see
+        # "Stop hook blocking error". If it doesn't work, revert to "block".
         jq -n --arg reason "$CONTEXT" \
-            '{"decision":"block","reason":$reason}'
+            '{"decision":"continue","reason":$reason}'
         exit 0
     fi
 fi
