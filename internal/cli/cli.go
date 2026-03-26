@@ -4,9 +4,7 @@ package cli
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -952,22 +950,6 @@ func classifyStoredRecords(records []memory.StoredRecord, dataDir string) []revi
 	}
 
 	return classifications
-}
-
-// cryptoRandFloat returns a cryptographically random float64 in [0, 1).
-func cryptoRandFloat() float64 {
-	const (
-		maxMantissa  = 1 << 53
-		randBytes    = 8
-		mantissaBits = 11
-	)
-
-	b := make([]byte, randBytes)
-	_, _ = rand.Read(b)
-
-	val := binary.BigEndian.Uint64(b) >> mantissaBits
-
-	return float64(val) / float64(maxMantissa)
 }
 
 // extractAssistantDelta reads new transcript lines since the last stop offset,

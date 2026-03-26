@@ -52,11 +52,6 @@ type EffectivenessStat struct {
 	EffectivenessScore float64 // followed% (0–100)
 }
 
-// EnforcementReader returns the enforcement level for a registered instruction.
-type EnforcementReader interface {
-	GetEnforcementLevel(id string) (string, error)
-}
-
 // InvocationTokenLogger records per-invocation token counts in the surfacing event log (REQ-P4e-5).
 type InvocationTokenLogger interface {
 	LogInvocationTokens(mode string, tokenCount int, timestamp time.Time) error
@@ -121,7 +116,7 @@ type Surfacer struct {
 	effectivenessComputer EffectivenessComputer
 	budgetConfig          *BudgetConfig
 	recordSurfacing       func(path string) error // UC-23: records surfacing event per memory
-	enforcementReader     EnforcementReader
+
 	contradictionDetector ContradictionDetector
 	signalEmitter         SignalEmitter
 	linkReader            LinkReader             // P3: spreading activation + cluster notes
@@ -226,20 +221,6 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	}
 
 	return nil
-}
-
-// enforcementLevelFor returns the enforcement level for a memory path, defaulting to "advisory".
-func (s *Surfacer) enforcementLevelFor(memPath string) string {
-	if s.enforcementReader == nil {
-		return enforcementAdvisory
-	}
-
-	level, err := s.enforcementReader.GetEnforcementLevel(memPath)
-	if err != nil {
-		return enforcementAdvisory
-	}
-
-	return level
 }
 
 //nolint:cyclop,funlen,gocognit // BM25 filtering + suppression + budget + spreading: inherent branching
@@ -511,11 +492,6 @@ func WithEffectiveness(computer EffectivenessComputer) SurfacerOption {
 	return func(s *Surfacer) { s.effectivenessComputer = computer }
 }
 
-// WithEnforcementReader sets the enforcement level reader for level-aware rendering (REQ-P6e-1).
-func WithEnforcementReader(reader EnforcementReader) SurfacerOption {
-	return func(s *Surfacer) { s.enforcementReader = reader }
-}
-
 // WithInvocationTokenLogger sets the invocation token logger for per-call token tracking (REQ-P4e-5).
 func WithInvocationTokenLogger(logger InvocationTokenLogger) SurfacerOption {
 	return func(s *Surfacer) { s.invocationTokenLogger = logger }
@@ -553,15 +529,12 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
-	coldStartBudget               = 1
-	defaultEffectiveness          = 50.0 // neutral default for memories with no effectiveness data
-	enforcementAdvisory           = "advisory"
-	enforcementEmphasizedAdvisory = "emphasized_advisory"
-	enforcementReminder           = "reminder"
-	irrelevancePenaltyHalfLife    = 5
-	minRelevanceScore             = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
-	promptLimit                   = 2
-	unprovenBM25FloorPrompt       = 0.20
+	coldStartBudget            = 1
+	defaultEffectiveness       = 50.0 // neutral default for memories with no effectiveness data
+	irrelevancePenaltyHalfLife = 5
+	minRelevanceScore          = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
+	promptLimit                = 2
+	unprovenBM25FloorPrompt    = 0.20
 )
 
 // promptMatch holds a memory for prompt mode.
@@ -680,29 +653,12 @@ func filenameSlug(path string) string {
 	return strings.TrimSuffix(filepath.Base(path), ".toml")
 }
 
-// formatMemoryLine formats a single memory entry based on its enforcement level.
-func formatMemoryLine(slug, principle, level string) string {
-	switch level {
-	case enforcementEmphasizedAdvisory:
-		return fmt.Sprintf("  - IMPORTANT: **%s: %s**\n", slug, principle)
-	case enforcementReminder:
-		return fmt.Sprintf("  - REMINDER: %s: %s\n", slug, principle)
-	default:
-		return fmt.Sprintf("  - %s: %s\n", slug, principle)
-	}
-}
-
 // irrelevancePenalty computes a continuous BM25 score multiplier based on irrelevant feedback count.
 // Uses the formula K/(K+count) where K=irrelevancePenaltyHalfLife (5).
 // At count=0 → 1.0, count=5 → 0.5, count=10 → 0.33.
 func irrelevancePenalty(irrelevantCount int) float64 {
 	return float64(irrelevancePenaltyHalfLife) /
 		float64(irrelevancePenaltyHalfLife+irrelevantCount)
-}
-
-// isEmphasized reports whether the level should be prioritized in the output.
-func isEmphasized(level string) bool {
-	return level == enforcementEmphasizedAdvisory || level == enforcementReminder
 }
 
 // isUnproven reports whether a memory has never been surfaced (cold-start).
