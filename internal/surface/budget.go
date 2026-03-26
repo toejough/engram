@@ -6,7 +6,6 @@ import "engram/internal/memory"
 const (
 	DefaultSessionStartBudget     = 600
 	DefaultStopBudget             = 500
-	DefaultToolBudget             = 150
 	DefaultUserPromptSubmitBudget = 250
 )
 
@@ -14,7 +13,6 @@ const (
 type BudgetConfig struct {
 	SessionStart     int
 	UserPromptSubmit int
-	Tool             int
 	Stop             int
 }
 
@@ -23,8 +21,6 @@ func (c BudgetConfig) ForMode(mode string) int {
 	switch mode {
 	case ModePrompt:
 		return c.UserPromptSubmit
-	case ModeTool:
-		return c.Tool
 	default:
 		return 0
 	}
@@ -40,7 +36,6 @@ func DefaultBudgetConfig() BudgetConfig {
 	return BudgetConfig{
 		SessionStart:     DefaultSessionStartBudget,
 		UserPromptSubmit: DefaultUserPromptSubmitBudget,
-		Tool:             DefaultToolBudget,
 		Stop:             DefaultStopBudget,
 	}
 }
@@ -53,11 +48,6 @@ func EstimateMemoryTokens(mem *memory.Stored) int {
 // EstimateTokens returns the estimated token count for text using len/4 truncation.
 func EstimateTokens(text string) int {
 	return len(text) / estimateTokensDivisor
-}
-
-// EstimateToolMemoryTokens estimates the token cost of a memory for tool mode.
-func EstimateToolMemoryTokens(mem *memory.Stored) int {
-	return EstimateTokens(concatenateToolFields(mem))
 }
 
 // WithBudgetConfig sets the budget configuration for a Surfacer.
@@ -82,30 +72,6 @@ func applyPromptBudget(matches []promptMatch, budget int) []promptMatch {
 
 	for _, match := range matches {
 		tokens := EstimateMemoryTokens(match.mem)
-		if accumulated+tokens > budget {
-			break
-		}
-
-		accumulated += tokens
-
-		result = append(result, match)
-	}
-
-	return result
-}
-
-// applyToolBudget returns the prefix of matches that fits within the token budget.
-// Budget of 0 means unlimited.
-func applyToolBudget(matches []toolMatch, budget int) []toolMatch {
-	if budget <= 0 {
-		return matches
-	}
-
-	accumulated := 0
-	result := make([]toolMatch, 0, len(matches))
-
-	for _, match := range matches {
-		tokens := EstimateToolMemoryTokens(match.mem)
 		if accumulated+tokens > budget {
 			break
 		}

@@ -1,5 +1,4 @@
 // Package surface implements memory surfacing for UC-2 (ARCH-12).
-// Routes to prompt or tool mode based on options.
 package surface
 
 import (
@@ -18,14 +17,12 @@ import (
 	"engram/internal/frecency"
 	"engram/internal/memory"
 	"engram/internal/signal"
-	"engram/internal/toolgate"
 )
 
 // Exported constants.
 const (
 	FormatJSON = "json"
 	ModePrompt = "prompt"
-	ModeTool   = "tool"
 )
 
 // Exported variables.
@@ -93,12 +90,7 @@ type Options struct {
 	Mode               string
 	DataDir            string
 	Message            string // for prompt mode
-	ToolName           string // for tool mode
-	ToolInput          string // for tool mode
-	ToolOutput         string // for tool mode: tool result or error text
-	ToolErrored        bool   // for tool mode: true if tool call failed
 	Format             string // output format: "" (plain) or "json"
-	Budget             int    // token budget override (precompact mode)
 	TranscriptWindow   string // recent transcript text for transcript suppression (REQ-P4f-3)
 	CurrentProjectSlug string // derived from data-dir for cross-project penalty
 }
@@ -135,7 +127,6 @@ type Surfacer struct {
 	linkReader            LinkReader             // P3: spreading activation + cluster notes
 	crossRefChecker       CrossRefChecker        // P4f: cross-source suppression
 	suppressionLogger     SuppressionEventLogger // P4f: suppression event logging
-	toolGate              ToolGater              // frecency gate for tool calls
 }
 
 // New creates a Surfacer.
@@ -188,8 +179,6 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 			ctx, opts.DataDir, opts.Message, opts.TranscriptWindow,
 			opts.CurrentProjectSlug, effectiveness, scorer,
 		)
-	case ModeTool:
-		result, matched, suppressionEvents, err = s.runTool(ctx, opts, effectiveness, scorer)
 	default:
 		return fmt.Errorf("%w: %s", ErrUnknownMode, opts.Mode)
 	}
@@ -251,52 +240,6 @@ func (s *Surfacer) enforcementLevelFor(memPath string) string {
 	}
 
 	return level
-}
-
-//nolint:unparam // error return is always nil — kept for uniform internal signature
-func (s *Surfacer) renderToolAdvisories(
-	candidates []toolMatch,
-) (Result, []*memory.Stored, error) {
-	// Sort emphasized/reminder memories first (REQ-P6e-1: higher budget priority).
-	sort.SliceStable(candidates, func(i, j int) bool {
-		li := isEmphasized(s.enforcementLevelFor(candidates[i].mem.FilePath))
-		lj := isEmphasized(s.enforcementLevelFor(candidates[j].mem.FilePath))
-
-		return li && !lj
-	})
-
-	var (
-		summaryBuf strings.Builder
-		contextBuf strings.Builder
-	)
-
-	_, _ = fmt.Fprintf(&summaryBuf, "[engram] %d tool advisories:\n", len(candidates))
-	_, _ = fmt.Fprintf(&contextBuf, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(&contextBuf, "[engram] Memories — for any relevant memory, call "+
-		"`engram show --name <name>` for full details. "+
-		"After your turn, call `engram feedback --name <name> --relevant|--irrelevant "+
-		"--used|--notused` for each:\n")
-
-	toolMems := make([]*memory.Stored, 0, len(candidates))
-
-	for _, match := range candidates {
-		toolMems = append(toolMems, match.mem)
-		level := s.enforcementLevelFor(match.mem.FilePath)
-		line := formatMemoryLine(
-			filenameSlug(match.mem.FilePath),
-			match.mem.Principle,
-			level,
-		)
-		_, _ = fmt.Fprint(&summaryBuf, line)
-		_, _ = fmt.Fprint(&contextBuf, line)
-	}
-
-	_, _ = fmt.Fprintf(&contextBuf, "</system-reminder>\n")
-
-	return Result{
-		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
-		Context: contextBuf.String(),
-	}, toolMems, nil
 }
 
 //nolint:cyclop,funlen,gocognit // BM25 filtering + suppression + budget + spreading: inherent branching
@@ -483,115 +426,6 @@ func (s *Surfacer) runPrompt(
 	}, finalMems, suppressionEvents, nil
 }
 
-//nolint:cyclop,funlen,unparam // BM25 filtering + spreading activation + tool gate: inherent branching
-func (s *Surfacer) runTool(
-	ctx context.Context,
-	opts Options,
-	effectiveness map[string]EffectivenessStat,
-	scorer *frecency.Scorer,
-) (Result, []*memory.Stored, []SuppressionEvent, error) {
-	// Defense-in-depth: non-Bash tools should not reach here (shell filters first).
-	if opts.ToolName != "Bash" {
-		return Result{}, nil, nil, nil
-	}
-
-	// Frecency gate: extract command key, check counter, maybe skip.
-	if !s.toolGateAllows(opts.ToolInput) {
-		return Result{}, nil, nil, nil
-	}
-
-	memories, err := s.retriever.ListMemories(ctx, opts.DataDir)
-	if err != nil {
-		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
-	}
-
-	candidates := matchToolMemories(
-		opts.ToolName, opts.ToolInput, opts.ToolOutput, opts.ToolErrored, memories, effectiveness,
-	)
-	if len(candidates) == 0 {
-		return Result{}, nil, nil, nil
-	}
-
-	// REQ-P4e-4: gate out memories with sufficient data but low effectiveness.
-	candidates = filterToolMatchesByEffectivenessGate(candidates, effectiveness)
-	if len(candidates) == 0 {
-		return Result{}, nil, nil, nil
-	}
-
-	// BM25-seeded spreading activation: neighbors of BM25 matches join the candidate pool (#374).
-	// Only anti-pattern memories qualify as tool candidates.
-	if s.linkReader != nil {
-		// Index anti-pattern memories by file path for neighbor lookup.
-		memByPath := make(map[string]*memory.Stored, len(memories))
-		for _, mem := range memories {
-			if mem.AntiPattern != "" {
-				memByPath[mem.FilePath] = mem
-			}
-		}
-
-		// Build bm25Matches map from existing BM25 candidates.
-		bm25Matches := make(map[string]float64, len(candidates))
-		for _, candidate := range candidates {
-			bm25Matches[candidate.mem.FilePath] = candidate.bm25Score
-		}
-
-		spreading := computeSpreading(bm25Matches, s.linkReader)
-
-		// Set spreading scores on existing BM25 candidates.
-		for i := range candidates {
-			candidates[i].spreadingScore = spreading[candidates[i].mem.FilePath]
-		}
-
-		// Add spreading-only neighbors not already in candidates.
-		existingPaths := make(map[string]bool, len(candidates))
-		for _, candidate := range candidates {
-			existingPaths[candidate.mem.FilePath] = true
-		}
-
-		for neighborPath, spreadScore := range spreading {
-			if existingPaths[neighborPath] {
-				continue
-			}
-
-			neighborMem, ok := memByPath[neighborPath]
-			if !ok {
-				continue
-			}
-
-			candidates = append(candidates, toolMatch{
-				mem:            neighborMem,
-				bm25Score:      0,
-				spreadingScore: spreadScore,
-			})
-		}
-	}
-
-	// Re-rank by frecency activation (ARCH-35).
-	sortToolMatchesByActivation(candidates, scorer, opts.CurrentProjectSlug)
-
-	// #307: cold-start budget — limit unproven to 1 per invocation.
-	candidates = applyColdStartBudgetTool(candidates, effectiveness)
-
-	// REQ-P4e-4: limit to top-2.
-	if len(candidates) > toolLimit {
-		candidates = candidates[:toolLimit]
-	}
-
-	// Apply token budget cap (ARCH-40).
-	if s.budgetConfig != nil {
-		budget := s.budgetConfig.ForMode(ModeTool)
-		candidates = applyToolBudget(candidates, budget)
-	}
-
-	if len(candidates) == 0 {
-		return Result{}, nil, nil, nil
-	}
-
-	result, mems, err := s.renderToolAdvisories(candidates)
-
-	return result, mems, nil, err
-}
-
 // suppressContradictions runs contradiction detection on candidates and returns a filtered slice
 // with lower-ranked contradicting memories removed. Emits KindContradiction signals for each
 // suppressed memory. Fire-and-forget: errors from detector return candidates unchanged (UC-P1-1).
@@ -635,23 +469,6 @@ func (s *Surfacer) suppressContradictions(
 	return filtered
 }
 
-// toolGateAllows returns true if the frecency gate permits surfacing for the given tool input.
-// Returns true when no gate is set or the command key is empty (fail-open).
-func (s *Surfacer) toolGateAllows(toolInput string) bool {
-	if s.toolGate == nil {
-		return true
-	}
-
-	key := toolgate.CommandKey(toolgate.ExtractBashCommand(toolInput))
-	if key == "" {
-		return true
-	}
-
-	shouldSurface, _ := s.toolGate.Check(key)
-
-	return shouldSurface
-}
-
 func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error {
 	if result.Context == "" {
 		return nil
@@ -677,11 +494,6 @@ type SurfacerOption func(*Surfacer)
 // SurfacingEventLogger logs individual memory surfacing events (ARCH-22).
 type SurfacingEventLogger interface {
 	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
-}
-
-// ToolGater decides whether to surface memories for a tool call.
-type ToolGater interface {
-	Check(commandKey string) (bool, error)
 }
 
 // WithContradictionDetector sets the contradiction detector for post-ranking suppression (UC-P1-1).
@@ -734,11 +546,6 @@ func WithSurfacingRecorder(fn func(path string) error) SurfacerOption {
 	return func(s *Surfacer) { s.recordSurfacing = fn }
 }
 
-// WithToolGate sets the tool frecency gate.
-func WithToolGate(gate ToolGater) SurfacerOption {
-	return func(s *Surfacer) { s.toolGate = gate }
-}
-
 // WithTracker sets the memory tracker for surfacing instrumentation.
 func WithTracker(tracker MemoryTracker) SurfacerOption {
 	return func(s *Surfacer) { s.tracker = tracker }
@@ -752,23 +559,13 @@ const (
 	enforcementEmphasizedAdvisory = "emphasized_advisory"
 	enforcementReminder           = "reminder"
 	irrelevancePenaltyHalfLife    = 5
-	minEffectivenessFloor         = 40.0 // gate threshold
 	minRelevanceScore             = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
 	promptLimit                   = 2
-	toolLimit                     = 2 // REQ-P4e-4: top-2
 	unprovenBM25FloorPrompt       = 0.20
-	unprovenBM25FloorTool         = 0.30
 )
 
 // promptMatch holds a memory for prompt mode.
 type promptMatch struct {
-	mem            *memory.Stored
-	bm25Score      float64
-	spreadingScore float64
-}
-
-// toolMatch holds a memory for tool mode.
-type toolMatch struct {
 	mem            *memory.Stored
 	bm25Score      float64
 	spreadingScore float64
@@ -799,47 +596,6 @@ func applyColdStartBudgetPrompt(
 	}
 
 	return result
-}
-
-// applyColdStartBudgetTool keeps all proven matches plus at most coldStartBudget unproven.
-// No-op when effectiveness is nil (no data available to distinguish proven from unproven).
-func applyColdStartBudgetTool(
-	candidates []toolMatch,
-	effectiveness map[string]EffectivenessStat,
-) []toolMatch {
-	if effectiveness == nil {
-		return candidates
-	}
-
-	result := make([]toolMatch, 0, len(candidates))
-	unprovenCount := 0
-
-	for _, match := range candidates {
-		if isUnproven(match.mem.FilePath, effectiveness) {
-			unprovenCount++
-			if unprovenCount > coldStartBudget {
-				continue
-			}
-		}
-
-		result = append(result, match)
-	}
-
-	return result
-}
-
-// bm25FloorForTool returns the BM25 relevance floor for a tool-mode memory.
-// Unproven memories get a higher floor unless the tool errored.
-func bm25FloorForTool(
-	memID string,
-	errored bool,
-	effectiveness map[string]EffectivenessStat,
-) float64 {
-	if isUnproven(memID, effectiveness) && !errored {
-		return unprovenBM25FloorTool
-	}
-
-	return minRelevanceScore
 }
 
 // computeSpreading computes BM25-seeded spreading activation scores.
@@ -902,27 +658,6 @@ func concatenatePromptFields(mem *memory.Stored) string {
 	return strings.Join(parts, " ")
 }
 
-// concatenateToolFields builds searchable text for tool mode.
-func concatenateToolFields(mem *memory.Stored) string {
-	var parts []string
-
-	if mem.Title != "" {
-		parts = append(parts, mem.Title)
-	}
-
-	if mem.Principle != "" {
-		parts = append(parts, mem.Principle)
-	}
-
-	if mem.AntiPattern != "" {
-		parts = append(parts, mem.AntiPattern)
-	}
-
-	parts = append(parts, mem.Keywords...)
-
-	return strings.Join(parts, " ")
-}
-
 // effectivenessScoreFor returns the effectiveness score for a memory path.
 // Two-tier logic:
 //   - No effectiveness data exists for path: defaultEffectiveness (50%) — neutral default
@@ -943,26 +678,6 @@ func effectivenessScoreFor(path string, effectiveness map[string]EffectivenessSt
 // filenameSlug strips directory path and .toml extension from a memory file path.
 func filenameSlug(path string) string {
 	return strings.TrimSuffix(filepath.Base(path), ".toml")
-}
-
-// filterToolMatchesByEffectivenessGate applies effectiveness gating to tool matches (REQ-P4e-4).
-// Memories with no effectiveness data default to 50% and always pass the gate.
-func filterToolMatchesByEffectivenessGate(
-	candidates []toolMatch,
-	effectiveness map[string]EffectivenessStat,
-) []toolMatch {
-	filtered := make([]toolMatch, 0, len(candidates))
-
-	for _, candidate := range candidates {
-		score := effectivenessScoreFor(candidate.mem.FilePath, effectiveness)
-		if score <= minEffectivenessFloor {
-			continue // gated out
-		}
-
-		filtered = append(filtered, candidate)
-	}
-
-	return filtered
 }
 
 // formatMemoryLine formats a single memory entry based on its enforcement level.
@@ -1056,94 +771,9 @@ func matchPromptMemories(
 	return matches
 }
 
-// matchToolMemories returns top 5 memories with non-empty anti_pattern, ranked by BM25.
-// Only considers anti-pattern memories (tier-aware per REQ-7).
-// Concatenates title, principle, anti_pattern, and keywords for scoring.
-// Unproven memories (never surfaced) require a higher BM25 floor than proven ones.
-func matchToolMemories(
-	_, toolInput, toolOutput string,
-	errored bool,
-	memories []*memory.Stored,
-	effectiveness map[string]EffectivenessStat,
-) []toolMatch {
-	// Filter to only anti-pattern memories (enforcement candidates)
-	candidates := make([]*memory.Stored, 0)
-
-	for _, mem := range memories {
-		if mem.AntiPattern != "" {
-			candidates = append(candidates, mem)
-		}
-	}
-
-	if len(candidates) == 0 {
-		return []toolMatch{}
-	}
-
-	// Build documents for BM25 scoring
-	docs := make([]bm25.Document, 0, len(candidates))
-	memoryIndex := make(map[string]*memory.Stored)
-
-	for _, mem := range candidates {
-		// Concatenate searchable fields
-		searchText := concatenateToolFields(mem)
-
-		docs = append(docs, bm25.Document{
-			ID:   mem.FilePath,
-			Text: searchText,
-		})
-
-		memoryIndex[mem.FilePath] = mem
-	}
-
-	// Score using BM25; enrich query with tool output if present.
-	query := toolInput
-	if toolOutput != "" {
-		query = toolInput + " " + toolOutput
-	}
-
-	scorer := bm25.New()
-	scored := scorer.Score(query, docs)
-
-	// Build results, filtering by relevance floor.
-	// Unproven memories require a higher floor to avoid cold-start noise,
-	// unless the tool errored — any relevant memory is high-value on failure.
-	// Apply irrelevance penalty before floor comparison (#343).
-	matches := make([]toolMatch, 0, len(scored))
-	for _, result := range scored {
-		mem, ok := memoryIndex[result.ID]
-		if !ok || mem == nil {
-			continue
-		}
-
-		penalizedScore := result.Score * irrelevancePenalty(mem.IrrelevantCount)
-
-		if penalizedScore < bm25FloorForTool(result.ID, errored, effectiveness) {
-			continue
-		}
-
-		matches = append(matches, toolMatch{mem: mem, bm25Score: penalizedScore})
-	}
-
-	return matches
-}
-
 // sortPromptMatchesByActivation sorts prompt matches by combined score descending.
 func sortPromptMatchesByActivation(
 	matches []promptMatch, scorer *frecency.Scorer, currentProjectSlug string,
-) {
-	sort.SliceStable(matches, func(i, j int) bool {
-		gi := GenFactor(matches[i].mem.Generalizability, matches[i].mem.ProjectSlug, currentProjectSlug)
-		gj := GenFactor(matches[j].mem.Generalizability, matches[j].mem.ProjectSlug, currentProjectSlug)
-		si := scorer.CombinedScore(matches[i].bm25Score, matches[i].spreadingScore, gi, toFrecencyInput(matches[i].mem))
-		sj := scorer.CombinedScore(matches[j].bm25Score, matches[j].spreadingScore, gj, toFrecencyInput(matches[j].mem))
-
-		return si > sj
-	})
-}
-
-// sortToolMatchesByActivation sorts tool matches by combined score descending.
-func sortToolMatchesByActivation(
-	matches []toolMatch, scorer *frecency.Scorer, currentProjectSlug string,
 ) {
 	sort.SliceStable(matches, func(i, j int) bool {
 		gi := GenFactor(matches[i].mem.Generalizability, matches[i].mem.ProjectSlug, currentProjectSlug)

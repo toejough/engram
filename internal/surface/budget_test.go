@@ -100,7 +100,6 @@ func TestT191_PromptBudgetEnforcement(t *testing.T) {
 	budgetCfg := surface.BudgetConfig{
 		UserPromptSubmit: 40,
 		SessionStart:     800,
-		Tool:             200,
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -150,6 +149,5 @@ func TestT193_BudgetConfigDefaults(t *testing.T) {
 	cfg := surface.DefaultBudgetConfig()
 	g.Expect(cfg.SessionStart).To(Equal(surface.DefaultSessionStartBudget))         // 600
 	g.Expect(cfg.UserPromptSubmit).To(Equal(surface.DefaultUserPromptSubmitBudget)) // 250
-	g.Expect(cfg.Tool).To(Equal(surface.DefaultToolBudget))                         // 150
 	g.Expect(cfg.Stop).To(Equal(surface.DefaultStopBudget))
 }
