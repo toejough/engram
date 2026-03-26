@@ -4,7 +4,7 @@ package surface_test
 // REQ-P4e-1: SessionStart ranks by effectiveness, gates on >40% (no-data defaults to 50%)
 // REQ-P4e-2: SessionStart top-7 limit, 600 token default budget
 // REQ-P4e-3: UserPromptSubmit 250 token default budget
-// REQ-P4e-4: PreToolUse top-2 limit, effectiveness floor 40%, 150 token default budget
+// REQ-P4e-4: Tool mode top-2 limit, effectiveness floor 40%, 150 token default budget
 // REQ-P4e-5: InvocationTokenLogger called after each surface invocation
 
 import (
@@ -20,8 +20,8 @@ import (
 	"engram/internal/surface"
 )
 
-// T-P4e-6: PreToolUse limits to top 2 (down from 3).
-func TestTP4e6_PreToolUseLimitsToTop2(t *testing.T) {
+// T-P4e-6: Tool mode limits to top 2 (down from 3).
+func TestTP4e6_ToolModeLimitsToTop2(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -83,8 +83,8 @@ func TestTP4e6_PreToolUseLimitsToTop2(t *testing.T) {
 	g.Expect(count).To(Equal(2), "expected 2 memories (top-2 limit), got %d", count)
 }
 
-// T-P4e-7: PreToolUse gates out memories with effectiveness <= 40%.
-func TestTP4e7_PreToolUseEffectivenessGating(t *testing.T) {
+// T-P4e-7: Tool mode gates out memories with effectiveness <= 40%.
+func TestTP4e7_ToolModeEffectivenessGating(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)

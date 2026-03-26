@@ -1,5 +1,5 @@
 // Package surface implements memory surfacing for UC-2 (ARCH-12).
-// Routes to SessionStart, UserPromptSubmit, or PreToolUse mode based on options.
+// Routes to prompt or tool mode based on options.
 package surface
 
 import (

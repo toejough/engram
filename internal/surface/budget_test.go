@@ -100,7 +100,7 @@ func TestT191_PromptBudgetEnforcement(t *testing.T) {
 	budgetCfg := surface.BudgetConfig{
 		UserPromptSubmit: 40,
 		SessionStart:     800,
-		PreToolUse:       200,
+		Tool:             200,
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -199,7 +199,7 @@ func TestT192_ToolBudgetEnforcement(t *testing.T) {
 	}
 
 	budgetCfg := surface.BudgetConfig{
-		PreToolUse:       35,
+		Tool:             35,
 		UserPromptSubmit: 300,
 		SessionStart:     800,
 	}
@@ -236,10 +236,8 @@ func TestT193_BudgetConfigCustomValues(t *testing.T) {
 	custom := surface.BudgetConfig{
 		SessionStart:     1000,
 		UserPromptSubmit: 500,
-		PreToolUse:       300,
-		PostToolUse:      150,
+		Tool:             300,
 		Stop:             600,
-		PreCompact:       400,
 	}
 
 	g.Expect(custom.ForMode(surface.ModePrompt)).To(Equal(500))
@@ -255,8 +253,6 @@ func TestT193_BudgetConfigDefaults(t *testing.T) {
 	cfg := surface.DefaultBudgetConfig()
 	g.Expect(cfg.SessionStart).To(Equal(surface.DefaultSessionStartBudget))         // 600
 	g.Expect(cfg.UserPromptSubmit).To(Equal(surface.DefaultUserPromptSubmitBudget)) // 250
-	g.Expect(cfg.PreToolUse).To(Equal(surface.DefaultPreToolUseBudget))             // 150
-	g.Expect(cfg.PostToolUse).To(Equal(surface.DefaultPostToolUseBudget))
+	g.Expect(cfg.Tool).To(Equal(surface.DefaultToolBudget))                         // 150
 	g.Expect(cfg.Stop).To(Equal(surface.DefaultStopBudget))
-	g.Expect(cfg.PreCompact).To(Equal(surface.DefaultPreCompactBudget))
 }

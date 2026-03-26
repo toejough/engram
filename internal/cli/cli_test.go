@@ -1339,7 +1339,6 @@ func TestRun_UnknownCommand(t *testing.T) {
 }
 
 // T-120: Stop hook invokes engram flush (#309, #348).
-// PreCompact is a no-op and is not checked here.
 func TestT120_HookScriptsInvokeFlush(t *testing.T) {
 	t.Parallel()
 

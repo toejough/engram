@@ -208,54 +208,6 @@ func TestT23_BinDirInGitignore(t *testing.T) {
 	g.Expect(string(content)).To(ContainSubstring("bin/"))
 }
 
-// TestT352_PostToolUseFiltersFeedbackLoop verifies post-tool-use.sh exits early
-// for engram feedback/correct calls to prevent a surfacing feedback loop (#352).
-func TestT352_PostToolUseFiltersFeedbackLoop(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "post-tool-use.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	g.Expect(script).To(ContainSubstring(`$ENGRAM_BIN`), "must filter all engram CLI calls via binary path")
-	g.Expect(script).To(ContainSubstring("#352"), "must reference the original issue for traceability")
-	g.Expect(script).To(ContainSubstring("#369"), "must reference the widening issue for traceability")
-}
-
-// TestT352_PreToolUseFiltersFeedbackLoop verifies pre-tool-use.sh exits early
-// for all engram CLI calls to prevent a surfacing feedback loop (#352, #369).
-func TestT352_PreToolUseFiltersFeedbackLoop(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "pre-tool-use.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	g.Expect(script).To(ContainSubstring(`$ENGRAM_BIN`), "must filter all engram CLI calls via binary path")
-	g.Expect(script).To(ContainSubstring("#352"), "must reference the original issue for traceability")
-	g.Expect(script).To(ContainSubstring("#369"), "must reference the widening issue for traceability")
-}
-
 // TestT370_HooksJSONSessionStartSingle verifies hooks.json has a single
 // SessionStart entry pointing to session-start.sh (sync output + background fork) (#370).
 func TestT370_HooksJSONSessionStartSingle(t *testing.T) {
@@ -311,56 +263,6 @@ func TestT370_HooksJSONSessionStartSingle(t *testing.T) {
 		g.Expect(hook.Command).To(ContainSubstring("session-start.sh"))
 		g.Expect(hook.Async).To(BeNil(), "hook must not have async field — background work is forked internally")
 	}
-}
-
-// TestT370_PostToolUseNoPending verifies post-tool-use.sh does NOT consume
-// pending-maintenance.json — that logic moved to user-prompt-submit.sh so
-// subagent tool calls don't eat it (#370 refactor).
-func TestT370_PostToolUseNoPending(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "post-tool-use.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	// Pending logic must NOT be in post-tool-use — it lives in user-prompt-submit now.
-	g.Expect(script).NotTo(ContainSubstring("pending-maintenance.json"),
-		"pending consumption belongs in user-prompt-submit, not post-tool-use")
-}
-
-// TestT370_PreToolUseNoPending verifies pre-tool-use.sh does NOT consume
-// pending-maintenance.json — that logic moved to user-prompt-submit.sh so
-// subagent tool calls don't eat it (#370 refactor).
-func TestT370_PreToolUseNoPending(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "pre-tool-use.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	// Pending logic must NOT be in pre-tool-use — it lives in user-prompt-submit now.
-	g.Expect(script).NotTo(ContainSubstring("pending-maintenance.json"),
-		"pending consumption belongs in user-prompt-submit, not pre-tool-use")
 }
 
 // TestT370_SessionStartWritesPendingFile verifies session-start.sh background
@@ -483,107 +385,6 @@ func TestT44_UserPromptSubmitHookSurfaces(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("--mode prompt"))
 }
 
-// TestT45_HooksJSONHasPreToolUse verifies hooks/hooks.json contains a
-// PreToolUse hook entry pointing to pre-tool-use.sh (T-45).
-func TestT45_HooksJSONHasPreToolUse(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	hooksPath := filepath.Join(root, "hooks", "hooks.json")
-
-	content, err := os.ReadFile(hooksPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	hooksJSON := string(content)
-
-	g.Expect(hooksJSON).To(ContainSubstring("PreToolUse"))
-	g.Expect(hooksJSON).To(ContainSubstring("pre-tool-use.sh"))
-}
-
-// TestT46_PreToolUseHookReadsSdin verifies hooks/pre-tool-use.sh reads stdin
-// JSON and calls engram surface --mode tool (T-46).
-func TestT46_PreToolUseHookSurfaces(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "pre-tool-use.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	g.Expect(script).To(ContainSubstring("jq"))
-	g.Expect(script).To(ContainSubstring(".tool_name"))
-	g.Expect(script).To(ContainSubstring(".tool_input"))
-	g.Expect(script).To(ContainSubstring("surface"))
-	g.Expect(script).To(ContainSubstring("--mode tool"))
-	g.Expect(script).To(ContainSubstring("--tool-name"))
-	g.Expect(script).To(ContainSubstring("--tool-input"))
-}
-
-// TestT65_HooksJSONHasPreCompact verifies hooks/hooks.json contains a
-// PreCompact hook entry pointing to pre-compact.sh (T-65).
-func TestT65_HooksJSONHasPreCompact(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	hooksPath := filepath.Join(root, "hooks", "hooks.json")
-
-	content, err := os.ReadFile(hooksPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	hooksJSON := string(content)
-
-	g.Expect(hooksJSON).To(ContainSubstring("PreCompact"))
-	g.Expect(hooksJSON).To(ContainSubstring("pre-compact.sh"))
-}
-
-// TestT67_PreCompactHookIsNoOp verifies hooks/pre-compact.sh is a no-op (#350).
-// PreCompact previously ran flush (redundant with Stop hook); it now exits cleanly.
-func TestT67_PreCompactHookIsNoOp(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "pre-compact.sh")
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	// Must be a no-op — just exits cleanly.
-	g.Expect(script).To(ContainSubstring("exit 0"))
-	// Must NOT call flush (that was the redundant behavior being removed).
-	g.Expect(script).NotTo(ContainSubstring("engram flush"))
-	// Must reference the issue for traceability.
-	g.Expect(script).To(ContainSubstring("#350"))
-}
-
 // TestT98_UserPromptSubmitCreationInSystemMessage verifies hooks/user-prompt-submit.sh
 // places creation output from engram correct into systemMessage (not additionalContext) (T-98).
 func TestT98_UserPromptSubmitCreationInSystemMessage(t *testing.T) {
@@ -606,8 +407,9 @@ func TestT98_UserPromptSubmitCreationInSystemMessage(t *testing.T) {
 	// Combined output uses jq --arg to build systemMessage from FINAL_SYS (merged pending + surface + correct).
 	g.Expect(script).To(ContainSubstring("FINAL_SYS"))
 	g.Expect(script).To(ContainSubstring("FINAL_CTX"))
-	// Must emit JSON with systemMessage and additionalContext via jq -n.
-	g.Expect(script).To(ContainSubstring(`{systemMessage: $sys, additionalContext: $ctx}`))
+	// Must emit JSON with systemMessage and hookSpecificOutput wrapping additionalContext (#384).
+	g.Expect(script).To(ContainSubstring(`hookSpecificOutput`))
+	g.Expect(script).To(ContainSubstring(`additionalContext: $ctx`))
 }
 
 // TestT99_SessionStartCreationInSystemMessage verifies hooks/session-start.sh

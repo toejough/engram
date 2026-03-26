@@ -66,7 +66,7 @@ func TestT196_BudgetZeroUtilization(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	stat := review.BudgetHookStat{
-		Hook:          "PreToolUse",
+		Hook:          "Stop",
 		Budget:        200,
 		TotalSurfaced: 0,
 		Invocations:   0,
@@ -80,7 +80,7 @@ func TestT196_BudgetZeroUtilization(t *testing.T) {
 	review.RenderBudget([]review.BudgetHookStat{stat}, &buf)
 	output := buf.String()
 
-	g.Expect(output).To(gomega.ContainSubstring("PreToolUse"))
+	g.Expect(output).To(gomega.ContainSubstring("Stop"))
 	g.Expect(output).To(gomega.ContainSubstring("0"))
 	g.Expect(output).NotTo(gomega.ContainSubstring("⚠"))
 }
