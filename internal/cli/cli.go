@@ -43,7 +43,6 @@ import (
 	"engram/internal/tfidf"
 	"engram/internal/tokenresolver"
 	"engram/internal/tomlwriter"
-	"engram/internal/toolgate"
 	"engram/internal/track"
 	"engram/internal/transcript"
 )
@@ -537,52 +536,6 @@ func (a *effectivenessAdapter) Aggregate() (map[string]surface.EffectivenessStat
 	}
 
 	return result, nil
-}
-
-// fileCounterStore implements toolgate.CounterStore with atomic file I/O.
-type fileCounterStore struct {
-	path string
-}
-
-func (s *fileCounterStore) Load() (map[string]toolgate.CounterEntry, error) {
-	data, err := os.ReadFile(s.path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return make(map[string]toolgate.CounterEntry), nil
-		}
-
-		return nil, fmt.Errorf("toolgate load: %w", err)
-	}
-
-	var counters map[string]toolgate.CounterEntry
-
-	jsonErr := json.Unmarshal(data, &counters)
-	if jsonErr != nil {
-		return make(map[string]toolgate.CounterEntry), nil //nolint:nilerr // corrupt file: start fresh
-	}
-
-	return counters, nil
-}
-
-func (s *fileCounterStore) Save(counters map[string]toolgate.CounterEntry) error {
-	data, err := json.Marshal(counters)
-	if err != nil {
-		return fmt.Errorf("marshal: %w", err)
-	}
-
-	tmp := s.path + ".tmp"
-
-	writeErr := os.WriteFile(tmp, data, filePermOwnerRW)
-	if writeErr != nil {
-		return fmt.Errorf("write tmp: %w", writeErr)
-	}
-
-	renameErr := os.Rename(tmp, s.path)
-	if renameErr != nil {
-		return fmt.Errorf("rename: %w", renameErr)
-	}
-
-	return nil
 }
 
 // haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
@@ -1096,10 +1049,6 @@ func makeAnthropicCaller(
 	}
 }
 
-func newFileCounterStore(dataDir string) *fileCounterStore {
-	return &fileCounterStore{path: filepath.Join(dataDir, "tool-frecency.json")}
-}
-
 func newTokenResolver() *tokenresolver.Resolver {
 	return tokenresolver.New(
 		os.Getenv,
@@ -1541,7 +1490,7 @@ func runSurface(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("surface", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
-	mode := fs.String("mode", "", "surface mode: prompt, tool, stop")
+	mode := fs.String("mode", "", "surface mode: prompt, stop")
 	dataDir := fs.String("data-dir", "", "path to data directory")
 	message := fs.String("message", "", "user message (prompt mode)")
 	format := fs.String("format", "", "output format: json")

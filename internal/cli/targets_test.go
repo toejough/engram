@@ -505,19 +505,15 @@ func TestSurfaceFlags(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		result := cli.SurfaceFlags(cli.SurfaceArgs{
-			Mode:      "prompt",
-			DataDir:   "/data",
-			Message:   "hello",
-			ToolName:  "Read",
-			ToolInput: `{"path":"/foo"}`,
-			Format:    "json",
+			Mode:    "prompt",
+			DataDir: "/data",
+			Message: "hello",
+			Format:  "json",
 		})
 		g.Expect(result).To(gomega.Equal([]string{
 			"--mode", "prompt",
 			"--data-dir", "/data",
 			"--message", "hello",
-			"--tool-name", "Read",
-			"--tool-input", `{"path":"/foo"}`,
 			"--format", "json",
 		}))
 	})
@@ -537,22 +533,6 @@ func TestSurfaceFlags(t *testing.T) {
 
 		result := cli.SurfaceFlags(cli.SurfaceArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("tool mode partial", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SurfaceFlags(cli.SurfaceArgs{
-			Mode:     "tool",
-			ToolName: "Read",
-			Format:   "json",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--mode", "tool",
-			"--tool-name", "Read",
-			"--format", "json",
-		}))
 	})
 
 	t.Run("stop mode with transcript path and session ID", func(t *testing.T) {

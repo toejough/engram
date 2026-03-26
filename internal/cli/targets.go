@@ -100,13 +100,9 @@ type ShowArgs struct {
 
 // SurfaceArgs holds parsed flags for the surface subcommand.
 type SurfaceArgs struct {
-	Mode           string `targ:"flag,name=mode,desc=surface mode: prompt or tool or stop"`
+	Mode           string `targ:"flag,name=mode,desc=surface mode: prompt or stop"`
 	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	Message        string `targ:"flag,name=message,desc=user message (prompt mode)"`
-	ToolName       string `targ:"flag,name=tool-name,desc=tool name (tool mode)"`
-	ToolInput      string `targ:"flag,name=tool-input,desc=tool input JSON (tool mode)"`
-	ToolOutput     string `targ:"flag,name=tool-output,desc=tool output or error text (tool mode)"`
-	ToolErrored    bool   `targ:"flag,name=tool-errored,desc=true if tool call failed (tool mode)"`
 	Format         string `targ:"flag,name=format,desc=output format: json"`
 	TranscriptPath string `targ:"flag,name=transcript-path,desc=transcript JSONL path (stop mode)"`
 	SessionID      string `targ:"flag,name=session-id,desc=session ID (stop mode)"`
@@ -286,19 +282,14 @@ func ShowFlags(a ShowArgs) []string {
 
 // SurfaceFlags returns the CLI flag args for the surface subcommand.
 func SurfaceFlags(a SurfaceArgs) []string {
-	flags := BuildFlags(
+	return BuildFlags(
 		"--mode", a.Mode,
 		"--data-dir", a.DataDir,
 		"--message", a.Message,
-		"--tool-name", a.ToolName,
-		"--tool-input", a.ToolInput,
-		"--tool-output", a.ToolOutput,
 		"--format", a.Format,
 		"--transcript-path", a.TranscriptPath,
 		"--session-id", a.SessionID,
 	)
-
-	return AddBoolFlag(flags, "--tool-errored", a.ToolErrored)
 }
 
 // Targets returns all targ targets for the engram CLI.
