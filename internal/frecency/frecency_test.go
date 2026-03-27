@@ -142,6 +142,43 @@ func TestFrequency_Normalized(t *testing.T) {
 	}
 }
 
+func TestNew_WithTierBoostOverrides(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC)
+
+	const maxSurfaced = 100
+
+	// WithTierABoost, WithTierBBoost, WithWTier all produce a scorer that applies overrides.
+	scorer := frecency.New(now, maxSurfaced,
+		frecency.WithTierABoost(2.0),
+		frecency.WithTierBBoost(1.5),
+		frecency.WithWTier(0.5),
+	)
+
+	inputTierA := frecency.Input{
+		FollowedCount: 5,
+		IgnoredCount:  5,
+		SurfacedCount: 10,
+		Tier:          "A",
+	}
+
+	inputTierB := frecency.Input{
+		FollowedCount: 5,
+		IgnoredCount:  5,
+		SurfacedCount: 10,
+		Tier:          "B",
+	}
+
+	qualityA := scorer.Quality(inputTierA)
+	qualityB := scorer.Quality(inputTierB)
+
+	// Tier A boost (2.0) > Tier B boost (1.5), so tier A quality should be higher.
+	g.Expect(qualityA).To(BeNumerically(">", qualityB))
+}
+
 func TestQuality_AllSignals(t *testing.T) {
 	t.Parallel()
 

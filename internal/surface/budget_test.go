@@ -12,6 +12,16 @@ import (
 	"engram/internal/surface"
 )
 
+// TestForMode_UnknownModeReturnsZero verifies that ForMode returns 0 for unknown modes.
+func TestForMode_UnknownModeReturnsZero(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	cfg := surface.DefaultBudgetConfig()
+	g.Expect(cfg.ForMode("unknown-mode")).To(Equal(0))
+}
+
 // T-190: Token estimation formula computes len(text) / 4
 func TestT190_EstimateTokens(t *testing.T) {
 	t.Parallel()

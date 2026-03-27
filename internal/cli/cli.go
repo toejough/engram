@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"engram/internal/adapt"
 	"engram/internal/classify"
 	sessionctx "engram/internal/context"
 	"engram/internal/correct"
@@ -31,6 +32,7 @@ import (
 	"engram/internal/learn"
 	"engram/internal/maintain"
 	"engram/internal/memory"
+	"engram/internal/policy"
 	"engram/internal/recall"
 	"engram/internal/render"
 	"engram/internal/retrieve"
@@ -179,7 +181,10 @@ func RunLearn(
 		httpClient = &http.Client{}
 	}
 
-	extractor := extract.New(token, httpClient)
+	policyPath := filepath.Join(*dataDir, "policy.toml")
+	guidance := loadExtractionGuidance(policyPath)
+
+	extractor := extract.New(token, httpClient, extract.WithGuidance(guidance))
 	retriever := retrieve.New()
 	deduplicator := dedup.New()
 	writer := tomlwriter.New()
@@ -193,19 +198,28 @@ func RunLearn(
 	}
 
 	learner.SetCreationLogger(creationlog.NewLogWriter())
-
 	learner.SetRegisterMemory(registerMemory)
 
 	ctx := context.Background()
 
 	// Incremental mode: read delta from transcript file.
+	var learnErr error
 	if *transcriptPath != "" && *sessionID != "" {
-		return runIncrementalLearn(
+		learnErr = runIncrementalLearn(
 			ctx, learner, *transcriptPath, *sessionID, *dataDir, stderr,
 		)
+	} else {
+		learnErr = runStdinLearn(ctx, learner, stdin, stderr)
 	}
 
-	return runStdinLearn(ctx, learner, stdin, stderr)
+	if learnErr != nil {
+		return learnErr
+	}
+
+	// Run feedback analysis to generate adaptation proposals (fire-and-forget, ARCH-6).
+	runAdaptationAnalysis(ctx, *dataDir, policyPath)
+
+	return nil
 }
 
 // RunMaintain implements the maintain subcommand: generates maintenance
@@ -980,6 +994,28 @@ func formatTierBreakdown(counts map[string]int) string {
 	return "(" + strings.Join(parts, ", ") + ")"
 }
 
+// loadExtractionGuidance loads active extraction policies from policyPath and
+// returns them as ExtractionGuidance slices. Returns nil if the file is missing or unreadable.
+func loadExtractionGuidance(policyPath string) []extract.ExtractionGuidance {
+	pf, policyErr := policy.Load(policyPath)
+	if policyErr != nil {
+		return nil
+	}
+
+	active := pf.Active(policy.DimensionExtraction)
+
+	var guidance []extract.ExtractionGuidance
+
+	for _, p := range active {
+		guidance = append(guidance, extract.ExtractionGuidance{
+			Directive: p.Directive,
+			Rationale: p.Rationale,
+		})
+	}
+
+	return guidance
+}
+
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
 func makeAnthropicCaller(
 	token string,
@@ -1108,6 +1144,43 @@ func reviewQuadrant(surfacedCount int, eff *float64) string {
 	default:
 		return "Noise"
 	}
+}
+
+// runAdaptationAnalysis analyses feedback patterns and appends new proposals to policy.toml.
+// Errors are silently ignored (fire-and-forget, ARCH-6).
+func runAdaptationAnalysis(ctx context.Context, dataDir, policyPath string) {
+	const (
+		minClusterSize    = 5
+		minFeedbackEvents = 3
+	)
+
+	analysisConfig := adapt.Config{
+		MinClusterSize:    minClusterSize,
+		MinFeedbackEvents: minFeedbackEvents,
+	}
+
+	allMemories, listErr := retrieve.New().ListMemories(ctx, dataDir)
+	if listErr != nil || len(allMemories) == 0 {
+		return
+	}
+
+	adaptPF, loadErr := policy.Load(policyPath)
+	if loadErr != nil {
+		return
+	}
+
+	newProposals := adapt.AnalyzeAll(allMemories, analysisConfig)
+	if len(newProposals) == 0 {
+		return
+	}
+
+	for i := range newProposals {
+		newProposals[i].ID = adaptPF.NextID()
+		newProposals[i].CreatedAt = time.Now().UTC().Format(time.RFC3339)
+		adaptPF.Policies = append(adaptPF.Policies, newProposals[i])
+	}
+
+	_ = policy.Save(policyPath, adaptPF)
 }
 
 //nolint:funlen // orchestration function: wires classifier, corrector, transcript, and DI dependencies

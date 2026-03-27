@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
 
+	"engram/internal/contradict"
 	"engram/internal/memory"
+	"engram/internal/signal"
 	"engram/internal/surface"
 )
 
@@ -147,6 +150,56 @@ func TestQW2_RelevanceFloorFiltersLowScoring(t *testing.T) {
 	// "exact-match" should appear, "irrelevant" slug should not (score below floor).
 	g.Expect(output).To(ContainSubstring("exact-match"))
 	g.Expect(output).NotTo(ContainSubstring("irrelevant:"))
+}
+
+// TestSuppressContradictions_DetectorError_ReturnsCandidatesUnchanged verifies the
+// fire-and-forget error path: detector errors leave candidates unchanged.
+func TestSuppressContradictions_DetectorError_ReturnsCandidatesUnchanged(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memA := &memory.Stored{Title: "rule a", FilePath: "mem-a.toml", Keywords: []string{"commit"}}
+	memB := &memory.Stored{Title: "rule b", FilePath: "mem-b.toml", Keywords: []string{"commit"}}
+
+	allMems := make([]*memory.Stored, 0, 7)
+
+	allMems = append(allMems, memA, memB)
+
+	for _, name := range []string{"log", "test", "deploy", "config", "monitor"} {
+		allMems = append(allMems, &memory.Stored{
+			Title:    name + " guide",
+			FilePath: name + ".toml",
+			Keywords: []string{name},
+			Content:  name + " docs",
+		})
+	}
+
+	// Detector returns an error — candidates should be returned unchanged.
+	detector := &fakeContradictionDetector{err: errors.New("detector failed")}
+	retriever := &fakeRetriever{memories: allMems}
+	surfacer := surface.New(
+		retriever,
+		surface.WithContradictionDetector(detector),
+	)
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/data",
+		Message: "commit",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Both memories should appear (no suppression on error).
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("mem-a"))
+	g.Expect(output).To(ContainSubstring("mem-b"))
 }
 
 // T-121: Surfacer writes surfacing log during surfacing events.
@@ -647,6 +700,86 @@ func TestUnknownModeReturnsError(t *testing.T) {
 	g.Expect(err).To(MatchError(surface.ErrUnknownMode))
 }
 
+// TestWithContradictionDetector_SuppressesLowerRankedMemory verifies that
+// WithContradictionDetector and suppressContradictions filter contradicting memories.
+func TestWithContradictionDetector_SuppressesLowerRankedMemory(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memA := &memory.Stored{
+		Title:    "rule alpha",
+		FilePath: "mem-a.toml",
+		Keywords: []string{"commit"},
+		Tier:     "A",
+	}
+	memB := &memory.Stored{
+		Title:    "rule beta",
+		FilePath: "mem-b.toml",
+		Keywords: []string{"commit"},
+		Tier:     "B",
+	}
+
+	// fillers for IDF contrast.
+	allMems := make([]*memory.Stored, 0, 7)
+
+	allMems = append(allMems, memA, memB)
+
+	for _, name := range []string{"log", "test", "deploy", "config", "monitor"} {
+		allMems = append(allMems, &memory.Stored{
+			Title:    name + " guide",
+			FilePath: name + ".toml",
+			Keywords: []string{name},
+			Content:  name + " docs",
+		})
+	}
+
+	// Detector returns one pair: A contradicts B. B is the lower-ranked member.
+	detector := &fakeContradictionDetector{
+		pairs: []contradict.Pair{{A: memA, B: memB}},
+	}
+	emitter := &fakeSignalEmitter{}
+
+	retriever := &fakeRetriever{memories: allMems}
+	surfacer := surface.New(
+		retriever,
+		surface.WithContradictionDetector(detector),
+		surface.WithSignalEmitter(emitter),
+	)
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/data",
+		Message: "commit",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+
+	// memA should be surfaced (mem-a); memB should be suppressed (mem-b).
+	g.Expect(output).To(ContainSubstring("mem-a"))
+	g.Expect(output).NotTo(ContainSubstring("mem-b"))
+
+	// Signal should have been emitted.
+	g.Expect(emitter.emitted).To(HaveLen(1))
+}
+
+// fakeContradictionDetector is a test double for surface.ContradictionDetector.
+type fakeContradictionDetector struct {
+	pairs []contradict.Pair
+	err   error
+}
+
+func (f *fakeContradictionDetector) Check(_ context.Context, _ []*memory.Stored) ([]contradict.Pair, error) {
+	return f.pairs, f.err
+}
+
 // fakeEffectivenessComputer is a test double for surface.EffectivenessComputer.
 type fakeEffectivenessComputer struct {
 	stats map[string]surface.EffectivenessStat
@@ -667,6 +800,19 @@ func (f *fakeRetriever) ListMemories(_ context.Context, _ string) ([]*memory.Sto
 	return f.memories, f.err
 }
 
+// fakeSignalEmitter is a test double for surface.SignalEmitter.
+type fakeSignalEmitter struct {
+	emitted []signal.Signal
+}
+
+func (f *fakeSignalEmitter) Emit(s signal.Signal) error {
+	f.emitted = append(f.emitted, s)
+
+	return nil
+}
+
+// --- Helpers ---
+
 // fakeSurfacingLogger is a test double for surface.SurfacingEventLogger.
 type fakeSurfacingLogger struct {
 	calls     []surfacingLogCall
@@ -686,5 +832,3 @@ type surfacingLogCall struct {
 func memSlug(i int) string {
 	return "memory-" + string(rune('a'+i%26))
 }
-
-// --- Helpers ---

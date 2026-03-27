@@ -194,11 +194,91 @@ func TestApply_Consolidate(t *testing.T) {
 	g.Expect(archiver.archived).To(gomega.ConsistOf("/mem/b.toml", "/mem/c.toml"))
 }
 
+func TestApply_ConsolidateArchiveError(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	extractor := &stubExtractor{result: &memory.MemoryRecord{}}
+	archiver := &stubErrorArchiver{err: errors.New("archive failed")}
+	writer := &stubMemoryWriter{written: make(map[string]*memory.Stored)}
+
+	applier := signal.NewApplier(
+		signal.WithApplyExtractor(extractor),
+		signal.WithLoadRecord(func(_ string) (*memory.MemoryRecord, error) {
+			return &memory.MemoryRecord{}, nil
+		}),
+		signal.WithWriteMemory(writer),
+		signal.WithApplyArchiver(archiver),
+	)
+
+	membersJSON, marshalErr := json.Marshal([]map[string]string{
+		{"path": "/mem/a.toml", "title": "Memory A"},
+		{"path": "/mem/b.toml", "title": "Memory B"},
+	})
+	g.Expect(marshalErr).NotTo(gomega.HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	action := signal.ApplyAction{
+		Action: "consolidate",
+		Memory: "/mem/a.toml",
+		Fields: map[string]any{
+			"members": json.RawMessage(membersJSON),
+		},
+	}
+
+	_, err := applier.Apply(context.Background(), action)
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("archive failed")))
+}
+
 func TestApply_ConsolidateNilExtractor(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	applier := signal.NewApplier()
+
+	action := signal.ApplyAction{
+		Action: "consolidate",
+		Memory: "/mem/a.toml",
+		Fields: map[string]any{"members": json.RawMessage(`[{"path":"/mem/a.toml"}]`)},
+	}
+
+	_, err := applier.Apply(context.Background(), action)
+	g.Expect(err).To(gomega.HaveOccurred())
+}
+
+func TestApply_ConsolidateNilLoadRecord(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// Extractor present, but no loadRecord — triggers nil loadRecord check.
+	applier := signal.NewApplier(
+		signal.WithApplyExtractor(&stubExtractor{result: &memory.MemoryRecord{}}),
+	)
+
+	action := signal.ApplyAction{
+		Action: "consolidate",
+		Memory: "/mem/a.toml",
+		Fields: map[string]any{"members": json.RawMessage(`[{"path":"/mem/a.toml"}]`)},
+	}
+
+	_, err := applier.Apply(context.Background(), action)
+	g.Expect(err).To(gomega.HaveOccurred())
+}
+
+func TestApply_ConsolidateNilWriteMemory(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// Extractor and loadRecord present, but no writeMemory — triggers nil writeMem check.
+	applier := signal.NewApplier(
+		signal.WithApplyExtractor(&stubExtractor{result: &memory.MemoryRecord{}}),
+		signal.WithLoadRecord(func(_ string) (*memory.MemoryRecord, error) {
+			return &memory.MemoryRecord{}, nil
+		}),
+	)
 
 	action := signal.ApplyAction{
 		Action: "consolidate",
@@ -536,6 +616,14 @@ type stubArchiver struct {
 func (s *stubArchiver) Archive(path string) error {
 	s.archived = append(s.archived, path)
 	return nil
+}
+
+type stubErrorArchiver struct {
+	err error
+}
+
+func (s *stubErrorArchiver) Archive(_ string) error {
+	return s.err
 }
 
 type stubExtractor struct {

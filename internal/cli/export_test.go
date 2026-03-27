@@ -12,13 +12,17 @@ import (
 
 // Exported variables.
 var (
-	ExportBuildRecallSurfacer = buildRecallSurfacer
-	ExportCallAnthropicAPI    = callAnthropicAPI
-	ExportRecordSurfacing     = recordSurfacing
-	ExportRegisterMemory      = registerMemory
-	ExportResolveSkillsDir    = resolveSkillsDir
-	ExportRunStdinLearn       = runStdinLearn
-	ExportTruncateTitle       = truncateTitle
+	ExportBuildRecallSurfacer      = buildRecallSurfacer
+	ExportCallAnthropicAPI         = callAnthropicAPI
+	ExportLoadExtractionGuidance   = loadExtractionGuidance
+	ExportNewSourceCrossRefChecker = newSourceCrossRefChecker
+	ExportRecordSurfacing          = recordSurfacing
+	ExportRegisterMemory           = registerMemory
+	ExportResolveSkillsDir         = resolveSkillsDir
+	ExportRunAdaptationAnalysis    = runAdaptationAnalysis
+	ExportRunStdinLearn            = runStdinLearn
+	ExportTitleOrPath              = titleOrPath
+	ExportTruncateTitle            = truncateTitle
 )
 
 type ExportStored = memory.Stored

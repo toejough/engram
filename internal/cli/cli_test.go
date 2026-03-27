@@ -387,6 +387,65 @@ func TestLearnSuccessPath(t *testing.T) {
 	g.Expect(stderr.String()).To(ContainSubstring("[engram] No new learnings extracted."))
 }
 
+// TestLoadExtractionGuidance_ActivePolicy verifies that active extraction policies are returned.
+func TestLoadExtractionGuidance_ActivePolicy(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	policyPath := filepath.Join(dataDir, "policy.toml")
+
+	policyTOML := `[[policies]]
+id = "pol-001"
+dimension = "extraction"
+directive = "de-prioritize generic keywords"
+rationale = "high irrelevance rate"
+status = "active"
+created_at = "2026-01-01T00:00:00Z"
+
+  [policies.evidence]
+  sample_size = 10
+
+  [policies.effectiveness]
+
+[[policies]]
+id = "pol-002"
+dimension = "extraction"
+directive = "ignore tool call noise"
+rationale = "low signal"
+status = "proposed"
+created_at = "2026-01-01T00:00:00Z"
+
+  [policies.evidence]
+  sample_size = 5
+
+  [policies.effectiveness]
+`
+
+	err := os.WriteFile(policyPath, []byte(policyTOML), 0o640)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	guidance := cli.ExportLoadExtractionGuidance(policyPath)
+	g.Expect(guidance).To(HaveLen(1))
+	g.Expect(guidance[0].Directive).To(Equal("de-prioritize generic keywords"))
+	g.Expect(guidance[0].Rationale).To(Equal("high irrelevance rate"))
+}
+
+// TestLoadExtractionGuidance_MissingFile verifies that a missing policy.toml returns nil guidance.
+func TestLoadExtractionGuidance_MissingFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	guidance := cli.ExportLoadExtractionGuidance(filepath.Join(t.TempDir(), "policy.toml"))
+	g.Expect(guidance).To(BeNil())
+}
+
 // TestMaintainApplyEmptyProposals verifies --apply with empty proposals outputs message.
 func TestMaintainApplyEmptyProposals(t *testing.T) {
 	t.Parallel()
@@ -682,6 +741,53 @@ func TestMaintainListMemoriesError(t *testing.T) {
 	}
 }
 
+// TestMaintainPurgeTierC verifies the --purge-tier-c flag deletes tier C files.
+func TestMaintainPurgeTierC(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memoriesDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Write a tier C memory file.
+	tierCContent := `title = "tier c memory"
+content = "old"
+confidence = "C"
+created_at = "2026-01-01T00:00:00Z"
+updated_at = "2026-01-01T00:00:00Z"
+`
+
+	memPath := filepath.Join(memoriesDir, "old-mem.toml")
+	err = os.WriteFile(memPath, []byte(tierCContent), 0o640)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var stdout bytes.Buffer
+
+	runErr := cli.RunMaintain([]string{"--data-dir", dataDir, "--purge-tier-c"}, "", &stdout)
+	g.Expect(runErr).NotTo(HaveOccurred())
+
+	if runErr != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("purged"))
+
+	// Memory file should be deleted.
+	_, statErr := os.Stat(memPath)
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
+}
+
 func TestOsDirLister_ListJSONL(t *testing.T) {
 	t.Parallel()
 
@@ -949,6 +1055,71 @@ func TestReviewDispatchedViaRun(t *testing.T) {
 	}
 
 	g.Expect(stdout.String()).To(ContainSubstring("[engram] No registry entries found."))
+}
+
+// TestRunAdaptationAnalysis_EmptyDataDir verifies fire-and-forget with no memories.
+func TestRunAdaptationAnalysis_EmptyDataDir(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	policyPath := filepath.Join(dataDir, "policy.toml")
+
+	// Should not panic or error — fire-and-forget.
+	cli.ExportRunAdaptationAnalysis(t.Context(), dataDir, policyPath)
+}
+
+// TestRunAdaptationAnalysis_WritesProposals verifies proposals are saved when patterns detected.
+func TestRunAdaptationAnalysis_WritesProposals(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	policyPath := filepath.Join(dataDir, "policy.toml")
+
+	err := os.MkdirAll(memoriesDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Write enough memories with high irrelevance rate to trigger a proposal.
+	// Need MinClusterSize (5) memories sharing a keyword with MinFeedbackEvents (3) each.
+	const memoryCount = 6
+
+	for idx := range memoryCount {
+		content := fmt.Sprintf(`title = "memory-%d"
+content = "some content"
+keywords = ["golang"]
+confidence = "B"
+followed_count = 0
+contradicted_count = 0
+ignored_count = 0
+irrelevant_count = 5
+surfaced_count = 10
+created_at = "2026-01-01T00:00:00Z"
+updated_at = "2026-01-01T00:00:00Z"
+`, idx)
+
+		path := filepath.Join(memoriesDir, fmt.Sprintf("mem-%d.toml", idx))
+
+		writeErr := os.WriteFile(path, []byte(content), 0o640)
+		g.Expect(writeErr).NotTo(HaveOccurred())
+	}
+
+	cli.ExportRunAdaptationAnalysis(t.Context(), dataDir, policyPath)
+
+	// policy.toml should now exist with at least one proposed policy.
+	data, readErr := os.ReadFile(policyPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(ContainSubstring(`status = "proposed"`))
 }
 
 // runInstructAudit: valid run with empty dir produces JSON report.
@@ -1943,6 +2114,40 @@ func TestT64_RenderLearnResult_NoLearnings(t *testing.T) {
 	cli.RenderLearnResult(&buf, result)
 
 	g.Expect(buf.String()).To(Equal("[engram] No new learnings extracted.\n"))
+}
+
+func TestTitleOrPath(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns title when memory has title", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		memMap := map[string]*cli.ExportStored{
+			"/path/to/mem.toml": {Title: "My Memory"},
+		}
+		result := cli.ExportTitleOrPath(memMap, "/path/to/mem.toml")
+		g.Expect(result).To(Equal("My Memory"))
+	})
+
+	t.Run("returns path when memory has empty title", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		memMap := map[string]*cli.ExportStored{
+			"/path/to/mem.toml": {Title: ""},
+		}
+		result := cli.ExportTitleOrPath(memMap, "/path/to/mem.toml")
+		g.Expect(result).To(Equal("/path/to/mem.toml"))
+	})
+
+	t.Run("returns path when memory not in map", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		result := cli.ExportTitleOrPath(map[string]*cli.ExportStored{}, "/path/to/mem.toml")
+		g.Expect(result).To(Equal("/path/to/mem.toml"))
+	})
 }
 
 func TestTruncateTitle(t *testing.T) {

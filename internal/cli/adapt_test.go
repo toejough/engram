@@ -47,6 +47,18 @@ func TestRunAdapt_Approve(t *testing.T) {
 	g.Expect(loaded.ApprovalStreak.Surfacing).To(Equal(1))
 }
 
+func TestRunAdapt_Approve_NotFound(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+
+	var buf bytes.Buffer
+
+	err := cli.RunAdapt([]string{"--data-dir", dir, "--approve", "pol-999"}, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("policy not found")))
+}
+
 func TestRunAdapt_NoPolicies(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -95,6 +107,70 @@ func TestRunAdapt_Reject(t *testing.T) {
 
 	g.Expect(loaded.Policies[0].Status).To(Equal(policy.StatusRejected))
 	g.Expect(loaded.ApprovalStreak.Surfacing).To(Equal(0))
+}
+
+func TestRunAdapt_Reject_NotFound(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+
+	var buf bytes.Buffer
+
+	err := cli.RunAdapt([]string{"--data-dir", dir, "--reject", "pol-999"}, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("policy not found")))
+}
+
+func TestRunAdapt_Retire(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	policyPath := filepath.Join(dir, "policy.toml")
+
+	policyFile := &policy.File{
+		Policies: []policy.Policy{
+			{ID: "pol-001", Dimension: policy.DimensionSurfacing, Status: policy.StatusActive},
+		},
+	}
+
+	err := policy.Save(policyPath, policyFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var buf bytes.Buffer
+
+	err = cli.RunAdapt([]string{"--data-dir", dir, "--retire", "pol-001"}, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	loaded, err := policy.Load(policyPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(loaded.Policies[0].Status).To(Equal(policy.StatusRetired))
+	g.Expect(buf.String()).To(ContainSubstring("Retired policy pol-001"))
+}
+
+func TestRunAdapt_Retire_NotFound(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+
+	var buf bytes.Buffer
+
+	err := cli.RunAdapt([]string{"--data-dir", dir, "--retire", "pol-999"}, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("policy not found")))
 }
 
 func TestRunAdapt_Status_ShowsPolicies(t *testing.T) {

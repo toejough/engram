@@ -116,6 +116,44 @@ func TestLoadCrossRefSources(t *testing.T) {
 		"CLAUDE.md bullet with 'targ' must appear in sources")
 }
 
+// TestNewSourceCrossRefChecker_NoSources verifies that an empty claudeDir returns nil.
+func TestNewSourceCrossRefChecker_NoSources(t *testing.T) {
+	t.Parallel()
+
+	checker := newSourceCrossRefChecker(t.TempDir(), nil)
+	if checker != nil {
+		t.Errorf("expected nil checker for empty claudeDir, got non-nil")
+	}
+}
+
+// TestNewSourceCrossRefChecker_WithRulesFile verifies that a rules/*.md file produces a non-nil checker.
+func TestNewSourceCrossRefChecker_WithRulesFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	claudeDir := t.TempDir()
+	rulesDir := filepath.Join(claudeDir, "rules")
+	mkdirErr := os.MkdirAll(rulesDir, 0o750)
+	g.Expect(mkdirErr).NotTo(HaveOccurred())
+
+	if mkdirErr != nil {
+		return
+	}
+
+	writeErr := os.WriteFile(filepath.Join(rulesDir, "go.md"), []byte("## Go rules"), 0o640)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	checker := newSourceCrossRefChecker(claudeDir, []*memory.Stored{
+		{FilePath: "memories/test.toml", Keywords: []string{"golang"}},
+	})
+	g.Expect(checker).NotTo(BeNil())
+}
+
 func TestReadStoredMemory_DecodeError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
