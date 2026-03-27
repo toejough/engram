@@ -979,7 +979,7 @@ func TestT59_AllCandidatesFiltered_NoFilesWritten(t *testing.T) {
 	g.Expect(writer.called).To(BeFalse())
 }
 
-// T-60: Written memories use tier from extraction (not hardcoded "C")
+// T-60: Written memories use tier from extraction; tier C is dropped (#395)
 func TestT60_WrittenMemories_UseTierFromExtraction(t *testing.T) {
 	t.Parallel()
 
@@ -1001,14 +1001,17 @@ func TestT60_WrittenMemories_UseTierFromExtraction(t *testing.T) {
 		},
 	}
 
+	// Deduplicator receives all 3 candidates (after filterTierC, only A and B remain,
+	// so we configure it to survive those two).
+	abCandidates := candidates[:2]
+
 	extractor := &fakeExtractor{candidates: candidates}
 	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	deduplicator := &fakeDeduplicator{surviving: candidates}
+	deduplicator := &fakeDeduplicator{surviving: abCandidates}
 	writer := &fakeWriter{
 		paths: map[string]string{
-			"use-targ":    "/tmp/memories/use-targ.toml",
-			"di-pattern":  "/tmp/memories/di-pattern.toml",
-			"uses-sqlite": "/tmp/memories/uses-sqlite.toml",
+			"use-targ":   "/tmp/memories/use-targ.toml",
+			"di-pattern": "/tmp/memories/di-pattern.toml",
 		},
 	}
 
@@ -1029,16 +1032,18 @@ func TestT60_WrittenMemories_UseTierFromExtraction(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.CreatedPaths).To(HaveLen(3))
+	// Tier C candidate is dropped — only A and B are written.
+	g.Expect(result.CreatedPaths).To(HaveLen(2))
+	g.Expect(writer.received).To(HaveLen(2))
 
-	g.Expect(writer.received).To(HaveLen(3))
+	if len(writer.received) < 2 {
+		return
+	}
 
 	// Tier A candidate → Confidence "A".
 	g.Expect(writer.received[0].Confidence).To(Equal("A"))
 	// Tier B candidate → Confidence "B".
 	g.Expect(writer.received[1].Confidence).To(Equal("B"))
-	// Tier C candidate → Confidence "C".
-	g.Expect(writer.received[2].Confidence).To(Equal("C"))
 
 	// Timestamps still valid.
 	g.Expect(writer.received[0].CreatedAt).To(BeTemporally(">=", before))
@@ -1180,6 +1185,69 @@ func TestT97_CreationLoggerError_PipelineSucceeds(t *testing.T) {
 	}
 
 	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
+}
+
+// TestTierCCandidatesDropped verifies that tier C candidates are filtered before
+// dedup and write (#395).
+func TestTierCCandidatesDropped(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	tierACandidate := memory.CandidateLearning{
+		Tier:            "A",
+		Title:           "Use targ",
+		Content:         "use targ for builds",
+		FilenameSummary: "use-targ",
+	}
+	tierBCandidate := memory.CandidateLearning{
+		Tier:            "B",
+		Title:           "DI pattern",
+		Content:         "use DI everywhere",
+		FilenameSummary: "di-pattern",
+	}
+	tierCCandidate := memory.CandidateLearning{
+		Tier:            "C",
+		Title:           "Uses SQLite",
+		Content:         "project uses sqlite",
+		FilenameSummary: "uses-sqlite",
+	}
+
+	// Pass-through deduplicator — the tier C filter must run before dedup.
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{tierACandidate, tierBCandidate, tierCCandidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakePassThroughDeduplicator{}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"use-targ":   "/tmp/memories/use-targ.toml",
+			"di-pattern": "/tmp/memories/di-pattern.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	// Only A and B are written; C is dropped.
+	g.Expect(writer.received).To(HaveLen(2))
+	g.Expect(result.CreatedPaths).To(ConsistOf(
+		"/tmp/memories/use-targ.toml",
+		"/tmp/memories/di-pattern.toml",
+	))
+
+	// The dropped tier C candidate counts toward SkippedCount.
+	g.Expect(result.SkippedCount).To(Equal(1))
 }
 
 // TestUnionConcepts_MergesBothSets verifies union has all unique concepts.

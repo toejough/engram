@@ -107,6 +107,8 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 	}
 
 	candidates, droppedCount := l.filterByGeneralizability(candidates)
+	candidates, tierCDropped := l.filterTierC(candidates)
+	droppedCount += tierCDropped
 
 	existing, err := l.retriever.ListMemories(ctx, l.dataDir)
 	if err != nil {
@@ -251,6 +253,30 @@ func (l *Learner) filterCommonKeywords(
 			surviving[i].Keywords = filtered
 		}
 	}
+}
+
+// filterTierC drops tier C candidates — contextual facts that don't
+// generalize and add noise to surfacing (#395).
+func (l *Learner) filterTierC(
+	candidates []memory.CandidateLearning,
+) ([]memory.CandidateLearning, int) {
+	filtered := make([]memory.CandidateLearning, 0, len(candidates))
+	droppedCount := 0
+
+	for _, candidate := range candidates {
+		if candidate.Tier == "C" {
+			droppedCount++
+			if l.stderr != nil {
+				_, _ = fmt.Fprintf(l.stderr,
+					"[engram] dropped (tier C): %q\n",
+					candidate.Title)
+			}
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
+
+	return filtered, droppedCount
 }
 
 // hashKeywords returns a hash of the keywords (for the Absorbed record).
