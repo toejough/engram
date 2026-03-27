@@ -1,0 +1,15 @@
+- traced
+  - overall: 91.5
+  - alpha: 0
+  - BM25 floor: 0
+  - Gen penalty: 1.5
+  - eff: 0.3
+  - rec: 0
+  - freq: 1
+  - tier: 0.3
+  - A: 1.2
+  - B: 0.2
+  - C: 0
+  - irr penalty: 5
+  - limit: 2
+  - cold: 2
