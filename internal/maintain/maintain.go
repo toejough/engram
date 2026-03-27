@@ -42,13 +42,17 @@ type Generator struct {
 	consolidator interface {
 		BeforeRemove(ctx context.Context, mem *memory.MemoryRecord) (ConsolidateResult, error)
 	}
-	memLoader func(path string) (*memory.MemoryRecord, error)
+	memLoader                          func(path string) (*memory.MemoryRecord, error)
+	stalenessThresholdDays             int
+	refineKeywordsIrrelevanceThreshold float64
 }
 
 // New creates a Generator with the given options.
 func New(opts ...Option) *Generator {
 	gen := &Generator{
-		now: time.Now,
+		now:                                time.Now,
+		stalenessThresholdDays:             stalenessThresholdDays,
+		refineKeywordsIrrelevanceThreshold: refineKeywordsIrrelevanceThreshold,
 	}
 	for _, opt := range opts {
 		opt(gen)
@@ -96,7 +100,7 @@ func (g *Generator) checkIrrelevance(
 	}
 
 	ratio := float64(stored.IrrelevantCount) / float64(totalFeedback)
-	if ratio <= refineKeywordsIrrelevanceThreshold {
+	if ratio <= g.refineKeywordsIrrelevanceThreshold {
 		return Proposal{}, false
 	}
 
@@ -237,7 +241,7 @@ func (g *Generator) handleWorking(
 	}
 
 	ageDays := int(g.now().Sub(stored.UpdatedAt).Hours() / hoursPerDay)
-	if ageDays <= stalenessThresholdDays {
+	if ageDays <= g.stalenessThresholdDays {
 		return Proposal{}, false
 	}
 
@@ -318,6 +322,16 @@ func WithNow(nowFn func() time.Time) Option {
 	return func(g *Generator) {
 		g.now = nowFn
 	}
+}
+
+// WithRefineKeywordsIrrelevanceThreshold overrides the default irrelevance ratio threshold.
+func WithRefineKeywordsIrrelevanceThreshold(threshold float64) Option {
+	return func(g *Generator) { g.refineKeywordsIrrelevanceThreshold = threshold }
+}
+
+// WithStalenessThresholdDays overrides the default staleness threshold.
+func WithStalenessThresholdDays(days int) Option {
+	return func(g *Generator) { g.stalenessThresholdDays = days }
 }
 
 // unexported constants.
