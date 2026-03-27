@@ -281,3 +281,30 @@ func TestQuality_TierBoost_Empty(t *testing.T) {
 	expected := 0.3 * 0.5
 	g.Expect(quality).To(BeNumerically("~", expected, 0.0001))
 }
+
+func TestQuality_WithWeightOverrides(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC)
+
+	const maxSurfaced = 100
+	scorer := frecency.New(now, maxSurfaced,
+		frecency.WithWEff(0.5),
+		frecency.WithWFreq(0.7),
+	)
+
+	input := frecency.Input{
+		FollowedCount: 8,
+		IgnoredCount:  2,
+		SurfacedCount: 50,
+	}
+
+	quality := scorer.Quality(input)
+	// effectiveness = 8/10 = 0.8
+	// frequency = log(51)/log(101) ≈ 0.851
+	// tierBoost = 0
+	// quality = 0.5*0.8 + 0.7*0.851 + 0.3*0 = 0.4 + 0.596 = 0.996
+	g.Expect(quality).To(BeNumerically("~", 0.996, 0.02))
+}

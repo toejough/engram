@@ -91,6 +91,31 @@ func (s *Scorer) tierBoost(input Input) float64 {
 	}
 }
 
+// WithWEff overrides the effectiveness weight.
+func WithWEff(w float64) Option {
+	return func(s *Scorer) { s.wEff = w }
+}
+
+// WithWFreq overrides the frequency weight.
+func WithWFreq(w float64) Option {
+	return func(s *Scorer) { s.wFreq = w }
+}
+
+// WithWTier overrides the tier boost weight.
+func WithWTier(w float64) Option {
+	return func(s *Scorer) { s.wTier = w }
+}
+
+// WithTierABoost overrides the Tier A boost multiplier.
+func WithTierABoost(b float64) Option {
+	return func(s *Scorer) { s.tierABoost = b }
+}
+
+// WithTierBBoost overrides the Tier B boost multiplier.
+func WithTierBBoost(b float64) Option {
+	return func(s *Scorer) { s.tierBBoost = b }
+}
+
 // unexported constants.
 const (
 	defaultEffectiveness = 0.5
