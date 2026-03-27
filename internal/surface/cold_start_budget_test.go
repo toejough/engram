@@ -17,7 +17,7 @@ import (
 )
 
 // TestColdStartBudgetLimitsUnprovenPromptMemories verifies that when all candidates are unproven,
-// only 1 surfaces in prompt mode (cold-start budget = 1), not promptLimit (10).
+// only 2 surface in prompt mode (cold-start budget = 2), not promptLimit (10).
 func TestColdStartBudgetLimitsUnprovenPromptMemories(t *testing.T) {
 	t.Parallel()
 
@@ -77,5 +77,5 @@ func TestColdStartBudgetLimitsUnprovenPromptMemories(t *testing.T) {
 		}
 	}
 
-	g.Expect(surfaced).To(Equal(1), "cold-start budget should allow only 1 unproven memory in prompt mode")
+	g.Expect(surfaced).To(Equal(2), "cold-start budget should allow only 2 unproven memories in prompt mode")
 }

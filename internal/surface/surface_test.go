@@ -462,11 +462,11 @@ func TestT373_GenPenalty_CrossProject(t *testing.T) {
 
 		output := buf.String()
 
-		// Both should appear (universal is unpenalized, narrow gets 0.05 factor).
+		// Both should appear (universal is unpenalized, narrow gets 0.0 factor but still passes floor).
 		g.Expect(output).To(ContainSubstring("deploy-universal"))
 		g.Expect(output).To(ContainSubstring("deploy-narrow"))
 
-		// Universal (gen=5, factor=1.0) should appear before narrow (gen=1, factor=0.05).
+		// Universal (gen=5, factor=1.0) should appear before narrow (gen=1, factor=0.0).
 		posUniversal := strings.Index(output, "deploy-universal")
 		posNarrow := strings.Index(output, "deploy-narrow")
 		g.Expect(posUniversal).To(

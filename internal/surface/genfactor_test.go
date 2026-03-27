@@ -11,11 +11,12 @@ import (
 func TestGenFactor_CrossProjectPenalty(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
+	// penalty strength=1.5: distance from 1.0 scaled by 1.5
 	g.Expect(surface.GenFactor(5, "proj-a", "proj-b")).To(Equal(1.0))
-	g.Expect(surface.GenFactor(4, "proj-a", "proj-b")).To(Equal(0.8))
-	g.Expect(surface.GenFactor(3, "proj-a", "proj-b")).To(Equal(0.5))
-	g.Expect(surface.GenFactor(2, "proj-a", "proj-b")).To(Equal(0.2))
-	g.Expect(surface.GenFactor(1, "proj-a", "proj-b")).To(Equal(0.05))
+	g.Expect(surface.GenFactor(4, "proj-a", "proj-b")).To(Equal(0.7))
+	g.Expect(surface.GenFactor(3, "proj-a", "proj-b")).To(Equal(0.25))
+	g.Expect(surface.GenFactor(2, "proj-a", "proj-b")).To(Equal(0.0))
+	g.Expect(surface.GenFactor(1, "proj-a", "proj-b")).To(Equal(0.0))
 }
 
 func TestGenFactor_EmptySlug(t *testing.T) {
@@ -35,5 +36,6 @@ func TestGenFactor_SameProject(t *testing.T) {
 func TestGenFactor_UnsetGeneralizability(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
-	g.Expect(surface.GenFactor(0, "proj-a", "proj-b")).To(Equal(0.5))
+	// gen=0 (unset): strength=1.5 → 0.25
+	g.Expect(surface.GenFactor(0, "proj-a", "proj-b")).To(Equal(0.25))
 }

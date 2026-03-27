@@ -529,10 +529,10 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
-	coldStartBudget            = 1
+	coldStartBudget            = 2
 	defaultEffectiveness       = 50.0 // neutral default for memories with no effectiveness data
 	irrelevancePenaltyHalfLife = 5
-	minRelevanceScore          = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
+	minRelevanceScore          = 0.0 // BM25 floor removed (#391)
 	promptLimit                = 2
 	unprovenBM25FloorPrompt    = 0.20
 )
@@ -751,5 +751,6 @@ func toFrecencyInput(mem *memory.Stored) frecency.Input {
 		ContradictedCount: mem.ContradictedCount,
 		IgnoredCount:      mem.IgnoredCount,
 		FilePath:          mem.FilePath,
+		Tier:              mem.Confidence,
 	}
 }

@@ -15,6 +15,7 @@ type Input struct {
 	ContradictedCount int
 	IgnoredCount      int
 	FilePath          string
+	Tier              string // "A", "B", "C", or "" — memory confidence tier
 }
 
 // Option configures a Scorer.
@@ -28,6 +29,9 @@ type Scorer struct {
 	wEff         float64
 	wRec         float64
 	wFreq        float64
+	wTier        float64
+	tierABoost   float64
+	tierBBoost   float64
 	alpha        float64
 }
 
@@ -40,6 +44,9 @@ func New(now time.Time, maxSurfaced int, opts ...Option) *Scorer {
 		wEff:         defaultWEff,
 		wRec:         defaultWRec,
 		wFreq:        defaultWFreq,
+		wTier:        defaultWTier,
+		tierABoost:   defaultTierABoost,
+		tierBBoost:   defaultTierBBoost,
 		alpha:        defaultAlpha,
 	}
 
@@ -64,7 +71,8 @@ func (s *Scorer) CombinedScore(relevance, spreading, genFactor float64, input In
 func (s *Scorer) Quality(input Input) float64 {
 	return s.wEff*s.effectiveness(input) +
 		s.wRec*s.recency(input) +
-		s.wFreq*s.frequency(input)
+		s.wFreq*s.frequency(input) +
+		s.wTier*s.tierBoost(input)
 }
 
 func (s *Scorer) effectiveness(input Input) float64 {
@@ -103,13 +111,32 @@ func (s *Scorer) recency(input Input) float64 {
 	return 1.0 / (1.0 + daysSince/s.halfLifeDays)
 }
 
+func (s *Scorer) tierBoost(input Input) float64 {
+	switch input.Tier {
+	case "A":
+		return s.tierABoost
+	case "B":
+		return s.tierBBoost
+	default:
+		return 0
+	}
+}
+
+// WithAlpha sets the spreading activation weight (alpha).
+func WithAlpha(alpha float64) Option {
+	return func(s *Scorer) { s.alpha = alpha }
+}
+
 // unexported constants.
 const (
-	defaultAlpha         = 1.0
+	defaultAlpha         = 0
 	defaultEffectiveness = 0.5
 	defaultHalfLifeDays  = 7.0
-	defaultWEff          = 1.5
+	defaultTierABoost    = 1.2
+	defaultTierBBoost    = 0.2
+	defaultWEff          = 0.3
 	defaultWFreq         = 1.0
-	defaultWRec          = 0.5
+	defaultWRec          = 0
+	defaultWTier         = 0.3
 	hoursPerDay          = 24.0
 )

@@ -9,12 +9,13 @@ func GenFactor(generalizability int, memProject, currentProject string) float64 
 	}
 
 	// penaltyByGeneralizability maps generalizability score (0–5) to a BM25 penalty factor.
+	// Penalty strength=1.5: distance from 1.0 scaled by 1.5. Values floored at 0.
 	penaltyByGeneralizability := [6]float64{
-		0.5,  // 0: unset — conservative default
-		0.05, // 1: this-project-only
-		0.2,  // 2: narrow
-		0.5,  // 3: moderate
-		0.8,  // 4: similar projects
+		0.25, // 0: unset — conservative default
+		0.0,  // 1: this-project-only
+		0.0,  // 2: narrow
+		0.25, // 3: moderate
+		0.7,  // 4: similar projects
 		1.0,  // 5: universal
 	}
 

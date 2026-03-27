@@ -100,4 +100,5 @@ type Stored struct {
 	FilePath          string
 	Generalizability  int
 	ProjectSlug       string
+	Confidence        string // "A", "B", or "C" — memory confidence tier
 }
