@@ -1336,7 +1336,7 @@ func runMaintain(args []string, stdout io.Writer) error {
 	return RunMaintain(args, resolveToken(context.Background()), stdout)
 }
 
-// a JSON file and applies them with user confirmation (T-264, ARCH-66).
+//nolint:funlen // orchestration function: wires executor options, reads proposals, applies, reports
 func runMaintainApply(
 	proposalsPath string, autoYes bool,
 	token string, stdout io.Writer,

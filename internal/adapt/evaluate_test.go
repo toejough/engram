@@ -42,29 +42,6 @@ func TestEvaluateActivePolicies_ProposesRetirementForDegraded(t *testing.T) {
 	g.Expect(result.ValidatedPolicyIDs).To(BeEmpty())
 }
 
-func TestEvaluateActivePolicies_ValidatesImproved(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{FilePath: "mem-1.toml", FollowedCount: 9, IgnoredCount: 1},
-	}
-
-	policies := []policy.Policy{{
-		ID: "pol-001", Dimension: policy.DimensionExtraction, Status: policy.StatusActive,
-		Effectiveness: policy.Effectiveness{
-			BeforeFollowRate: 0.50, BeforeMeanEffectiveness: 40.0, MeasuredSessions: 10,
-		},
-	}}
-
-	const measurementWindow = 10
-
-	result := adapt.EvaluateActivePolicies(memories, policies, measurementWindow)
-
-	g.Expect(result.RetirementProposals).To(BeEmpty())
-	g.Expect(result.ValidatedPolicyIDs).To(ConsistOf("pol-001"))
-}
-
 func TestEvaluateActivePolicies_SkipsValidatedAndBelowWindow(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -86,4 +63,27 @@ func TestEvaluateActivePolicies_SkipsValidatedAndBelowWindow(t *testing.T) {
 
 	g.Expect(result.RetirementProposals).To(BeEmpty())
 	g.Expect(result.ValidatedPolicyIDs).To(BeEmpty())
+}
+
+func TestEvaluateActivePolicies_ValidatesImproved(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{FilePath: "mem-1.toml", FollowedCount: 9, IgnoredCount: 1},
+	}
+
+	policies := []policy.Policy{{
+		ID: "pol-001", Dimension: policy.DimensionExtraction, Status: policy.StatusActive,
+		Effectiveness: policy.Effectiveness{
+			BeforeFollowRate: 0.50, BeforeMeanEffectiveness: 40.0, MeasuredSessions: 10,
+		},
+	}}
+
+	const measurementWindow = 10
+
+	result := adapt.EvaluateActivePolicies(memories, policies, measurementWindow)
+
+	g.Expect(result.RetirementProposals).To(BeEmpty())
+	g.Expect(result.ValidatedPolicyIDs).To(ConsistOf("pol-001"))
 }

@@ -19,33 +19,7 @@ func AnalyzeMaintenanceOutcomes(
 	records []MeasurableRecord,
 	cfg MaintenanceAnalysisConfig,
 ) []policy.Policy {
-	type actionStats struct {
-		total    int
-		improved int
-	}
-
-	stats := make(map[string]*actionStats)
-
-	for _, rec := range records {
-		for _, action := range rec.Record.MaintenanceHistory {
-			if !action.Measured {
-				continue
-			}
-
-			entry, exists := stats[action.Action]
-			if !exists {
-				entry = &actionStats{}
-				stats[action.Action] = entry
-			}
-
-			entry.total++
-
-			if action.EffectivenessAfter > action.EffectivenessBefore {
-				entry.improved++
-			}
-		}
-	}
-
+	stats := aggregateActionStats(records)
 	proposals := make([]policy.Policy, 0)
 
 	for actionType, stat := range stats {
@@ -80,4 +54,36 @@ func AnalyzeMaintenanceOutcomes(
 	}
 
 	return proposals
+}
+
+type actionStats struct {
+	total    int
+	improved int
+}
+
+// aggregateActionStats collects per-action-type outcome counts from measured history entries.
+func aggregateActionStats(records []MeasurableRecord) map[string]*actionStats {
+	stats := make(map[string]*actionStats)
+
+	for _, rec := range records {
+		for _, action := range rec.Record.MaintenanceHistory {
+			if !action.Measured {
+				continue
+			}
+
+			entry, exists := stats[action.Action]
+			if !exists {
+				entry = &actionStats{}
+				stats[action.Action] = entry
+			}
+
+			entry.total++
+
+			if action.EffectivenessAfter > action.EffectivenessBefore {
+				entry.improved++
+			}
+		}
+	}
+
+	return stats
 }

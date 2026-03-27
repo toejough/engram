@@ -323,6 +323,61 @@ func TestRetire_Transitions(t *testing.T) {
 	g.Expect(polFile.Policies[0].Status).To(Equal(policy.StatusRetired))
 }
 
+// TestRoundTrip_Effectiveness_FlatCorpusSnapshot verifies all Effectiveness fields round-trip through TOML.
+func TestRoundTrip_Effectiveness_FlatCorpusSnapshot(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	polFile := &policy.File{
+		Policies: []policy.Policy{
+			{
+				ID:        "pol-001",
+				Dimension: policy.DimensionSurfacing,
+				Status:    policy.StatusActive,
+				CreatedAt: "2026-03-27T00:00:00Z",
+				Effectiveness: policy.Effectiveness{
+					BeforeFollowRate:        0.61,
+					BeforeIrrelevanceRatio:  0.25,
+					BeforeMeanEffectiveness: 0.48,
+					AfterFollowRate:         0.79,
+					AfterIrrelevanceRatio:   0.12,
+					AfterMeanEffectiveness:  0.71,
+					MeasuredSessions:        12,
+					Validated:               true,
+				},
+			},
+		},
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "effectiveness.toml")
+
+	saveErr := policy.Save(path, polFile)
+	g.Expect(saveErr).NotTo(HaveOccurred())
+
+	if saveErr != nil {
+		return
+	}
+
+	loaded, loadErr := policy.Load(path)
+	g.Expect(loadErr).NotTo(HaveOccurred())
+
+	if loadErr != nil {
+		return
+	}
+
+	g.Expect(loaded.Policies).To(HaveLen(1))
+	eff := loaded.Policies[0].Effectiveness
+	g.Expect(eff.BeforeFollowRate).To(BeNumerically("~", 0.61, 0.001))
+	g.Expect(eff.BeforeIrrelevanceRatio).To(BeNumerically("~", 0.25, 0.001))
+	g.Expect(eff.BeforeMeanEffectiveness).To(BeNumerically("~", 0.48, 0.001))
+	g.Expect(eff.AfterFollowRate).To(BeNumerically("~", 0.79, 0.001))
+	g.Expect(eff.AfterIrrelevanceRatio).To(BeNumerically("~", 0.12, 0.001))
+	g.Expect(eff.AfterMeanEffectiveness).To(BeNumerically("~", 0.71, 0.001))
+	g.Expect(eff.MeasuredSessions).To(Equal(12))
+	g.Expect(eff.Validated).To(BeTrue())
+}
+
 // TestRoundTrip_SaveAndLoad verifies a File saved to disk can be loaded back with all fields intact.
 func TestRoundTrip_SaveAndLoad(t *testing.T) {
 	t.Parallel()
@@ -406,61 +461,6 @@ func TestRoundTrip_SaveAndLoad(t *testing.T) {
 	g.Expect(loaded.ApprovalStreak.Extraction).To(Equal(2))
 	g.Expect(loaded.ApprovalStreak.Surfacing).To(Equal(1))
 	g.Expect(loaded.ApprovalStreak.Maintenance).To(Equal(0))
-}
-
-// TestRoundTrip_Effectiveness_FlatCorpusSnapshot verifies all Effectiveness fields round-trip through TOML.
-func TestRoundTrip_Effectiveness_FlatCorpusSnapshot(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	polFile := &policy.File{
-		Policies: []policy.Policy{
-			{
-				ID:        "pol-001",
-				Dimension: policy.DimensionSurfacing,
-				Status:    policy.StatusActive,
-				CreatedAt: "2026-03-27T00:00:00Z",
-				Effectiveness: policy.Effectiveness{
-					BeforeFollowRate:        0.61,
-					BeforeIrrelevanceRatio:  0.25,
-					BeforeMeanEffectiveness: 0.48,
-					AfterFollowRate:         0.79,
-					AfterIrrelevanceRatio:   0.12,
-					AfterMeanEffectiveness:  0.71,
-					MeasuredSessions:        12,
-					Validated:               true,
-				},
-			},
-		},
-	}
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "effectiveness.toml")
-
-	saveErr := policy.Save(path, polFile)
-	g.Expect(saveErr).NotTo(HaveOccurred())
-
-	if saveErr != nil {
-		return
-	}
-
-	loaded, loadErr := policy.Load(path)
-	g.Expect(loadErr).NotTo(HaveOccurred())
-
-	if loadErr != nil {
-		return
-	}
-
-	g.Expect(loaded.Policies).To(HaveLen(1))
-	eff := loaded.Policies[0].Effectiveness
-	g.Expect(eff.BeforeFollowRate).To(BeNumerically("~", 0.61, 0.001))
-	g.Expect(eff.BeforeIrrelevanceRatio).To(BeNumerically("~", 0.25, 0.001))
-	g.Expect(eff.BeforeMeanEffectiveness).To(BeNumerically("~", 0.48, 0.001))
-	g.Expect(eff.AfterFollowRate).To(BeNumerically("~", 0.79, 0.001))
-	g.Expect(eff.AfterIrrelevanceRatio).To(BeNumerically("~", 0.12, 0.001))
-	g.Expect(eff.AfterMeanEffectiveness).To(BeNumerically("~", 0.71, 0.001))
-	g.Expect(eff.MeasuredSessions).To(Equal(12))
-	g.Expect(eff.Validated).To(BeTrue())
 }
 
 // TestSave_CreatesParentDirectory verifies Save creates the parent directory if it doesn't exist.

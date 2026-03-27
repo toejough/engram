@@ -10,8 +10,6 @@ import (
 	"engram/internal/memory"
 )
 
-const percentMultiplier = 100.0
-
 // Exported variables.
 var (
 	ErrUserQuit = errors.New("user quit")
@@ -29,12 +27,6 @@ type ApplyReport struct {
 // Confirmer asks the user to confirm an action.
 type Confirmer interface {
 	Confirm(preview string) (bool, error)
-}
-
-// HistoryRecorder reads memory records and appends maintenance action history.
-type HistoryRecorder interface {
-	ReadRecord(path string) (*memory.MemoryRecord, error)
-	AppendAction(path string, action memory.MaintenanceAction) error
 }
 
 // Executor applies maintenance proposals to memories.
@@ -322,6 +314,12 @@ func (e *Executor) recordHistory(path, action string) {
 // ExecutorOption configures an Executor.
 type ExecutorOption func(*Executor)
 
+// HistoryRecorder reads memory records and appends maintenance action history.
+type HistoryRecorder interface {
+	ReadRecord(path string) (*memory.MemoryRecord, error)
+	AppendAction(path string, action memory.MaintenanceAction) error
+}
+
 // LLMCaller generates rewrites via an LLM.
 type LLMCaller interface {
 	Call(ctx context.Context, prompt string) (string, error)
@@ -364,14 +362,14 @@ func WithConfirmer(c Confirmer) ExecutorOption {
 	return func(e *Executor) { e.confirmer = c }
 }
 
-// WithHistoryRecorder sets the maintenance history recorder.
-func WithHistoryRecorder(r HistoryRecorder) ExecutorOption {
-	return func(e *Executor) { e.historyRecorder = r }
-}
-
 // WithFileRemover sets the file remover func for best-effort registry cleanup.
 func WithFileRemover(fn func(path string) error) ExecutorOption {
 	return func(e *Executor) { e.removeFile = fn }
+}
+
+// WithHistoryRecorder sets the maintenance history recorder.
+func WithHistoryRecorder(r HistoryRecorder) ExecutorOption {
+	return func(e *Executor) { e.historyRecorder = r }
 }
 
 // WithLLMCaller2 sets the LLM caller for rewrites.
@@ -388,3 +386,8 @@ func WithRemover(r MemoryRemover) ExecutorOption {
 func WithRewriter(r MemoryRewriter) ExecutorOption {
 	return func(e *Executor) { e.rewriter = r }
 }
+
+// unexported constants.
+const (
+	percentMultiplier = 100.0
+)

@@ -10,6 +10,9 @@ import (
 	"engram/internal/memory"
 )
 
+// HistoryRecorderOption configures a TOMLHistoryRecorder.
+type HistoryRecorderOption func(*TOMLHistoryRecorder)
+
 // TOMLHistoryRecorder reads and appends maintenance history to memory TOML files.
 type TOMLHistoryRecorder struct {
 	readFile  func(name string) ([]byte, error)
@@ -28,23 +31,6 @@ func NewTOMLHistoryRecorder(opts ...HistoryRecorderOption) *TOMLHistoryRecorder 
 	}
 
 	return recorder
-}
-
-// ReadRecord reads a memory TOML file and returns the MemoryRecord.
-func (r *TOMLHistoryRecorder) ReadRecord(path string) (*memory.MemoryRecord, error) {
-	data, err := r.readFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading record: %w", err)
-	}
-
-	var record memory.MemoryRecord
-
-	_, decodeErr := toml.Decode(string(data), &record)
-	if decodeErr != nil {
-		return nil, fmt.Errorf("decoding record: %w", decodeErr)
-	}
-
-	return &record, nil
 }
 
 // AppendAction reads the memory TOML, appends a MaintenanceAction, and writes it back.
@@ -80,8 +66,22 @@ func (r *TOMLHistoryRecorder) AppendAction(path string, action memory.Maintenanc
 	return nil
 }
 
-// HistoryRecorderOption configures a TOMLHistoryRecorder.
-type HistoryRecorderOption func(*TOMLHistoryRecorder)
+// ReadRecord reads a memory TOML file and returns the MemoryRecord.
+func (r *TOMLHistoryRecorder) ReadRecord(path string) (*memory.MemoryRecord, error) {
+	data, err := r.readFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading record: %w", err)
+	}
+
+	var record memory.MemoryRecord
+
+	_, decodeErr := toml.Decode(string(data), &record)
+	if decodeErr != nil {
+		return nil, fmt.Errorf("decoding record: %w", decodeErr)
+	}
+
+	return &record, nil
+}
 
 // WithHistoryReadFile overrides the file reading function.
 func WithHistoryReadFile(fn func(name string) ([]byte, error)) HistoryRecorderOption {
