@@ -24,7 +24,7 @@ func TestAnalyzeAll_CombinesAndSorts(t *testing.T) {
 	}
 
 	config := adapt.Config{MinClusterSize: 5, MinFeedbackEvents: 3}
-	proposals := adapt.AnalyzeAll(memories, config)
+	proposals, _ := adapt.AnalyzeAll(memories, config, nil, nil)
 	g.Expect(proposals).NotTo(BeEmpty())
 }
 

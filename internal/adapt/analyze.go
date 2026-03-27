@@ -12,23 +12,44 @@ import (
 
 // Config holds thresholds for the analysis engine.
 type Config struct {
-	MinClusterSize    int
-	MinFeedbackEvents int
+	MinClusterSize         int
+	MinFeedbackEvents      int
+	MeasurementWindow      int
+	MaintenanceMinOutcomes int
+	MaintenanceMinSuccess  float64
+	MinNewFeedback         int
 }
 
 // AnalyzeAll runs all analysis functions, combines and sorts proposals by sample size descending.
-func AnalyzeAll(memories []*memory.Stored, cfg Config) []policy.Policy {
+// Returns the combined proposals and the IDs of policies that were validated.
+func AnalyzeAll(
+	memories []*memory.Stored,
+	cfg Config,
+	activePolicies []policy.Policy,
+	measurableRecords []MeasurableRecord,
+) ([]policy.Policy, []string) {
 	contentProposals := AnalyzeContentPatterns(memories, cfg)
 	structuralProposals := AnalyzeStructuralPatterns(memories, cfg)
+	surfacingProposals := AnalyzeSurfacingPatterns(memories, activePolicies, cfg.MeasurementWindow)
+	maintenanceProposals := AnalyzeMaintenanceOutcomes(measurableRecords, MaintenanceAnalysisConfig{
+		MinMeasuredOutcomes: cfg.MaintenanceMinOutcomes,
+		MinSuccessRate:      cfg.MaintenanceMinSuccess,
+	})
+	evalResult := EvaluateActivePolicies(memories, activePolicies, cfg.MeasurementWindow)
 
-	proposals := make([]policy.Policy, 0, len(contentProposals)+len(structuralProposals))
+	capacity := len(contentProposals) + len(structuralProposals) + len(surfacingProposals) +
+		len(maintenanceProposals) + len(evalResult.RetirementProposals)
+	proposals := make([]policy.Policy, 0, capacity)
 	proposals = append(proposals, contentProposals...)
 	proposals = append(proposals, structuralProposals...)
+	proposals = append(proposals, surfacingProposals...)
+	proposals = append(proposals, maintenanceProposals...)
+	proposals = append(proposals, evalResult.RetirementProposals...)
 	sort.Slice(proposals, func(i, j int) bool {
 		return proposals[i].Evidence.SampleSize > proposals[j].Evidence.SampleSize
 	})
 
-	return proposals
+	return proposals, evalResult.ValidatedPolicyIDs
 }
 
 // AnalyzeContentPatterns clusters memories by shared keywords and generates
