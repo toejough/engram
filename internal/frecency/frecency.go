@@ -23,31 +23,25 @@ type Option func(*Scorer)
 
 // Scorer computes quality-weighted scores for memories.
 type Scorer struct {
-	now          time.Time
-	maxSurfaced  int
-	halfLifeDays float64
-	wEff         float64
-	wRec         float64
-	wFreq        float64
-	wTier        float64
-	tierABoost   float64
-	tierBBoost   float64
-	alpha        float64
+	maxSurfaced int
+	wEff        float64
+	wFreq       float64
+	wTier       float64
+	tierABoost  float64
+	tierBBoost  float64
+	alpha       float64
 }
 
 // New creates a Scorer. maxSurfaced is the corpus-wide max surfaced count.
-func New(now time.Time, maxSurfaced int, opts ...Option) *Scorer {
+func New(_ time.Time, maxSurfaced int, opts ...Option) *Scorer {
 	s := &Scorer{
-		now:          now,
-		maxSurfaced:  maxSurfaced,
-		halfLifeDays: defaultHalfLifeDays,
-		wEff:         defaultWEff,
-		wRec:         defaultWRec,
-		wFreq:        defaultWFreq,
-		wTier:        defaultWTier,
-		tierABoost:   defaultTierABoost,
-		tierBBoost:   defaultTierBBoost,
-		alpha:        defaultAlpha,
+		maxSurfaced: maxSurfaced,
+		wEff:        defaultWEff,
+		wFreq:       defaultWFreq,
+		wTier:       defaultWTier,
+		tierABoost:  defaultTierABoost,
+		tierBBoost:  defaultTierBBoost,
+		alpha:       defaultAlpha,
 	}
 
 	for _, opt := range opts {
@@ -70,7 +64,6 @@ func (s *Scorer) CombinedScore(relevance, spreading, genFactor float64, input In
 // Quality computes the quality multiplier for a memory.
 func (s *Scorer) Quality(input Input) float64 {
 	return s.wEff*s.effectiveness(input) +
-		s.wRec*s.recency(input) +
 		s.wFreq*s.frequency(input) +
 		s.wTier*s.tierBoost(input)
 }
@@ -93,24 +86,6 @@ func (s *Scorer) frequency(input Input) float64 {
 		math.Log(1+float64(s.maxSurfaced))
 }
 
-func (s *Scorer) recency(input Input) float64 {
-	ref := input.LastSurfacedAt
-	if ref.IsZero() {
-		ref = input.UpdatedAt
-	}
-
-	if ref.IsZero() {
-		return 0
-	}
-
-	daysSince := s.now.Sub(ref).Hours() / hoursPerDay
-	if daysSince < 0 {
-		daysSince = 0
-	}
-
-	return 1.0 / (1.0 + daysSince/s.halfLifeDays)
-}
-
 func (s *Scorer) tierBoost(input Input) float64 {
 	switch input.Tier {
 	case "A":
@@ -131,12 +106,9 @@ func WithAlpha(alpha float64) Option {
 const (
 	defaultAlpha         = 0
 	defaultEffectiveness = 0.5
-	defaultHalfLifeDays  = 7.0
 	defaultTierABoost    = 1.2
 	defaultTierBBoost    = 0.2
 	defaultWEff          = 0.3
 	defaultWFreq         = 1.0
-	defaultWRec          = 0
 	defaultWTier         = 0.3
-	hoursPerDay          = 24.0
 )

@@ -196,13 +196,12 @@ func TestQuality_AllSignals(t *testing.T) {
 	quality := scorer.Quality(input)
 
 	// eff = 4/5 = 0.8
-	// recency = 1 / (1 + 3.5/7) = 1/1.5 = 0.6667 (wRec=0 so contributes 0)
 	// freq = ln(101) / ln(1001)
 	// tierBoost = 1.2 (tier A)
 	expectedEff := 0.8
 	expectedFreq := math.Log(101) / math.Log(1001)
 	expectedTierBoost := 1.2
-	expected := 0.3*expectedEff + 0*0 + 1.0*expectedFreq + 0.3*expectedTierBoost
+	expected := 0.3*expectedEff + 1.0*expectedFreq + 0.3*expectedTierBoost
 
 	g.Expect(quality).To(BeNumerically("~", expected, 0.0001))
 }
@@ -223,10 +222,10 @@ func TestQuality_NoEvaluations(t *testing.T) {
 
 	quality := scorer.Quality(input)
 
-	// eff defaults to 0.5 when no evaluations, wRec=0 so recency contributes 0, no tier
+	// eff defaults to 0.5 when no evaluations, no tier boost
 	expectedEff := 0.5
 	expectedFreq := math.Log(11) / math.Log(101)
-	expected := 0.3*expectedEff + 0*0 + 1.0*expectedFreq + 0.3*0
+	expected := 0.3*expectedEff + 1.0*expectedFreq
 
 	g.Expect(quality).To(BeNumerically("~", expected, 0.0001))
 }
@@ -311,61 +310,6 @@ func TestQuality_TierBoost_Empty(t *testing.T) {
 	// empty tier contributes 0 boost: 0.3*0.5 + 0.3*0 = 0.15
 	expected := 0.3 * 0.5
 	g.Expect(quality).To(BeNumerically("~", expected, 0.0001))
-}
-
-func TestRecency_Disabled(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
-	// maxSurfaced=0 and no evaluations → eff=0.5, freq=0, tier=""
-	// wRec=0 so recency has no effect — quality is identical regardless of daysAgo
-	scorer := frecency.New(now, 0)
-
-	inputRecent := frecency.Input{
-		LastSurfacedAt: now, // 0 days ago
-		FilePath:       "mem/recency.toml",
-	}
-
-	inputStale := frecency.Input{
-		LastSurfacedAt: now.Add(-7 * 24 * time.Hour), // 7 days ago
-		FilePath:       "mem/recency.toml",
-	}
-
-	qualityRecent := scorer.Quality(inputRecent)
-	qualityStale := scorer.Quality(inputStale)
-
-	g.Expect(qualityRecent).To(BeNumerically("~", qualityStale, 0.0001),
-		"recency signal is disabled (wRec=0): quality must not vary with staleness")
-}
-
-func TestRecency_FallbackToUpdatedAt(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
-	scorer := frecency.New(now, 0)
-
-	// LastSurfacedAt is zero → should use UpdatedAt (7 days ago → recency 0.5)
-	inputFallback := frecency.Input{
-		UpdatedAt: now.Add(-168 * time.Hour), // 7 days
-		FilePath:  "mem/fallback.toml",
-	}
-
-	// Explicit LastSurfacedAt at the same time
-	inputExplicit := frecency.Input{
-		LastSurfacedAt: now.Add(-168 * time.Hour),
-		FilePath:       "mem/explicit.toml",
-	}
-
-	qualityFallback := scorer.Quality(inputFallback)
-	qualityExplicit := scorer.Quality(inputExplicit)
-
-	g.Expect(qualityFallback).To(
-		BeNumerically("~", qualityExplicit, 0.0001),
-	)
 }
 
 func TestWithAlpha_SetsCustomValue(t *testing.T) {
