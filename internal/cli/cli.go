@@ -126,6 +126,8 @@ func Run(
 		return runMigrateScores(subArgs, stdout, stderr)
 	case "migrate-slugs":
 		return runMigrateSlugs(subArgs, stdout)
+	case "adapt":
+		return RunAdapt(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
