@@ -36,6 +36,7 @@ func TestMeasureOutcomes_FillsAfterScores(t *testing.T) {
 
 	// Current feedback = 15, before = 10, diff = 5 >= minNewFeedback
 	const minNewFeedback = 5
+
 	results := adapt.MeasureOutcomes(records, minNewFeedback)
 
 	g.Expect(results).To(HaveLen(1))
@@ -44,27 +45,6 @@ func TestMeasureOutcomes_FillsAfterScores(t *testing.T) {
 	// Effectiveness: 8/15 * 100 = 53.33
 	g.Expect(results[0].EffectivenessAfter).To(BeNumerically("~", 53.33, 0.01))
 	g.Expect(results[0].SurfacedCountAfter).To(Equal(20))
-}
-
-func TestMeasureOutcomes_SkipsInsufficientFeedback(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	records := []adapt.MeasurableRecord{
-		{
-			Path: "mem-1.toml",
-			Record: memory.MemoryRecord{
-				FollowedCount: 4, IgnoredCount: 2, SurfacedCount: 8,
-				MaintenanceHistory: []memory.MaintenanceAction{{
-					Action: "rewrite", FeedbackCountBefore: 5, Measured: false,
-				}},
-			},
-		},
-	}
-
-	const minNewFeedback = 5
-	results := adapt.MeasureOutcomes(records, minNewFeedback)
-	g.Expect(results).To(BeEmpty())
 }
 
 func TestMeasureOutcomes_SkipsAlreadyMeasured(t *testing.T) {
@@ -84,6 +64,29 @@ func TestMeasureOutcomes_SkipsAlreadyMeasured(t *testing.T) {
 	}
 
 	const minNewFeedback = 5
+
+	results := adapt.MeasureOutcomes(records, minNewFeedback)
+	g.Expect(results).To(BeEmpty())
+}
+
+func TestMeasureOutcomes_SkipsInsufficientFeedback(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	records := []adapt.MeasurableRecord{
+		{
+			Path: "mem-1.toml",
+			Record: memory.MemoryRecord{
+				FollowedCount: 4, IgnoredCount: 2, SurfacedCount: 8,
+				MaintenanceHistory: []memory.MaintenanceAction{{
+					Action: "rewrite", FeedbackCountBefore: 5, Measured: false,
+				}},
+			},
+		},
+	}
+
+	const minNewFeedback = 5
+
 	results := adapt.MeasureOutcomes(records, minNewFeedback)
 	g.Expect(results).To(BeEmpty())
 }

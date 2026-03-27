@@ -13,7 +13,9 @@ type CorpusSnapshot struct {
 // effectiveness across all memories with feedback.
 func ComputeCorpusSnapshot(memories []*memory.Stored) CorpusSnapshot {
 	var totalFollowed, totalIrrelevant, totalFeedback int
+
 	var effectivenessSum float64
+
 	memoriesWithFeedback := 0
 
 	for _, mem := range memories {
@@ -21,9 +23,11 @@ func ComputeCorpusSnapshot(memories []*memory.Stored) CorpusSnapshot {
 		if feedback == 0 {
 			continue
 		}
+
 		totalFollowed += mem.FollowedCount
 		totalIrrelevant += mem.IrrelevantCount
 		totalFeedback += feedback
+
 		score := float64(mem.FollowedCount) / float64(feedback) * percentMultiplier
 		effectivenessSum += score
 		memoriesWithFeedback++
