@@ -33,25 +33,28 @@ content = "some content"
 
 	writeErr := os.WriteFile(filepath.Join(dir, "mem-a.toml"), []byte(tierAContent), 0o600)
 	g.Expect(writeErr).NotTo(gomega.HaveOccurred())
+
 	if writeErr != nil {
 		return
 	}
 
 	writeErr = os.WriteFile(filepath.Join(dir, "mem-b.toml"), []byte(tierBContent), 0o600)
 	g.Expect(writeErr).NotTo(gomega.HaveOccurred())
+
 	if writeErr != nil {
 		return
 	}
 
 	writeErr = os.WriteFile(filepath.Join(dir, "mem-c.toml"), []byte(tierCContent), 0o600)
 	g.Expect(writeErr).NotTo(gomega.HaveOccurred())
+
 	if writeErr != nil {
 		return
 	}
 
 	deleted, err := maintain.PurgeTierC(dir, os.Remove)
-
 	g.Expect(err).NotTo(gomega.HaveOccurred())
+
 	if err != nil {
 		return
 	}

@@ -266,13 +266,16 @@ func (l *Learner) filterTierC(
 	for _, candidate := range candidates {
 		if candidate.Tier == "C" {
 			droppedCount++
+
 			if l.stderr != nil {
 				_, _ = fmt.Fprintf(l.stderr,
 					"[engram] dropped (tier C): %q\n",
 					candidate.Title)
 			}
+
 			continue
 		}
+
 		filtered = append(filtered, candidate)
 	}
 

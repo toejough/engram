@@ -25,7 +25,8 @@ func PurgeTierC(memoriesDir string, remove func(string) error) (int, error) {
 
 		path := filepath.Clean(stored.Path)
 
-		if removeErr := remove(path); removeErr != nil && !os.IsNotExist(removeErr) {
+		removeErr := remove(path)
+		if removeErr != nil && !os.IsNotExist(removeErr) {
 			return deleted, fmt.Errorf("purge tier C: removing %s: %w", path, removeErr)
 		}
 
