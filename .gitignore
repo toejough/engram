@@ -23,6 +23,10 @@ internal/memory/embeddings.db
 # Session logs (local to developer, not committed)
 docs/session-logs/
 
+# Playground (large generated files, regenerated from memories)
+playground/scoring-playground.html
+playground/corpus/
+
 # Skill results
 result.toml
 skills/*/result.toml
