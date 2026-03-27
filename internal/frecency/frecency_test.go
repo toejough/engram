@@ -290,6 +290,7 @@ func TestQuality_WithWeightOverrides(t *testing.T) {
 	now := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC)
 
 	const maxSurfaced = 100
+
 	scorer := frecency.New(now, maxSurfaced,
 		frecency.WithWEff(0.5),
 		frecency.WithWFreq(0.7),

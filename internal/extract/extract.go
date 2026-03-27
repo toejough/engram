@@ -22,6 +22,12 @@ var (
 	ErrNoToken = errors.New("extract: no API token configured")
 )
 
+// ExtractionGuidance is a learned directive to inject into the extraction prompt.
+type ExtractionGuidance struct {
+	Directive string
+	Rationale string
+}
+
 // HTTPDoer is the interface for making HTTP requests. Wire http.DefaultClient in production.
 type HTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -29,16 +35,22 @@ type HTTPDoer interface {
 
 // LLMExtractor uses the Anthropic API to extract candidate learnings from session transcripts.
 type LLMExtractor struct {
-	token  string
-	client HTTPDoer
+	token    string
+	client   HTTPDoer
+	guidance []ExtractionGuidance
 }
 
 // New creates an LLMExtractor. Pass http.DefaultClient as client in production.
-func New(token string, client HTTPDoer) *LLMExtractor {
-	return &LLMExtractor{
+func New(token string, client HTTPDoer, opts ...Option) *LLMExtractor {
+	e := &LLMExtractor{
 		token:  token,
 		client: client,
 	}
+	for _, opt := range opts {
+		opt(e)
+	}
+
+	return e
 }
 
 // Extract extracts candidate learnings from a session transcript via the Anthropic API.
@@ -81,7 +93,7 @@ func (e *LLMExtractor) sendRequest(ctx context.Context, transcript string) (*htt
 	reqBody := anthropicRequest{
 		Model:     anthropicModel,
 		MaxTokens: maxResponseTokens,
-		System:    systemPrompt(),
+		System:    SystemPromptWithGuidance(e.guidance),
 		Messages: []anthropicMessage{
 			{
 				Role:    "user",
@@ -116,6 +128,40 @@ func (e *LLMExtractor) sendRequest(ctx context.Context, transcript string) (*htt
 	}
 
 	return resp, nil
+}
+
+// Option configures an LLMExtractor.
+type Option func(*LLMExtractor)
+
+// SystemPromptWithGuidance returns the extraction system prompt, optionally extended
+// with learned extraction guidance directives derived from memory feedback.
+func SystemPromptWithGuidance(guidance []ExtractionGuidance) string {
+	base := strings.TrimSpace(extractionSystemPrompt)
+	if len(guidance) == 0 {
+		return base
+	}
+
+	var sb strings.Builder
+	sb.WriteString(base)
+	sb.WriteString("\n\n## Learned Extraction Guidance\n\n")
+	sb.WriteString("Based on feedback from this user's memory corpus:\n\n")
+
+	for _, item := range guidance {
+		sb.WriteString("- ")
+		sb.WriteString(item.Directive)
+		sb.WriteString(" (")
+		sb.WriteString(item.Rationale)
+		sb.WriteString(")\n")
+	}
+
+	return sb.String()
+}
+
+// WithGuidance sets learned extraction guidance policies.
+func WithGuidance(guidance []ExtractionGuidance) Option {
+	return func(e *LLMExtractor) {
+		e.guidance = guidance
+	}
 }
 
 // unexported constants.
@@ -319,8 +365,7 @@ func stripMarkdownFence(text string) string {
 	return strings.TrimSpace(trimmed)
 }
 
-// systemPrompt returns the system prompt instructing the LLM to extract candidate learnings
-// from session transcripts with a quality gate.
+// systemPrompt returns the base extraction system prompt without learned guidance.
 func systemPrompt() string {
-	return strings.TrimSpace(extractionSystemPrompt)
+	return SystemPromptWithGuidance(nil)
 }

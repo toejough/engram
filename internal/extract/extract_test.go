@@ -213,6 +213,16 @@ func TestSystemPrompt_KeywordGuidance(t *testing.T) {
 	g.Expect(prompt).To(ContainSubstring("activity-level terms"))
 }
 
+// TestSystemPrompt_NoPolicies_MatchesOriginal verifies that SystemPromptWithGuidance
+// with no policies returns the base prompt without guidance sections.
+func TestSystemPrompt_NoPolicies_MatchesOriginal(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	prompt := extract.SystemPromptWithGuidance(nil)
+	g.Expect(prompt).NotTo(ContainSubstring("Learned Extraction Guidance"))
+}
+
 // TestSystemPrompt_RejectsTasksAndCommonKnowledge verifies that the system prompt
 // instructs the LLM to reject one-time tasks and common knowledge.
 func TestSystemPrompt_RejectsTasksAndCommonKnowledge(t *testing.T) {
@@ -222,6 +232,29 @@ func TestSystemPrompt_RejectsTasksAndCommonKnowledge(t *testing.T) {
 	prompt := extract.SystemPromptForTest()
 	g.Expect(prompt).To(ContainSubstring("one-time tasks or completed actions"))
 	g.Expect(prompt).To(ContainSubstring("common knowledge any competent developer already knows"))
+}
+
+// TestSystemPrompt_WithPolicies verifies that SystemPromptWithGuidance injects
+// learned guidance directives into the extraction prompt.
+func TestSystemPrompt_WithPolicies(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	policies := []extract.ExtractionGuidance{
+		{
+			Directive: "De-prioritize tool-specific mechanical patterns",
+			Rationale: "80% irrelevance rate across 15 memories",
+		},
+		{
+			Directive: "Prioritize design rationale",
+			Rationale: "90% follow rate across 12 memories",
+		},
+	}
+
+	prompt := extract.SystemPromptWithGuidance(policies)
+	g.Expect(prompt).To(ContainSubstring("De-prioritize tool-specific"))
+	g.Expect(prompt).To(ContainSubstring("Learned Extraction Guidance"))
+	g.Expect(prompt).To(ContainSubstring("80% irrelevance rate"))
 }
 
 // TestT47_ExtractionWithTokenProducesCandidateLearnings verifies that a valid API
@@ -517,6 +550,54 @@ func TestTierGatedAntiPattern(t *testing.T) {
 	// Tier C has empty anti_pattern.
 	g.Expect(learnings[1].Tier).To(Equal("C"))
 	g.Expect(learnings[1].AntiPattern).To(BeEmpty())
+}
+
+// TestWithGuidance_InjectsGuidanceIntoRequest verifies that WithGuidance wires learned
+// directives into the system prompt sent to the Anthropic API.
+func TestWithGuidance_InjectsGuidanceIntoRequest(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	doer := &fakeHTTPDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body: io.NopCloser(
+				bytes.NewBufferString(`{"content":[{"type":"text","text":"[]"}]}`),
+			),
+		},
+	}
+
+	guidance := []extract.ExtractionGuidance{
+		{
+			Directive: "De-prioritize tool-specific mechanical patterns",
+			Rationale: "80% irrelevance rate across 15 memories",
+		},
+	}
+
+	extractor := extract.New("test-api-key", doer, extract.WithGuidance(guidance))
+
+	_, err := extractor.Extract(context.Background(), "some transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(doer.lastRequest).NotTo(BeNil())
+
+	if doer.lastRequest == nil {
+		return
+	}
+
+	reqBody, readErr := io.ReadAll(doer.lastRequest.Body)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(reqBody)).To(ContainSubstring("De-prioritize tool-specific"))
+	g.Expect(string(reqBody)).To(ContainSubstring("Learned Extraction Guidance"))
 }
 
 // fakeHTTPDoer is a test double for extract.HTTPDoer that returns a canned response.
