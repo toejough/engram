@@ -14,6 +14,7 @@ type Input struct {
 	FollowedCount     int
 	ContradictedCount int
 	IgnoredCount      int
+	IrrelevantCount   int
 	FilePath          string
 	Tier              string // "A", "B", "C", or "" — memory confidence tier
 }
@@ -62,7 +63,7 @@ func (s *Scorer) Quality(input Input) float64 {
 }
 
 func (s *Scorer) effectiveness(input Input) float64 {
-	total := input.FollowedCount + input.ContradictedCount + input.IgnoredCount
+	total := input.FollowedCount + input.ContradictedCount + input.IgnoredCount + input.IrrelevantCount
 	if total == 0 {
 		return defaultEffectiveness
 	}

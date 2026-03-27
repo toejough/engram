@@ -42,6 +42,26 @@ func TestFromMemories_EmptyInput(t *testing.T) {
 	g.Expect(stats).To(gomega.BeEmpty())
 }
 
+// FromMemories: IrrelevantCount is included in the denominator.
+func TestFromMemories_IncludesIrrelevantInDenominator(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			FilePath:        "/data/memories/mem-c.toml",
+			FollowedCount:   5,
+			IrrelevantCount: 5,
+		},
+	}
+
+	stats := effectiveness.FromMemories(memories)
+	g.Expect(stats).To(gomega.HaveKey("/data/memories/mem-c.toml"))
+
+	stat := stats["/data/memories/mem-c.toml"]
+	g.Expect(stat.EffectivenessScore).To(gomega.BeNumerically("~", 50.0, 0.001))
+}
+
 // FromMemories: multiple memories produce separate stats entries.
 func TestFromMemories_MultipleMemories(t *testing.T) {
 	t.Parallel()

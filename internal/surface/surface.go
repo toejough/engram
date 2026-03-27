@@ -632,6 +632,7 @@ func toFrecencyInput(mem *memory.Stored) frecency.Input {
 		FollowedCount:     mem.FollowedCount,
 		ContradictedCount: mem.ContradictedCount,
 		IgnoredCount:      mem.IgnoredCount,
+		IrrelevantCount:   mem.IrrelevantCount,
 		FilePath:          mem.FilePath,
 		Tier:              mem.Confidence,
 	}

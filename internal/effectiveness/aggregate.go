@@ -9,7 +9,7 @@ type Stat struct {
 	ContradictedCount  int
 	IgnoredCount       int
 	IrrelevantCount    int
-	EffectivenessScore float64 // followed / (followed + contradicted + ignored) * 100
+	EffectivenessScore float64 // followed / (followed + contradicted + ignored + irrelevant) * 100
 }
 
 // FromMemories builds per-path effectiveness stats from in-memory Stored objects.
@@ -20,7 +20,7 @@ func FromMemories(memories []*memory.Stored) map[string]Stat {
 	result := make(map[string]Stat, len(memories))
 
 	for _, mem := range memories {
-		total := mem.FollowedCount + mem.ContradictedCount + mem.IgnoredCount
+		total := mem.FollowedCount + mem.ContradictedCount + mem.IgnoredCount + mem.IrrelevantCount
 
 		var score float64
 		if total > 0 {

@@ -71,6 +71,28 @@ func TestCombinedScore_ZeroRelevance(t *testing.T) {
 	g.Expect(combined).To(BeNumerically("==", 0.0))
 }
 
+func TestEffectiveness_IncludesIrrelevantCount(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
+	// maxSurfaced=0 so freq=0, no tier so tierBoost=0
+	// eff = 5/(5+5) = 0.5, quality = 0.3*0.5 + 0 + 0 = 0.15
+	scorer := frecency.New(now, 0)
+
+	input := frecency.Input{
+		FollowedCount:   5,
+		IrrelevantCount: 5,
+		FilePath:        "mem/irrelevant-test.toml",
+	}
+
+	quality := scorer.Quality(input)
+
+	expected := 0.3 * 0.5 // wEff * (5/(5+5))
+	g.Expect(quality).To(BeNumerically("~", expected, 0.0001))
+}
+
 func TestFrequency_Normalized(t *testing.T) {
 	t.Parallel()
 
