@@ -1534,6 +1534,8 @@ func runSurface(args []string, stdout io.Writer) error {
 		}
 	}
 
+	surfacerOpts = append(surfacerOpts, surface.WithPolicyPath(filepath.Join(*dataDir, "policy.toml")))
+
 	surfacer := surface.New(retriever, surfacerOpts...)
 
 	return surfacer.Run(ctx, stdout, opts)

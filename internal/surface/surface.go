@@ -16,6 +16,7 @@ import (
 	"engram/internal/contradict"
 	"engram/internal/frecency"
 	"engram/internal/memory"
+	"engram/internal/policy"
 	"engram/internal/signal"
 )
 
@@ -103,6 +104,7 @@ type Surfacer struct {
 	effectivenessComputer EffectivenessComputer
 	budgetConfig          *BudgetConfig
 	recordSurfacing       func(path string) error // UC-23: records surfacing event per memory
+	policyPath            string
 
 	contradictionDetector ContradictionDetector
 	signalEmitter         SignalEmitter
@@ -145,7 +147,16 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		}
 	}
 
-	scorer := frecency.New(time.Now(), maxSurfaced)
+	var frecencyOpts []frecency.Option
+
+	if s.policyPath != "" {
+		pf, policyErr := policy.Load(s.policyPath)
+		if policyErr == nil {
+			frecencyOpts = surfacingPolicyToFrecencyOpts(pf)
+		}
+	}
+
+	scorer := frecency.New(time.Now(), maxSurfaced, frecencyOpts...)
 
 	var (
 		result            Result
@@ -438,6 +449,11 @@ func WithInvocationTokenLogger(logger InvocationTokenLogger) SurfacerOption {
 	return func(s *Surfacer) { s.invocationTokenLogger = logger }
 }
 
+// WithPolicyPath sets the path to policy.toml for loading active surfacing policy overrides.
+func WithPolicyPath(path string) SurfacerOption {
+	return func(s *Surfacer) { s.policyPath = path }
+}
+
 // WithSignalEmitter sets the signal emitter for contradiction signals (UC-P1-1).
 func WithSignalEmitter(e SignalEmitter) SurfacerOption {
 	return func(s *Surfacer) { s.signalEmitter = e }
@@ -621,6 +637,28 @@ func sortPromptMatchesByActivation(
 
 		return si > sj
 	})
+}
+
+// surfacingPolicyToFrecencyOpts converts active surfacing policies to frecency options.
+func surfacingPolicyToFrecencyOpts(pf *policy.File) []frecency.Option {
+	opts := make([]frecency.Option, 0)
+
+	for _, p := range pf.Active(policy.DimensionSurfacing) {
+		switch p.Parameter {
+		case "wEff":
+			opts = append(opts, frecency.WithWEff(p.Value))
+		case "wFreq":
+			opts = append(opts, frecency.WithWFreq(p.Value))
+		case "wTier":
+			opts = append(opts, frecency.WithWTier(p.Value))
+		case "tierABoost":
+			opts = append(opts, frecency.WithTierABoost(p.Value))
+		case "tierBBoost":
+			opts = append(opts, frecency.WithTierBBoost(p.Value))
+		}
+	}
+
+	return opts
 }
 
 // toFrecencyInput converts a stored memory to a frecency input.
