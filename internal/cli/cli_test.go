@@ -138,6 +138,11 @@ updated_at = "2026-01-01T00:00:00Z"
 	g.Expect(os.WriteFile(survivorPath, []byte(survivorContent), 0o640)).To(Succeed())
 	g.Expect(os.WriteFile(absorbedPath, []byte(absorbedContent), 0o640)).To(Succeed())
 
+	// Disable confidence threshold so test clusters aren't filtered (#403).
+	policyContent := "[adaptation]\nconsolidation_min_confidence = 0.01\n"
+	policyPath := filepath.Join(dataDir, "policy.toml")
+	g.Expect(os.WriteFile(policyPath, []byte(policyContent), 0o640)).To(Succeed())
+
 	var stdout bytes.Buffer
 
 	err := cli.RunMaintain([]string{"--data-dir", dataDir}, "", &stdout)
@@ -1926,6 +1931,11 @@ updated_at = "2026-01-01T00:00:00Z"
 
 	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "survivor.toml"), []byte(survivorContent), 0o640)).To(Succeed())
 	g.Expect(os.WriteFile(absorbedPath, []byte(absorbedContent), 0o640)).To(Succeed())
+
+	// Disable confidence threshold so test clusters aren't filtered (#403).
+	policyContent := "[adaptation]\nconsolidation_min_confidence = 0.01\n"
+	policyPath := filepath.Join(dataDir, "policy.toml")
+	g.Expect(os.WriteFile(policyPath, []byte(policyContent), 0o640)).To(Succeed())
 
 	var stdout bytes.Buffer
 

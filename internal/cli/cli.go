@@ -305,6 +305,17 @@ func RunMaintain(
 
 	stats := effectiveness.FromMemories(memories)
 
+	policyPath := filepath.Join(*dataDir, "policy.toml")
+	policyFile, _ := policy.Load(policyPath)
+
+	if policyFile == nil {
+		policyFile = &policy.File{}
+	}
+
+	maintainConfig := adaptationConfigToAdaptConfig(
+		policyFile.Adaptation, defaultAdaptConfig(),
+	)
+
 	// Detect duplicate clusters for consolidation proposals (UC-34).
 	consolidator := signal.NewConsolidator(
 		signal.WithLister(&memoryListerAdapter{
@@ -313,6 +324,7 @@ func RunMaintain(
 		}),
 		signal.WithEffectiveness(&effectivenessReaderAdapter{stats: stats}),
 		signal.WithTextSimilarityScorer(tfidf.NewScorer()),
+		signal.WithMinConfidence(maintainConfig.ConsolidationMinConfidence),
 	)
 
 	plans, planErr := consolidator.Plan(ctx)
@@ -321,9 +333,6 @@ func RunMaintain(
 	}
 
 	tracking := buildTrackingFromMemories(memories)
-
-	policyPath := filepath.Join(*dataDir, "policy.toml")
-	policyFile, _ := policy.Load(policyPath)
 	reviewOpts := maintenancePolicyToReviewOpts(policyFile)
 	classified := reviewpkg.Classify(stats, tracking, reviewOpts...)
 
@@ -793,6 +802,10 @@ func adaptationConfigToAdaptConfig(override policy.AdaptationConfig, defaults ad
 		result.MinNewFeedback = override.MinNewFeedback
 	}
 
+	if override.ConsolidationMinConfidence != 0 {
+		result.ConsolidationMinConfidence = override.ConsolidationMinConfidence
+	}
+
 	return result
 }
 
@@ -1035,21 +1048,23 @@ func collectActivePolicies(policies []policy.Policy) []policy.Policy {
 // Errors are silently ignored (fire-and-forget, ARCH-6).
 func defaultAdaptConfig() adapt.Config {
 	const (
-		defaultMinClusterSize         = 5
-		defaultMinFeedbackEvents      = 3
-		defaultMeasurementWindow      = 10
-		defaultMaintenanceMinOutcomes = 3
-		defaultMinNewFeedback         = 5
-		defaultMaintenanceMinSuccess  = 0.4
+		defaultMinClusterSize             = 5
+		defaultMinFeedbackEvents          = 3
+		defaultMeasurementWindow          = 10
+		defaultMaintenanceMinOutcomes     = 3
+		defaultMinNewFeedback             = 5
+		defaultMaintenanceMinSuccess      = 0.4
+		defaultConsolidationMinConfidence = 0.8
 	)
 
 	return adapt.Config{
-		MinClusterSize:         defaultMinClusterSize,
-		MinFeedbackEvents:      defaultMinFeedbackEvents,
-		MeasurementWindow:      defaultMeasurementWindow,
-		MaintenanceMinOutcomes: defaultMaintenanceMinOutcomes,
-		MaintenanceMinSuccess:  defaultMaintenanceMinSuccess,
-		MinNewFeedback:         defaultMinNewFeedback,
+		MinClusterSize:             defaultMinClusterSize,
+		MinFeedbackEvents:          defaultMinFeedbackEvents,
+		MeasurementWindow:          defaultMeasurementWindow,
+		MaintenanceMinOutcomes:     defaultMaintenanceMinOutcomes,
+		MaintenanceMinSuccess:      defaultMaintenanceMinSuccess,
+		MinNewFeedback:             defaultMinNewFeedback,
+		ConsolidationMinConfidence: defaultConsolidationMinConfidence,
 	}
 }
 
@@ -1624,12 +1639,24 @@ func runMaintainApply(
 // runMaintainDryRun computes the merge plan and prints it as JSON without
 // modifying any files (--dry-run flag, T-362, #335).
 func runMaintainDryRun(ctx context.Context, retriever *retrieve.Retriever, dataDir string, stdout io.Writer) error {
+	policyPath := filepath.Join(dataDir, "policy.toml")
+	policyFile, _ := policy.Load(policyPath)
+
+	if policyFile == nil {
+		policyFile = &policy.File{}
+	}
+
+	dryRunConfig := adaptationConfigToAdaptConfig(
+		policyFile.Adaptation, defaultAdaptConfig(),
+	)
+
 	consolidator := signal.NewConsolidator(
 		signal.WithLister(&memoryListerAdapter{
 			retriever: retriever,
 			dataDir:   dataDir,
 		}),
 		signal.WithTextSimilarityScorer(tfidf.NewScorer()),
+		signal.WithMinConfidence(dryRunConfig.ConsolidationMinConfidence),
 	)
 
 	plans, err := consolidator.Plan(ctx)

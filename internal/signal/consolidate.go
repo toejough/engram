@@ -21,6 +21,7 @@ type Consolidator struct {
 	confirmer     Confirmer
 	extractor     Extractor
 	archiver      Archiver
+	minConfidence float64
 }
 
 // NewConsolidator creates a Consolidator with the given options.
@@ -63,6 +64,10 @@ func (c *Consolidator) Plan(ctx context.Context) ([]MergePlan, error) {
 		}
 
 		confidence := c.clusterConfidence(cluster)
+
+		if confidence >= 0 && confidence < c.minConfidence {
+			continue
+		}
 
 		plans = append(plans, MergePlan{
 			Survivor:   survivor.FilePath,
@@ -186,6 +191,13 @@ func WithExtractor(e Extractor) ConsolidatorOption {
 func WithLister(l MemoryLister) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.lister = l
+	}
+}
+
+// WithMinConfidence sets the minimum TF-IDF confidence for cluster inclusion.
+func WithMinConfidence(minConfidence float64) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.minConfidence = minConfidence
 	}
 }
 

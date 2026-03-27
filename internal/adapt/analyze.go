@@ -12,12 +12,13 @@ import (
 
 // Config holds thresholds for the analysis engine.
 type Config struct {
-	MinClusterSize         int
-	MinFeedbackEvents      int
-	MeasurementWindow      int
-	MaintenanceMinOutcomes int
-	MaintenanceMinSuccess  float64
-	MinNewFeedback         int
+	MinClusterSize             int
+	MinFeedbackEvents          int
+	MeasurementWindow          int
+	MaintenanceMinOutcomes     int
+	MaintenanceMinSuccess      float64
+	MinNewFeedback             int
+	ConsolidationMinConfidence float64
 }
 
 // AnalyzeAll runs all analysis functions, combines and sorts proposals by sample size descending.

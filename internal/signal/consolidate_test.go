@@ -11,6 +11,94 @@ import (
 	"engram/internal/signal"
 )
 
+func TestPlan_FiltersLowConfidenceClusters(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"x", "y", "z"}, Principle: "use x y z", Title: "A"},
+		{FilePath: "b.toml", Keywords: []string{"x", "y", "w"}, Principle: "use x y w", Title: "B"},
+	}}
+	scorer := &fakeTextSimilarityScorer{score: 0.3}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithTextSimilarityScorer(scorer),
+		signal.WithMinConfidence(0.5),
+	)
+
+	plans, err := consolidator.Plan(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(plans).To(BeEmpty())
+}
+
+func TestPlan_KeepsHighConfidenceClusters(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"x", "y", "z"}, Principle: "use x y z", Title: "A"},
+		{FilePath: "b.toml", Keywords: []string{"x", "y", "w"}, Principle: "use x y w", Title: "B"},
+	}}
+	scorer := &fakeTextSimilarityScorer{score: 0.8}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithTextSimilarityScorer(scorer),
+		signal.WithMinConfidence(0.5),
+	)
+
+	plans, err := consolidator.Plan(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(plans).To(HaveLen(1))
+
+	if len(plans) < 1 {
+		return
+	}
+
+	g.Expect(plans[0].Confidence).To(BeNumerically("~", 0.8, 0.001))
+}
+
+func TestPlan_NoScorerPassesThrough(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"x", "y", "z"}, Principle: "use x y z", Title: "A"},
+		{FilePath: "b.toml", Keywords: []string{"x", "y", "w"}, Principle: "use x y w", Title: "B"},
+	}}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMinConfidence(0.5),
+	)
+
+	plans, err := consolidator.Plan(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(plans).To(HaveLen(1))
+
+	if len(plans) < 1 {
+		return
+	}
+
+	g.Expect(plans[0].Confidence).To(BeNumerically("==", -1.0))
+}
+
 // T-369: Cluster confidence included in MergePlan for dry-run visibility.
 func TestT369_ConfidenceInMergePlan(t *testing.T) {
 	t.Parallel()

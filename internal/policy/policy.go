@@ -41,12 +41,13 @@ var (
 // AdaptationConfig holds configurable thresholds for the adaptation analysis engine.
 // Zero values mean "use default".
 type AdaptationConfig struct {
-	MinClusterSize         int     `toml:"min_cluster_size,omitempty"`
-	MinFeedbackEvents      int     `toml:"min_feedback_events,omitempty"`
-	MeasurementWindow      int     `toml:"measurement_window,omitempty"`
-	MaintenanceMinOutcomes int     `toml:"maintenance_min_outcomes,omitempty"`
-	MaintenanceMinSuccess  float64 `toml:"maintenance_min_success,omitempty"`
-	MinNewFeedback         int     `toml:"min_new_feedback,omitempty"`
+	MinClusterSize             int     `toml:"min_cluster_size,omitempty"`
+	MinFeedbackEvents          int     `toml:"min_feedback_events,omitempty"`
+	MeasurementWindow          int     `toml:"measurement_window,omitempty"`
+	MaintenanceMinOutcomes     int     `toml:"maintenance_min_outcomes,omitempty"`
+	MaintenanceMinSuccess      float64 `toml:"maintenance_min_success,omitempty"`
+	MinNewFeedback             int     `toml:"min_new_feedback,omitempty"`
+	ConsolidationMinConfidence float64 `toml:"consolidation_min_confidence,omitempty"`
 }
 
 // ApprovalStreak tracks consecutive approvals per dimension.

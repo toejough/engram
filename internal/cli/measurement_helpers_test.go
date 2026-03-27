@@ -26,12 +26,13 @@ func TestAdaptationConfigToAdaptConfig_AllOverride(t *testing.T) {
 	}
 
 	override := policy.AdaptationConfig{
-		MinClusterSize:         10,
-		MinFeedbackEvents:      6,
-		MeasurementWindow:      20,
-		MaintenanceMinOutcomes: 7,
-		MaintenanceMinSuccess:  0.7,
-		MinNewFeedback:         9,
+		MinClusterSize:             10,
+		MinFeedbackEvents:          6,
+		MeasurementWindow:          20,
+		MaintenanceMinOutcomes:     7,
+		MaintenanceMinSuccess:      0.7,
+		MinNewFeedback:             9,
+		ConsolidationMinConfidence: 0.9,
 	}
 
 	result := adaptationConfigToAdaptConfig(override, defaults)
@@ -42,6 +43,7 @@ func TestAdaptationConfigToAdaptConfig_AllOverride(t *testing.T) {
 	g.Expect(result.MaintenanceMinOutcomes).To(Equal(7))
 	g.Expect(result.MaintenanceMinSuccess).To(BeNumerically("~", 0.7, 0.001))
 	g.Expect(result.MinNewFeedback).To(Equal(9))
+	g.Expect(result.ConsolidationMinConfidence).To(BeNumerically("~", 0.9, 0.001))
 }
 
 func TestAdaptationConfigToAdaptConfig_AllZero(t *testing.T) {
@@ -49,11 +51,12 @@ func TestAdaptationConfigToAdaptConfig_AllZero(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	defaults := adapt.Config{MinClusterSize: 5, MinFeedbackEvents: 3}
+	defaults := defaultAdaptConfig()
 	result := adaptationConfigToAdaptConfig(policy.AdaptationConfig{}, defaults)
 
 	g.Expect(result.MinClusterSize).To(Equal(5))
 	g.Expect(result.MinFeedbackEvents).To(Equal(3))
+	g.Expect(result.ConsolidationMinConfidence).To(BeNumerically("~", 0.8, 0.001))
 }
 
 func TestAdaptationConfigToAdaptConfig_PartialOverride(t *testing.T) {
@@ -61,10 +64,7 @@ func TestAdaptationConfigToAdaptConfig_PartialOverride(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	defaults := adapt.Config{
-		MinClusterSize: 5, MinFeedbackEvents: 3, MeasurementWindow: 10,
-		MaintenanceMinOutcomes: 3, MaintenanceMinSuccess: 0.4, MinNewFeedback: 5,
-	}
+	defaults := defaultAdaptConfig()
 
 	ac := policy.AdaptationConfig{MinClusterSize: 7, MeasurementWindow: 15}
 
@@ -76,6 +76,7 @@ func TestAdaptationConfigToAdaptConfig_PartialOverride(t *testing.T) {
 	g.Expect(result.MaintenanceMinOutcomes).To(Equal(3))
 	g.Expect(result.MaintenanceMinSuccess).To(BeNumerically("~", 0.4, 0.001))
 	g.Expect(result.MinNewFeedback).To(Equal(5))
+	g.Expect(result.ConsolidationMinConfidence).To(BeNumerically("~", 0.8, 0.001))
 }
 
 func TestApplyMeasureResults(t *testing.T) {

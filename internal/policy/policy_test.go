@@ -373,12 +373,13 @@ func TestRoundTrip_AdaptationConfig_AllFields(t *testing.T) {
 
 	polFile := &policy.File{
 		Adaptation: policy.AdaptationConfig{
-			MinClusterSize:         3,
-			MinFeedbackEvents:      10,
-			MeasurementWindow:      30,
-			MaintenanceMinOutcomes: 5,
-			MaintenanceMinSuccess:  0.85,
-			MinNewFeedback:         7,
+			MinClusterSize:             3,
+			MinFeedbackEvents:          10,
+			MeasurementWindow:          30,
+			MaintenanceMinOutcomes:     5,
+			MaintenanceMinSuccess:      0.85,
+			MinNewFeedback:             7,
+			ConsolidationMinConfidence: 0.75,
 		},
 	}
 
@@ -406,6 +407,7 @@ func TestRoundTrip_AdaptationConfig_AllFields(t *testing.T) {
 	g.Expect(got.MaintenanceMinOutcomes).To(Equal(5))
 	g.Expect(got.MaintenanceMinSuccess).To(BeNumerically("~", 0.85, 0.001))
 	g.Expect(got.MinNewFeedback).To(Equal(7))
+	g.Expect(got.ConsolidationMinConfidence).To(BeNumerically("~", 0.75, 0.001))
 }
 
 // TestRoundTrip_AdaptationConfig_ZeroValues verifies a zero AdaptationConfig round-trips as all zeros.
@@ -439,6 +441,7 @@ func TestRoundTrip_AdaptationConfig_ZeroValues(t *testing.T) {
 	g.Expect(got.MaintenanceMinOutcomes).To(Equal(0))
 	g.Expect(got.MaintenanceMinSuccess).To(BeNumerically("~", 0.0, 0.001))
 	g.Expect(got.MinNewFeedback).To(Equal(0))
+	g.Expect(got.ConsolidationMinConfidence).To(BeNumerically("~", 0.0, 0.001))
 }
 
 // TestRoundTrip_Effectiveness_FlatCorpusSnapshot verifies all Effectiveness fields round-trip through TOML.
