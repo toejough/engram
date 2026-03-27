@@ -299,7 +299,11 @@ func RunMaintain(
 	}
 
 	tracking := buildTrackingFromMemories(memories)
-	classified := reviewpkg.Classify(stats, tracking)
+
+	policyPath := filepath.Join(*dataDir, "policy.toml")
+	policyFile, _ := policy.Load(policyPath)
+	reviewOpts := maintenancePolicyToReviewOpts(policyFile)
+	classified := reviewpkg.Classify(stats, tracking, reviewOpts...)
 
 	memoryMap := buildMemoryMapFromSlice(memories)
 
@@ -310,6 +314,7 @@ func RunMaintain(
 	}
 
 	allOpts = append(allOpts, opts...)
+	allOpts = append(allOpts, maintenancePolicyToGeneratorOpts(policyFile)...)
 
 	generator := maintain.New(allOpts...)
 	proposals := generator.Generate(ctx, classified, memoryMap)
@@ -1084,6 +1089,48 @@ func loadMeasurableRecords(memories []*memory.Stored) []adapt.MeasurableRecord {
 	}
 
 	return records
+}
+
+// maintenancePolicyToGeneratorOpts converts active maintenance policies to maintain.Option values.
+func maintenancePolicyToGeneratorOpts(policyFile *policy.File) []maintain.Option {
+	opts := make([]maintain.Option, 0)
+
+	if policyFile == nil {
+		return opts
+	}
+
+	for _, pol := range policyFile.Active(policy.DimensionMaintenance) {
+		switch pol.Parameter {
+		case "stalenessThresholdDays":
+			opts = append(opts, maintain.WithStalenessThresholdDays(int(pol.Value)))
+		case "refineKeywordsIrrelevanceThreshold":
+			opts = append(opts, maintain.WithRefineKeywordsIrrelevanceThreshold(pol.Value))
+		}
+	}
+
+	return opts
+}
+
+// maintenancePolicyToReviewOpts converts active maintenance policies to review.ClassifyOption values.
+func maintenancePolicyToReviewOpts(policyFile *policy.File) []reviewpkg.ClassifyOption {
+	opts := make([]reviewpkg.ClassifyOption, 0)
+
+	if policyFile == nil {
+		return opts
+	}
+
+	for _, pol := range policyFile.Active(policy.DimensionMaintenance) {
+		switch pol.Parameter {
+		case "effectivenessThreshold":
+			opts = append(opts, reviewpkg.WithEffectivenessThreshold(pol.Value))
+		case "flagThreshold":
+			opts = append(opts, reviewpkg.WithFlagThreshold(pol.Value))
+		case "minEvaluations":
+			opts = append(opts, reviewpkg.WithMinEvaluations(int(pol.Value)))
+		}
+	}
+
+	return opts
 }
 
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.

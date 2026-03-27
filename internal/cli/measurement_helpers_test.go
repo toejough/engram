@@ -277,6 +277,88 @@ func TestLoadMeasurableRecords_SkipsMissingFiles(t *testing.T) {
 	g.Expect(records).To(BeEmpty())
 }
 
+func TestMaintenancePolicyToGeneratorOpts(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	policyFile := &policy.File{
+		Policies: []policy.Policy{
+			{
+				Dimension: policy.DimensionMaintenance,
+				Status:    policy.StatusActive,
+				Parameter: "stalenessThresholdDays",
+				Value:     60.0,
+			},
+			{
+				Dimension: policy.DimensionMaintenance,
+				Status:    policy.StatusActive,
+				Parameter: "refineKeywordsIrrelevanceThreshold",
+				Value:     0.4,
+			},
+		},
+	}
+
+	opts := maintenancePolicyToGeneratorOpts(policyFile)
+	g.Expect(opts).To(HaveLen(2))
+}
+
+func TestMaintenancePolicyToGeneratorOpts_NilFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	opts := maintenancePolicyToGeneratorOpts(nil)
+	g.Expect(opts).To(BeEmpty())
+}
+
+func TestMaintenancePolicyToReviewOpts(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	policyFile := &policy.File{
+		Policies: []policy.Policy{
+			{
+				Dimension: policy.DimensionMaintenance,
+				Status:    policy.StatusActive,
+				Parameter: "effectivenessThreshold",
+				Value:     45.0,
+			},
+			{
+				Dimension: policy.DimensionMaintenance,
+				Status:    policy.StatusActive,
+				Parameter: "flagThreshold",
+				Value:     30.0,
+			},
+			{
+				Dimension: policy.DimensionMaintenance,
+				Status:    policy.StatusActive,
+				Parameter: "minEvaluations",
+				Value:     3.0,
+			},
+			{
+				Dimension: policy.DimensionSurfacing,
+				Status:    policy.StatusActive,
+				Parameter: "wEff",
+				Value:     0.5,
+			},
+		},
+	}
+
+	opts := maintenancePolicyToReviewOpts(policyFile)
+	g.Expect(opts).To(HaveLen(3)) // only maintenance policies
+}
+
+func TestMaintenancePolicyToReviewOpts_NilFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	opts := maintenancePolicyToReviewOpts(nil)
+	g.Expect(opts).To(BeEmpty())
+}
+
 func TestMarkValidatedPolicies(t *testing.T) {
 	t.Parallel()
 
