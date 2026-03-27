@@ -323,6 +323,61 @@ func TestRetire_Transitions(t *testing.T) {
 	g.Expect(polFile.Policies[0].Status).To(Equal(policy.StatusRetired))
 }
 
+// TestRoundTrip_Effectiveness_FlatCorpusSnapshot verifies all Effectiveness fields round-trip through TOML.
+func TestRoundTrip_Effectiveness_FlatCorpusSnapshot(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	polFile := &policy.File{
+		Policies: []policy.Policy{
+			{
+				ID:        "pol-001",
+				Dimension: policy.DimensionSurfacing,
+				Status:    policy.StatusActive,
+				CreatedAt: "2026-03-27T00:00:00Z",
+				Effectiveness: policy.Effectiveness{
+					BeforeFollowRate:        0.61,
+					BeforeIrrelevanceRatio:  0.25,
+					BeforeMeanEffectiveness: 0.48,
+					AfterFollowRate:         0.79,
+					AfterIrrelevanceRatio:   0.12,
+					AfterMeanEffectiveness:  0.71,
+					MeasuredSessions:        12,
+					Validated:               true,
+				},
+			},
+		},
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "effectiveness.toml")
+
+	saveErr := policy.Save(path, polFile)
+	g.Expect(saveErr).NotTo(HaveOccurred())
+
+	if saveErr != nil {
+		return
+	}
+
+	loaded, loadErr := policy.Load(path)
+	g.Expect(loadErr).NotTo(HaveOccurred())
+
+	if loadErr != nil {
+		return
+	}
+
+	g.Expect(loaded.Policies).To(HaveLen(1))
+	eff := loaded.Policies[0].Effectiveness
+	g.Expect(eff.BeforeFollowRate).To(BeNumerically("~", 0.61, 0.001))
+	g.Expect(eff.BeforeIrrelevanceRatio).To(BeNumerically("~", 0.25, 0.001))
+	g.Expect(eff.BeforeMeanEffectiveness).To(BeNumerically("~", 0.48, 0.001))
+	g.Expect(eff.AfterFollowRate).To(BeNumerically("~", 0.79, 0.001))
+	g.Expect(eff.AfterIrrelevanceRatio).To(BeNumerically("~", 0.12, 0.001))
+	g.Expect(eff.AfterMeanEffectiveness).To(BeNumerically("~", 0.71, 0.001))
+	g.Expect(eff.MeasuredSessions).To(Equal(12))
+	g.Expect(eff.Validated).To(BeTrue())
+}
+
 // TestRoundTrip_SaveAndLoad verifies a File saved to disk can be loaded back with all fields intact.
 func TestRoundTrip_SaveAndLoad(t *testing.T) {
 	t.Parallel()
@@ -345,9 +400,14 @@ func TestRoundTrip_SaveAndLoad(t *testing.T) {
 				Status:    policy.StatusActive,
 				CreatedAt: "2026-03-01T00:00:00Z",
 				Effectiveness: policy.Effectiveness{
-					Before:           0.4,
-					After:            0.7,
-					MeasuredSessions: 5,
+					BeforeFollowRate:        0.55,
+					BeforeIrrelevanceRatio:  0.30,
+					BeforeMeanEffectiveness: 0.40,
+					AfterFollowRate:         0.72,
+					AfterIrrelevanceRatio:   0.18,
+					AfterMeanEffectiveness:  0.65,
+					MeasuredSessions:        5,
+					Validated:               true,
 				},
 				Parameter: "min_confidence",
 				Value:     0.75,
@@ -388,9 +448,14 @@ func TestRoundTrip_SaveAndLoad(t *testing.T) {
 	g.Expect(got.Evidence.SampleSize).To(Equal(50))
 	g.Expect(got.Status).To(Equal(policy.StatusActive))
 	g.Expect(got.CreatedAt).To(Equal("2026-03-01T00:00:00Z"))
-	g.Expect(got.Effectiveness.Before).To(BeNumerically("~", 0.4, 0.001))
-	g.Expect(got.Effectiveness.After).To(BeNumerically("~", 0.7, 0.001))
+	g.Expect(got.Effectiveness.BeforeFollowRate).To(BeNumerically("~", 0.55, 0.001))
+	g.Expect(got.Effectiveness.BeforeIrrelevanceRatio).To(BeNumerically("~", 0.30, 0.001))
+	g.Expect(got.Effectiveness.BeforeMeanEffectiveness).To(BeNumerically("~", 0.40, 0.001))
+	g.Expect(got.Effectiveness.AfterFollowRate).To(BeNumerically("~", 0.72, 0.001))
+	g.Expect(got.Effectiveness.AfterIrrelevanceRatio).To(BeNumerically("~", 0.18, 0.001))
+	g.Expect(got.Effectiveness.AfterMeanEffectiveness).To(BeNumerically("~", 0.65, 0.001))
 	g.Expect(got.Effectiveness.MeasuredSessions).To(Equal(5))
+	g.Expect(got.Effectiveness.Validated).To(BeTrue())
 	g.Expect(got.Parameter).To(Equal("min_confidence"))
 	g.Expect(got.Value).To(BeNumerically("~", 0.75, 0.001))
 	g.Expect(loaded.ApprovalStreak.Extraction).To(Equal(2))

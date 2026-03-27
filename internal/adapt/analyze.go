@@ -12,23 +12,44 @@ import (
 
 // Config holds thresholds for the analysis engine.
 type Config struct {
-	MinClusterSize    int
-	MinFeedbackEvents int
+	MinClusterSize         int
+	MinFeedbackEvents      int
+	MeasurementWindow      int
+	MaintenanceMinOutcomes int
+	MaintenanceMinSuccess  float64
+	MinNewFeedback         int
 }
 
 // AnalyzeAll runs all analysis functions, combines and sorts proposals by sample size descending.
-func AnalyzeAll(memories []*memory.Stored, cfg Config) []policy.Policy {
+// Returns the combined proposals and the IDs of policies that were validated.
+func AnalyzeAll(
+	memories []*memory.Stored,
+	cfg Config,
+	activePolicies []policy.Policy,
+	measurableRecords []MeasurableRecord,
+) ([]policy.Policy, []string) {
 	contentProposals := AnalyzeContentPatterns(memories, cfg)
 	structuralProposals := AnalyzeStructuralPatterns(memories, cfg)
+	surfacingProposals := AnalyzeSurfacingPatterns(memories, activePolicies, cfg.MeasurementWindow)
+	maintenanceProposals := AnalyzeMaintenanceOutcomes(measurableRecords, MaintenanceAnalysisConfig{
+		MinMeasuredOutcomes: cfg.MaintenanceMinOutcomes,
+		MinSuccessRate:      cfg.MaintenanceMinSuccess,
+	})
+	evalResult := EvaluateActivePolicies(memories, activePolicies, cfg.MeasurementWindow)
 
-	proposals := make([]policy.Policy, 0, len(contentProposals)+len(structuralProposals))
+	capacity := len(contentProposals) + len(structuralProposals) + len(surfacingProposals) +
+		len(maintenanceProposals) + len(evalResult.RetirementProposals)
+	proposals := make([]policy.Policy, 0, capacity)
 	proposals = append(proposals, contentProposals...)
 	proposals = append(proposals, structuralProposals...)
+	proposals = append(proposals, surfacingProposals...)
+	proposals = append(proposals, maintenanceProposals...)
+	proposals = append(proposals, evalResult.RetirementProposals...)
 	sort.Slice(proposals, func(i, j int) bool {
 		return proposals[i].Evidence.SampleSize > proposals[j].Evidence.SampleSize
 	})
 
-	return proposals
+	return proposals, evalResult.ValidatedPolicyIDs
 }
 
 // AnalyzeContentPatterns clusters memories by shared keywords and generates
@@ -140,6 +161,65 @@ func AnalyzeStructuralPatterns(memories []*memory.Stored, cfg Config) []policy.P
 		},
 		Status: policy.StatusProposed,
 	})
+
+	return proposals
+}
+
+// AnalyzeSurfacingPatterns evaluates active surfacing policies that have
+// exceeded their measurement window. Compares current corpus snapshot to
+// the before-snapshot stored on each policy. Returns retirement proposals
+// for policies that degraded or didn't improve metrics.
+func AnalyzeSurfacingPatterns(
+	memories []*memory.Stored,
+	activePolicies []policy.Policy,
+	measurementWindow int,
+) []policy.Policy {
+	proposals := make([]policy.Policy, 0)
+
+	for _, pol := range activePolicies {
+		if pol.Dimension != policy.DimensionSurfacing {
+			continue
+		}
+
+		if pol.Effectiveness.Validated {
+			continue
+		}
+
+		if pol.Effectiveness.MeasuredSessions < measurementWindow {
+			continue
+		}
+
+		current := ComputeCorpusSnapshot(memories)
+
+		improved := current.FollowRate > pol.Effectiveness.BeforeFollowRate ||
+			current.MeanEffectiveness > pol.Effectiveness.BeforeMeanEffectiveness
+
+		if improved {
+			continue
+		}
+
+		proposals = append(proposals, policy.Policy{
+			Dimension: policy.DimensionSurfacing,
+			Directive: fmt.Sprintf(
+				"retire %s: follow rate %.0f%% (was %.0f%%), mean effectiveness %.1f (was %.1f)",
+				pol.ID,
+				current.FollowRate*percentMultiplier,
+				pol.Effectiveness.BeforeFollowRate*percentMultiplier,
+				current.MeanEffectiveness,
+				pol.Effectiveness.BeforeMeanEffectiveness,
+			),
+			Rationale: fmt.Sprintf(
+				"policy %s did not improve corpus metrics after %d sessions",
+				pol.ID, pol.Effectiveness.MeasuredSessions,
+			),
+			Evidence: policy.Evidence{
+				FollowRate:       current.FollowRate,
+				SampleSize:       len(memories),
+				SessionsObserved: pol.Effectiveness.MeasuredSessions,
+			},
+			Status: policy.StatusProposed,
+		})
+	}
 
 	return proposals
 }

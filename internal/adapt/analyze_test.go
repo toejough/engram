@@ -24,8 +24,117 @@ func TestAnalyzeAll_CombinesAndSorts(t *testing.T) {
 	}
 
 	config := adapt.Config{MinClusterSize: 5, MinFeedbackEvents: 3}
-	proposals := adapt.AnalyzeAll(memories, config)
+	proposals, _ := adapt.AnalyzeAll(memories, config, nil, nil)
 	g.Expect(proposals).NotTo(BeEmpty())
+}
+
+func TestAnalyzeSurfacingPatterns_ProposesRetirement(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	// Low follow rate: 2 followed out of 10 total = 0.2
+	memories := []*memory.Stored{
+		{FilePath: "a.toml", FollowedCount: 1, IgnoredCount: 4, SurfacedCount: 5},
+		{FilePath: "b.toml", FollowedCount: 1, IgnoredCount: 4, SurfacedCount: 5},
+	}
+
+	activePolicies := []policy.Policy{
+		{
+			ID:        "pol-001",
+			Dimension: policy.DimensionSurfacing,
+			Status:    policy.StatusActive,
+			Effectiveness: policy.Effectiveness{
+				BeforeFollowRate:        0.50,
+				BeforeMeanEffectiveness: 50.0,
+				MeasuredSessions:        10,
+				Validated:               false,
+			},
+		},
+	}
+
+	proposals := adapt.AnalyzeSurfacingPatterns(memories, activePolicies, 5)
+	g.Expect(proposals).To(HaveLen(1))
+	g.Expect(proposals[0].Dimension).To(Equal(policy.DimensionSurfacing))
+	g.Expect(proposals[0].Directive).To(ContainSubstring("pol-001"))
+	g.Expect(proposals[0].Status).To(Equal(policy.StatusProposed))
+}
+
+func TestAnalyzeSurfacingPatterns_SkipsBelowWindow(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{FilePath: "a.toml", FollowedCount: 1, IgnoredCount: 4, SurfacedCount: 5},
+	}
+
+	activePolicies := []policy.Policy{
+		{
+			ID:        "pol-003",
+			Dimension: policy.DimensionSurfacing,
+			Status:    policy.StatusActive,
+			Effectiveness: policy.Effectiveness{
+				BeforeFollowRate: 0.50,
+				MeasuredSessions: 3,
+				Validated:        false,
+			},
+		},
+	}
+
+	proposals := adapt.AnalyzeSurfacingPatterns(memories, activePolicies, 5)
+	g.Expect(proposals).To(BeEmpty())
+}
+
+func TestAnalyzeSurfacingPatterns_SkipsValidated(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{FilePath: "a.toml", FollowedCount: 1, IgnoredCount: 4, SurfacedCount: 5},
+	}
+
+	activePolicies := []policy.Policy{
+		{
+			ID:        "pol-004",
+			Dimension: policy.DimensionSurfacing,
+			Status:    policy.StatusActive,
+			Effectiveness: policy.Effectiveness{
+				BeforeFollowRate: 0.50,
+				MeasuredSessions: 10,
+				Validated:        true,
+			},
+		},
+	}
+
+	proposals := adapt.AnalyzeSurfacingPatterns(memories, activePolicies, 5)
+	g.Expect(proposals).To(BeEmpty())
+}
+
+func TestAnalyzeSurfacingPatterns_ValidatesImproved(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	// High follow rate: 8 followed out of 10 total = 0.8
+	memories := []*memory.Stored{
+		{FilePath: "a.toml", FollowedCount: 4, IgnoredCount: 1, SurfacedCount: 5},
+		{FilePath: "b.toml", FollowedCount: 4, IgnoredCount: 1, SurfacedCount: 5},
+	}
+
+	activePolicies := []policy.Policy{
+		{
+			ID:        "pol-002",
+			Dimension: policy.DimensionSurfacing,
+			Status:    policy.StatusActive,
+			Effectiveness: policy.Effectiveness{
+				BeforeFollowRate:        0.50,
+				BeforeMeanEffectiveness: 50.0,
+				MeasuredSessions:        10,
+				Validated:               false,
+			},
+		},
+	}
+
+	proposals := adapt.AnalyzeSurfacingPatterns(memories, activePolicies, 5)
+	g.Expect(proposals).To(BeEmpty())
 }
 
 func TestAnalyze_ContentPattern_BelowMinCluster(t *testing.T) {

@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
+	"engram/internal/memory"
 )
 
 // Exported variables.
@@ -28,11 +31,12 @@ type Confirmer interface {
 
 // Executor applies maintenance proposals to memories.
 type Executor struct {
-	rewriter   MemoryRewriter
-	remover    MemoryRemover
-	removeFile func(path string) error
-	llmCaller  LLMCaller
-	confirmer  Confirmer
+	rewriter        MemoryRewriter
+	remover         MemoryRemover
+	removeFile      func(path string) error
+	llmCaller       LLMCaller
+	confirmer       Confirmer
+	historyRecorder HistoryRecorder
 }
 
 // NewExecutor creates an Executor with the given options.
@@ -126,6 +130,8 @@ func (e *Executor) applyBroadenKeywords(
 	if rewriteErr != nil {
 		return false, fmt.Sprintf("rewrite error: %s", rewriteErr), nil
 	}
+
+	e.recordHistory(proposal.MemoryPath, proposal.Action)
 
 	return true, "", nil
 }
@@ -268,11 +274,51 @@ func (e *Executor) llmRewrite(
 		return false, fmt.Sprintf("rewrite error: %s", rewriteErr), nil
 	}
 
+	e.recordHistory(proposal.MemoryPath, proposal.Action)
+
 	return true, "", nil
+}
+
+// recordHistory reads the memory, computes before-state, and appends a MaintenanceAction.
+// No-op if historyRecorder is nil (backward compatible).
+func (e *Executor) recordHistory(path, action string) {
+	if e.historyRecorder == nil {
+		return
+	}
+
+	record, err := e.historyRecorder.ReadRecord(path)
+	if err != nil {
+		return // best-effort
+	}
+
+	feedbackCount := record.FollowedCount + record.ContradictedCount +
+		record.IgnoredCount + record.IrrelevantCount
+
+	var effectivenessBefore float64
+	if feedbackCount > 0 {
+		effectivenessBefore = float64(record.FollowedCount) / float64(feedbackCount) * percentMultiplier
+	}
+
+	entry := memory.MaintenanceAction{
+		Action:              action,
+		AppliedAt:           time.Now().UTC().Format(time.RFC3339),
+		EffectivenessBefore: effectivenessBefore,
+		SurfacedCountBefore: record.SurfacedCount,
+		FeedbackCountBefore: feedbackCount,
+		Measured:            false,
+	}
+
+	_ = e.historyRecorder.AppendAction(path, entry)
 }
 
 // ExecutorOption configures an Executor.
 type ExecutorOption func(*Executor)
+
+// HistoryRecorder reads memory records and appends maintenance action history.
+type HistoryRecorder interface {
+	ReadRecord(path string) (*memory.MemoryRecord, error)
+	AppendAction(path string, action memory.MaintenanceAction) error
+}
 
 // LLMCaller generates rewrites via an LLM.
 type LLMCaller interface {
@@ -321,6 +367,11 @@ func WithFileRemover(fn func(path string) error) ExecutorOption {
 	return func(e *Executor) { e.removeFile = fn }
 }
 
+// WithHistoryRecorder sets the maintenance history recorder.
+func WithHistoryRecorder(r HistoryRecorder) ExecutorOption {
+	return func(e *Executor) { e.historyRecorder = r }
+}
+
 // WithLLMCaller2 sets the LLM caller for rewrites.
 func WithLLMCaller2(c LLMCaller) ExecutorOption {
 	return func(e *Executor) { e.llmCaller = c }
@@ -335,3 +386,8 @@ func WithRemover(r MemoryRemover) ExecutorOption {
 func WithRewriter(r MemoryRewriter) ExecutorOption {
 	return func(e *Executor) { e.rewriter = r }
 }
+
+// unexported constants.
+const (
+	percentMultiplier = 100.0
+)

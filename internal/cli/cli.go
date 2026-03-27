@@ -754,6 +754,40 @@ func applyDataDirDefault(dataDir *string) error {
 	return nil
 }
 
+// applyMeasureResults writes measured outcomes back to memory TOML files.
+func applyMeasureResults(records []adapt.MeasurableRecord, results []adapt.MeasuredResult) {
+	// Group results by path
+	byPath := make(map[string][]adapt.MeasuredResult)
+	for _, result := range results {
+		byPath[result.Path] = append(byPath[result.Path], result)
+	}
+
+	rewriter := maintain.NewTOMLRewriter()
+
+	for _, rec := range records {
+		pathResults, exists := byPath[rec.Path]
+		if !exists {
+			continue
+		}
+
+		updated := rec.Record
+
+		for _, result := range pathResults {
+			if result.ActionIndex < len(updated.MaintenanceHistory) {
+				updated.MaintenanceHistory[result.ActionIndex].EffectivenessAfter = result.EffectivenessAfter
+				updated.MaintenanceHistory[result.ActionIndex].SurfacedCountAfter = result.SurfacedCountAfter
+				updated.MaintenanceHistory[result.ActionIndex].Measured = true
+			}
+		}
+
+		updates := map[string]any{
+			"maintenance_history": updated.MaintenanceHistory,
+		}
+
+		_ = rewriter.Rewrite(rec.Path, updates)
+	}
+}
+
 // applyProjectSlugDefault sets *slug to the PWD-derived slug when empty.
 func applyProjectSlugDefault(slug *string) error {
 	if *slug != "" {
@@ -926,6 +960,19 @@ func classifyStoredRecords(records []memory.StoredRecord, dataDir string) []revi
 	return classifications
 }
 
+// collectActivePolicies returns only policies with StatusActive from the given slice.
+func collectActivePolicies(policies []policy.Policy) []policy.Policy {
+	active := make([]policy.Policy, 0)
+
+	for _, pol := range policies {
+		if pol.Status == policy.StatusActive {
+			active = append(active, pol)
+		}
+	}
+
+	return active
+}
+
 // extractAssistantDelta reads new transcript lines since the last stop offset,
 // strips JSONL to text, and returns only assistant content joined by newlines.
 func extractAssistantDelta(dataDir, transcriptPath, sessionID string) (string, error) {
@@ -1016,6 +1063,29 @@ func loadExtractionGuidance(policyPath string) []extract.ExtractionGuidance {
 	return guidance
 }
 
+// loadMeasurableRecords reads MemoryRecords for memories that have maintenance history.
+func loadMeasurableRecords(memories []*memory.Stored) []adapt.MeasurableRecord {
+	records := make([]adapt.MeasurableRecord, 0)
+
+	for _, mem := range memories {
+		record, err := readRecord(mem.FilePath)
+		if err != nil {
+			continue
+		}
+
+		if len(record.MaintenanceHistory) == 0 {
+			continue
+		}
+
+		records = append(records, adapt.MeasurableRecord{
+			Path:   mem.FilePath,
+			Record: *record,
+		})
+	}
+
+	return records
+}
+
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
 func makeAnthropicCaller(
 	token string,
@@ -1024,6 +1094,20 @@ func makeAnthropicCaller(
 
 	return func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
 		return callAnthropicAPI(ctx, client, token, model, systemPrompt, userPrompt)
+	}
+}
+
+// markValidatedPolicies sets Validated and fills after-snapshot fields for each validated policy ID.
+func markValidatedPolicies(adaptPF *policy.File, validatedIDs []string, snap adapt.CorpusSnapshot) {
+	for _, validID := range validatedIDs {
+		for idx := range adaptPF.Policies {
+			if adaptPF.Policies[idx].ID == validID {
+				adaptPF.Policies[idx].Effectiveness.Validated = true
+				adaptPF.Policies[idx].Effectiveness.AfterFollowRate = snap.FollowRate
+				adaptPF.Policies[idx].Effectiveness.AfterIrrelevanceRatio = snap.IrrelevanceRatio
+				adaptPF.Policies[idx].Effectiveness.AfterMeanEffectiveness = snap.MeanEffectiveness
+			}
+		}
 	}
 }
 
@@ -1150,13 +1234,22 @@ func reviewQuadrant(surfacedCount int, eff *float64) string {
 // Errors are silently ignored (fire-and-forget, ARCH-6).
 func runAdaptationAnalysis(ctx context.Context, dataDir, policyPath string) {
 	const (
-		minClusterSize    = 5
-		minFeedbackEvents = 3
+		minClusterSize         = 5
+		minFeedbackEvents      = 3
+		measurementWindow      = 10
+		maintenanceMinOutcomes = 3
+		minNewFeedback         = 5
 	)
 
+	const maintenanceMinSuccess = 0.4
+
 	analysisConfig := adapt.Config{
-		MinClusterSize:    minClusterSize,
-		MinFeedbackEvents: minFeedbackEvents,
+		MinClusterSize:         minClusterSize,
+		MinFeedbackEvents:      minFeedbackEvents,
+		MeasurementWindow:      measurementWindow,
+		MaintenanceMinOutcomes: maintenanceMinOutcomes,
+		MaintenanceMinSuccess:  maintenanceMinSuccess,
+		MinNewFeedback:         minNewFeedback,
 	}
 
 	allMemories, listErr := retrieve.New().ListMemories(ctx, dataDir)
@@ -1169,10 +1262,28 @@ func runAdaptationAnalysis(ctx context.Context, dataDir, policyPath string) {
 		return
 	}
 
-	newProposals := adapt.AnalyzeAll(allMemories, analysisConfig)
-	if len(newProposals) == 0 {
-		return
+	activePolicies := collectActivePolicies(adaptPF.Policies)
+	measurableRecords := loadMeasurableRecords(allMemories)
+
+	// Run deferred outcome measurement
+	measureResults := adapt.MeasureOutcomes(measurableRecords, minNewFeedback)
+	applyMeasureResults(measurableRecords, measureResults)
+
+	// Reload if measurements were applied
+	if len(measureResults) > 0 {
+		allMemories, listErr = retrieve.New().ListMemories(ctx, dataDir)
+		if listErr != nil {
+			return
+		}
+
+		measurableRecords = loadMeasurableRecords(allMemories)
 	}
+
+	newProposals, validatedIDs := adapt.AnalyzeAll(
+		allMemories, analysisConfig, activePolicies, measurableRecords,
+	)
+
+	markValidatedPolicies(adaptPF, validatedIDs, adapt.ComputeCorpusSnapshot(allMemories))
 
 	for i := range newProposals {
 		newProposals[i].ID = adaptPF.NextID()
@@ -1336,7 +1447,7 @@ func runMaintain(args []string, stdout io.Writer) error {
 	return RunMaintain(args, resolveToken(context.Background()), stdout)
 }
 
-// a JSON file and applies them with user confirmation (T-264, ARCH-66).
+//nolint:funlen // orchestration function: wires executor options, reads proposals, applies, reports
 func runMaintainApply(
 	proposalsPath string, autoYes bool,
 	token string, stdout io.Writer,
@@ -1378,6 +1489,8 @@ func runMaintainApply(
 			&cliLLMCaller{token: token},
 		))
 	}
+
+	execOpts = append(execOpts, maintain.WithHistoryRecorder(maintain.NewTOMLHistoryRecorder()))
 
 	if !autoYes {
 		execOpts = append(execOpts, maintain.WithConfirmer(
@@ -1611,7 +1724,15 @@ func runSurface(args []string, stdout io.Writer) error {
 
 	surfacer := surface.New(retriever, surfacerOpts...)
 
-	return surfacer.Run(ctx, stdout, opts)
+	runErr := surfacer.Run(ctx, stdout, opts)
+	if runErr != nil {
+		return runErr
+	}
+
+	policyPath := filepath.Join(*dataDir, "policy.toml")
+	IncrementPolicySessions(policyPath)
+
+	return nil
 }
 
 // sharedKeywords extracts keywords present in both the survivor and at least one absorbed memory.

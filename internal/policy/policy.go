@@ -48,11 +48,17 @@ type ApprovalStreak struct {
 // Dimension identifies which subsystem a policy targets.
 type Dimension string
 
-// Effectiveness tracks before/after measurement for a policy.
+// Effectiveness tracks before/after corpus-wide metrics for a policy.
+// Uses flat fields (not nested struct) for TOML simplicity.
 type Effectiveness struct {
-	Before           float64 `toml:"before"`
-	After            float64 `toml:"after"`
-	MeasuredSessions int     `toml:"measured_sessions"`
+	BeforeFollowRate        float64 `toml:"before_follow_rate,omitempty"`
+	BeforeIrrelevanceRatio  float64 `toml:"before_irrelevance_ratio,omitempty"`
+	BeforeMeanEffectiveness float64 `toml:"before_mean_effectiveness,omitempty"`
+	AfterFollowRate         float64 `toml:"after_follow_rate,omitempty"`
+	AfterIrrelevanceRatio   float64 `toml:"after_irrelevance_ratio,omitempty"`
+	AfterMeanEffectiveness  float64 `toml:"after_mean_effectiveness,omitempty"`
+	MeasuredSessions        int     `toml:"measured_sessions"`
+	Validated               bool    `toml:"validated,omitempty"`
 }
 
 // Evidence holds the statistical basis for a policy proposal.

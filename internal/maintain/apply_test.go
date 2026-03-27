@@ -9,6 +9,7 @@ import (
 	"github.com/onsi/gomega"
 
 	"engram/internal/maintain"
+	"engram/internal/memory"
 )
 
 // TestApplyBroadenKeywords_ConfirmerRejects verifies user rejection
@@ -668,6 +669,69 @@ func TestApply_NoTokenSkipsLLMProposals(t *testing.T) {
 	g.Expect(removeCount).To(gomega.Equal(1))
 }
 
+// TestApply_RecordsMaintenanceHistory verifies that a successful rewrite records
+// a MaintenanceAction with the correct before-state fields.
+func TestApply_RecordsMaintenanceHistory(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var recordedPath string
+
+	var recordedAction memory.MaintenanceAction
+
+	recorder := &fakeHistoryRecorder{
+		readFn: func(_ string) (*memory.MemoryRecord, error) {
+			return &memory.MemoryRecord{
+				FollowedCount:     3,
+				ContradictedCount: 1,
+				IgnoredCount:      1,
+				IrrelevantCount:   5,
+				SurfacedCount:     12,
+			}, nil
+		},
+		appendFn: func(path string, action memory.MaintenanceAction) error {
+			recordedPath = path
+			recordedAction = action
+
+			return nil
+		},
+	}
+
+	llm := &fakeLLMCaller{
+		response: `{"principle": "Be specific", "anti_pattern": "Vague assertions"}`,
+	}
+
+	executor := maintain.NewExecutor(
+		maintain.WithRewriter(&fakeRewriter{
+			rewriteFn: func(_ string, _ map[string]any) error { return nil },
+		}),
+		maintain.WithLLMCaller2(llm),
+		maintain.WithHistoryRecorder(recorder),
+	)
+
+	proposals := []maintain.Proposal{
+		{
+			MemoryPath: "memories/leech.toml",
+			Quadrant:   "Leech",
+			Action:     "rewrite",
+			Diagnosis:  "Frequently surfaced but rarely followed",
+			Details:    json.RawMessage(`{"proposed_principle": "Be specific"}`),
+		},
+	}
+
+	report := executor.Apply(context.Background(), proposals)
+
+	g.Expect(report.Applied).To(gomega.Equal(1))
+	g.Expect(recordedPath).To(gomega.Equal("memories/leech.toml"))
+	g.Expect(recordedAction.Action).To(gomega.Equal("rewrite"))
+	g.Expect(recordedAction.SurfacedCountBefore).To(gomega.Equal(12))
+	// feedbackCount = 3+1+1+5 = 10; effectiveness = 3/10 * 100 = 30.0
+	g.Expect(recordedAction.FeedbackCountBefore).To(gomega.Equal(10))
+	g.Expect(recordedAction.EffectivenessBefore).To(gomega.BeNumerically("~", 30.0, 0.001))
+	g.Expect(recordedAction.Measured).To(gomega.BeFalse())
+	g.Expect(recordedAction.AppliedAt).NotTo(gomega.BeEmpty())
+}
+
 // TestApply_UnknownAction verifies unknown action is skipped with reason.
 func TestApply_UnknownAction(t *testing.T) {
 	t.Parallel()
@@ -804,6 +868,21 @@ func (f *fakeConfirmer) Confirm(_ string) (bool, error) {
 	return false, nil
 }
 
+// --- Test fakes ---
+
+type fakeHistoryRecorder struct {
+	readFn   func(string) (*memory.MemoryRecord, error)
+	appendFn func(string, memory.MaintenanceAction) error
+}
+
+func (f *fakeHistoryRecorder) AppendAction(path string, action memory.MaintenanceAction) error {
+	return f.appendFn(path, action)
+}
+
+func (f *fakeHistoryRecorder) ReadRecord(path string) (*memory.MemoryRecord, error) {
+	return f.readFn(path)
+}
+
 type fakeLLMCaller struct {
 	response string
 	err      error
@@ -820,8 +899,6 @@ type fakeRemover struct {
 func (f *fakeRemover) Remove(path string) error {
 	return f.removeFn(path)
 }
-
-// --- Test fakes ---
 
 type fakeRewriter struct {
 	rewriteFn func(path string, updates map[string]any) error
