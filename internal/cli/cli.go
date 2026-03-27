@@ -1379,6 +1379,8 @@ func runMaintainApply(
 		))
 	}
 
+	execOpts = append(execOpts, maintain.WithHistoryRecorder(maintain.NewTOMLHistoryRecorder()))
+
 	if !autoYes {
 		execOpts = append(execOpts, maintain.WithConfirmer(
 			&stdinConfirmer{stdout: stdout, stdin: os.Stdin},
