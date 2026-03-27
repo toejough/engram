@@ -46,6 +46,7 @@ type FlushArgs struct {
 	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	TranscriptPath string `targ:"flag,name=transcript-path,desc=path to session transcript"`
 	SessionID      string `targ:"flag,name=session-id,desc=session identifier"`
+	ProjectSlug    string `targ:"flag,name=project-slug,desc=originating project slug"`
 }
 
 // InstructArgs holds parsed flags for the instruct subcommand.
@@ -78,6 +79,13 @@ type MigrateScoresArgs struct {
 	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	Apply    bool   `targ:"flag,name=apply,desc=apply consolidations instead of dry-run"`
 	APIToken string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
+}
+
+// MigrateSlugsArgs holds parsed flags for the migrate-slugs subcommand.
+type MigrateSlugsArgs struct {
+	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	Slug    string `targ:"flag,name=slug,desc=project slug to backfill (defaults to PWD-derived slug)"`
+	Apply   bool   `targ:"flag,name=apply,desc=apply changes instead of dry-run"`
 }
 
 // RecallArgs holds parsed flags for the recall subcommand.
@@ -177,6 +185,8 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("recall").Description("Recall recent session context"),
 		targ.Targ(func(a MigrateScoresArgs) { run("migrate-scores", MigrateScoresFlags(a)) }).
 			Name("migrate-scores").Description("Score and consolidate existing memories"),
+		targ.Targ(func(a MigrateSlugsArgs) { run("migrate-slugs", MigrateSlugsFlags(a)) }).
+			Name("migrate-slugs").Description("Backfill project_slug on existing memories"),
 	}
 }
 
@@ -214,6 +224,7 @@ func FlushFlags(a FlushArgs) []string {
 		"--data-dir", a.DataDir,
 		"--transcript-path", a.TranscriptPath,
 		"--session-id", a.SessionID,
+		"--project-slug", a.ProjectSlug,
 	)
 }
 
@@ -244,6 +255,14 @@ func MaintainFlags(a MaintainArgs) []string {
 // MigrateScoresFlags returns the CLI flag args for the migrate-scores subcommand.
 func MigrateScoresFlags(a MigrateScoresArgs) []string {
 	flags := BuildFlags("--data-dir", a.DataDir)
+	flags = AddBoolFlag(flags, "--apply", a.Apply)
+
+	return flags
+}
+
+// MigrateSlugsFlags returns the CLI flag args for the migrate-slugs subcommand.
+func MigrateSlugsFlags(a MigrateSlugsArgs) []string {
+	flags := BuildFlags("--data-dir", a.DataDir, "--slug", a.Slug)
 	flags = AddBoolFlag(flags, "--apply", a.Apply)
 
 	return flags

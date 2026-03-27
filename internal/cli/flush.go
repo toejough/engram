@@ -16,6 +16,7 @@ func runFlush(args []string, _ io.Writer, stderr io.Writer, stdin io.Reader) err
 	transcriptPath := fs.String("transcript-path", "", "path to session transcript")
 	sessionID := fs.String("session-id", "", "session identifier")
 	dataDir := fs.String("data-dir", "", "path to data directory")
+	projectSlug := fs.String("project-slug", "", "originating project slug")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -25,6 +26,11 @@ func runFlush(args []string, _ io.Writer, stderr io.Writer, stdin io.Reader) err
 	defaultErr := applyDataDirDefault(dataDir)
 	if defaultErr != nil {
 		return fmt.Errorf("flush: %w", defaultErr)
+	}
+
+	slugErr := applyProjectSlugDefault(projectSlug)
+	if slugErr != nil {
+		return fmt.Errorf("flush: %w", slugErr)
 	}
 
 	// Clean up surfacing log — evaluate no longer consumes it (#348).
@@ -38,6 +44,7 @@ func runFlush(args []string, _ io.Writer, stderr io.Writer, stdin io.Reader) err
 		"--transcript-path", *transcriptPath,
 		"--session-id", *sessionID,
 		"--data-dir", *dataDir,
+		"--project-slug", *projectSlug,
 	}
 
 	return RunLearn(learnArgs, resolveToken(context.Background()), stderr, stdin, nil)

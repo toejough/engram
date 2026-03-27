@@ -124,6 +124,8 @@ func Run(
 		return runRecall(subArgs, stdout)
 	case "migrate-scores":
 		return runMigrateScores(subArgs, stdout, stderr)
+	case "migrate-slugs":
+		return runMigrateSlugs(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -1155,6 +1157,7 @@ func reviewQuadrant(surfacedCount int, eff *float64) string {
 	}
 }
 
+//nolint:funlen // orchestration function: wires classifier, corrector, transcript, and DI dependencies
 func runCorrect(
 	args []string,
 	stdout io.Writer,
@@ -1179,6 +1182,11 @@ func runCorrect(
 		return fmt.Errorf("correct: %w", defaultErr)
 	}
 
+	slugErr := applyProjectSlugDefault(projectSlug)
+	if slugErr != nil {
+		return fmt.Errorf("correct: %w", slugErr)
+	}
+
 	if *message == "" {
 		return errCorrectMissingFlags
 	}
@@ -1201,9 +1209,7 @@ func runCorrect(
 
 	corrector := correct.New(classifier, writer, renderer, *dataDir)
 
-	if *projectSlug != "" {
-		corrector.SetProjectSlug(*projectSlug)
-	}
+	corrector.SetProjectSlug(*projectSlug)
 
 	output, err := corrector.Run(ctx, *message, transcriptCtx)
 	if err != nil {

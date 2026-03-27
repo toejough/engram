@@ -159,7 +159,7 @@ func TestBuildTargets(t *testing.T) {
 			"correct", "review",
 			"maintain", "surface", "learn", "instruct",
 			"feedback", "flush", "show",
-			"apply-proposal",
+			"apply-proposal", "migrate-slugs",
 		}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
@@ -241,15 +241,33 @@ func TestFeedbackFlags(t *testing.T) {
 
 func TestFlushFlags(t *testing.T) {
 	t.Parallel()
-	g := gomega.NewWithT(t)
 
-	result := cli.FlushFlags(cli.FlushArgs{
-		DataDir: "/data", TranscriptPath: "/t.jsonl", SessionID: "s1",
+	t.Run("all fields populated", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.FlushFlags(cli.FlushArgs{
+			DataDir: "/data", TranscriptPath: "/t.jsonl", SessionID: "s1",
+			ProjectSlug: "my-project",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--data-dir", "/data", "--transcript-path", "/t.jsonl",
+			"--session-id", "s1", "--project-slug", "my-project",
+		}))
 	})
-	g.Expect(result).To(gomega.Equal([]string{
-		"--data-dir", "/data", "--transcript-path", "/t.jsonl",
-		"--session-id", "s1",
-	}))
+
+	t.Run("project slug omitted when empty", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.FlushFlags(cli.FlushArgs{
+			DataDir: "/data", TranscriptPath: "/t.jsonl", SessionID: "s1",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--data-dir", "/data", "--transcript-path", "/t.jsonl",
+			"--session-id", "s1",
+		}))
+	})
 }
 
 func TestInstructFlags(t *testing.T) {
