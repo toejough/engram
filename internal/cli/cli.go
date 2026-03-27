@@ -223,6 +223,7 @@ func RunMaintain(
 	proposalsPath := fs.String("proposals", "", "path to proposals JSON file")
 	autoYes := fs.Bool("yes", false, "auto-approve all proposals (no confirmation)")
 	dryRun := fs.Bool("dry-run", false, "print merge plan without writing files")
+	purgeTierC := fs.Bool("purge-tier-c", false, "delete all tier C memory files")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -232,6 +233,10 @@ func RunMaintain(
 	defaultErr := applyDataDirDefault(dataDir)
 	if defaultErr != nil {
 		return fmt.Errorf("maintain: %w", defaultErr)
+	}
+
+	if *purgeTierC {
+		return runMaintainPurgeTierC(*dataDir, stdout)
 	}
 
 	if *applyMode {
@@ -1384,6 +1389,20 @@ func runMaintainDryRun(ctx context.Context, retriever *retrieve.Retriever, dataD
 	if encErr != nil {
 		return fmt.Errorf("maintain: encoding plan: %w", encErr)
 	}
+
+	return nil
+}
+
+// runMaintainPurgeTierC deletes all tier C memory files and reports the count.
+func runMaintainPurgeTierC(dataDir string, stdout io.Writer) error {
+	memoriesDir := filepath.Join(dataDir, "memories")
+
+	deleted, err := maintain.PurgeTierC(memoriesDir, os.Remove)
+	if err != nil {
+		return fmt.Errorf("maintain --purge-tier-c: %w", err)
+	}
+
+	_, _ = fmt.Fprintf(stdout, "[engram] purged %d tier C memories\n", deleted)
 
 	return nil
 }
