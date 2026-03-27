@@ -65,11 +65,12 @@ type LearnArgs struct {
 
 // MaintainArgs holds parsed flags for the maintain subcommand.
 type MaintainArgs struct {
-	DataDir   string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Apply     bool   `targ:"flag,name=apply,desc=apply proposals instead of generating"`
-	Proposals string `targ:"flag,name=proposals,desc=path to proposals JSON file"`
-	Yes       bool   `targ:"flag,name=yes,desc=auto-approve all proposals"`
-	APIToken  string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
+	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	Apply      bool   `targ:"flag,name=apply,desc=apply proposals instead of generating"`
+	Proposals  string `targ:"flag,name=proposals,desc=path to proposals JSON file"`
+	Yes        bool   `targ:"flag,name=yes,desc=auto-approve all proposals"`
+	APIToken   string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
+	PurgeTierC bool   `targ:"flag,name=purge-tier-c,desc=delete all tier C memory files"`
 }
 
 // MigrateScoresArgs holds parsed flags for the migrate-scores subcommand.
@@ -235,6 +236,7 @@ func MaintainFlags(a MaintainArgs) []string {
 	flags := BuildFlags("--data-dir", a.DataDir, "--proposals", a.Proposals)
 	flags = AddBoolFlag(flags, "--apply", a.Apply)
 	flags = AddBoolFlag(flags, "--yes", a.Yes)
+	flags = AddBoolFlag(flags, "--purge-tier-c", a.PurgeTierC)
 
 	return flags
 }
