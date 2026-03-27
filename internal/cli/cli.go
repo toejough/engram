@@ -1613,7 +1613,15 @@ func runSurface(args []string, stdout io.Writer) error {
 
 	surfacer := surface.New(retriever, surfacerOpts...)
 
-	return surfacer.Run(ctx, stdout, opts)
+	runErr := surfacer.Run(ctx, stdout, opts)
+	if runErr != nil {
+		return runErr
+	}
+
+	policyPath := filepath.Join(*dataDir, "policy.toml")
+	IncrementPolicySessions(policyPath)
+
+	return nil
 }
 
 // sharedKeywords extracts keywords present in both the survivor and at least one absorbed memory.

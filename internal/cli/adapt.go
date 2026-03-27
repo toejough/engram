@@ -1,13 +1,19 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"time"
 
+	"engram/internal/adapt"
+	"engram/internal/memory"
 	"engram/internal/policy"
+	"engram/internal/retrieve"
 )
 
 // RunAdapt implements the adapt subcommand.
@@ -40,7 +46,18 @@ func RunAdapt(args []string, stdout io.Writer) error {
 
 	switch {
 	case *approve != "":
-		return adaptApprove(policyFile, policyPath, *approve, stdout)
+		allMemories, listErr := retrieve.New().ListMemories(context.Background(), *dataDir)
+		if listErr != nil && !errors.Is(listErr, os.ErrNotExist) {
+			return fmt.Errorf("adapt: listing memories: %w", listErr)
+		}
+
+		if allMemories == nil {
+			allMemories = make([]*memory.Stored, 0)
+		}
+
+		snapshot := adapt.ComputeCorpusSnapshot(allMemories)
+
+		return AdaptApproveWithSnapshot(policyPath, *approve, snapshot, stdout)
 	case *reject != "":
 		return adaptReject(policyFile, policyPath, *reject, stdout)
 	case *retire != "":
@@ -56,20 +73,45 @@ func RunAdapt(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func adaptApprove(policyFile *policy.File, path, id string, stdout io.Writer) error {
+// AdaptApproveWithSnapshot approves a policy and stores the corpus snapshot
+// as the before-state for later effectiveness measurement.
+func AdaptApproveWithSnapshot(
+	policyPath, id string,
+	snapshot adapt.CorpusSnapshot,
+	stdout io.Writer,
+) error {
+	policyFile, err := policy.Load(policyPath)
+	if err != nil {
+		return fmt.Errorf("adapt: %w", err)
+	}
+
 	timestamp := time.Now().UTC().Format(time.RFC3339)
 
-	err := policyFile.Approve(id, timestamp)
-	if err != nil {
-		return fmt.Errorf("adapt: %w", err)
+	approveErr := policyFile.Approve(id, timestamp)
+	if approveErr != nil {
+		return fmt.Errorf("adapt: %w", approveErr)
 	}
 
-	err = policy.Save(path, policyFile)
-	if err != nil {
-		return fmt.Errorf("adapt: %w", err)
+	// Find the approved policy and set before-snapshot
+	for idx := range policyFile.Policies {
+		if policyFile.Policies[idx].ID == id {
+			policyFile.Policies[idx].Effectiveness.BeforeFollowRate = snapshot.FollowRate
+			policyFile.Policies[idx].Effectiveness.BeforeIrrelevanceRatio = snapshot.IrrelevanceRatio
+			policyFile.Policies[idx].Effectiveness.BeforeMeanEffectiveness = snapshot.MeanEffectiveness
+
+			break
+		}
 	}
 
-	_, _ = fmt.Fprintf(stdout, "[engram] Approved policy %s\n", id)
+	saveErr := policy.Save(policyPath, policyFile)
+	if saveErr != nil {
+		return fmt.Errorf("adapt: %w", saveErr)
+	}
+
+	const percentMultiplier = 100.0
+
+	_, _ = fmt.Fprintf(stdout, "[engram] Approved policy %s (snapshot: follow=%.0f%%, eff=%.1f)\n",
+		id, snapshot.FollowRate*percentMultiplier, snapshot.MeanEffectiveness)
 
 	return nil
 }
@@ -104,6 +146,28 @@ func adaptRetire(policyFile *policy.File, path, id string, stdout io.Writer) err
 	_, _ = fmt.Fprintf(stdout, "[engram] Retired policy %s\n", id)
 
 	return nil
+}
+
+// IncrementPolicySessions increments MeasuredSessions on all active policies.
+// Called once per session. Errors silently ignored (fire-and-forget, ARCH-6).
+func IncrementPolicySessions(policyPath string) {
+	policyFile, err := policy.Load(policyPath)
+	if err != nil {
+		return
+	}
+
+	changed := false
+
+	for idx := range policyFile.Policies {
+		if policyFile.Policies[idx].Status == policy.StatusActive {
+			policyFile.Policies[idx].Effectiveness.MeasuredSessions++
+			changed = true
+		}
+	}
+
+	if changed {
+		_ = policy.Save(policyPath, policyFile)
+	}
 }
 
 func adaptStatus(policyFile *policy.File, stdout io.Writer) error {
