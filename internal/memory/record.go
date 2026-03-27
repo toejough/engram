@@ -16,6 +16,18 @@ type EvaluationCounters struct {
 	Ignored      int `toml:"ignored"`
 }
 
+// MaintenanceAction records a single maintenance action applied to this memory
+// and its before/after effectiveness for outcome tracking (#387).
+type MaintenanceAction struct {
+	Action              string  `toml:"action"`
+	AppliedAt           string  `toml:"applied_at"`
+	EffectivenessBefore float64 `toml:"effectiveness_before"`
+	SurfacedCountBefore int     `toml:"surfaced_count_before"`
+	EffectivenessAfter  float64 `toml:"effectiveness_after"`
+	SurfacedCountAfter  int     `toml:"surfaced_count_after"`
+	Measured            bool    `toml:"measured"`
+}
+
 // MemoryRecord is the canonical struct for reading and writing memory TOML files.
 //
 //nolint:revive // "memory.MemoryRecord" stutter is intentional for clarity. See #353.
@@ -53,4 +65,7 @@ type MemoryRecord struct {
 
 	// Relationships.
 	Absorbed []AbsorbedRecord `toml:"absorbed,omitempty"`
+
+	// Maintenance history — tracks action outcomes for adaptive policy (#387).
+	MaintenanceHistory []MaintenanceAction `toml:"maintenance_history,omitempty"`
 }
