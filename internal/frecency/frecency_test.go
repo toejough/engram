@@ -10,17 +10,6 @@ import (
 	"engram/internal/frecency"
 )
 
-func TestAlpha_DefaultIsZero(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
-	scorer := frecency.New(now, 0)
-
-	g.Expect(scorer.Alpha()).To(BeNumerically("==", 0))
-}
-
 func TestCombinedScore_Basic(t *testing.T) {
 	t.Parallel()
 
@@ -40,27 +29,11 @@ func TestCombinedScore_Basic(t *testing.T) {
 	relevance := 2.0
 	quality := scorer.Quality(input)
 
-	combined := scorer.CombinedScore(relevance, 0.5, 1.0, input)
+	combined := scorer.CombinedScore(relevance, 1.0, input)
 
-	// (relevance*genFactor + alpha*spreading) * (1 + quality), genFactor=1.0
-	// alpha defaults to 0 — spreading is disabled
-	expected := (2.0*1.0 + 0*0.5) * (1.0 + quality)
+	// relevance * genFactor * (1 + quality), genFactor=1.0
+	expected := 2.0 * 1.0 * (1.0 + quality)
 	g.Expect(combined).To(BeNumerically("~", expected, 0.0001))
-}
-
-func TestCombinedScore_GenFactorDoesNotAffectSpreading(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
-	scorer := frecency.New(now, 0)
-	input := frecency.Input{}
-
-	a := scorer.CombinedScore(0.0, 1.0, 0.05, input)
-	b := scorer.CombinedScore(0.0, 1.0, 1.0, input)
-
-	g.Expect(a).To(Equal(b))
 }
 
 func TestCombinedScore_GenFactorReducesRelevance(t *testing.T) {
@@ -72,39 +45,14 @@ func TestCombinedScore_GenFactorReducesRelevance(t *testing.T) {
 	scorer := frecency.New(now, 0)
 	input := frecency.Input{}
 
-	full := scorer.CombinedScore(1.0, 0.0, 1.0, input)
-	halved := scorer.CombinedScore(1.0, 0.0, 0.5, input)
+	full := scorer.CombinedScore(1.0, 1.0, input)
+	halved := scorer.CombinedScore(1.0, 0.5, input)
 
 	g.Expect(halved).To(BeNumerically("<", full))
 	g.Expect(halved).To(BeNumerically("~", full*0.5, 0.01))
 }
 
-func TestCombinedScore_SpreadingOnly(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
-	scorer := frecency.New(now, 100)
-
-	input := frecency.Input{
-		SurfacedCount:  5,
-		LastSurfacedAt: now.Add(-48 * time.Hour),
-		FollowedCount:  2,
-		IgnoredCount:   1,
-		FilePath:       "mem/epsilon.toml",
-	}
-
-	quality := scorer.Quality(input)
-	combined := scorer.CombinedScore(0.0, 0.8, 1.0, input)
-
-	// alpha=0 — spreading is disabled, so spreading-only score is 0
-	// (0*genFactor + 0*0.8) * (1 + quality) = 0
-	expected := (0.0 + 0*0.8) * (1.0 + quality)
-	g.Expect(combined).To(BeNumerically("~", expected, 0.0001))
-}
-
-func TestCombinedScore_ZeroRelevanceZeroSpreading(t *testing.T) {
+func TestCombinedScore_ZeroRelevance(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -119,7 +67,7 @@ func TestCombinedScore_ZeroRelevanceZeroSpreading(t *testing.T) {
 		FilePath:       "mem/delta.toml",
 	}
 
-	combined := scorer.CombinedScore(0.0, 0.0, 1.0, input)
+	combined := scorer.CombinedScore(0.0, 1.0, input)
 	g.Expect(combined).To(BeNumerically("==", 0.0))
 }
 
@@ -310,15 +258,4 @@ func TestQuality_TierBoost_Empty(t *testing.T) {
 	// empty tier contributes 0 boost: 0.3*0.5 + 0.3*0 = 0.15
 	expected := 0.3 * 0.5
 	g.Expect(quality).To(BeNumerically("~", expected, 0.0001))
-}
-
-func TestWithAlpha_SetsCustomValue(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	now := time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC)
-	scorer := frecency.New(now, 0, frecency.WithAlpha(1.5))
-
-	g.Expect(scorer.Alpha()).To(BeNumerically("~", 1.5, 0.0001))
 }

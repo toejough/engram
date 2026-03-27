@@ -13,15 +13,14 @@ import (
 
 // Consolidator detects duplicate memory clusters and plans merges (UC-34).
 type Consolidator struct {
-	lister         MemoryLister
-	linkRecomputer LinkRecomputer
-	effectiveness  EffectivenessReader
-	similarity     TextSimilarityScorer
-	stderr         io.Writer
-	scorer         Scorer
-	confirmer      Confirmer
-	extractor      Extractor
-	archiver       Archiver
+	lister        MemoryLister
+	effectiveness EffectivenessReader
+	similarity    TextSimilarityScorer
+	stderr        io.Writer
+	scorer        Scorer
+	confirmer     Confirmer
+	extractor     Extractor
+	archiver      Archiver
 }
 
 // NewConsolidator creates a Consolidator with the given options.
@@ -143,11 +142,6 @@ type EffectivenessReader interface {
 	EffectivenessScore(path string) (score float64, hasData bool, err error)
 }
 
-// LinkRecomputer recomputes graph links after a cluster merge (REQ-138).
-type LinkRecomputer interface {
-	RecomputeAfterMerge(survivorPath, absorbedPath string) error
-}
-
 // MemoryLister loads all existing memories from the data directory.
 type MemoryLister interface {
 	ListAll(ctx context.Context) ([]*memory.Stored, error)
@@ -186,13 +180,6 @@ func WithEffectiveness(e EffectivenessReader) ConsolidatorOption {
 // WithExtractor sets the LLM principle extractor for semantic clustering.
 func WithExtractor(e Extractor) ConsolidatorOption {
 	return func(c *Consolidator) { c.extractor = e }
-}
-
-// WithLinkRecomputer sets the link recomputer for post-merge link updates (REQ-138).
-func WithLinkRecomputer(r LinkRecomputer) ConsolidatorOption {
-	return func(c *Consolidator) {
-		c.linkRecomputer = r
-	}
 }
 
 // WithLister sets the memory lister.

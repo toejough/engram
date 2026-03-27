@@ -16,14 +16,6 @@ type EvaluationCounters struct {
 	Ignored      int `toml:"ignored"`
 }
 
-// LinkRecord represents a directed relationship between two memory files.
-type LinkRecord struct {
-	Target           string  `toml:"target"`
-	Weight           float64 `toml:"weight"`
-	Basis            string  `toml:"basis"`
-	CoSurfacingCount int     `toml:"co_surfacing_count,omitempty"`
-}
-
 // MemoryRecord is the canonical struct for reading and writing memory TOML files.
 //
 //nolint:revive // "memory.MemoryRecord" stutter is intentional for clarity. See #353.
@@ -64,7 +56,6 @@ type MemoryRecord struct {
 	Transitions      []TransitionRecord `toml:"transitions,omitempty"`
 
 	// Relationships.
-	Links    []LinkRecord     `toml:"links,omitempty"`
 	Absorbed []AbsorbedRecord `toml:"absorbed,omitempty"`
 }
 

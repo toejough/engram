@@ -29,7 +29,6 @@ type Scorer struct {
 	wTier       float64
 	tierABoost  float64
 	tierBBoost  float64
-	alpha       float64
 }
 
 // New creates a Scorer. maxSurfaced is the corpus-wide max surfaced count.
@@ -41,7 +40,6 @@ func New(_ time.Time, maxSurfaced int, opts ...Option) *Scorer {
 		wTier:       defaultWTier,
 		tierABoost:  defaultTierABoost,
 		tierBBoost:  defaultTierBBoost,
-		alpha:       defaultAlpha,
 	}
 
 	for _, opt := range opts {
@@ -51,14 +49,9 @@ func New(_ time.Time, maxSurfaced int, opts ...Option) *Scorer {
 	return s
 }
 
-// Alpha returns the spreading activation weight.
-func (s *Scorer) Alpha() float64 {
-	return s.alpha
-}
-
-// CombinedScore computes (relevance*genFactor + alpha*spreading) * (1 + quality).
-func (s *Scorer) CombinedScore(relevance, spreading, genFactor float64, input Input) float64 {
-	return (relevance*genFactor + s.alpha*spreading) * (1.0 + s.Quality(input))
+// CombinedScore computes relevance * genFactor * (1 + quality).
+func (s *Scorer) CombinedScore(relevance, genFactor float64, input Input) float64 {
+	return relevance * genFactor * (1.0 + s.Quality(input))
 }
 
 // Quality computes the quality multiplier for a memory.
@@ -97,14 +90,8 @@ func (s *Scorer) tierBoost(input Input) float64 {
 	}
 }
 
-// WithAlpha sets the spreading activation weight (alpha).
-func WithAlpha(alpha float64) Option {
-	return func(s *Scorer) { s.alpha = alpha }
-}
-
 // unexported constants.
 const (
-	defaultAlpha         = 0
 	defaultEffectiveness = 0.5
 	defaultTierABoost    = 1.2
 	defaultTierBBoost    = 0.2

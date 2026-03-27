@@ -130,19 +130,6 @@ func (c *Consolidator) consolidateCluster(
 		}
 
 		archived = append(archived, orig.Title)
-
-		// Rewrite graph links.
-		if c.linkRecomputer != nil {
-			linkErr := c.linkRecomputer.RecomputeAfterMerge(
-				consolidated.SourcePath, orig.SourcePath,
-			)
-			if linkErr != nil {
-				c.logStderrf(
-					"[engram] link recompute failed for %q: %v\n",
-					orig.SourcePath, linkErr,
-				)
-			}
-		}
 	}
 
 	return Action{

@@ -57,19 +57,6 @@ type InvocationTokenLogger interface {
 	LogInvocationTokens(mode string, tokenCount int, timestamp time.Time) error
 }
 
-// LinkGraphLink represents a typed link in the memory graph (P3).
-type LinkGraphLink struct {
-	Target           string
-	Weight           float64
-	Basis            string
-	CoSurfacingCount int
-}
-
-// LinkReader reads memory graph links for spreading activation and cluster notes (P3).
-type LinkReader interface {
-	GetEntryLinks(id string) ([]LinkGraphLink, error)
-}
-
 // MemoryRetriever lists stored memories from disk (ARCH-9).
 type MemoryRetriever interface {
 	ListMemories(ctx context.Context, dataDir string) ([]*memory.Stored, error)
@@ -119,7 +106,6 @@ type Surfacer struct {
 
 	contradictionDetector ContradictionDetector
 	signalEmitter         SignalEmitter
-	linkReader            LinkReader             // P3: spreading activation + cluster notes
 	crossRefChecker       CrossRefChecker        // P4f: cross-source suppression
 	suppressionLogger     SuppressionEventLogger // P4f: suppression event logging
 }
@@ -223,7 +209,7 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	return nil
 }
 
-//nolint:cyclop,funlen,gocognit // BM25 filtering + suppression + budget + spreading: inherent branching
+//nolint:cyclop,funlen // BM25 filtering + suppression + budget: inherent branching
 func (s *Surfacer) runPrompt(
 	ctx context.Context,
 	dataDir, message, transcriptWindow, currentProjectSlug string,
@@ -238,51 +224,6 @@ func (s *Surfacer) runPrompt(
 	matches := matchPromptMemories(message, memories)
 	if len(matches) == 0 {
 		return Result{}, nil, nil, nil
-	}
-
-	// BM25-seeded spreading activation: neighbors of BM25 matches join the candidate pool (#374).
-	if s.linkReader != nil {
-		// Index all memories by file path for neighbor lookup.
-		memByPath := make(map[string]*memory.Stored, len(memories))
-		for _, mem := range memories {
-			memByPath[mem.FilePath] = mem
-		}
-
-		// Build bm25Matches map from existing BM25 matches.
-		bm25Matches := make(map[string]float64, len(matches))
-		for _, match := range matches {
-			bm25Matches[match.mem.FilePath] = match.bm25Score
-		}
-
-		spreading := computeSpreading(bm25Matches, s.linkReader)
-
-		// Set spreading scores on existing BM25 matches.
-		for i := range matches {
-			matches[i].spreadingScore = spreading[matches[i].mem.FilePath]
-		}
-
-		// Add spreading-only neighbors not already in matches.
-		existingPaths := make(map[string]bool, len(matches))
-		for _, match := range matches {
-			existingPaths[match.mem.FilePath] = true
-		}
-
-		for neighborPath, spreadScore := range spreading {
-			if existingPaths[neighborPath] {
-				continue
-			}
-
-			neighborMem, ok := memByPath[neighborPath]
-			if !ok {
-				continue
-			}
-
-			matches = append(matches, promptMatch{
-				mem:            neighborMem,
-				bm25Score:      0,
-				spreadingScore: spreadScore,
-			})
-		}
 	}
 
 	// Re-rank by frecency activation (ARCH-35).
@@ -497,11 +438,6 @@ func WithInvocationTokenLogger(logger InvocationTokenLogger) SurfacerOption {
 	return func(s *Surfacer) { s.invocationTokenLogger = logger }
 }
 
-// WithLinkReader sets the link reader for spreading activation and cluster notes (P3, REQ-P3-6, REQ-P3-7).
-func WithLinkReader(reader LinkReader) SurfacerOption {
-	return func(s *Surfacer) { s.linkReader = reader }
-}
-
 // WithSignalEmitter sets the signal emitter for contradiction signals (UC-P1-1).
 func WithSignalEmitter(e SignalEmitter) SurfacerOption {
 	return func(s *Surfacer) { s.signalEmitter = e }
@@ -537,9 +473,8 @@ const (
 
 // promptMatch holds a memory for prompt mode.
 type promptMatch struct {
-	mem            *memory.Stored
-	bm25Score      float64
-	spreadingScore float64
+	mem       *memory.Stored
+	bm25Score float64
 }
 
 // applyColdStartBudgetPrompt keeps all proven matches plus at most coldStartBudget unproven.
@@ -567,43 +502,6 @@ func applyColdStartBudgetPrompt(
 	}
 
 	return result
-}
-
-// computeSpreading computes BM25-seeded spreading activation scores.
-// For each BM25 match, its graph neighbors get a boost proportional to
-// the match's BM25 score × link weight, normalized by linker count.
-// Returns a map of memory file path → spreading score.
-func computeSpreading(
-	bm25Matches map[string]float64, // filePath → bm25 score
-	linkReader LinkReader,
-) map[string]float64 {
-	if linkReader == nil {
-		return nil
-	}
-
-	spreading := make(map[string]float64)
-	linkerCounts := make(map[string]int)
-
-	for matchPath, matchBM25 := range bm25Matches {
-		links, err := linkReader.GetEntryLinks(matchPath)
-		if err != nil {
-			continue
-		}
-
-		for _, link := range links {
-			spreading[link.Target] += matchBM25 * link.Weight
-			linkerCounts[link.Target]++
-		}
-	}
-
-	// Normalize by linker count.
-	for target, count := range linkerCounts {
-		if count > 0 {
-			spreading[target] /= float64(count)
-		}
-	}
-
-	return spreading
 }
 
 // concatenatePromptFields builds searchable text for prompt mode.
@@ -718,8 +616,8 @@ func sortPromptMatchesByActivation(
 	sort.SliceStable(matches, func(i, j int) bool {
 		gi := GenFactor(matches[i].mem.Generalizability, matches[i].mem.ProjectSlug, currentProjectSlug)
 		gj := GenFactor(matches[j].mem.Generalizability, matches[j].mem.ProjectSlug, currentProjectSlug)
-		si := scorer.CombinedScore(matches[i].bm25Score, matches[i].spreadingScore, gi, toFrecencyInput(matches[i].mem))
-		sj := scorer.CombinedScore(matches[j].bm25Score, matches[j].spreadingScore, gj, toFrecencyInput(matches[j].mem))
+		si := scorer.CombinedScore(matches[i].bm25Score, gi, toFrecencyInput(matches[i].mem))
+		sj := scorer.CombinedScore(matches[j].bm25Score, gj, toFrecencyInput(matches[j].mem))
 
 		return si > sj
 	})

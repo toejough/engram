@@ -71,9 +71,6 @@ func TestMemoryRecord_RoundTrip_RegistryFields(t *testing.T) {
 		Transitions: []memory.TransitionRecord{{
 			From: "advisory", To: "reminder", At: "2026-01-01T00:00:00Z", Reason: "test",
 		}},
-		Links: []memory.LinkRecord{{
-			Target: "other.toml", Weight: 0.8, Basis: "concept_overlap", CoSurfacingCount: 3,
-		}},
 		Absorbed: []memory.AbsorbedRecord{{
 			From: "old.toml", SurfacedCount: 5, ContentHash: "def456", MergedAt: "2026-01-02T00:00:00Z",
 			Evaluations: memory.EvaluationCounters{Followed: 2, Contradicted: 1, Ignored: 0},

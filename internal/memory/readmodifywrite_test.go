@@ -236,9 +236,6 @@ func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
 		ContradictedCount: 1,
 		IgnoredCount:      0,
 		IrrelevantCount:   1,
-		Links: []memory.LinkRecord{
-			{Target: "other.toml", Weight: 0.8, Basis: "related", CoSurfacingCount: 3},
-		},
 		Absorbed: []memory.AbsorbedRecord{
 			{From: "old.toml", SurfacedCount: 2, ContentHash: "abc123", MergedAt: "2025-01-01"},
 		},
@@ -289,8 +286,6 @@ func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
 	g.Expect(result.Title).To(Equal("preserve-test"))
 	g.Expect(result.Content).To(Equal("some content"))
 	g.Expect(result.Concepts).To(ConsistOf("foo", "bar"))
-	g.Expect(result.Links).To(HaveLen(1))
-	g.Expect(result.Links[0].Target).To(Equal("other.toml"))
 	g.Expect(result.Absorbed).To(HaveLen(1))
 	g.Expect(result.Absorbed[0].From).To(Equal("old.toml"))
 }

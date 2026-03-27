@@ -449,45 +449,6 @@ func TestConsolidateCluster_UpdatesExistingConsolidated(t *testing.T) {
 	g.Expect(action.Archived).To(ConsistOf("new-1", "new-2"))
 }
 
-func TestConsolidateCluster_WithLinkRecomputer(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memA := &memory.MemoryRecord{Title: "a", SourcePath: "/a.toml"}
-	memB := &memory.MemoryRecord{Title: "b", SourcePath: "/b.toml"}
-	memC := &memory.MemoryRecord{Title: "c", SourcePath: "/c.toml"}
-
-	extracted := &memory.MemoryRecord{
-		Title: "principle", SourcePath: "/consolidated.toml",
-	}
-
-	linkRecomputer := &mockLinkRecomputer{}
-
-	consolidator := signal.NewConsolidator(
-		signal.WithExtractor(&mockExtractor{result: extracted}),
-		signal.WithLinkRecomputer(linkRecomputer),
-	)
-
-	cluster := &signal.ConfirmedCluster{
-		Members:   []*memory.MemoryRecord{memA, memB, memC},
-		Principle: "shared",
-	}
-
-	action, err := consolidator.ConsolidateClusterForTest(context.Background(), cluster)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(action.Type).To(Equal(signal.Consolidated))
-
-	// Link recomputer should be called once per original member.
-	const expectedRecomputeCalls = 3
-
-	g.Expect(linkRecomputer.callCount).To(Equal(expectedRecomputeCalls))
-}
-
 func TestFindCluster_BelowMinSize_ReturnsNil(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -869,17 +830,6 @@ func (m *mockExtractor) ExtractPrinciple(
 	_ signal.ConfirmedCluster,
 ) (*memory.MemoryRecord, error) {
 	return m.result, m.err
-}
-
-// mockLinkRecomputer implements signal.LinkRecomputer for tests.
-type mockLinkRecomputer struct {
-	callCount int
-}
-
-func (m *mockLinkRecomputer) RecomputeAfterMerge(_, _ string) error {
-	m.callCount++
-
-	return nil
 }
 
 // mockScorer implements signal.Scorer for tests.
