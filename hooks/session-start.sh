@@ -159,8 +159,28 @@ ${detail}
         done
     fi
 
+    # Adaptation proposals from policy.toml
+    POLICY_FILE="${ENGRAM_HOME}/data/policy.toml"
+    ADAPT_COUNT=0
+    ADAPT_DETAIL=""
+    if [[ -f "$POLICY_FILE" ]]; then
+        ADAPT_COUNT=$(grep -c 'status = "proposed"' "$POLICY_FILE" 2>/dev/null) || ADAPT_COUNT=0
+        if [[ "$ADAPT_COUNT" -gt 0 ]]; then
+            ADAPT_DETAIL="## Adaptation Proposals (${ADAPT_COUNT} pending)
+Feedback patterns suggest system improvements.
+
+Run /adapt to review proposals or adjust adaptation settings."
+        fi
+    fi
+    if [[ -n "$ADAPT_DETAIL" ]]; then
+        TRIAGE_DETAILS="${TRIAGE_DETAILS}
+${ADAPT_DETAIL}
+"
+    fi
+
     # Only write pending file if there are proposals
-    if [[ "$PROPOSAL_COUNT" -gt 0 ]]; then
+    TOTAL_PROPOSALS=$((PROPOSAL_COUNT + ADAPT_COUNT))
+    if [[ "$TOTAL_PROPOSALS" -gt 0 ]]; then
         # Build compact counts line
         COUNTS=""
         [[ "$NOISE_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${NOISE_COUNT} noise"
@@ -169,6 +189,7 @@ ${detail}
         [[ "$REFINE_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${REFINE_COUNT} refine keywords"
         [[ "$ESCALATION_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${ESCALATION_COUNT} escalation"
         [[ "$CONSOLIDATE_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${CONSOLIDATE_COUNT} consolidation"
+        [[ "$ADAPT_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${ADAPT_COUNT} adaptation"
         DIRECTIVE="[engram] Memory triage: ${COUNTS} pending. Say \"triage\" to review, or ignore to proceed."
 
         TRIAGE_CTX="[engram] Memory triage details (present interactively if user says 'triage'):
