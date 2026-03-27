@@ -15,6 +15,69 @@ import (
 	"engram/internal/policy"
 )
 
+func TestAdaptationConfigToAdaptConfig_AllOverride(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	defaults := adapt.Config{
+		MinClusterSize: 5, MinFeedbackEvents: 3, MeasurementWindow: 10,
+		MaintenanceMinOutcomes: 3, MaintenanceMinSuccess: 0.4, MinNewFeedback: 5,
+	}
+
+	override := policy.AdaptationConfig{
+		MinClusterSize:         10,
+		MinFeedbackEvents:      6,
+		MeasurementWindow:      20,
+		MaintenanceMinOutcomes: 7,
+		MaintenanceMinSuccess:  0.7,
+		MinNewFeedback:         9,
+	}
+
+	result := adaptationConfigToAdaptConfig(override, defaults)
+
+	g.Expect(result.MinClusterSize).To(Equal(10))
+	g.Expect(result.MinFeedbackEvents).To(Equal(6))
+	g.Expect(result.MeasurementWindow).To(Equal(20))
+	g.Expect(result.MaintenanceMinOutcomes).To(Equal(7))
+	g.Expect(result.MaintenanceMinSuccess).To(BeNumerically("~", 0.7, 0.001))
+	g.Expect(result.MinNewFeedback).To(Equal(9))
+}
+
+func TestAdaptationConfigToAdaptConfig_AllZero(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	defaults := adapt.Config{MinClusterSize: 5, MinFeedbackEvents: 3}
+	result := adaptationConfigToAdaptConfig(policy.AdaptationConfig{}, defaults)
+
+	g.Expect(result.MinClusterSize).To(Equal(5))
+	g.Expect(result.MinFeedbackEvents).To(Equal(3))
+}
+
+func TestAdaptationConfigToAdaptConfig_PartialOverride(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	defaults := adapt.Config{
+		MinClusterSize: 5, MinFeedbackEvents: 3, MeasurementWindow: 10,
+		MaintenanceMinOutcomes: 3, MaintenanceMinSuccess: 0.4, MinNewFeedback: 5,
+	}
+
+	ac := policy.AdaptationConfig{MinClusterSize: 7, MeasurementWindow: 15}
+
+	result := adaptationConfigToAdaptConfig(ac, defaults)
+
+	g.Expect(result.MinClusterSize).To(Equal(7))
+	g.Expect(result.MinFeedbackEvents).To(Equal(3))
+	g.Expect(result.MeasurementWindow).To(Equal(15))
+	g.Expect(result.MaintenanceMinOutcomes).To(Equal(3))
+	g.Expect(result.MaintenanceMinSuccess).To(BeNumerically("~", 0.4, 0.001))
+	g.Expect(result.MinNewFeedback).To(Equal(5))
+}
+
 func TestApplyMeasureResults(t *testing.T) {
 	t.Parallel()
 
