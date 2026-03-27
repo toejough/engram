@@ -127,6 +127,49 @@ func TestApprove_TransitionsAndUpdatesStreak(t *testing.T) {
 	g.Expect(polFile.ApprovalStreak.Surfacing).To(Equal(2))
 }
 
+// TestDeduplicateProposed_RemovesDuplicates verifies DeduplicateProposed removes duplicate proposed
+// policies (same Directive+Dimension) while keeping the first occurrence and leaving non-proposed untouched.
+func TestDeduplicateProposed_RemovesDuplicates(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	polFile := &policy.File{
+		Policies: []policy.Policy{
+			{
+				ID:        "pol-001",
+				Dimension: policy.DimensionExtraction,
+				Directive: "Extract only actionable insights",
+				Status:    policy.StatusProposed,
+			},
+			{
+				ID:        "pol-002",
+				Dimension: policy.DimensionExtraction,
+				Directive: "Extract only actionable insights",
+				Status:    policy.StatusProposed,
+			},
+			{
+				ID:        "pol-003",
+				Dimension: policy.DimensionSurfacing,
+				Directive: "Surface recent memories first",
+				Status:    policy.StatusProposed,
+			},
+			{
+				ID:        "pol-004",
+				Dimension: policy.DimensionExtraction,
+				Directive: "Extract only actionable insights",
+				Status:    policy.StatusActive,
+			},
+		},
+	}
+
+	removed := polFile.DeduplicateProposed()
+	g.Expect(removed).To(Equal(1))
+	g.Expect(polFile.Policies).To(HaveLen(3))
+	g.Expect(polFile.Policies[0].ID).To(Equal("pol-001"))
+	g.Expect(polFile.Policies[1].ID).To(Equal("pol-003"))
+	g.Expect(polFile.Policies[2].ID).To(Equal("pol-004"))
+}
+
 // TestLoad_MissingFile_ReturnsEmpty verifies loading a nonexistent path returns an empty File with no error.
 func TestLoad_MissingFile_ReturnsEmpty(t *testing.T) {
 	t.Parallel()

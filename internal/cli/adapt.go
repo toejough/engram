@@ -91,6 +91,7 @@ func RunAdapt(args []string, stdout io.Writer) error {
 	approve := fs.String("approve", "", "approve a policy by ID")
 	reject := fs.String("reject", "", "reject a policy by ID")
 	retire := fs.String("retire", "", "retire a policy by ID")
+	dedup := fs.Bool("dedup", false, "remove duplicate proposed policies")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -116,6 +117,8 @@ func RunAdapt(args []string, stdout io.Writer) error {
 		return adaptReject(policyFile, policyPath, *reject, stdout)
 	case *retire != "":
 		return adaptRetire(policyFile, policyPath, *retire, stdout)
+	case *dedup:
+		return adaptDedup(policyFile, policyPath, stdout)
 	default:
 		*status = true
 	}
@@ -140,6 +143,23 @@ func adaptApproveWithCorpusSnapshot(policyPath, id, dataDir string, stdout io.Wr
 	snapshot := adapt.ComputeCorpusSnapshot(allMemories)
 
 	return AdaptApproveWithSnapshot(policyPath, id, snapshot, stdout)
+}
+
+func adaptDedup(policyFile *policy.File, path string, stdout io.Writer) error {
+	removed := policyFile.DeduplicateProposed()
+	if removed == 0 {
+		_, _ = fmt.Fprintln(stdout, "[engram] No duplicate proposals found.")
+		return nil
+	}
+
+	err := policy.Save(path, policyFile)
+	if err != nil {
+		return fmt.Errorf("adapt: saving after dedup: %w", err)
+	}
+
+	_, _ = fmt.Fprintf(stdout, "[engram] Removed %d duplicate proposals.\n", removed)
+
+	return nil
 }
 
 func adaptReject(policyFile *policy.File, path, id string, stdout io.Writer) error {

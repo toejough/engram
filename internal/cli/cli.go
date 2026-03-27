@@ -55,6 +55,28 @@ var (
 // ReadFileFunc reads a file by path, injected for testability.
 type ReadFileFunc func(path string) ([]byte, error)
 
+// FilterDuplicateProposals returns only proposals whose Directive+Dimension
+// combination does not already exist in existing policies.
+func FilterDuplicateProposals(
+	existing []policy.Policy,
+	proposals []policy.Policy,
+) []policy.Policy {
+	seen := make(map[string]bool, len(existing))
+	for _, pol := range existing {
+		seen[string(pol.Dimension)+"\x00"+pol.Directive] = true
+	}
+
+	result := make([]policy.Policy, 0, len(proposals))
+
+	for _, prop := range proposals {
+		if !seen[string(prop.Dimension)+"\x00"+prop.Directive] {
+			result = append(result, prop)
+		}
+	}
+
+	return result
+}
+
 // RenderLearnResult writes DES-10 feedback for a learn result to w.
 func RenderLearnResult(w io.Writer, result *learn.Result) {
 	if len(result.CreatedPaths) == 0 {
@@ -1009,6 +1031,28 @@ func collectActivePolicies(policies []policy.Policy) []policy.Policy {
 	return active
 }
 
+// runAdaptationAnalysis analyses feedback patterns and appends new proposals to policy.toml.
+// Errors are silently ignored (fire-and-forget, ARCH-6).
+func defaultAdaptConfig() adapt.Config {
+	const (
+		defaultMinClusterSize         = 5
+		defaultMinFeedbackEvents      = 3
+		defaultMeasurementWindow      = 10
+		defaultMaintenanceMinOutcomes = 3
+		defaultMinNewFeedback         = 5
+		defaultMaintenanceMinSuccess  = 0.4
+	)
+
+	return adapt.Config{
+		MinClusterSize:         defaultMinClusterSize,
+		MinFeedbackEvents:      defaultMinFeedbackEvents,
+		MeasurementWindow:      defaultMeasurementWindow,
+		MaintenanceMinOutcomes: defaultMaintenanceMinOutcomes,
+		MaintenanceMinSuccess:  defaultMaintenanceMinSuccess,
+		MinNewFeedback:         defaultMinNewFeedback,
+	}
+}
+
 // extractAssistantDelta reads new transcript lines since the last stop offset,
 // strips JSONL to text, and returns only assistant content joined by newlines.
 func extractAssistantDelta(dataDir, transcriptPath, sessionID string) (string, error) {
@@ -1308,28 +1352,7 @@ func reviewQuadrant(surfacedCount int, eff *float64) string {
 	}
 }
 
-// runAdaptationAnalysis analyses feedback patterns and appends new proposals to policy.toml.
-// Errors are silently ignored (fire-and-forget, ARCH-6).
 func runAdaptationAnalysis(ctx context.Context, dataDir, policyPath string) {
-	const (
-		defaultMinClusterSize         = 5
-		defaultMinFeedbackEvents      = 3
-		defaultMeasurementWindow      = 10
-		defaultMaintenanceMinOutcomes = 3
-		defaultMinNewFeedback         = 5
-	)
-
-	const defaultMaintenanceMinSuccess = 0.4
-
-	defaultConfig := adapt.Config{
-		MinClusterSize:         defaultMinClusterSize,
-		MinFeedbackEvents:      defaultMinFeedbackEvents,
-		MeasurementWindow:      defaultMeasurementWindow,
-		MaintenanceMinOutcomes: defaultMaintenanceMinOutcomes,
-		MaintenanceMinSuccess:  defaultMaintenanceMinSuccess,
-		MinNewFeedback:         defaultMinNewFeedback,
-	}
-
 	allMemories, listErr := retrieve.New().ListMemories(ctx, dataDir)
 	if listErr != nil || len(allMemories) == 0 {
 		return
@@ -1340,7 +1363,7 @@ func runAdaptationAnalysis(ctx context.Context, dataDir, policyPath string) {
 		return
 	}
 
-	analysisConfig := adaptationConfigToAdaptConfig(adaptPF.Adaptation, defaultConfig)
+	analysisConfig := adaptationConfigToAdaptConfig(adaptPF.Adaptation, defaultAdaptConfig())
 
 	activePolicies := collectActivePolicies(adaptPF.Policies)
 	measurableRecords := loadMeasurableRecords(allMemories)
@@ -1365,11 +1388,15 @@ func runAdaptationAnalysis(ctx context.Context, dataDir, policyPath string) {
 
 	markValidatedPolicies(adaptPF, validatedIDs, adapt.ComputeCorpusSnapshot(allMemories))
 
+	newProposals = FilterDuplicateProposals(adaptPF.Policies, newProposals)
+
 	for i := range newProposals {
 		newProposals[i].ID = adaptPF.NextID()
 		newProposals[i].CreatedAt = time.Now().UTC().Format(time.RFC3339)
 		adaptPF.Policies = append(adaptPF.Policies, newProposals[i])
 	}
+
+	adaptPF.DeduplicateProposed()
 
 	_ = policy.Save(policyPath, adaptPF)
 }

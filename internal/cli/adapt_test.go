@@ -63,6 +63,97 @@ func TestAdaptApproveWithSnapshot_StoresBeforeMetrics(t *testing.T) {
 	g.Expect(loaded.Policies[0].Effectiveness.BeforeMeanEffectiveness).To(BeNumerically("~", 62.5, 0.001))
 }
 
+func TestFilterDuplicateProposals_SkipsExistingDirectives(t *testing.T) {
+	t.Parallel()
+
+	existing := []policy.Policy{
+		{
+			Directive: "Increase wEff threshold",
+			Dimension: policy.DimensionSurfacing,
+			Status:    policy.StatusProposed,
+		},
+		{
+			Directive: "De-prioritize tool patterns",
+			Dimension: policy.DimensionExtraction,
+			Status:    policy.StatusActive,
+		},
+	}
+
+	tests := []struct {
+		name      string
+		existing  []policy.Policy
+		proposals []policy.Policy
+		wantCount int
+		wantFirst string
+	}{
+		{
+			name:     "exact match is skipped",
+			existing: existing,
+			proposals: []policy.Policy{
+				{
+					Directive: "Increase wEff threshold",
+					Dimension: policy.DimensionSurfacing,
+				},
+			},
+			wantCount: 0,
+		},
+		{
+			name:     "different dimension is kept",
+			existing: existing,
+			proposals: []policy.Policy{
+				{
+					Directive: "Increase wEff threshold",
+					Dimension: policy.DimensionExtraction,
+				},
+			},
+			wantCount: 1,
+			wantFirst: "Increase wEff threshold",
+		},
+		{
+			name:     "different directive is kept",
+			existing: existing,
+			proposals: []policy.Policy{
+				{
+					Directive: "Add context window limit",
+					Dimension: policy.DimensionSurfacing,
+				},
+			},
+			wantCount: 1,
+			wantFirst: "Add context window limit",
+		},
+		{
+			name:     "empty existing passes all through",
+			existing: nil,
+			proposals: []policy.Policy{
+				{
+					Directive: "Increase wEff threshold",
+					Dimension: policy.DimensionSurfacing,
+				},
+				{
+					Directive: "Add context window limit",
+					Dimension: policy.DimensionExtraction,
+				},
+			},
+			wantCount: 2,
+			wantFirst: "Increase wEff threshold",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewGomegaWithT(t)
+
+			got := cli.FilterDuplicateProposals(tt.existing, tt.proposals)
+			g.Expect(got).To(HaveLen(tt.wantCount))
+
+			if tt.wantCount > 0 {
+				g.Expect(got[0].Directive).To(Equal(tt.wantFirst))
+			}
+		})
+	}
+}
+
 func TestIncrementPolicySessions(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -108,6 +199,81 @@ func TestIncrementPolicySessions(t *testing.T) {
 	g.Expect(loaded.Policies[1].Effectiveness.MeasuredSessions).To(Equal(8))
 	// Retired policy is NOT incremented
 	g.Expect(loaded.Policies[2].Effectiveness.MeasuredSessions).To(Equal(5))
+}
+
+func TestRunAdaptDedup_NoDuplicates(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	policyPath := filepath.Join(dir, "policy.toml")
+
+	policyFile := &policy.File{
+		Policies: []policy.Policy{
+			{ID: "pol-001", Dimension: policy.DimensionExtraction, Directive: "a", Status: policy.StatusProposed},
+		},
+	}
+
+	err := policy.Save(policyPath, policyFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var buf bytes.Buffer
+
+	runErr := cli.RunAdapt([]string{"--dedup", "--data-dir", dir}, &buf)
+	g.Expect(runErr).NotTo(HaveOccurred())
+
+	if runErr != nil {
+		return
+	}
+
+	g.Expect(buf.String()).To(ContainSubstring("No duplicate proposals found"))
+}
+
+func TestRunAdaptDedup_RemovesDuplicatesAndSaves(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	policyPath := filepath.Join(dir, "policy.toml")
+
+	policyFile := &policy.File{
+		Policies: []policy.Policy{
+			{ID: "pol-001", Dimension: policy.DimensionExtraction, Directive: "dup", Status: policy.StatusProposed},
+			{ID: "pol-002", Dimension: policy.DimensionExtraction, Directive: "dup", Status: policy.StatusProposed},
+			{ID: "pol-003", Dimension: policy.DimensionExtraction, Directive: "unique", Status: policy.StatusProposed},
+		},
+	}
+
+	err := policy.Save(policyPath, policyFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var buf bytes.Buffer
+
+	runErr := cli.RunAdapt([]string{"--dedup", "--data-dir", dir}, &buf)
+	g.Expect(runErr).NotTo(HaveOccurred())
+
+	if runErr != nil {
+		return
+	}
+
+	g.Expect(buf.String()).To(ContainSubstring("Removed 1 duplicate"))
+
+	loaded, loadErr := policy.Load(policyPath)
+	g.Expect(loadErr).NotTo(HaveOccurred())
+
+	if loadErr != nil {
+		return
+	}
+
+	g.Expect(loaded.Policies).To(HaveLen(2))
 }
 
 func TestRunAdapt_Approve(t *testing.T) {

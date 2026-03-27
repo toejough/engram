@@ -16,6 +16,7 @@ type AdaptArgs struct {
 	Approve string `targ:"flag,name=approve,desc=approve a policy by ID"`
 	Reject  string `targ:"flag,name=reject,desc=reject a policy by ID"`
 	Retire  string `targ:"flag,name=retire,desc=retire a policy by ID"`
+	Dedup   bool   `targ:"flag,name=dedup,desc=remove duplicate proposed policies"`
 }
 
 // ApplyProposalArgs holds parsed flags for the apply-proposal subcommand.
@@ -128,6 +129,7 @@ type SurfaceArgs struct {
 func AdaptFlags(a AdaptArgs) []string {
 	flags := BuildFlags("--data-dir", a.DataDir, "--approve", a.Approve, "--reject", a.Reject, "--retire", a.Retire)
 	flags = AddBoolFlag(flags, "--status", a.Status)
+	flags = AddBoolFlag(flags, "--dedup", a.Dedup)
 
 	return flags
 }

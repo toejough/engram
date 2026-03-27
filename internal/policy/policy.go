@@ -121,6 +121,38 @@ func (pf *File) Approve(id, timestamp string) error {
 	return nil
 }
 
+// DeduplicateProposed removes duplicate proposed policies, keeping the first
+// occurrence of each unique Directive+Dimension combination. Non-proposed
+// policies are always retained.
+func (pf *File) DeduplicateProposed() int {
+	seen := make(map[string]bool)
+	kept := make([]Policy, 0, len(pf.Policies))
+	removed := 0
+
+	for _, pol := range pf.Policies {
+		if pol.Status != StatusProposed {
+			kept = append(kept, pol)
+
+			continue
+		}
+
+		key := string(pol.Dimension) + "\x00" + pol.Directive
+		if seen[key] {
+			removed++
+
+			continue
+		}
+
+		seen[key] = true
+
+		kept = append(kept, pol)
+	}
+
+	pf.Policies = kept
+
+	return removed
+}
+
 // NextID returns the next sequential policy ID in the form "pol-NNN".
 // It finds the highest existing numeric suffix and increments it.
 // Returns "pol-001" if no policies exist.
