@@ -144,6 +144,65 @@ func AnalyzeStructuralPatterns(memories []*memory.Stored, cfg Config) []policy.P
 	return proposals
 }
 
+// AnalyzeSurfacingPatterns evaluates active surfacing policies that have
+// exceeded their measurement window. Compares current corpus snapshot to
+// the before-snapshot stored on each policy. Returns retirement proposals
+// for policies that degraded or didn't improve metrics.
+func AnalyzeSurfacingPatterns(
+	memories []*memory.Stored,
+	activePolicies []policy.Policy,
+	measurementWindow int,
+) []policy.Policy {
+	proposals := make([]policy.Policy, 0)
+
+	for _, pol := range activePolicies {
+		if pol.Dimension != policy.DimensionSurfacing {
+			continue
+		}
+
+		if pol.Effectiveness.Validated {
+			continue
+		}
+
+		if pol.Effectiveness.MeasuredSessions < measurementWindow {
+			continue
+		}
+
+		current := ComputeCorpusSnapshot(memories)
+
+		improved := current.FollowRate > pol.Effectiveness.BeforeFollowRate ||
+			current.MeanEffectiveness > pol.Effectiveness.BeforeMeanEffectiveness
+
+		if improved {
+			continue
+		}
+
+		proposals = append(proposals, policy.Policy{
+			Dimension: policy.DimensionSurfacing,
+			Directive: fmt.Sprintf(
+				"retire %s: follow rate %.0f%% (was %.0f%%), mean effectiveness %.1f (was %.1f)",
+				pol.ID,
+				current.FollowRate*percentMultiplier,
+				pol.Effectiveness.BeforeFollowRate*percentMultiplier,
+				current.MeanEffectiveness,
+				pol.Effectiveness.BeforeMeanEffectiveness,
+			),
+			Rationale: fmt.Sprintf(
+				"policy %s did not improve corpus metrics after %d sessions",
+				pol.ID, pol.Effectiveness.MeasuredSessions,
+			),
+			Evidence: policy.Evidence{
+				FollowRate:       current.FollowRate,
+				SampleSize:       len(memories),
+				SessionsObserved: pol.Effectiveness.MeasuredSessions,
+			},
+			Status: policy.StatusProposed,
+		})
+	}
+
+	return proposals
+}
+
 // unexported constants.
 const (
 	highIrrelevanceThreshold = 0.6
