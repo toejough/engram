@@ -14,15 +14,16 @@ import (
 	"engram/internal/surface"
 )
 
-// T-343: BM25 irrelevance penalty suppresses high-irrelevance memories.
+// T-343: BM25 irrelevance penalty reduces the effective score of high-irrelevance memories.
+// With three matching memories and promptLimit=2, the penalized memory should rank last.
 func TestBM25_IrrelevancePenalty_ReducesScore(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	// Two memories with identical keywords. Memory A has no irrelevance,
-	// Memory B has high irrelevance (count=100, penalty factor ~0.05).
-	// Both match "commit" but B should be suppressed below the relevance floor.
+	// Three memories with identical keywords. A and C have no irrelevance,
+	// B has high irrelevance (count=100, penalty factor ~0.05).
+	// All three match "commit" but promptLimit=2, so B's penalty pushes it out.
 	memA := &memory.Stored{
 		Title:           "Commit Rule A",
 		FilePath:        "commit-rule-a.toml",
@@ -39,6 +40,14 @@ func TestBM25_IrrelevancePenalty_ReducesScore(t *testing.T) {
 		IrrelevantCount: 100,
 	}
 
+	memC := &memory.Stored{
+		Title:           "Commit Rule C",
+		FilePath:        "commit-rule-c.toml",
+		Keywords:        []string{"commit", "git"},
+		Principle:       "use /commit skill",
+		IrrelevantCount: 0,
+	}
+
 	// Non-matching fillers for IDF contrast.
 	fillers := make([]*memory.Stored, 0, 5)
 	for _, name := range []string{"logging", "testing", "deploy", "config", "monitoring"} {
@@ -50,8 +59,8 @@ func TestBM25_IrrelevancePenalty_ReducesScore(t *testing.T) {
 		})
 	}
 
-	allMems := make([]*memory.Stored, 0, 2+len(fillers))
-	allMems = append(allMems, memA, memB)
+	allMems := make([]*memory.Stored, 0, 3+len(fillers))
+	allMems = append(allMems, memA, memB, memC)
 	allMems = append(allMems, fillers...)
 	retriever := &fakeRetriever{memories: allMems}
 	s := surface.New(retriever)
@@ -73,7 +82,7 @@ func TestBM25_IrrelevancePenalty_ReducesScore(t *testing.T) {
 	output := buf.String()
 	// Memory A (no irrelevance) should appear.
 	g.Expect(output).To(ContainSubstring("commit-rule-a"))
-	// Memory B (high irrelevance, penalty ~0.05) should be suppressed below floor.
+	// Memory B (high irrelevance, penalty ~0.05) should rank below A and C, falling outside promptLimit.
 	g.Expect(output).NotTo(ContainSubstring("commit-rule-b"))
 }
 

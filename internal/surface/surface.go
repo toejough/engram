@@ -235,7 +235,7 @@ func (s *Surfacer) runPrompt(
 		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
 	}
 
-	matches := matchPromptMemories(message, memories, effectiveness)
+	matches := matchPromptMemories(message, memories)
 	if len(matches) == 0 {
 		return Result{}, nil, nil, nil
 	}
@@ -532,9 +532,7 @@ const (
 	coldStartBudget            = 2
 	defaultEffectiveness       = 50.0 // neutral default for memories with no effectiveness data
 	irrelevancePenaltyHalfLife = 5
-	minRelevanceScore          = 0.0 // BM25 floor removed (#391)
 	promptLimit                = 2
-	unprovenBM25FloorPrompt    = 0.20
 )
 
 // promptMatch holds a memory for prompt mode.
@@ -674,11 +672,9 @@ func isUnproven(path string, effectiveness map[string]EffectivenessStat) bool {
 
 // matchPromptMemories returns top 10 memories ranked by BM25 relevance to message.
 // Concatenates title, content, principle, keywords, and concepts for scoring.
-// Unproven memories (never surfaced) require a higher BM25 floor than proven ones.
 func matchPromptMemories(
 	message string,
 	memories []*memory.Stored,
-	effectiveness map[string]EffectivenessStat,
 ) []promptMatch {
 	// Build documents for BM25 scoring
 	docs := make([]bm25.Document, 0, len(memories))
@@ -700,9 +696,7 @@ func matchPromptMemories(
 	scorer := bm25.New()
 	scored := scorer.Score(message, docs)
 
-	// Build results, filtering by relevance floor.
-	// Unproven memories require a higher floor to avoid cold-start noise.
-	// Apply irrelevance penalty before floor comparison (#343).
+	// Apply irrelevance penalty and collect all matches (#343).
 	matches := make([]promptMatch, 0, len(scored))
 	for _, result := range scored {
 		mem, ok := memoryIndex[result.ID]
@@ -711,16 +705,6 @@ func matchPromptMemories(
 		}
 
 		penalizedScore := result.Score * irrelevancePenalty(mem.IrrelevantCount)
-
-		floor := minRelevanceScore
-		if isUnproven(result.ID, effectiveness) {
-			floor = unprovenBM25FloorPrompt
-		}
-
-		if penalizedScore < floor {
-			continue
-		}
-
 		matches = append(matches, promptMatch{mem: mem, bm25Score: penalizedScore})
 	}
 
