@@ -299,7 +299,11 @@ func RunMaintain(
 	}
 
 	tracking := buildTrackingFromMemories(memories)
-	classified := reviewpkg.Classify(stats, tracking)
+
+	policyPath := filepath.Join(*dataDir, "policy.toml")
+	policyFile, _ := policy.Load(policyPath)
+	reviewOpts := maintenancePolicyToReviewOpts(policyFile)
+	classified := reviewpkg.Classify(stats, tracking, reviewOpts...)
 
 	memoryMap := buildMemoryMapFromSlice(memories)
 
@@ -310,6 +314,7 @@ func RunMaintain(
 	}
 
 	allOpts = append(allOpts, opts...)
+	allOpts = append(allOpts, maintenancePolicyToGeneratorOpts(policyFile)...)
 
 	generator := maintain.New(allOpts...)
 	proposals := generator.Generate(ctx, classified, memoryMap)
@@ -738,6 +743,37 @@ func (sc *stdinConfirmer) Confirm(preview string) (bool, error) {
 	return false, nil
 }
 
+// adaptationConfigToAdaptConfig applies non-zero overrides from AdaptationConfig on top of defaults.
+func adaptationConfigToAdaptConfig(override policy.AdaptationConfig, defaults adapt.Config) adapt.Config {
+	result := defaults
+
+	if override.MinClusterSize != 0 {
+		result.MinClusterSize = override.MinClusterSize
+	}
+
+	if override.MinFeedbackEvents != 0 {
+		result.MinFeedbackEvents = override.MinFeedbackEvents
+	}
+
+	if override.MeasurementWindow != 0 {
+		result.MeasurementWindow = override.MeasurementWindow
+	}
+
+	if override.MaintenanceMinOutcomes != 0 {
+		result.MaintenanceMinOutcomes = override.MaintenanceMinOutcomes
+	}
+
+	if override.MaintenanceMinSuccess != 0 {
+		result.MaintenanceMinSuccess = override.MaintenanceMinSuccess
+	}
+
+	if override.MinNewFeedback != 0 {
+		result.MinNewFeedback = override.MinNewFeedback
+	}
+
+	return result
+}
+
 // applyDataDirDefault sets *dataDir to the standard engram data path when empty.
 func applyDataDirDefault(dataDir *string) error {
 	if *dataDir != "" {
@@ -1086,6 +1122,48 @@ func loadMeasurableRecords(memories []*memory.Stored) []adapt.MeasurableRecord {
 	return records
 }
 
+// maintenancePolicyToGeneratorOpts converts active maintenance policies to maintain.Option values.
+func maintenancePolicyToGeneratorOpts(policyFile *policy.File) []maintain.Option {
+	opts := make([]maintain.Option, 0)
+
+	if policyFile == nil {
+		return opts
+	}
+
+	for _, pol := range policyFile.Active(policy.DimensionMaintenance) {
+		switch pol.Parameter {
+		case "stalenessThresholdDays":
+			opts = append(opts, maintain.WithStalenessThresholdDays(int(pol.Value)))
+		case "refineKeywordsIrrelevanceThreshold":
+			opts = append(opts, maintain.WithRefineKeywordsIrrelevanceThreshold(pol.Value))
+		}
+	}
+
+	return opts
+}
+
+// maintenancePolicyToReviewOpts converts active maintenance policies to review.ClassifyOption values.
+func maintenancePolicyToReviewOpts(policyFile *policy.File) []reviewpkg.ClassifyOption {
+	opts := make([]reviewpkg.ClassifyOption, 0)
+
+	if policyFile == nil {
+		return opts
+	}
+
+	for _, pol := range policyFile.Active(policy.DimensionMaintenance) {
+		switch pol.Parameter {
+		case "effectivenessThreshold":
+			opts = append(opts, reviewpkg.WithEffectivenessThreshold(pol.Value))
+		case "flagThreshold":
+			opts = append(opts, reviewpkg.WithFlagThreshold(pol.Value))
+		case "minEvaluations":
+			opts = append(opts, reviewpkg.WithMinEvaluations(int(pol.Value)))
+		}
+	}
+
+	return opts
+}
+
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
 func makeAnthropicCaller(
 	token string,
@@ -1234,22 +1312,22 @@ func reviewQuadrant(surfacedCount int, eff *float64) string {
 // Errors are silently ignored (fire-and-forget, ARCH-6).
 func runAdaptationAnalysis(ctx context.Context, dataDir, policyPath string) {
 	const (
-		minClusterSize         = 5
-		minFeedbackEvents      = 3
-		measurementWindow      = 10
-		maintenanceMinOutcomes = 3
-		minNewFeedback         = 5
+		defaultMinClusterSize         = 5
+		defaultMinFeedbackEvents      = 3
+		defaultMeasurementWindow      = 10
+		defaultMaintenanceMinOutcomes = 3
+		defaultMinNewFeedback         = 5
 	)
 
-	const maintenanceMinSuccess = 0.4
+	const defaultMaintenanceMinSuccess = 0.4
 
-	analysisConfig := adapt.Config{
-		MinClusterSize:         minClusterSize,
-		MinFeedbackEvents:      minFeedbackEvents,
-		MeasurementWindow:      measurementWindow,
-		MaintenanceMinOutcomes: maintenanceMinOutcomes,
-		MaintenanceMinSuccess:  maintenanceMinSuccess,
-		MinNewFeedback:         minNewFeedback,
+	defaultConfig := adapt.Config{
+		MinClusterSize:         defaultMinClusterSize,
+		MinFeedbackEvents:      defaultMinFeedbackEvents,
+		MeasurementWindow:      defaultMeasurementWindow,
+		MaintenanceMinOutcomes: defaultMaintenanceMinOutcomes,
+		MaintenanceMinSuccess:  defaultMaintenanceMinSuccess,
+		MinNewFeedback:         defaultMinNewFeedback,
 	}
 
 	allMemories, listErr := retrieve.New().ListMemories(ctx, dataDir)
@@ -1262,11 +1340,13 @@ func runAdaptationAnalysis(ctx context.Context, dataDir, policyPath string) {
 		return
 	}
 
+	analysisConfig := adaptationConfigToAdaptConfig(adaptPF.Adaptation, defaultConfig)
+
 	activePolicies := collectActivePolicies(adaptPF.Policies)
 	measurableRecords := loadMeasurableRecords(allMemories)
 
 	// Run deferred outcome measurement
-	measureResults := adapt.MeasureOutcomes(measurableRecords, minNewFeedback)
+	measureResults := adapt.MeasureOutcomes(measurableRecords, analysisConfig.MinNewFeedback)
 	applyMeasureResults(measurableRecords, measureResults)
 
 	// Reload if measurements were applied

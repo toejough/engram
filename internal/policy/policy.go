@@ -38,6 +38,17 @@ var (
 	ErrPolicyNotFound = errors.New("policy not found")
 )
 
+// AdaptationConfig holds configurable thresholds for the adaptation analysis engine.
+// Zero values mean "use default".
+type AdaptationConfig struct {
+	MinClusterSize         int     `toml:"min_cluster_size,omitempty"`
+	MinFeedbackEvents      int     `toml:"min_feedback_events,omitempty"`
+	MeasurementWindow      int     `toml:"measurement_window,omitempty"`
+	MaintenanceMinOutcomes int     `toml:"maintenance_min_outcomes,omitempty"`
+	MaintenanceMinSuccess  float64 `toml:"maintenance_min_success,omitempty"`
+	MinNewFeedback         int     `toml:"min_new_feedback,omitempty"`
+}
+
 // ApprovalStreak tracks consecutive approvals per dimension.
 type ApprovalStreak struct {
 	Extraction  int `toml:"extraction"`
@@ -72,8 +83,9 @@ type Evidence struct {
 
 // File represents the policy.toml file.
 type File struct {
-	Policies       []Policy       `toml:"policies"`
-	ApprovalStreak ApprovalStreak `toml:"approval_streak"`
+	Policies       []Policy         `toml:"policies"`
+	ApprovalStreak ApprovalStreak   `toml:"approval_streak"`
+	Adaptation     AdaptationConfig `toml:"adaptation"`
 }
 
 // Active returns all active policies for the given dimension.

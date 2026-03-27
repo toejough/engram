@@ -323,6 +323,81 @@ func TestRetire_Transitions(t *testing.T) {
 	g.Expect(polFile.Policies[0].Status).To(Equal(policy.StatusRetired))
 }
 
+// TestRoundTrip_AdaptationConfig_AllFields verifies AdaptationConfig fields survive a TOML round-trip.
+func TestRoundTrip_AdaptationConfig_AllFields(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	polFile := &policy.File{
+		Adaptation: policy.AdaptationConfig{
+			MinClusterSize:         3,
+			MinFeedbackEvents:      10,
+			MeasurementWindow:      30,
+			MaintenanceMinOutcomes: 5,
+			MaintenanceMinSuccess:  0.85,
+			MinNewFeedback:         7,
+		},
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "adaptation.toml")
+
+	saveErr := policy.Save(path, polFile)
+	g.Expect(saveErr).NotTo(HaveOccurred())
+
+	if saveErr != nil {
+		return
+	}
+
+	loaded, loadErr := policy.Load(path)
+	g.Expect(loadErr).NotTo(HaveOccurred())
+
+	if loadErr != nil {
+		return
+	}
+
+	got := loaded.Adaptation
+	g.Expect(got.MinClusterSize).To(Equal(3))
+	g.Expect(got.MinFeedbackEvents).To(Equal(10))
+	g.Expect(got.MeasurementWindow).To(Equal(30))
+	g.Expect(got.MaintenanceMinOutcomes).To(Equal(5))
+	g.Expect(got.MaintenanceMinSuccess).To(BeNumerically("~", 0.85, 0.001))
+	g.Expect(got.MinNewFeedback).To(Equal(7))
+}
+
+// TestRoundTrip_AdaptationConfig_ZeroValues verifies a zero AdaptationConfig round-trips as all zeros.
+func TestRoundTrip_AdaptationConfig_ZeroValues(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	polFile := &policy.File{}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "adaptation-zero.toml")
+
+	saveErr := policy.Save(path, polFile)
+	g.Expect(saveErr).NotTo(HaveOccurred())
+
+	if saveErr != nil {
+		return
+	}
+
+	loaded, loadErr := policy.Load(path)
+	g.Expect(loadErr).NotTo(HaveOccurred())
+
+	if loadErr != nil {
+		return
+	}
+
+	got := loaded.Adaptation
+	g.Expect(got.MinClusterSize).To(Equal(0))
+	g.Expect(got.MinFeedbackEvents).To(Equal(0))
+	g.Expect(got.MeasurementWindow).To(Equal(0))
+	g.Expect(got.MaintenanceMinOutcomes).To(Equal(0))
+	g.Expect(got.MaintenanceMinSuccess).To(BeNumerically("~", 0.0, 0.001))
+	g.Expect(got.MinNewFeedback).To(Equal(0))
+}
+
 // TestRoundTrip_Effectiveness_FlatCorpusSnapshot verifies all Effectiveness fields round-trip through TOML.
 func TestRoundTrip_Effectiveness_FlatCorpusSnapshot(t *testing.T) {
 	t.Parallel()

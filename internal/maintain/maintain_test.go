@@ -14,6 +14,37 @@ import (
 	"engram/internal/review"
 )
 
+// T-397b: WithRefineKeywordsIrrelevanceThreshold — 0.4 ratio with 0.3 threshold should trigger.
+func TestGenerate_CustomIrrelevanceThreshold_Triggers(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	gen := maintain.New(
+		maintain.WithNow(fixedNow),
+		maintain.WithRefineKeywordsIrrelevanceThreshold(0.3),
+	)
+
+	classified := []review.ClassifiedMemory{
+		{Name: "low-irrelevant-mem", Quadrant: review.Working},
+	}
+
+	// 4 irrelevant out of 10 total = 0.4 ratio, above custom threshold of 0.3.
+	memories := map[string]*memory.Stored{
+		"low-irrelevant-mem": {
+			Title:           "Custom Threshold Memory",
+			Keywords:        []string{"generic"},
+			FollowedCount:   6,
+			IrrelevantCount: 4,
+			UpdatedAt:       fixedNow(),
+		},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].Action).To(gomega.Equal("refine_keywords"))
+}
+
 // T-174: Hidden gem produces LLM-powered broadening proposal.
 func TestGenerate_HiddenGemBroaden(t *testing.T) {
 	t.Parallel()
@@ -672,6 +703,35 @@ func TestGenerate_WorkingBeyondThreshold(t *testing.T) {
 	}
 
 	g.Expect(details).To(gomega.HaveKey("age_days"))
+}
+
+// T-397a: WithStalenessThresholdDays — 60-day-old memory with 30-day threshold should trigger.
+func TestGenerate_WorkingCustomStalenessThreshold_Triggers(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	now := fixedNow()
+
+	const daysAgo = 60
+
+	updatedAt := now.AddDate(0, 0, -daysAgo)
+
+	gen := maintain.New(
+		maintain.WithNow(func() time.Time { return now }),
+		maintain.WithStalenessThresholdDays(30),
+	)
+
+	classified := []review.ClassifiedMemory{
+		{Name: "stale-custom", Quadrant: review.Working},
+	}
+	memories := map[string]*memory.Stored{
+		"stale-custom": {UpdatedAt: updatedAt},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].Action).To(gomega.Equal("review_staleness"))
 }
 
 // T-171: Working memory within staleness threshold produces no proposal.
