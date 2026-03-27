@@ -16,63 +16,6 @@ import (
 	"engram/internal/retrieve"
 )
 
-// RunAdapt implements the adapt subcommand.
-func RunAdapt(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("adapt", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	status := fs.Bool("status", false, "show all policies")
-	approve := fs.String("approve", "", "approve a policy by ID")
-	reject := fs.String("reject", "", "reject a policy by ID")
-	retire := fs.String("retire", "", "retire a policy by ID")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("adapt: %w", parseErr)
-	}
-
-	defaultErr := applyDataDirDefault(dataDir)
-	if defaultErr != nil {
-		return fmt.Errorf("adapt: %w", defaultErr)
-	}
-
-	policyPath := filepath.Join(*dataDir, "policy.toml")
-
-	policyFile, err := policy.Load(policyPath)
-	if err != nil {
-		return fmt.Errorf("adapt: %w", err)
-	}
-
-	switch {
-	case *approve != "":
-		allMemories, listErr := retrieve.New().ListMemories(context.Background(), *dataDir)
-		if listErr != nil && !errors.Is(listErr, os.ErrNotExist) {
-			return fmt.Errorf("adapt: listing memories: %w", listErr)
-		}
-
-		if allMemories == nil {
-			allMemories = make([]*memory.Stored, 0)
-		}
-
-		snapshot := adapt.ComputeCorpusSnapshot(allMemories)
-
-		return AdaptApproveWithSnapshot(policyPath, *approve, snapshot, stdout)
-	case *reject != "":
-		return adaptReject(policyFile, policyPath, *reject, stdout)
-	case *retire != "":
-		return adaptRetire(policyFile, policyPath, *retire, stdout)
-	default:
-		*status = true
-	}
-
-	if *status {
-		return adaptStatus(policyFile, stdout)
-	}
-
-	return nil
-}
-
 // AdaptApproveWithSnapshot approves a policy and stores the corpus snapshot
 // as the before-state for later effectiveness measurement.
 func AdaptApproveWithSnapshot(
@@ -116,6 +59,89 @@ func AdaptApproveWithSnapshot(
 	return nil
 }
 
+// IncrementPolicySessions increments MeasuredSessions on all active policies.
+// Called once per session. Errors silently ignored (fire-and-forget, ARCH-6).
+func IncrementPolicySessions(policyPath string) {
+	policyFile, err := policy.Load(policyPath)
+	if err != nil {
+		return
+	}
+
+	changed := false
+
+	for idx := range policyFile.Policies {
+		if policyFile.Policies[idx].Status == policy.StatusActive {
+			policyFile.Policies[idx].Effectiveness.MeasuredSessions++
+			changed = true
+		}
+	}
+
+	if changed {
+		_ = policy.Save(policyPath, policyFile)
+	}
+}
+
+// RunAdapt implements the adapt subcommand.
+func RunAdapt(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("adapt", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	status := fs.Bool("status", false, "show all policies")
+	approve := fs.String("approve", "", "approve a policy by ID")
+	reject := fs.String("reject", "", "reject a policy by ID")
+	retire := fs.String("retire", "", "retire a policy by ID")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("adapt: %w", parseErr)
+	}
+
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("adapt: %w", defaultErr)
+	}
+
+	policyPath := filepath.Join(*dataDir, "policy.toml")
+
+	policyFile, err := policy.Load(policyPath)
+	if err != nil {
+		return fmt.Errorf("adapt: %w", err)
+	}
+
+	switch {
+	case *approve != "":
+		return adaptApproveWithCorpusSnapshot(policyPath, *approve, *dataDir, stdout)
+	case *reject != "":
+		return adaptReject(policyFile, policyPath, *reject, stdout)
+	case *retire != "":
+		return adaptRetire(policyFile, policyPath, *retire, stdout)
+	default:
+		*status = true
+	}
+
+	if *status {
+		return adaptStatus(policyFile, stdout)
+	}
+
+	return nil
+}
+
+func adaptApproveWithCorpusSnapshot(policyPath, id, dataDir string, stdout io.Writer) error {
+	allMemories, listErr := retrieve.New().ListMemories(context.Background(), dataDir)
+	if listErr != nil && !errors.Is(listErr, os.ErrNotExist) {
+		return fmt.Errorf("adapt: listing memories: %w", listErr)
+	}
+
+	if allMemories == nil {
+		allMemories = make([]*memory.Stored, 0)
+	}
+
+	snapshot := adapt.ComputeCorpusSnapshot(allMemories)
+
+	return AdaptApproveWithSnapshot(policyPath, id, snapshot, stdout)
+}
+
 func adaptReject(policyFile *policy.File, path, id string, stdout io.Writer) error {
 	err := policyFile.Reject(id)
 	if err != nil {
@@ -146,28 +172,6 @@ func adaptRetire(policyFile *policy.File, path, id string, stdout io.Writer) err
 	_, _ = fmt.Fprintf(stdout, "[engram] Retired policy %s\n", id)
 
 	return nil
-}
-
-// IncrementPolicySessions increments MeasuredSessions on all active policies.
-// Called once per session. Errors silently ignored (fire-and-forget, ARCH-6).
-func IncrementPolicySessions(policyPath string) {
-	policyFile, err := policy.Load(policyPath)
-	if err != nil {
-		return
-	}
-
-	changed := false
-
-	for idx := range policyFile.Policies {
-		if policyFile.Policies[idx].Status == policy.StatusActive {
-			policyFile.Policies[idx].Effectiveness.MeasuredSessions++
-			changed = true
-		}
-	}
-
-	if changed {
-		_ = policy.Save(policyPath, policyFile)
-	}
 }
 
 func adaptStatus(policyFile *policy.File, stdout io.Writer) error {
