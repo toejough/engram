@@ -23,6 +23,7 @@ type MaintenanceAction struct {
 	AppliedAt           string  `toml:"applied_at"`
 	EffectivenessBefore float64 `toml:"effectiveness_before"`
 	SurfacedCountBefore int     `toml:"surfaced_count_before"`
+	FeedbackCountBefore int     `toml:"feedback_count_before"`
 	EffectivenessAfter  float64 `toml:"effectiveness_after"`
 	SurfacedCountAfter  int     `toml:"surfaced_count_after"`
 	Measured            bool    `toml:"measured"`
