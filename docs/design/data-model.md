@@ -73,7 +73,7 @@ Append-only log of surfacing events. Records which memories were surfaced, for w
 
 ### `evaluations/`
 
-Directory containing evaluation data for outcome signal processing.
+Per-session JSONL files recording outcome evaluations — whether each surfaced memory was followed, contradicted, or ignored. These are the raw signals that feed effectiveness scoring.
 
 ### `learn-offset.json`
 

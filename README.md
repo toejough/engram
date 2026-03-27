@@ -33,7 +33,7 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
 | **Often surfaced** | **Working** — Keep as-is | **Leech** — Rewrite or escalate |
 | **Rarely surfaced** | **Hidden Gem** — Broaden keywords | **Noise** — Remove |
 
-Effectiveness = followed / (followed + contradicted + ignored). Memories with fewer than 5 evaluations are classified as "insufficient data."
+Effectiveness = followed / (followed + contradicted + ignored + irrelevant) * 100. Memories with fewer than 5 evaluations are classified as "insufficient data."
 
 ## Session lifecycle
 

@@ -87,7 +87,7 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
 | Package | Purpose |
 |---------|---------|
 | `cli` | CLI subcommands, flag parsing, I/O wiring via `targ` |
-| `hooks` | Shell scripts for Claude Code hook events |
+| `hooks` | Test-only — verifies hook scripts and plugin manifest |
 | `render` | Output formatting for surfaced memories |
 | `track` | Surfacing outcome tracking (followed/contradicted/ignored) |
 | `transcript` | Session transcript JSONL parsing |

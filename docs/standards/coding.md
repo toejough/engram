@@ -78,12 +78,11 @@ if result == nil { return }
 
 ```
 engram/
-├── engram.go           # Public API at root
-├── internal/           # Non-public implementation
 ├── cmd/engram/         # CLI binary entry point
+├── internal/           # Non-public implementation (33 packages)
 ├── hooks/              # Claude Code hook scripts
 ├── skills/             # Interactive skill definitions
-└── dev/                # Build tooling
+└── dev/                # Lint config and build tooling
 ```
 
-Root = public API, `internal/` = implementation. Shallow nesting (2-3 levels max).
+`internal/` = all business logic. Shallow nesting (2-3 levels max).
