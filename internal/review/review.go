@@ -28,6 +28,9 @@ type ClassifiedMemory struct {
 	Flagged            bool
 }
 
+// ClassifyOption is a functional option for Classify.
+type ClassifyOption func(*classifyConfig)
+
 // Quadrant represents a position in the 2x2 effectiveness matrix.
 type Quadrant string
 
@@ -41,7 +44,13 @@ type TrackingData struct {
 func Classify(
 	stats map[string]effectiveness.Stat,
 	tracking map[string]TrackingData,
+	opts ...ClassifyOption,
 ) []ClassifiedMemory {
+	cfg := defaultClassifyConfig()
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	keys := unionKeys(stats, tracking)
 	if len(keys) == 0 {
 		return []ClassifiedMemory{}
@@ -62,11 +71,11 @@ func Classify(
 			EvaluationCount:    total,
 		}
 
-		if total < minEvaluations {
+		if total < cfg.minEvaluations {
 			mem.Quadrant = InsufficientData
 		} else {
-			mem.Quadrant = assignQuadrant(trackData.SurfacedCount, stat.EffectivenessScore, median)
-			mem.Flagged = stat.EffectivenessScore < flagThreshold
+			mem.Quadrant = assignQuadrant(trackData.SurfacedCount, stat.EffectivenessScore, median, cfg.effectivenessThreshold)
+			mem.Flagged = stat.EffectivenessScore < cfg.flagThreshold
 		}
 
 		result = append(result, mem)
@@ -117,6 +126,27 @@ func Render(classified []ClassifiedMemory, w io.Writer) {
 	renderInsufficientSection(classified, w)
 }
 
+// WithEffectivenessThreshold overrides the quadrant boundary (default 50.0).
+func WithEffectivenessThreshold(threshold float64) ClassifyOption {
+	return func(cfg *classifyConfig) {
+		cfg.effectivenessThreshold = threshold
+	}
+}
+
+// WithFlagThreshold overrides the flagging boundary (default 40.0).
+func WithFlagThreshold(threshold float64) ClassifyOption {
+	return func(cfg *classifyConfig) {
+		cfg.flagThreshold = threshold
+	}
+}
+
+// WithMinEvaluations overrides the minimum feedback events required (default 5).
+func WithMinEvaluations(minEvals int) ClassifyOption {
+	return func(cfg *classifyConfig) {
+		cfg.minEvaluations = minEvals
+	}
+}
+
 // unexported constants.
 const (
 	effectivenessThreshold = 50.0 // >= 50% → high follow-through
@@ -124,10 +154,17 @@ const (
 	minEvaluations         = 5
 )
 
+// classifyConfig holds configuration for Classify.
+type classifyConfig struct {
+	effectivenessThreshold float64
+	flagThreshold          float64
+	minEvaluations         int
+}
+
 // assignQuadrant returns the quadrant for a memory with sufficient data.
-func assignQuadrant(surfaced int, score, median float64) Quadrant {
+func assignQuadrant(surfaced int, score, median, effThreshold float64) Quadrant {
 	aboveMedian := float64(surfaced) > median
-	highFollowThrough := score >= effectivenessThreshold
+	highFollowThrough := score >= effThreshold
 
 	switch {
 	case aboveMedian && highFollowThrough:
@@ -161,6 +198,15 @@ func computeMedian(tracking map[string]TrackingData) float64 {
 	}
 
 	return float64(counts[n/2-1]+counts[n/2]) / 2.0 //nolint:mnd // standard even-n median formula
+}
+
+// defaultClassifyConfig returns the default configuration for Classify.
+func defaultClassifyConfig() classifyConfig {
+	return classifyConfig{
+		effectivenessThreshold: effectivenessThreshold,
+		flagThreshold:          flagThreshold,
+		minEvaluations:         minEvaluations,
+	}
 }
 
 // renderFlaggedSection writes the flagged-memories section if any exist.

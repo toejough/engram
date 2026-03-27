@@ -162,6 +162,86 @@ func TestClassify_TrackingOnlyNoEvals(t *testing.T) {
 	}
 }
 
+// TestClassify_WithEffectivenessThreshold verifies that a custom effectiveness threshold
+// changes quadrant assignment from HiddenGem to Noise when the score is below the custom boundary.
+func TestClassify_WithEffectivenessThreshold(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// Score of 60% is above the default 50% threshold (Hidden Gem) but below 70%.
+	stats := map[string]effectiveness.Stat{
+		"borderline": {FollowedCount: 3, ContradictedCount: 2, EffectivenessScore: 60.0},
+	}
+	tracking := map[string]review.TrackingData{
+		"borderline": {SurfacedCount: 1},
+	}
+
+	// With default threshold (50%), score 60% → high follow-through (HiddenGem).
+	defaultResult := review.Classify(stats, tracking)
+
+	g.Expect(defaultResult).To(gomega.HaveLen(1))
+	g.Expect(defaultResult[0].Quadrant).To(gomega.Equal(review.HiddenGem))
+
+	// With custom threshold (70%), score 60% → low follow-through (Noise).
+	customResult := review.Classify(stats, tracking, review.WithEffectivenessThreshold(70.0))
+
+	g.Expect(customResult).To(gomega.HaveLen(1))
+	g.Expect(customResult[0].Quadrant).To(gomega.Equal(review.Noise))
+}
+
+// TestClassify_WithFlagThreshold verifies that a custom flag threshold changes flagging behavior.
+func TestClassify_WithFlagThreshold(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// Score of 45% is above the default 40% flag threshold (not flagged) but below 50%.
+	stats := map[string]effectiveness.Stat{
+		"borderline": {FollowedCount: 9, ContradictedCount: 11, EffectivenessScore: 45.0},
+	}
+	tracking := map[string]review.TrackingData{
+		"borderline": {SurfacedCount: 1},
+	}
+
+	// With default threshold (40%), score 45% → not flagged.
+	defaultResult := review.Classify(stats, tracking)
+
+	g.Expect(defaultResult).To(gomega.HaveLen(1))
+	g.Expect(defaultResult[0].Flagged).To(gomega.BeFalse())
+
+	// With custom flag threshold (50%), score 45% → flagged.
+	customResult := review.Classify(stats, tracking, review.WithFlagThreshold(50.0))
+
+	g.Expect(customResult).To(gomega.HaveLen(1))
+	g.Expect(customResult[0].Flagged).To(gomega.BeTrue())
+}
+
+// TestClassify_WithMinEvaluations verifies that a custom minEvaluations threshold changes
+// the InsufficientData boundary.
+func TestClassify_WithMinEvaluations(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// Total of 3 evaluations: below default (5) but above custom minimum (2).
+	stats := map[string]effectiveness.Stat{
+		"sparse": {FollowedCount: 2, ContradictedCount: 1, EffectivenessScore: 66.6},
+	}
+	tracking := map[string]review.TrackingData{
+		"sparse": {SurfacedCount: 1},
+	}
+
+	// With default minimum (5), 3 evals → InsufficientData.
+	defaultResult := review.Classify(stats, tracking)
+
+	g.Expect(defaultResult).To(gomega.HaveLen(1))
+	g.Expect(defaultResult[0].Quadrant).To(gomega.Equal(review.InsufficientData))
+
+	// With custom minimum (2), 3 evals → assigned a real quadrant.
+	customResult := review.Classify(stats, tracking, review.WithMinEvaluations(2))
+
+	g.Expect(customResult).To(gomega.HaveLen(1))
+	g.Expect(customResult[0].Quadrant).NotTo(gomega.Equal(review.InsufficientData))
+}
+
 // TestRender_NoFlaggedSection omits the flagged section when no memories are flagged.
 func TestRender_NoFlaggedSection(t *testing.T) {
 	t.Parallel()
