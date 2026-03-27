@@ -8,24 +8,18 @@ import (
 	"engram/internal/memory"
 	"engram/internal/recall"
 	"engram/internal/retrieve"
-	reviewpkg "engram/internal/review"
 )
 
 // Exported variables.
 var (
-	ExportBuildEscalationMemories = buildEscalationMemories
-	ExportBuildRecallSurfacer     = buildRecallSurfacer
-	ExportCallAnthropicAPI        = callAnthropicAPI
-	ExportRecordSurfacing         = recordSurfacing
-	ExportRegisterMemory          = registerMemory
-	ExportResolveSkillsDir        = resolveSkillsDir
-	ExportRunStdinLearn           = runStdinLearn
-	ExportTruncateTitle           = truncateTitle
+	ExportBuildRecallSurfacer = buildRecallSurfacer
+	ExportCallAnthropicAPI    = callAnthropicAPI
+	ExportRecordSurfacing     = recordSurfacing
+	ExportRegisterMemory      = registerMemory
+	ExportResolveSkillsDir    = resolveSkillsDir
+	ExportRunStdinLearn       = runStdinLearn
+	ExportTruncateTitle       = truncateTitle
 )
-
-type ExportClassifiedMemory = reviewpkg.ClassifiedMemory
-
-type ExportEscalationMemory = maintain.EscalationMemory
 
 type ExportStored = memory.Stored
 

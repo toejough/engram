@@ -8,22 +8,15 @@ import (
 
 // TransferFields applies counter transfer rules from originals onto a base
 // consolidated memory. Mutates base in place. Per spec: sum followed/contradicted,
-// reset irrelevant/ignored/surfaced, set confidence B, clear project_slug,
-// take max enforcement level.
+// reset irrelevant/ignored/surfaced, set confidence B, clear project_slug.
 func TransferFields(base *memory.MemoryRecord, originals []*memory.MemoryRecord, now time.Time) {
 	var totalFollowed, totalContradicted int
-
-	maxEnforcement := base.EnforcementLevel
 
 	absorbed := make([]memory.AbsorbedRecord, 0, len(originals))
 
 	for _, orig := range originals {
 		totalFollowed += orig.FollowedCount
 		totalContradicted += orig.ContradictedCount
-
-		if enforcementRank(orig.EnforcementLevel) > enforcementRank(maxEnforcement) {
-			maxEnforcement = orig.EnforcementLevel
-		}
 
 		absorbed = append(absorbed, memory.AbsorbedRecord{
 			From:          orig.SourcePath,
@@ -45,7 +38,6 @@ func TransferFields(base *memory.MemoryRecord, originals []*memory.MemoryRecord,
 	base.SurfacedCount = 0
 	base.Confidence = consolidatedConfidence
 	base.ProjectSlug = ""
-	base.EnforcementLevel = maxEnforcement
 	base.Absorbed = append(base.Absorbed, absorbed...)
 }
 
@@ -53,16 +45,3 @@ func TransferFields(base *memory.MemoryRecord, originals []*memory.MemoryRecord,
 const (
 	consolidatedConfidence = "B"
 )
-
-func enforcementRank(level string) int {
-	switch level {
-	case "reminder":
-		const reminderRank = 2
-		return reminderRank
-	case "emphasized_advisory":
-		const emphasizedRank = 1
-		return emphasizedRank
-	default:
-		return 0
-	}
-}

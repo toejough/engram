@@ -49,15 +49,6 @@ func (e *effectivenessReaderAdapter) EffectivenessScore(
 	return stat.EffectivenessScore, true, nil
 }
 
-// funcEnforcementApplier adapts a func to maintain.EnforcementApplier.
-type funcEnforcementApplier struct {
-	fn func(path, level, reason string) error
-}
-
-func (f *funcEnforcementApplier) SetEnforcementLevel(id, level, reason string) error {
-	return f.fn(id, level, reason)
-}
-
 // memoryListerAdapter wraps retrieve.Retriever for the Consolidator.
 type memoryListerAdapter struct {
 	retriever *retrieve.Retriever
@@ -272,11 +263,10 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 	fs.SetOutput(io.Discard)
 
 	dataDir := fs.String("data-dir", "", "path to data directory")
-	action := fs.String("action", "", "action: remove, rewrite, broaden_keywords, escalate")
+	action := fs.String("action", "", "action: remove, rewrite, broaden_keywords")
 	memPath := fs.String("memory", "", "path to memory file")
 	fieldsJSON := fs.String("fields", "", "JSON object of fields to update")
 	keywordsStr := fs.String("keywords", "", "comma-separated keywords to add")
-	level := fs.Int("level", 0, "escalation level")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -309,18 +299,11 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 		}
 	}
 
-	enforcementFunc := func(path, level, _ string) error {
-		return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
-			record.EnforcementLevel = level
-		})
-	}
-
 	var applierOpts []signal.ApplierOption
 
 	applierOpts = append(applierOpts,
 		signal.WithReadMemory(readStoredMemory),
 		signal.WithWriteMemory(newStoredMemoryWriter()),
-		signal.WithEnforcementApplier(&funcEnforcementApplier{fn: enforcementFunc}),
 	)
 
 	ctx := context.Background()
@@ -351,7 +334,6 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 		Memory:   *memPath,
 		Fields:   fields,
 		Keywords: keywords,
-		Level:    *level,
 	}
 
 	result, applyErr := applier.Apply(ctx, applyAction)

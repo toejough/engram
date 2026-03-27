@@ -48,29 +48,6 @@ func TestEffectivenessReaderAdapter_NotFound(t *testing.T) {
 	g.Expect(score).To(Equal(0.0))
 }
 
-func TestFuncEnforcementApplier_SetEnforcementLevel(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var capturedPath, capturedLevel, capturedReason string
-
-	applier := &funcEnforcementApplier{
-		fn: func(path, level, reason string) error {
-			capturedPath = path
-			capturedLevel = level
-			capturedReason = reason
-
-			return nil
-		},
-	}
-
-	err := applier.SetEnforcementLevel("memories/test.toml", "advisory", "test reason")
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(capturedPath).To(Equal("memories/test.toml"))
-	g.Expect(capturedLevel).To(Equal("advisory"))
-	g.Expect(capturedReason).To(Equal("test reason"))
-}
-
 // TestIsCoveredBySource covers both the no-keywords early return and the keyword-match path.
 func TestIsCoveredBySource(t *testing.T) {
 	t.Parallel()
@@ -264,59 +241,6 @@ func TestRunApplyProposal_ConsolidateRequiresToken(t *testing.T) {
 	// The action should be dispatched as "consolidate" — not rejected as unsupported.
 	g.Expect(result.Action).To(Equal("consolidate"))
 	g.Expect(result.Error).NotTo(ContainSubstring("unsupported action"))
-}
-
-func TestRunApplyProposal_EscalateAction(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	// Create a dummy memory TOML file.
-	memoriesDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memoriesDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	memPath := filepath.Join(memoriesDir, "test.toml")
-	tomlContent := `title = "Test"
-content = "content"
-concepts = []
-keywords = []
-anti_pattern = ""
-principle = "principle"
-updated_at = "2024-01-01T00:00:00Z"
-enforcement_level = "advisory"
-`
-	writeErr := os.WriteFile(memPath, []byte(tomlContent), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	var buf bytes.Buffer
-
-	err = runApplyProposal([]string{
-		"--data-dir", dataDir,
-		"--action", "escalate",
-		"--memory", memPath,
-		"--level", "2",
-	}, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var result signal.ApplyResult
-
-	decodeErr := json.NewDecoder(&buf).Decode(&result)
-	g.Expect(decodeErr).NotTo(HaveOccurred())
-	g.Expect(result.Success).To(BeTrue())
 }
 
 func TestRunApplyProposal_InvalidFieldsJSON(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/toejough/targ"
@@ -13,11 +12,10 @@ import (
 // ApplyProposalArgs holds parsed flags for the apply-proposal subcommand.
 type ApplyProposalArgs struct {
 	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Action   string `targ:"flag,name=action,desc=action: remove or rewrite or broaden_keywords or escalate"`
+	Action   string `targ:"flag,name=action,desc=action: remove or rewrite or broaden_keywords"`
 	Memory   string `targ:"flag,name=memory,desc=path to memory file"`
 	Fields   string `targ:"flag,name=fields,desc=JSON object of fields to update"`
 	Keywords string `targ:"flag,name=keywords,desc=comma-separated keywords to add"`
-	Level    int    `targ:"flag,name=level,desc=escalation level"`
 }
 
 // --- Targ args structs ---
@@ -130,19 +128,13 @@ func AddBoolFlag(flags []string, name string, value bool) []string {
 
 // ApplyProposalFlags returns the CLI flag args for the apply-proposal subcommand.
 func ApplyProposalFlags(a ApplyProposalArgs) []string {
-	flags := BuildFlags(
+	return BuildFlags(
 		"--data-dir", a.DataDir,
 		"--action", a.Action,
 		"--memory", a.Memory,
 		"--fields", a.Fields,
 		"--keywords", a.Keywords,
 	)
-
-	if a.Level > 0 {
-		flags = append(flags, "--level", strconv.Itoa(a.Level))
-	}
-
-	return flags
 }
 
 // BuildFlags constructs a []string flag list from key-value pairs, skipping empty values.

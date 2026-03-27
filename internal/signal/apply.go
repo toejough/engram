@@ -9,28 +9,24 @@ import (
 	"time"
 
 	"engram/internal/keyword"
-	"engram/internal/maintain"
 	"engram/internal/memory"
 )
 
 // Exported variables.
 var (
-	ErrLevelOutOfRange   = errors.New("escalation level out of range")
 	ErrMissingDependency = errors.New("missing required dependency")
 	ErrMissingField      = errors.New("missing required field")
 	ErrUnsupportedAction = errors.New("unsupported action")
-	ErrZeroLevel         = errors.New("escalation requires non-zero level")
 )
 
 // Applier dispatches apply-proposal actions to handlers.
 type Applier struct {
-	readMemory         func(path string) (*memory.Stored, error)
-	writeMem           MemoryWriter
-	removeFile         func(string) error
-	enforcementApplier maintain.EnforcementApplier
-	extractor          Extractor
-	archiver           Archiver
-	loadRecord         func(string) (*memory.MemoryRecord, error)
+	readMemory func(path string) (*memory.Stored, error)
+	writeMem   MemoryWriter
+	removeFile func(string) error
+	extractor  Extractor
+	archiver   Archiver
+	loadRecord func(string) (*memory.MemoryRecord, error)
 }
 
 // NewApplier creates an Applier with the given options.
@@ -63,8 +59,6 @@ func (a *Applier) Apply(ctx context.Context, action ApplyAction) (ApplyResult, e
 		err = a.applyBroaden(action)
 	case actionRefineKeywords:
 		err = a.applyRefine(action)
-	case actionEscalate:
-		err = a.applyEscalate(action)
 	case actionConsolidate:
 		err = a.applyConsolidate(ctx, action)
 	default:
@@ -142,29 +136,6 @@ func (a *Applier) applyConsolidate(ctx context.Context, action ApplyAction) erro
 	}
 
 	return a.archiveNonSurvivors(memberPaths, action.Memory)
-}
-
-func (a *Applier) applyEscalate(action ApplyAction) error {
-	if action.Level == 0 {
-		return fmt.Errorf("escalation: %w", ErrZeroLevel)
-	}
-
-	if action.Level < 1 || action.Level > len(escalationLadder) {
-		return fmt.Errorf("escalation: %w: %d", ErrLevelOutOfRange, action.Level)
-	}
-
-	proposedLevel := escalationLadder[action.Level-1]
-
-	proposal := maintain.EscalationProposal{
-		MemoryPath:    action.Memory,
-		ProposalType:  "escalate",
-		ProposedLevel: string(proposedLevel),
-		Rationale:     "applied via apply-proposal",
-	}
-
-	return maintain.ApplyEscalationProposal(
-		proposal, a.enforcementApplier,
-	)
 }
 
 func (a *Applier) applyRefine(action ApplyAction) error {
@@ -273,7 +244,6 @@ type ApplyAction struct {
 	Memory   string         `json:"memory"`
 	Fields   map[string]any `json:"fields,omitempty"`
 	Keywords []string       `json:"keywords,omitempty"`
-	Level    int            `json:"level,omitempty"`
 }
 
 // ApplyResult holds the outcome of an apply operation.
@@ -297,13 +267,6 @@ func WithApplyArchiver(arch Archiver) ApplierOption {
 // WithApplyExtractor sets the principle extractor for consolidation.
 func WithApplyExtractor(e Extractor) ApplierOption {
 	return func(a *Applier) { a.extractor = e }
-}
-
-// WithEnforcementApplier sets the enforcement level applier for escalation.
-func WithEnforcementApplier(applier maintain.EnforcementApplier) ApplierOption {
-	return func(a *Applier) {
-		a.enforcementApplier = applier
-	}
 }
 
 // WithLoadRecord sets the function to load a memory record by path.
@@ -336,19 +299,9 @@ func WithWriteMemory(w MemoryWriter) ApplierOption {
 const (
 	actionBroadenKeywords = "broaden_keywords"
 	actionConsolidate     = "consolidate"
-	actionEscalate        = "escalate"
 	actionRefineKeywords  = "refine_keywords"
 	actionRemove          = "remove"
 	actionRewrite         = "rewrite"
-)
-
-// unexported variables.
-var (
-	escalationLadder = []maintain.EscalationLevel{ //nolint:gochecknoglobals // constant table
-		maintain.LevelAdvisory,
-		maintain.LevelEmphasizedAdvisory,
-		maintain.LevelReminder,
-	}
 )
 
 func applyFields(stored *memory.Stored, fields map[string]any) {

@@ -682,52 +682,6 @@ func TestMaintainListMemoriesError(t *testing.T) {
 	}
 }
 
-// TestMaintainMissingDataDir verifies missing --data-dir returns error.
-// TestMaintainWithLeechEscalation exercises the escalation engine path in RunMaintain.
-func TestMaintainWithLeechEscalation(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-
-	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
-
-	// Create a leech memory: high surfacing, all contradicted — counts embedded in TOML.
-	writeReviewMemoryTOML(t, memDir, "leech-escalation.toml", 10, reviewMemoryOpts{
-		contradictedCount: 5,
-	})
-
-	var stdout bytes.Buffer
-
-	// Pass a token to exercise the token != "" branch (WithLLMCaller).
-	// The LLM caller won't be invoked since no hidden gem or leech LLM proposals
-	// are generated without an actual LLM, but the wiring path is exercised.
-	err := cli.RunMaintain(
-		[]string{"--data-dir", dataDir},
-		"fake-token",
-		&stdout,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var proposals []map[string]any
-
-	jsonErr := json.Unmarshal(stdout.Bytes(), &proposals)
-	g.Expect(jsonErr).NotTo(HaveOccurred())
-
-	if jsonErr != nil {
-		return
-	}
-
-	// Should have at least one proposal (escalation or noise).
-	g.Expect(proposals).ToNot(BeEmpty())
-}
-
 func TestOsDirLister_ListJSONL(t *testing.T) {
 	t.Parallel()
 
@@ -1621,26 +1575,17 @@ func TestT181_MaintainWithoutAPIKeySkipsLLMProposals(t *testing.T) {
 			"hidden gem proposals absent without API key")
 	}
 
-	// Leech LLM rewrite proposals require API key, but escalation proposals
-	// are mechanical and appear regardless. Noise proposals always appear.
+	// Without API key, leech proposals require LLM and are skipped.
+	// Noise proposals always appear.
 	noiseCount := 0
-	leechCount := 0
 
 	for _, proposal := range proposals {
-		switch proposal["quadrant"] {
-		case "Noise":
+		if proposal["quadrant"] == "Noise" {
 			noiseCount++
-		case "Leech":
-			leechCount++
-			// Escalation proposals have action prefixed with "escalation_".
-			action, _ := proposal["action"].(string)
-			g.Expect(action).To(HavePrefix("escalation_"),
-				"leech proposals without API key should only be escalations")
 		}
 	}
 
 	g.Expect(noiseCount).To(Equal(1), "noise-mem should classify as Noise")
-	g.Expect(leechCount).To(BeNumerically(">=", 1), "leech-mem should produce escalation proposals")
 }
 
 // T-18: correct subcommand with no API key returns error
@@ -2121,8 +2066,7 @@ func writeReviewRegistry(t *testing.T, dataDir string, entries []reviewTestEntry
 		content := fmt.Sprintf(
 			"title = %q\nsource_type = %q\n"+
 				"surfaced_count = %d\nfollowed_count = %d\n"+
-				"contradicted_count = %d\nignored_count = %d\n"+
-				"enforcement_level = \"advisory\"\n",
+				"contradicted_count = %d\nignored_count = %d\n",
 			entry.Title, entry.Source,
 			entry.Surfaced, entry.Followed, entry.Contradicted, entry.Ignored,
 		)

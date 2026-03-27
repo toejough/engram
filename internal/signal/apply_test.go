@@ -210,77 +210,6 @@ func TestApply_ConsolidateNilExtractor(t *testing.T) {
 	g.Expect(err).To(gomega.HaveOccurred())
 }
 
-func TestApply_EscalateCallsEnforcementApplier(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	enfApplier := &stubEnforcementApplier{}
-
-	applier := signal.NewApplier(
-		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
-			return &memory.Stored{Content: "some content"}, nil
-		}),
-		signal.WithEnforcementApplier(enfApplier),
-	)
-
-	action := signal.ApplyAction{
-		Action: "escalate",
-		Memory: "memories/problem.toml",
-		Level:  2, // emphasized_advisory
-	}
-
-	result, err := applier.Apply(context.Background(), action)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result.Success).To(gomega.BeTrue())
-	g.Expect(enfApplier.calls).To(gomega.HaveLen(1))
-	g.Expect(enfApplier.calls[0].level).To(gomega.Equal("emphasized_advisory"))
-	g.Expect(enfApplier.calls[0].id).To(gomega.Equal("memories/problem.toml"))
-}
-
-func TestApply_EscalateNilApplierNoOp(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	applier := signal.NewApplier(
-		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
-			return &memory.Stored{Content: "test"}, nil
-		}),
-	)
-
-	action := signal.ApplyAction{
-		Action: "escalate",
-		Memory: "memories/problem.toml",
-		Level:  2,
-	}
-
-	result, err := applier.Apply(context.Background(), action)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result.Success).To(gomega.BeTrue())
-}
-
-func TestApply_EscalateZeroLevel(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	applier := signal.NewApplier()
-
-	result, err := applier.Apply(context.Background(), signal.ApplyAction{
-		Action: "escalate", Memory: "test.toml", Level: 0,
-	})
-	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(result.Success).To(gomega.BeFalse())
-}
-
 func TestApply_RefineKeywords(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -594,11 +523,6 @@ func TestApply_UnsupportedAction(t *testing.T) {
 	g.Expect(errors.Is(err, signal.ErrUnsupportedAction)).To(gomega.BeTrue())
 }
 
-type enforcementCall struct {
-	id    string
-	level string
-}
-
 type errorWriter struct{}
 
 func (e *errorWriter) Write(_ string, _ *memory.Stored) error {
@@ -611,16 +535,6 @@ type stubArchiver struct {
 
 func (s *stubArchiver) Archive(path string) error {
 	s.archived = append(s.archived, path)
-	return nil
-}
-
-type stubEnforcementApplier struct {
-	calls []enforcementCall
-}
-
-func (s *stubEnforcementApplier) SetEnforcementLevel(id, level, _ string) error {
-	s.calls = append(s.calls, enforcementCall{id: id, level: level})
-
 	return nil
 }
 

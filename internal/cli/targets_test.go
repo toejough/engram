@@ -52,7 +52,6 @@ func TestApplyProposalFlags(t *testing.T) {
 			Memory:   "/mem/foo.toml",
 			Fields:   `{"title":"new"}`,
 			Keywords: "a,b",
-			Level:    3,
 		})
 		g.Expect(result).To(gomega.Equal([]string{
 			"--data-dir", "/data",
@@ -60,7 +59,6 @@ func TestApplyProposalFlags(t *testing.T) {
 			"--memory", "/mem/foo.toml",
 			"--fields", `{"title":"new"}`,
 			"--keywords", "a,b",
-			"--level", "3",
 		}))
 	})
 

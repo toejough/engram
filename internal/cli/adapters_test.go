@@ -11,48 +11,7 @@ import (
 
 	"engram/internal/cli"
 	"engram/internal/maintain"
-	"engram/internal/memory"
-	reviewpkg "engram/internal/review"
 )
-
-func TestBuildEscalationMemories(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	classified := []reviewpkg.ClassifiedMemory{
-		{
-			Name:               "/m/leech.toml",
-			Quadrant:           reviewpkg.Leech,
-			EffectivenessScore: 0.2,
-		},
-		{
-			Name:     "/m/working.toml",
-			Quadrant: reviewpkg.Working,
-		},
-		{
-			Name:               "/m/leech-no-stored.toml",
-			Quadrant:           reviewpkg.Leech,
-			EffectivenessScore: 0.1,
-		},
-	}
-
-	memoryMap := map[string]*memory.Stored{
-		"/m/leech.toml": {Content: "leech content"},
-	}
-
-	result := cli.ExportBuildEscalationMemories(classified, memoryMap)
-
-	// Only leeches included; working is filtered out.
-	g.Expect(result).To(HaveLen(2))
-	g.Expect(result[0].Path).To(Equal("/m/leech.toml"))
-	g.Expect(result[0].Content).To(Equal("leech content"))
-	g.Expect(result[1].Path).To(Equal("/m/leech-no-stored.toml"))
-	g.Expect(result[1].Content).To(BeEmpty()) // nil stored → empty content
-
-	// Verify maintain.EscalationMemory type is used.
-	_ = result[0]
-}
 
 func TestCliConfirmer_Confirm_AutoApprove(t *testing.T) {
 	t.Parallel()

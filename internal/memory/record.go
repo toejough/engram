@@ -51,18 +51,6 @@ type MemoryRecord struct {
 	SourcePath  string `toml:"source_path,omitempty"`
 	ContentHash string `toml:"content_hash,omitempty"`
 
-	// Enforcement escalation.
-	EnforcementLevel string             `toml:"enforcement_level,omitempty"`
-	Transitions      []TransitionRecord `toml:"transitions,omitempty"`
-
 	// Relationships.
 	Absorbed []AbsorbedRecord `toml:"absorbed,omitempty"`
-}
-
-// TransitionRecord records an enforcement level change.
-type TransitionRecord struct {
-	From   string `toml:"from"`
-	To     string `toml:"to"`
-	At     string `toml:"at"`
-	Reason string `toml:"reason"`
 }

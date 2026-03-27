@@ -6,7 +6,6 @@ import "time"
 // Exported constants.
 const (
 	KindContradiction    = "contradiction"
-	KindEscalation       = "escalation"
 	KindHiddenGemBroaden = "hidden_gem_broadening"
 	KindLeechRewrite     = "leech_rewrite"
 	KindNoiseRemoval     = "noise_removal"

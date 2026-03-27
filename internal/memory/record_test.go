@@ -62,15 +62,11 @@ func TestMemoryRecord_RoundTrip_RegistryFields(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	original := memory.MemoryRecord{
-		Title:            "test",
-		Content:          "content",
-		SourceType:       "memory",
-		SourcePath:       "/path/to/source",
-		ContentHash:      "abc123",
-		EnforcementLevel: "advisory",
-		Transitions: []memory.TransitionRecord{{
-			From: "advisory", To: "reminder", At: "2026-01-01T00:00:00Z", Reason: "test",
-		}},
+		Title:       "test",
+		Content:     "content",
+		SourceType:  "memory",
+		SourcePath:  "/path/to/source",
+		ContentHash: "abc123",
 		Absorbed: []memory.AbsorbedRecord{{
 			From: "old.toml", SurfacedCount: 5, ContentHash: "def456", MergedAt: "2026-01-02T00:00:00Z",
 			Evaluations: memory.EvaluationCounters{Followed: 2, Contradicted: 1, Ignored: 0},

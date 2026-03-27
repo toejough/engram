@@ -95,22 +95,6 @@ func TestTransferFields_EmptyProjectSlug(t *testing.T) {
 	g.Expect(base.ProjectSlug).To(BeEmpty())
 }
 
-func TestTransferFields_MaxEnforcementLevel(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	originals := []*memory.MemoryRecord{
-		{EnforcementLevel: "advisory"},
-		{EnforcementLevel: "emphasized_advisory"},
-		{EnforcementLevel: "reminder"},
-	}
-	base := &memory.MemoryRecord{EnforcementLevel: "advisory"}
-
-	signal.TransferFields(base, originals, transferTestNow)
-
-	g.Expect(base.EnforcementLevel).To(Equal("reminder"))
-}
-
 func TestTransferFields_ResetsIgnoredCount(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
