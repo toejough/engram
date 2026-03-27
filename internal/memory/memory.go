@@ -101,4 +101,5 @@ type Stored struct {
 	Generalizability  int
 	ProjectSlug       string
 	Confidence        string // "A", "B", or "C" — memory confidence tier
+	Tier              string // "A", "B", or "C" — alias for Confidence, preferred for analysis
 }

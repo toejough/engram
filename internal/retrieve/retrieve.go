@@ -105,5 +105,6 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		Generalizability:  record.Generalizability,
 		ProjectSlug:       record.ProjectSlug,
 		Confidence:        record.Confidence,
+		Tier:              record.Confidence,
 	}, nil
 }
