@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"engram/internal/jsonlutil"
 )
 
 // LogEntry represents a single memory creation event.
@@ -44,7 +46,7 @@ func NewLogReader(opts ...ReaderOption) *LogReader {
 // Malformed lines are skipped.
 // Non-ErrNotExist read errors are returned without calling removeFile.
 func (r *LogReader) ReadAndClear(dataDir string) ([]LogEntry, error) {
-	path := dataDir + "/" + logFilename
+	path := filepath.Join(dataDir, logFilename)
 
 	data, err := r.readFile(path)
 	if err != nil {
@@ -55,24 +57,7 @@ func (r *LogReader) ReadAndClear(dataDir string) ([]LogEntry, error) {
 		return nil, fmt.Errorf("reading creation log: %w", err)
 	}
 
-	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-
-	entries := make([]LogEntry, 0, len(lines))
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		var entry LogEntry
-
-		jsonErr := json.Unmarshal([]byte(line), &entry)
-		if jsonErr != nil {
-			continue // skip malformed lines
-		}
-
-		entries = append(entries, entry)
-	}
+	entries := jsonlutil.ParseLines[LogEntry](data)
 
 	err = r.removeFile(path)
 	if err != nil {
@@ -116,7 +101,7 @@ func (w *LogWriter) Append(entry LogEntry, dataDir string) error {
 		entry.Timestamp = w.now().UTC().Format(time.RFC3339)
 	}
 
-	path := dataDir + "/" + logFilename
+	path := filepath.Join(dataDir, logFilename)
 
 	existing, err := w.readFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {

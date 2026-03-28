@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
+	"path/filepath"
 	"time"
+
+	"engram/internal/jsonlutil"
 )
 
 // Logger records and retrieves surfacing events.
@@ -70,7 +72,7 @@ func (l *Logger) LogInvocationTokens(mode string, tokenCount int, timestamp time
 
 	line = append(line, '\n')
 
-	path := l.dataDir + "/" + logFilename
+	path := filepath.Join(l.dataDir, logFilename)
 
 	appendErr := l.appendFile(path, line, logFilePerm)
 	if appendErr != nil {
@@ -95,7 +97,7 @@ func (l *Logger) LogSurfacing(memoryPath, mode string, timestamp time.Time) erro
 
 	line = append(line, '\n')
 
-	path := l.dataDir + "/" + logFilename
+	path := filepath.Join(l.dataDir, logFilename)
 
 	appendErr := l.appendFile(path, line, logFilePerm)
 	if appendErr != nil {
@@ -109,7 +111,7 @@ func (l *Logger) LogSurfacing(memoryPath, mode string, timestamp time.Time) erro
 // Missing file returns empty slice with no error and does not call removeFile.
 // Malformed lines are skipped.
 func (l *Logger) ReadAndClear() ([]SurfacingEvent, error) {
-	path := l.dataDir + "/" + logFilename
+	path := filepath.Join(l.dataDir, logFilename)
 
 	data, err := l.readFile(path)
 	if err != nil {
@@ -120,24 +122,7 @@ func (l *Logger) ReadAndClear() ([]SurfacingEvent, error) {
 		return nil, fmt.Errorf("reading surfacing log: %w", err)
 	}
 
-	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-	events := make([]SurfacingEvent, 0, len(lines))
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		var event SurfacingEvent
-
-		jsonErr := json.Unmarshal([]byte(line), &event)
-		if jsonErr != nil {
-			continue // skip malformed lines
-		}
-
-		events = append(events, event)
-	}
+	events := jsonlutil.ParseLines[SurfacingEvent](data)
 
 	removeErr := l.removeFile(path)
 	if removeErr != nil {
