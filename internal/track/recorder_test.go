@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/onsi/gomega"
@@ -322,40 +321,6 @@ func TestT78_PartialFailureContinues(t *testing.T) {
 	// Second file should be re-written with content preserved.
 	record := capture.decodeTOML(g)
 	g.Expect(record.Title).To(Equal("Test Memory"))
-}
-
-// TestWithNow verifies the WithNow option injects a custom time provider.
-func TestWithNow(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	customTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
-	nowCalled := false
-
-	recorder := track.NewRecorder(
-		track.WithNow(func() time.Time {
-			nowCalled = true
-
-			return customTime
-		}),
-		track.WithReadFile(func(_ string) ([]byte, error) {
-			return []byte(baseTOML), nil
-		}),
-		track.WithWriter(tomlwriter.New(
-			tomlwriter.WithCreateTemp((&writeCapture{}).createTemp(t)),
-			tomlwriter.WithRename(func(_, _ string) error { return nil }),
-			tomlwriter.WithRemove(func(_ string) error { return nil }),
-		)),
-	)
-
-	memories := []*memory.Stored{
-		{FilePath: "/fake/memory.toml"},
-	}
-
-	err := recorder.RecordSurfacing(context.Background(), memories, "prompt")
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(nowCalled).To(BeTrue())
 }
 
 // TestWriteAtomicCreateTempFailure verifies error path when createTemp fails.

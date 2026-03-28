@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/BurntSushi/toml"
 
@@ -17,7 +16,6 @@ import (
 type Recorder struct {
 	readFile func(string) ([]byte, error)
 	writer   *tomlwriter.Writer
-	now      func() time.Time
 }
 
 // NewRecorder creates a Recorder with default I/O wired to the real filesystem.
@@ -25,7 +23,6 @@ func NewRecorder(opts ...RecorderOption) *Recorder {
 	r := &Recorder{
 		readFile: os.ReadFile,
 		writer:   tomlwriter.New(),
-		now:      time.Now,
 	}
 
 	for _, opt := range opts {
@@ -40,10 +37,8 @@ func NewRecorder(opts ...RecorderOption) *Recorder {
 func (r *Recorder) RecordSurfacing(
 	_ context.Context,
 	memories []*memory.Stored,
-	mode string,
+	_ string,
 ) error {
-	now := r.now()
-
 	var errs []error
 
 	for _, mem := range memories {
@@ -51,7 +46,7 @@ func (r *Recorder) RecordSurfacing(
 			continue
 		}
 
-		err := r.updateMemoryFile(mem, mode, now)
+		err := r.updateMemoryFile(mem)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("recording %s: %w", mem.FilePath, err))
 		}
@@ -60,7 +55,7 @@ func (r *Recorder) RecordSurfacing(
 	return errors.Join(errs...)
 }
 
-func (r *Recorder) updateMemoryFile(mem *memory.Stored, _ string, _ time.Time) error {
+func (r *Recorder) updateMemoryFile(mem *memory.Stored) error {
 	data, err := r.readFile(mem.FilePath)
 	if err != nil {
 		return fmt.Errorf("reading file: %w", err)
@@ -78,11 +73,6 @@ func (r *Recorder) updateMemoryFile(mem *memory.Stored, _ string, _ time.Time) e
 
 // RecorderOption configures a Recorder.
 type RecorderOption func(*Recorder)
-
-// WithNow sets the time provider function.
-func WithNow(fn func() time.Time) RecorderOption {
-	return func(r *Recorder) { r.now = fn }
-}
 
 // WithReadFile sets the file reading function.
 func WithReadFile(fn func(string) ([]byte, error)) RecorderOption {
