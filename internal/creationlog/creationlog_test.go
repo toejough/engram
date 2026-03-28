@@ -133,17 +133,20 @@ func TestLogWriter_Append_AppendsToExistingFile(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	existing := `{"timestamp":"2024-01-01T00:00:00Z","title":"Existing","tier":"B","filename":"existing.toml"}` + "\n"
+	dir := t.TempDir()
 
-	capture := &writeCapture{}
+	// Pre-populate file with existing content.
+	existing := `{"timestamp":"2024-01-01T00:00:00Z","title":"Existing","tier":"B","filename":"existing.toml"}` + "\n"
+	logPath := dir + "/creation-log.jsonl"
+
+	writeErr := os.WriteFile(logPath, []byte(existing), 0o644)
+	g.Expect(writeErr).NotTo(gomega.HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
 
 	writer := creationlog.NewLogWriter(
-		creationlog.WithReadFile(func(string) ([]byte, error) {
-			return []byte(existing), nil
-		}),
-		creationlog.WithCreateTemp(capture.createTemp(t)),
-		creationlog.WithRename(func(_, _ string) error { return nil }),
-		creationlog.WithRemove(func(string) error { return nil }),
 		creationlog.WithNow(func() time.Time {
 			return time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 		}),
@@ -155,35 +158,36 @@ func TestLogWriter_Append_AppendsToExistingFile(t *testing.T) {
 		Filename: "new-memory.toml",
 	}
 
-	err := writer.Append(entry, "/data")
+	err := writer.Append(entry, dir)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	content := capture.content(g)
-	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
+	content, readErr := os.ReadFile(logPath)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
 	g.Expect(lines).To(gomega.HaveLen(2))
 	g.Expect(lines[0]).To(gomega.ContainSubstring(`"title":"Existing"`))
 	g.Expect(lines[1]).To(gomega.ContainSubstring(`"title":"New Memory"`))
 }
 
-func TestLogWriter_Append_CreateTempErrorReturned(t *testing.T) {
+func TestLogWriter_Append_OpenFileErrorReturned(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	createErr := errors.New("disk full")
+	openErr := errors.New("disk full")
 
 	writer := creationlog.NewLogWriter(
-		creationlog.WithReadFile(func(string) ([]byte, error) {
-			return nil, os.ErrNotExist
+		creationlog.WithOpenFile(func(string, int, os.FileMode) (*os.File, error) {
+			return nil, openErr
 		}),
-		creationlog.WithCreateTemp(func(_, _ string) (*os.File, error) {
-			return nil, createErr
-		}),
-		creationlog.WithRename(func(_, _ string) error { return nil }),
-		creationlog.WithRemove(func(string) error { return nil }),
 		creationlog.WithNow(time.Now),
 	)
 
@@ -195,20 +199,9 @@ func TestLogWriter_Append_CreatesNewFile(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	capture := &writeCapture{}
-
-	var renamedTo string
+	dir := t.TempDir()
 
 	writer := creationlog.NewLogWriter(
-		creationlog.WithReadFile(func(string) ([]byte, error) {
-			return nil, os.ErrNotExist
-		}),
-		creationlog.WithCreateTemp(capture.createTemp(t)),
-		creationlog.WithRename(func(_, newpath string) error {
-			renamedTo = newpath
-			return nil
-		}),
-		creationlog.WithRemove(func(string) error { return nil }),
 		creationlog.WithNow(func() time.Time {
 			return time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 		}),
@@ -220,126 +213,35 @@ func TestLogWriter_Append_CreatesNewFile(t *testing.T) {
 		Filename: "test-memory.toml",
 	}
 
-	err := writer.Append(entry, "/data")
+	err := writer.Append(entry, dir)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	g.Expect(renamedTo).To(gomega.Equal("/data/creation-log.jsonl"))
+	logPath := dir + "/creation-log.jsonl"
 
-	content := capture.content(g)
-	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
+	content, readErr := os.ReadFile(logPath)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
 	g.Expect(lines).To(gomega.HaveLen(1))
 	g.Expect(lines[0]).To(gomega.ContainSubstring(`"title":"Test Memory"`))
-}
-
-func TestLogWriter_Append_ExistingWithoutTrailingNewline(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	// Existing content without trailing newline — Append must add one before the new entry.
-	existing := `{"timestamp":"2024-01-01T00:00:00Z","title":"Old","tier":"B","filename":"old.toml"}`
-
-	capture := &writeCapture{}
-
-	writer := creationlog.NewLogWriter(
-		creationlog.WithReadFile(func(string) ([]byte, error) {
-			return []byte(existing), nil
-		}),
-		creationlog.WithCreateTemp(capture.createTemp(t)),
-		creationlog.WithRename(func(_, _ string) error { return nil }),
-		creationlog.WithRemove(func(string) error { return nil }),
-		creationlog.WithNow(func() time.Time {
-			return time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
-		}),
-	)
-
-	entry := creationlog.LogEntry{
-		Title:    "New",
-		Tier:     "A",
-		Filename: "new.toml",
-	}
-
-	err := writer.Append(entry, "/data")
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	content := capture.content(g)
-	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
-	g.Expect(lines).To(gomega.HaveLen(2))
-	g.Expect(lines[0]).To(gomega.ContainSubstring(`"title":"Old"`))
-	g.Expect(lines[1]).To(gomega.ContainSubstring(`"title":"New"`))
-}
-
-func TestLogWriter_Append_ReadErrorReturned(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	readErr := errors.New("permission denied")
-
-	writer := creationlog.NewLogWriter(
-		creationlog.WithReadFile(func(string) ([]byte, error) {
-			return nil, readErr
-		}),
-		creationlog.WithCreateTemp(func(_, _ string) (*os.File, error) {
-			return nil, errors.New("should not be called")
-		}),
-		creationlog.WithRename(func(_, _ string) error { return nil }),
-		creationlog.WithRemove(func(string) error { return nil }),
-		creationlog.WithNow(time.Now),
-	)
-
-	err := writer.Append(creationlog.LogEntry{Title: "X", Tier: "A", Filename: "x.toml"}, "/data")
-	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("permission denied")))
-}
-
-func TestLogWriter_Append_RenameErrorCleansUpTemp(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	var removedPath string
-
-	writer := creationlog.NewLogWriter(
-		creationlog.WithReadFile(func(string) ([]byte, error) {
-			return nil, os.ErrNotExist
-		}),
-		creationlog.WithCreateTemp(func(_, pattern string) (*os.File, error) {
-			return os.CreateTemp(t.TempDir(), pattern)
-		}),
-		creationlog.WithRename(func(_, _ string) error {
-			return errors.New("permission denied")
-		}),
-		creationlog.WithRemove(func(path string) error {
-			removedPath = path
-			return nil
-		}),
-		creationlog.WithNow(time.Now),
-	)
-
-	err := writer.Append(creationlog.LogEntry{Title: "X", Tier: "A", Filename: "x.toml"}, "/data")
-	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("permission denied")))
-	g.Expect(removedPath).NotTo(gomega.BeEmpty())
 }
 
 func TestLogWriter_Append_SetsTimestampFromClock(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
+	dir := t.TempDir()
 	fixedTime := time.Date(2024, 6, 15, 12, 30, 0, 0, time.UTC)
-	capture := &writeCapture{}
 
 	writer := creationlog.NewLogWriter(
-		creationlog.WithReadFile(func(string) ([]byte, error) {
-			return nil, os.ErrNotExist
-		}),
-		creationlog.WithCreateTemp(capture.createTemp(t)),
-		creationlog.WithRename(func(_, _ string) error { return nil }),
-		creationlog.WithRemove(func(string) error { return nil }),
 		creationlog.WithNow(func() time.Time {
 			return fixedTime
 		}),
@@ -352,80 +254,45 @@ func TestLogWriter_Append_SetsTimestampFromClock(t *testing.T) {
 		// Timestamp intentionally empty
 	}
 
-	err := writer.Append(entry, "/data")
+	err := writer.Append(entry, dir)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	g.Expect(capture.content(g)).
+	logPath := dir + "/creation-log.jsonl"
+
+	content, readErr := os.ReadFile(logPath)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(content)).
 		To(gomega.ContainSubstring(`"timestamp":"2024-06-15T12:30:00Z"`))
 }
 
-func TestLogWriter_Append_WriteErrorCleansUpTemp(t *testing.T) {
+func TestLogWriter_Append_WriteErrorReturned(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	var removedPath string
-
 	writer := creationlog.NewLogWriter(
-		creationlog.WithReadFile(func(string) ([]byte, error) {
-			return nil, os.ErrNotExist
-		}),
-		creationlog.WithCreateTemp(func(_, pattern string) (*os.File, error) {
-			f, err := os.CreateTemp(t.TempDir(), pattern)
+		creationlog.WithOpenFile(func(name string, flag int, perm os.FileMode) (*os.File, error) {
+			// Return a file that is immediately closed so Write fails.
+			file, err := os.CreateTemp(t.TempDir(), "test-*.jsonl")
 			if err != nil {
 				return nil, err
 			}
-			// Close immediately so WriteString fails.
-			_ = f.Close()
 
-			return f, nil
-		}),
-		creationlog.WithRename(func(_, _ string) error { return nil }),
-		creationlog.WithRemove(func(path string) error {
-			removedPath = path
-			return nil
+			_ = file.Close()
+
+			return file, nil
 		}),
 		creationlog.WithNow(time.Now),
 	)
 
 	err := writer.Append(creationlog.LogEntry{Title: "X", Tier: "A", Filename: "x.toml"}, "/data")
 	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(removedPath).NotTo(gomega.BeEmpty())
-}
-
-// writeCapture tracks the temp file written by LogWriter so content
-// can be read back after the writer closes it.
-type writeCapture struct {
-	tmpPath string
-}
-
-func (w *writeCapture) content(g gomega.Gomega) string {
-	g.Expect(w.tmpPath).NotTo(gomega.BeEmpty(), "no temp file was written")
-
-	data, err := os.ReadFile(w.tmpPath)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return ""
-	}
-
-	return string(data)
-}
-
-func (w *writeCapture) createTemp(t *testing.T) func(string, string) (*os.File, error) {
-	t.Helper()
-
-	return func(_, pattern string) (*os.File, error) {
-		f, err := os.CreateTemp(t.TempDir(), pattern)
-		if err != nil {
-			return nil, err
-		}
-
-		w.tmpPath = f.Name()
-
-		return f, nil
-	}
 }

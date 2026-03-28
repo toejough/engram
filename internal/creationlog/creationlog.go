@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"engram/internal/jsonlutil"
@@ -69,22 +68,16 @@ func (r *LogReader) ReadAndClear(dataDir string) ([]LogEntry, error) {
 
 // LogWriter appends creation events to a JSONL log file.
 type LogWriter struct {
-	readFile   func(string) ([]byte, error)
-	createTemp func(dir, pattern string) (*os.File, error)
-	rename     func(oldpath, newpath string) error
-	remove     func(name string) error
-	now        func() time.Time
+	openFile func(name string, flag int, perm os.FileMode) (*os.File, error)
+	now      func() time.Time
 }
 
 // NewLogWriter creates a LogWriter with optional DI overrides.
 // Defaults use real os.* functions and time.Now.
 func NewLogWriter(opts ...WriterOption) *LogWriter {
 	w := &LogWriter{
-		readFile:   os.ReadFile,
-		createTemp: os.CreateTemp,
-		rename:     os.Rename,
-		remove:     os.Remove,
-		now:        time.Now,
+		openFile: os.OpenFile,
+		now:      time.Now,
 	}
 	for _, opt := range opts {
 		opt(w)
@@ -95,67 +88,29 @@ func NewLogWriter(opts ...WriterOption) *LogWriter {
 
 // Append adds a LogEntry to the creation log in dataDir.
 // If entry.Timestamp is empty, it is set from the injected clock.
-// Missing log file is not an error. Write is atomic via temp+rename.
+// Missing log file is created automatically via O_CREATE.
 func (w *LogWriter) Append(entry LogEntry, dataDir string) error {
 	if entry.Timestamp == "" {
 		entry.Timestamp = w.now().UTC().Format(time.RFC3339)
 	}
 
-	path := filepath.Join(dataDir, logFilename)
-
-	existing, err := w.readFile(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("reading creation log: %w", err)
-	}
-
-	line, err := json.Marshal(entry)
+	data, err := json.Marshal(entry)
 	if err != nil {
 		return fmt.Errorf("marshaling log entry: %w", err)
 	}
 
-	var sb strings.Builder
-	if len(existing) > 0 {
-		sb.Write(existing)
+	path := filepath.Join(dataDir, logFilename)
 
-		if existing[len(existing)-1] != '\n' {
-			sb.WriteByte('\n')
-		}
-	}
-
-	sb.Write(line)
-	sb.WriteByte('\n')
-
-	return w.writeAtomic(path, sb.String())
-}
-
-func (w *LogWriter) writeAtomic(targetPath, content string) error {
-	tmpFile, err := w.createTemp(filepath.Dir(targetPath), "engram-creation-*.jsonl")
+	//nolint:gosec // G304: path is an internal path constructed from dataDir + logFilename.
+	file, err := w.openFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, logFilePerm)
 	if err != nil {
-		return fmt.Errorf("creating temp file: %w", err)
+		return fmt.Errorf("opening log file: %w", err)
 	}
 
-	tmpPath := tmpFile.Name()
+	defer func() { _ = file.Close() }()
 
-	_, writeErr := tmpFile.WriteString(content)
-	if writeErr != nil {
-		_ = tmpFile.Close()
-		_ = w.remove(tmpPath)
-
-		return fmt.Errorf("writing creation log: %w", writeErr)
-	}
-
-	closeErr := tmpFile.Close()
-	if closeErr != nil {
-		_ = w.remove(tmpPath)
-
-		return fmt.Errorf("closing temp file: %w", closeErr)
-	}
-
-	renameErr := w.rename(tmpPath, targetPath)
-	if renameErr != nil {
-		_ = w.remove(tmpPath)
-
-		return fmt.Errorf("renaming temp file: %w", renameErr)
+	if _, err = file.Write(append(data, '\n')); err != nil {
+		return fmt.Errorf("writing log entry: %w", err)
 	}
 
 	return nil
@@ -167,13 +122,6 @@ type ReaderOption func(*LogReader)
 // WriterOption configures a LogWriter.
 type WriterOption func(*LogWriter)
 
-// WithCreateTemp injects a temp file creation function into a LogWriter.
-func WithCreateTemp(fn func(dir, pattern string) (*os.File, error)) WriterOption {
-	return func(w *LogWriter) {
-		w.createTemp = fn
-	}
-}
-
 // WithNow injects a clock function into a LogWriter.
 func WithNow(fn func() time.Time) WriterOption {
 	return func(w *LogWriter) {
@@ -181,10 +129,10 @@ func WithNow(fn func() time.Time) WriterOption {
 	}
 }
 
-// WithReadFile injects a readFile function into a LogWriter.
-func WithReadFile(fn func(string) ([]byte, error)) WriterOption {
+// WithOpenFile injects a file-open function into a LogWriter for testability.
+func WithOpenFile(fn func(name string, flag int, perm os.FileMode) (*os.File, error)) WriterOption {
 	return func(w *LogWriter) {
-		w.readFile = fn
+		w.openFile = fn
 	}
 }
 
@@ -195,13 +143,6 @@ func WithReaderReadFile(fn func(string) ([]byte, error)) ReaderOption {
 	}
 }
 
-// WithRemove injects a remove function into a LogWriter.
-func WithRemove(fn func(name string) error) WriterOption {
-	return func(w *LogWriter) {
-		w.remove = fn
-	}
-}
-
 // WithRemoveFile injects a removeFile function into a LogReader.
 func WithRemoveFile(fn func(string) error) ReaderOption {
 	return func(r *LogReader) {
@@ -209,14 +150,8 @@ func WithRemoveFile(fn func(string) error) ReaderOption {
 	}
 }
 
-// WithRename injects a rename function into a LogWriter.
-func WithRename(fn func(oldpath, newpath string) error) WriterOption {
-	return func(w *LogWriter) {
-		w.rename = fn
-	}
-}
-
 // unexported constants.
 const (
+	logFilePerm = os.FileMode(0o644)
 	logFilename = "creation-log.jsonl"
 )
