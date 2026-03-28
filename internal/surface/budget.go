@@ -42,7 +42,7 @@ func DefaultBudgetConfig() BudgetConfig {
 
 // EstimateMemoryTokens estimates the token cost of a memory for prompt mode.
 func EstimateMemoryTokens(mem *memory.Stored) int {
-	return EstimateTokens(concatenatePromptFields(mem))
+	return EstimateTokens(mem.SearchText())
 }
 
 // EstimateTokens returns the estimated token count for text using len/4 truncation.

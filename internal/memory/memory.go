@@ -1,7 +1,10 @@
 // Package memory defines shared types for the engram memory pipeline.
 package memory
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // CandidateLearning holds a learning extracted from a session transcript (ARCH-15).
 // The Learner pipeline uses Tier as Confidence when writing.
@@ -81,6 +84,9 @@ type PatternMatch struct {
 	Confidence string // "A" for remember patterns, "B" for correction patterns
 }
 
+// searchTextCapacity is the initial capacity for SearchText parts slice.
+const searchTextCapacity = 5
+
 // Stored represents a memory read back from a TOML file on disk (ARCH-9).
 type Stored struct {
 	Title             string
@@ -102,4 +108,26 @@ type Stored struct {
 	ProjectSlug       string
 	Confidence        string // "A", "B", or "C" — memory confidence tier
 	Tier              string // "A", "B", or "C" — alias for Confidence, preferred for analysis
+}
+
+// SearchText returns a concatenation of all searchable fields for retrieval scoring.
+func (s *Stored) SearchText() string {
+	parts := make([]string, 0, searchTextCapacity)
+
+	if s.Title != "" {
+		parts = append(parts, s.Title)
+	}
+
+	if s.Content != "" {
+		parts = append(parts, s.Content)
+	}
+
+	if s.Principle != "" {
+		parts = append(parts, s.Principle)
+	}
+
+	parts = append(parts, s.Keywords...)
+	parts = append(parts, s.Concepts...)
+
+	return strings.Join(parts, " ")
 }

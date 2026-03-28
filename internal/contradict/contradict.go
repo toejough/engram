@@ -68,7 +68,7 @@ func (d *Detector) Check(ctx context.Context, candidates []*memory.Stored) ([]Pa
 			continue // heuristic is sufficient, skip similarity check
 		}
 
-		pc.similarity = jaccardSimilarity(memText(pc.a), memText(pc.b))
+		pc.similarity = jaccardSimilarity(pc.a.SearchText(), pc.b.SearchText())
 	}
 
 	// Classify pairs and resolve (REQ-P1-2, REQ-P1-3).
@@ -126,8 +126,7 @@ const (
 	defaultMaxLLMCalls  = 3
 	heuristicConfidence = 0.9
 	llmConfidence       = 0.7
-	memTextCapacity     = 4
-	minCandidates       = 2
+	minCandidates = 2
 	pairDivisor         = 2
 	similarityThresh    = 0.3
 )
@@ -149,8 +148,8 @@ var (
 
 // heuristicFires returns true if memories a and b contain opposing verb patterns (REQ-P1-2).
 func heuristicFires(a, b *memory.Stored) bool {
-	textA := strings.ToLower(memText(a))
-	textB := strings.ToLower(memText(b))
+	textA := strings.ToLower(a.SearchText())
+	textB := strings.ToLower(b.SearchText())
 
 	for _, pair := range opposingPairs {
 		pos, neg := pair[0], pair[1]
@@ -202,23 +201,3 @@ func jaccardSimilarity(a, b string) float64 {
 	return float64(intersection) / float64(union)
 }
 
-// memText concatenates searchable fields of a memory.
-func memText(m *memory.Stored) string {
-	parts := make([]string, 0, memTextCapacity)
-
-	if m.Title != "" {
-		parts = append(parts, m.Title)
-	}
-
-	if m.Principle != "" {
-		parts = append(parts, m.Principle)
-	}
-
-	if m.Content != "" {
-		parts = append(parts, m.Content)
-	}
-
-	parts = append(parts, m.Keywords...)
-
-	return strings.Join(parts, " ")
-}

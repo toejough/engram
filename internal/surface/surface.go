@@ -520,29 +520,6 @@ func applyColdStartBudgetPrompt(
 	return result
 }
 
-// concatenatePromptFields builds searchable text for prompt mode.
-func concatenatePromptFields(mem *memory.Stored) string {
-	var parts []string
-
-	if mem.Title != "" {
-		parts = append(parts, mem.Title)
-	}
-
-	if mem.Content != "" {
-		parts = append(parts, mem.Content)
-	}
-
-	if mem.Principle != "" {
-		parts = append(parts, mem.Principle)
-	}
-
-	parts = append(parts, mem.Keywords...)
-
-	parts = append(parts, mem.Concepts...)
-
-	return strings.Join(parts, " ")
-}
-
 // effectivenessScoreFor returns the effectiveness score for a memory path.
 // Two-tier logic:
 //   - No effectiveness data exists for path: defaultEffectiveness (50%) — neutral default
@@ -596,7 +573,7 @@ func matchPromptMemories(
 
 	for _, mem := range memories {
 		// Concatenate searchable fields
-		searchText := concatenatePromptFields(mem)
+		searchText := mem.SearchText()
 
 		docs = append(docs, bm25.Document{
 			ID:   mem.FilePath,
