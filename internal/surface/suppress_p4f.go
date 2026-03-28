@@ -71,6 +71,8 @@ func suppressByCrossRef(
 		return candidates, nil
 	}
 
+	now := time.Now()
+
 	var events []SuppressionEvent
 
 	filtered := make([]*memory.Stored, 0, len(candidates))
@@ -85,7 +87,7 @@ func suppressByCrossRef(
 
 		events = append(events, SuppressionEvent{
 			MemoryID:     mem.FilePath,
-			Timestamp:    time.Now(),
+			Timestamp:    now,
 			Reason:       SuppressionReasonCrossSource,
 			SuppressedBy: source,
 		})
@@ -104,6 +106,7 @@ func suppressByTranscript(
 	}
 
 	lower := strings.ToLower(transcriptWindow)
+	now := time.Now()
 
 	var events []SuppressionEvent
 
@@ -114,7 +117,7 @@ func suppressByTranscript(
 		if matchedKW != "" {
 			events = append(events, SuppressionEvent{
 				MemoryID:     mem.FilePath,
-				Timestamp:    time.Now(),
+				Timestamp:    now,
 				Reason:       SuppressionReasonTranscript,
 				SuppressedBy: matchedKW,
 			})
