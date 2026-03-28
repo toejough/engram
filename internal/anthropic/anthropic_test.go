@@ -13,40 +13,51 @@ import (
 	"engram/internal/anthropic"
 )
 
-type fakeDoer struct {
-	lastRequest *http.Request
-	response    *http.Response
-	err         error
-}
+func TestCall_EmptyContent(t *testing.T) {
+	t.Parallel()
 
-func (f *fakeDoer) Do(req *http.Request) (*http.Response, error) {
-	f.lastRequest = req
-	return f.response, f.err
-}
+	g := NewGomegaWithT(t)
 
-func makeAPIResponse(t *testing.T, g Gomega, text string) []byte {
-	t.Helper()
-
-	resp := struct {
-		Content []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
-		} `json:"content"`
-	}{
-		Content: []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
-		}{{Type: "text", Text: text}},
-	}
-
-	data, err := json.Marshal(resp)
+	emptyResp, err := json.Marshal(struct {
+		Content []struct{} `json:"content"`
+	}{Content: []struct{}{}})
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
-		return nil
+		return
 	}
 
-	return data
+	doer := &fakeDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(emptyResp)),
+		},
+	}
+
+	client := anthropic.NewClient("token", doer)
+	_, callErr := client.Call(context.Background(), anthropic.HaikuModel, "sys", "usr", 1024)
+	g.Expect(callErr).To(MatchError(anthropic.ErrNoContentBlocks))
+}
+
+func TestCall_NilResponse(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	doer := &fakeDoer{response: nil}
+	client := anthropic.NewClient("token", doer)
+	_, err := client.Call(context.Background(), anthropic.HaikuModel, "sys", "usr", 1024)
+	g.Expect(err).To(MatchError(anthropic.ErrNilResponse))
+}
+
+func TestCall_NoToken(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	client := anthropic.NewClient("", nil)
+	_, err := client.Call(context.Background(), anthropic.HaikuModel, "sys", "usr", 1024)
+	g.Expect(err).To(MatchError(anthropic.ErrNoToken))
 }
 
 func TestCall_ReturnsTextContent(t *testing.T) {
@@ -96,49 +107,39 @@ func TestCall_SetsCorrectHeaders(t *testing.T) {
 	g.Expect(doer.lastRequest.Header.Get("Content-Type")).To(Equal("application/json"))
 }
 
-func TestCall_NilResponse(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	doer := &fakeDoer{response: nil}
-	client := anthropic.NewClient("token", doer)
-	_, err := client.Call(context.Background(), anthropic.HaikuModel, "sys", "usr", 1024)
-	g.Expect(err).To(MatchError(anthropic.ErrNilResponse))
+// fakeDoer is a test double for anthropic.HTTPDoer.
+type fakeDoer struct {
+	lastRequest *http.Request
+	response    *http.Response
+	err         error
 }
 
-func TestCall_EmptyContent(t *testing.T) {
-	t.Parallel()
+func (f *fakeDoer) Do(req *http.Request) (*http.Response, error) {
+	f.lastRequest = req
+	return f.response, f.err
+}
 
-	g := NewGomegaWithT(t)
+func makeAPIResponse(t *testing.T, g Gomega, text string) []byte {
+	t.Helper()
 
-	emptyResp, err := json.Marshal(struct {
-		Content []struct{} `json:"content"`
-	}{Content: []struct{}{}})
+	resp := struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+	}{
+		Content: []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		}{{Type: "text", Text: text}},
+	}
+
+	data, err := json.Marshal(resp)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
-		return
+		return nil
 	}
 
-	doer := &fakeDoer{
-		response: &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(emptyResp)),
-		},
-	}
-
-	client := anthropic.NewClient("token", doer)
-	_, callErr := client.Call(context.Background(), anthropic.HaikuModel, "sys", "usr", 1024)
-	g.Expect(callErr).To(MatchError(anthropic.ErrNoContentBlocks))
-}
-
-func TestCall_NoToken(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	client := anthropic.NewClient("", nil)
-	_, err := client.Call(context.Background(), anthropic.HaikuModel, "sys", "usr", 1024)
-	g.Expect(err).To(MatchError(anthropic.ErrNoToken))
+	return data
 }

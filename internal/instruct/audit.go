@@ -7,6 +7,8 @@ import (
 	"math"
 	"sort"
 	"strings"
+
+	"engram/internal/anthropic"
 )
 
 // AuditReport is the full output of the instruction quality audit pipeline.
@@ -103,7 +105,7 @@ func (a *Auditor) diagnoseBottom(
 			item.Source, item.Path, item.Content,
 		)
 
-		resp, err := a.LLMCaller(ctx, haikuModel, diagnosisPrompt, userPrompt)
+		resp, err := a.LLMCaller(ctx, anthropic.HaikuModel, diagnosisPrompt, userPrompt)
 		if err != nil {
 			return nil, fmt.Errorf("calling LLM for %s: %w", item.Path, err)
 		}
@@ -252,7 +254,6 @@ const (
 		"- Too abstract, framing mismatch, missing trigger, too narrow, too verbose\n" +
 		"Output JSON: {\"diagnosis\": \"...\", \"root_cause\": \"...\", \"suggestion\": \"...\"}"
 	dupThreshold = 0.80
-	haikuModel   = "claude-haiku-4-5-20251001"
 )
 
 // diagnosisResponse is the expected JSON from the LLM.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"engram/internal/anthropic"
 	"engram/internal/memory"
 )
 
@@ -30,7 +31,7 @@ func (c *LLMConfirmer) ConfirmClusters(
 ) ([]ConfirmedCluster, error) {
 	userPrompt := buildConfirmPrompt(query, candidates)
 
-	response, err := c.llmCaller(ctx, confirmerModel, confirmSystemPrompt, userPrompt)
+	response, err := c.llmCaller(ctx, anthropic.HaikuModel, confirmSystemPrompt, userPrompt)
 	if err != nil {
 		return nil, fmt.Errorf("confirming clusters: %w", err)
 	}
@@ -66,7 +67,7 @@ func (e *LLMExtractor) ExtractPrinciple(
 ) (*memory.MemoryRecord, error) {
 	userPrompt := buildExtractPrompt(cluster)
 
-	response, err := e.llmCaller(ctx, confirmerModel, extractSystemPrompt, userPrompt)
+	response, err := e.llmCaller(ctx, anthropic.HaikuModel, extractSystemPrompt, userPrompt)
 	if err != nil {
 		return nil, fmt.Errorf("extracting principle: %w", err)
 	}
@@ -89,7 +90,6 @@ const (
 		"member_indices are zero-based indices into the combined list " +
 		"(query=0, candidates=1..N). " +
 		"contradictions is an array of indices that contradict the cluster principle."
-	confirmerModel      = "claude-haiku-4-5-20251001"
 	extractSystemPrompt = "You are a memory synthesis assistant. " +
 		"Given a cluster of related memories, synthesize a single generalized memory. " +
 		"Return ONLY JSON with these fields:\n" +

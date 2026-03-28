@@ -210,7 +210,8 @@ func parseLLMText(text string) ([]memory.CandidateLearning, error) {
 
 	var llmItems []llmCandidateLearningJSON
 
-	if err := json.Unmarshal([]byte(llmText), &llmItems); err != nil {
+	err := json.Unmarshal([]byte(llmText), &llmItems)
+	if err != nil {
 		return nil, fmt.Errorf("parsing LLM JSON output: %w", err)
 	}
 

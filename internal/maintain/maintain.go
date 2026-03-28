@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"engram/internal/anthropic"
 	"engram/internal/memory"
 	"engram/internal/review"
 )
@@ -121,7 +122,7 @@ func (g *Generator) checkIrrelevance(
 		systemPrompt := refineKeywordsSystemPrompt
 		userPrompt := buildRefineDescription(classifiedMem, stored)
 
-		response, llmErr := g.llmCaller(ctx, maintainModel, systemPrompt, userPrompt)
+		response, llmErr := g.llmCaller(ctx, anthropic.HaikuModel, systemPrompt, userPrompt)
 		if llmErr == nil {
 			proposal.Details = safeLLMDetails(response)
 		}
@@ -175,7 +176,7 @@ func (g *Generator) handleHiddenGem(
 	userPrompt := buildMemoryDescription(classifiedMem, stored)
 
 	response, err := g.llmCaller(
-		ctx, maintainModel, systemPrompt, userPrompt,
+		ctx, anthropic.HaikuModel, systemPrompt, userPrompt,
 	)
 	if err != nil {
 		// Fire-and-forget: skip this proposal on LLM failure (ARCH-6).
@@ -204,7 +205,7 @@ func (g *Generator) handleLeech(
 	userPrompt := buildMemoryDescription(classifiedMem, stored)
 
 	response, err := g.llmCaller(
-		ctx, maintainModel, systemPrompt, userPrompt,
+		ctx, anthropic.HaikuModel, systemPrompt, userPrompt,
 	)
 	if err != nil {
 		// Fire-and-forget: skip this proposal on LLM failure (ARCH-6).
@@ -353,7 +354,6 @@ const (
 		"Propose specific field-level changes as JSON. " +
 		"Output: " +
 		`{"proposed_keywords":[...],"proposed_principle":"...","rationale":"..."}`
-	maintainModel                      = "claude-haiku-4-5-20251001"
 	refineKeywordsIrrelevanceThreshold = 0.6
 	refineKeywordsMinFeedback          = 5
 	refineKeywordsSystemPrompt         = "You are a memory maintenance assistant. " +

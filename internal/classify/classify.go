@@ -179,7 +179,8 @@ func parseClassifyText(
 
 	var llmData llmClassifyJSON
 
-	if err := json.Unmarshal([]byte(llmText), &llmData); err != nil {
+	err := json.Unmarshal([]byte(llmText), &llmData)
+	if err != nil {
 		return nil, fmt.Errorf("parsing LLM JSON: %w", err)
 	}
 
