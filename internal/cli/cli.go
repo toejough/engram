@@ -63,13 +63,13 @@ func FilterDuplicateProposals(
 ) []policy.Policy {
 	seen := make(map[string]bool, len(existing))
 	for _, pol := range existing {
-		seen[string(pol.Dimension)+"\x00"+pol.Directive] = true
+		seen[string(pol.Dimension)+"\x00"+policy.DirectiveStem(pol.Directive)] = true
 	}
 
 	result := make([]policy.Policy, 0, len(proposals))
 
 	for _, prop := range proposals {
-		if !seen[string(prop.Dimension)+"\x00"+prop.Directive] {
+		if !seen[string(prop.Dimension)+"\x00"+policy.DirectiveStem(prop.Directive)] {
 			result = append(result, prop)
 		}
 	}

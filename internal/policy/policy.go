@@ -137,7 +137,7 @@ func (pf *File) DeduplicateProposed() int {
 			continue
 		}
 
-		key := string(pol.Dimension) + "\x00" + pol.Directive
+		key := string(pol.Dimension) + "\x00" + DirectiveStem(pol.Directive)
 		if seen[key] {
 			removed++
 
@@ -267,6 +267,17 @@ type Policy struct {
 
 // Status tracks the lifecycle state of a policy.
 type Status string
+
+// DirectiveStem extracts the semantic action from a directive by truncating
+// at the first colon. Stats suffixes (e.g. ": follow rate 37%") are stripped.
+// Returns the full string if no colon is present.
+func DirectiveStem(directive string) string {
+	if stem, _, found := strings.Cut(directive, ":"); found {
+		return strings.TrimSpace(stem)
+	}
+
+	return directive
+}
 
 // Load reads a policy file from path. Returns an empty File if the file does not exist.
 func Load(path string) (*File, error) {

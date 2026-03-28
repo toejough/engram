@@ -122,6 +122,22 @@ func TestFilterDuplicateProposals_SkipsExistingDirectives(t *testing.T) {
 			wantFirst: "Add context window limit",
 		},
 		{
+			name: "same stem different stats is skipped",
+			existing: []policy.Policy{
+				{
+					Directive: "retire pol-001: follow rate 40% (was 38%)",
+					Dimension: policy.DimensionSurfacing,
+				},
+			},
+			proposals: []policy.Policy{
+				{
+					Directive: "retire pol-001: follow rate 38% (was 38%)",
+					Dimension: policy.DimensionSurfacing,
+				},
+			},
+			wantCount: 0,
+		},
+		{
 			name:     "empty existing passes all through",
 			existing: nil,
 			proposals: []policy.Policy{

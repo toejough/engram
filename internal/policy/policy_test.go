@@ -170,6 +170,81 @@ func TestDeduplicateProposed_RemovesDuplicates(t *testing.T) {
 	g.Expect(polFile.Policies[2].ID).To(Equal("pol-004"))
 }
 
+// TestDeduplicateProposed_SameStemDifferentStats verifies DeduplicateProposed treats
+// directives with the same stem but different stats suffixes as duplicates.
+func TestDeduplicateProposed_SameStemDifferentStats(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	polFile := &policy.File{
+		Policies: []policy.Policy{
+			{
+				ID:        "pol-001",
+				Dimension: policy.DimensionExtraction,
+				Directive: "retire pol-001: follow rate 37% (was 38%), mean effectiveness 21.2 (was 21.9)",
+				Status:    policy.StatusProposed,
+			},
+			{
+				ID:        "pol-002",
+				Dimension: policy.DimensionExtraction,
+				Directive: "retire pol-001: follow rate 38% (was 38%), mean effectiveness 21.5 (was 21.9)",
+				Status:    policy.StatusProposed,
+			},
+		},
+	}
+
+	removed := polFile.DeduplicateProposed()
+	g.Expect(removed).To(Equal(1))
+	g.Expect(polFile.Policies).To(HaveLen(1))
+	g.Expect(polFile.Policies[0].ID).To(Equal("pol-001"))
+}
+
+// TestDirectiveStem extracts the semantic action from a directive, ignoring trailing stats after the colon.
+func TestDirectiveStem(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		directive string
+		want      string
+	}{
+		{
+			name:      "retire with stats",
+			directive: `retire pol-021: follow rate 37% (was 38%), mean effectiveness 21.2 (was 21.9)`,
+			want:      "retire pol-021",
+		},
+		{
+			name:      "de-prioritize with stats",
+			directive: `de-prioritize keyword "spec": 88% irrelevance rate across 11 memories`,
+			want:      `de-prioritize keyword "spec"`,
+		},
+		{
+			name:      "no colon returns full string",
+			directive: "Extract only actionable insights",
+			want:      "Extract only actionable insights",
+		},
+		{
+			name:      "empty string",
+			directive: "",
+			want:      "",
+		},
+		{
+			name:      "colon at start",
+			directive: ": some stats",
+			want:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewGomegaWithT(t)
+
+			g.Expect(policy.DirectiveStem(tt.directive)).To(Equal(tt.want))
+		})
+	}
+}
+
 // TestLoad_MissingFile_ReturnsEmpty verifies loading a nonexistent path returns an empty File with no error.
 func TestLoad_MissingFile_ReturnsEmpty(t *testing.T) {
 	t.Parallel()
