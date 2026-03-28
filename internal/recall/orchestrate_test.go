@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"engram/internal/recall"
@@ -295,7 +296,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 
 		g.Expect(result.Summary).To(ContainSubstring("relevant bit"))
 		g.Expect(result.Memories).To(Equal("memories"))
-		g.Expect(summarizer.extractCalls).To(Equal(2))
+		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(2))
 	})
 
 	t.Run("stops at byte cap", func(t *testing.T) {
@@ -332,8 +333,9 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 			return
 		}
 
-		// Should stop after 2 sessions (800+800=1600 >= 1500).
-		g.Expect(summarizer.extractCalls).To(Equal(2))
+		// All 3 sessions are extracted in parallel, but only 2 results
+		// are concatenated before exceeding the byte cap.
+		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(3))
 		g.Expect(len(result.Summary)).To(BeNumerically(">=", 1500))
 	})
 
@@ -358,8 +360,8 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 			return
 		}
 
-		// Only the good session gets extracted.
-		g.Expect(summarizer.extractCalls).To(Equal(1))
+		// Only the good session gets extracted (bad session read fails).
+		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(1))
 		g.Expect(result.Summary).To(Equal("extracted"))
 	})
 
@@ -496,11 +498,11 @@ func (r *fakeReader) Read(path string, _ int) (string, int, error) {
 type fakeSummarizer struct {
 	extractResult string
 	extractErr    error
-	extractCalls  int
+	extractCalls  atomic.Int32
 }
 
 func (s *fakeSummarizer) ExtractRelevant(_ context.Context, _, _ string) (string, error) {
-	s.extractCalls++
+	s.extractCalls.Add(1)
 
 	return s.extractResult, s.extractErr
 }

@@ -4,7 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // Exported constants.
@@ -98,6 +102,16 @@ func (o *Orchestrator) recallModeA(
 	return &Result{Summary: accumulated, Memories: memories}, nil
 }
 
+// maxModeBConcurrency is the maximum number of concurrent LLM calls in mode B.
+const maxModeBConcurrency = 3
+
+// indexedExtract holds an extracted string alongside its original session index
+// so results can be reassembled in order after parallel execution.
+type indexedExtract struct {
+	index int
+	text  string
+}
+
 func (o *Orchestrator) recallModeB(
 	ctx context.Context,
 	sessions []string,
@@ -107,20 +121,45 @@ func (o *Orchestrator) recallModeB(
 		return &Result{}, nil
 	}
 
+	eg, egctx := errgroup.WithContext(ctx)
+	eg.SetLimit(maxModeBConcurrency)
+
+	var mu sync.Mutex
+
+	results := make([]indexedExtract, 0, len(sessions))
+
+	for i, path := range sessions {
+		eg.Go(func() error {
+			content, _, readErr := o.reader.Read(path, DefaultStripBudget)
+			if readErr != nil {
+				return nil //nolint:nilerr // skip unreadable sessions
+			}
+
+			extracted, extErr := o.summarizer.ExtractRelevant(egctx, content, query)
+			if extErr != nil {
+				return nil //nolint:nilerr // skip failed extractions
+			}
+
+			mu.Lock()
+			results = append(results, indexedExtract{index: i, text: extracted})
+			mu.Unlock()
+
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, fmt.Errorf("extracting relevant content: %w", err)
+	}
+
+	sort.Slice(results, func(a, b int) bool {
+		return results[a].index < results[b].index
+	})
+
 	var builder strings.Builder
 
-	for _, path := range sessions {
-		content, _, readErr := o.reader.Read(path, DefaultStripBudget)
-		if readErr != nil {
-			continue
-		}
-
-		extracted, extErr := o.summarizer.ExtractRelevant(ctx, content, query)
-		if extErr != nil {
-			continue
-		}
-
-		builder.WriteString(extracted)
+	for _, r := range results {
+		builder.WriteString(r.text)
 
 		if builder.Len() >= DefaultExtractCap {
 			break
