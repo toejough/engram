@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +8,56 @@ import (
 
 	"github.com/BurntSushi/toml"
 )
+
+// AtomicWriter writes a TOML-serializable record to a path atomically.
+type AtomicWriter interface {
+	AtomicWrite(targetPath string, record any) error
+}
+
+// Modifier atomically reads a memory TOML, applies a mutation, and writes back.
+// All I/O is injected for testability.
+type Modifier struct {
+	readFile func(string) ([]byte, error)
+	writer   AtomicWriter
+}
+
+// NewModifier creates a Modifier with real filesystem operations.
+// The caller must provide a writer via WithModifierWriter; if none is given,
+// the Modifier will panic on first use. This avoids importing tomlwriter
+// from the memory package.
+func NewModifier(opts ...ModifierOption) *Modifier {
+	m := &Modifier{
+		readFile: os.ReadFile,
+	}
+
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	return m
+}
+
+// ReadModifyWrite atomically reads a memory TOML, applies a mutation, and writes back.
+func (m *Modifier) ReadModifyWrite(path string, mutate func(*MemoryRecord)) error {
+	data, err := m.readFile(path)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", path, err)
+	}
+
+	var record MemoryRecord
+
+	_, err = toml.Decode(string(data), &record)
+	if err != nil {
+		return fmt.Errorf("decoding %s: %w", path, err)
+	}
+
+	mutate(&record)
+
+	return m.writer.AtomicWrite(path, record)
+}
+
+// ModifierOption configures a Modifier.
+type ModifierOption func(*Modifier)
 
 // StoredRecord pairs a file path with its parsed MemoryRecord.
 type StoredRecord struct {
@@ -50,43 +99,12 @@ func ListAll(dir string) ([]StoredRecord, error) {
 	return records, nil
 }
 
-// ReadModifyWrite atomically reads a memory TOML, applies a mutation, and writes back.
-func ReadModifyWrite(path string, mutate func(*MemoryRecord)) error {
-	data, err := os.ReadFile(path) //nolint:gosec // path from trusted internal source
-	if err != nil {
-		return fmt.Errorf("reading %s: %w", path, err)
-	}
+// WithModifierReadFile overrides the file reading function.
+func WithModifierReadFile(fn func(string) ([]byte, error)) ModifierOption {
+	return func(m *Modifier) { m.readFile = fn }
+}
 
-	var record MemoryRecord
-
-	_, err = toml.Decode(string(data), &record)
-	if err != nil {
-		return fmt.Errorf("decoding %s: %w", path, err)
-	}
-
-	mutate(&record)
-
-	var buf bytes.Buffer
-
-	err = toml.NewEncoder(&buf).Encode(record)
-	if err != nil {
-		return fmt.Errorf("encoding %s: %w", path, err)
-	}
-
-	dir := filepath.Dir(path)
-	tmpPath := filepath.Join(dir, ".tmp-rmw")
-
-	const filePerm = 0o644
-
-	err = os.WriteFile(tmpPath, buf.Bytes(), filePerm)
-	if err != nil {
-		return fmt.Errorf("writing temp: %w", err)
-	}
-
-	err = os.Rename(tmpPath, path)
-	if err != nil {
-		return fmt.Errorf("renaming temp to %s: %w", path, err)
-	}
-
-	return nil
+// WithModifierWriter sets the AtomicWriter for atomic writes.
+func WithModifierWriter(w AtomicWriter) ModifierOption {
+	return func(m *Modifier) { m.writer = w }
 }

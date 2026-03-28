@@ -41,9 +41,7 @@ func TestTOMLRewriter_EmptyUpdates(t *testing.T) {
 			return []byte("title = \"test\"\n"), nil
 		}),
 		maintain.WithWriter(tomlwriter.New(
-			tomlwriter.WithCreateTemp(func(tmpDir, pattern string) (*os.File, error) {
-				return os.CreateTemp(tmpDir, pattern)
-			}),
+			tomlwriter.WithCreateTemp(os.CreateTemp),
 			tomlwriter.WithRename(func(_, _ string) error { return nil }),
 		)),
 	)
@@ -67,12 +65,10 @@ func TestTOMLRewriter_MergesUpdates(t *testing.T) {
 			return []byte("title = \"original\"\nkeep = \"preserved\"\n"), nil
 		}),
 		maintain.WithWriter(tomlwriter.New(
-			tomlwriter.WithCreateTemp(func(tmpDir, pattern string) (*os.File, error) {
-				return os.CreateTemp(tmpDir, pattern)
-			}),
+			tomlwriter.WithCreateTemp(os.CreateTemp),
 			tomlwriter.WithRename(func(oldpath, _ string) error {
-				var readErr error
-				writtenData, readErr = os.ReadFile(oldpath)
+				data, readErr := os.ReadFile(oldpath)
+				writtenData = data
 
 				return readErr
 			}),

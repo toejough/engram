@@ -444,9 +444,9 @@ func RunReview(args []string, stdout io.Writer) error {
 
 // unexported constants.
 const (
-	anthropicMaxTokens = 1024
-	filePermOwnerRW    = 0o600
-	formatJSON         = "json"
+	anthropicMaxTokens           = 1024
+	filePermOwnerRW              = 0o600
+	formatJSON                   = "json"
 	maxTitleLength               = 38
 	maxTranscriptTok             = 2000
 	minArgs                      = 2
@@ -456,13 +456,16 @@ const (
 
 // unexported variables.
 var (
+	defaultModifier = memory.NewModifier( //nolint:gochecknoglobals // production singleton
+		memory.WithModifierWriter(tomlwriter.New()),
+	)
 	errCorrectMissingFlags = errors.New(
 		"correct: --message required",
 	)
 	errMaintainApplyMissingProposals = errors.New(
 		"maintain --apply: --proposals required",
 	)
-	errSkillExists = errors.New("skill already exists")
+	errSkillExists             = errors.New("skill already exists")
 	errSurfaceMissingFlags     = errors.New("surface: --mode required")
 	errSurfaceStopNoTranscript = errors.New("surface: --transcript-path required for stop mode")
 	errUnknownCommand          = errors.New("unknown command")
@@ -894,15 +897,6 @@ func buildTrackingFromMemories(memories []*memory.Stored) map[string]reviewpkg.T
 	return tracking
 }
 
-// newAnthropicClient creates a shared anthropic.Client configured with the
-// current AnthropicAPIURL (supports test overrides).
-func newAnthropicClient(token string) *anthropic.Client {
-	client := anthropic.NewClient(token, &http.Client{})
-	client.SetAPIURL(AnthropicAPIURL)
-
-	return client
-}
-
 // classifyStoredRecords builds review classifications from memory.StoredRecord values.
 // The ID for each entry is the relative path within dataDir (e.g. "memories/foo.toml").
 func classifyStoredRecords(records []memory.StoredRecord, dataDir string) []reviewClassification {
@@ -1159,6 +1153,15 @@ func markValidatedPolicies(adaptPF *policy.File, validatedIDs []string, snap ada
 	}
 }
 
+// newAnthropicClient creates a shared anthropic.Client configured with the
+// current AnthropicAPIURL (supports test overrides).
+func newAnthropicClient(token string) *anthropic.Client {
+	client := anthropic.NewClient(token, &http.Client{})
+	client.SetAPIURL(AnthropicAPIURL)
+
+	return client
+}
+
 func newTokenResolver() *tokenresolver.Resolver {
 	return tokenresolver.New(
 		os.Getenv,
@@ -1171,7 +1174,7 @@ func newTokenResolver() *tokenresolver.Resolver {
 
 // recordSurfacing increments the surfaced count and timestamp for a memory file.
 func recordSurfacing(path string) error {
-	return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
+	return defaultModifier.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
 		record.SurfacedCount++
 		record.LastSurfacedAt = time.Now().UTC().Format(time.RFC3339)
 	})
@@ -1183,7 +1186,7 @@ func registerMemory(filePath, _, content string, _ time.Time) error {
 	h := sha256.Sum256([]byte(content))
 	hash := hex.EncodeToString(h[:])
 
-	return memory.ReadModifyWrite(filePath, func(r *memory.MemoryRecord) {
+	return defaultModifier.ReadModifyWrite(filePath, func(r *memory.MemoryRecord) {
 		r.SourceType = "memory"
 		r.SourcePath = filePath
 		r.ContentHash = hash
@@ -1751,7 +1754,7 @@ func runSurface(args []string, stdout io.Writer) error {
 		surface.WithSurfacingLogger(surfLogger),
 		surface.WithEffectiveness(effAdapter),
 		surface.WithSurfacingRecorder(func(path string) error {
-			return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
+			return defaultModifier.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
 				record.SurfacedCount++
 				record.LastSurfacedAt = time.Now().UTC().Format(time.RFC3339)
 			})

@@ -23,8 +23,6 @@ import (
 	"engram/internal/learn"
 )
 
-
-
 // TestConsolidationProposalMemberPaths verifies that consolidation proposals store
 // members as objects with path and title fields (not plain strings).
 func TestConsolidationProposalMemberPaths(t *testing.T) {

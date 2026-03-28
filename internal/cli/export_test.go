@@ -13,7 +13,7 @@ import (
 // Exported variables.
 var (
 	ExportBuildRecallSurfacer      = buildRecallSurfacer
-	ExportLoadExtractionGuidance = loadExtractionGuidance
+	ExportLoadExtractionGuidance   = loadExtractionGuidance
 	ExportNewSourceCrossRefChecker = newSourceCrossRefChecker
 	ExportRecordSurfacing          = recordSurfacing
 	ExportRegisterMemory           = registerMemory

@@ -32,7 +32,7 @@ func backfillSlugs(dir, slug string, apply bool) (int, error) {
 
 		storedPath := stored.Path
 
-		writeErr := memory.ReadModifyWrite(storedPath, func(record *memory.MemoryRecord) {
+		writeErr := defaultModifier.ReadModifyWrite(storedPath, func(record *memory.MemoryRecord) {
 			record.ProjectSlug = slug
 		})
 		if writeErr != nil {
