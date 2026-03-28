@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -85,10 +86,7 @@ func (a *Auditor) diagnoseBottom(
 		return []Diagnosis{}, nil
 	}
 
-	// Filter to items with effectiveness data (score > 0 means data exists)
-	scored := make([]InstructionItem, 0, len(items))
-
-	scored = append(scored, items...)
+	scored := slices.Clone(items)
 
 	sort.Slice(scored, func(i, j int) bool {
 		return scored[i].EffectivenessScore < scored[j].EffectivenessScore
