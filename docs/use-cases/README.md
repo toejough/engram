@@ -2,7 +2,7 @@
 
 ## UC-1: Session Learning
 
-Extract learnings from session transcripts at compaction or session end. The `flush` pipeline reads new transcript content (incremental via offset tracking), sends it to the LLM for extraction, classifies each learning into tiers (A/B/C), deduplicates against the existing corpus using BM25 + TF-IDF similarity, and writes surviving learnings as TOML files. Triggered by the async `Stop` hook.
+Extract learnings from session transcripts at compaction or session end. The `flush` pipeline reads new transcript content (incremental via offset tracking), sends it to the LLM for extraction, classifies each learning into tiers (A/B/C), deduplicates against the existing corpus using keyword overlap (>50%), and writes surviving learnings as TOML files. Triggered by the async `Stop` hook.
 
 ## UC-2: Hook-Time Surfacing
 
@@ -38,3 +38,11 @@ Detect duplicate clusters and enforce graduated escalation. The `signal` package
 ## UC-34: Memory Consolidation
 
 Detect duplicate clusters across the memory corpus and plan merges. The `signal.consolidate` pipeline computes keyword overlap and TF-IDF similarity between all memory pairs, identifies clusters above a configurable similarity threshold, and optionally confirms via LLM. Merge operations transfer evaluation counters from absorbed memories into the surviving memory's `absorbed` records, preserving outcome history.
+
+## UC-27: Global Binary Installation
+
+Create a global symlink at `~/.local/bin/engram` pointing to the built binary. Fire-and-forget during `SessionStart` — enables `engram` to be called from any shell without PATH manipulation.
+
+## UC-28: Automatic Maintenance
+
+Run `engram maintain` during `SessionStart` (background) as the single source of truth for maintenance signals. Parse output, count proposals by quadrant (Noise, Hidden Gem, Leech) and action type (refine_keywords, escalation, consolidate), check `policy.toml` for pending adaptation proposals, and write `pending-maintenance.json` for consumption at next `UserPromptSubmit`.

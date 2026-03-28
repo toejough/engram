@@ -67,5 +67,3 @@ All memory modifications (remove, broaden keywords, rewrite) MUST go through eng
 - **Rewrite**: `engram apply-proposal --action rewrite --memory <path> --fields '{"title":"...","principle":"..."}'`
 - **Consolidate**: `engram apply-proposal --action consolidate --memory <survivor-path> --fields '{"members":[{"path":"path1","title":"title1"},{"path":"path2","title":"title2"}]}'`
   - Requires API token (LLM synthesizes generalized principle). Survivor path gets overwritten with consolidated memory; other members are archived.
-- **Graduate accept**: `engram graduate accept --id <id>`
-- **Graduate dismiss**: `engram graduate dismiss --id <id>`

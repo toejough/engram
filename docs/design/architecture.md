@@ -11,7 +11,7 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
 ```
 
 1. **Extract**: Parse session transcripts for learnings (corrections, patterns, instructions).
-2. **Deduplicate**: BM25 + TF-IDF similarity against existing memories to prevent redundancy.
+2. **Deduplicate**: Keyword overlap (>50%) against existing memories to prevent redundancy.
 3. **Write**: Persist as TOML files with structured fields, tier classification, and provenance.
 4. **Surface**: Retrieve relevant memories at prompt submission, tool use, and session stop. Rank by keyword match, generalizability, quality score, and frecency.
 5. **Evaluate**: Track whether surfaced memories were followed, contradicted, ignored, or irrelevant. Outcome signals are recorded directly in each memory's TOML file.
@@ -68,7 +68,7 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
 | Package | Purpose |
 |---------|---------|
 | `classify` | Unified LLM-based tier classification (A/B/C) with structured field extraction |
-| `dedup` | BM25 + TF-IDF deduplication against existing corpus |
+| `dedup` | Keyword overlap (>50%) deduplication against existing corpus |
 | `bm25` | BM25 scoring implementation |
 | `tfidf` | TF-IDF vectorization and cosine similarity |
 | `keyword` | Keyword extraction and matching |

@@ -27,17 +27,4 @@ When the user asks to review proposals:
 2. Present pending proposals first, grouped by dimension, with rationale
 3. Ask the user to approve or reject each pending proposal
 4. After all pending proposals are handled, show active policy effectiveness if any have measured results
-5. If any dimension has 3+ consecutive approvals, offer to toggle auto-apply
-
-## Auto-Apply
-
-Per-dimension auto-apply is configured in the engram config. When a user wants to toggle it, edit `$ENGRAM_DATA_DIR/../config.toml` to add or update:
-
-```toml
-[adaptation]
-extraction_auto = false
-surfacing_auto = true
-maintenance_auto = false
-```
-
-Inform the user which dimensions are currently automatic and which are manual.
+5. After all pending proposals are handled, summarize the session's approve/reject decisions

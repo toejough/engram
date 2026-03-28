@@ -20,7 +20,7 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
 
 1. **Extract** — Learns from session transcripts and real-time corrections. User corrections ("remember that...", "don't do X") are captured immediately; broader patterns are extracted at session end.
 
-2. **Deduplicate** — BM25 + TF-IDF similarity against the existing corpus prevents redundant memories. Near-duplicates are consolidated via keyword overlap and TF-IDF cosine similarity.
+2. **Deduplicate** — Keyword overlap (>50%) against the existing corpus prevents redundant memories. Near-duplicates are merged on write; post-creation consolidation uses TF-IDF cosine similarity for cluster detection.
 
 3. **Surface** — At every prompt, retrieves relevant memories via BM25 keyword scoring and injects them as context. A per-hook token budget caps injection to avoid overwhelming the model.
 
