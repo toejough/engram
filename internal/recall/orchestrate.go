@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-
-	"golang.org/x/sync/errgroup"
 )
 
 // Exported constants.
@@ -121,36 +119,7 @@ func (o *Orchestrator) recallModeB(
 		return &Result{}, nil
 	}
 
-	eg, egctx := errgroup.WithContext(ctx)
-	eg.SetLimit(maxModeBConcurrency)
-
-	var mu sync.Mutex
-
-	results := make([]indexedExtract, 0, len(sessions))
-
-	for i, path := range sessions {
-		eg.Go(func() error {
-			content, _, readErr := o.reader.Read(path, DefaultStripBudget)
-			if readErr != nil {
-				return nil //nolint:nilerr // skip unreadable sessions
-			}
-
-			extracted, extErr := o.summarizer.ExtractRelevant(egctx, content, query)
-			if extErr != nil {
-				return nil //nolint:nilerr // skip failed extractions
-			}
-
-			mu.Lock()
-			results = append(results, indexedExtract{index: i, text: extracted})
-			mu.Unlock()
-
-			return nil
-		})
-	}
-
-	if err := eg.Wait(); err != nil {
-		return nil, fmt.Errorf("extracting relevant content: %w", err)
-	}
+	results := o.extractAllSessions(ctx, sessions, query)
 
 	sort.Slice(results, func(a, b int) bool {
 		return results[a].index < results[b].index
@@ -158,8 +127,8 @@ func (o *Orchestrator) recallModeB(
 
 	var builder strings.Builder
 
-	for _, r := range results {
-		builder.WriteString(r.text)
+	for _, result := range results {
+		builder.WriteString(result.text)
 
 		if builder.Len() >= DefaultExtractCap {
 			break
@@ -169,6 +138,52 @@ func (o *Orchestrator) recallModeB(
 	memories := o.surfaceMemories(query)
 
 	return &Result{Summary: builder.String(), Memories: memories}, nil
+}
+
+func (o *Orchestrator) extractAllSessions(
+	ctx context.Context,
+	sessions []string,
+	query string,
+) []indexedExtract {
+	var (
+		wg      sync.WaitGroup
+		mu      sync.Mutex
+		sem     = make(chan struct{}, maxModeBConcurrency)
+		results = make([]indexedExtract, 0, len(sessions))
+	)
+
+	for i, path := range sessions {
+		wg.Add(1)
+
+		sem <- struct{}{}
+
+		go func() {
+			defer func() {
+				<-sem
+				wg.Done()
+			}()
+
+			content, _, readErr := o.reader.Read(path, DefaultStripBudget)
+			if readErr != nil {
+				return
+			}
+
+			extracted, extErr := o.summarizer.ExtractRelevant(ctx, content, query)
+			if extErr != nil {
+				return
+			}
+
+			mu.Lock()
+
+			results = append(results, indexedExtract{index: i, text: extracted})
+
+			mu.Unlock()
+		}()
+	}
+
+	wg.Wait()
+
+	return results
 }
 
 func (o *Orchestrator) surfaceMemories(query string) string {

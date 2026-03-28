@@ -132,6 +132,7 @@ func extractBullets(
 		if text == line {
 			continue
 		}
+
 		text = strings.TrimSpace(text)
 
 		if text == "" {
