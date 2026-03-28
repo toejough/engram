@@ -84,9 +84,6 @@ type PatternMatch struct {
 	Confidence string // "A" for remember patterns, "B" for correction patterns
 }
 
-// searchTextCapacity is the initial capacity for SearchText parts slice.
-const searchTextCapacity = 5
-
 // Stored represents a memory read back from a TOML file on disk (ARCH-9).
 type Stored struct {
 	Title             string
@@ -131,3 +128,8 @@ func (s *Stored) SearchText() string {
 
 	return strings.Join(parts, " ")
 }
+
+// unexported constants.
+const (
+	searchTextCapacity = 5
+)

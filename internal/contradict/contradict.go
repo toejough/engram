@@ -35,7 +35,7 @@ func NewDetector(opts ...DetectorOption) *Detector {
 // Pass 2: Jaccard similarity — borderline pairs sent to LLM classifier.
 // Input order determines rank: index 0 is highest-ranked.
 //
-//nolint:cyclop // two-pass detection with LLM budget: inherent branching
+//nolint:cyclop,funlen // two-pass detection with LLM budget: inherent branching
 func (d *Detector) Check(ctx context.Context, candidates []*memory.Stored) ([]Pair, error) {
 	if len(candidates) < minCandidates {
 		return nil, nil
@@ -135,7 +135,7 @@ const (
 	defaultMaxLLMCalls  = 3
 	heuristicConfidence = 0.9
 	llmConfidence       = 0.7
-	minCandidates = 2
+	minCandidates       = 2
 	pairDivisor         = 2
 	similarityThresh    = 0.3
 )
