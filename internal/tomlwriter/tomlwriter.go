@@ -116,38 +116,46 @@ func (w *Writer) availablePath(memoriesDir, slug string) (string, error) {
 	}
 }
 
-// writeAtomic writes record as TOML to finalPath using a temp file and rename.
-// Paths are constructed internally via filepath.Join — no user-controlled input.
-func (w *Writer) writeAtomic(memoriesDir, finalPath string, record memory.MemoryRecord) error {
-	tempFile, err := w.createTemp(memoriesDir, ".tmp-*")
+// AtomicWrite writes record as TOML to targetPath atomically via temp file + rename.
+// The record must be TOML-serializable. On any failure, the temp file is cleaned up.
+func (w *Writer) AtomicWrite(targetPath string, record any) error {
+	dir := filepath.Dir(filepath.Clean(targetPath))
+	cleanPath := filepath.Clean(targetPath)
+
+	tempFile, err := w.createTemp(dir, ".tmp-*")
 	if err != nil {
-		return fmt.Errorf("tomlwriter: create temp file: %w", err)
+		return fmt.Errorf("creating temp file: %w", err)
 	}
 
-	tempPath := filepath.Clean(tempFile.Name())
-	cleanFinal := filepath.Clean(finalPath)
+	tempPath := tempFile.Name()
+	remove := func() { _ = w.remove(tempPath) }
 
-	encodeErr := toml.NewEncoder(tempFile).Encode(record)
-	if encodeErr != nil {
+	if encErr := toml.NewEncoder(tempFile).Encode(record); encErr != nil {
 		_ = tempFile.Close()
-		_ = w.remove(tempPath)
+		remove()
 
-		return fmt.Errorf("tomlwriter: encode TOML: %w", encodeErr)
+		return fmt.Errorf("encoding TOML: %w", encErr)
 	}
 
-	closeErr := tempFile.Close()
-	if closeErr != nil {
-		_ = w.remove(tempPath)
-		return fmt.Errorf("tomlwriter: close temp file: %w", closeErr)
+	if closeErr := tempFile.Close(); closeErr != nil {
+		remove()
+
+		return fmt.Errorf("closing temp file: %w", closeErr)
 	}
 
-	renameErr := w.rename(tempPath, cleanFinal)
-	if renameErr != nil {
-		_ = w.remove(tempPath)
-		return fmt.Errorf("tomlwriter: rename to final path: %w", renameErr)
+	if renameErr := w.rename(tempPath, cleanPath); renameErr != nil {
+		remove()
+
+		return fmt.Errorf("renaming temp file: %w", renameErr)
 	}
 
 	return nil
+}
+
+// writeAtomic writes record as TOML to finalPath using a temp file and rename.
+// Delegates to AtomicWrite.
+func (w *Writer) writeAtomic(_, finalPath string, record memory.MemoryRecord) error {
+	return w.AtomicWrite(finalPath, record)
 }
 
 // WithCreateTemp overrides the temp file creation function.

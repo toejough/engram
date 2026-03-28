@@ -372,7 +372,7 @@ func TestWriteAtomicCreateTempError(t *testing.T) {
 	g.Expect(writeErr).To(HaveOccurred())
 
 	if writeErr != nil {
-		g.Expect(writeErr.Error()).To(ContainSubstring("create temp file"))
+		g.Expect(writeErr.Error()).To(ContainSubstring("creating temp file"))
 	}
 }
 
@@ -408,7 +408,7 @@ func TestWriteAtomicEncodeError(t *testing.T) {
 	g.Expect(writeErr).To(HaveOccurred())
 
 	if writeErr != nil {
-		g.Expect(writeErr.Error()).To(ContainSubstring("encode TOML"))
+		g.Expect(writeErr.Error()).To(ContainSubstring("encoding TOML"))
 	}
 }
 
@@ -435,7 +435,7 @@ func TestWriteAtomicRenameError(t *testing.T) {
 	g.Expect(writeErr).To(HaveOccurred())
 
 	if writeErr != nil {
-		g.Expect(writeErr.Error()).To(ContainSubstring("rename to final path"))
+		g.Expect(writeErr.Error()).To(ContainSubstring("renaming temp file"))
 	}
 }
 
@@ -477,6 +477,58 @@ func TestWrite_IncludesTrackingFieldKeys(t *testing.T) {
 	g.Expect(raw).To(ContainSubstring("ignored_count"), "tracking field key must be present")
 	g.Expect(raw).To(ContainSubstring("irrelevant_count"), "tracking field key must be present")
 	g.Expect(raw).To(ContainSubstring("last_surfaced_at"), "tracking field key must be present")
+}
+
+func TestAtomicWrite_WritesAndRenames(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "test.toml")
+
+	writer := tomlwriter.New()
+
+	record := map[string]string{"key": "value"}
+	err := writer.AtomicWrite(targetPath, record)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	data, readErr := os.ReadFile(targetPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(ContainSubstring(`key = "value"`))
+}
+
+func TestAtomicWrite_CleansUpOnEncodeError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "test.toml")
+
+	// A channel cannot be TOML-encoded — this will fail during encode.
+	writer := tomlwriter.New()
+	err := writer.AtomicWrite(targetPath, map[string]any{"bad": make(chan int)})
+	g.Expect(err).To(HaveOccurred())
+
+	// Verify no temp files remain.
+	entries, dirErr := os.ReadDir(dir)
+	g.Expect(dirErr).NotTo(HaveOccurred())
+
+	if dirErr != nil {
+		return
+	}
+
+	g.Expect(entries).To(BeEmpty())
 }
 
 // TestWrite_ProjectSlugAndGeneralizabilityWrittenToTOML verifies that ProjectSlug and
