@@ -128,7 +128,7 @@ func (a *Applier) applyConsolidate(ctx context.Context, action ApplyAction) erro
 
 	TransferFields(consolidated, members, time.Now())
 
-	stored := recordToStored(consolidated)
+	stored := consolidated.ToStored(action.Memory)
 
 	writeErr := a.writeMem.Write(action.Memory, stored)
 	if writeErr != nil {
@@ -389,31 +389,6 @@ func parseMemberPaths(fields map[string]any) ([]string, error) {
 	}
 
 	return paths, nil
-}
-
-func recordToStored(rec *memory.MemoryRecord) *memory.Stored {
-	updatedAt, _ := time.Parse(time.RFC3339, rec.UpdatedAt)
-	lastSurfacedAt, _ := time.Parse(time.RFC3339, rec.LastSurfacedAt)
-
-	return &memory.Stored{
-		Title:             rec.Title,
-		Content:           rec.Content,
-		Concepts:          rec.Concepts,
-		Keywords:          rec.Keywords,
-		AntiPattern:       rec.AntiPattern,
-		Principle:         rec.Principle,
-		SurfacedCount:     rec.SurfacedCount,
-		FollowedCount:     rec.FollowedCount,
-		ContradictedCount: rec.ContradictedCount,
-		IgnoredCount:      rec.IgnoredCount,
-		IrrelevantCount:   rec.IrrelevantCount,
-		IrrelevantQueries: rec.IrrelevantQueries,
-		UpdatedAt:         updatedAt,
-		LastSurfacedAt:    lastSurfacedAt,
-		FilePath:          rec.SourcePath,
-		Generalizability:  rec.Generalizability,
-		ProjectSlug:       rec.ProjectSlug,
-	}
 }
 
 func toStringSet(val any) map[string]bool {

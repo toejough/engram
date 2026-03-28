@@ -1,5 +1,7 @@
 package memory
 
+import "time"
+
 // AbsorbedRecord records a memory that was merged into this one.
 type AbsorbedRecord struct {
 	From          string             `toml:"from"`
@@ -69,6 +71,38 @@ type MemoryRecord struct {
 
 	// Maintenance history — tracks action outcomes for adaptive policy (#387).
 	MaintenanceHistory []MaintenanceAction `toml:"maintenance_history,omitempty"`
+}
+
+// ToStored converts a MemoryRecord to a Stored for in-memory use.
+func (r *MemoryRecord) ToStored(filePath string) *Stored {
+	updatedAt, _ := time.Parse(time.RFC3339, r.UpdatedAt)
+
+	var lastSurfacedAt time.Time
+	if r.LastSurfacedAt != "" {
+		lastSurfacedAt, _ = time.Parse(time.RFC3339, r.LastSurfacedAt)
+	}
+
+	return &Stored{
+		Title:             r.Title,
+		Content:           r.Content,
+		Concepts:          r.Concepts,
+		Keywords:          r.Keywords,
+		AntiPattern:       r.AntiPattern,
+		Principle:         r.Principle,
+		SurfacedCount:     r.SurfacedCount,
+		FollowedCount:     r.FollowedCount,
+		ContradictedCount: r.ContradictedCount,
+		IgnoredCount:      r.IgnoredCount,
+		IrrelevantCount:   r.IrrelevantCount,
+		IrrelevantQueries: r.IrrelevantQueries,
+		UpdatedAt:         updatedAt,
+		LastSurfacedAt:    lastSurfacedAt,
+		FilePath:          filePath,
+		Generalizability:  r.Generalizability,
+		ProjectSlug:       r.ProjectSlug,
+		Confidence:        r.Confidence,
+		Tier:              r.Confidence,
+	}
 }
 
 // TotalFeedback returns the sum of all evaluation counters.

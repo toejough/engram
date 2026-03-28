@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"time"
 
 	"github.com/BurntSushi/toml"
 
@@ -76,35 +75,5 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		return nil, fmt.Errorf("decoding TOML: %w", err)
 	}
 
-	updatedAt, err := time.Parse(time.RFC3339, record.UpdatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("parsing updated_at: %w", err)
-	}
-
-	var lastSurfacedAt time.Time
-	if record.LastSurfacedAt != "" {
-		lastSurfacedAt, _ = time.Parse(time.RFC3339, record.LastSurfacedAt)
-	}
-
-	return &memory.Stored{
-		Title:             record.Title,
-		Content:           record.Content,
-		Concepts:          record.Concepts,
-		Keywords:          record.Keywords,
-		AntiPattern:       record.AntiPattern,
-		Principle:         record.Principle,
-		SurfacedCount:     record.SurfacedCount,
-		FollowedCount:     record.FollowedCount,
-		ContradictedCount: record.ContradictedCount,
-		IgnoredCount:      record.IgnoredCount,
-		IrrelevantCount:   record.IrrelevantCount,
-		IrrelevantQueries: record.IrrelevantQueries,
-		UpdatedAt:         updatedAt,
-		LastSurfacedAt:    lastSurfacedAt,
-		FilePath:          filePath,
-		Generalizability:  record.Generalizability,
-		ProjectSlug:       record.ProjectSlug,
-		Confidence:        record.Confidence,
-		Tier:              record.Confidence,
-	}, nil
+	return record.ToStored(filePath), nil
 }

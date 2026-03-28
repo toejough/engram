@@ -952,8 +952,7 @@ func collectActivePolicies(policies []policy.Policy) []policy.Policy {
 	return active
 }
 
-// runAdaptationAnalysis analyses feedback patterns and appends new proposals to policy.toml.
-// Errors are silently ignored (fire-and-forget, ARCH-6).
+// defaultAdaptConfig returns the default thresholds for adaptation analysis.
 func defaultAdaptConfig() adapt.Config {
 	const (
 		defaultMinClusterSize             = 5
@@ -1180,7 +1179,6 @@ func recordSurfacing(path string) error {
 	})
 }
 
-// runIncrementalLearn creates an IncrementalLearner and runs it.
 // registerMemory hashes content and writes metadata to the memory TOML file (UC-23).
 func registerMemory(filePath, _, content string, _ time.Time) error {
 	h := sha256.Sum256([]byte(content))
@@ -1301,13 +1299,9 @@ func runAdaptationAnalysis(ctx context.Context, dataDir, policyPath string) {
 	measureResults := adapt.MeasureOutcomes(measurableRecords, analysisConfig.MinNewFeedback)
 	applyMeasureResults(measurableRecords, measureResults)
 
-	// Reload if measurements were applied
+	// Reload measurable records if measurements were written to disk.
+	// allMemories (Stored) doesn't need reloading — only MaintenanceHistory changed.
 	if len(measureResults) > 0 {
-		allMemories, listErr = retrieve.New().ListMemories(ctx, dataDir)
-		if listErr != nil {
-			return
-		}
-
 		measurableRecords = loadMeasurableRecords(allMemories)
 	}
 
