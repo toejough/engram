@@ -1,5 +1,7 @@
 # Engram
 
+> **Alpha** — Under active development. APIs and data formats may change. Feedback and contributions welcome via [issues](https://github.com/toejough/engram/issues).
+
 Self-correcting memory for LLM agents. A [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code/plugins) that learns from sessions, surfaces relevant memories, measures whether they're actually followed, and fixes the ones that aren't.
 
 ## The problem
