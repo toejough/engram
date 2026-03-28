@@ -178,23 +178,6 @@ func TestLogWriter_Append_AppendsToExistingFile(t *testing.T) {
 	g.Expect(lines[1]).To(gomega.ContainSubstring(`"title":"New Memory"`))
 }
 
-func TestLogWriter_Append_OpenFileErrorReturned(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	openErr := errors.New("disk full")
-
-	writer := creationlog.NewLogWriter(
-		creationlog.WithOpenFile(func(string, int, os.FileMode) (*os.File, error) {
-			return nil, openErr
-		}),
-		creationlog.WithNow(time.Now),
-	)
-
-	err := writer.Append(creationlog.LogEntry{Title: "X", Tier: "A", Filename: "x.toml"}, "/data")
-	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("disk full")))
-}
-
 func TestLogWriter_Append_CreatesNewFile(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -232,6 +215,23 @@ func TestLogWriter_Append_CreatesNewFile(t *testing.T) {
 	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
 	g.Expect(lines).To(gomega.HaveLen(1))
 	g.Expect(lines[0]).To(gomega.ContainSubstring(`"title":"Test Memory"`))
+}
+
+func TestLogWriter_Append_OpenFileErrorReturned(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	openErr := errors.New("disk full")
+
+	writer := creationlog.NewLogWriter(
+		creationlog.WithOpenFile(func(string, int, os.FileMode) (*os.File, error) {
+			return nil, openErr
+		}),
+		creationlog.WithNow(time.Now),
+	)
+
+	err := writer.Append(creationlog.LogEntry{Title: "X", Tier: "A", Filename: "x.toml"}, "/data")
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("disk full")))
 }
 
 func TestLogWriter_Append_SetsTimestampFromClock(t *testing.T) {
@@ -279,7 +279,7 @@ func TestLogWriter_Append_WriteErrorReturned(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	writer := creationlog.NewLogWriter(
-		creationlog.WithOpenFile(func(name string, flag int, perm os.FileMode) (*os.File, error) {
+		creationlog.WithOpenFile(func(_ string, _ int, _ os.FileMode) (*os.File, error) {
 			// Return a file that is immediately closed so Write fails.
 			file, err := os.CreateTemp(t.TempDir(), "test-*.jsonl")
 			if err != nil {

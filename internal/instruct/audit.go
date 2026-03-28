@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"slices"
 	"sort"
 	"strings"
 
@@ -86,7 +85,8 @@ func (a *Auditor) diagnoseBottom(
 		return []Diagnosis{}, nil
 	}
 
-	scored := slices.Clone(items)
+	scored := make([]InstructionItem, len(items))
+	copy(scored, items)
 
 	sort.Slice(scored, func(i, j int) bool {
 		return scored[i].EffectivenessScore < scored[j].EffectivenessScore
@@ -247,12 +247,12 @@ type SkippedSection struct {
 
 // unexported constants.
 const (
-	bottomPercentile    = 0.20
-	outcomeContradicted = "contradicted"
+	bottomPercentile = 0.20
 	diagnosisPrompt  = "You are diagnosing why an instruction is ineffective. Common root causes:\n" +
 		"- Too abstract, framing mismatch, missing trigger, too narrow, too verbose\n" +
 		"Output JSON: {\"diagnosis\": \"...\", \"root_cause\": \"...\", \"suggestion\": \"...\"}"
-	dupThreshold = 0.80
+	dupThreshold        = 0.80
+	outcomeContradicted = "contradicted"
 )
 
 // diagnosisResponse is the expected JSON from the LLM.

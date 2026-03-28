@@ -8,20 +8,15 @@ import (
 	"engram/internal/jsonlutil"
 )
 
-func TestParseLines_ValidJSON(t *testing.T) {
+func TestParseLines_EmptyInput(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
 
-	type item struct {
-		Name string `json:"name"`
-	}
+	type item struct{}
 
-	data := []byte("{\"name\":\"a\"}\n{\"name\":\"b\"}\n")
-	result := jsonlutil.ParseLines[item](data)
-	g.Expect(result).To(gomega.HaveLen(2))
-	g.Expect(result[0].Name).To(gomega.Equal("a"))
-	g.Expect(result[1].Name).To(gomega.Equal("b"))
+	result := jsonlutil.ParseLines[item](nil)
+	g.Expect(result).To(gomega.BeEmpty())
 }
 
 func TestParseLines_SkipsEmptyAndMalformed(t *testing.T) {
@@ -38,13 +33,18 @@ func TestParseLines_SkipsEmptyAndMalformed(t *testing.T) {
 	g.Expect(result).To(gomega.HaveLen(2))
 }
 
-func TestParseLines_EmptyInput(t *testing.T) {
+func TestParseLines_ValidJSON(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
 
-	type item struct{}
+	type item struct {
+		Name string `json:"name"`
+	}
 
-	result := jsonlutil.ParseLines[item](nil)
-	g.Expect(result).To(gomega.BeEmpty())
+	data := []byte("{\"name\":\"a\"}\n{\"name\":\"b\"}\n")
+	result := jsonlutil.ParseLines[item](data)
+	g.Expect(result).To(gomega.HaveLen(2))
+	g.Expect(result[0].Name).To(gomega.Equal("a"))
+	g.Expect(result[1].Name).To(gomega.Equal("b"))
 }

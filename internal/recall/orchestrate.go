@@ -72,74 +72,6 @@ func (o *Orchestrator) Recall(
 	return o.recallModeB(ctx, sessions, query)
 }
 
-func (o *Orchestrator) recallModeA(
-	_ context.Context,
-	sessions []string,
-) (*Result, error) {
-	var builder strings.Builder
-
-	bytesRead := 0
-
-	for _, path := range sessions {
-		content, size, readErr := o.reader.Read(path, DefaultModeABudget-bytesRead)
-		if readErr != nil {
-			continue
-		}
-
-		builder.WriteString(content)
-
-		bytesRead += size
-		if bytesRead >= DefaultModeABudget {
-			break
-		}
-	}
-
-	accumulated := builder.String()
-	memories := o.surfaceMemories(accumulated)
-
-	return &Result{Summary: accumulated, Memories: memories}, nil
-}
-
-// maxModeBConcurrency is the maximum number of concurrent LLM calls in mode B.
-const maxModeBConcurrency = 3
-
-// indexedExtract holds an extracted string alongside its original session index
-// so results can be reassembled in order after parallel execution.
-type indexedExtract struct {
-	index int
-	text  string
-}
-
-func (o *Orchestrator) recallModeB(
-	ctx context.Context,
-	sessions []string,
-	query string,
-) (*Result, error) {
-	if o.summarizer == nil {
-		return &Result{}, nil
-	}
-
-	results := o.extractAllSessions(ctx, sessions, query)
-
-	sort.Slice(results, func(a, b int) bool {
-		return results[a].index < results[b].index
-	})
-
-	var builder strings.Builder
-
-	for _, result := range results {
-		builder.WriteString(result.text)
-
-		if builder.Len() >= DefaultExtractCap {
-			break
-		}
-	}
-
-	memories := o.surfaceMemories(query)
-
-	return &Result{Summary: builder.String(), Memories: memories}, nil
-}
-
 func (o *Orchestrator) extractAllSessions(
 	ctx context.Context,
 	sessions []string,
@@ -186,6 +118,64 @@ func (o *Orchestrator) extractAllSessions(
 	return results
 }
 
+func (o *Orchestrator) recallModeA(
+	_ context.Context,
+	sessions []string,
+) (*Result, error) {
+	var builder strings.Builder
+
+	bytesRead := 0
+
+	for _, path := range sessions {
+		content, size, readErr := o.reader.Read(path, DefaultModeABudget-bytesRead)
+		if readErr != nil {
+			continue
+		}
+
+		builder.WriteString(content)
+
+		bytesRead += size
+		if bytesRead >= DefaultModeABudget {
+			break
+		}
+	}
+
+	accumulated := builder.String()
+	memories := o.surfaceMemories(accumulated)
+
+	return &Result{Summary: accumulated, Memories: memories}, nil
+}
+
+func (o *Orchestrator) recallModeB(
+	ctx context.Context,
+	sessions []string,
+	query string,
+) (*Result, error) {
+	if o.summarizer == nil {
+		return &Result{}, nil
+	}
+
+	results := o.extractAllSessions(ctx, sessions, query)
+
+	sort.Slice(results, func(a, b int) bool {
+		return results[a].index < results[b].index
+	})
+
+	var builder strings.Builder
+
+	for _, result := range results {
+		builder.WriteString(result.text)
+
+		if builder.Len() >= DefaultExtractCap {
+			break
+		}
+	}
+
+	memories := o.surfaceMemories(query)
+
+	return &Result{Summary: builder.String(), Memories: memories}, nil
+}
+
 func (o *Orchestrator) surfaceMemories(query string) string {
 	if o.surfacer == nil {
 		return ""
@@ -230,4 +220,16 @@ func FormatResult(w io.Writer, result *Result) error {
 	}
 
 	return nil
+}
+
+// unexported constants.
+const (
+	maxModeBConcurrency = 3
+)
+
+// indexedExtract holds an extracted string alongside its original session index
+// so results can be reassembled in order after parallel execution.
+type indexedExtract struct {
+	index int
+	text  string
 }

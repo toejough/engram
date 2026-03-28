@@ -34,11 +34,6 @@ type Client struct {
 	apiURL string
 }
 
-// HTTPDoer is the interface for making HTTP requests.
-type HTTPDoer interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
 // NewClient creates a Client. Pass http.DefaultClient as doer in production.
 func NewClient(token string, doer HTTPDoer) *Client {
 	return &Client{
@@ -76,40 +71,6 @@ func (c *Client) Caller(maxTokens int) CallerFunc {
 // SetAPIURL overrides the API endpoint URL (for testing).
 func (c *Client) SetAPIURL(url string) {
 	c.apiURL = url
-}
-
-// unexported constants.
-const (
-	defaultAPIURL = "https://api.anthropic.com/v1/messages"
-	apiVersion    = "2023-06-01"
-	betaHeader    = "oauth-2025-04-20"
-)
-
-// contentBlock is a content block in an Anthropic API response.
-type contentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
-}
-
-// message is a single message in the Anthropic messages API.
-type message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-// request is the request body for the Anthropic messages API.
-//
-//nolint:tagliatelle // Anthropic API requires snake_case JSON field names.
-type request struct {
-	Model     string    `json:"model"`
-	MaxTokens int       `json:"max_tokens"`
-	System    string    `json:"system"`
-	Messages  []message `json:"messages"`
-}
-
-// response is the response body from the Anthropic messages API.
-type response struct {
-	Content []contentBlock `json:"content"`
 }
 
 // doRequest builds and sends the HTTP request, returning the raw response body.
@@ -162,6 +123,45 @@ func (c *Client) doRequest(
 	}
 
 	return body, nil
+}
+
+// HTTPDoer is the interface for making HTTP requests.
+type HTTPDoer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// unexported constants.
+const (
+	apiVersion    = "2023-06-01"
+	betaHeader    = "oauth-2025-04-20"
+	defaultAPIURL = "https://api.anthropic.com/v1/messages"
+)
+
+// contentBlock is a content block in an Anthropic API response.
+type contentBlock struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+// message is a single message in the Anthropic messages API.
+type message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// request is the request body for the Anthropic messages API.
+//
+//nolint:tagliatelle // Anthropic API requires snake_case JSON field names.
+type request struct {
+	Model     string    `json:"model"`
+	MaxTokens int       `json:"max_tokens"`
+	System    string    `json:"system"`
+	Messages  []message `json:"messages"`
+}
+
+// response is the response body from the Anthropic messages API.
+type response struct {
+	Content []contentBlock `json:"content"`
 }
 
 // parseResponse extracts the text from a raw Anthropic API response body.

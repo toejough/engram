@@ -101,7 +101,6 @@ func (w *LogWriter) Append(entry LogEntry, dataDir string) error {
 
 	path := filepath.Join(dataDir, logFilename)
 
-	//nolint:gosec // G304: path is an internal path constructed from dataDir + logFilename.
 	file, err := w.openFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, logFilePerm)
 	if err != nil {
 		return fmt.Errorf("opening log file: %w", err)
@@ -109,8 +108,9 @@ func (w *LogWriter) Append(entry LogEntry, dataDir string) error {
 
 	defer func() { _ = file.Close() }()
 
-	if _, err = file.Write(append(data, '\n')); err != nil {
-		return fmt.Errorf("writing log entry: %w", err)
+	_, writeErr := file.Write(append(data, '\n'))
+	if writeErr != nil {
+		return fmt.Errorf("writing log entry: %w", writeErr)
 	}
 
 	return nil
