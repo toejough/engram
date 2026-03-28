@@ -151,7 +151,7 @@ func (a *Auditor) findGaps(items []InstructionItem) []GapCandidate {
 	patternMap := make(map[string]*patternInfo)
 
 	for _, rec := range a.EvalData {
-		if rec.Outcome != "contradicted" {
+		if rec.Outcome != outcomeContradicted {
 			continue
 		}
 
@@ -249,7 +249,8 @@ type SkippedSection struct {
 
 // unexported constants.
 const (
-	bottomPercentile = 0.20
+	bottomPercentile    = 0.20
+	outcomeContradicted = "contradicted"
 	diagnosisPrompt  = "You are diagnosing why an instruction is ineffective. Common root causes:\n" +
 		"- Too abstract, framing mismatch, missing trigger, too narrow, too verbose\n" +
 		"Output JSON: {\"diagnosis\": \"...\", \"root_cause\": \"...\", \"suggestion\": \"...\"}"
