@@ -3,8 +3,8 @@ package bm25
 
 import (
 	"math"
-	"strings"
-	"unicode"
+
+	"engram/internal/tokenize"
 )
 
 // Document represents a searchable document (memory).
@@ -41,7 +41,7 @@ func (s *Scorer) Score(query string, documents []Document) []ScoredDocument {
 	}
 
 	// Tokenize query
-	queryTerms := tokenize(query)
+	queryTerms := tokenize.Tokenize(query)
 	if len(queryTerms) == 0 {
 		return []ScoredDocument{}
 	}
@@ -51,7 +51,7 @@ func (s *Scorer) Score(query string, documents []Document) []ScoredDocument {
 	docTokenCounts := make([]int, len(documents))
 
 	for docIdx, doc := range documents {
-		docTokens := tokenize(doc.Text)
+		docTokens := tokenize.Tokenize(doc.Text)
 		docTokenCounts[docIdx] = len(docTokens)
 
 		// Count term frequencies in this document
@@ -153,25 +153,3 @@ func sortDescending(scores []ScoredDocument) {
 	}
 }
 
-// tokenize splits text into lowercase tokens by whitespace and punctuation.
-func tokenize(text string) []string {
-	var (
-		tokens       []string
-		currentToken strings.Builder
-	)
-
-	for _, ch := range strings.ToLower(text) {
-		if unicode.IsLetter(ch) || unicode.IsDigit(ch) {
-			currentToken.WriteRune(ch)
-		} else if currentToken.Len() > 0 {
-			tokens = append(tokens, currentToken.String())
-			currentToken.Reset()
-		}
-	}
-
-	if currentToken.Len() > 0 {
-		tokens = append(tokens, currentToken.String())
-	}
-
-	return tokens
-}
