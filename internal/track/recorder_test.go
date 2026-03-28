@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/memory"
+	"engram/internal/tomlwriter"
 	"engram/internal/track"
 )
 
@@ -70,9 +71,11 @@ func TestREQ22AC2_RecordSurfacingPreservesNonTrackingFields(t *testing.T) {
 		track.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte(fullFieldTOML), nil
 		}),
-		track.WithCreateTemp(capture.createTemp(t)),
-		track.WithRename(func(_, _ string) error { return nil }),
-		track.WithRemove(func(_ string) error { return nil }),
+		track.WithWriter(tomlwriter.New(
+			tomlwriter.WithCreateTemp(capture.createTemp(t)),
+			tomlwriter.WithRename(func(_, _ string) error { return nil }),
+			tomlwriter.WithRemove(func(_ string) error { return nil }),
+		)),
 	)
 
 	memories := []*memory.Stored{
@@ -139,9 +142,11 @@ func TestT353_RecordSurfacingPreservesTrackingFields(t *testing.T) {
 		track.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte(tomlWithTracking), nil
 		}),
-		track.WithCreateTemp(capture.createTemp(t)),
-		track.WithRename(func(_, _ string) error { return nil }),
-		track.WithRemove(func(_ string) error { return nil }),
+		track.WithWriter(tomlwriter.New(
+			tomlwriter.WithCreateTemp(capture.createTemp(t)),
+			tomlwriter.WithRename(func(_, _ string) error { return nil }),
+			tomlwriter.WithRemove(func(_ string) error { return nil }),
+		)),
 	)
 
 	memories := []*memory.Stored{
@@ -192,9 +197,11 @@ func TestT76_RecordSurfacingPreservesContentFields(t *testing.T) {
 		track.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte(baseTOML), nil
 		}),
-		track.WithCreateTemp(capture.createTemp(t)),
-		track.WithRename(func(_, _ string) error { return nil }),
-		track.WithRemove(func(_ string) error { return nil }),
+		track.WithWriter(tomlwriter.New(
+			tomlwriter.WithCreateTemp(capture.createTemp(t)),
+			tomlwriter.WithRename(func(_, _ string) error { return nil }),
+			tomlwriter.WithRemove(func(_ string) error { return nil }),
+		)),
 	)
 
 	memories := []*memory.Stored{
@@ -241,9 +248,11 @@ func TestT77_RecordSurfacingPreservesTrackingFields(t *testing.T) {
 		track.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte(existingTOML), nil
 		}),
-		track.WithCreateTemp(capture.createTemp(t)),
-		track.WithRename(func(_, _ string) error { return nil }),
-		track.WithRemove(func(_ string) error { return nil }),
+		track.WithWriter(tomlwriter.New(
+			tomlwriter.WithCreateTemp(capture.createTemp(t)),
+			tomlwriter.WithRename(func(_, _ string) error { return nil }),
+			tomlwriter.WithRemove(func(_ string) error { return nil }),
+		)),
 	)
 
 	memories := []*memory.Stored{
@@ -293,9 +302,11 @@ func TestT78_PartialFailureContinues(t *testing.T) {
 
 	recorder := track.NewRecorder(
 		track.WithReadFile(readFile),
-		track.WithCreateTemp(capture.createTemp(t)),
-		track.WithRename(func(_, _ string) error { return nil }),
-		track.WithRemove(func(_ string) error { return nil }),
+		track.WithWriter(tomlwriter.New(
+			tomlwriter.WithCreateTemp(capture.createTemp(t)),
+			tomlwriter.WithRename(func(_, _ string) error { return nil }),
+			tomlwriter.WithRemove(func(_ string) error { return nil }),
+		)),
 	)
 
 	memories := []*memory.Stored{
@@ -331,9 +342,11 @@ func TestWithNow(t *testing.T) {
 		track.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte(baseTOML), nil
 		}),
-		track.WithCreateTemp((&writeCapture{}).createTemp(t)),
-		track.WithRename(func(_, _ string) error { return nil }),
-		track.WithRemove(func(_ string) error { return nil }),
+		track.WithWriter(tomlwriter.New(
+			tomlwriter.WithCreateTemp((&writeCapture{}).createTemp(t)),
+			tomlwriter.WithRename(func(_, _ string) error { return nil }),
+			tomlwriter.WithRemove(func(_ string) error { return nil }),
+		)),
 	)
 
 	memories := []*memory.Stored{
@@ -345,8 +358,7 @@ func TestWithNow(t *testing.T) {
 	g.Expect(nowCalled).To(BeTrue())
 }
 
-// TestWriteAtomicCreateTempFailure verifies writeAtomic error path when
-// createTemp fails.
+// TestWriteAtomicCreateTempFailure verifies error path when createTemp fails.
 func TestWriteAtomicCreateTempFailure(t *testing.T) {
 	t.Parallel()
 
@@ -356,11 +368,11 @@ func TestWriteAtomicCreateTempFailure(t *testing.T) {
 		track.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte(baseTOML), nil
 		}),
-		track.WithCreateTemp(func(_, _ string) (*os.File, error) {
-			return nil, errors.New("disk full")
-		}),
-		track.WithRename(func(_, _ string) error { return nil }),
-		track.WithRemove(func(_ string) error { return nil }),
+		track.WithWriter(tomlwriter.New(
+			tomlwriter.WithCreateTemp(func(_, _ string) (*os.File, error) {
+				return nil, errors.New("disk full")
+			}),
+		)),
 	)
 
 	memories := []*memory.Stored{
@@ -372,8 +384,8 @@ func TestWriteAtomicCreateTempFailure(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("disk full"))
 }
 
-// TestWriteAtomicEncodeFailure verifies writeAtomic error path when
-// the temp file is not writable (encode fails on write).
+// TestWriteAtomicEncodeFailure verifies error path when the temp file
+// is not writable (encode fails on write).
 func TestWriteAtomicEncodeFailure(t *testing.T) {
 	t.Parallel()
 
@@ -383,19 +395,20 @@ func TestWriteAtomicEncodeFailure(t *testing.T) {
 		track.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte(baseTOML), nil
 		}),
-		track.WithCreateTemp(func(_, pattern string) (*os.File, error) {
-			f, createErr := os.CreateTemp(t.TempDir(), pattern)
-			if createErr != nil {
-				return nil, createErr
-			}
+		track.WithWriter(tomlwriter.New(
+			tomlwriter.WithCreateTemp(func(_, pattern string) (*os.File, error) {
+				f, createErr := os.CreateTemp(t.TempDir(), pattern)
+				if createErr != nil {
+					return nil, createErr
+				}
 
-			// Close immediately so the encoder write fails.
-			_ = f.Close()
+				// Close immediately so the encoder write fails.
+				_ = f.Close()
 
-			return f, nil
-		}),
-		track.WithRename(func(_, _ string) error { return nil }),
-		track.WithRemove(func(_ string) error { return nil }),
+				return f, nil
+			}),
+			tomlwriter.WithRemove(func(_ string) error { return nil }),
+		)),
 	)
 
 	memories := []*memory.Stored{
@@ -406,30 +419,32 @@ func TestWriteAtomicEncodeFailure(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// TestWriteAtomicRenameFailure verifies writeAtomic error path when
-// rename fails — temp file should be cleaned up.
+// TestWriteAtomicRenameFailure verifies error path when rename fails —
+// temp file should be cleaned up.
 func TestWriteAtomicRenameFailure(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	var removedPath string
+	removeCalled := false
 
 	recorder := track.NewRecorder(
 		track.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte(baseTOML), nil
 		}),
-		track.WithCreateTemp(func(_, pattern string) (*os.File, error) {
-			return os.CreateTemp(t.TempDir(), pattern)
-		}),
-		track.WithRename(func(_, _ string) error {
-			return errors.New("permission denied")
-		}),
-		track.WithRemove(func(path string) error {
-			removedPath = path
+		track.WithWriter(tomlwriter.New(
+			tomlwriter.WithCreateTemp(func(_, pattern string) (*os.File, error) {
+				return os.CreateTemp(t.TempDir(), pattern)
+			}),
+			tomlwriter.WithRename(func(_, _ string) error {
+				return errors.New("permission denied")
+			}),
+			tomlwriter.WithRemove(func(_ string) error {
+				removeCalled = true
 
-			return nil
-		}),
+				return nil
+			}),
+		)),
 	)
 
 	memories := []*memory.Stored{
@@ -441,7 +456,7 @@ func TestWriteAtomicRenameFailure(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("permission denied"))
 
 	// Verify temp file cleanup was attempted.
-	g.Expect(removedPath).NotTo(BeEmpty())
+	g.Expect(removeCalled).To(BeTrue())
 }
 
 // unexported constants.
