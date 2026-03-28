@@ -122,13 +122,13 @@ archive/             Historical planning artifacts
 - **Fire and forget** — Hook errors are logged, never propagated. Hooks always exit 0.
 - **Measure impact, not frequency** — A memory surfaced 1000 times but never followed is a leech, not a success.
 
-## Compared to built-in memory
+## What about built-in memory?
 
-Claude Code has built-in memory (CLAUDE.md, user memories) and dreaming (background processing between sessions). These work well for simple preferences and general context. Use them when you want zero-setup memory that just works.
+Anthropic has introduced built-in auto-memory and dreaming features for Claude Code. Memory is one of the primary problems that needs solving, and lots of smart people are working on it.
 
-Engram is different in two ways: it **measures outcomes** and **self-corrects**. Built-in memory stores what you tell it; engram tracks whether stored instructions are actually followed, diagnoses why ineffective ones fail, and proposes fixes. If you care about instruction quality over time — knowing which memories are working, which are noise, and automatically maintaining the corpus — that's what engram adds.
+I tried auto-memory when it was introduced and found it unhelpful for the same reasons I'd had trouble with "please write this down somewhere" — non-deterministic recording, unreliable surfacing. I ended up turning it off because it was conflicting with engram. I haven't tried the new dreaming features yet — maybe they've materially improved things.
 
-They're complementary. Built-in memory handles general preferences and project context. Engram handles instructions where you want accountability: "did the agent actually follow this, and if not, why?"
+If the built-in memory management becomes good enough that most of engram is unnecessary, I'll be glad — less to maintain. Till then, engram exists because I wanted memory that **measures outcomes**, **self-corrects**, and **keeps the user in control** of what changes.
 
 ## What it doesn't do
 
