@@ -3,8 +3,7 @@
 package dedup
 
 import (
-	"strings"
-
+	"engram/internal/keyword"
 	"engram/internal/memory"
 )
 
@@ -136,8 +135,8 @@ func isDuplicate(candidate memory.CandidateLearning, existing []*memory.Stored) 
 
 func keywordSet(keywords []string) map[string]struct{} {
 	set := make(map[string]struct{}, len(keywords))
-	for _, keyword := range keywords {
-		set[strings.ToLower(keyword)] = struct{}{}
+	for _, kw := range keywords {
+		set[keyword.Normalize(kw)] = struct{}{}
 	}
 
 	return set

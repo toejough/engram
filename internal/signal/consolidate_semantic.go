@@ -22,19 +22,7 @@ func (c *Consolidator) BeforeRemove(
 	ctx context.Context,
 	mem *memory.MemoryRecord,
 ) (Action, error) {
-	cluster := c.findCluster(ctx, mem, nil)
-	if cluster == nil {
-		return Action{Type: ProceedWithRemoval}, nil
-	}
-
-	action, err := c.consolidateCluster(ctx, cluster)
-	if err != nil {
-		c.logStderrf("[engram] consolidation failed before remove: %v\n", err)
-
-		return Action{Type: ProceedWithRemoval}, nil
-	}
-
-	return action, nil
+	return c.consolidateOrFallback(ctx, mem, Action{Type: ProceedWithRemoval}, "before remove")
 }
 
 // BeforeStore checks if a candidate memory belongs to an existing cluster.
@@ -43,19 +31,7 @@ func (c *Consolidator) BeforeStore(
 	ctx context.Context,
 	candidate *memory.MemoryRecord,
 ) (Action, error) {
-	cluster := c.findCluster(ctx, candidate, nil)
-	if cluster == nil {
-		return Action{Type: StoreAsIs}, nil
-	}
-
-	action, err := c.consolidateCluster(ctx, cluster)
-	if err != nil {
-		c.logStderrf("[engram] consolidation failed, storing as-is: %v\n", err)
-
-		return Action{Type: StoreAsIs}, nil
-	}
-
-	return action, nil
+	return c.consolidateOrFallback(ctx, candidate, Action{Type: StoreAsIs}, "before store")
 }
 
 // OnIrrelevant checks if an irrelevantly-surfaced memory belongs to a cluster.
@@ -74,19 +50,7 @@ func (c *Consolidator) OnIrrelevant(
 		},
 	}
 
-	cluster := c.findCluster(ctx, input.Memory, nil)
-	if cluster == nil {
-		return refinement, nil
-	}
-
-	action, err := c.consolidateCluster(ctx, cluster)
-	if err != nil {
-		c.logStderrf("[engram] consolidation failed on irrelevant: %v\n", err)
-
-		return refinement, nil
-	}
-
-	return action, nil
+	return c.consolidateOrFallback(ctx, input.Memory, refinement, "on irrelevant")
 }
 
 // consolidateCluster executes consolidation for a confirmed cluster.
@@ -137,6 +101,29 @@ func (c *Consolidator) consolidateCluster(
 		ConsolidatedMem: consolidated,
 		Archived:        archived,
 	}, nil
+}
+
+// consolidateOrFallback attempts to find and consolidate a cluster for the given memory.
+// Returns the fallback action if no cluster is found or consolidation fails.
+func (c *Consolidator) consolidateOrFallback(
+	ctx context.Context,
+	mem *memory.MemoryRecord,
+	fallback Action,
+	errLabel string,
+) (Action, error) {
+	cluster := c.findCluster(ctx, mem, nil)
+	if cluster == nil {
+		return fallback, nil
+	}
+
+	action, err := c.consolidateCluster(ctx, cluster)
+	if err != nil {
+		c.logStderrf("[engram] consolidation failed %s: %v\n", errLabel, err)
+
+		return fallback, nil
+	}
+
+	return action, nil
 }
 
 // findCluster attempts to find a semantic cluster for the given memory.

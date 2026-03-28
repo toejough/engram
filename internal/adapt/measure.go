@@ -22,8 +22,7 @@ func MeasureOutcomes(records []MeasurableRecord, minNewFeedback int) []MeasuredR
 	results := make([]MeasuredResult, 0)
 
 	for _, rec := range records {
-		currentFeedback := rec.Record.FollowedCount + rec.Record.ContradictedCount +
-			rec.Record.IgnoredCount + rec.Record.IrrelevantCount
+		currentFeedback := rec.Record.TotalFeedback()
 
 		var effectivenessNow float64
 		if currentFeedback > 0 {

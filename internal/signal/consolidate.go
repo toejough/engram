@@ -240,6 +240,12 @@ func buildClusters(memories []*memory.Stored) [][]*memory.Stored {
 		return nil
 	}
 
+	// Precompute keyword sets to avoid O(n²) map allocations.
+	kwSets := make([]map[string]struct{}, memoryCount)
+	for i, mem := range memories {
+		kwSets[i] = keywordSet(mem.Keywords)
+	}
+
 	// Union-Find for transitive closure
 	parent := make([]int, memoryCount)
 	for i := range parent {
@@ -248,7 +254,7 @@ func buildClusters(memories []*memory.Stored) [][]*memory.Stored {
 
 	for i := range memoryCount {
 		for j := i + 1; j < memoryCount; j++ {
-			if overlaps(memories[i], memories[j]) {
+			if overlapsPrecomputed(kwSets[i], kwSets[j]) {
 				union(parent, i, j)
 			}
 		}
@@ -303,23 +309,16 @@ func keywordSet(keywords []string) map[string]struct{} {
 	return set
 }
 
-// overlaps returns true if two memories have >50% keyword overlap in either direction.
-func overlaps(first, second *memory.Stored) bool {
-	if first == nil || second == nil {
+// overlapsPrecomputed checks if two precomputed keyword sets have >50% overlap in either direction.
+func overlapsPrecomputed(first, second map[string]struct{}) bool {
+	if len(first) == 0 || len(second) == 0 {
 		return false
 	}
 
-	firstKeys := keywordSet(first.Keywords)
-	secondKeys := keywordSet(second.Keywords)
+	count := intersectionSize(first, second)
 
-	if len(firstKeys) == 0 || len(secondKeys) == 0 {
-		return false
-	}
-
-	count := intersectionSize(firstKeys, secondKeys)
-
-	firstOverlap := float64(count) / float64(len(firstKeys))
-	secondOverlap := float64(count) / float64(len(secondKeys))
+	firstOverlap := float64(count) / float64(len(first))
+	secondOverlap := float64(count) / float64(len(second))
 
 	return firstOverlap > overlapThreshold || secondOverlap > overlapThreshold
 }

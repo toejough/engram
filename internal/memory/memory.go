@@ -129,6 +129,11 @@ func (s *Stored) SearchText() string {
 	return strings.Join(parts, " ")
 }
 
+// TotalFeedback returns the sum of all evaluation counters.
+func (s *Stored) TotalFeedback() int {
+	return s.FollowedCount + s.ContradictedCount + s.IgnoredCount + s.IrrelevantCount
+}
+
 // unexported constants.
 const (
 	searchTextCapacity = 5

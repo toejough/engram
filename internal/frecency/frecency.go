@@ -19,6 +19,11 @@ type Input struct {
 	Tier              string // "A", "B", "C", or "" — memory confidence tier
 }
 
+// TotalFeedback returns the sum of all evaluation counters.
+func (i Input) TotalFeedback() int {
+	return i.FollowedCount + i.ContradictedCount + i.IgnoredCount + i.IrrelevantCount
+}
+
 // Option configures a Scorer.
 type Option func(*Scorer)
 
@@ -63,7 +68,7 @@ func (s *Scorer) Quality(input Input) float64 {
 }
 
 func (s *Scorer) effectiveness(input Input) float64 {
-	total := input.FollowedCount + input.ContradictedCount + input.IgnoredCount + input.IrrelevantCount
+	total := input.TotalFeedback()
 	if total == 0 {
 		return defaultEffectiveness
 	}

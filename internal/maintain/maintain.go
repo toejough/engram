@@ -94,8 +94,7 @@ func (g *Generator) checkIrrelevance(
 		return Proposal{}, false
 	}
 
-	totalFeedback := stored.FollowedCount + stored.ContradictedCount +
-		stored.IgnoredCount + stored.IrrelevantCount
+	totalFeedback := stored.TotalFeedback()
 	if totalFeedback < refineKeywordsMinFeedback {
 		return Proposal{}, false
 	}
@@ -387,7 +386,7 @@ func buildMemoryDescription(
 
 	if stored != nil {
 		title = stored.Title
-		keywords = fmt.Sprintf("%v", stored.Keywords)
+		keywords = strings.Join(stored.Keywords, ", ")
 		principle = stored.Principle
 	}
 

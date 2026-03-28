@@ -20,7 +20,7 @@ func FromMemories(memories []*memory.Stored) map[string]Stat {
 	result := make(map[string]Stat, len(memories))
 
 	for _, mem := range memories {
-		total := mem.FollowedCount + mem.ContradictedCount + mem.IgnoredCount + mem.IrrelevantCount
+		total := mem.TotalFeedback()
 
 		var score float64
 		if total > 0 {

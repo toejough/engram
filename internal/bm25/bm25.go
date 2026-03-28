@@ -85,15 +85,12 @@ func (s *Scorer) Score(query string, documents []Document) []ScoredDocument {
 
 		for _, queryTerm := range queryTerms {
 			// Document frequency for this term
-			documentFreq := 0
-			if termDocs, ok := index[queryTerm]; ok {
-				documentFreq = len(termDocs)
-			}
-
-			// If term not in any document, skip
-			if documentFreq == 0 {
+			termDocs, ok := index[queryTerm]
+			if !ok {
 				continue
 			}
+
+			documentFreq := len(termDocs)
 
 			// Inverse document frequency (IDF)
 			idf := math.Log(
@@ -103,10 +100,8 @@ func (s *Scorer) Score(query string, documents []Document) []ScoredDocument {
 			// Term frequency in this document
 			termFreq := 0.0
 
-			if docTerms, ok := index[queryTerm]; ok {
-				if freq, hasDoc := docTerms[docIdx]; hasDoc {
-					termFreq = float64(freq)
-				}
+			if freq, hasDoc := termDocs[docIdx]; hasDoc {
+				termFreq = float64(freq)
 			}
 
 			// BM25 component for this term

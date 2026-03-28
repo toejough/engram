@@ -70,3 +70,8 @@ type MemoryRecord struct {
 	// Maintenance history — tracks action outcomes for adaptive policy (#387).
 	MaintenanceHistory []MaintenanceAction `toml:"maintenance_history,omitempty"`
 }
+
+// TotalFeedback returns the sum of all evaluation counters.
+func (r *MemoryRecord) TotalFeedback() int {
+	return r.FollowedCount + r.ContradictedCount + r.IgnoredCount + r.IrrelevantCount
+}
