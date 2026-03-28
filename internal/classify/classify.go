@@ -3,17 +3,15 @@
 package classify
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
+	"engram/internal/anthropic"
 	"engram/internal/memory"
 )
 
@@ -23,23 +21,18 @@ var (
 	ErrNoToken = errors.New("no API token configured")
 )
 
-// HTTPDoer is the interface for making HTTP requests.
-type HTTPDoer interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
 // LLMClassifier uses fast-path keyword detection and the Anthropic API
 // for unified classification and enrichment.
 type LLMClassifier struct {
 	token  string
-	client HTTPDoer
+	client *anthropic.Client
 }
 
 // New creates an LLMClassifier.
-func New(token string, client HTTPDoer) *LLMClassifier {
+func New(token string, httpClient anthropic.HTTPDoer) *LLMClassifier {
 	return &LLMClassifier{
 		token:  token,
-		client: client,
+		client: anthropic.NewClient(token, httpClient),
 	}
 }
 
@@ -73,91 +66,28 @@ func (c *LLMClassifier) callLLM(
 ) (*memory.ClassifiedMemory, error) {
 	userContent := buildUserContent(stripSystemReminders(message), transcriptContext, isFastPath)
 
-	reqBody := anthropicRequest{
-		Model:     anthropicModel,
-		MaxTokens: maxResponseTokens,
-		System:    systemPrompt(isFastPath),
-		Messages: []anthropicMessage{
-			{Role: "user", Content: userContent},
-		},
-	}
-
-	reqBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		anthropicAPIURL,
-		bytes.NewReader(reqBytes),
+	text, err := c.client.Call(
+		ctx, anthropic.HaikuModel,
+		systemPrompt(isFastPath),
+		userContent, maxResponseTokens,
 	)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Anthropic-Version", anthropicVersion)
-	req.Header.Set("Anthropic-Beta", "oauth-2025-04-20")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("calling Anthropic API: %w", err)
 	}
 
-	if resp == nil {
-		return nil, errNilResponse
-	}
-
-	defer func() { _ = resp.Body.Close() }()
-
-	return parseClassifyResponse(resp, isFastPath)
+	return parseClassifyText(text, isFastPath)
 }
 
 // unexported constants.
 const (
-	anthropicAPIURL   = "https://api.anthropic.com/v1/messages"
-	anthropicModel    = "claude-haiku-4-5-20251001"
-	anthropicVersion  = "2023-06-01"
 	maxResponseTokens = 1024
 )
 
 // unexported variables.
 var (
-	errEmptyResponse = errors.New("API response contained no content blocks")
-	errNilResponse   = errors.New("calling Anthropic API: nil response")
 	// systemReminderRE matches <system-reminder>...</system-reminder> blocks including attributes.
 	systemReminderRE = regexp.MustCompile(`(?s)<system-reminder[^>]*>.*?</system-reminder>`)
 )
-
-// anthropicContentBlock is a content block in an Anthropic API response.
-type anthropicContentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
-}
-
-// anthropicMessage is a single message in the Anthropic messages API.
-type anthropicMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-// anthropicRequest is the request body for the Anthropic messages API.
-//
-//nolint:tagliatelle // Anthropic API requires snake_case JSON field names.
-type anthropicRequest struct {
-	Model     string             `json:"model"`
-	MaxTokens int                `json:"max_tokens"`
-	System    string             `json:"system"`
-	Messages  []anthropicMessage `json:"messages"`
-}
-
-// anthropicResponse is the response body from the Anthropic messages API.
-type anthropicResponse struct {
-	Content []anthropicContentBlock `json:"content"`
-}
 
 // llmClassifyJSON is the JSON structure the LLM returns.
 //
@@ -241,32 +171,15 @@ func isWordChar(b byte) bool {
 	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_'
 }
 
-func parseClassifyResponse(
-	resp *http.Response,
+func parseClassifyText(
+	text string,
 	isFastPath bool,
 ) (*memory.ClassifiedMemory, error) {
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response: %w", err)
-	}
-
-	var apiResp anthropicResponse
-
-	err = json.Unmarshal(body, &apiResp)
-	if err != nil {
-		return nil, fmt.Errorf("parsing API response: %w", err)
-	}
-
-	if len(apiResp.Content) == 0 {
-		return nil, errEmptyResponse
-	}
-
-	llmText := stripMarkdownFence(apiResp.Content[0].Text)
+	llmText := stripMarkdownFence(text)
 
 	var llmData llmClassifyJSON
 
-	err = json.Unmarshal([]byte(llmText), &llmData)
-	if err != nil {
+	if err := json.Unmarshal([]byte(llmText), &llmData); err != nil {
 		return nil, fmt.Errorf("parsing LLM JSON: %w", err)
 	}
 
