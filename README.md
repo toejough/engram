@@ -33,9 +33,11 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
 | **Often surfaced** | **Working** — Keep as-is | **Leech** — Rewrite or escalate |
 | **Rarely surfaced** | **Hidden Gem** — Broaden keywords | **Noise** — Remove |
 
-Effectiveness = followed / (followed + contradicted + ignored + irrelevant) * 100. Memories with fewer than 5 evaluations are classified as "insufficient data."
+Effectiveness = followed / (followed + contradicted + ignored + irrelevant) * 100. Memories with fewer than 5 evaluations are classified as "insufficient data." See [Formulas](docs/design/formulas.md) for the full scoring model.
 
 ## Session lifecycle
+
+Engram hooks into four phases of a Claude Code session: start (build + triage), prompt (surface + correct), stop-blocking (surface agent output), and stop-async (learn from transcript). See [Session Lifecycle](docs/design/session-lifecycle.md) for the full walkthrough and sequence diagram.
 
 Engram registers three hook events:
 
@@ -66,7 +68,7 @@ anti_pattern = "Running go test or go vet directly"
 confidence = "A"
 ```
 
-Confidence tiers: **A** (explicit instruction — "always/never/remember"), **B** (teachable correction), **C** (contextual fact).
+Confidence tiers: **A** (explicit instruction — "always/never/remember"), **B** (teachable correction), **C** (contextual fact). See [Memory Lifecycle](docs/design/memory-lifecycle.md) for how memories are created, surfaced, evaluated, and maintained over time.
 
 ## Data files
 
@@ -93,9 +95,11 @@ Enable in Claude Code via the `/plugin` command. The binary auto-builds on first
 
 | Skill | Purpose |
 |-------|---------|
-| `/recall` | Load context from previous sessions — raw transcript or query-filtered |
-| `/adapt` | Review and act on adaptation proposals (approve, reject, retire) |
-| `/memory-triage` | Interactive review of maintenance signals — noise removal, keyword refinement, consolidation |
+| `/recall` | Load context from previous sessions. No args = raw transcript summary (what was decided, what got done, what's outstanding). With query = Haiku-filtered search across sessions. |
+| `/adapt` | Review and act on adaptation proposals — approve, reject, or retire policies that tune extraction and surfacing behavior. |
+| `/memory-triage` | Interactive review of maintenance signals — noise removal, keyword broadening, consolidation, graduation to higher tiers. |
+
+See [Skills Guide](docs/howto/skills.md) for detailed workflows and example interactions.
 
 ## Project structure
 
@@ -125,8 +129,18 @@ archive/             Historical planning artifacts
 
 ## Documentation
 
+### Design
 - [Architecture](docs/design/architecture.md) — Pipeline design, package map, key decisions
+- [System Context](docs/design/context.md) — C4 context diagram
 - [Data Model](docs/design/data-model.md) — Memory TOML schema, supporting files
+- [Session Lifecycle](docs/design/session-lifecycle.md) — Hook events and sequence diagram
+- [Memory Lifecycle](docs/design/memory-lifecycle.md) — Creation to deletion with state diagram
+- [Formulas](docs/design/formulas.md) — Effectiveness, ranking, budget, and penalty formulas
+
+### How-to
+- [Installation & Usage](docs/howto/installation.md) — Setup and configuration
+- [Skills Guide](docs/howto/skills.md) — /recall, /adapt, /memory-triage with examples
+
+### Reference
 - [Use Cases](docs/use-cases/README.md) — UC-1 through UC-34
 - [Coding Standards](docs/standards/coding.md) — DI rules, TDD, targ usage
-- [Installation & Usage](docs/howto/installation.md) — Setup and configuration
