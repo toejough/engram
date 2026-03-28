@@ -79,7 +79,7 @@ if result == nil { return }
 ```
 engram/
 ├── cmd/engram/         # CLI binary entry point
-├── internal/           # Non-public implementation (33 packages)
+├── internal/           # Non-public implementation (36 packages)
 ├── hooks/              # Claude Code hook scripts
 ├── skills/             # Interactive skill definitions
 └── dev/                # Lint config and build tooling
