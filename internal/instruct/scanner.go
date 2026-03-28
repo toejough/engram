@@ -27,7 +27,7 @@ type Scanner struct {
 }
 
 // ScanAll scans memory entries under dataDir.
-func (s *Scanner) ScanAll(dataDir, _ string) ([]InstructionItem, error) {
+func (s *Scanner) ScanAll(dataDir string) ([]InstructionItem, error) {
 	items := make([]InstructionItem, 0)
 
 	// Memories (*.toml in dataDir/memories/)

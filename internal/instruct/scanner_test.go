@@ -45,7 +45,7 @@ func TestScanAll_ExtractsMemorySources(t *testing.T) {
 		EffData: map[string]float64{},
 	}
 
-	items, err := scanner.ScanAll("/data", "/project")
+	items, err := scanner.ScanAll("/data")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -99,7 +99,7 @@ func TestScanAll_JoinsEffectivenessData(t *testing.T) {
 		},
 	}
 
-	items, err := scanner.ScanAll("/data", "/project")
+	items, err := scanner.ScanAll("/data")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -150,7 +150,7 @@ func TestScanAll_SkipsEmptyFiles(t *testing.T) {
 		EffData: map[string]float64{},
 	}
 
-	items, err := scanner.ScanAll("/data", "/project")
+	items, err := scanner.ScanAll("/data")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -179,7 +179,7 @@ func TestScanAll_SkipsUnreadableFiles(t *testing.T) {
 		EffData: map[string]float64{},
 	}
 
-	items, err := scanner.ScanAll("/data", "/project")
+	items, err := scanner.ScanAll("/data")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

@@ -27,8 +27,8 @@ type Auditor struct {
 }
 
 // Run executes the full audit pipeline.
-func (a *Auditor) Run(ctx context.Context, dataDir, projectDir string) (*AuditReport, error) {
-	items, err := a.Scanner.ScanAll(dataDir, projectDir)
+func (a *Auditor) Run(ctx context.Context, dataDir, _ string) (*AuditReport, error) {
+	items, err := a.Scanner.ScanAll(dataDir)
 	if err != nil {
 		return nil, fmt.Errorf("scanning instructions: %w", err)
 	}
