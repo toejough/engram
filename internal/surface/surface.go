@@ -489,8 +489,9 @@ const (
 
 // promptMatch holds a memory for prompt mode.
 type promptMatch struct {
-	mem       *memory.Stored
-	bm25Score float64
+	mem        *memory.Stored
+	bm25Score  float64
+	searchText string // cached SearchText() result
 }
 
 // applyColdStartBudgetPrompt keeps all proven matches plus at most coldStartBudget unproven.
@@ -567,20 +568,21 @@ func matchPromptMemories(
 	message string,
 	memories []*memory.Stored,
 ) []promptMatch {
-	// Build documents for BM25 scoring
+	// Build documents for BM25 scoring, caching SearchText per memory.
 	docs := make([]bm25.Document, 0, len(memories))
-	memoryIndex := make(map[string]*memory.Stored)
+	memoryIndex := make(map[string]*memory.Stored, len(memories))
+	searchTextIndex := make(map[string]string, len(memories))
 
 	for _, mem := range memories {
-		// Concatenate searchable fields
-		searchText := mem.SearchText()
+		text := mem.SearchText()
 
 		docs = append(docs, bm25.Document{
 			ID:   mem.FilePath,
-			Text: searchText,
+			Text: text,
 		})
 
 		memoryIndex[mem.FilePath] = mem
+		searchTextIndex[mem.FilePath] = text
 	}
 
 	// Score using BM25
@@ -596,7 +598,11 @@ func matchPromptMemories(
 		}
 
 		penalizedScore := result.Score * irrelevancePenalty(mem.IrrelevantCount)
-		matches = append(matches, promptMatch{mem: mem, bm25Score: penalizedScore})
+		matches = append(matches, promptMatch{
+			mem:        mem,
+			bm25Score:  penalizedScore,
+			searchText: searchTextIndex[result.ID],
+		})
 	}
 
 	return matches

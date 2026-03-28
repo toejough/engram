@@ -71,7 +71,7 @@ func applyPromptBudget(matches []promptMatch, budget int) []promptMatch {
 	result := make([]promptMatch, 0, len(matches))
 
 	for _, match := range matches {
-		tokens := EstimateMemoryTokens(match.mem)
+		tokens := EstimateTokens(match.searchText)
 		if accumulated+tokens > budget {
 			break
 		}
