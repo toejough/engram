@@ -37,9 +37,9 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
 
 | Package | Purpose |
 |---------|---------|
-| `extract` | Parse correction signals from user messages |
+| `extract` | Extract candidate learnings from session transcripts via Anthropic API |
 | `learn` | Incremental learning from session transcripts, offset tracking, merge-on-write |
-| `retrieve` | BM25-based memory retrieval with keyword matching |
+| `retrieve` | Read stored memories from TOML files on disk |
 | `surface` | Surfacing orchestration with budget, policy, generalizability factor, suppression |
 | `recall` | Cross-session context recall with summarization |
 
@@ -81,6 +81,9 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
 | `policy` | Adaptive policy types, lifecycle (proposed/approved/active/retired), TOML persistence |
 | `tomlwriter` | TOML serialization for memory files |
 | `tokenresolver` | API token resolution for LLM calls |
+| `anthropic` | Shared client for the Anthropic Messages API |
+| `jsonlutil` | Generic JSONL parsing utilities |
+| `tokenize` | Shared text tokenization for retrieval scoring |
 
 ### I/O and Wiring
 

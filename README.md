@@ -79,6 +79,7 @@ All data lives in `~/.claude/engram/data/`:
 | Path | Purpose |
 |------|---------|
 | `memories/*.toml` | Structured memory files with embedded metrics |
+| `creation-log.jsonl` | Append-only log of memory creation events |
 | `surfacing-log.jsonl` | Log of which memories were surfaced and when |
 | `learn-offset.json` | Offset tracking for incremental transcript learning |
 | `policy.toml` | Adaptation config and policy directives |
@@ -107,7 +108,7 @@ See [Skills Guide](docs/howto/skills.md) for detailed workflows and example inte
 
 ```
 cmd/engram/          CLI entry point (thin wiring layer)
-internal/            Business logic (33 packages, all DI boundaries)
+internal/            Business logic (36 packages, all DI boundaries)
 hooks/               Shell scripts for Claude Code hook integration
 skills/              Plugin skills (recall, adapt, memory-triage)
 .claude-plugin/      Plugin manifest

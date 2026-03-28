@@ -43,7 +43,6 @@ Contents:
 - `surfacing-log.jsonl` -- surfacing event log
 - `learn-offset.json` -- incremental learning position tracker
 - `policy.toml` -- adaptive policy configuration and directives
-- `evaluations/` -- outcome signal data
 
 ## Configuration
 

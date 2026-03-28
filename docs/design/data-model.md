@@ -71,10 +71,6 @@ Append-only log of memory creation events. Each line is a JSON object recording 
 
 Append-only log of surfacing events. Records which memories were surfaced, for what query, and the session context. Used for outcome tracking.
 
-### `evaluations/`
-
-Per-session JSONL files recording outcome evaluations — whether each surfaced memory was followed, contradicted, or ignored. These are the raw signals that feed effectiveness scoring.
-
 ### `learn-offset.json`
 
 Tracks the last-processed position in each session transcript. Enables incremental learning -- only new transcript content is processed on subsequent runs. Keyed by session ID.
