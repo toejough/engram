@@ -6,7 +6,7 @@ A Claude Code session from engram's perspective.
 
 ### 1. SessionStart (session-start.sh, 10s timeout)
 
-- Emits system message: "Say /recall to load context from previous sessions"
+- Emits system message: "Say /recall to load context from previous sessions, or /recall <query> to search session history"
 - Background (async): rebuilds binary if stale, runs `engram maintain` to generate maintenance proposals
 - Parses maintain output, counts proposals by category (noise, hidden gem, leech, refine keywords, escalation, consolidation)
 - Checks policy.toml for pending adaptation proposals
@@ -44,7 +44,7 @@ sequenceDiagram
 
     Note over CC,E: Session Start
     CC->>E: SessionStart hook
-    E-->>CC: "Say /recall to load context"
+    E-->>CC: "Say /recall to load context, or /recall <query> to search"
     E->>E: (async) build binary, run maintain
     E->>E: (async) write pending-maintenance.json
 
