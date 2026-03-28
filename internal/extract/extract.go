@@ -2,22 +2,18 @@
 package extract
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
+	"engram/internal/anthropic"
 	"engram/internal/memory"
 )
 
 // Exported variables.
 var (
-	// ErrNilResponse is returned when the HTTP client returns a nil response without error.
-	ErrNilResponse = errors.New("extract: calling Anthropic API: nil response")
 	// ErrNoToken is returned when no API token is configured.
 	ErrNoToken = errors.New("extract: no API token configured")
 )
@@ -28,23 +24,16 @@ type ExtractionGuidance struct {
 	Rationale string
 }
 
-// HTTPDoer is the interface for making HTTP requests. Wire http.DefaultClient in production.
-type HTTPDoer interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
 // LLMExtractor uses the Anthropic API to extract candidate learnings from session transcripts.
 type LLMExtractor struct {
-	token    string
-	client   HTTPDoer
+	client   *anthropic.Client
 	guidance []ExtractionGuidance
 }
 
 // New creates an LLMExtractor. Pass http.DefaultClient as client in production.
-func New(token string, client HTTPDoer, opts ...Option) *LLMExtractor {
+func New(token string, client anthropic.HTTPDoer, opts ...Option) *LLMExtractor {
 	e := &LLMExtractor{
-		token:  token,
-		client: client,
+		client: anthropic.NewClient(token, client),
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -59,12 +48,12 @@ func (e *LLMExtractor) Extract(
 	ctx context.Context,
 	transcript string,
 ) ([]memory.CandidateLearning, error) {
-	if e.token == "" {
-		return nil, ErrNoToken
-	}
-
 	learnings, err := e.callLLM(ctx, transcript)
 	if err != nil {
+		if errors.Is(err, anthropic.ErrNoToken) {
+			return nil, ErrNoToken
+		}
+
 		return nil, fmt.Errorf("extraction: %w", err)
 	}
 
@@ -75,59 +64,16 @@ func (e *LLMExtractor) callLLM(
 	ctx context.Context,
 	transcript string,
 ) ([]memory.CandidateLearning, error) {
-	resp, err := e.sendRequest(ctx, transcript)
+	text, err := e.client.Call(
+		ctx, anthropic.HaikuModel,
+		SystemPromptWithGuidance(e.guidance),
+		transcript, maxResponseTokens,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	if resp == nil {
-		return nil, ErrNilResponse
-	}
-
-	defer func() { _ = resp.Body.Close() }()
-
-	return parseLLMResponse(resp)
-}
-
-func (e *LLMExtractor) sendRequest(ctx context.Context, transcript string) (*http.Response, error) {
-	reqBody := anthropicRequest{
-		Model:     anthropicModel,
-		MaxTokens: maxResponseTokens,
-		System:    SystemPromptWithGuidance(e.guidance),
-		Messages: []anthropicMessage{
-			{
-				Role:    "user",
-				Content: transcript,
-			},
-		},
-	}
-
-	reqBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling request body: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		anthropicAPIURL,
-		bytes.NewReader(reqBytes),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating HTTP request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+e.token)
-	req.Header.Set("Anthropic-Version", anthropicVersion)
-	req.Header.Set("Anthropic-Beta", "oauth-2025-04-20")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := e.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("calling Anthropic API: %w", err)
-	}
-
-	return resp, nil
+	return parseLLMText(text)
 }
 
 // Option configures an LLMExtractor.
@@ -166,9 +112,6 @@ func WithGuidance(guidance []ExtractionGuidance) Option {
 
 // unexported constants.
 const (
-	anthropicAPIURL        = "https://api.anthropic.com/v1/messages"
-	anthropicModel         = "claude-haiku-4-5-20251001"
-	anthropicVersion       = "2023-06-01"
 	extractionSystemPrompt = `
 You are a learning extraction assistant. Given a session transcript between a user and an AI assistant,
 extract high-value learnings and return ONLY a JSON array — no markdown, no explanation.
@@ -245,38 +188,6 @@ If no high-value learnings are found, return an empty JSON array: []`
 	maxResponseTokens = 2048
 )
 
-// unexported variables.
-var (
-	errEmptyAPIResponse = errors.New("API response contained no content blocks")
-)
-
-// anthropicContentBlock is a content block in an Anthropic API response.
-type anthropicContentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
-}
-
-// anthropicMessage is a single message in the Anthropic messages API.
-type anthropicMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-// anthropicRequest is the request body for the Anthropic messages API.
-//
-//nolint:tagliatelle // Anthropic API requires snake_case JSON field names.
-type anthropicRequest struct {
-	Model     string             `json:"model"`
-	MaxTokens int                `json:"max_tokens"`
-	System    string             `json:"system"`
-	Messages  []anthropicMessage `json:"messages"`
-}
-
-// anthropicResponse is the response body from the Anthropic messages API.
-type anthropicResponse struct {
-	Content []anthropicContentBlock `json:"content"`
-}
-
 // llmCandidateLearningJSON is the JSON structure the LLM is instructed to return per item.
 //
 //nolint:tagliatelle // LLM prompt specifies snake_case JSON field names.
@@ -294,29 +205,12 @@ type llmCandidateLearningJSON struct {
 	Generalizability int      `json:"generalizability"`
 }
 
-func parseLLMResponse(resp *http.Response) ([]memory.CandidateLearning, error) {
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response body: %w", err)
-	}
-
-	var apiResp anthropicResponse
-
-	err = json.Unmarshal(body, &apiResp)
-	if err != nil {
-		return nil, fmt.Errorf("parsing API response JSON: %w", err)
-	}
-
-	if len(apiResp.Content) == 0 {
-		return nil, errEmptyAPIResponse
-	}
-
-	llmText := stripMarkdownFence(apiResp.Content[0].Text)
+func parseLLMText(text string) ([]memory.CandidateLearning, error) {
+	llmText := stripMarkdownFence(text)
 
 	var llmItems []llmCandidateLearningJSON
 
-	err = json.Unmarshal([]byte(llmText), &llmItems)
-	if err != nil {
+	if err := json.Unmarshal([]byte(llmText), &llmItems); err != nil {
 		return nil, fmt.Errorf("parsing LLM JSON output: %w", err)
 	}
 

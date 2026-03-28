@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"engram/internal/adapt"
+	"engram/internal/anthropic"
 	"engram/internal/classify"
 	sessionctx "engram/internal/context"
 	"engram/internal/correct"
@@ -167,7 +168,7 @@ func RunLearn(
 	token string,
 	stderr io.Writer,
 	stdin io.Reader,
-	httpClient extract.HTTPDoer,
+	httpClient anthropic.HTTPDoer,
 ) error {
 	fs := flag.NewFlagSet("learn", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)

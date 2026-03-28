@@ -18,8 +18,8 @@ import (
 
 	. "github.com/onsi/gomega"
 
+	"engram/internal/anthropic"
 	"engram/internal/cli"
-	"engram/internal/extract"
 	"engram/internal/learn"
 )
 
@@ -2190,7 +2190,7 @@ func TestTruncateTitle(t *testing.T) {
 
 // unexported variables.
 var (
-	_ extract.HTTPDoer = (*fakeHTTPDoer)(nil)
+	_ anthropic.HTTPDoer = (*fakeHTTPDoer)(nil)
 )
 
 // errReader is an io.Reader that always returns an error.
@@ -2211,7 +2211,7 @@ func (f *failingTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
 	return nil, f.err
 }
 
-// fakeHTTPDoer implements extract.HTTPDoer for testing without real HTTP calls.
+// fakeHTTPDoer implements anthropic.HTTPDoer for testing without real HTTP calls.
 type fakeHTTPDoer struct {
 	statusCode int
 	body       string
