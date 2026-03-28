@@ -152,4 +152,3 @@ func sortDescending(scores []ScoredDocument) {
 		scores[j+1] = key
 	}
 }
-

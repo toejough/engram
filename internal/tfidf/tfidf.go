@@ -3,8 +3,8 @@ package tfidf
 
 import (
 	"math"
-	"strings"
-	"unicode"
+
+	"engram/internal/tokenize"
 )
 
 // Scorer computes TF-IDF cosine similarity between texts.
@@ -28,7 +28,7 @@ func (s *Scorer) ClusterConfidence(texts []string) float64 {
 	tokenized := make([]map[string]int, len(texts))
 
 	for idx, text := range texts {
-		termFreq := termFrequencies(text)
+		termFreq := tokenize.Frequencies(text)
 		tokenized[idx] = termFreq
 
 		for term := range termFreq {
@@ -96,25 +96,4 @@ func cosineSimilarity(
 	}
 
 	return dotProduct / denominator
-}
-
-func termFrequencies(text string) map[string]int {
-	freqs := make(map[string]int)
-
-	var current strings.Builder
-
-	for _, ch := range strings.ToLower(text) {
-		if unicode.IsLetter(ch) || unicode.IsDigit(ch) {
-			current.WriteRune(ch)
-		} else if current.Len() > 0 {
-			freqs[current.String()]++
-			current.Reset()
-		}
-	}
-
-	if current.Len() > 0 {
-		freqs[current.String()]++
-	}
-
-	return freqs
 }

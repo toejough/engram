@@ -8,20 +8,30 @@ import (
 	"engram/internal/tokenize"
 )
 
+func TestFrequencies_CountsDuplicates(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	freqs := tokenize.Frequencies("the cat sat on the mat")
+	g.Expect(freqs).To(Equal(map[string]int{
+		"the": 2, "cat": 1, "sat": 1, "on": 1, "mat": 1,
+	}))
+}
+
+func TestFrequencies_EmptyString(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	freqs := tokenize.Frequencies("")
+	g.Expect(freqs).To(BeEmpty())
+}
+
 func TestTokenize_BasicSplit(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 	tokens := tokenize.Tokenize("Hello World")
 	g.Expect(tokens).To(Equal([]string{"hello", "world"}))
-}
-
-func TestTokenize_PunctuationStripped(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-	tokens := tokenize.Tokenize("configuration-management, testing!")
-	g.Expect(tokens).To(Equal([]string{"configuration", "management", "testing"}))
 }
 
 func TestTokenize_DigitsIncluded(t *testing.T) {
@@ -48,20 +58,10 @@ func TestTokenize_OnlyPunctuation(t *testing.T) {
 	g.Expect(tokens).To(BeEmpty())
 }
 
-func TestFrequencies_CountsDuplicates(t *testing.T) {
+func TestTokenize_PunctuationStripped(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
-	freqs := tokenize.Frequencies("the cat sat on the mat")
-	g.Expect(freqs).To(Equal(map[string]int{
-		"the": 2, "cat": 1, "sat": 1, "on": 1, "mat": 1,
-	}))
-}
-
-func TestFrequencies_EmptyString(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-	freqs := tokenize.Frequencies("")
-	g.Expect(freqs).To(BeEmpty())
+	tokens := tokenize.Tokenize("configuration-management, testing!")
+	g.Expect(tokens).To(Equal([]string{"configuration", "management", "testing"}))
 }
