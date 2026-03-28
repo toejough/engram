@@ -43,8 +43,15 @@ func (d *Detector) Check(ctx context.Context, candidates []*memory.Stored) ([]Pa
 
 	type pairCandidate struct {
 		a, b       *memory.Stored
+		ai, bi     int // indices into texts slice
 		heuristic  bool
 		similarity float64
+	}
+
+	// Pre-compute lowered search text for all candidates to avoid O(N²) allocations.
+	texts := make([]string, len(candidates))
+	for i, c := range candidates {
+		texts[i] = strings.ToLower(c.SearchText())
 	}
 
 	pairCandidates := make([]pairCandidate, 0, len(candidates)*(len(candidates)-1)/pairDivisor)
@@ -52,10 +59,12 @@ func (d *Detector) Check(ctx context.Context, candidates []*memory.Stored) ([]Pa
 	// Pass 1: keyword heuristic over all pairs (REQ-P1-2).
 	for i := range candidates {
 		for j := i + 1; j < len(candidates); j++ {
-			fires := heuristicFires(candidates[i], candidates[j])
+			fires := heuristicFires(texts[i], texts[j])
 			pairCandidates = append(pairCandidates, pairCandidate{
 				a:         candidates[i],
 				b:         candidates[j],
+				ai:        i,
+				bi:        j,
 				heuristic: fires,
 			})
 		}
@@ -68,7 +77,7 @@ func (d *Detector) Check(ctx context.Context, candidates []*memory.Stored) ([]Pa
 			continue // heuristic is sufficient, skip similarity check
 		}
 
-		pc.similarity = jaccardSimilarity(pc.a.SearchText(), pc.b.SearchText())
+		pc.similarity = jaccardSimilarity(texts[pc.ai], texts[pc.bi])
 	}
 
 	// Classify pairs and resolve (REQ-P1-2, REQ-P1-3).
@@ -146,11 +155,8 @@ var (
 	}
 )
 
-// heuristicFires returns true if memories a and b contain opposing verb patterns (REQ-P1-2).
-func heuristicFires(a, b *memory.Stored) bool {
-	textA := strings.ToLower(a.SearchText())
-	textB := strings.ToLower(b.SearchText())
-
+// heuristicFires returns true if the two lowered search texts contain opposing verb patterns (REQ-P1-2).
+func heuristicFires(textA, textB string) bool {
 	for _, pair := range opposingPairs {
 		pos, neg := pair[0], pair[1]
 		// Bidirectional check.
@@ -163,11 +169,12 @@ func heuristicFires(a, b *memory.Stored) bool {
 	return false
 }
 
-// jaccardSimilarity returns the Jaccard token-overlap coefficient for two texts (0–1).
+// jaccardSimilarity returns the Jaccard token-overlap coefficient for two lowered texts (0–1).
 // Used as a corpus-independent similarity metric in the second-pass borderline detection.
+// Callers must pass already-lowered text.
 func jaccardSimilarity(a, b string) float64 {
-	tokensA := strings.Fields(strings.ToLower(a))
-	tokensB := strings.Fields(strings.ToLower(b))
+	tokensA := strings.Fields(a)
+	tokensB := strings.Fields(b)
 
 	if len(tokensA) == 0 || len(tokensB) == 0 {
 		return 0
