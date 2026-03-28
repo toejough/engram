@@ -120,6 +120,14 @@ archive/             Historical planning artifacts
 - **Fire and forget** — Hook errors are logged, never propagated. Hooks always exit 0.
 - **Measure impact, not frequency** — A memory surfaced 1000 times but never followed is a leech, not a success.
 
+## Compared to built-in memory
+
+Claude Code has built-in memory (CLAUDE.md, user memories) and dreaming (background processing between sessions). These work well for simple preferences and general context. Use them when you want zero-setup memory that just works.
+
+Engram is different in two ways: it **measures outcomes** and **self-corrects**. Built-in memory stores what you tell it; engram tracks whether stored instructions are actually followed, diagnoses why ineffective ones fail, and proposes fixes. If you care about instruction quality over time — knowing which memories are working, which are noise, and automatically maintaining the corpus — that's what engram adds.
+
+They're complementary. Built-in memory handles general preferences and project context. Engram handles instructions where you want accountability: "did the agent actually follow this, and if not, why?"
+
 ## What it doesn't do
 
 - **No vector embeddings** — Uses TF-IDF/BM25, not dense vectors. Keeps the dependency footprint minimal.
