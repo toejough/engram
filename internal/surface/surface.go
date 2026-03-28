@@ -338,12 +338,6 @@ func (s *Surfacer) runPrompt(
 
 	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
 
-	// Collect final memory list for tracking.
-	finalMems := make([]*memory.Stored, 0, len(matches))
-	for _, m := range matches {
-		finalMems = append(finalMems, m.mem)
-	}
-
 	var summaryBuf strings.Builder
 
 	_, _ = fmt.Fprintf(&summaryBuf, "[engram] %d relevant memories:\n", len(matches))
@@ -356,7 +350,7 @@ func (s *Surfacer) runPrompt(
 	return Result{
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
 		Context: buf.String(),
-	}, finalMems, suppressionEvents, nil
+	}, promptMems, suppressionEvents, nil
 }
 
 // suppressContradictions runs contradiction detection on candidates and returns a filtered slice

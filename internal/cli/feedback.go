@@ -99,8 +99,6 @@ func runFeedback(args []string, stdout io.Writer) error {
 	used := fs.Bool("used", false, "memory was used (with --relevant)")
 	notused := fs.Bool("notused", false, "memory was not used (with --relevant)")
 	surfacingQuery := fs.String("surfacing-query", "", "query that caused memory to surface")
-	_ = fs.String("tool-name", "", "tool name if surfaced during tool use")
-	_ = fs.String("tool-input", "", "tool input if surfaced during tool use")
 
 	parseErr := fs.Parse(flagArgs)
 	if parseErr != nil {

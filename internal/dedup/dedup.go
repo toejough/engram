@@ -78,7 +78,7 @@ const (
 // findMergeMatch returns the first existing memory with >50% keyword overlap with the candidate.
 // Returns nil if no match found.
 func findMergeMatch(candidate memory.CandidateLearning, existing []*memory.Stored) *memory.Stored {
-	candidateKeys := keywordSet(candidate.Keywords)
+	candidateKeys := keyword.Set(candidate.Keywords)
 	if len(candidateKeys) == 0 {
 		return nil // empty keywords never merge
 	}
@@ -88,8 +88,8 @@ func findMergeMatch(candidate memory.CandidateLearning, existing []*memory.Store
 			continue
 		}
 
-		storedKeys := keywordSet(stored.Keywords)
-		overlap := intersectionSize(candidateKeys, storedKeys)
+		storedKeys := keyword.Set(stored.Keywords)
+		overlap := keyword.IntersectionSize(candidateKeys, storedKeys)
 
 		if float64(overlap)/float64(len(candidateKeys)) > overlapThreshold {
 			return stored
@@ -99,20 +99,8 @@ func findMergeMatch(candidate memory.CandidateLearning, existing []*memory.Store
 	return nil
 }
 
-func intersectionSize(a, b map[string]struct{}) int {
-	count := 0
-
-	for key := range a {
-		if _, ok := b[key]; ok {
-			count++
-		}
-	}
-
-	return count
-}
-
 func isDuplicate(candidate memory.CandidateLearning, existing []*memory.Stored) bool {
-	candidateKeys := keywordSet(candidate.Keywords)
+	candidateKeys := keyword.Set(candidate.Keywords)
 	if len(candidateKeys) == 0 {
 		return false
 	}
@@ -122,22 +110,13 @@ func isDuplicate(candidate memory.CandidateLearning, existing []*memory.Stored) 
 			continue
 		}
 
-		storedKeys := keywordSet(stored.Keywords)
+		storedKeys := keyword.Set(stored.Keywords)
 
-		overlap := intersectionSize(candidateKeys, storedKeys)
+		overlap := keyword.IntersectionSize(candidateKeys, storedKeys)
 		if float64(overlap)/float64(len(candidateKeys)) > overlapThreshold {
 			return true
 		}
 	}
 
 	return false
-}
-
-func keywordSet(keywords []string) map[string]struct{} {
-	set := make(map[string]struct{}, len(keywords))
-	for _, kw := range keywords {
-		set[keyword.Normalize(kw)] = struct{}{}
-	}
-
-	return set
 }
