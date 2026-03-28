@@ -128,11 +128,10 @@ func extractBullets(
 	now := time.Now()
 
 	for _, line := range lines {
-		if !bulletPrefix.MatchString(line) {
+		text := bulletPrefix.ReplaceAllString(line, "")
+		if text == line {
 			continue
 		}
-
-		text := bulletPrefix.ReplaceAllString(line, "")
 		text = strings.TrimSpace(text)
 
 		if text == "" {
