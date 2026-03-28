@@ -2,7 +2,6 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -445,12 +444,9 @@ func RunReview(args []string, stdout io.Writer) error {
 
 // unexported constants.
 const (
-	anthropicMaxTokens           = 1024
-	anthropicVersion             = "2023-06-01"
-	filePermOwnerRW              = 0o600
-	formatJSON                   = "json"
-	haikuModel                   = "claude-haiku-4-5-20251001"
-	maintainModel                = "claude-haiku-4-5-20251001"
+	anthropicMaxTokens = 1024
+	filePermOwnerRW    = 0o600
+	formatJSON         = "json"
 	maxTitleLength               = 38
 	maxTranscriptTok             = 2000
 	minArgs                      = 2
@@ -466,9 +462,7 @@ var (
 	errMaintainApplyMissingProposals = errors.New(
 		"maintain --apply: --proposals required",
 	)
-	errNilAPIResponse          = errors.New("calling Anthropic API: nil response")
-	errNoContentBlocks         = errors.New("API response contained no content blocks")
-	errSkillExists             = errors.New("skill already exists")
+	errSkillExists = errors.New("skill already exists")
 	errSurfaceMissingFlags     = errors.New("surface: --mode required")
 	errSurfaceStopNoTranscript = errors.New("surface: --transcript-path required for stop mode")
 	errUnknownCommand          = errors.New("unknown command")
@@ -477,33 +471,6 @@ var (
 			"|review|maintain|instruct|show|feedback> [flags]",
 	)
 )
-
-// anthropicContentBlock is a content block in an Anthropic API response.
-type anthropicContentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
-}
-
-// anthropicMessage is a single message in the Anthropic messages API.
-type anthropicMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-// anthropicRequest is the request body for the Anthropic messages API.
-//
-//nolint:tagliatelle // Anthropic API requires snake_case JSON field names.
-type anthropicRequest struct {
-	Model     string             `json:"model"`
-	MaxTokens int                `json:"max_tokens"`
-	System    string             `json:"system"`
-	Messages  []anthropicMessage `json:"messages"`
-}
-
-// anthropicResponse is the response body from the Anthropic messages API.
-type anthropicResponse struct {
-	Content []anthropicContentBlock `json:"content"`
-}
 
 // cliConfirmer prompts the user for confirmation via stdin/stdout.
 type cliConfirmer struct {
@@ -541,7 +508,7 @@ type cliLLMCaller struct {
 func (c *cliLLMCaller) Call(ctx context.Context, prompt string) (string, error) {
 	caller := makeAnthropicCaller(c.token)
 
-	return caller(ctx, maintainModel, "You are a memory maintenance assistant.", prompt)
+	return caller(ctx, anthropic.HaikuModel, "You are a memory maintenance assistant.", prompt)
 }
 
 //nolint:tagliatelle // DES-23 specifies snake_case JSON field names.
@@ -585,7 +552,7 @@ func (a *haikuCallerAdapter) Call(
 	ctx context.Context,
 	systemPrompt, userPrompt string,
 ) (string, error) {
-	return a.caller(ctx, haikuModel, systemPrompt, userPrompt)
+	return a.caller(ctx, anthropic.HaikuModel, systemPrompt, userPrompt)
 }
 
 // osClaudeMDStore reads and writes CLAUDE.md files on disk.
@@ -927,67 +894,13 @@ func buildTrackingFromMemories(memories []*memory.Stored) map[string]reviewpkg.T
 	return tracking
 }
 
-// callAnthropicAPI makes a single call to the Anthropic messages API and returns the text response.
-func callAnthropicAPI(
-	ctx context.Context,
-	client *http.Client,
-	token, model, systemPrompt, userPrompt string,
-) (string, error) {
-	reqBody := anthropicRequest{
-		Model:     model,
-		MaxTokens: anthropicMaxTokens,
-		System:    systemPrompt,
-		Messages:  []anthropicMessage{{Role: "user", Content: userPrompt}},
-	}
+// newAnthropicClient creates a shared anthropic.Client configured with the
+// current AnthropicAPIURL (supports test overrides).
+func newAnthropicClient(token string) *anthropic.Client {
+	client := anthropic.NewClient(token, &http.Client{})
+	client.SetAPIURL(AnthropicAPIURL)
 
-	reqBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", fmt.Errorf("marshaling request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		AnthropicAPIURL,
-		bytes.NewReader(reqBytes),
-	)
-	if err != nil {
-		return "", fmt.Errorf("creating request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Anthropic-Version", anthropicVersion)
-	req.Header.Set("Anthropic-Beta", "oauth-2025-04-20")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("calling Anthropic API: %w", err)
-	}
-
-	if resp == nil {
-		return "", errNilAPIResponse
-	}
-
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("reading response: %w", err)
-	}
-
-	var apiResp anthropicResponse
-
-	jsonErr := json.Unmarshal(body, &apiResp)
-	if jsonErr != nil {
-		return "", fmt.Errorf("parsing API response: %w", jsonErr)
-	}
-
-	if len(apiResp.Content) == 0 {
-		return "", errNoContentBlocks
-	}
-
-	return apiResp.Content[0].Text, nil
+	return client
 }
 
 // classifyStoredRecords builds review classifications from memory.StoredRecord values.
@@ -1228,11 +1141,8 @@ func maintenancePolicyToReviewOpts(policyFile *policy.File) []reviewpkg.Classify
 func makeAnthropicCaller(
 	token string,
 ) func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
-	client := &http.Client{}
-
-	return func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
-		return callAnthropicAPI(ctx, client, token, model, systemPrompt, userPrompt)
-	}
+	client := newAnthropicClient(token)
+	return client.Caller(anthropicMaxTokens)
 }
 
 // markValidatedPolicies sets Validated and fills after-snapshot fields for each validated policy ID.
