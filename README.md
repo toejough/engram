@@ -18,7 +18,7 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
   +------------------------------------------------------------+
 ```
 
-1. **Extract** — Learns from session transcripts and real-time corrections. User corrections ("remember that...", "don't do X") are captured immediately; broader patterns are extracted at session end.
+1. **Extract** — Learns from session transcripts and real-time corrections. User corrections ("remember that...", "don't do X") are captured immediately; broader patterns are extracted at session end. See [Architecture § Extract](docs/design/architecture.md#core-pipeline), [Session Lifecycle § Stop](docs/design/session-lifecycle.md#4-stop-stopsh-120s-timeout-async), [Memory Lifecycle § Creation](docs/design/memory-lifecycle.md#1-creation), and [`internal/extract/`](internal/extract/).
 
 2. **Deduplicate** — Keyword overlap (>50%) against the existing corpus prevents redundant memories. Near-duplicates are merged on write; post-creation consolidation uses TF-IDF cosine similarity for cluster detection.
 
