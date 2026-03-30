@@ -458,9 +458,10 @@ All maintenance and tuning actions — memory edits, parameter changes, escalati
 
 | Field | Purpose | Values |
 |-------|---------|--------|
+| `id` | Proposal identifier | String, set by `engram maintain` |
 | `action` | What to do | `update`, `delete`, `merge`, `recommend` |
-| `target` | File to change | Memory TOML path (update/delete/merge/recommend), `policy.toml`, `CLAUDE.md` |
-| `field` | Field within file | `situation`, `action`, `surface_bm25_threshold`; null for `delete` and `merge` |
+| `target` | File to change | Memory TOML path (update/delete/merge/recommend), `policy.toml` |
+| `field` | Field within file | `situation`, `action`, `surface_bm25_threshold`; null for `delete`, `merge`, and `recommend` |
 | `value` | New value | New text/number, — (for delete) |
 | `related` | For merge: files to archive | List of memory paths |
 | `rationale` | Why | Human-readable explanation |
@@ -613,8 +614,8 @@ Every parameter must be consumed by at least one pipeline stage and have at leas
 | `evaluate_haiku` | Evaluate: outcome classification | Haiku misclassifies outcome (requires human audit) |
 | `adapt_change_history_limit` | Adapt: bounds `[[change_history]]` entries | Sonnet lacks temporal context (history too short) or history bloats config (too long) |
 | `adapt_sonnet` | Adapt: metric analysis + parameter proposals | Approved change worsens aggregate metrics (Sonnet detects via change history) |
-| `maintain_rewrite` | `apply-proposal`: update situation or action fields | Effectiveness unchanged after rewrite |
-| `maintain_consolidate` | `apply-proposal`: merge similar memories | Merged memory has higher irrelevant rate than originals |
+| `maintain_rewrite` | `maintain`: rewrite situation or action fields for proposal | Effectiveness unchanged after rewrite |
+| `maintain_consolidate` | `maintain`: synthesize similar memories for merge proposal | Merged memory has higher irrelevant rate than originals |
 
 ### Pipeline Failure Modes and Observable Signals
 
@@ -633,7 +634,7 @@ Every parameter must be consumed by at least one pipeline stage and have at leas
 | **Context** | Extraction misses key behavior | Correction tool call truncated below useful threshold | `context_tool_args_truncate`; `context_tool_result_truncate` |
 | **Context** | Context too large for Sonnet budget | Pathological session fills context window | `context_byte_budget` |
 | **Recall** | Mode A output too short/long | User reports insufficient or excessive raw context | `recall_mode_a_read_cap`; `recall_mode_a_write_cap` |
-| **Recall** | Mode B output too short | Extracted content truncated below useful threshold (#425) | `recall_mode_b_write_cap` |
+| **Recall** | Mode B output too short | Extracted content truncated below useful threshold | `recall_mode_b_write_cap` |
 | **Recall** | Mode B reads too little per session | Haiku misses relevant content due to truncated input | `recall_mode_b_read_cap` |
 | **Evaluate** | Haiku misclassifies outcome | Requires human audit (no automated signal) | `evaluate_haiku` prompt |
 | **Maintain** | Wrong diagnosis | Maintain action doesn't improve effectiveness | `maintain_*` thresholds |
@@ -839,7 +840,7 @@ irrelevant_count = 0
 12. **SBIA strip mode:** `StripConfig` on `Strip` function. SBIA mode includes tool name, truncated args (`context_tool_args_truncate`, default ~200 chars), result status, truncated result body (`context_tool_result_truncate`, default ~500 chars). Tool calls are Behavior evidence; tool results are Impact evidence. Recall mode continues to drop tool blocks.
 13. **Staleness check:** Dropped. If a working memory becomes outdated, the user will correct it and the correction pipeline handles the update. No timer-based nagging.
 14. **`surfaced_count`:** Kept as stored counter — useful at a glance. Derived metrics (`effectiveness`, `not_followed_rate`, `irrelevant_rate`) use it as denominator.
-15. **Maintain decision tree:** All thresholds configurable via `maintain_*` parameters. Priority order: insufficient data → remove → narrow situation → rewrite action → keep.
+15. **Maintain decision tree:** All thresholds configurable via `maintain_*` parameters. Priority order: insufficient data → remove → narrow situation → rewrite action → keep → monitor.
 16. **All parameters in config:** Every tunable value lives in `policy.toml` `[parameters]` section. Pipeline descriptions reference parameter names, not hardcoded values. Defaults are set in config, not in code.
 
 ## Resolved: Generalizability, Tiers, Migration
