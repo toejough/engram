@@ -436,6 +436,7 @@ The "hidden gem" quadrant disappears — there's no action to take on a memory t
 | 3 | `irrelevant_rate ≥ maintain_irrelevance_threshold` | Situation too broad | Narrow `situation` |
 | 4 | `not_followed_rate ≥ maintain_not_followed_threshold` | Action not compelling or clear | Rewrite `action`, or escalate |
 | 5 | `effectiveness ≥ maintain_effectiveness_threshold` | Working | Keep (no action) |
+| 6 | None of the above | Ambiguous signal | Monitor (insufficient signal to diagnose root cause) |
 
 ### Unified Proposal Model
 
@@ -570,7 +571,7 @@ adapt_change_history_limit = 50    # Max entries in [[change_history]]
 [prompts]
 # Each LLM prompt stored here — versionable and tunable
 detect_haiku = "..."              # "Is this user message a correction?"
-extract_sonnet = "..."            # "Extract SBIA fields, walk dedup decision tree"
+extract_sonnet = "..."            # "Extract SBIA fields, walk dedup decision tree, generate filename slug"
 surface_gate_haiku = "..."        # "Which memories match this situation/behavior?"
 surface_injection_preamble = "..."# Preamble injected with surfaced memories
 evaluate_haiku = "..."            # "Was the situation relevant? Was the action taken?"
@@ -600,7 +601,7 @@ Every parameter must be consumed by at least one pipeline stage and have at leas
 | `recall_mode_a_read_cap` | Recall mode A: per-session read budget | User reports insufficient/excessive raw context |
 | `recall_mode_a_write_cap` | Recall mode A: assembled output cap | User reports insufficient/excessive raw context |
 | `recall_mode_b_read_cap` | Recall mode B: per-session read budget | Haiku misses relevant content (truncated input) |
-| `recall_mode_b_write_cap` | Recall mode B: assembled output cap | Extracted content truncated below useful threshold (#425) |
+| `recall_mode_b_write_cap` | Recall mode B: assembled output cap | Extracted content truncated below useful threshold |
 | `maintain_effectiveness_threshold` | Maintain: decision tree conditions | Wrong diagnosis (action doesn't improve effectiveness) |
 | `maintain_min_surfaced` | Maintain: insufficient data gate | Wrong diagnosis (action doesn't improve effectiveness) |
 | `maintain_irrelevance_threshold` | Maintain: irrelevance condition | Wrong diagnosis (action doesn't improve effectiveness) |
@@ -692,8 +693,8 @@ No custom analysis dimensions in Go. No lifecycle state machine. The analysis lo
 
 | Command | Reads | Writes | API |
 | ------- | ----- | ------ | --- |
-| `engram maintain` | All `memories/*.toml`, `policy.toml` (`[parameters]`, `[prompts]`, `[[change_history]]`) | Pending proposals (JSON) | Sonnet via `adapt_sonnet` prompt |
-| `engram apply-proposal <id>` | Pending proposals, target file | Target file (update/delete/merge), `policy.toml` (`[[change_history]]`) | LLM via `maintain_rewrite` or `maintain_consolidate` prompt (for memory updates/merges) |
+| `engram maintain` | All `memories/*.toml`, `policy.toml` (`[parameters]`, `[prompts]`, `[[change_history]]`) | Pending proposals (JSON) | Sonnet via `adapt_sonnet`, `maintain_rewrite`, `maintain_consolidate` prompts |
+| `engram apply-proposal <id>` | Pending proposals, target file | Target file (update/delete/merge), `policy.toml` (`[[change_history]]`) | None (executes pre-generated proposal) |
 | `engram reject-proposal <id>` | Pending proposals | `policy.toml` (`[[change_history]]` only) | None |
 
 **SBIA redesign:** Replaces bespoke per-action commands, 5-dimension Go analysis, policy lifecycle states, approval streaks, and before/after measurement windows with: unified proposal schema + change history (`adapt_change_history_limit` entries). Proposals are ephemeral (regenerated each session). Approved changes take effect immediately. Rejections are logged so Sonnet avoids re-proposing.
@@ -712,7 +713,7 @@ No custom analysis dimensions in Go. No lifecycle state machine. The analysis lo
 
 | Command            | Reads                                                                                                      | Writes                 | API                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------------- | ---------------------- | -------------------------------- |
-| `engram maintain`  | All `memories/*.toml`, `policy.toml` (`[parameters]`, `[prompts]`, `[[change_history]]`)                   | Pending proposals file | Sonnet via `adapt_sonnet` prompt |
+| `engram maintain`  | All `memories/*.toml`, `policy.toml` (`[parameters]`, `[prompts]`, `[[change_history]]`)                   | Pending proposals file | Sonnet via `adapt_sonnet`, `maintain_rewrite`, `maintain_consolidate` prompts |
 
 **Current fields read by maintain:** `surfaced_count`, `followed_count`, `contradicted_count`, `ignored_count`, `irrelevant_count`, `keywords`, `principle`, `title`, `anti_pattern`, `confidence`
 
@@ -829,7 +830,7 @@ irrelevant_count = 0
 3. **Dedup strategy:** Sonnet-driven via SBIA decision tree. BM25 finds 3-8 candidates (score ≥ 0.3), then Sonnet evaluates each SBIA dimension independently and determines disposition per candidate. One Sonnet call handles both extraction and dedup. Duplicate detections trigger self-diagnosis (surfacing vs. listening failure).
 4. **Evaluate counters:** Simplified to three: `followed_count`, `not_followed_count`, `irrelevant_count`. "Contradicted" and "ignored" collapse — the distinction isn't actionable. Automated via Haiku at stop hook; LLM self-report dropped.
 5. **Quadrants:** Eliminated. Surfacing frequency measures situation rarity, not memory quality. Maintain operates on effectiveness only, with counter breakdown diagnosing which SBIA field to fix.
-6. **Triage actions:** All actions use a unified proposal schema (`action`, `target`, `field`, `value`, `rationale`). Two commands: `engram apply-proposal <id>` and `engram reject-proposal <id>`. Proposals cover memory edits (update/delete/merge), recommendations, and parameter changes alike.
+6. **Triage actions:** All actions use a unified proposal schema (`id`, `action`, `target`, `field`, `value`, `related`, `rationale` — see [Proposal Schema](#proposal-schema) for field details). Two commands: `engram apply-proposal <id>` and `engram reject-proposal <id>`. Proposals cover memory edits (update/delete/merge), recommendations, and parameter changes alike.
 7. **Adapt redesign:** Replace 5-dimension Go analysis code, policy lifecycle state machine, approval streaks, and measurement windows with: Sonnet analysis + change history (`adapt_change_history_limit` entries in `[[change_history]]`). Proposals use the same unified schema as memory triage. Approved changes write to `[parameters]` immediately; rejections logged in change history so Sonnet avoids re-proposing. The `/adapt` skill is merged into `/memory-triage` — one skill walks through all recommended adjustments (memory + system) via `engram apply-proposal` / `engram reject-proposal`.
 8. **Candidate counts:** Configurable via `extract_candidate_count_*` and `surface_candidate_count_*` (default 3-8). Score threshold via `*_bm25_threshold` (default 0.3). Fewer than min is fine if the corpus doesn't have close matches.
 9. **Surfacing semantic gate:** Haiku validates BM25 candidates before injection via `surface_gate_haiku` prompt. Single batched call with query context (user prompt + transcript) + candidate SBIA fields. Prevents false-positive surfacing from keyword overlap without situational match.
