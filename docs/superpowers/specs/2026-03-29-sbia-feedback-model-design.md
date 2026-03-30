@@ -388,7 +388,7 @@ The current model has five counters (surfaced, followed, contradicted, ignored, 
 
 **Why three, not five:** "Contradicted" and "ignored" collapse into `not_followed`. Whether the agent did the problematic behavior or something else entirely, the outcome is the same — the memory didn't work. The fix is the same — rewrite the action or escalate. The distinction adds complexity without actionable signal.
 
-`surfaced_count` is retained — useful at a glance for understanding how often a situation arises. Not used in effectiveness calculation but available for diagnostics and adapt metrics.
+`surfaced_count` is retained — useful at a glance for understanding how often a situation arises. Not used as a maintenance gate — surfacing frequency doesn't penalize rare situations. Used as denominator in derived metrics (effectiveness, not_followed_rate, irrelevant_rate).
 
 ### Why This Works
 
@@ -451,8 +451,7 @@ All maintenance and tuning actions — memory edits, parameter changes, escalati
   "field": "situation",
   "value": "When running tests, builds, or lint checks in any Go project",
   "related": [],
-  "rationale": "High irrelevant rate — situation too broad",
-  "source": "maintain"
+  "rationale": "High irrelevant rate — situation too broad"
 }
 ```
 
@@ -464,7 +463,6 @@ All maintenance and tuning actions — memory edits, parameter changes, escalati
 | `value` | New value | New text/number, — (for delete) |
 | `related` | For merge: files to archive | List of memory paths |
 | `rationale` | Why | Human-readable explanation |
-| `source` | Which analysis produced it | `maintain` or `algorithm` |
 
 #### How Each Diagnosis Maps to a Proposal
 
@@ -487,6 +485,8 @@ The `recommend` action is a suggestion, not an automated write. The `/memory-tri
 | `engram maintain` | Analyze individual memory health + aggregate metrics via Sonnet → produce proposals, write pending file |
 | `engram apply-proposal <id>` | Execute proposal (write/delete/merge), append to `[[change_history]]` |
 | `engram reject-proposal <id>` | Append rejection to `[[change_history]]` |
+
+See [/memory-triage Operations](#memory-triage) for detailed file reads/writes per command.
 
 ### `/memory-triage` Skill
 
@@ -551,10 +551,12 @@ surface_cold_start_budget = 2
 surface_irrelevance_half_life = 5
 
 # Recall
+# Mode A (no query): raw transcript assembly — what was decided, done, outstanding
+# Mode B (with query): Haiku-filtered extraction across sessions
 recall_mode_a_read_cap = 15360     # 15KB — mode A per-session read budget
 recall_mode_a_write_cap = 15360    # 15KB — mode A assembled output cap
 recall_mode_b_read_cap = 51200     # 50KB — mode B per-session read budget
-recall_mode_b_write_cap = 15360    # 15KB — mode B assembled output cap (currently 1500B, see #425)
+recall_mode_b_write_cap = 15360    # 15KB — mode B assembled output cap
 
 # Maintain
 maintain_effectiveness_threshold = 50.0
@@ -706,7 +708,7 @@ No custom analysis dimensions in Go. No lifecycle state machine. The analysis lo
 
 1. Rebuilds binary if stale
 2. Runs `engram maintain` → memory + system adjustment proposals
-3. Writes proposals to `~/.claude/engram/pending-maintenance.json` (consumed later by UserPromptSubmit)
+3. Writes proposals to `~/.claude/engram/pending-maintenance.json` — JSON array of proposal objects (see [Proposal Schema](#unified-proposal-model)). Consumed by UserPromptSubmit (atomic read + delete).
 
 | Command            | Reads                                                                                                      | Writes                 | API                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------------- | ---------------------- | -------------------------------- |
