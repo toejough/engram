@@ -295,6 +295,7 @@ Stage 2 (PreToolUse) is a narrow safety net for the most literally matchable cas
 1. Build query context:
    - User prompt (always)
    - Recent transcript context (up to `context_byte_budget`)
+     (shared with extraction context — same transcript, same budget)
    BM25 needs more than just the latest message — "do it" matches
    nothing, but the preceding conversation about "running tests"
    would match the targ memory.
@@ -320,7 +321,11 @@ Stage 2 (PreToolUse) is a narrow safety net for the most literally matchable cas
    memories in wrong contexts. Haiku asking "is this situation
    actually happening?" catches what BM25 can't.
 
-7. Surface passing candidates with full SBIA fields
+7. Track passing memories
+   Increment `surfaced_count` on each. Write `[[pending_evaluations]]`
+   entry for each (consumed by `engram evaluate` at stop hook).
+
+8. Surface passing candidates with full SBIA fields
    No token budget — all four fields for each passing memory.
    The top-level LLM has the richest context to make the final
    relevance decision. Surface 0 memories if none pass the gate.
@@ -375,11 +380,11 @@ Multiple agents or consecutive turns can surface the same memory before evaluati
 
 The current model has five counters (surfaced, followed, contradicted, ignored, irrelevant). SBIA simplifies to three:
 
-| Counter        | Meaning                                 | Haiku Assessment                                              |
-| -------------- | --------------------------------------- | ------------------------------------------------------------- |
-| `followed`     | Situation matched, action was taken     | "Was the situation relevant? Yes. Was the action taken? Yes." |
-| `not_followed` | Situation matched, action was not taken | "Was the situation relevant? Yes. Was the action taken? No."  |
-| `irrelevant`   | Situation didn't match                  | "Was the situation relevant? No."                             |
+| Counter            | Meaning                                 | Haiku Assessment                                              |
+| ------------------ | --------------------------------------- | ------------------------------------------------------------- |
+| `followed_count`     | Situation matched, action was taken     | "Was the situation relevant? Yes. Was the action taken? Yes." |
+| `not_followed_count` | Situation matched, action was not taken | "Was the situation relevant? Yes. Was the action taken? No."  |
+| `irrelevant_count`   | Situation didn't match                  | "Was the situation relevant? No."                             |
 
 **Why three, not five:** "Contradicted" and "ignored" collapse into `not_followed`. Whether the agent did the problematic behavior or something else entirely, the outcome is the same — the memory didn't work. The fix is the same — rewrite the action or escalate. The distinction adds complexity without actionable signal.
 
@@ -393,6 +398,7 @@ The current model has five counters (surfaced, followed, contradicted, ignored, 
 - **Haiku is cheap** — typically 1-2 surfaced memories per turn; one Haiku call per surfaced memory.
 - **SBIA makes evaluation possible** — explicit `behavior` and `action` fields are checkable assertions, not vague principles.
 - **LLM self-report dropped** — `engram feedback` calls become unnecessary. The stop hook evaluates automatically.
+- **`surfacing-log.jsonl` eliminated** — pending evaluations in memory TOML replace the separate surfacing log. No log file to sync or clean up.
 
 ## Decision: Maintain — Effectiveness-Only, No Quadrants
 
@@ -431,32 +437,94 @@ The "hidden gem" quadrant disappears — there's no action to take on a memory t
 | 4 | `not_followed_rate ≥ maintain_not_followed_threshold` | Action not compelling or clear | Rewrite `action`, or escalate |
 | 5 | `effectiveness ≥ maintain_effectiveness_threshold` | Working | Keep (no action) |
 
-### Triage Actions
+### Unified Proposal Model
 
-Each action is a dedicated `engram` CLI command. The `/memory-triage` skill runs these commands — the LLM never edits memory files directly.
+All maintenance and tuning actions — memory edits, parameter changes, escalations — use the same proposal schema. Two commands handle every proposal: `engram apply-proposal <id>` and `engram reject-proposal <id>`. The `/memory-triage` skill walks through proposals; the LLM never edits files directly.
 
-| Command | When | What it does |
-|---------|------|-------------|
-| `engram triage remove` | Both situation and action failing | Delete memory file |
-| `engram triage narrow` | High irrelevant rate | LLM rewrites `situation` via `maintain_rewrite` prompt |
-| `engram triage rewrite` | High not_followed rate | LLM rewrites `action` via `maintain_rewrite` prompt |
-| `engram triage escalate` | Persistent not_followed despite clear action | Promote `action` to CLAUDE.md/rules |
-| `engram triage consolidate` | Similar situations across memories | LLM synthesizes via `maintain_consolidate` prompt |
+#### Proposal Schema
 
-### `/memory-triage` Skill Changes
+```json
+{
+  "id": "prop-001",
+  "action": "update",
+  "target": "memories/use-targ.toml",
+  "field": "situation",
+  "value": "When running tests, builds, or lint checks in any Go project",
+  "related": [],
+  "rationale": "High irrelevant rate — situation too broad",
+  "source": "maintain"
+}
+```
 
-The skill presents memories by maintain priority:
+| Field | Purpose | Values |
+|-------|---------|--------|
+| `action` | What to do | `update`, `delete`, `merge`, `recommend` |
+| `target` | File to change | Memory TOML path (update/delete/merge/recommend), `policy.toml`, `CLAUDE.md` |
+| `field` | Field within file | `situation`, `action`, `surface_bm25_threshold`; null for `delete` and `merge` |
+| `value` | New value | New text/number, — (for delete) |
+| `related` | For merge: files to archive | List of memory paths |
+| `rationale` | Why | Human-readable explanation |
+| `source` | Which analysis produced it | `maintain` or `algorithm` |
 
-1. **Remove** — memories failing both thresholds (`maintain_effectiveness_threshold` + `maintain_irrelevance_threshold`). "Nothing is working. Remove?"
-2. **Irrelevant** — memories exceeding `maintain_irrelevance_threshold`. "This memory is surfacing in wrong contexts. Narrow the situation description?"
-3. **Not followed** — memories exceeding `maintain_not_followed_threshold`. "This memory is being surfaced when relevant but the agent isn't following it. Rewrite the action or escalate?"
-4. **Consolidation** — memories with similar situations that could be merged.
+#### How Each Diagnosis Maps to a Proposal
 
-### `/adapt` Redesign: Config Surface + Metrics + LLM Analysis
+| Diagnosis | Action | Target | Field | Value | LLM |
+|-----------|--------|--------|-------|-------|-----|
+| Situation + action failing | `delete` | memory file | null | — | None |
+| Situation too broad | `update` | memory file | `situation` | rewritten text | `maintain_rewrite` prompt |
+| Action not followed | `update` | memory file | `action` | rewritten text | `maintain_rewrite` prompt |
+| Persistent not-followed | `recommend` | memory file | — | — | None |
+| Similar situations | `merge` | survivor memory | null (replaces entire memory) | synthesized | `maintain_consolidate` prompt |
+| Parameter needs tuning | `update` | `policy.toml` | parameter name | new value | `adapt_sonnet` prompt |
+| Prompt needs tuning | `update` | `policy.toml` | prompt name | new prompt | `adapt_sonnet` prompt |
 
-Replace the current 5-dimension analysis code with a simpler model: every tunable behavior is a parameter in `policy.toml`, every pipeline stage emits metrics, and a Sonnet call maps metric trends to parameter adjustments.
+The `recommend` action is a suggestion, not an automated write. The `/memory-triage` skill presents it as a recommendation to convert the memory to a rule, hook, or CLAUDE.md entry. The user decides whether and how to act on it.
 
-#### Tunable Parameters
+#### Commands
+
+| Command | What it does |
+|---------|-------------|
+| `engram maintain` | Analyze individual memory health + aggregate metrics via Sonnet → produce proposals, write pending file |
+| `engram apply-proposal <id>` | Execute proposal (write/delete/merge), append to `[[change_history]]` |
+| `engram reject-proposal <id>` | Append rejection to `[[change_history]]` |
+
+### `/memory-triage` Skill
+
+Merge the current `/memory-triage` and `/adapt` skills into a single `/memory-triage` skill. Both produce proposals in the same schema; the skill presents them all in one flow, user approves or rejects each.
+
+**Presentation order** (by priority):
+
+1. **Delete** — memories failing both thresholds (`maintain_effectiveness_threshold` + `maintain_irrelevance_threshold`). "Nothing is working. Remove?"
+2. **Narrow situation** — memories exceeding `maintain_irrelevance_threshold`. "Surfacing in wrong contexts. Narrow the situation?"
+3. **Rewrite action / recommend escalation** — memories exceeding `maintain_not_followed_threshold`. "Surfaced when relevant but not followed. Rewrite the action, or consider converting to a rule/hook/CLAUDE.md entry?"
+4. **Consolidate** — memories with similar situations that could be merged.
+5. **Algorithm adjustments** — parameter/prompt changes from `engram maintain`.
+
+Each approved proposal runs `engram apply-proposal <id>`. Each rejected proposal runs `engram reject-proposal <id>`.
+
+### Change History
+
+All applied and rejected proposals are logged in `policy.toml` `[[change_history]]`, bounded to `adapt_change_history_limit` entries (default 50). `engram maintain` sends the change history to Sonnet so it can reason about recent changes and avoid compounding.
+
+```toml
+[[change_history]]
+action = "update"
+target = "policy.toml"
+field = "surface_bm25_threshold"
+old_value = "0.3"
+new_value = "0.25"
+status = "approved"          # or "rejected"
+rationale = "High irrelevant rate suggests BM25 is surfacing too many weak candidates"
+changed_at = "2026-03-30T10:00:00Z"
+```
+
+**What this eliminates:** Bespoke CLI commands per action type, `Policy` struct lifecycle states, `ApprovalStreak`, `Effectiveness` before/after tracking, `EvaluateActivePolicies`, `MeasurementWindow`, all 5 analysis functions in `internal/adapt/`.
+
+**Risk mitigation:** Change history prevents compounding — Sonnet sees "you changed this parameter 2 sessions ago" and can exercise judgment about whether to propose further changes. Rejected proposals in the history prevent re-proposing the same change. If an approved change worsens metrics, Sonnet will see the worsening in aggregate metrics and propose a correction.
+
+## Configuration and Tuning
+
+### Tunable Parameters
 
 All stored in `policy.toml`, readable and writable by the adapt pipeline:
 
@@ -482,11 +550,20 @@ surface_bm25_threshold = 0.3
 surface_cold_start_budget = 2
 surface_irrelevance_half_life = 5
 
+# Recall
+recall_mode_a_read_cap = 15360     # 15KB — mode A per-session read budget
+recall_mode_a_write_cap = 15360    # 15KB — mode A assembled output cap
+recall_mode_b_read_cap = 51200     # 50KB — mode B per-session read budget
+recall_mode_b_write_cap = 15360    # 15KB — mode B assembled output cap (currently 1500B, see #425)
+
 # Maintain
 maintain_effectiveness_threshold = 50.0
 maintain_min_surfaced = 5
 maintain_irrelevance_threshold = 60.0
 maintain_not_followed_threshold = 50.0
+
+# Adapt
+adapt_change_history_limit = 50    # Max entries in [[change_history]]
 
 [prompts]
 # Each LLM prompt stored here — versionable and tunable
@@ -500,36 +577,81 @@ maintain_rewrite = "..."          # "Rewrite this action/situation for clarity"
 maintain_consolidate = "..."      # "Synthesize these similar memories into one"
 ```
 
-#### Pipeline Failure Modes and Observable Signals
+### Parameter Lifecycle: Read Path x Tune Trigger
+
+Every parameter must be consumed by at least one pipeline stage and have at least one observable signal that triggers re-tuning via adapt.
+
+| Parameter | Read (consumed by) | Tune trigger (observable signal) |
+|-----------|--------------------|----------------------------------|
+| `detect_fast_path_keywords` | Detect: fast-path keyword match | Correction missed (user re-teaches) |
+| `context_byte_budget` | Context retrieval: transcript tail budget | Context too large for Sonnet budget |
+| `context_tool_args_truncate` | SBIA strip mode: tool arg truncation | Extraction misses key behavior (tool call truncated) |
+| `context_tool_result_truncate` | SBIA strip mode: tool result truncation | Extraction misses key behavior (tool result truncated) |
+| `extract_candidate_count_min` | Extract: BM25 candidate retrieval | Wrong dedup disposition (missed or false dedup) |
+| `extract_candidate_count_max` | Extract: BM25 candidate retrieval | Wrong dedup disposition (missed or false dedup) |
+| `extract_bm25_threshold` | Extract: BM25 score cutoff | Wrong dedup disposition (missed or false dedup) |
+| `surface_candidate_count_min` | Surface: BM25 candidate retrieval | Poor BM25 candidates (user re-corrects) |
+| `surface_candidate_count_max` | Surface: BM25 candidate retrieval | Poor BM25 candidates (user re-corrects) |
+| `surface_bm25_threshold` | Surface: BM25 score cutoff | Poor BM25 candidates (user re-corrects) |
+| `surface_cold_start_budget` | Surface: unproven memory cap | Unproven memories crowd proven ones |
+| `surface_irrelevance_half_life` | Surface: irrelevance penalty decay | Unproven memories crowd proven ones |
+| `recall_mode_a_read_cap` | Recall mode A: per-session read budget | User reports insufficient/excessive raw context |
+| `recall_mode_a_write_cap` | Recall mode A: assembled output cap | User reports insufficient/excessive raw context |
+| `recall_mode_b_read_cap` | Recall mode B: per-session read budget | Haiku misses relevant content (truncated input) |
+| `recall_mode_b_write_cap` | Recall mode B: assembled output cap | Extracted content truncated below useful threshold (#425) |
+| `maintain_effectiveness_threshold` | Maintain: decision tree conditions | Wrong diagnosis (action doesn't improve effectiveness) |
+| `maintain_min_surfaced` | Maintain: insufficient data gate | Wrong diagnosis (action doesn't improve effectiveness) |
+| `maintain_irrelevance_threshold` | Maintain: irrelevance condition | Wrong diagnosis (action doesn't improve effectiveness) |
+| `maintain_not_followed_threshold` | Maintain: not-followed condition | Wrong diagnosis (action doesn't improve effectiveness) |
+| `detect_haiku` | Detect: Haiku classification call | Correction missed or non-correction triggers extraction |
+| `extract_sonnet` | Extract: SBIA field extraction + dedup | Vague situation, weak action, or wrong dedup |
+| `surface_gate_haiku` | Surface: Haiku semantic gate | Haiku gate false positive/negative |
+| `surface_injection_preamble` | Surface: output formatting | Agent ignores or misinterprets surfaced memories |
+| `evaluate_haiku` | Evaluate: outcome classification | Haiku misclassifies outcome (requires human audit) |
+| `adapt_change_history_limit` | Adapt: bounds `[[change_history]]` entries | Sonnet lacks temporal context (history too short) or history bloats config (too long) |
+| `adapt_sonnet` | Adapt: metric analysis + parameter proposals | Approved change worsens aggregate metrics (Sonnet detects via change history) |
+| `maintain_rewrite` | `apply-proposal`: update situation or action fields | Effectiveness unchanged after rewrite |
+| `maintain_consolidate` | `apply-proposal`: merge similar memories | Merged memory has higher irrelevant rate than originals |
+
+### Pipeline Failure Modes and Observable Signals
 
 | Stage | Failure Mode | Observable Signal | Likely Parameter |
 |-------|-------------|-------------------|------------------|
-| **Detect** | Correction missed | Duplicate correction (user re-teaches) | `detect_haiku` prompt; fast-path keywords |
+| **Detect** | Correction missed | Duplicate correction (user re-teaches) | `detect_haiku` prompt; `detect_fast_path_keywords` |
 | **Detect** | Non-correction triggers extraction | High extraction rate + low follow-through on new memories | `detect_haiku` prompt |
 | **Extract** | Vague situation | High `irrelevant` rate on new memories | `extract_sonnet` prompt |
 | **Extract** | Weak action | High `not_followed` rate on new memories | `extract_sonnet` prompt |
-| **Extract** | Wrong dedup disposition | Duplicate corrections (missed dedup) or missing memories | `extract_sonnet` prompt; BM25 threshold; candidate count |
-| **Surface** | Poor BM25 candidates | Relevant memory exists but wasn't surfaced (user re-corrects) | `surface_bm25_threshold`; candidate count |
+| **Extract** | Wrong dedup disposition | Duplicate corrections (missed dedup) or missing memories | `extract_sonnet` prompt; `extract_bm25_threshold`; `extract_candidate_count_*` |
+| **Surface** | Poor BM25 candidates | Relevant memory exists but wasn't surfaced (user re-corrects) | `surface_bm25_threshold`; `surface_candidate_count_*` |
 | **Surface** | Haiku gate false positive | High `irrelevant` rate on surfaced memories | `surface_gate_haiku` prompt |
 | **Surface** | Haiku gate false negative | Hard to observe; proxy: user re-corrects when memory exists | `surface_gate_haiku` prompt |
 | **Surface** | Unproven memories crowd proven | High irrelevance on unproven memories | `surface_cold_start_budget`; `surface_irrelevance_half_life` |
+| **Surface** | Injected format confuses agent | Agent ignores surfaced memories or misinterprets them | `surface_injection_preamble` prompt |
+| **Context** | Extraction misses key behavior | Correction tool call truncated below useful threshold | `context_tool_args_truncate`; `context_tool_result_truncate` |
+| **Context** | Context too large for Sonnet budget | Pathological session fills context window | `context_byte_budget` |
+| **Recall** | Mode A output too short/long | User reports insufficient or excessive raw context | `recall_mode_a_read_cap`; `recall_mode_a_write_cap` |
+| **Recall** | Mode B output too short | Extracted content truncated below useful threshold (#425) | `recall_mode_b_write_cap` |
+| **Recall** | Mode B reads too little per session | Haiku misses relevant content due to truncated input | `recall_mode_b_read_cap` |
 | **Evaluate** | Haiku misclassifies outcome | Requires human audit (no automated signal) | `evaluate_haiku` prompt |
 | **Maintain** | Wrong diagnosis | Maintain action doesn't improve effectiveness | `maintain_*` thresholds |
+| **Maintain** | Rewrite doesn't improve memory | Effectiveness unchanged after rewrite | `maintain_rewrite` prompt |
+| **Maintain** | Consolidation loses nuance | Merged memory has higher irrelevant rate than originals | `maintain_consolidate` prompt |
+| **Adapt** | Wrong parameter adjustment proposed | Approved change worsens aggregate metrics (Sonnet detects via change history) | `adapt_sonnet` prompt |
+| **Adapt** | Sonnet lacks temporal context | Compounding changes within short window | `adapt_change_history_limit` |
 
-#### Adapt Flow: Sonnet Analyzes Metrics → Proposes Parameter Changes
+### Adapt Flow: Sonnet Analyzes Metrics → Proposes Parameter Changes
 
 ```
-1. Collect metrics (rolling window, per-session counters)
-2. Sonnet call: "Here are the metrics over the last N sessions.
-   Here are the current parameters. What's trending wrong
-   and what would you adjust?"
-3. Sonnet returns proposed parameter changes with rationale
-4. User approves/rejects via /adapt skill
-5. On approval: snapshot current corpus metrics as before-state
-6. After measurement window: compare before/after → validate or revert
+1. Collect aggregate metrics from all memories
+2. Read current [parameters] + [prompts] + [[change_history]] (last `adapt_change_history_limit`)
+3. Sonnet call via `adapt_sonnet` prompt (defined in [prompts])
+4. Sonnet returns proposed parameter/prompt changes with rationale
+5. User approves/rejects via /memory-triage skill
+6. Approved: write new value to [parameters], append to [[change_history]]
+7. Rejected: append rejection to [[change_history]]
 ```
 
-No custom analysis dimensions in Go. The analysis logic is a Sonnet prompt — flexible, evolvable, and simple to maintain.
+No custom analysis dimensions in Go. No lifecycle state machine. The analysis logic is a Sonnet prompt — flexible, evolvable, and simple to maintain. Change history provides temporal context to prevent compounding.
 
 ## Skill Operations and Pipeline Mapping
 
@@ -539,13 +661,14 @@ No custom analysis dimensions in Go. The analysis logic is a Sonnet prompt — f
 
 **Command:** `engram recall [--query "..."]`
 
-| Operation                                | Files                                         | Pipeline Stage        |
-| ---------------------------------------- | --------------------------------------------- | --------------------- |
-| Reads session transcripts                | `~/.claude/projects/{slug}/*.jsonl`           | —                     |
-| Reads memory files (query mode)          | `{dataDir}/memories/*.toml`                   | Surface (retrieval)   |
-| Reads CLAUDE.md + rules (suppression)    | `~/.claude/CLAUDE.md`, `~/.claude/rules/*.md` | Surface (suppression) |
-| Writes surfaced_count + last_surfaced_at | `{dataDir}/memories/*.toml`                   | Surface (tracking)    |
-| API: Haiku extract relevant content      | Anthropic Messages API (query mode only)      | —                     |
+| Operation                                | Files                                         | Pipeline Stage        | Config                                              |
+| ---------------------------------------- | --------------------------------------------- | --------------------- | --------------------------------------------------- |
+| Reads session transcripts                | `~/.claude/projects/{slug}/*.jsonl`           | —                     | `recall_mode_a_read_cap` (mode A), `recall_mode_b_read_cap` (mode B) |
+| Reads memory files (query mode)          | `{dataDir}/memories/*.toml`                   | Surface (retrieval)   | —                                                   |
+| Reads CLAUDE.md + rules (suppression)    | `~/.claude/CLAUDE.md`, `~/.claude/rules/*.md` | Surface (suppression) | —                                                   |
+| Writes surfaced_count                    | `{dataDir}/memories/*.toml`                   | Surface (tracking)    | —                                                   |
+| Assembles output                         | —                                             | —                     | `recall_mode_a_write_cap` (mode A), `recall_mode_b_write_cap` (mode B) |
+| API: Haiku extract relevant content      | Anthropic Messages API (query mode only)      | —                     | —                                                   |
 
 **SBIA impact:** Low. `SearchText()` changes input fields but the skill just runs a command.
 
@@ -563,29 +686,15 @@ No custom analysis dimensions in Go. The analysis logic is a Sonnet prompt — f
 | `refine_keywords`  | Target TOML             | Removes/adds keywords, clears `irrelevant_queries`            | None                         | **`keywords`, `irrelevant_queries`**                |
 | `consolidate`      | Survivor + member TOMLs | Overwrites survivor; archives members to `{dataDir}/archive/` | Haiku (synthesize principle) | **`principle`** (synthesized)                       |
 
-**SBIA redesign:** `broaden_keywords` and `refine_keywords` are eliminated (no keywords). Remaining actions:
+**SBIA redesign:** All actions use the unified proposal model. `broaden_keywords` and `refine_keywords` are eliminated (no keywords).
 
-| Action        | Reads                   | Writes                                                        | API                       | Fields Referenced                               |
-| ------------- | ----------------------- | ------------------------------------------------------------- | ------------------------- | ----------------------------------------------- |
-| `remove`      | Target TOML             | **Deletes** file                                              | None                      | —                                               |
-| `rewrite`     | Target TOML             | Updates fields                                                | None                      | **`situation`, `behavior`, `impact`, `action`** |
-| `consolidate` | Survivor + member TOMLs | Overwrites survivor; archives members to `{dataDir}/archive/` | Haiku (synthesize action) | **`action`** (synthesized)                      |
-| `escalate`    | Target TOML             | Promotes to CLAUDE.md/rules                                   | None                      | **`action`**                                    |
+| Command | Reads | Writes | API |
+| ------- | ----- | ------ | --- |
+| `engram maintain` | All `memories/*.toml`, `policy.toml` (`[parameters]`, `[prompts]`, `[[change_history]]`) | Pending proposals (JSON) | Sonnet via `adapt_sonnet` prompt |
+| `engram apply-proposal <id>` | Pending proposals, target file | Target file (update/delete/merge), `policy.toml` (`[[change_history]]`) | LLM via `maintain_rewrite` or `maintain_consolidate` prompt (for memory updates/merges) |
+| `engram reject-proposal <id>` | Pending proposals | `policy.toml` (`[[change_history]]` only) | None |
 
-### /adapt
-
-**LLM does directly:** Runs status command, interprets output, presents to user. Runs approve/reject/retire.
-
-**Command:** `engram adapt --data-dir "$ENGRAM_DATA_DIR" [--approve/--reject/--retire <id>]`
-
-| Action  | Reads                                                  | Writes                           | API  |
-| ------- | ------------------------------------------------------ | -------------------------------- | ---- |
-| status  | `policy.toml`                                          | Nothing                          | None |
-| approve | `policy.toml` + all `memories/*.toml` (corpus metrics) | `policy.toml` (status, snapshot) | None |
-| reject  | `policy.toml`                                          | `policy.toml`                    | None |
-| retire  | `policy.toml`                                          | `policy.toml`                    | None |
-
-**SBIA redesign:** Keyword-focused proposal dimensions are removed. Extraction guidance shifts to situation-quality advice. Policy dimensions update to SBIA-focused concerns (situation breadth, action clarity).
+**SBIA redesign:** Replaces bespoke per-action commands, 5-dimension Go analysis, policy lifecycle states, approval streaks, and before/after measurement windows with: unified proposal schema + change history (`adapt_change_history_limit` entries). Proposals are ephemeral (regenerated each session). Approved changes take effect immediately. Rejections are logged so Sonnet avoids re-proposing.
 
 ## Hook Operations and Pipeline Mapping
 
@@ -596,23 +705,24 @@ No custom analysis dimensions in Go. The analysis logic is a Sonnet prompt — f
 **Async background fork:**
 
 1. Rebuilds binary if stale
-2. Runs `engram maintain` → JSON proposals
-3. Reads `policy.toml` for adaptation proposal count
-4. Writes `~/.claude/engram/pending-maintenance.json` (consumed later by UserPromptSubmit)
+2. Runs `engram maintain` → memory + system adjustment proposals
+3. Writes proposals to `~/.claude/engram/pending-maintenance.json` (consumed later by UserPromptSubmit)
 
-| Command           | Reads                                | Writes           | API                                   |
-| ----------------- | ------------------------------------ | ---------------- | ------------------------------------- |
-| `engram maintain` | All `memories/*.toml`, `policy.toml` | stdout JSON only | Haiku (optional, rewrite suggestions) |
+| Command            | Reads                                                                                                      | Writes                 | API                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- | ---------------------- | -------------------------------- |
+| `engram maintain`  | All `memories/*.toml`, `policy.toml` (`[parameters]`, `[prompts]`, `[[change_history]]`)                   | Pending proposals file | Sonnet via `adapt_sonnet` prompt |
 
 **Current fields read by maintain:** `surfaced_count`, `followed_count`, `contradicted_count`, `ignored_count`, `irrelevant_count`, `keywords`, `principle`, `title`, `anti_pattern`, `confidence`
 
 **SBIA fields read by maintain:** `surfaced_count`, `followed_count`, `not_followed_count`, `irrelevant_count`, `situation`, `behavior`, `impact`, `action`, `project_scoped`
 
+See [Adapt Flow](#adapt-flow-sonnet-analyzes-metrics--proposes-parameter-changes) for the full process.
+
 ### UserPromptSubmit (`user-prompt-submit.sh`)
 
 Consumes `pending-maintenance.json` (atomic read + delete), then runs two commands:
 
-#### 1. `engram correct --message "$USER_MESSAGE"`
+#### 1. `engram correct --message "$USER_MESSAGE"` (message passed explicitly for fast-path keyword detection; transcript context is only read if a correction is detected)
 
 **Pipeline stage:** Detect → Context Retrieval → SBIA Extraction → Dedup → Write
 
@@ -626,52 +736,38 @@ Consumes `pending-maintenance.json` (atomic read + delete), then runs two comman
 
 **SBIA redesign:**
 
-| Operation | Files                                                    | Fields                                                          |
-| --------- | -------------------------------------------------------- | --------------------------------------------------------------- |
-| Detect    | User message (fast-path keywords + Haiku classification)                  | —                                                               |
-| Context   | Current session transcript tail (`context_byte_budget`, SBIA strip mode)  | —                                                               |
-| Candidates | BM25 on correction + context → top candidates from `memories/*.toml` (per `extract_*` config) | —                                                               |
-| Extract+Dedup | Correction + context + candidates → **Sonnet** extracts SBIA + disposition per candidate | `situation`, `behavior`, `impact`, `action` + per-candidate disposition |
-| Write     | New `memories/<slug>.toml` (if disposition is not DUPLICATE)              | `situation`, `behavior`, `impact`, `action` + tracking metadata |
+See [Revised Extraction Flow](#revised-extraction-flow) above for the full pipeline (Detect → Context → BM25 candidates → Sonnet extracts SBIA + dedup disposition → Write). Key config: `detect_*`, `context_*`, `extract_*` parameters.
 
 **SBIA impact: High.** This becomes the primary (and only) extraction path. Haiku detects; Sonnet extracts and deduplicates in one call.
 
-#### 2. `engram surface --mode prompt --message "$USER_MESSAGE" --format json`
+#### 2. `engram surface`
 
-**Pipeline stage:** Surface (retrieval + tracking)
+**Pipeline stage:** Surface (retrieval + tracking). `engram surface` reads the transcript tail directly — no message argument needed.
 
 **Current:**
 
 | Operation | Files                                                                                                  | Fields                                                                                                                                                                                                                                                   |
 | --------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Reads     | All `memories/*.toml`, `policy.toml`, `surfacing-log.jsonl`, `~/.claude/CLAUDE.md` + rules             | Matching: `SearchText()` (title+content+principle+keywords+concepts). Ranking: `surfaced_count`, `followed_count`, `contradicted_count`, `ignored_count`, `irrelevant_count`, `irrelevant_queries`, `generalizability`, `confidence`, `last_surfaced_at` |
-| Writes    | Increments `surfaced_count` + `last_surfaced_at` on matched memories; appends to `surfacing-log.jsonl` | —                                                                                                                                                                                                                                                        |
+| Reads     | All `memories/*.toml`, `policy.toml`, `surfacing-log.jsonl`, `~/.claude/CLAUDE.md` + rules             | Matching: `SearchText()` (title+content+principle+keywords+concepts). Ranking: `surfaced_count`, `followed_count`, `contradicted_count`, `ignored_count`, `irrelevant_count`, `irrelevant_queries`, `generalizability`, `confidence` |
+| Writes    | Increments `surfaced_count` on matched memories; appends to `surfacing-log.jsonl` | —                                                                                                                                                                                                                                                        |
 | API       | None                                                                                                   | —                                                                                                                                                                                                                                                        |
 | Displays  | `principle` (+ filename slug) to user                                                                  | —                                                                                                                                                                                                                                                        |
 
 **SBIA redesign:**
 
-| Step | Operation | Details |
-| ---- | --------- | ------- |
-| 1. Query context | Build from user prompt + transcript tail | Up to `context_byte_budget` of transcript |
-| 2. BM25 candidates | Top candidates from `memories/*.toml` (per `surface_*` config) | Matching on `SearchText()` (situation+behavior+impact+action) |
-| 3. Filters | `project_scoped` hard filter, irrelevance penalty (`surface_irrelevance_half_life`), cold-start budget (`surface_cold_start_budget`) | Pre-Haiku filtering on cheap signals |
-| 4. Haiku gate | Single batched call: query context + candidate SBIA fields | "Which memories describe a situation the agent is in, with a behavior it might exhibit?" → returns passing subset or empty |
-| 5. Track | Increments `surfaced_count` + `last_surfaced_at`; writes `[[pending_evaluations]]` entry | Only for memories that pass the gate |
-| 6. Display | Full SBIA fields for each passing memory | No token budget — all four fields per memory, presented as candidates |
-| API | Haiku (semantic gate via `surface_gate_haiku` prompt) | One call per prompt, candidates batched |
+See [Surfacing Pipeline](#surfacing-pipeline) above for the full SBIA pipeline (BM25 candidates → filters → Haiku gate → surface full SBIA fields). Key config: `surface_*` parameters.
 
 **LLM instructions injected:** `<system-reminder>` with candidate memories (situation, behavior, impact, action per memory); instruction to apply only if situation matches current task; correction notification if detected.
 
 ### Stop surface (`stop-surface.sh`)
 
-**Pipeline stage:** Surface (stop mode) — same as prompt-mode surface but matches against agent output instead of user message. Blocks response if conflicting memories found.
+**Pipeline stage:** Surface — another invocation of `engram surface`. At this point the transcript naturally contains the agent's output, so the same pipeline matches against the latest context. Blocks response if conflicting memories found.
 
-| Command                      | Reads                                    | Writes                      | API  |
-| ---------------------------- | ---------------------------------------- | --------------------------- | ---- |
-| `engram surface --mode stop` | Transcript JSONL + all `memories/*.toml` | Same as prompt-mode surface | None |
+| Command          | Reads                                    | Writes                     | API  |
+| ---------------- | ---------------------------------------- | -------------------------- | ---- |
+| `engram surface` | Transcript JSONL + all `memories/*.toml` | Same as prompt-time surface | None |
 
-**SBIA impact: Low.** Same as prompt-mode surface.
+**SBIA impact: Low.** Same pipeline as prompt-time surface.
 
 ### Stop async (`stop.sh`)
 
@@ -697,62 +793,7 @@ Consumes `pending-maintenance.json` (atomic read + delete), then runs two comman
 | **Stop (surface)**             | Surface on agent output                | Same as surface above.                                                                |
 | **Stop (evaluate)**            | Full batch extraction pipeline         | **Replaced.** Evaluates pending surfacings via Haiku; updates counters.               |
 
-## Resolved Questions
-
-1. **Keywords:** Dropped. BM25 on SBIA text for both surfacing and candidate retrieval in dedup.
-2. **Tier C:** Dropped. Corrections are inherently behavioral. No contextual facts in SBIA model.
-3. **Dedup strategy:** Sonnet-driven via SBIA decision tree. BM25 finds 3-8 candidates (score ≥ 0.3), then Sonnet evaluates each SBIA dimension independently and determines disposition per candidate. One Sonnet call handles both extraction and dedup. Duplicate detections trigger self-diagnosis (surfacing vs. listening failure).
-4. **Evaluate counters:** Simplified to three: `followed`, `not_followed`, `irrelevant`. "Contradicted" and "ignored" collapse — the distinction isn't actionable. Automated via Haiku at stop hook; LLM self-report dropped.
-5. **Quadrants:** Eliminated. Surfacing frequency measures situation rarity, not memory quality. Maintain operates on effectiveness only, with counter breakdown diagnosing which SBIA field to fix.
-6. **Triage actions:** `broaden_keywords`/`refine_keywords` removed. Replaced by: rewrite `action`, narrow/broaden `situation`, escalate, consolidate, remove.
-7. **Adapt redesign:** Replace 5-dimension Go analysis code with: config surface (all tunable parameters in `policy.toml`), per-stage metrics collection, and a Sonnet call that maps metric trends to parameter adjustments. LLM prompts are stored in config and tunable by adapt. No custom analysis dimensions — Sonnet analyzes metrics directly.
-8. **Candidate counts:** Configurable via `extract_candidate_count_*` and `surface_candidate_count_*` (default 3-8). Score threshold via `*_bm25_threshold` (default 0.3). Fewer than min is fine if the corpus doesn't have close matches.
-9. **Surfacing semantic gate:** Haiku validates BM25 candidates before injection via `surface_gate_haiku` prompt. Single batched call with query context (user prompt + transcript) + candidate SBIA fields. Prevents false-positive surfacing from keyword overlap without situational match.
-10. **Token budget:** Dropped. Surface full SBIA fields (all four) for every memory that passes the Haiku gate. The top-level LLM decides final relevance from the situation descriptions.
-11. **Context retrieval:** Stripped transcript tail (`context_byte_budget`, default 50KB, SBIA strip mode — includes truncated tool calls). Sonnet's attention is the semantic gate, not a heuristic boundary detector. Byte budget is a ceiling for pathological sessions.
-12. **SBIA strip mode:** `StripConfig` on `Strip` function. SBIA mode includes tool name, truncated args (`context_tool_args_truncate`, default ~200 chars), result status, truncated result body (`context_tool_result_truncate`, default ~500 chars). Tool calls are Behavior evidence; tool results are Impact evidence. Recall mode continues to drop tool blocks.
-13. **Staleness check:** Dropped. If a working memory becomes outdated, the user will correct it and the correction pipeline handles the update. No timer-based nagging.
-14. **`surfaced_count`:** Kept as stored counter — useful at a glance. Derived metrics (`effectiveness`, `not_followed_rate`, `irrelevant_rate`) use it as denominator.
-15. **Maintain decision tree:** All thresholds configurable via `maintain_*` parameters. Priority order: insufficient data → remove → narrow situation → rewrite action → keep.
-16. **All parameters in config:** Every tunable value lives in `policy.toml` `[parameters]` section. Pipeline descriptions reference parameter names, not hardcoded values. Defaults are set in config, not in code.
-
-## Resolved: Generalizability, Tiers, Migration
-
-### Generalizability → `project_scoped: bool`
-
-Replace the 1-5 generalizability scale with a boolean. Default is **not project-scoped** (universal). Most corrections transfer across projects. Only mark `project_scoped = true` when the advice is meaningless outside this specific project.
-
-- **Not project-scoped (default):** Surfaces in all projects. "Don't remove t.Parallel() to fix test failures" applies everywhere.
-- **Project-scoped:** Hard filter — memory does not surface outside its origin project. "This project uses targ" is genuinely project-specific.
-- **Sonnet extraction bias:** "Only mark as project_scoped if the advice is meaningless outside this specific project. Most corrections transfer. When in doubt, leave it universal."
-
-No graduated penalty scoring. Binary filter.
-
-### Tiers → Dropped
-
-The A/B/C tier system is eliminated. All memories are corrections extracted via SBIA. The A vs B distinction (explicit vs. inferred) doesn't drive different behavior in the SBIA model — both produce the same four fields. Ranking is driven by effectiveness data, not a priori classification.
-
-### Migration
-
-One-time Sonnet migration script:
-
-| Current Tier                  | Action                                                                                                         |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **A** (explicit instructions) | Sonnet converts to SBIA fields. These have the clearest principle/anti_pattern to map.                         |
-| **B** (inferred corrections)  | Archive. Weak signal, not worth converting. New corrections will be properly extracted with full SBIA context. |
-| **C** (contextual facts)      | Archive. Already filtered out of extraction pipeline.                                                          |
-
-Failures (memories Sonnet can't meaningfully convert to SBIA) go to archive.
-
-## All Open Questions Resolved
-
-No remaining open questions. The full SBIA pipeline design is complete:
-
-```
-Detect → Context → Extract+Dedup (Sonnet) → Write → Surface → Evaluate → Maintain
-```
-
-### Final SBIA Memory Schema
+## Final SBIA Memory Schema
 
 ```toml
 # Content (SBIA)
@@ -777,15 +818,61 @@ irrelevant_count = 0
 # user_prompt = "run the tests"
 # session_id = "abc123"
 # project_slug = "engram"
+```
 
-# Provenance
-source_type = "correction"
-content_hash = "abc123"
-created_at = "2026-03-29T12:00:00Z"
-updated_at = "2026-03-29T12:00:00Z"
+## Resolved Questions
 
-# Relationships
-# [[absorbed]]
-# from = "path/to/merged.toml"
-# merged_at = "2026-03-29T12:00:00Z"
+1. **Keywords:** Dropped. BM25 on SBIA text for both surfacing and candidate retrieval in dedup.
+2. **Tier C:** Dropped. Corrections are inherently behavioral. No contextual facts in SBIA model.
+3. **Dedup strategy:** Sonnet-driven via SBIA decision tree. BM25 finds 3-8 candidates (score ≥ 0.3), then Sonnet evaluates each SBIA dimension independently and determines disposition per candidate. One Sonnet call handles both extraction and dedup. Duplicate detections trigger self-diagnosis (surfacing vs. listening failure).
+4. **Evaluate counters:** Simplified to three: `followed_count`, `not_followed_count`, `irrelevant_count`. "Contradicted" and "ignored" collapse — the distinction isn't actionable. Automated via Haiku at stop hook; LLM self-report dropped.
+5. **Quadrants:** Eliminated. Surfacing frequency measures situation rarity, not memory quality. Maintain operates on effectiveness only, with counter breakdown diagnosing which SBIA field to fix.
+6. **Triage actions:** All actions use a unified proposal schema (`action`, `target`, `field`, `value`, `rationale`). Two commands: `engram apply-proposal <id>` and `engram reject-proposal <id>`. Proposals cover memory edits (update/delete/merge), recommendations, and parameter changes alike.
+7. **Adapt redesign:** Replace 5-dimension Go analysis code, policy lifecycle state machine, approval streaks, and measurement windows with: Sonnet analysis + change history (`adapt_change_history_limit` entries in `[[change_history]]`). Proposals use the same unified schema as memory triage. Approved changes write to `[parameters]` immediately; rejections logged in change history so Sonnet avoids re-proposing. The `/adapt` skill is merged into `/memory-triage` — one skill walks through all recommended adjustments (memory + system) via `engram apply-proposal` / `engram reject-proposal`.
+8. **Candidate counts:** Configurable via `extract_candidate_count_*` and `surface_candidate_count_*` (default 3-8). Score threshold via `*_bm25_threshold` (default 0.3). Fewer than min is fine if the corpus doesn't have close matches.
+9. **Surfacing semantic gate:** Haiku validates BM25 candidates before injection via `surface_gate_haiku` prompt. Single batched call with query context (user prompt + transcript) + candidate SBIA fields. Prevents false-positive surfacing from keyword overlap without situational match.
+10. **Token budget:** Dropped. Surface full SBIA fields (all four) for every memory that passes the Haiku gate. The top-level LLM decides final relevance from the situation descriptions.
+11. **Context retrieval:** Stripped transcript tail (`context_byte_budget`, default 50KB, SBIA strip mode — includes truncated tool calls). Sonnet's attention is the semantic gate, not a heuristic boundary detector. Byte budget is a ceiling for pathological sessions.
+12. **SBIA strip mode:** `StripConfig` on `Strip` function. SBIA mode includes tool name, truncated args (`context_tool_args_truncate`, default ~200 chars), result status, truncated result body (`context_tool_result_truncate`, default ~500 chars). Tool calls are Behavior evidence; tool results are Impact evidence. Recall mode continues to drop tool blocks.
+13. **Staleness check:** Dropped. If a working memory becomes outdated, the user will correct it and the correction pipeline handles the update. No timer-based nagging.
+14. **`surfaced_count`:** Kept as stored counter — useful at a glance. Derived metrics (`effectiveness`, `not_followed_rate`, `irrelevant_rate`) use it as denominator.
+15. **Maintain decision tree:** All thresholds configurable via `maintain_*` parameters. Priority order: insufficient data → remove → narrow situation → rewrite action → keep.
+16. **All parameters in config:** Every tunable value lives in `policy.toml` `[parameters]` section. Pipeline descriptions reference parameter names, not hardcoded values. Defaults are set in config, not in code.
+
+## Resolved: Generalizability, Tiers, Migration
+
+### Generalizability → `project_scoped: bool`
+
+Replace the 1-5 generalizability scale with a boolean. Default is **not project-scoped** (universal). Most corrections transfer across projects. Only mark `project_scoped = true` when the advice is meaningless outside this specific project.
+
+- **Not project-scoped (default):** Surfaces in all projects. "Don't remove t.Parallel() to fix test failures" applies everywhere.
+- **Project-scoped:** Hard filter — memory does not surface outside its origin project. "This project uses targ" is genuinely project-specific.
+- **Sonnet extraction bias:** "Only mark as project_scoped if the advice is meaningless outside this specific project. Most corrections transfer. When in doubt, leave it universal."
+
+No graduated penalty scoring. Binary filter.
+
+The `project_slug` is set by the CLI from the active Claude Code project context at extraction time. It's the key for the `project_scoped` hard filter.
+
+### Tiers → Dropped
+
+The A/B/C tier system is eliminated. All memories are corrections extracted via SBIA. The A vs B distinction (explicit vs. inferred) doesn't drive different behavior in the SBIA model — both produce the same four fields. Ranking is driven by effectiveness data, not a priori classification.
+
+### Migration
+
+One-time Sonnet migration script:
+
+| Current Tier                  | Action                                                                                                         |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **A** (explicit instructions) | Sonnet converts to SBIA fields. These have the clearest principle/anti_pattern to map.                         |
+| **B** (inferred corrections)  | Archive. Weak signal, not worth converting. New corrections will be properly extracted with full SBIA context. |
+| **C** (contextual facts)      | Archive. Already filtered out of extraction pipeline.                                                          |
+
+Failures (memories Sonnet can't meaningfully convert to SBIA) go to archive.
+
+## All Open Questions Resolved
+
+No remaining open questions. The full SBIA pipeline design is complete:
+
+```
+Detect → Context → Extract+Dedup (Sonnet) → Write → Surface → Evaluate → Maintain
 ```
