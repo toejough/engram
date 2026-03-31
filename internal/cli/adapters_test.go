@@ -74,6 +74,44 @@ func TestCliConfirmer_Confirm_UserInput(t *testing.T) {
 	g.Expect(approved).To(BeTrue())
 }
 
+func TestHaikuCallerAdapter_Call(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var capturedModel string
+
+	adapter := cli.ExportNewHaikuCallerAdapter(
+		func(_ context.Context, model, _, _ string) (string, error) {
+			capturedModel = model
+			return "response text", nil
+		},
+	)
+
+	result, err := adapter.Call(context.Background(), "system prompt", "user prompt")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(Equal("response text"))
+	g.Expect(capturedModel).To(Equal("claude-haiku-4-5-20251001"))
+}
+
+func TestHaikuCallerAdapter_CallError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	adapter := cli.ExportNewHaikuCallerAdapter(
+		func(_ context.Context, _, _, _ string) (string, error) {
+			return "", errors.New("api error")
+		},
+	)
+
+	_, err := adapter.Call(context.Background(), "sys", "usr")
+	g.Expect(err).To(MatchError("api error"))
+}
+
 func TestOsClaudeMDStore_ReadWrite(t *testing.T) {
 	t.Parallel()
 
@@ -103,6 +141,63 @@ func TestOsClaudeMDStore_ReadWrite(t *testing.T) {
 	}
 
 	g.Expect(content).To(Equal("# Test\nContent."))
+}
+
+func TestOsDirLister_ListJSONL(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	g.Expect(os.WriteFile(filepath.Join(dir, "session1.jsonl"), []byte("{}"), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "session2.jsonl"), []byte("{}"), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("not jsonl"), 0o644)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(dir, "subdir"), 0o755)).To(Succeed())
+
+	lister := cli.ExportNewOsDirLister()
+	entries, err := lister.ListJSONL(dir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entries).To(HaveLen(2))
+}
+
+func TestOsDirLister_ListJSONL_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lister := cli.ExportNewOsDirLister()
+	_, err := lister.ListJSONL("/nonexistent/path")
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestOsFileReader_Read(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	path := filepath.Join(t.TempDir(), "test.txt")
+	g.Expect(os.WriteFile(path, []byte("hello world"), 0o644)).To(Succeed())
+
+	reader := cli.ExportNewOsFileReader()
+	data, err := reader.Read(path)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(Equal("hello world"))
+}
+
+func TestOsFileReader_ReadError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reader := cli.ExportNewOsFileReader()
+	_, err := reader.Read("/nonexistent/file.txt")
+	g.Expect(err).To(HaveOccurred())
 }
 
 func TestOsMemoryRemover_Remove(t *testing.T) {
@@ -235,120 +330,6 @@ func TestStdinConfirmer_Skip(t *testing.T) {
 	g.Expect(approved).To(BeFalse())
 }
 
-func TestTruncateTitle_Long(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	long := strings.Repeat("a", 50)
-	result := cli.ExportTruncateTitle(long)
-	// len() counts bytes; "…" is 3 bytes in UTF-8, so maxTitleLength-1 chars + 3 bytes.
-	g.Expect(len(result)).To(BeNumerically("<", len(long)))
-	g.Expect(result).To(HaveSuffix("…"))
-}
-
-func TestTruncateTitle_Short(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	g.Expect(cli.ExportTruncateTitle("Short")).To(Equal("Short"))
-}
-
-func TestHaikuCallerAdapter_Call(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var capturedModel string
-	adapter := cli.ExportNewHaikuCallerAdapter(
-		func(_ context.Context, model, _, _ string) (string, error) {
-			capturedModel = model
-			return "response text", nil
-		},
-	)
-
-	result, err := adapter.Call(context.Background(), "system prompt", "user prompt")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(Equal("response text"))
-	g.Expect(capturedModel).To(Equal("claude-haiku-4-5-20251001"))
-}
-
-func TestHaikuCallerAdapter_CallError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	adapter := cli.ExportNewHaikuCallerAdapter(
-		func(_ context.Context, _, _, _ string) (string, error) {
-			return "", errors.New("api error")
-		},
-	)
-
-	_, err := adapter.Call(context.Background(), "sys", "usr")
-	g.Expect(err).To(MatchError("api error"))
-}
-
-func TestOsDirLister_ListJSONL(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	g.Expect(os.WriteFile(filepath.Join(dir, "session1.jsonl"), []byte("{}"), 0o644)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(dir, "session2.jsonl"), []byte("{}"), 0o644)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("not jsonl"), 0o644)).To(Succeed())
-	g.Expect(os.MkdirAll(filepath.Join(dir, "subdir"), 0o755)).To(Succeed())
-
-	lister := cli.ExportNewOsDirLister()
-	entries, err := lister.ListJSONL(dir)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(entries).To(HaveLen(2))
-}
-
-func TestOsDirLister_ListJSONL_Error(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	lister := cli.ExportNewOsDirLister()
-	_, err := lister.ListJSONL("/nonexistent/path")
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestOsFileReader_Read(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	path := filepath.Join(t.TempDir(), "test.txt")
-	g.Expect(os.WriteFile(path, []byte("hello world"), 0o644)).To(Succeed())
-
-	reader := cli.ExportNewOsFileReader()
-	data, err := reader.Read(path)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(data)).To(Equal("hello world"))
-}
-
-func TestOsFileReader_ReadError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	reader := cli.ExportNewOsFileReader()
-	_, err := reader.Read("/nonexistent/file.txt")
-	g.Expect(err).To(HaveOccurred())
-}
-
 func TestSurfaceRunnerAdapter_Run(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -370,4 +351,24 @@ func TestSurfaceRunnerAdapter_Run(t *testing.T) {
 		Message: "test query",
 	})
 	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestTruncateTitle_Long(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	long := strings.Repeat("a", 50)
+	result := cli.ExportTruncateTitle(long)
+	// len() counts bytes; "…" is 3 bytes in UTF-8, so maxTitleLength-1 chars + 3 bytes.
+	g.Expect(len(result)).To(BeNumerically("<", len(long)))
+	g.Expect(result).To(HaveSuffix("…"))
+}
+
+func TestTruncateTitle_Short(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportTruncateTitle("Short")).To(Equal("Short"))
 }

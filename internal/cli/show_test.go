@@ -13,6 +13,51 @@ import (
 	"engram/internal/memory"
 )
 
+func TestRenderMemoryMeta_CreatedAt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var buf bytes.Buffer
+
+	mem := &memory.MemoryRecord{
+		CreatedAt: "2026-01-01T00:00:00Z",
+	}
+	cli.ExportRenderMemoryMeta(&buf, mem)
+	g.Expect(buf.String()).To(ContainSubstring("Created: 2026-01-01T00:00:00Z"))
+}
+
+func TestRenderMemoryMeta_IrrelevantCount(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var buf bytes.Buffer
+
+	mem := &memory.MemoryRecord{
+		FollowedCount:    6,
+		NotFollowedCount: 2,
+		IrrelevantCount:  2,
+	}
+	cli.ExportRenderMemoryMeta(&buf, mem)
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("Effectiveness: 75%"))
+	g.Expect(output).To(ContainSubstring("Relevance: 80%"))
+	g.Expect(output).To(ContainSubstring("2 irrelevant"))
+}
+
+func TestRenderMemoryMeta_ProjectScoped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var buf bytes.Buffer
+
+	mem := &memory.MemoryRecord{
+		ProjectScoped: true,
+		ProjectSlug:   "my-project",
+	}
+	cli.ExportRenderMemoryMeta(&buf, mem)
+	g.Expect(buf.String()).To(ContainSubstring("Scope: project (my-project)"))
+}
+
 func TestShow_FlagParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -225,48 +270,6 @@ updated_at = "2025-01-01T00:00:00Z"
 	g.Expect(output).NotTo(ContainSubstring("Behavior:"))
 	g.Expect(output).NotTo(ContainSubstring("Impact:"))
 	g.Expect(output).NotTo(ContainSubstring("Effectiveness:"))
-}
-
-func TestRenderMemoryMeta_ProjectScoped(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var buf bytes.Buffer
-	mem := &memory.MemoryRecord{
-		ProjectScoped: true,
-		ProjectSlug:   "my-project",
-	}
-	cli.ExportRenderMemoryMeta(&buf, mem)
-	g.Expect(buf.String()).To(ContainSubstring("Scope: project (my-project)"))
-}
-
-func TestRenderMemoryMeta_CreatedAt(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var buf bytes.Buffer
-	mem := &memory.MemoryRecord{
-		CreatedAt: "2026-01-01T00:00:00Z",
-	}
-	cli.ExportRenderMemoryMeta(&buf, mem)
-	g.Expect(buf.String()).To(ContainSubstring("Created: 2026-01-01T00:00:00Z"))
-}
-
-func TestRenderMemoryMeta_IrrelevantCount(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var buf bytes.Buffer
-	mem := &memory.MemoryRecord{
-		FollowedCount:    6,
-		NotFollowedCount: 2,
-		IrrelevantCount:  2,
-	}
-	cli.ExportRenderMemoryMeta(&buf, mem)
-	output := buf.String()
-	g.Expect(output).To(ContainSubstring("Effectiveness: 75%"))
-	g.Expect(output).To(ContainSubstring("Relevance: 80%"))
-	g.Expect(output).To(ContainSubstring("2 irrelevant"))
 }
 
 func TestShow_SlugAfterFlags_Works(t *testing.T) {

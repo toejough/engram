@@ -22,6 +22,7 @@ var (
 	ExportRecordSurfacing         = recordSurfacing
 	ExportRenderMemoryMeta        = renderMemoryMeta
 	ExportResolveSkillsDir        = resolveSkillsDir
+	ExportRunRefineWith           = runRefineWith
 	ExportTruncateTitle           = truncateTitle
 )
 
@@ -80,14 +81,14 @@ func ExportNewRetriever() *retrieve.Retriever {
 	return retrieve.New()
 }
 
-// ExportNewSurfaceRunnerAdapter creates a surfaceRunnerAdapter for testing.
-func ExportNewSurfaceRunnerAdapter(surfacer *surface.Surfacer) SurfaceRunner {
-	return &surfaceRunnerAdapter{surfacer: surfacer}
-}
-
 // ExportNewStdinConfirmer creates a stdinConfirmer for testing.
 func ExportNewStdinConfirmer(stdout io.Writer, stdin io.Reader) interface {
 	Confirm(preview string) (bool, error)
 } {
 	return &stdinConfirmer{stdout: stdout, stdin: stdin}
+}
+
+// ExportNewSurfaceRunnerAdapter creates a surfaceRunnerAdapter for testing.
+func ExportNewSurfaceRunnerAdapter(surfacer *surface.Surfacer) SurfaceRunner {
+	return &surfaceRunnerAdapter{surfacer: surfacer}
 }

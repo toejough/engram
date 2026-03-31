@@ -13,76 +13,6 @@ import (
 	"engram/internal/cli"
 )
 
-func TestRun_CorrectStub_ReturnsNil(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "correct", "--message", "test"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
-func TestRun_MaintainStub_ReturnsNil(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "maintain", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
-func TestRun_NoArgs_ReturnsUsageError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("usage"))
-	}
-}
-
-func TestRun_UnknownCommand_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "nonexistent"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("unknown command"))
-	}
-}
-
 func TestApplyProjectSlugDefault_EmptySlug_UsesGetwd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -98,6 +28,21 @@ func TestApplyProjectSlugDefault_EmptySlug_UsesGetwd(t *testing.T) {
 	}
 
 	g.Expect(slug).To(Equal("-Users-joe-repos-engram"))
+}
+
+func TestApplyProjectSlugDefault_GetwdError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	slug := ""
+	err := cli.ExportApplyProjectSlugDefault(&slug, func() (string, error) {
+		return "", errors.New("getwd failed")
+	})
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("resolving working directory"))
+	}
 }
 
 func TestApplyProjectSlugDefault_NonEmpty_Noop(t *testing.T) {
@@ -116,6 +61,24 @@ func TestApplyProjectSlugDefault_NonEmpty_Noop(t *testing.T) {
 	}
 
 	g.Expect(slug).To(Equal("already-set"))
+}
+
+func TestExtractAssistantDelta_EmptyTranscript(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	transcriptPath := filepath.Join(t.TempDir(), "empty.jsonl")
+	g.Expect(os.WriteFile(transcriptPath, []byte(""), 0o644)).To(Succeed())
+
+	result, err := cli.ExportExtractAssistantDelta(dataDir, transcriptPath, "session-1")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(BeEmpty())
 }
 
 func TestExtractAssistantDelta_NewSession(t *testing.T) {
@@ -142,24 +105,6 @@ func TestExtractAssistantDelta_NewSession(t *testing.T) {
 	g.Expect(result).To(ContainSubstring("hello world"))
 	g.Expect(result).To(ContainSubstring("goodbye"))
 	g.Expect(result).NotTo(ContainSubstring("user msg"))
-}
-
-func TestExtractAssistantDelta_EmptyTranscript(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	transcriptPath := filepath.Join(t.TempDir(), "empty.jsonl")
-	g.Expect(os.WriteFile(transcriptPath, []byte(""), 0o644)).To(Succeed())
-
-	result, err := cli.ExportExtractAssistantDelta(dataDir, transcriptPath, "session-1")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(BeEmpty())
 }
 
 func TestExtractAssistantDelta_ResumeFromOffset(t *testing.T) {
@@ -205,18 +150,58 @@ func TestExtractAssistantDelta_ResumeFromOffset(t *testing.T) {
 	g.Expect(result).NotTo(ContainSubstring("first"))
 }
 
-func TestApplyProjectSlugDefault_GetwdError(t *testing.T) {
+func TestRun_CorrectStub_ReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "correct", "--message", "test"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRun_Instruct_DefaultProjectDir(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	slug := ""
-	err := cli.ExportApplyProjectSlugDefault(&slug, func() (string, error) {
-		return "", errors.New("getwd failed")
-	})
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "instruct", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("project-dir=."))
+}
+
+func TestRun_Instruct_ParseError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "instruct", "--bogus-flag"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("resolving working directory"))
+		g.Expect(err.Error()).To(ContainSubstring("instruct"))
 	}
 }
 
@@ -242,26 +227,63 @@ func TestRun_Instruct_PrintsAuditInfo(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring("instruct audit"))
 }
 
-func TestRun_Surface_PromptMode_EmptyData(t *testing.T) {
+func TestRun_MaintainStub_ReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "maintain", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRun_NoArgs_ReturnsUsageError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("usage"))
+	}
+}
+
+func TestRun_Recall_EmptyData(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	dataDir := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(dataDir, "memories"), 0o755)).To(Succeed())
 
 	var stdout, stderr bytes.Buffer
 
 	err := cli.Run(
 		[]string{
-			"engram", "surface",
-			"--mode", "prompt",
+			"engram", "recall",
 			"--data-dir", dataDir,
-			"--message", "test query",
+			"--project-slug", "test-project",
 		},
 		&stdout, &stderr,
 		strings.NewReader(""),
 	)
-	g.Expect(err).NotTo(HaveOccurred())
+	// This may or may not error depending on whether ~/.claude/projects/test-project exists.
+	// The important thing is it exercises the code path without panicking.
+	_ = err
+	_ = g
 }
 
 func TestRun_Surface_MissingMode(t *testing.T) {
@@ -282,26 +304,26 @@ func TestRun_Surface_MissingMode(t *testing.T) {
 	}
 }
 
-func TestRun_Surface_StopMode_NoTranscript(t *testing.T) {
+func TestRun_Surface_PromptMode_EmptyData(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(dataDir, "memories"), 0o755)).To(Succeed())
 
 	var stdout, stderr bytes.Buffer
 
 	err := cli.Run(
 		[]string{
 			"engram", "surface",
-			"--mode", "stop",
-			"--data-dir", t.TempDir(),
+			"--mode", "prompt",
+			"--data-dir", dataDir,
+			"--message", "test query",
 		},
 		&stdout, &stderr,
 		strings.NewReader(""),
 	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("--transcript-path required"))
-	}
+	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestRun_Surface_StopMode_EmptyTranscript(t *testing.T) {
@@ -328,65 +350,43 @@ func TestRun_Surface_StopMode_EmptyTranscript(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
-func TestRun_Instruct_ParseError(t *testing.T) {
+func TestRun_Surface_StopMode_NoTranscript(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	var stdout, stderr bytes.Buffer
 
 	err := cli.Run(
-		[]string{"engram", "instruct", "--bogus-flag"},
+		[]string{
+			"engram", "surface",
+			"--mode", "stop",
+			"--data-dir", t.TempDir(),
+		},
 		&stdout, &stderr,
 		strings.NewReader(""),
 	)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("instruct"))
+		g.Expect(err.Error()).To(ContainSubstring("--transcript-path required"))
 	}
 }
 
-func TestRun_Instruct_DefaultProjectDir(t *testing.T) {
+func TestRun_UnknownCommand_ReturnsError(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	dataDir := t.TempDir()
+	g := NewWithT(t)
 
 	var stdout, stderr bytes.Buffer
 
 	err := cli.Run(
-		[]string{"engram", "instruct", "--data-dir", dataDir},
+		[]string{"engram", "nonexistent"},
 		&stdout, &stderr,
 		strings.NewReader(""),
 	)
-	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
-		return
+		g.Expect(err.Error()).To(ContainSubstring("unknown command"))
 	}
-
-	g.Expect(stdout.String()).To(ContainSubstring("project-dir=."))
-}
-
-func TestRun_Recall_EmptyData(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{
-			"engram", "recall",
-			"--data-dir", dataDir,
-			"--project-slug", "test-project",
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	// This may or may not error depending on whether ~/.claude/projects/test-project exists.
-	// The important thing is it exercises the code path without panicking.
-	_ = err
-	_ = g
 }

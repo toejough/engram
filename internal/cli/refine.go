@@ -17,6 +17,9 @@ import (
 	"engram/internal/tomlwriter"
 )
 
+// CallerFunc is a function that calls an LLM model.
+type CallerFunc = func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
+
 // unexported constants.
 const (
 	maxTranscriptMatchWindow = 24 * time.Hour
@@ -103,8 +106,12 @@ func findTranscriptForMemory(record memory.MemoryRecord, transcripts []string) s
 	return bestPath
 }
 
-//nolint:cyclop,funlen,gocognit // CLI command with sequential setup steps
 func runRefine(args []string, stdout io.Writer) error {
+	return runRefineWith(args, stdout, nil)
+}
+
+//nolint:cyclop,funlen,gocognit // CLI command with sequential setup steps
+func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) error {
 	fs := flag.NewFlagSet("refine", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
@@ -167,7 +174,13 @@ func runRefine(args []string, stdout io.Writer) error {
 	}
 
 	reader := recall.NewTranscriptReader(&osFileReader{})
-	caller := makeAnthropicCaller(*apiToken)
+
+	var caller CallerFunc
+	if callerOverride != nil {
+		caller = callerOverride
+	} else {
+		caller = makeAnthropicCaller(*apiToken)
+	}
 
 	modifier := memory.NewModifier(
 		memory.WithModifierWriter(tomlwriter.New()),
@@ -213,12 +226,6 @@ func runRefine(args []string, stdout io.Writer) error {
 			pol.ExtractSonnetPrompt,
 		)
 		if extractErr != nil {
-			skippedCount++
-
-			continue
-		}
-
-		if extraction == nil {
 			skippedCount++
 
 			continue
