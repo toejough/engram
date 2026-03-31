@@ -49,27 +49,11 @@ type FeedbackArgs struct {
 	Notused    bool   `targ:"flag,name=notused,desc=memory advice was not followed"`
 }
 
-// FlushArgs holds parsed flags for the flush subcommand.
-type FlushArgs struct {
-	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	TranscriptPath string `targ:"flag,name=transcript-path,desc=path to session transcript"`
-	SessionID      string `targ:"flag,name=session-id,desc=session identifier"`
-	ProjectSlug    string `targ:"flag,name=project-slug,desc=originating project slug"`
-}
-
 // InstructArgs holds parsed flags for the instruct subcommand.
 type InstructArgs struct {
 	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	ProjectDir string `targ:"flag,name=project-dir,desc=path to project directory"`
 	APIToken   string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
-}
-
-// LearnArgs holds parsed flags for the learn subcommand.
-type LearnArgs struct {
-	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	TranscriptPath string `targ:"flag,name=transcript-path,desc=path to session transcript"`
-	SessionID      string `targ:"flag,name=session-id,desc=session identifier"`
-	APIToken       string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
 // MaintainArgs holds parsed flags for the maintain subcommand.
@@ -106,6 +90,13 @@ type RecallArgs struct {
 	DataDir     string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	ProjectSlug string `targ:"flag,name=project-slug,desc=project directory slug"`
 	Query       string `targ:"flag,name=query,desc=search query (omit for summary mode)"`
+}
+
+// RefineArgs holds parsed flags for the refine subcommand.
+type RefineArgs struct {
+	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	APIToken string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
+	DryRun   bool   `targ:"flag,name=dry-run,desc=show what would be refined without changing files"`
 }
 
 // ReviewArgs holds parsed flags for the review subcommand.
@@ -185,14 +176,12 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("maintain").Description("Generate or apply maintenance proposals"),
 		targ.Targ(func(a SurfaceArgs) { run("surface", SurfaceFlags(a)) }).
 			Name("surface").Description("Surface relevant memories"),
-		targ.Targ(func(a LearnArgs) { run("learn", LearnFlags(a)) }).
-			Name("learn").Description("Extract learnings from session"),
 		targ.Targ(func(a InstructArgs) { run("instruct", InstructFlags(a)) }).
 			Name("instruct").Description("Audit instruction quality"),
 		targ.Targ(func(a FeedbackArgs) { run("feedback", FeedbackFlags(a)) }).
 			Name("feedback").Description("Record memory relevance feedback"),
-		targ.Targ(func(a FlushArgs) { run("flush", FlushFlags(a)) }).
-			Name("flush").Description("Run end-of-turn flush pipeline"),
+		targ.Targ(func(a RefineArgs) { run("refine", RefineFlags(a)) }).
+			Name("refine").Description("Re-extract SBIA fields from original transcripts"),
 		targ.Targ(func(a ShowArgs) { run("show", ShowFlags(a)) }).
 			Name("show").Description("Display full memory details"),
 		targ.Targ(func(a ApplyProposalArgs) { run("apply-proposal", ApplyProposalFlags(a)) }).
@@ -238,28 +227,9 @@ func FeedbackFlags(a FeedbackArgs) []string {
 	return flags
 }
 
-// FlushFlags returns the CLI flag args for the flush subcommand.
-func FlushFlags(a FlushArgs) []string {
-	return BuildFlags(
-		"--data-dir", a.DataDir,
-		"--transcript-path", a.TranscriptPath,
-		"--session-id", a.SessionID,
-		"--project-slug", a.ProjectSlug,
-	)
-}
-
 // InstructFlags returns the CLI flag args for the instruct subcommand.
 func InstructFlags(a InstructArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir, "--project-dir", a.ProjectDir)
-}
-
-// LearnFlags returns the CLI flag args for the learn subcommand.
-func LearnFlags(a LearnArgs) []string {
-	return BuildFlags(
-		"--data-dir", a.DataDir,
-		"--transcript-path", a.TranscriptPath,
-		"--session-id", a.SessionID,
-	)
 }
 
 // MaintainFlags returns the CLI flag args for the maintain subcommand.
@@ -306,6 +276,14 @@ func RecallFlags(a RecallArgs) []string {
 		"--project-slug", a.ProjectSlug,
 		"--query", a.Query,
 	)
+}
+
+// RefineFlags returns the CLI flag args for the refine subcommand.
+func RefineFlags(a RefineArgs) []string {
+	flags := BuildFlags("--data-dir", a.DataDir)
+	flags = AddBoolFlag(flags, "--dry-run", a.DryRun)
+
+	return flags
 }
 
 // ReviewFlags returns the CLI flag args for the review subcommand.

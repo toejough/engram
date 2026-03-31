@@ -188,8 +188,8 @@ func TestBuildTargets(t *testing.T) {
 
 		subcmds := []string{
 			"correct", "review",
-			"maintain", "surface", "learn", "instruct",
-			"feedback", "flush", "show",
+			"maintain", "surface", "instruct",
+			"feedback", "refine", "show",
 			"apply-proposal", "migrate-slugs",
 		}
 		for _, sub := range subcmds {
@@ -270,36 +270,6 @@ func TestFeedbackFlags(t *testing.T) {
 	})
 }
 
-func TestFlushFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("all fields populated", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.FlushFlags(cli.FlushArgs{
-			DataDir: "/data", TranscriptPath: "/t.jsonl", SessionID: "s1",
-			ProjectSlug: "my-project",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data", "--transcript-path", "/t.jsonl",
-			"--session-id", "s1", "--project-slug", "my-project",
-		}))
-	})
-
-	t.Run("project slug omitted when empty", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.FlushFlags(cli.FlushArgs{
-			DataDir: "/data", TranscriptPath: "/t.jsonl", SessionID: "s1",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data", "--transcript-path", "/t.jsonl",
-			"--session-id", "s1",
-		}))
-	})
-}
 
 func TestInstructFlags(t *testing.T) {
 	t.Parallel()
@@ -330,44 +300,6 @@ func TestInstructFlags(t *testing.T) {
 	})
 }
 
-func TestLearnFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.LearnFlags(cli.LearnArgs{
-			DataDir:        "/data",
-			TranscriptPath: "/transcript",
-			SessionID:      "sess-1",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data",
-			"--transcript-path", "/transcript",
-			"--session-id", "sess-1",
-		}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.LearnFlags(cli.LearnArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("partial fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.LearnFlags(cli.LearnArgs{DataDir: "/data", SessionID: "sess-1"})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data",
-			"--session-id", "sess-1",
-		}))
-	})
-}
 
 func TestMaintainFlags(t *testing.T) {
 	t.Parallel()
@@ -489,6 +421,34 @@ func TestRecallFlags(t *testing.T) {
 			"--data-dir", "/data",
 			"--project-slug", "proj",
 		}))
+	})
+}
+
+func TestRefineFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RefineFlags(cli.RefineArgs{DataDir: "/data", DryRun: true})
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--dry-run"}))
+	})
+
+	t.Run("dry-run false omits flag", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RefineFlags(cli.RefineArgs{DataDir: "/data"})
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
+	})
+
+	t.Run("empty fields skipped", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RefineFlags(cli.RefineArgs{})
+		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
 
