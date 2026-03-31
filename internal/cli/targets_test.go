@@ -80,18 +80,12 @@ func TestApplyProposalFlags(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		result := cli.ApplyProposalFlags(cli.ApplyProposalArgs{
-			DataDir:  "/data",
-			Action:   "rewrite",
-			Memory:   "/mem/foo.toml",
-			Fields:   `{"title":"new"}`,
-			Keywords: "a,b",
+			DataDir: "/data",
+			ID:      "prop-001",
 		})
 		g.Expect(result).To(gomega.Equal([]string{
 			"--data-dir", "/data",
-			"--action", "rewrite",
-			"--memory", "/mem/foo.toml",
-			"--fields", `{"title":"new"}`,
-			"--keywords", "a,b",
+			"--id", "prop-001",
 		}))
 	})
 
@@ -101,22 +95,6 @@ func TestApplyProposalFlags(t *testing.T) {
 
 		result := cli.ApplyProposalFlags(cli.ApplyProposalArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("zero level omitted", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ApplyProposalFlags(cli.ApplyProposalArgs{
-			DataDir: "/data",
-			Action:  "remove",
-			Memory:  "/mem/foo.toml",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data",
-			"--action", "remove",
-			"--memory", "/mem/foo.toml",
-		}))
 	})
 }
 
@@ -190,7 +168,7 @@ func TestBuildTargets(t *testing.T) {
 			"correct", "review",
 			"maintain", "surface", "instruct",
 			"evaluate", "refine", "show",
-			"apply-proposal", "recall",
+			"apply-proposal", "reject-proposal", "recall",
 			"migrate-scores", "migrate-slugs",
 			"adapt", "migrate-sbia",
 		}
@@ -304,24 +282,7 @@ func TestInstructFlags(t *testing.T) {
 func TestMaintainFlags(t *testing.T) {
 	t.Parallel()
 
-	t.Run("all flags set", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.MaintainFlags(cli.MaintainArgs{
-			DataDir:   "/data",
-			Proposals: "/proposals.json",
-			Apply:     true,
-			Yes:       true,
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data",
-			"--proposals", "/proposals.json",
-			"--apply", "--yes",
-		}))
-	})
-
-	t.Run("bools false", func(t *testing.T) {
+	t.Run("data dir set", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
@@ -335,38 +296,6 @@ func TestMaintainFlags(t *testing.T) {
 
 		result := cli.MaintainFlags(cli.MaintainArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("partial apply true yes false", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.MaintainFlags(cli.MaintainArgs{
-			DataDir:   "/data",
-			Proposals: "/p.json",
-			Apply:     true,
-			Yes:       false,
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data",
-			"--proposals", "/p.json",
-			"--apply",
-		}))
-	})
-
-	t.Run("partial apply false yes true", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.MaintainFlags(cli.MaintainArgs{
-			DataDir: "/data",
-			Apply:   false,
-			Yes:     true,
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data",
-			"--yes",
-		}))
 	})
 }
 
@@ -468,6 +397,32 @@ func TestRefineFlags(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		result := cli.RefineFlags(cli.RefineArgs{})
+		g.Expect(result).To(gomega.BeEmpty())
+	})
+}
+
+func TestRejectProposalFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RejectProposalFlags(cli.RejectProposalArgs{
+			DataDir: "/data",
+			ID:      "prop-002",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--data-dir", "/data",
+			"--id", "prop-002",
+		}))
+	})
+
+	t.Run("empty fields skipped", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RejectProposalFlags(cli.RejectProposalArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }

@@ -66,7 +66,11 @@ func Run(
 	case "migrate-slugs":
 		return runMigrateSlugs(subArgs, stdout)
 	case "maintain":
-		return runMaintainStub(subArgs, stdout)
+		return runMaintain(subArgs, stdout)
+	case "apply-proposal":
+		return runApplyProposal(subArgs, stdout)
+	case "reject-proposal":
+		return runRejectProposal(subArgs, stdout)
 	case "instruct":
 		return runInstructAudit(subArgs, stdout)
 	case "migrate-scores":
@@ -84,12 +88,11 @@ func Run(
 
 // unexported constants.
 const (
-	anthropicMaxTokens  = 1024
-	formatJSON          = "json"
-	maxTitleLength      = 38
-	maxTranscriptTok    = 2000
-	minArgs             = 2
-	sbiaDisabledMessage = "engram %s: temporarily disabled during SBIA migration"
+	anthropicMaxTokens = 1024
+	formatJSON         = "json"
+	maxTitleLength     = 38
+	maxTranscriptTok   = 2000
+	minArgs            = 2
 )
 
 // unexported variables.
@@ -102,8 +105,8 @@ var (
 	errSurfaceStopNoTranscript = errors.New("surface: --transcript-path required for stop mode")
 	errUnknownCommand          = errors.New("unknown command")
 	errUsage                   = errors.New(
-		"usage: engram <correct|surface|show|recall|record" +
-			"|export|maintain|instruct|migrate-slugs> [flags]",
+		"usage: engram <correct|surface|show|recall|maintain" +
+			"|apply-proposal|reject-proposal|instruct|evaluate|refine|migrate-slugs> [flags]",
 	)
 )
 
@@ -550,23 +553,6 @@ func runInstructAudit(args []string, stdout io.Writer) error {
 	// Instruct audit uses its own scanner; it doesn't depend on deleted packages.
 	_, _ = fmt.Fprintf(stdout, "[engram] instruct audit: data-dir=%s project-dir=%s\n",
 		*dataDir, *projectDir)
-
-	return nil
-}
-
-// runMaintainStub is stubbed during SBIA migration.
-func runMaintainStub(args []string, _ io.Writer) error {
-	fs := flag.NewFlagSet("maintain", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	_ = fs.String("data-dir", "", "path to data directory")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("maintain: %w", parseErr)
-	}
-
-	fmt.Fprintln(os.Stderr, fmt.Sprintf(sbiaDisabledMessage, "maintain"))
 
 	return nil
 }

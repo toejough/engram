@@ -227,12 +227,14 @@ func TestRun_Instruct_PrintsAuditInfo(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring("instruct audit"))
 }
 
-func TestRun_MaintainStub_ReturnsNil(t *testing.T) {
+func TestRun_Maintain_Dispatch(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
 
 	var stdout, stderr bytes.Buffer
 

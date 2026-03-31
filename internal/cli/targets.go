@@ -21,11 +21,8 @@ type AdaptArgs struct {
 
 // ApplyProposalArgs holds parsed flags for the apply-proposal subcommand.
 type ApplyProposalArgs struct {
-	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Action   string `targ:"flag,name=action,desc=action: remove or rewrite or broaden_keywords"`
-	Memory   string `targ:"flag,name=memory,desc=path to memory file"`
-	Fields   string `targ:"flag,name=fields,desc=JSON object of fields to update"`
-	Keywords string `targ:"flag,name=keywords,desc=comma-separated keywords to add"`
+	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	ID      string `targ:"flag,name=id,desc=proposal ID to apply"`
 }
 
 // --- Targ args structs ---
@@ -55,12 +52,7 @@ type InstructArgs struct {
 
 // MaintainArgs holds parsed flags for the maintain subcommand.
 type MaintainArgs struct {
-	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Apply      bool   `targ:"flag,name=apply,desc=apply proposals instead of generating"`
-	Proposals  string `targ:"flag,name=proposals,desc=path to proposals JSON file"`
-	Yes        bool   `targ:"flag,name=yes,desc=auto-approve all proposals"`
-	APIToken   string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
-	PurgeTierC bool   `targ:"flag,name=purge-tier-c,desc=delete all tier C memory files"`
+	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
 
 // MigrateSBIAArgs holds parsed flags for the migrate-sbia subcommand.
@@ -94,6 +86,12 @@ type RefineArgs struct {
 	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	APIToken string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 	DryRun   bool   `targ:"flag,name=dry-run,desc=show what would be refined without changing files"`
+}
+
+// RejectProposalArgs holds parsed flags for the reject-proposal subcommand.
+type RejectProposalArgs struct {
+	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	ID      string `targ:"flag,name=id,desc=proposal ID to reject"`
 }
 
 // ReviewArgs holds parsed flags for the review subcommand.
@@ -140,13 +138,7 @@ func AddBoolFlag(flags []string, name string, value bool) []string {
 
 // ApplyProposalFlags returns the CLI flag args for the apply-proposal subcommand.
 func ApplyProposalFlags(a ApplyProposalArgs) []string {
-	return BuildFlags(
-		"--data-dir", a.DataDir,
-		"--action", a.Action,
-		"--memory", a.Memory,
-		"--fields", a.Fields,
-		"--keywords", a.Keywords,
-	)
+	return BuildFlags("--data-dir", a.DataDir, "--id", a.ID)
 }
 
 // BuildFlags constructs a []string flag list from key-value pairs, skipping empty values.
@@ -170,7 +162,7 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 		targ.Targ(func(a ReviewArgs) { run("review", ReviewFlags(a)) }).
 			Name("review").Description("Review instruction registry"),
 		targ.Targ(func(a MaintainArgs) { run("maintain", MaintainFlags(a)) }).
-			Name("maintain").Description("Generate or apply maintenance proposals"),
+			Name("maintain").Description("Generate maintenance proposals"),
 		targ.Targ(func(a SurfaceArgs) { run("surface", SurfaceFlags(a)) }).
 			Name("surface").Description("Surface relevant memories"),
 		targ.Targ(func(a InstructArgs) { run("instruct", InstructFlags(a)) }).
@@ -183,6 +175,8 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("show").Description("Display full memory details"),
 		targ.Targ(func(a ApplyProposalArgs) { run("apply-proposal", ApplyProposalFlags(a)) }).
 			Name("apply-proposal").Description("Apply a maintenance proposal"),
+		targ.Targ(func(a RejectProposalArgs) { run("reject-proposal", RejectProposalFlags(a)) }).
+			Name("reject-proposal").Description("Reject a maintenance proposal"),
 		targ.Targ(func(a RecallArgs) { run("recall", RecallFlags(a)) }).
 			Name("recall").Description("Recall recent session context"),
 		targ.Targ(func(a MigrateScoresArgs) { run("migrate-scores", MigrateScoresFlags(a)) }).
@@ -229,12 +223,7 @@ func InstructFlags(a InstructArgs) []string {
 
 // MaintainFlags returns the CLI flag args for the maintain subcommand.
 func MaintainFlags(a MaintainArgs) []string {
-	flags := BuildFlags("--data-dir", a.DataDir, "--proposals", a.Proposals)
-	flags = AddBoolFlag(flags, "--apply", a.Apply)
-	flags = AddBoolFlag(flags, "--yes", a.Yes)
-	flags = AddBoolFlag(flags, "--purge-tier-c", a.PurgeTierC)
-
-	return flags
+	return BuildFlags("--data-dir", a.DataDir)
 }
 
 // MigrateSBIAFlags returns the CLI flag args for the migrate-sbia subcommand.
@@ -279,6 +268,11 @@ func RefineFlags(a RefineArgs) []string {
 	flags = AddBoolFlag(flags, "--dry-run", a.DryRun)
 
 	return flags
+}
+
+// RejectProposalFlags returns the CLI flag args for the reject-proposal subcommand.
+func RejectProposalFlags(a RejectProposalArgs) []string {
+	return BuildFlags("--data-dir", a.DataDir, "--id", a.ID)
 }
 
 // ReviewFlags returns the CLI flag args for the review subcommand.

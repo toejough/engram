@@ -22,8 +22,11 @@ var (
 	ExportRenderMemoryMeta        = renderMemoryMeta
 	ExportResolveEvaluateCaller   = resolveEvaluateCaller
 	ExportResolveSkillsDir        = resolveSkillsDir
+	ExportRunApplyProposal        = runApplyProposal
 	ExportRunEvaluateWith         = runEvaluateWith
+	ExportRunMaintainWith         = runMaintainWith
 	ExportRunRefineWith           = runRefineWith
+	ExportRunRejectProposal       = runRejectProposal
 	ExportTruncateTitle           = truncateTitle
 )
 
