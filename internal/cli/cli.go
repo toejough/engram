@@ -73,6 +73,8 @@ func Run(
 		return runMigrateScores(subArgs, stdout, stderr)
 	case "migrate-sbia":
 		return runMigrateSBIA(subArgs, stdout)
+	case "refine":
+		return runRefine(subArgs, stdout)
 	case "feedback":
 		return RunFeedback(subArgs)
 	default:

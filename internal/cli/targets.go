@@ -280,7 +280,7 @@ func RecallFlags(a RecallArgs) []string {
 
 // RefineFlags returns the CLI flag args for the refine subcommand.
 func RefineFlags(a RefineArgs) []string {
-	flags := BuildFlags("--data-dir", a.DataDir)
+	flags := BuildFlags("--data-dir", a.DataDir, "--api-token", a.APIToken)
 	flags = AddBoolFlag(flags, "--dry-run", a.DryRun)
 
 	return flags

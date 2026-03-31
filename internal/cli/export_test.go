@@ -12,10 +12,11 @@ import (
 
 // Exported variables.
 var (
-	ExportBuildRecallSurfacer = buildRecallSurfacer
-	ExportRecordSurfacing     = recordSurfacing
-	ExportResolveSkillsDir    = resolveSkillsDir
-	ExportTruncateTitle       = truncateTitle
+	ExportBuildRecallSurfacer     = buildRecallSurfacer
+	ExportFindTranscriptForMemory = findTranscriptForMemory
+	ExportRecordSurfacing         = recordSurfacing
+	ExportResolveSkillsDir        = resolveSkillsDir
+	ExportTruncateTitle           = truncateTitle
 )
 
 type ExportStored = memory.Stored
