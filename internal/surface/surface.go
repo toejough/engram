@@ -159,6 +159,18 @@ func (s *Surfacer) runPrompt(
 	}
 
 	matches := matchPromptMemories(message, memories, s.config.IrrelevanceHalfLife)
+
+	// Apply BM25 threshold filter.
+	if s.config.BM25Threshold > 0 {
+		filtered := make([]promptMatch, 0, len(matches))
+		for _, m := range matches {
+			if m.bm25Score >= s.config.BM25Threshold {
+				filtered = append(filtered, m)
+			}
+		}
+		matches = filtered
+	}
+
 	if len(matches) == 0 {
 		return Result{}, nil, nil
 	}

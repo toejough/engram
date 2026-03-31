@@ -448,6 +448,46 @@ func TestWithTracker_RecordsSurfacing(t *testing.T) {
 	g.Expect(tracker.mode).To(Equal(surface.ModePrompt))
 }
 
+// TestPromptMode_BM25Threshold_FiltersLowScores verifies that memories with scores below the
+// threshold are filtered out.
+func TestPromptMode_BM25Threshold_FiltersLowScores(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Situation: "when committing code",
+			Behavior:  "manual git commit",
+			Action:    "use /commit skill",
+			FilePath:  "commit-conventions.toml",
+		},
+		{
+			Situation: "when building",
+			Behavior:  "run go build",
+			Action:    "use targ build",
+			FilePath:  "build-tools.toml",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	surfacer := surface.New(retriever, surface.WithSurfaceConfig(surface.SurfaceConfig{
+		BM25Threshold:       999.0,
+		CandidateCountMax:   8,
+		IrrelevanceHalfLife: 5,
+	}))
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/tmp/data",
+		Message: "I want to commit this change",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(BeEmpty())
+}
+
 // fakeRetriever is a test double for surface.MemoryRetriever.
 type fakeRetriever struct {
 	memories []*memory.Stored
