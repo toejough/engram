@@ -28,6 +28,7 @@ fi
 HOOK_JSON="$(cat)"
 USER_MESSAGE="$(echo "$HOOK_JSON" | jq -r '.prompt // empty')"
 TRANSCRIPT_PATH="$(echo "$HOOK_JSON" | jq -r '.transcript_path // empty')"
+SESSION_ID="$(echo "$HOOK_JSON" | jq -r '.session_id // empty')"
 
 # Consume pending maintenance results from async SessionStart (#370)
 # Consumed here (not Pre/PostToolUse) so subagent tool calls don't eat it.
@@ -74,7 +75,7 @@ fi
 SURFACE_OUTPUT=""
 if [[ -n "$USER_MESSAGE" ]]; then
     SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode prompt \
-        --message "$USER_MESSAGE" --format json) || true
+        --message "$USER_MESSAGE" --session-id "$SESSION_ID" --format json) || true
 fi
 
 # Combine into single JSON output — merge pending maintenance, surface, correct
