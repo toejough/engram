@@ -621,14 +621,15 @@ func TestTargets(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		var stderr bytes.Buffer
+		var stdout bytes.Buffer
 
 		// Execute one target to exercise the closure body.
 		// I/O goes to injected bytes.Buffer — no real side effects.
-		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
-		_, _ = targ.Execute([]string{"engram", "review", "--data-dir", t.TempDir()}, targets...)
+		// Use "show" which is a working command. Missing slug → error to stderr.
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{"engram", "show", "--data-dir", t.TempDir()}, targets...)
 
-		// review with empty dir produces no error output.
-		g.Expect(stderr.String()).To(gomega.BeEmpty())
+		// show without slug produces an error (written to stderr), stdout is empty.
+		g.Expect(stdout.String()).To(gomega.BeEmpty())
 	})
 }

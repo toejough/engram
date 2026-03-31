@@ -15,11 +15,11 @@ func TestReadRecord_LoadsMemoryRecord(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.toml")
 
-	content := `title = "Test Memory"
-principle = "Test principle"
-keywords = ["kw1", "kw2"]
+	content := `situation = "when running tests"
+behavior = "use go test directly"
+impact = "misses coverage"
+action = "use targ test"
 surfaced_count = 5
-source_path = "stale/path.toml"
 `
 	err := os.WriteFile(path, []byte(content), 0o600)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -41,12 +41,9 @@ source_path = "stale/path.toml"
 		return
 	}
 
-	g.Expect(record.Title).To(gomega.Equal("Test Memory"))
-	g.Expect(record.Principle).To(gomega.Equal("Test principle"))
-	g.Expect(record.Keywords).To(gomega.Equal([]string{"kw1", "kw2"}))
+	g.Expect(record.Situation).To(gomega.Equal("when running tests"))
+	g.Expect(record.Action).To(gomega.Equal("use targ test"))
 	g.Expect(record.SurfacedCount).To(gomega.Equal(5))
-	// SourcePath must be overwritten with actual path, not stale on-disk value
-	g.Expect(record.SourcePath).To(gomega.Equal(path))
 }
 
 func TestReadRecord_NonexistentFile(t *testing.T) {

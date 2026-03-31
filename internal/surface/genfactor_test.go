@@ -8,34 +8,40 @@ import (
 	"engram/internal/surface"
 )
 
-func TestGenFactor_CrossProjectPenalty(t *testing.T) {
+func TestGenFactor_NotProjectScoped(t *testing.T) {
 	t.Parallel()
+
 	g := NewGomegaWithT(t)
-	// penalty strength=1.5: distance from 1.0 scaled by 1.5
-	g.Expect(surface.GenFactor(5, "proj-a", "proj-b")).To(Equal(1.0))
-	g.Expect(surface.GenFactor(4, "proj-a", "proj-b")).To(Equal(0.7))
-	g.Expect(surface.GenFactor(3, "proj-a", "proj-b")).To(Equal(0.25))
-	g.Expect(surface.GenFactor(2, "proj-a", "proj-b")).To(Equal(0.0))
-	g.Expect(surface.GenFactor(1, "proj-a", "proj-b")).To(Equal(0.0))
+
+	// Non-scoped memory always gets factor 1.0 regardless of project.
+	g.Expect(surface.GenFactor(false, "proj-a", "proj-b")).To(Equal(1.0))
+	g.Expect(surface.GenFactor(false, "", "proj-b")).To(Equal(1.0))
 }
 
-func TestGenFactor_EmptySlug(t *testing.T) {
+func TestGenFactor_ProjectScoped_CrossProject(t *testing.T) {
 	t.Parallel()
+
 	g := NewGomegaWithT(t)
-	g.Expect(surface.GenFactor(1, "", "proj-a")).To(Equal(1.0))
-	g.Expect(surface.GenFactor(1, "proj-a", "")).To(Equal(1.0))
+
+	// Cross-project project-scoped memory gets full penalty.
+	g.Expect(surface.GenFactor(true, "proj-a", "proj-b")).To(Equal(0.0))
 }
 
-func TestGenFactor_SameProject(t *testing.T) {
+func TestGenFactor_ProjectScoped_EmptySlug(t *testing.T) {
 	t.Parallel()
+
 	g := NewGomegaWithT(t)
-	g.Expect(surface.GenFactor(1, "proj-a", "proj-a")).To(Equal(1.0))
-	g.Expect(surface.GenFactor(5, "proj-a", "proj-a")).To(Equal(1.0))
+
+	// Empty slug = no penalty (can't determine cross-project).
+	g.Expect(surface.GenFactor(true, "", "proj-b")).To(Equal(1.0))
+	g.Expect(surface.GenFactor(true, "proj-a", "")).To(Equal(1.0))
 }
 
-func TestGenFactor_UnsetGeneralizability(t *testing.T) {
+func TestGenFactor_ProjectScoped_SameProject(t *testing.T) {
 	t.Parallel()
+
 	g := NewGomegaWithT(t)
-	// gen=0 (unset): strength=1.5 → 0.25
-	g.Expect(surface.GenFactor(0, "proj-a", "proj-b")).To(Equal(0.25))
+
+	// Same project = no penalty.
+	g.Expect(surface.GenFactor(true, "proj-a", "proj-a")).To(Equal(1.0))
 }

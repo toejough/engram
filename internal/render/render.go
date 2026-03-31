@@ -8,7 +8,7 @@ import (
 	"engram/internal/memory"
 )
 
-// Renderer formats classified memories as system reminder strings.
+// Renderer formats stored memories as system reminder strings.
 type Renderer struct{}
 
 // New creates a new Renderer.
@@ -16,14 +16,14 @@ func New() *Renderer {
 	return &Renderer{}
 }
 
-// Render formats a classified memory as a system reminder string (DES-1 format with tier).
-func (r *Renderer) Render(mem *memory.ClassifiedMemory, filePath string) string {
+// RenderStored formats a stored memory as a system reminder string.
+func (r *Renderer) RenderStored(mem *memory.Stored, filePath string) string {
 	var sb strings.Builder
 
 	fmt.Fprintf(&sb, "<system-reminder source=\"engram\">\n")
-	fmt.Fprintf(&sb, "[engram] Memory captured (tier %s).\n", mem.Tier)
-	fmt.Fprintf(&sb, "  Created: %q\n", mem.Title)
-	fmt.Fprintf(&sb, "  Type: %s\n", mem.ObservationType)
+	fmt.Fprintf(&sb, "[engram] Memory captured.\n")
+	fmt.Fprintf(&sb, "  Situation: %s\n", mem.Situation)
+	fmt.Fprintf(&sb, "  Action: %s\n", mem.Action)
 	fmt.Fprintf(&sb, "  File: %s\n", filePath)
 	fmt.Fprintf(&sb, "</system-reminder>\n")
 

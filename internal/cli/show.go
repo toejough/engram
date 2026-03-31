@@ -26,9 +26,6 @@ func effectivenessPercent(followed, total int) int {
 }
 
 // extractSlug separates a positional slug argument from flag arguments.
-// It scans args for the first non-flag token that is not a flag-value
-// (i.e., it skips values that follow known flag prefixes like "--data-dir").
-// Returns the slug (may be empty) and remaining args for flag parsing.
 func extractSlug(args []string) (string, []string) {
 	remaining := make([]string, 0, len(args))
 	skipNext := false
@@ -45,8 +42,6 @@ func extractSlug(args []string) (string, []string) {
 		if strings.HasPrefix(arg, "-") {
 			remaining = append(remaining, arg)
 
-			// If this flag uses "--key value" form (not "--key=value"),
-			// the next arg is its value — skip it.
 			if !strings.Contains(arg, "=") && idx+1 < len(args) {
 				skipNext = true
 			}
@@ -54,7 +49,6 @@ func extractSlug(args []string) (string, []string) {
 			continue
 		}
 
-		// First non-flag, non-value token is the slug.
 		return arg, append(remaining, args[idx+1:]...)
 	}
 
@@ -73,80 +67,61 @@ func loadMemoryTOML(path string) (*memory.MemoryRecord, error) {
 	return &record, nil
 }
 
-// renderMemory writes formatted memory details to w.
+// renderMemory writes formatted SBIA memory details to w.
 // Only fields with non-empty/non-zero values are printed.
-// Effectiveness is printed only when total evaluations > 0.
 func renderMemory(writer io.Writer, mem *memory.MemoryRecord) {
 	renderMemoryContent(writer, mem)
 	renderMemoryMeta(writer, mem)
 }
 
-// renderMemoryContent writes the content fields of a memory record to w.
+// renderMemoryContent writes the SBIA content fields of a memory record to w.
 func renderMemoryContent(writer io.Writer, mem *memory.MemoryRecord) {
-	if mem.Title != "" {
-		_, _ = fmt.Fprintf(writer, "Title: %s\n", mem.Title)
+	if mem.Situation != "" {
+		_, _ = fmt.Fprintf(writer, "Situation: %s\n", mem.Situation)
 	}
 
-	if mem.ObservationType != "" {
-		_, _ = fmt.Fprintf(writer, "Type: %s\n", mem.ObservationType)
+	if mem.Behavior != "" {
+		_, _ = fmt.Fprintf(writer, "Behavior: %s\n", mem.Behavior)
 	}
 
-	if mem.Principle != "" {
-		_, _ = fmt.Fprintf(writer, "Principle: %s\n", mem.Principle)
+	if mem.Impact != "" {
+		_, _ = fmt.Fprintf(writer, "Impact: %s\n", mem.Impact)
 	}
 
-	if mem.AntiPattern != "" {
-		_, _ = fmt.Fprintf(writer, "Anti-pattern: %s\n", mem.AntiPattern)
-	}
-
-	if mem.Rationale != "" {
-		_, _ = fmt.Fprintf(writer, "Rationale: %s\n", mem.Rationale)
-	}
-
-	if mem.Content != "" {
-		_, _ = fmt.Fprintf(writer, "Content: %s\n", mem.Content)
-	}
-
-	if len(mem.Keywords) > 0 {
-		_, _ = fmt.Fprintf(writer, "Keywords: %s\n",
-			strings.Join(mem.Keywords, ", "))
+	if mem.Action != "" {
+		_, _ = fmt.Fprintf(writer, "Action: %s\n", mem.Action)
 	}
 }
 
 // renderMemoryMeta writes the metadata and tracking fields of a memory record to w.
 func renderMemoryMeta(writer io.Writer, mem *memory.MemoryRecord) {
-	if mem.Confidence != "" {
-		_, _ = fmt.Fprintf(writer, "Confidence: %s\n", mem.Confidence)
+	if mem.ProjectScoped {
+		_, _ = fmt.Fprintf(writer, "Scope: project (%s)\n", mem.ProjectSlug)
 	}
 
 	if mem.CreatedAt != "" {
 		_, _ = fmt.Fprintf(writer, "Created: %s\n", mem.CreatedAt)
 	}
 
-	if mem.LastSurfacedAt != "" {
-		_, _ = fmt.Fprintf(writer, "Last surfaced: %s\n", mem.LastSurfacedAt)
-	}
-
-	total := mem.FollowedCount + mem.ContradictedCount + mem.IgnoredCount
+	total := mem.FollowedCount + mem.NotFollowedCount
 	if total > 0 {
 		pct := effectivenessPercent(mem.FollowedCount, total)
 		_, _ = fmt.Fprintf(writer,
-			"Effectiveness: %d%% (%d followed, %d contradicted, %d ignored)\n",
-			pct, mem.FollowedCount, mem.ContradictedCount, mem.IgnoredCount)
+			"Effectiveness: %d%% (%d followed, %d not followed)\n",
+			pct, mem.FollowedCount, mem.NotFollowedCount)
 	}
 
 	if mem.IrrelevantCount > 0 {
-		totalFeedback := mem.FollowedCount + mem.ContradictedCount +
-			mem.IgnoredCount + mem.IrrelevantCount
-		relevantFeedback := mem.FollowedCount + mem.ContradictedCount + mem.IgnoredCount
-		pct := effectivenessPercent(relevantFeedback, totalFeedback)
+		totalEvals := mem.TotalEvaluations()
+		relevant := mem.FollowedCount + mem.NotFollowedCount
+		pct := effectivenessPercent(relevant, totalEvals)
 		_, _ = fmt.Fprintf(writer,
-			"Relevance: %d%% (%d relevant, %d irrelevant of %d feedback)\n",
-			pct, relevantFeedback, mem.IrrelevantCount, totalFeedback)
+			"Relevance: %d%% (%d relevant, %d irrelevant of %d evaluations)\n",
+			pct, relevant, mem.IrrelevantCount, totalEvals)
 	}
 }
 
-// resolveSlug picks the slug from positional arg, --name flag, or trailing arg (in priority order).
+// resolveSlug picks the slug from positional arg, --name flag, or trailing arg.
 func resolveSlug(positional, nameFlag string, fs *flag.FlagSet) string {
 	if positional != "" {
 		return positional
@@ -164,10 +139,7 @@ func resolveSlug(positional, nameFlag string, fs *flag.FlagSet) string {
 }
 
 // runShow implements the show subcommand: displays full details of a memory.
-// Supports slug before or after flags (e.g., "show my-mem --data-dir /path").
 func runShow(args []string, stdout io.Writer) error {
-	// Separate the positional slug from flag args so flag.Parse works
-	// regardless of argument order.
 	slug, flagArgs := extractSlug(args)
 
 	fs := flag.NewFlagSet("show", flag.ContinueOnError)

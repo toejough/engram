@@ -125,6 +125,16 @@ type SurfaceArgs struct {
 	SessionID      string `targ:"flag,name=session-id,desc=session ID (stop mode)"`
 }
 
+// MigrateSBIAArgs holds parsed flags for the migrate-sbia subcommand.
+type MigrateSBIAArgs struct {
+	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+}
+
+// MigrateSBIAFlags returns the CLI flag args for the migrate-sbia subcommand.
+func MigrateSBIAFlags(a MigrateSBIAArgs) []string {
+	return BuildFlags("--data-dir", a.DataDir)
+}
+
 // AdaptFlags returns the CLI flag args for the adapt subcommand.
 func AdaptFlags(a AdaptArgs) []string {
 	flags := BuildFlags("--data-dir", a.DataDir, "--approve", a.Approve, "--reject", a.Reject, "--retire", a.Retire)
@@ -200,6 +210,8 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("migrate-slugs").Description("Backfill project_slug on existing memories"),
 		targ.Targ(func(a AdaptArgs) { run("adapt", AdaptFlags(a)) }).
 			Name("adapt").Description("Manage adaptive policies"),
+		targ.Targ(func(a MigrateSBIAArgs) { run("migrate-sbia", MigrateSBIAFlags(a)) }).
+			Name("migrate-sbia").Description("One-time migration to SBIA memory format"),
 	}
 }
 

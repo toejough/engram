@@ -16,23 +16,18 @@ func TestMemoryRecord_RoundTrip(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	original := memory.MemoryRecord{
-		Title:             "test title",
-		Content:           "test content",
-		ObservationType:   "workflow_instruction",
-		Concepts:          []string{"a", "b"},
-		Keywords:          []string{"k1", "k2"},
-		Principle:         "test principle",
-		AntiPattern:       "test anti-pattern",
-		Rationale:         "test rationale",
-		Confidence:        "A",
-		CreatedAt:         "2026-01-01T00:00:00Z",
-		UpdatedAt:         "2026-01-02T00:00:00Z",
-		SurfacedCount:     5,
-		FollowedCount:     3,
-		ContradictedCount: 1,
-		IgnoredCount:      2,
-		IrrelevantCount:   4,
-		LastSurfacedAt:    "2026-01-03T00:00:00Z",
+		Situation:        "when running tests",
+		Behavior:         "use go test directly",
+		Impact:           "misses coverage and flags",
+		Action:           "use targ test instead",
+		ProjectScoped:    true,
+		ProjectSlug:      "engram",
+		CreatedAt:        "2026-01-01T00:00:00Z",
+		UpdatedAt:        "2026-01-02T00:00:00Z",
+		SurfacedCount:    5,
+		FollowedCount:    3,
+		NotFollowedCount: 1,
+		IrrelevantCount:  4,
 	}
 
 	var buf bytes.Buffer
@@ -56,20 +51,21 @@ func TestMemoryRecord_RoundTrip(t *testing.T) {
 	g.Expect(decoded).To(Equal(original))
 }
 
-func TestMemoryRecord_RoundTrip_RegistryFields(t *testing.T) {
+func TestMemoryRecord_RoundTrip_PendingEvaluations(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
 	original := memory.MemoryRecord{
-		Title:       "test",
-		Content:     "content",
-		SourceType:  "memory",
-		SourcePath:  "/path/to/source",
-		ContentHash: "abc123",
-		Absorbed: []memory.AbsorbedRecord{{
-			From: "old.toml", SurfacedCount: 5, ContentHash: "def456", MergedAt: "2026-01-02T00:00:00Z",
-			Evaluations: memory.EvaluationCounters{Followed: 2, Contradicted: 1, Ignored: 0},
+		Situation: "when committing",
+		Behavior:  "skip hooks",
+		Impact:    "broken builds",
+		Action:    "always run hooks",
+		PendingEvaluations: []memory.PendingEvaluation{{
+			SurfacedAt:  "2026-01-02T00:00:00Z",
+			UserPrompt:  "commit this change",
+			SessionID:   "sess-123",
+			ProjectSlug: "engram",
 		}},
 	}
 
@@ -92,4 +88,18 @@ func TestMemoryRecord_RoundTrip_RegistryFields(t *testing.T) {
 	}
 
 	g.Expect(decoded).To(Equal(original))
+}
+
+func TestMemoryRecord_TotalEvaluations(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	record := memory.MemoryRecord{
+		FollowedCount:    3,
+		NotFollowedCount: 2,
+		IrrelevantCount:  1,
+	}
+
+	g.Expect(record.TotalEvaluations()).To(Equal(6))
 }

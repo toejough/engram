@@ -12,16 +12,10 @@ import (
 
 // Exported variables.
 var (
-	ExportBuildRecallSurfacer      = buildRecallSurfacer
-	ExportLoadExtractionGuidance   = loadExtractionGuidance
-	ExportNewSourceCrossRefChecker = newSourceCrossRefChecker
-	ExportRecordSurfacing          = recordSurfacing
-	ExportRegisterMemory           = registerMemory
-	ExportResolveSkillsDir         = resolveSkillsDir
-	ExportRunAdaptationAnalysis    = runAdaptationAnalysis
-	ExportRunStdinLearn            = runStdinLearn
-	ExportTitleOrPath              = titleOrPath
-	ExportTruncateTitle            = truncateTitle
+	ExportBuildRecallSurfacer = buildRecallSurfacer
+	ExportRecordSurfacing     = recordSurfacing
+	ExportResolveSkillsDir    = resolveSkillsDir
+	ExportTruncateTitle       = truncateTitle
 )
 
 type ExportStored = memory.Stored
@@ -73,6 +67,8 @@ func ExportNewRetriever() *retrieve.Retriever {
 }
 
 // ExportNewStdinConfirmer creates a stdinConfirmer for testing.
-func ExportNewStdinConfirmer(stdout io.Writer, stdin io.Reader) maintain.Confirmer {
+func ExportNewStdinConfirmer(stdout io.Writer, stdin io.Reader) interface {
+	Confirm(preview string) (bool, error)
+} {
 	return &stdinConfirmer{stdout: stdout, stdin: stdin}
 }

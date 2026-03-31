@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -14,8 +13,8 @@ import (
 	"engram/internal/retrieve"
 )
 
-// T-24: ListMemories returns all TOML files sorted by updated_at
-func TestT24_ListMemoriesSortedByUpdatedAt(t *testing.T) {
+// TestListMemories_EmptyDirectory verifies empty directory handling.
+func TestListMemories_EmptyDirectory(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -29,75 +28,8 @@ func TestT24_ListMemoriesSortedByUpdatedAt(t *testing.T) {
 		return
 	}
 
-	// Three memories with different updated_at timestamps.
-	// Write them out of order to verify sorting.
-	writeTestTOML(t, memoriesDir, "oldest.toml", tomlContent{
-		Title:     "Oldest Memory",
-		Keywords:  []string{"old"},
-		Concepts:  []string{"history"},
-		UpdatedAt: "2025-01-01T00:00:00Z",
-		Principle: "oldest principle",
-	})
-	writeTestTOML(t, memoriesDir, "newest.toml", tomlContent{
-		Title:     "Newest Memory",
-		Keywords:  []string{"new"},
-		Concepts:  []string{"recent"},
-		UpdatedAt: "2025-03-01T00:00:00Z",
-		Principle: "newest principle",
-	})
-	writeTestTOML(t, memoriesDir, "middle.toml", tomlContent{
-		Title:       "Middle Memory",
-		Keywords:    []string{"mid"},
-		Concepts:    []string{"midrange"},
-		AntiPattern: "manual git commit",
-		UpdatedAt:   "2025-02-01T00:00:00Z",
-		Principle:   "middle principle",
-	})
-
-	r := retrieve.New()
-	memories, err := r.ListMemories(context.Background(), dataDir)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(memories).To(HaveLen(3))
-
-	// Sorted by updated_at descending (most recent first).
-	g.Expect(memories[0].Title).To(Equal("Newest Memory"))
-	g.Expect(memories[1].Title).To(Equal("Middle Memory"))
-	g.Expect(memories[2].Title).To(Equal("Oldest Memory"))
-
-	// Verify fields are populated.
-	g.Expect(memories[0].Keywords).To(Equal([]string{"new"}))
-	g.Expect(memories[0].Concepts).To(Equal([]string{"recent"}))
-	g.Expect(memories[0].Principle).To(Equal("newest principle"))
-	g.Expect(memories[0].FilePath).To(ContainSubstring("newest.toml"))
-	g.Expect(memories[0].UpdatedAt).To(Equal(time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)))
-
-	// Verify anti_pattern populates.
-	g.Expect(memories[1].AntiPattern).To(Equal("manual git commit"))
-}
-
-// T-25: ListMemories returns empty slice when no memories exist
-func TestT25_ListMemoriesEmptyDirectory(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	memoriesDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memoriesDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	r := retrieve.New()
-	memories, err := r.ListMemories(context.Background(), dataDir)
+	retriever := retrieve.New()
+	memories, err := retriever.ListMemories(context.Background(), dataDir)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -106,11 +38,11 @@ func TestT25_ListMemoriesEmptyDirectory(t *testing.T) {
 	}
 
 	g.Expect(memories).To(BeEmpty())
-	g.Expect(memories).NotTo(BeNil()) // empty slice, not nil
+	g.Expect(memories).NotTo(BeNil())
 }
 
-// T-26: ListMemories skips unparseable files
-func TestT26_ListMemoriesSkipsUnparseableFiles(t *testing.T) {
+// TestListMemories_SkipsUnparseableFiles verifies unparseable files are skipped.
+func TestListMemories_SkipsUnparseableFiles(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -125,23 +57,20 @@ func TestT26_ListMemoriesSkipsUnparseableFiles(t *testing.T) {
 	}
 
 	writeTestTOML(t, memoriesDir, "valid1.toml", tomlContent{
-		Title:     "Valid One",
-		Keywords:  []string{"valid"},
+		Situation: "Valid One",
 		UpdatedAt: "2025-01-01T00:00:00Z",
 	})
 	writeTestTOML(t, memoriesDir, "valid2.toml", tomlContent{
-		Title:     "Valid Two",
-		Keywords:  []string{"also-valid"},
+		Situation: "Valid Two",
 		UpdatedAt: "2025-02-01T00:00:00Z",
 	})
 
-	// Write an invalid TOML file.
 	invalidPath := filepath.Join(memoriesDir, "broken.toml")
 	writeErr := os.WriteFile(invalidPath, []byte("{{{{invalid toml!!!!"), 0o640)
 	g.Expect(writeErr).NotTo(HaveOccurred())
 
-	r := retrieve.New()
-	memories, err := r.ListMemories(context.Background(), dataDir)
+	retriever := retrieve.New()
+	memories, err := retriever.ListMemories(context.Background(), dataDir)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -149,14 +78,13 @@ func TestT26_ListMemoriesSkipsUnparseableFiles(t *testing.T) {
 		return
 	}
 
-	// Only 2 valid memories returned.
 	g.Expect(memories).To(HaveLen(2))
-	g.Expect(memories[0].Title).To(Equal("Valid Two")) // more recent
-	g.Expect(memories[1].Title).To(Equal("Valid One"))
+	g.Expect(memories[0].Situation).To(Equal("Valid Two"))
+	g.Expect(memories[1].Situation).To(Equal("Valid One"))
 }
 
-// T-373: Generalizability and ProjectSlug are wired into Stored from TOML.
-func TestT373_GeneralizabilityAndProjectSlugWired(t *testing.T) {
+// TestListMemories_SortedByUpdatedAt verifies sorting order.
+func TestListMemories_SortedByUpdatedAt(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -170,16 +98,73 @@ func TestT373_GeneralizabilityAndProjectSlugWired(t *testing.T) {
 		return
 	}
 
-	writeTestTOML(t, memoriesDir, "gen.toml", tomlContent{
-		Title:            "Gen Memory",
-		Keywords:         []string{"gen"},
-		UpdatedAt:        "2026-03-01T00:00:00Z",
-		Generalizability: 3,
-		ProjectSlug:      "my-project",
+	writeTestTOML(t, memoriesDir, "oldest.toml", tomlContent{
+		Situation: "oldest situation",
+		Action:    "oldest action",
+		UpdatedAt: "2025-01-01T00:00:00Z",
+	})
+	writeTestTOML(t, memoriesDir, "newest.toml", tomlContent{
+		Situation: "newest situation",
+		Action:    "newest action",
+		UpdatedAt: "2025-03-01T00:00:00Z",
+	})
+	writeTestTOML(t, memoriesDir, "middle.toml", tomlContent{
+		Situation: "middle situation",
+		Behavior:  "middle behavior",
+		Action:    "middle action",
+		UpdatedAt: "2025-02-01T00:00:00Z",
 	})
 
-	r := retrieve.New()
-	memories, err := r.ListMemories(context.Background(), dataDir)
+	retriever := retrieve.New()
+	memories, err := retriever.ListMemories(context.Background(), dataDir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(memories).To(HaveLen(3))
+
+	// Sorted by updated_at descending (most recent first).
+	g.Expect(memories[0].Situation).To(Equal("newest situation"))
+	g.Expect(memories[1].Situation).To(Equal("middle situation"))
+	g.Expect(memories[2].Situation).To(Equal("oldest situation"))
+
+	// Verify fields are populated.
+	g.Expect(memories[0].Action).To(Equal("newest action"))
+	g.Expect(memories[0].FilePath).To(ContainSubstring("newest.toml"))
+	g.Expect(memories[0].UpdatedAt).To(Equal(time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)))
+
+	// Verify behavior populates.
+	g.Expect(memories[1].Behavior).To(Equal("middle behavior"))
+}
+
+// TestProjectScopedAndProjectSlugWired verifies SBIA project fields are wired.
+func TestProjectScopedAndProjectSlugWired(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memoriesDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	writeTestTOML(t, memoriesDir, "scoped.toml", tomlContent{
+		Situation:     "when building",
+		Action:        "use targ",
+		UpdatedAt:     "2026-03-01T00:00:00Z",
+		ProjectScoped: true,
+		ProjectSlug:   "my-project",
+	})
+
+	retriever := retrieve.New()
+	memories, err := retriever.ListMemories(context.Background(), dataDir)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -188,181 +173,42 @@ func TestT373_GeneralizabilityAndProjectSlugWired(t *testing.T) {
 	}
 
 	g.Expect(memories).To(HaveLen(1))
-	g.Expect(memories[0].Generalizability).To(Equal(3))
+	g.Expect(memories[0].ProjectScoped).To(BeTrue())
 	g.Expect(memories[0].ProjectSlug).To(Equal("my-project"))
-}
-
-// T-374a: TOML with last_surfaced_at parses into Stored.LastSurfacedAt correctly.
-func TestT374a_LastSurfacedAtParsed(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	memoriesDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memoriesDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	writeTestTOML(t, memoriesDir, "surfaced.toml", tomlContent{
-		Title:          "Surfaced Memory",
-		Keywords:       []string{"surf"},
-		UpdatedAt:      "2026-03-10T00:00:00Z",
-		LastSurfacedAt: "2026-03-01T12:00:00Z",
-	})
-
-	r := retrieve.New()
-	memories, err := r.ListMemories(context.Background(), dataDir)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(memories).To(HaveLen(1))
-	g.Expect(memories[0].LastSurfacedAt).To(Equal(time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)))
-}
-
-// T-374b: TOML without last_surfaced_at produces zero-value LastSurfacedAt.
-func TestT374b_LastSurfacedAtAbsentIsZero(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	memoriesDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memoriesDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	writeTestTOML(t, memoriesDir, "no-surfaced.toml", tomlContent{
-		Title:     "No Surfaced Memory",
-		Keywords:  []string{"none"},
-		UpdatedAt: "2026-03-10T00:00:00Z",
-	})
-
-	r := retrieve.New()
-	memories, err := r.ListMemories(context.Background(), dataDir)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(memories).To(HaveLen(1))
-	g.Expect(memories[0].LastSurfacedAt).To(BeZero())
-}
-
-// T-82: Old TOMLs with tracking fields parse without error (backward compat).
-// Tracking fields are now managed by the instruction registry (UC-23) and
-// are silently ignored by BurntSushi/toml when not in the struct.
-func TestT82_OldTrackingFieldsIgnored(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	memoriesDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memoriesDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Write a TOML with old tracking fields that should be silently ignored.
-	writeTestTOMLWithTracking(t, memoriesDir, "tracked.toml", tomlContent{
-		Title:     "Tracked Memory",
-		Keywords:  []string{"track"},
-		UpdatedAt: "2026-03-01T00:00:00Z",
-	})
-
-	r := retrieve.New()
-	memories, err := r.ListMemories(context.Background(), dataDir)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(memories).To(HaveLen(1))
-	g.Expect(memories[0].Title).To(Equal("Tracked Memory"))
-	g.Expect(memories[0].FilePath).To(ContainSubstring("tracked.toml"))
 }
 
 // tomlContent is a test helper for writing memory TOML files.
 type tomlContent struct {
-	Title            string
-	Keywords         []string
-	Concepts         []string
-	AntiPattern      string
-	UpdatedAt        string
-	Principle        string
-	LastSurfacedAt   string
-	Generalizability int
-	ProjectSlug      string
-}
-
-// formatTOMLStringArray formats a string slice as a TOML array literal.
-func formatTOMLStringArray(items []string) string {
-	if len(items) == 0 {
-		return "[]"
-	}
-
-	var sb strings.Builder
-
-	sb.WriteString("[")
-
-	for i, item := range items {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-
-		sb.WriteString(`"` + item + `"`)
-	}
-
-	sb.WriteString("]")
-
-	return sb.String()
+	Situation     string
+	Behavior      string
+	Action        string
+	UpdatedAt     string
+	ProjectScoped bool
+	ProjectSlug   string
 }
 
 func writeTestTOML(t *testing.T, dir, filename string, tc tomlContent) {
 	t.Helper()
 
-	content := `title = "` + tc.Title + `"
-content = "test content"
-observation_type = "correction"
-concepts = ` + formatTOMLStringArray(tc.Concepts) + `
-keywords = ` + formatTOMLStringArray(tc.Keywords) + `
-principle = "` + tc.Principle + `"
-anti_pattern = "` + tc.AntiPattern + `"
-rationale = "test rationale"
-confidence = "B"
+	content := fmt.Sprintf(`situation = "%s"
+behavior = "%s"
+impact = "test impact"
+action = "%s"
 created_at = "2025-01-01T00:00:00Z"
-updated_at = "` + tc.UpdatedAt + `"
-`
+updated_at = "%s"
+`,
+		tc.Situation,
+		tc.Behavior,
+		tc.Action,
+		tc.UpdatedAt,
+	)
 
-	if tc.LastSurfacedAt != "" {
-		content += `last_surfaced_at = "` + tc.LastSurfacedAt + `"
-`
-	}
-
-	if tc.Generalizability != 0 {
-		content += fmt.Sprintf("generalizability = %d\n", tc.Generalizability)
+	if tc.ProjectScoped {
+		content += "project_scoped = true\n"
 	}
 
 	if tc.ProjectSlug != "" {
-		content += `project_slug = "` + tc.ProjectSlug + `"
-`
+		content += fmt.Sprintf("project_slug = \"%s\"\n", tc.ProjectSlug)
 	}
 
 	path := filepath.Join(dir, filename)
@@ -370,41 +216,5 @@ updated_at = "` + tc.UpdatedAt + `"
 	err := os.WriteFile(path, []byte(content), 0o640)
 	if err != nil {
 		t.Fatalf("writeTestTOML: %v", err)
-	}
-}
-
-// writeTestTOMLWithTracking writes a TOML with old-format tracking fields
-// to verify backward compatibility (unknown fields are silently ignored).
-func writeTestTOMLWithTracking(t *testing.T, dir, filename string, tc tomlContent) {
-	t.Helper()
-
-	content := fmt.Sprintf(`title = "%s"
-content = "test content"
-observation_type = "correction"
-concepts = %s
-keywords = %s
-principle = "%s"
-anti_pattern = "%s"
-rationale = "test rationale"
-confidence = "B"
-created_at = "2025-01-01T00:00:00Z"
-updated_at = "%s"
-surfaced_count = 5
-last_surfaced = "2026-03-01T00:00:00Z"
-surfacing_contexts = ["prompt", "tool"]
-`,
-		tc.Title,
-		formatTOMLStringArray(tc.Concepts),
-		formatTOMLStringArray(tc.Keywords),
-		tc.Principle,
-		tc.AntiPattern,
-		tc.UpdatedAt,
-	)
-
-	path := filepath.Join(dir, filename)
-
-	err := os.WriteFile(path, []byte(content), 0o640)
-	if err != nil {
-		t.Fatalf("writeTestTOMLWithTracking: %v", err)
 	}
 }
