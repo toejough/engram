@@ -307,20 +307,19 @@ Stage 2 (PreToolUse) is a narrow safety net for the most literally matchable cas
    nothing, but the preceding conversation about "running tests"
    would match the targ memory.
 
-2. BM25 on SBIA text → top `surface_candidate_count_min` to
+2. BM25 on SBIA text, with irrelevance penalty applied to scores
+   (half-life of `surface_irrelevance_half_life`).
+   Select top `surface_candidate_count_min` to
    `surface_candidate_count_max` candidates (score ≥ `surface_bm25_threshold`)
    If fewer than min score above threshold, return however many do.
 
 3. project_scoped hard filter
    Exclude memories scoped to a different project.
 
-4. Irrelevance penalty on BM25 scores
-   Half-life of `surface_irrelevance_half_life`.
-
-5. Cold-start budget (max `surface_cold_start_budget` unproven per invocation)
+4. Cold-start budget (max `surface_cold_start_budget` unproven per invocation)
    Unproven = never surfaced. Proven memories bypass this limit.
 
-6. Haiku semantic gate (single batched call, prompt from `surface_gate_haiku`):
+5. Haiku semantic gate (single batched call, prompt from `surface_gate_haiku`):
    Input: query context + candidate SBIA fields
    → Returns passing subset, or empty if none match.
 
@@ -328,11 +327,11 @@ Stage 2 (PreToolUse) is a narrow safety net for the most literally matchable cas
    memories in wrong contexts. Haiku asking "is this situation
    actually happening?" catches what BM25 can't.
 
-7. Track passing memories
+6. Track passing memories
    Increment `surfaced_count` on each. Write `[[pending_evaluations]]`
    entry for each (consumed by `engram evaluate` at stop hook).
 
-8. Surface passing candidates with full SBIA fields
+7. Surface passing candidates with full SBIA fields
    No token budget — all four fields for each passing memory.
    The top-level LLM has the richest context to make the final
    relevance decision. Surface 0 memories if none pass the gate.
@@ -729,7 +728,7 @@ No custom analysis dimensions in Go. No lifecycle state machine. The analysis lo
 
 **SBIA fields read by maintain:** `surfaced_count`, `followed_count`, `not_followed_count`, `irrelevant_count`, `situation`, `behavior`, `impact`, `action`, `project_scoped`
 
-See [Adapt Flow](#adapt-flow-sonnet-analyzes-metrics--proposes-parameter-changes) for the full process.
+See [Adapt Flow](#adapt-flow-sonnet-analyzes-metrics--proposes-parameter-changes) for the parameter tuning portion of maintain.
 
 ### UserPromptSubmit (`user-prompt-submit.sh`)
 
@@ -816,7 +815,7 @@ impact = "Bypasses coverage thresholds and lint rules, leading to false confiden
 action = "Use targ test, targ check-full, targ build"
 
 # Scope
-project_scoped = false
+project_scoped = true
 project_slug = "engram"
 
 # Tracking
