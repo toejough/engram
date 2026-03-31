@@ -61,6 +61,8 @@ type Options struct {
 	Format             string // output format: "" (plain) or "json"
 	TranscriptWindow   string // recent transcript text for transcript suppression
 	CurrentProjectSlug string // derived from data-dir for cross-project penalty
+	SessionID          string // session ID for pending evaluation tracking
+	UserPrompt         string // original user prompt for pending evaluation
 }
 
 // Result holds the structured output of a surface invocation.
@@ -79,6 +81,8 @@ type Surfacer struct {
 	budgetConfig          *BudgetConfig
 	config                SurfaceConfig
 	recordSurfacing       func(path string) error // UC-23: records surfacing event per memory
+	haikuGate             HaikuCallerFunc
+	pendingEvalModifier   ModifyFunc
 }
 
 // New creates a Surfacer.
@@ -134,6 +138,14 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		}
 	}
 
+	if s.pendingEvalModifier != nil && len(matched) > 0 {
+		_ = WritePendingEvaluations(
+			matched, s.pendingEvalModifier,
+			opts.SessionID, opts.CurrentProjectSlug, opts.UserPrompt,
+			time.Now(),
+		)
+	}
+
 	writeErr := s.writeResult(w, result, opts.Format)
 	if writeErr != nil {
 		return writeErr
@@ -168,6 +180,7 @@ func (s *Surfacer) runPrompt(
 				filtered = append(filtered, m)
 			}
 		}
+
 		matches = filtered
 	}
 
@@ -201,6 +214,13 @@ func (s *Surfacer) runPrompt(
 
 	// Apply cold-start budget for unproven memories.
 	promptMems = ApplyColdStartBudget(promptMems, s.config.ColdStartBudget)
+
+	// Apply Haiku semantic gate if configured.
+	if s.haikuGate != nil && s.config.GateHaikuPrompt != "" {
+		promptMems, _ = GateMemories(
+			ctx, promptMems, message, s.haikuGate, s.config.GateHaikuPrompt,
+		)
+	}
 
 	promptMems, _ = suppressByTranscript(promptMems, transcriptWindow)
 
