@@ -270,7 +270,6 @@ func TestFeedbackFlags(t *testing.T) {
 	})
 }
 
-
 func TestInstructFlags(t *testing.T) {
 	t.Parallel()
 
@@ -299,7 +298,6 @@ func TestInstructFlags(t *testing.T) {
 		g.Expect(result).To(gomega.Equal([]string{"--project-dir", "/project"}))
 	})
 }
-
 
 func TestMaintainFlags(t *testing.T) {
 	t.Parallel()

@@ -11,46 +11,6 @@ import (
 	"engram/internal/cli"
 )
 
-const feedbackTestMemoryTOML = `situation = "test situation"
-behavior = "test behavior"
-impact = "test impact"
-action = "test action"
-surfaced_count = 5
-followed_count = 2
-not_followed_count = 1
-irrelevant_count = 0
-created_at = "2026-03-29T12:00:00Z"
-updated_at = "2026-03-29T12:00:00Z"
-`
-
-func writeTestMemory(t *testing.T, dataDir, name, content string) string {
-	t.Helper()
-
-	memoriesDir := filepath.Join(dataDir, "memories")
-
-	if err := os.MkdirAll(memoriesDir, 0o755); err != nil {
-		t.Fatalf("creating memories dir: %v", err)
-	}
-
-	path := filepath.Join(memoriesDir, name+".toml")
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("writing memory file: %v", err)
-	}
-
-	return path
-}
-
-func readMemoryContent(t *testing.T, path string) string {
-	t.Helper()
-
-	data, err := os.ReadFile(path) //nolint:gosec // test helper
-	if err != nil {
-		t.Fatalf("reading memory file: %v", err)
-	}
-
-	return string(data)
-}
-
 func TestRunFeedback_IncrementFollowed(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -113,4 +73,47 @@ func TestRunFeedback_MissingName(t *testing.T) {
 
 	err := cli.RunFeedback([]string{"--relevant"})
 	g.Expect(err).To(HaveOccurred())
+}
+
+// unexported constants.
+const (
+	feedbackTestMemoryTOML = `situation = "test situation"
+behavior = "test behavior"
+impact = "test impact"
+action = "test action"
+surfaced_count = 5
+followed_count = 2
+not_followed_count = 1
+irrelevant_count = 0
+created_at = "2026-03-29T12:00:00Z"
+updated_at = "2026-03-29T12:00:00Z"
+`
+)
+
+func readMemoryContent(t *testing.T, path string) string {
+	t.Helper()
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading memory file: %v", err)
+	}
+
+	return string(data)
+}
+
+func writeTestMemory(t *testing.T, dataDir, name, content string) string {
+	t.Helper()
+
+	memoriesDir := filepath.Join(dataDir, "memories")
+
+	if err := os.MkdirAll(memoriesDir, 0o755); err != nil {
+		t.Fatalf("creating memories dir: %v", err)
+	}
+
+	path := filepath.Join(memoriesDir, name+".toml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("writing memory file: %v", err)
+	}
+
+	return path
 }

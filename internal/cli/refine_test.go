@@ -14,61 +14,6 @@ import (
 	"engram/internal/memory"
 )
 
-func TestRunRefine_DryRun(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	memoriesDir := filepath.Join(dataDir, "memories")
-	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
-
-	memTOML := `situation = "when writing Go code"
-behavior = "returning bare errors"
-impact = "hard to debug"
-action = "wrap errors with context"
-created_at = "2024-01-01T00:00:00Z"
-updated_at = "2024-01-01T00:00:00Z"
-`
-	g.Expect(os.WriteFile(
-		filepath.Join(memoriesDir, "wrap-errors.toml"),
-		[]byte(memTOML),
-		0o644,
-	)).To(Succeed())
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{
-			"engram", "refine",
-			"--data-dir", dataDir,
-			"--dry-run",
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// In dry-run mode, the file must not be modified.
-	original, readErr := os.ReadFile(filepath.Join(memoriesDir, "wrap-errors.toml"))
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	g.Expect(string(original)).To(ContainSubstring("wrap errors with context"),
-		"dry-run must not modify memory files")
-
-	// Output should report what it found.
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("refine"),
-		"output should mention refine operation")
-}
-
 func TestFindTranscriptForMemory_MatchesClosest(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -125,4 +70,59 @@ func TestFindTranscriptForMemory_NoMatchBeyond24h(t *testing.T) {
 
 	result := cli.ExportFindTranscriptForMemory(record, []string{path})
 	g.Expect(result).To(BeEmpty(), "should return empty string when all transcripts >24h away")
+}
+
+func TestRunRefine_DryRun(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	memTOML := `situation = "when writing Go code"
+behavior = "returning bare errors"
+impact = "hard to debug"
+action = "wrap errors with context"
+created_at = "2024-01-01T00:00:00Z"
+updated_at = "2024-01-01T00:00:00Z"
+`
+	g.Expect(os.WriteFile(
+		filepath.Join(memoriesDir, "wrap-errors.toml"),
+		[]byte(memTOML),
+		0o644,
+	)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "refine",
+			"--data-dir", dataDir,
+			"--dry-run",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// In dry-run mode, the file must not be modified.
+	original, readErr := os.ReadFile(filepath.Join(memoriesDir, "wrap-errors.toml"))
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(original)).To(ContainSubstring("wrap errors with context"),
+		"dry-run must not modify memory files")
+
+	// Output should report what it found.
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("refine"),
+		"output should mention refine operation")
 }

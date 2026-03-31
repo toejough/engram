@@ -12,11 +12,6 @@ import (
 	"engram/internal/tomlwriter"
 )
 
-// unexported variables.
-var (
-	errFeedbackMissingName = errors.New("feedback: --name is required")
-)
-
 // RunFeedback parses feedback flags and increments the appropriate SBIA counters
 // on the named memory TOML file.
 func RunFeedback(args []string) error {
@@ -30,7 +25,8 @@ func RunFeedback(args []string) error {
 	used := fs.Bool("used", false, "memory advice was followed")
 	notused := fs.Bool("notused", false, "memory advice was not followed")
 
-	if parseErr := fs.Parse(args); parseErr != nil {
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
 		return fmt.Errorf("feedback: %w", parseErr)
 	}
 
@@ -52,6 +48,11 @@ func RunFeedback(args []string) error {
 		record.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	})
 }
+
+// unexported variables.
+var (
+	errFeedbackMissingName = errors.New("feedback: --name is required")
+)
 
 // applyFeedbackCounters increments the appropriate counter on record based on
 // the feedback flags, following the specified precedence rules.

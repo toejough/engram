@@ -459,6 +459,7 @@ func resolveToken(ctx context.Context) string {
 	return token
 }
 
+//nolint:funlen // CLI wiring: sequential flag parsing + dependency setup
 func runCorrect(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("correct", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -519,7 +520,7 @@ func runCorrect(args []string, stdout io.Writer) error {
 	}
 
 	if result != "" {
-		fmt.Fprintln(stdout, result)
+		_, _ = fmt.Fprintln(stdout, result)
 	}
 
 	return nil

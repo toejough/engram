@@ -16,9 +16,10 @@ import (
 	"engram/internal/tomlwriter"
 )
 
-// maxTranscriptMatchWindow is the maximum age difference between a memory's
-// created_at and a transcript's mtime for the transcript to be a match candidate.
-const maxTranscriptMatchWindow = 24 * time.Hour
+// unexported constants.
+const (
+	maxTranscriptMatchWindow = 24 * time.Hour
+)
 
 // findAllTranscripts walks ~/.claude/projects/*/*.jsonl and returns all paths found.
 func findAllTranscripts(projectsDir string) ([]string, error) {
