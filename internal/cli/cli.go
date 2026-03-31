@@ -18,8 +18,10 @@ import (
 
 	"engram/internal/anthropic"
 	sessionctx "engram/internal/context"
+	"engram/internal/correct"
 	"engram/internal/maintain"
 	"engram/internal/memory"
+	"engram/internal/policy"
 	"engram/internal/recall"
 	"engram/internal/retrieve"
 	"engram/internal/surface"
@@ -54,7 +56,7 @@ func Run(
 
 	switch cmd {
 	case "correct":
-		return runCorrectStub(subArgs, stdout)
+		return runCorrect(subArgs, stdout)
 	case "surface":
 		return runSurface(subArgs, stdout)
 	case "show":
@@ -71,6 +73,10 @@ func Run(
 		return runMigrateScores(subArgs, stdout, stderr)
 	case "migrate-sbia":
 		return runMigrateSBIA(subArgs, stdout)
+	case "refine":
+		return runRefine(subArgs, stdout)
+	case "feedback":
+		return RunFeedback(subArgs)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -453,22 +459,69 @@ func resolveToken(ctx context.Context) string {
 	return token
 }
 
-// runCorrectStub is stubbed during SBIA migration.
-func runCorrectStub(args []string, _ io.Writer) error {
+//nolint:funlen // CLI wiring: sequential flag parsing + dependency setup
+func runCorrect(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("correct", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
-	_ = fs.String("message", "", "user message text")
-	_ = fs.String("data-dir", "", "path to data directory")
-	_ = fs.String("transcript-path", "", "path to session transcript")
-	_ = fs.String("project-slug", "", "originating project slug")
+	message := fs.String("message", "", "user message text")
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	transcriptPath := fs.String("transcript-path", "", "path to session transcript")
+	projectSlug := fs.String("project-slug", "", "originating project slug")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
 		return fmt.Errorf("correct: %w", parseErr)
 	}
 
-	fmt.Fprintln(os.Stderr, fmt.Sprintf(sbiaDisabledMessage, "correct"))
+	if *message == "" {
+		return nil
+	}
+
+	if *dataDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("correct: %w", err)
+		}
+
+		defaultDir := DataDirFromHome(home)
+		dataDir = &defaultDir
+	}
+
+	ctx := context.Background()
+	token := resolveToken(ctx)
+
+	policyPath := filepath.Join(*dataDir, "policy.toml")
+
+	pol, polErr := policy.LoadFromPath(policyPath)
+	if polErr != nil {
+		return fmt.Errorf("correct: %w", polErr)
+	}
+
+	caller := makeAnthropicCaller(token)
+	reader := recall.NewTranscriptReader(&osFileReader{})
+	retriever := retrieve.New()
+
+	corrector := correct.New(
+		correct.WithCaller(caller),
+		correct.WithTranscriptReader(reader.Read),
+		correct.WithMemoryRetriever(retriever.ListMemories),
+		correct.WithWriter(tomlwriter.New()),
+		correct.WithModifier(defaultModifier),
+		correct.WithPolicy(pol),
+	)
+
+	result, err := corrector.Run(
+		ctx,
+		*message, *transcriptPath, *dataDir, *projectSlug,
+	)
+	if err != nil {
+		return fmt.Errorf("correct: %w", err)
+	}
+
+	if result != "" {
+		_, _ = fmt.Fprintln(stdout, result)
+	}
 
 	return nil
 }
