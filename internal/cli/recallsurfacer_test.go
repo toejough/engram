@@ -140,6 +140,26 @@ func TestRecallSurfacer(t *testing.T) {
 	})
 }
 
+func TestRecallSurfacer_SBIAFormat(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	runner := &fakeSurfaceRunner{
+		writeOutput: "<system-reminder source=\"engram\">\n  1. test-mem\n     Situation: when testing\n</system-reminder>\n",
+	}
+
+	surfacer := cli.NewRecallSurfacer(runner, "/tmp/data")
+	result, err := surfacer.Surface("testing")
+
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(ContainSubstring("Situation:"))
+}
+
 func TestRecordSurfacing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
