@@ -221,6 +221,7 @@ One Sonnet call handles both extraction and dedup. With zero candidates, Sonnet 
    - POTENTIAL GENERALIZATION: Sonnet returns broadened situation; update existing memory's situation field in place, don't create new
    - CONTRADICTION: Write new memory. Emit warning to user with both memories for resolution at next /memory-triage
    - REFINEMENT: Write new memory. Flag both for user review at next /memory-triage
+   - IMPACT UPDATE: Update existing memory's impact field in place, don't create new
 
 ### SBIA Similarity Decision Tree
 
@@ -238,9 +239,12 @@ When a correction arrives and similar existing memories are found:
    │   │   │   ├── User changed their mind → supersede old memory
    │   │   │   ├── Tech/policy changed → supersede with updated context
    │   │   │   └── Genuine disagreement → ask user which to keep
-   │   │   └── Different impact, different action → REFINEMENT
-   │   │       (Unusual — same situation + behavior yielding different impact.
-   │   │        Flag for user review.)
+   │   │   ├── Different impact, different action → REFINEMENT
+   │   │   │   (Unusual — same situation + behavior yielding different impact.
+   │   │   │    Flag for user review.)
+   │   │   └── Different impact, same action → IMPACT UPDATE
+   │   │       (Same correction, richer/different impact description.
+   │   │        Update existing memory's impact field.)
    │   └── Different behavior
    │       └── Different lesson in same situation → STORE BOTH
    │           (Two different mistakes possible in the same context)
@@ -261,6 +265,7 @@ When a correction arrives and similar existing memories are found:
 | **DUPLICATE**           | Don't create. Log surfacing/listening failure for self-diagnosis. |
 | **CONTRADICTION**       | Surface to user for resolution. Supersede or keep both.           |
 | **REFINEMENT**          | Flag for user review (unusual case).                              |
+| **IMPACT UPDATE**       | Update existing memory's impact field in place.                   |
 | **POTENTIAL GENERALIZATION**  | Merge into broader situation description.                         |
 | **LEGITIMATE SEPARATE MEMORIES** | Store both. Situation nuance justifies different actions.         |
 | **STORE BOTH**          | Independent lessons, no meaningful overlap.                       |
