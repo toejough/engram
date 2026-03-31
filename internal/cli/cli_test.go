@@ -328,6 +328,46 @@ func TestRun_Surface_StopMode_EmptyTranscript(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
+func TestRun_Instruct_ParseError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "instruct", "--bogus-flag"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("instruct"))
+	}
+}
+
+func TestRun_Instruct_DefaultProjectDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "instruct", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("project-dir=."))
+}
+
 func TestRun_Recall_EmptyData(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

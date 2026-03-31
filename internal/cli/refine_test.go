@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -207,6 +208,124 @@ func TestRunRefine_NoMemoriesDir(t *testing.T) {
 	}
 
 	g.Expect(stdout.String()).To(ContainSubstring("no memories found"))
+}
+
+func TestRunRefine_ParseError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "refine", "--bogus-flag"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("refine"))
+	}
+}
+
+func TestRunRefine_MemoryWithEmptyAction_Skipped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	// Write policy.toml (needed by runRefine after listing memories).
+	g.Expect(os.WriteFile(
+		filepath.Join(dataDir, "policy.toml"),
+		[]byte(""),
+		0o644,
+	)).To(Succeed())
+
+	// Memory with empty action — should be skipped in the refine loop.
+	// The created_at time must match a transcript so we get past the findTranscriptForMemory check.
+	now := time.Now().UTC()
+	memTOML := fmt.Sprintf(`situation = "test"
+behavior = "test"
+impact = "test"
+action = ""
+created_at = "%s"
+updated_at = "%s"
+`, now.Format(time.RFC3339), now.Format(time.RFC3339))
+
+	g.Expect(os.WriteFile(
+		filepath.Join(memoriesDir, "empty-action.toml"),
+		[]byte(memTOML),
+		0o644,
+	)).To(Succeed())
+
+	// Create a transcript file with matching mtime (within 24h of the memory).
+	home, homeErr := os.UserHomeDir()
+	g.Expect(homeErr).NotTo(HaveOccurred())
+
+	if homeErr != nil {
+		return
+	}
+
+	projectsDir := filepath.Join(home, ".claude", "projects")
+	testProjectDir := filepath.Join(projectsDir, "refine-test-project")
+	g.Expect(os.MkdirAll(testProjectDir, 0o755)).To(Succeed())
+
+	transcriptPath := filepath.Join(testProjectDir, "refine-test-session.jsonl")
+	transcriptContent := `{"type":"assistant","message":{"content":[{"type":"text","text":"hello"}]}}` + "\n"
+	g.Expect(os.WriteFile(transcriptPath, []byte(transcriptContent), 0o644)).To(Succeed())
+
+	// Set mtime close to the memory created_at.
+	g.Expect(os.Chtimes(transcriptPath, now, now)).To(Succeed())
+
+	// Cleanup
+	t.Cleanup(func() {
+		_ = os.Remove(transcriptPath)
+		_ = os.Remove(testProjectDir)
+	})
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "refine", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Memory had empty action, should be skipped.
+	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 1 skipped"))
+}
+
+func TestRunRefine_ListError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	// Create a file where memories dir should be, causing a non-NotExist error.
+	g.Expect(os.WriteFile(
+		filepath.Join(dataDir, "memories"),
+		[]byte("not a dir"),
+		0o644,
+	)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "refine", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("listing memories"))
+	}
 }
 
 func TestRunRefine_DryRun(t *testing.T) {
