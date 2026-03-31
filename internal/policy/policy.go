@@ -33,11 +33,32 @@ type Policy struct {
 	// ExtractBM25Threshold is the minimum BM25 score for a candidate to be considered a duplicate.
 	ExtractBM25Threshold float64
 
+	// SurfaceCandidateCountMin is the minimum number of candidate memories to surface.
+	SurfaceCandidateCountMin int
+
+	// SurfaceCandidateCountMax is the maximum number of candidate memories to surface.
+	SurfaceCandidateCountMax int
+
+	// SurfaceBM25Threshold is the minimum BM25 score for a memory to pass the relevance gate.
+	SurfaceBM25Threshold float64
+
+	// SurfaceColdStartBudget is the number of memories to include when no BM25 candidates qualify.
+	SurfaceColdStartBudget int
+
+	// SurfaceIrrelevanceHalfLife is the number of sessions after which an irrelevant memory's score halves.
+	SurfaceIrrelevanceHalfLife int
+
 	// DetectHaikuPrompt is the system prompt for the Haiku detection call.
 	DetectHaikuPrompt string
 
 	// ExtractSonnetPrompt is the system prompt for the Sonnet extraction call.
 	ExtractSonnetPrompt string
+
+	// SurfaceGateHaikuPrompt is the system prompt for the Haiku gate call that filters surfaced memories.
+	SurfaceGateHaikuPrompt string
+
+	// SurfaceInjectionPreamble is the text prepended to the surfaced memories block injected into context.
+	SurfaceInjectionPreamble string
 }
 
 // ReadFileFunc reads a file by path and returns its contents.
@@ -46,15 +67,22 @@ type ReadFileFunc func(path string) ([]byte, error)
 // Defaults returns a Policy populated with all default values.
 func Defaults() Policy {
 	return Policy{
-		DetectFastPathKeywords:    []string{"remember", "always", "never", "don't", "stop"},
-		ContextByteBudget:         defaultContextByteBudget,
-		ContextToolArgsTruncate:   defaultContextToolArgsTruncate,
-		ContextToolResultTruncate: defaultContextToolResultTruncate,
-		ExtractCandidateCountMin:  defaultExtractCandidateCountMin,
-		ExtractCandidateCountMax:  defaultExtractCandidateCountMax,
-		ExtractBM25Threshold:      defaultExtractBM25Threshold,
-		DetectHaikuPrompt:         defaultDetectHaikuPrompt,
-		ExtractSonnetPrompt:       defaultExtractSonnetPrompt,
+		DetectFastPathKeywords:     []string{"remember", "always", "never", "don't", "stop"},
+		ContextByteBudget:          defaultContextByteBudget,
+		ContextToolArgsTruncate:    defaultContextToolArgsTruncate,
+		ContextToolResultTruncate:  defaultContextToolResultTruncate,
+		ExtractCandidateCountMin:   defaultExtractCandidateCountMin,
+		ExtractCandidateCountMax:   defaultExtractCandidateCountMax,
+		ExtractBM25Threshold:       defaultExtractBM25Threshold,
+		SurfaceCandidateCountMin:   defaultSurfaceCandidateCountMin,
+		SurfaceCandidateCountMax:   defaultSurfaceCandidateCountMax,
+		SurfaceBM25Threshold:       defaultSurfaceBM25Threshold,
+		SurfaceColdStartBudget:     defaultSurfaceColdStartBudget,
+		SurfaceIrrelevanceHalfLife: defaultSurfaceIrrelevanceHalfLife,
+		DetectHaikuPrompt:          defaultDetectHaikuPrompt,
+		ExtractSonnetPrompt:        defaultExtractSonnetPrompt,
+		SurfaceGateHaikuPrompt:     defaultSurfaceGateHaikuPrompt,
+		SurfaceInjectionPreamble:   defaultSurfaceInjectionPreamble,
 	}
 }
 
@@ -127,6 +155,20 @@ Also decide:
 
 Return a JSON array of memory objects. Return an empty array if nothing memorable occurred.
 Limit to between {{.MinCandidates}} and {{.MaxCandidates}} memories.`
+	defaultSurfaceBM25Threshold     = 0.3
+	defaultSurfaceCandidateCountMax = 8
+	defaultSurfaceCandidateCountMin = 3
+	defaultSurfaceColdStartBudget   = 2
+	defaultSurfaceGateHaikuPrompt   = `You are a memory relevance classifier for an AI coding assistant.
+Given the user's current context below and a list of memories (each with a slug and situation description),
+classify which memories' situations match the user's current context.
+
+Return a JSON array of slugs for matching memories. Return an empty array if none match.
+Do not explain. Return only the JSON array.`
+	defaultSurfaceInjectionPreamble = "[engram] Memories — for any relevant memory, call" +
+		" `engram show --name <name>` for full details." +
+		" After your turn, call `engram feedback --name <name> --relevant|--irrelevant --used|--notused` for each:"
+	defaultSurfaceIrrelevanceHalfLife = 5
 )
 
 // policyFile maps the on-disk TOML structure.
@@ -137,19 +179,26 @@ type policyFile struct {
 
 // policyFileParams holds the [parameters] section fields.
 type policyFileParams struct {
-	DetectFastPathKeywords    []string `toml:"detect_fast_path_keywords"`
-	ContextByteBudget         int      `toml:"context_byte_budget"`
-	ContextToolArgsTruncate   int      `toml:"context_tool_args_truncate"`
-	ContextToolResultTruncate int      `toml:"context_tool_result_truncate"`
-	ExtractCandidateCountMin  int      `toml:"extract_candidate_count_min"`
-	ExtractCandidateCountMax  int      `toml:"extract_candidate_count_max"`
-	ExtractBM25Threshold      float64  `toml:"extract_bm25_threshold"`
+	DetectFastPathKeywords     []string `toml:"detect_fast_path_keywords"`
+	ContextByteBudget          int      `toml:"context_byte_budget"`
+	ContextToolArgsTruncate    int      `toml:"context_tool_args_truncate"`
+	ContextToolResultTruncate  int      `toml:"context_tool_result_truncate"`
+	ExtractCandidateCountMin   int      `toml:"extract_candidate_count_min"`
+	ExtractCandidateCountMax   int      `toml:"extract_candidate_count_max"`
+	ExtractBM25Threshold       float64  `toml:"extract_bm25_threshold"`
+	SurfaceCandidateCountMin   int      `toml:"surface_candidate_count_min"`
+	SurfaceCandidateCountMax   int      `toml:"surface_candidate_count_max"`
+	SurfaceBM25Threshold       float64  `toml:"surface_bm25_threshold"`
+	SurfaceColdStartBudget     int      `toml:"surface_cold_start_budget"`
+	SurfaceIrrelevanceHalfLife int      `toml:"surface_irrelevance_half_life"`
 }
 
 // policyFilePrompts holds the [prompts] section fields.
 type policyFilePrompts struct {
-	DetectHaiku   string `toml:"detect_haiku"`
-	ExtractSonnet string `toml:"extract_sonnet"`
+	DetectHaiku              string `toml:"detect_haiku"`
+	ExtractSonnet            string `toml:"extract_sonnet"`
+	SurfaceGateHaiku         string `toml:"surface_gate_haiku"`
+	SurfaceInjectionPreamble string `toml:"surface_injection_preamble"`
 }
 
 // mergeParams overlays non-zero values from params onto policy.
@@ -181,6 +230,8 @@ func mergeParams(pol *Policy, params policyFileParams) {
 	if params.ExtractBM25Threshold != 0 {
 		pol.ExtractBM25Threshold = params.ExtractBM25Threshold
 	}
+
+	mergeSurfaceParams(pol, params)
 }
 
 // mergePrompts overlays non-empty values from prompts onto policy.
@@ -191,5 +242,36 @@ func mergePrompts(pol *Policy, prompts policyFilePrompts) {
 
 	if prompts.ExtractSonnet != "" {
 		pol.ExtractSonnetPrompt = prompts.ExtractSonnet
+	}
+
+	if prompts.SurfaceGateHaiku != "" {
+		pol.SurfaceGateHaikuPrompt = prompts.SurfaceGateHaiku
+	}
+
+	if prompts.SurfaceInjectionPreamble != "" {
+		pol.SurfaceInjectionPreamble = prompts.SurfaceInjectionPreamble
+	}
+}
+
+// mergeSurfaceParams overlays non-zero surface pipeline values from params onto policy.
+func mergeSurfaceParams(pol *Policy, params policyFileParams) {
+	if params.SurfaceCandidateCountMin != 0 {
+		pol.SurfaceCandidateCountMin = params.SurfaceCandidateCountMin
+	}
+
+	if params.SurfaceCandidateCountMax != 0 {
+		pol.SurfaceCandidateCountMax = params.SurfaceCandidateCountMax
+	}
+
+	if params.SurfaceBM25Threshold != 0 {
+		pol.SurfaceBM25Threshold = params.SurfaceBM25Threshold
+	}
+
+	if params.SurfaceColdStartBudget != 0 {
+		pol.SurfaceColdStartBudget = params.SurfaceColdStartBudget
+	}
+
+	if params.SurfaceIrrelevanceHalfLife != 0 {
+		pol.SurfaceIrrelevanceHalfLife = params.SurfaceIrrelevanceHalfLife
 	}
 }
