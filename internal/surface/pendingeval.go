@@ -1,6 +1,7 @@
 package surface
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -16,12 +17,15 @@ func WithPendingEvalModifier(fn ModifyFunc) SurfacerOption {
 }
 
 // WritePendingEvaluations appends a pending evaluation entry to each surfaced memory.
+// Continues on error so all memories get an evaluation record; returns combined errors.
 func WritePendingEvaluations(
 	memories []*memory.Stored,
 	modify ModifyFunc,
 	sessionID, projectSlug, userPrompt string,
 	now time.Time,
 ) error {
+	var errs []error
+
 	for _, mem := range memories {
 		writeErr := modify(mem.FilePath, func(record *memory.MemoryRecord) {
 			record.PendingEvaluations = append(record.PendingEvaluations, memory.PendingEvaluation{
@@ -32,9 +36,9 @@ func WritePendingEvaluations(
 			})
 		})
 		if writeErr != nil {
-			return fmt.Errorf("writing pending evaluation for %s: %w", mem.FilePath, writeErr)
+			errs = append(errs, fmt.Errorf("writing pending evaluation for %s: %w", mem.FilePath, writeErr))
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }

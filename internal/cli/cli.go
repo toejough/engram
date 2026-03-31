@@ -672,6 +672,9 @@ func runSurface(args []string, stdout io.Writer) error {
 		return errSurfaceMissingFlags
 	}
 
+	// Capture original user prompt before stop-mode rewriting overwrites *message.
+	userPrompt := *message
+
 	if *mode == "stop" {
 		if *transcriptPath == "" {
 			return errSurfaceStopNoTranscript
@@ -688,6 +691,7 @@ func runSurface(args []string, stdout io.Writer) error {
 
 		*mode = surface.ModePrompt
 		*message = assistantText
+		userPrompt = "" // stop mode has no original user prompt
 	}
 
 	currentProjectSlug := filepath.Base(*dataDir)
@@ -700,7 +704,7 @@ func runSurface(args []string, stdout io.Writer) error {
 		TranscriptWindow:   *transcriptWindow,
 		CurrentProjectSlug: currentProjectSlug,
 		SessionID:          *sessionID,
-		UserPrompt:         *message,
+		UserPrompt:         userPrompt,
 	}
 
 	retriever := retrieve.New()

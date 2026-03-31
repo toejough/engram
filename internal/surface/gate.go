@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"engram/internal/memory"
@@ -58,7 +57,7 @@ func buildGateUserPrompt(candidates []*memory.Stored, userMessage string) string
 	fmt.Fprintf(&buf, "User context:\n%s\n\nCandidate memories:\n", userMessage)
 
 	for _, candidate := range candidates {
-		slug := strings.TrimSuffix(filepath.Base(candidate.FilePath), ".toml")
+		slug := filenameSlug(candidate.FilePath)
 		fmt.Fprintf(&buf, "- slug: %s\n  situation: %s\n  behavior: %s\n  impact: %s\n  action: %s\n",
 			slug, candidate.Situation, candidate.Behavior, candidate.Impact, candidate.Action)
 	}
@@ -76,7 +75,7 @@ func filterBySlug(candidates []*memory.Stored, slugs []string) []*memory.Stored 
 	result := make([]*memory.Stored, 0, len(candidates))
 
 	for _, candidate := range candidates {
-		slug := strings.TrimSuffix(filepath.Base(candidate.FilePath), ".toml")
+		slug := filenameSlug(candidate.FilePath)
 		if slugSet[slug] {
 			result = append(result, candidate)
 		}

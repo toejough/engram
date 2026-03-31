@@ -258,10 +258,16 @@ func (s *Surfacer) runPrompt(
 			filenameSlug(match.mem.FilePath), match.mem.Action)
 	}
 
+	// Build final memory list from post-suppression matches (not pre-suppression promptMems).
+	finalMems := make([]*memory.Stored, 0, len(matches))
+	for _, m := range matches {
+		finalMems = append(finalMems, m.mem)
+	}
+
 	return Result{
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
 		Context: buf.String(),
-	}, promptMems, nil
+	}, finalMems, nil
 }
 
 func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error {
