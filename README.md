@@ -80,8 +80,6 @@ All data lives in `~/.claude/engram/data/`:
 |------|---------|
 | `memories/*.toml` | Structured memory files with embedded metrics |
 | `creation-log.jsonl` | Append-only log of memory creation events |
-| `surfacing-log.jsonl` | Log of which memories were surfaced and when |
-| `learn-offset.json` | Offset tracking for incremental transcript learning |
 | `policy.toml` | Adaptation config and policy directives |
 
 ## Installation

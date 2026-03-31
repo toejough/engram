@@ -55,18 +55,18 @@ Surface already works (BM25 on SBIA fields). This step makes it smarter.
 
 **Plan:** `docs/superpowers/plans/2026-03-31-sbia-step3-surface.md`
 
-### Step 4: Evaluate
+### Step 4: Evaluate ✅
 
-- [ ] Implement `engram evaluate` command
-- [ ] Read pending_evaluations from memory TOMLs for current session
-- [ ] Haiku assessment: situation relevance + action compliance
-- [ ] Increment followed_count / not_followed_count / irrelevant_count
-- [ ] Remove consumed pending_evaluation entries
-- [ ] Update `stop.sh` async hook — call `engram evaluate` (replaces no-op from Step 2)
-- [ ] Update `stop-surface.sh` / surface.go — remove "call `engram feedback`" instruction (no longer needed)
-- [ ] Remove `engram feedback` shim (replaced by automated evaluation)
-- [ ] Remove surfacing-log.jsonl, learn-offset.json if still present
-- [ ] **After:** Memories accumulate effectiveness data automatically via Haiku. No LLM self-report. All hooks updated.
+- [x] Implement `engram evaluate` command
+- [x] Read pending_evaluations from memory TOMLs for current session
+- [x] Haiku assessment: situation relevance + action compliance
+- [x] Increment followed_count / not_followed_count / irrelevant_count
+- [x] Remove consumed pending_evaluation entries
+- [x] Update `stop.sh` async hook — call `engram evaluate` (replaces no-op from Step 2)
+- [x] Update `stop-surface.sh` / surface.go — remove "call `engram feedback`" instruction (no longer needed)
+- [x] Remove `engram feedback` shim (replaced by automated evaluation)
+- [x] Remove surfacing-log.jsonl, learn-offset.json references from active docs
+- **After:** Memories accumulate effectiveness data automatically via Haiku. No LLM self-report. All hooks updated.
 
 **Plan:** `docs/superpowers/plans/2026-03-31-sbia-step4-evaluate.md`
 

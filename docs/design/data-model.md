@@ -67,14 +67,6 @@ All stored in `~/.claude/engram/data/`.
 
 Append-only log of memory creation events. Each line is a JSON object recording what was created, when, and from what source.
 
-### `surfacing-log.jsonl`
-
-Append-only log of surfacing events. Records which memories were surfaced, for what query, and the session context. Used for outcome tracking.
-
-### `learn-offset.json`
-
-Tracks the last-processed position in each session transcript. Enables incremental learning -- only new transcript content is processed on subsequent runs. Keyed by session ID.
-
 ### `policy.toml`
 
 Adaptive policy directives. Contains:

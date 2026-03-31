@@ -40,8 +40,6 @@ All runtime data is stored in:
 Contents:
 - `memories/` -- individual TOML memory files
 - `creation-log.jsonl` -- memory creation audit log
-- `surfacing-log.jsonl` -- surfacing event log
-- `learn-offset.json` -- incremental learning position tracker
 - `policy.toml` -- adaptive policy configuration and directives
 
 ## Configuration
