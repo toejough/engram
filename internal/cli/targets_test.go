@@ -11,39 +11,6 @@ import (
 	"engram/internal/cli"
 )
 
-func TestAdaptFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("all fields set", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.AdaptFlags(cli.AdaptArgs{
-			DataDir: "/data",
-			Approve: "pol-001",
-			Reject:  "pol-002",
-			Retire:  "pol-003",
-			Status:  true,
-		})
-		g.Expect(result).To(gomega.ContainElements(
-			"--data-dir", "/data",
-			"--approve", "pol-001",
-			"--reject", "pol-002",
-			"--retire", "pol-003",
-			"--status",
-		))
-	})
-
-	t.Run("empty fields omits optional flags", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.AdaptFlags(cli.AdaptArgs{})
-		g.Expect(result).NotTo(gomega.ContainElement("--status"))
-		g.Expect(result).NotTo(gomega.ContainElement("--approve"))
-	})
-}
-
 func TestAddBoolFlag(t *testing.T) {
 	t.Parallel()
 
@@ -170,7 +137,7 @@ func TestBuildTargets(t *testing.T) {
 			"evaluate", "refine", "show",
 			"apply-proposal", "reject-proposal", "recall",
 			"migrate-scores", "migrate-slugs",
-			"adapt", "migrate-sbia",
+			"migrate-sbia",
 		}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)

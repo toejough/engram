@@ -9,16 +9,6 @@ import (
 	"github.com/toejough/targ"
 )
 
-// AdaptArgs holds parsed flags for the adapt subcommand.
-type AdaptArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Status  bool   `targ:"flag,name=status,desc=show all policies"`
-	Approve string `targ:"flag,name=approve,desc=approve a policy by ID"`
-	Reject  string `targ:"flag,name=reject,desc=reject a policy by ID"`
-	Retire  string `targ:"flag,name=retire,desc=retire a policy by ID"`
-	Dedup   bool   `targ:"flag,name=dedup,desc=remove duplicate proposed policies"`
-}
-
 // ApplyProposalArgs holds parsed flags for the apply-proposal subcommand.
 type ApplyProposalArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -116,15 +106,6 @@ type SurfaceArgs struct {
 	SessionID      string `targ:"flag,name=session-id,desc=session ID (stop mode)"`
 }
 
-// AdaptFlags returns the CLI flag args for the adapt subcommand.
-func AdaptFlags(a AdaptArgs) []string {
-	flags := BuildFlags("--data-dir", a.DataDir, "--approve", a.Approve, "--reject", a.Reject, "--retire", a.Retire)
-	flags = AddBoolFlag(flags, "--status", a.Status)
-	flags = AddBoolFlag(flags, "--dedup", a.Dedup)
-
-	return flags
-}
-
 // AddBoolFlag appends a flag if the bool is true.
 func AddBoolFlag(flags []string, name string, value bool) []string {
 	if value {
@@ -183,8 +164,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("migrate-scores").Description("Score and consolidate existing memories"),
 		targ.Targ(func(a MigrateSlugsArgs) { run("migrate-slugs", MigrateSlugsFlags(a)) }).
 			Name("migrate-slugs").Description("Backfill project_slug on existing memories"),
-		targ.Targ(func(a AdaptArgs) { run("adapt", AdaptFlags(a)) }).
-			Name("adapt").Description("Manage adaptive policies"),
 		targ.Targ(func(a MigrateSBIAArgs) { run("migrate-sbia", MigrateSBIAFlags(a)) }).
 			Name("migrate-sbia").Description("One-time migration to SBIA memory format"),
 	}

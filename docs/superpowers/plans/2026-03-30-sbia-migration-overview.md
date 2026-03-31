@@ -72,13 +72,13 @@ Surface already works (BM25 on SBIA fields). This step makes it smarter.
 
 ### Step 5: Maintain + Adapt + Triage
 
-- [ ] Rewrite `engram maintain` to: effectiveness decision tree + consolidation analysis + Sonnet adapt analysis → unified proposals
-- [ ] Implement `engram apply-proposal <id>` and `engram reject-proposal <id>`
-- [ ] Add change_history to policy.toml
-- [ ] Update /memory-triage skill for new proposal flow
-- [ ] Update session-start.sh background maintain to use new proposal format
-- [ ] Remove old quadrant analysis, signal packages, policy lifecycle, approval streaks
-- [ ] **After:** Complete SBIA pipeline operational. All old code removed. All hooks updated.
+- [x] Rewrite `engram maintain` to: effectiveness decision tree + consolidation analysis + Sonnet adapt analysis → unified proposals
+- [x] Implement `engram apply-proposal <id>` and `engram reject-proposal <id>`
+- [x] Add change_history to policy.toml
+- [x] Update /memory-triage skill for new proposal flow
+- [x] Update session-start.sh background maintain to use new proposal format
+- [x] Remove old quadrant analysis, signal packages, policy lifecycle, approval streaks
+- [x] **After:** Complete SBIA pipeline operational. All old code removed. All hooks updated.
 
 **Plan:** `docs/superpowers/plans/2026-03-31-sbia-step5-maintain-adapt.md`
 
