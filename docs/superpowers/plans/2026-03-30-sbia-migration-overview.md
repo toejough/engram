@@ -4,76 +4,105 @@
 
 **Goal:** Incrementally migrate engram from the current keyword/principle memory model to the SBIA (Situation, Behavior, Impact, Action) feedback model, keeping engram functional end-to-end at every step.
 
-**Constraint:** Each step cuts over one pipeline stage completely, removing the old code path. No dual paths, no fallbacks, no deferred cleanup. Breakage between steps is visible and intentional, not silently masked.
+**Constraint:** Every step delivers a working system. Hooks are updated alongside the code they call — no step removes a command without updating the hooks that invoke it. "Temporarily broken" is not acceptable.
 
 ---
 
 ## Migration Steps
 
-### Step 1: Schema + Migration
-- [ ] Convert MemoryRecord to SBIA fields (situation, behavior, impact, action, project_scoped, project_slug)
-- [ ] Replace old tracking counters with SBIA counters (surfaced_count, followed_count, not_followed_count, irrelevant_count)
-- [ ] Add pending_evaluations support to TOML reader/writer
-- [ ] Run Sonnet migration: convert tier A memories to SBIA, archive tiers B and C
-- [ ] Remove old fields from struct and TOML writer
-- [ ] Update `engram show` to display SBIA fields
-- [ ] **After:** Memory files are SBIA-only. `engram show` works. Extraction/surfacing/maintain are temporarily broken (they still reference old fields).
+### Step 1: Schema + Migration ✅
+
+- [x] Convert MemoryRecord to SBIA fields (situation, behavior, impact, action, project_scoped, project_slug)
+- [x] Replace old tracking counters with SBIA counters (surfaced_count, followed_count, not_followed_count, irrelevant_count)
+- [x] Add pending_evaluations support to TOML reader/writer
+- [x] Run Sonnet migration: convert tier A memories to SBIA, archive tiers B and C
+- [x] Remove old fields from struct and TOML writer
+- [x] Update `engram show` to display SBIA fields
+- [x] SearchText updated to concatenate SBIA fields
+- **After:** Memory files are SBIA-only. `engram show` works. Surface BM25 works on SBIA fields.
+- **Known breakage (to be fixed in Step 2):** `correct` stubbed (no new memories), `feedback` command removed (stop hook injects stale instructions), `flush` command removed (`stop.sh` async hook silently fails).
 
 **Plan:** `docs/superpowers/plans/2026-03-30-sbia-step1-schema-migration.md`
 
-### Step 2: Extract Pipeline
+### Step 2: Extract Pipeline + System Restoration
+
+**Core — build the SBIA extract pipeline:**
 - [ ] Add SBIA strip mode to context.Strip (StripConfig parameter)
 - [ ] Add policy.toml schema ([parameters] + [prompts] sections)
 - [ ] Rewrite `engram correct` to: detect (fast-path + Haiku) → context (SBIA strip) → BM25 candidates → Sonnet extraction + dedup decision tree → write
 - [ ] Add disposition handling (STORE, DUPLICATE, CONTRADICTION, etc.)
-- [ ] Remove old extract, learn, flush, classify packages
-- [ ] **After:** New memories are created via Sonnet with full SBIA fields. Old batch extraction gone.
+- [ ] Add `engram refine` command — run extraction pipeline retroactively on existing memories using original session transcripts
 
-**Plan:** `docs/superpowers/plans/2026-03-30-sbia-step2-extract.md`
+**System restoration — fix hooks broken by Step 1:**
+- [ ] Update surface.go feedback injection — remove "call `engram feedback`" text, replace with SBIA display format (show all 4 fields per memory, no self-report instruction)
+- [ ] Restore `engram feedback` as thin shim — accepts same flags, increments SBIA counters directly (followed/not_followed/irrelevant). ~30 lines. Placeholder until Step 4 replaces with automated Haiku evaluation.
+- [ ] Update `stop.sh` — replace `engram flush` call with no-op or remove. Async stop slot reserved for `engram evaluate` in Step 4.
+- [ ] **After:** Correct creates new SBIA memories via Sonnet. Surface finds and displays them with full SBIA fields. Feedback shim records basic counters. Flush cleanly removed. Refine upgrades passthrough-migrated memories. **System works end-to-end.**
 
-### Step 3: Surface Pipeline
-- [ ] Rewrite `engram surface` BM25 to use SBIA text (situation+behavior+impact+action)
-- [ ] Add irrelevance penalty to BM25 scoring
-- [ ] Add Haiku semantic gate (surface_gate_haiku prompt)
-- [ ] Add cold-start budget for unproven memories
-- [ ] Update display format to show all 4 SBIA fields via surface_injection_preamble
-- [ ] Write pending_evaluations at surface time (tracking step)
-- [ ] Remove old SearchText, token budget, principle-only display
-- [ ] Update /recall SearchText for SBIA fields
-- [ ] **After:** Surfacing uses situation matching + Haiku gate. Full SBIA display.
+**Plan:** `docs/superpowers/plans/2026-03-31-sbia-step2-extract.md`
 
-**Plan:** `docs/superpowers/plans/2026-03-30-sbia-step3-surface.md`
+### Step 3: Surface Upgrades
+
+Surface already works (BM25 on SBIA fields). This step makes it smarter.
+
+- [ ] Add Haiku semantic gate (surface_gate_haiku prompt) — filters BM25 candidates by situation relevance
+- [ ] Add cold-start budget for unproven memories (max `surface_cold_start_budget` per invocation)
+- [ ] Add irrelevance penalty half-life to BM25 scoring (configurable via policy.toml)
+- [ ] Write pending_evaluations at surface time (tracking for Step 4)
+- [ ] Update display format via configurable surface_injection_preamble prompt
+- [ ] Update /recall to use SBIA display format
+- [ ] **After:** Surfacing uses situation matching + Haiku gate. Pending evaluations tracked. Feedback shim still works for counter recording.
+
+**Plan:** `docs/superpowers/plans/2026-03-31-sbia-step3-surface.md`
 
 ### Step 4: Evaluate
+
 - [ ] Implement `engram evaluate` command
 - [ ] Read pending_evaluations from memory TOMLs for current session
 - [ ] Haiku assessment: situation relevance + action compliance
 - [ ] Increment followed_count / not_followed_count / irrelevant_count
 - [ ] Remove consumed pending_evaluation entries
-- [ ] Wire into stop.sh async hook (replacing old flush/learn)
-- [ ] Remove surfacing-log.jsonl, learn-offset.json
-- [ ] **After:** Memories accumulate effectiveness data automatically. No LLM self-report needed.
+- [ ] Update `stop.sh` async hook — call `engram evaluate` (replaces no-op from Step 2)
+- [ ] Update `stop-surface.sh` / surface.go — remove "call `engram feedback`" instruction (no longer needed)
+- [ ] Remove `engram feedback` shim (replaced by automated evaluation)
+- [ ] Remove surfacing-log.jsonl, learn-offset.json if still present
+- [ ] **After:** Memories accumulate effectiveness data automatically via Haiku. No LLM self-report. All hooks updated.
 
-**Plan:** `docs/superpowers/plans/2026-03-30-sbia-step4-evaluate.md`
+**Plan:** `docs/superpowers/plans/2026-03-31-sbia-step4-evaluate.md`
 
 ### Step 5: Maintain + Adapt + Triage
+
 - [ ] Rewrite `engram maintain` to: effectiveness decision tree + consolidation analysis + Sonnet adapt analysis → unified proposals
 - [ ] Implement `engram apply-proposal <id>` and `engram reject-proposal <id>`
 - [ ] Add change_history to policy.toml
 - [ ] Update /memory-triage skill for new proposal flow
+- [ ] Update session-start.sh background maintain to use new proposal format
 - [ ] Remove old quadrant analysis, signal packages, policy lifecycle, approval streaks
-- [ ] **After:** Complete SBIA pipeline operational. All old code removed.
+- [ ] **After:** Complete SBIA pipeline operational. All old code removed. All hooks updated.
 
-**Plan:** `docs/superpowers/plans/2026-03-30-sbia-step5-maintain-adapt.md`
+**Plan:** `docs/superpowers/plans/2026-03-31-sbia-step5-maintain-adapt.md`
 
 ---
 
 ## Dependencies
 
 ```
-Step 1 (Schema) ─→ Step 2 (Extract) ─→ Step 4 (Evaluate)
-                ─→ Step 3 (Surface) ─→ Step 4 (Evaluate)
-                                       Step 4 ─→ Step 5 (Maintain)
+Step 1 (Schema) ─→ Step 2 (Extract + Restore) ─→ Step 4 (Evaluate)
+                ─→ Step 3 (Surface Upgrades)   ─→ Step 4 (Evaluate)
+                                                  Step 4 ─→ Step 5 (Maintain)
 ```
 
 Steps 2 and 3 can be developed in parallel after Step 1. Step 4 requires both 2 and 3. Step 5 requires Step 4.
+
+---
+
+## Invariant: Hooks Match Code
+
+Every step that changes a command also updates every hook that calls it. Checklist for each step:
+
+| Hook | Script | What it calls | Verify after each step |
+|------|--------|---------------|----------------------|
+| SessionStart | `session-start.sh` | `engram maintain` (async bg) | maintain works or is no-op |
+| UserPromptSubmit | `user-prompt-submit.sh` | `engram correct`, `engram surface` | both commands functional |
+| Stop (sync) | `stop-surface.sh` | `engram surface --mode stop` | surface works, injected text matches available commands |
+| Stop (async) | `stop.sh` | Step 1: `flush` → Step 2: no-op → Step 4: `evaluate` | called command exists |
