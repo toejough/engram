@@ -24,34 +24,34 @@
 
 **Plan:** `docs/superpowers/plans/2026-03-30-sbia-step1-schema-migration.md`
 
-### Step 2: Extract Pipeline + System Restoration
+### Step 2: Extract Pipeline + System Restoration ✅
 
 **Core — build the SBIA extract pipeline:**
-- [ ] Add SBIA strip mode to context.Strip (StripConfig parameter)
-- [ ] Add policy.toml schema ([parameters] + [prompts] sections)
-- [ ] Rewrite `engram correct` to: detect (fast-path + Haiku) → context (SBIA strip) → BM25 candidates → Sonnet extraction + dedup decision tree → write
-- [ ] Add disposition handling (STORE, DUPLICATE, CONTRADICTION, etc.)
-- [ ] Add `engram refine` command — run extraction pipeline retroactively on existing memories using original session transcripts
+- [x] Add SBIA strip mode to context.Strip (StripConfig parameter)
+- [x] Add policy.toml schema ([parameters] + [prompts] sections)
+- [x] Rewrite `engram correct` to: detect (fast-path + Haiku) → context (SBIA strip) → BM25 candidates → Sonnet extraction + dedup decision tree → write
+- [x] Add disposition handling (STORE, DUPLICATE, CONTRADICTION, etc.)
+- [x] Add `engram refine` command — run extraction pipeline retroactively on existing memories using original session transcripts
 
 **System restoration — fix hooks broken by Step 1:**
-- [ ] Update surface.go feedback injection — remove "call `engram feedback`" text, replace with SBIA display format (show all 4 fields per memory, no self-report instruction)
-- [ ] Restore `engram feedback` as thin shim — accepts same flags, increments SBIA counters directly (followed/not_followed/irrelevant). ~30 lines. Placeholder until Step 4 replaces with automated Haiku evaluation.
-- [ ] Update `stop.sh` — replace `engram flush` call with no-op or remove. Async stop slot reserved for `engram evaluate` in Step 4.
-- [ ] **After:** Correct creates new SBIA memories via Sonnet. Surface finds and displays them with full SBIA fields. Feedback shim records basic counters. Flush cleanly removed. Refine upgrades passthrough-migrated memories. **System works end-to-end.**
+- [x] Update surface.go feedback injection — remove "call `engram feedback`" text, replace with SBIA display format (show all 4 fields per memory, no self-report instruction)
+- [x] Restore `engram feedback` as thin shim — accepts same flags, increments SBIA counters directly (followed/not_followed/irrelevant). ~30 lines. Placeholder until Step 4 replaces with automated Haiku evaluation.
+- [x] Update `stop.sh` — replace `engram flush` call with no-op or remove. Async stop slot reserved for `engram evaluate` in Step 4.
+- **After:** Correct creates new SBIA memories via Sonnet. Surface finds and displays them with full SBIA fields. Feedback shim records basic counters. Flush cleanly removed. Refine upgrades passthrough-migrated memories. **System works end-to-end.**
 
 **Plan:** `docs/superpowers/plans/2026-03-31-sbia-step2-extract.md`
 
-### Step 3: Surface Upgrades
+### Step 3: Surface Upgrades ✅
 
 Surface already works (BM25 on SBIA fields). This step makes it smarter.
 
-- [ ] Add Haiku semantic gate (surface_gate_haiku prompt) — filters BM25 candidates by situation relevance
-- [ ] Add cold-start budget for unproven memories (max `surface_cold_start_budget` per invocation)
-- [ ] Add irrelevance penalty half-life to BM25 scoring (configurable via policy.toml)
-- [ ] Write pending_evaluations at surface time (tracking for Step 4)
-- [ ] Update display format via configurable surface_injection_preamble prompt
-- [ ] Update /recall to use SBIA display format
-- [ ] **After:** Surfacing uses situation matching + Haiku gate. Pending evaluations tracked. Feedback shim still works for counter recording.
+- [x] Add Haiku semantic gate (surface_gate_haiku prompt) — filters BM25 candidates by situation relevance
+- [x] Add cold-start budget for unproven memories (max `surface_cold_start_budget` per invocation)
+- [x] Add irrelevance penalty half-life to BM25 scoring (configurable via policy.toml)
+- [x] Write pending_evaluations at surface time (tracking for Step 4)
+- [x] Update display format via configurable surface_injection_preamble prompt
+- [x] Update /recall to use SBIA display format
+- **After:** Surfacing uses situation matching + Haiku gate. Pending evaluations tracked. Feedback shim still works for counter recording.
 
 **Plan:** `docs/superpowers/plans/2026-03-31-sbia-step3-surface.md`
 

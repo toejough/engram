@@ -10,6 +10,16 @@ import (
 	"engram/internal/policy"
 )
 
+func TestDefaults_EvaluateHaikuPrompt(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	pol := policy.Defaults()
+
+	g.Expect(pol.EvaluateHaikuPrompt).NotTo(BeEmpty())
+}
+
 func TestDefaults_ReturnsAllFields(t *testing.T) {
 	t.Parallel()
 
@@ -101,6 +111,28 @@ func TestLoad_ErrorOnInvalidTOML(t *testing.T) {
 	})
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("parsing policy"))
+}
+
+func TestLoad_OverridesEvaluateHaikuPrompt(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	tomlContent := `
+[prompts]
+evaluate_haiku = "custom evaluate prompt"
+`
+
+	pol, err := policy.Load(func(string) ([]byte, error) {
+		return []byte(tomlContent), nil
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(pol.EvaluateHaikuPrompt).To(Equal("custom evaluate prompt"))
 }
 
 func TestLoad_OverridesSurfaceFields(t *testing.T) {

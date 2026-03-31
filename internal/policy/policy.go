@@ -59,6 +59,9 @@ type Policy struct {
 
 	// SurfaceInjectionPreamble is the text prepended to the surfaced memories block injected into context.
 	SurfaceInjectionPreamble string
+
+	// EvaluateHaikuPrompt is the system prompt for the Haiku evaluation call that scores memory adherence.
+	EvaluateHaikuPrompt string
 }
 
 // ReadFileFunc reads a file by path and returns its contents.
@@ -83,6 +86,7 @@ func Defaults() Policy {
 		ExtractSonnetPrompt:        defaultExtractSonnetPrompt,
 		SurfaceGateHaikuPrompt:     defaultSurfaceGateHaikuPrompt,
 		SurfaceInjectionPreamble:   defaultSurfaceInjectionPreamble,
+		EvaluateHaikuPrompt:        defaultEvaluateHaikuPrompt,
 	}
 }
 
@@ -136,6 +140,19 @@ Respond with exactly one word:
 - NOT_CORRECTION otherwise
 
 Do not explain. Do not add punctuation. Just the single word.`
+	defaultEvaluateHaikuPrompt = "You are evaluating whether a memory was relevant and followed" +
+		" during a conversation.\n\n" +
+		"Memory:\n" +
+		"- Situation: {situation}\n" +
+		"- Behavior to avoid: {behavior}\n" +
+		"- Action: {action}\n\n" +
+		"Transcript (agent's response after memory was surfaced):\n" +
+		"{transcript}\n\n" +
+		"Assess:\n" +
+		"1. Was the situation relevant to what was happening? (yes/no)\n" +
+		"2. If relevant, was the action taken by the agent? (yes/no)\n\n" +
+		"Return exactly one of: FOLLOWED, NOT_FOLLOWED, IRRELEVANT\n" +
+		"Do not explain. Return only the verdict."
 	defaultExtractBM25Threshold     = 0.3
 	defaultExtractCandidateCountMax = 8
 	defaultExtractCandidateCountMin = 3
@@ -199,6 +216,7 @@ type policyFilePrompts struct {
 	ExtractSonnet            string `toml:"extract_sonnet"`
 	SurfaceGateHaiku         string `toml:"surface_gate_haiku"`
 	SurfaceInjectionPreamble string `toml:"surface_injection_preamble"`
+	EvaluateHaiku            string `toml:"evaluate_haiku"`
 }
 
 // mergeParams overlays non-zero values from params onto policy.
@@ -250,6 +268,10 @@ func mergePrompts(pol *Policy, prompts policyFilePrompts) {
 
 	if prompts.SurfaceInjectionPreamble != "" {
 		pol.SurfaceInjectionPreamble = prompts.SurfaceInjectionPreamble
+	}
+
+	if prompts.EvaluateHaiku != "" {
+		pol.EvaluateHaikuPrompt = prompts.EvaluateHaiku
 	}
 }
 
