@@ -331,6 +331,26 @@ func TestRun_Surface_MissingMode(t *testing.T) {
 	}
 }
 
+func TestRun_Surface_ParseFlagError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "surface", "--unknown-flag"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("surface"))
+	}
+}
+
 func TestRun_Surface_PromptMode_EmptyData(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -397,6 +417,36 @@ func TestRun_Surface_StopMode_NoTranscript(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("--transcript-path required"))
 	}
+}
+
+func TestRun_Surface_StopMode_WithContent_RunsPromptMode(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	transcriptPath := filepath.Join(t.TempDir(), "transcript.jsonl")
+	line := `{"type":"assistant","message":{"content":[{"type":"text","text":"hello world test"}]}}` + "\n"
+	g.Expect(os.WriteFile(transcriptPath, []byte(line), 0o644)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "surface",
+			"--mode", "stop",
+			"--data-dir", dataDir,
+			"--transcript-path", transcriptPath,
+			"--session-id", "session-stop-test",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestRun_Surface_WithAPIKey_HaikuGateWired(t *testing.T) {
@@ -478,4 +528,36 @@ func TestRun_UnknownCommand_ReturnsError(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("unknown command"))
 	}
+}
+
+func TestTruncateTitle_ExactLength_ReturnsUnchanged(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// maxTitleLength is 38.
+	exact := strings.Repeat("a", 38)
+	g.Expect(cli.ExportTruncateTitle(exact)).To(Equal(exact))
+}
+
+func TestTruncateTitle_LongTitle_TruncatesWithEllipsis(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	long := strings.Repeat("a", 60)
+	result := cli.ExportTruncateTitle(long)
+
+	// Result should end with the ellipsis rune and be shorter than input.
+	g.Expect(result).To(HaveSuffix("…"))
+	g.Expect(len([]rune(result))).To(BeNumerically("<", len([]rune(long))))
+}
+
+func TestTruncateTitle_ShortTitle_ReturnsUnchanged(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	short := "short"
+	g.Expect(cli.ExportTruncateTitle(short)).To(Equal(short))
 }

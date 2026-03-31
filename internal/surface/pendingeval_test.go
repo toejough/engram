@@ -3,6 +3,7 @@ package surface_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -62,6 +63,53 @@ func TestWithPendingEvalModifier_WiresModifierOnSurfacer(t *testing.T) {
 	}
 
 	g.Expect(modifiedPaths).NotTo(BeEmpty())
+}
+
+func TestWritePendingEvaluations_ErrorContinues_ReturnsJoinedErrors(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	writeErr := errors.New("disk full")
+
+	var successPaths []string
+
+	modifier := func(path string, mutate func(*memory.MemoryRecord)) error {
+		if path == "mem/bad.toml" {
+			return writeErr
+		}
+
+		record := memory.MemoryRecord{}
+		mutate(&record)
+
+		successPaths = append(successPaths, path)
+
+		return nil
+	}
+
+	memories := []*memory.Stored{
+		{FilePath: "mem/good.toml"},
+		{FilePath: "mem/bad.toml"},
+		{FilePath: "mem/also-good.toml"},
+	}
+
+	now := time.Date(2026, 3, 31, 12, 0, 0, 0, time.UTC)
+
+	err := surface.WritePendingEvaluations(
+		memories, modifier,
+		"session-xyz", "my-project", "test query",
+		now,
+	)
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("disk full"))
+		g.Expect(err.Error()).To(ContainSubstring("mem/bad.toml"))
+	}
+
+	// Continues after the error — both good paths are still written.
+	g.Expect(successPaths).To(ConsistOf("mem/good.toml", "mem/also-good.toml"))
 }
 
 func TestWritePendingEvaluations_WritesMutationsForEachMemory(t *testing.T) {

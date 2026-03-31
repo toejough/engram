@@ -13,6 +13,52 @@ import (
 	"engram/internal/surface"
 )
 
+func TestFilenameSlug_NoExtension_ReturnsBasename(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	g.Expect(surface.ExportFilenameSlug("mem/no-extension")).To(Equal("no-extension"))
+}
+
+func TestFilenameSlug_StripsDirectoryAndExtension(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	g.Expect(surface.ExportFilenameSlug("mem/commit-safety.toml")).To(Equal("commit-safety"))
+	g.Expect(surface.ExportFilenameSlug("/abs/path/build-tools.toml")).To(Equal("build-tools"))
+	g.Expect(surface.ExportFilenameSlug("bare-name.toml")).To(Equal("bare-name"))
+}
+
+func TestMatchPromptMemories_EmptyMemories_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	matches := surface.ExportMatchPromptMemories("some query", []*memory.Stored{}, 5)
+
+	g.Expect(matches).To(BeEmpty())
+}
+
+func TestMatchPromptMemories_ReturnsRankedMatches(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	mems := []*memory.Stored{
+		{FilePath: "mem/commit.toml", Situation: "when committing code", Action: "use /commit skill"},
+		{FilePath: "mem/build.toml", Situation: "when building software", Action: "use targ build"},
+		{FilePath: "mem/deploy.toml", Situation: "when deploying application", Action: "review first"},
+	}
+
+	matches := surface.ExportMatchPromptMemories("I want to commit some code", mems, 5)
+
+	g.Expect(matches).NotTo(BeEmpty())
+	// The commit memory should score highest for a "commit" query.
+	g.Expect(matches[0].Mem.FilePath).To(Equal("mem/commit.toml"))
+}
+
 // TestPromptMode_BM25Threshold_FiltersLowScores verifies that memories with scores below the
 // threshold are filtered out.
 func TestPromptMode_BM25Threshold_FiltersLowScores(t *testing.T) {
@@ -351,6 +397,49 @@ func TestRun_WithRecordSurfacing(t *testing.T) {
 	g.Expect(recorded).To(HaveLen(2))
 }
 
+func TestSortPromptMatchesByScore_ProjectScopedPenalty(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// A project-scoped memory in a different project gets a penalty (GenFactor < 1).
+	// A global memory with lower raw score may outrank it after penalty.
+	global := &memory.Stored{FilePath: "mem/global.toml", ProjectScoped: false}
+	scoped := &memory.Stored{FilePath: "mem/scoped.toml", ProjectScoped: true, ProjectSlug: "other-project"}
+
+	matches := []surface.PromptMatch{
+		{Mem: scoped, BM25Score: 5.0},
+		{Mem: global, BM25Score: 3.0},
+	}
+
+	surface.ExportSortPromptMatchesByScore(matches, "current-project")
+
+	// global should outrank scoped due to cross-project penalty.
+	g.Expect(matches[0].Mem.FilePath).To(Equal("mem/global.toml"))
+}
+
+func TestSortPromptMatchesByScore_SortsByScoreDescending(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	alpha := &memory.Stored{FilePath: "mem/alpha.toml"}
+	beta := &memory.Stored{FilePath: "mem/beta.toml"}
+	gamma := &memory.Stored{FilePath: "mem/gamma.toml"}
+
+	matches := []surface.PromptMatch{
+		{Mem: alpha, BM25Score: 1.5},
+		{Mem: gamma, BM25Score: 3.2},
+		{Mem: beta, BM25Score: 2.1},
+	}
+
+	surface.ExportSortPromptMatchesByScore(matches, "")
+
+	g.Expect(matches[0].Mem.FilePath).To(Equal("mem/gamma.toml"))
+	g.Expect(matches[1].Mem.FilePath).To(Equal("mem/beta.toml"))
+	g.Expect(matches[2].Mem.FilePath).To(Equal("mem/alpha.toml"))
+}
+
 func TestSuppressByTranscript_EmptyAction(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -512,6 +601,76 @@ func TestWithInvocationTokenLogger_LogsTokens(t *testing.T) {
 	g.Expect(logger.tokenCount).To(BeNumerically(">", 0))
 }
 
+func TestWithInvocationTokenLogger_SetterCoversOption(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	logger := &fakeTokenLogger{}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	surfacer := surface.New(retriever, surface.WithInvocationTokenLogger(logger))
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/data",
+		Message: "no match query zzzqqq",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestWithSurfacingLogger_SetterCoversOption(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	logger := &fakeSurfacingLogger{}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	surfacer := surface.New(retriever, surface.WithSurfacingLogger(logger))
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/data",
+		Message: "no match query zzzqqq",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestWithSurfacingRecorder_SetterCoversOption(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var recorded []string
+
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	surfacer := surface.New(retriever, surface.WithSurfacingRecorder(func(path string) error {
+		recorded = append(recorded, path)
+		return nil
+	}))
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/data",
+		Message: "no match query zzzqqq",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(recorded).To(BeEmpty())
+}
+
 func TestWithTracker_RecordsSurfacing(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -546,6 +705,81 @@ func TestWithTracker_RecordsSurfacing(t *testing.T) {
 
 	g.Expect(tracker.called).To(BeTrue())
 	g.Expect(tracker.mode).To(Equal(surface.ModePrompt))
+}
+
+func TestWriteResult_EmptyContext_WritesNothing(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	retriever := &fakeRetriever{}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surface.ExportWriteResult(surfacer, &buf, surface.Result{Summary: "s", Context: ""}, "")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(buf.String()).To(BeEmpty())
+}
+
+func TestWriteResult_JSONFormat_WritesJSON(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	retriever := &fakeRetriever{}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surface.ExportWriteResult(surfacer, &buf,
+		surface.Result{Summary: "the summary", Context: "the context"}, surface.FormatJSON)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).To(Equal("the summary"))
+	g.Expect(result.Context).To(Equal("the context"))
+}
+
+func TestWriteResult_PlainFormat_WritesContext(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	retriever := &fakeRetriever{}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surface.ExportWriteResult(surfacer, &buf,
+		surface.Result{Summary: "summary", Context: "some context text"}, "")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(buf.String()).To(Equal("some context text"))
 }
 
 // fakeRetriever is a test double for surface.MemoryRetriever.
