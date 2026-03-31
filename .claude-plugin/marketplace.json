@@ -1,0 +1,19 @@
+{
+  "name": "engram",
+  "owner": {
+    "name": "toejough"
+  },
+  "metadata": {
+    "description": "Self-correcting memory for LLM agents — detects corrections and remembers them as structured TOML files.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "engram",
+      "source": "./",
+      "description": "Self-correcting memory for LLM agents. Detects corrections, extracts SBIA-structured memories, surfaces them at relevant moments, and evaluates their effectiveness.",
+      "category": "memory",
+      "tags": ["memory", "learning", "corrections", "sbia", "feedback"]
+    }
+  ]
+}
