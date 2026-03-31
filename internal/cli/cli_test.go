@@ -3,6 +3,8 @@ package cli_test
 import (
 	"bytes"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -114,6 +116,93 @@ func TestApplyProjectSlugDefault_NonEmpty_Noop(t *testing.T) {
 	}
 
 	g.Expect(slug).To(Equal("already-set"))
+}
+
+func TestExtractAssistantDelta_NewSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	transcriptPath := filepath.Join(t.TempDir(), "transcript.jsonl")
+
+	// Write a transcript with assistant content.
+	lines := `{"type":"assistant","message":{"content":[{"type":"text","text":"hello world"}]}}
+{"type":"human","message":{"content":[{"type":"text","text":"user msg"}]}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"goodbye"}]}}
+`
+	g.Expect(os.WriteFile(transcriptPath, []byte(lines), 0o644)).To(Succeed())
+
+	result, err := cli.ExportExtractAssistantDelta(dataDir, transcriptPath, "session-1")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(ContainSubstring("hello world"))
+	g.Expect(result).To(ContainSubstring("goodbye"))
+	g.Expect(result).NotTo(ContainSubstring("user msg"))
+}
+
+func TestExtractAssistantDelta_EmptyTranscript(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	transcriptPath := filepath.Join(t.TempDir(), "empty.jsonl")
+	g.Expect(os.WriteFile(transcriptPath, []byte(""), 0o644)).To(Succeed())
+
+	result, err := cli.ExportExtractAssistantDelta(dataDir, transcriptPath, "session-1")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(BeEmpty())
+}
+
+func TestExtractAssistantDelta_ResumeFromOffset(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	transcriptPath := filepath.Join(t.TempDir(), "transcript.jsonl")
+
+	line1 := `{"type":"assistant","message":{"content":[{"type":"text","text":"first"}]}}` + "\n"
+	line2 := `{"type":"assistant","message":{"content":[{"type":"text","text":"second"}]}}` + "\n"
+	g.Expect(os.WriteFile(transcriptPath, []byte(line1+line2), 0o644)).To(Succeed())
+
+	// First call reads everything.
+	_, err := cli.ExportExtractAssistantDelta(dataDir, transcriptPath, "s1")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Append more content.
+	line3 := `{"type":"assistant","message":{"content":[{"type":"text","text":"third"}]}}` + "\n"
+	f, openErr := os.OpenFile(transcriptPath, os.O_APPEND|os.O_WRONLY, 0o644)
+	g.Expect(openErr).NotTo(HaveOccurred())
+
+	if openErr != nil {
+		return
+	}
+
+	_, _ = f.WriteString(line3)
+	_ = f.Close()
+
+	// Second call should only get "third".
+	result, err := cli.ExportExtractAssistantDelta(dataDir, transcriptPath, "s1")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(ContainSubstring("third"))
+	g.Expect(result).NotTo(ContainSubstring("first"))
 }
 
 func TestApplyProjectSlugDefault_GetwdError(t *testing.T) {

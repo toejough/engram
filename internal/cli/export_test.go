@@ -15,6 +15,7 @@ var (
 	ExportApplyFeedbackCounters   = applyFeedbackCounters
 	ExportApplyProjectSlugDefault = applyProjectSlugDefault
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
+	ExportExtractAssistantDelta   = extractAssistantDelta
 	ExportFindTranscriptForMemory = findTranscriptForMemory
 	ExportRecordSurfacing         = recordSurfacing
 	ExportRenderMemoryMeta        = renderMemoryMeta
