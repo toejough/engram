@@ -171,7 +171,7 @@ func TestAdaptAnalyze_ProposesParameterChange(t *testing.T) {
 	caller := func(
 		_ context.Context, model, systemPrompt, userPrompt string,
 	) (string, error) {
-		g.Expect(model).To(Equal("claude-sonnet-4-6-20250514"))
+		g.Expect(model).To(Equal("claude-sonnet-4-20250514"))
 		g.Expect(systemPrompt).To(Equal("test-system-prompt"))
 
 		capturedUserPrompt = userPrompt

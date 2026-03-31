@@ -12,7 +12,7 @@ import (
 
 // Exported constants.
 const (
-	SonnetModel = "claude-sonnet-4-6-20250514"
+	SonnetModel = "claude-sonnet-4-20250514"
 )
 
 // CandidateResult describes how an existing memory relates to the new one.

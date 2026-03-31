@@ -65,10 +65,13 @@ if [[ -n "$TRANSCRIPT_PATH" ]]; then
     CORRECT_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
 fi
 
-# Capture correct output to avoid mixing plain text + JSON on stdout
+# Capture correct output; surface errors as warnings instead of swallowing them
 CORRECT_OUTPUT=""
+CORRECT_ERR=""
 if [[ -n "$USER_MESSAGE" ]]; then
-    CORRECT_OUTPUT=$("$ENGRAM_BIN" "${CORRECT_ARGS[@]}") || true
+    CORRECT_OUTPUT=$("$ENGRAM_BIN" "${CORRECT_ARGS[@]}" 2>/tmp/engram-correct-err.$$) || true
+    CORRECT_ERR=$(cat /tmp/engram-correct-err.$$ 2>/dev/null)
+    rm -f /tmp/engram-correct-err.$$
 fi
 
 # UC-2: Surface relevant memories
@@ -94,6 +97,11 @@ fi
 if [[ -n "$CORRECT_OUTPUT" ]]; then
     FINAL_SYS="${FINAL_SYS:+$FINAL_SYS
 }$CORRECT_OUTPUT"
+fi
+
+if [[ -n "$CORRECT_ERR" ]]; then
+    FINAL_SYS="${FINAL_SYS:+$FINAL_SYS
+}[engram] correct pipeline error: $CORRECT_ERR"
 fi
 
 if [[ -n "$FINAL_SYS" || -n "$FINAL_CTX" ]]; then

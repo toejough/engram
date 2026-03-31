@@ -14,11 +14,12 @@ import (
 // Exported constants.
 const (
 	HaikuModel  = "claude-haiku-4-5-20251001"
-	SonnetModel = "claude-sonnet-4-6-20250514"
+	SonnetModel = "claude-sonnet-4-20250514"
 )
 
 // Exported variables.
 var (
+	ErrAPIError        = errors.New("anthropic: API error")
 	ErrNilResponse     = errors.New("anthropic: nil response")
 	ErrNoContentBlocks = errors.New("anthropic: response contained no content blocks")
 	ErrNoToken         = errors.New("anthropic: no API token configured")
@@ -123,6 +124,10 @@ func (c *Client) doRequest(
 		return nil, fmt.Errorf("anthropic: reading response: %w", readErr)
 	}
 
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, parseAPIError(resp.StatusCode, body)
+	}
+
 	return body, nil
 }
 
@@ -144,6 +149,14 @@ type contentBlock struct {
 	Text string `json:"text"`
 }
 
+// errorResponse is the error body from the Anthropic API for non-2xx responses.
+type errorResponse struct {
+	Error struct {
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
 // message is a single message in the Anthropic messages API.
 type message struct {
 	Role    string `json:"role"`
@@ -163,6 +176,19 @@ type request struct {
 // response is the response body from the Anthropic messages API.
 type response struct {
 	Content []contentBlock `json:"content"`
+}
+
+// parseAPIError extracts a meaningful error from a non-2xx API response body.
+func parseAPIError(statusCode int, body []byte) error {
+	var apiErr errorResponse
+
+	unmarshalErr := json.Unmarshal(body, &apiErr)
+	if unmarshalErr == nil && apiErr.Error.Message != "" {
+		return fmt.Errorf("%w %d (%s): %s",
+			ErrAPIError, statusCode, apiErr.Error.Type, apiErr.Error.Message)
+	}
+
+	return fmt.Errorf("%w %d: %s", ErrAPIError, statusCode, string(body))
 }
 
 // parseResponse extracts the text from a raw Anthropic API response body.
