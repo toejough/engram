@@ -16,6 +16,7 @@ var (
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportFindTranscriptForMemory = findTranscriptForMemory
 	ExportRecordSurfacing         = recordSurfacing
+	ExportRenderMemoryMeta        = renderMemoryMeta
 	ExportResolveSkillsDir        = resolveSkillsDir
 	ExportTruncateTitle           = truncateTitle
 )
