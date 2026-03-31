@@ -27,17 +27,6 @@ var (
 	ErrUnknownMode = errors.New("surface: unknown mode")
 )
 
-// EffectivenessComputer provides per-memory effectiveness aggregates (ARCH-24).
-type EffectivenessComputer interface {
-	Aggregate() (map[string]EffectivenessStat, error)
-}
-
-// EffectivenessStat holds aggregated effectiveness data for a single memory.
-type EffectivenessStat struct {
-	SurfacedCount      int
-	EffectivenessScore float64 // followed% (0–100)
-}
-
 // InvocationTokenLogger records per-invocation token counts in the surfacing event log (REQ-P4e-5).
 type InvocationTokenLogger interface {
 	LogInvocationTokens(mode string, tokenCount int, timestamp time.Time) error
@@ -300,11 +289,6 @@ type SurfacerOption func(*Surfacer)
 // SurfacingEventLogger logs individual memory surfacing events (ARCH-22).
 type SurfacingEventLogger interface {
 	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
-}
-
-// WithEffectiveness sets the effectiveness computer (stubbed during SBIA migration).
-func WithEffectiveness(_ EffectivenessComputer) SurfacerOption {
-	return func(_ *Surfacer) {}
 }
 
 // WithInvocationTokenLogger sets the invocation token logger (REQ-P4e-5).

@@ -628,7 +628,7 @@ func runRecall(args []string, stdout io.Writer) error {
 	return recall.FormatResult(stdout, result)
 }
 
-//nolint:funlen // wired with flags, transcript window, and stop-mode delegation
+//nolint:funlen,cyclop // wired with flags, policy loading, transcript window, and stop-mode delegation
 func runSurface(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("surface", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -652,6 +652,7 @@ func runSurface(args []string, stdout io.Writer) error {
 	}
 
 	policyPath := filepath.Join(*dataDir, "policy.toml")
+
 	pol, polErr := policy.LoadFromPath(policyPath)
 	if polErr != nil {
 		pol = policy.Defaults()

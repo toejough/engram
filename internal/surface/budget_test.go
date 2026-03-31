@@ -19,9 +19,7 @@ func TestBudgetConfigCustomValues(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	custom := surface.BudgetConfig{
-		SessionStart:     1000,
 		UserPromptSubmit: 500,
-		Stop:             600,
 	}
 
 	g.Expect(custom.ForMode(surface.ModePrompt)).To(Equal(500))
@@ -34,9 +32,7 @@ func TestBudgetConfigDefaults(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	cfg := surface.DefaultBudgetConfig()
-	g.Expect(cfg.SessionStart).To(Equal(surface.DefaultSessionStartBudget))
 	g.Expect(cfg.UserPromptSubmit).To(Equal(surface.DefaultUserPromptSubmitBudget))
-	g.Expect(cfg.Stop).To(Equal(surface.DefaultStopBudget))
 }
 
 // TestEstimateTokens verifies token estimation formula.
@@ -99,7 +95,6 @@ func TestPromptBudgetEnforcement(t *testing.T) {
 
 	budgetCfg := surface.BudgetConfig{
 		UserPromptSubmit: 40,
-		SessionStart:     800,
 	}
 
 	retriever := &fakeRetriever{memories: memories}

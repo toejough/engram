@@ -9,14 +9,8 @@ import (
 
 // Exported constants.
 const (
-	SuppressionReasonCrossSource = "cross_source"
-	SuppressionReasonTranscript  = "transcript"
+	SuppressionReasonTranscript = "transcript"
 )
-
-// CrossRefChecker checks if a memory is covered by an external source.
-type CrossRefChecker interface {
-	IsCoveredBySource(memoryID string) (covered bool, source string, err error)
-}
 
 // SuppressionEvent records a single suppression decision.
 type SuppressionEvent struct {

@@ -153,6 +153,7 @@ func TestRecallSurfacer_SBIAFormat(t *testing.T) {
 	result, err := surfacer.Surface("testing")
 
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}

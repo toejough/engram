@@ -2,16 +2,12 @@ package surface
 
 // Exported constants.
 const (
-	DefaultSessionStartBudget     = 600
-	DefaultStopBudget             = 500
 	DefaultUserPromptSubmitBudget = 250
 )
 
 // BudgetConfig holds per-hook token budget caps (ARCH-40).
 type BudgetConfig struct {
-	SessionStart     int
 	UserPromptSubmit int
-	Stop             int
 }
 
 // ForMode returns the token budget for a given surface mode.
@@ -32,9 +28,7 @@ type BudgetConfigReader interface {
 // DefaultBudgetConfig returns the default budget configuration.
 func DefaultBudgetConfig() BudgetConfig {
 	return BudgetConfig{
-		SessionStart:     DefaultSessionStartBudget,
 		UserPromptSubmit: DefaultUserPromptSubmitBudget,
-		Stop:             DefaultStopBudget,
 	}
 }
 
