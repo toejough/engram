@@ -13,6 +13,7 @@ import (
 // Exported variables.
 var (
 	ExportApplyFeedbackCounters   = applyFeedbackCounters
+	ExportApplyProjectSlugDefault = applyProjectSlugDefault
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportFindTranscriptForMemory = findTranscriptForMemory
 	ExportRecordSurfacing         = recordSurfacing

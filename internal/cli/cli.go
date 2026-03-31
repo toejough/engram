@@ -309,12 +309,12 @@ func applyDataDirDefault(dataDir *string) error {
 }
 
 // applyProjectSlugDefault sets *slug to the PWD-derived slug when empty.
-func applyProjectSlugDefault(slug *string) error {
+func applyProjectSlugDefault(slug *string, getwd func() (string, error)) error {
 	if *slug != "" {
 		return nil
 	}
 
-	cwd, err := os.Getwd()
+	cwd, err := getwd()
 	if err != nil {
 		return fmt.Errorf("resolving working directory: %w", err)
 	}
@@ -589,7 +589,7 @@ func runRecall(args []string, stdout io.Writer) error {
 		return fmt.Errorf("recall: %w", defaultErr)
 	}
 
-	slugErr := applyProjectSlugDefault(projectSlug)
+	slugErr := applyProjectSlugDefault(projectSlug, os.Getwd)
 	if slugErr != nil {
 		return fmt.Errorf("recall: %w", slugErr)
 	}

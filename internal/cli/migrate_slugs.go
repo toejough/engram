@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 
 	"engram/internal/memory"
@@ -61,7 +62,7 @@ func runMigrateSlugs(args []string, stdout io.Writer) error {
 		return fmt.Errorf("migrate-slugs: %w", defaultErr)
 	}
 
-	slugErr := applyProjectSlugDefault(slug)
+	slugErr := applyProjectSlugDefault(slug, os.Getwd)
 	if slugErr != nil {
 		return fmt.Errorf("migrate-slugs: %w", slugErr)
 	}
