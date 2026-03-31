@@ -199,6 +199,9 @@ func (s *Surfacer) runPrompt(
 		promptMems = append(promptMems, m.mem)
 	}
 
+	// Apply cold-start budget for unproven memories.
+	promptMems = ApplyColdStartBudget(promptMems, s.config.ColdStartBudget)
+
 	promptMems, _ = suppressByTranscript(promptMems, transcriptWindow)
 
 	// Rebuild matches from post-suppression set.
