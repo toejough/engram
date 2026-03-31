@@ -52,6 +52,13 @@ func ExportNewOsDirLister() recall.DirLister {
 	return &osDirLister{}
 }
 
+// ExportNewOsFileReader creates an osFileReader for testing.
+func ExportNewOsFileReader() interface {
+	Read(path string) ([]byte, error)
+} {
+	return &osFileReader{}
+}
+
 // ExportNewOsMemoryRemover creates an osMemoryRemover for testing.
 func ExportNewOsMemoryRemover() *osMemoryRemover {
 	return &osMemoryRemover{}
