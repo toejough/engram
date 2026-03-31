@@ -651,6 +651,22 @@ func runSurface(args []string, stdout io.Writer) error {
 		return fmt.Errorf("surface: %w", defaultErr)
 	}
 
+	policyPath := filepath.Join(*dataDir, "policy.toml")
+	pol, polErr := policy.LoadFromPath(policyPath)
+	if polErr != nil {
+		pol = policy.Defaults()
+	}
+
+	cfg := surface.SurfaceConfig{
+		CandidateCountMin:   pol.SurfaceCandidateCountMin,
+		CandidateCountMax:   pol.SurfaceCandidateCountMax,
+		BM25Threshold:       pol.SurfaceBM25Threshold,
+		ColdStartBudget:     pol.SurfaceColdStartBudget,
+		IrrelevanceHalfLife: pol.SurfaceIrrelevanceHalfLife,
+		InjectionPreamble:   pol.SurfaceInjectionPreamble,
+		GateHaikuPrompt:     pol.SurfaceGateHaikuPrompt,
+	}
+
 	if *mode == "" {
 		return errSurfaceMissingFlags
 	}
@@ -682,6 +698,8 @@ func runSurface(args []string, stdout io.Writer) error {
 		Format:             *format,
 		TranscriptWindow:   *transcriptWindow,
 		CurrentProjectSlug: currentProjectSlug,
+		SessionID:          *sessionID,
+		UserPrompt:         *message,
 	}
 
 	retriever := retrieve.New()
@@ -689,11 +707,21 @@ func runSurface(args []string, stdout io.Writer) error {
 
 	surfacerOpts := []surface.SurfacerOption{
 		surface.WithTracker(recorder),
+		surface.WithSurfaceConfig(cfg),
 		surface.WithSurfacingRecorder(func(path string) error {
 			return defaultModifier.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
 				record.SurfacedCount++
 			})
 		}),
+		surface.WithPendingEvalModifier(func(path string, mutate func(*memory.MemoryRecord)) error {
+			return defaultModifier.ReadModifyWrite(path, mutate)
+		}),
+	}
+
+	token := os.Getenv("ANTHROPIC_API_KEY")
+	if token != "" {
+		caller := makeAnthropicCaller(token)
+		surfacerOpts = append(surfacerOpts, surface.WithHaikuGate(caller))
 	}
 
 	surfacer := surface.New(retriever, surfacerOpts...)
