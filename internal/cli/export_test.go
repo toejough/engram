@@ -12,6 +12,7 @@ import (
 
 // Exported variables.
 var (
+	ExportApplyFeedbackCounters   = applyFeedbackCounters
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportFindTranscriptForMemory = findTranscriptForMemory
 	ExportRecordSurfacing         = recordSurfacing

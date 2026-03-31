@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/cli"
+	"engram/internal/memory"
 )
 
 func TestRunFeedback_IncrementFollowed(t *testing.T) {
@@ -73,6 +74,24 @@ func TestRunFeedback_MissingName(t *testing.T) {
 
 	err := cli.RunFeedback([]string{"--relevant"})
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestApplyFeedbackCounters_UsedAlone(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := &memory.MemoryRecord{FollowedCount: 0}
+	cli.ExportApplyFeedbackCounters(record, false, false, true, false)
+	g.Expect(record.FollowedCount).To(Equal(1))
+}
+
+func TestApplyFeedbackCounters_NotusedAlone(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := &memory.MemoryRecord{NotFollowedCount: 0}
+	cli.ExportApplyFeedbackCounters(record, false, false, false, true)
+	g.Expect(record.NotFollowedCount).To(Equal(1))
 }
 
 // unexported constants.
