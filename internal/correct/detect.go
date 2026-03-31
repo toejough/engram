@@ -10,9 +10,6 @@ import (
 // CallerFunc is the DI interface for calling an LLM in the correct package.
 type CallerFunc = anthropic.CallerFunc
 
-// correctionResponse is the token returned by Haiku when a message is a correction.
-const correctionResponse = "CORRECTION"
-
 // DetectFastPath returns true if message contains any keyword (case-insensitive).
 func DetectFastPath(message string, keywords []string) bool {
 	loweredMessage := strings.ToLower(message)
@@ -36,3 +33,9 @@ func DetectHaiku(ctx context.Context, caller CallerFunc, message, systemPrompt s
 
 	return strings.TrimSpace(response) == correctionResponse, nil
 }
+
+// unexported constants.
+const (
+	// correctionResponse is the token returned by Haiku when a message is a correction.
+	correctionResponse = "CORRECTION"
+)
