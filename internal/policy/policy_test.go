@@ -1,6 +1,7 @@
 package policy_test
 
 import (
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -10,6 +11,252 @@ import (
 	"engram/internal/policy"
 )
 
+func TestAppendChangeHistory_PreservesExistingSections(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	existingContent := "[parameters]\ncontext_byte_budget = 1024"
+
+	readFile := func(string) ([]byte, error) {
+		return []byte(existingContent), nil
+	}
+
+	var written []byte
+
+	writeFile := func(_ string, data []byte) error {
+		written = data
+
+		return nil
+	}
+
+	entry := policy.ChangeEntry{
+		Action:    "rewrite",
+		Target:    "test-memory",
+		Status:    "applied",
+		Rationale: "test",
+		ChangedAt: "2026-03-31T12:00:00Z",
+	}
+
+	err := policy.AppendChangeHistory("policy.toml", entry, readFile, writeFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(written).NotTo(BeNil())
+	g.Expect(string(written)).To(ContainSubstring("[parameters]"))
+	g.Expect(string(written)).To(ContainSubstring("context_byte_budget = 1024"))
+	g.Expect(string(written)).To(ContainSubstring("[[change_history]]"))
+}
+
+func TestAppendChangeHistory_ReadError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	readFile := func(string) ([]byte, error) {
+		return nil, errors.New("disk failure")
+	}
+
+	writeFile := func(string, []byte) error {
+		return nil
+	}
+
+	entry := policy.ChangeEntry{
+		Action:    "rewrite",
+		Target:    "test",
+		Status:    "applied",
+		Rationale: "test",
+		ChangedAt: "2026-03-31T12:00:00Z",
+	}
+
+	err := policy.AppendChangeHistory("policy.toml", entry, readFile, writeFile)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("appending change history"))
+}
+
+func TestAppendChangeHistory_TrimsToLimit(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var written []byte
+
+	readFile := func(string) ([]byte, error) {
+		if written == nil {
+			return nil, os.ErrNotExist
+		}
+
+		return written, nil
+	}
+
+	writeFile := func(_ string, data []byte) error {
+		written = data
+
+		return nil
+	}
+
+	// Write 50 entries (the default limit).
+	for idx := range 50 {
+		entry := policy.ChangeEntry{
+			Action:    "rewrite",
+			Target:    "memory-" + strings.Repeat("x", idx),
+			Status:    "applied",
+			Rationale: "test",
+			ChangedAt: "2026-03-31T12:00:00Z",
+		}
+
+		err := policy.AppendChangeHistory("policy.toml", entry, readFile, writeFile)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+	}
+
+	// Verify we have 50 entries.
+	entries, err := policy.ReadChangeHistory("policy.toml", readFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entries).NotTo(BeNil())
+	g.Expect(entries).To(HaveLen(50))
+
+	// Add one more — should trim to 50, dropping the oldest.
+	overflowEntry := policy.ChangeEntry{
+		Action:    "consolidate",
+		Target:    "overflow-entry",
+		Status:    "applied",
+		Rationale: "overflow test",
+		ChangedAt: "2026-03-31T13:00:00Z",
+	}
+
+	err = policy.AppendChangeHistory("policy.toml", overflowEntry, readFile, writeFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	entries, err = policy.ReadChangeHistory("policy.toml", readFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entries).NotTo(BeNil())
+
+	if entries == nil {
+		return
+	}
+
+	g.Expect(entries).To(HaveLen(50))
+
+	// The last entry should be our overflow entry.
+	lastEntry := entries[len(entries)-1]
+	g.Expect(lastEntry.Target).To(Equal("overflow-entry"))
+
+	// The first entry should NOT be the original first entry (it was trimmed).
+	g.Expect(entries[0].Target).NotTo(Equal("memory-"))
+}
+
+func TestAppendChangeHistory_WriteError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	readFile := func(string) ([]byte, error) {
+		return nil, os.ErrNotExist
+	}
+
+	writeFile := func(string, []byte) error {
+		return errors.New("write failed")
+	}
+
+	entry := policy.ChangeEntry{
+		Action:    "rewrite",
+		Target:    "test",
+		Status:    "applied",
+		Rationale: "test",
+		ChangedAt: "2026-03-31T12:00:00Z",
+	}
+
+	err := policy.AppendChangeHistory("policy.toml", entry, readFile, writeFile)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("write failed"))
+}
+
+func TestChangeHistory_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var written []byte
+
+	readFile := func(string) ([]byte, error) {
+		if written == nil {
+			return nil, os.ErrNotExist
+		}
+
+		return written, nil
+	}
+
+	writeFile := func(_ string, data []byte) error {
+		written = data
+
+		return nil
+	}
+
+	entry := policy.ChangeEntry{
+		Action:    "rewrite",
+		Target:    "use-targ-build",
+		Field:     "situation",
+		OldValue:  "When building Go code",
+		NewValue:  "When running build commands in a Go project with a targ build system",
+		Status:    "applied",
+		Rationale: "Too vague — triggered in non-targ projects",
+		ChangedAt: "2026-03-31T12:00:00Z",
+	}
+
+	err := policy.AppendChangeHistory("policy.toml", entry, readFile, writeFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	entries, readErr := policy.ReadChangeHistory("policy.toml", readFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(entries).NotTo(BeNil())
+
+	if entries == nil {
+		return
+	}
+
+	g.Expect(entries).To(HaveLen(1))
+	g.Expect(entries[0].Action).To(Equal("rewrite"))
+	g.Expect(entries[0].Target).To(Equal("use-targ-build"))
+	g.Expect(entries[0].Field).To(Equal("situation"))
+	g.Expect(entries[0].OldValue).To(Equal("When building Go code"))
+	g.Expect(entries[0].NewValue).To(
+		Equal("When running build commands in a Go project with a targ build system"),
+	)
+	g.Expect(entries[0].Status).To(Equal("applied"))
+	g.Expect(entries[0].Rationale).To(Equal("Too vague — triggered in non-targ projects"))
+	g.Expect(entries[0].ChangedAt).To(Equal("2026-03-31T12:00:00Z"))
+}
+
 func TestDefaults_EvaluateHaikuPrompt(t *testing.T) {
 	t.Parallel()
 
@@ -18,6 +265,23 @@ func TestDefaults_EvaluateHaikuPrompt(t *testing.T) {
 	pol := policy.Defaults()
 
 	g.Expect(pol.EvaluateHaikuPrompt).NotTo(BeEmpty())
+}
+
+func TestDefaults_MaintainFields(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	pol := policy.Defaults()
+
+	g.Expect(pol.MaintainEffectivenessThreshold).To(BeNumerically("~", 50.0, 0.01))
+	g.Expect(pol.MaintainMinSurfaced).To(Equal(5))
+	g.Expect(pol.MaintainIrrelevanceThreshold).To(BeNumerically("~", 60.0, 0.01))
+	g.Expect(pol.MaintainNotFollowedThreshold).To(BeNumerically("~", 50.0, 0.01))
+	g.Expect(pol.AdaptChangeHistoryLimit).To(Equal(50))
+	g.Expect(pol.MaintainRewritePrompt).NotTo(BeEmpty())
+	g.Expect(pol.MaintainConsolidatePrompt).NotTo(BeEmpty())
+	g.Expect(pol.AdaptSonnetPrompt).NotTo(BeEmpty())
 }
 
 func TestDefaults_ReturnsAllFields(t *testing.T) {
@@ -111,6 +375,44 @@ func TestLoad_ErrorOnInvalidTOML(t *testing.T) {
 	})
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("parsing policy"))
+}
+
+func TestLoad_MaintainOverrides(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	tomlContent := `
+[parameters]
+maintain_effectiveness_threshold = 70.0
+maintain_min_surfaced = 10
+maintain_irrelevance_threshold = 80.0
+maintain_not_followed_threshold = 65.0
+adapt_change_history_limit = 25
+
+[prompts]
+maintain_rewrite = "Custom rewrite prompt."
+maintain_consolidate = "Custom consolidate prompt."
+adapt_sonnet = "Custom adapt prompt."
+`
+
+	pol, err := policy.Load(func(string) ([]byte, error) {
+		return []byte(tomlContent), nil
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(pol.MaintainEffectivenessThreshold).To(BeNumerically("~", 70.0, 0.01))
+	g.Expect(pol.MaintainMinSurfaced).To(Equal(10))
+	g.Expect(pol.MaintainIrrelevanceThreshold).To(BeNumerically("~", 80.0, 0.01))
+	g.Expect(pol.MaintainNotFollowedThreshold).To(BeNumerically("~", 65.0, 0.01))
+	g.Expect(pol.AdaptChangeHistoryLimit).To(Equal(25))
+	g.Expect(pol.MaintainRewritePrompt).To(Equal("Custom rewrite prompt."))
+	g.Expect(pol.MaintainConsolidatePrompt).To(Equal("Custom consolidate prompt."))
+	g.Expect(pol.AdaptSonnetPrompt).To(Equal("Custom adapt prompt."))
 }
 
 func TestLoad_OverridesEvaluateHaikuPrompt(t *testing.T) {
@@ -266,4 +568,23 @@ context_byte_budget = 10240
 	g.Expect(pol.ExtractBM25Threshold).To(BeNumerically("~", defaults.ExtractBM25Threshold, 0.0001))
 	g.Expect(pol.DetectHaikuPrompt).To(Equal(defaults.DetectHaikuPrompt))
 	g.Expect(pol.ExtractSonnetPrompt).To(Equal(defaults.ExtractSonnetPrompt))
+}
+
+func TestReadChangeHistory_ReturnsNilWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	readFile := func(string) ([]byte, error) {
+		return nil, os.ErrNotExist
+	}
+
+	entries, err := policy.ReadChangeHistory("policy.toml", readFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entries).To(BeNil())
 }

@@ -13,7 +13,8 @@ import (
 
 // Exported constants.
 const (
-	HaikuModel = "claude-haiku-4-5-20251001"
+	HaikuModel  = "claude-haiku-4-5-20251001"
+	SonnetModel = "claude-sonnet-4-6-20250514"
 )
 
 // Exported variables.

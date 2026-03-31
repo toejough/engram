@@ -2,12 +2,25 @@
 package policy
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
 
 	"github.com/BurntSushi/toml"
 )
+
+// ChangeEntry records a single change made by the maintain or adapt pipeline.
+type ChangeEntry struct {
+	Action    string `toml:"action"`
+	Target    string `toml:"target"`
+	Field     string `toml:"field,omitempty"`
+	OldValue  string `toml:"old_value,omitempty"`
+	NewValue  string `toml:"new_value,omitempty"`
+	Status    string `toml:"status"`
+	Rationale string `toml:"rationale"`
+	ChangedAt string `toml:"changed_at"`
+}
 
 // Policy holds all tunable parameters and prompts for the SBIA pipeline.
 // Missing fields in the TOML file fall back to Defaults().
@@ -48,6 +61,22 @@ type Policy struct {
 	// SurfaceIrrelevanceHalfLife is the number of sessions after which an irrelevant memory's score halves.
 	SurfaceIrrelevanceHalfLife int
 
+	// MaintainEffectivenessThreshold is the minimum effectiveness score (percent) before a memory is flagged.
+	MaintainEffectivenessThreshold float64
+
+	// MaintainMinSurfaced is the minimum number of times a memory must be surfaced before it is eligible
+	// for maintenance evaluation.
+	MaintainMinSurfaced int
+
+	// MaintainIrrelevanceThreshold is the percentage of IRRELEVANT verdicts that triggers a rewrite.
+	MaintainIrrelevanceThreshold float64
+
+	// MaintainNotFollowedThreshold is the percentage of NOT_FOLLOWED verdicts that triggers investigation.
+	MaintainNotFollowedThreshold float64
+
+	// AdaptChangeHistoryLimit is the maximum number of change history entries to retain in policy.toml.
+	AdaptChangeHistoryLimit int
+
 	// DetectHaikuPrompt is the system prompt for the Haiku detection call.
 	DetectHaikuPrompt string
 
@@ -62,31 +91,110 @@ type Policy struct {
 
 	// EvaluateHaikuPrompt is the system prompt for the Haiku evaluation call that scores memory adherence.
 	EvaluateHaikuPrompt string
+
+	// MaintainRewritePrompt is the system prompt for Sonnet to rewrite a memory field more precisely.
+	MaintainRewritePrompt string
+
+	// MaintainConsolidatePrompt is the system prompt for Sonnet to synthesize similar memories into one.
+	MaintainConsolidatePrompt string
+
+	// AdaptSonnetPrompt is the system prompt for Sonnet to propose parameter adjustments.
+	AdaptSonnetPrompt string
 }
 
 // ReadFileFunc reads a file by path and returns its contents.
 type ReadFileFunc func(path string) ([]byte, error)
 
+// WriteFileFunc writes content to a file by path.
+type WriteFileFunc func(path string, data []byte) error
+
+// AppendChangeHistory appends a ChangeEntry to the policy file's change_history section,
+// trimming to the configured limit. Preserves existing file content.
+func AppendChangeHistory(
+	path string,
+	entry ChangeEntry,
+	readFile ReadFileFunc,
+	writeFile WriteFileFunc,
+) error {
+	existing, err := ReadChangeHistory(path, readFile)
+	if err != nil {
+		return fmt.Errorf("appending change history: %w", err)
+	}
+
+	entries := append(existing, entry) //nolint:gocritic // intentional append to new slice
+
+	limit := Defaults().AdaptChangeHistoryLimit
+	if len(entries) > limit {
+		entries = entries[len(entries)-limit:]
+	}
+
+	// Read original file content to preserve other sections.
+	originalData, readErr := readFile(path)
+	if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
+		return fmt.Errorf("reading policy for change history append: %w", readErr)
+	}
+
+	// Strip existing [[change_history]] entries from original content.
+	cleaned := stripChangeHistory(string(originalData))
+
+	// Encode new change_history entries.
+	historyData := changeHistoryFile{ChangeHistory: entries}
+
+	var buf bytes.Buffer
+
+	encoder := toml.NewEncoder(&buf)
+
+	encodeErr := encoder.Encode(historyData)
+	if encodeErr != nil {
+		return fmt.Errorf("encoding change history: %w", encodeErr)
+	}
+
+	// Combine cleaned original content with new change_history.
+	var result bytes.Buffer
+
+	if len(cleaned) > 0 {
+		result.WriteString(cleaned)
+
+		if cleaned[len(cleaned)-1] != '\n' {
+			result.WriteByte('\n')
+		}
+
+		result.WriteByte('\n')
+	}
+
+	result.Write(buf.Bytes())
+
+	return writeFile(path, result.Bytes())
+}
+
 // Defaults returns a Policy populated with all default values.
 func Defaults() Policy {
 	return Policy{
-		DetectFastPathKeywords:     []string{"remember", "always", "never", "don't", "stop"},
-		ContextByteBudget:          defaultContextByteBudget,
-		ContextToolArgsTruncate:    defaultContextToolArgsTruncate,
-		ContextToolResultTruncate:  defaultContextToolResultTruncate,
-		ExtractCandidateCountMin:   defaultExtractCandidateCountMin,
-		ExtractCandidateCountMax:   defaultExtractCandidateCountMax,
-		ExtractBM25Threshold:       defaultExtractBM25Threshold,
-		SurfaceCandidateCountMin:   defaultSurfaceCandidateCountMin,
-		SurfaceCandidateCountMax:   defaultSurfaceCandidateCountMax,
-		SurfaceBM25Threshold:       defaultSurfaceBM25Threshold,
-		SurfaceColdStartBudget:     defaultSurfaceColdStartBudget,
-		SurfaceIrrelevanceHalfLife: defaultSurfaceIrrelevanceHalfLife,
-		DetectHaikuPrompt:          defaultDetectHaikuPrompt,
-		ExtractSonnetPrompt:        defaultExtractSonnetPrompt,
-		SurfaceGateHaikuPrompt:     defaultSurfaceGateHaikuPrompt,
-		SurfaceInjectionPreamble:   defaultSurfaceInjectionPreamble,
-		EvaluateHaikuPrompt:        defaultEvaluateHaikuPrompt,
+		DetectFastPathKeywords:         []string{"remember", "always", "never", "don't", "stop"},
+		ContextByteBudget:              defaultContextByteBudget,
+		ContextToolArgsTruncate:        defaultContextToolArgsTruncate,
+		ContextToolResultTruncate:      defaultContextToolResultTruncate,
+		ExtractCandidateCountMin:       defaultExtractCandidateCountMin,
+		ExtractCandidateCountMax:       defaultExtractCandidateCountMax,
+		ExtractBM25Threshold:           defaultExtractBM25Threshold,
+		SurfaceCandidateCountMin:       defaultSurfaceCandidateCountMin,
+		SurfaceCandidateCountMax:       defaultSurfaceCandidateCountMax,
+		SurfaceBM25Threshold:           defaultSurfaceBM25Threshold,
+		SurfaceColdStartBudget:         defaultSurfaceColdStartBudget,
+		SurfaceIrrelevanceHalfLife:     defaultSurfaceIrrelevanceHalfLife,
+		MaintainEffectivenessThreshold: defaultMaintainEffectivenessThreshold,
+		MaintainMinSurfaced:            defaultMaintainMinSurfaced,
+		MaintainIrrelevanceThreshold:   defaultMaintainIrrelevanceThreshold,
+		MaintainNotFollowedThreshold:   defaultMaintainNotFollowedThreshold,
+		AdaptChangeHistoryLimit:        defaultAdaptChangeHistoryLimit,
+		DetectHaikuPrompt:              defaultDetectHaikuPrompt,
+		ExtractSonnetPrompt:            defaultExtractSonnetPrompt,
+		SurfaceGateHaikuPrompt:         defaultSurfaceGateHaikuPrompt,
+		SurfaceInjectionPreamble:       defaultSurfaceInjectionPreamble,
+		EvaluateHaikuPrompt:            defaultEvaluateHaikuPrompt,
+		MaintainRewritePrompt:          defaultMaintainRewritePrompt,
+		MaintainConsolidatePrompt:      defaultMaintainConsolidatePrompt,
+		AdaptSonnetPrompt:              defaultAdaptSonnetPrompt,
 	}
 }
 
@@ -126,8 +234,39 @@ func LoadFromPath(path string) (Policy, error) {
 	})
 }
 
+// ReadChangeHistory reads the change_history entries from a policy TOML file.
+func ReadChangeHistory(path string, readFile ReadFileFunc) ([]ChangeEntry, error) {
+	data, err := readFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("reading change history: %w", err)
+	}
+
+	var fileData policyFile
+
+	_, decodeErr := toml.Decode(string(data), &fileData)
+	if decodeErr != nil {
+		return nil, fmt.Errorf("parsing change history: %w", decodeErr)
+	}
+
+	return fileData.ChangeHistory, nil
+}
+
 // unexported constants.
 const (
+	defaultAdaptChangeHistoryLimit = 50
+	defaultAdaptSonnetPrompt       = "You are analyzing engram's memory system performance " +
+		"to propose parameter adjustments.\n\n" +
+		"Current parameters:\n{{.CurrentParams}}\n\n" +
+		"Recent change history:\n{{.ChangeHistory}}\n\n" +
+		"Performance summary:\n{{.PerformanceSummary}}\n\n" +
+		"Propose parameter adjustments to improve memory effectiveness.\n" +
+		"Return a JSON array of objects, each with: field, value, rationale.\n" +
+		"Return an empty array if no changes are needed.\n" +
+		"Do not explain. Return only the JSON array."
 	defaultContextByteBudget         = 51200
 	defaultContextToolArgsTruncate   = 200
 	defaultContextToolResultTruncate = 500
@@ -172,6 +311,23 @@ Also decide:
 
 Return a JSON array of memory objects. Return an empty array if nothing memorable occurred.
 Limit to between {{.MinCandidates}} and {{.MaxCandidates}} memories.`
+	defaultMaintainConsolidatePrompt = "You are consolidating similar memories into one.\n\n" +
+		"Memories to consolidate:\n" +
+		"{{.Memories}}\n\n" +
+		"Synthesize these into a single memory that captures the essential pattern.\n" +
+		"Return a JSON object with fields: situation, behavior, impact, action.\n" +
+		"Do not explain. Return only the JSON object."
+	defaultMaintainEffectivenessThreshold = 50.0
+	defaultMaintainIrrelevanceThreshold   = 60.0
+	defaultMaintainMinSurfaced            = 5
+	defaultMaintainNotFollowedThreshold   = 50.0
+	defaultMaintainRewritePrompt          = "You are rewriting a memory field to be more precise.\n\n" +
+		"The memory's {{.Field}} field currently reads:\n" +
+		"\"{{.CurrentValue}}\"\n\n" +
+		"It has been surfaced {{.SurfacedCount}} times with these verdicts:\n" +
+		"{{.VerdictSummary}}\n\n" +
+		"Rewrite the {{.Field}} field to be more specific and actionable.\n" +
+		"Return only the rewritten text, no explanation."
 	defaultSurfaceBM25Threshold     = 0.3
 	defaultSurfaceCandidateCountMax = 8
 	defaultSurfaceCandidateCountMin = 3
@@ -187,26 +343,37 @@ Do not explain. Return only the JSON array.`
 	defaultSurfaceIrrelevanceHalfLife = 5
 )
 
+// changeHistoryFile is used for encoding just the change_history section.
+type changeHistoryFile struct {
+	ChangeHistory []ChangeEntry `toml:"change_history"`
+}
+
 // policyFile maps the on-disk TOML structure.
 type policyFile struct {
-	Parameters policyFileParams  `toml:"parameters"`
-	Prompts    policyFilePrompts `toml:"prompts"`
+	Parameters    policyFileParams  `toml:"parameters"`
+	Prompts       policyFilePrompts `toml:"prompts"`
+	ChangeHistory []ChangeEntry     `toml:"change_history"`
 }
 
 // policyFileParams holds the [parameters] section fields.
 type policyFileParams struct {
-	DetectFastPathKeywords     []string `toml:"detect_fast_path_keywords"`
-	ContextByteBudget          int      `toml:"context_byte_budget"`
-	ContextToolArgsTruncate    int      `toml:"context_tool_args_truncate"`
-	ContextToolResultTruncate  int      `toml:"context_tool_result_truncate"`
-	ExtractCandidateCountMin   int      `toml:"extract_candidate_count_min"`
-	ExtractCandidateCountMax   int      `toml:"extract_candidate_count_max"`
-	ExtractBM25Threshold       float64  `toml:"extract_bm25_threshold"`
-	SurfaceCandidateCountMin   int      `toml:"surface_candidate_count_min"`
-	SurfaceCandidateCountMax   int      `toml:"surface_candidate_count_max"`
-	SurfaceBM25Threshold       float64  `toml:"surface_bm25_threshold"`
-	SurfaceColdStartBudget     int      `toml:"surface_cold_start_budget"`
-	SurfaceIrrelevanceHalfLife int      `toml:"surface_irrelevance_half_life"`
+	DetectFastPathKeywords         []string `toml:"detect_fast_path_keywords"`
+	ContextByteBudget              int      `toml:"context_byte_budget"`
+	ContextToolArgsTruncate        int      `toml:"context_tool_args_truncate"`
+	ContextToolResultTruncate      int      `toml:"context_tool_result_truncate"`
+	ExtractCandidateCountMin       int      `toml:"extract_candidate_count_min"`
+	ExtractCandidateCountMax       int      `toml:"extract_candidate_count_max"`
+	ExtractBM25Threshold           float64  `toml:"extract_bm25_threshold"`
+	SurfaceCandidateCountMin       int      `toml:"surface_candidate_count_min"`
+	SurfaceCandidateCountMax       int      `toml:"surface_candidate_count_max"`
+	SurfaceBM25Threshold           float64  `toml:"surface_bm25_threshold"`
+	SurfaceColdStartBudget         int      `toml:"surface_cold_start_budget"`
+	SurfaceIrrelevanceHalfLife     int      `toml:"surface_irrelevance_half_life"`
+	MaintainEffectivenessThreshold float64  `toml:"maintain_effectiveness_threshold"`
+	MaintainMinSurfaced            int      `toml:"maintain_min_surfaced"`
+	MaintainIrrelevanceThreshold   float64  `toml:"maintain_irrelevance_threshold"`
+	MaintainNotFollowedThreshold   float64  `toml:"maintain_not_followed_threshold"`
+	AdaptChangeHistoryLimit        int      `toml:"adapt_change_history_limit"`
 }
 
 // policyFilePrompts holds the [prompts] section fields.
@@ -216,6 +383,32 @@ type policyFilePrompts struct {
 	SurfaceGateHaiku         string `toml:"surface_gate_haiku"`
 	SurfaceInjectionPreamble string `toml:"surface_injection_preamble"`
 	EvaluateHaiku            string `toml:"evaluate_haiku"`
+	MaintainRewrite          string `toml:"maintain_rewrite"`
+	MaintainConsolidate      string `toml:"maintain_consolidate"`
+	AdaptSonnet              string `toml:"adapt_sonnet"`
+}
+
+// mergeMaintainParams overlays non-zero maintain/adapt pipeline values from params onto policy.
+func mergeMaintainParams(pol *Policy, params policyFileParams) {
+	if params.MaintainEffectivenessThreshold != 0 {
+		pol.MaintainEffectivenessThreshold = params.MaintainEffectivenessThreshold
+	}
+
+	if params.MaintainMinSurfaced != 0 {
+		pol.MaintainMinSurfaced = params.MaintainMinSurfaced
+	}
+
+	if params.MaintainIrrelevanceThreshold != 0 {
+		pol.MaintainIrrelevanceThreshold = params.MaintainIrrelevanceThreshold
+	}
+
+	if params.MaintainNotFollowedThreshold != 0 {
+		pol.MaintainNotFollowedThreshold = params.MaintainNotFollowedThreshold
+	}
+
+	if params.AdaptChangeHistoryLimit != 0 {
+		pol.AdaptChangeHistoryLimit = params.AdaptChangeHistoryLimit
+	}
 }
 
 // mergeParams overlays non-zero values from params onto policy.
@@ -249,6 +442,7 @@ func mergeParams(pol *Policy, params policyFileParams) {
 	}
 
 	mergeSurfaceParams(pol, params)
+	mergeMaintainParams(pol, params)
 }
 
 // mergePrompts overlays non-empty values from prompts onto policy.
@@ -271,6 +465,18 @@ func mergePrompts(pol *Policy, prompts policyFilePrompts) {
 
 	if prompts.EvaluateHaiku != "" {
 		pol.EvaluateHaikuPrompt = prompts.EvaluateHaiku
+	}
+
+	if prompts.MaintainRewrite != "" {
+		pol.MaintainRewritePrompt = prompts.MaintainRewrite
+	}
+
+	if prompts.MaintainConsolidate != "" {
+		pol.MaintainConsolidatePrompt = prompts.MaintainConsolidate
+	}
+
+	if prompts.AdaptSonnet != "" {
+		pol.AdaptSonnetPrompt = prompts.AdaptSonnet
 	}
 }
 
@@ -295,4 +501,44 @@ func mergeSurfaceParams(pol *Policy, params policyFileParams) {
 	if params.SurfaceIrrelevanceHalfLife != 0 {
 		pol.SurfaceIrrelevanceHalfLife = params.SurfaceIrrelevanceHalfLife
 	}
+}
+
+// stripChangeHistory removes all [[change_history]] table array entries from TOML content.
+func stripChangeHistory(content string) string {
+	if content == "" {
+		return ""
+	}
+
+	var result bytes.Buffer
+
+	lines := bytes.Split([]byte(content), []byte("\n"))
+	inChangeHistory := false
+
+	for _, line := range lines {
+		trimmed := bytes.TrimSpace(line)
+
+		if bytes.Equal(trimmed, []byte("[[change_history]]")) {
+			inChangeHistory = true
+
+			continue
+		}
+
+		// A new section header ends the change_history block.
+		if inChangeHistory && len(trimmed) > 0 && trimmed[0] == '[' {
+			inChangeHistory = false
+		}
+
+		if !inChangeHistory {
+			result.Write(line)
+			result.WriteByte('\n')
+		}
+	}
+
+	// Trim trailing whitespace but keep one newline.
+	output := bytes.TrimRight(result.Bytes(), "\n")
+	if len(output) > 0 {
+		return string(output) + "\n"
+	}
+
+	return ""
 }
