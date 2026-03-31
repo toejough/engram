@@ -55,7 +55,10 @@ func TestRun_NoArgs_ReturnsUsageError(t *testing.T) {
 		strings.NewReader(""),
 	)
 	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("usage"))
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("usage"))
+	}
 }
 
 func TestRun_UnknownCommand_ReturnsError(t *testing.T) {
@@ -71,5 +74,8 @@ func TestRun_UnknownCommand_ReturnsError(t *testing.T) {
 		strings.NewReader(""),
 	)
 	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("unknown command"))
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("unknown command"))
+	}
 }
