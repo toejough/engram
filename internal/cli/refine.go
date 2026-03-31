@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -131,7 +132,7 @@ func runRefine(args []string, stdout io.Writer) error {
 
 	records, listErr := memory.ListAll(memoriesDir)
 	if listErr != nil {
-		if os.IsNotExist(listErr) {
+		if errors.Is(listErr, os.ErrNotExist) {
 			_, _ = fmt.Fprintln(stdout, "[engram] refine: no memories found")
 
 			return nil

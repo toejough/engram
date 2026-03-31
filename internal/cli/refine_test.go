@@ -126,6 +126,89 @@ func TestFindAllTranscripts_WithFiles(t *testing.T) {
 	g.Expect(result).To(HaveLen(2))
 }
 
+func TestRunRefine_EmptyMemories(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "refine", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 0 skipped"))
+}
+
+func TestRunRefine_NoTranscriptMatch(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	memTOML := `situation = "test"
+behavior = "test"
+impact = "test"
+action = "test action"
+created_at = "2020-01-01T00:00:00Z"
+updated_at = "2020-01-01T00:00:00Z"
+`
+	g.Expect(os.WriteFile(
+		filepath.Join(memoriesDir, "old-mem.toml"),
+		[]byte(memTOML),
+		0o644,
+	)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "refine", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 1 skipped"))
+}
+
+func TestRunRefine_NoMemoriesDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "refine", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("no memories found"))
+}
+
 func TestRunRefine_DryRun(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

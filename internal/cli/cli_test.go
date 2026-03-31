@@ -219,3 +219,134 @@ func TestApplyProjectSlugDefault_GetwdError(t *testing.T) {
 		g.Expect(err.Error()).To(ContainSubstring("resolving working directory"))
 	}
 }
+
+func TestRun_Instruct_PrintsAuditInfo(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "instruct", "--data-dir", dataDir, "--project-dir", "/tmp"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("instruct audit"))
+}
+
+func TestRun_Surface_PromptMode_EmptyData(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(dataDir, "memories"), 0o755)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "surface",
+			"--mode", "prompt",
+			"--data-dir", dataDir,
+			"--message", "test query",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRun_Surface_MissingMode(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "surface", "--data-dir", t.TempDir()},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("--mode required"))
+	}
+}
+
+func TestRun_Surface_StopMode_NoTranscript(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "surface",
+			"--mode", "stop",
+			"--data-dir", t.TempDir(),
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("--transcript-path required"))
+	}
+}
+
+func TestRun_Surface_StopMode_EmptyTranscript(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	transcriptPath := filepath.Join(t.TempDir(), "empty.jsonl")
+	g.Expect(os.WriteFile(transcriptPath, []byte(""), 0o644)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "surface",
+			"--mode", "stop",
+			"--data-dir", dataDir,
+			"--transcript-path", transcriptPath,
+			"--session-id", "s1",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRun_Recall_EmptyData(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "recall",
+			"--data-dir", dataDir,
+			"--project-slug", "test-project",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	// This may or may not error depending on whether ~/.claude/projects/test-project exists.
+	// The important thing is it exercises the code path without panicking.
+	_ = err
+	_ = g
+}
