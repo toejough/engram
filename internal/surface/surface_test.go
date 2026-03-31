@@ -488,6 +488,73 @@ func TestWithTracker_RecordsSurfacing(t *testing.T) {
 	g.Expect(tracker.mode).To(Equal(surface.ModePrompt))
 }
 
+func TestPromptMode_SBIADisplayFormat(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Situation: "when committing code",
+			Behavior:  "manual git commit bypass",
+			Impact:    "skips required commit workflow",
+			Action:    "use /commit skill",
+			FilePath:  "commit-safety.toml",
+		},
+		{
+			Situation: "when building software",
+			Behavior:  "run go build directly",
+			Impact:    "misses build checks",
+			Action:    "use targ build",
+			FilePath:  "build-tools.toml",
+		},
+		{
+			Situation: "when testing code",
+			Behavior:  "run go test directly",
+			Impact:    "misses coverage checks",
+			Action:    "use targ test",
+			FilePath:  "testing-tools.toml",
+		},
+		{
+			Situation: "when linting",
+			Behavior:  "skip lint checks",
+			Impact:    "lets bugs through",
+			Action:    "run targ check-full",
+			FilePath:  "linting-tools.toml",
+		},
+		{
+			Situation: "when deploying",
+			Behavior:  "deploy without review",
+			Impact:    "introduces unreviewed changes",
+			Action:    "require code review",
+			FilePath:  "deploy.toml",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/tmp/data",
+		Message: "I want to commit this change",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("Situation: when committing code"))
+	g.Expect(output).To(ContainSubstring("Behavior to avoid: manual git commit bypass"))
+	g.Expect(output).To(ContainSubstring("Impact if ignored: skips required commit workflow"))
+	g.Expect(output).To(ContainSubstring("Action: use /commit skill"))
+	g.Expect(output).To(ContainSubstring("1. commit-safety"))
+}
+
 // fakeRetriever is a test double for surface.MemoryRetriever.
 type fakeRetriever struct {
 	memories []*memory.Stored

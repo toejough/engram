@@ -249,9 +249,13 @@ func (s *Surfacer) runPrompt(
 	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
 	_, _ = fmt.Fprintf(&buf, "%s\n", s.config.InjectionPreamble)
 
-	for _, match := range matches {
-		_, _ = fmt.Fprintf(&buf, "  - %s: %s\n",
-			filenameSlug(match.mem.FilePath), match.mem.Action)
+	for i, match := range matches {
+		slug := filenameSlug(match.mem.FilePath)
+		_, _ = fmt.Fprintf(&buf, "  %d. %s\n", i+1, slug)
+		_, _ = fmt.Fprintf(&buf, "     Situation: %s\n", match.mem.Situation)
+		_, _ = fmt.Fprintf(&buf, "     Behavior to avoid: %s\n", match.mem.Behavior)
+		_, _ = fmt.Fprintf(&buf, "     Impact if ignored: %s\n", match.mem.Impact)
+		_, _ = fmt.Fprintf(&buf, "     Action: %s\n", match.mem.Action)
 	}
 
 	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
