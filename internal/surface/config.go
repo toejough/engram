@@ -15,11 +15,6 @@ type SurfaceConfig struct {
 	InjectionPreamble   string
 }
 
-// DefaultSurfaceConfig returns a SurfaceConfig with default values from policy.Defaults().
-func DefaultSurfaceConfig() SurfaceConfig {
-	return ConfigFromPolicy(policy.Defaults())
-}
-
 // ConfigFromPolicy builds a SurfaceConfig from a Policy.
 func ConfigFromPolicy(pol policy.Policy) SurfaceConfig {
 	return SurfaceConfig{
@@ -31,6 +26,11 @@ func ConfigFromPolicy(pol policy.Policy) SurfaceConfig {
 		GateHaikuPrompt:     pol.SurfaceGateHaikuPrompt,
 		InjectionPreamble:   pol.SurfaceInjectionPreamble,
 	}
+}
+
+// DefaultSurfaceConfig returns a SurfaceConfig with default values from policy.Defaults().
+func DefaultSurfaceConfig() SurfaceConfig {
+	return ConfigFromPolicy(policy.Defaults())
 }
 
 // WithSurfaceConfig sets the surface configuration.
