@@ -110,12 +110,13 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		return err
 	}
 
+	now := time.Now()
+
 	if s.tracker != nil && len(matched) > 0 {
 		_ = s.tracker.RecordSurfacing(ctx, matched, opts.Mode)
 	}
 
 	if s.surfacingLogger != nil {
-		now := time.Now()
 		for _, mem := range matched {
 			_ = s.surfacingLogger.LogSurfacing(mem.FilePath, opts.Mode, now)
 		}
@@ -131,7 +132,7 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		_ = WritePendingEvaluations(
 			matched, s.pendingEvalModifier,
 			opts.SessionID, opts.CurrentProjectSlug, opts.UserPrompt,
-			time.Now(),
+			now,
 		)
 	}
 

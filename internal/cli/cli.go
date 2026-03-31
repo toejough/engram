@@ -651,6 +651,10 @@ func runSurface(args []string, stdout io.Writer) error {
 		return fmt.Errorf("surface: %w", defaultErr)
 	}
 
+	if *mode == "" {
+		return errSurfaceMissingFlags
+	}
+
 	policyPath := filepath.Join(*dataDir, "policy.toml")
 
 	pol, polErr := policy.LoadFromPath(policyPath)
@@ -658,19 +662,7 @@ func runSurface(args []string, stdout io.Writer) error {
 		pol = policy.Defaults()
 	}
 
-	cfg := surface.SurfaceConfig{
-		CandidateCountMin:   pol.SurfaceCandidateCountMin,
-		CandidateCountMax:   pol.SurfaceCandidateCountMax,
-		BM25Threshold:       pol.SurfaceBM25Threshold,
-		ColdStartBudget:     pol.SurfaceColdStartBudget,
-		IrrelevanceHalfLife: pol.SurfaceIrrelevanceHalfLife,
-		InjectionPreamble:   pol.SurfaceInjectionPreamble,
-		GateHaikuPrompt:     pol.SurfaceGateHaikuPrompt,
-	}
-
-	if *mode == "" {
-		return errSurfaceMissingFlags
-	}
+	cfg := surface.ConfigFromPolicy(pol)
 
 	// Capture original user prompt before stop-mode rewriting overwrites *message.
 	userPrompt := *message
@@ -713,13 +705,11 @@ func runSurface(args []string, stdout io.Writer) error {
 	surfacerOpts := []surface.SurfacerOption{
 		surface.WithTracker(recorder),
 		surface.WithSurfaceConfig(cfg),
-		surface.WithSurfacingRecorder(func(path string) error {
-			return defaultModifier.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
-				record.SurfacedCount++
-			})
-		}),
 		surface.WithPendingEvalModifier(func(path string, mutate func(*memory.MemoryRecord)) error {
-			return defaultModifier.ReadModifyWrite(path, mutate)
+			return defaultModifier.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
+				record.SurfacedCount++ // combine surfaced_count increment with pending eval write
+				mutate(record)
+			})
 		}),
 	}
 

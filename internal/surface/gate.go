@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"engram/internal/anthropic"
 	"engram/internal/memory"
 )
 
@@ -27,7 +28,7 @@ func GateMemories(
 
 	userPrompt := buildGateUserPrompt(candidates, userMessage)
 
-	response, callErr := caller(ctx, haikuModel, systemPrompt, userPrompt)
+	response, callErr := caller(ctx, anthropic.HaikuModel, systemPrompt, userPrompt)
 	if callErr != nil {
 		return candidates, nil //nolint:nilerr // fail open: return all on API error
 	}
@@ -44,11 +45,6 @@ func GateMemories(
 func WithHaikuGate(caller HaikuCallerFunc) SurfacerOption {
 	return func(s *Surfacer) { s.haikuGate = caller }
 }
-
-// unexported constants.
-const (
-	haikuModel = "claude-haiku-4-5-20251001"
-)
 
 // buildGateUserPrompt formats the user prompt for the Haiku gate call.
 func buildGateUserPrompt(candidates []*memory.Stored, userMessage string) string {

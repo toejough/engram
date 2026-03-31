@@ -1,5 +1,7 @@
 package surface
 
+import "engram/internal/policy"
+
 // SurfaceConfig holds tunable parameters for the surface pipeline.
 //
 //nolint:revive // "surface.SurfaceConfig" stutter is intentional for clarity at call sites.
@@ -13,15 +15,21 @@ type SurfaceConfig struct {
 	InjectionPreamble   string
 }
 
-// DefaultSurfaceConfig returns a SurfaceConfig with default values.
+// DefaultSurfaceConfig returns a SurfaceConfig with default values from policy.Defaults().
 func DefaultSurfaceConfig() SurfaceConfig {
+	return ConfigFromPolicy(policy.Defaults())
+}
+
+// ConfigFromPolicy builds a SurfaceConfig from a Policy.
+func ConfigFromPolicy(pol policy.Policy) SurfaceConfig {
 	return SurfaceConfig{
-		CandidateCountMin:   defaultCandidateCountMin,
-		CandidateCountMax:   defaultCandidateCountMax,
-		BM25Threshold:       defaultBM25Threshold,
-		ColdStartBudget:     defaultColdStartBudget,
-		IrrelevanceHalfLife: defaultIrrelevanceHalfLife,
-		InjectionPreamble:   defaultInjectionPreamble,
+		CandidateCountMin:   pol.SurfaceCandidateCountMin,
+		CandidateCountMax:   pol.SurfaceCandidateCountMax,
+		BM25Threshold:       pol.SurfaceBM25Threshold,
+		ColdStartBudget:     pol.SurfaceColdStartBudget,
+		IrrelevanceHalfLife: pol.SurfaceIrrelevanceHalfLife,
+		GateHaikuPrompt:     pol.SurfaceGateHaikuPrompt,
+		InjectionPreamble:   pol.SurfaceInjectionPreamble,
 	}
 }
 
@@ -29,16 +37,3 @@ func DefaultSurfaceConfig() SurfaceConfig {
 func WithSurfaceConfig(cfg SurfaceConfig) SurfacerOption {
 	return func(s *Surfacer) { s.config = cfg }
 }
-
-// unexported constants.
-const (
-	defaultBM25Threshold     = 0.3
-	defaultCandidateCountMax = 8
-	defaultCandidateCountMin = 3
-	defaultColdStartBudget   = 2
-	defaultInjectionPreamble = "[engram] Memories — for any relevant memory, call " +
-		"`engram show --name <name>` for full details. " +
-		"After your turn, call `engram feedback --name <name> --relevant|--irrelevant " +
-		"--used|--notused` for each:"
-	defaultIrrelevanceHalfLife = 5
-)
