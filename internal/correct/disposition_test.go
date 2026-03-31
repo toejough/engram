@@ -409,6 +409,33 @@ func TestHandleDisposition_WriterError(t *testing.T) {
 	g.Expect(err).To(MatchError(writeErr))
 }
 
+func TestHandleDisposition_WriterErrorContradiction(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	writeErr := errors.New("disk full on contradiction")
+	writer := &fakeWriter{returnErr: writeErr}
+	modifier := &fakeModifier{}
+	extraction := &correct.ExtractionResult{
+		Situation: "user runs tests",
+		Behavior:  "never use targ",
+		Impact:    "contradicts existing",
+		Action:    "go test directly",
+		Candidates: []correct.CandidateResult{
+			{
+				Name:        "use-targ",
+				Disposition: correct.DispositionContradiction,
+				Reason:      "directly contradicts",
+			},
+		},
+	}
+
+	_, err := correct.HandleDisposition(extraction, writer, modifier, "/data", "myproject")
+
+	g.Expect(err).To(MatchError(writeErr))
+}
+
 // fakeModifier is a test double for MemoryModifier.
 type fakeModifier struct {
 	calledPath   string

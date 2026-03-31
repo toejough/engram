@@ -181,7 +181,7 @@ func storeNew(
 		record.ProjectSlug = projectSlug
 	}
 
-	storedPath, err := writer.Write(record, projectSlug, dataDir)
+	storedPath, err := writer.Write(record, extraction.FilenameSlug, dataDir)
 	if err != nil {
 		return "", fmt.Errorf("writing new memory: %w", err)
 	}
