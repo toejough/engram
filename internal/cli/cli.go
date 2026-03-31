@@ -69,6 +69,8 @@ func Run(
 		return runInstructAudit(subArgs, stdout)
 	case "migrate-scores":
 		return runMigrateScores(subArgs, stdout, stderr)
+	case "migrate-sbia":
+		return runMigrateSBIA(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
