@@ -13,6 +13,7 @@ import (
 
 	"engram/internal/cli"
 	"engram/internal/maintain"
+	"engram/internal/surface"
 )
 
 func TestCliConfirmer_Confirm_AutoApprove(t *testing.T) {
@@ -346,4 +347,27 @@ func TestOsFileReader_ReadError(t *testing.T) {
 	reader := cli.ExportNewOsFileReader()
 	_, err := reader.Read("/nonexistent/file.txt")
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestSurfaceRunnerAdapter_Run(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	// The adapter wraps a real Surfacer. With no memories, it returns empty.
+	retriever := cli.ExportNewRetriever()
+	surfacer := surface.New(retriever)
+	adapter := cli.ExportNewSurfaceRunnerAdapter(surfacer)
+
+	var buf bytes.Buffer
+
+	err := adapter.Run(context.Background(), &buf, cli.SurfaceRunnerOptions{
+		Mode:    surface.ModePrompt,
+		DataDir: dataDir,
+		Message: "test query",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
 }

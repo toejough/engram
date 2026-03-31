@@ -8,6 +8,7 @@ import (
 	"engram/internal/memory"
 	"engram/internal/recall"
 	"engram/internal/retrieve"
+	"engram/internal/surface"
 )
 
 // Exported variables.
@@ -77,6 +78,11 @@ func ExportNewOsSkillWriter(dir string) interface {
 // ExportNewRetriever creates a retrieve.Retriever for testing.
 func ExportNewRetriever() *retrieve.Retriever {
 	return retrieve.New()
+}
+
+// ExportNewSurfaceRunnerAdapter creates a surfaceRunnerAdapter for testing.
+func ExportNewSurfaceRunnerAdapter(surfacer *surface.Surfacer) SurfaceRunner {
+	return &surfaceRunnerAdapter{surfacer: surfacer}
 }
 
 // ExportNewStdinConfirmer creates a stdinConfirmer for testing.
