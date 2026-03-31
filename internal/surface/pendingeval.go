@@ -8,11 +8,8 @@ import (
 	"engram/internal/memory"
 )
 
-// ModifyFunc reads a memory TOML, applies a mutation, and writes it back.
-type ModifyFunc func(path string, mutate func(*memory.MemoryRecord)) error
-
 // WithPendingEvalModifier sets the modifier for writing pending evaluations.
-func WithPendingEvalModifier(fn ModifyFunc) SurfacerOption {
+func WithPendingEvalModifier(fn memory.ModifyFunc) SurfacerOption {
 	return func(s *Surfacer) { s.pendingEvalModifier = fn }
 }
 
@@ -20,7 +17,7 @@ func WithPendingEvalModifier(fn ModifyFunc) SurfacerOption {
 // Continues on error so all memories get an evaluation record; returns combined errors.
 func WritePendingEvaluations(
 	memories []*memory.Stored,
-	modify ModifyFunc,
+	modify memory.ModifyFunc,
 	sessionID, projectSlug, userPrompt string,
 	now time.Time,
 ) error {

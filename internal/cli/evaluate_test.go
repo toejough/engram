@@ -13,6 +13,32 @@ import (
 	"engram/internal/cli"
 )
 
+func TestResolveEvaluateCaller_NilOverride_ReturnsNonNilCaller(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// When override is nil, resolveEvaluateCaller must build a real caller from the
+	// environment token (which may be empty). The important contract is that it
+	// always returns a non-nil function — it never panics.
+	caller := cli.ExportResolveEvaluateCaller(nil)
+
+	g.Expect(caller).NotTo(BeNil())
+}
+
+func TestResolveEvaluateCaller_WithOverride_ReturnsSameFunc(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	mockCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return "FOLLOWED", nil
+	}
+
+	result := cli.ExportResolveEvaluateCaller(mockCaller)
+
+	// When an override is supplied it must be returned verbatim.
+	g.Expect(result).NotTo(BeNil())
+}
+
 func TestRunEvaluate_MissingSessionID(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

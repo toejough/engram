@@ -59,6 +59,11 @@ func (m *Modifier) ReadModifyWrite(path string, mutate func(*MemoryRecord)) erro
 // ModifierOption configures a Modifier.
 type ModifierOption func(*Modifier)
 
+// ModifyFunc atomically reads, mutates, and writes a memory record.
+// This is the signature of Modifier.ReadModifyWrite and is used as a DI boundary
+// by packages that need to update memory files without importing the full Modifier.
+type ModifyFunc func(path string, mutate func(*MemoryRecord)) error
+
 // StoredRecord pairs a file path with its parsed MemoryRecord.
 type StoredRecord struct {
 	Path   string

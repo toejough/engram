@@ -4,6 +4,9 @@ set -euo pipefail
 # Async stop hook — runs engram evaluate to assess pending memory evaluations.
 # Fire-and-forget: always exits 0 so Claude Code is never blocked.
 
+# Require jq for JSON parsing
+command -v jq &>/dev/null || exit 0
+
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"

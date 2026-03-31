@@ -71,7 +71,7 @@ type Surfacer struct {
 	config                SurfaceConfig
 	recordSurfacing       func(path string) error // UC-23: records surfacing event per memory
 	haikuGate             HaikuCallerFunc
-	pendingEvalModifier   ModifyFunc
+	pendingEvalModifier   memory.ModifyFunc
 }
 
 // New creates a Surfacer.

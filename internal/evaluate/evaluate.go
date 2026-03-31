@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"engram/internal/anthropic"
 	"engram/internal/memory"
 )
 
@@ -19,14 +20,14 @@ const (
 
 // Evaluator runs pending memory evaluations using a Haiku caller.
 type Evaluator struct {
-	caller         HaikuCallerFunc
-	modifier       ModifierFunc
+	caller         anthropic.CallerFunc
+	modifier       memory.ModifyFunc
 	promptTemplate string
 	model          string
 }
 
 // New creates an Evaluator with the provided dependencies.
-func New(caller HaikuCallerFunc, modifier ModifierFunc, promptTemplate, model string) *Evaluator {
+func New(caller anthropic.CallerFunc, modifier memory.ModifyFunc, promptTemplate, model string) *Evaluator {
 	return &Evaluator{
 		caller:         caller,
 		modifier:       modifier,
@@ -92,12 +93,6 @@ func (e *Evaluator) evaluate(ctx context.Context, pending PendingMemory, transcr
 		Err:        nil,
 	}
 }
-
-// HaikuCallerFunc calls an LLM with model, system prompt, and user prompt, returning the response.
-type HaikuCallerFunc func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
-
-// ModifierFunc atomically reads, mutates, and writes a memory record.
-type ModifierFunc func(path string, mutate func(*memory.MemoryRecord)) error
 
 // Result holds the outcome of evaluating one PendingMemory.
 type Result struct {

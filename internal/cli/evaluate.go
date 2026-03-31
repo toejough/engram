@@ -116,6 +116,10 @@ func runEvaluateWith(args []string, stdout io.Writer, callerOverride CallerFunc)
 		return fmt.Errorf("evaluate: %w", transcriptErr)
 	}
 
+	if transcript == "" {
+		return writeEvaluateResults(stdout, nil)
+	}
+
 	caller := resolveEvaluateCaller(callerOverride)
 
 	// Scan for pending memories matching this session.

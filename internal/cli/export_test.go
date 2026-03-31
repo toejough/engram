@@ -20,6 +20,7 @@ var (
 	ExportFindTranscriptForMemory = findTranscriptForMemory
 	ExportRecordSurfacing         = recordSurfacing
 	ExportRenderMemoryMeta        = renderMemoryMeta
+	ExportResolveEvaluateCaller   = resolveEvaluateCaller
 	ExportResolveSkillsDir        = resolveSkillsDir
 	ExportRunEvaluateWith         = runEvaluateWith
 	ExportRunRefineWith           = runRefineWith

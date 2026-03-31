@@ -300,6 +300,28 @@ func TestModifier_WriterError(t *testing.T) {
 	}
 }
 
+func TestReadModifyWrite_DecodeError_InjectedInvalidTOML(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	modifier := memory.NewModifier(
+		memory.WithModifierReadFile(func(_ string) ([]byte, error) {
+			return []byte("not = [valid toml"), nil
+		}),
+		memory.WithModifierWriter(tomlwriter.New()),
+	)
+
+	err := modifier.ReadModifyWrite("/fake/path.toml", func(r *memory.MemoryRecord) {
+		r.SurfacedCount++
+	})
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("decoding"))
+	}
+}
+
 func TestReadModifyWrite_IncrementsField(t *testing.T) {
 	t.Parallel()
 
@@ -382,6 +404,52 @@ func TestReadModifyWrite_InvalidTOML(t *testing.T) {
 		r.SurfacedCount++
 	})
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestReadModifyWrite_MutateIsCalledWithDecodedRecord(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	initial := memory.MemoryRecord{Situation: "mutate-test", SurfacedCount: 5}
+
+	var buf bytes.Buffer
+
+	err := toml.NewEncoder(&buf).Encode(initial)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	tomlData := buf.Bytes()
+
+	var capturedRecord *memory.MemoryRecord
+
+	modifier := memory.NewModifier(
+		memory.WithModifierReadFile(func(_ string) ([]byte, error) {
+			return tomlData, nil
+		}),
+		memory.WithModifierWriter(tomlwriter.New(
+			tomlwriter.WithCreateTemp(func(_, _ string) (*os.File, error) {
+				return nil, errors.New("stop after mutate")
+			}),
+		)),
+	)
+
+	_ = modifier.ReadModifyWrite("/fake/path.toml", func(r *memory.MemoryRecord) {
+		capturedRecord = r
+		r.SurfacedCount++
+	})
+
+	g.Expect(capturedRecord).NotTo(BeNil())
+
+	if capturedRecord == nil {
+		return
+	}
+
+	g.Expect(capturedRecord.SurfacedCount).To(Equal(6))
+	g.Expect(capturedRecord.Situation).To(Equal("mutate-test"))
 }
 
 func TestReadModifyWrite_NonexistentFile(t *testing.T) {
