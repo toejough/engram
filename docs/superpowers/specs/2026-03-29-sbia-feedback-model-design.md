@@ -215,6 +215,13 @@ Truncation lengths are approximate — the goal is: tool name + enough args to k
 
 One Sonnet call handles both extraction and dedup. With zero candidates, Sonnet extracts SBIA fields and the disposition is STORE.
 
+5. **Handle disposition** per candidate:
+   - STORE / STORE BOTH / LEGITIMATE SEPARATE MEMORIES: Write new memory
+   - DUPLICATE: Don't write. Run self-diagnosis (see [Self-Diagnosis on DUPLICATE](#self-diagnosis-on-duplicate))
+   - POTENTIAL GENERALIZATION: Sonnet returns broadened situation; update existing memory's situation field in place, don't create new
+   - CONTRADICTION: Write new memory. Emit warning to user with both memories for resolution at next /memory-triage
+   - REFINEMENT: Write new memory. Flag both for user review at next /memory-triage
+
 ### SBIA Similarity Decision Tree
 
 When a correction arrives and similar existing memories are found:
@@ -254,8 +261,8 @@ When a correction arrives and similar existing memories are found:
 | **DUPLICATE**           | Don't create. Log surfacing/listening failure for self-diagnosis. |
 | **CONTRADICTION**       | Surface to user for resolution. Supersede or keep both.           |
 | **REFINEMENT**          | Flag for user review (unusual case).                              |
-| **GENERALIZATION**      | Merge into broader situation description.                         |
-| **LEGITIMATE SEPARATE** | Store both. Situation nuance justifies different actions.         |
+| **POTENTIAL GENERALIZATION**  | Merge into broader situation description.                         |
+| **LEGITIMATE SEPARATE MEMORIES** | Store both. Situation nuance justifies different actions.         |
 | **STORE BOTH**          | Independent lessons, no meaningful overlap.                       |
 | **STORE**               | No similar memories found. Write directly.                        |
 
@@ -295,7 +302,7 @@ Stage 2 (PreToolUse) is a narrow safety net for the most literally matchable cas
 1. Build query context:
    - User prompt (always)
    - Recent transcript context (up to `context_byte_budget`)
-     (shared with extraction context — same transcript, same budget)
+     (SBIA strip mode — shared with extraction context, same transcript and budget)
    BM25 needs more than just the latest message — "do it" matches
    nothing, but the preceding conversation about "running tests"
    would match the targ memory.
@@ -378,7 +385,7 @@ Multiple agents or consecutive turns can surface the same memory before evaluati
 
 ### Simplified Counters
 
-The current model has five counters (surfaced, followed, contradicted, ignored, irrelevant). SBIA simplifies to three:
+The current model has five counters (surfaced, followed, contradicted, ignored, irrelevant). SBIA uses four: `surfaced_count`, `followed_count`, `not_followed_count`, `irrelevant_count`:
 
 | Counter            | Meaning                                 | Haiku Assessment                                              |
 | ------------------ | --------------------------------------- | ------------------------------------------------------------- |
@@ -386,9 +393,9 @@ The current model has five counters (surfaced, followed, contradicted, ignored, 
 | `not_followed_count` | Situation matched, action was not taken | "Was the situation relevant? Yes. Was the action taken? No."  |
 | `irrelevant_count`   | Situation didn't match                  | "Was the situation relevant? No."                             |
 
-**Why three, not five:** "Contradicted" and "ignored" collapse into `not_followed`. Whether the agent did the problematic behavior or something else entirely, the outcome is the same — the memory didn't work. The fix is the same — rewrite the action or escalate. The distinction adds complexity without actionable signal.
+**Why four, not five:** "Contradicted" and "ignored" collapse into `not_followed`. Whether the agent did the problematic behavior or something else entirely, the outcome is the same — the memory didn't work. The fix is the same — rewrite the action or escalate. The distinction adds complexity without actionable signal.
 
-`surfaced_count` is retained — useful at a glance for understanding how often a situation arises. Not used as a maintenance gate — surfacing frequency doesn't penalize rare situations. Used as denominator in derived metrics (effectiveness, not_followed_rate, irrelevant_rate).
+`surfaced_count` is retained — useful at a glance for understanding how often a situation arises. Not used as a maintenance gate — surfacing frequency doesn't penalize rare situations. Used as denominator in derived metrics (effectiveness, not_followed_rate, irrelevant_rate). The three evaluation counters in the table above (`followed`, `not_followed`, `irrelevant`) are the ones assessed by Haiku at each stop hook; `surfaced_count` is incremented automatically when a memory is surfaced.
 
 ### Why This Works
 
@@ -438,6 +445,8 @@ The "hidden gem" quadrant disappears — there's no action to take on a memory t
 | 5 | `effectiveness ≥ maintain_effectiveness_threshold` | Working | Keep (no action) |
 | 6 | None of the above | Ambiguous signal | Monitor (insufficient signal to diagnose root cause) |
 
+This tree covers per-memory health diagnosis. Consolidation (similar situations → merge) and system tuning (parameter/prompt changes via `adapt_sonnet`) are separate analyses run by Sonnet during the same `engram maintain` call. See [How Each Diagnosis Maps to a Proposal](#how-each-diagnosis-maps-to-a-proposal) for the full set of proposal types.
+
 ### Unified Proposal Model
 
 All maintenance and tuning actions — memory edits, parameter changes, escalations — use the same proposal schema. Two commands handle every proposal: `engram apply-proposal <id>` and `engram reject-proposal <id>`. The `/memory-triage` skill walks through proposals; the LLM never edits files directly.
@@ -462,7 +471,7 @@ All maintenance and tuning actions — memory edits, parameter changes, escalati
 | `action` | What to do | `update`, `delete`, `merge`, `recommend` |
 | `target` | File to change | Memory TOML path (update/delete/merge/recommend), `policy.toml` |
 | `field` | Field within file | `situation`, `action`, `surface_bm25_threshold`; null for `delete`, `merge`, and `recommend` |
-| `value` | New value | New text/number, — (for delete) |
+| `value` | New value | New text/number; synthesized content (for merge); null for delete and recommend |
 | `related` | For merge: files to archive | List of memory paths |
 | `rationale` | Why | Human-readable explanation |
 
@@ -829,7 +838,7 @@ irrelevant_count = 0
 1. **Keywords:** Dropped. BM25 on SBIA text for both surfacing and candidate retrieval in dedup.
 2. **Tier C:** Dropped. Corrections are inherently behavioral. No contextual facts in SBIA model.
 3. **Dedup strategy:** Sonnet-driven via SBIA decision tree. BM25 finds 3-8 candidates (score ≥ 0.3), then Sonnet evaluates each SBIA dimension independently and determines disposition per candidate. One Sonnet call handles both extraction and dedup. Duplicate detections trigger self-diagnosis (surfacing vs. listening failure).
-4. **Evaluate counters:** Simplified to three: `followed_count`, `not_followed_count`, `irrelevant_count`. "Contradicted" and "ignored" collapse — the distinction isn't actionable. Automated via Haiku at stop hook; LLM self-report dropped.
+4. **Evaluate counters:** Four counters: `surfaced_count`, `followed_count`, `not_followed_count`, `irrelevant_count`. "Contradicted" and "ignored" collapse into `not_followed` — the distinction isn't actionable. Automated via Haiku at stop hook; LLM self-report dropped.
 5. **Quadrants:** Eliminated. Surfacing frequency measures situation rarity, not memory quality. Maintain operates on effectiveness only, with counter breakdown diagnosing which SBIA field to fix.
 6. **Triage actions:** All actions use a unified proposal schema (`id`, `action`, `target`, `field`, `value`, `related`, `rationale` — see [Proposal Schema](#proposal-schema) for field details). Two commands: `engram apply-proposal <id>` and `engram reject-proposal <id>`. Proposals cover memory edits (update/delete/merge), recommendations, and parameter changes alike.
 7. **Adapt redesign:** Replace 5-dimension Go analysis code, policy lifecycle state machine, approval streaks, and measurement windows with: Sonnet analysis + change history (`adapt_change_history_limit` entries in `[[change_history]]`). Proposals use the same unified schema as memory triage. Approved changes write to `[parameters]` immediately; rejections logged in change history so Sonnet avoids re-proposing. The `/adapt` skill is merged into `/memory-triage` — one skill walks through all recommended adjustments (memory + system) via `engram apply-proposal` / `engram reject-proposal`.
