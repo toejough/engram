@@ -190,7 +190,9 @@ func TestBuildTargets(t *testing.T) {
 			"correct", "review",
 			"maintain", "surface", "instruct",
 			"feedback", "refine", "show",
-			"apply-proposal", "migrate-slugs",
+			"apply-proposal", "recall",
+			"migrate-scores", "migrate-slugs",
+			"adapt", "migrate-sbia",
 		}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
@@ -365,6 +367,26 @@ func TestMaintainFlags(t *testing.T) {
 			"--data-dir", "/data",
 			"--yes",
 		}))
+	})
+}
+
+func TestMigrateSBIAFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.MigrateSBIAFlags(cli.MigrateSBIAArgs{DataDir: "/data"})
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
+	})
+
+	t.Run("empty fields skipped", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.MigrateSBIAFlags(cli.MigrateSBIAArgs{})
+		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
 

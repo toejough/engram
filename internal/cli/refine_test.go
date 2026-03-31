@@ -72,6 +72,60 @@ func TestFindTranscriptForMemory_NoMatchBeyond24h(t *testing.T) {
 	g.Expect(result).To(BeEmpty(), "should return empty string when all transcripts >24h away")
 }
 
+func TestFindAllTranscripts_EmptyDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	projectsDir := t.TempDir()
+
+	// Create a project dir with no .jsonl files.
+	g.Expect(os.MkdirAll(filepath.Join(projectsDir, "proj1"), 0o755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(projectsDir, "proj1", "readme.txt"), []byte("hi"), 0o644)).To(Succeed())
+
+	result, err := cli.ExportFindAllTranscripts(projectsDir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(BeEmpty())
+}
+
+func TestFindAllTranscripts_NonExistent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	result, err := cli.ExportFindAllTranscripts("/nonexistent/path")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(BeNil())
+}
+
+func TestFindAllTranscripts_WithFiles(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	projectsDir := t.TempDir()
+	projDir := filepath.Join(projectsDir, "proj1")
+	g.Expect(os.MkdirAll(projDir, 0o755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(projDir, "s1.jsonl"), []byte("{}"), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(projDir, "s2.jsonl"), []byte("{}"), 0o644)).To(Succeed())
+
+	result, err := cli.ExportFindAllTranscripts(projectsDir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(HaveLen(2))
+}
+
 func TestRunRefine_DryRun(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

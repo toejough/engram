@@ -16,6 +16,7 @@ var (
 	ExportApplyProjectSlugDefault = applyProjectSlugDefault
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportExtractAssistantDelta   = extractAssistantDelta
+	ExportFindAllTranscripts      = findAllTranscripts
 	ExportFindTranscriptForMemory = findTranscriptForMemory
 	ExportRecordSurfacing         = recordSurfacing
 	ExportRenderMemoryMeta        = renderMemoryMeta
