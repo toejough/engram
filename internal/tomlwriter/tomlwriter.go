@@ -1,4 +1,4 @@
-// Package tomlwriter writes enriched memories to TOML files atomically.
+// Package tomlwriter writes memories to TOML files atomically.
 package tomlwriter
 
 import (
@@ -17,7 +17,7 @@ import (
 // Option configures a Writer.
 type Option func(*Writer)
 
-// Writer writes enriched memories to TOML files.
+// Writer writes memories to TOML files.
 // I/O operations are injected for testability (ARCH-7).
 type Writer struct {
 	createTemp func(dir, pattern string) (*os.File, error)
@@ -84,11 +84,11 @@ func (w *Writer) AtomicWrite(targetPath string, record any) error {
 	return nil
 }
 
-// Write writes mem as a TOML file under <dataDir>/memories/<slug>.toml.
+// Write writes a MemoryRecord as a TOML file under <dataDir>/memories/<slug>.toml.
 // If the slug path is already taken, it appends -2, -3, etc. until a free name is found.
 // The file is written atomically via a temp file and rename.
 // Returns the absolute path of the written file.
-func (w *Writer) Write(mem *memory.Enriched, dataDir string) (string, error) {
+func (w *Writer) Write(record *memory.MemoryRecord, slug, dataDir string) (string, error) {
 	memoriesDir := filepath.Join(dataDir, "memories")
 
 	mkdirErr := w.mkdirAll(memoriesDir, memoriesDirPerm)
@@ -96,40 +96,26 @@ func (w *Writer) Write(mem *memory.Enriched, dataDir string) (string, error) {
 		return "", fmt.Errorf("tomlwriter: create memories dir: %w", mkdirErr)
 	}
 
-	slug := slugify(mem.FilenameSummary)
+	if slug == "" {
+		slug = "memory"
+	}
+
+	slug = slugify(slug)
 
 	finalPath, err := w.availablePath(memoriesDir, slug)
 	if err != nil {
 		return "", err
 	}
 
-	concepts := mem.Concepts
-	if concepts == nil {
-		concepts = make([]string, 0)
+	if record.CreatedAt == "" {
+		record.CreatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
 
-	keywords := mem.Keywords
-	if keywords == nil {
-		keywords = make([]string, 0)
+	if record.UpdatedAt == "" {
+		record.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
 
-	record := memory.MemoryRecord{
-		Title:            mem.Title,
-		Content:          mem.Content,
-		ObservationType:  mem.ObservationType,
-		Concepts:         concepts,
-		Keywords:         keywords,
-		Principle:        mem.Principle,
-		AntiPattern:      mem.AntiPattern,
-		Rationale:        mem.Rationale,
-		Confidence:       mem.Confidence,
-		CreatedAt:        mem.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:        mem.UpdatedAt.UTC().Format(time.RFC3339),
-		ProjectSlug:      mem.ProjectSlug,
-		Generalizability: mem.Generalizability,
-	}
-
-	writeErr := w.writeAtomic(memoriesDir, finalPath, record)
+	writeErr := w.AtomicWrite(finalPath, record)
 	if writeErr != nil {
 		return "", writeErr
 	}
@@ -154,12 +140,6 @@ func (w *Writer) availablePath(memoriesDir, slug string) (string, error) {
 
 		candidate = filepath.Join(memoriesDir, fmt.Sprintf("%s-%d.toml", slug, suffix))
 	}
-}
-
-// writeAtomic writes record as TOML to finalPath using a temp file and rename.
-// Delegates to AtomicWrite.
-func (w *Writer) writeAtomic(_, finalPath string, record any) error {
-	return w.AtomicWrite(finalPath, record)
 }
 
 // WithCreateTemp overrides the temp file creation function.
@@ -197,7 +177,7 @@ var (
 	nonAlphanumericRun = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
-// slugify converts a filename summary to a lowercase hyphen-separated slug.
+// slugify converts a string to a lowercase hyphen-separated slug.
 // Returns "memory" if the result would otherwise be empty.
 func slugify(summary string) string {
 	lower := strings.ToLower(summary)

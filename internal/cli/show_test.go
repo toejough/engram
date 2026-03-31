@@ -12,63 +12,6 @@ import (
 	"engram/internal/cli"
 )
 
-func TestShow_DisplaysRelevanceRatio(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	tomlContent := `title = "Test Memory"
-principle = "Do the right thing"
-content = "Content here"
-followed_count = 5
-contradicted_count = 0
-ignored_count = 0
-irrelevant_count = 3
-`
-	err = os.WriteFile(
-		filepath.Join(memDir, "relevance-test.toml"),
-		[]byte(tomlContent),
-		0o640,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "show",
-			"relevance-test",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	// Total feedback = 5+0+0+3 = 8, relevant = 5, pct = 62%
-	g.Expect(output).To(ContainSubstring("Relevance: 62%"))
-	g.Expect(output).To(ContainSubstring("5 relevant"))
-	g.Expect(output).To(ContainSubstring("3 irrelevant"))
-	g.Expect(output).To(ContainSubstring("8 feedback"))
-}
-
 func TestShow_FlagParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -87,7 +30,7 @@ func TestShow_FlagParseError_ReturnsError(t *testing.T) {
 	}
 }
 
-func TestShow_HappyPath_PrintsAllFields(t *testing.T) {
+func TestShow_HappyPath_PrintsSBIAFields(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -100,20 +43,19 @@ func TestShow_HappyPath_PrintsAllFields(t *testing.T) {
 		return
 	}
 
-	tomlContent := `title = "Use targ check-full"
-principle = "Run targ check-full before declaring done"
-anti_pattern = "Running targ check which stops at first error"
-content = "Always use targ check-full for comprehensive validation"
-keywords = ["targ", "check", "full"]
-concepts = ["build-tools", "validation"]
+	tomlContent := `situation = "when running tests"
+behavior = "use go test directly"
+impact = "misses coverage and lint flags"
+action = "use targ test instead"
+project_scoped = true
+project_slug = "engram"
 surfaced_count = 10
 followed_count = 8
-contradicted_count = 1
-ignored_count = 1
+not_followed_count = 2
 updated_at = "2025-01-01T00:00:00Z"
 `
 	err = os.WriteFile(
-		filepath.Join(memDir, "use-targ-check-full.toml"),
+		filepath.Join(memDir, "use-targ-test.toml"),
 		[]byte(tomlContent),
 		0o640,
 	)
@@ -128,7 +70,7 @@ updated_at = "2025-01-01T00:00:00Z"
 	err = cli.Run(
 		[]string{
 			"engram", "show",
-			"use-targ-check-full",
+			"use-targ-test",
 			"--data-dir", dataDir,
 		},
 		&stdout, &stderr,
@@ -141,21 +83,13 @@ updated_at = "2025-01-01T00:00:00Z"
 	}
 
 	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Title: Use targ check-full"))
-	g.Expect(output).To(ContainSubstring(
-		"Principle: Run targ check-full before declaring done",
-	))
-	g.Expect(output).To(ContainSubstring(
-		"Anti-pattern: Running targ check which stops at first error",
-	))
-	g.Expect(output).To(ContainSubstring(
-		"Content: Always use targ check-full for comprehensive validation",
-	))
-	g.Expect(output).To(ContainSubstring("Keywords: targ, check, full"))
+	g.Expect(output).To(ContainSubstring("Situation: when running tests"))
+	g.Expect(output).To(ContainSubstring("Behavior: use go test directly"))
+	g.Expect(output).To(ContainSubstring("Impact: misses coverage and lint flags"))
+	g.Expect(output).To(ContainSubstring("Action: use targ test instead"))
 	g.Expect(output).To(ContainSubstring("Effectiveness: 80%"))
 	g.Expect(output).To(ContainSubstring("8 followed"))
-	g.Expect(output).To(ContainSubstring("1 contradicted"))
-	g.Expect(output).To(ContainSubstring("1 ignored"))
+	g.Expect(output).To(ContainSubstring("2 not followed"))
 }
 
 func TestShow_MemoryNotFound_ReturnsError(t *testing.T) {
@@ -219,7 +153,7 @@ func TestShow_NameFlag_Works(t *testing.T) {
 
 	g.Expect(os.WriteFile(
 		filepath.Join(memDir, "flag-test.toml"),
-		[]byte("title = \"Flag Test\"\nprinciple = \"Use --name flag\"\n"),
+		[]byte("situation = \"Flag Test Situation\"\naction = \"Use --name flag\"\n"),
 		0o640,
 	)).To(Succeed())
 
@@ -235,64 +169,7 @@ func TestShow_NameFlag_Works(t *testing.T) {
 		return
 	}
 
-	g.Expect(stdout.String()).To(ContainSubstring("Title: Flag Test"))
-}
-
-func TestShow_NewFields_Displayed(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	tomlContent := `title = "Rich Memory"
-observation_type = "pattern"
-rationale = "Because it works"
-confidence = "high"
-created_at = "2025-01-15T10:00:00Z"
-last_surfaced_at = "2025-03-01T08:00:00Z"
-content = "Some content"
-`
-	err = os.WriteFile(
-		filepath.Join(memDir, "rich-memory.toml"),
-		[]byte(tomlContent),
-		0o640,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "show",
-			"rich-memory",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Type: pattern"))
-	g.Expect(output).To(ContainSubstring("Rationale: Because it works"))
-	g.Expect(output).To(ContainSubstring("Confidence: high"))
-	g.Expect(output).To(ContainSubstring("Created: 2025-01-15T10:00:00Z"))
-	g.Expect(output).To(ContainSubstring("Last surfaced: 2025-03-01T08:00:00Z"))
+	g.Expect(stdout.String()).To(ContainSubstring("Situation: Flag Test Situation"))
 }
 
 func TestShow_OmitsEmptyFields(t *testing.T) {
@@ -308,9 +185,9 @@ func TestShow_OmitsEmptyFields(t *testing.T) {
 		return
 	}
 
-	// Memory with only title and content — no principle, anti-pattern, keywords.
-	tomlContent := `title = "Minimal Memory"
-content = "Just content"
+	// Memory with only situation and action — no behavior, impact.
+	tomlContent := `situation = "Minimal Memory"
+action = "Just action"
 updated_at = "2025-01-01T00:00:00Z"
 `
 	err = os.WriteFile(
@@ -342,11 +219,10 @@ updated_at = "2025-01-01T00:00:00Z"
 	}
 
 	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Title: Minimal Memory"))
-	g.Expect(output).To(ContainSubstring("Content: Just content"))
-	g.Expect(output).NotTo(ContainSubstring("Principle:"))
-	g.Expect(output).NotTo(ContainSubstring("Anti-pattern:"))
-	g.Expect(output).NotTo(ContainSubstring("Keywords:"))
+	g.Expect(output).To(ContainSubstring("Situation: Minimal Memory"))
+	g.Expect(output).To(ContainSubstring("Action: Just action"))
+	g.Expect(output).NotTo(ContainSubstring("Behavior:"))
+	g.Expect(output).NotTo(ContainSubstring("Impact:"))
 	g.Expect(output).NotTo(ContainSubstring("Effectiveness:"))
 }
 
@@ -363,8 +239,8 @@ func TestShow_SlugAfterFlags_Works(t *testing.T) {
 		return
 	}
 
-	tomlContent := `title = "After Flags"
-content = "Slug comes after --data-dir"
+	tomlContent := `situation = "After Flags"
+action = "Slug comes after --data-dir"
 updated_at = "2025-01-01T00:00:00Z"
 `
 	err = os.WriteFile(
@@ -380,7 +256,6 @@ updated_at = "2025-01-01T00:00:00Z"
 
 	var stdout, stderr bytes.Buffer
 
-	// Slug after flags: engram show --data-dir /path after-flags
 	err = cli.Run(
 		[]string{
 			"engram", "show",
@@ -397,56 +272,5 @@ updated_at = "2025-01-01T00:00:00Z"
 	}
 
 	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Title: After Flags"))
-}
-
-func TestShow_SlugBeforeFlags_Works(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	tomlContent := `title = "My Memory"
-content = "Some content"
-updated_at = "2025-01-01T00:00:00Z"
-`
-	err = os.WriteFile(
-		filepath.Join(memDir, "my-mem.toml"),
-		[]byte(tomlContent),
-		0o640,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	// Slug before flags: engram show my-mem --data-dir /path
-	err = cli.Run(
-		[]string{
-			"engram", "show",
-			"my-mem",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Title: My Memory"))
-	g.Expect(output).To(ContainSubstring("Content: Some content"))
+	g.Expect(output).To(ContainSubstring("Situation: After Flags"))
 }

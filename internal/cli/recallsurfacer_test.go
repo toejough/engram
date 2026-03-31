@@ -180,7 +180,6 @@ surfaced_count = 0
 
 	content := string(updated)
 	g.Expect(content).To(ContainSubstring("surfaced_count = 1"))
-	g.Expect(content).To(ContainSubstring("last_surfaced_at"))
 }
 
 type fakeSurfaceRunner struct {

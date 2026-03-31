@@ -10,7 +10,6 @@ import (
 )
 
 // readRecord reads a memory TOML file into a *memory.MemoryRecord.
-// Always overwrites SourcePath with the given path (on-disk value may be stale).
 func readRecord(path string) (*memory.MemoryRecord, error) {
 	data, err := os.ReadFile(path) //nolint:gosec // path from trusted flag/internal source
 	if err != nil {
@@ -23,8 +22,6 @@ func readRecord(path string) (*memory.MemoryRecord, error) {
 	if decodeErr != nil {
 		return nil, fmt.Errorf("decoding record TOML: %w", decodeErr)
 	}
-
-	record.SourcePath = path
 
 	return &record, nil
 }

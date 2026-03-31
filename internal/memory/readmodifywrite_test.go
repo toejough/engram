@@ -39,7 +39,7 @@ func TestListAll_ReadsAllTOMLFiles(t *testing.T) {
 	dir := t.TempDir()
 
 	for _, name := range []string{"a.toml", "b.toml"} {
-		rec := memory.MemoryRecord{Title: name}
+		rec := memory.MemoryRecord{Situation: name}
 
 		var buf bytes.Buffer
 
@@ -71,7 +71,7 @@ func TestListAll_SkipsInvalidTOML(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(dir, "bad.toml"), []byte("not = [valid toml"), 0o644)
 
 	// Write one valid TOML file
-	rec := memory.MemoryRecord{Title: "valid"}
+	rec := memory.MemoryRecord{Situation: "valid situation"}
 
 	var buf bytes.Buffer
 
@@ -86,7 +86,7 @@ func TestListAll_SkipsInvalidTOML(t *testing.T) {
 	}
 
 	g.Expect(records).To(HaveLen(1))
-	g.Expect(records[0].Record.Title).To(Equal("valid"))
+	g.Expect(records[0].Record.Situation).To(Equal("valid situation"))
 }
 
 func TestListAll_SkipsSubdirectories(t *testing.T) {
@@ -107,7 +107,7 @@ func TestListAll_SkipsSubdirectories(t *testing.T) {
 	}
 
 	// Write one valid TOML file
-	rec := memory.MemoryRecord{Title: "valid"}
+	rec := memory.MemoryRecord{Situation: "valid situation"}
 
 	var buf bytes.Buffer
 
@@ -125,7 +125,7 @@ func TestListAll_SkipsSubdirectories(t *testing.T) {
 	}
 
 	g.Expect(records).To(HaveLen(1))
-	g.Expect(records[0].Record.Title).To(Equal("valid"))
+	g.Expect(records[0].Record.Situation).To(Equal("valid situation"))
 }
 
 // TestModifier_CleansUpTempOnFailure verifies cleanup on rename failure.
@@ -137,7 +137,7 @@ func TestModifier_CleansUpTempOnFailure(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.toml")
 
-	initial := memory.MemoryRecord{Title: "cleanup-test"}
+	initial := memory.MemoryRecord{Situation: "cleanup-test"}
 
 	var buf bytes.Buffer
 
@@ -209,7 +209,7 @@ func TestModifier_WithDI(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.toml")
 
-	initial := memory.MemoryRecord{Title: "di-test", SurfacedCount: 1}
+	initial := memory.MemoryRecord{Situation: "di-test", SurfacedCount: 1}
 
 	var buf bytes.Buffer
 
@@ -257,7 +257,7 @@ func TestModifier_WithDI(t *testing.T) {
 	}
 
 	g.Expect(result.SurfacedCount).To(Equal(2))
-	g.Expect(result.Title).To(Equal("di-test"))
+	g.Expect(result.Situation).To(Equal("di-test"))
 }
 
 // TestModifier_WriterError verifies that a writer error propagates.
@@ -266,7 +266,7 @@ func TestModifier_WriterError(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	initial := memory.MemoryRecord{Title: "writer-error-test"}
+	initial := memory.MemoryRecord{Situation: "writer-error-test"}
 
 	var buf bytes.Buffer
 
@@ -308,7 +308,7 @@ func TestReadModifyWrite_IncrementsField(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.toml")
 
-	initial := memory.MemoryRecord{Title: "test", SurfacedCount: 3}
+	initial := memory.MemoryRecord{Situation: "test", SurfacedCount: 3}
 
 	var buf bytes.Buffer
 
@@ -356,7 +356,7 @@ func TestReadModifyWrite_IncrementsField(t *testing.T) {
 	}
 
 	g.Expect(result.SurfacedCount).To(Equal(4))
-	g.Expect(result.Title).To(Equal("test"))
+	g.Expect(result.Situation).To(Equal("test"))
 }
 
 func TestReadModifyWrite_InvalidTOML(t *testing.T) {
@@ -408,23 +408,16 @@ func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
 	path := filepath.Join(dir, "test.toml")
 
 	initial := memory.MemoryRecord{
-		Title:             "preserve-test",
-		Content:           "some content",
-		ObservationType:   "pattern",
-		Concepts:          []string{"foo", "bar"},
-		Keywords:          []string{"kw1"},
-		Principle:         "do the thing",
-		AntiPattern:       "don't do the other thing",
-		Rationale:         "because reasons",
-		Confidence:        "A",
-		SurfacedCount:     5,
-		FollowedCount:     2,
-		ContradictedCount: 1,
-		IgnoredCount:      0,
-		IrrelevantCount:   1,
-		Absorbed: []memory.AbsorbedRecord{
-			{From: "old.toml", SurfacedCount: 2, ContentHash: "abc123", MergedAt: "2025-01-01"},
-		},
+		Situation:        "when running tests",
+		Behavior:         "use go test directly",
+		Impact:           "misses coverage",
+		Action:           "use targ test",
+		ProjectScoped:    true,
+		ProjectSlug:      "engram",
+		SurfacedCount:    5,
+		FollowedCount:    2,
+		NotFollowedCount: 1,
+		IrrelevantCount:  1,
 	}
 
 	var buf bytes.Buffer
@@ -473,9 +466,10 @@ func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
 	}
 
 	g.Expect(result.SurfacedCount).To(Equal(6))
-	g.Expect(result.Title).To(Equal("preserve-test"))
-	g.Expect(result.Content).To(Equal("some content"))
-	g.Expect(result.Concepts).To(ConsistOf("foo", "bar"))
-	g.Expect(result.Absorbed).To(HaveLen(1))
-	g.Expect(result.Absorbed[0].From).To(Equal("old.toml"))
+	g.Expect(result.Situation).To(Equal("when running tests"))
+	g.Expect(result.Behavior).To(Equal("use go test directly"))
+	g.Expect(result.Impact).To(Equal("misses coverage"))
+	g.Expect(result.Action).To(Equal("use targ test"))
+	g.Expect(result.ProjectScoped).To(BeTrue())
+	g.Expect(result.ProjectSlug).To(Equal("engram"))
 }

@@ -1,27 +1,18 @@
 package surface
 
-// GenFactor returns the BM25 relevance penalty factor for a memory based on its
-// generalizability and whether it belongs to the current project.
-// Same-project or missing slug = 1.0 (no penalty).
-func GenFactor(generalizability int, memProject, currentProject string) float64 {
+// GenFactor returns the BM25 relevance penalty factor for a memory based on
+// whether it's project-scoped and whether it belongs to the current project.
+// Same-project, unscoped, or missing slug = 1.0 (no penalty).
+// Cross-project project-scoped = 0.0 (full penalty).
+func GenFactor(projectScoped bool, memProject, currentProject string) float64 {
+	if !projectScoped {
+		return 1.0
+	}
+
 	if memProject == "" || currentProject == "" || memProject == currentProject {
 		return 1.0
 	}
 
-	// penaltyByGeneralizability maps generalizability score (0–5) to a BM25 penalty factor.
-	// Penalty strength=1.5: distance from 1.0 scaled by 1.5. Values floored at 0.
-	penaltyByGeneralizability := [6]float64{
-		0.25, // 0: unset — conservative default
-		0.0,  // 1: this-project-only
-		0.0,  // 2: narrow
-		0.25, // 3: moderate
-		0.7,  // 4: similar projects
-		1.0,  // 5: universal
-	}
-
-	if generalizability < 0 || generalizability > 5 {
-		return penaltyByGeneralizability[0]
-	}
-
-	return penaltyByGeneralizability[generalizability]
+	// Project-scoped memory from a different project: full penalty.
+	return 0.0
 }
