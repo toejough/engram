@@ -189,7 +189,7 @@ func TestBuildTargets(t *testing.T) {
 		subcmds := []string{
 			"correct", "review",
 			"maintain", "surface", "instruct",
-			"feedback", "refine", "show",
+			"evaluate", "refine", "show",
 			"apply-proposal", "recall",
 			"migrate-scores", "migrate-slugs",
 			"adapt", "migrate-sbia",
@@ -252,23 +252,23 @@ func TestDataDirFromHome(t *testing.T) {
 	})
 }
 
-func TestFeedbackFlags(t *testing.T) {
+func TestEvaluateFlags(t *testing.T) {
 	t.Parallel()
 
-	t.Run("relevant and used", func(t *testing.T) {
+	t.Run("all fields populated", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := cli.FeedbackFlags(cli.FeedbackArgs{DataDir: "/data", Relevant: true, Used: true})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--relevant", "--used"}))
-	})
-
-	t.Run("irrelevant only", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.FeedbackFlags(cli.FeedbackArgs{DataDir: "/data", Irrelevant: true})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--irrelevant"}))
+		result := cli.EvaluateFlags(cli.EvaluateArgs{
+			TranscriptPath: "/tmp/transcript.jsonl",
+			SessionID:      "sess-123",
+			DataDir:        "/data",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--transcript-path", "/tmp/transcript.jsonl",
+			"--session-id", "sess-123",
+			"--data-dir", "/data",
+		}))
 	})
 }
 

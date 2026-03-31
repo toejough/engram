@@ -75,8 +75,8 @@ func Run(
 		return runMigrateSBIA(subArgs, stdout)
 	case "refine":
 		return runRefine(subArgs, stdout)
-	case "feedback":
-		return RunFeedback(subArgs)
+	case "evaluate":
+		return runEvaluate(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}

@@ -13,7 +13,6 @@ import (
 
 // Exported variables.
 var (
-	ExportApplyFeedbackCounters   = applyFeedbackCounters
 	ExportApplyProjectSlugDefault = applyProjectSlugDefault
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportExtractAssistantDelta   = extractAssistantDelta
@@ -22,6 +21,7 @@ var (
 	ExportRecordSurfacing         = recordSurfacing
 	ExportRenderMemoryMeta        = renderMemoryMeta
 	ExportResolveSkillsDir        = resolveSkillsDir
+	ExportRunEvaluateWith         = runEvaluateWith
 	ExportRunRefineWith           = runRefineWith
 	ExportTruncateTitle           = truncateTitle
 )

@@ -39,14 +39,11 @@ type CorrectArgs struct {
 	APIToken       string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
-// FeedbackArgs holds parsed flags for the feedback subcommand.
-type FeedbackArgs struct {
-	Name       string `targ:"flag,name=name,desc=memory slug to provide feedback on"`
-	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Relevant   bool   `targ:"flag,name=relevant,desc=memory was relevant to current task"`
-	Irrelevant bool   `targ:"flag,name=irrelevant,desc=memory was not relevant"`
-	Used       bool   `targ:"flag,name=used,desc=memory advice was followed"`
-	Notused    bool   `targ:"flag,name=notused,desc=memory advice was not followed"`
+// EvaluateArgs holds parsed flags for the evaluate subcommand.
+type EvaluateArgs struct {
+	TranscriptPath string `targ:"flag,name=transcript-path,desc=path to session transcript"`
+	SessionID      string `targ:"flag,name=session-id,desc=session ID to evaluate"`
+	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
 
 // InstructArgs holds parsed flags for the instruct subcommand.
@@ -178,8 +175,8 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("surface").Description("Surface relevant memories"),
 		targ.Targ(func(a InstructArgs) { run("instruct", InstructFlags(a)) }).
 			Name("instruct").Description("Audit instruction quality"),
-		targ.Targ(func(a FeedbackArgs) { run("feedback", FeedbackFlags(a)) }).
-			Name("feedback").Description("Record memory relevance feedback"),
+		targ.Targ(func(a EvaluateArgs) { run("evaluate", EvaluateFlags(a)) }).
+			Name("evaluate").Description("Evaluate pending memory assessments via Haiku"),
 		targ.Targ(func(a RefineArgs) { run("refine", RefineFlags(a)) }).
 			Name("refine").Description("Re-extract SBIA fields from original transcripts"),
 		targ.Targ(func(a ShowArgs) { run("show", ShowFlags(a)) }).
@@ -209,22 +206,20 @@ func CorrectFlags(a CorrectArgs) []string {
 	)
 }
 
-// --- Flag construction helpers ---
-
 // DataDirFromHome returns the standard engram data directory for a given home path.
 func DataDirFromHome(home string) string {
 	return filepath.Join(home, ".claude", "engram", "data")
 }
 
-// FeedbackFlags returns the CLI flag args for the feedback subcommand.
-func FeedbackFlags(a FeedbackArgs) []string {
-	flags := BuildFlags("--data-dir", a.DataDir, "--name", a.Name)
-	flags = AddBoolFlag(flags, "--relevant", a.Relevant)
-	flags = AddBoolFlag(flags, "--irrelevant", a.Irrelevant)
-	flags = AddBoolFlag(flags, "--used", a.Used)
-	flags = AddBoolFlag(flags, "--notused", a.Notused)
+// --- Flag construction helpers ---
 
-	return flags
+// EvaluateFlags returns the CLI flag args for the evaluate subcommand.
+func EvaluateFlags(a EvaluateArgs) []string {
+	return BuildFlags(
+		"--transcript-path", a.TranscriptPath,
+		"--session-id", a.SessionID,
+		"--data-dir", a.DataDir,
+	)
 }
 
 // InstructFlags returns the CLI flag args for the instruct subcommand.
