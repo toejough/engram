@@ -82,6 +82,11 @@ type MaintainArgs struct {
 	PurgeTierC bool   `targ:"flag,name=purge-tier-c,desc=delete all tier C memory files"`
 }
 
+// MigrateSBIAArgs holds parsed flags for the migrate-sbia subcommand.
+type MigrateSBIAArgs struct {
+	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+}
+
 // MigrateScoresArgs holds parsed flags for the migrate-scores subcommand.
 type MigrateScoresArgs struct {
 	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -123,16 +128,6 @@ type SurfaceArgs struct {
 	Format         string `targ:"flag,name=format,desc=output format: json"`
 	TranscriptPath string `targ:"flag,name=transcript-path,desc=transcript JSONL path (stop mode)"`
 	SessionID      string `targ:"flag,name=session-id,desc=session ID (stop mode)"`
-}
-
-// MigrateSBIAArgs holds parsed flags for the migrate-sbia subcommand.
-type MigrateSBIAArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-}
-
-// MigrateSBIAFlags returns the CLI flag args for the migrate-sbia subcommand.
-func MigrateSBIAFlags(a MigrateSBIAArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir)
 }
 
 // AdaptFlags returns the CLI flag args for the adapt subcommand.
@@ -275,6 +270,11 @@ func MaintainFlags(a MaintainArgs) []string {
 	flags = AddBoolFlag(flags, "--purge-tier-c", a.PurgeTierC)
 
 	return flags
+}
+
+// MigrateSBIAFlags returns the CLI flag args for the migrate-sbia subcommand.
+func MigrateSBIAFlags(a MigrateSBIAArgs) []string {
+	return BuildFlags("--data-dir", a.DataDir)
 }
 
 // MigrateScoresFlags returns the CLI flag args for the migrate-scores subcommand.
