@@ -1,34 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-ENGRAM_HOME="${HOME}/.claude/engram"
-ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
+# Async stop hook — reserved for engram evaluate (Step 4).
+# Currently a no-op: flush was removed in Step 1, evaluate arrives in Step 4.
 
-# Build if missing or stale (source newer than binary)
-NEEDS_BUILD=false
-if [[ ! -x "$ENGRAM_BIN" ]]; then
-    NEEDS_BUILD=true
-elif [[ -d "$PLUGIN_ROOT" ]]; then
-    if find "$PLUGIN_ROOT" -name '*.go' -newer "$ENGRAM_BIN" -print -quit 2>/dev/null | grep -q .; then
-        NEEDS_BUILD=true
-    fi
-fi
-
-if [[ "$NEEDS_BUILD" == "true" ]]; then
-    mkdir -p "${ENGRAM_HOME}/bin"
-    cd "$PLUGIN_ROOT"
-    go build -o "$ENGRAM_BIN" ./cmd/engram/ 2>/dev/null || { echo "[engram] build failed — is Go installed?" >&2; exit 0; }
-fi
-
-# Read hook JSON from stdin
-HOOK_JSON="$(cat)"
-TRANSCRIPT_PATH="$(echo "$HOOK_JSON" | jq -r '.transcript_path // empty')"
-SESSION_ID="$(echo "$HOOK_JSON" | jq -r '.session_id // empty')"
-
-# Flush pipeline: learn from session transcript (#309, #348)
-FLUSH_ARGS=()
-[[ -n "$TRANSCRIPT_PATH" ]] && FLUSH_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
-[[ -n "$SESSION_ID" ]] && FLUSH_ARGS+=(--session-id "$SESSION_ID")
-
-"$ENGRAM_BIN" flush "${FLUSH_ARGS[@]}" || true
+# No action needed. The async stop slot is intentionally empty.
+exit 0
