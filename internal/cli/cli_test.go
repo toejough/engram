@@ -286,6 +286,33 @@ func TestRun_Recall_EmptyData(t *testing.T) {
 	_ = g
 }
 
+func TestRun_Surface_CorruptPolicy_FallsBackToDefaults(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	// Write a corrupt policy.toml so polErr != nil and Defaults() is used instead.
+	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte("not valid toml [[["), 0o644)).
+		To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "surface",
+			"--mode", "prompt",
+			"--data-dir", dataDir,
+			"--message", "test query",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 func TestRun_Surface_MissingMode(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -370,6 +397,68 @@ func TestRun_Surface_StopMode_NoTranscript(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("--transcript-path required"))
 	}
+}
+
+func TestRun_Surface_WithAPIKey_HaikuGateWired(t *testing.T) {
+	// Cannot use t.Parallel() — t.Setenv mutates process environment.
+	g := NewWithT(t)
+
+	// Set a fake API key to exercise the token != "" branch that wires WithHaikuGate.
+	// No actual HTTP call occurs because there are no memories to surface.
+	t.Setenv("ANTHROPIC_API_KEY", "test-key-fake")
+
+	dataDir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(dataDir, "memories"), 0o755)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "surface",
+			"--mode", "prompt",
+			"--data-dir", dataDir,
+			"--message", "test query with haiku gate",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRun_Surface_WithMemory_SessionIDAndUserPrompt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	// Write a memory TOML so the surface pipeline has something to work with.
+	memoryTOML := `situation = "when committing code"
+behavior = "manual git commit"
+impact = "slow and error-prone"
+action = "use /commit skill"
+created_at = "2024-01-01T00:00:00Z"
+updated_at = "2024-01-01T00:00:00Z"
+surfaced_count = 0
+`
+	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "commit-conventions.toml"),
+		[]byte(memoryTOML), 0o644)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "surface",
+			"--mode", "prompt",
+			"--data-dir", dataDir,
+			"--message", "I want to commit this change",
+			"--session-id", "test-session-123",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestRun_UnknownCommand_ReturnsError(t *testing.T) {
