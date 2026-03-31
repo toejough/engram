@@ -77,6 +77,7 @@ type Surfacer struct {
 	surfacingLogger       SurfacingEventLogger
 	invocationTokenLogger InvocationTokenLogger
 	budgetConfig          *BudgetConfig
+	config                SurfaceConfig
 	recordSurfacing       func(path string) error // UC-23: records surfacing event per memory
 }
 
@@ -84,6 +85,7 @@ type Surfacer struct {
 func New(retriever MemoryRetriever, opts ...SurfacerOption) *Surfacer {
 	s := &Surfacer{
 		retriever: retriever,
+		config:    DefaultSurfaceConfig(),
 	}
 
 	for _, opt := range opts {
@@ -156,7 +158,7 @@ func (s *Surfacer) runPrompt(
 		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}
 
-	matches := matchPromptMemories(message, memories)
+	matches := matchPromptMemories(message, memories, s.config.IrrelevanceHalfLife)
 	if len(matches) == 0 {
 		return Result{}, nil, nil
 	}
@@ -164,9 +166,9 @@ func (s *Surfacer) runPrompt(
 	// Sort by BM25 score with project scope penalty.
 	sortPromptMatchesByScore(matches, currentProjectSlug)
 
-	// Limit to top promptLimit results.
-	if len(matches) > promptLimit {
-		matches = matches[:promptLimit]
+	// Limit to top CandidateCountMax results.
+	if len(matches) > s.config.CandidateCountMax {
+		matches = matches[:s.config.CandidateCountMax]
 	}
 
 	// Apply token budget cap (ARCH-40).
@@ -210,10 +212,7 @@ func (s *Surfacer) runPrompt(
 	var buf strings.Builder
 
 	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(&buf, "[engram] Memories — for any relevant memory, call "+
-		"`engram show --name <name>` for full details. "+
-		"After your turn, call `engram feedback --name <name> --relevant|--irrelevant "+
-		"--used|--notused` for each:\n")
+	_, _ = fmt.Fprintf(&buf, "%s\n", s.config.InjectionPreamble)
 
 	for _, match := range matches {
 		_, _ = fmt.Fprintf(&buf, "  - %s: %s\n",
@@ -289,12 +288,6 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 	return func(s *Surfacer) { s.tracker = tracker }
 }
 
-// unexported constants.
-const (
-	irrelevancePenaltyHalfLife = 5
-	promptLimit                = 2
-)
-
 // promptMatch holds a memory for prompt mode.
 type promptMatch struct {
 	mem        *memory.Stored
@@ -308,15 +301,15 @@ func filenameSlug(path string) string {
 }
 
 // irrelevancePenalty computes a continuous BM25 score multiplier based on irrelevant feedback count.
-func irrelevancePenalty(irrelevantCount int) float64 {
-	return float64(irrelevancePenaltyHalfLife) /
-		float64(irrelevancePenaltyHalfLife+irrelevantCount)
+func irrelevancePenalty(irrelevantCount, halfLife int) float64 {
+	return float64(halfLife) / float64(halfLife+irrelevantCount)
 }
 
 // matchPromptMemories returns top memories ranked by BM25 relevance to message.
 func matchPromptMemories(
 	message string,
 	memories []*memory.Stored,
+	halfLife int,
 ) []promptMatch {
 	docs := make([]bm25.Document, 0, len(memories))
 	memoryIndex := make(map[string]*memory.Stored, len(memories))
@@ -344,7 +337,7 @@ func matchPromptMemories(
 			continue
 		}
 
-		penalizedScore := result.Score * irrelevancePenalty(mem.IrrelevantCount)
+		penalizedScore := result.Score * irrelevancePenalty(mem.IrrelevantCount, halfLife)
 		matches = append(matches, promptMatch{
 			mem:        mem,
 			bm25Score:  penalizedScore,
