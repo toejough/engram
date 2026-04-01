@@ -189,9 +189,14 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 	refinedCount := 0
 	skippedCount := 0
 
-	for _, stored := range records {
+	total := len(records)
+
+	for idx, stored := range records {
+		name := memory.NameFromPath(stored.Path)
+
 		transcriptPath := findTranscriptForMemory(stored.Record, transcripts)
 		if transcriptPath == "" {
+			_, _ = fmt.Fprintf(stdout, "[%d/%d] skip %s: no transcript\n", idx+1, total, name)
 			skippedCount++
 
 			continue
@@ -199,12 +204,14 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 
 		transcriptContext, _, readErr := reader.Read(transcriptPath, pol.ContextByteBudget)
 		if readErr != nil {
+			_, _ = fmt.Fprintf(stdout, "[%d/%d] skip %s: read error: %v\n", idx+1, total, name, readErr)
 			skippedCount++
 
 			continue
 		}
 
 		if *dryRun {
+			_, _ = fmt.Fprintf(stdout, "[%d/%d] would refine %s\n", idx+1, total, name)
 			refinedCount++
 
 			continue
@@ -212,6 +219,7 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 
 		actionMsg := stored.Record.Action
 		if actionMsg == "" {
+			_, _ = fmt.Fprintf(stdout, "[%d/%d] skip %s: empty action\n", idx+1, total, name)
 			skippedCount++
 
 			continue
@@ -226,6 +234,7 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 			pol.ExtractSonnetPrompt,
 		)
 		if extractErr != nil {
+			_, _ = fmt.Fprintf(stdout, "[%d/%d] FAIL %s: %v\n", idx+1, total, name, extractErr)
 			skippedCount++
 
 			continue
@@ -249,15 +258,18 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 			}
 		})
 		if modifyErr != nil {
+			_, _ = fmt.Fprintf(stdout, "[%d/%d] FAIL %s: write error: %v\n", idx+1, total, name, modifyErr)
 			skippedCount++
 
 			continue
 		}
 
+		_, _ = fmt.Fprintf(stdout, "[%d/%d] refined %s\n", idx+1, total, name)
 		refinedCount++
 	}
 
-	_, _ = fmt.Fprintf(stdout, "[engram] refine: %d refined, %d skipped\n", refinedCount, skippedCount)
+	_, _ = fmt.Fprintf(stdout, "[engram] refine: %d refined, %d skipped (of %d)\n",
+		refinedCount, skippedCount, total)
 
 	return nil
 }
