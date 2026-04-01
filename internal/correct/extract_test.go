@@ -11,6 +11,28 @@ import (
 	"engram/internal/memory"
 )
 
+func TestBuildRefinePrompt_IncludesExistingMemoryFields(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	record := &memory.MemoryRecord{
+		Situation: "when running tests",
+		Behavior:  "using go test directly",
+		Impact:    "bypasses coverage",
+		Action:    "use targ test",
+	}
+
+	prompt := correct.ExportBuildRefinePrompt(record, "transcript content here")
+
+	g.Expect(prompt).To(ContainSubstring("when running tests"))
+	g.Expect(prompt).To(ContainSubstring("using go test directly"))
+	g.Expect(prompt).To(ContainSubstring("bypasses coverage"))
+	g.Expect(prompt).To(ContainSubstring("use targ test"))
+	g.Expect(prompt).To(ContainSubstring("transcript content here"))
+	g.Expect(prompt).To(ContainSubstring("Existing memory to rewrite"))
+}
+
 func TestExtract_EmptyCandidates(t *testing.T) {
 	t.Parallel()
 
@@ -303,4 +325,65 @@ func TestExtract_WithCandidates(t *testing.T) {
 	g.Expect(result.Candidates[0].Name).To(Equal("descriptive-names"))
 	g.Expect(result.Candidates[0].Disposition).To(Equal("supersedes"))
 	g.Expect(result.Candidates[0].Reason).To(Equal("same topic, more specific"))
+}
+
+func TestRefine_ParsesValidResponse(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	mockCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return `{"situation":"improved situation","behavior":"improved behavior",` +
+			`"impact":"improved impact","action":"improved action"}`, nil
+	}
+
+	record := &memory.MemoryRecord{
+		Situation: "old situation",
+		Behavior:  "old behavior",
+		Impact:    "old impact",
+		Action:    "old action",
+	}
+
+	result, err := correct.Refine(
+		context.Background(),
+		mockCaller,
+		record,
+		"transcript",
+		"system prompt",
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Situation).To(Equal("improved situation"))
+	g.Expect(result.Behavior).To(Equal("improved behavior"))
+	g.Expect(result.Impact).To(Equal("improved impact"))
+	g.Expect(result.Action).To(Equal("improved action"))
+}
+
+func TestRefine_PropagatesCallerError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	expectedErr := errors.New("api error")
+	mockCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return "", expectedErr
+	}
+
+	record := &memory.MemoryRecord{
+		Situation: "test",
+		Action:    "test",
+	}
+
+	_, err := correct.Refine(
+		context.Background(),
+		mockCaller,
+		record,
+		"transcript",
+		"system prompt",
+	)
+	g.Expect(err).To(MatchError(expectedErr))
 }

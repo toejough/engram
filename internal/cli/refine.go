@@ -234,6 +234,14 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 			continue
 		}
 
+		// Skip memories with no content to refine from.
+		if stored.Record.Situation == "" && stored.Record.Action == "" {
+			_, _ = fmt.Fprintf(stdout, "[%d/%d] skip %s: empty fields\n", idx+1, total, name)
+			skippedCount++
+
+			continue
+		}
+
 		extraction, extractErr := correct.Refine(
 			ctx,
 			caller,
