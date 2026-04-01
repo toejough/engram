@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -88,8 +89,6 @@ func New(retriever MemoryRetriever, opts ...SurfacerOption) *Surfacer {
 }
 
 // Run executes the surface subcommand, writing output to w.
-//
-//nolint:cyclop // orchestration function: routes modes, logs events, writes result — inherent branching
 func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	var (
 		result  Result
@@ -109,31 +108,7 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		return err
 	}
 
-	now := time.Now()
-
-	if s.tracker != nil && len(matched) > 0 {
-		_ = s.tracker.RecordSurfacing(ctx, matched, opts.Mode)
-	}
-
-	if s.surfacingLogger != nil {
-		for _, mem := range matched {
-			_ = s.surfacingLogger.LogSurfacing(mem.FilePath, opts.Mode, now)
-		}
-	}
-
-	if s.recordSurfacing != nil {
-		for _, mem := range matched {
-			_ = s.recordSurfacing(mem.FilePath)
-		}
-	}
-
-	if s.pendingEvalModifier != nil && len(matched) > 0 {
-		_ = WritePendingEvaluations(
-			matched, s.pendingEvalModifier,
-			opts.SessionID, opts.CurrentProjectSlug, opts.UserPrompt,
-			now,
-		)
-	}
+	s.recordInstrumentation(ctx, matched, opts, time.Now())
 
 	writeErr := s.writeResult(w, result, opts.Format)
 	if writeErr != nil {
@@ -143,10 +118,58 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	// REQ-P4e-5: record output token count for this invocation.
 	if s.invocationTokenLogger != nil && result.Context != "" {
 		tokenCount := EstimateTokens(result.Context)
-		_ = s.invocationTokenLogger.LogInvocationTokens(opts.Mode, tokenCount, time.Now())
+
+		tokenLogErr := s.invocationTokenLogger.LogInvocationTokens(opts.Mode, tokenCount, time.Now())
+		if tokenLogErr != nil {
+			fmt.Fprintf(os.Stderr, "engram: surface: logging invocation tokens: %v\n", tokenLogErr)
+		}
 	}
 
 	return nil
+}
+
+// recordInstrumentation logs surfacing events, increments counters, and writes
+// pending evaluations. Errors are logged to stderr — they must not be silent.
+//
+//nolint:cyclop // instrumentation has inherent branching across 4 optional subsystems
+func (s *Surfacer) recordInstrumentation(
+	ctx context.Context, matched []*memory.Stored, opts Options, now time.Time,
+) {
+	if s.tracker != nil && len(matched) > 0 {
+		trackErr := s.tracker.RecordSurfacing(ctx, matched, opts.Mode)
+		if trackErr != nil {
+			fmt.Fprintf(os.Stderr, "engram: surface: recording surfacing: %v\n", trackErr)
+		}
+	}
+
+	if s.surfacingLogger != nil {
+		for _, mem := range matched {
+			logErr := s.surfacingLogger.LogSurfacing(mem.FilePath, opts.Mode, now)
+			if logErr != nil {
+				fmt.Fprintf(os.Stderr, "engram: surface: logging surfacing event: %v\n", logErr)
+			}
+		}
+	}
+
+	if s.recordSurfacing != nil {
+		for _, mem := range matched {
+			recErr := s.recordSurfacing(mem.FilePath)
+			if recErr != nil {
+				fmt.Fprintf(os.Stderr, "engram: surface: recording surfacing event: %v\n", recErr)
+			}
+		}
+	}
+
+	if s.pendingEvalModifier != nil && len(matched) > 0 {
+		evalErr := WritePendingEvaluations(
+			matched, s.pendingEvalModifier,
+			opts.SessionID, opts.CurrentProjectSlug, opts.UserPrompt,
+			now,
+		)
+		if evalErr != nil {
+			fmt.Fprintf(os.Stderr, "engram: surface: writing pending evaluations: %v\n", evalErr)
+		}
+	}
 }
 
 //nolint:cyclop,funlen // BM25 filtering + budget: inherent branching

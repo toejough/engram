@@ -36,9 +36,17 @@ if [[ -z "$TRANSCRIPT_PATH" || -z "$SESSION_ID" ]]; then
     exit 0
 fi
 
-# Evaluate pending memories for this session (fire-and-forget)
+# Evaluate pending memories for this session
+EVAL_ERR_FILE=$(mktemp)
 "$ENGRAM_BIN" evaluate \
     --transcript-path "$TRANSCRIPT_PATH" \
-    --session-id "$SESSION_ID" 2>/dev/null || true
+    --session-id "$SESSION_ID" 2>"$EVAL_ERR_FILE" || true
+EVAL_ERR=$(cat "$EVAL_ERR_FILE" 2>/dev/null)
+rm -f "$EVAL_ERR_FILE"
+
+if [[ -n "$EVAL_ERR" ]]; then
+    jq -n --arg reason "[engram] evaluate error: $EVAL_ERR" \
+        '{"decision":"block","reason":$reason}'
+fi
 
 exit 0

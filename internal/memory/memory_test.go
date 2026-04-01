@@ -65,3 +65,33 @@ func TestStored_TotalEvaluations(t *testing.T) {
 
 	g.Expect(mem.TotalEvaluations()).To(Equal(8))
 }
+
+func TestToStored_MalformedUpdatedAt_LogsWarning(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	record := &memory.MemoryRecord{
+		Situation: "test",
+		UpdatedAt: "not-a-date",
+	}
+
+	stored := record.ToStored("memories/test.toml")
+	g.Expect(stored.Situation).To(Equal("test"))
+	g.Expect(stored.UpdatedAt.IsZero()).To(BeTrue())
+}
+
+func TestToStored_ValidUpdatedAt_Parses(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	record := &memory.MemoryRecord{
+		Situation: "test",
+		UpdatedAt: "2024-01-15T10:30:00Z",
+	}
+
+	stored := record.ToStored("memories/test.toml")
+	g.Expect(stored.UpdatedAt.IsZero()).To(BeFalse())
+	g.Expect(stored.UpdatedAt.Year()).To(Equal(2024))
+}

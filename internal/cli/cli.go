@@ -201,6 +201,8 @@ func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
 
 		info, infoErr := entry.Info()
 		if infoErr != nil {
+			fmt.Fprintf(os.Stderr, "engram: listing directory: stat %s: %v\n", name, infoErr)
+
 			continue
 		}
 
@@ -363,7 +365,10 @@ func extractAssistantDelta(dataDir, transcriptPath, sessionID string) (string, e
 
 	data, readErr := os.ReadFile(offsetPath) //nolint:gosec // internal path
 	if readErr == nil {
-		_ = json.Unmarshal(data, &stored)
+		unmarshalErr := json.Unmarshal(data, &stored)
+		if unmarshalErr != nil {
+			fmt.Fprintf(os.Stderr, "engram: surface: parsing offset file %s: %v\n", offsetPath, unmarshalErr)
+		}
 	}
 
 	offset := stored.Offset
@@ -385,7 +390,10 @@ func extractAssistantDelta(dataDir, transcriptPath, sessionID string) (string, e
 	//nolint:errchkjson // offsetData has only int64/string fields; cannot fail.
 	storedBytes, _ := json.Marshal(newStored)
 
-	_ = os.WriteFile(offsetPath, storedBytes, filePerms)
+	writeOffsetErr := os.WriteFile(offsetPath, storedBytes, filePerms)
+	if writeOffsetErr != nil {
+		fmt.Fprintf(os.Stderr, "engram: surface: writing offset file %s: %v\n", offsetPath, writeOffsetErr)
+	}
 
 	if len(lines) == 0 {
 		return "", nil
@@ -477,7 +485,10 @@ func resolveSkillsDir() string {
 
 // resolveToken returns the API token from the environment or macOS Keychain.
 func resolveToken(ctx context.Context) string {
-	token, _ := newTokenResolver().Resolve(ctx)
+	token, resolveErr := newTokenResolver().Resolve(ctx)
+	if resolveErr != nil {
+		fmt.Fprintf(os.Stderr, "engram: resolving API token: %v\n", resolveErr)
+	}
 
 	return token
 }

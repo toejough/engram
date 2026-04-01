@@ -41,10 +41,13 @@ if [[ -z "$TRANSCRIPT_PATH" ]]; then
 fi
 
 # Surface memories based on agent's recent output
+SURFACE_ERR_FILE=$(mktemp)
 SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode stop \
     --transcript-path "$TRANSCRIPT_PATH" \
     --session-id "$SESSION_ID" \
-    --format json 2>/dev/null) || SURFACE_OUTPUT=""
+    --format json 2>"$SURFACE_ERR_FILE") || SURFACE_OUTPUT=""
+SURFACE_ERR=$(cat "$SURFACE_ERR_FILE" 2>/dev/null)
+rm -f "$SURFACE_ERR_FILE"
 
 if [[ -n "$SURFACE_OUTPUT" ]]; then
     CONTEXT=$(echo "$SURFACE_OUTPUT" | jq -r '.context // empty')
@@ -53,4 +56,9 @@ if [[ -n "$SURFACE_OUTPUT" ]]; then
             '{"decision":"block","reason":$reason}'
         exit 0
     fi
+fi
+
+if [[ -z "$SURFACE_OUTPUT" && -n "$SURFACE_ERR" ]]; then
+    jq -n --arg reason "[engram] surface error: $SURFACE_ERR" \
+        '{"decision":"block","reason":$reason}'
 fi

@@ -71,8 +71,14 @@ jq -n \
 
     # UC-28: Run engram maintain — single source of truth for proposals
     echo "Running maintain..."
-    SIGNAL_OUTPUT=$("$ENGRAM_BIN" maintain --data-dir "${ENGRAM_HOME}/data") || true
+    MAINTAIN_ERR_FILE=$(mktemp)
+    SIGNAL_OUTPUT=$("$ENGRAM_BIN" maintain --data-dir "${ENGRAM_HOME}/data" 2>"$MAINTAIN_ERR_FILE") || true
+    MAINTAIN_ERR=$(cat "$MAINTAIN_ERR_FILE" 2>/dev/null)
+    rm -f "$MAINTAIN_ERR_FILE"
     echo "Maintain output length: ${#SIGNAL_OUTPUT}"
+    if [[ -n "$MAINTAIN_ERR" ]]; then
+        echo "[engram] maintain error: $MAINTAIN_ERR"
+    fi
 
     # Parse maintain proposals (JSON array with id, action, target, field, value, rationale)
     PROPOSAL_COUNT=0

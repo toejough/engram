@@ -184,7 +184,7 @@ updated_at = "%s"
 		return
 	}
 
-	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 1 skipped"))
+	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 1 skipped (of 1)"))
 }
 
 func TestRunRefineWith_SuccessfulExtraction(t *testing.T) {
@@ -493,7 +493,7 @@ updated_at = "%s"
 	}
 
 	// Memory had empty action, should be skipped.
-	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 1 skipped"))
+	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 1 skipped (of 1)"))
 }
 
 func TestRunRefine_NoMemoriesDir(t *testing.T) {
@@ -552,7 +552,7 @@ updated_at = "2020-01-01T00:00:00Z"
 		return
 	}
 
-	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 1 skipped"))
+	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 1 skipped (of 1)"))
 }
 
 func TestRunRefine_ParseError(t *testing.T) {
@@ -640,9 +640,9 @@ updated_at = "%s"
 	testProjectDir := filepath.Join(home, ".claude", "projects", "refine-transcript-err")
 	g.Expect(os.MkdirAll(testProjectDir, 0o755)).To(Succeed())
 
-	// Create a transcript dir where a file is expected (causes read error).
+	// Create a transcript file with no read permission (causes read error).
 	transcriptPath := filepath.Join(testProjectDir, "bad-session.jsonl")
-	g.Expect(os.MkdirAll(transcriptPath, 0o755)).To(Succeed())
+	g.Expect(os.WriteFile(transcriptPath, []byte("data"), 0o000)).To(Succeed())
 
 	g.Expect(os.Chtimes(transcriptPath, now, now)).To(Succeed())
 
@@ -650,12 +650,16 @@ updated_at = "%s"
 		_ = os.RemoveAll(testProjectDir)
 	})
 
-	var stdout, stderr bytes.Buffer
+	mockCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return `{"situation":"s","behavior":"b","impact":"i","action":"a"}`, nil
+	}
 
-	err := cli.Run(
-		[]string{"engram", "refine", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader(""),
+	var stdout bytes.Buffer
+
+	err := cli.ExportRunRefineWith(
+		[]string{"--data-dir", dataDir},
+		&stdout,
+		mockCaller,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -663,6 +667,6 @@ updated_at = "%s"
 		return
 	}
 
-	// Transcript read should fail, memory should be skipped.
-	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 1 skipped"))
+	// Transcript is a directory (not a file), read should fail, memory should be skipped.
+	g.Expect(stdout.String()).To(ContainSubstring("0 refined, 1 skipped (of 1)"))
 }

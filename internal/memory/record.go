@@ -1,12 +1,17 @@
 package memory
 
-import "time"
+import (
+	"fmt"
+	"os"
+	"time"
+)
 
 // MemoryRecord is the canonical struct for reading and writing memory TOML files.
 //
-//nolint:revive // "memory.MemoryRecord" stutter is intentional for clarity. See #353.
 // ALL code that touches memory TOML must use this struct to prevent field loss.
 // See #353 for the bug caused by divergent struct definitions.
+//
+//nolint:revive // "memory.MemoryRecord" stutter is intentional for clarity. See #353.
 type MemoryRecord struct {
 	Situation string `toml:"situation"`
 	Behavior  string `toml:"behavior"`
@@ -29,7 +34,10 @@ type MemoryRecord struct {
 
 // ToStored converts a MemoryRecord to a Stored for in-memory use.
 func (r *MemoryRecord) ToStored(filePath string) *Stored {
-	updatedAt, _ := time.Parse(time.RFC3339, r.UpdatedAt)
+	updatedAt, parseErr := time.Parse(time.RFC3339, r.UpdatedAt)
+	if parseErr != nil && r.UpdatedAt != "" {
+		fmt.Fprintf(os.Stderr, "engram: memory: parsing updated_at %q for %s: %v\n", r.UpdatedAt, filePath, parseErr)
+	}
 
 	return &Stored{
 		Situation:        r.Situation,

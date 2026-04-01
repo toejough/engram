@@ -208,7 +208,10 @@ func runMaintainWith(args []string, stdout io.Writer, callerOverride CallerFunc)
 		}
 	}
 
-	changeHistory, _ := policy.ReadChangeHistory(policyPath, os.ReadFile)
+	changeHistory, historyReadErr := policy.ReadChangeHistory(policyPath, os.ReadFile)
+	if historyReadErr != nil {
+		fmt.Fprintf(os.Stderr, "engram: maintain: reading change history: %v\n", historyReadErr)
+	}
 
 	ctx := context.Background()
 
