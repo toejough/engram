@@ -356,6 +356,8 @@ func TestDefaults_SurfaceFields(t *testing.T) {
 	g.Expect(pol.SurfaceInjectionPreamble).NotTo(ContainSubstring("full details"))
 	// Preamble should reference engram show for the metadata it actually provides.
 	g.Expect(pol.SurfaceInjectionPreamble).To(ContainSubstring("engram show"))
+	// Preamble should mention what engram show actually adds beyond inline SBIA fields.
+	g.Expect(pol.SurfaceInjectionPreamble).To(ContainSubstring("effectiveness"))
 }
 
 func TestLoadFromPath_ReturnsDefaults_WhenMissing(t *testing.T) {
