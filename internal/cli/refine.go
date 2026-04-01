@@ -182,7 +182,7 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 	if callerOverride != nil {
 		caller = callerOverride
 	} else {
-		caller = makeCLICaller(*apiToken)
+		caller = makeAnthropicCaller(*apiToken)
 	}
 
 	modifier := memory.NewModifier(
