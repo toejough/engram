@@ -13,6 +13,69 @@ import (
 	"engram/internal/policy"
 )
 
+func TestRun_CallerError_ReturnsProposalsAndError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	err := os.MkdirAll(memDir, 0o755)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	err = os.WriteFile(
+		filepath.Join(memDir, "high-irrelevance.toml"),
+		[]byte(highIrrelevanceMemory), 0o644,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Need 2+ memories so consolidation actually runs (and fails).
+	err = os.WriteFile(filepath.Join(memDir, "working.toml"), []byte(workingMemory), 0o644)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	failingCaller := anthropic.CallerFunc(
+		func(_ context.Context, _, _, _ string) (string, error) {
+			return "", anthropic.ErrAPIError
+		},
+	)
+
+	cfg := maintain.Config{
+		Policy:  policy.Defaults(),
+		DataDir: dataDir,
+		Caller:  failingCaller,
+	}
+
+	proposals, runErr := maintain.Run(context.Background(), cfg)
+
+	// Error is surfaced loudly — caller knows consolidation/adapt failed.
+	g.Expect(runErr).To(HaveOccurred())
+	g.Expect(runErr.Error()).To(ContainSubstring("finding merges"))
+	g.Expect(runErr.Error()).To(ContainSubstring("adapt analysis"))
+
+	// Decision tree proposals are still returned alongside the error.
+	g.Expect(proposals).To(HaveLen(1))
+
+	if len(proposals) == 0 {
+		return
+	}
+
+	g.Expect(proposals[0].Action).To(Equal(maintain.ActionDelete))
+	g.Expect(proposals[0].Target).To(ContainSubstring("high-irrelevance"))
+}
+
 func TestRun_EmptyMemoryDir(t *testing.T) {
 	t.Parallel()
 

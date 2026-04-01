@@ -32,6 +32,7 @@ type Confirmer interface {
 
 // Run executes all maintenance analyses: decision tree (always), consolidation
 // and adapt (only when Caller is non-nil). Returns combined proposals from all sources.
+// When Sonnet-dependent analyses fail, returns decision tree proposals alongside the error.
 func Run(ctx context.Context, cfg Config) ([]Proposal, error) {
 	memDir := filepath.Join(cfg.DataDir, "memories")
 
@@ -53,25 +54,41 @@ func Run(ctx context.Context, cfg Config) ([]Proposal, error) {
 
 	proposals := DiagnoseAll(records, diagCfg)
 
-	if cfg.Caller != nil {
-		consolidator := NewConsolidator(cfg.Caller, cfg.Policy.MaintainConsolidatePrompt)
+	if cfg.Caller == nil {
+		return proposals, nil
+	}
 
-		mergeProposals, mergeErr := consolidator.FindMerges(ctx, records)
-		if mergeErr != nil {
-			return nil, fmt.Errorf("finding merges: %w", mergeErr)
-		}
+	sonnetProposals, sonnetErr := runSonnetAnalyses(ctx, cfg, records)
+	proposals = append(proposals, sonnetProposals...)
 
+	return proposals, sonnetErr
+}
+
+// runSonnetAnalyses runs consolidation and adapt analyses, collecting all errors.
+func runSonnetAnalyses(
+	ctx context.Context, cfg Config, records []memory.StoredRecord,
+) ([]Proposal, error) {
+	var proposals []Proposal
+
+	var errs []error
+
+	consolidator := NewConsolidator(cfg.Caller, cfg.Policy.MaintainConsolidatePrompt)
+
+	mergeProposals, mergeErr := consolidator.FindMerges(ctx, records)
+	if mergeErr != nil {
+		errs = append(errs, fmt.Errorf("finding merges: %w", mergeErr))
+	} else {
 		proposals = append(proposals, mergeProposals...)
+	}
 
-		adapter := NewAdapter(cfg.Caller, cfg.Policy.AdaptSonnetPrompt)
+	adapter := NewAdapter(cfg.Caller, cfg.Policy.AdaptSonnetPrompt)
 
-		adaptProposals, adaptErr := adapter.Analyze(ctx, records, cfg.Policy, cfg.ChangeHistory)
-		if adaptErr != nil {
-			return nil, fmt.Errorf("running adapt analysis: %w", adaptErr)
-		}
-
+	adaptProposals, adaptErr := adapter.Analyze(ctx, records, cfg.Policy, cfg.ChangeHistory)
+	if adaptErr != nil {
+		errs = append(errs, fmt.Errorf("running adapt analysis: %w", adaptErr))
+	} else {
 		proposals = append(proposals, adaptProposals...)
 	}
 
-	return proposals, nil
+	return proposals, errors.Join(errs...)
 }

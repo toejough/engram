@@ -212,15 +212,15 @@ func runMaintainWith(args []string, stdout io.Writer, callerOverride CallerFunc)
 
 	ctx := context.Background()
 
-	proposals, err := maintain.Run(ctx, maintain.Config{
+	proposals, runErr := maintain.Run(ctx, maintain.Config{
 		Policy:        pol,
 		DataDir:       *dataDir,
 		Caller:        caller,
 		ChangeHistory: changeHistory,
 	})
-	if err != nil {
-		return fmt.Errorf("maintain: %w", err)
-	}
+	// Run may return both proposals and an error (e.g., decision tree succeeded
+	// but Sonnet-dependent analyses failed). Write whatever proposals we got,
+	// then surface the error.
 
 	proposalPath := filepath.Join(*dataDir, "pending-proposals.json")
 
@@ -235,6 +235,10 @@ func runMaintainWith(args []string, stdout io.Writer, callerOverride CallerFunc)
 	}
 
 	_, _ = fmt.Fprintf(stdout, "%s\n", encoded)
+
+	if runErr != nil {
+		return fmt.Errorf("maintain: %w", runErr)
+	}
 
 	return nil
 }
