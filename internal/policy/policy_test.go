@@ -278,6 +278,9 @@ func TestDefaults_ExtractSonnetPromptContainsSBIADecisionTree(t *testing.T) {
 	g.Expect(pol.ExtractSonnetPrompt).NotTo(ContainSubstring("is_new"))
 	g.Expect(pol.ExtractSonnetPrompt).NotTo(ContainSubstring("duplicate_of"))
 
+	// Prompt must not contain vestigial array-of-memories language from old design.
+	g.Expect(pol.ExtractSonnetPrompt).NotTo(ContainSubstring("memories if multiple"))
+
 	// Prompt must reference all 8 disposition values from disposition.go.
 	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("STORE"))
 	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("DUPLICATE"))
