@@ -89,9 +89,9 @@ func Run(
 // unexported constants.
 const (
 	anthropicMaxTokens = 1024
+	dirPerms           = 0o755
+	filePerms          = 0o644
 	formatJSON         = "json"
-	maxTitleLength     = 38
-	maxTranscriptTok   = 2000
 	minArgs            = 2
 )
 
@@ -170,8 +170,6 @@ func (s *osClaudeMDStore) Read() (string, error) {
 }
 
 func (s *osClaudeMDStore) Write(content string) error {
-	const filePerms = 0o644
-
 	writeErr := os.WriteFile(s.path, []byte(content), filePerms)
 	if writeErr != nil {
 		return fmt.Errorf("writing CLAUDE.md: %w", writeErr)
@@ -241,8 +239,6 @@ type osSkillWriter struct {
 }
 
 func (w *osSkillWriter) Write(name, content string) (string, error) {
-	const dirPerms = 0o755
-
 	mkErr := os.MkdirAll(w.dir, dirPerms)
 	if mkErr != nil {
 		return "", fmt.Errorf("creating skills dir: %w", mkErr)
@@ -254,8 +250,6 @@ func (w *osSkillWriter) Write(name, content string) (string, error) {
 	if err == nil {
 		return "", fmt.Errorf("%w at %s: %q", errSkillExists, path, name)
 	}
-
-	const filePerms = 0o644
 
 	writeErr := os.WriteFile(path, []byte(content), filePerms)
 	if writeErr != nil {
@@ -390,8 +384,6 @@ func extractAssistantDelta(dataDir, transcriptPath, sessionID string) (string, e
 
 	//nolint:errchkjson // offsetData has only int64/string fields; cannot fail.
 	storedBytes, _ := json.Marshal(newStored)
-
-	const filePerms = 0o644
 
 	_ = os.WriteFile(offsetPath, storedBytes, filePerms)
 
@@ -718,12 +710,4 @@ func runSurface(args []string, stdout io.Writer) error {
 	}
 
 	return nil
-}
-
-func truncateTitle(title string) string {
-	if len(title) <= maxTitleLength {
-		return title
-	}
-
-	return title[:maxTitleLength-1] + "…"
 }

@@ -164,7 +164,7 @@ func runShow(args []string, stdout io.Writer) error {
 		return errShowMissingSlug
 	}
 
-	memPath := filepath.Join(*dataDir, "memories", slug+".toml")
+	memPath := filepath.Join(memory.MemoriesDir(*dataDir), slug+".toml")
 
 	mem, err := loadMemoryTOML(memPath)
 	if err != nil {

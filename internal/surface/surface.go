@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -245,7 +244,7 @@ func (s *Surfacer) runPrompt(
 	_, _ = fmt.Fprintf(&buf, "%s\n", s.config.InjectionPreamble)
 
 	for i, match := range matches {
-		slug := filenameSlug(match.mem.FilePath)
+		slug := memory.NameFromPath(match.mem.FilePath)
 		_, _ = fmt.Fprintf(&buf, "  %d. %s\n", i+1, slug)
 		_, _ = fmt.Fprintf(&buf, "     Situation: %s\n", match.mem.Situation)
 		_, _ = fmt.Fprintf(&buf, "     Behavior to avoid: %s\n", match.mem.Behavior)
@@ -261,7 +260,7 @@ func (s *Surfacer) runPrompt(
 
 	for _, match := range matches {
 		_, _ = fmt.Fprintf(&summaryBuf, "  - %s: %s\n",
-			filenameSlug(match.mem.FilePath), match.mem.Action)
+			memory.NameFromPath(match.mem.FilePath), match.mem.Action)
 	}
 
 	// Build final memory list from post-suppression matches (not pre-suppression promptMems).
@@ -328,11 +327,6 @@ type promptMatch struct {
 	mem        *memory.Stored
 	bm25Score  float64
 	searchText string // cached SearchText() result
-}
-
-// filenameSlug strips directory path and .toml extension from a memory file path.
-func filenameSlug(path string) string {
-	return strings.TrimSuffix(filepath.Base(path), ".toml")
 }
 
 // irrelevancePenalty computes a continuous BM25 score multiplier based on irrelevant feedback count.

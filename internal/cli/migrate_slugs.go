@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"engram/internal/memory"
 )
@@ -67,7 +66,7 @@ func runMigrateSlugs(args []string, stdout io.Writer) error {
 		return fmt.Errorf("migrate-slugs: %w", slugErr)
 	}
 
-	memoriesDir := filepath.Join(*dataDir, "memories")
+	memoriesDir := memory.MemoriesDir(*dataDir)
 
 	count, err := backfillSlugs(memoriesDir, *slug, *apply)
 	if err != nil {

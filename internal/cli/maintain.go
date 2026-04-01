@@ -309,7 +309,5 @@ func runRejectProposal(args []string, stdout io.Writer) error {
 
 // writeFileAdapter bridges os.WriteFile (3-arg) to policy.WriteFileFunc (2-arg).
 func writeFileAdapter(path string, data []byte) error {
-	const filePerms = 0o644
-
 	return os.WriteFile(path, data, filePerms) //nolint:wrapcheck // thin adapter
 }

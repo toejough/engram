@@ -531,35 +531,3 @@ func TestRun_UnknownCommand_ReturnsError(t *testing.T) {
 		g.Expect(err.Error()).To(ContainSubstring("unknown command"))
 	}
 }
-
-func TestTruncateTitle_ExactLength_ReturnsUnchanged(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// maxTitleLength is 38.
-	exact := strings.Repeat("a", 38)
-	g.Expect(cli.ExportTruncateTitle(exact)).To(Equal(exact))
-}
-
-func TestTruncateTitle_LongTitle_TruncatesWithEllipsis(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	long := strings.Repeat("a", 60)
-	result := cli.ExportTruncateTitle(long)
-
-	// Result should end with the ellipsis rune and be shorter than input.
-	g.Expect(result).To(HaveSuffix("…"))
-	g.Expect(len([]rune(result))).To(BeNumerically("<", len([]rune(long))))
-}
-
-func TestTruncateTitle_ShortTitle_ReturnsUnchanged(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	short := "short"
-	g.Expect(cli.ExportTruncateTitle(short)).To(Equal(short))
-}

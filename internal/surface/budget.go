@@ -20,11 +20,6 @@ func (c BudgetConfig) ForMode(mode string) int {
 	}
 }
 
-// BudgetConfigReader loads budget configuration from persistent storage.
-type BudgetConfigReader interface {
-	ReadBudgetConfig() (BudgetConfig, error)
-}
-
 // DefaultBudgetConfig returns the default budget configuration.
 func DefaultBudgetConfig() BudgetConfig {
 	return BudgetConfig{

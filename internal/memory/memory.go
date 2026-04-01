@@ -2,6 +2,7 @@
 package memory
 
 import (
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -48,6 +49,17 @@ func (s *Stored) SearchText() string {
 // TotalEvaluations returns the sum of all evaluation counters.
 func (s *Stored) TotalEvaluations() int {
 	return s.FollowedCount + s.NotFollowedCount + s.IrrelevantCount
+}
+
+// MemoriesDir returns the path to the memories subdirectory within a data directory.
+func MemoriesDir(dataDir string) string {
+	return filepath.Join(dataDir, "memories")
+}
+
+// NameFromPath extracts the base filename without extension from a memory path.
+func NameFromPath(path string) string {
+	base := filepath.Base(path)
+	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
 // unexported constants.

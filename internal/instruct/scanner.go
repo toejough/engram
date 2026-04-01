@@ -4,6 +4,8 @@ package instruct
 import (
 	"path/filepath"
 	"strings"
+
+	"engram/internal/memory"
 )
 
 // Exported constants.
@@ -31,7 +33,7 @@ func (s *Scanner) ScanAll(dataDir string) ([]InstructionItem, error) {
 	items := make([]InstructionItem, 0)
 
 	// Memories (*.toml in dataDir/memories/)
-	memPattern := filepath.Join(dataDir, "memories", "*.toml")
+	memPattern := filepath.Join(memory.MemoriesDir(dataDir), "*.toml")
 
 	memFiles, err := s.GlobFiles(memPattern)
 	if err == nil {

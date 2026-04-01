@@ -3,7 +3,6 @@ package evaluate
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"engram/internal/anthropic"
@@ -49,7 +48,7 @@ func (e *Evaluator) Run(ctx context.Context, memories []PendingMemory, transcrip
 }
 
 func (e *Evaluator) evaluate(ctx context.Context, pending PendingMemory, transcript string) Result {
-	memoryName := memoryNameFromPath(pending.Path)
+	memoryName := memory.NameFromPath(pending.Path)
 
 	userPrompt := buildPrompt(e.promptTemplate, pending.Record, transcript)
 
@@ -131,13 +130,6 @@ func buildPrompt(template string, record *memory.MemoryRecord, transcript string
 	prompt = strings.ReplaceAll(prompt, "{transcript}", transcript)
 
 	return prompt
-}
-
-// memoryNameFromPath extracts the base filename without extension.
-func memoryNameFromPath(path string) string {
-	base := filepath.Base(path)
-
-	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
 // parseVerdict normalizes a Haiku response string to a Verdict.

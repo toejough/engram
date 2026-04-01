@@ -89,7 +89,7 @@ func (w *Writer) AtomicWrite(targetPath string, record any) error {
 // The file is written atomically via a temp file and rename.
 // Returns the absolute path of the written file.
 func (w *Writer) Write(record *memory.MemoryRecord, slug, dataDir string) (string, error) {
-	memoriesDir := filepath.Join(dataDir, "memories")
+	memoriesDir := memory.MemoriesDir(dataDir)
 
 	mkdirErr := w.mkdirAll(memoriesDir, memoriesDirPerm)
 	if mkdirErr != nil {

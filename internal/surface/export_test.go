@@ -17,9 +17,9 @@ func ExportBuildGateUserPrompt(candidates []*memory.Stored, userMessage string) 
 	return buildGateUserPrompt(candidates, userMessage)
 }
 
-// ExportFilenameSlug exposes filenameSlug for testing.
+// ExportFilenameSlug exposes memory.NameFromPath for testing.
 func ExportFilenameSlug(path string) string {
-	return filenameSlug(path)
+	return memory.NameFromPath(path)
 }
 
 // ExportFilterBySlug exposes filterBySlug for testing.

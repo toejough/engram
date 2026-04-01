@@ -2,8 +2,6 @@ package maintain
 
 import (
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"engram/internal/memory"
 )
@@ -28,7 +26,7 @@ func Diagnose(path string, record *memory.MemoryRecord, cfg DiagnosisConfig) *Pr
 	effectiveness := float64(record.FollowedCount) / surfaced * percentScale
 	irrelevantRate := float64(record.IrrelevantCount) / surfaced * percentScale
 	notFollowedRate := float64(record.NotFollowedCount) / surfaced * percentScale
-	name := memoryNameFromPath(path)
+	name := memory.NameFromPath(path)
 
 	// Priority 2: low effectiveness + high irrelevance
 	if effectiveness < cfg.EffectivenessThreshold && irrelevantRate >= cfg.IrrelevanceThreshold {
@@ -123,11 +121,4 @@ func diagnoseRemove(path, name string, effectiveness, irrelevantRate float64) *P
 			effectiveness, irrelevantRate,
 		),
 	}
-}
-
-// memoryNameFromPath extracts the base filename without extension.
-func memoryNameFromPath(path string) string {
-	base := filepath.Base(path)
-
-	return strings.TrimSuffix(base, filepath.Ext(base))
 }

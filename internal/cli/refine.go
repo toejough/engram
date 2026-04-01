@@ -135,7 +135,7 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 		*apiToken = resolveToken(ctx)
 	}
 
-	memoriesDir := filepath.Join(*dataDir, "memories")
+	memoriesDir := memory.MemoriesDir(*dataDir)
 
 	records, listErr := memory.ListAll(memoriesDir)
 	if listErr != nil {

@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 
 	"engram/internal/anthropic"
 	"engram/internal/memory"
@@ -25,16 +24,11 @@ type Config struct {
 	ChangeHistory []policy.ChangeEntry
 }
 
-// Confirmer prompts the user for confirmation during maintenance operations.
-type Confirmer interface {
-	Confirm(prompt string) (bool, error)
-}
-
 // Run executes all maintenance analyses: decision tree (always), consolidation
 // and adapt (only when Caller is non-nil). Returns combined proposals from all sources.
 // When Sonnet-dependent analyses fail, returns decision tree proposals alongside the error.
 func Run(ctx context.Context, cfg Config) ([]Proposal, error) {
-	memDir := filepath.Join(cfg.DataDir, "memories")
+	memDir := memory.MemoriesDir(cfg.DataDir)
 
 	records, err := memory.ListAll(memDir)
 	if err != nil {

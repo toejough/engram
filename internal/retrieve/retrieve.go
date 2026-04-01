@@ -31,7 +31,7 @@ func New() *Retriever {
 // parses them into Stored structs, and returns them sorted by UpdatedAt descending.
 // Unparseable files are skipped silently.
 func (r *Retriever) ListMemories(_ context.Context, dataDir string) ([]*memory.Stored, error) {
-	memoriesDir := filepath.Join(dataDir, "memories")
+	memoriesDir := memory.MemoriesDir(dataDir)
 
 	entries, err := r.readDir(memoriesDir)
 	if err != nil {

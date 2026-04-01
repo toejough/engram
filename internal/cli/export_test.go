@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 
-	"engram/internal/maintain"
 	"engram/internal/memory"
 	"engram/internal/recall"
 	"engram/internal/retrieve"
@@ -27,7 +26,6 @@ var (
 	ExportRunMaintainWith         = runMaintainWith
 	ExportRunRefineWith           = runRefineWith
 	ExportRunRejectProposal       = runRejectProposal
-	ExportTruncateTitle           = truncateTitle
 )
 
 type ExportStored = memory.Stored
@@ -37,7 +35,9 @@ type ExportStored = memory.Stored
 // ExportNewCliConfirmer creates a cliConfirmer for testing.
 func ExportNewCliConfirmer(
 	stdout io.Writer, stdin io.Reader, autoConfirm bool,
-) maintain.Confirmer {
+) interface {
+	Confirm(preview string) (bool, error)
+} {
 	return &cliConfirmer{stdout: stdout, stdin: stdin, autoConfirm: autoConfirm}
 }
 

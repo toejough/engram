@@ -12,9 +12,9 @@ func ExportBuildPrompt(template string, record *memory.MemoryRecord, transcript 
 	return buildPrompt(template, record, transcript)
 }
 
-// ExportMemoryNameFromPath exposes memoryNameFromPath for whitebox testing.
+// ExportMemoryNameFromPath exposes memory.NameFromPath for whitebox testing.
 func ExportMemoryNameFromPath(path string) string {
-	return memoryNameFromPath(path)
+	return memory.NameFromPath(path)
 }
 
 // ExportParseVerdict exposes parseVerdict for whitebox testing.

@@ -143,6 +143,17 @@ func TestOsClaudeMDStore_ReadWrite(t *testing.T) {
 	g.Expect(content).To(Equal("# Test\nContent."))
 }
 
+func TestOsClaudeMDStore_WriteError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Use a path inside a non-existent directory to trigger a write error.
+	store := cli.ExportNewOsClaudeMDStore("/nonexistent/dir/CLAUDE.md")
+	err := store.Write("content")
+	g.Expect(err).To(MatchError(ContainSubstring("writing CLAUDE.md")))
+}
+
 func TestOsDirLister_ListJSONL(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -351,24 +362,4 @@ func TestSurfaceRunnerAdapter_Run(t *testing.T) {
 		Message: "test query",
 	})
 	g.Expect(err).NotTo(HaveOccurred())
-}
-
-func TestTruncateTitle_Long(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	long := strings.Repeat("a", 50)
-	result := cli.ExportTruncateTitle(long)
-	// len() counts bytes; "…" is 3 bytes in UTF-8, so maxTitleLength-1 chars + 3 bytes.
-	g.Expect(len(result)).To(BeNumerically("<", len(long)))
-	g.Expect(result).To(HaveSuffix("…"))
-}
-
-func TestTruncateTitle_Short(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	g.Expect(cli.ExportTruncateTitle("Short")).To(Equal("Short"))
 }

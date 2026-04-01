@@ -33,7 +33,7 @@ func NewFileScanner(
 	listDir DirListerFunc,
 ) func(sessionID string) ([]PendingMemory, error) {
 	return func(sessionID string) ([]PendingMemory, error) {
-		memoriesDir := filepath.Join(dataDir, "memories")
+		memoriesDir := memory.MemoriesDir(dataDir)
 
 		entries, err := listDir(memoriesDir)
 		if err != nil {

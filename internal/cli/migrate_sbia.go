@@ -76,7 +76,7 @@ func ExecuteMigration(
 	dataDir string,
 	deps MigrationDeps,
 ) error {
-	memoriesDir := filepath.Join(dataDir, "memories")
+	memoriesDir := memory.MemoriesDir(dataDir)
 	archiveDir := filepath.Join(dataDir, "archive")
 
 	entries, listErr := deps.ListDir(memoriesDir)
@@ -314,8 +314,6 @@ func writeMemoryRecord(
 	if encErr != nil {
 		return fmt.Errorf("encoding TOML: %w", encErr)
 	}
-
-	const filePerms = 0o644
 
 	writeErr := deps.WriteFile(filePath, []byte(buf.String()), filePerms)
 	if writeErr != nil {
