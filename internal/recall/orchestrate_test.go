@@ -96,6 +96,16 @@ func TestFormatResult(t *testing.T) {
 	})
 }
 
+func TestDefaultExtractCap(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 10KB gives mode B enough budget for meaningful cross-session context.
+	// Mode A uses 15KB raw; mode B extracts are denser, so 10KB is proportional.
+	const expectedExtractCap = 10 * 1024
+	g.Expect(recall.DefaultExtractCap).To(Equal(expectedExtractCap))
+}
+
 // --- Tests ---
 
 func TestOrchestrator_Recall_ModeA(t *testing.T) {
@@ -303,8 +313,10 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		// Each extract returns a string of 800 bytes.
-		longResult := make([]byte, 800)
+		// Each extract returns a string of 6KB — two results exceed 10KB cap.
+		const chunkSize = 6 * 1024
+
+		longResult := make([]byte, chunkSize)
 		for i := range longResult {
 			longResult[i] = 'x'
 		}
@@ -334,9 +346,9 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		}
 
 		// All 3 sessions are extracted in parallel, but only 2 results
-		// are concatenated before exceeding the byte cap.
+		// are concatenated before exceeding the 10KB byte cap.
 		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(3))
-		g.Expect(len(result.Summary)).To(BeNumerically(">=", 1500))
+		g.Expect(len(result.Summary)).To(BeNumerically(">=", recall.DefaultExtractCap))
 	})
 
 	t.Run("reader error skips session in mode B", func(t *testing.T) {

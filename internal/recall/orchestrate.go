@@ -11,7 +11,7 @@ import (
 
 // Exported constants.
 const (
-	DefaultExtractCap  = 1500      // 1500 bytes of extracted content
+	DefaultExtractCap  = 10 * 1024 // 10KB of extracted content (mode B)
 	DefaultModeABudget = 15 * 1024 // 15KB for mode A raw transcript
 	DefaultStripBudget = 50 * 1024 // 50KB per-session read budget (mode B)
 )
