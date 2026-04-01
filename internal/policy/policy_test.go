@@ -351,6 +351,11 @@ func TestDefaults_SurfaceFields(t *testing.T) {
 	g.Expect(pol.SurfaceIrrelevanceHalfLife).To(BeNumerically(">", 0))
 	g.Expect(pol.SurfaceGateHaikuPrompt).NotTo(BeEmpty())
 	g.Expect(pol.SurfaceInjectionPreamble).NotTo(BeEmpty())
+
+	// Preamble must not claim "full details" since SBIA fields are already displayed inline.
+	g.Expect(pol.SurfaceInjectionPreamble).NotTo(ContainSubstring("full details"))
+	// Preamble should reference engram show for the metadata it actually provides.
+	g.Expect(pol.SurfaceInjectionPreamble).To(ContainSubstring("engram show"))
 }
 
 func TestLoadFromPath_ReturnsDefaults_WhenMissing(t *testing.T) {

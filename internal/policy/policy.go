@@ -365,8 +365,8 @@ classify which memories' situations match the user's current context.
 
 Return a JSON array of slugs for matching memories. Return an empty array if none match.
 Do not explain. Return only the JSON array.`
-	defaultSurfaceInjectionPreamble = "[engram] Memories — for any relevant memory, call" +
-		" `engram show --name <name>` for full details:"
+	defaultSurfaceInjectionPreamble = "[engram] Memories — use `engram show --name <name>`" +
+		" for tracking data (effectiveness, relevance):"
 	defaultSurfaceIrrelevanceHalfLife = 5
 )
 
