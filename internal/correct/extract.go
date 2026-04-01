@@ -3,12 +3,18 @@ package correct
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 
 	"engram/internal/anthropic"
 	"engram/internal/memory"
+)
+
+// Exported variables.
+var (
+	ErrEmptyResponse = errors.New("extraction: empty response array")
 )
 
 // CandidateResult describes how an existing memory relates to the new one.
@@ -105,16 +111,30 @@ func buildExtractionPrompt(message, transcriptContext string, candidates []*memo
 }
 
 // parseExtractionResponse parses the JSON response from Sonnet, stripping
-// markdown code fences if present.
+// markdown code fences if present. Handles both single object and array
+// responses (the prompt may produce either).
 func parseExtractionResponse(response string) (*ExtractionResult, error) {
 	cleaned := anthropic.StripCodeFences(response)
 
+	// Try single object first.
 	var result ExtractionResult
 
 	err := json.Unmarshal([]byte(cleaned), &result)
-	if err != nil {
+	if err == nil {
+		return &result, nil
+	}
+
+	// Try array — take the first element.
+	var results []ExtractionResult
+
+	arrErr := json.Unmarshal([]byte(cleaned), &results)
+	if arrErr != nil {
 		return nil, fmt.Errorf("extraction: parsing response JSON: %w", err)
 	}
 
-	return &result, nil
+	if len(results) == 0 {
+		return nil, ErrEmptyResponse
+	}
+
+	return &results[0], nil
 }

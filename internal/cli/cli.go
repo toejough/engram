@@ -412,6 +412,33 @@ func makeAnthropicCaller(
 	return client.Caller(anthropicMaxTokens)
 }
 
+// makeCLICaller returns a CallerFunc that routes through `claude -p --bare`
+// instead of the direct Anthropic API. This uses Claude Code's internal routing,
+// avoiding 429s that occur when the OAuth token's direct API quota is exhausted
+// by the active session. The --bare flag skips hooks (preventing recursion) and
+// CLAUDE.md loading (preventing context pollution).
+func makeCLICaller(token string) anthropic.CallerFunc {
+	return func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
+		args := []string{
+			"-p", "--bare", "--model", model, "--max-turns", "1",
+			"--system-prompt", systemPrompt,
+		}
+
+		//nolint:gosec // args are constructed from trusted internal values
+		cmd := exec.CommandContext(ctx, "claude", args...)
+		cmd.Stdin = strings.NewReader(userPrompt)
+
+		cmd.Env = append(os.Environ(), "ANTHROPIC_API_KEY="+token)
+
+		output, err := cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("claude -p: %w", err)
+		}
+
+		return strings.TrimSpace(string(output)), nil
+	}
+}
+
 // newAnthropicClient creates a shared anthropic.Client configured with the
 // current AnthropicAPIURL (supports test overrides).
 func newAnthropicClient(token string) *anthropic.Client {
@@ -494,7 +521,10 @@ func runCorrect(args []string, stdout io.Writer) error {
 		return fmt.Errorf("correct: %w", polErr)
 	}
 
-	caller := makeAnthropicCaller(token)
+	// Route through claude -p --bare to use Claude Code's internal routing,
+	// avoiding 429s from the shared OAuth direct API quota.
+	caller := makeCLICaller(token)
+
 	reader := recall.NewTranscriptReader(&osFileReader{})
 	retriever := retrieve.New()
 

@@ -14,6 +14,51 @@ import (
 	"engram/internal/policy"
 )
 
+// mustJSON marshals a value to JSON or fails the test.
+func TestParseExtractionResponse_ArrayResponse(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	response := `[{"situation":"s","behavior":"b","impact":"i","action":"a","filename_slug":"test"}]`
+
+	result, err := correct.ExportParseExtractionResponse(response)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Situation).To(Equal("s"))
+	g.Expect(result.Action).To(Equal("a"))
+}
+
+func TestParseExtractionResponse_EmptyArray(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := correct.ExportParseExtractionResponse("[]")
+	g.Expect(err).To(MatchError(correct.ErrEmptyResponse))
+}
+
+func TestParseExtractionResponse_FencedArray(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	response := "```json\n[{\"situation\":\"s\",\"behavior\":\"b\",\"impact\":\"i\",\"action\":\"a\"}]\n```"
+
+	result, err := correct.ExportParseExtractionResponse(response)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Situation).To(Equal("s"))
+}
+
 func TestRun_FastPathCorrection_StoresMemory(t *testing.T) {
 	t.Parallel()
 
@@ -526,7 +571,6 @@ func fakeCaller(responses map[string]string) correct.CallerFunc {
 	}
 }
 
-// mustJSON marshals a value to JSON or fails the test.
 func mustJSON(t *testing.T, value any) string {
 	t.Helper()
 
