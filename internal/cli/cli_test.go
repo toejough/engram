@@ -455,9 +455,9 @@ func TestRun_Surface_WithAPIKey_HaikuGateWired(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.
 	g := NewWithT(t)
 
-	// Set a fake API key to exercise the token != "" branch that wires WithHaikuGate.
+	// Set a fake token to exercise the token != "" branch that wires WithHaikuGate.
 	// No actual HTTP call occurs because there are no memories to surface.
-	t.Setenv("ANTHROPIC_API_KEY", "test-key-fake")
+	t.Setenv("ENGRAM_API_TOKEN", "test-key-fake")
 
 	dataDir := t.TempDir()
 	g.Expect(os.MkdirAll(filepath.Join(dataDir, "memories"), 0o755)).To(Succeed())

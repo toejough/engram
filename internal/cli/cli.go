@@ -100,6 +100,7 @@ var (
 	defaultModifier = memory.NewModifier( //nolint:gochecknoglobals // production singleton
 		memory.WithModifierWriter(tomlwriter.New()),
 	)
+	errNoToken                 = errors.New("no API token available — Haiku gate cannot be wired")
 	errSkillExists             = errors.New("skill already exists")
 	errSurfaceMissingFlags     = errors.New("surface: --mode required")
 	errSurfaceStopNoTranscript = errors.New("surface: --transcript-path required for stop mode")
@@ -699,15 +700,17 @@ func runSurface(args []string, stdout io.Writer) error {
 		}),
 	}
 
-	token := os.Getenv("ANTHROPIC_API_KEY")
+	ctx := context.Background()
+	token := resolveToken(ctx)
+
 	if token != "" {
 		caller := makeAnthropicCaller(token)
 		surfacerOpts = append(surfacerOpts, surface.WithHaikuGate(caller))
+	} else {
+		return fmt.Errorf("surface: %w", errNoToken)
 	}
 
 	surfacer := surface.New(retriever, surfacerOpts...)
-
-	ctx := context.Background()
 
 	runErr := surfacer.Run(ctx, stdout, opts)
 	if runErr != nil {

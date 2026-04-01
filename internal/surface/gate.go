@@ -14,7 +14,7 @@ import (
 type HaikuCallerFunc func(ctx context.Context, model, system, user string) (string, error)
 
 // GateMemories uses Haiku to filter candidates by situational relevance.
-// On API error or parse error, returns all candidates (fail-open).
+// Returns an error if the gate call fails — callers must surface the failure.
 func GateMemories(
 	ctx context.Context,
 	candidates []*memory.Stored,
@@ -30,12 +30,12 @@ func GateMemories(
 
 	response, callErr := caller(ctx, anthropic.HaikuModel, systemPrompt, userPrompt)
 	if callErr != nil {
-		return candidates, nil //nolint:nilerr // fail open: return all on API error
+		return nil, fmt.Errorf("haiku gate: %w", callErr)
 	}
 
 	slugs, parseErr := parseGateResponse(response)
 	if parseErr != nil {
-		return candidates, nil //nolint:nilerr // fail open: return all on parse error
+		return nil, fmt.Errorf("haiku gate: %w", parseErr)
 	}
 
 	return filterBySlug(candidates, slugs), nil
@@ -80,14 +80,32 @@ func filterBySlug(candidates []*memory.Stored, slugs []string) []*memory.Stored 
 	return result
 }
 
-// parseGateResponse unmarshals the Haiku response JSON into a slug list.
+// parseGateResponse unmarshals the Haiku response JSON into a slug list,
+// stripping markdown code fences if present.
 func parseGateResponse(response string) ([]string, error) {
+	cleaned := stripFences(response)
+
 	var slugs []string
 
-	err := json.Unmarshal([]byte(response), &slugs)
+	err := json.Unmarshal([]byte(cleaned), &slugs)
 	if err != nil {
 		return nil, fmt.Errorf("parsing gate response: %w", err)
 	}
 
 	return slugs, nil
+}
+
+// stripFences removes markdown code fences from a string if present.
+func stripFences(s string) string {
+	trimmed := strings.TrimSpace(s)
+
+	if after, found := strings.CutPrefix(trimmed, "```json"); found {
+		return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(after), "```"))
+	}
+
+	if after, found := strings.CutPrefix(trimmed, "```"); found {
+		return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(after), "```"))
+	}
+
+	return trimmed
 }

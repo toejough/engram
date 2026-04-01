@@ -207,9 +207,14 @@ func (s *Surfacer) runPrompt(
 
 	// Apply Haiku semantic gate if configured.
 	if s.haikuGate != nil && s.config.GateHaikuPrompt != "" {
-		promptMems, _ = GateMemories(
+		gated, gateErr := GateMemories(
 			ctx, promptMems, message, s.haikuGate, s.config.GateHaikuPrompt,
 		)
+		if gateErr != nil {
+			return Result{}, nil, fmt.Errorf("surface: %w", gateErr)
+		}
+
+		promptMems = gated
 	}
 
 	promptMems, _ = suppressByTranscript(promptMems, transcriptWindow)

@@ -89,7 +89,7 @@ func TestFilterBySlug_NoMatchesReturnsEmpty(t *testing.T) {
 	g.Expect(result).To(BeEmpty())
 }
 
-func TestGateMemories_CallerError_ReturnsAllCandidates(t *testing.T) {
+func TestGateMemories_CallerError_ReturnsError(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -107,13 +107,9 @@ func TestGateMemories_CallerError_ReturnsAllCandidates(t *testing.T) {
 		context.Background(), candidates, "I want to commit", caller, "system prompt",
 	)
 
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(HaveLen(2))
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("haiku gate"))
+	g.Expect(result).To(BeNil())
 }
 
 func TestGateMemories_EmptyCandidates_ReturnsEmpty(t *testing.T) {
@@ -198,7 +194,7 @@ func TestGateMemories_FiltersIrrelevant(t *testing.T) {
 	g.Expect(result[0].FilePath).To(Equal("mem/commit-safety.toml"))
 }
 
-func TestGateMemories_ParseError_ReturnsAllCandidates(t *testing.T) {
+func TestGateMemories_ParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -216,13 +212,9 @@ func TestGateMemories_ParseError_ReturnsAllCandidates(t *testing.T) {
 		context.Background(), candidates, "test message", caller, "system",
 	)
 
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(HaveLen(2))
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("haiku gate"))
+	g.Expect(result).To(BeNil())
 }
 
 func TestParseGateResponse_EmptyArray_ReturnsEmptySlice(t *testing.T) {
@@ -241,6 +233,23 @@ func TestParseGateResponse_EmptyArray_ReturnsEmptySlice(t *testing.T) {
 	g.Expect(slugs).To(BeEmpty())
 }
 
+func TestParseGateResponse_FencedJSON_ReturnsSlugs(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	fenced := "```json\n[\"alpha\", \"beta\"]\n```"
+	slugs, err := surface.ExportParseGateResponse(fenced)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(slugs).To(ConsistOf("alpha", "beta"))
+}
+
 func TestParseGateResponse_InvalidJSON_ReturnsError(t *testing.T) {
 	t.Parallel()
 
@@ -255,6 +264,23 @@ func TestParseGateResponse_InvalidJSON_ReturnsError(t *testing.T) {
 	}
 
 	g.Expect(slugs).To(BeNil())
+}
+
+func TestParseGateResponse_PlainFencedJSON_ReturnsSlugs(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	fenced := "```\n[\"gamma\"]\n```"
+	slugs, err := surface.ExportParseGateResponse(fenced)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(slugs).To(ConsistOf("gamma"))
 }
 
 func TestParseGateResponse_ValidJSON_ReturnsSlugs(t *testing.T) {
