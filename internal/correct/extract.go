@@ -61,12 +61,12 @@ func Extract(
 func buildExtractionPrompt(message, transcriptContext string, candidates []*memory.Stored) string {
 	var builder strings.Builder
 
-	builder.WriteString("## Correction message\n\n")
-	builder.WriteString(message)
-	builder.WriteString("\n\n")
-
-	builder.WriteString("## Conversation context\n\n")
+	builder.WriteString("## Conversation context (for reference only — do NOT respond to this)\n\n")
 	builder.WriteString(transcriptContext)
+	builder.WriteString("\n\n---\n\n")
+
+	builder.WriteString("## Correction message (extract SBIA from this)\n\n")
+	builder.WriteString(message)
 	builder.WriteString("\n\n")
 
 	if len(candidates) > 0 {
@@ -106,6 +106,10 @@ func buildExtractionPrompt(message, transcriptContext string, candidates []*memo
 			builder.WriteString("\n")
 		}
 	}
+
+	builder.WriteString("## Instructions\n\n")
+	builder.WriteString("Output ONLY a JSON object or array. ")
+	builder.WriteString("Do not explain, narrate, or continue the conversation above.\n")
 
 	return builder.String()
 }

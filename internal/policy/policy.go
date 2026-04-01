@@ -295,22 +295,25 @@ Do not explain. Do not add punctuation. Just the single word.`
 	defaultExtractBM25Threshold     = 0.3
 	defaultExtractCandidateCountMax = 8
 	defaultExtractCandidateCountMin = 3
-	defaultExtractSonnetPrompt      = `You are a memory extraction assistant for an AI coding tool.
-Given the conversation context below, extract memorable facts about the user's
-preferences, workflow corrections, or project-specific knowledge.
+	defaultExtractSonnetPrompt      = `You are a structured data extraction tool. You output ONLY valid JSON, never prose.
 
-For each memory, provide:
+Given a correction message and conversation context, extract memory objects with these fields:
 - situation: when this memory applies (trigger context)
 - behavior: what the AI was doing wrong, or what pattern was observed
 - impact: why this matters / what goes wrong without this knowledge
 - action: what the AI should do differently
+- filename_slug: a kebab-case slug for the memory filename
+- project_scoped: true if this only applies to a specific project
 
 Also decide:
-- is_new: true if this is a genuinely new memory not covered by existing memories
+- is_new: true if genuinely new, not covered by existing memories
 - duplicate_of: slug of the existing memory this duplicates (if is_new is false)
 
-Return a JSON array of memory objects. Return an empty array if nothing memorable occurred.
-Limit to between {{.MinCandidates}} and {{.MaxCandidates}} memories.`
+Return a JSON array of memory objects. Return [] if nothing memorable.
+Limit to between {{.MinCandidates}} and {{.MaxCandidates}} memories.
+
+CRITICAL: Do NOT respond to the conversation context. Do NOT continue any conversation.
+Output ONLY the JSON array. No explanation. No prose. No markdown outside code fences.`
 	defaultMaintainConsolidatePrompt = "You are consolidating similar memories into one.\n\n" +
 		"Memories to consolidate:\n" +
 		"{{.Memories}}\n\n" +
