@@ -267,6 +267,38 @@ func TestDefaults_EvaluateHaikuPrompt(t *testing.T) {
 	g.Expect(pol.EvaluateHaikuPrompt).NotTo(BeEmpty())
 }
 
+func TestDefaults_ExtractSonnetPromptContainsSBIADecisionTree(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	pol := policy.Defaults()
+
+	// Prompt must instruct Sonnet to use the SBIA decision tree, not binary is_new/duplicate_of.
+	g.Expect(pol.ExtractSonnetPrompt).NotTo(ContainSubstring("is_new"))
+	g.Expect(pol.ExtractSonnetPrompt).NotTo(ContainSubstring("duplicate_of"))
+
+	// Prompt must reference all 8 disposition values from disposition.go.
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("STORE"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("DUPLICATE"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("CONTRADICTION"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("REFINEMENT"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("IMPACT_UPDATE"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("POTENTIAL_GENERALIZATION"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("LEGITIMATE_SEPARATE"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("STORE_BOTH"))
+
+	// Prompt must instruct per-candidate disposition output with the correct JSON schema.
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("candidates"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("disposition"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("reason"))
+
+	// Prompt must include the decision tree walkthrough structure.
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("Same situation"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("Similar situation"))
+	g.Expect(pol.ExtractSonnetPrompt).To(ContainSubstring("Different situation"))
+}
+
 func TestDefaults_MaintainFields(t *testing.T) {
 	t.Parallel()
 

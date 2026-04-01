@@ -297,23 +297,48 @@ Do not explain. Do not add punctuation. Just the single word.`
 	defaultExtractCandidateCountMin = 3
 	defaultExtractSonnetPrompt      = `You are a structured data extraction tool. You output ONLY valid JSON, never prose.
 
-Given a correction message and conversation context, extract memory objects with these fields:
-- situation: when this memory applies (trigger context)
-- behavior: what the AI was doing wrong, or what pattern was observed
-- impact: why this matters / what goes wrong without this knowledge
+Given a correction message and conversation context, extract SBIA memory fields:
+- situation: when this memory applies (observable activity context, not topic tags)
+- behavior: what the AI was doing wrong (the default/faulty decision, not just the tool call)
+- impact: what goes wrong as a result (concrete negative outcome)
 - action: what the AI should do differently
 - filename_slug: a kebab-case slug for the memory filename
 - project_scoped: true if this only applies to a specific project
 
-Also decide:
-- is_new: true if genuinely new, not covered by existing memories
-- duplicate_of: slug of the existing memory this duplicates (if is_new is false)
+If existing candidate memories are provided, evaluate EACH candidate against this SBIA decision tree:
 
-Return a JSON array of memory objects. Return [] if nothing memorable.
-Limit to between {{.MinCandidates}} and {{.MaxCandidates}} memories.
+1. How similar is the Situation?
+   - Same situation + Same behavior:
+     - Same impact + same action → DUPLICATE (don't create new memory)
+     - Same impact + different action → CONTRADICTION (user changed mind or tech changed)
+     - Different impact + same action → IMPACT_UPDATE (richer impact description)
+     - Different impact + different action → REFINEMENT (unusual — flag for review)
+   - Same situation + Different behavior → STORE_BOTH (two different mistakes in same context)
+   - Similar situation (related but not identical):
+     - Same behavior + same impact → POTENTIAL_GENERALIZATION (merge into broader situation)
+     - Same behavior + different impact → LEGITIMATE_SEPARATE (situation nuance matters)
+     - Different behavior → STORE_BOTH (independent lessons)
+   - Different situation → STORE (no relationship)
+
+For each candidate, output a disposition object:
+{"name": "<candidate-slug>", "disposition": "<DISPOSITION>", "reason": "<why>"}
+
+Return a single JSON object (not an array):
+{
+  "situation": "...",
+  "behavior": "...",
+  "impact": "...",
+  "action": "...",
+  "filename_slug": "...",
+  "project_scoped": false,
+  "candidates": [{"name": "...", "disposition": "...", "reason": "..."}]
+}
+
+If no candidates provided, return an empty candidates array.
+Return between {{.MinCandidates}} and {{.MaxCandidates}} memories if multiple corrections found.
 
 CRITICAL: Do NOT respond to the conversation context. Do NOT continue any conversation.
-Output ONLY the JSON array. No explanation. No prose. No markdown outside code fences.`
+Output ONLY the JSON object. No explanation. No prose. No markdown outside code fences.`
 	defaultMaintainConsolidatePrompt = "You are consolidating similar memories into one.\n\n" +
 		"Memories to consolidate:\n" +
 		"{{.Memories}}\n\n" +
