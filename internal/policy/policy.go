@@ -335,7 +335,6 @@ Return a single JSON object (not an array):
 }
 
 If no candidates provided, return an empty candidates array.
-Return between {{.MinCandidates}} and {{.MaxCandidates}} memories if multiple corrections found.
 
 CRITICAL: Do NOT respond to the conversation context. Do NOT continue any conversation.
 Output ONLY the JSON object. No explanation. No prose. No markdown outside code fences.`
