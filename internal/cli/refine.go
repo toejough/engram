@@ -251,7 +251,13 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 			pol.ExtractSonnetPrompt,
 		)
 		if extractErr != nil {
-			_, _ = fmt.Fprintf(stdout, "[%d/%d] FAIL %s: %v\n", idx+1, total, name, extractErr)
+			if errors.Is(extractErr, correct.ErrEmptyResponse) {
+				_, _ = fmt.Fprintf(stdout, "[%d/%d] skip %s: no extraction from transcript\n",
+					idx+1, total, name)
+			} else {
+				_, _ = fmt.Fprintf(stdout, "[%d/%d] FAIL %s: %v\n", idx+1, total, name, extractErr)
+			}
+
 			skippedCount++
 
 			continue
