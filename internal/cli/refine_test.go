@@ -198,7 +198,9 @@ func TestRunRefineWith_SuccessfulExtraction(t *testing.T) {
 	// Write valid policy.
 	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte(""), 0o644)).To(Succeed())
 
-	now := time.Now().UTC()
+	// Use a distinct timestamp offset from other tests to avoid transcript collision
+	// when findTranscriptForMemory scans all projects.
+	now := time.Now().UTC().Add(-2 * time.Hour)
 	memTOML := fmt.Sprintf(`situation = "old situation\nKeywords: foo, bar"
 behavior = "old behavior"
 impact = "old impact"
@@ -327,7 +329,8 @@ func TestRunRefine_DryRunWithMatchingTranscript(t *testing.T) {
 	// Write valid policy.
 	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte(""), 0o644)).To(Succeed())
 
-	now := time.Now().UTC()
+	// Use a distinct timestamp offset from other tests to avoid transcript collision.
+	now := time.Now().UTC().Add(-4 * time.Hour)
 	memTOML := fmt.Sprintf(`situation = "test\nKeywords: baz"
 behavior = "test"
 impact = "test"
@@ -619,7 +622,8 @@ func TestRunRefine_TranscriptReadError(t *testing.T) {
 	// Write valid policy.
 	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte(""), 0o644)).To(Succeed())
 
-	now := time.Now().UTC()
+	// Use a distinct timestamp offset from other tests to avoid transcript collision.
+	now := time.Now().UTC().Add(-6 * time.Hour)
 	memTOML := fmt.Sprintf(`situation = "test"
 behavior = "test"
 impact = "test"

@@ -429,6 +429,7 @@ func makeCLICaller(token string) anthropic.CallerFunc {
 	return func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
 		args := []string{
 			"-p", "--bare", "--model", model, "--max-turns", "1",
+			"--tools", "",
 			"--system-prompt", systemPrompt,
 		}
 
