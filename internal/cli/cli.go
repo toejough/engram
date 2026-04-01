@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -439,17 +440,20 @@ func makeCLICaller(token string) anthropic.CallerFunc {
 
 		cmd.Env = append(os.Environ(), "ANTHROPIC_API_KEY="+token)
 
-		output, err := cmd.Output()
-		if err != nil {
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
-				return "", fmt.Errorf("claude -p: %w\nstderr: %s", err, exitErr.Stderr)
-			}
+		var stdout, stderr bytes.Buffer
 
-			return "", fmt.Errorf("claude -p: %w", err)
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		err := cmd.Run()
+		if err != nil {
+			return "", fmt.Errorf(
+				"claude -p: %w\nstdout: %s\nstderr: %s",
+				err, stdout.String(), stderr.String(),
+			)
 		}
 
-		return strings.TrimSpace(string(output)), nil
+		return strings.TrimSpace(stdout.String()), nil
 	}
 }
 
