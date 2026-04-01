@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"engram/internal/correct"
@@ -205,6 +206,14 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 		transcriptContext, _, readErr := reader.Read(transcriptPath, pol.ContextByteBudget)
 		if readErr != nil {
 			_, _ = fmt.Fprintf(stdout, "[%d/%d] skip %s: read error: %v\n", idx+1, total, name, readErr)
+			skippedCount++
+
+			continue
+		}
+
+		// Skip already-refined memories (no Keywords: blob in situation).
+		if !strings.Contains(stored.Record.Situation, "Keywords:") {
+			_, _ = fmt.Fprintf(stdout, "[%d/%d] skip %s: already refined\n", idx+1, total, name)
 			skippedCount++
 
 			continue
