@@ -300,7 +300,10 @@ func runMigrateSBIA(args []string, stdout io.Writer) error {
 		Stdout:    stdout,
 	}
 
-	return ExecuteMigration(context.Background(), *dataDir, deps)
+	ctx, cancel := signalContext()
+	defer cancel()
+
+	return ExecuteMigration(ctx, *dataDir, deps)
 }
 
 func writeMemoryRecord(

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -63,7 +62,9 @@ func resolveEvaluateCaller(override CallerFunc) CallerFunc {
 		return override
 	}
 
-	ctx := context.Background()
+	ctx, cancel := signalContext()
+	defer cancel()
+
 	token := resolveToken(ctx)
 
 	return makeAnthropicCaller(token)
@@ -142,7 +143,9 @@ func runEvaluateWith(args []string, stdout io.Writer, callerOverride CallerFunc)
 		anthropic.HaikuModel,
 	)
 
-	ctx := context.Background()
+	ctx, cancel := signalContext()
+	defer cancel()
+
 	results := evaluator.Run(ctx, pendingMemories, transcript)
 
 	return writeEvaluateResults(stdout, results)

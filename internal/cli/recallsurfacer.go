@@ -28,7 +28,10 @@ func (s *RecallSurfacer) Surface(query string) (string, error) {
 
 	var buf strings.Builder
 
-	err := s.runner.Run(context.Background(), &buf, SurfaceRunnerOptions{
+	ctx, cancel := signalContext()
+	defer cancel()
+
+	err := s.runner.Run(ctx, &buf, SurfaceRunnerOptions{
 		Mode:    surface.ModePrompt,
 		DataDir: s.dataDir,
 		Message: query,

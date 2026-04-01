@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -195,12 +194,14 @@ func runMaintainWith(args []string, stdout io.Writer, callerOverride CallerFunc)
 		pol = policy.Defaults()
 	}
 
+	ctx, cancel := signalContext()
+	defer cancel()
+
 	var caller CallerFunc
 
 	if callerOverride != nil {
 		caller = callerOverride
 	} else {
-		ctx := context.Background()
 		token := resolveToken(ctx)
 
 		if token != "" {
@@ -212,8 +213,6 @@ func runMaintainWith(args []string, stdout io.Writer, callerOverride CallerFunc)
 	if historyReadErr != nil {
 		fmt.Fprintf(os.Stderr, "engram: maintain: reading change history: %v\n", historyReadErr)
 	}
-
-	ctx := context.Background()
 
 	proposals, runErr := maintain.Run(ctx, maintain.Config{
 		Policy:        pol,

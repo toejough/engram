@@ -522,7 +522,9 @@ func runCorrect(args []string, stdout io.Writer) error {
 		dataDir = &defaultDir
 	}
 
-	ctx := context.Background()
+	ctx, cancel := signalContext()
+	defer cancel()
+
 	token := resolveToken(ctx)
 
 	policyPath := filepath.Join(*dataDir, "policy.toml")
@@ -620,7 +622,10 @@ func runRecall(args []string, stdout io.Writer) error {
 	}
 
 	projectDir := filepath.Join(home, ".claude", "projects", *projectSlug)
-	ctx := context.Background()
+
+	ctx, cancel := signalContext()
+	defer cancel()
+
 	token := resolveToken(ctx)
 
 	finder := recall.NewSessionFinder(&osDirLister{})
@@ -733,7 +738,9 @@ func runSurface(args []string, stdout io.Writer) error {
 		}),
 	}
 
-	ctx := context.Background()
+	ctx, cancel := signalContext()
+	defer cancel()
+
 	token := resolveToken(ctx)
 
 	if token != "" {

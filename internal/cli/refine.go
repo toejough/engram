@@ -130,9 +130,11 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 		return fmt.Errorf("refine: %w", defaultErr)
 	}
 
+	ctx, cancel := signalContext()
+	defer cancel()
+
 	// Resolve API token from env if not provided via flag.
 	if *apiToken == "" {
-		ctx := context.Background()
 		*apiToken = resolveToken(ctx)
 	}
 
@@ -193,6 +195,12 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 	total := len(records)
 
 	for idx, stored := range records {
+		if ctx.Err() != nil {
+			_, _ = fmt.Fprintf(stdout, "[engram] refine: interrupted\n")
+
+			break
+		}
+
 		name := memory.NameFromPath(stored.Path)
 
 		transcriptPath := findTranscriptForMemory(stored.Record, transcripts)
@@ -235,7 +243,7 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 		}
 
 		extraction, extractErr := correct.Extract(
-			context.Background(),
+			ctx,
 			caller,
 			actionMsg,
 			transcriptContext,
