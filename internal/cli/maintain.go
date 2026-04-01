@@ -205,7 +205,7 @@ func runMaintainWith(args []string, stdout io.Writer, callerOverride CallerFunc)
 		token := resolveToken(ctx)
 
 		if token != "" {
-			caller = makeAnthropicCaller(token)
+			caller = makeCLICaller(token)
 		}
 	}
 
