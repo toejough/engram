@@ -32,7 +32,7 @@ type ExtractionResult struct {
 	Behavior      string            `json:"behavior"`
 	Impact        string            `json:"impact"`
 	Action        string            `json:"action"`
-	FilenameSlug  string            `json:"filename_slug"`
+	FilenameSlug  string            `json:"filename_slug"`  // Transient — used for file naming only, not stored in MemoryRecord.
 	ProjectScoped bool              `json:"project_scoped"`
 	Candidates    []CandidateResult `json:"candidates"`
 }
