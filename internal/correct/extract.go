@@ -28,11 +28,12 @@ type CandidateResult struct {
 //
 //nolint:tagliatelle // JSON API uses snake_case per spec.
 type ExtractionResult struct {
-	Situation     string            `json:"situation"`
-	Behavior      string            `json:"behavior"`
-	Impact        string            `json:"impact"`
-	Action        string            `json:"action"`
-	FilenameSlug  string            `json:"filename_slug"`  // Transient — used for file naming only, not stored in MemoryRecord.
+	Situation string `json:"situation"`
+	Behavior  string `json:"behavior"`
+	Impact    string `json:"impact"`
+	Action    string `json:"action"`
+	// FilenameSlug is transient — used for file naming only, not stored in MemoryRecord.
+	FilenameSlug  string            `json:"filename_slug"`
 	ProjectScoped bool              `json:"project_scoped"`
 	Candidates    []CandidateResult `json:"candidates"`
 }
@@ -48,6 +49,26 @@ func Extract(
 	systemPrompt string,
 ) (*ExtractionResult, error) {
 	userPrompt := buildExtractionPrompt(message, transcriptContext, candidates)
+
+	response, err := caller(ctx, anthropic.SonnetModel, systemPrompt, userPrompt)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseExtractionResponse(response)
+}
+
+// Refine calls Sonnet to rewrite an existing memory's SBIA fields using the
+// original transcript for context. Unlike Extract, it preserves the memory's
+// identity rather than creating new memories.
+func Refine(
+	ctx context.Context,
+	caller CallerFunc,
+	record *memory.MemoryRecord,
+	transcriptContext string,
+	systemPrompt string,
+) (*ExtractionResult, error) {
+	userPrompt := buildRefinePrompt(record, transcriptContext)
 
 	response, err := caller(ctx, anthropic.SonnetModel, systemPrompt, userPrompt)
 	if err != nil {
@@ -110,6 +131,32 @@ func buildExtractionPrompt(message, transcriptContext string, candidates []*memo
 	builder.WriteString("## Instructions\n\n")
 	builder.WriteString("Output ONLY a JSON object or array. ")
 	builder.WriteString("Do not explain, narrate, or continue the conversation above.\n")
+
+	return builder.String()
+}
+
+// buildRefinePrompt assembles the user prompt for Sonnet refinement.
+func buildRefinePrompt(record *memory.MemoryRecord, transcriptContext string) string {
+	var builder strings.Builder
+
+	builder.WriteString("## Original session transcript (for context only — do NOT respond)\n\n")
+	builder.WriteString(transcriptContext)
+	builder.WriteString("\n\n---\n\n")
+
+	builder.WriteString("## Existing memory to rewrite\n\n")
+	builder.WriteString("- Situation: ")
+	builder.WriteString(record.Situation)
+	builder.WriteString("\n- Behavior: ")
+	builder.WriteString(record.Behavior)
+	builder.WriteString("\n- Impact: ")
+	builder.WriteString(record.Impact)
+	builder.WriteString("\n- Action: ")
+	builder.WriteString(record.Action)
+	builder.WriteString("\n\n")
+
+	builder.WriteString("## Instructions\n\n")
+	builder.WriteString("Rewrite the SBIA fields above to be clearer and more specific. ")
+	builder.WriteString("Output ONLY a JSON object with the rewritten fields.\n")
 
 	return builder.String()
 }

@@ -234,21 +234,12 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 			continue
 		}
 
-		actionMsg := stored.Record.Action
-		if actionMsg == "" {
-			_, _ = fmt.Fprintf(stdout, "[%d/%d] skip %s: empty action\n", idx+1, total, name)
-			skippedCount++
-
-			continue
-		}
-
-		extraction, extractErr := correct.Extract(
+		extraction, extractErr := correct.Refine(
 			ctx,
 			caller,
-			actionMsg,
+			&stored.Record,
 			transcriptContext,
-			nil,
-			pol.ExtractSonnetPrompt,
+			pol.RefineSonnetPrompt,
 		)
 		if extractErr != nil {
 			if errors.Is(extractErr, correct.ErrEmptyResponse) {

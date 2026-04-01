@@ -319,6 +319,36 @@ func TestDefaults_MaintainFields(t *testing.T) {
 	g.Expect(pol.AdaptSonnetPrompt).NotTo(BeEmpty())
 }
 
+func TestDefaults_RefineSonnetPrompt(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	pol := policy.Defaults()
+
+	// Refine prompt must exist and be non-empty.
+	g.Expect(pol.RefineSonnetPrompt).NotTo(BeEmpty())
+
+	// Refine prompt must NOT contain extraction language.
+	g.Expect(pol.RefineSonnetPrompt).NotTo(ContainSubstring("extract"))
+	g.Expect(pol.RefineSonnetPrompt).NotTo(ContainSubstring("correction message"))
+	g.Expect(pol.RefineSonnetPrompt).NotTo(ContainSubstring("candidates"))
+
+	// Refine prompt must instruct rewriting existing SBIA fields.
+	g.Expect(pol.RefineSonnetPrompt).To(ContainSubstring("rewrite"))
+	g.Expect(pol.RefineSonnetPrompt).To(ContainSubstring("situation"))
+	g.Expect(pol.RefineSonnetPrompt).To(ContainSubstring("behavior"))
+	g.Expect(pol.RefineSonnetPrompt).To(ContainSubstring("impact"))
+	g.Expect(pol.RefineSonnetPrompt).To(ContainSubstring("action"))
+
+	// Refine prompt must output a single JSON object, not an array.
+	g.Expect(pol.RefineSonnetPrompt).To(ContainSubstring("JSON object"))
+	g.Expect(pol.RefineSonnetPrompt).NotTo(ContainSubstring("JSON array"))
+
+	// Refine prompt must specify retention behavior per memory guidance.
+	g.Expect(pol.RefineSonnetPrompt).To(ContainSubstring("existing memory"))
+}
+
 func TestDefaults_ReturnsAllFields(t *testing.T) {
 	t.Parallel()
 

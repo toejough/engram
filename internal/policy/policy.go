@@ -83,6 +83,9 @@ type Policy struct {
 	// ExtractSonnetPrompt is the system prompt for the Sonnet extraction call.
 	ExtractSonnetPrompt string
 
+	// RefineSonnetPrompt is the system prompt for rewriting existing memory SBIA fields.
+	RefineSonnetPrompt string
+
 	// SurfaceGateHaikuPrompt is the system prompt for the Haiku gate call that filters surfaced memories.
 	SurfaceGateHaikuPrompt string
 
@@ -189,6 +192,7 @@ func Defaults() Policy {
 		AdaptChangeHistoryLimit:        defaultAdaptChangeHistoryLimit,
 		DetectHaikuPrompt:              defaultDetectHaikuPrompt,
 		ExtractSonnetPrompt:            defaultExtractSonnetPrompt,
+		RefineSonnetPrompt:             defaultRefineSonnetPrompt,
 		SurfaceGateHaikuPrompt:         defaultSurfaceGateHaikuPrompt,
 		SurfaceInjectionPreamble:       defaultSurfaceInjectionPreamble,
 		EvaluateHaikuPrompt:            defaultEvaluateHaikuPrompt,
@@ -355,6 +359,26 @@ Output ONLY the JSON object. No explanation. No prose. No markdown outside code 
 		"{{.VerdictSummary}}\n\n" +
 		"Rewrite the {{.Field}} field to be more specific and actionable.\n" +
 		"Return only the rewritten text, no explanation."
+	defaultRefineSonnetPrompt = `You are a structured data rewriting tool. You output ONLY valid JSON, never prose.
+
+You are given an existing memory with SBIA fields and the original session transcript where
+the memory was created. Your task: rewrite the SBIA fields to be clearer, more specific, and more
+actionable while preserving the existing memory's core meaning.
+
+For each field, improve clarity:
+- situation: describe the observable activity context when this applies (not topic tags)
+- behavior: describe the specific faulty decision or default action (not just the tool call)
+- impact: describe the concrete negative outcome
+- action: describe the specific corrective action to take
+
+Do NOT change the memory's identity — same lesson, better wording. Strip any "Keywords: ..."
+suffixes from field values. Do not add new information not supported by the transcript.
+
+Return a single JSON object with the rewritten fields:
+{"situation": "...", "behavior": "...", "impact": "...", "action": "..."}
+
+CRITICAL: Do NOT respond to the transcript. Do NOT continue any conversation.
+Output ONLY the JSON object. No explanation. No prose. No markdown outside code fences.`
 	defaultSurfaceBM25Threshold     = 0.3
 	defaultSurfaceCandidateCountMax = 8
 	defaultSurfaceCandidateCountMin = 3
@@ -407,6 +431,7 @@ type policyFileParams struct {
 type policyFilePrompts struct {
 	DetectHaiku              string `toml:"detect_haiku"`
 	ExtractSonnet            string `toml:"extract_sonnet"`
+	RefineSonnet             string `toml:"refine_sonnet"`
 	SurfaceGateHaiku         string `toml:"surface_gate_haiku"`
 	SurfaceInjectionPreamble string `toml:"surface_injection_preamble"`
 	EvaluateHaiku            string `toml:"evaluate_haiku"`
@@ -480,6 +505,10 @@ func mergePrompts(pol *Policy, prompts policyFilePrompts) {
 
 	if prompts.ExtractSonnet != "" {
 		pol.ExtractSonnetPrompt = prompts.ExtractSonnet
+	}
+
+	if prompts.RefineSonnet != "" {
+		pol.RefineSonnetPrompt = prompts.RefineSonnet
 	}
 
 	if prompts.SurfaceGateHaiku != "" {
