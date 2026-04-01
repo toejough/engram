@@ -440,6 +440,11 @@ func makeCLICaller(token string) anthropic.CallerFunc {
 
 		output, err := cmd.Output()
 		if err != nil {
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+				return "", fmt.Errorf("claude -p: %w\nstderr: %s", err, exitErr.Stderr)
+			}
+
 			return "", fmt.Errorf("claude -p: %w", err)
 		}
 
