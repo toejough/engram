@@ -199,7 +199,7 @@ func TestRunRefineWith_SuccessfulExtraction(t *testing.T) {
 	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte(""), 0o644)).To(Succeed())
 
 	now := time.Now().UTC()
-	memTOML := fmt.Sprintf(`situation = "old situation"
+	memTOML := fmt.Sprintf(`situation = "old situation\nKeywords: foo, bar"
 behavior = "old behavior"
 impact = "old impact"
 action = "old action"
@@ -328,7 +328,7 @@ func TestRunRefine_DryRunWithMatchingTranscript(t *testing.T) {
 	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte(""), 0o644)).To(Succeed())
 
 	now := time.Now().UTC()
-	memTOML := fmt.Sprintf(`situation = "test"
+	memTOML := fmt.Sprintf(`situation = "test\nKeywords: baz"
 behavior = "test"
 impact = "test"
 action = "test action"

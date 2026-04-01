@@ -129,7 +129,14 @@ func parseExtractionResponse(response string) (*ExtractionResult, error) {
 
 	arrErr := json.Unmarshal([]byte(cleaned), &results)
 	if arrErr != nil {
-		return nil, fmt.Errorf("extraction: parsing response JSON: %w", err)
+		const maxPreview = 200
+
+		preview := cleaned
+		if len(preview) > maxPreview {
+			preview = preview[:maxPreview] + "..."
+		}
+
+		return nil, fmt.Errorf("extraction: parsing response JSON: %w\nraw response:\n%s", err, preview)
 	}
 
 	if len(results) == 0 {
