@@ -83,7 +83,7 @@ func filterBySlug(candidates []*memory.Stored, slugs []string) []*memory.Stored 
 // parseGateResponse unmarshals the Haiku response JSON into a slug list,
 // stripping markdown code fences if present.
 func parseGateResponse(response string) ([]string, error) {
-	cleaned := stripFences(response)
+	cleaned := anthropic.StripCodeFences(response)
 
 	var slugs []string
 
@@ -93,19 +93,4 @@ func parseGateResponse(response string) ([]string, error) {
 	}
 
 	return slugs, nil
-}
-
-// stripFences removes markdown code fences from a string if present.
-func stripFences(s string) string {
-	trimmed := strings.TrimSpace(s)
-
-	if after, found := strings.CutPrefix(trimmed, "```json"); found {
-		return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(after), "```"))
-	}
-
-	if after, found := strings.CutPrefix(trimmed, "```"); found {
-		return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(after), "```"))
-	}
-
-	return trimmed
 }

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // Exported constants.
@@ -134,6 +135,19 @@ func (c *Client) doRequest(
 // HTTPDoer is the interface for making HTTP requests.
 type HTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
+}
+
+// StripCodeFences removes markdown code fences from an LLM response if present.
+func StripCodeFences(s string) string {
+	trimmed := strings.TrimSpace(s)
+
+	for _, prefix := range []string{"```json", "```"} {
+		if after, found := strings.CutPrefix(trimmed, prefix); found {
+			return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(after), "```"))
+		}
+	}
+
+	return trimmed
 }
 
 // unexported constants.

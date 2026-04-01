@@ -7,12 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"engram/internal/anthropic"
 	"engram/internal/memory"
-)
-
-// Exported constants.
-const (
-	SonnetModel = "claude-sonnet-4-20250514"
 )
 
 // CandidateResult describes how an existing memory relates to the new one.
@@ -47,20 +43,13 @@ func Extract(
 ) (*ExtractionResult, error) {
 	userPrompt := buildExtractionPrompt(message, transcriptContext, candidates)
 
-	response, err := caller(ctx, SonnetModel, systemPrompt, userPrompt)
+	response, err := caller(ctx, anthropic.SonnetModel, systemPrompt, userPrompt)
 	if err != nil {
 		return nil, err
 	}
 
 	return parseExtractionResponse(response)
 }
-
-// unexported constants.
-const (
-	fenceSuffix      = "```"
-	jsonFencePrefix  = "```json"
-	plainFencePrefix = "```"
-)
 
 // buildExtractionPrompt assembles the user prompt for Sonnet extraction.
 func buildExtractionPrompt(message, transcriptContext string, candidates []*memory.Stored) string {
@@ -115,25 +104,10 @@ func buildExtractionPrompt(message, transcriptContext string, candidates []*memo
 	return builder.String()
 }
 
-// extractJSON strips markdown code fences from a string if present.
-func extractJSON(s string) string {
-	trimmed := strings.TrimSpace(s)
-
-	if after, found := strings.CutPrefix(trimmed, jsonFencePrefix); found {
-		return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(after), fenceSuffix))
-	}
-
-	if after, found := strings.CutPrefix(trimmed, plainFencePrefix); found {
-		return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(after), fenceSuffix))
-	}
-
-	return trimmed
-}
-
 // parseExtractionResponse parses the JSON response from Sonnet, stripping
 // markdown code fences if present.
 func parseExtractionResponse(response string) (*ExtractionResult, error) {
-	cleaned := extractJSON(response)
+	cleaned := anthropic.StripCodeFences(response)
 
 	var result ExtractionResult
 

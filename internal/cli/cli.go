@@ -100,7 +100,7 @@ var (
 	defaultModifier = memory.NewModifier( //nolint:gochecknoglobals // production singleton
 		memory.WithModifierWriter(tomlwriter.New()),
 	)
-	errNoToken                 = errors.New("no API token available — Haiku gate cannot be wired")
+	errNoToken                 = errors.New("no API token available for memory filtering")
 	errSkillExists             = errors.New("skill already exists")
 	errSurfaceMissingFlags     = errors.New("surface: --mode required")
 	errSurfaceStopNoTranscript = errors.New("surface: --transcript-path required for stop mode")

@@ -8,6 +8,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
+	"engram/internal/anthropic"
 	"engram/internal/correct"
 	"engram/internal/memory"
 	"engram/internal/policy"
@@ -30,7 +31,7 @@ func TestRun_FastPathCorrection_StoresMemory(t *testing.T) {
 
 	corrector := correct.New(
 		correct.WithCaller(fakeCaller(map[string]string{
-			correct.SonnetModel: mustJSON(t, extraction),
+			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithTranscriptReader(
 			func(_ string, _ int) (string, int, error) {
@@ -89,7 +90,7 @@ func TestRun_HaikuCorrection_StoresMemory(t *testing.T) {
 	corrector := correct.New(
 		correct.WithCaller(fakeCaller(map[string]string{
 			"claude-haiku-4-5-20251001": "CORRECTION",
-			correct.SonnetModel:         mustJSON(t, extraction),
+			anthropic.SonnetModel:       mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
 			func(_ context.Context, _ string) ([]*memory.Stored, error) {
@@ -143,7 +144,7 @@ func TestRun_NoTranscript_StillWorks(t *testing.T) {
 
 	corrector := correct.New(
 		correct.WithCaller(fakeCaller(map[string]string{
-			correct.SonnetModel: mustJSON(t, extraction),
+			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
 			func(_ context.Context, _ string) ([]*memory.Stored, error) {
@@ -277,7 +278,7 @@ func TestRun_WithCandidates_Duplicate(t *testing.T) {
 
 	corrector := correct.New(
 		correct.WithCaller(fakeCaller(map[string]string{
-			correct.SonnetModel: mustJSON(t, extraction),
+			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
 			func(_ context.Context, _ string) ([]*memory.Stored, error) {
@@ -324,7 +325,7 @@ func TestRun_WithEmptyMemories_StoresNew(t *testing.T) {
 
 	corrector := correct.New(
 		correct.WithCaller(fakeCaller(map[string]string{
-			correct.SonnetModel: mustJSON(t, extraction),
+			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
 			func(_ context.Context, _ string) ([]*memory.Stored, error) {
@@ -379,7 +380,7 @@ func TestRun_WithLowScoreCandidates_FiltersBelow(t *testing.T) {
 
 	corrector := correct.New(
 		correct.WithCaller(fakeCaller(map[string]string{
-			correct.SonnetModel: mustJSON(t, extraction),
+			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
 			func(_ context.Context, _ string) ([]*memory.Stored, error) {
@@ -455,7 +456,7 @@ func TestRun_WithMaxCandidatesExceeded_LimitsCandidates(t *testing.T) {
 
 	corrector := correct.New(
 		correct.WithCaller(fakeCaller(map[string]string{
-			correct.SonnetModel: mustJSON(t, extraction),
+			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
 			func(_ context.Context, _ string) ([]*memory.Stored, error) {

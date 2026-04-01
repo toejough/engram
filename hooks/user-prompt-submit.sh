@@ -68,17 +68,21 @@ fi
 # Capture correct output; surface errors as warnings instead of swallowing them
 CORRECT_OUTPUT=""
 CORRECT_ERR=""
-if [[ -n "$USER_MESSAGE" ]]; then
-    CORRECT_OUTPUT=$("$ENGRAM_BIN" "${CORRECT_ARGS[@]}" 2>/tmp/engram-correct-err.$$) || true
-    CORRECT_ERR=$(cat /tmp/engram-correct-err.$$ 2>/dev/null)
-    rm -f /tmp/engram-correct-err.$$
-fi
-
-# UC-2: Surface relevant memories
 SURFACE_OUTPUT=""
+SURFACE_ERR=""
+
 if [[ -n "$USER_MESSAGE" ]]; then
+    TMPFILE=$(mktemp)
+
+    CORRECT_OUTPUT=$("$ENGRAM_BIN" "${CORRECT_ARGS[@]}" 2>"$TMPFILE") || true
+    CORRECT_ERR=$(cat "$TMPFILE" 2>/dev/null)
+
+    # UC-2: Surface relevant memories
     SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode prompt \
-        --message "$USER_MESSAGE" --session-id "$SESSION_ID" --format json) || true
+        --message "$USER_MESSAGE" --session-id "$SESSION_ID" --format json 2>"$TMPFILE") || true
+    SURFACE_ERR=$(cat "$TMPFILE" 2>/dev/null)
+
+    rm -f "$TMPFILE"
 fi
 
 # Combine into single JSON output — merge pending maintenance, surface, correct
@@ -102,6 +106,11 @@ fi
 if [[ -n "$CORRECT_ERR" ]]; then
     FINAL_SYS="${FINAL_SYS:+$FINAL_SYS
 }[engram] correct pipeline error: $CORRECT_ERR"
+fi
+
+if [[ -n "$SURFACE_ERR" ]]; then
+    FINAL_SYS="${FINAL_SYS:+$FINAL_SYS
+}[engram] surface pipeline error: $SURFACE_ERR"
 fi
 
 if [[ -n "$FINAL_SYS" || -n "$FINAL_CTX" ]]; then
