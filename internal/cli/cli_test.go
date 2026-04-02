@@ -165,68 +165,6 @@ func TestRun_CorrectStub_ReturnsNil(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
-func TestRun_Instruct_DefaultProjectDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "instruct", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(stdout.String()).To(ContainSubstring("project-dir=."))
-}
-
-func TestRun_Instruct_ParseError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "instruct", "--bogus-flag"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("instruct"))
-	}
-}
-
-func TestRun_Instruct_PrintsAuditInfo(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "instruct", "--data-dir", dataDir, "--project-dir", "/tmp"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(stdout.String()).To(ContainSubstring("instruct audit"))
-}
-
 func TestRun_Maintain_Dispatch(t *testing.T) {
 	t.Parallel()
 

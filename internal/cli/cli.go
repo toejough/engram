@@ -72,8 +72,6 @@ func Run(
 		return runApplyProposal(subArgs, stdout)
 	case "reject-proposal":
 		return runRejectProposal(subArgs, stdout)
-	case "instruct":
-		return runInstructAudit(subArgs, stdout)
 	case "migrate-scores":
 		return runMigrateScores(subArgs, stdout, stderr)
 	case "migrate-sbia":
@@ -108,7 +106,7 @@ var (
 	errUnknownCommand          = errors.New("unknown command")
 	errUsage                   = errors.New(
 		"usage: engram <correct|surface|show|recall|maintain" +
-			"|apply-proposal|reject-proposal|instruct|evaluate|refine|migrate-slugs> [flags]",
+			"|apply-proposal|reject-proposal|evaluate|refine|migrate-slugs> [flags]",
 	)
 )
 
@@ -571,34 +569,6 @@ func runCorrect(args []string, stdout io.Writer) error {
 	if result != "" {
 		_, _ = fmt.Fprintln(stdout, result)
 	}
-
-	return nil
-}
-
-func runInstructAudit(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("instruct", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	projectDir := fs.String("project-dir", "", "path to project directory")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("instruct: %w", parseErr)
-	}
-
-	defaultErr := applyDataDirDefault(dataDir)
-	if defaultErr != nil {
-		return fmt.Errorf("instruct: %w", defaultErr)
-	}
-
-	if *projectDir == "" {
-		*projectDir = "."
-	}
-
-	// Instruct audit uses its own scanner; it doesn't depend on deleted packages.
-	_, _ = fmt.Fprintf(stdout, "[engram] instruct audit: data-dir=%s project-dir=%s\n",
-		*dataDir, *projectDir)
 
 	return nil
 }

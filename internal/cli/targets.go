@@ -33,13 +33,6 @@ type EvaluateArgs struct {
 	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
 
-// InstructArgs holds parsed flags for the instruct subcommand.
-type InstructArgs struct {
-	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	ProjectDir string `targ:"flag,name=project-dir,desc=path to project directory"`
-	APIToken   string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
-}
-
 // MaintainArgs holds parsed flags for the maintain subcommand.
 type MaintainArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -146,8 +139,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("maintain").Description("Generate maintenance proposals"),
 		targ.Targ(func(a SurfaceArgs) { run("surface", SurfaceFlags(a)) }).
 			Name("surface").Description("Surface relevant memories"),
-		targ.Targ(func(a InstructArgs) { run("instruct", InstructFlags(a)) }).
-			Name("instruct").Description("Audit instruction quality"),
 		targ.Targ(func(a EvaluateArgs) { run("evaluate", EvaluateFlags(a)) }).
 			Name("evaluate").Description("Evaluate pending memory assessments via Haiku"),
 		targ.Targ(func(a RefineArgs) { run("refine", RefineFlags(a)) }).
@@ -193,11 +184,6 @@ func EvaluateFlags(a EvaluateArgs) []string {
 		"--session-id", a.SessionID,
 		"--data-dir", a.DataDir,
 	)
-}
-
-// InstructFlags returns the CLI flag args for the instruct subcommand.
-func InstructFlags(a InstructArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir, "--project-dir", a.ProjectDir)
 }
 
 // MaintainFlags returns the CLI flag args for the maintain subcommand.

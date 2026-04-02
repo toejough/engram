@@ -133,7 +133,7 @@ func TestBuildTargets(t *testing.T) {
 
 		subcmds := []string{
 			"correct", "review",
-			"maintain", "surface", "instruct",
+			"maintain", "surface",
 			"evaluate", "refine", "show",
 			"apply-proposal", "reject-proposal", "recall",
 			"migrate-scores", "migrate-slugs",
@@ -214,35 +214,6 @@ func TestEvaluateFlags(t *testing.T) {
 			"--session-id", "sess-123",
 			"--data-dir", "/data",
 		}))
-	})
-}
-
-func TestInstructFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.InstructFlags(cli.InstructArgs{DataDir: "/data", ProjectDir: "/project"})
-		g.Expect(result).
-			To(gomega.Equal([]string{"--data-dir", "/data", "--project-dir", "/project"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.InstructFlags(cli.InstructArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("partial fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.InstructFlags(cli.InstructArgs{ProjectDir: "/project"})
-		g.Expect(result).To(gomega.Equal([]string{"--project-dir", "/project"}))
 	})
 }
 
