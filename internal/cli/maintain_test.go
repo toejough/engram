@@ -60,7 +60,7 @@ irrelevant_count = 0
 	g.Expect(os.WriteFile(proposalPath, proposalData, 0o644)).To(Succeed())
 
 	// Write a policy.toml so change history can be appended.
-	policyPath := filepath.Join(dataDir, "policy.toml")
+	policyPath := filepath.Join(dataDir, policy.Filename)
 	g.Expect(os.WriteFile(policyPath, []byte(""), 0o644)).To(Succeed())
 
 	var stdout bytes.Buffer
@@ -138,7 +138,7 @@ func TestRunApplyProposal_MergeIsNoOp(t *testing.T) {
 	proposalPath := filepath.Join(dataDir, "pending-proposals.json")
 	g.Expect(os.WriteFile(proposalPath, proposalData, 0o644)).To(Succeed())
 
-	policyPath := filepath.Join(dataDir, "policy.toml")
+	policyPath := filepath.Join(dataDir, policy.Filename)
 	g.Expect(os.WriteFile(policyPath, []byte(""), 0o644)).To(Succeed())
 
 	var stdout bytes.Buffer
@@ -208,7 +208,7 @@ func TestRunApplyProposal_RecommendIsNoOp(t *testing.T) {
 		{
 			ID:        "prop-rec-1",
 			Action:    maintain.ActionRecommend,
-			Target:    filepath.Join(dataDir, "policy.toml"),
+			Target:    filepath.Join(dataDir, policy.Filename),
 			Rationale: "adjust threshold",
 		},
 	}
@@ -223,7 +223,7 @@ func TestRunApplyProposal_RecommendIsNoOp(t *testing.T) {
 	proposalPath := filepath.Join(dataDir, "pending-proposals.json")
 	g.Expect(os.WriteFile(proposalPath, proposalData, 0o644)).To(Succeed())
 
-	policyPath := filepath.Join(dataDir, "policy.toml")
+	policyPath := filepath.Join(dataDir, policy.Filename)
 	g.Expect(os.WriteFile(policyPath, []byte(""), 0o644)).To(Succeed())
 
 	var stdout bytes.Buffer
@@ -286,7 +286,7 @@ irrelevant_count = 0
 	proposalPath := filepath.Join(dataDir, "pending-proposals.json")
 	g.Expect(os.WriteFile(proposalPath, proposalData, 0o644)).To(Succeed())
 
-	policyPath := filepath.Join(dataDir, "policy.toml")
+	policyPath := filepath.Join(dataDir, policy.Filename)
 	g.Expect(os.WriteFile(policyPath, []byte(""), 0o644)).To(Succeed())
 
 	var stdout bytes.Buffer
@@ -332,7 +332,7 @@ func TestRunApplyProposal_UpdatePolicyIsNoOp(t *testing.T) {
 	g := NewWithT(t)
 
 	dataDir := t.TempDir()
-	policyPath := filepath.Join(dataDir, "policy.toml")
+	policyPath := filepath.Join(dataDir, policy.Filename)
 	g.Expect(os.WriteFile(policyPath, []byte("[parameters]\n"), 0o644)).To(Succeed())
 
 	proposals := []maintain.Proposal{
@@ -422,7 +422,7 @@ irrelevant_count = 0
 	proposalPath := filepath.Join(dataDir, "pending-proposals.json")
 	g.Expect(os.WriteFile(proposalPath, proposalData, 0o644)).To(Succeed())
 
-	policyPath := filepath.Join(dataDir, "policy.toml")
+	policyPath := filepath.Join(dataDir, policy.Filename)
 	g.Expect(os.WriteFile(policyPath, []byte(""), 0o644)).To(Succeed())
 
 	var stdout bytes.Buffer
@@ -536,7 +536,7 @@ irrelevant_count = 0
 	proposalPath := filepath.Join(dataDir, "pending-proposals.json")
 	g.Expect(os.WriteFile(proposalPath, proposalData, 0o644)).To(Succeed())
 
-	policyPath := filepath.Join(dataDir, "policy.toml")
+	policyPath := filepath.Join(dataDir, policy.Filename)
 	g.Expect(os.WriteFile(policyPath, []byte(""), 0o644)).To(Succeed())
 
 	var stdout bytes.Buffer
@@ -739,7 +739,7 @@ func TestRunRejectProposal_LogsRejection(t *testing.T) {
 	proposalPath := filepath.Join(dataDir, "pending-proposals.json")
 	g.Expect(os.WriteFile(proposalPath, proposalData, 0o644)).To(Succeed())
 
-	policyPath := filepath.Join(dataDir, "policy.toml")
+	policyPath := filepath.Join(dataDir, policy.Filename)
 	g.Expect(os.WriteFile(policyPath, []byte(""), 0o644)).To(Succeed())
 
 	var stdout bytes.Buffer

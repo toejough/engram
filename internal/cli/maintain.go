@@ -49,7 +49,7 @@ func executeProposal(proposal maintain.Proposal) error {
 			return fmt.Errorf("deleting memory %s: %w", proposal.Target, removeErr)
 		}
 	case maintain.ActionUpdate:
-		if filepath.Base(proposal.Target) == "policy.toml" {
+		if filepath.Base(proposal.Target) == policy.Filename {
 			return nil // informational — no-op
 		}
 
@@ -137,7 +137,7 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 		return fmt.Errorf("apply-proposal: %w", execErr)
 	}
 
-	policyPath := filepath.Join(*dataDir, "policy.toml")
+	policyPath := filepath.Join(*dataDir, policy.Filename)
 
 	historyEntry := policy.ChangeEntry{
 		Action:    found.Action,
@@ -192,7 +192,7 @@ func runMaintainWith(args []string, stdout io.Writer, callerOverride CallerFunc)
 		return fmt.Errorf("maintain: %w", defaultErr)
 	}
 
-	policyPath := filepath.Join(*dataDir, "policy.toml")
+	policyPath := filepath.Join(*dataDir, policy.Filename)
 
 	pol, polErr := policy.LoadFromPath(policyPath)
 	if polErr != nil {
@@ -284,7 +284,7 @@ func runRejectProposal(args []string, stdout io.Writer) error {
 		return fmt.Errorf("reject-proposal: %w: %s", errProposalNotFound, *proposalID)
 	}
 
-	policyPath := filepath.Join(*dataDir, "policy.toml")
+	policyPath := filepath.Join(*dataDir, policy.Filename)
 
 	historyEntry := policy.ChangeEntry{
 		Action:    found.Action,

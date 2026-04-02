@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/cli"
+	"engram/internal/policy"
 )
 
 func TestApplyProjectSlugDefault_EmptySlug_UsesGetwd(t *testing.T) {
@@ -235,7 +236,7 @@ func TestRun_Surface_CorruptPolicy_FallsBackToDefaults(t *testing.T) {
 	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
 
 	// Write a corrupt policy.toml so polErr != nil and Defaults() is used instead.
-	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte("not valid toml [[["), 0o644)).
+	g.Expect(os.WriteFile(filepath.Join(dataDir, policy.Filename), []byte("not valid toml [[["), 0o644)).
 		To(Succeed())
 
 	var stdout, stderr bytes.Buffer

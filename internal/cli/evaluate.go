@@ -105,7 +105,7 @@ func runEvaluateWith(args []string, stdout io.Writer, callerOverride CallerFunc)
 		return fmt.Errorf("evaluate: %w", defaultErr)
 	}
 
-	policyPath := filepath.Join(*dataDir, "policy.toml")
+	policyPath := filepath.Join(*dataDir, policy.Filename)
 
 	pol, polErr := policy.LoadFromPath(policyPath)
 	if polErr != nil {

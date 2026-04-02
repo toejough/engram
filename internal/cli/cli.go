@@ -532,7 +532,7 @@ func runCorrect(args []string, stdout io.Writer) error {
 
 	token := resolveToken(ctx)
 
-	policyPath := filepath.Join(*dataDir, "policy.toml")
+	policyPath := filepath.Join(*dataDir, policy.Filename)
 
 	pol, polErr := policy.LoadFromPath(policyPath)
 	if polErr != nil {
@@ -657,7 +657,7 @@ func runSurface(args []string, stdout io.Writer) error {
 		return errSurfaceMissingFlags
 	}
 
-	policyPath := filepath.Join(*dataDir, "policy.toml")
+	policyPath := filepath.Join(*dataDir, policy.Filename)
 
 	pol, polErr := policy.LoadFromPath(policyPath)
 	if polErr != nil {

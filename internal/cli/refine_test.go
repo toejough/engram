@@ -14,6 +14,7 @@ import (
 
 	"engram/internal/cli"
 	"engram/internal/memory"
+	"engram/internal/policy"
 )
 
 func TestFindAllTranscripts_EmptyDir(t *testing.T) {
@@ -136,7 +137,7 @@ func TestRunRefineWith_ExtractionError_Skips(t *testing.T) {
 	memoriesDir := filepath.Join(dataDir, "memories")
 	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte(""), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dataDir, policy.Filename), []byte(""), 0o644)).To(Succeed())
 
 	now := time.Now().UTC()
 	memTOML := fmt.Sprintf(`situation = "test"
@@ -196,7 +197,7 @@ func TestRunRefineWith_SuccessfulExtraction(t *testing.T) {
 	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
 
 	// Write valid policy.
-	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte(""), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dataDir, policy.Filename), []byte(""), 0o644)).To(Succeed())
 
 	// Use a distinct timestamp offset from other tests to avoid transcript collision
 	// when findTranscriptForMemory scans all projects.
@@ -327,7 +328,7 @@ func TestRunRefine_DryRunWithMatchingTranscript(t *testing.T) {
 	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
 
 	// Write valid policy.
-	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte(""), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dataDir, policy.Filename), []byte(""), 0o644)).To(Succeed())
 
 	// Use a distinct timestamp offset from other tests to avoid transcript collision.
 	now := time.Now().UTC().Add(-4 * time.Hour)
@@ -435,7 +436,7 @@ func TestRunRefine_MemoryWithEmptyAction_Skipped(t *testing.T) {
 
 	// Write policy.toml (needed by runRefine after listing memories).
 	g.Expect(os.WriteFile(
-		filepath.Join(dataDir, "policy.toml"),
+		filepath.Join(dataDir, policy.Filename),
 		[]byte(""),
 		0o644,
 	)).To(Succeed())
@@ -595,7 +596,7 @@ updated_at = "%s"
 	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "test.toml"), []byte(memTOML), 0o644)).To(Succeed())
 
 	// Create invalid policy.toml.
-	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte("{{invalid toml"), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dataDir, policy.Filename), []byte("{{invalid toml"), 0o644)).To(Succeed())
 
 	var stdout, stderr bytes.Buffer
 
@@ -620,7 +621,7 @@ func TestRunRefine_TranscriptReadError(t *testing.T) {
 	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
 
 	// Write valid policy.
-	g.Expect(os.WriteFile(filepath.Join(dataDir, "policy.toml"), []byte(""), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dataDir, policy.Filename), []byte(""), 0o644)).To(Succeed())
 
 	// Use a distinct timestamp offset from other tests to avoid transcript collision.
 	now := time.Now().UTC().Add(-6 * time.Hour)

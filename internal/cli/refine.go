@@ -169,7 +169,7 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 		return fmt.Errorf("refine: finding transcripts: %w", transcriptErr)
 	}
 
-	policyPath := filepath.Join(*dataDir, "policy.toml")
+	policyPath := filepath.Join(*dataDir, policy.Filename)
 
 	pol, polErr := policy.LoadFromPath(policyPath)
 	if polErr != nil {
