@@ -65,24 +65,36 @@ if [[ -n "$TRANSCRIPT_PATH" ]]; then
     CORRECT_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
 fi
 
-# Capture correct output; surface errors as warnings instead of swallowing them
+# Capture correct and surface output in parallel; surface errors as warnings
 CORRECT_OUTPUT=""
 CORRECT_ERR=""
 SURFACE_OUTPUT=""
 SURFACE_ERR=""
 
 if [[ -n "$USER_MESSAGE" ]]; then
-    TMPFILE=$(mktemp)
+    CORRECT_STDOUT=$(mktemp)
+    CORRECT_STDERR=$(mktemp)
+    SURFACE_STDOUT=$(mktemp)
+    SURFACE_STDERR=$(mktemp)
 
-    CORRECT_OUTPUT=$("$ENGRAM_BIN" "${CORRECT_ARGS[@]}" 2>"$TMPFILE") || true
-    CORRECT_ERR=$(cat "$TMPFILE" 2>/dev/null)
+    # Run correct and surface in parallel (UC-2, UC-3)
+    "$ENGRAM_BIN" "${CORRECT_ARGS[@]}" >"$CORRECT_STDOUT" 2>"$CORRECT_STDERR" &
+    CORRECT_PID=$!
 
-    # UC-2: Surface relevant memories
-    SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode prompt \
-        --message "$USER_MESSAGE" --session-id "$SESSION_ID" --format json 2>"$TMPFILE") || true
-    SURFACE_ERR=$(cat "$TMPFILE" 2>/dev/null)
+    "$ENGRAM_BIN" surface --mode prompt \
+        --message "$USER_MESSAGE" --session-id "$SESSION_ID" --format json \
+        >"$SURFACE_STDOUT" 2>"$SURFACE_STDERR" &
+    SURFACE_PID=$!
 
-    rm -f "$TMPFILE"
+    wait "$CORRECT_PID" || true
+    wait "$SURFACE_PID" || true
+
+    CORRECT_OUTPUT=$(cat "$CORRECT_STDOUT" 2>/dev/null)
+    CORRECT_ERR=$(cat "$CORRECT_STDERR" 2>/dev/null)
+    SURFACE_OUTPUT=$(cat "$SURFACE_STDOUT" 2>/dev/null)
+    SURFACE_ERR=$(cat "$SURFACE_STDERR" 2>/dev/null)
+
+    rm -f "$CORRECT_STDOUT" "$CORRECT_STDERR" "$SURFACE_STDOUT" "$SURFACE_STDERR"
 fi
 
 # Combine into single JSON output — merge pending maintenance, surface, correct
