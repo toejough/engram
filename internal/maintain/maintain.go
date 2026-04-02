@@ -30,7 +30,9 @@ type Config struct {
 func Run(ctx context.Context, cfg Config) ([]Proposal, error) {
 	memDir := memory.MemoriesDir(cfg.DataDir)
 
-	records, err := memory.ListAll(memDir)
+	lister := memory.NewLister()
+	records, err := lister.ListAll(memDir)
+
 	if err != nil {
 		return nil, fmt.Errorf("listing memories: %w", err)
 	}

@@ -140,7 +140,9 @@ func runRefineWith(args []string, stdout io.Writer, callerOverride CallerFunc) e
 
 	memoriesDir := memory.MemoriesDir(*dataDir)
 
-	records, listErr := memory.ListAll(memoriesDir)
+	lister := memory.NewLister()
+	records, listErr := lister.ListAll(memoriesDir)
+
 	if listErr != nil {
 		if errors.Is(listErr, os.ErrNotExist) {
 			_, _ = fmt.Fprintln(stdout, "[engram] refine: no memories found")

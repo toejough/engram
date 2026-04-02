@@ -62,7 +62,8 @@ func TestMigrateSlugs_BackfillsEmptySlugs(t *testing.T) {
 		return
 	}
 
-	records, listErr := memory.ListAll(memoriesDir)
+	lister := memory.NewLister()
+	records, listErr := lister.ListAll(memoriesDir)
 	g.Expect(listErr).NotTo(HaveOccurred())
 
 	if listErr != nil {
@@ -110,7 +111,8 @@ func TestMigrateSlugs_DryRun(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring("would set"))
 
 	// Memory file must not be modified.
-	records, listErr := memory.ListAll(memoriesDir)
+	lister := memory.NewLister()
+	records, listErr := lister.ListAll(memoriesDir)
 	g.Expect(listErr).NotTo(HaveOccurred())
 
 	if listErr != nil {
@@ -158,7 +160,8 @@ func TestMigrateSlugs_SkipsPopulated(t *testing.T) {
 		return
 	}
 
-	records, listErr := memory.ListAll(memoriesDir)
+	lister := memory.NewLister()
+	records, listErr := lister.ListAll(memoriesDir)
 	g.Expect(listErr).NotTo(HaveOccurred())
 
 	if listErr != nil {

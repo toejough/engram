@@ -12,7 +12,9 @@ import (
 // backfillSlugs iterates memories in dir, counting (and optionally writing) those with an empty
 // project_slug. Returns the count of memories that were (or would be) updated.
 func backfillSlugs(dir, slug string, apply bool) (int, error) {
-	records, listErr := memory.ListAll(dir)
+	lister := memory.NewLister()
+	records, listErr := lister.ListAll(dir)
+
 	if listErr != nil {
 		return 0, fmt.Errorf("migrate-slugs: %w", listErr)
 	}

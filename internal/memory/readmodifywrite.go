@@ -15,79 +15,10 @@ type AtomicWriter interface {
 	AtomicWrite(targetPath string, record any) error
 }
 
-// Modifier atomically reads a memory TOML, applies a mutation, and writes back.
-// All I/O is injected for testability.
-type Modifier struct {
-	readFile func(string) ([]byte, error)
-	writer   AtomicWriter
-}
-
-// NewModifier creates a Modifier with real filesystem operations.
-// The caller must provide a writer via WithModifierWriter; if none is given,
-// the Modifier will panic on first use. This avoids importing tomlwriter
-// from the memory package.
-func NewModifier(opts ...ModifierOption) *Modifier {
-	m := &Modifier{
-		readFile: os.ReadFile,
-	}
-
-	for _, opt := range opts {
-		opt(m)
-	}
-
-	return m
-}
-
-// ReadModifyWrite atomically reads a memory TOML, applies a mutation, and writes back.
-func (m *Modifier) ReadModifyWrite(path string, mutate func(*MemoryRecord)) error {
-	data, err := m.readFile(path)
-	if err != nil {
-		return fmt.Errorf("reading %s: %w", path, err)
-	}
-
-	var record MemoryRecord
-
-	_, err = toml.Decode(string(data), &record)
-	if err != nil {
-		return fmt.Errorf("decoding %s: %w", path, err)
-	}
-
-	mutate(&record)
-
-	return m.writer.AtomicWrite(path, record)
-}
-
-// ModifierOption configures a Modifier.
-type ModifierOption func(*Modifier)
-
-// ModifyFunc atomically reads, mutates, and writes a memory record.
-// This is the signature of Modifier.ReadModifyWrite and is used as a DI boundary
-// by packages that need to update memory files without importing the full Modifier.
-type ModifyFunc func(path string, mutate func(*MemoryRecord)) error
-
-// StoredRecord pairs a file path with its parsed MemoryRecord.
-type StoredRecord struct {
-	Path   string
-	Record MemoryRecord
-}
-
 // Lister reads memory TOML files from a directory.
 type Lister struct {
 	readDir  func(string) ([]os.DirEntry, error)
 	readFile func(string) ([]byte, error)
-}
-
-// ListerOption configures a Lister.
-type ListerOption func(*Lister)
-
-// WithListerReadDir overrides the directory reading function.
-func WithListerReadDir(fn func(string) ([]os.DirEntry, error)) ListerOption {
-	return func(l *Lister) { l.readDir = fn }
-}
-
-// WithListerReadFile overrides the file reading function.
-func WithListerReadFile(fn func(string) ([]byte, error)) ListerOption {
-	return func(l *Lister) { l.readFile = fn }
 }
 
 // NewLister creates a Lister with default I/O wired to the real filesystem.
@@ -157,6 +88,75 @@ func (l *Lister) ListStored(dir string) ([]*Stored, error) {
 	})
 
 	return stored, nil
+}
+
+// ListerOption configures a Lister.
+type ListerOption func(*Lister)
+
+// Modifier atomically reads a memory TOML, applies a mutation, and writes back.
+// All I/O is injected for testability.
+type Modifier struct {
+	readFile func(string) ([]byte, error)
+	writer   AtomicWriter
+}
+
+// NewModifier creates a Modifier with real filesystem operations.
+// The caller must provide a writer via WithModifierWriter; if none is given,
+// the Modifier will panic on first use. This avoids importing tomlwriter
+// from the memory package.
+func NewModifier(opts ...ModifierOption) *Modifier {
+	m := &Modifier{
+		readFile: os.ReadFile,
+	}
+
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	return m
+}
+
+// ReadModifyWrite atomically reads a memory TOML, applies a mutation, and writes back.
+func (m *Modifier) ReadModifyWrite(path string, mutate func(*MemoryRecord)) error {
+	data, err := m.readFile(path)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", path, err)
+	}
+
+	var record MemoryRecord
+
+	_, err = toml.Decode(string(data), &record)
+	if err != nil {
+		return fmt.Errorf("decoding %s: %w", path, err)
+	}
+
+	mutate(&record)
+
+	return m.writer.AtomicWrite(path, record)
+}
+
+// ModifierOption configures a Modifier.
+type ModifierOption func(*Modifier)
+
+// ModifyFunc atomically reads, mutates, and writes a memory record.
+// This is the signature of Modifier.ReadModifyWrite and is used as a DI boundary
+// by packages that need to update memory files without importing the full Modifier.
+type ModifyFunc func(path string, mutate func(*MemoryRecord)) error
+
+// StoredRecord pairs a file path with its parsed MemoryRecord.
+type StoredRecord struct {
+	Path   string
+	Record MemoryRecord
+}
+
+// WithListerReadDir overrides the directory reading function.
+func WithListerReadDir(fn func(string) ([]os.DirEntry, error)) ListerOption {
+	return func(l *Lister) { l.readDir = fn }
+}
+
+// WithListerReadFile overrides the file reading function.
+func WithListerReadFile(fn func(string) ([]byte, error)) ListerOption {
+	return func(l *Lister) { l.readFile = fn }
 }
 
 // WithModifierReadFile overrides the file reading function.

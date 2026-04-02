@@ -14,81 +14,6 @@ import (
 	"engram/internal/tomlwriter"
 )
 
-func TestLister_ListAll_UsesDI(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dir := t.TempDir()
-
-	content := `situation = "test situation"
-action = "test action"
-surfaced_count = 3
-`
-
-	writeErr := os.WriteFile(filepath.Join(dir, "mem1.toml"), []byte(content), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	lister := memory.NewLister()
-	records, err := lister.ListAll(dir)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(records).To(HaveLen(1))
-	g.Expect(records[0].Record.Situation).To(Equal("test situation"))
-	g.Expect(records[0].Path).To(HaveSuffix("mem1.toml"))
-}
-
-func TestLister_ListStored_ReturnsSortedStored(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dir := t.TempDir()
-
-	older := `situation = "older memory"
-updated_at = "2024-01-01T00:00:00Z"
-`
-	newer := `situation = "newer memory"
-updated_at = "2024-06-15T00:00:00Z"
-`
-
-	writeErr := os.WriteFile(filepath.Join(dir, "old.toml"), []byte(older), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	writeErr = os.WriteFile(filepath.Join(dir, "new.toml"), []byte(newer), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	lister := memory.NewLister()
-	stored, err := lister.ListStored(dir)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(stored).To(HaveLen(2))
-	g.Expect(stored[0].Situation).To(Equal("newer memory"))
-	g.Expect(stored[1].Situation).To(Equal("older memory"))
-}
-
 func TestListAll_EmptyDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -205,6 +130,149 @@ func TestListAll_SkipsSubdirectories(t *testing.T) {
 
 	g.Expect(records).To(HaveLen(1))
 	g.Expect(records[0].Record.Situation).To(Equal("valid situation"))
+}
+
+func TestLister_ListAll_UsesDI(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+
+	content := `situation = "test situation"
+action = "test action"
+surfaced_count = 3
+`
+
+	writeErr := os.WriteFile(filepath.Join(dir, "mem1.toml"), []byte(content), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	lister := memory.NewLister()
+	records, err := lister.ListAll(dir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(records).To(HaveLen(1))
+	g.Expect(records[0].Record.Situation).To(Equal("test situation"))
+	g.Expect(records[0].Path).To(HaveSuffix("mem1.toml"))
+}
+
+func TestLister_ListStored_ReturnsSortedStored(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+
+	older := `situation = "older memory"
+updated_at = "2024-01-01T00:00:00Z"
+`
+	newer := `situation = "newer memory"
+updated_at = "2024-06-15T00:00:00Z"
+`
+
+	writeErr := os.WriteFile(filepath.Join(dir, "old.toml"), []byte(older), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	writeErr = os.WriteFile(filepath.Join(dir, "new.toml"), []byte(newer), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	lister := memory.NewLister()
+	stored, err := lister.ListStored(dir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stored).To(HaveLen(2))
+	g.Expect(stored[0].Situation).To(Equal("newer memory"))
+	g.Expect(stored[1].Situation).To(Equal("older memory"))
+}
+
+func TestLister_WithReadDir_InjectsDirectory(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	content := `situation = "injected"
+surfaced_count = 1
+`
+	called := false
+	fakeReadDir := func(_ string) ([]os.DirEntry, error) {
+		called = true
+
+		return os.ReadDir(t.TempDir())
+	}
+
+	dir := t.TempDir()
+	writeErr := os.WriteFile(filepath.Join(dir, "mem.toml"), []byte(content), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	lister := memory.NewLister(memory.WithListerReadDir(fakeReadDir))
+	_, err := lister.ListAll(dir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(called).To(BeTrue())
+}
+
+func TestLister_WithReadFile_InjectsFileRead(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+
+	writeErr := os.WriteFile(filepath.Join(dir, "mem.toml"), []byte(""), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	called := false
+	fakeReadFile := func(path string) ([]byte, error) {
+		called = true
+
+		return os.ReadFile(path) //nolint:gosec // test helper
+	}
+
+	lister := memory.NewLister(memory.WithListerReadFile(fakeReadFile))
+	_, err := lister.ListAll(dir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(called).To(BeTrue())
 }
 
 // TestModifier_CleansUpTempOnFailure verifies cleanup on rename failure.
