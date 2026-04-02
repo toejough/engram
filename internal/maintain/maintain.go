@@ -48,6 +48,12 @@ func Run(ctx context.Context, cfg Config) ([]Proposal, error) {
 
 	proposals := DiagnoseAll(records, diagCfg)
 
+	// Aggregate surfacing accuracy check (deterministic — no LLM needed).
+	gateProposal := CheckGateAccuracy(records, cfg.Policy.GateIrrelevanceThreshold)
+	if gateProposal != nil {
+		proposals = append(proposals, *gateProposal)
+	}
+
 	if cfg.Caller == nil {
 		return proposals, nil
 	}

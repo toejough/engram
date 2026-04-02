@@ -65,8 +65,8 @@ func TestRun_CallerError_ReturnsProposalsAndError(t *testing.T) {
 	g.Expect(runErr.Error()).To(ContainSubstring("finding merges"))
 	g.Expect(runErr.Error()).To(ContainSubstring("adapt analysis"))
 
-	// Decision tree proposals are still returned alongside the error.
-	g.Expect(proposals).To(HaveLen(1))
+	// Decision tree + gate accuracy proposals are still returned alongside the error.
+	g.Expect(proposals).To(HaveLen(2))
 
 	if len(proposals) == 0 {
 		return
@@ -100,6 +100,67 @@ func TestRun_EmptyMemoryDir(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(proposals).To(BeNil())
+}
+
+func TestRun_GateAccuracyProposal_HighIrrelevance(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(memDir, 0o755)).To(Succeed())
+
+	// Memory with 50% irrelevance rate (above 10% threshold).
+	highIrrelevance := `situation = "when doing X"
+behavior = "always fails"
+impact = "wastes time"
+action = "stop doing X"
+created_at = "2024-01-01T00:00:00Z"
+updated_at = "2024-01-01T00:00:00Z"
+surfaced_count = 10
+followed_count = 0
+not_followed_count = 0
+irrelevant_count = 5
+`
+	g.Expect(os.WriteFile(
+		filepath.Join(memDir, "high-irrel.toml"),
+		[]byte(highIrrelevance), 0o644,
+	)).To(Succeed())
+
+	cfg := maintain.Config{
+		Policy:  policy.Defaults(),
+		DataDir: dataDir,
+		Caller:  nil,
+	}
+
+	proposals, err := maintain.Run(context.Background(), cfg)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Should contain a gate-accuracy recommend proposal.
+	var gateProposal *maintain.Proposal
+
+	for idx := range proposals {
+		if proposals[idx].ID == "gate-accuracy" {
+			gateProposal = &proposals[idx]
+
+			break
+		}
+	}
+
+	g.Expect(gateProposal).NotTo(BeNil())
+
+	if gateProposal == nil {
+		return
+	}
+
+	g.Expect(gateProposal.Action).To(Equal(maintain.ActionRecommend))
+	g.Expect(gateProposal.Rationale).To(ContainSubstring("SurfaceGateHaikuPrompt"))
 }
 
 func TestRun_MissingMemoryDir(t *testing.T) {
@@ -213,8 +274,8 @@ func TestRun_ProducesProposals(t *testing.T) {
 		return
 	}
 
-	// The high-irrelevance memory should produce a proposal; the working one should not.
-	g.Expect(proposals).To(HaveLen(1))
+	// The high-irrelevance memory produces a delete proposal + gate-accuracy recommend.
+	g.Expect(proposals).To(HaveLen(2))
 	g.Expect(proposals).NotTo(BeNil())
 
 	if len(proposals) == 0 {
@@ -223,6 +284,7 @@ func TestRun_ProducesProposals(t *testing.T) {
 
 	g.Expect(proposals[0].Action).To(Equal(maintain.ActionDelete))
 	g.Expect(proposals[0].Target).To(ContainSubstring("high-irrelevance"))
+	g.Expect(proposals[1].ID).To(Equal("gate-accuracy"))
 }
 
 func TestRun_RewritesUpdateProposalValues(t *testing.T) {

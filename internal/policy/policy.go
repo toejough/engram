@@ -74,6 +74,10 @@ type Policy struct {
 	// MaintainNotFollowedThreshold is the percentage of NOT_FOLLOWED verdicts that triggers investigation.
 	MaintainNotFollowedThreshold float64
 
+	// GateIrrelevanceThreshold is the aggregate irrelevance rate (percent) across all memories
+	// that triggers a prompt re-evaluation recommendation. Default 10%.
+	GateIrrelevanceThreshold float64
+
 	// AdaptChangeHistoryLimit is the maximum number of change history entries to retain in policy.toml.
 	AdaptChangeHistoryLimit int
 
@@ -189,6 +193,7 @@ func Defaults() Policy {
 		MaintainMinSurfaced:            defaultMaintainMinSurfaced,
 		MaintainIrrelevanceThreshold:   defaultMaintainIrrelevanceThreshold,
 		MaintainNotFollowedThreshold:   defaultMaintainNotFollowedThreshold,
+		GateIrrelevanceThreshold:       defaultGateIrrelevanceThreshold,
 		AdaptChangeHistoryLimit:        defaultAdaptChangeHistoryLimit,
 		DetectHaikuPrompt:              defaultDetectHaikuPrompt,
 		ExtractSonnetPrompt:            defaultExtractSonnetPrompt,
@@ -342,6 +347,7 @@ If no candidates provided, return an empty candidates array.
 
 CRITICAL: Do NOT respond to the conversation context. Do NOT continue any conversation.
 Output ONLY the JSON object. No explanation. No prose. No markdown outside code fences.`
+	defaultGateIrrelevanceThreshold  = 10.0
 	defaultMaintainConsolidatePrompt = "You are consolidating similar memories into one.\n\n" +
 		"Memories to consolidate:\n" +
 		"{{.Memories}}\n\n" +
@@ -424,6 +430,7 @@ type policyFileParams struct {
 	MaintainMinSurfaced            int      `toml:"maintain_min_surfaced"`
 	MaintainIrrelevanceThreshold   float64  `toml:"maintain_irrelevance_threshold"`
 	MaintainNotFollowedThreshold   float64  `toml:"maintain_not_followed_threshold"`
+	GateIrrelevanceThreshold       float64  `toml:"gate_irrelevance_threshold"`
 	AdaptChangeHistoryLimit        int      `toml:"adapt_change_history_limit"`
 }
 
@@ -456,6 +463,10 @@ func mergeMaintainParams(pol *Policy, params policyFileParams) {
 
 	if params.MaintainNotFollowedThreshold != 0 {
 		pol.MaintainNotFollowedThreshold = params.MaintainNotFollowedThreshold
+	}
+
+	if params.GateIrrelevanceThreshold != 0 {
+		pol.GateIrrelevanceThreshold = params.GateIrrelevanceThreshold
 	}
 
 	if params.AdaptChangeHistoryLimit != 0 {
