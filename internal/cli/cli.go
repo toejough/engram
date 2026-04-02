@@ -492,12 +492,9 @@ func resolveSkillsDir() string {
 }
 
 // resolveToken returns the API token from the environment or macOS Keychain.
+// tokenresolver.Resolve is documented to never return a non-nil error.
 func resolveToken(ctx context.Context) string {
-	token, resolveErr := newTokenResolver().Resolve(ctx)
-	if resolveErr != nil {
-		fmt.Fprintf(os.Stderr, "engram: resolving API token: %v\n", resolveErr)
-	}
-
+	token, _ := newTokenResolver().Resolve(ctx)
 	return token
 }
 

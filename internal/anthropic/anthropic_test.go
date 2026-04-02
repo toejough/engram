@@ -170,6 +170,32 @@ func TestCall_SetsCorrectHeaders(t *testing.T) {
 	g.Expect(doer.lastRequest.Header.Get("Content-Type")).To(Equal("application/json"))
 }
 
+func TestCaller_InvokesCallOnInvocation(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	body := makeAPIResponse(t, g, "caller result")
+	doer := &fakeDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(body)),
+		},
+	}
+
+	client := anthropic.NewClient("test-token", doer)
+	callerFunc := client.Caller(1024)
+
+	result, err := callerFunc(context.Background(), anthropic.HaikuModel, "sys", "usr")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(Equal("caller result"))
+}
+
 // fakeDoer is a test double for anthropic.HTTPDoer.
 type fakeDoer struct {
 	lastRequest *http.Request

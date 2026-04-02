@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -707,6 +708,39 @@ func TestWithTracker_RecordsSurfacing(t *testing.T) {
 	g.Expect(tracker.mode).To(Equal(surface.ModePrompt))
 }
 
+func TestWithTracker_TrackerError_IsNonFatal(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{Situation: "commit context", Behavior: "bad commit", Action: "good commit",
+			FilePath: "mem/commit.toml"},
+		{Situation: "build context", Behavior: "bad build", Action: "good build",
+			FilePath: "mem/build.toml"},
+		{Situation: "review context", Behavior: "bad review", Action: "good review",
+			FilePath: "mem/review.toml"},
+		{Situation: "deploy context", Behavior: "bad deploy", Action: "good deploy",
+			FilePath: "mem/deploy.toml"},
+	}
+
+	tracker := &fakeTracker{err: errors.New("tracker failure")}
+	retriever := &fakeRetriever{memories: memories}
+	surfacer := surface.New(retriever, surface.WithTracker(tracker))
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/data",
+		Message: "commit build",
+	})
+
+	// Tracker errors are logged to stderr but do not fail the Run call.
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(tracker.called).To(BeTrue())
+}
+
 func TestWriteResult_EmptyContext_WritesNothing(t *testing.T) {
 	t.Parallel()
 
@@ -820,13 +854,14 @@ func (f *fakeTokenLogger) LogInvocationTokens(mode string, tokenCount int, _ tim
 type fakeTracker struct {
 	called bool
 	mode   string
+	err    error
 }
 
 func (f *fakeTracker) RecordSurfacing(_ context.Context, _ []*memory.Stored, mode string) error {
 	f.called = true
 	f.mode = mode
 
-	return nil
+	return f.err
 }
 
 type surfacingLogCall struct {
