@@ -260,7 +260,7 @@ func TestLister_WithReadFile_InjectsFileRead(t *testing.T) {
 	fakeReadFile := func(path string) ([]byte, error) {
 		called = true
 
-		return os.ReadFile(path) //nolint:gosec // test helper
+		return os.ReadFile(path)
 	}
 
 	lister := memory.NewLister(memory.WithListerReadFile(fakeReadFile))
