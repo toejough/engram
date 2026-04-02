@@ -55,24 +55,26 @@ This gives active agents a way to check if the memory agent is still running. Wi
 
 ### Matching Strategy
 
-**V1: Full-context LLM judgment.** The memory agent loads all memory TOML files into its context and uses its own reasoning to match situations and judge behaviors. No BM25, no separate LLM calls — the agent IS the intelligence.
+**V1: Situations-only LLM judgment.** The memory agent loads only the `situation` field from each memory into its context, along with the memory's filename (slug). It uses its own reasoning to match situations against intents. Full SBIA fields are only loaded when a match is found — the subagent reads the complete memory file for the argument.
 
-**Scale limits:** This works for up to ~200 memories (~40k tokens of SBIA content). Beyond that, the agent's context window becomes a bottleneck and matching quality degrades. At that point, a pre-filtering mechanism (BM25 or similar) becomes necessary — tracked in #471.
+**Why situations-only:** The situation field is the matching key (~30-50 tokens each). The behavior/impact/action fields (~150-250 tokens) are only needed after a match, when arguing about whether it applies. Loading just situations gives ~5x capacity: ~1000 memories before hitting context limits, vs ~200 with full records.
+
+**Scale limits:** Works for up to ~1000 memories (~40k tokens of situation content). Beyond that, a pre-filtering mechanism (BM25 or similar) becomes necessary — tracked in #471.
 
 **What "match" means concretely:**
 1. Does the intent's situation overlap with a memory's situation? (Same context, same type of work, same tools/files involved)
-2. If so, does the intended behavior resemble the memory's "behavior to avoid"? (Same action, same mistake pattern, same class of error)
-3. The agent uses judgment, not string matching. Novel phrasings of the same mistake should be caught.
+2. The agent uses judgment, not string matching. Novel phrasings of the same situation should be caught.
+3. When a situation matches, the subagent reads the full memory file and judges whether the intended behavior resembles the memory's "behavior to avoid."
 
-**Token economics:** With 50 memories (~10k tokens of SBIA content), the agent consumes ~10k additional input tokens per intent evaluation. At 100 intents per session, that's ~1M input tokens for surfacing alone. This is the cost of V1's simplicity. BM25 pre-filtering (#471) would reduce this by 80-90%.
+**Token economics:** With 269 memories at ~40 tokens each, the agent consumes ~11k tokens of situation content. At 100 intents per session, that's ~1.1M input tokens for situation matching. Full SBIA is only loaded for matched memories (typically 0-3 per intent).
 
-**Context window overflow:** When the agent's context approaches capacity (memories + chat history + recent_intents), it should: (1) stop loading the lowest-value memories (lowest surfaced_count with zero followed_count), (2) post a warning to chat.toml noting reduced coverage, (3) recommend the user run a consolidation pass.
+**Context window overflow:** When the agent's context approaches capacity, it should: (1) stop loading situations for the lowest-value memories (lowest surfaced_count with zero followed_count), (2) post a warning to chat.toml noting reduced coverage, (3) recommend the user run a consolidation pass.
 
 ### Main Loop
 
 ```
 post introduction (role = reactive, memory count)
-read all memory TOML files into context
+read situation field + slug from all memory TOML files into context
 initialize cross-iteration state: recent_intents = []
 post heartbeat
 loop:
@@ -102,13 +104,16 @@ loop:
 
 1. Memory agent wakes on chat.toml change.
 2. Reads new `intent` messages from active agents.
-3. For each intent: matches against loaded memories using full-context LLM judgment (see Matching Strategy above).
+3. For each intent: matches the intent's situation against loaded memory situations using LLM judgment (see Matching Strategy).
 4. If a match with negative impact is found:
    - Acquire per-file lock for the matched memory, increment `surfaced_count` + update `updated_at`, write atomically, unlock.
    - If fewer than 3 subagents are running AND no subagent is already active on this thread, spawn a subagent. Otherwise queue.
    - The subagent:
+     - Reads the full memory TOML file (all SBIA fields) for the matched memory
      - Identifies itself in chat.toml as `memory-agent/sub-N` (where N is 1, 2, or 3)
-     - Posts `wait` to chat.toml with the memory's SBIA fields and reasoning
+     - Judges whether the intended behavior resembles the memory's "behavior to avoid"
+     - If it does, posts `wait` to chat.toml with the memory's SBIA fields and reasoning
+     - If it doesn't (situation matched but behavior is fine), posts nothing — false positive, return silently
      - Follows the argument protocol (aggressive reactor, 3 argument inputs max, 4th escalation if unresolved)
      - After resolution: **re-reads the memory file fresh** (not from cached data), acquires per-file lock, increments the appropriate counter, writes atomically, unlocks
      - Posts `info` with the resolution outcome for observability
