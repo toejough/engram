@@ -70,30 +70,49 @@ func Run(ctx context.Context, cfg Config) ([]Proposal, error) {
 	return proposals, errors.Join(rewriteErr, sonnetErr)
 }
 
-// runSonnetAnalyses runs consolidation and adapt analyses, collecting all errors.
+// runSonnetAnalyses runs consolidation and adapt analyses concurrently, collecting all errors.
 func runSonnetAnalyses(
 	ctx context.Context, cfg Config, records []memory.StoredRecord,
 ) ([]Proposal, error) {
+	type result struct {
+		proposals []Proposal
+		err       error
+	}
+
+	mergeCh := make(chan result, 1)
+	adaptCh := make(chan result, 1)
+
+	consolidator := NewConsolidator(cfg.Caller, cfg.Policy.MaintainConsolidatePrompt)
+
+	go func() {
+		proposals, err := consolidator.FindMerges(ctx, records)
+		mergeCh <- result{proposals, err}
+	}()
+
+	adapter := NewAdapter(cfg.Caller, cfg.Policy.AdaptSonnetPrompt)
+
+	go func() {
+		proposals, err := adapter.Analyze(ctx, records, cfg.Policy, cfg.ChangeHistory)
+		adaptCh <- result{proposals, err}
+	}()
+
+	mergeResult := <-mergeCh
+	adaptResult := <-adaptCh
+
 	var proposals []Proposal
 
 	var errs []error
 
-	consolidator := NewConsolidator(cfg.Caller, cfg.Policy.MaintainConsolidatePrompt)
-
-	mergeProposals, mergeErr := consolidator.FindMerges(ctx, records)
-	if mergeErr != nil {
-		errs = append(errs, fmt.Errorf("finding merges: %w", mergeErr))
+	if mergeResult.err != nil {
+		errs = append(errs, fmt.Errorf("finding merges: %w", mergeResult.err))
 	} else {
-		proposals = append(proposals, mergeProposals...)
+		proposals = append(proposals, mergeResult.proposals...)
 	}
 
-	adapter := NewAdapter(cfg.Caller, cfg.Policy.AdaptSonnetPrompt)
-
-	adaptProposals, adaptErr := adapter.Analyze(ctx, records, cfg.Policy, cfg.ChangeHistory)
-	if adaptErr != nil {
-		errs = append(errs, fmt.Errorf("running adapt analysis: %w", adaptErr))
+	if adaptResult.err != nil {
+		errs = append(errs, fmt.Errorf("running adapt analysis: %w", adaptResult.err))
 	} else {
-		proposals = append(proposals, adaptProposals...)
+		proposals = append(proposals, adaptResult.proposals...)
 	}
 
 	return proposals, errors.Join(errs...)

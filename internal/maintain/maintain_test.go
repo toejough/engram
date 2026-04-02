@@ -4,7 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -12,6 +14,65 @@ import (
 	"engram/internal/maintain"
 	"engram/internal/policy"
 )
+
+func TestRunSonnetAnalyses_RunsConcurrently(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(memDir, 0o755)).To(Succeed())
+
+	g.Expect(os.WriteFile(filepath.Join(memDir, "mem-a.toml"), []byte(workingMemory), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(memDir, "mem-b.toml"), []byte(workingMemory), 0o644)).To(Succeed())
+
+	defaults := policy.Defaults()
+
+	var barrier sync.WaitGroup
+
+	barrier.Add(2)
+
+	mockCaller := anthropic.CallerFunc(
+		func(_ context.Context, _, systemPrompt, _ string) (string, error) {
+			barrier.Done() // signal arrival
+			barrier.Wait() // block until both goroutines have arrived
+
+			if systemPrompt == defaults.MaintainConsolidatePrompt {
+				return `[{"survivor":"mem-a.toml","members":["mem-a.toml","mem-b.toml"],"rationale":"similar"}]`, nil
+			}
+
+			return `[{"field":"maintain_min_surfaced","value":"10","rationale":"increase"}]`, nil
+		},
+	)
+
+	cfg := maintain.Config{
+		Policy:        defaults,
+		DataDir:       dataDir,
+		Caller:        mockCaller,
+		ChangeHistory: []policy.ChangeEntry{},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	proposals, err := maintain.Run(ctx, cfg)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	actions := make([]string, 0, len(proposals))
+
+	for _, proposal := range proposals {
+		actions = append(actions, proposal.Action)
+	}
+
+	g.Expect(actions).To(ContainElement(maintain.ActionMerge))
+	g.Expect(actions).To(ContainElement(maintain.ActionUpdate))
+}
 
 func TestRun_CallerError_ReturnsProposalsAndError(t *testing.T) {
 	t.Parallel()
@@ -371,14 +432,11 @@ func TestRun_WithCaller_IncludesConsolidationAndAdapt(t *testing.T) {
 		return
 	}
 
-	callCount := 0
+	defaults := policy.Defaults()
 
 	mockCaller := anthropic.CallerFunc(
-		func(_ context.Context, _, _, _ string) (string, error) {
-			callCount++
-
-			// First call = consolidation, second call = adapt.
-			if callCount == 1 {
+		func(_ context.Context, _, systemPrompt, _ string) (string, error) {
+			if systemPrompt == defaults.MaintainConsolidatePrompt {
 				return `[{"survivor":"mem-a.toml","members":["mem-a.toml","mem-b.toml"],"rationale":"similar"}]`, nil
 			}
 
@@ -387,7 +445,7 @@ func TestRun_WithCaller_IncludesConsolidationAndAdapt(t *testing.T) {
 	)
 
 	cfg := maintain.Config{
-		Policy:        policy.Defaults(),
+		Policy:        defaults,
 		DataDir:       dataDir,
 		Caller:        mockCaller,
 		ChangeHistory: []policy.ChangeEntry{},
