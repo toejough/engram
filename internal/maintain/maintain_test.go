@@ -119,6 +119,55 @@ func TestRun_MissingMemoryDir(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestRun_NoCaller_UpdateProposalsHaveEmptyValue(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	err := os.MkdirAll(memDir, 0o755)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	err = os.WriteFile(
+		filepath.Join(memDir, "needs-rewrite.toml"),
+		[]byte(needsRewriteMemory), 0o644,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	cfg := maintain.Config{
+		Policy:  policy.Defaults(),
+		DataDir: dataDir,
+		Caller:  nil, // no LLM — decision tree only
+	}
+
+	proposals, err := maintain.Run(context.Background(), cfg)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(proposals).NotTo(BeEmpty())
+
+	if len(proposals) == 0 {
+		return
+	}
+
+	// Without a caller, update proposals should still have empty Value.
+	g.Expect(proposals[0].Action).To(Equal(maintain.ActionUpdate))
+	g.Expect(proposals[0].Value).To(BeEmpty())
+}
+
 func TestRun_ProducesProposals(t *testing.T) {
 	t.Parallel()
 
@@ -174,6 +223,60 @@ func TestRun_ProducesProposals(t *testing.T) {
 
 	g.Expect(proposals[0].Action).To(Equal(maintain.ActionDelete))
 	g.Expect(proposals[0].Target).To(ContainSubstring("high-irrelevance"))
+}
+
+func TestRun_RewritesUpdateProposalValues(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(memDir, 0o755)).To(Succeed())
+
+	// This memory triggers priority 4b (rewrite action):
+	// not_followed_rate = 5/8 = 62.5% (above default 50% threshold)
+	g.Expect(os.WriteFile(
+		filepath.Join(memDir, "needs-rewrite.toml"),
+		[]byte(needsRewriteMemory), 0o644,
+	)).To(Succeed())
+
+	defaults := policy.Defaults()
+
+	mockCaller := anthropic.CallerFunc(
+		func(_ context.Context, _, systemPrompt, _ string) (string, error) {
+			if systemPrompt == defaults.MaintainRewritePrompt {
+				return "clearer action text from LLM", nil
+			}
+
+			return "[]", nil
+		},
+	)
+
+	cfg := maintain.Config{
+		Policy:  defaults,
+		DataDir: dataDir,
+		Caller:  mockCaller,
+	}
+
+	proposals, err := maintain.Run(context.Background(), cfg)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(proposals).NotTo(BeEmpty())
+
+	updateProposal := findUpdateProposal(proposals, "action")
+	g.Expect(updateProposal).NotTo(BeNil())
+
+	if updateProposal == nil {
+		return
+	}
+
+	g.Expect(updateProposal.Value).To(Equal("clearer action text from LLM"))
 }
 
 func TestRun_WithCaller_IncludesConsolidationAndAdapt(t *testing.T) {
@@ -259,6 +362,15 @@ followed_count = 1
 not_followed_count = 0
 irrelevant_count = 7
 `
+	needsRewriteMemory = `situation = "reviewing pull requests"
+behavior = "approve without reading diffs"
+impact = "bugs reach production"
+action = "read every diff line"
+surfaced_count = 8
+followed_count = 2
+not_followed_count = 5
+irrelevant_count = 1
+`
 	workingMemory = `situation = "writing new Go code"
 behavior = "write tests first"
 impact = "catches bugs early"
@@ -269,3 +381,15 @@ not_followed_count = 1
 irrelevant_count = 1
 `
 )
+
+// findUpdateProposal returns the first update proposal matching the given field.
+func findUpdateProposal(proposals []maintain.Proposal, field string) *maintain.Proposal {
+	for idx := range proposals {
+		if proposals[idx].Action == maintain.ActionUpdate &&
+			proposals[idx].Field == field {
+			return &proposals[idx]
+		}
+	}
+
+	return nil
+}

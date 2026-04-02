@@ -21,6 +21,7 @@ var (
 	errApplyProposalMissingID  = errors.New("apply-proposal: --id required")
 	errProposalNotFound        = errors.New("proposal not found")
 	errRejectProposalMissingID = errors.New("reject-proposal: --id required")
+	errUpdateEmptyValue        = errors.New("apply-proposal: update has empty value — run maintain with LLM to fill it")
 )
 
 // applyFieldUpdate sets a SBIA field on a memory record by name.
@@ -50,6 +51,10 @@ func executeProposal(proposal maintain.Proposal) error {
 	case maintain.ActionUpdate:
 		if filepath.Base(proposal.Target) == "policy.toml" {
 			return nil // informational — no-op
+		}
+
+		if proposal.Value == "" {
+			return errUpdateEmptyValue
 		}
 
 		modifier := memory.NewModifier(

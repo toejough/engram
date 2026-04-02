@@ -12,6 +12,16 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func TestDefaultExtractCap(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 10KB gives mode B enough budget for meaningful cross-session context.
+	// Mode A uses 15KB raw; mode B extracts are denser, so 10KB is proportional.
+	const expectedExtractCap = 10 * 1024
+	g.Expect(recall.DefaultExtractCap).To(Equal(expectedExtractCap))
+}
+
 func TestFormatResult(t *testing.T) {
 	t.Parallel()
 
@@ -94,16 +104,6 @@ func TestFormatResult(t *testing.T) {
 
 		g.Expect(buf.String()).To(BeEmpty())
 	})
-}
-
-func TestDefaultExtractCap(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// 10KB gives mode B enough budget for meaningful cross-session context.
-	// Mode A uses 15KB raw; mode B extracts are denser, so 10KB is proportional.
-	const expectedExtractCap = 10 * 1024
-	g.Expect(recall.DefaultExtractCap).To(Equal(expectedExtractCap))
 }
 
 // --- Tests ---

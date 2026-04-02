@@ -241,6 +241,92 @@ func TestRunApplyProposal_RecommendIsNoOp(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring("applied"))
 }
 
+func TestRunApplyProposal_RejectsUpdateWithEmptyValue(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	memoryPath := filepath.Join(memoriesDir, "protected.toml")
+
+	memoryTOML := `situation = "test"
+behavior = "test"
+impact = "test"
+action = "important action"
+created_at = "2024-01-01T00:00:00Z"
+updated_at = "2024-01-01T00:00:00Z"
+surfaced_count = 0
+followed_count = 0
+not_followed_count = 0
+irrelevant_count = 0
+`
+	g.Expect(os.WriteFile(memoryPath, []byte(memoryTOML), 0o644)).To(Succeed())
+
+	// Create an update proposal with empty Value — this should be rejected.
+	proposals := []maintain.Proposal{
+		{
+			ID:        "empty-val",
+			Action:    maintain.ActionUpdate,
+			Target:    memoryPath,
+			Field:     "action",
+			Value:     "",
+			Rationale: "needs rewrite",
+		},
+	}
+
+	proposalData, marshalErr := json.Marshal(proposals)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	proposalPath := filepath.Join(dataDir, "pending-proposals.json")
+	g.Expect(os.WriteFile(proposalPath, proposalData, 0o644)).To(Succeed())
+
+	policyPath := filepath.Join(dataDir, "policy.toml")
+	g.Expect(os.WriteFile(policyPath, []byte(""), 0o644)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.ExportRunApplyProposal(
+		[]string{"--data-dir", dataDir, "--id", "empty-val"},
+		&stdout,
+	)
+
+	// Should fail with an error about empty value.
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("empty value"))
+	}
+
+	// Memory file should NOT be modified — action should still be "important action".
+	data, readErr := os.ReadFile(memoryPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(ContainSubstring("important action"))
+
+	// Proposal should still be in the pending file (not removed on failure).
+	remainingData, readErr := os.ReadFile(proposalPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	var remaining []maintain.Proposal
+
+	g.Expect(json.Unmarshal(remainingData, &remaining)).To(Succeed())
+	g.Expect(remaining).To(HaveLen(1))
+}
+
 func TestRunApplyProposal_UpdatePolicyIsNoOp(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

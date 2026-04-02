@@ -52,10 +52,16 @@ func Run(ctx context.Context, cfg Config) ([]Proposal, error) {
 		return proposals, nil
 	}
 
+	// Rewrite empty-Value update proposals using the LLM.
+	rewriter := NewRewriter(cfg.Caller, cfg.Policy.MaintainRewritePrompt)
+
+	rewritten, rewriteErr := rewriter.RewriteProposals(ctx, proposals, records)
+	proposals = rewritten // always use result — preserves successful rewrites even on partial failure
+
 	sonnetProposals, sonnetErr := runSonnetAnalyses(ctx, cfg, records)
 	proposals = append(proposals, sonnetProposals...)
 
-	return proposals, sonnetErr
+	return proposals, errors.Join(rewriteErr, sonnetErr)
 }
 
 // runSonnetAnalyses runs consolidation and adapt analyses, collecting all errors.
