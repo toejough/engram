@@ -24,7 +24,8 @@ When any agent posts a `wait` objecting to another agent's intent, the two argue
 - **Initiator (the agent whose intent was challenged):** responds factually. States reasoning, evidence, and context without defensiveness.
 - **Reactor (the agent that posted the WAIT):** responds aggressively. Pushes back hard on weak reasoning. Agents default to thinking well of their own work — the reactor's job is to counterbalance that.
 - **3 argument inputs max.** Reactor objection, initiator response, reactor counter-response. If still unresolved, the reactor posts a 4th message: an escalation addressed to the initiating agent. The initiating agent surfaces the dispute to its user through its own UX (question, warning, etc.). The dispute is never escalated via chat.toml alone — the user sees it in their agent's terminal.
-- **Resolution recording.** After the argument resolves (agreement, user decision, or timeout), the reactor records the outcome.
+- **Early concession.** If the initiator agrees with the reactor after the first objection, the initiator posts an `ack` to end the argument early. No need to use all 3 inputs.
+- **Resolution recording.** After the argument resolves (agreement, concession, user decision, or timeout), the reactor updates the memory's outcome counters (per the Surfacing Flow) and posts an `info` with the resolution.
 
 ### Chat File Management
 
@@ -40,7 +41,7 @@ from = "memory-agent"
 to = "all"
 thread = "heartbeat"
 type = "info"
-message = "alive | 269 memories loaded | 15 intents processed | 2 surfaced"
+message = "alive | 269 memories loaded | 15 intents processed | 2 surfaced | queue: 0"
 ```
 
 This gives active agents a way to check if the memory agent is still running. Without it, a crashed memory agent is indistinguishable from one that found no matches.
@@ -59,7 +60,7 @@ This gives active agents a way to check if the memory agent is still running. Wi
 
 **Why situations-only:** The situation field is the matching key (~30-50 tokens each). The behavior/impact/action fields (~150-250 tokens) are only needed after a match, when arguing about whether it applies. Loading just situations gives ~5x capacity: ~1000 memories before hitting context limits, vs ~200 with full records.
 
-**Scale limits:** Works for up to ~1000 memories (~40k tokens of situation content). Beyond that, a pre-filtering mechanism (BM25 or similar) becomes necessary — tracked in #471.
+**Scale limits:** Works for up to ~1000 memories (~40k tokens of situation content). The current corpus of 269 memories is well within this limit. Beyond ~1000, a pre-filtering mechanism (BM25 or similar) becomes necessary — tracked in #471. The ~30-50 token estimate per situation is an assumption that should be validated against the actual corpus before implementation.
 
 **What "match" means concretely:**
 1. Does the intent's situation overlap with a memory's situation? (Same context, same type of work, same tools/files involved)
@@ -68,7 +69,7 @@ This gives active agents a way to check if the memory agent is still running. Wi
 
 **Token economics:** With 269 memories at ~40 tokens each, the agent consumes ~11k tokens of situation content. At 100 intents per session, that's ~1.1M input tokens for situation matching. Full SBIA is only loaded for matched memories (typically 0-3 per intent).
 
-**Context window overflow:** When the agent's context approaches capacity, it should: (1) stop loading situations for the lowest-value memories (lowest surfaced_count with zero followed_count), (2) post a warning to chat.toml noting reduced coverage, (3) recommend the user run a consolidation pass.
+**Context window overflow:** When the agent's context approaches capacity, it should: (1) stop loading situations for the lowest-value memories (high surfaced_count with zero followed_count — repeatedly surfaced but never useful), (2) post a warning to chat.toml noting reduced coverage, (3) recommend the user run a consolidation pass. Note: overflow requires restarting the agent with a filtered set — you cannot selectively evict from an LLM's context mid-session.
 
 ### Main Loop
 
@@ -77,14 +78,15 @@ post introduction (role = reactive, memory count)
 read situation field + slug from all memory TOML files into context
 initialize cross-iteration state: recent_intents = []
 post heartbeat
+start fswatch -1 chat.toml as background task
 loop:
-    fswatch -1 chat.toml          # kernel block, zero CPU
+    wait for background task notification  # do NOT complete turn
     re-read only modified memory files (track per-file mtimes)
-    read new messages from chat.toml
+    read new messages from chat.toml (from cursor)
     for each intent message:
         add to recent_intents (keep last 20)
         check memories for situation match
-        if intended behavior resembles a memory's "behavior to avoid":
+        if match found:
             increment SurfacedCount on the memory (with lock)
             spawn subagent to argue (max 3 concurrent, no two on same thread)
     for each user-parroted message:
@@ -92,11 +94,15 @@ loop:
         if found: extract SBIA, create new memory (with lock)
     for each done/info message:
         correlate with recent_intents to detect failures
+        dedup: skip if this intent already triggered a missed_count increment
         if failure matches existing memory: increment MissedCount (with lock)
         if failure has no matching memory: create new memory (with lock)
-    if 5 minutes since last heartbeat: post heartbeat
-    loop
+    if 5+ minutes since last heartbeat: post heartbeat (with queue depth)
+    start new fswatch -1 chat.toml as background task
+    loop — go back to waiting for notification
 ```
+
+**Background task loop pattern:** The agent runs `fswatch -1 chat.toml` as a background Bash command. When the file changes, the background task completes and the agent receives a notification — this is the trigger to process. After processing, start a new background fswatch. The agent must NEVER complete its turn while the loop is running.
 
 **Cross-iteration state:** The agent maintains `recent_intents` — the last 20 intent messages with their threads and originating agents. This allows correlating outcomes (done/info messages) with the intents that preceded them across multiple fswatch wakeups. This is best-effort — failures discovered beyond the 20-intent window cannot be correlated.
 
@@ -156,9 +162,11 @@ When a failure is detected:
 - If no existing memory matches:
   - Construct SBIA: situation from the intent, behavior from what the agent did, impact from the failure
   - Action: the corrective behavior that worked, OR "consider alternative approaches" if no obvious fix
-  - Set `initial_confidence` based on signal strength: 0.7 for high-confidence failures, 0.4 for inferred backtracking
+  - Set `initial_confidence` based on signal strength: 0.7 for high-confidence failures, 0.2 for inferred backtracking
   - Lock, write new TOML atomically, unlock
   - Post `info` confirming what was learned
+
+**Rate limiting:** If the memory agent creates more than 5 memories in 10 minutes, post a warning to chat.toml suggesting the user review and consolidate. Continue creating, but flag the pace.
 
 ### Memory File Operations
 
@@ -198,7 +206,9 @@ while ! shlock -f "$lockfile" -p $$; do sleep 0.1; done
 rm -f "$lockfile"
 ```
 
-Use `mkdir` fallback if `shlock` unavailable. For `mkdir` locks, if older than 120 seconds, assume stale.
+Use `mkdir` fallback if `shlock` unavailable. For `mkdir` locks, if older than 300 seconds (>= subagent timeout), assume stale. Note: PID-based stale detection only works on the same machine.
+
+**No multi-file locking.** An agent must never hold locks on more than one memory file simultaneously. This prevents deadlocks. If an operation needs to read multiple files (e.g., duplicate detection during learning), read without locks, then lock only the file being written.
 
 **Opportunistic cleanup:** When writing a memory file for any reason, strip the `pending_evaluations` field if present. This gradually cleans up deprecated data without a dedicated migration.
 
@@ -210,7 +220,7 @@ Use `mkdir` fallback if `shlock` unavailable. For `mkdir` locks, if older than 1
 |-------|------|---------|---------|
 | `schema_version` | int | 1 | NEW: Memory file schema version |
 | `missed_count` | int | 0 | NEW: Times this memory was relevant but not surfaced during the intent phase |
-| `initial_confidence` | float | 1.0 | NEW: Confidence at creation. 1.0 = explicit user correction, 0.7 = clear failure, 0.4 = inferred |
+| `initial_confidence` | float | 1.0 | NEW: Confidence at creation. 1.0 = explicit user correction, 0.7 = clear failure, 0.2 = inferred |
 | `pending_evaluations` | - | - | DEPRECATED: Strip on write. Was used by the removed Go evaluate pipeline. |
 
 All other existing fields remain unchanged.
@@ -221,7 +231,7 @@ All other existing fields remain unchanged.
 
 **Thread exclusivity:** No two subagents on the same thread. If a thread already has an active subagent, queue the new match.
 
-**Naming convention:** Subagents identify themselves in chat.toml as `memory-agent/sub-1`, `memory-agent/sub-2`, `memory-agent/sub-3`.
+**Naming convention:** Subagents use monotonically increasing IDs: `memory-agent/sub-1`, `memory-agent/sub-2`, etc. IDs are never reused within a session, even when slots free up. This prevents message confusion from ID reuse.
 
 **Message routing:** Messages addressed to `memory-agent` go to the main agent only. Subagents only receive and respond to messages on their specific argument thread.
 
@@ -239,7 +249,7 @@ The memory agent tracks in its own context (not persisted):
 |--------|--------|--------|
 | intents seen vs checked | Agent overwhelm | Report to user if queue > 5, recommend split |
 | Subagent queue depth | Concurrency bottleneck | Report if consistently > 0 |
-| SurfacedCount vs outcome counts | Outcome tracking gaps | Acceptable gap = subagent failures |
+| SurfacedCount vs outcome counts | Outcome tracking gaps | Gap = subagent failures. Effectiveness = followed / (followed + not_followed). Unresolved = surfaced - sum(outcomes). |
 | MissedCount | Surfacer matching quality | High = matching needs improvement |
 
 ## Part 3: Removal Scope
@@ -285,7 +295,7 @@ Functionality from the Go binary not carried over, to be investigated for future
 - Apply/reject proposal workflow
 - Refine (re-extract SBIA from transcripts)
 - Recall (cross-session context search)
-- BM25 scoring (efficient pre-filter at scale — needed when memories exceed ~200)
+- BM25 scoring (efficient pre-filter at scale — needed when memories exceed ~1000 with situations-only loading)
 - Cold-start budgeting (limit unproven memories)
 - Transcript suppression (avoid resurfacing recently mentioned memories)
 
