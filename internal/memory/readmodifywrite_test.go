@@ -14,6 +14,81 @@ import (
 	"engram/internal/tomlwriter"
 )
 
+func TestLister_ListAll_UsesDI(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+
+	content := `situation = "test situation"
+action = "test action"
+surfaced_count = 3
+`
+
+	writeErr := os.WriteFile(filepath.Join(dir, "mem1.toml"), []byte(content), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	lister := memory.NewLister()
+	records, err := lister.ListAll(dir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(records).To(HaveLen(1))
+	g.Expect(records[0].Record.Situation).To(Equal("test situation"))
+	g.Expect(records[0].Path).To(HaveSuffix("mem1.toml"))
+}
+
+func TestLister_ListStored_ReturnsSortedStored(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+
+	older := `situation = "older memory"
+updated_at = "2024-01-01T00:00:00Z"
+`
+	newer := `situation = "newer memory"
+updated_at = "2024-06-15T00:00:00Z"
+`
+
+	writeErr := os.WriteFile(filepath.Join(dir, "old.toml"), []byte(older), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	writeErr = os.WriteFile(filepath.Join(dir, "new.toml"), []byte(newer), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	lister := memory.NewLister()
+	stored, err := lister.ListStored(dir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stored).To(HaveLen(2))
+	g.Expect(stored[0].Situation).To(Equal("newer memory"))
+	g.Expect(stored[1].Situation).To(Equal("older memory"))
+}
+
 func TestListAll_EmptyDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -21,7 +96,8 @@ func TestListAll_EmptyDirectory(t *testing.T) {
 
 	dir := t.TempDir()
 
-	records, err := memory.ListAll(dir)
+	lister := memory.NewLister()
+	records, err := lister.ListAll(dir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -50,7 +126,8 @@ func TestListAll_ReadsAllTOMLFiles(t *testing.T) {
 	// Write a non-TOML file (should be skipped)
 	_ = os.WriteFile(filepath.Join(dir, "readme.md"), []byte("skip"), 0o644)
 
-	records, err := memory.ListAll(dir)
+	lister := memory.NewLister()
+	records, err := lister.ListAll(dir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -78,7 +155,8 @@ func TestListAll_SkipsInvalidTOML(t *testing.T) {
 	_ = toml.NewEncoder(&buf).Encode(rec)
 	_ = os.WriteFile(filepath.Join(dir, "valid.toml"), buf.Bytes(), 0o644)
 
-	records, err := memory.ListAll(dir)
+	lister := memory.NewLister()
+	records, err := lister.ListAll(dir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -117,7 +195,8 @@ func TestListAll_SkipsSubdirectories(t *testing.T) {
 	// Write a non-TOML file
 	_ = os.WriteFile(filepath.Join(dir, "skip.txt"), []byte("skip"), 0o644)
 
-	records, err := memory.ListAll(dir)
+	lister := memory.NewLister()
+	records, err := lister.ListAll(dir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

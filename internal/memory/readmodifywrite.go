@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -70,9 +71,42 @@ type StoredRecord struct {
 	Record MemoryRecord
 }
 
+// Lister reads memory TOML files from a directory.
+type Lister struct {
+	readDir  func(string) ([]os.DirEntry, error)
+	readFile func(string) ([]byte, error)
+}
+
+// ListerOption configures a Lister.
+type ListerOption func(*Lister)
+
+// WithListerReadDir overrides the directory reading function.
+func WithListerReadDir(fn func(string) ([]os.DirEntry, error)) ListerOption {
+	return func(l *Lister) { l.readDir = fn }
+}
+
+// WithListerReadFile overrides the file reading function.
+func WithListerReadFile(fn func(string) ([]byte, error)) ListerOption {
+	return func(l *Lister) { l.readFile = fn }
+}
+
+// NewLister creates a Lister with default I/O wired to the real filesystem.
+func NewLister(opts ...ListerOption) *Lister {
+	lister := &Lister{
+		readDir:  os.ReadDir,
+		readFile: os.ReadFile,
+	}
+
+	for _, opt := range opts {
+		opt(lister)
+	}
+
+	return lister
+}
+
 // ListAll reads all .toml files from a directory, returning parsed records.
-func ListAll(dir string) ([]StoredRecord, error) {
-	entries, err := os.ReadDir(dir)
+func (l *Lister) ListAll(dir string) ([]StoredRecord, error) {
+	entries, err := l.readDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("reading directory %s: %w", dir, err)
 	}
@@ -86,7 +120,7 @@ func ListAll(dir string) ([]StoredRecord, error) {
 
 		path := filepath.Join(dir, entry.Name())
 
-		data, readErr := os.ReadFile(path) //nolint:gosec // trusted dir
+		data, readErr := l.readFile(path)
 		if readErr != nil {
 			continue
 		}
@@ -102,6 +136,27 @@ func ListAll(dir string) ([]StoredRecord, error) {
 	}
 
 	return records, nil
+}
+
+// ListStored reads all .toml files from a directory, converts them to Stored,
+// and returns them sorted by UpdatedAt descending.
+func (l *Lister) ListStored(dir string) ([]*Stored, error) {
+	records, err := l.ListAll(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	stored := make([]*Stored, 0, len(records))
+
+	for idx := range records {
+		stored = append(stored, records[idx].Record.ToStored(records[idx].Path))
+	}
+
+	sort.Slice(stored, func(i, j int) bool {
+		return stored[i].UpdatedAt.After(stored[j].UpdatedAt)
+	})
+
+	return stored, nil
 }
 
 // WithModifierReadFile overrides the file reading function.
