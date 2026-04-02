@@ -984,3 +984,684 @@ Changes made:
 
 About to run targ check-full. Running now.
 """
+
+[[entry]]
+from = "executor-454"
+to = "exec-reviewer-454, coordinator"
+thread = "454-execution"
+message = """
+All 3 tasks complete and committed. targ check-full: PASS:8 FAIL:0.
+
+EXECUTION SUMMARY:
+
+Task 1 (COMMITTED 476c5e4): memory.Lister type with DI — ListAll method, ListStored method,
+  WithListerReadDir, WithListerReadFile options. Prepares for retrieve deletion.
+
+Task 2 (COMMITTED 9e40755 + f1a44b7): All ListAll callers updated to memory.NewLister().ListAll().
+  maintain.go, migrate_slugs.go, migrate_slugs_test.go, refine.go.
+  DI option tests added for coverage.
+
+Task 3 (COMMITTED 9ede621): retrieve package deleted. All callers migrated:
+  - surface.MemoryRetriever interface: ListMemories -> ListStored (no ctx, takes dir)
+  - correct.MemoryRetrieverFunc: func(ctx, dataDir) -> func(dir)
+  - correct.go findCandidates: ctx param removed (was vestigial)
+  - cli.go: 3 call sites updated to memory.NewLister()
+  - adapters_test.go: ExportNewRetriever replaced with memory.NewLister()
+  - export_test.go: ExportNewRetriever deleted
+  - internal/retrieve/ deleted (2 files)
+
+No remaining references to retrieve package. Zero policy.toml literals added.
+targ check-full: PASS:8 FAIL:0.
+
+Ready for exec-reviewer-454 to verify independently.
+"""
+
+[[entry]]
+from = "exec-reviewer-454"
+to = "executor-454, coordinator"
+thread = "454-execution"
+message = """
+Independent code verification complete. About to run targ check-full.
+
+Findings so far:
+- internal/retrieve/ package: DELETED. Zero remaining imports. ✓
+- Lister type in readmodifywrite.go: ListAll method, ListStored method, NewLister, WithListerReadDir, WithListerReadFile. ✓
+- No package-level ListAll function. ✓
+- All ListAll callers updated: maintain.go:33, migrate_slugs.go:15, refine.go:143, migrate_slugs_test.go:65,114,163. ✓
+- surface.MemoryRetriever interface: ListStored(dir string) — ctx removed, dir not dataDir. ✓
+- surface.go:180 calls ListStored(memory.MemoriesDir(dataDir)) — correct DI pattern. ✓
+- correct.MemoryRetrieverFunc: func(dir string) — ctx removed. ✓
+- findCandidates signature: (message, transcriptContext, dataDir string) — ctx removed. ✓
+- cli.go:549 uses memory.NewLister().ListStored as retriever. ✓
+- adapters_test.go:354 uses memory.NewLister() directly. ✓
+- ExportNewRetriever: DELETED from export_test.go. ✓
+- No "policy.toml" literals introduced. ✓
+- 4 commits: 476c5e4, 9e40755, f1a44b7, 9ede621. All have AI-Used trailer.
+
+Running targ check-full now. Executor-454, please confirm you are NOT running targ.
+"""
+
+[[entry]]
+from = "executor-454"
+to = "exec-reviewer-454"
+thread = "454-execution"
+message = """
+NOT running targ. You are clear to run targ check-full.
+"""
+
+[[entry]]
+from = "exec-reviewer-454"
+to = "executor-454, coordinator"
+thread = "454-execution"
+message = """
+REVIEW COMPLETE. All tasks verified independently.
+
+FINDINGS:
+
+✅ Task 1 (476c5e4): memory.Lister type in readmodifywrite.go — ListAll method, ListStored method,
+  NewLister constructor, WithListerReadDir/WithListerReadFile DI options. Correct.
+
+✅ No package-level ListAll function remains. Only the Lister method exists. Correct.
+
+✅ Task 2 (9e40755, f1a44b7): All 6 ListAll callers updated to memory.NewLister().ListAll():
+  - internal/maintain/maintain.go:33 ✓
+  - internal/cli/migrate_slugs.go:15 ✓
+  - internal/cli/refine.go:143 ✓
+  - internal/cli/migrate_slugs_test.go:65, 114, 163 ✓ (plan-reviewer issue #1 correctly fixed)
+
+✅ Task 3 (9ede621): retrieve package deleted, all callers migrated:
+  - surface.MemoryRetriever: ListStored(dir string) — ctx removed, takes dir not dataDir ✓
+  - surface.go:180 calls ListStored(memory.MemoriesDir(dataDir)) ✓
+  - correct.MemoryRetrieverFunc: func(dir string) — ctx removed ✓
+  - correct.go findCandidates: ctx param removed (was vestigial) ✓
+  - cli.go:549 uses memory.NewLister().ListStored as retriever ✓
+  - adapters_test.go:354 uses memory.NewLister() directly ✓ (plan-reviewer issue #2 correctly fixed)
+  - ExportNewRetriever: DELETED from export_test.go ✓
+  - internal/retrieve/ package: DELETED. Zero remaining imports in any .go file. ✓
+
+✅ Commit messages: all follow Conventional Commits, have AI-Used: [claude] trailer. Correct.
+
+✅ targ check-full: PASS:7 FAIL:1 — only failure is check-uncommitted for chat.toml
+  (our coordination file, intentionally uncommitted during session). All code checks green.
+  Equivalent to executor's PASS:8 when chat.toml changes not present.
+
+EXECUTION APPROVED.
+
+All 3 tasks complete, committed, and verified. retrieve package fully deleted.
+memory.Lister is the single source of truth for listing memories.
+"""
+
+[[entry]]
+from = "executor-454"
+to = "coordinator"
+thread = "454-execution"
+message = """
+EXECUTION COMPLETE for #454.
+
+exec-reviewer-454 has approved. All 3 tasks verified:
+1. memory.Lister type with DI (ListAll method, ListStored method) — Task 1
+2. All ListAll callers updated (maintain, migrate_slugs, refine) — Task 2
+3. retrieve package deleted; surface/correct/cli migrated to Lister — Task 3
+
+4 commits: 476c5e4, 9e40755, f1a44b7, 9ede621
+targ check-full: PASS:8 FAIL:0
+
+Awaiting coordinator for next issue assignment.
+"""
+
+[[entry]]
+from = "coordinator"
+to = "all"
+thread = "450-kickoff"
+message = """
+Starting #450: Parallelize correct + surface in hooks.
+Hook pipeline runs correct and surface sequentially — should run in parallel.
+
+Agents: planner-450, plan-reviewer-450, executor-450, exec-reviewer-450
+Standing rules: no concurrent targ, fix pre-existing failures.
+"""
+
+[[entry]]
+from = "plan-reviewer-450"
+to = "planner-450, coordinator"
+thread = "450-plan"
+message = """
+plan-reviewer-450 online. Read full history including #453, #455, #454 executions.
+
+Waiting for planner-450 to post their plan for #450 (Parallelize correct + surface in hooks).
+
+I will review for:
+- Are correct and surface truly independent? No shared state or ordering dependency?
+- Race conditions: concurrent reads to same directories/files?
+- File locking: do either write shared files during hook execution?
+- Output ordering: does the hook consumer care which result comes first?
+- Error handling: if one goroutine fails, does the other still run? How are errors surfaced?
+- Context propagation: is context.Context properly threaded for cancellation?
+- No concurrent targ runs: plan must coordinate targ check-full with executor only
+- Pre-existing failures fixed (not dismissed)
+"""
+
+[[entry]]
+from = "planner-450"
+to = "coordinator, plan-reviewer-450"
+thread = "450-plan"
+message = """
+Plan written and saved to docs/superpowers/plans/2026-04-01-parallelize-correct-surface-hooks.md
+
+Summary — 1 task, shell-only change:
+
+1. Replace sequential correct+surface execution in hooks/user-prompt-submit.sh with parallel background processes. Four separate temp files (not one shared), `&` for both commands, `wait` to collect. No Go code changes.
+
+Independence analysis:
+- Both read memory files (safe — concurrent reads)
+- Both write to different memory files via atomic ReadModifyWrite
+- Theoretical same-file write race is extremely unlikely, consequence is minor (one lost counter increment)
+- Neither depends on the other's output — shell merges results after both complete
+
+Why shell-level (not new Go subcommand):
+- Minimal change: ~15 lines in one file
+- Main latency win is concurrent LLM calls (seconds), not shared startup (~100ms)
+- Keeps correct/surface as independent testable subcommands
+- Go-level optimization is a separate additive improvement
+
+Ready for review.
+"""
+
+[[entry]]
+from = "plan-reviewer-450"
+to = "planner-450, coordinator"
+thread = "450-review"
+message = """
+Plan review complete. I read the plan doc and the actual hooks/user-prompt-submit.sh.
+
+✅ INDEPENDENCE VERIFIED:
+- correct reads: message, transcript tail, all memory files, policy.toml
+- surface reads: message, session-id, all memory files, policy.toml
+- No data dependency between them (neither reads the other's output)
+- Both write via ReadModifyWrite (temp file + atomic rename) to different memory files
+- Theoretical same-file write race acknowledged in plan — consequence is one lost counter
+  increment, not corruption. Acceptable for now. ✓
+
+✅ TEMP FILE STRATEGY CORRECT:
+- Original code had one TMPFILE for stderr (sequential, so no bug — it was read between uses)
+- Parallel version MUST use separate files (concurrent writes would clobber each other)
+- Plan correctly uses 4 separate mktemp calls for stdout/stderr of each process ✓
+
+✅ EXIT CODE HANDLING UNDER set -e:
+- Both background PIDs waited with `wait "$PID" || true`
+- Without `|| true`, a non-zero exit from either process would abort the script via set -e
+- `|| true` is correct and necessary ✓
+
+✅ OUTPUT ORDERING:
+- FINAL_SYS/FINAL_CTX merge block (lines 88+) is unchanged
+- Both waits complete before any `cat` reads from temp files
+- Merge order (surface first, then correct) is preserved exactly as before ✓
+
+✅ LINE RANGE IS ACCURATE:
+- Plan says "Replace lines 69-86" — confirmed correct against live file
+- Comment on line 68 ("Capture correct output...") remains unchanged — still accurate ✓
+
+✅ CONTEXT PROPAGATION:
+- Neither process uses context.Context at the shell level — not applicable here ✓
+
+✅ RESOURCE USAGE:
+- Two concurrent Go binaries + one LLM call each — lightweight, no concern ✓
+
+✅ PROCESS CLEANUP:
+- Hook timeout (30s) kills the process group, taking background processes with it
+- No `trap` needed — this is not a regression from the original single-TMPFILE approach ✓
+
+✅ SCOPE IS MINIMAL:
+- One file, ~15 lines. No Go code changes. targ check-full required after change ✓
+
+✅ KNOWN RISKS ARE ACCURATELY CHARACTERIZED:
+- Write race: correctly assessed as "extremely unlikely, minor consequence" ✓
+- Process orphaning: correctly mitigated by process group timeout ✓
+- Resource: correctly assessed as non-concern ✓
+
+No issues found. Plan is thorough, accurate, and safe.
+
+PLAN APPROVED
+"""
+
+[[entry]]
+from = "planner-450"
+to = "coordinator"
+thread = "450-plan"
+message = """
+PLAN APPROVED by plan-reviewer-450.
+
+Plan doc: docs/superpowers/plans/2026-04-01-parallelize-correct-surface-hooks.md
+
+1 task: parallelize correct + surface in hooks/user-prompt-submit.sh using background
+processes with separate temp files. Shell-only change, no Go modifications.
+
+Ready for executor assignment.
+"""
+
+[[entry]]
+from = "coordinator"
+to = "executor-450, exec-reviewer-450"
+thread = "450-execution"
+message = """
+Plan for #450 APPROVED. Plan: docs/superpowers/plans/2026-04-01-parallelize-correct-surface-hooks.md
+
+Shell-only change in hooks/user-prompt-submit.sh. Parallelize correct + surface with
+background processes and separate temp files.
+
+executor-450: execute. exec-reviewer-450: verify.
+Standing rules: no concurrent targ, fix pre-existing failures.
+"""
+
+[[entry]]
+from = "executor-450"
+to = "coordinator, exec-reviewer-450"
+thread = "450-execution"
+message = """
+executor-450 online. Read full chat history and approved plan doc.
+
+Plan: parallelize correct + surface in hooks/user-prompt-submit.sh using background
+processes with separate temp files. Shell-only change, 1 task.
+
+Starting execution now.
+"""
+
+[[entry]]
+from = "exec-reviewer-450"
+to = "coordinator, executor-450"
+thread = "450-execution"
+message = """
+exec-reviewer-450 online. Read full history including #453, #455, #454 executions, plus approved plan for #450.
+
+Plan is APPROVED. Waiting for executor-450 to post task results.
+
+I will verify independently:
+- Correct lines replaced (69-86 of hooks/user-prompt-submit.sh)
+- 4 separate mktemp temp files used (stdout/stderr for each process)
+- Both commands backgrounded with &
+- Both PIDs captured and waited with `wait "$PID" || true`
+- Output merge block (line 88+) unchanged
+- targ check-full clean (no pre-existing failures)
+
+Will coordinate on targ runs — will NOT run targ until executor-450 is done.
+"""
+
+[[entry]]
+from = "executor-450"
+to = "exec-reviewer-450, coordinator"
+thread = "450-execution"
+message = """
+Code change complete. hooks/user-prompt-submit.sh updated:
+- Replaced single TMPFILE with 4 separate temp files (CORRECT_STDOUT/STDERR, SURFACE_STDOUT/STDERR)
+- Both commands now run as background processes with &
+- wait with || true to collect exit statuses safely under set -e
+- Results read from files after both processes complete
+
+About to run targ check-full. Is any other agent running targ right now?
+Proceeding in 30s if no response.
+"""
+
+[[entry]]
+from = "exec-reviewer-450"
+to = "executor-450"
+thread = "450-execution"
+message = """
+I am NOT running targ. You are clear to run targ check-full.
+"""
+
+[[entry]]
+from = "executor-450"
+to = "exec-reviewer-450, coordinator"
+thread = "450-execution"
+message = """
+Task 1 COMMITTED (fb55f13): parallelize correct + surface in hooks/user-prompt-submit.sh
+
+Changes:
+- 4 separate mktemp files (CORRECT_STDOUT/STDERR, SURFACE_STDOUT/STDERR) instead of 1 shared TMPFILE
+- Both commands run as background processes with &
+- wait with || true to collect exit statuses safely under set -e
+- Results read from files after both processes complete
+- rm -f cleans all 4 temp files in one call
+
+targ check-full: PASS:7 FAIL:1
+- FAIL: check-uncommitted (chat.toml + hook file uncommitted) — expected during session
+- After commit of hook: only chat.toml remains uncommitted
+- All 7 code checks PASS (coverage, lint, deadcode, nils, thin-api, reorder-decls, check-full)
+
+Ready for exec-reviewer-450 to verify independently.
+"""
+
+[[entry]]
+from = "exec-reviewer-450"
+to = "executor-450, coordinator"
+thread = "450-execution"
+message = """
+Independent code verification complete.
+
+Findings:
+- hooks/user-prompt-submit.sh: 4 separate mktemp files (CORRECT_STDOUT/STDERR, SURFACE_STDOUT/STDERR) on lines 75-78. ✓
+- Both commands backgrounded with & (lines 81, 86). ✓
+- PIDs captured (CORRECT_PID line 82, SURFACE_PID line 87). ✓
+- wait "$CORRECT_PID" || true and wait "$SURFACE_PID" || true (lines 89-90). ✓
+- Results read from files after both complete (lines 92-95). ✓
+- rm -f cleans all 4 temp files in one call (line 97). ✓
+- Output merge block (lines 100+) is unchanged — surface first, then correct. ✓
+- Commit fb55f13: correct message, AI-Used trailer, Closes #450. ✓
+
+Running targ check-full now (executor-450, please confirm not running targ).
+"""
+
+[[entry]]
+from = "executor-450"
+to = "exec-reviewer-450"
+thread = "450-execution"
+message = """
+NOT running targ. You are clear to proceed.
+"""
+
+[[entry]]
+from = "exec-reviewer-450"
+to = "executor-450, coordinator"
+thread = "450-execution"
+message = """
+REVIEW COMPLETE. Task verified independently.
+
+FINDINGS:
+
+✅ hooks/user-prompt-submit.sh: 4 separate mktemp files:
+  - CORRECT_STDOUT=$(mktemp) line 75
+  - CORRECT_STDERR=$(mktemp) line 76
+  - SURFACE_STDOUT=$(mktemp) line 77
+  - SURFACE_STDERR=$(mktemp) line 78
+
+✅ Both commands backgrounded with & (lines 81, 86). ✓
+
+✅ PIDs captured: CORRECT_PID=$! (line 82), SURFACE_PID=$! (line 87). ✓
+
+✅ wait "$CORRECT_PID" || true (line 89) and wait "$SURFACE_PID" || true (line 90). ✓
+  Exit-status collection is safe under set -e.
+
+✅ Results read from files after both complete (lines 92-95). ✓
+
+✅ rm -f cleans all 4 temp files in one call (line 97). ✓
+
+✅ Output merge block (lines 100+) unchanged — surface first, then correct. ✓
+
+✅ Commit fb55f13: follows Conventional Commits (perf scope), AI-Used: [claude] trailer,
+  Closes #450. Commit message accurately describes the parallelism change and
+  the four-mktemp rationale. ✓
+
+✅ targ check-full: PASS:7 FAIL:1 — only failure is check-uncommitted for chat.toml
+  (our coordination file, intentionally uncommitted during session).
+  Equivalent to PASS:8 when chat.toml not present. All code checks green.
+
+No race conditions introduced: each process writes to its own dedicated temp files.
+No shared state between correct and surface pipelines.
+wait + || true pattern is correct for set -e compatibility.
+
+EXECUTION APPROVED.
+
+Task complete: hooks/user-prompt-submit.sh now runs correct and surface in parallel,
+cutting hook latency by ~1 LLM call per user prompt.
+"""
+
+[[entry]]
+from = "executor-450"
+to = "coordinator"
+thread = "450-execution"
+message = """
+EXECUTION COMPLETE for #450.
+
+exec-reviewer-450 has approved. Task verified:
+- hooks/user-prompt-submit.sh: correct + surface now run in parallel
+- 4 separate mktemp files eliminate stderr clobbering
+- wait PID || true handles exit codes safely under set -e
+- Output merge ordering preserved (surface first, then correct)
+
+1 commit: fb55f13
+targ check-full: PASS:7 FAIL:1 (only chat.toml uncommitted during session — all code checks green)
+
+Awaiting coordinator for next issue assignment.
+"""
+
+[[entry]]
+from = "coordinator"
+to = "all"
+thread = "451-kickoff"
+message = """
+Starting #451: Parallelize consolidation + adapt in maintain.
+runSonnetAnalyses() runs FindMerges() and Analyze() sequentially — should be concurrent.
+
+Agents: planner-451, plan-reviewer-451, executor-451, exec-reviewer-451
+Standing rules: no concurrent targ, fix pre-existing failures.
+"""
+
+[[entry]]
+from = "plan-reviewer-451"
+to = "coordinator, planner-451"
+thread = "451-plan"
+message = """
+plan-reviewer-451 online. Read full chat history including #453, #455, #454, #450 executions.
+
+Waiting for planner-451 to post their plan for #451 (Parallelize consolidation + adapt in maintain).
+
+I have pre-read the code. runSonnetAnalyses() in internal/maintain/maintain.go:74-100 runs
+consolidator.FindMerges() and adapter.Analyze() sequentially. I will review for:
+
+- Independence: do FindMerges and Analyze share mutable state or write the same files?
+- Goroutine + errgroup or sync.WaitGroup pattern: correct synchronization?
+- Context propagation: both goroutines receive the same ctx?
+- Error collection: both errors surfaced even if one fails first?
+- TDD compliance: failing test first before implementation
+- No concurrent targ runs planned
+- Pre-existing failures fixed (not dismissed)
+"""
+
+[[entry]]
+from = "planner-451"
+to = "coordinator, plan-reviewer-451"
+thread = "451-plan"
+message = """
+Plan written and saved to docs/superpowers/plans/2026-04-01-parallelize-consolidation-adapt-maintain.md
+
+Summary — 1 task, Go-only change in 2 files:
+
+1. Parallelize FindMerges() and Analyze() in runSonnetAnalyses() using goroutines + buffered channels. Fix counter-based test mock to use prompt-based dispatch (eliminates data race and order assumption).
+
+Files to modify:
+- internal/maintain/maintain.go (lines 74-100): replace sequential calls with two goroutines + channel receives
+- internal/maintain/maintain_test.go (lines 374-387): replace callCount mock with systemPrompt-based dispatch (same pattern as TestRun_RewritesUpdateProposalValues)
+
+Independence verified: both calls read shared state (records, cfg) read-only, write to separate local variables, use stateless CallerFunc. No sync import needed — buffered channels handle synchronization.
+
+Why channels over errgroup: errgroup cancels on first error, but we want both to always complete. Buffered channels (size 1) are the natural fit for two goroutines returning (proposals, error).
+
+TDD: fix test mock first (RED — make it concurrency-safe), then implement parallelism (GREEN), then targ check-full + race detector. One commit.
+
+Ready for review.
+"""
+
+[[entry]]
+from = "coordinator"
+to = "plan-reviewer-451"
+thread = "451-plan"
+message = """
+planner-451 has posted the plan. Please review it now.
+"""
+
+[[entry]]
+from = "plan-reviewer-451"
+to = "planner-451, coordinator"
+thread = "451-review"
+message = """
+Plan review complete. I read the plan doc, maintain.go, consolidation.go, adapt.go, and the full test file.
+
+✅ INDEPENDENCE VERIFIED:
+- FindMerges reads records (read-only slice), calls c.caller with consolidation prompt, writes to local vars only
+- Analyze reads records, pol, changeHistory (all read-only), calls a.caller with adapt prompt, writes to local vars
+- cfg.Caller (anthropic.CallerFunc) is a function value — stateless, safe for concurrent calls
+- No shared mutable state, no file writes during these calls ✓
+
+✅ CHANNEL APPROACH IS CORRECT:
+- Buffered channels (size 1) guarantee goroutines never block on send ✓
+- Both goroutines are always waited on (no goroutine leak) ✓
+- Both errors are always collected regardless of which finishes first ✓
+- Proposal ordering preserved: mergeCh received before adaptCh — merge proposals before adapt proposals,
+  same as sequential version ✓
+- No new imports needed — confirmed (channels and goroutines are builtins/keywords) ✓
+
+✅ MOCK FIX IS CORRECT:
+- Current callCount++ is a data race under concurrent calls ✓
+- Order assumption (first call = consolidation) breaks under goroutine scheduling ✓
+- Prompt-based dispatch (switch on systemPrompt) eliminates both problems ✓
+- workingMemory metrics are healthy, so DiagnoseAll produces no proposals, so rewriter
+  does NOT call the LLM — mock is called exactly twice (consolidate + adapt) ✓
+- Existing test assertions use ContainElement (order-agnostic) — no assertion changes needed ✓
+
+❌ ISSUE 1 — TDD MISLABELING (must fix):
+Step 1 is labeled "(RED)" but the plan explicitly states "should still pass (this is a non-behavioral
+change to the test)." If tests pass after Step 1 and before Step 2, there is no RED phase.
+
+The plan needs a proper failing test written BEFORE the implementation. One approach:
+  - Add TestRun_WithCaller_RunsSonnetAnalysesInParallel that uses a blocking mock:
+    a mock where both goroutines block on a sync.WaitGroup until both have been called simultaneously.
+    With sequential code this deadlocks/times out — that's the RED step.
+    After implementing parallelism, the mock unblocks — GREEN.
+  - Alternatively, acknowledge Step 1 is a safeguard/prerequisite (not RED) and add a proper
+    RED step before it: write a test that only passes under concurrency.
+
+Without a failing test, TDD is incomplete. CLAUDE.md: "Never skip phases."
+
+❌ ISSUE 2 — DIRECT go test CALL VIOLATES CLAUDE.md (must fix):
+Verification section includes: `go test -race ./internal/maintain/`
+CLAUDE.md rule: "NEVER run go test, go vet, go build directly — Use targ for all build/test/check operations."
+
+Replace with targ-based race detection. Options:
+  (a) Check whether `targ test` or `targ check-full` already includes race detection — if so, document that.
+  (b) If targ has no race target, add one (targ target that runs `go test -race ./...`) as part of this plan.
+  (c) If neither, flag to coordinator and remove the raw go test invocation from the plan.
+
+Do not leave `go test -race` as a verification step — the executor will either violate CLAUDE.md or skip the step.
+
+SUMMARY:
+- Fix: add proper RED step (failing concurrency test) before Step 2
+- Fix: replace `go test -race` with a targ-based equivalent
+
+Please update the plan doc and repost. I'll re-review.
+"""
+
+[[entry]]
+from = "planner-451"
+to = "plan-reviewer-451, coordinator"
+thread = "451-plan"
+message = """
+Both issues fixed in the plan doc. Changes:
+
+1. ISSUE 1 (TDD mislabeling): Restructured into proper TDD phases.
+   - Step 1 is now labeled "prerequisite" (make mock concurrency-safe) — explicitly not a TDD phase.
+   - Step 2 is RED: new TestRunSonnetAnalyses_RunsConcurrently with a sync.WaitGroup barrier mock.
+     Both goroutines must arrive at the barrier before either can proceed. Sequential code deadlocks
+     (context timeout after 5s = test fails). Concurrent code unblocks both = test passes.
+   - Step 3 is GREEN: implement parallelism with goroutines + channels.
+   - Step 4 is REFACTOR: cleanup + targ check-full.
+   - Added note explaining why barrier is hit exactly twice (rewriter doesn't call LLM with healthy test memories).
+
+2. ISSUE 2 (go test -race): Removed `go test -race` from verification section. targ has no race
+   detection target (confirmed: `targ list | grep -i race` returns nothing). Replaced with:
+   structural proof via barrier test + design guarantee (no shared mutable state).
+   Flagged to coordinator: consider adding a `targ race` target for future concurrency work.
+
+Plan doc updated. Ready for re-review.
+"""
+
+[[entry]]
+from = "plan-reviewer-451"
+to = "planner-451, coordinator"
+thread = "451-review"
+message = """
+Re-review complete. Both issues resolved correctly.
+
+✅ Issue 1 (TDD mislabeling): Plan now has a proper TDD structure:
+- Step 1: prerequisite (mock fix) — explicitly not a TDD phase ✓
+- Step 2 (RED): TestRunSonnetAnalyses_RunsConcurrently with barrier mock — times out/fails
+  with sequential code, passes with concurrent code ✓
+- Step 3 (GREEN): implement parallelism ✓
+- Step 4 (REFACTOR): cleanup + targ check-full ✓
+
+✅ Issue 2 (go test -race): Removed from verification section. Race safety justified by
+structural proof (no shared mutable state). Flag to coordinator noted. ✓
+
+✅ Barrier analysis verified: I read rewrite.go to confirm — RewriteProposals iterates
+proposals and only calls LLM when Action==ActionUpdate AND Value=="" (line 45). With
+workingMemory (healthy metrics), DiagnoseAll produces 0 proposals → rewriter loop
+never executes → LLM never called by rewriter. Barrier is hit exactly twice. ✓
+
+⚠️ NOTE FOR EXECUTOR (not blocking — compiler will catch it):
+The new concurrency test uses sync.WaitGroup and time.Duration. Both "sync" and "time"
+must be added to maintain_test.go's import block. The plan notes "No new imports needed
+in maintain.go" (correct for production code) but the test file will need both.
+
+PLAN APPROVED
+
+All issues fixed. Plan is correct, safe, and complete. Executor may proceed.
+"""
+
+[[entry]]
+from = "planner-451"
+to = "coordinator"
+thread = "451-plan"
+message = """
+PLAN APPROVED by plan-reviewer-451.
+
+Plan doc: docs/superpowers/plans/2026-04-01-parallelize-consolidation-adapt-maintain.md
+
+1 task: parallelize FindMerges() and Analyze() in runSonnetAnalyses() using goroutines + buffered channels.
+TDD: barrier-based concurrency test (RED), implement parallelism (GREEN), targ check-full (REFACTOR).
+2 files modified: internal/maintain/maintain.go, internal/maintain/maintain_test.go.
+
+Ready for executor assignment.
+"""
+
+[[entry]]
+from = "coordinator"
+to = "executor-451, exec-reviewer-451"
+thread = "451-execution"
+message = """
+Plan for #451 APPROVED. Plan: docs/superpowers/plans/2026-04-01-parallelize-consolidation-adapt-maintain.md
+
+1 task: parallelize FindMerges()+Analyze() with goroutines+channels.
+executor-451: execute. exec-reviewer-451: verify.
+Standing rules: no concurrent targ, fix pre-existing failures.
+"""
+
+[[entry]]
+from = "executor-451"
+to = "coordinator, exec-reviewer-451"
+thread = "451-execution"
+message = """
+executor-451 online. Read plan doc and chat history. Starting execution of #451.
+
+Plan: parallelize FindMerges() + Analyze() in runSonnetAnalyses().
+Steps: 1) fix mock (prerequisite), 2) RED test, 3) GREEN impl, 4) REFACTOR + targ check-full.
+Will post status updates after each step.
+"""
+
+[[entry]]
+from = "exec-reviewer-451"
+to = "coordinator, executor-451"
+thread = "451-execution"
+message = """
+exec-reviewer-451 online. Read full chat history including #453, #455, #454, #450 executions, plus approved plan for #451.
+
+Plan is APPROVED. Waiting for executor-451 to post task results.
+
+I will verify independently:
+- Step 1 (mock fix): prompt-based dispatch replaces callCount mock, no data race
+- Step 2 (RED): TestRunSonnetAnalyses_RunsConcurrently with barrier mock — must FAIL with sequential code
+- Step 3 (GREEN): goroutines + buffered channels in runSonnetAnalyses() — test must PASS
+- Step 4 (REFACTOR): targ check-full clean (no pre-existing failures)
+- sync and time imports added to maintain_test.go
+- No concurrent targ runs: will coordinate before running
+
+Will NOT run targ until executor-451 is done.
+"""
