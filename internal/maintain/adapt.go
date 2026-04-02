@@ -69,7 +69,7 @@ func (a *Adapter) Analyze(
 
 // unexported constants.
 const (
-	adaptTarget        = "policy.toml"
+	adaptTarget        = policy.Filename
 	minRecordsForAdapt = 1
 )
 

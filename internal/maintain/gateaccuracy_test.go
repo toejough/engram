@@ -7,6 +7,7 @@ import (
 
 	"engram/internal/maintain"
 	"engram/internal/memory"
+	"engram/internal/policy"
 )
 
 func TestCheckGateAccuracy_AboveThreshold_GeneratesProposal(t *testing.T) {
@@ -30,7 +31,7 @@ func TestCheckGateAccuracy_AboveThreshold_GeneratesProposal(t *testing.T) {
 	}
 
 	g.Expect(proposal.Action).To(Equal(maintain.ActionRecommend))
-	g.Expect(proposal.Target).To(Equal("policy.toml"))
+	g.Expect(proposal.Target).To(Equal(policy.Filename))
 	g.Expect(proposal.Rationale).To(ContainSubstring("18%"))
 	g.Expect(proposal.Rationale).To(ContainSubstring("SurfaceGateHaikuPrompt"))
 }

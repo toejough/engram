@@ -107,7 +107,7 @@ func TestAdaptAnalyze_IncludesChangeHistory(t *testing.T) {
 	changeHistory := []policy.ChangeEntry{
 		{
 			Action:    "update",
-			Target:    "policy.toml",
+			Target:    policy.Filename,
 			Field:     "SurfaceBM25Threshold",
 			OldValue:  "0.3",
 			NewValue:  "0.25",
@@ -221,7 +221,7 @@ func TestAdaptAnalyze_ProposesParameterChange(t *testing.T) {
 	}
 
 	g.Expect(proposals[0].Action).To(Equal(maintain.ActionUpdate))
-	g.Expect(proposals[0].Target).To(Equal("policy.toml"))
+	g.Expect(proposals[0].Target).To(Equal(policy.Filename))
 	g.Expect(proposals[0].Field).To(Equal("SurfaceBM25Threshold"))
 	g.Expect(proposals[0].Value).To(Equal("0.25"))
 	g.Expect(proposals[0].Rationale).To(Equal(

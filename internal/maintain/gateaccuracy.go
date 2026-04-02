@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"engram/internal/memory"
+	"engram/internal/policy"
 )
 
 // CheckGateAccuracy computes aggregate surfacing irrelevance rate across all memories.
@@ -25,7 +26,7 @@ func CheckGateAccuracy(records []memory.StoredRecord, threshold float64) *Propos
 	return &Proposal{
 		ID:     "gate-accuracy",
 		Action: ActionRecommend,
-		Target: "policy.toml",
+		Target: policy.Filename,
 		Field:  "SurfaceGateHaikuPrompt",
 		Rationale: fmt.Sprintf(
 			"aggregate irrelevance rate %.0f%% exceeds %.0f%% threshold — "+
