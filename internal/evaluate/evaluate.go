@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"engram/internal/anthropic"
 	"engram/internal/memory"
@@ -37,12 +38,20 @@ func New(caller anthropic.CallerFunc, modifier memory.ModifyFunc, promptTemplate
 
 // Run evaluates each PendingMemory against the provided transcript and returns results.
 func (e *Evaluator) Run(ctx context.Context, memories []PendingMemory, transcript string) []Result {
-	results := make([]Result, 0, len(memories))
+	results := make([]Result, len(memories))
 
-	for _, pending := range memories {
-		result := e.evaluate(ctx, pending, transcript)
-		results = append(results, result)
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(len(memories))
+
+	for i, pending := range memories {
+		go func(index int, mem PendingMemory) {
+			defer waitGroup.Done()
+
+			results[index] = e.evaluate(ctx, mem, transcript)
+		}(i, pending)
 	}
+
+	waitGroup.Wait()
 
 	return results
 }

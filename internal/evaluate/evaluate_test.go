@@ -3,7 +3,10 @@ package evaluate_test
 import (
 	"context"
 	"errors"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -36,6 +39,60 @@ func TestRun_EmptyMemories_ReturnsEmptyResults(t *testing.T) {
 	g.Expect(callerCalled).To(BeFalse())
 }
 
+func TestRun_EvaluatesMemoriesConcurrently(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	record1 := &memory.MemoryRecord{Situation: "s1", Behavior: "b1", Action: "a1"}
+	eval1 := makeEval("session-1")
+	record1.PendingEvaluations = []memory.PendingEvaluation{eval1}
+
+	record2 := &memory.MemoryRecord{Situation: "s2", Behavior: "b2", Action: "a2"}
+	eval2 := makeEval("session-2")
+	record2.PendingEvaluations = []memory.PendingEvaluation{eval2}
+
+	var barrier sync.WaitGroup
+	barrier.Add(2)
+
+	caller := func(_ context.Context, _, _, userPrompt string) (string, error) {
+		barrier.Done()
+		barrier.Wait()
+
+		if strings.Contains(userPrompt, "s1") {
+			return "FOLLOWED", nil
+		}
+
+		return "NOT_FOLLOWED", nil
+	}
+
+	modifier := func(path string, mutate func(*memory.MemoryRecord)) error {
+		if path == "/mem/mem1.toml" {
+			mutate(record1)
+		} else {
+			mutate(record2)
+		}
+
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	evaluator := evaluate.New(caller, modifier, testPromptTemplate, testModel)
+
+	memories := []evaluate.PendingMemory{
+		makePendingMemory("/mem/mem1.toml", record1, eval1),
+		makePendingMemory("/mem/mem2.toml", record2, eval2),
+	}
+
+	results := evaluator.Run(ctx, memories, "transcript")
+
+	g.Expect(results).To(HaveLen(2))
+	g.Expect(results[0].Verdict).To(Equal(evaluate.VerdictFollowed))
+	g.Expect(results[1].Verdict).To(Equal(evaluate.VerdictNotFollowed))
+}
+
 func TestRun_HaikuErrorOnFirstDoesNotBlockSecond(t *testing.T) {
 	t.Parallel()
 
@@ -51,12 +108,8 @@ func TestRun_HaikuErrorOnFirstDoesNotBlockSecond(t *testing.T) {
 
 	capMod2 := &captureModifier{record: record2}
 
-	callCount := 0
-
-	caller := func(_ context.Context, _, _, _ string) (string, error) {
-		callCount++
-
-		if callCount == 1 {
+	caller := func(_ context.Context, _, _, userPrompt string) (string, error) {
+		if strings.Contains(userPrompt, "s1") {
 			return "", errors.New("API failure")
 		}
 
@@ -320,12 +373,8 @@ func TestRun_MultipleMemories_EachEvaluatedIndependently(t *testing.T) {
 	capMod1 := &captureModifier{record: record1}
 	capMod2 := &captureModifier{record: record2}
 
-	callCount := 0
-
-	caller := func(_ context.Context, _, _, _ string) (string, error) {
-		callCount++
-
-		if callCount == 1 {
+	caller := func(_ context.Context, _, _, userPrompt string) (string, error) {
+		if strings.Contains(userPrompt, "s1") {
 			return "FOLLOWED", nil
 		}
 
@@ -354,7 +403,6 @@ func TestRun_MultipleMemories_EachEvaluatedIndependently(t *testing.T) {
 	results := evaluator.Run(context.Background(), memories, "transcript")
 
 	g.Expect(results).To(HaveLen(2))
-	g.Expect(callCount).To(Equal(2))
 	g.Expect(results[0].Verdict).To(Equal(evaluate.VerdictFollowed))
 	g.Expect(results[1].Verdict).To(Equal(evaluate.VerdictNotFollowed))
 	g.Expect(record1.FollowedCount).To(Equal(1))
