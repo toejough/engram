@@ -84,7 +84,7 @@ func TestRun_FastPathCorrection_StoresMemory(t *testing.T) {
 			},
 		),
 		correct.WithMemoryRetriever(
-			func(_ context.Context, _ string) ([]*memory.Stored, error) {
+			func(_ string) ([]*memory.Stored, error) {
 				return nil, nil
 			},
 		),
@@ -138,7 +138,7 @@ func TestRun_HaikuCorrection_StoresMemory(t *testing.T) {
 			anthropic.SonnetModel:       mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
-			func(_ context.Context, _ string) ([]*memory.Stored, error) {
+			func(_ string) ([]*memory.Stored, error) {
 				return nil, nil
 			},
 		),
@@ -192,7 +192,7 @@ func TestRun_NoTranscript_StillWorks(t *testing.T) {
 			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
-			func(_ context.Context, _ string) ([]*memory.Stored, error) {
+			func(_ string) ([]*memory.Stored, error) {
 				return nil, nil
 			},
 		),
@@ -326,7 +326,7 @@ func TestRun_WithCandidates_Duplicate(t *testing.T) {
 			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
-			func(_ context.Context, _ string) ([]*memory.Stored, error) {
+			func(_ string) ([]*memory.Stored, error) {
 				return memories, nil
 			},
 		),
@@ -373,7 +373,7 @@ func TestRun_WithEmptyMemories_StoresNew(t *testing.T) {
 			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
-			func(_ context.Context, _ string) ([]*memory.Stored, error) {
+			func(_ string) ([]*memory.Stored, error) {
 				return []*memory.Stored{}, nil
 			},
 		),
@@ -428,7 +428,7 @@ func TestRun_WithLowScoreCandidates_FiltersBelow(t *testing.T) {
 			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
-			func(_ context.Context, _ string) ([]*memory.Stored, error) {
+			func(_ string) ([]*memory.Stored, error) {
 				return []*memory.Stored{unrelatedMemory}, nil
 			},
 		),
@@ -504,7 +504,7 @@ func TestRun_WithMaxCandidatesExceeded_LimitsCandidates(t *testing.T) {
 			anthropic.SonnetModel: mustJSON(t, extraction),
 		})),
 		correct.WithMemoryRetriever(
-			func(_ context.Context, _ string) ([]*memory.Stored, error) {
+			func(_ string) ([]*memory.Stored, error) {
 				return memories, nil
 			},
 		),
@@ -540,7 +540,7 @@ func TestRun_WithRetrieverError_ReturnsError(t *testing.T) {
 	corrector := correct.New(
 		correct.WithCaller(fakeCaller(map[string]string{})),
 		correct.WithMemoryRetriever(
-			func(_ context.Context, _ string) ([]*memory.Stored, error) {
+			func(_ string) ([]*memory.Stored, error) {
 				return nil, retrieveErr
 			},
 		),

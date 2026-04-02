@@ -822,7 +822,7 @@ type fakeRetriever struct {
 	err      error
 }
 
-func (f *fakeRetriever) ListMemories(_ context.Context, _ string) ([]*memory.Stored, error) {
+func (f *fakeRetriever) ListStored(_ string) ([]*memory.Stored, error) {
 	return f.memories, f.err
 }
 

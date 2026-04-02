@@ -71,7 +71,7 @@ func (c *Corrector) Run(
 	}
 
 	// Step 3: BM25 candidates — retrieve memories and score.
-	candidates, err := c.findCandidates(ctx, message, transcriptContext, dataDir)
+	candidates, err := c.findCandidates(message, transcriptContext, dataDir)
 	if err != nil {
 		return "", err
 	}
@@ -100,14 +100,13 @@ func (c *Corrector) Run(
 // findCandidates retrieves all memories, scores them with BM25, and returns
 // the top candidates above the threshold.
 func (c *Corrector) findCandidates(
-	ctx context.Context,
 	message, transcriptContext, dataDir string,
 ) ([]*memory.Stored, error) {
 	if c.memoryRetriever == nil {
 		return nil, nil
 	}
 
-	allMemories, err := c.memoryRetriever(ctx, dataDir)
+	allMemories, err := c.memoryRetriever(memory.MemoriesDir(dataDir))
 	if err != nil {
 		return nil, fmt.Errorf("retrieving memories: %w", err)
 	}
@@ -153,8 +152,8 @@ func (c *Corrector) findCandidates(
 	return candidates, nil
 }
 
-// MemoryRetrieverFunc retrieves all stored memories from a data directory.
-type MemoryRetrieverFunc func(ctx context.Context, dataDir string) ([]*memory.Stored, error)
+// MemoryRetrieverFunc retrieves all stored memories from a directory.
+type MemoryRetrieverFunc func(dir string) ([]*memory.Stored, error)
 
 // Option configures a Corrector.
 type Option func(*Corrector)

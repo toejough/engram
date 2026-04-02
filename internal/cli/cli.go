@@ -24,7 +24,6 @@ import (
 	"engram/internal/memory"
 	"engram/internal/policy"
 	"engram/internal/recall"
-	"engram/internal/retrieve"
 	"engram/internal/surface"
 	"engram/internal/tokenresolver"
 	"engram/internal/tomlwriter"
@@ -325,10 +324,10 @@ func applyProjectSlugDefault(slug *string, getwd func() (string, error)) error {
 
 // buildRecallSurfacer creates a memory surfacer for the recall pipeline.
 // Returns nil surfacer (not an error) when the memories directory does not exist.
-func buildRecallSurfacer(ctx context.Context, dataDir string) (recall.MemorySurfacer, error) {
-	retriever := retrieve.New()
+func buildRecallSurfacer(_ context.Context, dataDir string) (recall.MemorySurfacer, error) {
+	lister := memory.NewLister()
 
-	_, memErr := retriever.ListMemories(ctx, dataDir)
+	_, memErr := lister.ListStored(memory.MemoriesDir(dataDir))
 	if memErr != nil {
 		if errors.Is(memErr, os.ErrNotExist) {
 			return nil, nil //nolint:nilnil // nil surfacer is valid when no memories exist
@@ -341,7 +340,7 @@ func buildRecallSurfacer(ctx context.Context, dataDir string) (recall.MemorySurf
 		surface.WithSurfacingRecorder(recordSurfacing),
 	}
 
-	realSurfacer := surface.New(retriever, surfacerOpts...)
+	realSurfacer := surface.New(lister, surfacerOpts...)
 
 	return NewRecallSurfacer(
 		&surfaceRunnerAdapter{surfacer: realSurfacer},
@@ -544,12 +543,10 @@ func runCorrect(args []string, stdout io.Writer) error {
 	caller := makeCLICaller(token)
 
 	reader := recall.NewTranscriptReader(&osFileReader{})
-	retriever := retrieve.New()
-
 	corrector := correct.New(
 		correct.WithCaller(caller),
 		correct.WithTranscriptReader(reader.Read),
-		correct.WithMemoryRetriever(retriever.ListMemories),
+		correct.WithMemoryRetriever(memory.NewLister().ListStored),
 		correct.WithWriter(tomlwriter.New()),
 		correct.WithModifier(defaultModifier),
 		correct.WithPolicy(pol),
@@ -701,7 +698,7 @@ func runSurface(args []string, stdout io.Writer) error {
 		UserPrompt:         userPrompt,
 	}
 
-	retriever := retrieve.New()
+	lister := memory.NewLister()
 	recorder := track.NewRecorder()
 
 	surfacerOpts := []surface.SurfacerOption{
@@ -727,7 +724,7 @@ func runSurface(args []string, stdout io.Writer) error {
 		return fmt.Errorf("surface: %w", errNoToken)
 	}
 
-	surfacer := surface.New(retriever, surfacerOpts...)
+	surfacer := surface.New(lister, surfacerOpts...)
 
 	runErr := surfacer.Run(ctx, stdout, opts)
 	if runErr != nil {

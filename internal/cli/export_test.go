@@ -6,7 +6,6 @@ import (
 
 	"engram/internal/memory"
 	"engram/internal/recall"
-	"engram/internal/retrieve"
 	"engram/internal/surface"
 )
 
@@ -78,11 +77,6 @@ func ExportNewOsSkillWriter(dir string) interface {
 	Write(name, content string) (string, error)
 } {
 	return &osSkillWriter{dir: dir}
-}
-
-// ExportNewRetriever creates a retrieve.Retriever for testing.
-func ExportNewRetriever() *retrieve.Retriever {
-	return retrieve.New()
 }
 
 // ExportNewStdinConfirmer creates a stdinConfirmer for testing.

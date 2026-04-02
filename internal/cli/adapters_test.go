@@ -13,6 +13,7 @@ import (
 
 	"engram/internal/cli"
 	"engram/internal/maintain"
+	"engram/internal/memory"
 	"engram/internal/surface"
 )
 
@@ -350,8 +351,8 @@ func TestSurfaceRunnerAdapter_Run(t *testing.T) {
 	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
 
 	// The adapter wraps a real Surfacer. With no memories, it returns empty.
-	retriever := cli.ExportNewRetriever()
-	surfacer := surface.New(retriever)
+	lister := memory.NewLister()
+	surfacer := surface.New(lister)
 	adapter := cli.ExportNewSurfaceRunnerAdapter(surfacer)
 
 	var buf bytes.Buffer
