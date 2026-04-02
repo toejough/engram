@@ -77,12 +77,6 @@ type RejectProposalArgs struct {
 	ID      string `targ:"flag,name=id,desc=proposal ID to reject"`
 }
 
-// ReviewArgs holds parsed flags for the review subcommand.
-type ReviewArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Format  string `targ:"flag,name=format,default=table,desc=output format: json or table"`
-}
-
 // ShowArgs holds parsed flags for the show subcommand.
 type ShowArgs struct {
 	Name    string `targ:"flag,name=name,desc=memory slug to display"`
@@ -133,8 +127,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 	return []any{
 		targ.Targ(func(a CorrectArgs) { run("correct", CorrectFlags(a)) }).
 			Name("correct").Description("Correct from user feedback"),
-		targ.Targ(func(a ReviewArgs) { run("review", ReviewFlags(a)) }).
-			Name("review").Description("Review instruction registry"),
 		targ.Targ(func(a MaintainArgs) { run("maintain", MaintainFlags(a)) }).
 			Name("maintain").Description("Generate maintenance proposals"),
 		targ.Targ(func(a SurfaceArgs) { run("surface", SurfaceFlags(a)) }).
@@ -238,11 +230,6 @@ func RefineFlags(a RefineArgs) []string {
 // RejectProposalFlags returns the CLI flag args for the reject-proposal subcommand.
 func RejectProposalFlags(a RejectProposalArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir, "--id", a.ID)
-}
-
-// ReviewFlags returns the CLI flag args for the review subcommand.
-func ReviewFlags(a ReviewArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir, "--format", a.Format)
 }
 
 // RunSafe runs the CLI and prints errors to the given writer (ARCH-6: always exit 0).

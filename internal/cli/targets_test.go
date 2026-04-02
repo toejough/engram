@@ -132,7 +132,7 @@ func TestBuildTargets(t *testing.T) {
 		})
 
 		subcmds := []string{
-			"correct", "review",
+			"correct",
 			"maintain", "surface",
 			"evaluate", "refine", "show",
 			"apply-proposal", "reject-proposal", "recall",
@@ -362,34 +362,6 @@ func TestRejectProposalFlags(t *testing.T) {
 
 		result := cli.RejectProposalFlags(cli.RejectProposalArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
-func TestReviewFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ReviewFlags(cli.ReviewArgs{DataDir: "/data", Format: "json"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--format", "json"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ReviewFlags(cli.ReviewArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("partial fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ReviewFlags(cli.ReviewArgs{Format: "json"})
-		g.Expect(result).To(gomega.Equal([]string{"--format", "json"}))
 	})
 }
 
