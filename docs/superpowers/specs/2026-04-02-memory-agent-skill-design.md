@@ -15,14 +15,35 @@ Agents declare a role in their introduction message:
 
 Active agents using file-comms must parrot user submissions into chat.toml as `info` messages. This gives reactive agents (like the memory agent) visibility into user corrections and feedback without requiring hook infrastructure.
 
+**Enforcement:** Honor-system. There is no technical enforcement mechanism. If an active agent doesn't parrot, the memory agent is blind to user corrections from that agent. A reactive agent cannot detect the absence of messages it never sees. This is a known limitation of V1.
+
 ### Argument Protocol
 
-When a reactive agent posts a `wait` objecting to an active agent's intent, the two argue:
+When any agent posts a `wait` objecting to another agent's intent, the two argue:
 
 - **Initiator (the agent whose intent was challenged):** responds factually. States reasoning, evidence, and context without defensiveness.
 - **Reactor (the agent that posted the WAIT):** responds aggressively. Pushes back hard on weak reasoning. Agents default to thinking well of their own work — the reactor's job is to counterbalance that.
-- **3 inputs max.** Reactor objection, initiator response, reactor counter-response. If unresolved after 3, the reactor posts an escalation message addressed to the initiating agent. The initiating agent surfaces the dispute to its user through its own UX (question, warning, etc.). The dispute is never escalated via chat.toml alone — the user sees it in their agent's terminal.
+- **3 argument inputs max.** Reactor objection, initiator response, reactor counter-response. If still unresolved, the reactor posts a 4th message: an escalation addressed to the initiating agent. The initiating agent surfaces the dispute to its user through its own UX (question, warning, etc.). The dispute is never escalated via chat.toml alone — the user sees it in their agent's terminal.
 - **Resolution recording.** After the argument resolves (agreement, user decision, or timeout), the reactor records the outcome.
+
+### Chat File Management
+
+chat.toml is append-only and unbounded. It grows for the duration of a coordination session. New session = new chat.toml file. There is no rotation or truncation mechanism — the user starts fresh when appropriate.
+
+### Heartbeat
+
+Reactive agents should post a heartbeat every 5 minutes:
+
+```toml
+[[entry]]
+from = "memory-agent"
+to = "all"
+thread = "heartbeat"
+type = "info"
+message = "alive | 269 memories loaded | 15 intents processed | 2 surfaced"
+```
+
+This gives active agents a way to check if the memory agent is still running. Without it, a crashed memory agent is indistinguishable from one that found no matches.
 
 ## Part 2: Memory Agent Skill
 
@@ -30,42 +51,67 @@ When a reactive agent posts a `wait` objecting to an active agent's intent, the 
 
 - **Role:** reactive
 - **Responsibilities:** memory surfacing + memory learning (combined)
-- **Splitting signal:** if `intents_seen >> intents_checked`, the agent is overwhelmed and should be split into separate surfacer and learner agents
+- **Splitting signal:** if the unprocessed intent queue exceeds 5, or if the agent is routinely still processing when the next intent arrives, post a warning to chat.toml and recommend splitting. The user decides.
+
+### Matching Strategy
+
+**V1: Full-context LLM judgment.** The memory agent loads all memory TOML files into its context and uses its own reasoning to match situations and judge behaviors. No BM25, no separate LLM calls — the agent IS the intelligence.
+
+**Scale limits:** This works for up to ~200 memories (~40k tokens of SBIA content). Beyond that, the agent's context window becomes a bottleneck and matching quality degrades. At that point, a pre-filtering mechanism (BM25 or similar) becomes necessary — tracked in #471.
+
+**What "match" means concretely:**
+1. Does the intent's situation overlap with a memory's situation? (Same context, same type of work, same tools/files involved)
+2. If so, does the intended behavior resemble the memory's "behavior to avoid"? (Same action, same mistake pattern, same class of error)
+3. The agent uses judgment, not string matching. Novel phrasings of the same mistake should be caught.
+
+**Token economics:** With 50 memories (~10k tokens of SBIA content), the agent consumes ~10k additional input tokens per intent evaluation. At 100 intents per session, that's ~1M input tokens for surfacing alone. This is the cost of V1's simplicity. BM25 pre-filtering (#471) would reduce this by 80-90%.
+
+**Context window overflow:** When the agent's context approaches capacity (memories + chat history + recent_intents), it should: (1) stop loading the lowest-value memories (lowest surfaced_count with zero followed_count), (2) post a warning to chat.toml noting reduced coverage, (3) recommend the user run a consolidation pass.
 
 ### Main Loop
 
 ```
-post introduction (role = reactive)
-load all memory TOML file paths
+post introduction (role = reactive, memory count)
+read all memory TOML files into context
+initialize cross-iteration state: recent_intents = []
+post heartbeat
 loop:
     fswatch -1 chat.toml          # kernel block, zero CPU
+    re-read only modified memory files (track per-file mtimes)
     read new messages from chat.toml
     for each intent message:
+        add to recent_intents (keep last 20)
         check memories for situation match
         if intended behavior resembles a memory's "behavior to avoid":
             increment SurfacedCount on the memory (with lock)
-            spawn subagent to argue
+            spawn subagent to argue (max 3 concurrent, no two on same thread)
     for each user-parroted message:
         check for explicit corrections (always/never/remember)
         if found: extract SBIA, create new memory (with lock)
-    for each done/info/intent-result message:
-        check for observed failures (user corrects agent, agent backtracks)
+    for each done/info message:
+        correlate with recent_intents to detect failures
         if failure matches existing memory: increment MissedCount (with lock)
         if failure has no matching memory: create new memory (with lock)
+    if 5 minutes since last heartbeat: post heartbeat
     loop
 ```
+
+**Cross-iteration state:** The agent maintains `recent_intents` — the last 20 intent messages with their threads and originating agents. This allows correlating outcomes (done/info messages) with the intents that preceded them across multiple fswatch wakeups. This is best-effort — failures discovered beyond the 20-intent window cannot be correlated.
 
 ### Surfacing Flow
 
 1. Memory agent wakes on chat.toml change.
 2. Reads new `intent` messages from active agents.
-3. For each intent: reads memory TOML files from `~/.claude/engram/data/memories/`. Matches the intent's situation against memory situations. For matches, judges whether the intended behavior resembles a memory's "behavior to avoid."
+3. For each intent: matches against loaded memories using full-context LLM judgment (see Matching Strategy above).
 4. If a match with negative impact is found:
-   - Lock memory directory, increment `SurfacedCount` + update `UpdatedAt`, unlock.
-   - Spawn a subagent to handle the argument. The subagent:
+   - Acquire per-file lock for the matched memory, increment `surfaced_count` + update `updated_at`, write atomically, unlock.
+   - If fewer than 3 subagents are running AND no subagent is already active on this thread, spawn a subagent. Otherwise queue.
+   - The subagent:
+     - Identifies itself in chat.toml as `memory-agent/sub-N` (where N is 1, 2, or 3)
      - Posts `wait` to chat.toml with the memory's SBIA fields and reasoning
-     - Follows the argument protocol (aggressive reactor, 3 inputs max, escalate via intending agent's UX)
-     - After resolution: lock, increment `FollowedCount` or `NotFollowedCount` or `IrrelevantCount`, unlock
+     - Follows the argument protocol (aggressive reactor, 3 argument inputs max, 4th escalation if unresolved)
+     - After resolution: **re-reads the memory file fresh** (not from cached data), acquires per-file lock, increments the appropriate counter, writes atomically, unlocks
+     - Posts `info` with the resolution outcome for observability
    - Memory agent returns to watch loop immediately (subagent handles the rest).
 5. If no match: silent. No ACK.
 
@@ -73,62 +119,123 @@ loop:
 
 Two triggers, both detected from chat.toml messages:
 
-**Trigger 1: Explicit user corrections.** Active agents parrot user submissions. The memory agent scans for patterns: "always do X", "never do Y", "remember this", direct corrections ("no, that's wrong because..."). When detected:
+**Trigger 1: Explicit user corrections.** Active agents parrot user submissions. The memory agent scans for correction patterns. Detection uses two confidence tiers:
 
+- **High confidence** (auto-create): correction language immediately following an agent's `done` or `info` message. Clear signals: "that's wrong", "never do X", "always do Y", "remember this", "stop doing X". Creates memory with `initial_confidence = 1.0`.
+- **Ambiguous** (flag, don't auto-create): correction-like language in isolation or mid-conversation without a clear preceding action. Signals: bare "no", "wrong" in a longer sentence, "revert" used metaphorically. Post `info` to chat.toml asking the user to confirm if this should be a memory. Creates with `initial_confidence = 0.7` if confirmed.
+
+When creating:
 - Extract SBIA fields from the user statement and surrounding chat context
-- Check existing memories for near-duplicates (similar situation + behavior)
-- If duplicate exists: skip creation, no action needed
-- If new: lock, write new TOML file with zeroed counters, unlock
-- Post `info` to chat.toml confirming what was learned
+- Check existing memories for duplicates using LLM judgment: does any existing memory cover the same situation AND recommend the same (or contradictory) action? If contradictory, the new memory supersedes — update the existing memory's fields rather than creating a duplicate.
+- If genuine duplicate: skip creation, no action needed
+- If new or superseding: lock, write/update TOML file atomically with appropriate counters, unlock
+- Post `info` to chat.toml confirming what was learned (or what was updated)
 
-**Trigger 2: Observed failures.** An agent states intent, acts, and the result is bad — the user corrects the agent, tests fail, the agent backtracks. The memory agent sees this sequence in chat.toml. When detected:
+**Trigger 2: Observed failures.** The memory agent detects failures by correlating `recent_intents` with subsequent messages.
+
+**Concrete failure signals (same agent, same thread):**
+- Agent posts `done`/`info` → user-parroted correction follows. High confidence.
+- Agent posts `done`/`info` → same agent posts a new intent explicitly reversing the action ("reverting", "undoing", "going back to"). High confidence.
+- Another agent posts `wait` with evidence of a problem caused by the action. Medium confidence.
+
+**Not a failure:** Agent adjusts approach mid-stream before posting `done` (that's refinement). Agent changes approach based on new information from another agent (that's coordination).
+
+When a failure is detected:
 
 - Check if an existing memory covers this situation
 - If existing memory matches:
   - This is a missed surfacing — the memory was relevant but wasn't caught during the intent phase
-  - Lock, increment `MissedCount` on that memory, unlock
+  - Lock per-file, increment `missed_count`, write atomically, unlock
   - Post `info` noting the miss
   - Do NOT create a duplicate
 - If no existing memory matches:
   - Construct SBIA: situation from the intent, behavior from what the agent did, impact from the failure
   - Action: the corrective behavior that worked, OR "consider alternative approaches" if no obvious fix
-  - Lock, write new memory TOML, unlock
+  - Set `initial_confidence` based on signal strength: 0.7 for high-confidence failures, 0.4 for inferred backtracking
+  - Lock, write new TOML atomically, unlock
   - Post `info` confirming what was learned
 
 ### Memory File Operations
 
 The memory agent reads and writes TOML files directly. No engram binary dependency.
 
-**Reading:** glob `~/.claude/engram/data/memories/*.toml`, parse each file.
+**Reading:** glob `~/.claude/engram/data/memories/*.toml`, parse each file. Track per-file mtimes — only re-read files that changed since last loop iteration.
 
-**Writing:** lock `~/.claude/engram/data/memories/.lock` (via `shlock` on macOS, `mkdir` POSIX fallback), read file, edit fields, write file, unlock. One lockfile for the entire directory.
+**Atomic writes:** Always write to a temp file in the same directory, then rename:
 
-**New field on memory records:**
+```bash
+# Write to temp
+cat > ~/.claude/engram/data/memories/.tmp-memory-slug.toml << 'EOF'
+...updated content...
+EOF
+# Atomic rename
+mv ~/.claude/engram/data/memories/.tmp-memory-slug.toml ~/.claude/engram/data/memories/memory-slug.toml
+```
+
+This prevents corruption if the process crashes mid-write.
+
+**Per-file locking:** Lock individual memory files, not the whole directory:
+
+```bash
+# Acquire per-file lock (with stale lock recovery)
+lockfile=~/.claude/engram/data/memories/memory-slug.toml.lock
+if [ -f "$lockfile" ]; then
+    lock_pid=$(cat "$lockfile" 2>/dev/null)
+    if [ -n "$lock_pid" ] && ! kill -0 "$lock_pid" 2>/dev/null; then
+        rm -f "$lockfile"  # stale lock, owner is dead
+    fi
+fi
+while ! shlock -f "$lockfile" -p $$; do sleep 0.1; done
+
+# ... read, modify, atomic write ...
+
+# Release
+rm -f "$lockfile"
+```
+
+Use `mkdir` fallback if `shlock` unavailable. For `mkdir` locks, if older than 120 seconds, assume stale.
+
+**Opportunistic cleanup:** When writing a memory file for any reason, strip the `pending_evaluations` field if present. This gradually cleans up deprecated data without a dedicated migration.
+
+**Subagents always re-read before writing.** A subagent must read the memory file fresh immediately before its locked write, not use cached data from when the argument started.
+
+**Field changes:**
 
 | Field | Type | Default | Purpose |
 |-------|------|---------|---------|
-| `missed_count` | int | 0 | Times this memory was relevant but not surfaced during the intent phase |
+| `schema_version` | int | 1 | NEW: Memory file schema version |
+| `missed_count` | int | 0 | NEW: Times this memory was relevant but not surfaced during the intent phase |
+| `initial_confidence` | float | 1.0 | NEW: Confidence at creation. 1.0 = explicit user correction, 0.7 = clear failure, 0.4 = inferred |
+| `pending_evaluations` | - | - | DEPRECATED: Strip on write. Was used by the removed Go evaluate pipeline. |
 
-All existing fields remain unchanged.
+All other existing fields remain unchanged.
 
-### Subagent Spawning
+### Subagent Management
 
-The memory agent spawns subagents for:
+**Concurrency limit:** Maximum 3 concurrent subagents. If a 4th match arrives, it is queued and processed when a slot opens.
 
-- **Memory arguments** — one subagent per intent that triggers a memory match. Handles the full argument cycle and outcome recording.
-- **Concurrent situations** — if multiple intents arrive simultaneously, multiple subagents can run in parallel.
+**Thread exclusivity:** No two subagents on the same thread. If a thread already has an active subagent, queue the new match.
 
-The memory agent itself never gets pulled into long conversations. It stays on the fswatch loop.
+**Naming convention:** Subagents identify themselves in chat.toml as `memory-agent/sub-1`, `memory-agent/sub-2`, `memory-agent/sub-3`.
+
+**Message routing:** Messages addressed to `memory-agent` go to the main agent only. Subagents only receive and respond to messages on their specific argument thread.
+
+**Failure handling:** If a subagent fails (crashes, times out after 5 minutes, or otherwise doesn't post a resolution):
+- SurfacedCount was already incremented (correct — the memory was surfaced)
+- No outcome counter gets incremented (correct — no outcome was observed)
+- The gap between SurfacedCount and outcome counts reflects real uncertainty, not a bug
+- The memory agent posts an `info` message noting the subagent timeout
 
 ### Performance Tracking
 
-The memory agent tracks:
+The memory agent tracks in its own context (not persisted):
 
-| Metric | Signal |
-|--------|--------|
-| `intents_seen` vs `intents_checked` | Agent overwhelm — split signal |
-| `SurfacedCount` vs outcome counts (Followed + NotFollowed + Irrelevant) | Outcome tracking gaps |
-| `MissedCount` | Surfacer matching quality |
+| Metric | Signal | Action |
+|--------|--------|--------|
+| intents seen vs checked | Agent overwhelm | Report to user if queue > 5, recommend split |
+| Subagent queue depth | Concurrency bottleneck | Report if consistently > 0 |
+| SurfacedCount vs outcome counts | Outcome tracking gaps | Acceptable gap = subagent failures |
+| MissedCount | Surfacer matching quality | High = matching needs improvement |
 
 ## Part 3: Removal Scope
 
@@ -138,12 +245,30 @@ The memory agent tracks:
 - **All hooks** — SessionStart, UserPromptSubmit, Stop hook configurations
 - **engram binary** — no build step, no installation, no API token dependency
 - **Migration commands** — `migrate-sbia`, `migrate-scores`, `migrate-slugs` (one-time, already applied)
+- **memory-triage skill** — references removed engram CLI commands. Maintenance functionality deferred to #471.
+- **recall skill** — references removed engram binary. Recall functionality deferred to #471.
 
 ### Preserved
 
 - **Memory TOML files** — `~/.claude/engram/data/memories/*.toml` (the data store)
 - **Skill files** — the new memory agent skill and updated file-comms skill
 - **Repo structure** — engram repo continues to exist, now containing skills instead of Go code
+
+### Migration Path
+
+**User experience:** After this change, memory surfacing requires running the memory agent in a separate terminal alongside other agents using file-comms. Start interactively:
+
+```bash
+# In a separate terminal, in the same project directory:
+claude
+# Then tell it: "You are the memory agent. Use the memory-agent and file-comms skills. Chat file: ./chat.toml."
+```
+
+**Graceful degradation:** When no memory agent is running, intents time out after 500ms and proceed normally. There is no error, no missing dependency — the system works exactly as it would without memory, just without the memory safety net. This is by design.
+
+**Rollback path:** Git. If the skill-based approach doesn't work, `git revert` restores the Go binary and hooks.
+
+**Skill audit:** Any skill in `~/.claude/skills/` that references `engram` CLI commands must be audited and updated or removed as part of this work. Known affected: `memory-triage`, `recall`.
 
 ### Deferred (tracked in #471)
 
@@ -155,7 +280,7 @@ Functionality from the Go binary not carried over, to be investigated for future
 - Apply/reject proposal workflow
 - Refine (re-extract SBIA from transcripts)
 - Recall (cross-session context search)
-- BM25 scoring (efficient pre-filter at scale)
+- BM25 scoring (efficient pre-filter at scale — needed when memories exceed ~200)
 - Cold-start budgeting (limit unproven memories)
 - Transcript suppression (avoid resurfacing recently mentioned memories)
 
