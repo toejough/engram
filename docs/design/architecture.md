@@ -60,7 +60,6 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
 | `signal` | Consolidation detection (keyword overlap + TF-IDF), surface signal analysis, LLM confirmation |
 | `adapt` | Adaptive policy analysis -- proposes system-level changes from feedback patterns |
 | `maintain` | Maintenance proposals: quadrant diagnosis, apply actions, purge tier-C |
-| `review` | Effectiveness review with budget tracking and threshold analysis |
 | `effectiveness` | Aggregate effectiveness scoring from memory counters |
 
 ### Classification and Ranking
@@ -96,7 +95,6 @@ Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
 | `transcript` | Session transcript JSONL parsing |
 | `crossref` | Cross-reference extraction from transcripts |
 | `merge` | Memory merge operations for consolidation |
-| `instruct` | Instruction quality audit |
 | `contradict` | Contradiction detection between memories |
 
 ## Data Model
