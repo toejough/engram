@@ -10,6 +10,12 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+// Exported constants.
+const (
+	// Filename is the basename of the policy configuration file.
+	Filename = "policy.toml"
+)
+
 // ChangeEntry records a single change made by the maintain or adapt pipeline.
 type ChangeEntry struct {
 	Action    string `toml:"action"`
@@ -210,9 +216,7 @@ func Defaults() Policy {
 // Load reads policy.toml using readFile, falling back to Defaults() for missing or absent fields.
 // Returns Defaults() unchanged if the file does not exist.
 func Load(readFile ReadFileFunc) (Policy, error) {
-	const policyPath = "policy.toml"
-
-	data, err := readFile(policyPath)
+	data, err := readFile(Filename)
 	if errors.Is(err, os.ErrNotExist) {
 		return Defaults(), nil
 	}

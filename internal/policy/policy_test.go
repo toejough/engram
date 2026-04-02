@@ -38,7 +38,7 @@ func TestAppendChangeHistory_PreservesExistingSections(t *testing.T) {
 		ChangedAt: "2026-03-31T12:00:00Z",
 	}
 
-	err := policy.AppendChangeHistory("policy.toml", entry, readFile, writeFile)
+	err := policy.AppendChangeHistory(policy.Filename, entry, readFile, writeFile)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -72,7 +72,7 @@ func TestAppendChangeHistory_ReadError(t *testing.T) {
 		ChangedAt: "2026-03-31T12:00:00Z",
 	}
 
-	err := policy.AppendChangeHistory("policy.toml", entry, readFile, writeFile)
+	err := policy.AppendChangeHistory(policy.Filename, entry, readFile, writeFile)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("appending change history"))
 }
@@ -108,7 +108,7 @@ func TestAppendChangeHistory_TrimsToLimit(t *testing.T) {
 			ChangedAt: "2026-03-31T12:00:00Z",
 		}
 
-		err := policy.AppendChangeHistory("policy.toml", entry, readFile, writeFile)
+		err := policy.AppendChangeHistory(policy.Filename, entry, readFile, writeFile)
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -117,7 +117,7 @@ func TestAppendChangeHistory_TrimsToLimit(t *testing.T) {
 	}
 
 	// Verify we have 50 entries.
-	entries, err := policy.ReadChangeHistory("policy.toml", readFile)
+	entries, err := policy.ReadChangeHistory(policy.Filename, readFile)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -136,14 +136,14 @@ func TestAppendChangeHistory_TrimsToLimit(t *testing.T) {
 		ChangedAt: "2026-03-31T13:00:00Z",
 	}
 
-	err = policy.AppendChangeHistory("policy.toml", overflowEntry, readFile, writeFile)
+	err = policy.AppendChangeHistory(policy.Filename, overflowEntry, readFile, writeFile)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	entries, err = policy.ReadChangeHistory("policy.toml", readFile)
+	entries, err = policy.ReadChangeHistory(policy.Filename, readFile)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -187,7 +187,7 @@ func TestAppendChangeHistory_WriteError(t *testing.T) {
 		ChangedAt: "2026-03-31T12:00:00Z",
 	}
 
-	err := policy.AppendChangeHistory("policy.toml", entry, readFile, writeFile)
+	err := policy.AppendChangeHistory(policy.Filename, entry, readFile, writeFile)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("write failed"))
 }
@@ -224,14 +224,14 @@ func TestChangeHistory_RoundTrip(t *testing.T) {
 		ChangedAt: "2026-03-31T12:00:00Z",
 	}
 
-	err := policy.AppendChangeHistory("policy.toml", entry, readFile, writeFile)
+	err := policy.AppendChangeHistory(policy.Filename, entry, readFile, writeFile)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	entries, readErr := policy.ReadChangeHistory("policy.toml", readFile)
+	entries, readErr := policy.ReadChangeHistory(policy.Filename, readFile)
 	g.Expect(readErr).NotTo(HaveOccurred())
 
 	if readErr != nil {
@@ -651,7 +651,7 @@ func TestReadChangeHistory_ReturnsNilWhenMissing(t *testing.T) {
 		return nil, os.ErrNotExist
 	}
 
-	entries, err := policy.ReadChangeHistory("policy.toml", readFile)
+	entries, err := policy.ReadChangeHistory(policy.Filename, readFile)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
