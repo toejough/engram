@@ -62,15 +62,19 @@ text = """
 
 Derived from `$PWD` using the project slug convention.
 
-**Slug derivation:** The project slug is the basename of the git root directory (resolved through symlinks), lowercased, with non-alphanumeric characters replaced by hyphens. If not in a git repo, use the basename of the resolved `$PWD`.
+**Slug derivation:** The full resolved path of the git root (or `$PWD` if not in a git repo), with path separators replaced by dashes. This matches the Go binary's `ProjectSlugFromPath` convention.
+
+```bash
+PROJECT_SLUG=$(realpath "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '/' '-')
+```
 
 | `$PWD` | Git root | Slug | Chat file |
 |--------|----------|------|-----------|
-| `/Users/joe/repos/engram` | `/Users/joe/repos/engram` | `engram` | `~/.local/share/engram/chat/engram.toml` |
-| `/Users/joe/repos/My Project/src` | `/Users/joe/repos/My Project` | `my-project` | `~/.local/share/engram/chat/my-project.toml` |
-| `/tmp/scratch` | (none) | `scratch` | `~/.local/share/engram/chat/scratch.toml` |
+| `/Users/joe/repos/engram` | `/Users/joe/repos/engram` | `-Users-joe-repos-engram` | `~/.local/share/engram/chat/-Users-joe-repos-engram.toml` |
+| `/Users/joe/repos/traced/src` | `/Users/joe/repos/traced` | `-Users-joe-repos-traced` | `~/.local/share/engram/chat/-Users-joe-repos-traced.toml` |
+| `/tmp/scratch` | (none) | `-tmp-scratch` | `~/.local/share/engram/chat/-tmp-scratch.toml` |
 
-**Symlinks:** Always resolve symlinks before deriving the slug. Use `realpath` (macOS) on the git root or `$PWD`. This ensures two agents in symlinked paths to the same repo use the same chat file.
+**Symlinks:** `realpath` resolves symlinks before slug derivation. Two agents in symlinked paths to the same repo use the same chat file.
 
 **Directory creation:** The skill creates `~/.local/share/engram/chat/` on first use if it doesn't exist.
 

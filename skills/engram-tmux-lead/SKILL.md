@@ -33,7 +33,7 @@ Split the user's current window to show a live chat feed. This gives the user re
 
 ```bash
 # Derive the chat file path
-PROJECT_SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+PROJECT_SLUG=$(realpath "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '/' '-')
 CHAT_FILE="$HOME/.local/share/engram/chat/${PROJECT_SLUG}.toml"
 mkdir -p "$(dirname "$CHAT_FILE")"
 touch "$CHAT_FILE"
