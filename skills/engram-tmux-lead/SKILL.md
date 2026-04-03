@@ -64,9 +64,19 @@ The pane is small (15 lines) so it doesn't crowd the user's workspace. The user 
 **ALWAYS spawn this. NEVER skip. Not for "simple" tasks. Not for "quick" tasks. Not because "I can handle it myself." The engram-agent is the memory safety net — without it, you learn nothing and surface nothing. Spawn it BEFORE touching the user's request.**
 
 ```bash
-tmux new-window -n "engram-agent" \
-  "claude --dangerously-skip-permissions --model sonnet --prompt '/use-engram-chat-as reactive memory agent named engram-agent' 2>&1 | tee /tmp/engram-engram-agent.log"
+# Create window with interactive claude session
+tmux new-window -n "engram-agent"
+tmux send-keys -t "engram-agent" "claude --dangerously-skip-permissions --model sonnet" Enter
+# Wait for claude to initialize
+sleep 10
+# Send the role prompt
+tmux send-keys -t "engram-agent" "/use-engram-chat-as reactive memory agent named engram-agent" Enter
+# Send extra Enter in case it was treated as a paste
+sleep 1
+tmux send-keys -t "engram-agent" Enter
 ```
+
+**Why not `--prompt`?** The `--prompt` flag runs claude in non-interactive mode — no TUI, output goes to stdout, and the window appears blank. Using `send-keys` keeps claude interactive so the user can see agent activity.
 
 ### 1.5 Wait for engram-agent
 
@@ -84,7 +94,7 @@ done
 
 If no engram-agent message appears within 30 seconds:
 1. Check tmux window exists: `tmux list-windows -F '#{window_name}' | grep engram-agent`
-2. Check log for errors: `tail -20 /tmp/engram-engram-agent.log`
+2. Check window output: `tmux capture-pane -t engram-agent -p | tail -20`
 3. Report to user with diagnostic info. Do NOT silently proceed without memory.
 
 ### 1.6 Post Ready and Start fswatch
@@ -98,8 +108,16 @@ Post your `ready` message and enter the standard fswatch watch loop per the `use
 Every agent the lead spawns:
 
 ```bash
-tmux new-window -n "<agent-name>" \
-  "claude --dangerously-skip-permissions --model sonnet --prompt '/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete.' 2>&1 | tee /tmp/engram-<agent-name>.log"
+# Create window with interactive claude session
+tmux new-window -n "<agent-name>"
+tmux send-keys -t "<agent-name>" "claude --dangerously-skip-permissions --model sonnet" Enter
+# Wait for claude to initialize
+sleep 10
+# Send the role prompt
+tmux send-keys -t "<agent-name>" "/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete." Enter
+# Send extra Enter in case it was treated as a paste
+sleep 1
+tmux send-keys -t "<agent-name>" Enter
 ```
 
 **Critical:**
