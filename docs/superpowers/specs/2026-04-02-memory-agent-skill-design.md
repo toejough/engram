@@ -256,18 +256,23 @@ The memory agent tracks in its own context (not persisted):
 
 ### Removed
 
-- **All Go code** — `cmd/`, `internal/`, `go.mod`, `go.sum`, etc.
+- **Go code for surfacing, evaluation, correction** — replaced by the memory agent skill
 - **All hooks** — SessionStart, UserPromptSubmit, Stop hook configurations
-- **engram binary** — no build step, no installation, no API token dependency
 - **Migration commands** — `migrate-sbia`, `migrate-scores`, `migrate-slugs` (one-time, already applied)
 - **memory-triage skill** — references removed engram CLI commands. Maintenance functionality deferred to #471.
-- **recall skill** — references removed engram binary. Recall functionality deferred to #471.
+
+### Retained from binary
+
+- **`engram recall`** — cross-session context search. Fast, cheap, doesn't consume agent context. Useful as a utility called from hooks or subagents.
+- **`engram show`** — inspect memory details from the terminal.
+- **Supporting Go code** — `internal/recall/`, `internal/memory/` (record types), `cmd/engram/` (CLI wiring for retained commands). Dead code for removed commands should be cleaned up.
 
 ### Preserved
 
 - **Memory TOML files** — `~/.claude/engram/data/memories/*.toml` (the data store)
 - **Skill files** — the new memory agent skill and updated file-comms skill
-- **Repo structure** — engram repo continues to exist, now containing skills instead of Go code
+- **engram binary** — stripped down to `recall` and `show` commands only
+- **Repo structure** — engram repo contains skills + a slim Go binary
 
 ### Migration Path
 
@@ -283,7 +288,7 @@ claude
 
 **Rollback path:** Git. If the skill-based approach doesn't work, `git revert` restores the Go binary and hooks.
 
-**Skill audit:** Any skill in `~/.claude/skills/` that references `engram` CLI commands must be audited and updated or removed as part of this work. Known affected: `memory-triage`, `recall`.
+**Skill audit:** Any skill in `~/.claude/skills/` that references removed `engram` CLI commands must be audited and updated or removed. Known affected: `memory-triage` (removed). The `recall` skill can remain since the binary retains the `recall` command.
 
 ### Deferred (tracked in #471)
 
@@ -294,7 +299,6 @@ Functionality from the Go binary not carried over, to be investigated for future
 - Adapt analysis (policy effectiveness and threshold tuning)
 - Apply/reject proposal workflow
 - Refine (re-extract SBIA from transcripts)
-- Recall (cross-session context search)
 - BM25 scoring (efficient pre-filter at scale — needed when memories exceed ~1000 with situations-only loading)
 - Cold-start budgeting (limit unproven memories)
 - Transcript suppression (avoid resurfacing recently mentioned memories)
