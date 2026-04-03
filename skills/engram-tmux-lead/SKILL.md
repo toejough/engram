@@ -13,7 +13,7 @@ The lead is NOT a coordinator that delegates everything. It reads code, makes pl
 
 ## 1. Startup Sequence
 
-On invocation, execute these steps in order:
+**HARD GATE: Execute ALL steps below before doing ANY user work. No exceptions. Not even for "simple" tasks. The engram-agent MUST be running before you process the first user request. If you skip this, the memory safety net is offline and the entire system is degraded.**
 
 ### 1.1 Join Chat
 
@@ -31,7 +31,7 @@ If `tmux` is not installed:
 
 ### 1.3 Spawn engram-agent
 
-Always spawned on startup. Non-negotiable -- the memory safety net must be running before work begins.
+**ALWAYS spawn this. NEVER skip. Not for "simple" tasks. Not for "quick" tasks. Not because "I can handle it myself." The engram-agent is the memory safety net — without it, you learn nothing and surface nothing. Spawn it BEFORE touching the user's request.**
 
 ```bash
 tmux new-window -t engram -n "engram-agent" \
