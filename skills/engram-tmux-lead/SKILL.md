@@ -5,9 +5,9 @@ description: Use when orchestrating multi-agent sessions via tmux. The user's pr
 
 # Engram tmux Lead
 
-The user's primary agent. All other agents are behind the scenes -- the user talks only to the lead. The lead manages agent lifecycle through tmux, routes work, proxies questions, and manages its own context pressure.
+The user's primary agent. All other agents are behind the scenes — the user talks only to the lead. The lead manages agent lifecycle through tmux, routes work, proxies questions, and manages its own context pressure.
 
-The lead is NOT a coordinator that delegates everything. It reads code, makes plans, answers questions, and delegates to specialists when the task warrants it. Small tasks the lead handles directly. Delegate when parallelism, isolation, or specialization adds value.
+**The lead is PURELY a coordinator. It NEVER does implementation work itself.** Every task — no matter how small — gets delegated to a spawned agent. The lead's only jobs are: spinning up agents, routing work to them via chat, relaying user questions, monitoring agent health, and shutting agents down. If the lead catches itself reading code, writing files, running tests, or doing any "real work," it should STOP and spawn an agent for it instead.
 
 **REQUIRED:** You MUST understand and use the `use-engram-chat-as` skill for the coordination protocol.
 
@@ -136,8 +136,8 @@ The counter is **per-role** -- each role has its own monotonically increasing co
 
 ### 2.4 Concurrency Limit
 
-Maximum 5 total agents (including engram-agent). Beyond that, handle new requests directly:
-- "At agent limit (5). Handling this directly. Kill an agent to free a slot."
+Maximum 5 total agents (including engram-agent). Beyond that, queue the request:
+- "At agent limit (5). Waiting for a slot to free up. Kill an agent if you want this to proceed now."
 
 ## 3. Agent Lifecycle State Machine
 
@@ -231,13 +231,13 @@ Classify each user request and route accordingly. Use LLM judgment, not keyword 
 
 | User Request Pattern | Route | Agents Spawned |
 |---------------------|-------|----------------|
-| Simple question about code/project | **Lead handles directly** | None |
-| Quick edit (file + location known) | **Lead handles directly** | None |
+| Simple question about code/project | Spawn a short-lived executor | Executor answers, posts done, lead relays answer |
+| Quick edit (file + location known) | Spawn a short-lived executor | Executor edits, posts done, lead confirms |
 | "Fix bug X" / "Implement feature Y" (single-scope) | **Executor** | 1 executor |
 | "Tackle issue #N" / "Work on #N" | **Plan-Execute-Review pipeline** | Sequential: planner -> executor -> reviewer |
 | "Review PR #N" / "Review this code" | **Reviewer** | 1 reviewer |
 | "Research X" / "How does X work?" (deep) | **Researcher** | 1 researcher |
-| "File an issue" / "Create a PR" | **Lead handles directly** | None (use gh CLI) |
+| "File an issue" / "Create a PR" | Spawn a short-lived executor | Executor runs gh CLI, posts done |
 | "Do A and B and C" (independent tasks) | **Parallel executors** (worktree isolation) | N executors |
 | "Refactor X across the codebase" | **Executor with reviewer** | 1 executor + 1 reviewer |
 
@@ -285,7 +285,7 @@ Include the worktree path in the executor's role template as its working directo
 ### 4.4 Routing Override
 
 The user can always override routing:
-- "Just do it yourself" -> lead handles directly
+- "Just do it yourself" -> spawn a quick executor for it
 - "Use two executors" -> spawn as requested
 - "Skip the review" -> omit Phase 3
 - "I want to talk to the executor" -> relay messages bidirectionally (still proxied)
@@ -299,7 +299,7 @@ Every user message flows through the lead:
 - **New task/request** -> Route per Section 4
 - **Answer to pending question** -> Relay to asking agent as `info` in chat
 - **Correction** -> Parrot as `info` (engram-agent will detect and learn)
-- **Status query** -> Check agent states and respond directly
+- **Status query** -> Check agent states and report to user (this is coordination, not implementation — lead handles it)
 
 ### 5.2 Outbound (Agents -> User)
 
@@ -393,7 +393,7 @@ Session checkpoint:
 """
 ```
 
-After 300 messages: degraded mode -- minimal context retention, checkpoint every 50 messages, bias toward handling tasks directly.
+After 300 messages: degraded mode — minimal context retention, checkpoint every 50 messages. Still delegate all work — spawn short-lived agents and kill them quickly to avoid accumulating context.
 
 ### 7.4 Lead Restart Recovery
 
