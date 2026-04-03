@@ -9,10 +9,23 @@ import type {
 
 const BASE = "/api";
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function fetchJSON<T>(path: string): Promise<T> {
   const response = await fetch(`${BASE}${path}`);
   if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
+    throw new ApiError(
+      response.status,
+      `API error: ${response.status} ${response.statusText}`,
+    );
   }
   return response.json() as Promise<T>;
 }

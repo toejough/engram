@@ -116,8 +116,8 @@
         "npm run build succeeds"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": "Edit and delete buttons added in US-009 and US-010"
+      "passes": true,
+      "notes": "Implemented memory detail page at /memories/:slug. Added CreatedAt field to memory.Stored and ToStored() to pipe created_at through from TOML. Added createdAt to server's memoryDetailResponse. Added ApiError class to frontend API client for typed error handling. Page displays: 4 SBIA sections in 2x2 grid, effectiveness metrics (followed/not-followed/irrelevant counts, total evaluations, effectiveness %), metadata (project slug, project-scoped flag, created at, updated at, surfaced count), pending evaluations table, quadrant badge. Handles 404 with 'Memory not found or archived' message and back link. npm run build succeeds, all Go tests pass."
     },
     {
       "id": "US-008",

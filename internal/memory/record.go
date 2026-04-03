@@ -51,6 +51,11 @@ type MemoryRecord struct {
 
 // ToStored converts a MemoryRecord to a Stored for in-memory use.
 func (r *MemoryRecord) ToStored(filePath string) *Stored {
+	createdAt, createdParseErr := time.Parse(time.RFC3339, r.CreatedAt)
+	if createdParseErr != nil && r.CreatedAt != "" {
+		fmt.Fprintf(os.Stderr, "engram: memory: parsing created_at %q for %s: %v\n", r.CreatedAt, filePath, createdParseErr)
+	}
+
 	updatedAt, parseErr := time.Parse(time.RFC3339, r.UpdatedAt)
 	if parseErr != nil && r.UpdatedAt != "" {
 		fmt.Fprintf(
@@ -74,6 +79,7 @@ func (r *MemoryRecord) ToStored(filePath string) *Stored {
 		FollowedCount:      r.FollowedCount,
 		NotFollowedCount:   r.NotFollowedCount,
 		IrrelevantCount:    r.IrrelevantCount,
+		CreatedAt:          createdAt,
 		UpdatedAt:          updatedAt,
 		FilePath:           filePath,
 		PendingEvaluations: r.PendingEvaluations,

@@ -24,6 +24,7 @@ export interface PendingEvaluation {
 }
 
 export interface MemoryDetail extends Memory {
+  createdAt: string;
   pendingEvaluations: PendingEvaluation[];
 }
 

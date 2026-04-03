@@ -99,3 +99,25 @@
 - Updated `src/pages/Dashboard.tsx` — uses TanStack Query (`useQuery`) to fetch from `/api/memories` and `/api/stats`, derives project list from memories, supports `?project=` query param for pre-filtering, loading and error states
 - `npm run build` succeeds (tsc + vite build)
 - Committed: `feat: [US-006] Dashboard page (stats, charts, memory table)`
+
+---
+
+## US-007: Memory detail page (2026-04-03)
+- Added `CreatedAt time.Time` field to `memory.Stored` struct
+- Updated `MemoryRecord.ToStored()` to parse `created_at` string and carry through to `Stored.CreatedAt`
+- Added `CreatedAt string` field to server's `memoryDetailResponse`
+- Updated `toMemoryDetailResponse()` to format `CreatedAt` as RFC3339
+- Added `ApiError` class to `src/lib/api.ts` with `status` field for typed HTTP error handling
+- Added `createdAt` field to `MemoryDetail` interface in `src/lib/types.ts`
+- Implemented `src/pages/MemoryDetail.tsx`:
+  - Back link (ArrowLeft icon + "Back to Dashboard") navigates to `/`
+  - Header with slug name and quadrant badge (colored by quadrant)
+  - 4 SBIA sections (Situation, Behavior, Impact, Action) in 2x2 card grid with whitespace-pre-wrap
+  - Effectiveness card: effectiveness %, followed, not followed, irrelevant, total evaluations in 5-column grid
+  - Metadata card: project slug, project-scoped (Yes/No), created at, updated at, surfaced count in definition list
+  - Pending evaluations card with table (surfaced at, user prompt, session ID) or "No pending evaluations" message
+  - 404 handling: shows "Memory not found or archived" with back link when API returns 404
+  - Loading state: centered "Loading..." text
+  - Generic error state: centered destructive text
+- `npm run build` succeeds (tsc + vite build)
+- All Go tests pass (`go test ./internal/memory/... ./internal/server/... -count=1 -race`)

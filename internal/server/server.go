@@ -218,6 +218,7 @@ type errorResponse struct {
 type memoryDetailResponse struct {
 	memoryResponse //nolint:unused // embedded for JSON flattening
 
+	CreatedAt          string                      `json:"createdAt"`
 	PendingEvaluations []pendingEvaluationResponse `json:"pendingEvaluations"`
 }
 
@@ -331,8 +332,14 @@ func toMemoryDetailResponse(mem *memory.Stored, medianSurfaced int) memoryDetail
 		})
 	}
 
+	var createdAtStr string
+	if !mem.CreatedAt.IsZero() {
+		createdAtStr = mem.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
+	}
+
 	return memoryDetailResponse{
 		memoryResponse:     base,
+		CreatedAt:          createdAtStr,
 		PendingEvaluations: pending,
 	}
 }

@@ -20,6 +20,7 @@ type Stored struct {
 	FollowedCount      int
 	NotFollowedCount   int
 	IrrelevantCount    int
+	CreatedAt          time.Time
 	UpdatedAt          time.Time
 	FilePath           string
 	PendingEvaluations []PendingEvaluation
