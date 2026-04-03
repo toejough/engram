@@ -195,6 +195,8 @@ When a WAIT leads to disagreement, the argument follows structured rules:
 - **Initiator** (the agent whose intent was challenged): responds **factually**. States reasoning, evidence, context. No defensiveness.
 - **Reactor** (the agent that posted WAIT): responds **aggressively**. Pushes back hard on weak reasoning. Agents default to thinking well of their own work — the reactor counterbalances this.
 - **3 argument inputs max.** Reactor objection → initiator response → reactor counter. If still unresolved, the reactor posts a 4th message: escalation addressed to the initiating agent. The initiating agent MUST surface the dispute to its user through its own UX (question, warning, etc.). Dropping escalations silently is a critical bug.
+- **Early concession.** If the initiator agrees with the reactor after the first objection, the initiator posts an `ack` to end the argument early. No need to use all 3 inputs.
+- **Resolution recording.** After the argument resolves (agreement, concession, user decision, or timeout), the reactor posts an `info` message with the resolution outcome for observability.
 
 ```toml
 # After 3 inputs with no resolution:
@@ -261,7 +263,16 @@ chat.toml is append-only and unbounded. It grows for the duration of a coordinat
 
 ## Heartbeat
 
-Long-lived reactive agents should post a heartbeat every 5 minutes with basic stats. This lets active agents distinguish "no matches found" from "memory agent is dead." Without heartbeats, a crashed reactive agent is invisible.
+Long-lived reactive agents should post a heartbeat every 5 minutes with basic stats including queue depth. This lets active agents distinguish "no matches found" from "agent is dead." Without heartbeats, a crashed reactive agent is invisible.
+
+```toml
+[[entry]]
+from = "agent-name"
+to = "all"
+thread = "heartbeat"
+type = "info"
+message = "alive | queue: 0 | [agent-specific stats]"
+```
 
 ## Observability
 
