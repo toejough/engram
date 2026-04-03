@@ -45,7 +45,7 @@ updated_at = "2026-04-02T10:00:00Z"
 ### Data Layout
 
 ```
-~/.claude/engram/data/
+~/.local/share/engram/
 ├── chat/
 │   └── <project-slug>.toml       # per-project coordination
 └── memory/
@@ -99,7 +99,7 @@ These are extraction guidance for the engram-agent, not storage types. All knowl
 
 Join the project's chat as a named agent with a role. Includes the full coordination protocol.
 
-**Chat file:** `~/.claude/engram/data/chat/<project-slug>.toml`, derived from `$PWD`.
+**Chat file:** `~/.local/share/engram/chat/<project-slug>.toml`, derived from `$PWD`.
 
 **Message types:** `intent`, `ack`, `wait`, `info`, `done`, `learned`
 
@@ -137,7 +137,7 @@ Reactive memory watcher. Uses `use-engram-chat-as` to join as reactive. One agen
 - Surfaces feedback memories when intent situations match
 - Learns from explicit user corrections (confidence 1.0) and observed failures (0.7 high-confidence, 0.4 medium, 0.2 inferred)
 - Spawns subagents for arguments (aggressive reactor, max 3, monotonic IDs, thread exclusivity)
-- Writes to `~/.claude/engram/data/memory/feedback/`
+- Writes to `~/.local/share/engram/memory/feedback/`
 
 **Fact responsibilities (new):**
 - Surfaces relevant facts when intent subjects/objects overlap with known facts
@@ -145,7 +145,7 @@ Reactive memory watcher. Uses `use-engram-chat-as` to join as reactive. One agen
 - Learns facts from general conversation (lower confidence — inferred)
 - Extracts subject/predicate/object triples
 - Deduplicates by subject + predicate (update object if new info, skip if identical)
-- Writes to `~/.claude/engram/data/memory/facts/`
+- Writes to `~/.local/share/engram/memory/facts/`
 
 **Processing order:** Per message, check feedback triggers first (corrections, failures), then fact triggers. Feedback and facts are different — don't confuse them.
 
@@ -192,13 +192,13 @@ The user's primary agent. User talks only to the lead. All other agents are behi
 
 ### Memory file migration (269 files)
 
-Per file in `~/.claude/engram/data/memories/`:
+Per file in `~/.local/share/engram/memories/`:
 1. Add `schema_version = 1`
 2. Add `type = "feedback"`
 3. Add `source = ""`
 4. Nest `behavior`, `impact`, `action` under `[content]`
 5. Strip `pending_evaluations` if present
-6. Move to `~/.claude/engram/data/memory/feedback/`
+6. Move to `~/.local/share/engram/memory/feedback/`
 
 Write a one-time migration script.
 

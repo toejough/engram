@@ -74,7 +74,7 @@ Confidence tiers: **A** (explicit instruction — "always/never/remember"), **B*
 
 ## Data files
 
-All data lives in `~/.claude/engram/data/`:
+All data lives in `~/.local/share/engram/`:
 
 | Path | Purpose |
 |------|---------|

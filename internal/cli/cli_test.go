@@ -23,7 +23,7 @@ func TestApplyDataDirDefault_Empty_ResolvesHome(t *testing.T) {
 		return
 	}
 
-	g.Expect(dataDir).To(ContainSubstring(".claude/engram/data"))
+	g.Expect(dataDir).To(HaveSuffix("/engram"))
 }
 
 func TestApplyDataDirDefault_NonEmpty_Noop(t *testing.T) {

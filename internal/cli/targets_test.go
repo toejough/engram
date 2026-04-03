@@ -114,14 +114,23 @@ func TestBuildTargets(t *testing.T) {
 }
 
 func TestDataDirFromHome(t *testing.T) {
-	t.Parallel()
-
-	t.Run("returns standard engram data path", func(t *testing.T) {
-		t.Parallel()
+	// Not parallel: subtests use t.Setenv which modifies process environment.
+	t.Run("returns XDG data path when no env override", func(t *testing.T) {
 		g := gomega.NewWithT(t)
 
+		t.Setenv("XDG_DATA_HOME", "")
+
 		dir := cli.DataDirFromHome("/Users/joe")
-		g.Expect(dir).To(gomega.Equal("/Users/joe/.claude/engram/data"))
+		g.Expect(dir).To(gomega.Equal("/Users/joe/.local/share/engram"))
+	})
+
+	t.Run("respects XDG_DATA_HOME when set", func(t *testing.T) {
+		g := gomega.NewWithT(t)
+
+		t.Setenv("XDG_DATA_HOME", "/custom/data")
+
+		dir := cli.DataDirFromHome("/Users/joe")
+		g.Expect(dir).To(gomega.Equal("/custom/data/engram"))
 	})
 }
 

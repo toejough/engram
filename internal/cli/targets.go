@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -57,8 +58,13 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 }
 
 // DataDirFromHome returns the standard engram data directory for a given home path.
+// It respects $XDG_DATA_HOME if set, otherwise defaults to $HOME/.local/share/engram.
 func DataDirFromHome(home string) string {
-	return filepath.Join(home, ".claude", "engram", "data")
+	if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
+		return filepath.Join(xdg, "engram")
+	}
+
+	return filepath.Join(home, ".local", "share", "engram")
 }
 
 // ProjectSlugFromPath converts a filesystem path to a project slug by replacing

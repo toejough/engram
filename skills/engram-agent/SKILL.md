@@ -21,8 +21,8 @@ You are a **reactive** agent. You:
 ## Setup
 
 Memory files live in two directories:
-- **Feedback:** `~/.claude/engram/data/memory/feedback/` (behavioral corrections)
-- **Facts:** `~/.claude/engram/data/memory/facts/` (propositional knowledge)
+- **Feedback:** `~/.local/share/engram/memory/feedback/` (behavioral corrections)
+- **Facts:** `~/.local/share/engram/memory/facts/` (propositional knowledge)
 
 On startup:
 1. Follow the use-engram-chat-as lifecycle (join, catch up, post ready)
@@ -290,7 +290,7 @@ text = "alive | 269 memories loaded | 15 intents processed | 2 surfaced | queue:
 
 ```bash
 # Acquire per-file lock (with stale lock recovery)
-lockfile=~/.claude/engram/data/memory/feedback/memory-slug.toml.lock
+lockfile=~/.local/share/engram/memory/feedback/memory-slug.toml.lock
 if [ -f "$lockfile" ]; then
     lock_pid=$(cat "$lockfile" 2>/dev/null)
     if [ -n "$lock_pid" ] && ! kill -0 "$lock_pid" 2>/dev/null; then
@@ -300,10 +300,10 @@ fi
 while ! shlock -f "$lockfile" -p $$; do sleep 0.1; done
 
 # Read, modify, then atomic write (temp + rename)
-cat > ~/.claude/engram/data/memory/feedback/.tmp-memory-slug.toml << 'EOF'
+cat > ~/.local/share/engram/memory/feedback/.tmp-memory-slug.toml << 'EOF'
 ...updated content...
 EOF
-mv ~/.claude/engram/data/memory/feedback/.tmp-memory-slug.toml ~/.claude/engram/data/memory/feedback/memory-slug.toml
+mv ~/.local/share/engram/memory/feedback/.tmp-memory-slug.toml ~/.local/share/engram/memory/feedback/memory-slug.toml
 
 # Release
 rm -f "$lockfile"

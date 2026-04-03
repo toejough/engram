@@ -46,21 +46,21 @@ The skill parses out:
 
 **Before (file-comms):** `chat.toml` in project root. Location chosen ad-hoc by the coordinator.
 
-**After (use-engram-chat-as):** `~/.claude/engram/data/chat/<project-slug>.toml`. Derived from `$PWD` using the same slug convention as `engram recall`.
+**After (use-engram-chat-as):** `~/.local/share/engram/chat/<project-slug>.toml`. Derived from `$PWD` using the same slug convention as `engram recall`.
 
 **Slug derivation:** The project slug is the basename of the git root directory (resolved through symlinks), lowercased, with non-alphanumeric characters replaced by hyphens. If not in a git repo, use the basename of the resolved `$PWD`. Examples:
 
 | `$PWD` | Git root | Slug | Chat file |
 |--------|----------|------|-----------|
-| `/Users/joe/repos/engram` | `/Users/joe/repos/engram` | `engram` | `~/.claude/engram/data/chat/engram.toml` |
-| `/Users/joe/repos/My Project/src` | `/Users/joe/repos/My Project` | `my-project` | `~/.claude/engram/data/chat/my-project.toml` |
-| `/tmp/scratch` | (none) | `scratch` | `~/.claude/engram/data/chat/scratch.toml` |
+| `/Users/joe/repos/engram` | `/Users/joe/repos/engram` | `engram` | `~/.local/share/engram/chat/engram.toml` |
+| `/Users/joe/repos/My Project/src` | `/Users/joe/repos/My Project` | `my-project` | `~/.local/share/engram/chat/my-project.toml` |
+| `/tmp/scratch` | (none) | `scratch` | `~/.local/share/engram/chat/scratch.toml` |
 
 **Symlinks:** Always resolve symlinks before deriving the slug. `readlink -f` (Linux) or `realpath` (macOS) on the git root or `$PWD`. This ensures two agents in symlinked paths to the same repo use the same chat file.
 
 ### Chat File Lifecycle
 
-Chat files are **per-session, not persistent**. The move to `~/.claude/engram/data/chat/` provides a deterministic location, not permanence.
+Chat files are **per-session, not persistent**. The move to `~/.local/share/engram/chat/` provides a deterministic location, not permanence.
 
 - **Session start:** The first agent to join creates the chat file if it doesn't exist.
 - **Session end:** The agent that initiates shutdown (lead or standalone active agent) truncates the chat file after all agents have posted their final `done` messages. Truncation = write an empty file, not delete — this avoids race conditions with agents that haven't fully exited yet.
@@ -282,7 +282,7 @@ This is a **clean break**, not a gradual migration. The new protocol uses both r
 **None.** This is a clean break. The field renames coincide with the skill rename (file-comms → use-engram-chat-as) and the chat file relocation. Since:
 - Chat files are ephemeral (truncated between sessions)
 - The skill name changes (no agent will load the old protocol)
-- The chat file location changes (old files are in project root, new files in `~/.claude/engram/data/chat/`)
+- The chat file location changes (old files are in project root, new files in `~/.local/share/engram/chat/`)
 
 ...there is no scenario where a new agent reads an old-format file or vice versa. No backward-compat parser needed.
 
@@ -373,7 +373,7 @@ The skill `skills/use-engram-chat-as/SKILL.md` replaces `skills/file-comms/SKILL
 | Aspect | file-comms (before) | use-engram-chat-as (after) |
 |--------|--------------------|-----------------------------|
 | Skill name | `file-comms` | `use-engram-chat-as` |
-| Chat file | `chat.toml` in project root | `~/.claude/engram/data/chat/<slug>.toml` |
+| Chat file | `chat.toml` in project root | `~/.local/share/engram/chat/<slug>.toml` |
 | Chat lifecycle | "New session = new file" (manual) | Stale detection (1h threshold) + truncation on shutdown |
 | TOML array key | `[[entry]]` | `[[message]]` (clean break) |
 | Content field | `message = """..."""` | `text = """..."""` (clean break) |

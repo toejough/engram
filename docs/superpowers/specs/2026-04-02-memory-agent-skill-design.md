@@ -172,17 +172,17 @@ When a failure is detected:
 
 The memory agent reads and writes TOML files directly. No engram binary dependency.
 
-**Reading:** glob `~/.claude/engram/data/memories/*.toml`, parse each file. Track per-file mtimes — only re-read files that changed since last loop iteration.
+**Reading:** glob `~/.local/share/engram/memories/*.toml`, parse each file. Track per-file mtimes — only re-read files that changed since last loop iteration.
 
 **Atomic writes:** Always write to a temp file in the same directory, then rename:
 
 ```bash
 # Write to temp
-cat > ~/.claude/engram/data/memories/.tmp-memory-slug.toml << 'EOF'
+cat > ~/.local/share/engram/memories/.tmp-memory-slug.toml << 'EOF'
 ...updated content...
 EOF
 # Atomic rename
-mv ~/.claude/engram/data/memories/.tmp-memory-slug.toml ~/.claude/engram/data/memories/memory-slug.toml
+mv ~/.local/share/engram/memories/.tmp-memory-slug.toml ~/.local/share/engram/memories/memory-slug.toml
 ```
 
 This prevents corruption if the process crashes mid-write.
@@ -191,7 +191,7 @@ This prevents corruption if the process crashes mid-write.
 
 ```bash
 # Acquire per-file lock (with stale lock recovery)
-lockfile=~/.claude/engram/data/memories/memory-slug.toml.lock
+lockfile=~/.local/share/engram/memories/memory-slug.toml.lock
 if [ -f "$lockfile" ]; then
     lock_pid=$(cat "$lockfile" 2>/dev/null)
     if [ -n "$lock_pid" ] && ! kill -0 "$lock_pid" 2>/dev/null; then
@@ -269,7 +269,7 @@ The memory agent tracks in its own context (not persisted):
 
 ### Preserved
 
-- **Memory TOML files** — `~/.claude/engram/data/memories/*.toml` (the data store)
+- **Memory TOML files** — `~/.local/share/engram/memories/*.toml` (the data store)
 - **Skill files** — the new memory agent skill and updated file-comms skill
 - **engram binary** — stripped down to `recall` and `show` commands only
 - **Repo structure** — engram repo contains skills + a slim Go binary

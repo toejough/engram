@@ -98,7 +98,7 @@ Legacy files (pre-v2) have `schema_version` absent or `schema_version = 1` with 
 ### 2.1 New Directory Structure
 
 ```
-~/.claude/engram/data/
+~/.local/share/engram/
 ├── chat/
 │   └── <project-slug>.toml       # per-project coordination (Spec 2 fully defines)
 ├── memory/
@@ -132,7 +132,7 @@ Legacy files (pre-v2) have `schema_version` absent or `schema_version = 1` with 
 
 ### 3.1 Scope
 
-Migrate all files in `~/.claude/engram/data/memories/` to the new format and location. Current count: ~269 files.
+Migrate all files in `~/.local/share/engram/memories/` to the new format and location. Current count: ~269 files.
 
 ### 3.2 Migration Script
 
@@ -287,7 +287,7 @@ The engram-agent uses the existing file-comms protocol as-is. This section docum
 
 **Chat file location:** `chat.toml` in the project root (same as current `file-comms` protocol).
 
-> **Migration note:** The unified spec places chat files at `~/.claude/engram/data/chat/<project-slug>.toml`. This spec keeps the existing `chat.toml` location for now. Spec 2 will handle the relocation as part of the full `use-engram-chat-as` skill.
+> **Migration note:** The unified spec places chat files at `~/.local/share/engram/chat/<project-slug>.toml`. This spec keeps the existing `chat.toml` location for now. Spec 2 will handle the relocation as part of the full `use-engram-chat-as` skill.
 
 **Message format** (unchanged from current file-comms):
 

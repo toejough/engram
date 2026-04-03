@@ -58,7 +58,7 @@ text = """
 
 ## Chat File Location
 
-**Location:** `~/.claude/engram/data/chat/<project-slug>.toml`
+**Location:** `~/.local/share/engram/chat/<project-slug>.toml`
 
 Derived from `$PWD` using the project slug convention.
 
@@ -66,13 +66,13 @@ Derived from `$PWD` using the project slug convention.
 
 | `$PWD` | Git root | Slug | Chat file |
 |--------|----------|------|-----------|
-| `/Users/joe/repos/engram` | `/Users/joe/repos/engram` | `engram` | `~/.claude/engram/data/chat/engram.toml` |
-| `/Users/joe/repos/My Project/src` | `/Users/joe/repos/My Project` | `my-project` | `~/.claude/engram/data/chat/my-project.toml` |
-| `/tmp/scratch` | (none) | `scratch` | `~/.claude/engram/data/chat/scratch.toml` |
+| `/Users/joe/repos/engram` | `/Users/joe/repos/engram` | `engram` | `~/.local/share/engram/chat/engram.toml` |
+| `/Users/joe/repos/My Project/src` | `/Users/joe/repos/My Project` | `my-project` | `~/.local/share/engram/chat/my-project.toml` |
+| `/tmp/scratch` | (none) | `scratch` | `~/.local/share/engram/chat/scratch.toml` |
 
 **Symlinks:** Always resolve symlinks before deriving the slug. Use `realpath` (macOS) on the git root or `$PWD`. This ensures two agents in symlinked paths to the same repo use the same chat file.
 
-**Directory creation:** The skill creates `~/.claude/engram/data/chat/` on first use if it doesn't exist.
+**Directory creation:** The skill creates `~/.local/share/engram/chat/` on first use if it doesn't exist.
 
 ## Chat File Lifecycle
 
@@ -125,7 +125,7 @@ Always lock before appending:
 
 ```bash
 # Derive chat file path
-CHAT_FILE="$HOME/.claude/engram/data/chat/$(basename "$(git rev-parse --show-toplevel 2>/dev/null || realpath "$PWD")" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g').toml"
+CHAT_FILE="$HOME/.local/share/engram/chat/$(basename "$(git rev-parse --show-toplevel 2>/dev/null || realpath "$PWD")" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g').toml"
 mkdir -p "$(dirname "$CHAT_FILE")"
 
 # Lock, append, unlock (macOS shlock)
@@ -461,7 +461,7 @@ The chat file is append-only and unbounded within a session. It grows for the du
 The user can watch all comms in real time:
 
 ```bash
-tail -f ~/.claude/engram/data/chat/<project-slug>.toml
+tail -f ~/.local/share/engram/chat/<project-slug>.toml
 ```
 
 All intent, ack, wait, and result messages flow through one file -- full visibility into what every agent is doing and why.
