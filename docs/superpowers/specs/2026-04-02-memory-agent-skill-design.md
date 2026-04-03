@@ -69,7 +69,7 @@ This gives active agents a way to check if the memory agent is still running. Wi
 
 **Token economics:** With 269 memories at ~40 tokens each, the agent consumes ~11k tokens of situation content. At 100 intents per session, that's ~1.1M input tokens for situation matching. Full SBIA is only loaded for matched memories (typically 0-3 per intent).
 
-**Context window overflow:** When the agent's context approaches capacity, it should: (1) stop loading situations for the lowest-value memories (high surfaced_count with zero followed_count — repeatedly surfaced but never useful), (2) post a warning to chat.toml noting reduced coverage, (3) recommend the user run a consolidation pass. Note: overflow requires restarting the agent with a filtered set — you cannot selectively evict from an LLM's context mid-session.
+**Context window overflow:** With situations-only loading at ~40 tokens each, the 1M context window supports ~25,000 memories. This is a non-issue for the foreseeable future. If it ever becomes relevant, the agent should stop loading the lowest-value memories (high surfaced_count with zero followed_count) and post a warning.
 
 ### Main Loop
 
@@ -136,7 +136,7 @@ Two triggers, both detected from chat.toml messages:
 - **Ambiguous** (flag, don't auto-create): correction-like language in isolation or mid-conversation without a clear preceding action. Signals: bare "no", "wrong" in a longer sentence, "revert" used metaphorically. Post `info` to chat.toml asking the user to confirm if this should be a memory. Creates with `initial_confidence = 0.7` if confirmed.
 
 When creating:
-- Extract SBIA fields from the user statement and surrounding chat context
+- Extract SBIA fields from the user statement and surrounding chat context. If fields are incomplete (e.g., impact is unclear), post a message to chat.toml asking the active agent to prompt its user for the missing context
 - Check existing memories for duplicates using LLM judgment: does any existing memory cover the same situation AND recommend the same (or contradictory) action? If contradictory, the new memory supersedes — update the existing memory's fields rather than creating a duplicate.
 - If genuine duplicate: skip creation, no action needed
 - If new or superseding: lock, write/update TOML file atomically with appropriate counters, unlock
