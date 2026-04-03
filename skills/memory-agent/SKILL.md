@@ -38,7 +38,7 @@ On startup:
 2. Use judgment, not string matching. Novel phrasings of the same situation should be caught.
 3. Behavior matching happens in the subagent, AFTER it reads the full memory file.
 
-**Scale limit:** Works for up to ~1000 memories with situations-only loading. Beyond that, pre-filtering will be needed.
+**Scale limit:** Works for up to ~1000 memories with situations-only loading. Beyond that, pre-filtering will be needed. The ~30-50 token estimate per situation is an assumption — validate against the actual corpus before implementation.
 
 **Context overflow:** If your context approaches capacity, stop loading situations for the lowest-value memories (lowest surfaced_count with zero followed_count). Post a warning noting reduced coverage.
 
@@ -82,7 +82,7 @@ from = "memory-agent"
 to = "all"
 thread = "heartbeat"
 type = "info"
-message = "alive | 269 memories loaded | 15 intents processed | 2 surfaced"
+message = "alive | 269 memories loaded | 15 intents processed | 2 surfaced | queue: 0"
 ```
 
 ## Surfacing
@@ -96,7 +96,7 @@ When you see an `intent` message from an active agent:
    a. Acquire per-file lock, increment `surfaced_count` and update `updated_at`, write atomically (temp file + rename), unlock.
    b. If fewer than 3 subagents running AND no subagent on this thread, spawn one. Otherwise queue.
    c. Give the subagent the memory's slug, the intent message, and these instructions:
-      - Identify yourself as `memory-agent/sub-N` (N = 1, 2, or 3)
+      - Identify yourself as `memory-agent/sub-N` (N = next monotonically increasing ID, never reused)
       - Read the full memory TOML file (all SBIA fields)
       - Judge whether the intended behavior resembles the memory's "behavior to avoid"
       - If behavior doesn't match (situation matched but behavior is fine), return silently — false positive
@@ -112,7 +112,7 @@ When you see an `intent` message from an active agent:
 
 - **Max 3 concurrent subagents.** Queue additional matches.
 - **No two subagents on the same thread.** If a thread has an active subagent, queue the new match.
-- **Naming:** `memory-agent/sub-1`, `memory-agent/sub-2`, `memory-agent/sub-3`
+- **Naming:** Monotonically increasing IDs: `memory-agent/sub-1`, `memory-agent/sub-2`, etc. IDs are never reused within a session, even when slots free up. This prevents message confusion from ID reuse.
 - **Routing:** Messages to "memory-agent" go to you (main agent). Subagents only respond on their argument thread.
 - **Timeout:** 5 minutes. Post `info` noting timeout. SurfacedCount stays incremented, no outcome counter changes.
 - **Fresh reads:** Subagents MUST re-read the memory file immediately before their locked write.
@@ -131,7 +131,7 @@ Active agents parrot user input as `info` messages. Detection uses two confidenc
 - Post `info` asking the user to confirm before creating
 
 When creating:
-1. Extract SBIA fields from the user statement and surrounding chat context
+1. Extract SBIA fields from the user statement and surrounding chat context. If fields are incomplete (e.g., impact is unclear), post a message to chat.toml asking the active agent to prompt its user for the missing context.
 2. Check existing memories for duplicates:
    - **Exact duplicate** (same situation + same action): skip
    - **Contradictory** (same situation + opposite action): supersede — update existing memory
@@ -154,16 +154,20 @@ Correlate `recent_intents` with subsequent messages to detect failures.
 **Not a failure:** Agent adjusts mid-stream before `done` (refinement). Agent changes approach based on new info from another agent (coordination).
 
 When a failure is detected:
-1. Check if an existing memory covers this situation + behavior.
-2. **If existing memory matches:** missed surfacing.
+1. **Per-intent dedup:** Skip if this intent already triggered a `missed_count` increment this session.
+2. Check if an existing memory covers this situation + behavior.
+3. **If existing memory matches:** missed surfacing.
    - Per-file lock, increment `missed_count`, write atomically, unlock.
    - Post `info` noting the miss.
    - Do NOT create a duplicate.
-3. **If no existing memory:**
+4. **If no existing memory:**
    - Construct SBIA from the intent, action, and failure.
    - Action: corrective behavior that worked, OR "consider alternative approaches" if no obvious fix.
+   - Set `initial_confidence` based on signal strength (0.7 for high-confidence failures, 0.4 for medium, 0.2 for inferred backtracking).
    - Per-file lock, write new TOML atomically, unlock.
    - Post `info` confirming what was learned.
+
+**Rate limiting:** If you create more than 5 memories in 10 minutes, post a warning to chat.toml suggesting the user review and consolidate. Continue creating, but flag the pace.
 
 ## Memory File Format
 
@@ -214,7 +218,20 @@ mv ~/.claude/engram/data/memories/.tmp-memory-slug.toml ~/.claude/engram/data/me
 rm -f "$lockfile"
 ```
 
-Use `mkdir` fallback if `shlock` unavailable. For `mkdir` locks, if older than 120 seconds, assume stale.
+Use `mkdir` fallback if `shlock` unavailable. For `mkdir` locks, if older than 300 seconds (>= subagent timeout), assume stale. Note: PID-based stale detection only works on the same machine.
+
+**No multi-file locking.** Never hold locks on more than one memory file simultaneously. This prevents deadlocks. If an operation needs to read multiple files (e.g., duplicate detection during learning), read without locks, then lock only the file being written.
+
+## Performance Tracking
+
+Track these metrics in your own context (not persisted to files):
+
+| Metric | Signal | Action |
+|--------|--------|--------|
+| Intents seen vs checked | Agent overwhelm | Report to user if queue > 5, recommend split |
+| Subagent queue depth | Concurrency bottleneck | Report if consistently > 0 |
+| SurfacedCount vs outcome counts | Outcome tracking gaps | Effectiveness = followed / (followed + not_followed). Unresolved = surfaced - sum(outcomes). Gap = subagent failures. |
+| MissedCount | Matching quality | High = matching needs improvement |
 
 ## Common Mistakes
 
