@@ -244,7 +244,7 @@ chore(skills): verify recall skill references correct binary path
 ### Task 6: Finalize file-comms skill
 
 **Files:**
-- Modify: `~/.claude/skills/file-comms/SKILL.md`
+- Modify: `skills/file-comms/SKILL.md`
 
 The file-comms skill has already been updated during brainstorming with:
 - Agent roles (active/reactive)
@@ -256,7 +256,7 @@ The file-comms skill has already been updated during brainstorming with:
 
 - [ ] **Step 1: Review the skill against the spec**
 
-Read `~/.claude/skills/file-comms/SKILL.md` and `docs/superpowers/specs/2026-04-02-memory-agent-skill-design.md` Part 1. Verify every spec requirement is covered in the skill. Check for any inconsistencies introduced during the iterative editing.
+Read `skills/file-comms/SKILL.md` and `docs/superpowers/specs/2026-04-02-memory-agent-skill-design.md` Part 1. Verify every spec requirement is covered in the skill. Check for any inconsistencies introduced during the iterative editing.
 
 - [ ] **Step 2: Fix any gaps found**
 
@@ -271,13 +271,13 @@ docs(skills): finalize file-comms skill against spec
 ### Task 7: Finalize memory-agent skill
 
 **Files:**
-- Modify: `~/.claude/skills/memory-agent/SKILL.md`
+- Modify: `skills/memory-agent/SKILL.md`
 
 The memory-agent skill has already been written during brainstorming. It needs a final review pass against the spec to catch any drift from the iterative changes.
 
 - [ ] **Step 1: Review the skill against the spec**
 
-Read `~/.claude/skills/memory-agent/SKILL.md` and `docs/superpowers/specs/2026-04-02-memory-agent-skill-design.md` Part 2. Check:
+Read `skills/memory-agent/SKILL.md` and `docs/superpowers/specs/2026-04-02-memory-agent-skill-design.md` Part 2. Check:
 - Situations-only loading described correctly
 - Background task fswatch loop pattern matches spec
 - Surfacing flow matches (situation match → subagent reads full file → behavior judgment)
