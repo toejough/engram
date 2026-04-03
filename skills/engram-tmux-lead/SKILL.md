@@ -80,10 +80,9 @@ tmux send-keys -t "engram-agent" Enter
 
 ### 1.5 Wait for engram-agent
 
-Use a **polling loop** (not fswatch) to avoid the race where the agent posts between spawn and fswatch start:
+Run a background polling loop to check for the engram-agent's first message. Use the same `CHAT_FILE` derived in step 1.3.
 
 ```bash
-CHAT_FILE="$HOME/.local/share/engram/chat/engram.toml"
 for i in $(seq 1 15); do
   if grep -q 'from = "engram-agent"' "$CHAT_FILE" 2>/dev/null; then
     break
@@ -92,14 +91,23 @@ for i in $(seq 1 15); do
 done
 ```
 
-If no engram-agent message appears within 30 seconds:
+Run this as a **background** Bash command so the lead stays responsive. When it completes, check whether the engram-agent posted. If not after 30 seconds:
 1. Check tmux window exists: `tmux list-windows -F '#{window_name}' | grep engram-agent`
 2. Check window output: `tmux capture-pane -t engram-agent -p | tail -20`
 3. Report to user with diagnostic info. Do NOT silently proceed without memory.
 
-### 1.6 Post Ready and Start fswatch
+### 1.6 Post Ready
 
-Post your `ready` message and enter the standard fswatch watch loop per the `use-engram-chat-as` protocol.
+Post your `ready` message to chat. Then tell the user you're ready and what agents are running.
+
+**The lead does NOT enter the standard fswatch watch loop.** Unlike reactive agents that block on fswatch, the lead stays interactive — it must be available for user input at all times. Instead, the lead:
+
+1. After each user interaction, starts a background `fswatch -1` on the chat file
+2. If the fswatch fires (agent posted something), process the chat message — relay questions to the user, handle agent status updates, etc.
+3. If the user types first, process the user message — parrot to chat, route to an agent
+4. After processing either, start a new background fswatch
+
+This means the lead processes chat messages opportunistically between user inputs, not as a blocking loop.
 
 ## 2. Agent Spawning
 
