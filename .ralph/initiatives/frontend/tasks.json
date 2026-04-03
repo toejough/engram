@@ -99,8 +99,8 @@
         "npm run build succeeds"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": "Charts should render empty cleanly if no data (empty state comes in US-015)"
+      "passes": true,
+      "notes": "Installed Recharts for charting. Added shadcn card, table, select, badge components. Created src/lib/quadrants.ts with color/label mappings. Created StatCards component showing total memories, avg effectiveness, and per-quadrant counts. Created QuadrantChart donut chart with Recharts PieChart (insufficient-data as gray segment). Created EffectivenessHistogram with 10-bucket bar chart. Created MemoryTable with sortable columns (slug, quadrant, effectiveness, surfaced, project, updated), filterable by quadrant and project dropdowns via shadcn Select, row click navigates to /memories/:slug. Dashboard page uses TanStack Query for /api/memories and /api/stats, supports ?project= query param to pre-filter. npm run build succeeds."
     },
     {
       "id": "US-007",

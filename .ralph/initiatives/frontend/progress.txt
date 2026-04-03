@@ -85,3 +85,17 @@
 - App.tsx wraps with QueryClientProvider (TanStack Query) and BrowserRouter with all 5 routes
 - `npm install` succeeds, `npm run dev` starts on port 5173, `npm run build` produces production bundle without errors
 - Committed: `feat: [US-005] Frontend scaffolding (Vite + React + shadcn + Tailwind 4)`
+
+---
+
+## US-006: Dashboard page (stats, charts, memory table) (2026-04-03)
+- Installed Recharts charting library
+- Added shadcn/ui components: card, table, select, badge
+- Created `src/lib/quadrants.ts` with color constants (working=green, leech=red, hidden-gem=purple, noise=amber, insufficient-data=gray) and label mappings
+- Created `src/components/StatCards.tsx` — grid of stat cards: total memories, avg effectiveness, and per-quadrant counts
+- Created `src/components/QuadrantChart.tsx` — Recharts PieChart donut with inner/outer radius, colored by quadrant, insufficient-data as gray segment
+- Created `src/components/EffectivenessHistogram.tsx` — Recharts BarChart with 10 buckets (0-10%, 10-20%, ..., 90-100%)
+- Created `src/components/MemoryTable.tsx` — sortable table (slug, quadrant, effectiveness, surfaced, project, updated) with sort icons (ArrowUp/ArrowDown/ArrowUpDown), filterable by quadrant and project via shadcn Select dropdowns, row click navigates to `/memories/:slug`
+- Updated `src/pages/Dashboard.tsx` — uses TanStack Query (`useQuery`) to fetch from `/api/memories` and `/api/stats`, derives project list from memories, supports `?project=` query param for pre-filtering, loading and error states
+- `npm run build` succeeds (tsc + vite build)
+- Committed: `feat: [US-006] Dashboard page (stats, charts, memory table)`
