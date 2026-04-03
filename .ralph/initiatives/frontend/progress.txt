@@ -1,0 +1,87 @@
+# Ralph Progress Log
+# Initiative: frontend
+# Branch: ryanhill/add-frontend
+# Started: 2026-04-03
+
+## Codebase Patterns
+- Tests use gomega with `NewGomegaWithT(t)`, `t.Parallel()` on every test
+- Memory package: `Stored` struct has counter fields (FollowedCount, NotFollowedCount, IrrelevantCount, SurfacedCount)
+- `TotalEvaluations()` already existed on both `Stored` and `MemoryRecord`
+- Declaration ordering enforced by `targ reorder-decls` (exported constants first, then funcs, then unexported constants)
+
+---
+
+## US-001: Add effectiveness and quadrant classification (2026-04-03)
+- Created `internal/memory/effectiveness.go` with `Effectiveness()` and `Quadrant()` methods on `Stored`
+- Exported 5 quadrant constants for use by server/API packages
+- Created `internal/memory/effectiveness_test.go` with 15 tests covering all branches
+- 100% function coverage in package-level tests
+- Committed: `feat: [US-001] Add effectiveness and quadrant classification to memory package`
+
+---
+
+## US-002: Server package + GET /api/memories endpoint (2026-04-03)
+- Created `internal/server/server.go` with Server struct, NewServer constructor, MemoryLister interface (DI)
+- GET /api/memories returns JSON array with slug, SBIA fields, counters, computed effectiveness %, quadrant, totalEvaluations, updatedAt
+- CORS middleware allows `http://localhost:5173` origin, blocks others, handles OPTIONS preflight
+- `ListenAddr()` binds to 127.0.0.1 only
+- Median surfaced count computed across all memories for quadrant classification (handles even/odd counts)
+- `memoryResponse` struct maps `memory.Stored` fields to camelCase JSON matching the frontend spec
+- Created `internal/server/server_test.go` with 11 tests: response shape, effectiveness computation, quadrant classification, insufficient data, empty list, lister error, CORS allowed/disallowed/preflight, ListenAddr
+- 97.4% statement coverage in package-level tests (only untested path: json encode error)
+- No new targ check-full failures (pre-existing failures unchanged)
+- Committed: `feat: [US-002] Server package + GET /api/memories endpoint`
+
+---
+
+## US-003: Remaining read-only API endpoints (detail, stats, projects) (2026-04-03)
+- Added `PendingEvaluations []PendingEvaluation` field to `memory.Stored` struct
+- Updated `MemoryRecord.ToStored()` to copy `PendingEvaluations` through to `Stored`
+- GET /api/memories/{slug} returns full memory detail with `pendingEvaluations` array via `memoryDetailResponse` (embeds `memoryResponse`)
+- `isValidSlug()` rejects path traversal: empty strings, `..`, `/`, `\` in slug
+- Returns 404 JSON `{"error":"memory not found"}` for unknown slugs
+- GET /api/stats returns `{totalMemories, avgEffectiveness, quadrantDistribution}` — avg effectiveness computed as mean of per-memory effectiveness * 100
+- GET /api/projects returns per-project stats array sorted alphabetically: `{projectSlug, memoryCount, avgEffectiveness, quadrantBreakdown}`
+- Added `writeJSONError()` helper for consistent JSON error responses with proper Content-Type
+- Added response types: `memoryDetailResponse`, `pendingEvaluationResponse`, `statsResponse`, `projectResponse`, `errorResponse`, `projectAccumulator`
+- 13 new tests: detail with pending evals, no pending evals, 404 not found, path traversal rejection (../, backslash, slash-only), lister errors for all endpoints, stats with data/empty, projects with multi-project data/empty
+- All server functions above 80% function coverage threshold
+- No new targ check-full failures (pre-existing failures unchanged: gosec, revive, deadcode/nilaway not installed, cli flaky test)
+- Committed: `feat: [US-003] Remaining read-only API endpoints (detail, stats, projects)`
+
+---
+
+## US-004: engram serve CLI subcommand (2026-04-03)
+- Created `internal/cli/serve.go` with `runServe` function
+- Added `serve` case to `cli.go` dispatch switch, updated usage string
+- Parses `--port` flag (default 3001) and `--data-dir` flag via `flag.NewFlagSet`
+- Uses `applyDataDirDefault()` for data directory resolution
+- Wires real `retrieve.New()` into `server.NewServer()` for memory listing
+- Starts `http.Server` on `127.0.0.1:{port}` with `ReadHeaderTimeout` (10s) to prevent Slowloris
+- `BrowserOpener` exported var opens browser via `open` (macOS) or `xdg-open` (Linux), overridable in tests
+- Graceful shutdown on SIGINT/SIGTERM via `signalContext()` with 5s shutdown timeout
+- Startup message logged to stdout: `engram server listening on http://localhost:{port}`
+- Created `internal/cli/serve_test.go` with 4 tests:
+  - `StartsAndResponds`: verifies HTTP 200 on `/api/memories`, startup message, browser opener called
+  - `GracefulShutdown`: sends SIGINT, verifies clean shutdown with "server stopped" message
+  - `PortInUse`: verifies error when binding to occupied port
+  - `ParseError`: verifies flag parse error handling
+- Thread-safe `syncWriter` used for concurrent stdout access in tests
+- No new targ check-full failures (pre-existing failures unchanged: gosec, revive, deadcode/nilaway not installed)
+- Committed: `feat: [US-004] engram serve CLI subcommand`
+
+---
+
+## US-005: Frontend scaffolding (Vite + React + shadcn + Tailwind 4) (2026-04-03)
+- Scaffolded `frontend/` with `create-vite` react-ts template
+- Installed React Router, TanStack Query, Tailwind CSS v4 (@tailwindcss/vite plugin), shadcn/ui
+- shadcn/ui initialized with default config (components.json, button component, utils.ts, CSS variables)
+- Tailwind v4 uses CSS-based config (no tailwind.config.ts), configured via `@tailwindcss/vite` plugin
+- Path alias `@/` → `./src/` configured in tsconfig.json, tsconfig.app.json, and vite.config.ts
+- Vite config proxies `/api/*` to `http://localhost:3001` for dev
+- Created `src/lib/types.ts` with interfaces: Memory, PendingEvaluation, MemoryDetail, Stats, Project, SurfaceMatch, SurfaceNearMiss, SurfaceResult, ActivityEntry — all matching Go server JSON response shapes
+- Created `src/lib/api.ts` with typed fetch helpers: fetchMemories, fetchMemory, fetchStats, fetchProjects, fetchSurface, fetchActivity
+- Created 5 placeholder page components: Dashboard, MemoryDetail, Surface, Projects, Activity
+- App.tsx wraps with QueryClientProvider (TanStack Query) and BrowserRouter with all 5 routes
+- `npm install` succeeds, `npm run dev` starts on port 5173, `npm run build` produces production bundle without errors
+- Committed: `feat: [US-005] Frontend scaffolding (Vite + React + shadcn + Tailwind 4)`

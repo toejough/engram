@@ -1,0 +1,271 @@
+{
+  "project": "frontend",
+  "branchName": "ryanhill/add-frontend",
+  "description": "Web-based dashboard for browsing, understanding, editing, and managing engram memories, backed by a new engram serve Go HTTP server.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add effectiveness and quadrant classification to memory package",
+      "description": "Add computed field methods to the memory package. Effectiveness() float64 on Stored returns followed / totalEvaluations (0.0 if no evals). Quadrant(medianSurfacedCount int) string returns one of: insufficient-data (totalEvals < 5), working (eff >= 50% && surfaced >= median), hidden-gem (eff >= 50% && surfaced < median), leech (eff < 50% && surfaced >= median), noise (eff < 50% && surfaced < median). Add to internal/memory/. Follow existing DI patterns, no direct I/O.",
+      "acceptanceCriteria": [
+        "Effectiveness() returns correct float64 for all cases (zero evals returns 0.0, normal cases, boundary at exactly 50%)",
+        "Quadrant() returns correct string for all 5 quadrant branches",
+        "Unit tests cover: zero evaluations, exactly 5 evaluations boundary, all quadrant combinations, median boundary cases",
+        "targ check-full passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Added Effectiveness() and Quadrant() methods to Stored in internal/memory/effectiveness.go. Exported quadrant constants (QuadrantWorking, QuadrantHiddenGem, QuadrantLeech, QuadrantNoise, QuadrantInsufficientData). 15 unit tests cover all branches including boundary cases. 100% function coverage in package-level tests."
+    },
+    {
+      "id": "US-002",
+      "title": "Server package + GET /api/memories endpoint",
+      "description": "Create internal/server/ package. Server struct holds injected dependencies (retriever interface, dataDir string). Uses http.ServeMux for routing. Add CORS middleware allowing localhost:5173 and same-origin. Implement GET /api/memories returning JSON array of all memories with computed fields (effectiveness %, quadrant). Compute median surfaced count across all memories for quadrant classification. Server binds 127.0.0.1 only. All I/O through injected interfaces per project DI principles.",
+      "acceptanceCriteria": [
+        "internal/server/server.go exists with Server struct and NewServer constructor taking injected dependencies",
+        "GET /api/memories returns JSON array with all memory fields plus effectiveness and quadrant",
+        "CORS headers set for localhost:5173 origin",
+        "Server binds to 127.0.0.1 only",
+        "Unit tests with mock retriever verify response shape, computed fields, and CORS headers",
+        "targ check-full passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Created internal/server/server.go with Server struct, NewServer constructor, MemoryLister interface for DI, GET /api/memories handler returning JSON with computed effectiveness % and quadrant. CORS middleware allows localhost:5173. ListenAddr binds 127.0.0.1 only. Median surfaced count computed across all memories for quadrant classification. 11 unit tests verify response shape, computed fields, CORS headers (allowed/disallowed/preflight), error handling, and empty list. 97.4% statement coverage in package. No new targ check-full failures."
+    },
+    {
+      "id": "US-003",
+      "title": "Remaining read-only API endpoints (detail, stats, projects)",
+      "description": "Add three endpoints to internal/server/. GET /api/memories/:slug returns single memory with pending evaluations array. GET /api/stats returns aggregate stats: total count, avg effectiveness, quadrant distribution counts (map of quadrant name to count). GET /api/projects returns array of {projectSlug, memoryCount, avgEffectiveness, quadrantBreakdown}. For :slug routing, use path parameter parsing from ServeMux pattern. Slug must be validated against path traversal (no ../ allowed).",
+      "acceptanceCriteria": [
+        "GET /api/memories/:slug returns full memory detail with pendingEvaluations array",
+        "GET /api/memories/:slug returns 404 JSON error for unknown slugs",
+        "Slug validation rejects ../ path traversal attempts",
+        "GET /api/stats returns {totalMemories, avgEffectiveness, quadrantDistribution}",
+        "GET /api/projects returns per-project stats array",
+        "Unit tests for each endpoint including error cases",
+        "targ check-full passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Added GET /api/memories/{slug} with isValidSlug path traversal validation (rejects .., /, \\), 404 JSON error for unknown slugs, and pendingEvaluations array. Added GET /api/stats returning totalMemories, avgEffectiveness, quadrantDistribution map. Added GET /api/projects returning per-project stats sorted alphabetically with memoryCount, avgEffectiveness, quadrantBreakdown. Added PendingEvaluations field to memory.Stored and wired through ToStored. 13 new tests cover all endpoints including error cases, path traversal, empty data, and edge cases. No new targ check-full failures."
+    },
+    {
+      "id": "US-004",
+      "title": "engram serve CLI subcommand",
+      "description": "Add 'serve' case to cli.go dispatch switch. Parse --port flag (default 3001) via flag.NewFlagSet. Use applyDataDirDefault() for data directory. Wire real Retriever into Server. Start HTTP listener on 127.0.0.1:{port}. Open browser to http://localhost:{port} on startup using os/exec (open on macOS, xdg-open on Linux). Graceful shutdown on SIGINT/SIGTERM via signalContext(). Log startup message to stdout.",
+      "acceptanceCriteria": [
+        "engram serve starts HTTP server on default port 3001",
+        "engram serve --port 8080 uses custom port",
+        "Server binds to 127.0.0.1 only",
+        "Browser opens automatically on startup",
+        "Ctrl+C gracefully shuts down the server",
+        "targ check-full passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Created internal/cli/serve.go with runServe function. Added 'serve' case to cli.go dispatch switch. Parses --port flag (default 3001) and --data-dir flag via flag.NewFlagSet. Uses applyDataDirDefault() for data directory. Wires real retrieve.New() into server.NewServer(). Starts http.Server on 127.0.0.1:{port} with ReadHeaderTimeout. Opens browser via BrowserOpener (open on macOS, xdg-open on Linux). Graceful shutdown on SIGINT/SIGTERM via signalContext() with 5s shutdown timeout. 4 tests: starts and responds (verifies HTTP 200, startup message, browser opener), graceful shutdown (SIGINT triggers clean stop), port in use error, parse error. No new targ check-full failures."
+    },
+    {
+      "id": "US-005",
+      "title": "Frontend scaffolding (Vite + React + shadcn + Tailwind 4)",
+      "description": "Create frontend/ directory with Vite + React 19 + TypeScript project. Install and configure shadcn/ui with Tailwind CSS v4. Set up React Router with routes: / (dashboard), /memories/:slug (detail), /surface, /projects, /activity. Configure TanStack Query provider. Vite config proxies /api/* to http://localhost:3001. Create shared API client (frontend/src/lib/api.ts) with typed fetch helpers. Create shared types (frontend/src/lib/types.ts) matching the API response shapes from the spec. Each route renders a placeholder page component.",
+      "acceptanceCriteria": [
+        "npm install succeeds in frontend/",
+        "npm run dev starts Vite on port 5173",
+        "npm run build produces production bundle without errors",
+        "All 5 routes render placeholder components",
+        "Vite proxy forwards /api/* to localhost:3001",
+        "TanStack Query provider wraps the app",
+        "API client module exports typed fetch functions for all endpoints",
+        "Types file defines Memory, MemoryDetail, Stats, Project, SurfaceResult, ActivityEntry interfaces"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Scaffolded Vite + React 19 + TypeScript in frontend/. Installed and configured shadcn/ui with Tailwind CSS v4 (CSS-based config via @tailwindcss/vite plugin). Set up React Router with all 5 routes (/, /memories/:slug, /surface, /projects, /activity) rendering placeholder components. TanStack Query provider wraps the app via QueryClientProvider. Vite config proxies /api/* to http://localhost:3001. Created typed API client (src/lib/api.ts) with fetch helpers for all endpoints. Created types file (src/lib/types.ts) with Memory, MemoryDetail, Stats, Project, SurfaceResult, ActivityEntry interfaces matching API response shapes. npm install succeeds, npm run dev starts on port 5173, npm run build produces production bundle without errors."
+    },
+    {
+      "id": "US-006",
+      "title": "Dashboard page (stats, charts, memory table)",
+      "description": "Implement the dashboard at /. Top section: stat cards showing total memories, average effectiveness, and count per quadrant (working, leech, hidden-gem, noise, insufficient-data). Middle section: Recharts donut chart for quadrant distribution (insufficient-data as gray/neutral segment) and effectiveness distribution histogram. Bottom section: sortable, filterable memory table with columns: slug, quadrant, effectiveness %, surfaced count, project slug, updated at. Table supports sorting by clicking column headers and filtering by quadrant dropdown and project dropdown. Clicking a table row navigates to /memories/:slug. Support ?project= query param to pre-filter by project. Use TanStack Query to fetch from GET /api/memories and GET /api/stats.",
+      "acceptanceCriteria": [
+        "Stat cards display total memories, avg effectiveness, and per-quadrant counts",
+        "Donut chart renders quadrant distribution with insufficient-data as gray segment",
+        "Histogram renders effectiveness distribution",
+        "Memory table displays all columns and is sortable by each column",
+        "Table is filterable by quadrant and project",
+        "Clicking a row navigates to /memories/:slug",
+        "?project= query param filters the table on load",
+        "npm run build succeeds"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "Charts should render empty cleanly if no data (empty state comes in US-015)"
+    },
+    {
+      "id": "US-007",
+      "title": "Memory detail page",
+      "description": "Implement memory detail at /memories/:slug. Fetch from GET /api/memories/:slug via TanStack Query. Display SBIA content in four labeled sections (Situation, Behavior, Impact, Action). Show effectiveness metrics: followed/not-followed/irrelevant counts and calculated effectiveness %. Show metadata: project slug, project-scoped flag, created at, updated at. Show pending evaluations as a list with surfaced_at, user_prompt, session_id. Include back navigation link to dashboard. Handle 404 (memory not found) with a message and back link.",
+      "acceptanceCriteria": [
+        "SBIA fields display in four labeled sections",
+        "Effectiveness metrics show all counts and calculated percentage",
+        "Metadata section shows project info and timestamps",
+        "Pending evaluations render as a list",
+        "Back link navigates to dashboard",
+        "404 response shows 'Memory not found or archived' with back link",
+        "npm run build succeeds"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Edit and delete buttons added in US-009 and US-010"
+    },
+    {
+      "id": "US-008",
+      "title": "Mutation API endpoints (update, delete, restore)",
+      "description": "Add three mutation endpoints to internal/server/. PUT /api/memories/:slug accepts JSON body with SBIA fields + projectScoped + projectSlug, updates via memory.Modifier.ReadModifyWrite, also sets updated_at to now. DELETE /api/memories/:slug soft-deletes by moving TOML file from memories/ to archived/ directory (create archived/ dir if it doesn't exist). POST /api/memories/:slug/restore moves TOML back from archived/ to memories/. All mutations validate slug (no path traversal). Inject file move operations through interfaces for testability.",
+      "acceptanceCriteria": [
+        "PUT /api/memories/:slug updates SBIA fields and metadata, sets updated_at",
+        "PUT returns 404 for unknown slugs, 400 for invalid JSON",
+        "DELETE moves TOML to archived/ directory",
+        "DELETE creates archived/ directory if it doesn't exist",
+        "DELETE returns 404 for unknown slugs",
+        "POST /restore moves TOML back from archived/ to memories/",
+        "POST /restore returns 404 if not in archive",
+        "All endpoints validate slug against path traversal",
+        "Unit tests for each endpoint including error paths",
+        "targ check-full passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Inject Modifier and file operations as interfaces. Archive dir: filepath.Join(dataDir, 'archived')"
+    },
+    {
+      "id": "US-009",
+      "title": "Edit memory form on detail page",
+      "description": "Add edit functionality to the memory detail page. Edit button toggles between view and edit mode. Edit mode shows a structured form with four text areas (Situation, Behavior, Impact, Action) pre-filled with current values, plus checkboxes/inputs for project_scoped and project_slug. Each text area has placeholder hints describing what goes in that field. Save button calls PUT /api/memories/:slug and returns to view mode with updated data. Cancel button discards changes and returns to view mode. Show success toast on save, error toast on failure.",
+      "acceptanceCriteria": [
+        "Edit button toggles to form view with pre-filled SBIA text areas",
+        "Form includes project_scoped checkbox and project_slug input",
+        "Save calls PUT endpoint and refreshes detail view with new data",
+        "Cancel discards changes and returns to view mode",
+        "Success/error feedback shown via toast",
+        "npm run build succeeds"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Delete memory with confirmation dialog",
+      "description": "Add delete functionality to the memory detail page. Delete button opens a shadcn AlertDialog with message: 'This will archive the memory. You can restore it later.' Confirm calls DELETE /api/memories/:slug. On success: invalidate TanStack Query cache and redirect to dashboard. On failure: show error toast and close dialog.",
+      "acceptanceCriteria": [
+        "Delete button visible on detail page",
+        "Clicking opens confirmation dialog with archive message",
+        "Confirm calls DELETE endpoint",
+        "Success redirects to dashboard",
+        "Failure shows error toast",
+        "npm run build succeeds"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "GET /api/surface endpoint with score exposure",
+      "description": "Add GET /api/surface?q=...&project=... endpoint. This needs to run the BM25 scoring pipeline and return structured results with scores, which the current Surfacer.Run() doesn't support (it writes formatted text to io.Writer). Options: (a) add a new method to Surfacer that returns structured results, (b) extract the scoring logic into a reusable function, or (c) create a thin wrapper in the server package that calls the retriever + BM25 directly. Return JSON: {matches: [{slug, bm25Score, finalScore, situation, action}], nearMisses: [{slug, bm25Score, finalScore, threshold, situation, action}]}. Near-misses are results below the BM25 threshold but within some margin.",
+      "acceptanceCriteria": [
+        "GET /api/surface?q=query returns JSON with matches and nearMisses arrays",
+        "Each match includes slug, bm25Score, finalScore, situation, action",
+        "Near-misses include threshold value",
+        "Optional project= param scopes results",
+        "Returns empty matches array for no-match queries",
+        "Tests with mock retriever and known BM25 scores",
+        "targ check-full passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": "May need to refactor surface package or extract BM25 scoring. Assess which approach is cleanest during implementation."
+    },
+    {
+      "id": "US-012",
+      "title": "Surface simulator page",
+      "description": "Implement the surface simulator at /surface. Text input for query with submit button. Optional project dropdown populated from GET /api/projects. On submit, call GET /api/surface?q=...&project=... Results section shows matched memories: slug (linked to detail), BM25 score, final rank score, SBIA preview (situation + action truncated). Below-threshold section shows near-misses with their scores and the threshold they fell below. Help text explaining what the simulator does.",
+      "acceptanceCriteria": [
+        "Text input accepts query, optional project filter dropdown",
+        "Results display slug, BM25 score, final score, SBIA preview for matches",
+        "Near-misses section shows below-threshold results with scores",
+        "Slugs link to memory detail pages",
+        "Empty query shows helpful prompt text",
+        "npm run build succeeds"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "Helps users debug 'why did/didn't this memory surface?'"
+    },
+    {
+      "id": "US-013",
+      "title": "Project overview page",
+      "description": "Implement project overview at /projects. Fetch from GET /api/projects. Display list of all project slugs with: memory count, average effectiveness, quadrant breakdown (counts per quadrant), top leeches (memories with quadrant=leech, sorted by surfaced count desc). Raw slugs displayed as-is. Click a project navigates to /?project=slug to show filtered dashboard.",
+      "acceptanceCriteria": [
+        "Lists all project slugs with memory counts",
+        "Shows avg effectiveness and quadrant breakdown per project",
+        "Clicking a project navigates to dashboard filtered by that project",
+        "npm run build succeeds"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Activity timeline page (derived from memory timestamps)",
+      "description": "Implement activity timeline at /activity. Since creation-log.jsonl doesn't exist, derive activity from memory data. GET /api/activity?page=N&limit=50 endpoint scans all memories and synthesizes events: 'created' events from created_at, 'updated' events from updated_at (when updated_at != created_at), 'surfaced' events from pending_evaluations[].surfaced_at. Each event includes: type, timestamp, memory slug, and relevant context (e.g., user_prompt for surfacing events). Sort all events by timestamp desc, paginate with offset. Frontend shows paginated list with 'Load more' button (not infinite scroll).",
+      "acceptanceCriteria": [
+        "GET /api/activity returns paginated events derived from memory timestamps",
+        "Events include created, updated, and surfaced types",
+        "Events sorted newest-first with correct pagination",
+        "Frontend renders event list with type, timestamp, slug, and context",
+        "Load more button fetches next page",
+        "targ check-full passes",
+        "npm run build succeeds"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": "Alternative to creation-log.jsonl: derive activity from memory TOML fields (created_at, updated_at, pending_evaluations[].surfaced_at)"
+    },
+    {
+      "id": "US-015",
+      "title": "Empty states for all pages",
+      "description": "Add empty states to every page for zero-data scenarios. Dashboard: 'No memories yet. Memories are created automatically as you use Claude Code with engram installed.' with clean empty charts (no broken renders). Detail 404: 'Memory not found or archived' with back link. Surface: 'Enter a query to see which memories would surface.' Projects: 'No projects yet.' Activity: 'No activity yet.' All empty states should feel onboarding-friendly, not error-like.",
+      "acceptanceCriteria": [
+        "Dashboard shows friendly empty message and charts render empty (not broken)",
+        "Detail shows 404 message with back link for missing memories",
+        "Surface shows prompt text when no query entered",
+        "Projects shows empty message when no projects",
+        "Activity shows empty message when no events",
+        "npm run build succeeds"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": "Target audience is all engram users, not just power users — clear labels, no assumption of internals knowledge"
+    },
+    {
+      "id": "US-016",
+      "title": "Loading states, error handling, and keyboard navigation",
+      "description": "Add loading and error UX across all pages. Loading: skeleton placeholders for stat cards, table rows, and detail sections while TanStack Query fetches. Error: error boundaries with retry buttons, TanStack Query error states with descriptive messages. Keyboard: Tab through table rows, Enter to select/navigate, Escape to close dialogs/modals, focus management on route changes.",
+      "acceptanceCriteria": [
+        "Loading skeletons visible during data fetches on all pages",
+        "Error states show descriptive message with retry button",
+        "Tab navigates through table rows",
+        "Enter on focused table row navigates to detail",
+        "Escape closes open dialogs",
+        "npm run build succeeds"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
