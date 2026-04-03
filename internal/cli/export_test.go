@@ -13,6 +13,8 @@ var (
 	ExportApplyProjectSlugDefault = applyProjectSlugDefault
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportRecordSurfacing         = recordSurfacing
+	ExportRenderFactContent       = renderFactContent
+	ExportRenderMemoryContent     = renderMemoryContent
 	ExportRenderMemoryMeta        = renderMemoryMeta
 )
 

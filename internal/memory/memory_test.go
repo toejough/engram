@@ -20,6 +20,56 @@ func TestFeedbackDir(t *testing.T) {
 	g.Expect(memory.FeedbackDir("/data")).To(Equal("/data/memory/feedback"))
 }
 
+func TestResolveMemoryPath_FactsSecond(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	existingFiles := map[string]bool{
+		"/data/memory/facts/my-fact.toml": true,
+	}
+	exists := func(path string) bool { return existingFiles[path] }
+
+	result := memory.ResolveMemoryPath("/data", "my-fact", exists)
+	g.Expect(result).To(Equal("/data/memory/facts/my-fact.toml"))
+}
+
+func TestResolveMemoryPath_FeedbackFirst(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	existingFiles := map[string]bool{
+		"/data/memory/feedback/my-mem.toml": true,
+		"/data/memories/my-mem.toml":        true,
+	}
+	exists := func(path string) bool { return existingFiles[path] }
+
+	result := memory.ResolveMemoryPath("/data", "my-mem", exists)
+	g.Expect(result).To(Equal("/data/memory/feedback/my-mem.toml"))
+}
+
+func TestResolveMemoryPath_LegacyFallback(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	existingFiles := map[string]bool{
+		"/data/memories/old-mem.toml": true,
+	}
+	exists := func(path string) bool { return existingFiles[path] }
+
+	result := memory.ResolveMemoryPath("/data", "old-mem", exists)
+	g.Expect(result).To(Equal("/data/memories/old-mem.toml"))
+}
+
+func TestResolveMemoryPath_NoneExist_ReturnsLegacy(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	exists := func(_ string) bool { return false }
+
+	result := memory.ResolveMemoryPath("/data", "missing", exists)
+	g.Expect(result).To(Equal("/data/memories/missing.toml"))
+}
+
 func TestStored_SearchText(t *testing.T) {
 	t.Parallel()
 

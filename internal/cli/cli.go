@@ -156,11 +156,11 @@ func applyProjectSlugDefault(slug *string, getwd func() (string, error)) error {
 }
 
 // buildRecallSurfacer creates a memory surfacer for the recall pipeline.
-// Returns nil surfacer (not an error) when the memories directory does not exist.
+// Returns nil surfacer (not an error) when no memory directories exist.
 func buildRecallSurfacer(_ context.Context, dataDir string) (recall.MemorySurfacer, error) {
 	lister := memory.NewLister()
 
-	_, memErr := lister.ListStored(memory.MemoriesDir(dataDir))
+	_, memErr := lister.ListAllMemories(dataDir)
 	if memErr != nil {
 		if errors.Is(memErr, os.ErrNotExist) {
 			return nil, nil //nolint:nilnil // nil surfacer is valid when no memories exist

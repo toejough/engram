@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -69,6 +70,17 @@ func (l *Lister) ListAll(dir string) ([]StoredRecord, error) {
 	return records, nil
 }
 
+// ListAllMemories reads memories from the new layout (memory/feedback/ + memory/facts/)
+// when available, falling back to the legacy memories/ directory.
+// It returns all memories sorted by UpdatedAt descending.
+func (l *Lister) ListAllMemories(dataDir string) ([]*Stored, error) {
+	if l.hasNewLayout(dataDir) {
+		return l.listFromNewLayout(dataDir)
+	}
+
+	return l.ListStored(MemoriesDir(dataDir))
+}
+
 // ListStored reads all .toml files from a directory, converts them to Stored,
 // and returns them sorted by UpdatedAt descending.
 func (l *Lister) ListStored(dir string) ([]*Stored, error) {
@@ -88,6 +100,46 @@ func (l *Lister) ListStored(dir string) ([]*Stored, error) {
 	})
 
 	return stored, nil
+}
+
+// hasNewLayout returns true if the feedback directory exists and is non-empty.
+func (l *Lister) hasNewLayout(dataDir string) bool {
+	entries, err := l.readDir(FeedbackDir(dataDir))
+	if err != nil {
+		return false
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".toml") {
+			return true
+		}
+	}
+
+	return false
+}
+
+// listFromNewLayout reads memories from both feedback/ and facts/ directories,
+// merges them, and returns sorted by UpdatedAt descending.
+func (l *Lister) listFromNewLayout(dataDir string) ([]*Stored, error) {
+	feedbackMemories, feedbackErr := l.ListStored(FeedbackDir(dataDir))
+	if feedbackErr != nil && !isNotExist(feedbackErr) {
+		return nil, fmt.Errorf("listing feedback: %w", feedbackErr)
+	}
+
+	factsMemories, factsErr := l.ListStored(FactsDir(dataDir))
+	if factsErr != nil && !isNotExist(factsErr) {
+		return nil, fmt.Errorf("listing facts: %w", factsErr)
+	}
+
+	combined := make([]*Stored, 0, len(feedbackMemories)+len(factsMemories))
+	combined = append(combined, feedbackMemories...)
+	combined = append(combined, factsMemories...)
+
+	sort.Slice(combined, func(i, j int) bool {
+		return combined[i].UpdatedAt.After(combined[j].UpdatedAt)
+	})
+
+	return combined, nil
 }
 
 // ListerOption configures a Lister.
@@ -167,4 +219,9 @@ func WithModifierReadFile(fn func(string) ([]byte, error)) ModifierOption {
 // WithModifierWriter sets the AtomicWriter for atomic writes.
 func WithModifierWriter(w AtomicWriter) ModifierOption {
 	return func(m *Modifier) { m.writer = w }
+}
+
+// isNotExist checks if an error wraps os.ErrNotExist.
+func isNotExist(err error) bool {
+	return errors.Is(err, os.ErrNotExist)
 }

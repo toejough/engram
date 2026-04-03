@@ -63,6 +63,29 @@ func NameFromPath(path string) string {
 	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
+// ResolveMemoryPath finds the TOML file for a slug, checking new layout directories
+// (memory/feedback/, memory/facts/) first, then falling back to legacy memories/.
+// The fileExists function is injected for testability.
+func ResolveMemoryPath(dataDir, slug string, fileExists func(string) bool) string {
+	filename := slug + ".toml"
+
+	candidates := []string{
+		filepath.Join(FeedbackDir(dataDir), filename),
+		filepath.Join(FactsDir(dataDir), filename),
+		filepath.Join(MemoriesDir(dataDir), filename),
+	}
+
+	for _, path := range candidates {
+		if fileExists(path) {
+			return path
+		}
+	}
+
+	// Fall back to legacy path even if it doesn't exist, so the caller
+	// gets a meaningful "file not found" error.
+	return filepath.Join(MemoriesDir(dataDir), filename)
+}
+
 // unexported constants.
 const (
 	searchTextCapacity = 4

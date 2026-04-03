@@ -77,6 +77,37 @@ func TestBuildRecallSurfacer(t *testing.T) {
 
 		g.Expect(surfacer).NotTo(BeNil())
 	})
+
+	t.Run("returns surfacer when new layout exists", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		dataDir := t.TempDir()
+		feedbackDir := filepath.Join(dataDir, "memory", "feedback")
+		mkErr := os.MkdirAll(feedbackDir, 0o750)
+		g.Expect(mkErr).NotTo(HaveOccurred())
+
+		if mkErr != nil {
+			return
+		}
+
+		tomlContent := "type = \"feedback\"\nsituation = \"test\"\n\n[content]\nbehavior = \"test\"\n"
+		writeErr := os.WriteFile(filepath.Join(feedbackDir, "test.toml"), []byte(tomlContent), 0o640)
+		g.Expect(writeErr).NotTo(HaveOccurred())
+
+		if writeErr != nil {
+			return
+		}
+
+		surfacer, err := cli.ExportBuildRecallSurfacer(context.Background(), dataDir)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(surfacer).NotTo(BeNil())
+	})
 }
 
 func TestRecallSurfacer(t *testing.T) {

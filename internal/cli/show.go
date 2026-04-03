@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"path/filepath"
+	"os"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -55,6 +55,16 @@ func extractSlug(args []string) (string, []string) {
 	return "", remaining
 }
 
+// fileExists returns true if the path exists and is a regular file.
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	return !info.IsDir()
+}
+
 // loadMemoryTOML reads and decodes a single memory TOML file into MemoryRecord.
 func loadMemoryTOML(path string) (*memory.MemoryRecord, error) {
 	var record memory.MemoryRecord
@@ -67,15 +77,27 @@ func loadMemoryTOML(path string) (*memory.MemoryRecord, error) {
 	return &record, nil
 }
 
-// renderMemory writes formatted SBIA memory details to w.
-// Only fields with non-empty/non-zero values are printed.
-func renderMemory(writer io.Writer, mem *memory.MemoryRecord) {
-	renderMemoryContent(writer, mem)
-	renderMemoryMeta(writer, mem)
+// renderFactContent writes fact-specific fields to w.
+func renderFactContent(writer io.Writer, mem *memory.MemoryRecord) {
+	if mem.Situation != "" {
+		_, _ = fmt.Fprintf(writer, "Situation: %s\n", mem.Situation)
+	}
+
+	if mem.Content.Subject != "" {
+		_, _ = fmt.Fprintf(writer, "Subject: %s\n", mem.Content.Subject)
+	}
+
+	if mem.Content.Predicate != "" {
+		_, _ = fmt.Fprintf(writer, "Predicate: %s\n", mem.Content.Predicate)
+	}
+
+	if mem.Content.Object != "" {
+		_, _ = fmt.Fprintf(writer, "Object: %s\n", mem.Content.Object)
+	}
 }
 
-// renderMemoryContent writes the SBIA content fields of a memory record to w.
-func renderMemoryContent(writer io.Writer, mem *memory.MemoryRecord) {
+// renderFeedbackContent writes feedback-specific SBIA fields to w.
+func renderFeedbackContent(writer io.Writer, mem *memory.MemoryRecord) {
 	if mem.Situation != "" {
 		_, _ = fmt.Fprintf(writer, "Situation: %s\n", mem.Situation)
 	}
@@ -90,6 +112,31 @@ func renderMemoryContent(writer io.Writer, mem *memory.MemoryRecord) {
 
 	if mem.Content.Action != "" {
 		_, _ = fmt.Fprintf(writer, "Action: %s\n", mem.Content.Action)
+	}
+}
+
+// renderMemory writes formatted SBIA memory details to w.
+// Only fields with non-empty/non-zero values are printed.
+func renderMemory(writer io.Writer, mem *memory.MemoryRecord) {
+	renderMemoryContent(writer, mem)
+	renderMemoryMeta(writer, mem)
+}
+
+// renderMemoryContent writes the content fields of a memory record to w.
+// Facts show Subject/Predicate/Object; feedback shows Situation/Behavior/Impact/Action.
+func renderMemoryContent(writer io.Writer, mem *memory.MemoryRecord) {
+	if mem.Type != "" {
+		_, _ = fmt.Fprintf(writer, "Type: %s\n", mem.Type)
+	}
+
+	if mem.Type == "fact" {
+		renderFactContent(writer, mem)
+	} else {
+		renderFeedbackContent(writer, mem)
+	}
+
+	if mem.Source != "" {
+		_, _ = fmt.Fprintf(writer, "Source: %s\n", mem.Source)
 	}
 }
 
@@ -164,7 +211,7 @@ func runShow(args []string, stdout io.Writer) error {
 		return errShowMissingSlug
 	}
 
-	memPath := filepath.Join(memory.MemoriesDir(*dataDir), slug+".toml")
+	memPath := memory.ResolveMemoryPath(*dataDir, slug, fileExists)
 
 	mem, err := loadMemoryTOML(memPath)
 	if err != nil {

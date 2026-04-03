@@ -832,6 +832,10 @@ type fakeRetriever struct {
 	err      error
 }
 
+func (f *fakeRetriever) ListAllMemories(_ string) ([]*memory.Stored, error) {
+	return f.memories, f.err
+}
+
 func (f *fakeRetriever) ListStored(_ string) ([]*memory.Stored, error) {
 	return f.memories, f.err
 }

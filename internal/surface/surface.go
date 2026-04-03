@@ -35,6 +35,7 @@ type InvocationTokenLogger interface {
 // MemoryRetriever lists stored memories from disk (ARCH-9).
 type MemoryRetriever interface {
 	ListStored(dir string) ([]*memory.Stored, error)
+	ListAllMemories(dataDir string) ([]*memory.Stored, error)
 }
 
 // MemoryTracker records surfacing events for instrumentation (ARCH-19).
@@ -177,7 +178,7 @@ func (s *Surfacer) runPrompt(
 	ctx context.Context,
 	dataDir, message, transcriptWindow, currentProjectSlug string,
 ) (Result, []*memory.Stored, error) {
-	memories, err := s.retriever.ListStored(memory.MemoriesDir(dataDir))
+	memories, err := s.retriever.ListAllMemories(dataDir)
 	if err != nil {
 		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}

@@ -132,6 +132,183 @@ func TestListAll_SkipsSubdirectories(t *testing.T) {
 	g.Expect(records[0].Record.Situation).To(Equal("valid situation"))
 }
 
+func TestLister_ListAllMemories_EmptyFeedbackUsesLegacy(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Create empty feedback dir and populated legacy dir.
+	feedbackDir := filepath.Join(dataDir, "memory", "feedback")
+	legacyDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(feedbackDir, 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(legacyDir, 0o750)).To(Succeed())
+
+	legacyContent := `situation = "legacy mem"
+updated_at = "2024-01-01T00:00:00Z"
+
+[content]
+action = "do something"
+`
+
+	writeErr := os.WriteFile(
+		filepath.Join(legacyDir, "old.toml"),
+		[]byte(legacyContent), 0o644,
+	)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	lister := memory.NewLister()
+	stored, err := lister.ListAllMemories(dataDir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stored).To(HaveLen(1))
+
+	if len(stored) < 1 { // nilaway guard
+		return
+	}
+
+	g.Expect(stored[0].Situation).To(Equal("legacy mem"))
+}
+
+func TestLister_ListAllMemories_LegacyFallback(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Create only legacy directory.
+	legacyDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(legacyDir, 0o750)).To(Succeed())
+
+	legacyContent := `situation = "legacy mem"
+updated_at = "2024-01-01T00:00:00Z"
+
+[content]
+action = "do something"
+`
+
+	writeErr := os.WriteFile(
+		filepath.Join(legacyDir, "old.toml"),
+		[]byte(legacyContent), 0o644,
+	)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	lister := memory.NewLister()
+	stored, err := lister.ListAllMemories(dataDir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stored).To(HaveLen(1))
+
+	if len(stored) < 1 { // nilaway guard
+		return
+	}
+
+	g.Expect(stored[0].Situation).To(Equal("legacy mem"))
+}
+
+func TestLister_ListAllMemories_NewLayout(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Create new layout directories with files.
+	feedbackDir := filepath.Join(dataDir, "memory", "feedback")
+	factsDir := filepath.Join(dataDir, "memory", "facts")
+
+	g.Expect(os.MkdirAll(feedbackDir, 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(factsDir, 0o750)).To(Succeed())
+
+	feedbackContent := `type = "feedback"
+situation = "feedback mem"
+updated_at = "2024-06-01T00:00:00Z"
+
+[content]
+behavior = "test"
+`
+	factContent := `type = "fact"
+situation = "fact context"
+updated_at = "2024-07-01T00:00:00Z"
+
+[content]
+subject = "project"
+predicate = "uses"
+object = "Go"
+`
+
+	writeErr := os.WriteFile(
+		filepath.Join(feedbackDir, "fb.toml"),
+		[]byte(feedbackContent), 0o644,
+	)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	writeErr = os.WriteFile(
+		filepath.Join(factsDir, "fact.toml"),
+		[]byte(factContent), 0o644,
+	)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	lister := memory.NewLister()
+	stored, err := lister.ListAllMemories(dataDir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stored).To(HaveLen(2))
+
+	if len(stored) < 2 { // nilaway guard
+		return
+	}
+
+	// Sorted by UpdatedAt descending: fact (July) before feedback (June).
+	g.Expect(stored[0].Type).To(Equal("fact"))
+	g.Expect(stored[1].Type).To(Equal("feedback"))
+}
+
+func TestLister_ListAllMemories_NoDirs_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	// No directories at all - legacy path doesn't exist.
+
+	lister := memory.NewLister()
+	_, err := lister.ListAllMemories(dataDir)
+	g.Expect(err).To(HaveOccurred())
+}
+
 func TestLister_ListAll_UsesDI(t *testing.T) {
 	t.Parallel()
 
