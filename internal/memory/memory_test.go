@@ -8,6 +8,18 @@ import (
 	"engram/internal/memory"
 )
 
+func TestFactsDir(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+	g.Expect(memory.FactsDir("/data")).To(Equal("/data/memory/facts"))
+}
+
+func TestFeedbackDir(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+	g.Expect(memory.FeedbackDir("/data")).To(Equal("/data/memory/feedback"))
+}
+
 func TestStored_SearchText(t *testing.T) {
 	t.Parallel()
 

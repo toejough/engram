@@ -42,6 +42,16 @@ func (s *Stored) TotalEvaluations() int {
 	return s.FollowedCount + s.NotFollowedCount + s.IrrelevantCount
 }
 
+// FactsDir returns the directory for fact memory files.
+func FactsDir(dataDir string) string {
+	return filepath.Join(dataDir, "memory", "facts")
+}
+
+// FeedbackDir returns the directory for feedback memory files.
+func FeedbackDir(dataDir string) string {
+	return filepath.Join(dataDir, "memory", "feedback")
+}
+
 // MemoriesDir returns the path to the memories subdirectory within a data directory.
 func MemoriesDir(dataDir string) string {
 	return filepath.Join(dataDir, "memories")
