@@ -147,7 +147,7 @@ When creating:
 **Concrete failure signals (same agent, same thread):**
 - Agent posts `done`/`info` → user-parroted correction follows. High confidence.
 - Agent posts `done`/`info` → same agent posts a new intent explicitly reversing the action ("reverting", "undoing", "going back to"). High confidence.
-- Another agent posts `wait` with evidence of a problem caused by the action. Medium confidence.
+- Another agent posts `wait` with evidence of a problem caused by the action. Medium confidence (0.4).
 
 **Not a failure:** Agent adjusts approach mid-stream before posting `done` (that's refinement). Agent changes approach based on new information from another agent (that's coordination).
 
