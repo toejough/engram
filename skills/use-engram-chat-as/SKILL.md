@@ -80,12 +80,12 @@ PROJECT_SLUG=$(realpath "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | 
 
 ## Chat File Lifecycle
 
-Chat files are **per-session, not persistent**. The deterministic location provides discoverability, not permanence.
+Chat files are **persistent and append-only**. They grow forever. Prior sessions contain valuable dialog — decisions, context, learned facts.
 
 - **Session start:** The first agent to join creates the chat file if it doesn't exist.
-- **Session end:** The agent that initiates shutdown (lead or standalone active agent) truncates the chat file after all agents have posted their final `done` messages. Truncation = write an empty file, not delete -- this avoids race conditions with agents that haven't fully exited yet.
-- **Stale detection:** On join, if a chat file already exists, check the last message's `ts` field. If older than 1 hour, treat as stale: truncate before posting. If within 1 hour, assume active session and join normally (read full history, then participate).
-- **No archival.** Old chat sessions are not preserved. The chat file is a coordination channel, not a record. The engram-agent extracts durable knowledge into memory files -- that's the persistent layer.
+- **Joining an existing chat:** Read the last 20 messages to get an idea of what's been going on. Read further back if you need more context. Do NOT truncate, delete, or overwrite the file — prior conversations may contain important context.
+- **Session end:** Agents post their final `done` messages. The chat file is NOT truncated — the next session picks up where this one left off.
+- **Never truncate.** The chat file is a persistent record of agent coordination. The engram-agent also extracts durable knowledge into memory files, but the raw chat is preserved for context.
 
 ## Message Format
 
@@ -402,7 +402,7 @@ The user can dismiss agents with phrases like "stand down", "you're done", "shut
 ```
 1. Derive chat file path from $PWD
 2. Create chat directory if needed
-3. Check for stale session (last message ts > 1 hour ago -> truncate)
+3. Read last 20 messages to catch up (read further back if needed)
 4. Read chat file (catch up on history)
 5. Load resources (memories, configs, etc.)
 6. Start fswatch loop
@@ -453,12 +453,12 @@ Heartbeats use `type = "info"` because they are informational status updates, no
 | Ignore `shutdown` message | Exit fswatch loop after completing in-flight work and posting `done` |
 | Post intent before others are ready | In lead setup: wait for expected `ready` messages (30s timeout) |
 | Use old field names (`[[entry]]`, `message =`) | Clean break: use `[[message]]` and `text =` |
-| Assume chat file is persistent across sessions | Chat files are ephemeral -- truncated between sessions |
+| Truncate or delete the chat file | Chat files are persistent -- prior sessions contain valuable context |
 | Skip heartbeat in long-lived reactive agent | Post heartbeat every 5 min so others know you're alive |
 
 ## Chat File Management
 
-The chat file is append-only and unbounded within a session. It grows for the duration of a coordination session. There is no rotation or truncation mid-session -- the lead truncates on shutdown.
+The chat file is append-only and unbounded. It grows forever across sessions. There is no rotation, truncation, or archival. New agents joining read the last 20 messages to catch up, reading further back if needed.
 
 ## Observability
 
