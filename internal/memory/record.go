@@ -13,6 +13,8 @@ import (
 //
 //nolint:revive // "memory.MemoryRecord" stutter is intentional for clarity. See #353.
 type MemoryRecord struct {
+	SchemaVersion int `toml:"schema_version,omitempty"`
+
 	Situation string `toml:"situation"`
 	Behavior  string `toml:"behavior"`
 	Impact    string `toml:"impact"`
@@ -24,10 +26,12 @@ type MemoryRecord struct {
 	CreatedAt string `toml:"created_at"`
 	UpdatedAt string `toml:"updated_at"`
 
-	SurfacedCount    int `toml:"surfaced_count"`
-	FollowedCount    int `toml:"followed_count"`
-	NotFollowedCount int `toml:"not_followed_count"`
-	IrrelevantCount  int `toml:"irrelevant_count"`
+	SurfacedCount     int     `toml:"surfaced_count"`
+	FollowedCount     int     `toml:"followed_count"`
+	NotFollowedCount  int     `toml:"not_followed_count"`
+	IrrelevantCount   int     `toml:"irrelevant_count"`
+	MissedCount       int     `toml:"missed_count"`
+	InitialConfidence float64 `toml:"initial_confidence,omitempty"`
 
 	PendingEvaluations []PendingEvaluation `toml:"pending_evaluations,omitempty"`
 }
