@@ -63,19 +63,20 @@ func (r *MemoryRecord) ToStored(filePath string) *Stored {
 	}
 
 	return &Stored{
-		Type:              r.Type,
-		Situation:         r.Situation,
-		Content:           r.Content,
-		Core:              r.Core,
-		InitialConfidence: r.InitialConfidence,
-		ProjectScoped:     r.ProjectScoped,
-		ProjectSlug:       r.ProjectSlug,
-		SurfacedCount:     r.SurfacedCount,
-		FollowedCount:     r.FollowedCount,
-		NotFollowedCount:  r.NotFollowedCount,
-		IrrelevantCount:   r.IrrelevantCount,
-		UpdatedAt:         updatedAt,
-		FilePath:          filePath,
+		Type:               r.Type,
+		Situation:          r.Situation,
+		Content:            r.Content,
+		Core:               r.Core,
+		InitialConfidence:  r.InitialConfidence,
+		ProjectScoped:      r.ProjectScoped,
+		ProjectSlug:        r.ProjectSlug,
+		SurfacedCount:      r.SurfacedCount,
+		FollowedCount:      r.FollowedCount,
+		NotFollowedCount:   r.NotFollowedCount,
+		IrrelevantCount:    r.IrrelevantCount,
+		UpdatedAt:          updatedAt,
+		FilePath:           filePath,
+		PendingEvaluations: r.PendingEvaluations,
 	}
 }
 

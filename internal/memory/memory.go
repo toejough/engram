@@ -9,19 +9,20 @@ import (
 
 // Stored represents a memory read back from a TOML file on disk (ARCH-9).
 type Stored struct {
-	Type              string
-	Situation         string
-	Content           ContentFields
-	Core              bool
-	InitialConfidence float64
-	ProjectScoped     bool
-	ProjectSlug       string
-	SurfacedCount     int
-	FollowedCount     int
-	NotFollowedCount  int
-	IrrelevantCount   int
-	UpdatedAt         time.Time
-	FilePath          string
+	Type               string
+	Situation          string
+	Content            ContentFields
+	Core               bool
+	InitialConfidence  float64
+	ProjectScoped      bool
+	ProjectSlug        string
+	SurfacedCount      int
+	FollowedCount      int
+	NotFollowedCount   int
+	IrrelevantCount    int
+	UpdatedAt          time.Time
+	FilePath           string
+	PendingEvaluations []PendingEvaluation
 }
 
 // SearchText returns a concatenation of all searchable fields for retrieval scoring.
