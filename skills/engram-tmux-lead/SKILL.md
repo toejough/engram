@@ -27,7 +27,24 @@ If not inside a tmux session, or if `tmux` is not installed:
 - Report to user: "tmux is required for multi-agent orchestration. Install with: `brew install tmux` and run inside a tmux session. I can still work as a single agent without delegation."
 - Fall back to direct execution mode — handle everything yourself, no delegation.
 
-### 1.3 Spawn engram-agent
+### 1.3 Open chat tail pane
+
+Split the user's current window to show a live chat feed. This gives the user real-time visibility into agent coordination without switching windows.
+
+```bash
+# Derive the chat file path
+PROJECT_SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+CHAT_FILE="$HOME/.local/share/engram/chat/${PROJECT_SLUG}.toml"
+mkdir -p "$(dirname "$CHAT_FILE")"
+touch "$CHAT_FILE"
+
+# Split current window horizontally — chat tail in bottom pane
+tmux split-window -v -l 15 "tail -f $CHAT_FILE"
+```
+
+The pane is small (15 lines) so it doesn't crowd the user's workspace. The user can resize or close it anytime.
+
+### 1.4 Spawn engram-agent
 
 **ALWAYS spawn this. NEVER skip. Not for "simple" tasks. Not for "quick" tasks. Not because "I can handle it myself." The engram-agent is the memory safety net — without it, you learn nothing and surface nothing. Spawn it BEFORE touching the user's request.**
 
@@ -36,7 +53,7 @@ tmux new-window -n "engram-agent" \
   "claude --dangerously-skip-permissions --prompt '/use-engram-chat-as reactive memory agent named engram-agent' 2>&1 | tee /tmp/engram-engram-agent.log"
 ```
 
-### 1.4 Wait for engram-agent
+### 1.5 Wait for engram-agent
 
 Use a **polling loop** (not fswatch) to avoid the race where the agent posts between spawn and fswatch start:
 
@@ -55,7 +72,7 @@ If no engram-agent message appears within 30 seconds:
 2. Check log for errors: `tail -20 /tmp/engram-engram-agent.log`
 3. Report to user with diagnostic info. Do NOT silently proceed without memory.
 
-### 1.5 Post Ready and Start fswatch
+### 1.6 Post Ready and Start fswatch
 
 Post your `ready` message and enter the standard fswatch watch loop per the `use-engram-chat-as` protocol.
 
