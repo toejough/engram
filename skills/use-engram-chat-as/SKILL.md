@@ -1,0 +1,467 @@
+---
+name: use-engram-chat-as
+description: Use when independently-launched agents need to coordinate, when joining a multi-agent session, when told to communicate via engram chat, when using /use-engram-chat-as. Agents broadcast intent before acting, block on file-change notifications (not polling), and wait briefly for objections before proceeding. Symptoms that trigger this skill: agents missing messages, needing to coordinate before acting, multiple agents in separate terminals.
+---
+
+# Engram Chat Protocol
+
+Protocol for independently-launched Claude Code agents to coordinate through a shared TOML chat file. Agents announce intent before acting and wait briefly for objections. One file per project, lockfile for writes, fswatch for notifications.
+
+## Invocation
+
+```
+/use-engram-chat-as <role-description>
+```
+
+The role description is free-form text. Examples:
+
+- `reactive memory agent named engram-agent`
+- `reviewer named bob, who uses code review skills`
+- `/engram-tmux-lead` -- special case, loads lead orchestrator behavior
+
+The skill parses out:
+- **Agent name**: extracted from "named X" in the role description. Required.
+- **Role type**: `active` if not stated, `reactive` if the word "reactive" appears.
+- **Behavioral context**: the full role description, included in the agent's system context.
+
+## When to Use
+
+- Multiple agents need to coordinate (any number, any roles)
+- Agents launched independently by the user in separate terminals
+- You're told to communicate via engram chat
+- You need to announce what you're about to do and give others a chance to object
+
+## Agent Roles
+
+Agents declare a role in their introduction message:
+
+- **Active** -- broadcasts intent before acting, waits for responses. Can also react to others' messages.
+- **Reactive** -- never broadcasts intent. Only reacts to other agents' messages. Skips the intent protocol entirely for its own actions.
+
+The role is purely self-behavioral. It does NOT change how others treat your responses. If an active agent addresses you in an intent and you post a WAIT, they must respect it regardless of your role.
+
+### User Input Parroting
+
+Active agents MUST parrot user submissions into the chat file as `info` messages. This gives reactive agents visibility into user corrections and feedback. Without this, reactive agents are blind to user intent. This is honor-system -- there is no technical enforcement.
+
+```toml
+[[message]]
+from = "executor"
+to = "all"
+thread = "user-input"
+type = "info"
+ts = "2026-04-03T14:30:00Z"
+text = """
+[User]: Fix the authentication bug in the login handler.
+"""
+```
+
+## Chat File Location
+
+**Location:** `~/.claude/engram/data/chat/<project-slug>.toml`
+
+Derived from `$PWD` using the project slug convention.
+
+**Slug derivation:** The project slug is the basename of the git root directory (resolved through symlinks), lowercased, with non-alphanumeric characters replaced by hyphens. If not in a git repo, use the basename of the resolved `$PWD`.
+
+| `$PWD` | Git root | Slug | Chat file |
+|--------|----------|------|-----------|
+| `/Users/joe/repos/engram` | `/Users/joe/repos/engram` | `engram` | `~/.claude/engram/data/chat/engram.toml` |
+| `/Users/joe/repos/My Project/src` | `/Users/joe/repos/My Project` | `my-project` | `~/.claude/engram/data/chat/my-project.toml` |
+| `/tmp/scratch` | (none) | `scratch` | `~/.claude/engram/data/chat/scratch.toml` |
+
+**Symlinks:** Always resolve symlinks before deriving the slug. Use `realpath` (macOS) on the git root or `$PWD`. This ensures two agents in symlinked paths to the same repo use the same chat file.
+
+**Directory creation:** The skill creates `~/.claude/engram/data/chat/` on first use if it doesn't exist.
+
+## Chat File Lifecycle
+
+Chat files are **per-session, not persistent**. The deterministic location provides discoverability, not permanence.
+
+- **Session start:** The first agent to join creates the chat file if it doesn't exist.
+- **Session end:** The agent that initiates shutdown (lead or standalone active agent) truncates the chat file after all agents have posted their final `done` messages. Truncation = write an empty file, not delete -- this avoids race conditions with agents that haven't fully exited yet.
+- **Stale detection:** On join, if a chat file already exists, check the last message's `ts` field. If older than 1 hour, treat as stale: truncate before posting. If within 1 hour, assume active session and join normally (read full history, then participate).
+- **No archival.** Old chat sessions are not preserved. The chat file is a coordination channel, not a record. The engram-agent extracts durable knowledge into memory files -- that's the persistent layer.
+
+## Message Format
+
+```toml
+[[message]]
+from = "executor"
+to = "engram-agent, reviewer"
+thread = "implementation"
+type = "intent"
+ts = "2026-04-03T14:30:00Z"
+text = """
+Your message here. Multi-line is fine.
+"""
+```
+
+Every message has these fields:
+- **from**: Your agent name (required)
+- **to**: Comma-separated recipient names or `"all"` for broadcast (required)
+- **thread**: Conversational thread name (required)
+- **type**: One of `intent`, `ack`, `wait`, `info`, `done`, `learned`, `ready`, `shutdown`, `escalate` (required)
+- **ts**: ISO 8601 timestamp (required on all message types)
+- **text**: The content (required)
+
+## Message Type Catalog
+
+| Type | Purpose | Emitted by | Response expected |
+|------|---------|-----------|-------------------|
+| `intent` | Announce situation + planned action before acting | Active agents | ACK/WAIT within 500ms |
+| `ack` | No objection, proceed; or early concession in argument | Any agent | No |
+| `wait` | Objection, memory to surface, or request to pause | Any agent | Initiator response |
+| `info` | Status updates, user-parroted input, resolution recording | Any agent | No |
+| `done` | Task/action completed; final message before shutdown | Any agent | No |
+| `learned` | Knowledge extracted from work (fact signal for engram-agent) | Active agents | No (silent processing) |
+| `ready` | Agent initialization complete, watching chat | Any agent | No (but spawners may wait for it) |
+| `shutdown` | Signal agent to exit after completing in-flight work | Lead or active agent | `done` message |
+| `escalate` | Unresolved argument, needs user decision via lead | Reactor in argument | Lead surfaces to user |
+
+## Writing Messages
+
+Always lock before appending:
+
+```bash
+# Derive chat file path
+CHAT_FILE="$HOME/.claude/engram/data/chat/$(basename "$(git rev-parse --show-toplevel 2>/dev/null || realpath "$PWD")" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g').toml"
+mkdir -p "$(dirname "$CHAT_FILE")"
+
+# Lock, append, unlock (macOS shlock)
+while ! shlock -f "$CHAT_FILE.lock" -p $$; do sleep 0.1; done
+cat >> "$CHAT_FILE" << 'EOF'
+
+[[message]]
+from = "myname"
+to = "recipient"
+thread = "topic"
+type = "info"
+ts = "2026-04-03T14:30:00Z"
+text = """
+Content here.
+"""
+EOF
+rm -f "$CHAT_FILE.lock"
+```
+
+If `shlock` isn't available, use `mkdir "$CHAT_FILE.lock"` (atomic on POSIX) and `rmdir` to unlock.
+
+## Watching for Messages
+
+Use background tasks with file-change notifications -- do NOT poll with sleep loops.
+
+**The watch loop pattern:**
+
+1. Run `fswatch -1 "$CHAT_FILE"` (macOS) or `inotifywait -e modify "$CHAT_FILE"` (Linux) as a **background** Bash command (`run_in_background: true`).
+2. **Do NOT complete your turn.** You are waiting for the background task notification. When the file changes, the task completes and you receive a notification.
+3. When the notification arrives: read new content, process it, respond.
+4. Start a new background `fswatch -1 "$CHAT_FILE"`. Go back to step 2.
+
+**CRITICAL:** Between notifications, you are idle but NOT done. If you complete your turn (return to the prompt), the loop is broken and you miss all future messages. You must stay in your turn, waiting for the next background task notification.
+
+**Never exit the watch until the user explicitly dismisses you or you receive a `shutdown` message.**
+
+### Reading New Content
+
+Track where you left off by line number:
+
+```bash
+# First read: read everything
+wc -l < "$CHAT_FILE"  # save this as your cursor
+
+# Subsequent reads: read only new lines
+tail -n +$((cursor + 1)) "$CHAT_FILE"
+```
+
+### Joining Late
+
+If you join a channel that already has messages, read the entire file first to catch up before posting or watching.
+
+## Intent Protocol
+
+**Before taking any significant action, broadcast your intent and wait for responses.** This gives other agents a chance to surface relevant context, flag conflicts, or object.
+
+### The Flow
+
+```
+1. Post intent    -> type = "intent", describe situation + planned action
+2. Wait briefly   -> timeout 0.5 fswatch -1 "$CHAT_FILE" (block for up to 500ms)
+3. Check responses:
+   - All recipients ACKed (type = "ack")  -> proceed immediately
+   - Any recipient said WAIT (type = "wait") -> pause, read their full response, then decide
+   - Timeout with no response              -> proceed (implicit ack)
+4. Act
+5. Post result    -> type = "done" or "info"
+```
+
+### Intent Messages
+
+When you're about to do something that could affect others, broadcast:
+
+```toml
+[[message]]
+from = "executor"
+to = "engram-agent, reviewer"
+thread = "build"
+type = "intent"
+ts = "2026-04-03T14:30:00Z"
+text = """
+Situation: About to run targ check-full on the refactored cli package.
+Behavior: Will execute targ check-full which writes coverage files.
+"""
+```
+
+Use SBIA-style framing: describe the **situation** you see and the **behavior** you're about to take.
+
+### Responses
+
+**ACK** -- no objection, proceed:
+```toml
+[[message]]
+from = "engram-agent"
+to = "executor"
+thread = "build"
+type = "ack"
+ts = "2026-04-03T14:30:01Z"
+text = """
+No relevant memories. Proceed.
+"""
+```
+
+**WAIT** -- objection or additional context needed:
+```toml
+[[message]]
+from = "reviewer"
+to = "executor"
+thread = "build"
+type = "wait"
+ts = "2026-04-03T14:30:01Z"
+text = """
+I'm currently running targ check-full. Coverage files will clobber each other.
+Wait for my completion message before running yours.
+"""
+```
+
+### Timing
+
+The intent protocol uses `timeout 0.5 fswatch -1 "$CHAT_FILE"` -- a 500ms window. This is long enough for a responsive agent to ACK or WAIT, short enough to not noticeably slow down work.
+
+- **No agents listening?** Timeout fires, you proceed. Zero effective overhead.
+- **Fast ACK?** You proceed as soon as all recipients respond -- often under 200ms.
+- **WAIT received?** You pause for the full response. No fixed timeout -- the conversation continues until resolved.
+
+### When to Use Intent
+
+Use the intent protocol before:
+- Running build/test/coverage tools (resource conflicts)
+- Modifying shared files (merge conflicts)
+- Making architectural decisions (context others might have)
+- Committing or pushing (coordination with other branches)
+- Any action another agent asked you to check in about
+
+Skip the intent protocol for:
+- Reading files (no side effects)
+- Searching/grepping (no side effects)
+- Posting informational messages to chat
+
+## Argument Protocol
+
+When a WAIT leads to disagreement, the argument follows structured rules:
+
+- **Initiator** (the agent whose intent was challenged): responds **factually**. States reasoning, evidence, context. No defensiveness.
+- **Reactor** (the agent that posted WAIT): responds **aggressively**. Pushes back hard on weak reasoning. Agents default to thinking well of their own work -- the reactor counterbalances this.
+- **3 argument inputs max.** Reactor objection -> initiator response -> reactor counter. If still unresolved after 3 inputs, the reactor posts an `escalate` message addressed to the lead.
+- **Early concession.** If the initiator agrees with the reactor after the first objection, the initiator posts an `ack` to end the argument early.
+- **Resolution recording.** After the argument resolves (agreement, concession, user decision, or timeout), the reactor posts an `info` message with the resolution outcome for observability.
+
+### Lead-Mediated Escalation
+
+After 3 argument inputs with no resolution, the reactor posts an `escalate` message **addressed to the lead**:
+
+```toml
+[[message]]
+from = "engram-agent"
+to = "lead"
+thread = "build"
+type = "escalate"
+ts = "2026-04-03T15:45:00Z"
+text = """
+Unresolved disagreement with executor.
+Memory says: Never run targ check-full while another instance is running.
+executor says: The other instance finished 2 minutes ago.
+I say: I see no completion message in chat. Please verify before proceeding.
+Request: Ask the user whether to proceed or wait.
+"""
+```
+
+**Required fields in escalation text:**
+- Summary of both positions
+- Specific ask for the user (question to answer, decision to make)
+
+**Rules:**
+1. **Escalation target is always the lead.** Even if the lead is one of the arguing parties, escalation goes to the lead because only the lead has user access. The lead MUST surface lead-involved escalations fairly.
+2. **The lead MUST surface the escalation to the user.** Dropping escalations silently is a critical bug.
+3. **The lead posts the user's decision** as an `info` message on the same thread.
+4. **Resolution recording unchanged:** After resolution, the reactor posts an `info` message with the outcome.
+5. **Standalone agents (no lead):** If no `ready` message from an agent named `lead` exists in chat history, use standalone mode -- escalate to the initiating agent's UX instead. The initiating agent MUST surface the dispute to its user.
+
+## Learned Messages
+
+Active agents announce knowledge extracted from their work. This gives the engram-agent high-confidence signals for fact extraction.
+
+```toml
+[[message]]
+from = "executor"
+to = "engram-agent"
+thread = "implementation"
+type = "learned"
+ts = "2026-04-03T14:30:00Z"
+text = """
+engram -> uses -> targ for all build, test, and check operations.
+Context: Discovered during build failure -- running go test directly misses coverage thresholds.
+"""
+```
+
+**Semantics:**
+- Addressed to `engram-agent` (or `all`). Other agents may ignore `learned` messages.
+- Content should include subject-predicate-object triples where possible, plus context. Free-form is acceptable.
+- `learned` messages are high-confidence signals (same tier as explicit user corrections).
+- Only emit when the agent discovered something reusable across sessions. Not every `done` needs a `learned`.
+- **No response expected.** The engram-agent silently processes these. If extraction fails, the message is dropped (best-effort).
+
+## Ready Messages
+
+Agents announce they have completed initialization and are watching the chat. This provides a synchronization point.
+
+```toml
+[[message]]
+from = "engram-agent"
+to = "all"
+thread = "lifecycle"
+type = "ready"
+ts = "2026-04-03T14:25:00Z"
+text = "Loaded 47 feedback memories, 23 facts. Watching for intents."
+```
+
+**Semantics:**
+- Posted **once**, after the agent has: (1) read full chat history, (2) loaded resources, (3) started its fswatch loop.
+- Addressed to `all`. Every agent posts `ready` regardless of role.
+- The `text` field contains agent-specific initialization stats. No required format.
+
+**Who waits for whom:**
+- **Lead setup:** The lead waits for `ready` from spawned agents before routing work (30s timeout).
+- **Standalone setup:** Agents don't wait for each other. `ready` is informational.
+- **Late joiners:** Read full history on join. `ready` announces presence but doesn't replay missed intents.
+- **Reactive agents:** Post `ready` but do not wait for anyone else.
+
+## Shutdown Protocol
+
+### Shutdown Message
+
+```toml
+[[message]]
+from = "lead"
+to = "engram-agent"
+thread = "lifecycle"
+type = "shutdown"
+ts = "2026-04-03T16:00:00Z"
+text = "Session complete."
+```
+
+`shutdown` can be sent by the lead (or any active agent in a non-lead setup) to specific agents or to `all`.
+
+### Agent Shutdown Behavior
+
+When an agent receives a `shutdown` message addressed to it (or to `all`):
+
+1. **Stop accepting new work.** Do not process further intents or messages after the shutdown.
+2. **Complete in-flight work.** If currently executing, finish and post the result.
+3. **Post a final `done` message:**
+   ```toml
+   [[message]]
+   from = "engram-agent"
+   to = "all"
+   thread = "lifecycle"
+   type = "done"
+   ts = "2026-04-03T16:00:05Z"
+   text = "Shutting down. Session stats: surfaced 12 memories, learned 5 facts."
+   ```
+4. **Exit the fswatch loop.** The agent's turn is complete.
+
+### User-Initiated Shutdown
+
+The user can dismiss agents with phrases like "stand down", "you're done", "shut down". In a lead setup, the user says this to the lead, and the lead issues `shutdown` messages. In standalone, the agent recognizes dismissal and exits directly (posting `done` first).
+
+## Agent Lifecycle
+
+```
+1. Derive chat file path from $PWD
+2. Create chat directory if needed
+3. Check for stale session (last message ts > 1 hour ago -> truncate)
+4. Read chat file (catch up on history)
+5. Load resources (memories, configs, etc.)
+6. Start fswatch loop
+7. Post ready message (with ts)
+8. Block on fswatch
+9. fswatch returns -> read new messages
+10. Process messages addressed to you
+11. If acting: post intent -> wait -> act -> post result
+12. Post response (with lock)
+13. Go to step 8 -- ALWAYS. Even after completing a task.
+```
+
+**The watch only ends when:**
+- You receive a `shutdown` message addressed to you (or `all`)
+- The user explicitly dismisses you
+
+## Heartbeat
+
+Long-lived reactive agents post a heartbeat every 5 minutes using `type = "info"` on the `heartbeat` thread:
+
+```toml
+[[message]]
+from = "engram-agent"
+to = "all"
+thread = "heartbeat"
+type = "info"
+ts = "2026-04-03T14:35:00Z"
+text = "alive | queue: 0 | feedback: 47 loaded | facts: 23 loaded"
+```
+
+Heartbeats use `type = "info"` because they are informational status updates, not a distinct protocol event. The `thread = "heartbeat"` convention makes them filterable. Without heartbeats, a dead reactive agent is invisible.
+
+## Common Mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| Act without announcing intent | Always post intent before significant actions |
+| Poll with `sleep 2` loop | Use `fswatch -1` / `inotifywait` -- true kernel block |
+| Post a message then stop | Always re-enter the fswatch after posting |
+| Stop after task completion | Completing a task != dismissed. Watch for next assignment |
+| Ignore WAIT responses | A WAIT means stop and read -- the responder has critical context |
+| Forget the lockfile | Always lock before appending |
+| Edit existing messages | Never modify -- only append new messages |
+| Skip catch-up on join | Read full history before posting |
+| Escalate to initiating agent instead of lead | Check for lead `ready` in chat history; escalate to lead if present |
+| Skip `ready` message | Always post `ready` after initialization, before entering watch loop |
+| Emit `learned` for trivial observations | Only emit when knowledge is reusable across sessions |
+| Ignore `shutdown` message | Exit fswatch loop after completing in-flight work and posting `done` |
+| Post intent before others are ready | In lead setup: wait for expected `ready` messages (30s timeout) |
+| Use old field names (`[[entry]]`, `message =`) | Clean break: use `[[message]]` and `text =` |
+| Assume chat file is persistent across sessions | Chat files are ephemeral -- truncated between sessions |
+| Skip heartbeat in long-lived reactive agent | Post heartbeat every 5 min so others know you're alive |
+
+## Chat File Management
+
+The chat file is append-only and unbounded within a session. It grows for the duration of a coordination session. There is no rotation or truncation mid-session -- the lead truncates on shutdown.
+
+## Observability
+
+The user can watch all comms in real time:
+
+```bash
+tail -f ~/.claude/engram/data/chat/<project-slug>.toml
+```
+
+All intent, ack, wait, and result messages flow through one file -- full visibility into what every agent is doing and why.
