@@ -45,12 +45,12 @@ func suppressByTranscript(
 
 	for _, mem := range candidates {
 		// Check if the action text appears verbatim in the transcript.
-		if mem.Action != "" && strings.Contains(lower, strings.ToLower(mem.Action)) {
+		if mem.Content.Action != "" && strings.Contains(lower, strings.ToLower(mem.Content.Action)) {
 			events = append(events, SuppressionEvent{
 				MemoryID:     mem.FilePath,
 				Timestamp:    now,
 				Reason:       SuppressionReasonTranscript,
-				SuppressedBy: mem.Action,
+				SuppressedBy: mem.Content.Action,
 			})
 
 			continue

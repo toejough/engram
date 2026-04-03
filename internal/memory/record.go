@@ -6,6 +6,17 @@ import (
 	"time"
 )
 
+// ContentFields holds type-specific content for a memory record.
+// Feedback memories use Behavior/Impact/Action; fact memories use Subject/Predicate/Object.
+type ContentFields struct {
+	Behavior  string `toml:"behavior,omitempty"`
+	Impact    string `toml:"impact,omitempty"`
+	Action    string `toml:"action,omitempty"`
+	Subject   string `toml:"subject,omitempty"`
+	Predicate string `toml:"predicate,omitempty"`
+	Object    string `toml:"object,omitempty"`
+}
+
 // MemoryRecord is the canonical struct for reading and writing memory TOML files.
 //
 // ALL code that touches memory TOML must use this struct to prevent field loss.
@@ -15,10 +26,12 @@ import (
 type MemoryRecord struct {
 	SchemaVersion int `toml:"schema_version,omitempty"`
 
-	Situation string `toml:"situation"`
-	Behavior  string `toml:"behavior"`
-	Impact    string `toml:"impact"`
-	Action    string `toml:"action"`
+	Type   string `toml:"type"`
+	Source string `toml:"source,omitempty"`
+	Core   bool   `toml:"core,omitempty"`
+
+	Situation string        `toml:"situation"`
+	Content   ContentFields `toml:"content"`
 
 	ProjectScoped bool   `toml:"project_scoped"`
 	ProjectSlug   string `toml:"project_slug,omitempty"`
@@ -44,18 +57,19 @@ func (r *MemoryRecord) ToStored(filePath string) *Stored {
 	}
 
 	return &Stored{
-		Situation:        r.Situation,
-		Behavior:         r.Behavior,
-		Impact:           r.Impact,
-		Action:           r.Action,
-		ProjectScoped:    r.ProjectScoped,
-		ProjectSlug:      r.ProjectSlug,
-		SurfacedCount:    r.SurfacedCount,
-		FollowedCount:    r.FollowedCount,
-		NotFollowedCount: r.NotFollowedCount,
-		IrrelevantCount:  r.IrrelevantCount,
-		UpdatedAt:        updatedAt,
-		FilePath:         filePath,
+		Type:              r.Type,
+		Situation:         r.Situation,
+		Content:           r.Content,
+		Core:              r.Core,
+		InitialConfidence: r.InitialConfidence,
+		ProjectScoped:     r.ProjectScoped,
+		ProjectSlug:       r.ProjectSlug,
+		SurfacedCount:     r.SurfacedCount,
+		FollowedCount:     r.FollowedCount,
+		NotFollowedCount:  r.NotFollowedCount,
+		IrrelevantCount:   r.IrrelevantCount,
+		UpdatedAt:         updatedAt,
+		FilePath:          filePath,
 	}
 }
 

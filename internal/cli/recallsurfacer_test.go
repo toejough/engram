@@ -168,15 +168,15 @@ func TestRecordSurfacing(t *testing.T) {
 	dataDir := t.TempDir()
 	memPath := filepath.Join(dataDir, "test-memory.toml")
 
-	initialContent := `title = "test memory"
-content = "some content"
-observation_type = "preference"
-concepts = ["testing"]
-keywords = ["test"]
-confidence = "high"
+	initialContent := `situation = "test memory"
+type = "feedback"
 created_at = "2025-01-01T00:00:00Z"
 updated_at = "2025-01-01T00:00:00Z"
 surfaced_count = 0
+
+[content]
+behavior = "some behavior"
+action = "some action"
 `
 	writeErr := os.WriteFile(memPath, []byte(initialContent), 0o600)
 	g.Expect(writeErr).NotTo(HaveOccurred())

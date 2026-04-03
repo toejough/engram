@@ -80,16 +80,16 @@ func renderMemoryContent(writer io.Writer, mem *memory.MemoryRecord) {
 		_, _ = fmt.Fprintf(writer, "Situation: %s\n", mem.Situation)
 	}
 
-	if mem.Behavior != "" {
-		_, _ = fmt.Fprintf(writer, "Behavior: %s\n", mem.Behavior)
+	if mem.Content.Behavior != "" {
+		_, _ = fmt.Fprintf(writer, "Behavior: %s\n", mem.Content.Behavior)
 	}
 
-	if mem.Impact != "" {
-		_, _ = fmt.Fprintf(writer, "Impact: %s\n", mem.Impact)
+	if mem.Content.Impact != "" {
+		_, _ = fmt.Fprintf(writer, "Impact: %s\n", mem.Content.Impact)
 	}
 
-	if mem.Action != "" {
-		_, _ = fmt.Fprintf(writer, "Action: %s\n", mem.Action)
+	if mem.Content.Action != "" {
+		_, _ = fmt.Fprintf(writer, "Action: %s\n", mem.Content.Action)
 	}
 }
 

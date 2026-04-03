@@ -157,10 +157,12 @@ func TestWrite_CreatesTomlFileWithAllFields(t *testing.T) {
 	dataDir := t.TempDir()
 
 	record := &memory.MemoryRecord{
-		Situation:        "when running tests",
-		Behavior:         "use go test directly",
-		Impact:           "misses coverage and lint flags",
-		Action:           "use targ test instead",
+		Situation: "when running tests",
+		Content: memory.ContentFields{
+			Behavior: "use go test directly",
+			Impact:   "misses coverage and lint flags",
+			Action:   "use targ test instead",
+		},
 		ProjectScoped:    true,
 		ProjectSlug:      "engram",
 		CreatedAt:        "2026-03-03T18:00:00Z",
@@ -191,9 +193,9 @@ func TestWrite_CreatesTomlFileWithAllFields(t *testing.T) {
 	}
 
 	g.Expect(parsed.Situation).To(Equal(record.Situation))
-	g.Expect(parsed.Behavior).To(Equal(record.Behavior))
-	g.Expect(parsed.Impact).To(Equal(record.Impact))
-	g.Expect(parsed.Action).To(Equal(record.Action))
+	g.Expect(parsed.Content.Behavior).To(Equal(record.Content.Behavior))
+	g.Expect(parsed.Content.Impact).To(Equal(record.Content.Impact))
+	g.Expect(parsed.Content.Action).To(Equal(record.Content.Action))
 	g.Expect(parsed.ProjectScoped).To(BeTrue())
 	g.Expect(parsed.ProjectSlug).To(Equal("engram"))
 	g.Expect(parsed.CreatedAt).To(Equal("2026-03-03T18:00:00Z"))
@@ -208,9 +210,11 @@ func TestWrite_DuplicateFilenameGetsNumericSuffix(t *testing.T) {
 
 	record := &memory.MemoryRecord{
 		Situation: "when testing",
-		Behavior:  "use go test directly",
-		Impact:    "misses flags",
-		Action:    "use targ test",
+		Content: memory.ContentFields{
+			Behavior: "use go test directly",
+			Impact:   "misses flags",
+			Action:   "use targ test",
+		},
 	}
 
 	writer := tomlwriter.New()
@@ -226,9 +230,11 @@ func TestWrite_DuplicateFilenameGetsNumericSuffix(t *testing.T) {
 
 	secondRecord := &memory.MemoryRecord{
 		Situation: "when testing again",
-		Behavior:  "use go test directly",
-		Impact:    "misses flags",
-		Action:    "use targ test",
+		Content: memory.ContentFields{
+			Behavior: "use go test directly",
+			Impact:   "misses flags",
+			Action:   "use targ test",
+		},
 	}
 
 	secondPath, err := writer.Write(secondRecord, "use-targ-not-go-test", dataDir)
@@ -252,7 +258,7 @@ func TestWrite_FilenameSlugIsHyphenatedLowercase(t *testing.T) {
 
 		record := &memory.MemoryRecord{
 			Situation: "test situation",
-			Action:    "test action",
+			Content:   memory.ContentFields{Action: "test action"},
 		}
 
 		writer := tomlwriter.New()
@@ -284,7 +290,7 @@ func TestWrite_FilenameSlugIsHyphenatedLowercase(t *testing.T) {
 
 			record := &memory.MemoryRecord{
 				Situation: "test",
-				Action:    "test",
+				Content:   memory.ContentFields{Action: "test"},
 			}
 
 			writer := tomlwriter.New()
@@ -314,9 +320,11 @@ func TestWrite_IncludesTrackingFieldKeys(t *testing.T) {
 
 	record := &memory.MemoryRecord{
 		Situation: "test situation",
-		Behavior:  "test behavior",
-		Impact:    "test impact",
-		Action:    "test action",
+		Content: memory.ContentFields{
+			Behavior: "test behavior",
+			Impact:   "test impact",
+			Action:   "test action",
+		},
 	}
 
 	writer := tomlwriter.New()
@@ -350,9 +358,11 @@ func TestWrite_IsAtomic(t *testing.T) {
 
 	record := &memory.MemoryRecord{
 		Situation: "atomic write test",
-		Behavior:  "test behavior",
-		Impact:    "test impact",
-		Action:    "test action",
+		Content: memory.ContentFields{
+			Behavior: "test behavior",
+			Impact:   "test impact",
+			Action:   "test action",
+		},
 	}
 
 	writer := tomlwriter.New()
@@ -392,9 +402,11 @@ func TestWrite_MemoriesDirectoryCreatedIfMissing(t *testing.T) {
 
 	record := &memory.MemoryRecord{
 		Situation: "dir creation test",
-		Behavior:  "test behavior",
-		Impact:    "test impact",
-		Action:    "test action",
+		Content: memory.ContentFields{
+			Behavior: "test behavior",
+			Impact:   "test impact",
+			Action:   "test action",
+		},
 	}
 
 	writer := tomlwriter.New()

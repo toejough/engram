@@ -140,8 +140,10 @@ func TestLister_ListAll_UsesDI(t *testing.T) {
 	dir := t.TempDir()
 
 	content := `situation = "test situation"
-action = "test action"
 surfaced_count = 3
+
+[content]
+action = "test action"
 `
 
 	writeErr := os.WriteFile(filepath.Join(dir, "mem1.toml"), []byte(content), 0o644)
@@ -623,10 +625,12 @@ func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
 	path := filepath.Join(dir, "test.toml")
 
 	initial := memory.MemoryRecord{
-		Situation:        "when running tests",
-		Behavior:         "use go test directly",
-		Impact:           "misses coverage",
-		Action:           "use targ test",
+		Situation: "when running tests",
+		Content: memory.ContentFields{
+			Behavior: "use go test directly",
+			Impact:   "misses coverage",
+			Action:   "use targ test",
+		},
 		ProjectScoped:    true,
 		ProjectSlug:      "engram",
 		SurfacedCount:    5,
@@ -682,9 +686,9 @@ func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
 
 	g.Expect(result.SurfacedCount).To(Equal(6))
 	g.Expect(result.Situation).To(Equal("when running tests"))
-	g.Expect(result.Behavior).To(Equal("use go test directly"))
-	g.Expect(result.Impact).To(Equal("misses coverage"))
-	g.Expect(result.Action).To(Equal("use targ test"))
+	g.Expect(result.Content.Behavior).To(Equal("use go test directly"))
+	g.Expect(result.Content.Impact).To(Equal("misses coverage"))
+	g.Expect(result.Content.Action).To(Equal("use targ test"))
 	g.Expect(result.ProjectScoped).To(BeTrue())
 	g.Expect(result.ProjectSlug).To(Equal("engram"))
 }

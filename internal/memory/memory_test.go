@@ -15,9 +15,11 @@ func TestStored_SearchText(t *testing.T) {
 
 	mem := &memory.Stored{
 		Situation: "when running tests",
-		Behavior:  "use go test directly",
-		Impact:    "misses coverage flags",
-		Action:    "use targ test instead",
+		Content: memory.ContentFields{
+			Behavior: "use go test directly",
+			Impact:   "misses coverage flags",
+			Action:   "use targ test instead",
+		},
 	}
 
 	text := mem.SearchText()
@@ -36,6 +38,28 @@ func TestStored_SearchText_EmptyFields(t *testing.T) {
 	g.Expect(mem.SearchText()).To(Equal(""))
 }
 
+func TestStored_SearchText_FactType(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	mem := &memory.Stored{
+		Type:      "fact",
+		Situation: "Go project",
+		Content: memory.ContentFields{
+			Subject:   "this project",
+			Predicate: "uses",
+			Object:    "targ build system",
+		},
+	}
+
+	text := mem.SearchText()
+	g.Expect(text).To(ContainSubstring("Go project"))
+	g.Expect(text).To(ContainSubstring("this project"))
+	g.Expect(text).To(ContainSubstring("uses"))
+	g.Expect(text).To(ContainSubstring("targ build system"))
+}
+
 func TestStored_SearchText_PartialFields(t *testing.T) {
 	t.Parallel()
 
@@ -43,7 +67,9 @@ func TestStored_SearchText_PartialFields(t *testing.T) {
 
 	mem := &memory.Stored{
 		Situation: "when deploying",
-		Action:    "run smoke tests",
+		Content: memory.ContentFields{
+			Action: "run smoke tests",
+		},
 	}
 
 	text := mem.SearchText()

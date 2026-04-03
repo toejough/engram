@@ -22,16 +22,12 @@ func TestBuildGateUserPrompt_ContainsUserMessageAndSlugs(t *testing.T) {
 		{
 			FilePath:  "mem/commit-safety.toml",
 			Situation: "when committing",
-			Behavior:  "manual commit",
-			Impact:    "slow workflow",
-			Action:    "use /commit",
+			Content:   memory.ContentFields{Behavior: "manual commit", Impact: "slow workflow", Action: "use /commit"},
 		},
 		{
 			FilePath:  "mem/build-tools.toml",
 			Situation: "when building",
-			Behavior:  "go build directly",
-			Impact:    "misses checks",
-			Action:    "use targ build",
+			Content:   memory.ContentFields{Behavior: "go build directly", Impact: "misses checks", Action: "use targ build"},
 		},
 	}
 
@@ -95,8 +91,16 @@ func TestGateMemories_CallerError_ReturnsError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	candidates := []*memory.Stored{
-		{FilePath: "mem/commit-safety.toml", Situation: "committing code", Action: "use /commit"},
-		{FilePath: "mem/build-tools.toml", Situation: "building", Action: "use targ build"},
+		{
+			FilePath:  "mem/commit-safety.toml",
+			Situation: "committing code",
+			Content:   memory.ContentFields{Action: "use /commit"},
+		},
+		{
+			FilePath:  "mem/build-tools.toml",
+			Situation: "building",
+			Content:   memory.ContentFields{Action: "use targ build"},
+		},
 	}
 
 	caller := func(_ context.Context, _, _, _ string) (string, error) {
@@ -145,8 +149,16 @@ func TestGateMemories_EmptyResponse_ReturnsNone(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	candidates := []*memory.Stored{
-		{FilePath: "mem/commit-safety.toml", Situation: "committing code", Action: "use /commit"},
-		{FilePath: "mem/build-tools.toml", Situation: "building", Action: "use targ build"},
+		{
+			FilePath:  "mem/commit-safety.toml",
+			Situation: "committing code",
+			Content:   memory.ContentFields{Action: "use /commit"},
+		},
+		{
+			FilePath:  "mem/build-tools.toml",
+			Situation: "building",
+			Content:   memory.ContentFields{Action: "use targ build"},
+		},
 	}
 
 	caller := func(_ context.Context, _, _, _ string) (string, error) {
@@ -172,8 +184,16 @@ func TestGateMemories_FiltersIrrelevant(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	candidates := []*memory.Stored{
-		{FilePath: "mem/commit-safety.toml", Situation: "committing code", Action: "use /commit"},
-		{FilePath: "mem/build-tools.toml", Situation: "building", Action: "use targ build"},
+		{
+			FilePath:  "mem/commit-safety.toml",
+			Situation: "committing code",
+			Content:   memory.ContentFields{Action: "use /commit"},
+		},
+		{
+			FilePath:  "mem/build-tools.toml",
+			Situation: "building",
+			Content:   memory.ContentFields{Action: "use targ build"},
+		},
 	}
 
 	caller := func(_ context.Context, _, _, _ string) (string, error) {
@@ -313,13 +333,13 @@ func TestWithHaikuGate_WiresCallerOnSurfacer(t *testing.T) {
 	}
 
 	memories := []*memory.Stored{
-		{Situation: "commit context", Behavior: "bad commit", Action: "good commit",
+		{Situation: "commit context", Content: memory.ContentFields{Behavior: "bad commit", Action: "good commit"},
 			FilePath: "mem/commit-safety.toml"},
-		{Situation: "build context", Behavior: "bad build", Action: "good build",
+		{Situation: "build context", Content: memory.ContentFields{Behavior: "bad build", Action: "good build"},
 			FilePath: "mem/build-tools.toml"},
-		{Situation: "review context", Behavior: "bad review", Action: "good review",
+		{Situation: "review context", Content: memory.ContentFields{Behavior: "bad review", Action: "good review"},
 			FilePath: "mem/review.toml"},
-		{Situation: "deploy context", Behavior: "bad deploy", Action: "good deploy",
+		{Situation: "deploy context", Content: memory.ContentFields{Behavior: "bad deploy", Action: "good deploy"},
 			FilePath: "mem/deploy.toml"},
 	}
 

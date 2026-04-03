@@ -270,9 +270,9 @@ func (s *Surfacer) runPrompt(
 		slug := memory.NameFromPath(match.mem.FilePath)
 		_, _ = fmt.Fprintf(&buf, "  %d. %s\n", i+1, slug)
 		_, _ = fmt.Fprintf(&buf, "     Situation: %s\n", match.mem.Situation)
-		_, _ = fmt.Fprintf(&buf, "     Behavior to avoid: %s\n", match.mem.Behavior)
-		_, _ = fmt.Fprintf(&buf, "     Impact if ignored: %s\n", match.mem.Impact)
-		_, _ = fmt.Fprintf(&buf, "     Action: %s\n", match.mem.Action)
+		_, _ = fmt.Fprintf(&buf, "     Behavior to avoid: %s\n", match.mem.Content.Behavior)
+		_, _ = fmt.Fprintf(&buf, "     Impact if ignored: %s\n", match.mem.Content.Impact)
+		_, _ = fmt.Fprintf(&buf, "     Action: %s\n", match.mem.Content.Action)
 	}
 
 	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
@@ -283,7 +283,7 @@ func (s *Surfacer) runPrompt(
 
 	for _, match := range matches {
 		_, _ = fmt.Fprintf(&summaryBuf, "  - %s: %s\n",
-			memory.NameFromPath(match.mem.FilePath), match.mem.Action)
+			memory.NameFromPath(match.mem.FilePath), match.mem.Content.Action)
 	}
 
 	// Build final memory list from post-suppression matches (not pre-suppression promptMems).

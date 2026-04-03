@@ -13,10 +13,13 @@ func TestMemoryRecord_ToStored_PreservesFields(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	rec := memory.MemoryRecord{
-		Situation:        "when running tests",
-		Behavior:         "use go test directly",
-		Impact:           "misses coverage",
-		Action:           "use targ test",
+		Type:      "feedback",
+		Situation: "when running tests",
+		Content: memory.ContentFields{
+			Behavior: "use go test directly",
+			Impact:   "misses coverage",
+			Action:   "use targ test",
+		},
 		ProjectScoped:    true,
 		ProjectSlug:      "engram",
 		CreatedAt:        "2026-03-27T10:00:00Z",
@@ -34,10 +37,11 @@ func TestMemoryRecord_ToStored_PreservesFields(t *testing.T) {
 		return
 	}
 
+	g.Expect(stored.Type).To(Equal("feedback"))
 	g.Expect(stored.Situation).To(Equal("when running tests"))
-	g.Expect(stored.Behavior).To(Equal("use go test directly"))
-	g.Expect(stored.Impact).To(Equal("misses coverage"))
-	g.Expect(stored.Action).To(Equal("use targ test"))
+	g.Expect(stored.Content.Behavior).To(Equal("use go test directly"))
+	g.Expect(stored.Content.Impact).To(Equal("misses coverage"))
+	g.Expect(stored.Content.Action).To(Equal("use targ test"))
 	g.Expect(stored.ProjectScoped).To(BeTrue())
 	g.Expect(stored.ProjectSlug).To(Equal("engram"))
 	g.Expect(stored.SurfacedCount).To(Equal(5))

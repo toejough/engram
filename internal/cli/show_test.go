@@ -90,15 +90,17 @@ func TestShow_HappyPath_PrintsSBIAFields(t *testing.T) {
 	}
 
 	tomlContent := `situation = "when running tests"
-behavior = "use go test directly"
-impact = "misses coverage and lint flags"
-action = "use targ test instead"
 project_scoped = true
 project_slug = "engram"
 surfaced_count = 10
 followed_count = 8
 not_followed_count = 2
 updated_at = "2025-01-01T00:00:00Z"
+
+[content]
+behavior = "use go test directly"
+impact = "misses coverage and lint flags"
+action = "use targ test instead"
 `
 	err = os.WriteFile(
 		filepath.Join(memDir, "use-targ-test.toml"),
@@ -199,7 +201,7 @@ func TestShow_NameFlag_Works(t *testing.T) {
 
 	g.Expect(os.WriteFile(
 		filepath.Join(memDir, "flag-test.toml"),
-		[]byte("situation = \"Flag Test Situation\"\naction = \"Use --name flag\"\n"),
+		[]byte("situation = \"Flag Test Situation\"\n\n[content]\naction = \"Use --name flag\"\n"),
 		0o640,
 	)).To(Succeed())
 
@@ -233,8 +235,10 @@ func TestShow_OmitsEmptyFields(t *testing.T) {
 
 	// Memory with only situation and action — no behavior, impact.
 	tomlContent := `situation = "Minimal Memory"
-action = "Just action"
 updated_at = "2025-01-01T00:00:00Z"
+
+[content]
+action = "Just action"
 `
 	err = os.WriteFile(
 		filepath.Join(memDir, "minimal.toml"),
@@ -286,8 +290,10 @@ func TestShow_SlugAfterFlags_Works(t *testing.T) {
 	}
 
 	tomlContent := `situation = "After Flags"
-action = "Slug comes after --data-dir"
 updated_at = "2025-01-01T00:00:00Z"
+
+[content]
+action = "Slug comes after --data-dir"
 `
 	err = os.WriteFile(
 		filepath.Join(memDir, "after-flags.toml"),

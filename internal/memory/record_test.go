@@ -22,9 +22,11 @@ func TestMemoryRecord_PendingEvaluations_Cleanup(t *testing.T) {
 
 		record := memory.MemoryRecord{
 			Situation: "test",
-			Behavior:  "test",
-			Impact:    "test",
-			Action:    "test",
+			Content: memory.ContentFields{
+				Behavior: "test",
+				Impact:   "test",
+				Action:   "test",
+			},
 		}
 
 		var buf bytes.Buffer
@@ -45,6 +47,8 @@ func TestMemoryRecord_PendingEvaluations_Cleanup(t *testing.T) {
 		g := NewGomegaWithT(t)
 
 		withPending := `situation = "test"
+
+[content]
 behavior = "test"
 impact = "test"
 action = "test"
@@ -91,10 +95,13 @@ func TestMemoryRecord_RoundTrip(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	original := memory.MemoryRecord{
-		Situation:        "when running tests",
-		Behavior:         "use go test directly",
-		Impact:           "misses coverage and flags",
-		Action:           "use targ test instead",
+		Type:      "feedback",
+		Situation: "when running tests",
+		Content: memory.ContentFields{
+			Behavior: "use go test directly",
+			Impact:   "misses coverage and flags",
+			Action:   "use targ test instead",
+		},
 		ProjectScoped:    true,
 		ProjectSlug:      "engram",
 		CreatedAt:        "2026-01-01T00:00:00Z",
@@ -126,17 +133,108 @@ func TestMemoryRecord_RoundTrip(t *testing.T) {
 	g.Expect(decoded).To(Equal(original))
 }
 
+func TestMemoryRecord_RoundTrip_FactContent(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	original := memory.MemoryRecord{
+		Type:      "fact",
+		Situation: "Go project conventions",
+		Content: memory.ContentFields{
+			Subject:   "this project",
+			Predicate: "uses",
+			Object:    "targ build system",
+		},
+	}
+
+	var buf bytes.Buffer
+
+	err := toml.NewEncoder(&buf).Encode(original)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	encoded := buf.String()
+	g.Expect(encoded).To(ContainSubstring("[content]"))
+	g.Expect(encoded).To(ContainSubstring(`subject = "this project"`))
+	g.Expect(encoded).To(ContainSubstring(`predicate = "uses"`))
+	g.Expect(encoded).To(ContainSubstring(`object = "targ build system"`))
+	g.Expect(encoded).NotTo(ContainSubstring("behavior"))
+	g.Expect(encoded).NotTo(ContainSubstring("impact"))
+	g.Expect(encoded).NotTo(ContainSubstring("action"))
+
+	var decoded memory.MemoryRecord
+
+	_, err = toml.Decode(encoded, &decoded)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(decoded).To(Equal(original))
+}
+
+func TestMemoryRecord_RoundTrip_FeedbackContent(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	original := memory.MemoryRecord{
+		Type:      "feedback",
+		Situation: "when running tests",
+		Content: memory.ContentFields{
+			Behavior: "use go test directly",
+			Impact:   "misses coverage",
+			Action:   "use targ test",
+		},
+	}
+
+	var buf bytes.Buffer
+
+	err := toml.NewEncoder(&buf).Encode(original)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	encoded := buf.String()
+	g.Expect(encoded).To(ContainSubstring("[content]"))
+	g.Expect(encoded).To(ContainSubstring(`behavior = "use go test directly"`))
+	g.Expect(encoded).NotTo(ContainSubstring("subject"))
+	g.Expect(encoded).NotTo(ContainSubstring("predicate"))
+	g.Expect(encoded).NotTo(ContainSubstring("object"))
+
+	var decoded memory.MemoryRecord
+
+	_, err = toml.Decode(encoded, &decoded)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(decoded).To(Equal(original))
+}
+
 func TestMemoryRecord_RoundTrip_NewFields(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
 	original := memory.MemoryRecord{
-		SchemaVersion:     1,
-		Situation:         "when surfacing memories",
-		Behavior:          "miss relevant ones",
-		Impact:            "agent repeats mistakes",
-		Action:            "track missed_count",
+		SchemaVersion: 1,
+		Type:          "feedback",
+		Situation:     "when surfacing memories",
+		Content: memory.ContentFields{
+			Behavior: "miss relevant ones",
+			Impact:   "agent repeats mistakes",
+			Action:   "track missed_count",
+		},
 		CreatedAt:         "2026-04-01T00:00:00Z",
 		UpdatedAt:         "2026-04-02T00:00:00Z",
 		SurfacedCount:     10,
@@ -180,9 +278,11 @@ func TestMemoryRecord_RoundTrip_PendingEvaluations(t *testing.T) {
 
 	original := memory.MemoryRecord{
 		Situation: "when committing",
-		Behavior:  "skip hooks",
-		Impact:    "broken builds",
-		Action:    "always run hooks",
+		Content: memory.ContentFields{
+			Behavior: "skip hooks",
+			Impact:   "broken builds",
+			Action:   "always run hooks",
+		},
 		PendingEvaluations: []memory.PendingEvaluation{{
 			SurfacedAt:  "2026-01-02T00:00:00Z",
 			UserPrompt:  "commit this change",
