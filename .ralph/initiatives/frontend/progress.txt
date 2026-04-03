@@ -121,3 +121,25 @@
   - Generic error state: centered destructive text
 - `npm run build` succeeds (tsc + vite build)
 - All Go tests pass (`go test ./internal/memory/... ./internal/server/... -count=1 -race`)
+
+---
+
+## US-008: Mutation API endpoints (update, delete, restore) (2026-04-03)
+- Created `internal/server/mutations.go` with 3 mutation handlers:
+  - `handleUpdateMemory`: PUT /api/memories/{slug} — parses JSON body with SBIA fields + projectScoped + projectSlug, updates via `MemoryModifier.ReadModifyWrite`, sets `updated_at` to current time (injected clock)
+  - `handleDeleteMemory`: DELETE /api/memories/{slug} — soft-deletes by moving TOML from `memories/` to `archived/` dir (creates `archived/` via `FileOps.MkdirAll` if needed)
+  - `handleRestoreMemory`: POST /api/memories/{slug}/restore — moves TOML from `archived/` back to `memories/`
+- Added `FileOps` interface (Rename, MkdirAll, Stat) for testable file move operations
+- Added `MemoryModifier` interface wrapping `ReadModifyWrite` for testable memory updates
+- Added `Option` functional options: `WithModifier`, `WithFileOps`, `WithNow` (clock injection for tests)
+- All endpoints validate slug via `isValidSlug` (rejects `..`, `/`, `\` — path traversal protection)
+- Returns 404 for unknown slugs (via `errors.Is(err, fs.ErrNotExist)` for PUT, `FileOps.Stat` for DELETE/restore)
+- Returns 400 for invalid JSON in PUT
+- Wired real dependencies in `internal/cli/serve.go`: `memory.NewModifier` + `tomlwriter.New()`, `osFileOps` adapter
+- Created `internal/server/mutations_test.go` with 17 tests:
+  - DELETE: archives file, creates archived dir, 404 not found, invalid slug, mkdir error, rename error
+  - RESTORE: moves from archive, 404 not in archive, invalid slug, stat error, rename error
+  - PUT: updates SBIA fields + sets updated_at, 404 not found, 400 invalid JSON, modifier error, wrapped ErrNotExist, invalid slug
+- All mutation handler functions above 80% per-function coverage (handleDeleteMemory 82.8%, handleRestoreMemory 87.5%, handleUpdateMemory 90.6%)
+- All Go tests pass (`targ test`)
+- No new targ check-full failures (pre-existing failures unchanged: gosec, deadcode/nilaway not installed, frontend/node_modules lint, cli coverage)

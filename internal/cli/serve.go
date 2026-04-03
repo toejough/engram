@@ -6,13 +6,17 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"time"
 
+	"engram/internal/memory"
 	"engram/internal/retrieve"
 	"engram/internal/server"
+	"engram/internal/tomlwriter"
 )
 
 // Exported variables.
@@ -39,17 +43,26 @@ const (
 	serverShutdownTimeout   = 5 * time.Second
 )
 
+// osFileOps implements server.FileOps using the real filesystem.
+type osFileOps struct{}
+
+func (osFileOps) MkdirAll(path string, perm fs.FileMode) error { return os.MkdirAll(path, perm) }
+
+func (osFileOps) Rename(oldpath, newpath string) error { return os.Rename(oldpath, newpath) }
+
+func (osFileOps) Stat(path string) (fs.FileInfo, error) { return os.Stat(path) }
+
 // runServe starts the engram HTTP API server.
 //
 //nolint:funlen // CLI wiring: flag parsing + server setup + graceful shutdown
 func runServe(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	flagSet := flag.NewFlagSet("serve", flag.ContinueOnError)
+	flagSet.SetOutput(io.Discard)
 
-	port := fs.String("port", server.DefaultPort, "HTTP server port")
-	dataDir := fs.String("data-dir", "", "path to data directory")
+	port := flagSet.String("port", server.DefaultPort, "HTTP server port")
+	dataDir := flagSet.String("data-dir", "", "path to data directory")
 
-	parseErr := fs.Parse(args)
+	parseErr := flagSet.Parse(args)
 	if parseErr != nil {
 		return fmt.Errorf("serve: %w", parseErr)
 	}
@@ -60,7 +73,13 @@ func runServe(args []string, stdout io.Writer) error {
 	}
 
 	retriever := retrieve.New()
-	srv := server.NewServer(retriever, *dataDir)
+	modifier := memory.NewModifier(
+		memory.WithModifierWriter(tomlwriter.New()),
+	)
+	srv := server.NewServer(retriever, *dataDir,
+		server.WithModifier(modifier),
+		server.WithFileOps(osFileOps{}),
+	)
 
 	addr := server.ListenAddr(*port)
 	httpServer := &http.Server{

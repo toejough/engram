@@ -4,9 +4,11 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"engram/internal/memory"
 )
@@ -16,30 +18,56 @@ const (
 	DefaultPort = "3001"
 )
 
+// FileOps abstracts filesystem operations for soft-delete and restore.
+type FileOps interface {
+	Rename(oldpath, newpath string) error
+	MkdirAll(path string, perm fs.FileMode) error
+	Stat(path string) (fs.FileInfo, error)
+}
+
 // MemoryLister retrieves all stored memories from the data directory.
 type MemoryLister interface {
 	ListMemories(ctx context.Context, dataDir string) ([]*memory.Stored, error)
 }
 
+// MemoryModifier updates a memory TOML file via read-modify-write.
+type MemoryModifier interface {
+	ReadModifyWrite(path string, mutate func(*memory.MemoryRecord)) error
+}
+
+// Option configures optional Server dependencies.
+type Option func(*Server)
+
 // Server is the engram HTTP API server.
 type Server struct {
-	lister  MemoryLister
-	dataDir string
-	mux     *http.ServeMux
+	lister   MemoryLister
+	modifier MemoryModifier
+	fileOps  FileOps
+	now      func() time.Time
+	dataDir  string
+	mux      *http.ServeMux
 }
 
 // NewServer creates a Server with the given dependencies and wires routes.
-func NewServer(lister MemoryLister, dataDir string) *Server {
+func NewServer(lister MemoryLister, dataDir string, opts ...Option) *Server {
 	s := &Server{
 		lister:  lister,
 		dataDir: dataDir,
+		now:     time.Now,
 		mux:     http.NewServeMux(),
+	}
+
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	s.mux.HandleFunc("GET /api/memories", s.handleListMemories)
 	s.mux.HandleFunc("GET /api/memories/{slug}", s.handleGetMemory)
 	s.mux.HandleFunc("GET /api/stats", s.handleStats)
 	s.mux.HandleFunc("GET /api/projects", s.handleProjects)
+	s.mux.HandleFunc("PUT /api/memories/{slug}", s.handleUpdateMemory)
+	s.mux.HandleFunc("DELETE /api/memories/{slug}", s.handleDeleteMemory)
+	s.mux.HandleFunc("POST /api/memories/{slug}/restore", s.handleRestoreMemory)
 
 	return s
 }
@@ -202,6 +230,21 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 // ListenAddr returns a listen address bound to localhost only.
 func ListenAddr(port string) string {
 	return "127.0.0.1:" + port
+}
+
+// WithFileOps sets the FileOps implementation for soft-delete and restore.
+func WithFileOps(ops FileOps) Option {
+	return func(s *Server) { s.fileOps = ops }
+}
+
+// WithModifier sets the MemoryModifier for update operations.
+func WithModifier(m MemoryModifier) Option {
+	return func(s *Server) { s.modifier = m }
+}
+
+// WithNow overrides the clock function (useful for tests).
+func WithNow(fn func() time.Time) Option {
+	return func(s *Server) { s.now = fn }
 }
 
 // unexported constants.
