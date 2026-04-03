@@ -50,7 +50,7 @@ The pane is small (15 lines) so it doesn't crowd the user's workspace. The user 
 
 ```bash
 tmux new-window -n "engram-agent" \
-  "claude --dangerously-skip-permissions --prompt '/use-engram-chat-as reactive memory agent named engram-agent' 2>&1 | tee /tmp/engram-engram-agent.log"
+  "claude --dangerously-skip-permissions --model sonnet --prompt '/use-engram-chat-as reactive memory agent named engram-agent' 2>&1 | tee /tmp/engram-engram-agent.log"
 ```
 
 ### 1.5 Wait for engram-agent
@@ -84,10 +84,12 @@ Every agent the lead spawns:
 
 ```bash
 tmux new-window -n "<agent-name>" \
-  "claude --dangerously-skip-permissions --prompt '/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete.' 2>&1 | tee /tmp/engram-<agent-name>.log"
+  "claude --dangerously-skip-permissions --model sonnet --prompt '/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete.' 2>&1 | tee /tmp/engram-<agent-name>.log"
 ```
 
-**Critical:** All spawned agents use `--dangerously-skip-permissions` because they have no user to approve tool calls.
+**Critical:**
+- All spawned agents use `--dangerously-skip-permissions` because they have no user to approve tool calls.
+- Default to `--model sonnet` for speed and cost. Only use opus for tasks requiring deep architectural thinking, complex debugging, or broad codebase reasoning. Most execution, review, and filing tasks are sonnet-appropriate.
 
 ### 2.2 Agent Role Templates
 
