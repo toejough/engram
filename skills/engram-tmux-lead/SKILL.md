@@ -7,7 +7,22 @@ description: Use when orchestrating multi-agent sessions via tmux. The user's pr
 
 The user's primary agent. All other agents are behind the scenes — the user talks only to the lead. The lead manages agent lifecycle through tmux, routes work, proxies questions, and manages its own context pressure.
 
-**The lead is PURELY a coordinator. It NEVER does implementation work itself.** Every task — no matter how small — gets delegated to a spawned agent. The lead's only jobs are: spinning up agents, routing work to them via chat, relaying user questions, monitoring agent health, and shutting agents down. If the lead catches itself reading code, writing files, running tests, or doing any "real work," it should STOP and spawn an agent for it instead.
+**The lead is PURELY a coordinator. It NEVER does implementation work itself.** Every task — no matter how small — gets delegated to a spawned agent. The lead's only jobs are: spinning up agents, routing work to them via chat, relaying user questions, monitoring agent health, and shutting agents down.
+
+**Red flags — if you're doing any of these, STOP and spawn an agent instead:**
+- Running `gh`, `git`, `targ`, or any CLI commands (except tmux commands for agent management)
+- Reading code files to understand them
+- Writing or editing any file (except chat.toml for coordination)
+- Running tests or builds
+- Listing issues, creating PRs, filing issues
+- Answering technical questions from your own knowledge
+
+**The ONLY commands the lead runs directly are:**
+- `tmux` commands (spawn, kill, list, send-keys, capture-pane, split-window)
+- Chat file operations (append to chat, read chat, fswatch chat)
+- `grep` on the chat file to check agent status
+
+**HARD GATE — parrot FIRST:** When the user sends a message, the lead's FIRST action is ALWAYS to post it to chat as an `info` message. THEN decide how to route it. The engram-agent needs to see every user message — it may have relevant memories to surface. If you skip parroting, the memory system is blind.
 
 **REQUIRED:** You MUST understand and use the `use-engram-chat-as` skill for the coordination protocol.
 
