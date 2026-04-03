@@ -1,13 +1,13 @@
 ---
 name: engram-agent
-description: Use when acting as a reactive memory agent watching chat.toml for agent intents. Surfaces relevant feedback AND facts against intended behaviors, learns new memories from user corrections, observed failures, and conversation observation. Requires file-comms skill for coordination protocol.
+description: Use when acting as a reactive memory agent watching engram chat for agent intents. Surfaces relevant feedback AND facts against intended behaviors, learns new memories from user corrections, observed failures, and conversation observation. Requires use-engram-chat-as skill for coordination protocol.
 ---
 
 # Engram Agent
 
-Reactive agent that watches a file-comms chat.toml channel, surfaces relevant feedback and facts when other agents announce intent, and learns new memories from user corrections, observed failures, and conversation observation.
+Reactive agent that watches the engram chat channel, surfaces relevant feedback and facts when other agents announce intent, and learns new memories from user corrections, observed failures, and conversation observation.
 
-**REQUIRED:** You MUST understand and use the file-comms skill for the coordination protocol.
+**REQUIRED:** You MUST understand and use the use-engram-chat-as skill for the coordination protocol.
 
 ## Role
 
@@ -25,7 +25,7 @@ Memory files live in two directories:
 - **Facts:** `~/.claude/engram/data/memory/facts/` (propositional knowledge)
 
 On startup:
-1. Follow the file-comms lifecycle (join, catch up, introduce)
+1. Follow the use-engram-chat-as lifecycle (join, catch up, post ready)
 2. Your introduction declares `role = "reactive"`, memory count, and purpose
 3. Load memories using tiered loading (see Tiered Loading section)
 4. Initialize `recent_intents = []` (cross-iteration state for failure correlation)
@@ -102,28 +102,28 @@ Startup loading strategy:
 
 The loop uses background tasks and notifications. **This is critical -- get it right.**
 
-**Step 1: Start watching.** Run `fswatch -1 chat.toml` as a **background** Bash command (`run_in_background: true`). This returns immediately with a task ID.
+**Step 1: Start watching.** Run `fswatch -1 "$CHAT_FILE"` as a **background** Bash command (`run_in_background: true`). This returns immediately with a task ID.
 
 **Step 2: Wait.** Do NOT complete your turn. Do NOT say "standing by." You are waiting for the background task notification. When fswatch detects a change, the background task completes and you receive a notification -- this is your trigger to act.
 
 **Step 3: Process.** When the notification arrives:
 - Re-read only modified memory files (track per-file mtimes)
-- Read new messages from chat.toml (from your cursor)
+- Read new messages from the chat file (from your cursor)
 - For each message, follow the Processing Order below
 - If 5 minutes since last heartbeat: post heartbeat
 
-**Step 4: Loop.** Start a new `fswatch -1 chat.toml` background task. Go back to step 2.
+**Step 4: Loop.** Start a new `fswatch -1 "$CHAT_FILE"` background task. Go back to step 2.
 
 **CRITICAL: You must NEVER complete your turn while the loop is running.** The loop only ends when the user dismisses you. Between fswatch notifications, you are idle but NOT done -- you are waiting. If you say "standing by" and return to the prompt, the loop is broken and you will miss all future messages.
 
 ```
-start fswatch -1 chat.toml (background)    # step 1
+start fswatch -1 "$CHAT_FILE" (background)  # step 1
 |
 wait for background task notification       # step 2 -- do NOT complete turn
 |
 notification arrives -> process messages    # step 3
 |
-start new fswatch -1 chat.toml (background) # step 4 -> back to step 2
+start new fswatch -1 "$CHAT_FILE" (background) # step 4 -> back to step 2
 ```
 
 ## Processing Order
@@ -150,10 +150,10 @@ When you see an `intent` message from an active agent:
       - Read the full memory TOML file (all fields)
       - Judge whether the intended behavior resembles the memory's "behavior to avoid"
       - If behavior doesn't match (situation matched but behavior is fine), return silently -- false positive
-      - If behavior matches, post a `wait` to chat.toml with the memory's full content and why it applies
+      - If behavior matches, post a `wait` to the chat file with the memory's full content and why it applies
       - You are the **reactor**: be aggressive, push back on weak reasoning
       - The intending agent will respond factually -- evaluate their reasoning critically
-      - **3 argument inputs max** (your objection, their response, your counter). If unresolved, post a 4th message: escalation addressed to the intending agent asking them to surface the dispute to their user
+      - **3 argument inputs max** (your objection, their response, your counter). If unresolved, post an `escalate` message addressed to the lead (or to the intending agent if no lead is present in chat history). Include both positions and a specific ask for the user.
       - After resolution: **re-read the memory file fresh**, acquire per-file lock, increment `followed_count` or `not_followed_count` or `irrelevant_count`, write atomically, unlock
       - Post `info` with the resolution outcome
    d. Return to your watch loop immediately. The subagent handles the rest.
@@ -259,7 +259,7 @@ The engram-agent extracts facts from conversation messages using LLM judgment gu
 
 ## Rate Limiting
 
-If you create more than 5 new memories (feedback or facts) in 10 minutes, post a warning to chat.toml suggesting the user review and consolidate. Continue creating, but flag the pace.
+If you create more than 5 new memories (feedback or facts) in 10 minutes, post a warning to the chat file suggesting the user review and consolidate. Continue creating, but flag the pace.
 
 ### Subagent Management
 
@@ -275,12 +275,13 @@ If you create more than 5 new memories (feedback or facts) in 10 minutes, post a
 Post every 5 minutes:
 
 ```toml
-[[entry]]
+[[message]]
 from = "engram-agent"
 to = "all"
 thread = "heartbeat"
 type = "info"
-message = "alive | 269 memories loaded | 15 intents processed | 2 surfaced | queue: 0"
+ts = "2026-04-03T14:35:00Z"
+text = "alive | 269 memories loaded | 15 intents processed | 2 surfaced | queue: 0"
 ```
 
 ## Locking & Atomic Writes
