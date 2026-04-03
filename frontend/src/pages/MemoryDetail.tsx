@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -18,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { fetchMemory, updateMemory, ApiError } from "@/lib/api";
+import { fetchMemory, updateMemory, deleteMemory, ApiError } from "@/lib/api";
 import { quadrantLabel, quadrantColor } from "@/lib/quadrants";
 
 function formatDate(iso: string): string {
@@ -37,9 +48,11 @@ interface EditFormState {
 
 export default function MemoryDetail() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState<EditFormState>({
     situation: "",
     behavior: "",
@@ -90,6 +103,22 @@ export default function MemoryDetail() {
       toast.error(message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!slug) return;
+    setDeleting(true);
+    try {
+      await deleteMemory(slug);
+      await queryClient.invalidateQueries({ queryKey: ["memories"] });
+      navigate("/");
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : "Failed to delete memory";
+      toast.error(message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -150,10 +179,41 @@ export default function MemoryDetail() {
           {quadrantLabel(memory.quadrant)}
         </Badge>
         {!editing && (
-          <Button variant="outline" size="sm" onClick={enterEditMode}>
-            <Pencil className="mr-1 h-3.5 w-3.5" />
-            Edit
-          </Button>
+          <>
+            <Button variant="outline" size="sm" onClick={enterEditMode}>
+              <Pencil className="mr-1 h-3.5 w-3.5" />
+              Edit
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button variant="destructive" size="sm">
+                    <Trash2 className="mr-1 h-3.5 w-3.5" />
+                    Delete
+                  </Button>
+                }
+              />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete memory</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will archive the memory. You can restore it later.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleting}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={confirmDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? "Deleting..." : "Confirm"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         )}
       </div>
 

@@ -60,6 +60,19 @@ export async function updateMemory(
   return response.json() as Promise<{ slug: string; updatedAt: string }>;
 }
 
+export async function deleteMemory(slug: string): Promise<void> {
+  const response = await fetch(
+    `${BASE}/memories/${encodeURIComponent(slug)}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      `API error: ${response.status} ${response.statusText}`,
+    );
+  }
+}
+
 export function fetchMemories(): Promise<Memory[]> {
   return fetchJSON<Memory[]>("/memories");
 }
