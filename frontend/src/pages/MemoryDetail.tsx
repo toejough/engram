@@ -1,8 +1,15 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -11,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { fetchMemory, ApiError } from "@/lib/api";
+import { fetchMemory, updateMemory, ApiError } from "@/lib/api";
 import { quadrantLabel, quadrantColor } from "@/lib/quadrants";
 
 function formatDate(iso: string): string {
@@ -19,8 +26,28 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString();
 }
 
+interface EditFormState {
+  situation: string;
+  behavior: string;
+  impact: string;
+  action: string;
+  projectScoped: boolean;
+  projectSlug: string;
+}
+
 export default function MemoryDetail() {
   const { slug } = useParams<{ slug: string }>();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<EditFormState>({
+    situation: "",
+    behavior: "",
+    impact: "",
+    action: "",
+    projectScoped: false,
+    projectSlug: "",
+  });
 
   const {
     data: memory,
@@ -31,6 +58,40 @@ export default function MemoryDetail() {
     queryFn: () => fetchMemory(slug!),
     enabled: !!slug,
   });
+
+  function enterEditMode() {
+    if (!memory) return;
+    setForm({
+      situation: memory.situation,
+      behavior: memory.behavior,
+      impact: memory.impact,
+      action: memory.action,
+      projectScoped: memory.projectScoped,
+      projectSlug: memory.projectSlug,
+    });
+    setEditing(true);
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+  }
+
+  async function saveEdit() {
+    if (!slug) return;
+    setSaving(true);
+    try {
+      await updateMemory(slug, form);
+      await queryClient.invalidateQueries({ queryKey: ["memory", slug] });
+      setEditing(false);
+      toast.success("Memory updated successfully");
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : "Failed to update memory";
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -88,54 +149,162 @@ export default function MemoryDetail() {
         >
           {quadrantLabel(memory.quadrant)}
         </Badge>
+        {!editing && (
+          <Button variant="outline" size="sm" onClick={enterEditMode}>
+            <Pencil className="mr-1 h-3.5 w-3.5" />
+            Edit
+          </Button>
+        )}
       </div>
 
       {/* SBIA Sections */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">
-              Situation
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap">{memory.situation}</p>
-          </CardContent>
-        </Card>
+      {editing ? (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="situation">Situation</Label>
+              <Textarea
+                id="situation"
+                placeholder="When does this apply? What context triggers this memory?"
+                rows={5}
+                value={form.situation}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, situation: e.target.value }))
+                }
+              />
+            </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">
-              Behavior
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap">{memory.behavior}</p>
-          </CardContent>
-        </Card>
+            <div className="space-y-2">
+              <Label htmlFor="behavior">Behavior</Label>
+              <Textarea
+                id="behavior"
+                placeholder="What should the agent do? Specific actions or patterns to follow."
+                rows={5}
+                value={form.behavior}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, behavior: e.target.value }))
+                }
+              />
+            </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">
-              Impact
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap">{memory.impact}</p>
-          </CardContent>
-        </Card>
+            <div className="space-y-2">
+              <Label htmlFor="impact">Impact</Label>
+              <Textarea
+                id="impact"
+                placeholder="Why does this matter? What goes wrong without this memory?"
+                rows={5}
+                value={form.impact}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, impact: e.target.value }))
+                }
+              />
+            </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">
-              Action
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap">{memory.action}</p>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="action">Action</Label>
+              <Textarea
+                id="action"
+                placeholder="Concrete steps or rules. What exactly should be done?"
+                rows={5}
+                value={form.action}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, action: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Project Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="projectScoped"
+                  checked={form.projectScoped}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      projectScoped: checked === true,
+                    }))
+                  }
+                />
+                <Label htmlFor="projectScoped">Project scoped</Label>
+              </div>
+              <div className="max-w-sm space-y-2">
+                <Label htmlFor="projectSlug">Project slug</Label>
+                <Input
+                  id="projectSlug"
+                  placeholder="e.g. my-project"
+                  value={form.projectSlug}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      projectSlug: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex gap-2">
+            <Button onClick={saveEdit} disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+            <Button variant="outline" onClick={cancelEdit} disabled={saving}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-muted-foreground">
+                Situation
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap">{memory.situation}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-muted-foreground">
+                Behavior
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap">{memory.behavior}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-muted-foreground">
+                Impact
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap">{memory.impact}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-muted-foreground">
+                Action
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap">{memory.action}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Effectiveness Metrics */}
       <Card>

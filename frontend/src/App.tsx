@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/sonner";
 import Dashboard from "./pages/Dashboard";
 import MemoryDetail from "./pages/MemoryDetail";
 import Surface from "./pages/Surface";
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/activity" element={<Activity />} />
         </Routes>
       </BrowserRouter>
+      <Toaster />
     </QueryClientProvider>
   );
 }

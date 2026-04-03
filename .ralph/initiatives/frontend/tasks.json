@@ -152,8 +152,8 @@
         "npm run build succeeds"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added edit mode to MemoryDetail page. Edit button (Pencil icon) in header toggles to form view. Form has 4 Textarea fields (Situation, Behavior, Impact, Action) pre-filled with current values and placeholder hints. Project Settings card with Checkbox for projectScoped and Input for projectSlug. Save calls PUT /api/memories/:slug via new updateMemory() in api.ts, invalidates TanStack Query cache, returns to view mode with success toast (sonner). Cancel discards changes and returns to view mode. Error toast on save failure. Installed shadcn sonner, checkbox, input, textarea, label components. Added Toaster to App.tsx. npm run build succeeds."
     },
     {
       "id": "US-010",

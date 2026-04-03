@@ -143,3 +143,20 @@
 - All mutation handler functions above 80% per-function coverage (handleDeleteMemory 82.8%, handleRestoreMemory 87.5%, handleUpdateMemory 90.6%)
 - All Go tests pass (`targ test`)
 - No new targ check-full failures (pre-existing failures unchanged: gosec, deadcode/nilaway not installed, frontend/node_modules lint, cli coverage)
+
+---
+
+## US-009: Edit memory form on detail page (2026-04-03)
+- Added `updateMemory()` function to `src/lib/api.ts` with `UpdateMemoryPayload` interface — calls PUT /api/memories/:slug
+- Installed shadcn/ui components: sonner (toast), checkbox, input, textarea, label
+- Added `<Toaster />` from sonner to `App.tsx` for toast notifications
+- Updated `src/pages/MemoryDetail.tsx` with edit mode:
+  - Edit button (Pencil icon) in header toggles between view and edit mode
+  - Edit mode shows 4 Textarea fields (Situation, Behavior, Impact, Action) pre-filled with current values
+  - Each textarea has descriptive placeholder hint
+  - Project Settings card with Checkbox for projectScoped and Input for projectSlug
+  - Save button calls `updateMemory()`, invalidates TanStack Query cache, returns to view mode
+  - Cancel button discards form state and returns to view mode
+  - Success toast on save, error toast on failure (using sonner)
+  - Save button shows "Saving..." and disables both buttons during request
+- `npm run build` succeeds (tsc + vite build)
