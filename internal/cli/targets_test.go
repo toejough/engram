@@ -39,32 +39,6 @@ func TestAddBoolFlag(t *testing.T) {
 	})
 }
 
-func TestApplyProposalFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ApplyProposalFlags(cli.ApplyProposalArgs{
-			DataDir: "/data",
-			ID:      "prop-001",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data",
-			"--id", "prop-001",
-		}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ApplyProposalFlags(cli.ApplyProposalArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
 func TestBuildFlags(t *testing.T) {
 	t.Parallel()
 
@@ -117,8 +91,7 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		// Individual commands + registry group.
-		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 9))
+		g.Expect(targets).To(gomega.HaveLen(2))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -131,57 +104,12 @@ func TestBuildTargets(t *testing.T) {
 			calls = append(calls, subcmd)
 		})
 
-		subcmds := []string{
-			"correct",
-			"maintain", "surface",
-			"evaluate", "refine", "show",
-			"apply-proposal", "reject-proposal", "recall",
-			"migrate-scores", "migrate-slugs",
-			"migrate-sbia",
-		}
+		subcmds := []string{"recall", "show"}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
 		}
 
 		g.Expect(calls).To(gomega.Equal(subcmds))
-	})
-}
-
-func TestCorrectFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.CorrectFlags(cli.CorrectArgs{
-			Message:        "fix this",
-			DataDir:        "/data",
-			TranscriptPath: "/transcript",
-			ProjectSlug:    "my-project",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--message", "fix this",
-			"--data-dir", "/data",
-			"--transcript-path", "/transcript",
-			"--project-slug", "my-project",
-		}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.CorrectFlags(cli.CorrectArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("partial fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.CorrectFlags(cli.CorrectArgs{Message: "fix this"})
-		g.Expect(result).To(gomega.Equal([]string{"--message", "fix this"}))
 	})
 }
 
@@ -194,66 +122,6 @@ func TestDataDirFromHome(t *testing.T) {
 
 		dir := cli.DataDirFromHome("/Users/joe")
 		g.Expect(dir).To(gomega.Equal("/Users/joe/.claude/engram/data"))
-	})
-}
-
-func TestEvaluateFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("all fields populated", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.EvaluateFlags(cli.EvaluateArgs{
-			TranscriptPath: "/tmp/transcript.jsonl",
-			SessionID:      "sess-123",
-			DataDir:        "/data",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--transcript-path", "/tmp/transcript.jsonl",
-			"--session-id", "sess-123",
-			"--data-dir", "/data",
-		}))
-	})
-}
-
-func TestMaintainFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("data dir set", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.MaintainFlags(cli.MaintainArgs{DataDir: "/data"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.MaintainFlags(cli.MaintainArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
-func TestMigrateSBIAFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.MigrateSBIAFlags(cli.MigrateSBIAArgs{DataDir: "/data"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.MigrateSBIAFlags(cli.MigrateSBIAArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
 
@@ -311,60 +179,6 @@ func TestRecallFlags(t *testing.T) {
 	})
 }
 
-func TestRefineFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RefineFlags(cli.RefineArgs{DataDir: "/data", DryRun: true})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--dry-run"}))
-	})
-
-	t.Run("dry-run false omits flag", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RefineFlags(cli.RefineArgs{DataDir: "/data"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RefineFlags(cli.RefineArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
-func TestRejectProposalFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RejectProposalFlags(cli.RejectProposalArgs{
-			DataDir: "/data",
-			ID:      "prop-002",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data",
-			"--id", "prop-002",
-		}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RejectProposalFlags(cli.RejectProposalArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
 func TestRunSafe(t *testing.T) {
 	t.Parallel()
 
@@ -391,65 +205,6 @@ func TestShowFlags(t *testing.T) {
 	g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
 }
 
-func TestSurfaceFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SurfaceFlags(cli.SurfaceArgs{
-			Mode:    "prompt",
-			DataDir: "/data",
-			Message: "hello",
-			Format:  "json",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--mode", "prompt",
-			"--data-dir", "/data",
-			"--message", "hello",
-			"--format", "json",
-		}))
-	})
-
-	t.Run("partial fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SurfaceFlags(cli.SurfaceArgs{Mode: "prompt", DataDir: "/data"})
-		g.Expect(result).
-			To(gomega.Equal([]string{"--mode", "prompt", "--data-dir", "/data"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SurfaceFlags(cli.SurfaceArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("stop mode with transcript path and session ID", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SurfaceFlags(cli.SurfaceArgs{
-			Mode:           "stop",
-			DataDir:        "/data",
-			TranscriptPath: "/t.jsonl",
-			SessionID:      "s1",
-			Format:         "json",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--mode", "stop",
-			"--data-dir", "/data",
-			"--format", "json",
-			"--transcript-path", "/t.jsonl",
-			"--session-id", "s1",
-		}))
-	})
-}
-
 func TestTargets(t *testing.T) {
 	t.Parallel()
 
@@ -459,7 +214,7 @@ func TestTargets(t *testing.T) {
 
 		// Construction doesn't do I/O — just builds targ target objects.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 10))
+		g.Expect(targets).To(gomega.HaveLen(2))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {
@@ -470,7 +225,7 @@ func TestTargets(t *testing.T) {
 
 		// Execute one target to exercise the closure body.
 		// I/O goes to injected bytes.Buffer — no real side effects.
-		// Use "show" which is a working command. Missing slug → error to stderr.
+		// Use "show" which is a working command. Missing slug -> error to stderr.
 		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
 		_, _ = targ.Execute([]string{"engram", "show", "--data-dir", t.TempDir()}, targets...)
 
