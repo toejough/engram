@@ -19,22 +19,20 @@ The lead is NOT a coordinator that delegates everything. It reads code, makes pl
 
 Join chat as an **active** agent named `lead` using the `use-engram-chat-as` protocol.
 
-### 1.2 Verify/Create tmux Session
+### 1.2 Verify tmux
 
-```bash
-tmux has-session -t engram 2>/dev/null || tmux new-session -d -s engram -n scratch
-```
+Agents are spawned as new windows in the **current** tmux session (the one the user is in). Do NOT create a separate tmux session — the user needs to see agent windows alongside their own.
 
-If `tmux` is not installed:
-- Report to user: "tmux is required for multi-agent orchestration. Install with: `brew install tmux`. I can still work as a single agent without delegation."
-- Fall back to direct execution mode -- handle everything yourself, no delegation.
+If not inside a tmux session, or if `tmux` is not installed:
+- Report to user: "tmux is required for multi-agent orchestration. Install with: `brew install tmux` and run inside a tmux session. I can still work as a single agent without delegation."
+- Fall back to direct execution mode — handle everything yourself, no delegation.
 
 ### 1.3 Spawn engram-agent
 
 **ALWAYS spawn this. NEVER skip. Not for "simple" tasks. Not for "quick" tasks. Not because "I can handle it myself." The engram-agent is the memory safety net — without it, you learn nothing and surface nothing. Spawn it BEFORE touching the user's request.**
 
 ```bash
-tmux new-window -t engram -n "engram-agent" \
+tmux new-window -n "engram-agent" \
   "claude --dangerously-skip-permissions --prompt '/use-engram-chat-as reactive memory agent named engram-agent' 2>&1 | tee /tmp/engram-engram-agent.log"
 ```
 
@@ -53,7 +51,7 @@ done
 ```
 
 If no engram-agent message appears within 30 seconds:
-1. Check tmux window exists: `tmux list-windows -t engram -F '#{window_name}' | grep engram-agent`
+1. Check tmux window exists: `tmux list-windows -F '#{window_name}' | grep engram-agent`
 2. Check log for errors: `tail -20 /tmp/engram-engram-agent.log`
 3. Report to user with diagnostic info. Do NOT silently proceed without memory.
 
@@ -68,7 +66,7 @@ Post your `ready` message and enter the standard fswatch watch loop per the `use
 Every agent the lead spawns:
 
 ```bash
-tmux new-window -t engram -n "<agent-name>" \
+tmux new-window -n "<agent-name>" \
   "claude --dangerously-skip-permissions --prompt '/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete.' 2>&1 | tee /tmp/engram-<agent-name>.log"
 ```
 
@@ -145,7 +143,7 @@ Any state ──(task done)──> DONE (window killed)
 | **ACTIVE** | Agent posted at least one message | Normal operation. Track last-message timestamp. |
 | **SILENT** | No chat message for `silence_threshold` (3 min for task agents, 6 min for engram-agent). Detected on 2-minute health check. | Nudge via chat + tmux (see 3.2). |
 | **DEAD** | Nudge failed, tmux window gone, or log shows crash/exit | Decide: respawn (engram-agent always), report to user (task agents). |
-| **DONE** | Agent posted `done` for its assigned task | Kill tmux window: `tmux kill-window -t engram:<agent-name>`. Remove from tracking. |
+| **DONE** | Agent posted `done` for its assigned task | Kill tmux window: `tmux kill-window -t<agent-name>`. Remove from tracking. |
 
 ### 3.2 Nudging
 
@@ -166,7 +164,7 @@ text = "You appear to have gone silent. Post a status update."
 **Step 2: tmux nudge (fallback).** If no response within 30 seconds:
 
 ```bash
-tmux send-keys -t engram:<agent-name> \
+tmux send-keys -t<agent-name> \
   "Check chat.toml for messages and post a status update." Enter
 ```
 
@@ -182,7 +180,7 @@ Track nudge count per agent. After 2 failed nudge cycles, skip straight to DEAD 
 | Task agents | Report to user with last 20 lines of log + last chat messages. User decides. | User-controlled. |
 
 Respawn procedure:
-1. Kill existing window: `tmux kill-window -t engram:<name> 2>/dev/null`
+1. Kill existing window: `tmux kill-window -t<name> 2>/dev/null`
 2. Spawn fresh window with same parameters
 3. Post `info` to chat: `"Respawned <agent-name> (attempt N/3). Previous instance died/became unresponsive."`
 4. New instance reads chat history on join and picks up context
@@ -196,12 +194,12 @@ Triggered by user saying "done", "shut down", "stand down", or similar.
 2. Shut down TASK agents first (executors, planners, reviewers, researchers):
    a. Post shutdown message addressed to each task agent
    b. Wait 5s for each agent's exit (may post final learned messages)
-   c. Kill tmux windows: tmux kill-window -t engram:<name>
+   c. Kill tmux windows: tmux kill-window -t<name>
 3. Shut down engram-agent LAST:
    a. Post shutdown to engram-agent
    b. Wait 10s (longer -- engram-agent may process final learned messages)
-   c. Kill tmux window: tmux kill-window -t engram:engram-agent
-4. Kill tmux session: tmux kill-session -t engram
+   c. Kill tmux window: tmux kill-window -tengram-agent
+4. All agent windows are now closed
 5. Truncate chat file (write empty file, don't delete)
 6. Report session summary to user (agents spawned, tasks completed, memories learned)
 ```
@@ -316,7 +314,7 @@ When the user types a message:
 ### 6.2 Periodic Health Check (Every 2 Minutes)
 
 1. Check all tracked agents against silence thresholds
-2. Verify tmux windows exist: `tmux list-windows -t engram -F '#{window_name}'`
+2. Verify tmux windows exist: `tmux list-windows -F '#{window_name}'`
 3. Transition SILENT/DEAD agents per Section 3
 4. If engram-agent missed heartbeat (>6 min since last), nudge immediately
 
@@ -384,7 +382,7 @@ After 300 messages: degraded mode -- minimal context retention, checkpoint every
 
 If the lead dies and user restarts:
 1. Read chat.toml from beginning -- reconstruct agent registry
-2. Check tmux session: `tmux list-windows -t engram -F '#{window_name}'`
+2. Check tmux session: `tmux list-windows -F '#{window_name}'`
 3. Match running tmux windows against chat history
 4. Resume monitoring. Post `info`: "Lead restarted. Recovered state: N agents running."
 
