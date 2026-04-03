@@ -28,7 +28,7 @@ If the user provided a query (e.g., `/recall keyword matching`), add `--query "<
 The command outputs plain text in two sections:
 
 1. **Transcript content** — raw stripped session content (first section, always present)
-2. **Memories** — relevant memories surfaced by similarity (after `=== MEMORIES ===` separator, only present when memories match)
+2. **Memories** — relevant memories surfaced by similarity (after `=== MEMORIES ===` separator, only present when memories match). Includes both feedback memories (SBIA format) and fact memories (`[FACT] subject predicate object`).
 
 **For plain `/recall`:** The transcript content is raw session history (not a summary). Read it, absorb the full context, then present a concise recap focusing on:
 
