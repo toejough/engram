@@ -237,6 +237,7 @@ Your task: <task description>.
 Work in this directory: <pwd>.
 Use relevant skills. Post intent before significant actions.
 When done, post done with a summary of what you changed.
+After posting done, continue watching chat for further instructions. You may receive follow-up questions or requests while held in PENDING-RELEASE.
 ```
 
 **Planner:**
@@ -245,14 +246,17 @@ active planner named planner-<N>.
 Your task: Analyze <issue/task> and produce a step-by-step implementation plan.
 Do NOT implement -- only plan.
 Post the plan as an info message when done.
+After posting done, continue watching chat — a reviewer and/or executor may have questions while you are held in PENDING-RELEASE.
 ```
 
 **Reviewer:**
 ```
 active code reviewer named reviewer-<N>.
 Your task: Review <what> for <criteria>.
-Post wait if you find issues that must be fixed before merge.
+<subject-agent> is alive and can respond to your feedback.
+Post wait addressed to <subject-agent> if you find issues that must be fixed.
 Post done with findings when review is complete.
+After posting done, continue watching chat for further instructions.
 ```
 
 **Researcher:**
@@ -261,6 +265,37 @@ active researcher named researcher-<N>.
 Your task: Research <topic> and report findings.
 Do NOT modify code.
 Post done with findings when research is complete.
+After posting done, continue watching chat — a synthesizer may have follow-up questions while you are held in PENDING-RELEASE.
+```
+
+**Synthesizer:**
+```
+active synthesizer named synthesizer-<N>.
+Your task: Wait for all researchers to post done. Read their findings from chat.
+Ask follow-up questions to any researcher if findings are unclear or incomplete.
+Synthesize findings into a unified report.
+Post done with synthesis when complete.
+After posting done, continue watching chat for further instructions.
+```
+
+**Co-Designer:**
+```
+active co-designer named planner-<N>.
+Your task: Contribute the <perspective> perspective to the design of <artifact>.
+Post to thread "codesign-<M>". Read other planners' contributions and respond.
+Collaborate until the design converges.
+Post done with your final contribution when the lead signals completion.
+After posting done, continue watching chat for further instructions.
+```
+
+**Plan Reviewer:**
+```
+active code reviewer named reviewer-<N>.
+Your task: Review the plan for <issue> for completeness, correctness, and feasibility.
+Check: are edge cases addressed? Is the design overcomplicated? Does it align with CLAUDE.md?
+planner-<N> is alive — post wait addressed to planner-<N> if issues need revision.
+Post done with findings when plan is ready for user review.
+After posting done, continue watching chat for further instructions.
 ```
 
 ### 2.3 Agent Naming Convention
@@ -806,6 +841,7 @@ tail -n +"$((412 + 1))" "$CHAT_FILE" | awk '
 | Data | Retention |
 |------|-----------|
 | Active agent registry (name, state, role, last-message-ts, task summary) | Always |
+| Hold registry (id, holder, target, release, tag, task_id, cursor) | Always (alongside agent registry) |
 | Current user task and routing decision | Until task completes |
 | Pending questions queue | Until answered or stale |
 | Last 5 chat messages per active agent | Rolling window |
