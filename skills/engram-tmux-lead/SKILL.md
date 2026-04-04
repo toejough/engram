@@ -54,6 +54,10 @@ CHAT_FILE="$HOME/.local/share/engram/chat/${PROJECT_SLUG}.toml"
 mkdir -p "$(dirname "$CHAT_FILE")"
 touch "$CHAT_FILE"
 
+# Background task registry: one active task per logical operation.
+# Always drain (TaskOutput block:false) before replacing an entry.
+CHAT_FSWATCH_TASK_ID=""  # task ID of the current chat watcher background task
+
 # Split right — chat tail is the first right-column pane
 tmux split-window -h -d "tail -F $CHAT_FILE"
 # Rebalance: coordinator on left, chat tail on right
@@ -113,18 +117,30 @@ Run this as a **background** Bash command so the lead stays responsive. When it 
 2. Check window output: `tmux capture-pane -t "${PROJECT_PREFIX}:engram-agent" -p | tail -20`
 3. Report to user with diagnostic info. Do NOT silently proceed without memory.
 
+> **Background task drain note:** The polling loop background task completes as soon as the loop exits (found or timed out). Reading its output drains it. If you need to retry after a timeout, the previous task is already drained when you read its output. Only spawn a new check after fully reading the old task's result — never run two concurrent READY check loops.
+
 ### 1.6 Post Ready
 
 Post your `ready` message to chat. Then tell the user you're ready and what agents are running.
 
 **The lead does NOT enter the standard fswatch watch loop.** Unlike reactive agents that block on fswatch, the lead stays interactive — it must be available for user input at all times. Instead, the lead:
 
-1. After each user interaction, starts a background `fswatch -1` on the chat file
+1. After each user interaction, **replace** the chat watcher background task (see drain-before-spawn pattern below)
 2. If the fswatch fires (agent posted something), process the chat message — relay questions to the user, handle agent status updates, etc.
 3. If the user types first, process the user message — parrot to chat, route to an agent
-4. After processing either, start a new background fswatch
+4. After processing either, replace the chat watcher (drain old → spawn new)
 
 This means the lead processes chat messages opportunistically between user inputs, not as a blocking loop.
+
+**HARD RULE: drain before spawn.** The lead must NEVER spawn a second fswatch while one is already running or has completed but not been drained. Unread completed tasks accumulate as zombie "shells" in Claude Code's background task queue. The replace pattern:
+
+```python
+# Before spawning a new chat watcher:
+if CHAT_FSWATCH_TASK_ID:
+    TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)  # drain; discard output
+# Spawn replacement
+CHAT_FSWATCH_TASK_ID = <new background task id from run_in_background>
+```
 
 ## 2. Agent Spawning
 
@@ -156,6 +172,7 @@ tmux select-layout main-vertical
 - All spawned agents use `--dangerously-skip-permissions` because they have no user to approve tool calls.
 - Default to `--model sonnet` for speed and cost. Only use opus for tasks requiring deep architectural thinking, complex debugging, or broad codebase reasoning.
 - **NEVER reference windows by index.** Always use the prefixed name.
+- **If you run a background READY check loop** for a spawned agent (similar to Section 1.5 pattern), track its task ID. If the loop times out and you need to retry or respawn, read the old task's output first to drain it before spawning a replacement check. Never run two concurrent READY check background tasks for the same agent.
 
 ### 2.2 Agent Role Templates
 
@@ -292,6 +309,10 @@ Triggered by user saying "done", "shut down", "stand down", "close engram", "sto
    - Find and kill any pane running tail on the chat file:
      tmux list-panes -F '#{pane_id} #{pane_current_command}' | grep tail | awk '{print $1}' | xargs -I{} tmux kill-pane -t {}
 5. Report session summary to user (agents spawned, tasks completed, memories learned)
+6. Drain all tracked background task IDs to prevent zombie "shells" persisting into the next session:
+   - If `CHAT_FSWATCH_TASK_ID` is set: `TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)`
+   - Any other tracked background task IDs (READY checks in flight): drain them too
+   - This ensures Claude Code's background task queue is empty when the session ends
 ```
 
 **Why engram-agent shuts down last:** Task agents may post `learned` messages during shutdown. The engram-agent needs to be alive to process those.
@@ -403,6 +424,20 @@ When the user types a message:
 2. Check for unprocessed chat messages since last wake
 3. Handle pending agent messages before returning to user
 
+**Replace pattern for chat watcher (HARD RULE — prevents zombie tasks):**
+
+```python
+# Drain old watcher before spawning new one:
+if CHAT_FSWATCH_TASK_ID:
+    TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)  # drain; discard output
+# Spawn new watcher:
+# run_in_background: true
+# fswatch -1 "$CHAT_FILE"
+CHAT_FSWATCH_TASK_ID = <task id from background task result>
+```
+
+Always do this — even if you processed user input rather than a chat notification. The previous watcher may have already fired and completed; draining it prevents it from queuing as a zombie.
+
 ### 6.2 Periodic Health Check (Every 2 Minutes)
 
 1. Check all tracked agents against silence thresholds
@@ -422,6 +457,26 @@ When the user types a message:
 - Routine intent/ack/done traffic between agents
 - Memory surfacing (engram-agent handles this)
 - Agent heartbeats
+
+### 6.4 Background Task Hygiene (HARD RULE)
+
+**NEVER let background tasks accumulate.** Each completed-but-unread background task appears as an open "shell" in Claude Code's status line. After a session with many false-positive wake cycles, this creates noise and confusion.
+
+**Rules:**
+1. **One chat watcher at a time.** `CHAT_FSWATCH_TASK_ID` holds the active watcher. Replace = drain old + spawn new.
+2. **Drain on replace.** Before starting a new background task of the same logical type, always call `TaskOutput(task_id=old_id, block=False)` to drain the completed task.
+3. **Drain on shutdown.** At session end (Section 3.4), drain all tracked task IDs.
+4. **Read output before retrying.** If a background READY check times out, read its output (it has completed), then decide whether to retry.
+
+```python
+# WRONG — spawns new watcher without draining old one:
+CHAT_FSWATCH_TASK_ID = run_background("fswatch -1 $CHAT_FILE")
+
+# RIGHT — drain old, then spawn new:
+if CHAT_FSWATCH_TASK_ID:
+    TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)
+CHAT_FSWATCH_TASK_ID = run_background("fswatch -1 $CHAT_FILE")
+```
 
 ## 7. Context Pressure Management
 
