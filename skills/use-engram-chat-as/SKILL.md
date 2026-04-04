@@ -167,20 +167,42 @@ If `shlock` isn't available, use `mkdir "$CHAT_FILE.lock"` (atomic on POSIX) and
 
 ## Watching for Messages
 
-Use background tasks with file-change notifications -- do NOT poll with sleep loops.
+Delegate all chat monitoring to a background Agent — do **not** run `fswatch`, cursor tracking, or grep operations as direct Bash tool calls in the main agent context. These produce visible bash tool-call noise in the agent pane. All monitoring belongs inside a background subagent where it is invisible.
 
-**The watch loop pattern:**
+**Background Monitor Pattern:**
 
-1. Run `fswatch -1 "$CHAT_FILE"` (macOS) or `inotifywait -e modify "$CHAT_FILE"` (Linux) as a **background** Bash command (`run_in_background: true`).
-2. **Do NOT complete your turn.** You are waiting for the background task notification. When the file changes, the task completes and you receive a notification.
-3. When the notification arrives: read new content, process it, respond.
-4. Start a new background `fswatch -1 "$CHAT_FILE"`. Go back to step 2.
+Spawn a monitoring Agent (`Agent` tool, `run_in_background: true`) with this task:
 
-**CRITICAL:** Between notifications, you are idle but NOT done. If you complete your turn (return to the prompt), the loop is broken and you miss all future messages. You must stay in your turn, waiting for the next background task notification.
+```
+Monitor engram chat file for semantic events.
+CHAT_FILE: [full path — embed as literal string, not a variable]
+CURSOR: [current line count — embed as integer literal, not a shell variable]
+AGENT_NAME: [the agent name to filter messages for]
+
+1. Run foreground bash: fswatch -1 "$CHAT_FILE"
+   (Blocks until one file change. Linux: inotifywait -e modify "$CHAT_FILE")
+2. Read new lines: tail -n +$((CURSOR + 1)) "$CHAT_FILE"
+3. Parse TOML blocks. Find the FIRST block where `to` contains AGENT_NAME or "all".
+4. Advance cursor: CURSOR=$(wc -l < "$CHAT_FILE")
+5. Return: EVENT_TYPE|from|CURSOR|text
+   EVENT_TYPE is one of: INTENT, ACK, WAIT, SHUTDOWN, DONE, INFO
+6. If no relevant message found: go back to step 1 (with advanced cursor)
+```
+
+**Main agent loop:**
+1. Spawn background monitor Agent (embed current cursor as integer literal)
+2. **Do NOT complete your turn** — wait for the Agent notification
+3. When notified: parse the `EVENT_TYPE|from|cursor|text` result, process, act
+4. Spawn new monitor Agent with the returned cursor value
+5. Repeat — **ALWAYS**, even after completing a task
+
+**CRITICAL:** Between notifications you are idle but NOT done. Completing your turn breaks the loop and drops all future messages.
 
 **Never exit the watch until the user explicitly dismisses you or you receive a `shutdown` message.**
 
 ### Reading New Content
+
+> **Note:** The cursor pattern below is what background monitoring Agents use internally. The main agent does not run these bash commands directly — it embeds cursor values as integer literals when spawning monitoring Agents.
 
 **HARD RULE: NEVER grep or search the full chat file to check for agent responses.** The chat file is persistent and grows across sessions. Grepping the full file matches messages from old sessions, causing false positives — you'll see agents as "done" when they haven't started, or relay stale content as if it were new output. This is a critical reliability bug.
 
@@ -224,7 +246,8 @@ If you join a channel that already has messages, read the entire file first to c
 ```
 1. Post intent    -> type = "intent", describe situation + planned action
 2. Wait for explicit responses from ALL TO recipients:
-   - Run fswatch -1 loop, re-checking after each file notification
+   - Spawn a background ACK-wait Agent: watch CHAT_FILE from current cursor for ACK/WAIT
+     from each expected recipient, applying the online/offline timing rules below
    - ONLY proceed when every TO recipient has responded (ACK or WAIT)
    - Offline exception: if a recipient has NOT posted any message in the last 15 min
      (scan full file), treat timeout as implicit ACK for that recipient only, after 5s
@@ -436,7 +459,7 @@ text = "Loaded 47 feedback memories, 23 facts. Watching for intents."
 ```
 
 **Semantics:**
-- Posted **once**, after the agent has: (1) read full chat history, (2) loaded resources, (3) started its fswatch loop.
+- Posted **once**, after the agent has: (1) read full chat history, (2) loaded resources, (3) spawned its background monitor Agent.
 - Addressed to `all`. Every agent posts `ready` regardless of role.
 - The `text` field contains agent-specific initialization stats. No required format.
 
@@ -478,7 +501,7 @@ When an agent receives a `shutdown` message addressed to it (or to `all`):
    ts = "2026-04-03T16:00:05Z"
    text = "Shutting down. Session stats: surfaced 12 memories, learned 5 facts."
    ```
-4. **Exit the fswatch loop.** The agent's turn is complete.
+4. **Exit the monitor Agent loop.** Do not spawn a new monitor Agent. The agent's turn is complete.
 
 ### User-Initiated Shutdown
 
@@ -492,20 +515,19 @@ The user can dismiss agents with phrases like "stand down", "you're done", "shut
 3. Read last 20 messages to catch up (read further back if needed)
 4. Read chat file (catch up on history)
 5. Load resources (memories, configs, etc.)
-6. Start fswatch loop
+6. Spawn background monitor Agent (Background Monitor Pattern, above)
 7. Post ready message (with ts)
-8. Block on fswatch
-9. fswatch returns -> read new messages
-10. Process messages addressed to you
-11. If acting:
+8. Wait for monitor Agent notification
+9. Monitor Agent returns semantic event -> process event if addressed to you
+10. If acting:
     a. Post intent to (engram-agent + any other relevant recipients)
     b. Wait for explicit ACK from all TO recipients (see Intent Protocol)
     c. Act
-    d. Pre-done cursor-check: tail -n +$((CURSOR + 1)) "$CHAT_FILE" | grep 'type = "wait"'
+    d. Pre-done cursor-check: spawn background Agent to tail CHAT_FILE from cursor, grep for unresolved WAITs
        If any WAIT addressed to you and unresolved: engage before posting done
     e. Post result
-12. Post response (with lock)
-13. Go to step 8 -- ALWAYS. Even after completing a task.
+11. Post response (with lock)
+12. Go to step 8 -- ALWAYS. Even after completing a task.
 ```
 
 **The watch only ends when:**
@@ -641,7 +663,8 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Mistake | Fix |
 |---------|-----|
 | Act without announcing intent | Always post intent before significant actions |
-| Poll with `sleep 2` loop | Use `fswatch -1` / `inotifywait` -- true kernel block |
+| Poll with `sleep 2` loop | Use `fswatch -1` / `inotifywait` -- true kernel block (inside monitoring Agent) |
+| Run fswatch/wc/grep directly in main agent context | Use background monitor Agent — bash monitoring in main context produces visible tool-call noise |
 | Post a message then stop | Always re-enter the fswatch after posting |
 | Stop after task completion | Completing a task != dismissed. Watch for next assignment |
 | Ignore WAIT responses | A WAIT means stop and read -- the responder has critical context |
@@ -651,7 +674,7 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Escalate to initiating agent instead of lead | Check for lead `ready` in chat history; escalate to lead if present |
 | Skip `ready` message | Always post `ready` after initialization, before entering watch loop |
 | Emit `learned` for trivial observations | Only emit when knowledge is reusable across sessions |
-| Ignore `shutdown` message | Exit fswatch loop after completing in-flight work and posting `done` |
+| Ignore `shutdown` message | Exit monitor Agent loop after completing in-flight work and posting `done` |
 | Post intent before others are ready | In lead setup: wait for expected `ready` messages (30s timeout) |
 | Use old field names (`[[entry]]`, `message =`) | Clean break: use `[[message]]` and `text =` |
 | Truncate or delete the chat file | Chat files are persistent -- prior sessions contain valuable context |

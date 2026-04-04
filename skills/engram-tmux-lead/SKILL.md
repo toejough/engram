@@ -19,7 +19,7 @@ The user's primary agent. All other agents are behind the scenes — the user ta
 
 **The ONLY commands the lead runs directly are:**
 - `tmux` commands (spawn, kill, list, send-keys, capture-pane, split-window)
-- Chat file operations (append to chat, read chat, fswatch chat)
+- Chat file operations (append to chat, read chat, spawn background monitor Agent)
 - `grep` on the chat file to check agent status
 
 **HARD GATE — parrot FIRST:** When the user sends a message, the lead's FIRST action is ALWAYS to post the user EXACT WORDS verbatim to chat as an `info` message — no summarization, no expansion, no interpretation. THEN decide how to route it. The engram-agent needs to see every user message — it may have relevant memories to surface. If you skip parroting, the memory system is blind.
@@ -73,7 +73,7 @@ touch "$CHAT_FILE"
 
 # Background task registry: one active task per logical operation.
 # Always drain (TaskOutput block:false) before replacing an entry.
-CHAT_FSWATCH_TASK_ID=""  # task ID of the current chat watcher background task
+CHAT_MONITOR_TASK_ID=""  # task ID of the current chat monitor Agent (Agent tool, run_in_background)
 
 # Pane column tracking — updated after every spawn or kill
 RIGHT_PANE_COUNT=0         # total panes to the right of coordinator
@@ -176,16 +176,15 @@ First, capture the cursor **before** spawning engram-agent (foreground bash):
 wc -l < "$CHAT_FILE"
 ```
 
-Note the output as `ENGRAM_START`. Then run a **background** Bash command (`run_in_background: true`) to check for the engram-agent's first chat message. **Embed `ENGRAM_START` as a literal number** — background tasks run in a fresh shell where `$CURSOR` and other shell variables from prior bash calls are unavailable.
+Note the output as `ENGRAM_START`. Then spawn a background Agent (`Agent` tool, `run_in_background: true`) to wait for the engram-agent's first chat message. **Embed `ENGRAM_START` as a literal integer in the Agent prompt** — background Agents have no access to shell variables from prior tool calls.
 
-```bash
-# Replace 87 with the literal value noted above. NOT a variable — background bash has no shell vars.
-for i in $(seq 1 15); do
-  if tail -n +"$((87 + 1))" "$CHAT_FILE" 2>/dev/null | grep -q 'from = "engram-agent"'; then
-    echo "ENGRAM-AGENT FOUND"; break
-  fi
-  sleep 2
-done
+```
+Watch for engram-agent startup in engram chat.
+CHAT_FILE: [full path — literal string]
+CURSOR: [ENGRAM_START literal integer]
+Watch for the first TOML message block where from = "engram-agent" (any type).
+Return "ENGRAM-AGENT FOUND" when found.
+Return "TIMEOUT" if not found within 30s.
 ```
 
 When it completes, check whether the engram-agent posted. If not after 30 seconds:
@@ -199,23 +198,23 @@ When it completes, check whether the engram-agent posted. If not after 30 second
 
 Post your `ready` message to chat. Then tell the user you're ready and what agents are running.
 
-**The lead does NOT enter the standard fswatch watch loop.** Unlike reactive agents that block on fswatch, the lead stays interactive — it must be available for user input at all times. Instead, the lead:
+**The lead does NOT enter the standard blocking watch loop.** Unlike reactive agents, the lead stays interactive — it must be available for user input at all times. Instead, the lead:
 
-1. After each user interaction, **replace** the chat watcher background task (see drain-before-spawn pattern below)
-2. If the fswatch fires (agent posted something), process the chat message — relay questions to the user, handle agent status updates, etc.
+1. After each user interaction, **replace** the chat monitor Agent (see drain-before-spawn pattern below)
+2. If the monitor Agent fires (agent posted something), process the chat message — relay questions to the user, handle agent status updates, etc.
 3. If the user types first, process the user message — parrot to chat, route to an agent
-4. After processing either, replace the chat watcher (drain old → spawn new)
+4. After processing either, replace the chat monitor Agent (drain old → spawn new)
 
 This means the lead processes chat messages opportunistically between user inputs, not as a blocking loop.
 
-**HARD RULE: drain before spawn.** The lead must NEVER spawn a second fswatch while one is already running or has completed but not been drained. Unread completed tasks accumulate as zombie "shells" in Claude Code's background task queue. The replace pattern:
+**HARD RULE: drain before spawn.** The lead must NEVER spawn a second monitor Agent while one is already running or has completed but not been drained. Unread completed tasks accumulate as zombie "shells" in Claude Code's background task queue. The replace pattern:
 
 ```python
-# Before spawning a new chat watcher:
-if CHAT_FSWATCH_TASK_ID:
-    TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)  # drain; discard output
-# Spawn replacement
-CHAT_FSWATCH_TASK_ID = <new background task id from run_in_background>
+# Before spawning a new chat monitor Agent:
+if CHAT_MONITOR_TASK_ID:
+    TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)  # drain; discard output
+# Spawn replacement (Agent tool, run_in_background: true)
+CHAT_MONITOR_TASK_ID = <new background Agent task id>
 ```
 
 ## 2. Agent Spawning
@@ -250,21 +249,16 @@ tmux select-layout main-vertical
 wc -l < "$CHAT_FILE"
 ```
 
-Note the output as the per-spawn start line (e.g., `412`). Then run the wait task as **background** (`run_in_background: true`). Embed the literal number, NOT a variable — background bash runs in a fresh shell where `$CURSOR` and other shell variables are undefined.
+Note the output as the per-spawn start line (e.g., `412`). Then spawn the wait task as a background Agent (`Agent` tool, `run_in_background: true`). **Embed the literal integer in the Agent prompt** — background Agents have no access to shell variables from prior tool calls.
 
-```bash
-# Replace 412 with the literal value noted above.
-# Replace exec-1 with the actual agent name.
-for i in $(seq 1 30); do
-  RESULT=$(tail -n +"$((412 + 1))" "$CHAT_FILE" | awk '
-    /^\[\[message\]\]/ { from=""; msgtype="" }
-    /^from = "exec-1"/ { from=1 }
-    /^type = "done"/ { msgtype=1 }
-    from && msgtype { print "DONE"; exit }
-  ')
-  if [ "$RESULT" = "DONE" ]; then echo "AGENT DONE"; break; fi
-  sleep 2
-done
+```
+Watch for an agent done message in engram chat.
+CHAT_FILE: [full path — literal string]
+CURSOR: [per-spawn cursor literal integer, e.g. 412]
+AGENT_NAME: [agent name, e.g. exec-1]
+Watch for a TOML message block where from = "AGENT_NAME" AND type = "done".
+Return "AGENT DONE" when found.
+Return "TIMEOUT" if not found within 60s.
 ```
 
 When the background task completes:
@@ -510,28 +504,26 @@ Holds:
 
 One background task per hold. Cursor-based polling (same pattern as Section 2.1 / 6.4):
 
-```bash
-# Example: hold h1, watching for reviewer-1 to post done
-# Replace 567 with literal cursor value captured when hold was created.
-# PERSISTENT watcher — restarts on timeout until the release fires.
-HOLD_CURSOR=567
-while true; do
-  for i in $(seq 1 60); do
-    RESULT=$(tail -n +"$((HOLD_CURSOR + 1))" "$CHAT_FILE" | awk '
-      /^\[\[message\]\]/ { from=""; msgtype="" }
-      /^from = "reviewer-1"/ { from=1 }
-      /^type = "done"/ { msgtype=1 }
-      from && msgtype { print "RELEASED"; exit }
-    ')
-    if [ "$RESULT" = "RELEASED" ]; then echo "HOLD RELEASED h1"; exit 0; fi
-    sleep 2
-  done
-  # Timeout — advance cursor and restart. Hold is still active.
-  HOLD_CURSOR=$(wc -l < "$CHAT_FILE")
-done
+Spawn a persistent background Agent (`Agent` tool, `run_in_background: true`) with this task:
+
+```
+Watch for a hold release condition in engram chat. This is a persistent watcher.
+CHAT_FILE: [full path — literal string]
+CURSOR: [hold cursor literal integer — embed as number, e.g. 567]
+HOLDER_AGENT: [agent that triggers release, e.g. reviewer-1]
+RELEASE_TYPE: [message type that fires the release, e.g. done]
+HOLD_ID: [hold id, e.g. h1]
+
+Loop:
+1. Run foreground bash: fswatch -1 "$CHAT_FILE"
+   (Blocks until one file change. Linux: inotifywait -e modify "$CHAT_FILE")
+2. Read new lines: tail -n +$((CURSOR + 1)) "$CHAT_FILE". Advance CURSOR.
+3. Check for TOML block where from = "HOLDER_AGENT" AND type = "RELEASE_TYPE".
+4. If found: return "HOLD RELEASED HOLD_ID"
+5. If not found: go back to step 1 (persistent — do not exit until release fires)
 ```
 
-The watcher is persistent: it restarts after each 2-minute window, advancing the cursor. This prevents stuck holds where the holder's event arrives after a one-shot timeout. The background task only exits when the release event fires.
+The Agent is persistent: it loops on fswatch until the release fires. The background Agent only exits when the release event fires.
 
 **When a hold fires:**
 1. Drain its background task (TaskOutput block:false)
@@ -811,7 +803,7 @@ Drop questions that become stale (asking agent posted `done` or moved on).
 
 ### 6.1 Chat Watch Loop
 
-Run the standard fswatch loop per `use-engram-chat-as` protocol. Between user interactions, idle but watching -- wake on chat changes.
+Use the Background Monitor Pattern from `use-engram-chat-as` — spawn a background monitor Agent to watch the chat file. Between user interactions, idle but watching — wake on Agent notification. Do NOT run fswatch or grep directly in the lead's main context; these produce visible tool-call noise in the lead pane.
 
 When the user types a message:
 1. Process the user message (route/relay/respond)
@@ -821,16 +813,15 @@ When the user types a message:
 **Replace pattern for chat watcher (HARD RULE — prevents zombie tasks):**
 
 ```python
-# Drain old watcher before spawning new one:
-if CHAT_FSWATCH_TASK_ID:
-    TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)  # drain; discard output
-# Spawn new watcher:
-# run_in_background: true
-# fswatch -1 "$CHAT_FILE"
-CHAT_FSWATCH_TASK_ID = <task id from background task result>
+# Drain old monitor Agent before spawning new one:
+if CHAT_MONITOR_TASK_ID:
+    TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)  # drain; discard output
+# Spawn replacement monitor Agent (Agent tool, run_in_background: true):
+# Task: Background Monitor Pattern from use-engram-chat-as, with current cursor
+CHAT_MONITOR_TASK_ID = <task id from Agent tool result>
 ```
 
-Always do this — even if you processed user input rather than a chat notification. The previous watcher may have already fired and completed; draining it prevents it from queuing as a zombie.
+Always do this — even if you processed user input rather than a chat notification. The previous monitor Agent may have already returned; draining it prevents it from queuing as a zombie.
 
 ### 6.2 Periodic Health Check (Every 2 Minutes)
 
@@ -857,7 +848,7 @@ Always do this — even if you processed user input rather than a chat notificat
 **NEVER let background tasks accumulate.** Each completed-but-unread background task appears as an open "shell" in Claude Code's status line. After a session with many false-positive wake cycles, this creates noise and confusion.
 
 **Rules:**
-1. **One chat watcher at a time.** `CHAT_FSWATCH_TASK_ID` holds the active watcher. Replace = drain old + spawn new.
+1. **One chat monitor Agent at a time.** `CHAT_MONITOR_TASK_ID` holds the active monitor. Replace = drain old + spawn new.
 2. **Drain on replace.** Before starting a new background task of the same logical type, always call `TaskOutput(task_id=old_id, block=False)` to drain the completed task.
 3. **Drain on shutdown.** At session end (Section 3.4), drain all tracked task IDs.
 4. **Read output before retrying.** If a background READY check times out, read its output (it has completed), then decide whether to retry.
@@ -869,13 +860,13 @@ Always do this — even if you processed user input rather than a chat notificat
 10. **Hold watchers replace standard agent wait tasks in hold-aware phases.** When a hold watcher watches for the same event as the standard Section 2.1 wait task (e.g., reviewer done), do NOT run both. Use the hold watcher's output for both hold dissolution and phase advancement.
 
 ```python
-# WRONG — spawns new watcher without draining old one:
-CHAT_FSWATCH_TASK_ID = run_background("fswatch -1 $CHAT_FILE")
+# WRONG — spawns new monitor Agent without draining old one:
+CHAT_MONITOR_TASK_ID = Agent(task="monitor chat...", run_in_background=True)
 
 # RIGHT — drain old, then spawn new:
-if CHAT_FSWATCH_TASK_ID:
-    TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)
-CHAT_FSWATCH_TASK_ID = run_background("fswatch -1 $CHAT_FILE")
+if CHAT_MONITOR_TASK_ID:
+    TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)
+CHAT_MONITOR_TASK_ID = Agent(task="monitor chat...", run_in_background=True)
 ```
 
 ```bash
@@ -979,9 +970,9 @@ If 2+ agents die within 60 seconds:
 
 ### 8.4 fswatch Failure
 
-If fswatch is unavailable or crashes:
-1. Fall back to polling: `stat -f %m chat.toml` every 2 seconds
-2. Warn user: "fswatch unavailable, falling back to polling. Install with: `brew install fswatch`"
+If fswatch is unavailable or crashes (detected when a monitoring Agent fails to start or errors):
+1. Monitoring Agents fall back to polling internally: `stat -f %m chat.toml` every 2 seconds
+2. Warn user: "fswatch unavailable, monitoring agents falling back to polling. Install with: `brew install fswatch`"
 
 ## 9. User Commands
 
