@@ -119,18 +119,25 @@ tmux select-layout main-vertical
 
 ### 1.5 Wait for engram-agent
 
-Run a background polling loop to check for the engram-agent's first message. Use the same `CHAT_FILE` derived in step 1.3.
+First, capture the cursor **before** spawning engram-agent (foreground bash):
 
 ```bash
+wc -l < "$CHAT_FILE"
+```
+
+Note the output as `ENGRAM_START`. Then run a **background** Bash command (`run_in_background: true`) to check for the engram-agent's first chat message. **Embed `ENGRAM_START` as a literal number** — background tasks run in a fresh shell where `$CURSOR` and other shell variables from prior bash calls are unavailable.
+
+```bash
+# ENGRAM_START_LINE is the literal value noted above (e.g., 87). NOT a variable reference.
 for i in $(seq 1 15); do
-  if grep -q 'from = "engram-agent"' "$CHAT_FILE" 2>/dev/null; then
-    break
+  if tail -n +"$((ENGRAM_START_LINE + 1))" "$CHAT_FILE" 2>/dev/null | grep -q 'from = "engram-agent"'; then
+    echo "ENGRAM-AGENT FOUND"; break
   fi
   sleep 2
 done
 ```
 
-Run this as a **background** Bash command so the lead stays responsive. When it completes, check whether the engram-agent posted. If not after 30 seconds:
+When it completes, check whether the engram-agent posted. If not after 30 seconds:
 1. Check pane exists: `tmux list-panes -F '#{pane_id} #{pane_pid}' | grep <tracked-pane-id>`
 2. Check window output: `tmux capture-pane -t "${PROJECT_PREFIX}:engram-agent" -p | tail -20`
 3. Report to user with diagnostic info. Do NOT silently proceed without memory.
@@ -182,6 +189,35 @@ tmux send-keys -t "$PANE_ID" Enter
 # Rebalance: coordinator left, everything else stacks evenly on right
 tmux select-layout main-vertical
 ```
+
+**Step 3: Wait for agent done.**
+
+**CRITICAL — capture cursor BEFORE sending the role prompt (foreground bash):**
+
+```bash
+wc -l < "$CHAT_FILE"
+```
+
+Note the output as the per-spawn start line (e.g., `412`). Then run the wait task as **background** (`run_in_background: true`). Embed the literal number, NOT a variable — background bash runs in a fresh shell where `$CURSOR` and other shell variables are undefined.
+
+```bash
+# Replace 412 with the literal value noted above.
+# Replace exec-1 with the actual agent name.
+for i in $(seq 1 30); do
+  RESULT=$(tail -n +"$((412 + 1))" "$CHAT_FILE" | awk '
+    /^\[\[message\]\]/ { from=""; msgtype="" }
+    /^from = "exec-1"/ { from=1 }
+    /^type = "done"/ { msgtype=1 }
+    from && msgtype { print "DONE"; exit }
+  ')
+  if [ "$RESULT" = "DONE" ]; then echo "AGENT DONE"; break; fi
+  sleep 2
+done
+```
+
+When the background task completes:
+- "AGENT DONE": read the `done` message text from new lines (cursor-based), update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`.
+- No output after 30 iterations: agent may be stuck. Check via `tmux capture-pane -t "$PANE_ID" -p -S -20`. Transition to SILENT per Section 3.2.
 
 **Track pane IDs, not window names.** The lead maintains a mapping of agent-name → pane-ID for targeting send-keys, capture-pane, and kill-pane operations.
 
@@ -359,22 +395,43 @@ Classify each user request and route accordingly. Use LLM judgment, not keyword 
 For issue-sized work, orchestrate three sequential phases:
 
 **Phase 1: PLAN**
-1. Spawn `planner-<N>` with issue context
-2. Planner reads code, analyzes, posts plan as `info` message
-3. Lead presents plan to user for approval
-4. User approves (or modifies) -> Phase 2
+1. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `PLAN_START`
+2. Spawn `planner-<N>` with issue context (per Section 2.1 Steps 1–2)
+3. Send role prompt (Section 2.1)
+4. Run background wait task (Section 2.1 Step 3) — embed `PLAN_START` as literal, filter `from = "planner-<N>"` and `type = "done"`
+5. When planner done: read plan text from new lines (cursor-based), present to user
+6. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
+7. User approves (or modifies) -> Phase 2
 
 **Phase 2: EXECUTE**
-1. Spawn `exec-<N>` with approved plan
-2. Executor implements, posting intent before each significant step
-3. engram-agent watches intents for memory matches
-4. Executor posts `done` -> Phase 3
+1. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `EXEC_START`
+2. Spawn `exec-<N>` with approved plan (per Section 2.1 Steps 1–2)
+3. Send role prompt with the approved plan text (Section 2.1)
+4. Run background wait task (Section 2.1 Step 3) — embed `EXEC_START` as literal, filter `from = "exec-<N>"` and `type = "done"`
+5. When executor done: read result summary from new lines (cursor-based)
+6. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
+7. -> Phase 3
 
 **Phase 3: REVIEW**
-1. Spawn `reviewer-<N>` with original plan + `git diff`
-2. Reviewer inspects, posts `wait` for issues or `done` for approval
-3. If issues: relay to user, may re-enter Phase 2
-4. If approved: report to user, clean up agents
+1. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `REVIEW_START`
+2. Spawn `reviewer-<N>` with original plan + `git diff` output (per Section 2.1 Steps 1–2)
+3. Send role prompt (Section 2.1)
+4. Run background wait task (Section 2.1 Step 3) — embed `REVIEW_START` as literal, filter `from = "reviewer-<N>"` and **either** `type = "wait"` (issues found) **or** `type = "done"` (approved):
+   ```bash
+   tail -n +"$((REVIEW_START + 1))" "$CHAT_FILE" | awk '
+     /^\[\[message\]\]/ { from=""; msgtype="" }
+     /^from = "reviewer-1"/ { from=1 }
+     /^type = "wait"/ { msgtype="WAIT" }
+     /^type = "done"/ { msgtype="DONE" }
+     from && msgtype { print msgtype; exit }
+   '
+   ```
+5. When reviewer responds:
+   - `WAIT`: relay issues to user. Decide: fix (re-enter Phase 2) or accept as-is.
+   - `DONE`: report to user, clean up agents
+6. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
+
+**Per-spawn cursor is mandatory at every phase boundary.** See Section 6.4 Rule 5. Reusing the session `CURSOR` from a prior phase will match the previous agent's `done` as a false positive.
 
 Do NOT spawn all three simultaneously. Each phase starts after the previous completes.
 
@@ -484,6 +541,8 @@ Always do this — even if you processed user input rather than a chat notificat
 2. **Drain on replace.** Before starting a new background task of the same logical type, always call `TaskOutput(task_id=old_id, block=False)` to drain the completed task.
 3. **Drain on shutdown.** At session end (Section 3.4), drain all tracked task IDs.
 4. **Read output before retrying.** If a background READY check times out, read its output (it has completed), then decide whether to retry.
+5. **Capture a FRESH cursor before each agent spawn.** The session cursor accumulates messages since startup. By the time you spawn exec-2, planner-1's `done` may already be within the session cursor range. Capture a new cursor immediately before spawning each agent and use it exclusively in that agent's wait loop. See Section 2.1 for the canonical pattern.
+6. **Filter by both `type` AND `from`.** A `type = "done"` grep matches any agent's done message. When waiting for a specific agent, use the awk pattern below to match both fields within the same TOML message block.
 
 ```python
 # WRONG — spawns new watcher without draining old one:
@@ -493,6 +552,24 @@ CHAT_FSWATCH_TASK_ID = run_background("fswatch -1 $CHAT_FILE")
 if CHAT_FSWATCH_TASK_ID:
     TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)
 CHAT_FSWATCH_TASK_ID = run_background("fswatch -1 $CHAT_FILE")
+```
+
+```bash
+# WRONG — matches any agent's done, including prior-session messages:
+grep -q 'type = "done"' "$CHAT_FILE"
+tail -n +$((CURSOR + 1)) "$CHAT_FILE" | grep -q 'type = "done"'  # still wrong: no agent filter
+
+# RIGHT — per-spawn cursor, both fields matched in same TOML block:
+# (Foreground, before spawning): note the line count as SPAWN_CURSOR
+wc -l < "$CHAT_FILE"
+# (Background wait task): embed the literal value noted above, NOT a variable reference.
+# Background bash runs in a fresh shell — $SPAWN_CURSOR is undefined there.
+tail -n +"$((412 + 1))" "$CHAT_FILE" | awk '
+  /^\[\[message\]\]/ { from=""; msgtype="" }
+  /^from = "exec-1"/ { from=1 }
+  /^type = "done"/ { msgtype=1 }
+  from && msgtype { print "DONE"; exit }
+'
 ```
 
 ## 7. Context Pressure Management
