@@ -77,6 +77,7 @@ CHAT_FSWATCH_TASK_ID=""  # task ID of the current chat watcher background task
 
 # Split right — chat tail is the first right-column pane
 tmux split-window -h -d "tail -F $CHAT_FILE"
+TAIL_PANE_ID=$(tmux list-panes -F '#{pane_id}' | tail -1)
 # Rebalance: coordinator on left, chat tail on right
 tmux select-layout main-vertical
 ```
@@ -100,7 +101,7 @@ tmux select-layout main-vertical
 ```bash
 # Split a new pane to the right, start claude in it
 tmux split-window -h -d
-# Get the new pane's ID (the last one created)
+# Get the new pane's ID (the last one created; TAIL_PANE_ID already tracked from step 1.3)
 PANE_ID=$(tmux list-panes -F '#{pane_id}' | tail -1)
 tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet" Enter
 # Wait for claude to start (watch for the prompt character)
@@ -323,8 +324,7 @@ Triggered by user saying "done", "shut down", "stand down", "close engram", "sto
    b. Wait 10s (longer -- engram-agent may process final learned messages)
    c. Kill tmux pane: tmux kill-pane -t <engram-agent-pane-id>
 4. Kill the chat tail pane (the split pane created during startup):
-   - Find and kill any pane running tail on the chat file:
-     tmux list-panes -F '#{pane_id} #{pane_current_command}' | grep tail | awk '{print $1}' | xargs -I{} tmux kill-pane -t {}
+   tmux kill-pane -t "$TAIL_PANE_ID" 2>/dev/null || true
 5. Report session summary to user (agents spawned, tasks completed, memories learned)
 6. Drain all tracked background task IDs to prevent zombie "shells" persisting into the next session:
    - If `CHAT_FSWATCH_TASK_ID` is set: `TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)`
