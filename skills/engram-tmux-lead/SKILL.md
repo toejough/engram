@@ -181,10 +181,26 @@ Return "ENGRAM-AGENT FOUND" when found.
 Return "TIMEOUT" if not found within 30s.
 ```
 
-When it completes, check whether the engram-agent posted. If not after 30 seconds:
-1. Check pane exists: `tmux list-panes -F '#{pane_id} #{pane_pid}' | grep <tracked-pane-id>`
-2. Check window output: `tmux capture-pane -t "${PROJECT_PREFIX}:engram-agent" -p | tail -20`
-3. Report to user with diagnostic info. Do NOT silently proceed without memory.
+**Use `block=False` — do NOT block.** After spawning the background Agent, poll it non-blocking between interactions. Never call `TaskOutput(task_id=..., block=True)` for this wait — that freezes the lead and blocks all user input.
+
+```python
+# After spawning ENGRAM_READY_TASK_ID:
+import time
+deadline = time.time() + 30
+while time.time() < deadline:
+    result = TaskOutput(task_id=ENGRAM_READY_TASK_ID, block=False)
+    if result is not None:  # task completed
+        break
+    # Check for user input; handle it if present, then re-poll
+    time.sleep(0.5)
+```
+
+If result is "ENGRAM-AGENT FOUND": proceed.
+If result is "TIMEOUT" or deadline passed with no result:
+1. Drain: `TaskOutput(task_id=ENGRAM_READY_TASK_ID, block=False)` (discard)
+2. Check pane exists: `tmux list-panes -F '#{pane_id} #{pane_pid}' | grep <tracked-pane-id>`
+3. Check window output: `tmux capture-pane -t "$PANE_ID" -p | tail -20`
+4. Report to user with diagnostic info. Do NOT silently proceed without memory.
 
 > **Background task drain note:** The polling loop background task completes as soon as the loop exits (found or timed out). Reading its output drains it. If you need to retry after a timeout, the previous task is already drained when you read its output. Only spawn a new check after fully reading the old task's result — never run two concurrent READY check loops.
 
