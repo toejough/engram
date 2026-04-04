@@ -54,7 +54,7 @@ mkdir -p "$(dirname "$CHAT_FILE")"
 touch "$CHAT_FILE"
 
 # Split current window horizontally — chat tail in bottom pane
-tmux split-window -v -l 15 "tail -f $CHAT_FILE"
+tmux split-window -v -l 15 "tail -F $CHAT_FILE"
 ```
 
 The pane is small (15 lines) so it doesn't crowd the user's workspace. The user can resize or close it anytime.
