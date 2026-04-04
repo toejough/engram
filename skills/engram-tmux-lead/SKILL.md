@@ -103,7 +103,8 @@ tmux select-layout main-vertical
 tmux split-window -h -d
 # Get the new pane's ID (the last one created; TAIL_PANE_ID already tracked from step 1.3)
 PANE_ID=$(tmux list-panes -F '#{pane_id}' | tail -1)
-tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet" Enter
+# Suppress status line — agents run headless, no user to see it; keeps panes clean
+tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
 # Wait for claude to start (watch for the prompt character)
 while ! tmux capture-pane -t "$PANE_ID" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
 # Send the role prompt
@@ -178,7 +179,8 @@ Every agent the lead spawns gets a **pane** in the coordinator's window (NOT a s
 tmux split-window -h -d
 # Get the new pane's ID
 PANE_ID=$(tmux list-panes -F '#{pane_id}' | tail -1)
-tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet" Enter
+# Suppress status line — agents run headless, no user to see it; keeps panes clean
+tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
 # Wait for claude to start (watch for the prompt character)
 while ! tmux capture-pane -t "$PANE_ID" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
 # Send the role prompt
@@ -224,6 +226,7 @@ When the background task completes:
 **Critical:**
 - **ALL window names MUST be prefixed with `${PROJECT_PREFIX}:`** (e.g., `engram:exec-1`, `traced:engram-agent`). This prevents cross-project collisions when multiple projects run agents in the same tmux session.
 - All spawned agents use `--dangerously-skip-permissions` because they have no user to approve tool calls.
+- All spawned agents use `--settings '{"statusLine": ...}'` to replace the user's status line with a no-op. Agents run headless — the status bar wastes vertical space in tmux panes and no user is present to read it. The `command` field deep-merges and overrides the user's existing statusLine configuration.
 - Default to `--model sonnet` for speed and cost. Only use opus for tasks requiring deep architectural thinking, complex debugging, or broad codebase reasoning.
 - **NEVER reference windows by index.** Always use the prefixed name.
 - **If you run a background READY check loop** for a spawned agent (similar to Section 1.5 pattern), track its task ID. If the loop times out and you need to retry or respawn, read the old task's output first to drain it before spawning a replacement check. Never run two concurrent READY check background tasks for the same agent.
