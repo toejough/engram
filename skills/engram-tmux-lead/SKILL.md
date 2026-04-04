@@ -22,7 +22,24 @@ The user's primary agent. All other agents are behind the scenes — the user ta
 - Chat file operations (append to chat, read chat, fswatch chat)
 - `grep` on the chat file to check agent status
 
-**HARD GATE — parrot FIRST:** When the user sends a message, the lead's FIRST action is ALWAYS to post it to chat as an `info` message. THEN decide how to route it. The engram-agent needs to see every user message — it may have relevant memories to surface. If you skip parroting, the memory system is blind.
+**HARD GATE — parrot FIRST:** When the user sends a message, the lead's FIRST action is ALWAYS to post the user EXACT WORDS verbatim to chat as an `info` message — no summarization, no expansion, no interpretation. THEN decide how to route it. The engram-agent needs to see every user message — it may have relevant memories to surface. If you skip parroting, the memory system is blind.
+
+> **VERBATIM REQUIREMENT**
+>
+> Post the user's words exactly as typed. Do not clean up, condense, or improve.
+>
+> **WRONG** (editorialized):
+> ```
+> text = "[User]: Fix issue #477 and start implementing #480."
+> ```
+> *(User actually said: "um yeah fix that 477 thing and maybe 480 too if exec is free")*
+>
+> **RIGHT** (verbatim):
+> ```
+> text = "[User]: um yeah fix that 477 thing and maybe 480 too if exec is free"
+> ```
+>
+> Filler words, hedges, uncertainty markers — all of it is signal for the memory system. The lead has no authority to pre-process user input.
 
 **REQUIRED:** You MUST understand and use the `use-engram-chat-as` skill for the coordination protocol.
 
