@@ -604,10 +604,27 @@ git worktree add /tmp/engram-worktree-exec-<N> -b engram/exec-<N> HEAD
 
 Include the worktree path in the executor's role template as its working directory.
 
-**Merge strategy after all complete:**
-1. Merge each worktree branch back one at a time
-2. Report merge conflicts to user
-3. Clean up: `git worktree remove /tmp/engram-worktree-exec-<N>`
+**Merge strategy — lead-coordinated merge queue:**
+
+When all executors post done, each enters PENDING-RELEASE (held by merge-process holds — see Section 3.5 Merge Queue pattern).
+
+Create holds at executor spawn time:
+```
+For each exec-K:
+  {holder: "merge-process", target: exec-K, release: lead_release("merge-N-exec-K"), tag: "merge-queue-N"}
+```
+
+Sequential merge procedure (lead coordinates — does NOT delegate):
+1. Pick exec-1 (first executor to merge)
+2. Tell exec-1 via chat: "Rebase your branch on main, run `targ check-full`, and post done when green."
+3. Wait for exec-1 done (background task, cursor-based)
+4. If exec-1 reports rebase conflicts: exec-1 resolves (it's alive in PENDING-RELEASE), re-test, post done again
+5. After green tests: lead runs `git merge --ff-only /tmp/engram-worktree-exec-1-branch`
+6. `lead_release("merge-N-exec-1")` → exec-1 released → pane killed
+7. Move to exec-2: tell it to rebase on updated main, repeat from step 3
+8. After all merged: clean up worktrees — `git worktree remove /tmp/engram-worktree-exec-<N>`
+
+**Why this beats the race:** No executor independently rebases or retests. The lead controls merge order. Each executor resolves only its own conflicts when asked. Rebase onto updated main happens once per executor, in sequence.
 
 **Single executors** do not need worktrees -- they work in the project root.
 
