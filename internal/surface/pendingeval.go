@@ -33,7 +33,10 @@ func WritePendingEvaluations(
 			})
 		})
 		if writeErr != nil {
-			errs = append(errs, fmt.Errorf("writing pending evaluation for %s: %w", mem.FilePath, writeErr))
+			errs = append(
+				errs,
+				fmt.Errorf("writing pending evaluation for %s: %w", mem.FilePath, writeErr),
+			)
 		}
 	}
 

@@ -53,7 +53,13 @@ type MemoryRecord struct {
 func (r *MemoryRecord) ToStored(filePath string) *Stored {
 	updatedAt, parseErr := time.Parse(time.RFC3339, r.UpdatedAt)
 	if parseErr != nil && r.UpdatedAt != "" {
-		fmt.Fprintf(os.Stderr, "engram: memory: parsing updated_at %q for %s: %v\n", r.UpdatedAt, filePath, parseErr)
+		fmt.Fprintf(
+			os.Stderr,
+			"engram: memory: parsing updated_at %q for %s: %v\n",
+			r.UpdatedAt,
+			filePath,
+			parseErr,
+		)
 	}
 
 	return &Stored{

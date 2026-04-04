@@ -54,8 +54,15 @@ func buildGateUserPrompt(candidates []*memory.Stored, userMessage string) string
 
 	for _, candidate := range candidates {
 		slug := memory.NameFromPath(candidate.FilePath)
-		fmt.Fprintf(&buf, "- slug: %s\n  situation: %s\n  behavior: %s\n  impact: %s\n  action: %s\n",
-			slug, candidate.Situation, candidate.Content.Behavior, candidate.Content.Impact, candidate.Content.Action)
+		fmt.Fprintf(
+			&buf,
+			"- slug: %s\n  situation: %s\n  behavior: %s\n  impact: %s\n  action: %s\n",
+			slug,
+			candidate.Situation,
+			candidate.Content.Behavior,
+			candidate.Content.Impact,
+			candidate.Content.Action,
+		)
 	}
 
 	return buf.String()
