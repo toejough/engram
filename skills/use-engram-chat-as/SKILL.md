@@ -132,7 +132,7 @@ Every message has these fields:
 | `info` | Status updates, user-parroted input, resolution recording | Any agent | No |
 | `done` | Task/action completed; final message before shutdown | Any agent | No |
 | `learned` | Knowledge extracted from work (fact signal for engram-agent) | Active agents | No (silent processing) |
-| `ready` | Agent initialization complete, watching chat | Any agent | No (but spawners may wait for it) |
+| `ready` | Agent joining chat — announces presence (may still be initializing) | Any agent | No (but spawners wait for the subsequent init-complete `info` before routing work) |
 | `shutdown` | Signal agent to exit after completing in-flight work | Lead or active agent | `done` message |
 | `escalate` | Unresolved argument, needs user decision via lead | Reactor in argument | Lead surfaces to user |
 
@@ -235,7 +235,7 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE" | grep 'from = "agent-1"'   # only new mes
 
 ### Joining Late
 
-If you join a channel that already has messages, read the entire file first to catch up before posting or watching.
+If you join a channel that already has messages: post `ready` first to announce presence, then read history to catch up, then spawn the monitor and post the init-complete `info`. Do not read history before posting `ready` — observers cannot distinguish a late-starting agent from a dead one during the silence.
 
 ## Intent Protocol
 
@@ -459,15 +459,15 @@ text = "Loaded 47 feedback memories, 23 facts. Watching for intents."
 ```
 
 **Semantics:**
-- Posted **once**, after the agent has: (1) read full chat history, (2) loaded resources, (3) spawned its background monitor Agent.
+- Posted **once**, as the agent's **first action** after deriving the chat file path — before reading history, loading resources, or spawning the monitor. Announcing presence early prevents observers from mistaking initialization silence for a dead agent.
+- The `text` field should reflect current init status. If still initializing: `"Joining chat — reading history and loading resources. Will be fully operational shortly."` If fast init: include stats as before.
 - Addressed to `all`. Every agent posts `ready` regardless of role.
-- The `text` field contains agent-specific initialization stats. No required format.
 
 **Who waits for whom:**
-- **Lead setup:** The lead waits for `ready` from spawned agents before routing work (30s timeout).
-- **Standalone setup:** Agents don't wait for each other. `ready` is informational.
-- **Late joiners:** Read full history on join. `ready` announces presence but doesn't replay missed intents.
-- **Reactive agents:** Post `ready` but do not wait for anyone else.
+- **Lead setup:** The lead waits for the agent's "initialization complete" `info` message before routing work (30s timeout from that message, not from `ready`). The initial `ready` message only announces presence — the agent may still be reading history. Routing work before the init-complete signal risks the agent processing the assignment before its monitor is watching.
+- **Standalone setup:** Agents don't wait for each other. `ready` and the init-complete `info` are informational.
+- **Late joiners:** Post `ready` first to announce presence, then read full history before spawning the monitor and posting the init-complete `info`.
+- **Reactive agents:** Post `ready` and the init-complete `info`, but do not wait for anyone else.
 
 ## Shutdown Protocol
 
@@ -512,22 +512,24 @@ The user can dismiss agents with phrases like "stand down", "you're done", "shut
 ```
 1. Derive chat file path from $PWD
 2. Create chat directory if needed
-3. Read last 20 messages to catch up (read further back if needed)
-4. Read chat file (catch up on history)
-5. Load resources (memories, configs, etc.)
-6. Spawn background monitor Agent (Background Monitor Pattern, above)
-7. Post ready message (with ts)
-8. Wait for monitor Agent notification
-9. Monitor Agent returns semantic event -> process event if addressed to you
-10. If acting:
+3. Initialize cursor: CURSOR=$(wc -l < "$CHAT_FILE") — BEFORE posting ready so the monitor
+   captures any work routed by lead between your ready message and monitor startup
+4. Post ready message (with fresh ts) — announce presence immediately, before reading history
+5. Read last 20 messages to catch up (read further back if needed)
+6. Load resources (memories, configs, etc.)
+7. Spawn background monitor Agent (Background Monitor Pattern, above) using CURSOR from step 3
+8. Post info: "Initialization complete. Monitor active." — signals lead that agent is operational
+9. Wait for monitor Agent notification
+10. Monitor Agent returns semantic event -> process event if addressed to you
+11. If acting:
     a. Post intent to (engram-agent + any other relevant recipients)
     b. Wait for explicit ACK from all TO recipients (see Intent Protocol)
     c. Act
     d. Pre-done cursor-check: spawn background Agent to tail CHAT_FILE from cursor, grep for unresolved WAITs
        If any WAIT addressed to you and unresolved: engage before posting done
     e. Post result
-11. Post response (with lock)
-12. Go to step 8 -- ALWAYS. Even after completing a task.
+12. Post response (with lock)
+13. Go to step 9 -- ALWAYS. Even after completing a task.
 ```
 
 **The watch only ends when:**
@@ -643,7 +645,7 @@ Resuming watch loop.
 
 **Step 6: Re-enter the fswatch loop.**
 
-Continue the lifecycle from step 8 of the Agent Lifecycle. Do not re-post a `ready` message — `info` is sufficient.
+Continue the lifecycle from step 9 of the Agent Lifecycle. Do not re-post a `ready` message — `info` is sufficient.
 
 ### Critical: Guard Every Cursor Use
 
@@ -672,7 +674,7 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Edit existing messages | Never modify -- only append new messages |
 | Skip catch-up on join | Read full history before posting |
 | Escalate to initiating agent instead of lead | Check for lead `ready` in chat history; escalate to lead if present |
-| Skip `ready` message | Always post `ready` after initialization, before entering watch loop |
+| Skip `ready` message or post it late | Post `ready` as your FIRST action — before reading history or loading resources. Presence before initialization, not after. |
 | Emit `learned` for trivial observations | Only emit when knowledge is reusable across sessions |
 | Ignore `shutdown` message | Exit monitor Agent loop after completing in-flight work and posting `done` |
 | Post intent before others are ready | In lead setup: wait for expected `ready` messages (30s timeout) |
