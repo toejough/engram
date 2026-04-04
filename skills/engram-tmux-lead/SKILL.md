@@ -47,8 +47,9 @@ If not inside a tmux session, or if `tmux` is not installed:
 Split the user's current window to show a live chat feed. This gives the user real-time visibility into agent coordination without switching windows.
 
 ```bash
-# Derive the chat file path
+# Derive the chat file path and project prefix for window names
 PROJECT_SLUG=$(realpath "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '/' '-')
+PROJECT_PREFIX=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]')
 CHAT_FILE="$HOME/.local/share/engram/chat/${PROJECT_SLUG}.toml"
 mkdir -p "$(dirname "$CHAT_FILE")"
 touch "$CHAT_FILE"
@@ -57,6 +58,8 @@ touch "$CHAT_FILE"
 tmux split-window -v -l 15 "tail -F $CHAT_FILE"
 ```
 
+`PROJECT_PREFIX` is the short basename (e.g., `engram`, `traced`) used to prefix ALL tmux window names for this project's agents. This prevents cross-project collisions — `engram:engram-agent` and `traced:engram-agent` are distinct windows.
+
 The pane is small (15 lines) so it doesn't crowd the user's workspace. The user can resize or close it anytime.
 
 ### 1.4 Spawn engram-agent
@@ -64,16 +67,17 @@ The pane is small (15 lines) so it doesn't crowd the user's workspace. The user 
 **ALWAYS spawn this. NEVER skip. Not for "simple" tasks. Not for "quick" tasks. Not because "I can handle it myself." The engram-agent is the memory safety net — without it, you learn nothing and surface nothing. Spawn it BEFORE touching the user's request.**
 
 ```bash
-# Create window with interactive claude session
-tmux new-window -n "engram-agent"
-tmux send-keys -t "engram-agent" "claude --dangerously-skip-permissions --model sonnet" Enter
+# Create window with project-prefixed name
+WINDOW_NAME="${PROJECT_PREFIX}:engram-agent"
+tmux new-window -n "$WINDOW_NAME"
+tmux send-keys -t "$WINDOW_NAME" "claude --dangerously-skip-permissions --model sonnet" Enter
 # Wait for claude to start (watch for the prompt character)
-while ! tmux capture-pane -t "engram-agent" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
+while ! tmux capture-pane -t "$WINDOW_NAME" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
 # Send the role prompt
-tmux send-keys -t "engram-agent" "/use-engram-chat-as reactive memory agent named engram-agent" Enter
+tmux send-keys -t "$WINDOW_NAME" "/use-engram-chat-as reactive memory agent named engram-agent" Enter
 # Send extra Enter in case it was treated as a paste
 sleep 1
-tmux send-keys -t "engram-agent" Enter
+tmux send-keys -t "$WINDOW_NAME" Enter
 ```
 
 **Why not `--prompt`?** The `--prompt` flag runs claude in non-interactive mode — no TUI, output goes to stdout, and the window appears blank. Using `send-keys` keeps claude interactive so the user can see agent activity.
@@ -92,8 +96,8 @@ done
 ```
 
 Run this as a **background** Bash command so the lead stays responsive. When it completes, check whether the engram-agent posted. If not after 30 seconds:
-1. Check tmux window exists: `tmux list-windows -F '#{window_name}' | grep engram-agent`
-2. Check window output: `tmux capture-pane -t engram-agent -p | tail -20`
+1. Check tmux window exists: `tmux list-windows -F '#{window_name}' | grep "${PROJECT_PREFIX}:engram-agent"`
+2. Check window output: `tmux capture-pane -t "${PROJECT_PREFIX}:engram-agent" -p | tail -20`
 3. Report to user with diagnostic info. Do NOT silently proceed without memory.
 
 ### 1.6 Post Ready
@@ -116,21 +120,24 @@ This means the lead processes chat messages opportunistically between user input
 Every agent the lead spawns:
 
 ```bash
-# Create window with interactive claude session
-tmux new-window -n "<agent-name>"
-tmux send-keys -t "<agent-name>" "claude --dangerously-skip-permissions --model sonnet" Enter
+# All window names are prefixed with PROJECT_PREFIX (from step 1.3)
+WINDOW_NAME="${PROJECT_PREFIX}:<agent-name>"
+tmux new-window -n "$WINDOW_NAME"
+tmux send-keys -t "$WINDOW_NAME" "claude --dangerously-skip-permissions --model sonnet" Enter
 # Wait for claude to start (watch for the prompt character)
-while ! tmux capture-pane -t "<agent-name>" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
+while ! tmux capture-pane -t "$WINDOW_NAME" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
 # Send the role prompt
-tmux send-keys -t "<agent-name>" "/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete." Enter
+tmux send-keys -t "$WINDOW_NAME" "/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete." Enter
 # Send extra Enter in case it was treated as a paste
 sleep 1
-tmux send-keys -t "<agent-name>" Enter
+tmux send-keys -t "$WINDOW_NAME" Enter
 ```
 
 **Critical:**
+- **ALL window names MUST be prefixed with `${PROJECT_PREFIX}:`** (e.g., `engram:exec-1`, `traced:engram-agent`). This prevents cross-project collisions when multiple projects run agents in the same tmux session.
 - All spawned agents use `--dangerously-skip-permissions` because they have no user to approve tool calls.
-- Default to `--model sonnet` for speed and cost. Only use opus for tasks requiring deep architectural thinking, complex debugging, or broad codebase reasoning. Most execution, review, and filing tasks are sonnet-appropriate.
+- Default to `--model sonnet` for speed and cost. Only use opus for tasks requiring deep architectural thinking, complex debugging, or broad codebase reasoning.
+- **NEVER reference windows by index.** Always use the prefixed name.
 
 ### 2.2 Agent Role Templates
 
