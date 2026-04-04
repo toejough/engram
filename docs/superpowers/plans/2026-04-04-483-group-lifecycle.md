@@ -211,7 +211,7 @@ Run:
 sed -n '281,315p' skills/engram-tmux-lead/SKILL.md
 ```
 
-Expected: diagram shows 9 lines (not 6), state table has 6 rows (not 5), DONE row includes "NOT in active group" guard.
+Expected: diagram shows 10 lines (not 6), state table has 6 rows (not 5), DONE row includes "NOT in active group" guard. The 10-line diagram has: 1 STARTING, 1 ACTIVE→SILENT, 2 SILENT nudge-success, 1 SILENT→DEAD, 1 DEAD, 2 ACTIVE→done, 2 PENDING-GROUP-RELEASE.
 
 - [ ] **Step 5: Commit**
 
@@ -543,11 +543,20 @@ When done implementing, post done with a summary of what you changed.
 
 - [ ] **Step 3: Update Reviewer template**
 
-Find the Reviewer template and add a group-context variant:
+Find the Reviewer template and add two group-context variants:
 
 After the existing Reviewer template block, add:
 
 ```
+**Reviewer (plan-review — when reviewing a plan before user approval):**
+```
+active code reviewer named reviewer-<N>.
+Your task: Review the implementation plan for <issue> for completeness, correctness, and feasibility.
+Check: Are edge cases addressed? Is the design overcomplicated? Does it align with CLAUDE.md principles (DI, TDD, YAGNI, minimal code)?
+planner-<N> is still alive. Post a wait message addressed to planner-<N> if you find issues that must be revised before user approval — it can revise the plan directly.
+Post done with your findings when the plan is ready for user review.
+```
+
 **Reviewer (impl-review — when executor is in PENDING-GROUP-RELEASE):**
 ```
 active code reviewer named reviewer-<N>.
@@ -722,7 +731,7 @@ gh issue close 483 --comment "Fixed in skills/engram-tmux-lead/SKILL.md. Added P
 | Section 4.2 mandatory Phase 1b (plan review) | Task 4 (Phase 1b) |
 | Section 4.2 phase boundary group creation | Task 4 |
 | Reviewer wait path — executor stays alive | Task 4 (Phase 3) |
-| Section 2.2 role template updates | Task 5 |
+| Section 2.2 role template updates (planner, executor pipeline, reviewer plan-review, reviewer impl-review) | Task 5 |
 | Section 7.1 group registry in context | Task 6 |
 | Section 7.3 group context note | Task 6 (Step 1b) |
 | Success criteria 1–5 + Tests F/G/H | Task 7 |
