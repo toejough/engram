@@ -120,7 +120,11 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	if s.invocationTokenLogger != nil && result.Context != "" {
 		tokenCount := EstimateTokens(result.Context)
 
-		tokenLogErr := s.invocationTokenLogger.LogInvocationTokens(opts.Mode, tokenCount, time.Now())
+		tokenLogErr := s.invocationTokenLogger.LogInvocationTokens(
+			opts.Mode,
+			tokenCount,
+			time.Now(),
+		)
 		if tokenLogErr != nil {
 			fmt.Fprintf(os.Stderr, "engram: surface: logging invocation tokens: %v\n", tokenLogErr)
 		}
@@ -406,10 +410,18 @@ func sortPromptMatchesByScore(
 	matches []promptMatch, currentProjectSlug string,
 ) {
 	sort.SliceStable(matches, func(i, j int) bool {
-		gi := GenFactor(matches[i].mem.ProjectScoped, matches[i].mem.ProjectSlug, currentProjectSlug)
-		gj := GenFactor(matches[j].mem.ProjectScoped, matches[j].mem.ProjectSlug, currentProjectSlug)
-		si := matches[i].bm25Score * gi
-		sj := matches[j].bm25Score * gj
+		genFactorI := GenFactor(
+			matches[i].mem.ProjectScoped,
+			matches[i].mem.ProjectSlug,
+			currentProjectSlug,
+		)
+		genFactorJ := GenFactor(
+			matches[j].mem.ProjectScoped,
+			matches[j].mem.ProjectSlug,
+			currentProjectSlug,
+		)
+		si := matches[i].bm25Score * genFactorI
+		sj := matches[j].bm25Score * genFactorJ
 
 		return si > sj
 	})

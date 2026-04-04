@@ -202,7 +202,8 @@ func newTokenResolver() *tokenresolver.Resolver {
 	return tokenresolver.New(
 		os.Getenv,
 		func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			return exec.CommandContext(ctx, name, args...).Output() //nolint:gosec // args are hardcoded in caller
+			cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // platform-internal cmd, not user input
+			return cmd.Output()
 		},
 		runtime.GOOS,
 	)
