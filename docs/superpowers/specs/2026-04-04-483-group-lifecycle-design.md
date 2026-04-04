@@ -31,8 +31,8 @@ The lead explicitly creates a **group record** whenever it spawns agents that ne
 
 | Type | Members | Created When | Release Condition |
 |------|---------|-------------|-------------------|
-| `plan-review` | [planner-N, reviewer-R] | Reviewer spawned for plan review | reviewer-R posts `type = "done"` |
-| `impl-review` | [exec-N, reviewer-R] | Reviewer spawned for implementation review | reviewer-R posts `type = "done"` |
+| `plan-review` | [planner-N, reviewer-R] | Reviewer spawned for plan review (mandatory in pipeline) | reviewer-R posts `type = "done"` — kills reviewer-R only; planner-N stays alive (still in plan-handoff group) |
+| `impl-review` | [exec-N, reviewer-R] | Reviewer spawned for implementation review | reviewer-R posts `type = "done"` — kills both exec-N and reviewer-R (exec-N has no other active groups at this point) |
 | `plan-handoff` | [planner-N, exec-N] | Planner spawned (group is pre-registered; executor slot is filled when executor is spawned after user approval) | exec-N posts `type = "ack"` addressed to planner-N OR exec-N posts its first `type = "intent"` (evidence that execution has started and planner is no longer needed) |
 
 ### Updated State Machine
@@ -40,7 +40,8 @@ The lead explicitly creates a **group record** whenever it spawns agents that ne
 ```
 STARTING ──(first chat message)──> ACTIVE
 ACTIVE ──(no message for silence_threshold)──> SILENT
-SILENT ──(nudge succeeds)──> ACTIVE
+SILENT ──(nudge succeeds, no active group)──> ACTIVE
+SILENT ──(nudge succeeds, IS in active group)──> PENDING-GROUP-RELEASE
 SILENT ──(nudge fails / tmux pane gone)──> DEAD
 DEAD ──(lead decides)──> RESPAWN or REPORT+DONE
 ACTIVE ──(agent posts done, NOT in active group)──> DONE (pane killed)
@@ -55,7 +56,7 @@ PENDING-GROUP-RELEASE ──(no message for silence_threshold)──> SILENT
 |-------|-------|
 | Entry condition | Agent posted `done` AND lead's group registry contains an active group that includes this agent |
 | Lead behavior | Do NOT kill pane. Agent remains alive and responsive. Monitor chat for group release condition via background task. Silence threshold still applies — nudge if silent too long. |
-| Exit condition | Group release condition fires → DONE (pane killed, group record removed). |
+| Exit condition | All active groups this agent belongs to have released it → DONE (pane killed). A single group's release condition firing does NOT kill the agent if it still belongs to another active group — it is only removed from that group's `pending` list. |
 
 ### Group Release Detection
 
@@ -76,7 +77,7 @@ for i in $(seq 1 60); do
 done
 ```
 
-Timeout: 120 iterations × 2s = 4 minutes. If timed out, transition to SILENT and nudge.
+Timeout: 60 iterations × 2s = 2 minutes. 2 minutes is sufficient given that the nudge path fires on timeout (Section 3.2) and detecting a done message is a fast I/O check. If timed out, transition to SILENT and nudge the blocking agent.
 
 ### Lead Group Registry (In-Context State)
 
@@ -92,8 +93,8 @@ Groups:
 ```
 
 When a group's release condition fires:
-1. Read its `release_task_id` output (drains it).
-2. Kill all `pending` members' panes by tracked pane ID.
+1. Read its `release_task_id` output (drains it). Draining an already-drained task ID is safe — TaskOutput with block=False is idempotent.
+2. For each member in `pending`: check if it belongs to any OTHER active group. If yes: remove from this group's `pending` list but do NOT kill the pane. If no other active groups: kill pane by tracked pane ID.
 3. Run `tmux select-layout main-vertical`.
 4. Remove group record from registry.
 
@@ -106,9 +107,15 @@ Before spawning planner-N:
 
 When planner-N posts `done`:
 - Planner enters PENDING-GROUP-RELEASE (do NOT kill pane)
-- Present plan to user as normal
+- Spawn reviewer-R for plan review (MANDATORY per pipeline rules — see Phase 1b below)
 
-**Phase 1 → Phase 2 transition (plan-handoff group activated):**
+**Phase 1b — Plan Review (MANDATORY):**
+- Spawn reviewer-R with plan-review role
+- Create `plan-review` group: {planner-N, reviewer-R}, release_cursor = cursor at planner done
+- When reviewer-R posts `done`: fires release — kills reviewer-R, planner-N stays (still in plan-handoff). Update cursor.
+- Present reviewed plan to user for approval.
+
+**Phase 1b → Phase 2 transition (plan-handoff group activated):**
 After user approves plan:
 - Capture cursor (HANDOFF_START) — embed as literal in background wait
 - Update group record: fill exec-TBD slot with actual exec-N name, set release_cursor = HANDOFF_START
@@ -117,26 +124,24 @@ After user approves plan:
 
 **Phase 2 → Phase 3 transition (impl-review):**
 After executor posts `done`:
-- Executor enters PENDING-GROUP-RELEASE (do NOT kill yet)
+- Executor enters PENDING-GROUP-RELEASE (do NOT kill yet). At this point exec-N has no other active groups (plan-handoff was released when exec-N posted its first intent).
 - Capture cursor (REVIEW_START)
 - Spawn reviewer-R with role prompt
 - Create `impl-review` group: [exec-N, reviewer-R], release_cursor = REVIEW_START
-- Background wait: watch for reviewer-R `done` → release exec-N and reviewer-R
+- Background wait: watch for reviewer-R `done` → release: kills both exec-N and reviewer-R (exec-N has no other active groups)
 
 **If reviewer posts `wait` (requesting changes):**
 - Executor is still alive (in PENDING-GROUP-RELEASE) — it receives the `wait` directly
 - Executor implements fixes, posts `done` again — stays in PENDING-GROUP-RELEASE (group still active)
 - Reviewer continues reviewing, eventually posts `done` → group released
 
-**Phase 1 plan review (optional):**
-- If the routing decision includes a plan reviewer:
-  - Before spawning planner-N, pre-register `plan-review` group: {type: "plan-review", members: [planner-N, reviewer-R-TBD]}
-  - When planner posts `done`: planner enters PENDING-GROUP-RELEASE
-  - Spawn reviewer-R; fill group member slot
-  - Background wait: reviewer-R posts `done` → release both planner-N and reviewer-R
-- If no plan reviewer (user approves directly):
-  - Planner still enters PENDING-GROUP-RELEASE (held for plan-handoff)
-  - Release is handled by the plan-handoff group (see Phase 1 → Phase 2 above)
+**Phase 1b plan review (now mandatory):**
+- Plan review is ALWAYS performed before presenting to the user — not routing-dependent
+- Before spawning planner-N, pre-register `plan-review` group: {type: "plan-review", members: [planner-N, reviewer-R-TBD], pending: []}
+- When planner posts `done`: planner enters PENDING-GROUP-RELEASE; fill group member slot with reviewer-R-TBD = actual reviewer name
+- Spawn reviewer-R and start release detection
+- Background wait: reviewer-R posts `done` → kill reviewer-R (no other groups); planner-N stays (in plan-handoff)
+- After reviewer-R killed: present plan to user for approval. Then activate plan-handoff (Phase 1b → Phase 2 above).
 
 ### Role Template Updates
 
@@ -156,7 +161,7 @@ Add to role prompt: "exec-<N> is still alive. If changes are needed, post a wait
 | 3.1 State Definitions | Add PENDING-GROUP-RELEASE row; update DONE row to include group guard |
 | 3.1 State Diagram | Add PENDING-GROUP-RELEASE node and transitions |
 | 3.5 (new) | Group Lifecycle section: group types, registry, release detection |
-| 4.2 Plan-Execute-Review | Add group creation at phase boundaries; update wait logic |
+| 4.2 Plan-Execute-Review | Add mandatory Phase 1b (plan review); group creation at all phase boundaries; update wait logic |
 | 2.2 Agent Role Templates | Add group-aware additions to planner, executor, reviewer templates |
 | 7.1 What to Keep in Context | Add group registry to retention list |
 

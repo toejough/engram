@@ -101,8 +101,41 @@ Scenario: planner-1 is in PENDING-GROUP-RELEASE (posted done, waiting for review
 planner-1 goes silent for 3 minutes (silence_threshold for task agents).
 
 EXPECTED (post-fix): Lead nudges planner-1 per Section 3.2, same as ACTIVE agents.
+After nudge succeeds (planner-1 responds), planner-1 returns to PENDING-GROUP-RELEASE
+(NOT to ACTIVE), because it still belongs to an active group.
 
 CURRENT RESULT: N/A — state doesn't exist yet.
+
+## Test F — SILENT agent with active group returns to PENDING-GROUP-RELEASE after nudge
+
+Scenario: planner-1 in PENDING-GROUP-RELEASE, goes silent, gets nudged successfully.
+After nudge response, planner-1 posts a message.
+
+EXPECTED (post-fix): Lead transitions planner-1 back to PENDING-GROUP-RELEASE, NOT ACTIVE.
+If planner-1 were incorrectly transitioned to ACTIVE and then posted done again,
+the lead would kill it immediately (no group check from ACTIVE state on next done).
+
+CURRENT RESULT: N/A — state doesn't exist yet.
+
+## Test G — Planner in both plan-review and plan-handoff groups simultaneously
+
+Scenario: planner-1 has done. Both plan-review group (with reviewer-1) AND plan-handoff group
+(with exec-TBD) are active. reviewer-1 posts done (plan-review releases).
+
+EXPECTED (post-fix): planner-1 is NOT killed. It is removed from plan-review's pending
+list, but remains alive because it still belongs to plan-handoff group.
+Only when plan-handoff fires (exec-1 posts intent/ack) is planner-1 killed.
+
+CURRENT RESULT: N/A — state doesn't exist yet.
+
+## Test H — Mandatory plan review before user sees plan
+
+Scenario: Lead spawns planner-1. planner-1 posts done.
+
+EXPECTED (post-fix): Lead spawns reviewer-R immediately (BEFORE presenting plan to user).
+Only after reviewer-R posts done is the plan presented to the user for approval.
+
+CURRENT RESULT: FAIL — current skill presents plan to user directly without a review phase.
 ```
 
 - [ ] **Step 3: Commit baseline tests**
@@ -139,12 +172,13 @@ With:
 ```
 STARTING ──(first chat message)──> ACTIVE
 ACTIVE ──(no message for silence_threshold)──> SILENT
-SILENT ──(nudge succeeds)──> ACTIVE
+SILENT ──(nudge succeeds, no active group)──> ACTIVE
+SILENT ──(nudge succeeds, IS in active group)──> PENDING-GROUP-RELEASE
 SILENT ──(nudge fails / tmux pane gone)──> DEAD
 DEAD ──(lead decides)──> RESPAWN or REPORT+DONE
 ACTIVE ──(task done, NOT in active group)──> DONE (pane killed)
 ACTIVE ──(task done, IS in active group)──> PENDING-GROUP-RELEASE
-PENDING-GROUP-RELEASE ──(group release condition fires)──> DONE (pane killed)
+PENDING-GROUP-RELEASE ──(all groups released)──> DONE (pane killed)
 PENDING-GROUP-RELEASE ──(no message for silence_threshold)──> SILENT
 ```
 
@@ -167,7 +201,7 @@ New:
 After the DONE row, add:
 
 ```
-| **PENDING-GROUP-RELEASE** | Agent posted `done` AND belongs to an active group whose release condition has not yet fired | Do NOT kill pane. Agent stays alive and responsive. Start a background wait task watching for the group's release condition (see Section 3.5). Silence threshold still applies — nudge per Section 3.2 if silent too long. When release fires: kill pane, rebalance, remove group record. |
+| **PENDING-GROUP-RELEASE** | Agent posted `done` AND belongs to at least one active group | Do NOT kill pane. Agent stays alive and responsive. Background wait task monitors each group's release condition (see Section 3.5). Silence threshold still applies — nudge per Section 3.2. An agent is killed only when ALL active groups it belongs to have released it. |
 ```
 
 - [ ] **Step 4: Verify the edit looks correct**
@@ -217,9 +251,9 @@ The lead tracks **logical agent groups** — sets of agents that need to interac
 
 | Type | Members | Created When | Release Condition |
 |------|---------|-------------|-------------------|
-| `plan-review` | [planner-N, reviewer-R] | Reviewer spawned for plan review | reviewer-R posts `type = "done"` |
-| `impl-review` | [exec-N, reviewer-R] | Reviewer spawned for implementation review | reviewer-R posts `type = "done"` |
-| `plan-handoff` | [planner-N, exec-N] | Planner spawned (pre-registered; exec slot filled when executor spawned after user approval) | exec-N posts `type = "ack"` addressed to planner-N OR exec-N posts its first `type = "intent"` |
+| `plan-review` | [planner-N, reviewer-R] | Reviewer spawned for plan review (MANDATORY before presenting to user) | reviewer-R posts `type = "done"` — kills reviewer-R only; planner-N stays alive (still in plan-handoff group) |
+| `impl-review` | [exec-N, reviewer-R] | Reviewer spawned for implementation review | reviewer-R posts `type = "done"` — kills both exec-N and reviewer-R |
+| `plan-handoff` | [planner-N, exec-N] | Planner spawned (pre-registered; exec slot filled when executor spawned after user approval) | exec-N posts `type = "ack"` addressed to planner-N OR exec-N posts its first `type = "intent"` — kills planner-N |
 
 #### Group Registry
 
@@ -257,12 +291,34 @@ Timeout: 60 iterations × 2s = 2 minutes. If timed out: nudge the blocking agent
 #### Release Procedure
 
 When a group's release condition fires:
-1. Drain: `TaskOutput(task_id=release_task_id, block=False)` — prevent zombie task accumulation
-2. Kill all `pending` members' panes by tracked pane ID: `tmux kill-pane -t <pane-id>`
+1. Drain: `TaskOutput(task_id=release_task_id, block=False)` — prevent zombie task accumulation. Draining an already-drained task ID is safe (TaskOutput block=False is idempotent).
+2. For each member in `pending`: check if it belongs to any other active group in the registry.
+   - If member is in another active group: remove from this group's `pending` list. Do NOT kill pane.
+   - If member has no other active groups: kill pane by tracked pane ID: `tmux kill-pane -t <pane-id>`
 3. Rebalance: `tmux select-layout main-vertical`
-4. Remove group record from registry
+4. Remove this group record from registry
 
 **HARD RULE: track all release task IDs.** Include them in session shutdown drain (Section 3.4 / engram-down skill). A completed-but-unread release task is a zombie.
+
+#### Plan-Handoff Release Detection (Dual Condition)
+
+The `plan-handoff` group fires on either `type = "ack"` OR `type = "intent"` from exec-N. Use an awk script that matches either condition in the same message block:
+
+```bash
+# Example: plan-handoff group, waiting for exec-1 ack or first intent.
+# Replace 412 with the literal release_cursor value.
+for i in $(seq 1 60); do
+  RESULT=$(tail -n +"$((412 + 1))" "$CHAT_FILE" | awk '
+    /^\[\[message\]\]/ { from=""; msgtype="" }
+    /^from = "exec-1"/ { from=1 }
+    /^type = "ack"/ { msgtype=1 }
+    /^type = "intent"/ { msgtype=1 }
+    from && msgtype { print "RELEASED"; exit }
+  ')
+  if [ "$RESULT" = "RELEASED" ]; then echo "HANDOFF RELEASED"; break; fi
+  sleep 2
+done
+```
 ```
 
 - [ ] **Step 2: Verify section was inserted correctly**
@@ -313,12 +369,19 @@ New:
 ```
 **Phase 1: PLAN**
 1. Pre-register a `plan-handoff` group: `{id: "plan-handoff-<N>", type: "plan-handoff", members: [planner-<N>, exec-TBD], pending: [], release_cursor: TBD}` — exec slot filled later
-2. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `PLAN_START`
-3. Spawn `planner-<N>` with issue context (per Section 2.1 Steps 1–2), using group-aware role template (Section 2.2)
-4. Run background wait task (Section 2.1 Step 3) — embed `PLAN_START` as literal, filter `from = "planner-<N>"` and `type = "done"`
-5. When planner done: planner-<N> enters **PENDING-GROUP-RELEASE** (do NOT kill pane). Read plan text from new lines (cursor-based), present to user.
-6. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
-7. User approves (or modifies) -> Phase 2
+2. Pre-register a `plan-review` group: `{id: "plan-review-<N>", type: "plan-review", members: [planner-<N>, reviewer-TBD], pending: [], release_cursor: TBD}` — reviewer slot filled after planner posts done
+3. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `PLAN_START`
+4. Spawn `planner-<N>` with issue context (per Section 2.1 Steps 1–2), using group-aware role template (Section 2.2)
+5. Run background wait task (Section 2.1 Step 3) — embed `PLAN_START` as literal, filter `from = "planner-<N>"` and `type = "done"`
+6. When planner done: planner-<N> enters **PENDING-GROUP-RELEASE** (do NOT kill pane). Read plan text from new lines (cursor-based). Update session cursor.
+
+**Phase 1b: PLAN REVIEW (mandatory)**
+7. Note current cursor as `PLAN_REVIEW_START` (foreground: `wc -l < "$CHAT_FILE"`)
+8. Fill plan-review group: update reviewer slot with reviewer-<R> name, set `release_cursor = PLAN_REVIEW_START`
+9. Spawn `reviewer-<R>` with the plan text (Section 2.2 plan-review role template)
+10. Start plan-review release detection (background, Section 3.5): watch for reviewer-<R> posting `type = "done"`. Store task ID in plan-review group as `release_task_id`.
+11. When plan-review fires: reviewer-<R> killed (no other groups); planner-<N> stays (still in plan-handoff). Drain release task. Update cursor.
+12. Present reviewed plan to user for approval -> Phase 2
 ```
 
 - [ ] **Step 2: Replace Phase 2 with group-aware version**
@@ -533,7 +596,15 @@ Find the table in Section 7.1:
 After that row, add:
 
 ```
-| Group registry (id, type, members, pending, release_task_id, release_cursor) | Always (until group released) |
+| Group registry (id, type, members, pending, release_task_id, release_cursor) | Until group released; completed groups removed immediately |
+```
+
+- [ ] **Step 1b: Add group context note to Section 7.3 overflow thresholds**
+
+In Section 7.3, after the thresholds table, add:
+
+```
+**Group registry context:** Each completed group record is removed immediately on release (see Section 3.5 Release Procedure). Long pipeline runs with many sequential phases do not accumulate group records. The maximum group records in context at any time equals the number of concurrently active pipeline phases (typically 1–2).
 ```
 
 - [ ] **Step 2: Add release task drain to Section 6.4 Background Task Hygiene**
@@ -579,7 +650,10 @@ Read `skills/engram-tmux-lead/SKILL.md` sections 2.2, 3.1, 3.5, 4.2, 6.4, 7.1 in
 - Test B (reviewer WAIT to executor): Section 4.2 Phase 3 WAIT path + impl-review group → executor stays alive. PASS?
 - Test C (executor asks planner): Section 4.2 Phase 2 plan-handoff group → planner stays alive during execution. PASS?
 - Test D (no regression for standalone agent): Section 3.1 "NOT in active group → DONE" guard → standalone agents still killed immediately. PASS?
-- Test E (PENDING-GROUP-RELEASE agent nudged when silent): Section 3.1 PENDING-GROUP-RELEASE → SILENT transition + Section 3.2 nudge behavior. PASS?
+- Test E (PENDING-GROUP-RELEASE agent nudged when silent): Section 3.1 PENDING-GROUP-RELEASE → SILENT → PENDING-GROUP-RELEASE (if in active group) transition. PASS?
+- Test F (SILENT agent with active group returns to PENDING-GROUP-RELEASE): Section 3.1 SILENT nudge-success transition checks group registry. PASS?
+- Test G (planner in both plan-review and plan-handoff): Section 3.5 release procedure — kills member only if no other active groups. PASS?
+- Test H (mandatory plan review before user sees plan): Section 4.2 Phase 1b is mandatory. PASS?
 
 - [ ] **Step 2: Run adversarial pressure tests**
 
@@ -636,14 +710,21 @@ gh issue close 483 --comment "Fixed in skills/engram-tmux-lead/SKILL.md. Added P
 | Spec Requirement | Covered By |
 |-----------------|-----------|
 | PENDING-GROUP-RELEASE state in Section 3.1 | Task 2 |
+| SILENT → PENDING-GROUP-RELEASE if in active group | Task 2 (Step 1 diagram) |
+| Agent killed only when all groups released | Task 2 (Step 3), Task 3 (release procedure) |
 | New Section 3.5 Group Lifecycle | Task 3 |
 | Group types (plan-review, impl-review, plan-handoff) | Task 3 |
+| plan-review kills reviewer only; planner stays | Task 3 (group types table) |
+| Release procedure: check other active groups before killing | Task 3 (release procedure) |
+| Dual-condition awk for plan-handoff | Task 3 (plan-handoff release detection) |
 | Group registry model | Task 3 |
 | Release detection pattern | Task 3 |
+| Section 4.2 mandatory Phase 1b (plan review) | Task 4 (Phase 1b) |
 | Section 4.2 phase boundary group creation | Task 4 |
 | Reviewer wait path — executor stays alive | Task 4 (Phase 3) |
 | Section 2.2 role template updates | Task 5 |
 | Section 7.1 group registry in context | Task 6 |
-| Success criteria 1–5 | Task 7 |
+| Section 7.3 group context note | Task 6 (Step 1b) |
+| Success criteria 1–5 + Tests F/G/H | Task 7 |
 
 **No gaps found.** All spec requirements are covered.
