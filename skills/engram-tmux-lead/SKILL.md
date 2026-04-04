@@ -522,6 +522,8 @@ Classify each user request and route accordingly. Use LLM judgment, not keyword 
 | "File an issue" / "Create a PR" | Spawn a short-lived executor | Executor runs gh CLI, posts done |
 | "Do A and B and C" (independent tasks) | **Parallel executors** (worktree isolation) | N executors |
 | "Refactor X across the codebase" | **Executor with reviewer** | 1 executor + 1 reviewer |
+| "Research X from multiple angles" / "Investigate X and Y and synthesize" | **Research Synthesis** (Section 4.5) | N researchers + 1 synthesizer |
+| "Design X with architecture + UX + use cases" / multi-perspective design | **Co-Design** (Section 4.6) | N specialist planners |
 
 ### 4.2 Plan-Execute-Review Pipeline
 
@@ -635,6 +637,55 @@ The user can always override routing:
 - "Use two executors" -> spawn as requested
 - "Skip the review" -> omit Phase 3
 - "I want to talk to the executor" -> relay messages bidirectionally (still proxied)
+
+### 4.5 Research Synthesis
+
+When a task requires gathering information from multiple angles before producing a unified output.
+
+**When to use:** User says "research X from angles A, B, C and synthesize" or the lead determines a question needs multiple independent investigations combined.
+
+**Procedure:**
+1. Spawn N researchers in parallel, each with a distinct research angle
+2. Spawn 1 synthesizer agent with role:
+   ```
+   active synthesizer named synthesizer-<N>.
+   Your task: Wait for all researchers to post done. Read their findings from chat.
+   Ask follow-up questions to any researcher if findings are unclear or incomplete.
+   Synthesize findings into a unified report and post done.
+   After posting done, continue watching chat for further instructions.
+   ```
+3. Create fan-in holds (Section 3.5 Fan-In pattern):
+   ```
+   For each researcher-K:
+     {holder: "synthesizer-N", target: "researcher-K", release: done("synthesizer-N"), tag: "synthesis-N"}
+   ```
+4. Lead's wait task watches for synthesizer's done (not researchers' done)
+5. When synthesizer posts done: all holds dissolve, all researchers released, synthesizer killed normally
+6. Lead reads synthesizer's report from chat, presents to user
+
+### 4.6 Co-Design
+
+When a task requires multiple perspectives collaborating on a shared design artifact.
+
+**When to use:** User says "design X considering architecture, UX, and use cases" or the lead determines a design needs multiple specialist planners.
+
+**Procedure:**
+1. Spawn N planners in parallel, each with a specialist perspective:
+   - Architecture planner: system structure, data flow, integration points
+   - UX planner: user experience, interaction patterns, accessibility
+   - Use-case planner: functional requirements, edge cases, acceptance criteria
+   (Perspectives vary by task — these are examples.)
+2. All planners post to a shared chat thread (e.g., `thread = "codesign-N"`)
+3. Create barrier holds (Section 3.5 Barrier pattern):
+   ```
+   For each planner-K:
+     {holder: "codesign-coordinator", target: "planner-K", release: lead_release("codesign-N"), tag: "codesign-N"}
+   ```
+4. Lead monitors the shared thread. Planners read each other's contributions and respond naturally via the chat protocol.
+5. When the lead determines the design is converging (or the user approves):
+   a. Post info to chat summarizing the consensus
+   b. `lead_release("codesign-N")` → all holds dissolve → all planners released
+6. Lead presents unified design to user for final approval
 
 ## 5. User Proxy Pattern
 
