@@ -805,6 +805,10 @@ Always do this — even if you processed user input rather than a chat notificat
 4. **Read output before retrying.** If a background READY check times out, read its output (it has completed), then decide whether to retry.
 5. **Capture a FRESH cursor before each agent spawn.** The session cursor accumulates messages since startup. By the time you spawn exec-2, planner-1's `done` may already be within the session cursor range. Capture a new cursor immediately before spawning each agent and use it exclusively in that agent's wait loop. See Section 2.1 for the canonical pattern.
 6. **Filter by both `type` AND `from`.** A `type = "done"` grep matches any agent's done message. When waiting for a specific agent, use the awk pattern below to match both fields within the same TOML message block.
+7. **One persistent background task per hold.** Each hold in the registry has a `task_id` tracking its detection task. Hold watchers are persistent — they restart on timeout (see Section 3.5 detection pattern). When a hold dissolves (release condition fires), drain its task immediately.
+8. **Drain on lead_release.** When `lead_release(tag)` fires, drain ALL background tasks for holds with that tag. Do not wait for them to detect the release — the lead already knows.
+9. **Hold detection tasks do not replace each other.** Unlike the single chat watcher (Rule 1), multiple hold detection tasks run concurrently — one per active hold. This is bounded by the concurrency limit (max 5 agents → practical max ~10 holds).
+10. **Hold watchers replace standard agent wait tasks in hold-aware phases.** When a hold watcher watches for the same event as the standard Section 2.1 wait task (e.g., reviewer done), do NOT run both. Use the hold watcher's output for both hold dissolution and phase advancement.
 
 ```python
 # WRONG — spawns new watcher without draining old one:
