@@ -182,6 +182,8 @@ Use background tasks with file-change notifications -- do NOT poll with sleep lo
 
 **HARD RULE: NEVER grep or search the full chat file to check for agent responses.** The chat file is persistent and grows across sessions. Grepping the full file matches messages from old sessions, causing false positives — you'll see agents as "done" when they haven't started, or relay stale content as if it were new output. This is a critical reliability bug.
 
+**Scope note:** Online/offline presence detection is the one exception — it scans the full file by design to find the recipient's most recent timestamp across all sessions. This is not checking for responses to your intent; it is determining whether the recipient is active. All other response checking (ACK, WAIT, done) must use the cursor.
+
 Track where you left off by line number:
 
 ```bash
@@ -222,10 +224,10 @@ If you join a channel that already has messages, read the entire file first to c
 2. Wait for explicit responses from ALL TO recipients:
    - Run fswatch -1 loop, re-checking after each file notification
    - ONLY proceed when every TO recipient has responded (ACK or WAIT)
-   - Offline exception: if a recipient has NOT posted ready in this session,
-     treat timeout as implicit ACK for that recipient only, after 5s
-   - Online + silent: if a recipient has posted ready but is silent after 5s,
-     post info noting no response; wait up to 30s, then escalate to lead
+   - Offline exception: if a recipient has NOT posted any message in the last 15 min
+     (scan full file), treat timeout as implicit ACK for that recipient only, after 5s
+   - Online + silent: if a recipient has posted a message within the last 15 min but
+     is silent after 5s, post info noting no response; wait up to 30s, then escalate to lead
 3. Check responses:
    - All recipients ACKed (type = "ack")  -> proceed immediately
    - Any recipient said WAIT (type = "wait") -> pause, read their full response, then decide
@@ -304,8 +306,23 @@ Wait for my completion message before running yours.
 
 The intent protocol waits for explicit ACK or WAIT from **all** TO recipients. Timeout is NOT implicit permission to proceed for online agents.
 
-- **No `ready` from a recipient?** They are offline. Timeout after 5s = implicit ACK for that recipient only.
-- **`ready` exists (online) but silent?** Do NOT proceed on timeout. Post info noting no response after 5s; wait up to 30s, then escalate to lead.
+**Detecting online/offline:** A recipient is online if they posted any message within the last 15 minutes. Scan the **full** chat file — heartbeats and prior-session messages count. This is the one exception to the cursor rule: presence detection uses the whole file, not just new messages.
+
+```bash
+RECIPIENT="engram-agent"   # replace with the actual recipient name
+FIFTEEN_MIN_AGO=$(date -u -v-15M +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
+  || date -u -d "15 minutes ago" +"%Y-%m-%dT%H:%M:%SZ")
+LAST_TS=$(grep -A6 "^from = \"$RECIPIENT\"" "$CHAT_FILE" \
+  | grep "^ts = " | sed 's/ts = "//;s/"//' | sort | tail -1)
+if [ -n "$LAST_TS" ] && [ "$LAST_TS" \> "$FIFTEEN_MIN_AGO" ]; then
+  echo "online"
+else
+  echo "offline"
+fi
+```
+
+- **Recipient offline (no message in last 15 min, or no messages at all)?** Timeout after 5s = implicit ACK for that recipient only.
+- **Recipient online (message within last 15 min) but silent?** Do NOT proceed on timeout. Post info noting no response after 5s; wait up to 30s, then escalate to lead.
 - **Fast ACK?** You proceed as soon as all recipients respond -- often under 200ms.
 - **WAIT received?** You pause for the full response. No fixed timeout -- the conversation continues until resolved.
 
@@ -532,8 +549,10 @@ Heartbeats use `type = "info"` because they are informational status updates, no
 | Grep full file to detect agent responses | **Critical bug**: full-file grep matches old messages. Always use cursor: `tail -n +$((CURSOR + 1)) "$CHAT_FILE" \| grep ...` |
 | Fabricate or invent agent output when relaying | Always read the actual `text` field from new lines first. Summarize accurately — never predict or invent what the agent said. |
 | Omit engram-agent from intent TO field | Always include engram-agent in TO. Memory must see every intent. |
-| Treat timeout as permission to proceed | Only explicit ACK is permission. Timeout = implicit ACK only for offline agents (no `ready` posted). |
+| Treat timeout as permission to proceed | Only explicit ACK is permission. Timeout = implicit ACK only for offline agents (no message in last 15 min). |
 | Post `done` while a WAIT is unresolved | Re-read from cursor before posting `done`. Engage with pending WAITs first. |
+| Use cursor to detect if a recipient is online | Online/offline detection scans the **full** file for recent timestamps — a recipient's `ready` may be in prior-session history, before your cursor. |
+| Assume online because `ready` was seen in full-file scan | `ready` alone doesn't prove current presence. Check timestamp recency: any message within last 15 min = online; last message 20+ min ago = offline. |
 
 ## Chat File Management
 
