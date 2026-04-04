@@ -576,7 +576,8 @@ For issue-sized work, orchestrate three sequential phases:
 
 **Phase 1b: PLAN REVIEW (mandatory)**
 1. Capture per-spawn cursor: `wc -l < "$CHAT_FILE"` → `PLAN_REVIEW_START`
-2. Create plan-review hold: `{id: "h-planrev-N", holder: "reviewer-R", target: "planner-N", release: done("reviewer-R"), tag: "plan-review-N"}`
+2. Create plan-review hold: `{id: "h-planrev-N", holder: "reviewer-R", target: "planner-N", release: lead_release("plan-review-N"), tag: "plan-review-N"}`
+   Note: uses `lead_release` not `done(reviewer-R)`. This keeps planner-N alive through the user-approval window until Phase 2 creates the plan-handoff hold and then explicitly releases this hold.
 3. Spawn `reviewer-<R>` with plan-review role (Section 2.2):
    ```
    active code reviewer named reviewer-<R>.
@@ -586,10 +587,10 @@ For issue-sized work, orchestrate three sequential phases:
    Post done with findings when plan is ready for user review.
    After posting done, continue watching chat for further instructions.
    ```
-4. Create hold detection background task for h-planrev-N
+4. Create hold detection background task for h-planrev-N (watching for reviewer-R done — used only to know when to kill reviewer-R, NOT to dissolve the hold)
 5. When reviewer-R posts done:
-   a. Dissolve plan-review hold → reviewer-R has no other holds → kill reviewer-R
-   b. Planner-N stays alive (still has plan-handoff hold — to be created in Phase 2)
+   a. Kill reviewer-R (it has no incoming holds; it was the holder, not target). Drain its background task.
+   b. Do NOT dissolve h-planrev-N — it uses lead_release, not done(reviewer-R). Planner-N stays alive.
    c. Present reviewed plan to user for approval
 6. User approves → Phase 2
 
@@ -597,7 +598,7 @@ For issue-sized work, orchestrate three sequential phases:
 1. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `EXEC_START`
 2. Spawn `exec-<N>` with approved plan (per Section 2.1 Steps 1–2)
 2b. Create plan-handoff hold: `{id: "h-handoff-N", holder: "exec-N", target: "planner-N", release: first_intent("exec-N"), tag: "plan-handoff-N"}`. Capture cursor and start hold detection background task.
-2c. Planner-N now has an incoming hold → enters PENDING-RELEASE (if not already).
+2c. Call `lead_release("plan-review-N")` → h-planrev-N dissolves. Planner-N now has h-handoff-N as its only incoming hold → stays in PENDING-RELEASE. (This is the atomic handoff: plan-handoff hold created before plan-review hold is released, so planner-N is never momentarily holdless.)
 2d. Include in executor role prompt: "planner-<N> is still alive and can answer questions about the plan. Address questions to planner-<N> in chat. After posting done, continue watching chat for further instructions."
 3. Run background wait task (Section 2.1 Step 3) — embed `EXEC_START` as literal, filter `from = "exec-<N>"` and `type = "done"`
 4. When executor done: read result summary from new lines (cursor-based)

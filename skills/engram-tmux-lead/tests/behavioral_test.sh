@@ -146,7 +146,10 @@ echo "--- Group 4: Plan-Execute-Review pipeline holds ---"
 
 assert_contains "Phase 1b mandatory plan review section" "**Phase 1b: PLAN REVIEW (mandatory)**"
 assert_contains "Plan-review hold created" "plan-review hold"
+assert_contains "Plan-review hold uses lead_release (Fix B)" "release: lead_release(\"plan-review-N\")"
 assert_contains "Plan-handoff hold created in Phase 2" "plan-handoff hold"
+assert_contains "Phase 2 calls lead_release for plan-review hold" "lead_release(\"plan-review-N\")"
+assert_contains "Atomic handoff: plan-handoff created before plan-review released" "atomic handoff"
 assert_contains "Impl-review hold created in Phase 3" "impl-review hold"
 assert_contains "Executor stays in PENDING-RELEASE for review" "Executor enters PENDING-RELEASE"
 
