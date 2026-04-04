@@ -285,11 +285,19 @@ Every managed agent has a state:
 ```
 STARTING ──(first chat message)──> ACTIVE
 ACTIVE ──(no message for silence_threshold)──> SILENT
-SILENT ──(nudge succeeds)──> ACTIVE
-SILENT ──(nudge fails / tmux window gone)──> DEAD
-DEAD ──(lead decides)──> RESPAWN or REPORT+DONE
-Any state ──(task done)──> DONE (window killed)
+ACTIVE ──(agent posts done, NO incoming holds)──> DONE (pane killed)
+ACTIVE ──(agent posts done, HAS incoming holds)──> PENDING-RELEASE
+PENDING-RELEASE ──(last incoming hold dissolved)──> DONE (pane killed)
+PENDING-RELEASE ──(agent posts done again, HAS incoming holds)──> PENDING-RELEASE (no-op)
+PENDING-RELEASE ──(no message for silence_threshold)──> SILENT
+SILENT ──(nudge succeeds, has incoming holds)──> PENDING-RELEASE
+SILENT ──(nudge succeeds, no incoming holds)──> ACTIVE
+SILENT ──(nudge fails / tmux pane gone)──> DEAD
+DEAD ──(lead decides, respawn)──> RESPAWN
+DEAD ──(lead decides, report)──> REPORT+DONE
 ```
+
+12 transitions (up from 6).
 
 ### 3.1 State Definitions
 
@@ -299,7 +307,8 @@ Any state ──(task done)──> DONE (window killed)
 | **ACTIVE** | Agent posted at least one message | Normal operation. Track last-message timestamp. |
 | **SILENT** | No chat message for `silence_threshold` (3 min for task agents, 6 min for engram-agent). Detected on 2-minute health check. | Nudge via chat + tmux (see 3.2). |
 | **DEAD** | Nudge failed, tmux window gone, or log shows crash/exit | Decide: respawn (engram-agent always), report to user (task agents). |
-| **DONE** | Agent posted `done` for its assigned task | Kill pane by tracked ID: `tmux kill-pane -t <pane-id>`. Rebalance: `tmux select-layout main-vertical`. Remove from tracking. |
+| **PENDING-RELEASE** | Agent posted `done` AND lead's hold registry contains at least one hold targeting this agent | Do NOT kill pane. Agent remains alive and responsive. Monitor holds via background tasks. Silence threshold still applies — use PENDING-RELEASE-specific nudge text (see 3.2). |
+| **DONE** | Agent posted `done` AND no incoming holds remain (or last hold just dissolved) | Kill pane by tracked ID: `tmux kill-pane -t <pane-id>`. Rebalance: `tmux select-layout main-vertical`. Remove from tracking. |
 
 **NEVER kill the engram-agent.** It runs for the entire session. Only task agents transition to DONE.
 
@@ -319,6 +328,18 @@ thread = "nudge"
 type = "info"
 ts = "<now>"
 text = "You appear to have gone silent. Post a status update."
+```
+
+**If agent is in PENDING-RELEASE**, use this nudge text instead:
+
+```toml
+[[message]]
+from = "lead"
+to = "<agent-name>"
+thread = "nudge"
+type = "info"
+ts = "<now>"
+text = "You are held in PENDING-RELEASE and may receive further instructions. If idle, post a brief heartbeat."
 ```
 
 **Step 2: tmux nudge (fallback).** If no response within 30 seconds:
