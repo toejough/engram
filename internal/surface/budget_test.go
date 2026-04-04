@@ -68,18 +68,27 @@ func TestPromptBudgetEnforcement(t *testing.T) {
 	memories := []*memory.Stored{
 		{
 			Situation: "budget keyword situation",
-			Content:   memory.ContentFields{Behavior: strings.Repeat("a", 50), Action: "use budget keyword action"},
-			FilePath:  "mem-a.toml",
+			Content: memory.ContentFields{
+				Behavior: strings.Repeat("a", 50),
+				Action:   "use budget keyword action",
+			},
+			FilePath: "mem-a.toml",
 		},
 		{
 			Situation: "budget keyword situation",
-			Content:   memory.ContentFields{Behavior: strings.Repeat("b", 50), Action: "use budget keyword action"},
-			FilePath:  "mem-b.toml",
+			Content: memory.ContentFields{
+				Behavior: strings.Repeat("b", 50),
+				Action:   "use budget keyword action",
+			},
+			FilePath: "mem-b.toml",
 		},
 		{
 			Situation: "budget keyword situation",
-			Content:   memory.ContentFields{Behavior: strings.Repeat("c", 50), Action: "use budget keyword action"},
-			FilePath:  "mem-c.toml",
+			Content: memory.ContentFields{
+				Behavior: strings.Repeat("c", 50),
+				Action:   "use budget keyword action",
+			},
+			FilePath: "mem-c.toml",
 		},
 		{Situation: "unrelated alpha", FilePath: "mem-d.toml"},
 		{Situation: "unrelated beta", FilePath: "mem-e.toml"},

@@ -22,12 +22,20 @@ func TestBuildGateUserPrompt_ContainsUserMessageAndSlugs(t *testing.T) {
 		{
 			FilePath:  "mem/commit-safety.toml",
 			Situation: "when committing",
-			Content:   memory.ContentFields{Behavior: "manual commit", Impact: "slow workflow", Action: "use /commit"},
+			Content: memory.ContentFields{
+				Behavior: "manual commit",
+				Impact:   "slow workflow",
+				Action:   "use /commit",
+			},
 		},
 		{
 			FilePath:  "mem/build-tools.toml",
 			Situation: "when building",
-			Content:   memory.ContentFields{Behavior: "go build directly", Impact: "misses checks", Action: "use targ build"},
+			Content: memory.ContentFields{
+				Behavior: "go build directly",
+				Impact:   "misses checks",
+				Action:   "use targ build",
+			},
 		},
 	}
 
@@ -333,14 +341,26 @@ func TestWithHaikuGate_WiresCallerOnSurfacer(t *testing.T) {
 	}
 
 	memories := []*memory.Stored{
-		{Situation: "commit context", Content: memory.ContentFields{Behavior: "bad commit", Action: "good commit"},
-			FilePath: "mem/commit-safety.toml"},
-		{Situation: "build context", Content: memory.ContentFields{Behavior: "bad build", Action: "good build"},
-			FilePath: "mem/build-tools.toml"},
-		{Situation: "review context", Content: memory.ContentFields{Behavior: "bad review", Action: "good review"},
-			FilePath: "mem/review.toml"},
-		{Situation: "deploy context", Content: memory.ContentFields{Behavior: "bad deploy", Action: "good deploy"},
-			FilePath: "mem/deploy.toml"},
+		{
+			Situation: "commit context",
+			Content:   memory.ContentFields{Behavior: "bad commit", Action: "good commit"},
+			FilePath:  "mem/commit-safety.toml",
+		},
+		{
+			Situation: "build context",
+			Content:   memory.ContentFields{Behavior: "bad build", Action: "good build"},
+			FilePath:  "mem/build-tools.toml",
+		},
+		{
+			Situation: "review context",
+			Content:   memory.ContentFields{Behavior: "bad review", Action: "good review"},
+			FilePath:  "mem/review.toml",
+		},
+		{
+			Situation: "deploy context",
+			Content:   memory.ContentFields{Behavior: "bad deploy", Action: "good deploy"},
+			FilePath:  "mem/deploy.toml",
+		},
 	}
 
 	retriever := &fakeRetriever{memories: memories}

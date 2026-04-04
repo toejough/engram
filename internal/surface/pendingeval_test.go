@@ -30,14 +30,26 @@ func TestWithPendingEvalModifier_WiresModifierOnSurfacer(t *testing.T) {
 	}
 
 	memories := []*memory.Stored{
-		{Situation: "commit context", Content: memory.ContentFields{Behavior: "bad commit", Action: "good commit"},
-			FilePath: "mem/commit.toml"},
-		{Situation: "build context", Content: memory.ContentFields{Behavior: "bad build", Action: "good build"},
-			FilePath: "mem/build.toml"},
-		{Situation: "review context", Content: memory.ContentFields{Behavior: "bad review", Action: "good review"},
-			FilePath: "mem/review.toml"},
-		{Situation: "deploy context", Content: memory.ContentFields{Behavior: "bad deploy", Action: "good deploy"},
-			FilePath: "mem/deploy.toml"},
+		{
+			Situation: "commit context",
+			Content:   memory.ContentFields{Behavior: "bad commit", Action: "good commit"},
+			FilePath:  "mem/commit.toml",
+		},
+		{
+			Situation: "build context",
+			Content:   memory.ContentFields{Behavior: "bad build", Action: "good build"},
+			FilePath:  "mem/build.toml",
+		},
+		{
+			Situation: "review context",
+			Content:   memory.ContentFields{Behavior: "bad review", Action: "good review"},
+			FilePath:  "mem/review.toml",
+		},
+		{
+			Situation: "deploy context",
+			Content:   memory.ContentFields{Behavior: "bad deploy", Action: "good deploy"},
+			FilePath:  "mem/deploy.toml",
+		},
 	}
 
 	retriever := &fakeRetriever{memories: memories}

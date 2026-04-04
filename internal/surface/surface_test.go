@@ -81,8 +81,11 @@ func TestPromptMode_BM25Threshold_FiltersLowScores(t *testing.T) {
 	memories := []*memory.Stored{
 		{
 			Situation: "when committing code",
-			Content:   memory.ContentFields{Behavior: "manual git commit", Action: "use /commit skill"},
-			FilePath:  "commit-conventions.toml",
+			Content: memory.ContentFields{
+				Behavior: "manual git commit",
+				Action:   "use /commit skill",
+			},
+			FilePath: "commit-conventions.toml",
 		},
 		{
 			Situation: "when building",
@@ -179,28 +182,43 @@ func TestPromptMode_KeywordMatch_SurfacesRelevant(t *testing.T) {
 	memories := []*memory.Stored{
 		{
 			Situation: "when committing code",
-			Content:   memory.ContentFields{Behavior: "manual git commit", Action: "use /commit skill"},
-			FilePath:  "commit-conventions.toml",
+			Content: memory.ContentFields{
+				Behavior: "manual git commit",
+				Action:   "use /commit skill",
+			},
+			FilePath: "commit-conventions.toml",
 		},
 		{
 			Situation: "when building",
-			Content:   memory.ContentFields{Behavior: "run go build directly", Action: "use targ build"},
-			FilePath:  "build-tools.toml",
+			Content: memory.ContentFields{
+				Behavior: "run go build directly",
+				Action:   "use targ build",
+			},
+			FilePath: "build-tools.toml",
 		},
 		{
 			Situation: "when testing",
-			Content:   memory.ContentFields{Behavior: "run go test directly", Action: "use targ test"},
-			FilePath:  "testing.toml",
+			Content: memory.ContentFields{
+				Behavior: "run go test directly",
+				Action:   "use targ test",
+			},
+			FilePath: "testing.toml",
 		},
 		{
 			Situation: "when linting",
-			Content:   memory.ContentFields{Behavior: "skip lint checks", Action: "run targ check-full"},
-			FilePath:  "linting.toml",
+			Content: memory.ContentFields{
+				Behavior: "skip lint checks",
+				Action:   "run targ check-full",
+			},
+			FilePath: "linting.toml",
 		},
 		{
 			Situation: "when deploying",
-			Content:   memory.ContentFields{Behavior: "deploy without review", Action: "require code review"},
-			FilePath:  "docker.toml",
+			Content: memory.ContentFields{
+				Behavior: "deploy without review",
+				Action:   "require code review",
+			},
+			FilePath: "docker.toml",
 		},
 	}
 
@@ -338,14 +356,26 @@ func TestRun_TranscriptWindowSuppression(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Situation: "commit context", Content: memory.ContentFields{Behavior: "bad commit", Action: "use /commit skill"},
-			FilePath: "mem/commit.toml"},
-		{Situation: "build context", Content: memory.ContentFields{Behavior: "bad build", Action: "use targ build"},
-			FilePath: "mem/build.toml"},
-		{Situation: "test context", Content: memory.ContentFields{Behavior: "bad test", Action: "use targ test"},
-			FilePath: "mem/test.toml"},
-		{Situation: "lint context", Content: memory.ContentFields{Behavior: "bad lint", Action: "run linter"},
-			FilePath: "mem/lint.toml"},
+		{
+			Situation: "commit context",
+			Content:   memory.ContentFields{Behavior: "bad commit", Action: "use /commit skill"},
+			FilePath:  "mem/commit.toml",
+		},
+		{
+			Situation: "build context",
+			Content:   memory.ContentFields{Behavior: "bad build", Action: "use targ build"},
+			FilePath:  "mem/build.toml",
+		},
+		{
+			Situation: "test context",
+			Content:   memory.ContentFields{Behavior: "bad test", Action: "use targ test"},
+			FilePath:  "mem/test.toml",
+		},
+		{
+			Situation: "lint context",
+			Content:   memory.ContentFields{Behavior: "bad lint", Action: "run linter"},
+			FilePath:  "mem/lint.toml",
+		},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -374,14 +404,26 @@ func TestRun_WithRecordSurfacing(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Situation: "alpha context", Content: memory.ContentFields{Behavior: "alpha bad", Action: "alpha good"},
-			FilePath: "mem/alpha.toml"},
-		{Situation: "beta context", Content: memory.ContentFields{Behavior: "beta bad", Action: "beta good"},
-			FilePath: "mem/beta.toml"},
-		{Situation: "gamma context", Content: memory.ContentFields{Behavior: "gamma bad", Action: "gamma good"},
-			FilePath: "mem/gamma.toml"},
-		{Situation: "delta context", Content: memory.ContentFields{Behavior: "delta bad", Action: "delta good"},
-			FilePath: "mem/delta.toml"},
+		{
+			Situation: "alpha context",
+			Content:   memory.ContentFields{Behavior: "alpha bad", Action: "alpha good"},
+			FilePath:  "mem/alpha.toml",
+		},
+		{
+			Situation: "beta context",
+			Content:   memory.ContentFields{Behavior: "beta bad", Action: "beta good"},
+			FilePath:  "mem/beta.toml",
+		},
+		{
+			Situation: "gamma context",
+			Content:   memory.ContentFields{Behavior: "gamma bad", Action: "gamma good"},
+			FilePath:  "mem/gamma.toml",
+		},
+		{
+			Situation: "delta context",
+			Content:   memory.ContentFields{Behavior: "delta bad", Action: "delta good"},
+			FilePath:  "mem/delta.toml",
+		},
 	}
 
 	var recorded []string
@@ -416,7 +458,11 @@ func TestSortPromptMatchesByScore_ProjectScopedPenalty(t *testing.T) {
 	// A project-scoped memory in a different project gets a penalty (GenFactor < 1).
 	// A global memory with lower raw score may outrank it after penalty.
 	global := &memory.Stored{FilePath: "mem/global.toml", ProjectScoped: false}
-	scoped := &memory.Stored{FilePath: "mem/scoped.toml", ProjectScoped: true, ProjectSlug: "other-project"}
+	scoped := &memory.Stored{
+		FilePath:      "mem/scoped.toml",
+		ProjectScoped: true,
+		ProjectSlug:   "other-project",
+	}
 
 	matches := []surface.PromptMatch{
 		{Mem: scoped, BM25Score: 5.0},
@@ -519,14 +565,26 @@ func TestSurfacingLogger(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Situation: "alpha context", Content: memory.ContentFields{Behavior: "alpha bad", Action: "alpha good"},
-			FilePath: "mem/alpha.toml"},
-		{Situation: "beta context", Content: memory.ContentFields{Behavior: "beta bad", Action: "beta good"},
-			FilePath: "mem/beta.toml"},
-		{Situation: "gamma context", Content: memory.ContentFields{Behavior: "gamma bad", Action: "gamma good"},
-			FilePath: "mem/gamma.toml"},
-		{Situation: "delta context", Content: memory.ContentFields{Behavior: "delta bad", Action: "delta good"},
-			FilePath: "mem/delta.toml"},
+		{
+			Situation: "alpha context",
+			Content:   memory.ContentFields{Behavior: "alpha bad", Action: "alpha good"},
+			FilePath:  "mem/alpha.toml",
+		},
+		{
+			Situation: "beta context",
+			Content:   memory.ContentFields{Behavior: "beta bad", Action: "beta good"},
+			FilePath:  "mem/beta.toml",
+		},
+		{
+			Situation: "gamma context",
+			Content:   memory.ContentFields{Behavior: "gamma bad", Action: "gamma good"},
+			FilePath:  "mem/gamma.toml",
+		},
+		{
+			Situation: "delta context",
+			Content:   memory.ContentFields{Behavior: "delta bad", Action: "delta good"},
+			FilePath:  "mem/delta.toml",
+		},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -580,14 +638,26 @@ func TestWithInvocationTokenLogger_LogsTokens(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Situation: "alpha context", Content: memory.ContentFields{Behavior: "alpha bad", Action: "alpha good"},
-			FilePath: "mem/alpha.toml"},
-		{Situation: "beta context", Content: memory.ContentFields{Behavior: "beta bad", Action: "beta good"},
-			FilePath: "mem/beta.toml"},
-		{Situation: "gamma context", Content: memory.ContentFields{Behavior: "gamma bad", Action: "gamma good"},
-			FilePath: "mem/gamma.toml"},
-		{Situation: "delta context", Content: memory.ContentFields{Behavior: "delta bad", Action: "delta good"},
-			FilePath: "mem/delta.toml"},
+		{
+			Situation: "alpha context",
+			Content:   memory.ContentFields{Behavior: "alpha bad", Action: "alpha good"},
+			FilePath:  "mem/alpha.toml",
+		},
+		{
+			Situation: "beta context",
+			Content:   memory.ContentFields{Behavior: "beta bad", Action: "beta good"},
+			FilePath:  "mem/beta.toml",
+		},
+		{
+			Situation: "gamma context",
+			Content:   memory.ContentFields{Behavior: "gamma bad", Action: "gamma good"},
+			FilePath:  "mem/gamma.toml",
+		},
+		{
+			Situation: "delta context",
+			Content:   memory.ContentFields{Behavior: "delta bad", Action: "delta good"},
+			FilePath:  "mem/delta.toml",
+		},
 	}
 
 	logger := &fakeTokenLogger{}
@@ -687,14 +757,26 @@ func TestWithTracker_RecordsSurfacing(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Situation: "commit context", Content: memory.ContentFields{Behavior: "bad commit", Action: "good commit"},
-			FilePath: "mem/commit.toml"},
-		{Situation: "build context", Content: memory.ContentFields{Behavior: "bad build", Action: "good build"},
-			FilePath: "mem/build.toml"},
-		{Situation: "review context", Content: memory.ContentFields{Behavior: "bad review", Action: "good review"},
-			FilePath: "mem/review.toml"},
-		{Situation: "deploy context", Content: memory.ContentFields{Behavior: "bad deploy", Action: "good deploy"},
-			FilePath: "mem/deploy.toml"},
+		{
+			Situation: "commit context",
+			Content:   memory.ContentFields{Behavior: "bad commit", Action: "good commit"},
+			FilePath:  "mem/commit.toml",
+		},
+		{
+			Situation: "build context",
+			Content:   memory.ContentFields{Behavior: "bad build", Action: "good build"},
+			FilePath:  "mem/build.toml",
+		},
+		{
+			Situation: "review context",
+			Content:   memory.ContentFields{Behavior: "bad review", Action: "good review"},
+			FilePath:  "mem/review.toml",
+		},
+		{
+			Situation: "deploy context",
+			Content:   memory.ContentFields{Behavior: "bad deploy", Action: "good deploy"},
+			FilePath:  "mem/deploy.toml",
+		},
 	}
 
 	tracker := &fakeTracker{}
@@ -724,14 +806,26 @@ func TestWithTracker_TrackerError_IsNonFatal(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Situation: "commit context", Content: memory.ContentFields{Behavior: "bad commit", Action: "good commit"},
-			FilePath: "mem/commit.toml"},
-		{Situation: "build context", Content: memory.ContentFields{Behavior: "bad build", Action: "good build"},
-			FilePath: "mem/build.toml"},
-		{Situation: "review context", Content: memory.ContentFields{Behavior: "bad review", Action: "good review"},
-			FilePath: "mem/review.toml"},
-		{Situation: "deploy context", Content: memory.ContentFields{Behavior: "bad deploy", Action: "good deploy"},
-			FilePath: "mem/deploy.toml"},
+		{
+			Situation: "commit context",
+			Content:   memory.ContentFields{Behavior: "bad commit", Action: "good commit"},
+			FilePath:  "mem/commit.toml",
+		},
+		{
+			Situation: "build context",
+			Content:   memory.ContentFields{Behavior: "bad build", Action: "good build"},
+			FilePath:  "mem/build.toml",
+		},
+		{
+			Situation: "review context",
+			Content:   memory.ContentFields{Behavior: "bad review", Action: "good review"},
+			FilePath:  "mem/review.toml",
+		},
+		{
+			Situation: "deploy context",
+			Content:   memory.ContentFields{Behavior: "bad deploy", Action: "good deploy"},
+			FilePath:  "mem/deploy.toml",
+		},
 	}
 
 	tracker := &fakeTracker{err: errors.New("tracker failure")}

@@ -31,7 +31,8 @@ func TestApplyColdStartBudget_LimitsUnproven(t *testing.T) {
 		paths = append(paths, m.FilePath)
 	}
 
-	g.Expect(paths).To(ContainElements("proven-a.toml", "proven-b.toml", "unproven-a.toml", "unproven-b.toml"))
+	g.Expect(paths).
+		To(ContainElements("proven-a.toml", "proven-b.toml", "unproven-a.toml", "unproven-b.toml"))
 	g.Expect(paths).NotTo(ContainElement("unproven-c.toml"))
 }
 
