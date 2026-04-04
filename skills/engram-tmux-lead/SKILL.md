@@ -203,7 +203,11 @@ Any state ──(task done)──> DONE (window killed)
 | **ACTIVE** | Agent posted at least one message | Normal operation. Track last-message timestamp. |
 | **SILENT** | No chat message for `silence_threshold` (3 min for task agents, 6 min for engram-agent). Detected on 2-minute health check. | Nudge via chat + tmux (see 3.2). |
 | **DEAD** | Nudge failed, tmux window gone, or log shows crash/exit | Decide: respawn (engram-agent always), report to user (task agents). |
-| **DONE** | Agent posted `done` for its assigned task | Kill tmux window: `tmux kill-window -t<agent-name>`. Remove from tracking. |
+| **DONE** | Agent posted `done` for its assigned task | Kill tmux window by NAME: `tmux kill-window -t <agent-name>`. NEVER kill by window index. Remove from tracking. |
+
+**NEVER kill the engram-agent.** It runs for the entire session. Only task agents transition to DONE.
+
+**ALWAYS kill windows by name, NEVER by index.** Window indices shift when windows are created or destroyed. Killing by index (`-t 4`) risks destroying the wrong window.
 
 ### 3.2 Nudging
 
