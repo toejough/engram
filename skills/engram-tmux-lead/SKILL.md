@@ -75,15 +75,50 @@ touch "$CHAT_FILE"
 # Always drain (TaskOutput block:false) before replacing an entry.
 CHAT_FSWATCH_TASK_ID=""  # task ID of the current chat watcher background task
 
-# Split right — chat tail is the first right-column pane
+# Pane column tracking — updated after every spawn or kill
+RIGHT_PANE_COUNT=0         # total panes to the right of coordinator
+MIDDLE_COL_LAST_PANE=""    # pane ID of the last pane in the middle column (right-side column 1)
+RIGHT_COL_LAST_PANE=""     # pane ID of the last pane in the right column (right-side column 2)
+
+# Split right — chat tail is the first middle-column pane
 tmux split-window -h -d "tail -F $CHAT_FILE"
 TAIL_PANE_ID=$(tmux list-panes -F '#{pane_id}' | tail -1)
+MIDDLE_COL_LAST_PANE=$TAIL_PANE_ID
+RIGHT_PANE_COUNT=1
 # Rebalance: coordinator on left, chat tail on right
 tmux select-layout main-vertical
 ```
 
-**Pane layout:** All agents and the chat tail live as panes in the coordinator's window — NOT separate windows. The coordinator pane stays on the left. Everything else stacks on the right, evenly spaced via `tmux select-layout main-vertical` after each spawn.
+**Pane layout:** All agents and the chat tail live as panes in the coordinator's window — NOT separate windows. The coordinator pane stays on the left. Right-side panes fill the **middle column** first (up to 4); once the middle column is full, new panes start the **right column**.
 
+**Splitting rules (called by every spawn, including Section 2.1):**
+
+```bash
+# Call this after every tmux split-window to get the new pane ID and update tracking.
+# Use RIGHT_PANE_COUNT to decide HOW to split before calling tmux split-window.
+
+if [ "$RIGHT_PANE_COUNT" -lt 4 ]; then
+  # Middle column not full: split right from coordinator, rebalance into single right column
+  tmux split-window -h -d
+  NEW_PANE=$(tmux list-panes -F '#{pane_id}' | tail -1)
+  MIDDLE_COL_LAST_PANE=$NEW_PANE
+  tmux select-layout main-vertical
+elif [ "$RIGHT_PANE_COUNT" -eq 4 ]; then
+  # Middle column full (4 panes): start right column by splitting right from last middle pane
+  tmux split-window -h -d -t "$MIDDLE_COL_LAST_PANE"
+  NEW_PANE=$(tmux list-panes -F '#{pane_id}' | tail -1)
+  RIGHT_COL_LAST_PANE=$NEW_PANE
+  # No main-vertical: manually managing multi-column layout
+else
+  # Right column in progress: split below last right-column pane
+  tmux split-window -v -d -t "$RIGHT_COL_LAST_PANE"
+  NEW_PANE=$(tmux list-panes -F '#{pane_id}' | tail -1)
+  RIGHT_COL_LAST_PANE=$NEW_PANE
+fi
+RIGHT_PANE_COUNT=$((RIGHT_PANE_COUNT + 1))
+```
+
+**Single right column** (1–4 right-side panes, `main-vertical` keeps layout balanced):
 ```
 ┌──────────────┬──────────────┐
 │              │  chat tail   │
@@ -93,6 +128,21 @@ tmux select-layout main-vertical
 │              │  exec-1      │
 └──────────────┴──────────────┘
 ```
+
+**Two right columns** (5–8 right-side panes; middle column capped at 4, overflow goes right):
+```
+┌──────────────┬──────────────┬──────────────┐
+│              │  chat tail   │  exec-3      │
+│  coordinator │──────────────│──────────────│
+│              │  engram-agent│  exec-4      │
+│              │──────────────│──────────────│
+│              │  exec-1      │  exec-5      │
+│              │──────────────│──────────────│
+│              │  exec-2      │  exec-6      │
+└──────────────┴──────────────┴──────────────┘
+```
+
+**Maximum: 9 total panes** (1 coordinator + 4 middle + 4 right). Do not exceed. See Section 2.4.
 
 ### 1.4 Spawn engram-agent
 
@@ -313,8 +363,12 @@ The counter is **per-role** -- each role has its own monotonically increasing co
 
 ### 2.4 Concurrency Limit
 
-Maximum 5 total agents (including engram-agent). Beyond that, queue the request:
-- "At agent limit (5). Waiting for a slot to free up. Kill an agent if you want this to proceed now."
+Maximum **9 total panes** (1 coordinator + 8 right-side panes). The right side fills in two columns: middle column holds up to 4 panes, right column holds up to 4 panes (see Section 1.3 for splitting rules).
+
+Beyond 9, queue the request:
+- "At pane limit (9 total, 8 agents). Waiting for a slot to free up. Kill an agent if you want this to proceed now."
+
+**When a pane is killed:** run `tmux select-layout main-vertical` only if `RIGHT_COL_LAST_PANE` is empty (still single-column). In two-column mode, decrement `RIGHT_PANE_COUNT` and update `MIDDLE_COL_LAST_PANE` or `RIGHT_COL_LAST_PANE` as appropriate.
 
 ## 3. Agent Lifecycle State Machine
 
