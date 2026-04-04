@@ -223,6 +223,14 @@ This means the lead processes chat messages opportunistically between user input
 # Before spawning a new chat monitor Agent:
 if CHAT_MONITOR_TASK_ID:
     TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)  # drain; discard output
+
+# Post-drain sweep: catch any messages that arrived in the race window
+# (foreground bash — embed CURSOR as literal integer):
+new_lines = run_bash(f'tail -n +{CURSOR + 1} "$CHAT_FILE"')
+CURSOR = run_bash('wc -l < "$CHAT_FILE"').strip()
+if new_lines.strip():
+    process_chat_messages(new_lines)   # relay, route, or queue as normal
+
 # Spawn replacement (Agent tool, run_in_background: true)
 CHAT_MONITOR_TASK_ID = <new background Agent task id>
 ```
@@ -824,6 +832,14 @@ When the user types a message:
 # Drain old monitor Agent before spawning new one:
 if CHAT_MONITOR_TASK_ID:
     TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)  # drain; discard output
+
+# Post-drain sweep: catch any messages that arrived in the race window.
+# Run foreground bash before spawning new monitor:
+new_lines = run_bash(f'tail -n +{CURSOR + 1} "$CHAT_FILE"')
+CURSOR = run_bash('wc -l < "$CHAT_FILE"').strip()
+if new_lines.strip():
+    process_chat_messages(new_lines)   # relay, route, or queue as normal
+
 # Spawn replacement monitor Agent (Agent tool, run_in_background: true):
 # Task: Background Monitor Pattern from use-engram-chat-as, with current cursor
 CHAT_MONITOR_TASK_ID = <task id from Agent tool result>
