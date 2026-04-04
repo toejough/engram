@@ -469,7 +469,7 @@ Context: Discovered during build failure -- running go test directly misses cove
 
 ## Ready Messages
 
-Agents announce they have completed initialization and are watching the chat. This provides a synchronization point.
+Agents announce their presence when joining the chat. This provides an early synchronization point before initialization completes.
 
 ```toml
 [[message]]
@@ -700,7 +700,7 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Skip `ready` message or post it late | Post `ready` as your FIRST action — before reading history or loading resources. Presence before initialization, not after. |
 | Emit `learned` for trivial observations | Only emit when knowledge is reusable across sessions |
 | Ignore `shutdown` message | Exit monitor Agent loop after completing in-flight work and posting `done` |
-| Post intent before others are ready | In lead setup: wait for expected `ready` messages (30s timeout) |
+| Post intent before others are ready | In lead setup: wait for the agent's init-complete `info` message (30s timeout from that message, not from `ready`) |
 | Use old field names (`[[entry]]`, `message =`) | Clean break: use `[[message]]` and `text =` |
 | Truncate or delete the chat file | Chat files are persistent -- prior sessions contain valuable context |
 | Skip heartbeat in long-lived reactive agent | Post heartbeat every 5 min so others know you're alive |
