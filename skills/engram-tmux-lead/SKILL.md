@@ -374,6 +374,137 @@ Triggered by user saying "done", "shut down", "stand down", "close engram", "sto
 
 Do not attempt to re-implement the shutdown sequence inline. The skill owns the procedure.
 
+### 3.5 Hold-Based Agent Retention
+
+A **hold** is a directed keep-alive relationship: "Agent A is holding Agent B alive because A might still need B." An agent stays in PENDING-RELEASE as long as any hold targets it.
+
+Holds are the ONLY retention primitive. Coordination patterns (review, handoff, synthesis, merge, co-design) are documented recipes that configure holds — not enforced types. New patterns require only a new recipe section, not a mechanism change.
+
+#### Hold Definition
+
+```
+Hold {
+  id:      string        # unique identifier (e.g., "h1")
+  holder:  string        # agent (or virtual process) keeping target alive
+  target:  string        # agent being kept alive
+  release: Condition     # when this hold dissolves
+  tag:     string        # workflow label for bookkeeping (e.g., "plan-review-1")
+}
+```
+
+#### Release Conditions
+
+| Condition | Syntax | Fires When |
+|-----------|--------|------------|
+| Agent done | `done(agent)` | `agent` posts `type = "done"` |
+| Agent signal | `signal(agent, msg_type)` | `agent` posts `type = msg_type` |
+| Targeted signal | `signal(agent, msg_type, to)` | `agent` posts `type = msg_type` addressed to `to` |
+| First intent | `first_intent(agent)` | `agent` posts its first `type = "intent"` |
+| Lead release | `lead_release(tag)` | Lead explicitly dissolves all holds with this tag |
+
+`lead_release` is the lead's manual intervention for coordinator-controlled patterns (merge queue, co-design). The lead posts an `info` message to chat documenting the release, then removes the holds from its registry.
+
+#### Hold Registry (In-Context State)
+
+Maintain alongside the agent registry:
+
+```
+Holds:
+- {id: "h1", holder: "reviewer-1", target: "planner-1", release: done("reviewer-1"), tag: "plan-review-1", task_id: <bg task id>, cursor: 567}
+- {id: "h2", holder: "exec-1", target: "planner-1", release: first_intent("exec-1"), tag: "plan-handoff-1", task_id: <bg task id>, cursor: 580}
+```
+
+#### Hold Detection (Background Tasks)
+
+One background task per hold. Cursor-based polling (same pattern as Section 2.1 / 6.4):
+
+```bash
+# Example: hold h1, watching for reviewer-1 to post done
+# Replace 567 with literal cursor value captured when hold was created.
+# PERSISTENT watcher — restarts on timeout until the release fires.
+HOLD_CURSOR=567
+while true; do
+  for i in $(seq 1 60); do
+    RESULT=$(tail -n +"$((HOLD_CURSOR + 1))" "$CHAT_FILE" | awk '
+      /^\[\[message\]\]/ { from=""; msgtype="" }
+      /^from = "reviewer-1"/ { from=1 }
+      /^type = "done"/ { msgtype=1 }
+      from && msgtype { print "RELEASED"; exit }
+    ')
+    if [ "$RESULT" = "RELEASED" ]; then echo "HOLD RELEASED h1"; exit 0; fi
+    sleep 2
+  done
+  # Timeout — advance cursor and restart. Hold is still active.
+  HOLD_CURSOR=$(wc -l < "$CHAT_FILE")
+done
+```
+
+The watcher is persistent: it restarts after each 2-minute window, advancing the cursor. This prevents stuck holds where the holder's event arrives after a one-shot timeout. The background task only exits when the release event fires.
+
+**When a hold fires:**
+1. Drain its background task (TaskOutput block:false)
+2. Remove hold from registry
+3. Check if target has remaining incoming holds
+4. If no remaining holds → kill target pane → DONE
+5. If remaining holds → target stays in PENDING-RELEASE
+6. `tmux select-layout main-vertical` (if pane was killed)
+
+#### When to Create Holds
+
+Create holds at spawn time or phase transitions — BEFORE the agent whose work triggers the hold has posted done. The lead decides which pattern to use based on the workflow.
+
+**NEVER create holds retroactively.** If an agent posts `done` before a hold is created, the agent is already DONE and the pane is killed. Holds are preventive, not corrective.
+
+**Hold watchers replace standard agent wait tasks.** In hold-aware phases (e.g., Phase 3 of the pipeline), the hold watcher watches for the same event as the standard agent wait task (Section 2.1 Step 3). Do NOT run both. The lead uses the hold watcher's output as the signal to both dissolve the hold AND advance the phase.
+
+#### Documented Patterns
+
+These are RECIPES for common workflows. The lead references them when deciding what holds to create. New patterns are added here without any mechanism change.
+
+**Pattern: Pair (Review)**
+
+When spawning a reviewer for an agent's work:
+- Hold: `{holder: reviewer, target: subject, release: done(reviewer)}`
+- Subject enters PENDING-RELEASE when it posts done. Reviewer can post `wait` and subject responds. When reviewer posts done, hold dissolves.
+
+**Pattern: Handoff**
+
+When one agent passes work to another:
+- Hold: `{holder: receiver, target: sender, release: first_intent(receiver)}`
+- Sender enters PENDING-RELEASE when it posts done. Receiver can ask questions. When receiver begins independent work (first intent), hold dissolves.
+- Alternative release: `signal(receiver, "ack", sender)` for explicit handshake.
+
+**Pattern: Fan-In (Research Synthesis)**
+
+When multiple producers report to a single consumer:
+- Holds: for each producer, `{holder: consumer, target: producer, release: done(consumer)}`
+- All producers enter PENDING-RELEASE when they post done. Consumer reads findings, asks follow-ups. When consumer posts done, ALL holds dissolve.
+
+**Pattern: Merge Queue**
+
+When parallel worktree executors need sequential lead-coordinated merging:
+- Holds: for each executor, `{holder: "merge-process", target: exec-K, release: lead_release("merge-N-exec-K")}`
+- `"merge-process"` is a virtual holder — the lead itself has the need.
+- All executors enter PENDING-RELEASE when done. Lead merges one at a time:
+  1. Tell exec-K to rebase on main and re-test
+  2. If rebase conflicts → exec-K resolves (alive in PENDING-RELEASE)
+  3. After green tests → `git merge --ff-only` → `lead_release` for that executor
+  4. Next executor rebases on updated main, repeat
+
+**Pattern: Barrier (Co-Design)**
+
+When multiple agents collaborate equally on a shared artifact:
+- Holds: for each member, `{holder: "codesign-coordinator", target: member-K, release: lead_release("codesign-N")}`
+- All members stay alive. When lead signals design complete, ALL holds dissolve.
+- Uses virtual holder for simplicity (N holds vs N*(N-1) for bidirectional).
+
+**Pattern: Expert Consultation**
+
+When an executor needs a specialist answer:
+- Hold: `{holder: exec-N, target: researcher-K, release: done(exec-N)}`
+- Researcher stays alive until executor finishes (in case of follow-up questions).
+- For one-shot consultations: `release: done(researcher-K)` instead.
+
 ## 4. Routing
 
 ### 4.1 Routing Decision Table
