@@ -67,8 +67,8 @@ The pane is small (15 lines) so it doesn't crowd the user's workspace. The user 
 # Create window with interactive claude session
 tmux new-window -n "engram-agent"
 tmux send-keys -t "engram-agent" "claude --dangerously-skip-permissions --model sonnet" Enter
-# Wait for claude to initialize
-sleep 10
+# Wait for claude to start (watch for the prompt character)
+while ! tmux capture-pane -t "engram-agent" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
 # Send the role prompt
 tmux send-keys -t "engram-agent" "/use-engram-chat-as reactive memory agent named engram-agent" Enter
 # Send extra Enter in case it was treated as a paste
@@ -119,8 +119,8 @@ Every agent the lead spawns:
 # Create window with interactive claude session
 tmux new-window -n "<agent-name>"
 tmux send-keys -t "<agent-name>" "claude --dangerously-skip-permissions --model sonnet" Enter
-# Wait for claude to initialize
-sleep 10
+# Wait for claude to start (watch for the prompt character)
+while ! tmux capture-pane -t "<agent-name>" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
 # Send the role prompt
 tmux send-keys -t "<agent-name>" "/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete." Enter
 # Send extra Enter in case it was treated as a paste
