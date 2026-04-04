@@ -258,24 +258,27 @@ Respawn procedure:
 
 ### 3.4 Shutdown
 
-Triggered by user saying "done", "shut down", "stand down", or similar.
+Triggered by user saying "done", "shut down", "stand down", "close engram", "stop engram", or similar.
 
 ```
 1. Post "shutdown" to chat addressed to "all"
 2. Shut down TASK agents first (executors, planners, reviewers, researchers):
    a. Post shutdown message addressed to each task agent
    b. Wait 5s for each agent's exit (may post final learned messages)
-   c. Kill tmux windows: tmux kill-window -t<name>
+   c. Kill tmux windows by name: tmux kill-window -t "${PROJECT_PREFIX}:<name>"
 3. Shut down engram-agent LAST:
    a. Post shutdown to engram-agent
    b. Wait 10s (longer -- engram-agent may process final learned messages)
-   c. Kill tmux window: tmux kill-window -tengram-agent
-4. All agent windows are now closed
-5. Truncate chat file (write empty file, don't delete)
-6. Report session summary to user (agents spawned, tasks completed, memories learned)
+   c. Kill tmux window: tmux kill-window -t "${PROJECT_PREFIX}:engram-agent"
+4. Kill the chat tail pane (the split pane created during startup):
+   - Find and kill any pane running tail on the chat file:
+     tmux list-panes -F '#{pane_id} #{pane_current_command}' | grep tail | awk '{print $1}' | xargs -I{} tmux kill-pane -t {}
+5. Report session summary to user (agents spawned, tasks completed, memories learned)
 ```
 
 **Why engram-agent shuts down last:** Task agents may post `learned` messages during shutdown. The engram-agent needs to be alive to process those.
+
+**The chat file is NOT truncated or deleted.** It persists across sessions for context (see use-engram-chat-as protocol).
 
 ## 4. Routing
 
