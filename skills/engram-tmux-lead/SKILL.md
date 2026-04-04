@@ -128,9 +128,9 @@ wc -l < "$CHAT_FILE"
 Note the output as `ENGRAM_START`. Then run a **background** Bash command (`run_in_background: true`) to check for the engram-agent's first chat message. **Embed `ENGRAM_START` as a literal number** — background tasks run in a fresh shell where `$CURSOR` and other shell variables from prior bash calls are unavailable.
 
 ```bash
-# ENGRAM_START_LINE is the literal value noted above (e.g., 87). NOT a variable reference.
+# Replace 87 with the literal value noted above. NOT a variable — background bash has no shell vars.
 for i in $(seq 1 15); do
-  if tail -n +"$((ENGRAM_START_LINE + 1))" "$CHAT_FILE" 2>/dev/null | grep -q 'from = "engram-agent"'; then
+  if tail -n +"$((87 + 1))" "$CHAT_FILE" 2>/dev/null | grep -q 'from = "engram-agent"'; then
     echo "ENGRAM-AGENT FOUND"; break
   fi
   sleep 2
@@ -416,9 +416,10 @@ For issue-sized work, orchestrate three sequential phases:
 1. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `REVIEW_START`
 2. Spawn `reviewer-<N>` with original plan + `git diff` output (per Section 2.1 Steps 1–2)
 3. Send role prompt (Section 2.1)
-4. Run background wait task (Section 2.1 Step 3) — embed `REVIEW_START` as literal, filter `from = "reviewer-<N>"` and **either** `type = "wait"` (issues found) **or** `type = "done"` (approved):
+4. Run background wait task (Section 2.1 Step 3) — embed the literal cursor value, filter `from = "reviewer-<N>"` and **either** `type = "wait"` (issues found) **or** `type = "done"` (approved):
    ```bash
-   tail -n +"$((REVIEW_START + 1))" "$CHAT_FILE" | awk '
+   # Replace 412 with the literal value noted in step 1. NOT a variable — background bash has no shell vars.
+   tail -n +"$((412 + 1))" "$CHAT_FILE" | awk '
      /^\[\[message\]\]/ { from=""; msgtype="" }
      /^from = "reviewer-1"/ { from=1 }
      /^type = "wait"/ { msgtype="WAIT" }
