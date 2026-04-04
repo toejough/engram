@@ -125,7 +125,7 @@ Every message has these fields:
 
 | Type | Purpose | Emitted by | Response expected |
 |------|---------|-----------|-------------------|
-| `intent` | Announce situation + planned action before acting | Active agents | ACK/WAIT within 500ms |
+| `intent` | Announce situation + planned action before acting | Active agents | Explicit ACK or WAIT from all TO recipients |
 | `ack` | No objection, proceed; or early concession in argument | Any agent | No |
 | `wait` | Objection, memory to surface, or request to pause | Any agent | Initiator response |
 | `info` | Status updates, user-parroted input, resolution recording | Any agent | No |
@@ -311,7 +311,7 @@ The intent protocol waits for explicit ACK or WAIT from **all** TO recipients. T
 
 ### HARD RULE: WAIT Is Unconditional
 
-**A WAIT received after the initial window is still valid.**
+**A WAIT received after you have started executing is still valid.**
 
 If engram-agent or any recipient posts WAIT after you've already started executing (e.g., they ACKed but then found a relevant memory mid-task), stop at the next safe point and engage. The argument protocol applies regardless of when the WAIT arrives.
 
