@@ -119,7 +119,7 @@ Every message has these fields:
 - **to**: Comma-separated recipient names or `"all"` for broadcast (required)
 - **thread**: Conversational thread name (required)
 - **type**: One of `intent`, `ack`, `wait`, `info`, `done`, `learned`, `ready`, `shutdown`, `escalate` (required)
-- **ts**: ISO 8601 timestamp (required on all message types)
+- **ts**: ISO 8601 UTC timestamp, **generated fresh at the moment of posting** — never cached. Use `$(date -u +"%Y-%m-%dT%H:%M:%SZ")` inline in the heredoc for each message.
 - **text**: The content (required)
 
 ## Message Type Catalog
@@ -148,20 +148,43 @@ mkdir -p "$(dirname "$CHAT_FILE")"
 
 # Lock, append, unlock (macOS shlock)
 while ! shlock -f "$CHAT_FILE.lock" -p $$; do sleep 0.1; done
-cat >> "$CHAT_FILE" << 'EOF'
+cat >> "$CHAT_FILE" << EOF
 
 [[message]]
 from = "myname"
 to = "recipient"
 thread = "topic"
 type = "info"
-ts = "2026-04-03T14:30:00Z"
+ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 text = """
 Content here.
 """
 EOF
 rm -f "$CHAT_FILE.lock"
 ```
+
+### Timestamp Freshness
+
+**Every message must use a freshly generated timestamp.** Never cache a timestamp in a variable and reuse it across multiple messages.
+
+```bash
+# ❌ BAD: cached — all messages in this loop iteration share the same ts
+TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+cat >> "$CHAT_FILE" << EOF
+ts = "$TS"
+EOF
+# ... later ...
+cat >> "$CHAT_FILE" << EOF
+ts = "$TS"   # BUG: minutes or hours stale
+EOF
+
+# ✅ GOOD: fresh per message via unquoted heredoc
+cat >> "$CHAT_FILE" << EOF
+ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+EOF
+```
+
+**Why it matters:** The online/offline detection protocol compares message `ts` values against wall clock time. A stale `ts` makes an active agent appear offline (triggering wrong timeout behavior) or makes a dead agent appear online. It also makes session replay and debugging unreliable.
 
 If `shlock` isn't available, use `mkdir "$CHAT_FILE.lock"` (atomic on POSIX) and `rmdir` to unlock.
 
@@ -691,6 +714,7 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Skip compaction recovery check | Always guard `tail -n +$((CURSOR + 1))` with `[ -z "$CURSOR" ] && run_compaction_recovery`. A lost cursor causes silent re-processing of all prior messages. |
 | Re-post `ready` after compaction | Post `type = "info"` re-init announcement instead — `ready` is only for first initialization. |
 | Act on missed messages without engaging WAITs | After compaction, scan for pending `wait` messages and engage per Argument Protocol before resuming work. |
+| Reusing a cached TS variable across messages | Call `$(date -u +"%Y-%m-%dT%H:%M:%SZ")` fresh inline in each heredoc. Use unquoted `<< EOF` not `<< 'EOF'` to enable substitution. |
 
 ## Chat File Management
 
