@@ -44,40 +44,53 @@ If not inside a tmux session, or if `tmux` is not installed:
 
 ### 1.3 Open chat tail pane
 
-Split the user's current window to show a live chat feed. This gives the user real-time visibility into agent coordination without switching windows.
+Derive paths and set up the chat tail as the first pane to the right of the coordinator.
 
 ```bash
-# Derive the chat file path and project prefix for window names
+# Derive the chat file path and project prefix for pane/window names
 PROJECT_SLUG=$(realpath "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '/' '-')
 PROJECT_PREFIX=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]')
 CHAT_FILE="$HOME/.local/share/engram/chat/${PROJECT_SLUG}.toml"
 mkdir -p "$(dirname "$CHAT_FILE")"
 touch "$CHAT_FILE"
 
-# Split current window horizontally — chat tail in bottom pane
-tmux split-window -v -l 15 "tail -F $CHAT_FILE"
+# Split right — chat tail is the first right-column pane
+tmux split-window -h -d "tail -F $CHAT_FILE"
+# Rebalance: coordinator on left, chat tail on right
+tmux select-layout main-vertical
 ```
 
-`PROJECT_PREFIX` is the short basename (e.g., `engram`, `traced`) used to prefix ALL tmux window names for this project's agents. This prevents cross-project collisions — `engram:engram-agent` and `traced:engram-agent` are distinct windows.
+**Pane layout:** All agents and the chat tail live as panes in the coordinator's window — NOT separate windows. The coordinator pane stays on the left. Everything else stacks on the right, evenly spaced via `tmux select-layout main-vertical` after each spawn.
 
-The pane is small (15 lines) so it doesn't crowd the user's workspace. The user can resize or close it anytime.
+```
+┌──────────────┬──────────────┐
+│              │  chat tail   │
+│  coordinator │──────────────│
+│              │  engram-agent│
+│              │──────────────│
+│              │  exec-1      │
+└──────────────┴──────────────┘
+```
 
 ### 1.4 Spawn engram-agent
 
 **ALWAYS spawn this. NEVER skip. Not for "simple" tasks. Not for "quick" tasks. Not because "I can handle it myself." The engram-agent is the memory safety net — without it, you learn nothing and surface nothing. Spawn it BEFORE touching the user's request.**
 
 ```bash
-# Create window with project-prefixed name
-WINDOW_NAME="${PROJECT_PREFIX}:engram-agent"
-tmux new-window -n "$WINDOW_NAME"
-tmux send-keys -t "$WINDOW_NAME" "claude --dangerously-skip-permissions --model sonnet" Enter
+# Split a new pane to the right, start claude in it
+tmux split-window -h -d
+# Get the new pane's ID (the last one created)
+PANE_ID=$(tmux list-panes -F '#{pane_id}' | tail -1)
+tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet" Enter
 # Wait for claude to start (watch for the prompt character)
-while ! tmux capture-pane -t "$WINDOW_NAME" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
+while ! tmux capture-pane -t "$PANE_ID" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
 # Send the role prompt
-tmux send-keys -t "$WINDOW_NAME" "/use-engram-chat-as reactive memory agent named engram-agent" Enter
+tmux send-keys -t "$PANE_ID" "/use-engram-chat-as reactive memory agent named engram-agent" Enter
 # Send extra Enter in case it was treated as a paste
 sleep 1
-tmux send-keys -t "$WINDOW_NAME" Enter
+tmux send-keys -t "$PANE_ID" Enter
+# Rebalance: coordinator stays left, everything else stacks evenly on right
+tmux select-layout main-vertical
 ```
 
 **Why not `--prompt`?** The `--prompt` flag runs claude in non-interactive mode — no TUI, output goes to stdout, and the window appears blank. Using `send-keys` keeps claude interactive so the user can see agent activity.
@@ -96,7 +109,7 @@ done
 ```
 
 Run this as a **background** Bash command so the lead stays responsive. When it completes, check whether the engram-agent posted. If not after 30 seconds:
-1. Check tmux window exists: `tmux list-windows -F '#{window_name}' | grep "${PROJECT_PREFIX}:engram-agent"`
+1. Check pane exists: `tmux list-panes -F '#{pane_id} #{pane_pid}' | grep <tracked-pane-id>`
 2. Check window output: `tmux capture-pane -t "${PROJECT_PREFIX}:engram-agent" -p | tail -20`
 3. Report to user with diagnostic info. Do NOT silently proceed without memory.
 
@@ -117,21 +130,26 @@ This means the lead processes chat messages opportunistically between user input
 
 ### 2.1 Spawn Template
 
-Every agent the lead spawns:
+Every agent the lead spawns gets a **pane** in the coordinator's window (NOT a separate window):
 
 ```bash
-# All window names are prefixed with PROJECT_PREFIX (from step 1.3)
-WINDOW_NAME="${PROJECT_PREFIX}:<agent-name>"
-tmux new-window -n "$WINDOW_NAME"
-tmux send-keys -t "$WINDOW_NAME" "claude --dangerously-skip-permissions --model sonnet" Enter
+# Split a new pane to the right
+tmux split-window -h -d
+# Get the new pane's ID
+PANE_ID=$(tmux list-panes -F '#{pane_id}' | tail -1)
+tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet" Enter
 # Wait for claude to start (watch for the prompt character)
-while ! tmux capture-pane -t "$WINDOW_NAME" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
+while ! tmux capture-pane -t "$PANE_ID" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
 # Send the role prompt
-tmux send-keys -t "$WINDOW_NAME" "/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete." Enter
+tmux send-keys -t "$PANE_ID" "/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete." Enter
 # Send extra Enter in case it was treated as a paste
 sleep 1
-tmux send-keys -t "$WINDOW_NAME" Enter
+tmux send-keys -t "$PANE_ID" Enter
+# Rebalance: coordinator left, everything else stacks evenly on right
+tmux select-layout main-vertical
 ```
+
+**Track pane IDs, not window names.** The lead maintains a mapping of agent-name → pane-ID for targeting send-keys, capture-pane, and kill-pane operations.
 
 **Critical:**
 - **ALL window names MUST be prefixed with `${PROJECT_PREFIX}:`** (e.g., `engram:exec-1`, `traced:engram-agent`). This prevents cross-project collisions when multiple projects run agents in the same tmux session.
@@ -210,11 +228,11 @@ Any state ──(task done)──> DONE (window killed)
 | **ACTIVE** | Agent posted at least one message | Normal operation. Track last-message timestamp. |
 | **SILENT** | No chat message for `silence_threshold` (3 min for task agents, 6 min for engram-agent). Detected on 2-minute health check. | Nudge via chat + tmux (see 3.2). |
 | **DEAD** | Nudge failed, tmux window gone, or log shows crash/exit | Decide: respawn (engram-agent always), report to user (task agents). |
-| **DONE** | Agent posted `done` for its assigned task | Kill tmux window by NAME: `tmux kill-window -t <agent-name>`. NEVER kill by window index. Remove from tracking. |
+| **DONE** | Agent posted `done` for its assigned task | Kill pane by tracked ID: `tmux kill-pane -t <pane-id>`. Rebalance: `tmux select-layout main-vertical`. Remove from tracking. |
 
 **NEVER kill the engram-agent.** It runs for the entire session. Only task agents transition to DONE.
 
-**ALWAYS kill windows by name, NEVER by index.** Window indices shift when windows are created or destroyed. Killing by index (`-t 4`) risks destroying the wrong window.
+**ALWAYS kill panes by tracked pane ID.** Never by window index or name. After killing, run `tmux select-layout main-vertical` to rebalance remaining panes.
 
 ### 3.2 Nudging
 
@@ -235,7 +253,7 @@ text = "You appear to have gone silent. Post a status update."
 **Step 2: tmux nudge (fallback).** If no response within 30 seconds:
 
 ```bash
-tmux send-keys -t<agent-name> \
+tmux send-keys -t <pane-id> \
   "Check chat.toml for messages and post a status update." Enter
 ```
 
@@ -251,7 +269,7 @@ Track nudge count per agent. After 2 failed nudge cycles, skip straight to DEAD 
 | Task agents | Report to user with last 20 lines of log + last chat messages. User decides. | User-controlled. |
 
 Respawn procedure:
-1. Kill existing window: `tmux kill-window -t<name> 2>/dev/null`
+1. Kill existing pane: `tmux kill-pane -t <pane-id> 2>/dev/null`
 2. Spawn fresh window with same parameters
 3. Post `info` to chat: `"Respawned <agent-name> (attempt N/3). Previous instance died/became unresponsive."`
 4. New instance reads chat history on join and picks up context
@@ -265,11 +283,11 @@ Triggered by user saying "done", "shut down", "stand down", "close engram", "sto
 2. Shut down TASK agents first (executors, planners, reviewers, researchers):
    a. Post shutdown message addressed to each task agent
    b. Wait 5s for each agent's exit (may post final learned messages)
-   c. Kill tmux windows by name: tmux kill-window -t "${PROJECT_PREFIX}:<name>"
+   c. Kill tmux panes: tmux kill-pane -t <pane-id>
 3. Shut down engram-agent LAST:
    a. Post shutdown to engram-agent
    b. Wait 10s (longer -- engram-agent may process final learned messages)
-   c. Kill tmux window: tmux kill-window -t "${PROJECT_PREFIX}:engram-agent"
+   c. Kill tmux pane: tmux kill-pane -t <engram-agent-pane-id>
 4. Kill the chat tail pane (the split pane created during startup):
    - Find and kill any pane running tail on the chat file:
      tmux list-panes -F '#{pane_id} #{pane_current_command}' | grep tail | awk '{print $1}' | xargs -I{} tmux kill-pane -t {}
@@ -388,7 +406,7 @@ When the user types a message:
 ### 6.2 Periodic Health Check (Every 2 Minutes)
 
 1. Check all tracked agents against silence thresholds
-2. Verify tmux windows exist: `tmux list-windows -F '#{window_name}'`
+2. Verify agent panes exist: `tmux list-panes -F '#{pane_id} #{pane_pid}'`
 3. Transition SILENT/DEAD agents per Section 3
 4. If engram-agent missed heartbeat (>6 min since last), nudge immediately
 
@@ -456,7 +474,7 @@ After 300 messages: degraded mode — minimal context retention, checkpoint ever
 
 If the lead dies and user restarts:
 1. Read chat.toml from beginning -- reconstruct agent registry
-2. Check tmux session: `tmux list-windows -F '#{window_name}'`
+2. Check agent panes: `tmux list-panes -F '#{pane_id} #{pane_pid}'`
 3. Match running tmux windows against chat history
 4. Resume monitoring. Post `info`: "Lead restarted. Recovered state: N agents running."
 
