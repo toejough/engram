@@ -876,6 +876,51 @@ Always do this — even if you processed user input rather than a chat notificat
 3. Transition SILENT/DEAD agents per Section 3
 4. If engram-agent missed heartbeat (>6 min since last), nudge immediately
 
+#### Implementation
+
+The health check must fire even when no agent is posting. Use a **health-check trigger loop** — a persistent background Agent that posts a trigger message to the chat file every 120 seconds, waking the lead's chat monitor naturally.
+
+**Start at session end (after posting `ready` in Section 1.6):**
+
+Spawn a background Agent (`Agent` tool, `run_in_background: true`) with this task:
+```
+Health-check trigger loop.
+CHAT_FILE: [full path — literal string]
+
+Loop forever:
+1. sleep 120
+2. Derive current timestamp (ISO 8601)
+3. Append to CHAT_FILE (with shlock):
+   [[message]]
+   from = "health-checker"
+   to = "lead"
+   thread = "health-check"
+   type = "info"
+   ts = "<timestamp>"
+   text = "HEALTH_CHECK_TRIGGER"
+4. Go back to step 1
+
+Exit only when explicitly killed (pane closed or process signal).
+```
+
+Store the returned task ID as `HEALTH_CHECK_TASK_ID`.
+
+**In the main chat processing loop**, after reading new lines from the chat file:
+
+```python
+# Check for health-check trigger in new messages:
+if 'from = "health-checker"' in new_lines and "HEALTH_CHECK_TRIGGER" in new_lines:
+    run_health_checks()   # execute Section 6.2 checklist items 1–4
+```
+
+**On shutdown (Section 3.4):** drain the health check task:
+```python
+if HEALTH_CHECK_TASK_ID:
+    TaskOutput(task_id=HEALTH_CHECK_TASK_ID, block=False)  # drain
+```
+
+Add `HEALTH_CHECK_TASK_ID` to Section 6.4 Rule 3 (drain on shutdown): include it in the list of tracked task IDs that must be drained at session end.
+
 ### 6.3 Unprompted Reporting
 
 **Report:**
@@ -896,7 +941,7 @@ Always do this — even if you processed user input rather than a chat notificat
 **Rules:**
 1. **One chat monitor Agent at a time.** `CHAT_MONITOR_TASK_ID` holds the active monitor. Replace = drain old + spawn new.
 2. **Drain on replace.** Before starting a new background task of the same logical type, always call `TaskOutput(task_id=old_id, block=False)` to drain the completed task.
-3. **Drain on shutdown.** At session end (Section 3.4), drain all tracked task IDs.
+3. **Drain on shutdown.** At session end (Section 3.4), drain all tracked task IDs: `CHAT_MONITOR_TASK_ID`, `HEALTH_CHECK_TASK_ID`, and all hold detection task IDs.
 4. **Read output before retrying.** If a background READY check times out, read its output (it has completed), then decide whether to retry.
 5. **Capture a FRESH cursor before each agent spawn.** The session cursor accumulates messages since startup. By the time you spawn exec-2, planner-1's `done` may already be within the session cursor range. Capture a new cursor immediately before spawning each agent and use it exclusively in that agent's wait loop. See Section 2.1 for the canonical pattern.
 6. **Filter by both `type` AND `from`.** A `type = "done"` grep matches any agent's done message. When waiting for a specific agent, use the awk pattern below to match both fields within the same TOML message block.
