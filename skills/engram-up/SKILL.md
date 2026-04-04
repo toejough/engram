@@ -1,9 +1,9 @@
 ---
-name: engram
-description: "Use when the user says /engram, \"start engram\", or wants to begin a multi-agent orchestrated session with memory. Shorthand entry point."
+name: engram-up
+description: "Use when the user says /engram, /engram-up, \"start engram\", or wants to begin a multi-agent orchestrated session with memory. Shorthand entry point."
 ---
 
-# Engram
+# Engram Up
 
 **IMMEDIATE ACTION REQUIRED — invoke TWO skills in this exact order:**
 

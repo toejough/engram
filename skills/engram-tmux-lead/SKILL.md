@@ -349,28 +349,9 @@ Respawn procedure:
 
 Triggered by user saying "done", "shut down", "stand down", "close engram", "stop engram", or similar.
 
-```
-1. Post "shutdown" to chat addressed to "all"
-2. Shut down TASK agents first (executors, planners, reviewers, researchers):
-   a. Post shutdown message addressed to each task agent
-   b. Wait 5s for each agent's exit (may post final learned messages)
-   c. Kill tmux panes: tmux kill-pane -t <pane-id>
-3. Shut down engram-agent LAST:
-   a. Post shutdown to engram-agent
-   b. Wait 10s (longer -- engram-agent may process final learned messages)
-   c. Kill tmux pane: tmux kill-pane -t <engram-agent-pane-id>
-4. Kill the chat tail pane (the split pane created during startup):
-   tmux kill-pane -t "$TAIL_PANE_ID" 2>/dev/null || true
-5. Report session summary to user (agents spawned, tasks completed, memories learned)
-6. Drain all tracked background task IDs to prevent zombie "shells" persisting into the next session:
-   - If `CHAT_FSWATCH_TASK_ID` is set: `TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)`
-   - Any other tracked background task IDs (READY checks in flight): drain them too
-   - This ensures Claude Code's background task queue is empty when the session ends
-```
+**Delegate to the `engram:engram-down` skill.** Invoke it immediately — it contains the full shutdown sequence including agent ordering, pane cleanup, background task draining, and session summary reporting.
 
-**Why engram-agent shuts down last:** Task agents may post `learned` messages during shutdown. The engram-agent needs to be alive to process those.
-
-**The chat file is NOT truncated or deleted.** It persists across sessions for context (see use-engram-chat-as protocol).
+Do not attempt to re-implement the shutdown sequence inline. The skill owns the procedure.
 
 ## 4. Routing
 
