@@ -293,14 +293,29 @@ When the background task completes:
 
 ### 2.2 Agent Role Templates
 
+**Task-Type → Skill Mapping**
+
+Include these specific skills in the agent's role prompt based on task type:
+
+| Task type | Skills to inject |
+|-----------|-----------------|
+| Planning / design | `superpowers:brainstorming`, `superpowers:writing-plans` |
+| Implementation (feature/bug) | `superpowers:test-driven-development`, `feature-dev:feature-dev` |
+| Code review | `superpowers:receiving-code-review` |
+| Skill editing | `superpowers:writing-skills` |
+| GitHub issues / PR filing | No specific skill — generic executor |
+| Research | No specific skill — generic researcher |
+
+Reference the mapping when writing role prompts. Be explicit: "Use `superpowers:brainstorming` then `superpowers:writing-plans` to produce the plan."
+
 **Executor:**
 ```
 active general-purpose executor named exec-<N>.
 Your task: <task description>.
 Work in this directory: <pwd>.
-Use relevant skills. Post intent before significant actions.
+Use <skill-refs per mapping table above>. Post intent before significant actions.
 When done, post done with a summary of what you changed.
-After posting done, continue watching chat for further instructions. You may receive follow-up questions or requests while held in PENDING-RELEASE.
+After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
 ```
 
 **Planner:**
@@ -308,18 +323,20 @@ After posting done, continue watching chat for further instructions. You may rec
 active planner named planner-<N>.
 Your task: Analyze <issue/task> and produce a step-by-step implementation plan.
 Do NOT implement -- only plan.
+Use superpowers:brainstorming to explore requirements, then superpowers:writing-plans to produce the plan.
 Post the plan as an info message when done.
-After posting done, continue watching chat — a reviewer and/or executor may have questions while you are held in PENDING-RELEASE.
+After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
 ```
 
 **Reviewer:**
 ```
 active code reviewer named reviewer-<N>.
 Your task: Review <what> for <criteria>.
+Use superpowers:receiving-code-review.
 <subject-agent> is alive and can respond to your feedback.
 Post wait addressed to <subject-agent> if you find issues that must be fixed.
 Post done with findings when review is complete.
-After posting done, continue watching chat for further instructions.
+After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
 ```
 
 **Researcher:**
@@ -328,7 +345,7 @@ active researcher named researcher-<N>.
 Your task: Research <topic> and report findings.
 Do NOT modify code.
 Post done with findings when research is complete.
-After posting done, continue watching chat — a synthesizer may have follow-up questions while you are held in PENDING-RELEASE.
+After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
 ```
 
 **Synthesizer:**
@@ -338,7 +355,7 @@ Your task: Wait for all researchers to post done. Read their findings from chat.
 Ask follow-up questions to any researcher if findings are unclear or incomplete.
 Synthesize findings into a unified report.
 Post done with synthesis when complete.
-After posting done, continue watching chat for further instructions.
+After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
 ```
 
 **Co-Designer:**
@@ -348,7 +365,7 @@ Your task: Contribute the <perspective> perspective to the design of <artifact>.
 Post to thread "codesign-<M>". Read other planners' contributions and respond.
 Collaborate until the design converges.
 Post done with your final contribution when the lead signals completion.
-After posting done, continue watching chat for further instructions.
+After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
 ```
 
 **Plan Reviewer:**
@@ -356,9 +373,10 @@ After posting done, continue watching chat for further instructions.
 active code reviewer named reviewer-<N>.
 Your task: Review the plan for <issue> for completeness, correctness, and feasibility.
 Check: are edge cases addressed? Is the design overcomplicated? Does it align with CLAUDE.md?
+Use superpowers:receiving-code-review.
 planner-<N> is alive — post wait addressed to planner-<N> if issues need revision.
 Post done with findings when plan is ready for user review.
-After posting done, continue watching chat for further instructions.
+After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
 ```
 
 ### 2.3 Agent Naming Convention
@@ -648,9 +666,10 @@ For issue-sized work, orchestrate three sequential phases:
    active code reviewer named reviewer-<R>.
    Your task: Review the plan for <issue> for completeness, correctness, and feasibility.
    Check: are edge cases addressed? Is the design overcomplicated? Does it align with CLAUDE.md?
+   Use superpowers:receiving-code-review.
    planner-<N> is alive — post wait addressed to planner-<N> if issues need revision.
    Post done with findings when plan is ready for user review.
-   After posting done, continue watching chat for further instructions.
+   After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
    ```
 4. Create hold detection background task for h-planrev-N (watching for reviewer-R done — used only to know when to kill reviewer-R, NOT to dissolve the hold)
 5. When reviewer-R posts done:
@@ -664,7 +683,7 @@ For issue-sized work, orchestrate three sequential phases:
 2. Spawn `exec-<N>` with approved plan (per Section 2.1 Steps 1–2)
 2b. Create plan-handoff hold: `{id: "h-handoff-N", holder: "exec-N", target: "planner-N", release: first_intent("exec-N"), tag: "plan-handoff-N"}`. Capture cursor and start hold detection background task.
 2c. Call `lead_release("plan-review-N")` → h-planrev-N dissolves. Planner-N now has h-handoff-N as its only incoming hold → stays in PENDING-RELEASE. (This is the atomic handoff: plan-handoff hold created before plan-review hold is released, so planner-N is never momentarily holdless.)
-2d. Include in executor role prompt: "planner-<N> is still alive and can answer questions about the plan. Address questions to planner-<N> in chat. After posting done, continue watching chat for further instructions."
+2d. Include in executor role prompt: "planner-<N> is still alive and can answer questions about the plan. Address questions to planner-<N> in chat. After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to 'all'."
 3. Run background wait task (Section 2.1 Step 3) — embed `EXEC_START` as literal, filter `from = "exec-<N>"` and `type = "done"`
 4. When executor done: read result summary from new lines (cursor-based)
 5. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
@@ -678,9 +697,10 @@ For issue-sized work, orchestrate three sequential phases:
    ```
    active code reviewer named reviewer-<R>.
    Your task: Review the implementation of <plan> against the spec.
+   Use superpowers:receiving-code-review.
    exec-<N> is alive — post wait addressed to exec-<N> if changes are needed. It can implement fixes.
    Post done with findings when review is complete.
-   After posting done, continue watching chat for further instructions.
+   After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
    ```
 5. Create hold detection background task for h-implrev-N (replaces standard Section 2.1 wait task)
 6. When reviewer-R posts done:
@@ -753,7 +773,7 @@ When a task requires gathering information from multiple angles before producing
    Your task: Wait for all researchers to post done. Read their findings from chat.
    Ask follow-up questions to any researcher if findings are unclear or incomplete.
    Synthesize findings into a unified report and post done.
-   After posting done, continue watching chat for further instructions.
+   After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
    ```
 3. Create fan-in holds (Section 3.5 Fan-In pattern):
    ```
