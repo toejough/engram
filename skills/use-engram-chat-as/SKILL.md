@@ -74,16 +74,17 @@ text = """
 
 Derived from `$PWD` using the project slug convention.
 
-**Slug derivation:** The full resolved path of the git root (or `$PWD` if not in a git repo), with path separators replaced by dashes. This matches the Go binary's `ProjectSlugFromPath` convention.
+**Slug derivation:** The full resolved path of the git common dir's parent (the main repo root, or `$PWD` if not in a git repo), with path separators replaced by dashes. This matches the Go binary's `ProjectSlugFromPath` convention. Using `--git-common-dir` instead of `--show-toplevel` ensures worktree agents use the same chat file as the main repo.
 
 ```bash
-PROJECT_SLUG=$(realpath "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '/' '-')
+PROJECT_SLUG=$(realpath "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" 2>/dev/null || pwd)" | tr '/' '-')
 ```
 
-| `$PWD` | Git root | Slug | Chat file |
-|--------|----------|------|-----------|
+| `$PWD` | Resolved root | Slug | Chat file |
+|--------|--------------|------|-----------|
 | `/Users/joe/repos/engram` | `/Users/joe/repos/engram` | `-Users-joe-repos-engram` | `~/.local/share/engram/chat/-Users-joe-repos-engram.toml` |
 | `/Users/joe/repos/traced/src` | `/Users/joe/repos/traced` | `-Users-joe-repos-traced` | `~/.local/share/engram/chat/-Users-joe-repos-traced.toml` |
+| `/Users/joe/repos/engram-wt1` (worktree) | `/Users/joe/repos/engram` | `-Users-joe-repos-engram` | `~/.local/share/engram/chat/-Users-joe-repos-engram.toml` |
 | `/tmp/scratch` | (none) | `-tmp-scratch` | `~/.local/share/engram/chat/-tmp-scratch.toml` |
 
 **Symlinks:** `realpath` resolves symlinks before slug derivation. Two agents in symlinked paths to the same repo use the same chat file.
@@ -140,8 +141,9 @@ Every message has these fields:
 Always lock before appending:
 
 ```bash
-# Derive chat file path
-CHAT_FILE="$HOME/.local/share/engram/chat/$(basename "$(git rev-parse --show-toplevel 2>/dev/null || realpath "$PWD")" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g').toml"
+# Derive chat file path (use --git-common-dir so worktree agents share the main repo's chat file)
+PROJECT_SLUG=$(realpath "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" 2>/dev/null || pwd)" | tr '/' '-')
+CHAT_FILE="$HOME/.local/share/engram/chat/$PROJECT_SLUG.toml"
 mkdir -p "$(dirname "$CHAT_FILE")"
 
 # Lock, append, unlock (macOS shlock)

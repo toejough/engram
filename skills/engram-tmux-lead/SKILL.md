@@ -65,8 +65,8 @@ Derive paths and set up the chat tail as the first pane to the right of the coor
 
 ```bash
 # Derive the chat file path and project prefix for pane/window names
-PROJECT_SLUG=$(realpath "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '/' '-')
-PROJECT_PREFIX=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]')
+PROJECT_SLUG=$(realpath "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" 2>/dev/null || pwd)" | tr '/' '-')
+PROJECT_PREFIX=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]')
 CHAT_FILE="$HOME/.local/share/engram/chat/${PROJECT_SLUG}.toml"
 mkdir -p "$(dirname "$CHAT_FILE")"
 touch "$CHAT_FILE"
