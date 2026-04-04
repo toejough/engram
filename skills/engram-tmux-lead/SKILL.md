@@ -81,8 +81,7 @@ MIDDLE_COL_LAST_PANE=""    # pane ID of the last pane in the middle column (righ
 RIGHT_COL_LAST_PANE=""     # pane ID of the last pane in the right column (right-side column 2)
 
 # Split right — chat tail is the first middle-column pane
-tmux split-window -h -d "tail -F $CHAT_FILE"
-TAIL_PANE_ID=$(tmux list-panes -F '#{pane_id}' | tail -1)
+TAIL_PANE_ID=$(tmux split-window -h -d -P -F '#{pane_id}' "tail -F $CHAT_FILE")
 MIDDLE_COL_LAST_PANE=$TAIL_PANE_ID
 RIGHT_PANE_COUNT=1
 # Rebalance: coordinator on left, chat tail on right
@@ -94,25 +93,22 @@ tmux select-layout main-vertical
 **Splitting rules (called by every spawn, including Section 2.1):**
 
 ```bash
-# Call this after every tmux split-window to get the new pane ID and update tracking.
-# Use RIGHT_PANE_COUNT to decide HOW to split before calling tmux split-window.
+# Use RIGHT_PANE_COUNT to decide HOW to split.
+# Use -P -F '#{pane_id}' to capture the new pane ID at creation — not list-panes | tail -1.
 
 if [ "$RIGHT_PANE_COUNT" -lt 4 ]; then
   # Middle column not full: split right from coordinator, rebalance into single right column
-  tmux split-window -h -d
-  NEW_PANE=$(tmux list-panes -F '#{pane_id}' | tail -1)
+  NEW_PANE=$(tmux split-window -h -d -P -F '#{pane_id}')
   MIDDLE_COL_LAST_PANE=$NEW_PANE
   tmux select-layout main-vertical
 elif [ "$RIGHT_PANE_COUNT" -eq 4 ]; then
   # Middle column full (4 panes): start right column by splitting right from last middle pane
-  tmux split-window -h -d -t "$MIDDLE_COL_LAST_PANE"
-  NEW_PANE=$(tmux list-panes -F '#{pane_id}' | tail -1)
+  NEW_PANE=$(tmux split-window -h -d -t "$MIDDLE_COL_LAST_PANE" -P -F '#{pane_id}')
   RIGHT_COL_LAST_PANE=$NEW_PANE
   # No main-vertical: manually managing multi-column layout
 else
   # Right column in progress: split below last right-column pane
-  tmux split-window -v -d -t "$RIGHT_COL_LAST_PANE"
-  NEW_PANE=$(tmux list-panes -F '#{pane_id}' | tail -1)
+  NEW_PANE=$(tmux split-window -v -d -t "$RIGHT_COL_LAST_PANE" -P -F '#{pane_id}')
   RIGHT_COL_LAST_PANE=$NEW_PANE
 fi
 RIGHT_PANE_COUNT=$((RIGHT_PANE_COUNT + 1))
@@ -150,9 +146,7 @@ RIGHT_PANE_COUNT=$((RIGHT_PANE_COUNT + 1))
 
 ```bash
 # Split a new pane to the right, start claude in it
-tmux split-window -h -d
-# Get the new pane's ID (the last one created; TAIL_PANE_ID already tracked from step 1.3)
-PANE_ID=$(tmux list-panes -F '#{pane_id}' | tail -1)
+PANE_ID=$(tmux split-window -h -d -P -F '#{pane_id}')
 # Suppress status line — agents run headless, no user to see it; keeps panes clean
 tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
 # Wait for claude to start (watch for the prompt character)
@@ -224,10 +218,8 @@ CHAT_MONITOR_TASK_ID = <new background Agent task id>
 Every agent the lead spawns gets a **pane** in the coordinator's window (NOT a separate window):
 
 ```bash
-# Split a new pane to the right
-tmux split-window -h -d
-# Get the new pane's ID
-PANE_ID=$(tmux list-panes -F '#{pane_id}' | tail -1)
+# Split a new pane to the right, capturing the new pane ID atomically
+PANE_ID=$(tmux split-window -h -d -P -F '#{pane_id}')
 # Suppress status line — agents run headless, no user to see it; keeps panes clean
 tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
 # Wait for claude to start (watch for the prompt character)
