@@ -60,7 +60,8 @@ func TestOsDirLister_ListJSONL(t *testing.T) {
 	dir := t.TempDir()
 	g.Expect(os.WriteFile(filepath.Join(dir, "session1.jsonl"), []byte("{}"), 0o644)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(dir, "session2.jsonl"), []byte("{}"), 0o644)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("not jsonl"), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("not jsonl"), 0o644)).
+		To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(dir, "subdir"), 0o755)).To(Succeed())
 
 	lister := cli.ExportNewOsDirLister()

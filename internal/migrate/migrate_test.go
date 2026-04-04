@@ -578,7 +578,11 @@ session_id = "abc"
 project_slug = "proj"
 `
 
-	writeErr := os.WriteFile(filepath.Join(srcDir, "pending.toml"), []byte(legacyWithPending), 0o640)
+	writeErr := os.WriteFile(
+		filepath.Join(srcDir, "pending.toml"),
+		[]byte(legacyWithPending),
+		0o640,
+	)
 	g.Expect(writeErr).NotTo(HaveOccurred())
 
 	if writeErr != nil {

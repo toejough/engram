@@ -18,7 +18,11 @@ func TestExtractRelevant_CallsHaikuCallerWithQueryInPrompt(t *testing.T) {
 	caller := &fakeHaikuCaller{result: "relevant excerpt"}
 	summarizer := recall.NewSummarizer(caller)
 
-	result, err := summarizer.ExtractRelevant(context.Background(), "full transcript", "error handling")
+	result, err := summarizer.ExtractRelevant(
+		context.Background(),
+		"full transcript",
+		"error handling",
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

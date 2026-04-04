@@ -103,7 +103,11 @@ func TestStripWithConfig_KeepsToolCalls(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	toolUseLine := buildToolUseLine("Let me run tests", "Bash", map[string]string{"command": "go test ./..."})
+	toolUseLine := buildToolUseLine(
+		"Let me run tests",
+		"Bash",
+		map[string]string{"command": "go test ./..."},
+	)
 	toolResultLine := buildToolResultLine("ok engram/internal/context", false)
 
 	lines := []string{
@@ -163,7 +167,11 @@ func TestStripWithConfig_TruncatesLongToolArgs(t *testing.T) {
 
 	// Use spaces to avoid base64 replacement (base64 alphabet excludes spaces).
 	longCmd := "echo " + strings.Repeat("hello world ", 30)
-	toolUseLine := buildToolUseLine("Doing something", "Bash", map[string]string{"command": longCmd})
+	toolUseLine := buildToolUseLine(
+		"Doing something",
+		"Bash",
+		map[string]string{"command": longCmd},
+	)
 
 	const argLimit = 50
 

@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"engram/internal/recall"
-
 	. "github.com/onsi/gomega"
+
+	"engram/internal/recall"
 )
 
 func TestDefaultExtractCap(t *testing.T) {

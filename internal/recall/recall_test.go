@@ -101,7 +101,10 @@ func TestTranscriptReader_RespectsBudget(t *testing.T) {
 	// Create content that exceeds a small budget.
 	lines := make([]string, 0, 20)
 	for i := range 20 {
-		lines = append(lines, fmt.Sprintf(`{"type":"user","message":{"role":"user","content":"message %d"}}`, i))
+		lines = append(
+			lines,
+			fmt.Sprintf(`{"type":"user","message":{"role":"user","content":"message %d"}}`, i),
+		)
 	}
 
 	content := strings.Join(lines, "\n") + "\n"

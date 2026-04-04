@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"engram/internal/cli"
-
 	. "github.com/onsi/gomega"
+
+	"engram/internal/cli"
 )
 
 func TestBuildRecallSurfacer(t *testing.T) {
@@ -92,7 +92,11 @@ func TestBuildRecallSurfacer(t *testing.T) {
 		}
 
 		tomlContent := "type = \"feedback\"\nsituation = \"test\"\n\n[content]\nbehavior = \"test\"\n"
-		writeErr := os.WriteFile(filepath.Join(feedbackDir, "test.toml"), []byte(tomlContent), 0o640)
+		writeErr := os.WriteFile(
+			filepath.Join(feedbackDir, "test.toml"),
+			[]byte(tomlContent),
+			0o640,
+		)
 		g.Expect(writeErr).NotTo(HaveOccurred())
 
 		if writeErr != nil {
@@ -241,7 +245,11 @@ type fakeSurfaceRunner struct {
 	called      bool
 }
 
-func (f *fakeSurfaceRunner) Run(_ context.Context, w io.Writer, opts cli.SurfaceRunnerOptions) error {
+func (f *fakeSurfaceRunner) Run(
+	_ context.Context,
+	w io.Writer,
+	opts cli.SurfaceRunnerOptions,
+) error {
 	f.called = true
 	f.opts = opts
 

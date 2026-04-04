@@ -291,7 +291,10 @@ func TestT139_StripReplacesBase64Strings(t *testing.T) {
 	// Generate a base64-like string >100 chars.
 	longBase64 := strings.Repeat("QUFB", 30) // 120 chars of valid base64
 
-	line := fmt.Sprintf(`{"type":"user","message":{"role":"user","content":"data:image/png;base64,%s"}}`, longBase64)
+	line := fmt.Sprintf(
+		`{"type":"user","message":{"role":"user","content":"data:image/png;base64,%s"}}`,
+		longBase64,
+	)
 
 	result := sessionctx.Strip([]string{line})
 

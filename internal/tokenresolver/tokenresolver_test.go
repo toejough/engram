@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"engram/internal/tokenresolver"
-
 	. "github.com/onsi/gomega"
+
+	"engram/internal/tokenresolver"
 )
 
 func TestResolver_EnvVarPresent(t *testing.T) {
@@ -39,7 +39,8 @@ func TestResolver_EnvVarPresent(t *testing.T) {
 	}
 
 	g.Expect(token).To(Equal("env-token"))
-	g.Expect(executorCalled).To(BeFalse(), "executor should never be called when env var is present")
+	g.Expect(executorCalled).
+		To(BeFalse(), "executor should never be called when env var is present")
 }
 
 func TestResolver_KeychainEmptyAccessToken(t *testing.T) {
