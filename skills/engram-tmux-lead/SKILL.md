@@ -532,38 +532,63 @@ For issue-sized work, orchestrate three sequential phases:
 2. Spawn `planner-<N>` with issue context (per Section 2.1 Steps 1–2)
 3. Send role prompt (Section 2.1)
 4. Run background wait task (Section 2.1 Step 3) — embed `PLAN_START` as literal, filter `from = "planner-<N>"` and `type = "done"`
-5. When planner done: read plan text from new lines (cursor-based), present to user
-6. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
-7. User approves (or modifies) -> Phase 2
+5. When planner done:
+   a. Do NOT kill planner yet — Phase 1b will create a plan-review hold, and Phase 2 will create a plan-handoff hold. Simply note that planner posted done.
+   b. Read plan text from new lines (cursor-based)
+   c. Spawn reviewer for mandatory plan review (Phase 1b)
+
+**Phase 1b: PLAN REVIEW (mandatory)**
+1. Capture per-spawn cursor: `wc -l < "$CHAT_FILE"` → `PLAN_REVIEW_START`
+2. Create plan-review hold: `{id: "h-planrev-N", holder: "reviewer-R", target: "planner-N", release: done("reviewer-R"), tag: "plan-review-N"}`
+3. Spawn `reviewer-<R>` with plan-review role (Section 2.2):
+   ```
+   active code reviewer named reviewer-<R>.
+   Your task: Review the plan for <issue> for completeness, correctness, and feasibility.
+   Check: are edge cases addressed? Is the design overcomplicated? Does it align with CLAUDE.md?
+   planner-<N> is alive — post wait addressed to planner-<N> if issues need revision.
+   Post done with findings when plan is ready for user review.
+   After posting done, continue watching chat for further instructions.
+   ```
+4. Create hold detection background task for h-planrev-N
+5. When reviewer-R posts done:
+   a. Dissolve plan-review hold → reviewer-R has no other holds → kill reviewer-R
+   b. Planner-N stays alive (still has plan-handoff hold — to be created in Phase 2)
+   c. Present reviewed plan to user for approval
+6. User approves → Phase 2
 
 **Phase 2: EXECUTE**
 1. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `EXEC_START`
 2. Spawn `exec-<N>` with approved plan (per Section 2.1 Steps 1–2)
-3. Send role prompt with the approved plan text (Section 2.1)
-4. Run background wait task (Section 2.1 Step 3) — embed `EXEC_START` as literal, filter `from = "exec-<N>"` and `type = "done"`
-5. When executor done: read result summary from new lines (cursor-based)
-6. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
-7. -> Phase 3
+2b. Create plan-handoff hold: `{id: "h-handoff-N", holder: "exec-N", target: "planner-N", release: first_intent("exec-N"), tag: "plan-handoff-N"}`. Capture cursor and start hold detection background task.
+2c. Planner-N now has an incoming hold → enters PENDING-RELEASE (if not already).
+2d. Include in executor role prompt: "planner-<N> is still alive and can answer questions about the plan. Address questions to planner-<N> in chat. After posting done, continue watching chat for further instructions."
+3. Run background wait task (Section 2.1 Step 3) — embed `EXEC_START` as literal, filter `from = "exec-<N>"` and `type = "done"`
+4. When executor done: read result summary from new lines (cursor-based)
+5. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
+6. → Phase 3
 
 **Phase 3: REVIEW**
-1. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `REVIEW_START`
-2. Spawn `reviewer-<N>` with original plan + `git diff` output (per Section 2.1 Steps 1–2)
-3. Send role prompt (Section 2.1)
-4. Run background wait task (Section 2.1 Step 3) — embed the literal cursor value, filter `from = "reviewer-<N>"` and **either** `type = "wait"` (issues found) **or** `type = "done"` (approved):
-   ```bash
-   # Replace 412 with the literal value noted in step 1. NOT a variable — background bash has no shell vars.
-   tail -n +"$((412 + 1))" "$CHAT_FILE" | awk '
-     /^\[\[message\]\]/ { from=""; msgtype="" }
-     /^from = "reviewer-1"/ { from=1 }
-     /^type = "wait"/ { msgtype="WAIT" }
-     /^type = "done"/ { msgtype="DONE" }
-     from && msgtype { print msgtype; exit }
-   '
+1. Executor enters PENDING-RELEASE (wait for impl-review)
+2. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `REVIEW_START`
+3. Create impl-review hold: `{id: "h-implrev-N", holder: "reviewer-R", target: "exec-N", release: done("reviewer-R"), tag: "impl-review-N"}`
+4. Spawn `reviewer-<R>` with impl-review role:
    ```
-5. When reviewer responds:
-   - `WAIT`: relay issues to user. Decide: fix (re-enter Phase 2) or accept as-is.
-   - `DONE`: report to user, clean up agents
-6. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
+   active code reviewer named reviewer-<R>.
+   Your task: Review the implementation of <plan> against the spec.
+   exec-<N> is alive — post wait addressed to exec-<N> if changes are needed. It can implement fixes.
+   Post done with findings when review is complete.
+   After posting done, continue watching chat for further instructions.
+   ```
+5. Create hold detection background task for h-implrev-N (replaces standard Section 2.1 wait task)
+6. When reviewer-R posts done:
+   a. Dissolve impl-review hold → exec-N has no other holds → kill both exec-N and reviewer-R
+   b. Report to user
+7. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
+
+If reviewer posts wait (requesting changes):
+- Executor is alive (PENDING-RELEASE) — receives wait directly
+- Executor implements fixes, posts done again — stays in PENDING-RELEASE (hold still active)
+- Reviewer continues, eventually posts done → hold dissolves → both released
 
 **Per-spawn cursor is mandatory at every phase boundary.** See Section 6.4 Rule 5. Reusing the session `CURSOR` from a prior phase will match the previous agent's `done` as a false positive.
 
