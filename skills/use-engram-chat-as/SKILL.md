@@ -18,6 +18,18 @@ The role description is free-form text. Examples:
 - `reactive memory agent named engram-agent`
 - `reviewer named bob, who uses code review skills`
 - `/engram-tmux-lead` -- special case, loads lead orchestrator behavior
+- `/engram-agent` -- special case, loads engram-agent behavior skill (reactive memory agent named engram-agent)
+
+### Special-case skill references
+
+When the role description is a slash command (starts with `/`), it refers to another skill that defines the agent's behavior. After joining chat with this protocol, **immediately invoke the referenced skill**. This loads both the coordination protocol AND the agent-specific behavior in a single user command, avoiding queued-message race conditions.
+
+| Role description | Parsed as | Skill to invoke |
+|-----------------|-----------|----------------|
+| `/engram-tmux-lead` | active agent named `lead` | `engram:engram-tmux-lead` |
+| `/engram-agent` | reactive agent named `engram-agent` | `engram:engram-agent` |
+
+For non-slash role descriptions, parse normally:
 
 The skill parses out:
 - **Agent name**: extracted from "named X" in the role description. Required.
@@ -168,14 +180,31 @@ Use background tasks with file-change notifications -- do NOT poll with sleep lo
 
 ### Reading New Content
 
+**HARD RULE: NEVER grep or search the full chat file to check for agent responses.** The chat file is persistent and grows across sessions. Grepping the full file matches messages from old sessions, causing false positives — you'll see agents as "done" when they haven't started, or relay stale content as if it were new output. This is a critical reliability bug.
+
 Track where you left off by line number:
 
 ```bash
-# First read: read everything
-wc -l < "$CHAT_FILE"  # save this as your cursor
+# Initialize cursor: record current end-of-file BEFORE starting work or posting ready.
+CURSOR=$(wc -l < "$CHAT_FILE")
 
-# Subsequent reads: read only new lines
-tail -n +$((cursor + 1)) "$CHAT_FILE"
+# Read new content: ONLY lines after cursor
+tail -n +$((CURSOR + 1)) "$CHAT_FILE"
+
+# Update cursor after processing each batch
+CURSOR=$(wc -l < "$CHAT_FILE")
+```
+
+**Wrong:**
+```bash
+grep -q 'type = "done"' "$CHAT_FILE"          # BUG: matches old messages from prior sessions
+grep 'from = "agent-1"' "$CHAT_FILE"           # BUG: matches old messages from prior sessions
+```
+
+**Right:**
+```bash
+tail -n +$((CURSOR + 1)) "$CHAT_FILE" | grep -q 'type = "done"'   # only new messages
+tail -n +$((CURSOR + 1)) "$CHAT_FILE" | grep 'from = "agent-1"'   # only new messages
 ```
 
 ### Joining Late
@@ -190,13 +219,37 @@ If you join a channel that already has messages, read the entire file first to c
 
 ```
 1. Post intent    -> type = "intent", describe situation + planned action
-2. Wait briefly   -> timeout 0.5 fswatch -1 "$CHAT_FILE" (block for up to 500ms)
+2. Wait for explicit responses from ALL TO recipients:
+   - Run fswatch -1 loop, re-checking after each file notification
+   - ONLY proceed when every TO recipient has responded (ACK or WAIT)
+   - Offline exception: if a recipient has NOT posted ready in this session,
+     treat timeout as implicit ACK for that recipient only, after 5s
+   - Online + silent: if a recipient has posted ready but is silent after 5s,
+     post info noting no response; wait up to 30s, then escalate to lead
 3. Check responses:
    - All recipients ACKed (type = "ack")  -> proceed immediately
    - Any recipient said WAIT (type = "wait") -> pause, read their full response, then decide
-   - Timeout with no response              -> proceed (implicit ack)
 4. Act
-5. Post result    -> type = "done" or "info"
+5. Pre-done check: re-read from cursor before posting done.
+   If any WAIT addressed to you is unresolved, engage before posting done.
+6. Post result    -> type = "done" or "info"
+```
+
+**HARD RULE: ALL intent messages MUST include `engram-agent` in the `to` field.**
+
+The memory agent must have the opportunity to surface relevant memories before every significant action. An intent that excludes engram-agent bypasses the memory safety net entirely.
+
+Acceptable:
+```
+to = "engram-agent"
+to = "engram-agent, reviewer"
+to = "all"
+```
+
+Not acceptable:
+```
+to = "reviewer"    <- missing engram-agent
+to = "lead"        <- missing engram-agent (unless intent is purely coordinative)
 ```
 
 ### Intent Messages
@@ -206,7 +259,7 @@ When you're about to do something that could affect others, broadcast:
 ```toml
 [[message]]
 from = "executor"
-to = "engram-agent, reviewer"
+to = "engram-agent"            # always present; add other recipients as needed
 thread = "build"
 type = "intent"
 ts = "2026-04-03T14:30:00Z"
@@ -249,11 +302,26 @@ Wait for my completion message before running yours.
 
 ### Timing
 
-The intent protocol uses `timeout 0.5 fswatch -1 "$CHAT_FILE"` -- a 500ms window. This is long enough for a responsive agent to ACK or WAIT, short enough to not noticeably slow down work.
+The intent protocol waits for explicit ACK or WAIT from **all** TO recipients. Timeout is NOT implicit permission to proceed for online agents.
 
-- **No agents listening?** Timeout fires, you proceed. Zero effective overhead.
+- **No `ready` from a recipient?** They are offline. Timeout after 5s = implicit ACK for that recipient only.
+- **`ready` exists (online) but silent?** Do NOT proceed on timeout. Post info noting no response after 5s; wait up to 30s, then escalate to lead.
 - **Fast ACK?** You proceed as soon as all recipients respond -- often under 200ms.
 - **WAIT received?** You pause for the full response. No fixed timeout -- the conversation continues until resolved.
+
+### HARD RULE: WAIT Is Unconditional
+
+**A WAIT received after the initial window is still valid.**
+
+If engram-agent or any recipient posts WAIT after you've already started executing (e.g., they ACKed but then found a relevant memory mid-task), stop at the next safe point and engage. The argument protocol applies regardless of when the WAIT arrives.
+
+When you receive a WAIT mid-execution:
+1. Stop at the next safe stopping point (finish the current atomic operation; do NOT leave files half-written).
+2. Post an info message acknowledging the pause: `type = "info"`, `text = "Pausing execution to respond to WAIT from <agent>."`
+3. Engage with the WAIT per the Argument Protocol.
+4. Only resume (or concede) after the argument resolves.
+
+**Posting `done` while a WAIT is unresolved is a protocol violation.** Do not complete the task and then retroactively respond — by then the action is done and the challenge is moot.
 
 ### When to Use Intent
 
@@ -410,7 +478,13 @@ The user can dismiss agents with phrases like "stand down", "you're done", "shut
 8. Block on fswatch
 9. fswatch returns -> read new messages
 10. Process messages addressed to you
-11. If acting: post intent -> wait -> act -> post result
+11. If acting:
+    a. Post intent to (engram-agent + any other relevant recipients)
+    b. Wait for explicit ACK from all TO recipients (see Intent Protocol)
+    c. Act
+    d. Pre-done cursor-check: tail -n +$((CURSOR + 1)) "$CHAT_FILE" | grep 'type = "wait"'
+       If any WAIT addressed to you and unresolved: engage before posting done
+    e. Post result
 12. Post response (with lock)
 13. Go to step 8 -- ALWAYS. Even after completing a task.
 ```
@@ -455,6 +529,11 @@ Heartbeats use `type = "info"` because they are informational status updates, no
 | Use old field names (`[[entry]]`, `message =`) | Clean break: use `[[message]]` and `text =` |
 | Truncate or delete the chat file | Chat files are persistent -- prior sessions contain valuable context |
 | Skip heartbeat in long-lived reactive agent | Post heartbeat every 5 min so others know you're alive |
+| Grep full file to detect agent responses | **Critical bug**: full-file grep matches old messages. Always use cursor: `tail -n +$((CURSOR + 1)) "$CHAT_FILE" \| grep ...` |
+| Fabricate or invent agent output when relaying | Always read the actual `text` field from new lines first. Summarize accurately — never predict or invent what the agent said. |
+| Omit engram-agent from intent TO field | Always include engram-agent in TO. Memory must see every intent. |
+| Treat timeout as permission to proceed | Only explicit ACK is permission. Timeout = implicit ACK only for offline agents (no `ready` posted). |
+| Post `done` while a WAIT is unresolved | Re-read from cursor before posting `done`. Engage with pending WAITs first. |
 
 ## Chat File Management
 
