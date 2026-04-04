@@ -528,6 +528,114 @@ text = "alive | queue: 0 | feedback: 47 loaded | facts: 23 loaded"
 
 Heartbeats use `type = "info"` because they are informational status updates, not a distinct protocol event. The `thread = "heartbeat"` convention makes them filterable. Without heartbeats, a dead reactive agent is invisible.
 
+## Compaction Recovery
+
+Context compaction occurs when Claude Code compresses prior conversation history to manage context limits. After compaction, bash variable state is lost — including `CURSOR` — and the agent's recollection of recent protocol events may be incomplete or absent.
+
+**What gets lost:**
+
+| State | Lost? | Recovery |
+|-------|-------|---------|
+| `CURSOR` position | Yes | Re-derive from last posted message |
+| `CHAT_FILE` path | Yes | Re-derive from `$PWD` |
+| Agent name | Partial | Re-read skill; name is in role description |
+| Active intent threads | Yes | Scan post-cursor messages for pending WAITs |
+| Protocol rules | Partial | Re-invoke `engram:use-engram-chat-as` skill |
+
+### Detecting Compaction
+
+**Signal**: `CURSOR` is undefined or zero at a point where you know you have sent messages.
+
+Add this guard before every `tail -n +$((CURSOR + 1))` call in your watch loop:
+
+```bash
+if [ -z "$CURSOR" ]; then
+  # Context was compacted — run recovery before proceeding
+  run_compaction_recovery  # see procedure below
+fi
+```
+
+Claude Code may also insert a compaction notice in a `<system-reminder>`. Treat any such notice as a compaction signal.
+
+### Recovery Procedure
+
+Run this procedure whenever compaction is detected:
+
+**Step 1: Re-invoke the skill.**
+
+Invoke `engram:use-engram-chat-as` with your role description to restore protocol knowledge. This is the most important step — the protocol rules must be reloaded before acting.
+
+**Step 2: Re-derive environment variables.**
+
+```bash
+# Re-derive chat file path (env may be lost)
+CHAT_FILE="$HOME/.local/share/engram/chat/$(realpath "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '/' '-').toml"
+AGENT_NAME="my-agent-name"   # your name as declared in the ready message
+```
+
+**Step 3: Re-derive CURSOR from your last posted message.**
+
+```bash
+# Find the line number of the last message you sent
+LAST_OUR_LINE=$(grep -n "^from = \"$AGENT_NAME\"" "$CHAT_FILE" | tail -1 | cut -d: -f1)
+
+# Set CURSOR to just after that line so we can see what arrived after it
+CURSOR=${LAST_OUR_LINE:-$(wc -l < "$CHAT_FILE")}
+```
+
+If you have never posted (fresh join), CURSOR defaults to end-of-file and you start watching from now.
+
+**Step 4: Scan for missed messages.**
+
+```bash
+# Read everything after CURSOR (messages that arrived while context was compacted)
+MISSED=$(tail -n +$((CURSOR + 1)) "$CHAT_FILE")
+
+# Check for critical message types addressed to you
+echo "$MISSED" | grep -q "type = \"shutdown\""  && echo "SHUTDOWN pending"
+echo "$MISSED" | grep -q "type = \"wait\""      && echo "WAIT pending — engage before resuming"
+echo "$MISSED" | grep -q "type = \"intent\""    && echo "INTENT pending — check if response needed"
+
+# Advance cursor to end of file
+CURSOR=$(wc -l < "$CHAT_FILE")
+```
+
+Engage with any pending `wait` per the Argument Protocol before proceeding.
+
+**Step 5: Announce re-initialization.**
+
+```toml
+[[message]]
+from = "my-agent"
+to = "all"
+thread = "lifecycle"
+type = "info"
+ts = "2026-04-04T19:00:00Z"
+text = """
+Context compaction detected. Re-initialized from chat history.
+Cursor re-derived from last posted message (line <N>).
+Scanned for missed messages: <count> new lines found.
+Resuming watch loop.
+"""
+```
+
+**Step 6: Re-enter the fswatch loop.**
+
+Continue the lifecycle from step 8 of the Agent Lifecycle. Do not re-post a `ready` message — `info` is sufficient.
+
+### Critical: Guard Every Cursor Use
+
+The compaction check must run **before every tail call**, not just at startup. A compaction can occur mid-task while the agent is waiting for fswatch.
+
+```bash
+# ❌ BAD: no guard — silent misbehavior if CURSOR is lost
+tail -n +$((CURSOR + 1)) "$CHAT_FILE"
+
+# ✅ GOOD: check before use
+[ -z "$CURSOR" ] && run_compaction_recovery
+tail -n +$((CURSOR + 1)) "$CHAT_FILE"
+```
+
 ## Common Mistakes
 
 | Mistake | Fix |
@@ -555,6 +663,9 @@ Heartbeats use `type = "info"` because they are informational status updates, no
 | Post `done` while a WAIT is unresolved | Re-read from cursor before posting `done`. Engage with pending WAITs first. |
 | Use cursor to detect if a recipient is online | Online/offline detection scans the **full** file for recent timestamps — a recipient's `ready` may be in prior-session history, before your cursor. |
 | Assume online because `ready` was seen in full-file scan | `ready` alone doesn't prove current presence. Check timestamp recency: any message within last 15 min = online; last message 20+ min ago = offline. |
+| Skip compaction recovery check | Always guard `tail -n +$((CURSOR + 1))` with `[ -z "$CURSOR" ] && run_compaction_recovery`. A lost cursor causes silent re-processing of all prior messages. |
+| Re-post `ready` after compaction | Post `type = "info"` re-init announcement instead — `ready` is only for first initialization. |
+| Act on missed messages without engaging WAITs | After compaction, scan for pending `wait` messages and engage per Argument Protocol before resuming work. |
 
 ## Chat File Management
 
