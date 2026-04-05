@@ -234,7 +234,7 @@ engram agent spawn \
 
 - Creates tmux pane (handles column split logic per Section 2.4 of engram-tmux-lead)
 - Launches: `claude -p --verbose --output-format=stream-json "<prompt>"`
-- Pipes stdout through display filter + speech relay (Phase 3 addition)
+- Pipes stdout through display filter + speech relay (Phase 3b addition)
 - Captures `session_id` from JSONL stream (top-level field on all events)
 - Writes to state file: `~/.local/share/engram/state/<slug>.toml` → `{name, pane-id, session-id, state, spawned-at}`
 - Auto-posts spawn intent to engram-agent (fixed template): "About to spawn `<name>` with task `<task-summary>`"
@@ -280,7 +280,7 @@ engram agent resume \
 ```
 
 - Runs: `claude -p --resume <id> "<message>"`
-- Pipes stdout through display filter + speech relay (Phase 3+)
+- Pipes stdout through display filter + speech relay (Phase 3b+)
 - Captures new session-id for next resume
 - Outputs: `<new-session-id>` (or same if unchanged)
 
@@ -1015,7 +1015,7 @@ All questions settled during codesign-1 and codesign-2. No open items.
 
 ### ARCH-12: Phase Packaging
 **Q:** How many PRs for phases 1-4?
-**A:** Phases 1+2 as single PR (shared chat I/O foundation). Phase 3 separate PR. Phase 4 separate PR.
+**A:** Phases 1+2 as single PR (shared chat I/O foundation). Phase 3a separate PR (agent lifecycle). Phase 3b separate PR (speech-to-chat, depends on 3a). Phase 4 separate PR.
 
 ### ARCH-13: Heartbeats
 **Q:** Do workers need to heartbeat?
