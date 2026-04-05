@@ -27,31 +27,35 @@ ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 text = "Session complete. Shutting down."
 ```
 
-### Step 2: Shut down task agents first
+### Step 2: Wait, then kill all agent panes
 
-For each tracked task agent (executors, planners, reviewers, researchers):
+Wait 10 seconds for all agents to complete in-flight work and post their final messages:
 
-1. Post a `shutdown` message addressed to the agent
-2. Wait 5s for any final `learned` or summary messages
-3. Kill its pane by tracked pane ID:
-   ```bash
-   tmux kill-pane -t <pane-id>
-   tmux select-layout main-vertical
-   ```
+```bash
+sleep 10
+```
 
-**Why task agents first:** They may post `learned` messages during shutdown. The engram-agent must still be alive to receive them.
+Then kill all Claude panes in this tmux **session** (not all sessions), excluding your own pane:
 
-### Step 3: Shut down engram-agent last
+```bash
+OWN_PANE=$(tmux display-message -p '#{pane_id}')
+tmux list-panes -s -F '#{pane_id} #{pane_current_command}' \
+  | grep -i claude \
+  | grep -v "^$OWN_PANE " \
+  | awk '{print $1}' \
+  | xargs -I{} tmux kill-pane -t {}
+tmux select-layout main-vertical
+```
 
-1. Post `shutdown` addressed to `engram-agent`
-2. Wait 10s (longer — engram-agent processes final `learned` messages)
-3. Kill its pane:
-   ```bash
-   tmux kill-pane -t <engram-agent-pane-id>
-   tmux select-layout main-vertical
-   ```
+**Why 10s wait:** The broadcast `shutdown` reaches all agents simultaneously. The 10s wait is empirically sufficient for all agents to complete in-flight work — task agents (simple planners/executors) finish fast, engram-agent (which processes final `learned` messages) finishes within 10s. This is an empirical observation, not a protocol guarantee.
 
-### Step 4: Kill the chat tail pane
+**Why `-i` (case-insensitive grep):** `pane_current_command` shows the foreground binary name. Claude Code's CLI binary is named `claude` (lowercase), so `grep -i claude` matches it regardless of case variants. Note: if Claude Code ever runs inside a wrapper process (e.g., `node` or `sh`), this filter will not match it — that is a known limitation. In standard engram usage, agents run `claude` directly.
+
+**Why `-s` (not `-a`):** `-s` lists panes in the current tmux session only, so you don't accidentally kill Claude panes from unrelated projects open in other sessions. The chat tail pane (Step 3) uses `-a` because it is identified by command (`tail`), not by agent identity.
+
+**Why exclude own pane:** The caller's pane must stay alive to post the session summary (Step 5). The user reads the summary from this pane.
+
+### Step 3: Kill the chat tail pane
 
 Use `-a` flag to search ALL panes across ALL windows — this works even if you're not in the coordinator window:
 
@@ -69,7 +73,7 @@ If you have the chat tail pane ID tracked from startup, prefer killing by ID dir
 tmux kill-pane -t <chat-tail-pane-id>
 ```
 
-### Step 5: Drain background task IDs
+### Step 4: Drain background task IDs
 
 Prevent zombie shell accumulation in Claude Code's background task queue:
 
@@ -78,14 +82,14 @@ Prevent zombie shell accumulation in Claude Code's background task queue:
 
 This must be done before the session ends or zombie shells persist into the next session.
 
-### Step 6: Report session summary
+### Step 5: Report session summary
 
 Tell the user:
 - Agents spawned (count and names)
 - Tasks completed
 - Memories surfaced / learned (if known from engram-agent messages)
 
-### Step 7: Chat file
+### Step 6: Chat file
 
 **Do NOT truncate or delete the chat file.** It persists across sessions for context continuity.
 
