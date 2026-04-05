@@ -47,6 +47,7 @@ allow = [
 	'github.com/BurntSushi/toml',
 	'github.com/akedrou/textdiff',
 	'github.com/bmatcuk/doublestar/v4',
+	'github.com/fsnotify/fsnotify',
 	'github.com/charmbracelet/lipgloss',
 	'github.com/dave/dst',
 	'github.com/toejough/go-reorder',
