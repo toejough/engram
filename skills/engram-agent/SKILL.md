@@ -276,35 +276,20 @@ If you create more than 5 new memories (feedback or facts) in 10 minutes, post a
 
 ### Heartbeat
 
-Post every 5 minutes. Always generate a **fresh** timestamp immediately before writing — never reuse a cached `ts` value:
+Post every 5 minutes using `engram chat post` — the timestamp is generated automatically:
 
 ```bash
-TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-```
-
-```toml
-[[message]]
-from = "engram-agent"
-to = "all"
-thread = "heartbeat"
-type = "info"
-ts = "2026-04-03T14:35:00Z"
-text = "alive | 269 memories loaded | 15 intents processed | 2 surfaced | queue: 0"
+CURSOR=$(engram chat post \
+  --from engram-agent \
+  --to all \
+  --thread heartbeat \
+  --type info \
+  --text "alive | 269 memories loaded | 15 intents processed | 2 surfaced | queue: 0")
 ```
 
 ## Timestamps
 
-**Always generate a fresh timestamp immediately before writing any message** — never reuse a variable set in a previous iteration or at startup:
-
-```bash
-# ✅ Correct: fresh call per message
-TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-# ❌ Wrong: cached value from earlier in the loop
-cat >> "$CHAT_FILE" << EOF
-ts = "$TS"   # BUG: $TS was set 5+ minutes ago
-EOF
-```
+**Always use `engram chat post` to write chat messages** — it generates a fresh timestamp automatically for every message. Never write messages via heredoc or manual file append, which requires you to manage timestamps yourself and risks using a stale cached value.
 
 This applies to ACKs, WAITs, INFOs, heartbeats, and `done` messages alike.
 
@@ -353,7 +338,7 @@ Track these metrics in your own context (not persisted to files):
 | Mistake | Fix |
 |---------|-----|
 | Staying silent when no memory matches an intent | Always post `ack` with "No relevant memories. Proceed." Silence blocks the intent protocol. |
-| Using a cached timestamp in messages | Always call `date -u +"%Y-%m-%dT%H:%M:%SZ"` fresh per message. Never reuse a `TS` variable set earlier. |
+| Writing chat messages via heredoc or manual file append | Use `engram chat post` — it generates timestamps automatically and handles locking. |
 | Broadcasting your own intent | You never do this. You're reactive. |
 | Creating duplicate memories | Check existing memories first. Supersede if contradictory. |
 | Forgetting to increment surfaced_count | Do it BEFORE spawning the argument subagent |
