@@ -269,8 +269,35 @@ If you join a channel that already has messages: post `ready` first to announce 
 ```
 1. Post intent    -> type = "intent", describe situation + planned action
 2. Wait for explicit responses from ALL TO recipients:
-   - Spawn a background ACK-wait Agent: watch CHAT_FILE from current cursor for ACK/WAIT
-     from each expected recipient, applying the online/offline timing rules below
+   - **BEFORE posting the intent message**, capture the current line count:
+     `CURSOR=$(wc -l < "$CHAT_FILE")`
+     Embed this integer as a literal in the ACK-wait subagent prompt (see template below).
+     Never let the subagent re-derive cursor at startup — the ACK may already be written by then.
+   - Post intent message (with lock, fresh ts)
+   - Spawn a background ACK-wait Agent using this template:
+
+     ```
+     ACK-wait monitor for [AGENT_NAME]'s intent.
+     CHAT_FILE: /absolute/path/to/chat.toml   ← literal path, not a shell variable
+     CURSOR: 12345                              ← literal integer captured BEFORE intent was posted
+     RECIPIENTS: engram-agent, reviewer        ← exact names from the TO field
+
+     1. Run foreground bash: fswatch -1 "$CHAT_FILE"
+        (Linux: inotifywait -e modify "$CHAT_FILE")
+        ← MUST use fswatch. NEVER use sleep polling.
+     2. tail -n +$((CURSOR + 1)) "$CHAT_FILE"
+     3. Find blocks where `from` is one of RECIPIENTS and `type` is "ack" or "wait"
+     4. Advance cursor: CURSOR=$(wc -l < "$CHAT_FILE")
+     5. If all recipients found: return ACK|CURSOR or WAIT|from|CURSOR|text
+     6. If partial (some but not all): go back to step 1 with advanced cursor
+     ```
+
+   **HARD RULE: ACK-wait subagents MUST use `fswatch -1`, never `sleep` loops.**
+   Sleep polling causes up to N × sleep-interval seconds of delay per ACK wait.
+   An ACK that arrives BEFORE the subagent initializes its cursor is silently lost —
+   the tail window is set past it. Both are prevented by: (a) fswatch for immediacy,
+   and (b) cursor captured before intent for full coverage.
+
    - ONLY proceed when every TO recipient has responded (ACK or WAIT)
    - Offline exception: if a recipient has NOT posted any message in the last 15 min
      (scan full file), treat timeout as implicit ACK for that recipient only, after 5s
@@ -715,6 +742,8 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Re-post `ready` after compaction | Post `type = "info"` re-init announcement instead — `ready` is only for first initialization. |
 | Act on missed messages without engaging WAITs | After compaction, scan for pending `wait` messages and engage per Argument Protocol before resuming work. |
 | Reusing a cached TS variable across messages | Call `$(date -u +"%Y-%m-%dT%H:%M:%SZ")` fresh inline in each heredoc. Use unquoted `<< EOF` not `<< 'EOF'` to enable substitution. |
+| Let ACK-wait subagent re-derive cursor at startup | **Critical bug**: ACK posted between intent-post and subagent-init is silently lost. Capture `CURSOR=$(wc -l < "$CHAT_FILE")` BEFORE posting the intent message, then embed as an integer literal in the subagent prompt. |
+| Use `sleep` polling in ACK-wait subagent | Same rule as the main monitor: use `fswatch -1` (or `inotifywait` on Linux). Sleep polling causes multi-minute delays; an ACK between poll intervals is delayed, and an ACK before cursor init is permanently lost. |
 
 ## Chat File Management
 
