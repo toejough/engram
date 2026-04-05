@@ -735,6 +735,23 @@ When an executor needs a specialist answer:
 
 Classify each user request and route accordingly. Use LLM judgment, not keyword matching.
 
+**Before executing the routing decision, post a routing intent to `engram-agent`:**
+
+```toml
+[[message]]
+from = "lead"
+to = "engram-agent"
+thread = "routing"
+type = "intent"
+ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+text = """
+Situation: User request: "<brief summary of user request>". Classifying as: <pattern from table below>.
+Behavior: Will spawn <agent roles and count, e.g., "planner-3 then executor-4 then reviewer-2"> to handle this request.
+"""
+```
+
+Wait for ACK from `engram-agent` before spawning any agents. Apply standard online/offline timing. Note: each individual spawn also requires a per-spawn intent (Section 2.1). The routing intent covers the strategic decision ("is this the right pattern?"); the spawn intents cover tactical execution ("is now the right time to spawn this agent?").
+
 | User Request Pattern | Route | Agents Spawned |
 |---------------------|-------|----------------|
 | Simple question about code/project | Spawn a short-lived executor | Executor answers, posts done, lead relays answer |
