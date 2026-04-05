@@ -93,10 +93,14 @@ tmux select-layout main-vertical
 
 **Pane layout:** All agents and the chat tail live as panes in the coordinator's window — NOT separate windows. The coordinator pane stays on the left. Right-side panes fill the **middle column** first (up to 4); once the middle column is full, new panes start the **right column**.
 
-**Splitting rules (called by every spawn, including Section 2.1):**
+#### SPAWN-PANE — use for EVERY pane creation (§1.4, §2.1, and any future spawn site)
+
+**HARD GATE: NEVER call `tmux split-window` directly outside this block — always run SPAWN-PANE.**
 
 ```bash
-# Use RIGHT_PANE_COUNT to decide HOW to split.
+# HARD GATE: NEVER call tmux split-window elsewhere — always run SPAWN-PANE.
+# Requires: RIGHT_PANE_COUNT, MIDDLE_COL_LAST_PANE, RIGHT_COL_LAST_PANE are initialized (§1.3 setup).
+# Outputs: NEW_PANE (new pane ID). Caller assigns: PANE_ID=$NEW_PANE
 # Use -P -F '#{pane_id}' to capture the new pane ID at creation — not list-panes | tail -1.
 
 if [ "$RIGHT_PANE_COUNT" -lt 4 ]; then
