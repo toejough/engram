@@ -214,7 +214,9 @@ Post your `ready` message to chat. Then tell the user you're ready and what agen
 **The lead does NOT enter the standard blocking watch loop.** Unlike reactive agents, the lead stays interactive — it must be available for user input at all times. Instead, the lead:
 
 1. After each user interaction, **replace** the chat monitor Agent (see drain-before-spawn pattern below)
-2. If the monitor Agent fires (agent posted something), process the chat message — relay questions to the user, handle agent status updates, etc.
+2. If the monitor Agent fires (agent posted something):
+   a. **ACK any `intent` messages** in the post-drain sweep `new_lines` that are addressed to `lead` or `all` — before any other processing. Extract `from` and `thread` from the TOML block; post `type = "ack"`, `to = <from-field>`, `thread = <thread-field>`, `text = "Received."`.
+   b. Process the chat message — relay questions to the user, handle agent status updates, route tasks, etc.
 3. If the user types first, process the user message — parrot to chat, route to an agent
 4. After processing either, replace the chat monitor Agent (drain old → spawn new)
 
@@ -232,6 +234,9 @@ if CHAT_MONITOR_TASK_ID:
 new_lines = run_bash(f'tail -n +{CURSOR + 1} "$CHAT_FILE"')
 CURSOR = run_bash('wc -l < "$CHAT_FILE"').strip()
 if new_lines.strip():
+    # ACK any intents addressed to lead or all — BEFORE routing/relay:
+    for intent in toml_blocks(new_lines, type="intent", to_includes=["lead", "all"]):
+        post_ack(to=intent.from, thread=intent.thread, text="Received.")
     process_chat_messages(new_lines)   # relay, route, or queue as normal
 
 # Spawn replacement (Agent tool, run_in_background: true)
@@ -863,6 +868,9 @@ if CHAT_MONITOR_TASK_ID:
 new_lines = run_bash(f'tail -n +{CURSOR + 1} "$CHAT_FILE"')
 CURSOR = run_bash('wc -l < "$CHAT_FILE"').strip()
 if new_lines.strip():
+    # ACK any intents addressed to lead or all — BEFORE routing/relay:
+    for intent in toml_blocks(new_lines, type="intent", to_includes=["lead", "all"]):
+        post_ack(to=intent.from, thread=intent.thread, text="Received.")
     process_chat_messages(new_lines)   # relay, route, or queue as normal
 
 # Spawn replacement monitor Agent (Agent tool, run_in_background: true):
