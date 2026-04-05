@@ -71,6 +71,9 @@ CHAT_FILE="$HOME/.local/share/engram/chat/${PROJECT_SLUG}.toml"
 mkdir -p "$(dirname "$CHAT_FILE")"
 touch "$CHAT_FILE"
 
+# Capture lead's window ID — passed to every split-window so panes stay in this window
+LEAD_WINDOW=$(tmux display-message -p '#{window_id}')
+
 # Background task registry: one active task per logical operation.
 # Always drain (TaskOutput block:false) before replacing an entry.
 CHAT_MONITOR_TASK_ID=""  # task ID of the current chat monitor Agent (Agent tool, run_in_background)
@@ -81,7 +84,7 @@ MIDDLE_COL_LAST_PANE=""    # pane ID of the last pane in the middle column (righ
 RIGHT_COL_LAST_PANE=""     # pane ID of the last pane in the right column (right-side column 2)
 
 # Split right — chat tail is the first middle-column pane
-TAIL_PANE_ID=$(tmux split-window -h -d -P -F '#{pane_id}' "tail -F $CHAT_FILE")
+TAIL_PANE_ID=$(tmux split-window -h -d -t "$LEAD_WINDOW" -P -F '#{pane_id}' "tail -F $CHAT_FILE")
 MIDDLE_COL_LAST_PANE=$TAIL_PANE_ID
 RIGHT_PANE_COUNT=1
 # Rebalance: coordinator on left, chat tail on right
@@ -98,7 +101,7 @@ tmux select-layout main-vertical
 
 if [ "$RIGHT_PANE_COUNT" -lt 4 ]; then
   # Middle column not full: split right from coordinator, rebalance into single right column
-  NEW_PANE=$(tmux split-window -h -d -P -F '#{pane_id}')
+  NEW_PANE=$(tmux split-window -h -d -t "$LEAD_WINDOW" -P -F '#{pane_id}')
   MIDDLE_COL_LAST_PANE=$NEW_PANE
   tmux select-layout main-vertical
 elif [ "$RIGHT_PANE_COUNT" -eq 4 ]; then
@@ -146,7 +149,7 @@ RIGHT_PANE_COUNT=$((RIGHT_PANE_COUNT + 1))
 
 ```bash
 # Split a new pane to the right, start claude in it
-PANE_ID=$(tmux split-window -h -d -P -F '#{pane_id}')
+PANE_ID=$(tmux split-window -h -d -t "$LEAD_WINDOW" -P -F '#{pane_id}')
 # Suppress status line — agents run headless, no user to see it; keeps panes clean
 tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
 # Wait for claude to start (watch for the prompt character)
@@ -243,7 +246,7 @@ Every agent the lead spawns gets a **pane** in the coordinator's window (NOT a s
 
 ```bash
 # Split a new pane to the right, capturing the new pane ID atomically
-PANE_ID=$(tmux split-window -h -d -P -F '#{pane_id}')
+PANE_ID=$(tmux split-window -h -d -t "$LEAD_WINDOW" -P -F '#{pane_id}')
 # Suppress status line — agents run headless, no user to see it; keeps panes clean
 tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
 # Wait for claude to start (watch for the prompt character)
