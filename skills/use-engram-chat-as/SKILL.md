@@ -205,13 +205,13 @@ Track where you left off by line number:
 
 ```bash
 # Initialize cursor: record current end-of-file BEFORE starting work or posting ready.
-CURSOR=$(wc -l < "$CHAT_FILE")
+CURSOR=$(engram chat cursor)
 
 # Read new content: ONLY lines after cursor
 tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 
 # Update cursor after processing each batch
-CURSOR=$(wc -l < "$CHAT_FILE")
+CURSOR=$(engram chat cursor)
 ```
 
 **Wrong:**
@@ -628,7 +628,7 @@ AGENT_NAME="my-agent-name"   # your name as declared in the ready message
 LAST_OUR_LINE=$(grep -n "^from = \"$AGENT_NAME\"" "$CHAT_FILE" | tail -1 | cut -d: -f1)
 
 # Set CURSOR to just after that line so we can see what arrived after it
-CURSOR=${LAST_OUR_LINE:-$(wc -l < "$CHAT_FILE")}
+CURSOR=${LAST_OUR_LINE:-$(engram chat cursor)}
 ```
 
 If you have never posted (fresh join), CURSOR defaults to end-of-file and you start watching from now.
@@ -645,7 +645,7 @@ echo "$MISSED" | grep -q "type = \"wait\""      && echo "WAIT pending — engage
 echo "$MISSED" | grep -q "type = \"intent\""    && echo "INTENT pending — check if response needed"
 
 # Advance cursor to end of file
-CURSOR=$(wc -l < "$CHAT_FILE")
+CURSOR=$(engram chat cursor)
 ```
 
 Engage with any pending `wait` per the Argument Protocol before proceeding.

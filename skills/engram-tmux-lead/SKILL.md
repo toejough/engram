@@ -194,7 +194,7 @@ tmux send-keys -t "$PANE_ID" Enter
 First, capture the cursor **before** spawning engram-agent (foreground bash):
 
 ```bash
-wc -l < "$CHAT_FILE"
+engram chat cursor
 ```
 
 Note the output as `ENGRAM_START`. Then spawn a background Agent (`Agent` tool, `run_in_background: true`) to wait for the engram-agent's first chat message. **Embed `ENGRAM_START` as a literal integer in the Agent prompt** — background Agents have no access to shell variables from prior tool calls.
@@ -256,7 +256,7 @@ if CHAT_MONITOR_TASK_ID:
 # Post-drain sweep: catch any messages that arrived in the race window
 # (foreground bash — embed CURSOR as literal integer):
 new_lines = run_bash(f'tail -n +{CURSOR + 1} "$CHAT_FILE"')
-CURSOR = run_bash('wc -l < "$CHAT_FILE"').strip()
+CURSOR = run_bash('engram chat cursor').strip()
 if new_lines.strip():
     # ACK any intents addressed to lead or all — BEFORE routing/relay:
     for intent in toml_blocks(new_lines, type="intent", to_includes=["lead", "all"]):
@@ -309,7 +309,7 @@ tmux send-keys -t "$PANE_ID" Enter
 **CRITICAL — capture cursor BEFORE sending the role prompt (foreground bash):**
 
 ```bash
-wc -l < "$CHAT_FILE"
+engram chat cursor
 ```
 
 Note the output as the per-spawn start line (e.g., `412`). Then spawn the wait task as a background Agent (`Agent` tool, `run_in_background: true`). **Embed the literal integer in the Agent prompt** — background Agents have no access to shell variables from prior tool calls.
@@ -325,7 +325,7 @@ Return "TIMEOUT" if not found within 60s.
 ```
 
 When the background task completes:
-- "AGENT DONE": read the `done` message text from new lines (cursor-based), update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`.
+- "AGENT DONE": read the `done` message text from new lines (cursor-based), update session cursor: `CURSOR=$(engram chat cursor)`.
 - No output after 30 iterations: agent may be stuck. Check via `tmux capture-pane -t "$PANE_ID" -p -S -20`. Transition to SILENT per Section 3.2.
 
 **Track pane IDs, not window names.** The lead maintains a mapping of agent-name → pane-ID for targeting send-keys, capture-pane, and kill-pane operations.
@@ -749,7 +749,7 @@ Wait for ACK from `engram-agent` before spawning any agents. Apply standard onli
 For issue-sized work, orchestrate three sequential phases:
 
 **Phase 1: PLAN**
-1. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `PLAN_START`
+1. Capture per-spawn cursor (foreground bash): `engram chat cursor` → note as `PLAN_START`
 2. Spawn `planner-<N>` with issue context (per Section 2.1 Steps 1–2)
 3. Send role prompt (Section 2.1)
 4. Run background wait task (Section 2.1 Step 3) — embed `PLAN_START` as literal, filter `from = "planner-<N>"` and `type = "done"`
@@ -759,7 +759,7 @@ For issue-sized work, orchestrate three sequential phases:
    c. Spawn reviewer for mandatory plan review (Phase 1b)
 
 **Phase 1b: PLAN REVIEW (mandatory)**
-1. Capture per-spawn cursor: `wc -l < "$CHAT_FILE"` → `PLAN_REVIEW_START`
+1. Capture per-spawn cursor: `engram chat cursor` → `PLAN_REVIEW_START`
 2. Create plan-review hold: `{id: "h-planrev-N", holder: "reviewer-R", target: "planner-N", release: lead_release("plan-review-N"), tag: "plan-review-N"}`
    Note: uses `lead_release` not `done(reviewer-R)`. This keeps planner-N alive through the user-approval window until Phase 2 creates the plan-handoff hold and then explicitly releases this hold.
 3. Spawn `reviewer-<R>` with plan-review role (Section 2.2):
@@ -780,19 +780,19 @@ For issue-sized work, orchestrate three sequential phases:
 6. User approves → Phase 2
 
 **Phase 2: EXECUTE**
-1. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `EXEC_START`
+1. Capture per-spawn cursor (foreground bash): `engram chat cursor` → note as `EXEC_START`
 2. Spawn `exec-<N>` with approved plan (per Section 2.1 Steps 1–2)
 2b. Create plan-handoff hold: `{id: "h-handoff-N", holder: "exec-N", target: "planner-N", release: first_intent("exec-N"), tag: "plan-handoff-N"}`. Capture cursor and start hold detection background task.
 2c. Call `lead_release("plan-review-N")` → h-planrev-N dissolves. Planner-N now has h-handoff-N as its only incoming hold → stays in PENDING-RELEASE. (This is the atomic handoff: plan-handoff hold created before plan-review hold is released, so planner-N is never momentarily holdless.)
 2d. Include in executor role prompt: "planner-<N> is still alive and can answer questions about the plan. Address questions to planner-<N> in chat. After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to 'all'."
 3. Run background wait task (Section 2.1 Step 3) — embed `EXEC_START` as literal, filter `from = "exec-<N>"` and `type = "done"`
 4. When executor done: read result summary from new lines (cursor-based)
-5. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
+5. Update session cursor: `CURSOR=$(engram chat cursor)`
 6. → Phase 3
 
 **Phase 3: REVIEW**
 1. Executor enters PENDING-RELEASE (wait for impl-review)
-2. Capture per-spawn cursor (foreground bash): `wc -l < "$CHAT_FILE"` → note as `REVIEW_START`
+2. Capture per-spawn cursor (foreground bash): `engram chat cursor` → note as `REVIEW_START`
 3. Create impl-review hold: `{id: "h-implrev-N", holder: "reviewer-R", target: "exec-N", release: done("reviewer-R"), tag: "impl-review-N"}`
 4. Spawn `reviewer-<R>` with impl-review role:
    ```
@@ -807,7 +807,7 @@ For issue-sized work, orchestrate three sequential phases:
 6. When reviewer-R posts done:
    a. Dissolve impl-review hold → exec-N has no other holds → kill both exec-N and reviewer-R
    b. Report to user
-7. Update session cursor: `CURSOR=$(wc -l < "$CHAT_FILE")`
+7. Update session cursor: `CURSOR=$(engram chat cursor)`
 
 If reviewer posts wait (requesting changes):
 - Executor is alive (PENDING-RELEASE) — receives wait directly
@@ -957,7 +957,7 @@ if CHAT_MONITOR_TASK_ID:
 # Post-drain sweep: catch any messages that arrived in the race window.
 # Run foreground bash before spawning new monitor:
 new_lines = run_bash(f'tail -n +{CURSOR + 1} "$CHAT_FILE"')
-CURSOR = run_bash('wc -l < "$CHAT_FILE"').strip()
+CURSOR = run_bash('engram chat cursor').strip()
 if new_lines.strip():
     # ACK any intents addressed to lead or all — BEFORE routing/relay:
     for intent in toml_blocks(new_lines, type="intent", to_includes=["lead", "all"]):
@@ -1065,8 +1065,8 @@ grep -q 'type = "done"' "$CHAT_FILE"
 tail -n +$((CURSOR + 1)) "$CHAT_FILE" | grep -q 'type = "done"'  # still wrong: no agent filter
 
 # RIGHT — per-spawn cursor, both fields matched in same TOML block:
-# (Foreground, before spawning): note the line count as SPAWN_CURSOR
-wc -l < "$CHAT_FILE"
+# (Foreground, before spawning): note the cursor as SPAWN_CURSOR
+engram chat cursor
 # (Background wait task): embed the literal value noted above, NOT a variable reference.
 # Background bash runs in a fresh shell — $SPAWN_CURSOR is undefined there.
 tail -n +"$((412 + 1))" "$CHAT_FILE" | awk '
