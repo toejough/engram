@@ -75,12 +75,15 @@ tmux kill-pane -t <chat-tail-pane-id>
 
 ### Step 4: Drain background task IDs
 
-Prevent zombie shell accumulation in Claude Code's background task queue:
+Prevent zombie shell accumulation in Claude Code's background task queue.
 
-- `CHAT_FSWATCH_TASK_ID` (the chat file watcher): `TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)`
-- Any other tracked background task IDs (READY check loops, health check tasks)
+Drain **only** the background task IDs you have tracked in this session. **Skip any ID you never set.** Common IDs:
 
-This must be done before the session ends or zombie shells persist into the next session.
+- `CHAT_FSWATCH_TASK_ID` (chat file watcher — set by lead and most agents): if set, call `TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)`
+- `HEALTH_CHECK_TASK_ID` (lead-only): if set, call `TaskOutput(task_id=HEALTH_CHECK_TASK_ID, block=False)`
+- Hold detection task IDs (lead-only): drain each with `TaskOutput(task_id=<id>, block=False)`
+
+Non-lead agents typically only have `CHAT_FSWATCH_TASK_ID`. If you have none, skip this step.
 
 ### Step 5: Report session summary
 
