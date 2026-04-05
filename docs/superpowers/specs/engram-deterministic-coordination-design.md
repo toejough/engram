@@ -48,8 +48,8 @@ Skills should own:
 | #503 | Lead doesn't auto-ACK spawn intents | 2+3 |
 | #505/#506 | Spawn window split bugs | 3 |
 | #500 | engram-down can only kill agents from lead pane | 3 |
-| #494 | Lead UX noise (raw JSONL in pane) | 3+4 |
-| "forgot to post" class | Agents forgetting to call `engram chat post` | 3 — reformulated (must say INTENT: prefix instead; failure mode changes but is not eliminated) |
+| #494 | Lead UX noise (raw JSONL in pane) | 4+5 |
+| "forgot to post" class | Agents forgetting to call `engram chat post` | 4 — reformulated (must say INTENT: prefix instead; failure mode changes but is not eliminated) |
 
 ---
 
@@ -65,7 +65,7 @@ Three categories:
 | **[S]** | Skill owns content and judgment; no binary equivalent | Routing decision, argument content |
 | **[B+]** | Binary intercepts from agent speech; skill describes *intent*, not how to deliver | Speech-to-chat: agent says `INTENT: ...` in output; binary posts to chat |
 
-[B+] is the correct architectural endpoint: skills are purely cognitive (what to say, when, why). Binary handles all delivery, timing, protocol mechanics. Skills contain **zero bash code** after Phase 5 + speech-to-chat.
+[B+] is the correct architectural endpoint: skills are purely cognitive (what to say, when, why). Binary handles all delivery, timing, protocol mechanics. Skills contain **zero bash code** after Phase 6 + speech-to-chat.
 
 ### High-Level Split
 
@@ -215,10 +215,10 @@ engram hold check
 
 **When `engram hold check` is called automatically:**
 - By `engram agent kill` after removing an agent (triggers `done:<agent>` evaluation for that agent)
-- By `engram agent resume` at the end of each turn, after processing the JSONL output (Phase 4+)
+- By `engram agent resume` at the end of each turn, after processing the JSONL output (Phase 5+)
 - Manually by the lead at any time
 
-**Known limitation:** `engram hold check` is O(n) in chat file size. For the current use case (moderate session lengths), this is acceptable. As chat files grow unboundedly across sessions, condition evaluation over old sessions' holds may produce false positives if agent names are reused. Phase 5 may address this with session-scoped hold evaluation.
+**Known limitation:** `engram hold check` is O(n) in chat file size. For the current use case (moderate session lengths), this is acceptable. As chat files grow unboundedly across sessions, condition evaluation over old sessions' holds may produce false positives if agent names are reused. Phase 6 may address this with session-scoped hold evaluation.
 
 ### 3.3 Agent Commands
 
@@ -234,7 +234,7 @@ engram agent spawn \
 
 - Creates tmux pane (handles column split logic per Section 2.4 of engram-tmux-lead)
 - Launches: `claude -p --verbose --output-format=stream-json "<prompt>"`
-- Pipes stdout through display filter + speech relay (Phase 3b addition)
+- Pipes stdout through display filter + speech relay (Phase 4 addition)
 - Captures `session_id` from JSONL stream (top-level field on all events)
 - Writes to state file: `~/.local/share/engram/state/<slug>.toml` → `{name, pane-id, session-id, state, spawned-at}`
 - Auto-posts spawn intent to engram-agent (fixed template): "About to spawn `<name>` with task `<task-summary>`"
@@ -280,7 +280,7 @@ engram agent resume \
 ```
 
 - Runs: `claude -p --resume <id> "<message>"`
-- Pipes stdout through display filter + speech relay (Phase 3b+)
+- Pipes stdout through display filter + speech relay (Phase 4+)
 - Captures new session-id for next resume
 - Outputs: `<new-session-id>` (or same if unchanged)
 
@@ -663,7 +663,7 @@ Returns JSON: `{"type":"WAIT","from":"engram-agent","cursor":1234,"text":"..."}`
 
 **Issues fixed:** #471 (binary foundation), chat write reliability (atomic, correct TOML, fresh timestamps)
 
-**Phase boundary rationale (E2E check):** Post + watch are independently useful. ~45 lines of fragile bash (shlock, timestamp freshness, heartbeat) deleted and replaced. Background Monitor and ACK-wait subagent survive in rewritten form — system is fully operational after Phase 1 ships. Phase 2 eliminates the ACK-wait subagent template (WAITER side); the Background Monitor Pattern (RESPONDER side) survives until Phase 4.
+**Phase boundary rationale (E2E check):** Post + watch are independently useful. ~45 lines of fragile bash (shlock, timestamp freshness, heartbeat) deleted and replaced. Background Monitor and ACK-wait subagent survive in rewritten form — system is fully operational after Phase 1 ships. Phase 2 eliminates the ACK-wait subagent template (WAITER side); the Background Monitor Pattern (RESPONDER side) survives until Phase 5.
 
 ---
 
@@ -680,8 +680,8 @@ Returns JSON: `{"type":"WAIT","from":"engram-agent","cursor":1234,"text":"..."}`
 - Timing section, online/offline detection bash snippets → binary handles internally
 - Hold-based retention bash in engram-tmux-lead → replaced by `engram hold` commands
 
-**NOT deleted in Phase 2 — deferred to Phase 4:**
-- Background Monitor Pattern (~30 lines): survives until Phase 4. `engram chat ack-wait` replaces only the ACK-wait subagent template (the WAITER side). The Background Monitor Pattern is engram-agent's watch loop — the RESPONDER side. If deleted here, engram-agent has no watch loop, all intents get 5s implicit ACK, and the memory safety net is bypassed for the entire Phase 2→4 gap. Same rationale as Phase 3's deferred deletion (see below).
+**NOT deleted in Phase 2 — deferred to Phase 5:**
+- Background Monitor Pattern (~30 lines): survives until Phase 5. `engram chat ack-wait` replaces only the ACK-wait subagent template (the WAITER side). The Background Monitor Pattern is engram-agent's watch loop — the RESPONDER side. If deleted here, engram-agent has no watch loop, all intents get 5s implicit ACK, and the memory safety net is bypassed for the entire Phase 2→5 gap. Same rationale as Phase 3's deferred deletion (see below).
 
 **Replacement skill content (use-engram-chat-as, ACK-Wait + Hold sections):**
 
@@ -704,7 +704,7 @@ List: `engram hold list [--holder <name>] [--target <name>]`
 
 ---
 
-### Phase 3a — Agent Lifecycle (separate PR)
+### Phase 3 — Agent Lifecycle (separate PR)
 
 **Scope:**
 - `internal/tmux` package
@@ -719,13 +719,13 @@ List: `engram hold list [--holder <name>] [--target <name>]`
 - Pane registry instructions
 - Shutdown kill-pane sequence
 
-**NOT deleted in Phase 3a — deferred to Phase 3b or later:**
-- Writing Messages bash (deferred to Phase 3b — workers still call `engram chat post` directly until speech relay ships)
-- Heartbeat bash (deferred to Phase 3b)
-- Calling-convention text for `engram chat post` (deferred to Phase 3b)
-- Background Monitor Pattern references and Agent Lifecycle watch loop (use-engram-chat-as) — deferred to Phase 4
+**NOT deleted in Phase 3 — deferred to Phase 4 or later:**
+- Writing Messages bash (deferred to Phase 4 — workers still call `engram chat post` directly until speech relay ships)
+- Heartbeat bash (deferred to Phase 4)
+- Calling-convention text for `engram chat post` (deferred to Phase 4)
+- Background Monitor Pattern references and Agent Lifecycle watch loop (use-engram-chat-as) — deferred to Phase 5
 
-**E2E check (Phase 3a):** After shipping Phase 3a alone, agent spawning and teardown use binary commands (`engram agent spawn/kill/list`). Old SPAWN-PANE bash, concurrency tracking bash, and pane registry bash are deleted from skills. Workers continue to call `engram chat post` directly — no speech relay yet.
+**E2E check (Phase 3):** After shipping Phase 3 alone, agent spawning and teardown use binary commands (`engram agent spawn/kill/list`). Old SPAWN-PANE bash, concurrency tracking bash, and pane registry bash are deleted from skills. Workers continue to call `engram chat post` directly — no speech relay yet.
 
 **Replacement skill content (engram-tmux-lead, ~15 lines replacing ~50 deleted lines):**
 
@@ -747,7 +747,7 @@ Output: one `name|state|session-id|pane-id` per line
 
 ---
 
-### Phase 3b — Speech-to-Chat (separate PR, depends on 3a)
+### Phase 4 — Speech-to-Chat (separate PR, depends on Phase 3)
 
 **Scope:**
 - `internal/streamjson` package (stateless JSONL parser)
@@ -759,12 +759,12 @@ Output: one `name|state|session-id|pane-id` per line
 - Heartbeat bash (workers do not heartbeat — binary tracks state)
 - Calling-convention text for `engram chat post` (replaced by speech-relay prefix-marker guidance for workers)
 
-**NOT deleted in Phase 3b — deferred to Phase 4:**
+**NOT deleted in Phase 4 — deferred to Phase 5:**
 - Background Monitor Pattern references and Agent Lifecycle watch loop (use-engram-chat-as)
 
-**Phase boundary rationale:** engram-agent's watch loop must survive Phase 3b. Workers now speak `INTENT:` in output; binary relays to chat. But engram-agent must still be watching to receive those intents and respond. Phase 4 builds binary auto-resume (the replacement for the watch loop) and deletes the old loop atomically at that point. If the watch loop is deleted in Phase 3b, intents pile up unacknowledged, all workers time out to implicit ACK, and the memory safety net is bypassed for the entire Phase 3b→4 gap.
+**Phase boundary rationale:** engram-agent's watch loop must survive Phase 4. Workers now speak `INTENT:` in output; binary relays to chat. But engram-agent must still be watching to receive those intents and respond. Phase 5 builds binary auto-resume (the replacement for the watch loop) and deletes the old loop atomically at that point. If the watch loop is deleted in Phase 4, intents pile up unacknowledged, all workers time out to implicit ACK, and the memory safety net is bypassed for the entire Phase 4→5 gap.
 
-**E2E check (Phase 3b):** After shipping Phase 3b, agents speak intents out loud using `INTENT:` prefix markers in their output. The binary detects these markers and relays them to chat. Old Writing Messages bash, heartbeat bash, and `engram chat post` calling-convention text are deleted from skills.
+**E2E check (Phase 4):** After shipping Phase 4, agents speak intents out loud using `INTENT:` prefix markers in their output. The binary detects these markers and relays them to chat. Old Writing Messages bash, heartbeat bash, and `engram chat post` calling-convention text are deleted from skills.
 
 **"Forgot to post" reformulated, not eliminated (see §5.2 note):** Speech-to-chat changes the mechanism from "call `engram chat post`" to "say `INTENT:` in output." Agents that omit the prefix marker still fail to coordinate — the failure mode changes from "forgot to call command" to "forgot to say prefix." The skill must still teach WHEN and WHY to say each prefix marker.
 
@@ -772,7 +772,7 @@ Output: one `name|state|session-id|pane-id` per line
 
 ---
 
-### Phase 4 — Agent Resume + Auto-Resume (separate PR)
+### Phase 5 — Agent Resume + Auto-Resume (separate PR)
 
 **Scope:**
 - `engram agent resume` command
@@ -781,7 +781,7 @@ Output: one `name|state|session-id|pane-id` per line
 - Worker queue management (binary queues intents if 3 argument sessions in progress)
 
 **Skill deletions:**
-- Agent Lifecycle watch loop + Background Monitor Pattern references (use-engram-chat-as) — **now safe to delete** because binary auto-resume replaces them in this phase
+- Agent Lifecycle watch loop + Background Monitor Pattern references (use-engram-chat-as) — **now safe to delete** because binary auto-resume replaces them in Phase 5
 - Compaction recovery section (partial — cursor, CHAT_FILE, active-intent tracking are binary-owned; ~5 lines survive for lead state reconstruction — see notes)
 - Heartbeat timer sections
 - `tmux send-keys` routing pattern
@@ -789,25 +789,25 @@ Output: one `name|state|session-id|pane-id` per line
 
 **engram-agent architectural conversion (interactive → stateless worker):**
 
-Phase 4 converts engram-agent from a persistent interactive agent into a stateless `-p` worker invoked per intent. Required design decisions before implementing:
+Phase 5 converts engram-agent from a persistent interactive agent into a stateless `-p` worker invoked per intent. Required design decisions before implementing:
 
 1. **`recent_intents` correlation (Trigger 2):** Failure correlation requires cross-invocation memory. Binary should pass the last 5 intent summaries from the chat file in the resume prompt. The engram-agent skill must describe this startup context — not rely on in-context memory.
 
 2. **Subagent management (max 3 concurrent):** Enforcement moves to the binary's worker queue. Extend the existing intent-queuing mechanism to cover concurrent subagent limits.
 
-3. **Rate limiting (>5 new memories in 10 min):** Stateless invocations must scan recent memory file timestamps on startup. This rule survives in the Phase 5 ~72 line skill — behavioral judgment, cannot be deleted.
+3. **Rate limiting (>5 new memories in 10 min):** Stateless invocations must scan recent memory file timestamps on startup. This rule survives in the Phase 6 ~72 line skill — behavioral judgment, cannot be deleted.
 
 4. **Performance tracking (surfaced/followed counts):** Already persisted to TOML files — survives stateless invocations without change.
 
-5. **Tiered loading on startup:** Each invocation cold-loads from disk. The Phase 5 ~72 line skill must preserve the tiered loading description (core memories always, recents on startup) — behavioral content, not bash.
+5. **Tiered loading on startup:** Each invocation cold-loads from disk. The Phase 6 ~72 line skill must preserve the tiered loading description (core memories always, recents on startup) — behavioral content, not bash.
 
 6. **Cursor passing in resume prompt:** When binary auto-resumes engram-agent for an intent, the resume prompt must include the current chat cursor (e.g., "Current chat cursor: <N>."). This allows engram-agent to call `engram chat ack-wait` correctly if it needs to post an intent itself (nested intent). Without this, engram-agent has no safe cursor baseline for its own ack-wait calls.
 
 **Compaction recovery (revised scope):**
 
-The "cursor is binary-owned, no compaction problem" claim is partially correct. Binary-owned state eliminated after Phase 4: CURSOR, CHAT_FILE path, active-intent tracking. State still requiring skill coverage:
+The "cursor is binary-owned, no compaction problem" claim is partially correct. Binary-owned state eliminated after Phase 5: CURSOR, CHAT_FILE path, active-intent tracking. State still requiring skill coverage:
 
-- **Lead in-context state** (agent registry, task IDs): reconstructable via `engram agent list` and `engram hold list`. The Phase 5 engram-tmux-lead skill must include a lead compaction recovery procedure (~5 lines calling these commands).
+- **Lead in-context state** (agent registry, task IDs): reconstructable via `engram agent list` and `engram hold list`. The Phase 6 engram-tmux-lead skill must include a lead compaction recovery procedure (~5 lines calling these commands).
 - **Protocol rules**: "re-invoke skill" survives — trivial (~45 lines).
 - **engram-agent state**: resolved by stateless model — each invocation starts fresh.
 
@@ -817,7 +817,7 @@ The compaction section reduces to ~5 lines describing lead state reconstruction 
 
 ---
 
-### Phase 5 — Full Binary Dispatcher (Aspirational)
+### Phase 6 — Full Binary Dispatcher (Aspirational)
 
 **Scope:**
 - `engram dispatch` command: watches chat, maintains agent session registry, resumes workers as needed
@@ -831,11 +831,11 @@ The compaction section reduces to ~5 lines describing lead state reconstruction 
 
 ## 8. Skill Simplification
 
-After Phase 5 + speech-to-chat, total skill content reduces from ~2,525 lines (today) to ~330 lines (Phase 5 outcome — aspirational; see §7 Phase 5).
+After Phase 6 + speech-to-chat, total skill content reduces from ~2,525 lines (today) to ~330 lines (Phase 6 outcome — aspirational; see §7 Phase 6).
 
 Actual baseline counts (verified 2026-04-05):
 
-| Skill | Today (actual) | Phase 5 | + Speech-to-Chat |
+| Skill | Today (actual) | Phase 6 | + Speech-to-Chat |
 |-------|---------------|---------|-----------------|
 | use-engram-chat-as | 760 | ~60 | ~45 |
 | engram-tmux-lead | 1,225 | ~130 | ~100 |
@@ -845,7 +845,7 @@ Actual baseline counts (verified 2026-04-05):
 | recall | 47 | ~47 | ~47 |
 | **Total** | **~2,525** | **~380** | **~322** |
 
-The two largest skills (use-engram-chat-as and engram-tmux-lead) are 2–2.4x larger than previously claimed. The deletion scope is correspondingly larger. Phase 5 targets are achievable but require significant content reduction beyond what individual phases accomplish.
+The two largest skills (use-engram-chat-as and engram-tmux-lead) are 2–2.4x larger than previously claimed. The deletion scope is correspondingly larger. Phase 6 targets are achievable but require significant content reduction beyond what individual phases accomplish.
 
 ### What Remains in Each Skill
 
@@ -885,7 +885,7 @@ The two largest skills (use-engram-chat-as and engram-tmux-lead) are 2–2.4x la
 - Summary presentation guidance (decisions > discussions)
 - Already at minimal size
 
-**Zero bash code** remains in any skill after Phase 5 + speech-to-chat. Every remaining line is behavioral prose or a prefix marker catalog.
+**Zero bash code** remains in any skill after Phase 6 + speech-to-chat. Every remaining line is behavioral prose or a prefix marker catalog.
 
 ---
 
@@ -1007,7 +1007,7 @@ All questions settled during codesign-1 and codesign-2. No open items.
 
 ### ARCH-10: Routing Judgment
 **Q:** Should the binary classify requests and spawn agents, or should the skill do it?
-**A:** Option A — skill classifies (LLM judgment, cannot be made deterministic), then calls `engram agent spawn` directly. Binary executes mechanically. This is correct for Phases 1-4. Phase 5 dispatcher may absorb some routing patterns.
+**A:** Option A — skill classifies (LLM judgment, cannot be made deterministic), then calls `engram agent spawn` directly. Binary executes mechanically. This is correct for Phases 1-5. Phase 6 dispatcher may absorb some routing patterns.
 
 ### ARCH-11: wait-ready Command Shape
 **Q:** Should `engram agent spawn` block until ready, or should that be a separate command?
@@ -1015,7 +1015,7 @@ All questions settled during codesign-1 and codesign-2. No open items.
 
 ### ARCH-12: Phase Packaging
 **Q:** How many PRs for phases 1-4?
-**A:** Phases 1+2 as single PR (shared chat I/O foundation). Phase 3a separate PR (agent lifecycle). Phase 3b separate PR (speech-to-chat, depends on 3a). Phase 4 separate PR.
+**A:** Phases 1+2 as single PR (shared chat I/O foundation). Phase 3 separate PR (agent lifecycle). Phase 4 separate PR (speech-to-chat, depends on Phase 3). Phase 5 separate PR.
 
 ### ARCH-13: Heartbeats
 **Q:** Do workers need to heartbeat?
@@ -1047,7 +1047,7 @@ All questions settled during codesign-1 and codesign-2. No open items.
 
 ### SKILL-1: "Calling convention" residue
 **Q:** After binary handles delivery, do skills still need to describe how to call `engram chat post`?
-**A:** No. Under [B+] speech-to-chat, even the instruction "use `engram chat post`" is gone. The skill simply says "say INTENT: in your response." Skills NEVER describe delivery mechanics after Phase 5 + speech-to-chat.
+**A:** No. Under [B+] speech-to-chat, even the instruction "use `engram chat post`" is gone. The skill simply says "say INTENT: in your response." Skills NEVER describe delivery mechanics after Phase 6 + speech-to-chat.
 
 ### SKILL-2: Argument relay
 **Q:** How does the argument protocol work under speech-to-chat?
@@ -1063,4 +1063,4 @@ All questions settled during codesign-1 and codesign-2. No open items.
 
 ### ARCH-17: Hold Condition Auto-Evaluation Mechanism
 **Q:** The condition DSL (`done:<agent>`, `first-intent:<agent>`, `lead-release:<tag>`) defines trigger conditions. What mechanism actually evaluates and fires them?
-**A:** `engram hold check` — a new subcommand that scans active holds and evaluates conditions against current chat state. `done:<agent>` fires when a `done` message from that agent exists after the hold's acquire timestamp. `first-intent:<agent>` fires on first `intent` message from that agent after acquire. `lead-release:<tag>` never auto-fires; requires explicit `engram hold release`. The command is called automatically by `engram agent kill` (for `done:` conditions on the killed agent) and by `engram agent resume` after each turn (Phase 4+). The lead can also call it manually.
+**A:** `engram hold check` — a new subcommand that scans active holds and evaluates conditions against current chat state. `done:<agent>` fires when a `done` message from that agent exists after the hold's acquire timestamp. `first-intent:<agent>` fires on first `intent` message from that agent after acquire. `lead-release:<tag>` never auto-fires; requires explicit `engram hold release`. The command is called automatically by `engram agent kill` (for `done:` conditions on the killed agent) and by `engram agent resume` after each turn (Phase 5+). The lead can also call it manually.
