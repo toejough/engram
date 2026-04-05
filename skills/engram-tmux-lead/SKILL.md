@@ -275,17 +275,13 @@ CHAT_MONITOR_TASK_ID = <new background Agent task id>
 
 Before creating any pane, post an intent to `engram-agent` describing the agent you are about to spawn. Wait for ACK before proceeding (standard online/offline rules from `use-engram-chat-as`).
 
-```toml
-[[message]]
-from = "lead"
-to = "engram-agent"
-thread = "lifecycle"
-type = "intent"
-ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-text = """
-Situation: About to spawn <role> named <agent-name>. Task: <task description>.
-Behavior: Will create a new tmux pane, start claude, and send the role prompt.
-"""
+```bash
+CURSOR=$(engram chat post \
+  --from lead \
+  --to engram-agent \
+  --thread lifecycle \
+  --type intent \
+  --text "Situation: About to spawn <role> named <agent-name>. Task: <task description>. Behavior: Will create a new tmux pane, start claude, and send the role prompt.")
 ```
 
 Apply standard ACK-wait timing: 5s implicit ACK if engram-agent offline; wait up to 30s and escalate to user if online but silent.
@@ -485,17 +481,13 @@ DEAD ──(lead decides, report)──> REPORT+DONE
 
 **DONE state pre-kill intent (required):** Before executing the DONE transition, post an intent to `engram-agent`:
 
-```toml
-[[message]]
-from = "lead"
-to = "engram-agent"
-thread = "lifecycle"
-type = "intent"
-ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-text = """
-Situation: <agent-name> has posted done. Hold registry confirms no incoming holds remain.
-Behavior: Will send shutdown message to <agent-name> then kill its pane.
-"""
+```bash
+CURSOR=$(engram chat post \
+  --from lead \
+  --to engram-agent \
+  --thread lifecycle \
+  --type intent \
+  --text "Situation: <agent-name> has posted done. Hold registry confirms no incoming holds remain. Behavior: Will send shutdown message to <agent-name> then kill its pane.")
 ```
 
 Wait for ACK before proceeding with the shutdown + kill-pane sequence. Apply standard online/offline timing rules.
@@ -510,26 +502,24 @@ When an agent enters SILENT:
 
 **Step 1: Chat nudge.** Post to chat addressed to the agent:
 
-```toml
-[[message]]
-from = "lead"
-to = "<agent-name>"
-thread = "nudge"
-type = "info"
-ts = "<now>"
-text = "You appear to have gone silent. Post a status update."
+```bash
+CURSOR=$(engram chat post \
+  --from lead \
+  --to "<agent-name>" \
+  --thread nudge \
+  --type info \
+  --text "You appear to have gone silent. Post a status update.")
 ```
 
 **If agent is in PENDING-RELEASE**, use this nudge text instead:
 
-```toml
-[[message]]
-from = "lead"
-to = "<agent-name>"
-thread = "nudge"
-type = "info"
-ts = "<now>"
-text = "You are held in PENDING-RELEASE and may receive further instructions. If idle, post a brief heartbeat."
+```bash
+CURSOR=$(engram chat post \
+  --from lead \
+  --to "<agent-name>" \
+  --thread nudge \
+  --type info \
+  --text "You are held in PENDING-RELEASE and may receive further instructions. If idle, post a brief heartbeat.")
 ```
 
 **Step 2: tmux nudge (fallback).** If no response within 30 seconds:
@@ -556,17 +546,13 @@ Respawn procedure:
 
 Post an intent before respawning. For engram-agent respawns, engram-agent is offline (dead), so apply the 5s implicit ACK rule — wait 5 seconds then proceed regardless of response. For task agent respawns where other agents are still running, use standard online/offline timing.
 
-```toml
-[[message]]
-from = "lead"
-to = "engram-agent"
-thread = "lifecycle"
-type = "intent"
-ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-text = """
-Situation: <agent-name> is DEAD (respawn attempt N). Pane confirmed gone or unresponsive.
-Behavior: Will kill existing pane and spawn a fresh instance with the same role parameters.
-"""
+```bash
+CURSOR=$(engram chat post \
+  --from lead \
+  --to engram-agent \
+  --thread lifecycle \
+  --type intent \
+  --text "Situation: <agent-name> is DEAD (respawn attempt N). Pane confirmed gone or unresponsive. Behavior: Will kill existing pane and spawn a fresh instance with the same role parameters.")
 ```
 
 1. Set `PANE_ID=<tracked-pane-id>` then use KILL-PANE from Section 1.3 (handles single- and two-column layout rebalancing).
@@ -582,17 +568,13 @@ Triggered by user saying "done", "shut down", "stand down", "close engram", "sto
 
 **Before delegating, post a session shutdown intent to `engram-agent`:**
 
-```toml
-[[message]]
-from = "lead"
-to = "engram-agent"
-thread = "lifecycle"
-type = "intent"
-ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-text = """
-Situation: User requested session shutdown.
-Behavior: Will invoke engram:engram-down skill to shut down all agents, drain background tasks, and report session summary.
-"""
+```bash
+CURSOR=$(engram chat post \
+  --from lead \
+  --to engram-agent \
+  --thread lifecycle \
+  --type intent \
+  --text "Situation: User requested session shutdown. Behavior: Will invoke engram:engram-down skill to shut down all agents, drain background tasks, and report session summary.")
 ```
 
 Wait for ACK from `engram-agent` before proceeding. Apply standard online/offline timing.
@@ -737,17 +719,13 @@ Classify each user request and route accordingly. Use LLM judgment, not keyword 
 
 **Before executing the routing decision, post a routing intent to `engram-agent`:**
 
-```toml
-[[message]]
-from = "lead"
-to = "engram-agent"
-thread = "routing"
-type = "intent"
-ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-text = """
-Situation: User request: "<brief summary of user request>". Classifying as: <pattern from table below>.
-Behavior: Will spawn <agent roles and count, e.g., "planner-3 then executor-4 then reviewer-2"> to handle this request.
-"""
+```bash
+CURSOR=$(engram chat post \
+  --from lead \
+  --to engram-agent \
+  --thread routing \
+  --type intent \
+  --text "Situation: User request: \"<brief summary>\". Classifying as: <pattern>. Behavior: Will spawn <agent roles> to handle this request.")
 ```
 
 Wait for ACK from `engram-agent` before spawning any agents. Apply standard online/offline timing. Note: each individual spawn also requires a per-spawn intent (Section 2.1). The routing intent covers the strategic decision ("is this the right pattern?"); the spawn intents cover tactical execution ("is now the right time to spawn this agent?").
@@ -1013,16 +991,13 @@ CHAT_FILE: [full path — literal string]
 
 Loop forever:
 1. sleep 120
-2. Derive current timestamp (ISO 8601)
-3. Append to CHAT_FILE (with shlock):
-   [[message]]
-   from = "health-checker"
-   to = "lead"
-   thread = "health-check"
-   type = "info"
-   ts = "<timestamp>"
-   text = "HEALTH_CHECK_TRIGGER"
-4. Go back to step 1
+2. engram chat post \
+     --from health-checker \
+     --to lead \
+     --thread health-check \
+     --type info \
+     --text "HEALTH_CHECK_TRIGGER"
+3. Go back to step 1
 
 Exit only when explicitly killed (pane closed or process signal).
 ```

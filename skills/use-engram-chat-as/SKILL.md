@@ -56,16 +56,13 @@ The role is purely self-behavioral. It does NOT change how others treat your res
 
 Active agents MUST parrot user submissions into the chat file as `info` messages. This gives reactive agents visibility into user corrections and feedback. Without this, reactive agents are blind to user intent. This is honor-system -- there is no technical enforcement.
 
-```toml
-[[message]]
-from = "executor"
-to = "all"
-thread = "user-input"
-type = "info"
-ts = "2026-04-03T14:30:00Z"
-text = """
-[User]: Fix the authentication bug in the login handler.
-"""
+```bash
+CURSOR=$(engram chat post \
+  --from executor \
+  --to all \
+  --thread user-input \
+  --type info \
+  --text "[User]: Fix the authentication bug in the login handler.")
 ```
 
 ## Chat File Location
@@ -119,7 +116,7 @@ Every message has these fields:
 - **to**: Comma-separated recipient names or `"all"` for broadcast (required)
 - **thread**: Conversational thread name (required)
 - **type**: One of `intent`, `ack`, `wait`, `info`, `done`, `learned`, `ready`, `shutdown`, `escalate` (required)
-- **ts**: ISO 8601 UTC timestamp, **generated fresh at the moment of posting** — never cached. Use `$(date -u +"%Y-%m-%dT%H:%M:%SZ")` inline in the heredoc for each message.
+- **ts**: ISO 8601 UTC timestamp. **Generated automatically by `engram chat post`.** Do not set manually.
 - **text**: The content (required)
 
 ## Message Type Catalog
@@ -138,55 +135,24 @@ Every message has these fields:
 
 ## Writing Messages
 
-Always lock before appending:
+Use `engram chat post` to write messages atomically:
 
 ```bash
-# Derive chat file path (use --git-common-dir so worktree agents share the main repo's chat file)
-PROJECT_SLUG=$(realpath "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" 2>/dev/null || pwd)" | tr '/' '-')
-CHAT_FILE="$HOME/.local/share/engram/chat/$PROJECT_SLUG.toml"
-mkdir -p "$(dirname "$CHAT_FILE")"
-
-# Lock, append, unlock (macOS shlock)
-while ! shlock -f "$CHAT_FILE.lock" -p $$; do sleep 0.1; done
-cat >> "$CHAT_FILE" << EOF
-
-[[message]]
-from = "myname"
-to = "recipient"
-thread = "topic"
-type = "info"
-ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-text = """
-Content here.
-"""
-EOF
-rm -f "$CHAT_FILE.lock"
+CURSOR=$(engram chat post \
+  --from myname \
+  --to recipient \
+  --thread topic \
+  --type info \
+  --text "Content here.")
 ```
 
-### Timestamp Freshness
+The command acquires a lock, appends the message with a fresh timestamp, and outputs the new cursor position on stdout. Assign to `CURSOR` to track position for subsequent `engram chat watch` calls.
 
-**Every message must use a freshly generated timestamp.** Never cache a timestamp in a variable and reuse it across multiple messages.
+For pre-intent cursor capture (before posting the intent), use `engram chat cursor`:
 
 ```bash
-# ❌ BAD: cached — all messages in this loop iteration share the same ts
-TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-cat >> "$CHAT_FILE" << EOF
-ts = "$TS"
-EOF
-# ... later ...
-cat >> "$CHAT_FILE" << EOF
-ts = "$TS"   # BUG: minutes or hours stale
-EOF
-
-# ✅ GOOD: fresh per message via unquoted heredoc
-cat >> "$CHAT_FILE" << EOF
-ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-EOF
+CURSOR=$(engram chat cursor)
 ```
-
-**Why it matters:** The online/offline detection protocol compares message `ts` values against wall clock time. A stale `ts` makes an active agent appear offline (triggering wrong timeout behavior) or makes a dead agent appear online. It also makes session replay and debugging unreliable.
-
-If `shlock` isn't available, use `mkdir "$CHAT_FILE.lock"` (atomic on POSIX) and `rmdir` to unlock.
 
 ## Watching for Messages
 
@@ -197,26 +163,30 @@ Delegate all chat monitoring to a background Agent — do **not** run `fswatch`,
 Spawn a monitoring Agent (`Agent` tool, `run_in_background: true`) with this task:
 
 ```
-Monitor engram chat file for semantic events.
+Monitor engram chat file for the next matching message.
 CHAT_FILE: [full path — embed as literal string, not a variable]
-CURSOR: [current line count — embed as integer literal, not a shell variable]
+CURSOR: [current cursor — embed as integer literal, not a shell variable]
 AGENT_NAME: [the agent name to filter messages for]
 
-1. Run foreground bash: fswatch -1 "$CHAT_FILE"
-   (Blocks until one file change. Linux: inotifywait -e modify "$CHAT_FILE")
-2. Read new lines: tail -n +$((CURSOR + 1)) "$CHAT_FILE"
-3. Parse TOML blocks. Find the FIRST block where `to` contains AGENT_NAME or "all".
-4. Advance cursor: CURSOR=$(wc -l < "$CHAT_FILE")
-5. Return: EVENT_TYPE|from|CURSOR|text
-   EVENT_TYPE is one of: INTENT, ACK, WAIT, SHUTDOWN, DONE, INFO
-6. If no relevant message found: go back to step 1 (with advanced cursor)
+1. Run foreground bash: RESULT=$(engram chat watch --agent AGENT_NAME --cursor CURSOR)
+   (Blocks until a matching message arrives — kernel-driven via fsnotify, no polling.)
+2. Parse JSON result:
+   TYPE=$(echo "$RESULT" | jq -r '.type')
+   FROM=$(echo "$RESULT" | jq -r '.from')
+   CURSOR=$(echo "$RESULT" | jq -r '.cursor')
+   TEXT=$(echo "$RESULT" | jq -r '.text')
+   # Background Agent subagents can parse JSON natively without jq.
+3. Return the TYPE, FROM, new CURSOR, and TEXT.
+4. If still watching: go back to step 1 with the new cursor.
 ```
+
+This subagent survives Phase 1. Phase 2 (`engram chat ack-wait`) will eliminate it entirely.
 
 **Main agent loop:**
 1. Spawn background monitor Agent (embed current cursor as integer literal)
 2. **Do NOT complete your turn** — wait for the Agent notification
-3. When notified: parse the `EVENT_TYPE|from|cursor|text` result, process, act
-4. Spawn new monitor Agent with the returned cursor value
+3. When notified: parse the JSON result (type, from, cursor, text), process, act
+4. Spawn new monitor Agent with the cursor value from the JSON result
 5. Repeat — **ALWAYS**, even after completing a task
 
 **CRITICAL:** Between notifications you are idle but NOT done. Completing your turn breaks the loop and drops all future messages.
@@ -269,11 +239,11 @@ If you join a channel that already has messages: post `ready` first to announce 
 ```
 1. Post intent    -> type = "intent", describe situation + planned action
 2. Wait for explicit responses from ALL TO recipients:
-   - **BEFORE posting the intent message**, capture the current line count:
-     `CURSOR=$(wc -l < "$CHAT_FILE")`
+   - **BEFORE posting the intent message**, capture the current cursor:
+     `CURSOR=$(engram chat cursor)`
      Embed this integer as a literal in the ACK-wait subagent prompt (see template below).
      Never let the subagent re-derive cursor at startup — the ACK may already be written by then.
-   - Post intent message (with lock, fresh ts)
+   - Post intent message via `engram chat post`
    - Spawn a background ACK-wait Agent using this template:
 
      ```
@@ -282,21 +252,17 @@ If you join a channel that already has messages: post `ready` first to announce 
      CURSOR: 12345                              ← literal integer captured BEFORE intent was posted
      RECIPIENTS: engram-agent, reviewer        ← exact names from the TO field
 
-     1. Run foreground bash: fswatch -1 "$CHAT_FILE"
-        (Linux: inotifywait -e modify "$CHAT_FILE")
-        ← MUST use fswatch. NEVER use sleep polling.
-     2. tail -n +$((CURSOR + 1)) "$CHAT_FILE"
-     3. Find blocks where `from` is one of RECIPIENTS and `type` is "ack" or "wait"
-     4. Advance cursor: CURSOR=$(wc -l < "$CHAT_FILE")
-     5. If all recipients found: return ACK|CURSOR or WAIT|from|CURSOR|text
-     6. If partial (some but not all): go back to step 1 with advanced cursor
+     For each recipient:
+       RESULT=$(engram chat watch --agent RECIPIENT --cursor CURSOR --type ack,wait --timeout 30)
+       Parse JSON: TYPE=$(echo "$RESULT" | jq -r '.type'); FROM=$(echo "$RESULT" | jq -r '.from')
+       CURSOR=$(echo "$RESULT" | jq -r '.cursor')
+     If all recipients returned ack: return ACK|CURSOR
+     If any returned wait: return WAIT|from|CURSOR|text
      ```
 
-   **HARD RULE: ACK-wait subagents MUST use `fswatch -1`, never `sleep` loops.**
-   Sleep polling causes up to N × sleep-interval seconds of delay per ACK wait.
-   An ACK that arrives BEFORE the subagent initializes its cursor is silently lost —
-   the tail window is set past it. Both are prevented by: (a) fswatch for immediacy,
-   and (b) cursor captured before intent for full coverage.
+   **HARD RULE: The cursor MUST be captured BEFORE posting the intent message.**
+   `engram chat watch --cursor CURSOR` starts from that position — any ACK posted between
+   intent-post and subagent startup is only safe because the cursor was captured first.
 
    - ONLY proceed when every TO recipient has responded (ACK or WAIT)
    - Offline exception: if a recipient has NOT posted any message in the last 15 min
@@ -559,12 +525,21 @@ The user can dismiss agents with phrases like "stand down", "you're done", "shut
 
 ## Agent Lifecycle
 
+**Startup binary check (run before step 1):**
+```bash
+if ! engram chat post --help >/dev/null 2>&1; then
+  echo "ERROR: engram binary missing 'chat' subcommand. Run: targ build"; exit 1
+fi
+```
+
 ```
 1. Derive chat file path from $PWD
 2. Create chat directory if needed
-3. Initialize cursor: CURSOR=$(wc -l < "$CHAT_FILE") — BEFORE posting ready so the monitor
+3. Initialize cursor: CURSOR=$(engram chat cursor) — BEFORE posting ready so the monitor
    captures any work routed by lead between your ready message and monitor startup
-4. Post ready message (with fresh ts) — announce presence immediately, before reading history
+4. Post ready message and capture cursor:
+   CURSOR=$(engram chat post --from <name> --to all --thread lifecycle --type ready --text "...")
+   Initial cursor = the integer returned by this command. No separate wc -l needed.
 5. Read last 20 messages to catch up (read further back if needed)
 6. Load resources (memories, configs, etc.)
 7. Spawn background monitor Agent (Background Monitor Pattern, above) using CURSOR from step 3
@@ -590,14 +565,13 @@ The user can dismiss agents with phrases like "stand down", "you're done", "shut
 
 Long-lived reactive agents post a heartbeat every 5 minutes using `type = "info"` on the `heartbeat` thread:
 
-```toml
-[[message]]
-from = "engram-agent"
-to = "all"
-thread = "heartbeat"
-type = "info"
-ts = "2026-04-03T14:35:00Z"
-text = "alive | queue: 0 | feedback: 47 loaded | facts: 23 loaded"
+```bash
+CURSOR=$(engram chat post \
+  --from engram-agent \
+  --to all \
+  --thread heartbeat \
+  --type info \
+  --text "alive | queue: 0 | feedback: 47 loaded | facts: 23 loaded")
 ```
 
 Heartbeats use `type = "info"` because they are informational status updates, not a distinct protocol event. The `thread = "heartbeat"` convention makes them filterable. Without heartbeats, a dead reactive agent is invisible.
@@ -720,7 +694,7 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Post a message then stop | Always re-enter the fswatch after posting |
 | Stop after task completion | Completing a task != dismissed. Watch for next assignment |
 | Ignore WAIT responses | A WAIT means stop and read -- the responder has critical context |
-| Forget the lockfile | Always lock before appending |
+| Write messages with shlock/heredoc bash | Use `engram chat post` — it handles locking and timestamps |
 | Edit existing messages | Never modify -- only append new messages |
 | Skip catch-up on join | Read full history before posting |
 | Escalate to initiating agent instead of lead | Check for lead `ready` in chat history; escalate to lead if present |
@@ -741,9 +715,7 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Skip compaction recovery check | Always guard `tail -n +$((CURSOR + 1))` with `[ -z "$CURSOR" ] && run_compaction_recovery`. A lost cursor causes silent re-processing of all prior messages. |
 | Re-post `ready` after compaction | Post `type = "info"` re-init announcement instead — `ready` is only for first initialization. |
 | Act on missed messages without engaging WAITs | After compaction, scan for pending `wait` messages and engage per Argument Protocol before resuming work. |
-| Reusing a cached TS variable across messages | Call `$(date -u +"%Y-%m-%dT%H:%M:%SZ")` fresh inline in each heredoc. Use unquoted `<< EOF` not `<< 'EOF'` to enable substitution. |
-| Let ACK-wait subagent re-derive cursor at startup | **Critical bug**: ACK posted between intent-post and subagent-init is silently lost. Capture `CURSOR=$(wc -l < "$CHAT_FILE")` BEFORE posting the intent message, then embed as an integer literal in the subagent prompt. |
-| Use `sleep` polling in ACK-wait subagent | Same rule as the main monitor: use `fswatch -1` (or `inotifywait` on Linux). Sleep polling causes multi-minute delays; an ACK between poll intervals is delayed, and an ACK before cursor init is permanently lost. |
+| Let ACK-wait subagent re-derive cursor at startup | **Critical bug**: ACK posted between intent-post and subagent-init is silently lost. Capture `CURSOR=$(engram chat cursor)` BEFORE posting the intent message, then embed as an integer literal in the subagent prompt. |
 
 ## Chat File Management
 
