@@ -147,6 +147,25 @@ RIGHT_PANE_COUNT=$((RIGHT_PANE_COUNT + 1))
 
 **Maximum: 9 total panes** (1 coordinator + 4 middle + 4 right). Do not exceed. See Section 2.4.
 
+#### KILL-PANE — use for EVERY pane removal (§3.1 DONE, §3.3 Respawn, §3.4 hold-release)
+
+**HARD GATE: NEVER call `tmux kill-pane` + `tmux select-layout` inline — always run KILL-PANE.**
+
+```bash
+# HARD GATE: NEVER call tmux kill-pane + select-layout elsewhere — always run KILL-PANE.
+# Requires: PANE_ID set to the pane being removed; RIGHT_PANE_COUNT and RIGHT_COL_LAST_PANE are set.
+# After kill: update MIDDLE_COL_LAST_PANE or RIGHT_COL_LAST_PANE in your pane registry
+# to reflect the new column tail (the lead tracks this via its pane registry).
+
+tmux kill-pane -t "$PANE_ID" 2>/dev/null
+RIGHT_PANE_COUNT=$((RIGHT_PANE_COUNT - 1))
+if [ -z "$RIGHT_COL_LAST_PANE" ]; then
+  # Single-column mode: rebalance remaining panes
+  tmux select-layout main-vertical
+fi
+# Two-column mode: no automatic rebalance — lead updates column tracking manually.
+```
+
 ### 1.4 Spawn engram-agent
 
 **ALWAYS spawn this. NEVER skip. Not for "simple" tasks. Not for "quick" tasks. Not because "I can handle it myself." The engram-agent is the memory safety net — without it, you learn nothing and surface nothing. Spawn it BEFORE touching the user's request.**
