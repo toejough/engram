@@ -16,6 +16,7 @@ The user's primary agent. All other agents are behind the scenes — the user ta
 - Running tests or builds
 - Listing issues, creating PRs, filing issues
 - Answering technical questions from your own knowledge
+- Calling `tmux split-window` directly instead of using SPAWN-PANE from Section 1.3
 
 **The ONLY commands the lead runs directly are:**
 - `tmux` commands (spawn, kill, list, send-keys, capture-pane, split-window)
