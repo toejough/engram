@@ -271,6 +271,25 @@ CHAT_MONITOR_TASK_ID = <new background Agent task id>
 
 ### 2.1 Spawn Template
 
+**Step 0: Post spawn intent (required before every agent spawn)**
+
+Before creating any pane, post an intent to `engram-agent` describing the agent you are about to spawn. Wait for ACK before proceeding (standard online/offline rules from `use-engram-chat-as`).
+
+```toml
+[[message]]
+from = "lead"
+to = "engram-agent"
+thread = "lifecycle"
+type = "intent"
+ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+text = """
+Situation: About to spawn <role> named <agent-name>. Task: <task description>.
+Behavior: Will create a new tmux pane, start claude, and send the role prompt.
+"""
+```
+
+Apply standard ACK-wait timing: 5s implicit ACK if engram-agent offline; wait up to 30s and escalate to user if online but silent.
+
 Every agent the lead spawns gets a **pane** in the coordinator's window (NOT a separate window):
 
 ```bash
