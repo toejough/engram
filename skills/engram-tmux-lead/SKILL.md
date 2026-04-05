@@ -551,10 +551,30 @@ Track nudge count per agent. After 2 failed nudge cycles, skip straight to DEAD 
 | Task agents | Report to user with last 20 lines of log + last chat messages. User decides. | User-controlled. |
 
 Respawn procedure:
+
+**Step 0: Post respawn intent**
+
+Post an intent before respawning. For engram-agent respawns, engram-agent is offline (dead), so apply the 5s implicit ACK rule — wait 5 seconds then proceed regardless of response. For task agent respawns where other agents are still running, use standard online/offline timing.
+
+```toml
+[[message]]
+from = "lead"
+to = "engram-agent"
+thread = "lifecycle"
+type = "intent"
+ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+text = """
+Situation: <agent-name> is DEAD (respawn attempt N). Pane confirmed gone or unresponsive.
+Behavior: Will kill existing pane and spawn a fresh instance with the same role parameters.
+"""
+```
+
 1. Set `PANE_ID=<tracked-pane-id>` then use KILL-PANE from Section 1.3 (handles single- and two-column layout rebalancing).
 2. Spawn fresh window with same parameters
 3. Post `info` to chat: `"Respawned <agent-name> (attempt N/3). Previous instance died/became unresponsive."`
 4. New instance reads chat history on join and picks up context
+
+**Note on double-intent:** The fresh spawn in step 2 of the respawn procedure goes through Section 2.1, which will fire a second spawn intent. This is expected — the respawn intent covers the decision to kill and respawn a dead agent; the per-spawn intent in Section 2.1 covers the specific pane creation. Two intents, two distinct questions for engram-agent.
 
 ### 3.4 Shutdown
 
