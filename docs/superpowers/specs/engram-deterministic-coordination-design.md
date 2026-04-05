@@ -145,7 +145,7 @@ engram chat ack-wait \
   --agent <name> \
   --cursor <line-number> \
   --recipients <name[,name,...]> \
-  [--timeout <seconds>]
+  [--max-wait <seconds>]
 ```
 
 - Blocks until all recipients respond with `ack` or `wait`
@@ -163,6 +163,8 @@ Replaces: ACK-wait subagent pattern (~35 lines in use-engram-chat-as).
 ### 3.2 Hold Commands
 
 Hold state is chat-file-native: holds are TOML messages in the chat file. Binary scans for unmatched acquire/release pairs.
+
+**Hold message types:** `engram hold acquire` posts a message with `type = "hold-acquire"` and `engram hold release` posts `type = "hold-release"`. These are new message types extending the catalog in section 2. The `Watcher` interface's `msgTypes []string` filter handles them transparently (unknown types pass through `slices.Contains` correctly). The `Message.To` field carries the `--target` agent name; `Message.From` carries the `--holder` agent name; `Message.Text` carries the hold-id and condition as JSON.
 
 #### `engram hold acquire`
 
@@ -247,7 +249,7 @@ Replaces: SPAWN-PANE definition + bash column logic in engram-tmux-lead.
 engram agent wait-ready \
   --name <agent-name> \
   --cursor <line-number> \
-  [--timeout <seconds>]
+  [--max-wait <seconds>]
 ```
 
 - Watches chat for `ready` or init-complete `info` message from `<agent-name>`
@@ -317,7 +319,7 @@ type Poster interface {
 
 // Watcher blocks until a matching message arrives after cursor.
 type Watcher interface {
-    Watch(ctx context.Context, agent string, cursor int, msgType string) (Message, int, error)
+    Watch(ctx context.Context, agent string, cursor int, msgTypes []string) (Message, int, error)
 }
 
 // AckWaiter blocks until all recipients respond.
@@ -332,7 +334,7 @@ type AckResult struct {
 }
 
 // WaitResult holds the content of a WAIT response.
-// Fields match the WAIT output format defined in section 3.1: WAIT|<from>|<cursor>|<text>.
+// Fields correspond to the JSON output defined in section 3.1: {"result":"WAIT","from":"...","cursor":N,"text":"..."}.
 type WaitResult struct {
     From   string // agent name that posted the wait
     Text   string // wait message content
@@ -372,7 +374,8 @@ Thin tmux wrappers. All I/O through injected exec func.
 ```go
 // ExecCmd runs a command and returns its combined output.
 // Func injection consistent with codebase pattern (see internal/tokenresolver.execCmd).
-type ExecCmd func(ctx context.Context, args ...string) ([]byte, error)
+// Separate name param matches the existing cli.go wiring (name string, args ...string).
+type ExecCmd func(ctx context.Context, name string, args ...string) ([]byte, error)
 
 // Pane operations receive ExecCmd as a parameter, not an interface.
 func SpawnPane(exec ExecCmd, windowID, title string) (paneID string, err error)
@@ -660,7 +663,7 @@ Returns JSON: `{"type":"WAIT","from":"engram-agent","cursor":1234,"text":"..."}`
 
 **Issues fixed:** #471 (binary foundation), chat write reliability (atomic, correct TOML, fresh timestamps)
 
-**Phase boundary rationale (E2E check):** Post + watch are independently useful. ~45 lines of fragile bash (shlock, timestamp freshness, heartbeat) deleted and replaced. Background Monitor and ACK-wait subagent survive in rewritten form — system is fully operational after Phase 1 ships. Phase 2 then eliminates the subagent patterns entirely.
+**Phase boundary rationale (E2E check):** Post + watch are independently useful. ~45 lines of fragile bash (shlock, timestamp freshness, heartbeat) deleted and replaced. Background Monitor and ACK-wait subagent survive in rewritten form — system is fully operational after Phase 1 ships. Phase 2 eliminates the ACK-wait subagent template (WAITER side); the Background Monitor Pattern (RESPONDER side) survives until Phase 4.
 
 ---
 
@@ -672,11 +675,13 @@ Returns JSON: `{"type":"WAIT","from":"engram-agent","cursor":1234,"text":"..."}`
 - Commands: `engram hold acquire`, `engram hold release`, `engram hold list`
 
 **Skill deletions (now safe — replaced by binary):**
-- Background Monitor Pattern (~30 lines) → deleted; `engram chat ack-wait` replaces the subagent
-- ACK-wait subagent template (~35 lines) → deleted; `engram chat ack-wait` replaces it
+- ACK-wait subagent template (~35 lines) → deleted; `engram chat ack-wait` replaces the WAITER side
 - Cursor capture + Reading New Content section (~20 lines) → binary handles internally
 - Timing section, online/offline detection bash snippets → binary handles internally
 - Hold-based retention bash in engram-tmux-lead → replaced by `engram hold` commands
+
+**NOT deleted in Phase 2 — deferred to Phase 4:**
+- Background Monitor Pattern (~30 lines): survives until Phase 4. `engram chat ack-wait` replaces only the ACK-wait subagent template (the WAITER side). The Background Monitor Pattern is engram-agent's watch loop — the RESPONDER side. If deleted here, engram-agent has no watch loop, all intents get 5s implicit ACK, and the memory safety net is bypassed for the entire Phase 2→4 gap. Same rationale as Phase 3's deferred deletion (see below).
 
 **Replacement skill content (use-engram-chat-as, ACK-Wait + Hold sections):**
 
@@ -699,12 +704,10 @@ List: `engram hold list [--holder <name>] [--target <name>]`
 
 ---
 
-### Phase 3 — Agent Spawn + Stream Pipeline (separate PR)
+### Phase 3a — Agent Lifecycle (separate PR)
 
 **Scope:**
 - `internal/tmux` package
-- `internal/claude` package (stream pipeline: display filter + speech relay)
-- `internal/streamjson` package (stateless JSONL parser)
 - Commands: `engram agent spawn`, `engram agent kill`, `engram agent list`, `engram agent wait-ready`
 - State file (`~/.local/share/engram/state/<slug>.toml`)
 - Binary auto-posts spawn intent (fixed template), waits for engram-agent ACK
@@ -715,14 +718,14 @@ List: `engram hold list [--holder <name>] [--target <name>]`
 - Concurrency limit tracking bash (§2.4)
 - Pane registry instructions
 - Shutdown kill-pane sequence
-- Writing Messages bash (workers express coordination via speech; binary posts on their behalf)
-- Heartbeat bash (workers do not heartbeat — binary tracks state)
-- Calling-convention text for `engram chat post` (replaced by speech-relay prefix-marker guidance for workers)
 
-**NOT deleted in Phase 3 — deferred to Phase 4:**
-- Background Monitor Pattern references and Agent Lifecycle watch loop (use-engram-chat-as)
+**NOT deleted in Phase 3a — deferred to Phase 3b or later:**
+- Writing Messages bash (deferred to Phase 3b — workers still call `engram chat post` directly until speech relay ships)
+- Heartbeat bash (deferred to Phase 3b)
+- Calling-convention text for `engram chat post` (deferred to Phase 3b)
+- Background Monitor Pattern references and Agent Lifecycle watch loop (use-engram-chat-as) — deferred to Phase 4
 
-**Phase boundary rationale (E2E check):** engram-agent's watch loop must survive Phase 3. Workers now speak INTENT: in output; binary relays to chat. But engram-agent must still be watching to receive those intents and respond. Phase 4 builds binary auto-resume (the replacement for the watch loop) and deletes the old loop atomically at that point. If the watch loop is deleted in Phase 3, intents pile up unacknowledged, all workers time out to implicit ACK, and the memory safety net is bypassed for the entire Phase 3→4 gap.
+**E2E check (Phase 3a):** After shipping Phase 3a alone, agent spawning and teardown use binary commands (`engram agent spawn/kill/list`). Old SPAWN-PANE bash, concurrency tracking bash, and pane registry bash are deleted from skills. Workers continue to call `engram chat post` directly — no speech relay yet.
 
 **Replacement skill content (engram-tmux-lead, ~15 lines replacing ~50 deleted lines):**
 
@@ -740,11 +743,32 @@ List agents: `engram agent list`
 Output: one `name|state|session-id|pane-id` per line
 ```
 
+**Issues fixed:** #505/#506 (spawn window bugs), #500 (engram-down any agent via `engram agent kill`), partial #503 (binary auto-ACKs spawn intents)
+
+---
+
+### Phase 3b — Speech-to-Chat (separate PR, depends on 3a)
+
+**Scope:**
+- `internal/streamjson` package (stateless JSONL parser)
+- `internal/claude` package (stream pipeline: display filter + speech relay)
+- Pipes stdout through display filter + speech relay for all spawned agents
+
+**Skill deletions:**
+- Writing Messages bash (workers express coordination via speech; binary posts on their behalf)
+- Heartbeat bash (workers do not heartbeat — binary tracks state)
+- Calling-convention text for `engram chat post` (replaced by speech-relay prefix-marker guidance for workers)
+
+**NOT deleted in Phase 3b — deferred to Phase 4:**
+- Background Monitor Pattern references and Agent Lifecycle watch loop (use-engram-chat-as)
+
+**Phase boundary rationale:** engram-agent's watch loop must survive Phase 3b. Workers now speak `INTENT:` in output; binary relays to chat. But engram-agent must still be watching to receive those intents and respond. Phase 4 builds binary auto-resume (the replacement for the watch loop) and deletes the old loop atomically at that point. If the watch loop is deleted in Phase 3b, intents pile up unacknowledged, all workers time out to implicit ACK, and the memory safety net is bypassed for the entire Phase 3b→4 gap.
+
+**E2E check (Phase 3b):** After shipping Phase 3b, agents speak intents out loud using `INTENT:` prefix markers in their output. The binary detects these markers and relays them to chat. Old Writing Messages bash, heartbeat bash, and `engram chat post` calling-convention text are deleted from skills.
+
 **"Forgot to post" reformulated, not eliminated (see §5.2 note):** Speech-to-chat changes the mechanism from "call `engram chat post`" to "say `INTENT:` in output." Agents that omit the prefix marker still fail to coordinate — the failure mode changes from "forgot to call command" to "forgot to say prefix." The skill must still teach WHEN and WHY to say each prefix marker.
 
-**Scope note:** Phase 3 contains 3 distinct packages (`internal/tmux`, `internal/streamjson`, `internal/claude`) plus the full speech relay pipeline and state file. If scope feels large, Phase 3 can optionally be split into two PRs: **Phase 3a** (tmux + spawn/kill/list commands + state file, no stream pipeline) and **Phase 3b** (streamjson + claude stream pipeline + speech relay). Phase 3a passes E2E independently since spawn/kill/list work without speech relay. Phase 3b requires Phase 3a's commands and state file. The single-PR packaging in ARCH-12 remains the default — this split is available if development velocity demands it.
-
-**Issues fixed:** #505/#506 (spawn window bugs), #500 (engram-down any agent via `engram agent kill`), partial #503 (binary auto-ACKs spawn intents), partial #494 (raw JSONL eliminated from panes)
+**Issues fixed:** partial #494 (raw JSONL eliminated from panes), partial #503 (speech relay completes binary-mediated coordination)
 
 ---
 
@@ -776,6 +800,8 @@ Phase 4 converts engram-agent from a persistent interactive agent into a statele
 4. **Performance tracking (surfaced/followed counts):** Already persisted to TOML files — survives stateless invocations without change.
 
 5. **Tiered loading on startup:** Each invocation cold-loads from disk. The Phase 5 ~72 line skill must preserve the tiered loading description (core memories always, recents on startup) — behavioral content, not bash.
+
+6. **Cursor passing in resume prompt:** When binary auto-resumes engram-agent for an intent, the resume prompt must include the current chat cursor (e.g., "Current chat cursor: <N>."). This allows engram-agent to call `engram chat ack-wait` correctly if it needs to post an intent itself (nested intent). Without this, engram-agent has no safe cursor baseline for its own ack-wait calls.
 
 **Compaction recovery (revised scope):**
 
@@ -985,7 +1011,7 @@ All questions settled during codesign-1 and codesign-2. No open items.
 
 ### ARCH-11: wait-ready Command Shape
 **Q:** Should `engram agent spawn` block until ready, or should that be a separate command?
-**A:** Separate `engram agent wait-ready` command. Spawn returns `pane-id|session-id` immediately. Caller (or binary) calls `engram agent wait-ready --name X --cursor N --timeout 30` explicitly. Keeps commands composable.
+**A:** Separate `engram agent wait-ready` command. Spawn returns `pane-id|session-id` immediately. Caller (or binary) calls `engram agent wait-ready --name X --cursor N --max-wait 30` explicitly. Keeps commands composable.
 
 ### ARCH-12: Phase Packaging
 **Q:** How many PRs for phases 1-4?
