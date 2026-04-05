@@ -580,7 +580,24 @@ Behavior: Will kill existing pane and spawn a fresh instance with the same role 
 
 Triggered by user saying "done", "shut down", "stand down", "close engram", "stop engram", or similar.
 
-**Delegate to the `engram:engram-down` skill.** Invoke it immediately — it contains the full shutdown sequence including agent ordering, pane cleanup, background task draining, and session summary reporting.
+**Before delegating, post a session shutdown intent to `engram-agent`:**
+
+```toml
+[[message]]
+from = "lead"
+to = "engram-agent"
+thread = "lifecycle"
+type = "intent"
+ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+text = """
+Situation: User requested session shutdown.
+Behavior: Will invoke engram:engram-down skill to shut down all agents, drain background tasks, and report session summary.
+"""
+```
+
+Wait for ACK from `engram-agent` before proceeding. Apply standard online/offline timing.
+
+**Then delegate to the `engram:engram-down` skill.** It contains the full shutdown sequence including agent ordering, pane cleanup, background task draining, and session summary reporting.
 
 Do not attempt to re-implement the shutdown sequence inline. The skill owns the procedure.
 
