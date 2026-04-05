@@ -24,6 +24,10 @@ jq -n '{systemMessage: "[engram] Say /recall to load context from previous sessi
     if [[ "$NEEDS_BUILD" == "true" ]]; then
         mkdir -p "${ENGRAM_HOME}/bin"
         cd "$PLUGIN_ROOT"
+        # Remove existing binary before rebuilding. If a Claude Code agent ran go build,
+        # the binary would have inherited com.apple.provenance, causing macOS to SIGKILL
+        # it on execution. Deleting first ensures we always rebuild from the clean shell.
+        rm -f "$ENGRAM_BIN" "$ENGRAM_BIN.tmp"
         go build -o "$ENGRAM_BIN.tmp" ./cmd/engram/ || exit 0
         mv "$ENGRAM_BIN.tmp" "$ENGRAM_BIN"
     fi
