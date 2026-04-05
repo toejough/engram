@@ -2,7 +2,9 @@ package cli
 
 import (
 	"context"
+	"os"
 
+	"engram/internal/chat"
 	"engram/internal/recall"
 	"engram/internal/surface"
 )
@@ -13,13 +15,15 @@ var (
 	ExportApplyProjectSlugDefault = applyProjectSlugDefault
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportDeriveChatFilePath      = deriveChatFilePath
-	ExportLoadChatMessages        = loadChatMessages
-	ExportOsAppendFile            = osAppendFile
-	ExportOutputAckResult         = outputAckResult
-	ExportRecordSurfacing         = recordSurfacing
-	ExportRenderFactContent       = renderFactContent
-	ExportRenderMemoryContent     = renderMemoryContent
-	ExportRenderMemoryMeta        = renderMemoryMeta
+	ExportLoadChatMessages        = func(path string) ([]chat.Message, error) {
+		return loadChatMessages(path, os.ReadFile)
+	}
+	ExportOsAppendFile        = osAppendFile
+	ExportOutputAckResult     = outputAckResult
+	ExportRecordSurfacing     = recordSurfacing
+	ExportRenderFactContent   = renderFactContent
+	ExportRenderMemoryContent = renderMemoryContent
+	ExportRenderMemoryMeta    = renderMemoryMeta
 )
 
 // --- Factory functions for structs with unexported fields ---

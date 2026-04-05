@@ -18,8 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
-
 	"engram/internal/anthropic"
 	"engram/internal/chat"
 	"engram/internal/memory"
@@ -33,6 +31,7 @@ import (
 // Exported variables.
 var (
 	AnthropicAPIURL = "https://api.anthropic.com/v1/messages" //nolint:gochecknoglobals // test-overridable endpoint
+	HoldNowFunc     = time.Now                                //nolint:gochecknoglobals // test-overridable time source
 )
 
 // Run dispatches to the appropriate subcommand based on args.
@@ -65,17 +64,16 @@ func Run(
 
 // unexported constants.
 const (
-	ackWaitDefaultMaxWait = 30 * time.Second
-	anthropicMaxTokens    = 1024
-	chatDirMode           = 0o700
-	chatFileMode          = 0o600
-	lockRetryDelay        = 5 * time.Millisecond
-	maxLockRetries        = 200
-	minArgs               = 2
-	uuidV4VariantBitmask  = 0x3f
-	uuidV4VariantByte     = 0x80
-	uuidV4VersionBitmask  = 0x0f
-	uuidV4VersionByte     = 0x40
+	anthropicMaxTokens   = 1024
+	chatDirMode          = 0o700
+	chatFileMode         = 0o600
+	lockRetryDelay       = 5 * time.Millisecond
+	maxLockRetries       = 200
+	minArgs              = 2
+	uuidV4VariantBitmask = 0x3f
+	uuidV4VariantByte    = 0x80
+	uuidV4VersionBitmask = 0x0f
+	uuidV4VersionByte    = 0x40
 )
 
 // unexported variables.
@@ -83,12 +81,13 @@ var (
 	defaultModifier = memory.NewModifier( //nolint:gochecknoglobals // production singleton
 		memory.WithModifierWriter(tomlwriter.New()),
 	)
-	errAckWaitNilTimeout = errors.New("outputAckResult: TIMEOUT result has nil Timeout field")
-	errAckWaitNilWait    = errors.New("outputAckResult: WAIT result has nil Wait field")
-	errAckWaitUnknown    = errors.New("outputAckResult: unexpected result type")
-	errLockTimeout       = errors.New("acquiring lock: exceeded max retries")
-	errUnknownCommand    = errors.New("unknown command")
-	errUsage             = errors.New("usage: engram <recall|show|chat|hold> [flags]")
+	errAckWaitNilTimeout  = errors.New("outputAckResult: TIMEOUT result has nil Timeout field")
+	errAckWaitNilWait     = errors.New("outputAckResult: WAIT result has nil Wait field")
+	errAckWaitUnknown     = errors.New("outputAckResult: unexpected result type")
+	errLockTimeout        = errors.New("acquiring lock: exceeded max retries")
+	errRecipientsRequired = errors.New("chat ack-wait: --recipients required")
+	errUnknownCommand     = errors.New("unknown command")
+	errUsage              = errors.New("usage: engram <recall|show|chat|hold> [flags]")
 )
 
 // haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
@@ -279,10 +278,10 @@ func generateHoldID() (string, error) {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
 }
 
-// loadChatMessages reads and parses a TOML chat file.
+// loadChatMessages reads and parses a TOML chat file using the provided readFile func.
 // Returns nil slice (no error) when the file does not exist.
-func loadChatMessages(chatFilePath string) ([]chat.Message, error) {
-	data, err := os.ReadFile(chatFilePath) //nolint:gosec
+func loadChatMessages(chatFilePath string, readFile func(string) ([]byte, error)) ([]chat.Message, error) {
+	data, err := readFile(chatFilePath)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -291,16 +290,12 @@ func loadChatMessages(chatFilePath string) ([]chat.Message, error) {
 		return nil, fmt.Errorf("reading chat file: %w", err)
 	}
 
-	var parsed struct {
-		Message []chat.Message `toml:"message"`
+	messages, parseErr := chat.ParseMessages(data)
+	if parseErr != nil {
+		return nil, fmt.Errorf("parsing chat file: %w", parseErr)
 	}
 
-	unmarshalErr := toml.Unmarshal(data, &parsed)
-	if unmarshalErr != nil {
-		return nil, fmt.Errorf("parsing chat file: %w", unmarshalErr)
-	}
-
-	return parsed.Message, nil
+	return messages, nil
 }
 
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
@@ -326,6 +321,12 @@ func marshalAndWriteWatchResult(stdout io.Writer, result watchResult) error {
 	return nil
 }
 
+// marshalReleasePayload returns the JSON release payload for a hold ID.
+// json.Marshal of a map[string]string is infallible; error is returned for interface conformance.
+func marshalReleasePayload(holdID string) ([]byte, error) {
+	return json.Marshal(map[string]string{"hold-id": holdID}) //nolint:wrapcheck
+}
+
 // newAnthropicClient creates a shared anthropic.Client configured with the
 // current AnthropicAPIURL (supports test overrides).
 func newAnthropicClient(token string) *anthropic.Client {
@@ -342,6 +343,15 @@ func newFilePoster(chatFilePath string) *chat.FilePoster {
 		Lock:       osLockFile,
 		AppendFile: osAppendFile,
 		LineCount:  osLineCount,
+	}
+}
+
+// newFileWatcher creates a FileWatcher wired to the OS I/O adapters.
+func newFileWatcher(chatFilePath string) *chat.FileWatcher {
+	return &chat.FileWatcher{
+		FilePath:  chatFilePath,
+		FSWatcher: &watch.FSNotifyWatcher{},
+		ReadFile:  os.ReadFile,
 	}
 }
 
@@ -488,28 +498,21 @@ func runChatAckWait(args []string, stdout io.Writer) error {
 		return fmt.Errorf("chat ack-wait: %w", parseErr)
 	}
 
+	if *recips == "" {
+		return errRecipientsRequired
+	}
+
 	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
 	if pathErr != nil {
 		return fmt.Errorf("chat ack-wait: %w", pathErr)
 	}
 
-	watcher := &chat.FileWatcher{
-		FilePath:  chatFilePath,
-		FSWatcher: &watch.FSNotifyWatcher{},
-		ReadFile:  os.ReadFile,
-	}
-
-	maxWait := time.Duration(*maxWaitS) * time.Second
-	if maxWait == 0 {
-		maxWait = ackWaitDefaultMaxWait
-	}
-
 	waiter := &chat.FileAckWaiter{
 		FilePath: chatFilePath,
-		Watch:    watcher.Watch,
+		Watcher:  newFileWatcher(chatFilePath),
 		ReadFile: os.ReadFile,
 		NowFunc:  time.Now,
-		MaxWait:  maxWait,
+		MaxWait:  time.Duration(*maxWaitS) * time.Second,
 	}
 
 	ctx, cancel := signalContext()
@@ -593,12 +596,7 @@ func runChatPost(args []string, stdout io.Writer) error {
 		return fmt.Errorf("chat post: %w", pathErr)
 	}
 
-	poster := &chat.FilePoster{
-		FilePath:   chatFilePath,
-		Lock:       osLockFile,
-		AppendFile: osAppendFile,
-		LineCount:  osLineCount,
-	}
+	poster := newFilePoster(chatFilePath)
 
 	cursor, postErr := poster.Post(chat.Message{
 		From:   *from,
@@ -653,11 +651,7 @@ func runChatWatch(args []string, stdout io.Writer) error {
 		defer cancel()
 	}
 
-	watcher := &chat.FileWatcher{
-		FilePath:  chatFilePath,
-		FSWatcher: &watch.FSNotifyWatcher{},
-		ReadFile:  os.ReadFile,
-	}
+	watcher := newFileWatcher(chatFilePath)
 
 	msg, newCursor, watchErr := watcher.Watch(ctx, *agent, *cursor, msgTypes)
 	if watchErr != nil {
@@ -712,7 +706,7 @@ func runHoldAcquire(args []string, stdout io.Writer) error {
 		Target:     *target,
 		Condition:  *condition,
 		Tag:        *tag,
-		AcquiredTS: time.Now().UTC(),
+		AcquiredTS: HoldNowFunc().UTC(),
 	}
 
 	text, marshalErr := json.Marshal(record)
@@ -759,7 +753,7 @@ func runHoldCheck(args []string, stdout io.Writer) error {
 		return fmt.Errorf("hold check: %w", pathErr)
 	}
 
-	messages, loadErr := loadChatMessages(chatFilePath)
+	messages, loadErr := loadChatMessages(chatFilePath, os.ReadFile)
 	if loadErr != nil {
 		return fmt.Errorf("hold check: %w", loadErr)
 	}
@@ -773,7 +767,7 @@ func runHoldCheck(args []string, stdout io.Writer) error {
 			continue
 		}
 
-		releaseText, marshalErr := json.Marshal(map[string]string{"hold-id": hold.HoldID})
+		releaseText, marshalErr := marshalReleasePayload(hold.HoldID)
 		if marshalErr != nil {
 			return fmt.Errorf("hold check: marshaling release: %w", marshalErr)
 		}
@@ -841,7 +835,7 @@ func runHoldList(args []string, stdout io.Writer) error {
 		return fmt.Errorf("hold list: %w", pathErr)
 	}
 
-	messages, loadErr := loadChatMessages(chatFilePath)
+	messages, loadErr := loadChatMessages(chatFilePath, os.ReadFile)
 	if loadErr != nil {
 		return fmt.Errorf("hold list: %w", loadErr)
 	}
@@ -879,7 +873,7 @@ func runHoldRelease(args []string, stdout io.Writer) error {
 		return fmt.Errorf("hold release: %w", pathErr)
 	}
 
-	releasePayload, marshalErr := json.Marshal(map[string]string{"hold-id": *holdID})
+	releasePayload, marshalErr := marshalReleasePayload(*holdID)
 	if marshalErr != nil {
 		return fmt.Errorf("hold release: marshaling: %w", marshalErr)
 	}

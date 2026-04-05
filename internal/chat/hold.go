@@ -3,6 +3,7 @@ package chat
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -62,7 +63,7 @@ func EvaluateCondition(hold HoldRecord, messages []Message) (met bool, reason st
 	return false, ""
 }
 
-// ScanActiveHolds returns holds with no matching release in messages.
+// ScanActiveHolds returns holds with no matching release in messages, sorted by AcquiredTS.
 // Pure function — no I/O. Both acquire and release messages are unmarshaled to
 // extract HoldID for matching. Messages that fail to unmarshal are silently skipped.
 func ScanActiveHolds(messages []Message) []HoldRecord {
@@ -71,19 +72,15 @@ func ScanActiveHolds(messages []Message) []HoldRecord {
 	for _, msg := range messages {
 		switch msg.Type {
 		case "hold-acquire":
-			var record HoldRecord
-
-			err := json.Unmarshal([]byte(msg.Text), &record)
-			if err != nil {
+			record, ok := parseHoldRecord(msg.Text)
+			if !ok {
 				continue
 			}
 
 			acquired[record.HoldID] = record
 		case "hold-release":
-			var record HoldRecord
-
-			err := json.Unmarshal([]byte(msg.Text), &record)
-			if err != nil {
+			record, ok := parseHoldRecord(msg.Text)
+			if !ok {
 				continue
 			}
 
@@ -96,7 +93,24 @@ func ScanActiveHolds(messages []Message) []HoldRecord {
 		holds = append(holds, record)
 	}
 
+	sort.Slice(holds, func(i, j int) bool {
+		return holds[i].AcquiredTS.Before(holds[j].AcquiredTS)
+	})
+
 	return holds
+}
+
+// parseHoldRecord deserializes a HoldRecord from JSON text.
+// Returns the record and true on success; zero value and false on parse error.
+func parseHoldRecord(text string) (HoldRecord, bool) {
+	var record HoldRecord
+
+	err := json.Unmarshal([]byte(text), &record)
+	if err != nil {
+		return HoldRecord{}, false
+	}
+
+	return record, true
 }
 
 // scanForMessageType returns the timestamp and true when a message from agent

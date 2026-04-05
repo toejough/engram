@@ -43,23 +43,34 @@ func (w *FileWatcher) Watch(ctx context.Context, agent string, cursor int, msgTy
 	}
 }
 
-// findMessage scans data for the first message after cursor that matches agent and msgTypes.
-// Returns the message, new cursor (total line count), and whether a match was found.
-func findMessage(data []byte, agent string, cursor int, msgTypes []string) (Message, int, bool) {
-	startIdx := messageIndexAtCursor(data, cursor)
-	newCursor := bytes.Count(data, []byte("\n"))
-
+// ParseMessages deserializes TOML chat data into a Message slice.
+// Returns an error if the TOML is malformed; returns nil slice for empty data.
+func ParseMessages(data []byte) ([]Message, error) {
 	var parsed struct {
 		Messages []Message `toml:"message"`
 	}
 
 	err := toml.Unmarshal(data, &parsed)
 	if err != nil {
+		return nil, fmt.Errorf("parsing chat TOML: %w", err)
+	}
+
+	return parsed.Messages, nil
+}
+
+// findMessage scans data for the first message after cursor that matches agent and msgTypes.
+// Returns the message, new cursor (total line count), and whether a match was found.
+func findMessage(data []byte, agent string, cursor int, msgTypes []string) (Message, int, bool) {
+	startIdx := messageIndexAtCursor(data, cursor)
+	newCursor := bytes.Count(data, []byte("\n"))
+
+	messages, err := ParseMessages(data)
+	if err != nil {
 		return Message{}, newCursor, false
 	}
 
-	for i := startIdx; i < len(parsed.Messages); i++ {
-		msg := parsed.Messages[i]
+	for i := startIdx; i < len(messages); i++ {
+		msg := messages[i]
 		if matchesAgent(msg.To, agent) && matchesType(msg.Type, msgTypes) {
 			return msg, newCursor, true
 		}

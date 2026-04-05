@@ -268,6 +268,31 @@ func TestOutputAckResult_Unknown_ReturnsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestOutputAckResult_WAIT_HappyPath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var buf bytes.Buffer
+
+	err := cli.ExportOutputAckResult(&buf, chat.AckResult{
+		Result:    "WAIT",
+		Wait:      &chat.WaitResult{From: "engram-agent", Text: "objection"},
+		NewCursor: 42,
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var out map[string]any
+	g.Expect(json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &out)).To(Succeed())
+	g.Expect(out["result"]).To(Equal("WAIT"))
+	g.Expect(out["from"]).To(Equal("engram-agent"))
+	g.Expect(out["text"]).To(Equal("objection"))
+	g.Expect(out["cursor"]).To(BeEquivalentTo(42))
+}
+
 func TestOutputAckResult_WAIT_NilWait_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -320,6 +345,23 @@ func TestRun_ChatAckWait_AllACK(t *testing.T) {
 	g.Expect(json.Unmarshal([]byte(strings.TrimSpace(stdout.String())), &result)).To(Succeed())
 	g.Expect(result["result"]).To(Equal("ACK"))
 	g.Expect(result).To(HaveKey("cursor"))
+}
+
+func TestRun_ChatAckWait_EmptyRecipients_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	err := cli.Run([]string{
+		"engram", "chat", "ack-wait",
+		"--chat-file", chatFile,
+		"--agent", "tester",
+		"--cursor", "0",
+		"--recipients", "",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).To(MatchError(ContainSubstring("--recipients required")))
 }
 
 func TestRun_ChatAckWait_MaxWaitFlag_NoTargCollision(t *testing.T) {

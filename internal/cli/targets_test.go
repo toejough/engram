@@ -60,14 +60,17 @@ func TestBuildChatGroup(t *testing.T) {
 		dir := t.TempDir()
 		chatFile := filepath.Join(dir, "chat.toml")
 
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
 		_, _ = targ.Execute([]string{
 			"engram", "chat", "post",
 			"--chat-file", chatFile,
 			"--from", "x", "--to", "all", "--thread", "t", "--type", "info", "--text", "hi",
 		}, targets...)
 
-		g.Expect(true).To(gomega.BeTrue()) // reached without panic
+		// post outputs the new cursor (a non-negative integer)
+		g.Expect(strings.TrimSpace(stdout.String())).To(gomega.MatchRegexp(`^\d+$`))
 	})
 
 	t.Run("executes cursor subcommand via closure", func(t *testing.T) {
@@ -224,14 +227,17 @@ func TestBuildHoldGroup(t *testing.T) {
 		dir := t.TempDir()
 		chatFile := filepath.Join(dir, "chat.toml")
 
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
 		_, _ = targ.Execute([]string{
 			"engram", "hold", "acquire",
 			"--chat-file", chatFile,
 			"--holder", "lead", "--target", "exec-1",
 		}, targets...)
 
-		g.Expect(true).To(gomega.BeTrue()) // reached without panic
+		// acquire outputs the hold-id (UUID format)
+		g.Expect(strings.TrimSpace(stdout.String())).NotTo(gomega.BeEmpty())
 	})
 
 	t.Run("executes release subcommand via closure", func(t *testing.T) {
@@ -257,14 +263,17 @@ func TestBuildHoldGroup(t *testing.T) {
 
 		holdID := strings.TrimSpace(acquireOut.String())
 
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
 		_, _ = targ.Execute([]string{
 			"engram", "hold", "release",
 			"--chat-file", chatFile,
 			"--hold-id", holdID,
 		}, targets...)
 
-		g.Expect(true).To(gomega.BeTrue())
+		// release outputs "OK"
+		g.Expect(strings.TrimSpace(stdout.String())).To(gomega.Equal("OK"))
 	})
 
 	t.Run("executes list subcommand via closure", func(t *testing.T) {
@@ -303,13 +312,16 @@ func TestBuildHoldGroup(t *testing.T) {
 		dir := t.TempDir()
 		chatFile := filepath.Join(dir, "chat.toml")
 
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		// check on empty/nonexistent file produces no output (no active holds to release)
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
 		_, _ = targ.Execute([]string{
 			"engram", "hold", "check",
 			"--chat-file", chatFile,
 		}, targets...)
 
-		g.Expect(true).To(gomega.BeTrue())
+		g.Expect(stdout.String()).To(gomega.BeEmpty())
 	})
 }
 

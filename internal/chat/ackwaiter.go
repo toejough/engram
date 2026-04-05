@@ -2,18 +2,17 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/BurntSushi/toml"
 )
 
 // FileAckWaiter waits for ACK/WAIT responses from all named recipients.
 // All I/O is injected — no os.* calls in this package.
 type FileAckWaiter struct {
 	FilePath string
-	Watch    func(ctx context.Context, agent string, cursor int, msgTypes []string) (Message, int, error)
+	Watcher  Watcher // watches for new ack/wait messages
 	ReadFile func(path string) ([]byte, error)
 	NowFunc  func() time.Time // injectable for online/offline detection tests
 	MaxWait  time.Duration    // default 30s; per-online-silent-recipient timeout
@@ -26,7 +25,7 @@ type FileAckWaiter struct {
 //  3. Loop:
 //     a. Check offline implicit ACK (elapsed ≥ 5s) and online+silent TIMEOUT (elapsed ≥ MaxWait)
 //     b. All responded → return ACK
-//     c. Call Watch(ctx, callerAgent, cursor, ["ack","wait"]) for next message
+//     c. Call Watcher.Watch(ctx, callerAgent, cursor, ["ack","wait"]) for next message
 //     d. WAIT found → return immediately; ACK found → mark recipient responded
 func (w *FileAckWaiter) AckWait(
 	ctx context.Context, callerAgent string, cursor int, recipients []string,
@@ -51,9 +50,9 @@ func (w *FileAckWaiter) AckWait(
 		}
 
 		nowCheck := w.NowFunc()
-		applyOfflineImplicit(states, recipients, nowCheck)
+		applyOfflineImplicit(states, nowCheck)
 
-		if result, timedOut := checkOnlineSilentTimeout(states, recipients, nowCheck, maxWait, currentCursor); timedOut {
+		if result, timedOut := checkOnlineSilentTimeout(states, nowCheck, maxWait, currentCursor); timedOut {
 			return result, nil
 		}
 
@@ -61,14 +60,12 @@ func (w *FileAckWaiter) AckWait(
 			return AckResult{Result: "ACK", NewCursor: currentCursor}, nil
 		}
 
-		msg, newCursor, watchErr := w.Watch(ctx, callerAgent, currentCursor, []string{"ack", "wait"})
+		msg, newCursor, watchErr := w.Watcher.Watch(ctx, callerAgent, currentCursor, []string{"ack", "wait"})
 		if watchErr != nil {
-			ctxErr2 := ctx.Err()
-			if ctxErr2 != nil {
-				return AckResult{}, fmt.Errorf("ack wait cancelled: %w", ctxErr2)
+			if stop, stopErr := resolveWatchErr(ctx, watchErr); stop {
+				return AckResult{}, stopErr
 			}
-
-			// Watch timed out internally — loop back to re-check offline/online timeouts.
+			// Watch's internal deadline exceeded — loop back to re-check offline/online timeouts.
 			continue
 		}
 
@@ -83,7 +80,7 @@ func (w *FileAckWaiter) AckWait(
 // applyMsg processes a received ack/wait message, updating recipient state.
 // Returns (result, true) if the wait is resolved (WAIT received), or (zero, false) to continue.
 func (w *FileAckWaiter) applyMsg(msg Message, states map[string]*recipientState, currentCursor int) (AckResult, bool) {
-	state, isPending := states[msg.From]
+	state, isPending := states[strings.ToLower(msg.From)]
 	if !isPending || state == nil || state.responded {
 		return AckResult{}, false
 	}
@@ -128,9 +125,8 @@ func allResponded(states map[string]*recipientState) bool {
 }
 
 // applyOfflineImplicit marks offline recipients as responded when offlineImplicitWait has elapsed.
-func applyOfflineImplicit(states map[string]*recipientState, recipients []string, now time.Time) {
-	for _, r := range recipients {
-		state := states[r]
+func applyOfflineImplicit(states map[string]*recipientState, now time.Time) {
+	for _, state := range states {
 		if state == nil || state.responded || state.online {
 			continue
 		}
@@ -142,12 +138,13 @@ func applyOfflineImplicit(states map[string]*recipientState, recipients []string
 }
 
 // buildRecipientStates initialises per-recipient state from the full chat file data.
+// Recipient names are normalized to lowercase so map lookups are case-insensitive.
 func buildRecipientStates(data []byte, recipients []string, now time.Time) map[string]*recipientState {
 	fifteenMinAgo := now.Add(-15 * time.Minute)
 	states := make(map[string]*recipientState, len(recipients))
 
 	for _, r := range recipients {
-		states[r] = &recipientState{
+		states[strings.ToLower(r)] = &recipientState{
 			online:    isOnline(data, r, fifteenMinAgo),
 			waitStart: now,
 		}
@@ -160,13 +157,11 @@ func buildRecipientStates(data []byte, recipients []string, now time.Time) map[s
 // exceeded maxWait. Returns (zero, false) if no timeout has occurred.
 func checkOnlineSilentTimeout(
 	states map[string]*recipientState,
-	recipients []string,
 	now time.Time,
 	maxWait time.Duration,
 	currentCursor int,
 ) (AckResult, bool) {
-	for _, r := range recipients {
-		state := states[r]
+	for recipient, state := range states {
 		if state == nil || state.responded || !state.online {
 			continue
 		}
@@ -175,7 +170,7 @@ func checkOnlineSilentTimeout(
 			return AckResult{
 				Result:    "TIMEOUT",
 				NewCursor: currentCursor,
-				Timeout:   &TimeoutResult{Recipient: r},
+				Timeout:   &TimeoutResult{Recipient: recipient},
 			}, true
 		}
 	}
@@ -186,20 +181,30 @@ func checkOnlineSilentTimeout(
 // isOnline returns true if the recipient posted any message within the cutoff window.
 // This is a full-file scan by design — presence detection is the one exception to the cursor rule.
 func isOnline(data []byte, recipient string, cutoff time.Time) bool {
-	var parsed struct {
-		Messages []Message `toml:"message"`
-	}
-
-	err := toml.Unmarshal(data, &parsed)
+	messages, err := ParseMessages(data)
 	if err != nil {
 		return false
 	}
 
-	for _, msg := range parsed.Messages {
+	for _, msg := range messages {
 		if strings.EqualFold(msg.From, recipient) && msg.TS.After(cutoff) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// resolveWatchErr determines whether a Watch error should stop the AckWait loop.
+// Returns (true, err) to propagate and exit, or (false, nil) to continue looping.
+func resolveWatchErr(ctx context.Context, watchErr error) (bool, error) {
+	if ctx.Err() != nil {
+		return true, fmt.Errorf("ack wait cancelled: %w", ctx.Err())
+	}
+
+	if !errors.Is(watchErr, context.DeadlineExceeded) {
+		return true, fmt.Errorf("watching for ack: %w", watchErr)
+	}
+
+	return false, nil
 }
