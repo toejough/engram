@@ -13,7 +13,9 @@ var (
 	ExportApplyProjectSlugDefault = applyProjectSlugDefault
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportDeriveChatFilePath      = deriveChatFilePath
+	ExportLoadChatMessages        = loadChatMessages
 	ExportOsAppendFile            = osAppendFile
+	ExportOutputAckResult         = outputAckResult
 	ExportRecordSurfacing         = recordSurfacing
 	ExportRenderFactContent       = renderFactContent
 	ExportRenderMemoryContent     = renderMemoryContent

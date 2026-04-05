@@ -4,6 +4,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -16,6 +17,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/BurntSushi/toml"
 
 	"engram/internal/anthropic"
 	"engram/internal/chat"
@@ -53,6 +56,8 @@ func Run(
 		return runShow(subArgs, stdout)
 	case "chat":
 		return runChatDispatch(subArgs, stdout)
+	case "hold":
+		return runHoldDispatch(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -60,12 +65,17 @@ func Run(
 
 // unexported constants.
 const (
-	anthropicMaxTokens = 1024
-	chatDirMode        = 0o700
-	chatFileMode       = 0o600
-	lockRetryDelay     = 5 * time.Millisecond
-	maxLockRetries     = 200
-	minArgs            = 2
+	ackWaitDefaultMaxWait = 30 * time.Second
+	anthropicMaxTokens    = 1024
+	chatDirMode           = 0o700
+	chatFileMode          = 0o600
+	lockRetryDelay        = 5 * time.Millisecond
+	maxLockRetries        = 200
+	minArgs               = 2
+	uuidV4VariantBitmask  = 0x3f
+	uuidV4VariantByte     = 0x80
+	uuidV4VersionBitmask  = 0x0f
+	uuidV4VersionByte     = 0x40
 )
 
 // unexported variables.
@@ -73,9 +83,12 @@ var (
 	defaultModifier = memory.NewModifier( //nolint:gochecknoglobals // production singleton
 		memory.WithModifierWriter(tomlwriter.New()),
 	)
-	errLockTimeout    = errors.New("acquiring lock: exceeded max retries")
-	errUnknownCommand = errors.New("unknown command")
-	errUsage          = errors.New("usage: engram <recall|show> [flags]")
+	errAckWaitNilTimeout = errors.New("outputAckResult: TIMEOUT result has nil Timeout field")
+	errAckWaitNilWait    = errors.New("outputAckResult: WAIT result has nil Wait field")
+	errAckWaitUnknown    = errors.New("outputAckResult: unexpected result type")
+	errLockTimeout       = errors.New("acquiring lock: exceeded max retries")
+	errUnknownCommand    = errors.New("unknown command")
+	errUsage             = errors.New("usage: engram <recall|show|chat|hold> [flags]")
 )
 
 // haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
@@ -228,6 +241,68 @@ func deriveChatFilePath(
 	return filepath.Join(DataDirFromHome(home), "chat", ProjectSlugFromPath(cwd)+".toml"), nil
 }
 
+// filterHolds returns holds matching all non-empty filter criteria.
+func filterHolds(holds []chat.HoldRecord, holder, target, tag string) []chat.HoldRecord {
+	filtered := make([]chat.HoldRecord, 0, len(holds))
+
+	for _, hold := range holds {
+		if holder != "" && hold.Holder != holder {
+			continue
+		}
+
+		if target != "" && hold.Target != target {
+			continue
+		}
+
+		if tag != "" && hold.Tag != tag {
+			continue
+		}
+
+		filtered = append(filtered, hold)
+	}
+
+	return filtered
+}
+
+// generateHoldID returns a UUID v4 string using crypto/rand.
+func generateHoldID() (string, error) {
+	var b [16]byte
+
+	_, err := rand.Read(b[:])
+	if err != nil {
+		return "", fmt.Errorf("reading random bytes: %w", err)
+	}
+
+	b[6] = (b[6] & uuidV4VersionBitmask) | uuidV4VersionByte
+	b[8] = (b[8] & uuidV4VariantBitmask) | uuidV4VariantByte
+
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+}
+
+// loadChatMessages reads and parses a TOML chat file.
+// Returns nil slice (no error) when the file does not exist.
+func loadChatMessages(chatFilePath string) ([]chat.Message, error) {
+	data, err := os.ReadFile(chatFilePath) //nolint:gosec
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("reading chat file: %w", err)
+	}
+
+	var parsed struct {
+		Message []chat.Message `toml:"message"`
+	}
+
+	unmarshalErr := toml.Unmarshal(data, &parsed)
+	if unmarshalErr != nil {
+		return nil, fmt.Errorf("parsing chat file: %w", unmarshalErr)
+	}
+
+	return parsed.Message, nil
+}
+
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
 func makeAnthropicCaller(
 	token string,
@@ -258,6 +333,16 @@ func newAnthropicClient(token string) *anthropic.Client {
 	client.SetAPIURL(AnthropicAPIURL)
 
 	return client
+}
+
+// newFilePoster creates a FilePoster wired to the OS I/O adapters.
+func newFilePoster(chatFilePath string) *chat.FilePoster {
+	return &chat.FilePoster{
+		FilePath:   chatFilePath,
+		Lock:       osLockFile,
+		AppendFile: osAppendFile,
+		LineCount:  osLineCount,
+	}
 }
 
 func newTokenResolver() *tokenresolver.Resolver {
@@ -329,6 +414,47 @@ func osLockFile(name string) (func() error, error) {
 	return nil, errLockTimeout
 }
 
+// outputAckResult writes the flat JSON format expected by skills.
+func outputAckResult(w io.Writer, result chat.AckResult) error {
+	var out map[string]any
+
+	switch result.Result {
+	case "ACK":
+		out = map[string]any{"result": "ACK", "cursor": result.NewCursor}
+	case "WAIT":
+		if result.Wait == nil {
+			return errAckWaitNilWait
+		}
+
+		out = map[string]any{
+			"result": "WAIT",
+			"from":   result.Wait.From,
+			"cursor": result.NewCursor,
+			"text":   result.Wait.Text,
+		}
+	case "TIMEOUT":
+		if result.Timeout == nil {
+			return errAckWaitNilTimeout
+		}
+
+		out = map[string]any{"result": "TIMEOUT", "recipient": result.Timeout.Recipient, "cursor": result.NewCursor}
+	default:
+		return fmt.Errorf("%w: %q", errAckWaitUnknown, result.Result)
+	}
+
+	data, err := json.Marshal(out)
+	if err != nil {
+		return fmt.Errorf("outputAckResult: encoding: %w", err)
+	}
+
+	_, err = fmt.Fprintln(w, string(data))
+	if err != nil {
+		return fmt.Errorf("outputAckResult: writing: %w", err)
+	}
+
+	return nil
+}
+
 // recordSurfacing increments the surfaced count for a memory file.
 func recordSurfacing(path string) error {
 	return defaultModifier.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
@@ -341,6 +467,60 @@ func recordSurfacing(path string) error {
 func resolveToken(ctx context.Context) string {
 	token, _ := newTokenResolver().Resolve(ctx)
 	return token
+}
+
+func runChatAckWait(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("chat ack-wait", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	agent := fs.String("agent", "", "calling agent name")
+	cursor := fs.Int("cursor", 0, "line position to start watching from")
+	recips := fs.String("recipients", "", "comma-separated recipient names")
+	maxWaitS := fs.Int("max-wait", 0, "seconds to wait for online-silent recipients (default 30)")
+	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
+
+	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
+	if parseErr != nil {
+		return fmt.Errorf("chat ack-wait: %w", parseErr)
+	}
+
+	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return fmt.Errorf("chat ack-wait: %w", pathErr)
+	}
+
+	watcher := &chat.FileWatcher{
+		FilePath:  chatFilePath,
+		FSWatcher: &watch.FSNotifyWatcher{},
+		ReadFile:  os.ReadFile,
+	}
+
+	maxWait := time.Duration(*maxWaitS) * time.Second
+	if maxWait == 0 {
+		maxWait = ackWaitDefaultMaxWait
+	}
+
+	waiter := &chat.FileAckWaiter{
+		FilePath: chatFilePath,
+		Watch:    watcher.Watch,
+		ReadFile: os.ReadFile,
+		NowFunc:  time.Now,
+		MaxWait:  maxWait,
+	}
+
+	ctx, cancel := signalContext()
+	defer cancel()
+
+	result, ackErr := waiter.AckWait(ctx, *agent, *cursor, strings.Split(*recips, ","))
+	if ackErr != nil {
+		return fmt.Errorf("chat ack-wait: %w", ackErr)
+	}
+
+	return outputAckResult(stdout, result)
 }
 
 func runChatCursor(args []string, stdout io.Writer) error {
@@ -385,6 +565,8 @@ func runChatDispatch(subArgs []string, stdout io.Writer) error {
 		return runChatWatch(subArgs[1:], stdout)
 	case "cursor":
 		return runChatCursor(subArgs[1:], stdout)
+	case "ack-wait":
+		return runChatAckWait(subArgs[1:], stdout)
 	default:
 		return fmt.Errorf("%w: chat %s", errUnknownCommand, subArgs[0])
 	}
@@ -493,6 +675,232 @@ func runChatWatch(args []string, stdout io.Writer) error {
 	}
 
 	return marshalAndWriteWatchResult(stdout, result)
+}
+
+func runHoldAcquire(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("hold acquire", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	holder := fs.String("holder", "", "agent acquiring the hold")
+	target := fs.String("target", "", "agent being held")
+	condition := fs.String("condition", "", "auto-release condition")
+	tag := fs.String("tag", "", "workflow label for bulk operations (e.g. codesign-1)")
+	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
+
+	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
+	if parseErr != nil {
+		return fmt.Errorf("hold acquire: %w", parseErr)
+	}
+
+	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return fmt.Errorf("hold acquire: %w", pathErr)
+	}
+
+	holdID, genErr := generateHoldID()
+	if genErr != nil {
+		return fmt.Errorf("generating hold id: %w", genErr)
+	}
+
+	record := chat.HoldRecord{
+		HoldID:     holdID,
+		Holder:     *holder,
+		Target:     *target,
+		Condition:  *condition,
+		Tag:        *tag,
+		AcquiredTS: time.Now().UTC(),
+	}
+
+	text, marshalErr := json.Marshal(record)
+	if marshalErr != nil {
+		return fmt.Errorf("marshaling hold record: %w", marshalErr)
+	}
+
+	_, postErr := newFilePoster(chatFilePath).Post(chat.Message{
+		From:   *holder,
+		To:     *target,
+		Thread: "hold",
+		Type:   "hold-acquire",
+		Text:   string(text),
+	})
+	if postErr != nil {
+		return fmt.Errorf("hold acquire: posting: %w", postErr)
+	}
+
+	_, err := fmt.Fprintln(stdout, holdID)
+	if err != nil {
+		return fmt.Errorf("hold acquire: writing output: %w", err)
+	}
+
+	return nil
+}
+
+func runHoldCheck(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("hold check", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
+
+	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
+	if parseErr != nil {
+		return fmt.Errorf("hold check: %w", parseErr)
+	}
+
+	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return fmt.Errorf("hold check: %w", pathErr)
+	}
+
+	messages, loadErr := loadChatMessages(chatFilePath)
+	if loadErr != nil {
+		return fmt.Errorf("hold check: %w", loadErr)
+	}
+
+	activeHolds := chat.ScanActiveHolds(messages)
+	poster := newFilePoster(chatFilePath)
+
+	for _, hold := range activeHolds {
+		met, _ := chat.EvaluateCondition(hold, messages)
+		if !met {
+			continue
+		}
+
+		releaseText, marshalErr := json.Marshal(map[string]string{"hold-id": hold.HoldID})
+		if marshalErr != nil {
+			return fmt.Errorf("hold check: marshaling release: %w", marshalErr)
+		}
+
+		_, postErr := poster.Post(chat.Message{
+			From:   "system",
+			To:     "all",
+			Thread: "hold",
+			Type:   "hold-release",
+			Text:   string(releaseText),
+		})
+		if postErr != nil {
+			return fmt.Errorf("hold check: posting release for %s: %w", hold.HoldID, postErr)
+		}
+
+		_, writeErr := fmt.Fprintln(stdout, hold.HoldID)
+		if writeErr != nil {
+			return fmt.Errorf("hold check: writing output: %w", writeErr)
+		}
+	}
+
+	return nil
+}
+
+// runHoldDispatch routes hold subcommands (acquire|release|list|check).
+func runHoldDispatch(subArgs []string, stdout io.Writer) error {
+	if len(subArgs) < 1 {
+		return fmt.Errorf("%w: hold requires a subcommand (acquire|release|list|check)", errUsage)
+	}
+
+	switch subArgs[0] {
+	case "acquire":
+		return runHoldAcquire(subArgs[1:], stdout)
+	case "release":
+		return runHoldRelease(subArgs[1:], stdout)
+	case "list":
+		return runHoldList(subArgs[1:], stdout)
+	case "check":
+		return runHoldCheck(subArgs[1:], stdout)
+	default:
+		return fmt.Errorf("%w: hold %s", errUnknownCommand, subArgs[0])
+	}
+}
+
+func runHoldList(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("hold list", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	holder := fs.String("holder", "", "filter by holder agent name")
+	target := fs.String("target", "", "filter by target agent name")
+	tag := fs.String("tag", "", "filter by workflow tag")
+	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
+
+	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
+	if parseErr != nil {
+		return fmt.Errorf("hold list: %w", parseErr)
+	}
+
+	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return fmt.Errorf("hold list: %w", pathErr)
+	}
+
+	messages, loadErr := loadChatMessages(chatFilePath)
+	if loadErr != nil {
+		return fmt.Errorf("hold list: %w", loadErr)
+	}
+
+	for _, hold := range filterHolds(chat.ScanActiveHolds(messages), *holder, *target, *tag) {
+		_, writeErr := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\n",
+			hold.HoldID, hold.Holder, hold.Target, hold.Condition, hold.Tag,
+		)
+		if writeErr != nil {
+			return fmt.Errorf("hold list: writing output: %w", writeErr)
+		}
+	}
+
+	return nil
+}
+
+func runHoldRelease(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("hold release", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	holdID := fs.String("hold-id", "", "hold ID returned by engram hold acquire")
+	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
+
+	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
+	if parseErr != nil {
+		return fmt.Errorf("hold release: %w", parseErr)
+	}
+
+	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return fmt.Errorf("hold release: %w", pathErr)
+	}
+
+	releasePayload, marshalErr := json.Marshal(map[string]string{"hold-id": *holdID})
+	if marshalErr != nil {
+		return fmt.Errorf("hold release: marshaling: %w", marshalErr)
+	}
+
+	_, postErr := newFilePoster(chatFilePath).Post(chat.Message{
+		From:   "system",
+		To:     "all",
+		Thread: "hold",
+		Type:   "hold-release",
+		Text:   string(releasePayload),
+	})
+	if postErr != nil {
+		return fmt.Errorf("hold release: posting: %w", postErr)
+	}
+
+	_, err := fmt.Fprintln(stdout, "OK")
+	if err != nil {
+		return fmt.Errorf("hold release: writing output: %w", err)
+	}
+
+	return nil
 }
 
 func runRecall(args []string, stdout io.Writer) error {

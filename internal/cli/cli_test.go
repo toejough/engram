@@ -151,6 +151,52 @@ func TestDeriveChatFilePath_HomeDirError_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestLoadChatMessages_InvalidTOML_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	chatFile := filepath.Join(t.TempDir(), "chat.toml")
+	g.Expect(os.WriteFile(chatFile, []byte("not valid toml :::"), 0o600)).To(Succeed())
+
+	_, err := cli.ExportLoadChatMessages(chatFile)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("parsing chat file"))
+	}
+}
+
+// ============================================================
+// loadChatMessages coverage
+// ============================================================
+
+func TestLoadChatMessages_NotExist_ReturnsNil(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	msgs, err := cli.ExportLoadChatMessages(filepath.Join(t.TempDir(), "nonexistent.toml"))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(msgs).To(BeNil())
+}
+
+func TestLoadChatMessages_ReadError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// os.ReadFile on a directory returns a non-NotExist error.
+	_, err := cli.ExportLoadChatMessages(t.TempDir())
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("reading chat file"))
+	}
+}
+
 func TestOsAppendFile_MkdirError_ReturnsError(t *testing.T) {
 	t.Parallel()
 
@@ -169,6 +215,241 @@ func TestOsAppendFile_MkdirError_ReturnsError(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("creating directories"))
 	}
+}
+
+func TestOutputAckResult_FailWriter_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.ExportOutputAckResult(&failWriter{}, chat.AckResult{Result: "ACK", NewCursor: 1})
+	g.Expect(err).To(HaveOccurred())
+}
+
+// ============================================================
+// outputAckResult coverage
+// ============================================================
+
+func TestOutputAckResult_TIMEOUT(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var buf bytes.Buffer
+
+	err := cli.ExportOutputAckResult(&buf, chat.AckResult{
+		Result:    "TIMEOUT",
+		Timeout:   &chat.TimeoutResult{Recipient: "bob"},
+		NewCursor: 5,
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var out map[string]any
+	g.Expect(json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &out)).To(Succeed())
+	g.Expect(out["result"]).To(Equal("TIMEOUT"))
+	g.Expect(out["recipient"]).To(Equal("bob"))
+}
+
+func TestOutputAckResult_TIMEOUT_NilTimeout_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.ExportOutputAckResult(io.Discard, chat.AckResult{Result: "TIMEOUT", Timeout: nil})
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestOutputAckResult_Unknown_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.ExportOutputAckResult(io.Discard, chat.AckResult{Result: "UNKNOWN"})
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestOutputAckResult_WAIT_NilWait_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.ExportOutputAckResult(io.Discard, chat.AckResult{Result: "WAIT", Wait: nil})
+	g.Expect(err).To(HaveOccurred())
+}
+
+// ============================================================
+// Step 9: Chat ack-wait tests
+// ============================================================
+
+func TestRun_ChatAckWait_AllACK(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Pre-populate chat file with an ack from engram-agent addressed to "tester".
+	postErr := cli.Run([]string{
+		"engram", "chat", "post",
+		"--chat-file", chatFile,
+		"--from", "engram-agent", "--to", "tester", "--thread", "t",
+		"--type", "ack", "--text", "ok",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(postErr).NotTo(HaveOccurred())
+
+	if postErr != nil {
+		return
+	}
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "chat", "ack-wait",
+		"--chat-file", chatFile,
+		"--agent", "tester",
+		"--cursor", "0",
+		"--recipients", "engram-agent",
+		"--max-wait", "5",
+	}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result map[string]any
+	g.Expect(json.Unmarshal([]byte(strings.TrimSpace(stdout.String())), &result)).To(Succeed())
+	g.Expect(result["result"]).To(Equal("ACK"))
+	g.Expect(result).To(HaveKey("cursor"))
+}
+
+func TestRun_ChatAckWait_MaxWaitFlag_NoTargCollision(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Pre-write ack so Watch returns immediately.
+	postErr := cli.Run([]string{
+		"engram", "chat", "post",
+		"--chat-file", chatFile,
+		"--from", "engram-agent", "--to", "tester", "--thread", "t",
+		"--type", "ack", "--text", "ok",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(postErr).NotTo(HaveOccurred())
+
+	if postErr != nil {
+		return
+	}
+
+	// Regression: verify --max-wait 1 does not cause a targ flag parsing error.
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "chat", "ack-wait",
+		"--chat-file", chatFile,
+		"--agent", "tester",
+		"--cursor", "0",
+		"--recipients", "engram-agent",
+		"--max-wait", "1",
+	}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result map[string]any
+	g.Expect(json.Unmarshal([]byte(strings.TrimSpace(stdout.String())), &result)).To(Succeed())
+	g.Expect(result["result"]).To(Equal("ACK"))
+}
+
+func TestRun_ChatAckWait_OfflineImplicitACK(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Create an empty chat file — offline-agent has no messages (offline).
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// After 5.5s, post an ack from a non-recipient to trigger Watch to return.
+	// The ackwaiter loop will then detect 5.5s > 5s offline threshold and return ACK.
+	go func() {
+		time.Sleep(5500 * time.Millisecond)
+
+		_ = cli.Run([]string{
+			"engram", "chat", "post",
+			"--chat-file", chatFile,
+			"--from", "trigger-agent", "--to", "tester", "--thread", "t",
+			"--type", "ack", "--text", "trigger",
+		}, io.Discard, io.Discard, nil)
+	}()
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "chat", "ack-wait",
+		"--chat-file", chatFile,
+		"--agent", "tester",
+		"--cursor", "0",
+		"--recipients", "offline-agent",
+		"--max-wait", "30",
+	}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result map[string]any
+	g.Expect(json.Unmarshal([]byte(strings.TrimSpace(stdout.String())), &result)).To(Succeed())
+	g.Expect(result["result"]).To(Equal("ACK"))
+}
+
+func TestRun_ChatAckWait_WAIT(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Pre-populate chat file with a wait message from engram-agent to "tester".
+	postErr := cli.Run([]string{
+		"engram", "chat", "post",
+		"--chat-file", chatFile,
+		"--from", "engram-agent", "--to", "tester", "--thread", "t",
+		"--type", "wait", "--text", "objection",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(postErr).NotTo(HaveOccurred())
+
+	if postErr != nil {
+		return
+	}
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "chat", "ack-wait",
+		"--chat-file", chatFile,
+		"--agent", "tester",
+		"--cursor", "0",
+		"--recipients", "engram-agent",
+		"--max-wait", "5",
+	}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result map[string]any
+	g.Expect(json.Unmarshal([]byte(strings.TrimSpace(stdout.String())), &result)).To(Succeed())
+	g.Expect(result["result"]).To(Equal("WAIT"))
+	g.Expect(result["from"]).To(Equal("engram-agent"))
+	text, _ := result["text"].(string)
+	g.Expect(strings.TrimRight(text, "\n")).To(Equal("objection"))
 }
 
 func TestRun_ChatCursor_InvalidFlag_ReturnsError(t *testing.T) {
@@ -479,6 +760,390 @@ func TestRun_ChatWatch_OutputsJSON(t *testing.T) {
 	text, _ := result["text"].(string)
 	g.Expect(strings.TrimRight(text, "\n")).To(Equal("ping"))
 	g.Expect(result["cursor"]).NotTo(BeZero())
+}
+
+func TestRun_HoldAcquire_ParseError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "hold", "acquire", "--bogus-flag"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// ============================================================
+// Step 10: Hold subcommand tests
+// ============================================================
+
+func TestRun_HoldAcquire_PostsMessage(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "hold", "acquire",
+		"--chat-file", chatFile,
+		"--holder", "lead",
+		"--target", "executor-1",
+		"--condition", "done:lead",
+	}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// stdout should be the hold-id.
+	holdID := strings.TrimSpace(stdout.String())
+	g.Expect(holdID).NotTo(BeEmpty())
+
+	// chat file should have a hold-acquire message.
+	data, readErr := os.ReadFile(chatFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	var parsed struct {
+		Message []chat.Message `toml:"message"`
+	}
+
+	g.Expect(toml.Unmarshal(data, &parsed)).To(Succeed())
+	g.Expect(parsed.Message).To(HaveLen(1))
+	g.Expect(parsed.Message[0].Type).To(Equal("hold-acquire"))
+
+	var record chat.HoldRecord
+	g.Expect(json.Unmarshal([]byte(parsed.Message[0].Text), &record)).To(Succeed())
+	g.Expect(record.HoldID).To(Equal(holdID))
+	g.Expect(record.Condition).To(Equal("done:lead"))
+}
+
+func TestRun_HoldCheck_AutoReleasesMetCondition(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Acquire a hold with condition "done:reviewer-1".
+	var acquireOut bytes.Buffer
+
+	acquireErr := cli.Run([]string{
+		"engram", "hold", "acquire",
+		"--chat-file", chatFile,
+		"--holder", "lead",
+		"--target", "exec-1",
+		"--condition", "done:reviewer-1",
+	}, &acquireOut, io.Discard, nil)
+	g.Expect(acquireErr).NotTo(HaveOccurred())
+
+	if acquireErr != nil {
+		return
+	}
+
+	holdID := strings.TrimSpace(acquireOut.String())
+
+	// Ensure done message TS is strictly after AcquiredTS.
+	time.Sleep(time.Millisecond)
+
+	// Post a "done" message from reviewer-1.
+	postErr := cli.Run([]string{
+		"engram", "chat", "post",
+		"--chat-file", chatFile,
+		"--from", "reviewer-1", "--to", "all", "--thread", "t",
+		"--type", "done", "--text", "done",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(postErr).NotTo(HaveOccurred())
+
+	if postErr != nil {
+		return
+	}
+
+	// Run hold check — should auto-release the hold and print the hold-id.
+	var checkOut bytes.Buffer
+
+	checkErr := cli.Run([]string{
+		"engram", "hold", "check",
+		"--chat-file", chatFile,
+	}, &checkOut, io.Discard, nil)
+	g.Expect(checkErr).NotTo(HaveOccurred())
+
+	releasedID := strings.TrimSpace(checkOut.String())
+	g.Expect(releasedID).To(Equal(holdID))
+
+	// Verify hold-release message was posted (acquire + done + release = 3 messages).
+	data, readErr := os.ReadFile(chatFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	var parsed struct {
+		Message []chat.Message `toml:"message"`
+	}
+
+	g.Expect(toml.Unmarshal(data, &parsed)).To(Succeed())
+	g.Expect(parsed.Message).To(HaveLen(3))
+	g.Expect(parsed.Message[2].Type).To(Equal("hold-release"))
+}
+
+func TestRun_HoldCheck_HelpExitsZero(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "hold", "check", "--help"}, io.Discard, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRun_HoldCheck_InvalidTOML_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	chatFile := filepath.Join(t.TempDir(), "chat.toml")
+	g.Expect(os.WriteFile(chatFile, []byte("not valid toml :::"), 0o600)).To(Succeed())
+
+	err := cli.Run([]string{
+		"engram", "hold", "check",
+		"--chat-file", chatFile,
+	}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRun_HoldCheck_ParseError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "hold", "check", "--bogus-flag"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRun_HoldHelp_ExitsZero(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Regression: --help must exit 0 (ContinueOnError fix).
+	err := cli.Run([]string{"engram", "hold", "acquire", "--help"}, io.Discard, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRun_HoldList_FilterByTag(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Acquire two holds with different tags.
+	acquireErr1 := cli.Run([]string{
+		"engram", "hold", "acquire",
+		"--chat-file", chatFile,
+		"--holder", "lead", "--target", "exec-1",
+		"--tag", "codesign-1",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(acquireErr1).NotTo(HaveOccurred())
+
+	acquireErr2 := cli.Run([]string{
+		"engram", "hold", "acquire",
+		"--chat-file", chatFile,
+		"--holder", "lead", "--target", "exec-2",
+		"--tag", "plan-review-1",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(acquireErr2).NotTo(HaveOccurred())
+
+	if acquireErr1 != nil || acquireErr2 != nil {
+		return
+	}
+
+	// Filter by --tag codesign-1; only one hold should appear.
+	var stdout bytes.Buffer
+
+	listErr := cli.Run([]string{
+		"engram", "hold", "list",
+		"--chat-file", chatFile,
+		"--tag", "codesign-1",
+	}, &stdout, io.Discard, nil)
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	g.Expect(lines).To(HaveLen(1))
+	g.Expect(lines[0]).To(ContainSubstring("codesign-1"))
+}
+
+func TestRun_HoldList_FiltersCorrectly(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Acquire two holds with different holders.
+	acquireErr1 := cli.Run([]string{
+		"engram", "hold", "acquire",
+		"--chat-file", chatFile,
+		"--holder", "lead",
+		"--target", "exec-1",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(acquireErr1).NotTo(HaveOccurred())
+
+	acquireErr2 := cli.Run([]string{
+		"engram", "hold", "acquire",
+		"--chat-file", chatFile,
+		"--holder", "other",
+		"--target", "exec-2",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(acquireErr2).NotTo(HaveOccurred())
+
+	if acquireErr1 != nil || acquireErr2 != nil {
+		return
+	}
+
+	// List filtered by --holder lead; only one hold should appear.
+	var stdout bytes.Buffer
+
+	listErr := cli.Run([]string{
+		"engram", "hold", "list",
+		"--chat-file", chatFile,
+		"--holder", "lead",
+	}, &stdout, io.Discard, nil)
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	g.Expect(lines).To(HaveLen(1))
+	g.Expect(lines[0]).To(ContainSubstring("lead"))
+}
+
+func TestRun_HoldList_HelpExitsZero(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "hold", "list", "--help"}, io.Discard, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRun_HoldList_InvalidTOML_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	chatFile := filepath.Join(t.TempDir(), "chat.toml")
+	g.Expect(os.WriteFile(chatFile, []byte("not valid toml :::"), 0o600)).To(Succeed())
+
+	err := cli.Run([]string{
+		"engram", "hold", "list",
+		"--chat-file", chatFile,
+	}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRun_HoldList_ParseError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "hold", "list", "--bogus-flag"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRun_HoldRelease_HelpExitsZero(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "hold", "release", "--help"}, io.Discard, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRun_HoldRelease_ParseError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "hold", "release", "--bogus-flag"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRun_HoldRelease_PostsMessage(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Acquire a hold first.
+	var acquireOut bytes.Buffer
+
+	acquireErr := cli.Run([]string{
+		"engram", "hold", "acquire",
+		"--chat-file", chatFile,
+		"--holder", "lead",
+		"--target", "exec-1",
+	}, &acquireOut, io.Discard, nil)
+	g.Expect(acquireErr).NotTo(HaveOccurred())
+
+	if acquireErr != nil {
+		return
+	}
+
+	holdID := strings.TrimSpace(acquireOut.String())
+
+	// Release it.
+	releaseErr := cli.Run([]string{
+		"engram", "hold", "release",
+		"--chat-file", chatFile,
+		"--hold-id", holdID,
+	}, io.Discard, io.Discard, nil)
+	g.Expect(releaseErr).NotTo(HaveOccurred())
+
+	// Chat file should have acquire + release messages.
+	data, readErr := os.ReadFile(chatFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	var parsed struct {
+		Message []chat.Message `toml:"message"`
+	}
+
+	g.Expect(toml.Unmarshal(data, &parsed)).To(Succeed())
+	g.Expect(parsed.Message).To(HaveLen(2))
+	g.Expect(parsed.Message[0].Type).To(Equal("hold-acquire"))
+	g.Expect(parsed.Message[1].Type).To(Equal("hold-release"))
+
+	// Release text must contain the hold-id for ScanActiveHolds matching.
+	var releasePayload map[string]string
+	g.Expect(json.Unmarshal([]byte(parsed.Message[1].Text), &releasePayload)).To(Succeed())
+	g.Expect(releasePayload["hold-id"]).To(Equal(holdID))
+}
+
+// ============================================================
+// hold dispatch + subcommand parse/help/invalid-file coverage
+// ============================================================
+
+func TestRun_Hold_NoSubcommand_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "hold"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("usage"))
+	}
+}
+
+func TestRun_Hold_UnknownSubcommand_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "hold", "bogus"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("unknown command"))
+	}
 }
 
 func TestRun_NoArgs_ReturnsUsageError(t *testing.T) {
