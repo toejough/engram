@@ -100,8 +100,11 @@ Tell the user:
 
 | Mistake | Fix |
 |---------|-----|
-| Kill engram-agent before task agents | Task agents shut down first so their `learned` messages get processed |
-| Use `tmux list-panes` without `-a` | Works only in current window — use `-a` for global search |
-| Skip draining background task IDs | Zombie shells accumulate across sessions |
+| Kill engram-agent before task agents | Broadcast shutdown to all first, wait 10s — all agents get the message simultaneously and wrap up in order |
+| Use `tmux list-panes` without `-a` for chat tail | Works only in current window — use `-a` so the tail pane is found regardless of which window is active |
+| Use `tmux list-panes -a` instead of `-s` for agent panes | `-a` kills Claude panes across ALL sessions — use `-s` to scope to the current session only |
+| Kill your own pane | Exclude `$(tmux display-message -p '#{pane_id}')` from the kill list — you need your pane for the summary |
+| Skip draining background task IDs | Zombie shells accumulate across sessions — drain all IDs you have tracked |
+| Drain task IDs you never set | Only drain IDs you actually set in this session — skip those that belong to other roles (e.g., lead-only IDs) |
 | Truncate chat file | Chat file is persistent and append-only — never truncate |
-| Kill by window index or name | Always kill by tracked pane ID |
+| Post `from = "lead"` when not lead | Substitute your actual agent name from your `ready` message |
