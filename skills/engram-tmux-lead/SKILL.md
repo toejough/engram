@@ -172,8 +172,10 @@ fi
 **ALWAYS spawn this. NEVER skip. Not for "simple" tasks. Not for "quick" tasks. Not because "I can handle it myself." The engram-agent is the memory safety net — without it, you learn nothing and surface nothing. Spawn it BEFORE touching the user's request.**
 
 ```bash
-# Split a new pane to the right, start claude in it
-PANE_ID=$(tmux split-window -h -d -t "$LEAD_WINDOW" -P -F '#{pane_id}')
+# Use SPAWN-PANE from Section 1.3 to create the pane.
+# RIGHT_PANE_COUNT=1 at this point (chat tail was spawn #1 in §1.3 setup).
+# SPAWN-PANE sets NEW_PANE — assign to PANE_ID for this spawn.
+PANE_ID=$NEW_PANE
 # Suppress status line — agents run headless, no user to see it; keeps panes clean
 tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
 # Wait for claude to start (watch for the prompt character)
@@ -183,8 +185,6 @@ tmux send-keys -t "$PANE_ID" "/use-engram-chat-as reactive memory agent named en
 # Send extra Enter in case it was treated as a paste
 sleep 1
 tmux send-keys -t "$PANE_ID" Enter
-# Rebalance: coordinator stays left, everything else stacks evenly on right
-tmux select-layout main-vertical
 ```
 
 **Why not `--prompt`?** The `--prompt` flag runs claude in non-interactive mode — no TUI, output goes to stdout, and the window appears blank. Using `send-keys` keeps claude interactive so the user can see agent activity.
