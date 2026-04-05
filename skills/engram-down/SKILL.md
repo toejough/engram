@@ -13,15 +13,17 @@ Execute ALL steps. Do not skip any step.
 
 ### Step 1: Broadcast shutdown
 
+Before posting, identify your agent name. This is the name you used in your `ready` message when you joined chat (e.g., `lead`, `engram-agent`, `executor-1`). Substitute it for `<your-agent-name>` below.
+
 Post `shutdown` to chat addressed to `"all"` so every agent knows the session is ending:
 
 ```toml
 [[message]]
-from = "lead"
+from = "<your-agent-name>"
 to = "all"
 thread = "lifecycle"
 type = "shutdown"
-ts = "<now>"
+ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 text = "Session complete. Shutting down."
 ```
 
