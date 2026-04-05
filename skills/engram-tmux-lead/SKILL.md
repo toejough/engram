@@ -274,8 +274,10 @@ CHAT_MONITOR_TASK_ID = <new background Agent task id>
 Every agent the lead spawns gets a **pane** in the coordinator's window (NOT a separate window):
 
 ```bash
-# Split a new pane to the right, capturing the new pane ID atomically
-PANE_ID=$(tmux split-window -h -d -t "$LEAD_WINDOW" -P -F '#{pane_id}')
+# Use SPAWN-PANE from Section 1.3 to create the pane.
+# SPAWN-PANE checks RIGHT_PANE_COUNT and applies the correct split (middle col, right col, or vertical).
+# SPAWN-PANE sets NEW_PANE — assign to PANE_ID for this spawn.
+PANE_ID=$NEW_PANE
 # Suppress status line — agents run headless, no user to see it; keeps panes clean
 tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
 # Wait for claude to start (watch for the prompt character)
@@ -285,8 +287,6 @@ tmux send-keys -t "$PANE_ID" "/use-engram-chat-as <role> named <agent-name>. You
 # Send extra Enter in case it was treated as a paste
 sleep 1
 tmux send-keys -t "$PANE_ID" Enter
-# Rebalance: coordinator left, everything else stacks evenly on right
-tmux select-layout main-vertical
 ```
 
 **Step 3: Wait for agent done.**
