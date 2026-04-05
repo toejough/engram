@@ -442,7 +442,7 @@ func TestRun_ChatWatch_OutputsJSON(t *testing.T) {
 			"--agent", "watcher",
 			"--cursor", cursor,
 			"--type", "info",
-			"--timeout", "5",
+			"--max-wait", "5",
 		}, &watchOut, io.Discard, nil)
 	}()
 

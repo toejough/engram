@@ -33,7 +33,7 @@ type ChatWatchArgs struct {
 	Agent    string `targ:"flag,name=agent,desc=agent name to filter messages for"`
 	Cursor   int    `targ:"flag,name=cursor,desc=line number to start watching from"`
 	Types    string `targ:"flag,name=type,desc=comma-separated message types to filter (empty=all)"`
-	Timeout  int    `targ:"flag,name=timeout,desc=seconds before giving up (0=block forever)"`
+	MaxWait  int    `targ:"flag,name=max-wait,desc=seconds before giving up (0=block forever)"`
 	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
 }
 
@@ -129,8 +129,8 @@ func ChatWatchFlags(a ChatWatchArgs) []string {
 		flags = append(flags, "--cursor", strconv.Itoa(a.Cursor))
 	}
 
-	if a.Timeout != 0 {
-		flags = append(flags, "--timeout", strconv.Itoa(a.Timeout))
+	if a.MaxWait != 0 {
+		flags = append(flags, "--max-wait", strconv.Itoa(a.MaxWait))
 	}
 
 	return flags

@@ -253,7 +253,7 @@ If you join a channel that already has messages: post `ready` first to announce 
      RECIPIENTS: engram-agent, reviewer        ← exact names from the TO field
 
      For each recipient:
-       RESULT=$(engram chat watch --agent RECIPIENT --cursor CURSOR --type ack,wait --timeout 30)
+       RESULT=$(engram chat watch --agent RECIPIENT --cursor CURSOR --type ack,wait --max-wait 30)
        Parse JSON: TYPE=$(echo "$RESULT" | jq -r '.type'); FROM=$(echo "$RESULT" | jq -r '.from')
        CURSOR=$(echo "$RESULT" | jq -r '.cursor')
      If all recipients returned ack: return ACK|CURSOR

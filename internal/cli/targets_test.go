@@ -262,7 +262,7 @@ func TestChatPostFlags(t *testing.T) {
 func TestChatWatchFlags(t *testing.T) {
 	t.Parallel()
 
-	t.Run("includes cursor and timeout when non-zero", func(t *testing.T) {
+	t.Run("includes cursor and max-wait when non-zero", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
@@ -270,23 +270,23 @@ func TestChatWatchFlags(t *testing.T) {
 			Agent:    "bob",
 			Cursor:   42,
 			Types:    "info",
-			Timeout:  10,
+			MaxWait:  10,
 			ChatFile: "/tmp/chat.toml",
 		})
 		g.Expect(result).To(gomega.ContainElements(
 			"--agent", "bob", "--type", "info",
-			"--chat-file", "/tmp/chat.toml", "--cursor", "42", "--timeout", "10",
+			"--chat-file", "/tmp/chat.toml", "--cursor", "42", "--max-wait", "10",
 		))
 	})
 
-	t.Run("omits cursor and timeout when zero", func(t *testing.T) {
+	t.Run("omits cursor and max-wait when zero", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
 		result := cli.ChatWatchFlags(cli.ChatWatchArgs{Agent: "bob"})
 		g.Expect(result).To(gomega.Equal([]string{"--agent", "bob"}))
 		g.Expect(result).NotTo(gomega.ContainElement("--cursor"))
-		g.Expect(result).NotTo(gomega.ContainElement("--timeout"))
+		g.Expect(result).NotTo(gomega.ContainElement("--max-wait"))
 	})
 }
 

@@ -444,7 +444,7 @@ func runChatWatch(args []string, stdout io.Writer) error {
 	agent := fs.String("agent", "", "agent name to filter messages for")
 	cursor := fs.Int("cursor", 0, "line number to start watching from")
 	typesStr := fs.String("type", "", "comma-separated message types to filter")
-	timeoutSec := fs.Int("timeout", 0, "seconds before giving up (0=block forever)")
+	timeoutSec := fs.Int("max-wait", 0, "seconds before giving up (0=block forever)")
 	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
 
 	parseErr := fs.Parse(args)
