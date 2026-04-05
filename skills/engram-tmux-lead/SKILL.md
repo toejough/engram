@@ -460,13 +460,13 @@ DEAD ──(lead decides, report)──> REPORT+DONE
 | **SILENT** | No chat message for `silence_threshold` (3 min for task agents, 6 min for engram-agent). Detected on 2-minute health check. | Nudge via chat + tmux (see 3.2). |
 | **DEAD** | Nudge failed, tmux window gone, or log shows crash/exit | Decide: respawn (engram-agent always), report to user (task agents). |
 | **PENDING-RELEASE** | Agent posted `done` AND lead's hold registry contains at least one hold targeting this agent | Do NOT kill pane. Agent remains alive and responsive. Monitor holds via background tasks. Silence threshold still applies — use PENDING-RELEASE-specific nudge text (see 3.2). |
-| **DONE** | Agent posted `done` AND no incoming holds remain (or last hold just dissolved) | 1. Post `shutdown` to agent via chat (`type = "shutdown"`, `to = "<agent-name>"`). 2. Kill pane by tracked ID: `tmux kill-pane -t <pane-id>`. 3. Rebalance: `tmux select-layout main-vertical` (single-column mode only — see Section 2.4). 4. Remove from tracking. |
+| **DONE** | Agent posted `done` AND no incoming holds remain (or last hold just dissolved) | 1. Post `shutdown` to agent via chat (`type = "shutdown"`, `to = "<agent-name>"`). 2. Set `PANE_ID=<tracked-pane-id>` then use KILL-PANE from Section 1.3 (handles single- and two-column rebalancing). 3. Remove from tracking. |
 
 **NEVER kill the engram-agent.** It runs for the entire session. Only task agents transition to DONE.
 
 **ALWAYS send `shutdown` to the agent via chat before killing its pane.** This aligns the agent's protocol state so it doesn't post stale messages after pane death.
 
-**ALWAYS kill panes by tracked pane ID.** Never by window index or name. After killing, run `tmux select-layout main-vertical` to rebalance remaining panes (single-column mode only — see Section 2.4 for two-column mode).
+**ALWAYS kill panes by tracked pane ID.** Never by window index or name. After killing, use KILL-PANE from Section 1.3 — it handles rebalancing for both single- and two-column modes.
 
 ### 3.2 Nudging
 
@@ -515,7 +515,7 @@ Track nudge count per agent. After 2 failed nudge cycles, skip straight to DEAD 
 | Task agents | Report to user with last 20 lines of log + last chat messages. User decides. | User-controlled. |
 
 Respawn procedure:
-1. Kill existing pane: `tmux kill-pane -t <pane-id> 2>/dev/null` then `tmux select-layout main-vertical` (single-column mode only — see Section 2.4).
+1. Set `PANE_ID=<tracked-pane-id>` then use KILL-PANE from Section 1.3 (handles single- and two-column layout rebalancing).
 2. Spawn fresh window with same parameters
 3. Post `info` to chat: `"Respawned <agent-name> (attempt N/3). Previous instance died/became unresponsive."`
 4. New instance reads chat history on join and picks up context
@@ -597,9 +597,8 @@ The Agent is persistent: it loops on fswatch until the release fires. The backgr
 1. Drain its background task (TaskOutput block:false)
 2. Remove hold from registry
 3. Check if target has remaining incoming holds
-4. If no remaining holds → post `shutdown` to target via chat → kill target pane → DONE
+4. If no remaining holds → post `shutdown` to target via chat → set `PANE_ID=<tracked-pane-id>` then use KILL-PANE from Section 1.3 (handles kill + layout rebalancing) → DONE
 5. If remaining holds → target stays in PENDING-RELEASE
-6. `tmux select-layout main-vertical` after kill (single-column mode only — see Section 2.4)
 
 #### When to Create Holds
 
