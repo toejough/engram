@@ -2,7 +2,9 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,13 +15,16 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"engram/internal/anthropic"
+	"engram/internal/chat"
 	"engram/internal/memory"
 	"engram/internal/recall"
 	"engram/internal/surface"
 	"engram/internal/tokenresolver"
 	"engram/internal/tomlwriter"
+	"engram/internal/watch"
 )
 
 // Exported variables.
@@ -46,6 +51,8 @@ func Run(
 		return runRecall(subArgs, stdout)
 	case "show":
 		return runShow(subArgs, stdout)
+	case "chat":
+		return runChatDispatch(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -54,6 +61,10 @@ func Run(
 // unexported constants.
 const (
 	anthropicMaxTokens = 1024
+	chatDirMode        = 0o700
+	chatFileMode       = 0o600
+	lockRetryDelay     = 5 * time.Millisecond
+	maxLockRetries     = 200
 	minArgs            = 2
 )
 
@@ -62,6 +73,7 @@ var (
 	defaultModifier = memory.NewModifier( //nolint:gochecknoglobals // production singleton
 		memory.WithModifierWriter(tomlwriter.New()),
 	)
+	errLockTimeout    = errors.New("acquiring lock: exceeded max retries")
 	errUnknownCommand = errors.New("unknown command")
 	errUsage          = errors.New("usage: engram <recall|show> [flags]")
 )
@@ -123,6 +135,17 @@ func (r *osFileReader) Read(path string) ([]byte, error) {
 	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
 }
 
+// watchResult is the JSON-serializable output of engram chat watch.
+type watchResult struct {
+	From   string    `json:"from"`
+	To     string    `json:"to"`
+	Thread string    `json:"thread"`
+	Type   string    `json:"type"`
+	TS     time.Time `json:"ts"`
+	Text   string    `json:"text"`
+	Cursor int       `json:"cursor"`
+}
+
 // applyDataDirDefault sets *dataDir to the standard engram data path when empty.
 func applyDataDirDefault(dataDir *string) error {
 	if *dataDir != "" {
@@ -181,12 +204,51 @@ func buildRecallSurfacer(_ context.Context, dataDir string) (recall.MemorySurfac
 	), nil
 }
 
+// deriveChatFilePath returns the chat file path, using override if non-empty.
+// homeDir and getwd are injected for testability; callers pass os.UserHomeDir and os.Getwd.
+func deriveChatFilePath(
+	override string,
+	homeDir func() (string, error),
+	getwd func() (string, error),
+) (string, error) {
+	if override != "" {
+		return override, nil
+	}
+
+	home, err := homeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolving home directory: %w", err)
+	}
+
+	cwd, cwdErr := getwd()
+	if cwdErr != nil {
+		return "", fmt.Errorf("resolving working directory: %w", cwdErr)
+	}
+
+	return filepath.Join(DataDirFromHome(home), "chat", ProjectSlugFromPath(cwd)+".toml"), nil
+}
+
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
 func makeAnthropicCaller(
 	token string,
 ) func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
 	client := newAnthropicClient(token)
 	return client.Caller(anthropicMaxTokens)
+}
+
+// marshalAndWriteWatchResult encodes result as JSON and writes it to stdout.
+func marshalAndWriteWatchResult(stdout io.Writer, result watchResult) error {
+	encoded, encErr := json.Marshal(result)
+	if encErr != nil {
+		return fmt.Errorf("chat watch: encoding result: %w", encErr)
+	}
+
+	_, err := fmt.Fprintf(stdout, "%s\n", encoded)
+	if err != nil {
+		return fmt.Errorf("chat watch: writing output: %w", err)
+	}
+
+	return nil
 }
 
 // newAnthropicClient creates a shared anthropic.Client configured with the
@@ -209,6 +271,64 @@ func newTokenResolver() *tokenresolver.Resolver {
 	)
 }
 
+// osAppendFile appends data to path, creating it if needed.
+func osAppendFile(path string, data []byte) error {
+	mkdirErr := os.MkdirAll(filepath.Dir(path), chatDirMode)
+	if mkdirErr != nil {
+		return fmt.Errorf("creating directories: %w", mkdirErr)
+	}
+
+	f, openErr := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, chatFileMode) //nolint:gosec
+	if openErr != nil {
+		return fmt.Errorf("opening file: %w", openErr)
+	}
+
+	defer f.Close() //nolint:errcheck
+
+	_, writeErr := f.Write(data)
+	if writeErr != nil {
+		return fmt.Errorf("writing file: %w", writeErr)
+	}
+
+	return nil
+}
+
+// osLineCount counts newlines in path. Returns 0 if file does not exist.
+func osLineCount(path string) (int, error) {
+	data, err := os.ReadFile(path) //nolint:gosec
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+
+		return 0, fmt.Errorf("reading file: %w", err)
+	}
+
+	return bytes.Count(data, []byte("\n")), nil
+}
+
+// osLockFile implements chat.LockFile using O_CREATE|O_EXCL with retry.
+func osLockFile(name string) (func() error, error) {
+	for range maxLockRetries {
+		f, err := os.OpenFile(name, os.O_CREATE|os.O_EXCL, chatFileMode) //nolint:gosec
+		if err == nil {
+			return func() error {
+				_ = f.Close()
+
+				return os.Remove(name)
+			}, nil
+		}
+
+		if !os.IsExist(err) {
+			return nil, fmt.Errorf("creating lock: %w", err)
+		}
+
+		time.Sleep(lockRetryDelay)
+	}
+
+	return nil, errLockTimeout
+}
+
 // recordSurfacing increments the surfaced count for a memory file.
 func recordSurfacing(path string) error {
 	return defaultModifier.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
@@ -221,6 +341,158 @@ func recordSurfacing(path string) error {
 func resolveToken(ctx context.Context) string {
 	token, _ := newTokenResolver().Resolve(ctx)
 	return token
+}
+
+func runChatCursor(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("chat cursor", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("chat cursor: %w", parseErr)
+	}
+
+	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return fmt.Errorf("chat cursor: %w", pathErr)
+	}
+
+	count, countErr := osLineCount(chatFilePath)
+	if countErr != nil {
+		return fmt.Errorf("chat cursor: %w", countErr)
+	}
+
+	_, err := fmt.Fprintln(stdout, count)
+	if err != nil {
+		return fmt.Errorf("chat cursor: writing output: %w", err)
+	}
+
+	return nil
+}
+
+// runChatDispatch routes chat subcommands (post|watch|cursor).
+func runChatDispatch(subArgs []string, stdout io.Writer) error {
+	if len(subArgs) < 1 {
+		return fmt.Errorf("%w: chat requires a subcommand (post|watch|cursor)", errUsage)
+	}
+
+	switch subArgs[0] {
+	case "post":
+		return runChatPost(subArgs[1:], stdout)
+	case "watch":
+		return runChatWatch(subArgs[1:], stdout)
+	case "cursor":
+		return runChatCursor(subArgs[1:], stdout)
+	default:
+		return fmt.Errorf("%w: chat %s", errUnknownCommand, subArgs[0])
+	}
+}
+
+func runChatPost(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("chat post", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	from := fs.String("from", "", "sender agent name")
+	toField := fs.String("to", "", "recipient names or all")
+	thread := fs.String("thread", "", "conversation thread name")
+	msgType := fs.String("type", "", "message type")
+	text := fs.String("text", "", "message content")
+	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("chat post: %w", parseErr)
+	}
+
+	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return fmt.Errorf("chat post: %w", pathErr)
+	}
+
+	poster := &chat.FilePoster{
+		FilePath:   chatFilePath,
+		Lock:       osLockFile,
+		AppendFile: osAppendFile,
+		LineCount:  osLineCount,
+	}
+
+	cursor, postErr := poster.Post(chat.Message{
+		From:   *from,
+		To:     *toField,
+		Thread: *thread,
+		Type:   *msgType,
+		Text:   *text,
+	})
+	if postErr != nil {
+		return fmt.Errorf("chat post: %w", postErr)
+	}
+
+	_, err := fmt.Fprintln(stdout, cursor)
+	if err != nil {
+		return fmt.Errorf("chat post: writing output: %w", err)
+	}
+
+	return nil
+}
+
+func runChatWatch(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("chat watch", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	agent := fs.String("agent", "", "agent name to filter messages for")
+	cursor := fs.Int("cursor", 0, "line number to start watching from")
+	typesStr := fs.String("type", "", "comma-separated message types to filter")
+	timeoutSec := fs.Int("timeout", 0, "seconds before giving up (0=block forever)")
+	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("chat watch: %w", parseErr)
+	}
+
+	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return fmt.Errorf("chat watch: %w", pathErr)
+	}
+
+	var msgTypes []string
+
+	if *typesStr != "" {
+		msgTypes = strings.Split(*typesStr, ",")
+	}
+
+	ctx, cancel := signalContext()
+	defer cancel()
+
+	if *timeoutSec > 0 {
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(*timeoutSec)*time.Second)
+		defer cancel()
+	}
+
+	watcher := &chat.FileWatcher{
+		FilePath:  chatFilePath,
+		FSWatcher: &watch.FSNotifyWatcher{},
+		ReadFile:  os.ReadFile,
+	}
+
+	msg, newCursor, watchErr := watcher.Watch(ctx, *agent, *cursor, msgTypes)
+	if watchErr != nil {
+		return fmt.Errorf("chat watch: %w", watchErr)
+	}
+
+	result := watchResult{
+		From:   msg.From,
+		To:     msg.To,
+		Thread: msg.Thread,
+		Type:   msg.Type,
+		TS:     msg.TS,
+		Text:   msg.Text,
+		Cursor: newCursor,
+	}
+
+	return marshalAndWriteWatchResult(stdout, result)
 }
 
 func runRecall(args []string, stdout io.Writer) error {

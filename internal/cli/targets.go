@@ -5,12 +5,37 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/toejough/targ"
 )
 
 // --- Targ args structs ---
+
+// ChatCursorArgs holds parsed flags for the chat cursor subcommand.
+type ChatCursorArgs struct {
+	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
+}
+
+// ChatPostArgs holds parsed flags for the chat post subcommand.
+type ChatPostArgs struct {
+	From     string `targ:"flag,name=from,desc=sender agent name"`
+	To       string `targ:"flag,name=to,desc=comma-separated recipient names or all"`
+	Thread   string `targ:"flag,name=thread,desc=conversation thread name"`
+	MsgType  string `targ:"flag,name=type,desc=message type (intent|ack|wait|info|done|learned|ready|shutdown|escalate)"`
+	Text     string `targ:"flag,name=text,desc=message content"`
+	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
+}
+
+// ChatWatchArgs holds parsed flags for the chat watch subcommand.
+type ChatWatchArgs struct {
+	Agent    string `targ:"flag,name=agent,desc=agent name to filter messages for"`
+	Cursor   int    `targ:"flag,name=cursor,desc=line number to start watching from"`
+	Types    string `targ:"flag,name=type,desc=comma-separated message types to filter (empty=all)"`
+	Timeout  int    `targ:"flag,name=timeout,desc=seconds before giving up (0=block forever)"`
+	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
+}
 
 // RecallArgs holds parsed flags for the recall subcommand.
 type RecallArgs struct {
@@ -34,6 +59,24 @@ func AddBoolFlag(flags []string, name string, value bool) []string {
 	return flags
 }
 
+// BuildChatGroup builds the targ group for chat subcommands.
+func BuildChatGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup {
+	return targ.Group("chat",
+		targ.Targ(func(a ChatPostArgs) {
+			args := append([]string{"engram", "chat", "post"}, ChatPostFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("post").Description("Post a message to the engram chat file"),
+		targ.Targ(func(a ChatWatchArgs) {
+			args := append([]string{"engram", "chat", "watch"}, ChatWatchFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("watch").Description("Block until a matching message arrives in the chat file"),
+		targ.Targ(func(a ChatCursorArgs) {
+			args := append([]string{"engram", "chat", "cursor"}, ChatCursorFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("cursor").Description("Output the current chat file line count (cursor position)"),
+	)
+}
+
 // BuildFlags constructs a []string flag list from key-value pairs, skipping empty values.
 func BuildFlags(pairs ...string) []string {
 	flags := make([]string, 0, len(pairs))
@@ -55,6 +98,42 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 		targ.Targ(func(a ShowArgs) { run("show", ShowFlags(a)) }).
 			Name("show").Description("Display full memory details"),
 	}
+}
+
+// ChatCursorFlags returns the CLI flag args for the chat cursor subcommand.
+func ChatCursorFlags(a ChatCursorArgs) []string {
+	return BuildFlags("--chat-file", a.ChatFile)
+}
+
+// ChatPostFlags returns the CLI flag args for the chat post subcommand.
+func ChatPostFlags(a ChatPostArgs) []string {
+	return BuildFlags(
+		"--from", a.From,
+		"--to", a.To,
+		"--thread", a.Thread,
+		"--type", a.MsgType,
+		"--text", a.Text,
+		"--chat-file", a.ChatFile,
+	)
+}
+
+// ChatWatchFlags returns the CLI flag args for the chat watch subcommand.
+func ChatWatchFlags(a ChatWatchArgs) []string {
+	flags := BuildFlags(
+		"--agent", a.Agent,
+		"--type", a.Types,
+		"--chat-file", a.ChatFile,
+	)
+
+	if a.Cursor != 0 {
+		flags = append(flags, "--cursor", strconv.Itoa(a.Cursor))
+	}
+
+	if a.Timeout != 0 {
+		flags = append(flags, "--timeout", strconv.Itoa(a.Timeout))
+	}
+
+	return flags
 }
 
 // DataDirFromHome returns the standard engram data directory for a given home path.
@@ -97,8 +176,10 @@ func ShowFlags(a ShowArgs) []string {
 
 // Targets returns all targ targets for the engram CLI.
 func Targets(stdout, stderr io.Writer, stdin io.Reader) []any {
-	return BuildTargets(func(subcmd string, flags []string) {
+	run := func(subcmd string, flags []string) {
 		args := append([]string{"engram", subcmd}, flags...)
 		RunSafe(args, stdout, stderr, stdin)
-	})
+	}
+
+	return append(BuildTargets(run), BuildChatGroup(stdout, stderr, stdin))
 }
