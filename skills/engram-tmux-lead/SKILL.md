@@ -17,11 +17,12 @@ The user's primary agent. All other agents are behind the scenes — the user ta
 - Listing issues, creating PRs, filing issues
 - Answering technical questions from your own knowledge
 - Calling `tmux` commands directly — use `engram agent spawn/kill` instead.
+- Running sleep or polling loops as foreground Bash commands
 
 **The ONLY commands the lead runs directly are:**
 - `engram agent` commands (spawn, kill, list, wait-ready)
 - `tmux` send-keys, capture-pane (for nudging and health checks only)
-- Chat file operations (append to chat, read chat, spawn background monitor Agent)
+- Chat file operations (append to chat, read chat, background Bash monitor via `run_in_background: true`)
 - `grep` on the chat file to check agent status
 
 **HARD GATE — parrot FIRST:** When the user sends a message, the lead's FIRST action is ALWAYS to post the user EXACT WORDS verbatim to chat as an `info` message — no summarization, no expansion, no interpretation. THEN decide how to route it. The engram-agent needs to see every user message — it may have relevant memories to surface. If you skip parroting, the memory system is blind.
@@ -150,19 +151,19 @@ Post your `ready` message to chat. Then tell the user you're ready and what agen
 
 **The lead does NOT enter the standard blocking watch loop.** Unlike reactive agents, the lead stays interactive — it must be available for user input at all times. Instead, the lead:
 
-1. After each user interaction, **replace** the chat monitor Agent (see drain-before-spawn pattern below)
-2. If the monitor Agent fires (agent posted something):
+1. After each user interaction, **replace** the chat monitor Bash task (see drain-before-spawn pattern below)
+2. If the monitor Bash task fires (agent posted something):
    a. **ACK any `intent` messages** in the post-drain sweep `new_lines` that are addressed to `lead` or `all` — before any other processing. Extract `from` and `thread` from the TOML block; post `type = "ack"`, `to = <from-field>`, `thread = <thread-field>`, `text = "Received."`.
    b. Process the chat message — relay questions to the user, handle agent status updates, route tasks, etc.
 3. If the user types first, process the user message — parrot to chat, route to an agent
-4. After processing either, replace the chat monitor Agent (drain old → spawn new)
+4. After processing either, replace the chat monitor Bash task (drain old → spawn new)
 
 This means the lead processes chat messages opportunistically between user inputs, not as a blocking loop.
 
-**HARD RULE: drain before spawn.** The lead must NEVER spawn a second monitor Agent while one is already running or has completed but not been drained. Unread completed tasks accumulate as zombie "shells" in Claude Code's background task queue. The replace pattern:
+**HARD RULE: drain before spawn.** The lead must NEVER spawn a second monitor Bash task while one is already running or has completed but not been drained. Unread completed tasks accumulate as zombie "shells" in Claude Code's background task queue. The replace pattern:
 
 ```python
-# Before spawning a new chat monitor Agent:
+# Before spawning a new chat monitor Bash task:
 if CHAT_MONITOR_TASK_ID:
     TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)  # drain; discard output
 
@@ -176,8 +177,11 @@ if new_lines.strip():
         post_ack(to=intent.from, thread=intent.thread, text="Received.")
     process_chat_messages(new_lines)   # relay, route, or queue as normal
 
-# Spawn replacement (Agent tool, run_in_background: true)
-CHAT_MONITOR_TASK_ID = <new background Agent task id>
+# Spawn replacement (Bash tool, run_in_background: true — embed CURSOR as literal integer):
+CHAT_MONITOR_TASK_ID = Bash(
+    command="engram chat watch --agent lead --cursor CURSOR --max-wait 120",
+    run_in_background=True
+)
 ```
 
 ## 2. Agent Spawning
@@ -850,7 +854,9 @@ Drop questions that become stale (asking agent posted `done` or moved on).
 
 ### 6.1 Chat Watch Loop
 
-Use the Background Monitor Pattern from `use-engram-chat-as` — spawn a background monitor Agent to watch the chat file. Between user interactions, idle but watching — wake on Agent notification. Do NOT run fswatch or grep directly in the lead's main context; these produce visible tool-call noise in the lead pane.
+Run `engram chat watch --agent lead --cursor N --max-wait 120` as a **background Bash command** (`run_in_background: true`) to watch the chat file. Between user interactions, idle but watching — wake on Bash task notification. Do NOT spawn a background Agent subagent for monitoring; the Bash command runs `engram chat watch` directly — no LLM interpretation, no improvised polling.
+
+**All monitoring MUST use `run_in_background: true`. Never run loops, sleeps, or blocking waits in the foreground — the lead must stay interactive for user input at all times.**
 
 When the user types a message:
 1. Process the user message (route/relay/respond)
@@ -860,7 +866,7 @@ When the user types a message:
 **Replace pattern for chat watcher (HARD RULE — prevents zombie tasks):**
 
 ```python
-# Drain old monitor Agent before spawning new one:
+# Drain old monitor Bash task before spawning new one:
 if CHAT_MONITOR_TASK_ID:
     TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)  # drain; discard output
 
@@ -874,18 +880,15 @@ if new_lines.strip():
         post_ack(to=intent.from, thread=intent.thread, text="Received.")
     process_chat_messages(new_lines)   # relay, route, or queue as normal
 
-# Spawn replacement monitor Agent (Agent tool, run_in_background: true):
-# Use this verbatim prompt template (embed CURSOR as a literal integer):
-# ---
-# Monitor engram chat.
-# Run: RESULT=$(engram chat watch --agent lead --cursor CURSOR --max-wait 120)
-# Parse JSON: type, from, cursor, text.
-# Return parsed fields.
-# ---
-CHAT_MONITOR_TASK_ID = <task id from Agent tool result>
+# Spawn replacement background Bash monitor (Bash tool, run_in_background: true):
+# Embed CURSOR as a literal integer, NOT a shell variable:
+CHAT_MONITOR_TASK_ID = Bash(
+    command="engram chat watch --agent lead --cursor 12345 --max-wait 120",
+    run_in_background=True
+)
 ```
 
-Always do this — even if you processed user input rather than a chat notification. The previous monitor Agent may have already returned; draining it prevents it from queuing as a zombie.
+Always do this — even if you processed user input rather than a chat notification. The previous monitor Bash task may have already returned; draining it prevents it from queuing as a zombie.
 
 ### 6.2 Periodic Health Check (Every 2 Minutes)
 
@@ -952,7 +955,7 @@ if HEALTH_CHECK_TASK_ID:
 **NEVER let background tasks accumulate.** Each completed-but-unread background task appears as an open "shell" in Claude Code's status line. After a session with many false-positive wake cycles, this creates noise and confusion.
 
 **Rules:**
-1. **One chat monitor Agent at a time.** `CHAT_MONITOR_TASK_ID` holds the active monitor. Replace = drain old + spawn new.
+1. **One chat monitor Bash task at a time.** `CHAT_MONITOR_TASK_ID` holds the active monitor. Replace = drain old + spawn new.
 2. **Drain on replace.** Before starting a new background task of the same logical type, always call `TaskOutput(task_id=old_id, block=False)` to drain the completed task.
 3. **Drain on shutdown.** At session end (Section 3.4), drain all tracked task IDs: `CHAT_MONITOR_TASK_ID` and `HEALTH_CHECK_TASK_ID`.
 4. **Read output before retrying.** If a background READY check times out, read its output (it has completed), then decide whether to retry.
@@ -960,13 +963,13 @@ if HEALTH_CHECK_TASK_ID:
 6. **Use `engram chat watch` — never grep or awk.** The binary handles agent and type filtering, cursor-scoping, and fsnotify-based blocking. No grep, no awk, no polling loops.
 
 ```python
-# WRONG — spawns new monitor Agent without draining old one:
-CHAT_MONITOR_TASK_ID = Agent(task="monitor chat...", run_in_background=True)
+# WRONG — spawns new monitor Bash task without draining old one:
+CHAT_MONITOR_TASK_ID = Bash(command="engram chat watch --agent lead --cursor 12345 --max-wait 120", run_in_background=True)
 
 # RIGHT — drain old, then spawn new:
 if CHAT_MONITOR_TASK_ID:
     TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)
-CHAT_MONITOR_TASK_ID = Agent(task="monitor chat...", run_in_background=True)
+CHAT_MONITOR_TASK_ID = Bash(command="engram chat watch --agent lead --cursor 12345 --max-wait 120", run_in_background=True)
 ```
 
 ```bash
