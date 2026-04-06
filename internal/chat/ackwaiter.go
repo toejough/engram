@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"strings"
 	"time"
 )
@@ -35,9 +36,9 @@ func (w *FileAckWaiter) AckWait(
 		maxWait = defaultMaxWait
 	}
 
-	data, err := w.ReadFile(w.FilePath)
+	data, err := readFileOptional(w.ReadFile, w.FilePath)
 	if err != nil {
-		return AckResult{}, fmt.Errorf("reading chat file: %w", err)
+		return AckResult{}, err
 	}
 
 	states := buildRecipientStates(data, recipients, w.NowFunc())
@@ -191,4 +192,19 @@ func isOnline(messages []Message, recipient string, cutoff time.Time) bool {
 	}
 
 	return false
+}
+
+// readFileOptional reads path, returning nil data if the file does not exist.
+// Callers treat nil data as an empty file (no messages → all recipients offline).
+func readFileOptional(readFile func(string) ([]byte, error), path string) ([]byte, error) {
+	data, err := readFile(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("reading chat file: %w", err)
+	}
+
+	return data, nil
 }

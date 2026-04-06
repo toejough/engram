@@ -342,6 +342,109 @@ func TestResolveChatFile_HomeDirError_ReturnsError(t *testing.T) {
 	}
 }
 
+// Step 14: Full intent→ack→hold→check→release E2E cycle.
+func TestRun_AckWait_With_HoldAcquire_E2E(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Pre-create chat file so ack-wait can watch it (mirrors production: intent is
+	// posted before ack-wait is called, ensuring the file already exists).
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Step 1: Get cursor, then start ack-wait in a goroutine.
+	var cursorOut bytes.Buffer
+
+	err := cli.Run([]string{"engram", "chat", "cursor", "--chat-file", chatFile}, &cursorOut, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	cursor := strings.TrimSpace(cursorOut.String())
+
+	ackWaitDone := make(chan string, 1)
+
+	go func() {
+		var out bytes.Buffer
+
+		_ = cli.Run([]string{
+			"engram", "chat", "ack-wait",
+			"--chat-file", chatFile,
+			"--agent", "lead",
+			"--cursor", cursor,
+			"--recipients", "executor-1",
+			"--max-wait", "5",
+		}, &out, io.Discard, nil)
+		ackWaitDone <- strings.TrimSpace(out.String())
+	}()
+
+	// Post ACK from executor-1 to lead after brief delay to ensure ack-wait is watching.
+	time.Sleep(50 * time.Millisecond)
+
+	g.Expect(cli.Run([]string{
+		"engram", "chat", "post",
+		"--chat-file", chatFile,
+		"--from", "executor-1",
+		"--to", "lead",
+		"--thread", "e2e",
+		"--type", "ack",
+		"--text", "proceeding",
+	}, io.Discard, io.Discard, nil)).To(Succeed())
+
+	// Step 2: Verify ack-wait resolved with ACK.
+	select {
+	case result := <-ackWaitDone:
+		g.Expect(result).To(ContainSubstring(`"result":"ACK"`))
+	case <-time.After(6 * time.Second):
+		t.Fatal("ack-wait did not resolve within 6s")
+	}
+
+	// Step 3: Acquire hold — executor-1 must not be killed until done.
+	var holdOut bytes.Buffer
+
+	g.Expect(cli.Run([]string{
+		"engram", "hold", "acquire",
+		"--chat-file", chatFile,
+		"--holder", "lead",
+		"--target", "executor-1",
+		"--condition", "done:executor-1",
+	}, &holdOut, io.Discard, nil)).To(Succeed())
+
+	holdID := strings.TrimSpace(holdOut.String())
+	g.Expect(holdID).NotTo(BeEmpty())
+
+	// Step 4: Verify hold is active.
+	var listOut bytes.Buffer
+
+	g.Expect(cli.Run([]string{"engram", "hold", "list", "--chat-file", chatFile}, &listOut, io.Discard, nil)).To(Succeed())
+	g.Expect(listOut.String()).To(ContainSubstring(holdID))
+
+	// Step 5: Executor-1 posts done.
+	g.Expect(cli.Run([]string{
+		"engram", "chat", "post",
+		"--chat-file", chatFile,
+		"--from", "executor-1",
+		"--to", "all",
+		"--thread", "e2e",
+		"--type", "done",
+		"--text", "task complete",
+	}, io.Discard, io.Discard, nil)).To(Succeed())
+
+	// Step 6: Hold check evaluates condition and auto-releases.
+	var checkOut bytes.Buffer
+
+	checkErr := cli.Run([]string{"engram", "hold", "check", "--chat-file", chatFile}, &checkOut, io.Discard, nil)
+	g.Expect(checkErr).NotTo(HaveOccurred())
+	g.Expect(strings.TrimSpace(checkOut.String())).To(Equal(holdID))
+
+	// Step 7: Verify hold is cleared.
+	var listOut2 bytes.Buffer
+
+	listErr2 := cli.Run([]string{"engram", "hold", "list", "--chat-file", chatFile}, &listOut2, io.Discard, nil)
+	g.Expect(listErr2).NotTo(HaveOccurred())
+	g.Expect(listOut2.String()).To(BeEmpty())
+}
+
 // ============================================================
 // Step 9: Chat ack-wait tests
 // ============================================================
@@ -855,6 +958,58 @@ func TestRun_ChatWatch_OutputsJSON(t *testing.T) {
 	text, _ := result["text"].(string)
 	g.Expect(strings.TrimRight(text, "\n")).To(Equal("ping"))
 	g.Expect(result["cursor"]).NotTo(BeZero())
+}
+
+// ============================================================
+// Task 4: Concurrent + Integration Tests
+// ============================================================
+
+// Step 13: Concurrent hold-acquire safety test.
+func TestRun_HoldAcquire_ConcurrentWritesSafe(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	const holdCount = 5
+
+	var wg sync.WaitGroup
+
+	wg.Add(holdCount)
+
+	for i := range holdCount {
+		go func(n int) {
+			defer wg.Done()
+
+			_ = cli.Run([]string{
+				"engram", "hold", "acquire",
+				"--chat-file", chatFile,
+				"--holder", fmt.Sprintf("lead-%d", n),
+				"--target", fmt.Sprintf("exec-%d", n),
+			}, io.Discard, io.Discard, nil)
+		}(i)
+	}
+
+	wg.Wait()
+
+	data, readErr := os.ReadFile(chatFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	var parsed struct {
+		Message []chat.Message `toml:"message"`
+	}
+
+	g.Expect(toml.Unmarshal(data, &parsed)).To(Succeed())
+	g.Expect(parsed.Message).To(HaveLen(holdCount))
+
+	for _, msg := range parsed.Message {
+		g.Expect(msg.Type).To(Equal("hold-acquire"))
+	}
 }
 
 func TestRun_HoldAcquire_ParseError_ReturnsError(t *testing.T) {

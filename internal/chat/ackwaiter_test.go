@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"testing"
 	"time"
 
@@ -380,6 +381,67 @@ func TestFileAckWaiter_OnlineSilentTIMEOUT(t *testing.T) {
 	}
 
 	g.Expect(result.Timeout.Recipient).To(Equal("engram-agent"))
+}
+
+func TestFileAckWaiter_ReadFileError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	ioErr := errors.New("disk I/O error")
+
+	waiter := &chat.FileAckWaiter{
+		FilePath: "/unreachable/chat.toml",
+		Watcher: watcherFunc(func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+			return chat.Message{}, cursor, errors.New("should not be called")
+		}),
+		ReadFile: func(_ string) ([]byte, error) {
+			return nil, ioErr
+		},
+		NowFunc: time.Now,
+		MaxWait: 30 * time.Second,
+	}
+
+	_, err := waiter.AckWait(context.Background(), "caller", 0, []string{"executor-1"})
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("disk I/O error")))
+}
+
+func TestFileAckWaiter_ReadFileNotExist_TreatedAsOffline(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	// ReadFile returns ErrNotExist — recipient has no messages, so treated as offline.
+	// NowFunc jumps 6s ahead on second call to trigger offline implicit ACK without blocking.
+	startTime := time.Now()
+	callCount := 0
+
+	waiter := &chat.FileAckWaiter{
+		FilePath: "/nonexistent/chat.toml",
+		Watcher: watcherFunc(func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+			return chat.Message{}, cursor, errors.New("should not be called")
+		}),
+		ReadFile: func(_ string) ([]byte, error) {
+			return nil, fs.ErrNotExist
+		},
+		NowFunc: func() time.Time {
+			callCount++
+			if callCount == 1 {
+				return startTime
+			}
+
+			return startTime.Add(6 * time.Second)
+		},
+		MaxWait: 30 * time.Second,
+	}
+
+	result, err := waiter.AckWait(context.Background(), "caller", 0, []string{"executor-1"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Result).To(Equal("ACK"))
 }
 
 func TestFileAckWaiter_WAITReturnedImmediately(t *testing.T) {
