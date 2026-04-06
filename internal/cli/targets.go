@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -223,8 +222,9 @@ func ChatWatchFlags(a ChatWatchArgs) []string {
 
 // DataDirFromHome returns the standard engram data directory for a given home path.
 // It respects $XDG_DATA_HOME if set, otherwise defaults to $HOME/.local/share/engram.
-func DataDirFromHome(home string) string {
-	if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
+// getenv is injected so callers control environment access (pass os.Getenv in production).
+func DataDirFromHome(home string, getenv func(string) string) string {
+	if xdg := getenv("XDG_DATA_HOME"); xdg != "" {
 		return filepath.Join(xdg, "engram")
 	}
 

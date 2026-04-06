@@ -170,7 +170,7 @@ func applyDataDirDefault(dataDir *string) error {
 		return fmt.Errorf("resolving home directory: %w", err)
 	}
 
-	*dataDir = DataDirFromHome(home)
+	*dataDir = DataDirFromHome(home, os.Getenv)
 
 	return nil
 }
@@ -238,7 +238,7 @@ func deriveChatFilePath(
 		return "", fmt.Errorf("resolving working directory: %w", cwdErr)
 	}
 
-	return filepath.Join(DataDirFromHome(home), "chat", ProjectSlugFromPath(cwd)+".toml"), nil
+	return filepath.Join(DataDirFromHome(home, os.Getenv), "chat", ProjectSlugFromPath(cwd)+".toml"), nil
 }
 
 // filterHolds returns holds matching all non-empty filter criteria.

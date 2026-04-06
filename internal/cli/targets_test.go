@@ -479,22 +479,27 @@ func TestChatWatchFlags(t *testing.T) {
 }
 
 func TestDataDirFromHome(t *testing.T) {
-	// Not parallel: subtests use t.Setenv which modifies process environment.
+	t.Parallel()
+
 	t.Run("returns XDG data path when no env override", func(t *testing.T) {
+		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		t.Setenv("XDG_DATA_HOME", "")
-
-		dir := cli.DataDirFromHome("/Users/joe")
+		dir := cli.DataDirFromHome("/Users/joe", func(string) string { return "" })
 		g.Expect(dir).To(gomega.Equal("/Users/joe/.local/share/engram"))
 	})
 
 	t.Run("respects XDG_DATA_HOME when set", func(t *testing.T) {
+		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		t.Setenv("XDG_DATA_HOME", "/custom/data")
+		dir := cli.DataDirFromHome("/Users/joe", func(key string) string {
+			if key == "XDG_DATA_HOME" {
+				return "/custom/data"
+			}
 
-		dir := cli.DataDirFromHome("/Users/joe")
+			return ""
+		})
 		g.Expect(dir).To(gomega.Equal("/custom/data/engram"))
 	})
 }
