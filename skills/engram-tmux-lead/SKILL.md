@@ -104,9 +104,11 @@ tmux set-option -w -t "$LEAD_WINDOW" pane-border-status top
 ```bash
 # HARD GATE: NEVER call tmux split-window elsewhere — always run SPAWN-PANE.
 # Requires: RIGHT_PANE_COUNT, MIDDLE_COL_LAST_PANE, RIGHT_COL_LAST_PANE are initialized (§1.3 setup).
-# Requires: PANE_TITLE set to a descriptive name for the pane (e.g. "engram-agent", "exec-1").
 # Outputs: NEW_PANE (new pane ID). Caller assigns: PANE_ID=$NEW_PANE
 # Use -P -F '#{pane_id}' to capture the new pane ID at creation — not list-panes | tail -1.
+# TITLE: Do NOT set pane title here — Claude Code overwrites on startup.
+#        Callers set title via: tmux select-pane -t "$PANE_ID" -T "$PANE_TITLE"
+#        AFTER the 'while ! ... grep -q ❯' loop (post-startup).
 
 if [ "$RIGHT_PANE_COUNT" -lt 4 ]; then
   # Middle column not full: split right from coordinator, rebalance into single right column
@@ -123,8 +125,10 @@ else
   NEW_PANE=$(tmux split-window -v -d -t "$RIGHT_COL_LAST_PANE" -P -F '#{pane_id}')
   RIGHT_COL_LAST_PANE=$NEW_PANE
 fi
-tmux select-pane -t "$NEW_PANE" -T "$PANE_TITLE"
 RIGHT_PANE_COUNT=$((RIGHT_PANE_COUNT + 1))
+# NOTE: Do NOT set the pane title here — Claude Code overwrites it on startup.
+# Callers must run: tmux select-pane -t "$PANE_ID" -T "$PANE_TITLE"
+# AFTER the 'while ! ... grep -q ❯' loop (i.e., after claude is fully started).
 ```
 
 **Single right column** (1–4 right-side panes, `main-vertical` keeps layout balanced):
@@ -186,6 +190,8 @@ PANE_ID=$NEW_PANE
 tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
 # Wait for claude to start (watch for the prompt character)
 while ! tmux capture-pane -t "$PANE_ID" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
+# Set title NOW — after claude starts — so Claude Code's startup doesn't overwrite it
+tmux select-pane -t "$PANE_ID" -T "$PANE_TITLE"
 # Send the role prompt
 tmux send-keys -t "$PANE_ID" "/use-engram-chat-as reactive memory agent named engram-agent" Enter
 # Send extra Enter in case it was treated as a paste
@@ -304,6 +310,8 @@ PANE_ID=$NEW_PANE
 tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
 # Wait for claude to start (watch for the prompt character)
 while ! tmux capture-pane -t "$PANE_ID" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
+# Set title NOW — after claude starts — so Claude Code's startup doesn't overwrite it
+tmux select-pane -t "$PANE_ID" -T "$PANE_TITLE"
 # Send the role prompt
 tmux send-keys -t "$PANE_ID" "/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete." Enter
 # Send extra Enter in case it was treated as a paste
