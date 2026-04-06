@@ -62,8 +62,8 @@ func (w *FileAckWaiter) AckWait(
 
 		msg, newCursor, watchErr := w.Watcher.Watch(ctx, callerAgent, currentCursor, []string{"ack", "wait"})
 		if watchErr != nil {
-			if stop, stopErr := resolveWatchErr(ctx, watchErr); stop {
-				return AckResult{}, stopErr
+			if !errors.Is(watchErr, context.DeadlineExceeded) {
+				return AckResult{}, fmt.Errorf("watching for ack: %w", watchErr)
 			}
 			// Watch's internal deadline exceeded — loop back to re-check offline/online timeouts.
 			continue
@@ -191,18 +191,4 @@ func isOnline(messages []Message, recipient string, cutoff time.Time) bool {
 	}
 
 	return false
-}
-
-// resolveWatchErr determines whether a Watch error should stop the AckWait loop.
-// Returns (true, err) to propagate and exit, or (false, nil) to continue looping.
-func resolveWatchErr(ctx context.Context, watchErr error) (bool, error) {
-	if ctx.Err() != nil {
-		return true, fmt.Errorf("ack wait cancelled: %w", ctx.Err())
-	}
-
-	if !errors.Is(watchErr, context.DeadlineExceeded) {
-		return true, fmt.Errorf("watching for ack: %w", watchErr)
-	}
-
-	return false, nil
 }
