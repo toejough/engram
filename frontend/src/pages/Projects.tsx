@@ -154,9 +154,14 @@ export default function Projects() {
             Memory breakdown by project.
           </p>
         </div>
-        <div className="flex h-40 items-center justify-center text-muted-foreground">
-          No projects found.
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <p className="text-lg font-medium">No projects yet</p>
+            <p className="mt-2 max-w-md text-center text-muted-foreground">
+              Projects appear here when memories are tagged with a project slug.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

@@ -253,3 +253,14 @@
 - Implemented `frontend/src/pages/Activity.tsx` with paginated event list, colored type badges, slug links, "Load more" button
 - `npm run build` succeeds (tsc + vite build)
 - No new targ check-full failures (pre-existing failures unchanged)
+
+---
+
+## US-015: Empty states for all pages (2026-04-06)
+- Dashboard: added empty state when `memories.length === 0` — shows Card with "No memories yet" heading and onboarding subtext ("Memories are created automatically as you use Claude Code with engram installed"), avoids rendering charts/stats with zero data
+- MemoryDetail 404: already implemented in US-007 — "Memory not found or archived" with ArrowLeft back link
+- Surface: already implemented in US-012 — "Enter a query above to see which memories would be surfaced" shown when no query submitted
+- Projects: updated empty state from plain text to Card layout with "No projects yet" and descriptive subtext
+- Activity: updated empty state from plain text to Card layout with "No activity yet" and descriptive subtext
+- All empty states use consistent Card-based layout with centered text, onboarding-friendly tone (not error-like)
+- `npm run build` succeeds (tsc + vite build)

@@ -127,9 +127,15 @@ export default function Activity() {
       </div>
 
       {allEvents.length === 0 ? (
-        <div className="flex h-40 items-center justify-center text-muted-foreground">
-          No activity found.
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <p className="text-lg font-medium">No activity yet</p>
+            <p className="mt-2 max-w-md text-center text-muted-foreground">
+              Activity will appear here as memories are created, updated, and
+              surfaced.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <Card>
           <CardContent className="divide-y pt-6">

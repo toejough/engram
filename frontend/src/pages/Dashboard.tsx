@@ -63,6 +63,29 @@ export default function Dashboard() {
   const memories = memoriesQuery.data!;
   const stats = statsQuery.data!;
 
+  if (memories.length === 0) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-8 p-8">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="mt-1 text-muted-foreground">
+            Memory overview and statistics
+          </p>
+        </div>
+
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <p className="text-lg font-medium">No memories yet</p>
+            <p className="mt-2 max-w-md text-center text-muted-foreground">
+              Memories are created automatically as you use Claude Code with
+              engram installed.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-8 p-8">
       <div>

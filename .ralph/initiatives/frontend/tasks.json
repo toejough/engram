@@ -248,8 +248,8 @@
         "npm run build succeeds"
       ],
       "priority": 15,
-      "passes": false,
-      "notes": "Target audience is all engram users, not just power users — clear labels, no assumption of internals knowledge"
+      "passes": true,
+      "notes": "Dashboard: added empty state with 'No memories yet' message and onboarding hint in a Card, shown when memories array is empty (avoids rendering broken charts with zero data). MemoryDetail 404: already had 'Memory not found or archived' with back link (from US-007). Surface: already had 'Enter a query above to see which memories would be surfaced' prompt (from US-012). Projects: updated empty state to Card with 'No projects yet' and descriptive subtext. Activity: updated empty state to Card with 'No activity yet' and descriptive subtext. All empty states use consistent Card layout with centered text, onboarding-friendly tone. npm run build succeeds."
     },
     {
       "id": "US-016",
