@@ -294,6 +294,74 @@ func TestOsTmuxSpawnWith_CommandFails_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestOsTmuxSpawnWith_SendKeysFails_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmpDir := t.TempDir()
+	fakeTmux := filepath.Join(tmpDir, "tmux")
+
+	script := "#!/bin/sh\n" +
+		"case \"$1\" in\n" +
+		"  new-window) echo '%my-pane $mysession' ;;\n" +
+		"  capture-pane) printf '❯\\n' ;;\n" +
+		"  send-keys) exit 1 ;;\n" +
+		"  *) exit 1 ;;\n" +
+		"esac\n"
+	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
+
+	_, _, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "my-prompt-text")
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("tmux send-keys"))
+	}
+}
+
+func TestOsTmuxSpawnWith_SendsPromptViaKeysNotShellCmd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmpDir := t.TempDir()
+	fakeTmux := filepath.Join(tmpDir, "tmux")
+	callLog := filepath.Join(tmpDir, "calls.txt")
+
+	script := "#!/bin/sh\n" +
+		"echo \"$@\" >> " + callLog + "\n" +
+		"case \"$1\" in\n" +
+		"  new-window) echo '%my-pane $mysession' ;;\n" +
+		"  capture-pane) printf '❯\\n' ;;\n" +
+		"  send-keys) ;;\n" +
+		"esac\n"
+	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
+
+	paneID, sessionID, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "my-prompt-text")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(paneID).To(Equal("%my-pane"))
+	g.Expect(sessionID).To(Equal("$mysession"))
+
+	calls, readErr := os.ReadFile(callLog)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	callsStr := string(calls)
+	// send-keys must be called with the prompt text
+	g.Expect(callsStr).To(ContainSubstring("send-keys"))
+	g.Expect(callsStr).To(ContainSubstring("my-prompt-text"))
+	// new-window must NOT use sh -c
+	g.Expect(callsStr).NotTo(ContainSubstring("sh -c"))
+}
+
 func TestOsTmuxSpawnWith_Success_ReturnsPaneAndSession(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -301,9 +369,16 @@ func TestOsTmuxSpawnWith_Success_ReturnsPaneAndSession(t *testing.T) {
 	tmpDir := t.TempDir()
 	fakeTmux := filepath.Join(tmpDir, "tmux")
 
-	g.Expect(os.WriteFile(fakeTmux, []byte("#!/bin/sh\necho '%my-pane $mysession'\n"), 0o700)).To(Succeed())
+	script := "#!/bin/sh\n" +
+		"case \"$1\" in\n" +
+		"  new-window) echo '%my-pane $mysession' ;;\n" +
+		"  capture-pane) printf '❯\\n' ;;\n" +
+		"  send-keys) ;;\n" +
+		"  *) exit 1 ;;\n" +
+		"esac\n"
+	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
 
-	paneID, sessionID, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "sh -c 'echo hello'")
+	paneID, sessionID, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "my-prompt-text")
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -519,31 +594,6 @@ func TestReadModifyWriteStateFile_CreatesFileWhenAbsent(t *testing.T) {
 	g.Expect(string(data)).To(ContainSubstring("test-agent"))
 }
 
-func TestReadModifyWriteStateFile_MissingDir_CreatesDirAndFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	base := t.TempDir()
-	// state/ subdirectory does NOT exist yet
-	stateFile := filepath.Join(base, "state", "test.toml")
-
-	err := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "test-agent", State: "STARTING"})
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(stateFile).To(BeAnExistingFile())
-
-	data, readErr := os.ReadFile(stateFile)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(string(data)).To(ContainSubstring("test-agent"))
-}
-
 func TestReadModifyWriteStateFile_InvalidTOML_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -581,6 +631,31 @@ func TestReadModifyWriteStateFile_InvalidTOML_ReturnsParseError(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("parsing"))
 	}
+}
+
+func TestReadModifyWriteStateFile_MissingDir_CreatesDirAndFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	base := t.TempDir()
+	// state/ subdirectory does NOT exist yet
+	stateFile := filepath.Join(base, "state", "test.toml")
+
+	err := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "test-agent", State: "STARTING"})
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stateFile).To(BeAnExistingFile())
+
+	data, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(data)).To(ContainSubstring("test-agent"))
 }
 
 func TestReadModifyWriteStateFile_PathIsDirectory_ReturnsReadError(t *testing.T) {

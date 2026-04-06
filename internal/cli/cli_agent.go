@@ -20,9 +20,12 @@ import (
 
 // unexported constants.
 const (
-	spawnAckMaxWait      = 30 * time.Second
-	stateFileLockDelay   = 25 * time.Millisecond
-	stateFileLockRetries = 200
+	claudeReadyMaxRetries   = 30
+	claudeReadyPollInterval = time.Second
+	claudeSettings          = `{"statusLine":{"type":"command","command":"true"}}`
+	spawnAckMaxWait         = 30 * time.Second
+	stateFileLockDelay      = 25 * time.Millisecond
+	stateFileLockRetries    = 200
 )
 
 // unexported variables.
@@ -159,21 +162,61 @@ func osTmuxSpawn(ctx context.Context, name, prompt string) (paneID, sessionID st
 	return osTmuxSpawnWith(ctx, "tmux", name, prompt)
 }
 
-// osTmuxSpawnWith creates a tmux window using the given binary path and returns pane-id and session-id.
+// osTmuxSpawnWith creates a tmux window, starts claude interactively in it, waits
+// for the claude input prompt (❯), then sends the prompt text via send-keys.
 // Extracted so tests can supply a fake binary path without modifying global state.
 func osTmuxSpawnWith(ctx context.Context, tmuxBin, name, prompt string) (paneID, sessionID string, err error) {
+	// Step 1: Create pane with default shell (no command — pane stays alive).
 	out, cmdErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
 		"new-window",
 		"-d",
 		"-n", name,
 		"-P", "-F", "#{pane_id} #{session_id}",
-		"--", "sh", "-c", prompt,
 	).Output()
 	if cmdErr != nil {
 		return "", "", fmt.Errorf("tmux new-window: %w", cmdErr)
 	}
 
-	return parseTmuxOutput(out)
+	paneID, sessionID, parseErr := parseTmuxOutput(out)
+	if parseErr != nil {
+		return "", "", parseErr
+	}
+
+	// Step 2: Start claude in the pane.
+	claudeCmd := "claude --dangerously-skip-permissions --model sonnet --settings '" + claudeSettings + "'"
+
+	startErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
+		"send-keys", "-t", paneID, claudeCmd, "Enter",
+	).Run()
+	if startErr != nil {
+		return "", "", fmt.Errorf("tmux send-keys: %w", startErr)
+	}
+
+	// Step 3: Wait for claude's input prompt (❯), up to claudeReadyMaxRetries seconds.
+	for range claudeReadyMaxRetries {
+		if ctx.Err() != nil {
+			break
+		}
+
+		paneContent, captureErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
+			"capture-pane", "-t", paneID, "-p",
+		).Output()
+		if captureErr == nil && strings.Contains(string(paneContent), "❯") {
+			break
+		}
+
+		time.Sleep(claudeReadyPollInterval)
+	}
+
+	// Step 4: Send the prompt text to claude (best-effort even if readiness timed out).
+	sendErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
+		"send-keys", "-t", paneID, prompt, "Enter",
+	).Run()
+	if sendErr != nil {
+		return "", "", fmt.Errorf("tmux send-keys prompt: %w", sendErr)
+	}
+
+	return paneID, sessionID, nil
 }
 
 // parseAgentKillFlags parses the agent-kill flag set. Returns (name, chatFile, stateFile, err).
@@ -293,7 +336,8 @@ func postSpawnIntentAndWait(ctx context.Context, chatFilePath, name, paneID, int
 func readModifyWriteStateFile(stateFilePath string, modify func(agentpkg.StateFile) agentpkg.StateFile) error {
 	dir := filepath.Dir(stateFilePath)
 
-	if mkdirErr := os.MkdirAll(dir, chatDirMode); mkdirErr != nil {
+	mkdirErr := os.MkdirAll(dir, chatDirMode)
+	if mkdirErr != nil {
 		return fmt.Errorf("creating state directory: %w", mkdirErr)
 	}
 
