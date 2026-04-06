@@ -296,6 +296,7 @@ func generateHoldID() (string, error) {
 }
 
 // loadChatMessages reads and parses a TOML chat file using the provided readFile func.
+// Uses ParseMessagesSafe to tolerate per-message corruption (same attack surface as #515).
 // Returns nil slice (no error) when the file does not exist.
 func loadChatMessages(chatFilePath string, readFile func(string) ([]byte, error)) ([]chat.Message, error) {
 	data, err := readFile(chatFilePath)
@@ -307,12 +308,7 @@ func loadChatMessages(chatFilePath string, readFile func(string) ([]byte, error)
 		return nil, fmt.Errorf("reading chat file: %w", err)
 	}
 
-	messages, parseErr := chat.ParseMessages(data)
-	if parseErr != nil {
-		return nil, fmt.Errorf("parsing chat file: %w", parseErr)
-	}
-
-	return messages, nil
+	return chat.ParseMessagesSafe(data), nil
 }
 
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.

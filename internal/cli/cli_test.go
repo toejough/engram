@@ -151,19 +151,16 @@ func TestDeriveChatFilePath_HomeDirError_ReturnsError(t *testing.T) {
 	}
 }
 
-func TestLoadChatMessages_InvalidTOML_ReturnsError(t *testing.T) {
+func TestLoadChatMessages_InvalidTOML_SkipsCorruptBlocks(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	chatFile := filepath.Join(t.TempDir(), "chat.toml")
 	g.Expect(os.WriteFile(chatFile, []byte("not valid toml :::"), 0o600)).To(Succeed())
 
-	_, err := cli.ExportLoadChatMessages(chatFile)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("parsing chat file"))
-	}
+	msgs, err := cli.ExportLoadChatMessages(chatFile)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(msgs).To(BeEmpty())
 }
 
 // ============================================================
@@ -1179,6 +1176,20 @@ func TestRun_HoldCheck_AutoReleasesMetCondition(t *testing.T) {
 	g.Expect(parsed.Message[2].Type).To(Equal("hold-release"))
 }
 
+func TestRun_HoldCheck_FileUnreadable_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	chatFile := filepath.Join(t.TempDir(), "chat.toml")
+	g.Expect(os.WriteFile(chatFile, []byte{}, 0o000)).To(Succeed())
+
+	err := cli.Run([]string{
+		"engram", "hold", "check",
+		"--chat-file", chatFile,
+	}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(MatchError(ContainSubstring("hold check")))
+}
+
 func TestRun_HoldCheck_HelpExitsZero(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1187,7 +1198,7 @@ func TestRun_HoldCheck_HelpExitsZero(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
-func TestRun_HoldCheck_InvalidTOML_ReturnsError(t *testing.T) {
+func TestRun_HoldCheck_InvalidTOML_SucceedsWithNoMatches(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -1198,7 +1209,7 @@ func TestRun_HoldCheck_InvalidTOML_ReturnsError(t *testing.T) {
 		"engram", "hold", "check",
 		"--chat-file", chatFile,
 	}, &bytes.Buffer{}, io.Discard, nil)
-	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestRun_HoldCheck_ParseError_ReturnsError(t *testing.T) {
@@ -1312,7 +1323,7 @@ func TestRun_HoldList_HelpExitsZero(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
-func TestRun_HoldList_InvalidTOML_ReturnsError(t *testing.T) {
+func TestRun_HoldList_InvalidTOML_SucceedsWithEmptyOutput(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -1323,7 +1334,7 @@ func TestRun_HoldList_InvalidTOML_ReturnsError(t *testing.T) {
 		"engram", "hold", "list",
 		"--chat-file", chatFile,
 	}, &bytes.Buffer{}, io.Discard, nil)
-	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestRun_HoldList_OutputsNDJSON(t *testing.T) {

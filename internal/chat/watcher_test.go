@@ -317,6 +317,75 @@ func TestFileWatcher_Watch_ReturnsFirstMatchingMessage(t *testing.T) {
 	g.Expect(newCursor).To(BeNumerically(">", cursorAfterFirst))
 }
 
+func TestParseMessagesSafe_CleanFile_AllMessages(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	data := []byte(`
+[[message]]
+from = "lead"
+to = "all"
+thread = "test"
+type = "info"
+ts = 2026-04-06T12:00:00Z
+text = """hello"""
+
+[[message]]
+from = "executor"
+to = "lead"
+thread = "test"
+type = "done"
+ts = 2026-04-06T12:01:00Z
+text = """done"""
+`)
+	msgs := chat.ParseMessagesSafe(data)
+	g.Expect(msgs).To(HaveLen(2))
+
+	if len(msgs) < 2 {
+		return
+	}
+
+	g.Expect(msgs[0].From).To(Equal("lead"))
+	g.Expect(msgs[1].From).To(Equal("executor"))
+}
+
+func TestParseMessagesSafe_EmptyData_ReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	g.Expect(chat.ParseMessagesSafe(nil)).To(BeEmpty())
+	g.Expect(chat.ParseMessagesSafe([]byte(""))).To(BeEmpty())
+}
+
+func TestParseMessagesSafe_OneCorruptBlock_OthersReturned(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Embed a null byte in the middle block to cause TOML parse failure.
+	data := []byte(
+		"[[message]]\nfrom = \"lead\"\nto = \"all\"\nthread = \"t\"\ntype = \"info\"\n" +
+			"ts = 2026-04-06T12:00:00Z\ntext = \"\"\"good\"\"\"\n\n" +
+			"[[message]]\nfrom = \"corrupt\"\nto = \"all\"\nthread = \"t\"\ntype = \"info\"\n" +
+			"ts = 2026-04-06T12:01:00Z\ntext = \"\"\"bad\x00bytes\"\"\"\n\n" +
+			"[[message]]\nfrom = \"executor\"\nto = \"lead\"\nthread = \"t\"\ntype = \"done\"\n" +
+			"ts = 2026-04-06T12:02:00Z\ntext = \"\"\"also good\"\"\"\n",
+	)
+
+	msgs := chat.ParseMessagesSafe(data)
+	froms := make([]string, 0, len(msgs))
+
+	for _, m := range msgs {
+		froms = append(froms, m.From)
+	}
+
+	g.Expect(froms).To(ContainElement("lead"))
+	g.Expect(froms).To(ContainElement("executor"))
+	g.Expect(froms).NotTo(ContainElement("corrupt"))
+}
+
 func TestParseMessages_Empty(t *testing.T) {
 	t.Parallel()
 

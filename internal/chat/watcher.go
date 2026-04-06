@@ -59,6 +59,52 @@ func ParseMessages(data []byte) ([]Message, error) {
 	return parsed.Messages, nil
 }
 
+// ParseMessagesSafe deserializes TOML chat data tolerating per-message corruption.
+// Fast path: attempts full-file ParseMessages (zero allocation overhead for clean files).
+// Fallback: splits on [[message]] boundaries, parses each block independently.
+// Corrupt blocks are logged via slog.Warn and skipped. Never returns an error.
+func ParseMessagesSafe(data []byte) []Message {
+	if len(data) == 0 {
+		return nil
+	}
+
+	msgs, err := ParseMessages(data)
+	if err == nil {
+		return msgs
+	}
+
+	slog.Warn("ParseMessagesSafe: full parse failed, falling back to per-block parsing", "err", err)
+
+	const boundary = "\n[[message]]"
+
+	parts := bytes.Split(data, []byte(boundary))
+
+	result := make([]Message, 0, len(parts))
+
+	for i, part := range parts {
+		var block []byte
+
+		if i == 0 {
+			block = bytes.TrimSpace(part)
+			if len(block) == 0 {
+				continue
+			}
+		} else {
+			block = append([]byte("[[message]]"), part...)
+		}
+
+		blockMsgs, blockErr := ParseMessages(block)
+		if blockErr != nil {
+			slog.Warn("ParseMessagesSafe: skipping corrupt block", "block_index", i, "err", blockErr)
+			continue
+		}
+
+		result = append(result, blockMsgs...)
+	}
+
+	return result
+}
+
 // findMessage scans data for the first message after cursor that matches agent and msgTypes.
 // Returns the message, new cursor (total line count), and whether a match was found.
 // Only the bytes after the cursor line are parsed, so corrupt historical data before
