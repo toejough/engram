@@ -85,8 +85,11 @@ var (
 	errAckWaitNilWait     = errors.New("outputAckResult: WAIT result has nil Wait field")
 	errAckWaitUnknown     = errors.New("outputAckResult: unexpected result type")
 	errAgentRequired      = errors.New("chat ack-wait: --agent required")
+	errHoldIDRequired     = errors.New("hold release: --hold-id is required")
+	errHolderRequired     = errors.New("hold acquire: --holder is required")
 	errLockTimeout        = errors.New("acquiring lock: exceeded max retries")
 	errRecipientsRequired = errors.New("chat ack-wait: --recipients required")
+	errTargetRequired     = errors.New("hold acquire: --target is required")
 	errUnknownCommand     = errors.New("unknown command")
 	errUsage              = errors.New("usage: engram <recall|show|chat|hold> [flags]")
 )
@@ -157,6 +160,19 @@ type watchResult struct {
 	TS     time.Time `json:"ts"`
 	Text   string    `json:"text"`
 	Cursor int       `json:"cursor"`
+}
+
+// acquireHoldSetup validates required flags and resolves the chat file path for hold acquire.
+func acquireHoldSetup(holder, target, chatFileOverride string) (string, error) {
+	if holder == "" {
+		return "", errHolderRequired
+	}
+
+	if target == "" {
+		return "", errTargetRequired
+	}
+
+	return resolveChatFile(chatFileOverride, "hold acquire", os.UserHomeDir, os.Getwd)
 }
 
 // applyDataDirDefault sets *dataDir to the standard engram data path when empty.
@@ -723,9 +739,9 @@ func runHoldAcquire(args []string, stdout io.Writer) error {
 		return fmt.Errorf("hold acquire: %w", parseErr)
 	}
 
-	chatFilePath, pathErr := resolveChatFile(*chatFile, "hold acquire", os.UserHomeDir, os.Getwd)
-	if pathErr != nil {
-		return pathErr
+	chatFilePath, acquireErr := acquireHoldSetup(*holder, *target, *chatFile)
+	if acquireErr != nil {
+		return acquireErr
 	}
 
 	holdID, genErr := generateHoldID()
@@ -896,6 +912,10 @@ func runHoldRelease(args []string, stdout io.Writer) error {
 
 	if parseErr != nil {
 		return fmt.Errorf("hold release: %w", parseErr)
+	}
+
+	if *holdID == "" {
+		return fmt.Errorf("%w", errHoldIDRequired)
 	}
 
 	chatFilePath, pathErr := resolveChatFile(*chatFile, "hold release", os.UserHomeDir, os.Getwd)

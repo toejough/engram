@@ -1012,6 +1012,43 @@ func TestRun_HoldAcquire_ConcurrentWritesSafe(t *testing.T) {
 	}
 }
 
+func TestRun_HoldAcquire_EmptyHolder_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	err := cli.Run([]string{"engram", "hold", "acquire", "--chat-file", chatFile}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("--holder is required"))
+}
+
+func TestRun_HoldAcquire_EmptyTarget_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	err := cli.Run(
+		[]string{"engram", "hold", "acquire", "--chat-file", chatFile, "--holder", "lead"},
+		&bytes.Buffer{}, io.Discard, nil,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("--target is required"))
+}
+
 func TestRun_HoldAcquire_ParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1295,6 +1332,23 @@ func TestRun_HoldList_ParseError_ReturnsError(t *testing.T) {
 
 	err := cli.Run([]string{"engram", "hold", "list", "--bogus-flag"}, &bytes.Buffer{}, io.Discard, nil)
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRun_HoldRelease_EmptyHoldID_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	err := cli.Run([]string{"engram", "hold", "release", "--chat-file", chatFile}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("--hold-id is required"))
 }
 
 func TestRun_HoldRelease_HelpExitsZero(t *testing.T) {
