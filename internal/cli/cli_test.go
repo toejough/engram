@@ -17,6 +17,7 @@ import (
 	"github.com/BurntSushi/toml"
 	. "github.com/onsi/gomega"
 
+	agentpkg "engram/internal/agent"
 	"engram/internal/chat"
 	"engram/internal/cli"
 )
@@ -148,6 +149,22 @@ func TestDeriveChatFilePath_HomeDirError_ReturnsError(t *testing.T) {
 
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("resolving home directory"))
+	}
+}
+
+func TestDeriveStateFilePath_HomeDirError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	errHome := errors.New("home dir unavailable")
+	_, err := cli.ExportResolveStateFile("", "agent spawn",
+		func() (string, error) { return "", errHome },
+		os.Getwd,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("home dir"))
 	}
 }
 
@@ -298,6 +315,122 @@ func TestOutputAckResult_WAIT_NilWait_ReturnsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestReadModifyWriteStateFile_ConcurrentCallers_BothAgentsPresent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+
+	const callers = 5
+
+	var wg sync.WaitGroup
+
+	wg.Add(callers)
+
+	for i := range callers {
+		agentName := fmt.Sprintf("agent-%d", i)
+
+		go func() {
+			defer wg.Done()
+
+			innerErr := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+				return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: agentName, State: "STARTING"})
+			})
+			g.Expect(innerErr).NotTo(HaveOccurred())
+		}()
+	}
+
+	wg.Wait()
+
+	data, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	for i := range callers {
+		g.Expect(string(data)).To(ContainSubstring(fmt.Sprintf("agent-%d", i)))
+	}
+}
+
+func TestReadModifyWriteStateFile_CreatesFileWhenAbsent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+
+	err := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "test-agent", State: "STARTING"})
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	data, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(data)).To(ContainSubstring("test-agent"))
+}
+
+func TestReadModifyWriteStateFile_InvalidTOML_ReturnsParseError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	writeErr := os.WriteFile(stateFile, []byte("[[[invalid toml"), 0o600)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	err := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+		return sf
+	})
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("parsing"))
+	}
+}
+
+func TestReadModifyWriteStateFile_PathIsDirectory_ReturnsReadError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Using a directory as the stateFilePath causes os.ReadFile to fail with EISDIR.
+	dir := t.TempDir()
+	subDir := filepath.Join(dir, "statedir")
+	mkErr := os.MkdirAll(subDir, 0o700)
+	g.Expect(mkErr).NotTo(HaveOccurred())
+
+	err := cli.ExportReadModifyWriteStateFile(subDir, func(sf agentpkg.StateFile) agentpkg.StateFile { return sf })
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("reading"))
+	}
+}
+
+func TestReadModifyWriteStateFile_UpdatesExistingFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+
+	err1 := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "agent-1", State: "ACTIVE"})
+	})
+	g.Expect(err1).NotTo(HaveOccurred())
+
+	err2 := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "agent-2", State: "ACTIVE"})
+	})
+	g.Expect(err2).NotTo(HaveOccurred())
+
+	data, _ := os.ReadFile(stateFile)
+	g.Expect(string(data)).To(ContainSubstring("agent-1"))
+	g.Expect(string(data)).To(ContainSubstring("agent-2"))
+}
+
 // ============================================================
 // resolveChatFile coverage
 // ============================================================
@@ -336,6 +469,110 @@ func TestResolveChatFile_HomeDirError_ReturnsError(t *testing.T) {
 
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("chat post"))
+	}
+}
+
+func TestResolveStateFile_NoOverride_UsesStateSubdir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	path, err := cli.ExportResolveStateFile("", "agent spawn", os.UserHomeDir, os.Getwd)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(path).To(ContainSubstring("/state/"))
+	g.Expect(path).To(HaveSuffix(".toml"))
+}
+
+func TestResolveStateFile_WithOverride_ReturnsOverride(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+
+	path, err := cli.ExportResolveStateFile(stateFile, "agent spawn", os.UserHomeDir, os.Getwd)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(path).To(Equal(stateFile))
+}
+
+func TestRunAgentDispatch_KillSubcommand_ReturnsNotImplemented(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "agent", "kill"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("not implemented"))
+	}
+}
+
+func TestRunAgentDispatch_ListSubcommand_ReturnsNotImplemented(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "agent", "list"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("not implemented"))
+	}
+}
+
+func TestRunAgentDispatch_NoArgs_ReturnsUsageError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "agent"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("usage"))
+	}
+}
+
+func TestRunAgentDispatch_SpawnSubcommand_ReturnsNotImplemented(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "agent", "spawn"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("not implemented"))
+	}
+}
+
+func TestRunAgentDispatch_UnknownSubcommand_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "agent", "bogus"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("unknown command"))
+	}
+}
+
+func TestRunAgentDispatch_WaitReadySubcommand_ReturnsNotImplemented(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "agent", "wait-ready"}, &bytes.Buffer{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("not implemented"))
 	}
 }
 

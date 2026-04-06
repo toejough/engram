@@ -56,6 +56,8 @@ func Run(
 		return runChatDispatch(subArgs, stdout)
 	case "hold":
 		return runHoldDispatch(subArgs, stdout)
+	case "agent":
+		return runAgentDispatch(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}

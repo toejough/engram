@@ -18,13 +18,15 @@ var (
 	ExportLoadChatMessages        = func(path string) ([]chat.Message, error) {
 		return loadChatMessages(path, os.ReadFile)
 	}
-	ExportOsAppendFile        = osAppendFile
-	ExportOutputAckResult     = outputAckResult
-	ExportRecordSurfacing     = recordSurfacing
-	ExportRenderFactContent   = renderFactContent
-	ExportRenderMemoryContent = renderMemoryContent
-	ExportRenderMemoryMeta    = renderMemoryMeta
-	ExportResolveChatFile     = resolveChatFile
+	ExportOsAppendFile             = osAppendFile
+	ExportOutputAckResult          = outputAckResult
+	ExportReadModifyWriteStateFile = readModifyWriteStateFile
+	ExportRecordSurfacing          = recordSurfacing
+	ExportRenderFactContent        = renderFactContent
+	ExportRenderMemoryContent      = renderMemoryContent
+	ExportRenderMemoryMeta         = renderMemoryMeta
+	ExportResolveChatFile          = resolveChatFile
+	ExportResolveStateFile         = resolveStateFile
 )
 
 // --- Factory functions for structs with unexported fields ---
