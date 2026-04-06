@@ -257,6 +257,11 @@ engram agent wait-ready \
 
 (Alternatively implementable as: `engram chat watch --type info --agent <name> --cursor <n>`)
 
+**watchDeadline contract:** `--max-wait` MUST compute `watchDeadline = time.Now().Add(maxWait)` and pass it via `context.WithDeadline(ctx, watchDeadline)` to the inner `Watch` call. It is NOT sufficient to check the deadline in the outer loop only — the inner `fsnotify` loop will block indefinitely if the deadline is not threaded all the way to the deepest blocking I/O. The #519 fix (b22dc0c) established this pattern for `ack-wait`; `wait-ready` must apply it by design, not rediscover it in production.
+
+**watchDeadline invariant (applies to all `--max-wait` commands):**
+> Any binary command that accepts a `--max-wait` duration flag MUST propagate the computed deadline via `context.WithDeadline` to ALL blocking I/O operations, including inner Watch loops. This is a correctness invariant.
+
 #### `engram agent kill`
 
 ```
@@ -291,7 +296,9 @@ engram agent list
 ```
 
 - Reads state file
-- Outputs: one `<name>|<state>|<session-id>|<pane-id>` per line
+- Outputs: one JSON object per line — `{"name":"exec-1","state":"running","session-id":"abc","pane-id":"main:1.2"}`
+
+**Why NDJSON:** Skills parse binary output with `jq`. Pipe-delimited fields are fragile (field values may contain pipes; `cut`/`awk` is inconsistent across platforms). NDJSON matches `hold list` output format and uses standard escaping. Lesson from #516: ship NDJSON from day one.
 
 ---
 
@@ -344,7 +351,21 @@ type WaitResult struct {
 // LockFile is injected for lock-file creation (O_CREATE|O_EXCL semantics).
 // Compatible with bash shlock convention. Concrete os.OpenFile call lives at the CLI edge, not here.
 type LockFile func(name string) (unlock func() error, err error)
+
+// ParseMessages parses all messages from TOML data. Fast path — assumes well-formed TOML.
+// Use for suffix data (bytes after cursor) where corruption risk is low.
+func ParseMessages(data []byte) ([]Message, error)
+
+// ParseMessagesSafe parses all messages from TOML data with per-message error recovery.
+// Fast path: tries ParseMessages(data) first — no overhead for clean files.
+// Fallback: on TOML error, splits on [[message]] block boundaries and parses each block
+// independently. Returns all parseable messages; logs a warning per failed block via slog.
+// Use for full-file reads (hold check, hold list, AckWaiter online/offline detection)
+// where the caller cannot use a suffix and historical corruption must not crash the command.
+func ParseMessagesSafe(data []byte) []Message
 ```
+
+**ParseMessagesSafe rationale:** `hold check`, `hold list`, and `AckWaiter.buildRecipientStates` do full-file reads (no cursor, no suffix). If any historical `[[message]]` block has corrupt TOML — which occurs in practice, see #515 — a `ParseMessages` call returns an error and the command fails entirely. `ParseMessagesSafe` makes these callers resilient: they operate on incomplete but non-crashing history rather than failing. After Phase 3 ships the state file as hold-state authority, `ParseMessagesSafe` becomes the fallback for the state file repair path, not the primary path. Both uses are worth designing for now.
 
 **File path derivation:** `internal/chat` receives the fully-resolved file path as a constructor parameter. Path derivation (`ProjectSlugFromPath` + `DataDirFromHome`) happens in the CLI wiring layer (`cli.go` or `targets.go`), not inside this package. This avoids a circular import: `internal/cli` imports `internal/chat` (for the new commands) while `internal/chat` importing `internal/cli` for path functions would create a cycle. Solution: caller derives the path and passes it in.
 
@@ -603,6 +624,8 @@ Workers are driven entirely by the binary. Between resumes, they are not running
 
 Location: `~/.local/share/engram/state/<slug>.toml`
 
+The state file is the **authority for all mutable binary-owned state**: agent registry AND hold registry. The chat file hold-acquire/hold-release messages are the audit trail; the state file is the query surface. `hold check` and `hold list` read from the state file, not the chat file — eliminating the full-TOML-unmarshal risk (same attack surface as #515) that would otherwise grow monotonically as the chat file expands across sessions.
+
 Schema (per agent):
 ```toml
 [[agent]]
@@ -617,12 +640,30 @@ argument-count = 0            # turns used in current argument (cap: 3; reset to
 argument-thread = ""          # chat thread of active argument; empty string if none
 ```
 
+Schema (per hold):
+```toml
+[[hold]]
+hold-id = "c3151bfe-5ee4-4f3e-9055-0e6047c9acbf"
+holder = "lead"
+target = "planner-5"
+condition = "lead-release:codesign-phase3"
+tag = "codesign-phase3"
+acquired-ts = "2026-04-06T16:15:02Z"
+```
+
+**Why hold state belongs in the state file:**
+`hold check` and `hold list` originally scanned the full chat file using `chat.ParseMessages(entireFile)` — no cursor, no suffix. If any historical `[[message]]` block in the chat file has corrupt TOML (which occurs — see #515), hold check returns a parse error and the entire hold state becomes invisible to the binary. The chat file is append-only and grows forever, so this risk increases monotonically. The state file is bounded, binary-owned, and never contains user-generated TOML. `hold acquire` and `hold release` update the state file atomically in addition to appending to the chat file. This is the log (chat) vs. snapshot (state) pattern.
+
 **Argument state fields** are required to enforce the 3-argument cap from SPEECH-2/SKILL-2. The binary cannot count turns without persisting the count across `engram agent resume` invocations. When an argument resolves (ACK: detected or escalation fires), the binary resets all three fields to empty/zero.
 
-**Locking:** The state file is rewritten on every `engram agent spawn` and `engram agent kill` (read-modify-write). Concurrent commands from different panes will corrupt the file without locking. Locking strategy: same `os.OpenFile(O_CREATE|O_EXCL)` on `.lock` file as the chat file, using path `~/.local/share/engram/state/<slug>.toml.lock`. Lock is held for the full read-modify-write cycle, then released. The binary is the sole writer of the state file — no skill writes it directly.
+**Locking:** The state file is rewritten on every `engram agent spawn`, `engram agent kill`, `engram hold acquire`, and `engram hold release` (read-modify-write). Concurrent commands from different panes will corrupt the file without locking. Locking strategy: same `os.OpenFile(O_CREATE|O_EXCL)` on `.lock` file as the chat file, using path `~/.local/share/engram/state/<slug>.toml.lock`. Lock is held for the full read-modify-write cycle, then released. The binary is the sole writer of the state file — no skill writes it directly.
 
-Chat file = online/offline truth (presence via message timestamps).
-State file = binary bookkeeping (lifecycle, pane-id, session-id, argument state).
+**Lock timeout:** The state file's read-modify-write critical section is wider than the chat file's append (milliseconds vs. microseconds). Use a 5s lock acquisition timeout with a clear error message rather than indefinite spin, to handle concurrent agent commands from different terminals gracefully.
+
+**State file repair:** If the state file is missing or corrupted (e.g., process kill mid-write), it can be reconstructed by scanning the chat file for all hold-acquire/hold-release pairs and all lifecycle messages. The `engram agent list` command should detect a missing state file and attempt reconstruction before erroring. This is cheap to implement when Phase 3 ships; expensive to add after Phase 5 when full-file chat parsing paths may have been removed.
+
+Chat file = append-only coordination log; audit trail for holds and agent lifecycle events.
+State file = binary bookkeeping (agent registry, hold registry, argument state); query authority for `hold check`/`hold list`/`agent list`.
 These are separate concerns and do not conflict.
 
 ---
@@ -704,13 +745,58 @@ List: `engram hold list [--holder <name>] [--target <name>]`
 
 ---
 
+### Phase 3 Pre-Flight — engram-agent Main Loop Fix (skill-only PR, no binary changes)
+
+**Context:**
+
+engram-agent's main loop (Step 1) still references `fswatch -1 "$CHAT_FILE"` as a background Bash command — the pre-Phase-1 watch pattern. Phase 1 updated the Background Monitor Pattern in use-engram-chat-as to use `engram chat watch`, but engram-agent's own main loop was not updated in lockstep. The two watch mechanisms are architecturally different:
+
+- **use-engram-chat-as:** Background Monitor Pattern = background Agent tool call running `engram chat watch`. Kernel-driven, correct timeout handling, no polling.
+- **engram-agent main loop:** `fswatch -1 "$CHAT_FILE"` as a background Bash command (`run_in_background: true`). Pre-Phase-1 mechanism. Produces visible bash tool-call noise in the main agent context.
+
+This mismatch is the primary source of engram-agent stalling in multi-agent sessions. Agents following engram-agent's main loop skill implement a different watch than the rest of the system.
+
+**Change:**
+
+Replace engram-agent Step 1:
+```
+Old: Run fswatch -1 "$CHAT_FILE" as a background Bash command (run_in_background: true)
+New: Spawn background monitor Agent (Background Monitor Pattern from use-engram-chat-as):
+     RESULT=$(engram chat watch --agent engram-agent --cursor CURSOR)
+```
+
+This is a skill-only change (~30 lines). No binary work. The Phase 1 binary (`engram chat watch`) is already in place and correct.
+
+**Why pre-flight, not Phase 3:**
+
+The fix requires no binary changes and can ship immediately. Deferring it to the Phase 3 PR means Phase 3 implementation begins with a broken engram-agent watch mechanism — any multi-agent testing during Phase 3 development will be unreliable. Fix now, then Phase 3 starts clean.
+
+**Issue tracking:**
+
+Issue #509 is titled "engram-agent skill still uses shlock/heredoc for chat writes." That title is misleading — chat writes in the skill are already correct (`engram chat post`). The actual open problem is the fswatch-1 main loop. Close #509 (chat writes are correct) and open a targeted successor issue for the main loop migration.
+
+**Scope boundary:**
+
+- IN scope: engram-agent main loop Steps 1 and 7 (spawn monitor, re-spawn after processing)
+- OUT of scope: shlock for memory file writes (correct and appropriate until Phase 3+ adds binary memory commands); any binary changes; engram-tmux-lead skill updates (Phase 3 scope)
+
+---
+
 ### Phase 3 — Agent Lifecycle (separate PR)
 
 **Scope:**
 - `internal/tmux` package
+- `internal/agent` package (pure domain: `AgentRecord`, `StateFile` R-M-W, `ScanAgents`, `AddAgent`, `RemoveAgent`)
 - Commands: `engram agent spawn`, `engram agent kill`, `engram agent list`, `engram agent wait-ready`
-- State file (`~/.local/share/engram/state/<slug>.toml`)
+- State file (`~/.local/share/engram/state/<slug>.toml`) — includes **both** `[[agent]]` and `[[hold]]` sections (see §6.3)
 - Binary auto-posts spawn intent (fixed template), waits for engram-agent ACK
+- `ParseMessagesSafe` in `internal/chat` (see §4.1) — ships in this PR as the resilient fallback for state file repair; also protects `hold check`/`hold list` during the transition before those commands fully migrate to state-file-authority reads
+
+**Design requirements (non-negotiable):**
+- **watchDeadline contract:** `engram agent wait-ready --max-wait` MUST propagate the computed deadline via `context.WithDeadline` to the inner `Watch` call. This is a correctness invariant. See §3.3 for the full contract. _The same bug class as #519 will manifest silently if omitted._
+- **NDJSON output:** All structured command output (spawn, list) uses NDJSON. No pipe-delimited fields. Skills use `jq` for parsing. _Lesson from #516: validate all outputs against the skill's actual parsing tools before merging._
+- **State file lock timeout:** 5s (wider critical section than chat file; see §6.3).
+- **State file authority:** `hold check` and `hold list` read from the state file for hold state. The chat file is the audit trail, not the query surface.
 
 **Skill deletions:**
 - SPAWN-PANE definition (engram-tmux-lead §1.3)
@@ -725,7 +811,15 @@ List: `engram hold list [--holder <name>] [--target <name>]`
 - Calling-convention text for `engram chat post` (deferred to Phase 4)
 - Background Monitor Pattern references and Agent Lifecycle watch loop (use-engram-chat-as) — deferred to Phase 5
 
-**E2E check (Phase 3):** After shipping Phase 3 alone, agent spawning and teardown use binary commands (`engram agent spawn/kill/list`). Old SPAWN-PANE bash, concurrency tracking bash, and pane registry bash are deleted from skills. Workers continue to call `engram chat post` directly — no speech relay yet.
+**E2E check (Phase 3):** After shipping Phase 3 alone, verify all five criteria:
+
+1. **Binary in real session:** Run `engram agent spawn/kill/list/wait-ready` in a real multi-agent session using the engram-tmux-lead skill. All four commands execute without error against a live tmux session.
+2. **jq-parseable output:** Parse all structured output with `jq` (the tool skills actually use): `engram agent list` output parses as NDJSON (one JSON object per line); `engram agent wait-ready` output parses as the same JSON object format as `engram chat watch`. No command requires `cut`/`awk` for structured fields. _(Lesson from #516: TSV→NDJSON was a production catch, not a CI catch. Validate against skill's actual parsing tools before merging.)_
+3. **Historical chat file:** Run `engram agent wait-ready` and `engram agent spawn` against a chat file with 3+ sessions of historical data (multi-thousand-line file with TOML from multiple prior sessions). No parse errors — suffix-at-line pattern applied where needed.
+4. **Flag validation paths:** Verify all required-flag validation paths match skill usage: `engram agent spawn` requires `--name` and `--prompt`; `engram agent wait-ready` requires `--name` and `--cursor`. Error messages are human-readable (same standard as `engram hold acquire` flag validation from #518).
+5. **watchDeadline fires:** Run `engram agent wait-ready --name nonexistent --max-wait 5s` against a chat file where no ready message arrives. Verify the command exits within ~5s. This confirms the watchDeadline pattern is applied at the deepest blocking call — the same class of bug as #519 will manifest silently if omitted.
+
+Old SPAWN-PANE bash, concurrency tracking bash, and pane registry bash are deleted from skills. Workers continue to call `engram chat post` directly — no speech relay yet.
 
 **Replacement skill content (engram-tmux-lead, ~15 lines replacing ~50 deleted lines):**
 
@@ -733,14 +827,17 @@ List: `engram hold list [--holder <name>] [--target <name>]`
 ## Agent Lifecycle
 
 Spawn agent: `RESULT=$(engram agent spawn --name <n> --prompt "<p>")`
-Returns: `pane-id|session-id`
+Returns NDJSON: `{"pane-id":"3","session-id":"abc123"}`
 
-Wait for agent ready: `engram agent wait-ready --name <n> --cursor <cursor>`
+Wait for agent ready: `RESULT=$(engram agent wait-ready --name <n> --cursor <cursor>)`
+Returns JSON: `{"from":"<n>","type":"ready","cursor":NNN,...}`
+Parse with jq: `NEW_CURSOR=$(echo "$RESULT" | jq -r '.cursor')`
 
-Kill agent: `engram agent kill <name>`
+Kill agent: `engram agent kill --name <name>`
 
 List agents: `engram agent list`
-Output: one `name|state|session-id|pane-id` per line
+Returns NDJSON: one `{"name":"...","state":"running","session-id":"...","pane-id":"..."}` per line
+Parse with jq: `engram agent list | jq -r '.name'`
 ```
 
 **Issues fixed:** #505/#506 (spawn window bugs), #500 (engram-down any agent via `engram agent kill`), partial #503 (binary auto-ACKs spawn intents)
