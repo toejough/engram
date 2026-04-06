@@ -16,10 +16,11 @@ The user's primary agent. All other agents are behind the scenes — the user ta
 - Running tests or builds
 - Listing issues, creating PRs, filing issues
 - Answering technical questions from your own knowledge
-- Calling `tmux split-window` directly instead of using SPAWN-PANE from Section 1.3
+- Calling `tmux` commands directly — use `engram agent spawn/kill` instead.
 
 **The ONLY commands the lead runs directly are:**
-- `tmux` commands (spawn, kill, list, send-keys, capture-pane, split-window)
+- `engram agent` commands (spawn, kill, list, wait-ready)
+- `tmux` send-keys, capture-pane (for nudging and health checks only)
 - Chat file operations (append to chat, read chat, spawn background monitor Agent)
 - `grep` on the chat file to check agent status
 
@@ -72,108 +73,51 @@ CHAT_FILE="$HOME/.local/share/engram/chat/${PROJECT_SLUG}.toml"
 mkdir -p "$(dirname "$CHAT_FILE")"
 touch "$CHAT_FILE"
 
-# Capture lead's window ID — passed to every split-window so panes stay in this window
+# Capture lead's window ID — used for the chat tail pane (all agent panes managed by binary)
 LEAD_WINDOW=$(tmux display-message -p '#{window_id}')
 
 # Background task registry: one active task per logical operation.
 # Always drain (TaskOutput block:false) before replacing an entry.
 CHAT_MONITOR_TASK_ID=""  # task ID of the current chat monitor Agent (Agent tool, run_in_background)
 
-# Pane column tracking — updated after every spawn or kill
-RIGHT_PANE_COUNT=0         # total panes to the right of coordinator
-MIDDLE_COL_LAST_PANE=""    # pane ID of the last pane in the middle column (right-side column 1)
-RIGHT_COL_LAST_PANE=""     # pane ID of the last pane in the right column (right-side column 2)
-
-# Split right — chat tail is the first middle-column pane
+# Split right — chat tail pane
 TAIL_PANE_ID=$(tmux split-window -h -d -t "$LEAD_WINDOW" -P -F '#{pane_id}' "tail -F $CHAT_FILE")
 tmux select-pane -t "$TAIL_PANE_ID" -T "chat-tail"
-MIDDLE_COL_LAST_PANE=$TAIL_PANE_ID
-RIGHT_PANE_COUNT=1
 # Rebalance: coordinator on left, chat tail on right
 tmux select-layout main-vertical
 # Enable pane border so titles set via select-pane -T are visible
 tmux set-option -w -t "$LEAD_WINDOW" pane-border-status top
 ```
 
-**Pane layout:** All agents and the chat tail live as panes in the coordinator's window — NOT separate windows. The coordinator pane stays on the left. Right-side panes fill the **middle column** first (up to 4); once the middle column is full, new panes start the **right column**.
+## Agent Lifecycle
 
-#### SPAWN-PANE — use for EVERY pane creation (§1.4, §2.1, and any future spawn site)
+Use binary commands for all pane management. Never call tmux directly.
 
-**HARD GATE: NEVER call `tmux split-window` directly outside this block — always run SPAWN-PANE.**
-
+**Spawn agent** (capture cursor BEFORE spawn — required for wait-ready to see the ready message):
 ```bash
-# HARD GATE: NEVER call tmux split-window elsewhere — always run SPAWN-PANE.
-# Requires: RIGHT_PANE_COUNT, MIDDLE_COL_LAST_PANE, RIGHT_COL_LAST_PANE are initialized (§1.3 setup).
-# Outputs: NEW_PANE (new pane ID). Caller assigns: PANE_ID=$NEW_PANE
-# Use -P -F '#{pane_id}' to capture the new pane ID at creation — not list-panes | tail -1.
-# TITLE: Do NOT set pane title here — Claude Code overwrites on startup.
-#        Callers set title via: tmux select-pane -t "$PANE_ID" -T "$PANE_TITLE"
-#        AFTER the 'while ! ... grep -q ❯' loop (post-startup).
-
-if [ "$RIGHT_PANE_COUNT" -lt 4 ]; then
-  # Middle column not full: split right from coordinator, rebalance into single right column
-  NEW_PANE=$(tmux split-window -h -d -t "$LEAD_WINDOW" -P -F '#{pane_id}')
-  MIDDLE_COL_LAST_PANE=$NEW_PANE
-  tmux select-layout main-vertical
-elif [ "$RIGHT_PANE_COUNT" -eq 4 ]; then
-  # Middle column full (4 panes): start right column by splitting right from last middle pane
-  NEW_PANE=$(tmux split-window -h -d -t "$MIDDLE_COL_LAST_PANE" -P -F '#{pane_id}')
-  RIGHT_COL_LAST_PANE=$NEW_PANE
-  # No main-vertical: manually managing multi-column layout
-else
-  # Right column in progress: split below last right-column pane
-  NEW_PANE=$(tmux split-window -v -d -t "$RIGHT_COL_LAST_PANE" -P -F '#{pane_id}')
-  RIGHT_COL_LAST_PANE=$NEW_PANE
-fi
-RIGHT_PANE_COUNT=$((RIGHT_PANE_COUNT + 1))
-# NOTE: Do NOT set the pane title here — Claude Code overwrites it on startup.
-# Callers must run: tmux select-pane -t "$PANE_ID" -T "$PANE_TITLE"
-# AFTER the 'while ! ... grep -q ❯' loop (i.e., after claude is fully started).
+PRE_SPAWN_CURSOR=$(engram chat cursor)
+RESULT=$(engram agent spawn --name <name> --prompt "<prompt>")
+PANE_ID=$(echo "$RESULT" | cut -d'|' -f1)
+SESSION_ID=$(echo "$RESULT" | cut -d'|' -f2)
 ```
 
-**Single right column** (1–4 right-side panes, `main-vertical` keeps layout balanced):
-```
-┌──────────────┬──────────────┐
-│              │  chat tail   │
-│  coordinator │──────────────│
-│              │  engram-agent│
-│              │──────────────│
-│              │  exec-1      │
-└──────────────┴──────────────┘
-```
-
-**Two right columns** (5–8 right-side panes; middle column capped at 4, overflow goes right):
-```
-┌──────────────┬──────────────┬──────────────┐
-│              │  chat tail   │  exec-3      │
-│  coordinator │──────────────│──────────────│
-│              │  engram-agent│  exec-4      │
-│              │──────────────│──────────────│
-│              │  exec-1      │  exec-5      │
-│              │──────────────│──────────────│
-│              │  exec-2      │  exec-6      │
-└──────────────┴──────────────┴──────────────┘
-```
-
-**Maximum: 9 total panes** (1 coordinator + 4 middle + 4 right). Do not exceed. See Section 2.4.
-
-#### KILL-PANE — use for EVERY pane removal (§3.1 DONE, §3.3 Respawn, §3.4 hold-release)
-
-**HARD GATE: NEVER call `tmux kill-pane` + `tmux select-layout` inline — always run KILL-PANE.**
-
+**Wait for agent ready** (pass PRE_SPAWN_CURSOR, not a post-spawn cursor — the ready message arrives after spawn and must be visible):
 ```bash
-# HARD GATE: NEVER call tmux kill-pane + select-layout elsewhere — always run KILL-PANE.
-# Requires: PANE_ID set to the pane being removed; RIGHT_PANE_COUNT and RIGHT_COL_LAST_PANE are set.
-# After kill: update MIDDLE_COL_LAST_PANE or RIGHT_COL_LAST_PANE in your pane registry
-# to reflect the new column tail (the lead tracks this via its pane registry).
+WAIT_RESULT=$(engram agent wait-ready --name <name> --cursor $PRE_SPAWN_CURSOR --max-wait 30)
+NEW_CURSOR=$(echo "$WAIT_RESULT" | jq -r '.cursor')
+```
 
-tmux kill-pane -t "$PANE_ID" 2>/dev/null
-RIGHT_PANE_COUNT=$((RIGHT_PANE_COUNT - 1))
-if [ -z "$RIGHT_COL_LAST_PANE" ]; then
-  # Single-column mode: rebalance remaining panes
-  tmux select-layout main-vertical
-fi
-# Two-column mode: no automatic rebalance — lead updates column tracking manually.
+**Kill agent** (DONE state — send shutdown via chat FIRST so agent's protocol state is aligned before pane death):
+```bash
+# 1. Send shutdown via chat (lead's responsibility — binary does NOT post this)
+engram chat post --from lead --to <name> --thread lifecycle --type shutdown --text "Session complete."
+# 2. Kill agent (releases met holds + removes from state file + kills tmux pane)
+engram agent kill --name <name>
+```
+
+**List agents (NDJSON — parse with jq):**
+```bash
+engram agent list | jq -r '.name'
 ```
 
 ### 1.4 Spawn engram-agent
@@ -181,67 +125,24 @@ fi
 **ALWAYS spawn this. NEVER skip. Not for "simple" tasks. Not for "quick" tasks. Not because "I can handle it myself." The engram-agent is the memory safety net — without it, you learn nothing and surface nothing. Spawn it BEFORE touching the user's request.**
 
 ```bash
-# Use SPAWN-PANE from Section 1.3 to create the pane.
-# RIGHT_PANE_COUNT=1 at this point (chat tail was spawn #1 in §1.3 setup).
-PANE_TITLE="engram-agent"
-# SPAWN-PANE sets NEW_PANE — assign to PANE_ID for this spawn.
-PANE_ID=$NEW_PANE
-# Suppress status line — agents run headless, no user to see it; keeps panes clean
-tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
-# Wait for claude to start (watch for the prompt character)
-while ! tmux capture-pane -t "$PANE_ID" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
-# Set title NOW — after claude starts — so Claude Code's startup doesn't overwrite it
-tmux select-pane -t "$PANE_ID" -T "$PANE_TITLE"
-# Send the role prompt
-tmux send-keys -t "$PANE_ID" "/use-engram-chat-as reactive memory agent named engram-agent" Enter
-# Send extra Enter in case it was treated as a paste
-sleep 1
-tmux send-keys -t "$PANE_ID" Enter
+PRE_SPAWN_CURSOR=$(engram chat cursor)
+RESULT=$(engram agent spawn --name engram-agent --prompt "/use-engram-chat-as reactive memory agent named engram-agent")
+PANE_ID=$(echo "$RESULT" | cut -d'|' -f1)
+SESSION_ID=$(echo "$RESULT" | cut -d'|' -f2)
 ```
-
-**Why not `--prompt`?** The `--prompt` flag runs claude in non-interactive mode — no TUI, output goes to stdout, and the window appears blank. Using `send-keys` keeps claude interactive so the user can see agent activity.
 
 ### 1.5 Wait for engram-agent
 
-First, capture the cursor **before** spawning engram-agent (foreground bash):
+Use `PRE_SPAWN_CURSOR` captured in §1.4 (before spawn). The binary waits for a `ready` message addressed to `engram-agent`:
 
 ```bash
-engram chat cursor
+WAIT_RESULT=$(engram agent wait-ready --name engram-agent --cursor $PRE_SPAWN_CURSOR --max-wait 30)
+NEW_CURSOR=$(echo "$WAIT_RESULT" | jq -r '.cursor')
 ```
 
-Note the output as `ENGRAM_START`. Then spawn a background Agent (`Agent` tool, `run_in_background: true`) to wait for the engram-agent's first chat message. **Embed `ENGRAM_START` as a literal integer in the Agent prompt** — background Agents have no access to shell variables from prior tool calls.
-
-```
-Watch for engram-agent startup in engram chat.
-CHAT_FILE: [full path — literal string]
-CURSOR: [ENGRAM_START literal integer]
-Watch for the first TOML message block where from = "engram-agent" (any type).
-Return "ENGRAM-AGENT FOUND" when found.
-Return "TIMEOUT" if not found within 30s.
-```
-
-**Use `block=False` — do NOT block.** After spawning the background Agent, poll it non-blocking between interactions. Never call `TaskOutput(task_id=..., block=True)` for this wait — that freezes the lead and blocks all user input.
-
-```python
-# After spawning ENGRAM_READY_TASK_ID:
-import time
-deadline = time.time() + 30
-while time.time() < deadline:
-    result = TaskOutput(task_id=ENGRAM_READY_TASK_ID, block=False)
-    if result is not None:  # task completed
-        break
-    # Check for user input; handle it if present, then re-poll
-    time.sleep(0.5)
-```
-
-If result is "ENGRAM-AGENT FOUND": proceed.
-If result is "TIMEOUT" or deadline passed with no result:
-1. Drain: `TaskOutput(task_id=ENGRAM_READY_TASK_ID, block=False)` (discard)
-2. Check pane exists: `tmux list-panes -F '#{pane_id} #{pane_pid}' | grep <tracked-pane-id>`
-3. Check window output: `tmux capture-pane -t "$PANE_ID" -p | tail -20`
-4. Report to user with diagnostic info. Do NOT silently proceed without memory.
-
-> **Background task drain note:** The polling loop background task completes as soon as the loop exits (found or timed out). Reading its output drains it. If you need to retry after a timeout, the previous task is already drained when you read its output. Only spawn a new check after fully reading the old task's result — never run two concurrent READY check loops.
+If the command times out (exit non-zero):
+1. Check pane exists: `tmux capture-pane -t "$PANE_ID" -p | tail -20`
+2. Report to user with diagnostic info. Do NOT silently proceed without memory.
 
 ### 1.6 Post Ready
 
@@ -301,47 +202,34 @@ Apply standard ACK-wait timing: 5s implicit ACK if engram-agent offline; wait up
 Every agent the lead spawns gets a **pane** in the coordinator's window (NOT a separate window):
 
 ```bash
-# Use SPAWN-PANE from Section 1.3 to create the pane.
-# SPAWN-PANE checks RIGHT_PANE_COUNT and applies the correct split (middle col, right col, or vertical).
-PANE_TITLE="<agent-name>"
-# SPAWN-PANE sets NEW_PANE — assign to PANE_ID for this spawn.
-PANE_ID=$NEW_PANE
-# Suppress status line — agents run headless, no user to see it; keeps panes clean
-tmux send-keys -t "$PANE_ID" "claude --dangerously-skip-permissions --model sonnet --settings '{\"statusLine\": {\"type\": \"command\", \"command\": \"true\"}}'" Enter
-# Wait for claude to start (watch for the prompt character)
-while ! tmux capture-pane -t "$PANE_ID" -p 2>/dev/null | grep -q "❯"; do sleep 1; done
-# Set title NOW — after claude starts — so Claude Code's startup doesn't overwrite it
-tmux select-pane -t "$PANE_ID" -T "$PANE_TITLE"
-# Send the role prompt
-tmux send-keys -t "$PANE_ID" "/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete." Enter
-# Send extra Enter in case it was treated as a paste
-sleep 1
-tmux send-keys -t "$PANE_ID" Enter
+PRE_SPAWN_CURSOR=$(engram chat cursor)
+RESULT=$(engram agent spawn --name <agent-name> --prompt "/use-engram-chat-as <role> named <agent-name>. Your task: <task description>. Work in this directory: <pwd>. Use relevant skills. Post intent before significant actions. Funnel ALL questions for the user through chat addressed to lead. NEVER ask the user directly -- you have no user. Post done when your assigned task is complete.")
+PANE_ID=$(echo "$RESULT" | cut -d'|' -f1)
+SESSION_ID=$(echo "$RESULT" | cut -d'|' -f2)
 ```
 
-**Step 3: Wait for agent done.**
+**Step 3: Wait for agent ready.**
 
-**CRITICAL — capture cursor BEFORE sending the role prompt (foreground bash):**
+`PRE_SPAWN_CURSOR` was captured before spawn. Pass it to `wait-ready` so the agent's `ready` message is visible:
 
 ```bash
-engram chat cursor
+WAIT_RESULT=$(engram agent wait-ready --name <agent-name> --cursor $PRE_SPAWN_CURSOR --max-wait 30)
+NEW_CURSOR=$(echo "$WAIT_RESULT" | jq -r '.cursor')
 ```
 
-Note the output as the per-spawn start line (e.g., `412`). Then spawn the wait task as a background Agent (`Agent` tool, `run_in_background: true`). **Embed the literal integer in the Agent prompt** — background Agents have no access to shell variables from prior tool calls.
-
+After the agent is ready, wait for `done` via background Agent (Background Monitor Pattern from use-engram-chat-as). Spawn:
 ```
 Monitor engram chat.
-Run: RESULT=$(engram chat watch --agent AGENT_NAME --cursor CURSOR --type done --max-wait 60)
-Parse JSON: type, from, cursor, text.
-Return parsed fields.
+Run: RESULT=$(engram chat watch --agent AGENT_NAME --cursor CURSOR --type done --max-wait 300)
+Parse JSON: type, from, cursor, text. Return parsed fields.
 If max-wait exceeded with no match, return TIMEOUT.
 ```
 
 When the background task completes:
-- "AGENT DONE": read the `done` message text from new lines (cursor-based), update session cursor: `CURSOR=$(engram chat cursor)`.
-- No output after 30 iterations: agent may be stuck. Check via `tmux capture-pane -t "$PANE_ID" -p -S -20`. Transition to SILENT per Section 3.2.
+- "AGENT DONE": update session cursor: `CURSOR=$(engram chat cursor)`.
+- TIMEOUT: agent may be stuck. Check via `tmux capture-pane -t "$PANE_ID" -p -S -20`. Transition to SILENT per Section 3.2.
 
-**Track pane IDs, not window names.** The lead maintains a mapping of agent-name → pane-ID for targeting send-keys, capture-pane, and kill-pane operations.
+**Track pane IDs, not window names.** The lead maintains a mapping of agent-name → pane-ID for targeting nudge (send-keys, capture-pane) and kill (`engram agent kill`) operations.
 
 **Critical:**
 - **ALL window names MUST be prefixed with `${PROJECT_PREFIX}:`** (e.g., `engram:exec-1`, `traced:engram-agent`). This prevents cross-project collisions when multiple projects run agents in the same tmux session.
@@ -451,12 +339,10 @@ The counter is **per-role** -- each role has its own monotonically increasing co
 
 ### 2.4 Concurrency Limit
 
-Maximum **9 total panes** (1 coordinator + 8 right-side panes). The right side fills in two columns: middle column holds up to 4 panes, right column holds up to 4 panes (see Section 1.3 for splitting rules).
+Maximum **9 total panes** (1 coordinator + 8 agent panes). The binary manages layout automatically.
 
 Beyond 9, queue the request:
 - "At pane limit (9 total, 8 agents). Waiting for a slot to free up. Kill an agent if you want this to proceed now."
-
-**When a pane is killed:** run `tmux select-layout main-vertical` only if `RIGHT_COL_LAST_PANE` is empty (still single-column). In two-column mode, decrement `RIGHT_PANE_COUNT` and update `MIDDLE_COL_LAST_PANE` or `RIGHT_COL_LAST_PANE` as appropriate.
 
 ## 3. Agent Lifecycle State Machine
 
@@ -483,12 +369,12 @@ DEAD ──(lead decides, report)──> REPORT+DONE
 
 | State | Entry Condition | Lead Behavior |
 |-------|----------------|---------------|
-| **STARTING** | `tmux new-window` executed | Monitor chat for first message. Timeout: 30s for engram-agent, 60s for others. |
+| **STARTING** | `engram agent spawn` executed | Monitor chat for first message. Timeout: 30s for engram-agent, 60s for others. |
 | **ACTIVE** | Agent posted at least one message | Normal operation. Track last-message timestamp. |
 | **SILENT** | No chat message for `silence_threshold` (3 min for task agents, 6 min for engram-agent). Detected on 2-minute health check. | Nudge via chat + tmux (see 3.2). |
 | **DEAD** | Nudge failed, tmux window gone, or log shows crash/exit | Decide: respawn (engram-agent always), report to user (task agents). |
 | **PENDING-RELEASE** | Agent posted `done` AND lead's hold registry contains at least one hold targeting this agent | Do NOT kill pane. Agent remains alive and responsive. Run engram hold check after each agent done event. Silence threshold still applies — use PENDING-RELEASE-specific nudge text (see 3.2). |
-| **DONE** | Agent posted `done` AND no incoming holds remain (or last hold just dissolved) | 0. Post kill intent (see note below table). 1. Post `shutdown` to agent via chat (`type = "shutdown"`, `to = "<agent-name>"`). 2. Set `PANE_ID=<tracked-pane-id>` then use KILL-PANE from Section 1.3 (handles single- and two-column rebalancing). 3. Remove from tracking. |
+| **DONE** | Agent posted `done` AND no incoming holds remain (or last hold just dissolved) | 0. Post kill intent (see note below table). 1. Post `shutdown` to agent via chat (`type = "shutdown"`, `to = "<agent-name>"`). 2. Run `engram agent kill --name <agent-name>` (removes from state file + kills pane). 3. Remove from tracking. |
 
 **NEVER kill the engram-agent.** It runs for the entire session. Only task agents transition to DONE.
 
@@ -503,11 +389,11 @@ CURSOR=$(engram chat post \
   --text "Situation: <agent-name> has posted done. Hold registry confirms no incoming holds remain. Behavior: Will send shutdown message to <agent-name> then kill its pane.")
 ```
 
-Wait for ACK before proceeding with the shutdown + kill-pane sequence. Apply standard online/offline timing rules.
+Wait for ACK before proceeding with the shutdown + kill sequence. Apply standard online/offline timing rules.
 
 **ALWAYS send `shutdown` to the agent via chat before killing its pane.** This aligns the agent's protocol state so it doesn't post stale messages after pane death.
 
-**ALWAYS kill panes by tracked pane ID.** Never by window index or name. After killing, use KILL-PANE from Section 1.3 — it handles rebalancing for both single- and two-column modes.
+**Always use `engram agent kill --name <name>` to kill agents.** Never call `tmux kill-pane` directly — the binary handles state file cleanup and layout rebalancing.
 
 ### 3.2 Nudging
 
@@ -568,8 +454,8 @@ CURSOR=$(engram chat post \
   --text "Situation: <agent-name> is DEAD (respawn attempt N). Pane confirmed gone or unresponsive. Behavior: Will kill existing pane and spawn a fresh instance with the same role parameters.")
 ```
 
-1. Set `PANE_ID=<tracked-pane-id>` then use KILL-PANE from Section 1.3 (handles single- and two-column layout rebalancing).
-2. Spawn fresh window with same parameters
+1. Run `engram agent kill --name <agent-name>` (removes state + kills pane).
+2. Spawn fresh instance with same parameters using `engram agent spawn`
 3. Post `info` to chat: `"Respawned <agent-name> (attempt N/3). Previous instance died/became unresponsive."`
 4. New instance reads chat history on join and picks up context
 
@@ -732,7 +618,7 @@ engram hold check   # evaluates conditions, releases met holds, prints released 
 
 After any release:
 1. `engram hold list --target <target-agent>`
-2. Empty → send shutdown → KILL-PANE → DONE
+2. Empty → send shutdown → `engram agent kill --name <agent>` → DONE
 3. Non-empty → stays in PENDING-RELEASE
 
 ## 4. Routing
