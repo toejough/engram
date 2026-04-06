@@ -639,18 +639,6 @@ func TestRunAgentDispatch_KillSubcommand_ReturnsNotImplemented(t *testing.T) {
 	}
 }
 
-func TestRunAgentDispatch_ListSubcommand_ReturnsNotImplemented(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	err := cli.Run([]string{"engram", "agent", "list"}, &bytes.Buffer{}, io.Discard, nil)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("not implemented"))
-	}
-}
-
 func TestRunAgentDispatch_NoArgs_ReturnsUsageError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -841,6 +829,233 @@ func TestRunAgentSpawn_WritesStateFileAndOutputsPaneID(t *testing.T) {
 
 	g.Expect(string(data)).To(ContainSubstring("executor-1"))
 	g.Expect(string(data)).To(ContainSubstring("main:1.2"))
+}
+
+func TestRunAgentList_AbsentStateFile_AttemptsReconstruction(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	// No state file — reconstruction path. Chat file also absent (empty reconstruction).
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "list",
+		"--state-file", filepath.Join(dir, "state.toml"),
+		"--chat-file", filepath.Join(dir, "chat.toml"),
+	}, &stdout, io.Discard, nil)
+	// No error — reconstruction attempt made, result is empty agent list.
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(strings.TrimSpace(stdout.String())).To(BeEmpty())
+}
+
+func TestRunAgentList_AbsentStateFile_ChatHasReadyMessages_ReconstructsAgents(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Write chat file with two ready messages.
+	chatContent := `
+[[message]]
+from = "executor-1"
+to = "all"
+thread = "lifecycle"
+type = "ready"
+ts = 2026-04-06T12:00:00Z
+text = """Joining chat."""
+
+[[message]]
+from = "reviewer-1"
+to = "all"
+thread = "lifecycle"
+type = "ready"
+ts = 2026-04-06T12:01:00Z
+text = """Joining chat."""
+`
+	g.Expect(os.WriteFile(chatFile, []byte(chatContent), 0o600)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "list",
+		"--state-file", filepath.Join(dir, "state.toml"),
+		"--chat-file", chatFile,
+	}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := strings.TrimSpace(stdout.String())
+	g.Expect(output).To(ContainSubstring("executor-1"))
+	g.Expect(output).To(ContainSubstring("reviewer-1"))
+}
+
+func TestRunAgentList_DoneAgentExcludedFromReconstruction(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// executor-1 posted ready then done — should be excluded.
+	// executor-2 posted ready but no done — should be included.
+	chatContent := `
+[[message]]
+from = "executor-1"
+to = "all"
+thread = "lifecycle"
+type = "ready"
+ts = 2026-04-06T12:00:00Z
+text = """Joining chat."""
+
+[[message]]
+from = "executor-1"
+to = "all"
+thread = "lifecycle"
+type = "done"
+ts = 2026-04-06T12:01:00Z
+text = """Shutting down."""
+
+[[message]]
+from = "executor-2"
+to = "all"
+thread = "lifecycle"
+type = "ready"
+ts = 2026-04-06T12:02:00Z
+text = """Joining chat."""
+`
+	g.Expect(os.WriteFile(chatFile, []byte(chatContent), 0o600)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "list",
+		"--state-file", filepath.Join(dir, "state.toml"),
+		"--chat-file", chatFile,
+	}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := strings.TrimSpace(stdout.String())
+	g.Expect(output).NotTo(ContainSubstring("executor-1"))
+	g.Expect(output).To(ContainSubstring("executor-2"))
+}
+
+func TestRunAgentList_EmptyStateFile_NoOutput(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	g.Expect(os.WriteFile(stateFile, []byte(""), 0o600)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateFile}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(strings.TrimSpace(stdout.String())).To(BeEmpty())
+}
+
+func TestRunAgentList_HelpFlag_NoError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "list", "--help"}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRunAgentList_InvalidTOMLStateFile_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	g.Expect(os.WriteFile(stateFile, []byte("[[not valid toml{{{{"), 0o600)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateFile}, &stdout, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunAgentList_MultipleAgents_NDJSON(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+
+	state := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{Name: "executor-1", PaneID: "main:1.2", SessionID: "sess1", State: "ACTIVE"},
+			{Name: "reviewer-1", PaneID: "main:1.3", SessionID: "sess2", State: "ACTIVE"},
+		},
+	}
+	data, _ := agentpkg.MarshalStateFile(state)
+	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateFile}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	g.Expect(lines).To(HaveLen(2))
+
+	var rec1 map[string]any
+	g.Expect(json.Unmarshal([]byte(lines[0]), &rec1)).To(Succeed())
+	g.Expect(rec1["name"]).To(Equal("executor-1"))
+	g.Expect(rec1["pane-id"]).To(Equal("main:1.2"))
+	g.Expect(rec1["state"]).To(Equal("ACTIVE"))
+
+	var rec2 map[string]any
+	g.Expect(json.Unmarshal([]byte(lines[1]), &rec2)).To(Succeed())
+	g.Expect(rec2["name"]).To(Equal("reviewer-1"))
+}
+
+func TestRunAgentList_StateFileIsDir_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	// Use a directory path as the state file — os.ReadFile on a directory fails with EISDIR.
+	stateAsDir := filepath.Join(dir, "statedir")
+	g.Expect(os.MkdirAll(stateAsDir, 0o755)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateAsDir}, &stdout, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunAgentList_UnreadableChatFile_ReconstructionFails_NoError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	// Use a directory path as the chat file — os.ReadFile will fail with EISDIR (not ErrNotExist).
+	chatAsDir := filepath.Join(dir, "chatdir")
+	g.Expect(os.MkdirAll(chatAsDir, 0o755)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "list",
+		"--state-file", filepath.Join(dir, "state.toml"),
+		"--chat-file", chatAsDir,
+	}, &stdout, io.Discard, nil)
+	// Reconstruction failure is logged but not returned as an error.
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(strings.TrimSpace(stdout.String())).To(BeEmpty())
 }
 
 // Step 14: Full intent→ack→hold→check→release E2E cycle.

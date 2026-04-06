@@ -2,10 +2,12 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -239,6 +241,63 @@ func readModifyWriteStateFile(stateFilePath string, modify func(agentpkg.StateFi
 	return nil
 }
 
+// reconstructStateFileFromChat builds a best-effort StateFile from the chat history.
+// Reads all lifecycle messages to extract agent names from `ready` messages.
+// Reads all hold-acquire/release pairs via chat.ScanActiveHolds.
+// Result is in-memory only — NOT written to disk. Agent list may be partial
+// (agents that posted ready but whose done/shutdown was missed are included;
+// agents that never posted ready are absent).
+func reconstructStateFileFromChat(
+	chatFilePath string,
+	readFile func(string) ([]byte, error),
+) (agentpkg.StateFile, error) {
+	messages, loadErr := loadChatMessages(chatFilePath, readFile)
+	if loadErr != nil {
+		return agentpkg.StateFile{}, fmt.Errorf("loading chat for reconstruction: %w", loadErr)
+	}
+
+	state := agentpkg.StateFile{}
+
+	// Reconstruct holds from chat log — ScanActiveHolds already handles acquire/release pairs.
+	activeHolds := chat.ScanActiveHolds(messages)
+	for _, hold := range activeHolds {
+		state = agentpkg.AddHold(state, agentpkg.HoldEntry{
+			HoldID:     hold.HoldID,
+			Holder:     hold.Holder,
+			Target:     hold.Target,
+			Condition:  hold.Condition,
+			Tag:        hold.Tag,
+			AcquiredTS: hold.AcquiredTS,
+		})
+	}
+
+	// Reconstruct agents from ready messages. Track which agents posted done/shutdown
+	// so we can exclude them (they exited cleanly).
+	doneAgents := make(map[string]bool)
+
+	for _, msg := range messages {
+		if msg.Type == "done" || msg.Type == "shutdown" {
+			doneAgents[msg.From] = true
+		}
+	}
+
+	seen := make(map[string]bool)
+
+	for _, msg := range messages {
+		if msg.Type != "ready" || seen[msg.From] || doneAgents[msg.From] {
+			continue
+		}
+
+		seen[msg.From] = true
+		state = agentpkg.AddAgent(state, agentpkg.AgentRecord{
+			Name:  msg.From,
+			State: "UNKNOWN", // reconstruction cannot verify live state without tmux
+		})
+	}
+
+	return state, nil
+}
+
 // resolveStateFile derives the state file path, wrapping errors with the subcommand name.
 func resolveStateFile(
 	override, cmd string,
@@ -275,7 +334,82 @@ func runAgentDispatch(subArgs []string, stdout io.Writer, spawner spawnFunc) err
 
 func runAgentKill(_ []string, _ io.Writer) error { return errNotImplemented }
 
-func runAgentList(_ []string, _ io.Writer) error { return errNotImplemented }
+func runAgentList(args []string, stdout io.Writer) error {
+	fs := newFlagSet("agent list")
+	stateFile := fs.String("state-file", "", "override state file path (testing only)")
+	chatFile := fs.String("chat-file", "", "override chat file path (used for reconstruction fallback)")
+
+	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
+	if parseErr != nil {
+		return fmt.Errorf("agent list: %w", parseErr)
+	}
+
+	stateFilePath, statePathErr := resolveStateFile(*stateFile, "agent list", os.UserHomeDir, os.Getwd)
+	if statePathErr != nil {
+		return statePathErr
+	}
+
+	data, readErr := os.ReadFile(stateFilePath) //nolint:gosec
+	if errors.Is(readErr, os.ErrNotExist) {
+		// Spec §6.3: detect missing state file and attempt reconstruction from chat history.
+		// This is cheap in Phase 3; expensive after Phase 5 when full-file parse paths may be removed.
+		chatFilePath, chatPathErr := resolveChatFile(*chatFile, "agent list", os.UserHomeDir, os.Getwd)
+		if chatPathErr != nil {
+			slog.Warn("agent list: state file missing, reconstruction skipped (could not resolve chat file)", "err", chatPathErr)
+			return nil
+		}
+
+		return runAgentListFromChat(chatFilePath, stdout)
+	}
+
+	if readErr != nil {
+		return fmt.Errorf("agent list: reading state file: %w", readErr)
+	}
+
+	parsed, parseStateErr := agentpkg.ParseStateFile(data)
+	if parseStateErr != nil {
+		return fmt.Errorf("agent list: %w", parseStateErr)
+	}
+
+	enc := json.NewEncoder(stdout)
+
+	for _, rec := range parsed.Agents {
+		encErr := enc.Encode(rec)
+		if encErr != nil {
+			return fmt.Errorf("agent list: encoding record: %w", encErr)
+		}
+	}
+
+	return nil
+}
+
+// runAgentListFromChat is the reconstruction fallback for runAgentList.
+// Called when the state file is missing. Emits a warning, reconstructs an
+// in-memory StateFile from chat history, and lists agents from that.
+func runAgentListFromChat(chatFilePath string, stdout io.Writer) error {
+	reconstructed, reconErr := reconstructStateFileFromChat(chatFilePath, os.ReadFile)
+	if reconErr != nil {
+		slog.Warn("agent list: state file missing, reconstruction failed", "err", reconErr)
+		return nil
+	}
+
+	slog.Warn("agent list: state file missing, using reconstructed state from chat history (agent list may be incomplete)")
+
+	enc := json.NewEncoder(stdout)
+
+	for _, rec := range reconstructed.Agents {
+		encErr := enc.Encode(rec)
+		if encErr != nil {
+			return fmt.Errorf("agent list: encoding reconstructed record: %w", encErr)
+		}
+	}
+
+	return nil
+}
 
 // runAgentSpawn spawns a new agent in a tmux pane, writes the AgentRecord to the state file,
 // posts a spawn intent and waits for engram-agent ACK (fixes #503), then prints pane-id|session-id.
