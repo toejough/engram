@@ -291,6 +291,12 @@ func postSpawnIntentAndWait(ctx context.Context, chatFilePath, name, paneID, int
 // readModifyWriteStateFile performs a locked read-modify-write on the state file.
 // Creates the file and its parent directory if they do not exist.
 func readModifyWriteStateFile(stateFilePath string, modify func(agentpkg.StateFile) agentpkg.StateFile) error {
+	dir := filepath.Dir(stateFilePath)
+
+	if mkdirErr := os.MkdirAll(dir, chatDirMode); mkdirErr != nil {
+		return fmt.Errorf("creating state directory: %w", mkdirErr)
+	}
+
 	lockPath := stateFilePath + ".lock"
 
 	unlock, lockErr := osStateFileLock(lockPath)
@@ -315,13 +321,6 @@ func readModifyWriteStateFile(stateFilePath string, modify func(agentpkg.StateFi
 	newData, marshalErr := agentpkg.MarshalStateFile(currentState)
 	if marshalErr != nil {
 		return fmt.Errorf("marshaling state file: %w", marshalErr)
-	}
-
-	dir := filepath.Dir(stateFilePath)
-
-	mkdirErr := os.MkdirAll(dir, chatDirMode)
-	if mkdirErr != nil {
-		return fmt.Errorf("creating state directory: %w", mkdirErr)
 	}
 
 	writeErr := os.WriteFile(stateFilePath, newData, chatFileMode)

@@ -519,6 +519,31 @@ func TestReadModifyWriteStateFile_CreatesFileWhenAbsent(t *testing.T) {
 	g.Expect(string(data)).To(ContainSubstring("test-agent"))
 }
 
+func TestReadModifyWriteStateFile_MissingDir_CreatesDirAndFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	base := t.TempDir()
+	// state/ subdirectory does NOT exist yet
+	stateFile := filepath.Join(base, "state", "test.toml")
+
+	err := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "test-agent", State: "STARTING"})
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stateFile).To(BeAnExistingFile())
+
+	data, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(data)).To(ContainSubstring("test-agent"))
+}
+
 func TestReadModifyWriteStateFile_InvalidTOML_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
