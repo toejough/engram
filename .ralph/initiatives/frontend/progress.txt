@@ -201,3 +201,19 @@
   - `IrrelevancePenaltyReducesScore`: memory with high irrelevantCount has lower bm25Score
 - All Go tests pass (`targ test`)
 - No new targ check-full failures (pre-existing failures unchanged)
+
+---
+
+## US-012: Surface simulator page (2026-04-06)
+- Implemented `src/pages/Surface.tsx` replacing placeholder with full surface simulator
+- Query input with submit button (Search icon), form submission triggers GET /api/surface
+- Optional project filter dropdown populated from GET /api/projects via TanStack Query
+- Select uses "__all__" sentinel value mapped to empty string for "All projects" option
+- On submit, calls `fetchSurface(query, project)` via TanStack Query with `enabled: submittedQuery.length > 0`
+- Matches section: Card with Table showing slug (linked to `/memories/:slug`), BM25 score (3 decimal places), final score, SBIA preview (situation + action truncated to 120 chars)
+- Near-misses section: separate Card showing below-threshold results with threshold value displayed in header
+- Shared `MatchRow` component renders both matches and near-misses
+- Help text at top explains what the simulator does
+- Empty query shows helpful prompt text ("Enter a query above to see which memories would be surfaced")
+- Loading state during simulation, error state for server failures
+- `npm run build` succeeds (tsc + vite build)

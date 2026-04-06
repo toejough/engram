@@ -201,8 +201,8 @@
         "npm run build succeeds"
       ],
       "priority": 12,
-      "passes": false,
-      "notes": "Helps users debug 'why did/didn't this memory surface?'"
+      "passes": true,
+      "notes": "Implemented Surface simulator page at /surface. Query input with submit button, optional project filter dropdown populated from GET /api/projects (with 'All projects' option). On submit calls GET /api/surface?q=...&project=... via TanStack Query. Matches section shows slug (linked to /memories/:slug), BM25 score, final score, SBIA preview (situation + action truncated to 120 chars). Near-misses section shows below-threshold results with scores and threshold value. Help text explains what the simulator does. Empty query shows helpful prompt text. Loading and error states handled. npm run build succeeds."
     },
     {
       "id": "US-013",
