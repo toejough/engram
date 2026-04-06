@@ -643,7 +643,64 @@ func runAgentSpawn(args []string, stdout io.Writer, spawner spawnFunc) error {
 	return nil
 }
 
-func runAgentWaitReady(_ []string, _ io.Writer) error { return errNotImplemented }
+func runAgentWaitReady(args []string, stdout io.Writer) error {
+	fs := newFlagSet("agent wait-ready")
+	name := fs.String("name", "", "agent name to wait for (required)")
+	cursor := fs.Int("cursor", 0, "line position to start watching from")
+	maxWaitS := fs.Int("max-wait", 30, "seconds to wait before giving up (default 30)") //nolint:mnd
+	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
+
+	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
+	if parseErr != nil {
+		return fmt.Errorf("agent wait-ready: %w", parseErr)
+	}
+
+	if *name == "" {
+		return errWaitReadyNameRequired
+	}
+
+	chatFilePath, pathErr := resolveChatFile(*chatFile, "agent wait-ready", os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return pathErr
+	}
+
+	// WATCHDEADLINE PATTERN: --max-wait MUST flow through context.WithTimeout into
+	// the inner watcher.Watch() blocking call (fsnotify loop). Checking the deadline
+	// only in the outer loop is insufficient — fsnotify blocks indefinitely without
+	// a context deadline. Same class as pre-b22dc0c #519 bug.
+	ctx, cancel := signalContext()
+	defer cancel()
+
+	if *maxWaitS > 0 {
+		var deadlineCancel context.CancelFunc
+
+		ctx, deadlineCancel = context.WithTimeout(ctx, time.Duration(*maxWaitS)*time.Second)
+		defer deadlineCancel()
+	}
+
+	watcher := newFileWatcher(chatFilePath)
+
+	msg, newCursor, watchErr := watcher.Watch(ctx, *name, *cursor, []string{"ready"})
+	if watchErr != nil {
+		return fmt.Errorf("agent wait-ready: %w", watchErr)
+	}
+
+	result := watchResult{
+		From:   msg.From,
+		To:     msg.To,
+		Thread: msg.Thread,
+		Type:   msg.Type,
+		TS:     msg.TS,
+		Text:   msg.Text,
+		Cursor: newCursor,
+	}
+
+	return marshalAndWriteWatchResult(stdout, result)
+}
 
 // writeKilledLine writes the "killed <name>" confirmation line to stdout.
 func writeKilledLine(stdout io.Writer, agentName string) error {

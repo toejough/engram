@@ -723,7 +723,7 @@ func TestRunAgentDispatch_UnknownSubcommand_ReturnsError(t *testing.T) {
 	}
 }
 
-func TestRunAgentDispatch_WaitReadySubcommand_ReturnsNotImplemented(t *testing.T) {
+func TestRunAgentDispatch_WaitReadySubcommand_RequiresName(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -731,7 +731,7 @@ func TestRunAgentDispatch_WaitReadySubcommand_ReturnsNotImplemented(t *testing.T
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("not implemented"))
+		g.Expect(err.Error()).To(ContainSubstring("name"))
 	}
 }
 
@@ -1345,6 +1345,91 @@ func TestRunAgentKill_StdoutError_ReturnsError(t *testing.T) {
 		"--chat-file", chatFile,
 	}, &failWriter{}, io.Discard, nil)
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunAgentWaitReady_MaxWaitExpires_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	start := time.Now()
+	err := cli.Run([]string{"engram", "agent", "wait-ready",
+		"--name", "nonexistent-agent",
+		"--cursor", "0",
+		"--max-wait", "1",
+		"--chat-file", chatFile,
+	}, io.Discard, io.Discard, nil)
+	elapsed := time.Since(start)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(elapsed).To(BeNumerically("<", 5*time.Second))
+}
+
+func TestRunAgentWaitReady_MissingName_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	err := cli.Run([]string{"engram", "agent", "wait-ready",
+		"--cursor", "0",
+		"--chat-file", chatFile,
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("name"))
+	}
+}
+
+func TestRunAgentWaitReady_SeesReadyMessage_OutputsJSON(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Append a ready message after a short delay to simulate agent startup.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+
+		readyTOML := "\n[[message]]\nfrom = \"executor-1\"\nto = \"all\"\n" +
+			"thread = \"lifecycle\"\ntype = \"ready\"\nts = 2026-04-06T12:00:00Z\n" +
+			"text = \"\"\"Joining chat.\"\"\"\n"
+
+		f, _ := os.OpenFile(chatFile, os.O_APPEND|os.O_WRONLY, 0o600)
+
+		if f != nil {
+			_, _ = f.WriteString(readyTOML)
+			_ = f.Close()
+		}
+	}()
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "wait-ready",
+		"--name", "executor-1",
+		"--cursor", "0",
+		"--max-wait", "5",
+		"--chat-file", chatFile,
+	}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result map[string]any
+	g.Expect(json.Unmarshal([]byte(strings.TrimSpace(stdout.String())), &result)).To(Succeed())
+	g.Expect(result["type"]).To(Equal("ready"))
+	g.Expect(result["from"]).To(Equal("executor-1"))
+	g.Expect(result["cursor"]).NotTo(BeZero())
 }
 
 // Step 14: Full intent→ack→hold→check→release E2E cycle.
