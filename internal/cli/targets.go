@@ -163,6 +163,30 @@ func AgentWaitReadyFlags(a AgentWaitReadyArgs) []string {
 	)
 }
 
+// BuildAgentGroup builds the targ group for agent subcommands.
+//
+//nolint:dupl // mirrors BuildChatGroup and BuildHoldGroup structure; same targ.Group pattern
+func BuildAgentGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup {
+	return targ.Group("agent",
+		targ.Targ(func(a AgentSpawnArgs) {
+			args := append([]string{"engram", "agent", "spawn"}, AgentSpawnFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("spawn").Description("Spawn a new agent in a tmux pane"),
+		targ.Targ(func(a AgentKillArgs) {
+			args := append([]string{"engram", "agent", "kill"}, AgentKillFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("kill").Description("Kill a running agent and remove it from the state file"),
+		targ.Targ(func(a AgentListArgs) {
+			args := append([]string{"engram", "agent", "list"}, AgentListFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("list").Description("List running agents from the state file"),
+		targ.Targ(func(a AgentWaitReadyArgs) {
+			args := append([]string{"engram", "agent", "wait-ready"}, AgentWaitReadyFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("wait-ready").Description("Block until a named agent posts ready"),
+	)
+}
+
 // BuildChatGroup builds the targ group for chat subcommands.
 //
 //nolint:dupl // mirrors BuildHoldGroup structure; both use the same targ.Group pattern
@@ -356,5 +380,10 @@ func Targets(stdout, stderr io.Writer, stdin io.Reader) []any {
 		RunSafe(args, stdout, stderr, stdin)
 	}
 
-	return append(BuildTargets(run), BuildChatGroup(stdout, stderr, stdin), BuildHoldGroup(stdout, stderr, stdin))
+	return append(
+		BuildTargets(run),
+		BuildChatGroup(stdout, stderr, stdin),
+		BuildHoldGroup(stdout, stderr, stdin),
+		BuildAgentGroup(stdout, stderr, stdin),
+	)
 }

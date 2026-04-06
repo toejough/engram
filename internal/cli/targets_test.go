@@ -139,6 +139,104 @@ func TestAgentWaitReadyFlags_ZeroInts(t *testing.T) {
 	g.Expect(args).To(gomega.ContainElements("--name", "executor-1", "--cursor", "0", "--max-wait", "0"))
 }
 
+func TestBuildAgentGroup(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns a non-nil group", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		group := cli.BuildAgentGroup(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		g.Expect(group).NotTo(gomega.BeNil())
+	})
+
+	t.Run("executes list subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		stateFile := filepath.Join(dir, "state.toml")
+
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "agent", "list",
+			"--state-file", stateFile,
+			"--chat-file", filepath.Join(dir, "chat.toml"),
+		}, targets...)
+
+		// list on empty/nonexistent state file produces no output
+		g.Expect(stdout.String()).To(gomega.BeEmpty())
+	})
+
+	t.Run("executes kill subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+
+		var stdout bytes.Buffer
+
+		// kill with no holds and nonexistent state file removes nothing and prints "killed <name>"
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "agent", "kill",
+			"--name", "test-agent",
+			"--state-file", filepath.Join(dir, "state.toml"),
+			"--chat-file", filepath.Join(dir, "chat.toml"),
+		}, targets...)
+
+		g.Expect(strings.TrimSpace(stdout.String())).To(gomega.Equal("killed test-agent"))
+	})
+
+	t.Run("executes spawn subcommand via closure (missing name returns error, no tmux call)", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var stderr bytes.Buffer
+
+		// Omit --name so parseSpawnFlags returns errSpawnNameRequired before tmux is touched.
+		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
+		_, _ = targ.Execute([]string{"engram", "agent", "spawn"}, targets...)
+
+		g.Expect(stderr.String()).To(gomega.ContainSubstring("--name"))
+	})
+
+	t.Run("executes wait-ready subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+
+		// Pre-post a ready message so wait-ready returns immediately
+		postErr := cli.Run([]string{
+			"engram", "chat", "post",
+			"--chat-file", chatFile,
+			"--from", "test-agent", "--to", "all",
+			"--thread", "lifecycle", "--type", "ready", "--text", "ok",
+		}, io.Discard, io.Discard, nil)
+		if postErr != nil {
+			return
+		}
+
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "agent", "wait-ready",
+			"--name", "test-agent",
+			"--chat-file", chatFile,
+			"--cursor", "0",
+			"--max-wait", "5",
+		}, targets...)
+
+		// wait-ready outputs a JSON result
+		g.Expect(stdout.String()).To(gomega.ContainSubstring(`"from":"test-agent"`))
+	})
+}
+
 func TestBuildChatGroup(t *testing.T) {
 	t.Parallel()
 
@@ -798,7 +896,7 @@ func TestTargets(t *testing.T) {
 
 		// Construction doesn't do I/O — just builds targ target objects.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(targets).To(gomega.HaveLen(4))
+		g.Expect(targets).To(gomega.HaveLen(5))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {
