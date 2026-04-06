@@ -3,6 +3,7 @@ package chat
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -63,7 +64,9 @@ func formatMessage(msg Message) []byte {
 	fmt.Fprintf(&buf, "thread = %q\n", msg.Thread)
 	fmt.Fprintf(&buf, "type = %q\n", msg.Type)
 	fmt.Fprintf(&buf, "ts = %s\n", msg.TS.UTC().Format(time.RFC3339Nano))
-	fmt.Fprintf(&buf, "text = \"\"\"\n%s\n\"\"\"\n", msg.Text)
+	// Escape any triple-quote sequence that would prematurely terminate the TOML multi-line string.
+	escapedText := strings.ReplaceAll(msg.Text, `"""`, `""\"`)
+	fmt.Fprintf(&buf, "text = \"\"\"\n%s\n\"\"\"\n", escapedText)
 
 	return buf.Bytes()
 }

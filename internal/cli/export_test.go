@@ -24,6 +24,7 @@ var (
 	ExportRenderFactContent   = renderFactContent
 	ExportRenderMemoryContent = renderMemoryContent
 	ExportRenderMemoryMeta    = renderMemoryMeta
+	ExportResolveChatFile     = resolveChatFile
 )
 
 // --- Factory functions for structs with unexported fields ---

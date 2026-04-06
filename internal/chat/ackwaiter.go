@@ -81,7 +81,7 @@ func (w *FileAckWaiter) AckWait(
 // Returns (result, true) if the wait is resolved (WAIT received), or (zero, false) to continue.
 func (w *FileAckWaiter) applyMsg(msg Message, states map[string]*recipientState, currentCursor int) (AckResult, bool) {
 	state, isPending := states[strings.ToLower(msg.From)]
-	if !isPending || state == nil || state.responded {
+	if !isPending || state.responded {
 		return AckResult{}, false
 	}
 
@@ -127,7 +127,7 @@ func allResponded(states map[string]*recipientState) bool {
 // applyOfflineImplicit marks offline recipients as responded when offlineImplicitWait has elapsed.
 func applyOfflineImplicit(states map[string]*recipientState, now time.Time) {
 	for _, state := range states {
-		if state == nil || state.responded || state.online {
+		if state.responded || state.online {
 			continue
 		}
 
@@ -139,13 +139,16 @@ func applyOfflineImplicit(states map[string]*recipientState, now time.Time) {
 
 // buildRecipientStates initialises per-recipient state from the full chat file data.
 // Recipient names are normalized to lowercase so map lookups are case-insensitive.
+// ParseMessages is called once and the result shared across all recipients.
 func buildRecipientStates(data []byte, recipients []string, now time.Time) map[string]*recipientState {
 	fifteenMinAgo := now.Add(-15 * time.Minute)
 	states := make(map[string]*recipientState, len(recipients))
 
+	messages, _ := ParseMessages(data) // errors treated as empty message list
+
 	for _, r := range recipients {
 		states[strings.ToLower(r)] = &recipientState{
-			online:    isOnline(data, r, fifteenMinAgo),
+			online:    isOnline(messages, r, fifteenMinAgo),
 			waitStart: now,
 		}
 	}
@@ -162,7 +165,7 @@ func checkOnlineSilentTimeout(
 	currentCursor int,
 ) (AckResult, bool) {
 	for recipient, state := range states {
-		if state == nil || state.responded || !state.online {
+		if state.responded || !state.online {
 			continue
 		}
 
@@ -180,12 +183,7 @@ func checkOnlineSilentTimeout(
 
 // isOnline returns true if the recipient posted any message within the cutoff window.
 // This is a full-file scan by design — presence detection is the one exception to the cursor rule.
-func isOnline(data []byte, recipient string, cutoff time.Time) bool {
-	messages, err := ParseMessages(data)
-	if err != nil {
-		return false
-	}
-
+func isOnline(messages []Message, recipient string, cutoff time.Time) bool {
 	for _, msg := range messages {
 		if strings.EqualFold(msg.From, recipient) && msg.TS.After(cutoff) {
 			return true

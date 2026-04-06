@@ -96,6 +96,15 @@ func AddBoolFlag(flags []string, name string, value bool) []string {
 	return flags
 }
 
+// AddIntFlag appends a flag and its string value if value is non-zero.
+func AddIntFlag(flags []string, name string, value int) []string {
+	if value != 0 {
+		flags = append(flags, name, strconv.Itoa(value))
+	}
+
+	return flags
+}
+
 // BuildChatGroup builds the targ group for chat subcommands.
 //
 //nolint:dupl // mirrors BuildHoldGroup structure; both use the same targ.Group pattern
@@ -175,13 +184,8 @@ func ChatAckWaitFlags(a ChatAckWaitArgs) []string {
 		"--chat-file", a.ChatFile,
 	)
 
-	if a.Cursor != 0 {
-		flags = append(flags, "--cursor", strconv.Itoa(a.Cursor))
-	}
-
-	if a.MaxWait != 0 {
-		flags = append(flags, "--max-wait", strconv.Itoa(a.MaxWait))
-	}
+	flags = AddIntFlag(flags, "--cursor", a.Cursor)
+	flags = AddIntFlag(flags, "--max-wait", a.MaxWait)
 
 	return flags
 }
@@ -211,13 +215,8 @@ func ChatWatchFlags(a ChatWatchArgs) []string {
 		"--chat-file", a.ChatFile,
 	)
 
-	if a.Cursor != 0 {
-		flags = append(flags, "--cursor", strconv.Itoa(a.Cursor))
-	}
-
-	if a.MaxWait != 0 {
-		flags = append(flags, "--max-wait", strconv.Itoa(a.MaxWait))
-	}
+	flags = AddIntFlag(flags, "--cursor", a.Cursor)
+	flags = AddIntFlag(flags, "--max-wait", a.MaxWait)
 
 	return flags
 }

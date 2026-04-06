@@ -302,6 +302,47 @@ func TestOutputAckResult_WAIT_NilWait_ReturnsError(t *testing.T) {
 }
 
 // ============================================================
+// resolveChatFile coverage
+// ============================================================
+
+func TestResolveChatFile_HappyPath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	path, err := cli.ExportResolveChatFile(
+		filepath.Join(dir, "chat.toml"),
+		"chat post",
+		os.UserHomeDir,
+		os.Getwd,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(path).To(HaveSuffix("chat.toml"))
+}
+
+func TestResolveChatFile_HomeDirError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, err := cli.ExportResolveChatFile(
+		"",
+		"chat post",
+		func() (string, error) { return "", errors.New("no home") },
+		os.Getwd,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("chat post"))
+	}
+}
+
+// ============================================================
 // Step 9: Chat ack-wait tests
 // ============================================================
 
@@ -492,6 +533,18 @@ func TestRun_ChatAckWait_WAIT(t *testing.T) {
 	g.Expect(result["from"]).To(Equal("engram-agent"))
 	text, _ := result["text"].(string)
 	g.Expect(strings.TrimRight(text, "\n")).To(Equal("objection"))
+}
+
+// ============================================================
+// runChatCursor ErrHelp coverage
+// ============================================================
+
+func TestRun_ChatCursor_HelpFlag_ReturnsNil(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "chat", "cursor", "--help"}, io.Discard, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestRun_ChatCursor_InvalidFlag_ReturnsError(t *testing.T) {

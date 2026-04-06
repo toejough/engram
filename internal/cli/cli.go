@@ -84,6 +84,7 @@ var (
 	errAckWaitNilTimeout  = errors.New("outputAckResult: TIMEOUT result has nil Timeout field")
 	errAckWaitNilWait     = errors.New("outputAckResult: WAIT result has nil Wait field")
 	errAckWaitUnknown     = errors.New("outputAckResult: unexpected result type")
+	errAgentRequired      = errors.New("chat ack-wait: --agent required")
 	errLockTimeout        = errors.New("acquiring lock: exceeded max retries")
 	errRecipientsRequired = errors.New("chat ack-wait: --recipients required")
 	errUnknownCommand     = errors.New("unknown command")
@@ -282,7 +283,7 @@ func generateHoldID() (string, error) {
 // Returns nil slice (no error) when the file does not exist.
 func loadChatMessages(chatFilePath string, readFile func(string) ([]byte, error)) ([]chat.Message, error) {
 	data, err := readFile(chatFilePath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
 
@@ -313,7 +314,7 @@ func marshalAndWriteWatchResult(stdout io.Writer, result watchResult) error {
 		return fmt.Errorf("chat watch: encoding result: %w", encErr)
 	}
 
-	_, err := fmt.Fprintf(stdout, "%s\n", encoded)
+	_, err := fmt.Fprintln(stdout, string(encoded))
 	if err != nil {
 		return fmt.Errorf("chat watch: writing output: %w", err)
 	}
@@ -355,6 +356,14 @@ func newFileWatcher(chatFilePath string) *chat.FileWatcher {
 	}
 }
 
+// newFlagSet creates a flag set with error output discarded (flags handle their own usage).
+func newFlagSet(name string) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	return fs
+}
+
 func newTokenResolver() *tokenresolver.Resolver {
 	return tokenresolver.New(
 		os.Getenv,
@@ -392,7 +401,7 @@ func osAppendFile(path string, data []byte) error {
 func osLineCount(path string) (int, error) {
 	data, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return 0, nil
 		}
 
@@ -472,6 +481,19 @@ func recordSurfacing(path string) error {
 	})
 }
 
+// resolveChatFile derives the chat file path and wraps any error with the subcommand name.
+// homeDir and getwd default to os.UserHomeDir and os.Getwd; callers may inject alternatives for testing.
+func resolveChatFile(
+	override, cmd string, homeDir func() (string, error), getwd func() (string, error),
+) (string, error) {
+	path, err := deriveChatFilePath(override, homeDir, getwd)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", cmd, err)
+	}
+
+	return path, nil
+}
+
 // resolveToken returns the API token from the environment or macOS Keychain.
 // tokenresolver.Resolve is documented to never return a non-nil error.
 func resolveToken(ctx context.Context) string {
@@ -480,8 +502,7 @@ func resolveToken(ctx context.Context) string {
 }
 
 func runChatAckWait(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("chat ack-wait", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := newFlagSet("chat ack-wait")
 
 	agent := fs.String("agent", "", "calling agent name")
 	cursor := fs.Int("cursor", 0, "line position to start watching from")
@@ -498,13 +519,17 @@ func runChatAckWait(args []string, stdout io.Writer) error {
 		return fmt.Errorf("chat ack-wait: %w", parseErr)
 	}
 
+	if *agent == "" {
+		return errAgentRequired
+	}
+
 	if *recips == "" {
 		return errRecipientsRequired
 	}
 
-	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	chatFilePath, pathErr := resolveChatFile(*chatFile, "chat ack-wait", os.UserHomeDir, os.Getwd)
 	if pathErr != nil {
-		return fmt.Errorf("chat ack-wait: %w", pathErr)
+		return pathErr
 	}
 
 	waiter := &chat.FileAckWaiter{
@@ -527,19 +552,22 @@ func runChatAckWait(args []string, stdout io.Writer) error {
 }
 
 func runChatCursor(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("chat cursor", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := newFlagSet("chat cursor")
 
 	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
 
 	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
 	if parseErr != nil {
 		return fmt.Errorf("chat cursor: %w", parseErr)
 	}
 
-	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	chatFilePath, pathErr := resolveChatFile(*chatFile, "chat cursor", os.UserHomeDir, os.Getwd)
 	if pathErr != nil {
-		return fmt.Errorf("chat cursor: %w", pathErr)
+		return pathErr
 	}
 
 	count, countErr := osLineCount(chatFilePath)
@@ -576,8 +604,7 @@ func runChatDispatch(subArgs []string, stdout io.Writer) error {
 }
 
 func runChatPost(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("chat post", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := newFlagSet("chat post")
 
 	from := fs.String("from", "", "sender agent name")
 	toField := fs.String("to", "", "recipient names or all")
@@ -587,13 +614,17 @@ func runChatPost(args []string, stdout io.Writer) error {
 	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
 
 	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
 	if parseErr != nil {
 		return fmt.Errorf("chat post: %w", parseErr)
 	}
 
-	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	chatFilePath, pathErr := resolveChatFile(*chatFile, "chat post", os.UserHomeDir, os.Getwd)
 	if pathErr != nil {
-		return fmt.Errorf("chat post: %w", pathErr)
+		return pathErr
 	}
 
 	poster := newFilePoster(chatFilePath)
@@ -618,8 +649,7 @@ func runChatPost(args []string, stdout io.Writer) error {
 }
 
 func runChatWatch(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("chat watch", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := newFlagSet("chat watch")
 
 	agent := fs.String("agent", "", "agent name to filter messages for")
 	cursor := fs.Int("cursor", 0, "line number to start watching from")
@@ -628,13 +658,17 @@ func runChatWatch(args []string, stdout io.Writer) error {
 	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
 
 	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
 	if parseErr != nil {
 		return fmt.Errorf("chat watch: %w", parseErr)
 	}
 
-	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	chatFilePath, pathErr := resolveChatFile(*chatFile, "chat watch", os.UserHomeDir, os.Getwd)
 	if pathErr != nil {
-		return fmt.Errorf("chat watch: %w", pathErr)
+		return pathErr
 	}
 
 	var msgTypes []string
@@ -672,8 +706,7 @@ func runChatWatch(args []string, stdout io.Writer) error {
 }
 
 func runHoldAcquire(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("hold acquire", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := newFlagSet("hold acquire")
 
 	holder := fs.String("holder", "", "agent acquiring the hold")
 	target := fs.String("target", "", "agent being held")
@@ -690,9 +723,9 @@ func runHoldAcquire(args []string, stdout io.Writer) error {
 		return fmt.Errorf("hold acquire: %w", parseErr)
 	}
 
-	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	chatFilePath, pathErr := resolveChatFile(*chatFile, "hold acquire", os.UserHomeDir, os.Getwd)
 	if pathErr != nil {
-		return fmt.Errorf("hold acquire: %w", pathErr)
+		return pathErr
 	}
 
 	holdID, genErr := generateHoldID()
@@ -734,8 +767,7 @@ func runHoldAcquire(args []string, stdout io.Writer) error {
 }
 
 func runHoldCheck(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("hold check", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := newFlagSet("hold check")
 
 	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
 
@@ -748,9 +780,9 @@ func runHoldCheck(args []string, stdout io.Writer) error {
 		return fmt.Errorf("hold check: %w", parseErr)
 	}
 
-	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	chatFilePath, pathErr := resolveChatFile(*chatFile, "hold check", os.UserHomeDir, os.Getwd)
 	if pathErr != nil {
-		return fmt.Errorf("hold check: %w", pathErr)
+		return pathErr
 	}
 
 	messages, loadErr := loadChatMessages(chatFilePath, os.ReadFile)
@@ -813,8 +845,7 @@ func runHoldDispatch(subArgs []string, stdout io.Writer) error {
 }
 
 func runHoldList(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("hold list", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := newFlagSet("hold list")
 
 	holder := fs.String("holder", "", "filter by holder agent name")
 	target := fs.String("target", "", "filter by target agent name")
@@ -830,9 +861,9 @@ func runHoldList(args []string, stdout io.Writer) error {
 		return fmt.Errorf("hold list: %w", parseErr)
 	}
 
-	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	chatFilePath, pathErr := resolveChatFile(*chatFile, "hold list", os.UserHomeDir, os.Getwd)
 	if pathErr != nil {
-		return fmt.Errorf("hold list: %w", pathErr)
+		return pathErr
 	}
 
 	messages, loadErr := loadChatMessages(chatFilePath, os.ReadFile)
@@ -853,8 +884,7 @@ func runHoldList(args []string, stdout io.Writer) error {
 }
 
 func runHoldRelease(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("hold release", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := newFlagSet("hold release")
 
 	holdID := fs.String("hold-id", "", "hold ID returned by engram hold acquire")
 	chatFile := fs.String("chat-file", "", "override chat file path (testing only)")
@@ -868,9 +898,9 @@ func runHoldRelease(args []string, stdout io.Writer) error {
 		return fmt.Errorf("hold release: %w", parseErr)
 	}
 
-	chatFilePath, pathErr := deriveChatFilePath(*chatFile, os.UserHomeDir, os.Getwd)
+	chatFilePath, pathErr := resolveChatFile(*chatFile, "hold release", os.UserHomeDir, os.Getwd)
 	if pathErr != nil {
-		return fmt.Errorf("hold release: %w", pathErr)
+		return pathErr
 	}
 
 	releasePayload, marshalErr := marshalReleasePayload(*holdID)
@@ -898,8 +928,7 @@ func runHoldRelease(args []string, stdout io.Writer) error {
 }
 
 func runRecall(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("recall", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := newFlagSet("recall")
 
 	dataDir := fs.String("data-dir", "", "path to data directory")
 	projectSlug := fs.String("project-slug", "", "project directory slug")
