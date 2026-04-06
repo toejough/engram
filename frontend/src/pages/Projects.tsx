@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fetchProjects, fetchMemories } from "@/lib/api";
 import { quadrantLabel, quadrantColor } from "@/lib/quadrants";
+import ErrorState from "@/components/ErrorState";
+import { ProjectCardsSkeleton } from "@/components/skeletons";
 import type { Memory, Project } from "@/lib/types";
 
 const QUADRANT_ORDER = [
@@ -127,18 +129,39 @@ export default function Projects() {
     return map;
   }, [memoriesQuery.data, projectsQuery.data]);
 
-  if (projectsQuery.isLoading || memoriesQuery.isLoading) {
+  const isLoading = projectsQuery.isLoading || memoriesQuery.isLoading;
+  const isError = projectsQuery.isError || memoriesQuery.isError;
+
+  if (isError) {
     return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        Loading...
+      <div className="mx-auto max-w-7xl space-y-8 p-8">
+        <div>
+          <h1 className="text-3xl font-bold">Projects</h1>
+          <p className="mt-1 text-muted-foreground">
+            Memory breakdown by project.
+          </p>
+        </div>
+        <ErrorState
+          message="Failed to load data. Is the engram server running?"
+          onRetry={() => {
+            projectsQuery.refetch();
+            memoriesQuery.refetch();
+          }}
+        />
       </div>
     );
   }
 
-  if (projectsQuery.isError || memoriesQuery.isError) {
+  if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center text-destructive">
-        Failed to load data. Is the engram server running?
+      <div className="mx-auto max-w-7xl space-y-8 p-8">
+        <div>
+          <h1 className="text-3xl font-bold">Projects</h1>
+          <p className="mt-1 text-muted-foreground">
+            Memory breakdown by project.
+          </p>
+        </div>
+        <ProjectCardsSkeleton />
       </div>
     );
   }

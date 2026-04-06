@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fetchActivity } from "@/lib/api";
+import ErrorState from "@/components/ErrorState";
+import { ActivitySkeleton } from "@/components/skeletons";
 import type { ActivityEntry } from "@/lib/types";
 
 const PAGE_SIZE = 50;
@@ -76,7 +78,7 @@ export default function Activity() {
   const [allEvents, setAllEvents] = useState<ActivityEntry[]>([]);
   const [hasMore, setHasMore] = useState(true);
 
-  const { isLoading, isError, isFetching } = useQuery({
+  const { isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["activity", pages],
     queryFn: async () => {
       const data = await fetchActivity(pages, PAGE_SIZE);
@@ -103,16 +105,31 @@ export default function Activity() {
 
   if (isLoading && pages === 1) {
     return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        Loading...
+      <div className="mx-auto max-w-4xl space-y-8 p-8">
+        <div>
+          <h1 className="text-3xl font-bold">Activity</h1>
+          <p className="mt-1 text-muted-foreground">
+            Recent memory activity derived from timestamps.
+          </p>
+        </div>
+        <ActivitySkeleton />
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="flex h-64 items-center justify-center text-destructive">
-        Failed to load activity. Is the engram server running?
+      <div className="mx-auto max-w-4xl space-y-8 p-8">
+        <div>
+          <h1 className="text-3xl font-bold">Activity</h1>
+          <p className="mt-1 text-muted-foreground">
+            Recent memory activity derived from timestamps.
+          </p>
+        </div>
+        <ErrorState
+          message="Failed to load activity. Is the engram server running?"
+          onRetry={() => refetch()}
+        />
       </div>
     );
   }

@@ -264,3 +264,28 @@
 - Activity: updated empty state from plain text to Card layout with "No activity yet" and descriptive subtext
 - All empty states use consistent Card-based layout with centered text, onboarding-friendly tone (not error-like)
 - `npm run build` succeeds (tsc + vite build)
+
+---
+
+## US-016: Loading states, error handling, and keyboard navigation (2026-04-06)
+- Created `src/components/ui/skeleton.tsx` — shadcn-style Skeleton component with animate-pulse
+- Created `src/components/skeletons.tsx` — skeleton loading components for all pages:
+  - `StatCardsSkeleton`: 7 card placeholders matching stat cards grid
+  - `ChartSkeleton`: chart area placeholder with card wrapper
+  - `TableRowsSkeleton`: 5 row placeholders with 6 columns matching memory table
+  - `MemoryDetailSkeleton`: full page skeleton with SBIA cards, effectiveness metrics, metadata
+  - `ProjectCardsSkeleton`: 3 card placeholders in project grid
+  - `ActivitySkeleton`: 8 event item placeholders matching activity feed
+  - `SurfaceResultsSkeleton`: 4 result row placeholders
+- Created `src/components/ErrorState.tsx` — shared error component with AlertCircle icon, descriptive message, and retry button
+- Created `src/components/ErrorBoundary.tsx` — React class component error boundary wrapping all routes, catches render errors with retry button
+- Updated Dashboard: skeleton loading for stat cards, charts, and table rows; error state with retry
+- Updated MemoryDetail: full page skeleton during loading; error state with retry and back link
+- Updated Projects: project card skeletons during loading; error state with retry
+- Updated Activity: event list skeleton during loading; error state with retry
+- Updated Surface: result skeleton during simulation; error state with retry
+- Updated MemoryTable: `tabIndex={0}` on each table row, `role="link"`, Enter key navigates to detail, `focus-visible:ring-2` styling for keyboard users
+- Added `FocusManager` component to App.tsx: moves focus to h1 on route changes for keyboard/screen reader navigation
+- Added `EscapeHandler` component to App.tsx: safety net for Escape key (base-ui AlertDialog handles Escape natively)
+- Wrapped all routes with ErrorBoundary in App.tsx
+- `npm run build` succeeds (tsc + vite build)

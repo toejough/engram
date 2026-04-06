@@ -7,6 +7,19 @@ import StatCards from "@/components/StatCards";
 import QuadrantChart from "@/components/QuadrantChart";
 import EffectivenessHistogram from "@/components/EffectivenessHistogram";
 import MemoryTable from "@/components/MemoryTable";
+import ErrorState from "@/components/ErrorState";
+import {
+  StatCardsSkeleton,
+  ChartSkeleton,
+  TableRowsSkeleton,
+} from "@/components/skeletons";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+} from "@/components/ui/table";
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -44,18 +57,65 @@ export default function Dashboard() {
     }
   };
 
-  if (memoriesQuery.isLoading || statsQuery.isLoading) {
+  const isLoading = memoriesQuery.isLoading || statsQuery.isLoading;
+  const isError = memoriesQuery.isError || statsQuery.isError;
+
+  if (isError) {
     return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        Loading...
+      <div className="mx-auto max-w-7xl space-y-8 p-8">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="mt-1 text-muted-foreground">
+            Memory overview and statistics
+          </p>
+        </div>
+        <ErrorState
+          message="Failed to load data. Is the engram server running?"
+          onRetry={() => {
+            memoriesQuery.refetch();
+            statsQuery.refetch();
+          }}
+        />
       </div>
     );
   }
 
-  if (memoriesQuery.isError || statsQuery.isError) {
+  if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center text-destructive">
-        Failed to load data. Is the engram server running?
+      <div className="mx-auto max-w-7xl space-y-8 p-8">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="mt-1 text-muted-foreground">
+            Memory overview and statistics
+          </p>
+        </div>
+        <StatCardsSkeleton />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ChartSkeleton />
+          <ChartSkeleton />
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Memories</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Slug</TableHead>
+                  <TableHead>Quadrant</TableHead>
+                  <TableHead>Effectiveness</TableHead>
+                  <TableHead>Surfaced</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Updated</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRowsSkeleton />
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     );
   }

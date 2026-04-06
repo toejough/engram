@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { fetchProjects, fetchSurface } from "@/lib/api";
+import ErrorState from "@/components/ErrorState";
+import { SurfaceResultsSkeleton } from "@/components/skeletons";
 import type { SurfaceMatch, SurfaceNearMiss, SurfaceResult } from "@/lib/types";
 
 const MAX_PREVIEW_LENGTH = 120;
@@ -111,15 +113,14 @@ export default function Surface() {
       )}
 
       {surfaceQuery.isFetching && (
-        <div className="flex h-32 items-center justify-center text-muted-foreground">
-          Simulating…
-        </div>
+        <SurfaceResultsSkeleton />
       )}
 
-      {surfaceQuery.isError && (
-        <div className="flex h-32 items-center justify-center text-destructive">
-          Failed to run simulation. Is the engram server running?
-        </div>
+      {surfaceQuery.isError && !surfaceQuery.isFetching && (
+        <ErrorState
+          message="Failed to run simulation. Is the engram server running?"
+          onRetry={() => surfaceQuery.refetch()}
+        />
       )}
 
       {result && !surfaceQuery.isFetching && (

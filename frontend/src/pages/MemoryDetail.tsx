@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/table";
 import { fetchMemory, updateMemory, deleteMemory, ApiError } from "@/lib/api";
 import { quadrantLabel, quadrantColor } from "@/lib/quadrants";
+import ErrorState from "@/components/ErrorState";
+import { MemoryDetailSkeleton } from "@/components/skeletons";
 
 function formatDate(iso: string): string {
   if (!iso) return "—";
@@ -66,6 +68,7 @@ export default function MemoryDetail() {
     data: memory,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: ["memory", slug],
     queryFn: () => fetchMemory(slug!),
@@ -123,11 +126,7 @@ export default function MemoryDetail() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        Loading...
-      </div>
-    );
+    return <MemoryDetailSkeleton />;
   }
 
   if (error instanceof ApiError && error.status === 404) {
@@ -149,8 +148,18 @@ export default function MemoryDetail() {
 
   if (error) {
     return (
-      <div className="flex h-64 items-center justify-center text-destructive">
-        Failed to load memory. Is the engram server running?
+      <div className="mx-auto max-w-4xl space-y-4 p-8">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </Link>
+        <ErrorState
+          message="Failed to load memory. Is the engram server running?"
+          onRetry={() => refetch()}
+        />
       </div>
     );
   }

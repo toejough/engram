@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Table,
@@ -107,6 +107,22 @@ export default function MemoryTable({
     });
   }, [filtered, sortKey, sortDir]);
 
+  const navigateToMemory = useCallback(
+    (slug: string) => {
+      navigate(`/memories/${encodeURIComponent(slug)}`);
+    },
+    [navigate],
+  );
+
+  const handleRowKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTableRowElement>, slug: string) => {
+      if (e.key === "Enter") {
+        navigateToMemory(slug);
+      }
+    },
+    [navigateToMemory],
+  );
+
   const columns: { key: SortKey; label: string }[] = [
     { key: "slug", label: "Slug" },
     { key: "quadrant", label: "Quadrant" },
@@ -180,8 +196,11 @@ export default function MemoryTable({
             sorted.map((m) => (
               <TableRow
                 key={m.slug}
-                className="cursor-pointer"
-                onClick={() => navigate(`/memories/${encodeURIComponent(m.slug)}`)}
+                tabIndex={0}
+                role="link"
+                className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                onClick={() => navigateToMemory(m.slug)}
+                onKeyDown={(e) => handleRowKeyDown(e, m.slug)}
               >
                 <TableCell className="font-medium">{m.slug}</TableCell>
                 <TableCell>
