@@ -91,6 +91,8 @@ MIDDLE_COL_LAST_PANE=$TAIL_PANE_ID
 RIGHT_PANE_COUNT=1
 # Rebalance: coordinator on left, chat tail on right
 tmux select-layout main-vertical
+# Enable pane border so titles set via select-pane -T are visible
+tmux set-option -w -t "$LEAD_WINDOW" pane-border-status top
 ```
 
 **Pane layout:** All agents and the chat tail live as panes in the coordinator's window — NOT separate windows. The coordinator pane stays on the left. Right-side panes fill the **middle column** first (up to 4); once the middle column is full, new panes start the **right column**.
@@ -320,13 +322,11 @@ engram chat cursor
 Note the output as the per-spawn start line (e.g., `412`). Then spawn the wait task as a background Agent (`Agent` tool, `run_in_background: true`). **Embed the literal integer in the Agent prompt** — background Agents have no access to shell variables from prior tool calls.
 
 ```
-Watch for an agent done message in engram chat.
-CHAT_FILE: [full path — literal string]
-CURSOR: [per-spawn cursor literal integer, e.g. 412]
-AGENT_NAME: [agent name, e.g. exec-1]
-Watch for a TOML message block where from = "AGENT_NAME" AND type = "done".
-Return "AGENT DONE" when found.
-Return "TIMEOUT" if not found within 60s.
+Monitor engram chat.
+Run: RESULT=$(engram chat watch --agent AGENT_NAME --cursor CURSOR --type done --max-wait 60)
+Parse JSON: type, from, cursor, text.
+Return parsed fields.
+If max-wait exceeded with no match, return TIMEOUT.
 ```
 
 When the background task completes:
@@ -981,7 +981,13 @@ if new_lines.strip():
     process_chat_messages(new_lines)   # relay, route, or queue as normal
 
 # Spawn replacement monitor Agent (Agent tool, run_in_background: true):
-# Task: Background Monitor Pattern from use-engram-chat-as, with current cursor
+# Use this verbatim prompt template (embed CURSOR as a literal integer):
+# ---
+# Monitor engram chat.
+# Run: RESULT=$(engram chat watch --agent lead --cursor CURSOR --max-wait 120)
+# Parse JSON: type, from, cursor, text.
+# Return parsed fields.
+# ---
 CHAT_MONITOR_TASK_ID = <task id from Agent tool result>
 ```
 
@@ -1057,7 +1063,7 @@ if HEALTH_CHECK_TASK_ID:
 3. **Drain on shutdown.** At session end (Section 3.4), drain all tracked task IDs: `CHAT_MONITOR_TASK_ID` and `HEALTH_CHECK_TASK_ID`.
 4. **Read output before retrying.** If a background READY check times out, read its output (it has completed), then decide whether to retry.
 5. **Capture a FRESH cursor before each agent spawn.** The session cursor accumulates messages since startup. By the time you spawn exec-2, planner-1's `done` may already be within the session cursor range. Capture a new cursor immediately before spawning each agent and use it exclusively in that agent's wait loop. See Section 2.1 for the canonical pattern.
-6. **Filter by both `type` AND `from`.** A `type = "done"` grep matches any agent's done message. When waiting for a specific agent, use the awk pattern below to match both fields within the same TOML message block.
+6. **Use `engram chat watch` — never grep or awk.** The binary handles agent and type filtering, cursor-scoping, and fsnotify-based blocking. No grep, no awk, no polling loops.
 
 ```python
 # WRONG — spawns new monitor Agent without draining old one:
@@ -1070,21 +1076,16 @@ CHAT_MONITOR_TASK_ID = Agent(task="monitor chat...", run_in_background=True)
 ```
 
 ```bash
-# WRONG — matches any agent's done, including prior-session messages:
+# WRONG — grep/awk polling, matches old messages, no agent filter:
 grep -q 'type = "done"' "$CHAT_FILE"
-tail -n +$((CURSOR + 1)) "$CHAT_FILE" | grep -q 'type = "done"'  # still wrong: no agent filter
+tail -n +$((CURSOR + 1)) "$CHAT_FILE" | awk '/^type = "done"/ { print "DONE"; exit }'
 
-# RIGHT — per-spawn cursor, both fields matched in same TOML block:
-# (Foreground, before spawning): note the cursor as SPAWN_CURSOR
-engram chat cursor
-# (Background wait task): embed the literal value noted above, NOT a variable reference.
-# Background bash runs in a fresh shell — $SPAWN_CURSOR is undefined there.
-tail -n +"$((412 + 1))" "$CHAT_FILE" | awk '
-  /^\[\[message\]\]/ { from=""; msgtype="" }
-  /^from = "exec-1"/ { from=1 }
-  /^type = "done"/ { msgtype=1 }
-  from && msgtype { print "DONE"; exit }
-'
+# RIGHT — use engram chat watch with per-spawn cursor (embed as integer literal):
+# (Background wait task prompt — embed CURSOR and AGENT_NAME as literals, not variables)
+# Monitor engram chat.
+# Run: RESULT=$(engram chat watch --agent exec-1 --cursor 412 --type done --max-wait 60)
+# Parse JSON: type, from, cursor, text.
+# Return parsed fields.
 ```
 
 ## 7. Context Pressure Management
