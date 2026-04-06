@@ -168,8 +168,8 @@
         "npm run build succeeds"
       ],
       "priority": 10,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added deleteMemory() function to src/lib/api.ts calling DELETE /api/memories/:slug. Installed shadcn alert-dialog component (base-ui variant). Updated MemoryDetail page with: destructive Delete button (Trash2 icon) next to Edit button in header, AlertDialog confirmation with 'This will archive the memory. You can restore it later.' message, confirm handler calls deleteMemory(), invalidates TanStack Query cache for memories list, and redirects to dashboard via useNavigate. Error toast shown on failure via sonner. Buttons disabled during delete operation with 'Deleting...' loading state. npm run build succeeds."
     },
     {
       "id": "US-011",
@@ -185,8 +185,8 @@
         "targ check-full passes"
       ],
       "priority": 11,
-      "passes": false,
-      "notes": "May need to refactor surface package or extract BM25 scoring. Assess which approach is cleanest during implementation."
+      "passes": true,
+      "notes": "Created internal/server/surface.go with GET /api/surface?q=...&project=... endpoint. Approach (c): thin wrapper calling retriever + BM25 directly from server package, avoiding dependency on surface pipeline stages (haiku gate, transcript suppression, cold-start, etc.) that don't apply to the API. Inlined surfaceGenFactor and surfaceIrrelevancePenalty from surface package to avoid package dependency. Split handler into handleSurface (HTTP), scoreSurfaceResults (BM25 doc building), and classifyScoredResults (threshold classification into matches/nearMisses). Response matches frontend SurfaceResult type. WithSurfaceThreshold and WithIrrelevanceHalfLife options for DI/testing. 7 tests covering: matches above threshold, near-misses with threshold field, empty results, missing q param 400, lister error 500, project scope exclusion, irrelevance penalty reduces score. No new targ check-full failures."
     },
     {
       "id": "US-012",

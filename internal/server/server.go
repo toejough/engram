@@ -40,21 +40,25 @@ type Option func(*Server)
 
 // Server is the engram HTTP API server.
 type Server struct {
-	lister   MemoryLister
-	modifier MemoryModifier
-	fileOps  FileOps
-	now      func() time.Time
-	dataDir  string
-	mux      *http.ServeMux
+	lister              MemoryLister
+	modifier            MemoryModifier
+	fileOps             FileOps
+	now                 func() time.Time
+	dataDir             string
+	surfaceThreshold    float64
+	irrelevanceHalfLife int
+	mux                 *http.ServeMux
 }
 
 // NewServer creates a Server with the given dependencies and wires routes.
 func NewServer(lister MemoryLister, dataDir string, opts ...Option) *Server {
 	s := &Server{
-		lister:  lister,
-		dataDir: dataDir,
-		now:     time.Now,
-		mux:     http.NewServeMux(),
+		lister:              lister,
+		dataDir:             dataDir,
+		now:                 time.Now,
+		surfaceThreshold:    defaultBM25Threshold,
+		irrelevanceHalfLife: defaultIrrelevanceHalfLife,
+		mux:                 http.NewServeMux(),
 	}
 
 	for _, opt := range opts {
@@ -65,6 +69,7 @@ func NewServer(lister MemoryLister, dataDir string, opts ...Option) *Server {
 	s.mux.HandleFunc("GET /api/memories/{slug}", s.handleGetMemory)
 	s.mux.HandleFunc("GET /api/stats", s.handleStats)
 	s.mux.HandleFunc("GET /api/projects", s.handleProjects)
+	s.mux.HandleFunc("GET /api/surface", s.handleSurface)
 	s.mux.HandleFunc("PUT /api/memories/{slug}", s.handleUpdateMemory)
 	s.mux.HandleFunc("DELETE /api/memories/{slug}", s.handleDeleteMemory)
 	s.mux.HandleFunc("POST /api/memories/{slug}/restore", s.handleRestoreMemory)

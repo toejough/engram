@@ -160,3 +160,44 @@
   - Success toast on save, error toast on failure (using sonner)
   - Save button shows "Saving..." and disables both buttons during request
 - `npm run build` succeeds (tsc + vite build)
+
+---
+
+## US-010: Delete memory with confirmation dialog (2026-04-03)
+- Added `deleteMemory()` function to `src/lib/api.ts` — calls DELETE /api/memories/:slug
+- Installed shadcn/ui `alert-dialog` component (base-ui variant with `render` prop instead of `asChild`)
+- Updated `src/pages/MemoryDetail.tsx`:
+  - Destructive Delete button (Trash2 icon) next to Edit button in header
+  - AlertDialog opens on click with title "Delete memory" and description "This will archive the memory. You can restore it later."
+  - Confirm handler calls `deleteMemory()`, invalidates TanStack Query `["memories"]` cache, redirects to dashboard via `useNavigate("/")`
+  - Error toast shown on failure via sonner
+  - Both Cancel and Confirm buttons disabled during delete operation
+  - Confirm button shows "Deleting..." loading state
+- `npm run build` succeeds (tsc + vite build)
+
+---
+
+## US-011: GET /api/surface endpoint with score exposure (2026-04-06)
+- Created `internal/server/surface.go` with GET /api/surface?q=...&project=... endpoint
+- Approach: thin wrapper calling retriever + BM25 directly (option c), avoiding surface pipeline stages irrelevant to API
+- `handleSurface`: parses q and project query params, validates required q param, delegates to scoring
+- `scoreSurfaceResults`: builds BM25 documents from memories via SearchText(), calls bm25.Score()
+- `classifyScoredResults`: applies irrelevance penalty (halfLife/(halfLife+irrelevantCount)), project scope penalty (genFactor), classifies into matches (finalScore >= threshold) and nearMisses (nearMissFloor <= finalScore < threshold)
+- Near-miss floor = threshold * 0.5 (configurable via constants)
+- Response JSON: `{matches: [{slug, bm25Score, finalScore, situation, action}], nearMisses: [{..., threshold}]}`
+- Both matches and nearMisses sorted by finalScore descending
+- Empty results return empty arrays (not null)
+- Inlined `surfaceGenFactor` and `surfaceIrrelevancePenalty` from surface package to avoid package dependency
+- Added `WithSurfaceThreshold` and `WithIrrelevanceHalfLife` server options for DI/testing
+- Added `surfaceThreshold` and `irrelevanceHalfLife` fields to Server struct with defaults (0.3 and 5)
+- Wired `GET /api/surface` route in NewServer
+- Created `internal/server/surface_test.go` with 7 tests:
+  - `ReturnsMatchesAboveThreshold`: verifies JSON shape, matches non-empty with correct fields
+  - `NearMissesIncludeThreshold`: verifies near-misses have threshold field, correct fields
+  - `EmptyResultsForNoMatch`: query with no token overlap returns empty arrays
+  - `MissingQueryReturns400`: missing q param returns 400 JSON error
+  - `ListerError`: lister failure returns 500
+  - `ProjectScopeExcludesCrossProject`: project-scoped memory excluded when querying different project
+  - `IrrelevancePenaltyReducesScore`: memory with high irrelevantCount has lower bm25Score
+- All Go tests pass (`targ test`)
+- No new targ check-full failures (pre-existing failures unchanged)
