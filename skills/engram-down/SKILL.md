@@ -57,7 +57,18 @@ tmux select-layout main-vertical
 
 ### Step 3: Kill the chat tail pane
 
-Use `-a` flag to search ALL panes across ALL windows — this works even if you're not in the coordinator window:
+Use `-a` flag to search ALL panes across ALL windows — this works even if you're not in the coordinator window.
+
+**Primary: kill by pane title** (`pane_title` is set to `chat-tail` by engram-tmux-lead §1.3 via `tmux select-pane -T`):
+
+```bash
+tmux list-panes -a -F '#{pane_id} #{pane_title}' \
+  | grep chat-tail \
+  | awk '{print $1}' \
+  | xargs -I{} tmux kill-pane -t {}
+```
+
+**Fallback: kill by pane command** (handles sessions started before the title was set):
 
 ```bash
 tmux list-panes -a -F '#{pane_id} #{pane_current_command}' \
@@ -66,12 +77,9 @@ tmux list-panes -a -F '#{pane_id} #{pane_current_command}' \
   | xargs -I{} tmux kill-pane -t {}
 ```
 
-**Why `-a`:** Without `-a`, `tmux list-panes` only lists panes in the currently active window. If you've navigated away from the coordinator window, the tail pane won't be found. The `-a` flag lists all panes globally, making shutdown window-independent.
+**Why title over command:** `pane_current_command` reflects the foreground process. When tmux spawns the pane via a shell (fish/zsh/bash) that then runs `tail -F`, `pane_current_command` shows `fish`, not `tail`. `pane_title` is set explicitly at spawn time and never changes — it reliably identifies the pane regardless of what foreground process is running.
 
-If you have the chat tail pane ID tracked from startup, prefer killing by ID directly:
-```bash
-tmux kill-pane -t <chat-tail-pane-id>
-```
+**Why `-a`:** Without `-a`, `tmux list-panes` only lists panes in the currently active window. If you've navigated away from the coordinator window, the tail pane won't be found. The `-a` flag lists all panes globally, making shutdown window-independent.
 
 ### Step 4: Drain background task IDs
 
@@ -102,6 +110,7 @@ Tell the user:
 |---------|-----|
 | Kill engram-agent before task agents | Broadcast shutdown to all first, wait 10s — all agents get the message simultaneously and wrap up in order |
 | Use `tmux list-panes` without `-a` for chat tail | Works only in current window — use `-a` so the tail pane is found regardless of which window is active |
+| Grep `pane_current_command` for `tail` only | Shell (fish/zsh) is the foreground process, not `tail` — grep `pane_title` for `chat-tail` first, then fall back to `pane_current_command` |
 | Use `tmux list-panes -a` instead of `-s` for agent panes | `-a` kills Claude panes across ALL sessions — use `-s` to scope to the current session only |
 | Kill your own pane | Exclude `$(tmux display-message -p '#{pane_id}')` from the kill list — you need your pane for the summary |
 | Skip draining background task IDs | Zombie shells accumulate across sessions — drain all IDs you have tracked |
