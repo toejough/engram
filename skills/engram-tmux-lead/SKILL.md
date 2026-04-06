@@ -86,6 +86,7 @@ RIGHT_COL_LAST_PANE=""     # pane ID of the last pane in the right column (right
 
 # Split right — chat tail is the first middle-column pane
 TAIL_PANE_ID=$(tmux split-window -h -d -t "$LEAD_WINDOW" -P -F '#{pane_id}' "tail -F $CHAT_FILE")
+tmux select-pane -t "$TAIL_PANE_ID" -T "chat-tail"
 MIDDLE_COL_LAST_PANE=$TAIL_PANE_ID
 RIGHT_PANE_COUNT=1
 # Rebalance: coordinator on left, chat tail on right
@@ -101,6 +102,7 @@ tmux select-layout main-vertical
 ```bash
 # HARD GATE: NEVER call tmux split-window elsewhere — always run SPAWN-PANE.
 # Requires: RIGHT_PANE_COUNT, MIDDLE_COL_LAST_PANE, RIGHT_COL_LAST_PANE are initialized (§1.3 setup).
+# Requires: PANE_TITLE set to a descriptive name for the pane (e.g. "engram-agent", "exec-1").
 # Outputs: NEW_PANE (new pane ID). Caller assigns: PANE_ID=$NEW_PANE
 # Use -P -F '#{pane_id}' to capture the new pane ID at creation — not list-panes | tail -1.
 
@@ -119,6 +121,7 @@ else
   NEW_PANE=$(tmux split-window -v -d -t "$RIGHT_COL_LAST_PANE" -P -F '#{pane_id}')
   RIGHT_COL_LAST_PANE=$NEW_PANE
 fi
+tmux select-pane -t "$NEW_PANE" -T "$PANE_TITLE"
 RIGHT_PANE_COUNT=$((RIGHT_PANE_COUNT + 1))
 ```
 
@@ -174,6 +177,7 @@ fi
 ```bash
 # Use SPAWN-PANE from Section 1.3 to create the pane.
 # RIGHT_PANE_COUNT=1 at this point (chat tail was spawn #1 in §1.3 setup).
+PANE_TITLE="engram-agent"
 # SPAWN-PANE sets NEW_PANE — assign to PANE_ID for this spawn.
 PANE_ID=$NEW_PANE
 # Suppress status line — agents run headless, no user to see it; keeps panes clean
@@ -291,6 +295,7 @@ Every agent the lead spawns gets a **pane** in the coordinator's window (NOT a s
 ```bash
 # Use SPAWN-PANE from Section 1.3 to create the pane.
 # SPAWN-PANE checks RIGHT_PANE_COUNT and applies the correct split (middle col, right col, or vertical).
+PANE_TITLE="<agent-name>"
 # SPAWN-PANE sets NEW_PANE — assign to PANE_ID for this spawn.
 PANE_ID=$NEW_PANE
 # Suppress status line — agents run headless, no user to see it; keeps panes clean
