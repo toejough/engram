@@ -383,6 +383,67 @@ func TestFileAckWaiter_OnlineSilentTIMEOUT(t *testing.T) {
 	g.Expect(result.Timeout.Recipient).To(Equal("engram-agent"))
 }
 
+func TestFileAckWaiter_OnlineSilentTIMEOUT_ViaWatchDeadline(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	// Recipient posted recently (online) but never responds.
+	// Uses real NowFunc and short maxWait to prove Watch deadline fires the TIMEOUT path.
+	// Without the fix: blocks until safety ctx (5s) fires → returns "ack wait cancelled" error → test fails.
+	// With the fix: watchCtx deadline fires at ~100ms → Watch returns DeadlineExceeded →
+	//   AckWait loops → real NowFunc sees elapsed >= maxWait → TIMEOUT returned → test passes.
+	const maxWait = 100 * time.Millisecond
+
+	recentMsg := chat.Message{
+		From:   "engram-agent",
+		To:     "all",
+		Thread: "heartbeat",
+		Type:   "info",
+		TS:     time.Now().Add(-5 * time.Minute),
+		Text:   "alive",
+	}
+
+	fakeRead := func(_ string) ([]byte, error) {
+		return buildChatTOML([]chat.Message{recentMsg}), nil
+	}
+
+	// fakeWatch blocks until its context is cancelled (simulates no ack/wait arriving).
+	fakeWatch := watcherFunc(func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		<-ctx.Done()
+
+		return chat.Message{}, cursor, ctx.Err()
+	})
+
+	waiter := &chat.FileAckWaiter{
+		FilePath: "/fake/chat.toml",
+		Watcher:  fakeWatch,
+		ReadFile: fakeRead,
+		NowFunc:  time.Now,
+		MaxWait:  maxWait,
+	}
+
+	// Safety ctx: only fires if the fix is absent and the watch deadline doesn't work.
+	// 5s >> 100ms maxWait so it never interferes with correct behaviour.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := waiter.AckWait(ctx, "caller", 0, []string{"engram-agent"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Result).To(Equal("TIMEOUT"))
+	g.Expect(result.Timeout).NotTo(BeNil())
+
+	if result.Timeout == nil {
+		return
+	}
+
+	g.Expect(result.Timeout.Recipient).To(Equal("engram-agent"))
+}
+
 func TestFileAckWaiter_ReadFileError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)

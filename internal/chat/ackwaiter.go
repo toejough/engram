@@ -36,12 +36,22 @@ func (w *FileAckWaiter) AckWait(
 		maxWait = defaultMaxWait
 	}
 
+	// waitStart is the reference point for both per-recipient offline detection and the
+	// watch deadline. Captured once so NowFunc call count is unchanged from the original,
+	// preserving existing fake-time test behaviour.
+	waitStart := w.NowFunc()
+
+	// watchDeadline is the fixed point at which Watch must unblock so AckWait can
+	// re-evaluate the online-silent timeout. Fixed so unrelated file-change events
+	// (health-checker heartbeats etc.) cannot reset the clock.
+	watchDeadline := waitStart.Add(maxWait)
+
 	data, err := readFileOptional(w.ReadFile, w.FilePath)
 	if err != nil {
 		return AckResult{}, err
 	}
 
-	states := buildRecipientStates(data, recipients, w.NowFunc())
+	states := buildRecipientStates(data, recipients, waitStart)
 	currentCursor := cursor
 
 	for {
@@ -61,7 +71,11 @@ func (w *FileAckWaiter) AckWait(
 			return AckResult{Result: "ACK", NewCursor: currentCursor}, nil
 		}
 
-		msg, newCursor, watchErr := w.Watcher.Watch(ctx, callerAgent, currentCursor, []string{"ack", "wait"})
+		watchCtx, watchCancel := context.WithDeadline(ctx, watchDeadline)
+		msg, newCursor, watchErr := w.Watcher.Watch(watchCtx, callerAgent, currentCursor, []string{"ack", "wait"})
+
+		watchCancel()
+
 		if watchErr != nil {
 			if !errors.Is(watchErr, context.DeadlineExceeded) {
 				return AckResult{}, fmt.Errorf("watching for ack: %w", watchErr)
