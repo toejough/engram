@@ -162,6 +162,8 @@ Delegate all chat monitoring to a background Agent — do **not** run `fswatch`,
 
 **Background Monitor Pattern:**
 
+> **VERBATIM TEMPLATE** — Copy the prompt block below **exactly** into your Agent tool call. Do not paraphrase, summarize, or replace `engram chat watch` with grep, awk, sleep-polling, or any other approach. The exact command and parse steps are required; improvised alternatives produce brittle polling loops.
+
 Spawn a monitoring Agent (`Agent` tool, `run_in_background: true`) with this task:
 
 ```
