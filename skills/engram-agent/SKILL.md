@@ -32,7 +32,7 @@ On startup:
 3. Load memories using tiered loading (see Tiered Loading section)
 4. Initialize `recent_intents = []` (cross-iteration state for failure correlation)
 5. Initialize `LAST_HEARTBEAT_TS` to the current time (or re-derive from chat history after compaction — grep the chat file for your most recent heartbeat message)
-6. Enter the fswatch loop
+6. Enter the watch loop
 
 ## Memory File Format
 
@@ -103,30 +103,39 @@ Startup loading strategy:
 
 ## Main Loop
 
-The loop uses background tasks and notifications. **This is critical -- get it right.**
+The loop uses the Background Monitor Pattern from use-engram-chat-as. **This is critical -- get it right.**
 
-**Step 1: Start watching.** Run `fswatch -1 "$CHAT_FILE"` as a **background** Bash command (`run_in_background: true`). This returns immediately with a task ID.
+**Step 1: Start watching.** Spawn a background monitor Agent (`Agent` tool, `run_in_background: true`) with this task:
 
-**Step 2: Wait.** Do NOT complete your turn. Do NOT say "standing by." You are waiting for the background task notification. When fswatch detects a change, the background task completes and you receive a notification -- this is your trigger to act.
+```
+Monitor engram chat for the next message addressed to engram-agent.
+CURSOR: [embed current cursor as integer literal]
+1. Run foreground bash: RESULT=$(engram chat watch --agent engram-agent --cursor CURSOR)
+   (Blocks until a matching message arrives — kernel-driven via fsnotify, no polling.)
+2. Parse JSON result: TYPE, FROM, CURSOR, TEXT
+3. Return TYPE, FROM, new CURSOR, and TEXT.
+```
+
+**Step 2: Wait.** Do NOT complete your turn. Do NOT say "standing by." You are waiting for the background Agent notification. When the monitor Agent completes (a message arrived), you receive a notification -- this is your trigger to act.
 
 **Step 3: Process.** When the notification arrives:
+- Parse the JSON result from the monitor Agent: `{type, from, cursor, text}`
 - Re-read only modified memory files (track per-file mtimes)
-- Read new messages from the chat file (from your cursor)
 - For each message, follow the Processing Order below
 - Check heartbeat: compare current time against `LAST_HEARTBEAT_TS`. If ≥5 minutes have elapsed, post heartbeat and update `LAST_HEARTBEAT_TS`. **`LAST_HEARTBEAT_TS` is initialized at startup (step 5 above) and must survive loop respawns** — after compaction recovery, re-derive from your most recent heartbeat message in the chat file before re-entering the loop.
 
-**Step 4: Loop.** Start a new `fswatch -1 "$CHAT_FILE"` background task. Go back to step 2.
+**Step 4: Loop.** Spawn a new background monitor Agent with the cursor value from the JSON result. Go back to step 2.
 
-**CRITICAL: You must NEVER complete your turn while the loop is running.** The loop only ends when the user dismisses you. Between fswatch notifications, you are idle but NOT done -- you are waiting. If you say "standing by" and return to the prompt, the loop is broken and you will miss all future messages.
+**CRITICAL: You must NEVER complete your turn while the loop is running.** The loop only ends when the user dismisses you. Between monitor Agent notifications, you are idle but NOT done -- you are waiting. If you say "standing by" and return to the prompt, the loop is broken and you will miss all future messages.
 
 ```
-start fswatch -1 "$CHAT_FILE" (background)  # step 1
+spawn background monitor Agent (cursor=N)       # step 1
 |
-wait for background task notification       # step 2 -- do NOT complete turn
+wait for Agent notification                     # step 2 -- do NOT complete turn
 |
-notification arrives -> process messages    # step 3
+notification arrives -> parse JSON -> process   # step 3
 |
-start new fswatch -1 "$CHAT_FILE" (background) # step 4 -> back to step 2
+spawn new monitor Agent (cursor=N+delta)        # step 4 -> back to step 2
 ```
 
 ## Processing Order
@@ -343,7 +352,7 @@ Track these metrics in your own context (not persisted to files):
 | Creating duplicate memories | Check existing memories first. Supersede if contradictory. |
 | Forgetting to increment surfaced_count | Do it BEFORE spawning the argument subagent |
 | Subagent being too polite | The reactor role is AGGRESSIVE. Push back hard. |
-| Exiting after learning a memory | Never exit. Back to fswatch. |
+| Exiting after learning a memory | Never exit. Back to watch loop. |
 | Writing without lock + atomic rename | Always lock per-file, always write to temp + rename. |
 | Subagent using cached memory data | Always re-read the file fresh before writing. |
 | Spawning unlimited subagents | Max 3 concurrent, no two on same thread. Queue the rest. |
