@@ -132,6 +132,8 @@ Every message has these fields:
 | `ready` | Agent joining chat — announces presence (may still be initializing) | Any agent | No (but spawners wait for the subsequent init-complete `info` before routing work) |
 | `shutdown` | Signal agent to exit after completing in-flight work | Lead or active agent | `done` message |
 | `escalate` | Unresolved argument, needs user decision via lead | Reactor in argument | Lead surfaces to user |
+| `hold-acquire` | Binary-only — place a hold on an agent. Use `engram hold acquire`. Do NOT post with `engram chat post`. | N/A | No |
+| `hold-release` | Binary-only — lift a hold from an agent. Use `engram hold release`. Do NOT post with `engram chat post`. | N/A | No |
 
 ## Writing Messages
 
@@ -180,7 +182,7 @@ AGENT_NAME: [the agent name to filter messages for]
 4. If still watching: go back to step 1 with the new cursor.
 ```
 
-This subagent survives Phase 1. Phase 2 (`engram chat ack-wait`) will eliminate it entirely.
+This pattern survives through Phase 4. Phase 5 (`engram agent resume`) eliminates it by converting engram-agent to a stateless worker.
 
 **Main agent loop:**
 1. Spawn background monitor Agent (embed current cursor as integer literal)
@@ -240,35 +242,10 @@ If you join a channel that already has messages: post `ready` first to announce 
 1. Post intent    -> type = "intent", describe situation + planned action
 2. Wait for explicit responses from ALL TO recipients:
    - **BEFORE posting the intent message**, capture the current cursor:
-     `CURSOR=$(engram chat cursor)`
-     Embed this integer as a literal in the ACK-wait subagent prompt (see template below).
-     Never let the subagent re-derive cursor at startup — the ACK may already be written by then.
+     `PRE_CURSOR=$(engram chat cursor)`
    - Post intent message via `engram chat post`
-   - Spawn a background ACK-wait Agent using this template:
-
-     ```
-     ACK-wait monitor for [AGENT_NAME]'s intent.
-     CHAT_FILE: /absolute/path/to/chat.toml   ← literal path, not a shell variable
-     CURSOR: 12345                              ← literal integer captured BEFORE intent was posted
-     RECIPIENTS: engram-agent, reviewer        ← exact names from the TO field
-
-     For each recipient:
-       RESULT=$(engram chat watch --agent RECIPIENT --cursor CURSOR --type ack,wait --max-wait 30)
-       Parse JSON: TYPE=$(echo "$RESULT" | jq -r '.type'); FROM=$(echo "$RESULT" | jq -r '.from')
-       CURSOR=$(echo "$RESULT" | jq -r '.cursor')
-     If all recipients returned ack: return ACK|CURSOR
-     If any returned wait: return WAIT|from|CURSOR|text
-     ```
-
-   **HARD RULE: The cursor MUST be captured BEFORE posting the intent message.**
-   `engram chat watch --cursor CURSOR` starts from that position — any ACK posted between
-   intent-post and subagent startup is only safe because the cursor was captured first.
-
+   - Run `engram chat ack-wait` (see ACK-Wait Protocol below)
    - ONLY proceed when every TO recipient has responded (ACK or WAIT)
-   - Offline exception: if a recipient has NOT posted any message in the last 15 min
-     (scan full file), treat timeout as implicit ACK for that recipient only, after 5s
-   - Online + silent: if a recipient has posted a message within the last 15 min but
-     is silent after 5s, post info noting no response; wait up to 30s, then escalate to lead
 3. Check responses:
    - All recipients ACKed (type = "ack")  -> proceed immediately
    - Any recipient said WAIT (type = "wait") -> pause, read their full response, then decide
@@ -294,6 +271,40 @@ Not acceptable:
 to = "reviewer"    <- missing engram-agent
 to = "lead"        <- missing engram-agent (unless intent is purely coordinative)
 ```
+
+## ACK-Wait Protocol
+
+After posting an intent, block on all recipients responding:
+
+```bash
+PRE_CURSOR=$(engram chat cursor)                          # BEFORE intent post
+engram chat post --from <name> --to engram-agent --type intent ...
+RESULT=$(engram chat ack-wait \
+  --agent <your-name> \
+  --cursor $PRE_CURSOR \
+  --recipients engram-agent[,reviewer,...] \
+  --max-wait 30)
+```
+
+Parse response:
+```bash
+RESULT_TYPE=$(echo "$RESULT" | jq -r '.result')    # ACK, WAIT, or TIMEOUT
+FROM=$(echo "$RESULT" | jq -r '.from')              # who objected (WAIT only)
+CURSOR=$(echo "$RESULT" | jq -r '.cursor')          # advance cursor
+TEXT=$(echo "$RESULT" | jq -r '.text')              # objection text (WAIT only)
+```
+
+If RESULT_TYPE=ACK: proceed immediately.
+If RESULT_TYPE=WAIT: pause, engage argument protocol with FROM using TEXT.
+  For argument continuation, use engram chat watch directly:
+    `RESULT=$(engram chat watch --agent <name> --cursor $CURSOR --type ack,wait --max-wait 30)`
+If RESULT_TYPE=TIMEOUT: recipient is online but silent. Post escalate to lead.
+
+HARD RULE: Capture `PRE_CURSOR=$(engram chat cursor)` BEFORE posting the intent. Pass this cursor to ack-wait. Any ACK posted between your intent-post and ack-wait-start is safe because the cursor was captured first.
+
+Two-pattern distinction:
+- Active agent blocking on ack-wait (bounded): call `engram chat ack-wait` directly as Bash tool.
+- Reactive agent watching for incoming messages (indefinite): use Background Monitor Pattern.
 
 ### Intent Messages
 
@@ -347,25 +358,7 @@ Wait for my completion message before running yours.
 
 The intent protocol waits for explicit ACK or WAIT from **all** TO recipients. Timeout is NOT implicit permission to proceed for online agents.
 
-**Detecting online/offline:** A recipient is online if they posted any message within the last 15 minutes. Scan the **full** chat file — heartbeats and prior-session messages count. This is the one exception to the cursor rule: presence detection uses the whole file, not just new messages.
-
-```bash
-RECIPIENT="engram-agent"   # replace with the actual recipient name
-FIFTEEN_MIN_AGO=$(date -u -v-15M +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
-  || date -u -d "15 minutes ago" +"%Y-%m-%dT%H:%M:%SZ")
-LAST_TS=$(grep -A6 "^from = \"$RECIPIENT\"" "$CHAT_FILE" \
-  | grep "^ts = " | sed 's/ts = "//;s/"//' | sort | tail -1)
-if [ -n "$LAST_TS" ] && [ "$LAST_TS" \> "$FIFTEEN_MIN_AGO" ]; then
-  echo "online"
-else
-  echo "offline"
-fi
-```
-
-- **Recipient offline (no message in last 15 min, or no messages at all)?** Timeout after 5s = implicit ACK for that recipient only.
-- **Recipient online (message within last 15 min) but silent?** Do NOT proceed on timeout. Post info noting no response after 5s; wait up to 30s, then escalate to lead.
-- **Fast ACK?** You proceed as soon as all recipients respond -- often under 200ms.
-- **WAIT received?** You pause for the full response. No fixed timeout -- the conversation continues until resolved.
+**Detecting online/offline:** `engram chat ack-wait` handles online/offline detection internally. A recipient with no messages in the last 15 minutes is treated as offline — implicit ACK after 5s. An online recipient that remains silent returns TIMEOUT after `--max-wait` seconds. See ACK-Wait Protocol.
 
 ### HARD RULE: WAIT Is Unconditional
 
@@ -530,6 +523,12 @@ The user can dismiss agents with phrases like "stand down", "you're done", "shut
 if ! engram chat post --help >/dev/null 2>&1; then
   echo "ERROR: engram binary missing 'chat' subcommand. Run: targ build"; exit 1
 fi
+if ! engram chat ack-wait --help >/dev/null 2>&1; then
+  echo "ERROR: engram binary missing 'chat ack-wait' subcommand. Run: targ build"; exit 1
+fi
+if ! engram hold acquire --help >/dev/null 2>&1; then
+  echo "ERROR: engram binary missing 'hold' subcommand. Run: targ build"; exit 1
+fi
 ```
 
 ```
@@ -547,12 +546,15 @@ fi
 9. Wait for monitor Agent notification
 10. Monitor Agent returns semantic event -> process event if addressed to you
 11. If acting:
-    a. Post intent to (engram-agent + any other relevant recipients)
-    b. Wait for explicit ACK from all TO recipients (see Intent Protocol)
-    c. Act
-    d. Pre-done cursor-check: spawn background Agent to tail CHAT_FILE from cursor, grep for unresolved WAITs
+    a. PRE_CURSOR=$(engram chat cursor)   # BEFORE posting intent
+    b. Post intent to (engram-agent + any other relevant recipients)
+    c. RESULT=$(engram chat ack-wait --agent <name> --cursor $PRE_CURSOR --recipients <names> --max-wait 30)
+       Parse: RESULT_TYPE / FROM / CURSOR / TEXT (see ACK-Wait Protocol)
+    d. If ACK: proceed. If WAIT: engage argument protocol. If TIMEOUT: escalate to lead.
+    e. Act
+    f. Pre-done cursor-check: spawn background Agent to tail CHAT_FILE from cursor, grep for unresolved WAITs
        If any WAIT addressed to you and unresolved: engage before posting done
-    e. Post result
+    g. Post result
 12. Post response (with lock)
 13. Go to step 9 -- ALWAYS. Even after completing a task.
 ```
@@ -715,7 +717,7 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Skip compaction recovery check | Always guard `tail -n +$((CURSOR + 1))` with `[ -z "$CURSOR" ] && run_compaction_recovery`. A lost cursor causes silent re-processing of all prior messages. |
 | Re-post `ready` after compaction | Post `type = "info"` re-init announcement instead — `ready` is only for first initialization. |
 | Act on missed messages without engaging WAITs | After compaction, scan for pending `wait` messages and engage per Argument Protocol before resuming work. |
-| Let ACK-wait subagent re-derive cursor at startup | **Critical bug**: ACK posted between intent-post and subagent-init is silently lost. Capture `CURSOR=$(engram chat cursor)` BEFORE posting the intent message, then embed as an integer literal in the subagent prompt. |
+| Let ack-wait miss early ACK | Critical bug: same race. Capture `PRE_CURSOR=$(engram chat cursor)` BEFORE posting intent. Pass `--cursor $PRE_CURSOR` to `engram chat ack-wait`. ACKs posted between intent-post and ack-wait invocation are captured because the cursor was taken first. |
 
 ## Chat File Management
 

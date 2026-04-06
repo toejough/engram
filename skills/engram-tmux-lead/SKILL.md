@@ -591,77 +591,32 @@ Holds are the ONLY retention primitive. Coordination patterns (review, handoff, 
 
 #### Hold Definition
 
-```
-Hold {
-  id:      string        # unique identifier (e.g., "h1")
-  holder:  string        # agent (or virtual process) keeping target alive
-  target:  string        # agent being kept alive
-  release: Condition     # when this hold dissolves
-  tag:     string        # workflow label for bookkeeping (e.g., "plan-review-1")
-}
+```bash
+HOLD_ID=$(engram hold acquire \
+  --holder <holder-agent> \
+  --target <target-agent> \
+  [--condition done:<agent> | first-intent:<agent> | lead-release:<tag>] \
+  [--tag <workflow-label>])
 ```
 
-#### Release Conditions
-
-| Condition | Syntax | Fires When |
-|-----------|--------|------------|
-| Agent done | `done(agent)` | `agent` posts `type = "done"` |
-| Agent signal | `signal(agent, msg_type)` | `agent` posts `type = msg_type` |
-| Targeted signal | `signal(agent, msg_type, to)` | `agent` posts `type = msg_type` addressed to `to` |
-| First intent | `first_intent(agent)` | `agent` posts its first `type = "intent"` |
-| Lead release | `lead_release(tag)` | Lead explicitly dissolves all holds with this tag |
-
-`lead_release` is the lead's manual intervention for coordinator-controlled patterns (merge queue, co-design). The lead posts an `info` message to chat documenting the release, then removes the holds from its registry.
-
-#### Hold Registry (In-Context State)
-
-Maintain alongside the agent registry:
-
+Conditions:
 ```
-Holds:
-- {id: "h1", holder: "reviewer-1", target: "planner-1", release: done("reviewer-1"), tag: "plan-review-1", task_id: <bg task id>, cursor: 567}
-- {id: "h2", holder: "exec-1", target: "planner-1", release: first_intent("exec-1"), tag: "plan-handoff-1", task_id: <bg task id>, cursor: 580}
+done:<agent>          Auto-releases when agent posts type="done" after AcquiredTS
+first-intent:<agent>  Auto-releases on agent's first type="intent" after AcquiredTS
+lead-release:<tag>    Never auto-releases; requires explicit hold release
+(empty)               Never auto-releases; requires explicit hold release
 ```
 
-#### Hold Detection (Background Tasks)
-
-One background task per hold. Cursor-based polling (same pattern as Section 2.1 / 6.4):
-
-Spawn a persistent background Agent (`Agent` tool, `run_in_background: true`) with this task:
-
-```
-Watch for a hold release condition in engram chat. This is a persistent watcher.
-CHAT_FILE: [full path — literal string]
-CURSOR: [hold cursor literal integer — embed as number, e.g. 567]
-HOLDER_AGENT: [agent that triggers release, e.g. reviewer-1]
-RELEASE_TYPE: [message type that fires the release, e.g. done]
-HOLD_ID: [hold id, e.g. h1]
-
-Loop:
-1. Run foreground bash: fswatch -1 "$CHAT_FILE"
-   (Blocks until one file change. Linux: inotifywait -e modify "$CHAT_FILE")
-2. Read new lines: tail -n +$((CURSOR + 1)) "$CHAT_FILE". Advance CURSOR.
-3. Check for TOML block where from = "HOLDER_AGENT" AND type = "RELEASE_TYPE".
-4. If found: return "HOLD RELEASED HOLD_ID"
-5. If not found: go back to step 1 (persistent — do not exit until release fires)
-```
-
-The Agent is persistent: it loops on fswatch until the release fires. The background Agent only exits when the release event fires.
-
-**When a hold fires:**
-1. Drain its background task (TaskOutput block:false)
-2. Remove hold from registry
-3. Check if target has remaining incoming holds
-4. If no remaining holds → post `shutdown` to target via chat → set `PANE_ID=<tracked-pane-id>` then use KILL-PANE from Section 1.3 (handles kill + layout rebalancing) → DONE
-5. If remaining holds → target stays in PENDING-RELEASE
+`lead_release(tag)` is now:
+1. Post info to chat documenting the release
+2. `engram hold list --tag <tag>`   (NDJSON output, one hold per line)
+3. `engram hold release --hold-id <id>`  for each result
 
 #### When to Create Holds
 
 Create holds at spawn time or phase transitions — BEFORE the agent whose work triggers the hold has posted done. The lead decides which pattern to use based on the workflow.
 
 **NEVER create holds retroactively.** If an agent posts `done` before a hold is created, the agent is already DONE and the pane is killed. Holds are preventive, not corrective.
-
-**Hold watchers replace standard agent wait tasks.** In hold-aware phases (e.g., Phase 3 of the pipeline), the hold watcher watches for the same event as the standard agent wait task (Section 2.1 Step 3). Do NOT run both. The lead uses the hold watcher's output as the signal to both dissolve the hold AND advance the phase.
 
 #### Documented Patterns
 
@@ -670,27 +625,26 @@ These are RECIPES for common workflows. The lead references them when deciding w
 **Pattern: Pair (Review)**
 
 When spawning a reviewer for an agent's work:
-- Hold: `{holder: reviewer, target: subject, release: done(reviewer)}`
+- Hold: `HOLD_ID=$(engram hold acquire --holder reviewer --target subject --condition done:reviewer)`
 - Subject enters PENDING-RELEASE when it posts done. Reviewer can post `wait` and subject responds. When reviewer posts done, hold dissolves.
 
 **Pattern: Handoff**
 
 When one agent passes work to another:
-- Hold: `{holder: receiver, target: sender, release: first_intent(receiver)}`
+- Hold: `HOLD_ID=$(engram hold acquire --holder receiver --target sender --condition first-intent:receiver)`
 - Sender enters PENDING-RELEASE when it posts done. Receiver can ask questions. When receiver begins independent work (first intent), hold dissolves.
-- Alternative release: `signal(receiver, "ack", sender)` for explicit handshake.
+- Alternative: explicit release via `engram hold release --hold-id $HOLD_ID`
 
 **Pattern: Fan-In (Research Synthesis)**
 
 When multiple producers report to a single consumer:
-- Holds: for each producer, `{holder: consumer, target: producer, release: done(consumer)}`
+- Holds: for each producer, `HOLD_ID=$(engram hold acquire --holder consumer --target producer --condition done:consumer)`
 - All producers enter PENDING-RELEASE when they post done. Consumer reads findings, asks follow-ups. When consumer posts done, ALL holds dissolve.
 
 **Pattern: Merge Queue**
 
 When parallel worktree executors need sequential lead-coordinated merging:
-- Holds: for each executor, `{holder: "merge-process", target: exec-K, release: lead_release("merge-N-exec-K")}`
-- `"merge-process"` is a virtual holder — the lead itself has the need.
+- Holds: for each executor, `HOLD_MERGE_K=$(engram hold acquire --holder lead --target exec-K --condition lead-release:merge-N-exec-K --tag merge-queue-N)`
 - All executors enter PENDING-RELEASE when done. Lead merges one at a time:
   1. Tell exec-K to rebase on main and re-test
   2. If rebase conflicts → exec-K resolves (alive in PENDING-RELEASE)
@@ -700,16 +654,73 @@ When parallel worktree executors need sequential lead-coordinated merging:
 **Pattern: Barrier (Co-Design)**
 
 When multiple agents collaborate equally on a shared artifact:
-- Holds: for each member, `{holder: "codesign-coordinator", target: member-K, release: lead_release("codesign-N")}`
+- Holds: for each member, `HOLD_BARRIER_K=$(engram hold acquire --holder lead --target member-K --condition lead-release:codesign-N --tag codesign-N)`
 - All members stay alive. When lead signals design complete, ALL holds dissolve.
-- Uses virtual holder for simplicity (N holds vs N*(N-1) for bidirectional).
 
 **Pattern: Expert Consultation**
 
 When an executor needs a specialist answer:
-- Hold: `{holder: exec-N, target: researcher-K, release: done(exec-N)}`
+- Hold: `HOLD_ID=$(engram hold acquire --holder exec-N --target researcher-K --condition done:exec-N)`
 - Researcher stays alive until executor finishes (in case of follow-up questions).
-- For one-shot consultations: `release: done(researcher-K)` instead.
+- For one-shot consultations: `--condition done:researcher-K` instead.
+
+## Hold Commands
+
+Acquire a hold before spawning agents that must stay alive:
+```bash
+HOLD_ID=$(engram hold acquire --holder <holder-agent> --target <target-agent> [--condition <cond>] [--tag <label>])
+```
+
+Release a hold explicitly:
+```bash
+engram hold release --hold-id $HOLD_ID
+```
+
+List active (unreleased) holds:
+```bash
+engram hold list [--holder <name>] [--target <name>] [--tag <label>]
+```
+
+Evaluate auto-conditions and release met holds (manual in Phase 2):
+```bash
+engram hold check
+```
+
+Condition DSL: `done:<agent>`, `first-intent:<agent>`, `lead-release:<tag>`
+
+Note: In Phase 2, holds do not auto-release. `hold check` is manual-only.
+      Auto-invocation from `engram agent kill` ships in Phase 3.
+
+DONE state entry: agent posted done AND `engram hold list --target <name>` returns empty.
+PENDING-RELEASE: agent posted done AND `engram hold list --target <name>` returns non-empty.
+
+When to run `hold check` (Phase 2 manual trigger):
+  After any agent posts done, run: `engram hold check`
+  This releases any holds whose auto-condition is now met.
+  Without this step, holds remain forever — agents stay "alive" indefinitely.
+  Phase 3 automates this; for now the lead MUST call it manually after each done.
+
+Bulk release by tag (`lead_release` pattern):
+```bash
+engram hold list --tag <label> | jq -r '.["hold-id"]' | xargs -I{} engram hold release --hold-id {}
+```
+
+#### When a Hold Is Released
+
+Explicit release:
+```bash
+engram hold release --hold-id $HOLD_ID
+```
+
+Auto-release check (manual in Phase 2):
+```bash
+engram hold check   # evaluates conditions, releases met holds, prints released hold-ids
+```
+
+After any release:
+1. `engram hold list --target <target-agent>`
+2. Empty → send shutdown → KILL-PANE → DONE
+3. Non-empty → stays in PENDING-RELEASE
 
 ## 4. Routing
 
@@ -760,8 +771,8 @@ For issue-sized work, orchestrate three sequential phases:
 
 **Phase 1b: PLAN REVIEW (mandatory)**
 1. Capture per-spawn cursor: `engram chat cursor` → `PLAN_REVIEW_START`
-2. Create plan-review hold: `{id: "h-planrev-N", holder: "reviewer-R", target: "planner-N", release: lead_release("plan-review-N"), tag: "plan-review-N"}`
-   Note: uses `lead_release` not `done(reviewer-R)`. This keeps planner-N alive through the user-approval window until Phase 2 creates the plan-handoff hold and then explicitly releases this hold.
+2. `HOLD_PLANREV_N=$(engram hold acquire --holder reviewer-R --target planner-N --condition lead-release:plan-review-N --tag plan-review-N)`
+   Note: uses `lead-release` not `done:reviewer-R`. This keeps planner-N alive through the user-approval window until Phase 2 creates the plan-handoff hold and then explicitly releases this hold.
 3. Spawn `reviewer-<R>` with plan-review role (Section 2.2):
    ```
    active code reviewer named reviewer-<R>.
@@ -772,18 +783,18 @@ For issue-sized work, orchestrate three sequential phases:
    Post done with findings when plan is ready for user review.
    After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
    ```
-4. Create hold detection background task for h-planrev-N (watching for reviewer-R done — used only to know when to kill reviewer-R, NOT to dissolve the hold)
+4. Run background wait task for reviewer-R done (Section 2.1 Step 3)
 5. When reviewer-R posts done:
-   a. Kill reviewer-R (it has no incoming holds; it was the holder, not target). Drain its background task.
-   b. Do NOT dissolve h-planrev-N — it uses lead_release, not done(reviewer-R). Planner-N stays alive.
+   a. Kill reviewer-R (it has no incoming holds; it was the holder, not target).
+   b. Do NOT release h-planrev-N — it uses `lead-release`, not `done:reviewer-R`. Planner-N stays alive.
    c. Present reviewed plan to user for approval
 6. User approves → Phase 2
 
 **Phase 2: EXECUTE**
 1. Capture per-spawn cursor (foreground bash): `engram chat cursor` → note as `EXEC_START`
 2. Spawn `exec-<N>` with approved plan (per Section 2.1 Steps 1–2)
-2b. Create plan-handoff hold: `{id: "h-handoff-N", holder: "exec-N", target: "planner-N", release: first_intent("exec-N"), tag: "plan-handoff-N"}`. Capture cursor and start hold detection background task.
-2c. Call `lead_release("plan-review-N")` → h-planrev-N dissolves. Planner-N now has h-handoff-N as its only incoming hold → stays in PENDING-RELEASE. (This is the atomic handoff: plan-handoff hold created before plan-review hold is released, so planner-N is never momentarily holdless.)
+2b. `HOLD_HANDOFF_N=$(engram hold acquire --holder exec-N --target planner-N --condition first-intent:exec-N --tag plan-handoff-N)` (no background task)
+2c. `engram hold release --hold-id $HOLD_PLANREV_N` → h-planrev-N dissolves. Planner-N now has h-handoff-N as its only incoming hold → stays in PENDING-RELEASE. (This is the atomic handoff: plan-handoff hold created before plan-review hold is released, so planner-N is never momentarily holdless.)
 2d. Include in executor role prompt: "planner-<N> is still alive and can answer questions about the plan. Address questions to planner-<N> in chat. After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to 'all'."
 3. Run background wait task (Section 2.1 Step 3) — embed `EXEC_START` as literal, filter `from = "exec-<N>"` and `type = "done"`
 4. When executor done: read result summary from new lines (cursor-based)
@@ -793,7 +804,7 @@ For issue-sized work, orchestrate three sequential phases:
 **Phase 3: REVIEW**
 1. Executor enters PENDING-RELEASE (wait for impl-review)
 2. Capture per-spawn cursor (foreground bash): `engram chat cursor` → note as `REVIEW_START`
-3. Create impl-review hold: `{id: "h-implrev-N", holder: "reviewer-R", target: "exec-N", release: done("reviewer-R"), tag: "impl-review-N"}`
+3. `HOLD_IMPLREV_N=$(engram hold acquire --holder reviewer-R --target exec-N --condition done:reviewer-R --tag impl-review-N)`
 4. Spawn `reviewer-<R>` with impl-review role:
    ```
    active code reviewer named reviewer-<R>.
@@ -803,9 +814,9 @@ For issue-sized work, orchestrate three sequential phases:
    Post done with findings when review is complete.
    After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
    ```
-5. Create hold detection background task for h-implrev-N (replaces standard Section 2.1 wait task)
+5. Run background wait task for reviewer-R done (Section 2.1 Step 3)
 6. When reviewer-R posts done:
-   a. Dissolve impl-review hold → exec-N has no other holds → kill both exec-N and reviewer-R
+   a. `engram hold release --hold-id $HOLD_IMPLREV_N` → exec-N has no other holds → kill both exec-N and reviewer-R
    b. Report to user
 7. Update session cursor: `CURSOR=$(engram chat cursor)`
 
@@ -833,9 +844,9 @@ Include the worktree path in the executor's role template as its working directo
 When all executors post done, each enters PENDING-RELEASE (held by merge-process holds — see Section 3.5 Merge Queue pattern).
 
 Create holds at executor spawn time:
-```
-For each exec-K:
-  {holder: "merge-process", target: exec-K, release: lead_release("merge-N-exec-K"), tag: "merge-queue-N"}
+```bash
+# For each exec-K:
+HOLD_MERGE_K=$(engram hold acquire --holder lead --target exec-K --condition lead-release:merge-N-exec-K --tag merge-queue-N)
 ```
 
 Sequential merge procedure (lead coordinates — does NOT delegate):
@@ -844,7 +855,7 @@ Sequential merge procedure (lead coordinates — does NOT delegate):
 3. Wait for exec-1 done (background task, cursor-based)
 4. If exec-1 reports rebase conflicts: exec-1 resolves (it's alive in PENDING-RELEASE), re-test, post done again
 5. After green tests: lead runs `git merge --ff-only /tmp/engram-worktree-exec-1-branch`
-6. `lead_release("merge-N-exec-1")` → exec-1 released → pane killed
+6. `engram hold release --hold-id $HOLD_MERGE_K` → exec-1 released → pane killed
 7. Move to exec-2: tell it to rebase on updated main, repeat from step 3
 8. After all merged: clean up worktrees — `git worktree remove /tmp/engram-worktree-exec-<N>`
 
@@ -877,9 +888,9 @@ When a task requires gathering information from multiple angles before producing
    After posting done: watch for a shutdown message from lead. While waiting, only respond to messages explicitly addressed to you by name — do not act on messages addressed to "all".
    ```
 3. Create fan-in holds (Section 3.5 Fan-In pattern):
-   ```
-   For each researcher-K:
-     {holder: "synthesizer-N", target: "researcher-K", release: done("synthesizer-N"), tag: "synthesis-N"}
+   ```bash
+   # For each researcher-K:
+   HOLD_FANIN_K=$(engram hold acquire --holder synthesizer-N --target researcher-K --condition done:synthesizer-N --tag synthesis-N)
    ```
 4. Lead's wait task watches for synthesizer's done (not researchers' done)
 5. When synthesizer posts done: all holds dissolve, all researchers released, synthesizer killed normally
@@ -899,14 +910,14 @@ When a task requires multiple perspectives collaborating on a shared design arti
    (Perspectives vary by task — these are examples.)
 2. All planners post to a shared chat thread (e.g., `thread = "codesign-N"`)
 3. Create barrier holds (Section 3.5 Barrier pattern):
-   ```
-   For each planner-K:
-     {holder: "codesign-coordinator", target: "planner-K", release: lead_release("codesign-N"), tag: "codesign-N"}
+   ```bash
+   # For each planner-K:
+   HOLD_BARRIER_K=$(engram hold acquire --holder lead --target planner-K --condition lead-release:codesign-N --tag codesign-N)
    ```
 4. Lead monitors the shared thread. Planners read each other's contributions and respond naturally via the chat protocol.
 5. When the lead determines the design is converging (or the user approves):
    a. Post info to chat summarizing the consensus
-   b. `lead_release("codesign-N")` → all holds dissolve → all planners released
+   b. `engram hold list --tag codesign-N | jq -r '.["hold-id"]' | xargs -I{} engram hold release --hold-id {}` → all holds dissolve → all planners released
 6. Lead presents unified design to user for final approval
 
 ## 5. User Proxy Pattern
@@ -1018,8 +1029,6 @@ if HEALTH_CHECK_TASK_ID:
     TaskOutput(task_id=HEALTH_CHECK_TASK_ID, block=False)  # drain
 ```
 
-Add `HEALTH_CHECK_TASK_ID` to Section 6.4 Rule 3 (drain on shutdown): include it in the list of tracked task IDs that must be drained at session end.
-
 ### 6.3 Unprompted Reporting
 
 **Report:**
@@ -1040,14 +1049,10 @@ Add `HEALTH_CHECK_TASK_ID` to Section 6.4 Rule 3 (drain on shutdown): include it
 **Rules:**
 1. **One chat monitor Agent at a time.** `CHAT_MONITOR_TASK_ID` holds the active monitor. Replace = drain old + spawn new.
 2. **Drain on replace.** Before starting a new background task of the same logical type, always call `TaskOutput(task_id=old_id, block=False)` to drain the completed task.
-3. **Drain on shutdown.** At session end (Section 3.4), drain all tracked task IDs: `CHAT_MONITOR_TASK_ID`, `HEALTH_CHECK_TASK_ID`, and all hold detection task IDs.
+3. **Drain on shutdown.** At session end (Section 3.4), drain all tracked task IDs: `CHAT_MONITOR_TASK_ID` and `HEALTH_CHECK_TASK_ID`.
 4. **Read output before retrying.** If a background READY check times out, read its output (it has completed), then decide whether to retry.
 5. **Capture a FRESH cursor before each agent spawn.** The session cursor accumulates messages since startup. By the time you spawn exec-2, planner-1's `done` may already be within the session cursor range. Capture a new cursor immediately before spawning each agent and use it exclusively in that agent's wait loop. See Section 2.1 for the canonical pattern.
 6. **Filter by both `type` AND `from`.** A `type = "done"` grep matches any agent's done message. When waiting for a specific agent, use the awk pattern below to match both fields within the same TOML message block.
-7. **One persistent background task per hold.** Each hold in the registry has a `task_id` tracking its detection task. Hold watchers are persistent — they restart on timeout (see Section 3.5 detection pattern). When a hold dissolves (release condition fires), drain its task immediately.
-8. **Drain on lead_release.** When `lead_release(tag)` fires, drain ALL background tasks for holds with that tag. Do not wait for them to detect the release — the lead already knows.
-9. **Hold detection tasks do not replace each other.** Unlike the single chat watcher (Rule 1), multiple hold detection tasks run concurrently — one per active hold. This is bounded by the concurrency limit (max 5 agents → practical max ~10 holds).
-10. **Hold watchers replace standard agent wait tasks in hold-aware phases.** When a hold watcher watches for the same event as the standard Section 2.1 wait task (e.g., reviewer done), do NOT run both. Use the hold watcher's output for both hold dissolution and phase advancement.
 
 ```python
 # WRONG — spawns new monitor Agent without draining old one:
@@ -1084,7 +1089,7 @@ tail -n +"$((412 + 1))" "$CHAT_FILE" | awk '
 | Data | Retention |
 |------|-----------|
 | Active agent registry (name, state, role, last-message-ts, task summary) | Always |
-| Hold registry (id, holder, target, release, tag, task_id, cursor) | Always (alongside agent registry) |
+| Hold registry (id, holder, target, condition, tag) | Always (alongside agent registry) |
 | Current user task and routing decision | Until task completes |
 | Pending questions queue | Until answered or stale |
 | Last 5 chat messages per active agent | Rolling window |
