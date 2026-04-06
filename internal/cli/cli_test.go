@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -231,6 +232,79 @@ func TestOsAppendFile_MkdirError_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestOsTmuxSpawnWith_CommandFails_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmpDir := t.TempDir()
+	fakeTmux := filepath.Join(tmpDir, "tmux")
+
+	g.Expect(os.WriteFile(fakeTmux, []byte("#!/bin/sh\nexit 1\n"), 0o700)).To(Succeed())
+
+	_, _, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "sh -c 'echo hello'")
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("tmux new-window"))
+	}
+}
+
+func TestOsTmuxSpawnWith_Success_ReturnsPaneAndSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmpDir := t.TempDir()
+	fakeTmux := filepath.Join(tmpDir, "tmux")
+
+	g.Expect(os.WriteFile(fakeTmux, []byte("#!/bin/sh\necho '%my-pane $mysession'\n"), 0o700)).To(Succeed())
+
+	paneID, sessionID, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "sh -c 'echo hello'")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(paneID).To(Equal("%my-pane"))
+	g.Expect(sessionID).To(Equal("$mysession"))
+}
+
+func TestOsTmuxSpawnWith_UnexpectedOutput_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmpDir := t.TempDir()
+	fakeTmux := filepath.Join(tmpDir, "tmux")
+
+	g.Expect(os.WriteFile(fakeTmux, []byte("#!/bin/sh\necho 'only-one-field'\n"), 0o700)).To(Succeed())
+
+	_, _, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "sh -c 'echo hello'")
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("unexpected tmux output"))
+	}
+}
+
+func TestOsTmuxSpawn_CancelledContext_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, _, err := cli.ExportOsTmuxSpawn(ctx, "myagent", "sh -c 'echo hello'")
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("tmux new-window"))
+	}
+}
+
 func TestOutputAckResult_FailWriter_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -315,6 +389,35 @@ func TestOutputAckResult_WAIT_NilWait_ReturnsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestParseTmuxOutput_UnexpectedOutput_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, _, err := cli.ExportParseTmuxOutput([]byte("only-one-field\n"))
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("unexpected tmux output"))
+	}
+}
+
+func TestParseTmuxOutput_ValidOutput_ReturnsPaneAndSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	paneID, sessionID, err := cli.ExportParseTmuxOutput([]byte("%my-pane $mysession\n"))
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(paneID).To(Equal("%my-pane"))
+	g.Expect(sessionID).To(Equal("$mysession"))
+}
+
 func TestReadModifyWriteStateFile_ConcurrentCallers_BothAgentsPresent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -370,6 +473,26 @@ func TestReadModifyWriteStateFile_CreatesFileWhenAbsent(t *testing.T) {
 	data, readErr := os.ReadFile(stateFile)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(data)).To(ContainSubstring("test-agent"))
+}
+
+func TestReadModifyWriteStateFile_InvalidTOML_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(stateFile, []byte("[[not valid toml {{{"), 0o600)).To(Succeed())
+
+	err := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+		return sf
+	})
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("parsing state file"))
+	}
 }
 
 func TestReadModifyWriteStateFile_InvalidTOML_ReturnsParseError(t *testing.T) {
@@ -540,7 +663,7 @@ func TestRunAgentDispatch_NoArgs_ReturnsUsageError(t *testing.T) {
 	}
 }
 
-func TestRunAgentDispatch_SpawnSubcommand_ReturnsNotImplemented(t *testing.T) {
+func TestRunAgentDispatch_SpawnSubcommand_ReturnsNameError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -548,7 +671,7 @@ func TestRunAgentDispatch_SpawnSubcommand_ReturnsNotImplemented(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("not implemented"))
+		g.Expect(err.Error()).To(ContainSubstring("name"))
 	}
 }
 
@@ -574,6 +697,150 @@ func TestRunAgentDispatch_WaitReadySubcommand_ReturnsNotImplemented(t *testing.T
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("not implemented"))
 	}
+}
+
+func TestRunAgentSpawn_MissingName_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	err := cli.Run([]string{"engram", "agent", "spawn",
+		"--prompt", "You are an executor.",
+		"--chat-file", filepath.Join(dir, "chat.toml"),
+		"--state-file", filepath.Join(dir, "state.toml"),
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("name"))
+	}
+}
+
+func TestRunAgentSpawn_MissingPrompt_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	err := cli.Run([]string{"engram", "agent", "spawn",
+		"--name", "executor-1",
+		"--chat-file", filepath.Join(dir, "chat.toml"),
+		"--state-file", filepath.Join(dir, "state.toml"),
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("prompt"))
+	}
+}
+
+func TestRunAgentSpawn_PostIntentError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	// Use a non-existent dir for chat file so poster.Post fails.
+	chatFile := filepath.Join(dir, "nonexistent", "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	err := cli.ExportRunAgentSpawn([]string{
+		"--name", "executor-2",
+		"--prompt", "You are executor-2.",
+		"--chat-file", chatFile,
+		"--state-file", stateFile,
+	}, io.Discard, func(_ context.Context, _, _ string) (string, string, error) {
+		return "main:1.3", "sess456", nil
+	})
+
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunAgentSpawn_SpawnerError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	err := cli.ExportRunAgentSpawn([]string{
+		"--name", "executor-1",
+		"--prompt", "You are executor-1.",
+		"--chat-file", chatFile,
+		"--state-file", stateFile,
+	}, io.Discard, func(_ context.Context, _, _ string) (string, string, error) {
+		return "", "", errors.New("tmux not found")
+	})
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("launching pane"))
+	}
+}
+
+func TestRunAgentSpawn_WritesStateFileAndOutputsPaneID(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	spawnDone := make(chan error, 1)
+
+	go func() {
+		spawnDone <- cli.ExportRunAgentSpawn([]string{
+			"--name", "executor-1",
+			"--prompt", "You are executor-1.",
+			"--chat-file", chatFile,
+			"--state-file", stateFile,
+		}, &stdout, func(_ context.Context, _, _ string) (string, string, error) {
+			return "main:1.2", "sess123", nil
+		})
+	}()
+
+	// Wait for intent to be posted, then ACK it so AckWait resolves quickly.
+	time.Sleep(50 * time.Millisecond)
+
+	g.Expect(cli.Run([]string{
+		"engram", "chat", "post",
+		"--chat-file", chatFile,
+		"--from", "engram-agent",
+		"--to", "system",
+		"--thread", "lifecycle",
+		"--type", "ack",
+		"--text", "No relevant memories. Proceed.",
+	}, io.Discard, io.Discard, nil)).To(Succeed())
+
+	select {
+	case err := <-spawnDone:
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+	case <-time.After(6 * time.Second):
+		t.Fatal("agent spawn did not complete within 6s")
+	}
+
+	g.Expect(strings.TrimSpace(stdout.String())).To(Equal("main:1.2|sess123"))
+
+	data, readErr := os.ReadFile(stateFile)
+
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(ContainSubstring("executor-1"))
+	g.Expect(string(data)).To(ContainSubstring("main:1.2"))
 }
 
 // Step 14: Full intent→ack→hold→check→release E2E cycle.

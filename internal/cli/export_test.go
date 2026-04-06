@@ -19,7 +19,10 @@ var (
 		return loadChatMessages(path, os.ReadFile)
 	}
 	ExportOsAppendFile             = osAppendFile
+	ExportOsTmuxSpawn              = osTmuxSpawn
+	ExportOsTmuxSpawnWith          = osTmuxSpawnWith
 	ExportOutputAckResult          = outputAckResult
+	ExportParseTmuxOutput          = parseTmuxOutput
 	ExportReadModifyWriteStateFile = readModifyWriteStateFile
 	ExportRecordSurfacing          = recordSurfacing
 	ExportRenderFactContent        = renderFactContent
@@ -27,6 +30,7 @@ var (
 	ExportRenderMemoryMeta         = renderMemoryMeta
 	ExportResolveChatFile          = resolveChatFile
 	ExportResolveStateFile         = resolveStateFile
+	ExportRunAgentSpawn            = runAgentSpawn
 )
 
 // --- Factory functions for structs with unexported fields ---

@@ -57,7 +57,7 @@ func Run(
 	case "hold":
 		return runHoldDispatch(subArgs, stdout)
 	case "agent":
-		return runAgentDispatch(subArgs, stdout)
+		return runAgentDispatch(subArgs, stdout, osTmuxSpawn)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
