@@ -1,4 +1,4 @@
-package context_test
+package sessionctx_test
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	sessionctx "engram/internal/context"
+	"engram/internal/sessionctx"
 )
 
 // TestStripWithConfig_DropsSystemReminders verifies system-reminders are dropped in both modes.

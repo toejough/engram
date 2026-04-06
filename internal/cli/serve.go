@@ -46,11 +46,32 @@ const (
 // osFileOps implements server.FileOps using the real filesystem.
 type osFileOps struct{}
 
-func (osFileOps) MkdirAll(path string, perm fs.FileMode) error { return os.MkdirAll(path, perm) }
+func (osFileOps) MkdirAll(path string, perm fs.FileMode) error {
+	err := os.MkdirAll(path, perm)
+	if err != nil {
+		return fmt.Errorf("mkdir %s: %w", path, err)
+	}
 
-func (osFileOps) Rename(oldpath, newpath string) error { return os.Rename(oldpath, newpath) }
+	return nil
+}
 
-func (osFileOps) Stat(path string) (fs.FileInfo, error) { return os.Stat(path) }
+func (osFileOps) Rename(oldpath, newpath string) error {
+	err := os.Rename(oldpath, newpath)
+	if err != nil {
+		return fmt.Errorf("rename %s -> %s: %w", oldpath, newpath, err)
+	}
+
+	return nil
+}
+
+func (osFileOps) Stat(path string) (fs.FileInfo, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("stat %s: %w", path, err)
+	}
+
+	return info, nil
+}
 
 // runServe starts the engram HTTP API server.
 //

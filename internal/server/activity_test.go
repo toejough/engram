@@ -277,14 +277,14 @@ func TestActivity_NoUpdatedEventWhenTimestampsEqual(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	ts := time.Date(2026, 4, 3, 8, 0, 0, 0, time.UTC)
+	timestamp := time.Date(2026, 4, 3, 8, 0, 0, 0, time.UTC)
 
 	lister := &mockLister{
 		memories: []*memory.Stored{
 			{
 				Situation: "When pair programming",
-				CreatedAt: ts,
-				UpdatedAt: ts,
+				CreatedAt: timestamp,
+				UpdatedAt: timestamp,
 				FilePath:  "/data/memories/pair-programming.toml",
 			},
 		},
@@ -371,6 +371,7 @@ func TestActivity_Pagination(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	memories := make([]*memory.Stored, 0, 5)
+
 	for i := range 5 {
 		ts := time.Date(2026, 4, 1+i, 10, 0, 0, 0, time.UTC)
 		memories = append(memories, &memory.Stored{
@@ -629,14 +630,14 @@ func TestActivity_ValidPageAndLimitParams(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	ts := time.Date(2026, 4, 1, 10, 0, 0, 0, time.UTC)
+	timestamp := time.Date(2026, 4, 1, 10, 0, 0, 0, time.UTC)
 
 	lister := &mockLister{
 		memories: []*memory.Stored{
 			{
 				Situation: "Valid params test",
-				CreatedAt: ts,
-				UpdatedAt: ts,
+				CreatedAt: timestamp,
+				UpdatedAt: timestamp,
 				FilePath:  "/data/memories/valid.toml",
 			},
 		},

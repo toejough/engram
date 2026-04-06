@@ -131,13 +131,13 @@ func synthesizeEvents(memories []*memory.Stored) []activityEvent {
 			})
 		}
 
-		for _, pe := range mem.PendingEvaluations {
-			surfacedAt, parseErr := time.Parse(time.RFC3339, pe.SurfacedAt)
+		for _, pendingEval := range mem.PendingEvaluations {
+			surfacedAt, parseErr := time.Parse(time.RFC3339, pendingEval.SurfacedAt)
 			if parseErr != nil {
 				continue
 			}
 
-			context := pe.UserPrompt
+			context := pendingEval.UserPrompt
 			if context == "" {
 				context = mem.Situation
 			}
