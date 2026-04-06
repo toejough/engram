@@ -35,25 +35,16 @@ Wait 10 seconds for all agents to complete in-flight work and post their final m
 sleep 10
 ```
 
-Then kill all Claude panes in this tmux **session** (not all sessions), excluding your own pane:
+Then kill all registered agents via the binary:
 
 ```bash
-OWN_PANE=$(tmux display-message -p '#{pane_id}')
-tmux list-panes -s -F '#{pane_id} #{pane_current_command}' \
-  | grep -i claude \
-  | grep -v "^$OWN_PANE " \
-  | awk '{print $1}' \
-  | xargs -I{} tmux kill-pane -t {}
-tmux select-layout main-vertical
+# Kill all running agents via binary
+engram agent list | jq -r '.name' | while read -r agent_name; do
+  engram agent kill --name "$agent_name"
+done
 ```
 
 **Why 10s wait:** The broadcast `shutdown` reaches all agents simultaneously. The 10s wait is empirically sufficient for all agents to complete in-flight work — task agents (simple planners/executors) finish fast, engram-agent (which processes final `learned` messages) finishes within 10s. This is an empirical observation, not a protocol guarantee.
-
-**Why `-i` (case-insensitive grep):** `pane_current_command` shows the foreground binary name. Claude Code's CLI binary is named `claude` (lowercase), so `grep -i claude` matches it regardless of case variants. Note: if Claude Code ever runs inside a wrapper process (e.g., `node` or `sh`), this filter will not match it — that is a known limitation. In standard engram usage, agents run `claude` directly.
-
-**Why `-s` (not `-a`):** `-s` lists panes in the current tmux session only, so you don't accidentally kill Claude panes from unrelated projects open in other sessions. The chat tail pane (Step 3) uses `-a` because it is identified by command (`tail`), not by agent identity.
-
-**Why exclude own pane:** The caller's pane must stay alive to post the session summary (Step 5). The user reads the summary from this pane.
 
 ### Step 3: Kill the chat tail pane
 
@@ -87,11 +78,11 @@ Prevent zombie shell accumulation in Claude Code's background task queue.
 
 Drain **only** the background task IDs you have tracked in this session. **Skip any ID you never set.** Common IDs:
 
-- `CHAT_FSWATCH_TASK_ID` (chat file watcher — set by lead and most agents): if set, call `TaskOutput(task_id=CHAT_FSWATCH_TASK_ID, block=False)`
+- `CHAT_MONITOR_TASK_ID` (chat file watcher — set by lead and most agents): if set, call `TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)`
 - `HEALTH_CHECK_TASK_ID` (lead-only): if set, call `TaskOutput(task_id=HEALTH_CHECK_TASK_ID, block=False)`
 - Hold detection task IDs (lead-only): drain each with `TaskOutput(task_id=<id>, block=False)`
 
-Non-lead agents typically only have `CHAT_FSWATCH_TASK_ID`. If you have none, skip this step.
+Non-lead agents typically only have `CHAT_MONITOR_TASK_ID`. If you have none, skip this step.
 
 ### Step 5: Report session summary
 
@@ -111,8 +102,6 @@ Tell the user:
 | Kill engram-agent before task agents | Broadcast shutdown to all first, wait 10s — all agents get the message simultaneously and wrap up in order |
 | Use `tmux list-panes` without `-a` for chat tail | Works only in current window — use `-a` so the tail pane is found regardless of which window is active |
 | Grep `pane_current_command` for `tail` only | Shell (fish/zsh) is the foreground process, not `tail` — grep `pane_title` for `chat-tail` first, then fall back to `pane_current_command` |
-| Use `tmux list-panes -a` instead of `-s` for agent panes | `-a` kills Claude panes across ALL sessions — use `-s` to scope to the current session only |
-| Kill your own pane | Exclude `$(tmux display-message -p '#{pane_id}')` from the kill list — you need your pane for the summary |
 | Skip draining background task IDs | Zombie shells accumulate across sessions — drain all IDs you have tracked |
 | Drain task IDs you never set | Only drain IDs you actually set in this session — skip those that belong to other roles (e.g., lead-only IDs) |
 | Truncate chat file | Chat file is persistent and append-only — never truncate |
