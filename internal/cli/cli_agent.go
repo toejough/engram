@@ -28,7 +28,6 @@ const (
 // unexported variables.
 var (
 	errAgentKillNameRequired = errors.New("agent kill: --name is required")
-	errNotImplemented        = errors.New("not implemented")
 	errSpawnNameRequired     = errors.New("agent spawn: --name is required")
 	errSpawnPromptRequired   = errors.New("agent spawn: --prompt is required")
 	errStateFileLockTimeout  = errors.New("state file lock timeout after 5s")
@@ -288,6 +287,7 @@ func postSpawnIntentAndWait(ctx context.Context, chatFilePath, name, paneID, int
 
 	return nil
 }
+
 // readModifyWriteStateFile performs a locked read-modify-write on the state file.
 // Creates the file and its parent directory if they do not exist.
 func readModifyWriteStateFile(stateFilePath string, modify func(agentpkg.StateFile) agentpkg.StateFile) error {
@@ -427,6 +427,7 @@ func removeAgentFromStateFile(stateFilePath, agentName string) (string, error) {
 
 	return paneID, rmwErr
 }
+
 // resolveStateFile derives the state file path, wrapping errors with the subcommand name.
 func resolveStateFile(
 	override, cmd string,
