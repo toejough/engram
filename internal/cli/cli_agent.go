@@ -27,11 +27,14 @@ const (
 
 // unexported variables.
 var (
-	errNotImplemented       = errors.New("not implemented")
-	errSpawnNameRequired    = errors.New("agent spawn: --name is required")
-	errSpawnPromptRequired  = errors.New("agent spawn: --prompt is required")
-	errStateFileLockTimeout = errors.New("state file lock timeout after 5s")
-	errUnexpectedTmuxOutput = errors.New("unexpected tmux output")
+	errAgentKillNameRequired = errors.New("agent kill: --name is required")
+	errNotImplemented        = errors.New("not implemented")
+	errSpawnNameRequired     = errors.New("agent spawn: --name is required")
+	errSpawnPromptRequired   = errors.New("agent spawn: --prompt is required")
+	errStateFileLockTimeout  = errors.New("state file lock timeout after 5s")
+	errUnexpectedTmuxOutput  = errors.New("unexpected tmux output")
+	errUnmetHoldCondition    = errors.New("condition not satisfied; release it first")
+	testPaneKiller           func(paneID string) error //nolint:gochecknoglobals // test-overridable pane killer
 )
 
 // spawnFlagsResult holds parsed and validated flags for agent spawn.
@@ -65,6 +68,57 @@ func deriveStateFilePath(
 	return filepath.Join(DataDirFromHome(home, os.Getenv), "state", ProjectSlugFromPath(cwd)+".toml"), nil
 }
 
+// evaluateAndRelease checks one hold: returns error if unmet, posts release message if met.
+func evaluateAndRelease(hold chat.HoldRecord, messages []chat.Message, poster *chat.FilePoster) error {
+	met, _ := chat.EvaluateCondition(hold, messages)
+	if !met {
+		return fmt.Errorf("agent kill: active hold %w", newUnmetHoldError(hold.HoldID, hold.Condition))
+	}
+
+	releaseText, marshalErr := marshalReleasePayload(hold.HoldID)
+	if marshalErr != nil {
+		return fmt.Errorf("agent kill: marshaling release: %w", marshalErr)
+	}
+
+	_, postErr := poster.Post(chat.Message{
+		From:   "system",
+		To:     "all",
+		Thread: "hold",
+		Type:   "hold-release",
+		Text:   string(releaseText),
+	})
+	if postErr != nil {
+		return fmt.Errorf("agent kill: posting release for %s: %w", hold.HoldID, postErr)
+	}
+
+	return nil
+}
+
+// killAgentPane kills the tmux pane for the agent if a pane ID was found.
+// Uses testPaneKiller in tests; falls back to osTmuxKillPane in production.
+// Silently succeeds if the pane is already gone.
+func killAgentPane(paneID string) error {
+	if paneID == "" {
+		return nil
+	}
+
+	killFn := testPaneKiller
+	if killFn == nil {
+		killFn = osTmuxKillPane
+	}
+
+	killErr := killFn(paneID)
+	if killErr != nil && !strings.Contains(killErr.Error(), "no such pane") {
+		return fmt.Errorf("agent kill: killing pane %s: %w", paneID, killErr)
+	}
+
+	return nil
+}
+
+func newUnmetHoldError(holdID, condition string) error {
+	return fmt.Errorf("%s (condition: %s): %w", holdID, condition, errUnmetHoldCondition)
+}
+
 // osStateFileLock acquires a lockfile with a 5s timeout for the wider R-M-W critical section.
 func osStateFileLock(name string) (func() error, error) {
 	for range stateFileLockRetries {
@@ -87,6 +141,20 @@ func osStateFileLock(name string) (func() error, error) {
 	return nil, errStateFileLockTimeout
 }
 
+// osTmuxKillPane kills the tmux pane with the given pane-id.
+// Returns nil if the pane is already gone ("can't find pane") — graceful shutdown
+// may have auto-closed the pane before kill is called.
+func osTmuxKillPane(paneID string) error {
+	cmd := exec.CommandContext(context.Background(), "tmux", "kill-pane", "-t", paneID) //nolint:gosec
+
+	out, err := cmd.CombinedOutput()
+	if err != nil && !strings.Contains(string(out), "can't find pane") {
+		return fmt.Errorf("tmux kill-pane: %w", err)
+	}
+
+	return nil
+}
+
 // osTmuxSpawn creates a new tmux window for the agent and returns pane-id and session-id.
 func osTmuxSpawn(ctx context.Context, name, prompt string) (paneID, sessionID string, err error) {
 	return osTmuxSpawnWith(ctx, "tmux", name, prompt)
@@ -107,6 +175,30 @@ func osTmuxSpawnWith(ctx context.Context, tmuxBin, name, prompt string) (paneID,
 	}
 
 	return parseTmuxOutput(out)
+}
+
+// parseAgentKillFlags parses the agent-kill flag set. Returns (name, chatFile, stateFile, err).
+// Returns ("", "", "", nil) when --help was requested.
+func parseAgentKillFlags(args []string) (string, string, string, error) {
+	flagSet := newFlagSet("agent kill")
+	name := flagSet.String("name", "", "agent name to kill (required)")
+	chatFileFlag := flagSet.String("chat-file", "", "override chat file path (testing only)")
+	stateFileFlag := flagSet.String("state-file", "", "override state file path (testing only)")
+
+	parseErr := flagSet.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return "", "", "", nil
+	}
+
+	if parseErr != nil {
+		return "", "", "", fmt.Errorf("agent kill: %w", parseErr)
+	}
+
+	if *name == "" {
+		return "", "", "", errAgentKillNameRequired
+	}
+
+	return *name, *chatFileFlag, *stateFileFlag, nil
 }
 
 // parseSpawnFlags parses and validates agent spawn flags.
@@ -196,7 +288,6 @@ func postSpawnIntentAndWait(ctx context.Context, chatFilePath, name, paneID, int
 
 	return nil
 }
-
 // readModifyWriteStateFile performs a locked read-modify-write on the state file.
 // Creates the file and its parent directory if they do not exist.
 func readModifyWriteStateFile(stateFilePath string, modify func(agentpkg.StateFile) agentpkg.StateFile) error {
@@ -298,6 +389,44 @@ func reconstructStateFileFromChat(
 	return state, nil
 }
 
+// releaseMetHoldsForAgent checks holds targeting the named agent. Returns an error if any unmet hold is found.
+// Releases holds whose conditions are already met.
+func releaseMetHoldsForAgent(chatFilePath, agentName string, messages []chat.Message) error {
+	activeHolds := chat.ScanActiveHolds(messages)
+	poster := newFilePoster(chatFilePath)
+
+	for _, hold := range activeHolds {
+		if hold.Target != agentName {
+			continue
+		}
+
+		releaseErr := evaluateAndRelease(hold, messages, poster)
+		if releaseErr != nil {
+			return releaseErr
+		}
+	}
+
+	return nil
+}
+
+// removeAgentFromStateFile removes the named agent from the state file and returns its pane ID.
+func removeAgentFromStateFile(stateFilePath, agentName string) (string, error) {
+	var paneID string
+
+	rmwErr := readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
+		for _, record := range stateFile.Agents {
+			if record.Name == agentName {
+				paneID = record.PaneID
+
+				break
+			}
+		}
+
+		return agentpkg.RemoveAgent(stateFile, agentName)
+	})
+
+	return paneID, rmwErr
+}
 // resolveStateFile derives the state file path, wrapping errors with the subcommand name.
 func resolveStateFile(
 	override, cmd string,
@@ -332,7 +461,54 @@ func runAgentDispatch(subArgs []string, stdout io.Writer, spawner spawnFunc) err
 	}
 }
 
-func runAgentKill(_ []string, _ io.Writer) error { return errNotImplemented }
+func runAgentKill(args []string, stdout io.Writer) error {
+	agentName, chatFileFlag, stateFileFlag, flagErr := parseAgentKillFlags(args)
+	if flagErr != nil {
+		return flagErr
+	}
+
+	if agentName == "" {
+		return nil // --help was requested
+	}
+
+	chatFilePath, pathErr := resolveChatFile(chatFileFlag, "agent kill", os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return pathErr
+	}
+
+	stateFilePath, statePathErr := resolveStateFile(stateFileFlag, "agent kill", os.UserHomeDir, os.Getwd)
+	if statePathErr != nil {
+		return statePathErr
+	}
+
+	// Evaluate hold conditions using domain functions directly (no self-invocation).
+	messages, loadErr := loadChatMessages(chatFilePath, os.ReadFile)
+	if loadErr != nil {
+		return fmt.Errorf("agent kill: %w", loadErr)
+	}
+
+	releaseErr := releaseMetHoldsForAgent(chatFilePath, agentName, messages)
+	if releaseErr != nil {
+		return releaseErr
+	}
+
+	paneID, rmwErr := removeAgentFromStateFile(stateFilePath, agentName)
+	if rmwErr != nil {
+		return fmt.Errorf("agent kill: updating state file: %w", rmwErr)
+	}
+
+	killErr := killAgentPane(paneID)
+	if killErr != nil {
+		return killErr
+	}
+
+	writeErr := writeKilledLine(stdout, agentName)
+	if writeErr != nil {
+		return fmt.Errorf("agent kill: %w", writeErr)
+	}
+
+	return nil
+}
 
 func runAgentList(args []string, stdout io.Writer) error {
 	fs := newFlagSet("agent list")
@@ -468,3 +644,13 @@ func runAgentSpawn(args []string, stdout io.Writer, spawner spawnFunc) error {
 }
 
 func runAgentWaitReady(_ []string, _ io.Writer) error { return errNotImplemented }
+
+// writeKilledLine writes the "killed <name>" confirmation line to stdout.
+func writeKilledLine(stdout io.Writer, agentName string) error {
+	_, err := fmt.Fprintf(stdout, "killed %s\n", agentName)
+	if err != nil {
+		return fmt.Errorf("writing killed line: %w", err)
+	}
+
+	return nil
+}

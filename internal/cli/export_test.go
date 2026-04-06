@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"os"
+	"sync"
+	"testing"
 
 	"engram/internal/chat"
 	"engram/internal/recall"
@@ -19,6 +21,7 @@ var (
 		return loadChatMessages(path, os.ReadFile)
 	}
 	ExportOsAppendFile             = osAppendFile
+	ExportOsTmuxKillPane           = osTmuxKillPane
 	ExportOsTmuxSpawn              = osTmuxSpawn
 	ExportOsTmuxSpawnWith          = osTmuxSpawnWith
 	ExportOutputAckResult          = outputAckResult
@@ -31,6 +34,7 @@ var (
 	ExportResolveChatFile          = resolveChatFile
 	ExportResolveStateFile         = resolveStateFile
 	ExportRunAgentSpawn            = runAgentSpawn
+	ExportWriteKilledLine          = writeKilledLine
 )
 
 // --- Factory functions for structs with unexported fields ---
@@ -58,3 +62,23 @@ func ExportNewOsFileReader() interface {
 func ExportNewSurfaceRunnerAdapter(surfacer *surface.Surfacer) SurfaceRunner {
 	return &surfaceRunnerAdapter{surfacer: surfacer}
 }
+
+// SetTestPaneKiller installs a test-only pane killer and serializes parallel tests
+// that override the same global. The caller must not defer a nil reset — cleanup is
+// handled automatically via t.Cleanup.
+func SetTestPaneKiller(tb testing.TB, f func(paneID string) error) {
+	tb.Helper()
+	testPaneKillerMu.Lock()
+
+	testPaneKiller = f
+
+	tb.Cleanup(func() {
+		testPaneKiller = nil
+		testPaneKillerMu.Unlock()
+	})
+}
+
+// unexported variables.
+var (
+	testPaneKillerMu sync.Mutex
+)

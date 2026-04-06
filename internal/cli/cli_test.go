@@ -169,6 +169,30 @@ func TestDeriveStateFilePath_HomeDirError_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestKillAgentPane_EmptyPaneID_ReturnsNil(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Empty state file — agent "executor-1" is not registered, so pane ID stays "".
+	g.Expect(os.WriteFile(stateFile, []byte(""), 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	cli.SetTestPaneKiller(t, func(_ string) error {
+		return errors.New("should not be called: pane ID was empty")
+	})
+
+	err := cli.Run([]string{"engram", "agent", "kill",
+		"--name", "executor-1",
+		"--state-file", stateFile,
+		"--chat-file", chatFile,
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 func TestLoadChatMessages_InvalidTOML_SkipsCorruptBlocks(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -303,6 +327,26 @@ func TestOsTmuxSpawn_CancelledContext_ReturnsError(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("tmux new-window"))
 	}
+}
+
+func TestOsTmuxKillPane_NoSuchPane_ReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// A nonexistent pane ID causes tmux to return "can't find pane" — function must return nil.
+	err := cli.ExportOsTmuxKillPane("nonexistent-pane-id-phase3-task8")
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestOsTmuxKillPane_OtherError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// "invalid:::pane" causes tmux to error with "can't find session" — not "no such pane".
+	// This exercises the wrapped-error return path in osTmuxKillPane.
+	err := cli.ExportOsTmuxKillPane("invalid:::pane")
+	g.Expect(err).To(HaveOccurred())
 }
 
 func TestOutputAckResult_FailWriter_ReturnsError(t *testing.T) {
@@ -627,15 +671,19 @@ func TestResolveStateFile_WithOverride_ReturnsOverride(t *testing.T) {
 	g.Expect(path).To(Equal(stateFile))
 }
 
-func TestRunAgentDispatch_KillSubcommand_ReturnsNotImplemented(t *testing.T) {
+func TestRunAgentDispatch_KillSubcommand_MissingName_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	err := cli.Run([]string{"engram", "agent", "kill"}, &bytes.Buffer{}, io.Discard, nil)
+	dir := t.TempDir()
+	err := cli.Run([]string{"engram", "agent", "kill",
+		"--state-file", filepath.Join(dir, "state.toml"),
+		"--chat-file", filepath.Join(dir, "chat.toml"),
+	}, &bytes.Buffer{}, io.Discard, nil)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("not implemented"))
+		g.Expect(err.Error()).To(ContainSubstring("name"))
 	}
 }
 
@@ -1056,6 +1104,247 @@ func TestRunAgentList_UnreadableChatFile_ReconstructionFails_NoError(t *testing.
 	// Reconstruction failure is logged but not returned as an error.
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(strings.TrimSpace(stdout.String())).To(BeEmpty())
+}
+
+func TestRunAgentKill_ActiveUnmetHold_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	initialState := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{Name: "executor-1", PaneID: "main:1.2", SessionID: "sess1", State: "STARTING"},
+		},
+	}
+	data, _ := agentpkg.MarshalStateFile(initialState)
+	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
+
+	// Chat file contains an unsatisfied lead-release hold on executor-1.
+	chatContent := `
+[[message]]
+from = "lead"
+to = "executor-1"
+thread = "hold"
+type = "hold-acquire"
+ts = 2026-04-06T12:00:00Z
+text = """{"hold-id":"test-hold-1","holder":"lead","target":"executor-1",
+"condition":"lead-release:phase3","tag":"phase3","acquired-ts":"2026-04-06T12:00:00Z"}"""
+`
+	g.Expect(os.WriteFile(chatFile, []byte(chatContent), 0o600)).To(Succeed())
+
+	err := cli.Run([]string{"engram", "agent", "kill",
+		"--name", "executor-1",
+		"--state-file", stateFile,
+		"--chat-file", chatFile,
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("active hold"))
+	}
+}
+
+func TestRunAgentKill_HelpFlag_ReturnsNil(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.Run([]string{"engram", "agent", "kill", "--help"}, io.Discard, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRunAgentKill_MetHold_AutoReleased(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	initialState := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{Name: "executor-1", PaneID: "main:1.2", SessionID: "sess1", State: "ACTIVE"},
+		},
+	}
+	data, _ := agentpkg.MarshalStateFile(initialState)
+	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
+
+	// Chat has a done: hold on executor-1 and a matching done message from executor-2.
+	chatContent := `
+[[message]]
+from = "lead"
+to = "executor-1"
+thread = "hold"
+type = "hold-acquire"
+ts = 2026-04-06T12:00:00Z
+text = """{"hold-id":"hold-auto-1","holder":"lead","target":"executor-1",
+"condition":"done:executor-2","tag":"test","acquired-ts":"2026-04-06T12:00:00Z"}"""
+
+[[message]]
+from = "executor-2"
+to = "all"
+thread = "lifecycle"
+type = "done"
+ts = 2026-04-06T13:00:00Z
+text = "executor-2 completed."
+`
+	g.Expect(os.WriteFile(chatFile, []byte(chatContent), 0o600)).To(Succeed())
+
+	cli.SetTestPaneKiller(t, func(_ string) error { return nil })
+
+	err := cli.Run([]string{"engram", "agent", "kill",
+		"--name", "executor-1",
+		"--state-file", stateFile,
+		"--chat-file", chatFile,
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRunAgentKill_MissingName_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	g.Expect(os.WriteFile(filepath.Join(dir, "chat.toml"), []byte(""), 0o600)).To(Succeed())
+	err := cli.Run([]string{"engram", "agent", "kill",
+		"--state-file", filepath.Join(dir, "state.toml"),
+		"--chat-file", filepath.Join(dir, "chat.toml"),
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("name"))
+	}
+}
+
+func TestRunAgentKill_PaneAlreadyDead_NoError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	initialState := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{Name: "executor-1", PaneID: "main:1.2", SessionID: "sess1", State: "STARTING"},
+		},
+	}
+	data, _ := agentpkg.MarshalStateFile(initialState)
+	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Simulate pane already dead: tmux returns "no such pane" error.
+	cli.SetTestPaneKiller(t, func(_ string) error {
+		return errors.New("exit status 1: no such pane: main:1.2")
+	})
+
+	err := cli.Run([]string{"engram", "agent", "kill",
+		"--name", "executor-1",
+		"--state-file", stateFile,
+		"--chat-file", chatFile,
+	}, io.Discard, io.Discard, nil)
+	// Dead pane is not an error — agent is already gone.
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRunAgentKill_PaneKillError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	initialState := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{Name: "executor-1", PaneID: "main:1.2", SessionID: "sess1", State: "ACTIVE"},
+		},
+	}
+	data, _ := agentpkg.MarshalStateFile(initialState)
+	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Simulate a real kill failure (not "no such pane").
+	cli.SetTestPaneKiller(t, func(_ string) error {
+		return errors.New("session not found: mysession")
+	})
+
+	err := cli.Run([]string{"engram", "agent", "kill",
+		"--name", "executor-1",
+		"--state-file", stateFile,
+		"--chat-file", chatFile,
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("killing pane"))
+	}
+}
+
+func TestRunAgentKill_RemovesAgentFromStateFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	initialAgents := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{Name: "executor-1", PaneID: "main:1.2", SessionID: "sess1", State: "ACTIVE"},
+			{Name: "reviewer-1", PaneID: "main:1.3", SessionID: "sess2", State: "ACTIVE"},
+		},
+	}
+	data, _ := agentpkg.MarshalStateFile(initialAgents)
+	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	cli.SetTestPaneKiller(t, func(_ string) error { return nil })
+
+	err := cli.Run([]string{"engram", "agent", "kill",
+		"--name", "executor-1",
+		"--state-file", stateFile,
+		"--chat-file", chatFile,
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	remaining, _ := os.ReadFile(stateFile)
+	g.Expect(string(remaining)).NotTo(ContainSubstring("executor-1"))
+	g.Expect(string(remaining)).To(ContainSubstring("reviewer-1"))
+}
+
+func TestRunAgentKill_StdoutError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	initialState := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{Name: "executor-1", PaneID: "main:1.2", SessionID: "sess1", State: "ACTIVE"},
+		},
+	}
+	agentData, _ := agentpkg.MarshalStateFile(initialState)
+	g.Expect(os.WriteFile(stateFile, agentData, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	cli.SetTestPaneKiller(t, func(_ string) error { return nil })
+
+	err := cli.Run([]string{"engram", "agent", "kill",
+		"--name", "executor-1",
+		"--state-file", stateFile,
+		"--chat-file", chatFile,
+	}, &failWriter{}, io.Discard, nil)
+	g.Expect(err).To(HaveOccurred())
 }
 
 // Step 14: Full intent→ack→hold→check→release E2E cycle.
@@ -2282,6 +2571,14 @@ func TestRun_UnknownCommand_ReturnsError(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("unknown command"))
 	}
+}
+
+func TestWriteKilledLine_FailingWriter_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.ExportWriteKilledLine(&failWriter{}, "executor-1")
+	g.Expect(err).To(HaveOccurred())
 }
 
 // failWriter is an io.Writer that always returns an error.
