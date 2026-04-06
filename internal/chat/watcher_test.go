@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -67,6 +68,36 @@ func TestFileWatcher_Watch_CommaSepratedToField(t *testing.T) {
 	g.Expect(msg.Text).To(Equal("targeted"))
 }
 
+func TestFileWatcher_Watch_CorruptSuffixBlocksThenCancels(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Suffix itself is corrupt — findMessage logs and returns false, Watch blocks on WaitForChange.
+	// Context cancelled so Watch exits with Canceled.
+	corruptSuffix := []byte(`
+[[message]]
+from = "x"
+to = "myagent"
+thread = "t"
+type = "info"
+ts = 2026-04-05T07:00:00Z
+text = "bad \[ escape in suffix"
+`)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	watcher := &chat.FileWatcher{
+		FilePath:  "/fake/chat.toml",
+		FSWatcher: &blockingWatcher{},
+		ReadFile:  func(_ string) ([]byte, error) { return corruptSuffix, nil },
+	}
+
+	_, _, err := watcher.Watch(ctx, "myagent", 0, nil)
+	g.Expect(err).To(MatchError(context.Canceled))
+}
+
 func TestFileWatcher_Watch_CtxCancellation(t *testing.T) {
 	t.Parallel()
 
@@ -89,6 +120,33 @@ func TestFileWatcher_Watch_CtxCancellation(t *testing.T) {
 	}
 
 	_, _, err := watcher.Watch(ctx, "myagent", 0, nil)
+	g.Expect(err).To(MatchError(context.Canceled))
+}
+
+func TestFileWatcher_Watch_CursorPastEnd(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// File has a few lines but cursor is past the end.
+	// suffixAtLine returns nil → ParseMessages(nil) → empty, no match.
+	// Context cancelled immediately so Watch exits instead of looping.
+	data := buildChatTOML([]chat.Message{
+		{From: "a", To: "other", Thread: "t", Type: "info", TS: now, Text: "x"},
+	})
+
+	cursorPastEnd := countLines(data) + 100
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	watcher := &chat.FileWatcher{
+		FilePath:  "/fake/chat.toml",
+		FSWatcher: &blockingWatcher{},
+		ReadFile:  func(_ string) ([]byte, error) { return data, nil },
+	}
+
+	_, _, err := watcher.Watch(ctx, "myagent", cursorPastEnd, nil)
 	g.Expect(err).To(MatchError(context.Canceled))
 }
 
@@ -121,6 +179,53 @@ func TestFileWatcher_Watch_FiltersByType(t *testing.T) {
 
 	g.Expect(msg.Text).To(Equal("first ack"))
 	g.Expect(msg.Type).To(Equal("ack"))
+}
+
+// TestFileWatcher_Watch_InvalidTOMLBeforeCursor verifies that Watch finds
+// a valid message after the cursor even when historical data before the cursor
+// contains invalid TOML (e.g. a backslash-bracket escape in a basic string).
+func TestFileWatcher_Watch_InvalidTOMLBeforeCursor(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Corrupt "historical" section — contains a TOML basic-string escape that
+	// is invalid: \[ is not a recognized escape sequence.
+	corruptHistory := []byte(`
+[[message]]
+from = "old-agent"
+to = "all"
+thread = "t"
+type = "info"
+ts = 2026-04-05T07:00:00Z
+text = "bad escape \[ causes full-file parse to fail"
+`)
+
+	cursor := countLines(corruptHistory)
+
+	// Valid message that arrives AFTER the cursor.
+	validSuffix := buildChatTOML([]chat.Message{
+		{From: "b", To: "myagent", Thread: "t", Type: "ack", TS: now, Text: "valid after cursor"},
+	})
+
+	data := make([]byte, 0, len(corruptHistory)+len(validSuffix))
+	data = append(data, corruptHistory...)
+	data = append(data, validSuffix...)
+
+	watcher := &chat.FileWatcher{
+		FilePath:  "/fake/chat.toml",
+		FSWatcher: &fakeWatcher{},
+		ReadFile:  func(_ string) ([]byte, error) { return data, nil },
+	}
+
+	msg, _, err := watcher.Watch(context.Background(), "myagent", cursor, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(msg.Text).To(Equal("valid after cursor"))
 }
 
 func TestFileWatcher_Watch_NoMatchLoops(t *testing.T) {
@@ -163,6 +268,21 @@ func TestFileWatcher_Watch_NoMatchLoops(t *testing.T) {
 	g.Expect(callCount).To(BeNumerically(">=", 2))
 }
 
+func TestFileWatcher_Watch_ReadFileError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	watcher := &chat.FileWatcher{
+		FilePath:  "/fake/chat.toml",
+		FSWatcher: &fakeWatcher{},
+		ReadFile:  func(_ string) ([]byte, error) { return nil, errFakeRead },
+	}
+
+	_, _, err := watcher.Watch(context.Background(), "myagent", 0, nil)
+	g.Expect(err).To(MatchError(ContainSubstring("fake read error")))
+}
+
 func TestFileWatcher_Watch_ReturnsFirstMatchingMessage(t *testing.T) {
 	t.Parallel()
 
@@ -197,9 +317,34 @@ func TestFileWatcher_Watch_ReturnsFirstMatchingMessage(t *testing.T) {
 	g.Expect(newCursor).To(BeNumerically(">", cursorAfterFirst))
 }
 
+func TestParseMessages_Empty(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	msgs, err := chat.ParseMessages(nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(msgs).To(BeEmpty())
+}
+
+func TestParseMessages_InvalidTOML(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	_, err := chat.ParseMessages([]byte(`not valid toml ][`))
+	g.Expect(err).To(HaveOccurred())
+}
+
 // unexported variables.
 var (
-	now = time.Date(2026, 4, 5, 7, 0, 0, 0, time.UTC)
+	errFakeRead = errors.New("fake read error")
+	now         = time.Date(2026, 4, 5, 7, 0, 0, 0, time.UTC)
 )
 
 // blockingWatcher blocks until its context is cancelled.

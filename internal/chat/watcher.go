@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -60,17 +61,20 @@ func ParseMessages(data []byte) ([]Message, error) {
 
 // findMessage scans data for the first message after cursor that matches agent and msgTypes.
 // Returns the message, new cursor (total line count), and whether a match was found.
+// Only the bytes after the cursor line are parsed, so corrupt historical data before
+// the cursor does not prevent finding new messages.
 func findMessage(data []byte, agent string, cursor int, msgTypes []string) (Message, int, bool) {
-	startIdx := messageIndexAtCursor(data, cursor)
 	newCursor := bytes.Count(data, []byte("\n"))
 
-	messages, err := ParseMessages(data)
+	suffix := suffixAtLine(data, cursor)
+
+	messages, err := ParseMessages(suffix)
 	if err != nil {
+		slog.Warn("findMessage: failed to parse chat suffix", "cursor", cursor, "err", err)
 		return Message{}, newCursor, false
 	}
 
-	for i := startIdx; i < len(messages); i++ {
-		msg := messages[i]
+	for _, msg := range messages {
 		if matchesAgent(msg.To, agent) && matchesType(msg.Type, msgTypes) {
 			return msg, newCursor, true
 		}
@@ -102,26 +106,22 @@ func matchesType(msgType string, allowed []string) bool {
 	return slices.Contains(allowed, msgType)
 }
 
-// messageIndexAtCursor counts [[message]] occurrences in data up to (but not including) line cursor.
-// Returns the index of the first message that starts at or after cursor.
-func messageIndexAtCursor(data []byte, cursor int) int {
-	if cursor <= 0 {
-		return 0
+// suffixAtLine returns the portion of data starting at the given line number.
+// Returns the full data if lineNum <= 0, nil if lineNum exceeds the line count.
+func suffixAtLine(data []byte, lineNum int) []byte {
+	if lineNum <= 0 {
+		return data
 	}
 
-	lines := bytes.Split(data, []byte("\n"))
-	header := []byte("[[message]]")
-	count := 0
-
-	for lineNum, line := range lines {
-		if lineNum >= cursor {
-			break
+	offset := 0
+	for range lineNum {
+		idx := bytes.IndexByte(data[offset:], '\n')
+		if idx < 0 {
+			return nil
 		}
 
-		if bytes.Equal(bytes.TrimSpace(line), header) {
-			count++
-		}
+		offset += idx + 1
 	}
 
-	return count
+	return data[offset:]
 }
