@@ -474,7 +474,7 @@ DEAD ──(lead decides, report)──> REPORT+DONE
 | **ACTIVE** | Agent posted at least one message | Normal operation. Track last-message timestamp. |
 | **SILENT** | No chat message for `silence_threshold` (3 min for task agents, 6 min for engram-agent). Detected on 2-minute health check. | Nudge via chat + tmux (see 3.2). |
 | **DEAD** | Nudge failed, tmux window gone, or log shows crash/exit | Decide: respawn (engram-agent always), report to user (task agents). |
-| **PENDING-RELEASE** | Agent posted `done` AND lead's hold registry contains at least one hold targeting this agent | Do NOT kill pane. Agent remains alive and responsive. Monitor holds via background tasks. Silence threshold still applies — use PENDING-RELEASE-specific nudge text (see 3.2). |
+| **PENDING-RELEASE** | Agent posted `done` AND lead's hold registry contains at least one hold targeting this agent | Do NOT kill pane. Agent remains alive and responsive. Run engram hold check after each agent done event. Silence threshold still applies — use PENDING-RELEASE-specific nudge text (see 3.2). |
 | **DONE** | Agent posted `done` AND no incoming holds remain (or last hold just dissolved) | 0. Post kill intent (see note below table). 1. Post `shutdown` to agent via chat (`type = "shutdown"`, `to = "<agent-name>"`). 2. Set `PANE_ID=<tracked-pane-id>` then use KILL-PANE from Section 1.3 (handles single- and two-column rebalancing). 3. Remove from tracking. |
 
 **NEVER kill the engram-agent.** It runs for the entire session. Only task agents transition to DONE.
