@@ -887,12 +887,11 @@ func runHoldList(args []string, stdout io.Writer) error {
 		return fmt.Errorf("hold list: %w", loadErr)
 	}
 
+	enc := json.NewEncoder(stdout)
 	for _, hold := range filterHolds(chat.ScanActiveHolds(messages), *holder, *target, *tag) {
-		_, writeErr := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\n",
-			hold.HoldID, hold.Holder, hold.Target, hold.Condition, hold.Tag,
-		)
-		if writeErr != nil {
-			return fmt.Errorf("hold list: writing output: %w", writeErr)
+		encErr := enc.Encode(hold)
+		if encErr != nil {
+			return fmt.Errorf("hold list: writing output: %w", encErr)
 		}
 	}
 

@@ -1326,6 +1326,48 @@ func TestRun_HoldList_InvalidTOML_ReturnsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestRun_HoldList_OutputsNDJSON(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Acquire a hold with all fields populated.
+	acquireErr := cli.Run([]string{
+		"engram", "hold", "acquire",
+		"--chat-file", chatFile,
+		"--holder", "lead",
+		"--target", "exec-1",
+		"--tag", "codesign-1",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(acquireErr).NotTo(HaveOccurred())
+
+	if acquireErr != nil {
+		return
+	}
+
+	var stdout bytes.Buffer
+
+	listErr := cli.Run([]string{
+		"engram", "hold", "list",
+		"--chat-file", chatFile,
+	}, &stdout, io.Discard, nil)
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	g.Expect(lines).To(HaveLen(1))
+
+	// Each line must be valid JSON with a non-empty hold-id.
+	var record map[string]any
+	g.Expect(json.Unmarshal([]byte(lines[0]), &record)).To(Succeed())
+	g.Expect(record["hold-id"]).To(BeAssignableToTypeOf(""))
+	g.Expect(record["hold-id"]).NotTo(BeEmpty())
+	g.Expect(record["holder"]).To(Equal("lead"))
+	g.Expect(record["target"]).To(Equal("exec-1"))
+	g.Expect(record["tag"]).To(Equal("codesign-1"))
+}
+
 func TestRun_HoldList_ParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
