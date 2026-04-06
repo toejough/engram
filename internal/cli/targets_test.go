@@ -42,6 +42,103 @@ func TestAddBoolFlag(t *testing.T) {
 	})
 }
 
+func TestAgentKillFlags_AllFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentKillFlags(cli.AgentKillArgs{
+		Name:      "executor-1",
+		ChatFile:  "/tmp/chat.toml",
+		StateFile: "/tmp/state.toml",
+	})
+	g.Expect(args).To(gomega.ContainElements(
+		"--name", "executor-1",
+		"--chat-file", "/tmp/chat.toml",
+		"--state-file", "/tmp/state.toml",
+	))
+}
+
+func TestAgentKillFlags_EmptyFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentKillFlags(cli.AgentKillArgs{Name: "executor-1"})
+	g.Expect(args).To(gomega.Equal([]string{"--name", "executor-1"}))
+	g.Expect(args).NotTo(gomega.ContainElement("--chat-file"))
+	g.Expect(args).NotTo(gomega.ContainElement("--state-file"))
+}
+
+func TestAgentListFlags_AllFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentListFlags(cli.AgentListArgs{StateFile: "/tmp/state.toml", ChatFile: "/tmp/chat.toml"})
+	g.Expect(args).To(gomega.ContainElements("--state-file", "/tmp/state.toml", "--chat-file", "/tmp/chat.toml"))
+}
+
+func TestAgentListFlags_EmptyFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentListFlags(cli.AgentListArgs{StateFile: "/tmp/state.toml"})
+	g.Expect(args).To(gomega.Equal([]string{"--state-file", "/tmp/state.toml"}))
+	g.Expect(args).NotTo(gomega.ContainElement("--chat-file"))
+}
+
+func TestAgentSpawnFlags_AllFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentSpawnFlags(cli.AgentSpawnArgs{
+		Name:      "executor-1",
+		Prompt:    "You are an executor agent.",
+		ChatFile:  "/tmp/chat.toml",
+		StateFile: "/tmp/state.toml",
+	})
+	g.Expect(args).To(gomega.ContainElements(
+		"--name", "executor-1",
+		"--prompt", "You are an executor agent.",
+		"--chat-file", "/tmp/chat.toml",
+		"--state-file", "/tmp/state.toml",
+	))
+}
+
+func TestAgentSpawnFlags_EmptyFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentSpawnFlags(cli.AgentSpawnArgs{Name: "executor-1"})
+	g.Expect(args).To(gomega.Equal([]string{"--name", "executor-1"}))
+	g.Expect(args).NotTo(gomega.ContainElement("--prompt"))
+	g.Expect(args).NotTo(gomega.ContainElement("--state-file"))
+}
+
+func TestAgentWaitReadyFlags_AllFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentWaitReadyFlags(cli.AgentWaitReadyArgs{
+		Name:     "executor-1",
+		Cursor:   42,
+		MaxWait:  30,
+		ChatFile: "/tmp/chat.toml",
+	})
+	g.Expect(args).To(gomega.ContainElements(
+		"--name", "executor-1",
+		"--cursor", "42",
+		"--max-wait", "30",
+		"--chat-file", "/tmp/chat.toml",
+	))
+}
+
+func TestAgentWaitReadyFlags_ZeroInts(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentWaitReadyFlags(cli.AgentWaitReadyArgs{Name: "executor-1"})
+	g.Expect(args).To(gomega.ContainElements("--name", "executor-1", "--cursor", "0", "--max-wait", "0"))
+}
+
 func TestBuildChatGroup(t *testing.T) {
 	t.Parallel()
 

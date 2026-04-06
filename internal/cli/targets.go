@@ -10,6 +10,35 @@ import (
 	"github.com/toejough/targ"
 )
 
+// AgentKillArgs holds flags for `engram agent kill`.
+type AgentKillArgs struct {
+	Name      string
+	ChatFile  string
+	StateFile string
+}
+
+// AgentListArgs holds flags for `engram agent list`.
+type AgentListArgs struct {
+	StateFile string
+	ChatFile  string // used for reconstruction fallback when state file is missing
+}
+
+// AgentSpawnArgs holds flags for `engram agent spawn`.
+type AgentSpawnArgs struct {
+	Name      string
+	Prompt    string
+	ChatFile  string
+	StateFile string
+}
+
+// AgentWaitReadyArgs holds flags for `engram agent wait-ready`.
+type AgentWaitReadyArgs struct {
+	Name     string
+	Cursor   int
+	MaxWait  int // seconds
+	ChatFile string
+}
+
 // ChatAckWaitArgs holds parsed flags for the chat ack-wait subcommand.
 type ChatAckWaitArgs struct {
 	Agent      string `targ:"flag,name=agent,desc=calling agent name"`
@@ -102,6 +131,36 @@ func AddIntFlag(flags []string, name string, value int) []string {
 	}
 
 	return flags
+}
+
+// AgentKillFlags returns the CLI flag args for the agent kill subcommand.
+func AgentKillFlags(a AgentKillArgs) []string {
+	return BuildFlags("--name", a.Name, "--chat-file", a.ChatFile, "--state-file", a.StateFile)
+}
+
+// AgentListFlags returns the CLI flag args for the agent list subcommand.
+func AgentListFlags(a AgentListArgs) []string {
+	return BuildFlags("--state-file", a.StateFile, "--chat-file", a.ChatFile)
+}
+
+// AgentSpawnFlags returns the CLI flag args for the agent spawn subcommand.
+func AgentSpawnFlags(a AgentSpawnArgs) []string {
+	return BuildFlags(
+		"--name", a.Name,
+		"--prompt", a.Prompt,
+		"--chat-file", a.ChatFile,
+		"--state-file", a.StateFile,
+	)
+}
+
+// AgentWaitReadyFlags returns the CLI flag args for the agent wait-ready subcommand.
+func AgentWaitReadyFlags(a AgentWaitReadyArgs) []string {
+	return BuildFlags(
+		"--name", a.Name,
+		"--cursor", strconv.Itoa(a.Cursor),
+		"--max-wait", strconv.Itoa(a.MaxWait),
+		"--chat-file", a.ChatFile,
+	)
 }
 
 // BuildChatGroup builds the targ group for chat subcommands.
