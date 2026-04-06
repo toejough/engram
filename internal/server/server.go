@@ -70,6 +70,7 @@ func NewServer(lister MemoryLister, dataDir string, opts ...Option) *Server {
 	s.mux.HandleFunc("GET /api/stats", s.handleStats)
 	s.mux.HandleFunc("GET /api/projects", s.handleProjects)
 	s.mux.HandleFunc("GET /api/surface", s.handleSurface)
+	s.mux.HandleFunc("GET /api/activity", s.handleActivity)
 	s.mux.HandleFunc("PUT /api/memories/{slug}", s.handleUpdateMemory)
 	s.mux.HandleFunc("DELETE /api/memories/{slug}", s.handleDeleteMemory)
 	s.mux.HandleFunc("POST /api/memories/{slug}/restore", s.handleRestoreMemory)

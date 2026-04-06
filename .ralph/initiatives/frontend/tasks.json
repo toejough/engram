@@ -215,8 +215,8 @@
         "npm run build succeeds"
       ],
       "priority": 13,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented Projects page at /projects. Fetches from GET /api/projects for per-project stats and GET /api/memories to identify top leech memories per project. Each project card shows: memory count, avg effectiveness, quadrant breakdown as colored badges, and top 5 leeches sorted by surfaced count desc. Clicking a project navigates to /?project=slug for filtered dashboard. Empty state shows 'No projects found.' message. Uses existing shadcn card and badge components, quadrant color/label utilities. npm run build succeeds."
     },
     {
       "id": "US-014",
@@ -232,8 +232,8 @@
         "npm run build succeeds"
       ],
       "priority": 14,
-      "passes": false,
-      "notes": "Alternative to creation-log.jsonl: derive activity from memory TOML fields (created_at, updated_at, pending_evaluations[].surfaced_at)"
+      "passes": true,
+      "notes": "Created internal/server/activity.go with GET /api/activity?page=N&limit=50 endpoint. Synthesizes events from memory timestamps: 'created' from created_at, 'updated' from updated_at (when != created_at), 'surfaced' from pending_evaluations[].surfaced_at (with user_prompt as context, falling back to situation). Events sorted newest-first, paginated with offset. Defaults: page=1, limit=50, max limit=200. Validates page/limit params (400 for invalid). 17 tests in activity_test.go covering: newest-first ordering, updated events, no updated when timestamps equal, surfaced events with context, pagination (2 pages), page beyond end, invalid page/limit params, lister error, empty memories, default pagination, zero created_at skip, invalid surfaced_at skip, surfaced fallback to situation, page=0 rejection, limit>max rejection, valid params. All functions above 80% coverage threshold. Frontend Activity page at /activity with paginated event list, colored type badges (created=green, updated=blue, surfaced=purple), memory slug links, timestamps, context text, and 'Load more' button. npm run build succeeds. No new targ check-full failures."
     },
     {
       "id": "US-015",

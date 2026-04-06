@@ -217,3 +217,39 @@
 - Empty query shows helpful prompt text ("Enter a query above to see which memories would be surfaced")
 - Loading state during simulation, error state for server failures
 - `npm run build` succeeds (tsc + vite build)
+
+---
+
+## US-013: Project overview page (2026-04-06)
+- Implemented `src/pages/Projects.tsx` replacing placeholder with full project overview
+- Fetches from GET /api/projects for per-project stats and GET /api/memories to identify top leech memories
+- Each project displayed as a clickable Card with:
+  - Project slug (raw, as-is) and memory count in header
+  - Average effectiveness percentage
+  - Quadrant breakdown as colored Badges (skips quadrants with 0 count)
+  - Top 5 leeches (memories with quadrant=leech, sorted by surfaced count desc) with slug and surfaced count
+- Clicking a project card navigates to `/?project=slug` to show filtered dashboard
+- Empty state shows "No projects found." message
+- Loading and error states consistent with other pages
+- Uses existing shadcn card and badge components, quadrant color/label utilities from `src/lib/quadrants.ts`
+- `npm run build` succeeds (tsc + vite build)
+
+---
+
+## US-014: Activity timeline page (derived from memory timestamps) (2026-04-06)
+- Created `internal/server/activity.go` with GET /api/activity?page=N&limit=50 endpoint
+- `handleActivity`: parses page/limit query params, lists memories, synthesizes events, sorts desc, paginates
+- `synthesizeEvents`: scans all memories and creates events:
+  - 'created' from `CreatedAt` (skips zero times)
+  - 'updated' from `UpdatedAt` (only when `UpdatedAt != CreatedAt`)
+  - 'surfaced' from `PendingEvaluations[].SurfacedAt` (uses `UserPrompt` as context, falls back to `Situation`)
+- `parseActivityParams`: validates page (>= 1) and limit (1-200), defaults page=1, limit=50
+- Each event includes: type, timestamp (RFC3339), memorySlug, context
+- Events sorted newest-first, paginated with offset
+- Response: JSON array of `activityEventResponse` (empty array, not null, for no events)
+- Wired `GET /api/activity` route in `server.go` NewServer
+- Created `internal/server/activity_test.go` with 17 tests covering all branches
+- All activity functions above 80% per-function coverage threshold
+- Implemented `frontend/src/pages/Activity.tsx` with paginated event list, colored type badges, slug links, "Load more" button
+- `npm run build` succeeds (tsc + vite build)
+- No new targ check-full failures (pre-existing failures unchanged)
