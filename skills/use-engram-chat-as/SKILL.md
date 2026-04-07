@@ -578,21 +578,6 @@ fi
 - You receive a `shutdown` message addressed to you (or `all`)
 - The user explicitly dismisses you
 
-## Heartbeat
-
-Long-lived reactive agents post a heartbeat every 5 minutes using `type = "info"` on the `heartbeat` thread:
-
-```bash
-CURSOR=$(engram chat post \
-  --from engram-agent \
-  --to all \
-  --thread heartbeat \
-  --type info \
-  --text "alive | queue: 0 | feedback: 47 loaded | facts: 23 loaded")
-```
-
-Heartbeats use `type = "info"` because they are informational status updates, not a distinct protocol event. The `thread = "heartbeat"` convention makes them filterable. Without heartbeats, a dead reactive agent is invisible.
-
 ## Compaction Recovery
 
 Context compaction occurs when Claude Code compresses prior conversation history to manage context limits. After compaction, bash variable state is lost — including `CURSOR` — and the agent's recollection of recent protocol events may be incomplete or absent.
