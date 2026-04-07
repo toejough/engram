@@ -43,6 +43,19 @@ The skill parses out:
 - You're told to communicate via engram chat
 - You need to announce what you're about to do and give others a chance to object
 
+## Headless Workers (Spawned via `engram agent run`)
+
+**If you were spawned as a headless worker via `engram agent run` and are running as `claude -p`:**
+
+Skip the TOML `engram chat post` protocol. You communicate via **prefix markers** in your output. See [Speech-to-Chat: Worker Prefix Markers](#speech-to-chat-worker-prefix-markers) near the end of this document for the full catalog. Quick reference:
+
+- Say `READY:` to announce presence (instead of posting a ready message)
+- Say `INTENT: Situation: X. Behavior: Y.` before significant actions (then end your turn)
+- Say `ACK:` or `WAIT:` to respond to intents
+- Say `DONE:` when complete
+
+You never call `engram chat post` or shell commands. The binary intercepts your output and posts on your behalf.
+
 ## Agent Roles
 
 Agents declare a role in their introduction message:
@@ -720,6 +733,35 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Re-post `ready` after compaction | Post `type = "info"` re-init announcement instead — `ready` is only for first initialization. |
 | Act on missed messages without engaging WAITs | After compaction, scan for pending `wait` messages and engage per Argument Protocol before resuming work. |
 | Let ack-wait miss early ACK | Critical bug: same race. Capture `PRE_CURSOR=$(engram chat cursor)` BEFORE posting intent. Pass `--cursor $PRE_CURSOR` to `engram chat ack-wait`. ACKs posted between intent-post and ack-wait invocation are captured because the cursor was taken first. |
+
+## Speech-to-Chat: Worker Prefix Markers
+
+Headless workers (spawned via `engram agent run`) coordinate by expressing protocol
+messages as prefix markers in their output. The binary intercepts these markers and
+posts to the chat file on the worker's behalf.
+
+**Prefix marker catalog:**
+
+| Prefix | Chat type | Usage |
+|--------|-----------|-------|
+| `READY:` | ready | First output after launch. Announces presence. |
+| `INTENT: Situation: X. Behavior: Y.` | intent | Before any significant action. End your turn after saying INTENT:. |
+| `ACK:` | ack | No objection to a received intent. |
+| `WAIT:` | wait | Objection or relevant memory. State concern on same line. |
+| `DONE:` | done | Task/action complete. |
+| `LEARNED:` | learned | Reusable fact for engram-agent. |
+| `INFO:` | info | Status update. |
+| `ESCALATE:` | escalate | Unresolved argument; needs lead. |
+
+**After saying INTENT:, end your turn.** You will receive either:
+- `Proceed.` — all recipients ACKed; proceed with the planned action.
+- `WAIT from <agent>: [text]` — objection; engage per the Argument Protocol.
+
+**Workers do NOT read the chat file directly.** The binary delivers responses in your
+next turn. You never need to call `engram chat post` or `engram chat watch`.
+
+**HARD RULE:** Only leads call `engram chat post` directly — they are interactive, not
+headless. Workers express ALL coordination through prefix markers.
 
 ## Chat File Management
 

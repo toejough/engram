@@ -138,6 +138,26 @@ notification arrives -> parse JSON -> process   # step 3
 spawn new monitor Agent (cursor=N+delta)        # step 4 -> back to step 2
 ```
 
+## Responding via Prefix Markers
+
+When you receive an intent in your turn context (delivered by the binary in Phase 5;
+currently via the Background Monitor Pattern):
+
+- Say `ACK:` followed by your response if no objection.
+- Say `WAIT:` followed by your concern if surfacing a relevant memory or objection.
+
+Example ACK:
+```
+ACK: No relevant memories. Proceed.
+```
+
+Example WAIT:
+```
+WAIT: Memory match: Never run targ check-full while another instance is running. Situation: another instance may still be active — I see no completion message in chat.
+```
+
+This applies in any `-p` mode context where you cannot call `engram chat post` directly.
+
 ## Processing Order
 
 Per incoming message:

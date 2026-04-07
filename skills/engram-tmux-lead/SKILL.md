@@ -128,6 +128,8 @@ engram agent kill --name <name>
 engram agent list | jq -r '.name'
 ```
 
+**Note on session-id:** The `session-id` in the state file is the Claude conversation UUID (not tmux session format) — required for `engram agent resume` in Phase 5. It is written by the `engram agent run` pipeline after reading the first JSONL event, not by spawn. `engram agent spawn` stores `"PENDING"` initially.
+
 ### 1.4 Spawn engram-agent
 
 **ALWAYS spawn this. NEVER skip. Not for "simple" tasks. Not for "quick" tasks. Not because "I can handle it myself." The engram-agent is the memory safety net — without it, you learn nothing and surface nothing. Spawn it BEFORE touching the user's request.**
