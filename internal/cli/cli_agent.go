@@ -21,13 +21,10 @@ import (
 
 // unexported constants.
 const (
-	agentRunAckMaxWait      = 30 * time.Second
-	claudeReadyMaxRetries   = 30
-	claudeReadyPollInterval = time.Second
-	claudeSettings          = `{"statusLine":{"type":"command","command":"true"}}`
-	spawnAckMaxWait         = 30 * time.Second
-	stateFileLockDelay      = 25 * time.Millisecond
-	stateFileLockRetries    = 200
+	agentRunAckMaxWait   = 30 * time.Second
+	spawnAckMaxWait      = 30 * time.Second
+	stateFileLockDelay   = 25 * time.Millisecond
+	stateFileLockRetries = 200
 )
 
 // unexported variables.
@@ -1075,6 +1072,12 @@ func runOneTurn(
 	}
 
 	return result, nil
+}
+
+// shellQuote wraps a string in single quotes, escaping any embedded single quotes.
+// Used to safely pass name and prompt to the shell via tmux send-keys.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
 }
 
 // waitAndBuildPrompt performs ack-wait after an INTENT marker and returns the resume prompt.

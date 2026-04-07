@@ -391,11 +391,7 @@ func TestOsTmuxSpawnWith_SendKeysFails_ReturnsError(t *testing.T) {
 	}
 }
 
-// ============================================================
-// Bug #532: extra Enter after prompt
-// ============================================================
-
-func TestOsTmuxSpawnWith_SendsConfirmingEnterAfterPrompt(t *testing.T) {
+func TestOsTmuxSpawnWith_SendsEngramAgentRun(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -408,12 +404,11 @@ func TestOsTmuxSpawnWith_SendsConfirmingEnterAfterPrompt(t *testing.T) {
 		"case \"$1\" in\n" +
 		"  new-window) echo '%my-pane $mysession' ;;\n" +
 		"  set-option) ;;\n" +
-		"  capture-pane) printf '❯\\n' ;;\n" +
 		"  send-keys) ;;\n" +
 		"esac\n"
 	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
 
-	_, _, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "my-prompt-text")
+	paneID, sessionID, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "my-agent", "do-the-thing")
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -421,62 +416,8 @@ func TestOsTmuxSpawnWith_SendsConfirmingEnterAfterPrompt(t *testing.T) {
 		return
 	}
 
-	calls, readErr := os.ReadFile(callLog)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	// Filter send-keys calls that are NOT the claude startup command.
-	var promptKeyCalls []string
-
-	for line := range strings.SplitSeq(strings.TrimSpace(string(calls)), "\n") {
-		if strings.HasPrefix(line, "send-keys") && !strings.Contains(line, "claude") {
-			promptKeyCalls = append(promptKeyCalls, line)
-		}
-	}
-
-	// Must be exactly 2: one sending the prompt text, one confirming the paste dialog.
-	g.Expect(promptKeyCalls).To(HaveLen(2), "expected prompt send-keys + confirming Enter")
-
-	if len(promptKeyCalls) < 2 {
-		return
-	}
-
-	g.Expect(promptKeyCalls[0]).To(ContainSubstring("my-prompt-text"))
-	g.Expect(promptKeyCalls[1]).NotTo(ContainSubstring("my-prompt-text"))
-	g.Expect(promptKeyCalls[1]).To(ContainSubstring("Enter"))
-}
-
-func TestOsTmuxSpawnWith_SendsPromptViaKeysNotShellCmd(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tmpDir := t.TempDir()
-	fakeTmux := filepath.Join(tmpDir, "tmux")
-	callLog := filepath.Join(tmpDir, "calls.txt")
-
-	script := "#!/bin/sh\n" +
-		"echo \"$@\" >> " + callLog + "\n" +
-		"case \"$1\" in\n" +
-		"  new-window) echo '%my-pane $mysession' ;;\n" +
-		"  set-option) ;;\n" +
-		"  capture-pane) printf '❯\\n' ;;\n" +
-		"  send-keys) ;;\n" +
-		"esac\n"
-	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
-
-	paneID, sessionID, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "my-prompt-text")
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(paneID).To(Equal("%my-pane"))
-	g.Expect(sessionID).To(Equal("$mysession"))
+	g.Expect(paneID).NotTo(BeEmpty())
+	g.Expect(sessionID).To(Equal("PENDING"))
 
 	calls, readErr := os.ReadFile(callLog)
 	g.Expect(readErr).NotTo(HaveOccurred())
@@ -486,11 +427,9 @@ func TestOsTmuxSpawnWith_SendsPromptViaKeysNotShellCmd(t *testing.T) {
 	}
 
 	callsStr := string(calls)
-	// send-keys must be called with the prompt text
-	g.Expect(callsStr).To(ContainSubstring("send-keys"))
-	g.Expect(callsStr).To(ContainSubstring("my-prompt-text"))
-	// new-window must NOT use sh -c
-	g.Expect(callsStr).NotTo(ContainSubstring("sh -c"))
+	g.Expect(callsStr).To(ContainSubstring("engram agent run"))
+	g.Expect(callsStr).To(ContainSubstring("--name"))
+	g.Expect(callsStr).To(ContainSubstring("my-agent"))
 }
 
 func TestOsTmuxSpawnWith_SetsEngramNamePaneOption(t *testing.T) {
@@ -506,7 +445,6 @@ func TestOsTmuxSpawnWith_SetsEngramNamePaneOption(t *testing.T) {
 		"case \"$1\" in\n" +
 		"  new-window) echo '%my-pane $mysession' ;;\n" +
 		"  set-option) ;;\n" +
-		"  capture-pane) printf '❯\\n' ;;\n" +
 		"  send-keys) ;;\n" +
 		"esac\n"
 	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
@@ -541,7 +479,7 @@ func TestOsTmuxSpawnWith_Success_ReturnsPaneAndSession(t *testing.T) {
 	script := "#!/bin/sh\n" +
 		"case \"$1\" in\n" +
 		"  new-window) echo '%my-pane $mysession' ;;\n" +
-		"  capture-pane) printf '❯\\n' ;;\n" +
+		"  set-option) ;;\n" +
 		"  send-keys) ;;\n" +
 		"  *) exit 1 ;;\n" +
 		"esac\n"
@@ -556,7 +494,7 @@ func TestOsTmuxSpawnWith_Success_ReturnsPaneAndSession(t *testing.T) {
 	}
 
 	g.Expect(paneID).To(Equal("%my-pane"))
-	g.Expect(sessionID).To(Equal("$mysession"))
+	g.Expect(sessionID).To(Equal("PENDING"))
 }
 
 func TestOsTmuxSpawnWith_UnexpectedOutput_ReturnsError(t *testing.T) {
