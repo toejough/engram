@@ -50,16 +50,16 @@ done
 
 Use `-a` flag to search ALL panes across ALL windows — this works even if you're not in the coordinator window.
 
-**Primary: kill by pane title** (`pane_title` is set to `chat-tail` by engram-tmux-lead §1.3 via `tmux select-pane -T`):
+**Primary: kill by `@engram_name` user option** (set to `chat-tail` by engram-tmux-lead §1.3 via `tmux set-option -p @engram_name`; immune to terminal OSC 2 overwrites):
 
 ```bash
-tmux list-panes -a -F '#{pane_id} #{pane_title}' \
+tmux list-panes -a -F '#{pane_id} #{@engram_name}' \
   | grep chat-tail \
   | awk '{print $1}' \
   | xargs -I{} tmux kill-pane -t {}
 ```
 
-**Fallback: kill by pane command** (handles sessions started before the title was set):
+**Fallback: kill by pane command** (handles sessions started before `@engram_name` was set):
 
 ```bash
 tmux list-panes -a -F '#{pane_id} #{pane_current_command}' \
@@ -68,7 +68,9 @@ tmux list-panes -a -F '#{pane_id} #{pane_current_command}' \
   | xargs -I{} tmux kill-pane -t {}
 ```
 
-**Why title over command:** `pane_current_command` reflects the foreground process. When tmux spawns the pane via a shell (fish/zsh/bash) that then runs `tail -F`, `pane_current_command` shows `fish`, not `tail`. `pane_title` is set explicitly at spawn time and never changes — it reliably identifies the pane regardless of what foreground process is running.
+**Why `@engram_name` over `pane_title`:** `pane_title` is overwritten by Claude Code via terminal OSC 2 escape sequences on every tool call, leaving it set to the hostname (e.g., `toejough-laptop.local chat-tail`). The `@engram_name` tmux user option is owned by tmux and never touched by terminal output — it reliably stays as `chat-tail`.
+
+**Why `@engram_name` over `pane_current_command`:** `pane_current_command` reflects the foreground process. When tmux spawns the pane via a shell (fish/zsh/bash) that then runs `tail -F`, `pane_current_command` shows `fish`, not `tail`.
 
 **Why `-a`:** Without `-a`, `tmux list-panes` only lists panes in the currently active window. If you've navigated away from the coordinator window, the tail pane won't be found. The `-a` flag lists all panes globally, making shutdown window-independent.
 
@@ -100,7 +102,8 @@ Tell the user:
 |---------|-----|
 | Kill engram-agent before task agents | Broadcast shutdown to all first, wait 10s — all agents get the message simultaneously and wrap up in order |
 | Use `tmux list-panes` without `-a` for chat tail | Works only in current window — use `-a` so the tail pane is found regardless of which window is active |
-| Grep `pane_current_command` for `tail` only | Shell (fish/zsh) is the foreground process, not `tail` — grep `pane_title` for `chat-tail` first, then fall back to `pane_current_command` |
+| Grep `pane_current_command` for `tail` only | Shell (fish/zsh) is the foreground process, not `tail` — grep `@engram_name` for `chat-tail` first (immune to OSC 2), then fall back to `pane_current_command` |
+| Use `pane_title` instead of `@engram_name` | Claude Code overwrites `pane_title` via OSC 2 on every tool call — use `#{@engram_name}` which is tmux-owned and stable |
 | Skip draining background task IDs | Zombie shells accumulate across sessions — drain all IDs you have tracked |
 | Drain task IDs you never set | Only drain IDs you actually set in this session — skip those that belong to other roles (e.g., lead-only IDs) |
 | Truncate chat file | Chat file is persistent and append-only — never truncate |
