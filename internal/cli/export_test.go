@@ -19,7 +19,7 @@ var (
 	ExportApplyProjectSlugDefault = applyProjectSlugDefault
 	ExportBuildClaudeCmd          = buildClaudeCmd
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
-	ExportChatFileCursor          = chatFileCursor
+	ExportChatFileCursor          = func(path string) (int, error) { return chatFileCursor(path, os.ReadFile) }
 	ExportDeriveChatFilePath      = deriveChatFilePath
 	ExportLoadChatMessages        = func(path string) ([]chat.Message, error) {
 		return loadChatMessages(path, os.ReadFile)

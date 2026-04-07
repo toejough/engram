@@ -21,6 +21,7 @@ import (
 
 // unexported constants.
 const (
+	agentRunAckMaxWait      = 30 * time.Second
 	claudeReadyMaxRetries   = 30
 	claudeReadyPollInterval = time.Second
 	claudeSettings          = `{"statusLine":{"type":"command","command":"true"}}`
@@ -117,8 +118,8 @@ func buildClaudeCmd(ctx context.Context, prompt, sessionID, claudeBinary string)
 }
 
 // chatFileCursor returns the current line count of the chat file (end-of-file position).
-func chatFileCursor(chatFilePath string) (int, error) {
-	data, err := os.ReadFile(chatFilePath) //nolint:gosec
+func chatFileCursor(chatFilePath string, readFile func(string) ([]byte, error)) (int, error) {
+	data, err := readFile(chatFilePath)
 	if err != nil {
 		return 0, fmt.Errorf("reading chat file for cursor: %w", err)
 	}
@@ -384,6 +385,10 @@ func parseAgentRunFlags(args []string) (agentRunFlags, error) {
 	fs.StringVar(&flags.stateFile, "state-file", "", "override state file path (testing only)")
 
 	parseErr := fs.Parse(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return agentRunFlags{}, nil
+	}
+
 	if parseErr != nil {
 		return agentRunFlags{}, fmt.Errorf("agent run: %w", parseErr)
 	}
@@ -845,12 +850,12 @@ func runAgentRun(args []string, stdout io.Writer) error {
 // The claudeBinary parameter allows tests to inject a fake binary path instead of "claude".
 func runAgentRunWith(args []string, stdout io.Writer, claudeBinary string) error {
 	flags, parseErr := parseAgentRunFlags(args)
-	if errors.Is(parseErr, flag.ErrHelp) {
-		return nil
-	}
-
 	if parseErr != nil {
 		return parseErr
+	}
+
+	if flags.name == "" {
+		return nil // --help was requested
 	}
 
 	chatFilePath, pathErr := resolveChatFile(flags.chatFile, "agent run", os.UserHomeDir, os.Getwd)
@@ -1025,6 +1030,7 @@ func runConversationLoopWith(
 			return runErr
 		}
 
+		// one-way: capture on first non-empty; never overwrite (--resume requires stable session ID)
 		if sessionID == "" && result.SessionID != "" {
 			sessionID = result.SessionID
 		}
@@ -1088,7 +1094,7 @@ func waitAndBuildPrompt(ctx context.Context, agentName, chatFilePath string, _ i
 		Watcher:  newFileWatcher(chatFilePath),
 		ReadFile: os.ReadFile,
 		NowFunc:  time.Now,
-		MaxWait:  30 * time.Second, //nolint:mnd
+		MaxWait:  agentRunAckMaxWait,
 	}
 
 	return waitAndBuildPromptWith(ctx, agentName, chatFilePath, waiter)
@@ -1097,7 +1103,7 @@ func waitAndBuildPrompt(ctx context.Context, agentName, chatFilePath string, _ i
 // waitAndBuildPromptWith is the testable variant of waitAndBuildPrompt.
 // The waiter parameter allows tests to inject a stub ackWaiter instead of chat.FileAckWaiter.
 func waitAndBuildPromptWith(ctx context.Context, agentName, chatFilePath string, waiter ackWaiter) (string, error) {
-	cursor, cursorErr := chatFileCursor(chatFilePath)
+	cursor, cursorErr := chatFileCursor(chatFilePath, os.ReadFile)
 	if cursorErr != nil {
 		return "", fmt.Errorf("agent run: cursor: %w", cursorErr)
 	}
