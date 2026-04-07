@@ -19,6 +19,7 @@ var (
 	ExportApplyProjectSlugDefault = applyProjectSlugDefault
 	ExportBuildClaudeCmd          = buildClaudeCmd
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
+	ExportBuildResumePrompt       = buildResumePrompt
 	ExportChatFileCursor          = func(path string) (int, error) { return chatFileCursor(path, os.ReadFile) }
 	ExportDeriveChatFilePath      = deriveChatFilePath
 	ExportLoadChatMessages        = func(path string) ([]chat.Message, error) {
@@ -41,6 +42,7 @@ var (
 	ExportRunAgentKill             = runAgentKill
 	ExportRunAgentRunWith          = runAgentRunWith
 	ExportRunAgentSpawn            = runAgentSpawn
+	ExportSelectMemoryFiles        = selectMemoryFiles
 	ExportWaitAndBuildPrompt       = waitAndBuildPrompt
 	ExportWriteKilledLine          = writeKilledLine
 )

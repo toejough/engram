@@ -7,10 +7,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,10 +23,11 @@ import (
 
 // unexported constants.
 const (
-	agentRunAckMaxWait   = 30 * time.Second
-	spawnAckMaxWait      = 30 * time.Second
-	stateFileLockDelay   = 25 * time.Millisecond
-	stateFileLockRetries = 200
+	agentRunAckMaxWait    = 30 * time.Second
+	resumeMemoryFileLimit = 20
+	spawnAckMaxWait       = 30 * time.Second
+	stateFileLockDelay    = 25 * time.Millisecond
+	stateFileLockRetries  = 200
 )
 
 // unexported variables.
@@ -57,6 +60,12 @@ type agentRunFlags struct {
 	prompt    string
 	chatFile  string
 	stateFile string
+}
+
+// memFileEntry pairs an absolute path with its modification time for sorting.
+type memFileEntry struct {
+	path    string
+	modTime time.Time
 }
 
 // promptBuilderFunc is the injectable seam for the ack-wait + prompt construction step.
@@ -114,6 +123,28 @@ func buildClaudeCmd(ctx context.Context, prompt, sessionID, claudeBinary string)
 		"--resume", sessionID,
 		prompt,
 	)
+}
+
+// buildResumePrompt constructs the resume prompt for a stateless engram-agent invocation.
+// Format is defined by Phase 5 codesign (Item 6 from Phase 4 Post-Phase-4 doc).
+func buildResumePrompt(cursor int, memFiles []string, intentFrom, intentText string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "CURSOR: %d\n", cursor)
+	b.WriteString("MEMORY_FILES:\n")
+
+	for _, f := range memFiles {
+		b.WriteString(f)
+		b.WriteByte('\n')
+	}
+
+	fmt.Fprintf(&b, "INTENT_FROM: %s\n", intentFrom)
+	fmt.Fprintf(&b, "INTENT_TEXT: %s\n", intentText)
+	b.WriteString("Instruction: Load the files listed under MEMORY_FILES. " +
+		"Use the CURSOR value when calling engram chat ack-wait. " +
+		"Respond to the intent above with ACK:, WAIT:, or INTENT:.")
+
+	return b.String()
 }
 
 // chatFileCursor returns the current line count of the chat file (end-of-file position).
@@ -1076,6 +1107,55 @@ func runOneTurn(
 
 	if waitErr != nil {
 		return claudepkg.StreamResult{}, fmt.Errorf("agent run: claude exited: %w", waitErr)
+	}
+
+	return result, nil
+}
+
+// selectMemoryFiles returns up to maxFiles memory file paths sorted by mtime descending.
+// Reads feedbackDir and factsDir. Returns absolute paths.
+// Pure at the boundary: readDir and statFile are injected for testability.
+func selectMemoryFiles(
+	feedbackDir, factsDir string,
+	readDir func(string) ([]fs.DirEntry, error),
+	statFile func(string) (fs.FileInfo, error),
+	maxFiles int,
+) ([]string, error) {
+	var entries []memFileEntry
+
+	for _, dir := range []string{feedbackDir, factsDir} {
+		dirEntries, err := readDir(dir)
+		if err != nil {
+			return nil, fmt.Errorf("reading directory %s: %w", dir, err)
+		}
+
+		for _, de := range dirEntries {
+			if de.IsDir() {
+				continue
+			}
+
+			absPath := filepath.Join(dir, de.Name())
+
+			info, err := statFile(absPath)
+			if err != nil {
+				return nil, fmt.Errorf("stat %s: %w", absPath, err)
+			}
+
+			entries = append(entries, memFileEntry{path: absPath, modTime: info.ModTime()})
+		}
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].modTime.After(entries[j].modTime)
+	})
+
+	if len(entries) > maxFiles {
+		entries = entries[:maxFiles]
+	}
+
+	result := make([]string, 0, len(entries))
+	for _, e := range entries {
+		result = append(result, e.path)
 	}
 
 	return result, nil

@@ -149,6 +149,55 @@ func TestBuildClaudeCmd_WithSession(t *testing.T) {
 	g.Expect(cmd.Args).To(ContainElement("Proceed."))
 }
 
+func TestBuildResumePrompt_EmptyMemFiles_EmptySection(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(1, nil, "a", "b")
+	// MEMORY_FILES: should be followed by INTENT_FROM: with nothing in between (just a newline)
+	g.Expect(prompt).To(ContainSubstring("MEMORY_FILES:\nINTENT_FROM:"))
+}
+
+// ============================================================
+// buildResumePrompt tests
+// ============================================================
+
+func TestBuildResumePrompt_IncludesCursorField(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(42, nil, "agent-1", "do stuff")
+	g.Expect(prompt).To(ContainSubstring("CURSOR: 42"))
+}
+
+func TestBuildResumePrompt_IncludesInstruction(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(1, nil, "a", "b")
+	g.Expect(prompt).To(ContainSubstring("Instruction: Load the files listed under MEMORY_FILES."))
+}
+
+func TestBuildResumePrompt_IncludesIntentFromAndText(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(5, nil, "executor-1", "Situation: about to deploy.")
+	g.Expect(prompt).To(ContainSubstring("INTENT_FROM: executor-1"))
+	g.Expect(prompt).To(ContainSubstring("INTENT_TEXT: Situation: about to deploy."))
+}
+
+func TestBuildResumePrompt_IncludesMemoryFilesSection(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memFiles := []string{"/data/feedback/mem1.md", "/data/facts/fact1.md"}
+	prompt := cli.ExportBuildResumePrompt(10, memFiles, "agent-1", "do stuff")
+	g.Expect(prompt).To(ContainSubstring("MEMORY_FILES:"))
+	g.Expect(prompt).To(ContainSubstring("/data/feedback/mem1.md"))
+	g.Expect(prompt).To(ContainSubstring("/data/facts/fact1.md"))
+}
+
 func TestChatFileCursor_MissingFile_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -3412,6 +3461,197 @@ func TestRun_UnknownCommand_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestSelectMemoryFiles_CapsAtLimit(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const totalFiles = 25
+
+	entries := make([]fakeDirEntry, 0, totalFiles)
+	for i := range totalFiles {
+		entries = append(entries, fakeDirEntry{name: fmt.Sprintf("mem-%02d.md", i), isDir: false})
+	}
+
+	readDir := func(dir string) ([]os.DirEntry, error) {
+		if dir == "/feedback" {
+			result := make([]os.DirEntry, 0, len(entries))
+			for i := range entries {
+				result = append(result, &entries[i])
+			}
+
+			return result, nil
+		}
+
+		return nil, nil
+	}
+
+	now := time.Now()
+	statFile := func(path string) (os.FileInfo, error) {
+		return &fakeFileInfo{name: filepath.Base(path), modTime: now}, nil
+	}
+
+	const maxFiles = 20
+
+	files, err := cli.ExportSelectMemoryFiles("/feedback", "/facts", readDir, statFile, maxFiles)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(files).To(HaveLen(maxFiles))
+}
+
+// ============================================================
+// selectMemoryFiles tests
+// ============================================================
+
+func TestSelectMemoryFiles_EmptyDirs_ReturnsEmptySlice(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	emptyReader := func(_ string) ([]os.DirEntry, error) {
+		return nil, nil
+	}
+	noStat := func(_ string) (os.FileInfo, error) {
+		return nil, errors.New("should not be called")
+	}
+
+	files, err := cli.ExportSelectMemoryFiles("/feedback", "/facts", emptyReader, noStat, 20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(files).To(BeEmpty())
+}
+
+func TestSelectMemoryFiles_ReturnsAbsolutePaths(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	entries := []fakeDirEntry{
+		{name: "a.md", isDir: false},
+	}
+
+	readDir := func(dir string) ([]os.DirEntry, error) {
+		if dir == "/facts" {
+			result := make([]os.DirEntry, 0, len(entries))
+			for i := range entries {
+				result = append(result, &entries[i])
+			}
+
+			return result, nil
+		}
+
+		return nil, nil
+	}
+
+	statFile := func(path string) (os.FileInfo, error) {
+		return &fakeFileInfo{name: filepath.Base(path), modTime: time.Now()}, nil
+	}
+
+	files, err := cli.ExportSelectMemoryFiles("/feedback", "/facts", readDir, statFile, 20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(files).To(HaveLen(1))
+	g.Expect(filepath.IsAbs(files[0])).To(BeTrue())
+	g.Expect(files[0]).To(Equal("/facts/a.md"))
+}
+
+func TestSelectMemoryFiles_ReturnsTopNByMtime(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	entries := []fakeDirEntry{
+		{name: "old.md", isDir: false},
+		{name: "new.md", isDir: false},
+		{name: "mid.md", isDir: false},
+	}
+
+	readDir := func(dir string) ([]os.DirEntry, error) {
+		if dir == "/feedback" {
+			result := make([]os.DirEntry, 0, len(entries))
+			for i := range entries {
+				result = append(result, &entries[i])
+			}
+
+			return result, nil
+		}
+
+		return nil, nil
+	}
+
+	now := time.Now()
+	mtimes := map[string]time.Time{
+		"/feedback/old.md": now.Add(-3 * time.Hour),
+		"/feedback/new.md": now,
+		"/feedback/mid.md": now.Add(-1 * time.Hour),
+	}
+
+	statFile := func(path string) (os.FileInfo, error) {
+		mt, ok := mtimes[path]
+		if !ok {
+			return nil, fmt.Errorf("unknown path: %s", path)
+		}
+
+		return &fakeFileInfo{name: filepath.Base(path), modTime: mt}, nil
+	}
+
+	files, err := cli.ExportSelectMemoryFiles("/feedback", "/facts", readDir, statFile, 2)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(files).To(HaveLen(2))
+	g.Expect(files[0]).To(Equal("/feedback/new.md"))
+	g.Expect(files[1]).To(Equal("/feedback/mid.md"))
+}
+
+func TestSelectMemoryFiles_SkipsDirectories(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	entries := []fakeDirEntry{
+		{name: "subdir", isDir: true},
+		{name: "mem.md", isDir: false},
+	}
+
+	readDir := func(dir string) ([]os.DirEntry, error) {
+		if dir == "/feedback" {
+			result := make([]os.DirEntry, 0, len(entries))
+			for i := range entries {
+				result = append(result, &entries[i])
+			}
+
+			return result, nil
+		}
+
+		return nil, nil
+	}
+
+	statFile := func(path string) (os.FileInfo, error) {
+		return &fakeFileInfo{name: filepath.Base(path), modTime: time.Now()}, nil
+	}
+
+	files, err := cli.ExportSelectMemoryFiles("/feedback", "/facts", readDir, statFile, 20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(files).To(HaveLen(1))
+	g.Expect(files[0]).To(Equal("/feedback/mem.md"))
+}
+
 // ============================================================
 // waitAndBuildPromptWith: coverage via stub ackWaiter
 // ============================================================
@@ -3558,6 +3798,44 @@ type failWriter struct{}
 func (w *failWriter) Write(_ []byte) (int, error) {
 	return 0, errors.New("write failed")
 }
+
+// ============================================================
+// Test fakes
+// ============================================================
+
+// fakeDirEntry implements os.DirEntry for testing.
+type fakeDirEntry struct {
+	name  string
+	isDir bool
+}
+
+func (f *fakeDirEntry) Info() (os.FileInfo, error) {
+	return nil, errors.New("fakeDirEntry.Info not implemented")
+}
+
+func (f *fakeDirEntry) IsDir() bool { return f.isDir }
+
+func (f *fakeDirEntry) Name() string { return f.name }
+
+func (f *fakeDirEntry) Type() os.FileMode { return 0 }
+
+// fakeFileInfo implements os.FileInfo for testing.
+type fakeFileInfo struct {
+	name    string
+	modTime time.Time
+}
+
+func (f *fakeFileInfo) IsDir() bool { return false }
+
+func (f *fakeFileInfo) ModTime() time.Time { return f.modTime }
+
+func (f *fakeFileInfo) Mode() os.FileMode { return 0 }
+
+func (f *fakeFileInfo) Name() string { return f.name }
+
+func (f *fakeFileInfo) Size() int64 { return 0 }
+
+func (f *fakeFileInfo) Sys() any { return nil }
 
 // stubAckWaiter is a test stub that returns a pre-configured AckResult or error.
 type stubAckWaiter struct {
