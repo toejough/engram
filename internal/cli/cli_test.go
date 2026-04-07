@@ -319,6 +319,44 @@ func TestOsTmuxSpawnWith_SendKeysFails_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestOsTmuxSpawnWith_SetsEngramNamePaneOption(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmpDir := t.TempDir()
+	fakeTmux := filepath.Join(tmpDir, "tmux")
+	callLog := filepath.Join(tmpDir, "calls.txt")
+
+	script := "#!/bin/sh\n" +
+		"echo \"$@\" >> " + callLog + "\n" +
+		"case \"$1\" in\n" +
+		"  new-window) echo '%my-pane $mysession' ;;\n" +
+		"  set-option) ;;\n" +
+		"  capture-pane) printf '❯\\n' ;;\n" +
+		"  send-keys) ;;\n" +
+		"esac\n"
+	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
+
+	_, _, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "my-agent", "my-prompt")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	calls, readErr := os.ReadFile(callLog)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	// @engram_name user option must be set on the pane with the agent name
+	callsStr := string(calls)
+	g.Expect(callsStr).To(ContainSubstring("set-option -p -t %my-pane @engram_name my-agent"))
+}
+
 func TestOsTmuxSpawnWith_SendsPromptViaKeysNotShellCmd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -331,6 +369,7 @@ func TestOsTmuxSpawnWith_SendsPromptViaKeysNotShellCmd(t *testing.T) {
 		"echo \"$@\" >> " + callLog + "\n" +
 		"case \"$1\" in\n" +
 		"  new-window) echo '%my-pane $mysession' ;;\n" +
+		"  set-option) ;;\n" +
 		"  capture-pane) printf '❯\\n' ;;\n" +
 		"  send-keys) ;;\n" +
 		"esac\n"

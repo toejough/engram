@@ -182,6 +182,13 @@ func osTmuxSpawnWith(ctx context.Context, tmuxBin, name, prompt string) (paneID,
 		return "", "", parseErr
 	}
 
+	// Set a stable pane label via tmux user option. Claude Code continuously overwrites
+	// pane_title via OSC 2 escape sequences on every status change; @engram_name is
+	// tmux-owned and immune to terminal output, so the label persists for the session's life.
+	_ = exec.CommandContext(ctx, tmuxBin, //nolint:gosec
+		"set-option", "-p", "-t", paneID, "@engram_name", name,
+	).Run()
+
 	// Step 2: Start claude in the pane.
 	claudeCmd := "claude --dangerously-skip-permissions --model sonnet --settings '" + claudeSettings + "'"
 

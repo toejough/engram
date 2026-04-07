@@ -74,20 +74,27 @@ CHAT_FILE="$HOME/.local/share/engram/chat/${PROJECT_SLUG}.toml"
 mkdir -p "$(dirname "$CHAT_FILE")"
 touch "$CHAT_FILE"
 
-# Capture lead's window ID — used for the chat tail pane (all agent panes managed by binary)
+# Capture lead's window ID and pane ID — used for the chat tail pane (all agent panes managed by binary)
 LEAD_WINDOW=$(tmux display-message -p '#{window_id}')
+LEAD_PANE_ID=$(tmux display-message -p '#{pane_id}')
 
 # Background task registry: one active task per logical operation.
 # Always drain (TaskOutput block:false) before replacing an entry.
 CHAT_MONITOR_TASK_ID=""  # task ID of the current chat monitor Agent (Agent tool, run_in_background)
 
+# Set stable label on lead pane via tmux user option (Claude Code overwrites pane_title via OSC 2
+# on every tool call — @engram_name is tmux-owned and immune to terminal escape sequences).
+tmux set-option -p -t "$LEAD_PANE_ID" @engram_name "lead"
+
 # Split right — chat tail pane
 TAIL_PANE_ID=$(tmux split-window -h -d -t "$LEAD_WINDOW" -P -F '#{pane_id}' "tail -F $CHAT_FILE")
-tmux select-pane -t "$TAIL_PANE_ID" -T "chat-tail"
+tmux select-pane -t "$TAIL_PANE_ID" -T "chat-tail"   # kept for engram-down backward compat
+tmux set-option -p -t "$TAIL_PANE_ID" @engram_name "chat-tail"
 # Rebalance: coordinator on left, chat tail on right
 tmux select-layout main-vertical
-# Enable pane border so titles set via select-pane -T are visible
+# Enable pane border with stable labels (#{@engram_name} — not #{pane_title} which Claude Code overwrites)
 tmux set-option -w -t "$LEAD_WINDOW" pane-border-status top
+tmux set-option -w -t "$LEAD_WINDOW" pane-border-format "#{?pane_active,#[reverse],}#{pane_index}#[default] #{@engram_name}"
 ```
 
 ## Agent Lifecycle
