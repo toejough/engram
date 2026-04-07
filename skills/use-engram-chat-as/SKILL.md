@@ -178,8 +178,6 @@ AGENT_NAME: [the agent name to filter messages for]
 4. If still watching: go back to step 1 with the new cursor.
 ```
 
-This pattern survives through Phase 4. Phase 5 (`engram agent resume`) eliminates it by converting engram-agent to a stateless worker.
-
 **Main agent loop:**
 1. Spawn background monitor Agent (embed current cursor as integer literal)
 2. **Do NOT complete your turn** — wait for the Agent notification
