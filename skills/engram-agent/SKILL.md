@@ -29,9 +29,35 @@ Memory files live in two directories:
 On startup:
 1. Follow the use-engram-chat-as lifecycle (join, catch up, post ready)
 2. Your introduction declares `role = "reactive"`, memory count, and purpose
-3. Load memories using tiered loading (see Tiered Loading section)
-4. Initialize `recent_intents = []` (cross-iteration state for failure correlation)
-5. Enter the watch loop
+3. Parse resume context (see Resume Context section): CURSOR:, MEMORY_FILES:, INTENT_FROM:, INTENT_TEXT:
+4. Load memory files from MEMORY_FILES: list (see Memory Loading section)
+5. Run matching logic against loaded memories
+6. Respond with ACK: or WAIT: — your session ends after responding
+
+## Resume Context
+
+Each invocation receives a structured resume context injected by the binary:
+
+```
+CURSOR: <N>
+MEMORY_FILES:
+~/.local/share/engram/memory/feedback/foo.toml
+~/.local/share/engram/memory/facts/bar.toml
+INTENT_FROM: <agent-name>
+INTENT_TEXT: <full text of the intent to respond to>
+Instruction: Load the files listed under MEMORY_FILES. Use the CURSOR value
+when calling engram chat ack-wait. Respond to the intent above with ACK:,
+WAIT:, or INTENT:.
+```
+
+Parse these fields on every invocation:
+1. `CURSOR:` — integer value; pass to `--cursor` when calling `engram chat ack-wait`
+2. `MEMORY_FILES:` — one absolute path per line; read each with the Read tool
+3. `INTENT_FROM:` — the agent who posted the intent you must respond to
+4. `INTENT_TEXT:` — the full intent text; use as input to your matching logic
+
+**You have NO prior conversation history.** Each invocation is a fresh session.
+Your context is exactly what is listed above — nothing more.
 
 ## Memory File Format
 
@@ -70,76 +96,37 @@ New memories get zeroed counters, current timestamps, and `initial_confidence` b
 
 **Deprecated:** `pending_evaluations` may exist in older files. Strip it when writing for any reason. Do not populate on new memories.
 
-## Tiered Loading
+## Memory Loading
 
-Startup loading strategy:
+On each invocation, load exactly the files listed in `MEMORY_FILES:` from your resume context.
 
-| Tier | What | When |
-|------|------|------|
-| **Core** | `core = true` memories (user-pinned + auto-promoted) | Always loaded |
-| **Recent** | `updated_at` within last 7 days | Loaded on startup |
-| **On-demand** | Everything else | Searched when a core/recent match found |
+Do **not** scan `~/.local/share/engram/memory/` directly — the binary has already selected
+the most relevant files by recency (top 20 by mtime across feedback/ and facts/ directories).
 
-**Auto-promotion:** Memories with `followed_count / surfaced_count > 0.7` AND `surfaced_count >= 5` auto-promote to `core = true`.
+**Situations-only loading still applies:** Load only the `situation` field and filename slug
+for each memory initially. Full records are loaded only when a situation match is found.
 
-**Auto-demotion:** Auto-promoted core memories (not user-pinned) with `followed_count == 0` AND `surfaced_count >= 10` demote to `core = false`.
-
-**Core set cap:** Maximum 20 auto-promoted memories. When the cap is hit, the oldest auto-promoted memory (by `updated_at`) is demoted to make room. User-pinned memories do not count toward the cap.
+**Empty MEMORY_FILES: block:** If no files are listed, post `ACK:` with a note:
+"No memory files loaded — MEMORY_FILES: was empty. No memories surfaced."
+This is a binary-side condition (empty memory directory); it is not an error.
 
 ## Matching Strategy
 
-**Situations-only loading.** Load only the `situation` field and filename slug from each memory file (plus `content.subject`/`content.object` for facts). This is your matching corpus. Full records are loaded only when a subagent needs them for an argument or when surfacing facts.
+**Situations-only loading.** Load only the `situation` field and filename slug from each memory file (plus `content.subject`/`content.object` for facts). This is your matching corpus. Full records are loaded only when a situation match is found or when surfacing facts.
 
 **What "situation match" means:**
 1. Does the intent's situation overlap with a memory's situation? (Same context, same type of work, same tools/files)
 2. Use judgment, not string matching. Novel phrasings of the same situation should be caught.
 3. For facts, also check if the intent's situation overlaps with a fact's subject or object.
-4. Behavior matching happens in the subagent, AFTER it reads the full memory file.
+4. Behavior matching happens AFTER reading the full memory file.
 
 **Scale limit:** Works for up to ~1000 memories with situations-only loading. Beyond that, pre-filtering will be needed.
 
 **Context overflow:** If your context approaches capacity, stop loading situations for the lowest-value memories (lowest surfaced_count with zero followed_count). Post a warning noting reduced coverage.
 
-## Main Loop
-
-The loop uses the Background Monitor Pattern from use-engram-chat-as. **This is critical -- get it right.**
-
-**Step 1: Start watching.** Spawn a background monitor Agent (`Agent` tool, `run_in_background: true`) with this task:
-
-```
-Monitor engram chat for the next message addressed to engram-agent.
-CURSOR: [embed current cursor as integer literal]
-1. Run foreground bash: RESULT=$(engram chat watch --agent engram-agent --cursor CURSOR)
-   (Blocks until a matching message arrives — kernel-driven via fsnotify, no polling.)
-2. Parse JSON result: TYPE, FROM, CURSOR, TEXT
-3. Return TYPE, FROM, new CURSOR, and TEXT.
-```
-
-**Step 2: Wait.** Do NOT complete your turn. Do NOT say "standing by." You are waiting for the background Agent notification. When the monitor Agent completes (a message arrived), you receive a notification -- this is your trigger to act.
-
-**Step 3: Process.** When the notification arrives:
-- Parse the JSON result from the monitor Agent: `{type, from, cursor, text}`
-- Re-read only modified memory files (track per-file mtimes)
-- For each message, follow the Processing Order below
-
-**Step 4: Loop.** Spawn a new background monitor Agent with the cursor value from the JSON result. Go back to step 2.
-
-**CRITICAL: You must NEVER complete your turn while the loop is running.** The loop only ends when the user dismisses you. Between monitor Agent notifications, you are idle but NOT done -- you are waiting. If you say "standing by" and return to the prompt, the loop is broken and you will miss all future messages.
-
-```
-spawn background monitor Agent (cursor=N)       # step 1
-|
-wait for Agent notification                     # step 2 -- do NOT complete turn
-|
-notification arrives -> parse JSON -> process   # step 3
-|
-spawn new monitor Agent (cursor=N+delta)        # step 4 -> back to step 2
-```
-
 ## Responding via Prefix Markers
 
-When you receive an intent in your turn context (delivered by the binary in Phase 5;
-currently via the Background Monitor Pattern):
+When you receive an intent in your turn context (delivered by the binary):
 
 - Say `ACK:` followed by your response if no objection.
 - Say `WAIT:` followed by your concern if surfacing a relevant memory or objection.
@@ -174,19 +161,15 @@ When you see an `intent` message from an active agent:
 3. **No situation match:** post `ack` with `text = "No relevant memories. Proceed."` Do NOT stay silent — the intent protocol requires explicit ACK from all TO recipients.
 4. **Situation match found:**
    a. Acquire per-file lock, increment `surfaced_count` and update `updated_at`, write atomically (temp file + rename), unlock.
-   b. If fewer than 3 subagents running AND no subagent on this thread, spawn one. Otherwise queue.
-   c. Give the subagent the memory's slug, the intent message, and these instructions:
-      - Identify yourself as `engram-agent/sub-N` (N = next monotonically increasing ID, never reused)
-      - Read the full memory TOML file (all fields)
-      - Judge whether the intended behavior resembles the memory's "behavior to avoid"
-      - If behavior doesn't match (situation matched but behavior is fine), return silently -- false positive
-      - If behavior matches, post a `wait` to the chat file with the memory's full content and why it applies
-      - You are the **reactor**: be aggressive, push back on weak reasoning
-      - The intending agent will respond factually -- evaluate their reasoning critically
-      - **3 argument inputs max** (your objection, their response, your counter). If unresolved, post an `escalate` message addressed to the lead (or to the intending agent if no lead is present in chat history). Include both positions and a specific ask for the user.
-      - After resolution: **re-read the memory file fresh**, acquire per-file lock, increment `followed_count` or `not_followed_count` or `irrelevant_count`, write atomically, unlock
-      - Post `info` with the resolution outcome
-   d. Return to your watch loop immediately. The subagent handles the rest.
+   b. Read the full memory TOML file (all fields).
+   c. Judge whether the intended behavior resembles the memory's "behavior to avoid":
+      - **No behavior match** (situation matched but behavior is fine): post `ack` — false positive.
+      - **Behavior matches**: post `wait` with the memory's full content and why it applies.
+        You are the **reactor**: be direct and specific. State exactly which behavior concerns you.
+        Do not wait for a counter-argument — your session ends after posting WAIT:.
+        The initiating agent reads your concern from the chat file and adjusts their approach.
+        If they post a revised `type=intent` after reading your WAIT:, the binary will resume you
+        with the revised intent in a new session.
 
 ## Fact Surfacing
 
@@ -197,8 +180,8 @@ After checking feedback matches for an `intent` message:
 3. On match, read the full fact file.
 4. Search for related facts by overlapping subjects/objects.
 5. Surface as `info` message: `[FACT] <subject> <predicate> <object> (situation: <situation>)`
-6. Facts do NOT trigger arguments -- they are informational only. No `wait`, no subagent.
-7. After surfacing facts (or if no facts match), post `ack` to the initiating agent — **unless a `wait` was already posted for this intent during Feedback Surfacing** (the subagent's argument serves as the reply; sending `ack` after a `wait` would emit contradictory signals). Facts are informational — the initiating agent must still receive an explicit ACK to proceed in the no-match case.
+6. Facts do NOT trigger arguments -- they are informational only. No `wait`.
+7. After surfacing facts (or if no facts match), post `ack` to the initiating agent — **unless a `wait` was already posted for this intent during Feedback Surfacing** (the WAIT: serves as the reply; sending `ack` after a `wait` would emit contradictory signals). Facts are informational — the initiating agent must still receive an explicit ACK to proceed in the no-match case.
 
 ## Feedback Learning
 
@@ -225,7 +208,7 @@ When creating:
 
 ### Trigger 2: Observed Failures
 
-Correlate `recent_intents` with subsequent messages to detect failures.
+Correlate recent intents (from chat history in resume context) with subsequent messages to detect failures.
 
 **Failure signals (high confidence, initial_confidence = 0.7):**
 - Agent posts `done`/`info` -> user-parroted correction follows
@@ -292,15 +275,6 @@ The engram-agent extracts facts from conversation messages using LLM judgment gu
 
 If you create more than 5 new memories (feedback or facts) in 10 minutes, post a warning to the chat file suggesting the user review and consolidate. Continue creating, but flag the pace.
 
-### Subagent Management
-
-- **Max 3 concurrent subagents.** Queue additional matches.
-- **No two subagents on the same thread.** If a thread has an active subagent, queue the new match.
-- **Naming:** Monotonically increasing IDs: `engram-agent/sub-1`, `engram-agent/sub-2`, etc. IDs are never reused within a session, even when slots free up.
-- **Routing:** Messages to "engram-agent" go to you (main agent). Subagents only respond on their argument thread.
-- **Timeout:** 5 minutes. Post `info` noting timeout. SurfacedCount stays incremented, no outcome counter changes.
-- **Fresh reads:** Subagents MUST re-read the memory file immediately before their locked write.
-
 ## Locking & Atomic Writes
 
 **Per-file locks** (not directory-wide):
@@ -326,7 +300,7 @@ mv ~/.local/share/engram/memory/feedback/.tmp-memory-slug.toml ~/.local/share/en
 rm -f "$lockfile"
 ```
 
-Use `mkdir` fallback if `shlock` unavailable. For `mkdir` locks, if older than 300 seconds (>= subagent timeout), assume stale. Note: PID-based stale detection only works on the same machine.
+Use `mkdir` fallback if `shlock` unavailable. For `mkdir` locks, if older than 300 seconds, assume stale. Note: PID-based stale detection only works on the same machine.
 
 **No multi-file locking.** Never hold locks on more than one memory file simultaneously. This prevents deadlocks. If an operation needs to read multiple files (e.g., duplicate detection during learning), read without locks, then lock only the file being written.
 
@@ -336,9 +310,7 @@ Track these metrics in your own context (not persisted to files):
 
 | Metric | Signal | Action |
 |--------|--------|--------|
-| Intents seen vs checked | Agent overwhelm | Report to user if queue > 5, recommend split |
-| Subagent queue depth | Concurrency bottleneck | Report if consistently > 0 |
-| SurfacedCount vs outcome counts | Outcome tracking gaps | Effectiveness = followed / (followed + not_followed). Unresolved = surfaced - sum(outcomes). Gap = subagent failures. |
+| SurfacedCount vs outcome counts | Outcome tracking gaps | Effectiveness = followed / (followed + not_followed). Unresolved = surfaced - sum(outcomes). |
 | MissedCount | Matching quality | High = matching needs improvement |
 
 ## Common Mistakes
@@ -349,12 +321,11 @@ Track these metrics in your own context (not persisted to files):
 | Writing chat messages via heredoc or manual file append | Use `engram chat post` — it generates timestamps automatically and handles locking. |
 | Broadcasting your own intent | You never do this. You're reactive. |
 | Creating duplicate memories | Check existing memories first. Supersede if contradictory. |
-| Forgetting to increment surfaced_count | Do it BEFORE spawning the argument subagent |
-| Subagent being too polite | The reactor role is AGGRESSIVE. Push back hard. |
-| Exiting after learning a memory | Never exit. Back to watch loop. |
+| Forgetting to increment surfaced_count | Do it BEFORE judging behavior match |
+| Scanning memory directories directly | Load only from MEMORY_FILES: list. Binary has already selected relevant files. |
+| Expecting counter-argument delivery in same session | Phase 5 WAIT: is fire-and-done. Post your concern; your session ends. The initiating agent adjusts and re-posts. |
+| Trying to loop or watch for more messages | Each invocation is one intent, one response. Session ends after responding. |
 | Writing without lock + atomic rename | Always lock per-file, always write to temp + rename. |
-| Subagent using cached memory data | Always re-read the file fresh before writing. |
-| Spawning unlimited subagents | Max 3 concurrent, no two on same thread. Queue the rest. |
 | Auto-creating from ambiguous signals | Only auto-create from high-confidence corrections. Flag ambiguous ones. |
 | Forgetting to strip pending_evaluations | Remove on every write. Opportunistic cleanup. |
 | Surfacing facts with WAIT | Facts use INFO only. No arguments for facts. |
