@@ -40,6 +40,7 @@ var (
 	errUnmetHoldCondition    = errors.New("condition not satisfied; release it first")
 	testPaneKiller           func(paneID string) error //nolint:gochecknoglobals // test-overridable pane killer
 	testPaneVerifier         func(paneID string) error //nolint:gochecknoglobals // test-overridable pane verifier
+	testSpawnAckMaxWait      time.Duration             //nolint:gochecknoglobals // test-overridable ack-wait timeout
 )
 
 // spawnFlagsResult holds parsed and validated flags for agent spawn.
@@ -247,7 +248,7 @@ func osTmuxSpawnWith(ctx context.Context, tmuxBin, name, prompt string) (paneID,
 	// and shows "[Pasted text #1 +N lines]" waiting for Enter confirmation. An extra Enter
 	// is harmless if no paste dialog appears (just submits an empty line which is ignored).
 	confirmErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
-		"send-keys", "-t", paneID, "", "Enter",
+		"send-keys", "-t", paneID, "Enter",
 	).Run()
 	if confirmErr != nil {
 		return "", "", fmt.Errorf("tmux send-keys confirm: %w", confirmErr)
@@ -369,12 +370,17 @@ func postSpawnIntentAndWait(ctx context.Context, chatFilePath, name, paneID, int
 		return fmt.Errorf("posting spawn intent: %w", postErr)
 	}
 
+	ackMaxWait := spawnAckMaxWait
+	if testSpawnAckMaxWait != 0 {
+		ackMaxWait = testSpawnAckMaxWait
+	}
+
 	waiter := &chat.FileAckWaiter{
 		FilePath: chatFilePath,
 		Watcher:  newFileWatcher(chatFilePath),
 		ReadFile: os.ReadFile,
 		NowFunc:  time.Now,
-		MaxWait:  spawnAckMaxWait,
+		MaxWait:  ackMaxWait,
 	}
 
 	_, ackErr := waiter.AckWait(ctx, "system", cursor, []string{"engram-agent"})

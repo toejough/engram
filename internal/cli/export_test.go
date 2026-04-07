@@ -5,6 +5,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"engram/internal/chat"
 	"engram/internal/recall"
@@ -95,8 +96,24 @@ func SetTestPaneVerifier(tb testing.TB, f func(paneID string) error) {
 	})
 }
 
+// SetTestSpawnAckMaxWait installs a test-only ack-wait timeout and serializes parallel tests
+// that override the same global. The caller must not defer a nil reset — cleanup is
+// handled automatically via t.Cleanup.
+func SetTestSpawnAckMaxWait(tb testing.TB, d time.Duration) {
+	tb.Helper()
+	testSpawnAckMaxWaitMu.Lock()
+
+	testSpawnAckMaxWait = d
+
+	tb.Cleanup(func() {
+		testSpawnAckMaxWait = 0
+		testSpawnAckMaxWaitMu.Unlock()
+	})
+}
+
 // unexported variables.
 var (
-	testPaneKillerMu   sync.Mutex
-	testPaneVerifierMu sync.Mutex
+	testPaneKillerMu      sync.Mutex
+	testPaneVerifierMu    sync.Mutex
+	testSpawnAckMaxWaitMu sync.Mutex
 )

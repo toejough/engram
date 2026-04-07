@@ -374,6 +374,7 @@ func TestOsTmuxSpawnWith_SendsConfirmingEnterAfterPrompt(t *testing.T) {
 
 	g.Expect(promptKeyCalls[0]).To(ContainSubstring("my-prompt-text"))
 	g.Expect(promptKeyCalls[1]).NotTo(ContainSubstring("my-prompt-text"))
+	g.Expect(promptKeyCalls[1]).To(ContainSubstring("Enter"))
 }
 
 func TestOsTmuxSpawnWith_SendsPromptViaKeysNotShellCmd(t *testing.T) {
@@ -1629,6 +1630,68 @@ func TestRunAgentSpawn_PostsSystemACKAfterAckWaitResolves(t *testing.T) {
 	}
 
 	g.Expect(systemACKFound).To(BeTrue(), "expected a system ack message in chat after spawn")
+}
+
+func TestRunAgentSpawn_PostsSystemACKWhenEngramAgentOffline(t *testing.T) {
+	// Primary #531 scenario: engram-agent is offline. ack-wait grants an implicit ACK after
+	// 5s (offline threshold). The system must still post an observable ACK to the chat file.
+	// MaxWait is injected as 6s so Watch's deadline fires just after the 5s offline threshold,
+	// keeping this test fast without hard-coding production timing in assertions.
+	t.Parallel()
+	g := NewWithT(t)
+
+	cli.SetTestSpawnAckMaxWait(t, 6*time.Second)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	// Empty chat file — no engram-agent messages → treated as offline.
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	spawnDone := make(chan error, 1)
+
+	go func() {
+		spawnDone <- cli.ExportRunAgentSpawn([]string{
+			"--name", "exec-offline-test",
+			"--prompt", "You are exec-offline-test.",
+			"--chat-file", chatFile,
+			"--state-file", stateFile,
+		}, io.Discard, func(_ context.Context, _, _ string) (string, string, error) {
+			return "main:1.3", "sess789", nil
+		})
+	}()
+
+	// No explicit ACK — ack-wait must complete via offline implicit ACK (~6s with test MaxWait).
+	select {
+	case err := <-spawnDone:
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+	case <-time.After(12 * time.Second):
+		t.Fatal("agent spawn did not complete within 12s (offline implicit ACK should fire at ~6s)")
+	}
+
+	messages, loadErr := cli.ExportLoadChatMessages(chatFile)
+	g.Expect(loadErr).NotTo(HaveOccurred())
+
+	if loadErr != nil {
+		return
+	}
+
+	var systemACKFound bool
+
+	for _, msg := range messages {
+		if msg.From == "system" && msg.Type == "ack" {
+			systemACKFound = true
+
+			break
+		}
+	}
+
+	g.Expect(systemACKFound).To(BeTrue(), "expected system ACK even when engram-agent is offline")
 }
 
 func TestRunAgentSpawn_SpawnerError_ReturnsError(t *testing.T) {
