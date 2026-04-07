@@ -51,6 +51,11 @@ func TestActivity_DefaultPagination(t *testing.T) {
 	}
 
 	g.Expect(events).To(HaveLen(1))
+
+	if events == nil {
+		return
+	}
+
 	g.Expect(events[0].MemorySlug).To(Equal("default-test"))
 }
 
@@ -129,6 +134,10 @@ func TestActivity_IncludesSurfacedEvents(t *testing.T) {
 	}
 
 	g.Expect(events).To(HaveLen(2))
+
+	if events == nil {
+		return
+	}
 
 	// Surfaced event should be newest (2026-04-04 > 2026-04-01).
 	g.Expect(events[0].Type).To(Equal("surfaced"))
@@ -310,6 +319,11 @@ func TestActivity_NoUpdatedEventWhenTimestampsEqual(t *testing.T) {
 	}
 
 	g.Expect(events).To(HaveLen(1))
+
+	if events == nil {
+		return
+	}
+
 	g.Expect(events[0].Type).To(Equal("created"))
 }
 
@@ -406,6 +420,11 @@ func TestActivity_Pagination(t *testing.T) {
 	}
 
 	g.Expect(page1).To(HaveLen(2))
+
+	if page1 == nil {
+		return
+	}
+
 	g.Expect(page1[0].MemorySlug).To(Equal("mem-4"))
 	g.Expect(page1[1].MemorySlug).To(Equal("mem-3"))
 
@@ -429,6 +448,11 @@ func TestActivity_Pagination(t *testing.T) {
 	}
 
 	g.Expect(page2).To(HaveLen(2))
+
+	if page2 == nil {
+		return
+	}
+
 	g.Expect(page2[0].MemorySlug).To(Equal("mem-2"))
 	g.Expect(page2[1].MemorySlug).To(Equal("mem-1"))
 }
@@ -482,6 +506,11 @@ func TestActivity_ReturnsEventsNewestFirst(t *testing.T) {
 	}
 
 	g.Expect(events).To(HaveLen(2))
+
+	if events == nil {
+		return
+	}
+
 	g.Expect(events[0].MemorySlug).To(Equal("deploying-code"))
 	g.Expect(events[0].Type).To(Equal("created"))
 	g.Expect(events[1].MemorySlug).To(Equal("writing-tests"))
@@ -532,6 +561,11 @@ func TestActivity_SkipsInvalidSurfacedAtTimestamp(t *testing.T) {
 
 	// Only created event, surfaced event skipped due to parse error.
 	g.Expect(events).To(HaveLen(1))
+
+	if events == nil {
+		return
+	}
+
 	g.Expect(events[0].Type).To(Equal("created"))
 }
 

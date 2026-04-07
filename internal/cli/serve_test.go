@@ -191,6 +191,10 @@ func TestRun_Serve_StartsAndResponds(t *testing.T) { //nolint:paralleltest // mu
 		return
 	}
 
+	if resp == nil {
+		return
+	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	g.Expect(resp.StatusCode).To(Equal(http.StatusOK))

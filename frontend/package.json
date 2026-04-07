@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "postinstall": "rm -rf node_modules/flatted/golang",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

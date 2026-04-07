@@ -308,6 +308,10 @@ func TestListMemories_ComputedEffectiveness(t *testing.T) {
 		return
 	}
 
+	if results == nil {
+		return
+	}
+
 	g.Expect(results[0]["effectiveness"]).To(BeNumerically("==", 80.0))
 }
 
@@ -425,6 +429,10 @@ func TestListMemories_InsufficientDataQuadrant(t *testing.T) {
 		return
 	}
 
+	if results == nil {
+		return
+	}
+
 	g.Expect(results[0]["quadrant"]).To(Equal(memory.QuadrantInsufficientData))
 }
 
@@ -489,6 +497,10 @@ func TestListMemories_ReturnsJSONArray(t *testing.T) {
 	}
 
 	g.Expect(results).To(HaveLen(1))
+
+	if results == nil {
+		return
+	}
 
 	mem := results[0]
 	g.Expect(mem["slug"]).To(Equal("add-parallel-tests"))
@@ -609,6 +621,10 @@ func TestProjects_ReturnsPerProjectStats(t *testing.T) {
 	}
 
 	g.Expect(results).To(HaveLen(2))
+
+	if results == nil {
+		return
+	}
 
 	// Sorted alphabetically: engram, other
 	g.Expect(results[0]["projectSlug"]).To(Equal("engram"))
