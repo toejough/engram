@@ -1,0 +1,291 @@
+# Ralph Progress Log
+# Initiative: frontend
+# Branch: ryanhill/add-frontend
+# Started: 2026-04-03
+
+## Codebase Patterns
+- Tests use gomega with `NewGomegaWithT(t)`, `t.Parallel()` on every test
+- Memory package: `Stored` struct has counter fields (FollowedCount, NotFollowedCount, IrrelevantCount, SurfacedCount)
+- `TotalEvaluations()` already existed on both `Stored` and `MemoryRecord`
+- Declaration ordering enforced by `targ reorder-decls` (exported constants first, then funcs, then unexported constants)
+
+---
+
+## US-001: Add effectiveness and quadrant classification (2026-04-03)
+- Created `internal/memory/effectiveness.go` with `Effectiveness()` and `Quadrant()` methods on `Stored`
+- Exported 5 quadrant constants for use by server/API packages
+- Created `internal/memory/effectiveness_test.go` with 15 tests covering all branches
+- 100% function coverage in package-level tests
+- Committed: `feat: [US-001] Add effectiveness and quadrant classification to memory package`
+
+---
+
+## US-002: Server package + GET /api/memories endpoint (2026-04-03)
+- Created `internal/server/server.go` with Server struct, NewServer constructor, MemoryLister interface (DI)
+- GET /api/memories returns JSON array with slug, SBIA fields, counters, computed effectiveness %, quadrant, totalEvaluations, updatedAt
+- CORS middleware allows `http://localhost:5173` origin, blocks others, handles OPTIONS preflight
+- `ListenAddr()` binds to 127.0.0.1 only
+- Median surfaced count computed across all memories for quadrant classification (handles even/odd counts)
+- `memoryResponse` struct maps `memory.Stored` fields to camelCase JSON matching the frontend spec
+- Created `internal/server/server_test.go` with 11 tests: response shape, effectiveness computation, quadrant classification, insufficient data, empty list, lister error, CORS allowed/disallowed/preflight, ListenAddr
+- 97.4% statement coverage in package-level tests (only untested path: json encode error)
+- No new targ check-full failures (pre-existing failures unchanged)
+- Committed: `feat: [US-002] Server package + GET /api/memories endpoint`
+
+---
+
+## US-003: Remaining read-only API endpoints (detail, stats, projects) (2026-04-03)
+- Added `PendingEvaluations []PendingEvaluation` field to `memory.Stored` struct
+- Updated `MemoryRecord.ToStored()` to copy `PendingEvaluations` through to `Stored`
+- GET /api/memories/{slug} returns full memory detail with `pendingEvaluations` array via `memoryDetailResponse` (embeds `memoryResponse`)
+- `isValidSlug()` rejects path traversal: empty strings, `..`, `/`, `\` in slug
+- Returns 404 JSON `{"error":"memory not found"}` for unknown slugs
+- GET /api/stats returns `{totalMemories, avgEffectiveness, quadrantDistribution}` — avg effectiveness computed as mean of per-memory effectiveness * 100
+- GET /api/projects returns per-project stats array sorted alphabetically: `{projectSlug, memoryCount, avgEffectiveness, quadrantBreakdown}`
+- Added `writeJSONError()` helper for consistent JSON error responses with proper Content-Type
+- Added response types: `memoryDetailResponse`, `pendingEvaluationResponse`, `statsResponse`, `projectResponse`, `errorResponse`, `projectAccumulator`
+- 13 new tests: detail with pending evals, no pending evals, 404 not found, path traversal rejection (../, backslash, slash-only), lister errors for all endpoints, stats with data/empty, projects with multi-project data/empty
+- All server functions above 80% function coverage threshold
+- No new targ check-full failures (pre-existing failures unchanged: gosec, revive, deadcode/nilaway not installed, cli flaky test)
+- Committed: `feat: [US-003] Remaining read-only API endpoints (detail, stats, projects)`
+
+---
+
+## US-004: engram serve CLI subcommand (2026-04-03)
+- Created `internal/cli/serve.go` with `runServe` function
+- Added `serve` case to `cli.go` dispatch switch, updated usage string
+- Parses `--port` flag (default 3001) and `--data-dir` flag via `flag.NewFlagSet`
+- Uses `applyDataDirDefault()` for data directory resolution
+- Wires real `retrieve.New()` into `server.NewServer()` for memory listing
+- Starts `http.Server` on `127.0.0.1:{port}` with `ReadHeaderTimeout` (10s) to prevent Slowloris
+- `BrowserOpener` exported var opens browser via `open` (macOS) or `xdg-open` (Linux), overridable in tests
+- Graceful shutdown on SIGINT/SIGTERM via `signalContext()` with 5s shutdown timeout
+- Startup message logged to stdout: `engram server listening on http://localhost:{port}`
+- Created `internal/cli/serve_test.go` with 4 tests:
+  - `StartsAndResponds`: verifies HTTP 200 on `/api/memories`, startup message, browser opener called
+  - `GracefulShutdown`: sends SIGINT, verifies clean shutdown with "server stopped" message
+  - `PortInUse`: verifies error when binding to occupied port
+  - `ParseError`: verifies flag parse error handling
+- Thread-safe `syncWriter` used for concurrent stdout access in tests
+- No new targ check-full failures (pre-existing failures unchanged: gosec, revive, deadcode/nilaway not installed)
+- Committed: `feat: [US-004] engram serve CLI subcommand`
+
+---
+
+## US-005: Frontend scaffolding (Vite + React + shadcn + Tailwind 4) (2026-04-03)
+- Scaffolded `frontend/` with `create-vite` react-ts template
+- Installed React Router, TanStack Query, Tailwind CSS v4 (@tailwindcss/vite plugin), shadcn/ui
+- shadcn/ui initialized with default config (components.json, button component, utils.ts, CSS variables)
+- Tailwind v4 uses CSS-based config (no tailwind.config.ts), configured via `@tailwindcss/vite` plugin
+- Path alias `@/` → `./src/` configured in tsconfig.json, tsconfig.app.json, and vite.config.ts
+- Vite config proxies `/api/*` to `http://localhost:3001` for dev
+- Created `src/lib/types.ts` with interfaces: Memory, PendingEvaluation, MemoryDetail, Stats, Project, SurfaceMatch, SurfaceNearMiss, SurfaceResult, ActivityEntry — all matching Go server JSON response shapes
+- Created `src/lib/api.ts` with typed fetch helpers: fetchMemories, fetchMemory, fetchStats, fetchProjects, fetchSurface, fetchActivity
+- Created 5 placeholder page components: Dashboard, MemoryDetail, Surface, Projects, Activity
+- App.tsx wraps with QueryClientProvider (TanStack Query) and BrowserRouter with all 5 routes
+- `npm install` succeeds, `npm run dev` starts on port 5173, `npm run build` produces production bundle without errors
+- Committed: `feat: [US-005] Frontend scaffolding (Vite + React + shadcn + Tailwind 4)`
+
+---
+
+## US-006: Dashboard page (stats, charts, memory table) (2026-04-03)
+- Installed Recharts charting library
+- Added shadcn/ui components: card, table, select, badge
+- Created `src/lib/quadrants.ts` with color constants (working=green, leech=red, hidden-gem=purple, noise=amber, insufficient-data=gray) and label mappings
+- Created `src/components/StatCards.tsx` — grid of stat cards: total memories, avg effectiveness, and per-quadrant counts
+- Created `src/components/QuadrantChart.tsx` — Recharts PieChart donut with inner/outer radius, colored by quadrant, insufficient-data as gray segment
+- Created `src/components/EffectivenessHistogram.tsx` — Recharts BarChart with 10 buckets (0-10%, 10-20%, ..., 90-100%)
+- Created `src/components/MemoryTable.tsx` — sortable table (slug, quadrant, effectiveness, surfaced, project, updated) with sort icons (ArrowUp/ArrowDown/ArrowUpDown), filterable by quadrant and project via shadcn Select dropdowns, row click navigates to `/memories/:slug`
+- Updated `src/pages/Dashboard.tsx` — uses TanStack Query (`useQuery`) to fetch from `/api/memories` and `/api/stats`, derives project list from memories, supports `?project=` query param for pre-filtering, loading and error states
+- `npm run build` succeeds (tsc + vite build)
+- Committed: `feat: [US-006] Dashboard page (stats, charts, memory table)`
+
+---
+
+## US-007: Memory detail page (2026-04-03)
+- Added `CreatedAt time.Time` field to `memory.Stored` struct
+- Updated `MemoryRecord.ToStored()` to parse `created_at` string and carry through to `Stored.CreatedAt`
+- Added `CreatedAt string` field to server's `memoryDetailResponse`
+- Updated `toMemoryDetailResponse()` to format `CreatedAt` as RFC3339
+- Added `ApiError` class to `src/lib/api.ts` with `status` field for typed HTTP error handling
+- Added `createdAt` field to `MemoryDetail` interface in `src/lib/types.ts`
+- Implemented `src/pages/MemoryDetail.tsx`:
+  - Back link (ArrowLeft icon + "Back to Dashboard") navigates to `/`
+  - Header with slug name and quadrant badge (colored by quadrant)
+  - 4 SBIA sections (Situation, Behavior, Impact, Action) in 2x2 card grid with whitespace-pre-wrap
+  - Effectiveness card: effectiveness %, followed, not followed, irrelevant, total evaluations in 5-column grid
+  - Metadata card: project slug, project-scoped (Yes/No), created at, updated at, surfaced count in definition list
+  - Pending evaluations card with table (surfaced at, user prompt, session ID) or "No pending evaluations" message
+  - 404 handling: shows "Memory not found or archived" with back link when API returns 404
+  - Loading state: centered "Loading..." text
+  - Generic error state: centered destructive text
+- `npm run build` succeeds (tsc + vite build)
+- All Go tests pass (`go test ./internal/memory/... ./internal/server/... -count=1 -race`)
+
+---
+
+## US-008: Mutation API endpoints (update, delete, restore) (2026-04-03)
+- Created `internal/server/mutations.go` with 3 mutation handlers:
+  - `handleUpdateMemory`: PUT /api/memories/{slug} — parses JSON body with SBIA fields + projectScoped + projectSlug, updates via `MemoryModifier.ReadModifyWrite`, sets `updated_at` to current time (injected clock)
+  - `handleDeleteMemory`: DELETE /api/memories/{slug} — soft-deletes by moving TOML from `memories/` to `archived/` dir (creates `archived/` via `FileOps.MkdirAll` if needed)
+  - `handleRestoreMemory`: POST /api/memories/{slug}/restore — moves TOML from `archived/` back to `memories/`
+- Added `FileOps` interface (Rename, MkdirAll, Stat) for testable file move operations
+- Added `MemoryModifier` interface wrapping `ReadModifyWrite` for testable memory updates
+- Added `Option` functional options: `WithModifier`, `WithFileOps`, `WithNow` (clock injection for tests)
+- All endpoints validate slug via `isValidSlug` (rejects `..`, `/`, `\` — path traversal protection)
+- Returns 404 for unknown slugs (via `errors.Is(err, fs.ErrNotExist)` for PUT, `FileOps.Stat` for DELETE/restore)
+- Returns 400 for invalid JSON in PUT
+- Wired real dependencies in `internal/cli/serve.go`: `memory.NewModifier` + `tomlwriter.New()`, `osFileOps` adapter
+- Created `internal/server/mutations_test.go` with 17 tests:
+  - DELETE: archives file, creates archived dir, 404 not found, invalid slug, mkdir error, rename error
+  - RESTORE: moves from archive, 404 not in archive, invalid slug, stat error, rename error
+  - PUT: updates SBIA fields + sets updated_at, 404 not found, 400 invalid JSON, modifier error, wrapped ErrNotExist, invalid slug
+- All mutation handler functions above 80% per-function coverage (handleDeleteMemory 82.8%, handleRestoreMemory 87.5%, handleUpdateMemory 90.6%)
+- All Go tests pass (`targ test`)
+- No new targ check-full failures (pre-existing failures unchanged: gosec, deadcode/nilaway not installed, frontend/node_modules lint, cli coverage)
+
+---
+
+## US-009: Edit memory form on detail page (2026-04-03)
+- Added `updateMemory()` function to `src/lib/api.ts` with `UpdateMemoryPayload` interface — calls PUT /api/memories/:slug
+- Installed shadcn/ui components: sonner (toast), checkbox, input, textarea, label
+- Added `<Toaster />` from sonner to `App.tsx` for toast notifications
+- Updated `src/pages/MemoryDetail.tsx` with edit mode:
+  - Edit button (Pencil icon) in header toggles between view and edit mode
+  - Edit mode shows 4 Textarea fields (Situation, Behavior, Impact, Action) pre-filled with current values
+  - Each textarea has descriptive placeholder hint
+  - Project Settings card with Checkbox for projectScoped and Input for projectSlug
+  - Save button calls `updateMemory()`, invalidates TanStack Query cache, returns to view mode
+  - Cancel button discards form state and returns to view mode
+  - Success toast on save, error toast on failure (using sonner)
+  - Save button shows "Saving..." and disables both buttons during request
+- `npm run build` succeeds (tsc + vite build)
+
+---
+
+## US-010: Delete memory with confirmation dialog (2026-04-03)
+- Added `deleteMemory()` function to `src/lib/api.ts` — calls DELETE /api/memories/:slug
+- Installed shadcn/ui `alert-dialog` component (base-ui variant with `render` prop instead of `asChild`)
+- Updated `src/pages/MemoryDetail.tsx`:
+  - Destructive Delete button (Trash2 icon) next to Edit button in header
+  - AlertDialog opens on click with title "Delete memory" and description "This will archive the memory. You can restore it later."
+  - Confirm handler calls `deleteMemory()`, invalidates TanStack Query `["memories"]` cache, redirects to dashboard via `useNavigate("/")`
+  - Error toast shown on failure via sonner
+  - Both Cancel and Confirm buttons disabled during delete operation
+  - Confirm button shows "Deleting..." loading state
+- `npm run build` succeeds (tsc + vite build)
+
+---
+
+## US-011: GET /api/surface endpoint with score exposure (2026-04-06)
+- Created `internal/server/surface.go` with GET /api/surface?q=...&project=... endpoint
+- Approach: thin wrapper calling retriever + BM25 directly (option c), avoiding surface pipeline stages irrelevant to API
+- `handleSurface`: parses q and project query params, validates required q param, delegates to scoring
+- `scoreSurfaceResults`: builds BM25 documents from memories via SearchText(), calls bm25.Score()
+- `classifyScoredResults`: applies irrelevance penalty (halfLife/(halfLife+irrelevantCount)), project scope penalty (genFactor), classifies into matches (finalScore >= threshold) and nearMisses (nearMissFloor <= finalScore < threshold)
+- Near-miss floor = threshold * 0.5 (configurable via constants)
+- Response JSON: `{matches: [{slug, bm25Score, finalScore, situation, action}], nearMisses: [{..., threshold}]}`
+- Both matches and nearMisses sorted by finalScore descending
+- Empty results return empty arrays (not null)
+- Inlined `surfaceGenFactor` and `surfaceIrrelevancePenalty` from surface package to avoid package dependency
+- Added `WithSurfaceThreshold` and `WithIrrelevanceHalfLife` server options for DI/testing
+- Added `surfaceThreshold` and `irrelevanceHalfLife` fields to Server struct with defaults (0.3 and 5)
+- Wired `GET /api/surface` route in NewServer
+- Created `internal/server/surface_test.go` with 7 tests:
+  - `ReturnsMatchesAboveThreshold`: verifies JSON shape, matches non-empty with correct fields
+  - `NearMissesIncludeThreshold`: verifies near-misses have threshold field, correct fields
+  - `EmptyResultsForNoMatch`: query with no token overlap returns empty arrays
+  - `MissingQueryReturns400`: missing q param returns 400 JSON error
+  - `ListerError`: lister failure returns 500
+  - `ProjectScopeExcludesCrossProject`: project-scoped memory excluded when querying different project
+  - `IrrelevancePenaltyReducesScore`: memory with high irrelevantCount has lower bm25Score
+- All Go tests pass (`targ test`)
+- No new targ check-full failures (pre-existing failures unchanged)
+
+---
+
+## US-012: Surface simulator page (2026-04-06)
+- Implemented `src/pages/Surface.tsx` replacing placeholder with full surface simulator
+- Query input with submit button (Search icon), form submission triggers GET /api/surface
+- Optional project filter dropdown populated from GET /api/projects via TanStack Query
+- Select uses "__all__" sentinel value mapped to empty string for "All projects" option
+- On submit, calls `fetchSurface(query, project)` via TanStack Query with `enabled: submittedQuery.length > 0`
+- Matches section: Card with Table showing slug (linked to `/memories/:slug`), BM25 score (3 decimal places), final score, SBIA preview (situation + action truncated to 120 chars)
+- Near-misses section: separate Card showing below-threshold results with threshold value displayed in header
+- Shared `MatchRow` component renders both matches and near-misses
+- Help text at top explains what the simulator does
+- Empty query shows helpful prompt text ("Enter a query above to see which memories would be surfaced")
+- Loading state during simulation, error state for server failures
+- `npm run build` succeeds (tsc + vite build)
+
+---
+
+## US-013: Project overview page (2026-04-06)
+- Implemented `src/pages/Projects.tsx` replacing placeholder with full project overview
+- Fetches from GET /api/projects for per-project stats and GET /api/memories to identify top leech memories
+- Each project displayed as a clickable Card with:
+  - Project slug (raw, as-is) and memory count in header
+  - Average effectiveness percentage
+  - Quadrant breakdown as colored Badges (skips quadrants with 0 count)
+  - Top 5 leeches (memories with quadrant=leech, sorted by surfaced count desc) with slug and surfaced count
+- Clicking a project card navigates to `/?project=slug` to show filtered dashboard
+- Empty state shows "No projects found." message
+- Loading and error states consistent with other pages
+- Uses existing shadcn card and badge components, quadrant color/label utilities from `src/lib/quadrants.ts`
+- `npm run build` succeeds (tsc + vite build)
+
+---
+
+## US-014: Activity timeline page (derived from memory timestamps) (2026-04-06)
+- Created `internal/server/activity.go` with GET /api/activity?page=N&limit=50 endpoint
+- `handleActivity`: parses page/limit query params, lists memories, synthesizes events, sorts desc, paginates
+- `synthesizeEvents`: scans all memories and creates events:
+  - 'created' from `CreatedAt` (skips zero times)
+  - 'updated' from `UpdatedAt` (only when `UpdatedAt != CreatedAt`)
+  - 'surfaced' from `PendingEvaluations[].SurfacedAt` (uses `UserPrompt` as context, falls back to `Situation`)
+- `parseActivityParams`: validates page (>= 1) and limit (1-200), defaults page=1, limit=50
+- Each event includes: type, timestamp (RFC3339), memorySlug, context
+- Events sorted newest-first, paginated with offset
+- Response: JSON array of `activityEventResponse` (empty array, not null, for no events)
+- Wired `GET /api/activity` route in `server.go` NewServer
+- Created `internal/server/activity_test.go` with 17 tests covering all branches
+- All activity functions above 80% per-function coverage threshold
+- Implemented `frontend/src/pages/Activity.tsx` with paginated event list, colored type badges, slug links, "Load more" button
+- `npm run build` succeeds (tsc + vite build)
+- No new targ check-full failures (pre-existing failures unchanged)
+
+---
+
+## US-015: Empty states for all pages (2026-04-06)
+- Dashboard: added empty state when `memories.length === 0` — shows Card with "No memories yet" heading and onboarding subtext ("Memories are created automatically as you use Claude Code with engram installed"), avoids rendering charts/stats with zero data
+- MemoryDetail 404: already implemented in US-007 — "Memory not found or archived" with ArrowLeft back link
+- Surface: already implemented in US-012 — "Enter a query above to see which memories would be surfaced" shown when no query submitted
+- Projects: updated empty state from plain text to Card layout with "No projects yet" and descriptive subtext
+- Activity: updated empty state from plain text to Card layout with "No activity yet" and descriptive subtext
+- All empty states use consistent Card-based layout with centered text, onboarding-friendly tone (not error-like)
+- `npm run build` succeeds (tsc + vite build)
+
+---
+
+## US-016: Loading states, error handling, and keyboard navigation (2026-04-06)
+- Created `src/components/ui/skeleton.tsx` — shadcn-style Skeleton component with animate-pulse
+- Created `src/components/skeletons.tsx` — skeleton loading components for all pages:
+  - `StatCardsSkeleton`: 7 card placeholders matching stat cards grid
+  - `ChartSkeleton`: chart area placeholder with card wrapper
+  - `TableRowsSkeleton`: 5 row placeholders with 6 columns matching memory table
+  - `MemoryDetailSkeleton`: full page skeleton with SBIA cards, effectiveness metrics, metadata
+  - `ProjectCardsSkeleton`: 3 card placeholders in project grid
+  - `ActivitySkeleton`: 8 event item placeholders matching activity feed
+  - `SurfaceResultsSkeleton`: 4 result row placeholders
+- Created `src/components/ErrorState.tsx` — shared error component with AlertCircle icon, descriptive message, and retry button
+- Created `src/components/ErrorBoundary.tsx` — React class component error boundary wrapping all routes, catches render errors with retry button
+- Updated Dashboard: skeleton loading for stat cards, charts, and table rows; error state with retry
+- Updated MemoryDetail: full page skeleton during loading; error state with retry and back link
+- Updated Projects: project card skeletons during loading; error state with retry
+- Updated Activity: event list skeleton during loading; error state with retry
+- Updated Surface: result skeleton during simulation; error state with retry
+- Updated MemoryTable: `tabIndex={0}` on each table row, `role="link"`, Enter key navigates to detail, `focus-visible:ring-2` styling for keyboard users
+- Added `FocusManager` component to App.tsx: moves focus to h1 on route changes for keyboard/screen reader navigation
+- Added `EscapeHandler` component to App.tsx: safety net for Escape key (base-ui AlertDialog handles Escape natively)
+- Wrapped all routes with ErrorBoundary in App.tsx
+- `npm run build` succeeds (tsc + vite build)

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	sessionctx "engram/internal/context"
+	"engram/internal/sessionctx"
 )
 
 // DirLister lists .jsonl files in a directory with their modification times.

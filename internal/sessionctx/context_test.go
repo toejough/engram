@@ -1,4 +1,4 @@
-package context_test
+package sessionctx_test
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	sessionctx "engram/internal/context"
+	"engram/internal/sessionctx"
 )
 
 // --- Coverage: DeltaReader with file read error ---

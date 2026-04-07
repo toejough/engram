@@ -351,6 +351,78 @@ func TestPromptMode_SBIADisplayFormat(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("1. commit-safety"))
 }
 
+// TestRecordInstrumentation_LoggerError verifies error logging in surfacing logger does not halt.
+func TestRecordInstrumentation_LoggerError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{Situation: "alpha context", Content: memory.ContentFields{Behavior: "alpha bad", Action: "alpha good"},
+			FilePath: "mem/alpha.toml"},
+		{Situation: "beta context", Content: memory.ContentFields{Behavior: "beta bad", Action: "beta good"},
+			FilePath: "mem/beta.toml"},
+		{Situation: "gamma context", Content: memory.ContentFields{Behavior: "gamma bad", Action: "gamma good"},
+			FilePath: "mem/gamma.toml"},
+		{Situation: "delta context", Content: memory.ContentFields{Behavior: "delta bad", Action: "delta good"},
+			FilePath: "mem/delta.toml"},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	logger := &fakeSurfacingLogger{returnErr: errors.New("log write failed")}
+
+	surfacer := surface.New(retriever, surface.WithSurfacingLogger(logger))
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/data",
+		Message: "alpha beta",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(logger.calls).To(HaveLen(2))
+}
+
+// TestRecordInstrumentation_RecorderError verifies error logging in surfacing recorder does not halt.
+func TestRecordInstrumentation_RecorderError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{Situation: "alpha context", Content: memory.ContentFields{Behavior: "alpha bad", Action: "alpha good"},
+			FilePath: "mem/alpha.toml"},
+		{Situation: "beta context", Content: memory.ContentFields{Behavior: "beta bad", Action: "beta good"},
+			FilePath: "mem/beta.toml"},
+		{Situation: "gamma context", Content: memory.ContentFields{Behavior: "gamma bad", Action: "gamma good"},
+			FilePath: "mem/gamma.toml"},
+		{Situation: "delta context", Content: memory.ContentFields{Behavior: "delta bad", Action: "delta good"},
+			FilePath: "mem/delta.toml"},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	surfacer := surface.New(retriever, surface.WithSurfacingRecorder(func(_ string) error {
+		return errors.New("record failed")
+	}))
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/data",
+		Message: "alpha beta",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 func TestRun_TranscriptWindowSuppression(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)

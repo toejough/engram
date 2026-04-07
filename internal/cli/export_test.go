@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"engram/internal/recall"
+	"engram/internal/server"
 	"engram/internal/surface"
 )
 
@@ -30,6 +31,11 @@ func ExportNewHaikuCallerAdapter(
 // ExportNewOsDirLister creates an osDirLister for testing.
 func ExportNewOsDirLister() recall.DirLister {
 	return &osDirLister{}
+}
+
+// ExportNewOsFileOps creates an osFileOps for testing.
+func ExportNewOsFileOps() server.FileOps {
+	return osFileOps{}
 }
 
 // ExportNewOsFileReader creates an osFileReader for testing.

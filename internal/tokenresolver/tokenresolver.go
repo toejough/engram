@@ -66,6 +66,6 @@ const (
 
 type keychainPayload struct {
 	ClaudeAiOauth struct {
-		AccessToken string `json:"accessToken"`
+		AccessToken string `json:"accessToken"` //nolint:gosec // G117: keychain deserialization, not logged
 	} `json:"claudeAiOauth"`
 }

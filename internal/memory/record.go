@@ -51,6 +51,11 @@ type MemoryRecord struct {
 
 // ToStored converts a MemoryRecord to a Stored for in-memory use.
 func (r *MemoryRecord) ToStored(filePath string) *Stored {
+	createdAt, createdParseErr := time.Parse(time.RFC3339, r.CreatedAt)
+	if createdParseErr != nil && r.CreatedAt != "" {
+		fmt.Fprintf(os.Stderr, "engram: memory: parsing created_at %q for %s: %v\n", r.CreatedAt, filePath, createdParseErr)
+	}
+
 	updatedAt, parseErr := time.Parse(time.RFC3339, r.UpdatedAt)
 	if parseErr != nil && r.UpdatedAt != "" {
 		fmt.Fprintf(
@@ -63,19 +68,21 @@ func (r *MemoryRecord) ToStored(filePath string) *Stored {
 	}
 
 	return &Stored{
-		Type:              r.Type,
-		Situation:         r.Situation,
-		Content:           r.Content,
-		Core:              r.Core,
-		InitialConfidence: r.InitialConfidence,
-		ProjectScoped:     r.ProjectScoped,
-		ProjectSlug:       r.ProjectSlug,
-		SurfacedCount:     r.SurfacedCount,
-		FollowedCount:     r.FollowedCount,
-		NotFollowedCount:  r.NotFollowedCount,
-		IrrelevantCount:   r.IrrelevantCount,
-		UpdatedAt:         updatedAt,
-		FilePath:          filePath,
+		Type:               r.Type,
+		Situation:          r.Situation,
+		Content:            r.Content,
+		Core:               r.Core,
+		InitialConfidence:  r.InitialConfidence,
+		ProjectScoped:      r.ProjectScoped,
+		ProjectSlug:        r.ProjectSlug,
+		SurfacedCount:      r.SurfacedCount,
+		FollowedCount:      r.FollowedCount,
+		NotFollowedCount:   r.NotFollowedCount,
+		IrrelevantCount:    r.IrrelevantCount,
+		CreatedAt:          createdAt,
+		UpdatedAt:          updatedAt,
+		FilePath:           filePath,
+		PendingEvaluations: r.PendingEvaluations,
 	}
 }
 

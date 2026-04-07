@@ -46,6 +46,8 @@ func Run(
 		return runRecall(subArgs, stdout)
 	case "show":
 		return runShow(subArgs, stdout)
+	case "serve":
+		return runServe(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -63,7 +65,7 @@ var (
 		memory.WithModifierWriter(tomlwriter.New()),
 	)
 	errUnknownCommand = errors.New("unknown command")
-	errUsage          = errors.New("usage: engram <recall|show> [flags]")
+	errUsage          = errors.New("usage: engram <recall|show|serve> [flags]")
 )
 
 // haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
