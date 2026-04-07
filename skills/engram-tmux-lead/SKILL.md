@@ -205,7 +205,7 @@ CURSOR=$(engram chat post \
   --to engram-agent \
   --thread lifecycle \
   --type intent \
-  --text "Situation: About to spawn <role> named <agent-name>. Task: <task description>. Behavior: Will create a new tmux pane, start claude, and send the role prompt.")
+  --text "Situation: <why this agent is being spawned — user request, workflow stage, problem context>. Behavior: Will spawn <role> named <agent-name> to <task summary>.")
 ```
 
 Apply standard ACK-wait timing: 5s implicit ACK if engram-agent offline; wait up to 30s and escalate to user if online but silent.
