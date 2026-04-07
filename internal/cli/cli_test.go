@@ -263,6 +263,100 @@ func TestChatFileCursor_ReturnsLineCount(t *testing.T) {
 	g.Expect(count).To(BeNumerically(">", 0))
 }
 
+func TestDefaultMemFileSelector_EmptyDirs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	homeDir := t.TempDir()
+	feedbackDir := filepath.Join(homeDir, ".local", "share", "engram", "memory", "feedback")
+	factsDir := filepath.Join(homeDir, ".local", "share", "engram", "memory", "facts")
+
+	g.Expect(os.MkdirAll(feedbackDir, 0o755)).To(Succeed())
+	g.Expect(os.MkdirAll(factsDir, 0o755)).To(Succeed())
+
+	files, err := cli.ExportDefaultMemFileSelector(homeDir, 20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(files).To(BeEmpty())
+}
+
+// ============================================================
+// defaultMemFileSelector tests
+// ============================================================
+
+func TestDefaultMemFileSelector_WiresOsReadDirAndStat(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Create a temp home dir with the expected memory layout.
+	homeDir := t.TempDir()
+	feedbackDir := filepath.Join(homeDir, ".local", "share", "engram", "memory", "feedback")
+	factsDir := filepath.Join(homeDir, ".local", "share", "engram", "memory", "facts")
+
+	g.Expect(os.MkdirAll(feedbackDir, 0o755)).To(Succeed())
+	g.Expect(os.MkdirAll(factsDir, 0o755)).To(Succeed())
+
+	// Write a feedback file and a facts file.
+	g.Expect(os.WriteFile(filepath.Join(feedbackDir, "fb1.md"), []byte("feedback"), 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(factsDir, "fact1.md"), []byte("fact"), 0o600)).To(Succeed())
+
+	files, err := cli.ExportDefaultMemFileSelector(homeDir, 20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(files).To(HaveLen(2))
+
+	// All returned paths must be absolute.
+	for _, f := range files {
+		g.Expect(filepath.IsAbs(f)).To(BeTrue(), "expected absolute path, got: %s", f)
+	}
+}
+
+// ============================================================
+// defaultWatchForIntent tests
+// ============================================================
+
+func TestDefaultWatchForIntent_ReturnsIntentMessage(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Write a chat file with an intent message addressed to our agent.
+	intentTOML := "[[message]]\n" +
+		"from = \"lead\"\n" +
+		"to = \"worker-1\"\n" +
+		"thread = \"work\"\n" +
+		"type = \"intent\"\n" +
+		"ts = \"2026-04-07T00:00:00Z\"\n" +
+		"text = \"Do the thing.\"\n"
+
+	g.Expect(os.WriteFile(chatFile, []byte(intentTOML), 0o600)).To(Succeed())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	msg, newCursor, err := cli.ExportDefaultWatchForIntent(ctx, "worker-1", chatFile, 0)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(msg.Type).To(Equal("intent"))
+	g.Expect(msg.From).To(Equal("lead"))
+	g.Expect(msg.Text).To(Equal("Do the thing."))
+	g.Expect(newCursor).To(BeNumerically(">", 0))
+}
+
 func TestDeriveChatFilePath_DefaultPath_UsesOSFunctions(t *testing.T) {
 	t.Parallel()
 
@@ -2035,9 +2129,11 @@ func TestRunAgentList_UnreadableChatFile_ReconstructionFails_NoError(t *testing.
 	g.Expect(strings.TrimSpace(stdout.String())).To(BeEmpty())
 }
 
-// TestRunAgentRun_FakeClaude_DONE exercises the full runAgentRun pipeline using a fake
+// TestRunAgentRun_FakeClaude_DONE exercises the inner conversation loop using a fake
 // claude binary that emits a DONE marker and exits. Covers: buildAgentRunner,
-// runConversationLoop, runOneTurn, buildClaudeCmd, chatFileCursor.
+// runConversationLoopWith (inner-loop-only), runOneTurn, buildClaudeCmd, chatFileCursor.
+// Uses ExportRunConversationLoopWith with nil watchForIntent to test inner-loop exit;
+// the outer watch loop is covered by TestRunConversationLoopWith_IntentThenDone.
 func TestRunAgentRun_FakeClaude_DONE(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -2061,14 +2157,18 @@ func TestRunAgentRun_FakeClaude_DONE(t *testing.T) {
 	script := "#!/bin/sh\necho '" + doneJSON + "'\n"
 	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
 
+	ctx := context.Background()
+
 	// Use io.Discard for stdout to avoid a data race: cmd.Stderr and runner.Pane
 	// both reference the same writer and are written concurrently during stream processing.
-	err := cli.ExportRunAgentRunWith([]string{
-		"--name", "worker-1",
-		"--prompt", "hello",
-		"--chat-file", chatFile,
-		"--state-file", stateFile,
-	}, io.Discard, fakeClaude)
+	// Pass nil watchForIntent to test inner-loop-only (Phase 4 exit behavior).
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		cli.ExportWaitAndBuildPrompt,
+		nil, nil,
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
@@ -2104,6 +2204,8 @@ func TestRunAgentRun_FakeClaude_ExitNonZero(t *testing.T) {
 
 // TestRunAgentRun_FakeClaude_NoMarkers_ExitsClean verifies conversation ends when claude
 // emits no INTENT or DONE markers (treated as complete).
+// Uses ExportRunConversationLoopWith with nil watchForIntent to test inner-loop exit;
+// the outer watch loop is covered by TestRunConversationLoopWith_IntentThenDone.
 func TestRunAgentRun_FakeClaude_NoMarkers_ExitsClean(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -2122,12 +2224,16 @@ func TestRunAgentRun_FakeClaude_NoMarkers_ExitsClean(t *testing.T) {
 	script := "#!/bin/sh\necho '" + plainJSON + "'\n"
 	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
 
-	err := cli.ExportRunAgentRunWith([]string{
-		"--name", "worker-1",
-		"--prompt", "hello",
-		"--chat-file", chatFile,
-		"--state-file", stateFile,
-	}, io.Discard, fakeClaude)
+	ctx := context.Background()
+
+	// Pass nil watchForIntent to test inner-loop-only (Phase 4 exit behavior).
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		cli.ExportWaitAndBuildPrompt,
+		nil, nil,
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 }
 

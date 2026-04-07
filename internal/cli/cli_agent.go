@@ -177,6 +177,21 @@ func chatFileCursor(chatFilePath string, readFile func(string) ([]byte, error)) 
 	return len(strings.Split(string(data), "\n")), nil
 }
 
+// defaultMemFileSelector calls selectMemoryFiles with os.ReadDir and os.Stat.
+func defaultMemFileSelector(homeDir string, maxFiles int) ([]string, error) {
+	feedbackDir := filepath.Join(homeDir, ".local/share/engram/memory/feedback")
+	factsDir := filepath.Join(homeDir, ".local/share/engram/memory/facts")
+
+	return selectMemoryFiles(feedbackDir, factsDir, os.ReadDir, os.Stat, maxFiles)
+}
+
+// defaultWatchForIntent uses the existing chat.FileWatcher to watch for
+// type=intent messages addressed to the agent.
+func defaultWatchForIntent(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error) {
+	watcher := newFileWatcher(chatFilePath)
+	return watcher.Watch(ctx, agentName, cursor, []string{"intent"})
+}
+
 // deriveStateFilePath mirrors deriveChatFilePath but uses the "state" subdirectory.
 func deriveStateFilePath(
 	override string,
@@ -1043,12 +1058,10 @@ func runConversationLoop(
 	chatFilePath, stateFilePath, claudeBinary string,
 	stdout io.Writer,
 ) error {
-	// Phase 5: outer watch loop available via defaultWatchForIntent +
-	// defaultMemFileSelector. Pass nil to disable until E2E validation.
 	return runConversationLoopWith(
 		ctx, runner, flags, chatFilePath, stateFilePath,
 		claudeBinary, stdout, waitAndBuildPrompt,
-		nil, nil,
+		defaultWatchForIntent, defaultMemFileSelector,
 	)
 }
 
