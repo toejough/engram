@@ -107,6 +107,8 @@ func (r *Runner) maybeWriteSessionID(sessionID string, result *StreamResult) boo
 	if writeErr != nil {
 		_, _ = fmt.Fprintf(r.Pane, "[engram] warning: failed to write session-id: %v\n", writeErr)
 
+		// Returning false retries the write on the next event. This prevents a silent
+		// permanent failure where the session-id is never persisted.
 		return false
 	}
 

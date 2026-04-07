@@ -282,8 +282,8 @@ func TestProcessStream_UserEvent_WrittenToPane(t *testing.T) {
 		WriteSessionID: func(string) error { return nil },
 	}
 
-	// user event — note: streamjson only populates Text for assistant events.
-	// This exercises the "user" branch; text will be empty so nothing is written.
+	// User event has no Text populated by streamjson (only assistant events get Text).
+	// This exercises the "user" branch; verifies it handles empty text safely.
 	userJSON := `{"type":"user","session_id":"abc"}`
 	stream := strings.NewReader(userJSON + "\n")
 
