@@ -187,6 +187,32 @@ func TestProcessStream_NilWriteSessionID_StillCapturesID(t *testing.T) {
 	g.Expect(result.SessionID).To(Equal("550e8400-e29b-41d4-a716-446655440000"))
 }
 
+func TestProcessStream_NilWriteState_NoPanic(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           io.Discard,
+		Poster:         &mockPoster{},
+		WriteSessionID: func(string) error { return nil },
+		WriteState:     nil,
+	}
+
+	readyJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"READY: Online."}]}}`
+	stream := strings.NewReader(readyJSON + "\n")
+
+	result, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.ReadyDetected).To(BeTrue())
+}
+
 func TestProcessStream_NonJSONLine_PassedThroughToPane(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -237,6 +263,73 @@ func TestProcessStream_PosterError_WarnsOnPane(t *testing.T) {
 	}
 
 	g.Expect(pane.String()).To(ContainSubstring("relay failed"))
+}
+
+func TestProcessStream_ReadyMarker_IdempotentOnSecondReady(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	callCount := 0
+
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           io.Discard,
+		Poster:         &mockPoster{},
+		WriteSessionID: func(string) error { return nil },
+		WriteState: func(string) error {
+			callCount++
+
+			return nil
+		},
+	}
+
+	// Two READY: markers in one stream — WriteState should be called only once.
+	readyJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"READY: First.\nREADY: Second."}]}}`
+	stream := strings.NewReader(readyJSON + "\n")
+
+	result, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.ReadyDetected).To(BeTrue())
+	g.Expect(callCount).To(Equal(1))
+}
+
+func TestProcessStream_ReadyMarker_SetsReadyDetectedAndCallsWriteState(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var capturedState string
+
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           io.Discard,
+		Poster:         &mockPoster{},
+		WriteSessionID: func(string) error { return nil },
+		WriteState: func(state string) error {
+			capturedState = state
+
+			return nil
+		},
+	}
+
+	readyJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"READY: Online."}]}}`
+	stream := strings.NewReader(readyJSON + "\n")
+
+	result, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.ReadyDetected).To(BeTrue())
+	g.Expect(capturedState).To(Equal("ACTIVE"))
 }
 
 func TestProcessStream_SessionID_CallsWriteSessionID(t *testing.T) {
@@ -298,6 +391,31 @@ func TestProcessStream_UserEvent_WrittenToPane(t *testing.T) {
 	g.Expect(pane.String()).NotTo(ContainSubstring(`{"type":`))
 }
 
+func TestProcessStream_WaitMarker_SetsWaitDetected(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           io.Discard,
+		Poster:         &mockPoster{},
+		WriteSessionID: func(string) error { return nil },
+	}
+
+	waitJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"WAIT: Objection."}]}}`
+	stream := strings.NewReader(waitJSON + "\n")
+
+	result, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.WaitDetected).To(BeTrue())
+}
+
 func TestProcessStream_WriteSessionIDError_WarnsAndRetries(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -331,6 +449,36 @@ func TestProcessStream_WriteSessionIDError_WarnsAndRetries(t *testing.T) {
 
 	g.Expect(pane.String()).To(ContainSubstring("failed to write session-id"))
 	g.Expect(callCount).To(BeNumerically(">=", 1))
+}
+
+func TestProcessStream_WriteStateError_WarnsOnPane(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var pane bytes.Buffer
+
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           &pane,
+		Poster:         &mockPoster{},
+		WriteSessionID: func(string) error { return nil },
+		WriteState: func(string) error {
+			return errors.New("disk full")
+		},
+	}
+
+	readyJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"READY: Online."}]}}`
+	stream := strings.NewReader(readyJSON + "\n")
+
+	_, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(pane.String()).To(ContainSubstring("state transition failed"))
 }
 
 // errorPoster always returns an error from Post.

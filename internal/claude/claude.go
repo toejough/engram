@@ -22,6 +22,10 @@ type Runner struct {
 	// the state file without creating an internal/claude → internal/cli import cycle.
 	// May be nil (skips session-id write — used in tests that don't need it).
 	WriteSessionID func(sessionID string) error
+
+	// WriteState is called with "ACTIVE" when the first READY: marker is detected.
+	// Nil = skip (tests that don't need state transitions).
+	WriteState func(state string) error
 }
 
 // ProcessStream reads JSONL from src, applies the display filter, relays speech
@@ -69,18 +73,7 @@ func (r *Runner) handleEvent(event streamjson.Event, result *StreamResult) {
 		}
 
 		for _, marker := range streamjson.DetectSpeechMarkers(event.Text) {
-			if marker.Prefix == "INTENT" {
-				result.IntentDetected = true
-			}
-
-			if marker.Prefix == "DONE" {
-				result.DoneDetected = true
-			}
-
-			relayErr := r.relayMarker(marker)
-			if relayErr != nil {
-				_, _ = fmt.Fprintf(r.Pane, "[engram] warning: relay failed: %v\n", relayErr)
-			}
+			r.handleMarker(marker, result)
 		}
 	case "user":
 		if event.Text != "" {
@@ -88,6 +81,29 @@ func (r *Runner) handleEvent(event streamjson.Event, result *StreamResult) {
 		}
 	default:
 		// system, tool_use, result, error: display-filtered (not written to pane).
+	}
+}
+
+// handleMarker processes a single speech marker, updating result flags and relaying to chat.
+func (r *Runner) handleMarker(marker streamjson.SpeechMarker, result *StreamResult) {
+	switch marker.Prefix {
+	case "INTENT":
+		result.IntentDetected = true
+	case "DONE":
+		result.DoneDetected = true
+	case "READY":
+		if !result.ReadyDetected {
+			result.ReadyDetected = true
+
+			r.maybeWriteState("ACTIVE")
+		}
+	case "WAIT":
+		result.WaitDetected = true
+	}
+
+	relayErr := r.relayMarker(marker)
+	if relayErr != nil {
+		_, _ = fmt.Fprintf(r.Pane, "[engram] warning: relay failed: %v\n", relayErr)
 	}
 }
 
@@ -113,6 +129,18 @@ func (r *Runner) maybeWriteSessionID(sessionID string, result *StreamResult) boo
 	}
 
 	return true
+}
+
+// maybeWriteState calls WriteState if the callback is injected.
+func (r *Runner) maybeWriteState(state string) {
+	if r.WriteState == nil {
+		return
+	}
+
+	stateErr := r.WriteState(state)
+	if stateErr != nil {
+		_, _ = fmt.Fprintf(r.Pane, "[engram] warning: state transition failed: %v\n", stateErr)
+	}
 }
 
 // relayMarker maps a SpeechMarker prefix to a chat message type and posts it via Poster.
@@ -142,6 +170,8 @@ func (r *Runner) relayMarker(marker streamjson.SpeechMarker) error {
 type StreamResult struct {
 	IntentDetected bool   // true if at least one INTENT: prefix marker was detected
 	DoneDetected   bool   // true if a DONE: prefix marker was detected
+	WaitDetected   bool   // true if a WAIT: prefix marker was detected
+	ReadyDetected  bool   // true if a READY: prefix marker was detected (triggers STARTING→ACTIVE)
 	SessionID      string // Claude conversation UUID extracted from the first JSONL event
 }
 
