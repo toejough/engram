@@ -350,6 +350,8 @@ Examples: `exec-1`, `exec-2`, `planner-1`, `reviewer-1`, `researcher-1`
 
 The counter is **per-role** -- each role has its own monotonically increasing counter. IDs are never reused within a session. The engram-agent is always named `engram-agent` (not numbered).
 
+**Prefer descriptive names over sequential numbers.** The name appears in pane borders, `engram agent list` output, and every chat message's `from` field — it should identify the agent's role and task at a glance. When spawning multiple agents with the same role, replace the counter with a short task descriptor instead: `exec-auth`, `exec-db`, `reviewer-auth`. Reserve sequential counters (`exec-1`, `exec-2`) only when the tasks are genuinely interchangeable and order is the only distinction. Avoid generic sequential names like `planner-9` or `agent-3` that give no indication of what the agent is doing.
+
 ### 2.4 Concurrency Limit
 
 Maximum **9 total panes** (1 coordinator + 8 agent panes). The binary manages layout automatically.

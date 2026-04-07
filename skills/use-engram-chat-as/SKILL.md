@@ -56,6 +56,8 @@ Skip the TOML `engram chat post` protocol. You communicate via **prefix markers*
 
 You never call `engram chat post` or shell commands. The binary intercepts your output and posts on your behalf.
 
+**Loop exit contract:** A turn containing only `INFO:`, `ACK:`, `LEARNED:`, or `DONE:` markers terminates the conversation — the runner exits the loop after posting the message. To continue working after an `INTENT:`→`Proceed.` cycle, your next turn must also include `INTENT:`. Use `DONE:` only when your task is genuinely complete.
+
 ## Agent Roles
 
 Agents declare a role in their introduction message:
