@@ -74,6 +74,25 @@ func TestParse_AssistantEvent_ExtractsSessionIDAndText(t *testing.T) {
 	g.Expect(event.Text).To(Equal("Hello world"))
 }
 
+func TestParse_AssistantEvent_MultipleTextBlocks_Joined(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	line := []byte(`{"type":"assistant","session_id":"abc","message":{` +
+		`"content":[{"type":"text","text":"Part 1"},` +
+		`{"type":"text","text":"Part 2"}]}}`)
+
+	event, err := streamjson.Parse(line)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(event.Text).To(Equal("Part 1\nPart 2"))
+}
+
 func TestParse_EmptyLine_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -90,6 +109,24 @@ func TestParse_MalformedJSON_ReturnsError(t *testing.T) {
 	_, err := streamjson.Parse([]byte(`{not json`))
 
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestParse_ResultEvent_TextIsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	line := []byte(`{"type":"result","session_id":"abc","subtype":"success"}`)
+
+	event, err := streamjson.Parse(line)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(event.Type).To(Equal("result"))
+	g.Expect(event.Text).To(BeEmpty())
 }
 
 func TestParse_SystemEvent_ExtractsSessionIDOnly(t *testing.T) {

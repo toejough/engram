@@ -32,8 +32,8 @@ type SpeechMarker struct {
 
 // DetectSpeechMarkers scans the Text field of an assistant event for prefix markers.
 // A marker is detected when a line starts with "PREFIX: " (case-sensitive, column 0).
-// Multi-line speech acts are terminated by a blank line, the next prefix marker, or
-// end of text.
+// Multi-line speech acts are terminated by the next prefix marker or end of text.
+// Blank lines within a speech act are included in the body (trimmed on flush).
 func DetectSpeechMarkers(text string) []SpeechMarker {
 	lines := strings.Split(text, "\n")
 	markers := make([]SpeechMarker, 0)
