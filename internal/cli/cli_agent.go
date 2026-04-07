@@ -107,6 +107,19 @@ func buildAgentRunner(flags agentRunFlags, stateFilePath, chatFilePath string, s
 				return stateFileArg
 			})
 		},
+		WriteState: func(state string) error {
+			return readModifyWriteStateFile(stateFilePath, func(stateFileArg agentpkg.StateFile) agentpkg.StateFile {
+				for index, rec := range stateFileArg.Agents {
+					if rec.Name == flags.name {
+						stateFileArg.Agents[index].State = state
+
+						return stateFileArg
+					}
+				}
+
+				return stateFileArg
+			})
+		},
 	}
 }
 

@@ -129,6 +129,45 @@ func TestApplyProjectSlugDefault_NonEmpty_Noop(t *testing.T) {
 	g.Expect(slug).To(Equal("already-set"))
 }
 
+// TestBuildAgentRunner_WriteState_UpdatesStateFile verifies that the
+// WriteState callback wired by buildAgentRunner updates the state file.
+func TestBuildAgentRunner_WriteState_UpdatesStateFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"test-agent\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\n" +
+		"spawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	flags := cli.AgentRunArgs{Name: "test-agent", Prompt: "hello"}
+	runner := cli.ExportBuildAgentRunner(flags, stateFile, chatFile)
+
+	g.Expect(runner.WriteState).NotTo(BeNil())
+
+	writeErr := runner.WriteState("ACTIVE")
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	data, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(ContainSubstring(`state = "ACTIVE"`))
+}
+
 // TestBuildClaudeCmd_NoSession builds a command without --resume.
 func TestBuildClaudeCmd_NoSession(t *testing.T) {
 	t.Parallel()

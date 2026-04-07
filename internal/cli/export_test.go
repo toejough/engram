@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"engram/internal/chat"
+	claudepkg "engram/internal/claude"
 	"engram/internal/recall"
 	"engram/internal/surface"
 )
@@ -48,6 +49,20 @@ var (
 )
 
 // --- Factory functions for structs with unexported fields ---
+
+// ExportBuildAgentRunner wraps buildAgentRunner for test access.
+func ExportBuildAgentRunner(
+	args AgentRunArgs, stateFilePath, chatFilePath string,
+) claudepkg.Runner {
+	flags := agentRunFlags{
+		name:      args.Name,
+		prompt:    args.Prompt,
+		chatFile:  args.ChatFile,
+		stateFile: args.StateFile,
+	}
+
+	return buildAgentRunner(flags, stateFilePath, chatFilePath, io.Discard)
+}
 
 // ExportNewHaikuCallerAdapter creates a haikuCallerAdapter for testing.
 func ExportNewHaikuCallerAdapter(
