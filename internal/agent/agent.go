@@ -10,6 +10,11 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+// Exported constants.
+const (
+	MaxConcurrentWorkers = 3
+)
+
 // AgentRecord holds binary bookkeeping for a spawned agent (spec §6.3).
 // Argument state fields enforce the 3-argument cap from SPEECH-2/SKILL-2
 // and must be persisted across engram agent resume invocations (Phase 5).
@@ -44,6 +49,20 @@ type HoldEntry struct {
 type StateFile struct {
 	Agents []AgentRecord `toml:"agent"`
 	Holds  []HoldEntry   `toml:"hold"`
+}
+
+// ActiveWorkerCount returns the number of agents in STARTING or ACTIVE state.
+// Pure function — no I/O.
+func ActiveWorkerCount(sf StateFile) int {
+	count := 0
+
+	for _, rec := range sf.Agents {
+		if rec.State == "STARTING" || rec.State == "ACTIVE" {
+			count++
+		}
+	}
+
+	return count
 }
 
 // AddAgent returns a new StateFile with record appended to Agents.

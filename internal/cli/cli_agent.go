@@ -40,6 +40,7 @@ var (
 	errStateFileLockTimeout     = errors.New("state file lock timeout after 5s")
 	errUnexpectedTmuxOutput     = errors.New("unexpected tmux output")
 	errUnmetHoldCondition       = errors.New("condition not satisfied; release it first")
+	errWorkerQueueFull          = errors.New("agent spawn: worker queue full (max 3 concurrent)")
 	testPaneKiller              func(paneID string) error //nolint:gochecknoglobals // test-overridable pane killer
 	testPaneVerifier            func(paneID string) error //nolint:gochecknoglobals // test-overridable pane verifier
 	testSpawnAckMaxWait         time.Duration             //nolint:gochecknoglobals // test-overridable ack-wait timeout
@@ -490,6 +491,39 @@ func postSpawnIntentAndWait(ctx context.Context, chatFilePath, name, paneID, int
 	return nil
 }
 
+// rejectDuplicateAgentName returns an error if the state file already contains an agent
+// with the given name, preventing duplicate spawns from creating orphan panes.
+// preSpawnGuards runs pre-spawn validation checks: duplicate name and worker queue limit.
+// preSpawnGuards reads the state file once and checks both duplicate name and
+// worker queue limit. Returns nil if no state file exists (first spawn).
+func preSpawnGuards(stateFilePath, name string) error {
+	data, err := os.ReadFile(stateFilePath) //nolint:gosec
+	if errors.Is(err, os.ErrNotExist) {
+		return nil // no state file yet — all guards pass
+	}
+
+	if err != nil {
+		return fmt.Errorf("agent spawn: reading state file: %w", err)
+	}
+
+	state, parseErr := agentpkg.ParseStateFile(data)
+	if parseErr != nil {
+		return fmt.Errorf("agent spawn: parsing state file: %w", parseErr)
+	}
+
+	for _, record := range state.Agents {
+		if record.Name == name {
+			return fmt.Errorf("%w: %s", errDuplicateAgentName, name)
+		}
+	}
+
+	if agentpkg.ActiveWorkerCount(state) >= agentpkg.MaxConcurrentWorkers {
+		return errWorkerQueueFull
+	}
+
+	return nil
+}
+
 // readModifyWriteStateFile performs a locked read-modify-write on the state file.
 // Creates the file and its parent directory if they do not exist.
 func readModifyWriteStateFile(stateFilePath string, modify func(agentpkg.StateFile) agentpkg.StateFile) error {
@@ -589,32 +623,6 @@ func reconstructStateFileFromChat(
 	}
 
 	return state, nil
-}
-
-// rejectDuplicateAgentName returns an error if the state file already contains an agent
-// with the given name, preventing duplicate spawns from creating orphan panes.
-func rejectDuplicateAgentName(stateFilePath, name string) error {
-	data, err := os.ReadFile(stateFilePath) //nolint:gosec
-	if errors.Is(err, os.ErrNotExist) {
-		return nil // no state file yet — no duplicates possible
-	}
-
-	if err != nil {
-		return fmt.Errorf("agent spawn: reading state file: %w", err)
-	}
-
-	state, parseErr := agentpkg.ParseStateFile(data)
-	if parseErr != nil {
-		return fmt.Errorf("agent spawn: parsing state file: %w", parseErr)
-	}
-
-	for _, record := range state.Agents {
-		if record.Name == name {
-			return fmt.Errorf("%w: %s", errDuplicateAgentName, name)
-		}
-	}
-
-	return nil
 }
 
 // releaseMetHoldsForAgent checks holds targeting the named agent. Returns an error if any unmet hold is found.
@@ -880,10 +888,9 @@ func runAgentSpawn(args []string, stdout io.Writer, spawner spawnFunc) error {
 	ctx, cancel := signalContext()
 	defer cancel()
 
-	// Guard against duplicate agent names before spawning.
-	dupErr := rejectDuplicateAgentName(stateFilePath, flags.name)
-	if dupErr != nil {
-		return dupErr
+	guardErr := preSpawnGuards(stateFilePath, flags.name)
+	if guardErr != nil {
+		return guardErr
 	}
 
 	paneID, sessionID, spawnErr := spawner(ctx, flags.name, flags.prompt)

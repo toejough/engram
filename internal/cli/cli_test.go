@@ -1612,6 +1612,47 @@ func TestRunAgentSpawn_DuplicateName_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestRunAgentSpawn_MaxWorkers_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Pre-populate state file with 3 active/starting agents (max).
+	for _, name := range []string{"exec-1", "exec-2", "exec-3"} {
+		prePopErr := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
+				Name:  name,
+				State: "ACTIVE",
+			})
+		})
+		g.Expect(prePopErr).NotTo(HaveOccurred())
+
+		if prePopErr != nil {
+			return
+		}
+	}
+
+	err := cli.ExportRunAgentSpawn([]string{
+		"--name", "exec-4",
+		"--prompt", "You are exec-4.",
+		"--chat-file", chatFile,
+		"--state-file", stateFile,
+	}, io.Discard, func(_ context.Context, _, _ string) (string, string, error) {
+		return "main:1.4", "sess456", nil
+	})
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("worker queue full"))
+	}
+}
+
 func TestRunAgentSpawn_MissingName_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
