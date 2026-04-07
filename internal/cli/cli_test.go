@@ -23,6 +23,32 @@ import (
 	"engram/internal/cli"
 )
 
+func TestAgentRunFlags_BuildsCorrectArgs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	args := cli.AgentRunFlags(cli.AgentRunArgs{
+		Name:      "worker-1",
+		Prompt:    "do the thing",
+		ChatFile:  "/tmp/chat.toml",
+		StateFile: "/tmp/state.toml",
+	})
+
+	g.Expect(args).To(ContainElements("--name", "worker-1", "--prompt", "do the thing"))
+	g.Expect(args).To(ContainElements("--chat-file", "/tmp/chat.toml", "--state-file", "/tmp/state.toml"))
+}
+
+func TestAgentRunFlags_SkipsEmptyValues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	args := cli.AgentRunFlags(cli.AgentRunArgs{Name: "worker-1", Prompt: "hello"})
+
+	g.Expect(args).To(ContainElements("--name", "worker-1", "--prompt", "hello"))
+	g.Expect(args).NotTo(ContainElement("--chat-file"))
+	g.Expect(args).NotTo(ContainElement("--state-file"))
+}
+
 func TestApplyDataDirDefault_Empty_ResolvesHome(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -101,6 +127,52 @@ func TestApplyProjectSlugDefault_NonEmpty_Noop(t *testing.T) {
 	}
 
 	g.Expect(slug).To(Equal("already-set"))
+}
+
+// TestBuildClaudeCmd_NoSession builds a command without --resume.
+func TestBuildClaudeCmd_NoSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cmd := cli.ExportBuildClaudeCmd(t.Context(), "hello world", "", "/usr/local/bin/claude")
+	g.Expect(cmd.Args).To(ContainElement("hello world"))
+	g.Expect(cmd.Args).NotTo(ContainElement("--resume"))
+}
+
+// TestBuildClaudeCmd_WithSession builds a command with --resume.
+func TestBuildClaudeCmd_WithSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cmd := cli.ExportBuildClaudeCmd(t.Context(), "Proceed.", "sess-abc", "/usr/local/bin/claude")
+	g.Expect(cmd.Args).To(ContainElements("--resume", "sess-abc"))
+	g.Expect(cmd.Args).To(ContainElement("Proceed."))
+}
+
+func TestChatFileCursor_MissingFile_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, err := cli.ExportChatFileCursor("/nonexistent/path/chat.toml")
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestChatFileCursor_ReturnsLineCount(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	g.Expect(os.WriteFile(chatFile, []byte("line1\nline2\nline3\n"), 0o600)).To(Succeed())
+
+	count, err := cli.ExportChatFileCursor(chatFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(count).To(BeNumerically(">", 0))
 }
 
 func TestDeriveChatFilePath_DefaultPath_UsesOSFunctions(t *testing.T) {
@@ -1462,6 +1534,102 @@ func TestRunAgentList_UnreadableChatFile_ReconstructionFails_NoError(t *testing.
 	g.Expect(strings.TrimSpace(stdout.String())).To(BeEmpty())
 }
 
+// TestRunAgentRun_FakeClaude_DONE exercises the full runAgentRun pipeline using a fake
+// claude binary that emits a DONE marker and exits. Covers: buildAgentRunner,
+// runConversationLoop, runOneTurn, buildClaudeCmd, chatFileCursor.
+func TestRunAgentRun_FakeClaude_DONE(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Write a fake state file with the agent so session-id write succeeds.
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	// Fake claude: emits a DONE stream-json event then exits 0.
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-123",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+
+	script := "#!/bin/sh\necho '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	// Use io.Discard for stdout to avoid a data race: cmd.Stderr and runner.Pane
+	// both reference the same writer and are written concurrently during stream processing.
+	err := cli.ExportRunAgentRunWith([]string{
+		"--name", "worker-1",
+		"--prompt", "hello",
+		"--chat-file", chatFile,
+		"--state-file", stateFile,
+	}, io.Discard, fakeClaude)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+// TestRunAgentRun_FakeClaude_ExitNonZero verifies runOneTurn propagates non-zero exit.
+func TestRunAgentRun_FakeClaude_ExitNonZero(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Fake claude: exits non-zero (simulates claude crash).
+	fakeClaude := filepath.Join(dir, "claude")
+	g.Expect(os.WriteFile(fakeClaude, []byte("#!/bin/sh\nexit 1\n"), 0o700)).To(Succeed())
+
+	err := cli.ExportRunAgentRunWith([]string{
+		"--name", "worker-1",
+		"--prompt", "hello",
+		"--chat-file", chatFile,
+		"--state-file", stateFile,
+	}, io.Discard, fakeClaude)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("agent run:"))
+}
+
+// TestRunAgentRun_FakeClaude_NoMarkers_ExitsClean verifies conversation ends when claude
+// emits no INTENT or DONE markers (treated as complete).
+func TestRunAgentRun_FakeClaude_NoMarkers_ExitsClean(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Fake claude: emits plain assistant text with no markers.
+	fakeClaude := filepath.Join(dir, "claude")
+	plainJSON := `{"type":"assistant","session_id":"sess-456",` +
+		`"message":{"content":[{"type":"text","text":"Here is your answer."}]}}`
+
+	script := "#!/bin/sh\necho '" + plainJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	err := cli.ExportRunAgentRunWith([]string{
+		"--name", "worker-1",
+		"--prompt", "hello",
+		"--chat-file", chatFile,
+		"--state-file", stateFile,
+	}, io.Discard, fakeClaude)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 // ============================================================
 // Bug #533: duplicate name guard in runAgentSpawn
 // ============================================================
@@ -1896,6 +2064,107 @@ func TestRunAgentWaitReady_SeesReadyMessage_OutputsJSON(t *testing.T) {
 	g.Expect(result["cursor"]).NotTo(BeZero())
 }
 
+// ============================================================
+// runConversationLoopWith: INTENT path coverage
+// ============================================================
+
+// TestRunConversationLoopWith_IntentThenDone exercises the INTENT → ack-wait → DONE path
+// using a fake claude binary and an immediate stub prompt builder.
+func TestRunConversationLoopWith_IntentThenDone(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	// Turn 0: emit INTENT so loop continues. Turn 1: emit DONE so loop ends.
+	turn := 0
+
+	dir2 := t.TempDir()
+	fakeClaude := filepath.Join(dir2, "claude")
+
+	intentJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"INTENT: Plan to proceed."}]}}`
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+
+	// Script: on first call emit INTENT; on second call emit DONE.
+	// We use a flag file to distinguish calls.
+	flagFile := filepath.Join(dir2, "called")
+	script := "#!/bin/sh\n" +
+		"if [ -f " + flagFile + " ]; then\n" +
+		"  printf '%s\\n' '" + doneJSON + "'\nelse\n" +
+		"  touch " + flagFile + "\n" +
+		"  printf '%s\\n' '" + intentJSON + "'\nfi\n"
+
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	// Stub promptBuilder returns immediately (no real ack-wait).
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		turn++
+
+		return "Proceed.", nil
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		context.Background(),
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(turn).To(Equal(1))
+}
+
+// TestRunConversationLoopWith_PromptBuilderError verifies promptBuilder errors propagate.
+func TestRunConversationLoopWith_PromptBuilderError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+	intentJSON := `{"type":"assistant","session_id":"sess-xyz",` +
+		`"message":{"content":[{"type":"text","text":"INTENT: Plan to proceed."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + intentJSON + "'\n"
+
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "", errors.New("ack-wait failed")
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		context.Background(),
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("ack-wait failed"))
+}
+
 // Step 14: Full intent→ack→hold→check→release E2E cycle.
 func TestRun_AckWait_With_HoldAcquire_E2E(t *testing.T) {
 	t.Parallel()
@@ -1997,6 +2266,48 @@ func TestRun_AckWait_With_HoldAcquire_E2E(t *testing.T) {
 	listErr2 := cli.Run([]string{"engram", "hold", "list", "--chat-file", chatFile}, &listOut2, io.Discard, nil)
 	g.Expect(listErr2).NotTo(HaveOccurred())
 	g.Expect(listOut2.String()).To(BeEmpty())
+}
+
+func TestRun_AgentRun_HelpFlag_ReturnsNil(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "run", "--help"}, &stdout, &stderr, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRun_AgentRun_MissingName_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "run", "--prompt", "hello"}, &stdout, &stderr, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("--name"))
+}
+
+func TestRun_AgentRun_MissingPrompt_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "run", "--name", "worker-1"}, &stdout, &stderr, nil)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("--prompt"))
 }
 
 // ============================================================
@@ -3122,6 +3433,158 @@ func TestRun_UnknownCommand_ReturnsError(t *testing.T) {
 	}
 }
 
+// ============================================================
+// waitAndBuildPromptWith: coverage via stub ackWaiter
+// ============================================================
+
+// TestWaitAndBuildPromptWith_ACK verifies "Proceed." is returned on ACK.
+func TestWaitAndBuildPromptWith_ACK(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stub := &stubAckWaiter{result: chat.AckResult{Result: "ACK", NewCursor: 1}}
+
+	prompt, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", chatFile, stub)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(prompt).To(Equal("Proceed."))
+}
+
+// TestWaitAndBuildPromptWith_AckWaitError verifies ack-wait errors propagate.
+func TestWaitAndBuildPromptWith_AckWaitError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stub := &stubAckWaiter{err: errors.New("network error")}
+
+	_, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", chatFile, stub)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("ack-wait"))
+}
+
+// TestWaitAndBuildPromptWith_WAIT_WithMessage verifies WAIT message is formatted correctly.
+func TestWaitAndBuildPromptWith_WAIT_WithMessage(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stub := &stubAckWaiter{result: chat.AckResult{
+		Result:    "WAIT",
+		NewCursor: 1,
+		Wait:      &chat.WaitResult{From: "engram-agent", Text: "not ready yet"},
+	}}
+
+	prompt, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", chatFile, stub)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(prompt).To(ContainSubstring("WAIT from engram-agent: not ready yet"))
+}
+
+// TestWaitAndBuildPromptWith_WAIT_WithoutMessage verifies unspecified WAIT is handled.
+func TestWaitAndBuildPromptWith_WAIT_WithoutMessage(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stub := &stubAckWaiter{result: chat.AckResult{Result: "WAIT", NewCursor: 1}}
+
+	prompt, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", chatFile, stub)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(prompt).To(ContainSubstring("WAIT: unspecified objection."))
+}
+
+// ============================================================
+// waitAndBuildPrompt: real FileAckWaiter path (covers the thin wrapper)
+// ============================================================
+
+// TestWaitAndBuildPrompt_RealWaiter_ACK exercises the real waitAndBuildPrompt with a
+// FSNotify-backed FileAckWaiter. A goroutine writes an ACK to the chat file after the
+// watcher starts, unblocking AckWait immediately.
+func TestWaitAndBuildPrompt_RealWaiter_ACK(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Empty file: cursor = 1 (one empty line from strings.Split("", "\n")).
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// After a short delay, write an ACK message addressed to "worker-1".
+	// The leading "\n" ensures suffixAtLine(data, 1) skips the blank line and
+	// finds [[message]] at line-1 offset — so cursor=1 sees this ACK.
+	ackTOML := "\n[[message]]\n" +
+		"from = \"engram-agent\"\n" +
+		"to = \"worker-1\"\n" +
+		"thread = \"speech-relay\"\n" +
+		"type = \"ack\"\n" +
+		"ts = 2026-04-06T00:00:00Z\n" +
+		"text = \"\"\"\nok\n\"\"\"\n"
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		time.Sleep(150 * time.Millisecond)
+
+		_ = os.WriteFile(chatFile, []byte(ackTOML), 0o600)
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	prompt, err := cli.ExportWaitAndBuildPrompt(ctx, "worker-1", chatFile, 0)
+
+	<-done
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(prompt).To(Equal("Proceed."))
+}
+
+// ============================================================
+
 func TestWriteKilledLine_FailingWriter_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -3135,4 +3598,14 @@ type failWriter struct{}
 
 func (w *failWriter) Write(_ []byte) (int, error) {
 	return 0, errors.New("write failed")
+}
+
+// stubAckWaiter is a test stub that returns a pre-configured AckResult or error.
+type stubAckWaiter struct {
+	result chat.AckResult
+	err    error
+}
+
+func (s *stubAckWaiter) AckWait(_ context.Context, _ string, _ int, _ []string) (chat.AckResult, error) {
+	return s.result, s.err
 }

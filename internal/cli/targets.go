@@ -23,6 +23,14 @@ type AgentListArgs struct {
 	ChatFile  string // used for reconstruction fallback when state file is missing
 }
 
+// AgentRunArgs holds flags for `engram agent run`.
+type AgentRunArgs struct {
+	Name      string
+	Prompt    string
+	ChatFile  string
+	StateFile string
+}
+
 // AgentSpawnArgs holds flags for `engram agent spawn`.
 type AgentSpawnArgs struct {
 	Name      string
@@ -143,6 +151,16 @@ func AgentListFlags(a AgentListArgs) []string {
 	return BuildFlags("--state-file", a.StateFile, "--chat-file", a.ChatFile)
 }
 
+// AgentRunFlags builds the flag list for AgentRunArgs.
+func AgentRunFlags(a AgentRunArgs) []string {
+	return BuildFlags(
+		"--name", a.Name,
+		"--prompt", a.Prompt,
+		"--chat-file", a.ChatFile,
+		"--state-file", a.StateFile,
+	)
+}
+
 // AgentSpawnFlags returns the CLI flag args for the agent spawn subcommand.
 func AgentSpawnFlags(a AgentSpawnArgs) []string {
 	return BuildFlags(
@@ -164,8 +182,6 @@ func AgentWaitReadyFlags(a AgentWaitReadyArgs) []string {
 }
 
 // BuildAgentGroup builds the targ group for agent subcommands.
-//
-//nolint:dupl // mirrors BuildChatGroup and BuildHoldGroup structure; same targ.Group pattern
 func BuildAgentGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup {
 	return targ.Group("agent",
 		targ.Targ(func(a AgentSpawnArgs) {
@@ -184,6 +200,10 @@ func BuildAgentGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGrou
 			args := append([]string{"engram", "agent", "wait-ready"}, AgentWaitReadyFlags(a)...)
 			RunSafe(args, stdout, stderr, stdin)
 		}).Name("wait-ready").Description("Block until a named agent posts ready"),
+		targ.Targ(func(a AgentRunArgs) {
+			args := append([]string{"engram", "agent", "run"}, AgentRunFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("run").Description("Run a claude -p worker pipeline in the current pane"),
 	)
 }
 

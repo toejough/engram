@@ -16,6 +16,7 @@ import (
 
 	agentpkg "engram/internal/agent"
 	"engram/internal/chat"
+	claudepkg "engram/internal/claude"
 )
 
 // unexported constants.
@@ -30,18 +31,37 @@ const (
 
 // unexported variables.
 var (
-	errAgentKillNameRequired = errors.New("agent kill: --name is required")
-	errDuplicateAgentName    = errors.New("agent spawn: agent with this name already exists")
-	errPaneStillAlive        = errors.New("pane still alive after kill")
-	errSpawnNameRequired     = errors.New("agent spawn: --name is required")
-	errSpawnPromptRequired   = errors.New("agent spawn: --prompt is required")
-	errStateFileLockTimeout  = errors.New("state file lock timeout after 5s")
-	errUnexpectedTmuxOutput  = errors.New("unexpected tmux output")
-	errUnmetHoldCondition    = errors.New("condition not satisfied; release it first")
-	testPaneKiller           func(paneID string) error //nolint:gochecknoglobals // test-overridable pane killer
-	testPaneVerifier         func(paneID string) error //nolint:gochecknoglobals // test-overridable pane verifier
-	testSpawnAckMaxWait      time.Duration             //nolint:gochecknoglobals // test-overridable ack-wait timeout
+	errAgentKillNameRequired    = errors.New("agent kill: --name is required")
+	errAgentRunExceededMaxTurns = errors.New("agent run: exceeded max turns without DONE — possible runaway loop")
+	errAgentRunNameRequired     = errors.New("agent run: --name is required")
+	errAgentRunPromptRequired   = errors.New("agent run: --prompt is required")
+	errDuplicateAgentName       = errors.New("agent spawn: agent with this name already exists")
+	errPaneStillAlive           = errors.New("pane still alive after kill")
+	errSpawnNameRequired        = errors.New("agent spawn: --name is required")
+	errSpawnPromptRequired      = errors.New("agent spawn: --prompt is required")
+	errStateFileLockTimeout     = errors.New("state file lock timeout after 5s")
+	errUnexpectedTmuxOutput     = errors.New("unexpected tmux output")
+	errUnmetHoldCondition       = errors.New("condition not satisfied; release it first")
+	testPaneKiller              func(paneID string) error //nolint:gochecknoglobals // test-overridable pane killer
+	testPaneVerifier            func(paneID string) error //nolint:gochecknoglobals // test-overridable pane verifier
+	testSpawnAckMaxWait         time.Duration             //nolint:gochecknoglobals // test-overridable ack-wait timeout
 )
+
+// ackWaiter is satisfied by chat.FileAckWaiter and any test stub.
+type ackWaiter interface {
+	AckWait(ctx context.Context, callerAgent string, cursor int, recipients []string) (chat.AckResult, error)
+}
+
+// agentRunFlags holds parsed flags for the "agent run" subcommand.
+type agentRunFlags struct {
+	name      string
+	prompt    string
+	chatFile  string
+	stateFile string
+}
+
+// promptBuilderFunc is the injectable seam for the ack-wait + prompt construction step.
+type promptBuilderFunc func(ctx context.Context, agentName, chatFilePath string, turn int) (string, error)
 
 // spawnFlagsResult holds parsed and validated flags for agent spawn.
 type spawnFlagsResult struct {
@@ -50,6 +70,61 @@ type spawnFlagsResult struct {
 
 // spawnFunc is the type for both the OS spawner and the test-injectable spawner.
 type spawnFunc = func(ctx context.Context, name, prompt string) (paneID, sessionID string, err error)
+
+// buildAgentRunner constructs the claude.Runner for the given agent run flags.
+func buildAgentRunner(flags agentRunFlags, stateFilePath, chatFilePath string, stdout io.Writer) claudepkg.Runner {
+	poster := newFilePoster(chatFilePath)
+
+	return claudepkg.Runner{
+		AgentName: flags.name,
+		Pane:      stdout,
+		Poster:    poster,
+		WriteSessionID: func(sessionID string) error {
+			return readModifyWriteStateFile(stateFilePath, func(stateFileArg agentpkg.StateFile) agentpkg.StateFile {
+				for index, rec := range stateFileArg.Agents {
+					if rec.Name == flags.name {
+						stateFileArg.Agents[index].SessionID = sessionID
+						return stateFileArg
+					}
+				}
+
+				return stateFileArg
+			})
+		},
+	}
+}
+
+// buildClaudeCmd builds the exec.Cmd for claude -p. On turn 0 (or no session yet), uses a fresh
+// invocation; subsequent turns resume the session via --resume.
+// The claudeBinary parameter allows tests to inject a fake binary (see runAgentRunWith).
+func buildClaudeCmd(ctx context.Context, prompt, sessionID, claudeBinary string) *exec.Cmd {
+	if sessionID == "" {
+		return exec.CommandContext(ctx, claudeBinary, "-p", //nolint:gosec
+			"--dangerously-skip-permissions",
+			"--verbose",
+			"--output-format=stream-json",
+			prompt,
+		)
+	}
+
+	return exec.CommandContext(ctx, claudeBinary, "-p", //nolint:gosec
+		"--dangerously-skip-permissions",
+		"--verbose",
+		"--output-format=stream-json",
+		"--resume", sessionID,
+		prompt,
+	)
+}
+
+// chatFileCursor returns the current line count of the chat file (end-of-file position).
+func chatFileCursor(chatFilePath string) (int, error) {
+	data, err := os.ReadFile(chatFilePath) //nolint:gosec
+	if err != nil {
+		return 0, fmt.Errorf("reading chat file for cursor: %w", err)
+	}
+
+	return len(strings.Split(string(data), "\n")), nil
+}
 
 // deriveStateFilePath mirrors deriveChatFilePath but uses the "state" subdirectory.
 func deriveStateFilePath(
@@ -296,6 +371,32 @@ func parseAgentKillFlags(args []string) (string, string, string, error) {
 	}
 
 	return *name, *chatFileFlag, *stateFileFlag, nil
+}
+
+func parseAgentRunFlags(args []string) (agentRunFlags, error) {
+	fs := newFlagSet("agent run")
+
+	var flags agentRunFlags
+
+	fs.StringVar(&flags.name, "name", "", "agent name (required)")
+	fs.StringVar(&flags.prompt, "prompt", "", "initial prompt (required)")
+	fs.StringVar(&flags.chatFile, "chat-file", "", "override chat file path (testing only)")
+	fs.StringVar(&flags.stateFile, "state-file", "", "override state file path (testing only)")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return agentRunFlags{}, fmt.Errorf("agent run: %w", parseErr)
+	}
+
+	if flags.name == "" {
+		return agentRunFlags{}, errAgentRunNameRequired
+	}
+
+	if flags.prompt == "" {
+		return agentRunFlags{}, errAgentRunPromptRequired
+	}
+
+	return flags, nil
 }
 
 // parseSpawnFlags parses and validates agent spawn flags.
@@ -585,10 +686,10 @@ func resolveStateFile(
 	return path, nil
 }
 
-// runAgentDispatch routes agent subcommands (spawn|kill|list|wait-ready).
+// runAgentDispatch routes agent subcommands (spawn|kill|list|wait-ready|run).
 func runAgentDispatch(subArgs []string, stdout io.Writer, spawner spawnFunc) error {
 	if len(subArgs) < 1 {
-		return fmt.Errorf("%w: agent requires a subcommand (spawn|kill|list|wait-ready)", errUsage)
+		return fmt.Errorf("%w: agent requires a subcommand (spawn|kill|list|wait-ready|run)", errUsage)
 	}
 
 	switch subArgs[0] {
@@ -600,6 +701,8 @@ func runAgentDispatch(subArgs []string, stdout io.Writer, spawner spawnFunc) err
 		return runAgentList(subArgs[1:], stdout)
 	case "wait-ready":
 		return runAgentWaitReady(subArgs[1:], stdout)
+	case "run":
+		return runAgentRun(subArgs[1:], stdout)
 	default:
 		return fmt.Errorf("%w: agent %s", errUnknownCommand, subArgs[0])
 	}
@@ -731,6 +834,43 @@ func runAgentListFromChat(chatFilePath string, stdout io.Writer) error {
 	return nil
 }
 
+// runAgentRun is the in-pane entry point for the Phase 4 speech-to-chat pipeline.
+// It manages the full claude -p conversation loop: stream → ack-wait → resume → stream.
+// Runs inside the tmux pane as an in-pane process; stdout IS the pane display.
+func runAgentRun(args []string, stdout io.Writer) error {
+	return runAgentRunWith(args, stdout, "claude")
+}
+
+// runAgentRunWith is the testable variant of runAgentRun.
+// The claudeBinary parameter allows tests to inject a fake binary path instead of "claude".
+func runAgentRunWith(args []string, stdout io.Writer, claudeBinary string) error {
+	flags, parseErr := parseAgentRunFlags(args)
+	if errors.Is(parseErr, flag.ErrHelp) {
+		return nil
+	}
+
+	if parseErr != nil {
+		return parseErr
+	}
+
+	chatFilePath, pathErr := resolveChatFile(flags.chatFile, "agent run", os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return pathErr
+	}
+
+	stateFilePath, statePathErr := resolveStateFile(flags.stateFile, "agent run", os.UserHomeDir, os.Getwd)
+	if statePathErr != nil {
+		return statePathErr
+	}
+
+	ctx, cancel := signalContext()
+	defer cancel()
+
+	runner := buildAgentRunner(flags, stateFilePath, chatFilePath, stdout)
+
+	return runConversationLoop(ctx, runner, flags, chatFilePath, claudeBinary, stdout)
+}
+
 // runAgentSpawn spawns a new agent in a tmux pane, writes the AgentRecord to the state file,
 // posts a spawn intent and waits for engram-agent ACK (fixes #503), then prints pane-id|session-id.
 func runAgentSpawn(args []string, stdout io.Writer, spawner spawnFunc) error {
@@ -850,6 +990,133 @@ func runAgentWaitReady(args []string, stdout io.Writer) error {
 	}
 
 	return marshalAndWriteWatchResult(stdout, result)
+}
+
+// runConversationLoop drives the full conversation loop: initial prompt → stream → ack-wait → resume → stream.
+// claudeBinary is the path to the claude binary (use "claude" in production; injected in tests).
+func runConversationLoop(
+	ctx context.Context,
+	runner claudepkg.Runner,
+	flags agentRunFlags,
+	chatFilePath, claudeBinary string,
+	stdout io.Writer,
+) error {
+	return runConversationLoopWith(ctx, runner, flags, chatFilePath, claudeBinary, stdout, waitAndBuildPrompt)
+}
+
+// runConversationLoopWith is the testable variant of runConversationLoop.
+// The promptBuilder parameter allows tests to inject a stub instead of waitAndBuildPrompt.
+func runConversationLoopWith(
+	ctx context.Context,
+	runner claudepkg.Runner,
+	flags agentRunFlags,
+	chatFilePath, claudeBinary string,
+	stdout io.Writer,
+	promptBuilder promptBuilderFunc,
+) error {
+	const maxTurns = 50 // safety cap: prevents runaway loops
+
+	prompt := flags.prompt
+	sessionID := ""
+
+	for turn := range maxTurns {
+		result, runErr := runOneTurn(ctx, runner, prompt, sessionID, claudeBinary, stdout)
+		if runErr != nil {
+			return runErr
+		}
+
+		if sessionID == "" && result.SessionID != "" {
+			sessionID = result.SessionID
+		}
+
+		// DONE or no markers: conversation complete.
+		if result.DoneDetected || !result.IntentDetected {
+			return nil
+		}
+
+		// INTENT detected: ack-wait then resume.
+		nextPrompt, ackErr := promptBuilder(ctx, flags.name, chatFilePath, turn)
+		if ackErr != nil {
+			return ackErr
+		}
+
+		prompt = nextPrompt
+	}
+
+	return errAgentRunExceededMaxTurns
+}
+
+// runOneTurn executes a single claude -p turn, returning the stream result.
+// claudeBinary is the path to the claude binary (use "claude" in production; injected in tests).
+func runOneTurn(
+	ctx context.Context,
+	runner claudepkg.Runner,
+	prompt, sessionID, claudeBinary string,
+	stdout io.Writer,
+) (claudepkg.StreamResult, error) {
+	cmd := buildClaudeCmd(ctx, prompt, sessionID, claudeBinary)
+	cmd.Stderr = stdout
+
+	pipe, pipeErr := cmd.StdoutPipe()
+	if pipeErr != nil {
+		return claudepkg.StreamResult{}, fmt.Errorf("agent run: stdout pipe: %w", pipeErr)
+	}
+
+	startErr := cmd.Start()
+	if startErr != nil {
+		return claudepkg.StreamResult{}, fmt.Errorf("agent run: start claude: %w", startErr)
+	}
+
+	result, streamErr := runner.ProcessStream(pipe)
+	waitErr := cmd.Wait()
+
+	if streamErr != nil {
+		return claudepkg.StreamResult{}, fmt.Errorf("agent run: stream: %w", streamErr)
+	}
+
+	if waitErr != nil {
+		return claudepkg.StreamResult{}, fmt.Errorf("agent run: claude exited: %w", waitErr)
+	}
+
+	return result, nil
+}
+
+// waitAndBuildPrompt performs ack-wait after an INTENT marker and returns the resume prompt.
+func waitAndBuildPrompt(ctx context.Context, agentName, chatFilePath string, _ int) (string, error) {
+	waiter := &chat.FileAckWaiter{
+		FilePath: chatFilePath,
+		Watcher:  newFileWatcher(chatFilePath),
+		ReadFile: os.ReadFile,
+		NowFunc:  time.Now,
+		MaxWait:  30 * time.Second, //nolint:mnd
+	}
+
+	return waitAndBuildPromptWith(ctx, agentName, chatFilePath, waiter)
+}
+
+// waitAndBuildPromptWith is the testable variant of waitAndBuildPrompt.
+// The waiter parameter allows tests to inject a stub ackWaiter instead of chat.FileAckWaiter.
+func waitAndBuildPromptWith(ctx context.Context, agentName, chatFilePath string, waiter ackWaiter) (string, error) {
+	cursor, cursorErr := chatFileCursor(chatFilePath)
+	if cursorErr != nil {
+		return "", fmt.Errorf("agent run: cursor: %w", cursorErr)
+	}
+
+	ackResult, ackErr := waiter.AckWait(ctx, agentName, cursor, []string{"engram-agent"})
+	if ackErr != nil {
+		return "", fmt.Errorf("agent run: ack-wait: %w", ackErr)
+	}
+
+	switch ackResult.Result {
+	case "WAIT":
+		if ackResult.Wait != nil {
+			return fmt.Sprintf("WAIT from %s: %s", ackResult.Wait.From, ackResult.Wait.Text), nil
+		}
+
+		return "WAIT: unspecified objection.", nil
+	default:
+		return "Proceed.", nil
+	}
 }
 
 // writeKilledLine writes the "killed <name>" confirmation line to stdout.

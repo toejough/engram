@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"io"
 	"os"
 	"sync"
 	"testing"
@@ -16,7 +17,9 @@ import (
 var (
 	ExportApplyDataDirDefault     = applyDataDirDefault
 	ExportApplyProjectSlugDefault = applyProjectSlugDefault
+	ExportBuildClaudeCmd          = buildClaudeCmd
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
+	ExportChatFileCursor          = chatFileCursor
 	ExportDeriveChatFilePath      = deriveChatFilePath
 	ExportLoadChatMessages        = func(path string) ([]chat.Message, error) {
 		return loadChatMessages(path, os.ReadFile)
@@ -36,7 +39,9 @@ var (
 	ExportResolveChatFile          = resolveChatFile
 	ExportResolveStateFile         = resolveStateFile
 	ExportRunAgentKill             = runAgentKill
+	ExportRunAgentRunWith          = runAgentRunWith
 	ExportRunAgentSpawn            = runAgentSpawn
+	ExportWaitAndBuildPrompt       = waitAndBuildPrompt
 	ExportWriteKilledLine          = writeKilledLine
 )
 
@@ -64,6 +69,31 @@ func ExportNewOsFileReader() interface {
 // ExportNewSurfaceRunnerAdapter creates a surfaceRunnerAdapter for testing.
 func ExportNewSurfaceRunnerAdapter(surfacer *surface.Surfacer) SurfaceRunner {
 	return &surfaceRunnerAdapter{surfacer: surfacer}
+}
+
+// ExportRunConversationLoopWith calls runConversationLoopWith with an injectable prompt builder.
+// name, prompt, chatFile, stateFile identify the agent; claudeBinary is the fake binary in tests.
+func ExportRunConversationLoopWith(
+	ctx context.Context,
+	name, prompt, chatFile, stateFile, claudeBinary string,
+	stdout io.Writer,
+	promptBuilder func(ctx context.Context, agentName, chatFilePath string, turn int) (string, error),
+) error {
+	flags := agentRunFlags{name: name, prompt: prompt, chatFile: chatFile, stateFile: stateFile}
+	runner := buildAgentRunner(flags, stateFile, chatFile, stdout)
+
+	return runConversationLoopWith(ctx, runner, flags, chatFile, claudeBinary, stdout, promptBuilder)
+}
+
+// ExportWaitAndBuildPromptWith calls waitAndBuildPromptWith with an injectable ackWaiter.
+func ExportWaitAndBuildPromptWith(
+	ctx context.Context,
+	agentName, chatFilePath string,
+	waiter interface {
+		AckWait(ctx context.Context, callerAgent string, cursor int, recipients []string) (chat.AckResult, error)
+	},
+) (string, error) {
+	return waitAndBuildPromptWith(ctx, agentName, chatFilePath, waiter)
 }
 
 // SetTestPaneKiller installs a test-only pane killer and serializes parallel tests
