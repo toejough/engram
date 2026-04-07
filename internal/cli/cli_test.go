@@ -319,7 +319,11 @@ func TestOsTmuxSpawnWith_SendKeysFails_ReturnsError(t *testing.T) {
 	}
 }
 
-func TestOsTmuxSpawnWith_SetsEngramNamePaneOption(t *testing.T) {
+// ============================================================
+// Bug #532: extra Enter after prompt
+// ============================================================
+
+func TestOsTmuxSpawnWith_SendsConfirmingEnterAfterPrompt(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -337,7 +341,7 @@ func TestOsTmuxSpawnWith_SetsEngramNamePaneOption(t *testing.T) {
 		"esac\n"
 	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
 
-	_, _, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "my-agent", "my-prompt")
+	_, _, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "my-prompt-text")
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -352,9 +356,24 @@ func TestOsTmuxSpawnWith_SetsEngramNamePaneOption(t *testing.T) {
 		return
 	}
 
-	// @engram_name user option must be set on the pane with the agent name
-	callsStr := string(calls)
-	g.Expect(callsStr).To(ContainSubstring("set-option -p -t %my-pane @engram_name my-agent"))
+	// Filter send-keys calls that are NOT the claude startup command.
+	var promptKeyCalls []string
+
+	for line := range strings.SplitSeq(strings.TrimSpace(string(calls)), "\n") {
+		if strings.HasPrefix(line, "send-keys") && !strings.Contains(line, "claude") {
+			promptKeyCalls = append(promptKeyCalls, line)
+		}
+	}
+
+	// Must be exactly 2: one sending the prompt text, one confirming the paste dialog.
+	g.Expect(promptKeyCalls).To(HaveLen(2), "expected prompt send-keys + confirming Enter")
+
+	if len(promptKeyCalls) < 2 {
+		return
+	}
+
+	g.Expect(promptKeyCalls[0]).To(ContainSubstring("my-prompt-text"))
+	g.Expect(promptKeyCalls[1]).NotTo(ContainSubstring("my-prompt-text"))
 }
 
 func TestOsTmuxSpawnWith_SendsPromptViaKeysNotShellCmd(t *testing.T) {
@@ -399,6 +418,44 @@ func TestOsTmuxSpawnWith_SendsPromptViaKeysNotShellCmd(t *testing.T) {
 	g.Expect(callsStr).To(ContainSubstring("my-prompt-text"))
 	// new-window must NOT use sh -c
 	g.Expect(callsStr).NotTo(ContainSubstring("sh -c"))
+}
+
+func TestOsTmuxSpawnWith_SetsEngramNamePaneOption(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmpDir := t.TempDir()
+	fakeTmux := filepath.Join(tmpDir, "tmux")
+	callLog := filepath.Join(tmpDir, "calls.txt")
+
+	script := "#!/bin/sh\n" +
+		"echo \"$@\" >> " + callLog + "\n" +
+		"case \"$1\" in\n" +
+		"  new-window) echo '%my-pane $mysession' ;;\n" +
+		"  set-option) ;;\n" +
+		"  capture-pane) printf '❯\\n' ;;\n" +
+		"  send-keys) ;;\n" +
+		"esac\n"
+	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
+
+	_, _, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "my-agent", "my-prompt")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	calls, readErr := os.ReadFile(callLog)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	// @engram_name user option must be set on the pane with the agent name
+	callsStr := string(calls)
+	g.Expect(callsStr).To(ContainSubstring("set-option -p -t %my-pane @engram_name my-agent"))
 }
 
 func TestOsTmuxSpawnWith_Success_ReturnsPaneAndSession(t *testing.T) {
@@ -461,6 +518,21 @@ func TestOsTmuxSpawn_CancelledContext_ReturnsError(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("tmux new-window"))
 	}
+}
+
+// ============================================================
+// Coverage: osTmuxVerifyPaneGone and rejectDuplicateAgentName
+// ============================================================
+
+func TestOsTmuxVerifyPaneGone_NonExistentPane_ReturnsNil(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Pane ID %99999999 cannot exist in any real tmux session.
+	// list-panes will exit non-zero → verify returns nil (pane is gone).
+	err := cli.ExportOsTmuxVerifyPaneGone("%99999999")
+
+	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestOutputAckResult_FailWriter_ReturnsError(t *testing.T) {
@@ -1052,6 +1124,53 @@ func TestRunAgentKill_PaneKillError_ReturnsError(t *testing.T) {
 	}
 }
 
+// ============================================================
+// Bug #533: pane kill verification in runAgentKill
+// ============================================================
+
+func TestRunAgentKill_PaneStillAliveAfterKill_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Pre-populate state with agent "ghost-agent" in pane %999.
+	prePopErr := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
+			Name:   "ghost-agent",
+			PaneID: "%999",
+			State:  "RUNNING",
+		})
+	})
+	g.Expect(prePopErr).NotTo(HaveOccurred())
+
+	if prePopErr != nil {
+		return
+	}
+
+	// Killer claims success; verifier reports pane still alive.
+	cli.SetTestPaneKiller(t, func(_ string) error { return nil })
+	cli.SetTestPaneVerifier(t, func(_ string) error {
+		return errors.New("pane still alive after kill")
+	})
+
+	err := cli.ExportRunAgentKill([]string{
+		"--name", "ghost-agent",
+		"--chat-file", chatFile,
+		"--state-file", stateFile,
+	}, io.Discard)
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("still alive"))
+	}
+}
+
 func TestRunAgentKill_RemovesAgentFromStateFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1342,6 +1461,50 @@ func TestRunAgentList_UnreadableChatFile_ReconstructionFails_NoError(t *testing.
 	g.Expect(strings.TrimSpace(stdout.String())).To(BeEmpty())
 }
 
+// ============================================================
+// Bug #533: duplicate name guard in runAgentSpawn
+// ============================================================
+
+func TestRunAgentSpawn_DuplicateName_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Pre-populate state file with an agent named "exec-1".
+	prePopErr := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
+		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
+			Name:   "exec-1",
+			PaneID: "main:1.1",
+			State:  "RUNNING",
+		})
+	})
+	g.Expect(prePopErr).NotTo(HaveOccurred())
+
+	if prePopErr != nil {
+		return
+	}
+
+	err := cli.ExportRunAgentSpawn([]string{
+		"--name", "exec-1",
+		"--prompt", "You are exec-1.",
+		"--chat-file", chatFile,
+		"--state-file", stateFile,
+	}, io.Discard, func(_ context.Context, _, _ string) (string, string, error) {
+		return "main:1.2", "sess456", nil
+	})
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("exec-1"))
+	}
+}
+
 func TestRunAgentSpawn_MissingName_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1397,6 +1560,77 @@ func TestRunAgentSpawn_PostIntentError_ReturnsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+// ============================================================
+// Bug #531: system ACK after spawn intent resolves
+// ============================================================
+
+func TestRunAgentSpawn_PostsSystemACKAfterAckWaitResolves(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	spawnDone := make(chan error, 1)
+
+	go func() {
+		spawnDone <- cli.ExportRunAgentSpawn([]string{
+			"--name", "exec-ack-test",
+			"--prompt", "You are exec-ack-test.",
+			"--chat-file", chatFile,
+			"--state-file", stateFile,
+		}, io.Discard, func(_ context.Context, _, _ string) (string, string, error) {
+			return "main:1.2", "sess123", nil
+		})
+	}()
+
+	// Wait for intent to be posted, then ACK it.
+	time.Sleep(50 * time.Millisecond)
+
+	g.Expect(cli.Run([]string{
+		"engram", "chat", "post",
+		"--chat-file", chatFile,
+		"--from", "engram-agent",
+		"--to", "system",
+		"--thread", "lifecycle",
+		"--type", "ack",
+		"--text", "No relevant memories. Proceed.",
+	}, io.Discard, io.Discard, nil)).To(Succeed())
+
+	select {
+	case err := <-spawnDone:
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+	case <-time.After(6 * time.Second):
+		t.Fatal("agent spawn did not complete within 6s")
+	}
+
+	messages, loadErr := cli.ExportLoadChatMessages(chatFile)
+	g.Expect(loadErr).NotTo(HaveOccurred())
+
+	if loadErr != nil {
+		return
+	}
+
+	var systemACKFound bool
+
+	for _, msg := range messages {
+		if msg.From == "system" && msg.Type == "ack" {
+			systemACKFound = true
+
+			break
+		}
+	}
+
+	g.Expect(systemACKFound).To(BeTrue(), "expected a system ack message in chat after spawn")
+}
+
 func TestRunAgentSpawn_SpawnerError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1420,6 +1654,34 @@ func TestRunAgentSpawn_SpawnerError_ReturnsError(t *testing.T) {
 
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("launching pane"))
+	}
+}
+
+func TestRunAgentSpawn_StateFileUnreadable_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Use a directory as the state file path so os.ReadFile returns a non-ErrNotExist error.
+	stateFileAsDir := filepath.Join(dir, "state-dir")
+	g.Expect(os.Mkdir(stateFileAsDir, 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	err := cli.ExportRunAgentSpawn([]string{
+		"--name", "exec-1",
+		"--prompt", "You are exec-1.",
+		"--chat-file", chatFile,
+		"--state-file", stateFileAsDir,
+	}, io.Discard, func(_ context.Context, _, _ string) (string, string, error) {
+		return "main:1.2", "sess123", nil
+	})
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("reading state file"))
 	}
 }
 

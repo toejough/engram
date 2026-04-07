@@ -31,12 +31,15 @@ const (
 // unexported variables.
 var (
 	errAgentKillNameRequired = errors.New("agent kill: --name is required")
+	errDuplicateAgentName    = errors.New("agent spawn: agent with this name already exists")
+	errPaneStillAlive        = errors.New("pane still alive after kill")
 	errSpawnNameRequired     = errors.New("agent spawn: --name is required")
 	errSpawnPromptRequired   = errors.New("agent spawn: --prompt is required")
 	errStateFileLockTimeout  = errors.New("state file lock timeout after 5s")
 	errUnexpectedTmuxOutput  = errors.New("unexpected tmux output")
 	errUnmetHoldCondition    = errors.New("condition not satisfied; release it first")
 	testPaneKiller           func(paneID string) error //nolint:gochecknoglobals // test-overridable pane killer
+	testPaneVerifier         func(paneID string) error //nolint:gochecknoglobals // test-overridable pane verifier
 )
 
 // spawnFlagsResult holds parsed and validated flags for agent spawn.
@@ -96,9 +99,9 @@ func evaluateAndRelease(hold chat.HoldRecord, messages []chat.Message, poster *c
 	return nil
 }
 
-// killAgentPane kills the tmux pane for the agent if a pane ID was found.
-// Uses testPaneKiller in tests; falls back to osTmuxKillPane in production.
-// Silently succeeds if the pane is already gone.
+// killAgentPane kills the tmux pane for the agent if a pane ID was found, then verifies it is gone.
+// Uses testPaneKiller / testPaneVerifier in tests; falls back to OS functions in production.
+// Silently succeeds if the pane is already gone before the kill.
 func killAgentPane(paneID string) error {
 	if paneID == "" {
 		return nil
@@ -112,6 +115,23 @@ func killAgentPane(paneID string) error {
 	killErr := killFn(paneID)
 	if killErr != nil && !strings.Contains(killErr.Error(), "no such pane") {
 		return fmt.Errorf("agent kill: killing pane %s: %w", paneID, killErr)
+	}
+
+	// Verify the pane is actually gone after the kill command.
+	// In test mode (testPaneKiller is injected) we only verify if testPaneVerifier is
+	// also explicitly set — this avoids running OS verification against fake pane IDs.
+	verifyFn := testPaneVerifier
+	if verifyFn == nil && testPaneKiller == nil {
+		verifyFn = osTmuxVerifyPaneGone
+	}
+
+	if verifyFn == nil {
+		return nil
+	}
+
+	verifyErr := verifyFn(paneID)
+	if verifyErr != nil {
+		return fmt.Errorf("agent kill: pane %s still alive after kill: %w", paneID, verifyErr)
 	}
 
 	return nil
@@ -223,7 +243,34 @@ func osTmuxSpawnWith(ctx context.Context, tmuxBin, name, prompt string) (paneID,
 		return "", "", fmt.Errorf("tmux send-keys prompt: %w", sendErr)
 	}
 
+	// Step 5: Confirm paste dialog. Claude Code treats long text as a bracketed paste
+	// and shows "[Pasted text #1 +N lines]" waiting for Enter confirmation. An extra Enter
+	// is harmless if no paste dialog appears (just submits an empty line which is ignored).
+	confirmErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
+		"send-keys", "-t", paneID, "", "Enter",
+	).Run()
+	if confirmErr != nil {
+		return "", "", fmt.Errorf("tmux send-keys confirm: %w", confirmErr)
+	}
+
 	return paneID, sessionID, nil
+}
+
+// osTmuxVerifyPaneGone checks that the given pane no longer exists in tmux.
+// Returns an error if the pane is still alive.
+func osTmuxVerifyPaneGone(paneID string) error {
+	// list-panes -t paneID exits non-zero when the pane is gone; zero when it still exists.
+	// Avoids display-message which can fall back to the current pane for unresolved targets.
+	cmd := exec.CommandContext(context.Background(), "tmux", //nolint:gosec
+		"list-panes", "-t", paneID,
+	)
+
+	runErr := cmd.Run()
+	if runErr == nil {
+		return fmt.Errorf("pane %s: %w", paneID, errPaneStillAlive)
+	}
+
+	return nil
 }
 
 // parseAgentKillFlags parses the agent-kill flag set. Returns (name, chatFile, stateFile, err).
@@ -335,6 +382,20 @@ func postSpawnIntentAndWait(ctx context.Context, chatFilePath, name, paneID, int
 		return fmt.Errorf("waiting for engram-agent ACK: %w", ackErr)
 	}
 
+	// Post an explicit system ACK so the coordination history shows the intent was resolved.
+	// Without this, an offline engram-agent leaves a silent gap: ack-wait returns via timeout
+	// with no observable record in the chat file.
+	_, sysACKErr := poster.Post(chat.Message{
+		From:   "system",
+		To:     "engram-agent",
+		Thread: "lifecycle",
+		Type:   "ack",
+		Text:   fmt.Sprintf("Proceeding with spawn of %q.", name),
+	})
+	if sysACKErr != nil {
+		return fmt.Errorf("posting system ACK: %w", sysACKErr)
+	}
+
 	return nil
 }
 
@@ -437,6 +498,32 @@ func reconstructStateFileFromChat(
 	}
 
 	return state, nil
+}
+
+// rejectDuplicateAgentName returns an error if the state file already contains an agent
+// with the given name, preventing duplicate spawns from creating orphan panes.
+func rejectDuplicateAgentName(stateFilePath, name string) error {
+	data, err := os.ReadFile(stateFilePath) //nolint:gosec
+	if errors.Is(err, os.ErrNotExist) {
+		return nil // no state file yet — no duplicates possible
+	}
+
+	if err != nil {
+		return fmt.Errorf("agent spawn: reading state file: %w", err)
+	}
+
+	state, parseErr := agentpkg.ParseStateFile(data)
+	if parseErr != nil {
+		return fmt.Errorf("agent spawn: parsing state file: %w", parseErr)
+	}
+
+	for _, record := range state.Agents {
+		if record.Name == name {
+			return fmt.Errorf("%w: %s", errDuplicateAgentName, name)
+		}
+	}
+
+	return nil
 }
 
 // releaseMetHoldsForAgent checks holds targeting the named agent. Returns an error if any unmet hold is found.
@@ -662,6 +749,12 @@ func runAgentSpawn(args []string, stdout io.Writer, spawner spawnFunc) error {
 
 	ctx, cancel := signalContext()
 	defer cancel()
+
+	// Guard against duplicate agent names before spawning.
+	dupErr := rejectDuplicateAgentName(stateFilePath, flags.name)
+	if dupErr != nil {
+		return dupErr
+	}
 
 	paneID, sessionID, spawnErr := spawner(ctx, flags.name, flags.prompt)
 	if spawnErr != nil {

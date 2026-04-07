@@ -24,6 +24,7 @@ var (
 	ExportOsTmuxKillPane           = osTmuxKillPane
 	ExportOsTmuxSpawn              = osTmuxSpawn
 	ExportOsTmuxSpawnWith          = osTmuxSpawnWith
+	ExportOsTmuxVerifyPaneGone     = osTmuxVerifyPaneGone
 	ExportOutputAckResult          = outputAckResult
 	ExportParseTmuxOutput          = parseTmuxOutput
 	ExportReadModifyWriteStateFile = readModifyWriteStateFile
@@ -33,6 +34,7 @@ var (
 	ExportRenderMemoryMeta         = renderMemoryMeta
 	ExportResolveChatFile          = resolveChatFile
 	ExportResolveStateFile         = resolveStateFile
+	ExportRunAgentKill             = runAgentKill
 	ExportRunAgentSpawn            = runAgentSpawn
 	ExportWriteKilledLine          = writeKilledLine
 )
@@ -78,7 +80,23 @@ func SetTestPaneKiller(tb testing.TB, f func(paneID string) error) {
 	})
 }
 
+// SetTestPaneVerifier installs a test-only pane verifier and serializes parallel tests
+// that override the same global. The caller must not defer a nil reset — cleanup is
+// handled automatically via t.Cleanup.
+func SetTestPaneVerifier(tb testing.TB, f func(paneID string) error) {
+	tb.Helper()
+	testPaneVerifierMu.Lock()
+
+	testPaneVerifier = f
+
+	tb.Cleanup(func() {
+		testPaneVerifier = nil
+		testPaneVerifierMu.Unlock()
+	})
+}
+
 // unexported variables.
 var (
-	testPaneKillerMu sync.Mutex
+	testPaneKillerMu   sync.Mutex
+	testPaneVerifierMu sync.Mutex
 )
