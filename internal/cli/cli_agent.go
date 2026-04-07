@@ -68,6 +68,9 @@ type memFileEntry struct {
 	modTime time.Time
 }
 
+// memFileSelectorFunc selects memory files for resume prompt injection.
+type memFileSelectorFunc func(homeDir string, maxFiles int) ([]string, error)
+
 // promptBuilderFunc is the injectable seam for the ack-wait + prompt construction step.
 // cursor is the pre-intent chat file position captured BEFORE claude -p starts (HARD RULE compliance).
 type promptBuilderFunc func(ctx context.Context, agentName, chatFilePath string, cursor int) (string, error)
@@ -79,6 +82,10 @@ type spawnFlagsResult struct {
 
 // spawnFunc is the type for both the OS spawner and the test-injectable spawner.
 type spawnFunc = func(ctx context.Context, name, prompt string) (paneID, sessionID string, err error)
+
+// watchForIntentFunc watches for the next intent addressed to agentName.
+// Phase 5: hardcoded to "engram-agent". Phase 6: routing table calls same type.
+type watchForIntentFunc func(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error)
 
 // buildAgentRunner constructs the claude.Runner for the given agent run flags.
 func buildAgentRunner(flags agentRunFlags, stateFilePath, chatFilePath string, stdout io.Writer) claudepkg.Runner {
@@ -891,7 +898,7 @@ func runAgentRunWith(args []string, stdout io.Writer, claudeBinary string) error
 
 	runner := buildAgentRunner(flags, stateFilePath, chatFilePath, stdout)
 
-	return runConversationLoop(ctx, runner, flags, chatFilePath, claudeBinary, stdout)
+	return runConversationLoop(ctx, runner, flags, chatFilePath, stateFilePath, claudeBinary, stdout)
 }
 
 // runAgentSpawn spawns a new agent in a tmux pane, writes the AgentRecord to the state file,
@@ -1020,61 +1027,67 @@ func runConversationLoop(
 	ctx context.Context,
 	runner claudepkg.Runner,
 	flags agentRunFlags,
-	chatFilePath, claudeBinary string,
+	chatFilePath, stateFilePath, claudeBinary string,
 	stdout io.Writer,
 ) error {
-	return runConversationLoopWith(ctx, runner, flags, chatFilePath, claudeBinary, stdout, waitAndBuildPrompt)
+	// Phase 5: outer watch loop available via defaultWatchForIntent +
+	// defaultMemFileSelector. Pass nil to disable until E2E validation.
+	return runConversationLoopWith(
+		ctx, runner, flags, chatFilePath, stateFilePath,
+		claudeBinary, stdout, waitAndBuildPrompt,
+		nil, nil,
+	)
 }
 
 // runConversationLoopWith is the testable variant of runConversationLoop.
-// The promptBuilder parameter allows tests to inject a stub instead of waitAndBuildPrompt.
+// Contains two nested loops: inner (within-session) and outer (watch for next intent).
+// When watchForIntent is nil, the outer loop is disabled (inner loop only).
 func runConversationLoopWith(
 	ctx context.Context,
 	runner claudepkg.Runner,
 	flags agentRunFlags,
-	chatFilePath, claudeBinary string,
+	chatFilePath, stateFilePath, claudeBinary string,
 	stdout io.Writer,
 	promptBuilder promptBuilderFunc,
+	watchForIntent watchForIntentFunc,
+	memFileSelector memFileSelectorFunc,
 ) error {
-	const maxTurns = 50 // safety cap: prevents runaway loops
-
 	prompt := flags.prompt
 	sessionID := ""
 
-	for range maxTurns {
-		// HARD RULE: capture cursor BEFORE cmd.StdoutPipe()/cmd.Start() (via runOneTurn).
-		// ProcessStream posts the INTENT to chat during streaming. An ACK could arrive
-		// between the post and a later chatFileCursor call, causing ack-wait to miss it.
-		cursor, cursorErr := chatFileCursor(chatFilePath, os.ReadFile)
-		if cursorErr != nil {
-			return fmt.Errorf("agent run: cursor: %w", cursorErr)
+	for {
+		result, _, cursor, err := runWithinSessionLoop(
+			ctx, runner, prompt, sessionID,
+			flags.name, chatFilePath, claudeBinary,
+			stdout, promptBuilder,
+		)
+		if err != nil {
+			return err
 		}
 
-		result, runErr := runOneTurn(ctx, runner, prompt, sessionID, claudeBinary, stdout)
-		if runErr != nil {
-			return runErr
-		}
-
-		// one-way: capture on first non-empty; never overwrite (--resume requires stable session ID)
-		if sessionID == "" && result.SessionID != "" {
-			sessionID = result.SessionID
-		}
-
-		// DONE or no markers: conversation complete.
-		if result.DoneDetected || !result.IntentDetected {
+		// No outer watch loop: Phase 4 exit behavior.
+		if watchForIntent == nil {
 			return nil
 		}
 
-		// INTENT detected: ack-wait then resume.
-		nextPrompt, ackErr := promptBuilder(ctx, flags.name, chatFilePath, cursor)
-		if ackErr != nil {
-			return ackErr
+		// Phase 5: watch for next intent after session ends.
+		prompt, err = watchAndResume(
+			ctx, flags.name, chatFilePath, stateFilePath,
+			cursor, result, stdout,
+			watchForIntent, memFileSelector,
+		)
+		if err != nil {
+			// Context cancellation during watch = clean exit.
+			if ctx.Err() != nil {
+				return nil //nolint:nilerr // ctx cancel is a clean shutdown
+			}
+
+			return err
 		}
 
-		prompt = nextPrompt
+		// Fresh session per watch-loop invocation — no --resume.
+		sessionID = ""
 	}
-
-	return errAgentRunExceededMaxTurns
 }
 
 // runOneTurn executes a single claude -p turn, returning the stream result.
@@ -1110,6 +1123,59 @@ func runOneTurn(
 	}
 
 	return result, nil
+}
+
+// runWithinSessionLoop drives the within-session INTENT→ack-wait→resume cycles (Phase 4 logic).
+// Returns the final StreamResult, updated sessionID, last cursor position, and any error.
+func runWithinSessionLoop(
+	ctx context.Context,
+	runner claudepkg.Runner,
+	initialPrompt, initialSessionID string,
+	agentName, chatFilePath, claudeBinary string,
+	stdout io.Writer,
+	promptBuilder promptBuilderFunc,
+) (claudepkg.StreamResult, string, int, error) {
+	const maxTurns = 50 // safety cap: prevents runaway loops
+
+	prompt := initialPrompt
+	sessionID := initialSessionID
+
+	var lastCursor int
+
+	for range maxTurns {
+		// HARD RULE: capture cursor BEFORE cmd.StdoutPipe()/cmd.Start() (via runOneTurn).
+		cursor, cursorErr := chatFileCursor(chatFilePath, os.ReadFile)
+		if cursorErr != nil {
+			return claudepkg.StreamResult{}, sessionID, lastCursor, fmt.Errorf("agent run: cursor: %w", cursorErr)
+		}
+
+		lastCursor = cursor
+
+		result, runErr := runOneTurn(ctx, runner, prompt, sessionID, claudeBinary, stdout)
+		if runErr != nil {
+			return claudepkg.StreamResult{}, sessionID, lastCursor, runErr
+		}
+
+		// one-way: capture on first non-empty; never overwrite (--resume requires stable session ID)
+		if sessionID == "" && result.SessionID != "" {
+			sessionID = result.SessionID
+		}
+
+		// DONE, WAIT, or no INTENT markers: session complete.
+		if result.DoneDetected || result.WaitDetected || !result.IntentDetected {
+			return result, sessionID, lastCursor, nil
+		}
+
+		// INTENT detected: ack-wait then resume.
+		nextPrompt, ackErr := promptBuilder(ctx, agentName, chatFilePath, cursor)
+		if ackErr != nil {
+			return claudepkg.StreamResult{}, sessionID, lastCursor, ackErr
+		}
+
+		prompt = nextPrompt
+	}
+
+	return claudepkg.StreamResult{}, sessionID, lastCursor, errAgentRunExceededMaxTurns
 }
 
 // selectMemoryFiles returns up to maxFiles memory file paths sorted by mtime descending.
@@ -1200,6 +1266,91 @@ func waitAndBuildPromptWith(ctx context.Context, agentName string, cursor int, w
 	default:
 		return "Proceed.", nil
 	}
+}
+
+// watchAndResume handles the outer-loop transition: writes SILENT, watches for
+// the next intent, updates last-resumed-at, and builds the resume prompt.
+// Returns the resume prompt or nil error on clean ctx cancellation.
+func watchAndResume(
+	ctx context.Context,
+	agentName, chatFilePath, stateFilePath string,
+	cursor int,
+	_ claudepkg.StreamResult,
+	stdout io.Writer,
+	watchForIntent watchForIntentFunc,
+	memFileSelector memFileSelectorFunc,
+) (string, error) {
+	silentErr := writeAgentState(stateFilePath, agentName, "SILENT")
+	if silentErr != nil {
+		_, _ = fmt.Fprintf(stdout,
+			"[engram] warning: failed to write SILENT state: %v\n",
+			silentErr)
+	}
+
+	if ctx.Err() != nil {
+		return "", ctx.Err() //nolint:wrapcheck // ctx errors propagate directly
+	}
+
+	intentMsg, newCursor, watchErr := watchForIntent(
+		ctx, agentName, chatFilePath, cursor,
+	)
+	if watchErr != nil {
+		if ctx.Err() != nil {
+			return "", ctx.Err() //nolint:wrapcheck // clean exit
+		}
+
+		return "", fmt.Errorf("agent run: watch: %w", watchErr)
+	}
+
+	resumeErr := writeAgentLastResumedAt(stateFilePath, agentName)
+	if resumeErr != nil {
+		_, _ = fmt.Fprintf(stdout,
+			"[engram] warning: failed to update last-resumed-at: %v\n",
+			resumeErr)
+	}
+
+	var memFiles []string
+
+	if memFileSelector != nil {
+		home, homeErr := os.UserHomeDir()
+		if homeErr == nil {
+			memFiles, _ = memFileSelector(home, resumeMemoryFileLimit)
+		}
+	}
+
+	return buildResumePrompt(
+		newCursor, memFiles, intentMsg.From, intentMsg.Text,
+	), nil
+}
+
+// writeAgentLastResumedAt updates the LastResumedAt field for the named agent.
+func writeAgentLastResumedAt(stateFilePath, agentName string) error {
+	return readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
+		for i, rec := range stateFile.Agents {
+			if rec.Name == agentName {
+				stateFile.Agents[i].LastResumedAt = time.Now().UTC()
+
+				return stateFile
+			}
+		}
+
+		return stateFile
+	})
+}
+
+// writeAgentState updates the State field for the named agent in the state file.
+func writeAgentState(stateFilePath, agentName, state string) error {
+	return readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
+		for i, rec := range stateFile.Agents {
+			if rec.Name == agentName {
+				stateFile.Agents[i].State = state
+
+				return stateFile
+			}
+		}
+
+		return stateFile
+	})
 }
 
 // writeKilledLine writes the "killed <name>" confirmation line to stdout.

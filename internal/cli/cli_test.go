@@ -595,6 +595,481 @@ func TestOsTmuxVerifyPaneGone_NonExistentPane_ReturnsNil(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
+// TestOuterWatchLoop_CtxCancelDuringWatch verifies clean exit on ctx cancellation during watch.
+func TestOuterWatchLoop_CtxCancelDuringWatch(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	watchForIntent := func(_ context.Context, _, _ string, _ int) (chat.Message, int, error) {
+		cancel()
+		return chat.Message{}, 0, context.Canceled
+	}
+
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return nil, nil
+	}
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+		watchForIntent,
+		memFileSelector,
+	)
+	// Clean exit: no error on ctx cancellation during watch.
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+// --- Phase 5 Task 4: Outer watch loop tests ---
+
+// TestOuterWatchLoop_DoneThenWatchFires verifies that after DoneDetected,
+// the loop watches for the next intent and fires a new session (does not return).
+func TestOuterWatchLoop_DoneThenWatchFires(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	// Session 1: emit DONE (inner loop exits).
+	// Session 2: emit DONE (inner loop exits, then ctx cancelled to stop outer loop).
+	sessionCount := 0
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// watchForIntent: first call returns an intent, second call cancels ctx.
+	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		sessionCount++
+		if sessionCount >= 2 {
+			cancel()
+
+			return chat.Message{}, 0, context.Canceled
+		}
+
+		return chat.Message{
+			From: "test-agent",
+			To:   "engram-agent",
+			Type: "intent",
+			Text: "Situation: test. Behavior: respond.",
+		}, cursor + 10, nil
+	}
+
+	// memFileSelector: returns no files.
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return nil, nil
+	}
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+		watchForIntent,
+		memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Outer loop ran: session 1 (DONE) → watch → session 2 (DONE) → watch → ctx cancelled.
+	g.Expect(sessionCount).To(Equal(2))
+}
+
+// TestOuterWatchLoop_FreshSessionIDPerInvocation verifies sessionID="" on each watch-loop
+// invocation (not --resume).
+func TestOuterWatchLoop_FreshSessionIDPerInvocation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	// Track session IDs from the fake claude script.
+	// Each invocation gets a different session-id to prove fresh session.
+	invocationCount := 0
+	fakeClaude := filepath.Join(dir, "claude")
+	// Script uses a counter file to distinguish invocations.
+	counterFile := filepath.Join(dir, "counter")
+	json1 := `{"type":"assistant","session_id":"sess-first",` +
+		`"message":{"content":[{"type":"text","text":"DONE: done1."}]}}`
+	json2 := `{"type":"assistant","session_id":"sess-second",` +
+		`"message":{"content":[{"type":"text","text":"DONE: done2."}]}}`
+	script := "#!/bin/sh\n" +
+		"COUNT=0\n" +
+		"if [ -f " + counterFile + " ]; then " +
+		"COUNT=$(cat " + counterFile + "); fi\n" +
+		"COUNT=$((COUNT + 1))\n" +
+		"echo $COUNT > " + counterFile + "\n" +
+		"if [ $COUNT -eq 1 ]; then\n" +
+		"  printf '%s\\n' '" + json1 + "'\n" +
+		"else\n" +
+		"  printf '%s\\n' '" + json2 + "'\n" +
+		"fi\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		invocationCount++
+		if invocationCount >= 2 {
+			cancel()
+
+			return chat.Message{}, 0, context.Canceled
+		}
+
+		return chat.Message{
+			From: "test-agent",
+			To:   "engram-agent",
+			Type: "intent",
+			Text: "Situation: test. Behavior: respond.",
+		}, cursor + 10, nil
+	}
+
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return nil, nil
+	}
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+		watchForIntent,
+		memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Both session IDs should appear in state file history — proving fresh sessions.
+	// The latest should be sess-second (from invocation 2).
+	data, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	// At minimum, verify 2 invocations ran and session-id changed.
+	g.Expect(invocationCount).To(Equal(2))
+	g.Expect(string(data)).To(ContainSubstring(`session-id = "sess-second"`))
+}
+
+// TestOuterWatchLoop_LastResumedAtUpdated verifies last-resumed-at is updated when an intent fires.
+func TestOuterWatchLoop_LastResumedAtUpdated(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	watchCalls := 0
+	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		watchCalls++
+		if watchCalls >= 2 {
+			cancel()
+
+			return chat.Message{}, 0, context.Canceled
+		}
+
+		return chat.Message{
+			From: "test-agent",
+			To:   "engram-agent",
+			Type: "intent",
+			Text: "Situation: test. Behavior: respond.",
+		}, cursor + 10, nil
+	}
+
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return nil, nil
+	}
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+		watchForIntent,
+		memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Verify last-resumed-at was written to state file.
+	data, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(ContainSubstring("last-resumed-at"))
+}
+
+// TestOuterWatchLoop_WaitDetectedWatchesForNextIntent verifies that WaitDetected
+// also triggers the outer watch loop (same behavior as DONE).
+func TestOuterWatchLoop_WaitDetectedWatchesForNextIntent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+
+	// Session 1 emits WAIT (inner loop exits). Session 2 emits DONE.
+	waitJSON := `{"type":"assistant","session_id":"sess-w",` +
+		`"message":{"content":[{"type":"text",` +
+		`"text":"WAIT: Need more info."}]}}`
+	doneJSON2 := `{"type":"assistant","session_id":"sess-d",` +
+		`"message":{"content":[{"type":"text",` +
+		`"text":"DONE: All done."}]}}`
+	counterFile := filepath.Join(dir, "counter")
+	script := "#!/bin/sh\n" +
+		"COUNT=0\n" +
+		"if [ -f " + counterFile + " ]; then " +
+		"COUNT=$(cat " + counterFile + "); fi\n" +
+		"COUNT=$((COUNT + 1))\n" +
+		"echo $COUNT > " + counterFile + "\n" +
+		"if [ $COUNT -eq 1 ]; then\n" +
+		"  printf '%s\\n' '" + waitJSON + "'\n" +
+		"else\n" +
+		"  printf '%s\\n' '" + doneJSON2 + "'\n" +
+		"fi\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	watchCalls := 0
+	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		watchCalls++
+		if watchCalls >= 2 {
+			cancel()
+
+			return chat.Message{}, 0, context.Canceled
+		}
+
+		return chat.Message{
+			From: "test-agent",
+			To:   "engram-agent",
+			Type: "intent",
+			Text: "Situation: follow-up. Behavior: respond.",
+		}, cursor + 10, nil
+	}
+
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return nil, nil
+	}
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+		watchForIntent,
+		memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// WAIT triggered outer loop → watch → second session ran.
+	g.Expect(watchCalls).To(Equal(2))
+}
+
+// TestOuterWatchLoop_WatchError_Propagates verifies non-context watch errors propagate.
+func TestOuterWatchLoop_WatchError_Propagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\n" +
+		"spawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text",` +
+		`"text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	watchForIntent := func(
+		_ context.Context, _, _ string, _ int,
+	) (chat.Message, int, error) {
+		return chat.Message{}, 0, errors.New("watch failed")
+	}
+
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return nil, nil
+	}
+
+	stubBuilder := func(
+		_ context.Context, _, _ string, _ int,
+	) (string, error) {
+		return "Proceed.", nil
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		context.Background(),
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+		watchForIntent,
+		memFileSelector,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("watch failed"))
+}
+
+// TestOuterWatchLoop_WriteStateSilentAfterSession verifies WriteState("SILENT") is called
+// after the inner session ends and before the watch begins.
+func TestOuterWatchLoop_WriteStateSilentAfterSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	watchForIntent := func(_ context.Context, _, _ string, _ int) (chat.Message, int, error) {
+		cancel()
+		return chat.Message{}, 0, context.Canceled
+	}
+
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return nil, nil
+	}
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+		watchForIntent,
+		memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Verify state file shows SILENT (written by outer loop after session ends).
+	data, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(ContainSubstring(`state = "SILENT"`))
+}
+
 func TestOutputAckResult_FailWriter_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -2146,6 +2621,7 @@ func TestRunConversationLoopWith_IntentThenDone(t *testing.T) {
 		"worker-1", "hello", chatFile, stateFile, fakeClaude,
 		io.Discard,
 		stubBuilder,
+		nil, nil,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -2183,6 +2659,7 @@ func TestRunConversationLoopWith_PromptBuilderError(t *testing.T) {
 		"worker-1", "hello", chatFile, stateFile, fakeClaude,
 		io.Discard,
 		stubBuilder,
+		nil, nil,
 	)
 	g.Expect(err).To(HaveOccurred())
 

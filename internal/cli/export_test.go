@@ -80,11 +80,17 @@ func ExportRunConversationLoopWith(
 	name, prompt, chatFile, stateFile, claudeBinary string,
 	stdout io.Writer,
 	promptBuilder func(ctx context.Context, agentName, chatFilePath string, turn int) (string, error),
+	watchForIntent func(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error),
+	memFileSelector func(homeDir string, maxFiles int) ([]string, error),
 ) error {
 	flags := agentRunFlags{name: name, prompt: prompt, chatFile: chatFile, stateFile: stateFile}
 	runner := buildAgentRunner(flags, stateFile, chatFile, stdout)
 
-	return runConversationLoopWith(ctx, runner, flags, chatFile, claudeBinary, stdout, promptBuilder)
+	return runConversationLoopWith(
+		ctx, runner, flags, chatFile, stateFile,
+		claudeBinary, stdout, promptBuilder,
+		watchForIntent, memFileSelector,
+	)
 }
 
 // ExportWaitAndBuildPromptWith calls waitAndBuildPromptWith with an injectable ackWaiter.
