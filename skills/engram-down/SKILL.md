@@ -79,7 +79,6 @@ Prevent zombie shell accumulation in Claude Code's background task queue.
 Drain **only** the background task IDs you have tracked in this session. **Skip any ID you never set.** Common IDs:
 
 - `CHAT_MONITOR_TASK_ID` (chat file watcher — set by lead and most agents): if set, call `TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)`
-- `HEALTH_CHECK_TASK_ID` (lead-only): if set, call `TaskOutput(task_id=HEALTH_CHECK_TASK_ID, block=False)`
 - Hold detection task IDs (lead-only): drain each with `TaskOutput(task_id=<id>, block=False)`
 
 Non-lead agents typically only have `CHAT_MONITOR_TASK_ID`. If you have none, skip this step.
