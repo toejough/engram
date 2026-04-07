@@ -143,9 +143,9 @@ func (s *Server) handleUpdateMemory(w http.ResponseWriter, r *http.Request) {
 
 	modifyErr := s.modifier.ReadModifyWrite(memoryPath, func(rec *memory.MemoryRecord) {
 		rec.Situation = req.Situation
-		rec.Behavior = req.Behavior
-		rec.Impact = req.Impact
-		rec.Action = req.Action
+		rec.Content.Behavior = req.Behavior
+		rec.Content.Impact = req.Impact
+		rec.Content.Action = req.Action
 		rec.ProjectScoped = req.ProjectScoped
 		rec.ProjectSlug = req.ProjectSlug
 		rec.UpdatedAt = now

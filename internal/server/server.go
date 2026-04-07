@@ -399,9 +399,9 @@ func toMemoryResponse(mem *memory.Stored, medianSurfaced int) memoryResponse {
 	return memoryResponse{
 		Slug:             memory.NameFromPath(mem.FilePath),
 		Situation:        mem.Situation,
-		Behavior:         mem.Behavior,
-		Impact:           mem.Impact,
-		Action:           mem.Action,
+		Behavior:         mem.Content.Behavior,
+		Impact:           mem.Content.Impact,
+		Action:           mem.Content.Action,
 		ProjectScoped:    mem.ProjectScoped,
 		ProjectSlug:      mem.ProjectSlug,
 		SurfacedCount:    mem.SurfacedCount,

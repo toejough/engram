@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"engram/internal/memory"
-	"engram/internal/retrieve"
 	"engram/internal/server"
 	"engram/internal/tomlwriter"
 )
@@ -42,6 +41,15 @@ const (
 	serverReadHeaderTimeout = 10 * time.Second
 	serverShutdownTimeout   = 5 * time.Second
 )
+
+// listerAdapter wraps memory.Lister to satisfy server.MemoryLister.
+type listerAdapter struct {
+	lister *memory.Lister
+}
+
+func (a *listerAdapter) ListMemories(_ context.Context, dataDir string) ([]*memory.Stored, error) {
+	return a.lister.ListAllMemories(dataDir)
+}
 
 // osFileOps implements server.FileOps using the real filesystem.
 type osFileOps struct{}
@@ -93,11 +101,11 @@ func runServe(args []string, stdout io.Writer) error {
 		return fmt.Errorf("serve: %w", defaultErr)
 	}
 
-	retriever := retrieve.New()
+	lister := &listerAdapter{lister: memory.NewLister()}
 	modifier := memory.NewModifier(
 		memory.WithModifierWriter(tomlwriter.New()),
 	)
-	srv := server.NewServer(retriever, *dataDir,
+	srv := server.NewServer(lister, *dataDir,
 		server.WithModifier(modifier),
 		server.WithFileOps(osFileOps{}),
 	)

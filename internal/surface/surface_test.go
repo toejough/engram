@@ -358,13 +358,13 @@ func TestRecordInstrumentation_LoggerError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Situation: "alpha context", Behavior: "alpha bad", Action: "alpha good",
+		{Situation: "alpha context", Content: memory.ContentFields{Behavior: "alpha bad", Action: "alpha good"},
 			FilePath: "mem/alpha.toml"},
-		{Situation: "beta context", Behavior: "beta bad", Action: "beta good",
+		{Situation: "beta context", Content: memory.ContentFields{Behavior: "beta bad", Action: "beta good"},
 			FilePath: "mem/beta.toml"},
-		{Situation: "gamma context", Behavior: "gamma bad", Action: "gamma good",
+		{Situation: "gamma context", Content: memory.ContentFields{Behavior: "gamma bad", Action: "gamma good"},
 			FilePath: "mem/gamma.toml"},
-		{Situation: "delta context", Behavior: "delta bad", Action: "delta good",
+		{Situation: "delta context", Content: memory.ContentFields{Behavior: "delta bad", Action: "delta good"},
 			FilePath: "mem/delta.toml"},
 	}
 
@@ -397,13 +397,13 @@ func TestRecordInstrumentation_RecorderError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	memories := []*memory.Stored{
-		{Situation: "alpha context", Behavior: "alpha bad", Action: "alpha good",
+		{Situation: "alpha context", Content: memory.ContentFields{Behavior: "alpha bad", Action: "alpha good"},
 			FilePath: "mem/alpha.toml"},
-		{Situation: "beta context", Behavior: "beta bad", Action: "beta good",
+		{Situation: "beta context", Content: memory.ContentFields{Behavior: "beta bad", Action: "beta good"},
 			FilePath: "mem/beta.toml"},
-		{Situation: "gamma context", Behavior: "gamma bad", Action: "gamma good",
+		{Situation: "gamma context", Content: memory.ContentFields{Behavior: "gamma bad", Action: "gamma good"},
 			FilePath: "mem/gamma.toml"},
-		{Situation: "delta context", Behavior: "delta bad", Action: "delta good",
+		{Situation: "delta context", Content: memory.ContentFields{Behavior: "delta bad", Action: "delta good"},
 			FilePath: "mem/delta.toml"},
 	}
 

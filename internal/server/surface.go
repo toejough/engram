@@ -44,7 +44,7 @@ func (s *Server) classifyScoredResults(
 			BM25Score:  penalizedScore,
 			FinalScore: finalScore,
 			Situation:  mem.Situation,
-			Action:     mem.Action,
+			Action:     mem.Content.Action,
 		}
 
 		if finalScore >= threshold {

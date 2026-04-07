@@ -202,10 +202,12 @@ func TestGetMemory_ReturnsDetailWithPendingEvaluations(t *testing.T) {
 	lister := &mockLister{
 		memories: []*memory.Stored{
 			{
-				Situation:        "When writing tests",
-				Behavior:         "Skip t.Parallel()",
-				Impact:           "Tests run slowly",
-				Action:           "Add t.Parallel()",
+				Situation: "When writing tests",
+				Content: memory.ContentFields{
+					Behavior: "Skip t.Parallel()",
+					Impact:   "Tests run slowly",
+					Action:   "Add t.Parallel()",
+				},
 				ProjectScoped:    true,
 				ProjectSlug:      "engram",
 				SurfacedCount:    10,
@@ -462,10 +464,12 @@ func TestListMemories_ReturnsJSONArray(t *testing.T) {
 	lister := &mockLister{
 		memories: []*memory.Stored{
 			{
-				Situation:        "When writing tests",
-				Behavior:         "Skip t.Parallel()",
-				Impact:           "Tests run slowly",
-				Action:           "Add t.Parallel() to every test",
+				Situation: "When writing tests",
+				Content: memory.ContentFields{
+					Behavior: "Skip t.Parallel()",
+					Impact:   "Tests run slowly",
+					Action:   "Add t.Parallel() to every test",
+				},
 				ProjectScoped:    true,
 				ProjectSlug:      "engram",
 				SurfacedCount:    10,

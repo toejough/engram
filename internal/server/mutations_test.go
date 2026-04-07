@@ -464,7 +464,7 @@ func TestUpdateMemory_SetsUpdatedAt(t *testing.T) {
 
 			rec := &memory.MemoryRecord{
 				Situation: "old situation",
-				Behavior:  "old behavior",
+				Content:   memory.ContentFields{Behavior: "old behavior"},
 			}
 
 			mutate(rec)
@@ -499,9 +499,9 @@ func TestUpdateMemory_SetsUpdatedAt(t *testing.T) {
 	}
 
 	g.Expect(capturedRecord.Situation).To(Equal("new sit"))
-	g.Expect(capturedRecord.Behavior).To(Equal("new beh"))
-	g.Expect(capturedRecord.Impact).To(Equal("new imp"))
-	g.Expect(capturedRecord.Action).To(Equal("new act"))
+	g.Expect(capturedRecord.Content.Behavior).To(Equal("new beh"))
+	g.Expect(capturedRecord.Content.Impact).To(Equal("new imp"))
+	g.Expect(capturedRecord.Content.Action).To(Equal("new act"))
 	g.Expect(capturedRecord.ProjectScoped).To(BeTrue())
 	g.Expect(capturedRecord.ProjectSlug).To(Equal("engram"))
 	g.Expect(capturedRecord.UpdatedAt).To(Equal("2026-04-03T12:00:00Z"))

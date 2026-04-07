@@ -21,7 +21,7 @@ func TestSurface_EmptyResultsForNoMatch(t *testing.T) {
 		memories: []*memory.Stored{
 			{
 				Situation: "When cooking pasta in the kitchen",
-				Action:    "Always salt the water before boiling",
+				Content:   memory.ContentFields{Action: "Always salt the water before boiling"},
 				FilePath:  "/data/memories/cooking-pasta.toml",
 			},
 		},
@@ -65,34 +65,34 @@ func TestSurface_IrrelevancePenaltyReducesScore(t *testing.T) {
 		memories: []*memory.Stored{
 			{
 				Situation:       "When running parallel tests",
-				Action:          "Always add t.Parallel()",
+				Content:         memory.ContentFields{Action: "Always add t.Parallel()"},
 				IrrelevantCount: 0,
 				FilePath:        "/data/memories/clean.toml",
 			},
 			{
 				Situation:       "When running parallel tests",
-				Action:          "Always add t.Parallel()",
+				Content:         memory.ContentFields{Action: "Always add t.Parallel()"},
 				IrrelevantCount: 10,
 				FilePath:        "/data/memories/noisy.toml",
 			},
 			{
 				Situation: "When deploying containers to production",
-				Action:    "Check server logs for errors",
+				Content:   memory.ContentFields{Action: "Check server logs for errors"},
 				FilePath:  "/data/memories/deploy.toml",
 			},
 			{
 				Situation: "When cooking pasta in the kitchen",
-				Action:    "Salt the water before boiling",
+				Content:   memory.ContentFields{Action: "Salt the water before boiling"},
 				FilePath:  "/data/memories/cooking.toml",
 			},
 			{
 				Situation: "When writing documentation for APIs",
-				Action:    "Include request and response examples",
+				Content:   memory.ContentFields{Action: "Include request and response examples"},
 				FilePath:  "/data/memories/docs.toml",
 			},
 			{
 				Situation: "When configuring database connections",
-				Action:    "Set connection pool limits",
+				Content:   memory.ContentFields{Action: "Set connection pool limits"},
 				FilePath:  "/data/memories/database.toml",
 			},
 		},
@@ -185,17 +185,17 @@ func TestSurface_NearMissesIncludeThreshold(t *testing.T) {
 		memories: []*memory.Stored{
 			{
 				Situation: "When running parallel tests",
-				Action:    "Always add t.Parallel()",
+				Content:   memory.ContentFields{Action: "Always add t.Parallel()"},
 				FilePath:  "/data/memories/parallel-tests.toml",
 			},
 			{
 				Situation: "When deploying containers to production",
-				Action:    "Check server logs for errors",
+				Content:   memory.ContentFields{Action: "Check server logs for errors"},
 				FilePath:  "/data/memories/deploy.toml",
 			},
 			{
 				Situation: "When reviewing code changes",
-				Action:    "Verify documentation coverage",
+				Content:   memory.ContentFields{Action: "Verify documentation coverage"},
 				FilePath:  "/data/memories/code-review.toml",
 			},
 		},
@@ -253,19 +253,19 @@ func TestSurface_ProjectScopeExcludesCrossProject(t *testing.T) {
 		memories: []*memory.Stored{
 			{
 				Situation:     "When running parallel tests",
-				Action:        "Always add t.Parallel()",
+				Content:       memory.ContentFields{Action: "Always add t.Parallel()"},
 				ProjectScoped: true,
 				ProjectSlug:   "alpha",
 				FilePath:      "/data/memories/parallel-tests.toml",
 			},
 			{
 				Situation: "When deploying containers to production",
-				Action:    "Check server logs for errors",
+				Content:   memory.ContentFields{Action: "Check server logs for errors"},
 				FilePath:  "/data/memories/deploy.toml",
 			},
 			{
 				Situation: "When reviewing code changes",
-				Action:    "Verify documentation coverage",
+				Content:   memory.ContentFields{Action: "Verify documentation coverage"},
 				FilePath:  "/data/memories/code-review.toml",
 			},
 		},
@@ -316,17 +316,17 @@ func TestSurface_ReturnsMatchesAboveThreshold(t *testing.T) {
 		memories: []*memory.Stored{
 			{
 				Situation: "When running parallel tests",
-				Action:    "Always add t.Parallel()",
+				Content:   memory.ContentFields{Action: "Always add t.Parallel()"},
 				FilePath:  "/data/memories/parallel-tests.toml",
 			},
 			{
 				Situation: "When deploying containers to production",
-				Action:    "Check server logs for errors",
+				Content:   memory.ContentFields{Action: "Check server logs for errors"},
 				FilePath:  "/data/memories/deploy.toml",
 			},
 			{
 				Situation: "When reviewing code changes",
-				Action:    "Verify documentation coverage",
+				Content:   memory.ContentFields{Action: "Verify documentation coverage"},
 				FilePath:  "/data/memories/code-review.toml",
 			},
 		},
