@@ -3442,14 +3442,9 @@ func TestWaitAndBuildPromptWith_ACK(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	dir := t.TempDir()
-	chatFile := filepath.Join(dir, "chat.toml")
-
-	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
-
 	stub := &stubAckWaiter{result: chat.AckResult{Result: "ACK", NewCursor: 1}}
 
-	prompt, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", chatFile, stub)
+	prompt, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", 0, stub)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -3464,14 +3459,9 @@ func TestWaitAndBuildPromptWith_AckWaitError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	dir := t.TempDir()
-	chatFile := filepath.Join(dir, "chat.toml")
-
-	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
-
 	stub := &stubAckWaiter{err: errors.New("network error")}
 
-	_, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", chatFile, stub)
+	_, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", 0, stub)
 	g.Expect(err).To(HaveOccurred())
 
 	if err == nil {
@@ -3486,18 +3476,13 @@ func TestWaitAndBuildPromptWith_WAIT_WithMessage(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	dir := t.TempDir()
-	chatFile := filepath.Join(dir, "chat.toml")
-
-	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
-
 	stub := &stubAckWaiter{result: chat.AckResult{
 		Result:    "WAIT",
 		NewCursor: 1,
 		Wait:      &chat.WaitResult{From: "engram-agent", Text: "not ready yet"},
 	}}
 
-	prompt, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", chatFile, stub)
+	prompt, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", 0, stub)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -3512,14 +3497,9 @@ func TestWaitAndBuildPromptWith_WAIT_WithoutMessage(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	dir := t.TempDir()
-	chatFile := filepath.Join(dir, "chat.toml")
-
-	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
-
 	stub := &stubAckWaiter{result: chat.AckResult{Result: "WAIT", NewCursor: 1}}
 
-	prompt, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", chatFile, stub)
+	prompt, err := cli.ExportWaitAndBuildPromptWith(context.Background(), "worker-1", 0, stub)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

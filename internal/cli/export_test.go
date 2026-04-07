@@ -86,14 +86,16 @@ func ExportRunConversationLoopWith(
 }
 
 // ExportWaitAndBuildPromptWith calls waitAndBuildPromptWith with an injectable ackWaiter.
+// cursor must be captured before claude -p starts (HARD RULE compliance).
 func ExportWaitAndBuildPromptWith(
 	ctx context.Context,
-	agentName, chatFilePath string,
+	agentName string,
+	cursor int,
 	waiter interface {
 		AckWait(ctx context.Context, callerAgent string, cursor int, recipients []string) (chat.AckResult, error)
 	},
 ) (string, error) {
-	return waitAndBuildPromptWith(ctx, agentName, chatFilePath, waiter)
+	return waitAndBuildPromptWith(ctx, agentName, cursor, waiter)
 }
 
 // SetTestPaneKiller installs a test-only pane killer and serializes parallel tests

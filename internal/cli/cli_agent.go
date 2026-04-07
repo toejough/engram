@@ -62,7 +62,8 @@ type agentRunFlags struct {
 }
 
 // promptBuilderFunc is the injectable seam for the ack-wait + prompt construction step.
-type promptBuilderFunc func(ctx context.Context, agentName, chatFilePath string, turn int) (string, error)
+// cursor is the pre-intent chat file position captured BEFORE claude -p starts (HARD RULE compliance).
+type promptBuilderFunc func(ctx context.Context, agentName, chatFilePath string, cursor int) (string, error)
 
 // spawnFlagsResult holds parsed and validated flags for agent spawn.
 type spawnFlagsResult struct {
@@ -259,11 +260,23 @@ func osTmuxSpawn(ctx context.Context, name, prompt string) (paneID, sessionID st
 	return osTmuxSpawnWith(ctx, "tmux", name, prompt)
 }
 
-// osTmuxSpawnWith creates a tmux window, starts claude interactively in it, waits
-// for the claude input prompt (❯), then sends the prompt text via send-keys.
+// osTmuxSpawnWith creates a tmux window and starts the engram agent run pipeline in it.
 // Extracted so tests can supply a fake binary path without modifying global state.
+// The returned sessionID is always "PENDING" — the real Claude conversation UUID is
+// written to the state file by runAgentRun when the JSONL stream starts.
 func osTmuxSpawnWith(ctx context.Context, tmuxBin, name, prompt string) (paneID, sessionID string, err error) {
-	// Step 1: Create pane with default shell (no command — pane stays alive).
+	// Derive chat and state file paths for the in-pane runner command.
+	chatFilePath, pathErr := resolveChatFile("", "agent spawn", os.UserHomeDir, os.Getwd)
+	if pathErr != nil {
+		return "", "", pathErr
+	}
+
+	stateFilePath, statePathErr := resolveStateFile("", "agent spawn", os.UserHomeDir, os.Getwd)
+	if statePathErr != nil {
+		return "", "", statePathErr
+	}
+
+	// Step 1: Create pane with default shell.
 	out, cmdErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
 		"new-window",
 		"-d",
@@ -274,63 +287,32 @@ func osTmuxSpawnWith(ctx context.Context, tmuxBin, name, prompt string) (paneID,
 		return "", "", fmt.Errorf("tmux new-window: %w", cmdErr)
 	}
 
-	paneID, sessionID, parseErr := parseTmuxOutput(out)
+	paneID, _, parseErr := parseTmuxOutput(out)
 	if parseErr != nil {
 		return "", "", parseErr
 	}
 
-	// Set a stable pane label via tmux user option. Claude Code continuously overwrites
-	// pane_title via OSC 2 escape sequences on every status change; @engram_name is
-	// tmux-owned and immune to terminal output, so the label persists for the session's life.
+	// Set a stable pane label via tmux user option.
 	_ = exec.CommandContext(ctx, tmuxBin, //nolint:gosec
 		"set-option", "-p", "-t", paneID, "@engram_name", name,
 	).Run()
 
-	// Step 2: Start claude in the pane.
-	claudeCmd := "claude --dangerously-skip-permissions --model sonnet --settings '" + claudeSettings + "'"
+	// Step 2: Start the in-pane runner with a single send-keys call.
+	// engram agent run starts claude -p internally — no ❯ wait, no paste confirm.
+	runCmd := fmt.Sprintf(
+		"engram agent run --name %s --prompt %s --chat-file %s --state-file %s",
+		shellQuote(name), shellQuote(prompt), shellQuote(chatFilePath), shellQuote(stateFilePath),
+	)
 
 	startErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
-		"send-keys", "-t", paneID, claudeCmd, "Enter",
+		"send-keys", "-t", paneID, runCmd, "Enter",
 	).Run()
 	if startErr != nil {
 		return "", "", fmt.Errorf("tmux send-keys: %w", startErr)
 	}
 
-	// Step 3: Wait for claude's input prompt (❯), up to claudeReadyMaxRetries seconds.
-	for range claudeReadyMaxRetries {
-		if ctx.Err() != nil {
-			break
-		}
-
-		paneContent, captureErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
-			"capture-pane", "-t", paneID, "-p",
-		).Output()
-		if captureErr == nil && strings.Contains(string(paneContent), "❯") {
-			break
-		}
-
-		time.Sleep(claudeReadyPollInterval)
-	}
-
-	// Step 4: Send the prompt text to claude (best-effort even if readiness timed out).
-	sendErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
-		"send-keys", "-t", paneID, prompt, "Enter",
-	).Run()
-	if sendErr != nil {
-		return "", "", fmt.Errorf("tmux send-keys prompt: %w", sendErr)
-	}
-
-	// Step 5: Confirm paste dialog. Claude Code treats long text as a bracketed paste
-	// and shows "[Pasted text #1 +N lines]" waiting for Enter confirmation. An extra Enter
-	// is harmless if no paste dialog appears (just submits an empty line which is ignored).
-	confirmErr := exec.CommandContext(ctx, tmuxBin, //nolint:gosec
-		"send-keys", "-t", paneID, "Enter",
-	).Run()
-	if confirmErr != nil {
-		return "", "", fmt.Errorf("tmux send-keys confirm: %w", confirmErr)
-	}
-
-	return paneID, sessionID, nil
+	// SessionID is PENDING — runAgentRun writes the real Claude UUID to state file.
+	return paneID, "PENDING", nil
 }
 
 // osTmuxVerifyPaneGone checks that the given pane no longer exists in tmux.
@@ -1024,7 +1006,15 @@ func runConversationLoopWith(
 	prompt := flags.prompt
 	sessionID := ""
 
-	for turn := range maxTurns {
+	for range maxTurns {
+		// HARD RULE: capture cursor BEFORE cmd.StdoutPipe()/cmd.Start() (via runOneTurn).
+		// ProcessStream posts the INTENT to chat during streaming. An ACK could arrive
+		// between the post and a later chatFileCursor call, causing ack-wait to miss it.
+		cursor, cursorErr := chatFileCursor(chatFilePath, os.ReadFile)
+		if cursorErr != nil {
+			return fmt.Errorf("agent run: cursor: %w", cursorErr)
+		}
+
 		result, runErr := runOneTurn(ctx, runner, prompt, sessionID, claudeBinary, stdout)
 		if runErr != nil {
 			return runErr
@@ -1041,7 +1031,7 @@ func runConversationLoopWith(
 		}
 
 		// INTENT detected: ack-wait then resume.
-		nextPrompt, ackErr := promptBuilder(ctx, flags.name, chatFilePath, turn)
+		nextPrompt, ackErr := promptBuilder(ctx, flags.name, chatFilePath, cursor)
 		if ackErr != nil {
 			return ackErr
 		}
@@ -1088,7 +1078,8 @@ func runOneTurn(
 }
 
 // waitAndBuildPrompt performs ack-wait after an INTENT marker and returns the resume prompt.
-func waitAndBuildPrompt(ctx context.Context, agentName, chatFilePath string, _ int) (string, error) {
+// cursor must be captured BEFORE claude -p starts (see runConversationLoopWith for placement).
+func waitAndBuildPrompt(ctx context.Context, agentName, chatFilePath string, cursor int) (string, error) {
 	waiter := &chat.FileAckWaiter{
 		FilePath: chatFilePath,
 		Watcher:  newFileWatcher(chatFilePath),
@@ -1097,17 +1088,13 @@ func waitAndBuildPrompt(ctx context.Context, agentName, chatFilePath string, _ i
 		MaxWait:  agentRunAckMaxWait,
 	}
 
-	return waitAndBuildPromptWith(ctx, agentName, chatFilePath, waiter)
+	return waitAndBuildPromptWith(ctx, agentName, cursor, waiter)
 }
 
 // waitAndBuildPromptWith is the testable variant of waitAndBuildPrompt.
+// cursor is the pre-intent position captured before claude -p started (HARD RULE compliance).
 // The waiter parameter allows tests to inject a stub ackWaiter instead of chat.FileAckWaiter.
-func waitAndBuildPromptWith(ctx context.Context, agentName, chatFilePath string, waiter ackWaiter) (string, error) {
-	cursor, cursorErr := chatFileCursor(chatFilePath, os.ReadFile)
-	if cursorErr != nil {
-		return "", fmt.Errorf("agent run: cursor: %w", cursorErr)
-	}
-
+func waitAndBuildPromptWith(ctx context.Context, agentName string, cursor int, waiter ackWaiter) (string, error) {
 	ackResult, ackErr := waiter.AckWait(ctx, agentName, cursor, []string{"engram-agent"})
 	if ackErr != nil {
 		return "", fmt.Errorf("agent run: ack-wait: %w", ackErr)
