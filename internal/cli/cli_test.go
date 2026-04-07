@@ -376,7 +376,7 @@ func TestOsTmuxSpawnWith_SendKeysFails_ReturnsError(t *testing.T) {
 	script := "#!/bin/sh\n" +
 		"case \"$1\" in\n" +
 		"  new-window) echo '%my-pane $mysession' ;;\n" +
-		"  capture-pane) printf '❯\\n' ;;\n" +
+		"  set-option) exit 0 ;;\n" +
 		"  send-keys) exit 1 ;;\n" +
 		"  *) exit 1 ;;\n" +
 		"esac\n"
