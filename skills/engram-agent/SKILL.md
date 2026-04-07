@@ -31,8 +31,7 @@ On startup:
 2. Your introduction declares `role = "reactive"`, memory count, and purpose
 3. Load memories using tiered loading (see Tiered Loading section)
 4. Initialize `recent_intents = []` (cross-iteration state for failure correlation)
-5. Initialize `LAST_HEARTBEAT_TS` to the current time (or re-derive from chat history after compaction — grep the chat file for your most recent heartbeat message)
-6. Enter the watch loop
+5. Enter the watch loop
 
 ## Memory File Format
 
@@ -122,7 +121,6 @@ CURSOR: [embed current cursor as integer literal]
 - Parse the JSON result from the monitor Agent: `{type, from, cursor, text}`
 - Re-read only modified memory files (track per-file mtimes)
 - For each message, follow the Processing Order below
-- Check heartbeat: compare current time against `LAST_HEARTBEAT_TS`. If ≥5 minutes have elapsed, post heartbeat and update `LAST_HEARTBEAT_TS`. **`LAST_HEARTBEAT_TS` is initialized at startup (step 5 above) and must survive loop respawns** — after compaction recovery, re-derive from your most recent heartbeat message in the chat file before re-entering the loop.
 
 **Step 4: Loop.** Spawn a new background monitor Agent with the cursor value from the JSON result. Go back to step 2.
 
@@ -303,25 +301,6 @@ If you create more than 5 new memories (feedback or facts) in 10 minutes, post a
 - **Timeout:** 5 minutes. Post `info` noting timeout. SurfacedCount stays incremented, no outcome counter changes.
 - **Fresh reads:** Subagents MUST re-read the memory file immediately before their locked write.
 
-### Heartbeat
-
-Post every 5 minutes using `engram chat post` — the timestamp is generated automatically:
-
-```bash
-CURSOR=$(engram chat post \
-  --from engram-agent \
-  --to all \
-  --thread heartbeat \
-  --type info \
-  --text "alive | 269 memories loaded | 15 intents processed | 2 surfaced | queue: 0")
-```
-
-## Timestamps
-
-**Always use `engram chat post` to write chat messages** — it generates a fresh timestamp automatically for every message. Never write messages via heredoc or manual file append, which requires you to manage timestamps yourself and risks using a stale cached value.
-
-This applies to ACKs, WAITs, INFOs, heartbeats, and `done` messages alike.
-
 ## Locking & Atomic Writes
 
 **Per-file locks** (not directory-wide):
@@ -377,8 +356,6 @@ Track these metrics in your own context (not persisted to files):
 | Subagent using cached memory data | Always re-read the file fresh before writing. |
 | Spawning unlimited subagents | Max 3 concurrent, no two on same thread. Queue the rest. |
 | Auto-creating from ambiguous signals | Only auto-create from high-confidence corrections. Flag ambiguous ones. |
-| Forgetting heartbeat | Post every 5 minutes with stats. |
-| Forgetting to re-derive LAST_HEARTBEAT_TS after compaction | Re-grep chat history for your most recent heartbeat message to restore LAST_HEARTBEAT_TS before re-entering the loop. Without this, the 5-minute timer restarts from zero and the first heartbeat is delayed. |
 | Forgetting to strip pending_evaluations | Remove on every write. Opportunistic cleanup. |
 | Surfacing facts with WAIT | Facts use INFO only. No arguments for facts. |
 | Extracting facts from info/ack/wait | Only extract from intent and done messages. |

@@ -148,27 +148,6 @@ Every message has these fields:
 | `hold-acquire` | Binary-only — place a hold on an agent. Use `engram hold acquire`. Do NOT post with `engram chat post`. | N/A | No |
 | `hold-release` | Binary-only — lift a hold from an agent. Use `engram hold release`. Do NOT post with `engram chat post`. | N/A | No |
 
-## Writing Messages
-
-Use `engram chat post` to write messages atomically:
-
-```bash
-CURSOR=$(engram chat post \
-  --from myname \
-  --to recipient \
-  --thread topic \
-  --type info \
-  --text "Content here.")
-```
-
-The command acquires a lock, appends the message with a fresh timestamp, and outputs the new cursor position on stdout. Assign to `CURSOR` to track position for subsequent `engram chat watch` calls.
-
-For pre-intent cursor capture (before posting the intent), use `engram chat cursor`:
-
-```bash
-CURSOR=$(engram chat cursor)
-```
-
 ## Watching for Messages
 
 Delegate all chat monitoring to a background Agent — do **not** run `fswatch`, cursor tracking, or grep operations as direct Bash tool calls in the main agent context. These produce visible bash tool-call noise in the agent pane. All monitoring belongs inside a background subagent where it is invisible.
@@ -706,7 +685,6 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Post intent before others are ready | In lead setup: wait for the agent's init-complete `info` message (30s timeout from that message, not from `ready`) |
 | Use old field names (`[[entry]]`, `message =`) | Clean break: use `[[message]]` and `text =` |
 | Truncate or delete the chat file | Chat files are persistent -- prior sessions contain valuable context |
-| Skip heartbeat in long-lived reactive agent | Post heartbeat every 5 min so others know you're alive |
 | Grep full file to detect agent responses | **Critical bug**: full-file grep matches old messages. Always use cursor: `tail -n +$((CURSOR + 1)) "$CHAT_FILE" \| grep ...` |
 | Fabricate or invent agent output when relaying | Always read the actual `text` field from new lines first. Summarize accurately — never predict or invent what the agent said. |
 | Omit engram-agent from intent TO field | Always include engram-agent in TO. Memory must see every intent. |
