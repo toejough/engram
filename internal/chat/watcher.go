@@ -114,11 +114,7 @@ func findMessage(data []byte, agent string, cursor int, msgTypes []string) (Mess
 
 	suffix := suffixAtLine(data, cursor)
 
-	messages, err := ParseMessages(suffix)
-	if err != nil {
-		slog.Warn("findMessage: failed to parse chat suffix", "cursor", cursor, "err", err)
-		return Message{}, newCursor, false
-	}
+	messages := ParseMessagesSafe(suffix)
 
 	for _, msg := range messages {
 		if matchesAgent(msg.To, agent) && matchesType(msg.Type, msgTypes) {
