@@ -232,6 +232,19 @@ assert_contains "Rule 10 hold watchers replace standard wait" "Hold watchers rep
 echo ""
 
 # ---------------------------------------------------------------------------
+# Group 10: Chat-first diagnostics (#541)
+# ---------------------------------------------------------------------------
+
+echo "--- Group 10: Chat-first diagnostics ---"
+
+assert_contains "Chat-First Diagnostics hard rule exists" "HARD RULE: The chat file is the primary diagnostic source"
+assert_contains "Preamble capture-pane is last resort" "last resort"
+assert_contains "Section 1.5 timeout reads chat first" "Read chat from cursor"
+assert_contains "Section 2.1 TIMEOUT reads chat first" "Read chat from cursor"
+
+echo ""
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
