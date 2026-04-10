@@ -75,6 +75,10 @@ func (r *Runner) handleEvent(event streamjson.Event, result *StreamResult) {
 		for _, marker := range streamjson.DetectSpeechMarkers(event.Text) {
 			r.handleMarker(marker, result)
 		}
+
+		if prose := streamjson.NonMarkerText(event.Text); prose != "" {
+			r.relayConversation(prose)
+		}
 	case "user":
 		if event.Text != "" {
 			_, _ = fmt.Fprintf(r.Pane, "%s\n", event.Text)
@@ -140,6 +144,22 @@ func (r *Runner) maybeWriteState(state string) {
 	stateErr := r.WriteState(state)
 	if stateErr != nil {
 		_, _ = fmt.Fprintf(r.Pane, "[engram] warning: state transition failed: %v\n", stateErr)
+	}
+}
+
+// relayConversation posts non-marker prose from an agent turn to chat as type "conversation".
+func (r *Runner) relayConversation(text string) {
+	msg := chat.Message{
+		From:   r.AgentName,
+		To:     "all",
+		Thread: "speech-relay",
+		Type:   "conversation",
+		Text:   text,
+	}
+
+	_, err := r.Poster.Post(msg)
+	if err != nil {
+		_, _ = fmt.Fprintf(r.Pane, "[engram] warning: conversation relay failed: %v\n", err)
 	}
 }
 

@@ -75,6 +75,114 @@ func TestProcessStream_AllMarkerTypes_Posted(t *testing.T) {
 	g.Expect(types).To(ContainElements("wait", "learned", "info", "ready", "escalate"))
 }
 
+func TestProcessStream_AssistantEmptyText_NoConversationPosted(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	poster := &mockPoster{}
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           io.Discard,
+		Poster:         poster,
+		WriteSessionID: func(string) error { return nil },
+	}
+
+	// Assistant event with empty text should not post conversation.
+	assistantJSON := `{"type":"assistant","session_id":"abc","message":{"content":[]}}`
+	stream := strings.NewReader(assistantJSON + "\n")
+
+	_, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(poster.posted).To(BeEmpty())
+}
+
+func TestProcessStream_ConversationAddressedToAll(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	poster := &mockPoster{}
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           io.Discard,
+		Poster:         poster,
+		WriteSessionID: func(string) error { return nil },
+	}
+
+	assistantJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"Here is some analysis."}]}}`
+	stream := strings.NewReader(assistantJSON + "\n")
+
+	_, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(poster.posted).To(HaveLen(1))
+	g.Expect(poster.posted[0].To).To(Equal("all"))
+	g.Expect(poster.posted[0].Thread).To(Equal("speech-relay"))
+}
+
+func TestProcessStream_ConversationFromCorrectAgent(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	poster := &mockPoster{}
+	runner := claude.Runner{
+		AgentName:      "my-agent",
+		Pane:           io.Discard,
+		Poster:         poster,
+		WriteSessionID: func(string) error { return nil },
+	}
+
+	assistantJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"Some conversation."}]}}`
+	stream := strings.NewReader(assistantJSON + "\n")
+
+	_, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(poster.posted).To(HaveLen(1))
+	g.Expect(poster.posted[0].From).To(Equal("my-agent"))
+}
+
+func TestProcessStream_ConversationRelayError_WarnsOnPane(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var pane bytes.Buffer
+
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           &pane,
+		Poster:         &errorPoster{err: errors.New("disk full")},
+		WriteSessionID: func(string) error { return nil },
+	}
+
+	assistantJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"Just some prose."}]}}`
+	stream := strings.NewReader(assistantJSON + "\n")
+
+	_, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(pane.String()).To(ContainSubstring("conversation relay failed"))
+}
+
 func TestProcessStream_DisplayFilter_SuppressesRawJSONL(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -161,6 +269,35 @@ func TestProcessStream_IntentMarker_PostedAndReported(t *testing.T) {
 	g.Expect(poster.posted[0].Text).To(ContainSubstring("Situation: X."))
 	g.Expect(result.IntentDetected).To(BeTrue())
 	g.Expect(result.DoneDetected).To(BeFalse())
+}
+
+func TestProcessStream_MultipleProseLines_BothRelay(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	poster := &mockPoster{}
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           io.Discard,
+		Poster:         poster,
+		WriteSessionID: func(string) error { return nil },
+	}
+
+	// Multiline prose with no markers - one stream results in one conversation message.
+	assistantJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"Line 1\nLine 2\nLine 3"}]}}`
+	stream := strings.NewReader(assistantJSON + "\n")
+
+	_, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(poster.posted).To(HaveLen(1))
+	g.Expect(poster.posted[0].Type).To(Equal("conversation"))
+	g.Expect(poster.posted[0].Text).To(Equal("Line 1\nLine 2\nLine 3"))
 }
 
 func TestProcessStream_NilWriteSessionID_StillCapturesID(t *testing.T) {
@@ -263,6 +400,106 @@ func TestProcessStream_PosterError_WarnsOnPane(t *testing.T) {
 	}
 
 	g.Expect(pane.String()).To(ContainSubstring("relay failed"))
+}
+
+func TestProcessStream_ProseBeforeMarker_PostedAsConversationAndMarker(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	poster := &mockPoster{}
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           io.Discard,
+		Poster:         poster,
+		WriteSessionID: func(string) error { return nil },
+	}
+
+	assistantJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"I will proceed now.\nINTENT: Situation: X. Behavior: Y."}]}}`
+	stream := strings.NewReader(assistantJSON + "\n")
+
+	_, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	types := make([]string, 0, len(poster.posted))
+
+	for _, msg := range poster.posted {
+		types = append(types, msg.Type)
+	}
+
+	g.Expect(types).To(ContainElements("conversation", "intent"))
+
+	var convMsg chat.Message
+
+	for _, msg := range poster.posted {
+		if msg.Type == "conversation" {
+			convMsg = msg
+		}
+	}
+
+	g.Expect(convMsg.Text).To(Equal("I will proceed now."))
+	g.Expect(convMsg.To).To(Equal("all"))
+}
+
+func TestProcessStream_PureMarker_NoConversationPosted(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	poster := &mockPoster{}
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           io.Discard,
+		Poster:         poster,
+		WriteSessionID: func(string) error { return nil },
+	}
+
+	intentJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"INTENT: Situation: X. Behavior: Y."}]}}`
+	stream := strings.NewReader(intentJSON + "\n")
+
+	_, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	for _, msg := range poster.posted {
+		g.Expect(msg.Type).NotTo(Equal("conversation"))
+	}
+}
+
+func TestProcessStream_PureProse_PostedAsConversation(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	poster := &mockPoster{}
+	runner := claude.Runner{
+		AgentName:      "test-agent",
+		Pane:           io.Discard,
+		Poster:         poster,
+		WriteSessionID: func(string) error { return nil },
+	}
+
+	assistantJSON := `{"type":"assistant","session_id":"abc",` +
+		`"message":{"content":[{"type":"text","text":"I am confused about what to do."}]}}`
+	stream := strings.NewReader(assistantJSON + "\n")
+
+	_, err := runner.ProcessStream(stream)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(poster.posted).To(HaveLen(1))
+	g.Expect(poster.posted[0].Type).To(Equal("conversation"))
+	g.Expect(poster.posted[0].To).To(Equal("all"))
+	g.Expect(poster.posted[0].Text).To(Equal("I am confused about what to do."))
 }
 
 func TestProcessStream_ReadyMarker_IdempotentOnSecondReady(t *testing.T) {
