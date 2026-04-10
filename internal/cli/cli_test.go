@@ -2281,9 +2281,11 @@ func TestRunAgentSpawn_DuplicateName_ReturnsError(t *testing.T) {
 	}
 }
 
-func TestRunAgentSpawn_MaxWorkers_ReturnsError(t *testing.T) {
+func TestRunAgentSpawn_FourthWorker_IsNotRejectedByCap(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
+
+	cli.SetTestSpawnAckMaxWait(t, 100*time.Millisecond)
 
 	dir := t.TempDir()
 	chatFile := filepath.Join(dir, "chat.toml")
@@ -2291,13 +2293,22 @@ func TestRunAgentSpawn_MaxWorkers_ReturnsError(t *testing.T) {
 
 	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
 
-	// Pre-populate state file with 3 active/starting agents (max).
+	// Make engram-agent appear online so the 100ms MaxWait fires a TIMEOUT
+	// (nil error) after one watcher cycle instead of spinning for 5s.
+	g.Expect(cli.Run([]string{
+		"engram", "chat", "post",
+		"--chat-file", chatFile,
+		"--from", "engram-agent",
+		"--to", "all",
+		"--thread", "lifecycle",
+		"--type", "ready",
+		"--text", "Ready.",
+	}, io.Discard, io.Discard, nil)).To(Succeed())
+
+	// Pre-populate state file with 3 active agents (the old cap).
 	for _, name := range []string{"exec-1", "exec-2", "exec-3"} {
 		prePopErr := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
-				Name:  name,
-				State: "ACTIVE",
-			})
+			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: name, State: "ACTIVE"})
 		})
 		g.Expect(prePopErr).NotTo(HaveOccurred())
 
@@ -2315,10 +2326,9 @@ func TestRunAgentSpawn_MaxWorkers_ReturnsError(t *testing.T) {
 		return "main:1.4", "sess456", nil
 	})
 
-	g.Expect(err).To(HaveOccurred())
-
+	// Cap must be gone: any error should not mention "worker queue full".
 	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("worker queue full"))
+		g.Expect(err.Error()).NotTo(ContainSubstring("worker queue full"))
 	}
 }
 

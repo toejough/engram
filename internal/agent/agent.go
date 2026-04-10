@@ -10,11 +10,6 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Exported constants.
-const (
-	MaxConcurrentWorkers = 3
-)
-
 // AgentRecord holds binary bookkeeping for a spawned agent (spec §6.3).
 // Argument state fields enforce the 3-argument cap from SPEECH-2/SKILL-2
 // and must be persisted across engram agent resume invocations (Phase 5).

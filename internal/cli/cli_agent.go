@@ -43,7 +43,6 @@ var (
 	errStateFileLockTimeout     = errors.New("state file lock timeout after 5s")
 	errUnexpectedTmuxOutput     = errors.New("unexpected tmux output")
 	errUnmetHoldCondition       = errors.New("condition not satisfied; release it first")
-	errWorkerQueueFull          = errors.New("agent spawn: worker queue full (max 3 concurrent)")
 	testPaneKiller              func(paneID string) error //nolint:gochecknoglobals // test-overridable pane killer
 	testPaneVerifier            func(paneID string) error //nolint:gochecknoglobals // test-overridable pane verifier
 	testSpawnAckMaxWait         time.Duration             //nolint:gochecknoglobals // test-overridable ack-wait timeout
@@ -557,11 +556,8 @@ func postSpawnIntentAndWait(ctx context.Context, chatFilePath, name, paneID, int
 	return nil
 }
 
-// rejectDuplicateAgentName returns an error if the state file already contains an agent
-// with the given name, preventing duplicate spawns from creating orphan panes.
-// preSpawnGuards runs pre-spawn validation checks: duplicate name and worker queue limit.
-// preSpawnGuards reads the state file once and checks both duplicate name and
-// worker queue limit. Returns nil if no state file exists (first spawn).
+// preSpawnGuards runs pre-spawn validation: duplicate name check.
+// Returns nil if no state file exists (first spawn).
 func preSpawnGuards(stateFilePath, name string) error {
 	data, err := os.ReadFile(stateFilePath) //nolint:gosec
 	if errors.Is(err, os.ErrNotExist) {
@@ -581,10 +577,6 @@ func preSpawnGuards(stateFilePath, name string) error {
 		if record.Name == name {
 			return fmt.Errorf("%w: %s", errDuplicateAgentName, name)
 		}
-	}
-
-	if agentpkg.ActiveWorkerCount(state) >= agentpkg.MaxConcurrentWorkers {
-		return errWorkerQueueFull
 	}
 
 	return nil
