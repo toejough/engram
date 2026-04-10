@@ -124,6 +124,12 @@ This is a binary-side condition (empty memory directory); it is not an error.
 
 **Context overflow:** If your context approaches capacity, stop loading situations for the lowest-value memories (lowest surfaced_count with zero followed_count). Post a warning noting reduced coverage.
 
+## Watching for Messages
+
+All agents should watch and interpret `conversation` messages in addition to typed coordination signals:
+
+- **`conversation` messages**: Non-marker prose from a headless worker turn — the agent's natural output when no explicit marker was emitted. Watch and interpret alongside typed messages. The agent may be reasoning aloud, expressing confusion, or describing a problem without a formal marker. Surface relevant memories if the prose matches a known situation.
+
 ## Responding via Prefix Markers
 
 When you receive an intent in your turn context (delivered by the binary):

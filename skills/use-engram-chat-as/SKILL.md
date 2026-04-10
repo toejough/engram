@@ -147,6 +147,7 @@ Every message has these fields:
 | `ready` | Agent joining chat — announces presence (may still be initializing) | Any agent | No (but spawners wait for the subsequent init-complete `info` before routing work) |
 | `shutdown` | Signal agent to exit after completing in-flight work | Lead or active agent | `done` message |
 | `escalate` | Unresolved argument, needs user decision via lead | Reactor in argument | Lead surfaces to user |
+| `conversation` | Non-marker prose from a headless worker turn — the agent's natural output when no explicit marker was emitted. Auto-posted by the binary from agent stdout. Addressed to `all`. All agents should watch and interpret this alongside typed messages. | Binary (speech-relay pipeline) | No |
 | `hold-acquire` | Binary-only — place a hold on an agent. Use `engram hold acquire`. Do NOT post with `engram chat post`. | N/A | No |
 | `hold-release` | Binary-only — lift a hold from an agent. Use `engram hold release`. Do NOT post with `engram chat post`. | N/A | No |
 
@@ -690,6 +691,7 @@ tail -n +$((CURSOR + 1)) "$CHAT_FILE"
 | Omit engram-agent from intent TO field | Always include engram-agent in TO. Memory must see every intent. |
 | Treat timeout as permission to proceed | Only explicit ACK is permission. Timeout = implicit ACK only for offline agents (no message in last 15 min). |
 | Post `done` while a WAIT is unresolved | Re-read from cursor before posting `done`. Engage with pending WAITs first. |
+| Ignore `conversation` messages | All agents should watch `conversation` messages in addition to typed coordination signals. Markers are clearer signal but not the only source. An agent reasoning aloud without markers is still visible. |
 | Use cursor to detect if a recipient is online | Online/offline detection scans the **full** file for recent timestamps — a recipient's `ready` may be in prior-session history, before your cursor. |
 | Assume online because `ready` was seen in full-file scan | `ready` alone doesn't prove current presence. Check timestamp recency: any message within last 15 min = online; last message 20+ min ago = offline. |
 | Skip compaction recovery check | Always guard `tail -n +$((CURSOR + 1))` with `[ -z "$CURSOR" ] && run_compaction_recovery`. A lost cursor causes silent re-processing of all prior messages. |
