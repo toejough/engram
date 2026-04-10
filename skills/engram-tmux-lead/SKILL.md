@@ -21,9 +21,30 @@ The user's primary agent. All other agents are behind the scenes — the user ta
 
 **The ONLY commands the lead runs directly are:**
 - `engram agent` commands (spawn, kill, list, wait-ready)
-- `tmux` send-keys, capture-pane (for nudging and health checks only)
+- `tmux` send-keys, capture-pane (**last resort** — always read the chat file first; see Chat-First Diagnostics below)
 - Chat file operations (append to chat, read chat, background Bash monitor via `run_in_background: true`)
 - `grep` on the chat file to check agent status
+
+### Chat-First Diagnostics
+
+**HARD RULE: The chat file is the primary diagnostic source. `tmux capture-pane` is a last resort.**
+
+When an agent appears stuck, silent, or has not responded in the expected time:
+
+1. **Read the chat file from cursor first.**
+   ```bash
+   tail -n +$((CURSOR + 1)) "$CHAT_FILE" | tail -40
+   ```
+   Look for: `type = "wait"` (agent is blocked waiting for a response), `type = "conversation"` (agent reasoning aloud — may be mid-tool-call), `type = "intent"` (agent announced an action but you haven't ACKed), or any message with a recent timestamp.
+
+2. **If chat explains the silence** — the agent posted a WAIT, is in a long tool call, or is mid-intent cycle — engage with the protocol, not the terminal.
+
+3. **Only if chat has no messages from the agent since your cursor** — use `tmux capture-pane` to inspect the raw pane for crash output or stuck prompts:
+   ```bash
+   tmux capture-pane -t "$PANE_ID" -p -S -20
+   ```
+
+Skipping step 1 means you may interrupt an agent mid-task or misdiagnose a protocol event as a crash.
 
 **HARD GATE — parrot FIRST:** When the user sends a message, the lead's FIRST action is ALWAYS to post the user EXACT WORDS verbatim to chat as an `info` message — no summarization, no expansion, no interpretation. THEN decide how to route it. The engram-agent needs to see every user message — it may have relevant memories to surface. If you skip parroting, the memory system is blind.
 
@@ -151,8 +172,16 @@ NEW_CURSOR=$(echo "$WAIT_RESULT" | jq -r '.cursor')
 ```
 
 If the command times out (exit non-zero):
-1. Check pane exists: `tmux capture-pane -t "$PANE_ID" -p | tail -20`
-2. Report to user with diagnostic info. Do NOT silently proceed without memory.
+1. **Read chat from cursor** — check whether the agent posted anything since spawn:
+   ```bash
+   tail -n +$((PRE_SPAWN_CURSOR + 1)) "$CHAT_FILE" | tail -40
+   ```
+   If you see a `ready` message, `info`, `wait`, or `conversation` from `engram-agent`, engage with that before going further.
+2. **If chat shows nothing from the agent:** inspect the raw pane for crash output:
+   ```bash
+   tmux capture-pane -t "$PANE_ID" -p | tail -20
+   ```
+3. Report to user with diagnostic info (chat excerpt + pane output). Do NOT silently proceed without memory.
 
 ### 1.6 Post Ready
 
@@ -240,7 +269,17 @@ If max-wait exceeded with no match, return TIMEOUT.
 
 When the background task completes:
 - "AGENT DONE": update session cursor: `CURSOR=$(engram chat cursor)`.
-- TIMEOUT: agent may be stuck. Check via `tmux capture-pane -t "$PANE_ID" -p -S -20`. Transition to SILENT per Section 3.2.
+- TIMEOUT: agent may be stuck.
+  1. **Read chat from cursor** — check whether the agent posted a WAIT, conversation message, or long-running intent since the task was assigned:
+     ```bash
+     tail -n +$((CURSOR + 1)) "$CHAT_FILE" | tail -40
+     ```
+     If the agent posted a WAIT or is mid-intent cycle, engage with the protocol before treating this as SILENT.
+  2. **If chat shows no messages from the agent:** inspect raw pane output:
+     ```bash
+     tmux capture-pane -t "$PANE_ID" -p -S -20
+     ```
+  3. Transition to SILENT per Section 3.2.
 
 **Track pane IDs, not window names.** The lead maintains a mapping of agent-name → pane-ID for targeting nudge (send-keys, capture-pane) and kill (`engram agent kill`) operations.
 
