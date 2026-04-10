@@ -245,6 +245,19 @@ assert_contains "Section 2.1 TIMEOUT reads chat first" "Read chat from cursor"
 echo ""
 
 # ---------------------------------------------------------------------------
+# Group 10: Post-drain sweep reads full message text (#540)
+# ---------------------------------------------------------------------------
+
+echo "--- Group 10: Post-drain sweep reads full message text ---"
+
+assert_contains "Lead reads full text in post-drain sweep" "Read the full"
+assert_contains "Conversation messages handled in sweep" "natural-prose signals"
+assert_contains "Natural-prose coordination signals mentioned" "natural-prose coordination signals"
+assert_contains "Wait handled immediately in sweep" "engage immediately"
+
+echo ""
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
