@@ -192,7 +192,11 @@ Post your `ready` message to chat. Then tell the user you're ready and what agen
 1. After each user interaction, **replace** the chat monitor Bash task (see drain-before-spawn pattern below)
 2. If the monitor Bash task fires (agent posted something):
    a. **ACK any `intent` messages** in the post-drain sweep `new_lines` that are addressed to `lead` or `all` — before any other processing. Extract `from` and `thread` from the TOML block; post `type = "ack"`, `to = <from-field>`, `thread = <thread-field>`, `text = "Received."`.
-   b. Process the chat message — relay questions to the user, handle agent status updates, route tasks, etc.
+   b. Read the full `text` field of each message — not just headers — before routing or relaying. Per type:
+      - **`conversation`**: headless worker natural prose. The primary vehicle for natural-prose coordination signals from headless agents. Scan for questions, blockers, and decisions. **Never skip these.**
+      - **`wait`**: engage immediately. Read `text` before anything else — this is an active blocker.
+      - **`done` / `info` / `learned`**: read `text` for status, facts, and outcomes. Relay to user when significant.
+      - **`intent`**: already ACKed in step 2a. Read `text` to understand the planned action for routing context.
 3. If the user types first, process the user message — parrot to chat, route to an agent
 4. After processing either, replace the chat monitor Bash task (drain old → spawn new)
 
@@ -213,7 +217,16 @@ if new_lines.strip():
     # ACK any intents addressed to lead or all — BEFORE routing/relay:
     for intent in toml_blocks(new_lines, type="intent", to_includes=["lead", "all"]):
         post_ack(to=intent.from, thread=intent.thread, text="Received.")
-    process_chat_messages(new_lines)   # relay, route, or queue as normal
+    # Read full text of each message — not just headers:
+    for msg in toml_blocks(new_lines):
+        if msg.type == "conversation":
+            relay_or_flag_if_significant(msg.from_, msg.text)  # natural-prose signals
+        elif msg.type == "wait":
+            handle_wait_immediately(msg.from_, msg.thread, msg.text)
+        elif msg.type in ("done", "info", "learned"):
+            relay_or_route_if_significant(msg.from_, msg.text)
+        elif msg.type == "intent":
+            pass  # already ACKed above; text informs routing context
 
 # Spawn replacement (Bash tool, run_in_background: true — embed CURSOR as literal integer):
 CHAT_MONITOR_TASK_ID = Bash(
@@ -928,7 +941,16 @@ if new_lines.strip():
     # ACK any intents addressed to lead or all — BEFORE routing/relay:
     for intent in toml_blocks(new_lines, type="intent", to_includes=["lead", "all"]):
         post_ack(to=intent.from, thread=intent.thread, text="Received.")
-    process_chat_messages(new_lines)   # relay, route, or queue as normal
+    # Read full text of each message — not just headers:
+    for msg in toml_blocks(new_lines):
+        if msg.type == "conversation":
+            relay_or_flag_if_significant(msg.from_, msg.text)  # natural-prose signals
+        elif msg.type == "wait":
+            handle_wait_immediately(msg.from_, msg.thread, msg.text)
+        elif msg.type in ("done", "info", "learned"):
+            relay_or_route_if_significant(msg.from_, msg.text)
+        elif msg.type == "intent":
+            pass  # already ACKed above; text informs routing context
 
 # Spawn replacement background Bash monitor (Bash tool, run_in_background: true):
 # Embed CURSOR as a literal integer, NOT a shell variable:
