@@ -151,54 +151,13 @@ Every message has these fields:
 | `hold-acquire` | Binary-only — place a hold on an agent. Use `engram hold acquire`. Do NOT post with `engram chat post`. | N/A | No |
 | `hold-release` | Binary-only — lift a hold from an agent. Use `engram hold release`. Do NOT post with `engram chat post`. | N/A | No |
 
-## Watching for Messages
+## Cursor Tracking
 
-Delegate all chat monitoring to a background Agent — do **not** run `fswatch`, cursor tracking, or grep operations as direct Bash tool calls in the main agent context. These produce visible bash tool-call noise in the agent pane. All monitoring belongs inside a background subagent where it is invisible.
-
-**Background Monitor Pattern:**
-
-> **VERBATIM TEMPLATE** — Copy the prompt block below **exactly** into your Agent tool call. Do not paraphrase, summarize, or replace `engram chat watch` with grep, awk, sleep-polling, or any other approach. The exact command and parse steps are required; improvised alternatives produce brittle polling loops.
-
-Spawn a monitoring Agent (`Agent` tool, `run_in_background: true`) with this task:
-
-```
-Monitor engram chat file for the next matching message.
-CHAT_FILE: [full path — embed as literal string, not a variable]
-CURSOR: [current cursor — embed as integer literal, not a shell variable]
-AGENT_NAME: [the agent name to filter messages for]
-
-1. Run foreground bash: RESULT=$(engram chat watch --agent AGENT_NAME --cursor CURSOR)
-   (Blocks until a matching message arrives — kernel-driven via fsnotify, no polling.)
-2. Parse JSON result:
-   TYPE=$(echo "$RESULT" | jq -r '.type')
-   FROM=$(echo "$RESULT" | jq -r '.from')
-   CURSOR=$(echo "$RESULT" | jq -r '.cursor')
-   TEXT=$(echo "$RESULT" | jq -r '.text')
-   # Background Agent subagents can parse JSON natively without jq.
-3. Return the TYPE, FROM, new CURSOR, and TEXT.
-4. If still watching: go back to step 1 with the new cursor.
-```
-
-**Main agent loop:**
-1. Spawn background monitor Agent (embed current cursor as integer literal)
-2. **Do NOT complete your turn** — wait for the Agent notification
-3. When notified: parse the JSON result (type, from, cursor, text), process, act
-4. Spawn new monitor Agent with the cursor value from the JSON result
-5. Repeat — **ALWAYS**, even after completing a task
-
-**CRITICAL:** Between notifications you are idle but NOT done. Completing your turn breaks the loop and drops all future messages.
-
-**Never exit the watch until the user explicitly dismisses you or you receive a `shutdown` message.**
-
-### Reading New Content
-
-> **Note:** The cursor pattern below is what background monitoring Agents use internally. The main agent does not run these bash commands directly — it embeds cursor values as integer literals when spawning monitoring Agents.
+Track where you left off to avoid matching messages from prior sessions.
 
 **HARD RULE: NEVER grep or search the full chat file to check for agent responses.** The chat file is persistent and grows across sessions. Grepping the full file matches messages from old sessions, causing false positives — you'll see agents as "done" when they haven't started, or relay stale content as if it were new output. This is a critical reliability bug.
 
-**Scope note:** Online/offline presence detection is the one exception — it scans the full file by design to find the recipient's most recent timestamp across all sessions. This is not checking for responses to your intent; it is determining whether the recipient is active. All other response checking (ACK, WAIT, done) must use the cursor.
-
-Track where you left off by line number:
+**Online/offline presence detection** is the one exception — it scans the full file by design to find the recipient's most recent timestamp. All other response checking (ACK, WAIT, done) must use the cursor.
 
 ```bash
 # Initialize cursor: record current end-of-file BEFORE starting work or posting ready.
@@ -214,18 +173,18 @@ CURSOR=$(engram chat cursor)
 **Wrong:**
 ```bash
 grep -q 'type = "done"' "$CHAT_FILE"          # BUG: matches old messages from prior sessions
-grep 'from = "agent-1"' "$CHAT_FILE"           # BUG: matches old messages from prior sessions
 ```
 
 **Right:**
 ```bash
 tail -n +$((CURSOR + 1)) "$CHAT_FILE" | grep -q 'type = "done"'   # only new messages
-tail -n +$((CURSOR + 1)) "$CHAT_FILE" | grep 'from = "agent-1"'   # only new messages
 ```
 
 ### Joining Late
 
-If you join a channel that already has messages: post `ready` first to announce presence, then read history to catch up, then spawn the monitor and post the init-complete `info`. Do not read history before posting `ready` — observers cannot distinguish a late-starting agent from a dead one during the silence.
+If you join a channel that already has messages: post `ready` first to announce presence, then read history to catch up, then post the init-complete `info`. Do not read history before posting `ready` — observers cannot distinguish a late-starting agent from a dead one during the silence.
+
+**Persistent watch loops** (blocking indefinitely for incoming messages) are the lead orchestrator's responsibility — see `engram:engram-tmux-lead`. Non-lead agents respond to what's delivered to them and exit; the binary or lead handles re-invocation.
 
 ## Intent Protocol
 
@@ -297,9 +256,7 @@ If RESULT_TYPE=TIMEOUT: recipient is online but silent. Post escalate to lead.
 
 HARD RULE: Capture `PRE_CURSOR=$(engram chat cursor)` BEFORE posting the intent. Pass this cursor to ack-wait. Any ACK posted between your intent-post and ack-wait-start is safe because the cursor was captured first.
 
-Two-pattern distinction:
-- Active agent blocking on ack-wait (bounded): call `engram chat ack-wait` directly as Bash tool.
-- Reactive agent watching for incoming messages (indefinite): use Background Monitor Pattern.
+Note: `engram chat ack-wait` is bounded — it returns after all recipients respond or timeout. It is the right tool for active agents waiting on their own intent. Indefinite watching (blocking until any message arrives) is the lead orchestrator's role; see `engram:engram-tmux-lead`.
 
 ### Intent Messages
 
