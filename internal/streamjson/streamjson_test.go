@@ -54,6 +54,38 @@ func TestDetectSpeechMarkers_WaitWithRecipient_Detected(t *testing.T) {
 	g.Expect(markers[0].Text).To(ContainSubstring("I have a concern"))
 }
 
+func TestNonMarkerText_EmptyInput_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+	g.Expect(streamjson.NonMarkerText("")).To(Equal(""))
+}
+
+func TestNonMarkerText_ProseBeforeMarker_ReturnsProse(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+	text := "Here is my thinking.\nINTENT: Situation: X."
+	g.Expect(streamjson.NonMarkerText(text)).To(Equal("Here is my thinking."))
+}
+
+func TestNonMarkerText_PureProse_ReturnsAll(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+	text := "I am confused about what to do next.\nMaybe try option B."
+	g.Expect(streamjson.NonMarkerText(text)).To(Equal(text))
+}
+
+func TestNonMarkerText_StartsWithMarker_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+	g.Expect(streamjson.NonMarkerText("INTENT: Situation: X.")).To(Equal(""))
+}
+
+func TestNonMarkerText_WhitespaceOnly_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+	g.Expect(streamjson.NonMarkerText("   \n  ")).To(Equal(""))
+}
+
 func TestParse_AssistantEvent_ExtractsSessionIDAndText(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)

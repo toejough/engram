@@ -72,6 +72,26 @@ func DetectSpeechMarkers(text string) []SpeechMarker {
 	return markers
 }
 
+// NonMarkerText returns the text from an assistant turn that precedes the first
+// speech marker. If there are no markers, the entire trimmed text is returned.
+// If the turn begins with a marker, empty string is returned.
+func NonMarkerText(text string) string {
+	lines := strings.Split(text, "\n")
+
+	var proseLines []string
+
+	for _, line := range lines {
+		_, _, found := detectPrefix(line)
+		if found {
+			break
+		}
+
+		proseLines = append(proseLines, line)
+	}
+
+	return strings.TrimSpace(strings.Join(proseLines, "\n"))
+}
+
 // Parse parses one JSONL line into an Event.
 // Returns an error for malformed JSON or empty input.
 func Parse(line []byte) (Event, error) {
