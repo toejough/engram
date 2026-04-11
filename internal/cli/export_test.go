@@ -142,7 +142,7 @@ func ExportRunConversationLoopWithStateHook(
 	}
 
 	return runConversationLoopWith(
-		ctx, runner, flags, chatFile, stateFile,
+		ctx, runner, name, prompt, chatFile, stateFile,
 		claudeBinary, stdout, promptBuilder,
 		watchForIntent, memFileSelector,
 	)
