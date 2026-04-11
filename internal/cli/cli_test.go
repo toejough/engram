@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -3447,6 +3448,83 @@ func TestRunConversationLoopWith_ChannelReceivesIntent(t *testing.T) {
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(watchForIntentCalled).To(BeFalse(), "watchForIntent must not be called when intents channel is provided")
+}
+
+// TestRunConversationLoopWith_EmptyPromptDispatchMode_WaitsForFirstIntent verifies that
+// when initialPrompt is empty (dispatch mode), the worker does NOT call claude before the
+// first intent arrives. It should write SILENT state and wait on the intents channel first.
+func TestRunConversationLoopWith_EmptyPromptDispatchMode_WaitsForFirstIntent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane-id = \"\"\n" +
+		"session-id = \"\"\nstate = \"STARTING\"\nspawned-at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	// fakeClaude writes a sentinel file on first invocation so the test can detect early calls.
+	fakeClaude := filepath.Join(dir, "claude")
+	sentinelFile := filepath.Join(dir, "invoked")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\ntouch " + sentinelFile + "\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	intents := make(chan chat.Message, 1)
+	silentCh := make(chan string, 2) //nolint:gomnd // buffer for initial + post-session signals
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// invokedBeforeIntent is true if claude ran before the intent was sent.
+	var invokedBeforeIntent atomic.Bool
+
+	go func() {
+		// Wait for worker to signal SILENT (it is now waiting for first intent).
+		select {
+		case <-silentCh:
+		case <-ctx.Done():
+			return
+		}
+
+		// At this point, claude must NOT have been called yet.
+		if _, statErr := os.Stat(sentinelFile); statErr == nil {
+			invokedBeforeIntent.Store(true)
+		}
+
+		// Send the first intent; worker should now run its session.
+		intents <- chat.Message{From: "lead", To: "worker-1", Type: "intent", Text: "do task"}
+
+		// Wait for post-session SILENT signal, then cancel the context.
+		select {
+		case <-silentCh:
+		case <-ctx.Done():
+			return
+		}
+
+		cancel()
+	}()
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+	memFileSelector := func(_ string, _ int) ([]string, error) { return nil, nil }
+
+	err := cli.ExportRunConversationLoopWithChannel(
+		ctx, "worker-1", "" /* empty prompt = dispatch mode */, chatFile, stateFile, fakeClaude,
+		io.Discard, stubBuilder, nil, intents, silentCh, memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(invokedBeforeIntent.Load()).To(BeFalse(), "claude must not be invoked before first intent arrives")
+
+	// Sentinel file must exist (claude was invoked once, after the intent).
+	_, sentinelErr := os.Stat(sentinelFile)
+	g.Expect(sentinelErr).NotTo(HaveOccurred(), "claude must have been invoked after intent")
 }
 
 // ============================================================

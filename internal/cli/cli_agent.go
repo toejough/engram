@@ -1200,31 +1200,45 @@ func runConversationLoopWith(
 ) error {
 	prompt := initialPrompt
 	sessionID := ""
+	cursor := 0
 
 	for {
-		result, _, cursor, err := runWithinSessionLoop(
-			ctx, runner, prompt, sessionID,
-			agentName, chatFilePath, claudeBinary,
-			stdout, promptBuilder,
-		)
-		if err != nil {
-			// Context cancellation during session = clean exit.
-			if ctx.Err() != nil {
-				return nil //nolint:nilerr // ctx cancel is a clean shutdown
+		// Dispatch mode with no initial prompt: skip first session, wait for intent.
+		// Workers start with empty prompt and must receive their first intent before
+		// running a Claude session. Standalone mode always has a non-empty initial prompt.
+		if prompt != "" {
+			var result claudepkg.StreamResult
+
+			var err error
+
+			result, _, cursor, err = runWithinSessionLoop(
+				ctx, runner, prompt, sessionID,
+				agentName, chatFilePath, claudeBinary,
+				stdout, promptBuilder,
+			)
+			if err != nil {
+				// Context cancellation during session = clean exit.
+				if ctx.Err() != nil {
+					return nil //nolint:nilerr // ctx cancel is a clean shutdown
+				}
+
+				return err
 			}
 
-			return err
+			// No outer watch loop: Phase 4 exit behavior.
+			if watchForIntent == nil && intents == nil {
+				return nil
+			}
+
+			_ = result
 		}
 
-		// No outer watch loop: Phase 4 exit behavior.
-		if watchForIntent == nil && intents == nil {
-			return nil
-		}
+		// Phase 5/6: watch for next intent after session ends (or on first iteration).
+		var err error
 
-		// Phase 5/6: watch for next intent after session ends.
 		prompt, err = watchAndResume(
 			ctx, agentName, chatFilePath, stateFilePath,
-			cursor, result, stdout,
+			cursor, claudepkg.StreamResult{}, stdout,
 			watchForIntent, intents, silentCh, memFileSelector, os.ReadFile,
 		)
 		if err != nil {
