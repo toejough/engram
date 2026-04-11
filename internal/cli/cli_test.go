@@ -1301,6 +1301,151 @@ func TestOuterWatchLoop_WriteStateSilentAfterSession(t *testing.T) {
 	g.Expect(string(data)).To(ContainSubstring(`state = "SILENT"`))
 }
 
+// TestOuterWatchLoop_WatchForIntentCursorMatchesEndOfSession is a property-based test
+// verifying that the cursor passed to watchForIntent equals the chat-file line count
+// (chatFileCursor result) at the end of the prior session, for any initial file size.
+// A regression hardcoding cursor=0 would fail this test for any non-trivial content.
+func TestOuterWatchLoop_WatchForIntentCursorMatchesEndOfSession(t *testing.T) {
+	t.Parallel()
+
+	// Fake claude binary shared across all rapid cases: emits DONE immediately.
+	claudeDir := t.TempDir()
+	fakeClaude := filepath.Join(claudeDir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	if writeErr := os.WriteFile(fakeClaude, []byte(script), 0o700); writeErr != nil {
+		t.Fatal(writeErr)
+	}
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		// Generate a random number of content lines [1, 20].
+		numLines := rapid.IntRange(1, 20).Draw(rt, "numLines")
+		content := strings.Repeat("comment\n", numLines)
+		// chatFileCursor = len(strings.Split(content, "\n")) — same formula as production code.
+		expectedCursor := len(strings.Split(content, "\n"))
+
+		// Each rapid case gets its own temp dir to avoid cross-case interference.
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+		stateFile := filepath.Join(dir, "state.toml")
+
+		g.Expect(os.WriteFile(chatFile, []byte(content), 0o600)).To(Succeed())
+		g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// watchForIntent captures the cursor it receives, then cancels ctx (clean exit).
+		var capturedCursor int
+		watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+			capturedCursor = cursor
+			cancel()
+
+			return chat.Message{}, 0, context.Canceled
+		}
+
+		err := cli.ExportRunConversationLoopWith(
+			ctx,
+			"worker-1", "hello", chatFile, stateFile, fakeClaude,
+			io.Discard,
+			func(_ context.Context, _, _ string, _ int) (string, error) { return "Proceed.", nil },
+			watchForIntent,
+			nil,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(capturedCursor).To(Equal(expectedCursor),
+			"cursor passed to watchForIntent must equal chatFileCursor of chat file (numLines=%d)", numLines)
+	})
+}
+
+// TestOuterWatchLoop_CursorNotResetBetweenSessions verifies that across two outer-loop
+// iterations, the cursor passed to watchForIntent in each iteration is non-zero and
+// matches the chat-file state. Confirms the outer loop does not reset cursor to 0
+// between sessions.
+func TestOuterWatchLoop_CursorNotResetBetweenSessions(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	// Five lines of content — chatFileCursor = len(strings.Split(content, "\n")) = 6.
+	const numLines = 5
+	content := strings.Repeat("comment\n", numLines)
+	expectedCursor := len(strings.Split(content, "\n"))
+
+	g.Expect(os.WriteFile(chatFile, []byte(content), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	// Fake claude emits DONE on every call.
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// watchForIntent captures cursor for calls 1 and 2; cancels ctx on call 2.
+	var cursor1, cursor2 int
+
+	callCount := 0
+	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		callCount++
+
+		if callCount == 1 {
+			cursor1 = cursor
+
+			return chat.Message{
+				From: "lead",
+				Type: "intent",
+				Text: "Resume now.",
+			}, cursor + 1, nil
+		}
+
+		cursor2 = cursor
+		cancel()
+
+		return chat.Message{}, 0, context.Canceled
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		func(_ context.Context, _, _ string, _ int) (string, error) { return "Proceed.", nil },
+		watchForIntent,
+		nil,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(callCount).To(Equal(2), "watchForIntent must be called exactly twice")
+	g.Expect(cursor1).To(BeNumerically(">", 0), "first watchForIntent cursor must be non-zero")
+	g.Expect(cursor1).To(Equal(expectedCursor), "cursor1 must match chatFileCursor of initial content")
+	g.Expect(cursor2).To(BeNumerically(">", 0), "second watchForIntent cursor must be non-zero")
+	g.Expect(cursor2).To(BeNumerically(">=", cursor1), "cursor must not go backward — outer loop must not reset cursor to 0 between sessions")
+}
+
 func TestOutputAckResult_FailWriter_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
