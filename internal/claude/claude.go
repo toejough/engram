@@ -32,7 +32,8 @@ type Runner struct {
 // markers to chat via Poster, calls WriteSessionID on the first event, and returns
 // a StreamResult describing what was detected. The stream ends when src returns io.EOF.
 func (r *Runner) ProcessStream(src io.Reader) (StreamResult, error) {
-	scanner := bufio.NewScanner(src)
+	tracker := &lineTracker{src: src, pane: r.Pane}
+	scanner := bufio.NewScanner(tracker)
 
 	var result StreamResult
 
@@ -58,7 +59,8 @@ func (r *Runner) ProcessStream(src io.Reader) (StreamResult, error) {
 
 	scanErr := scanner.Err()
 	if scanErr != nil {
-		return result, fmt.Errorf("scanning stream: %w", scanErr)
+		return result, fmt.Errorf("scanning stream (~%d bytes in current line, max completed line: %d bytes): %w",
+			tracker.currentLine, tracker.maxLine, scanErr)
 	}
 
 	return result, nil
@@ -193,6 +195,42 @@ type StreamResult struct {
 	WaitDetected   bool   // true if a WAIT: prefix marker was detected
 	ReadyDetected  bool   // true if a READY: prefix marker was detected (triggers STARTING→ACTIVE)
 	SessionID      string // Claude conversation UUID extracted from the first JSONL event
+}
+
+// unexported constants.
+const (
+	lineWarnThreshold = 32 * 1024
+)
+
+// lineTracker wraps an io.Reader, counting bytes per line so ProcessStream can
+// report large-line warnings and include size context in ErrTooLong errors.
+type lineTracker struct {
+	src         io.Reader
+	pane        io.Writer
+	currentLine int // bytes accumulated in the line currently being read
+	maxLine     int // largest completed line seen so far
+}
+
+func (t *lineTracker) Read(p []byte) (int, error) {
+	n, err := t.src.Read(p)
+
+	for _, b := range p[:n] {
+		if b == '\n' {
+			if t.currentLine > lineWarnThreshold {
+				_, _ = fmt.Fprintf(t.pane, "[engram] warning: large JSONL line: %d bytes\n", t.currentLine)
+			}
+
+			if t.currentLine > t.maxLine {
+				t.maxLine = t.currentLine
+			}
+
+			t.currentLine = 0
+		} else {
+			t.currentLine++
+		}
+	}
+
+	return n, err //nolint:wrapcheck // io.Reader contract requires unwrapped errors (io.EOF, etc.)
 }
 
 // markerToMsgType converts a speech prefix to a chat message type.
