@@ -123,6 +123,21 @@ func ExportWaitAndBuildPromptWith(
 	return waitAndBuildPromptWith(ctx, agentName, cursor, waiter)
 }
 
+// ExportWatchAndResume calls watchAndResume with all injectable dependencies for testing.
+func ExportWatchAndResume(
+	ctx context.Context,
+	agentName, chatFilePath, stateFilePath string,
+	cursor int,
+	result claudepkg.StreamResult,
+	stdout io.Writer,
+	watchForIntent func(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error),
+	memFileSelector func(homeDir string, maxFiles int) ([]string, error),
+) (string, error) {
+	return watchAndResume(
+		ctx, agentName, chatFilePath, stateFilePath, cursor, result, stdout, watchForIntent, memFileSelector,
+	)
+}
+
 // SetTestPaneKiller installs a test-only pane killer and serializes parallel tests
 // that override the same global. The caller must not defer a nil reset — cleanup is
 // handled automatically via t.Cleanup.

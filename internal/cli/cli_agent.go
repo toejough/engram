@@ -1332,7 +1332,14 @@ func watchAndResume(
 	if memFileSelector != nil {
 		home, homeErr := os.UserHomeDir()
 		if homeErr == nil {
-			memFiles, _ = memFileSelector(home, resumeMemoryFileLimit)
+			var memErr error
+
+			memFiles, memErr = memFileSelector(home, resumeMemoryFileLimit)
+			if memErr != nil {
+				_, _ = fmt.Fprintf(stdout,
+					"[engram] warning: failed to select memory files: %v\n",
+					memErr)
+			}
 		}
 	}
 

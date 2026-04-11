@@ -21,6 +21,7 @@ import (
 
 	agentpkg "engram/internal/agent"
 	"engram/internal/chat"
+	claudepkg "engram/internal/claude"
 	"engram/internal/cli"
 )
 
@@ -4477,6 +4478,143 @@ func TestWaitAndBuildPrompt_RealWaiter_ACK(t *testing.T) {
 	g.Expect(prompt).To(Equal("Proceed."))
 }
 
+// TestWatchAndResume_MemFileSelectorError_LogsWarning is a property-based test.
+// For any arbitrary error message, when memFileSelector returns that error,
+// the warning written to stdout must contain the error text.
+func TestWatchAndResume_MemFileSelectorError_LogsWarning(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		stateFilePath, watchForIntent := makeWatchAndResumeFixture(t)
+
+		errMsg := rapid.StringOf(
+			rapid.RuneFrom([]rune(
+				"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 :/-_.",
+			)),
+		).Filter(func(s string) bool { return len(s) > 0 }).Draw(rt, "errMsg")
+
+		memFileSelector := func(_ string, _ int) ([]string, error) {
+			return nil, errors.New(errMsg)
+		}
+
+		var stdout bytes.Buffer
+
+		_, err := cli.ExportWatchAndResume(
+			context.Background(),
+			"test-agent", "chat.toml", stateFilePath, 0,
+			claudepkg.StreamResult{}, &stdout,
+			watchForIntent, memFileSelector,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(stdout.String()).To(ContainSubstring(errMsg),
+			"expected warning to contain the error message")
+		g.Expect(stdout.String()).To(ContainSubstring("[engram] warning: failed to select memory files:"),
+			"expected warning prefix")
+	})
+}
+
+// TestWatchAndResume_MemFileSelectorError_MemFilesEmpty verifies that when
+// memFileSelector returns an error, the resume prompt has an empty MEMORY_FILES
+// section (fallback to no files preserved).
+func TestWatchAndResume_MemFileSelectorError_MemFilesEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	stateFilePath, watchForIntent := makeWatchAndResumeFixture(t)
+
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return nil, errors.New("reading directory /nonexistent: no such file or directory")
+	}
+
+	var stdout bytes.Buffer
+
+	prompt, err := cli.ExportWatchAndResume(
+		context.Background(),
+		"test-agent", "chat.toml", stateFilePath, 0,
+		claudepkg.StreamResult{}, &stdout,
+		watchForIntent, memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// MEMORY_FILES section should be present but empty (no file paths listed).
+	// buildResumePrompt writes "MEMORY_FILES:\n" followed by one path per line.
+	// When memFiles is nil, the section header is followed immediately by INTENT_FROM.
+	g.Expect(prompt).To(ContainSubstring("MEMORY_FILES:\nINTENT_FROM:"),
+		"expected MEMORY_FILES section to be empty when selector errors")
+}
+
+// TestWatchAndResume_MemFileSelectorError_ReturnsSuccessAndPrompt verifies that
+// when memFileSelector returns an error, watchAndResume still returns a non-error
+// result and a prompt containing the intent sender and text.
+func TestWatchAndResume_MemFileSelectorError_ReturnsSuccessAndPrompt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	stateFilePath, watchForIntent := makeWatchAndResumeFixture(t)
+
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return nil, errors.New("stat /nonexistent: no such file or directory")
+	}
+
+	var stdout bytes.Buffer
+
+	prompt, err := cli.ExportWatchAndResume(
+		context.Background(),
+		"test-agent", "chat.toml", stateFilePath, 0,
+		claudepkg.StreamResult{}, &stdout,
+		watchForIntent, memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(prompt).To(ContainSubstring("INTENT_FROM: sender-agent"))
+	g.Expect(prompt).To(ContainSubstring("INTENT_TEXT: Situation: test. Behavior: test."))
+}
+
+// TestWatchAndResume_MemFileSelectorSuccess_NoWarning verifies that when
+// memFileSelector returns nil error, no warning is written to stdout.
+func TestWatchAndResume_MemFileSelectorSuccess_NoWarning(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	stateFilePath, watchForIntent := makeWatchAndResumeFixture(t)
+
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return []string{"/home/user/.local/share/engram/memory/facts/fact1.toml"}, nil
+	}
+
+	var stdout bytes.Buffer
+
+	_, err := cli.ExportWatchAndResume(
+		context.Background(),
+		"test-agent", "chat.toml", stateFilePath, 0,
+		claudepkg.StreamResult{}, &stdout,
+		watchForIntent, memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).NotTo(ContainSubstring("failed to select memory files"),
+		"expected no warning when selector succeeds")
+}
+
 // ============================================================
 
 func TestWriteKilledLine_FailingWriter_ReturnsError(t *testing.T) {
@@ -4540,4 +4678,30 @@ type stubAckWaiter struct {
 
 func (s *stubAckWaiter) AckWait(_ context.Context, _ string, _ int, _ []string) (chat.AckResult, error) {
 	return s.result, s.err
+}
+
+// ============================================================
+// watchAndResume memFileSelector error logging tests (issue 547)
+// ============================================================
+
+// makeWatchAndResumeFixture creates a minimal temp dir and stub functions for
+// ExportWatchAndResume tests. watchForIntent returns a single intent message then
+// blocks forever (ctx cancel stops it). stateFilePath is pre-populated.
+func makeWatchAndResumeFixture(t *testing.T) (
+	stateFilePath string,
+	watchForIntent func(context.Context, string, string, int) (chat.Message, int, error),
+) {
+	t.Helper()
+
+	dir := t.TempDir()
+	stateFilePath = filepath.Join(dir, "state.toml")
+
+	watchForIntent = func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		return chat.Message{
+			From: "sender-agent",
+			Text: "Situation: test. Behavior: test.",
+		}, cursor + 5, nil
+	}
+
+	return stateFilePath, watchForIntent
 }
