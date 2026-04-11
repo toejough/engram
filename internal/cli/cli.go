@@ -256,6 +256,7 @@ func makeAnthropicCaller(
 	token string,
 ) func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
 	client := newAnthropicClient(token)
+
 	return client.Caller(anthropicMaxTokens)
 }
 
@@ -300,6 +301,7 @@ func newTokenResolver() *tokenresolver.Resolver {
 		os.Getenv,
 		func(ctx context.Context, name string, args ...string) ([]byte, error) {
 			cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // platform-internal cmd, not user input
+
 			return cmd.Output()
 		},
 		runtime.GOOS,
@@ -429,6 +431,7 @@ func resolveChatFile(
 // tokenresolver.Resolve is documented to never return a non-nil error.
 func resolveToken(ctx context.Context) string {
 	token, _ := newTokenResolver().Resolve(ctx)
+
 	return token
 }
 

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -21,9 +22,27 @@ import (
 	claudepkg "engram/internal/claude"
 )
 
+// ResumePromptArgs holds all fields for buildResumePrompt.
+// Using a struct prevents positional-parameter bugs when new fields are added
+// (Phase 6 adds 7 new fields vs Phase 5's 4 — per ARCH-A4).
+type ResumePromptArgs struct {
+	AgentName       string
+	Cursor          int
+	MemFiles        []string
+	IntentFrom      string
+	IntentText      string
+	RecentIntents   []string // from selectRecentIntents; nil → "(none)"
+	ResumeReason    string   // "intent" | "wait" | "shutdown"
+	WaitFrom        string   // populated when ResumeReason == "wait"
+	WaitText        string   // populated when ResumeReason == "wait"
+	ArgumentTurn    int      // populated when ResumeReason == "wait"
+	LearnedMessages []string // from collectLearned; nil → "(none)"
+}
+
 // unexported constants.
 const (
 	agentRunAckMaxWait    = 30 * time.Second
+	maxArgumentTurns      = 3
 	resumeMemoryFileLimit = 20
 	spawnAckMaxWait       = 30 * time.Second
 	stateFileLockDelay    = 25 * time.Millisecond
@@ -86,6 +105,40 @@ type spawnFunc = func(ctx context.Context, name, prompt string) (paneID, session
 // Phase 5: hardcoded to "engram-agent". Phase 6: routing table calls same type.
 type watchForIntentFunc func(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error)
 
+// awaitNextIntent blocks until the next intent message is available.
+// In dispatch mode (intents != nil), reads from the channel.
+// In standalone mode, watches the chat file via watchForIntent.
+// Returns the intent message and updated cursor, or an error.
+func awaitNextIntent(
+	ctx context.Context,
+	agentName, chatFilePath string,
+	cursor int,
+	intents <-chan chat.Message,
+	watchForIntent watchForIntentFunc,
+) (chat.Message, int, error) {
+	if intents != nil {
+		// Dispatch mode: read next intent from channel (dispatchLoop is responsible for cursor).
+		select {
+		case <-ctx.Done():
+			return chat.Message{}, cursor, ctx.Err() //nolint:wrapcheck // ctx cancel = clean exit
+		case msg := <-intents:
+			return msg, cursor, nil // cursor advancing is dispatch's responsibility
+		}
+	}
+
+	// Standalone mode: watch chat file for next intent addressed to this agent.
+	msg, newCursor, err := watchForIntent(ctx, agentName, chatFilePath, cursor)
+	if err != nil {
+		if ctx.Err() != nil {
+			return chat.Message{}, cursor, ctx.Err() //nolint:wrapcheck // clean exit
+		}
+
+		return chat.Message{}, cursor, fmt.Errorf("agent run: watch: %w", err)
+	}
+
+	return msg, newCursor, nil
+}
+
 // buildAgentRunner constructs the claude.Runner for the given agent run flags.
 func buildAgentRunner(flags agentRunFlags, stateFilePath, chatFilePath string, stdout io.Writer) claudepkg.Runner {
 	poster := newFilePoster(chatFilePath)
@@ -99,6 +152,7 @@ func buildAgentRunner(flags agentRunFlags, stateFilePath, chatFilePath string, s
 				for index, rec := range stateFileArg.Agents {
 					if rec.Name == flags.name {
 						stateFileArg.Agents[index].SessionID = sessionID
+
 						return stateFileArg
 					}
 				}
@@ -144,21 +198,48 @@ func buildClaudeCmd(ctx context.Context, prompt, sessionID, claudeBinary string)
 	)
 }
 
-// buildResumePrompt constructs the resume prompt for a stateless engram-agent invocation.
-// Format is defined by Phase 5 codesign (Item 6 from Phase 4 Post-Phase-4 doc).
-func buildResumePrompt(cursor int, memFiles []string, intentFrom, intentText string) string {
+// buildResumePrompt constructs the resume prompt for a stateless agent invocation.
+// Format is defined by Phase 5 codesign extended with Phase 6 fields (ARCH-A4).
+func buildResumePrompt(args ResumePromptArgs) string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "CURSOR: %d\n", cursor)
+	fmt.Fprintf(&b, "AGENT_NAME: %s\n", args.AgentName)
+	fmt.Fprintf(&b, "CURSOR: %d\n", args.Cursor)
 	b.WriteString("MEMORY_FILES:\n")
 
-	for _, f := range memFiles {
+	for _, f := range args.MemFiles {
 		b.WriteString(f)
 		b.WriteByte('\n')
 	}
 
-	fmt.Fprintf(&b, "INTENT_FROM: %s\n", intentFrom)
-	fmt.Fprintf(&b, "INTENT_TEXT: %s\n", intentText)
+	fmt.Fprintf(&b, "INTENT_FROM: %s\n", args.IntentFrom)
+	fmt.Fprintf(&b, "INTENT_TEXT: %s\n", args.IntentText)
+
+	if len(args.RecentIntents) > 0 {
+		fmt.Fprintf(&b, "RECENT_INTENTS: %s\n", strings.Join(args.RecentIntents, " | "))
+	} else {
+		b.WriteString("RECENT_INTENTS: (none)\n")
+	}
+
+	fmt.Fprintf(&b, "RESUME_REASON: %s\n", args.ResumeReason)
+
+	if args.ResumeReason == "wait" {
+		fmt.Fprintf(&b, "WAIT_FROM: %s\n", args.WaitFrom)
+		fmt.Fprintf(&b, "WAIT_TEXT: %s\n", args.WaitText)
+		fmt.Fprintf(&b, "ARGUMENT_TURN: %d\n", args.ArgumentTurn)
+
+		if args.ArgumentTurn >= maxArgumentTurns {
+			b.WriteString("ARGUMENT_ESCALATION_NOTE: This is argument turn 3. If unresolved, " +
+				"say ESCALATE: summarizing both positions for lead mediation.\n")
+		}
+	}
+
+	if len(args.LearnedMessages) > 0 {
+		fmt.Fprintf(&b, "LEARNED_MESSAGES: %s\n", strings.Join(args.LearnedMessages, " | "))
+	} else {
+		b.WriteString("LEARNED_MESSAGES: (none)\n")
+	}
+
 	b.WriteString("Instruction: Load the files listed under MEMORY_FILES. " +
 		"Use the CURSOR value when calling engram chat ack-wait. " +
 		"Respond to the intent above with ACK:, WAIT:, or INTENT:.")
@@ -176,6 +257,37 @@ func chatFileCursor(chatFilePath string, readFile func(string) ([]byte, error)) 
 	return len(strings.Split(string(data), "\n")), nil
 }
 
+// collectLearned reads learned-type messages addressed to agentName (or "all")
+// from the chat file since lastDeliveredCursor, returning their text fields.
+func collectLearned(
+	chatFilePath, agentName string,
+	lastDeliveredCursor int,
+	readFile func(string) ([]byte, error),
+) ([]string, error) {
+	data, err := readFile(chatFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("reading chat file for learned: %w", err)
+	}
+
+	msgs := chat.ParseMessagesSafe(suffixAtLine(data, lastDeliveredCursor))
+
+	var result []string
+
+	for _, msg := range msgs {
+		if msg.Type != "learned" {
+			continue
+		}
+
+		if !chat.MatchesAgent(msg.To, agentName) {
+			continue
+		}
+
+		result = append(result, strings.TrimSpace(msg.Text))
+	}
+
+	return result, nil
+}
+
 // defaultMemFileSelector calls selectMemoryFiles with os.ReadDir and os.Stat.
 func defaultMemFileSelector(homeDir string, maxFiles int) ([]string, error) {
 	feedbackDir := filepath.Join(homeDir, ".local/share/engram/memory/feedback")
@@ -188,6 +300,7 @@ func defaultMemFileSelector(homeDir string, maxFiles int) ([]string, error) {
 // type=intent messages addressed to the agent.
 func defaultWatchForIntent(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error) {
 	watcher := newFileWatcher(chatFilePath)
+
 	return watcher.Watch(ctx, agentName, cursor, []string{"intent"})
 }
 
@@ -833,6 +946,7 @@ func runAgentList(args []string, stdout io.Writer) error {
 		chatFilePath, chatPathErr := resolveChatFile(*chatFile, "agent list", os.UserHomeDir, os.Getwd)
 		if chatPathErr != nil {
 			slog.Warn("agent list: state file missing, reconstruction skipped (could not resolve chat file)", "err", chatPathErr)
+
 			return nil
 		}
 
@@ -867,6 +981,7 @@ func runAgentListFromChat(chatFilePath string, stdout io.Writer) error {
 	reconstructed, reconErr := reconstructStateFileFromChat(chatFilePath, os.ReadFile)
 	if reconErr != nil {
 		slog.Warn("agent list: state file missing, reconstruction failed", "err", reconErr)
+
 		return nil
 	}
 
@@ -1068,8 +1183,8 @@ func runConversationLoopWith(
 	stdout io.Writer,
 	promptBuilder promptBuilderFunc,
 	watchForIntent watchForIntentFunc,
-	intents <-chan chat.Message,  // nil = standalone watch mode (use watchForIntent)
-	silentCh chan<- string,       // nil = standalone mode (no dispatch notification)
+	intents <-chan chat.Message, // nil = standalone watch mode (use watchForIntent)
+	silentCh chan<- string, // nil = standalone mode (no dispatch notification)
 	memFileSelector memFileSelectorFunc,
 ) error {
 	prompt := initialPrompt
@@ -1252,10 +1367,94 @@ func selectMemoryFiles(
 	return result, nil
 }
 
+// selectRecentIntents reads the last maxIntents intent-type messages from the chat file
+// and returns them as summary strings: "from→to: text (truncated at 80 chars)".
+func selectRecentIntents(
+	chatFilePath string,
+	readFile func(string) ([]byte, error),
+	maxIntents int,
+) ([]string, error) {
+	data, err := readFile(chatFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("reading chat file for recent intents: %w", err)
+	}
+
+	msgs := chat.ParseMessagesSafe(data)
+
+	var intents []chat.Message
+
+	for _, msg := range msgs {
+		if msg.Type == "intent" {
+			intents = append(intents, msg)
+		}
+	}
+
+	// Take the last maxIntents.
+	if len(intents) > maxIntents {
+		intents = intents[len(intents)-maxIntents:]
+	}
+
+	const maxTextLen = 80
+
+	result := make([]string, 0, len(intents))
+
+	for _, msg := range intents {
+		text := strings.TrimSpace(msg.Text)
+		if len(text) > maxTextLen {
+			text = text[:maxTextLen]
+		}
+
+		result = append(result, fmt.Sprintf("%s→%s: %s", msg.From, msg.To, text))
+	}
+
+	return result, nil
+}
+
+// selectResumeMemFiles selects memory files for the resume prompt.
+// Returns nil if memFileSelector is nil or home dir lookup fails.
+func selectResumeMemFiles(stdout io.Writer, memFileSelector memFileSelectorFunc) []string {
+	if memFileSelector == nil {
+		return nil
+	}
+
+	home, homeErr := os.UserHomeDir()
+	if homeErr != nil {
+		return nil
+	}
+
+	memFiles, memErr := memFileSelector(home, resumeMemoryFileLimit)
+	if memErr != nil {
+		_, _ = fmt.Fprintf(stdout, "[engram] warning: failed to select memory files: %v\n", memErr)
+	}
+
+	return memFiles
+}
+
 // shellQuote wraps a string in single quotes, escaping any embedded single quotes.
 // Used to safely pass name and prompt to the shell via tmux send-keys.
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
+}
+
+// suffixAtLine returns the portion of data starting at the given line number.
+// Defined here for use by collectLearned (mirrors chat/watcher.go implementation).
+func suffixAtLine(data []byte, lineNum int) []byte {
+	if lineNum <= 0 {
+		return data
+	}
+
+	offset := 0
+
+	for range lineNum {
+		idx := bytes.IndexByte(data[offset:], '\n')
+		if idx < 0 {
+			return nil
+		}
+
+		offset += idx + 1
+	}
+
+	return data[offset:]
 }
 
 // waitAndBuildPrompt performs ack-wait after an INTENT marker and returns the resume prompt.
@@ -1303,8 +1502,8 @@ func watchAndResume(
 	_ claudepkg.StreamResult,
 	stdout io.Writer,
 	watchForIntent watchForIntentFunc,
-	intents <-chan chat.Message,  // nil = use watchForIntent (standalone mode)
-	silentCh chan<- string,       // nil when not in dispatch mode
+	intents <-chan chat.Message, // nil = use watchForIntent (standalone mode)
+	silentCh chan<- string, // nil when not in dispatch mode
 	memFileSelector memFileSelectorFunc,
 ) (string, error) {
 	// Write SILENT state first (before signaling dispatchLoop via silentCh).
@@ -1325,32 +1524,9 @@ func watchAndResume(
 		return "", ctx.Err() //nolint:wrapcheck // ctx errors propagate directly
 	}
 
-	var intentMsg chat.Message
-	var newCursor int
-
-	if intents != nil {
-		// Dispatch mode: read next intent from channel (dispatchLoop is responsible for cursor).
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err() //nolint:wrapcheck // ctx cancel = clean exit
-		case msg := <-intents:
-			intentMsg = msg
-			newCursor = cursor // cursor advancing is dispatch's responsibility
-		}
-	} else {
-		// Standalone mode: watch chat file for next intent addressed to this agent.
-		var watchErr error
-
-		intentMsg, newCursor, watchErr = watchForIntent(
-			ctx, agentName, chatFilePath, cursor,
-		)
-		if watchErr != nil {
-			if ctx.Err() != nil {
-				return "", ctx.Err() //nolint:wrapcheck // clean exit
-			}
-
-			return "", fmt.Errorf("agent run: watch: %w", watchErr)
-		}
+	intentMsg, newCursor, intentErr := awaitNextIntent(ctx, agentName, chatFilePath, cursor, intents, watchForIntent)
+	if intentErr != nil {
+		return "", intentErr
 	}
 
 	resumeErr := writeAgentLastResumedAt(stateFilePath, agentName)
@@ -1360,25 +1536,14 @@ func watchAndResume(
 			resumeErr)
 	}
 
-	var memFiles []string
-
-	if memFileSelector != nil {
-		home, homeErr := os.UserHomeDir()
-		if homeErr == nil {
-			var memErr error
-
-			memFiles, memErr = memFileSelector(home, resumeMemoryFileLimit)
-			if memErr != nil {
-				_, _ = fmt.Fprintf(stdout,
-					"[engram] warning: failed to select memory files: %v\n",
-					memErr)
-			}
-		}
-	}
-
-	return buildResumePrompt(
-		newCursor, memFiles, intentMsg.From, intentMsg.Text,
-	), nil
+	return buildResumePrompt(ResumePromptArgs{
+		AgentName:    agentName,
+		Cursor:       newCursor,
+		MemFiles:     selectResumeMemFiles(stdout, memFileSelector),
+		IntentFrom:   intentMsg.From,
+		IntentText:   intentMsg.Text,
+		ResumeReason: "intent",
+	}), nil
 }
 
 // writeAgentLastResumedAt updates the LastResumedAt field for the named agent.

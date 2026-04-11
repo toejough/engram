@@ -120,6 +120,7 @@ func TestApplyProjectSlugDefault_NonEmpty_Noop(t *testing.T) {
 	slug := "already-set"
 	err := cli.ExportApplyProjectSlugDefault(&slug, func() (string, error) {
 		t.Fatal("getwd should not be called")
+
 		return "", nil
 	})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -194,7 +195,9 @@ func TestBuildResumePrompt_EmptyMemFiles_EmptySection(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	prompt := cli.ExportBuildResumePrompt(1, nil, "a", "b")
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName: "a", Cursor: 1, IntentFrom: "a", IntentText: "b", ResumeReason: "intent",
+	})
 	// MEMORY_FILES: should be followed by INTENT_FROM: with nothing in between (just a newline)
 	g.Expect(prompt).To(ContainSubstring("MEMORY_FILES:\nINTENT_FROM:"))
 }
@@ -207,7 +210,9 @@ func TestBuildResumePrompt_IncludesCursorField(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	prompt := cli.ExportBuildResumePrompt(42, nil, "agent-1", "do stuff")
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName: "agent-1", Cursor: 42, IntentFrom: "agent-1", IntentText: "do stuff", ResumeReason: "intent",
+	})
 	g.Expect(prompt).To(ContainSubstring("CURSOR: 42"))
 }
 
@@ -215,7 +220,9 @@ func TestBuildResumePrompt_IncludesInstruction(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	prompt := cli.ExportBuildResumePrompt(1, nil, "a", "b")
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName: "a", Cursor: 1, IntentFrom: "a", IntentText: "b", ResumeReason: "intent",
+	})
 	g.Expect(prompt).To(ContainSubstring("Instruction: Load the files listed under MEMORY_FILES."))
 }
 
@@ -223,7 +230,10 @@ func TestBuildResumePrompt_IncludesIntentFromAndText(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	prompt := cli.ExportBuildResumePrompt(5, nil, "executor-1", "Situation: about to deploy.")
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName: "executor-1", Cursor: 5, IntentFrom: "executor-1",
+		IntentText: "Situation: about to deploy.", ResumeReason: "intent",
+	})
 	g.Expect(prompt).To(ContainSubstring("INTENT_FROM: executor-1"))
 	g.Expect(prompt).To(ContainSubstring("INTENT_TEXT: Situation: about to deploy."))
 }
@@ -233,10 +243,160 @@ func TestBuildResumePrompt_IncludesMemoryFilesSection(t *testing.T) {
 	g := NewWithT(t)
 
 	memFiles := []string{"/data/feedback/mem1.md", "/data/facts/fact1.md"}
-	prompt := cli.ExportBuildResumePrompt(10, memFiles, "agent-1", "do stuff")
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName: "agent-1", Cursor: 10, MemFiles: memFiles,
+		IntentFrom: "agent-1", IntentText: "do stuff", ResumeReason: "intent",
+	})
 	g.Expect(prompt).To(ContainSubstring("MEMORY_FILES:"))
 	g.Expect(prompt).To(ContainSubstring("/data/feedback/mem1.md"))
 	g.Expect(prompt).To(ContainSubstring("/data/facts/fact1.md"))
+}
+
+// ============================================================
+// Task 2: buildResumePrompt struct form + new fields
+// ============================================================
+
+func TestBuildResumePrompt_StructForm_AgentName(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName:    "engram-agent",
+		Cursor:       42,
+		IntentFrom:   "lead",
+		IntentText:   "do stuff",
+		ResumeReason: "intent",
+	})
+	g.Expect(prompt).To(ContainSubstring("AGENT_NAME: engram-agent"))
+}
+
+func TestBuildResumePrompt_StructForm_EscalationNoteAtTurn3(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName:    "worker-a",
+		Cursor:       200,
+		IntentFrom:   "engram-agent",
+		IntentText:   "still objecting",
+		ResumeReason: "wait",
+		WaitFrom:     "engram-agent",
+		WaitText:     "still objecting",
+		ArgumentTurn: 3,
+	})
+	g.Expect(prompt).To(ContainSubstring("ARGUMENT_TURN: 3"))
+	g.Expect(prompt).To(ContainSubstring("ARGUMENT_ESCALATION_NOTE:"))
+}
+
+func TestBuildResumePrompt_StructForm_LearnedMessages_None(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName:       "worker-a",
+		Cursor:          10,
+		IntentFrom:      "lead",
+		IntentText:      "do it",
+		ResumeReason:    "intent",
+		LearnedMessages: nil,
+	})
+	g.Expect(prompt).To(ContainSubstring("LEARNED_MESSAGES: (none)"))
+}
+
+func TestBuildResumePrompt_StructForm_LearnedMessages_WithEntries(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName:       "worker-a",
+		Cursor:          10,
+		IntentFrom:      "lead",
+		IntentText:      "do it",
+		ResumeReason:    "intent",
+		LearnedMessages: []string{"engram → uses → targ", "never amend pushed commits"},
+	})
+	g.Expect(prompt).To(ContainSubstring("LEARNED_MESSAGES: engram → uses → targ | never amend pushed commits"))
+}
+
+func TestBuildResumePrompt_StructForm_RecentIntents_None(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName:     "worker-a",
+		Cursor:        10,
+		IntentFrom:    "lead",
+		IntentText:    "do it",
+		ResumeReason:  "intent",
+		RecentIntents: nil,
+	})
+	g.Expect(prompt).To(ContainSubstring("RECENT_INTENTS: (none)"))
+}
+
+func TestBuildResumePrompt_StructForm_RecentIntents_WithEntries(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName:     "worker-a",
+		Cursor:        10,
+		IntentFrom:    "lead",
+		IntentText:    "do it",
+		ResumeReason:  "intent",
+		RecentIntents: []string{"lead→worker-a: do it", "test→engram-agent: check this"},
+	})
+	g.Expect(prompt).To(ContainSubstring("RECENT_INTENTS: lead→worker-a: do it | test→engram-agent: check this"))
+}
+
+func TestBuildResumePrompt_StructForm_ResumeReasonIntent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName:    "worker-a",
+		Cursor:       10,
+		IntentFrom:   "lead",
+		IntentText:   "do it",
+		ResumeReason: "intent",
+	})
+	g.Expect(prompt).To(ContainSubstring("RESUME_REASON: intent"))
+	g.Expect(prompt).NotTo(ContainSubstring("WAIT_FROM:"))
+}
+
+func TestBuildResumePrompt_StructForm_ResumeReasonShutdown(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName:    "engram-agent",
+		Cursor:       100,
+		IntentFrom:   "lead",
+		IntentText:   "shutdown",
+		ResumeReason: "shutdown",
+	})
+	g.Expect(prompt).To(ContainSubstring("RESUME_REASON: shutdown"))
+	g.Expect(prompt).NotTo(ContainSubstring("WAIT_FROM:"))
+}
+
+func TestBuildResumePrompt_StructForm_ResumeReasonWait(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
+		AgentName:    "worker-a",
+		Cursor:       200,
+		IntentFrom:   "engram-agent",
+		IntentText:   "you stepped on my cursor",
+		ResumeReason: "wait",
+		WaitFrom:     "engram-agent",
+		WaitText:     "you stepped on my cursor",
+		ArgumentTurn: 1,
+	})
+	g.Expect(prompt).To(ContainSubstring("RESUME_REASON: wait"))
+	g.Expect(prompt).To(ContainSubstring("WAIT_FROM: engram-agent"))
+	g.Expect(prompt).To(ContainSubstring("WAIT_TEXT: you stepped on my cursor"))
+	g.Expect(prompt).To(ContainSubstring("ARGUMENT_TURN: 1"))
+	g.Expect(prompt).NotTo(ContainSubstring("ARGUMENT_ESCALATION_NOTE:"))
 }
 
 func TestChatFileCursor_MissingFile_ReturnsError(t *testing.T) {
@@ -263,6 +423,90 @@ func TestChatFileCursor_ReturnsLineCount(t *testing.T) {
 	}
 
 	g.Expect(count).To(BeNumerically(">", 0))
+}
+
+func TestCollectLearned_EmptyWhenNoLearnedMessages(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	content := []byte("\n[[message]]\nfrom = \"exec\"\nto = \"engram-agent\"\n" +
+		"thread = \"t\"\ntype = \"info\"\nts = 2026-04-11T00:00:00Z\n" +
+		"text = \"\"\"\nnot a learned message\n\"\"\"\n")
+	readFile := func(_ string) ([]byte, error) { return content, nil }
+
+	learned, err := cli.ExportCollectLearned("/fake/chat.toml", "engram-agent", 0, readFile)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(learned).To(BeEmpty())
+}
+
+func TestCollectLearned_ExcludesBeforeCursor(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Write a message, count its lines, then add more messages.
+	msg1 := "\n[[message]]\nfrom = \"exec\"\nto = \"engram-agent\"\n" +
+		"thread = \"t\"\ntype = \"learned\"\nts = 2026-04-11T00:00:00Z\n" +
+		"text = \"\"\"\nold fact\n\"\"\"\n"
+	msg2 := "\n[[message]]\nfrom = \"exec\"\nto = \"engram-agent\"\n" +
+		"thread = \"t\"\ntype = \"learned\"\nts = 2026-04-11T00:00:00Z\n" +
+		"text = \"\"\"\nnew fact\n\"\"\"\n"
+
+	cursor := strings.Count(msg1, "\n") // cursor after msg1
+
+	content := []byte(msg1 + msg2)
+	readFile := func(_ string) ([]byte, error) { return content, nil }
+
+	learned, err := cli.ExportCollectLearned("/fake/chat.toml", "engram-agent", cursor, readFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(learned).To(HaveLen(1))
+	g.Expect(learned[0]).To(ContainSubstring("new fact"))
+}
+
+func TestCollectLearned_IncludesToAll(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	content := []byte("\n[[message]]\nfrom = \"exec\"\nto = \"all\"\n" +
+		"thread = \"t\"\ntype = \"learned\"\nts = 2026-04-11T00:00:00Z\n" +
+		"text = \"\"\"\nbroad fact\n\"\"\"\n")
+	readFile := func(_ string) ([]byte, error) { return content, nil }
+
+	learned, err := cli.ExportCollectLearned("/fake/chat.toml", "engram-agent", 0, readFile)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(learned).To(HaveLen(1))
+}
+
+func TestCollectLearned_ReturnsSinceCursor(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 3 learned messages after cursor position 0.
+	var sb strings.Builder
+	for i := range 3 {
+		sb.WriteString("\n[[message]]\n")
+		sb.WriteString("from = \"executor\"\n")
+		sb.WriteString("to = \"engram-agent\"\n")
+		sb.WriteString("thread = \"t\"\ntype = \"learned\"\n")
+		sb.WriteString("ts = 2026-04-11T00:00:00Z\n")
+		fmt.Fprintf(&sb, "text = \"\"\"\nfact %d\n\"\"\"\n", i)
+	}
+
+	content := []byte(sb.String())
+
+	readFile := func(_ string) ([]byte, error) { return content, nil }
+	learned, err := cli.ExportCollectLearned("/fake/chat.toml", "engram-agent", 0, readFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(learned).To(HaveLen(3))
 }
 
 func TestDefaultMemFileSelector_EmptyDirs(t *testing.T) {
@@ -756,6 +1000,7 @@ func TestOuterWatchLoop_CtxCancelDuringWatch(t *testing.T) {
 
 	watchForIntent := func(_ context.Context, _, _ string, _ int) (chat.Message, int, error) {
 		cancel()
+
 		return chat.Message{}, 0, context.Canceled
 	}
 
@@ -1420,6 +1665,7 @@ func TestOuterWatchLoop_WriteStateSilentAfterSession(t *testing.T) {
 
 	watchForIntent := func(_ context.Context, _, _ string, _ int) (chat.Message, int, error) {
 		cancel()
+
 		return chat.Message{}, 0, context.Canceled
 	}
 
@@ -1489,6 +1735,7 @@ func TestOuterWatchLoop_WritesSilentAtWithSilentState(t *testing.T) {
 
 	watchForIntent := func(_ context.Context, _, _ string, _ int) (chat.Message, int, error) {
 		cancel()
+
 		return chat.Message{}, 0, context.Canceled
 	}
 
@@ -3138,6 +3385,69 @@ func TestRunConversationLoopWith_AgentNamePropagated(t *testing.T) {
 }
 
 // ============================================================
+// watchAndResume memFileSelector error logging tests (issue 547)
+// ============================================================
+
+// makeWatchAndResumeFixture creates a minimal temp dir and stub functions for
+// TestRunConversationLoopWith_ChannelReceivesIntent verifies that when intents channel is non-nil,
+// the loop reads from it instead of calling watchForIntent.
+func TestRunConversationLoopWith_ChannelReceivesIntent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane-id = \"\"\n" +
+		"session-id = \"\"\nstate = \"STARTING\"\nspawned-at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	// intents channel with one message; context cancels after first session.
+	intents := make(chan chat.Message, 1)
+	intents <- chat.Message{From: "lead", To: "worker-1", Type: "intent", Text: "do the thing"}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// watchForIntent must NOT be called when intents channel is used.
+	watchForIntentCalled := false
+	watchForIntent := func(_ context.Context, _, _ string, _ int) (chat.Message, int, error) {
+		watchForIntentCalled = true
+
+		cancel()
+
+		return chat.Message{}, 0, context.Canceled
+	}
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+	memFileSelector := func(_ string, _ int) ([]string, error) { return nil, nil }
+
+	// After one session + channel read, cancel context so loop exits.
+	// We can't know exact timing, so cancel after session fires.
+	go func() {
+		<-time.After(3 * time.Second)
+		cancel()
+	}()
+
+	err := cli.ExportRunConversationLoopWithChannel(
+		ctx, "worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard, stubBuilder, watchForIntent, intents, nil, memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(watchForIntentCalled).To(BeFalse(), "watchForIntent must not be called when intents channel is provided")
+}
+
+// ============================================================
 // runConversationLoopWith: INTENT path coverage
 // ============================================================
 
@@ -3334,6 +3644,71 @@ func TestRunConversationLoopWith_PromptBuilderError(t *testing.T) {
 	}
 
 	g.Expect(err.Error()).To(ContainSubstring("ack-wait failed"))
+}
+
+// TestRunConversationLoopWith_SilentChSignaledAfterSession verifies that silentCh receives
+// the agent name when the session transitions to SILENT state.
+func TestRunConversationLoopWith_SilentChSignaledAfterSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane-id = \"\"\n" +
+		"session-id = \"\"\nstate = \"STARTING\"\nspawned-at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	// Only one intent in the channel.
+	intents := make(chan chat.Message, 1)
+	intents <- chat.Message{From: "lead", To: "worker-1", Type: "intent", Text: "do the thing"}
+
+	// silentCh is drained by a goroutine: cancel context on first receipt so the
+	// loop exits cleanly. Without draining, silentCh fills and watchAndResume blocks.
+	silentCh := make(chan string, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var receivedAgent string
+
+	go func() {
+		for {
+			select {
+			case name := <-silentCh:
+				if receivedAgent == "" {
+					receivedAgent = name
+
+					cancel() // trigger clean exit after first signal
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+	memFileSelector := func(_ string, _ int) ([]string, error) { return nil, nil }
+
+	err := cli.ExportRunConversationLoopWithChannel(
+		ctx, "worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard, stubBuilder, nil, intents, silentCh, memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// After loop exits, receivedAgent must be set to "worker-1".
+	g.Expect(receivedAgent).To(Equal("worker-1"), "silentCh should have received agent name after SILENT transition")
 }
 
 // Step 14: Full intent→ack→hold→check→release E2E cycle.
@@ -4795,6 +5170,68 @@ func TestSelectMemoryFiles_SkipsDirectories(t *testing.T) {
 	g.Expect(files[0]).To(Equal("/feedback/mem.md"))
 }
 
+func TestSelectRecentIntents_EmptyWhenNoIntents(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	content := []byte("\n[[message]]\nfrom = \"a\"\nto = \"b\"\nthread = \"t\"\n" +
+		"type = \"info\"\nts = 2026-04-11T00:00:00Z\ntext = \"\"\"\nhello\n\"\"\"\n")
+	readFile := func(_ string) ([]byte, error) { return content, nil }
+
+	summaries, err := cli.ExportSelectRecentIntents("/fake/chat.toml", readFile, 5)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(summaries).To(BeEmpty())
+}
+
+func TestSelectRecentIntents_ReturnsUpToMax(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var sb strings.Builder
+	for i := range 7 {
+		sb.WriteString("\n[[message]]\n")
+		fmt.Fprintf(&sb, "from = \"agent-%d\"\n", i)
+		sb.WriteString("to = \"engram-agent\"\n")
+		sb.WriteString("thread = \"t\"\ntype = \"intent\"\n")
+		sb.WriteString("ts = 2026-04-11T00:00:00Z\n")
+		fmt.Fprintf(&sb, "text = \"\"\"\nintent %d\n\"\"\"\n", i)
+	}
+
+	content := []byte(sb.String())
+
+	readFile := func(_ string) ([]byte, error) { return content, nil }
+	summaries, err := cli.ExportSelectRecentIntents("/fake/chat.toml", readFile, 5)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(summaries).To(HaveLen(5), "should return at most 5 most recent intents")
+}
+
+func TestSelectRecentIntents_TruncatesAt80Chars(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	longText := strings.Repeat("x", 200)
+	content := []byte("\n[[message]]\nfrom = \"lead\"\nto = \"worker\"\nthread = \"t\"\n" +
+		"type = \"intent\"\nts = 2026-04-11T00:00:00Z\n" +
+		"text = \"\"\"\n" + longText + "\n\"\"\"\n")
+	readFile := func(_ string) ([]byte, error) { return content, nil }
+
+	summaries, err := cli.ExportSelectRecentIntents("/fake/chat.toml", readFile, 5)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(summaries).To(HaveLen(1))
+	g.Expect(len(summaries[0])).To(BeNumerically("<=", 100),
+		"summary should be truncated to at most 80 chars of text plus metadata")
+}
+
 // ============================================================
 // waitAndBuildPromptWith: coverage via stub ackWaiter
 // ============================================================
@@ -5062,6 +5499,63 @@ func TestWatchAndResume_MemFileSelectorSuccess_NoWarning(t *testing.T) {
 		"expected no warning when selector succeeds")
 }
 
+// TestWatchAndResume_StateFileIsDir_LogsWarningsAndReturnsPrompt verifies that when
+// the stateFilePath is a directory (causing SILENT and last-resumed-at writes to fail),
+// watchAndResume logs warnings but still returns a valid resume prompt.
+func TestWatchAndResume_StateFileIsDir_LogsWarningsAndReturnsPrompt(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Using a directory as the state file path causes os.ReadFile to fail with
+	// "is a directory" (not os.ErrNotExist), triggering both warning paths.
+	stateDir := t.TempDir()
+
+	var stdout strings.Builder
+
+	_, watchForIntent := makeWatchAndResumeFixture(t)
+
+	prompt, err := cli.ExportWatchAndResume(
+		context.Background(), "worker-1", "/fake/chat.toml", stateDir, 0,
+		claudepkg.StreamResult{}, &stdout,
+		watchForIntent, nil,
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("failed to write SILENT state"))
+	g.Expect(stdout.String()).To(ContainSubstring("failed to update last-resumed-at"))
+	g.Expect(prompt).NotTo(BeEmpty())
+}
+
+// TestWatchAndResume_WatchForIntentError_ReturnsError verifies that when
+// watchForIntent returns a non-context error, watchAndResume propagates it.
+func TestWatchAndResume_WatchForIntentError_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	stateFilePath, _ := makeWatchAndResumeFixture(t)
+
+	errFake := errors.New("watch failed")
+	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		return chat.Message{}, cursor, errFake
+	}
+
+	_, err := cli.ExportWatchAndResume(
+		context.Background(), "worker-1", "/fake/chat.toml", stateFilePath, 0,
+		claudepkg.StreamResult{}, io.Discard,
+		watchForIntent, nil,
+	)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("watch failed")))
+}
+
 // ============================================================
 
 func TestWriteKilledLine_FailingWriter_ReturnsError(t *testing.T) {
@@ -5125,127 +5619,6 @@ type stubAckWaiter struct {
 
 func (s *stubAckWaiter) AckWait(_ context.Context, _ string, _ int, _ []string) (chat.AckResult, error) {
 	return s.result, s.err
-}
-
-// ============================================================
-// watchAndResume memFileSelector error logging tests (issue 547)
-// ============================================================
-
-// makeWatchAndResumeFixture creates a minimal temp dir and stub functions for
-// TestRunConversationLoopWith_ChannelReceivesIntent verifies that when intents channel is non-nil,
-// the loop reads from it instead of calling watchForIntent.
-func TestRunConversationLoopWith_ChannelReceivesIntent(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	chatFile := filepath.Join(dir, "chat.toml")
-	stateFile := filepath.Join(dir, "state.toml")
-
-	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
-	stateToml := "[[agent]]\nname = \"worker-1\"\npane-id = \"\"\n" +
-		"session-id = \"\"\nstate = \"STARTING\"\nspawned-at = 2026-04-06T00:00:00Z\n"
-	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
-
-	fakeClaude := filepath.Join(dir, "claude")
-	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
-		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
-	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
-	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
-
-	// intents channel with one message; context cancels after first session.
-	intents := make(chan chat.Message, 1)
-	intents <- chat.Message{From: "lead", To: "worker-1", Type: "intent", Text: "do the thing"}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// watchForIntent must NOT be called when intents channel is used.
-	watchForIntentCalled := false
-	watchForIntent := func(_ context.Context, _, _ string, _ int) (chat.Message, int, error) {
-		watchForIntentCalled = true
-		cancel()
-		return chat.Message{}, 0, context.Canceled
-	}
-
-	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
-		return "Proceed.", nil
-	}
-	memFileSelector := func(_ string, _ int) ([]string, error) { return nil, nil }
-
-	// After one session + channel read, cancel context so loop exits.
-	// We can't know exact timing, so cancel after session fires.
-	go func() {
-		<-time.After(3 * time.Second)
-		cancel()
-	}()
-
-	err := cli.ExportRunConversationLoopWithChannel(
-		ctx, "worker-1", "hello", chatFile, stateFile, fakeClaude,
-		io.Discard, stubBuilder, watchForIntent, intents, nil, memFileSelector,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(watchForIntentCalled).To(BeFalse(), "watchForIntent must not be called when intents channel is provided")
-}
-
-// TestRunConversationLoopWith_SilentChSignaledAfterSession verifies that silentCh receives
-// the agent name when the session transitions to SILENT state.
-func TestRunConversationLoopWith_SilentChSignaledAfterSession(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	chatFile := filepath.Join(dir, "chat.toml")
-	stateFile := filepath.Join(dir, "state.toml")
-
-	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
-	stateToml := "[[agent]]\nname = \"worker-1\"\npane-id = \"\"\n" +
-		"session-id = \"\"\nstate = \"STARTING\"\nspawned-at = 2026-04-06T00:00:00Z\n"
-	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
-
-	fakeClaude := filepath.Join(dir, "claude")
-	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
-		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
-	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
-	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
-
-	// Only one intent in the channel.
-	intents := make(chan chat.Message, 1)
-	intents <- chat.Message{From: "lead", To: "worker-1", Type: "intent", Text: "do the thing"}
-
-	// silentCh is drained by a goroutine: cancel context on first receipt so the
-	// loop exits cleanly. Without draining, silentCh fills and watchAndResume blocks.
-	silentCh := make(chan string, 1)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var receivedAgent string
-	go func() {
-		for {
-			select {
-			case name := <-silentCh:
-				if receivedAgent == "" {
-					receivedAgent = name
-					cancel() // trigger clean exit after first signal
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
-		return "Proceed.", nil
-	}
-	memFileSelector := func(_ string, _ int) ([]string, error) { return nil, nil }
-
-	err := cli.ExportRunConversationLoopWithChannel(
-		ctx, "worker-1", "hello", chatFile, stateFile, fakeClaude,
-		io.Discard, stubBuilder, nil, intents, silentCh, memFileSelector,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// After loop exits, receivedAgent must be set to "worker-1".
-	g.Expect(receivedAgent).To(Equal("worker-1"), "silentCh should have received agent name after SILENT transition")
 }
 
 // ExportWatchAndResume tests. watchForIntent returns a single intent message then

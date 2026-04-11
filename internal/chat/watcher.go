@@ -44,6 +44,24 @@ func (w *FileWatcher) Watch(ctx context.Context, agent string, cursor int, msgTy
 	}
 }
 
+// MatchesAgent reports whether the To field targets the given agent.
+// The To field may be "all", a single agent name, or comma-separated names.
+// An empty agent string matches any To field (wildcard — used by dispatchLoop).
+func MatchesAgent(to, agent string) bool {
+	if agent == "" {
+		return true // empty = match all recipients
+	}
+
+	for part := range strings.SplitSeq(to, ",") {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "all" || trimmed == agent {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ParseMessages deserializes TOML chat data into a Message slice.
 // Returns an error if the TOML is malformed; returns nil slice for empty data.
 func ParseMessages(data []byte) ([]Message, error) {
@@ -125,22 +143,9 @@ func findMessage(data []byte, agent string, cursor int, msgTypes []string) (Mess
 	return Message{}, newCursor, false
 }
 
-// matchesAgent reports whether the To field targets the given agent.
-// The To field may be "all", a single agent name, or comma-separated names.
-// An empty agent string matches any To field (wildcard — used by dispatchLoop).
+// matchesAgent is the package-internal alias for MatchesAgent.
 func matchesAgent(to, agent string) bool {
-	if agent == "" {
-		return true // empty = match all recipients
-	}
-
-	for part := range strings.SplitSeq(to, ",") {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "all" || trimmed == agent {
-			return true
-		}
-	}
-
-	return false
+	return MatchesAgent(to, agent)
 }
 
 // matchesType reports whether msgType is in the allowed types list.

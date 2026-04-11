@@ -16,17 +16,17 @@ import (
 //
 //nolint:revive,tagliatelle // "agent.AgentRecord" stutter is intentional; kebab-case matches state file protocol.
 type AgentRecord struct {
-	Name           string    `json:"name"                     toml:"name"`
-	PaneID         string    `json:"pane-id"                  toml:"pane-id"`
-	SessionID      string    `json:"session-id"               toml:"session-id"`
-	State          string    `json:"state"                    toml:"state"` // STARTING | ACTIVE | SILENT | DEAD
-	SpawnedAt      time.Time `json:"spawned-at"               toml:"spawned-at"`
-	LastResumedAt  time.Time `json:"last-resumed-at,omitzero" toml:"last-resumed-at,omitzero"`
-	LastSilentAt   time.Time `json:"last-silent-at,omitzero"  toml:"last-silent-at,omitzero"`
-	ArgumentWith        string `json:"argument-with"                    toml:"argument-with"`
-	ArgumentCount       int    `json:"argument-count"                   toml:"argument-count"`
-	ArgumentThread      string `json:"argument-thread"                  toml:"argument-thread"`
-	LastDeliveredCursor int    `json:"last-delivered-cursor,omitzero"   toml:"last-delivered-cursor,omitzero"`
+	Name                string    `json:"name"                           toml:"name"`
+	PaneID              string    `json:"pane-id"                        toml:"pane-id"`
+	SessionID           string    `json:"session-id"                     toml:"session-id"`
+	State               string    `json:"state"                          toml:"state"` // STARTING | ACTIVE | SILENT | DEAD
+	SpawnedAt           time.Time `json:"spawned-at"                     toml:"spawned-at"`
+	LastResumedAt       time.Time `json:"last-resumed-at,omitzero"       toml:"last-resumed-at,omitzero"`
+	LastSilentAt        time.Time `json:"last-silent-at,omitzero"        toml:"last-silent-at,omitzero"`
+	ArgumentWith        string    `json:"argument-with"                  toml:"argument-with"`
+	ArgumentCount       int       `json:"argument-count"                 toml:"argument-count"`
+	ArgumentThread      string    `json:"argument-thread"                toml:"argument-thread"`
+	LastDeliveredCursor int       `json:"last-delivered-cursor,omitzero" toml:"last-delivered-cursor,omitzero"`
 }
 
 // HoldEntry is the state-file representation of an active hold.

@@ -22,6 +22,7 @@ var (
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportBuildResumePrompt       = buildResumePrompt
 	ExportChatFileCursor          = func(path string) (int, error) { return chatFileCursor(path, os.ReadFile) }
+	ExportCollectLearned          = collectLearned
 	ExportDefaultMemFileSelector  = defaultMemFileSelector
 	ExportDefaultWatchForIntent   = defaultWatchForIntent
 	ExportDeriveChatFilePath      = deriveChatFilePath
@@ -46,6 +47,7 @@ var (
 	ExportRunAgentRunWith          = runAgentRunWith
 	ExportRunAgentSpawn            = runAgentSpawn
 	ExportSelectMemoryFiles        = selectMemoryFiles
+	ExportSelectRecentIntents      = selectRecentIntents
 	ExportWaitAndBuildPrompt       = waitAndBuildPrompt
 	ExportWriteKilledLine          = writeKilledLine
 )
