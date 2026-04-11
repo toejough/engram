@@ -47,6 +47,7 @@ var (
 	ExportParseTmuxOutput          = parseTmuxOutput
 	ExportReadModifyWriteStateFile = readModifyWriteStateFile
 	ExportRecordSurfacing          = recordSurfacing
+	ExportReleaseStaleHolds        = releaseStaleHolds
 	ExportRenderFactContent        = renderFactContent
 	ExportRenderMemoryContent      = renderMemoryContent
 	ExportRenderMemoryMeta         = renderMemoryMeta

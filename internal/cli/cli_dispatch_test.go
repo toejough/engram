@@ -1019,6 +1019,265 @@ func TestPostQueueOverflow_WithPoster_PostsInfoMessage(t *testing.T) {
 	g.Expect(string(data)).To(ContainSubstring("overflow"))
 }
 
+func TestReleaseStaleHolds_AlreadyReleasedHold_NoDoubleRelease(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	dispatchStartedAt := time.Now()
+
+	holdRec := chat.HoldRecord{
+		HoldID:     "already-released",
+		Holder:     "lead",
+		Target:     "engram-agent",
+		AcquiredTS: dispatchStartedAt.Add(-5 * time.Minute),
+	}
+	holdJSON, marshalErr := json.Marshal(holdRec)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	poster := cli.ExportNewFilePoster(chatFile)
+	_, _ = poster.Post(chat.Message{
+		From: "lead", To: "engram-agent", Thread: "hold",
+		Type: "hold-acquire", Text: string(holdJSON),
+	})
+
+	releaseJSON, releaseMarshalErr := json.Marshal(map[string]string{"hold-id": "already-released"})
+	g.Expect(releaseMarshalErr).NotTo(HaveOccurred())
+
+	_, _ = poster.Post(chat.Message{
+		From: "system", To: "all", Thread: "hold",
+		Type: "hold-release", Text: string(releaseJSON),
+	})
+
+	workers := []cli.WorkerConfig{{Name: "engram-agent", Prompt: ""}}
+
+	releaseErr := cli.ExportReleaseStaleHolds(chatFile, workers, dispatchStartedAt)
+	g.Expect(releaseErr).NotTo(HaveOccurred())
+
+	if releaseErr != nil {
+		return
+	}
+
+	// ScanActiveHolds should return nothing — already released. No additional release posted.
+	data, readErr := os.ReadFile(chatFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	messages := chat.ParseMessagesSafe(data)
+	releaseCount := 0
+
+	for _, msg := range messages {
+		if msg.Type == "hold-release" {
+			releaseCount++
+		}
+	}
+
+	g.Expect(releaseCount).To(Equal(1), "already-released hold must not be released again")
+}
+
+func TestReleaseStaleHolds_EmptyChatFile_NoError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	workers := []cli.WorkerConfig{{Name: "engram-agent", Prompt: ""}}
+
+	releaseErr := cli.ExportReleaseStaleHolds(chatFile, workers, time.Now())
+	g.Expect(releaseErr).NotTo(HaveOccurred())
+}
+
+func TestReleaseStaleHolds_HoldAcquiredAfterStart_NotReleased(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	dispatchStartedAt := time.Now()
+
+	// Hold acquired AFTER dispatch started — should NOT be released.
+	holdRec := chat.HoldRecord{
+		HoldID:     "fresh-hold",
+		Holder:     "lead",
+		Target:     "engram-agent",
+		AcquiredTS: dispatchStartedAt.Add(1 * time.Minute),
+	}
+	holdJSON, marshalErr := json.Marshal(holdRec)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	poster := cli.ExportNewFilePoster(chatFile)
+	_, _ = poster.Post(chat.Message{
+		From:   "lead",
+		To:     "engram-agent",
+		Thread: "hold",
+		Type:   "hold-acquire",
+		Text:   string(holdJSON),
+	})
+
+	workers := []cli.WorkerConfig{{Name: "engram-agent", Prompt: ""}}
+
+	releaseErr := cli.ExportReleaseStaleHolds(chatFile, workers, dispatchStartedAt)
+	g.Expect(releaseErr).NotTo(HaveOccurred())
+
+	if releaseErr != nil {
+		return
+	}
+
+	// No hold-release should have been posted.
+	data, readErr := os.ReadFile(chatFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	messages := chat.ParseMessagesSafe(data)
+	for _, msg := range messages {
+		g.Expect(msg.Type).NotTo(Equal("hold-release"), "fresh hold must not be released")
+	}
+}
+
+func TestReleaseStaleHolds_HoldOnUnknownWorker_NotReleased(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	dispatchStartedAt := time.Now()
+
+	// Hold on a target that is NOT in the current worker set.
+	holdRec := chat.HoldRecord{
+		HoldID:     "other-session-hold",
+		Holder:     "other-lead",
+		Target:     "external-agent",
+		AcquiredTS: dispatchStartedAt.Add(-10 * time.Minute),
+	}
+	holdJSON, marshalErr := json.Marshal(holdRec)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	poster := cli.ExportNewFilePoster(chatFile)
+	_, _ = poster.Post(chat.Message{
+		From:   "other-lead",
+		To:     "external-agent",
+		Thread: "hold",
+		Type:   "hold-acquire",
+		Text:   string(holdJSON),
+	})
+
+	// Workers list does NOT include "external-agent".
+	workers := []cli.WorkerConfig{{Name: "engram-agent", Prompt: ""}}
+
+	releaseErr := cli.ExportReleaseStaleHolds(chatFile, workers, dispatchStartedAt)
+	g.Expect(releaseErr).NotTo(HaveOccurred())
+
+	if releaseErr != nil {
+		return
+	}
+
+	// No hold-release should have been posted.
+	data, readErr := os.ReadFile(chatFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	messages := chat.ParseMessagesSafe(data)
+	for _, msg := range messages {
+		g.Expect(msg.Type).NotTo(Equal("hold-release"), "external-agent hold must not be released")
+	}
+}
+
+// ============================================================
+// releaseStaleHolds tests
+// ============================================================
+
+func TestReleaseStaleHolds_StaleHoldOnKnownWorker_PostsReleaseAndInfo(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	dispatchStartedAt := time.Now()
+
+	// Write a hold-acquire message with a timestamp before dispatchStartedAt.
+	holdRec := chat.HoldRecord{
+		HoldID:     "stale-hold-1",
+		Holder:     "lead",
+		Target:     "engram-agent",
+		AcquiredTS: dispatchStartedAt.Add(-5 * time.Minute),
+	}
+	holdJSON, marshalErr := json.Marshal(holdRec)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	poster := cli.ExportNewFilePoster(chatFile)
+	_, postErr := poster.Post(chat.Message{
+		From:   "lead",
+		To:     "engram-agent",
+		Thread: "hold",
+		Type:   "hold-acquire",
+		Text:   string(holdJSON),
+	})
+	g.Expect(postErr).NotTo(HaveOccurred())
+
+	if postErr != nil {
+		return
+	}
+
+	workers := []cli.WorkerConfig{{Name: "engram-agent", Prompt: ""}}
+
+	releaseErr := cli.ExportReleaseStaleHolds(chatFile, workers, dispatchStartedAt)
+	g.Expect(releaseErr).NotTo(HaveOccurred())
+
+	if releaseErr != nil {
+		return
+	}
+
+	// Verify a hold-release and an info message were posted to chat.
+	data, readErr := os.ReadFile(chatFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	chatStr := string(data)
+	g.Expect(chatStr).To(ContainSubstring(`"hold-release"`), "must post hold-release message")
+	g.Expect(chatStr).To(ContainSubstring("stale-hold-1"), "hold-release must reference the hold ID")
+	g.Expect(chatStr).To(ContainSubstring("Stale hold stale-hold-1"), "must post info message about stale hold")
+}
+
 // ============================================================
 // coverage: resolveHoldTarget not-found and error paths
 // ============================================================

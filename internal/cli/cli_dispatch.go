@@ -424,6 +424,63 @@ func postRoutingInfo(poster *chat.FilePoster, recipient string, msg chat.Message
 	})
 }
 
+// releaseStaleHolds scans the chat file for unreleased holds and releases any whose target
+// is a current dispatch worker and whose acquired-ts is before dispatchStartedAt.
+// Holds on unknown targets (other session contexts) are left untouched.
+// Called from runDispatch after initWorkerStateRecords.
+func releaseStaleHolds(chatFilePath string, workers []WorkerConfig, dispatchStartedAt time.Time) error {
+	workerSet := make(map[string]bool, len(workers))
+	for _, worker := range workers {
+		workerSet[worker.Name] = true
+	}
+
+	data, readErr := os.ReadFile(chatFilePath) //nolint:gosec
+	if readErr != nil {
+		return fmt.Errorf("releasing stale holds: reading chat file: %w", readErr)
+	}
+
+	messages := chat.ParseMessagesSafe(data)
+	activeHolds := chat.ScanActiveHolds(messages)
+
+	poster := newFilePoster(chatFilePath)
+
+	for _, hold := range activeHolds {
+		if !workerSet[hold.Target] {
+			continue
+		}
+
+		if !hold.AcquiredTS.Before(dispatchStartedAt) {
+			continue
+		}
+
+		releasePayload, marshalErr := json.Marshal(map[string]string{"hold-id": hold.HoldID})
+		if marshalErr != nil {
+			return fmt.Errorf("releasing stale holds: marshaling release payload: %w", marshalErr)
+		}
+
+		_, _ = poster.Post(chat.Message{
+			From:   "dispatch",
+			To:     "all",
+			Thread: "dispatch",
+			Type:   "hold-release",
+			Text:   string(releasePayload),
+		})
+
+		_, _ = poster.Post(chat.Message{
+			From:   "dispatch",
+			To:     "all",
+			Thread: "dispatch",
+			Type:   "info",
+			Text: fmt.Sprintf(
+				"Stale hold %s on %s released (acquired before this dispatch session).",
+				hold.HoldID, hold.Target,
+			),
+		})
+	}
+
+	return nil
+}
+
 // resolveHoldTarget looks up the target worker for a hold-id by scanning
 // hold-acquire messages in the chat file. Returns "" if the hold-id is not found.
 func resolveHoldTarget(holdID, chatFilePath string) string {
@@ -581,9 +638,18 @@ func runDispatch(
 
 	// Initialize state file records for all workers as STARTING before spawning goroutines.
 	// Stale STARTING/ACTIVE records from a prior crashed dispatch are marked DEAD first.
+	dispatchStartedAt := time.Now()
+
 	initErr := initWorkerStateRecords(stateFilePath, chatFilePath, workers)
 	if initErr != nil {
 		return fmt.Errorf("dispatch: initializing state file: %w", initErr)
+	}
+
+	// Release any holds that were acquired in a prior crashed dispatch session.
+	// A stale hold silently blocks all routing to its target worker indefinitely.
+	staleHoldErr := releaseStaleHolds(chatFilePath, workers, dispatchStartedAt)
+	if staleHoldErr != nil {
+		return fmt.Errorf("dispatch: releasing stale holds: %w", staleHoldErr)
 	}
 
 	// silentCh notifies dispatchLoop when a worker session completes (ARCH-A5).
