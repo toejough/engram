@@ -104,29 +104,7 @@ func ExportRunConversationLoopWith(
 	runner := buildAgentRunner(flags, stateFile, chatFile, stdout)
 
 	return runConversationLoopWith(
-		ctx, runner, name, flags, chatFile, stateFile,
-		claudeBinary, stdout, promptBuilder,
-		watchForIntent, memFileSelector,
-	)
-}
-
-// ExportRunConversationLoopWithName is the property-test shim for issue 544.
-// It passes agentName as an explicit parameter, separate from any flags construction,
-// to verify the param is correctly threaded through runConversationLoopWith.
-func ExportRunConversationLoopWithName(
-	ctx context.Context,
-	agentName, prompt, chatFile, stateFile, claudeBinary string,
-	stdout io.Writer,
-	promptBuilder func(ctx context.Context, agentName, chatFilePath string, cursor int) (string, error),
-	watchForIntent func(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error),
-	memFileSelector func(homeDir string, maxFiles int) ([]string, error),
-) error {
-	flags := agentRunFlags{name: agentName, prompt: prompt, chatFile: chatFile, stateFile: stateFile}
-	runner := buildAgentRunner(flags, stateFile, chatFile, stdout)
-
-	return runConversationLoopWith(
-		ctx, runner, agentName, flags, chatFile, stateFile,
-		//               ^^^^^^^^^ new explicit param — compile error until Phase 2
+		ctx, runner, name, prompt, chatFile, stateFile,
 		claudeBinary, stdout, promptBuilder,
 		watchForIntent, memFileSelector,
 	)

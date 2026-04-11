@@ -1051,7 +1051,7 @@ func runConversationLoop(
 	stdout io.Writer,
 ) error {
 	return runConversationLoopWith(
-		ctx, runner, flags.name, flags, chatFilePath, stateFilePath,
+		ctx, runner, flags.name, flags.prompt, chatFilePath, stateFilePath,
 		claudeBinary, stdout, waitAndBuildPrompt,
 		defaultWatchForIntent, defaultMemFileSelector,
 	)
@@ -1063,15 +1063,14 @@ func runConversationLoop(
 func runConversationLoopWith(
 	ctx context.Context,
 	runner claudepkg.Runner,
-	agentName string,
-	flags agentRunFlags,
+	agentName, initialPrompt string,
 	chatFilePath, stateFilePath, claudeBinary string,
 	stdout io.Writer,
 	promptBuilder promptBuilderFunc,
 	watchForIntent watchForIntentFunc,
 	memFileSelector memFileSelectorFunc,
 ) error {
-	prompt := flags.prompt
+	prompt := initialPrompt
 	sessionID := ""
 
 	for {
