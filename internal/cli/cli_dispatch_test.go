@@ -1129,6 +1129,58 @@ func TestRunDispatchSemaphore_FourthWorkerBlocks(t *testing.T) {
 // runDispatchStart tests
 // ============================================================
 
+func TestRunDispatchStart_InitializesStateFileWithStartingRecords(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Fake claude emits READY: + DONE: then exits, so worker completes one session
+	// and enters watchAndResume (blocks on intent channel until ctx cancelled).
+	fakeClaude := filepath.Join(dir, "claude")
+	fakeClaudeScript := "#!/bin/sh\n" +
+		`printf '{"type":"system","session_id":"test-sid-123"}\n'` + "\n" +
+		`printf '{"type":"assistant","session_id":"test-sid-123",` +
+		`"message":{"content":[{"type":"text","text":"READY: up\nDONE: done"}]}}\n'` + "\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(fakeClaudeScript), 0o700)).To(Succeed())
+
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+
+	err := cli.ExportRunDispatchStart(ctx, []string{
+		"--agent", "engram-agent",
+		"--chat-file", chatFile,
+		"--state-file", stateFile,
+		"--claude-binary", fakeClaude,
+	}, io.Discard)
+
+	// Context timeout is expected; only error we accept.
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// State file must exist and contain the worker record.
+	data, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	state, parseErr := agentpkg.ParseStateFile(data)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	g.Expect(state.Agents).To(HaveLen(1))
+	g.Expect(state.Agents[0].Name).To(Equal("engram-agent"))
+}
+
 func TestRunDispatchStart_MissingAgentFlag_ReturnsError(t *testing.T) {
 	t.Parallel()
 

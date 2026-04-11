@@ -223,6 +223,34 @@ func handleHoldRelease(
 	}
 }
 
+// initWorkerStateRecords adds a STARTING record for each worker not already in the state file.
+// Existing records are left unchanged to preserve state across restarts.
+func initWorkerStateRecords(stateFilePath string, workers []WorkerConfig) error {
+	return readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
+		for _, worker := range workers {
+			alreadyPresent := false
+
+			for _, rec := range stateFile.Agents {
+				if rec.Name == worker.Name {
+					alreadyPresent = true
+
+					break
+				}
+			}
+
+			if !alreadyPresent {
+				stateFile = agentpkg.AddAgent(stateFile, agentpkg.AgentRecord{
+					Name:      worker.Name,
+					State:     "STARTING",
+					SpawnedAt: time.Now().UTC(),
+				})
+			}
+		}
+
+		return stateFile
+	})
+}
+
 // isWorkerActive reports whether the named worker has state=ACTIVE in the state file.
 func isWorkerActive(stateFilePath, workerName string) bool {
 	data, err := os.ReadFile(stateFilePath) //nolint:gosec
@@ -455,6 +483,14 @@ func runDispatch(
 		return fmt.Errorf("dispatch: reading chat cursor: %w", cursorErr)
 	}
 
+	// Initialize state file records for all workers as STARTING before spawning goroutines.
+	// WriteState/WriteSessionID callbacks are find-and-update; without these initial records
+	// all state writes silently no-op. Existing records (from a prior run) are left unchanged.
+	initErr := initWorkerStateRecords(stateFilePath, workers)
+	if initErr != nil {
+		return fmt.Errorf("dispatch: initializing state file: %w", initErr)
+	}
+
 	// silentCh notifies dispatchLoop when a worker session completes (ARCH-A5).
 	silentCh := make(chan string, len(workers))
 
@@ -466,29 +502,8 @@ func runDispatch(
 		go func(cfg WorkerConfig) {
 			defer wg.Done()
 
-			sem <- struct{}{}
-
-			defer func() { <-sem }()
-
-			flags := agentRunFlags{
-				name:      cfg.Name,
-				prompt:    cfg.Prompt,
-				chatFile:  chatFilePath,
-				stateFile: stateFilePath,
-			}
-			runner := buildAgentRunner(flags, stateFilePath, chatFilePath, stdout)
-
-			_ = runConversationLoopWith(
-				ctx, runner,
-				cfg.Name, cfg.Prompt,
-				chatFilePath, stateFilePath,
-				claudeBinary, stdout,
-				waitAndBuildPrompt,
-				defaultWatchForIntent,
-				intentChans[cfg.Name],
-				silentCh,
-				defaultMemFileSelector,
-			)
+			intentCh := intentChans[cfg.Name]
+			runWorkerUnderSemaphore(ctx, cfg, sem, chatFilePath, stateFilePath, claudeBinary, intentCh, silentCh, stdout)
 		}(w)
 	}
 
@@ -792,6 +807,37 @@ func runDispatchStop(args []string, stdout io.Writer) error {
 	}
 
 	return nil
+}
+
+// runWorkerUnderSemaphore acquires the concurrency semaphore, runs one worker's conversation loop,
+// and releases the semaphore on exit. Called as a goroutine by runDispatch.
+func runWorkerUnderSemaphore(
+	ctx context.Context,
+	cfg WorkerConfig,
+	sem chan struct{},
+	chatFilePath, stateFilePath, claudeBinary string,
+	intentCh <-chan chat.Message,
+	silentCh chan<- string,
+	stdout io.Writer,
+) {
+	sem <- struct{}{}
+
+	defer func() { <-sem }()
+
+	flags := agentRunFlags{name: cfg.Name, prompt: cfg.Prompt, chatFile: chatFilePath, stateFile: stateFilePath}
+	runner := buildAgentRunner(flags, stateFilePath, chatFilePath, stdout)
+
+	_ = runConversationLoopWith(
+		ctx, runner,
+		cfg.Name, cfg.Prompt,
+		chatFilePath, stateFilePath,
+		claudeBinary, stdout,
+		waitAndBuildPrompt,
+		defaultWatchForIntent,
+		intentCh,
+		silentCh,
+		defaultMemFileSelector,
+	)
 }
 
 // updateLastDeliveredCursor atomically updates the LastDeliveredCursor for the named worker.
