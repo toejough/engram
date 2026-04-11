@@ -417,6 +417,7 @@ Every managed agent has a state:
 
 ```
 STARTING ──(first chat message)──> ACTIVE
+ACTIVE ──(binary writes SILENT after session end)──> SILENT    [engram-agent Phase 5]
 ACTIVE ──(no message for silence_threshold)──> SILENT
 ACTIVE ──(agent posts done, NO incoming holds)──> DONE (pane killed)
 ACTIVE ──(agent posts done, HAS incoming holds)──> PENDING-RELEASE
@@ -430,7 +431,7 @@ DEAD ──(lead decides, respawn)──> RESPAWN
 DEAD ──(lead decides, report)──> REPORT+DONE
 ```
 
-12 transitions (up from 6).
+13 transitions (up from 6).
 
 ### 3.1 State Definitions
 
@@ -438,7 +439,7 @@ DEAD ──(lead decides, report)──> REPORT+DONE
 |-------|----------------|---------------|
 | **STARTING** | `engram agent spawn` executed | Monitor chat for first message. Timeout: 30s for engram-agent, 60s for others. |
 | **ACTIVE** | Agent posted at least one message | Normal operation. Track last-message timestamp. |
-| **SILENT** | No chat message for `silence_threshold` (3 min for task agents, 6 min for engram-agent). Detected on 2-minute health check. | Nudge via chat + tmux (see 3.2). |
+| **SILENT** | No chat message for `silence_threshold` (3 min for task agents). **engram-agent (Phase 5):** binary writes SILENT after each watch-loop invocation ends — this is the normal idle state between intents. Detected on 2-minute health check. | **Task agents:** Nudge via chat + tmux (see 3.2). **engram-agent:** Check pane existence via `engram agent list` + tmux; if pane gone → DEAD → respawn. No nudge. |
 | **DEAD** | Nudge failed, tmux window gone, or log shows crash/exit | Decide: respawn (engram-agent always), report to user (task agents). |
 | **PENDING-RELEASE** | Agent posted `done` AND lead's hold registry contains at least one hold targeting this agent | Do NOT kill pane. Agent remains alive and responsive. Run engram hold check after each agent done event. Silence threshold still applies — use PENDING-RELEASE-specific nudge text (see 3.2). |
 | **DONE** | Agent posted `done` AND no incoming holds remain (or last hold just dissolved) | 0. Post kill intent (see note below table). 1. Post `shutdown` to agent via chat (`type = "shutdown"`, `to = "<agent-name>"`). 2. Run `engram agent kill --name <agent-name>` (removes from state file + kills pane). 3. Remove from tracking. |
@@ -463,6 +464,27 @@ Wait for ACK before proceeding with the shutdown + kill sequence. Apply standard
 **Always use `engram agent kill --name <name>` to kill agents.** Never call `tmux kill-pane` directly — the binary handles state file cleanup and layout rebalancing.
 
 ### 3.2 Nudging
+
+**Special case — engram-agent in Phase 5:**
+
+In Phase 5, engram-agent's normal resting state between intents is SILENT. The binary writes `state = "SILENT"` AND `last-silent-at = <now>` atomically when the watch loop is idle. The pane remains alive as long as `engram agent run` is running.
+
+**Do NOT send a chat or tmux nudge to engram-agent for SILENT state.** Instead, check pane existence:
+
+```bash
+AGENT_INFO=$(engram agent list | jq -r 'select(.name=="engram-agent")')
+PANE_ID=$(echo "$AGENT_INFO" | jq -r '.["pane-id"]')
+LAST_SILENT=$(echo "$AGENT_INFO" | jq -r '.["last-silent-at"]')
+
+if tmux list-panes -F '#{pane_id}' | grep -q "$PANE_ID"; then
+  # Pane alive → binary watch loop healthy → skip nudge
+  # (Optional diagnostic log: "engram-agent healthy SILENT since $LAST_SILENT")
+else
+  # Pane gone → truly dead → transition immediately to DEAD → respawn (Section 3.3)
+fi
+```
+
+For **task agents** (not engram-agent), use the standard nudge procedure below.
 
 When an agent enters SILENT:
 
@@ -967,7 +989,7 @@ Always do this — even if you processed user input rather than a chat notificat
 1. Check all tracked agents against silence thresholds
 2. Verify agent panes exist: `tmux list-panes -F '#{pane_id} #{pane_pid}'`
 3. Transition SILENT/DEAD agents per Section 3
-4. If engram-agent missed heartbeat (>6 min since last), nudge immediately
+4. For engram-agent: check pane existence (§3.2 special case). If pane gone → DEAD → respawn. If pane alive → healthy SILENT, no action needed.
 
 #### Implementation
 
