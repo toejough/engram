@@ -82,6 +82,40 @@ type ChatWatchArgs struct {
 	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
 }
 
+// DispatchAssignArgs holds parsed flags for the dispatch assign subcommand.
+type DispatchAssignArgs struct {
+	Agent     string `targ:"flag,name=agent,desc=agent name to assign task to"`
+	Task      string `targ:"flag,name=task,desc=task description to assign"`
+	ChatFile  string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
+	StateFile string `targ:"flag,name=state-file,desc=override state file path (testing only)"`
+}
+
+// DispatchDrainArgs holds parsed flags for the dispatch drain subcommand.
+type DispatchDrainArgs struct {
+	Timeout   int    `targ:"flag,name=timeout,desc=drain timeout in seconds (default 60)"`
+	StateFile string `targ:"flag,name=state-file,desc=override state file path (testing only)"`
+}
+
+// DispatchStartArgs holds parsed flags for the dispatch start subcommand.
+type DispatchStartArgs struct {
+	Agent         string `targ:"flag,name=agent,desc=agent name (use multiple times for multiple agents)"`
+	MaxConcurrent int    `targ:"flag,name=max-concurrent,desc=max concurrent worker sessions (default 4)"`
+	ChatFile      string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
+	StateFile     string `targ:"flag,name=state-file,desc=override state file path (testing only)"`
+	ClaudeBinary  string `targ:"flag,name=claude-binary,desc=override claude binary path (testing only)"`
+}
+
+// DispatchStatusArgs holds parsed flags for the dispatch status subcommand.
+type DispatchStatusArgs struct {
+	StateFile string `targ:"flag,name=state-file,desc=override state file path (testing only)"`
+}
+
+// DispatchStopArgs holds parsed flags for the dispatch stop subcommand.
+type DispatchStopArgs struct {
+	StateFile string `targ:"flag,name=state-file,desc=override state file path (testing only)"`
+	ChatFile  string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
+}
+
 // HoldAcquireArgs holds parsed flags for the hold acquire subcommand.
 type HoldAcquireArgs struct {
 	Holder    string `targ:"flag,name=holder,desc=agent acquiring the hold"`
@@ -182,6 +216,8 @@ func AgentWaitReadyFlags(a AgentWaitReadyArgs) []string {
 }
 
 // BuildAgentGroup builds the targ group for agent subcommands.
+//
+//nolint:dupl // mirrors BuildDispatchGroup structure; both use the same targ.Group pattern
 func BuildAgentGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup {
 	return targ.Group("agent",
 		targ.Targ(func(a AgentSpawnArgs) {
@@ -228,6 +264,34 @@ func BuildChatGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup
 			args := append([]string{"engram", "chat", "ack-wait"}, ChatAckWaitFlags(a)...)
 			RunSafe(args, stdout, stderr, stdin)
 		}).Name("ack-wait").Description("Block until all recipients ACK or WAIT; returns JSON result"),
+	)
+}
+
+// BuildDispatchGroup builds the targ group for dispatch subcommands.
+//
+//nolint:dupl // mirrors BuildAgentGroup structure; both use the same targ.Group pattern
+func BuildDispatchGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup {
+	return targ.Group("dispatch",
+		targ.Targ(func(a DispatchStartArgs) {
+			args := append([]string{"engram", "dispatch", "start"}, DispatchStartFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("start").Description("Start the dispatch loop managing one or more workers"),
+		targ.Targ(func(a DispatchAssignArgs) {
+			args := append([]string{"engram", "dispatch", "assign"}, DispatchAssignFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("assign").Description("Assign a task to a named worker"),
+		targ.Targ(func(a DispatchDrainArgs) {
+			args := append([]string{"engram", "dispatch", "drain"}, DispatchDrainFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("drain").Description("Wait for all in-flight workers to complete"),
+		targ.Targ(func(a DispatchStatusArgs) {
+			args := append([]string{"engram", "dispatch", "status"}, DispatchStatusFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("status").Description("Print worker states and queue depth"),
+		targ.Targ(func(a DispatchStopArgs) {
+			args := append([]string{"engram", "dispatch", "stop"}, DispatchStopFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("stop").Description("Send shutdown to all workers and exit"),
 	)
 }
 
@@ -334,6 +398,47 @@ func DataDirFromHome(home string, getenv func(string) string) string {
 	return filepath.Join(home, ".local", "share", "engram")
 }
 
+// DispatchAssignFlags returns the CLI flag args for the dispatch assign subcommand.
+func DispatchAssignFlags(a DispatchAssignArgs) []string {
+	return BuildFlags(
+		"--agent", a.Agent,
+		"--task", a.Task,
+		"--chat-file", a.ChatFile,
+		"--state-file", a.StateFile,
+	)
+}
+
+// DispatchDrainFlags returns the CLI flag args for the dispatch drain subcommand.
+func DispatchDrainFlags(a DispatchDrainArgs) []string {
+	return append(
+		BuildFlags("--state-file", a.StateFile),
+		AddIntFlag(nil, "--timeout", a.Timeout)...,
+	)
+}
+
+// DispatchStartFlags returns the CLI flag args for the dispatch start subcommand.
+func DispatchStartFlags(a DispatchStartArgs) []string {
+	return append(
+		BuildFlags(
+			"--agent", a.Agent,
+			"--chat-file", a.ChatFile,
+			"--state-file", a.StateFile,
+			"--claude-binary", a.ClaudeBinary,
+		),
+		AddIntFlag(nil, "--max-concurrent", a.MaxConcurrent)...,
+	)
+}
+
+// DispatchStatusFlags returns the CLI flag args for the dispatch status subcommand.
+func DispatchStatusFlags(a DispatchStatusArgs) []string {
+	return BuildFlags("--state-file", a.StateFile)
+}
+
+// DispatchStopFlags returns the CLI flag args for the dispatch stop subcommand.
+func DispatchStopFlags(a DispatchStopArgs) []string {
+	return BuildFlags("--state-file", a.StateFile, "--chat-file", a.ChatFile)
+}
+
 // HoldAcquireFlags returns the CLI flag args for the hold acquire subcommand.
 func HoldAcquireFlags(a HoldAcquireArgs) []string {
 	return BuildFlags(
@@ -403,6 +508,7 @@ func Targets(stdout, stderr io.Writer, stdin io.Reader) []any {
 	return append(
 		BuildTargets(run),
 		BuildChatGroup(stdout, stderr, stdin),
+		BuildDispatchGroup(stdout, stderr, stdin),
 		BuildHoldGroup(stdout, stderr, stdin),
 		BuildAgentGroup(stdout, stderr, stdin),
 	)

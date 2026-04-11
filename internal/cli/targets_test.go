@@ -360,6 +360,88 @@ func TestBuildChatGroup_AckWait(t *testing.T) {
 	g.Expect(stdout.String()).To(gomega.ContainSubstring(`"result"`))
 }
 
+func TestBuildDispatchGroup(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns a non-nil group", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		group := cli.BuildDispatchGroup(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		g.Expect(group).NotTo(gomega.BeNil())
+	})
+
+	t.Run("executes status subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		stateFile := filepath.Join(dir, "state.toml")
+
+		var stderr bytes.Buffer
+
+		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "dispatch", "status",
+			"--state-file", stateFile,
+		}, targets...)
+
+		// Missing state file → error on stderr.
+		g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
+	})
+
+	t.Run("executes drain subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		stateFile := filepath.Join(dir, "state.toml")
+
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "dispatch", "drain",
+			"--state-file", stateFile,
+			"--timeout", "0",
+		}, targets...)
+
+		// Nonexistent state file with timeout=0 → outputs timeout JSON.
+		g.Expect(stdout.String()).To(gomega.ContainSubstring("timeout"))
+	})
+
+	t.Run("executes assign subcommand via closure (missing --agent returns error)", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var stderr bytes.Buffer
+
+		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
+		_, _ = targ.Execute([]string{"engram", "dispatch", "assign"}, targets...)
+
+		// Missing --agent → error on stderr.
+		g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
+	})
+
+	t.Run("executes stop subcommand via closure (missing state file returns error)", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+
+		var stderr bytes.Buffer
+
+		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "dispatch", "stop",
+			"--state-file", filepath.Join(dir, "nonexistent.toml"),
+		}, targets...)
+
+		// Missing state file → error on stderr.
+		g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
+	})
+}
+
 func TestBuildFlags(t *testing.T) {
 	t.Parallel()
 
@@ -699,6 +781,26 @@ func TestDataDirFromHome(t *testing.T) {
 	})
 }
 
+func TestDispatchStartFlags_AllFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.DispatchStartFlags(cli.DispatchStartArgs{
+		Agent:         "engram-agent",
+		MaxConcurrent: 3,
+		ChatFile:      "/tmp/chat.toml",
+		StateFile:     "/tmp/state.toml",
+		ClaudeBinary:  "/usr/bin/claude",
+	})
+	g.Expect(args).To(gomega.ContainElements(
+		"--agent", "engram-agent",
+		"--max-concurrent", "3",
+		"--chat-file", "/tmp/chat.toml",
+		"--state-file", "/tmp/state.toml",
+		"--claude-binary", "/usr/bin/claude",
+	))
+}
+
 func TestHoldAcquireFlags(t *testing.T) {
 	t.Parallel()
 
@@ -896,7 +998,7 @@ func TestTargets(t *testing.T) {
 
 		// Construction doesn't do I/O — just builds targ target objects.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(targets).To(gomega.HaveLen(5))
+		g.Expect(targets).To(gomega.HaveLen(6))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {
