@@ -5389,7 +5389,7 @@ func TestWatchAndResume_MemFileSelectorError_LogsWarning(t *testing.T) {
 			context.Background(),
 			"test-agent", "chat.toml", stateFilePath, 0,
 			claudepkg.StreamResult{}, &stdout,
-			watchForIntent, memFileSelector,
+			watchForIntent, memFileSelector, noopReadFile,
 		)
 		g.Expect(err).NotTo(HaveOccurred())
 
@@ -5423,7 +5423,7 @@ func TestWatchAndResume_MemFileSelectorError_MemFilesEmpty(t *testing.T) {
 		context.Background(),
 		"test-agent", "chat.toml", stateFilePath, 0,
 		claudepkg.StreamResult{}, &stdout,
-		watchForIntent, memFileSelector,
+		watchForIntent, memFileSelector, noopReadFile,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -5457,7 +5457,7 @@ func TestWatchAndResume_MemFileSelectorError_ReturnsSuccessAndPrompt(t *testing.
 		context.Background(),
 		"test-agent", "chat.toml", stateFilePath, 0,
 		claudepkg.StreamResult{}, &stdout,
-		watchForIntent, memFileSelector,
+		watchForIntent, memFileSelector, noopReadFile,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -5487,7 +5487,7 @@ func TestWatchAndResume_MemFileSelectorSuccess_NoWarning(t *testing.T) {
 		context.Background(),
 		"test-agent", "chat.toml", stateFilePath, 0,
 		claudepkg.StreamResult{}, &stdout,
-		watchForIntent, memFileSelector,
+		watchForIntent, memFileSelector, noopReadFile,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -5497,6 +5497,135 @@ func TestWatchAndResume_MemFileSelectorSuccess_NoWarning(t *testing.T) {
 
 	g.Expect(stdout.String()).NotTo(ContainSubstring("failed to select memory files"),
 		"expected no warning when selector succeeds")
+}
+
+// TestWatchAndResume_PopulatesLearnedMessages verifies that when the chat file contains
+// learned messages addressed to the agent since cursor, the prompt includes them.
+func TestWatchAndResume_PopulatesLearnedMessages(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFilePath := filepath.Join(dir, "state.toml")
+
+	learnedLine := "\n[[message]]\nfrom = \"exec-2\"\nto = \"exec-1\"\n" +
+		"thread = \"main\"\ntype = \"learned\"\nts = 2026-04-11T00:00:00Z\n" +
+		"text = \"\"\"\napi returns 404 on missing resource\n\"\"\"\n"
+	g.Expect(os.WriteFile(chatFile, []byte(learnedLine), 0o600)).To(Succeed())
+
+	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		return chat.Message{From: "lead", Text: "Situation: new task. Behavior: act."}, cursor + 5, nil
+	}
+
+	prompt, err := cli.ExportWatchAndResume(
+		context.Background(),
+		"exec-1", chatFile, stateFilePath, 0,
+		claudepkg.StreamResult{}, io.Discard,
+		watchForIntent, nil, os.ReadFile,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(prompt).NotTo(ContainSubstring("LEARNED_MESSAGES: (none)"),
+		"expected LEARNED_MESSAGES to be populated from chat file")
+	g.Expect(prompt).To(ContainSubstring("api returns 404"))
+}
+
+// TestWatchAndResume_PopulatesRecentIntents verifies that when the chat file contains
+// intent messages, the returned prompt includes them under RECENT_INTENTS (not "(none)").
+func TestWatchAndResume_PopulatesRecentIntents(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFilePath := filepath.Join(dir, "state.toml")
+
+	intentLine := "\n[[message]]\nfrom = \"lead\"\nto = \"exec-1\"\n" +
+		"thread = \"main\"\ntype = \"intent\"\nts = 2026-04-11T00:00:00Z\n" +
+		"text = \"\"\"\nSituation: deploy needed. Behavior: will deploy.\n\"\"\"\n"
+	g.Expect(os.WriteFile(chatFile, []byte(intentLine), 0o600)).To(Succeed())
+
+	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		return chat.Message{From: "lead", Text: "Situation: new task. Behavior: act."}, cursor + 5, nil
+	}
+
+	prompt, err := cli.ExportWatchAndResume(
+		context.Background(),
+		"exec-1", chatFile, stateFilePath, 0,
+		claudepkg.StreamResult{}, io.Discard,
+		watchForIntent, nil, os.ReadFile,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(prompt).NotTo(ContainSubstring("RECENT_INTENTS: (none)"),
+		"expected RECENT_INTENTS to be populated from chat file")
+	g.Expect(prompt).To(ContainSubstring("deploy needed"))
+}
+
+// TestWatchAndResume_PopulatesRecentIntentsAndLearned verifies that watchAndResume
+// populates RecentIntents and LearnedMessages in the resume prompt from the chat file.
+func TestWatchAndResume_PopulatesRecentIntentsAndLearned(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	stateFilePath, watchForIntent := makeWatchAndResumeFixture(t)
+
+	// Chat file contains one prior intent and one learned message for the agent.
+	chatContent := `
+[[message]]
+from = "lead"
+to = "test-agent"
+thread = "work"
+type = "intent"
+ts = 2026-04-11T00:00:00Z
+text = "Do the prior task."
+
+[[message]]
+from = "engram-agent"
+to = "test-agent"
+thread = "work"
+type = "learned"
+ts = 2026-04-11T00:00:01Z
+text = "Always check the state file before writing."
+`
+
+	readFile := func(_ string) ([]byte, error) {
+		return []byte(chatContent), nil
+	}
+
+	prompt, err := cli.ExportWatchAndResume(
+		context.Background(),
+		"test-agent", "chat.toml", stateFilePath, 0,
+		claudepkg.StreamResult{}, io.Discard,
+		watchForIntent, nil, readFile,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(prompt).To(ContainSubstring("RECENT_INTENTS:"),
+		"expected RECENT_INTENTS section in prompt")
+	g.Expect(prompt).NotTo(ContainSubstring("RECENT_INTENTS: (none)"),
+		"expected RECENT_INTENTS to be non-empty when chat has intent messages")
+	g.Expect(prompt).To(ContainSubstring("lead→test-agent: Do the prior task."),
+		"expected recent intent entry with from→to: text format")
+	g.Expect(prompt).To(ContainSubstring("LEARNED_MESSAGES:"),
+		"expected LEARNED_MESSAGES section in prompt")
+	g.Expect(prompt).NotTo(ContainSubstring("LEARNED_MESSAGES: (none)"),
+		"expected LEARNED_MESSAGES to be non-empty when chat has learned messages for agent")
+	g.Expect(prompt).To(ContainSubstring("Always check the state file before writing."),
+		"expected learned message text in prompt")
 }
 
 // TestWatchAndResume_StateFileIsDir_LogsWarningsAndReturnsPrompt verifies that when
@@ -5518,7 +5647,7 @@ func TestWatchAndResume_StateFileIsDir_LogsWarningsAndReturnsPrompt(t *testing.T
 	prompt, err := cli.ExportWatchAndResume(
 		context.Background(), "worker-1", "/fake/chat.toml", stateDir, 0,
 		claudepkg.StreamResult{}, &stdout,
-		watchForIntent, nil,
+		watchForIntent, nil, noopReadFile,
 	)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -5549,7 +5678,7 @@ func TestWatchAndResume_WatchForIntentError_ReturnsError(t *testing.T) {
 	_, err := cli.ExportWatchAndResume(
 		context.Background(), "worker-1", "/fake/chat.toml", stateFilePath, 0,
 		claudepkg.StreamResult{}, io.Discard,
-		watchForIntent, nil,
+		watchForIntent, nil, noopReadFile,
 	)
 
 	g.Expect(err).To(HaveOccurred())
@@ -5640,4 +5769,9 @@ func makeWatchAndResumeFixture(t *testing.T) (
 	}
 
 	return stateFilePath, watchForIntent
+}
+
+// noopReadFile is a stub readFile for tests that don't need chat file content.
+func noopReadFile(_ string) ([]byte, error) {
+	return []byte{}, nil
 }

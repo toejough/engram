@@ -126,7 +126,7 @@ func dispatchLoopWith(
 	// this initial scan.
 	data, scanErr := os.ReadFile(chatFilePath) //nolint:gosec
 	if scanErr == nil {
-		suffix := dispatchSuffixAtLine(data, cursor)
+		suffix := suffixAtLine(data, cursor)
 
 		for _, msg := range chat.ParseMessagesSafe(suffix) {
 			routeMessageWithPoster(workerChans, deferred, holdChecker, stateFilePath, poster, msg, cursor)
@@ -170,27 +170,6 @@ func dispatchLoopWith(
 			startWatch()
 		}
 	}
-}
-
-// dispatchSuffixAtLine returns data starting at the given line number (0-indexed).
-// Returns full data if lineNum <= 0, nil if lineNum exceeds line count.
-// Mirrors chat.suffixAtLine for use in crash-recovery scanning.
-func dispatchSuffixAtLine(data []byte, lineNum int) []byte {
-	if lineNum <= 0 {
-		return data
-	}
-
-	offset := 0
-	for range lineNum {
-		idx := bytes.IndexByte(data[offset:], '\n')
-		if idx < 0 {
-			return nil
-		}
-
-		offset += idx + 1
-	}
-
-	return data[offset:]
 }
 
 // drainDeferredQueue sends all deferred messages for a worker to its channel

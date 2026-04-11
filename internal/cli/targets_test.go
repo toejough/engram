@@ -786,7 +786,7 @@ func TestDispatchStartFlags_AllFields(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	args := cli.DispatchStartFlags(cli.DispatchStartArgs{
-		Agent:         "engram-agent",
+		Agent:         []string{"engram-agent"},
 		MaxConcurrent: 3,
 		ChatFile:      "/tmp/chat.toml",
 		StateFile:     "/tmp/state.toml",
@@ -799,6 +799,22 @@ func TestDispatchStartFlags_AllFields(t *testing.T) {
 		"--state-file", "/tmp/state.toml",
 		"--claude-binary", "/usr/bin/claude",
 	))
+}
+
+// TestDispatchStartFlags_MultipleAgents verifies that multiple agents
+// each produce their own --agent flag pair.
+func TestDispatchStartFlags_MultipleAgents(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.DispatchStartFlags(cli.DispatchStartArgs{
+		Agent: []string{"exec-1", "exec-2", "exec-3"},
+	})
+	g.Expect(args).To(gomega.Equal([]string{
+		"--agent", "exec-1",
+		"--agent", "exec-2",
+		"--agent", "exec-3",
+	}))
 }
 
 func TestHoldAcquireFlags(t *testing.T) {

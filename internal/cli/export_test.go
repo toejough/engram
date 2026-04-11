@@ -322,10 +322,11 @@ func ExportWatchAndResume(
 	stdout io.Writer,
 	watchForIntent func(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error),
 	memFileSelector func(homeDir string, maxFiles int) ([]string, error),
+	readFile func(string) ([]byte, error),
 ) (string, error) {
 	return watchAndResume(
 		ctx, agentName, chatFilePath, stateFilePath, cursor, result, stdout,
-		watchForIntent, nil, nil, memFileSelector,
+		watchForIntent, nil, nil, memFileSelector, readFile,
 	)
 }
 

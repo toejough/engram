@@ -43,6 +43,7 @@ type ResumePromptArgs struct {
 const (
 	agentRunAckMaxWait    = 30 * time.Second
 	maxArgumentTurns      = 3
+	resumeIntentLimit     = 5
 	resumeMemoryFileLimit = 20
 	spawnAckMaxWait       = 30 * time.Second
 	stateFileLockDelay    = 25 * time.Millisecond
@@ -1214,7 +1215,7 @@ func runConversationLoopWith(
 		prompt, err = watchAndResume(
 			ctx, agentName, chatFilePath, stateFilePath,
 			cursor, result, stdout,
-			watchForIntent, intents, silentCh, memFileSelector,
+			watchForIntent, intents, silentCh, memFileSelector, os.ReadFile,
 		)
 		if err != nil {
 			// Context cancellation during watch = clean exit.
@@ -1505,6 +1506,7 @@ func watchAndResume(
 	intents <-chan chat.Message, // nil = use watchForIntent (standalone mode)
 	silentCh chan<- string, // nil when not in dispatch mode
 	memFileSelector memFileSelectorFunc,
+	readFile func(string) ([]byte, error),
 ) (string, error) {
 	// Write SILENT state first (before signaling dispatchLoop via silentCh).
 	// drainDeferredQueue runs after state is durable to prevent state-file inconsistency.
@@ -1536,13 +1538,25 @@ func watchAndResume(
 			resumeErr)
 	}
 
+	recentIntents, recentErr := selectRecentIntents(chatFilePath, readFile, resumeIntentLimit)
+	if recentErr != nil {
+		_, _ = fmt.Fprintf(stdout, "[engram] warning: failed to select recent intents: %v\n", recentErr)
+	}
+
+	learnedMessages, learnedErr := collectLearned(chatFilePath, agentName, cursor, readFile)
+	if learnedErr != nil {
+		_, _ = fmt.Fprintf(stdout, "[engram] warning: failed to collect learned messages: %v\n", learnedErr)
+	}
+
 	return buildResumePrompt(ResumePromptArgs{
-		AgentName:    agentName,
-		Cursor:       newCursor,
-		MemFiles:     selectResumeMemFiles(stdout, memFileSelector),
-		IntentFrom:   intentMsg.From,
-		IntentText:   intentMsg.Text,
-		ResumeReason: "intent",
+		AgentName:       agentName,
+		Cursor:          newCursor,
+		MemFiles:        selectResumeMemFiles(stdout, memFileSelector),
+		IntentFrom:      intentMsg.From,
+		IntentText:      intentMsg.Text,
+		RecentIntents:   recentIntents,
+		LearnedMessages: learnedMessages,
+		ResumeReason:    "intent",
 	}), nil
 }
 

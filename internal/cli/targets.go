@@ -98,11 +98,11 @@ type DispatchDrainArgs struct {
 
 // DispatchStartArgs holds parsed flags for the dispatch start subcommand.
 type DispatchStartArgs struct {
-	Agent         string `targ:"flag,name=agent,desc=agent name (use multiple times for multiple agents)"`
-	MaxConcurrent int    `targ:"flag,name=max-concurrent,desc=max concurrent worker sessions (default 4)"`
-	ChatFile      string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
-	StateFile     string `targ:"flag,name=state-file,desc=override state file path (testing only)"`
-	ClaudeBinary  string `targ:"flag,name=claude-binary,desc=override claude binary path (testing only)"`
+	Agent         []string `targ:"flag,name=agent,desc=agent name (use multiple times for multiple agents)"`
+	MaxConcurrent int      `targ:"flag,name=max-concurrent,desc=max concurrent worker sessions (default 4)"`
+	ChatFile      string   `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
+	StateFile     string   `targ:"flag,name=state-file,desc=override state file path (testing only)"`
+	ClaudeBinary  string   `targ:"flag,name=claude-binary,desc=override claude binary path (testing only)"`
 }
 
 // DispatchStatusArgs holds parsed flags for the dispatch status subcommand.
@@ -418,15 +418,22 @@ func DispatchDrainFlags(a DispatchDrainArgs) []string {
 
 // DispatchStartFlags returns the CLI flag args for the dispatch start subcommand.
 func DispatchStartFlags(a DispatchStartArgs) []string {
-	return append(
-		BuildFlags(
-			"--agent", a.Agent,
-			"--chat-file", a.ChatFile,
-			"--state-file", a.StateFile,
-			"--claude-binary", a.ClaudeBinary,
-		),
-		AddIntFlag(nil, "--max-concurrent", a.MaxConcurrent)...,
-	)
+	flags := make([]string, 0, len(a.Agent)*2+dispatchStartFlagsNonAgentCap)
+
+	for _, agent := range a.Agent {
+		if agent != "" {
+			flags = append(flags, "--agent", agent)
+		}
+	}
+
+	flags = append(flags, BuildFlags(
+		"--chat-file", a.ChatFile,
+		"--state-file", a.StateFile,
+		"--claude-binary", a.ClaudeBinary,
+	)...)
+	flags = append(flags, AddIntFlag(nil, "--max-concurrent", a.MaxConcurrent)...)
+
+	return flags
 }
 
 // DispatchStatusFlags returns the CLI flag args for the dispatch status subcommand.
@@ -513,3 +520,8 @@ func Targets(stdout, stderr io.Writer, stdin io.Reader) []any {
 		BuildAgentGroup(stdout, stderr, stdin),
 	)
 }
+
+// unexported constants.
+const (
+	dispatchStartFlagsNonAgentCap = 8
+)
