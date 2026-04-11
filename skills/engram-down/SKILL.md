@@ -36,15 +36,30 @@ Blocks until all in-flight tasks complete or timeout elapses. Do not skip — st
 engram dispatch stop
 ```
 
-### Step 4: Scan for LEARNED messages
+### Step 4: Kill chat-tail pane (tmux only)
+
+If `$TMUX` is set, kill the chat observer tail pane. Skip silently if not in tmux.
+
+```bash
+if [ -n "$TMUX" ]; then
+  tmux list-panes -a -F '#{pane_id} #{@engram_name}' \
+    | grep 'chat-tail' \
+    | awk '{print $1}' \
+    | xargs -I{} tmux kill-pane -t {}
+fi
+```
+
+Uses `@engram_name` (tmux user option, immune to OSC 2 terminal overwrites) — not `pane_title`.
+
+### Step 5: Scan for LEARNED messages
 
 Before posting the session summary, read from your session-start cursor forward and collect all `LEARNED` messages. Skipping this risks posting a summary before final facts arrive.
 
-### Step 5: Report session summary
+### Step 6: Report session summary
 
 Tell the user: agents spawned, tasks completed vs in-flight, decisions made, facts learned, open questions.
 
-### Step 6: Preserve chat file
+### Step 7: Preserve chat file
 
 **Do NOT truncate or delete the chat file.** Persistent across sessions.
 
@@ -56,3 +71,5 @@ Tell the user: agents spawned, tasks completed vs in-flight, decisions made, fac
 | Post summary before scanning LEARNED | Facts may arrive after summary — scan first |
 | Truncate chat file | Never — persistent record |
 | Wrong `from` name | Use your name from the `ready` message, not `lead` |
+| Use `pane_title` for tail-pane lookup | Use `@engram_name` — terminal OSC 2 overwrites `pane_title` |
+| Kill tail pane outside tmux | Check `$TMUX` first — not in tmux means no tail pane exists |
