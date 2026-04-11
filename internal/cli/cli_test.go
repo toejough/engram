@@ -2847,6 +2847,101 @@ func TestRunConversationLoopWith_IntentThenDone(t *testing.T) {
 	g.Expect(turn).To(Equal(1))
 }
 
+// TestRunConversationLoopWith_NoMarkers_OuterLoopRewatches verifies that when the
+// inner session emits no markers, the outer loop calls watchForIntent and re-enters
+// the inner loop. Context cancellation on the second watch call exits the loop cleanly.
+func TestRunConversationLoopWith_NoMarkers_OuterLoopRewatches(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	dir2 := t.TempDir()
+	fakeClaude := filepath.Join(dir2, "claude")
+
+	// Always emits plain text with no markers; the outer loop re-enters via watchForIntent.
+	plainJSON := `{"type":"assistant","session_id":"sess-no-markers",` +
+		`"message":{"content":[{"type":"text","text":"Here is your answer."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + plainJSON + "'\n"
+
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	// stubPromptBuilder: returns a simple prompt; called after watchForIntent fires.
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// stubWatchForIntent: first call returns a fake intent; second call cancels ctx to exit loop.
+	watchCallCount := 0
+	stubWatchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		watchCallCount++
+		if watchCallCount > 1 {
+			cancel()
+
+			return chat.Message{}, 0, context.Canceled
+		}
+
+		return chat.Message{
+			From: "lead",
+			Type: "intent",
+			Text: "Resume now.",
+		}, cursor + 1, nil
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+		stubWatchForIntent,
+		nil,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// watchForIntent must have been called at least once (outer loop entered after no-marker session).
+	g.Expect(watchCallCount).To(BeNumerically(">=", 1))
+
+	// State file must contain state = "SILENT" for worker-1
+	// (written by watchAndResume before calling watchForIntent).
+	stateData, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	parsedState, parseErr := agentpkg.ParseStateFile(stateData)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	var worker1State string
+	for _, rec := range parsedState.Agents {
+		if rec.Name == "worker-1" {
+			worker1State = rec.State
+		}
+	}
+
+	g.Expect(worker1State).To(Equal("SILENT"))
+}
+
 // TestRunConversationLoopWith_PromptBuilderError verifies promptBuilder errors propagate.
 func TestRunConversationLoopWith_PromptBuilderError(t *testing.T) {
 	t.Parallel()
