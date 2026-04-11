@@ -106,7 +106,30 @@ func ExportRunConversationLoopWith(
 	return runConversationLoopWith(
 		ctx, runner, name, prompt, chatFile, stateFile,
 		claudeBinary, stdout, promptBuilder,
-		watchForIntent, memFileSelector,
+		watchForIntent, nil, nil, memFileSelector,
+	)
+}
+
+// ExportRunConversationLoopWithChannel calls runConversationLoopWith with a channel-based intent source.
+// intents is a buffered channel of messages to deliver to the agent; silentCh receives the agent name
+// when the session transitions to SILENT. Pass nil for either to use standalone (watch-based) mode.
+func ExportRunConversationLoopWithChannel(
+	ctx context.Context,
+	name, prompt, chatFile, stateFile, claudeBinary string,
+	stdout io.Writer,
+	promptBuilder func(ctx context.Context, agentName, chatFilePath string, turn int) (string, error),
+	watchForIntent func(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error),
+	intents <-chan chat.Message,
+	silentCh chan<- string,
+	memFileSelector func(homeDir string, maxFiles int) ([]string, error),
+) error {
+	flags := agentRunFlags{name: name, prompt: prompt, chatFile: chatFile, stateFile: stateFile}
+	runner := buildAgentRunner(flags, stateFile, chatFile, stdout)
+
+	return runConversationLoopWith(
+		ctx, runner, name, prompt, chatFile, stateFile,
+		claudeBinary, stdout, promptBuilder,
+		watchForIntent, intents, silentCh, memFileSelector,
 	)
 }
 
@@ -144,7 +167,7 @@ func ExportRunConversationLoopWithStateHook(
 	return runConversationLoopWith(
 		ctx, runner, name, prompt, chatFile, stateFile,
 		claudeBinary, stdout, promptBuilder,
-		watchForIntent, memFileSelector,
+		watchForIntent, nil, nil, memFileSelector,
 	)
 }
 
@@ -172,7 +195,8 @@ func ExportWatchAndResume(
 	memFileSelector func(homeDir string, maxFiles int) ([]string, error),
 ) (string, error) {
 	return watchAndResume(
-		ctx, agentName, chatFilePath, stateFilePath, cursor, result, stdout, watchForIntent, memFileSelector,
+		ctx, agentName, chatFilePath, stateFilePath, cursor, result, stdout,
+		watchForIntent, nil, nil, memFileSelector,
 	)
 }
 

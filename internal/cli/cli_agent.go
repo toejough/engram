@@ -1053,7 +1053,7 @@ func runConversationLoop(
 	return runConversationLoopWith(
 		ctx, runner, flags.name, flags.prompt, chatFilePath, stateFilePath,
 		claudeBinary, stdout, waitAndBuildPrompt,
-		defaultWatchForIntent, defaultMemFileSelector,
+		defaultWatchForIntent, nil, nil, defaultMemFileSelector,
 	)
 }
 
@@ -1068,6 +1068,8 @@ func runConversationLoopWith(
 	stdout io.Writer,
 	promptBuilder promptBuilderFunc,
 	watchForIntent watchForIntentFunc,
+	intents <-chan chat.Message,  // nil = standalone watch mode (use watchForIntent)
+	silentCh chan<- string,       // nil = standalone mode (no dispatch notification)
 	memFileSelector memFileSelectorFunc,
 ) error {
 	prompt := initialPrompt
@@ -1080,19 +1082,24 @@ func runConversationLoopWith(
 			stdout, promptBuilder,
 		)
 		if err != nil {
+			// Context cancellation during session = clean exit.
+			if ctx.Err() != nil {
+				return nil //nolint:nilerr // ctx cancel is a clean shutdown
+			}
+
 			return err
 		}
 
 		// No outer watch loop: Phase 4 exit behavior.
-		if watchForIntent == nil {
+		if watchForIntent == nil && intents == nil {
 			return nil
 		}
 
-		// Phase 5: watch for next intent after session ends.
+		// Phase 5/6: watch for next intent after session ends.
 		prompt, err = watchAndResume(
 			ctx, agentName, chatFilePath, stateFilePath,
 			cursor, result, stdout,
-			watchForIntent, memFileSelector,
+			watchForIntent, intents, silentCh, memFileSelector,
 		)
 		if err != nil {
 			// Context cancellation during watch = clean exit.
@@ -1296,8 +1303,12 @@ func watchAndResume(
 	_ claudepkg.StreamResult,
 	stdout io.Writer,
 	watchForIntent watchForIntentFunc,
+	intents <-chan chat.Message,  // nil = use watchForIntent (standalone mode)
+	silentCh chan<- string,       // nil when not in dispatch mode
 	memFileSelector memFileSelectorFunc,
 ) (string, error) {
+	// Write SILENT state first (before signaling dispatchLoop via silentCh).
+	// drainDeferredQueue runs after state is durable to prevent state-file inconsistency.
 	silentErr := writeAgentSilentState(stateFilePath, agentName)
 	if silentErr != nil {
 		_, _ = fmt.Fprintf(stdout,
@@ -1305,19 +1316,41 @@ func watchAndResume(
 			silentErr)
 	}
 
+	// Signal dispatchLoop AFTER state file committed.
+	if silentCh != nil {
+		silentCh <- agentName
+	}
+
 	if ctx.Err() != nil {
 		return "", ctx.Err() //nolint:wrapcheck // ctx errors propagate directly
 	}
 
-	intentMsg, newCursor, watchErr := watchForIntent(
-		ctx, agentName, chatFilePath, cursor,
-	)
-	if watchErr != nil {
-		if ctx.Err() != nil {
-			return "", ctx.Err() //nolint:wrapcheck // clean exit
-		}
+	var intentMsg chat.Message
+	var newCursor int
 
-		return "", fmt.Errorf("agent run: watch: %w", watchErr)
+	if intents != nil {
+		// Dispatch mode: read next intent from channel (dispatchLoop is responsible for cursor).
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err() //nolint:wrapcheck // ctx cancel = clean exit
+		case msg := <-intents:
+			intentMsg = msg
+			newCursor = cursor // cursor advancing is dispatch's responsibility
+		}
+	} else {
+		// Standalone mode: watch chat file for next intent addressed to this agent.
+		var watchErr error
+
+		intentMsg, newCursor, watchErr = watchForIntent(
+			ctx, agentName, chatFilePath, cursor,
+		)
+		if watchErr != nil {
+			if ctx.Err() != nil {
+				return "", ctx.Err() //nolint:wrapcheck // clean exit
+			}
+
+			return "", fmt.Errorf("agent run: watch: %w", watchErr)
+		}
 	}
 
 	resumeErr := writeAgentLastResumedAt(stateFilePath, agentName)

@@ -5132,6 +5132,122 @@ func (s *stubAckWaiter) AckWait(_ context.Context, _ string, _ int, _ []string) 
 // ============================================================
 
 // makeWatchAndResumeFixture creates a minimal temp dir and stub functions for
+// TestRunConversationLoopWith_ChannelReceivesIntent verifies that when intents channel is non-nil,
+// the loop reads from it instead of calling watchForIntent.
+func TestRunConversationLoopWith_ChannelReceivesIntent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane-id = \"\"\n" +
+		"session-id = \"\"\nstate = \"STARTING\"\nspawned-at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	// intents channel with one message; context cancels after first session.
+	intents := make(chan chat.Message, 1)
+	intents <- chat.Message{From: "lead", To: "worker-1", Type: "intent", Text: "do the thing"}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// watchForIntent must NOT be called when intents channel is used.
+	watchForIntentCalled := false
+	watchForIntent := func(_ context.Context, _, _ string, _ int) (chat.Message, int, error) {
+		watchForIntentCalled = true
+		cancel()
+		return chat.Message{}, 0, context.Canceled
+	}
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+	memFileSelector := func(_ string, _ int) ([]string, error) { return nil, nil }
+
+	// After one session + channel read, cancel context so loop exits.
+	// We can't know exact timing, so cancel after session fires.
+	go func() {
+		<-time.After(3 * time.Second)
+		cancel()
+	}()
+
+	err := cli.ExportRunConversationLoopWithChannel(
+		ctx, "worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard, stubBuilder, watchForIntent, intents, nil, memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(watchForIntentCalled).To(BeFalse(), "watchForIntent must not be called when intents channel is provided")
+}
+
+// TestRunConversationLoopWith_SilentChSignaledAfterSession verifies that silentCh receives
+// the agent name when the session transitions to SILENT state.
+func TestRunConversationLoopWith_SilentChSignaledAfterSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane-id = \"\"\n" +
+		"session-id = \"\"\nstate = \"STARTING\"\nspawned-at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	// Only one intent in the channel.
+	intents := make(chan chat.Message, 1)
+	intents <- chat.Message{From: "lead", To: "worker-1", Type: "intent", Text: "do the thing"}
+
+	// silentCh is drained by a goroutine: cancel context on first receipt so the
+	// loop exits cleanly. Without draining, silentCh fills and watchAndResume blocks.
+	silentCh := make(chan string, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var receivedAgent string
+	go func() {
+		for {
+			select {
+			case name := <-silentCh:
+				if receivedAgent == "" {
+					receivedAgent = name
+					cancel() // trigger clean exit after first signal
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+	memFileSelector := func(_ string, _ int) ([]string, error) { return nil, nil }
+
+	err := cli.ExportRunConversationLoopWithChannel(
+		ctx, "worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard, stubBuilder, nil, intents, silentCh, memFileSelector,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// After loop exits, receivedAgent must be set to "worker-1".
+	g.Expect(receivedAgent).To(Equal("worker-1"), "silentCh should have received agent name after SILENT transition")
+}
+
 // ExportWatchAndResume tests. watchForIntent returns a single intent message then
 // blocks forever (ctx cancel stops it). stateFilePath is pre-populated.
 func makeWatchAndResumeFixture(t *testing.T) (
