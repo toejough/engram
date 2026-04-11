@@ -68,7 +68,7 @@ Create holds at spawn time — before the target agent can post done.
 
 ```
 engram hold acquire --holder <H> --target <T> --condition <C> [--tag <label>]
-engram hold list [--target <name>]
+engram hold check --target <name>
 engram hold release --hold-id <id>
 ```
 
@@ -85,7 +85,7 @@ Decision needed: approve migration as-is, or add rollback first?
 
 ## TIMEOUT from Dead Worker
 
-If ack-wait returns TIMEOUT and engram agent list shows worker state DEAD: surface to user as "Agent X crashed during argument, argument lost" — not "Agent X refused to respond."
+If ack-wait returns TIMEOUT and engram dispatch status shows worker state DEAD: surface to user as "Agent X crashed during argument, argument lost" — not "Agent X refused to respond."
 
 ## Context Pressure
 
@@ -93,7 +93,7 @@ Check queue depth with engram dispatch status. At 100+ messages: summarize compl
 
 ## Compaction Recovery
 
-Run engram agent list to re-derive agent states. Run engram hold list to re-derive hold states. Post an info message announcing re-initialization. Resume routing.
+Run engram dispatch status to re-derive agent states. Run engram hold check to re-derive hold states. Post an info message announcing re-initialization. Resume routing.
 
 ## Shutdown
 
