@@ -277,3 +277,33 @@ func TestRemoveHold_RemovesById(t *testing.T) {
 	g.Expect(got.Holds).To(HaveLen(1))
 	g.Expect(got.Holds[0].HoldID).To(Equal("h2"))
 }
+
+func TestAgentRecordLastDeliveredCursorRoundTrip(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	original := agent.StateFile{
+		Agents: []agent.AgentRecord{{
+			Name:                "engram-agent",
+			State:               "SILENT",
+			LastDeliveredCursor: 12345,
+		}},
+	}
+
+	data, err := agent.MarshalStateFile(original)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	parsed, parseErr := agent.ParseStateFile(data)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	g.Expect(parsed.Agents).To(HaveLen(1))
+	g.Expect(parsed.Agents[0].LastDeliveredCursor).To(Equal(12345))
+}

@@ -425,6 +425,35 @@ func (b *blockingWatcher) WaitForChange(ctx context.Context, _ string) error {
 	return ctx.Err()
 }
 
+func TestFileWatcher_Watch_EmptyAgentMatchesAll(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// agent="" is a wildcard — matches messages addressed to any recipient.
+	msgs := []chat.Message{
+		{From: "sender", To: "lead", Thread: "t", Type: "intent", TS: now, Text: "to lead"},
+	}
+
+	content := buildChatTOML(msgs)
+
+	watcher := &chat.FileWatcher{
+		FilePath:  "/fake/chat.toml",
+		FSWatcher: &fakeWatcher{},
+		ReadFile:  func(_ string) ([]byte, error) { return content, nil },
+	}
+
+	// empty agent string should match "lead" (or any other recipient)
+	msg, _, err := watcher.Watch(context.Background(), "", 0, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(msg.Text).To(Equal("to lead"))
+}
+
 // fakeWatcher implements watch.Watcher and returns immediately.
 type fakeWatcher struct {
 	err error

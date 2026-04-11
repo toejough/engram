@@ -127,7 +127,12 @@ func findMessage(data []byte, agent string, cursor int, msgTypes []string) (Mess
 
 // matchesAgent reports whether the To field targets the given agent.
 // The To field may be "all", a single agent name, or comma-separated names.
+// An empty agent string matches any To field (wildcard — used by dispatchLoop).
 func matchesAgent(to, agent string) bool {
+	if agent == "" {
+		return true // empty = match all recipients
+	}
+
 	for part := range strings.SplitSeq(to, ",") {
 		trimmed := strings.TrimSpace(part)
 		if trimmed == "all" || trimmed == agent {

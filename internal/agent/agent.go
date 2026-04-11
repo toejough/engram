@@ -23,9 +23,10 @@ type AgentRecord struct {
 	SpawnedAt      time.Time `json:"spawned-at"               toml:"spawned-at"`
 	LastResumedAt  time.Time `json:"last-resumed-at,omitzero" toml:"last-resumed-at,omitzero"`
 	LastSilentAt   time.Time `json:"last-silent-at,omitzero"  toml:"last-silent-at,omitzero"`
-	ArgumentWith   string    `json:"argument-with"            toml:"argument-with"`
-	ArgumentCount  int       `json:"argument-count"           toml:"argument-count"`
-	ArgumentThread string    `json:"argument-thread"          toml:"argument-thread"`
+	ArgumentWith        string `json:"argument-with"                    toml:"argument-with"`
+	ArgumentCount       int    `json:"argument-count"                   toml:"argument-count"`
+	ArgumentThread      string `json:"argument-thread"                  toml:"argument-thread"`
+	LastDeliveredCursor int    `json:"last-delivered-cursor,omitzero"   toml:"last-delivered-cursor,omitzero"`
 }
 
 // HoldEntry is the state-file representation of an active hold.
