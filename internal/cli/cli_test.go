@@ -17,6 +17,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
 	agentpkg "engram/internal/agent"
 	"engram/internal/chat"
@@ -4477,4 +4478,62 @@ type stubAckWaiter struct {
 
 func (s *stubAckWaiter) AckWait(_ context.Context, _ string, _ int, _ []string) (chat.AckResult, error) {
 	return s.result, s.err
+}
+
+// TestRunConversationLoopWith_AgentNamePropagated is a property-based test (issue 544).
+// Property: for any valid agent name string, runConversationLoopWith completes without error
+// when the explicit agentName param matches the agent record in the state file.
+// Uses ExportRunConversationLoopWithName (the Phase 1 shim) which calls the new explicit-param
+// signature — this test fails to compile until Phase 2 adds the agentName parameter.
+func TestRunConversationLoopWith_AgentNamePropagated(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		// Generate a valid agent name: starts with a letter, followed by letters/digits/hyphens.
+		agentName := rapid.StringMatching(`[a-z][a-z0-9-]{1,19}`).Draw(rt, "agentName")
+
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+		stateFile := filepath.Join(dir, "state.toml")
+
+		g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+		if err := os.WriteFile(chatFile, []byte(""), 0o600); err != nil {
+			return
+		}
+
+		// Seed state file with the generated agent name so state writes succeed.
+		stateToml := fmt.Sprintf(
+			"[[agent]]\nname = %q\npane_id = \"\"\n"+
+				"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n",
+			agentName,
+		)
+		g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+		if err := os.WriteFile(stateFile, []byte(stateToml), 0o600); err != nil {
+			return
+		}
+
+		// Fake claude: emits DONE immediately so the loop exits cleanly.
+		fakeClaude := filepath.Join(dir, "claude")
+		doneJSON := `{"type":"assistant","session_id":"sess-prop",` +
+			`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+		script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+		g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+		if err := os.WriteFile(fakeClaude, []byte(script), 0o700); err != nil {
+			return
+		}
+
+		err := cli.ExportRunConversationLoopWithName(
+			context.Background(),
+			agentName, "initial prompt", chatFile, stateFile, fakeClaude,
+			io.Discard,
+			cli.ExportWaitAndBuildPrompt,
+			nil, nil,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+		if err != nil {
+			return
+		}
+	})
 }
