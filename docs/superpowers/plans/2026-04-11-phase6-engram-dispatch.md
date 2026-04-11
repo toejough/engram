@@ -36,14 +36,28 @@ Phase 6 is done when all binary criteria (1–13) pass before skill rewrites (Ta
 `engram dispatch start --agent engram-agent` spawns engram-agent as a subprocess, writes it to the state file as STARTING, and returns worker name(s) on stdout confirming the subprocess started.
 
 ```bash
-OUTPUT=$(engram dispatch start --agent engram-agent)
-echo "$OUTPUT"
-# Expected: one worker-name line per agent, e.g. "engram-agent"
+# In real sessions, dispatch runs in the foreground and occupies the terminal.
+# For automated testing, background with & to allow subsequent commands.
+engram dispatch start --agent engram-agent &
+DISPATCH_PID=$!
+sleep 1   # allow subprocess to start and post READY:
+
+# Expected startup output (printed before blocking):
+#   Dispatch started. Workers: engram-agent
+#   Chat file: ~/.local/share/engram/chat/<slug>.toml
+#   Max concurrent: 3
+#   Status:  engram dispatch status
+#   Assign:  engram dispatch assign --agent <name> --task '<task>'
+#   Stop:    engram dispatch stop (or Ctrl-C)
+
 engram agent list | jq -r 'select(.name=="engram-agent") | .state'
 # Expected: "STARTING" → "ACTIVE" after READY: marker
+
+# Clean up after test:
+kill $DISPATCH_PID 2>/dev/null || true
 ```
 
-Note: `engram dispatch start` manages agents as subprocesses, not tmux panes. Tmux is not required for agent correctness. If tmux is available, the lead skill may open an optional chat-tail monitoring pane for user observability — but this is convenience, not a functional requirement.
+Note: `engram dispatch start` manages agents as subprocesses, not tmux panes. Tmux is not required for agent correctness. In real sessions, dispatch occupies the foreground terminal; work is assigned from a second pane using `engram dispatch assign`. If tmux is available, the lead skill may open an optional chat-tail monitoring pane for user observability — but this is convenience, not a functional requirement.
 
 ### Criterion 2: Dispatch Routes Intent to Correct Worker
 
@@ -309,6 +323,47 @@ Run these manually after each skill rewrite. Record pass/fail in the task checkl
 | "review this PR" | reviewer |
 | "run the tests and fix failures" | executor with TDD skill |
 | Two agents disagreeing after 3 argument turns | escalation surfaced to user |
+
+### Criterion 26: Full Session End-to-End
+
+A complete multi-agent session succeeds from cold start to clean shutdown. No intents are dropped.
+
+```bash
+# Start dispatch in background for automated testing
+engram dispatch start --agent engram-agent &
+DISPATCH_PID=$!
+sleep 1
+
+# Verify engram-agent is operational
+engram agent list | jq -r 'select(.name=="engram-agent") | .state'
+# Expected: ACTIVE
+
+# Assign a task to a new executor
+engram dispatch assign --agent executor --task 'Post a type=info message to chat and exit.'
+sleep 2
+
+# Verify executor was spawned and ran
+engram agent list | jq -r '[.[].name]'
+# Expected: includes "engram-agent" and "executor"
+
+# Drain all in-flight work
+DRAIN_RESULT=$(engram dispatch drain --timeout 30)
+echo "$DRAIN_RESULT" | jq .
+# Expected: {"completed":N,"failed":0,"queued":0}
+
+# Verify no routing overflows (all intents were delivered)
+# Count dispatch routing info messages — must equal number of intents posted
+ROUTING_COUNT=$(grep -c 'thread = "dispatch"' ~/.local/share/engram/chat/<slug>.toml)
+echo "Routing events: $ROUTING_COUNT"
+# Expected: ≥ 1 (one per intent routed)
+
+# Clean shutdown
+kill $DISPATCH_PID 2>/dev/null || true
+
+# Verify all workers reached terminal state
+engram agent list | jq '[.[].state]'
+# Expected: all "SILENT" or "DEAD"
+```
 
 ---
 
@@ -708,7 +763,7 @@ Register `dispatch start`, `dispatch assign`, `dispatch drain`, `dispatch stop`,
 - [ ] **Step 1: Write failing tests**
 
   In `internal/cli/cli_dispatch_test.go`, add integration tests:
-  - `TestDispatchStartOutputsPaneIDs`: verify start outputs pane IDs
+  - `TestDispatchStartOutputsStartupInfo`: verify start prints startup info block containing "Dispatch started. Workers:", "Chat file:", "Max concurrent:", "Assign:", and "Stop:" lines before blocking
   - `TestDispatchAssignPostsIntent`: verify assign posts to chat with correct from/type
   - `TestDispatchStatusOutputsJSON`: verify status outputs valid JSON with required fields
   - `TestDispatchDrainOutputsJSON`: verify drain outputs JSON summary
@@ -722,6 +777,14 @@ Register `dispatch start`, `dispatch assign`, `dispatch drain`, `dispatch stop`,
 
   ```go
   // engram dispatch start [--agent name]... [--max-concurrent N] [--config path]
+  // Spawns workers, prints startup info block to stdout, then blocks running dispatch loop.
+  // Startup info block format (printed before blocking):
+  //   Dispatch started. Workers: <name1>[, <name2>...]
+  //   Chat file: <chatFilePath>
+  //   Max concurrent: <N>
+  //   Status:  engram dispatch status
+  //   Assign:  engram dispatch assign --agent <name> --task '<task>'
+  //   Stop:    engram dispatch stop (or Ctrl-C)
   func runDispatchStart(args []string, stdout io.Writer) error
   
   // engram dispatch assign --agent name --task text
@@ -760,9 +823,32 @@ Register `dispatch start`, `dispatch assign`, `dispatch drain`, `dispatch stop`,
   targ test && targ check-full
   ```
 
+- [ ] **Step 5: Binary MVP Smoke Test** — run after Step 4 before proceeding to Task 5
+
+  Verify all 5 dispatch subcommands exist and print startup info before running the full E2E gauntlet.
+
+  ```bash
+  # All 5 subcommands registered (help flag must not error)
+  engram dispatch start --help && echo 'start OK'
+  engram dispatch assign --help && echo 'assign OK'
+  engram dispatch drain --help && echo 'drain OK'
+  engram dispatch stop --help && echo 'stop OK'
+  engram dispatch status --help && echo 'status OK'
+
+  # Minimal live test: start prints startup info block
+  engram dispatch start --agent engram-agent &
+  DISPATCH_PID=$!
+  sleep 1
+  engram dispatch status | jq .
+  kill $DISPATCH_PID 2>/dev/null || true
+  # Expected: status outputs valid JSON; startup block includes Chat file: line
+  ```
+
+  If any subcommand fails, fix registration before running Task 5. This gate prevents running 26 ACs against a binary with missing subcommands.
+
 ---
 
-## Task 5: E2E verification (binary criteria 1–19)
+## Task 5: E2E verification (binary criteria 1–26)
 
 Verify all binary criteria before any skill rewrites.
 
@@ -785,6 +871,7 @@ Verify all binary criteria before any skill rewrites.
 - [ ] **Criterion 17: Crash Recovery Delivers Missed Intents** — see E2E section above
 - [ ] **Criterion 18: Hold-Then-Release Crash-Safe** — see E2E section above
 - [ ] **Criterion 19: LEARNED_MESSAGES in Resume Prompt** — see E2E section above
+- [ ] **Criterion 26: Full Session End-to-End** — see E2E section above
 
   ```bash
   targ check-full
@@ -818,12 +905,17 @@ Verify all binary criteria before any skill rewrites.
   Sections to KEEP (irreducible behavioral content):
   - Message type catalog (semantics only — WHEN to use intent vs info vs learned vs done)
   - Prefix marker catalog (INTENT:/ACK:/WAIT:/DONE:/LEARNED:/INFO: + WHEN-to-end-turn rules)
+    - INTENT: TO field syntax: `INTENT: TO: name1, name2\nSituation: X.\nBehavior: Y.` If TO: subfield absent, speech relay defaults to engram-agent. TO: is on its own line immediately after INTENT:. engram-agent always included. (~3 lines)
   - Intent protocol behavioral rules (WHO must be in TO, WHEN intent is warranted)
+  - RESUME_REASON handling (~3 lines): field present in every resume prompt. `shutdown` → say DONE:, stop immediately. `wait` → read WAIT_FROM, WAIT_TEXT, ARGUMENT_TURN, engage argument protocol (initiator role — factual defense or ACK: to concede; ESCALATE: if turn ≥ 3 and unresolved). `intent` → process normally.
+  - ACTIVE-session WAIT handling (~2 lines): if WAIT arrives while still in-session (ACTIVE), respond in the same turn per argument protocol. If resumed with RESUME_REASON=wait after session ended (SILENT), you are resuming specifically to handle that WAIT.
   - Argument protocol (initiator=factual, reactor=aggressive; 3-input cap; escalation trigger; resolution recording)
   - Agent roles (active vs reactive — purely behavioral)
   - Shutdown honor protocol (complete in-flight, post done, exit)
 
   **NOTE:** Prefix marker catalog MUST include both format and when-to-end-turn rules. "Say INTENT: and end your turn" is behavioral, not delivery mechanics. Without this, agents output INTENT: and continue generating, invalidating ACK-wait.
+
+  **Irreducibility test:** A line is reducible if it describes a bash command, timing rule, cursor tracking, or watch loop the binary handles mechanically. A line is irreducible if it contains behavioral judgment (WHEN to use a protocol element, HOW to argue, WHAT counts as a fact). When in doubt, keep — false-positive deletions are worse than extra lines.
 
 - [ ] **Step 3: Rewrite — preserve example density**
 
@@ -872,6 +964,7 @@ Verify all binary criteria before any skill rewrites.
   - Startup sequence (~10 lines: dispatch start, open chat tail pane, post ready)
   - Compaction recovery (~5 lines: `engram agent list + engram hold list`)
   - Shutdown sequence (~5 lines: dispatch drain, dispatch stop)
+  - TIMEOUT-from-dead-worker handling (~2 lines): if ack-wait returns TIMEOUT and state file shows worker DEAD, surface to user as "Agent X crashed during argument, argument lost" — not as "Agent X refused to respond." This distinction is LLM judgment; binary cannot infer it.
 
 - [ ] **Step 3: Rewrite — preserve prompt template specificity**
 
@@ -903,7 +996,9 @@ Verify all binary criteria before any skill rewrites.
   - All I/O mechanics
 
   Sections to KEEP (ordered init checklist form — resists compression better than prose):
-  1. Startup: read AGENT_NAME, CURSOR, MEMORY_FILES, INTENT_FROM, INTENT_TEXT, RECENT_INTENTS from resume prompt
+  0. RESUME_REASON branch (≤2 lines): `shutdown` → say DONE:, stop. `wait` → read WAIT_FROM, WAIT_TEXT, ARGUMENT_TURN; respond as initiator (factual or ACK: to concede; ESCALATE: if turn ≥ 3). `intent` → continue to item 1.
+  1. Startup: read AGENT_NAME, CURSOR, MEMORY_FILES, INTENT_FROM, INTENT_TEXT, RECENT_INTENTS, LEARNED_MESSAGES from resume prompt
+  1a. Process LEARNED_MESSAGES: extract facts from each triple in LEARNED_MESSAGES field and update memory files before processing the intent. (Irreducible: fact extraction is LLM judgment — what counts as a fact, conflict resolution when new triple contradicts existing.)
   2. Tiered memory load: core memories always, recents on startup (list files from MEMORY_FILES)
   3. Rate limit check: if >5 new memories in last 10 min (check file mtimes), pause extraction
   4. Last 5 intent summaries: read from resume prompt for failure correlation
@@ -914,7 +1009,7 @@ Verify all binary criteria before any skill rewrites.
   9. Conflict resolution judgment (when new memory overrides existing)
   10. Memory file locking and atomic write (survives per SPEECH-5)
 
-  **NOTE:** Startup sequence (items 1–4) MUST be in ordered numbered form. Cold-start invocations must execute these steps in order; prose paragraphs obscure ordering. Each step should be ≤2 lines.
+  **NOTE:** Startup sequence (items 0–4) MUST be in ordered numbered form. Cold-start invocations must execute these steps in order; prose paragraphs obscure ordering. Each step should be ≤2 lines. Item 0 (RESUME_REASON) always runs first — it may short-circuit the entire sequence for shutdown case.
 
 - [ ] **Step 3: Verify ≤80 lines**
 
@@ -946,14 +1041,25 @@ Verify all binary criteria before any skill rewrites.
 
 - [ ] **Step 1: Update startup sequence** for Phase 6
 
-  Replace old spawn-based startup with:
+  Replace old spawn-based startup with this 4-step skill content:
   ```
-  1. Run: engram dispatch start [--agent engram-agent] [--agent ...]
-  2. Open chat tail pane (observability): tmux split-window -h 'tail -f <chat-file>'
-  3. Post ready to user
+  ## Starting a Session
+
+  1. Run dispatch (in its own pane or terminal — keep it running in the foreground):
+       engram dispatch start [--agent engram-agent] [--agent <name>...]
+     Dispatch prints the chat file path on startup. Note it — you will need it.
+
+  2. Open a chat observer pane (optional, recommended):
+     Watch the chat file path printed by dispatch start.
+     This gives real-time visibility into all routing decisions.
+
+  3. Signal readiness: Post your ready message.
+
+  4. Assign work:
+       engram dispatch assign --agent <name> --task '<task description>'
   ```
 
-  Note: The skill should say "open a monitoring pane watching the chat file" without specifying the exact tmux command — the lead can use whatever method they have available. This avoids tension with Criterion 14 (zero bash) while preserving the behavioral requirement.
+  Note: Zero bash in the skill — 'watch the chat file path printed by dispatch start' relies on binary startup output (amended in Task 4) rather than bash path derivation. The 'keep it running in the foreground' note prevents users from backgrounding dispatch and wondering why status doesn't work.
 
 - [ ] **Step 2: Commit**
 
@@ -1020,12 +1126,13 @@ Verify all binary criteria before any skill rewrites.
 
 ## Pre-Flight Checklist (run before declaring Phase 6 complete)
 
-- [ ] `engram dispatch start --agent engram-agent` outputs worker name and returns (subprocess started)
+- [ ] `engram dispatch start --agent engram-agent` prints startup info block (Workers:, Chat file:, Max concurrent:, Assign:, Stop: lines) then runs in foreground
 - [ ] `engram dispatch status` outputs valid JSON with `workers` and `queue_depth` fields
 - [ ] Post one intent → binary resumes engram-agent; routing info message appears in chat
 - [ ] `engram dispatch drain --timeout 30` returns JSON summary `{"completed":1,"failed":0,"queued":0}`
 - [ ] `engram dispatch stop` exits 0; shutdown+done messages appear in chat
 - [ ] Post self-addressed intent from engram-agent; verify no loop (no second session starts)
+- [ ] Criterion 26 passes: full session (start → assign → drain → stop) with no dropped intents
 - [ ] All 5 skill quality gate tests pass (routing classification correct)
 - [ ] `wc -l` on all four rewritten skills within targets (≤50/≤110/≤80/≤55)
 - [ ] `grep -cE '^\$|&&|`engram '` on all skills returns 0 (zero bash)
