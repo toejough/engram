@@ -1051,7 +1051,7 @@ func runConversationLoop(
 	stdout io.Writer,
 ) error {
 	return runConversationLoopWith(
-		ctx, runner, flags, chatFilePath, stateFilePath,
+		ctx, runner, flags.name, flags, chatFilePath, stateFilePath,
 		claudeBinary, stdout, waitAndBuildPrompt,
 		defaultWatchForIntent, defaultMemFileSelector,
 	)
@@ -1063,6 +1063,7 @@ func runConversationLoop(
 func runConversationLoopWith(
 	ctx context.Context,
 	runner claudepkg.Runner,
+	agentName string,
 	flags agentRunFlags,
 	chatFilePath, stateFilePath, claudeBinary string,
 	stdout io.Writer,
@@ -1076,7 +1077,7 @@ func runConversationLoopWith(
 	for {
 		result, _, cursor, err := runWithinSessionLoop(
 			ctx, runner, prompt, sessionID,
-			flags.name, chatFilePath, claudeBinary,
+			agentName, chatFilePath, claudeBinary,
 			stdout, promptBuilder,
 		)
 		if err != nil {
@@ -1090,7 +1091,7 @@ func runConversationLoopWith(
 
 		// Phase 5: watch for next intent after session ends.
 		prompt, err = watchAndResume(
-			ctx, flags.name, chatFilePath, stateFilePath,
+			ctx, agentName, chatFilePath, stateFilePath,
 			cursor, result, stdout,
 			watchForIntent, memFileSelector,
 		)

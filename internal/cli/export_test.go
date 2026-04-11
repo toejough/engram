@@ -104,7 +104,7 @@ func ExportRunConversationLoopWith(
 	runner := buildAgentRunner(flags, stateFile, chatFile, stdout)
 
 	return runConversationLoopWith(
-		ctx, runner, flags, chatFile, stateFile,
+		ctx, runner, name, flags, chatFile, stateFile,
 		claudeBinary, stdout, promptBuilder,
 		watchForIntent, memFileSelector,
 	)
