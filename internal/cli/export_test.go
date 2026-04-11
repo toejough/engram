@@ -27,8 +27,14 @@ var (
 	ExportDefaultMemFileSelector  = defaultMemFileSelector
 	ExportDefaultWatchForIntent   = defaultWatchForIntent
 	ExportDeriveChatFilePath      = deriveChatFilePath
+	ExportHasStartingRecord       = hasStartingRecord
+	ExportInitWorkerStateRecords  = initWorkerStateRecords
 	ExportLoadChatMessages        = func(path string) ([]chat.Message, error) {
 		return loadChatMessages(path, os.ReadFile)
+	}
+	ExportMakeHoldChecker = func(chatFilePath string) func(string) bool {
+		hcf := makeHoldChecker(chatFilePath)
+		return func(name string) bool { return hcf(name) }
 	}
 	ExportNewFilePoster            = newFilePoster
 	ExportOsAppendFile             = osAppendFile

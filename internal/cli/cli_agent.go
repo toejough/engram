@@ -392,6 +392,27 @@ func killAgentPane(paneID string) error {
 	return nil
 }
 
+// markAgentDeadInStateFile marks the named agent as DEAD in the state file and returns its pane ID.
+// The record is retained (not removed) so that dispatch status and post-mortem tooling can see it.
+func markAgentDeadInStateFile(stateFilePath, agentName string) (string, error) {
+	var paneID string
+
+	rmwErr := readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
+		for i, record := range stateFile.Agents {
+			if record.Name == agentName {
+				paneID = record.PaneID
+				stateFile.Agents[i].State = agentStateDead
+
+				break
+			}
+		}
+
+		return stateFile
+	})
+
+	return paneID, rmwErr
+}
+
 func newUnmetHoldError(holdID, condition string) error {
 	return fmt.Errorf("%s (condition: %s): %w", holdID, condition, errUnmetHoldCondition)
 }
@@ -817,25 +838,6 @@ func releaseMetHoldsForAgent(chatFilePath, agentName string, messages []chat.Mes
 	return nil
 }
 
-// removeAgentFromStateFile removes the named agent from the state file and returns its pane ID.
-func removeAgentFromStateFile(stateFilePath, agentName string) (string, error) {
-	var paneID string
-
-	rmwErr := readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
-		for _, record := range stateFile.Agents {
-			if record.Name == agentName {
-				paneID = record.PaneID
-
-				break
-			}
-		}
-
-		return agentpkg.RemoveAgent(stateFile, agentName)
-	})
-
-	return paneID, rmwErr
-}
-
 // resolveStateFile derives the state file path, wrapping errors with the subcommand name.
 func resolveStateFile(
 	override, cmd string,
@@ -903,10 +905,18 @@ func runAgentKill(args []string, stdout io.Writer) error {
 		return releaseErr
 	}
 
-	paneID, rmwErr := removeAgentFromStateFile(stateFilePath, agentName)
+	paneID, rmwErr := markAgentDeadInStateFile(stateFilePath, agentName)
 	if rmwErr != nil {
 		return fmt.Errorf("agent kill: updating state file: %w", rmwErr)
 	}
+
+	_, _ = newFilePoster(chatFilePath).Post(chat.Message{
+		From:   "dispatch",
+		To:     "all",
+		Thread: "lifecycle",
+		Type:   "info",
+		Text:   fmt.Sprintf("Agent %s killed.", agentName),
+	})
 
 	killErr := killAgentPane(paneID)
 	if killErr != nil {

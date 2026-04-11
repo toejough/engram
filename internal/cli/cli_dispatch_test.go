@@ -644,6 +644,161 @@ func TestDispatchObservabilityMessages_RoutePostsInfo(t *testing.T) {
 	g.Expect(string(data)).To(ContainSubstring(`type = "info"`))
 }
 
+func TestHasStartingRecord_DeadRecord_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	agents := []agentpkg.AgentRecord{
+		{Name: "w1", State: "DEAD"},
+	}
+	g.Expect(cli.ExportHasStartingRecord(agents, "w1")).To(BeFalse())
+}
+
+func TestHasStartingRecord_NoRecord_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportHasStartingRecord([]agentpkg.AgentRecord{}, "w1")).To(BeFalse())
+}
+
+// ============================================================
+// hasStartingRecord tests
+// ============================================================
+
+func TestHasStartingRecord_StartingRecord_ReturnsTrue(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	agents := []agentpkg.AgentRecord{
+		{Name: "w1", State: "STARTING"},
+	}
+	g.Expect(cli.ExportHasStartingRecord(agents, "w1")).To(BeTrue())
+}
+
+// ============================================================
+// initWorkerStateRecords tests (criterion 12)
+// ============================================================
+
+func TestInitWorkerStateRecords_StaleActiveWorkerMarkedDead(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Pre-populate with a stale ACTIVE record for "w1".
+	initial := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{Name: "w1", State: "ACTIVE", SpawnedAt: time.Now()},
+		},
+	}
+	data, err := agentpkg.MarshalStateFile(initial)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	initErr := cli.ExportInitWorkerStateRecords(stateFile, chatFile, []cli.WorkerConfig{{Name: "w1", Prompt: "go"}})
+	g.Expect(initErr).NotTo(HaveOccurred())
+
+	if initErr != nil {
+		return
+	}
+
+	stateData, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	state, parseErr := agentpkg.ParseStateFile(stateData)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	// Must have a DEAD record (stale) and a STARTING record (fresh).
+	deadCount := 0
+	startingCount := 0
+
+	for _, rec := range state.Agents {
+		if rec.Name == "w1" {
+			switch rec.State {
+			case "DEAD":
+				deadCount++
+			case "STARTING":
+				startingCount++
+			}
+		}
+	}
+
+	g.Expect(deadCount).To(Equal(1), "expected one DEAD record for stale w1")
+	g.Expect(startingCount).To(Equal(1), "expected one STARTING record for fresh w1")
+}
+
+func TestInitWorkerStateRecords_StaleStartingWorkerMarkedDead(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	initial := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{Name: "w1", State: "STARTING", SpawnedAt: time.Now()},
+		},
+	}
+	data, err := agentpkg.MarshalStateFile(initial)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	initErr := cli.ExportInitWorkerStateRecords(stateFile, chatFile, []cli.WorkerConfig{{Name: "w1", Prompt: "go"}})
+	g.Expect(initErr).NotTo(HaveOccurred())
+
+	if initErr != nil {
+		return
+	}
+
+	stateData, _ := os.ReadFile(stateFile)
+	state, _ := agentpkg.ParseStateFile(stateData)
+
+	deadCount := 0
+	startingCount := 0
+
+	for _, rec := range state.Agents {
+		if rec.Name == "w1" {
+			switch rec.State {
+			case "DEAD":
+				deadCount++
+			case "STARTING":
+				startingCount++
+			}
+		}
+	}
+
+	g.Expect(deadCount).To(Equal(1), "expected one DEAD record for stale w1")
+	g.Expect(startingCount).To(Equal(1), "expected one STARTING record for fresh w1")
+}
+
 // ============================================================
 // coverage: isWorkerActive error paths
 // ============================================================
@@ -671,6 +826,96 @@ func TestIsWorkerActive_MissingStateFile_ReturnsFalse(t *testing.T) {
 
 	// Non-existent state file → isWorkerActive = false → message delivered to channel.
 	g.Expect(workerChans["worker-a"]).To(HaveLen(1))
+}
+
+// ============================================================
+// makeHoldChecker tests (criterion 9)
+// ============================================================
+
+func TestMakeHoldChecker_ActiveHoldTargetingWorker_ReturnsTrue(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Post a hold-acquire message targeting "worker-1".
+	holdRec := chat.HoldRecord{
+		HoldID:    "test-hold-id",
+		Holder:    "lead",
+		Target:    "worker-1",
+		Condition: "test",
+	}
+	holdJSON, marshalErr := json.Marshal(holdRec)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	poster := cli.ExportNewFilePoster(chatFile)
+	_, postErr := poster.Post(chat.Message{
+		From:   "lead",
+		To:     "worker-1",
+		Thread: "hold",
+		Type:   "hold-acquire",
+		Text:   string(holdJSON),
+	})
+	g.Expect(postErr).NotTo(HaveOccurred())
+
+	if postErr != nil {
+		return
+	}
+
+	checker := cli.ExportMakeHoldChecker(chatFile)
+	g.Expect(checker("worker-1")).To(BeTrue())
+	g.Expect(checker("worker-2")).To(BeFalse())
+}
+
+func TestMakeHoldChecker_MissingChatFile_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	checker := cli.ExportMakeHoldChecker("/nonexistent/chat.toml")
+	g.Expect(checker("worker-1")).To(BeFalse())
+}
+
+func TestMakeHoldChecker_ReleasedHold_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Acquire then release a hold.
+	holdRec := chat.HoldRecord{
+		HoldID:    "test-hold-id",
+		Holder:    "lead",
+		Target:    "worker-1",
+		Condition: "test",
+	}
+	holdJSON, holdMarshalErr := json.Marshal(holdRec)
+	g.Expect(holdMarshalErr).NotTo(HaveOccurred())
+
+	poster := cli.ExportNewFilePoster(chatFile)
+	_, _ = poster.Post(chat.Message{
+		From: "lead", To: "worker-1", Thread: "hold",
+		Type: "hold-acquire", Text: string(holdJSON),
+	})
+
+	releaseJSON, releaseMarshalErr := json.Marshal(map[string]string{"hold-id": "test-hold-id"})
+	g.Expect(releaseMarshalErr).NotTo(HaveOccurred())
+
+	_, _ = poster.Post(chat.Message{
+		From: "system", To: "all", Thread: "hold",
+		Type: "hold-release", Text: string(releaseJSON),
+	})
+
+	checker := cli.ExportMakeHoldChecker(chatFile)
+	g.Expect(checker("worker-1")).To(BeFalse())
 }
 
 // ============================================================

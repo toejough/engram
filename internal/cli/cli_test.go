@@ -2221,6 +2221,44 @@ func TestRunAgentKill_HelpFlag_ReturnsNil(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
+func TestRunAgentKill_MarksAgentDeadInStateFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	initialAgents := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{Name: "executor-1", PaneID: "main:1.2", SessionID: "sess1", State: "ACTIVE"},
+			{Name: "reviewer-1", PaneID: "main:1.3", SessionID: "sess2", State: "ACTIVE"},
+		},
+	}
+	data, _ := agentpkg.MarshalStateFile(initialAgents)
+	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	cli.SetTestPaneKiller(t, func(_ string) error { return nil })
+
+	err := cli.Run([]string{"engram", "agent", "kill",
+		"--name", "executor-1",
+		"--state-file", stateFile,
+		"--chat-file", chatFile,
+	}, io.Discard, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// After kill, executor-1 must be present with state=DEAD (not removed).
+	remaining, _ := os.ReadFile(stateFile)
+	g.Expect(string(remaining)).To(ContainSubstring("executor-1"))
+	g.Expect(string(remaining)).To(ContainSubstring("DEAD"))
+	g.Expect(string(remaining)).To(ContainSubstring("reviewer-1"))
+}
+
 func TestRunAgentKill_MetHold_AutoReleased(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -2395,42 +2433,6 @@ func TestRunAgentKill_PaneStillAliveAfterKill_ReturnsError(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("still alive"))
 	}
-}
-
-func TestRunAgentKill_RemovesAgentFromStateFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	stateFile := filepath.Join(dir, "state.toml")
-	chatFile := filepath.Join(dir, "chat.toml")
-
-	initialAgents := agentpkg.StateFile{
-		Agents: []agentpkg.AgentRecord{
-			{Name: "executor-1", PaneID: "main:1.2", SessionID: "sess1", State: "ACTIVE"},
-			{Name: "reviewer-1", PaneID: "main:1.3", SessionID: "sess2", State: "ACTIVE"},
-		},
-	}
-	data, _ := agentpkg.MarshalStateFile(initialAgents)
-	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
-	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
-
-	cli.SetTestPaneKiller(t, func(_ string) error { return nil })
-
-	err := cli.Run([]string{"engram", "agent", "kill",
-		"--name", "executor-1",
-		"--state-file", stateFile,
-		"--chat-file", chatFile,
-	}, io.Discard, io.Discard, nil)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	remaining, _ := os.ReadFile(stateFile)
-	g.Expect(string(remaining)).NotTo(ContainSubstring("executor-1"))
-	g.Expect(string(remaining)).To(ContainSubstring("reviewer-1"))
 }
 
 func TestRunAgentKill_StdoutError_ReturnsError(t *testing.T) {

@@ -24,6 +24,7 @@ type WorkerConfig struct {
 
 // unexported constants.
 const (
+	agentStateDead          = "DEAD"
 	defaultDrainTimeoutSecs = 60
 	defaultMaxConcurrent    = 4
 	drainPollInterval       = 250 * time.Millisecond
@@ -71,6 +72,21 @@ func (f *multiStringFlag) String() string {
 	}
 
 	return strings.Join(*f, ",")
+}
+
+// addFreshStartingRecords appends a STARTING record for each worker not already present with that state.
+func addFreshStartingRecords(stateFile agentpkg.StateFile, workers []WorkerConfig) agentpkg.StateFile {
+	for _, worker := range workers {
+		if !hasStartingRecord(stateFile.Agents, worker.Name) {
+			stateFile = agentpkg.AddAgent(stateFile, agentpkg.AgentRecord{
+				Name:      worker.Name,
+				State:     "STARTING",
+				SpawnedAt: time.Now().UTC(),
+			})
+		}
+	}
+
+	return stateFile
 }
 
 // deferMessage adds a message to the deferred queue, or logs overflow if at cap.
@@ -223,32 +239,55 @@ func handleHoldRelease(
 	}
 }
 
-// initWorkerStateRecords adds a STARTING record for each worker not already in the state file.
-// Existing records are left unchanged to preserve state across restarts.
-func initWorkerStateRecords(stateFilePath string, workers []WorkerConfig) error {
-	return readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
-		for _, worker := range workers {
-			alreadyPresent := false
-
-			for _, rec := range stateFile.Agents {
-				if rec.Name == worker.Name {
-					alreadyPresent = true
-
-					break
-				}
-			}
-
-			if !alreadyPresent {
-				stateFile = agentpkg.AddAgent(stateFile, agentpkg.AgentRecord{
-					Name:      worker.Name,
-					State:     "STARTING",
-					SpawnedAt: time.Now().UTC(),
-				})
-			}
+// hasStartingRecord reports whether agents contains a STARTING record for name.
+func hasStartingRecord(agents []agentpkg.AgentRecord, name string) bool {
+	for _, rec := range agents {
+		if rec.Name == name && rec.State == "STARTING" {
+			return true
 		}
+	}
 
-		return stateFile
+	return false
+}
+
+// initWorkerStateRecords writes STARTING records for all workers before goroutines start.
+// Any existing STARTING or ACTIVE record for a worker is marked DEAD first (stale from a
+// prior crashed dispatch). An info message is posted to chat for each stale record.
+func initWorkerStateRecords(stateFilePath, chatFilePath string, workers []WorkerConfig) error {
+	workerSet := make(map[string]bool, len(workers))
+	for _, w := range workers {
+		workerSet[w.Name] = true
+	}
+
+	var staleNames []string
+
+	rmwErr := readModifyWriteStateFile(stateFilePath, func(sf agentpkg.StateFile) agentpkg.StateFile {
+		staleNames = nil
+		sf, staleNames = markStaleWorkersDeadAndCollect(sf, workerSet)
+
+		return addFreshStartingRecords(sf, workers)
 	})
+	if rmwErr != nil {
+		return rmwErr
+	}
+
+	if len(staleNames) == 0 {
+		return nil
+	}
+
+	poster := newFilePoster(chatFilePath)
+
+	for _, name := range staleNames {
+		_, _ = poster.Post(chat.Message{
+			From:   "dispatch",
+			To:     "all",
+			Thread: "lifecycle",
+			Type:   "info",
+			Text:   fmt.Sprintf("Stale worker %s found in STARTING/ACTIVE state — marking DEAD.", name),
+		})
+	}
+
+	return nil
 }
 
 // isWorkerActive reports whether the named worker has state=ACTIVE in the state file.
@@ -270,6 +309,47 @@ func isWorkerActive(stateFilePath, workerName string) bool {
 	}
 
 	return false
+}
+
+// makeHoldChecker returns a holdCheckerFunc that reads the chat file on each call
+// and returns true if the named worker has any unreleased holds.
+func makeHoldChecker(chatFilePath string) holdCheckerFunc {
+	return func(workerName string) bool {
+		data, err := os.ReadFile(chatFilePath) //nolint:gosec
+		if err != nil {
+			return false
+		}
+
+		messages := chat.ParseMessagesSafe(data)
+		holds := chat.ScanActiveHolds(messages)
+
+		for _, hold := range holds {
+			if hold.Target == workerName {
+				return true
+			}
+		}
+
+		return false
+	}
+}
+
+// markStaleWorkersDeadAndCollect marks STARTING or ACTIVE records for known workers as DEAD.
+// Returns the updated state file and the names of any records that were marked.
+func markStaleWorkersDeadAndCollect(
+	stateFile agentpkg.StateFile,
+	workerSet map[string]bool,
+) (agentpkg.StateFile, []string) {
+	var stale []string
+
+	for i, rec := range stateFile.Agents {
+		if workerSet[rec.Name] && (rec.State == "STARTING" || rec.State == "ACTIVE") {
+			stateFile.Agents[i].State = agentStateDead
+
+			stale = append(stale, rec.Name)
+		}
+	}
+
+	return stateFile, stale
 }
 
 // parseIntentMarkerTO extracts the TO: subfield from an INTENT: marker text.
@@ -484,9 +564,8 @@ func runDispatch(
 	}
 
 	// Initialize state file records for all workers as STARTING before spawning goroutines.
-	// WriteState/WriteSessionID callbacks are find-and-update; without these initial records
-	// all state writes silently no-op. Existing records (from a prior run) are left unchanged.
-	initErr := initWorkerStateRecords(stateFilePath, workers)
+	// Stale STARTING/ACTIVE records from a prior crashed dispatch are marked DEAD first.
+	initErr := initWorkerStateRecords(stateFilePath, chatFilePath, workers)
 	if initErr != nil {
 		return fmt.Errorf("dispatch: initializing state file: %w", initErr)
 	}
@@ -507,8 +586,11 @@ func runDispatch(
 		}(w)
 	}
 
-	// Run dispatchLoop until ctx is cancelled.
-	loopErr := dispatchLoop(ctx, intentChans, stateFilePath, chatFilePath, cursor, silentCh)
+	// Run dispatchLoopWith until ctx is cancelled.
+	// Wire real hold checker and poster for production observability (criteria 6 and 9).
+	poster := newFilePoster(chatFilePath)
+	loopErr := dispatchLoopWith(ctx, intentChans, stateFilePath, chatFilePath, cursor, silentCh,
+		makeHoldChecker(chatFilePath), poster)
 
 	wg.Wait()
 
@@ -791,7 +873,7 @@ func runDispatchStop(args []string, stdout io.Writer) error {
 	poster := newFilePoster(chatFilePath)
 
 	for _, agent := range state.Agents {
-		if agent.State == "DEAD" {
+		if agent.State == agentStateDead {
 			continue
 		}
 
