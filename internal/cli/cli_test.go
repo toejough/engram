@@ -1314,6 +1314,7 @@ func TestOuterWatchLoop_WatchForIntentCursorMatchesEndOfSession(t *testing.T) {
 	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
 		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
 	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+
 	if writeErr := os.WriteFile(fakeClaude, []byte(script), 0o700); writeErr != nil {
 		t.Fatal(writeErr)
 	}
@@ -1343,8 +1344,10 @@ func TestOuterWatchLoop_WatchForIntentCursorMatchesEndOfSession(t *testing.T) {
 
 		// watchForIntent captures the cursor it receives, then cancels ctx (clean exit).
 		var capturedCursor int
+
 		watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
 			capturedCursor = cursor
+
 			cancel()
 
 			return chat.Message{}, 0, context.Canceled
@@ -1383,6 +1386,7 @@ func TestOuterWatchLoop_CursorNotResetBetweenSessions(t *testing.T) {
 
 	// Five lines of content — chatFileCursor = len(strings.Split(content, "\n")) = 6.
 	const numLines = 5
+
 	content := strings.Repeat("comment\n", numLines)
 	expectedCursor := len(strings.Split(content, "\n"))
 
@@ -1420,6 +1424,7 @@ func TestOuterWatchLoop_CursorNotResetBetweenSessions(t *testing.T) {
 		}
 
 		cursor2 = cursor
+
 		cancel()
 
 		return chat.Message{}, 0, context.Canceled
@@ -1443,7 +1448,8 @@ func TestOuterWatchLoop_CursorNotResetBetweenSessions(t *testing.T) {
 	g.Expect(cursor1).To(BeNumerically(">", 0), "first watchForIntent cursor must be non-zero")
 	g.Expect(cursor1).To(Equal(expectedCursor), "cursor1 must match chatFileCursor of initial content")
 	g.Expect(cursor2).To(BeNumerically(">", 0), "second watchForIntent cursor must be non-zero")
-	g.Expect(cursor2).To(BeNumerically(">=", cursor1), "cursor must not go backward — outer loop must not reset cursor to 0 between sessions")
+	g.Expect(cursor2).To(BeNumerically(">=", cursor1),
+		"cursor must not go backward — outer loop must not reset cursor to 0 between sessions")
 }
 
 func TestOutputAckResult_FailWriter_ReturnsError(t *testing.T) {
