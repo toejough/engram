@@ -2135,7 +2135,7 @@ func TestRunAgentList_UnreadableChatFile_ReconstructionFails_NoError(t *testing.
 // claude binary that emits a DONE marker and exits. Covers: buildAgentRunner,
 // runConversationLoopWith (inner-loop-only), runOneTurn, buildClaudeCmd, chatFileCursor.
 // Uses ExportRunConversationLoopWith with nil watchForIntent to test inner-loop exit;
-// the outer watch loop is covered by TestRunConversationLoopWith_IntentThenDone.
+// the outer watch loop is covered by TestRunConversationLoopWith_NoMarkers_OuterLoopRewatches.
 func TestRunAgentRun_FakeClaude_DONE(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -2207,7 +2207,7 @@ func TestRunAgentRun_FakeClaude_ExitNonZero(t *testing.T) {
 // TestRunAgentRun_FakeClaude_NoMarkers_ExitsClean verifies conversation ends when claude
 // emits no INTENT or DONE markers (treated as complete).
 // Uses ExportRunConversationLoopWith with nil watchForIntent to test inner-loop exit;
-// the outer watch loop is covered by TestRunConversationLoopWith_IntentThenDone.
+// the outer watch loop is covered by TestRunConversationLoopWith_NoMarkers_OuterLoopRewatches.
 func TestRunAgentRun_FakeClaude_NoMarkers_ExitsClean(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -2933,6 +2933,7 @@ func TestRunConversationLoopWith_NoMarkers_OuterLoopRewatches(t *testing.T) {
 	}
 
 	var worker1State string
+
 	for _, rec := range parsedState.Agents {
 		if rec.Name == "worker-1" {
 			worker1State = rec.State
