@@ -1,6 +1,7 @@
 package stripkeywords
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -9,14 +10,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 )
-
-// memRecord is the minimal TOML shape needed to read/write situation fields.
-type memRecord struct {
-	Type      string `toml:"type"`
-	Situation string `toml:"situation"`
-	UpdatedAt string `toml:"updated_at"`
-	CreatedAt string `toml:"created_at"`
-}
 
 // Deps holds injected I/O dependencies for the cleanup run.
 type Deps struct {
@@ -42,12 +35,6 @@ func DefaultDeps() Deps {
 	}
 }
 
-// dirConfig describes a memory directory and whether it must exist.
-type dirConfig struct {
-	path     string
-	required bool
-}
-
 // Run walks memory/feedback/ and memory/facts/ under dataDir, stripping
 // "\nKeywords: ..." suffixes from situation fields. It is idempotent.
 // The memory/feedback directory is required; memory/facts is optional.
@@ -71,6 +58,81 @@ func Run(dataDir string, deps Deps) error {
 	}
 
 	_, _ = fmt.Fprintf(deps.Stdout, "\nStripped: %d, Unchanged: %d\n", totalStripped, totalUnchanged)
+
+	return nil
+}
+
+// RunCLI parses flags from args and runs the keyword stripping.
+// Returns a non-zero exit code on failure.
+func RunCLI(args []string) int {
+	flags := flag.NewFlagSet("strip-keywords", flag.ContinueOnError)
+	dataDir := flags.String(
+		"data-dir",
+		filepath.Join(os.Getenv("HOME"), ".claude", "engram", "data"),
+		"path to data directory",
+	)
+
+	parseErr := flags.Parse(args)
+	if parseErr != nil {
+		return 1
+	}
+
+	runErr := Run(*dataDir, DefaultDeps())
+	if runErr != nil {
+		fmt.Fprintf(os.Stderr, "strip-keywords: %v\n", runErr)
+
+		return 1
+	}
+
+	return 0
+}
+
+// dirConfig describes a memory directory and whether it must exist.
+type dirConfig struct {
+	path     string
+	required bool
+}
+
+// memRecord is the minimal TOML shape needed to read/write situation fields.
+type memRecord struct {
+	Type      string `toml:"type"`
+	Situation string `toml:"situation"`
+	UpdatedAt string `toml:"updated_at"`
+	CreatedAt string `toml:"created_at"`
+}
+
+func atomicWrite(path string, rec memRecord, deps Deps) error {
+	dir := filepath.Dir(path)
+
+	tmpFile, err := deps.CreateTemp(dir, ".tmp-stripkw-*")
+	if err != nil {
+		return fmt.Errorf("creating temp file: %w", err)
+	}
+
+	tmpPath := tmpFile.Name()
+	cleanup := func() { _ = deps.Remove(tmpPath) }
+
+	encErr := toml.NewEncoder(tmpFile).Encode(rec)
+	closeErr := tmpFile.Close()
+
+	if encErr != nil {
+		cleanup()
+
+		return fmt.Errorf("encoding TOML: %w", encErr)
+	}
+
+	if closeErr != nil {
+		cleanup()
+
+		return fmt.Errorf("closing temp file: %w", closeErr)
+	}
+
+	renameErr := deps.Rename(tmpPath, path)
+	if renameErr != nil {
+		cleanup()
+
+		return fmt.Errorf("renaming temp to destination: %w", renameErr)
+	}
 
 	return nil
 }
@@ -115,56 +177,26 @@ func processFile(path, name string, deps Deps) (bool, error) {
 
 	var rec memRecord
 
-	if _, decErr := toml.Decode(string(data), &rec); decErr != nil {
+	_, decErr := toml.Decode(string(data), &rec)
+	if decErr != nil {
 		return false, fmt.Errorf("%s: decoding TOML: %w", name, decErr)
 	}
 
-	stripped := StripKeywordsSuffix(rec.Situation)
-	if stripped == rec.Situation {
+	strippedSituation := Suffix(rec.Situation)
+	if strippedSituation == rec.Situation {
 		_, _ = fmt.Fprintf(deps.Stdout, "OK (no change): %s\n", name)
 
 		return false, nil
 	}
 
-	rec.Situation = stripped
+	rec.Situation = strippedSituation
 
-	if writeErr := atomicWrite(path, rec, deps); writeErr != nil {
+	writeErr := atomicWrite(path, rec, deps)
+	if writeErr != nil {
 		return false, fmt.Errorf("%s: writing: %w", name, writeErr)
 	}
 
 	_, _ = fmt.Fprintf(deps.Stdout, "STRIPPED: %s\n", name)
 
 	return true, nil
-}
-
-func atomicWrite(path string, rec memRecord, deps Deps) error {
-	dir := filepath.Dir(path)
-
-	tmpFile, err := deps.CreateTemp(dir, ".tmp-stripkw-*")
-	if err != nil {
-		return fmt.Errorf("creating temp file: %w", err)
-	}
-
-	tmpPath := tmpFile.Name()
-	cleanup := func() { _ = deps.Remove(tmpPath) }
-
-	encErr := toml.NewEncoder(tmpFile).Encode(rec)
-	closeErr := tmpFile.Close()
-
-	if encErr != nil {
-		cleanup()
-		return fmt.Errorf("encoding TOML: %w", encErr)
-	}
-
-	if closeErr != nil {
-		cleanup()
-		return fmt.Errorf("closing temp file: %w", closeErr)
-	}
-
-	if renameErr := deps.Rename(tmpPath, path); renameErr != nil {
-		cleanup()
-		return fmt.Errorf("renaming temp to destination: %w", renameErr)
-	}
-
-	return nil
 }

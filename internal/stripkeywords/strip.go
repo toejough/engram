@@ -3,14 +3,14 @@ package stripkeywords
 
 import "strings"
 
-// StripKeywordsSuffix removes the first occurrence of "\nKeywords: ..." from s,
+// Suffix removes the first occurrence of "\nKeywords: ..." from s,
 // where "..." extends to the end of the string. If no such suffix exists, s is
 // returned unchanged. The operation is idempotent.
-func StripKeywordsSuffix(s string) string {
-	idx := strings.Index(s, "\nKeywords:")
-	if idx == -1 {
+func Suffix(s string) string {
+	before, _, found := strings.Cut(s, "\nKeywords:")
+	if !found {
 		return s
 	}
 
-	return s[:idx]
+	return before
 }
