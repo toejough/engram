@@ -594,7 +594,7 @@ func runDispatchDrain(args []string, stdout io.Writer) error {
 	)
 
 	fs := newFlagSet("dispatch drain")
-	fs.IntVar(&timeoutSecs, "timeout", defaultDrainTimeoutSecs, "drain timeout in seconds")
+	fs.IntVar(&timeoutSecs, "secs", defaultDrainTimeoutSecs, "drain timeout in seconds")
 	fs.StringVar(&stateFile, "state-file", "", "override state file path (testing only)")
 
 	err := fs.Parse(args)

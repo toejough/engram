@@ -928,7 +928,7 @@ func TestRunDispatchDispatch_RouteToDrain_HitsDrainBranch(t *testing.T) {
 
 	err := cli.ExportRunDispatchDispatch(
 		context.Background(),
-		[]string{"drain", "--state-file", stateFile, "--timeout", "0"},
+		[]string{"drain", "--state-file", stateFile, "--secs", "0"},
 		&out,
 	)
 
@@ -996,7 +996,7 @@ func TestRunDispatchDrain_ActiveWorkersTimeout_ReturnsTimeout(t *testing.T) {
 	var out strings.Builder
 	// timeout=0 means deadline is immediately in the past
 	err := cli.ExportRunDispatchDrain(
-		[]string{"--state-file", stateFile, "--timeout", "0"},
+		[]string{"--state-file", stateFile, "--secs", "0"},
 		&out,
 	)
 
@@ -1020,7 +1020,7 @@ func TestRunDispatchDrain_AllWorkersAlreadySilent_ReturnsDrainedImmediately(t *t
 	var out strings.Builder
 
 	err := cli.ExportRunDispatchDrain(
-		[]string{"--state-file", stateFile, "--timeout", "5"},
+		[]string{"--state-file", stateFile, "--secs", "5"},
 		&out,
 	)
 
@@ -1047,7 +1047,7 @@ func TestRunDispatchDrain_MissingStateFile_OutputsTimeout(t *testing.T) {
 
 	// Non-existent state file: ReadFile fails → break → timeout output.
 	err := cli.ExportRunDispatchDrain(
-		[]string{"--state-file", "/nonexistent/state.toml", "--timeout", "1"},
+		[]string{"--state-file", "/nonexistent/state.toml", "--secs", "1"},
 		&out,
 	)
 

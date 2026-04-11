@@ -92,7 +92,7 @@ type DispatchAssignArgs struct {
 
 // DispatchDrainArgs holds parsed flags for the dispatch drain subcommand.
 type DispatchDrainArgs struct {
-	Timeout   int    `targ:"flag,name=timeout,desc=drain timeout in seconds (default 60)"`
+	Secs      int    `targ:"flag,name=secs,desc=drain timeout in seconds (default 60)"`
 	StateFile string `targ:"flag,name=state-file,desc=override state file path (testing only)"`
 }
 
@@ -412,7 +412,7 @@ func DispatchAssignFlags(a DispatchAssignArgs) []string {
 func DispatchDrainFlags(a DispatchDrainArgs) []string {
 	return append(
 		BuildFlags("--state-file", a.StateFile),
-		AddIntFlag(nil, "--timeout", a.Timeout)...,
+		AddIntFlag(nil, "--secs", a.Secs)...,
 	)
 }
 

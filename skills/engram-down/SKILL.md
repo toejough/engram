@@ -25,7 +25,7 @@ text = "Session complete. Shutting down."
 ### Step 2: Drain in-flight work
 
 ```
-engram dispatch drain --timeout 30
+engram dispatch drain --secs 30
 ```
 
 Blocks until all in-flight tasks complete or timeout elapses. Do not skip — stopping before drain risks losing work.
