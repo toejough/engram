@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/onsi/gomega"
@@ -2932,6 +2933,213 @@ func TestRunAgentSpawn_FourthWorker_IsNotRejectedByCap(t *testing.T) {
 	// Cap must be gone: any error should not mention "worker queue full".
 	if err != nil {
 		g.Expect(err.Error()).NotTo(ContainSubstring("worker queue full"))
+	}
+}
+
+// TestRunAgentSpawn_IntentNeverContainsPaneID verifies that the spawn intent
+// message posted to the chat file never contains the pane ID regardless of
+// whether --intent-text is supplied.
+// Property: for any valid agent name, any pane ID, and any intent text (including empty),
+// no intent message in the chat file contains the pane ID string.
+func TestRunAgentSpawn_IntentNeverContainsPaneID(t *testing.T) {
+	t.Parallel()
+
+	cli.SetTestSpawnAckMaxWait(t, 6*time.Second)
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		agentName := rapid.StringMatching(`[a-z][a-z0-9-]{1,19}`).Draw(rt, "agentName")
+		// Pane IDs look like "%42" in tmux — generate a realistic-looking one.
+		paneNum := rapid.IntRange(1, 999).Draw(rt, "paneNum")
+		paneID := fmt.Sprintf("%%%d", paneNum)
+		sessionID := "$sess" + agentName
+		intentText := rapid.StringOf(
+			rapid.RuneFrom(nil, unicode.Letter, unicode.Digit, unicode.Space),
+		).Draw(rt, "intentText")
+
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+		stateFile := filepath.Join(dir, "state.toml")
+
+		if err := os.WriteFile(chatFile, []byte(""), 0o600); err != nil {
+			rt.Fatal(err)
+		}
+
+		spawnArgs := []string{
+			"--name", agentName,
+			"--prompt", "You are " + agentName + ".",
+			"--chat-file", chatFile,
+			"--state-file", stateFile,
+		}
+		if intentText != "" {
+			spawnArgs = append(spawnArgs, "--intent-text", intentText)
+		}
+
+		spawnDone := make(chan error, 1)
+
+		go func() {
+			spawnDone <- cli.ExportRunAgentSpawn(spawnArgs, io.Discard,
+				func(_ context.Context, _, _ string) (string, string, error) {
+					return paneID, sessionID, nil
+				},
+			)
+		}()
+
+		// Give the intent time to be posted, then ACK it.
+		time.Sleep(50 * time.Millisecond)
+
+		_ = cli.Run([]string{
+			"engram", "chat", "post",
+			"--chat-file", chatFile,
+			"--from", "engram-agent",
+			"--to", "system",
+			"--thread", "lifecycle",
+			"--type", "ack",
+			"--text", "No relevant memories. Proceed.",
+		}, io.Discard, io.Discard, nil)
+
+		select {
+		case err := <-spawnDone:
+			g.Expect(err).NotTo(HaveOccurred())
+
+			if err != nil {
+				return
+			}
+		case <-time.After(6 * time.Second):
+			rt.Fatal("agent spawn did not complete within 6s")
+		}
+
+		messages, loadErr := cli.ExportLoadChatMessages(chatFile)
+		g.Expect(loadErr).NotTo(HaveOccurred())
+
+		if loadErr != nil {
+			return
+		}
+
+		for _, msg := range messages {
+			if msg.Type == "intent" {
+				g.Expect(msg.Text).NotTo(ContainSubstring(paneID),
+					"spawn intent must not contain pane ID %q", paneID)
+			}
+		}
+	})
+}
+
+// TestRunAgentSpawn_IntentText_SemanticFormat verifies that:
+// (a) when --intent-text is supplied, the intent message contains the task text
+//
+//	and the agent name but not the pane ID;
+//
+// (b) when --intent-text is omitted, the intent message still contains the agent
+//
+//	name and still does not contain the pane ID.
+func TestRunAgentSpawn_IntentText_SemanticFormat(t *testing.T) {
+	t.Parallel()
+
+	cli.SetTestSpawnAckMaxWait(t, 6*time.Second)
+
+	cases := []struct {
+		name       string
+		intentFlag []string
+		wantTask   string
+		wantName   string
+		wantAbsent string
+	}{
+		{
+			name:       "with task",
+			intentFlag: []string{"--intent-text", "implement the auth feature"},
+			wantTask:   "implement the auth feature",
+			wantName:   "auth-worker",
+			wantAbsent: "%99",
+		},
+		{
+			name:       "without task",
+			intentFlag: nil,
+			wantTask:   "",
+			wantName:   "auth-worker",
+			wantAbsent: "%99",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			dir := t.TempDir()
+			chatFile := filepath.Join(dir, "chat.toml")
+			stateFile := filepath.Join(dir, "state.toml")
+
+			g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+			spawnArgs := []string{
+				"--name", "auth-worker",
+				"--prompt", "You are auth-worker.",
+				"--chat-file", chatFile,
+				"--state-file", stateFile,
+			}
+			spawnArgs = append(spawnArgs, tc.intentFlag...)
+
+			spawnDone := make(chan error, 1)
+
+			go func() {
+				spawnDone <- cli.ExportRunAgentSpawn(spawnArgs, io.Discard,
+					func(_ context.Context, _, _ string) (string, string, error) {
+						return "%99", "$sess-auth", nil
+					},
+				)
+			}()
+
+			time.Sleep(50 * time.Millisecond)
+
+			g.Expect(cli.Run([]string{
+				"engram", "chat", "post",
+				"--chat-file", chatFile,
+				"--from", "engram-agent",
+				"--to", "system",
+				"--thread", "lifecycle",
+				"--type", "ack",
+				"--text", "No relevant memories. Proceed.",
+			}, io.Discard, io.Discard, nil)).To(Succeed())
+
+			select {
+			case err := <-spawnDone:
+				g.Expect(err).NotTo(HaveOccurred())
+
+				if err != nil {
+					return
+				}
+			case <-time.After(6 * time.Second):
+				t.Fatal("agent spawn did not complete within 6s")
+			}
+
+			messages, loadErr := cli.ExportLoadChatMessages(chatFile)
+			g.Expect(loadErr).NotTo(HaveOccurred())
+
+			if loadErr != nil {
+				return
+			}
+
+			var intentMsg string
+
+			for _, msg := range messages {
+				if msg.Type == "intent" {
+					intentMsg = msg.Text
+					break
+				}
+			}
+
+			g.Expect(intentMsg).NotTo(BeEmpty(), "expected an intent message in chat")
+
+			if tc.wantTask != "" {
+				g.Expect(intentMsg).To(ContainSubstring(tc.wantTask))
+			}
+
+			g.Expect(intentMsg).To(ContainSubstring(tc.wantName))
+			g.Expect(intentMsg).NotTo(ContainSubstring(tc.wantAbsent),
+				"pane ID must not appear in intent text")
+		})
 	}
 }
 

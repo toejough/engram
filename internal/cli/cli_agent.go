@@ -630,16 +630,18 @@ func parseTmuxOutput(out []byte) (paneID, sessionID string, err error) {
 
 // postSpawnIntentAndWait posts a spawn intent to the chat file and waits for engram-agent ACK.
 // Fixes #503: binary auto-posts spawn intent + waits for ACK before returning.
-func postSpawnIntentAndWait(ctx context.Context, chatFilePath, name, paneID, intentMsg string) error {
-	intentText := fmt.Sprintf(
-		"Situation: About to spawn agent %q in pane %s.\nBehavior: Agent will post ready when initialized.",
-		name, paneID,
-	)
+func postSpawnIntentAndWait(ctx context.Context, chatFilePath string, name string, _ string, intentMsg string) error {
+	var intentText string
 
 	if intentMsg != "" {
 		intentText = fmt.Sprintf(
-			"Situation: About to spawn agent %q in pane %s. Task: %s\nBehavior: Agent will post ready when initialized.",
-			name, paneID, intentMsg,
+			"Situation: %s. Behavior: Will spawn agent %q to handle the above.",
+			intentMsg, name,
+		)
+	} else {
+		intentText = fmt.Sprintf(
+			"Situation: Spawning agent %q as requested. Behavior: Will spawn agent %q to handle the assigned task.",
+			name, name,
 		)
 	}
 
