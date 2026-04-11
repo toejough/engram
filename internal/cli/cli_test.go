@@ -1452,6 +1452,68 @@ func TestOuterWatchLoop_WriteStateSilentAfterSession(t *testing.T) {
 	g.Expect(string(data)).To(ContainSubstring(`state = "SILENT"`))
 }
 
+func TestOuterWatchLoop_WritesSilentAtWithSilentState(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Write initial state using MarshalStateFile for correct TOML keys.
+	initialState := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{
+				Name:      "engram-agent",
+				PaneID:    "",
+				SessionID: "",
+				State:     "STARTING",
+				SpawnedAt: time.Date(2026, 4, 10, 0, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+	stateData, marshalErr := agentpkg.MarshalStateFile(initialState)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+	g.Expect(os.WriteFile(stateFile, stateData, 0o600)).To(Succeed())
+
+	fakeClaude := filepath.Join(dir, "claude")
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	watchForIntent := func(_ context.Context, _, _ string, _ int) (chat.Message, int, error) {
+		cancel()
+		return chat.Message{}, 0, context.Canceled
+	}
+
+	err := cli.ExportRunConversationLoopWith(
+		ctx,
+		"engram-agent", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		func(_ context.Context, _, _ string, _ int) (string, error) { return "Proceed.", nil },
+		watchForIntent,
+		func(_ string, _ int) ([]string, error) { return nil, nil },
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	data, readErr := os.ReadFile(stateFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	// Both fields must be written atomically in the same RMW call.
+	g.Expect(string(data)).To(ContainSubstring(`state = "SILENT"`))
+	g.Expect(string(data)).To(ContainSubstring(`last-silent-at =`))
+}
+
 func TestOutputAckResult_FailWriter_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -2302,6 +2364,48 @@ func TestRunAgentList_InvalidTOMLStateFile_ReturnsError(t *testing.T) {
 
 	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateFile}, &stdout, io.Discard, nil)
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunAgentList_LastSilentAtIncludedInOutput(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.toml")
+
+	lastSilentAt := time.Date(2026, 4, 10, 12, 0, 0, 0, time.UTC)
+	state := agentpkg.StateFile{
+		Agents: []agentpkg.AgentRecord{
+			{
+				Name:         "engram-agent",
+				PaneID:       "main:1.1",
+				SessionID:    "sess-xyz",
+				State:        "SILENT",
+				SpawnedAt:    time.Date(2026, 4, 10, 10, 0, 0, 0, time.UTC),
+				LastSilentAt: lastSilentAt,
+			},
+		},
+	}
+	data, _ := agentpkg.MarshalStateFile(state)
+	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateFile}, &stdout, io.Discard, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	g.Expect(lines).To(HaveLen(1))
+
+	var rec map[string]any
+
+	g.Expect(json.Unmarshal([]byte(lines[0]), &rec)).To(Succeed())
+	g.Expect(rec).To(HaveKey("last-silent-at"))
+	g.Expect(rec["last-silent-at"]).NotTo(BeEmpty())
 }
 
 func TestRunAgentList_MultipleAgents_NDJSON(t *testing.T) {

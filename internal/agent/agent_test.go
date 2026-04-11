@@ -113,6 +113,42 @@ func TestAddHold_AppendsHold(t *testing.T) {
 	g.Expect(got.Holds[0].HoldID).To(Equal("h1"))
 }
 
+func TestAgentRecord_LastSilentAt_RoundTrips(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	lastSilentAt := time.Date(2026, 4, 10, 12, 0, 0, 0, time.UTC)
+	original := agent.StateFile{
+		Agents: []agent.AgentRecord{
+			{
+				Name:         "engram-agent",
+				PaneID:       "main:1.1",
+				SessionID:    "sess-xyz",
+				State:        "SILENT",
+				SpawnedAt:    time.Date(2026, 4, 10, 10, 0, 0, 0, time.UTC),
+				LastSilentAt: lastSilentAt,
+			},
+		},
+	}
+
+	data, marshalErr := agent.MarshalStateFile(original)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	got, parseErr := agent.ParseStateFile(data)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	g.Expect(got.Agents).To(HaveLen(1))
+	g.Expect(got.Agents[0].LastSilentAt.UTC()).To(Equal(lastSilentAt))
+}
+
 func TestParseStateFile_Empty_ReturnsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)

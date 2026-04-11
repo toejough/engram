@@ -22,6 +22,7 @@ type AgentRecord struct {
 	State          string    `json:"state"                    toml:"state"` // STARTING | ACTIVE | SILENT | DEAD
 	SpawnedAt      time.Time `json:"spawned-at"               toml:"spawned-at"`
 	LastResumedAt  time.Time `json:"last-resumed-at,omitzero" toml:"last-resumed-at,omitzero"`
+	LastSilentAt   time.Time `json:"last-silent-at,omitzero"  toml:"last-silent-at,omitzero"`
 	ArgumentWith   string    `json:"argument-with"            toml:"argument-with"`
 	ArgumentCount  int       `json:"argument-count"           toml:"argument-count"`
 	ArgumentThread string    `json:"argument-thread"          toml:"argument-thread"`

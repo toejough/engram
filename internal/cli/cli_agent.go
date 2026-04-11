@@ -1298,7 +1298,7 @@ func watchAndResume(
 	watchForIntent watchForIntentFunc,
 	memFileSelector memFileSelectorFunc,
 ) (string, error) {
-	silentErr := writeAgentState(stateFilePath, agentName, "SILENT")
+	silentErr := writeAgentSilentState(stateFilePath, agentName)
 	if silentErr != nil {
 		_, _ = fmt.Fprintf(stdout,
 			"[engram] warning: failed to write SILENT state: %v\n",
@@ -1363,12 +1363,16 @@ func writeAgentLastResumedAt(stateFilePath, agentName string) error {
 	})
 }
 
-// writeAgentState updates the State field for the named agent in the state file.
-func writeAgentState(stateFilePath, agentName, state string) error {
+// writeAgentSilentState writes state=SILENT and last-silent-at atomically.
+// Used by watchAndResume to record binary-managed SILENT transitions (Phase 5).
+// Using a dedicated function prevents the two writes from being split across
+// separate RMW calls, which would leave the state file inconsistent.
+func writeAgentSilentState(stateFilePath, agentName string) error {
 	return readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
 		for i, rec := range stateFile.Agents {
 			if rec.Name == agentName {
-				stateFile.Agents[i].State = state
+				stateFile.Agents[i].State = "SILENT"
+				stateFile.Agents[i].LastSilentAt = time.Now().UTC()
 
 				return stateFile
 			}
