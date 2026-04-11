@@ -47,7 +47,8 @@ type StateFile struct {
 }
 
 // ActiveWorkerCount returns the number of agents in STARTING or ACTIVE state.
-// Pure function — no I/O.
+// Exported for observability consumers (e.g. status commands, reporters) across
+// the internal/ package boundary. Pure function — no I/O.
 func ActiveWorkerCount(sf StateFile) int {
 	count := 0
 

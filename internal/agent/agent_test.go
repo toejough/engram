@@ -9,55 +9,86 @@ import (
 	"engram/internal/agent"
 )
 
-func TestActiveWorkerCount_CountsActiveAgents(t *testing.T) {
+func TestActiveWorkerCount(t *testing.T) {
 	t.Parallel()
-	g := NewGomegaWithT(t)
 
-	stateFile := agent.StateFile{
-		Agents: []agent.AgentRecord{
-			{Name: "exec-1", State: "ACTIVE"},
-			{Name: "exec-2", State: "SILENT"},
-			{Name: "exec-3", State: "ACTIVE"},
+	cases := []struct {
+		name     string
+		agents   []agent.AgentRecord
+		expected int
+	}{
+		{
+			name:     "empty state file returns zero",
+			agents:   nil,
+			expected: 0,
+		},
+		{
+			name: "counts ACTIVE agents",
+			agents: []agent.AgentRecord{
+				{Name: "exec-1", State: "ACTIVE"},
+				{Name: "exec-2", State: "ACTIVE"},
+			},
+			expected: 2,
+		},
+		{
+			name: "counts STARTING agents",
+			agents: []agent.AgentRecord{
+				{Name: "exec-1", State: "STARTING"},
+				{Name: "exec-2", State: "STARTING"},
+			},
+			expected: 2,
+		},
+		{
+			name: "counts ACTIVE and STARTING together",
+			agents: []agent.AgentRecord{
+				{Name: "exec-1", State: "ACTIVE"},
+				{Name: "exec-2", State: "STARTING"},
+			},
+			expected: 2,
+		},
+		{
+			name: "ignores SILENT agents",
+			agents: []agent.AgentRecord{
+				{Name: "exec-1", State: "SILENT"},
+			},
+			expected: 0,
+		},
+		{
+			name: "ignores DEAD agents",
+			agents: []agent.AgentRecord{
+				{Name: "exec-1", State: "DEAD"},
+			},
+			expected: 0,
+		},
+		{
+			name: "ignores unknown state agents",
+			agents: []agent.AgentRecord{
+				{Name: "exec-1", State: "UNKNOWN"},
+			},
+			expected: 0,
+		},
+		{
+			name: "mixed states: only ACTIVE and STARTING count",
+			agents: []agent.AgentRecord{
+				{Name: "exec-1", State: "ACTIVE"},
+				{Name: "exec-2", State: "SILENT"},
+				{Name: "exec-3", State: "STARTING"},
+				{Name: "exec-4", State: "DEAD"},
+				{Name: "exec-5", State: "UNKNOWN"},
+			},
+			expected: 2,
 		},
 	}
 
-	g.Expect(agent.ActiveWorkerCount(stateFile)).To(Equal(2))
-}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-func TestActiveWorkerCount_CountsStartingAgents(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	stateFile := agent.StateFile{
-		Agents: []agent.AgentRecord{
-			{Name: "exec-1", State: "STARTING"},
-			{Name: "exec-2", State: "STARTING"},
-		},
+			g := NewGomegaWithT(t)
+			sf := agent.StateFile{Agents: tc.agents}
+			g.Expect(agent.ActiveWorkerCount(sf)).To(Equal(tc.expected))
+		})
 	}
-
-	g.Expect(agent.ActiveWorkerCount(stateFile)).To(Equal(2))
-}
-
-func TestActiveWorkerCount_EmptyStateFile(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	g.Expect(agent.ActiveWorkerCount(agent.StateFile{})).To(Equal(0))
-}
-
-func TestActiveWorkerCount_IgnoresSilentDeadUnknown(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	stateFile := agent.StateFile{
-		Agents: []agent.AgentRecord{
-			{Name: "exec-1", State: "SILENT"},
-			{Name: "exec-2", State: "DEAD"},
-			{Name: "exec-3", State: "UNKNOWN"},
-		},
-	}
-
-	g.Expect(agent.ActiveWorkerCount(stateFile)).To(Equal(0))
 }
 
 func TestAddAgent_AppendsToEmpty(t *testing.T) {
