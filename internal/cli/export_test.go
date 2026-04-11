@@ -147,7 +147,15 @@ func ExportRouteMessage(
 	msg chat.Message,
 	cursor int,
 ) {
-	routeMessage(workerChans, deferred, holdCheckerFunc(holdChecker), stateFilePath, chatFilePath, msg, cursor)
+	routeMessage(
+		workerChans,
+		deferred,
+		holdCheckerFunc(holdChecker),
+		stateFilePath,
+		chatFilePath,
+		msg,
+		cursor,
+	)
 }
 
 // ExportRouteMessageWithPoster calls routeMessageWithPoster with a plain func holdChecker.
@@ -291,7 +299,12 @@ func ExportRunDispatch(
 				<-sem
 			}()
 
-			flags := agentRunFlags{name: cfg.Name, prompt: cfg.Prompt, chatFile: chatFile, stateFile: stateFile}
+			flags := agentRunFlags{
+				name:      cfg.Name,
+				prompt:    cfg.Prompt,
+				chatFile:  chatFile,
+				stateFile: stateFile,
+			}
 			runner := buildAgentRunner(flags, stateFile, chatFile, io.Discard)
 
 			_ = runConversationLoopWith(

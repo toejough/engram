@@ -34,11 +34,15 @@ const (
 
 // unexported variables.
 var (
-	errDispatchAgentRequired     = errors.New("dispatch assign: --agent is required")
-	errDispatchStartNeedsAgent   = errors.New("dispatch start: at least one --agent flag is required")
-	errDispatchSubcommandMissing = errors.New("dispatch: subcommand required (start|assign|drain|stop|status)")
-	errDispatchTaskRequired      = errors.New("dispatch assign: --task is required")
-	errDispatchUnknownSubcmd     = errors.New("dispatch: unknown subcommand")
+	errDispatchAgentRequired   = errors.New("dispatch assign: --agent is required")
+	errDispatchStartNeedsAgent = errors.New(
+		"dispatch start: at least one --agent flag is required",
+	)
+	errDispatchSubcommandMissing = errors.New(
+		"dispatch: subcommand required (start|assign|drain|stop|status)",
+	)
+	errDispatchTaskRequired  = errors.New("dispatch assign: --task is required")
+	errDispatchUnknownSubcmd = errors.New("dispatch: unknown subcommand")
 )
 
 // dispatchWatchResult holds the result of one Watch call in dispatchLoop.
@@ -77,7 +81,10 @@ func (f *multiStringFlag) String() string {
 // addFreshStartingRecords removes all existing records for each worker and adds a single
 // fresh STARTING record. This ensures exactly one record per worker name, preventing
 // stale SILENT/DEAD records from confusing state-update functions that match by name.
-func addFreshStartingRecords(stateFile agentpkg.StateFile, workers []WorkerConfig) agentpkg.StateFile {
+func addFreshStartingRecords(
+	stateFile agentpkg.StateFile,
+	workers []WorkerConfig,
+) agentpkg.StateFile {
 	for _, worker := range workers {
 		stateFile = agentpkg.RemoveAgent(stateFile, worker.Name)
 		stateFile = agentpkg.AddAgent(stateFile, agentpkg.AgentRecord{
@@ -114,7 +121,16 @@ func dispatchLoop(
 	cursor int,
 	silentCh <-chan string, // receives worker name when session completes (ARCH-A5)
 ) error {
-	return dispatchLoopWith(ctx, workerChans, stateFilePath, chatFilePath, cursor, silentCh, nil, nil)
+	return dispatchLoopWith(
+		ctx,
+		workerChans,
+		stateFilePath,
+		chatFilePath,
+		cursor,
+		silentCh,
+		nil,
+		nil,
+	)
 }
 
 // dispatchLoopWith is dispatchLoop with injectable hold checker and poster for testing.
@@ -146,7 +162,16 @@ func dispatchLoopWith(
 		suffix := suffixAtLine(data, cursor)
 
 		for _, msg := range chat.ParseMessagesSafe(suffix) {
-			routeMessageWithPoster(workerChans, deferred, holdChecker, stateFilePath, chatFilePath, poster, msg, cursor)
+			routeMessageWithPoster(
+				workerChans,
+				deferred,
+				holdChecker,
+				stateFilePath,
+				chatFilePath,
+				poster,
+				msg,
+				cursor,
+			)
 		}
 
 		cursor = bytes.Count(data, []byte("\n"))
@@ -169,7 +194,15 @@ func dispatchLoopWith(
 			return nil
 
 		case name := <-silentCh:
-			handleWorkerSilent(name, workerChans, deferred, holdChecker, stateFilePath, cursor, poster)
+			handleWorkerSilent(
+				name,
+				workerChans,
+				deferred,
+				holdChecker,
+				stateFilePath,
+				cursor,
+				poster,
+			)
 
 		case res := <-msgCh:
 			if res.Err != nil {
@@ -181,7 +214,16 @@ func dispatchLoopWith(
 			}
 
 			cursor = res.Cursor
-			routeMessageWithPoster(workerChans, deferred, holdChecker, stateFilePath, chatFilePath, poster, res.Msg, cursor)
+			routeMessageWithPoster(
+				workerChans,
+				deferred,
+				holdChecker,
+				stateFilePath,
+				chatFilePath,
+				poster,
+				res.Msg,
+				cursor,
+			)
 
 			startWatch()
 		}
@@ -278,12 +320,15 @@ func initWorkerStateRecords(stateFilePath, chatFilePath string, workers []Worker
 
 	var staleNames []string
 
-	rmwErr := readModifyWriteStateFile(stateFilePath, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		staleNames = nil
-		sf, staleNames = markStaleWorkersDeadAndCollect(sf, workerSet)
+	rmwErr := readModifyWriteStateFile(
+		stateFilePath,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			staleNames = nil
+			sf, staleNames = markStaleWorkersDeadAndCollect(sf, workerSet)
 
-		return addFreshStartingRecords(sf, workers)
-	})
+			return addFreshStartingRecords(sf, workers)
+		},
+	)
 	if rmwErr != nil {
 		return rmwErr
 	}
@@ -300,7 +345,10 @@ func initWorkerStateRecords(stateFilePath, chatFilePath string, workers []Worker
 			To:     "all",
 			Thread: "lifecycle",
 			Type:   "info",
-			Text:   fmt.Sprintf("Stale worker %s found in STARTING/ACTIVE state — marking DEAD.", name),
+			Text: fmt.Sprintf(
+				"Stale worker %s found in STARTING/ACTIVE state — marking DEAD.",
+				name,
+			),
 		})
 	}
 
@@ -400,7 +448,10 @@ func postQueueOverflow(poster *chat.FilePoster, worker string) {
 		To:     "all",
 		Thread: "dispatch",
 		Type:   "info",
-		Text:   fmt.Sprintf("dispatch: deferredQueue overflow for worker=%s; oldest message dropped", worker),
+		Text: fmt.Sprintf(
+			"dispatch: deferredQueue overflow for worker=%s; oldest message dropped",
+			worker,
+		),
 	})
 }
 
@@ -428,7 +479,11 @@ func postRoutingInfo(poster *chat.FilePoster, recipient string, msg chat.Message
 // is a current dispatch worker and whose acquired-ts is before dispatchStartedAt.
 // Holds on unknown targets (other session contexts) are left untouched.
 // Called from runDispatch after initWorkerStateRecords.
-func releaseStaleHolds(chatFilePath string, workers []WorkerConfig, dispatchStartedAt time.Time) error {
+func releaseStaleHolds(
+	chatFilePath string,
+	workers []WorkerConfig,
+	dispatchStartedAt time.Time,
+) error {
 	workerSet := make(map[string]bool, len(workers))
 	for _, worker := range workers {
 		workerSet[worker.Name] = true
@@ -539,7 +594,16 @@ func routeMessage(
 	msg chat.Message,
 	cursor int,
 ) {
-	routeMessageWithPoster(workerChans, deferred, holdChecker, stateFilePath, chatFilePath, nil, msg, cursor)
+	routeMessageWithPoster(
+		workerChans,
+		deferred,
+		holdChecker,
+		stateFilePath,
+		chatFilePath,
+		nil,
+		msg,
+		cursor,
+	)
 }
 
 // routeMessageWithPoster is routeMessage with an optional chat.FilePoster for observability.
@@ -554,7 +618,15 @@ func routeMessageWithPoster(
 ) {
 	// Hold-release: resolve target from chat file and drain deferred queue.
 	if msg.Type == "hold-release" {
-		handleHoldRelease(workerChans, deferred, stateFilePath, chatFilePath, cursor, poster, msg.Text)
+		handleHoldRelease(
+			workerChans,
+			deferred,
+			stateFilePath,
+			chatFilePath,
+			cursor,
+			poster,
+			msg.Text,
+		)
 
 		return
 	}
@@ -565,7 +637,16 @@ func routeMessageWithPoster(
 	}
 
 	for _, recipient := range resolveRecipients(msg.To, workerChans) {
-		routeToRecipient(workerChans, deferred, holdChecker, stateFilePath, poster, msg, cursor, recipient)
+		routeToRecipient(
+			workerChans,
+			deferred,
+			holdChecker,
+			stateFilePath,
+			poster,
+			msg,
+			cursor,
+			recipient,
+		)
 	}
 }
 
@@ -664,7 +745,17 @@ func runDispatch(
 			defer wg.Done()
 
 			intentCh := intentChans[cfg.Name]
-			runWorkerUnderSemaphore(ctx, cfg, sem, chatFilePath, stateFilePath, claudeBinary, intentCh, silentCh, stdout)
+			runWorkerUnderSemaphore(
+				ctx,
+				cfg,
+				sem,
+				chatFilePath,
+				stateFilePath,
+				claudeBinary,
+				intentCh,
+				silentCh,
+				stdout,
+			)
 		}(w)
 	}
 
@@ -745,7 +836,11 @@ func runDispatchDispatch(ctx context.Context, subArgs []string, stdout io.Writer
 	case "status":
 		return runDispatchStatus(subArgs[1:], stdout)
 	default:
-		return fmt.Errorf("%w %q (want: start|assign|drain|stop|status)", errDispatchUnknownSubcmd, subArgs[0])
+		return fmt.Errorf(
+			"%w %q (want: start|assign|drain|stop|status)",
+			errDispatchUnknownSubcmd,
+			subArgs[0],
+		)
 	}
 }
 
@@ -766,7 +861,12 @@ func runDispatchDrain(args []string, stdout io.Writer) error {
 		return fmt.Errorf("dispatch drain: %w", err)
 	}
 
-	stateFilePath, stateErr := resolveStateFile(stateFile, "dispatch drain", os.UserHomeDir, os.Getwd)
+	stateFilePath, stateErr := resolveStateFile(
+		stateFile,
+		"dispatch drain",
+		os.UserHomeDir,
+		os.Getwd,
+	)
 	if stateErr != nil {
 		return fmt.Errorf("dispatch drain: %w", stateErr)
 	}
@@ -822,10 +922,20 @@ func runDispatchStart(ctx context.Context, args []string, stdout io.Writer) erro
 
 	fs := newFlagSet("dispatch start")
 	fs.Var(&agentFlags, "agent", "worker agent name (repeatable)")
-	fs.IntVar(&maxConcurrent, "max-concurrent", defaultMaxConcurrent, "maximum concurrent worker sessions")
+	fs.IntVar(
+		&maxConcurrent,
+		"max-concurrent",
+		defaultMaxConcurrent,
+		"maximum concurrent worker sessions",
+	)
 	fs.StringVar(&chatFile, "chat-file", "", "override chat file path (testing only)")
 	fs.StringVar(&stateFile, "state-file", "", "override state file path (testing only)")
-	fs.StringVar(&claudeBinary, "claude-binary", "claude", "override claude binary path (testing only)")
+	fs.StringVar(
+		&claudeBinary,
+		"claude-binary",
+		"claude",
+		"override claude binary path (testing only)",
+	)
 
 	err := fs.Parse(args)
 	if err != nil {
@@ -841,7 +951,12 @@ func runDispatchStart(ctx context.Context, args []string, stdout io.Writer) erro
 		return fmt.Errorf("dispatch start: %w", chatErr)
 	}
 
-	stateFilePath, stateErr := resolveStateFile(stateFile, "dispatch start", os.UserHomeDir, os.Getwd)
+	stateFilePath, stateErr := resolveStateFile(
+		stateFile,
+		"dispatch start",
+		os.UserHomeDir,
+		os.Getwd,
+	)
 	if stateErr != nil {
 		return fmt.Errorf("dispatch start: %w", stateErr)
 	}
@@ -860,7 +975,15 @@ func runDispatchStart(ctx context.Context, args []string, stdout io.Writer) erro
 		workers = append(workers, WorkerConfig{Name: name, Prompt: ""})
 	}
 
-	return runDispatch(ctx, workers, maxConcurrent, chatFilePath, stateFilePath, claudeBinary, stdout)
+	return runDispatch(
+		ctx,
+		workers,
+		maxConcurrent,
+		chatFilePath,
+		stateFilePath,
+		claudeBinary,
+		stdout,
+	)
 }
 
 // runDispatchStatus implements the "engram dispatch status" subcommand.
@@ -876,7 +999,12 @@ func runDispatchStatus(args []string, stdout io.Writer) error {
 		return fmt.Errorf("dispatch status: %w", err)
 	}
 
-	stateFilePath, stateErr := resolveStateFile(stateFile, "dispatch status", os.UserHomeDir, os.Getwd)
+	stateFilePath, stateErr := resolveStateFile(
+		stateFile,
+		"dispatch status",
+		os.UserHomeDir,
+		os.Getwd,
+	)
 	if stateErr != nil {
 		return fmt.Errorf("dispatch status: %w", stateErr)
 	}
@@ -937,7 +1065,12 @@ func runDispatchStop(args []string, stdout io.Writer) error {
 		return fmt.Errorf("dispatch stop: %w", chatErr)
 	}
 
-	stateFilePath, stateErr := resolveStateFile(stateFile, "dispatch stop", os.UserHomeDir, os.Getwd)
+	stateFilePath, stateErr := resolveStateFile(
+		stateFile,
+		"dispatch stop",
+		os.UserHomeDir,
+		os.Getwd,
+	)
 	if stateErr != nil {
 		return fmt.Errorf("dispatch stop: %w", stateErr)
 	}
@@ -988,7 +1121,12 @@ func runWorkerUnderSemaphore(
 
 	defer func() { <-sem }()
 
-	flags := agentRunFlags{name: cfg.Name, prompt: cfg.Prompt, chatFile: chatFilePath, stateFile: stateFilePath}
+	flags := agentRunFlags{
+		name:      cfg.Name,
+		prompt:    cfg.Prompt,
+		chatFile:  chatFilePath,
+		stateFile: stateFilePath,
+	}
 	runner := buildAgentRunner(flags, stateFilePath, chatFilePath, stdout)
 
 	_ = runConversationLoopWith(

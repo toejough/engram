@@ -39,7 +39,8 @@ func TestAgentRunFlags_BuildsCorrectArgs(t *testing.T) {
 	})
 
 	g.Expect(args).To(ContainElements("--name", "worker-1", "--prompt", "do the thing"))
-	g.Expect(args).To(ContainElements("--chat-file", "/tmp/chat.toml", "--state-file", "/tmp/state.toml"))
+	g.Expect(args).
+		To(ContainElements("--chat-file", "/tmp/chat.toml", "--state-file", "/tmp/state.toml"))
 }
 
 func TestAgentRunFlags_SkipsEmptyValues(t *testing.T) {
@@ -213,7 +214,11 @@ func TestBuildResumePrompt_IncludesCursorField(t *testing.T) {
 	g := NewWithT(t)
 
 	prompt := cli.ExportBuildResumePrompt(cli.ResumePromptArgs{
-		AgentName: "agent-1", Cursor: 42, IntentFrom: "agent-1", IntentText: "do stuff", ResumeReason: "intent",
+		AgentName:    "agent-1",
+		Cursor:       42,
+		IntentFrom:   "agent-1",
+		IntentText:   "do stuff",
+		ResumeReason: "intent",
 	})
 	g.Expect(prompt).To(ContainSubstring("CURSOR: 42"))
 }
@@ -317,7 +322,8 @@ func TestBuildResumePrompt_StructForm_LearnedMessages_WithEntries(t *testing.T) 
 		ResumeReason:    "intent",
 		LearnedMessages: []string{"engram → uses → targ", "never amend pushed commits"},
 	})
-	g.Expect(prompt).To(ContainSubstring("LEARNED_MESSAGES: engram → uses → targ | never amend pushed commits"))
+	g.Expect(prompt).
+		To(ContainSubstring("LEARNED_MESSAGES: engram → uses → targ | never amend pushed commits"))
 }
 
 func TestBuildResumePrompt_StructForm_RecentIntents_None(t *testing.T) {
@@ -347,7 +353,8 @@ func TestBuildResumePrompt_StructForm_RecentIntents_WithEntries(t *testing.T) {
 		ResumeReason:  "intent",
 		RecentIntents: []string{"lead→worker-a: do it", "test→engram-agent: check this"},
 	})
-	g.Expect(prompt).To(ContainSubstring("RECENT_INTENTS: lead→worker-a: do it | test→engram-agent: check this"))
+	g.Expect(prompt).
+		To(ContainSubstring("RECENT_INTENTS: lead→worker-a: do it | test→engram-agent: check this"))
 }
 
 func TestBuildResumePrompt_StructForm_ResumeReasonIntent(t *testing.T) {
@@ -549,7 +556,8 @@ func TestDefaultMemFileSelector_WiresOsReadDirAndStat(t *testing.T) {
 	g.Expect(os.MkdirAll(factsDir, 0o755)).To(Succeed())
 
 	// Write a feedback file and a facts file.
-	g.Expect(os.WriteFile(filepath.Join(feedbackDir, "fb1.md"), []byte("feedback"), 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(feedbackDir, "fb1.md"), []byte("feedback"), 0o600)).
+		To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(factsDir, "fact1.md"), []byte("fact"), 0o600)).To(Succeed())
 
 	files, err := cli.ExportDefaultMemFileSelector(homeDir, 20)
@@ -687,7 +695,8 @@ func TestKillAgentPane_EmptyPaneID_ReturnsNil(t *testing.T) {
 		return errors.New("should not be called: pane ID was empty")
 	})
 
-	err := cli.Run([]string{"engram", "agent", "kill",
+	err := cli.Run([]string{
+		"engram", "agent", "kill",
 		"--name", "executor-1",
 		"--state-file", stateFile,
 		"--chat-file", chatFile,
@@ -838,7 +847,12 @@ func TestOsTmuxSpawnWith_SendsEngramAgentRun(t *testing.T) {
 		"esac\n"
 	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
 
-	paneID, sessionID, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "my-agent", "do-the-thing")
+	paneID, sessionID, err := cli.ExportOsTmuxSpawnWith(
+		t.Context(),
+		fakeTmux,
+		"my-agent",
+		"do-the-thing",
+	)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -915,7 +929,12 @@ func TestOsTmuxSpawnWith_Success_ReturnsPaneAndSession(t *testing.T) {
 		"esac\n"
 	g.Expect(os.WriteFile(fakeTmux, []byte(script), 0o700)).To(Succeed())
 
-	paneID, sessionID, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "my-prompt-text")
+	paneID, sessionID, err := cli.ExportOsTmuxSpawnWith(
+		t.Context(),
+		fakeTmux,
+		"myagent",
+		"my-prompt-text",
+	)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -934,7 +953,8 @@ func TestOsTmuxSpawnWith_UnexpectedOutput_ReturnsError(t *testing.T) {
 	tmpDir := t.TempDir()
 	fakeTmux := filepath.Join(tmpDir, "tmux")
 
-	g.Expect(os.WriteFile(fakeTmux, []byte("#!/bin/sh\necho 'only-one-field'\n"), 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(fakeTmux, []byte("#!/bin/sh\necho 'only-one-field'\n"), 0o700)).
+		To(Succeed())
 
 	_, _, err := cli.ExportOsTmuxSpawnWith(t.Context(), fakeTmux, "myagent", "sh -c 'echo hello'")
 
@@ -1100,7 +1120,8 @@ func TestOuterWatchLoop_CursorNotResetBetweenSessions(t *testing.T) {
 
 	g.Expect(callCount).To(Equal(2), "watchForIntent must be called exactly twice")
 	g.Expect(cursor1).To(BeNumerically(">", 0), "first watchForIntent cursor must be non-zero")
-	g.Expect(cursor1).To(Equal(expectedCursor), "cursor1 must match chatFileCursor of initial content")
+	g.Expect(cursor1).
+		To(Equal(expectedCursor), "cursor1 must match chatFileCursor of initial content")
 	g.Expect(cursor2).To(BeNumerically(">", 0), "second watchForIntent cursor must be non-zero")
 	g.Expect(cursor2).To(BeNumerically(">=", cursor1),
 		"cursor must not go backward — outer loop must not reset cursor to 0 between sessions")
@@ -1895,9 +1916,15 @@ func TestReadModifyWriteStateFile_ConcurrentCallers_BothAgentsPresent(t *testing
 		go func() {
 			defer wg.Done()
 
-			innerErr := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-				return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: agentName, State: "STARTING"})
-			})
+			innerErr := cli.ExportReadModifyWriteStateFile(
+				stateFile,
+				func(sf agentpkg.StateFile) agentpkg.StateFile {
+					return agentpkg.AddAgent(
+						sf,
+						agentpkg.AgentRecord{Name: agentName, State: "STARTING"},
+					)
+				},
+			)
 			g.Expect(innerErr).NotTo(HaveOccurred())
 		}()
 	}
@@ -1919,9 +1946,15 @@ func TestReadModifyWriteStateFile_CreatesFileWhenAbsent(t *testing.T) {
 	dir := t.TempDir()
 	stateFile := filepath.Join(dir, "state.toml")
 
-	err := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "test-agent", State: "STARTING"})
-	})
+	err := cli.ExportReadModifyWriteStateFile(
+		stateFile,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return agentpkg.AddAgent(
+				sf,
+				agentpkg.AgentRecord{Name: "test-agent", State: "STARTING"},
+			)
+		},
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -1942,9 +1975,12 @@ func TestReadModifyWriteStateFile_InvalidTOML_ReturnsError(t *testing.T) {
 
 	g.Expect(os.WriteFile(stateFile, []byte("[[not valid toml {{{"), 0o600)).To(Succeed())
 
-	err := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		return sf
-	})
+	err := cli.ExportReadModifyWriteStateFile(
+		stateFile,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return sf
+		},
+	)
 
 	g.Expect(err).To(HaveOccurred())
 
@@ -1962,9 +1998,12 @@ func TestReadModifyWriteStateFile_InvalidTOML_ReturnsParseError(t *testing.T) {
 	writeErr := os.WriteFile(stateFile, []byte("[[[invalid toml"), 0o600)
 	g.Expect(writeErr).NotTo(HaveOccurred())
 
-	err := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		return sf
-	})
+	err := cli.ExportReadModifyWriteStateFile(
+		stateFile,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return sf
+		},
+	)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -1980,9 +2019,15 @@ func TestReadModifyWriteStateFile_MissingDir_CreatesDirAndFile(t *testing.T) {
 	// state/ subdirectory does NOT exist yet
 	stateFile := filepath.Join(base, "state", "test.toml")
 
-	err := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "test-agent", State: "STARTING"})
-	})
+	err := cli.ExportReadModifyWriteStateFile(
+		stateFile,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return agentpkg.AddAgent(
+				sf,
+				agentpkg.AgentRecord{Name: "test-agent", State: "STARTING"},
+			)
+		},
+	)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -2007,7 +2052,10 @@ func TestReadModifyWriteStateFile_PathIsDirectory_ReturnsReadError(t *testing.T)
 	mkErr := os.MkdirAll(subDir, 0o700)
 	g.Expect(mkErr).NotTo(HaveOccurred())
 
-	err := cli.ExportReadModifyWriteStateFile(subDir, func(sf agentpkg.StateFile) agentpkg.StateFile { return sf })
+	err := cli.ExportReadModifyWriteStateFile(
+		subDir,
+		func(sf agentpkg.StateFile) agentpkg.StateFile { return sf },
+	)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -2022,14 +2070,20 @@ func TestReadModifyWriteStateFile_UpdatesExistingFile(t *testing.T) {
 	dir := t.TempDir()
 	stateFile := filepath.Join(dir, "state.toml")
 
-	err1 := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "agent-1", State: "ACTIVE"})
-	})
+	err1 := cli.ExportReadModifyWriteStateFile(
+		stateFile,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "agent-1", State: "ACTIVE"})
+		},
+	)
 	g.Expect(err1).NotTo(HaveOccurred())
 
-	err2 := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "agent-2", State: "ACTIVE"})
-	})
+	err2 := cli.ExportReadModifyWriteStateFile(
+		stateFile,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: "agent-2", State: "ACTIVE"})
+		},
+	)
 	g.Expect(err2).NotTo(HaveOccurred())
 
 	data, _ := os.ReadFile(stateFile)
@@ -2115,7 +2169,8 @@ func TestRunAgentDispatch_KillSubcommand_MissingName_ReturnsError(t *testing.T) 
 	g := NewWithT(t)
 
 	dir := t.TempDir()
-	err := cli.Run([]string{"engram", "agent", "kill",
+	err := cli.Run([]string{
+		"engram", "agent", "kill",
 		"--state-file", filepath.Join(dir, "state.toml"),
 		"--chat-file", filepath.Join(dir, "chat.toml"),
 	}, &bytes.Buffer{}, io.Discard, nil)
@@ -2203,7 +2258,8 @@ text = """{"hold-id":"test-hold-1","holder":"lead","target":"executor-1",
 `
 	g.Expect(os.WriteFile(chatFile, []byte(chatContent), 0o600)).To(Succeed())
 
-	err := cli.Run([]string{"engram", "agent", "kill",
+	err := cli.Run([]string{
+		"engram", "agent", "kill",
 		"--name", "executor-1",
 		"--state-file", stateFile,
 		"--chat-file", chatFile,
@@ -2243,7 +2299,8 @@ func TestRunAgentKill_MarksAgentDeadInStateFile(t *testing.T) {
 
 	cli.SetTestPaneKiller(t, func(_ string) error { return nil })
 
-	err := cli.Run([]string{"engram", "agent", "kill",
+	err := cli.Run([]string{
+		"engram", "agent", "kill",
 		"--name", "executor-1",
 		"--state-file", stateFile,
 		"--chat-file", chatFile,
@@ -2300,7 +2357,8 @@ text = "executor-2 completed."
 
 	cli.SetTestPaneKiller(t, func(_ string) error { return nil })
 
-	err := cli.Run([]string{"engram", "agent", "kill",
+	err := cli.Run([]string{
+		"engram", "agent", "kill",
 		"--name", "executor-1",
 		"--state-file", stateFile,
 		"--chat-file", chatFile,
@@ -2314,7 +2372,8 @@ func TestRunAgentKill_MissingName_ReturnsError(t *testing.T) {
 
 	dir := t.TempDir()
 	g.Expect(os.WriteFile(filepath.Join(dir, "chat.toml"), []byte(""), 0o600)).To(Succeed())
-	err := cli.Run([]string{"engram", "agent", "kill",
+	err := cli.Run([]string{
+		"engram", "agent", "kill",
 		"--state-file", filepath.Join(dir, "state.toml"),
 		"--chat-file", filepath.Join(dir, "chat.toml"),
 	}, io.Discard, io.Discard, nil)
@@ -2347,7 +2406,8 @@ func TestRunAgentKill_PaneAlreadyDead_NoError(t *testing.T) {
 		return errors.New("exit status 1: no such pane: main:1.2")
 	})
 
-	err := cli.Run([]string{"engram", "agent", "kill",
+	err := cli.Run([]string{
+		"engram", "agent", "kill",
 		"--name", "executor-1",
 		"--state-file", stateFile,
 		"--chat-file", chatFile,
@@ -2378,7 +2438,8 @@ func TestRunAgentKill_PaneKillError_ReturnsError(t *testing.T) {
 		return errors.New("session not found: mysession")
 	})
 
-	err := cli.Run([]string{"engram", "agent", "kill",
+	err := cli.Run([]string{
+		"engram", "agent", "kill",
 		"--name", "executor-1",
 		"--state-file", stateFile,
 		"--chat-file", chatFile,
@@ -2405,13 +2466,16 @@ func TestRunAgentKill_PaneStillAliveAfterKill_ReturnsError(t *testing.T) {
 	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
 
 	// Pre-populate state with agent "ghost-agent" in pane %999.
-	prePopErr := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
-			Name:   "ghost-agent",
-			PaneID: "%999",
-			State:  "RUNNING",
-		})
-	})
+	prePopErr := cli.ExportReadModifyWriteStateFile(
+		stateFile,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
+				Name:   "ghost-agent",
+				PaneID: "%999",
+				State:  "RUNNING",
+			})
+		},
+	)
 	g.Expect(prePopErr).NotTo(HaveOccurred())
 
 	if prePopErr != nil {
@@ -2456,7 +2520,8 @@ func TestRunAgentKill_StdoutError_ReturnsError(t *testing.T) {
 
 	cli.SetTestPaneKiller(t, func(_ string) error { return nil })
 
-	err := cli.Run([]string{"engram", "agent", "kill",
+	err := cli.Run([]string{
+		"engram", "agent", "kill",
 		"--name", "executor-1",
 		"--state-file", stateFile,
 		"--chat-file", chatFile,
@@ -2472,7 +2537,8 @@ func TestRunAgentList_AbsentStateFile_AttemptsReconstruction(t *testing.T) {
 	// No state file — reconstruction path. Chat file also absent (empty reconstruction).
 	var stdout bytes.Buffer
 
-	err := cli.Run([]string{"engram", "agent", "list",
+	err := cli.Run([]string{
+		"engram", "agent", "list",
 		"--state-file", filepath.Join(dir, "state.toml"),
 		"--chat-file", filepath.Join(dir, "chat.toml"),
 	}, &stdout, io.Discard, nil)
@@ -2510,7 +2576,8 @@ text = """Joining chat."""
 
 	var stdout bytes.Buffer
 
-	err := cli.Run([]string{"engram", "agent", "list",
+	err := cli.Run([]string{
+		"engram", "agent", "list",
 		"--state-file", filepath.Join(dir, "state.toml"),
 		"--chat-file", chatFile,
 	}, &stdout, io.Discard, nil)
@@ -2563,7 +2630,8 @@ text = """Joining chat."""
 
 	var stdout bytes.Buffer
 
-	err := cli.Run([]string{"engram", "agent", "list",
+	err := cli.Run([]string{
+		"engram", "agent", "list",
 		"--state-file", filepath.Join(dir, "state.toml"),
 		"--chat-file", chatFile,
 	}, &stdout, io.Discard, nil)
@@ -2588,7 +2656,12 @@ func TestRunAgentList_EmptyStateFile_NoOutput(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateFile}, &stdout, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "agent", "list", "--state-file", stateFile},
+		&stdout,
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(strings.TrimSpace(stdout.String())).To(BeEmpty())
 }
@@ -2613,7 +2686,12 @@ func TestRunAgentList_InvalidTOMLStateFile_ReturnsError(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateFile}, &stdout, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "agent", "list", "--state-file", stateFile},
+		&stdout,
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -2642,7 +2720,12 @@ func TestRunAgentList_LastSilentAtIncludedInOutput(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateFile}, &stdout, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "agent", "list", "--state-file", stateFile},
+		&stdout,
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -2677,7 +2760,12 @@ func TestRunAgentList_MultipleAgents_NDJSON(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateFile}, &stdout, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "agent", "list", "--state-file", stateFile},
+		&stdout,
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -2709,7 +2797,12 @@ func TestRunAgentList_StateFileIsDir_ReturnsError(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.Run([]string{"engram", "agent", "list", "--state-file", stateAsDir}, &stdout, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "agent", "list", "--state-file", stateAsDir},
+		&stdout,
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -2724,7 +2817,8 @@ func TestRunAgentList_UnreadableChatFile_ReconstructionFails_NoError(t *testing.
 
 	var stdout bytes.Buffer
 
-	err := cli.Run([]string{"engram", "agent", "list",
+	err := cli.Run([]string{
+		"engram", "agent", "list",
 		"--state-file", filepath.Join(dir, "state.toml"),
 		"--chat-file", chatAsDir,
 	}, &stdout, io.Discard, nil)
@@ -2856,13 +2950,16 @@ func TestRunAgentSpawn_DuplicateName_ReturnsError(t *testing.T) {
 	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
 
 	// Pre-populate state file with an agent named "exec-1".
-	prePopErr := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
-			Name:   "exec-1",
-			PaneID: "main:1.1",
-			State:  "RUNNING",
-		})
-	})
+	prePopErr := cli.ExportReadModifyWriteStateFile(
+		stateFile,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
+				Name:   "exec-1",
+				PaneID: "main:1.1",
+				State:  "RUNNING",
+			})
+		},
+	)
 	g.Expect(prePopErr).NotTo(HaveOccurred())
 
 	if prePopErr != nil {
@@ -2911,9 +3008,12 @@ func TestRunAgentSpawn_FourthWorker_IsNotRejectedByCap(t *testing.T) {
 
 	// Pre-populate state file with 3 active agents (the old cap).
 	for _, name := range []string{"exec-1", "exec-2", "exec-3"} {
-		prePopErr := cli.ExportReadModifyWriteStateFile(stateFile, func(sf agentpkg.StateFile) agentpkg.StateFile {
-			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: name, State: "ACTIVE"})
-		})
+		prePopErr := cli.ExportReadModifyWriteStateFile(
+			stateFile,
+			func(sf agentpkg.StateFile) agentpkg.StateFile {
+				return agentpkg.AddAgent(sf, agentpkg.AgentRecord{Name: name, State: "ACTIVE"})
+			},
+		)
 		g.Expect(prePopErr).NotTo(HaveOccurred())
 
 		if prePopErr != nil {
@@ -2929,7 +3029,6 @@ func TestRunAgentSpawn_FourthWorker_IsNotRejectedByCap(t *testing.T) {
 	}, io.Discard, func(_ context.Context, _, _ string) (string, string, error) {
 		return "main:1.4", "sess456", nil
 	})
-
 	// Cap must be gone: any error should not mention "worker queue full".
 	if err != nil {
 		g.Expect(err.Error()).NotTo(ContainSubstring("worker queue full"))
@@ -3148,7 +3247,8 @@ func TestRunAgentSpawn_MissingName_ReturnsError(t *testing.T) {
 	g := NewWithT(t)
 
 	dir := t.TempDir()
-	err := cli.Run([]string{"engram", "agent", "spawn",
+	err := cli.Run([]string{
+		"engram", "agent", "spawn",
 		"--prompt", "You are an executor.",
 		"--chat-file", filepath.Join(dir, "chat.toml"),
 		"--state-file", filepath.Join(dir, "state.toml"),
@@ -3165,7 +3265,8 @@ func TestRunAgentSpawn_MissingPrompt_ReturnsError(t *testing.T) {
 	g := NewWithT(t)
 
 	dir := t.TempDir()
-	err := cli.Run([]string{"engram", "agent", "spawn",
+	err := cli.Run([]string{
+		"engram", "agent", "spawn",
 		"--name", "executor-1",
 		"--chat-file", filepath.Join(dir, "chat.toml"),
 		"--state-file", filepath.Join(dir, "state.toml"),
@@ -3457,7 +3558,8 @@ func TestRunAgentWaitReady_MaxWaitExpires_ReturnsError(t *testing.T) {
 	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
 
 	start := time.Now()
-	err := cli.Run([]string{"engram", "agent", "wait-ready",
+	err := cli.Run([]string{
+		"engram", "agent", "wait-ready",
 		"--name", "nonexistent-agent",
 		"--cursor", "0",
 		"--max-wait", "1",
@@ -3477,7 +3579,8 @@ func TestRunAgentWaitReady_MissingName_ReturnsError(t *testing.T) {
 	chatFile := filepath.Join(dir, "chat.toml")
 	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
 
-	err := cli.Run([]string{"engram", "agent", "wait-ready",
+	err := cli.Run([]string{
+		"engram", "agent", "wait-ready",
 		"--cursor", "0",
 		"--chat-file", chatFile,
 	}, io.Discard, io.Discard, nil)
@@ -3514,7 +3617,8 @@ func TestRunAgentWaitReady_SeesReadyMessage_OutputsJSON(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.Run([]string{"engram", "agent", "wait-ready",
+	err := cli.Run([]string{
+		"engram", "agent", "wait-ready",
 		"--name", "executor-1",
 		"--cursor", "0",
 		"--max-wait", "5",
@@ -3655,7 +3759,8 @@ func TestRunConversationLoopWith_ChannelReceivesIntent(t *testing.T) {
 		io.Discard, stubBuilder, watchForIntent, intents, nil, memFileSelector,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(watchForIntentCalled).To(BeFalse(), "watchForIntent must not be called when intents channel is provided")
+	g.Expect(watchForIntentCalled).
+		To(BeFalse(), "watchForIntent must not be called when intents channel is provided")
 }
 
 // TestRunConversationLoopWith_EmptyPromptDispatchMode_WaitsForFirstIntent verifies that
@@ -3728,7 +3833,8 @@ func TestRunConversationLoopWith_EmptyPromptDispatchMode_WaitsForFirstIntent(t *
 		io.Discard, stubBuilder, nil, intents, silentCh, memFileSelector,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(invokedBeforeIntent.Load()).To(BeFalse(), "claude must not be invoked before first intent arrives")
+	g.Expect(invokedBeforeIntent.Load()).
+		To(BeFalse(), "claude must not be invoked before first intent arrives")
 
 	// Sentinel file must exist (claude was invoked once, after the intent).
 	_, sentinelErr := os.Stat(sentinelFile)
@@ -3996,7 +4102,8 @@ func TestRunConversationLoopWith_SilentChSignaledAfterSession(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	// After loop exits, receivedAgent must be set to "worker-1".
-	g.Expect(receivedAgent).To(Equal("worker-1"), "silentCh should have received agent name after SILENT transition")
+	g.Expect(receivedAgent).
+		To(Equal("worker-1"), "silentCh should have received agent name after SILENT transition")
 }
 
 // Step 14: Full intent→ack→hold→check→release E2E cycle.
@@ -4014,7 +4121,12 @@ func TestRun_AckWait_With_HoldAcquire_E2E(t *testing.T) {
 	// Step 1: Get cursor, then start ack-wait in a goroutine.
 	var cursorOut bytes.Buffer
 
-	err := cli.Run([]string{"engram", "chat", "cursor", "--chat-file", chatFile}, &cursorOut, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "chat", "cursor", "--chat-file", chatFile},
+		&cursorOut,
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	cursor := strings.TrimSpace(cursorOut.String())
@@ -4073,7 +4185,8 @@ func TestRun_AckWait_With_HoldAcquire_E2E(t *testing.T) {
 	// Step 4: Verify hold is active.
 	var listOut bytes.Buffer
 
-	g.Expect(cli.Run([]string{"engram", "hold", "list", "--chat-file", chatFile}, &listOut, io.Discard, nil)).To(Succeed())
+	g.Expect(cli.Run([]string{"engram", "hold", "list", "--chat-file", chatFile}, &listOut, io.Discard, nil)).
+		To(Succeed())
 	g.Expect(listOut.String()).To(ContainSubstring(holdID))
 
 	// Step 5: Executor-1 posts done.
@@ -4090,14 +4203,24 @@ func TestRun_AckWait_With_HoldAcquire_E2E(t *testing.T) {
 	// Step 6: Hold check evaluates condition and auto-releases.
 	var checkOut bytes.Buffer
 
-	checkErr := cli.Run([]string{"engram", "hold", "check", "--chat-file", chatFile}, &checkOut, io.Discard, nil)
+	checkErr := cli.Run(
+		[]string{"engram", "hold", "check", "--chat-file", chatFile},
+		&checkOut,
+		io.Discard,
+		nil,
+	)
 	g.Expect(checkErr).NotTo(HaveOccurred())
 	g.Expect(strings.TrimSpace(checkOut.String())).To(Equal(holdID))
 
 	// Step 7: Verify hold is cleared.
 	var listOut2 bytes.Buffer
 
-	listErr2 := cli.Run([]string{"engram", "hold", "list", "--chat-file", chatFile}, &listOut2, io.Discard, nil)
+	listErr2 := cli.Run(
+		[]string{"engram", "hold", "list", "--chat-file", chatFile},
+		&listOut2,
+		io.Discard,
+		nil,
+	)
 	g.Expect(listErr2).NotTo(HaveOccurred())
 	g.Expect(listOut2.String()).To(BeEmpty())
 }
@@ -4718,7 +4841,12 @@ func TestRun_HoldAcquire_EmptyHolder_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
 	chatFile := filepath.Join(dir, "chat.toml")
 
-	err := cli.Run([]string{"engram", "hold", "acquire", "--chat-file", chatFile}, &bytes.Buffer{}, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "hold", "acquire", "--chat-file", chatFile},
+		&bytes.Buffer{},
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).To(HaveOccurred())
 
 	if err == nil {
@@ -4752,7 +4880,12 @@ func TestRun_HoldAcquire_ParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	err := cli.Run([]string{"engram", "hold", "acquire", "--bogus-flag"}, &bytes.Buffer{}, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "hold", "acquire", "--bogus-flag"},
+		&bytes.Buffer{},
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -4918,7 +5051,12 @@ func TestRun_HoldCheck_ParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	err := cli.Run([]string{"engram", "hold", "check", "--bogus-flag"}, &bytes.Buffer{}, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "hold", "check", "--bogus-flag"},
+		&bytes.Buffer{},
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -5085,7 +5223,12 @@ func TestRun_HoldList_ParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	err := cli.Run([]string{"engram", "hold", "list", "--bogus-flag"}, &bytes.Buffer{}, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "hold", "list", "--bogus-flag"},
+		&bytes.Buffer{},
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -5096,7 +5239,12 @@ func TestRun_HoldRelease_EmptyHoldID_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
 	chatFile := filepath.Join(dir, "chat.toml")
 
-	err := cli.Run([]string{"engram", "hold", "release", "--chat-file", chatFile}, &bytes.Buffer{}, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "hold", "release", "--chat-file", chatFile},
+		&bytes.Buffer{},
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).To(HaveOccurred())
 
 	if err == nil {
@@ -5118,7 +5266,12 @@ func TestRun_HoldRelease_ParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	err := cli.Run([]string{"engram", "hold", "release", "--bogus-flag"}, &bytes.Buffer{}, io.Discard, nil)
+	err := cli.Run(
+		[]string{"engram", "hold", "release", "--bogus-flag"},
+		&bytes.Buffer{},
+		io.Discard,
+		nil,
+	)
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -5687,8 +5840,9 @@ func TestWatchAndResume_MemFileSelectorError_LogsWarning(t *testing.T) {
 
 		g.Expect(stdout.String()).To(ContainSubstring(errMsg),
 			"expected warning to contain the error message")
-		g.Expect(stdout.String()).To(ContainSubstring("[engram] warning: failed to select memory files:"),
-			"expected warning prefix")
+		g.Expect(stdout.String()).
+			To(ContainSubstring("[engram] warning: failed to select memory files:"),
+				"expected warning prefix")
 	})
 }
 
@@ -5803,7 +5957,10 @@ func TestWatchAndResume_PopulatesLearnedMessages(t *testing.T) {
 	g.Expect(os.WriteFile(chatFile, []byte(learnedLine), 0o600)).To(Succeed())
 
 	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
-		return chat.Message{From: "lead", Text: "Situation: new task. Behavior: act."}, cursor + 5, nil
+		return chat.Message{
+			From: "lead",
+			Text: "Situation: new task. Behavior: act.",
+		}, cursor + 5, nil
 	}
 
 	prompt, err := cli.ExportWatchAndResume(
@@ -5839,7 +5996,10 @@ func TestWatchAndResume_PopulatesRecentIntents(t *testing.T) {
 	g.Expect(os.WriteFile(chatFile, []byte(intentLine), 0o600)).To(Succeed())
 
 	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
-		return chat.Message{From: "lead", Text: "Situation: new task. Behavior: act."}, cursor + 5, nil
+		return chat.Message{
+			From: "lead",
+			Text: "Situation: new task. Behavior: act.",
+		}, cursor + 5, nil
 	}
 
 	prompt, err := cli.ExportWatchAndResume(
@@ -6034,7 +6194,12 @@ type stubAckWaiter struct {
 	err    error
 }
 
-func (s *stubAckWaiter) AckWait(_ context.Context, _ string, _ int, _ []string) (chat.AckResult, error) {
+func (s *stubAckWaiter) AckWait(
+	_ context.Context,
+	_ string,
+	_ int,
+	_ []string,
+) (chat.AckResult, error) {
 	return s.result, s.err
 }
 

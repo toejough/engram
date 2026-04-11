@@ -218,7 +218,12 @@ func TestDispatchLoopFromFilter_SelfAddressed_NotRouted(t *testing.T) {
 	deferred := map[string][]chat.Message{"engram-agent": {}}
 
 	// self-addressed: from == to == "engram-agent"
-	msg := chat.Message{From: "engram-agent", To: "engram-agent", Type: "intent", Text: "nested intent"}
+	msg := chat.Message{
+		From: "engram-agent",
+		To:   "engram-agent",
+		Type: "intent",
+		Text: "nested intent",
+	}
 
 	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 0)
 
@@ -384,7 +389,8 @@ func TestDispatchLoopStartingWorkerBuffersIntent(t *testing.T) {
 	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 0)
 
 	g.Expect(ch).To(HaveLen(1), "STARTING worker should buffer intent in channel")
-	g.Expect(deferred["engram-agent"]).To(BeEmpty(), "STARTING worker intent must NOT go to deferredQueue")
+	g.Expect(deferred["engram-agent"]).
+		To(BeEmpty(), "STARTING worker intent must NOT go to deferredQueue")
 }
 
 func TestDispatchLoopToAllExpansion_RoutesToAllWorkers(t *testing.T) {
@@ -491,7 +497,9 @@ func TestDispatchLoopWith_SilentChDrains_DeferredMessages(t *testing.T) {
 
 	// Post an intent to chat so the worker would receive it, then flip to SILENT.
 	poster := cli.ExportNewFilePoster(chatFile)
-	_, _ = poster.Post(chat.Message{From: "lead", To: "worker-a", Type: "intent", Text: "deferred task"})
+	_, _ = poster.Post(
+		chat.Message{From: "lead", To: "worker-a", Type: "intent", Text: "deferred task"},
+	)
 
 	// Transition worker to SILENT state, then signal silentCh.
 	// Update state file to SILENT first so drain can deliver to channel.
@@ -716,7 +724,11 @@ func TestInitWorkerStateRecords_StaleActiveWorkerMarkedDead(t *testing.T) {
 	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
 
-	initErr := cli.ExportInitWorkerStateRecords(stateFile, chatFile, []cli.WorkerConfig{{Name: "w1", Prompt: "go"}})
+	initErr := cli.ExportInitWorkerStateRecords(
+		stateFile,
+		chatFile,
+		[]cli.WorkerConfig{{Name: "w1", Prompt: "go"}},
+	)
 	g.Expect(initErr).NotTo(HaveOccurred())
 
 	if initErr != nil {
@@ -780,7 +792,11 @@ func TestInitWorkerStateRecords_StaleStartingWorkerMarkedDead(t *testing.T) {
 	g.Expect(os.WriteFile(stateFile, data, 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
 
-	initErr := cli.ExportInitWorkerStateRecords(stateFile, chatFile, []cli.WorkerConfig{{Name: "w1", Prompt: "go"}})
+	initErr := cli.ExportInitWorkerStateRecords(
+		stateFile,
+		chatFile,
+		[]cli.WorkerConfig{{Name: "w1", Prompt: "go"}},
+	)
 	g.Expect(initErr).NotTo(HaveOccurred())
 
 	if initErr != nil {
@@ -969,7 +985,9 @@ func TestParseSpeechMarkerIntentTOSubfield_TOOverridesDefault(t *testing.T) {
 
 	g := NewWithT(t)
 
-	to := cli.ExportParseIntentMarkerTO("TO: lead, engram-agent. Situation: about to act. Behavior: do X.")
+	to := cli.ExportParseIntentMarkerTO(
+		"TO: lead, engram-agent. Situation: about to act. Behavior: do X.",
+	)
 
 	g.Expect(to).To(Equal("lead, engram-agent"))
 }
@@ -1274,8 +1292,10 @@ func TestReleaseStaleHolds_StaleHoldOnKnownWorker_PostsReleaseAndInfo(t *testing
 
 	chatStr := string(data)
 	g.Expect(chatStr).To(ContainSubstring(`"hold-release"`), "must post hold-release message")
-	g.Expect(chatStr).To(ContainSubstring("stale-hold-1"), "hold-release must reference the hold ID")
-	g.Expect(chatStr).To(ContainSubstring("Stale hold stale-hold-1"), "must post info message about stale hold")
+	g.Expect(chatStr).
+		To(ContainSubstring("stale-hold-1"), "hold-release must reference the hold ID")
+	g.Expect(chatStr).
+		To(ContainSubstring("Stale hold stale-hold-1"), "must post info message about stale hold")
 }
 
 // ============================================================
@@ -1316,7 +1336,16 @@ func TestResolveHoldTarget_HoldFound_DrainsQueue(t *testing.T) {
 		Text: `{"hold-id":"h1"}`,
 	}
 
-	cli.ExportRouteMessageWithPoster(workerChans, deferred, nil, stateFile, chatFile, nil, holdReleaseMsg, 0)
+	cli.ExportRouteMessageWithPoster(
+		workerChans,
+		deferred,
+		nil,
+		stateFile,
+		chatFile,
+		nil,
+		holdReleaseMsg,
+		0,
+	)
 
 	g.Expect(workerCh).To(HaveLen(1), "deferred message should be drained to channel")
 }
@@ -1345,7 +1374,16 @@ func TestResolveHoldTarget_UnknownHold_NoAction(t *testing.T) {
 	chatFile := filepath.Join(t.TempDir(), "chat.toml")
 	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
 
-	cli.ExportRouteMessageWithPoster(workerChans, deferred, nil, stateFile, chatFile, nil, holdReleaseMsg, 0)
+	cli.ExportRouteMessageWithPoster(
+		workerChans,
+		deferred,
+		nil,
+		stateFile,
+		chatFile,
+		nil,
+		holdReleaseMsg,
+		0,
+	)
 
 	g.Expect(workerCh).To(BeEmpty(), "unknown hold-id must not drain channel")
 	g.Expect(deferred["worker-a"]).To(HaveLen(1), "deferred queue unchanged")
@@ -1724,7 +1762,8 @@ func TestRunDispatchStart_MultipleAgents_PrintsStartupInfo(t *testing.T) {
 	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
 
 	fakeClaude := filepath.Join(dir, "claude")
-	g.Expect(os.WriteFile(fakeClaude, []byte("#!/bin/sh\nread _ignored || true\n"), 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(fakeClaude, []byte("#!/bin/sh\nread _ignored || true\n"), 0o700)).
+		To(Succeed())
 
 	var out strings.Builder
 
@@ -1884,7 +1923,8 @@ func TestRunDispatch_ContextCancel_ReturnsNil(t *testing.T) {
 	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
 
 	fakeClaude := filepath.Join(dir, "claude")
-	g.Expect(os.WriteFile(fakeClaude, []byte("#!/bin/sh\nread _ignored || true\n"), 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(fakeClaude, []byte("#!/bin/sh\nread _ignored || true\n"), 0o700)).
+		To(Succeed())
 
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()

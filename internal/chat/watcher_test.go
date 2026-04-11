@@ -47,7 +47,14 @@ func TestFileWatcher_Watch_CommaSepratedToField(t *testing.T) {
 
 	// To field has comma-separated recipients.
 	msgs := []chat.Message{
-		{From: "a", To: "engram-agent, myagent", Thread: "t", Type: "info", TS: now, Text: "targeted"},
+		{
+			From:   "a",
+			To:     "engram-agent, myagent",
+			Thread: "t",
+			Type:   "info",
+			TS:     now,
+			Text:   "targeted",
+		},
 	}
 
 	allContent := buildChatTOML(msgs)

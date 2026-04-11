@@ -59,8 +59,12 @@ func (r *Runner) ProcessStream(src io.Reader) (StreamResult, error) {
 
 	scanErr := scanner.Err()
 	if scanErr != nil {
-		return result, fmt.Errorf("scanning stream (~%d bytes in current line, max completed line: %d bytes): %w",
-			tracker.currentLine, tracker.maxLine, scanErr)
+		return result, fmt.Errorf(
+			"scanning stream (~%d bytes in current line, max completed line: %d bytes): %w",
+			tracker.currentLine,
+			tracker.maxLine,
+			scanErr,
+		)
 	}
 
 	return result, nil
@@ -217,7 +221,11 @@ func (t *lineTracker) Read(p []byte) (int, error) {
 	for _, b := range p[:n] {
 		if b == '\n' {
 			if t.currentLine > lineWarnThreshold {
-				_, _ = fmt.Fprintf(t.pane, "[engram] warning: large JSONL line: %d bytes\n", t.currentLine)
+				_, _ = fmt.Fprintf(
+					t.pane,
+					"[engram] warning: large JSONL line: %d bytes\n",
+					t.currentLine,
+				)
 			}
 
 			if t.currentLine > t.maxLine {

@@ -25,7 +25,12 @@ type FileWatcher struct {
 // agent matches messages where the To field contains the agent name or "all".
 // msgTypes filters by message type; empty or nil slice matches all types.
 // Returns the matching message and the new cursor (total line count).
-func (w *FileWatcher) Watch(ctx context.Context, agent string, cursor int, msgTypes []string) (Message, int, error) {
+func (w *FileWatcher) Watch(
+	ctx context.Context,
+	agent string,
+	cursor int,
+	msgTypes []string,
+) (Message, int, error) {
 	for {
 		data, readErr := w.ReadFile(w.FilePath)
 		if readErr != nil {
@@ -113,7 +118,14 @@ func ParseMessagesSafe(data []byte) []Message {
 
 		blockMsgs, blockErr := ParseMessages(block)
 		if blockErr != nil {
-			slog.Warn("ParseMessagesSafe: skipping corrupt block", "block_index", i, "err", blockErr)
+			slog.Warn(
+				"ParseMessagesSafe: skipping corrupt block",
+				"block_index",
+				i,
+				"err",
+				blockErr,
+			)
+
 			continue
 		}
 

@@ -72,8 +72,11 @@ func TestAgentListFlags_AllFields(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	args := cli.AgentListFlags(cli.AgentListArgs{StateFile: "/tmp/state.toml", ChatFile: "/tmp/chat.toml"})
-	g.Expect(args).To(gomega.ContainElements("--state-file", "/tmp/state.toml", "--chat-file", "/tmp/chat.toml"))
+	args := cli.AgentListFlags(
+		cli.AgentListArgs{StateFile: "/tmp/state.toml", ChatFile: "/tmp/chat.toml"},
+	)
+	g.Expect(args).
+		To(gomega.ContainElements("--state-file", "/tmp/state.toml", "--chat-file", "/tmp/chat.toml"))
 }
 
 func TestAgentListFlags_EmptyFields(t *testing.T) {
@@ -136,7 +139,8 @@ func TestAgentWaitReadyFlags_ZeroInts(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	args := cli.AgentWaitReadyFlags(cli.AgentWaitReadyArgs{Name: "executor-1"})
-	g.Expect(args).To(gomega.ContainElements("--name", "executor-1", "--cursor", "0", "--max-wait", "0"))
+	g.Expect(args).
+		To(gomega.ContainElements("--name", "executor-1", "--cursor", "0", "--max-wait", "0"))
 }
 
 func TestBuildAgentGroup(t *testing.T) {
@@ -190,18 +194,21 @@ func TestBuildAgentGroup(t *testing.T) {
 		g.Expect(strings.TrimSpace(stdout.String())).To(gomega.Equal("killed test-agent"))
 	})
 
-	t.Run("executes spawn subcommand via closure (missing name returns error, no tmux call)", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
+	t.Run(
+		"executes spawn subcommand via closure (missing name returns error, no tmux call)",
+		func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
 
-		var stderr bytes.Buffer
+			var stderr bytes.Buffer
 
-		// Omit --name so parseSpawnFlags returns errSpawnNameRequired before tmux is touched.
-		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
-		_, _ = targ.Execute([]string{"engram", "agent", "spawn"}, targets...)
+			// Omit --name so parseSpawnFlags returns errSpawnNameRequired before tmux is touched.
+			targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
+			_, _ = targ.Execute([]string{"engram", "agent", "spawn"}, targets...)
 
-		g.Expect(stderr.String()).To(gomega.ContainSubstring("--name"))
-	})
+			g.Expect(stderr.String()).To(gomega.ContainSubstring("--name"))
+		},
+	)
 
 	t.Run("executes wait-ready subcommand via closure", func(t *testing.T) {
 		t.Parallel()
@@ -410,36 +417,42 @@ func TestBuildDispatchGroup(t *testing.T) {
 		g.Expect(stdout.String()).To(gomega.ContainSubstring("timeout"))
 	})
 
-	t.Run("executes assign subcommand via closure (missing --agent returns error)", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
+	t.Run(
+		"executes assign subcommand via closure (missing --agent returns error)",
+		func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
 
-		var stderr bytes.Buffer
+			var stderr bytes.Buffer
 
-		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
-		_, _ = targ.Execute([]string{"engram", "dispatch", "assign"}, targets...)
+			targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
+			_, _ = targ.Execute([]string{"engram", "dispatch", "assign"}, targets...)
 
-		// Missing --agent → error on stderr.
-		g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
-	})
+			// Missing --agent → error on stderr.
+			g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
+		},
+	)
 
-	t.Run("executes stop subcommand via closure (missing state file returns error)", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
+	t.Run(
+		"executes stop subcommand via closure (missing state file returns error)",
+		func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
 
-		dir := t.TempDir()
+			dir := t.TempDir()
 
-		var stderr bytes.Buffer
+			var stderr bytes.Buffer
 
-		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
-		_, _ = targ.Execute([]string{
-			"engram", "dispatch", "stop",
-			"--state-file", filepath.Join(dir, "nonexistent.toml"),
-		}, targets...)
+			targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
+			_, _ = targ.Execute([]string{
+				"engram", "dispatch", "stop",
+				"--state-file", filepath.Join(dir, "nonexistent.toml"),
+			}, targets...)
 
-		// Missing state file → error on stderr.
-		g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
-	})
+			// Missing state file → error on stderr.
+			g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
+		},
+	)
 }
 
 func TestBuildFlags(t *testing.T) {

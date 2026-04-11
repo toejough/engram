@@ -4,6 +4,7 @@ go 1.25.6
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/onsi/gomega v1.39.1
 	github.com/toejough/targ v0.0.0-20260402141037-105fb05f62e1
 	pgregory.net/rapid v1.2.0
@@ -19,7 +20,6 @@ require (
 	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/dave/dst v0.27.3 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

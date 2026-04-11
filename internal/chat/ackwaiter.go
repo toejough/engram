@@ -63,7 +63,12 @@ func (w *FileAckWaiter) AckWait(
 		nowCheck := w.NowFunc()
 		applyOfflineImplicit(states, nowCheck)
 
-		if result, timedOut := checkOnlineSilentTimeout(states, nowCheck, maxWait, currentCursor); timedOut {
+		if result, timedOut := checkOnlineSilentTimeout(
+			states,
+			nowCheck,
+			maxWait,
+			currentCursor,
+		); timedOut {
 			return result, nil
 		}
 
@@ -72,7 +77,12 @@ func (w *FileAckWaiter) AckWait(
 		}
 
 		watchCtx, watchCancel := context.WithDeadline(ctx, watchDeadline)
-		msg, newCursor, watchErr := w.Watcher.Watch(watchCtx, callerAgent, currentCursor, []string{"ack", "wait"})
+		msg, newCursor, watchErr := w.Watcher.Watch(
+			watchCtx,
+			callerAgent,
+			currentCursor,
+			[]string{"ack", "wait"},
+		)
 
 		watchCancel()
 
@@ -94,7 +104,11 @@ func (w *FileAckWaiter) AckWait(
 
 // applyMsg processes a received ack/wait message, updating recipient state.
 // Returns (result, true) if the wait is resolved (WAIT received), or (zero, false) to continue.
-func (w *FileAckWaiter) applyMsg(msg Message, states map[string]*recipientState, currentCursor int) (AckResult, bool) {
+func (w *FileAckWaiter) applyMsg(
+	msg Message,
+	states map[string]*recipientState,
+	currentCursor int,
+) (AckResult, bool) {
 	state, isPending := states[strings.ToLower(msg.From)]
 	if !isPending || state.responded {
 		return AckResult{}, false
@@ -155,7 +169,11 @@ func applyOfflineImplicit(states map[string]*recipientState, now time.Time) {
 // buildRecipientStates initialises per-recipient state from the full chat file data.
 // Recipient names are normalized to lowercase so map lookups are case-insensitive.
 // ParseMessages is called once and the result shared across all recipients.
-func buildRecipientStates(data []byte, recipients []string, now time.Time) map[string]*recipientState {
+func buildRecipientStates(
+	data []byte,
+	recipients []string,
+	now time.Time,
+) map[string]*recipientState {
 	fifteenMinAgo := now.Add(-15 * time.Minute)
 	states := make(map[string]*recipientState, len(recipients))
 

@@ -5,6 +5,7 @@ package recall
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -88,8 +89,8 @@ func (r *TranscriptReader) Read(path string, budgetBytes int) (string, int, erro
 	bytesRead := 0
 	startIdx := len(stripped)
 
-	for i := len(stripped) - 1; i >= 0; i-- {
-		lineLen := len(stripped[i]) + 1 // +1 for newline separator
+	for i, v := range slices.Backward(stripped) {
+		lineLen := len(v) + 1 // +1 for newline separator
 		if bytesRead+lineLen > budgetBytes && bytesRead > 0 {
 			break
 		}

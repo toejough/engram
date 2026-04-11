@@ -61,7 +61,11 @@ func Run(
 	case "agent":
 		return runAgentDispatch(subArgs, stdout, osTmuxSpawn)
 	case "dispatch":
-		dispatchCtx, dispatchStop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		dispatchCtx, dispatchStop := signal.NotifyContext(
+			context.Background(),
+			os.Interrupt,
+			syscall.SIGTERM,
+		)
 		defer dispatchStop()
 
 		return runDispatchDispatch(dispatchCtx, subArgs, stdout)
@@ -239,13 +243,20 @@ func deriveChatFilePath(
 		return "", fmt.Errorf("resolving working directory: %w", cwdErr)
 	}
 
-	return filepath.Join(DataDirFromHome(home, os.Getenv), "chat", ProjectSlugFromPath(cwd)+".toml"), nil
+	return filepath.Join(
+		DataDirFromHome(home, os.Getenv),
+		"chat",
+		ProjectSlugFromPath(cwd)+".toml",
+	), nil
 }
 
 // loadChatMessages reads and parses a TOML chat file using the provided readFile func.
 // Uses ParseMessagesSafe to tolerate per-message corruption (same attack surface as #515).
 // Returns nil slice (no error) when the file does not exist.
-func loadChatMessages(chatFilePath string, readFile func(string) ([]byte, error)) ([]chat.Message, error) {
+func loadChatMessages(
+	chatFilePath string,
+	readFile func(string) ([]byte, error),
+) ([]chat.Message, error) {
 	data, err := readFile(chatFilePath)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -307,7 +318,10 @@ func newTokenResolver() *tokenresolver.Resolver {
 	return tokenresolver.New(
 		os.Getenv,
 		func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // platform-internal cmd, not user input
+			cmd := exec.CommandContext(
+				ctx,
+				name,
+				args...)
 
 			return cmd.Output()
 		},
@@ -322,7 +336,11 @@ func osAppendFile(path string, data []byte) error {
 		return fmt.Errorf("creating directories: %w", mkdirErr)
 	}
 
-	f, openErr := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, chatFileMode) //nolint:gosec
+	f, openErr := os.OpenFile(
+		path,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		chatFileMode,
+	)
 	if openErr != nil {
 		return fmt.Errorf("opening file: %w", openErr)
 	}
@@ -396,7 +414,11 @@ func outputAckResult(w io.Writer, result chat.AckResult) error {
 			return errAckWaitNilTimeout
 		}
 
-		out = map[string]any{"result": "TIMEOUT", "recipient": result.Timeout.Recipient, "cursor": result.NewCursor}
+		out = map[string]any{
+			"result":    "TIMEOUT",
+			"recipient": result.Timeout.Recipient,
+			"cursor":    result.NewCursor,
+		}
 	default:
 		return fmt.Errorf("%w: %q", errAckWaitUnknown, result.Result)
 	}
@@ -424,7 +446,7 @@ func recordSurfacing(path string) error {
 // resolveChatFile derives the chat file path and wraps any error with the subcommand name.
 // homeDir and getwd default to os.UserHomeDir and os.Getwd; callers may inject alternatives for testing.
 func resolveChatFile(
-	override, cmd string, homeDir func() (string, error), getwd func() (string, error),
+	override, cmd string, homeDir, getwd func() (string, error),
 ) (string, error) {
 	path, err := deriveChatFilePath(override, homeDir, getwd)
 	if err != nil {

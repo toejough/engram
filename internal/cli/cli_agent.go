@@ -53,24 +53,31 @@ const (
 // unexported variables.
 var (
 	errAgentKillNameRequired    = errors.New("agent kill: --name is required")
-	errAgentRunExceededMaxTurns = errors.New("agent run: exceeded max turns without DONE — possible runaway loop")
-	errAgentRunNameRequired     = errors.New("agent run: --name is required")
-	errAgentRunPromptRequired   = errors.New("agent run: --prompt is required")
-	errDuplicateAgentName       = errors.New("agent spawn: agent with this name already exists")
-	errPaneStillAlive           = errors.New("pane still alive after kill")
-	errSpawnNameRequired        = errors.New("agent spawn: --name is required")
-	errSpawnPromptRequired      = errors.New("agent spawn: --prompt is required")
-	errStateFileLockTimeout     = errors.New("state file lock timeout after 5s")
-	errUnexpectedTmuxOutput     = errors.New("unexpected tmux output")
-	errUnmetHoldCondition       = errors.New("condition not satisfied; release it first")
-	testPaneKiller              func(paneID string) error //nolint:gochecknoglobals // test-overridable pane killer
-	testPaneVerifier            func(paneID string) error //nolint:gochecknoglobals // test-overridable pane verifier
-	testSpawnAckMaxWait         time.Duration             //nolint:gochecknoglobals // test-overridable ack-wait timeout
+	errAgentRunExceededMaxTurns = errors.New(
+		"agent run: exceeded max turns without DONE — possible runaway loop",
+	)
+	errAgentRunNameRequired   = errors.New("agent run: --name is required")
+	errAgentRunPromptRequired = errors.New("agent run: --prompt is required")
+	errDuplicateAgentName     = errors.New("agent spawn: agent with this name already exists")
+	errPaneStillAlive         = errors.New("pane still alive after kill")
+	errSpawnNameRequired      = errors.New("agent spawn: --name is required")
+	errSpawnPromptRequired    = errors.New("agent spawn: --prompt is required")
+	errStateFileLockTimeout   = errors.New("state file lock timeout after 5s")
+	errUnexpectedTmuxOutput   = errors.New("unexpected tmux output")
+	errUnmetHoldCondition     = errors.New("condition not satisfied; release it first")
+	testPaneKiller            func(paneID string) error //nolint:gochecknoglobals // test-overridable pane killer
+	testPaneVerifier          func(paneID string) error //nolint:gochecknoglobals // test-overridable pane verifier
+	testSpawnAckMaxWait       time.Duration             //nolint:gochecknoglobals // test-overridable ack-wait timeout
 )
 
 // ackWaiter is satisfied by chat.FileAckWaiter and any test stub.
 type ackWaiter interface {
-	AckWait(ctx context.Context, callerAgent string, cursor int, recipients []string) (chat.AckResult, error)
+	AckWait(
+		ctx context.Context,
+		callerAgent string,
+		cursor int,
+		recipients []string,
+	) (chat.AckResult, error)
 }
 
 // agentRunFlags holds parsed flags for the "agent run" subcommand.
@@ -141,7 +148,11 @@ func awaitNextIntent(
 }
 
 // buildAgentRunner constructs the claude.Runner for the given agent run flags.
-func buildAgentRunner(flags agentRunFlags, stateFilePath, chatFilePath string, stdout io.Writer) claudepkg.Runner {
+func buildAgentRunner(
+	flags agentRunFlags,
+	stateFilePath, chatFilePath string,
+	stdout io.Writer,
+) claudepkg.Runner {
 	poster := newFilePoster(chatFilePath)
 
 	return claudepkg.Runner{
@@ -149,30 +160,36 @@ func buildAgentRunner(flags agentRunFlags, stateFilePath, chatFilePath string, s
 		Pane:      stdout,
 		Poster:    poster,
 		WriteSessionID: func(sessionID string) error {
-			return readModifyWriteStateFile(stateFilePath, func(stateFileArg agentpkg.StateFile) agentpkg.StateFile {
-				for index, rec := range stateFileArg.Agents {
-					if rec.Name == flags.name {
-						stateFileArg.Agents[index].SessionID = sessionID
+			return readModifyWriteStateFile(
+				stateFilePath,
+				func(stateFileArg agentpkg.StateFile) agentpkg.StateFile {
+					for index, rec := range stateFileArg.Agents {
+						if rec.Name == flags.name {
+							stateFileArg.Agents[index].SessionID = sessionID
 
-						return stateFileArg
+							return stateFileArg
+						}
 					}
-				}
 
-				return stateFileArg
-			})
+					return stateFileArg
+				},
+			)
 		},
 		WriteState: func(state string) error {
-			return readModifyWriteStateFile(stateFilePath, func(stateFileArg agentpkg.StateFile) agentpkg.StateFile {
-				for index, rec := range stateFileArg.Agents {
-					if rec.Name == flags.name {
-						stateFileArg.Agents[index].State = state
+			return readModifyWriteStateFile(
+				stateFilePath,
+				func(stateFileArg agentpkg.StateFile) agentpkg.StateFile {
+					for index, rec := range stateFileArg.Agents {
+						if rec.Name == flags.name {
+							stateFileArg.Agents[index].State = state
 
-						return stateFileArg
+							return stateFileArg
+						}
 					}
-				}
 
-				return stateFileArg
-			})
+					return stateFileArg
+				},
+			)
 		},
 	}
 }
@@ -299,7 +316,11 @@ func defaultMemFileSelector(homeDir string, maxFiles int) ([]string, error) {
 
 // defaultWatchForIntent uses the existing chat.FileWatcher to watch for
 // type=intent messages addressed to the agent.
-func defaultWatchForIntent(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error) {
+func defaultWatchForIntent(
+	ctx context.Context,
+	agentName, chatFilePath string,
+	cursor int,
+) (chat.Message, int, error) {
 	watcher := newFileWatcher(chatFilePath)
 
 	return watcher.Watch(ctx, agentName, cursor, []string{"intent"})
@@ -325,14 +346,25 @@ func deriveStateFilePath(
 		return "", fmt.Errorf("resolving working directory: %w", cwdErr)
 	}
 
-	return filepath.Join(DataDirFromHome(home, os.Getenv), "state", ProjectSlugFromPath(cwd)+".toml"), nil
+	return filepath.Join(
+		DataDirFromHome(home, os.Getenv),
+		"state",
+		ProjectSlugFromPath(cwd)+".toml",
+	), nil
 }
 
 // evaluateAndRelease checks one hold: returns error if unmet, posts release message if met.
-func evaluateAndRelease(hold chat.HoldRecord, messages []chat.Message, poster *chat.FilePoster) error {
+func evaluateAndRelease(
+	hold chat.HoldRecord,
+	messages []chat.Message,
+	poster *chat.FilePoster,
+) error {
 	met, _ := chat.EvaluateCondition(hold, messages)
 	if !met {
-		return fmt.Errorf("agent kill: active hold %w", newUnmetHoldError(hold.HoldID, hold.Condition))
+		return fmt.Errorf(
+			"agent kill: active hold %w",
+			newUnmetHoldError(hold.HoldID, hold.Condition),
+		)
 	}
 
 	releaseText, marshalErr := marshalReleasePayload(hold.HoldID)
@@ -397,18 +429,21 @@ func killAgentPane(paneID string) error {
 func markAgentDeadInStateFile(stateFilePath, agentName string) (string, error) {
 	var paneID string
 
-	rmwErr := readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
-		for i, record := range stateFile.Agents {
-			if record.Name == agentName {
-				paneID = record.PaneID
-				stateFile.Agents[i].State = agentStateDead
+	rmwErr := readModifyWriteStateFile(
+		stateFilePath,
+		func(stateFile agentpkg.StateFile) agentpkg.StateFile {
+			for i, record := range stateFile.Agents {
+				if record.Name == agentName {
+					paneID = record.PaneID
+					stateFile.Agents[i].State = agentStateDead
 
-				break
+					break
+				}
 			}
-		}
 
-		return stateFile
-	})
+			return stateFile
+		},
+	)
 
 	return paneID, rmwErr
 }
@@ -443,7 +478,13 @@ func osStateFileLock(name string) (func() error, error) {
 // Returns nil if the pane is already gone ("can't find pane") — graceful shutdown
 // may have auto-closed the pane before kill is called.
 func osTmuxKillPane(paneID string) error {
-	cmd := exec.CommandContext(context.Background(), "tmux", "kill-pane", "-t", paneID) //nolint:gosec
+	cmd := exec.CommandContext(
+		context.Background(),
+		"tmux",
+		"kill-pane",
+		"-t",
+		paneID,
+	)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil && !strings.Contains(string(out), "can't find pane") {
@@ -462,7 +503,10 @@ func osTmuxSpawn(ctx context.Context, name, prompt string) (paneID, sessionID st
 // Extracted so tests can supply a fake binary path without modifying global state.
 // The returned sessionID is always "PENDING" — the real Claude conversation UUID is
 // written to the state file by runAgentRun when the JSONL stream starts.
-func osTmuxSpawnWith(ctx context.Context, tmuxBin, name, prompt string) (paneID, sessionID string, err error) {
+func osTmuxSpawnWith(
+	ctx context.Context,
+	tmuxBin, name, prompt string,
+) (paneID, sessionID string, err error) {
 	// Derive chat and state file paths for the in-pane runner command.
 	chatFilePath, pathErr := resolveChatFile("", "agent spawn", os.UserHomeDir, os.Getwd)
 	if pathErr != nil {
@@ -630,7 +674,11 @@ func parseTmuxOutput(out []byte) (paneID, sessionID string, err error) {
 
 // postSpawnIntentAndWait posts a spawn intent to the chat file and waits for engram-agent ACK.
 // Fixes #503: binary auto-posts spawn intent + waits for ACK before returning.
-func postSpawnIntentAndWait(ctx context.Context, chatFilePath string, name string, _ string, intentMsg string) error {
+func postSpawnIntentAndWait(
+	ctx context.Context,
+	chatFilePath, name, _ string,
+	intentMsg string,
+) error {
 	var intentText string
 
 	if intentMsg != "" {
@@ -721,7 +769,10 @@ func preSpawnGuards(stateFilePath, name string) error {
 
 // readModifyWriteStateFile performs a locked read-modify-write on the state file.
 // Creates the file and its parent directory if they do not exist.
-func readModifyWriteStateFile(stateFilePath string, modify func(agentpkg.StateFile) agentpkg.StateFile) error {
+func readModifyWriteStateFile(
+	stateFilePath string,
+	modify func(agentpkg.StateFile) agentpkg.StateFile,
+) error {
 	dir := filepath.Dir(stateFilePath)
 
 	mkdirErr := os.MkdirAll(dir, chatDirMode)
@@ -857,7 +908,10 @@ func resolveStateFile(
 // runAgentDispatch routes agent subcommands (spawn|kill|list|wait-ready|run).
 func runAgentDispatch(subArgs []string, stdout io.Writer, spawner spawnFunc) error {
 	if len(subArgs) < 1 {
-		return fmt.Errorf("%w: agent requires a subcommand (spawn|kill|list|wait-ready|run)", errUsage)
+		return fmt.Errorf(
+			"%w: agent requires a subcommand (spawn|kill|list|wait-ready|run)",
+			errUsage,
+		)
 	}
 
 	switch subArgs[0] {
@@ -891,7 +945,12 @@ func runAgentKill(args []string, stdout io.Writer) error {
 		return pathErr
 	}
 
-	stateFilePath, statePathErr := resolveStateFile(stateFileFlag, "agent kill", os.UserHomeDir, os.Getwd)
+	stateFilePath, statePathErr := resolveStateFile(
+		stateFileFlag,
+		"agent kill",
+		os.UserHomeDir,
+		os.Getwd,
+	)
 	if statePathErr != nil {
 		return statePathErr
 	}
@@ -936,7 +995,11 @@ func runAgentKill(args []string, stdout io.Writer) error {
 func runAgentList(args []string, stdout io.Writer) error {
 	fs := newFlagSet("agent list")
 	stateFile := fs.String("state-file", "", "override state file path (testing only)")
-	chatFile := fs.String("chat-file", "", "override chat file path (used for reconstruction fallback)")
+	chatFile := fs.String(
+		"chat-file",
+		"",
+		"override chat file path (used for reconstruction fallback)",
+	)
 
 	parseErr := fs.Parse(args)
 	if errors.Is(parseErr, flag.ErrHelp) {
@@ -947,7 +1010,12 @@ func runAgentList(args []string, stdout io.Writer) error {
 		return fmt.Errorf("agent list: %w", parseErr)
 	}
 
-	stateFilePath, statePathErr := resolveStateFile(*stateFile, "agent list", os.UserHomeDir, os.Getwd)
+	stateFilePath, statePathErr := resolveStateFile(
+		*stateFile,
+		"agent list",
+		os.UserHomeDir,
+		os.Getwd,
+	)
 	if statePathErr != nil {
 		return statePathErr
 	}
@@ -956,9 +1024,18 @@ func runAgentList(args []string, stdout io.Writer) error {
 	if errors.Is(readErr, os.ErrNotExist) {
 		// Spec §6.3: detect missing state file and attempt reconstruction from chat history.
 		// This is cheap in Phase 3; expensive after Phase 5 when full-file parse paths may be removed.
-		chatFilePath, chatPathErr := resolveChatFile(*chatFile, "agent list", os.UserHomeDir, os.Getwd)
+		chatFilePath, chatPathErr := resolveChatFile(
+			*chatFile,
+			"agent list",
+			os.UserHomeDir,
+			os.Getwd,
+		)
 		if chatPathErr != nil {
-			slog.Warn("agent list: state file missing, reconstruction skipped (could not resolve chat file)", "err", chatPathErr)
+			slog.Warn(
+				"agent list: state file missing, reconstruction skipped (could not resolve chat file)",
+				"err",
+				chatPathErr,
+			)
 
 			return nil
 		}
@@ -998,7 +1075,9 @@ func runAgentListFromChat(chatFilePath string, stdout io.Writer) error {
 		return nil
 	}
 
-	slog.Warn("agent list: state file missing, using reconstructed state from chat history (agent list may be incomplete)")
+	slog.Warn(
+		"agent list: state file missing, using reconstructed state from chat history (agent list may be incomplete)",
+	)
 
 	enc := json.NewEncoder(stdout)
 
@@ -1036,7 +1115,12 @@ func runAgentRunWith(args []string, stdout io.Writer, claudeBinary string) error
 		return pathErr
 	}
 
-	stateFilePath, statePathErr := resolveStateFile(flags.stateFile, "agent run", os.UserHomeDir, os.Getwd)
+	stateFilePath, statePathErr := resolveStateFile(
+		flags.stateFile,
+		"agent run",
+		os.UserHomeDir,
+		os.Getwd,
+	)
 	if statePathErr != nil {
 		return statePathErr
 	}
@@ -1046,7 +1130,15 @@ func runAgentRunWith(args []string, stdout io.Writer, claudeBinary string) error
 
 	runner := buildAgentRunner(flags, stateFilePath, chatFilePath, stdout)
 
-	return runConversationLoop(ctx, runner, flags, chatFilePath, stateFilePath, claudeBinary, stdout)
+	return runConversationLoop(
+		ctx,
+		runner,
+		flags,
+		chatFilePath,
+		stateFilePath,
+		claudeBinary,
+		stdout,
+	)
 }
 
 // runAgentSpawn spawns a new agent in a tmux pane, writes the AgentRecord to the state file,
@@ -1061,12 +1153,22 @@ func runAgentSpawn(args []string, stdout io.Writer, spawner spawnFunc) error {
 		return parseErr
 	}
 
-	chatFilePath, pathErr := resolveChatFile(flags.chatFile, "agent spawn", os.UserHomeDir, os.Getwd)
+	chatFilePath, pathErr := resolveChatFile(
+		flags.chatFile,
+		"agent spawn",
+		os.UserHomeDir,
+		os.Getwd,
+	)
 	if pathErr != nil {
 		return pathErr
 	}
 
-	stateFilePath, statePathErr := resolveStateFile(flags.stateFile, "agent spawn", os.UserHomeDir, os.Getwd)
+	stateFilePath, statePathErr := resolveStateFile(
+		flags.stateFile,
+		"agent spawn",
+		os.UserHomeDir,
+		os.Getwd,
+	)
 	if statePathErr != nil {
 		return statePathErr
 	}
@@ -1084,15 +1186,18 @@ func runAgentSpawn(args []string, stdout io.Writer, spawner spawnFunc) error {
 		return fmt.Errorf("agent spawn: launching pane: %w", spawnErr)
 	}
 
-	rmwErr := readModifyWriteStateFile(stateFilePath, func(sf agentpkg.StateFile) agentpkg.StateFile {
-		return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
-			Name:      flags.name,
-			PaneID:    paneID,
-			SessionID: sessionID,
-			State:     "STARTING",
-			SpawnedAt: time.Now().UTC(),
-		})
-	})
+	rmwErr := readModifyWriteStateFile(
+		stateFilePath,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
+				Name:      flags.name,
+				PaneID:    paneID,
+				SessionID: sessionID,
+				State:     "STARTING",
+				SpawnedAt: time.Now().UTC(),
+			})
+		},
+	)
 	if rmwErr != nil {
 		return fmt.Errorf("agent spawn: updating state file: %w", rmwErr)
 	}
@@ -1130,7 +1235,12 @@ func runAgentWaitReady(args []string, stdout io.Writer) error {
 		return errWaitReadyNameRequired
 	}
 
-	chatFilePath, pathErr := resolveChatFile(*chatFile, "agent wait-ready", os.UserHomeDir, os.Getwd)
+	chatFilePath, pathErr := resolveChatFile(
+		*chatFile,
+		"agent wait-ready",
+		os.UserHomeDir,
+		os.Getwd,
+	)
 	if pathErr != nil {
 		return pathErr
 	}
@@ -1313,7 +1423,10 @@ func runWithinSessionLoop(
 		// HARD RULE: capture cursor BEFORE cmd.StdoutPipe()/cmd.Start() (via runOneTurn).
 		cursor, cursorErr := chatFileCursor(chatFilePath, os.ReadFile)
 		if cursorErr != nil {
-			return claudepkg.StreamResult{}, sessionID, lastCursor, fmt.Errorf("agent run: cursor: %w", cursorErr)
+			return claudepkg.StreamResult{}, sessionID, lastCursor, fmt.Errorf(
+				"agent run: cursor: %w",
+				cursorErr,
+			)
 		}
 
 		lastCursor = cursor
@@ -1486,7 +1599,11 @@ func suffixAtLine(data []byte, lineNum int) []byte {
 
 // waitAndBuildPrompt performs ack-wait after an INTENT marker and returns the resume prompt.
 // cursor must be captured BEFORE claude -p starts (see runConversationLoopWith for placement).
-func waitAndBuildPrompt(ctx context.Context, agentName, chatFilePath string, cursor int) (string, error) {
+func waitAndBuildPrompt(
+	ctx context.Context,
+	agentName, chatFilePath string,
+	cursor int,
+) (string, error) {
 	waiter := &chat.FileAckWaiter{
 		FilePath: chatFilePath,
 		Watcher:  newFileWatcher(chatFilePath),
@@ -1501,7 +1618,12 @@ func waitAndBuildPrompt(ctx context.Context, agentName, chatFilePath string, cur
 // waitAndBuildPromptWith is the testable variant of waitAndBuildPrompt.
 // cursor is the pre-intent position captured before claude -p started (HARD RULE compliance).
 // The waiter parameter allows tests to inject a stub ackWaiter instead of chat.FileAckWaiter.
-func waitAndBuildPromptWith(ctx context.Context, agentName string, cursor int, waiter ackWaiter) (string, error) {
+func waitAndBuildPromptWith(
+	ctx context.Context,
+	agentName string,
+	cursor int,
+	waiter ackWaiter,
+) (string, error) {
 	ackResult, ackErr := waiter.AckWait(ctx, agentName, cursor, []string{"engram-agent"})
 	if ackErr != nil {
 		return "", fmt.Errorf("agent run: ack-wait: %w", ackErr)
@@ -1552,7 +1674,14 @@ func watchAndResume(
 		return "", ctx.Err() //nolint:wrapcheck // ctx errors propagate directly
 	}
 
-	intentMsg, newCursor, intentErr := awaitNextIntent(ctx, agentName, chatFilePath, cursor, intents, watchForIntent)
+	intentMsg, newCursor, intentErr := awaitNextIntent(
+		ctx,
+		agentName,
+		chatFilePath,
+		cursor,
+		intents,
+		watchForIntent,
+	)
 	if intentErr != nil {
 		return "", intentErr
 	}
@@ -1566,12 +1695,20 @@ func watchAndResume(
 
 	recentIntents, recentErr := selectRecentIntents(chatFilePath, readFile, resumeIntentLimit)
 	if recentErr != nil {
-		_, _ = fmt.Fprintf(stdout, "[engram] warning: failed to select recent intents: %v\n", recentErr)
+		_, _ = fmt.Fprintf(
+			stdout,
+			"[engram] warning: failed to select recent intents: %v\n",
+			recentErr,
+		)
 	}
 
 	learnedMessages, learnedErr := collectLearned(chatFilePath, agentName, cursor, readFile)
 	if learnedErr != nil {
-		_, _ = fmt.Fprintf(stdout, "[engram] warning: failed to collect learned messages: %v\n", learnedErr)
+		_, _ = fmt.Fprintf(
+			stdout,
+			"[engram] warning: failed to collect learned messages: %v\n",
+			learnedErr,
+		)
 	}
 
 	return buildResumePrompt(ResumePromptArgs{
@@ -1588,17 +1725,20 @@ func watchAndResume(
 
 // writeAgentLastResumedAt updates the LastResumedAt field for the named agent.
 func writeAgentLastResumedAt(stateFilePath, agentName string) error {
-	return readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
-		for i, rec := range stateFile.Agents {
-			if rec.Name == agentName {
-				stateFile.Agents[i].LastResumedAt = time.Now().UTC()
+	return readModifyWriteStateFile(
+		stateFilePath,
+		func(stateFile agentpkg.StateFile) agentpkg.StateFile {
+			for i, rec := range stateFile.Agents {
+				if rec.Name == agentName {
+					stateFile.Agents[i].LastResumedAt = time.Now().UTC()
 
-				return stateFile
+					return stateFile
+				}
 			}
-		}
 
-		return stateFile
-	})
+			return stateFile
+		},
+	)
 }
 
 // writeAgentSilentState writes state=SILENT and last-silent-at atomically.
@@ -1606,18 +1746,21 @@ func writeAgentLastResumedAt(stateFilePath, agentName string) error {
 // Using a dedicated function prevents the two writes from being split across
 // separate RMW calls, which would leave the state file inconsistent.
 func writeAgentSilentState(stateFilePath, agentName string) error {
-	return readModifyWriteStateFile(stateFilePath, func(stateFile agentpkg.StateFile) agentpkg.StateFile {
-		for i, rec := range stateFile.Agents {
-			if rec.Name == agentName {
-				stateFile.Agents[i].State = "SILENT"
-				stateFile.Agents[i].LastSilentAt = time.Now().UTC()
+	return readModifyWriteStateFile(
+		stateFilePath,
+		func(stateFile agentpkg.StateFile) agentpkg.StateFile {
+			for i, rec := range stateFile.Agents {
+				if rec.Name == agentName {
+					stateFile.Agents[i].State = "SILENT"
+					stateFile.Agents[i].LastSilentAt = time.Now().UTC()
 
-				return stateFile
+					return stateFile
+				}
 			}
-		}
 
-		return stateFile
-	})
+			return stateFile
+		},
+	)
 }
 
 // writeKilledLine writes the "killed <name>" confirmation line to stdout.

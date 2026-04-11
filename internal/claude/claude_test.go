@@ -57,7 +57,11 @@ func TestProcessStream_AllMarkerTypes_Posted(t *testing.T) {
 
 	text := "WAIT: Blocking.\nLEARNED: Fact.\nINFO: Detail.\nREADY: Go.\nESCALATE: Help."
 	markersJSON := `{"type":"assistant","session_id":"abc","message":{"content":[{"type":"text","text":"` +
-		strings.ReplaceAll(text, "\n", `\n`) + `"}]}}`
+		strings.ReplaceAll(
+			text,
+			"\n",
+			`\n`,
+		) + `"}]}}`
 	stream := strings.NewReader(markersJSON + "\n")
 
 	_, err := runner.ProcessStream(stream)
