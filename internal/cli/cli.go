@@ -12,9 +12,11 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"engram/internal/anthropic"
@@ -58,6 +60,11 @@ func Run(
 		return runHoldDispatch(subArgs, stdout)
 	case "agent":
 		return runAgentDispatch(subArgs, stdout, osTmuxSpawn)
+	case "dispatch":
+		dispatchCtx, dispatchStop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer dispatchStop()
+
+		return runDispatchDispatch(dispatchCtx, subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}

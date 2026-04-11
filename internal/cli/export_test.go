@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,12 +30,14 @@ var (
 	ExportLoadChatMessages        = func(path string) ([]chat.Message, error) {
 		return loadChatMessages(path, os.ReadFile)
 	}
+	ExportNewFilePoster            = newFilePoster
 	ExportOsAppendFile             = osAppendFile
 	ExportOsTmuxKillPane           = osTmuxKillPane
 	ExportOsTmuxSpawn              = osTmuxSpawn
 	ExportOsTmuxSpawnWith          = osTmuxSpawnWith
 	ExportOsTmuxVerifyPaneGone     = osTmuxVerifyPaneGone
 	ExportOutputAckResult          = outputAckResult
+	ExportParseIntentMarkerTO      = parseIntentMarkerTO
 	ExportParseTmuxOutput          = parseTmuxOutput
 	ExportReadModifyWriteStateFile = readModifyWriteStateFile
 	ExportRecordSurfacing          = recordSurfacing
@@ -46,6 +49,12 @@ var (
 	ExportRunAgentKill             = runAgentKill
 	ExportRunAgentRunWith          = runAgentRunWith
 	ExportRunAgentSpawn            = runAgentSpawn
+	ExportRunDispatchAssign        = runDispatchAssign
+	ExportRunDispatchDispatch      = runDispatchDispatch
+	ExportRunDispatchDrain         = runDispatchDrain
+	ExportRunDispatchStart         = runDispatchStart
+	ExportRunDispatchStatus        = runDispatchStatus
+	ExportRunDispatchStop          = runDispatchStop
 	ExportSelectMemoryFiles        = selectMemoryFiles
 	ExportSelectRecentIntents      = selectRecentIntents
 	ExportWaitAndBuildPrompt       = waitAndBuildPrompt
@@ -66,6 +75,35 @@ func ExportBuildAgentRunner(
 	}
 
 	return buildAgentRunner(flags, stateFilePath, chatFilePath, io.Discard)
+}
+
+// ExportDispatchLoop exposes dispatchLoop for blackbox tests.
+func ExportDispatchLoop(
+	ctx context.Context,
+	workerChans map[string]chan chat.Message,
+	stateFilePath, chatFilePath string,
+	cursor int,
+	silentCh <-chan string,
+) error {
+	return dispatchLoop(ctx, workerChans, stateFilePath, chatFilePath, cursor, silentCh)
+}
+
+// ExportMultiStringFlagString returns the String() result of a multiStringFlag built from vals.
+// Empty input returns the nil-receiver result.
+func ExportMultiStringFlagString(vals ...string) string {
+	if len(vals) == 0 {
+		var nilFlag *multiStringFlag
+
+		return nilFlag.String()
+	}
+
+	flagVal := new(multiStringFlag)
+
+	for _, v := range vals {
+		_ = flagVal.Set(v)
+	}
+
+	return flagVal.String()
 }
 
 // ExportNewHaikuCallerAdapter creates a haikuCallerAdapter for testing.
@@ -90,6 +128,32 @@ func ExportNewOsFileReader() interface {
 // ExportNewSurfaceRunnerAdapter creates a surfaceRunnerAdapter for testing.
 func ExportNewSurfaceRunnerAdapter(surfacer *surface.Surfacer) SurfaceRunner {
 	return &surfaceRunnerAdapter{surfacer: surfacer}
+}
+
+// ExportRouteMessage calls routeMessage with a plain func(string) bool holdChecker
+// (because holdCheckerFunc is unexported and tests can't name it).
+func ExportRouteMessage(
+	workerChans map[string]chan chat.Message,
+	deferred map[string][]chat.Message,
+	holdChecker func(string) bool,
+	stateFilePath string,
+	msg chat.Message,
+	cursor int,
+) {
+	routeMessage(workerChans, deferred, holdCheckerFunc(holdChecker), stateFilePath, msg, cursor)
+}
+
+// ExportRouteMessageWithPoster calls routeMessageWithPoster with a plain func holdChecker.
+func ExportRouteMessageWithPoster(
+	workerChans map[string]chan chat.Message,
+	deferred map[string][]chat.Message,
+	holdChecker func(string) bool,
+	stateFilePath string,
+	poster *chat.FilePoster,
+	msg chat.Message,
+	cursor int,
+) {
+	routeMessageWithPoster(workerChans, deferred, holdCheckerFunc(holdChecker), stateFilePath, poster, msg, cursor)
 }
 
 // ExportRunConversationLoopWith calls runConversationLoopWith with an injectable prompt builder.
@@ -171,6 +235,69 @@ func ExportRunConversationLoopWithStateHook(
 		claudeBinary, stdout, promptBuilder,
 		watchForIntent, nil, nil, memFileSelector,
 	)
+}
+
+// ExportRunDispatch is an instrumented version of the runDispatch semaphore logic.
+// activeCount receives the concurrent active count each time a worker acquires the semaphore.
+// Use this to verify that maxConcurrent is honored.
+func ExportRunDispatch(
+	ctx context.Context,
+	workers []WorkerConfig,
+	maxConcurrent int,
+	chatFile, stateFile, claudeBinary string,
+	activeCount chan<- int32,
+) error {
+	sem := make(chan struct{}, maxConcurrent)
+
+	intentChans := make(map[string]chan chat.Message, len(workers))
+	for _, w := range workers {
+		intentChans[w.Name] = make(chan chat.Message, workerChannelCap)
+	}
+
+	cursor, _ := chatFileCursor(chatFile, os.ReadFile)
+	silentCh := make(chan string, len(workers))
+
+	var active atomic.Int32
+
+	var wg sync.WaitGroup
+
+	for _, w := range workers {
+		wg.Add(1)
+
+		go func(cfg WorkerConfig) {
+			defer wg.Done()
+
+			sem <- struct{}{}
+
+			cur := active.Add(1)
+
+			select {
+			case activeCount <- cur:
+			default:
+			}
+
+			defer func() {
+				active.Add(-1)
+				<-sem
+			}()
+
+			flags := agentRunFlags{name: cfg.Name, prompt: cfg.Prompt, chatFile: chatFile, stateFile: stateFile}
+			runner := buildAgentRunner(flags, stateFile, chatFile, io.Discard)
+
+			_ = runConversationLoopWith(
+				ctx, runner, cfg.Name, cfg.Prompt, chatFile, stateFile,
+				claudeBinary, io.Discard,
+				waitAndBuildPrompt, defaultWatchForIntent,
+				intentChans[cfg.Name], silentCh, defaultMemFileSelector,
+			)
+		}(w)
+	}
+
+	loopErr := dispatchLoop(ctx, intentChans, stateFile, chatFile, cursor, silentCh)
+
+	wg.Wait()
+
+	return loopErr
 }
 
 // ExportWaitAndBuildPromptWith calls waitAndBuildPromptWith with an injectable ackWaiter.
