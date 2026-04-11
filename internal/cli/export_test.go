@@ -110,6 +110,44 @@ func ExportRunConversationLoopWith(
 	)
 }
 
+// ExportRunConversationLoopWithStateHook is like ExportRunConversationLoopWith but wraps
+// the runner's WriteState with an observer. The observer is called before every real
+// WriteState write; if it returns an error, the write is aborted.
+// Use this in tests that need to verify WriteState call patterns across sessions.
+func ExportRunConversationLoopWithStateHook(
+	ctx context.Context,
+	name, prompt, chatFile, stateFile, claudeBinary string,
+	stdout io.Writer,
+	promptBuilder func(ctx context.Context, agentName, chatFilePath string, turn int) (string, error),
+	watchForIntent func(ctx context.Context, agentName, chatFilePath string, cursor int) (chat.Message, int, error),
+	memFileSelector func(homeDir string, maxFiles int) ([]string, error),
+	writeStateObserver func(state string) error,
+) error {
+	flags := agentRunFlags{name: name, prompt: prompt, chatFile: chatFile, stateFile: stateFile}
+	runner := buildAgentRunner(flags, stateFile, chatFile, stdout)
+
+	if writeStateObserver != nil {
+		original := runner.WriteState
+		runner.WriteState = func(state string) error {
+			if observeErr := writeStateObserver(state); observeErr != nil {
+				return observeErr
+			}
+
+			if original != nil {
+				return original(state)
+			}
+
+			return nil
+		}
+	}
+
+	return runConversationLoopWith(
+		ctx, runner, flags, chatFile, stateFile,
+		claudeBinary, stdout, promptBuilder,
+		watchForIntent, memFileSelector,
+	)
+}
+
 // ExportWaitAndBuildPromptWith calls waitAndBuildPromptWith with an injectable ackWaiter.
 // cursor must be captured before claude -p starts (HARD RULE compliance).
 func ExportWaitAndBuildPromptWith(

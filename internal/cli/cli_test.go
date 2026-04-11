@@ -1146,6 +1146,102 @@ func TestOuterWatchLoop_WatchError_Propagates(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("watch failed"))
 }
 
+func TestOuterWatchLoop_WriteStateActiveOnSecondSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+	stateFile := filepath.Join(dir, "state.toml")
+
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	stateToml := "[[agent]]\nname = \"worker-1\"\npane_id = \"\"\n" +
+		"session_id = \"\"\nstate = \"STARTING\"\nspawned_at = 2026-04-06T00:00:00Z\n"
+	g.Expect(os.WriteFile(stateFile, []byte(stateToml), 0o600)).To(Succeed())
+
+	// Fake claude: each invocation emits READY: then DONE:.
+	fakeClaude := filepath.Join(dir, "claude")
+	readyJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"READY: Online."}]}}`
+	doneJSON := `{"type":"assistant","session_id":"sess-abc",` +
+		`"message":{"content":[{"type":"text","text":"DONE: All done."}]}}`
+	script := "#!/bin/sh\nprintf '%s\\n' '" + readyJSON + "'\nprintf '%s\\n' '" + doneJSON + "'\n"
+	g.Expect(os.WriteFile(fakeClaude, []byte(script), 0o700)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// watchForIntent: first call bridges to session 2, second cancels.
+	watchCallCount := 0
+	watchForIntent := func(_ context.Context, _, _ string, cursor int) (chat.Message, int, error) {
+		watchCallCount++
+		if watchCallCount >= 2 {
+			cancel()
+
+			return chat.Message{}, 0, context.Canceled
+		}
+
+		return chat.Message{
+			From: "test-agent",
+			To:   "engram-agent",
+			Type: "intent",
+			Text: "Situation: test. Behavior: respond.",
+		}, cursor + 10, nil
+	}
+
+	memFileSelector := func(_ string, _ int) ([]string, error) {
+		return nil, nil
+	}
+
+	stubBuilder := func(_ context.Context, _, _ string, _ int) (string, error) {
+		return "Proceed.", nil
+	}
+
+	// Record all WriteState calls across both sessions.
+	var mu sync.Mutex
+
+	var stateHistory []string
+
+	writeStateObserver := func(state string) error {
+		mu.Lock()
+		defer mu.Unlock()
+
+		stateHistory = append(stateHistory, state)
+
+		return nil
+	}
+
+	err := cli.ExportRunConversationLoopWithStateHook(
+		ctx,
+		"worker-1", "hello", chatFile, stateFile, fakeClaude,
+		io.Discard,
+		stubBuilder,
+		watchForIntent,
+		memFileSelector,
+		writeStateObserver,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Both sessions must have called WriteState("ACTIVE") — one per READY: marker.
+	mu.Lock()
+	defer mu.Unlock()
+
+	activeCount := 0
+
+	for _, state := range stateHistory {
+		if state == "ACTIVE" {
+			activeCount++
+		}
+	}
+
+	g.Expect(activeCount).To(Equal(2), "WriteState(ACTIVE) must be called once per session start")
+}
+
 // TestOuterWatchLoop_WriteStateSilentAfterSession verifies WriteState("SILENT") is called
 // after the inner session ends and before the watch begins.
 func TestOuterWatchLoop_WriteStateSilentAfterSession(t *testing.T) {
