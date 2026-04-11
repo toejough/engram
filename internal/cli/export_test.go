@@ -142,11 +142,11 @@ func ExportRouteMessage(
 	workerChans map[string]chan chat.Message,
 	deferred map[string][]chat.Message,
 	holdChecker func(string) bool,
-	stateFilePath string,
+	stateFilePath, chatFilePath string,
 	msg chat.Message,
 	cursor int,
 ) {
-	routeMessage(workerChans, deferred, holdCheckerFunc(holdChecker), stateFilePath, msg, cursor)
+	routeMessage(workerChans, deferred, holdCheckerFunc(holdChecker), stateFilePath, chatFilePath, msg, cursor)
 }
 
 // ExportRouteMessageWithPoster calls routeMessageWithPoster with a plain func holdChecker.
@@ -154,12 +154,15 @@ func ExportRouteMessageWithPoster(
 	workerChans map[string]chan chat.Message,
 	deferred map[string][]chat.Message,
 	holdChecker func(string) bool,
-	stateFilePath string,
+	stateFilePath, chatFilePath string,
 	poster *chat.FilePoster,
 	msg chat.Message,
 	cursor int,
 ) {
-	routeMessageWithPoster(workerChans, deferred, holdCheckerFunc(holdChecker), stateFilePath, poster, msg, cursor)
+	routeMessageWithPoster(
+		workerChans, deferred, holdCheckerFunc(holdChecker),
+		stateFilePath, chatFilePath, poster, msg, cursor,
+	)
 }
 
 // ExportRunConversationLoopWith calls runConversationLoopWith with an injectable prompt builder.

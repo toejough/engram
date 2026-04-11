@@ -74,16 +74,17 @@ func (f *multiStringFlag) String() string {
 	return strings.Join(*f, ",")
 }
 
-// addFreshStartingRecords appends a STARTING record for each worker not already present with that state.
+// addFreshStartingRecords removes all existing records for each worker and adds a single
+// fresh STARTING record. This ensures exactly one record per worker name, preventing
+// stale SILENT/DEAD records from confusing state-update functions that match by name.
 func addFreshStartingRecords(stateFile agentpkg.StateFile, workers []WorkerConfig) agentpkg.StateFile {
 	for _, worker := range workers {
-		if !hasStartingRecord(stateFile.Agents, worker.Name) {
-			stateFile = agentpkg.AddAgent(stateFile, agentpkg.AgentRecord{
-				Name:      worker.Name,
-				State:     "STARTING",
-				SpawnedAt: time.Now().UTC(),
-			})
-		}
+		stateFile = agentpkg.RemoveAgent(stateFile, worker.Name)
+		stateFile = agentpkg.AddAgent(stateFile, agentpkg.AgentRecord{
+			Name:      worker.Name,
+			State:     "STARTING",
+			SpawnedAt: time.Now().UTC(),
+		})
 	}
 
 	return stateFile
@@ -145,7 +146,7 @@ func dispatchLoopWith(
 		suffix := suffixAtLine(data, cursor)
 
 		for _, msg := range chat.ParseMessagesSafe(suffix) {
-			routeMessageWithPoster(workerChans, deferred, holdChecker, stateFilePath, poster, msg, cursor)
+			routeMessageWithPoster(workerChans, deferred, holdChecker, stateFilePath, chatFilePath, poster, msg, cursor)
 		}
 
 		cursor = bytes.Count(data, []byte("\n"))
@@ -168,8 +169,7 @@ func dispatchLoopWith(
 			return nil
 
 		case name := <-silentCh:
-			// ACTIVE→SILENT: drain deferred queue for the completed worker (ARCH-A5).
-			drainDeferredQueue(name, workerChans, deferred, stateFilePath, cursor, poster)
+			handleWorkerSilent(name, workerChans, deferred, holdChecker, stateFilePath, cursor, poster)
 
 		case res := <-msgCh:
 			if res.Err != nil {
@@ -181,7 +181,7 @@ func dispatchLoopWith(
 			}
 
 			cursor = res.Cursor
-			routeMessageWithPoster(workerChans, deferred, holdChecker, stateFilePath, poster, res.Msg, cursor)
+			routeMessageWithPoster(workerChans, deferred, holdChecker, stateFilePath, chatFilePath, poster, res.Msg, cursor)
 
 			startWatch()
 		}
@@ -219,7 +219,7 @@ func drainDeferredQueue(
 func handleHoldRelease(
 	workerChans map[string]chan chat.Message,
 	deferred map[string][]chat.Message,
-	stateFilePath string,
+	stateFilePath, chatFilePath string,
 	cursor int,
 	poster *chat.FilePoster,
 	msgText string,
@@ -233,9 +233,26 @@ func handleHoldRelease(
 		return
 	}
 
-	target := resolveHoldTarget(payload.HoldID, stateFilePath)
+	target := resolveHoldTarget(payload.HoldID, chatFilePath)
 	if target != "" {
 		drainDeferredQueue(target, workerChans, deferred, stateFilePath, cursor, poster)
+	}
+}
+
+// handleWorkerSilent is called when a worker transitions ACTIVE→SILENT.
+// It drains the deferred queue only if the worker is not currently on hold.
+// If held, deferred messages remain until the hold is released.
+func handleWorkerSilent(
+	name string,
+	workerChans map[string]chan chat.Message,
+	deferred map[string][]chat.Message,
+	holdChecker holdCheckerFunc,
+	stateFilePath string,
+	cursor int,
+	poster *chat.FilePoster,
+) {
+	if holdChecker == nil || !holdChecker(name) {
+		drainDeferredQueue(name, workerChans, deferred, stateFilePath, cursor, poster)
 	}
 }
 
@@ -407,23 +424,22 @@ func postRoutingInfo(poster *chat.FilePoster, recipient string, msg chat.Message
 	})
 }
 
-// resolveHoldTarget looks up the target worker for a hold-id via the state file.
-// The state file holds section is authoritative.
-// Returns "" if the hold-id is not found.
-func resolveHoldTarget(holdID, stateFilePath string) string {
-	data, err := os.ReadFile(stateFilePath) //nolint:gosec
+// resolveHoldTarget looks up the target worker for a hold-id by scanning
+// hold-acquire messages in the chat file. Returns "" if the hold-id is not found.
+func resolveHoldTarget(holdID, chatFilePath string) string {
+	data, err := os.ReadFile(chatFilePath) //nolint:gosec
 	if err != nil {
 		return ""
 	}
 
-	state, err := agentpkg.ParseStateFile(data)
-	if err != nil {
-		return ""
-	}
+	for _, msg := range chat.ParseMessagesSafe(data) {
+		if msg.Type != "hold-acquire" {
+			continue
+		}
 
-	for _, h := range state.Holds {
-		if h.HoldID == holdID {
-			return h.Target
+		var record chat.HoldRecord
+		if json.Unmarshal([]byte(msg.Text), &record) == nil && record.HoldID == holdID {
+			return record.Target
 		}
 	}
 
@@ -462,11 +478,11 @@ func routeMessage(
 	workerChans map[string]chan chat.Message,
 	deferred map[string][]chat.Message,
 	holdChecker holdCheckerFunc,
-	stateFilePath string,
+	stateFilePath, chatFilePath string,
 	msg chat.Message,
 	cursor int,
 ) {
-	routeMessageWithPoster(workerChans, deferred, holdChecker, stateFilePath, nil, msg, cursor)
+	routeMessageWithPoster(workerChans, deferred, holdChecker, stateFilePath, chatFilePath, nil, msg, cursor)
 }
 
 // routeMessageWithPoster is routeMessage with an optional chat.FilePoster for observability.
@@ -474,14 +490,14 @@ func routeMessageWithPoster(
 	workerChans map[string]chan chat.Message,
 	deferred map[string][]chat.Message,
 	holdChecker holdCheckerFunc,
-	stateFilePath string,
+	stateFilePath, chatFilePath string,
 	poster *chat.FilePoster,
 	msg chat.Message,
 	cursor int,
 ) {
-	// Hold-release: resolve target from state file and drain deferred queue.
+	// Hold-release: resolve target from chat file and drain deferred queue.
 	if msg.Type == "hold-release" {
-		handleHoldRelease(workerChans, deferred, stateFilePath, cursor, poster, msg.Text)
+		handleHoldRelease(workerChans, deferred, stateFilePath, chatFilePath, cursor, poster, msg.Text)
 
 		return
 	}

@@ -58,7 +58,7 @@ func TestDispatchCrashRecovery_DeliversMissedMessages(t *testing.T) {
 	// State: last_delivered_cursor = crashCursor (already delivered first message).
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "engram-agent", state: "SILENT", lastDeliveredCursor: crashCursor},
-	}, nil)
+	})
 
 	msgChan := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"engram-agent": msgChan}
@@ -102,7 +102,7 @@ func TestDispatchLastDeliveredCursorAdvances(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "SILENT"},
-	}, nil)
+	})
 
 	ch := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"worker-a": ch}
@@ -112,7 +112,7 @@ func TestDispatchLastDeliveredCursorAdvances(t *testing.T) {
 
 	const cursor = 42
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, msg, cursor)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, cursor)
 
 	// Read state file and verify last_delivered_cursor was updated.
 	data, err := os.ReadFile(stateFile)
@@ -140,7 +140,7 @@ func TestDispatchLoopActiveWorker_IntentDeferredNotRouted(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "ACTIVE"},
-	}, nil)
+	})
 
 	ch := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"worker-a": ch}
@@ -148,7 +148,7 @@ func TestDispatchLoopActiveWorker_IntentDeferredNotRouted(t *testing.T) {
 
 	msg := chat.Message{From: "lead", To: "worker-a", Type: "intent", Text: "active worker intent"}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 0)
 
 	g.Expect(ch).To(BeEmpty(), "ACTIVE worker must not receive intent via channel")
 	g.Expect(deferred["worker-a"]).To(HaveLen(1), "ACTIVE worker intent must go to deferredQueue")
@@ -161,7 +161,7 @@ func TestDispatchLoopChannelFullFallsToDeferredQueue(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker", state: "SILENT"},
-	}, nil)
+	})
 
 	// Pre-fill channel to capacity (16).
 	ch := make(chan chat.Message, 16)
@@ -174,7 +174,7 @@ func TestDispatchLoopChannelFullFallsToDeferredQueue(t *testing.T) {
 
 	msg := chat.Message{From: "lead", To: "worker", Type: "intent", Text: "overflow intent"}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 0)
 
 	g.Expect(ch).To(HaveLen(16), "channel must remain at capacity — overflow went to deferredQueue")
 	g.Expect(deferred["worker"]).To(HaveLen(1), "overflow intent must be in deferredQueue")
@@ -187,7 +187,7 @@ func TestDispatchLoopDeferredQueueCap_101stMessageDropped(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "engram-agent", state: "SILENT"},
-	}, nil)
+	})
 
 	ch := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"engram-agent": ch}
@@ -198,7 +198,7 @@ func TestDispatchLoopDeferredQueueCap_101stMessageDropped(t *testing.T) {
 	holdChecker := func(worker string) bool { return worker == "engram-agent" }
 	msg := chat.Message{From: "lead", To: "engram-agent", Type: "intent", Text: "101st"}
 
-	cli.ExportRouteMessage(workerChans, deferred, holdChecker, stateFile, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, holdChecker, stateFile, "", msg, 0)
 
 	g.Expect(ch).To(BeEmpty())
 	g.Expect(deferred["engram-agent"]).To(HaveLen(100), "101st message must be dropped, not added")
@@ -211,7 +211,7 @@ func TestDispatchLoopFromFilter_SelfAddressed_NotRouted(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "engram-agent", state: "SILENT"},
-	}, nil)
+	})
 
 	ch := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"engram-agent": ch}
@@ -220,7 +220,7 @@ func TestDispatchLoopFromFilter_SelfAddressed_NotRouted(t *testing.T) {
 	// self-addressed: from == to == "engram-agent"
 	msg := chat.Message{From: "engram-agent", To: "engram-agent", Type: "intent", Text: "nested intent"}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 0)
 
 	g.Expect(ch).To(BeEmpty(), "self-addressed intent must not be routed back to sender")
 	g.Expect(deferred["engram-agent"]).To(BeEmpty())
@@ -233,7 +233,7 @@ func TestDispatchLoopHeldWorker_IntentDeferredNotRouted(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "engram-agent", state: "SILENT"},
-	}, nil)
+	})
 
 	ch := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"engram-agent": ch}
@@ -242,7 +242,7 @@ func TestDispatchLoopHeldWorker_IntentDeferredNotRouted(t *testing.T) {
 	holdChecker := func(worker string) bool { return worker == "engram-agent" }
 	msg := chat.Message{From: "lead", To: "engram-agent", Type: "intent", Text: "held intent"}
 
-	cli.ExportRouteMessage(workerChans, deferred, holdChecker, stateFile, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, holdChecker, stateFile, "", msg, 0)
 
 	g.Expect(ch).To(BeEmpty(), "held worker must not receive intent via channel")
 	g.Expect(deferred["engram-agent"]).To(HaveLen(1), "held worker intent must go to deferredQueue")
@@ -253,10 +253,19 @@ func TestDispatchLoopHoldReleaseDrainsViaChat(t *testing.T) {
 
 	g := NewWithT(t)
 
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Write hold-acquire to chat file so resolveHoldTarget can find it.
+	holdAcquireJSON := `{"hold-id":"abc-hold","holder":"lead","target":"engram-agent",` +
+		`"condition":"test","acquired-ts":"2026-04-11T00:00:00Z"}`
+	chatContent := "[[message]]\nfrom = \"lead\"\nto = \"engram-agent\"\nthread = \"hold\"\n" +
+		"type = \"hold-acquire\"\nts = 2026-04-11T00:00:00Z\ntext = \"\"\"\n" +
+		holdAcquireJSON + "\n\"\"\"\n"
+	g.Expect(os.WriteFile(chatFile, []byte(chatContent), 0o600)).To(Succeed())
+
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "engram-agent", state: "SILENT"},
-	}, []holdTestState{
-		{holdID: "abc-hold", target: "engram-agent"},
 	})
 
 	ch := make(chan chat.Message, 16)
@@ -282,7 +291,7 @@ func TestDispatchLoopHoldReleaseDrainsViaChat(t *testing.T) {
 		Text: string(payload),
 	}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, releaseMsg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, chatFile, releaseMsg, 0)
 
 	g.Expect(ch).To(HaveLen(2), "both deferred messages must be delivered on hold-release")
 	g.Expect(deferred["engram-agent"]).To(BeEmpty(), "deferredQueue must be empty after drain")
@@ -295,7 +304,7 @@ func TestDispatchLoopLearnedNotRouted(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "engram-agent", state: "SILENT"},
-	}, nil)
+	})
 
 	ch := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"engram-agent": ch}
@@ -303,7 +312,7 @@ func TestDispatchLoopLearnedNotRouted(t *testing.T) {
 
 	msg := chat.Message{From: "lead", To: "engram-agent", Type: "learned", Text: "fact"}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 0)
 
 	g.Expect(ch).To(BeEmpty(), "type=learned must NOT be routed")
 	g.Expect(deferred["engram-agent"]).To(BeEmpty())
@@ -321,7 +330,7 @@ func TestDispatchLoopRoutes_IntentToWorkerA_NotB(t *testing.T) {
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "SILENT"},
 		{name: "worker-b", state: "SILENT"},
-	}, nil)
+	})
 
 	chA := make(chan chat.Message, 16)
 	chB := make(chan chat.Message, 16)
@@ -330,7 +339,7 @@ func TestDispatchLoopRoutes_IntentToWorkerA_NotB(t *testing.T) {
 
 	msg := chat.Message{From: "lead", To: "worker-a", Type: "intent", Text: "do the thing"}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, msg, 100)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 100)
 
 	g.Expect(chA).To(HaveLen(1), "worker-a must receive the intent")
 	g.Expect(chB).To(BeEmpty(), "worker-b must not receive worker-a's intent")
@@ -343,7 +352,7 @@ func TestDispatchLoopShutdownDelivery_ShutdownMessageRouted(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "SILENT"},
-	}, nil)
+	})
 
 	ch := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"worker-a": ch}
@@ -351,7 +360,7 @@ func TestDispatchLoopShutdownDelivery_ShutdownMessageRouted(t *testing.T) {
 
 	msg := chat.Message{From: "lead", To: "worker-a", Type: "shutdown", Text: "goodbye"}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 0)
 
 	g.Expect(ch).To(HaveLen(1), "type=shutdown must be routed to worker channel")
 }
@@ -364,7 +373,7 @@ func TestDispatchLoopStartingWorkerBuffersIntent(t *testing.T) {
 	// STARTING worker: spawned but READY: not yet seen. Intent should buffer in channel.
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "engram-agent", state: "STARTING"},
-	}, nil)
+	})
 
 	ch := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"engram-agent": ch}
@@ -372,7 +381,7 @@ func TestDispatchLoopStartingWorkerBuffersIntent(t *testing.T) {
 
 	msg := chat.Message{From: "lead", To: "engram-agent", Type: "intent", Text: "startup intent"}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 0)
 
 	g.Expect(ch).To(HaveLen(1), "STARTING worker should buffer intent in channel")
 	g.Expect(deferred["engram-agent"]).To(BeEmpty(), "STARTING worker intent must NOT go to deferredQueue")
@@ -386,7 +395,7 @@ func TestDispatchLoopToAllExpansion_RoutesToAllWorkers(t *testing.T) {
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "SILENT"},
 		{name: "worker-b", state: "SILENT"},
-	}, nil)
+	})
 
 	chA := make(chan chat.Message, 16)
 	chB := make(chan chat.Message, 16)
@@ -395,7 +404,7 @@ func TestDispatchLoopToAllExpansion_RoutesToAllWorkers(t *testing.T) {
 
 	msg := chat.Message{From: "lead", To: "all", Type: "shutdown", Text: "broadcast shutdown"}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 0)
 
 	g.Expect(chA).To(HaveLen(1), "worker-a must receive to=all message")
 	g.Expect(chB).To(HaveLen(1), "worker-b must receive to=all message")
@@ -408,7 +417,7 @@ func TestDispatchLoopWaitDelivery_WaitMessageRouted(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "SILENT"},
-	}, nil)
+	})
 
 	ch := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"worker-a": ch}
@@ -416,7 +425,7 @@ func TestDispatchLoopWaitDelivery_WaitMessageRouted(t *testing.T) {
 
 	msg := chat.Message{From: "engram-agent", To: "worker-a", Type: "wait", Text: "objection"}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", msg, 0)
 
 	g.Expect(ch).To(HaveLen(1), "type=wait must be routed to worker channel")
 }
@@ -429,7 +438,7 @@ func TestDispatchLoopWaitToActiveWorkerDeferred(t *testing.T) {
 	// ACTIVE worker receiving WAIT must be deferred, not sent to channel.
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "ACTIVE"},
-	}, nil)
+	})
 
 	ch := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"worker-a": ch}
@@ -442,7 +451,7 @@ func TestDispatchLoopWaitToActiveWorkerDeferred(t *testing.T) {
 		Text: "conflict detected",
 	}
 
-	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, waitMsg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, stateFile, "", waitMsg, 0)
 
 	g.Expect(ch).To(BeEmpty(), "ACTIVE worker WAIT must be deferred, not sent to channel")
 	g.Expect(deferred["worker-a"]).To(HaveLen(1))
@@ -463,7 +472,7 @@ func TestDispatchLoopWith_SilentChDrains_DeferredMessages(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "ACTIVE"},
-	}, nil)
+	})
 
 	// Fill deferred queue with a message (via ACTIVE worker state).
 	workerCh := make(chan chat.Message, 16)
@@ -488,7 +497,7 @@ func TestDispatchLoopWith_SilentChDrains_DeferredMessages(t *testing.T) {
 	// Update state file to SILENT first so drain can deliver to channel.
 	stateFileContent := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "SILENT"},
-	}, nil)
+	})
 	// Replace stateFile path is fixed by makeDispatchStateFile, so we just re-read after the loop.
 	_ = stateFileContent
 
@@ -519,7 +528,7 @@ func TestDispatchLoop_MsgCh_ProcessesWatchedMessage(t *testing.T) {
 	chatFile := filepath.Join(dir, "chat.toml")
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "SILENT"},
-	}, nil)
+	})
 
 	// Write one line so cursor starts at 1 (crash recovery finds nothing).
 	g.Expect(os.WriteFile(chatFile, []byte("\n"), 0o600)).To(Succeed())
@@ -571,7 +580,7 @@ func TestDispatchLoop_RoutesIntentViaWatcher(t *testing.T) {
 	chatFile := filepath.Join(dir, "chat.toml")
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "engram-agent", state: "SILENT"},
-	}, nil)
+	})
 
 	// Write a chat file with one intent message.
 	intentTOML := "\n[[message]]\n" +
@@ -617,7 +626,7 @@ func TestDispatchObservabilityMessages_RoutePostsInfo(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "SILENT"},
-	}, nil)
+	})
 
 	dir := t.TempDir()
 	chatFile := filepath.Join(dir, "chat.toml")
@@ -631,7 +640,7 @@ func TestDispatchObservabilityMessages_RoutePostsInfo(t *testing.T) {
 
 	msg := chat.Message{From: "lead", To: "worker-a", Type: "intent", Text: "observe me"}
 
-	cli.ExportRouteMessageWithPoster(workerChans, deferred, nil, stateFile, poster, msg, 0)
+	cli.ExportRouteMessageWithPoster(workerChans, deferred, nil, stateFile, "", poster, msg, 0)
 
 	// Verify an info message was posted to the chat file.
 	data, err := os.ReadFile(chatFile)
@@ -728,23 +737,23 @@ func TestInitWorkerStateRecords_StaleActiveWorkerMarkedDead(t *testing.T) {
 		return
 	}
 
-	// Must have a DEAD record (stale) and a STARTING record (fresh).
-	deadCount := 0
-	startingCount := 0
+	// Stale record is replaced by a single fresh STARTING record.
+	// The stale record is announced to chat but NOT kept in the state file.
+	w1Records := make([]agentpkg.AgentRecord, 0)
 
 	for _, rec := range state.Agents {
 		if rec.Name == "w1" {
-			switch rec.State {
-			case "DEAD":
-				deadCount++
-			case "STARTING":
-				startingCount++
-			}
+			w1Records = append(w1Records, rec)
 		}
 	}
 
-	g.Expect(deadCount).To(Equal(1), "expected one DEAD record for stale w1")
-	g.Expect(startingCount).To(Equal(1), "expected one STARTING record for fresh w1")
+	g.Expect(w1Records).To(HaveLen(1), "expected exactly one record for w1")
+	g.Expect(w1Records[0].State).To(Equal("STARTING"), "expected STARTING state for fresh w1")
+
+	// Stale worker announcement must appear in chat.
+	chatData, chatReadErr := os.ReadFile(chatFile)
+	g.Expect(chatReadErr).NotTo(HaveOccurred())
+	g.Expect(string(chatData)).To(ContainSubstring("Stale worker w1"))
 }
 
 func TestInitWorkerStateRecords_StaleStartingWorkerMarkedDead(t *testing.T) {
@@ -781,22 +790,21 @@ func TestInitWorkerStateRecords_StaleStartingWorkerMarkedDead(t *testing.T) {
 	stateData, _ := os.ReadFile(stateFile)
 	state, _ := agentpkg.ParseStateFile(stateData)
 
-	deadCount := 0
-	startingCount := 0
+	w1Records := make([]agentpkg.AgentRecord, 0)
 
 	for _, rec := range state.Agents {
 		if rec.Name == "w1" {
-			switch rec.State {
-			case "DEAD":
-				deadCount++
-			case "STARTING":
-				startingCount++
-			}
+			w1Records = append(w1Records, rec)
 		}
 	}
 
-	g.Expect(deadCount).To(Equal(1), "expected one DEAD record for stale w1")
-	g.Expect(startingCount).To(Equal(1), "expected one STARTING record for fresh w1")
+	g.Expect(w1Records).To(HaveLen(1), "expected exactly one record for w1")
+	g.Expect(w1Records[0].State).To(Equal("STARTING"), "expected STARTING state for fresh w1")
+
+	// Stale worker announcement must appear in chat.
+	chatData, chatReadErr := os.ReadFile(chatFile)
+	g.Expect(chatReadErr).NotTo(HaveOccurred())
+	g.Expect(string(chatData)).To(ContainSubstring("Stale worker w1"))
 }
 
 // ============================================================
@@ -810,7 +818,7 @@ func TestIsWorkerActive_MissingStateFile_ReturnsFalse(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "ACTIVE"},
-	}, nil)
+	})
 
 	workerChans := map[string]chan chat.Message{
 		"worker-a": make(chan chat.Message, 16),
@@ -822,7 +830,7 @@ func TestIsWorkerActive_MissingStateFile_ReturnsFalse(t *testing.T) {
 	_ = stateFile
 
 	nonExistentState := "/nonexistent/state.toml"
-	cli.ExportRouteMessage(workerChans, deferred, nil, nonExistentState, msg, 0)
+	cli.ExportRouteMessage(workerChans, deferred, nil, nonExistentState, "", msg, 0)
 
 	// Non-existent state file → isWorkerActive = false → message delivered to channel.
 	g.Expect(workerChans["worker-a"]).To(HaveLen(1))
@@ -992,7 +1000,7 @@ func TestPostQueueOverflow_WithPoster_PostsInfoMessage(t *testing.T) {
 	// Worker must be ACTIVE so messages get deferred instead of channel-sent.
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "ACTIVE"},
-	}, nil)
+	})
 
 	// Fill deferred queue to capacity (100 messages).
 	workerCh := make(chan chat.Message, 16)
@@ -1003,7 +1011,7 @@ func TestPostQueueOverflow_WithPoster_PostsInfoMessage(t *testing.T) {
 
 	// 101st message → overflow → poster.Post is called.
 	msg := chat.Message{From: "lead", To: "worker-a", Type: "intent", Text: "101st"}
-	cli.ExportRouteMessageWithPoster(workerChans, deferred, nil, stateFile, poster, msg, 0)
+	cli.ExportRouteMessageWithPoster(workerChans, deferred, nil, stateFile, "", poster, msg, 0)
 
 	// Verify overflow was posted to chat.
 	data, readErr := os.ReadFile(chatFile)
@@ -1022,12 +1030,17 @@ func TestResolveHoldTarget_HoldFound_DrainsQueue(t *testing.T) {
 
 	dir := t.TempDir()
 	chatFile := filepath.Join(dir, "chat.toml")
-	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	// Write a hold-acquire message to the chat file so resolveHoldTarget can find it.
+	holdAcquireJSON := `{"hold-id":"h1","holder":"lead","target":"worker-a",` +
+		`"condition":"test","acquired-ts":"2026-04-11T00:00:00Z"}`
+	chatContent := "[[message]]\nfrom = \"lead\"\nto = \"worker-a\"\nthread = \"hold\"\n" +
+		"type = \"hold-acquire\"\nts = 2026-04-11T00:00:00Z\ntext = \"\"\"\n" +
+		holdAcquireJSON + "\n\"\"\"\n"
+	g.Expect(os.WriteFile(chatFile, []byte(chatContent), 0o600)).To(Succeed())
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "worker-a", state: "SILENT"},
-	}, []holdTestState{
-		{holdID: "h1", target: "worker-a"},
 	})
 
 	workerCh := make(chan chat.Message, 16)
@@ -1044,7 +1057,7 @@ func TestResolveHoldTarget_HoldFound_DrainsQueue(t *testing.T) {
 		Text: `{"hold-id":"h1"}`,
 	}
 
-	cli.ExportRouteMessageWithPoster(workerChans, deferred, nil, stateFile, nil, holdReleaseMsg, 0)
+	cli.ExportRouteMessageWithPoster(workerChans, deferred, nil, stateFile, chatFile, nil, holdReleaseMsg, 0)
 
 	g.Expect(workerCh).To(HaveLen(1), "deferred message should be drained to channel")
 }
@@ -1054,7 +1067,7 @@ func TestResolveHoldTarget_UnknownHold_NoAction(t *testing.T) {
 
 	g := NewWithT(t)
 
-	stateFile := makeDispatchStateFile(t, nil, nil)
+	stateFile := makeDispatchStateFile(t, nil)
 
 	workerCh := make(chan chat.Message, 16)
 	workerChans := map[string]chan chat.Message{"worker-a": workerCh}
@@ -1070,7 +1083,10 @@ func TestResolveHoldTarget_UnknownHold_NoAction(t *testing.T) {
 		Text: `{"hold-id":"unknown-hold"}`,
 	}
 
-	cli.ExportRouteMessageWithPoster(workerChans, deferred, nil, stateFile, nil, holdReleaseMsg, 0)
+	chatFile := filepath.Join(t.TempDir(), "chat.toml")
+	g.Expect(os.WriteFile(chatFile, []byte(""), 0o600)).To(Succeed())
+
+	cli.ExportRouteMessageWithPoster(workerChans, deferred, nil, stateFile, chatFile, nil, holdReleaseMsg, 0)
 
 	g.Expect(workerCh).To(BeEmpty(), "unknown hold-id must not drain channel")
 	g.Expect(deferred["worker-a"]).To(HaveLen(1), "deferred queue unchanged")
@@ -1167,7 +1183,7 @@ func TestRunDispatchDispatch_RouteToDrain_HitsDrainBranch(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "w1", state: "SILENT"},
-	}, nil)
+	})
 
 	var out strings.Builder
 
@@ -1236,7 +1252,7 @@ func TestRunDispatchDrain_ActiveWorkersTimeout_ReturnsTimeout(t *testing.T) {
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "w1", state: "ACTIVE"},
-	}, nil)
+	})
 
 	var out strings.Builder
 	// timeout=0 means deadline is immediately in the past
@@ -1260,7 +1276,7 @@ func TestRunDispatchDrain_AllWorkersAlreadySilent_ReturnsDrainedImmediately(t *t
 
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "w1", state: "SILENT"},
-	}, nil)
+	})
 
 	var out strings.Builder
 
@@ -1515,7 +1531,7 @@ func TestRunDispatchStatus_ValidStateFile_OutputsJSON(t *testing.T) {
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "w1", state: "ACTIVE"},
 		{name: "w2", state: "SILENT"},
-	}, nil)
+	})
 
 	var out strings.Builder
 
@@ -1569,7 +1585,7 @@ func TestRunDispatchStop_ValidState_PostsShutdowns(t *testing.T) {
 	stateFile := makeDispatchStateFile(t, []dispatchAgentState{
 		{name: "w1", state: "ACTIVE"},
 		{name: "w2", state: "DEAD"},
-	}, nil)
+	})
 
 	var out strings.Builder
 
@@ -1650,18 +1666,11 @@ type dispatchAgentState struct {
 	lastDeliveredCursor int
 }
 
-// holdTestState is a minimal struct for building test hold records.
-type holdTestState struct {
-	holdID string
-	target string
-}
-
-// makeDispatchStateFile creates a temp state file with the given agents and holds.
+// makeDispatchStateFile creates a temp state file with the given agents.
 // Returns the file path.
 func makeDispatchStateFile(
 	t *testing.T,
 	agents []dispatchAgentState,
-	holds []holdTestState,
 ) string {
 	t.Helper()
 
@@ -1670,7 +1679,6 @@ func makeDispatchStateFile(
 
 	stateData := agentpkg.StateFile{
 		Agents: make([]agentpkg.AgentRecord, 0, len(agents)),
-		Holds:  make([]agentpkg.HoldEntry, 0, len(holds)),
 	}
 
 	for _, a := range agents {
@@ -1679,14 +1687,6 @@ func makeDispatchStateFile(
 			State:               a.state,
 			SpawnedAt:           time.Now(),
 			LastDeliveredCursor: a.lastDeliveredCursor,
-		})
-	}
-
-	for _, h := range holds {
-		stateData.Holds = append(stateData.Holds, agentpkg.HoldEntry{
-			HoldID:     h.holdID,
-			Target:     h.target,
-			AcquiredTS: time.Now(),
 		})
 	}
 
