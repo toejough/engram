@@ -125,15 +125,6 @@ func runAPIWithSignal(cmd string, args []string, stdout io.Writer) error {
 	return runAPIDispatch(ctx, cmd, args, stdout)
 }
 
-// runDispatchWithSignal wraps runDispatchDispatch with a signal-cancellable context.
-// Called from Run() to keep the cyclomatic complexity of Run below the lint threshold.
-func runDispatchWithSignal(args []string, stdout io.Writer) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	return runDispatchDispatch(ctx, args, stdout)
-}
-
 // runServerDispatch dispatches the server subcommand (currently only "up").
 func runServerDispatch(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {

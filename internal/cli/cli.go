@@ -4,7 +4,6 @@ package cli
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -30,13 +29,10 @@ import (
 // Exported variables.
 var (
 	AnthropicAPIURL = "https://api.anthropic.com/v1/messages" //nolint:gochecknoglobals // test-overridable endpoint
-	HoldNowFunc     = time.Now                                //nolint:gochecknoglobals // test-overridable time source
 )
 
 // Run dispatches to the appropriate subcommand based on args.
 // Output is written to stdout. Errors are returned (caller logs to stderr, exit 0).
-//
-//nolint:cyclop // dispatch function; complexity grows linearly with commands, not with logic
 func Run(
 	args []string,
 	stdout, stderr io.Writer,
@@ -54,14 +50,6 @@ func Run(
 		return runRecall(subArgs, stdout)
 	case "show":
 		return runShow(subArgs, stdout)
-	case "chat":
-		return runChatDispatch(subArgs, stdout)
-	case "hold":
-		return runHoldDispatch(subArgs, stdout)
-	case "agent":
-		return runAgentDispatch(subArgs, stdout, osTmuxSpawn)
-	case "dispatch":
-		return runDispatchWithSignal(subArgs, stdout)
 	case serverCmd:
 		return runServerWithSignal(subArgs, stdout, stderr)
 	case intentCmd, learnCmd, postCmd, statusCmd, subscribeCmd:
@@ -99,16 +87,12 @@ func RunWithContext(
 
 // unexported constants.
 const (
-	anthropicMaxTokens   = 1024
-	chatDirMode          = 0o700
-	chatFileMode         = 0o600
-	lockRetryDelay       = 5 * time.Millisecond
-	maxLockRetries       = 200
-	minArgs              = 2
-	uuidV4VariantBitmask = 0x3f
-	uuidV4VariantByte    = 0x80
-	uuidV4VersionBitmask = 0x0f
-	uuidV4VersionByte    = 0x40
+	anthropicMaxTokens = 1024
+	chatDirMode        = 0o700
+	chatFileMode       = 0o600
+	lockRetryDelay     = 5 * time.Millisecond
+	maxLockRetries     = 200
+	minArgs            = 2
 )
 
 // unexported variables.
@@ -116,18 +100,9 @@ var (
 	defaultModifier = memory.NewModifier( //nolint:gochecknoglobals // production singleton
 		memory.WithModifierWriter(tomlwriter.New()),
 	)
-	errAckWaitNilTimeout     = errors.New("outputAckResult: TIMEOUT result has nil Timeout field")
-	errAckWaitNilWait        = errors.New("outputAckResult: WAIT result has nil Wait field")
-	errAckWaitUnknown        = errors.New("outputAckResult: unexpected result type")
-	errAgentRequired         = errors.New("chat ack-wait: --agent required")
-	errHoldIDRequired        = errors.New("hold release: --hold-id is required")
-	errHolderRequired        = errors.New("hold acquire: --holder is required")
-	errLockTimeout           = errors.New("acquiring lock: exceeded max retries")
-	errRecipientsRequired    = errors.New("chat ack-wait: --recipients required")
-	errTargetRequired        = errors.New("hold acquire: --target is required")
-	errUnknownCommand        = errors.New("unknown command")
-	errUsage                 = errors.New("usage: engram <recall|show|chat|hold> [flags]")
-	errWaitReadyNameRequired = errors.New("agent wait-ready: --name is required")
+	errLockTimeout    = errors.New("acquiring lock: exceeded max retries")
+	errUnknownCommand = errors.New("unknown command")
+	errUsage          = errors.New("usage: engram <recall|show|post|intent|learn|status|server|subscribe> [flags]")
 )
 
 // haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
@@ -273,25 +248,6 @@ func deriveChatFilePath(
 	), nil
 }
 
-// loadChatMessages reads and parses a TOML chat file using the provided readFile func.
-// Uses ParseMessagesSafe to tolerate per-message corruption (same attack surface as #515).
-// Returns nil slice (no error) when the file does not exist.
-func loadChatMessages(
-	chatFilePath string,
-	readFile func(string) ([]byte, error),
-) ([]chat.Message, error) {
-	data, err := readFile(chatFilePath)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("reading chat file: %w", err)
-	}
-
-	return chat.ParseMessagesSafe(data), nil
-}
-
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
 func makeAnthropicCaller(
 	token string,
@@ -414,69 +370,11 @@ func osLockFile(name string) (func() error, error) {
 	return nil, errLockTimeout
 }
 
-// outputAckResult writes the flat JSON format expected by skills.
-func outputAckResult(w io.Writer, result chat.AckResult) error {
-	var out map[string]any
-
-	switch result.Result {
-	case "ACK":
-		out = map[string]any{"result": "ACK", "cursor": result.NewCursor}
-	case "WAIT":
-		if result.Wait == nil {
-			return errAckWaitNilWait
-		}
-
-		out = map[string]any{
-			"result": "WAIT",
-			"from":   result.Wait.From,
-			"cursor": result.NewCursor,
-			"text":   result.Wait.Text,
-		}
-	case "TIMEOUT":
-		if result.Timeout == nil {
-			return errAckWaitNilTimeout
-		}
-
-		out = map[string]any{
-			"result":    "TIMEOUT",
-			"recipient": result.Timeout.Recipient,
-			"cursor":    result.NewCursor,
-		}
-	default:
-		return fmt.Errorf("%w: %q", errAckWaitUnknown, result.Result)
-	}
-
-	data, err := json.Marshal(out)
-	if err != nil {
-		return fmt.Errorf("outputAckResult: encoding: %w", err)
-	}
-
-	_, err = fmt.Fprintln(w, string(data))
-	if err != nil {
-		return fmt.Errorf("outputAckResult: writing: %w", err)
-	}
-
-	return nil
-}
-
 // recordSurfacing increments the surfaced count for a memory file.
 func recordSurfacing(path string) error {
 	return defaultModifier.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
 		record.SurfacedCount++
 	})
-}
-
-// resolveChatFile derives the chat file path and wraps any error with the subcommand name.
-// homeDir and getwd default to os.UserHomeDir and os.Getwd; callers may inject alternatives for testing.
-func resolveChatFile(
-	override, cmd string, homeDir, getwd func() (string, error),
-) (string, error) {
-	path, err := deriveChatFilePath(override, homeDir, getwd)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", cmd, err)
-	}
-
-	return path, nil
 }
 
 // resolveToken returns the API token from the environment or macOS Keychain.

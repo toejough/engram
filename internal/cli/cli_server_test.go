@@ -5,6 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +18,144 @@ import (
 
 	. "github.com/onsi/gomega"
 )
+
+func TestBuildRunClaude_ClosureBinaryFails_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Fake binary that exits non-zero.
+	dir := t.TempDir()
+
+	fakeSrc := filepath.Join(dir, "failclaude.go")
+	g.Expect(os.WriteFile(fakeSrc, []byte(`package main
+import "os"
+func main() { os.Exit(1) }
+`), 0o600)).To(Succeed())
+
+	fakeBinary := filepath.Join(dir, "failclaude")
+	if runtime.GOOS == "windows" {
+		fakeBinary += ".exe"
+	}
+
+	buildCmd := exec.Command("go", "build", "-o", fakeBinary, fakeSrc)
+	buildOut, buildErr := buildCmd.CombinedOutput()
+	g.Expect(buildErr).NotTo(HaveOccurred(), string(buildOut))
+
+	if buildErr != nil {
+		return
+	}
+
+	runner := cli.ExportBuildRunClaude(fakeBinary)
+
+	_, err := runner(t.Context(), "prompt", "")
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("running claude"))
+	}
+}
+
+func TestBuildRunClaude_ClosureRunsBinary(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Build a fake binary that prints a fixed string to stdout and exits 0.
+	dir := t.TempDir()
+
+	fakeSrc := filepath.Join(dir, "fakeclaude.go")
+	g.Expect(os.WriteFile(fakeSrc, []byte(`package main
+import "fmt"
+func main() { fmt.Print("fake output") }
+`), 0o600)).To(Succeed())
+
+	fakeBinary := filepath.Join(dir, "fakeclaude")
+	if runtime.GOOS == "windows" {
+		fakeBinary += ".exe"
+	}
+
+	buildCmd := exec.Command("go", "build", "-o", fakeBinary, fakeSrc)
+	buildOut, buildErr := buildCmd.CombinedOutput()
+	g.Expect(buildErr).NotTo(HaveOccurred(), string(buildOut))
+
+	if buildErr != nil {
+		return
+	}
+
+	runner := cli.ExportBuildRunClaude(fakeBinary)
+	g.Expect(runner).NotTo(BeNil())
+
+	// Call with no sessionID — exercises the non-sessionID path.
+	out, err := runner(t.Context(), "hello prompt", "")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("fake output"))
+}
+
+func TestBuildRunClaude_ClosureWithSessionID_RunsBinary(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Fake binary that accepts --resume flag and exits 0.
+	dir := t.TempDir()
+
+	fakeSrc := filepath.Join(dir, "fakeclaude.go")
+	g.Expect(os.WriteFile(fakeSrc, []byte(`package main
+import "fmt"
+func main() { fmt.Print("resumed") }
+`), 0o600)).To(Succeed())
+
+	fakeBinary := filepath.Join(dir, "fakeclaude")
+	if runtime.GOOS == "windows" {
+		fakeBinary += ".exe"
+	}
+
+	buildCmd := exec.Command("go", "build", "-o", fakeBinary, fakeSrc)
+	buildOut, buildErr := buildCmd.CombinedOutput()
+	g.Expect(buildErr).NotTo(HaveOccurred(), string(buildOut))
+
+	if buildErr != nil {
+		return
+	}
+
+	runner := cli.ExportBuildRunClaude(fakeBinary)
+
+	// Call with a sessionID — exercises the sessionID != "" branch.
+	out, err := runner(t.Context(), "prompt", "session-123")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("resumed"))
+}
+
+func TestRunServerUp_InvalidAddr_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := dir + "/chat.toml"
+
+	err := cli.RunWithContext(
+		t.Context(),
+		[]string{
+			"engram", "server", "up",
+			"--chat-file", chatFile,
+			"--addr", "!!!invalid-addr!!!",
+		},
+		&bytes.Buffer{}, &bytes.Buffer{}, nil,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("server up"))
+	}
+}
 
 func TestRunServerUp_InvalidFlag_ReturnsError(t *testing.T) {
 	t.Parallel()
@@ -25,6 +167,34 @@ func TestRunServerUp_InvalidFlag_ReturnsError(t *testing.T) {
 		&bytes.Buffer{}, &bytes.Buffer{}, nil,
 	)
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunServerUp_NoChatFile_ResolvesDefault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Start server without --chat-file to exercise the deriveChatFilePath branch
+	// inside runServerUp (lines 158-165).
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	var stderr syncBuffer
+
+	done := make(chan error, 1)
+
+	go func() {
+		done <- cli.RunWithContext(ctx, []string{
+			"engram", "server", "up",
+			"--addr", "localhost:0",
+		}, &bytes.Buffer{}, &stderr, nil)
+	}()
+
+	g.Eventually(stderr.String).
+		WithTimeout(5 * time.Second).
+		Should(ContainSubstring("server started"))
+
+	cancel()
+	<-done
 }
 
 func TestRunServerUp_PostMessageWritesToChatFile(t *testing.T) {
@@ -215,6 +385,159 @@ func TestRunServerUp_StartsAndRespondsToStatus(t *testing.T) {
 	var body map[string]any
 	g.Expect(json.NewDecoder(resp.Body).Decode(&body)).To(Succeed())
 	g.Expect(body["running"]).To(BeTrue())
+
+	cancel()
+	<-done
+}
+
+func TestRunServerUp_SubscribeFunc_ReturnsMessages(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := dir + "/chat.toml"
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	var stderr syncBuffer
+
+	done := make(chan error, 1)
+
+	go func() {
+		done <- cli.RunWithContext(ctx, []string{
+			"engram", "server", "up",
+			"--chat-file", chatFile,
+			"--addr", "localhost:0",
+		}, &bytes.Buffer{}, &stderr, nil)
+	}()
+
+	g.Eventually(stderr.String).
+		WithTimeout(5 * time.Second).
+		Should(ContainSubstring("server started"))
+
+	addr := extractServerAddr(stderr.String())
+	g.Expect(addr).NotTo(BeEmpty())
+
+	if addr == "" {
+		return
+	}
+
+	// Post a message first so /subscribe has something to return immediately.
+	postBody := strings.NewReader(`{"from":"lead-1","to":"worker-1","text":"hello"}`)
+
+	postReq, postReqErr := http.NewRequestWithContext(
+		t.Context(), http.MethodPost, "http://"+addr+"/message", postBody,
+	)
+	g.Expect(postReqErr).NotTo(HaveOccurred())
+
+	if postReqErr != nil {
+		return
+	}
+
+	postResp, postHTTPErr := http.DefaultClient.Do(postReq)
+	g.Expect(postHTTPErr).NotTo(HaveOccurred())
+
+	if postHTTPErr != nil {
+		return
+	}
+
+	if postResp != nil {
+		_ = postResp.Body.Close()
+	}
+
+	// Subscribe from cursor 0 — the previously posted message should be returned immediately.
+	subReq, subReqErr := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"http://"+addr+"/subscribe?agent=worker-1&after-cursor=0",
+		nil,
+	)
+	g.Expect(subReqErr).NotTo(HaveOccurred())
+
+	if subReqErr != nil {
+		return
+	}
+
+	subResp, subHTTPErr := http.DefaultClient.Do(subReq)
+	g.Expect(subHTTPErr).NotTo(HaveOccurred())
+
+	if subHTTPErr != nil {
+		return
+	}
+
+	if subResp == nil {
+		return
+	}
+
+	defer func() { _ = subResp.Body.Close() }()
+
+	g.Expect(subResp.StatusCode).To(Equal(http.StatusOK))
+
+	var subResult map[string]any
+	g.Expect(json.NewDecoder(subResp.Body).Decode(&subResult)).To(Succeed())
+	g.Expect(subResult["messages"]).NotTo(BeNil())
+
+	cancel()
+	<-done
+}
+
+func TestRunServerUp_WatchFunc_CancelledContext_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := dir + "/chat.toml"
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	var stderr syncBuffer
+
+	done := make(chan error, 1)
+
+	go func() {
+		done <- cli.RunWithContext(ctx, []string{
+			"engram", "server", "up",
+			"--chat-file", chatFile,
+			"--addr", "localhost:0",
+		}, &bytes.Buffer{}, &stderr, nil)
+	}()
+
+	g.Eventually(stderr.String).
+		WithTimeout(5 * time.Second).
+		Should(ContainSubstring("server started"))
+
+	addr := extractServerAddr(stderr.String())
+	g.Expect(addr).NotTo(BeEmpty())
+
+	if addr == "" {
+		return
+	}
+
+	// Subscribe with a very short deadline — context cancels before a message arrives,
+	// which exercises the watchErr != nil path inside SubscribeFunc.
+	subCtx, subCancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer subCancel()
+
+	subReq, subReqErr := http.NewRequestWithContext(
+		subCtx,
+		http.MethodGet,
+		"http://"+addr+"/subscribe?agent=nobody&after-cursor=0",
+		nil,
+	)
+	g.Expect(subReqErr).NotTo(HaveOccurred())
+
+	if subReqErr != nil {
+		return
+	}
+
+	// The request will either fail due to context cancellation or return 500 from the server.
+	// Either way it exercises the watchErr path — no assertion needed on the response.
+	resp, _ := http.DefaultClient.Do(subReq)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
 
 	cancel()
 	<-done
