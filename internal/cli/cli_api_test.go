@@ -581,6 +581,45 @@ func TestRunLearn_WiresHTTPClientAndCallsDoLearn(t *testing.T) {
 	g.Expect(stdout.String()).To(Equal(fmt.Sprintf("%d\n", testCursor)))
 }
 
+func TestRunPost_MissingFromReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "post", "--to", "b", "--text", "c", "--addr", "http://localhost:1"},
+		&stdout, &bytes.Buffer{}, nil,
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("--from is required")))
+}
+
+func TestRunPost_MissingTextReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "post", "--from", "a", "--to", "b", "--addr", "http://localhost:1"},
+		&stdout, &bytes.Buffer{}, nil,
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("--text is required")))
+}
+
+func TestRunPost_MissingToReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "post", "--from", "a", "--text", "c", "--addr", "http://localhost:1"},
+		&stdout, &bytes.Buffer{}, nil,
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("--to is required")))
+}
+
 func TestRunPost_WiresHTTPClientAndCallsDoPost(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
