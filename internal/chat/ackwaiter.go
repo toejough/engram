@@ -28,7 +28,7 @@ type FileAckWaiter struct {
 //     b. All responded → return ACK
 //     c. Call Watcher.Watch(ctx, callerAgent, cursor, ["ack","wait"]) for next message
 //     d. WAIT found → return immediately; ACK found → mark recipient responded
-func (w *FileAckWaiter) AckWait(
+func (w *FileAckWaiter) AckWait( //nolint:funlen // atomic algorithm: extracting helpers adds coverage tradeoffs
 	ctx context.Context, callerAgent string, cursor int, recipients []string,
 ) (AckResult, error) {
 	maxWait := w.MaxWait

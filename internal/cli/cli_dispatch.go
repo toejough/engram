@@ -97,6 +97,32 @@ func addFreshStartingRecords(
 	return stateFile
 }
 
+// crashRecoveryScan batch-routes messages already in the file from cursor.
+// Watch only returns one message per call, so messages between the crash cursor and
+// end-of-file would be lost without this initial scan. Returns the updated cursor.
+func crashRecoveryScan(
+	chatFilePath string,
+	cursor int,
+	workerChans map[string]chan chat.Message,
+	deferred map[string][]chat.Message,
+	holdChecker holdCheckerFunc,
+	stateFilePath string,
+	poster *chat.FilePoster,
+) int {
+	data, scanErr := os.ReadFile(chatFilePath) //nolint:gosec
+	if scanErr != nil {
+		return cursor
+	}
+
+	for _, msg := range chat.ParseMessagesSafe(suffixAtLine(data, cursor)) {
+		routeMessageWithPoster(
+			workerChans, deferred, holdChecker, stateFilePath, chatFilePath, poster, msg, cursor,
+		)
+	}
+
+	return bytes.Count(data, []byte("\n"))
+}
+
 // deferMessage adds a message to the deferred queue, or logs overflow if at cap.
 func deferMessage(
 	deferred map[string][]chat.Message,
@@ -134,7 +160,7 @@ func dispatchLoop(
 }
 
 // dispatchLoopWith is dispatchLoop with injectable hold checker and poster for testing.
-func dispatchLoopWith(
+func dispatchLoopWith( //nolint:funlen // event-loop select: extracting branches adds coverage tradeoffs
 	ctx context.Context,
 	workerChans map[string]chan chat.Message,
 	stateFilePath, chatFilePath string,
@@ -153,29 +179,9 @@ func dispatchLoopWith(
 	// Actionable message types + hold-release for drain trigger (agent-e2e A4).
 	routeTypes := []string{"intent", "wait", "shutdown", "hold-release"}
 
-	// Crash recovery: batch-scan any messages already in the file from cursor.
-	// Watch only returns one message per call and advances cursor to end-of-file,
-	// so messages between the crash cursor and end-of-file would be lost without
-	// this initial scan.
-	data, scanErr := os.ReadFile(chatFilePath) //nolint:gosec
-	if scanErr == nil {
-		suffix := suffixAtLine(data, cursor)
-
-		for _, msg := range chat.ParseMessagesSafe(suffix) {
-			routeMessageWithPoster(
-				workerChans,
-				deferred,
-				holdChecker,
-				stateFilePath,
-				chatFilePath,
-				poster,
-				msg,
-				cursor,
-			)
-		}
-
-		cursor = bytes.Count(data, []byte("\n"))
-	}
+	cursor = crashRecoveryScan(
+		chatFilePath, cursor, workerChans, deferred, holdChecker, stateFilePath, poster,
+	)
 
 	msgCh := make(chan dispatchWatchResult, 1)
 
@@ -376,6 +382,34 @@ func isWorkerActive(stateFilePath, workerName string) bool {
 	return false
 }
 
+// launchWorkers starts a goroutine for each worker under the semaphore and returns the WaitGroup.
+func launchWorkers(
+	ctx context.Context,
+	workers []WorkerConfig,
+	intentChans map[string]chan chat.Message,
+	sem chan struct{},
+	chatFilePath, stateFilePath, claudeBinary string,
+	silentCh chan<- string,
+	stdout io.Writer,
+) *sync.WaitGroup {
+	var wg sync.WaitGroup
+
+	for _, w := range workers {
+		wg.Add(1)
+
+		go func(cfg WorkerConfig) {
+			defer wg.Done()
+
+			runWorkerUnderSemaphore(
+				ctx, cfg, sem, chatFilePath, stateFilePath, claudeBinary,
+				intentChans[cfg.Name], silentCh, stdout,
+			)
+		}(w)
+	}
+
+	return &wg
+}
+
 // makeHoldChecker returns a holdCheckerFunc that reads the chat file on each call
 // and returns true if the named worker has any unreleased holds.
 func makeHoldChecker(chatFilePath string) holdCheckerFunc {
@@ -473,6 +507,17 @@ func postRoutingInfo(poster *chat.FilePoster, recipient string, msg chat.Message
 		Type:   "info",
 		Text:   text,
 	})
+}
+
+// printDispatchStartInfo writes the startup banner to stdout before the dispatch loop blocks.
+func printDispatchStartInfo(stdout io.Writer, agentFlags multiStringFlag, chatFilePath string, maxConcurrent int) {
+	agentNames := strings.Join(agentFlags, ", ")
+	_, _ = fmt.Fprintf(stdout, "Dispatch started. Workers: %s\n", agentNames)
+	_, _ = fmt.Fprintf(stdout, "Chat file: %s\n", chatFilePath)
+	_, _ = fmt.Fprintf(stdout, "Max concurrent: %d\n", maxConcurrent)
+	_, _ = fmt.Fprintf(stdout, "Status:  engram dispatch status\n")
+	_, _ = fmt.Fprintf(stdout, "Assign:  engram dispatch assign --agent <name> --task '<task>'\n")
+	_, _ = fmt.Fprintf(stdout, "Stop:    engram dispatch stop (or Ctrl-C)\n")
 }
 
 // releaseStaleHolds scans the chat file for unreleased holds and releases any whose target
@@ -736,28 +781,7 @@ func runDispatch(
 	// silentCh notifies dispatchLoop when a worker session completes (ARCH-A5).
 	silentCh := make(chan string, len(workers))
 
-	var wg sync.WaitGroup
-
-	for _, w := range workers {
-		wg.Add(1)
-
-		go func(cfg WorkerConfig) {
-			defer wg.Done()
-
-			intentCh := intentChans[cfg.Name]
-			runWorkerUnderSemaphore(
-				ctx,
-				cfg,
-				sem,
-				chatFilePath,
-				stateFilePath,
-				claudeBinary,
-				intentCh,
-				silentCh,
-				stdout,
-			)
-		}(w)
-	}
+	wg := launchWorkers(ctx, workers, intentChans, sem, chatFilePath, stateFilePath, claudeBinary, silentCh, stdout)
 
 	// Run dispatchLoopWith until ctx is cancelled.
 	// Wire real hold checker and poster for production observability (criteria 6 and 9).
@@ -922,20 +946,10 @@ func runDispatchStart(ctx context.Context, args []string, stdout io.Writer) erro
 
 	fs := newFlagSet("dispatch start")
 	fs.Var(&agentFlags, "agent", "worker agent name (repeatable)")
-	fs.IntVar(
-		&maxConcurrent,
-		"max-concurrent",
-		defaultMaxConcurrent,
-		"maximum concurrent worker sessions",
-	)
+	fs.IntVar(&maxConcurrent, "max-concurrent", defaultMaxConcurrent, "maximum concurrent worker sessions")
 	fs.StringVar(&chatFile, "chat-file", "", "override chat file path (testing only)")
 	fs.StringVar(&stateFile, "state-file", "", "override state file path (testing only)")
-	fs.StringVar(
-		&claudeBinary,
-		"claude-binary",
-		"claude",
-		"override claude binary path (testing only)",
-	)
+	fs.StringVar(&claudeBinary, "claude-binary", "claude", "override claude binary path (testing only)")
 
 	err := fs.Parse(args)
 	if err != nil {
@@ -951,39 +965,19 @@ func runDispatchStart(ctx context.Context, args []string, stdout io.Writer) erro
 		return fmt.Errorf("dispatch start: %w", chatErr)
 	}
 
-	stateFilePath, stateErr := resolveStateFile(
-		stateFile,
-		"dispatch start",
-		os.UserHomeDir,
-		os.Getwd,
-	)
+	stateFilePath, stateErr := resolveStateFile(stateFile, "dispatch start", os.UserHomeDir, os.Getwd)
 	if stateErr != nil {
 		return fmt.Errorf("dispatch start: %w", stateErr)
 	}
 
-	// Print startup info block before blocking.
-	agentNames := strings.Join(agentFlags, ", ")
-	_, _ = fmt.Fprintf(stdout, "Dispatch started. Workers: %s\n", agentNames)
-	_, _ = fmt.Fprintf(stdout, "Chat file: %s\n", chatFilePath)
-	_, _ = fmt.Fprintf(stdout, "Max concurrent: %d\n", maxConcurrent)
-	_, _ = fmt.Fprintf(stdout, "Status:  engram dispatch status\n")
-	_, _ = fmt.Fprintf(stdout, "Assign:  engram dispatch assign --agent <name> --task '<task>'\n")
-	_, _ = fmt.Fprintf(stdout, "Stop:    engram dispatch stop (or Ctrl-C)\n")
+	printDispatchStartInfo(stdout, agentFlags, chatFilePath, maxConcurrent)
 
 	workers := make([]WorkerConfig, 0, len(agentFlags))
 	for _, name := range agentFlags {
 		workers = append(workers, WorkerConfig{Name: name, Prompt: ""})
 	}
 
-	return runDispatch(
-		ctx,
-		workers,
-		maxConcurrent,
-		chatFilePath,
-		stateFilePath,
-		claudeBinary,
-		stdout,
-	)
+	return runDispatch(ctx, workers, maxConcurrent, chatFilePath, stateFilePath, claudeBinary, stdout)
 }
 
 // runDispatchStatus implements the "engram dispatch status" subcommand.

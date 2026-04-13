@@ -20,6 +20,15 @@ var (
 	ErrNonOK = errors.New("apiclient: server returned non-OK status")
 )
 
+// API is the contract for engram API operations. CLI handlers accept this
+// interface — they never construct HTTP clients. Satisfied by *Client.
+type API interface {
+	PostMessage(ctx context.Context, req PostMessageRequest) (PostMessageResponse, error)
+	WaitForResponse(ctx context.Context, req WaitRequest) (WaitResponse, error)
+	Subscribe(ctx context.Context, req SubscribeRequest) (SubscribeResponse, error)
+	Status(ctx context.Context) (StatusResponse, error)
+}
+
 // ChatMessage is a single message in a subscribe response.
 type ChatMessage struct {
 	From string `json:"from"`
@@ -172,15 +181,6 @@ func (c *Client) doPost(
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	return c.doAndDecode(httpReq, dest)
-}
-
-// API is the contract for engram API operations. CLI handlers accept this
-// interface — they never construct HTTP clients. Satisfied by *Client.
-type API interface {
-	PostMessage(ctx context.Context, req PostMessageRequest) (PostMessageResponse, error)
-	WaitForResponse(ctx context.Context, req WaitRequest) (WaitResponse, error)
-	Subscribe(ctx context.Context, req SubscribeRequest) (SubscribeResponse, error)
-	Status(ctx context.Context) (StatusResponse, error)
 }
 
 // HTTPDoer abstracts http.Client for testing.

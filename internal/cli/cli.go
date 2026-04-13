@@ -69,6 +69,15 @@ func Run(
 		defer dispatchStop()
 
 		return runDispatchDispatch(dispatchCtx, subArgs, stdout)
+	case postCmd:
+		apiCtx, apiStop := signal.NotifyContext(
+			context.Background(),
+			os.Interrupt,
+			syscall.SIGTERM,
+		)
+		defer apiStop()
+
+		return runAPIDispatch(apiCtx, cmd, subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -318,7 +327,7 @@ func newTokenResolver() *tokenresolver.Resolver {
 	return tokenresolver.New(
 		os.Getenv,
 		func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			cmd := exec.CommandContext(
+			cmd := exec.CommandContext( //nolint:gosec // thin I/O wrapper; caller controls the binary name
 				ctx,
 				name,
 				args...)
@@ -336,7 +345,7 @@ func osAppendFile(path string, data []byte) error {
 		return fmt.Errorf("creating directories: %w", mkdirErr)
 	}
 
-	f, openErr := os.OpenFile(
+	f, openErr := os.OpenFile( //nolint:gosec // thin I/O wrapper; path is caller-supplied
 		path,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		chatFileMode,

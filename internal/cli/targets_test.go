@@ -623,7 +623,7 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		g.Expect(targets).To(gomega.HaveLen(2))
+		g.Expect(targets).To(gomega.HaveLen(3))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -636,7 +636,7 @@ func TestBuildTargets(t *testing.T) {
 			calls = append(calls, subcmd)
 		})
 
-		subcmds := []string{"recall", "show"}
+		subcmds := []string{"recall", "show", "post"}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
 		}
@@ -1027,7 +1027,7 @@ func TestTargets(t *testing.T) {
 
 		// Construction doesn't do I/O — just builds targ target objects.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(targets).To(gomega.HaveLen(6))
+		g.Expect(targets).To(gomega.HaveLen(7))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {

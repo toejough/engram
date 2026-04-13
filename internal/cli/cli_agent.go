@@ -265,6 +265,64 @@ func buildResumePrompt(args ResumePromptArgs) string {
 	return b.String()
 }
 
+// buildResumePromptFromIntent updates last-resumed-at, collects context, and builds the resume prompt.
+// All errors are non-fatal: they produce warnings and the prompt is built with partial data.
+func buildResumePromptFromIntent(
+	chatFilePath, stateFilePath, agentName string,
+	cursor, newCursor int,
+	intentMsg chat.Message,
+	stdout io.Writer,
+	memFileSelector memFileSelectorFunc,
+	readFile func(string) ([]byte, error),
+) string {
+	resumeErr := writeAgentLastResumedAt(stateFilePath, agentName)
+	if resumeErr != nil {
+		_, _ = fmt.Fprintf(stdout,
+			"[engram] warning: failed to update last-resumed-at: %v\n",
+			resumeErr)
+	}
+
+	recentIntents, recentErr := selectRecentIntents(chatFilePath, readFile, resumeIntentLimit)
+	if recentErr != nil {
+		_, _ = fmt.Fprintf(stdout,
+			"[engram] warning: failed to select recent intents: %v\n",
+			recentErr)
+	}
+
+	learnedMessages, learnedErr := collectLearned(chatFilePath, agentName, cursor, readFile)
+	if learnedErr != nil {
+		_, _ = fmt.Fprintf(stdout,
+			"[engram] warning: failed to collect learned messages: %v\n",
+			learnedErr)
+	}
+
+	return buildResumePrompt(ResumePromptArgs{
+		AgentName:       agentName,
+		Cursor:          newCursor,
+		MemFiles:        selectResumeMemFiles(stdout, memFileSelector),
+		IntentFrom:      intentMsg.From,
+		IntentText:      intentMsg.Text,
+		RecentIntents:   recentIntents,
+		LearnedMessages: learnedMessages,
+		ResumeReason:    "intent",
+	})
+}
+
+// buildSpawnIntentText returns the intent message text for a spawn operation.
+func buildSpawnIntentText(name, intentMsg string) string {
+	if intentMsg != "" {
+		return fmt.Sprintf(
+			"Situation: %s. Behavior: Will spawn agent %q to handle the above.",
+			intentMsg, name,
+		)
+	}
+
+	return fmt.Sprintf(
+		"Situation: Spawning agent %q as requested. Behavior: Will spawn agent %q to handle the assigned task.",
+		name, name,
+	)
+}
+
 // chatFileCursor returns the current line count of the chat file (end-of-file position).
 func chatFileCursor(chatFilePath string, readFile func(string) ([]byte, error)) (int, error) {
 	data, err := readFile(chatFilePath)
@@ -386,6 +444,44 @@ func evaluateAndRelease(
 	return nil
 }
 
+// finishAgentSpawn records the spawned agent state, posts intent, and writes output.
+// Called after a tmux pane has been launched successfully.
+func finishAgentSpawn(
+	ctx context.Context,
+	chatFilePath, stateFilePath string,
+	flags spawnFlagsResult,
+	paneID, sessionID string,
+	stdout io.Writer,
+) error {
+	rmwErr := readModifyWriteStateFile(
+		stateFilePath,
+		func(sf agentpkg.StateFile) agentpkg.StateFile {
+			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
+				Name:      flags.name,
+				PaneID:    paneID,
+				SessionID: sessionID,
+				State:     "STARTING",
+				SpawnedAt: time.Now().UTC(),
+			})
+		},
+	)
+	if rmwErr != nil {
+		return fmt.Errorf("agent spawn: updating state file: %w", rmwErr)
+	}
+
+	intentErr := postSpawnIntentAndWait(ctx, chatFilePath, flags.name, paneID, flags.intentMsg)
+	if intentErr != nil {
+		return fmt.Errorf("agent spawn: %w", intentErr)
+	}
+
+	_, writeErr := fmt.Fprintf(stdout, "%s|%s\n", paneID, sessionID)
+	if writeErr != nil {
+		return fmt.Errorf("agent spawn: writing output: %w", writeErr)
+	}
+
+	return nil
+}
+
 // killAgentPane kills the tmux pane for the agent if a pane ID was found, then verifies it is gone.
 // Uses testPaneKiller / testPaneVerifier in tests; falls back to OS functions in production.
 // Silently succeeds if the pane is already gone before the kill.
@@ -478,7 +574,7 @@ func osStateFileLock(name string) (func() error, error) {
 // Returns nil if the pane is already gone ("can't find pane") — graceful shutdown
 // may have auto-closed the pane before kill is called.
 func osTmuxKillPane(paneID string) error {
-	cmd := exec.CommandContext(
+	cmd := exec.CommandContext( //nolint:gosec // thin OS wrapper; tmux is a fixed binary
 		context.Background(),
 		"tmux",
 		"kill-pane",
@@ -679,20 +775,6 @@ func postSpawnIntentAndWait(
 	chatFilePath, name, _ string,
 	intentMsg string,
 ) error {
-	var intentText string
-
-	if intentMsg != "" {
-		intentText = fmt.Sprintf(
-			"Situation: %s. Behavior: Will spawn agent %q to handle the above.",
-			intentMsg, name,
-		)
-	} else {
-		intentText = fmt.Sprintf(
-			"Situation: Spawning agent %q as requested. Behavior: Will spawn agent %q to handle the assigned task.",
-			name, name,
-		)
-	}
-
 	poster := newFilePoster(chatFilePath)
 
 	cursor, postErr := poster.Post(chat.Message{
@@ -700,7 +782,7 @@ func postSpawnIntentAndWait(
 		To:     "engram-agent",
 		Thread: "lifecycle",
 		Type:   "intent",
-		Text:   intentText,
+		Text:   buildSpawnIntentText(name, intentMsg),
 	})
 	if postErr != nil {
 		return fmt.Errorf("posting spawn intent: %w", postErr)
@@ -992,7 +1074,7 @@ func runAgentKill(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func runAgentList(args []string, stdout io.Writer) error {
+func runAgentList(args []string, stdout io.Writer) error { //nolint:funlen // fallback path is atomic with main flow
 	fs := newFlagSet("agent list")
 	stateFile := fs.String("state-file", "", "override state file path (testing only)")
 	chatFile := fs.String(
@@ -1186,33 +1268,7 @@ func runAgentSpawn(args []string, stdout io.Writer, spawner spawnFunc) error {
 		return fmt.Errorf("agent spawn: launching pane: %w", spawnErr)
 	}
 
-	rmwErr := readModifyWriteStateFile(
-		stateFilePath,
-		func(sf agentpkg.StateFile) agentpkg.StateFile {
-			return agentpkg.AddAgent(sf, agentpkg.AgentRecord{
-				Name:      flags.name,
-				PaneID:    paneID,
-				SessionID: sessionID,
-				State:     "STARTING",
-				SpawnedAt: time.Now().UTC(),
-			})
-		},
-	)
-	if rmwErr != nil {
-		return fmt.Errorf("agent spawn: updating state file: %w", rmwErr)
-	}
-
-	intentErr := postSpawnIntentAndWait(ctx, chatFilePath, flags.name, paneID, flags.intentMsg)
-	if intentErr != nil {
-		return fmt.Errorf("agent spawn: %w", intentErr)
-	}
-
-	_, writeErr := fmt.Fprintf(stdout, "%s|%s\n", paneID, sessionID)
-	if writeErr != nil {
-		return fmt.Errorf("agent spawn: writing output: %w", writeErr)
-	}
-
-	return nil
+	return finishAgentSpawn(ctx, chatFilePath, stateFilePath, flags, paneID, sessionID, stdout)
 }
 
 func runAgentWaitReady(args []string, stdout io.Writer) error {
@@ -1686,41 +1742,11 @@ func watchAndResume(
 		return "", intentErr
 	}
 
-	resumeErr := writeAgentLastResumedAt(stateFilePath, agentName)
-	if resumeErr != nil {
-		_, _ = fmt.Fprintf(stdout,
-			"[engram] warning: failed to update last-resumed-at: %v\n",
-			resumeErr)
-	}
-
-	recentIntents, recentErr := selectRecentIntents(chatFilePath, readFile, resumeIntentLimit)
-	if recentErr != nil {
-		_, _ = fmt.Fprintf(
-			stdout,
-			"[engram] warning: failed to select recent intents: %v\n",
-			recentErr,
-		)
-	}
-
-	learnedMessages, learnedErr := collectLearned(chatFilePath, agentName, cursor, readFile)
-	if learnedErr != nil {
-		_, _ = fmt.Fprintf(
-			stdout,
-			"[engram] warning: failed to collect learned messages: %v\n",
-			learnedErr,
-		)
-	}
-
-	return buildResumePrompt(ResumePromptArgs{
-		AgentName:       agentName,
-		Cursor:          newCursor,
-		MemFiles:        selectResumeMemFiles(stdout, memFileSelector),
-		IntentFrom:      intentMsg.From,
-		IntentText:      intentMsg.Text,
-		RecentIntents:   recentIntents,
-		LearnedMessages: learnedMessages,
-		ResumeReason:    "intent",
-	}), nil
+	return buildResumePromptFromIntent(
+		chatFilePath, stateFilePath, agentName,
+		cursor, newCursor,
+		intentMsg, stdout, memFileSelector, readFile,
+	), nil
 }
 
 // writeAgentLastResumedAt updates the LastResumedAt field for the named agent.

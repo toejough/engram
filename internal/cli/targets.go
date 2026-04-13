@@ -144,6 +144,14 @@ type HoldReleaseArgs struct {
 	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
 }
 
+// PostArgs holds flags for `engram post`.
+type PostArgs struct {
+	From string `targ:"flag,name=from,desc=sender agent name"`
+	To   string `targ:"flag,name=to,desc=recipient agent name"`
+	Text string `targ:"flag,name=text,desc=message content"`
+	Addr string `targ:"flag,name=addr,desc=API server address"`
+}
+
 // RecallArgs holds parsed flags for the recall subcommand.
 type RecallArgs struct {
 	DataDir     string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -339,6 +347,8 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("recall").Description("Recall recent session context"),
 		targ.Targ(func(a ShowArgs) { run("show", ShowFlags(a)) }).
 			Name("show").Description("Display full memory details"),
+		targ.Targ(func(a PostArgs) { run(postCmd, PostFlags(a)) }).
+			Name(postCmd).Description("Post a message to the engram chat"),
 	}
 }
 
@@ -475,6 +485,11 @@ func HoldListFlags(a HoldListArgs) []string {
 // HoldReleaseFlags returns the CLI flag args for the hold release subcommand.
 func HoldReleaseFlags(a HoldReleaseArgs) []string {
 	return BuildFlags("--hold-id", a.HoldID, "--chat-file", a.ChatFile)
+}
+
+// PostFlags returns the CLI flag args for the post subcommand.
+func PostFlags(a PostArgs) []string {
+	return BuildFlags("--from", a.From, "--to", a.To, "--text", a.Text, "--addr", a.Addr)
 }
 
 // ProjectSlugFromPath converts a filesystem path to a project slug by replacing

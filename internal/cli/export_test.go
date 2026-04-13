@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"engram/internal/apiclient"
 	"engram/internal/chat"
 	claudepkg "engram/internal/claude"
 	"engram/internal/recall"
@@ -53,6 +54,7 @@ var (
 	ExportRenderMemoryMeta         = renderMemoryMeta
 	ExportResolveChatFile          = resolveChatFile
 	ExportResolveStateFile         = resolveStateFile
+	ExportRunAPIDispatch           = runAPIDispatch
 	ExportRunAgentKill             = runAgentKill
 	ExportRunAgentRunWith          = runAgentRunWith
 	ExportRunAgentSpawn            = runAgentSpawn
@@ -93,6 +95,17 @@ func ExportDispatchLoop(
 	silentCh <-chan string,
 ) error {
 	return dispatchLoop(ctx, workerChans, stateFilePath, chatFilePath, cursor, silentCh)
+}
+
+// ExportDoPost exposes doPost for testing as a function value.
+// The explicit return type ensures the generated StartExportDoPost wrapper has the correct signature.
+func ExportDoPost(
+	ctx context.Context,
+	api apiclient.API,
+	from, to, text string,
+	stdout io.Writer,
+) error {
+	return doPost(ctx, api, from, to, text, stdout)
 }
 
 // ExportMultiStringFlagString returns the String() result of a multiStringFlag built from vals.
