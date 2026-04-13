@@ -144,6 +144,15 @@ type HoldReleaseArgs struct {
 	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
 }
 
+// IntentArgs holds flags for `engram intent`.
+type IntentArgs struct {
+	From          string `targ:"flag,name=from,desc=sender agent name"`
+	To            string `targ:"flag,name=to,desc=recipient agent name"`
+	Situation     string `targ:"flag,name=situation,desc=current situation description"`
+	PlannedAction string `targ:"flag,name=planned-action,desc=planned action description"`
+	Addr          string `targ:"flag,name=addr,desc=API server address"`
+}
+
 // PostArgs holds flags for `engram post`.
 type PostArgs struct {
 	From string `targ:"flag,name=from,desc=sender agent name"`
@@ -349,6 +358,8 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("show").Description("Display full memory details"),
 		targ.Targ(func(a PostArgs) { run(postCmd, PostFlags(a)) }).
 			Name(postCmd).Description("Post a message to the engram chat"),
+		targ.Targ(func(a IntentArgs) { run(intentCmd, IntentFlags(a)) }).
+			Name(intentCmd).Description("Post an intent and wait for engram response"),
 	}
 }
 
@@ -479,6 +490,17 @@ func HoldListFlags(a HoldListArgs) []string {
 		"--target", a.Target,
 		"--tag", a.Tag,
 		"--chat-file", a.ChatFile,
+	)
+}
+
+// IntentFlags returns the CLI flag args for the intent subcommand.
+func IntentFlags(a IntentArgs) []string {
+	return BuildFlags(
+		"--from", a.From,
+		"--to", a.To,
+		"--situation", a.Situation,
+		"--planned-action", a.PlannedAction,
+		"--addr", a.Addr,
 	)
 }
 

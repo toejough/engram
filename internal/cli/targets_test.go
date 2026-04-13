@@ -623,7 +623,7 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		g.Expect(targets).To(gomega.HaveLen(3))
+		g.Expect(targets).To(gomega.HaveLen(4))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -636,7 +636,7 @@ func TestBuildTargets(t *testing.T) {
 			calls = append(calls, subcmd)
 		})
 
-		subcmds := []string{"recall", "show", "post"}
+		subcmds := []string{"recall", "show", "post", "intent"}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
 		}
@@ -1027,7 +1027,7 @@ func TestTargets(t *testing.T) {
 
 		// Construction doesn't do I/O — just builds targ target objects.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(targets).To(gomega.HaveLen(7))
+		g.Expect(targets).To(gomega.HaveLen(8))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {
@@ -1044,6 +1044,44 @@ func TestTargets(t *testing.T) {
 
 		// show without slug produces an error (written to stderr), stdout is empty.
 		g.Expect(stdout.String()).To(gomega.BeEmpty())
+	})
+}
+
+func TestIntentFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.IntentFlags(cli.IntentArgs{
+			From:          "lead-1",
+			To:            "engram-agent",
+			Situation:     "deploying",
+			PlannedAction: "run tests",
+			Addr:          "http://localhost:9999",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--to", "engram-agent",
+			"--situation", "deploying",
+			"--planned-action", "run tests",
+			"--addr", "http://localhost:9999",
+		}))
+	})
+
+	t.Run("empty optional fields omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.IntentFlags(cli.IntentArgs{
+			From: "lead-1",
+			To:   "engram-agent",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--to", "engram-agent",
+		}))
 	})
 }
 

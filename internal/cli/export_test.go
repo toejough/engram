@@ -97,6 +97,17 @@ func ExportDispatchLoop(
 	return dispatchLoop(ctx, workerChans, stateFilePath, chatFilePath, cursor, silentCh)
 }
 
+// ExportDoIntent exposes doIntent for testing as a function value.
+// The explicit return type ensures the generated StartExportDoIntent wrapper has the correct signature.
+func ExportDoIntent(
+	ctx context.Context,
+	api apiclient.API,
+	from, toAgent, situation, plannedAction string,
+	stdout io.Writer,
+) error {
+	return doIntent(ctx, api, from, toAgent, situation, plannedAction, stdout)
+}
+
 // ExportDoPost exposes doPost for testing as a function value.
 // The explicit return type ensures the generated StartExportDoPost wrapper has the correct signature.
 func ExportDoPost(

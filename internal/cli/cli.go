@@ -69,7 +69,7 @@ func Run(
 		defer dispatchStop()
 
 		return runDispatchDispatch(dispatchCtx, subArgs, stdout)
-	case postCmd:
+	case intentCmd, postCmd:
 		apiCtx, apiStop := signal.NotifyContext(
 			context.Background(),
 			os.Interrupt,
