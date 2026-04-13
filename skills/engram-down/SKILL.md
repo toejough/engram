@@ -40,7 +40,15 @@ engram server down
 
 The server drains the engram-agent queue before stopping.
 
-### Step 3: Kill monitoring panes (tmux only)
+### Step 3: Remove agent name marker
+
+```bash
+ENGRAM_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/engram"
+SLUG=$(echo "$PWD" | tr '/' '-')
+rm -f "$ENGRAM_DATA/chat/${SLUG}.agent-name"
+```
+
+### Step 4: Kill monitoring panes (tmux only)
 
 If `$TMUX` is set, kill the chat-tail and log-tail panes:
 
@@ -55,11 +63,11 @@ fi
 
 Uses `@engram_name` (tmux user option, immune to OSC 2 terminal overwrites).
 
-### Step 4: Report session summary
+### Step 5: Report session summary
 
 Tell the user: subagents spawned, tasks completed, decisions made, facts learned, open questions.
 
-### Step 5: Preserve chat file
+### Step 6: Preserve chat file
 
 **Do NOT truncate or delete the chat file.** It is persistent across sessions and is the source of truth for all past communication.
 

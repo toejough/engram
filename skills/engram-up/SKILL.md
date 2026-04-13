@@ -11,7 +11,16 @@ Start the engram API server and initialize the lead agent.
 
 ### Step 1: Choose agent name
 
-Ask the user for a unique agent name (e.g., `lead-1`, `project-auth`). This will be set as `ENGRAM_AGENT_NAME` and used as `--from` in all engram CLI calls.
+Ask the user for a unique agent name (e.g., `lead-1`, `project-auth`). Write it to a marker file so hooks can read it. This name is used as `--from` in all engram CLI calls.
+
+```bash
+ENGRAM_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/engram"
+SLUG=$(echo "$PWD" | tr '/' '-')
+mkdir -p "$ENGRAM_DATA/chat"
+echo "<chosen-name>" > "$ENGRAM_DATA/chat/${SLUG}.agent-name"
+```
+
+Then set it locally for use in this session's CLI calls:
 
 ```bash
 export ENGRAM_AGENT_NAME=<chosen-name>
