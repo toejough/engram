@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 )
 
 // Exported variables.
@@ -49,10 +51,12 @@ func (c *Client) WaitForResponse(
 	ctx context.Context,
 	req WaitRequest,
 ) (WaitResponse, error) {
-	fullURL := fmt.Sprintf(
-		"%s/wait-for-response?from=%s&to=%s&after-cursor=%d",
-		c.baseURL, req.From, req.To, req.AfterCursor,
-	)
+	params := url.Values{}
+	params.Set("from", req.From)
+	params.Set("to", req.To)
+	params.Set("after-cursor", strconv.Itoa(req.AfterCursor))
+
+	fullURL := c.baseURL + "/wait-for-response?" + params.Encode()
 
 	var resp WaitResponse
 
