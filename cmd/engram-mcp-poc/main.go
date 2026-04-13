@@ -62,6 +62,12 @@ func main() {
 	}, &mcp.ServerOptions{
 		Logger:       logger,
 		Instructions: "Engram memory POC. Surfaced memories arrive as <channel source=\"engram-poc\"> events.",
+		Capabilities: &mcp.ServerCapabilities{
+			Logging: &mcp.LoggingCapabilities{},
+			Experimental: map[string]any{
+				"claude/channel": map[string]any{},
+			},
+		},
 	})
 
 	// Register a tool so we know the server is working.
