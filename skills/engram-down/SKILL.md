@@ -11,8 +11,14 @@ Shutdown sequence for engram sessions.
 
 ### Step 1: Signal the engram-agent
 
-Post a shutdown message so engram-agent can finalize any in-flight memory work:
+Post a shutdown message so engram-agent can finalize any in-flight memory work.
 
+**MCP mode:**
+```
+engram_post(from=<agent-name>, to="engram-agent", text="shutdown")
+```
+
+**CLI mode:**
 ```bash
 engram post \
   --from "${ENGRAM_AGENT_NAME}" \

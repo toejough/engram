@@ -19,6 +19,14 @@ export ENGRAM_AGENT_NAME=<chosen-name>
 
 ### Step 2: Start the API server
 
+**MCP mode:** The `engram-mcp` plugin auto-starts the API server when the first tool is called. No manual step needed. To test channel events in development, start Claude Code with:
+
+```bash
+claude --dangerously-load-development-channels 'plugin:engram@engram'
+```
+
+**CLI / manual mode:**
+
 ```bash
 engram server up \
   --chat-file ~/.engram/sessions/<session-name>.toml \

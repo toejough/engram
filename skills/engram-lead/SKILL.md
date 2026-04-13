@@ -15,23 +15,29 @@ The user's primary agent. **Never do implementation yourself** — delegate ever
 
 ## Engram Interaction
 
-Use CLI commands for all engram interaction:
+**MCP mode (Claude Code plugin):** Use MCP tool calls. Memories surface as channel events between turns.
+
+```
+engram_intent(from, to, situation, planned_action)  — before significant actions
+engram_learn(from, type, situation, ...)            — after learning something reusable
+engram_post(from, to, text)                         — general messages
+engram_status()                                     — check server status
+```
+
+Channel events arrive automatically as log notifications with `logger='engram'` between tool calls.
+
+**CLI mode (standalone):** Use CLI commands when running outside the plugin:
 
 ```bash
-# Before significant actions (synchronous — waits for surfaced memories)
 engram intent --from <agent-name> --to engram-agent \
   --situation "<what you're about to do>" --planned-action "<action>"
-
-# After learning something reusable
 engram learn --from <agent-name> --type feedback|fact [--situation ...] [content fields]
-
-# General messages to other agents
 engram post --from <agent-name> --to <recipient> --text "<message>"
 ```
 
-Call `engram intent` before: routing significant work, making architectural decisions, spawning agents for sensitive tasks.
+Call intent before: routing significant work, making architectural decisions, spawning agents for sensitive tasks.
 
-Call `engram learn` after: receiving a correction from the user, discovering a fact worth preserving across sessions.
+Call learn after: receiving a correction from the user, discovering a fact worth preserving across sessions.
 
 ## Spawning Subagents
 
