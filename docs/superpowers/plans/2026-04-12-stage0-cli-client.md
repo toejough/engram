@@ -4,9 +4,9 @@
 
 **Goal:** Add new CLI commands (`engram post`, `engram intent`, `engram learn`, `engram subscribe`, `engram status`) that are thin HTTP clients to the engram API server.
 
-**Architecture:** A new `internal/apiclient` package provides the HTTP client library. New targ commands in `internal/cli` wrap it. The API server doesn't exist yet — tests use `httptest.NewServer` fakes. Existing commands are untouched.
+**Architecture:** A new `internal/apiclient` package provides the HTTP client library with DI for testing. New targ commands in `internal/cli` wrap it. Context flows from `Run()` via `signal.NotifyContext` to all command handlers — never `context.Background()` in handlers. The API server doesn't exist yet — tests use `httptest.NewServer` fakes. Existing commands are untouched. Property-based tests with `pgregory.net/rapid` verify invariants for all generated inputs.
 
-**Tech Stack:** Go stdlib `net/http`, `encoding/json`, `net/http/httptest` (tests), targ CLI framework, gomega assertions.
+**Tech Stack:** Go stdlib `net/http`, `encoding/json`, `net/http/httptest`, `pgregory.net/rapid`, targ CLI framework, gomega assertions.
 
 ---
 
@@ -16,7 +16,7 @@
 - Create: `internal/apiclient/client.go`
 - Create: `internal/apiclient/client_test.go`
 
-- [ ] **Step 1: Write the failing test for PostMessage**
+- [ ] **Step 1: Write the failing property test — PostMessage always sends correct method, path, and body**
 
 ```go
 package apiclient_test
@@ -31,51 +31,108 @@ import (
 	"engram/internal/apiclient"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 )
 
-func TestPostMessage_Success(t *testing.T) {
+func TestPostMessage_AlwaysSendsCorrectMethodPathAndBody(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
 
-	var gotBody apiclient.PostMessageRequest
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		g.Expect(r.Method).To(Equal(http.MethodPost))
-		g.Expect(r.URL.Path).To(Equal("/message"))
+		from := rapid.StringMatching(`[a-z][a-z0-9\-]{0,19}`).Draw(rt, "from")
+		to := rapid.StringMatching(`[a-z][a-z0-9\-]{0,19}`).Draw(rt, "to")
+		text := rapid.StringMatching(`.{1,200}`).Draw(rt, "text")
 
-		decErr := json.NewDecoder(r.Body).Decode(&gotBody)
-		g.Expect(decErr).NotTo(HaveOccurred())
+		var gotMethod, gotPath string
+		var gotBody apiclient.PostMessageRequest
 
-		w.WriteHeader(http.StatusOK)
-		resp := apiclient.PostMessageResponse{Cursor: 42}
-		encErr := json.NewEncoder(w).Encode(resp)
-		g.Expect(encErr).NotTo(HaveOccurred())
-	}))
-	defer srv.Close()
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotMethod = r.Method
+			gotPath = r.URL.Path
+			decErr := json.NewDecoder(r.Body).Decode(&gotBody)
+			g.Expect(decErr).NotTo(HaveOccurred())
 
-	client := apiclient.New(srv.URL, srv.Client())
-	resp, err := client.PostMessage(context.Background(), apiclient.PostMessageRequest{
-		From: "lead-1",
-		To:   "engram-agent",
-		Text: "hello world",
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: 1})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		_, err := client.PostMessage(context.Background(), apiclient.PostMessageRequest{
+			From: from, To: to, Text: text,
+		})
+		g.Expect(err).NotTo(HaveOccurred())
+
+		g.Expect(gotMethod).To(Equal(http.MethodPost))
+		g.Expect(gotPath).To(Equal("/message"))
+		g.Expect(gotBody.From).To(Equal(from))
+		g.Expect(gotBody.To).To(Equal(to))
+		g.Expect(gotBody.Text).To(Equal(text))
 	})
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
+}
 
-	g.Expect(resp.Cursor).To(Equal(42))
-	g.Expect(gotBody.From).To(Equal("lead-1"))
-	g.Expect(gotBody.To).To(Equal("engram-agent"))
-	g.Expect(gotBody.Text).To(Equal("hello world"))
+func TestPostMessage_AlwaysReturnsCursorFromServer(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		cursor := rapid.IntRange(0, 100000).Draw(rt, "cursor")
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: cursor})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		resp, err := client.PostMessage(context.Background(), apiclient.PostMessageRequest{
+			From: "a", To: "b", Text: "c",
+		})
+		g.Expect(err).NotTo(HaveOccurred())
+		if err != nil {
+			return
+		}
+
+		g.Expect(resp.Cursor).To(Equal(cursor))
+	})
+}
+
+func TestPostMessage_AlwaysReturnsErrorForNon200(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		// Generate any non-200 status code.
+		status := rapid.SampledFrom([]int{
+			http.StatusBadRequest, http.StatusUnauthorized,
+			http.StatusInternalServerError, http.StatusServiceUnavailable,
+		}).Draw(rt, "status")
+		errMsg := rapid.StringMatching(`[a-z ]{5,50}`).Draw(rt, "errMsg")
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(status)
+			encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Error: errMsg})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		_, err := client.PostMessage(context.Background(), apiclient.PostMessageRequest{
+			From: "a", To: "b", Text: "c",
+		})
+		g.Expect(err).To(HaveOccurred())
+	})
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run tests to verify they fail**
 
-Run: `targ test -- -run TestPostMessage_Success ./internal/apiclient/`
+Run: `targ test -- -run TestPostMessage ./internal/apiclient/`
 Expected: FAIL — package does not exist
 
-- [ ] **Step 3: Write minimal implementation**
+- [ ] **Step 3: Write minimal implementation to make tests pass**
 
 ```go
 // Package apiclient provides a thin HTTP client for the engram API server.
@@ -129,9 +186,7 @@ func (c *Client) PostMessage(
 	}
 
 	httpReq, reqErr := http.NewRequestWithContext(
-		ctx, http.MethodPost,
-		c.baseURL+"/message",
-		bytes.NewReader(body),
+		ctx, http.MethodPost, c.baseURL+"/message", bytes.NewReader(body),
 	)
 	if reqErr != nil {
 		return PostMessageResponse{}, fmt.Errorf("apiclient: building request: %w", reqErr)
@@ -139,9 +194,14 @@ func (c *Client) PostMessage(
 
 	httpReq.Header.Set("Content-Type", "application/json")
 
+	return c.doJSON(httpReq)
+}
+
+// doJSON executes a request and decodes the JSON response.
+func (c *Client) doJSON(httpReq *http.Request) (PostMessageResponse, error) {
 	httpResp, doErr := c.doer.Do(httpReq)
 	if doErr != nil {
-		return PostMessageResponse{}, fmt.Errorf("apiclient: posting message: %w", doErr)
+		return PostMessageResponse{}, fmt.Errorf("apiclient: %w", doErr)
 	}
 	defer httpResp.Body.Close()
 
@@ -153,52 +213,25 @@ func (c *Client) PostMessage(
 	}
 
 	if httpResp.StatusCode != http.StatusOK {
-		return resp, fmt.Errorf("apiclient: server returned %d: %s", httpResp.StatusCode, resp.Error)
+		return resp, fmt.Errorf(
+			"apiclient: server returned %d: %s", httpResp.StatusCode, resp.Error,
+		)
 	}
 
 	return resp, nil
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 4: Run tests to verify they pass**
 
-Run: `targ test -- -run TestPostMessage_Success ./internal/apiclient/`
+Run: `targ test -- -run TestPostMessage ./internal/apiclient/`
 Expected: PASS
 
-- [ ] **Step 5: Write test for PostMessage validation error**
+- [ ] **Step 5: Refactor — review for DRY, SOLID, simplification**
 
-```go
-func TestPostMessage_ValidationError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+Check: Is `doJSON` too specific to `PostMessageResponse`? Yes — it should be generic. But YAGNI: we'll refactor when the second method needs it. Leave as-is for now.
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-		resp := apiclient.PostMessageResponse{
-			Error: "missing required field: situation",
-		}
-		encErr := json.NewEncoder(w).Encode(resp)
-		g.Expect(encErr).NotTo(HaveOccurred())
-	}))
-	defer srv.Close()
-
-	client := apiclient.New(srv.URL, srv.Client())
-	resp, err := client.PostMessage(context.Background(), apiclient.PostMessageRequest{
-		From: "lead-1",
-		To:   "engram-agent",
-		Text: "bad message",
-	})
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(resp.Error).To(ContainSubstring("missing required field"))
-}
-```
-
-- [ ] **Step 6: Run test to verify it passes**
-
-Run: `targ test -- -run TestPostMessage_ValidationError ./internal/apiclient/`
-Expected: PASS (the existing implementation already handles non-200 status)
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add internal/apiclient/client.go internal/apiclient/client_test.go
@@ -215,63 +248,108 @@ AI-Used: [claude]"
 - Modify: `internal/apiclient/client.go`
 - Modify: `internal/apiclient/client_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write failing property tests**
 
 ```go
-func TestWaitForResponse_Success(t *testing.T) {
+func TestWaitForResponse_AlwaysSendsCorrectQueryParams(t *testing.T) {
 	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		from := rapid.StringMatching(`[a-z][a-z0-9\-]{0,19}`).Draw(rt, "from")
+		to := rapid.StringMatching(`[a-z][a-z0-9\-]{0,19}`).Draw(rt, "to")
+		cursor := rapid.IntRange(0, 100000).Draw(rt, "cursor")
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			g.Expect(r.Method).To(Equal(http.MethodGet))
+			g.Expect(r.URL.Path).To(Equal("/wait-for-response"))
+			g.Expect(r.URL.Query().Get("from")).To(Equal(from))
+			g.Expect(r.URL.Query().Get("to")).To(Equal(to))
+			g.Expect(r.URL.Query().Get("after-cursor")).To(Equal(fmt.Sprintf("%d", cursor)))
+
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.WaitResponse{Cursor: cursor + 1})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		_, err := client.WaitForResponse(context.Background(), apiclient.WaitRequest{
+			From: from, To: to, AfterCursor: cursor,
+		})
+		g.Expect(err).NotTo(HaveOccurred())
+	})
+}
+
+func TestWaitForResponse_AlwaysRespectsContextCancellation(t *testing.T) {
+	t.Parallel()
+
 	g := NewWithT(t)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		g.Expect(r.Method).To(Equal(http.MethodGet))
-		g.Expect(r.URL.Path).To(Equal("/wait-for-response"))
-		g.Expect(r.URL.Query().Get("from")).To(Equal("engram-agent"))
-		g.Expect(r.URL.Query().Get("to")).To(Equal("lead-1"))
-		g.Expect(r.URL.Query().Get("after-cursor")).To(Equal("10"))
-
-		w.WriteHeader(http.StatusOK)
-		resp := apiclient.WaitForResponseResponse{
-			Text:   "Relevant memory: always use DI",
-			Cursor: 15,
-		}
-		encErr := json.NewEncoder(w).Encode(resp)
-		g.Expect(encErr).NotTo(HaveOccurred())
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done() // Block until client disconnects.
 	}))
 	defer srv.Close()
 
-	client := apiclient.New(srv.URL, srv.Client())
-	resp, err := client.WaitForResponse(context.Background(), apiclient.WaitForResponseRequest{
-		From:        "engram-agent",
-		To:          "lead-1",
-		AfterCursor: 10,
-	})
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-	g.Expect(resp.Text).To(Equal("Relevant memory: always use DI"))
-	g.Expect(resp.Cursor).To(Equal(15))
+	client := apiclient.New(srv.URL, srv.Client())
+	_, err := client.WaitForResponse(ctx, apiclient.WaitRequest{
+		From: "a", To: "b", AfterCursor: 0,
+	})
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestWaitForResponse_AlwaysReturnsFaithfulText(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		text := rapid.StringMatching(`.{1,500}`).Draw(rt, "text")
+		cursor := rapid.IntRange(1, 100000).Draw(rt, "cursor")
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.WaitResponse{
+				Text: text, Cursor: cursor,
+			})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		resp, err := client.WaitForResponse(context.Background(), apiclient.WaitRequest{
+			From: "a", To: "b", AfterCursor: 0,
+		})
+		g.Expect(err).NotTo(HaveOccurred())
+		if err != nil {
+			return
+		}
+
+		g.Expect(resp.Text).To(Equal(text))
+		g.Expect(resp.Cursor).To(Equal(cursor))
+	})
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run tests to verify they fail**
 
-Run: `targ test -- -run TestWaitForResponse_Success ./internal/apiclient/`
-Expected: FAIL — WaitForResponse not defined
+Run: `targ test -- -run TestWaitForResponse ./internal/apiclient/`
+Expected: FAIL — WaitForResponse, WaitRequest, WaitResponse not defined
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```go
-// WaitForResponseRequest is the query for GET /wait-for-response.
-type WaitForResponseRequest struct {
+// WaitRequest is the query for GET /wait-for-response.
+type WaitRequest struct {
 	From        string
 	To          string
 	AfterCursor int
 }
 
-// WaitForResponseResponse is the response from GET /wait-for-response.
-type WaitForResponseResponse struct {
+// WaitResponse is the response from GET /wait-for-response.
+type WaitResponse struct {
 	Text   string `json:"text"`
 	Cursor int    `json:"cursor"`
 	From   string `json:"from"`
@@ -281,8 +359,8 @@ type WaitForResponseResponse struct {
 // WaitForResponse long-polls for a response message matching the filter.
 func (c *Client) WaitForResponse(
 	ctx context.Context,
-	req WaitForResponseRequest,
-) (WaitForResponseResponse, error) {
+	req WaitRequest,
+) (WaitResponse, error) {
 	url := fmt.Sprintf(
 		"%s/wait-for-response?from=%s&to=%s&after-cursor=%d",
 		c.baseURL, req.From, req.To, req.AfterCursor,
@@ -290,20 +368,20 @@ func (c *Client) WaitForResponse(
 
 	httpReq, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if reqErr != nil {
-		return WaitForResponseResponse{}, fmt.Errorf("apiclient: building request: %w", reqErr)
+		return WaitResponse{}, fmt.Errorf("apiclient: building request: %w", reqErr)
 	}
 
 	httpResp, doErr := c.doer.Do(httpReq)
 	if doErr != nil {
-		return WaitForResponseResponse{}, fmt.Errorf("apiclient: waiting for response: %w", doErr)
+		return WaitResponse{}, fmt.Errorf("apiclient: waiting for response: %w", doErr)
 	}
 	defer httpResp.Body.Close()
 
-	var resp WaitForResponseResponse
+	var resp WaitResponse
 
 	decErr := json.NewDecoder(httpResp.Body).Decode(&resp)
 	if decErr != nil {
-		return WaitForResponseResponse{}, fmt.Errorf("apiclient: decoding response: %w", decErr)
+		return WaitResponse{}, fmt.Errorf("apiclient: decoding response: %w", decErr)
 	}
 
 	if httpResp.StatusCode != http.StatusOK {
@@ -314,106 +392,226 @@ func (c *Client) WaitForResponse(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 4: Run tests to verify they pass**
 
-Run: `targ test -- -run TestWaitForResponse_Success ./internal/apiclient/`
+Run: `targ test -- -run TestWaitForResponse ./internal/apiclient/`
 Expected: PASS
 
-- [ ] **Step 5: Write test for context cancellation**
+- [ ] **Step 5: Refactor — extract shared GET-with-JSON-decode pattern**
+
+Both `WaitForResponse` and the upcoming `Subscribe`/`Status` methods follow the same pattern: build GET URL, do request, decode JSON. Extract a `doGet` helper:
 
 ```go
-func TestWaitForResponse_ContextCancelled(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+// doGet executes a GET request and decodes the JSON response into dest.
+func (c *Client) doGet(ctx context.Context, url string, dest any) error {
+	httpReq, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if reqErr != nil {
+		return fmt.Errorf("apiclient: building request: %w", reqErr)
+	}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		// Block forever — context cancellation should unblock the client.
-		select {}
-	}))
-	defer srv.Close()
+	httpResp, doErr := c.doer.Do(httpReq)
+	if doErr != nil {
+		return fmt.Errorf("apiclient: %w", doErr)
+	}
+	defer httpResp.Body.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately.
+	decErr := json.NewDecoder(httpResp.Body).Decode(dest)
+	if decErr != nil {
+		return fmt.Errorf("apiclient: decoding response: %w", decErr)
+	}
 
-	client := apiclient.New(srv.URL, srv.Client())
-	_, err := client.WaitForResponse(ctx, apiclient.WaitForResponseRequest{
-		From:        "engram-agent",
-		To:          "lead-1",
-		AfterCursor: 0,
-	})
-	g.Expect(err).To(HaveOccurred())
+	if httpResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("apiclient: server returned %d", httpResp.StatusCode)
+	}
+
+	return nil
 }
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+Rewrite `WaitForResponse` to use it. Also refactor `PostMessage` to use a `doPost` helper:
 
-Run: `targ test -- -run TestWaitForResponse_ContextCancelled ./internal/apiclient/`
+```go
+// doPost executes a POST request with JSON body and decodes the response into dest.
+func (c *Client) doPost(ctx context.Context, path string, body, dest any) error {
+	data, marshalErr := json.Marshal(body)
+	if marshalErr != nil {
+		return fmt.Errorf("apiclient: marshaling request: %w", marshalErr)
+	}
+
+	httpReq, reqErr := http.NewRequestWithContext(
+		ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(data),
+	)
+	if reqErr != nil {
+		return fmt.Errorf("apiclient: building request: %w", reqErr)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	return c.doAndDecode(httpReq, dest)
+}
+
+// doAndDecode executes a request and decodes the JSON response into dest.
+func (c *Client) doAndDecode(httpReq *http.Request, dest any) error {
+	httpResp, doErr := c.doer.Do(httpReq)
+	if doErr != nil {
+		return fmt.Errorf("apiclient: %w", doErr)
+	}
+	defer httpResp.Body.Close()
+
+	decErr := json.NewDecoder(httpResp.Body).Decode(dest)
+	if decErr != nil {
+		return fmt.Errorf("apiclient: decoding response: %w", decErr)
+	}
+
+	if httpResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("apiclient: server returned %d", httpResp.StatusCode)
+	}
+
+	return nil
+}
+```
+
+- [ ] **Step 6: Run all tests to verify refactoring didn't break anything**
+
+Run: `targ test -- -run "TestPostMessage|TestWaitForResponse" ./internal/apiclient/`
 Expected: PASS
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add internal/apiclient/client.go internal/apiclient/client_test.go
-git commit -m "feat(apiclient): add WaitForResponse long-poll client
+git commit -m "feat(apiclient): add WaitForResponse, extract shared HTTP helpers
 
 AI-Used: [claude]"
 ```
 
 ---
 
-### Task 3: API client — Subscribe
+### Task 3: API client — Subscribe and Status
 
 **Files:**
 - Modify: `internal/apiclient/client.go`
 - Modify: `internal/apiclient/client_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write failing property tests for Subscribe**
 
 ```go
-func TestSubscribe_Success(t *testing.T) {
+func TestSubscribe_AlwaysSendsAgentAndCursor(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		g.Expect(r.Method).To(Equal(http.MethodGet))
-		g.Expect(r.URL.Path).To(Equal("/subscribe"))
-		g.Expect(r.URL.Query().Get("agent")).To(Equal("lead-1"))
-		g.Expect(r.URL.Query().Get("after-cursor")).To(Equal("5"))
+		agent := rapid.StringMatching(`[a-z][a-z0-9\-]{0,19}`).Draw(rt, "agent")
+		cursor := rapid.IntRange(0, 100000).Draw(rt, "cursor")
 
-		w.WriteHeader(http.StatusOK)
-		resp := apiclient.SubscribeResponse{
-			Messages: []apiclient.ChatMessage{
-				{From: "engram-agent", To: "lead-1", Text: "memory surfaced"},
-			},
-			Cursor: 8,
-		}
-		encErr := json.NewEncoder(w).Encode(resp)
-		g.Expect(encErr).NotTo(HaveOccurred())
-	}))
-	defer srv.Close()
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			g.Expect(r.URL.Path).To(Equal("/subscribe"))
+			g.Expect(r.URL.Query().Get("agent")).To(Equal(agent))
+			g.Expect(r.URL.Query().Get("after-cursor")).To(Equal(fmt.Sprintf("%d", cursor)))
 
-	client := apiclient.New(srv.URL, srv.Client())
-	resp, err := client.Subscribe(context.Background(), apiclient.SubscribeRequest{
-		Agent:       "lead-1",
-		AfterCursor: 5,
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.SubscribeResponse{Cursor: cursor + 1})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		_, err := client.Subscribe(context.Background(), apiclient.SubscribeRequest{
+			Agent: agent, AfterCursor: cursor,
+		})
+		g.Expect(err).NotTo(HaveOccurred())
 	})
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
+}
 
-	g.Expect(resp.Messages).To(HaveLen(1))
-	g.Expect(resp.Messages[0].Text).To(Equal("memory surfaced"))
-	g.Expect(resp.Cursor).To(Equal(8))
+func TestSubscribe_AllMessagesReturnedFaithfully(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		msgCount := rapid.IntRange(0, 5).Draw(rt, "msgCount")
+		messages := make([]apiclient.ChatMessage, 0, msgCount)
+
+		for range msgCount {
+			messages = append(messages, apiclient.ChatMessage{
+				From: rapid.StringMatching(`[a-z]{3,10}`).Draw(rt, "from"),
+				To:   rapid.StringMatching(`[a-z]{3,10}`).Draw(rt, "to"),
+				Text: rapid.StringMatching(`.{1,100}`).Draw(rt, "text"),
+			})
+		}
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.SubscribeResponse{
+				Messages: messages, Cursor: 99,
+			})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		resp, err := client.Subscribe(context.Background(), apiclient.SubscribeRequest{
+			Agent: "test", AfterCursor: 0,
+		})
+		g.Expect(err).NotTo(HaveOccurred())
+		if err != nil {
+			return
+		}
+
+		g.Expect(resp.Messages).To(HaveLen(msgCount))
+
+		for i, msg := range resp.Messages {
+			g.Expect(msg.From).To(Equal(messages[i].From))
+			g.Expect(msg.To).To(Equal(messages[i].To))
+			g.Expect(msg.Text).To(Equal(messages[i].Text))
+		}
+	})
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Write failing property test for Status**
 
-Run: `targ test -- -run TestSubscribe_Success ./internal/apiclient/`
-Expected: FAIL — Subscribe not defined
+```go
+func TestStatus_AllAgentsReturnedFaithfully(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
 
-- [ ] **Step 3: Write minimal implementation**
+		agentCount := rapid.IntRange(0, 10).Draw(rt, "agentCount")
+		agents := make([]string, 0, agentCount)
+
+		for range agentCount {
+			agents = append(agents, rapid.StringMatching(`[a-z]{3,10}`).Draw(rt, "agent"))
+		}
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			g.Expect(r.URL.Path).To(Equal("/status"))
+
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.StatusResponse{
+				Running: true, Agents: agents,
+			})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		resp, err := client.Status(context.Background())
+		g.Expect(err).NotTo(HaveOccurred())
+		if err != nil {
+			return
+		}
+
+		g.Expect(resp.Agents).To(Equal(agents))
+	})
+}
+```
+
+- [ ] **Step 3: Run tests to verify they fail**
+
+Run: `targ test -- -run "TestSubscribe|TestStatus" ./internal/apiclient/`
+Expected: FAIL — types and methods not defined
+
+- [ ] **Step 4: Write minimal implementation**
 
 ```go
 // ChatMessage represents a single message from the chat file.
@@ -445,95 +643,14 @@ func (c *Client) Subscribe(
 		c.baseURL, req.Agent, req.AfterCursor,
 	)
 
-	httpReq, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if reqErr != nil {
-		return SubscribeResponse{}, fmt.Errorf("apiclient: building request: %w", reqErr)
-	}
-
-	httpResp, doErr := c.doer.Do(httpReq)
-	if doErr != nil {
-		return SubscribeResponse{}, fmt.Errorf("apiclient: subscribing: %w", doErr)
-	}
-	defer httpResp.Body.Close()
-
 	var resp SubscribeResponse
-
-	decErr := json.NewDecoder(httpResp.Body).Decode(&resp)
-	if decErr != nil {
-		return SubscribeResponse{}, fmt.Errorf("apiclient: decoding response: %w", decErr)
-	}
-
-	if httpResp.StatusCode != http.StatusOK {
-		return resp, fmt.Errorf("apiclient: server returned %d", httpResp.StatusCode)
+	if err := c.doGet(ctx, url, &resp); err != nil {
+		return SubscribeResponse{}, err
 	}
 
 	return resp, nil
 }
-```
 
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `targ test -- -run TestSubscribe_Success ./internal/apiclient/`
-Expected: PASS
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add internal/apiclient/client.go internal/apiclient/client_test.go
-git commit -m "feat(apiclient): add Subscribe long-poll client
-
-AI-Used: [claude]"
-```
-
----
-
-### Task 4: API client — Status
-
-**Files:**
-- Modify: `internal/apiclient/client.go`
-- Modify: `internal/apiclient/client_test.go`
-
-- [ ] **Step 1: Write the failing test**
-
-```go
-func TestStatus_Success(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		g.Expect(r.Method).To(Equal(http.MethodGet))
-		g.Expect(r.URL.Path).To(Equal("/status"))
-
-		w.WriteHeader(http.StatusOK)
-		resp := apiclient.StatusResponse{
-			Running: true,
-			Agents:  []string{"engram-agent", "lead-1"},
-		}
-		encErr := json.NewEncoder(w).Encode(resp)
-		g.Expect(encErr).NotTo(HaveOccurred())
-	}))
-	defer srv.Close()
-
-	client := apiclient.New(srv.URL, srv.Client())
-	resp, err := client.Status(context.Background())
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-
-	g.Expect(resp.Running).To(BeTrue())
-	g.Expect(resp.Agents).To(ConsistOf("engram-agent", "lead-1"))
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `targ test -- -run TestStatus_Success ./internal/apiclient/`
-Expected: FAIL — Status not defined
-
-- [ ] **Step 3: Write minimal implementation**
-
-```go
 // StatusResponse is the response from GET /status.
 type StatusResponse struct {
 	Running bool     `json:"running"`
@@ -542,59 +659,51 @@ type StatusResponse struct {
 
 // Status returns the server's health and connected agents.
 func (c *Client) Status(ctx context.Context) (StatusResponse, error) {
-	httpReq, reqErr := http.NewRequestWithContext(
-		ctx, http.MethodGet, c.baseURL+"/status", nil,
-	)
-	if reqErr != nil {
-		return StatusResponse{}, fmt.Errorf("apiclient: building request: %w", reqErr)
-	}
-
-	httpResp, doErr := c.doer.Do(httpReq)
-	if doErr != nil {
-		return StatusResponse{}, fmt.Errorf("apiclient: checking status: %w", doErr)
-	}
-	defer httpResp.Body.Close()
-
 	var resp StatusResponse
-
-	decErr := json.NewDecoder(httpResp.Body).Decode(&resp)
-	if decErr != nil {
-		return StatusResponse{}, fmt.Errorf("apiclient: decoding response: %w", decErr)
-	}
-
-	if httpResp.StatusCode != http.StatusOK {
-		return resp, fmt.Errorf("apiclient: server returned %d", httpResp.StatusCode)
+	if err := c.doGet(ctx, c.baseURL+"/status", &resp); err != nil {
+		return StatusResponse{}, err
 	}
 
 	return resp, nil
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 5: Run tests to verify they pass**
 
-Run: `targ test -- -run TestStatus_Success ./internal/apiclient/`
+Run: `targ test -- -run "TestSubscribe|TestStatus" ./internal/apiclient/`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Refactor — review for DRY, SOLID, simplification**
+
+Check: `Subscribe` and `WaitForResponse` both build URLs with `fmt.Sprintf`. Consider if a URL builder is warranted. With only two call sites, it's not — YAGNI.
+
+Check: All response types are standalone structs. Consider if they should share a base. They shouldn't — each endpoint has different semantics.
+
+- [ ] **Step 7: Run all apiclient tests**
+
+Run: `targ test ./internal/apiclient/`
+Expected: PASS
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add internal/apiclient/client.go internal/apiclient/client_test.go
-git commit -m "feat(apiclient): add Status health check client
+git commit -m "feat(apiclient): add Subscribe and Status clients
 
 AI-Used: [claude]"
 ```
 
 ---
 
-### Task 5: CLI command — `engram post`
+### Task 4: CLI wiring — context flow and `engram post`
 
 **Files:**
 - Create: `internal/cli/cli_api.go`
 - Create: `internal/cli/cli_api_test.go`
-- Modify: `internal/cli/cli.go` (add case to Run switch)
+- Modify: `internal/cli/cli.go` (add cases to Run, add context threading)
 - Modify: `internal/cli/targets.go` (add args struct, flags func, targ registration)
 
-- [ ] **Step 1: Write the failing test for the Run dispatch**
+- [ ] **Step 1: Write failing property test — post always sends from/to/text faithfully**
 
 ```go
 // In cli_api_test.go
@@ -603,6 +712,7 @@ package cli_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -611,51 +721,73 @@ import (
 	"engram/internal/cli"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 )
 
-func TestRunPost_Success(t *testing.T) {
+func TestRunPost_AlwaysSendsFromToTextFaithfully(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body apiclient.PostMessageRequest
-		decErr := json.NewDecoder(r.Body).Decode(&body)
-		g.Expect(decErr).NotTo(HaveOccurred())
-		g.Expect(body.From).To(Equal("lead-1"))
-		g.Expect(body.To).To(Equal("engram-agent"))
-		g.Expect(body.Text).To(Equal("hello"))
+		from := rapid.StringMatching(`[a-z][a-z0-9\-]{1,15}`).Draw(rt, "from")
+		to := rapid.StringMatching(`[a-z][a-z0-9\-]{1,15}`).Draw(rt, "to")
+		text := rapid.StringMatching(`[A-Za-z0-9 .,!]{1,80}`).Draw(rt, "text")
 
-		w.WriteHeader(http.StatusOK)
-		encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: 7})
-		g.Expect(encErr).NotTo(HaveOccurred())
-	}))
-	defer srv.Close()
+		var gotBody apiclient.PostMessageRequest
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	err := cli.Run(
-		[]string{
-			"engram", "post",
-			"--from", "lead-1",
-			"--to", "engram-agent",
-			"--text", "hello",
-			"--addr", srv.URL,
-		},
-		&stdout, &stderr, nil,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(ContainSubstring("7"))
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			decErr := json.NewDecoder(r.Body).Decode(&gotBody)
+			g.Expect(decErr).NotTo(HaveOccurred())
+
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: 1})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		var stdout, stderr bytes.Buffer
+		err := cli.Run(
+			[]string{"engram", "post", "--from", from, "--to", to, "--text", text, "--addr", srv.URL},
+			&stdout, &stderr, nil,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(gotBody.From).To(Equal(from))
+		g.Expect(gotBody.To).To(Equal(to))
+		g.Expect(gotBody.Text).To(Equal(text))
+	})
+}
+
+func TestRunPost_AlwaysPrintsCursorOnSuccess(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		cursor := rapid.IntRange(0, 100000).Draw(rt, "cursor")
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: cursor})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		var stdout, stderr bytes.Buffer
+		err := cli.Run(
+			[]string{"engram", "post", "--from", "a", "--to", "b", "--text", "c", "--addr", srv.URL},
+			&stdout, &stderr, nil,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(stdout.String()).To(Equal(fmt.Sprintf("%d\n", cursor)))
+	})
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run tests to verify they fail**
 
-Run: `targ test -- -run TestRunPost_Success ./internal/cli/`
+Run: `targ test -- -run TestRunPost ./internal/cli/`
 Expected: FAIL — unknown command: post
 
 - [ ] **Step 3: Add PostArgs and PostFlags to targets.go**
-
-Add to `internal/cli/targets.go`:
 
 ```go
 // PostArgs holds flags for `engram post`.
@@ -668,32 +800,49 @@ type PostArgs struct {
 
 // PostFlags returns the CLI flag args for the post subcommand.
 func PostFlags(a PostArgs) []string {
-	return BuildFlags(
-		"--from", a.From,
-		"--to", a.To,
-		"--text", a.Text,
-		"--addr", a.Addr,
-	)
+	return BuildFlags("--from", a.From, "--to", a.To, "--text", a.Text, "--addr", a.Addr)
 }
 ```
 
-- [ ] **Step 4: Add the `post` case to Run in cli.go**
-
-Add to the switch in `Run()`:
-
+Register in `BuildTargets`:
 ```go
-	case "post":
-		return runPost(subArgs, stdout)
+		targ.Targ(func(a PostArgs) { run("post", PostFlags(a)) }).
+			Name("post").Description("Post a message to the engram chat"),
 ```
 
-- [ ] **Step 5: Implement runPost in cli_api.go**
+- [ ] **Step 4: Thread context through Run for API commands**
+
+Modify `Run()` in `cli.go` to create context for API commands and pass it:
 
 ```go
-// Package cli — API client commands.
+	case "post", "intent", "learn", "status":
+		apiCtx, apiStop := signal.NotifyContext(
+			context.Background(),
+			os.Interrupt,
+			syscall.SIGTERM,
+		)
+		defer apiStop()
+
+		return runAPIDispatch(apiCtx, cmd, subArgs, stdout)
+	case "subscribe":
+		subCtx, subStop := signal.NotifyContext(
+			context.Background(),
+			os.Interrupt,
+			syscall.SIGTERM,
+		)
+		defer subStop()
+
+		return runSubscribe(subCtx, subArgs, stdout)
+```
+
+- [ ] **Step 5: Implement runAPIDispatch and runPost in cli_api.go**
+
+```go
 package cli
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -704,7 +853,16 @@ import (
 
 const defaultAPIAddr = "http://localhost:7932"
 
-func runPost(args []string, stdout io.Writer) error {
+func runAPIDispatch(ctx context.Context, cmd string, args []string, stdout io.Writer) error {
+	switch cmd {
+	case "post":
+		return runPost(ctx, args, stdout)
+	default:
+		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
+	}
+}
+
+func runPost(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("post", flag.ContinueOnError)
 
 	var from, to, text, addr string
@@ -718,12 +876,10 @@ func runPost(args []string, stdout io.Writer) error {
 	}
 
 	client := apiclient.New(addr, http.DefaultClient)
-	resp, err := client.PostMessage(context.Background(), apiclient.PostMessageRequest{
-		From: from,
-		To:   to,
-		Text: text,
-	})
 
+	resp, err := client.PostMessage(ctx, apiclient.PostMessageRequest{
+		From: from, To: to, Text: text,
+	})
 	if err != nil {
 		return fmt.Errorf("post: %w", err)
 	}
@@ -734,100 +890,96 @@ func runPost(args []string, stdout io.Writer) error {
 }
 ```
 
-- [ ] **Step 6: Register in Targets function**
+- [ ] **Step 6: Run tests to verify they pass**
 
-Add to `BuildTargets` in `targets.go`:
-
-```go
-		targ.Targ(func(a PostArgs) { run("post", PostFlags(a)) }).
-			Name("post").Description("Post a message to the engram chat"),
-```
-
-- [ ] **Step 7: Run test to verify it passes**
-
-Run: `targ test -- -run TestRunPost_Success ./internal/cli/`
+Run: `targ test -- -run TestRunPost ./internal/cli/`
 Expected: PASS
+
+- [ ] **Step 7: Refactor — review for DRY, naming, SOLID**
+
+Check: `runAPIDispatch` switch is clean. `runPost` follows the same flag-parse → client-call → print pattern the other commands will use. The flag parsing could become a helper, but with only one command so far, YAGNI.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add internal/cli/cli_api.go internal/cli/cli_api_test.go internal/cli/cli.go internal/cli/targets.go
-git commit -m "feat(cli): add engram post command as API client
+git commit -m "feat(cli): add engram post command with context flow from Run
 
 AI-Used: [claude]"
 ```
 
 ---
 
-### Task 6: CLI command — `engram intent`
+### Task 5: CLI command — `engram intent`
 
 **Files:**
 - Modify: `internal/cli/cli_api.go`
 - Modify: `internal/cli/cli_api_test.go`
-- Modify: `internal/cli/cli.go` (add case)
-- Modify: `internal/cli/targets.go` (add args, flags, registration)
+- Modify: `internal/cli/targets.go`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write failing property test — intent always does two-step post-then-wait**
 
 ```go
-func TestRunIntent_Success(t *testing.T) {
+func TestRunIntent_AlwaysPostsThenWaits(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
 
-	callCount := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodPost && r.URL.Path == "/message":
-			callCount++
-			w.WriteHeader(http.StatusOK)
-			encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: 10})
-			g.Expect(encErr).NotTo(HaveOccurred())
+		from := rapid.StringMatching(`[a-z]{3,10}`).Draw(rt, "from")
+		to := rapid.StringMatching(`[a-z]{3,10}`).Draw(rt, "to")
+		situation := rapid.StringMatching(`[A-Za-z0-9 ]{5,50}`).Draw(rt, "situation")
+		action := rapid.StringMatching(`[A-Za-z0-9 ]{5,50}`).Draw(rt, "action")
+		memory := rapid.StringMatching(`[A-Za-z0-9 ]{5,80}`).Draw(rt, "memory")
 
-		case r.Method == http.MethodGet && r.URL.Path == "/wait-for-response":
-			callCount++
-			g.Expect(r.URL.Query().Get("from")).To(Equal("engram-agent"))
-			g.Expect(r.URL.Query().Get("to")).To(Equal("lead-1"))
-			g.Expect(r.URL.Query().Get("after-cursor")).To(Equal("10"))
+		var calls []string
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls = append(calls, r.Method+" "+r.URL.Path)
 
 			w.WriteHeader(http.StatusOK)
-			encErr := json.NewEncoder(w).Encode(apiclient.WaitForResponseResponse{
-				Text:   "Relevant memory: use DI everywhere",
-				Cursor: 12,
-			})
-			g.Expect(encErr).NotTo(HaveOccurred())
 
-		default:
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	defer srv.Close()
+			switch {
+			case r.Method == http.MethodPost:
+				encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: 10})
+				g.Expect(encErr).NotTo(HaveOccurred())
+			case r.Method == http.MethodGet:
+				encErr := json.NewEncoder(w).Encode(apiclient.WaitResponse{Text: memory, Cursor: 12})
+				g.Expect(encErr).NotTo(HaveOccurred())
+			}
+		}))
+		defer srv.Close()
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	err := cli.Run(
-		[]string{
-			"engram", "intent",
-			"--from", "lead-1",
-			"--to", "engram-agent",
-			"--situation", "about to refactor the chat module",
-			"--planned-action", "split poster into two files",
-			"--addr", srv.URL,
-		},
-		&stdout, &stderr, nil,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(ContainSubstring("Relevant memory: use DI everywhere"))
-	g.Expect(callCount).To(Equal(2))
+		var stdout, stderr bytes.Buffer
+		err := cli.Run(
+			[]string{
+				"engram", "intent",
+				"--from", from, "--to", to,
+				"--situation", situation, "--planned-action", action,
+				"--addr", srv.URL,
+			},
+			&stdout, &stderr, nil,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		// Invariant: always post first, then wait.
+		g.Expect(calls).To(HaveLen(2))
+		g.Expect(calls[0]).To(Equal("POST /message"))
+		g.Expect(calls[1]).To(HavePrefix("GET /wait-for-response"))
+
+		// Invariant: output always contains the surfaced memory text.
+		g.Expect(stdout.String()).To(ContainSubstring(memory))
+	})
 }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `targ test -- -run TestRunIntent_Success ./internal/cli/`
+Run: `targ test -- -run TestRunIntent ./internal/cli/`
 Expected: FAIL — unknown command: intent
 
-- [ ] **Step 3: Add IntentArgs and IntentFlags to targets.go**
+- [ ] **Step 3: Add IntentArgs/IntentFlags to targets.go, implement runIntent**
 
+In targets.go:
 ```go
 // IntentArgs holds flags for `engram intent`.
 type IntentArgs struct {
@@ -841,26 +993,28 @@ type IntentArgs struct {
 // IntentFlags returns the CLI flag args for the intent subcommand.
 func IntentFlags(a IntentArgs) []string {
 	return BuildFlags(
-		"--from", a.From,
-		"--to", a.To,
-		"--situation", a.Situation,
-		"--planned-action", a.PlannedAction,
+		"--from", a.From, "--to", a.To,
+		"--situation", a.Situation, "--planned-action", a.PlannedAction,
 		"--addr", a.Addr,
 	)
 }
 ```
 
-- [ ] **Step 4: Add `intent` case to Run and implement runIntent**
-
-Add to cli.go switch:
+Register:
 ```go
-	case "intent":
-		return runIntent(subArgs, stdout)
+		targ.Targ(func(a IntentArgs) { run("intent", IntentFlags(a)) }).
+			Name("intent").Description("Announce intent and wait for surfaced memories"),
 ```
 
-Add to cli_api.go:
+Add to `runAPIDispatch`:
 ```go
-func runIntent(args []string, stdout io.Writer) error {
+	case "intent":
+		return runIntent(ctx, args, stdout)
+```
+
+In cli_api.go:
+```go
+func runIntent(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("intent", flag.ContinueOnError)
 
 	var from, to, situation, plannedAction, addr string
@@ -876,22 +1030,17 @@ func runIntent(args []string, stdout io.Writer) error {
 
 	client := apiclient.New(addr, http.DefaultClient)
 
-	// Step 1: Post the intent message.
 	text := fmt.Sprintf("INTENT: situation=%s planned_action=%s", situation, plannedAction)
-	postResp, postErr := client.PostMessage(context.Background(), apiclient.PostMessageRequest{
-		From: from,
-		To:   to,
-		Text: text,
+
+	postResp, postErr := client.PostMessage(ctx, apiclient.PostMessageRequest{
+		From: from, To: to, Text: text,
 	})
 	if postErr != nil {
 		return fmt.Errorf("intent: posting: %w", postErr)
 	}
 
-	// Step 2: Block until the engram-agent responds.
-	waitResp, waitErr := client.WaitForResponse(context.Background(), apiclient.WaitForResponseRequest{
-		From:        to,
-		To:          from,
-		AfterCursor: postResp.Cursor,
+	waitResp, waitErr := client.WaitForResponse(ctx, apiclient.WaitRequest{
+		From: to, To: from, AfterCursor: postResp.Cursor,
 	})
 	if waitErr != nil {
 		return fmt.Errorf("intent: waiting: %w", waitErr)
@@ -903,84 +1052,150 @@ func runIntent(args []string, stdout io.Writer) error {
 }
 ```
 
-- [ ] **Step 5: Register in BuildTargets**
+- [ ] **Step 4: Run test to verify it passes**
 
-```go
-		targ.Targ(func(a IntentArgs) { run("intent", IntentFlags(a)) }).
-			Name("intent").Description("Announce intent and wait for surfaced memories"),
-```
-
-- [ ] **Step 6: Run test to verify it passes**
-
-Run: `targ test -- -run TestRunIntent_Success ./internal/cli/`
+Run: `targ test -- -run TestRunIntent ./internal/cli/`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 5: Refactor — review for DRY with runPost**
+
+Both `runPost` and `runIntent` parse `--from`, `--to`, `--addr` flags. Extract a shared `apiFlags` struct and `parseAPIFlags` helper if this pattern repeats with `runLearn` too. Wait until Task 6 to confirm the pattern before extracting.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add internal/cli/cli_api.go internal/cli/cli_api_test.go internal/cli/cli.go internal/cli/targets.go
-git commit -m "feat(cli): add engram intent command (post + wait-for-response)
+git add internal/cli/cli_api.go internal/cli/cli_api_test.go internal/cli/targets.go
+git commit -m "feat(cli): add engram intent command (post + wait two-step)
 
 AI-Used: [claude]"
 ```
 
 ---
 
-### Task 7: CLI command — `engram learn`
+### Task 6: CLI command — `engram learn`
 
 **Files:**
 - Modify: `internal/cli/cli_api.go`
 - Modify: `internal/cli/cli_api_test.go`
-- Modify: `internal/cli/cli.go` (add case)
-- Modify: `internal/cli/targets.go` (add args, flags, registration)
+- Modify: `internal/cli/targets.go`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write failing property tests**
 
 ```go
-func TestRunLearn_Feedback(t *testing.T) {
+func TestRunLearn_FeedbackAlwaysIncludesAllFields(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
 
-	var gotBody apiclient.PostMessageRequest
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		decErr := json.NewDecoder(r.Body).Decode(&gotBody)
-		g.Expect(decErr).NotTo(HaveOccurred())
+		situation := rapid.StringMatching(`[A-Za-z0-9 ]{5,40}`).Draw(rt, "situation")
+		behavior := rapid.StringMatching(`[A-Za-z0-9 ]{5,40}`).Draw(rt, "behavior")
+		impact := rapid.StringMatching(`[A-Za-z0-9 ]{5,40}`).Draw(rt, "impact")
+		action := rapid.StringMatching(`[A-Za-z0-9 ]{5,40}`).Draw(rt, "action")
 
-		w.WriteHeader(http.StatusOK)
-		encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: 20})
-		g.Expect(encErr).NotTo(HaveOccurred())
-	}))
-	defer srv.Close()
+		var gotBody apiclient.PostMessageRequest
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	err := cli.Run(
-		[]string{
-			"engram", "learn",
-			"--from", "lead-1",
-			"--type", "feedback",
-			"--situation", "refactoring chat module",
-			"--behavior", "split large files into focused modules",
-			"--impact", "easier to test and review",
-			"--action", "continue splitting when files exceed 300 lines",
-			"--addr", srv.URL,
-		},
-		&stdout, &stderr, nil,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(gotBody.From).To(Equal("lead-1"))
-	g.Expect(gotBody.Text).To(ContainSubstring("feedback"))
-	g.Expect(gotBody.Text).To(ContainSubstring("refactoring chat module"))
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			decErr := json.NewDecoder(r.Body).Decode(&gotBody)
+			g.Expect(decErr).NotTo(HaveOccurred())
+
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: 1})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		var stdout, stderr bytes.Buffer
+		err := cli.Run(
+			[]string{
+				"engram", "learn", "--from", "lead-1", "--type", "feedback",
+				"--situation", situation, "--behavior", behavior,
+				"--impact", impact, "--action", action,
+				"--addr", srv.URL,
+			},
+			&stdout, &stderr, nil,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(gotBody.Text).To(ContainSubstring(situation))
+		g.Expect(gotBody.Text).To(ContainSubstring(behavior))
+		g.Expect(gotBody.Text).To(ContainSubstring(impact))
+		g.Expect(gotBody.Text).To(ContainSubstring(action))
+		g.Expect(gotBody.Text).To(ContainSubstring("feedback"))
+	})
+}
+
+func TestRunLearn_FactAlwaysIncludesAllFields(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		situation := rapid.StringMatching(`[A-Za-z0-9 ]{5,40}`).Draw(rt, "situation")
+		subject := rapid.StringMatching(`[A-Za-z0-9 ]{3,20}`).Draw(rt, "subject")
+		predicate := rapid.StringMatching(`[A-Za-z0-9 ]{3,20}`).Draw(rt, "predicate")
+		object := rapid.StringMatching(`[A-Za-z0-9 ]{3,30}`).Draw(rt, "object")
+
+		var gotBody apiclient.PostMessageRequest
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			decErr := json.NewDecoder(r.Body).Decode(&gotBody)
+			g.Expect(decErr).NotTo(HaveOccurred())
+
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: 1})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		var stdout, stderr bytes.Buffer
+		err := cli.Run(
+			[]string{
+				"engram", "learn", "--from", "lead-1", "--type", "fact",
+				"--situation", situation, "--subject", subject,
+				"--predicate", predicate, "--object", object,
+				"--addr", srv.URL,
+			},
+			&stdout, &stderr, nil,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(gotBody.Text).To(ContainSubstring(situation))
+		g.Expect(gotBody.Text).To(ContainSubstring(subject))
+		g.Expect(gotBody.Text).To(ContainSubstring(predicate))
+		g.Expect(gotBody.Text).To(ContainSubstring(object))
+		g.Expect(gotBody.Text).To(ContainSubstring("fact"))
+	})
+}
+
+func TestRunLearn_InvalidTypeAlwaysErrors(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		// Generate any type string that is NOT "feedback" or "fact".
+		badType := rapid.StringMatching(`[a-z]{1,10}`).
+			Filter(func(s string) bool { return s != "feedback" && s != "fact" }).
+			Draw(rt, "badType")
+
+		var stdout, stderr bytes.Buffer
+		err := cli.Run(
+			[]string{
+				"engram", "learn", "--from", "a", "--type", badType,
+				"--situation", "x", "--addr", "http://localhost:1",
+			},
+			&stdout, &stderr, nil,
+		)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("must be 'feedback' or 'fact'"))
+	})
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run tests to verify they fail**
 
-Run: `targ test -- -run TestRunLearn_Feedback ./internal/cli/`
+Run: `targ test -- -run TestRunLearn ./internal/cli/`
 Expected: FAIL — unknown command: learn
 
-- [ ] **Step 3: Add LearnArgs and LearnFlags to targets.go**
+- [ ] **Step 3: Add LearnArgs/LearnFlags, implement runLearn**
 
+In targets.go:
 ```go
 // LearnArgs holds flags for `engram learn`.
 type LearnArgs struct {
@@ -999,31 +1214,25 @@ type LearnArgs struct {
 // LearnFlags returns the CLI flag args for the learn subcommand.
 func LearnFlags(a LearnArgs) []string {
 	return BuildFlags(
-		"--from", a.From,
-		"--type", a.Type,
-		"--situation", a.Situation,
-		"--behavior", a.Behavior,
-		"--impact", a.Impact,
-		"--action", a.Action,
-		"--subject", a.Subject,
-		"--predicate", a.Predicate,
-		"--object", a.Object,
+		"--from", a.From, "--type", a.Type, "--situation", a.Situation,
+		"--behavior", a.Behavior, "--impact", a.Impact, "--action", a.Action,
+		"--subject", a.Subject, "--predicate", a.Predicate, "--object", a.Object,
 		"--addr", a.Addr,
 	)
 }
 ```
 
-- [ ] **Step 4: Add `learn` case and implement runLearn**
-
-Add to cli.go switch:
+Register and add to `runAPIDispatch`:
 ```go
 	case "learn":
-		return runLearn(subArgs, stdout)
+		return runLearn(ctx, args, stdout)
 ```
 
-Add to cli_api.go:
+In cli_api.go:
 ```go
-func runLearn(args []string, stdout io.Writer) error {
+var errLearnTypeMustBeFeedbackOrFact = errors.New("learn: --type must be 'feedback' or 'fact'")
+
+func runLearn(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("learn", flag.ContinueOnError)
 
 	var from, learnType, situation, addr string
@@ -1044,30 +1253,16 @@ func runLearn(args []string, stdout io.Writer) error {
 		return fmt.Errorf("learn: %w", parseErr)
 	}
 
-	var text string
-
-	switch learnType {
-	case "feedback":
-		text = fmt.Sprintf(
-			`{"type":"feedback","situation":%q,"behavior":%q,"impact":%q,"action":%q}`,
-			situation, behavior, impact, action,
-		)
-	case "fact":
-		text = fmt.Sprintf(
-			`{"type":"fact","situation":%q,"subject":%q,"predicate":%q,"object":%q}`,
-			situation, subject, predicate, object,
-		)
-	default:
-		return fmt.Errorf("learn: --type must be 'feedback' or 'fact', got %q", learnType)
+	text, buildErr := buildLearnText(learnType, situation, behavior, impact, action, subject, predicate, object)
+	if buildErr != nil {
+		return buildErr
 	}
 
 	client := apiclient.New(addr, http.DefaultClient)
-	resp, err := client.PostMessage(context.Background(), apiclient.PostMessageRequest{
-		From: from,
-		To:   "engram-agent",
-		Text: text,
-	})
 
+	resp, err := client.PostMessage(ctx, apiclient.PostMessageRequest{
+		From: from, To: "engram-agent", Text: text,
+	})
 	if err != nil {
 		return fmt.Errorf("learn: %w", err)
 	}
@@ -1076,97 +1271,68 @@ func runLearn(args []string, stdout io.Writer) error {
 
 	return printErr
 }
-```
 
-- [ ] **Step 5: Register in BuildTargets**
+func buildLearnText(
+	learnType, situation, behavior, impact, action, subject, predicate, object string,
+) (string, error) {
+	switch learnType {
+	case "feedback":
+		text, marshalErr := json.Marshal(map[string]string{
+			"type": "feedback", "situation": situation,
+			"behavior": behavior, "impact": impact, "action": action,
+		})
+		if marshalErr != nil {
+			return "", fmt.Errorf("learn: %w", marshalErr)
+		}
 
-```go
-		targ.Targ(func(a LearnArgs) { run("learn", LearnFlags(a)) }).
-			Name("learn").Description("Record a learning (feedback or fact)"),
-```
+		return string(text), nil
+	case "fact":
+		text, marshalErr := json.Marshal(map[string]string{
+			"type": "fact", "situation": situation,
+			"subject": subject, "predicate": predicate, "object": object,
+		})
+		if marshalErr != nil {
+			return "", fmt.Errorf("learn: %w", marshalErr)
+		}
 
-- [ ] **Step 6: Run test to verify it passes**
-
-Run: `targ test -- -run TestRunLearn_Feedback ./internal/cli/`
-Expected: PASS
-
-- [ ] **Step 7: Write test for fact type**
-
-```go
-func TestRunLearn_Fact(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var gotBody apiclient.PostMessageRequest
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		decErr := json.NewDecoder(r.Body).Decode(&gotBody)
-		g.Expect(decErr).NotTo(HaveOccurred())
-
-		w.WriteHeader(http.StatusOK)
-		encErr := json.NewEncoder(w).Encode(apiclient.PostMessageResponse{Cursor: 21})
-		g.Expect(encErr).NotTo(HaveOccurred())
-	}))
-	defer srv.Close()
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	err := cli.Run(
-		[]string{
-			"engram", "learn",
-			"--from", "lead-1",
-			"--type", "fact",
-			"--situation", "project architecture",
-			"--subject", "engram",
-			"--predicate", "uses",
-			"--object", "dependency injection for all I/O",
-			"--addr", srv.URL,
-		},
-		&stdout, &stderr, nil,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(gotBody.Text).To(ContainSubstring("fact"))
-	g.Expect(gotBody.Text).To(ContainSubstring("dependency injection"))
+		return string(text), nil
+	default:
+		return "", fmt.Errorf("%w, got %q", errLearnTypeMustBeFeedbackOrFact, learnType)
+	}
 }
 ```
 
-- [ ] **Step 8: Run test to verify it passes**
+- [ ] **Step 4: Run tests to verify they pass**
 
-Run: `targ test -- -run TestRunLearn_Fact ./internal/cli/`
+Run: `targ test -- -run TestRunLearn ./internal/cli/`
 Expected: PASS
 
-- [ ] **Step 9: Write test for invalid type**
+- [ ] **Step 5: Refactor — extract shared flag parsing pattern**
+
+All three commands (`runPost`, `runIntent`, `runLearn`) parse `--addr` and create a client. Extract:
 
 ```go
-func TestRunLearn_InvalidType(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+func parseAddr(fs *flag.FlagSet) *string {
+	addr := fs.String("addr", defaultAPIAddr, "API server address")
+	return addr
+}
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	err := cli.Run(
-		[]string{
-			"engram", "learn",
-			"--from", "lead-1",
-			"--type", "bogus",
-			"--situation", "test",
-			"--addr", "http://localhost:1",
-		},
-		&stdout, &stderr, nil,
-	)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("must be 'feedback' or 'fact'"))
+func newClientFromAddr(addr string) *apiclient.Client {
+	return apiclient.New(addr, http.DefaultClient)
 }
 ```
 
-- [ ] **Step 10: Run test to verify it passes**
+Review if this is worth it — three call sites is borderline. If it reduces duplication meaningfully, keep it. If it just moves two lines into one, skip it.
 
-Run: `targ test -- -run TestRunLearn_InvalidType ./internal/cli/`
+- [ ] **Step 6: Run all CLI tests**
+
+Run: `targ test -- -run "TestRunPost|TestRunIntent|TestRunLearn" ./internal/cli/`
 Expected: PASS
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add internal/cli/cli_api.go internal/cli/cli_api_test.go internal/cli/cli.go internal/cli/targets.go
+git add internal/cli/cli_api.go internal/cli/cli_api_test.go internal/cli/targets.go
 git commit -m "feat(cli): add engram learn command (feedback and fact types)
 
 AI-Used: [claude]"
@@ -1174,29 +1340,26 @@ AI-Used: [claude]"
 
 ---
 
-### Task 8: CLI command — `engram subscribe`
+### Task 7: CLI commands — `engram subscribe` and `engram status`
 
 **Files:**
 - Modify: `internal/cli/cli_api.go`
 - Modify: `internal/cli/cli_api_test.go`
-- Modify: `internal/cli/cli.go` (add case)
-- Modify: `internal/cli/targets.go` (add args, flags, registration)
+- Modify: `internal/cli/cli.go`
+- Modify: `internal/cli/targets.go`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write failing test for subscribe — always prints messages as they arrive**
 
 ```go
-func TestRunSubscribe_PrintsMessages(t *testing.T) {
+func TestRunSubscribe_AlwaysPrintsReceivedMessages(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	callCount := 0
+	firstCall := true
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		g.Expect(r.URL.Query().Get("agent")).To(Equal("lead-1"))
-
-		w.WriteHeader(http.StatusOK)
-
-		if callCount == 1 {
+		if firstCall {
+			firstCall = false
+			w.WriteHeader(http.StatusOK)
 			encErr := json.NewEncoder(w).Encode(apiclient.SubscribeResponse{
 				Messages: []apiclient.ChatMessage{
 					{From: "engram-agent", To: "lead-1", Text: "memory: use DI"},
@@ -1204,56 +1367,84 @@ func TestRunSubscribe_PrintsMessages(t *testing.T) {
 				Cursor: 5,
 			})
 			g.Expect(encErr).NotTo(HaveOccurred())
-		} else {
-			// Second call: block until context cancelled (simulates waiting).
-			<-r.Context().Done()
+
+			return
 		}
+
+		// Second call: block until client disconnects.
+		<-r.Context().Done()
 	}))
 	defer srv.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
+	var stdout, stderr bytes.Buffer
 
 	done := make(chan error, 1)
 	go func() {
 		done <- cli.RunWithContext(
 			ctx,
-			[]string{
-				"engram", "subscribe",
-				"--agent", "lead-1",
-				"--addr", srv.URL,
-			},
+			[]string{"engram", "subscribe", "--agent", "lead-1", "--addr", srv.URL},
 			&stdout, &stderr, nil,
 		)
 	}()
 
-	// Give it time to print the first batch.
-	time.Sleep(100 * time.Millisecond)
+	// Wait for output, then cancel.
+	g.Eventually(func() string { return stdout.String() }).
+		Should(ContainSubstring("memory: use DI"))
 	cancel()
-	err := <-done
-
-	// Context cancellation is not an error.
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("context canceled"))
-	}
-
-	g.Expect(stdout.String()).To(ContainSubstring("memory: use DI"))
+	<-done
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `targ test -- -run TestRunSubscribe_PrintsMessages ./internal/cli/`
-Expected: FAIL — RunWithContext not defined, unknown command: subscribe
-
-- [ ] **Step 3: Add RunWithContext to cli.go**
-
-Add a context-accepting variant of Run:
+- [ ] **Step 2: Write failing test for status — always prints JSON with agents**
 
 ```go
-// RunWithContext is like Run but accepts a context for cancellation.
+func TestRunStatus_AlwaysPrintsAgentList(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		agentCount := rapid.IntRange(0, 5).Draw(rt, "agentCount")
+		agents := make([]string, 0, agentCount)
+
+		for range agentCount {
+			agents = append(agents, rapid.StringMatching(`[a-z]{3,10}`).Draw(rt, "agent"))
+		}
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			encErr := json.NewEncoder(w).Encode(apiclient.StatusResponse{
+				Running: true, Agents: agents,
+			})
+			g.Expect(encErr).NotTo(HaveOccurred())
+		}))
+		defer srv.Close()
+
+		var stdout, stderr bytes.Buffer
+		err := cli.Run(
+			[]string{"engram", "status", "--addr", srv.URL},
+			&stdout, &stderr, nil,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		// Invariant: all agent names appear in output.
+		for _, agent := range agents {
+			g.Expect(stdout.String()).To(ContainSubstring(agent))
+		}
+	})
+}
+```
+
+- [ ] **Step 3: Run tests to verify they fail**
+
+Run: `targ test -- -run "TestRunSubscribe|TestRunStatus" ./internal/cli/`
+Expected: FAIL — RunWithContext not defined, unknown commands
+
+- [ ] **Step 4: Add RunWithContext to cli.go**
+
+```go
+// RunWithContext is like Run but accepts a context for long-running commands.
 func RunWithContext(
 	ctx context.Context,
 	args []string,
@@ -1276,7 +1467,7 @@ func RunWithContext(
 }
 ```
 
-- [ ] **Step 4: Add SubscribeArgs, SubscribeFlags, and implement runSubscribe**
+- [ ] **Step 5: Add SubscribeArgs, StatusArgs, implement runSubscribe and runStatus**
 
 In targets.go:
 ```go
@@ -1289,18 +1480,26 @@ type SubscribeArgs struct {
 
 // SubscribeFlags returns the CLI flag args for the subscribe subcommand.
 func SubscribeFlags(a SubscribeArgs) []string {
-	return BuildFlags(
-		"--agent", a.Agent,
-		"--after-cursor", a.AfterCursor,
-		"--addr", a.Addr,
-	)
+	return BuildFlags("--agent", a.Agent, "--after-cursor", a.AfterCursor, "--addr", a.Addr)
+}
+
+// StatusArgs holds flags for `engram status`.
+type StatusArgs struct {
+	Addr string `targ:"flag,name=addr,desc=API server address"`
+}
+
+// StatusFlags returns the CLI flag args for the status subcommand.
+func StatusFlags(a StatusArgs) []string {
+	return BuildFlags("--addr", a.Addr)
 }
 ```
 
-Register in BuildTargets:
+Register both in `BuildTargets`.
+
+Add `"status"` to the `runAPIDispatch` case in `Run()`:
 ```go
-		targ.Targ(func(a SubscribeArgs) { run("subscribe", SubscribeFlags(a)) }).
-			Name("subscribe").Description("Subscribe to messages for an agent"),
+	case "status":
+		return runStatus(ctx, args, stdout)
 ```
 
 In cli_api.go:
@@ -1323,16 +1522,16 @@ func runSubscribe(ctx context.Context, args []string, stdout io.Writer) error {
 
 	for {
 		resp, err := client.Subscribe(ctx, apiclient.SubscribeRequest{
-			Agent:       agent,
-			AfterCursor: cursor,
+			Agent: agent, AfterCursor: cursor,
 		})
 		if err != nil {
 			return fmt.Errorf("subscribe: %w", err)
 		}
 
 		for _, msg := range resp.Messages {
-			_, printErr := fmt.Fprintf(stdout, "[%s -> %s] %s\n", msg.From, msg.To, msg.Text)
-			if printErr != nil {
+			if _, printErr := fmt.Fprintf(
+				stdout, "[%s -> %s] %s\n", msg.From, msg.To, msg.Text,
+			); printErr != nil {
 				return printErr
 			}
 		}
@@ -1340,99 +1539,8 @@ func runSubscribe(ctx context.Context, args []string, stdout io.Writer) error {
 		cursor = resp.Cursor
 	}
 }
-```
 
-- [ ] **Step 5: Run test to verify it passes**
-
-Run: `targ test -- -run TestRunSubscribe_PrintsMessages ./internal/cli/`
-Expected: PASS
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add internal/cli/cli_api.go internal/cli/cli_api_test.go internal/cli/cli.go internal/cli/targets.go
-git commit -m "feat(cli): add engram subscribe command (long-poll loop)
-
-AI-Used: [claude]"
-```
-
----
-
-### Task 9: CLI command — `engram status`
-
-**Files:**
-- Modify: `internal/cli/cli_api.go`
-- Modify: `internal/cli/cli_api_test.go`
-- Modify: `internal/cli/cli.go` (add case)
-- Modify: `internal/cli/targets.go` (add args, flags, registration)
-
-- [ ] **Step 1: Write the failing test**
-
-```go
-func TestRunStatus_Success(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		encErr := json.NewEncoder(w).Encode(apiclient.StatusResponse{
-			Running: true,
-			Agents:  []string{"engram-agent", "lead-1"},
-		})
-		g.Expect(encErr).NotTo(HaveOccurred())
-	}))
-	defer srv.Close()
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	err := cli.Run(
-		[]string{
-			"engram", "status",
-			"--addr", srv.URL,
-		},
-		&stdout, &stderr, nil,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(ContainSubstring("running"))
-	g.Expect(stdout.String()).To(ContainSubstring("engram-agent"))
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `targ test -- -run TestRunStatus_Success ./internal/cli/`
-Expected: FAIL — unknown command: status
-
-- [ ] **Step 3: Add StatusArgs, StatusFlags, and implement runStatus**
-
-In targets.go:
-```go
-// StatusArgs holds flags for `engram status`.
-type StatusArgs struct {
-	Addr string `targ:"flag,name=addr,desc=API server address"`
-}
-
-// StatusFlags returns the CLI flag args for the status subcommand.
-func StatusFlags(a StatusArgs) []string {
-	return BuildFlags("--addr", a.Addr)
-}
-```
-
-Register in BuildTargets:
-```go
-		targ.Targ(func(a StatusArgs) { run("status", StatusFlags(a)) }).
-			Name("status").Description("Check engram server status"),
-```
-
-Add to cli.go switch:
-```go
-	case "status":
-		return runStatus(subArgs, stdout)
-```
-
-In cli_api.go:
-```go
-func runStatus(args []string, stdout io.Writer) error {
+func runStatus(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("status", flag.ContinueOnError)
 
 	var addr string
@@ -1444,7 +1552,7 @@ func runStatus(args []string, stdout io.Writer) error {
 
 	client := apiclient.New(addr, http.DefaultClient)
 
-	resp, err := client.Status(context.Background())
+	resp, err := client.Status(ctx)
 	if err != nil {
 		return fmt.Errorf("status: %w", err)
 	}
@@ -1456,23 +1564,34 @@ func runStatus(args []string, stdout io.Writer) error {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 6: Run tests to verify they pass**
 
-Run: `targ test -- -run TestRunStatus_Success ./internal/cli/`
+Run: `targ test -- -run "TestRunSubscribe|TestRunStatus" ./internal/cli/`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Refactor — deduplicate flag parsing across all 5 commands**
+
+All commands parse `--addr` with the same default. Review whether a shared `parseAddrFlag` is warranted now that all 5 commands exist. If 4+ commands share the exact same pattern, extract it. Otherwise leave as-is.
+
+Review `runSubscribe` loop — does context cancellation propagate cleanly? The `client.Subscribe` call uses `ctx`, so yes.
+
+- [ ] **Step 8: Run full test suite**
+
+Run: `targ test ./internal/cli/ ./internal/apiclient/`
+Expected: PASS
+
+- [ ] **Step 9: Commit**
 
 ```bash
 git add internal/cli/cli_api.go internal/cli/cli_api_test.go internal/cli/cli.go internal/cli/targets.go
-git commit -m "feat(cli): add engram status command
+git commit -m "feat(cli): add engram subscribe and status commands
 
 AI-Used: [claude]"
 ```
 
 ---
 
-### Task 10: Full suite green + quality check
+### Task 8: Full suite green + quality check
 
 **Files:**
 - No new files
@@ -1489,22 +1608,37 @@ Expected: All checks pass (lint, coverage, vet)
 
 - [ ] **Step 3: Fix any issues found**
 
-Address any lint, coverage, or vet issues. Common fixes:
+Common fixes:
 - Add `t.Parallel()` to any subtests missing it
-- Add nil guards after gomega assertions
+- Add nil guards after gomega assertions (`if err != nil { return }`)
 - Fix line length > 120 chars
-- Name any magic numbers as constants
+- Name magic numbers as constants
+- Wrap errors with context: `fmt.Errorf("context: %w", err)` not bare `return err`
+- Use `http.NewRequestWithContext` not `http.NewRequest`
 
 - [ ] **Step 4: Re-run quality check**
 
 Run: `targ check-full`
 Expected: All checks pass
 
-- [ ] **Step 5: Commit any fixes**
+- [ ] **Step 5: Final refactor pass across all new code**
+
+Review all new files for:
+- **DRY:** Any repeated patterns across `cli_api.go` that should be extracted?
+- **SOLID:** Does each function have a single responsibility?
+- **Naming:** Are variable names descriptive? (`addr` not `a`, `cursor` not `c`)
+- **Error wrapping:** Every error wrapped with context?
+
+- [ ] **Step 6: Run full quality check after refactoring**
+
+Run: `targ check-full`
+Expected: All checks pass
+
+- [ ] **Step 7: Commit any fixes**
 
 ```bash
 git add -A
-git commit -m "fix: address lint and coverage issues from stage 0
+git commit -m "fix: address lint, coverage, and style issues from stage 0
 
 AI-Used: [claude]"
 ```
