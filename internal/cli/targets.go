@@ -182,6 +182,13 @@ type RecallArgs struct {
 	Query       string `targ:"flag,name=query,desc=search query (omit for summary mode)"`
 }
 
+// ServerUpArgs holds flags for `engram server up`.
+type ServerUpArgs struct {
+	ChatFile string `targ:"flag,name=chat-file,desc=chat file path"`
+	LogFile  string `targ:"flag,name=log-file,desc=log file path (optional)"`
+	Addr     string `targ:"flag,name=addr,desc=listen address"`
+}
+
 // ShowArgs holds parsed flags for the show subcommand.
 type ShowArgs struct {
 	Name    string `targ:"flag,name=name,desc=memory slug to display"`
@@ -372,6 +379,16 @@ func BuildHoldGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup
 			args := append([]string{"engram", "hold", "check"}, HoldCheckFlags(a)...)
 			RunSafe(args, stdout, stderr, stdin)
 		}).Name("check").Description("Evaluate auto-conditions and release met holds"),
+	)
+}
+
+// BuildServerGroup builds the targ group for server subcommands.
+func BuildServerGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup {
+	return targ.Group("server",
+		targ.Targ(func(a ServerUpArgs) {
+			args := append([]string{"engram", "server", "up"}, ServerUpFlags(a)...)
+			RunSafe(args, stdout, stderr, stdin)
+		}).Name("up").Description("Start the engram API server"),
 	)
 }
 
@@ -587,6 +604,11 @@ func RunSafe(args []string, stdout, stderr io.Writer, stdin io.Reader) {
 	}
 }
 
+// ServerUpFlags returns the CLI flag args for the server up subcommand.
+func ServerUpFlags(a ServerUpArgs) []string {
+	return BuildFlags("--chat-file", a.ChatFile, "--log-file", a.LogFile, "--addr", a.Addr)
+}
+
 // ShowFlags returns the CLI flag args for the show subcommand.
 func ShowFlags(a ShowArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir, "--name", a.Name)
@@ -618,6 +640,7 @@ func Targets(stdout, stderr io.Writer, stdin io.Reader) []any {
 		BuildDispatchGroup(stdout, stderr, stdin),
 		BuildHoldGroup(stdout, stderr, stdin),
 		BuildAgentGroup(stdout, stderr, stdin),
+		BuildServerGroup(stdout, stderr, stdin),
 	)
 }
 

@@ -615,6 +615,18 @@ func TestBuildHoldGroup(t *testing.T) {
 	})
 }
 
+func TestBuildServerGroup(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns a non-nil group", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		group := cli.BuildServerGroup(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		g.Expect(group).NotTo(gomega.BeNil())
+	})
+}
+
 func TestBuildTargets(t *testing.T) {
 	t.Parallel()
 
@@ -1153,6 +1165,34 @@ func TestRunSafe(t *testing.T) {
 	})
 }
 
+func TestServerUpFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("all fields populated", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ServerUpFlags(cli.ServerUpArgs{
+			ChatFile: "/tmp/chat.toml",
+			LogFile:  "/tmp/server.log",
+			Addr:     "localhost:9000",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--chat-file", "/tmp/chat.toml",
+			"--log-file", "/tmp/server.log",
+			"--addr", "localhost:9000",
+		}))
+	})
+
+	t.Run("empty fields omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ServerUpFlags(cli.ServerUpArgs{})
+		g.Expect(result).To(gomega.BeEmpty())
+	})
+}
+
 func TestShowFlags(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -1239,7 +1279,7 @@ func TestTargets(t *testing.T) {
 
 		// Construction doesn't do I/O — just builds targ target objects.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(targets).To(gomega.HaveLen(11))
+		g.Expect(targets).To(gomega.HaveLen(12))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {

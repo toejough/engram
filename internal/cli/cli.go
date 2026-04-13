@@ -12,11 +12,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	"engram/internal/anthropic"
@@ -37,9 +35,11 @@ var (
 
 // Run dispatches to the appropriate subcommand based on args.
 // Output is written to stdout. Errors are returned (caller logs to stderr, exit 0).
+//
+//nolint:cyclop // dispatch function; complexity grows linearly with commands, not with logic
 func Run(
 	args []string,
-	stdout, _ io.Writer,
+	stdout, stderr io.Writer,
 	_ io.Reader,
 ) error {
 	if len(args) < minArgs {
@@ -61,23 +61,11 @@ func Run(
 	case "agent":
 		return runAgentDispatch(subArgs, stdout, osTmuxSpawn)
 	case "dispatch":
-		dispatchCtx, dispatchStop := signal.NotifyContext(
-			context.Background(),
-			os.Interrupt,
-			syscall.SIGTERM,
-		)
-		defer dispatchStop()
-
-		return runDispatchDispatch(dispatchCtx, subArgs, stdout)
+		return runDispatchWithSignal(subArgs, stdout)
+	case serverCmd:
+		return runServerWithSignal(subArgs, stdout, stderr)
 	case intentCmd, learnCmd, postCmd, statusCmd, subscribeCmd:
-		apiCtx, apiStop := signal.NotifyContext(
-			context.Background(),
-			os.Interrupt,
-			syscall.SIGTERM,
-		)
-		defer apiStop()
-
-		return runAPIDispatch(apiCtx, cmd, subArgs, stdout)
+		return runAPIWithSignal(cmd, subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -100,6 +88,8 @@ func RunWithContext(
 	subArgs := args[minArgs:]
 
 	switch cmd {
+	case serverCmd:
+		return runServerDispatch(ctx, subArgs, stdout, stderr)
 	case intentCmd, learnCmd, postCmd, statusCmd, subscribeCmd:
 		return runAPIDispatch(ctx, cmd, subArgs, stdout)
 	default:
