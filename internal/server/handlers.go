@@ -58,6 +58,23 @@ func HandlePostMessage(deps *Deps) http.HandlerFunc {
 			return
 		}
 
+		if isLearnMessage(req.Text) {
+			valErr := ValidateLearnMessage(req.Text)
+			if valErr != nil {
+				deps.logger().Warn(
+					"learn validation failed",
+					"from", req.From,
+					"err", valErr,
+				)
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				writeJSON(w, map[string]string{"error": valErr.Error()})
+
+				return
+			}
+		}
+
 		cursor, postErr := deps.PostMessage(chat.Message{
 			From: req.From,
 			To:   req.To,

@@ -15,19 +15,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestRun_ServerUp_BadFlag_ReturnsError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Call Run (not RunWithContext) to exercise runServerWithSignal.
-	// Flag parsing fails fast before any server starts.
-	err := cli.Run(
-		[]string{"engram", "server", "up", "--unknown-flag"},
-		&bytes.Buffer{}, &bytes.Buffer{}, nil,
-	)
-	g.Expect(err).To(HaveOccurred())
-}
-
 func TestRunServerUp_InvalidFlag_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -38,38 +25,6 @@ func TestRunServerUp_InvalidFlag_ReturnsError(t *testing.T) {
 		&bytes.Buffer{}, &bytes.Buffer{}, nil,
 	)
 	g.Expect(err).To(HaveOccurred())
-}
-
-func TestRunServerUp_WithLogFile_Starts(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	chatFile := dir + "/chat.toml"
-	logFile := dir + "/server.log"
-
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	var stderr syncBuffer
-
-	done := make(chan error, 1)
-
-	go func() {
-		done <- cli.RunWithContext(ctx, []string{
-			"engram", "server", "up",
-			"--chat-file", chatFile,
-			"--addr", "localhost:0",
-			"--log-file", logFile,
-		}, &bytes.Buffer{}, &stderr, nil)
-	}()
-
-	g.Eventually(stderr.String).
-		WithTimeout(5 * time.Second).
-		Should(ContainSubstring("server started"))
-
-	cancel()
-	<-done
 }
 
 func TestRunServerUp_StartsAndRespondsToStatus(t *testing.T) {
@@ -138,6 +93,38 @@ func TestRunServerUp_StartsAndRespondsToStatus(t *testing.T) {
 	<-done
 }
 
+func TestRunServerUp_WithLogFile_Starts(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := dir + "/chat.toml"
+	logFile := dir + "/server.log"
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	var stderr syncBuffer
+
+	done := make(chan error, 1)
+
+	go func() {
+		done <- cli.RunWithContext(ctx, []string{
+			"engram", "server", "up",
+			"--chat-file", chatFile,
+			"--addr", "localhost:0",
+			"--log-file", logFile,
+		}, &bytes.Buffer{}, &stderr, nil)
+	}()
+
+	g.Eventually(stderr.String).
+		WithTimeout(5 * time.Second).
+		Should(ContainSubstring("server started"))
+
+	cancel()
+	<-done
+}
+
 func TestRunServer_NoSubcommand_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -160,6 +147,19 @@ func TestRunServer_UnknownSubcommand_ReturnsError(t *testing.T) {
 		&bytes.Buffer{}, &bytes.Buffer{}, nil,
 	)
 	g.Expect(err).To(MatchError(ContainSubstring("down")))
+}
+
+func TestRun_ServerUp_BadFlag_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Call Run (not RunWithContext) to exercise runServerWithSignal.
+	// Flag parsing fails fast before any server starts.
+	err := cli.Run(
+		[]string{"engram", "server", "up", "--unknown-flag"},
+		&bytes.Buffer{}, &bytes.Buffer{}, nil,
+	)
+	g.Expect(err).To(HaveOccurred())
 }
 
 // unexported types.

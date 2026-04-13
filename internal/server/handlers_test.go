@@ -102,6 +102,42 @@ func TestPostMessage_InvalidJSONReturns400(t *testing.T) {
 	g.Expect(rec.Code).To(Equal(http.StatusBadRequest))
 }
 
+func TestPostMessage_MalformedLearnMessageReturns400(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := &server.Deps{
+		PostMessage: func(_ chat.Message) (int, error) {
+			return 0, nil
+		},
+	}
+
+	// Learn message with type=feedback but missing "action" field.
+	learnText := `{"type":"feedback","situation":"s","behavior":"b","impact":"i"}`
+
+	body, marshalErr := json.Marshal(map[string]string{
+		"from": "alice", "to": "engram-agent", "text": learnText,
+	})
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/message", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	server.HandlePostMessage(deps)(rec, req)
+
+	g.Expect(rec.Code).To(Equal(http.StatusBadRequest))
+
+	var resp map[string]string
+
+	decErr := json.NewDecoder(rec.Body).Decode(&resp)
+	g.Expect(decErr).NotTo(HaveOccurred())
+	g.Expect(resp["error"]).To(ContainSubstring("action"))
+}
+
 func TestPostMessage_NilLoggerUsesDefault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -115,6 +151,33 @@ func TestPostMessage_NilLoggerUsesDefault(t *testing.T) {
 
 	body, marshalErr := json.Marshal(map[string]string{"from": "a", "to": "b", "text": "hello"})
 	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	req := httptest.NewRequest(http.MethodPost, "/message", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	server.HandlePostMessage(deps)(rec, req)
+
+	g.Expect(rec.Code).To(Equal(http.StatusOK))
+}
+
+func TestPostMessage_NonLearnMessageSkipsValidation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := &server.Deps{
+		PostMessage: func(_ chat.Message) (int, error) {
+			return 7, nil
+		},
+	}
+
+	body, marshalErr := json.Marshal(map[string]string{
+		"from": "alice", "to": "bob", "text": "just a plain text message",
+	})
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
 
 	req := httptest.NewRequest(http.MethodPost, "/message", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
@@ -165,6 +228,35 @@ func TestPostMessage_PostFuncErrorReturns500(t *testing.T) {
 	server.HandlePostMessage(deps)(rec, req)
 
 	g.Expect(rec.Code).To(Equal(http.StatusInternalServerError))
+}
+
+func TestPostMessage_ValidLearnMessageAccepted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := &server.Deps{
+		PostMessage: func(_ chat.Message) (int, error) {
+			return 42, nil
+		},
+	}
+
+	learnText := `{"type":"feedback","situation":"s","behavior":"b","impact":"i","action":"a"}`
+
+	body, marshalErr := json.Marshal(map[string]string{
+		"from": "alice", "to": "engram-agent", "text": learnText,
+	})
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/message", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	server.HandlePostMessage(deps)(rec, req)
+
+	g.Expect(rec.Code).To(Equal(http.StatusOK))
 }
 
 // --- POST /shutdown ---
