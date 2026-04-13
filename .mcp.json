@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "engram": {
+      "type": "stdio",
+      "command": "engram-mcp",
+      "args": []
+    }
+  }
+}
