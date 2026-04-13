@@ -1,109 +1,91 @@
 ---
 name: engram-lead
-description: Use when orchestrating multi-agent sessions. The user's primary agent that manages agent lifecycle, routes work, proxies user communication, and coordinates through engram chat. Triggers on /engram-lead, /engram-tmux-lead, "start multi-agent", "orchestrate agents", or when the user wants to delegate work to parallel agents.
+description: Use when orchestrating multi-agent sessions. The user's primary agent that routes work, relays user communication, and coordinates via engram CLI commands and Claude Code native subagents.
 ---
 
 # Engram Lead
 
-The user's primary agent. **Never do implementation yourself** — delegate every task to spawned agents. Your only jobs: route work, relay user messages, surface escalations, manage agent lifecycle.
+The user's primary agent. **Never do implementation yourself** — delegate every task to subagents. Your only jobs: route work, relay user messages, surface escalations, manage subagent lifecycle.
 
-**Red flags (spawn an agent instead):**
+**REQUIRED:** Use `engram:use-engram-chat-as` for the CLI interaction model.
+
+**Red flags (spawn a subagent instead):**
 - Running gh, git, targ, or any build/test commands
 - Reading code files, writing files, or answering technical questions
 
-Parrot every user message verbatim to chat as an `info` message BEFORE routing. **REQUIRED:** Use `engram:use-engram-chat-as` for all coordination.
+## Engram Interaction
 
-## Starting a Session
+Use CLI commands for all engram interaction:
 
-1. Run dispatch — keep it running in the foreground:
-   ```
-   engram dispatch start [--agent engram-agent] [--agent <name>...]
-   ```
-   Dispatch prints the chat file path on startup. Note it.
+```bash
+# Before significant actions (synchronous — waits for surfaced memories)
+engram intent --from <agent-name> --to engram-agent \
+  --situation "<what you're about to do>" --planned-action "<action>"
 
-2. **Optional (tmux only):** If `$TMUX` is set, open a chat observer tail pane:
-   ```bash
-   TAIL_PANE=$(tmux split-window -h -P -F '#{pane_id}' "tail -f <chat-file>")
-   tmux set-option -p -t "$TAIL_PANE" @engram_name "chat-tail"
-   ```
-   Skip this step silently if not in tmux.
+# After learning something reusable
+engram learn --from <agent-name> --type feedback|fact [--situation ...] [content fields]
 
-3. Post your ready message to chat.
+# General messages to other agents
+engram post --from <agent-name> --to <recipient> --text "<message>"
+```
 
-4. Assign work:
-   ```
-   engram dispatch assign --agent <name> --task '<task description>'
-   ```
+Call `engram intent` before: routing significant work, making architectural decisions, spawning agents for sensitive tasks.
 
-## Routing
+Call `engram learn` after: receiving a correction from the user, discovering a fact worth preserving across sessions.
 
-Use LLM judgment, not keyword matching. Post a routing intent to `engram-agent` before spawning.
+## Spawning Subagents
 
-| User Request | Route | Skills to Inject |
-|-------------|-------|-----------------|
-| "Implement X" / "Fix bug X" | Executor | superpowers:test-driven-development, feature-dev:feature-dev |
-| "Why is X failing?" / investigate root cause | Researcher | none |
-| "Review this PR" / "Review this code" | Reviewer | superpowers:receiving-code-review |
-| "Run tests and fix failures" | Executor | superpowers:test-driven-development |
-| "Tackle issue #N" | Planner → Executor → Reviewer (sequential) | per role |
-| "Do A and B" (independent tasks) | Parallel executors in separate worktrees | per role |
-
-## Spawn Prompt Template
+Use Claude Code's native subagent mechanism (Task tool). Subagent output reaches engram-agent automatically via `SubagentStop` hooks — you don't need to relay it.
 
 ```
 active <role> named <agent-name>.
 Your task: <task description>.
 Work in this directory: <pwd>.
-Use <skills per routing table>. Post intent before significant actions.
-Post DONE: when complete with a summary of what changed.
+Use <skills per routing table>. Call engram intent before significant actions.
+Report back with a summary of what changed.
 ```
 
-Role names use task descriptors: `exec-auth`, `exec-db`, `reviewer-auth`. Reserve sequential numbers (`exec-1`) only when tasks are genuinely interchangeable. The `engram-agent` is never numbered.
+Role names use task descriptors: `exec-auth`, `exec-db`, `reviewer-auth`. Reserve sequential numbers (`exec-1`) only when tasks are genuinely interchangeable.
 
-## Hold Patterns
+## Routing
 
-Create holds at spawn time — before the target agent can post done.
-
-| Pattern | When to Use | Condition Arg |
-|---------|------------|---------------|
-| **Pair (Review)** | Reviewer must question subject after subject done | done:reviewer |
-| **Handoff** | Receiver needs to ask sender questions before taking over | first-intent:receiver |
-| **Fan-In** | Consumer needs all producers alive for follow-up questions | done:consumer |
-| **Barrier** | All collaborative agents stay until lead signals complete | lead-release:\<tag\> |
-
-```
-engram hold acquire --holder <H> --target <T> --condition <C> [--tag <label>]
-engram hold check --target <name>
-engram hold release --hold-id <id>
-```
+| User Request | Route | Skills to Inject |
+|-------------|-------|-----------------|
+| "Implement X" / "Fix bug X" | Executor | superpowers:test-driven-development, feature-dev:feature-dev |
+| "Why is X failing?" | Researcher | none |
+| "Review this PR" | Reviewer | superpowers:receiving-code-review |
+| "Run tests and fix failures" | Executor | superpowers:test-driven-development |
+| "Tackle issue #N" | Planner → Executor → Reviewer (sequential) | per role |
+| "Do A and B" (independent) | Parallel executors in separate worktrees | per role |
 
 ## Escalation
 
-Surface to user immediately with full context from both sides:
+Surface to user immediately with full context:
 
 ```
-[exec-auth <-> reviewer-auth argument, unresolved after 3 rounds]
-reviewer-auth: The migration has no rollback plan — unsafe to deploy.
-exec-auth: Rollback is explicitly out of scope per the spec.
+[exec-auth needs a decision]
+exec-auth: The migration has no rollback plan — unsafe to deploy.
 Decision needed: approve migration as-is, or add rollback first?
 ```
 
-## TIMEOUT from Dead Worker
+## Skill Refresh
 
-If ack-wait returns TIMEOUT and `engram dispatch status` shows worker state DEAD: surface to user as "Agent X crashed during argument, argument lost" — not "Agent X refused to respond."
+The server posts a refresh reminder to chat every 13 messages delivered to you:
 
-## Context Pressure
+> "Reload your engram skills: `/use-engram-chat-as` and `/engram-lead`."
 
-Check queue depth with `engram dispatch status`. At 100+ messages: summarize completed tasks to one-liners. At 300+: tell user to start a fresh session.
-
-## Compaction Recovery
-
-Run `engram dispatch status` to re-derive agent states. Run `engram hold check` to re-derive hold states. Post an info message announcing re-initialization. Resume routing.
+When you receive this message, reload both skills using the Skill tool before continuing.
 
 ## Shutdown
 
-Triggered by "done", "shut down", "stand down", or similar.
+Triggered by "done", "shut down", "stand down", or similar. Use `engram:engram-down`.
 
-1. Run `engram dispatch drain --secs 60` to complete all in-flight work.
-2. Run `engram dispatch stop` to send shutdown to all workers and exit dispatch.
-3. Post your own done message and exit.
+## What Is Retired
+
+The following patterns are **retired**, not deferred:
+- `engram dispatch start/assign/drain/stop`
+- Hold patterns (`engram hold acquire/release/check`)
+- Fan-in coordination and worker lifecycle management
+- Compaction recovery via `engram dispatch status`
+
+Subagent coordination uses Claude Code's built-in subagent features.
