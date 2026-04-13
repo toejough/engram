@@ -27,6 +27,70 @@ func TestRunServerUp_InvalidFlag_ReturnsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestRunServerUp_PostMessageWritesToChatFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := dir + "/chat.toml"
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	var stderr syncBuffer
+
+	done := make(chan error, 1)
+
+	go func() {
+		done <- cli.RunWithContext(ctx, []string{
+			"engram", "server", "up",
+			"--chat-file", chatFile,
+			"--addr", "localhost:0",
+		}, &bytes.Buffer{}, &stderr, nil)
+	}()
+
+	g.Eventually(stderr.String).
+		WithTimeout(5 * time.Second).
+		Should(ContainSubstring("server started"))
+
+	addr := extractServerAddr(stderr.String())
+	g.Expect(addr).NotTo(BeEmpty())
+
+	// POST a message.
+	postBody := strings.NewReader(`{"from":"lead-1","to":"engram-agent","text":"hello"}`)
+
+	postReq, postReqErr := http.NewRequestWithContext(
+		t.Context(), http.MethodPost, "http://"+addr+"/message", postBody,
+	)
+	g.Expect(postReqErr).NotTo(HaveOccurred())
+
+	if postReqErr != nil {
+		return
+	}
+
+	postResp, postHTTPErr := http.DefaultClient.Do(postReq)
+	g.Expect(postHTTPErr).NotTo(HaveOccurred())
+
+	if postHTTPErr != nil {
+		return
+	}
+
+	if postResp == nil {
+		return
+	}
+
+	defer func() { _ = postResp.Body.Close() }()
+
+	g.Expect(postResp.StatusCode).To(Equal(http.StatusOK))
+
+	var postResult map[string]any
+	g.Expect(json.NewDecoder(postResp.Body).Decode(&postResult)).To(Succeed())
+	g.Expect(postResult["cursor"]).NotTo(BeZero())
+
+	cancel()
+	<-done
+}
+
 func TestRunServerUp_StartsAndRespondsToStatus(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
