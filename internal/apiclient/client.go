@@ -20,6 +20,13 @@ var (
 	ErrNonOK = errors.New("apiclient: server returned non-OK status")
 )
 
+// ChatMessage is a single message in a subscribe response.
+type ChatMessage struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+	Text string `json:"text"`
+}
+
 // Client is a thin HTTP client for the engram API server.
 type Client struct {
 	baseURL string
@@ -41,6 +48,41 @@ func (c *Client) PostMessage(
 	err := c.doPost(ctx, "/message", req, &resp)
 	if err != nil {
 		return PostMessageResponse{}, err
+	}
+
+	return resp, nil
+}
+
+// Status checks the server's running status and connected agents.
+func (c *Client) Status(ctx context.Context) (StatusResponse, error) {
+	fullURL := c.baseURL + "/status"
+
+	var resp StatusResponse
+
+	err := c.doGet(ctx, fullURL, &resp)
+	if err != nil {
+		return StatusResponse{}, fmt.Errorf("getting status: %w", err)
+	}
+
+	return resp, nil
+}
+
+// Subscribe polls the server for new chat messages for an agent.
+func (c *Client) Subscribe(
+	ctx context.Context,
+	req SubscribeRequest,
+) (SubscribeResponse, error) {
+	params := url.Values{}
+	params.Set("agent", req.Agent)
+	params.Set("after-cursor", strconv.Itoa(req.AfterCursor))
+
+	fullURL := c.baseURL + "/subscribe?" + params.Encode()
+
+	var resp SubscribeResponse
+
+	err := c.doGet(ctx, fullURL, &resp)
+	if err != nil {
+		return SubscribeResponse{}, fmt.Errorf("subscribing: %w", err)
 	}
 
 	return resp, nil
@@ -148,6 +190,24 @@ type PostMessageRequest struct {
 type PostMessageResponse struct {
 	Cursor int    `json:"cursor"`
 	Error  string `json:"error,omitempty"`
+}
+
+// StatusResponse is the response from GET /status.
+type StatusResponse struct {
+	Running bool     `json:"running"`
+	Agents  []string `json:"agents"`
+}
+
+// SubscribeRequest is the request for GET /subscribe.
+type SubscribeRequest struct {
+	Agent       string
+	AfterCursor int
+}
+
+// SubscribeResponse is the response from GET /subscribe.
+type SubscribeResponse struct {
+	Messages []ChatMessage `json:"messages"`
+	Cursor   int           `json:"cursor"`
 }
 
 // WaitRequest is the request for GET /wait-for-response.

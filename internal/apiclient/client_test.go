@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"testing"
 
-	"engram/internal/apiclient"
-
 	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
+
+	"engram/internal/apiclient"
 )
 
 func TestPostMessage_AlwaysReturnsCursorFromServer(t *testing.T) {
@@ -121,6 +121,125 @@ func TestPostMessage_ReturnsErrorForInvalidURL(t *testing.T) {
 		From: "a", To: "b", Text: "c",
 	})
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestStatus_AllAgentsReturnedFaithfully(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		agentCount := rapid.IntRange(0, 10).Draw(rt, "agentCount")
+		agents := make([]string, 0, agentCount)
+
+		for range agentCount {
+			agents = append(agents, rapid.StringMatching(`[a-z]{3,10}`).Draw(rt, "agent"))
+		}
+
+		srv := httptest.NewServer(http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				g.Expect(r.URL.Path).To(Equal("/status"))
+
+				w.WriteHeader(http.StatusOK)
+				encErr := json.NewEncoder(w).Encode(apiclient.StatusResponse{
+					Running: true, Agents: agents,
+				})
+				g.Expect(encErr).NotTo(HaveOccurred())
+			},
+		))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		resp, err := client.Status(context.Background())
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(resp.Agents).To(Equal(agents))
+	})
+}
+
+func TestSubscribe_AllMessagesReturnedFaithfully(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		msgCount := rapid.IntRange(0, 5).Draw(rt, "msgCount")
+		messages := make([]apiclient.ChatMessage, 0, msgCount)
+
+		for range msgCount {
+			messages = append(messages, apiclient.ChatMessage{
+				From: rapid.StringMatching(`[a-z]{3,10}`).Draw(rt, "from"),
+				To:   rapid.StringMatching(`[a-z]{3,10}`).Draw(rt, "to"),
+				Text: rapid.StringMatching(`.{1,100}`).Draw(rt, "text"),
+			})
+		}
+
+		srv := httptest.NewServer(http.HandlerFunc(
+			func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				encErr := json.NewEncoder(w).Encode(apiclient.SubscribeResponse{
+					Messages: messages, Cursor: 99,
+				})
+				g.Expect(encErr).NotTo(HaveOccurred())
+			},
+		))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		resp, err := client.Subscribe(
+			context.Background(),
+			apiclient.SubscribeRequest{Agent: "test", AfterCursor: 0},
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(resp.Messages).To(HaveLen(msgCount))
+
+		for i, msg := range resp.Messages {
+			g.Expect(msg.From).To(Equal(messages[i].From))
+			g.Expect(msg.To).To(Equal(messages[i].To))
+			g.Expect(msg.Text).To(Equal(messages[i].Text))
+		}
+	})
+}
+
+func TestSubscribe_AlwaysSendsAgentAndCursor(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		agent := rapid.StringMatching(`[a-z][a-z0-9\-]{0,19}`).Draw(rt, "agent")
+		cursor := rapid.IntRange(0, 100000).Draw(rt, "cursor")
+
+		srv := httptest.NewServer(http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				g.Expect(r.URL.Path).To(Equal("/subscribe"))
+				g.Expect(r.URL.Query().Get("agent")).To(Equal(agent))
+				g.Expect(r.URL.Query().Get("after-cursor")).To(
+					Equal(strconv.Itoa(cursor)),
+				)
+
+				w.WriteHeader(http.StatusOK)
+				encErr := json.NewEncoder(w).Encode(
+					apiclient.SubscribeResponse{Cursor: cursor + 1},
+				)
+				g.Expect(encErr).NotTo(HaveOccurred())
+			},
+		))
+		defer srv.Close()
+
+		client := apiclient.New(srv.URL, srv.Client())
+		_, err := client.Subscribe(
+			context.Background(),
+			apiclient.SubscribeRequest{Agent: agent, AfterCursor: cursor},
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+	})
 }
 
 func TestWaitForResponse_AlwaysRespectsContextCancellation(t *testing.T) {
