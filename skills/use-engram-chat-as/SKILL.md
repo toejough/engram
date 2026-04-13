@@ -1,55 +1,86 @@
 ---
 name: use-engram-chat-as
-description: Use when independently-launched agents need to coordinate, when joining a multi-agent session, when told to communicate via engram chat, when using /use-engram-chat-as. Agents broadcast intent before acting and wait for objections before proceeding. Symptoms: agents missing messages, needing to coordinate before acting, multiple agents in separate terminals.
+description: Use when independently-launched agents need to coordinate via engram, when joining a multi-agent session, or when told to communicate via engram chat. Covers the CLI interaction model, learn message format, and skill refresh protocol.
 ---
 
 # Engram Chat Protocol
 
-The binary owns all mechanics (cursor tracking, file writes, ack-wait, process lifecycle). Agents own judgment: WHEN to use each protocol element, HOW to argue, WHAT counts as a fact.
+The API server owns all mechanics (file writes, routing, validation, lifecycle). Agents own judgment: WHEN to announce intent, WHAT constitutes a reusable learning, HOW to structure learn messages.
 
-**Agent roles:** Active agents broadcast intent before acting and wait for ACK or WAIT from all TO recipients. Reactive agents never broadcast their own intent — only react to others. Active agents MUST parrot user input as `info` messages so reactive agents see corrections.
+**Hooks handle posting automatically.** `UserPromptSubmit` and `Stop` hooks call `engram intent` on every user message and agent turn. `SubagentStop` hooks call `engram post` for subagent output. You do not need to call these yourself for routine turns — hooks cover it.
 
-## Prefix Markers (Headless Workers)
+## CLI Commands
 
-| Prefix | When |
-|--------|------|
-| `READY:` | First output after launch |
-| `INTENT: TO: name1, name2\nSituation: X.\nBehavior: Y.` | Before any significant action |
-| `ACK:` | No objection |
-| `WAIT:` | Objection or relevant context — state concern on same line |
-| `DONE:` | Task complete |
-| `LEARNED:` | Reusable fact for engram-agent |
-| `INFO:` | Status update |
-| `ESCALATE:` | Unresolved argument needs lead |
+Use these for explicit interaction with the engram API server:
 
-**HARD RULE: After `INTENT:`, end your turn immediately.** Do not act in the same turn. Next turn delivers `Proceed.` or `WAIT from <agent>: [text]`.
+```bash
+# Announce intent before significant actions (synchronous — blocks until memories returned)
+engram intent --from <agent-name> --to engram-agent \
+  --situation "<what you're about to do>" \
+  --planned-action "<specific action>"
 
-**TO field:** Always include `engram-agent` (memory must see every intent). Binary defaults to `engram-agent` if TO: absent.
+# Post a general message (fire-and-forget)
+engram post --from <agent-name> --to <recipient> --text "<message>"
 
-## Intent Protocol
+# Record a structured learning
+engram learn --from <agent-name> --type feedback \
+  --situation "<context>" \
+  --behavior "<what happened>" \
+  --impact "<what it caused>" \
+  --action "<what to do instead>"
 
-Use before: modifying shared files, running build/test/coverage tools, committing/pushing, architectural decisions. Skip for: reading files, searching, informational messages.
+engram learn --from <agent-name> --type fact \
+  --situation "<context>" \
+  --subject "<entity>" \
+  --predicate "<relationship>" \
+  --object "<value>"
 
-## RESUME_REASON Handling
+# Subscribe to messages addressed to you (cursor-based, resumable)
+engram subscribe --agent <agent-name> [--after-cursor <N>]
 
-Every resume prompt includes `RESUME_REASON`:
-- `shutdown` — say `DONE:` and stop immediately.
-- `wait` — read `WAIT_FROM`, `WAIT_TEXT`, `ARGUMENT_TURN`. Engage argument protocol as initiator (factual defense or `ACK:` to concede; `ESCALATE:` if turn ≥ 3 and unresolved).
-- `intent` — process normally.
+# Check server health
+engram status
+```
 
-If WAIT arrives while still in-session (ACTIVE), respond in the same turn. Do not complete the task first.
+## Learn Message Format
 
-## Argument Protocol
+The server validates `engram learn` messages against the memory format.
 
-- **Initiator** (whose intent was challenged): factual response — state reasoning and evidence.
-- **Reactor** (who posted WAIT): aggressive response — push back hard. Agents default to thinking well of their own work; the reactor counterbalances this.
+**Feedback** (corrections, behavior patterns):
+- Required fields: `situation`, `behavior`, `impact`, `action`
 
-Weak reactor: "Maybe you're right, I'll defer." ← concession without engagement
+**Fact** (subject-predicate-object assertions):
+- Required fields: `situation`, `subject`, `predicate`, `object`
 
-Strong reactor: "Your reasoning assumes the file is unlocked, but I see no done message in chat. Show me the done message or I'm holding." ← factual challenge with specific ask
+Validation errors include format guidance. Retry with corrected fields (up to 3 attempts). After 3 failures the server accepts the raw content and asks engram-agent to interpret it best-effort.
 
-3-input cap: objection → response → counter. Still unresolved → `ESCALATE:` to lead (or initiating agent's UX if no lead). Reactor posts `info` recording the resolution.
+## When to Call `engram intent` Explicitly
 
-## Shutdown
+Hooks cover routine turns. Call `engram intent` explicitly when:
+- About to make an architectural decision
+- About to modify a shared or critical file
+- About to commit or push
+- Starting a significant subtask where prior failures might be relevant
 
-On `shutdown` or `RESUME_REASON=shutdown`: complete in-flight work, post `DONE:`, exit. Accept no new work after shutdown.
+`engram intent` blocks until the engram-agent responds with surfaced memories. Read those memories before proceeding.
+
+## Skill Refresh
+
+The server tracks message counts per agent. Every 13 messages delivered to you, the server posts a refresh reminder to chat:
+
+> "Reload your engram skills: `/use-engram-chat-as` and `/engram-lead`."
+
+When you receive this message, reload both skills using the Skill tool before continuing.
+
+## What Is Retired
+
+The following patterns are **retired**, not deferred:
+- `INTENT:` / `ACK:` / `WAIT:` / `DONE:` / `LEARNED:` speech markers
+- `engram chat watch` subprocess spawning
+- Cursor tracking by agents
+- Ack-wait blocking protocol
+- Argument protocol (3-turn cap, `ESCALATE:`)
+- `RESUME_REASON` handling
+- `engram dispatch` commands
+
+The server handles routing, serialization, and retry. Agents use CLI commands.
