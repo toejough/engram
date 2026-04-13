@@ -84,3 +84,7 @@ The lead is now ready to route work. Announce yourself via:
 ```bash
 engram post --from "${ENGRAM_AGENT_NAME}" --to engram-agent --text "Lead ready."
 ```
+
+## Troubleshooting
+
+Debug logging is available at the server log file (specified with \`--log-file\` on \`engram server up\`). If engram is not working as expected, check the server log: \`tail -f <log-file> | jq .\`

@@ -84,3 +84,7 @@ The following patterns are **retired**, not deferred:
 - `engram dispatch` commands
 
 The server handles routing, serialization, and retry. Agents use CLI commands.
+
+## Troubleshooting
+
+Debug logging is available at the server log file (specified with \`--log-file\` on \`engram server up\`). If engram is not working as expected, check the server log: \`tail -f <log-file> | jq .\`

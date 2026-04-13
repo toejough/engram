@@ -78,3 +78,7 @@ The following steps are **retired** and must not be run:
 - `engram dispatch drain`
 - `engram dispatch stop`
 - Scanning for `LEARNED:` messages (marker protocol is retired)
+
+## Troubleshooting
+
+Debug logging is available at the server log file (specified with \`--log-file\` on \`engram server up\`). If engram is not working as expected, check the server log: \`tail -f <log-file> | jq .\`

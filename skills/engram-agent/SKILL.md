@@ -87,3 +87,7 @@ Per-file lock → write to `.tmp-<slug>.toml` → rename atomically → unlock. 
 | Writing without lock+rename | Always per-file lock, temp + rename |
 | Forgetting to increment surfaced_count | Increment BEFORE judging behavior match |
 | Auto-creating from ambiguous signals | Flag; only auto-create from high-confidence corrections |
+
+## Troubleshooting
+
+Debug logging is available at the server log file (specified with \`--log-file\` on \`engram server up\`). If engram is not working as expected, check the server log: \`tail -f <log-file> | jq .\`
