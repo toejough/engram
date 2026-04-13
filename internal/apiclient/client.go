@@ -174,6 +174,15 @@ func (c *Client) doPost(
 	return c.doAndDecode(httpReq, dest)
 }
 
+// API is the contract for engram API operations. CLI handlers accept this
+// interface — they never construct HTTP clients. Satisfied by *Client.
+type API interface {
+	PostMessage(ctx context.Context, req PostMessageRequest) (PostMessageResponse, error)
+	WaitForResponse(ctx context.Context, req WaitRequest) (WaitResponse, error)
+	Subscribe(ctx context.Context, req SubscribeRequest) (SubscribeResponse, error)
+	Status(ctx context.Context) (StatusResponse, error)
+}
+
 // HTTPDoer abstracts http.Client for testing.
 type HTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
