@@ -46,15 +46,6 @@ func (e *EngramAgent) Process(ctx context.Context, msg chat.Message) error {
 	return e.routeResponse(resp)
 }
 
-// ResetSession clears the session ID, forcing a fresh session on next invocation.
-func (e *EngramAgent) ResetSession() {
-	e.config.Logger.Info("engram-agent session reset", "old_session_id", e.sessionID)
-	e.sessionID = ""
-}
-
-// SessionID returns the current session ID (empty if not yet invoked).
-func (e *EngramAgent) SessionID() string { return e.sessionID }
-
 // ProcessWithRecovery invokes Process with the unified error recovery protocol.
 // Retries on same session (3x) → reset → retries on fresh session (3x) → escalate.
 func (e *EngramAgent) ProcessWithRecovery(ctx context.Context, msg chat.Message) error {
@@ -80,6 +71,15 @@ func (e *EngramAgent) ProcessWithRecovery(ctx context.Context, msg chat.Message)
 
 	return e.escalate(msg)
 }
+
+// ResetSession clears the session ID, forcing a fresh session on next invocation.
+func (e *EngramAgent) ResetSession() {
+	e.config.Logger.Info("engram-agent session reset", "old_session_id", e.sessionID)
+	e.sessionID = ""
+}
+
+// SessionID returns the current session ID (empty if not yet invoked).
+func (e *EngramAgent) SessionID() string { return e.sessionID }
 
 func (e *EngramAgent) escalate(msg chat.Message) error {
 	totalAttempts := (maxSessionResets + 1) * maxRetriesPerSession
@@ -117,13 +117,6 @@ func (e *EngramAgent) postAndLog(to, text, action string, logArgs ...any) error 
 	return nil
 }
 
-const (
-	maxRetriesPerSession = 3
-	maxSessionResets     = 1
-)
-
-var errEscalationTriggered = errors.New("engram-agent escalation triggered")
-
 // routeResponse dispatches the parsed response to the appropriate chat destination.
 func (e *EngramAgent) routeResponse(resp AgentResponse) error {
 	switch resp.Action {
@@ -153,6 +146,17 @@ type EngramAgentConfig struct {
 // RunClaudeFunc invokes claude -p and returns the raw stdout as a string.
 // prompt is the input text. sessionID is empty on first invocation, non-empty for --resume.
 type RunClaudeFunc func(ctx context.Context, prompt, sessionID string) (string, error)
+
+// unexported constants.
+const (
+	maxRetriesPerSession = 3
+	maxSessionResets     = 1
+)
+
+// unexported variables.
+var (
+	errEscalationTriggered = errors.New("engram-agent escalation triggered")
+)
 
 // buildPrompt constructs the prompt, optionally prepending a skill-refresh directive.
 func buildPrompt(text string, shouldRefresh bool) string {
