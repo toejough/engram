@@ -543,7 +543,7 @@ func TestRunServerUp_WatchFunc_CancelledContext_ReturnsError(t *testing.T) {
 	<-done
 }
 
-func TestRunServerUp_WithLogFile_Starts(t *testing.T) {
+func TestRunServerUp_WithLogFile_WritesLogs(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -570,6 +570,16 @@ func TestRunServerUp_WithLogFile_Starts(t *testing.T) {
 	g.Eventually(stderr.String).
 		WithTimeout(5 * time.Second).
 		Should(ContainSubstring("server started"))
+
+	// The log file must contain the same "server started" message.
+	logContent, readErr := os.ReadFile(logFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(logContent)).To(ContainSubstring("server started"))
 
 	cancel()
 	<-done

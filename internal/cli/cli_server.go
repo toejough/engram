@@ -95,7 +95,8 @@ func buildServerConfig(addr, chatFilePath string, logger *slog.Logger) server.Co
 
 // buildServerLogger creates an slog.Logger writing JSON to stderr.
 // If logFilePath is non-empty, output is also written to that file.
-func buildServerLogger(stderr io.Writer, logFilePath string) (*slog.Logger, error) {
+// The caller must close the returned io.Closer when the logger is no longer needed.
+func buildServerLogger(stderr io.Writer, logFilePath string) (*slog.Logger, io.Closer, error) {
 	logWriter := stderr
 
 	if logFilePath != "" {
@@ -105,15 +106,17 @@ func buildServerLogger(stderr io.Writer, logFilePath string) (*slog.Logger, erro
 			chatFileMode,
 		)
 		if openErr != nil {
-			return nil, fmt.Errorf("server up: opening log file: %w", openErr)
+			return nil, nil, fmt.Errorf("server up: opening log file: %w", openErr)
 		}
 
-		defer logFile.Close() //nolint:errcheck
-
 		logWriter = io.MultiWriter(stderr, logFile)
+
+		logger := slog.New(slog.NewJSONHandler(logWriter, nil))
+
+		return logger, logFile, nil
 	}
 
-	return slog.New(slog.NewJSONHandler(logWriter, nil)), nil
+	return slog.New(slog.NewJSONHandler(logWriter, nil)), io.NopCloser(nil), nil
 }
 
 // runAPIWithSignal wraps runAPIDispatch with a signal-cancellable context.
@@ -164,10 +167,12 @@ func runServerUp(ctx context.Context, args []string, _ io.Writer, stderr io.Writ
 		chatFilePath = resolved
 	}
 
-	logger, logErr := buildServerLogger(stderr, logFilePath)
+	logger, logCloser, logErr := buildServerLogger(stderr, logFilePath)
 	if logErr != nil {
 		return logErr
 	}
+
+	defer logCloser.Close() //nolint:errcheck
 
 	cfg := buildServerConfig(addr, chatFilePath, logger)
 
