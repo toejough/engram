@@ -2,7 +2,6 @@ package mcpserver
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -49,12 +48,6 @@ func ExportHandleStatus(
 	return handleStatus(api)
 }
 
-// ExportMCPNotificationSender returns the production mcpNotificationSender as a NotificationSender.
-// Used in tests to exercise the real SendLog implementation with a live ServerSession.
-func ExportMCPNotificationSender() NotificationSender {
-	return mcpNotificationSender{}
-}
-
 // ExportNewOSServerStarter exports NewOSServerStarter for testing.
 func ExportNewOSServerStarter() ServerStarter {
 	return NewOSServerStarter()
@@ -68,22 +61,10 @@ func ExportOSStarterStart(ctx context.Context, apiAddr string) error {
 }
 
 // ExportOSStarterStartBinary starts a subprocess using the given binary name.
-// Used in tests to verify behavior when a specific binary is absent.
 func ExportOSStarterStartBinary(ctx context.Context, binary, apiAddr string) error {
 	cmd := osStarterCmd(ctx, binary, apiAddr)
 
 	return cmd.Start()
-}
-
-// ExportRunSubscribeLoop exports runSubscribeLoop for testing.
-func ExportRunSubscribeLoop(
-	ctx context.Context,
-	apiClient apiclient.API,
-	sessions SessionProvider,
-	sender NotificationSender,
-	agentName string,
-) {
-	runSubscribeLoop(ctx, apiClient, sessions, sender, agentName, slog.Default())
 }
 
 // ExportRunWithDeps exports runWithDeps for testing.

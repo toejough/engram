@@ -154,7 +154,8 @@ func runWithDeps(
 	agentCapture := NewAgentNameCapture()
 	server := New(apiClient, agentCapture)
 
-	go RunSubscribeLoop(ctx, apiClient, server, agentCapture, logger)
+	notifier := NewStdoutChannelNotifier(os.Stdout)
+	go RunSubscribeLoop(ctx, apiClient, notifier, agentCapture, logger)
 
 	runErr := server.Run(ctx, transport)
 	if runErr != nil {

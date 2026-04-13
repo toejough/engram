@@ -20,6 +20,12 @@ func New(apiClient apiclient.API, agentCapture *AgentNameCapture) *mcp.Server {
 	}, &mcp.ServerOptions{
 		Logger:       logger,
 		Instructions: serverInstructions,
+		Capabilities: &mcp.ServerCapabilities{
+			Logging: &mcp.LoggingCapabilities{},
+			Experimental: map[string]any{
+				"claude/channel": map[string]any{},
+			},
+		},
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -47,8 +53,9 @@ func New(apiClient apiclient.API, agentCapture *AgentNameCapture) *mcp.Server {
 
 // unexported constants.
 const (
-	serverInstructions = "Engram memory agent. Surfaced memories arrive as log notifications" +
-		" with logger='engram'. Use engram_intent before significant actions." +
+	serverInstructions = "Engram memory agent. Surfaced memories arrive as" +
+		" <channel source=\"engram\"> events between turns." +
+		" Use engram_intent before significant actions." +
 		" Use engram_learn after learning something."
 	serverName    = "engram"
 	serverVersion = "1.0.0"
