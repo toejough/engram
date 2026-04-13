@@ -27,6 +27,9 @@ type Deps struct {
 
 	// ShutdownFn is called by POST /shutdown to initiate graceful shutdown.
 	ShutdownFn context.CancelFunc
+
+	// ResetAgent is called by POST /reset-agent to reset the engram-agent session.
+	ResetAgent func()
 }
 
 // logger returns deps.Logger if set, otherwise slog.Default().
@@ -95,6 +98,22 @@ func HandlePostMessage(deps *Deps) http.HandlerFunc {
 		)
 
 		writeJSON(w, postMessageResponse{Cursor: cursor})
+	}
+}
+
+// HandleResetAgent returns an http.HandlerFunc for POST /reset-agent.
+// Calls ResetAgent and returns an acknowledgment.
+func HandleResetAgent(deps *Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		if deps.ResetAgent != nil {
+			deps.ResetAgent()
+		}
+
+		deps.logger().Info("engram-agent session reset via API")
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		writeJSON(w, map[string]string{"status": "reset"})
 	}
 }
 

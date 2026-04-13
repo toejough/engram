@@ -28,6 +28,9 @@ type Config struct {
 
 	// SubscribeFunc blocks until new messages for the agent appear after cursor.
 	SubscribeFunc func(ctx context.Context, agent string, afterCursor int) ([]chat.Message, int, error)
+
+	// ResetAgentFunc is called by POST /reset-agent to reset the engram-agent session.
+	ResetAgentFunc func()
 }
 
 // Server is the running engram API server.
@@ -92,6 +95,7 @@ func buildHTTPServer(cfg Config, logger *slog.Logger, cancel context.CancelFunc)
 		SubscribeMessages: cfg.SubscribeFunc,
 		Logger:            logger,
 		ShutdownFn:        cancel,
+		ResetAgent:        cfg.ResetAgentFunc,
 	}
 
 	mux := http.NewServeMux()
@@ -99,6 +103,7 @@ func buildHTTPServer(cfg Config, logger *slog.Logger, cancel context.CancelFunc)
 	mux.HandleFunc("GET /wait-for-response", HandleWaitForResponse(deps))
 	mux.HandleFunc("GET /subscribe", HandleSubscribe(deps))
 	mux.HandleFunc("GET /status", HandleStatus(deps))
+	mux.HandleFunc("POST /reset-agent", HandleResetAgent(deps))
 	mux.HandleFunc("POST /shutdown", HandleShutdown(deps))
 
 	const readHeaderTimeout = 10 * time.Second

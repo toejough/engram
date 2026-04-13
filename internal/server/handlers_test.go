@@ -259,6 +259,49 @@ func TestPostMessage_ValidLearnMessageAccepted(t *testing.T) {
 	g.Expect(rec.Code).To(Equal(http.StatusOK))
 }
 
+// --- POST /reset-agent ---
+
+func TestResetAgent_CallsResetAgentFn(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	called := false
+
+	deps := &server.Deps{
+		ResetAgent: func() { called = true },
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/reset-agent", nil)
+	rec := httptest.NewRecorder()
+
+	server.HandleResetAgent(deps)(rec, req)
+
+	g.Expect(rec.Code).To(Equal(http.StatusOK))
+	g.Expect(called).To(BeTrue())
+}
+
+func TestResetAgent_ReturnsAcknowledgment(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := &server.Deps{
+		ResetAgent: func() {},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/reset-agent", nil)
+	rec := httptest.NewRecorder()
+
+	server.HandleResetAgent(deps)(rec, req)
+
+	g.Expect(rec.Code).To(Equal(http.StatusOK))
+
+	var resp map[string]string
+
+	decErr := json.NewDecoder(rec.Body).Decode(&resp)
+	g.Expect(decErr).NotTo(HaveOccurred())
+	g.Expect(resp["status"]).To(Equal("reset"))
+}
+
 // --- POST /shutdown ---
 
 func TestShutdown_CallsShutdownFn(t *testing.T) {
