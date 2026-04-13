@@ -30,6 +30,20 @@ func TestParseStreamResponse_AlwaysExtractsSessionID(t *testing.T) {
 	})
 }
 
+func TestParseStreamResponse_AssistantWithNoTextBlocks_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Assistant event has a non-text content block (e.g. tool_use), no text block.
+	input := strings.Join([]string{
+		`{"type":"system","session_id":"sess-abc"}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1"}]}}`,
+	}, "\n")
+
+	_, parseErr := server.ParseStreamResponse(strings.NewReader(input))
+	g.Expect(parseErr).To(MatchError(server.ErrNoAssistantText))
+}
+
 func TestParseStreamResponse_LearnAction(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
