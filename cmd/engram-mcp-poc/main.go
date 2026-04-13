@@ -1,17 +1,57 @@
-// POC: MCP server that sends notifications/claude/channel via middleware.
-// Proves async push to Claude Code agent works.
+// POC: MCP server that sends notifications/claude/channel.
+// Proves channel push to Claude Code works.
+//
+// The Go SDK doesn't support notifications/claude/channel natively.
+// We handle it by writing raw JSON-RPC notifications to stdout alongside
+// the SDK's stdio transport. The SDK owns stdout for request/response;
+// we write channel notifications between those exchanges.
+//
+// To test: register this in .mcp.json and start a Claude Code session.
+// Channel events should appear as <channel source="engram-poc"> tags.
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
-	"slices"
+	"sync"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// stdoutMu serializes writes to stdout.
+// The SDK's StdioTransport writes tool responses; we write channel notifications.
+// Both must not interleave.
+var stdoutMu sync.Mutex
+
+// sendChannelNotification writes a raw notifications/claude/channel JSON-RPC
+// message to stdout. This bypasses the SDK because the SDK doesn't support
+// custom notification methods.
+func sendChannelNotification(content string, meta map[string]string) error {
+	msg := map[string]any{
+		"jsonrpc": "2.0",
+		"method":  "notifications/claude/channel",
+		"params": map[string]any{
+			"content": content,
+			"meta":    meta,
+		},
+	}
+
+	data, marshalErr := json.Marshal(msg)
+	if marshalErr != nil {
+		return fmt.Errorf("marshaling channel notification: %w", marshalErr)
+	}
+
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+
+	_, writeErr := fmt.Fprintf(os.Stdout, "%s\n", data)
+
+	return writeErr
+}
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -21,13 +61,14 @@ func main() {
 		Version: "0.0.1",
 	}, &mcp.ServerOptions{
 		Logger:       logger,
-		Instructions: "Events from engram arrive as <channel source=\"engram-poc\">. React to surfaced memories.",
+		Instructions: "Engram memory POC. Surfaced memories arrive as <channel source=\"engram-poc\"> events.",
 	})
 
-	// Register a simple tool.
+	// Register a tool so we know the server is working.
 	type pingArgs struct {
 		Message string `json:"message" jsonschema:"a test message"`
 	}
+
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "engram_ping",
 		Description: "Echo a message back (POC tool)",
@@ -39,47 +80,24 @@ func main() {
 		}, nil, nil
 	})
 
-	// Add middleware to support notifications/claude/channel.
-	// The default handler rejects unknown notification methods.
-	// Our middleware intercepts it and sends raw via the connection.
-	server.AddSendingMiddleware(func(next mcp.MethodHandler) mcp.MethodHandler {
-		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
-			if method == "notifications/claude/channel" {
-				// The default handler will fail because this method isn't in clientMethodInfos.
-				// But the underlying logic is: for "notifications/*", call conn.Notify.
-				// We replicate that logic here.
-				logger.Info("middleware: sending channel notification")
-			}
-			return next(ctx, method, req)
-		}
-	})
-
-	// Start goroutine to push notifications after sessions connect.
+	// Background goroutine: send channel notifications every 5 seconds.
 	go func() {
+		// Wait for the MCP session to initialize.
 		time.Sleep(3 * time.Second)
+
 		for i := 1; ; i++ {
-			sessions := slices.Collect(server.Sessions())
-			if len(sessions) == 0 {
-				logger.Warn("no sessions yet, waiting...")
-				time.Sleep(2 * time.Second)
+			content := fmt.Sprintf("Memory surfaced #%d: always use dependency injection in internal/", i)
+			err := sendChannelNotification(content, map[string]string{
+				"from":     "engram-agent",
+				"severity": "info",
+			})
+			if err != nil {
+				logger.Error("channel notification failed", "err", err)
 
-				continue
+				return
 			}
 
-			for _, sess := range sessions {
-				// Use Log notification (known to the SDK) to push messages.
-				// This is a workaround until we can send custom notifications.
-				logErr := sess.Log(context.Background(), &mcp.LoggingMessageParams{
-					Level:  "info",
-					Data:   fmt.Sprintf("Memory surfaced #%d: always use DI in internal/", i),
-					Logger: "engram",
-				})
-				if logErr != nil {
-					logger.Error("log notification failed", "err", logErr)
-				} else {
-					logger.Info("sent log notification", "index", i)
-				}
-			}
+			logger.Info("sent channel notification", "index", i)
 
 			time.Sleep(5 * time.Second)
 		}
