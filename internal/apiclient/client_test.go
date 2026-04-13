@@ -42,6 +42,9 @@ func TestPostMessage_AlwaysSendsCorrectMethodPathAndBody(t *testing.T) {
 			From: from, To: to, Text: text,
 		})
 		g.Expect(err).NotTo(HaveOccurred())
+		if err != nil {
+			return
+		}
 
 		g.Expect(gotMethod).To(Equal(http.MethodPost))
 		g.Expect(gotPath).To(Equal("/message"))
