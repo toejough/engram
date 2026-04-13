@@ -2,7 +2,7 @@ package server_test
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
@@ -313,7 +313,7 @@ func TestEngramAgent_ProcessWithRecovery_ExecutionErrorTriggersRetry(t *testing.
 		RunClaude: func(_ context.Context, _, _ string) (string, error) {
 			callCount++
 			if callCount < 3 {
-				return "", fmt.Errorf("process crashed: exit status 1")
+				return "", errors.New("process crashed: exit status 1")
 			}
 
 			return validSurfaceStreamOutput("sess-ok", "lead", "recovered"), nil

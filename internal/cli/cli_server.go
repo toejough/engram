@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -24,9 +25,40 @@ var (
 	errServerSubcmdRequired = errors.New("server: subcommand required (up)")
 )
 
+// buildRunClaude constructs a RunClaudeFunc that executes `claude -p` with session resume.
+func buildRunClaude(claudeBinary string) server.RunClaudeFunc {
+	return func(ctx context.Context, prompt, sessionID string) (string, error) {
+		args := []string{"-p",
+			"--dangerously-skip-permissions",
+			"--verbose",
+			"--output-format=stream-json",
+		}
+		if sessionID != "" {
+			args = append(args, "--resume", sessionID)
+		}
+
+		args = append(args, prompt)
+
+		cmd := exec.CommandContext(ctx, claudeBinary, args...)
+
+		output, runErr := cmd.Output()
+		if runErr != nil {
+			return "", fmt.Errorf("running claude: %w", runErr)
+		}
+
+		return string(output), nil
+	}
+}
+
 // buildServerConfig constructs a server.Config with real I/O wired to the chat file.
 func buildServerConfig(addr, chatFilePath string, logger *slog.Logger) server.Config {
 	poster := newFilePoster(chatFilePath)
+
+	agent := server.NewEngramAgent(server.EngramAgentConfig{
+		RunClaude:  buildRunClaude("claude"),
+		PostToChat: poster.Post,
+		Logger:     logger,
+	})
 
 	return server.Config{
 		Addr:   addr,
@@ -56,6 +88,8 @@ func buildServerConfig(addr, chatFilePath string, logger *slog.Logger) server.Co
 
 			return []chat.Message{msg}, newCursor, nil
 		},
+		// ResetAgentFunc: called by POST /reset-agent to reset engram-agent session.
+		ResetAgentFunc: agent.ResetSession,
 	}
 }
 

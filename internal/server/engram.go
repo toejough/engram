@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -54,11 +55,6 @@ func (e *EngramAgent) ResetSession() {
 // SessionID returns the current session ID (empty if not yet invoked).
 func (e *EngramAgent) SessionID() string { return e.sessionID }
 
-const (
-	maxRetriesPerSession = 3
-	maxSessionResets     = 1
-)
-
 // ProcessWithRecovery invokes Process with the unified error recovery protocol.
 // Retries on same session (3x) → reset → retries on fresh session (3x) → escalate.
 func (e *EngramAgent) ProcessWithRecovery(ctx context.Context, msg chat.Message) error {
@@ -103,7 +99,7 @@ func (e *EngramAgent) escalate(msg chat.Message) error {
 
 	e.config.Logger.Error("engram-agent escalation", "msg", errMsg)
 
-	return fmt.Errorf("engram-agent: %s", errMsg)
+	return fmt.Errorf("engram-agent: %s: %w", errMsg, errEscalationTriggered)
 }
 
 // postAndLog posts a message to chat and logs the event.
@@ -120,6 +116,13 @@ func (e *EngramAgent) postAndLog(to, text, action string, logArgs ...any) error 
 
 	return nil
 }
+
+const (
+	maxRetriesPerSession = 3
+	maxSessionResets     = 1
+)
+
+var errEscalationTriggered = errors.New("engram-agent escalation triggered")
 
 // routeResponse dispatches the parsed response to the appropriate chat destination.
 func (e *EngramAgent) routeResponse(resp AgentResponse) error {

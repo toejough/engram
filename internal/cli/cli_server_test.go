@@ -91,6 +91,69 @@ func TestRunServerUp_PostMessageWritesToChatFile(t *testing.T) {
 	<-done
 }
 
+func TestRunServerUp_PostResetAgent_Succeeds(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := dir + "/chat.toml"
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	var stderr syncBuffer
+
+	done := make(chan error, 1)
+
+	go func() {
+		done <- cli.RunWithContext(ctx, []string{
+			"engram", "server", "up",
+			"--chat-file", chatFile,
+			"--addr", "localhost:0",
+		}, &bytes.Buffer{}, &stderr, nil)
+	}()
+
+	g.Eventually(stderr.String).
+		WithTimeout(5 * time.Second).
+		Should(ContainSubstring("server started"))
+
+	addr := extractServerAddr(stderr.String())
+	g.Expect(addr).NotTo(BeEmpty())
+
+	// POST to /reset-agent.
+	resetReq, resetReqErr := http.NewRequestWithContext(
+		t.Context(), http.MethodPost, "http://"+addr+"/reset-agent", nil,
+	)
+	g.Expect(resetReqErr).NotTo(HaveOccurred())
+
+	if resetReqErr != nil {
+		return
+	}
+
+	resetResp, resetHTTPErr := http.DefaultClient.Do(resetReq)
+	g.Expect(resetHTTPErr).NotTo(HaveOccurred())
+
+	if resetHTTPErr != nil {
+		return
+	}
+
+	if resetResp == nil {
+		return
+	}
+
+	defer func() { _ = resetResp.Body.Close() }()
+
+	g.Expect(resetResp.StatusCode).To(Equal(http.StatusOK))
+
+	var resetResult map[string]any
+
+	g.Expect(json.NewDecoder(resetResp.Body).Decode(&resetResult)).To(Succeed())
+	g.Expect(resetResult["status"]).To(Equal("reset"))
+
+	cancel()
+	<-done
+}
+
 func TestRunServerUp_StartsAndRespondsToStatus(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
