@@ -1046,3 +1046,41 @@ func TestTargets(t *testing.T) {
 		g.Expect(stdout.String()).To(gomega.BeEmpty())
 	})
 }
+
+func TestPostFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.PostFlags(cli.PostArgs{
+			From: "lead-1",
+			To:   "engram-agent",
+			Text: "hello",
+			Addr: "http://localhost:9999",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--to", "engram-agent",
+			"--text", "hello",
+			"--addr", "http://localhost:9999",
+		}))
+	})
+
+	t.Run("empty addr omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.PostFlags(cli.PostArgs{
+			From: "lead-1",
+			To:   "engram-agent",
+			Text: "hello",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--to", "engram-agent",
+			"--text", "hello",
+		}))
+	})
+}

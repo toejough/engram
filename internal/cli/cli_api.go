@@ -2,7 +2,7 @@ package cli
 
 import (
 	"context"
-	"flag"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +14,13 @@ import (
 const (
 	defaultAPIAddr = "http://localhost:7932"
 	postCmd        = "post"
+)
+
+// unexported errors.
+var (
+	errFromRequired = errors.New("post: --from is required")
+	errToRequired   = errors.New("post: --to is required")
+	errTextRequired = errors.New("post: --text is required")
 )
 
 // doPost posts a message via the API and prints the cursor.
@@ -51,7 +58,7 @@ func runAPIDispatch(ctx context.Context, cmd string, args []string, stdout io.Wr
 
 // runPost is the thin wiring layer: parses flags, constructs real client, calls doPost.
 func runPost(ctx context.Context, args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet(postCmd, flag.ContinueOnError)
+	fs := newFlagSet(postCmd)
 
 	var from, toAgent, text, addr string
 
@@ -63,6 +70,18 @@ func runPost(ctx context.Context, args []string, stdout io.Writer) error {
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
 		return fmt.Errorf("post: %w", parseErr)
+	}
+
+	if from == "" {
+		return errFromRequired
+	}
+
+	if toAgent == "" {
+		return errToRequired
+	}
+
+	if text == "" {
+		return errTextRequired
 	}
 
 	client := apiclient.New(addr, http.DefaultClient)
