@@ -45,12 +45,15 @@ The server prints its address (`localhost:7932` by default) on startup. Keep thi
 If `$TMUX` is set:
 
 ```bash
+# Ensure files exist before tailing (server creates them lazily)
+touch <chat-file> <log-file>
+
 # Tail the chat file
-CHAT_PANE=$(tmux split-window -h -P -F '#{pane_id}' "tail -f <chat-file>")
+CHAT_PANE=$(tmux split-window -h -P -F '#{pane_id}' "tail -F <chat-file>")
 tmux set-option -p -t "$CHAT_PANE" @engram_name "chat-tail"
 
 # Tail the debug log (readable with jq)
-LOG_PANE=$(tmux split-window -h -P -F '#{pane_id}' "tail -f <log-file> | jq .")
+LOG_PANE=$(tmux split-window -h -P -F '#{pane_id}' "tail -F <log-file> | jq .")
 tmux set-option -p -t "$LOG_PANE" @engram_name "log-tail"
 ```
 
@@ -87,4 +90,4 @@ engram post --from "${ENGRAM_AGENT_NAME}" --to engram-agent --text "Lead ready."
 
 ## Troubleshooting
 
-Debug logging is available at the server log file (specified with \`--log-file\` on \`engram server up\`). If engram is not working as expected, check the server log: \`tail -f <log-file> | jq .\`
+Debug logging is available at the server log file (specified with \`--log-file\` on \`engram server up\`). If engram is not working as expected, check the server log: \`tail -F <log-file> | jq .\`
