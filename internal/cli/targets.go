@@ -188,6 +188,18 @@ type ShowArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
 
+// StatusArgs holds flags for `engram status`.
+type StatusArgs struct {
+	Addr string `targ:"flag,name=addr,desc=API server address"`
+}
+
+// SubscribeArgs holds flags for `engram subscribe`.
+type SubscribeArgs struct {
+	Agent       string `targ:"flag,name=agent,desc=agent name to subscribe as"`
+	AfterCursor int    `targ:"flag,name=after-cursor,desc=cursor position to start from"`
+	Addr        string `targ:"flag,name=addr,desc=API server address"`
+}
+
 // AddBoolFlag appends a flag if the bool is true.
 func AddBoolFlag(flags []string, name string, value bool) []string {
 	if value {
@@ -376,6 +388,12 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name(intentCmd).Description("Post an intent and wait for engram response"),
 		targ.Targ(func(a LearnArgs) { run(learnCmd, LearnFlags(a)) }).
 			Name(learnCmd).Description("Submit feedback or fact to the engram agent"),
+		targ.Targ(func(a StatusArgs) { run(statusCmd, StatusFlags(a)) }).
+			Name(statusCmd).Description("Check API server status and connected agents"),
+		targ.Targ(func(a SubscribeArgs) {
+			run(subscribeCmd, SubscribeFlags(a))
+		}).
+			Name(subscribeCmd).Description("Subscribe to messages for an agent"),
 	}
 }
 
@@ -572,6 +590,19 @@ func RunSafe(args []string, stdout, stderr io.Writer, stdin io.Reader) {
 // ShowFlags returns the CLI flag args for the show subcommand.
 func ShowFlags(a ShowArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir, "--name", a.Name)
+}
+
+// StatusFlags returns the CLI flag args for the status subcommand.
+func StatusFlags(a StatusArgs) []string {
+	return BuildFlags("--addr", a.Addr)
+}
+
+// SubscribeFlags returns the CLI flag args for the subscribe subcommand.
+func SubscribeFlags(a SubscribeArgs) []string {
+	flags := BuildFlags("--agent", a.Agent, "--addr", a.Addr)
+	flags = AddIntFlag(flags, "--after-cursor", a.AfterCursor)
+
+	return flags
 }
 
 // Targets returns all targ targets for the engram CLI.

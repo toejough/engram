@@ -133,6 +133,28 @@ func ExportDoPost(
 	return doPost(ctx, api, from, to, text, stdout)
 }
 
+// ExportDoStatus exposes doStatus for testing as a function value.
+// The explicit return type ensures the generated StartExportDoStatus wrapper has the correct signature.
+func ExportDoStatus(
+	ctx context.Context,
+	api apiclient.API,
+	stdout io.Writer,
+) error {
+	return doStatus(ctx, api, stdout)
+}
+
+// ExportDoSubscribe exposes doSubscribe for testing as a function value.
+// The explicit return type ensures the generated StartExportDoSubscribe wrapper has the correct signature.
+func ExportDoSubscribe(
+	ctx context.Context,
+	api apiclient.API,
+	agent string,
+	afterCursor int,
+	stdout io.Writer,
+) error {
+	return doSubscribe(ctx, api, agent, afterCursor, stdout)
+}
+
 // ExportMultiStringFlagString returns the String() result of a multiStringFlag built from vals.
 // Empty input returns the nil-receiver result.
 func ExportMultiStringFlagString(vals ...string) string {

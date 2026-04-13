@@ -18,17 +18,20 @@ const (
 	intentCmd       = "intent"
 	learnCmd        = "learn"
 	postCmd         = "post"
+	statusCmd       = "status"
+	subscribeCmd    = "subscribe"
 )
 
 // unexported variables.
 var (
-	errFromRequired       = errors.New("post: --from is required")
-	errIntentFromRequired = errors.New("intent: --from is required")
-	errIntentToRequired   = errors.New("intent: --to is required")
-	errLearnFromRequired  = errors.New("learn: --from is required")
-	errLearnInvalidType   = errors.New("learn: --type must be 'feedback' or 'fact'")
-	errTextRequired       = errors.New("post: --text is required")
-	errToRequired         = errors.New("post: --to is required")
+	errFromRequired           = errors.New("post: --from is required")
+	errIntentFromRequired     = errors.New("intent: --from is required")
+	errIntentToRequired       = errors.New("intent: --to is required")
+	errLearnFromRequired      = errors.New("learn: --from is required")
+	errLearnInvalidType       = errors.New("learn: --type must be 'feedback' or 'fact'")
+	errSubscribeAgentRequired = errors.New("subscribe: --agent is required")
+	errTextRequired           = errors.New("post: --text is required")
+	errToRequired             = errors.New("post: --to is required")
 )
 
 // buildLearnText constructs JSON text for a learn message.
@@ -152,6 +155,64 @@ func doPost(
 	return nil
 }
 
+// doStatus queries the API for server status and prints it as indented JSON.
+// Pure function — no I/O construction. Accepts API interface.
+func doStatus(
+	ctx context.Context,
+	api apiclient.API,
+	stdout io.Writer,
+) error {
+	resp, err := api.Status(ctx)
+	if err != nil {
+		return fmt.Errorf("status: %w", err)
+	}
+
+	data, marshalErr := json.MarshalIndent(resp, "", "  ")
+	if marshalErr != nil {
+		return fmt.Errorf("status: encoding: %w", marshalErr)
+	}
+
+	_, printErr := fmt.Fprintln(stdout, string(data))
+	if printErr != nil {
+		return fmt.Errorf("status: writing: %w", printErr)
+	}
+
+	return nil
+}
+
+// doSubscribe polls the API for new messages in a loop until the context
+// is cancelled or an error occurs. Pure function — no I/O construction.
+func doSubscribe(
+	ctx context.Context,
+	api apiclient.API,
+	agent string,
+	afterCursor int,
+	stdout io.Writer,
+) error {
+	cursor := afterCursor
+
+	for {
+		resp, err := api.Subscribe(ctx, apiclient.SubscribeRequest{
+			Agent:       agent,
+			AfterCursor: cursor,
+		})
+		if err != nil {
+			return fmt.Errorf("subscribe: %w", err)
+		}
+
+		for _, msg := range resp.Messages {
+			_, printErr := fmt.Fprintf(
+				stdout, "[%s -> %s] %s\n", msg.From, msg.To, msg.Text,
+			)
+			if printErr != nil {
+				return fmt.Errorf("subscribe: writing: %w", printErr)
+			}
+		}
+
+		cursor = resp.Cursor
+	}
+}
+
 // runAPIDispatch dispatches API subcommands.
 func runAPIDispatch(ctx context.Context, cmd string, args []string, stdout io.Writer) error {
 	switch cmd {
@@ -161,6 +222,10 @@ func runAPIDispatch(ctx context.Context, cmd string, args []string, stdout io.Wr
 		return runLearn(ctx, args, stdout)
 	case postCmd:
 		return runPost(ctx, args, stdout)
+	case statusCmd:
+		return runStatus(ctx, args, stdout)
+	case subscribeCmd:
+		return runSubscribe(ctx, args, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -264,4 +329,50 @@ func runPost(ctx context.Context, args []string, stdout io.Writer) error {
 	client := apiclient.New(addr, http.DefaultClient)
 
 	return doPost(ctx, client, from, toAgent, text, stdout)
+}
+
+// runStatus is the thin wiring layer: parses flags, constructs real client, calls doStatus.
+func runStatus(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := newFlagSet(statusCmd)
+
+	var addr string
+
+	fs.StringVar(&addr, "addr", defaultAPIAddr, "API server address")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("status: %w", parseErr)
+	}
+
+	client := apiclient.New(addr, http.DefaultClient)
+
+	return doStatus(ctx, client, stdout)
+}
+
+// runSubscribe is the thin wiring layer: parses flags, constructs real client, calls doSubscribe.
+func runSubscribe(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := newFlagSet(subscribeCmd)
+
+	var (
+		agent       string
+		afterCursor int
+		addr        string
+	)
+
+	fs.StringVar(&agent, "agent", "", "agent name to subscribe as")
+	fs.IntVar(&afterCursor, "after-cursor", 0, "cursor position to start from")
+	fs.StringVar(&addr, "addr", defaultAPIAddr, "API server address")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("subscribe: %w", parseErr)
+	}
+
+	if agent == "" {
+		return errSubscribeAgentRequired
+	}
+
+	client := apiclient.New(addr, http.DefaultClient)
+
+	return doSubscribe(ctx, client, agent, afterCursor, stdout)
 }

@@ -69,7 +69,7 @@ func Run(
 		defer dispatchStop()
 
 		return runDispatchDispatch(dispatchCtx, subArgs, stdout)
-	case intentCmd, learnCmd, postCmd:
+	case intentCmd, learnCmd, postCmd, statusCmd, subscribeCmd:
 		apiCtx, apiStop := signal.NotifyContext(
 			context.Background(),
 			os.Interrupt,
@@ -80,6 +80,30 @@ func Run(
 		return runAPIDispatch(apiCtx, cmd, subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
+	}
+}
+
+// RunWithContext dispatches subcommands that need an externally-provided context
+// (e.g. subscribe in tests). Commands that use the API dispatch through
+// runAPIDispatch; all others delegate to Run.
+func RunWithContext(
+	ctx context.Context,
+	args []string,
+	stdout, stderr io.Writer,
+	stdin io.Reader,
+) error {
+	if len(args) < minArgs {
+		return errUsage
+	}
+
+	cmd := args[1]
+	subArgs := args[minArgs:]
+
+	switch cmd {
+	case intentCmd, learnCmd, postCmd, statusCmd, subscribeCmd:
+		return runAPIDispatch(ctx, cmd, subArgs, stdout)
+	default:
+		return Run(args, stdout, stderr, stdin) //nolint:contextcheck // Run creates its own signal contexts
 	}
 }
 

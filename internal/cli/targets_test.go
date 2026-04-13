@@ -623,7 +623,7 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		g.Expect(targets).To(gomega.HaveLen(5))
+		g.Expect(targets).To(gomega.HaveLen(7))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -636,7 +636,7 @@ func TestBuildTargets(t *testing.T) {
 			calls = append(calls, subcmd)
 		})
 
-		subcmds := []string{"recall", "show", "post", "intent", "learn"}
+		subcmds := []string{"recall", "show", "post", "intent", "learn", "status", "subscribe"}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
 		}
@@ -1161,6 +1161,75 @@ func TestShowFlags(t *testing.T) {
 	g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
 }
 
+func TestStatusFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated addr", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.StatusFlags(cli.StatusArgs{
+			Addr: "http://localhost:9999",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--addr", "http://localhost:9999",
+		}))
+	})
+
+	t.Run("empty addr omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.StatusFlags(cli.StatusArgs{})
+		g.Expect(result).To(gomega.BeEmpty())
+	})
+}
+
+func TestSubscribeFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("all fields populated", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.SubscribeFlags(cli.SubscribeArgs{
+			Agent:       "worker-1",
+			AfterCursor: 42,
+			Addr:        "http://localhost:9999",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--agent", "worker-1",
+			"--addr", "http://localhost:9999",
+			"--after-cursor", "42",
+		}))
+	})
+
+	t.Run("empty optional fields omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.SubscribeFlags(cli.SubscribeArgs{
+			Agent: "worker-1",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--agent", "worker-1",
+		}))
+	})
+
+	t.Run("zero after-cursor omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.SubscribeFlags(cli.SubscribeArgs{
+			Agent:       "worker-1",
+			AfterCursor: 0,
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--agent", "worker-1",
+		}))
+	})
+}
+
 func TestTargets(t *testing.T) {
 	t.Parallel()
 
@@ -1170,7 +1239,7 @@ func TestTargets(t *testing.T) {
 
 		// Construction doesn't do I/O — just builds targ target objects.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(targets).To(gomega.HaveLen(9))
+		g.Expect(targets).To(gomega.HaveLen(11))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {

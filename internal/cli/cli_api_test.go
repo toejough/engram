@@ -326,6 +326,127 @@ func TestDoPost_WhenAPIErrors_ReturnsWrappedError(t *testing.T) {
 	})
 }
 
+func TestDoStatus_AlwaysPrintsAllAgents(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		agents := rapid.SliceOfN(
+			rapid.StringMatching(`[a-z][a-z0-9\-]{1,15}`),
+			1, 5,
+		).Draw(rt, "agents")
+		running := rapid.Bool().Draw(rt, "running")
+
+		mock, imp := MockAPI(rt)
+
+		var stdout bytes.Buffer
+
+		call := StartExportDoStatus(
+			rt, cli.ExportDoStatus, rt.Context(), mock, &stdout,
+		)
+
+		imp.Status.ArgsShould(match.BeAny).Return(
+			apiclient.StatusResponse{Running: running, Agents: agents}, nil,
+		)
+
+		call.ReturnsShould(BeNil())
+
+		for _, agent := range agents {
+			g.Expect(stdout.String()).To(ContainSubstring(agent))
+		}
+	})
+}
+
+func TestDoStatus_WhenAPIErrors_ReturnsWrappedError(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		apiErr := errors.New("connection refused")
+		mock, imp := MockAPI(rt)
+
+		var stdout bytes.Buffer
+
+		call := StartExportDoStatus(
+			rt, cli.ExportDoStatus, rt.Context(), mock, &stdout,
+		)
+
+		imp.Status.ArgsShould(match.BeAny).Return(
+			apiclient.StatusResponse{},
+			apiErr,
+		)
+
+		call.ReturnsShould(MatchError(ContainSubstring("connection refused")))
+	})
+}
+
+func TestDoSubscribe_PrintsMessagesAndAdvancesCursor(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewGomegaWithT(rt)
+
+		agent := rapid.StringMatching(`[a-z][a-z0-9\-]{1,15}`).Draw(rt, "agent")
+		initialCursor := rapid.IntRange(0, 1000).Draw(rt, "initial-cursor")
+		msgFrom := rapid.StringMatching(`[a-z][a-z0-9\-]{1,15}`).Draw(rt, "msg-from")
+		msgText := rapid.StringMatching(`[A-Za-z0-9 .,!]{1,80}`).Draw(rt, "msg-text")
+		newCursor := rapid.IntRange(1001, 2000).Draw(rt, "new-cursor")
+
+		mock, imp := MockAPI(rt)
+
+		var stdout bytes.Buffer
+
+		call := StartExportDoSubscribe(
+			rt, cli.ExportDoSubscribe, rt.Context(), mock,
+			agent, initialCursor, &stdout,
+		)
+
+		// First call: returns messages with the initial cursor.
+		firstCall := imp.Subscribe.ArgsShould(match.BeAny, match.BeAny)
+		firstArgs := firstCall.GetArgs()
+		g.Expect(firstArgs.Req.Agent).To(Equal(agent))
+		g.Expect(firstArgs.Req.AfterCursor).To(Equal(initialCursor))
+
+		firstCall.Return(apiclient.SubscribeResponse{
+			Messages: []apiclient.ChatMessage{
+				{From: msgFrom, To: agent, Text: msgText},
+			},
+			Cursor: newCursor,
+		}, nil)
+
+		// Second call: should use the advanced cursor; return context.Canceled.
+		secondCall := imp.Subscribe.ArgsShould(match.BeAny, match.BeAny)
+		secondArgs := secondCall.GetArgs()
+		g.Expect(secondArgs.Req.AfterCursor).To(Equal(newCursor))
+
+		secondCall.Return(apiclient.SubscribeResponse{}, context.Canceled)
+
+		call.ReturnsShould(MatchError(ContainSubstring("context canceled")))
+
+		g.Expect(stdout.String()).To(ContainSubstring(msgText))
+		g.Expect(stdout.String()).To(ContainSubstring(msgFrom))
+	})
+}
+
+func TestDoSubscribe_WhenFirstCallErrors_ReturnsWrappedError(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		apiErr := errors.New("connection refused")
+		mock, imp := MockAPI(rt)
+
+		var stdout bytes.Buffer
+
+		call := StartExportDoSubscribe(
+			rt, cli.ExportDoSubscribe, rt.Context(), mock,
+			"worker-1", 0, &stdout,
+		)
+
+		imp.Subscribe.ArgsShould(match.BeAny, match.BeAny).Return(
+			apiclient.SubscribeResponse{},
+			apiErr,
+		)
+
+		call.ReturnsShould(MatchError(ContainSubstring("connection refused")))
+	})
+}
+
 func TestRunAPIDispatch_UnknownCommand_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -487,4 +608,130 @@ func TestRunPost_WiresHTTPClientAndCallsDoPost(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(stdout.String()).To(Equal(fmt.Sprintf("%d\n", testCursor)))
+}
+
+func TestRunStatus_WiresHTTPClientAndCallsDoStatus(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		resp := apiclient.StatusResponse{Running: true, Agents: []string{"alpha", "beta"}}
+		data, _ := json.Marshal(resp)
+
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write(data)
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "status", "--addr", server.URL},
+		&stdout,
+		&bytes.Buffer{},
+		nil,
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(stdout.String()).To(ContainSubstring("alpha"))
+	g.Expect(stdout.String()).To(ContainSubstring("beta"))
+	g.Expect(stdout.String()).To(ContainSubstring("true"))
+}
+
+func TestRunSubscribe_MissingAgentReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunWithContext(
+		context.Background(),
+		[]string{"engram", "subscribe"},
+		&stdout,
+		&bytes.Buffer{},
+		nil,
+	)
+
+	g.Expect(err).To(MatchError(ContainSubstring("--agent is required")))
+}
+
+func TestRunSubscribe_WiresHTTPClientAndCallsDoSubscribe(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	callCount := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		callCount++
+
+		writer.Header().Set("Content-Type", "application/json")
+
+		if callCount == 1 {
+			resp := apiclient.SubscribeResponse{
+				Messages: []apiclient.ChatMessage{
+					{From: "alpha", To: "worker-1", Text: "hello"},
+				},
+				Cursor: 10,
+			}
+			data, _ := json.Marshal(resp)
+			_, _ = writer.Write(data)
+
+			return
+		}
+
+		// Second call: close connection to trigger error.
+		writer.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+
+	err := cli.RunWithContext(
+		t.Context(),
+		[]string{
+			"engram", "subscribe",
+			"--agent", "worker-1",
+			"--addr", server.URL,
+		},
+		&stdout,
+		&bytes.Buffer{},
+		nil,
+	)
+
+	g.Expect(err).To(HaveOccurred())
+
+	g.Expect(stdout.String()).To(ContainSubstring("hello"))
+}
+
+func TestRunWithContext_FallsBackToRunForNonAPICommands(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// "nonexistent" is not an API command -- RunWithContext delegates to Run,
+	// which returns errUnknownCommand.
+	err := cli.RunWithContext(
+		context.Background(),
+		[]string{"engram", "nonexistent"},
+		&bytes.Buffer{},
+		&bytes.Buffer{},
+		nil,
+	)
+
+	g.Expect(err).To(MatchError(ContainSubstring("unknown command")))
+}
+
+func TestRunWithContext_TooFewArgsReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.RunWithContext(
+		context.Background(),
+		[]string{"engram"},
+		&bytes.Buffer{},
+		&bytes.Buffer{},
+		nil,
+	)
+
+	g.Expect(err).To(HaveOccurred())
 }
