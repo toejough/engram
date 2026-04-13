@@ -54,6 +54,58 @@ func (e *EngramAgent) ResetSession() {
 // SessionID returns the current session ID (empty if not yet invoked).
 func (e *EngramAgent) SessionID() string { return e.sessionID }
 
+const (
+	maxRetriesPerSession = 3
+	maxSessionResets     = 1
+)
+
+// ProcessWithRecovery invokes Process with the unified error recovery protocol.
+// Retries on same session (3x) → reset → retries on fresh session (3x) → escalate.
+func (e *EngramAgent) ProcessWithRecovery(ctx context.Context, msg chat.Message) error {
+	for sessionAttempt := range maxSessionResets + 1 {
+		for retry := range maxRetriesPerSession {
+			err := e.Process(ctx, msg)
+			if err == nil {
+				return nil
+			}
+
+			e.config.Logger.Warn("engram-agent error",
+				"err", err,
+				"retry", retry+1,
+				"session_attempt", sessionAttempt,
+				"session_id", e.sessionID,
+			)
+		}
+
+		if sessionAttempt < maxSessionResets {
+			e.ResetSession()
+		}
+	}
+
+	return e.escalate(msg)
+}
+
+func (e *EngramAgent) escalate(msg chat.Message) error {
+	totalAttempts := (maxSessionResets + 1) * maxRetriesPerSession
+
+	errMsg := fmt.Sprintf(
+		"engram-agent cannot produce valid output after %d attempts. "+
+			"The skill/server contract needs manual intervention. Last input: %s",
+		totalAttempts, msg.Text,
+	)
+
+	_, postErr := e.config.PostToChat(chat.Message{
+		From: "engram-server", To: "lead", Text: errMsg,
+	})
+	if postErr != nil {
+		e.config.Logger.Error("failed to post escalation", "err", postErr)
+	}
+
+	e.config.Logger.Error("engram-agent escalation", "msg", errMsg)
+
+	return fmt.Errorf("engram-agent: %s", errMsg)
+}
+
 // postAndLog posts a message to chat and logs the event.
 func (e *EngramAgent) postAndLog(to, text, action string, logArgs ...any) error {
 	_, postErr := e.config.PostToChat(chat.Message{

@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -189,6 +190,141 @@ func TestEngramAgent_ResetSession_ClearsSessionID(t *testing.T) {
 
 	agent.ResetSession()
 	g.Expect(agent.SessionID()).To(BeEmpty())
+}
+
+// --- ProcessWithRecovery tests ---
+
+func TestEngramAgent_ProcessWithRecovery_RetriesOnMalformedThenSucceeds(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	callCount := 0
+
+	agent := server.NewEngramAgent(server.EngramAgentConfig{
+		RunClaude: func(_ context.Context, _, _ string) (string, error) {
+			callCount++
+			if callCount <= 2 {
+				// First 2 calls return malformed output (no session line, non-JSON text).
+				return `{"type":"assistant","message":{"content":[{"type":"text","text":"not json at all"}]}}`, nil
+			}
+
+			return validSurfaceStreamOutput("sess-1", "lead-1", "Memory found"), nil
+		},
+		PostToChat: func(_ chat.Message) (int, error) { return 1, nil },
+		Logger:     slog.Default(),
+	})
+
+	err := agent.ProcessWithRecovery(t.Context(), chat.Message{Text: "test"})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(callCount).To(Equal(3)) // 2 failures + 1 success
+}
+
+func TestEngramAgent_ProcessWithRecovery_ExhaustsRetriesThenResetsSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Build an agent that starts with a known session ID (via a first successful Process call),
+	// then always fails during ProcessWithRecovery so we can observe the reset boundary.
+	const primeSessionID = "pre-existing-session"
+
+	primed := false
+	capturedSessionIDs := make([]string, 0, 7)
+
+	agent := server.NewEngramAgent(server.EngramAgentConfig{
+		RunClaude: func(_ context.Context, _, sessionID string) (string, error) {
+			if !primed {
+				// One-time priming call succeeds and sets the session.
+				primed = true
+
+				return validSurfaceStreamOutput(primeSessionID, "lead", "mem"), nil
+			}
+
+			// All recovery calls: malformed output → Process always errors.
+			capturedSessionIDs = append(capturedSessionIDs, sessionID)
+
+			return `{"type":"assistant","message":{"content":[{"type":"text","text":"bad"}]}}`, nil
+		},
+		PostToChat: func(_ chat.Message) (int, error) { return 1, nil },
+		Logger:     slog.Default(),
+	})
+
+	// Establish session ID.
+	primeErr := agent.Process(t.Context(), chat.Message{Text: "prime"})
+	g.Expect(primeErr).NotTo(HaveOccurred())
+	g.Expect(agent.SessionID()).To(Equal(primeSessionID))
+
+	// ProcessWithRecovery: should exhaust 3+3 retries and escalate.
+	recoveryErr := agent.ProcessWithRecovery(t.Context(), chat.Message{Text: "failing"})
+	g.Expect(recoveryErr).To(HaveOccurred())
+
+	// First 3 calls should use the primed session ID; after reset the next 3 use empty.
+	g.Expect(capturedSessionIDs).To(HaveLen(6))
+
+	for i, sid := range capturedSessionIDs {
+		if i < 3 {
+			g.Expect(sid).To(Equal(primeSessionID),
+				"retry %d (session attempt 0) should use original session", i)
+		} else {
+			g.Expect(sid).To(BeEmpty(),
+				"retry %d (session attempt 1, after reset) should use empty session", i-3)
+		}
+	}
+}
+
+func TestEngramAgent_ProcessWithRecovery_EscalatesAfterAllAttempts(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var escalationMsg chat.Message
+
+	postedMessages := make([]chat.Message, 0, 2)
+
+	agent := server.NewEngramAgent(server.EngramAgentConfig{
+		RunClaude: func(_ context.Context, _, _ string) (string, error) {
+			// Always return malformed output.
+			return `{"type":"assistant","message":{"content":[{"type":"text","text":"bad"}]}}`, nil
+		},
+		PostToChat: func(msg chat.Message) (int, error) {
+			postedMessages = append(postedMessages, msg)
+			escalationMsg = msg
+
+			return 1, nil
+		},
+		Logger: slog.Default(),
+	})
+
+	err := agent.ProcessWithRecovery(t.Context(), chat.Message{From: "lead", Text: "help me"})
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("engram-agent"))
+
+	// Verify escalation was posted to "lead".
+	g.Expect(escalationMsg.To).To(Equal("lead"))
+	g.Expect(escalationMsg.From).To(Equal("engram-server"))
+	g.Expect(escalationMsg.Text).To(ContainSubstring("cannot produce valid output"))
+}
+
+func TestEngramAgent_ProcessWithRecovery_ExecutionErrorTriggersRetry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	callCount := 0
+
+	agent := server.NewEngramAgent(server.EngramAgentConfig{
+		RunClaude: func(_ context.Context, _, _ string) (string, error) {
+			callCount++
+			if callCount < 3 {
+				return "", fmt.Errorf("process crashed: exit status 1")
+			}
+
+			return validSurfaceStreamOutput("sess-ok", "lead", "recovered"), nil
+		},
+		PostToChat: func(_ chat.Message) (int, error) { return 1, nil },
+		Logger:     slog.Default(),
+	})
+
+	err := agent.ProcessWithRecovery(t.Context(), chat.Message{Text: "test"})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(callCount).To(Equal(3))
 }
 
 func makeEngramStreamInput(sessionID, innerJSON string) string {
