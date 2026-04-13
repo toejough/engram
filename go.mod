@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/onsi/gomega v1.39.1
+	github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e
 	github.com/toejough/targ v0.0.0-20260402141037-105fb05f62e1
 	pgregory.net/rapid v1.2.0
 )
@@ -27,7 +28,6 @@ require (
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/toejough/go-reorder v0.0.0-20260323214627-2c2148c725b2 // indirect
-	github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e // indirect
 	github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
