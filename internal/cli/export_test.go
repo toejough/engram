@@ -108,6 +108,20 @@ func ExportDoIntent(
 	return doIntent(ctx, api, from, toAgent, situation, plannedAction, stdout)
 }
 
+// ExportDoLearn exposes doLearn for testing as a function value.
+// The explicit return type ensures the generated StartExportDoLearn wrapper has the correct signature.
+func ExportDoLearn(
+	ctx context.Context,
+	api apiclient.API,
+	from, learnType, situation, behavior, impact, action, subject, predicate, object string,
+	stdout io.Writer,
+) error {
+	return doLearn(
+		ctx, api, from, learnType, situation, behavior, impact,
+		action, subject, predicate, object, stdout,
+	)
+}
+
 // ExportDoPost exposes doPost for testing as a function value.
 // The explicit return type ensures the generated StartExportDoPost wrapper has the correct signature.
 func ExportDoPost(

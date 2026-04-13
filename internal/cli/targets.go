@@ -153,6 +153,20 @@ type IntentArgs struct {
 	Addr          string `targ:"flag,name=addr,desc=API server address"`
 }
 
+// LearnArgs holds flags for `engram learn`.
+type LearnArgs struct {
+	From      string `targ:"flag,name=from,desc=sender agent name"`
+	Type      string `targ:"flag,name=type,desc=learn type: feedback or fact"`
+	Situation string `targ:"flag,name=situation,desc=situation description"`
+	Behavior  string `targ:"flag,name=behavior,desc=observed behavior (feedback)"`
+	Impact    string `targ:"flag,name=impact,desc=impact description (feedback)"`
+	Action    string `targ:"flag,name=action,desc=corrective action (feedback)"`
+	Subject   string `targ:"flag,name=subject,desc=fact subject"`
+	Predicate string `targ:"flag,name=predicate,desc=fact predicate"`
+	Object    string `targ:"flag,name=object,desc=fact object"`
+	Addr      string `targ:"flag,name=addr,desc=API server address"`
+}
+
 // PostArgs holds flags for `engram post`.
 type PostArgs struct {
 	From string `targ:"flag,name=from,desc=sender agent name"`
@@ -360,6 +374,8 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name(postCmd).Description("Post a message to the engram chat"),
 		targ.Targ(func(a IntentArgs) { run(intentCmd, IntentFlags(a)) }).
 			Name(intentCmd).Description("Post an intent and wait for engram response"),
+		targ.Targ(func(a LearnArgs) { run(learnCmd, LearnFlags(a)) }).
+			Name(learnCmd).Description("Submit feedback or fact to the engram agent"),
 	}
 }
 
@@ -493,6 +509,11 @@ func HoldListFlags(a HoldListArgs) []string {
 	)
 }
 
+// HoldReleaseFlags returns the CLI flag args for the hold release subcommand.
+func HoldReleaseFlags(a HoldReleaseArgs) []string {
+	return BuildFlags("--hold-id", a.HoldID, "--chat-file", a.ChatFile)
+}
+
 // IntentFlags returns the CLI flag args for the intent subcommand.
 func IntentFlags(a IntentArgs) []string {
 	return BuildFlags(
@@ -504,9 +525,20 @@ func IntentFlags(a IntentArgs) []string {
 	)
 }
 
-// HoldReleaseFlags returns the CLI flag args for the hold release subcommand.
-func HoldReleaseFlags(a HoldReleaseArgs) []string {
-	return BuildFlags("--hold-id", a.HoldID, "--chat-file", a.ChatFile)
+// LearnFlags returns the CLI flag args for the learn subcommand.
+func LearnFlags(a LearnArgs) []string {
+	return BuildFlags(
+		"--from", a.From,
+		"--type", a.Type,
+		"--situation", a.Situation,
+		"--behavior", a.Behavior,
+		"--impact", a.Impact,
+		"--action", a.Action,
+		"--subject", a.Subject,
+		"--predicate", a.Predicate,
+		"--object", a.Object,
+		"--addr", a.Addr,
+	)
 }
 
 // PostFlags returns the CLI flag args for the post subcommand.

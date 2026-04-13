@@ -623,7 +623,7 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		g.Expect(targets).To(gomega.HaveLen(4))
+		g.Expect(targets).To(gomega.HaveLen(5))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -636,7 +636,7 @@ func TestBuildTargets(t *testing.T) {
 			calls = append(calls, subcmd)
 		})
 
-		subcmds := []string{"recall", "show", "post", "intent"}
+		subcmds := []string{"recall", "show", "post", "intent", "learn"}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
 		}
@@ -938,6 +938,149 @@ func TestHoldReleaseFlags(t *testing.T) {
 	})
 }
 
+func TestIntentFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.IntentFlags(cli.IntentArgs{
+			From:          "lead-1",
+			To:            "engram-agent",
+			Situation:     "deploying",
+			PlannedAction: "run tests",
+			Addr:          "http://localhost:9999",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--to", "engram-agent",
+			"--situation", "deploying",
+			"--planned-action", "run tests",
+			"--addr", "http://localhost:9999",
+		}))
+	})
+
+	t.Run("empty optional fields omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.IntentFlags(cli.IntentArgs{
+			From: "lead-1",
+			To:   "engram-agent",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--to", "engram-agent",
+		}))
+	})
+}
+
+func TestLearnFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("all fields populated", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.LearnFlags(cli.LearnArgs{
+			From:      "lead-1",
+			Type:      "feedback",
+			Situation: "deploying",
+			Behavior:  "skipped tests",
+			Impact:    "breakage",
+			Action:    "always run tests",
+			Subject:   "",
+			Predicate: "",
+			Object:    "",
+			Addr:      "http://localhost:9999",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--type", "feedback",
+			"--situation", "deploying",
+			"--behavior", "skipped tests",
+			"--impact", "breakage",
+			"--action", "always run tests",
+			"--addr", "http://localhost:9999",
+		}))
+	})
+
+	t.Run("empty optional fields omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.LearnFlags(cli.LearnArgs{
+			From: "lead-1",
+			Type: "fact",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--type", "fact",
+		}))
+	})
+
+	t.Run("fact fields populated", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.LearnFlags(cli.LearnArgs{
+			From:      "lead-1",
+			Type:      "fact",
+			Situation: "investigating",
+			Subject:   "engram",
+			Predicate: "uses",
+			Object:    "TF-IDF",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--type", "fact",
+			"--situation", "investigating",
+			"--subject", "engram",
+			"--predicate", "uses",
+			"--object", "TF-IDF",
+		}))
+	})
+}
+
+func TestPostFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.PostFlags(cli.PostArgs{
+			From: "lead-1",
+			To:   "engram-agent",
+			Text: "hello",
+			Addr: "http://localhost:9999",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--to", "engram-agent",
+			"--text", "hello",
+			"--addr", "http://localhost:9999",
+		}))
+	})
+
+	t.Run("empty addr omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.PostFlags(cli.PostArgs{
+			From: "lead-1",
+			To:   "engram-agent",
+			Text: "hello",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "lead-1",
+			"--to", "engram-agent",
+			"--text", "hello",
+		}))
+	})
+}
+
 func TestProjectSlugFromPath(t *testing.T) {
 	t.Parallel()
 
@@ -1027,7 +1170,7 @@ func TestTargets(t *testing.T) {
 
 		// Construction doesn't do I/O — just builds targ target objects.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(targets).To(gomega.HaveLen(8))
+		g.Expect(targets).To(gomega.HaveLen(9))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {
@@ -1044,81 +1187,5 @@ func TestTargets(t *testing.T) {
 
 		// show without slug produces an error (written to stderr), stdout is empty.
 		g.Expect(stdout.String()).To(gomega.BeEmpty())
-	})
-}
-
-func TestIntentFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.IntentFlags(cli.IntentArgs{
-			From:          "lead-1",
-			To:            "engram-agent",
-			Situation:     "deploying",
-			PlannedAction: "run tests",
-			Addr:          "http://localhost:9999",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--to", "engram-agent",
-			"--situation", "deploying",
-			"--planned-action", "run tests",
-			"--addr", "http://localhost:9999",
-		}))
-	})
-
-	t.Run("empty optional fields omitted", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.IntentFlags(cli.IntentArgs{
-			From: "lead-1",
-			To:   "engram-agent",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--to", "engram-agent",
-		}))
-	})
-}
-
-func TestPostFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.PostFlags(cli.PostArgs{
-			From: "lead-1",
-			To:   "engram-agent",
-			Text: "hello",
-			Addr: "http://localhost:9999",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--to", "engram-agent",
-			"--text", "hello",
-			"--addr", "http://localhost:9999",
-		}))
-	})
-
-	t.Run("empty addr omitted", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.PostFlags(cli.PostArgs{
-			From: "lead-1",
-			To:   "engram-agent",
-			Text: "hello",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--to", "engram-agent",
-			"--text", "hello",
-		}))
 	})
 }
