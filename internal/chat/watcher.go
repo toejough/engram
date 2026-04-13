@@ -135,6 +135,18 @@ func ParseMessagesSafe(data []byte) []Message {
 	return result
 }
 
+// ReadAfterCursor returns all messages after the given cursor and the new cursor position.
+// Pure function: takes raw chat file bytes and a line-based cursor.
+func ReadAfterCursor(data []byte, cursor int) ([]Message, int) {
+	newCursor := bytes.Count(data, []byte("\n"))
+
+	suffix := suffixAtLine(data, cursor)
+
+	messages := ParseMessagesSafe(suffix)
+
+	return messages, newCursor
+}
+
 // findMessage scans data for the first message after cursor that matches agent and msgTypes.
 // Returns the message, new cursor (total line count), and whether a match was found.
 // Only the bytes after the cursor line are parsed, so corrupt historical data before

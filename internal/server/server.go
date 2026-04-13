@@ -31,6 +31,20 @@ type Config struct {
 
 	// ResetAgentFunc is called by POST /reset-agent to reset the engram-agent session.
 	ResetAgentFunc func()
+
+	// ChatFilePath is the path to the chat file. Required for agent loop.
+	ChatFilePath string
+
+	// WaitForChange blocks until the chat file changes. Injected for testing.
+	// In production, wraps fsnotify. If nil, the agent loop is not started.
+	WaitForChange WaitFunc
+
+	// ReadFile reads a file's contents. Injected for testing.
+	ReadFile func(path string) ([]byte, error)
+
+	// AgentProcess is called for each message delivered to the engram-agent.
+	// In production, this is EngramAgent.ProcessWithRecovery.
+	AgentProcess func(ctx context.Context, msg chat.Message) error
 }
 
 // Server is the running engram API server.
@@ -46,6 +60,7 @@ func (s *Server) Addr() string {
 
 // Start creates and starts the API server. Returns when the server is listening.
 // The server shuts down when ctx is cancelled or POST /shutdown is called.
+// If agent loop fields are set in cfg, starts SharedWatcher and AgentLoop goroutines.
 func Start(ctx context.Context, cfg Config) (*Server, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -54,7 +69,8 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 		logger = slog.Default()
 	}
 
-	httpServer := buildHTTPServer(cfg, logger, cancel)
+	registry := NewAgentRegistry()
+	httpServer := buildHTTPServer(cfg, logger, cancel, registry)
 
 	lc := &net.ListenConfig{}
 
@@ -84,11 +100,22 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 		}
 	}()
 
+	if cfg.WaitForChange != nil {
+		startAgentLoop(ctx, cfg, logger, registry)
+	}
+
 	return srv, nil
 }
 
+// unexported constants.
+const (
+	engramAgentName = "engram-agent"
+)
+
 // buildHTTPServer constructs the http.Server with all routes wired.
-func buildHTTPServer(cfg Config, logger *slog.Logger, cancel context.CancelFunc) *http.Server {
+func buildHTTPServer(
+	cfg Config, logger *slog.Logger, cancel context.CancelFunc, registry *AgentRegistry,
+) *http.Server {
 	deps := &Deps{
 		PostMessage:       cfg.PostFunc,
 		WatchForMessage:   cfg.WatchFunc,
@@ -96,6 +123,7 @@ func buildHTTPServer(cfg Config, logger *slog.Logger, cancel context.CancelFunc)
 		Logger:            logger,
 		ShutdownFn:        cancel,
 		ResetAgent:        cfg.ResetAgentFunc,
+		AgentRegistry:     registry,
 	}
 
 	mux := http.NewServeMux()
@@ -112,4 +140,45 @@ func buildHTTPServer(cfg Config, logger *slog.Logger, cancel context.CancelFunc)
 		Handler:           mux,
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
+}
+
+// startAgentLoop creates and launches the SharedWatcher and AgentLoop goroutines.
+func startAgentLoop(ctx context.Context, cfg Config, logger *slog.Logger, registry *AgentRegistry) {
+	watcher := NewSharedWatcher(cfg.WaitForChange)
+	notify := watcher.Subscribe()
+
+	readMessages := func(cursor int) ([]chat.Message, int, error) {
+		data, readErr := cfg.ReadFile(cfg.ChatFilePath)
+		if readErr != nil {
+			return nil, 0, fmt.Errorf("reading chat file: %w", readErr)
+		}
+
+		msgs, newCursor := chat.ReadAfterCursor(data, cursor)
+
+		return msgs, newCursor, nil
+	}
+
+	agentLoop := NewAgentLoop(AgentLoopConfig{
+		Name:         engramAgentName,
+		WatchAll:     true,
+		Notify:       notify,
+		ReadMessages: readMessages,
+		OnMessage: func(msg chat.Message) {
+			processErr := cfg.AgentProcess(ctx, msg)
+			if processErr != nil {
+				logger.Error("engram-agent processing error", "err", processErr)
+			}
+		},
+	})
+
+	go func() {
+		_ = watcher.Run(ctx, cfg.ChatFilePath)
+	}()
+
+	go func() {
+		registry.Register(engramAgentName)
+		defer registry.Deregister(engramAgentName)
+
+		agentLoop.Run(ctx)
+	}()
 }

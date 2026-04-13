@@ -13,6 +13,7 @@ import (
 
 	"engram/internal/chat"
 	"engram/internal/server"
+	"engram/internal/watch"
 )
 
 // unexported constants.
@@ -60,6 +61,8 @@ func buildServerConfig(addr, chatFilePath string, logger *slog.Logger) server.Co
 		Logger:     logger,
 	})
 
+	fsWatcher := &watch.FSNotifyWatcher{}
+
 	return server.Config{
 		Addr:   addr,
 		Logger: logger,
@@ -90,6 +93,11 @@ func buildServerConfig(addr, chatFilePath string, logger *slog.Logger) server.Co
 		},
 		// ResetAgentFunc: called by POST /reset-agent to reset engram-agent session.
 		ResetAgentFunc: agent.ResetSession,
+		// Agent loop wiring.
+		ChatFilePath:  chatFilePath,
+		WaitForChange: fsWatcher.WaitForChange,
+		ReadFile:      os.ReadFile,
+		AgentProcess:  agent.ProcessWithRecovery,
 	}
 }
 

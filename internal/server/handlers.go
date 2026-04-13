@@ -30,6 +30,9 @@ type Deps struct {
 
 	// ResetAgent is called by POST /reset-agent to reset the engram-agent session.
 	ResetAgent func()
+
+	// AgentRegistry tracks running agent loops for status reporting.
+	AgentRegistry *AgentRegistry
 }
 
 // logger returns deps.Logger if set, otherwise slog.Default().
@@ -132,10 +135,19 @@ func HandleShutdown(deps *Deps) http.HandlerFunc {
 }
 
 // HandleStatus returns an http.HandlerFunc for GET /status.
-// Always returns {"running": true}.
-func HandleStatus(_ *Deps) http.HandlerFunc {
+// Returns running state and list of active agent loops.
+func HandleStatus(deps *Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, statusResponse{Running: true})
+		var agents []string
+		if deps.AgentRegistry != nil {
+			agents = deps.AgentRegistry.Agents()
+		}
+
+		if agents == nil {
+			agents = make([]string, 0)
+		}
+
+		writeJSON(w, statusResponse{Running: true, Agents: agents})
 	}
 }
 
@@ -209,7 +221,8 @@ type shutdownResponse struct {
 
 // statusResponse is the JSON response for GET /status.
 type statusResponse struct {
-	Running bool `json:"running"`
+	Running bool     `json:"running"`
+	Agents  []string `json:"agents"`
 }
 
 // subscribeResponse is the JSON response for GET /subscribe.

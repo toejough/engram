@@ -446,6 +446,71 @@ func TestParseMessages_InvalidTOML(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestReadAfterCursor_CursorAtEnd_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	msgs := []chat.Message{
+		{From: "a", To: "b", Thread: "t", Type: "info", TS: now, Text: "only"},
+	}
+
+	data := buildChatTOML(msgs)
+	endCursor := countLines(data)
+
+	result, newCursor := chat.ReadAfterCursor(data, endCursor)
+	g.Expect(result).To(BeEmpty())
+	g.Expect(newCursor).To(Equal(endCursor))
+}
+
+func TestReadAfterCursor_CursorZero_ReturnsAllMessages(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	msgs := []chat.Message{
+		{From: "a", To: "b", Thread: "t", Type: "info", TS: now, Text: "first"},
+		{From: "c", To: "d", Thread: "t", Type: "info", TS: now, Text: "second"},
+	}
+
+	data := buildChatTOML(msgs)
+
+	result, newCursor := chat.ReadAfterCursor(data, 0)
+	g.Expect(result).To(HaveLen(2))
+	g.Expect(newCursor).To(Equal(countLines(data)))
+}
+
+func TestReadAfterCursor_EmptyData_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	result, newCursor := chat.ReadAfterCursor(nil, 0)
+	g.Expect(result).To(BeEmpty())
+	g.Expect(newCursor).To(Equal(0))
+}
+
+func TestReadAfterCursor_ReturnsMessagesAfterCursor(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	msgs := []chat.Message{
+		{From: "a", To: "b", Thread: "t", Type: "info", TS: now, Text: "first"},
+		{From: "c", To: "d", Thread: "t", Type: "info", TS: now, Text: "second"},
+	}
+
+	data := buildChatTOML(msgs)
+	firstCursor := countLines(buildChatTOML(msgs[:1]))
+
+	// Read after first message — should return only the second.
+	result, newCursor := chat.ReadAfterCursor(data, firstCursor)
+	g.Expect(result).To(HaveLen(1))
+
+	if len(result) == 0 {
+		return
+	}
+
+	g.Expect(result[0].Text).To(Equal("second"))
+	g.Expect(newCursor).To(Equal(countLines(data)))
+}
+
 // unexported variables.
 var (
 	errFakeRead = errors.New("fake read error")

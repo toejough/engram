@@ -351,7 +351,9 @@ func TestStatus_AlwaysReturnsRunningTrue(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := &server.Deps{}
+	deps := &server.Deps{
+		AgentRegistry: server.NewAgentRegistry(),
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/status", nil)
 	rec := httptest.NewRecorder()
@@ -365,6 +367,56 @@ func TestStatus_AlwaysReturnsRunningTrue(t *testing.T) {
 	decErr := json.NewDecoder(rec.Body).Decode(&resp)
 	g.Expect(decErr).NotTo(HaveOccurred())
 	g.Expect(resp["running"]).To(BeTrue())
+}
+
+func TestStatus_EmptyAgentsWhenNoneRegistered(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := &server.Deps{
+		AgentRegistry: server.NewAgentRegistry(),
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	rec := httptest.NewRecorder()
+
+	server.HandleStatus(deps)(rec, req)
+
+	var resp map[string]any
+
+	decErr := json.NewDecoder(rec.Body).Decode(&resp)
+	g.Expect(decErr).NotTo(HaveOccurred())
+
+	agents, ok := resp["agents"].([]any)
+	g.Expect(ok).To(BeTrue())
+	g.Expect(agents).To(BeEmpty())
+}
+
+func TestStatus_ReportsRegisteredAgents(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	registry := server.NewAgentRegistry()
+	registry.Register("engram-agent")
+
+	deps := &server.Deps{
+		AgentRegistry: registry,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	rec := httptest.NewRecorder()
+
+	server.HandleStatus(deps)(rec, req)
+
+	var resp map[string]any
+
+	decErr := json.NewDecoder(rec.Body).Decode(&resp)
+	g.Expect(decErr).NotTo(HaveOccurred())
+
+	agents, ok := resp["agents"].([]any)
+	g.Expect(ok).To(BeTrue())
+	g.Expect(agents).To(HaveLen(1))
+	g.Expect(agents[0]).To(Equal("engram-agent"))
 }
 
 func TestStatus_SetsContentTypeJSON(t *testing.T) {
