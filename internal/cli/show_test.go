@@ -82,7 +82,7 @@ func TestRenderMemoryContent_FeedbackType_ShowsSBIAFields(t *testing.T) {
 	g.Expect(output).NotTo(ContainSubstring("Subject:"))
 }
 
-func TestRenderMemoryMeta_CreatedAt(t *testing.T) {
+func TestRenderMemoryContent_IncludesTimestamps(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -90,41 +90,12 @@ func TestRenderMemoryMeta_CreatedAt(t *testing.T) {
 
 	mem := &memory.MemoryRecord{
 		CreatedAt: "2026-01-01T00:00:00Z",
+		UpdatedAt: "2026-01-02T00:00:00Z",
 	}
-	cli.ExportRenderMemoryMeta(&buf, mem)
-	g.Expect(buf.String()).To(ContainSubstring("Created: 2026-01-01T00:00:00Z"))
-}
-
-func TestRenderMemoryMeta_IrrelevantCount(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var buf bytes.Buffer
-
-	mem := &memory.MemoryRecord{
-		FollowedCount:    6,
-		NotFollowedCount: 2,
-		IrrelevantCount:  2,
-	}
-	cli.ExportRenderMemoryMeta(&buf, mem)
+	cli.ExportRenderMemoryContent(&buf, mem)
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("Effectiveness: 75%"))
-	g.Expect(output).To(ContainSubstring("Relevance: 80%"))
-	g.Expect(output).To(ContainSubstring("2 irrelevant"))
-}
-
-func TestRenderMemoryMeta_ProjectScoped(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var buf bytes.Buffer
-
-	mem := &memory.MemoryRecord{
-		ProjectScoped: true,
-		ProjectSlug:   "my-project",
-	}
-	cli.ExportRenderMemoryMeta(&buf, mem)
-	g.Expect(buf.String()).To(ContainSubstring("Scope: project (my-project)"))
+	g.Expect(output).To(ContainSubstring("Created: 2026-01-01T00:00:00Z"))
+	g.Expect(output).To(ContainSubstring("Updated: 2026-01-02T00:00:00Z"))
 }
 
 func TestShow_FlagParseError_ReturnsError(t *testing.T) {
@@ -159,11 +130,6 @@ func TestShow_HappyPath_PrintsSBIAFields(t *testing.T) {
 	}
 
 	tomlContent := `situation = "when running tests"
-project_scoped = true
-project_slug = "engram"
-surfaced_count = 10
-followed_count = 8
-not_followed_count = 2
 updated_at = "2025-01-01T00:00:00Z"
 
 [content]
@@ -204,9 +170,8 @@ action = "use targ test instead"
 	g.Expect(output).To(ContainSubstring("Behavior: use go test directly"))
 	g.Expect(output).To(ContainSubstring("Impact: misses coverage and lint flags"))
 	g.Expect(output).To(ContainSubstring("Action: use targ test instead"))
-	g.Expect(output).To(ContainSubstring("Effectiveness: 80%"))
-	g.Expect(output).To(ContainSubstring("8 followed"))
-	g.Expect(output).To(ContainSubstring("2 not followed"))
+	g.Expect(output).To(ContainSubstring("Updated: 2025-01-01T00:00:00Z"))
+	g.Expect(output).NotTo(ContainSubstring("Effectiveness:"))
 }
 
 func TestShow_MemoryNotFound_ReturnsError(t *testing.T) {
@@ -302,7 +267,7 @@ func TestShow_OmitsEmptyFields(t *testing.T) {
 		return
 	}
 
-	// Memory with only situation and action — no behavior, impact.
+	// Memory with only situation and action -- no behavior, impact.
 	tomlContent := `situation = "Minimal Memory"
 updated_at = "2025-01-01T00:00:00Z"
 

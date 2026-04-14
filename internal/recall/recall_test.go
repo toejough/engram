@@ -21,14 +21,14 @@ func TestSessionFinder_EmptyDirectory(t *testing.T) {
 
 	finder := recall.NewSessionFinder(lister)
 
-	paths, err := finder.Find("/project")
+	entries, err := finder.Find("/project")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	g.Expect(paths).To(BeEmpty())
+	g.Expect(entries).To(BeEmpty())
 }
 
 func TestSessionFinder_ListerError(t *testing.T) {
@@ -63,18 +63,17 @@ func TestSessionFinder_SortsByMtimeDescending(t *testing.T) {
 
 	finder := recall.NewSessionFinder(lister)
 
-	paths, err := finder.Find("/project")
+	entries, err := finder.Find("/project")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	g.Expect(paths).To(Equal([]string{
-		"/sessions/newest.jsonl",
-		"/sessions/middle.jsonl",
-		"/sessions/old.jsonl",
-	}))
+	g.Expect(entries).To(HaveLen(3))
+	g.Expect(entries[0].Path).To(Equal("/sessions/newest.jsonl"))
+	g.Expect(entries[1].Path).To(Equal("/sessions/middle.jsonl"))
+	g.Expect(entries[2].Path).To(Equal("/sessions/old.jsonl"))
 }
 
 func TestTranscriptReader_ReadError(t *testing.T) {
@@ -197,6 +196,40 @@ func TestTranscriptReader_StripsToolResults(t *testing.T) {
 	g.Expect(result).To(ContainSubstring("ASSISTANT: response"))
 	g.Expect(result).NotTo(ContainSubstring("toolResult"))
 	g.Expect(bytesRead).To(BeNumerically(">", 0))
+}
+
+func TestTranscriptReader_ToolSummaryMode(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	lines := []string{
+		`{"type":"assistant","message":{"role":"assistant","content":[` +
+			`{"type":"text","text":"Let me check"},` +
+			`{"type":"tool_use","id":"tu1","name":"Bash","input":{"command":"ls"}}` +
+			`]}}`,
+		`{"type":"user","message":{"role":"user","content":[` +
+			`{"type":"tool_result","tool_use_id":"tu1","content":"file1.go\nfile2.go","is_error":false}` +
+			`]}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := recall.NewTranscriptReader(&fakeFileReader{
+		contents: map[string][]byte{"/transcript.jsonl": []byte(content)},
+	})
+
+	const largeBudget = 10000
+
+	result, _, err := reader.Read("/transcript.jsonl", largeBudget)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(ContainSubstring("[tool]"), "should contain tool summary line")
+	g.Expect(result).To(ContainSubstring("Bash"), "should contain tool name")
+	g.Expect(result).To(ContainSubstring("Let me check"), "should contain assistant text")
 }
 
 // --- Fake implementations ---

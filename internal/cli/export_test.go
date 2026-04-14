@@ -2,20 +2,23 @@ package cli
 
 import (
 	"context"
+	"io"
 
+	"engram/internal/memory"
 	"engram/internal/recall"
-	"engram/internal/surface"
 )
 
 // Exported variables.
 var (
 	ExportApplyDataDirDefault     = applyDataDirDefault
 	ExportApplyProjectSlugDefault = applyProjectSlugDefault
-	ExportBuildRecallSurfacer     = buildRecallSurfacer
-	ExportRecordSurfacing         = recordSurfacing
+	ExportBuildMemoryIndex        = buildMemoryIndex
+	ExportDescribeNewMemory       = describeNewMemory
+	ExportParseConflictResponse   = parseConflictResponse
+	ExportRenderConflictContent   = renderConflictContent
 	ExportRenderFactContent       = renderFactContent
 	ExportRenderMemoryContent     = renderMemoryContent
-	ExportRenderMemoryMeta        = renderMemoryMeta
+	ExportValidateSource          = validateSource
 )
 
 // ExportNewHaikuCallerAdapter creates a haikuCallerAdapter for testing.
@@ -37,7 +40,24 @@ func ExportNewOsFileReader() interface {
 	return &osFileReader{}
 }
 
-// ExportNewSurfaceRunnerAdapter creates a surfaceRunnerAdapter for testing.
-func ExportNewSurfaceRunnerAdapter(surfacer *surface.Surfacer) SurfaceRunner {
-	return &surfaceRunnerAdapter{surfacer: surfacer}
+// ExportParseConflictLine wraps parseConflictLine for testing.
+func ExportParseConflictLine(line, dataDir string, stdout io.Writer) {
+	parseConflictLine(line, dataDir, stdout)
+}
+
+// ExportRunLearn wraps runLearn for testing.
+func ExportRunLearn(args []string, stdout io.Writer) error {
+	return runLearn(args, stdout)
+}
+
+// ExportWriteMemoryForTest wraps writeMemory for testing with a pre-built record.
+func ExportWriteMemoryForTest(
+	record *memory.MemoryRecord,
+	situation, dataDir string,
+	noDupCheck bool,
+	stdout io.Writer,
+	cmdName string,
+) error {
+	dd := dataDir
+	return writeMemory(record, situation, &dd, noDupCheck, stdout, cmdName)
 }

@@ -4,16 +4,25 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/toejough/targ"
 )
 
+// ListArgs holds parsed flags for the list subcommand.
+type ListArgs struct {
+	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+}
+
+
 // RecallArgs holds parsed flags for the recall subcommand.
 type RecallArgs struct {
-	DataDir     string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	ProjectSlug string `targ:"flag,name=project-slug,desc=project directory slug"`
-	Query       string `targ:"flag,name=query,desc=search query (omit for summary mode)"`
+	DataDir      string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	ProjectSlug  string `targ:"flag,name=project-slug,desc=project directory slug"`
+	Query        string `targ:"flag,name=query,desc=search query (omit for summary mode)"`
+	MemoriesOnly bool   `targ:"flag,name=memories-only,desc=search only memory files"`
+	Limit        int    `targ:"flag,name=limit,desc=max memories to return (default 10)"`
 }
 
 // ShowArgs holds parsed flags for the show subcommand.
@@ -21,6 +30,25 @@ type ShowArgs struct {
 	Name    string `targ:"flag,name=name,desc=memory slug to display"`
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
+
+// AddBoolFlag appends a flag if the bool is true.
+func AddBoolFlag(flags []string, name string, value bool) []string {
+	if value {
+		flags = append(flags, name)
+	}
+
+	return flags
+}
+
+// AddIntFlag appends a flag with the int value converted to string, if non-zero.
+func AddIntFlag(flags []string, name string, value int) []string {
+	if value != 0 {
+		flags = append(flags, name, strconv.Itoa(value))
+	}
+
+	return flags
+}
+
 
 // BuildFlags constructs a []string flag list from key-value pairs, skipping empty values.
 func BuildFlags(pairs ...string) []string {
@@ -42,6 +70,8 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("recall").Description("Recall recent session context"),
 		targ.Targ(func(a ShowArgs) { run("show", ShowFlags(a)) }).
 			Name("show").Description("Display full memory details"),
+		targ.Targ(func(a ListArgs) { run("list", ListFlags(a)) }).
+			Name("list").Description("List all memories with type, name, and situation"),
 	}
 }
 
@@ -56,6 +86,11 @@ func DataDirFromHome(home string, getenv func(string) string) string {
 	return filepath.Join(home, ".local", "share", "engram")
 }
 
+// ListFlags returns the CLI flag args for the list subcommand.
+func ListFlags(a ListArgs) []string {
+	return BuildFlags("--data-dir", a.DataDir)
+}
+
 // ProjectSlugFromPath converts a filesystem path to a project slug by replacing
 // path separators with dashes, matching the shell convention: echo "$PWD" | tr '/' '-'.
 func ProjectSlugFromPath(path string) string {
@@ -64,11 +99,15 @@ func ProjectSlugFromPath(path string) string {
 
 // RecallFlags returns the CLI flag args for the recall subcommand.
 func RecallFlags(a RecallArgs) []string {
-	return BuildFlags(
+	flags := BuildFlags(
 		"--data-dir", a.DataDir,
 		"--project-slug", a.ProjectSlug,
 		"--query", a.Query,
 	)
+	flags = AddBoolFlag(flags, "--memories-only", a.MemoriesOnly)
+	flags = AddIntFlag(flags, "--limit", a.Limit)
+
+	return flags
 }
 
 // RunSafe runs the CLI and prints errors to the given writer (ARCH-6: always exit 0).

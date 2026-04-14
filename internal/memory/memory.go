@@ -9,37 +9,12 @@ import (
 
 // Stored represents a memory read back from a TOML file on disk (ARCH-9).
 type Stored struct {
-	Type              string
-	Situation         string
-	Content           ContentFields
-	Core              bool
-	InitialConfidence float64
-	ProjectScoped     bool
-	ProjectSlug       string
-	SurfacedCount     int
-	FollowedCount     int
-	NotFollowedCount  int
-	IrrelevantCount   int
-	UpdatedAt         time.Time
-	FilePath          string
-}
-
-// SearchText returns a concatenation of all searchable fields for retrieval scoring.
-func (s *Stored) SearchText() string {
-	parts := make([]string, 0, searchTextCapacity)
-
-	if s.Situation != "" {
-		parts = append(parts, s.Situation)
-	}
-
-	parts = appendContentFields(parts, s.Type, s.Content)
-
-	return strings.Join(parts, " ")
-}
-
-// TotalEvaluations returns the sum of all evaluation counters.
-func (s *Stored) TotalEvaluations() int {
-	return s.FollowedCount + s.NotFollowedCount + s.IrrelevantCount
+	Type      string
+	Situation string
+	Source    string
+	Content   ContentFields
+	UpdatedAt time.Time
+	FilePath  string
 }
 
 // FactsDir returns the directory for fact memory files.
@@ -84,29 +59,4 @@ func ResolveMemoryPath(dataDir, slug string, fileExists func(string) bool) strin
 	// Fall back to legacy path even if it doesn't exist, so the caller
 	// gets a meaningful "file not found" error.
 	return filepath.Join(MemoriesDir(dataDir), filename)
-}
-
-// unexported constants.
-const (
-	searchTextCapacity = 4
-)
-
-// appendContentFields adds the relevant content fields based on memory type.
-func appendContentFields(parts []string, memType string, content ContentFields) []string {
-	if memType == "fact" {
-		return appendNonEmpty(parts, content.Subject, content.Predicate, content.Object)
-	}
-
-	return appendNonEmpty(parts, content.Behavior, content.Impact, content.Action)
-}
-
-// appendNonEmpty appends non-empty strings to the slice.
-func appendNonEmpty(parts []string, values ...string) []string {
-	for _, val := range values {
-		if val != "" {
-			parts = append(parts, val)
-		}
-	}
-
-	return parts
 }

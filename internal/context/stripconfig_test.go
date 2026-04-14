@@ -219,8 +219,255 @@ func TestStripWithConfig_TruncatesLongToolResult(t *testing.T) {
 	g.Expect(toolLine).To(ContainSubstring("[truncated]"))
 }
 
+// TestToolSummaryMode_ArgsTruncated verifies args longer than 120 chars are truncated.
+func TestToolSummaryMode_ArgsTruncated(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	longCmd := "echo " + strings.Repeat("hello world ", 30)
+	toolUseLine := buildToolUseLineNoText("Bash", map[string]string{
+		"command": longCmd,
+	})
+	toolResultLine := buildToolResultLine("ok", false)
+
+	lines := []string{toolUseLine, toolResultLine}
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	result := sessionctx.StripWithConfig(lines, cfg)
+
+	g.Expect(result).To(HaveLen(1))
+
+	toolLine := result[0]
+	// The args portion inside parens should be truncated
+	g.Expect(toolLine).To(ContainSubstring("[truncated]"))
+}
+
+// --- ToolSummaryMode tests ---
+
+// TestToolSummaryMode_BasicPair verifies a tool_use + tool_result pair produces a correct summary line.
+func TestToolSummaryMode_BasicPair(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	toolUseLine := buildToolUseLine("Let me read", "Read", map[string]string{
+		"file_path": "/src/main.go",
+	})
+	toolResultLine := buildToolResultLine("package main", false)
+
+	lines := []string{toolUseLine, toolResultLine}
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	result := sessionctx.StripWithConfig(lines, cfg)
+
+	// Expect: ASSISTANT text line + [tool] summary line
+	g.Expect(result).To(HaveLen(2))
+	g.Expect(result[0]).To(Equal("ASSISTANT: Let me read"))
+	g.Expect(result[1]).To(HavePrefix("[tool] Read("))
+	g.Expect(result[1]).To(ContainSubstring(`file_path="/src/main.go"`))
+	g.Expect(result[1]).To(ContainSubstring("exit 0"))
+	g.Expect(result[1]).To(ContainSubstring("package main"))
+}
+
+// TestToolSummaryMode_DropsMalformedAndEmpty verifies malformed JSON, empty content,
+// system reminders, and non-user/assistant types are dropped.
+func TestToolSummaryMode_DropsMalformedAndEmpty(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	lines := []string{
+		`not valid json`,
+		`{"type":"progress","message":{"role":"system","content":"progress"}}`,
+		`{"type":"user","message":{"role":"user","content":""}}`,
+		`{"type":"user","message":{"role":"user",` +
+			`"content":"<system-reminder>hook noise</system-reminder>"}}`,
+		`{"type":"user","message":{"role":"user","content":"real question"}}`,
+	}
+
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	result := sessionctx.StripWithConfig(lines, cfg)
+
+	g.Expect(result).To(HaveLen(1))
+	g.Expect(result[0]).To(Equal("USER: real question"))
+}
+
+// TestToolSummaryMode_ErrorResult verifies is_error=true produces exit 1.
+func TestToolSummaryMode_ErrorResult(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	toolUseLine := buildToolUseLineNoText("Bash", map[string]string{
+		"command": "targ test",
+	})
+	toolResultLine := buildToolResultLine("Error: test failed", true)
+
+	lines := []string{toolUseLine, toolResultLine}
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	result := sessionctx.StripWithConfig(lines, cfg)
+
+	g.Expect(result).To(HaveLen(1))
+	g.Expect(result[0]).To(HavePrefix("[tool] Bash("))
+	g.Expect(result[0]).To(ContainSubstring("exit 1"))
+	g.Expect(result[0]).To(ContainSubstring("Error: test failed"))
+}
+
+// TestToolSummaryMode_MixedTextAndToolCalls verifies text and tool calls interleave correctly.
+func TestToolSummaryMode_MixedTextAndToolCalls(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	userLine := `{"type":"user","message":{"role":"user","content":"run the tests"}}`
+	toolUseLine := buildToolUseLine("Sure, running tests", "Bash", map[string]string{
+		"command": "targ test",
+	})
+	toolResultLine := buildToolResultLine("PASS", false)
+	assistantLine := `{"type":"assistant","message":{"role":"assistant",` +
+		`"content":[{"type":"text","text":"All tests passed."}]}}`
+
+	lines := []string{userLine, toolUseLine, toolResultLine, assistantLine}
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	result := sessionctx.StripWithConfig(lines, cfg)
+
+	g.Expect(result).To(HaveLen(4))
+	g.Expect(result[0]).To(Equal("USER: run the tests"))
+	g.Expect(result[1]).To(Equal("ASSISTANT: Sure, running tests"))
+	g.Expect(result[2]).To(HavePrefix("[tool] Bash("))
+	g.Expect(result[2]).To(ContainSubstring("PASS"))
+	g.Expect(result[3]).To(Equal("ASSISTANT: All tests passed."))
+}
+
+// TestToolSummaryMode_MultilineOutput verifies only first non-empty line of output is used.
+func TestToolSummaryMode_MultilineOutput(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Build a tool result with multiline content - using newlines in JSON string
+	multilineContent := "first line\\nsecond line\\nthird line"
+	toolUseLine := buildToolUseLineNoText("Grep", map[string]string{
+		"command": "ls",
+	})
+	toolResultLine := buildToolResultLineRaw(multilineContent, false)
+
+	lines := []string{toolUseLine, toolResultLine}
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	result := sessionctx.StripWithConfig(lines, cfg)
+
+	g.Expect(result).To(HaveLen(1))
+	g.Expect(result[0]).To(ContainSubstring("first line"))
+	g.Expect(result[0]).ToNot(ContainSubstring("second line"))
+}
+
+// TestToolSummaryMode_MultipleToolCalls verifies multiple sequential tool calls work correctly.
+func TestToolSummaryMode_MultipleToolCalls(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	toolUse1 := buildToolUseLine("Reading file", "Read", map[string]string{
+		"file_path": "/a.go",
+	})
+	toolResult1 := buildToolResultLine("package a", false)
+	toolUse2 := buildToolUseLineNoText("Bash", map[string]string{
+		"command": "targ test",
+	})
+	toolResult2 := buildToolResultLine("PASS", false)
+
+	lines := []string{toolUse1, toolResult1, toolUse2, toolResult2}
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	result := sessionctx.StripWithConfig(lines, cfg)
+
+	// Expect: ASSISTANT text, [tool] Read summary, [tool] Bash summary
+	g.Expect(result).To(HaveLen(3))
+	g.Expect(result[0]).To(Equal("ASSISTANT: Reading file"))
+	g.Expect(result[1]).To(HavePrefix("[tool] Read("))
+	g.Expect(result[1]).To(ContainSubstring("package a"))
+	g.Expect(result[2]).To(HavePrefix("[tool] Bash("))
+	g.Expect(result[2]).To(ContainSubstring("PASS"))
+}
+
+// TestToolSummaryMode_OrphanedToolUse verifies a tool_use without matching result is skipped.
+func TestToolSummaryMode_OrphanedToolUse(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	toolUseLine := buildToolUseLine("Let me check", "Read", map[string]string{
+		"file_path": "/foo.go",
+	})
+	// No matching tool_result follows
+	assistantLine := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Done."}]}}`
+
+	lines := []string{toolUseLine, assistantLine}
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	result := sessionctx.StripWithConfig(lines, cfg)
+
+	// The text lines should be present, but no [tool] summary for the orphan
+	g.Expect(result).To(HaveLen(2))
+	g.Expect(result[0]).To(Equal("ASSISTANT: Let me check"))
+	g.Expect(result[1]).To(Equal("ASSISTANT: Done."))
+}
+
+// TestToolSummaryMode_OutputTruncated verifies output longer than 120 chars is truncated.
+func TestToolSummaryMode_OutputTruncated(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	longOutput := "output: " + strings.Repeat("line output ", 30)
+	toolUseLine := buildToolUseLineNoText("Bash", map[string]string{
+		"command": "ls",
+	})
+	toolResultLine := buildToolResultLine(longOutput, false)
+
+	lines := []string{toolUseLine, toolResultLine}
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	result := sessionctx.StripWithConfig(lines, cfg)
+
+	g.Expect(result).To(HaveLen(1))
+
+	toolLine := result[0]
+	// After "| " the output portion should be truncated
+	g.Expect(toolLine).To(ContainSubstring("[truncated]"))
+	g.Expect(toolLine).To(ContainSubstring("exit 0"))
+}
+
+// TestToolSummaryMode_StringContent verifies plain string content works in summary mode.
+func TestToolSummaryMode_StringContent(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	lines := []string{
+		`{"type":"user","message":{"role":"user","content":"plain question"}}`,
+		`{"type":"assistant","message":{"role":"assistant","content":"plain answer"}}`,
+	}
+
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	result := sessionctx.StripWithConfig(lines, cfg)
+
+	g.Expect(result).To(HaveLen(2))
+	g.Expect(result[0]).To(Equal("USER: plain question"))
+	g.Expect(result[1]).To(Equal("ASSISTANT: plain answer"))
+}
+
 // buildToolResultLine builds a JSONL user line with a tool_result block.
 func buildToolResultLine(content string, isError bool) string {
+	isErrorStr := "false"
+	if isError {
+		isErrorStr = "true"
+	}
+
+	return `{"type":"user","message":{"role":"user","content":[` +
+		`{"type":"tool_result","tool_use_id":"t1","content":"` + content + `","is_error":` + isErrorStr + `}` +
+		`]}}`
+}
+
+// buildToolResultLineRaw builds a JSONL user line with a tool_result block,
+// where content is inserted raw (allowing escape sequences like \n in JSON).
+func buildToolResultLineRaw(content string, isError bool) string {
 	isErrorStr := "false"
 	if isError {
 		isErrorStr = "true"
@@ -240,6 +487,18 @@ func buildToolUseLine(text, toolName string, input map[string]string) string {
 
 	return `{"type":"assistant","message":{"role":"assistant","content":[` +
 		`{"type":"text","text":"` + text + `"},` +
+		`{"type":"tool_use","id":"t1","name":"` + toolName + `","input":` + string(inputJSON) + `}` +
+		`]}}`
+}
+
+// buildToolUseLineNoText builds a JSONL assistant line with only a tool_use block (no text).
+func buildToolUseLineNoText(toolName string, input map[string]string) string {
+	inputJSON, err := json.Marshal(input)
+	if err != nil {
+		panic("buildToolUseLineNoText: marshal failed: " + err.Error())
+	}
+
+	return `{"type":"assistant","message":{"role":"assistant","content":[` +
 		`{"type":"tool_use","id":"t1","name":"` + toolName + `","input":` + string(inputJSON) + `}` +
 		`]}}`
 }

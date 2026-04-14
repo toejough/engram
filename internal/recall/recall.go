@@ -34,8 +34,8 @@ func NewSessionFinder(lister DirLister) *SessionFinder {
 	return &SessionFinder{lister: lister}
 }
 
-// Find returns transcript paths sorted by mtime descending (newest first).
-func (f *SessionFinder) Find(projectDir string) ([]string, error) {
+// Find returns transcript entries sorted by mtime descending (newest first).
+func (f *SessionFinder) Find(projectDir string) ([]FileEntry, error) {
 	entries, err := f.lister.ListJSONL(projectDir)
 	if err != nil {
 		return nil, fmt.Errorf("listing sessions: %w", err)
@@ -45,12 +45,7 @@ func (f *SessionFinder) Find(projectDir string) ([]string, error) {
 		return entries[i].Mtime.After(entries[j].Mtime)
 	})
 
-	paths := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		paths = append(paths, entry.Path)
-	}
-
-	return paths, nil
+	return entries, nil
 }
 
 // TranscriptReader reads session transcripts and strips noise.
@@ -82,7 +77,8 @@ func (r *TranscriptReader) Read(path string, budgetBytes int) (string, int, erro
 		}
 	}
 
-	stripped := sessionctx.Strip(nonEmpty)
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	stripped := sessionctx.StripWithConfig(nonEmpty, cfg)
 
 	// Accumulate lines from the tail (most recent content first),
 	// then reverse to chronological order.

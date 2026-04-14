@@ -14,20 +14,15 @@ func TestMemoryRecord_ToStored_PreservesFields(t *testing.T) {
 
 	rec := memory.MemoryRecord{
 		Type:      "feedback",
+		Source:    "observation",
 		Situation: "when running tests",
 		Content: memory.ContentFields{
 			Behavior: "use go test directly",
 			Impact:   "misses coverage",
 			Action:   "use targ test",
 		},
-		ProjectScoped:    true,
-		ProjectSlug:      "engram",
-		CreatedAt:        "2026-03-27T10:00:00Z",
-		UpdatedAt:        "2026-03-27T10:00:00Z",
-		SurfacedCount:    5,
-		FollowedCount:    3,
-		NotFollowedCount: 1,
-		IrrelevantCount:  2,
+		CreatedAt: "2026-03-27T10:00:00Z",
+		UpdatedAt: "2026-03-27T10:00:00Z",
 	}
 
 	stored := rec.ToStored("/path/to/test.toml")
@@ -38,15 +33,10 @@ func TestMemoryRecord_ToStored_PreservesFields(t *testing.T) {
 	}
 
 	g.Expect(stored.Type).To(Equal("feedback"))
+	g.Expect(stored.Source).To(Equal("observation"))
 	g.Expect(stored.Situation).To(Equal("when running tests"))
 	g.Expect(stored.Content.Behavior).To(Equal("use go test directly"))
 	g.Expect(stored.Content.Impact).To(Equal("misses coverage"))
 	g.Expect(stored.Content.Action).To(Equal("use targ test"))
-	g.Expect(stored.ProjectScoped).To(BeTrue())
-	g.Expect(stored.ProjectSlug).To(Equal("engram"))
-	g.Expect(stored.SurfacedCount).To(Equal(5))
-	g.Expect(stored.FollowedCount).To(Equal(3))
-	g.Expect(stored.NotFollowedCount).To(Equal(1))
-	g.Expect(stored.IrrelevantCount).To(Equal(2))
 	g.Expect(stored.FilePath).To(Equal("/path/to/test.toml"))
 }

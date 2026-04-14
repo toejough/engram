@@ -1,0 +1,381 @@
+package cli
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+
+	"engram/internal/memory"
+	"engram/internal/tomlwriter"
+)
+
+// unexported constants.
+const (
+	conflictDetectionSystemPrompt = `You are a memory deduplication checker. ` +
+		`Given an index of existing memories and a new memory, determine if the new memory ` +
+		`is a duplicate or contradiction of any existing one.
+
+Respond with one of:
+- "NONE" if no duplicates or contradictions found
+- "DUPLICATE: <name>" if it duplicates an existing memory (one per line)
+- "CONTRADICTION: <name>" if it contradicts an existing memory (one per line)
+
+Only output the result lines, nothing else.`
+	conflictDetectionUserPrompt = `Existing memories:
+%s
+New memory:
+%s
+
+Is this new memory a duplicate or contradiction of any existing one?`
+	memorySchemaVersion = 2
+	splitNParts         = 2
+	typeFact            = "fact"
+	typeFeedback        = "feedback"
+)
+
+// unexported variables.
+var (
+	errInvalidSource      = errors.New("source must be \"human\" or \"agent\"")
+	errLearnUsage         = errors.New("usage: engram learn <feedback|fact> [flags]")
+	errUnknownLearnSubcmd = errors.New("unknown learn subcommand")
+)
+
+// learnCommonFlags holds shared flags for learn subcommands.
+type learnCommonFlags struct {
+	situation  *string
+	source     *string
+	dataDir    *string
+	noDupCheck *bool
+}
+
+// unexported functions.
+
+func buildMemoryIndex(memories []*memory.Stored) string {
+	var builder strings.Builder
+
+	for _, mem := range memories {
+		name := memory.NameFromPath(mem.FilePath)
+
+		_, _ = fmt.Fprintf(&builder, "%s | %s | %s\n", mem.Type, name, mem.Situation)
+	}
+
+	return builder.String()
+}
+
+func callHaikuForConflicts(
+	ctx context.Context,
+	token, index, description string,
+) (string, error) {
+	caller := makeAnthropicCaller(token)
+
+	systemPrompt := conflictDetectionSystemPrompt
+	userPrompt := fmt.Sprintf(conflictDetectionUserPrompt, index, description)
+
+	response, err := caller(ctx, "claude-haiku-4-5-20251001", systemPrompt, userPrompt)
+	if err != nil {
+		return "", fmt.Errorf("calling Haiku: %w", err)
+	}
+
+	return response, nil
+}
+
+func checkForConflicts(
+	record *memory.MemoryRecord,
+	dataDir string,
+	stdout io.Writer,
+) (bool, error) {
+	ctx, cancel := signalContext()
+	defer cancel()
+
+	token := resolveToken(ctx)
+	if token == "" {
+		return false, nil
+	}
+
+	lister := memory.NewLister()
+
+	memories, err := lister.ListAllMemories(dataDir)
+	if err != nil {
+		// No existing memories is not an error -- nothing to conflict with.
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("listing memories: %w", err)
+	}
+
+	if len(memories) == 0 {
+		return false, nil
+	}
+
+	index := buildMemoryIndex(memories)
+	description := describeNewMemory(record)
+
+	response, callErr := callHaikuForConflicts(ctx, token, index, description)
+	if callErr != nil {
+		// API errors are non-fatal for dedup: fall through and write anyway.
+		return false, nil
+	}
+
+	return parseConflictResponse(response, dataDir, stdout), nil
+}
+
+func describeNewMemory(record *memory.MemoryRecord) string {
+	var builder strings.Builder
+
+	_, _ = fmt.Fprintf(&builder, "Type: %s\n", record.Type)
+	_, _ = fmt.Fprintf(&builder, "Situation: %s\n", record.Situation)
+
+	if record.Type == typeFact {
+		_, _ = fmt.Fprintf(&builder, "Subject: %s\n", record.Content.Subject)
+		_, _ = fmt.Fprintf(&builder, "Predicate: %s\n", record.Content.Predicate)
+		_, _ = fmt.Fprintf(&builder, "Object: %s\n", record.Content.Object)
+	} else {
+		_, _ = fmt.Fprintf(&builder, "Behavior: %s\n", record.Content.Behavior)
+		_, _ = fmt.Fprintf(&builder, "Impact: %s\n", record.Content.Impact)
+		_, _ = fmt.Fprintf(&builder, "Action: %s\n", record.Content.Action)
+	}
+
+	_, _ = fmt.Fprintf(&builder, "Source: %s\n", record.Source)
+
+	return builder.String()
+}
+
+func parseAndValidate(
+	fs *flag.FlagSet,
+	common learnCommonFlags,
+	args []string,
+	cmdName string,
+) (*memory.MemoryRecord, error) {
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return nil, fmt.Errorf("%s: %w", cmdName, parseErr)
+	}
+
+	srcErr := validateSource(*common.source)
+	if srcErr != nil {
+		return nil, fmt.Errorf("%s: %w", cmdName, srcErr)
+	}
+
+	record := &memory.MemoryRecord{
+		SchemaVersion: memorySchemaVersion,
+		Source:        *common.source,
+		Situation:     *common.situation,
+	}
+
+	return record, nil
+}
+
+func parseConflictLine(line, dataDir string, stdout io.Writer) {
+	parts := strings.SplitN(line, ":", splitNParts)
+	if len(parts) < splitNParts {
+		return
+	}
+
+	conflictType := parts[0]
+	name := strings.TrimSpace(parts[1])
+
+	_, _ = fmt.Fprintf(stdout, "%s: %s\n", conflictType, name)
+
+	memPath := memory.ResolveMemoryPath(dataDir, name, fileExists)
+
+	mem, loadErr := loadMemoryTOML(memPath)
+	if loadErr != nil {
+		return
+	}
+
+	renderConflictContent(stdout, mem)
+}
+
+func parseConflictResponse(response, dataDir string, stdout io.Writer) bool {
+	trimmed := strings.TrimSpace(response)
+
+	if trimmed == "NONE" {
+		return false
+	}
+
+	lines := strings.Split(trimmed, "\n")
+	foundConflict := false
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		if strings.HasPrefix(line, "DUPLICATE:") || strings.HasPrefix(line, "CONTRADICTION:") {
+			foundConflict = true
+
+			parseConflictLine(line, dataDir, stdout)
+		}
+	}
+
+	return foundConflict
+}
+
+func registerCommonFlags(fs *flag.FlagSet) learnCommonFlags {
+	return learnCommonFlags{
+		situation:  fs.String("situation", "", "context when this applies"),
+		source:     fs.String("source", "", "human or agent"),
+		dataDir:    fs.String("data-dir", "", "path to data directory"),
+		noDupCheck: fs.Bool("no-dup-check", false, "skip duplicate/contradiction detection"),
+	}
+}
+
+func renderConflictContent(writer io.Writer, mem *memory.MemoryRecord) {
+	if mem.Situation != "" {
+		_, _ = fmt.Fprintf(writer, "situation: %s\n", mem.Situation)
+	}
+
+	if mem.Type == typeFact {
+		renderConflictFactFields(writer, mem)
+	} else {
+		renderConflictFeedbackFields(writer, mem)
+	}
+}
+
+func renderConflictFactFields(writer io.Writer, mem *memory.MemoryRecord) {
+	if mem.Content.Subject != "" {
+		_, _ = fmt.Fprintf(writer, "subject: %s\n", mem.Content.Subject)
+	}
+
+	if mem.Content.Predicate != "" {
+		_, _ = fmt.Fprintf(writer, "predicate: %s\n", mem.Content.Predicate)
+	}
+
+	if mem.Content.Object != "" {
+		_, _ = fmt.Fprintf(writer, "object: %s\n", mem.Content.Object)
+	}
+}
+
+func renderConflictFeedbackFields(writer io.Writer, mem *memory.MemoryRecord) {
+	if mem.Content.Behavior != "" {
+		_, _ = fmt.Fprintf(writer, "behavior: %s\n", mem.Content.Behavior)
+	}
+
+	if mem.Content.Impact != "" {
+		_, _ = fmt.Fprintf(writer, "impact: %s\n", mem.Content.Impact)
+	}
+
+	if mem.Content.Action != "" {
+		_, _ = fmt.Fprintf(writer, "action: %s\n", mem.Content.Action)
+	}
+}
+
+func runLearn(args []string, stdout io.Writer) error {
+	if len(args) == 0 {
+		return errLearnUsage
+	}
+
+	subcmd := args[0]
+	subArgs := args[1:]
+
+	switch subcmd {
+	case typeFeedback:
+		return runLearnFeedback(subArgs, stdout)
+	case typeFact:
+		return runLearnFact(subArgs, stdout)
+	default:
+		return fmt.Errorf("%w: %s", errUnknownLearnSubcmd, subcmd)
+	}
+}
+
+func runLearnFact(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("learn fact", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	common := registerCommonFlags(fs)
+	subject := fs.String("subject", "", "subject of the fact")
+	predicate := fs.String("predicate", "", "relationship or verb")
+	object := fs.String("object", "", "object of the fact")
+
+	record, err := parseAndValidate(fs, common, args, "learn fact")
+	if err != nil {
+		return err
+	}
+
+	record.Type = typeFact
+	record.Content = memory.ContentFields{
+		Subject:   *subject,
+		Predicate: *predicate,
+		Object:    *object,
+	}
+
+	return writeMemory(record, *common.situation, common.dataDir, *common.noDupCheck, stdout, "learn fact")
+}
+
+func runLearnFeedback(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("learn feedback", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	common := registerCommonFlags(fs)
+	behavior := fs.String("behavior", "", "observed behavior")
+	impact := fs.String("impact", "", "impact of the behavior")
+	action := fs.String("action", "", "recommended action")
+
+	record, err := parseAndValidate(fs, common, args, "learn feedback")
+	if err != nil {
+		return err
+	}
+
+	record.Type = typeFeedback
+	record.Content = memory.ContentFields{
+		Behavior: *behavior,
+		Impact:   *impact,
+		Action:   *action,
+	}
+
+	return writeMemory(record, *common.situation, common.dataDir, *common.noDupCheck, stdout, "learn feedback")
+}
+
+func validateSource(source string) error {
+	if source != "human" && source != "agent" {
+		return errInvalidSource
+	}
+
+	return nil
+}
+
+func writeMemory(
+	record *memory.MemoryRecord,
+	situation string,
+	dataDir *string,
+	noDupCheck bool,
+	stdout io.Writer,
+	cmdName string,
+) error {
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("%s: %w", cmdName, defaultErr)
+	}
+
+	slug := tomlwriter.Slugify(situation)
+
+	if !noDupCheck {
+		conflict, checkErr := checkForConflicts(record, *dataDir, stdout)
+		if checkErr != nil {
+			return fmt.Errorf("%s: %w", cmdName, checkErr)
+		}
+
+		if conflict {
+			return nil
+		}
+	}
+
+	writer := tomlwriter.New()
+
+	filePath, writeErr := writer.Write(record, slug, *dataDir)
+	if writeErr != nil {
+		return fmt.Errorf("%s: %w", cmdName, writeErr)
+	}
+
+	name := memory.NameFromPath(filePath)
+
+	_, printErr := fmt.Fprintf(stdout, "CREATED: %s\n", name)
+	if printErr != nil {
+		return fmt.Errorf("%s: %w", cmdName, printErr)
+	}
+
+	return nil
+}

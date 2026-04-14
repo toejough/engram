@@ -18,13 +18,6 @@ var (
 	errShowMissingSlug = errors.New("show: slug argument required")
 )
 
-// effectivenessPercent computes followed/total as a rounded integer percentage.
-func effectivenessPercent(followed, total int) int {
-	const percentMultiplier = 100
-
-	return (followed * percentMultiplier) / total
-}
-
 // extractSlug separates a positional slug argument from flag arguments.
 func extractSlug(args []string) (string, []string) {
 	remaining := make([]string, 0, len(args))
@@ -115,11 +108,10 @@ func renderFeedbackContent(writer io.Writer, mem *memory.MemoryRecord) {
 	}
 }
 
-// renderMemory writes formatted SBIA memory details to w.
+// renderMemory writes formatted memory details to w.
 // Only fields with non-empty/non-zero values are printed.
 func renderMemory(writer io.Writer, mem *memory.MemoryRecord) {
 	renderMemoryContent(writer, mem)
-	renderMemoryMeta(writer, mem)
 }
 
 // renderMemoryContent writes the content fields of a memory record to w.
@@ -129,7 +121,7 @@ func renderMemoryContent(writer io.Writer, mem *memory.MemoryRecord) {
 		_, _ = fmt.Fprintf(writer, "Type: %s\n", mem.Type)
 	}
 
-	if mem.Type == "fact" {
+	if mem.Type == typeFact {
 		renderFactContent(writer, mem)
 	} else {
 		renderFeedbackContent(writer, mem)
@@ -138,33 +130,13 @@ func renderMemoryContent(writer io.Writer, mem *memory.MemoryRecord) {
 	if mem.Source != "" {
 		_, _ = fmt.Fprintf(writer, "Source: %s\n", mem.Source)
 	}
-}
-
-// renderMemoryMeta writes the metadata and tracking fields of a memory record to w.
-func renderMemoryMeta(writer io.Writer, mem *memory.MemoryRecord) {
-	if mem.ProjectScoped {
-		_, _ = fmt.Fprintf(writer, "Scope: project (%s)\n", mem.ProjectSlug)
-	}
 
 	if mem.CreatedAt != "" {
 		_, _ = fmt.Fprintf(writer, "Created: %s\n", mem.CreatedAt)
 	}
 
-	total := mem.FollowedCount + mem.NotFollowedCount
-	if total > 0 {
-		pct := effectivenessPercent(mem.FollowedCount, total)
-		_, _ = fmt.Fprintf(writer,
-			"Effectiveness: %d%% (%d followed, %d not followed)\n",
-			pct, mem.FollowedCount, mem.NotFollowedCount)
-	}
-
-	if mem.IrrelevantCount > 0 {
-		totalEvals := mem.TotalEvaluations()
-		relevant := mem.FollowedCount + mem.NotFollowedCount
-		pct := effectivenessPercent(relevant, totalEvals)
-		_, _ = fmt.Fprintf(writer,
-			"Relevance: %d%% (%d relevant, %d irrelevant of %d evaluations)\n",
-			pct, relevant, mem.IrrelevantCount, totalEvals)
+	if mem.UpdatedAt != "" {
+		_, _ = fmt.Fprintf(writer, "Updated: %s\n", mem.UpdatedAt)
 	}
 }
 

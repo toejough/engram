@@ -1,4 +1,4 @@
 {
   "name": "engram",
-  "description": "Self-correcting memory for LLM agents — detects corrections and remembers them as structured TOML files."
+  "description": "Memory for LLM agents — recall context, prepare for work, learn from experience, remember explicitly."
 }

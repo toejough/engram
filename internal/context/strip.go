@@ -38,13 +38,18 @@ func Strip(lines []string) []string {
 
 // unexported constants.
 const (
+	assistantPrefix      = "ASSISTANT: "
 	base64Placeholder    = "[base64 removed]"
+	blockTypeText        = "text"
+	blockTypeToolResult  = "tool_result"
+	blockTypeToolUse     = "tool_use"
 	maxContentBlockLen   = 2000
 	minBase64Len         = 100
 	roleAssistant        = "assistant"
 	roleUser             = "user"
 	systemReminderOpen   = "<system-reminder"
 	truncatedPlaceholder = "[truncated]"
+	userPrefix           = "USER: "
 )
 
 // unexported variables.
@@ -99,7 +104,7 @@ func extractContentText(raw json.RawMessage) string {
 	texts := make([]string, 0, len(blocks))
 
 	for _, block := range blocks {
-		if block.Type != "text" {
+		if block.Type != blockTypeText {
 			continue
 		}
 
@@ -131,9 +136,9 @@ func extractText(line string) string {
 		return ""
 	}
 
-	prefix := "USER: "
+	prefix := userPrefix
 	if role == roleAssistant {
-		prefix = "ASSISTANT: "
+		prefix = assistantPrefix
 	}
 
 	text := extractContentText(entry.Message.Content)

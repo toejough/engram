@@ -13,6 +13,63 @@ import (
 	"engram/internal/cli"
 )
 
+func TestAddBoolFlag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("appends flag when true", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.AddBoolFlag([]string{"--existing"}, "--verbose", true)
+		g.Expect(result).To(gomega.Equal([]string{"--existing", "--verbose"}))
+	})
+
+	t.Run("does not append flag when false", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.AddBoolFlag([]string{"--existing"}, "--verbose", false)
+		g.Expect(result).To(gomega.Equal([]string{"--existing"}))
+	})
+
+	t.Run("works with nil slice", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.AddBoolFlag(nil, "--flag", true)
+		g.Expect(result).To(gomega.Equal([]string{"--flag"}))
+	})
+}
+
+func TestAddIntFlag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("appends flag when non-zero", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.AddIntFlag([]string{"--existing"}, "--limit", 5)
+		g.Expect(result).To(gomega.Equal([]string{"--existing", "--limit", "5"}))
+	})
+
+	t.Run("does not append flag when zero", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.AddIntFlag([]string{"--existing"}, "--limit", 0)
+		g.Expect(result).To(gomega.Equal([]string{"--existing"}))
+	})
+
+	t.Run("works with nil slice", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.AddIntFlag(nil, "--limit", 10)
+		g.Expect(result).To(gomega.Equal([]string{"--limit", "10"}))
+	})
+}
+
+
 func TestBuildFlags(t *testing.T) {
 	t.Parallel()
 
@@ -65,7 +122,7 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		g.Expect(targets).To(gomega.HaveLen(2))
+		g.Expect(targets).To(gomega.HaveLen(3))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -78,7 +135,7 @@ func TestBuildTargets(t *testing.T) {
 			calls = append(calls, subcmd)
 		})
 
-		subcmds := []string{"recall", "show"}
+		subcmds := []string{"recall", "show", "list"}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
 		}
@@ -110,6 +167,26 @@ func TestDataDirFromHome(t *testing.T) {
 			return ""
 		})
 		g.Expect(dir).To(gomega.Equal("/custom/data/engram"))
+	})
+}
+
+func TestListFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated data dir", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ListFlags(cli.ListArgs{DataDir: "/data"})
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
+	})
+
+	t.Run("empty data dir omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ListFlags(cli.ListArgs{})
+		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
 
@@ -164,6 +241,53 @@ func TestRecallFlags(t *testing.T) {
 			"--data-dir", "/data",
 			"--project-slug", "proj",
 		}))
+	})
+
+	t.Run("memories-only flag included when true", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RecallFlags(cli.RecallArgs{
+			DataDir:      "/data",
+			Query:        "test",
+			MemoriesOnly: true,
+		})
+		g.Expect(result).To(gomega.ContainElement("--memories-only"))
+		g.Expect(result).To(gomega.ContainElements("--query", "test"))
+	})
+
+	t.Run("memories-only flag omitted when false", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RecallFlags(cli.RecallArgs{
+			DataDir: "/data",
+			Query:   "test",
+		})
+		g.Expect(result).NotTo(gomega.ContainElement("--memories-only"))
+	})
+
+	t.Run("limit flag included when non-zero", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RecallFlags(cli.RecallArgs{
+			DataDir: "/data",
+			Query:   "test",
+			Limit:   5,
+		})
+		g.Expect(result).To(gomega.ContainElements("--limit", "5"))
+	})
+
+	t.Run("limit flag omitted when zero", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RecallFlags(cli.RecallArgs{
+			DataDir: "/data",
+			Query:   "test",
+		})
+		g.Expect(result).NotTo(gomega.ContainElement("--limit"))
 	})
 }
 
@@ -311,7 +435,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(targets).To(gomega.HaveLen(2))
+		g.Expect(targets).To(gomega.HaveLen(3))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {

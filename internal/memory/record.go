@@ -24,29 +24,15 @@ type ContentFields struct {
 //
 //nolint:revive // "memory.MemoryRecord" stutter is intentional for clarity. See #353.
 type MemoryRecord struct {
-	SchemaVersion int `toml:"schema_version,omitempty"`
+	SchemaVersion int    `toml:"schema_version,omitempty"`
+	Type          string `toml:"type"`
+	Source        string `toml:"source"`
+	Situation     string `toml:"situation"`
 
-	Type   string `toml:"type"`
-	Source string `toml:"source,omitempty"`
-	Core   bool   `toml:"core,omitempty"`
-
-	Situation string        `toml:"situation"`
-	Content   ContentFields `toml:"content"`
-
-	ProjectScoped bool   `toml:"project_scoped"`
-	ProjectSlug   string `toml:"project_slug,omitempty"`
+	Content ContentFields `toml:"content"`
 
 	CreatedAt string `toml:"created_at"`
 	UpdatedAt string `toml:"updated_at"`
-
-	SurfacedCount     int     `toml:"surfaced_count"`
-	FollowedCount     int     `toml:"followed_count"`
-	NotFollowedCount  int     `toml:"not_followed_count"`
-	IrrelevantCount   int     `toml:"irrelevant_count"`
-	MissedCount       int     `toml:"missed_count"`
-	InitialConfidence float64 `toml:"initial_confidence,omitempty"`
-
-	PendingEvaluations []PendingEvaluation `toml:"pending_evaluations,omitempty"`
 }
 
 // ToStored converts a MemoryRecord to a Stored for in-memory use.
@@ -63,31 +49,11 @@ func (r *MemoryRecord) ToStored(filePath string) *Stored {
 	}
 
 	return &Stored{
-		Type:              r.Type,
-		Situation:         r.Situation,
-		Content:           r.Content,
-		Core:              r.Core,
-		InitialConfidence: r.InitialConfidence,
-		ProjectScoped:     r.ProjectScoped,
-		ProjectSlug:       r.ProjectSlug,
-		SurfacedCount:     r.SurfacedCount,
-		FollowedCount:     r.FollowedCount,
-		NotFollowedCount:  r.NotFollowedCount,
-		IrrelevantCount:   r.IrrelevantCount,
-		UpdatedAt:         updatedAt,
-		FilePath:          filePath,
+		Type:      r.Type,
+		Situation: r.Situation,
+		Source:    r.Source,
+		Content:   r.Content,
+		UpdatedAt: updatedAt,
+		FilePath:  filePath,
 	}
-}
-
-// TotalEvaluations returns the sum of all evaluation counters.
-func (r *MemoryRecord) TotalEvaluations() int {
-	return r.FollowedCount + r.NotFollowedCount + r.IrrelevantCount
-}
-
-// PendingEvaluation records a surfacing event awaiting outcome feedback.
-type PendingEvaluation struct {
-	SurfacedAt  string `toml:"surfaced_at"`
-	UserPrompt  string `toml:"user_prompt"`
-	SessionID   string `toml:"session_id"`
-	ProjectSlug string `toml:"project_slug"`
 }

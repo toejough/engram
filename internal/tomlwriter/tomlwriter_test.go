@@ -157,20 +157,16 @@ func TestWrite_CreatesTomlFileWithAllFields(t *testing.T) {
 	dataDir := t.TempDir()
 
 	record := &memory.MemoryRecord{
+		Type:      "feedback",
+		Source:    "observation",
 		Situation: "when running tests",
 		Content: memory.ContentFields{
 			Behavior: "use go test directly",
 			Impact:   "misses coverage and lint flags",
 			Action:   "use targ test instead",
 		},
-		ProjectScoped:    true,
-		ProjectSlug:      "engram",
-		CreatedAt:        "2026-03-03T18:00:00Z",
-		UpdatedAt:        "2026-03-03T18:00:00Z",
-		SurfacedCount:    0,
-		FollowedCount:    0,
-		NotFollowedCount: 0,
-		IrrelevantCount:  0,
+		CreatedAt: "2026-03-03T18:00:00Z",
+		UpdatedAt: "2026-03-03T18:00:00Z",
 	}
 
 	writer := tomlwriter.New()
@@ -196,8 +192,7 @@ func TestWrite_CreatesTomlFileWithAllFields(t *testing.T) {
 	g.Expect(parsed.Content.Behavior).To(Equal(record.Content.Behavior))
 	g.Expect(parsed.Content.Impact).To(Equal(record.Content.Impact))
 	g.Expect(parsed.Content.Action).To(Equal(record.Content.Action))
-	g.Expect(parsed.ProjectScoped).To(BeTrue())
-	g.Expect(parsed.ProjectSlug).To(Equal("engram"))
+	g.Expect(parsed.Source).To(Equal("observation"))
 	g.Expect(parsed.CreatedAt).To(Equal("2026-03-03T18:00:00Z"))
 	g.Expect(parsed.UpdatedAt).To(Equal("2026-03-03T18:00:00Z"))
 }
@@ -311,7 +306,7 @@ func TestWrite_FilenameSlugIsHyphenatedLowercase(t *testing.T) {
 	})
 }
 
-func TestWrite_IncludesTrackingFieldKeys(t *testing.T) {
+func TestWrite_IncludesContentFieldKeys(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -319,6 +314,8 @@ func TestWrite_IncludesTrackingFieldKeys(t *testing.T) {
 	dataDir := t.TempDir()
 
 	record := &memory.MemoryRecord{
+		Type:      "feedback",
+		Source:    "user",
 		Situation: "test situation",
 		Content: memory.ContentFields{
 			Behavior: "test behavior",
@@ -329,7 +326,7 @@ func TestWrite_IncludesTrackingFieldKeys(t *testing.T) {
 
 	writer := tomlwriter.New()
 
-	path, err := writer.Write(record, "tracking-field-test", dataDir)
+	path, err := writer.Write(record, "content-field-test", dataDir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -344,10 +341,10 @@ func TestWrite_IncludesTrackingFieldKeys(t *testing.T) {
 	}
 
 	raw := string(data)
-	g.Expect(raw).To(ContainSubstring("surfaced_count"), "tracking field key must be present")
-	g.Expect(raw).To(ContainSubstring("followed_count"), "tracking field key must be present")
-	g.Expect(raw).To(ContainSubstring("not_followed_count"), "tracking field key must be present")
-	g.Expect(raw).To(ContainSubstring("irrelevant_count"), "tracking field key must be present")
+	g.Expect(raw).To(ContainSubstring("situation"), "situation field must be present")
+	g.Expect(raw).To(ContainSubstring("behavior"), "behavior content field must be present")
+	g.Expect(raw).To(ContainSubstring("impact"), "impact content field must be present")
+	g.Expect(raw).To(ContainSubstring("action"), "action content field must be present")
 }
 
 func TestWrite_IsAtomic(t *testing.T) {

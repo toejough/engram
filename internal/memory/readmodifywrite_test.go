@@ -317,7 +317,6 @@ func TestLister_ListAll_UsesDI(t *testing.T) {
 	dir := t.TempDir()
 
 	content := `situation = "test situation"
-surfaced_count = 3
 
 [content]
 action = "test action"
@@ -392,7 +391,6 @@ func TestLister_WithReadDir_InjectsDirectory(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	content := `situation = "injected"
-surfaced_count = 1
 `
 	called := false
 	fakeReadDir := func(_ string) ([]os.DirEntry, error) {
@@ -497,7 +495,7 @@ func TestModifier_CleansUpTempOnFailure(t *testing.T) {
 	)
 
 	writeErr := modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
-		r.SurfacedCount++
+		r.Source = "mutated"
 	})
 	g.Expect(writeErr).To(HaveOccurred())
 	g.Expect(removeCalled).To(BeTrue())
@@ -517,7 +515,7 @@ func TestModifier_ReadFileError(t *testing.T) {
 	)
 
 	err := modifier.ReadModifyWrite("/fake/path.toml", func(r *memory.MemoryRecord) {
-		r.SurfacedCount++
+		r.Source = "mutated"
 	})
 	g.Expect(err).To(HaveOccurred())
 
@@ -535,7 +533,7 @@ func TestModifier_WithDI(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.toml")
 
-	initial := memory.MemoryRecord{Situation: "di-test", SurfacedCount: 1}
+	initial := memory.MemoryRecord{Situation: "di-test", Source: "original"}
 
 	var buf bytes.Buffer
 
@@ -558,7 +556,7 @@ func TestModifier_WithDI(t *testing.T) {
 	)
 
 	err = modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
-		r.SurfacedCount++
+		r.Source = "mutated"
 	})
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -582,7 +580,7 @@ func TestModifier_WithDI(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.SurfacedCount).To(Equal(2))
+	g.Expect(result.Source).To(Equal("mutated"))
 	g.Expect(result.Situation).To(Equal("di-test"))
 }
 
@@ -617,7 +615,7 @@ func TestModifier_WriterError(t *testing.T) {
 	)
 
 	err := modifier.ReadModifyWrite("/fake/path.toml", func(r *memory.MemoryRecord) {
-		r.SurfacedCount++
+		r.Source = "mutated"
 	})
 	g.Expect(err).To(HaveOccurred())
 
@@ -639,72 +637,13 @@ func TestReadModifyWrite_DecodeError_InjectedInvalidTOML(t *testing.T) {
 	)
 
 	err := modifier.ReadModifyWrite("/fake/path.toml", func(r *memory.MemoryRecord) {
-		r.SurfacedCount++
+		r.Source = "mutated"
 	})
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("decoding"))
 	}
-}
-
-func TestReadModifyWrite_IncrementsField(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "test.toml")
-
-	initial := memory.MemoryRecord{Situation: "test", SurfacedCount: 3}
-
-	var buf bytes.Buffer
-
-	err := toml.NewEncoder(&buf).Encode(initial)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	err = os.WriteFile(path, buf.Bytes(), 0o644)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	modifier := memory.NewModifier(
-		memory.WithModifierWriter(tomlwriter.New()),
-	)
-
-	err = modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
-		r.SurfacedCount++
-	})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	data, err := os.ReadFile(path)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var result memory.MemoryRecord
-
-	_, err = toml.Decode(string(data), &result)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result.SurfacedCount).To(Equal(4))
-	g.Expect(result.Situation).To(Equal("test"))
 }
 
 func TestReadModifyWrite_InvalidTOML(t *testing.T) {
@@ -727,7 +666,7 @@ func TestReadModifyWrite_InvalidTOML(t *testing.T) {
 	)
 
 	err = modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
-		r.SurfacedCount++
+		r.Source = "mutated"
 	})
 	g.Expect(err).To(HaveOccurred())
 }
@@ -737,7 +676,7 @@ func TestReadModifyWrite_MutateIsCalledWithDecodedRecord(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	initial := memory.MemoryRecord{Situation: "mutate-test", SurfacedCount: 5}
+	initial := memory.MemoryRecord{Situation: "mutate-test", Source: "original"}
 
 	var buf bytes.Buffer
 
@@ -765,7 +704,7 @@ func TestReadModifyWrite_MutateIsCalledWithDecodedRecord(t *testing.T) {
 
 	_ = modifier.ReadModifyWrite("/fake/path.toml", func(r *memory.MemoryRecord) {
 		capturedRecord = r
-		r.SurfacedCount++
+		r.Source = "mutated"
 	})
 
 	g.Expect(capturedRecord).NotTo(BeNil())
@@ -774,26 +713,11 @@ func TestReadModifyWrite_MutateIsCalledWithDecodedRecord(t *testing.T) {
 		return
 	}
 
-	g.Expect(capturedRecord.SurfacedCount).To(Equal(6))
+	g.Expect(capturedRecord.Source).To(Equal("mutated"))
 	g.Expect(capturedRecord.Situation).To(Equal("mutate-test"))
 }
 
-func TestReadModifyWrite_NonexistentFile(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	modifier := memory.NewModifier(
-		memory.WithModifierWriter(tomlwriter.New()),
-	)
-
-	err := modifier.ReadModifyWrite("/nonexistent/path/test.toml", func(r *memory.MemoryRecord) {
-		r.SurfacedCount++
-	})
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
+func TestReadModifyWrite_MutatesField(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -801,20 +725,7 @@ func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.toml")
 
-	initial := memory.MemoryRecord{
-		Situation: "when running tests",
-		Content: memory.ContentFields{
-			Behavior: "use go test directly",
-			Impact:   "misses coverage",
-			Action:   "use targ test",
-		},
-		ProjectScoped:    true,
-		ProjectSlug:      "engram",
-		SurfacedCount:    5,
-		FollowedCount:    2,
-		NotFollowedCount: 1,
-		IrrelevantCount:  1,
-	}
+	initial := memory.MemoryRecord{Situation: "test", Source: "original"}
 
 	var buf bytes.Buffer
 
@@ -837,7 +748,7 @@ func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
 	)
 
 	err = modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
-		r.SurfacedCount++
+		r.Source = "mutated"
 	})
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -861,11 +772,96 @@ func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.SurfacedCount).To(Equal(6))
+	g.Expect(result.Source).To(Equal("mutated"))
+	g.Expect(result.Situation).To(Equal("test"))
+}
+
+func TestReadModifyWrite_NonexistentFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	modifier := memory.NewModifier(
+		memory.WithModifierWriter(tomlwriter.New()),
+	)
+
+	err := modifier.ReadModifyWrite("/nonexistent/path/test.toml", func(r *memory.MemoryRecord) {
+		r.Source = "mutated"
+	})
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.toml")
+
+	initial := memory.MemoryRecord{
+		Type:      "feedback",
+		Source:    "observation",
+		Situation: "when running tests",
+		Content: memory.ContentFields{
+			Behavior: "use go test directly",
+			Impact:   "misses coverage",
+			Action:   "use targ test",
+		},
+		CreatedAt: "2026-01-01T00:00:00Z",
+		UpdatedAt: "2026-01-02T00:00:00Z",
+	}
+
+	var buf bytes.Buffer
+
+	err := toml.NewEncoder(&buf).Encode(initial)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	err = os.WriteFile(path, buf.Bytes(), 0o644)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	modifier := memory.NewModifier(
+		memory.WithModifierWriter(tomlwriter.New()),
+	)
+
+	err = modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
+		r.Source = "mutated"
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	data, err := os.ReadFile(path)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result memory.MemoryRecord
+
+	_, err = toml.Decode(string(data), &result)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Source).To(Equal("mutated"))
 	g.Expect(result.Situation).To(Equal("when running tests"))
 	g.Expect(result.Content.Behavior).To(Equal("use go test directly"))
 	g.Expect(result.Content.Impact).To(Equal("misses coverage"))
 	g.Expect(result.Content.Action).To(Equal("use targ test"))
-	g.Expect(result.ProjectScoped).To(BeTrue())
-	g.Expect(result.ProjectSlug).To(Equal("engram"))
+	g.Expect(result.CreatedAt).To(Equal("2026-01-01T00:00:00Z"))
+	g.Expect(result.UpdatedAt).To(Equal("2026-01-02T00:00:00Z"))
 }

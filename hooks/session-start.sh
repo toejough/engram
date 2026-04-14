@@ -8,7 +8,7 @@ ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
 
 # --- Sync portion: announce recall ---
-jq -n '{systemMessage: "[engram] Say /recall to load context from previous sessions, or /recall <query> to search session history."}'
+jq -n '{systemMessage: "[engram] Memory skills: /recall (load context), /prepare (before work), /learn (after work), /remember (save explicitly)."}'
 
 # --- Async portion: build if needed ---
 (

@@ -4,12 +4,10 @@ package main
 import (
 	"os"
 
-	"github.com/toejough/targ"
-
 	"engram/internal/cli"
 )
 
 func main() {
-	// ARCH-6: Target functions never return errors, so targ.Main always exits 0.
-	targ.Main(cli.Targets(os.Stdout, os.Stderr, os.Stdin)...)
+	// ARCH-6: RunSafe always exits 0 (errors printed to stderr).
+	cli.RunSafe(os.Args, os.Stdout, os.Stderr, os.Stdin)
 }

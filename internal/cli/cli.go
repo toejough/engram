@@ -17,9 +17,7 @@ import (
 	"engram/internal/anthropic"
 	"engram/internal/memory"
 	"engram/internal/recall"
-	"engram/internal/surface"
 	"engram/internal/tokenresolver"
-	"engram/internal/tomlwriter"
 )
 
 // Exported variables.
@@ -46,6 +44,14 @@ func Run(
 		return runRecall(subArgs, stdout)
 	case "show":
 		return runShow(subArgs, stdout)
+	case "list":
+		return runList(subArgs, stdout)
+	case "learn":
+		return runLearn(subArgs, stdout)
+	case "update":
+		return runUpdate(subArgs, stdout)
+	case "migrate":
+		return runMigrate(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -59,11 +65,8 @@ const (
 
 // unexported variables.
 var (
-	defaultModifier = memory.NewModifier( //nolint:gochecknoglobals // production singleton
-		memory.WithModifierWriter(tomlwriter.New()),
-	)
 	errUnknownCommand = errors.New("unknown command")
-	errUsage          = errors.New("usage: engram <recall|show> [flags]")
+	errUsage          = errors.New("usage: engram <recall|show|list|learn|update|migrate> [flags]")
 )
 
 // haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
@@ -155,32 +158,6 @@ func applyProjectSlugDefault(slug *string, getwd func() (string, error)) error {
 	return nil
 }
 
-// buildRecallSurfacer creates a memory surfacer for the recall pipeline.
-// Returns nil surfacer (not an error) when no memory directories exist.
-func buildRecallSurfacer(_ context.Context, dataDir string) (recall.MemorySurfacer, error) {
-	lister := memory.NewLister()
-
-	_, memErr := lister.ListAllMemories(dataDir)
-	if memErr != nil {
-		if errors.Is(memErr, os.ErrNotExist) {
-			return nil, nil //nolint:nilnil // nil surfacer is valid when no memories exist
-		}
-
-		return nil, fmt.Errorf("listing memories: %w", memErr)
-	}
-
-	surfacerOpts := []surface.SurfacerOption{
-		surface.WithSurfacingRecorder(recordSurfacing),
-	}
-
-	realSurfacer := surface.New(lister, surfacerOpts...)
-
-	return NewRecallSurfacer(
-		&surfaceRunnerAdapter{surfacer: realSurfacer},
-		dataDir,
-	), nil
-}
-
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
 func makeAnthropicCaller(
 	token string,
@@ -206,6 +183,16 @@ func newFlagSet(name string) *flag.FlagSet {
 	return fs
 }
 
+func newSummarizer(token string) recall.SummarizerI {
+	if token != "" {
+		return recall.NewSummarizer(&haikuCallerAdapter{
+			caller: makeAnthropicCaller(token),
+		})
+	}
+
+	return nil
+}
+
 func newTokenResolver() *tokenresolver.Resolver {
 	return tokenresolver.New(
 		os.Getenv,
@@ -221,13 +208,6 @@ func newTokenResolver() *tokenresolver.Resolver {
 	)
 }
 
-// recordSurfacing increments the surfaced count for a memory file.
-func recordSurfacing(path string) error {
-	return defaultModifier.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
-		record.SurfacedCount++
-	})
-}
-
 // resolveToken returns the API token from the environment or macOS Keychain.
 // tokenresolver.Resolve is documented to never return a non-nil error.
 func resolveToken(ctx context.Context) string {
@@ -241,6 +221,8 @@ func runRecall(args []string, stdout io.Writer) error {
 	dataDir := fs.String("data-dir", "", "path to data directory")
 	projectSlug := fs.String("project-slug", "", "project directory slug")
 	query := fs.String("query", "", "search query (omit for summary mode)")
+	memoriesOnly := fs.Bool("memories-only", false, "search only memory files")
+	limit := fs.Int("limit", recall.DefaultMemoryLimit, "max memories to return")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -252,6 +234,46 @@ func runRecall(args []string, stdout io.Writer) error {
 		return fmt.Errorf("recall: %w", defaultErr)
 	}
 
+	ctx, cancel := signalContext()
+	defer cancel()
+
+	token := resolveToken(ctx)
+	summarizer := newSummarizer(token)
+	memLister := memory.NewLister()
+
+	if *memoriesOnly {
+		return runRecallMemoriesOnly(ctx, stdout, summarizer, memLister, *dataDir, *query, *limit)
+	}
+
+	return runRecallSessions(ctx, stdout, projectSlug, summarizer, memLister, *dataDir, *query)
+}
+
+func runRecallMemoriesOnly(
+	ctx context.Context,
+	stdout io.Writer,
+	summarizer recall.SummarizerI,
+	memLister recall.MemoryLister,
+	dataDir, query string,
+	limit int,
+) error {
+	orch := recall.NewOrchestrator(nil, nil, summarizer, memLister, dataDir)
+
+	result, err := orch.RecallMemoriesOnly(ctx, query, limit)
+	if err != nil {
+		return fmt.Errorf("recall: %w", err)
+	}
+
+	return recall.FormatResult(stdout, result)
+}
+
+func runRecallSessions(
+	ctx context.Context,
+	stdout io.Writer,
+	projectSlug *string,
+	summarizer recall.SummarizerI,
+	memLister recall.MemoryLister,
+	dataDir, query string,
+) error {
 	slugErr := applyProjectSlugDefault(projectSlug, os.Getwd)
 	if slugErr != nil {
 		return fmt.Errorf("recall: %w", slugErr)
@@ -264,29 +286,12 @@ func runRecall(args []string, stdout io.Writer) error {
 
 	projectDir := filepath.Join(home, ".claude", "projects", *projectSlug)
 
-	ctx, cancel := signalContext()
-	defer cancel()
-
-	token := resolveToken(ctx)
-
 	finder := recall.NewSessionFinder(&osDirLister{})
 	reader := recall.NewTranscriptReader(&osFileReader{})
 
-	var summarizer recall.SummarizerI
-	if token != "" {
-		summarizer = recall.NewSummarizer(&haikuCallerAdapter{
-			caller: makeAnthropicCaller(token),
-		})
-	}
+	orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, dataDir)
 
-	memorySurfacer, surfErr := buildRecallSurfacer(ctx, *dataDir)
-	if surfErr != nil {
-		return fmt.Errorf("recall: %w", surfErr)
-	}
-
-	orch := recall.NewOrchestrator(finder, reader, summarizer, memorySurfacer)
-
-	result, err := orch.Recall(ctx, projectDir, *query)
+	result, err := orch.Recall(ctx, projectDir, query)
 	if err != nil {
 		return fmt.Errorf("recall: %w", err)
 	}

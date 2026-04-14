@@ -12,12 +12,20 @@ type StripConfig struct {
 	// When false (default), behaves exactly like Strip() and drops all tool blocks.
 	KeepToolCalls bool
 
+	// ToolSummaryMode, when true, produces compact one-line summaries of tool calls.
+	// Each tool_use + tool_result pair becomes:
+	//   [tool] Name(key=val, ...) → exit 0 | first line of output
+	// Takes precedence over KeepToolCalls when both are set.
+	ToolSummaryMode bool
+
 	// ToolArgsTruncate is the max length for serialized tool arguments.
-	// Only applies when KeepToolCalls is true. Zero means no truncation.
+	// Only applies when KeepToolCalls is true (ToolSummaryMode uses fixed 120-char limits).
+	// Zero means no truncation.
 	ToolArgsTruncate int
 
 	// ToolResultTruncate is the max length for tool result content.
-	// Only applies when KeepToolCalls is true. Zero means no truncation.
+	// Only applies when KeepToolCalls is true (ToolSummaryMode uses fixed 120-char limits).
+	// Zero means no truncation.
 	ToolResultTruncate int
 }
 
@@ -34,6 +42,10 @@ type StripConfig struct {
 //
 // A single JSONL line may produce multiple output lines (text + tool calls).
 func StripWithConfig(lines []string, cfg StripConfig) []string {
+	if cfg.ToolSummaryMode {
+		return stripWithToolSummary(lines)
+	}
+
 	if !cfg.KeepToolCalls {
 		return Strip(lines)
 	}
@@ -89,11 +101,11 @@ func extractBlock(raw json.RawMessage, rolePrefix string, cfg StripConfig) []str
 	}
 
 	switch blockType.Type {
-	case "text":
+	case blockTypeText:
 		return extractTextBlock(raw, rolePrefix)
-	case "tool_use":
+	case blockTypeToolUse:
 		return extractToolUseBlock(raw, cfg)
-	case "tool_result":
+	case blockTypeToolResult:
 		return extractToolResultBlock(raw, cfg)
 	default:
 		return make([]string, 0)
@@ -141,9 +153,9 @@ func extractTextWithTools(line string, cfg StripConfig) []string {
 		return result
 	}
 
-	rolePrefix := "USER: "
+	rolePrefix := userPrefix
 	if role == roleAssistant {
-		rolePrefix = "ASSISTANT: "
+		rolePrefix = assistantPrefix
 	}
 
 	raw := entry.Message.Content

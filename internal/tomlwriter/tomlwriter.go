@@ -84,14 +84,16 @@ func (w *Writer) AtomicWrite(targetPath string, record any) error {
 	return nil
 }
 
-// Write writes a MemoryRecord as a TOML file under <dataDir>/memories/<slug>.toml.
+// Write writes a MemoryRecord as a TOML file under the appropriate directory.
+// Fact records go to memory/facts/, feedback records go to memory/feedback/,
+// and other types fall back to the legacy memories/ directory.
 // If the slug path is already taken, it appends -2, -3, etc. until a free name is found.
 // The file is written atomically via a temp file and rename.
 // Returns the absolute path of the written file.
 func (w *Writer) Write(record *memory.MemoryRecord, slug, dataDir string) (string, error) {
-	memoriesDir := memory.MemoriesDir(dataDir)
+	targetDir := writeDir(record, dataDir)
 
-	mkdirErr := w.mkdirAll(memoriesDir, memoriesDirPerm)
+	mkdirErr := w.mkdirAll(targetDir, memoriesDirPerm)
 	if mkdirErr != nil {
 		return "", fmt.Errorf("tomlwriter: create memories dir: %w", mkdirErr)
 	}
@@ -102,7 +104,7 @@ func (w *Writer) Write(record *memory.MemoryRecord, slug, dataDir string) (strin
 
 	slug = slugify(slug)
 
-	finalPath, err := w.availablePath(memoriesDir, slug)
+	finalPath, err := w.availablePath(targetDir, slug)
 	if err != nil {
 		return "", err
 	}
@@ -140,6 +142,12 @@ func (w *Writer) availablePath(memoriesDir, slug string) (string, error) {
 
 		candidate = filepath.Join(memoriesDir, fmt.Sprintf("%s-%d.toml", slug, suffix))
 	}
+}
+
+// Slugify converts a string to a lowercase hyphen-separated slug.
+// Returns "memory" if the result would otherwise be empty.
+func Slugify(summary string) string {
+	return slugify(summary)
 }
 
 // WithCreateTemp overrides the temp file creation function.
@@ -189,4 +197,16 @@ func slugify(summary string) string {
 	}
 
 	return slug
+}
+
+// writeDir returns the target directory for a memory record based on its type.
+func writeDir(record *memory.MemoryRecord, dataDir string) string {
+	switch record.Type {
+	case "fact":
+		return memory.FactsDir(dataDir)
+	case "feedback":
+		return memory.FeedbackDir(dataDir)
+	default:
+		return memory.MemoriesDir(dataDir)
+	}
 }
