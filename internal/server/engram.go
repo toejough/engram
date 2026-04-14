@@ -27,7 +27,8 @@ func NewEngramAgent(config EngramAgentConfig) *EngramAgent {
 
 // Process invokes the engram-agent with the given message and routes the response.
 func (e *EngramAgent) Process(ctx context.Context, msg chat.Message) error {
-	prompt := buildPrompt(msg.Text, e.refresh.ShouldRefresh())
+	newSession := e.sessionID == ""
+	prompt := buildPrompt(msg.Text, newSession, e.refresh.ShouldRefresh())
 
 	output, runErr := e.config.RunClaude(ctx, prompt, e.sessionID)
 	if runErr != nil {
@@ -151,6 +152,16 @@ type RunClaudeFunc func(ctx context.Context, prompt, sessionID string) (string, 
 const (
 	maxRetriesPerSession = 3
 	maxSessionResets     = 1
+	newSessionDirective  = "You are the engram-agent, a memory specialist. " +
+		"Load /use-engram-chat-as and /engram-agent. " +
+		"You MUST respond with a single JSON object on one line. Valid actions:\n" +
+		`{"action":"surface","to":"<agent>","text":"<memory>"}` + "\n" +
+		`{"action":"log-only","text":"<note>"}` + "\n" +
+		`{"action":"learn","saved":true,"path":"<slug>","to":"<agent>","text":"<outcome>"}` + "\n" +
+		`{"action":"learn","saved":false,"to":"<agent>","text":"<reason>"}` + "\n\n" +
+		"Process this message:\n\n"
+	skillRefreshDirective = "SKILL REFRESH: Reload /use-engram-chat-as and /engram-agent. " +
+		"Respond with a single JSON object.\n\n"
 )
 
 // unexported variables.
@@ -158,11 +169,17 @@ var (
 	errEscalationTriggered = errors.New("engram-agent escalation triggered")
 )
 
-// buildPrompt constructs the prompt, optionally prepending a skill-refresh directive.
-func buildPrompt(text string, shouldRefresh bool) string {
-	if !shouldRefresh {
-		return text
+// buildPrompt constructs the prompt, prepending skill-loading directives as needed.
+// On a new session, the agent needs to load its skills before processing.
+// On a refresh cycle, the agent reloads skills to pick up updates.
+func buildPrompt(text string, newSession, shouldRefresh bool) string {
+	if newSession {
+		return newSessionDirective + text
 	}
 
-	return "SKILL REFRESH: Reload /use-engram-chat-as and /engram-agent.\n\n" + text
+	if shouldRefresh {
+		return skillRefreshDirective + text
+	}
+
+	return text
 }

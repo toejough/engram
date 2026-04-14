@@ -147,6 +147,44 @@ func TestEngramAgent_ProcessWithRecovery_RetriesOnMalformedThenSucceeds(t *testi
 	g.Expect(callCount).To(Equal(3)) // 2 failures + 1 success
 }
 
+func TestEngramAgent_Process_AfterResetIncludesSkillDirective(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var receivedPrompts []string
+
+	agent := server.NewEngramAgent(server.EngramAgentConfig{
+		RunClaude: func(_ context.Context, prompt, _ string) (string, error) {
+			receivedPrompts = append(receivedPrompts, prompt)
+
+			return validSurfaceStreamOutput("sess-r", "lead", "mem"), nil
+		},
+		PostToChat: func(_ chat.Message) (int, error) { return 1, nil },
+		Logger:     slog.Default(),
+	})
+
+	// Establish session.
+	processErr := agent.Process(t.Context(), chat.Message{Text: "first"})
+	g.Expect(processErr).NotTo(HaveOccurred())
+
+	// Reset session.
+	agent.ResetSession()
+
+	// Next call should include the skill directive again.
+	processErr = agent.Process(t.Context(), chat.Message{Text: "after reset"})
+	g.Expect(processErr).NotTo(HaveOccurred())
+
+	g.Expect(receivedPrompts).To(HaveLen(2))
+
+	if len(receivedPrompts) < 2 {
+		return
+	}
+
+	g.Expect(receivedPrompts[1]).To(ContainSubstring("/use-engram-chat-as"))
+	g.Expect(receivedPrompts[1]).To(ContainSubstring("/engram-agent"))
+	g.Expect(receivedPrompts[1]).To(ContainSubstring("after reset"))
+}
+
 func TestEngramAgent_Process_CapturesSessionID(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -216,6 +254,65 @@ func TestEngramAgent_Process_LogOnlyAction_PostsWithSentinelTo(t *testing.T) {
 	g.Expect(processErr).NotTo(HaveOccurred())
 	g.Expect(postedMsg.To).To(Equal("log"))
 	g.Expect(postedMsg.From).To(Equal("engram-agent"))
+}
+
+func TestEngramAgent_Process_NewSessionIncludesSkillDirective(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var receivedPrompt string
+
+	agent := server.NewEngramAgent(server.EngramAgentConfig{
+		RunClaude: func(_ context.Context, prompt, _ string) (string, error) {
+			receivedPrompt = prompt
+
+			return validSurfaceStreamOutput("sess-new", "lead", "mem"), nil
+		},
+		PostToChat: func(_ chat.Message) (int, error) { return 1, nil },
+		Logger:     slog.Default(),
+	})
+
+	processErr := agent.Process(t.Context(), chat.Message{Text: "test message"})
+	g.Expect(processErr).NotTo(HaveOccurred())
+
+	// First call (new session) should include skill-loading directive.
+	g.Expect(receivedPrompt).To(ContainSubstring("/use-engram-chat-as"))
+	g.Expect(receivedPrompt).To(ContainSubstring("/engram-agent"))
+	g.Expect(receivedPrompt).To(ContainSubstring("test message"))
+}
+
+func TestEngramAgent_Process_ResumedSessionOmitsSkillDirective(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var receivedPrompts []string
+
+	agent := server.NewEngramAgent(server.EngramAgentConfig{
+		RunClaude: func(_ context.Context, prompt, _ string) (string, error) {
+			receivedPrompts = append(receivedPrompts, prompt)
+
+			return validSurfaceStreamOutput("sess-1", "lead", "mem"), nil
+		},
+		PostToChat: func(_ chat.Message) (int, error) { return 1, nil },
+		Logger:     slog.Default(),
+	})
+
+	// First call establishes session.
+	processErr := agent.Process(t.Context(), chat.Message{Text: "first"})
+	g.Expect(processErr).NotTo(HaveOccurred())
+
+	// Second call should NOT include the skill directive (session is established).
+	processErr = agent.Process(t.Context(), chat.Message{Text: "second"})
+	g.Expect(processErr).NotTo(HaveOccurred())
+
+	g.Expect(receivedPrompts).To(HaveLen(2))
+
+	if len(receivedPrompts) < 2 {
+		return
+	}
+
+	g.Expect(receivedPrompts[1]).NotTo(ContainSubstring("/use-engram-chat-as"))
+	g.Expect(receivedPrompts[1]).To(Equal("second"))
 }
 
 func TestEngramAgent_Process_SkillRefreshEvery13Turns(t *testing.T) {
