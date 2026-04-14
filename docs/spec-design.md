@@ -28,6 +28,6 @@ Distilled from design sessions. Reference these when writing specs.
 
 ## Verification
 
-9. **Specify the execution model for cross-process features.** When a spec involves hooks, subprocesses, cron jobs, or any code that runs outside the main process, explicitly document the execution model: what process spawns it, what environment it inherits, what state is available. "The hook reads env var X" must be accompanied by "X is propagated via [mechanism]." Don't assume shell state propagates across process boundaries.
+9. **Specify the execution model for cross-process features.** When a spec involves hooks, subprocesses, cron jobs, or any code that runs outside the main process, explicitly document the execution model: what process spawns it, what environment it inherits, what state is available. "The hook reads env var X" must be accompanied by "X is propagated via [mechanism]." Don't assume shell state propagates across process boundaries. **Name the exact delivery mechanism** — not "passes the prompt value" but "reads `.prompt` from stdin JSON via `jq`." Vague mechanism descriptions get filled in by wrong assumptions.
 
 10. **Acceptance criteria must be behavioral, not structural.** "Hook scripts exist and are registered" is a structural criterion. "Posting a message via hook results in a chat file entry" is a behavioral criterion. Every feature in the spec needs at least one behavioral acceptance criterion that exercises the end-to-end path.
