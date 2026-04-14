@@ -25,12 +25,7 @@ type FileWatcher struct {
 // agent matches messages where the To field contains the agent name or "all".
 // msgTypes filters by message type; empty or nil slice matches all types.
 // Returns the matching message and the new cursor (total line count).
-func (w *FileWatcher) Watch(
-	ctx context.Context,
-	agent string,
-	cursor int,
-	msgTypes []string,
-) (Message, int, error) {
+func (w *FileWatcher) Watch(ctx context.Context, agent string, cursor int, msgTypes []string) (Message, int, error) {
 	for {
 		data, readErr := w.ReadFile(w.FilePath)
 		if readErr != nil {
@@ -47,24 +42,6 @@ func (w *FileWatcher) Watch(
 			return Message{}, 0, waitErr
 		}
 	}
-}
-
-// MatchesAgent reports whether the To field targets the given agent.
-// The To field may be "all", a single agent name, or comma-separated names.
-// An empty agent string matches any To field (wildcard — used by dispatchLoop).
-func MatchesAgent(to, agent string) bool {
-	if agent == "" {
-		return true // empty = match all recipients
-	}
-
-	for part := range strings.SplitSeq(to, ",") {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "all" || trimmed == agent {
-			return true
-		}
-	}
-
-	return false
 }
 
 // ParseMessages deserializes TOML chat data into a Message slice.
@@ -118,14 +95,7 @@ func ParseMessagesSafe(data []byte) []Message {
 
 		blockMsgs, blockErr := ParseMessages(block)
 		if blockErr != nil {
-			slog.Warn(
-				"ParseMessagesSafe: skipping corrupt block",
-				"block_index",
-				i,
-				"err",
-				blockErr,
-			)
-
+			slog.Warn("ParseMessagesSafe: skipping corrupt block", "block_index", i, "err", blockErr)
 			continue
 		}
 
@@ -133,18 +103,6 @@ func ParseMessagesSafe(data []byte) []Message {
 	}
 
 	return result
-}
-
-// ReadAfterCursor returns all messages after the given cursor and the new cursor position.
-// Pure function: takes raw chat file bytes and a line-based cursor.
-func ReadAfterCursor(data []byte, cursor int) ([]Message, int) {
-	newCursor := bytes.Count(data, []byte("\n"))
-
-	suffix := suffixAtLine(data, cursor)
-
-	messages := ParseMessagesSafe(suffix)
-
-	return messages, newCursor
 }
 
 // findMessage scans data for the first message after cursor that matches agent and msgTypes.
@@ -167,9 +125,17 @@ func findMessage(data []byte, agent string, cursor int, msgTypes []string) (Mess
 	return Message{}, newCursor, false
 }
 
-// matchesAgent is the package-internal alias for MatchesAgent.
+// matchesAgent reports whether the To field targets the given agent.
+// The To field may be "all", a single agent name, or comma-separated names.
 func matchesAgent(to, agent string) bool {
-	return MatchesAgent(to, agent)
+	for part := range strings.SplitSeq(to, ",") {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "all" || trimmed == agent {
+			return true
+		}
+	}
+
+	return false
 }
 
 // matchesType reports whether msgType is in the allowed types list.

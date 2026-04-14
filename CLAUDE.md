@@ -22,11 +22,6 @@ Self-correcting memory for LLM agents. Measures impact, not just frequency — m
 - Minimal code that solves the problem — don't over-engineer
 - Use `make([]T, 0, capacity)` when size is known
 
-## Important References
-
-- **`docs/spec-design.md`** — Principles for writing specs and design docs. Read before any spec/design session.
-- **`docs/exec-planning.md`** — Principles for writing implementation plans. Read before any planning session.
-
 ## Issue Workflow (Default)
 
 When working through issues, the preferred default is:

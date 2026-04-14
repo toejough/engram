@@ -57,11 +57,7 @@ func TestProcessStream_AllMarkerTypes_Posted(t *testing.T) {
 
 	text := "WAIT: Blocking.\nLEARNED: Fact.\nINFO: Detail.\nREADY: Go.\nESCALATE: Help."
 	markersJSON := `{"type":"assistant","session_id":"abc","message":{"content":[{"type":"text","text":"` +
-		strings.ReplaceAll(
-			text,
-			"\n",
-			`\n`,
-		) + `"}]}}`
+		strings.ReplaceAll(text, "\n", `\n`) + `"}]}}`
 	stream := strings.NewReader(markersJSON + "\n")
 
 	_, err := runner.ProcessStream(stream)
@@ -243,26 +239,6 @@ func TestProcessStream_DoneMarker_Reported(t *testing.T) {
 	g.Expect(result.DoneDetected).To(BeTrue())
 }
 
-func TestProcessStream_ErrTooLong_ErrorIncludesLineSizeContext(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	var pane bytes.Buffer
-
-	runner := claude.Runner{
-		AgentName: "test-agent",
-		Pane:      &pane,
-		Poster:    &mockPoster{},
-	}
-
-	// Line with no newline that exceeds the 64 KB scanner limit.
-	stream := strings.NewReader(strings.Repeat("x", 65*1024))
-
-	_, err := runner.ProcessStream(stream)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("bytes"))
-}
-
 func TestProcessStream_IntentMarker_PostedAndReported(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -293,30 +269,6 @@ func TestProcessStream_IntentMarker_PostedAndReported(t *testing.T) {
 	g.Expect(poster.posted[0].Text).To(ContainSubstring("Situation: X."))
 	g.Expect(result.IntentDetected).To(BeTrue())
 	g.Expect(result.DoneDetected).To(BeFalse())
-}
-
-func TestProcessStream_LargeLineAboveWarnThreshold_LogsWarningToPane(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	var pane bytes.Buffer
-
-	runner := claude.Runner{
-		AgentName: "test-agent",
-		Pane:      &pane,
-		Poster:    &mockPoster{},
-	}
-
-	// 33 KB line (above 32 KB warn threshold) as valid JSONL.
-	bigText := strings.Repeat("x", 33*1024)
-	prefix := `{"type":"assistant","session_id":"s1","message":{"content":[{"type":"text","text":"`
-	line := prefix + bigText + `"}]}}` + "\n"
-	stream := strings.NewReader(line)
-
-	_, err := runner.ProcessStream(stream)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(pane.String()).To(ContainSubstring("[engram] warning: large JSONL line"))
 }
 
 func TestProcessStream_MultipleProseLines_BothRelay(t *testing.T) {

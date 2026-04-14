@@ -94,19 +94,17 @@ func TestFileAckWaiter_AllACK(t *testing.T) {
 		{From: "reviewer", To: "caller", Thread: "t", Type: "ack", TS: now, Text: "ok"},
 	}
 
-	fakeWatch := watcherFunc(
-		func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-			callCount++
-			idx := callCount - 1
+	fakeWatch := watcherFunc(func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		callCount++
+		idx := callCount - 1
 
-			if idx < len(ackMessages) {
-				return ackMessages[idx], cursor + 10, nil
-			}
+		if idx < len(ackMessages) {
+			return ackMessages[idx], cursor + 10, nil
+		}
 
-			// Should not be called beyond the number of recipients
-			return chat.Message{}, 0, context.Canceled
-		},
-	)
+		// Should not be called beyond the number of recipients
+		return chat.Message{}, 0, context.Canceled
+	})
 
 	// No messages in last 15 min → both offline (implicit ACK available, but real ACKs arrive first)
 	fakeRead := func(_ string) ([]byte, error) {
@@ -121,12 +119,7 @@ func TestFileAckWaiter_AllACK(t *testing.T) {
 		MaxWait:  5 * time.Second,
 	}
 
-	result, err := waiter.AckWait(
-		context.Background(),
-		"caller",
-		0,
-		[]string{"engram-agent", "reviewer"},
-	)
+	result, err := waiter.AckWait(context.Background(), "caller", 0, []string{"engram-agent", "reviewer"})
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -149,11 +142,9 @@ func TestFileAckWaiter_CaseInsensitiveRecipientNames(t *testing.T) {
 		To:   "caller", Thread: "t", Type: "ack", TS: now, Text: "ok",
 	}
 
-	fakeWatch := watcherFunc(
-		func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-			return ackMsg, cursor + 10, nil
-		},
-	)
+	fakeWatch := watcherFunc(func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		return ackMsg, cursor + 10, nil
+	})
 
 	fakeRead := func(_ string) ([]byte, error) {
 		return buildChatTOML(nil), nil
@@ -183,13 +174,11 @@ func TestFileAckWaiter_CtxCancellation(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	// Cancel ctx while waiting. Expect ctx.Err() returned.
-	fakeWatch := watcherFunc(
-		func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-			<-ctx.Done()
+	fakeWatch := watcherFunc(func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		<-ctx.Done()
 
-			return chat.Message{}, cursor, ctx.Err()
-		},
-	)
+		return chat.Message{}, cursor, ctx.Err()
+	})
 
 	fakeRead := func(_ string) ([]byte, error) {
 		return buildChatTOML(nil), nil
@@ -217,31 +206,22 @@ func TestFileAckWaiter_MultiRecipient_BothMustACK(t *testing.T) {
 	// Two recipients: "reviewer" ACKs immediately, "engram-agent" is offline → implicit ACK after 5s.
 	// Both offline (no messages in last 15 min) but reviewer ACKs explicitly.
 
-	ackMsg := chat.Message{
-		From:   "reviewer",
-		To:     "caller",
-		Thread: "t",
-		Type:   "ack",
-		TS:     now,
-		Text:   "ok",
-	}
+	ackMsg := chat.Message{From: "reviewer", To: "caller", Thread: "t", Type: "ack", TS: now, Text: "ok"}
 
 	watchCallCount := 0
-	fakeWatch := watcherFunc(
-		func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-			watchCallCount++
+	fakeWatch := watcherFunc(func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		watchCallCount++
 
-			if watchCallCount == 1 {
-				// First call: return reviewer ACK immediately
-				return ackMsg, cursor + 10, nil
-			}
+		if watchCallCount == 1 {
+			// First call: return reviewer ACK immediately
+			return ackMsg, cursor + 10, nil
+		}
 
-			// Subsequent: block until ctx done (engram-agent never responds)
-			<-ctx.Done()
+		// Subsequent: block until ctx done (engram-agent never responds)
+		<-ctx.Done()
 
-			return chat.Message{}, cursor, ctx.Err()
-		},
-	)
+		return chat.Message{}, cursor, ctx.Err()
+	})
 
 	// No messages → both offline
 	fakeRead := func(_ string) ([]byte, error) {
@@ -287,14 +267,12 @@ func TestFileAckWaiter_OfflineImplicitACKAfter5s(t *testing.T) {
 
 	// Recipient has no messages in last 15 min (offline).
 	// NowFunc advances time so that 5s elapsed offline timer fires before Watch is called.
-	fakeWatch := watcherFunc(
-		func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-			// Block until context cancelled (simulates no message arriving)
-			<-ctx.Done()
+	fakeWatch := watcherFunc(func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		// Block until context cancelled (simulates no message arriving)
+		<-ctx.Done()
 
-			return chat.Message{}, cursor, ctx.Err()
-		},
-	)
+		return chat.Message{}, cursor, ctx.Err()
+	})
 
 	// No messages at all → recipient is offline
 	fakeRead := func(_ string) ([]byte, error) {
@@ -358,13 +336,11 @@ func TestFileAckWaiter_OnlineSilentTIMEOUT(t *testing.T) {
 	}
 
 	// Watch blocks until context cancels
-	fakeWatch := watcherFunc(
-		func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-			<-ctx.Done()
+	fakeWatch := watcherFunc(func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		<-ctx.Done()
 
-			return chat.Message{}, cursor, ctx.Err()
-		},
-	)
+		return chat.Message{}, cursor, ctx.Err()
+	})
 
 	// Time advances past MaxWait on second call (first builds states; second is loop check)
 	nowCallCount := 0
@@ -432,13 +408,11 @@ func TestFileAckWaiter_OnlineSilentTIMEOUT_ViaWatchDeadline(t *testing.T) {
 	}
 
 	// fakeWatch blocks until its context is cancelled (simulates no ack/wait arriving).
-	fakeWatch := watcherFunc(
-		func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-			<-ctx.Done()
+	fakeWatch := watcherFunc(func(ctx context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		<-ctx.Done()
 
-			return chat.Message{}, cursor, ctx.Err()
-		},
-	)
+		return chat.Message{}, cursor, ctx.Err()
+	})
 
 	waiter := &chat.FileAckWaiter{
 		FilePath: "/fake/chat.toml",
@@ -478,11 +452,9 @@ func TestFileAckWaiter_ReadFileError_ReturnsError(t *testing.T) {
 
 	waiter := &chat.FileAckWaiter{
 		FilePath: "/unreachable/chat.toml",
-		Watcher: watcherFunc(
-			func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-				return chat.Message{}, cursor, errors.New("should not be called")
-			},
-		),
+		Watcher: watcherFunc(func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+			return chat.Message{}, cursor, errors.New("should not be called")
+		}),
 		ReadFile: func(_ string) ([]byte, error) {
 			return nil, ioErr
 		},
@@ -506,11 +478,9 @@ func TestFileAckWaiter_ReadFileNotExist_TreatedAsOffline(t *testing.T) {
 
 	waiter := &chat.FileAckWaiter{
 		FilePath: "/nonexistent/chat.toml",
-		Watcher: watcherFunc(
-			func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-				return chat.Message{}, cursor, errors.New("should not be called")
-			},
-		),
+		Watcher: watcherFunc(func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+			return chat.Message{}, cursor, errors.New("should not be called")
+		}),
 		ReadFile: func(_ string) ([]byte, error) {
 			return nil, fs.ErrNotExist
 		},
@@ -545,11 +515,9 @@ func TestFileAckWaiter_WAITReturnedImmediately(t *testing.T) {
 		Type: "wait", TS: now, Text: "I have a relevant memory",
 	}
 
-	fakeWatch := watcherFunc(
-		func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-			return waitMsg, cursor + 10, nil
-		},
-	)
+	fakeWatch := watcherFunc(func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		return waitMsg, cursor + 10, nil
+	})
 
 	fakeRead := func(_ string) ([]byte, error) {
 		return buildChatTOML(nil), nil
@@ -589,11 +557,9 @@ func TestFileAckWaiter_WatchIOError_ReturnsError(t *testing.T) {
 	// AckWait must propagate it rather than silently looping.
 	ioErr := errors.New("permission denied reading chat file")
 
-	fakeWatch := watcherFunc(
-		func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-			return chat.Message{}, cursor, ioErr
-		},
-	)
+	fakeWatch := watcherFunc(func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		return chat.Message{}, cursor, ioErr
+	})
 
 	fakeRead := func(_ string) ([]byte, error) {
 		return buildChatTOML(nil), nil
@@ -619,28 +585,19 @@ func TestFileAckWaiter_WatchInternalTimeoutThenACK(t *testing.T) {
 	// Simulates: Watch returns an internal timeout (DeadlineExceeded) on first call
 	// while parent ctx is still alive. On second call Watch returns an ACK.
 	// Expected: AckWait continues the loop and returns ACK.
-	ackMsg := chat.Message{
-		From:   "engram-agent",
-		To:     "caller",
-		Thread: "t",
-		Type:   "ack",
-		TS:     now,
-		Text:   "ok",
-	}
+	ackMsg := chat.Message{From: "engram-agent", To: "caller", Thread: "t", Type: "ack", TS: now, Text: "ok"}
 
 	watchCallCount := 0
-	fakeWatch := watcherFunc(
-		func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
-			watchCallCount++
+	fakeWatch := watcherFunc(func(_ context.Context, _ string, cursor int, _ []string) (chat.Message, int, error) {
+		watchCallCount++
 
-			if watchCallCount == 1 {
-				// Simulate Watch's own internal timeout (not parent ctx cancellation)
-				return chat.Message{}, cursor, context.DeadlineExceeded
-			}
+		if watchCallCount == 1 {
+			// Simulate Watch's own internal timeout (not parent ctx cancellation)
+			return chat.Message{}, cursor, context.DeadlineExceeded
+		}
 
-			return ackMsg, cursor + 10, nil
-		},
-	)
+		return ackMsg, cursor + 10, nil
+	})
 
 	fakeRead := func(_ string) ([]byte, error) {
 		return buildChatTOML(nil), nil

@@ -24,7 +24,6 @@ func TestHaikuCallerAdapter_Call(t *testing.T) {
 	adapter := cli.ExportNewHaikuCallerAdapter(
 		func(_ context.Context, model, _, _ string) (string, error) {
 			capturedModel = model
-
 			return "response text", nil
 		},
 	)

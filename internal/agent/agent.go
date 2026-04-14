@@ -10,23 +10,26 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+// Exported constants.
+const (
+	MaxConcurrentWorkers = 3
+)
+
 // AgentRecord holds binary bookkeeping for a spawned agent (spec §6.3).
 // Argument state fields enforce the 3-argument cap from SPEECH-2/SKILL-2
 // and must be persisted across engram agent resume invocations (Phase 5).
 //
 //nolint:revive,tagliatelle // "agent.AgentRecord" stutter is intentional; kebab-case matches state file protocol.
 type AgentRecord struct {
-	Name                string    `json:"name"                           toml:"name"`
-	PaneID              string    `json:"pane-id"                        toml:"pane-id"`
-	SessionID           string    `json:"session-id"                     toml:"session-id"`
-	State               string    `json:"state"                          toml:"state"` // STARTING | ACTIVE | SILENT | DEAD
-	SpawnedAt           time.Time `json:"spawned-at"                     toml:"spawned-at"`
-	LastResumedAt       time.Time `json:"last-resumed-at,omitzero"       toml:"last-resumed-at,omitzero"`
-	LastSilentAt        time.Time `json:"last-silent-at,omitzero"        toml:"last-silent-at,omitzero"`
-	ArgumentWith        string    `json:"argument-with"                  toml:"argument-with"`
-	ArgumentCount       int       `json:"argument-count"                 toml:"argument-count"`
-	ArgumentThread      string    `json:"argument-thread"                toml:"argument-thread"`
-	LastDeliveredCursor int       `json:"last-delivered-cursor,omitzero" toml:"last-delivered-cursor,omitzero"`
+	Name           string    `json:"name"                     toml:"name"`
+	PaneID         string    `json:"pane-id"                  toml:"pane-id"`
+	SessionID      string    `json:"session-id"               toml:"session-id"`
+	State          string    `json:"state"                    toml:"state"` // STARTING | ACTIVE | SILENT | DEAD
+	SpawnedAt      time.Time `json:"spawned-at"               toml:"spawned-at"`
+	LastResumedAt  time.Time `json:"last-resumed-at,omitzero" toml:"last-resumed-at,omitzero"`
+	ArgumentWith   string    `json:"argument-with"            toml:"argument-with"`
+	ArgumentCount  int       `json:"argument-count"           toml:"argument-count"`
+	ArgumentThread string    `json:"argument-thread"          toml:"argument-thread"`
 }
 
 // HoldEntry is the state-file representation of an active hold.
@@ -49,8 +52,7 @@ type StateFile struct {
 }
 
 // ActiveWorkerCount returns the number of agents in STARTING or ACTIVE state.
-// Exported for observability consumers (e.g. status commands, reporters) across
-// the internal/ package boundary. Pure function — no I/O.
+// Pure function — no I/O.
 func ActiveWorkerCount(sf StateFile) int {
 	count := 0
 

@@ -2,7 +2,7 @@
 
 > **Alpha** — Under active development. APIs and data formats may change. Feedback and contributions welcome via [issues](https://github.com/toejough/engram/issues).
 
-Self-correcting memory for LLM agents. A [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code/plugins) that learns from sessions, surfaces relevant memories at the right moment, measures whether they're actually followed, and fixes the ones that aren't.
+Self-correcting memory for LLM agents. A [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code/plugins) that learns from sessions, surfaces relevant memories, measures whether they're actually followed, and fixes the ones that aren't.
 
 ## The problem
 
@@ -10,174 +10,116 @@ Claude Code has several instruction sources — CLAUDE.md, rules, skills — but
 
 ## How engram solves it
 
-Engram maintains structured memories (corrections as SBIA feedback, knowledge as SPO facts), surfaces them when situationally relevant, measures whether they improve outcomes, and diagnoses failures. See [Intent & Rationale](docs/intent.md) for the research and design decisions behind this approach.
+Engram hooks into every phase of a Claude Code session to create a closed feedback loop:
 
-## Quick start
-
-### Prerequisites
-
-- Go 1.25+
-- Claude Code 2.1.81+
-- The engram plugin enabled in Claude Code
-
-### Installation
-
-```bash
-git clone https://github.com/toejough/engram.git
+```
+Extract --> Deduplicate --> Write --> Surface --> Evaluate --> Maintain
+  ^                                                            |
+  +------------------------------------------------------------+
 ```
 
-Enable in Claude Code. The binaries auto-build on first session start.
+1. **Extract** — Learns from session transcripts and real-time corrections. User corrections ("remember that...", "don't do X") are captured immediately; broader patterns are extracted at session end. See [Architecture § Extract](docs/design/architecture.md#core-pipeline), [Session Lifecycle § Stop](docs/design/session-lifecycle.md#4-stop-stopsh-120s-timeout-async), [Memory Lifecycle § Creation](docs/design/memory-lifecycle.md#1-creation), and [`internal/extract/`](internal/extract/).
 
-### Starting a session with engram
+2. **Deduplicate** — Keyword overlap (>50%) against the existing corpus prevents redundant memories. Near-duplicates are merged on write; post-creation consolidation uses TF-IDF cosine similarity for cluster detection.
 
-**Option A: MCP mode (recommended)** — memories push to you automatically:
+3. **Surface** — At every prompt, retrieves relevant memories via BM25 keyword scoring and injects them as context. A per-hook token budget caps injection to avoid overwhelming the model.
 
-```bash
-# The MCP server auto-starts the API server
-claude --dangerously-load-development-channels 'plugin:engram@engram'
-```
+4. **Evaluate** — Tracks whether surfaced memories were followed, contradicted, ignored, or irrelevant. Outcome counters are stored directly in each memory's TOML file.
 
-Then load the skills: `/use-engram-chat-as` and `/engram-lead`.
-
-**Option B: CLI mode** — you explicitly request memories:
-
-```bash
-# Start the API server
-engram server up --chat-file ~/.local/share/engram/chat/my-project.toml --log-file /tmp/engram.log
-
-# In another terminal, use CLI commands
-engram intent --from my-session --to engram-agent --situation "about to refactor auth module"
-engram learn --from my-session --type feedback --situation "writing tests" --behavior "skipped edge cases" --impact "bugs in production" --action "always test error paths"
-```
-
-### CLI commands
-
-| Command | Purpose | Blocking? |
-|---------|---------|-----------|
-| `engram post --from X --to Y --text "..."` | Post a message to chat | No |
-| `engram intent --from X --to Y --situation "..." --planned-action "..."` | Ask for memories before acting | Yes (waits for response) |
-| `engram learn --from X --type feedback\|fact --situation "..." [fields]` | Record a learning | No |
-| `engram subscribe --agent X` | Watch for messages addressed to you | Yes (long-poll loop) |
-| `engram status` | Check API server health | No |
-| `engram server up --chat-file PATH --log-file PATH --addr HOST:PORT` | Start the API server | Yes (runs until stopped) |
-
-### MCP tools (when using MCP mode)
-
-| Tool | Purpose |
-|------|---------|
-| `engram_post` | Post a message to chat |
-| `engram_intent` | Ask for memories before acting (synchronous) |
-| `engram_learn` | Record a feedback or fact |
-| `engram_status` | Check server health |
-
-Surfaced memories arrive as `<channel source="engram">` events between turns.
-
-### Shutting down
-
-```bash
-# Via CLI
-engram post --from my-session --to engram-agent --text "shutdown"
-curl -X POST http://localhost:7932/shutdown
-
-# The MCP server shuts down when the Claude Code session ends
-```
-
-## Memory formats
-
-### Feedback (SBIA)
-
-Corrections anchored to specific situations. [Why SBIA?](docs/intent.md#feedback-memories-sbia)
-
-```toml
-type = "feedback"
-situation = "writing Go code that creates temporary files"
-[content]
-behavior = "using predictable temp file names, not cleaning up on failure"
-impact = "security vulnerabilities, resource leaks"
-action = "use os.CreateTemp, defer cleanup on every failure path"
-```
-
-### Facts (SPO)
-
-Propositional knowledge as subject-predicate-object triples. [Why SPO?](docs/intent.md#fact-memories-spo)
-
-```toml
-type = "fact"
-situation = "referencing engram chat file paths"
-[content]
-subject = "engram chat files"
-predicate = "stored-in"
-object = "~/.local/share/engram/chat/<project-slug>.toml"
-```
+5. **Maintain** — Diagnoses each memory by effectiveness quadrant and proposes targeted fixes: rewrite stale content, broaden keywords for hidden gems, escalate enforcement for persistent violations, remove noise.
 
 ## Effectiveness quadrants
 
 |  | High effectiveness | Low effectiveness |
 |--|-------------------|------------------|
 | **Often surfaced** | **Working** — Keep as-is | **Leech** — Rewrite or escalate |
-| **Rarely surfaced** | **Hidden Gem** — Broaden retrieval | **Noise** — Remove |
+| **Rarely surfaced** | **Hidden Gem** — Broaden keywords | **Noise** — Remove |
 
-Effectiveness = followed / (followed + not_followed + irrelevant). See [Formulas](docs/design/formulas.md).
+Effectiveness = followed / (followed + contradicted + ignored + irrelevant) * 100. Memories with fewer than 5 evaluations are classified as "insufficient data." See [Formulas](docs/design/formulas.md) for the full scoring model.
 
-## Common edge cases
+## Session lifecycle
 
-### Server won't start
-- Check if port 7932 is already in use: `lsof -i :7932`
-- Check the log file for errors: `tail -f /tmp/engram.log | jq .`
-- The MCP server auto-starts the API server — you don't need to start both
+Engram hooks into four phases of a Claude Code session: start (build + triage), prompt (surface + correct), stop-blocking (surface agent output), and stop-async (learn from transcript). See [Session Lifecycle](docs/design/session-lifecycle.md) for the full walkthrough and sequence diagram.
 
-### Memories not surfacing
-- Verify the server is running: `engram status`
-- Check the chat file for recent messages: `tail ~/.local/share/engram/chat/<slug>.toml`
-- Check the debug log for engram-agent errors
-- The engram-agent may need a session reset: `curl -X POST http://localhost:7932/reset-agent`
+Engram registers three hook events:
 
-### Learn messages rejected
-- Feedback requires: `situation`, `behavior`, `impact`, `action`
-- Facts require: `situation`, `subject`, `predicate`, `object`
-- The error message tells you which field is missing
+| Event | Hook | What happens |
+|-------|------|-------------|
+| `SessionStart` | `session-start.sh` | Auto-build binary if stale. Run maintenance/triage in background. Remind user that `/recall` is available. |
+| `UserPromptSubmit` | `user-prompt-submit.sh` | Surface prompt-relevant memories via BM25. Detect inline corrections. |
+| `Stop` | `stop-surface.sh` | Surface memories relevant to agent output (blocking). |
+| `Stop` | `stop.sh` (async) | Flush pipeline — extract learnings from transcript, record outcomes. |
 
-### Channel events not appearing (MCP mode)
-- Requires `--dangerously-load-development-channels 'plugin:engram@engram'`
-- Channels are a research preview feature in Claude Code
-- Events appear between turns, not during tool execution
+## Adaptation
+
+Engram observes its own performance and proposes system-level changes via the `adapt` pipeline. When keywords cause too many irrelevant matches, it proposes de-prioritizing them. When memory clusters overlap, it proposes consolidation. Proposals are reviewed and approved via the `/adapt` skill.
+
+Configuration thresholds (cluster size, confidence minimums, feedback windows) are stored in `policy.toml` and can be tuned per-project.
+
+## Memory TOML structure
+
+Each memory is a TOML file with structured fields:
+
+```toml
+title = "Use targ for builds"
+content = "Always use targ build system instead of raw go commands"
+concepts = ["build-system", "tooling"]
+keywords = ["targ", "build", "go test", "go vet"]
+principle = "Use targ test, targ check, targ build for all operations"
+anti_pattern = "Running go test or go vet directly"
+confidence = "A"
+```
+
+Confidence tiers: **A** (explicit instruction — "always/never/remember"), **B** (teachable correction), **C** (contextual fact). See [Memory Lifecycle](docs/design/memory-lifecycle.md) for how memories are created, surfaced, evaluated, and maintained over time.
 
 ## Data files
 
+All data lives in `~/.local/share/engram/`:
+
 | Path | Purpose |
 |------|---------|
-| `~/.local/share/engram/chat/<slug>.toml` | Chat file (inter-agent messages) |
-| `~/.local/share/engram/memory/facts/*.toml` | Fact memories |
-| `~/.local/share/engram/memory/feedback/*.toml` | Feedback memories |
+| `memories/*.toml` | Structured memory files with embedded metrics |
+| `creation-log.jsonl` | Append-only log of memory creation events |
+| `policy.toml` | Adaptation config and policy directives |
+
+## Installation
+
+Requires Go 1.25+.
+
+```bash
+git clone https://github.com/toejough/engram.git
+```
+
+Enable in Claude Code via the `/plugin` command. The binary auto-builds on first hook invocation and rebuilds when source files change.
 
 ## Skills
 
 | Skill | Purpose |
 |-------|---------|
-| `/use-engram-chat-as` | Communication protocol for agents using engram |
-| `/engram-lead` | Lead agent orchestration guide |
-| `/engram-agent` | Memory agent behavior (structured JSON output) |
-| `/engram-up` | Start engram session |
-| `/engram-down` | Shut down engram session |
-| `/recall` | Load context from previous sessions |
+| `/recall` | Load context from previous sessions. No args = raw transcript summary (what was decided, what got done, what's outstanding). With query = Haiku-filtered search across sessions. |
+| `/adapt` | Review and act on adaptation proposals — approve, reject, or retire policies that tune extraction and surfacing behavior. |
+| `/memory-triage` | Interactive review of maintenance signals — noise removal, keyword broadening, consolidation, graduation to higher tiers. |
 
-## Architecture
+See [Skills Guide](docs/howto/skills.md) for detailed workflows and example interactions.
 
-- [Intent & Rationale](docs/intent.md) — Why engram exists and what must survive rewrites
-- [Architecture Diagrams](docs/architecture/README.md) — C4 model from system context to code entities
-- [Memory Lifecycle](docs/design/memory-lifecycle.md) — Creation to deletion with state diagram
-- [Formulas](docs/design/formulas.md) — Effectiveness, ranking, budget formulas
-- [Spec Design Principles](docs/spec-design.md) — Principles for designing engram specs
-- [Execution Planning Principles](docs/exec-planning.md) — Principles for implementation planning
+## Project structure
+
+```
+cmd/engram/          CLI entry point (thin wiring layer)
+internal/            Business logic (36 packages, all DI boundaries)
+hooks/               Shell scripts for Claude Code hook integration
+skills/              Plugin skills (recall, adapt, memory-triage)
+.claude-plugin/      Plugin manifest
+docs/                Documentation (design, use-cases, standards, howto)
+archive/             Historical planning artifacts
+```
 
 ## Design principles
 
-- **Content quality > mechanical sophistication** — Fix the memory, not the retrieval machinery
-- **Measure impact, not frequency** — surfaced_count is vanity; followed_count is value
-- **DI everywhere** — No `internal/` function calls `os.*`, `http.*`, or I/O directly
-- **Server-side intelligence, thin clients** — Deterministic routing in the server, not unreliable agents
-- **Observable by default** — Chat log, debug log, structured JSON logging
-- **Pure Go, no CGO** — BM25 for retrieval, external API for LLM judgment only
+- **DI everywhere** — No function in `internal/` calls `os.*`, `http.*`, or any I/O directly. All I/O through injected interfaces, wired at CLI edges.
+- **Pure Go, no CGO** — TF-IDF and BM25 for retrieval. External API for LLM classification only.
+- **Fire and forget** — Hook errors are logged, never propagated. Hooks always exit 0.
+- **Measure impact, not frequency** — A memory surfaced 1000 times but never followed is a leech, not a success.
 
 ## What about built-in memory?
 
@@ -186,3 +128,28 @@ Anthropic has introduced built-in auto-memory and dreaming features for Claude C
 I tried auto-memory when it was introduced and found it unhelpful for the same reasons I'd had trouble with "please write this down somewhere" — non-deterministic recording, unreliable surfacing. I ended up turning it off because it was conflicting with engram. I haven't tried the new dreaming features yet — maybe they've materially improved things.
 
 If the built-in memory management becomes good enough that most of engram is unnecessary, I'll be glad — less to maintain. Till then, engram exists because I wanted memory that **measures outcomes**, **self-corrects**, and **keeps the user in control** of what changes.
+
+## What it doesn't do
+
+- **No vector embeddings** — Uses TF-IDF/BM25, not dense vectors. Keeps the dependency footprint minimal.
+- **No cross-project sharing** — Memories are per-data-directory. No sync, no cloud storage.
+- **No automatic execution** — Maintenance proposals require user approval before applying.
+- **No GUI** — CLI-only, designed for terminal workflows.
+
+## Documentation
+
+### Design
+- [Architecture](docs/design/architecture.md) — Pipeline design, package map, key decisions
+- [System Context](docs/design/context.md) — C4 context diagram
+- [Data Model](docs/design/data-model.md) — Memory TOML schema, supporting files
+- [Session Lifecycle](docs/design/session-lifecycle.md) — Hook events and sequence diagram
+- [Memory Lifecycle](docs/design/memory-lifecycle.md) — Creation to deletion with state diagram
+- [Formulas](docs/design/formulas.md) — Effectiveness, ranking, budget, and penalty formulas
+
+### How-to
+- [Installation & Usage](docs/howto/installation.md) — Setup and configuration
+- [Skills Guide](docs/howto/skills.md) — /recall, /adapt, /memory-triage with examples
+
+### Reference
+- [Use Cases](docs/use-cases/README.md) — UC-1 through UC-34
+- [Coding Standards](docs/standards/coding.md) — DI rules, TDD, targ usage

@@ -2,6 +2,9 @@ package cli_test
 
 import (
 	"bytes"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -37,6 +40,324 @@ func TestAddBoolFlag(t *testing.T) {
 		result := cli.AddBoolFlag(nil, "--flag", true)
 		g.Expect(result).To(gomega.Equal([]string{"--flag"}))
 	})
+}
+
+func TestAgentKillFlags_AllFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentKillFlags(cli.AgentKillArgs{
+		Name:      "executor-1",
+		ChatFile:  "/tmp/chat.toml",
+		StateFile: "/tmp/state.toml",
+	})
+	g.Expect(args).To(gomega.ContainElements(
+		"--name", "executor-1",
+		"--chat-file", "/tmp/chat.toml",
+		"--state-file", "/tmp/state.toml",
+	))
+}
+
+func TestAgentKillFlags_EmptyFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentKillFlags(cli.AgentKillArgs{Name: "executor-1"})
+	g.Expect(args).To(gomega.Equal([]string{"--name", "executor-1"}))
+	g.Expect(args).NotTo(gomega.ContainElement("--chat-file"))
+	g.Expect(args).NotTo(gomega.ContainElement("--state-file"))
+}
+
+func TestAgentListFlags_AllFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentListFlags(cli.AgentListArgs{StateFile: "/tmp/state.toml", ChatFile: "/tmp/chat.toml"})
+	g.Expect(args).To(gomega.ContainElements("--state-file", "/tmp/state.toml", "--chat-file", "/tmp/chat.toml"))
+}
+
+func TestAgentListFlags_EmptyFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentListFlags(cli.AgentListArgs{StateFile: "/tmp/state.toml"})
+	g.Expect(args).To(gomega.Equal([]string{"--state-file", "/tmp/state.toml"}))
+	g.Expect(args).NotTo(gomega.ContainElement("--chat-file"))
+}
+
+func TestAgentSpawnFlags_AllFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentSpawnFlags(cli.AgentSpawnArgs{
+		Name:      "executor-1",
+		Prompt:    "You are an executor agent.",
+		ChatFile:  "/tmp/chat.toml",
+		StateFile: "/tmp/state.toml",
+	})
+	g.Expect(args).To(gomega.ContainElements(
+		"--name", "executor-1",
+		"--prompt", "You are an executor agent.",
+		"--chat-file", "/tmp/chat.toml",
+		"--state-file", "/tmp/state.toml",
+	))
+}
+
+func TestAgentSpawnFlags_EmptyFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentSpawnFlags(cli.AgentSpawnArgs{Name: "executor-1"})
+	g.Expect(args).To(gomega.Equal([]string{"--name", "executor-1"}))
+	g.Expect(args).NotTo(gomega.ContainElement("--prompt"))
+	g.Expect(args).NotTo(gomega.ContainElement("--state-file"))
+}
+
+func TestAgentWaitReadyFlags_AllFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentWaitReadyFlags(cli.AgentWaitReadyArgs{
+		Name:     "executor-1",
+		Cursor:   42,
+		MaxWait:  30,
+		ChatFile: "/tmp/chat.toml",
+	})
+	g.Expect(args).To(gomega.ContainElements(
+		"--name", "executor-1",
+		"--cursor", "42",
+		"--max-wait", "30",
+		"--chat-file", "/tmp/chat.toml",
+	))
+}
+
+func TestAgentWaitReadyFlags_ZeroInts(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	args := cli.AgentWaitReadyFlags(cli.AgentWaitReadyArgs{Name: "executor-1"})
+	g.Expect(args).To(gomega.ContainElements("--name", "executor-1", "--cursor", "0", "--max-wait", "0"))
+}
+
+func TestBuildAgentGroup(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns a non-nil group", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		group := cli.BuildAgentGroup(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		g.Expect(group).NotTo(gomega.BeNil())
+	})
+
+	t.Run("executes list subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		stateFile := filepath.Join(dir, "state.toml")
+
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "agent", "list",
+			"--state-file", stateFile,
+			"--chat-file", filepath.Join(dir, "chat.toml"),
+		}, targets...)
+
+		// list on empty/nonexistent state file produces no output
+		g.Expect(stdout.String()).To(gomega.BeEmpty())
+	})
+
+	t.Run("executes kill subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+
+		var stdout bytes.Buffer
+
+		// kill with no holds and nonexistent state file removes nothing and prints "killed <name>"
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "agent", "kill",
+			"--name", "test-agent",
+			"--state-file", filepath.Join(dir, "state.toml"),
+			"--chat-file", filepath.Join(dir, "chat.toml"),
+		}, targets...)
+
+		g.Expect(strings.TrimSpace(stdout.String())).To(gomega.Equal("killed test-agent"))
+	})
+
+	t.Run("executes spawn subcommand via closure (missing name returns error, no tmux call)", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var stderr bytes.Buffer
+
+		// Omit --name so parseSpawnFlags returns errSpawnNameRequired before tmux is touched.
+		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
+		_, _ = targ.Execute([]string{"engram", "agent", "spawn"}, targets...)
+
+		g.Expect(stderr.String()).To(gomega.ContainSubstring("--name"))
+	})
+
+	t.Run("executes wait-ready subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+
+		// Pre-post a ready message so wait-ready returns immediately
+		postErr := cli.Run([]string{
+			"engram", "chat", "post",
+			"--chat-file", chatFile,
+			"--from", "test-agent", "--to", "all",
+			"--thread", "lifecycle", "--type", "ready", "--text", "ok",
+		}, io.Discard, io.Discard, nil)
+		if postErr != nil {
+			return
+		}
+
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "agent", "wait-ready",
+			"--name", "test-agent",
+			"--chat-file", chatFile,
+			"--cursor", "0",
+			"--max-wait", "5",
+		}, targets...)
+
+		// wait-ready outputs a JSON result
+		g.Expect(stdout.String()).To(gomega.ContainSubstring(`"from":"test-agent"`))
+	})
+}
+
+func TestBuildChatGroup(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns a non-nil group", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		group := cli.BuildChatGroup(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		g.Expect(group).NotTo(gomega.BeNil())
+	})
+
+	t.Run("executes post subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "chat", "post",
+			"--chat-file", chatFile,
+			"--from", "x", "--to", "all", "--thread", "t", "--type", "info", "--text", "hi",
+		}, targets...)
+
+		// post outputs the new cursor (a non-negative integer)
+		g.Expect(strings.TrimSpace(stdout.String())).To(gomega.MatchRegexp(`^\d+$`))
+	})
+
+	t.Run("executes cursor subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+		g.Expect(os.WriteFile(chatFile, []byte("a\nb\nc\n"), 0o600)).To(gomega.Succeed())
+
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "chat", "cursor",
+			"--chat-file", chatFile,
+		}, targets...)
+
+		g.Expect(strings.TrimSpace(stdout.String())).To(gomega.Equal("3"))
+	})
+
+	t.Run("executes watch subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+
+		// Pre-write a matching message so watch returns immediately (cursor=0 finds it).
+		postErr := cli.Run([]string{
+			"engram", "chat", "post",
+			"--chat-file", chatFile,
+			"--from", "sender",
+			"--to", "watcher",
+			"--thread", "test",
+			"--type", "info",
+			"--text", "hello",
+		}, io.Discard, io.Discard, nil)
+		g.Expect(postErr).NotTo(gomega.HaveOccurred())
+
+		if postErr != nil {
+			return
+		}
+
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "chat", "watch",
+			"--chat-file", chatFile,
+			"--agent", "watcher",
+			"--cursor", "0",
+			"--type", "info",
+		}, targets...)
+
+		g.Expect(stdout.String()).To(gomega.ContainSubstring(`"from":"sender"`))
+	})
+}
+
+func TestBuildChatGroup_AckWait(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	chatFile := filepath.Join(dir, "chat.toml")
+
+	// Pre-post an ACK so the ack-wait call returns immediately.
+	postErr := cli.Run([]string{
+		"engram", "chat", "post",
+		"--chat-file", chatFile,
+		"--from", "engram-agent", "--to", "tester", "--thread", "t",
+		"--type", "ack", "--text", "ok",
+	}, io.Discard, io.Discard, nil)
+	g.Expect(postErr).NotTo(gomega.HaveOccurred())
+
+	if postErr != nil {
+		return
+	}
+
+	var stdout bytes.Buffer
+
+	targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+	_, _ = targ.Execute([]string{
+		"engram", "chat", "ack-wait",
+		"--chat-file", chatFile,
+		"--agent", "tester",
+		"--cursor", "0",
+		"--recipients", "engram-agent",
+		"--max-wait", "5",
+	}, targets...)
+
+	g.Expect(stdout.String()).To(gomega.ContainSubstring(`"result"`))
 }
 
 func TestBuildFlags(t *testing.T) {
@@ -83,35 +404,119 @@ func TestBuildFlags(t *testing.T) {
 	})
 }
 
-func TestBuildServerGroup(t *testing.T) {
+func TestBuildHoldGroup(t *testing.T) {
 	t.Parallel()
 
 	t.Run("returns a non-nil group", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		group := cli.BuildServerGroup(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		group := cli.BuildHoldGroup(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
 		g.Expect(group).NotTo(gomega.BeNil())
 	})
 
-	t.Run("executes up subcommand via closure with invalid addr", func(t *testing.T) {
+	t.Run("executes acquire subcommand via closure", func(t *testing.T) {
 		t.Parallel()
+		g := gomega.NewWithT(t)
 
 		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
 
-		var stderr bytes.Buffer
+		var stdout bytes.Buffer
 
-		// server up with an invalid addr exercises the closure body.
-		// targ parses ServerUpArgs from the flags and calls RunSafe.
-		// RunSafe writes any error to stderr.
-		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
 		_, _ = targ.Execute([]string{
-			"engram", "server", "up",
-			"--chat-file", dir + "/chat.toml",
-			"--addr", "!!!invalid-addr!!!",
+			"engram", "hold", "acquire",
+			"--chat-file", chatFile,
+			"--holder", "lead", "--target", "exec-1",
 		}, targets...)
-		// The server will attempt to listen on the invalid address and fail.
-		// We just verify the closure was invoked (any outcome is acceptable).
+
+		// acquire outputs the hold-id (UUID format)
+		g.Expect(strings.TrimSpace(stdout.String())).NotTo(gomega.BeEmpty())
+	})
+
+	t.Run("executes release subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+
+		// Acquire a hold first so there is something to release.
+		var acquireOut bytes.Buffer
+
+		acquireErr := cli.Run([]string{
+			"engram", "hold", "acquire",
+			"--chat-file", chatFile,
+			"--holder", "lead", "--target", "exec-1",
+		}, &acquireOut, io.Discard, nil)
+		g.Expect(acquireErr).NotTo(gomega.HaveOccurred())
+
+		if acquireErr != nil {
+			return
+		}
+
+		holdID := strings.TrimSpace(acquireOut.String())
+
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "hold", "release",
+			"--chat-file", chatFile,
+			"--hold-id", holdID,
+		}, targets...)
+
+		// release outputs "OK"
+		g.Expect(strings.TrimSpace(stdout.String())).To(gomega.Equal("OK"))
+	})
+
+	t.Run("executes list subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+
+		acquireErr := cli.Run([]string{
+			"engram", "hold", "acquire",
+			"--chat-file", chatFile,
+			"--holder", "lead", "--target", "exec-1",
+		}, io.Discard, io.Discard, nil)
+		g.Expect(acquireErr).NotTo(gomega.HaveOccurred())
+
+		if acquireErr != nil {
+			return
+		}
+
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "hold", "list",
+			"--chat-file", chatFile,
+		}, targets...)
+
+		g.Expect(stdout.String()).NotTo(gomega.BeEmpty())
+	})
+
+	t.Run("executes check subcommand via closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := t.TempDir()
+		chatFile := filepath.Join(dir, "chat.toml")
+
+		// check on empty/nonexistent file produces no output (no active holds to release)
+		var stdout bytes.Buffer
+
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		_, _ = targ.Execute([]string{
+			"engram", "hold", "check",
+			"--chat-file", chatFile,
+		}, targets...)
+
+		g.Expect(stdout.String()).To(gomega.BeEmpty())
 	})
 }
 
@@ -123,7 +528,7 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		g.Expect(targets).To(gomega.HaveLen(7))
+		g.Expect(targets).To(gomega.HaveLen(2))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -136,12 +541,135 @@ func TestBuildTargets(t *testing.T) {
 			calls = append(calls, subcmd)
 		})
 
-		subcmds := []string{"recall", "show", "post", "intent", "learn", "status", "subscribe"}
+		subcmds := []string{"recall", "show"}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
 		}
 
 		g.Expect(calls).To(gomega.Equal(subcmds))
+	})
+}
+
+func TestChatAckWaitFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("includes all non-zero fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ChatAckWaitFlags(cli.ChatAckWaitArgs{
+			Agent:      "tester",
+			Cursor:     10,
+			Recipients: "a,b",
+			MaxWait:    30,
+			ChatFile:   "/tmp/chat.toml",
+		})
+		g.Expect(result).To(gomega.ContainElements(
+			"--agent", "tester",
+			"--recipients", "a,b",
+			"--chat-file", "/tmp/chat.toml",
+			"--cursor", "10",
+			"--max-wait", "30",
+		))
+	})
+
+	t.Run("omits cursor and max-wait when zero", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ChatAckWaitFlags(cli.ChatAckWaitArgs{Agent: "tester"})
+		g.Expect(result).To(gomega.Equal([]string{"--agent", "tester"}))
+		g.Expect(result).NotTo(gomega.ContainElement("--cursor"))
+		g.Expect(result).NotTo(gomega.ContainElement("--max-wait"))
+	})
+}
+
+func TestChatCursorFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("includes chat-file when set", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ChatCursorFlags(cli.ChatCursorArgs{ChatFile: "/tmp/chat.toml"})
+		g.Expect(result).To(gomega.Equal([]string{"--chat-file", "/tmp/chat.toml"}))
+	})
+
+	t.Run("returns empty when chat-file empty", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ChatCursorFlags(cli.ChatCursorArgs{})
+		g.Expect(result).To(gomega.BeEmpty())
+	})
+}
+
+func TestChatPostFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ChatPostFlags(cli.ChatPostArgs{
+			From:     "alice",
+			To:       "bob",
+			Thread:   "main",
+			MsgType:  "info",
+			Text:     "hello",
+			ChatFile: "/tmp/chat.toml",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "alice",
+			"--to", "bob",
+			"--thread", "main",
+			"--type", "info",
+			"--text", "hello",
+			"--chat-file", "/tmp/chat.toml",
+		}))
+	})
+
+	t.Run("empty fields omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ChatPostFlags(cli.ChatPostArgs{
+			From: "alice", To: "all", Thread: "t", MsgType: "info", Text: "hi",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--from", "alice", "--to", "all", "--thread", "t", "--type", "info", "--text", "hi",
+		}))
+	})
+}
+
+func TestChatWatchFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("includes cursor and max-wait when non-zero", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ChatWatchFlags(cli.ChatWatchArgs{
+			Agent:    "bob",
+			Cursor:   42,
+			Types:    "info",
+			MaxWait:  10,
+			ChatFile: "/tmp/chat.toml",
+		})
+		g.Expect(result).To(gomega.ContainElements(
+			"--agent", "bob", "--type", "info",
+			"--chat-file", "/tmp/chat.toml", "--cursor", "42", "--max-wait", "10",
+		))
+	})
+
+	t.Run("omits cursor and max-wait when zero", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ChatWatchFlags(cli.ChatWatchArgs{Agent: "bob"})
+		g.Expect(result).To(gomega.Equal([]string{"--agent", "bob"}))
+		g.Expect(result).NotTo(gomega.ContainElement("--cursor"))
+		g.Expect(result).NotTo(gomega.ContainElement("--max-wait"))
 	})
 }
 
@@ -171,146 +699,111 @@ func TestDataDirFromHome(t *testing.T) {
 	})
 }
 
-func TestIntentFlags(t *testing.T) {
+func TestHoldAcquireFlags(t *testing.T) {
 	t.Parallel()
 
-	t.Run("populated fields", func(t *testing.T) {
+	t.Run("includes all non-empty fields", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := cli.IntentFlags(cli.IntentArgs{
-			From:          "lead-1",
-			To:            "engram-agent",
-			Situation:     "deploying",
-			PlannedAction: "run tests",
-			Addr:          "http://localhost:9999",
+		result := cli.HoldAcquireFlags(cli.HoldAcquireArgs{
+			Holder:    "lead",
+			Target:    "exec-1",
+			Condition: "done:lead",
+			Tag:       "codesign-1",
+			ChatFile:  "/tmp/chat.toml",
 		})
 		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--to", "engram-agent",
-			"--situation", "deploying",
-			"--planned-action", "run tests",
-			"--addr", "http://localhost:9999",
+			"--holder", "lead",
+			"--target", "exec-1",
+			"--condition", "done:lead",
+			"--tag", "codesign-1",
+			"--chat-file", "/tmp/chat.toml",
 		}))
 	})
 
-	t.Run("empty optional fields omitted", func(t *testing.T) {
+	t.Run("omits empty fields", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := cli.IntentFlags(cli.IntentArgs{
-			From: "lead-1",
-			To:   "engram-agent",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--to", "engram-agent",
-		}))
+		result := cli.HoldAcquireFlags(cli.HoldAcquireArgs{Holder: "lead", Target: "exec-1"})
+		g.Expect(result).To(gomega.Equal([]string{"--holder", "lead", "--target", "exec-1"}))
 	})
 }
 
-func TestLearnFlags(t *testing.T) {
+func TestHoldCheckFlags(t *testing.T) {
 	t.Parallel()
 
-	t.Run("all fields populated", func(t *testing.T) {
+	t.Run("includes chat-file when set", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := cli.LearnFlags(cli.LearnArgs{
-			From:      "lead-1",
-			Type:      "feedback",
-			Situation: "deploying",
-			Behavior:  "skipped tests",
-			Impact:    "breakage",
-			Action:    "always run tests",
-			Subject:   "",
-			Predicate: "",
-			Object:    "",
-			Addr:      "http://localhost:9999",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--type", "feedback",
-			"--situation", "deploying",
-			"--behavior", "skipped tests",
-			"--impact", "breakage",
-			"--action", "always run tests",
-			"--addr", "http://localhost:9999",
-		}))
+		result := cli.HoldCheckFlags(cli.HoldCheckArgs{ChatFile: "/tmp/chat.toml"})
+		g.Expect(result).To(gomega.Equal([]string{"--chat-file", "/tmp/chat.toml"}))
 	})
 
-	t.Run("empty optional fields omitted", func(t *testing.T) {
+	t.Run("returns empty when chat-file empty", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := cli.LearnFlags(cli.LearnArgs{
-			From: "lead-1",
-			Type: "fact",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--type", "fact",
-		}))
-	})
-
-	t.Run("fact fields populated", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.LearnFlags(cli.LearnArgs{
-			From:      "lead-1",
-			Type:      "fact",
-			Situation: "investigating",
-			Subject:   "engram",
-			Predicate: "uses",
-			Object:    "TF-IDF",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--type", "fact",
-			"--situation", "investigating",
-			"--subject", "engram",
-			"--predicate", "uses",
-			"--object", "TF-IDF",
-		}))
+		result := cli.HoldCheckFlags(cli.HoldCheckArgs{})
+		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
 
-func TestPostFlags(t *testing.T) {
+func TestHoldListFlags(t *testing.T) {
 	t.Parallel()
 
-	t.Run("populated fields", func(t *testing.T) {
+	t.Run("includes all non-empty fields", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := cli.PostFlags(cli.PostArgs{
-			From: "lead-1",
-			To:   "engram-agent",
-			Text: "hello",
-			Addr: "http://localhost:9999",
+		result := cli.HoldListFlags(cli.HoldListArgs{
+			Holder:   "lead",
+			Target:   "exec-1",
+			Tag:      "codesign-1",
+			ChatFile: "/tmp/chat.toml",
 		})
 		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--to", "engram-agent",
-			"--text", "hello",
-			"--addr", "http://localhost:9999",
+			"--holder", "lead",
+			"--target", "exec-1",
+			"--tag", "codesign-1",
+			"--chat-file", "/tmp/chat.toml",
 		}))
 	})
 
-	t.Run("empty addr omitted", func(t *testing.T) {
+	t.Run("omits empty fields", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := cli.PostFlags(cli.PostArgs{
-			From: "lead-1",
-			To:   "engram-agent",
-			Text: "hello",
+		result := cli.HoldListFlags(cli.HoldListArgs{Tag: "plan-review-1"})
+		g.Expect(result).To(gomega.Equal([]string{"--tag", "plan-review-1"}))
+	})
+}
+
+func TestHoldReleaseFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("includes hold-id and chat-file", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.HoldReleaseFlags(cli.HoldReleaseArgs{
+			HoldID:   "abc-123",
+			ChatFile: "/tmp/chat.toml",
 		})
 		g.Expect(result).To(gomega.Equal([]string{
-			"--from", "lead-1",
-			"--to", "engram-agent",
-			"--text", "hello",
+			"--hold-id", "abc-123",
+			"--chat-file", "/tmp/chat.toml",
 		}))
+	})
+
+	t.Run("omits empty fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.HoldReleaseFlags(cli.HoldReleaseArgs{HoldID: "xyz-456"})
+		g.Expect(result).To(gomega.Equal([]string{"--hold-id", "xyz-456"}))
 	})
 }
 
@@ -386,109 +879,12 @@ func TestRunSafe(t *testing.T) {
 	})
 }
 
-func TestServerUpFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("all fields populated", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ServerUpFlags(cli.ServerUpArgs{
-			ChatFile: "/tmp/chat.toml",
-			LogFile:  "/tmp/server.log",
-			Addr:     "localhost:9000",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--chat-file", "/tmp/chat.toml",
-			"--log-file", "/tmp/server.log",
-			"--addr", "localhost:9000",
-		}))
-	})
-
-	t.Run("empty fields omitted", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ServerUpFlags(cli.ServerUpArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
 func TestShowFlags(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	result := cli.ShowFlags(cli.ShowArgs{DataDir: "/data"})
 	g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
-}
-
-func TestStatusFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated addr", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.StatusFlags(cli.StatusArgs{
-			Addr: "http://localhost:9999",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--addr", "http://localhost:9999",
-		}))
-	})
-
-	t.Run("empty addr omitted", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.StatusFlags(cli.StatusArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
-func TestSubscribeFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("all fields populated", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SubscribeFlags(cli.SubscribeArgs{
-			Agent:       "worker-1",
-			AfterCursor: 42,
-			Addr:        "http://localhost:9999",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--agent", "worker-1",
-			"--addr", "http://localhost:9999",
-			"--after-cursor", "42",
-		}))
-	})
-
-	t.Run("empty optional fields omitted", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SubscribeFlags(cli.SubscribeArgs{
-			Agent: "worker-1",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--agent", "worker-1",
-		}))
-	})
-
-	t.Run("zero after-cursor omitted", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SubscribeFlags(cli.SubscribeArgs{
-			Agent:       "worker-1",
-			AfterCursor: 0,
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--agent", "worker-1",
-		}))
-	})
 }
 
 func TestTargets(t *testing.T) {
@@ -499,10 +895,8 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		// Construction doesn't do I/O — just builds targ target objects.
-		// 7 individual targets (recall, show, post, intent, learn, status, subscribe)
-		// + 1 server group = 8 total.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(targets).To(gomega.HaveLen(8))
+		g.Expect(targets).To(gomega.HaveLen(5))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {

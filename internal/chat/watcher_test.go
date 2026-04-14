@@ -47,14 +47,7 @@ func TestFileWatcher_Watch_CommaSepratedToField(t *testing.T) {
 
 	// To field has comma-separated recipients.
 	msgs := []chat.Message{
-		{
-			From:   "a",
-			To:     "engram-agent, myagent",
-			Thread: "t",
-			Type:   "info",
-			TS:     now,
-			Text:   "targeted",
-		},
+		{From: "a", To: "engram-agent, myagent", Thread: "t", Type: "info", TS: now, Text: "targeted"},
 	}
 
 	allContent := buildChatTOML(msgs)
@@ -155,35 +148,6 @@ func TestFileWatcher_Watch_CursorPastEnd(t *testing.T) {
 
 	_, _, err := watcher.Watch(ctx, "myagent", cursorPastEnd, nil)
 	g.Expect(err).To(MatchError(context.Canceled))
-}
-
-func TestFileWatcher_Watch_EmptyAgentMatchesAll(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// agent="" is a wildcard — matches messages addressed to any recipient.
-	msgs := []chat.Message{
-		{From: "sender", To: "lead", Thread: "t", Type: "intent", TS: now, Text: "to lead"},
-	}
-
-	content := buildChatTOML(msgs)
-
-	watcher := &chat.FileWatcher{
-		FilePath:  "/fake/chat.toml",
-		FSWatcher: &fakeWatcher{},
-		ReadFile:  func(_ string) ([]byte, error) { return content, nil },
-	}
-
-	// empty agent string should match "lead" (or any other recipient)
-	msg, _, err := watcher.Watch(context.Background(), "", 0, nil)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(msg.Text).To(Equal("to lead"))
 }
 
 func TestFileWatcher_Watch_FiltersByType(t *testing.T) {
@@ -444,71 +408,6 @@ func TestParseMessages_InvalidTOML(t *testing.T) {
 
 	_, err := chat.ParseMessages([]byte(`not valid toml ][`))
 	g.Expect(err).To(HaveOccurred())
-}
-
-func TestReadAfterCursor_CursorAtEnd_ReturnsEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	msgs := []chat.Message{
-		{From: "a", To: "b", Thread: "t", Type: "info", TS: now, Text: "only"},
-	}
-
-	data := buildChatTOML(msgs)
-	endCursor := countLines(data)
-
-	result, newCursor := chat.ReadAfterCursor(data, endCursor)
-	g.Expect(result).To(BeEmpty())
-	g.Expect(newCursor).To(Equal(endCursor))
-}
-
-func TestReadAfterCursor_CursorZero_ReturnsAllMessages(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	msgs := []chat.Message{
-		{From: "a", To: "b", Thread: "t", Type: "info", TS: now, Text: "first"},
-		{From: "c", To: "d", Thread: "t", Type: "info", TS: now, Text: "second"},
-	}
-
-	data := buildChatTOML(msgs)
-
-	result, newCursor := chat.ReadAfterCursor(data, 0)
-	g.Expect(result).To(HaveLen(2))
-	g.Expect(newCursor).To(Equal(countLines(data)))
-}
-
-func TestReadAfterCursor_EmptyData_ReturnsEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	result, newCursor := chat.ReadAfterCursor(nil, 0)
-	g.Expect(result).To(BeEmpty())
-	g.Expect(newCursor).To(Equal(0))
-}
-
-func TestReadAfterCursor_ReturnsMessagesAfterCursor(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	msgs := []chat.Message{
-		{From: "a", To: "b", Thread: "t", Type: "info", TS: now, Text: "first"},
-		{From: "c", To: "d", Thread: "t", Type: "info", TS: now, Text: "second"},
-	}
-
-	data := buildChatTOML(msgs)
-	firstCursor := countLines(buildChatTOML(msgs[:1]))
-
-	// Read after first message — should return only the second.
-	result, newCursor := chat.ReadAfterCursor(data, firstCursor)
-	g.Expect(result).To(HaveLen(1))
-
-	if len(result) == 0 {
-		return
-	}
-
-	g.Expect(result[0].Text).To(Equal("second"))
-	g.Expect(newCursor).To(Equal(countLines(data)))
 }
 
 // unexported variables.

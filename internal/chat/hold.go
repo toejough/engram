@@ -115,7 +115,7 @@ func parseHoldRecord(text string) (HoldRecord, bool) {
 
 // scanForMessageType returns the timestamp and true when a message from agent
 // with msgType exists in messages after the given time.
-func scanForMessageType(messages []Message, agent, msgType string, after time.Time) (string, bool) {
+func scanForMessageType(messages []Message, agent string, msgType string, after time.Time) (string, bool) {
 	for _, msg := range messages {
 		if !strings.EqualFold(msg.From, agent) || msg.Type != msgType || !msg.TS.After(after) {
 			continue

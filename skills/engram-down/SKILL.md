@@ -1,92 +1,110 @@
 ---
 name: engram-down
-description: Use when shutting down an engram multi-agent session, when the user says "done", "shut down", "stand down", "close engram", or "stop engram".
+description: Use when shutting down an engram multi-agent session, when the user says "done", "shut down", "stand down", "close engram", or "stop engram". Tears down all agent panes, drains background tasks, and reports session summary.
 ---
 
 # Engram Down
 
-Shutdown sequence for engram sessions.
+Standalone shutdown skill for engram multi-agent sessions. Shuts down all managed agents in the correct order, kills tmux panes, drains background task queues, and reports session stats.
 
 ## Shutdown Sequence
 
-### Step 1: Signal the engram-agent
+Execute ALL steps. Do not skip any step.
 
-Post a shutdown message so engram-agent can finalize any in-flight memory work.
+### Step 1: Broadcast shutdown
 
-**MCP mode:**
-```
-engram_post(from=<agent-name>, to="engram-agent", text="shutdown")
-```
+Before posting, identify your agent name. This is the name you used in your `ready` message when you joined chat (e.g., `lead`, `engram-agent`, `executor-1`). Substitute it for `<your-agent-name>` below.
 
-**CLI mode:**
-```bash
-engram post \
-  --from "${ENGRAM_AGENT_NAME}" \
-  --to engram-agent \
-  --text "shutdown"
-```
+Post `shutdown` to chat addressed to `"all"` so every agent knows the session is ending:
 
-### Step 2: Stop the API server
-
-```bash
-curl -s -X POST http://localhost:7932/shutdown
+```toml
+[[message]]
+from = "<your-agent-name>"
+to = "all"
+thread = "lifecycle"
+type = "shutdown"
+ts = "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+text = "Session complete. Shutting down."
 ```
 
-Or use the CLI if it exposes a shutdown command:
+### Step 2: Wait, then kill all agent panes
+
+Wait 10 seconds for all agents to complete in-flight work and post their final messages:
 
 ```bash
-engram server down
+sleep 10
 ```
 
-The server drains the engram-agent queue before stopping.
-
-### Step 3: Remove agent name marker
+Then kill all registered agents via the binary:
 
 ```bash
-ENGRAM_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/engram"
-SLUG=$(echo "$PWD" | tr '/' '-')
-rm -f "$ENGRAM_DATA/chat/${SLUG}.agent-name"
+# Kill all running agents via binary
+engram agent list | jq -r '.name' | while read -r agent_name; do
+  engram agent kill --name "$agent_name"
+done
 ```
 
-### Step 4: Kill monitoring panes (tmux only)
+**Why 10s wait:** The broadcast `shutdown` reaches all agents simultaneously. The 10s wait is empirically sufficient for all agents to complete in-flight work — task agents (simple planners/executors) finish fast, engram-agent (which processes final `learned` messages) finishes within 10s. This is an empirical observation, not a protocol guarantee.
 
-If `$TMUX` is set, kill the chat-tail and log-tail panes:
+### Step 3: Kill the chat tail pane
+
+Use `-a` flag to search ALL panes across ALL windows — this works even if you're not in the coordinator window.
+
+**Primary: kill by `@engram_name` user option** (set to `chat-tail` by engram-tmux-lead §1.3 via `tmux set-option -p @engram_name`; immune to terminal OSC 2 overwrites):
 
 ```bash
-if [ -n "$TMUX" ]; then
-  tmux list-panes -a -F '#{pane_id} #{@engram_name}' \
-    | grep -E 'chat-tail|log-tail' \
-    | awk '{print $1}' \
-    | xargs -I{} tmux kill-pane -t {}
-fi
+tmux list-panes -a -F '#{pane_id} #{@engram_name}' \
+  | grep chat-tail \
+  | awk '{print $1}' \
+  | xargs -I{} tmux kill-pane -t {}
 ```
 
-Uses `@engram_name` (tmux user option, immune to OSC 2 terminal overwrites).
+**Fallback: kill by pane command** (handles sessions started before `@engram_name` was set):
+
+```bash
+tmux list-panes -a -F '#{pane_id} #{pane_current_command}' \
+  | grep tail \
+  | awk '{print $1}' \
+  | xargs -I{} tmux kill-pane -t {}
+```
+
+**Why `@engram_name` over `pane_title`:** `pane_title` is overwritten by Claude Code via terminal OSC 2 escape sequences on every tool call, leaving it set to the hostname (e.g., `toejough-laptop.local chat-tail`). The `@engram_name` tmux user option is owned by tmux and never touched by terminal output — it reliably stays as `chat-tail`.
+
+**Why `@engram_name` over `pane_current_command`:** `pane_current_command` reflects the foreground process. When tmux spawns the pane via a shell (fish/zsh/bash) that then runs `tail -F`, `pane_current_command` shows `fish`, not `tail`.
+
+**Why `-a`:** Without `-a`, `tmux list-panes` only lists panes in the currently active window. If you've navigated away from the coordinator window, the tail pane won't be found. The `-a` flag lists all panes globally, making shutdown window-independent.
+
+### Step 4: Drain background task IDs
+
+Prevent zombie shell accumulation in Claude Code's background task queue.
+
+Drain **only** the background task IDs you have tracked in this session. **Skip any ID you never set.** Common IDs:
+
+- `CHAT_MONITOR_TASK_ID` (chat file watcher — set by lead and most agents): if set, call `TaskOutput(task_id=CHAT_MONITOR_TASK_ID, block=False)`
+- Hold detection task IDs (lead-only): drain each with `TaskOutput(task_id=<id>, block=False)`
+
+Non-lead agents typically only have `CHAT_MONITOR_TASK_ID`. If you have none, skip this step.
 
 ### Step 5: Report session summary
 
-Tell the user: subagents spawned, tasks completed, decisions made, facts learned, open questions.
+Tell the user:
+- Agents spawned (count and names)
+- Tasks completed
+- Memories surfaced / learned (if known from engram-agent messages)
 
-### Step 6: Preserve chat file
+### Step 6: Chat file
 
-**Do NOT truncate or delete the chat file.** It is persistent across sessions and is the source of truth for all past communication.
+**Do NOT truncate or delete the chat file.** It persists across sessions for context continuity.
 
 ## Common Mistakes
 
 | Mistake | Fix |
 |---------|-----|
-| Skipping the shutdown post | engram-agent may have queued work; signal first |
-| Truncating the chat file | Never — persistent record |
-| Using `pane_title` for tail-pane lookup | Use `@engram_name` — terminal OSC 2 overwrites `pane_title` |
-| Killing panes outside tmux | Check `$TMUX` first |
-
-## What Is Retired
-
-The following steps are **retired** and must not be run:
-- `engram dispatch drain`
-- `engram dispatch stop`
-- Scanning for `LEARNED:` messages (marker protocol is retired)
-
-## Troubleshooting
-
-Debug logging is available at the server log file (specified with \`--log-file\` on \`engram server up\`). If engram is not working as expected, check the server log: \`tail -f <log-file> | jq .\`
+| Kill engram-agent before task agents | Broadcast shutdown to all first, wait 10s — all agents get the message simultaneously and wrap up in order |
+| Use `tmux list-panes` without `-a` for chat tail | Works only in current window — use `-a` so the tail pane is found regardless of which window is active |
+| Grep `pane_current_command` for `tail` only | Shell (fish/zsh) is the foreground process, not `tail` — grep `@engram_name` for `chat-tail` first (immune to OSC 2), then fall back to `pane_current_command` |
+| Use `pane_title` instead of `@engram_name` | Claude Code overwrites `pane_title` via OSC 2 on every tool call — use `#{@engram_name}` which is tmux-owned and stable |
+| Skip draining background task IDs | Zombie shells accumulate across sessions — drain all IDs you have tracked |
+| Drain task IDs you never set | Only drain IDs you actually set in this session — skip those that belong to other roles (e.g., lead-only IDs) |
+| Truncate chat file | Chat file is persistent and append-only — never truncate |
+| Post `from = "lead"` when not lead | Substitute your actual agent name from your `ready` message |

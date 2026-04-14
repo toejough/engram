@@ -57,11 +57,7 @@ func TestEvaluateCondition_EmptyCondition_NeverMet(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	hold := chat.HoldRecord{
-		HoldID:     "h1",
-		Condition:  "",
-		AcquiredTS: time.Now().Add(-1 * time.Minute),
-	}
+	hold := chat.HoldRecord{HoldID: "h1", Condition: "", AcquiredTS: time.Now().Add(-1 * time.Minute)}
 	met, _ := chat.EvaluateCondition(hold, nil)
 	g.Expect(met).To(BeFalse())
 }
@@ -97,11 +93,7 @@ func TestEvaluateCondition_LeadRelease_NeverAutoMet(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	hold := chat.HoldRecord{
-		HoldID:     "h1",
-		Condition:  "lead-release:tag",
-		AcquiredTS: time.Now().Add(-1 * time.Minute),
-	}
+	hold := chat.HoldRecord{HoldID: "h1", Condition: "lead-release:tag", AcquiredTS: time.Now().Add(-1 * time.Minute)}
 	messages := []chat.Message{
 		{From: "lead", Type: "done", TS: time.Now()},
 	}
@@ -113,11 +105,7 @@ func TestEvaluateCondition_UnknownCondition_NeverMet(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	hold := chat.HoldRecord{
-		HoldID:     "h1",
-		Condition:  "unknown:whatever",
-		AcquiredTS: time.Now().Add(-1 * time.Minute),
-	}
+	hold := chat.HoldRecord{HoldID: "h1", Condition: "unknown:whatever", AcquiredTS: time.Now().Add(-1 * time.Minute)}
 	messages := []chat.Message{
 		{From: "whatever", Type: "done", TS: time.Now()},
 	}
@@ -199,12 +187,7 @@ func TestScanActiveHolds_AcquireWithNoRelease(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	record := chat.HoldRecord{
-		HoldID:    "h1",
-		Holder:    "lead",
-		Target:    "exec-1",
-		Condition: "done:lead",
-	}
+	record := chat.HoldRecord{HoldID: "h1", Holder: "lead", Target: "exec-1", Condition: "done:lead"}
 	text, err := json.Marshal(record)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -286,12 +269,7 @@ func TestScanActiveHolds_ReleaseOnlyHoldID_Cancels(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	// Release message may only contain {"hold-id":"..."} per plan note
-	acquire := chat.HoldRecord{
-		HoldID:    "h-min",
-		Holder:    "lead",
-		Target:    "exec-1",
-		Condition: "done:lead",
-	}
+	acquire := chat.HoldRecord{HoldID: "h-min", Holder: "lead", Target: "exec-1", Condition: "done:lead"}
 	acquireText, err := json.Marshal(acquire)
 	g.Expect(err).NotTo(HaveOccurred())
 
