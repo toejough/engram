@@ -164,6 +164,7 @@ func startAgentLoop(ctx context.Context, cfg Config, logger *slog.Logger, regist
 		Notify:       notify,
 		ReadMessages: readMessages,
 		OnMessage: func(msg chat.Message) {
+			logger.Info("agent loop delivering message", "from", msg.From, "to", msg.To)
 			processErr := cfg.AgentProcess(ctx, msg)
 			if processErr != nil {
 				logger.Error("engram-agent processing error", "err", processErr)
@@ -172,7 +173,10 @@ func startAgentLoop(ctx context.Context, cfg Config, logger *slog.Logger, regist
 	})
 
 	go func() {
-		_ = watcher.Run(ctx, cfg.ChatFilePath)
+		runErr := watcher.Run(ctx, cfg.ChatFilePath)
+		if runErr != nil {
+			logger.Error("watcher goroutine exited", "err", runErr)
+		}
 	}()
 
 	go func() {
