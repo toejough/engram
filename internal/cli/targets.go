@@ -4,111 +4,10 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/toejough/targ"
 )
-
-// AgentKillArgs holds flags for `engram agent kill`.
-type AgentKillArgs struct {
-	Name      string
-	ChatFile  string
-	StateFile string
-}
-
-// AgentListArgs holds flags for `engram agent list`.
-type AgentListArgs struct {
-	StateFile string
-	ChatFile  string // used for reconstruction fallback when state file is missing
-}
-
-// AgentRunArgs holds flags for `engram agent run`.
-type AgentRunArgs struct {
-	Name      string
-	Prompt    string
-	ChatFile  string
-	StateFile string
-}
-
-// AgentSpawnArgs holds flags for `engram agent spawn`.
-type AgentSpawnArgs struct {
-	Name      string
-	Prompt    string
-	ChatFile  string
-	StateFile string
-}
-
-// AgentWaitReadyArgs holds flags for `engram agent wait-ready`.
-type AgentWaitReadyArgs struct {
-	Name     string
-	Cursor   int
-	MaxWait  int // seconds
-	ChatFile string
-}
-
-// ChatAckWaitArgs holds parsed flags for the chat ack-wait subcommand.
-type ChatAckWaitArgs struct {
-	Agent      string `targ:"flag,name=agent,desc=calling agent name"`
-	Cursor     int    `targ:"flag,name=cursor,desc=line position to start watching from"`
-	Recipients string `targ:"flag,name=recipients,desc=comma-separated recipient names"`
-	MaxWait    int    `targ:"flag,name=max-wait,desc=seconds to wait for online-silent recipients (default 30)"`
-	ChatFile   string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
-}
-
-// --- Targ args structs ---
-
-// ChatCursorArgs holds parsed flags for the chat cursor subcommand.
-type ChatCursorArgs struct {
-	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
-}
-
-// ChatPostArgs holds parsed flags for the chat post subcommand.
-type ChatPostArgs struct {
-	From     string `targ:"flag,name=from,desc=sender agent name"`
-	To       string `targ:"flag,name=to,desc=comma-separated recipient names or all"`
-	Thread   string `targ:"flag,name=thread,desc=conversation thread name"`
-	MsgType  string `targ:"flag,name=type,desc=message type (intent|ack|wait|info|done|learned|ready|shutdown|escalate)"`
-	Text     string `targ:"flag,name=text,desc=message content"`
-	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
-}
-
-// ChatWatchArgs holds parsed flags for the chat watch subcommand.
-type ChatWatchArgs struct {
-	Agent    string `targ:"flag,name=agent,desc=agent name to filter messages for"`
-	Cursor   int    `targ:"flag,name=cursor,desc=line number to start watching from"`
-	Types    string `targ:"flag,name=type,desc=comma-separated message types to filter (empty=all)"`
-	MaxWait  int    `targ:"flag,name=max-wait,desc=seconds before giving up (0=block forever)"`
-	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
-}
-
-// HoldAcquireArgs holds parsed flags for the hold acquire subcommand.
-type HoldAcquireArgs struct {
-	Holder    string `targ:"flag,name=holder,desc=agent acquiring the hold"`
-	Target    string `targ:"flag,name=target,desc=agent being held"`
-	Condition string `targ:"flag,name=condition,desc=auto-release condition"`
-	Tag       string `targ:"flag,name=tag,desc=workflow label for bulk operations (e.g. codesign-1)"`
-	ChatFile  string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
-}
-
-// HoldCheckArgs holds parsed flags for the hold check subcommand.
-type HoldCheckArgs struct {
-	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
-}
-
-// HoldListArgs holds parsed flags for the hold list subcommand.
-type HoldListArgs struct {
-	Holder   string `targ:"flag,name=holder,desc=filter by holder agent name"`
-	Target   string `targ:"flag,name=target,desc=filter by target agent name"`
-	Tag      string `targ:"flag,name=tag,desc=filter by workflow tag"`
-	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
-}
-
-// HoldReleaseArgs holds parsed flags for the hold release subcommand.
-type HoldReleaseArgs struct {
-	HoldID   string `targ:"flag,name=hold-id,desc=hold ID returned by engram hold acquire"`
-	ChatFile string `targ:"flag,name=chat-file,desc=override chat file path (testing only)"`
-}
 
 // RecallArgs holds parsed flags for the recall subcommand.
 type RecallArgs struct {
@@ -121,114 +20,6 @@ type RecallArgs struct {
 type ShowArgs struct {
 	Name    string `targ:"flag,name=name,desc=memory slug to display"`
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-}
-
-// AddBoolFlag appends a flag if the bool is true.
-func AddBoolFlag(flags []string, name string, value bool) []string {
-	if value {
-		flags = append(flags, name)
-	}
-
-	return flags
-}
-
-// AddIntFlag appends a flag and its string value if value is non-zero.
-func AddIntFlag(flags []string, name string, value int) []string {
-	if value != 0 {
-		flags = append(flags, name, strconv.Itoa(value))
-	}
-
-	return flags
-}
-
-// AgentKillFlags returns the CLI flag args for the agent kill subcommand.
-func AgentKillFlags(a AgentKillArgs) []string {
-	return BuildFlags("--name", a.Name, "--chat-file", a.ChatFile, "--state-file", a.StateFile)
-}
-
-// AgentListFlags returns the CLI flag args for the agent list subcommand.
-func AgentListFlags(a AgentListArgs) []string {
-	return BuildFlags("--state-file", a.StateFile, "--chat-file", a.ChatFile)
-}
-
-// AgentRunFlags builds the flag list for AgentRunArgs.
-func AgentRunFlags(a AgentRunArgs) []string {
-	return BuildFlags(
-		"--name", a.Name,
-		"--prompt", a.Prompt,
-		"--chat-file", a.ChatFile,
-		"--state-file", a.StateFile,
-	)
-}
-
-// AgentSpawnFlags returns the CLI flag args for the agent spawn subcommand.
-func AgentSpawnFlags(a AgentSpawnArgs) []string {
-	return BuildFlags(
-		"--name", a.Name,
-		"--prompt", a.Prompt,
-		"--chat-file", a.ChatFile,
-		"--state-file", a.StateFile,
-	)
-}
-
-// AgentWaitReadyFlags returns the CLI flag args for the agent wait-ready subcommand.
-func AgentWaitReadyFlags(a AgentWaitReadyArgs) []string {
-	return BuildFlags(
-		"--name", a.Name,
-		"--cursor", strconv.Itoa(a.Cursor),
-		"--max-wait", strconv.Itoa(a.MaxWait),
-		"--chat-file", a.ChatFile,
-	)
-}
-
-// BuildAgentGroup builds the targ group for agent subcommands.
-func BuildAgentGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup {
-	return targ.Group("agent",
-		targ.Targ(func(a AgentSpawnArgs) {
-			args := append([]string{"engram", "agent", "spawn"}, AgentSpawnFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("spawn").Description("Spawn a new agent in a tmux pane"),
-		targ.Targ(func(a AgentKillArgs) {
-			args := append([]string{"engram", "agent", "kill"}, AgentKillFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("kill").Description("Kill a running agent and remove it from the state file"),
-		targ.Targ(func(a AgentListArgs) {
-			args := append([]string{"engram", "agent", "list"}, AgentListFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("list").Description("List running agents from the state file"),
-		targ.Targ(func(a AgentWaitReadyArgs) {
-			args := append([]string{"engram", "agent", "wait-ready"}, AgentWaitReadyFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("wait-ready").Description("Block until a named agent posts ready"),
-		targ.Targ(func(a AgentRunArgs) {
-			args := append([]string{"engram", "agent", "run"}, AgentRunFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("run").Description("Run a claude -p worker pipeline in the current pane"),
-	)
-}
-
-// BuildChatGroup builds the targ group for chat subcommands.
-//
-//nolint:dupl // mirrors BuildHoldGroup structure; both use the same targ.Group pattern
-func BuildChatGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup {
-	return targ.Group("chat",
-		targ.Targ(func(a ChatPostArgs) {
-			args := append([]string{"engram", "chat", "post"}, ChatPostFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("post").Description("Post a message to the engram chat file"),
-		targ.Targ(func(a ChatWatchArgs) {
-			args := append([]string{"engram", "chat", "watch"}, ChatWatchFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("watch").Description("Block until a matching message arrives in the chat file"),
-		targ.Targ(func(a ChatCursorArgs) {
-			args := append([]string{"engram", "chat", "cursor"}, ChatCursorFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("cursor").Description("Output the current chat file line count (cursor position)"),
-		targ.Targ(func(a ChatAckWaitArgs) {
-			args := append([]string{"engram", "chat", "ack-wait"}, ChatAckWaitFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("ack-wait").Description("Block until all recipients ACK or WAIT; returns JSON result"),
-	)
 }
 
 // BuildFlags constructs a []string flag list from key-value pairs, skipping empty values.
@@ -244,30 +35,6 @@ func BuildFlags(pairs ...string) []string {
 	return flags
 }
 
-// BuildHoldGroup builds the targ group for hold subcommands.
-//
-//nolint:dupl // mirrors BuildChatGroup structure; both use the same targ.Group pattern
-func BuildHoldGroup(stdout, stderr io.Writer, stdin io.Reader) *targ.TargetGroup {
-	return targ.Group("hold",
-		targ.Targ(func(a HoldAcquireArgs) {
-			args := append([]string{"engram", "hold", "acquire"}, HoldAcquireFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("acquire").Description("Place a hold on an agent (outputs UUID hold-id)"),
-		targ.Targ(func(a HoldReleaseArgs) {
-			args := append([]string{"engram", "hold", "release"}, HoldReleaseFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("release").Description("Release a hold by hold-id"),
-		targ.Targ(func(a HoldListArgs) {
-			args := append([]string{"engram", "hold", "list"}, HoldListFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("list").Description("List active (unreleased) holds"),
-		targ.Targ(func(a HoldCheckArgs) {
-			args := append([]string{"engram", "hold", "check"}, HoldCheckFlags(a)...)
-			RunSafe(args, stdout, stderr, stdin)
-		}).Name("check").Description("Evaluate auto-conditions and release met holds"),
-	)
-}
-
 // BuildTargets constructs targ targets using the given run function.
 func BuildTargets(run func(subcmd string, flags []string)) []any {
 	return []any{
@@ -276,51 +43,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 		targ.Targ(func(a ShowArgs) { run("show", ShowFlags(a)) }).
 			Name("show").Description("Display full memory details"),
 	}
-}
-
-// ChatAckWaitFlags returns the CLI flag args for the chat ack-wait subcommand.
-func ChatAckWaitFlags(a ChatAckWaitArgs) []string {
-	flags := BuildFlags(
-		"--agent", a.Agent,
-		"--recipients", a.Recipients,
-		"--chat-file", a.ChatFile,
-	)
-
-	flags = AddIntFlag(flags, "--cursor", a.Cursor)
-	flags = AddIntFlag(flags, "--max-wait", a.MaxWait)
-
-	return flags
-}
-
-// ChatCursorFlags returns the CLI flag args for the chat cursor subcommand.
-func ChatCursorFlags(a ChatCursorArgs) []string {
-	return BuildFlags("--chat-file", a.ChatFile)
-}
-
-// ChatPostFlags returns the CLI flag args for the chat post subcommand.
-func ChatPostFlags(a ChatPostArgs) []string {
-	return BuildFlags(
-		"--from", a.From,
-		"--to", a.To,
-		"--thread", a.Thread,
-		"--type", a.MsgType,
-		"--text", a.Text,
-		"--chat-file", a.ChatFile,
-	)
-}
-
-// ChatWatchFlags returns the CLI flag args for the chat watch subcommand.
-func ChatWatchFlags(a ChatWatchArgs) []string {
-	flags := BuildFlags(
-		"--agent", a.Agent,
-		"--type", a.Types,
-		"--chat-file", a.ChatFile,
-	)
-
-	flags = AddIntFlag(flags, "--cursor", a.Cursor)
-	flags = AddIntFlag(flags, "--max-wait", a.MaxWait)
-
-	return flags
 }
 
 // DataDirFromHome returns the standard engram data directory for a given home path.
@@ -332,37 +54,6 @@ func DataDirFromHome(home string, getenv func(string) string) string {
 	}
 
 	return filepath.Join(home, ".local", "share", "engram")
-}
-
-// HoldAcquireFlags returns the CLI flag args for the hold acquire subcommand.
-func HoldAcquireFlags(a HoldAcquireArgs) []string {
-	return BuildFlags(
-		"--holder", a.Holder,
-		"--target", a.Target,
-		"--condition", a.Condition,
-		"--tag", a.Tag,
-		"--chat-file", a.ChatFile,
-	)
-}
-
-// HoldCheckFlags returns the CLI flag args for the hold check subcommand.
-func HoldCheckFlags(a HoldCheckArgs) []string {
-	return BuildFlags("--chat-file", a.ChatFile)
-}
-
-// HoldListFlags returns the CLI flag args for the hold list subcommand.
-func HoldListFlags(a HoldListArgs) []string {
-	return BuildFlags(
-		"--holder", a.Holder,
-		"--target", a.Target,
-		"--tag", a.Tag,
-		"--chat-file", a.ChatFile,
-	)
-}
-
-// HoldReleaseFlags returns the CLI flag args for the hold release subcommand.
-func HoldReleaseFlags(a HoldReleaseArgs) []string {
-	return BuildFlags("--hold-id", a.HoldID, "--chat-file", a.ChatFile)
 }
 
 // ProjectSlugFromPath converts a filesystem path to a project slug by replacing
@@ -400,10 +91,5 @@ func Targets(stdout, stderr io.Writer, stdin io.Reader) []any {
 		RunSafe(args, stdout, stderr, stdin)
 	}
 
-	return append(
-		BuildTargets(run),
-		BuildChatGroup(stdout, stderr, stdin),
-		BuildHoldGroup(stdout, stderr, stdin),
-		BuildAgentGroup(stdout, stderr, stdin),
-	)
+	return BuildTargets(run)
 }

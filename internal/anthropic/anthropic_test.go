@@ -196,6 +196,33 @@ func TestCaller_InvokesCallOnInvocation(t *testing.T) {
 	g.Expect(result).To(Equal("caller result"))
 }
 
+func TestSetAPIURL_OverridesEndpoint(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	body := makeAPIResponse(t, g, "ok")
+	doer := &fakeDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(body)),
+		},
+	}
+
+	client := anthropic.NewClient("token", doer)
+	client.SetAPIURL("https://custom.example.com/v1/messages")
+
+	_, err := client.Call(context.Background(), anthropic.HaikuModel, "sys", "usr", 1024)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(doer.lastRequest).NotTo(BeNil())
+
+	if doer.lastRequest == nil {
+		return
+	}
+
+	g.Expect(doer.lastRequest.URL.String()).To(Equal("https://custom.example.com/v1/messages"))
+}
+
 // fakeDoer is a test double for anthropic.HTTPDoer.
 type fakeDoer struct {
 	lastRequest *http.Request
