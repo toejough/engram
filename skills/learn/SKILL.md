@@ -66,11 +66,11 @@ For each `engram learn` response:
 A duplicate means the memory existed but didn't fire when it mattered. Diagnose WHY:
 
 1. **Was there a /recall or /prepare call this session that should have surfaced this?**
-   - **Yes, but queries missed it:** Suggest additional queries that would have found it. Draft these as behavioral feedback memories so future self-queries find them. Present to user for approval.
+   - **Yes, but queries missed it:** Suggest additional queries that would have found it. Draft these as behavioral feedback memories with situations starting with `"When deciding when to call /prepare during..."` or `"When deciding when to call /learn during..."` so future self-queries find them. Present to user for approval.
    - **Yes, but memory situation wording too narrow:** The memory existed but its situation field didn't match the actual scenario. Suggest a rewrite of the existing memory's situation field. Use `engram update --name <name> --situation "broader situation"` after user approval.
 
 2. **No relevant /recall or /prepare call:**
-   - Suggest a behavioral memory: "When \<situation\>, call /prepare before proceeding." Present to user for approval.
+   - Suggest a behavioral memory. Use situation wording that matches self-query language: `"When deciding when to call /prepare during <context>"` or `"When deciding when to call /learn during <context>"`. This ensures the memory surfaces in future self-queries. Present to user for approval.
 
 **Never dismiss a duplicate as "correct — no update needed."** If it was truly known, something failed to surface it. Find what.
 
