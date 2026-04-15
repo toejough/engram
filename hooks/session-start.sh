@@ -11,8 +11,8 @@ ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
 STATIC_MSG="[engram] Memory skills available. Call /prepare before starting new work. Call /learn after commits. Call /recall to load previous session context. Call /remember to save something explicitly."
 
 if [[ -x "$ENGRAM_BIN" ]]; then
-    PREP_MEMORIES=$("$ENGRAM_BIN" recall --memories-only --query "when to call /prepare" --limit 3 2>/dev/null || true)
-    LEARN_MEMORIES=$("$ENGRAM_BIN" recall --memories-only --query "when to call /learn" --limit 3 2>/dev/null || true)
+    PREP_MEMORIES=$("$ENGRAM_BIN" recall --memories-only --query "when to call /prepare" 2>/dev/null || true)
+    LEARN_MEMORIES=$("$ENGRAM_BIN" recall --memories-only --query "when to call /learn" 2>/dev/null || true)
     MEMORIES=""
     [[ -n "$PREP_MEMORIES" ]] && MEMORIES="${PREP_MEMORIES}"
     if [[ -n "$LEARN_MEMORIES" ]]; then
