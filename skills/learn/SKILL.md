@@ -53,10 +53,27 @@ engram learn fact --situation "..." --subject "..." --predicate "..." --object "
 
 Note: source is agent because these are agent-identified learnings, not explicit user instructions.
 
-### Step 5: Handle conflicts
+### Step 5: Handle results
 
-Same as /remember — handle DUPLICATE and CONTRADICTION responses identically, including the duplicate diagnostic for self-correction.
+For each `engram learn` response:
 
-### Step 6: Internalize operational guidance
+- **CREATED: \<name\>** — Confirm to user. Done.
+- **DUPLICATE: \<name\>** — The system already knew this but failed to use it. Run the duplicate diagnostic (Step 6). Do NOT skip this.
+- **CONTRADICTION: \<name\>** — Present the conflict. Ask user: update existing, replace it, or keep both (use --no-dup-check)?
+
+### Step 6: Duplicate diagnostic (REQUIRED on every DUPLICATE)
+
+A duplicate means the memory existed but didn't fire when it mattered. Diagnose WHY:
+
+1. **Was there a /recall or /prepare call this session that should have surfaced this?**
+   - **Yes, but queries missed it:** Suggest additional queries that would have found it. Draft these as behavioral feedback memories so future self-queries find them. Present to user for approval.
+   - **Yes, but memory situation wording too narrow:** The memory existed but its situation field didn't match the actual scenario. Suggest a rewrite of the existing memory's situation field. Use `engram update --name <name> --situation "broader situation"` after user approval.
+
+2. **No relevant /recall or /prepare call:**
+   - Suggest a behavioral memory: "When \<situation\>, call /prepare before proceeding." Present to user for approval.
+
+**Never dismiss a duplicate as "correct — no update needed."** If it was truly known, something failed to surface it. Find what.
+
+### Step 7: Internalize operational guidance
 
 Follow any operational guidance from the Step 1 self-query.
