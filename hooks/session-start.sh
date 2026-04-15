@@ -32,11 +32,13 @@ jq -n '{systemMessage: "[engram] Memory skills: /recall (load context), /prepare
         mv "$ENGRAM_BIN.tmp" "$ENGRAM_BIN"
     fi
 
-    # Ensure symlink on PATH
+    # Ensure symlink on PATH — replace stale regular files too
     SYMLINK_TARGET="$HOME/.local/bin/engram"
-    if [[ ! -e "$SYMLINK_TARGET" ]] && [[ ! -L "$SYMLINK_TARGET" ]]; then
+    if [[ -L "$SYMLINK_TARGET" ]] && [[ "$(readlink "$SYMLINK_TARGET")" == "$ENGRAM_BIN" ]]; then
+        : # already correct
+    else
         mkdir -p "$HOME/.local/bin"
-        ln -s "$ENGRAM_BIN" "$SYMLINK_TARGET" 2>/dev/null || true
+        ln -sf "$ENGRAM_BIN" "$SYMLINK_TARGET" 2>/dev/null || true
     fi
 ) & disown
 
