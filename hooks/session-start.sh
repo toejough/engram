@@ -8,7 +8,7 @@ ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
 
 # --- Sync portion: announce skills and surface memories ---
-STATIC_MSG="[engram] Memory skills available. Call /prepare before starting new work. Call /learn after commits. Call /recall to load previous session context. Call /remember to save something explicitly."
+STATIC_MSG="[engram] Memory skills available. Call /prepare before starting new work. Call /learn after completing work. Call /recall to load previous session context. Call /remember to save something explicitly."
 
 if [[ -x "$ENGRAM_BIN" ]]; then
     PREP_MEMORIES=$("$ENGRAM_BIN" recall --memories-only --query "when to call /prepare" 2>/dev/null || true)

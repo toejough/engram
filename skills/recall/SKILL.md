@@ -47,5 +47,5 @@ Present the filtered results to the user.
 ### Reinforce (agent-internal — do not show to user)
 
 Internalize these reminders silently. Do not mention them to the user.
-- Call /prepare before starting new work.
-- Call /learn after commits.
+- Call /prepare before starting new work or switching focus.
+- Call /learn after completing work or before switching focus.

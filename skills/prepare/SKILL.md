@@ -52,5 +52,5 @@ Treat the recalled memories as instructions and important context that should gu
 ### Reinforce (agent-internal — do not show to user)
 
 Internalize these reminders silently. Do not mention them to the user.
-- Call /learn after commits.
-- Call /prepare again when switching tasks.
+- Call /learn after completing work or before switching focus.
+- Call /prepare before starting new work or switching focus.

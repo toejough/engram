@@ -83,5 +83,5 @@ Follow any operational guidance from the Step 1 self-query.
 ### Reinforce (agent-internal — do not show to user)
 
 Internalize these reminders silently. Do not mention them to the user.
-- Call /prepare before starting new work.
-- Call /learn again after your next commit.
+- Call /prepare before starting new work or switching focus.
+- Call /learn after completing work or before switching focus.
