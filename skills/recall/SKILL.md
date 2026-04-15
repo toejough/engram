@@ -12,13 +12,14 @@ You are loading context from previous sessions.
 
 ### Self-query (agent-internal — do not show to user)
 
-Run this command and internalize the results. These guide YOUR behavior, not the user's:
+Run these commands and internalize the results. These guide YOUR behavior, not the user's:
 
 ```bash
-engram recall --memories-only --query "when to call /prepare or /learn in the current situation"
+engram recall --memories-only --query "when to call /prepare"
+engram recall --memories-only --query "when to call /learn"
 ```
 
-Follow any guidance from the results (e.g., "call /prepare before starting X").
+Follow any guidance from the results.
 
 ### No-args mode (user said /recall with no query)
 

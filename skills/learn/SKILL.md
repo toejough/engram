@@ -14,7 +14,9 @@ You are reviewing the recent session for things worth remembering.
 ### Step 1: Self-query (agent-internal — do not show to user)
 
 ```bash
-engram recall --memories-only --query "how to review sessions for learnable moments, and when to call /prepare or /learn"
+engram recall --memories-only --query "when to call /prepare"
+engram recall --memories-only --query "when to call /learn"
+engram recall --memories-only --query "how to review sessions for learnable moments"
 ```
 
 Internalize any guidance.

@@ -13,13 +13,15 @@ You are mentally preparing for upcoming work by loading relevant context.
 
 ### Step 1: Self-query (agent-internal — do not show to user)
 
-Run this command and internalize the results:
+Run these commands and internalize the results. These instruct YOUR behavior:
 
 ```bash
-engram recall --memories-only --query "how to prepare for <brief situation summary>, and when to call /prepare or /learn"
+engram recall --memories-only --query "when to call /prepare"
+engram recall --memories-only --query "when to call /learn"
+engram recall --memories-only --query "how to prepare for <brief situation summary>"
 ```
 
-Follow any operational guidance from the results. These instruct YOUR behavior.
+Follow any operational guidance from the results.
 
 ### Step 2: Analyze the situation
 

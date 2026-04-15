@@ -7,8 +7,26 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
 
-# --- Sync portion: announce recall ---
-jq -n '{systemMessage: "[engram] Memory skills available. Call /prepare before starting new work. Call /learn after commits. Call /recall to load previous session context. Call /remember to save something explicitly."}'
+# --- Sync portion: announce skills and surface memories ---
+STATIC_MSG="[engram] Memory skills available. Call /prepare before starting new work. Call /learn after commits. Call /recall to load previous session context. Call /remember to save something explicitly."
+
+if [[ -x "$ENGRAM_BIN" ]]; then
+    PREP_MEMORIES=$("$ENGRAM_BIN" recall --memories-only --query "when to call /prepare" --limit 3 2>/dev/null || true)
+    LEARN_MEMORIES=$("$ENGRAM_BIN" recall --memories-only --query "when to call /learn" --limit 3 2>/dev/null || true)
+    MEMORIES=""
+    [[ -n "$PREP_MEMORIES" ]] && MEMORIES="${PREP_MEMORIES}"
+    if [[ -n "$LEARN_MEMORIES" ]]; then
+        [[ -n "$MEMORIES" ]] && MEMORIES="${MEMORIES}\n"
+        MEMORIES="${MEMORIES}${LEARN_MEMORIES}"
+    fi
+    if [[ -n "$MEMORIES" ]]; then
+        jq -n --arg msg "${STATIC_MSG}" --arg mem "${MEMORIES}" '{systemMessage: ($msg + "\n\n" + $mem)}'
+    else
+        jq -n --arg msg "${STATIC_MSG}" '{systemMessage: $msg}'
+    fi
+else
+    jq -n --arg msg "${STATIC_MSG}" '{systemMessage: $msg}'
+fi
 
 # --- Async portion: build if needed ---
 (

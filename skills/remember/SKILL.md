@@ -13,7 +13,8 @@ The user wants to explicitly save something to memory.
 ### Step 1: Self-query (agent-internal — do not show to user)
 
 ```bash
-engram recall --memories-only --query "when to call /prepare or /learn in the current situation"
+engram recall --memories-only --query "when to call /prepare"
+engram recall --memories-only --query "when to call /learn"
 ```
 
 Internalize any guidance.
