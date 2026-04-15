@@ -302,6 +302,7 @@ type Result struct {
 // SummarizerI extracts relevant content from transcripts via LLM.
 type SummarizerI interface {
 	ExtractRelevant(ctx context.Context, content, query string) (string, error)
+	SummarizeFindings(ctx context.Context, content, query string) (string, error)
 }
 
 // FormatResult writes the recall result as plain text with an optional memories section.

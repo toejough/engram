@@ -1167,11 +1167,16 @@ func TestOrchestrator_Recall_ModeB_CancellationStopsProcessing(t *testing.T) {
 
 // capturingSummarizer records content and query for inspection.
 type capturingSummarizer struct {
-	extractResult string
-	extractErr    error
-	lastContent   string
-	lastQuery     string
-	extractCalls  atomic.Int32
+	extractResult        string
+	extractErr           error
+	lastContent          string
+	lastQuery            string
+	extractCalls         atomic.Int32
+	summarizeResult      string
+	summarizeErr         error
+	lastSummarizeContent string
+	lastSummarizeQuery   string
+	summarizeCalls       atomic.Int32
 }
 
 func (s *capturingSummarizer) ExtractRelevant(
@@ -1182,6 +1187,16 @@ func (s *capturingSummarizer) ExtractRelevant(
 	s.lastQuery = query
 
 	return s.extractResult, s.extractErr
+}
+
+func (s *capturingSummarizer) SummarizeFindings(
+	_ context.Context, content, query string,
+) (string, error) {
+	s.summarizeCalls.Add(1)
+	s.lastSummarizeContent = content
+	s.lastSummarizeQuery = query
+
+	return s.summarizeResult, s.summarizeErr
 }
 
 // countingReader counts Read calls to verify early exit.
@@ -1269,5 +1284,9 @@ type fakeSummarizer struct {
 func (s *fakeSummarizer) ExtractRelevant(_ context.Context, _, _ string) (string, error) {
 	s.extractCalls.Add(1)
 
+	return s.extractResult, s.extractErr
+}
+
+func (s *fakeSummarizer) SummarizeFindings(_ context.Context, _, _ string) (string, error) {
 	return s.extractResult, s.extractErr
 }
