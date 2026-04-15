@@ -38,7 +38,6 @@ engram learn feedback --behavior "..." --impact "..." --action "..." --source hu
 engram learn fact    --subject "..." --predicate "..." --object "..." --source human --situation "..."
 engram update      Modify fields of an existing memory (--name required)
 engram show        Display full memory details (--name required)
-engram migrate     Migrate v1 memories to v2 schema
 ```
 
 ## Memory format
@@ -104,7 +103,6 @@ Enable in Claude Code via the `/plugin` command.
 
 ```
 cmd/engram/          CLI entry point (thin wiring layer)
-cmd/migrate-v2/      Standalone v1-to-v2 migration tool
 internal/            Business logic (DI boundaries)
 skills/              Plugin skills (recall, prepare, learn, remember)
 hooks/               Shell hooks for Claude Code integration

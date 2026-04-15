@@ -50,8 +50,6 @@ func Run(
 		return runLearn(subArgs, stdout)
 	case "update":
 		return runUpdate(subArgs, stdout)
-	case "migrate":
-		return runMigrate(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -66,7 +64,7 @@ const (
 // unexported variables.
 var (
 	errUnknownCommand = errors.New("unknown command")
-	errUsage          = errors.New("usage: engram <recall|show|list|learn|update|migrate> [flags]")
+	errUsage          = errors.New("usage: engram <recall|show|list|learn|update> [flags]")
 )
 
 // haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
