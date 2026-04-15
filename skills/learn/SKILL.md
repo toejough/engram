@@ -11,13 +11,9 @@ You are reviewing the recent session for things worth remembering.
 
 ## Flow
 
-### Step 1: Load session context
+### Step 1: Identify learnable moments
 
-```bash
-engram recall
-```
-
-Review the output for learnable moments:
+Review your current session for:
 - **User corrections** — the user told you to do something differently
 - **Failed approaches** — something was tried and didn't work
 - **Discovered facts** — new knowledge about the codebase, tools, or domain
@@ -50,7 +46,7 @@ Note: source is agent because these are agent-identified learnings, not explicit
 For each `engram learn` response:
 
 - **CREATED: \<name\>** — Confirm to user. Done.
-- **DUPLICATE: \<name\>** — The system already knew this but failed to use it. Run the duplicate diagnostic (Step 6). Do NOT skip this.
+- **DUPLICATE: \<name\>** — The system already knew this but failed to use it. Run the duplicate diagnostic (Step 5). Do NOT skip this.
 - **CONTRADICTION: \<name\>** — Present the conflict. Ask user: update existing, replace it, or keep both (use --no-dup-check)?
 
 ### Step 5: Duplicate diagnostic (REQUIRED on every DUPLICATE)
