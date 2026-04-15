@@ -7,22 +7,10 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
 
-# --- Sync portion: announce skills and surface memories ---
+# --- Sync portion: announce skills ---
 STATIC_MSG="[engram] Memory skills available. Call /prepare before starting new work. Call /learn after completing work. Call /recall to load previous session context. Call /remember to save something explicitly."
 
-CTX="${STATIC_MSG}"
-if [[ -x "$ENGRAM_BIN" ]]; then
-    PREP_MEMORIES=$("$ENGRAM_BIN" recall --memories-only --query "when to call /prepare" 2>/dev/null || true)
-    LEARN_MEMORIES=$("$ENGRAM_BIN" recall --memories-only --query "when to call /learn" 2>/dev/null || true)
-    MEMORIES=""
-    [[ -n "$PREP_MEMORIES" ]] && MEMORIES="${PREP_MEMORIES}"
-    if [[ -n "$LEARN_MEMORIES" ]]; then
-        [[ -n "$MEMORIES" ]] && MEMORIES="${MEMORIES}\n"
-        MEMORIES="${MEMORIES}${LEARN_MEMORIES}"
-    fi
-    [[ -n "$MEMORIES" ]] && CTX="${CTX}\n\n${MEMORIES}"
-fi
-jq -n --arg ctx "$CTX" \
+jq -n --arg ctx "$STATIC_MSG" \
     '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
 
 # --- Async portion: build if needed ---
