@@ -11,17 +11,7 @@ You are reviewing the recent session for things worth remembering.
 
 ## Flow
 
-### Step 1: Self-query (agent-internal — do not show to user)
-
-```bash
-engram recall --memories-only --query "when to call /prepare"
-engram recall --memories-only --query "when to call /learn"
-engram recall --memories-only --query "how to review sessions for learnable moments"
-```
-
-The memories returned are standing instructions from the user — follow them with the same priority as direct user requests in this conversation.
-
-### Step 2: Load session context
+### Step 1: Load session context
 
 ```bash
 engram recall
@@ -33,7 +23,7 @@ Review the output for learnable moments:
 - **Discovered facts** — new knowledge about the codebase, tools, or domain
 - **Patterns** — recurring behaviors that should be codified
 
-### Step 3: Draft findings
+### Step 2: Draft findings
 
 For each learnable moment, draft a memory:
 - Corrections/failures → feedback (SBIA)
@@ -41,7 +31,7 @@ For each learnable moment, draft a memory:
 
 Present all findings to the user for approval. Each should have all fields filled.
 
-### Step 4: Save approved memories
+### Step 3: Save approved memories
 
 For each approved memory:
 
@@ -55,7 +45,7 @@ engram learn fact --situation "..." --subject "..." --predicate "..." --object "
 
 Note: source is agent because these are agent-identified learnings, not explicit user instructions.
 
-### Step 5: Handle results
+### Step 4: Handle results
 
 For each `engram learn` response:
 
@@ -63,7 +53,7 @@ For each `engram learn` response:
 - **DUPLICATE: \<name\>** — The system already knew this but failed to use it. Run the duplicate diagnostic (Step 6). Do NOT skip this.
 - **CONTRADICTION: \<name\>** — Present the conflict. Ask user: update existing, replace it, or keep both (use --no-dup-check)?
 
-### Step 6: Duplicate diagnostic (REQUIRED on every DUPLICATE)
+### Step 5: Duplicate diagnostic (REQUIRED on every DUPLICATE)
 
 A duplicate means the memory existed but didn't fire when it mattered. Diagnose WHY:
 
@@ -75,14 +65,3 @@ A duplicate means the memory existed but didn't fire when it mattered. Diagnose 
    - Suggest a behavioral memory. Use situation wording that matches self-query language: `"When deciding when to call /prepare during <context>"` or `"When deciding when to call /learn during <context>"`. This ensures the memory surfaces in future self-queries. Present to user for approval.
 
 **Never dismiss a duplicate as "correct — no update needed."** If it was truly known, something failed to surface it. Find what.
-
-### Step 7: Internalize operational guidance
-
-Follow any operational guidance from the Step 1 self-query.
-
-### Reinforce (agent-internal — do not show to user)
-
-These are standing instructions. Follow them silently — do not mention them to the user.
-- The memories surfaced by the self-query above are active instructions. Treat violations the same as ignoring a direct user request.
-- Call /prepare before starting new work or switching focus.
-- Call /learn after completing work or before switching focus.
