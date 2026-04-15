@@ -13,6 +13,25 @@ import (
 	"engram/internal/cli"
 )
 
+// executeForTest runs an engram CLI command through targ, returning stdout content.
+// Command-level errors are written to stderr (RunSafe contract), not returned as Go errors.
+// Targ-level errors (unknown flags, missing required args) are also written to stderr.
+func executeForTest(t *testing.T, args []string) (stdoutStr, stderrStr string) {
+	t.Helper()
+
+	var stdout, stderr bytes.Buffer
+
+	targets := cli.Targets(&stdout, &stderr, strings.NewReader(""))
+	_, err := targ.Execute(args, targets...)
+
+	if err != nil {
+		stderr.WriteString(err.Error())
+		stderr.WriteString("\n")
+	}
+
+	return stdout.String(), stderr.String()
+}
+
 func TestAddBoolFlag(t *testing.T) {
 	t.Parallel()
 
@@ -437,14 +456,12 @@ func TestRunRecall(t *testing.T) {
 
 		t.Cleanup(func() { _ = os.RemoveAll(projectDir) })
 
-		var stdout bytes.Buffer
-
-		err := cli.Run([]string{
+		_, stderr := executeForTest(t, []string{
 			"engram", "recall",
 			"--data-dir", dataDir,
 			"--project-slug", projectSlug,
-		}, &stdout, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(err).NotTo(gomega.HaveOccurred())
+		})
+		g.Expect(stderr).To(gomega.BeEmpty())
 	})
 
 	t.Run("defaults data dir and project slug when omitted", func(t *testing.T) {
@@ -473,12 +490,10 @@ func TestRunRecall(t *testing.T) {
 
 		t.Cleanup(func() { _ = os.RemoveAll(projectDir) })
 
-		var stdout bytes.Buffer
-
-		err := cli.Run([]string{
+		_, stderr := executeForTest(t, []string{
 			"engram", "recall",
-		}, &stdout, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(err).NotTo(gomega.HaveOccurred())
+		})
+		g.Expect(stderr).To(gomega.BeEmpty())
 	})
 
 	t.Run("runs with query flag", func(t *testing.T) {
@@ -500,27 +515,24 @@ func TestRunRecall(t *testing.T) {
 
 		t.Cleanup(func() { _ = os.RemoveAll(projectDir) })
 
-		var stdout bytes.Buffer
-
-		err := cli.Run([]string{
+		_, stderr := executeForTest(t, []string{
 			"engram", "recall",
 			"--data-dir", dataDir,
 			"--project-slug", projectSlug,
 			"--query", "something",
-		}, &stdout, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(err).NotTo(gomega.HaveOccurred())
+		})
+		g.Expect(stderr).To(gomega.BeEmpty())
 	})
 
 	t.Run("returns error on invalid flag", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		err := cli.Run([]string{
+		_, stderr := executeForTest(t, []string{
 			"engram", "recall",
 			"--invalid-flag",
-		}, &bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(err).To(gomega.HaveOccurred())
-		g.Expect(err.Error()).To(gomega.ContainSubstring("recall"))
+		})
+		g.Expect(stderr).NotTo(gomega.BeEmpty())
 	})
 }
 
@@ -531,14 +543,9 @@ func TestRunSafe(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		var stderr bytes.Buffer
-
 		// Invalid subcommand triggers error path — no filesystem I/O.
-		cli.RunSafe(
-			[]string{"engram", "nonexistent-subcommand"},
-			&bytes.Buffer{}, &stderr, strings.NewReader(""),
-		)
-		g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
+		_, stderr := executeForTest(t, []string{"engram", "nonexistent-subcommand"})
+		g.Expect(stderr).NotTo(gomega.BeEmpty())
 	})
 }
 

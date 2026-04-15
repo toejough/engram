@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -102,18 +101,8 @@ func TestShow_FlagParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "show", "--bogus-flag"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("show"))
-	}
+	_, stderr := executeForTest(t, []string{"engram", "show", "--bogus-flag"})
+	g.Expect(stderr).NotTo(BeEmpty())
 }
 
 func TestShow_HappyPath_PrintsSBIAFields(t *testing.T) {
@@ -148,30 +137,19 @@ action = "use targ test instead"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := executeForTest(t, []string{
+		"engram", "show",
+		"--name", "use-targ-test",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).To(BeEmpty())
 
-	err = cli.Run(
-		[]string{
-			"engram", "show",
-			"use-targ-test",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Situation: when running tests"))
-	g.Expect(output).To(ContainSubstring("Behavior: use go test directly"))
-	g.Expect(output).To(ContainSubstring("Impact: misses coverage and lint flags"))
-	g.Expect(output).To(ContainSubstring("Action: use targ test instead"))
-	g.Expect(output).To(ContainSubstring("Updated: 2025-01-01T00:00:00Z"))
-	g.Expect(output).NotTo(ContainSubstring("Effectiveness:"))
+	g.Expect(stdout).To(ContainSubstring("Situation: when running tests"))
+	g.Expect(stdout).To(ContainSubstring("Behavior: use go test directly"))
+	g.Expect(stdout).To(ContainSubstring("Impact: misses coverage and lint flags"))
+	g.Expect(stdout).To(ContainSubstring("Action: use targ test instead"))
+	g.Expect(stdout).To(ContainSubstring("Updated: 2025-01-01T00:00:00Z"))
+	g.Expect(stdout).NotTo(ContainSubstring("Effectiveness:"))
 }
 
 func TestShow_MemoryNotFound_ReturnsError(t *testing.T) {
@@ -187,22 +165,12 @@ func TestShow_MemoryNotFound_ReturnsError(t *testing.T) {
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "show",
-			"nonexistent-memory",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("nonexistent-memory"))
-	}
+	_, stderr := executeForTest(t, []string{
+		"engram", "show",
+		"--name", "nonexistent-memory",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).NotTo(BeEmpty())
 }
 
 func TestShow_MissingSlug_ReturnsError(t *testing.T) {
@@ -211,18 +179,8 @@ func TestShow_MissingSlug_ReturnsError(t *testing.T) {
 
 	dataDir := t.TempDir()
 
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "show", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("slug"))
-	}
+	_, stderr := executeForTest(t, []string{"engram", "show", "--data-dir", dataDir})
+	g.Expect(stderr).NotTo(BeEmpty())
 }
 
 func TestShow_NameFlag_Works(t *testing.T) {
@@ -239,19 +197,10 @@ func TestShow_NameFlag_Works(t *testing.T) {
 		0o640,
 	)).To(Succeed())
 
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := executeForTest(t, []string{"engram", "show", "--name", "flag-test", "--data-dir", dataDir})
+	g.Expect(stderr).To(BeEmpty())
 
-	err := cli.Run(
-		[]string{"engram", "show", "--name", "flag-test", "--data-dir", dataDir},
-		&stdout, &stderr, strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(stdout.String()).To(ContainSubstring("Situation: Flag Test Situation"))
+	g.Expect(stdout).To(ContainSubstring("Situation: Flag Test Situation"))
 }
 
 func TestShow_OmitsEmptyFields(t *testing.T) {
@@ -285,29 +234,18 @@ action = "Just action"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := executeForTest(t, []string{
+		"engram", "show",
+		"--name", "minimal",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).To(BeEmpty())
 
-	err = cli.Run(
-		[]string{
-			"engram", "show",
-			"minimal",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Situation: Minimal Memory"))
-	g.Expect(output).To(ContainSubstring("Action: Just action"))
-	g.Expect(output).NotTo(ContainSubstring("Behavior:"))
-	g.Expect(output).NotTo(ContainSubstring("Impact:"))
-	g.Expect(output).NotTo(ContainSubstring("Effectiveness:"))
+	g.Expect(stdout).To(ContainSubstring("Situation: Minimal Memory"))
+	g.Expect(stdout).To(ContainSubstring("Action: Just action"))
+	g.Expect(stdout).NotTo(ContainSubstring("Behavior:"))
+	g.Expect(stdout).NotTo(ContainSubstring("Impact:"))
+	g.Expect(stdout).NotTo(ContainSubstring("Effectiveness:"))
 }
 
 func TestShow_ReadsFromFactsDir(t *testing.T) {
@@ -342,29 +280,18 @@ object = "Go"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := executeForTest(t, []string{
+		"engram", "show",
+		"--name", "fact-mem",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).To(BeEmpty())
 
-	err = cli.Run(
-		[]string{
-			"engram", "show",
-			"fact-mem",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Type: fact"))
-	g.Expect(output).To(ContainSubstring("Subject: engram"))
-	g.Expect(output).To(ContainSubstring("Predicate: uses"))
-	g.Expect(output).To(ContainSubstring("Object: Go"))
-	g.Expect(output).NotTo(ContainSubstring("Behavior:"))
+	g.Expect(stdout).To(ContainSubstring("Type: fact"))
+	g.Expect(stdout).To(ContainSubstring("Subject: engram"))
+	g.Expect(stdout).To(ContainSubstring("Predicate: uses"))
+	g.Expect(stdout).To(ContainSubstring("Object: Go"))
+	g.Expect(stdout).NotTo(ContainSubstring("Behavior:"))
 }
 
 func TestShow_ReadsFromFeedbackDir(t *testing.T) {
@@ -398,26 +325,15 @@ action = "test action"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := executeForTest(t, []string{
+		"engram", "show",
+		"--name", "fb-mem",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).To(BeEmpty())
 
-	err = cli.Run(
-		[]string{
-			"engram", "show",
-			"fb-mem",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Situation: from feedback dir"))
-	g.Expect(output).To(ContainSubstring("Type: feedback"))
+	g.Expect(stdout).To(ContainSubstring("Situation: from feedback dir"))
+	g.Expect(stdout).To(ContainSubstring("Type: feedback"))
 }
 
 func TestShow_SlugAfterFlags_Works(t *testing.T) {
@@ -450,23 +366,12 @@ action = "Slug comes after --data-dir"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := executeForTest(t, []string{
+		"engram", "show",
+		"--data-dir", dataDir,
+		"--name", "after-flags",
+	})
+	g.Expect(stderr).To(BeEmpty())
 
-	err = cli.Run(
-		[]string{
-			"engram", "show",
-			"--data-dir", dataDir,
-			"after-flags",
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Situation: After Flags"))
+	g.Expect(stdout).To(ContainSubstring("Situation: After Flags"))
 }

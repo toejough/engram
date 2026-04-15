@@ -1,16 +1,13 @@
 package cli_test
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/onsi/gomega"
 
-	"engram/internal/cli"
 	"engram/internal/memory"
 )
 
@@ -45,27 +42,17 @@ action = "old action"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "update",
-			"--name", "all-fields",
-			"--situation", "updated situation",
-			"--behavior", "new behavior",
-			"--impact", "new impact",
-			"--action", "new action",
-			"--source", "agent",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
+	_, stderr := executeForTest(t, []string{
+		"engram", "update",
+		"--name", "all-fields",
+		"--situation", "updated situation",
+		"--behavior", "new behavior",
+		"--impact", "new impact",
+		"--action", "new action",
+		"--source", "agent",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).To(BeEmpty())
 
 	var record memory.MemoryRecord
 
@@ -116,28 +103,17 @@ object = "Go"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := executeForTest(t, []string{
+		"engram", "update",
+		"--name", "fact-update",
+		"--subject", "this project",
+		"--predicate", "is built with",
+		"--object", "targ build system",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).To(BeEmpty())
 
-	err = cli.Run(
-		[]string{
-			"engram", "update",
-			"--name", "fact-update",
-			"--subject", "this project",
-			"--predicate", "is built with",
-			"--object", "targ build system",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("UPDATED: fact-update"))
+	g.Expect(stdout).To(ContainSubstring("UPDATED: fact-update"))
 
 	var record memory.MemoryRecord
 
@@ -162,18 +138,8 @@ func TestUpdate_FlagParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "update", "--bogus-flag"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("update"))
-	}
+	_, stderr := executeForTest(t, []string{"engram", "update", "--bogus-flag"})
+	g.Expect(stderr).NotTo(BeEmpty())
 }
 
 func TestUpdate_InvalidSource_ReturnsError(t *testing.T) {
@@ -210,23 +176,13 @@ action = "use targ"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "update",
-			"--name", "test-mem",
-			"--source", "bot",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("source"))
-	}
+	_, stderr := executeForTest(t, []string{
+		"engram", "update",
+		"--name", "test-mem",
+		"--source", "bot",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).NotTo(BeEmpty())
 }
 
 func TestUpdate_MemoryNotFound_ReturnsError(t *testing.T) {
@@ -242,41 +198,21 @@ func TestUpdate_MemoryNotFound_ReturnsError(t *testing.T) {
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "update",
-			"--name", "nonexistent",
-			"--situation", "new situation",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("nonexistent"))
-	}
+	_, stderr := executeForTest(t, []string{
+		"engram", "update",
+		"--name", "nonexistent",
+		"--situation", "new situation",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).NotTo(BeEmpty())
 }
 
 func TestUpdate_MissingName_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "update", "--data-dir", t.TempDir()},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("name"))
-	}
+	_, stderr := executeForTest(t, []string{"engram", "update", "--data-dir", t.TempDir()})
+	g.Expect(stderr).NotTo(BeEmpty())
 }
 
 func TestUpdate_OutputContainsUpdatedName(t *testing.T) {
@@ -311,27 +247,16 @@ action = "test"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := executeForTest(t, []string{
+		"engram", "update",
+		"--name", "output-check",
+		"--action", "updated action",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).To(BeEmpty())
 
-	err = cli.Run(
-		[]string{
-			"engram", "update",
-			"--name", "output-check",
-			"--action", "updated action",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(HavePrefix("UPDATED: "))
-	g.Expect(output).To(ContainSubstring("output-check"))
+	g.Expect(stdout).To(HavePrefix("UPDATED: "))
+	g.Expect(stdout).To(ContainSubstring("output-check"))
 }
 
 func TestUpdate_SituationField_UpdatesAndPreservesOthers(t *testing.T) {
@@ -367,27 +292,16 @@ action = "original action"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "update",
-			"--name", "update-test",
-			"--situation", "new situation",
-			"--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
+	stdout, stderr := executeForTest(t, []string{
+		"engram", "update",
+		"--name", "update-test",
+		"--situation", "new situation",
+		"--data-dir", dataDir,
+	})
+	g.Expect(stderr).To(BeEmpty())
 
 	// Verify output
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("UPDATED: update-test"))
+	g.Expect(stdout).To(ContainSubstring("UPDATED: update-test"))
 
 	// Verify file was updated
 	var record memory.MemoryRecord

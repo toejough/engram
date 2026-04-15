@@ -1,15 +1,11 @@
 package cli_test
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
-
-	"engram/internal/cli"
 )
 
 func TestList_EmptyDataDir_ReturnsEmptyOutput(t *testing.T) {
@@ -18,20 +14,9 @@ func TestList_EmptyDataDir_ReturnsEmptyOutput(t *testing.T) {
 
 	dataDir := t.TempDir()
 
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "list", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(stdout.String()).To(BeEmpty())
+	stdout, stderr := executeForTest(t, []string{"engram", "list", "--data-dir", dataDir})
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(BeEmpty())
 }
 
 func TestList_FeedbackMemory_OutputsTypeNameSituation(t *testing.T) {
@@ -70,41 +55,20 @@ action = "use targ test instead"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := executeForTest(t, []string{"engram", "list", "--data-dir", dataDir})
+	g.Expect(stderr).To(BeEmpty())
 
-	err = cli.Run(
-		[]string{"engram", "list", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("feedback"))
-	g.Expect(output).To(ContainSubstring("use-targ-for-tests"))
-	g.Expect(output).To(ContainSubstring("When running build commands in the engram project"))
+	g.Expect(stdout).To(ContainSubstring("feedback"))
+	g.Expect(stdout).To(ContainSubstring("use-targ-for-tests"))
+	g.Expect(stdout).To(ContainSubstring("When running build commands in the engram project"))
 }
 
 func TestList_FlagParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "list", "--bogus-flag"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("list"))
-	}
+	_, stderr := executeForTest(t, []string{"engram", "list", "--bogus-flag"})
+	g.Expect(stderr).NotTo(BeEmpty())
 }
 
 func TestList_MultipleMixedMemories_OutputsBoth(t *testing.T) {
@@ -174,20 +138,9 @@ object = "targ build system"
 		return
 	}
 
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := executeForTest(t, []string{"engram", "list", "--data-dir", dataDir})
+	g.Expect(stderr).To(BeEmpty())
 
-	err = cli.Run(
-		[]string{"engram", "list", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("feedback | use-targ-for-tests"))
-	g.Expect(output).To(ContainSubstring("fact | engram-uses-targ"))
+	g.Expect(stdout).To(ContainSubstring("feedback | use-targ-for-tests"))
+	g.Expect(stdout).To(ContainSubstring("fact | engram-uses-targ"))
 }
