@@ -20,12 +20,15 @@ if [[ -x "$ENGRAM_BIN" ]]; then
         MEMORIES="${MEMORIES}${LEARN_MEMORIES}"
     fi
     if [[ -n "$MEMORIES" ]]; then
-        jq -n --arg msg "${STATIC_MSG}" --arg mem "${MEMORIES}" '{systemMessage: ($msg + "\n\n" + $mem)}'
+        jq -n --arg ctx "${STATIC_MSG}\n\n${MEMORIES}" \
+            '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
     else
-        jq -n --arg msg "${STATIC_MSG}" '{systemMessage: $msg}'
+        jq -n --arg ctx "${STATIC_MSG}" \
+            '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
     fi
 else
-    jq -n --arg msg "${STATIC_MSG}" '{systemMessage: $msg}'
+    jq -n --arg ctx "${STATIC_MSG}" \
+        '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
 fi
 
 # --- Async portion: build if needed ---
