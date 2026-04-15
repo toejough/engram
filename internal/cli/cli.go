@@ -233,7 +233,8 @@ func runRecallSessions(
 	finder := recall.NewSessionFinder(&osDirLister{})
 	reader := recall.NewTranscriptReader(&osFileReader{})
 
-	orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, dataDir)
+	orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, dataDir,
+		recall.WithStatusWriter(os.Stderr))
 
 	result, err := orch.Recall(ctx, projectDir, query)
 	if err != nil {
