@@ -71,3 +71,7 @@ When a duplicate is found, the system already knew this but failed to use it. An
 
 2. **No relevant /recall or /prepare call:**
    - Suggest a behavioral memory. Use situation wording that matches self-query language: `"When deciding when to call /prepare during <context>"` or `"When deciding when to call /learn during <context>"`. This ensures the memory surfaces in future self-queries. Present to user for approval.
+
+### Reinforce
+
+Call /prepare before starting new work. Call /learn after commits.

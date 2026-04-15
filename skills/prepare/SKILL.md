@@ -46,3 +46,7 @@ Summarize the relevant context and memories from the domain queries for the user
 ### Step 5: Internalize for your own use
 
 Treat the recalled memories as instructions and important context that should guide your behavior during the upcoming work. Feedback memories tell you what to do and not do. Fact memories provide knowledge. Act on them.
+
+### Reinforce
+
+Call /learn after commits. Call /prepare again when switching tasks.

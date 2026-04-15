@@ -77,3 +77,7 @@ A duplicate means the memory existed but didn't fire when it mattered. Diagnose 
 ### Step 7: Internalize operational guidance
 
 Follow any operational guidance from the Step 1 self-query.
+
+### Reinforce
+
+Call /prepare before starting new work. Call /learn again after your next commit.

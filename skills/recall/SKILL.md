@@ -42,3 +42,7 @@ engram recall --query "<the user's query>"
 ```
 
 Present the filtered results to the user.
+
+### Reinforce
+
+Call /prepare before starting new work. Call /learn after commits.
