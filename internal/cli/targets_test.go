@@ -69,7 +69,6 @@ func TestAddIntFlag(t *testing.T) {
 	})
 }
 
-
 func TestBuildFlags(t *testing.T) {
 	t.Parallel()
 
@@ -122,7 +121,7 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		g.Expect(targets).To(gomega.HaveLen(3))
+		g.Expect(targets).To(gomega.HaveLen(5))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -140,8 +139,132 @@ func TestBuildTargets(t *testing.T) {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
 		}
 
-		g.Expect(calls).To(gomega.Equal(subcmds))
+		// Learn subcommands need the group prefix
+		_, _ = targ.Execute([]string{
+			"engram", "learn", "feedback",
+			"--source", "human",
+		}, targets...)
+		_, _ = targ.Execute([]string{
+			"engram", "learn", "fact",
+			"--source", "agent",
+		}, targets...)
+		_, _ = targ.Execute([]string{
+			"engram", "update",
+			"--name", "test",
+		}, targets...)
+
+		g.Expect(calls).To(gomega.Equal([]string{
+			"recall", "show", "list",
+			"learn feedback", "learn fact", "update",
+		}))
 	})
+}
+
+func TestBuildTargets_LearnFactWiring(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var capturedSubcmd string
+
+	var capturedFlags []string
+
+	targets := cli.BuildTargets(func(subcmd string, flags []string) {
+		capturedSubcmd = subcmd
+		capturedFlags = flags
+	})
+
+	_, err := targ.Execute([]string{
+		"engram", "learn", "fact",
+		"--situation", "Go projects",
+		"--source", "agent",
+		"--subject", "engram",
+		"--predicate", "uses",
+		"--object", "targ",
+		"--data-dir", "/tmp/test",
+	}, targets...)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(capturedSubcmd).To(gomega.Equal("learn fact"))
+	g.Expect(capturedFlags).To(gomega.ContainElements(
+		"--subject", "engram",
+		"--predicate", "uses",
+		"--object", "targ",
+	))
+}
+
+func TestBuildTargets_LearnFeedbackWiring(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var capturedSubcmd string
+
+	var capturedFlags []string
+
+	targets := cli.BuildTargets(func(subcmd string, flags []string) {
+		capturedSubcmd = subcmd
+		capturedFlags = flags
+	})
+
+	_, err := targ.Execute([]string{
+		"engram", "learn", "feedback",
+		"--situation", "test-sit",
+		"--source", "human",
+		"--behavior", "test-beh",
+		"--impact", "test-imp",
+		"--action", "test-act",
+		"--no-dup-check",
+		"--data-dir", "/tmp/test",
+	}, targets...)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(capturedSubcmd).To(gomega.Equal("learn feedback"))
+	g.Expect(capturedFlags).To(gomega.ContainElements(
+		"--situation", "test-sit",
+		"--source", "human",
+		"--behavior", "test-beh",
+		"--data-dir", "/tmp/test",
+	))
+	g.Expect(capturedFlags).To(gomega.ContainElement("--no-dup-check"))
+}
+
+func TestBuildTargets_UpdateWiring(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var capturedSubcmd string
+
+	var capturedFlags []string
+
+	targets := cli.BuildTargets(func(subcmd string, flags []string) {
+		capturedSubcmd = subcmd
+		capturedFlags = flags
+	})
+
+	_, err := targ.Execute([]string{
+		"engram", "update",
+		"--name", "test-mem",
+		"--situation", "new-sit",
+		"--data-dir", "/tmp/test",
+	}, targets...)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(capturedSubcmd).To(gomega.Equal("update"))
+	g.Expect(capturedFlags).To(gomega.ContainElements(
+		"--name", "test-mem",
+		"--situation", "new-sit",
+	))
 }
 
 func TestDataDirFromHome(t *testing.T) {
@@ -435,7 +558,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(targets).To(gomega.HaveLen(3))
+		g.Expect(targets).To(gomega.HaveLen(5))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {

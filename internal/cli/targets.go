@@ -10,11 +10,36 @@ import (
 	"github.com/toejough/targ"
 )
 
+// CommonLearnArgs holds shared flags for learn subcommands.
+type CommonLearnArgs struct {
+	Situation  string `targ:"flag,name=situation,desc=context when this applies"`
+	Source     string `targ:"flag,name=source,desc=human or agent"`
+	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	NoDupCheck bool   `targ:"flag,name=no-dup-check,desc=skip duplicate/contradiction detection"`
+}
+
+// LearnFactArgs holds parsed flags for the learn fact subcommand.
+type LearnFactArgs struct {
+	CommonLearnArgs
+
+	Subject   string `targ:"flag,name=subject,desc=subject of the fact"`
+	Predicate string `targ:"flag,name=predicate,desc=relationship or verb"`
+	Object    string `targ:"flag,name=object,desc=object of the fact"`
+}
+
+// LearnFeedbackArgs holds parsed flags for the learn feedback subcommand.
+type LearnFeedbackArgs struct {
+	CommonLearnArgs
+
+	Behavior string `targ:"flag,name=behavior,desc=observed behavior"`
+	Impact   string `targ:"flag,name=impact,desc=impact of the behavior"`
+	Action   string `targ:"flag,name=action,desc=recommended action"`
+}
+
 // ListArgs holds parsed flags for the list subcommand.
 type ListArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
-
 
 // RecallArgs holds parsed flags for the recall subcommand.
 type RecallArgs struct {
@@ -29,6 +54,20 @@ type RecallArgs struct {
 type ShowArgs struct {
 	Name    string `targ:"flag,name=name,desc=memory slug to display"`
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+}
+
+// UpdateArgs holds parsed flags for the update subcommand.
+type UpdateArgs struct {
+	Name      string `targ:"flag,name=name,required,desc=memory slug (required)"`
+	DataDir   string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	Situation string `targ:"flag,name=situation,desc=context when this applies"`
+	Behavior  string `targ:"flag,name=behavior,desc=observed behavior"`
+	Impact    string `targ:"flag,name=impact,desc=impact of the behavior"`
+	Action    string `targ:"flag,name=action,desc=recommended action"`
+	Subject   string `targ:"flag,name=subject,desc=subject of the fact"`
+	Predicate string `targ:"flag,name=predicate,desc=relationship or verb"`
+	Object    string `targ:"flag,name=object,desc=object of the fact"`
+	Source    string `targ:"flag,name=source,desc=human or agent"`
 }
 
 // AddBoolFlag appends a flag if the bool is true.
@@ -48,7 +87,6 @@ func AddIntFlag(flags []string, name string, value int) []string {
 
 	return flags
 }
-
 
 // BuildFlags constructs a []string flag list from key-value pairs, skipping empty values.
 func BuildFlags(pairs ...string) []string {
@@ -72,6 +110,14 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("show").Description("Display full memory details"),
 		targ.Targ(func(a ListArgs) { run("list", ListFlags(a)) }).
 			Name("list").Description("List all memories with type, name, and situation"),
+		targ.Group("learn",
+			targ.Targ(func(a LearnFeedbackArgs) { run("learn feedback", LearnFeedbackFlags(a)) }).
+				Name("feedback").Description("Learn from behavioral feedback"),
+			targ.Targ(func(a LearnFactArgs) { run("learn fact", LearnFactFlags(a)) }).
+				Name("fact").Description("Learn a factual statement"),
+		),
+		targ.Targ(func(a UpdateArgs) { run("update", UpdateFlags(a)) }).
+			Name("update").Description("Update an existing memory"),
 	}
 }
 
@@ -84,6 +130,36 @@ func DataDirFromHome(home string, getenv func(string) string) string {
 	}
 
 	return filepath.Join(home, ".local", "share", "engram")
+}
+
+// LearnFactFlags returns the CLI flag args for the learn fact subcommand.
+func LearnFactFlags(a LearnFactArgs) []string {
+	flags := BuildFlags(
+		"--situation", a.Situation,
+		"--source", a.Source,
+		"--data-dir", a.DataDir,
+		"--subject", a.Subject,
+		"--predicate", a.Predicate,
+		"--object", a.Object,
+	)
+	flags = AddBoolFlag(flags, "--no-dup-check", a.NoDupCheck)
+
+	return flags
+}
+
+// LearnFeedbackFlags returns the CLI flag args for the learn feedback subcommand.
+func LearnFeedbackFlags(a LearnFeedbackArgs) []string {
+	flags := BuildFlags(
+		"--situation", a.Situation,
+		"--source", a.Source,
+		"--data-dir", a.DataDir,
+		"--behavior", a.Behavior,
+		"--impact", a.Impact,
+		"--action", a.Action,
+	)
+	flags = AddBoolFlag(flags, "--no-dup-check", a.NoDupCheck)
+
+	return flags
 }
 
 // ListFlags returns the CLI flag args for the list subcommand.
@@ -126,9 +202,27 @@ func ShowFlags(a ShowArgs) []string {
 // Targets returns all targ targets for the engram CLI.
 func Targets(stdout, stderr io.Writer, stdin io.Reader) []any {
 	run := func(subcmd string, flags []string) {
-		args := append([]string{"engram", subcmd}, flags...)
+		parts := strings.Fields(subcmd)
+		args := append([]string{"engram"}, parts...)
+		args = append(args, flags...)
 		RunSafe(args, stdout, stderr, stdin)
 	}
 
 	return BuildTargets(run)
+}
+
+// UpdateFlags returns the CLI flag args for the update subcommand.
+func UpdateFlags(a UpdateArgs) []string {
+	return BuildFlags(
+		"--name", a.Name,
+		"--data-dir", a.DataDir,
+		"--situation", a.Situation,
+		"--behavior", a.Behavior,
+		"--impact", a.Impact,
+		"--action", a.Action,
+		"--subject", a.Subject,
+		"--predicate", a.Predicate,
+		"--object", a.Object,
+		"--source", a.Source,
+	)
 }
