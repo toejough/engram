@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/toejough/targ"
@@ -15,26 +16,38 @@ const (
 )
 
 // ForceExitOnRepeatedSignal starts a goroutine that waits for two signals
-// on the given channel, then calls exitFn.
+// on the given channel, then calls exitFn. The first signal allows graceful
+// shutdown; the second signal forces immediate exit.
 func ForceExitOnRepeatedSignal(signals <-chan os.Signal, exitFn func(int)) {
-	go func() {
-		<-signals // first — handled gracefully by targ's signal.NotifyContext
-		<-signals // second — force exit
+	var signalCount atomic.Int32
 
-		exitFn(ExitCodeSigInt)
+	go func() {
+		for range signals {
+			count := signalCount.Add(1)
+			if count >= secondSignal {
+				// Second signal or later: force exit immediately
+				exitFn(ExitCodeSigInt)
+				return
+			}
+			// First signal: will be handled by targ's context cancellation
+		}
 	}()
 }
 
 // Run sets up force-exit signal handling and runs the CLI via targ.Main.
 // targ's signal.NotifyContext cancels the context on the first SIGINT
-// but keeps consuming subsequent signals until the handler returns,
-// preventing default process termination. The force-exit handler
-// restores the standard CLI expectation: second Ctrl-C = exit.
+// but we intercept subsequent signals to force exit via the second-signal handler.
 func Run(stdout, stderr io.Writer, stdin io.Reader, exitFn func(int)) {
-	sigCh := make(chan os.Signal, 1)
+	sigCh := make(chan os.Signal, signalChannelBuffer)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	ForceExitOnRepeatedSignal(sigCh, exitFn)
 
 	targ.Main(Targets(stdout, stderr, stdin)...)
 }
+
+// unexported constants.
+const (
+	secondSignal        = 2  // Force exit on second signal
+	signalChannelBuffer = 10 // Buffer size for signal channel
+)
