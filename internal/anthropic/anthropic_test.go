@@ -223,6 +223,81 @@ func TestSetAPIURL_OverridesEndpoint(t *testing.T) {
 	g.Expect(doer.lastRequest.URL.String()).To(Equal("https://custom.example.com/v1/messages"))
 }
 
+func TestStripCodeFences(t *testing.T) {
+	t.Parallel()
+
+	t.Run("json fenced block", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		input := "```json\n{\"key\": \"value\"}\n```"
+		g.Expect(anthropic.StripCodeFences(input)).To(Equal(`{"key": "value"}`))
+	})
+
+	t.Run("plain fenced block", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		input := "```\n{\"key\": \"value\"}\n```"
+		g.Expect(anthropic.StripCodeFences(input)).To(Equal(`{"key": "value"}`))
+	})
+
+	t.Run("fenced block with preamble and suffix", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		input := "Here is the JSON:\n```json\n{\"a\": 1}\n```\nDone."
+		g.Expect(anthropic.StripCodeFences(input)).To(Equal(`{"a": 1}`))
+	})
+
+	t.Run("unclosed fence returns content after fence", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		input := "```json\n{\"key\": \"value\"}"
+		g.Expect(anthropic.StripCodeFences(input)).To(Equal(`{"key": "value"}`))
+	})
+
+	t.Run("no fences extracts JSON object", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		input := "Some preamble {\"key\": \"value\"} some suffix"
+		g.Expect(anthropic.StripCodeFences(input)).To(Equal(`{"key": "value"}`))
+	})
+
+	t.Run("no fences extracts JSON array", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		input := "Result: [1, 2, 3] done"
+		g.Expect(anthropic.StripCodeFences(input)).To(Equal("[1, 2, 3]"))
+	})
+
+	t.Run("plain text returned as-is", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		input := "just plain text"
+		g.Expect(anthropic.StripCodeFences(input)).To(Equal("just plain text"))
+	})
+
+	t.Run("whitespace trimmed", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		input := "  \n  {\"key\": \"value\"}  \n  "
+		g.Expect(anthropic.StripCodeFences(input)).To(Equal(`{"key": "value"}`))
+	})
+
+	t.Run("empty string", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		g.Expect(anthropic.StripCodeFences("")).To(Equal(""))
+	})
+}
+
 // fakeDoer is a test double for anthropic.HTTPDoer.
 type fakeDoer struct {
 	lastRequest *http.Request

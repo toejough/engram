@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -42,6 +43,163 @@ func TestBuildMemoryIndex_FormatsCorrectly(t *testing.T) {
 	result := cli.ExportBuildMemoryIndex(memories)
 	g.Expect(result).To(ContainSubstring("feedback | use-targ | when running tests"))
 	g.Expect(result).To(ContainSubstring("fact | engram-uses-go | Go projects"))
+}
+
+func TestCallHaikuForConflicts_PropagatesError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fakeCaller := func(
+		_ context.Context, _, _, _ string,
+	) (string, error) {
+		return "", errors.New("api down")
+	}
+
+	_, err := cli.ExportCallHaikuForConflicts(
+		context.Background(), fakeCaller, "idx", "desc",
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("calling Haiku"))
+	}
+}
+
+func TestCallHaikuForConflicts_ReturnsResponse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fakeCaller := func(
+		_ context.Context, model, systemPrompt, userPrompt string,
+	) (string, error) {
+		g.Expect(model).To(Equal("claude-haiku-4-5-20251001"))
+		g.Expect(systemPrompt).NotTo(BeEmpty())
+		g.Expect(userPrompt).To(ContainSubstring("test-index"))
+		g.Expect(userPrompt).To(ContainSubstring("test-description"))
+
+		return "NONE", nil
+	}
+
+	result, err := cli.ExportCallHaikuForConflicts(
+		context.Background(), fakeCaller, "test-index", "test-description",
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(Equal("NONE"))
+}
+
+func TestCheckForConflicts_APIError_NonFatal(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	writeTestMemory(t, g, dataDir)
+
+	var buf bytes.Buffer
+
+	record := &memory.MemoryRecord{Type: "fact"}
+
+	fakeCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return "", errors.New("api error")
+	}
+
+	conflict, checkErr := cli.ExportCheckForConflicts(
+		context.Background(), record, dataDir, &buf, fakeCaller, memory.NewLister(),
+	)
+	g.Expect(checkErr).NotTo(HaveOccurred())
+	g.Expect(conflict).To(BeFalse())
+}
+
+func TestCheckForConflicts_NilCaller_SkipsCheck(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var buf bytes.Buffer
+
+	record := &memory.MemoryRecord{Type: "fact"}
+
+	conflict, err := cli.ExportCheckForConflicts(
+		context.Background(), record, t.TempDir(), &buf, nil, nil,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(conflict).To(BeFalse())
+}
+
+func TestCheckForConflicts_NoMemories_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var buf bytes.Buffer
+
+	record := &memory.MemoryRecord{Type: "fact"}
+	fakeCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return "NONE", nil
+	}
+
+	// Empty data dir — no memories exist
+	conflict, err := cli.ExportCheckForConflicts(
+		context.Background(), record, t.TempDir(), &buf, fakeCaller, memory.NewLister(),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(conflict).To(BeFalse())
+}
+
+func TestCheckForConflicts_WithMemories_FindsDuplicate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	writeTestMemory(t, g, dataDir)
+
+	var buf bytes.Buffer
+
+	record := &memory.MemoryRecord{
+		Type: "fact",
+		Content: memory.ContentFields{
+			Subject: "x", Predicate: "is", Object: "y",
+		},
+	}
+
+	fakeCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return "DUPLICATE: existing", nil
+	}
+
+	conflict, checkErr := cli.ExportCheckForConflicts(
+		context.Background(), record, dataDir, &buf, fakeCaller, memory.NewLister(),
+	)
+	g.Expect(checkErr).NotTo(HaveOccurred())
+	g.Expect(conflict).To(BeTrue())
+}
+
+func TestCheckForConflicts_WithMemories_NoConflict(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	writeTestMemory(t, g, dataDir)
+
+	var buf bytes.Buffer
+
+	record := &memory.MemoryRecord{
+		Type: "fact",
+		Content: memory.ContentFields{
+			Subject: "a", Predicate: "is", Object: "b",
+		},
+	}
+
+	fakeCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return "NONE", nil
+	}
+
+	conflict, checkErr := cli.ExportCheckForConflicts(
+		context.Background(), record, dataDir, &buf, fakeCaller, memory.NewLister(),
+	)
+	g.Expect(checkErr).NotTo(HaveOccurred())
+	g.Expect(conflict).To(BeFalse())
 }
 
 func TestDescribeNewMemory_Fact(t *testing.T) {
@@ -304,6 +462,22 @@ func TestLearn_UnknownSubcommand_ReturnsError(t *testing.T) {
 
 	_, stderr := executeForTest(t, []string{"engram", "learn", "bogus"})
 	g.Expect(stderr).NotTo(BeEmpty())
+}
+
+func TestNewSummarizer_EmptyToken_ReturnsNil(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	result := cli.ExportNewSummarizer("")
+	g.Expect(result).To(BeNil())
+}
+
+func TestNewSummarizer_WithToken_ReturnsNonNil(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	result := cli.ExportNewSummarizer("test-token")
+	g.Expect(result).NotTo(BeNil())
 }
 
 func TestParseConflictLine_MalformedLine_NoOutput(t *testing.T) {
@@ -587,6 +761,107 @@ func TestWriteMemory_NoDupCheck_CreatesFile(t *testing.T) {
 	g.Expect(entries).To(HaveLen(1))
 }
 
+func TestWriteMemory_WithDupCheck_CallerDetectsConflict_SkipsWrite(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	writeTestMemory(t, g, dataDir)
+
+	var buf bytes.Buffer
+
+	record := &memory.MemoryRecord{
+		SchemaVersion: 2,
+		Type:          "fact",
+		Source:        "agent",
+		Situation:     "test",
+		Content: memory.ContentFields{
+			Subject: "x", Predicate: "is", Object: "y",
+		},
+	}
+
+	fakeCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return "DUPLICATE: existing", nil
+	}
+
+	writeErr := cli.ExportWriteMemoryWithDeps(
+		context.Background(), record, "test", dataDir, false, &buf, "test",
+		fakeCaller, memory.NewLister(),
+	)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	// Should NOT have created a file since conflict was detected
+	g.Expect(buf.String()).NotTo(ContainSubstring("CREATED:"))
+}
+
+func TestWriteMemory_WithDupCheck_ListerError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	var buf bytes.Buffer
+
+	record := &memory.MemoryRecord{
+		SchemaVersion: 2,
+		Type:          "feedback",
+		Source:        "human",
+		Situation:     "lister error",
+		Content: memory.ContentFields{
+			Behavior: "test", Impact: "test", Action: "test",
+		},
+	}
+
+	fakeCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return "NONE", nil
+	}
+
+	writeErr := cli.ExportWriteMemoryWithDeps(
+		context.Background(), record, "lister error", dataDir, false, &buf, "test",
+		fakeCaller, &failingLister{err: errors.New("disk error")},
+	)
+	g.Expect(writeErr).To(HaveOccurred())
+
+	if writeErr != nil {
+		g.Expect(writeErr.Error()).To(ContainSubstring("listing memories"))
+	}
+}
+
+func TestWriteMemory_WithDupCheck_NoConflict_CreatesFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	var buf bytes.Buffer
+
+	record := &memory.MemoryRecord{
+		SchemaVersion: 2,
+		Type:          "feedback",
+		Source:        "human",
+		Situation:     "dup check pass",
+		Content: memory.ContentFields{
+			Behavior: "test", Impact: "test", Action: "test",
+		},
+	}
+
+	fakeCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return "NONE", nil
+	}
+
+	writeErr := cli.ExportWriteMemoryWithDeps(
+		context.Background(), record, "dup check pass", dataDir, false, &buf, "test",
+		fakeCaller, memory.NewLister(),
+	)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	g.Expect(buf.String()).To(ContainSubstring("CREATED:"))
+}
+
 func TestWriteMemory_WithDupCheck_NoToken_SkipsAndCreates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -616,4 +891,54 @@ func TestWriteMemory_WithDupCheck_NoToken_SkipsAndCreates(t *testing.T) {
 	}
 
 	g.Expect(buf.String()).To(ContainSubstring("CREATED:"))
+}
+
+// failingLister is a test double that always returns an error.
+type failingLister struct {
+	err error
+}
+
+func (f *failingLister) ListAllMemories(_ string) ([]*memory.Stored, error) {
+	return nil, f.err
+}
+
+// writeTestMemory creates a fact TOML in the new layout (both feedback and facts dirs)
+// so that memory.Lister detects the new layout and finds the test memory.
+func writeTestMemory(t *testing.T, g Gomega, dataDir string) {
+	t.Helper()
+
+	factsDir := filepath.Join(dataDir, "memory", "facts")
+	feedbackDir := filepath.Join(dataDir, "memory", "feedback")
+
+	g.Expect(os.MkdirAll(factsDir, 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(feedbackDir, 0o750)).To(Succeed())
+
+	factContent := `schema_version = 2
+type = "fact"
+situation = "test"
+source = "agent"
+
+[content]
+subject = "x"
+predicate = "is"
+object = "y"
+`
+	g.Expect(os.WriteFile(
+		filepath.Join(factsDir, "existing.toml"), []byte(factContent), 0o640,
+	)).To(Succeed())
+
+	// Feedback dir needs at least one TOML for hasNewLayout detection
+	feedbackContent := `schema_version = 2
+type = "feedback"
+situation = "test"
+source = "agent"
+
+[content]
+behavior = "test"
+impact = "test"
+action = "test"
+`
+	g.Expect(os.WriteFile(
+		filepath.Join(feedbackDir, "placeholder.toml"), []byte(feedbackContent), 0o640,
+	)).To(Succeed())
 }

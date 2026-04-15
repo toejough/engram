@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -159,6 +161,88 @@ func TestRunRecall(t *testing.T) {
 			"--invalid-flag",
 		})
 		g.Expect(stderr).NotTo(gomega.BeEmpty())
+	})
+
+	t.Run("memories-only with empty data dir", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dataDir := t.TempDir()
+
+		_, stderr := executeForTest(t, []string{
+			"engram", "recall",
+			"--data-dir", dataDir,
+			"--memories-only",
+		})
+		g.Expect(stderr).To(gomega.BeEmpty())
+	})
+
+	t.Run("memories-only with query", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dataDir := t.TempDir()
+
+		_, stderr := executeForTest(t, []string{
+			"engram", "recall",
+			"--data-dir", dataDir,
+			"--memories-only",
+			"--query", "test query",
+		})
+		g.Expect(stderr).To(gomega.BeEmpty())
+	})
+
+	t.Run("sessions error from userHomeDir", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var buf bytes.Buffer
+
+		err := cli.ExportRunRecallSessions(
+			context.Background(), &buf,
+			"test-slug", nil, nil, t.TempDir(), "",
+			func() (string, error) { return "/fake", nil },
+			func() (string, error) { return "", errors.New("no home") },
+		)
+		g.Expect(err).To(gomega.HaveOccurred())
+
+		if err != nil {
+			g.Expect(err.Error()).To(gomega.ContainSubstring("no home"))
+		}
+	})
+
+	t.Run("sessions error from getwd", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var buf bytes.Buffer
+
+		err := cli.ExportRunRecallSessions(
+			context.Background(), &buf,
+			"", nil, nil, t.TempDir(), "",
+			func() (string, error) { return "", errors.New("no cwd") },
+			func() (string, error) { return "/home", nil },
+		)
+		g.Expect(err).To(gomega.HaveOccurred())
+
+		if err != nil {
+			g.Expect(err.Error()).To(gomega.ContainSubstring("no cwd"))
+		}
+	})
+
+	t.Run("memories-only with limit", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dataDir := t.TempDir()
+
+		_, stderr := executeForTest(t, []string{
+			"engram", "recall",
+			"--data-dir", dataDir,
+			"--memories-only",
+			"--limit", "5",
+		})
+		g.Expect(stderr).To(gomega.BeEmpty())
 	})
 }
 

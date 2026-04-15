@@ -1,7 +1,9 @@
 package cli_test
 
 import (
+	"bytes"
 	"os"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -58,4 +60,14 @@ func TestForceExitOnRepeatedSignal(t *testing.T) {
 			// good — no exit after one signal
 		}
 	})
+}
+
+func TestSetupSignalHandling_ReturnsTargets(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	targets := cli.SetupSignalHandling(&stdout, &stderr, strings.NewReader(""), func(_ int) {})
+	g.Expect(targets).To(HaveLen(5))
 }

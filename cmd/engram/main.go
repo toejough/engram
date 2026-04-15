@@ -5,9 +5,10 @@ import (
 	"os"
 
 	"engram/internal/cli"
+
+	"github.com/toejough/targ"
 )
 
 func main() {
-	// cli.Run sets up signal handling and dispatches via targ (ARCH-6).
-	cli.Run(os.Stdout, os.Stderr, os.Stdin, os.Exit)
+	targ.Main(cli.SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit)...)
 }

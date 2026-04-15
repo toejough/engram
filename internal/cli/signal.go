@@ -6,8 +6,6 @@ import (
 	"os/signal"
 	"sync/atomic"
 	"syscall"
-
-	"github.com/toejough/targ"
 )
 
 // Exported constants.
@@ -34,16 +32,15 @@ func ForceExitOnRepeatedSignal(signals <-chan os.Signal, exitFn func(int)) {
 	}()
 }
 
-// Run sets up force-exit signal handling and runs the CLI via targ.Main.
-// targ's signal.NotifyContext cancels the context on the first SIGINT
-// but we intercept subsequent signals to force exit via the second-signal handler.
-func Run(stdout, stderr io.Writer, stdin io.Reader, exitFn func(int)) {
+// SetupSignalHandling registers signal handlers and starts the force-exit goroutine.
+// Returns the configured targets for targ.Main.
+func SetupSignalHandling(stdout, stderr io.Writer, stdin io.Reader, exitFn func(int)) []any {
 	sigCh := make(chan os.Signal, signalChannelBuffer)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	ForceExitOnRepeatedSignal(sigCh, exitFn)
 
-	targ.Main(Targets(stdout, stderr, stdin)...)
+	return Targets(stdout, stderr, stdin)
 }
 
 // unexported constants.

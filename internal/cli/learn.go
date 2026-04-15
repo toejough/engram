@@ -41,7 +41,13 @@ var (
 	errInvalidSource = errors.New("source must be \"human\" or \"agent\"")
 )
 
-// unexported functions.
+// llmCaller calls an LLM with a model, system prompt, and user prompt.
+type llmCaller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
+
+// memoryLister lists all stored memories.
+type memoryLister interface {
+	ListAllMemories(dataDir string) ([]*memory.Stored, error)
+}
 
 func buildMemoryIndex(memories []*memory.Stored) string {
 	var builder strings.Builder
@@ -57,10 +63,9 @@ func buildMemoryIndex(memories []*memory.Stored) string {
 
 func callHaikuForConflicts(
 	ctx context.Context,
-	token, index, description string,
+	caller llmCaller,
+	index, description string,
 ) (string, error) {
-	caller := makeAnthropicCaller(token)
-
 	systemPrompt := conflictDetectionSystemPrompt
 	userPrompt := fmt.Sprintf(conflictDetectionUserPrompt, index, description)
 
@@ -77,13 +82,12 @@ func checkForConflicts(
 	record *memory.MemoryRecord,
 	dataDir string,
 	stdout io.Writer,
+	caller llmCaller,
+	lister memoryLister,
 ) (bool, error) {
-	token := resolveToken(ctx)
-	if token == "" {
+	if caller == nil || lister == nil {
 		return false, nil
 	}
-
-	lister := memory.NewLister()
 
 	memories, err := lister.ListAllMemories(dataDir)
 	if err != nil {
@@ -102,7 +106,7 @@ func checkForConflicts(
 	index := buildMemoryIndex(memories)
 	description := describeNewMemory(record)
 
-	response, callErr := callHaikuForConflicts(ctx, token, index, description)
+	response, callErr := callHaikuForConflicts(ctx, caller, index, description)
 	if callErr != nil {
 		// API errors are non-fatal for dedup: fall through and write anyway.
 		return false, nil //nolint:nilerr // intentional: API failure is non-fatal
@@ -130,6 +134,21 @@ func describeNewMemory(record *memory.MemoryRecord) string {
 	_, _ = fmt.Fprintf(&builder, "Source: %s\n", record.Source)
 
 	return builder.String()
+}
+
+// unexported functions.
+
+// makeConflictDeps wires real I/O deps for conflict detection.
+// Returns nil caller when no API token is available (skips dedup).
+func makeConflictDeps(ctx context.Context) (llmCaller, memoryLister) {
+	token := resolveToken(ctx)
+
+	var caller llmCaller
+	if token != "" {
+		caller = makeAnthropicCaller(token)
+	}
+
+	return caller, memory.NewLister()
 }
 
 func parseConflictLine(line, dataDir string, stdout io.Writer) {
@@ -235,8 +254,9 @@ func runLearnFact(ctx context.Context, args LearnFactArgs, stdout io.Writer) err
 	}
 
 	dataDir := args.DataDir
+	caller, lister := makeConflictDeps(ctx)
 
-	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn fact")
+	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn fact", caller, lister)
 }
 
 func runLearnFeedback(ctx context.Context, args LearnFeedbackArgs, stdout io.Writer) error {
@@ -258,8 +278,9 @@ func runLearnFeedback(ctx context.Context, args LearnFeedbackArgs, stdout io.Wri
 	}
 
 	dataDir := args.DataDir
+	caller, lister := makeConflictDeps(ctx)
 
-	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn feedback")
+	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn feedback", caller, lister)
 }
 
 func validateSource(source string) error {
@@ -278,6 +299,8 @@ func writeMemory(
 	noDupCheck bool,
 	stdout io.Writer,
 	cmdName string,
+	caller llmCaller,
+	lister memoryLister,
 ) error {
 	defaultErr := applyDataDirDefault(dataDir)
 	if defaultErr != nil {
@@ -287,7 +310,7 @@ func writeMemory(
 	slug := tomlwriter.Slugify(situation)
 
 	if !noDupCheck {
-		conflict, checkErr := checkForConflicts(ctx, record, *dataDir, stdout)
+		conflict, checkErr := checkForConflicts(ctx, record, *dataDir, stdout, caller, lister)
 		if checkErr != nil {
 			return fmt.Errorf("%s: %w", cmdName, checkErr)
 		}

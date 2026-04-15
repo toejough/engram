@@ -189,7 +189,10 @@ func runRecall(ctx context.Context, args RecallArgs, stdout io.Writer) error {
 
 	projectSlug := args.ProjectSlug
 
-	return runRecallSessions(ctx, stdout, &projectSlug, summarizer, memLister, dataDir, args.Query)
+	return runRecallSessions(
+		ctx, stdout, &projectSlug, summarizer, memLister,
+		dataDir, args.Query, os.Getwd, os.UserHomeDir,
+	)
 }
 
 func runRecallMemoriesOnly(
@@ -217,13 +220,15 @@ func runRecallSessions(
 	summarizer recall.SummarizerI,
 	memLister recall.MemoryLister,
 	dataDir, query string,
+	getwd func() (string, error),
+	userHomeDir func() (string, error),
 ) error {
-	slugErr := applyProjectSlugDefault(projectSlug, os.Getwd)
+	slugErr := applyProjectSlugDefault(projectSlug, getwd)
 	if slugErr != nil {
 		return fmt.Errorf("recall: %w", slugErr)
 	}
 
-	home, homeErr := os.UserHomeDir()
+	home, homeErr := userHomeDir()
 	if homeErr != nil {
 		return fmt.Errorf("recall: %w", homeErr)
 	}
