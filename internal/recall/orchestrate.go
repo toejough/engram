@@ -37,6 +37,17 @@ type Orchestrator struct {
 	summarizer   SummarizerI
 	memoryLister MemoryLister
 	dataDir      string
+	statusWriter io.Writer
+}
+
+// OrchestratorOption configures optional Orchestrator dependencies.
+type OrchestratorOption func(*Orchestrator)
+
+// WithStatusWriter sets a writer for progress messages during recall.
+func WithStatusWriter(w io.Writer) OrchestratorOption {
+	return func(o *Orchestrator) {
+		o.statusWriter = w
+	}
 }
 
 // NewOrchestrator creates an Orchestrator with the given collaborators.
@@ -47,14 +58,30 @@ func NewOrchestrator(
 	summarizer SummarizerI,
 	memoryLister MemoryLister,
 	dataDir string,
+	opts ...OrchestratorOption,
 ) *Orchestrator {
-	return &Orchestrator{
+	orch := &Orchestrator{
 		finder:       finder,
 		reader:       reader,
 		summarizer:   summarizer,
 		memoryLister: memoryLister,
 		dataDir:      dataDir,
 	}
+
+	for _, opt := range opts {
+		opt(orch)
+	}
+
+	return orch
+}
+
+// writeStatus writes a progress message if a status writer is configured.
+func (o *Orchestrator) writeStatus(format string, args ...any) {
+	if o.statusWriter == nil {
+		return
+	}
+
+	fmt.Fprintf(o.statusWriter, format+"\n", args...)
 }
 
 // Recall executes the recall pipeline.
