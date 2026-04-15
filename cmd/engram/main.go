@@ -4,12 +4,10 @@ package main
 import (
 	"os"
 
-	"github.com/toejough/targ"
-
 	"engram/internal/cli"
 )
 
 func main() {
-	// targ.Main handles dispatch, help, errors-to-stderr, and exit (ARCH-6).
-	targ.Main(cli.Targets(os.Stdout, os.Stderr, os.Stdin)...)
+	// cli.Run sets up signal handling and dispatches via targ (ARCH-6).
+	cli.Run(os.Stdout, os.Stderr, os.Stdin, os.Exit)
 }
