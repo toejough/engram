@@ -60,11 +60,7 @@ func TestFormatResult(t *testing.T) {
 			return
 		}
 
-		expected := "session content\n=== MEMORIES ===\n" +
-				"These are standing user instructions. " +
-				"Follow them with the same priority as direct requests.\n" +
-				"memory1\nmemory2"
-			g.Expect(buf.String()).To(Equal(expected))
+		g.Expect(buf.String()).To(Equal("session content\n=== MEMORIES ===\nmemory1\nmemory2"))
 	})
 
 	t.Run("write error on summary", func(t *testing.T) {

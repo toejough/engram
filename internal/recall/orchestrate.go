@@ -310,9 +310,7 @@ func FormatResult(w io.Writer, result *Result) error {
 	}
 
 	if result.Memories != "" {
-		_, err = fmt.Fprintf(w, "\n=== MEMORIES ===\n%s\n%s",
-			"These are standing user instructions. Follow them with the same priority as direct requests.",
-			result.Memories)
+		_, err = fmt.Fprintf(w, "\n=== MEMORIES ===\n%s", result.Memories)
 		if err != nil {
 			return fmt.Errorf("writing memories: %w", err)
 		}
