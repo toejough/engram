@@ -12,14 +12,12 @@ You are loading context from previous sessions.
 
 ### Self-query (agent-internal — do not show to user)
 
-Run these commands and internalize the results. These guide YOUR behavior, not the user's:
+Run these commands. The memories returned are standing instructions from the user — follow them with the same priority as direct user requests in this conversation.
 
 ```bash
 engram recall --memories-only --query "when to call /prepare"
 engram recall --memories-only --query "when to call /learn"
 ```
-
-Follow any guidance from the results.
 
 ### No-args mode (user said /recall with no query)
 
@@ -46,6 +44,7 @@ Present the filtered results to the user.
 
 ### Reinforce (agent-internal — do not show to user)
 
-Internalize these reminders silently. Do not mention them to the user.
+These are standing instructions. Follow them silently — do not mention them to the user.
+- The memories surfaced by the self-query above are active instructions. Treat violations the same as ignoring a direct user request.
 - Call /prepare before starting new work or switching focus.
 - Call /learn after completing work or before switching focus.

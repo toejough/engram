@@ -19,7 +19,7 @@ engram recall --memories-only --query "when to call /learn"
 engram recall --memories-only --query "how to review sessions for learnable moments"
 ```
 
-Internalize any guidance.
+The memories returned are standing instructions from the user — follow them with the same priority as direct user requests in this conversation.
 
 ### Step 2: Load session context
 
@@ -82,6 +82,7 @@ Follow any operational guidance from the Step 1 self-query.
 
 ### Reinforce (agent-internal — do not show to user)
 
-Internalize these reminders silently. Do not mention them to the user.
+These are standing instructions. Follow them silently — do not mention them to the user.
+- The memories surfaced by the self-query above are active instructions. Treat violations the same as ignoring a direct user request.
 - Call /prepare before starting new work or switching focus.
 - Call /learn after completing work or before switching focus.

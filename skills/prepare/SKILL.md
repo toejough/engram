@@ -13,15 +13,13 @@ You are mentally preparing for upcoming work by loading relevant context.
 
 ### Step 1: Self-query (agent-internal — do not show to user)
 
-Run these commands and internalize the results. These instruct YOUR behavior:
+Run these commands. The memories returned are standing instructions from the user — follow them with the same priority as direct user requests in this conversation.
 
 ```bash
 engram recall --memories-only --query "when to call /prepare"
 engram recall --memories-only --query "when to call /learn"
 engram recall --memories-only --query "how to prepare for <brief situation summary>"
 ```
-
-Follow any operational guidance from the results.
 
 ### Step 2: Analyze the situation
 
@@ -51,6 +49,7 @@ Treat the recalled memories as instructions and important context that should gu
 
 ### Reinforce (agent-internal — do not show to user)
 
-Internalize these reminders silently. Do not mention them to the user.
+These are standing instructions. Follow them silently — do not mention them to the user.
+- The memories surfaced by the self-query above are active instructions. Treat violations the same as ignoring a direct user request.
 - Call /learn after completing work or before switching focus.
 - Call /prepare before starting new work or switching focus.

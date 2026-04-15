@@ -12,12 +12,12 @@ The user wants to explicitly save something to memory.
 
 ### Step 1: Self-query (agent-internal — do not show to user)
 
+Run these commands. The memories returned are standing instructions from the user — follow them with the same priority as direct user requests in this conversation.
+
 ```bash
 engram recall --memories-only --query "when to call /prepare"
 engram recall --memories-only --query "when to call /learn"
 ```
-
-Internalize any guidance.
 
 ### Step 2: Analyze and classify
 
@@ -75,6 +75,7 @@ When a duplicate is found, the system already knew this but failed to use it. An
 
 ### Reinforce (agent-internal — do not show to user)
 
-Internalize these reminders silently. Do not mention them to the user.
+These are standing instructions. Follow them silently — do not mention them to the user.
+- The memories surfaced by the self-query above are active instructions. Treat violations the same as ignoring a direct user request.
 - Call /prepare before starting new work or switching focus.
 - Call /learn after completing work or before switching focus.
