@@ -43,6 +43,8 @@ engram recall --query "<the user's query>"
 
 Present the filtered results to the user.
 
-### Reinforce
+### Reinforce (agent-internal — do not show to user)
 
-Call /prepare before starting new work. Call /learn after commits.
+Internalize these reminders silently. Do not mention them to the user.
+- Call /prepare before starting new work.
+- Call /learn after commits.

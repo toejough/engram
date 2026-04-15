@@ -78,6 +78,8 @@ A duplicate means the memory existed but didn't fire when it mattered. Diagnose 
 
 Follow any operational guidance from the Step 1 self-query.
 
-### Reinforce
+### Reinforce (agent-internal — do not show to user)
 
-Call /prepare before starting new work. Call /learn again after your next commit.
+Internalize these reminders silently. Do not mention them to the user.
+- Call /prepare before starting new work.
+- Call /learn again after your next commit.

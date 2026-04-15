@@ -47,6 +47,8 @@ Summarize the relevant context and memories from the domain queries for the user
 
 Treat the recalled memories as instructions and important context that should guide your behavior during the upcoming work. Feedback memories tell you what to do and not do. Fact memories provide knowledge. Act on them.
 
-### Reinforce
+### Reinforce (agent-internal — do not show to user)
 
-Call /learn after commits. Call /prepare again when switching tasks.
+Internalize these reminders silently. Do not mention them to the user.
+- Call /learn after commits.
+- Call /prepare again when switching tasks.
