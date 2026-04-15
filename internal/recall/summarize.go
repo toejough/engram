@@ -42,8 +42,28 @@ func (s *Summarizer) ExtractRelevant(ctx context.Context, content, query string)
 	return result, nil
 }
 
+// SummarizeFindings produces a structured summary from accumulated findings.
+func (s *Summarizer) SummarizeFindings(ctx context.Context, content, query string) (string, error) {
+	if s.caller == nil {
+		return "", ErrNilCaller
+	}
+
+	userPrompt := "Query: " + query + "\n\nFindings:\n" + content
+
+	result, err := s.caller.Call(ctx, summarizeFindingsPrompt, userPrompt)
+	if err != nil {
+		return "", fmt.Errorf("summarizing findings: %w", err)
+	}
+
+	return result, nil
+}
+
 // unexported constants.
 const (
 	extractSystemPrompt = `Extract only content relevant to the following query. ` +
-		`Return relevant excerpts verbatim or tightly paraphrased. Return nothing if irrelevant.`
+		`Return relevant excerpts verbatim or very lightly paraphrased in service of ` +
+		`grammatical correctness and consistency. Return nothing if irrelevant.`
+	summarizeFindingsPrompt = `Create a structured summary of the following findings ` +
+		`relevant to the query. Use markdown headers and bullet points. ` +
+		`Preserve specific details, file paths, and code references.`
 )

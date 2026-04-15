@@ -49,6 +49,56 @@ func TestExtractRelevant_ReturnsErrorOnCallerFailure(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("extracting relevant")))
 }
 
+func TestSummarizeFindings_CallsHaikuCallerWithSummaryPrompt(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	caller := &fakeHaikuCaller{result: "structured summary"}
+	summarizer := recall.NewSummarizer(caller)
+
+	result, err := summarizer.SummarizeFindings(
+		context.Background(),
+		"memory excerpts and session snippets",
+		"targ argument parsing",
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(caller.called).To(BeTrue())
+	g.Expect(caller.systemPrompt).To(ContainSubstring("structured summary"))
+	g.Expect(caller.userPrompt).To(ContainSubstring("targ argument parsing"))
+	g.Expect(caller.userPrompt).To(ContainSubstring("memory excerpts"))
+	g.Expect(result).To(Equal("structured summary"))
+}
+
+func TestSummarizeFindings_NilCallerReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	summarizer := recall.NewSummarizer(nil)
+
+	_, err := summarizer.SummarizeFindings(context.Background(), "content", "query")
+	g.Expect(err).To(MatchError(recall.ErrNilCaller))
+}
+
+func TestSummarizeFindings_ReturnsErrorOnCallerFailure(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	caller := &fakeHaikuCaller{err: errors.New("rate limited")}
+	summarizer := recall.NewSummarizer(caller)
+
+	_, err := summarizer.SummarizeFindings(context.Background(), "content", "query")
+	g.Expect(err).To(MatchError(ContainSubstring("rate limited")))
+	g.Expect(err).To(MatchError(ContainSubstring("summarizing findings")))
+}
+
 // --- Fake implementations ---
 
 type fakeHaikuCaller struct {
