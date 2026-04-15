@@ -6,7 +6,6 @@ import (
 	"io"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"engram/internal/memory"
@@ -14,10 +13,11 @@ import (
 
 // Exported constants.
 const (
-	DefaultExtractCap  = 10 * 1024 // 10KB of extracted content (mode B)
-	DefaultMemoryLimit = 10        // default max memories returned by RecallMemoriesOnly
-	DefaultModeABudget = 15 * 1024 // 15KB for mode A raw transcript
-	DefaultStripBudget = 50 * 1024 // 50KB per-session read budget (mode B)
+	DefaultExtractCap       = 10 * 1024 // 10KB of extracted content (mode B)
+	DefaultMemoryLimit      = 10        // default max memories returned by RecallMemoriesOnly
+	DefaultModeABudget      = 15 * 1024 // 15KB for mode A raw transcript
+	DefaultModeBInputBudget = 50 * 1024 // 50KB accumulated input before summarizing (mode B)
+	DefaultStripBudget      = 50 * 1024 // 50KB per-session read budget (mode B)
 )
 
 // Finder finds session transcript files.
@@ -77,12 +77,7 @@ func (o *Orchestrator) Recall(
 		return o.recallModeA(ctx, sessions)
 	}
 
-	paths := make([]string, 0, len(sessions))
-	for _, entry := range sessions {
-		paths = append(paths, entry.Path)
-	}
-
-	return o.recallModeB(ctx, paths, query)
+	return o.recallModeB(ctx, sessions, query)
 }
 
 // RecallMemoriesOnly searches memories using Haiku two-phase matching.
@@ -110,64 +105,52 @@ func (o *Orchestrator) RecallMemoriesOnly(
 	return &Result{Memories: formatMemories(memories)}, nil
 }
 
-func (o *Orchestrator) extractAllSessions(
+// accumulateSessionsAndMemories reads sessions newest-first, interleaving
+// per-session memories, until the input budget is reached.
+func (o *Orchestrator) accumulateSessionsAndMemories(
 	ctx context.Context,
-	sessions []string,
-	query string,
-) []indexedExtract {
-	var (
-		wg      sync.WaitGroup
-		mu      sync.Mutex
-		sem     = make(chan struct{}, maxModeBConcurrency)
-		results = make([]indexedExtract, 0, len(sessions))
-	)
+	sessions []FileEntry,
+) string {
+	allMemories := o.loadAllMemories()
 
-	for i, path := range sessions {
+	var builder strings.Builder
+
+	bytesRead := 0
+
+	for i, entry := range sessions {
 		if ctx.Err() != nil {
 			break
 		}
 
-		wg.Add(1)
-
-		select {
-		case sem <- struct{}{}:
-		case <-ctx.Done():
-			wg.Done()
-
+		content, size, readErr := o.reader.Read(
+			entry.Path, DefaultModeBInputBudget-bytesRead,
+		)
+		if readErr != nil {
 			continue
 		}
 
-		go func() {
-			defer func() {
-				<-sem
-				wg.Done()
-			}()
+		builder.WriteString(content)
 
-			if ctx.Err() != nil {
-				return
+		bytesRead += size
+
+		if allMemories != nil {
+			window := buildSingleTimeWindow(sessions, i)
+			matched := matchMemoriesToWindows(allMemories, []timeWindow{window})
+
+			if len(matched) > 0 {
+				memText := formatMemories(matched)
+				builder.WriteString(memText)
+
+				bytesRead += len(memText)
 			}
+		}
 
-			content, _, readErr := o.reader.Read(path, DefaultStripBudget)
-			if readErr != nil {
-				return
-			}
-
-			extracted, extErr := o.summarizer.ExtractRelevant(ctx, content, query)
-			if extErr != nil {
-				return
-			}
-
-			mu.Lock()
-
-			results = append(results, indexedExtract{index: i, text: extracted})
-
-			mu.Unlock()
-		}()
+		if bytesRead >= DefaultModeBInputBudget {
+			break
+		}
 	}
 
-	wg.Wait()
-
-	return results
+	return builder.String()
 }
 
 // findSessionMemories returns formatted memories whose UpdatedAt falls within
@@ -237,6 +220,20 @@ func (o *Orchestrator) listAndMatchMemories(
 	return matched, nil
 }
 
+// loadAllMemories returns all stored memories, or nil if not configured.
+func (o *Orchestrator) loadAllMemories() []*memory.Stored {
+	if o.memoryLister == nil || o.dataDir == "" {
+		return nil
+	}
+
+	allMemories, err := o.memoryLister.ListAllMemories(o.dataDir)
+	if err != nil || len(allMemories) == 0 {
+		return nil
+	}
+
+	return allMemories
+}
+
 func (o *Orchestrator) recallModeA(
 	ctx context.Context,
 	sessions []FileEntry,
@@ -271,38 +268,24 @@ func (o *Orchestrator) recallModeA(
 
 func (o *Orchestrator) recallModeB(
 	ctx context.Context,
-	sessions []string,
+	sessions []FileEntry,
 	query string,
 ) (*Result, error) {
 	if o.summarizer == nil {
 		return &Result{}, nil
 	}
 
-	results := o.extractAllSessions(ctx, sessions, query)
-
-	sort.Slice(results, func(a, b int) bool {
-		return results[a].index < results[b].index
-	})
-
-	var builder strings.Builder
-
-	for _, result := range results {
-		builder.WriteString(result.text)
-
-		if builder.Len() >= DefaultExtractCap {
-			break
-		}
+	accumulated := o.accumulateSessionsAndMemories(ctx, sessions)
+	if accumulated == "" {
+		return &Result{}, nil
 	}
 
-	// Also search memories by relevance when a query is provided.
-	memories, _ := o.listAndMatchMemories(ctx, query, DefaultMemoryLimit)
-	memoriesText := ""
-
-	if len(memories) > 0 {
-		memoriesText = formatMemories(memories)
+	summary, err := o.summarizer.ExtractRelevant(ctx, accumulated, query)
+	if err != nil {
+		return nil, fmt.Errorf("summarizing recall: %w", err)
 	}
 
-	return &Result{Summary: builder.String(), Memories: memoriesText}, nil
+	return &Result{Summary: summary}, nil
 }
 
 // Reader reads and strips a transcript file.
@@ -341,15 +324,7 @@ func FormatResult(w io.Writer, result *Result) error {
 // unexported constants.
 const (
 	defaultSessionWindow = 24 * time.Hour
-	maxModeBConcurrency  = 3
 )
-
-// indexedExtract holds an extracted string alongside its original session index
-// so results can be reassembled in order after parallel execution.
-type indexedExtract struct {
-	index int
-	text  string
-}
 
 // timeWindow represents the start and end of a session's time range.
 type timeWindow struct {
@@ -367,6 +342,20 @@ func buildMemoryIndex(memories []*memory.Stored) string {
 	}
 
 	return builder.String()
+}
+
+// buildSingleTimeWindow creates a time window for the session at index i.
+func buildSingleTimeWindow(sessions []FileEntry, i int) timeWindow {
+	end := sessions[i].Mtime
+
+	var start time.Time
+	if i < len(sessions)-1 {
+		start = sessions[i+1].Mtime
+	} else {
+		start = end.Add(-defaultSessionWindow)
+	}
+
+	return timeWindow{start: start, end: end}
 }
 
 // buildTimeWindows creates time windows from session entries.
