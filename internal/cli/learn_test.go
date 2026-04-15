@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -566,7 +567,7 @@ func TestWriteMemory_NoDupCheck_CreatesFile(t *testing.T) {
 		},
 	}
 
-	err := cli.ExportWriteMemoryForTest(record, "test write memory", dataDir, true, &buf, "test")
+	err := cli.ExportWriteMemoryForTest(context.Background(), record, "test write memory", dataDir, true, &buf, "test")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -607,7 +608,7 @@ func TestWriteMemory_WithDupCheck_NoToken_SkipsAndCreates(t *testing.T) {
 	}
 
 	// noDupCheck=false but no API token available -- should skip check and create
-	err := cli.ExportWriteMemoryForTest(record, "dup check no token", dataDir, false, &buf, "test")
+	err := cli.ExportWriteMemoryForTest(context.Background(), record, "dup check no token", dataDir, false, &buf, "test")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

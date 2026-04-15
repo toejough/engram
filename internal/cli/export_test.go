@@ -47,6 +47,7 @@ func ExportParseConflictLine(line, dataDir string, stdout io.Writer) {
 
 // ExportWriteMemoryForTest wraps writeMemory for testing with a pre-built record.
 func ExportWriteMemoryForTest(
+	ctx context.Context,
 	record *memory.MemoryRecord,
 	situation, dataDir string,
 	noDupCheck bool,
@@ -54,5 +55,5 @@ func ExportWriteMemoryForTest(
 	cmdName string,
 ) error {
 	dd := dataDir
-	return writeMemory(context.Background(), record, situation, &dd, noDupCheck, stdout, cmdName)
+	return writeMemory(ctx, record, situation, &dd, noDupCheck, stdout, cmdName)
 }
