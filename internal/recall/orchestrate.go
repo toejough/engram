@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -13,11 +14,10 @@ import (
 
 // Exported constants.
 const (
-	DefaultExtractCap       = 10 * 1024 // 10KB of extracted content (mode B)
-	DefaultMemoryLimit      = 10        // default max memories returned by RecallMemoriesOnly
-	DefaultModeABudget      = 15 * 1024 // 15KB for mode A raw transcript
-	DefaultModeBInputBudget = 50 * 1024 // 50KB accumulated input before summarizing (mode B)
-	DefaultStripBudget      = 50 * 1024 // 50KB per-session read budget (mode B)
+	DefaultExtractCap  = 10 * 1024 // 10KB of extracted content (mode B)
+	DefaultMemoryLimit = 10        // default max memories returned by RecallMemoriesOnly
+	DefaultModeABudget = 15 * 1024 // 15KB for mode A raw transcript
+	DefaultStripBudget = 50 * 1024 // 50KB per-session read budget (mode B)
 )
 
 // Finder finds session transcript files.
@@ -38,16 +38,6 @@ type Orchestrator struct {
 	memoryLister MemoryLister
 	dataDir      string
 	statusWriter io.Writer
-}
-
-// OrchestratorOption configures optional Orchestrator dependencies.
-type OrchestratorOption func(*Orchestrator)
-
-// WithStatusWriter sets a writer for progress messages during recall.
-func WithStatusWriter(w io.Writer) OrchestratorOption {
-	return func(o *Orchestrator) {
-		o.statusWriter = w
-	}
 }
 
 // NewOrchestrator creates an Orchestrator with the given collaborators.
@@ -73,15 +63,6 @@ func NewOrchestrator(
 	}
 
 	return orch
-}
-
-// writeStatus writes a progress message if a status writer is configured.
-func (o *Orchestrator) writeStatus(format string, args ...any) {
-	if o.statusWriter == nil {
-		return
-	}
-
-	fmt.Fprintf(o.statusWriter, format+"\n", args...)
 }
 
 // Recall executes the recall pipeline.
@@ -132,52 +113,40 @@ func (o *Orchestrator) RecallMemoriesOnly(
 	return &Result{Memories: formatMemories(memories)}, nil
 }
 
-// accumulateSessionsAndMemories reads sessions newest-first, interleaving
-// per-session memories, until the input budget is reached.
-func (o *Orchestrator) accumulateSessionsAndMemories(
+// extractFromSessions runs phase 2: extract verbatim snippets per session.
+func (o *Orchestrator) extractFromSessions(
 	ctx context.Context,
 	sessions []FileEntry,
-) string {
-	allMemories := o.loadAllMemories()
-
-	var builder strings.Builder
-
-	bytesRead := 0
-
-	for i, entry := range sessions {
+	query string,
+	buffer *strings.Builder,
+	bytesUsed int,
+) {
+	for _, entry := range sessions {
 		if ctx.Err() != nil {
 			break
 		}
 
-		content, size, readErr := o.reader.Read(
-			entry.Path, DefaultModeBInputBudget-bytesRead,
-		)
+		if bytesUsed >= DefaultExtractCap {
+			break
+		}
+
+		content, _, readErr := o.reader.Read(entry.Path, DefaultStripBudget)
 		if readErr != nil {
 			continue
 		}
 
-		builder.WriteString(content)
-
-		bytesRead += size
-
-		if allMemories != nil {
-			window := buildSingleTimeWindow(sessions, i)
-			matched := matchMemoriesToWindows(allMemories, []timeWindow{window})
-
-			if len(matched) > 0 {
-				memText := formatMemories(matched)
-				builder.WriteString(memText)
-
-				bytesRead += len(memText)
-			}
+		snippet, extractErr := o.summarizer.ExtractRelevant(ctx, content, query)
+		if extractErr != nil || snippet == "" {
+			continue
 		}
 
-		if bytesRead >= DefaultModeBInputBudget {
-			break
-		}
+		buffer.WriteString(snippet)
+
+		bytesUsed += len(snippet)
+
+		o.writeStatusf("found %d bytes of snippets from %s",
+			len(snippet), filepath.Base(entry.Path))
 	}
-
-	return builder.String()
 }
 
 // findSessionMemories returns formatted memories whose UpdatedAt falls within
@@ -247,20 +216,6 @@ func (o *Orchestrator) listAndMatchMemories(
 	return matched, nil
 }
 
-// loadAllMemories returns all stored memories, or nil if not configured.
-func (o *Orchestrator) loadAllMemories() []*memory.Stored {
-	if o.memoryLister == nil || o.dataDir == "" {
-		return nil
-	}
-
-	allMemories, err := o.memoryLister.ListAllMemories(o.dataDir)
-	if err != nil || len(allMemories) == 0 {
-		return nil
-	}
-
-	return allMemories
-}
-
 func (o *Orchestrator) recallModeA(
 	ctx context.Context,
 	sessions []FileEntry,
@@ -302,18 +257,61 @@ func (o *Orchestrator) recallModeB(
 		return &Result{}, nil
 	}
 
-	accumulated := o.accumulateSessionsAndMemories(ctx, sessions)
-	if accumulated == "" {
+	var buffer strings.Builder
+
+	// Phase 1: Search memories.
+	memoriesLen := o.searchMemories(ctx, query, &buffer)
+
+	// Phase 2: Per-session verbatim extraction.
+	o.extractFromSessions(ctx, sessions, query, &buffer, memoriesLen)
+
+	if buffer.Len() == 0 {
 		return &Result{}, nil
 	}
 
-	summary, err := o.summarizer.ExtractRelevant(ctx, accumulated, query)
+	// Phase 3: Structured summary.
+	o.writeStatusf("summarizing %d bytes of findings", buffer.Len())
+
+	summary, err := o.summarizer.SummarizeFindings(ctx, buffer.String(), query)
 	if err != nil {
 		return nil, fmt.Errorf("summarizing recall: %w", err)
 	}
 
 	return &Result{Summary: summary}, nil
 }
+
+// searchMemories runs phase 1: find and format relevant memories.
+// Returns the number of bytes added to the buffer.
+func (o *Orchestrator) searchMemories(
+	ctx context.Context,
+	query string,
+	buffer *strings.Builder,
+) int {
+	memories, err := o.listAndMatchMemories(ctx, query, DefaultMemoryLimit)
+	if err != nil || len(memories) == 0 {
+		o.writeStatusf("found 0 relevant memories")
+		return 0
+	}
+
+	text := formatMemories(memories)
+	buffer.WriteString(text)
+
+	o.writeStatusf("found %d relevant memories", len(memories))
+
+	return len(text)
+}
+
+// writeStatusf writes a progress message if a status writer is configured.
+func (o *Orchestrator) writeStatusf(format string, args ...any) {
+	if o.statusWriter == nil {
+		return
+	}
+
+	_, _ = fmt.Fprintf(o.statusWriter, format+"\n", args...)
+}
+
+// OrchestratorOption configures optional Orchestrator dependencies.
+type OrchestratorOption func(*Orchestrator)
 
 // Reader reads and strips a transcript file.
 type Reader interface {
@@ -349,6 +347,13 @@ func FormatResult(w io.Writer, result *Result) error {
 	return nil
 }
 
+// WithStatusWriter sets a writer for progress messages during recall.
+func WithStatusWriter(w io.Writer) OrchestratorOption {
+	return func(o *Orchestrator) {
+		o.statusWriter = w
+	}
+}
+
 // unexported constants.
 const (
 	defaultSessionWindow = 24 * time.Hour
@@ -370,20 +375,6 @@ func buildMemoryIndex(memories []*memory.Stored) string {
 	}
 
 	return builder.String()
-}
-
-// buildSingleTimeWindow creates a time window for the session at index i.
-func buildSingleTimeWindow(sessions []FileEntry, i int) timeWindow {
-	end := sessions[i].Mtime
-
-	var start time.Time
-	if i < len(sessions)-1 {
-		start = sessions[i+1].Mtime
-	} else {
-		start = end.Add(-defaultSessionWindow)
-	}
-
-	return timeWindow{start: start, end: end}
 }
 
 // buildTimeWindows creates time windows from session entries.

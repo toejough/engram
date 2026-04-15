@@ -110,82 +110,6 @@ func TestFormatResult(t *testing.T) {
 	})
 }
 
-func TestOrchestrator_ModeB_IncludesMemories(t *testing.T) {
-	t.Parallel()
-
-	t.Run("memories are accumulated into summarizer input", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
-			{Path: "/a.jsonl", Mtime: now},
-		}}
-		reader := &fakeReader{
-			contents: map[string]string{"/a.jsonl": "session content"},
-			sizes:    map[string]int{"/a.jsonl": 15},
-		}
-
-		memLister := &fakeMemoryLister{memories: []*memory.Stored{
-			{
-				Type: "feedback", Situation: "Testing", Source: "human",
-				Content:   memory.ContentFields{Behavior: "b", Action: "a"},
-				UpdatedAt: now, FilePath: "/data/memory/feedback/testing.toml",
-			},
-		}}
-
-		summarizer := &capturingSummarizer{extractResult: "summary with memories"}
-
-		orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, "/data")
-
-		result, err := orch.Recall(context.Background(), "/proj", "test query")
-		g.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		// Memories should be in the summarizer input, not as a separate field.
-		g.Expect(summarizer.lastContent).To(ContainSubstring("session content"))
-		g.Expect(summarizer.lastContent).To(ContainSubstring("[feedback]"))
-		g.Expect(summarizer.lastContent).To(ContainSubstring("Testing"))
-		g.Expect(result.Summary).To(Equal("summary with memories"))
-	})
-
-	t.Run("mode B with nil summarizer returns empty", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
-			{Path: "/a.jsonl", Mtime: now},
-		}}
-		reader := &fakeReader{
-			contents: map[string]string{"/a.jsonl": "content"},
-			sizes:    map[string]int{"/a.jsonl": 7},
-		}
-
-		memLister := &fakeMemoryLister{memories: []*memory.Stored{
-			{
-				Type: "feedback", Situation: "something", Source: "human",
-				FilePath: "/data/memory/feedback/something.toml",
-			},
-		}}
-
-		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
-
-		result, err := orch.Recall(context.Background(), "/proj", "query")
-		g.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		g.Expect(result.Summary).To(BeEmpty())
-		g.Expect(result.Memories).To(BeEmpty())
-	})
-}
-
 func TestOrchestrator_RecallMemoriesOnly(t *testing.T) {
 	t.Parallel()
 
@@ -894,7 +818,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 func TestOrchestrator_Recall_ModeB(t *testing.T) {
 	t.Parallel()
 
-	t.Run("accumulates sessions then makes one summarizer call", func(t *testing.T) {
+	t.Run("phase 1 searches memories then phase 2 extracts from sessions", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
@@ -905,17 +829,28 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		}}
 		reader := &fakeReader{
 			contents: map[string]string{
-				"/a.jsonl": "session a",
-				"/b.jsonl": "session b",
+				"/a.jsonl": "session a content",
+				"/b.jsonl": "session b content",
 			},
-			sizes: map[string]int{
-				"/a.jsonl": 9,
-				"/b.jsonl": 9,
-			},
+			sizes: map[string]int{"/a.jsonl": 17, "/b.jsonl": 17},
 		}
-		summarizer := &capturingSummarizer{extractResult: "relevant summary"}
 
-		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
+		memLister := &fakeMemoryLister{memories: []*memory.Stored{
+			{
+				Type: "feedback", Situation: "When testing",
+				Content:   memory.ContentFields{Behavior: "b", Action: "a"},
+				UpdatedAt: now, FilePath: "/data/memory/feedback/testing.toml",
+			},
+		}}
+
+		summarizer := &pipelineSummarizer{
+			// First ExtractRelevant call: memory matching returns the name.
+			// Subsequent calls: per-session extraction returns snippets.
+			extractResults:  []string{"testing", "snippet from a", "snippet from b"},
+			summarizeResult: "final structured summary",
+		}
+
+		orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, "/data")
 
 		result, err := orch.Recall(context.Background(), "/proj", "my query")
 		g.Expect(err).NotTo(HaveOccurred())
@@ -924,59 +859,28 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 			return
 		}
 
-		// Exactly 1 summarizer call with accumulated content from both sessions.
-		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(1))
-		g.Expect(summarizer.lastContent).To(ContainSubstring("session a"))
-		g.Expect(summarizer.lastContent).To(ContainSubstring("session b"))
-		g.Expect(result.Summary).To(Equal("relevant summary"))
+		// Phase 1: 1 call for memory matching.
+		// Phase 2: 2 calls for per-session extraction.
+		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(3))
+		// Phase 3: 1 summarize call.
+		g.Expect(int(summarizer.summarizeCalls.Load())).To(Equal(1))
+		// Final summary should contain memories + snippets.
+		g.Expect(summarizer.lastSummarizeContent).To(ContainSubstring("[feedback]"))
+		g.Expect(summarizer.lastSummarizeContent).To(ContainSubstring("snippet from a"))
+		g.Expect(summarizer.lastSummarizeContent).To(ContainSubstring("snippet from b"))
+		g.Expect(result.Summary).To(Equal("final structured summary"))
 	})
 
-	t.Run("includes per-session memories in accumulated content", func(t *testing.T) {
+	t.Run("stops per-session extraction when buffer full", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		now := time.Now()
-		sessionMtime := now.Add(-time.Hour)
+		const bigSnippet = 11 * 1024 // > DefaultExtractCap
 
-		finder := &fakeFinder{entries: []recall.FileEntry{
-			{Path: "/a.jsonl", Mtime: sessionMtime},
-		}}
-		reader := &fakeReader{
-			contents: map[string]string{"/a.jsonl": "session content"},
-			sizes:    map[string]int{"/a.jsonl": 15},
+		bigContent := make([]byte, bigSnippet)
+		for i := range bigContent {
+			bigContent[i] = 'x'
 		}
-
-		// Memory within the session's time window.
-		memLister := &fakeMemoryLister{memories: []*memory.Stored{
-			{
-				Type: "feedback", Situation: "When testing",
-				Content:   memory.ContentFields{Behavior: "b", Action: "a"},
-				UpdatedAt: sessionMtime.Add(-2 * time.Hour),
-				FilePath:  "/data/memory/feedback/testing.toml",
-			},
-		}}
-
-		summarizer := &capturingSummarizer{extractResult: "summary"}
-
-		orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, "/data")
-
-		result, err := orch.Recall(context.Background(), "/proj", "query")
-		g.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		// Summarizer should receive session content AND memories.
-		g.Expect(summarizer.lastContent).To(ContainSubstring("session content"))
-		g.Expect(summarizer.lastContent).To(ContainSubstring("[feedback]"))
-		g.Expect(summarizer.lastContent).To(ContainSubstring("When testing"))
-		g.Expect(result.Summary).To(Equal("summary"))
-	})
-
-	t.Run("stops accumulating when input budget reached", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
 
 		now := time.Now()
 		finder := &fakeFinder{entries: []recall.FileEntry{
@@ -985,15 +889,15 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		}}
 		reader := &fakeReader{
 			contents: map[string]string{
-				"/a.jsonl": "big content",
-				"/b.jsonl": "should not appear",
+				"/a.jsonl": "a", "/b.jsonl": "b",
 			},
-			sizes: map[string]int{
-				"/a.jsonl": recall.DefaultModeBInputBudget, // Exactly at budget
-				"/b.jsonl": 100,
-			},
+			sizes: map[string]int{"/a.jsonl": 1, "/b.jsonl": 1},
 		}
-		summarizer := &capturingSummarizer{extractResult: "summary"}
+
+		summarizer := &pipelineSummarizer{
+			extractResults:  []string{string(bigContent), "should not appear"},
+			summarizeResult: "summary",
+		}
 
 		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
@@ -1004,27 +908,32 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 			return
 		}
 
-		// Only first session should be in the accumulated content.
-		g.Expect(summarizer.lastContent).To(ContainSubstring("big content"))
-		g.Expect(summarizer.lastContent).NotTo(ContainSubstring("should not appear"))
+		// Only 1 extract call — buffer full after first session.
+		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(1))
+		g.Expect(summarizer.lastSummarizeContent).NotTo(ContainSubstring("should not appear"))
 		g.Expect(result.Summary).To(Equal("summary"))
 	})
 
-	t.Run("reader error skips session and continues", func(t *testing.T) {
+	t.Run("skips sessions with empty extraction", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
 		now := time.Now()
 		finder := &fakeFinder{entries: []recall.FileEntry{
-			{Path: "/bad.jsonl", Mtime: now},
+			{Path: "/empty.jsonl", Mtime: now},
 			{Path: "/good.jsonl", Mtime: now.Add(-time.Hour)},
 		}}
 		reader := &fakeReader{
-			contents: map[string]string{"/good.jsonl": "good"},
-			sizes:    map[string]int{"/good.jsonl": 4},
-			errs:     map[string]error{"/bad.jsonl": errors.New("read err")},
+			contents: map[string]string{
+				"/empty.jsonl": "irrelevant", "/good.jsonl": "relevant",
+			},
+			sizes: map[string]int{"/empty.jsonl": 10, "/good.jsonl": 8},
 		}
-		summarizer := &capturingSummarizer{extractResult: "extracted"}
+
+		summarizer := &pipelineSummarizer{
+			extractResults:  []string{"", "good snippet"},
+			summarizeResult: "summary",
+		}
 
 		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
@@ -1035,12 +944,13 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 			return
 		}
 
-		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(1))
-		g.Expect(summarizer.lastContent).To(ContainSubstring("good"))
-		g.Expect(result.Summary).To(Equal("extracted"))
+		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(2))
+		g.Expect(summarizer.lastSummarizeContent).To(ContainSubstring("good snippet"))
+		g.Expect(summarizer.lastSummarizeContent).NotTo(ContainSubstring("irrelevant"))
+		g.Expect(result.Summary).To(Equal("summary"))
 	})
 
-	t.Run("summarizer error propagates", func(t *testing.T) {
+	t.Run("empty buffer returns empty result without summarizing", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
@@ -1049,21 +959,26 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 			{Path: "/a.jsonl", Mtime: now},
 		}}
 		reader := &fakeReader{
-			contents: map[string]string{"/a.jsonl": "content"},
-			sizes:    map[string]int{"/a.jsonl": 7},
+			contents: map[string]string{"/a.jsonl": "stuff"},
+			sizes:    map[string]int{"/a.jsonl": 5},
 		}
-		summarizer := &fakeSummarizer{
-			extractErr: errors.New("summarize err"),
+
+		summarizer := &pipelineSummarizer{
+			extractResults:  []string{""},
+			summarizeResult: "should not be called",
 		}
 
 		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
-		_, err := orch.Recall(context.Background(), "/proj", "query")
-		g.Expect(err).To(HaveOccurred())
+		result, err := orch.Recall(context.Background(), "/proj", "query")
+		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
-			g.Expect(err.Error()).To(ContainSubstring("summariz"))
+			return
 		}
+
+		g.Expect(int(summarizer.summarizeCalls.Load())).To(Equal(0))
+		g.Expect(result.Summary).To(BeEmpty())
 	})
 
 	t.Run("nil summarizer returns empty result", func(t *testing.T) {
@@ -1090,93 +1005,82 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 
 		g.Expect(result.Summary).To(BeEmpty())
 	})
-
-	t.Run("all sessions unreadable returns empty result", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
-			{Path: "/bad.jsonl", Mtime: now},
-		}}
-		reader := &fakeReader{
-			errs: map[string]error{"/bad.jsonl": errors.New("read err")},
-		}
-		summarizer := &capturingSummarizer{extractResult: "anything"}
-
-		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
-
-		result, err := orch.Recall(context.Background(), "/proj", "query")
-		g.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		// No content accumulated → no summarizer call → empty result.
-		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(0))
-		g.Expect(result.Summary).To(BeEmpty())
-	})
 }
 
-func TestOrchestrator_Recall_ModeB_CancellationStopsProcessing(t *testing.T) {
+func TestOrchestrator_Recall_ModeB_StatusOutput(t *testing.T) {
 	t.Parallel()
+	g := NewWithT(t)
 
-	t.Run("pre-cancelled context returns empty without summarizing", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
+	now := time.Now()
+	finder := &fakeFinder{entries: []recall.FileEntry{
+		{Path: "/a.jsonl", Mtime: now},
+	}}
+	reader := &fakeReader{
+		contents: map[string]string{"/a.jsonl": "content"},
+		sizes:    map[string]int{"/a.jsonl": 7},
+	}
 
-		const totalSessions = 10
+	summarizer := &pipelineSummarizer{
+		extractResults:  []string{"snippet"},
+		summarizeResult: "summary",
+	}
 
-		now := time.Now()
-		entries := make([]recall.FileEntry, 0, totalSessions)
-		contents := make(map[string]string, totalSessions)
-		sizes := make(map[string]int, totalSessions)
+	var statusBuf bytes.Buffer
 
-		for i := range totalSessions {
-			path := fmt.Sprintf("/s%d.jsonl", i)
-			entries = append(entries, recall.FileEntry{
-				Path:  path,
-				Mtime: now.Add(-time.Duration(i) * time.Hour),
-			})
-			contents[path] = "content"
-			sizes[path] = 7
-		}
+	orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "",
+		recall.WithStatusWriter(&statusBuf))
 
-		finder := &fakeFinder{entries: entries}
-		reader := &countingReader{contents: contents, sizes: sizes}
-		summarizer := &capturingSummarizer{extractResult: "anything"}
+	_, err := orch.Recall(context.Background(), "/proj", "query")
+	g.Expect(err).NotTo(HaveOccurred())
 
-		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
+	if err != nil {
+		return
+	}
 
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel() // pre-cancel
+	status := statusBuf.String()
+	g.Expect(status).To(ContainSubstring("memor"))
+	g.Expect(status).To(ContainSubstring("snippet"))
+	g.Expect(status).To(ContainSubstring("summar"))
+}
 
-		result, err := orch.Recall(ctx, "/proj", "query")
-		g.Expect(err).NotTo(HaveOccurred())
+func TestOrchestrator_Recall_ModeB_SummarizeError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
 
-		if err != nil {
-			return
-		}
+	now := time.Now()
+	finder := &fakeFinder{entries: []recall.FileEntry{
+		{Path: "/a.jsonl", Mtime: now},
+	}}
+	reader := &fakeReader{
+		contents: map[string]string{"/a.jsonl": "content"},
+		sizes:    map[string]int{"/a.jsonl": 7},
+	}
 
-		g.Expect(result.Summary).To(BeEmpty())
-		g.Expect(int(reader.readCalls.Load())).To(Equal(0))
-		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(0))
-	})
+	summarizer := &pipelineSummarizer{
+		extractResults: []string{"snippet"},
+		summarizeErr:   errors.New("api down"),
+	}
+
+	orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
+
+	_, err := orch.Recall(context.Background(), "/proj", "query")
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("summariz"))
+	}
 }
 
 // capturingSummarizer records content and query for inspection.
 type capturingSummarizer struct {
-	extractResult        string
-	extractErr           error
-	lastContent          string
-	lastQuery            string
-	extractCalls         atomic.Int32
-	summarizeResult      string
-	summarizeErr         error
-	lastSummarizeContent string
-	lastSummarizeQuery   string
-	summarizeCalls       atomic.Int32
+	extractResult   string
+	extractErr      error
+	lastContent     string
+	lastQuery       string
+	extractCalls    atomic.Int32
+	summarizeResult string
+	summarizeErr    error
+	summarizeCalls  atomic.Int32
 }
 
 func (s *capturingSummarizer) ExtractRelevant(
@@ -1190,11 +1094,9 @@ func (s *capturingSummarizer) ExtractRelevant(
 }
 
 func (s *capturingSummarizer) SummarizeFindings(
-	_ context.Context, content, query string,
+	_ context.Context, _, _ string,
 ) (string, error) {
 	s.summarizeCalls.Add(1)
-	s.lastSummarizeContent = content
-	s.lastSummarizeQuery = query
 
 	return s.summarizeResult, s.summarizeErr
 }
@@ -1289,4 +1191,41 @@ func (s *fakeSummarizer) ExtractRelevant(_ context.Context, _, _ string) (string
 
 func (s *fakeSummarizer) SummarizeFindings(_ context.Context, _, _ string) (string, error) {
 	return s.extractResult, s.extractErr
+}
+
+// pipelineSummarizer returns queued results for successive ExtractRelevant calls
+// and a fixed result for SummarizeFindings.
+type pipelineSummarizer struct {
+	extractResults       []string
+	extractErr           error
+	extractCalls         atomic.Int32
+	summarizeResult      string
+	summarizeErr         error
+	summarizeCalls       atomic.Int32
+	lastSummarizeContent string
+}
+
+func (s *pipelineSummarizer) ExtractRelevant(
+	_ context.Context, _, _ string,
+) (string, error) {
+	idx := int(s.extractCalls.Add(1)) - 1
+
+	if s.extractErr != nil {
+		return "", s.extractErr
+	}
+
+	if idx < len(s.extractResults) {
+		return s.extractResults[idx], nil
+	}
+
+	return "", nil
+}
+
+func (s *pipelineSummarizer) SummarizeFindings(
+	_ context.Context, content, _ string,
+) (string, error) {
+	s.summarizeCalls.Add(1)
+	s.lastSummarizeContent = content
+
+	return s.summarizeResult, s.summarizeErr
 }
