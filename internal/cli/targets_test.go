@@ -209,6 +209,7 @@ func executeForTest(t *testing.T, args []string) (stdoutStr, stderrStr string) {
 	var stdout, stderr bytes.Buffer
 
 	targets := cli.Targets(&stdout, &stderr, strings.NewReader(""))
+
 	_, err := targ.Execute(args, targets...)
 	if err != nil {
 		stderr.WriteString(err.Error())
