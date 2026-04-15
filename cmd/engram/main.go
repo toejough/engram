@@ -4,10 +4,12 @@ package main
 import (
 	"os"
 
+	"github.com/toejough/targ"
+
 	"engram/internal/cli"
 )
 
 func main() {
-	// ARCH-6: RunSafe always exits 0 (errors printed to stderr).
-	cli.RunSafe(os.Args, os.Stdout, os.Stderr, os.Stdin)
+	// targ.Main handles dispatch, help, errors-to-stderr, and exit (ARCH-6).
+	targ.Main(cli.Targets(os.Stdout, os.Stderr, os.Stdin)...)
 }
