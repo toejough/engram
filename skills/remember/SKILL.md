@@ -33,6 +33,18 @@ For each memory, draft all required fields and present to the user for approval:
 - Predicate: "means"
 - Object: "Dependency Injection"
 
+#### Writing good situations
+
+Write the situation from the perspective of an agent who needs this lesson but doesn't know it yet. Describe the *activity* they'd be doing, not the *problem* they'd encounter. Ask yourself: "What would I be doing right before I need this?"
+
+**Litmus test:** Before persisting, check: would an agent who hasn't learned this lesson yet plausibly search for or be described by this situation? If the situation contains the diagnosis, the symptom, or the fix — you've baked in hindsight. Strip it back to just the activity and domain.
+
+| Bad (hindsight-biased) | Good (pre-insight activity) |
+|---|---|
+| "When implementing hooks that depend on environment variables set by the agent" | "When implementing Claude Code plugin hooks" |
+| "When fixing context cancellation in concurrent code" | "When writing concurrent Go code with context" |
+| "When checking Phase 2 implementation status" | "When verifying a multi-phase implementation is complete" |
+
 Ask the user to approve or edit the fields.
 
 ### Step 3: Save approved memories
