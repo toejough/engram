@@ -3,8 +3,6 @@ package cli
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,46 +23,9 @@ var (
 	AnthropicAPIURL = "https://api.anthropic.com/v1/messages" //nolint:gochecknoglobals // test-overridable endpoint
 )
 
-// Run dispatches to the appropriate subcommand based on args.
-// Output is written to stdout. Errors are returned (caller logs to stderr, exit 0).
-func Run(
-	args []string,
-	stdout, _ io.Writer,
-	_ io.Reader,
-) error {
-	if len(args) < minArgs {
-		return errUsage
-	}
-
-	cmd := args[1]
-	subArgs := args[minArgs:]
-
-	switch cmd {
-	case "recall":
-		return runRecall(subArgs, stdout)
-	case "show":
-		return runShow(subArgs, stdout)
-	case "list":
-		return runList(subArgs, stdout)
-	case "learn":
-		return runLearn(subArgs, stdout)
-	case "update":
-		return runUpdate(subArgs, stdout)
-	default:
-		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
-	}
-}
-
 // unexported constants.
 const (
 	anthropicMaxTokens = 1024
-	minArgs            = 2
-)
-
-// unexported variables.
-var (
-	errUnknownCommand = errors.New("unknown command")
-	errUsage          = errors.New("usage: engram <recall|show|list|learn|update> [flags]")
 )
 
 // haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
@@ -173,14 +134,6 @@ func newAnthropicClient(token string) *anthropic.Client {
 	return client
 }
 
-// newFlagSet creates a flag set with error output discarded (flags handle their own usage).
-func newFlagSet(name string) *flag.FlagSet {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	return fs
-}
-
 func newSummarizer(token string) recall.SummarizerI {
 	if token != "" {
 		return recall.NewSummarizer(&haikuCallerAdapter{
@@ -213,37 +166,30 @@ func resolveToken(ctx context.Context) string {
 	return token
 }
 
-func runRecall(args []string, stdout io.Writer) error {
-	fs := newFlagSet("recall")
+func runRecall(ctx context.Context, args RecallArgs, stdout io.Writer) error {
+	dataDir := args.DataDir
 
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	projectSlug := fs.String("project-slug", "", "project directory slug")
-	query := fs.String("query", "", "search query (omit for summary mode)")
-	memoriesOnly := fs.Bool("memories-only", false, "search only memory files")
-	limit := fs.Int("limit", recall.DefaultMemoryLimit, "max memories to return")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("recall: %w", parseErr)
-	}
-
-	defaultErr := applyDataDirDefault(dataDir)
+	defaultErr := applyDataDirDefault(&dataDir)
 	if defaultErr != nil {
 		return fmt.Errorf("recall: %w", defaultErr)
 	}
-
-	ctx, cancel := signalContext()
-	defer cancel()
 
 	token := resolveToken(ctx)
 	summarizer := newSummarizer(token)
 	memLister := memory.NewLister()
 
-	if *memoriesOnly {
-		return runRecallMemoriesOnly(ctx, stdout, summarizer, memLister, *dataDir, *query, *limit)
+	if args.MemoriesOnly {
+		limit := args.Limit
+		if limit == 0 {
+			limit = recall.DefaultMemoryLimit
+		}
+
+		return runRecallMemoriesOnly(ctx, stdout, summarizer, memLister, dataDir, args.Query, limit)
 	}
 
-	return runRecallSessions(ctx, stdout, projectSlug, summarizer, memLister, *dataDir, *query)
+	projectSlug := args.ProjectSlug
+
+	return runRecallSessions(ctx, stdout, &projectSlug, summarizer, memLister, dataDir, args.Query)
 }
 
 func runRecallMemoriesOnly(

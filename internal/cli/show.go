@@ -1,12 +1,11 @@
 package cli
 
 import (
+	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/BurntSushi/toml"
 
@@ -17,36 +16,6 @@ import (
 var (
 	errShowMissingSlug = errors.New("show: slug argument required")
 )
-
-// extractSlug separates a positional slug argument from flag arguments.
-func extractSlug(args []string) (string, []string) {
-	remaining := make([]string, 0, len(args))
-	skipNext := false
-
-	for idx, arg := range args {
-		if skipNext {
-			skipNext = false
-
-			remaining = append(remaining, arg)
-
-			continue
-		}
-
-		if strings.HasPrefix(arg, "-") {
-			remaining = append(remaining, arg)
-
-			if !strings.Contains(arg, "=") && idx+1 < len(args) {
-				skipNext = true
-			}
-
-			continue
-		}
-
-		return arg, append(remaining, args[idx+1:]...)
-	}
-
-	return "", remaining
-}
 
 // fileExists returns true if the path exists and is a regular file.
 func fileExists(path string) bool {
@@ -140,54 +109,26 @@ func renderMemoryContent(writer io.Writer, mem *memory.MemoryRecord) {
 	}
 }
 
-// resolveSlug picks the slug from positional arg, --name flag, or trailing arg.
-func resolveSlug(positional, nameFlag string, fs *flag.FlagSet) string {
-	if positional != "" {
-		return positional
-	}
-
-	if nameFlag != "" {
-		return nameFlag
-	}
-
-	if fs.NArg() > 0 {
-		return fs.Arg(0)
-	}
-
-	return ""
-}
-
 // runShow implements the show subcommand: displays full details of a memory.
-func runShow(args []string, stdout io.Writer) error {
-	slug, flagArgs := extractSlug(args)
+func runShow(ctx context.Context, args ShowArgs, stdout io.Writer) error {
+	_ = ctx
 
-	fs := flag.NewFlagSet("show", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	dataDir := args.DataDir
 
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	nameFlag := fs.String("name", "", "memory slug (alternative to positional arg)")
-
-	parseErr := fs.Parse(flagArgs)
-	if parseErr != nil {
-		return fmt.Errorf("show: %w", parseErr)
-	}
-
-	slug = resolveSlug(slug, *nameFlag, fs)
-
-	defaultErr := applyDataDirDefault(dataDir)
+	defaultErr := applyDataDirDefault(&dataDir)
 	if defaultErr != nil {
 		return fmt.Errorf("show: %w", defaultErr)
 	}
 
-	if slug == "" {
+	if args.Name == "" {
 		return errShowMissingSlug
 	}
 
-	memPath := memory.ResolveMemoryPath(*dataDir, slug, fileExists)
+	memPath := memory.ResolveMemoryPath(dataDir, args.Name, fileExists)
 
 	mem, err := loadMemoryTOML(memPath)
 	if err != nil {
-		return fmt.Errorf("show: loading %s: %w", slug, err)
+		return fmt.Errorf("show: loading %s: %w", args.Name, err)
 	}
 
 	renderMemory(stdout, mem)

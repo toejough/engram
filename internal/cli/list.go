@@ -1,8 +1,8 @@
 package cli
 
 import (
+	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -10,27 +10,20 @@ import (
 	"engram/internal/memory"
 )
 
-func runList(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("list", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+func runList(ctx context.Context, args ListArgs, stdout io.Writer) error {
+	_ = ctx
 
-	dataDir := fs.String("data-dir", "", "path to data directory")
+	dataDir := args.DataDir
 
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("list: %w", parseErr)
-	}
-
-	defaultErr := applyDataDirDefault(dataDir)
+	defaultErr := applyDataDirDefault(&dataDir)
 	if defaultErr != nil {
 		return fmt.Errorf("list: %w", defaultErr)
 	}
 
 	lister := memory.NewLister()
 
-	memories, err := lister.ListAllMemories(*dataDir)
+	memories, err := lister.ListAllMemories(dataDir)
 	if err != nil {
-		// Empty data dir (no memory directories) is not an error for list.
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}

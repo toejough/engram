@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -39,18 +38,8 @@ Is this new memory a duplicate or contradiction of any existing one?`
 
 // unexported variables.
 var (
-	errInvalidSource      = errors.New("source must be \"human\" or \"agent\"")
-	errLearnUsage         = errors.New("usage: engram learn <feedback|fact> [flags]")
-	errUnknownLearnSubcmd = errors.New("unknown learn subcommand")
+	errInvalidSource = errors.New("source must be \"human\" or \"agent\"")
 )
-
-// learnCommonFlags holds shared flags for learn subcommands.
-type learnCommonFlags struct {
-	situation  *string
-	source     *string
-	dataDir    *string
-	noDupCheck *bool
-}
 
 // unexported functions.
 
@@ -84,13 +73,11 @@ func callHaikuForConflicts(
 }
 
 func checkForConflicts(
+	ctx context.Context,
 	record *memory.MemoryRecord,
 	dataDir string,
 	stdout io.Writer,
 ) (bool, error) {
-	ctx, cancel := signalContext()
-	defer cancel()
-
 	token := resolveToken(ctx)
 	if token == "" {
 		return false, nil
@@ -118,7 +105,7 @@ func checkForConflicts(
 	response, callErr := callHaikuForConflicts(ctx, token, index, description)
 	if callErr != nil {
 		// API errors are non-fatal for dedup: fall through and write anyway.
-		return false, nil
+		return false, nil //nolint:nilerr // intentional: API failure is non-fatal
 	}
 
 	return parseConflictResponse(response, dataDir, stdout), nil
@@ -143,31 +130,6 @@ func describeNewMemory(record *memory.MemoryRecord) string {
 	_, _ = fmt.Fprintf(&builder, "Source: %s\n", record.Source)
 
 	return builder.String()
-}
-
-func parseAndValidate(
-	fs *flag.FlagSet,
-	common learnCommonFlags,
-	args []string,
-	cmdName string,
-) (*memory.MemoryRecord, error) {
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return nil, fmt.Errorf("%s: %w", cmdName, parseErr)
-	}
-
-	srcErr := validateSource(*common.source)
-	if srcErr != nil {
-		return nil, fmt.Errorf("%s: %w", cmdName, srcErr)
-	}
-
-	record := &memory.MemoryRecord{
-		SchemaVersion: memorySchemaVersion,
-		Source:        *common.source,
-		Situation:     *common.situation,
-	}
-
-	return record, nil
 }
 
 func parseConflictLine(line, dataDir string, stdout io.Writer) {
@@ -214,15 +176,6 @@ func parseConflictResponse(response, dataDir string, stdout io.Writer) bool {
 	return foundConflict
 }
 
-func registerCommonFlags(fs *flag.FlagSet) learnCommonFlags {
-	return learnCommonFlags{
-		situation:  fs.String("situation", "", "context when this applies"),
-		source:     fs.String("source", "", "human or agent"),
-		dataDir:    fs.String("data-dir", "", "path to data directory"),
-		noDupCheck: fs.Bool("no-dup-check", false, "skip duplicate/contradiction detection"),
-	}
-}
-
 func renderConflictContent(writer io.Writer, mem *memory.MemoryRecord) {
 	if mem.Situation != "" {
 		_, _ = fmt.Fprintf(writer, "situation: %s\n", mem.Situation)
@@ -263,70 +216,50 @@ func renderConflictFeedbackFields(writer io.Writer, mem *memory.MemoryRecord) {
 	}
 }
 
-func runLearn(args []string, stdout io.Writer) error {
-	if len(args) == 0 {
-		return errLearnUsage
+func runLearnFact(ctx context.Context, args LearnFactArgs, stdout io.Writer) error {
+	srcErr := validateSource(args.Source)
+	if srcErr != nil {
+		return fmt.Errorf("learn fact: %w", srcErr)
 	}
 
-	subcmd := args[0]
-	subArgs := args[1:]
-
-	switch subcmd {
-	case typeFeedback:
-		return runLearnFeedback(subArgs, stdout)
-	case typeFact:
-		return runLearnFact(subArgs, stdout)
-	default:
-		return fmt.Errorf("%w: %s", errUnknownLearnSubcmd, subcmd)
+	record := &memory.MemoryRecord{
+		SchemaVersion: memorySchemaVersion,
+		Source:        args.Source,
+		Situation:     args.Situation,
+		Type:          typeFact,
+		Content: memory.ContentFields{
+			Subject:   args.Subject,
+			Predicate: args.Predicate,
+			Object:    args.Object,
+		},
 	}
+
+	dataDir := args.DataDir
+
+	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn fact")
 }
 
-func runLearnFact(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("learn fact", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	common := registerCommonFlags(fs)
-	subject := fs.String("subject", "", "subject of the fact")
-	predicate := fs.String("predicate", "", "relationship or verb")
-	object := fs.String("object", "", "object of the fact")
-
-	record, err := parseAndValidate(fs, common, args, "learn fact")
-	if err != nil {
-		return err
+func runLearnFeedback(ctx context.Context, args LearnFeedbackArgs, stdout io.Writer) error {
+	srcErr := validateSource(args.Source)
+	if srcErr != nil {
+		return fmt.Errorf("learn feedback: %w", srcErr)
 	}
 
-	record.Type = typeFact
-	record.Content = memory.ContentFields{
-		Subject:   *subject,
-		Predicate: *predicate,
-		Object:    *object,
+	record := &memory.MemoryRecord{
+		SchemaVersion: memorySchemaVersion,
+		Source:        args.Source,
+		Situation:     args.Situation,
+		Type:          typeFeedback,
+		Content: memory.ContentFields{
+			Behavior: args.Behavior,
+			Impact:   args.Impact,
+			Action:   args.Action,
+		},
 	}
 
-	return writeMemory(record, *common.situation, common.dataDir, *common.noDupCheck, stdout, "learn fact")
-}
+	dataDir := args.DataDir
 
-func runLearnFeedback(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("learn feedback", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	common := registerCommonFlags(fs)
-	behavior := fs.String("behavior", "", "observed behavior")
-	impact := fs.String("impact", "", "impact of the behavior")
-	action := fs.String("action", "", "recommended action")
-
-	record, err := parseAndValidate(fs, common, args, "learn feedback")
-	if err != nil {
-		return err
-	}
-
-	record.Type = typeFeedback
-	record.Content = memory.ContentFields{
-		Behavior: *behavior,
-		Impact:   *impact,
-		Action:   *action,
-	}
-
-	return writeMemory(record, *common.situation, common.dataDir, *common.noDupCheck, stdout, "learn feedback")
+	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn feedback")
 }
 
 func validateSource(source string) error {
@@ -338,6 +271,7 @@ func validateSource(source string) error {
 }
 
 func writeMemory(
+	ctx context.Context,
 	record *memory.MemoryRecord,
 	situation string,
 	dataDir *string,
@@ -353,7 +287,7 @@ func writeMemory(
 	slug := tomlwriter.Slugify(situation)
 
 	if !noDupCheck {
-		conflict, checkErr := checkForConflicts(record, *dataDir, stdout)
+		conflict, checkErr := checkForConflicts(ctx, record, *dataDir, stdout)
 		if checkErr != nil {
 			return fmt.Errorf("%s: %w", cmdName, checkErr)
 		}

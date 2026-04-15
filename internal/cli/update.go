@@ -1,8 +1,7 @@
 package cli
 
 import (
-	"errors"
-	"flag"
+	"context"
 	"fmt"
 	"io"
 	"time"
@@ -11,113 +10,67 @@ import (
 	"engram/internal/tomlwriter"
 )
 
-// unexported variables.
-var (
-	errUpdateMissingName = errors.New("update: --name is required")
-)
-
-// unexported types.
-
-// updateFlags holds parsed flags for the update command.
-type updateFlags struct {
-	name      *string
-	dataDir   *string
-	situation *string
-	behavior  *string
-	impact    *string
-	action    *string
-	subject   *string
-	predicate *string
-	object    *string
-	source    *string
-}
-
-// applyUpdateFields sets only non-empty field values on the record.
-func applyUpdateFields(record *memory.MemoryRecord, flags updateFlags) {
-	if *flags.situation != "" {
-		record.Situation = *flags.situation
+// applyUpdateArgs sets only non-empty field values on the record.
+func applyUpdateArgs(record *memory.MemoryRecord, args UpdateArgs) {
+	if args.Situation != "" {
+		record.Situation = args.Situation
 	}
 
-	if *flags.behavior != "" {
-		record.Content.Behavior = *flags.behavior
+	if args.Behavior != "" {
+		record.Content.Behavior = args.Behavior
 	}
 
-	if *flags.impact != "" {
-		record.Content.Impact = *flags.impact
+	if args.Impact != "" {
+		record.Content.Impact = args.Impact
 	}
 
-	if *flags.action != "" {
-		record.Content.Action = *flags.action
+	if args.Action != "" {
+		record.Content.Action = args.Action
 	}
 
-	if *flags.subject != "" {
-		record.Content.Subject = *flags.subject
+	if args.Subject != "" {
+		record.Content.Subject = args.Subject
 	}
 
-	if *flags.predicate != "" {
-		record.Content.Predicate = *flags.predicate
+	if args.Predicate != "" {
+		record.Content.Predicate = args.Predicate
 	}
 
-	if *flags.object != "" {
-		record.Content.Object = *flags.object
+	if args.Object != "" {
+		record.Content.Object = args.Object
 	}
 
-	if *flags.source != "" {
-		record.Source = *flags.source
-	}
-}
-
-func registerUpdateFlags(fs *flag.FlagSet) updateFlags {
-	return updateFlags{
-		name:      fs.String("name", "", "memory slug (required)"),
-		dataDir:   fs.String("data-dir", "", "path to data directory"),
-		situation: fs.String("situation", "", "context when this applies"),
-		behavior:  fs.String("behavior", "", "observed behavior"),
-		impact:    fs.String("impact", "", "impact of the behavior"),
-		action:    fs.String("action", "", "recommended action"),
-		subject:   fs.String("subject", "", "subject of the fact"),
-		predicate: fs.String("predicate", "", "relationship or verb"),
-		object:    fs.String("object", "", "object of the fact"),
-		source:    fs.String("source", "", "human or agent"),
+	if args.Source != "" {
+		record.Source = args.Source
 	}
 }
 
 // runUpdate implements the update subcommand: modifies individual fields of an existing memory.
-func runUpdate(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("update", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+func runUpdate(ctx context.Context, args UpdateArgs, stdout io.Writer) error {
+	_ = ctx
 
-	flags := registerUpdateFlags(fs)
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("update: %w", parseErr)
-	}
-
-	if *flags.name == "" {
-		return errUpdateMissingName
-	}
-
-	if *flags.source != "" {
-		srcErr := validateSource(*flags.source)
+	if args.Source != "" {
+		srcErr := validateSource(args.Source)
 		if srcErr != nil {
 			return fmt.Errorf("update: %w", srcErr)
 		}
 	}
 
-	defaultErr := applyDataDirDefault(flags.dataDir)
+	dataDir := args.DataDir
+
+	defaultErr := applyDataDirDefault(&dataDir)
 	if defaultErr != nil {
 		return fmt.Errorf("update: %w", defaultErr)
 	}
 
-	memPath := memory.ResolveMemoryPath(*flags.dataDir, *flags.name, fileExists)
+	memPath := memory.ResolveMemoryPath(dataDir, args.Name, fileExists)
 
 	record, loadErr := loadMemoryTOML(memPath)
 	if loadErr != nil {
-		return fmt.Errorf("update: loading %s: %w", *flags.name, loadErr)
+		return fmt.Errorf("update: loading %s: %w", args.Name, loadErr)
 	}
 
-	applyUpdateFields(record, flags)
+	applyUpdateArgs(record, args)
 
 	record.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
@@ -125,7 +78,7 @@ func runUpdate(args []string, stdout io.Writer) error {
 
 	writeErr := writer.AtomicWrite(memPath, record)
 	if writeErr != nil {
-		return fmt.Errorf("update: writing %s: %w", *flags.name, writeErr)
+		return fmt.Errorf("update: writing %s: %w", args.Name, writeErr)
 	}
 
 	name := memory.NameFromPath(memPath)
