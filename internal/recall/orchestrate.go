@@ -123,15 +123,29 @@ func (o *Orchestrator) extractAllSessions(
 	)
 
 	for i, path := range sessions {
+		if ctx.Err() != nil {
+			break
+		}
+
 		wg.Add(1)
 
-		sem <- struct{}{}
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			wg.Done()
+
+			continue
+		}
 
 		go func() {
 			defer func() {
 				<-sem
 				wg.Done()
 			}()
+
+			if ctx.Err() != nil {
+				return
+			}
 
 			content, _, readErr := o.reader.Read(path, DefaultStripBudget)
 			if readErr != nil {
@@ -224,7 +238,7 @@ func (o *Orchestrator) listAndMatchMemories(
 }
 
 func (o *Orchestrator) recallModeA(
-	_ context.Context,
+	ctx context.Context,
 	sessions []FileEntry,
 ) (*Result, error) {
 	var builder strings.Builder
@@ -232,6 +246,10 @@ func (o *Orchestrator) recallModeA(
 	bytesRead := 0
 
 	for _, entry := range sessions {
+		if ctx.Err() != nil {
+			break
+		}
+
 		content, size, readErr := o.reader.Read(entry.Path, DefaultModeABudget-bytesRead)
 		if readErr != nil {
 			continue
@@ -247,6 +265,7 @@ func (o *Orchestrator) recallModeA(
 
 	memories := o.findSessionMemories(sessions)
 
+	//nolint:nilerr // cancellation returns partial results, not an error.
 	return &Result{Summary: builder.String(), Memories: memories}, nil
 }
 

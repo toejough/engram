@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -565,6 +566,54 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 	})
 }
 
+func TestOrchestrator_Recall_ModeA_CancellationStopsProcessing(t *testing.T) {
+	t.Parallel()
+
+	t.Run("pre-cancelled context returns early", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		const totalSessions = 10
+
+		now := time.Now()
+		entries := make([]recall.FileEntry, 0, totalSessions)
+		contents := make(map[string]string, totalSessions)
+		sizes := make(map[string]int, totalSessions)
+
+		for i := range totalSessions {
+			path := fmt.Sprintf("/s%d.jsonl", i)
+			entries = append(entries, recall.FileEntry{
+				Path:  path,
+				Mtime: now.Add(-time.Duration(i) * time.Hour),
+			})
+			contents[path] = "content"
+			sizes[path] = 7
+		}
+
+		finder := &fakeFinder{entries: entries}
+		reader := &countingReader{
+			contents: contents,
+			sizes:    sizes,
+		}
+
+		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // pre-cancel
+
+		result, err := orch.Recall(ctx, "/proj", "")
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		// With a pre-cancelled context, mode A should read zero sessions.
+		g.Expect(result.Summary).To(BeEmpty())
+		g.Expect(int(reader.readCalls.Load())).To(Equal(0))
+	})
+}
+
 func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 	t.Parallel()
 
@@ -1016,6 +1065,131 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 	})
 }
 
+func TestOrchestrator_Recall_ModeB_CancellationStopsProcessing(t *testing.T) {
+	t.Parallel()
+
+	t.Run("pre-cancelled context skips extraction", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		const totalSessions = 10
+
+		now := time.Now()
+		entries := make([]recall.FileEntry, 0, totalSessions)
+		contents := make(map[string]string, totalSessions)
+		sizes := make(map[string]int, totalSessions)
+
+		for i := range totalSessions {
+			path := fmt.Sprintf("/s%d.jsonl", i)
+			entries = append(entries, recall.FileEntry{
+				Path:  path,
+				Mtime: now.Add(-time.Duration(i) * time.Hour),
+			})
+			contents[path] = "content"
+			sizes[path] = 7
+		}
+
+		finder := &fakeFinder{entries: entries}
+		reader := &fakeReader{contents: contents, sizes: sizes}
+		summarizer := &blockingSummarizer{}
+
+		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // pre-cancel
+
+		result, err := orch.Recall(ctx, "/proj", "query")
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(result.Summary).To(BeEmpty())
+		// With a pre-cancelled context, the loop should exit before dispatching
+		// all sessions. Zero is ideal, but at most maxModeBConcurrency (3).
+		g.Expect(int(summarizer.extractCalls.Load())).To(BeNumerically("==", 0),
+			"pre-cancelled context should not dispatch any extractions")
+	})
+
+	t.Run("cancel mid-flight stops remaining sessions", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		const totalSessions = 10
+
+		now := time.Now()
+		entries := make([]recall.FileEntry, 0, totalSessions)
+		contents := make(map[string]string, totalSessions)
+		sizes := make(map[string]int, totalSessions)
+
+		for i := range totalSessions {
+			path := fmt.Sprintf("/s%d.jsonl", i)
+			entries = append(entries, recall.FileEntry{
+				Path:  path,
+				Mtime: now.Add(-time.Duration(i) * time.Hour),
+			})
+			contents[path] = "content"
+			sizes[path] = 7
+		}
+
+		finder := &fakeFinder{entries: entries}
+		reader := &fakeReader{contents: contents, sizes: sizes}
+		summarizer := &blockingSummarizer{}
+
+		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// Cancel after a short delay — enough for some goroutines to start
+		// but not enough for all sessions to be dispatched if the loop doesn't
+		// check for cancellation.
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			cancel()
+		}()
+
+		const cancellationDeadline = 2 * time.Second
+
+		done := make(chan struct{})
+
+		go func() {
+			_, _ = orch.Recall(ctx, "/proj", "query")
+
+			close(done)
+		}()
+
+		select {
+		case <-done:
+			// Recall returned promptly after cancellation — good.
+		case <-time.After(cancellationDeadline):
+			t.Fatal("Recall did not return within 2s after context cancellation")
+		}
+
+		// The blocking summarizer only unblocks when ctx is cancelled.
+		// With cancellation, at most maxModeBConcurrency (3) goroutines
+		// should have been in-flight. Not all 10 sessions should be extracted.
+		g.Expect(int(summarizer.extractCalls.Load())).To(BeNumerically("<", totalSessions),
+			"expected fewer extractions than total sessions after cancellation")
+	})
+}
+
+// blockingSummarizer blocks on ExtractRelevant until the context is cancelled,
+// simulating a real HTTP call that respects context cancellation.
+type blockingSummarizer struct {
+	extractCalls atomic.Int32
+}
+
+func (s *blockingSummarizer) ExtractRelevant(
+	ctx context.Context, _, _ string,
+) (string, error) {
+	s.extractCalls.Add(1)
+
+	<-ctx.Done()
+
+	return "", ctx.Err()
+}
+
 // capturingSummarizer records content and query for inspection.
 type capturingSummarizer struct {
 	extractResult string
@@ -1033,6 +1207,21 @@ func (s *capturingSummarizer) ExtractRelevant(
 	s.lastQuery = query
 
 	return s.extractResult, s.extractErr
+}
+
+// countingReader counts Read calls to verify early exit.
+type countingReader struct {
+	contents  map[string]string
+	sizes     map[string]int
+	readCalls atomic.Int32
+}
+
+func (r *countingReader) Read(path string, budget int) (string, int, error) {
+	r.readCalls.Add(1)
+
+	_ = budget
+
+	return r.contents[path], r.sizes[path], nil
 }
 
 // failAfterNWriter succeeds for the first `remaining` bytes, then fails.
