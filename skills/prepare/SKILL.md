@@ -27,15 +27,15 @@ engram recall --query "<specific topic 1>"
 engram recall --query "<specific topic 2>"
 ```
 
-Choose queries that would surface relevant prior work, decisions, patterns, and pitfalls.
+Choose queries that describe the task you're about to do. Memory situations are written to match task descriptions, so query the same way.
 
-**Query by activity, not by fear.** Construct queries around what you're *about to do*, not what you're worried about or what might go wrong. Memories are indexed by the activity where the lesson was learned, not by failure mode.
+**Query by task, not by fear.** What are you trying to do? Not what might go wrong.
 
 Examples:
-- About to write hooks → query "implementing Claude Code hooks"
-- About to write tests → query "writing Go tests" or "testing in [specific domain]"
-- About to do a git push → query "git push workflow"
-- DON'T query "common mistakes when writing hooks" — no memory is indexed that way
+- About to write hooks → "implementing Claude Code hooks"
+- About to write tests → "writing Go tests in [domain]"
+- About to push → "git push workflow"
+- DON'T query "common mistakes when writing hooks" — no memory is stored that way
 
 ### Step 3: Present briefing to user
 

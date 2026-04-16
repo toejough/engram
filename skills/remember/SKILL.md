@@ -10,46 +10,39 @@ The user wants to explicitly save something to memory.
 
 ## Flow
 
-### Step 1: Analyze and classify
+### Step 1: Classify
 
-Determine what the user wants to remember. Classify as:
+Determine what the user wants to remember:
 - **Feedback** (behavioral): situation → behavior → impact → action
 - **Fact** (knowledge): situation → subject → predicate → object
 - Could be **multiple** memories (e.g., "DI means Dependency Injection, not Do It" = two facts)
 
-### Step 2: Draft and present to user
+### Step 2: Quality gate
 
-For each memory, draft all required fields and present to the user for approval:
+Every candidate must pass **all three** or be dropped:
 
-**Feedback example:**
-- Situation: "When running tests in Go projects"
-- Behavior: "Running go test directly"
-- Impact: "Misses coverage thresholds and lint checks"
-- Action: "Use targ test instead"
+| Gate | Question | Fail → |
+|------|----------|--------|
+| **Recurs** | Will a future agent in a different session face this? | Don't persist — one-time event, phase-locked, or stale snapshot |
+| **Actionable** | Does it change what an agent would DO? | Don't persist — vague observation, raw debug log, or inert fact |
+| **Right home** | Is memory the only place for this? | Don't persist — belongs in code, docs, skills, or CLAUDE.md |
 
-**Fact example:**
-- Situation: "When reading abbreviations in code"
-- Subject: "DI"
-- Predicate: "means"
-- Object: "Dependency Injection"
+If a candidate fails, tell the user why and suggest the right home.
 
-#### Writing good situations
+### Step 3: Draft and present
 
-Write the situation from the perspective of an agent who needs this lesson but doesn't know it yet. Describe the *activity* they'd be doing, not the *problem* they'd encounter. Ask yourself: "What would I be doing right before I need this?"
+For each surviving candidate, draft all fields and present for approval.
 
-**Litmus test:** Before persisting, check: would an agent who hasn't learned this lesson yet plausibly search for or be described by this situation? If the situation contains the diagnosis, the symptom, or the fix — you've baked in hindsight. Strip it back to just the activity and domain.
+**Situation field:** Describe the task an agent would be embarking on when they need this. What are they trying to do? This must match how /prepare queries — an agent about to do this work should find this memory.
 
-| Bad (hindsight-biased) | Good (pre-insight activity) |
+| Bad (bakes in the problem) | Good (describes the task) |
 |---|---|
-| "When implementing hooks that depend on environment variables set by the agent" | "When implementing Claude Code plugin hooks" |
-| "When fixing context cancellation in concurrent code" | "When writing concurrent Go code with context" |
+| "When fixing context cancellation in concurrent code" | "When implementing concurrent Go code with context" |
 | "When checking Phase 2 implementation status" | "When verifying a multi-phase implementation is complete" |
 
-Ask the user to approve or edit the fields.
+**Litmus test:** If an agent called /prepare before this task, would this situation match their query? If the situation contains the diagnosis, symptom, or fix — it won't match. Strip it back to the task.
 
-### Step 3: Save approved memories
-
-For each approved memory, run:
+### Step 4: Save
 
 ```bash
 # Feedback:
@@ -59,19 +52,8 @@ engram learn feedback --situation "..." --behavior "..." --impact "..." --action
 engram learn fact --situation "..." --subject "..." --predicate "..." --object "..." --source human
 ```
 
-### Step 4: Handle results
+### Step 5: Handle results
 
-- **CREATED: <name>** — Confirm to user.
-- **DUPLICATE: <name>** — The system already knows this. Trigger diagnostic (see below).
-- **CONTRADICTION: <name>** — Present the conflict. Ask user: update existing, replace it, or keep both (use --no-dup-check)?
-
-### Step 5: Duplicate diagnostic
-
-When a duplicate is found, the system already knew this but failed to use it. Analyze:
-
-1. **Was there a /recall or /prepare call this session that should have surfaced this?**
-   - **Yes, but queries missed it:** Suggest additional queries that would have found it. Draft these as behavioral feedback memories with situations starting with `"When deciding when to call /prepare during..."` or `"When deciding when to call /learn during..."` so future self-queries find them. Present to user for approval.
-   - **Yes, but memory wording too narrow:** Suggest a rewrite of the existing memory's situation field. Use `engram update --name <name> --situation "broader situation"` after user approval.
-
-2. **No relevant /recall or /prepare call:**
-   - Suggest a behavioral memory. Use situation wording that matches self-query language: `"When deciding when to call /prepare during <context>"` or `"When deciding when to call /learn during <context>"`. This ensures the memory surfaces in future self-queries. Present to user for approval.
+- **CREATED** — Confirm to user.
+- **DUPLICATE** — The system already knew this. Diagnose: should a /recall or /prepare have surfaced it? Fix the query pattern or broaden the existing memory's situation with `engram update --name <name> --situation "..."`. Never dismiss a duplicate — something failed to surface it.
+- **CONTRADICTION** — Present conflict. Ask user: update existing, replace, or keep both?

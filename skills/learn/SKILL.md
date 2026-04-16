@@ -19,31 +19,36 @@ Review your current session for:
 - **Discovered facts** — new knowledge about the codebase, tools, or domain
 - **Patterns** — recurring behaviors that should be codified
 
-### Step 2: Draft and save memories
+### Step 2: Quality gate
 
-For each learnable moment, draft a memory:
+Every candidate must pass **all three** or be dropped:
+
+| Gate | Question | Fail → |
+|------|----------|--------|
+| **Recurs** | Will a future agent in a different session face this? | Don't persist — one-time event, phase-locked, or stale snapshot |
+| **Actionable** | Does it change what an agent would DO? | Don't persist — vague observation, raw debug log, or inert fact |
+| **Right home** | Is memory the only place for this? | Don't persist — belongs in code, docs, skills, or CLAUDE.md |
+
+### Step 3: Draft memories
+
+For each surviving candidate:
 - Corrections/failures → feedback (SBIA)
 - Knowledge/patterns → fact (situation + subject/predicate/object)
 
-**Autonomous by default.** When called mid-work, at a task boundary, or by a subagent, draft and persist memories immediately — do not stop to ask the user. The `--source agent` flag marks these as agent-identified, which is the correct provenance. Continue your work after persisting.
+**Situation field:** Describe the task an agent would be embarking on when they need this. What are they trying to do? This must match how /prepare queries — an agent about to do this work should find this memory.
 
-**Interactive review only when the user explicitly invokes /learn** (e.g., "review what we learned", end-of-session reflection). In that case, present findings for approval before persisting.
-
-#### Writing good situations
-
-Write the situation from the perspective of an agent who needs this lesson but doesn't know it yet. Describe the *activity* they'd be doing, not the *problem* they'd encounter. Ask yourself: "What would I be doing right before I need this?"
-
-**Litmus test:** Before persisting, check: would an agent who hasn't learned this lesson yet plausibly search for or be described by this situation? If the situation contains the diagnosis, the symptom, or the fix — you've baked in hindsight. Strip it back to just the activity and domain.
-
-| Bad (hindsight-biased) | Good (pre-insight activity) |
+| Bad (bakes in the problem) | Good (describes the task) |
 |---|---|
-| "When implementing hooks that depend on environment variables set by the agent" | "When implementing Claude Code plugin hooks" |
-| "When fixing context cancellation in concurrent code" | "When writing concurrent Go code with context" |
+| "When fixing context cancellation in concurrent code" | "When implementing concurrent Go code with context" |
 | "When checking Phase 2 implementation status" | "When verifying a multi-phase implementation is complete" |
 
-### Step 3: Persist memories
+**Litmus test:** If an agent called /prepare before this task, would this situation match their query? If the situation contains the diagnosis, symptom, or fix — it won't match. Strip it back to the task.
 
-For each memory (approved or autonomously drafted):
+### Step 4: Persist
+
+**Autonomous by default.** Mid-work, at task boundaries, or from subagents — persist immediately with `--source agent`. Continue working after.
+
+**Interactive only when the user explicitly invokes /learn.** Present findings for approval before persisting.
 
 ```bash
 # Feedback:
@@ -53,25 +58,8 @@ engram learn feedback --situation "..." --behavior "..." --impact "..." --action
 engram learn fact --situation "..." --subject "..." --predicate "..." --object "..." --source agent
 ```
 
-Note: source is agent because these are agent-identified learnings, not explicit user instructions.
+### Step 5: Handle results
 
-### Step 4: Handle results
-
-For each `engram learn` response:
-
-- **CREATED: \<name\>** — Done. If interactive, confirm to user.
-- **DUPLICATE: \<name\>** — The system already knew this but failed to use it. Run the duplicate diagnostic (Step 5). Do NOT skip this.
-- **CONTRADICTION: \<name\>** — If interactive, present the conflict and ask user: update existing, replace it, or keep both? If autonomous, skip the contradicting memory and move on.
-
-### Step 5: Duplicate diagnostic (REQUIRED on every DUPLICATE)
-
-A duplicate means the memory existed but didn't fire when it mattered. Diagnose WHY:
-
-1. **Was there a /recall or /prepare call this session that should have surfaced this?**
-   - **Yes, but queries missed it:** Draft behavioral feedback memories with situations starting with `"When deciding when to call /prepare during..."` or `"When deciding when to call /learn during..."` so future self-queries find them. If interactive, present to user for approval. If autonomous, persist directly.
-   - **Yes, but memory situation wording too narrow:** The memory existed but its situation field didn't match the actual scenario. Suggest a rewrite of the existing memory's situation field. Use `engram update --name <name> --situation "broader situation"`. If interactive, get user approval first.
-
-2. **No relevant /recall or /prepare call:**
-   - Draft a behavioral memory. Use situation wording that matches self-query language: `"When deciding when to call /prepare during <context>"` or `"When deciding when to call /learn during <context>"`. If interactive, present to user for approval. If autonomous, persist directly.
-
-**Never dismiss a duplicate as "correct — no update needed."** If it was truly known, something failed to surface it. Find what.
+- **CREATED** — Done. If interactive, confirm to user.
+- **DUPLICATE** — The system knew this but didn't use it. Diagnose: was there a /recall or /prepare that should have surfaced it? Fix the query pattern or broaden the existing memory's situation with `engram update --name <name> --situation "..."`. Never dismiss a duplicate — something failed to surface it.
+- **CONTRADICTION** — If interactive, ask user: update, replace, or keep both? If autonomous, skip.
