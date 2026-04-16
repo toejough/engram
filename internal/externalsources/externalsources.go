@@ -31,7 +31,7 @@ func (k Kind) String() string {
 	case KindUnknown:
 		return "unknown"
 	default:
-		return "unknown"
+		return "invalid"
 	}
 }
 

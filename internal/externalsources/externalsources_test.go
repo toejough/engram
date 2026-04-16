@@ -31,7 +31,7 @@ func TestKindString(t *testing.T) {
 	g.Expect(externalsources.KindAutoMemory.String()).To(Equal("auto_memory"))
 	g.Expect(externalsources.KindSkill.String()).To(Equal("skill"))
 	g.Expect(externalsources.KindUnknown.String()).To(Equal("unknown"))
-	g.Expect(externalsources.Kind(unrecognizedKindValue).String()).To(Equal("unknown"))
+	g.Expect(externalsources.Kind(unrecognizedKindValue).String()).To(Equal("invalid"))
 }
 
 // unexported constants.
