@@ -2,6 +2,38 @@
 
 Self-correcting memory for LLM agents. Measures impact, not just frequency — memories that don't improve outcomes get diagnosed and fixed.
 
+## Core Principles
+
+- **Verify, don't guess.** Always read source code and documentation before guessing at formats, paths, or API contracts. Never assume directory structures, hook output formats, or payload fields — verify first.
+
+## Directory Structure
+
+```
+engram/
+├── cmd/engram/        # CLI binary entry point
+├── internal/          # Non-public implementation
+│   ├── anthropic/     # Anthropic API client
+│   ├── cli/           # CLI command wiring
+│   ├── context/       # Context extraction
+│   ├── memory/        # Memory storage/retrieval
+│   ├── recall/        # Recall pipeline
+│   ├── tokenresolver/ # Token resolution
+│   └── tomlwriter/    # TOML serialization
+├── skills/            # Claude Code skill definitions (learn, prepare, recall, remember)
+├── hooks/             # Claude Code hooks (session-start, post-tool-use, user-prompt-submit)
+├── dev/               # Build tooling (targ definitions, linter configs)
+├── docs/              # Design docs, specs, plans
+├── playground/        # Experimental/scratch space
+└── archive/           # Archived/deprecated code
+```
+
+## Key Files
+
+- `cmd/engram/main.go` — CLI entry point
+- `hooks/hooks.json` — Hook definitions for Claude Code integration
+- `skills/{learn,prepare,recall,remember}/` — Skill markdown files
+- `dev/targs.go` — Build targets (targ definitions)
+
 ## Design Principles
 
 - **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges.
