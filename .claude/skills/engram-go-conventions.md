@@ -115,6 +115,22 @@ After `g.Expect(err).NotTo(HaveOccurred())`, add `if err != nil { return }` **on
 
 Use `g.Expect(err).To(MatchError(...))` not `err.Error()`.
 
+### Nilaway + slice returns
+
+**Functions returning slices should return `[]T{}` (empty slice), not `nil`.** Nilaway traces literal `nil` returns through callers and flags downstream slice indexing (e.g., `files[0].Path` after `g.Expect(files).To(HaveLen(1))`) as "potential nil panic," even when the test guarantees non-emptiness. Returning `[]T{}` from the empty branch eliminates the false positive at the source.
+
+```go
+// ❌ Triggers nilaway warnings on every test that indexes the result
+if nothingFound {
+    return nil
+}
+
+// ✅ Empty slice — same len/range behavior, no nilaway flags
+if nothingFound {
+    return []ExternalFile{}
+}
+```
+
 ### Test conventions
 
 - `package foo_test` (blackbox) — never `package foo`
