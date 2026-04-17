@@ -280,6 +280,8 @@ func (o *Orchestrator) recallModeB(
 	bytesUsed += buffer.Len() - preSessionLen
 
 	// Phase 4: Skill extraction.
+	o.writeStatusf("ranking %d skills", countByKind(o.externalFiles, externalsources.KindSkill))
+
 	skillLen := ExtractFromSkills(
 		ctx, o.externalFiles, query, o.fileCache, o.summarizer,
 		&buffer, bytesUsed, DefaultExtractCap,
@@ -444,6 +446,19 @@ func buildTimeWindows(sessions []FileEntry) []timeWindow {
 	}
 
 	return windows
+}
+
+// countByKind returns the number of files in the slice whose Kind matches.
+func countByKind(files []externalsources.ExternalFile, kind externalsources.Kind) int {
+	count := 0
+
+	for _, file := range files {
+		if file.Kind == kind {
+			count++
+		}
+	}
+
+	return count
 }
 
 // filterMemoriesByName returns memories whose NameFromPath matches any of the given names.
