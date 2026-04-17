@@ -12,6 +12,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
+	"engram/internal/externalsources"
 	"engram/internal/memory"
 	"engram/internal/recall"
 )
@@ -1071,6 +1072,64 @@ func TestOrchestrator_Recall_ModeB_SummarizeError(t *testing.T) {
 	}
 }
 
+func TestRecallModeB_FullPipelinePriorityOrder(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	files := []externalsources.ExternalFile{
+		{Kind: externalsources.KindAutoMemory, Path: "/m/MEMORY.md"},
+		{Kind: externalsources.KindAutoMemory, Path: "/m/topic.md"},
+		{Kind: externalsources.KindSkill, Path: "/s/skill/SKILL.md"},
+		{Kind: externalsources.KindClaudeMd, Path: "/proj/CLAUDE.md"},
+	}
+
+	contents := map[string][]byte{
+		"/m/MEMORY.md":      []byte("Index: topic.md"),
+		"/m/topic.md":       []byte("auto memory body"),
+		"/s/skill/SKILL.md": []byte("---\nname: foo\ndescription: a skill\n---\nskill body"),
+		"/proj/CLAUDE.md":   []byte("CLAUDE.md content"),
+	}
+
+	cache := externalsources.NewFileCache(func(path string) ([]byte, error) {
+		return contents[path], nil
+	})
+
+	finder := &fakeFinder{entries: []recall.FileEntry{
+		{Path: "/sessions/now.jsonl", Mtime: time.Now()},
+	}}
+
+	reader := &fakeReader{contents: map[string]string{
+		"/sessions/now.jsonl": "session content",
+	}}
+
+	summarizer := &orderTrackingSummarizer{}
+
+	orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "",
+		recall.WithExternalSources(files, cache),
+	)
+
+	_, err := orch.Recall(context.Background(), "/anywhere", "what's relevant?")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(summarizer.callOrder).To(ContainElement("auto_memory"))
+	g.Expect(summarizer.callOrder).To(ContainElement("session"))
+	g.Expect(summarizer.callOrder).To(ContainElement("skill"))
+	g.Expect(summarizer.callOrder).To(ContainElement("claude_md"))
+
+	autoIdx := orderTrackingIndexOf(summarizer.callOrder, "auto_memory")
+	sessionIdx := orderTrackingIndexOf(summarizer.callOrder, "session")
+	skillIdx := orderTrackingIndexOf(summarizer.callOrder, "skill")
+	claudeIdx := orderTrackingIndexOf(summarizer.callOrder, "claude_md")
+
+	g.Expect(autoIdx).To(BeNumerically("<", sessionIdx))
+	g.Expect(sessionIdx).To(BeNumerically("<", skillIdx))
+	g.Expect(skillIdx).To(BeNumerically("<", claudeIdx))
+}
+
 // capturingSummarizer records content and query for inspection.
 type capturingSummarizer struct {
 	extractResult   string
@@ -1193,6 +1252,39 @@ func (s *fakeSummarizer) SummarizeFindings(_ context.Context, _, _ string) (stri
 	return s.extractResult, s.extractErr
 }
 
+// orderTrackingSummarizer records the order of extract calls by source kind,
+// inferred from the prompt content. Used by TestRecallModeB_FullPipelinePriorityOrder.
+type orderTrackingSummarizer struct {
+	callOrder []string
+}
+
+func (s *orderTrackingSummarizer) ExtractRelevant(_ context.Context, content, query string) (string, error) {
+	switch {
+	case strings.Contains(query, "Rank topic files"):
+		return "topic.md", nil
+	case strings.Contains(query, "Rank skills"):
+		return "foo", nil
+	case strings.Contains(content, "auto memory body"):
+		s.callOrder = append(s.callOrder, "auto_memory")
+		return "auto-snippet", nil
+	case strings.Contains(content, "session content"):
+		s.callOrder = append(s.callOrder, "session")
+		return "session-snippet", nil
+	case strings.Contains(content, "skill body"):
+		s.callOrder = append(s.callOrder, "skill")
+		return "skill-snippet", nil
+	case strings.Contains(content, "CLAUDE.md content"):
+		s.callOrder = append(s.callOrder, "claude_md")
+		return "claude-snippet", nil
+	default:
+		return "", nil
+	}
+}
+
+func (s *orderTrackingSummarizer) SummarizeFindings(_ context.Context, content, _ string) (string, error) {
+	return content, nil
+}
+
 // pipelineSummarizer returns queued results for successive ExtractRelevant calls
 // and a fixed result for SummarizeFindings.
 type pipelineSummarizer struct {
@@ -1228,4 +1320,14 @@ func (s *pipelineSummarizer) SummarizeFindings(
 	s.lastSummarizeContent = content
 
 	return s.summarizeResult, s.summarizeErr
+}
+
+func orderTrackingIndexOf(slice []string, target string) int {
+	for i, value := range slice {
+		if value == target {
+			return i
+		}
+	}
+
+	return -1
 }

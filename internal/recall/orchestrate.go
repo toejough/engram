@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"engram/internal/externalsources"
 	"engram/internal/memory"
 )
 
@@ -32,12 +33,14 @@ type MemoryLister interface {
 
 // Orchestrator composes the recall pipeline.
 type Orchestrator struct {
-	finder       Finder
-	reader       Reader
-	summarizer   SummarizerI
-	memoryLister MemoryLister
-	dataDir      string
-	statusWriter io.Writer
+	finder        Finder
+	reader        Reader
+	summarizer    SummarizerI
+	memoryLister  MemoryLister
+	dataDir       string
+	statusWriter  io.Writer
+	externalFiles []externalsources.ExternalFile
+	fileCache     *externalsources.FileCache
 }
 
 // NewOrchestrator creates an Orchestrator with the given collaborators.
@@ -259,17 +262,43 @@ func (o *Orchestrator) recallModeB(
 
 	var buffer strings.Builder
 
-	// Phase 1: Search memories.
+	// Phase 1: Engram memory search.
 	memoriesLen := o.searchMemories(ctx, query, &buffer)
+	bytesUsed := memoriesLen
 
-	// Phase 2: Per-session verbatim extraction.
-	o.extractFromSessions(ctx, sessions, query, &buffer, memoriesLen)
+	// Phase 2: Auto memory extraction.
+	autoLen := ExtractFromAutoMemory(
+		ctx, o.externalFiles, query, o.fileCache, o.summarizer,
+		&buffer, bytesUsed, DefaultExtractCap,
+	)
+	bytesUsed += autoLen
+	o.writeStatusf("auto memory contributed %d bytes", autoLen)
+
+	// Phase 3: Per-session extraction.
+	preSessionLen := buffer.Len()
+	o.extractFromSessions(ctx, sessions, query, &buffer, bytesUsed)
+	bytesUsed += buffer.Len() - preSessionLen
+
+	// Phase 4: Skill extraction.
+	skillLen := ExtractFromSkills(
+		ctx, o.externalFiles, query, o.fileCache, o.summarizer,
+		&buffer, bytesUsed, DefaultExtractCap,
+	)
+	bytesUsed += skillLen
+	o.writeStatusf("skills contributed %d bytes", skillLen)
+
+	// Phase 5: CLAUDE.md + rules extraction.
+	claudeLen := ExtractFromClaudeMd(
+		ctx, o.externalFiles, query, o.fileCache, o.summarizer,
+		&buffer, bytesUsed, DefaultExtractCap,
+	)
+	o.writeStatusf("claude.md contributed %d bytes", claudeLen)
 
 	if buffer.Len() == 0 {
 		return &Result{}, nil
 	}
 
-	// Phase 3: Structured summary.
+	// Phase 6: Structured summary.
 	o.writeStatusf("summarizing %d bytes of findings", buffer.Len())
 
 	summary, err := o.summarizer.SummarizeFindings(ctx, buffer.String(), query)
@@ -345,6 +374,17 @@ func FormatResult(w io.Writer, result *Result) error {
 	}
 
 	return nil
+}
+
+// WithExternalSources configures the orchestrator to cross-search external
+// sources (CLAUDE.md hierarchy, rules, auto memory, skills) discovered by
+// the externalsources package. The cache is shared across phases so the
+// same file is read at most once per invocation.
+func WithExternalSources(files []externalsources.ExternalFile, cache *externalsources.FileCache) OrchestratorOption {
+	return func(o *Orchestrator) {
+		o.externalFiles = files
+		o.fileCache = cache
+	}
 }
 
 // WithStatusWriter sets a writer for progress messages during recall.
