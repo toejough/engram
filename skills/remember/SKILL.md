@@ -52,8 +52,8 @@ Read the listed files; grep/scan for the candidate's content.
 
 | Verification outcome | Action |
 |---|---|
-| Home contains it AND surfaced/was applied this session (via read, search, recall, or we just wrote it) | **Move on.** Home owns it; working. Tell the user and suggest no save. |
-| Home contains it BUT didn't surface this session (we had to re-learn it) | **Ask the user:** "This is already in `<home>` — reinforce via memory, or just note it?" If reinforce: persist new memory. If engram dedup returns DUPLICATE, update the existing memory's situation via `engram update --name ... --situation "..."`. |
+| Home contains it AND surfaced in time this session (via /recall, /prepare, CLAUDE.md auto-load — OR we just wrote it into the home now); no re-learning needed | **Move on.** Home owns it. Tell the user and suggest no save. |
+| Home contains it BUT didn't surface in time (we re-learned it or were corrected this session — reading the home during this verification doesn't count as surfacing) | **Ask the user:** "This is already in `<home>` — reinforce via memory, or just note it?" If reinforce: persist new memory. If engram dedup returns DUPLICATE, update the existing memory's situation via `engram update --name ... --situation "..."`. |
 | Home lacks the lesson, or no home fits | **Ask the user:** "The home for this would be `<home>` but it's not there. Save to memory anyway?" If yes: persist new memory. |
 
 ### Step 3: Draft and present
