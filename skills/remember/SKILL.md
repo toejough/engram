@@ -19,41 +19,63 @@ Determine what the user wants to remember:
 
 ### Step 2: Quality gate
 
-Every candidate must pass **all three** or be dropped:
+For each candidate, check every gate in order. A single failure drops the candidate — tell the user why and suggest the right home.
 
-| Gate | Question | Fail → |
-|------|----------|--------|
-| **Recurs** | Will a future agent in a different session face this? | Don't persist — one-time event, phase-locked, or stale snapshot |
-| **Actionable** | Does it change what an agent would DO? | Don't persist — vague observation, raw debug log, or inert fact |
-| **Right home** | Is memory the only place for this? | Don't persist — belongs in code, docs, skills, or CLAUDE.md |
+#### 1. Recurs — would an agent on an unrelated project face this?
 
-If a candidate fails, tell the user why and suggest the right home.
+Strip the situation to **activity + domain** ("implementing Claude Code hooks", "writing Go tests with context"). If the situation names:
+
+- This project (engram / traced / etc.), its internals, or its architecture
+- Phase numbers, issue IDs, commit hashes, or dates
+- One-time events ("user said X today"), diary entries, or status snapshots
+
+…it fails Recurs. An agent working on a web app, a game, or a data pipeline should plausibly hit this situation too.
+
+#### 2. Actionable — does it change what an agent would DO?
+
+A passing memory names a concrete action. Fails on vague observations ("things can go wrong"), inert facts ("X exists"), or raw debug logs.
+
+#### 3. Right home — is memory the correct place?
+
+**a. Name the alternative home:** code, a doc, a skill, CLAUDE.md, a `.claude/rules/*.md` file, or a spec/plan under `docs/`.
+
+**b. Verify against the claimed home:**
+
+```bash
+git log --since='14 days ago' --name-only --pretty=format: -- \
+    docs/ specs/ plans/ skills/ CLAUDE.md .claude/ | sort -u
+```
+
+Read the listed files; grep/scan for the candidate's content.
+
+**c. Act on the result:**
+
+| Verification outcome | Action |
+|---|---|
+| Home contains it AND surfaced/was applied this session (via read, search, recall, or we just wrote it) | **Move on.** Home owns it; working. Tell the user and suggest no save. |
+| Home contains it BUT didn't surface this session (we had to re-learn it) | **Ask the user:** "This is already in `<home>` — reinforce via memory, or just note it?" If reinforce: persist new memory. If engram dedup returns DUPLICATE, update the existing memory's situation via `engram update --name ... --situation "..."`. |
+| Home lacks the lesson, or no home fits | **Ask the user:** "The home for this would be `<home>` but it's not there. Save to memory anyway?" If yes: persist new memory. |
 
 ### Step 3: Draft and present
 
 For each surviving candidate, draft all fields and present for approval.
 
-**Situation field:** Describe the task an agent would be embarking on when they need this. What are they trying to do? This must match how /prepare queries — an agent about to do this work should find this memory.
+**Situation field:** Describe the task the agent would be embarking on, in terms of **activity + domain** — not the diagnosis, symptom, or fix. A good situation matches how `/prepare` queries would be phrased *before* the lesson is known.
 
-| Bad (bakes in the problem) | Good (describes the task) |
+| Bad (bakes in hindsight) | Good (activity + domain) |
 |---|---|
-| "When fixing context cancellation in concurrent code" | "When implementing concurrent Go code with context" |
+| "When fixing context cancellation in concurrent code" | "When writing concurrent Go code with context" |
 | "When checking Phase 2 implementation status" | "When verifying a multi-phase implementation is complete" |
-
-**Litmus test:** If an agent called /prepare before this task, would this situation match their query? If the situation contains the diagnosis, symptom, or fix — it won't match. Strip it back to the task.
 
 ### Step 4: Save
 
 ```bash
-# Feedback:
 engram learn feedback --situation "..." --behavior "..." --impact "..." --action "..." --source human
-
-# Fact:
 engram learn fact --situation "..." --subject "..." --predicate "..." --object "..." --source human
 ```
 
 ### Step 5: Handle results
 
 - **CREATED** — Confirm to user.
-- **DUPLICATE** — The system already knew this. Diagnose: should a /recall or /prepare have surfaced it? Fix the query pattern or broaden the existing memory's situation with `engram update --name <name> --situation "..."`. Never dismiss a duplicate — something failed to surface it.
-- **CONTRADICTION** — Present conflict. Ask user: update existing, replace, or keep both?
+- **DUPLICATE** — System already knew this. Diagnose why /recall/prepare missed it. Broaden existing memory's situation via `engram update`. Never dismiss — surfacing failed.
+- **CONTRADICTION** — Present conflict. Ask user: update existing, replace, or keep both.
