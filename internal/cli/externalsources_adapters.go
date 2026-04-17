@@ -103,6 +103,13 @@ func osDirListMd(dir string) ([]string, error) {
 
 // osMatchAny returns a GlobMatcher that reports whether any file under cwd
 // matches any of the globs.
+//
+// Limitation: filepath.Glob does not support `**` (double-star) patterns.
+// A rule with `paths: ["src/api/**/*.ts"]` will never match — the `**` is
+// treated as a literal directory name. To support double-star globs, swap
+// in github.com/bmatcuk/doublestar.Glob. For first ship this is a known
+// safe-failure mode (rules with unsupported globs are excluded, never
+// spuriously included).
 func osMatchAny(cwd string) externalsources.GlobMatcher {
 	return func(globs []string) bool {
 		for _, glob := range globs {

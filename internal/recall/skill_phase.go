@@ -25,12 +25,11 @@ func ExtractFromSkills(
 		return 0
 	}
 
-	frontmatterByName := loadSkillFrontmatter(files, cache)
-	if len(frontmatterByName) == 0 {
+	pathByName, index := loadSkillIndex(files, cache)
+	if index == "" {
 		return 0
 	}
 
-	index := buildSkillIndex(frontmatterByName)
 	rankPrompt := "Rank skills by relevance to the query, one skill name per line. Query: " + query
 
 	rankResponse, rankErr := summarizer.ExtractRelevant(ctx, index, rankPrompt)
@@ -38,7 +37,6 @@ func ExtractFromSkills(
 		return 0
 	}
 
-	pathByName := skillPathByName(files, cache)
 	added := 0
 
 	for _, name := range parseRankedSkillNames(rankResponse) {
@@ -57,16 +55,6 @@ func ExtractFromSkills(
 	}
 
 	return added
-}
-
-func buildSkillIndex(frontmatterByName map[string]externalsources.Frontmatter) string {
-	var builder strings.Builder
-
-	for name, matter := range frontmatterByName {
-		fmt.Fprintf(&builder, "%s | %s\n", name, matter.Description)
-	}
-
-	return builder.String()
 }
 
 func extractOneSkill(
@@ -96,11 +84,16 @@ func extractOneSkill(
 	return snippet
 }
 
-func loadSkillFrontmatter(
+// loadSkillIndex builds the skill index used for the Haiku rank call and
+// returns a name → path map in a single pass over the discovered files.
+// Each skill file is read and its frontmatter parsed exactly once.
+func loadSkillIndex(
 	files []externalsources.ExternalFile,
 	cache *externalsources.FileCache,
-) map[string]externalsources.Frontmatter {
-	out := make(map[string]externalsources.Frontmatter)
+) (pathByName map[string]string, index string) {
+	pathByName = make(map[string]string)
+
+	var builder strings.Builder
 
 	for _, file := range files {
 		if file.Kind != externalsources.KindSkill {
@@ -113,12 +106,15 @@ func loadSkillFrontmatter(
 		}
 
 		matter, _ := externalsources.ParseFrontmatter(body)
-		if matter.Name != "" {
-			out[matter.Name] = matter
+		if matter.Name == "" {
+			continue
 		}
+
+		pathByName[matter.Name] = file.Path
+		fmt.Fprintf(&builder, "%s | %s\n", matter.Name, matter.Description)
 	}
 
-	return out
+	return pathByName, builder.String()
 }
 
 // parseRankedSkillNames extracts skill names from a Haiku rank response (one per line).
@@ -134,29 +130,4 @@ func parseRankedSkillNames(response string) []string {
 	}
 
 	return names
-}
-
-func skillPathByName(
-	files []externalsources.ExternalFile,
-	cache *externalsources.FileCache,
-) map[string]string {
-	out := make(map[string]string)
-
-	for _, file := range files {
-		if file.Kind != externalsources.KindSkill {
-			continue
-		}
-
-		body, err := cache.Read(file.Path)
-		if err != nil {
-			continue
-		}
-
-		matter, _ := externalsources.ParseFrontmatter(body)
-		if matter.Name != "" {
-			out[matter.Name] = file.Path
-		}
-	}
-
-	return out
 }

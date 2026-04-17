@@ -25,11 +25,29 @@ type DiscoverDeps struct {
 // The returned slice is the input to the recall pipeline phases; ordering
 // here does NOT determine phase priority — that is set in
 // internal/recall/orchestrate.go.
+//
+// Imports are deduplicated by path across CLAUDE.md ancestors: when two
+// ancestors transitively import the same file, it appears once in the result.
 func Discover(deps DiscoverDeps) []ExternalFile {
-	files := DiscoverClaudeMd(deps.CWD, deps.Home, deps.GOOS, deps.StatFn)
+	claudeMdFiles := DiscoverClaudeMd(deps.CWD, deps.Home, deps.GOOS, deps.StatFn)
 
-	for _, base := range files {
-		files = append(files, ExpandImports(base.Path, deps.Reader)...)
+	files := make([]ExternalFile, 0, len(claudeMdFiles)*importCapacityFactor)
+	files = append(files, claudeMdFiles...)
+
+	visited := make(map[string]bool, len(claudeMdFiles))
+	for _, file := range claudeMdFiles {
+		visited[file.Path] = true
+	}
+
+	for _, base := range claudeMdFiles {
+		for _, imported := range ExpandImports(base.Path, deps.Reader) {
+			if visited[imported.Path] {
+				continue
+			}
+
+			visited[imported.Path] = true
+			files = append(files, imported)
+		}
 	}
 
 	files = append(files, DiscoverRules(deps.CWD, deps.Home, deps.MdWalker, deps.Reader, deps.MatchAny)...)
@@ -40,3 +58,12 @@ func Discover(deps DiscoverDeps) []ExternalFile {
 
 	return files
 }
+
+// unexported constants.
+const (
+	// importCapacityFactor is the heuristic multiplier on len(claudeMdFiles)
+	// used to pre-size the discovered-files slice — most projects produce
+	// imports roughly equal in count to ancestor CLAUDE.md files, so 2× is
+	// a reasonable initial capacity that avoids the first reallocation.
+	importCapacityFactor = 2
+)

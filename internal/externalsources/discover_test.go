@@ -93,3 +93,47 @@ func TestDiscover_CombinesAllSourceKinds(t *testing.T) {
 	files := externalsources.Discover(deps)
 	g.Expect(files).NotTo(BeNil())
 }
+
+func TestDiscover_DeduplicatesImportsAcrossAncestors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Two ancestor CLAUDE.md files both import the same shared file.
+	contents := map[string][]byte{
+		"/proj/CLAUDE.md":     []byte("@/shared/common.md\n"),
+		"/proj/sub/CLAUDE.md": []byte("@/shared/common.md\n"),
+		"/shared/common.md":   []byte("shared content\n"),
+	}
+
+	deps := externalsources.DiscoverDeps{
+		CWD:            "/proj/sub",
+		Home:           "/home/user",
+		GOOS:           runtime.GOOS,
+		CWDProjectDir:  "/no-mem",
+		MainProjectDir: "",
+		StatFn: func(p string) (bool, error) {
+			return p == "/proj/CLAUDE.md" || p == "/proj/sub/CLAUDE.md", nil
+		},
+		Reader: func(p string) ([]byte, error) {
+			return contents[p], nil
+		},
+		MdWalker:    func(_ string) []string { return nil },
+		MatchAny:    func(_ []string) bool { return false },
+		Settings:    func() (string, bool) { return "", false },
+		DirLister:   func(_ string) ([]string, error) { return nil, nil },
+		SkillFinder: func(_ string) []string { return nil },
+	}
+
+	files := externalsources.Discover(deps)
+
+	commonHits := 0
+
+	for _, file := range files {
+		if file.Path == "/shared/common.md" {
+			commonHits++
+		}
+	}
+
+	g.Expect(commonHits).To(Equal(1),
+		"shared import should appear exactly once even though two ancestors reference it")
+}
