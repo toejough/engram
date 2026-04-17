@@ -238,8 +238,12 @@ func runRecallSessions(
 	finder := recall.NewSessionFinder(&osDirLister{})
 	reader := recall.NewTranscriptReader(&osFileReader{})
 
+	externalFiles, externalCache := discoverExternalSources(ctx, home)
+
 	orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, dataDir,
-		recall.WithStatusWriter(os.Stderr))
+		recall.WithStatusWriter(os.Stderr),
+		recall.WithExternalSources(externalFiles, externalCache),
+	)
 
 	result, err := orch.Recall(ctx, projectDir, query)
 	if err != nil {

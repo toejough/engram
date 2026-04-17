@@ -10,15 +10,22 @@ import (
 
 // Exported variables.
 var (
-	ExportApplyDataDirDefault     = applyDataDirDefault
-	ExportApplyProjectSlugDefault = applyProjectSlugDefault
-	ExportBuildMemoryIndex        = buildMemoryIndex
-	ExportDescribeNewMemory       = describeNewMemory
-	ExportParseConflictResponse   = parseConflictResponse
-	ExportRenderConflictContent   = renderConflictContent
-	ExportRenderFactContent       = renderFactContent
-	ExportRenderMemoryContent     = renderMemoryContent
-	ExportValidateSource          = validateSource
+	ExportApplyDataDirDefault            = applyDataDirDefault
+	ExportApplyProjectSlugDefault        = applyProjectSlugDefault
+	ExportBuildMemoryIndex               = buildMemoryIndex
+	ExportComputeMainProjectDir          = computeMainProjectDir
+	ExportDescribeNewMemory              = describeNewMemory
+	ExportOsDirListMd                    = osDirListMd
+	ExportOsMatchAny                     = osMatchAny
+	ExportOsStatExists                   = osStatExists
+	ExportOsWalkMd                       = osWalkMd
+	ExportOsWalkSkills                   = osWalkSkills
+	ExportParseConflictResponse          = parseConflictResponse
+	ExportReadAutoMemoryDirectorySetting = readAutoMemoryDirectorySetting
+	ExportRenderConflictContent          = renderConflictContent
+	ExportRenderFactContent              = renderFactContent
+	ExportRenderMemoryContent            = renderMemoryContent
+	ExportValidateSource                 = validateSource
 )
 
 // ExportCallHaikuForConflicts wraps callHaikuForConflicts for testing.
