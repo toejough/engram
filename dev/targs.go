@@ -20,4 +20,16 @@ func init() {
 	targ.Register(targ.Targ(func(_ context.Context) error { return nil }).
 		Name("engram-dev").
 		Description("Engram dev target registration"))
+
+	targ.Register(targ.Targ(testDev).
+		Name("test-dev").
+		Description("Run unit tests for the dev package (targ build tag)"))
+}
+
+func testDev(ctx context.Context) error {
+	targ.Print(ctx, "Running dev-package tests (tag=targ)...\n")
+	if err := targ.RunContext(ctx, "go", "clean", "-testcache"); err != nil {
+		return err
+	}
+	return targ.RunContext(ctx, "go", "test", "-timeout=2m", "-race", "-tags=targ", "./dev/...")
 }
