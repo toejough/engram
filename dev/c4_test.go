@@ -52,11 +52,17 @@ func TestT11_ExternalsHTTPDetection(t *testing.T) {
 			httpFindings = append(httpFindings, finding)
 		}
 	}
-	if len(httpFindings) != 1 {
-		t.Fatalf("want 1 http_call finding, got %d:\n%+v", len(httpFindings), httpFindings)
+	if len(httpFindings) < 1 {
+		t.Fatalf("want >=1 http_call finding, got %d:\n%+v", len(httpFindings), httpFindings)
 	}
-	if httpFindings[0].Target != "https://api.example.com/v1/things" {
-		t.Errorf("wrong target: %s", httpFindings[0].Target)
+	literalSeen := false
+	for _, finding := range httpFindings {
+		if finding.Target == "https://api.example.com/v1/things" {
+			literalSeen = true
+		}
+	}
+	if !literalSeen {
+		t.Errorf("expected literal-URL finding among:\n%+v", httpFindings)
 	}
 }
 
@@ -67,7 +73,9 @@ func TestT12_ExternalsAllKindsOnScanrepo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("scanExternals: %v", err)
 	}
-	want := map[string]bool{"http_call": false, "fs_path": false, "exec": false, "env_read": false}
+	want := map[string]bool{
+		"http_call": false, "fs_path": false, "exec": false, "env_read": false, "data_format": false,
+	}
 	for _, finding := range findings {
 		want[finding.Kind] = true
 	}
@@ -154,6 +162,88 @@ func TestT13_HistoryParsesRealGitLog(t *testing.T) {
 	}
 	if !strings.Contains(commits[1].Body, "body line one") {
 		t.Errorf("expected body content in second commit; got %q", commits[1].Body)
+	}
+}
+
+func TestT17_DataFormatJSON(t *testing.T) {
+	t.Parallel()
+
+	findings, err := scanExternals(context.Background(), "testdata/c4/scanrepo", "./...", false)
+	if err != nil {
+		t.Fatalf("scanExternals: %v", err)
+	}
+	saw := false
+	for _, finding := range findings {
+		if finding.Kind == "data_format" && finding.Target == "json" {
+			saw = true
+		}
+	}
+	if !saw {
+		t.Errorf("expected a data_format=json finding; got: %+v", findings)
+	}
+}
+
+func TestT17_FSWriteFileAlwaysEmits(t *testing.T) {
+	t.Parallel()
+
+	findings, err := scanExternals(context.Background(), "testdata/c4/scanrepo", "./...", false)
+	if err != nil {
+		t.Fatalf("scanExternals: %v", err)
+	}
+	saw := false
+	for _, finding := range findings {
+		if finding.Kind == "fs_path" && strings.Contains(finding.Evidence, "WriteFile") {
+			saw = true
+		}
+	}
+	if !saw {
+		t.Errorf("expected an fs_path finding for os.WriteFile; got: %+v", findings)
+	}
+}
+
+func TestT17_HTTPDynamicURLAlwaysEmits(t *testing.T) {
+	t.Parallel()
+
+	findings, err := scanExternals(context.Background(), "testdata/c4/scanrepo", "./...", false)
+	if err != nil {
+		t.Fatalf("scanExternals: %v", err)
+	}
+	httpCount := 0
+	dynamicCount := 0
+	for _, finding := range findings {
+		if finding.Kind != "http_call" {
+			continue
+		}
+		httpCount++
+		if finding.Target == "<dynamic>" {
+			dynamicCount++
+		}
+	}
+	if httpCount < 2 {
+		t.Errorf("want >=2 http_call findings (literal + dynamic), got %d", httpCount)
+	}
+	if dynamicCount < 1 {
+		t.Errorf("want >=1 dynamic-URL http_call finding, got %d", dynamicCount)
+	}
+}
+
+func TestT17_HistorySinceShorthand(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct{ in, want string }{
+		{"30d", "30 days ago"},
+		{"2w", "2 weeks ago"},
+		{"6m", "6 months ago"},
+		{"1y", "1 years ago"},
+		{"yesterday", "yesterday"},
+		{"2026-01-01", "2026-01-01"},
+		{"", ""},
+	}
+	for _, testCase := range cases {
+		got := translateSinceShorthand(testCase.in)
+		if got != testCase.want {
+			t.Errorf("translateSinceShorthand(%q): want %q, got %q", testCase.in, testCase.want, got)
+		}
 	}
 }
 

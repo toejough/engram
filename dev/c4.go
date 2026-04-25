@@ -123,11 +123,24 @@ const (
 
 // unexported variables.
 var (
-	anchorInCellRe  = regexp.MustCompile(`<a\s+id="([^"]+)"></a>`)
-	catalogHeaderRe = regexp.MustCompile(`(?m)^##\s+Element Catalog\s*$`)
-	edgeIDPrefix    = regexp.MustCompile(`^R\d+\s*:`)
-	errNoArgs       = errors.New("--file is required")
-	httpMethodSet   = map[string]bool{
+	anchorInCellRe    = regexp.MustCompile(`<a\s+id="([^"]+)"></a>`)
+	catalogHeaderRe   = regexp.MustCompile(`(?m)^##\s+Element Catalog\s*$`)
+	dataFormatMethods = map[string]bool{
+		"Marshal": true, "MarshalIndent": true, "Unmarshal": true,
+		"NewEncoder": true, "NewDecoder": true,
+		"Encode": true, "Decode": true,
+	}
+	dataFormatPackages = map[string]string{
+		"encoding/json":              "json",
+		"encoding/xml":               "xml",
+		"encoding/gob":               "gob",
+		"github.com/BurntSushi/toml": "toml",
+		"go.yaml.in/yaml/v3":         "yaml",
+		"gopkg.in/yaml.v3":           "yaml",
+	}
+	edgeIDPrefix  = regexp.MustCompile(`^R\d+\s*:`)
+	errNoArgs     = errors.New("--file is required")
+	httpMethodSet = map[string]bool{
 		"NewRequest": true, "NewRequestWithContext": true,
 		"Get": true, "Post": true, "Put": true, "Delete": true, "Head": true, "PostForm": true,
 	}
@@ -139,6 +152,7 @@ var (
 	mermaidNodeRe      = regexp.MustCompile(`^\s*(\w+)\s*[(\[]+(.*?)[)\]]+\s*$`)
 	nameStatusLineRe   = regexp.MustCompile(`^[A-Z][A-Z0-9]*\t`)
 	relsHeaderRe       = regexp.MustCompile(`(?m)^##\s+Relationships\s*$`)
+	sinceShorthandRe   = regexp.MustCompile(`^(\d+)([dwmy])$`)
 	slugSplitRe        = regexp.MustCompile(`[^a-z0-9]+`)
 	tableRowFirstRe    = regexp.MustCompile(`^\s*\|\s*(?:<a\s+id="([^"]+)"></a>)?\s*([ER]\d+)\s*\|`)
 	validKinds         = map[string]bool{"person": true, "external": true, "container": true}
@@ -491,7 +505,7 @@ func c4History(ctx context.Context, args C4HistoryArgs) error {
 		paths = strings.Split(args.Paths, ",")
 	}
 	commits, err := scanHistory(ctx, historyOptions{
-		root: ".", paths: paths, since: args.Since, limit: limit, grep: args.Grep,
+		root: ".", paths: paths, since: translateSinceShorthand(args.Since), limit: limit, grep: args.Grep,
 	})
 	if err != nil {
 		return err
@@ -825,6 +839,26 @@ func currentGitShortSHA(ctx context.Context) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+func detectDataFormat(pkg *packages.Package, node ast.Node) []externalFinding {
+	call, sel, pkgName := callOnPackage(pkg, node)
+	if call == nil {
+		return nil
+	}
+	format, ok := dataFormatPackages[pkgName]
+	if !ok {
+		return nil
+	}
+	if !dataFormatMethods[sel.Sel.Name] {
+		return nil
+	}
+	return []externalFinding{{
+		Kind:     "data_format",
+		Target:   format,
+		Source:   positionOf(pkg, call.Pos()),
+		Evidence: exprText(pkg, call),
+	}}
+}
+
 func detectEnvRead(pkg *packages.Package, node ast.Node) []externalFinding {
 	call, sel, pkgName := callOnPackage(pkg, node)
 	if call == nil || pkgName != "os" {
@@ -877,30 +911,28 @@ func detectExec(pkg *packages.Package, node ast.Node) []externalFinding {
 
 func detectFSPath(pkg *packages.Package, node ast.Node) []externalFinding {
 	call, sel, pkgName := callOnPackage(pkg, node)
-	if call == nil {
+	if call == nil || pkgName != "os" {
 		return nil
 	}
-	if pkgName == "os" {
-		switch sel.Sel.Name {
-		case "UserHomeDir", "UserConfigDir", "UserCacheDir":
-			return []externalFinding{{
-				Kind:     "fs_path",
-				Target:   "$HOME",
-				Source:   positionOf(pkg, call.Pos()),
-				Evidence: exprText(pkg, call),
-			}}
-		case "Open", "OpenFile", "ReadFile", "WriteFile", "Create":
-			target := firstStringArg(pkg, call)
-			if target != "" && (strings.HasPrefix(target, "~/") || strings.HasPrefix(target, "/etc/") ||
-				strings.HasPrefix(target, "/var/") || strings.HasPrefix(target, "/tmp/")) {
-				return []externalFinding{{
-					Kind:     "fs_path",
-					Target:   target,
-					Source:   positionOf(pkg, call.Pos()),
-					Evidence: exprText(pkg, call),
-				}}
-			}
+	switch sel.Sel.Name {
+	case "UserHomeDir", "UserConfigDir", "UserCacheDir":
+		return []externalFinding{{
+			Kind:     "fs_path",
+			Target:   "$HOME",
+			Source:   positionOf(pkg, call.Pos()),
+			Evidence: exprText(pkg, call),
+		}}
+	case "Open", "OpenFile", "ReadFile", "WriteFile", "Create", "CreateTemp", "MkdirAll", "Mkdir", "Remove", "RemoveAll":
+		target := firstStringArg(pkg, call)
+		if target == "" {
+			target = "<dynamic>"
 		}
+		return []externalFinding{{
+			Kind:     "fs_path",
+			Target:   target,
+			Source:   positionOf(pkg, call.Pos()),
+			Evidence: exprText(pkg, call),
+		}}
 	}
 	return nil
 }
@@ -912,7 +944,7 @@ func detectHTTPCall(pkg *packages.Package, node ast.Node) []externalFinding {
 	}
 	target := firstStringArg(pkg, call)
 	if target == "" {
-		return nil
+		target = "<dynamic>"
 	}
 	return []externalFinding{{
 		Kind:     "http_call",
@@ -1382,6 +1414,7 @@ func scanExternals(ctx context.Context, root, pattern string, includeTests bool)
 				findings = append(findings, detectFSPath(pkg, node)...)
 				findings = append(findings, detectExec(pkg, node)...)
 				findings = append(findings, detectEnvRead(pkg, node)...)
+				findings = append(findings, detectDataFormat(pkg, node)...)
 				return true
 			})
 		}
@@ -1448,6 +1481,19 @@ func stringValueOf(pkg *packages.Package, expr ast.Expr) string {
 		}
 	}
 	return ""
+}
+
+// translateSinceShorthand converts compact forms like "30d", "2w", "6m", "1y"
+// into the long form `git log --since` accepts ("30 days ago" etc.). Anything
+// else is returned unchanged so ISO dates and natural-language phrases pass
+// through untouched.
+func translateSinceShorthand(input string) string {
+	matches := sinceShorthandRe.FindStringSubmatch(input)
+	if matches == nil {
+		return input
+	}
+	units := map[string]string{"d": "days", "w": "weeks", "m": "months", "y": "years"}
+	return fmt.Sprintf("%s %s ago", matches[1], units[matches[2]])
 }
 
 func typeCellFor(element L1Element) string {
