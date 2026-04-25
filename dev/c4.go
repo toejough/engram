@@ -70,6 +70,13 @@ type C4AuditArgs struct {
 	JSON bool   `targ:"flag,name=json,desc=Emit findings as JSON"`
 }
 
+// C4L1BuildArgs configures the c4-l1-build target.
+type C4L1BuildArgs struct {
+	Input     string `targ:"flag,name=input,desc=JSON spec path (required)"`
+	Check     bool   `targ:"flag,name=check,desc=Verify existing .md matches generated; non-zero on diff"`
+	NoConfirm bool   `targ:"flag,name=noconfirm,desc=Overwrite existing .md without prompting"`
+}
+
 func init() {
 	targ.Register(targ.Targ(c4Audit).Name("c4-audit").
 		Description("Structurally audit a C4 L1 markdown file. Exits 1 on any finding."))
@@ -146,7 +153,60 @@ func c4Audit(ctx context.Context, args C4AuditArgs) error {
 	return nil
 }
 
-func c4L1Build(_ context.Context) error     { return errors.New("c4-l1-build: not implemented") }
+func c4L1Build(ctx context.Context, args C4L1BuildArgs) error {
+	if args.Input == "" {
+		return errors.New("--input is required")
+	}
+	spec, err := loadAndValidateSpec(args.Input)
+	if err != nil {
+		return err
+	}
+	sha, err := currentGitShortSHA(ctx)
+	if err != nil {
+		return fmt.Errorf("git rev-parse: %w", err)
+	}
+	outPath := strings.TrimSuffix(args.Input, ".json") + ".md"
+	var buf bytes.Buffer
+	if err := emitMarkdown(&buf, spec, sha); err != nil {
+		return err
+	}
+	if args.Check {
+		existing, readErr := os.ReadFile(outPath)
+		if readErr != nil {
+			return fmt.Errorf("read existing %s: %w", outPath, readErr)
+		}
+		if !bytes.Equal(existing, buf.Bytes()) {
+			fmt.Fprintln(os.Stderr, "diff between source-of-truth JSON and rendered markdown:")
+			return errors.New("markdown out of sync with JSON")
+		}
+		return nil
+	}
+	if !args.NoConfirm {
+		existing, readErr := os.ReadFile(outPath)
+		if readErr == nil && !bytes.Equal(existing, buf.Bytes()) {
+			fmt.Fprintf(os.Stderr, "%s already exists and differs. Overwrite? [y/N] ", outPath)
+			var resp string
+			_, _ = fmt.Fscanln(os.Stdin, &resp)
+			if !strings.EqualFold(resp, "y") {
+				return errors.New("aborted")
+			}
+		}
+	}
+	if err := os.WriteFile(outPath, buf.Bytes(), 0o600); err != nil {
+		return fmt.Errorf("write %s: %w", outPath, err)
+	}
+	return nil
+}
+
+func currentGitShortSHA(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 func c4L1Externals(_ context.Context) error { return errors.New("c4-l1-externals: not implemented") }
 func c4History(_ context.Context) error     { return errors.New("c4-history: not implemented") }
 
@@ -849,6 +909,199 @@ func assignRelationshipIDs(rels []L1Relationship) []relationshipID {
 		})
 	}
 	return result
+}
+
+// emitMarkdown renders spec to canonical L1 markdown. lastReviewedCommit is
+// inserted into the front-matter; callers compute it (typically `git rev-parse
+// --short HEAD`).
+func emitMarkdown(w io.Writer, spec *L1Spec, lastReviewedCommit string) error {
+	elementIDs := assignElementIDs(spec.Elements)
+	relIDs := assignRelationshipIDs(spec.Relationships)
+	systemName := findSystemName(elementIDs)
+	var buf bytes.Buffer
+	emitFrontMatter(&buf, spec, lastReviewedCommit)
+	fmt.Fprintf(&buf, "\n# C1 — %s (System Context)\n\n%s\n\n", systemName, strings.TrimRight(spec.Preamble, "\n"))
+	emitMermaid(&buf, elementIDs, relIDs)
+	emitCatalog(&buf, elementIDs)
+	emitRelationships(&buf, elementIDs, relIDs)
+	emitCrossLinks(&buf, spec.CrossLinks)
+	emitDriftNotes(&buf, spec.DriftNotes)
+	if _, err := buf.WriteTo(w); err != nil {
+		return fmt.Errorf("write markdown: %w", err)
+	}
+	return nil
+}
+
+func findSystemName(elementIDs []elementID) string {
+	for _, item := range elementIDs {
+		if item.Element.IsSystem {
+			return item.Element.Name
+		}
+	}
+	return ""
+}
+
+func emitFrontMatter(buf *bytes.Buffer, spec *L1Spec, lastReviewedCommit string) {
+	parent := "null"
+	if spec.Parent != nil {
+		parent = strconv.Quote(*spec.Parent)
+	}
+	fmt.Fprintf(buf, "---\nlevel: %d\nname: %s\nparent: %s\nchildren: []\nlast_reviewed_commit: %s\n---\n",
+		spec.Level, spec.Name, parent, lastReviewedCommit)
+}
+
+func emitMermaid(buf *bytes.Buffer, elementIDs []elementID, relIDs []relationshipID) {
+	buf.WriteString("```mermaid\nflowchart LR\n")
+	buf.WriteString("    classDef person      fill:#08427b,stroke:#052e56,color:#fff\n")
+	buf.WriteString("    classDef external    fill:#999,   stroke:#666,   color:#fff\n")
+	buf.WriteString("    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff\n\n")
+	for _, item := range elementIDs {
+		shape := mermaidShapeFor(item.Element)
+		label := mermaidLabelFor(item)
+		mermaidID := strings.ToLower(item.ID)
+		fmt.Fprintf(buf, "    %s%s%s%s\n", mermaidID, shape[0], label, shape[1])
+	}
+	buf.WriteString("\n")
+	emitMermaidEdges(buf, relIDs, mermaidIDByName(elementIDs))
+	buf.WriteString("\n")
+	emitMermaidClasses(buf, elementIDs)
+	buf.WriteString("\n")
+	emitMermaidClicks(buf, elementIDs)
+	buf.WriteString("```\n\n")
+}
+
+func mermaidShapeFor(element L1Element) [2]string {
+	switch {
+	case element.Kind == "person":
+		return [2]string{"([", "])"}
+	case element.IsSystem:
+		return [2]string{"[", "]"}
+	case element.Kind == "container":
+		return [2]string{"[", "]"}
+	default:
+		return [2]string{"(", ")"}
+	}
+}
+
+func mermaidLabelFor(item elementID) string {
+	label := fmt.Sprintf("%s · %s", item.ID, item.Element.Name)
+	if item.Element.Subtitle != nil && *item.Element.Subtitle != "" {
+		label = fmt.Sprintf("%s<br/>%s", label, *item.Element.Subtitle)
+	}
+	return label
+}
+
+func mermaidIDByName(elementIDs []elementID) map[string]string {
+	out := map[string]string{}
+	for _, item := range elementIDs {
+		out[item.Element.Name] = strings.ToLower(item.ID)
+	}
+	return out
+}
+
+func emitMermaidEdges(buf *bytes.Buffer, relIDs []relationshipID, idByName map[string]string) {
+	for _, rel := range relIDs {
+		arrow := "-->"
+		if rel.Rel.Bidirectional {
+			arrow = "<-->"
+		}
+		fmt.Fprintf(buf, "    %s %s|%s: %s| %s\n",
+			idByName[rel.Rel.From], arrow, rel.ID, rel.Rel.Description, idByName[rel.Rel.To])
+	}
+}
+
+func emitMermaidClasses(buf *bytes.Buffer, elementIDs []elementID) {
+	groups := map[string][]string{}
+	classOrder := []string{"person", "external", "container"}
+	for _, item := range elementIDs {
+		class := classFor(item.Element)
+		mermaidID := strings.ToLower(item.ID)
+		groups[class] = append(groups[class], mermaidID)
+	}
+	for _, class := range classOrder {
+		ids := groups[class]
+		if len(ids) == 0 {
+			continue
+		}
+		fmt.Fprintf(buf, "    class %s %s\n", strings.Join(ids, ","), class)
+	}
+}
+
+func classFor(element L1Element) string {
+	if element.Kind == "person" {
+		return "person"
+	}
+	if element.Kind == "container" {
+		return "container"
+	}
+	return "external"
+}
+
+func emitMermaidClicks(buf *bytes.Buffer, elementIDs []elementID) {
+	for _, item := range elementIDs {
+		mermaidID := strings.ToLower(item.ID)
+		fmt.Fprintf(buf, "    click %s href \"#%s\" \"%s\"\n", mermaidID, item.AnchorID, item.Element.Name)
+	}
+}
+
+func emitCatalog(buf *bytes.Buffer, elementIDs []elementID) {
+	buf.WriteString("## Element Catalog\n\n")
+	buf.WriteString("| ID | Name | Type | Responsibility | System of Record |\n")
+	buf.WriteString("|---|---|---|---|---|\n")
+	for _, item := range elementIDs {
+		typeCell := typeCellFor(item.Element)
+		fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s |\n",
+			item.AnchorID, item.ID, item.Element.Name, typeCell,
+			item.Element.Responsibility, item.Element.SystemOfRecord)
+	}
+	buf.WriteString("\n")
+}
+
+func typeCellFor(element L1Element) string {
+	switch {
+	case element.IsSystem:
+		return "The system in scope"
+	case element.Kind == "person":
+		return "Person"
+	case element.Kind == "container":
+		return "Container"
+	default:
+		return "External system"
+	}
+}
+
+func emitRelationships(buf *bytes.Buffer, _ []elementID, relIDs []relationshipID) {
+	buf.WriteString("## Relationships\n\n")
+	buf.WriteString("| ID | From | To | Description | Protocol/Medium |\n")
+	buf.WriteString("|---|---|---|---|---|\n")
+	for _, rel := range relIDs {
+		fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s |\n",
+			rel.AnchorID, rel.ID, rel.Rel.From, rel.Rel.To, rel.Rel.Description, rel.Rel.Protocol)
+	}
+	buf.WriteString("\n")
+}
+
+func emitCrossLinks(buf *bytes.Buffer, links L1CrossLinks) {
+	buf.WriteString("## Cross-links\n\n")
+	buf.WriteString("- Parent: none (L1 is the root).\n")
+	if len(links.RefinedBy) == 0 {
+		buf.WriteString("- Refined by: *(none yet)*\n")
+		return
+	}
+	buf.WriteString("- Refined by:\n")
+	for _, link := range links.RefinedBy {
+		fmt.Fprintf(buf, "  - [`%s`](./%s) — %s\n", link.File, link.File, link.Note)
+	}
+}
+
+func emitDriftNotes(buf *bytes.Buffer, notes []L1DriftNote) {
+	if len(notes) == 0 {
+		return
+	}
+	buf.WriteString("\n## Drift Notes\n\n")
+	for _, note := range notes {
+		fmt.Fprintf(buf, "- **%s** — %s. Reason: %s.\n", note.Date, note.Detail, note.Reason)
+	}
 }
 
 // slug lowercases s and collapses non-[a-z0-9] runs into a single "-",

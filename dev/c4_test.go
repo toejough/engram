@@ -3,7 +3,9 @@
 package dev
 
 import (
+	"bytes"
 	"context"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -82,6 +84,45 @@ func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
 		if !got[id] {
 			t.Errorf("missing finding id %q in:\n%+v", id, findings)
 		}
+	}
+}
+
+func TestT9_BuildEmitsCanonicalMarkdown(t *testing.T) {
+	t.Parallel()
+
+	spec, err := loadAndValidateSpec("testdata/c4/valid_l1.json")
+	if err != nil {
+		t.Fatalf("loadAndValidateSpec: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := emitMarkdown(&buf, spec, "df51bc93"); err != nil {
+		t.Fatalf("emitMarkdown: %v", err)
+	}
+	want, err := os.ReadFile("testdata/c4/valid_l1.md")
+	if err != nil {
+		t.Fatalf("read golden: %v", err)
+	}
+	if buf.String() != string(want) {
+		t.Errorf("output diff:\n--- want\n%s\n+++ got\n%s", want, buf.String())
+	}
+}
+
+func TestT9_BuildIdempotent(t *testing.T) {
+	t.Parallel()
+
+	spec, err := loadAndValidateSpec("testdata/c4/valid_l1.json")
+	if err != nil {
+		t.Fatalf("loadAndValidateSpec: %v", err)
+	}
+	var buf1, buf2 bytes.Buffer
+	if err := emitMarkdown(&buf1, spec, "abc1234"); err != nil {
+		t.Fatalf("first emit: %v", err)
+	}
+	if err := emitMarkdown(&buf2, spec, "abc1234"); err != nil {
+		t.Fatalf("second emit: %v", err)
+	}
+	if buf1.String() != buf2.String() {
+		t.Error("emitMarkdown is not deterministic")
 	}
 }
 
