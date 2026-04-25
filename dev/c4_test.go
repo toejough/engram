@@ -95,6 +95,44 @@ func TestT12_ExternalsCLIJSON(t *testing.T) {
 	}
 }
 
+func TestT13_HistoryParsesCommitsWithFileChanges(t *testing.T) {
+	t.Parallel()
+
+	repoDir := t.TempDir()
+	mustRunIn(t, repoDir, "git", "init")
+	mustRunIn(t, repoDir, "git", "config", "user.email", "a@b")
+	mustRunIn(t, repoDir, "git", "config", "user.name", "Tester")
+	if err := os.WriteFile(filepath.Join(repoDir, "a.txt"), []byte("a\n"), 0o600); err != nil {
+		t.Fatalf("write a.txt: %v", err)
+	}
+	mustRunIn(t, repoDir, "git", "add", "a.txt")
+	mustRunIn(t, repoDir, "git", "commit", "-m", "first")
+	if err := os.WriteFile(filepath.Join(repoDir, "b.txt"), []byte("b\n"), 0o600); err != nil {
+		t.Fatalf("write b.txt: %v", err)
+	}
+	mustRunIn(t, repoDir, "git", "add", "b.txt")
+	mustRunIn(t, repoDir, "git", "commit", "-m", "second")
+	commits, err := scanHistory(context.Background(), historyOptions{root: repoDir, limit: 10})
+	if err != nil {
+		t.Fatalf("scanHistory: %v", err)
+	}
+	if len(commits) != 2 {
+		t.Fatalf("want 2 commits, got %d:\n%+v", len(commits), commits)
+	}
+	if commits[0].Subject != "second" {
+		t.Errorf("first commit subject mangled: %q", commits[0].Subject)
+	}
+	if len(commits[0].FilesChanged) != 1 || commits[0].FilesChanged[0].Path != "b.txt" {
+		t.Errorf("commit[0] files: want [b.txt], got %+v", commits[0].FilesChanged)
+	}
+	if commits[1].Subject != "first" {
+		t.Errorf("second commit subject mangled: %q", commits[1].Subject)
+	}
+	if len(commits[1].FilesChanged) != 1 || commits[1].FilesChanged[0].Path != "a.txt" {
+		t.Errorf("commit[1] files: want [a.txt], got %+v", commits[1].FilesChanged)
+	}
+}
+
 func TestT13_HistoryParsesRealGitLog(t *testing.T) {
 	t.Parallel()
 

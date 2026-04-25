@@ -1246,6 +1246,9 @@ func parseMermaidLines(block *mermaidBlock) {
 }
 
 func parseNameStatusBlock(rest *[]byte) []historyFileChange {
+	// Skip the leading newline(s) git emits between body-NUL and either the
+	// name-status block or the next commit header.
+	*rest = bytes.TrimLeft(*rest, "\n")
 	files := []historyFileChange{}
 	for len(*rest) > 0 {
 		newline := bytes.IndexByte(*rest, '\n')
@@ -1266,7 +1269,6 @@ func parseNameStatusBlock(rest *[]byte) []historyFileChange {
 		}
 		*rest = (*rest)[newline+1:]
 	}
-	// Skip leading whitespace/newlines before the next commit header.
 	*rest = bytes.TrimLeft(*rest, "\n")
 	return files
 }
