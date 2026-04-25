@@ -85,6 +85,37 @@ func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
 	}
 }
 
+func TestT5_AuditDirtyAnchors_FindsClickAndAnchorIssues(t *testing.T) {
+	t.Parallel()
+
+	findings, err := auditFile(context.Background(), "testdata/c4/audit_dirty_anchors.md")
+	if err != nil {
+		t.Fatalf("auditFile: %v", err)
+	}
+	wantIDs := []string{"click_missing", "click_target_unresolved", "anchor_missing"}
+	got := map[string]bool{}
+	for _, finding := range findings {
+		got[finding.ID] = true
+	}
+	for _, id := range wantIDs {
+		if !got[id] {
+			t.Errorf("missing finding %q in:\n%+v", id, findings)
+		}
+	}
+}
+
+func TestT5_AuditLiveC1_ZeroFindings(t *testing.T) {
+	t.Parallel()
+
+	findings, err := auditFile(context.Background(), "../architecture/c4/c1-engram-system.md")
+	if err != nil {
+		t.Fatalf("auditFile: %v", err)
+	}
+	if len(findings) != 0 {
+		t.Errorf("live c1 should audit clean; got %d findings:\n%+v", len(findings), findings)
+	}
+}
+
 func TestT4_AuditDirtyOrphans_FindsBidirectionalMismatch(t *testing.T) {
 	t.Parallel()
 

@@ -119,6 +119,7 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	findings = append(findings, mermaidFindings...)
 	catalog, rels := parseTables(raw)
 	findings = append(findings, auditOrphans(block, catalog, rels)...)
+	findings = append(findings, auditAnchorsAndClicks(block, catalog, rels)...)
 	return findings, nil
 }
 
@@ -238,11 +239,15 @@ func checkLevel(matter frontMatter) []Finding {
 	return nil
 }
 
+var levelPrefixRe = regexp.MustCompile(`^c[1-4]-`)
+
 func checkName(matter frontMatter, path string) []Finding {
 	if !matter.hasName {
 		return nil
 	}
-	expected := slug(strings.TrimSuffix(filepath.Base(path), ".md"))
+	base := strings.TrimSuffix(filepath.Base(path), ".md")
+	base = levelPrefixRe.ReplaceAllString(base, "")
+	expected := slug(base)
 	if matter.name != expected {
 		return []Finding{{
 			ID:     "name_filename_mismatch",
@@ -589,6 +594,57 @@ func auditOrphans(block *mermaidBlock, catalog []catalogRow, rels []relationship
 			findings = append(findings, Finding{
 				ID: "relationships_orphan", Line: line,
 				Detail: fmt.Sprintf("relationships row %s has no mermaid edge", relID),
+			})
+		}
+	}
+	return findings
+}
+
+// auditAnchorsAndClicks emits click_missing for nodes lacking a click directive,
+// click_target_unresolved for click anchors that don't match any catalog or
+// relationships row anchor, and anchor_missing for table rows lacking an anchor.
+func auditAnchorsAndClicks(block *mermaidBlock, catalog []catalogRow, rels []relationshipsRow) []Finding {
+	if block == nil {
+		return nil
+	}
+	findings := []Finding{}
+	anchorSet := map[string]bool{}
+	for _, row := range catalog {
+		if row.anchorID != "" {
+			anchorSet[row.anchorID] = true
+		} else {
+			findings = append(findings, Finding{
+				ID: "anchor_missing", Line: row.line,
+				Detail: fmt.Sprintf("catalog row %s has no <a id=\"...\"></a>", row.id),
+			})
+		}
+	}
+	for _, row := range rels {
+		if row.anchorID != "" {
+			anchorSet[row.anchorID] = true
+		} else {
+			findings = append(findings, Finding{
+				ID: "anchor_missing", Line: row.line,
+				Detail: fmt.Sprintf("relationships row %s has no <a id=\"...\"></a>", row.id),
+			})
+		}
+	}
+	clickedNodes := map[string]bool{}
+	for _, click := range block.clicks {
+		clickedNodes[click.node] = true
+		if !anchorSet[click.hrefAnchor] {
+			findings = append(findings, Finding{
+				ID: "click_target_unresolved", Line: click.line,
+				Detail: fmt.Sprintf("click %s href #%s does not match any catalog/relationships anchor",
+					click.node, click.hrefAnchor),
+			})
+		}
+	}
+	for _, node := range block.nodes {
+		if !clickedNodes[node.id] {
+			findings = append(findings, Finding{
+				ID: "click_missing", Line: node.line,
+				Detail: fmt.Sprintf("node %s has no click directive", node.id),
 			})
 		}
 	}
