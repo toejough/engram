@@ -65,3 +65,22 @@ func TestT2_AuditDirtyFrontmatter_AllFindings(t *testing.T) {
 		t.Errorf("want >=3 distinct front-matter findings, got %d:\n%+v", hits, findings)
 	}
 }
+
+func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
+	t.Parallel()
+
+	findings, err := auditFile(context.Background(), "testdata/c4/audit_dirty_mermaid.md")
+	if err != nil {
+		t.Fatalf("auditFile: %v", err)
+	}
+	wantIDs := []string{"classdef_missing", "node_id_missing", "edge_id_missing"}
+	got := map[string]bool{}
+	for _, finding := range findings {
+		got[finding.ID] = true
+	}
+	for _, id := range wantIDs {
+		if !got[id] {
+			t.Errorf("missing finding id %q in:\n%+v", id, findings)
+		}
+	}
+}

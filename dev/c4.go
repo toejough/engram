@@ -115,6 +115,8 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	}
 	findings := []Finding{}
 	findings = append(findings, auditFrontMatter(ctx, path, raw)...)
+	_, mermaidFindings := parseMermaidBlock(raw)
+	findings = append(findings, mermaidFindings...)
 	return findings, nil
 }
 
@@ -295,6 +297,160 @@ func checkLastReviewedCommit(ctx context.Context, matter frontMatter) []Finding 
 		}}
 	}
 	return nil
+}
+
+// mermaidBlock holds the parsed contents of a ```mermaid fenced code block.
+type mermaidBlock struct {
+	startLine   int
+	endLine     int
+	body        string
+	hasClassDef bool
+	classes     map[string]bool
+	nodes       []mermaidNode
+	edges       []mermaidEdge
+	clicks      []mermaidClick
+}
+
+type mermaidNode struct {
+	id    string
+	label string
+	line  int
+}
+
+type mermaidEdge struct {
+	from  string
+	to    string
+	label string
+	line  int
+}
+
+type mermaidClick struct {
+	node       string
+	hrefAnchor string
+	line       int
+}
+
+var (
+	mermaidNodeRe   = regexp.MustCompile(`^\s*(\w+)\s*[(\[]+(.*?)[)\]]+\s*$`)
+	mermaidEdgeRe   = regexp.MustCompile(`^\s*(\w+)\s*<?-+>+\s*(?:\|([^|]*)\|\s*)?(\w+)\s*$`)
+	mermaidClickRe  = regexp.MustCompile(`^\s*click\s+(\w+)\s+href\s+"#([^"]+)"`)
+	mermaidClassRe  = regexp.MustCompile(`^\s*class\s+([\w,]+)\s+(\w+)\s*$`)
+	mermaidIDPrefix = regexp.MustCompile(`^E\d+`)
+	edgeIDPrefix    = regexp.MustCompile(`^R\d+\s*:`)
+)
+
+// parseMermaidBlock locates the first ```mermaid fenced block in raw and parses
+// its contents. Returns nil block + a single mermaid_block_missing finding when
+// no block is present. Returns parsed-block findings (classdef/node/edge id) too.
+func parseMermaidBlock(raw []byte) (*mermaidBlock, []Finding) {
+	openFence := []byte("```mermaid")
+	idx := bytes.Index(raw, openFence)
+	if idx < 0 {
+		return nil, []Finding{{ID: "mermaid_block_missing", Line: 1, Detail: "no ```mermaid fenced block"}}
+	}
+	startLine := 1 + bytes.Count(raw[:idx], []byte("\n"))
+	rest := raw[idx+len(openFence):]
+	closeFence := []byte("\n```")
+	body, _, found := bytes.Cut(rest, closeFence)
+	if !found {
+		return nil, []Finding{{ID: "mermaid_block_missing", Line: startLine, Detail: "unterminated ```mermaid block"}}
+	}
+	block := &mermaidBlock{
+		startLine: startLine,
+		endLine:   startLine + bytes.Count(body, []byte("\n")),
+		body:      string(body),
+		classes:   map[string]bool{},
+	}
+	parseMermaidLines(block)
+	return block, collectMermaidFindings(block)
+}
+
+func parseMermaidLines(block *mermaidBlock) {
+	for offset, line := range strings.Split(block.body, "\n") {
+		lineNum := block.startLine + offset
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "%%") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "classDef ") {
+			fields := strings.Fields(trimmed)
+			if len(fields) >= 2 {
+				block.hasClassDef = true
+				block.classes[fields[1]] = true
+			}
+			continue
+		}
+		if matched := mermaidEdgeRe.FindStringSubmatch(trimmed); matched != nil {
+			block.edges = append(block.edges, mermaidEdge{
+				from: matched[1], label: matched[2], to: matched[3], line: lineNum,
+			})
+			continue
+		}
+		if matched := mermaidNodeRe.FindStringSubmatch(trimmed); matched != nil {
+			block.nodes = append(block.nodes, mermaidNode{
+				id: matched[1], label: matched[2], line: lineNum,
+			})
+			continue
+		}
+		if matched := mermaidClickRe.FindStringSubmatch(trimmed); matched != nil {
+			block.clicks = append(block.clicks, mermaidClick{
+				node: matched[1], hrefAnchor: matched[2], line: lineNum,
+			})
+			continue
+		}
+		if mermaidClassRe.MatchString(trimmed) {
+			continue
+		}
+	}
+}
+
+func collectMermaidFindings(block *mermaidBlock) []Finding {
+	findings := []Finding{}
+	requiredClasses := []string{"person", "external", "container"}
+	for _, name := range requiredClasses {
+		if !block.classes[name] {
+			findings = append(findings, Finding{
+				ID:     "classdef_missing",
+				Line:   block.startLine,
+				Detail: fmt.Sprintf("classDef %q not defined", name),
+			})
+		}
+	}
+	defined := map[string]mermaidNode{}
+	for _, node := range block.nodes {
+		defined[node.id] = node
+		if !mermaidIDPrefix.MatchString(strings.TrimSpace(node.label)) {
+			findings = append(findings, Finding{
+				ID:     "node_id_missing",
+				Line:   node.line,
+				Detail: fmt.Sprintf("node %q label %q does not start with E<n>", node.id, node.label),
+			})
+		}
+	}
+	for _, edge := range block.edges {
+		if _, ok := defined[edge.from]; !ok {
+			findings = append(findings, Finding{
+				ID:     "node_id_missing",
+				Line:   edge.line,
+				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.from),
+			})
+		}
+		if _, ok := defined[edge.to]; !ok {
+			findings = append(findings, Finding{
+				ID:     "node_id_missing",
+				Line:   edge.line,
+				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.to),
+			})
+		}
+		if !edgeIDPrefix.MatchString(strings.TrimSpace(edge.label)) {
+			findings = append(findings, Finding{
+				ID:     "edge_id_missing",
+				Line:   edge.line,
+				Detail: fmt.Sprintf("edge %q->%q label %q does not start with R<n>:", edge.from, edge.to, edge.label),
+			})
+		}
+	}
+	return findings
 }
 
 // slug lowercases s and collapses non-[a-z0-9] runs into a single "-",
