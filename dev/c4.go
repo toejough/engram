@@ -115,8 +115,10 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	}
 	findings := []Finding{}
 	findings = append(findings, auditFrontMatter(ctx, path, raw)...)
-	_, mermaidFindings := parseMermaidBlock(raw)
+	block, mermaidFindings := parseMermaidBlock(raw)
 	findings = append(findings, mermaidFindings...)
+	catalog, rels := parseTables(raw)
+	findings = append(findings, auditOrphans(block, catalog, rels)...)
 	return findings, nil
 }
 
@@ -447,6 +449,146 @@ func collectMermaidFindings(block *mermaidBlock) []Finding {
 				ID:     "edge_id_missing",
 				Line:   edge.line,
 				Detail: fmt.Sprintf("edge %q->%q label %q does not start with R<n>:", edge.from, edge.to, edge.label),
+			})
+		}
+	}
+	return findings
+}
+
+type catalogRow struct {
+	id       string
+	anchorID string
+	name     string
+	line     int
+}
+
+type relationshipsRow struct {
+	id       string
+	anchorID string
+	from     string
+	to       string
+	line     int
+}
+
+var (
+	catalogHeaderRe = regexp.MustCompile(`(?m)^##\s+Element Catalog\s*$`)
+	relsHeaderRe    = regexp.MustCompile(`(?m)^##\s+Relationships\s*$`)
+	tableRowFirstRe = regexp.MustCompile(`^\s*\|\s*(?:<a\s+id="([^"]+)"></a>)?\s*([ER]\d+)\s*\|`)
+	anchorInCellRe  = regexp.MustCompile(`<a\s+id="([^"]+)"></a>`)
+)
+
+// parseTables locates the "## Element Catalog" and "## Relationships" sections
+// and parses each table row's first cell to extract the anchor ID and the
+// E<n>/R<n> identifier.
+func parseTables(raw []byte) ([]catalogRow, []relationshipsRow) {
+	text := string(raw)
+	catalog := parseTableSection(text, catalogHeaderRe, true)
+	relsRaw := parseTableSection(text, relsHeaderRe, false)
+	rels := make([]relationshipsRow, 0, len(relsRaw))
+	for _, row := range relsRaw {
+		rels = append(rels, relationshipsRow{
+			id: row.id, anchorID: row.anchorID, line: row.line,
+		})
+	}
+	return catalog, rels
+}
+
+func parseTableSection(text string, headerRe *regexp.Regexp, isCatalog bool) []catalogRow {
+	loc := headerRe.FindStringIndex(text)
+	if loc == nil {
+		return nil
+	}
+	tail := text[loc[1]:]
+	startLine := 1 + strings.Count(text[:loc[0]], "\n")
+	rows := []catalogRow{}
+	for offset, line := range strings.Split(tail, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "## ") {
+			break
+		}
+		matched := tableRowFirstRe.FindStringSubmatch(line)
+		if matched == nil {
+			continue
+		}
+		anchor := matched[1]
+		if anchor == "" {
+			if a := anchorInCellRe.FindStringSubmatch(line); a != nil {
+				anchor = a[1]
+			}
+		}
+		// Skip catalog/rels prefix mismatches: catalog has E<n>, rels has R<n>.
+		identifier := matched[2]
+		if isCatalog && !strings.HasPrefix(identifier, "E") {
+			continue
+		}
+		if !isCatalog && !strings.HasPrefix(identifier, "R") {
+			continue
+		}
+		rows = append(rows, catalogRow{
+			id:       identifier,
+			anchorID: anchor,
+			line:     startLine + offset + 1,
+		})
+	}
+	return rows
+}
+
+// auditOrphans cross-references mermaid IDs with catalog/relationships rows and
+// emits node_orphan, catalog_orphan, edge_orphan, relationships_orphan findings.
+func auditOrphans(block *mermaidBlock, catalog []catalogRow, rels []relationshipsRow) []Finding {
+	if block == nil {
+		return nil
+	}
+	findings := []Finding{}
+	mermaidNodeIDs := map[string]int{}
+	for _, node := range block.nodes {
+		if matched := mermaidIDPrefix.FindString(strings.TrimSpace(node.label)); matched != "" {
+			mermaidNodeIDs[matched] = node.line
+		}
+	}
+	mermaidEdgeIDs := map[string]int{}
+	for _, edge := range block.edges {
+		label := strings.TrimSpace(edge.label)
+		if matched := regexp.MustCompile(`^R\d+`).FindString(label); matched != "" {
+			mermaidEdgeIDs[matched] = edge.line
+		}
+	}
+	catalogIDs := map[string]int{}
+	for _, row := range catalog {
+		catalogIDs[row.id] = row.line
+	}
+	relsIDs := map[string]int{}
+	for _, row := range rels {
+		relsIDs[row.id] = row.line
+	}
+	for nodeID, line := range mermaidNodeIDs {
+		if _, ok := catalogIDs[nodeID]; !ok {
+			findings = append(findings, Finding{
+				ID: "node_orphan", Line: line,
+				Detail: fmt.Sprintf("mermaid node %s has no catalog row", nodeID),
+			})
+		}
+	}
+	for catID, line := range catalogIDs {
+		if _, ok := mermaidNodeIDs[catID]; !ok {
+			findings = append(findings, Finding{
+				ID: "catalog_orphan", Line: line,
+				Detail: fmt.Sprintf("catalog row %s has no mermaid node", catID),
+			})
+		}
+	}
+	for edgeID, line := range mermaidEdgeIDs {
+		if _, ok := relsIDs[edgeID]; !ok {
+			findings = append(findings, Finding{
+				ID: "edge_orphan", Line: line,
+				Detail: fmt.Sprintf("mermaid edge %s has no relationships row", edgeID),
+			})
+		}
+	}
+	for relID, line := range relsIDs {
+		if _, ok := mermaidEdgeIDs[relID]; !ok {
+			findings = append(findings, Finding{
+				ID: "relationships_orphan", Line: line,
+				Detail: fmt.Sprintf("relationships row %s has no mermaid edge", relID),
 			})
 		}
 	}

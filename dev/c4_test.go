@@ -84,3 +84,22 @@ func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
 		}
 	}
 }
+
+func TestT4_AuditDirtyOrphans_FindsBidirectionalMismatch(t *testing.T) {
+	t.Parallel()
+
+	findings, err := auditFile(context.Background(), "testdata/c4/audit_dirty_orphans.md")
+	if err != nil {
+		t.Fatalf("auditFile: %v", err)
+	}
+	wantIDs := []string{"node_orphan", "catalog_orphan", "edge_orphan", "relationships_orphan"}
+	got := map[string]bool{}
+	for _, finding := range findings {
+		got[finding.ID] = true
+	}
+	for _, id := range wantIDs {
+		if !got[id] {
+			t.Errorf("missing finding %q in:\n%+v", id, findings)
+		}
+	}
+}
