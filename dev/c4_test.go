@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -84,6 +85,33 @@ func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
 		if !got[id] {
 			t.Errorf("missing finding id %q in:\n%+v", id, findings)
 		}
+	}
+}
+
+func TestT10_BuildLiveC1_AuditsClean(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	specPath := filepath.Join(tmpDir, "c1-engram-system.json")
+	src, err := os.ReadFile("../architecture/c4/c1-engram-system.json")
+	if err != nil {
+		t.Fatalf("read source spec: %v", err)
+	}
+	if err := os.WriteFile(specPath, src, 0o600); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+	cmd := exec.CommandContext(context.Background(),
+		"targ", "c4-l1-build", "--input", specPath, "--noconfirm")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("c4-l1-build: %v\n%s", err, out)
+	}
+	mdPath := filepath.Join(tmpDir, "c1-engram-system.md")
+	findings, err := auditFile(context.Background(), mdPath)
+	if err != nil {
+		t.Fatalf("audit: %v", err)
+	}
+	if len(findings) != 0 {
+		t.Errorf("expected zero findings on built file, got %d:\n%+v", len(findings), findings)
 	}
 }
 
