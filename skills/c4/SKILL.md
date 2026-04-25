@@ -63,6 +63,32 @@ Dispatch by intent. The user invokes `/c4 <sub-action> [args]`.
 10. After write: scan parent file for cross-link updates. Present those as propagation proposals
     (see Workflow: update). Apply approved ones; skip/defer the rest.
 
+## Workflow: `create 1 <name>` (L1 specifics)
+
+For L1, the workflow uses the `dev/c4-*` targets so mechanical work is offloaded
+and only judgment remains in the LLM:
+
+1. Read `architecture/c4/`. Note what already exists.
+2. (L1: skip parent — there is no L0.)
+3. **Run `targ c4-l1-externals --root . --packages ./...`** — capture JSON listing
+   external-system candidates (HTTP calls, filesystem boundaries, subprocess
+   invocations, env reads). The LLM picks which ones become diagram externals.
+4. (L3/L4 only — skip for L1.)
+5. **Run `targ c4-history --since 90d --limit 50`** — capture structured JSON of
+   recent commits + bodies for intent context. Also read `CLAUDE.md`, `docs/`,
+   and `engram recall --query "<topic>"` for additional intent.
+6. **If conflict:** stop, present, ask the user. Record resolutions.
+7. **Author `architecture/c4/c1-<name>.json`** filling in the L1Spec schema (see
+   the design spec at `docs/superpowers/specs/2026-04-15-c4-l1-targets-design.md`).
+8. **Run `targ c4-l1-build --input architecture/c4/c1-<name>.json --noconfirm`**
+   to emit the markdown.
+9. **Run `targ c4-audit --file architecture/c4/c1-<name>.md`** to verify zero
+   findings. If any: revise the JSON and rebuild.
+10. Show user the rendered markdown for approval; commit both `.json` and `.md`.
+
+For `update`: edit the JSON, rerun `targ c4-l1-build`, rerun `targ c4-audit`,
+and present the diff.
+
 ## Workflow: `update <name>`
 
 1. Read the target file and its parent + children (per the file's front-matter `parent` and
