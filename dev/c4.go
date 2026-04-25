@@ -8,15 +8,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/constant"
+	"go/token"
+	"go/types"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/toejough/targ"
+	"golang.org/x/tools/go/packages"
 )
 
 // L1Spec is the JSON-source-of-truth representation of a C4 L1 diagram.
@@ -207,8 +213,264 @@ func currentGitShortSHA(ctx context.Context) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func c4L1Externals(_ context.Context) error { return errors.New("c4-l1-externals: not implemented") }
-func c4History(_ context.Context) error     { return errors.New("c4-history: not implemented") }
+// C4L1ExternalsArgs configures the c4-l1-externals target.
+type C4L1ExternalsArgs struct {
+	Root         string `targ:"flag,name=root,desc=Module root (default: .)"`
+	Packages     string `targ:"flag,name=packages,desc=Packages pattern (default: ./...)"`
+	IncludeTests bool   `targ:"flag,name=includetests,desc=Include _test.go files"`
+}
+
+func c4L1Externals(ctx context.Context, args C4L1ExternalsArgs) error {
+	root := args.Root
+	if root == "" {
+		root = "."
+	}
+	pattern := args.Packages
+	if pattern == "" {
+		pattern = "./..."
+	}
+	findings, err := scanExternals(ctx, root, pattern, args.IncludeTests)
+	if err != nil {
+		return err
+	}
+	type out struct {
+		SchemaVersion string            `json:"schema_version"`
+		ScannedRoot   string            `json:"scanned_root"`
+		Pattern       string            `json:"pattern"`
+		Findings      []externalFinding `json:"findings"`
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(out{SchemaVersion: "1", ScannedRoot: root, Pattern: pattern, Findings: findings}); err != nil {
+		return fmt.Errorf("encode externals: %w", err)
+	}
+	return nil
+}
+
+// externalFinding is one detected outbound dependency from the scanned code.
+type externalFinding struct {
+	Kind     string `json:"kind"`
+	Target   string `json:"target"`
+	Source   string `json:"source"`
+	Evidence string `json:"evidence"`
+}
+
+func scanExternals(ctx context.Context, root, pattern string, includeTests bool) ([]externalFinding, error) {
+	cfg := &packages.Config{
+		Mode: packages.NeedSyntax | packages.NeedTypes | packages.NeedImports |
+			packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedTypesInfo |
+			packages.NeedName,
+		Dir:     root,
+		Context: ctx,
+		Tests:   includeTests,
+	}
+	pkgs, err := packages.Load(cfg, pattern)
+	if err != nil {
+		return nil, fmt.Errorf("packages.Load: %w", err)
+	}
+	findings := []externalFinding{}
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Syntax {
+			ast.Inspect(file, func(node ast.Node) bool {
+				findings = append(findings, detectHTTPCall(pkg, node)...)
+				findings = append(findings, detectFSPath(pkg, node)...)
+				findings = append(findings, detectExec(pkg, node)...)
+				findings = append(findings, detectEnvRead(pkg, node)...)
+				return true
+			})
+		}
+	}
+	sort.Slice(findings, func(i, j int) bool {
+		if findings[i].Kind != findings[j].Kind {
+			return findings[i].Kind < findings[j].Kind
+		}
+		if findings[i].Source != findings[j].Source {
+			return findings[i].Source < findings[j].Source
+		}
+		return findings[i].Target < findings[j].Target
+	})
+	return findings, nil
+}
+
+var httpMethodSet = map[string]bool{
+	"NewRequest": true, "NewRequestWithContext": true,
+	"Get": true, "Post": true, "Put": true, "Delete": true, "Head": true, "PostForm": true,
+}
+
+func detectHTTPCall(pkg *packages.Package, node ast.Node) []externalFinding {
+	call, sel, pkgName := callOnPackage(pkg, node)
+	if call == nil || pkgName != "net/http" || !httpMethodSet[sel.Sel.Name] {
+		return nil
+	}
+	target := firstStringArg(pkg, call)
+	if target == "" {
+		return nil
+	}
+	return []externalFinding{{
+		Kind:     "http_call",
+		Target:   target,
+		Source:   positionOf(pkg, call.Pos()),
+		Evidence: exprText(pkg, call),
+	}}
+}
+
+func detectFSPath(pkg *packages.Package, node ast.Node) []externalFinding {
+	call, sel, pkgName := callOnPackage(pkg, node)
+	if call == nil {
+		return nil
+	}
+	if pkgName == "os" {
+		switch sel.Sel.Name {
+		case "UserHomeDir", "UserConfigDir", "UserCacheDir":
+			return []externalFinding{{
+				Kind:     "fs_path",
+				Target:   "$HOME",
+				Source:   positionOf(pkg, call.Pos()),
+				Evidence: exprText(pkg, call),
+			}}
+		case "Open", "OpenFile", "ReadFile", "WriteFile", "Create":
+			target := firstStringArg(pkg, call)
+			if target != "" && (strings.HasPrefix(target, "~/") || strings.HasPrefix(target, "/etc/") ||
+				strings.HasPrefix(target, "/var/") || strings.HasPrefix(target, "/tmp/")) {
+				return []externalFinding{{
+					Kind:     "fs_path",
+					Target:   target,
+					Source:   positionOf(pkg, call.Pos()),
+					Evidence: exprText(pkg, call),
+				}}
+			}
+		}
+	}
+	return nil
+}
+
+func detectExec(pkg *packages.Package, node ast.Node) []externalFinding {
+	call, sel, pkgName := callOnPackage(pkg, node)
+	if call == nil || pkgName != "os/exec" {
+		return nil
+	}
+	if sel.Sel.Name != "Command" && sel.Sel.Name != "CommandContext" {
+		return nil
+	}
+	argIdx := 0
+	if sel.Sel.Name == "CommandContext" {
+		argIdx = 1
+	}
+	if len(call.Args) <= argIdx {
+		return nil
+	}
+	target := stringValueOf(pkg, call.Args[argIdx])
+	if target == "" {
+		return nil
+	}
+	return []externalFinding{{
+		Kind:     "exec",
+		Target:   target,
+		Source:   positionOf(pkg, call.Pos()),
+		Evidence: exprText(pkg, call),
+	}}
+}
+
+func detectEnvRead(pkg *packages.Package, node ast.Node) []externalFinding {
+	call, sel, pkgName := callOnPackage(pkg, node)
+	if call == nil || pkgName != "os" {
+		return nil
+	}
+	if sel.Sel.Name != "Getenv" && sel.Sel.Name != "LookupEnv" {
+		return nil
+	}
+	if len(call.Args) == 0 {
+		return nil
+	}
+	target := stringValueOf(pkg, call.Args[0])
+	if target == "" {
+		return nil
+	}
+	return []externalFinding{{
+		Kind:     "env_read",
+		Target:   target,
+		Source:   positionOf(pkg, call.Pos()),
+		Evidence: exprText(pkg, call),
+	}}
+}
+
+func callOnPackage(pkg *packages.Package, node ast.Node) (*ast.CallExpr, *ast.SelectorExpr, string) {
+	call, ok := node.(*ast.CallExpr)
+	if !ok {
+		return nil, nil, ""
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return nil, nil, ""
+	}
+	xIdent, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return nil, nil, ""
+	}
+	if pkg.TypesInfo == nil {
+		return nil, nil, ""
+	}
+	use, ok := pkg.TypesInfo.Uses[xIdent].(*types.PkgName)
+	if !ok {
+		return nil, nil, ""
+	}
+	return call, sel, use.Imported().Path()
+}
+
+func firstStringArg(pkg *packages.Package, call *ast.CallExpr) string {
+	for _, arg := range call.Args {
+		value := stringValueOf(pkg, arg)
+		if value != "" && (strings.Contains(value, "://") || strings.HasPrefix(value, "/") || strings.HasPrefix(value, "~")) {
+			return value
+		}
+	}
+	return ""
+}
+
+func stringValueOf(pkg *packages.Package, expr ast.Expr) string {
+	if pkg.TypesInfo == nil {
+		return ""
+	}
+	if tv, ok := pkg.TypesInfo.Types[expr]; ok && tv.Value != nil && tv.Value.Kind() == constant.String {
+		return constant.StringVal(tv.Value)
+	}
+	if lit, ok := expr.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+		unquoted, err := strconv.Unquote(lit.Value)
+		if err == nil {
+			return unquoted
+		}
+	}
+	return ""
+}
+
+func positionOf(pkg *packages.Package, pos token.Pos) string {
+	if pkg.Fset == nil {
+		return ""
+	}
+	position := pkg.Fset.Position(pos)
+	return fmt.Sprintf("%s:%d", position.Filename, position.Line)
+}
+
+func exprText(pkg *packages.Package, node ast.Node) string {
+	if pkg.Fset == nil {
+		return ""
+	}
+	start := pkg.Fset.Position(node.Pos())
+	end := pkg.Fset.Position(node.End())
+	if start.Filename != end.Filename {
+		return ""
+	}
+	data, err := os.ReadFile(start.Filename)
+	if err != nil {
+		return ""
+	}
+	if start.Offset < 0 || end.Offset > len(data) || start.Offset > end.Offset {
+		return ""
+	}
+	return string(data[start.Offset:end.Offset])
+}
+
+func c4History(_ context.Context) error { return errors.New("c4-history: not implemented") }
 
 // auditFile reads path and returns all structural findings.
 // It returns an error only when the file itself cannot be read.

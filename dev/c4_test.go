@@ -88,6 +88,62 @@ func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
 	}
 }
 
+func TestT11_ExternalsHTTPDetection(t *testing.T) {
+	t.Parallel()
+
+	findings, err := scanExternals(context.Background(), "testdata/c4/scanrepo", "./...", false)
+	if err != nil {
+		t.Fatalf("scanExternals: %v", err)
+	}
+	httpFindings := []externalFinding{}
+	for _, finding := range findings {
+		if finding.Kind == "http_call" {
+			httpFindings = append(httpFindings, finding)
+		}
+	}
+	if len(httpFindings) != 1 {
+		t.Fatalf("want 1 http_call finding, got %d:\n%+v", len(httpFindings), httpFindings)
+	}
+	if httpFindings[0].Target != "https://api.example.com/v1/things" {
+		t.Errorf("wrong target: %s", httpFindings[0].Target)
+	}
+}
+
+func TestT12_ExternalsAllKindsOnScanrepo(t *testing.T) {
+	t.Parallel()
+
+	findings, err := scanExternals(context.Background(), "testdata/c4/scanrepo", "./...", false)
+	if err != nil {
+		t.Fatalf("scanExternals: %v", err)
+	}
+	want := map[string]bool{"http_call": false, "fs_path": false, "exec": false, "env_read": false}
+	for _, finding := range findings {
+		want[finding.Kind] = true
+	}
+	for kind, found := range want {
+		if !found {
+			t.Errorf("kind %q not detected on scanrepo", kind)
+		}
+	}
+}
+
+func TestT12_ExternalsCLIJSON(t *testing.T) {
+	t.Parallel()
+
+	cmd := exec.CommandContext(context.Background(),
+		"targ", "c4-l1-externals", "--root", "testdata/c4/scanrepo", "--packages", "./...")
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("c4-l1-externals: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), `"schema_version": "1"`) {
+		t.Errorf("output missing schema_version:\n%s", out)
+	}
+	if !strings.Contains(string(out), `"http_call"`) {
+		t.Errorf("output missing http_call kind:\n%s", out)
+	}
+}
+
 func TestT10_BuildLiveC1_AuditsClean(t *testing.T) {
 	t.Parallel()
 
