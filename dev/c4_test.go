@@ -85,6 +85,23 @@ func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
 	}
 }
 
+func TestT6_AuditCLI_JSONFormat(t *testing.T) {
+	t.Parallel()
+
+	cmd := exec.CommandContext(context.Background(),
+		"targ", "c4-audit", "--file", "testdata/c4/audit_dirty_orphans.md", "--json")
+	out, _ := cmd.CombinedOutput()
+	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() == 0 {
+		t.Fatalf("expected non-zero exit, got %d\nout: %s", cmd.ProcessState.ExitCode(), out)
+	}
+	if !strings.Contains(string(out), `"schema_version": "1"`) {
+		t.Errorf("expected JSON with schema_version, got:\n%s", out)
+	}
+	if !strings.Contains(string(out), `"findings":`) {
+		t.Errorf("expected JSON findings array, got:\n%s", out)
+	}
+}
+
 func TestT5_AuditDirtyAnchors_FindsClickAndAnchorIssues(t *testing.T) {
 	t.Parallel()
 

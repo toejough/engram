@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -19,6 +18,12 @@ import (
 
 	"github.com/toejough/targ"
 )
+
+// C4AuditArgs configures the c4-audit target.
+type C4AuditArgs struct {
+	File string `targ:"flag,name=file,desc=Markdown file to audit (required)"`
+	JSON bool   `targ:"flag,name=json,desc=Emit findings as JSON"`
+}
 
 func init() {
 	targ.Register(targ.Targ(c4Audit).Name("c4-audit").
@@ -75,26 +80,20 @@ var (
 	slugSplitRe  = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
-func c4Audit(ctx context.Context) error {
-	flagset := flag.NewFlagSet("c4-audit", flag.ContinueOnError)
-	file := flagset.String("file", "", "markdown file to audit (required)")
-	jsonOut := flagset.Bool("json", false, "emit findings as JSON")
-	if err := flagset.Parse(os.Args[1:]); err != nil {
-		return fmt.Errorf("parse flags: %w", err)
-	}
-	if *file == "" {
+func c4Audit(ctx context.Context, args C4AuditArgs) error {
+	if args.File == "" {
 		return errNoArgs
 	}
-	findings, err := auditFile(ctx, *file)
+	findings, err := auditFile(ctx, args.File)
 	if err != nil {
 		return err
 	}
-	if *jsonOut {
-		if err := writeFindingsJSON(os.Stdout, *file, findings); err != nil {
+	if args.JSON {
+		if err := writeFindingsJSON(os.Stdout, args.File, findings); err != nil {
 			return err
 		}
 	} else {
-		writeFindingsText(os.Stdout, *file, findings)
+		writeFindingsText(os.Stdout, args.File, findings)
 	}
 	if len(findings) > 0 {
 		return fmt.Errorf("%d finding(s)", len(findings))
