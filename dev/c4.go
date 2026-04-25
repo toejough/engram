@@ -19,6 +19,51 @@ import (
 	"github.com/toejough/targ"
 )
 
+// L1Spec is the JSON-source-of-truth representation of a C4 L1 diagram.
+type L1Spec struct {
+	SchemaVersion string           `json:"schema_version"`
+	Level         int              `json:"level"`
+	Name          string           `json:"name"`
+	Parent        *string          `json:"parent"`
+	Preamble      string           `json:"preamble"`
+	Elements      []L1Element      `json:"elements"`
+	Relationships []L1Relationship `json:"relationships"`
+	DriftNotes    []L1DriftNote    `json:"drift_notes"`
+	CrossLinks    L1CrossLinks     `json:"cross_links"`
+}
+
+type L1Element struct {
+	Name           string  `json:"name"`
+	Kind           string  `json:"kind"`
+	IsSystem       bool    `json:"is_system,omitempty"`
+	Subtitle       *string `json:"subtitle,omitempty"`
+	Responsibility string  `json:"responsibility"`
+	SystemOfRecord string  `json:"system_of_record"`
+}
+
+type L1Relationship struct {
+	From          string `json:"from"`
+	To            string `json:"to"`
+	Description   string `json:"description"`
+	Protocol      string `json:"protocol"`
+	Bidirectional bool   `json:"bidirectional,omitempty"`
+}
+
+type L1DriftNote struct {
+	Date   string `json:"date"`
+	Detail string `json:"detail"`
+	Reason string `json:"reason"`
+}
+
+type L1CrossLinks struct {
+	RefinedBy []L1RefinedBy `json:"refined_by"`
+}
+
+type L1RefinedBy struct {
+	File string `json:"file"`
+	Note string `json:"note"`
+}
+
 // C4AuditArgs configures the c4-audit target.
 type C4AuditArgs struct {
 	File string `targ:"flag,name=file,desc=Markdown file to audit (required)"`
@@ -648,6 +693,100 @@ func auditAnchorsAndClicks(block *mermaidBlock, catalog []catalogRow, rels []rel
 		}
 	}
 	return findings
+}
+
+var (
+	validKinds          = map[string]bool{"person": true, "external": true, "container": true}
+	validRefinedByFile  = regexp.MustCompile(`^c2-[a-z0-9-]+\.md$`)
+)
+
+// loadAndValidateSpec reads a JSON L1 spec from path, decodes it strictly, and
+// validates every rule from the design spec. Returns the parsed spec on success.
+func loadAndValidateSpec(path string) (*L1Spec, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	var spec L1Spec
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&spec); err != nil {
+		return nil, fmt.Errorf("decode %s: %w", path, err)
+	}
+	if err := validateSpec(&spec); err != nil {
+		return nil, err
+	}
+	return &spec, nil
+}
+
+func validateSpec(spec *L1Spec) error {
+	if spec.SchemaVersion != "1" {
+		return fmt.Errorf("unknown schema_version %q (want \"1\")", spec.SchemaVersion)
+	}
+	if spec.Level != 1 {
+		return fmt.Errorf("level: want 1, got %d", spec.Level)
+	}
+	if !validNameRe.MatchString(spec.Name) {
+		return fmt.Errorf("name %q must match %s", spec.Name, validNameRe)
+	}
+	if spec.Parent != nil {
+		return fmt.Errorf("parent: must be null at L1, got %q", *spec.Parent)
+	}
+	if strings.TrimSpace(spec.Preamble) == "" {
+		return errors.New("preamble: must be non-empty")
+	}
+	if err := validateElements(spec.Elements); err != nil {
+		return err
+	}
+	return validateRelationships(spec.Elements, spec.Relationships, spec.CrossLinks)
+}
+
+func validateElements(elements []L1Element) error {
+	systemCount := 0
+	seen := map[string]bool{}
+	for _, element := range elements {
+		if element.IsSystem {
+			systemCount++
+		}
+		if seen[element.Name] {
+			return fmt.Errorf("elements: duplicate name %q", element.Name)
+		}
+		seen[element.Name] = true
+	}
+	if systemCount != 1 {
+		return fmt.Errorf("expected exactly one is_system: true, got %d", systemCount)
+	}
+	for index, element := range elements {
+		if !validKinds[element.Kind] {
+			return fmt.Errorf("elements[%d]: kind %q not in {person, external, container}", index, element.Kind)
+		}
+		if element.IsSystem && element.Kind != "container" {
+			return fmt.Errorf("elements[%d]: is_system=true requires kind=container, got %q", index, element.Kind)
+		}
+	}
+	return nil
+}
+
+func validateRelationships(elements []L1Element, rels []L1Relationship, links L1CrossLinks) error {
+	names := map[string]bool{}
+	for _, element := range elements {
+		names[element.Name] = true
+	}
+	for index, rel := range rels {
+		if !names[rel.From] {
+			return fmt.Errorf("relationships[%d]: from %q not in elements", index, rel.From)
+		}
+		if !names[rel.To] {
+			return fmt.Errorf("relationships[%d]: to %q not in elements", index, rel.To)
+		}
+	}
+	for index, link := range links.RefinedBy {
+		if !validRefinedByFile.MatchString(link.File) {
+			return fmt.Errorf("cross_links.refined_by[%d]: file %q must match %s",
+				index, link.File, validRefinedByFile)
+		}
+	}
+	return nil
 }
 
 // slug lowercases s and collapses non-[a-z0-9] runs into a single "-",

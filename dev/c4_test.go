@@ -85,6 +85,48 @@ func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
 	}
 }
 
+func TestT7_BuildValidates_RejectsBadSchemas(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		file   string
+		errSub string
+	}{
+		{"testdata/c4/invalid_schema_version.json", "schema_version"},
+		{"testdata/c4/invalid_no_system.json", "is_system"},
+		{"testdata/c4/invalid_two_systems.json", "exactly one"},
+		{"testdata/c4/invalid_dup_names.json", "duplicate"},
+		{"testdata/c4/invalid_dangling_rel.json", "elements"},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.file, func(t *testing.T) {
+			t.Parallel()
+			_, err := loadAndValidateSpec(testCase.file)
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", testCase.errSub)
+			}
+			if !strings.Contains(err.Error(), testCase.errSub) {
+				t.Errorf("error %q does not contain %q", err.Error(), testCase.errSub)
+			}
+		})
+	}
+}
+
+func TestT7_BuildValidates_AcceptsValid(t *testing.T) {
+	t.Parallel()
+
+	spec, err := loadAndValidateSpec("testdata/c4/valid_l1.json")
+	if err != nil {
+		t.Fatalf("valid spec rejected: %v", err)
+	}
+	if spec.Level != 1 {
+		t.Errorf("level: want 1, got %d", spec.Level)
+	}
+	if spec.Name != "engram-system" {
+		t.Errorf("name: want engram-system, got %q", spec.Name)
+	}
+}
+
 func TestT6_AuditCLI_JSONFormat(t *testing.T) {
 	t.Parallel()
 
