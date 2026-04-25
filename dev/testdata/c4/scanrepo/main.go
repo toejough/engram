@@ -8,14 +8,17 @@ import (
 	"path/filepath"
 )
 
-const apiURL = "https://api.example.com/v1/things"
-
 func main() {
 	_ = doHTTP()
 	_ = readConfig()
 	_ = runGit()
 	_ = readEnv()
 }
+
+// unexported constants.
+const (
+	apiURL = "https://api.example.com/v1/things"
+)
 
 func doHTTP() error {
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, apiURL, nil)
@@ -29,10 +32,10 @@ func readConfig() error {
 	return err
 }
 
-func runGit() error {
-	return exec.Command("git", "status").Run()
-}
-
 func readEnv() string {
 	return os.Getenv("SCANREPO_API_KEY")
+}
+
+func runGit() error {
+	return exec.Command("git", "status").Run()
 }

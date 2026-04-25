@@ -25,6 +25,84 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+func init() {
+	targ.Register(targ.Targ(c4Audit).Name("c4-audit").
+		Description("Structurally audit a C4 L1 markdown file. Exits 1 on any finding."))
+	targ.Register(targ.Targ(c4L1Build).Name("c4-l1-build").
+		Description("Build canonical C4 L1 markdown from a JSON spec next to the input file."))
+	targ.Register(targ.Targ(c4L1Externals).Name("c4-l1-externals").
+		Description("Walk the repo with Go AST analysis and emit external-system candidates as JSON."))
+	targ.Register(targ.Targ(c4History).Name("c4-history").
+		Description("Wrap git log and emit structured JSON of commit metadata + bodies."))
+}
+
+// C4AuditArgs configures the c4-audit target.
+type C4AuditArgs struct {
+	File string `targ:"flag,name=file,desc=Markdown file to audit (required)"`
+	JSON bool   `targ:"flag,name=json,desc=Emit findings as JSON"`
+}
+
+// C4HistoryArgs configures the c4-history target.
+type C4HistoryArgs struct {
+	Limit int    `targ:"flag,name=limit,desc=Max commits (default: 50)"`
+	Since string `targ:"flag,name=since,desc=git log --since"`
+	Grep  string `targ:"flag,name=grep,desc=git log --grep"`
+	Paths string `targ:"flag,name=paths,desc=Comma-separated path filters"`
+}
+
+// C4L1BuildArgs configures the c4-l1-build target.
+type C4L1BuildArgs struct {
+	Input     string `targ:"flag,name=input,desc=JSON spec path (required)"`
+	Check     bool   `targ:"flag,name=check,desc=Verify existing .md matches generated; non-zero on diff"`
+	NoConfirm bool   `targ:"flag,name=noconfirm,desc=Overwrite existing .md without prompting"`
+}
+
+// C4L1ExternalsArgs configures the c4-l1-externals target.
+type C4L1ExternalsArgs struct {
+	Root         string `targ:"flag,name=root,desc=Module root (default: .)"`
+	Packages     string `targ:"flag,name=packages,desc=Packages pattern (default: ./...)"`
+	IncludeTests bool   `targ:"flag,name=includetests,desc=Include _test.go files"`
+}
+
+// Finding records a single structural problem detected by the audit.
+type Finding struct {
+	ID     string `json:"id"`
+	Line   int    `json:"line"`
+	Detail string `json:"detail"`
+}
+
+type L1CrossLinks struct {
+	RefinedBy []L1RefinedBy `json:"refined_by"`
+}
+
+type L1DriftNote struct {
+	Date   string `json:"date"`
+	Detail string `json:"detail"`
+	Reason string `json:"reason"`
+}
+
+type L1Element struct {
+	Name           string  `json:"name"`
+	Kind           string  `json:"kind"`
+	IsSystem       bool    `json:"is_system,omitempty"`
+	Subtitle       *string `json:"subtitle,omitempty"`
+	Responsibility string  `json:"responsibility"`
+	SystemOfRecord string  `json:"system_of_record"`
+}
+
+type L1RefinedBy struct {
+	File string `json:"file"`
+	Note string `json:"note"`
+}
+
+type L1Relationship struct {
+	From          string `json:"from"`
+	To            string `json:"to"`
+	Description   string `json:"description"`
+	Protocol      string `json:"protocol"`
+	Bidirectional bool   `json:"bidirectional,omitempty"`
+}
+
 // L1Spec is the JSON-source-of-truth representation of a C4 L1 diagram.
 type L1Spec struct {
 	SchemaVersion string           `json:"schema_version"`
@@ -38,73 +116,63 @@ type L1Spec struct {
 	CrossLinks    L1CrossLinks     `json:"cross_links"`
 }
 
-type L1Element struct {
-	Name           string  `json:"name"`
-	Kind           string  `json:"kind"`
-	IsSystem       bool    `json:"is_system,omitempty"`
-	Subtitle       *string `json:"subtitle,omitempty"`
-	Responsibility string  `json:"responsibility"`
-	SystemOfRecord string  `json:"system_of_record"`
-}
+// unexported constants.
+const (
+	fmFence = "---"
+)
 
-type L1Relationship struct {
-	From          string `json:"from"`
-	To            string `json:"to"`
-	Description   string `json:"description"`
-	Protocol      string `json:"protocol"`
-	Bidirectional bool   `json:"bidirectional,omitempty"`
-}
-
-type L1DriftNote struct {
-	Date   string `json:"date"`
-	Detail string `json:"detail"`
-	Reason string `json:"reason"`
-}
-
-type L1CrossLinks struct {
-	RefinedBy []L1RefinedBy `json:"refined_by"`
-}
-
-type L1RefinedBy struct {
-	File string `json:"file"`
-	Note string `json:"note"`
-}
-
-// C4AuditArgs configures the c4-audit target.
-type C4AuditArgs struct {
-	File string `targ:"flag,name=file,desc=Markdown file to audit (required)"`
-	JSON bool   `targ:"flag,name=json,desc=Emit findings as JSON"`
-}
-
-// C4L1BuildArgs configures the c4-l1-build target.
-type C4L1BuildArgs struct {
-	Input     string `targ:"flag,name=input,desc=JSON spec path (required)"`
-	Check     bool   `targ:"flag,name=check,desc=Verify existing .md matches generated; non-zero on diff"`
-	NoConfirm bool   `targ:"flag,name=noconfirm,desc=Overwrite existing .md without prompting"`
-}
-
-func init() {
-	targ.Register(targ.Targ(c4Audit).Name("c4-audit").
-		Description("Structurally audit a C4 L1 markdown file. Exits 1 on any finding."))
-	targ.Register(targ.Targ(c4L1Build).Name("c4-l1-build").
-		Description("Build canonical C4 L1 markdown from a JSON spec next to the input file."))
-	targ.Register(targ.Targ(c4L1Externals).Name("c4-l1-externals").
-		Description("Walk the repo with Go AST analysis and emit external-system candidates as JSON."))
-	targ.Register(targ.Targ(c4History).Name("c4-history").
-		Description("Wrap git log and emit structured JSON of commit metadata + bodies."))
-}
-
-// Finding records a single structural problem detected by the audit.
-type Finding struct {
-	ID     string `json:"id"`
-	Line   int    `json:"line"`
-	Detail string `json:"detail"`
-}
+// unexported variables.
+var (
+	anchorInCellRe  = regexp.MustCompile(`<a\s+id="([^"]+)"></a>`)
+	catalogHeaderRe = regexp.MustCompile(`(?m)^##\s+Element Catalog\s*$`)
+	edgeIDPrefix    = regexp.MustCompile(`^R\d+\s*:`)
+	errNoArgs       = errors.New("--file is required")
+	httpMethodSet   = map[string]bool{
+		"NewRequest": true, "NewRequestWithContext": true,
+		"Get": true, "Post": true, "Put": true, "Delete": true, "Head": true, "PostForm": true,
+	}
+	levelPrefixRe      = regexp.MustCompile(`^c[1-4]-`)
+	mermaidClassRe     = regexp.MustCompile(`^\s*class\s+([\w,]+)\s+(\w+)\s*$`)
+	mermaidClickRe     = regexp.MustCompile(`^\s*click\s+(\w+)\s+href\s+"#([^"]+)"`)
+	mermaidEdgeRe      = regexp.MustCompile(`^\s*(\w+)\s*<?-+>+\s*(?:\|([^|]*)\|\s*)?(\w+)\s*$`)
+	mermaidIDPrefix    = regexp.MustCompile(`^E\d+`)
+	mermaidNodeRe      = regexp.MustCompile(`^\s*(\w+)\s*[(\[]+(.*?)[)\]]+\s*$`)
+	nameStatusLineRe   = regexp.MustCompile(`^[A-Z][A-Z0-9]*\t`)
+	relsHeaderRe       = regexp.MustCompile(`(?m)^##\s+Relationships\s*$`)
+	slugSplitRe        = regexp.MustCompile(`[^a-z0-9]+`)
+	tableRowFirstRe    = regexp.MustCompile(`^\s*\|\s*(?:<a\s+id="([^"]+)"></a>)?\s*([ER]\d+)\s*\|`)
+	validKinds         = map[string]bool{"person": true, "external": true, "container": true}
+	validNameRe        = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+	validRefinedByFile = regexp.MustCompile(`^c2-[a-z0-9-]+\.md$`)
+)
 
 type auditJSON struct {
 	SchemaVersion string    `json:"schema_version"`
 	File          string    `json:"file"`
 	Findings      []Finding `json:"findings"`
+}
+
+type catalogRow struct {
+	id       string
+	anchorID string
+	name     string
+	line     int
+}
+
+// elementID pairs a source element with its assigned E<n> identifier and
+// anchor slug.
+type elementID struct {
+	ID       string
+	AnchorID string
+	Element  L1Element
+}
+
+// externalFinding is one detected outbound dependency from the scanned code.
+type externalFinding struct {
+	Kind     string `json:"kind"`
+	Target   string `json:"target"`
+	Source   string `json:"source"`
+	Evidence string `json:"evidence"`
 }
 
 // frontMatter holds the parsed YAML front-matter fields for a C4 markdown file.
@@ -130,13 +198,267 @@ type frontMatter struct {
 	lastReviewedCommitLine int
 }
 
-const fmFence = "---"
+type historyCommit struct {
+	SHA          string              `json:"sha"`
+	Date         string              `json:"date"`
+	Author       string              `json:"author"`
+	Subject      string              `json:"subject"`
+	Body         string              `json:"body"`
+	FilesChanged []historyFileChange `json:"files_changed"`
+}
 
-var (
-	errNoArgs    = errors.New("--file is required")
-	validNameRe  = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
-	slugSplitRe  = regexp.MustCompile(`[^a-z0-9]+`)
-)
+type historyFileChange struct {
+	Path   string `json:"path"`
+	Status string `json:"status"`
+}
+
+type historyOptions struct {
+	root  string
+	paths []string
+	since string
+	limit int
+	grep  string
+}
+
+// mermaidBlock holds the parsed contents of a ```mermaid fenced code block.
+type mermaidBlock struct {
+	startLine   int
+	endLine     int
+	body        string
+	hasClassDef bool
+	classes     map[string]bool
+	nodes       []mermaidNode
+	edges       []mermaidEdge
+	clicks      []mermaidClick
+}
+
+type mermaidClick struct {
+	node       string
+	hrefAnchor string
+	line       int
+}
+
+type mermaidEdge struct {
+	from  string
+	to    string
+	label string
+	line  int
+}
+
+type mermaidNode struct {
+	id    string
+	label string
+	line  int
+}
+
+// relationshipID pairs a source relationship with its assigned R<n> identifier
+// and anchor slug.
+type relationshipID struct {
+	ID       string
+	AnchorID string
+	Rel      L1Relationship
+}
+
+type relationshipsRow struct {
+	id       string
+	anchorID string
+	from     string
+	to       string
+	line     int
+}
+
+// assignElementIDs returns elements paired with sequential E1..En IDs in source
+// order. AnchorID is "e<n>-<slug(name)>"; collisions append "-2", "-3"....
+func assignElementIDs(elements []L1Element) []elementID {
+	result := make([]elementID, 0, len(elements))
+	used := map[string]int{}
+	for index, element := range elements {
+		base := fmt.Sprintf("e%d-%s", index+1, slug(element.Name))
+		anchor := base
+		if used[base] > 0 {
+			used[base]++
+			anchor = fmt.Sprintf("%s-%d", base, used[base])
+		} else {
+			used[base] = 1
+		}
+		result = append(result, elementID{
+			ID:       fmt.Sprintf("E%d", index+1),
+			AnchorID: anchor,
+			Element:  element,
+		})
+	}
+	return result
+}
+
+// assignRelationshipIDs returns relationships paired with sequential R1..Rn IDs.
+// AnchorID is "r<n>-<slug(from)>-<slug(to)>"; collisions append "-2"....
+func assignRelationshipIDs(rels []L1Relationship) []relationshipID {
+	result := make([]relationshipID, 0, len(rels))
+	used := map[string]int{}
+	for index, rel := range rels {
+		base := fmt.Sprintf("r%d-%s-%s", index+1, slug(rel.From), slug(rel.To))
+		anchor := base
+		if used[base] > 0 {
+			used[base]++
+			anchor = fmt.Sprintf("%s-%d", base, used[base])
+		} else {
+			used[base] = 1
+		}
+		result = append(result, relationshipID{
+			ID:       fmt.Sprintf("R%d", index+1),
+			AnchorID: anchor,
+			Rel:      rel,
+		})
+	}
+	return result
+}
+
+// auditAnchorsAndClicks emits click_missing for nodes lacking a click directive,
+// click_target_unresolved for click anchors that don't match any catalog or
+// relationships row anchor, and anchor_missing for table rows lacking an anchor.
+func auditAnchorsAndClicks(block *mermaidBlock, catalog []catalogRow, rels []relationshipsRow) []Finding {
+	if block == nil {
+		return nil
+	}
+	findings := []Finding{}
+	anchorSet := map[string]bool{}
+	for _, row := range catalog {
+		if row.anchorID != "" {
+			anchorSet[row.anchorID] = true
+		} else {
+			findings = append(findings, Finding{
+				ID: "anchor_missing", Line: row.line,
+				Detail: fmt.Sprintf("catalog row %s has no <a id=\"...\"></a>", row.id),
+			})
+		}
+	}
+	for _, row := range rels {
+		if row.anchorID != "" {
+			anchorSet[row.anchorID] = true
+		} else {
+			findings = append(findings, Finding{
+				ID: "anchor_missing", Line: row.line,
+				Detail: fmt.Sprintf("relationships row %s has no <a id=\"...\"></a>", row.id),
+			})
+		}
+	}
+	clickedNodes := map[string]bool{}
+	for _, click := range block.clicks {
+		clickedNodes[click.node] = true
+		if !anchorSet[click.hrefAnchor] {
+			findings = append(findings, Finding{
+				ID: "click_target_unresolved", Line: click.line,
+				Detail: fmt.Sprintf("click %s href #%s does not match any catalog/relationships anchor",
+					click.node, click.hrefAnchor),
+			})
+		}
+	}
+	for _, node := range block.nodes {
+		if !clickedNodes[node.id] {
+			findings = append(findings, Finding{
+				ID: "click_missing", Line: node.line,
+				Detail: fmt.Sprintf("node %s has no click directive", node.id),
+			})
+		}
+	}
+	return findings
+}
+
+// auditFile reads path and returns all structural findings.
+// It returns an error only when the file itself cannot be read.
+func auditFile(ctx context.Context, path string) ([]Finding, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	findings := []Finding{}
+	findings = append(findings, auditFrontMatter(ctx, path, raw)...)
+	block, mermaidFindings := parseMermaidBlock(raw)
+	findings = append(findings, mermaidFindings...)
+	catalog, rels := parseTables(raw)
+	findings = append(findings, auditOrphans(block, catalog, rels)...)
+	findings = append(findings, auditAnchorsAndClicks(block, catalog, rels)...)
+	return findings, nil
+}
+
+// auditFrontMatter parses the YAML front-matter and emits findings for missing
+// blocks, missing fields, invalid values, and broken cross-references.
+func auditFrontMatter(ctx context.Context, path string, raw []byte) []Finding {
+	matter, ok := parseFrontMatter(raw)
+	if !ok {
+		return []Finding{{ID: "front_matter_missing", Line: 1, Detail: "no leading --- block"}}
+	}
+	findings := []Finding{}
+	findings = append(findings, checkRequiredFields(matter)...)
+	findings = append(findings, checkLevel(matter)...)
+	findings = append(findings, checkName(matter, path)...)
+	findings = append(findings, checkParent(matter, path)...)
+	findings = append(findings, checkLastReviewedCommit(ctx, matter)...)
+	return findings
+}
+
+// auditOrphans cross-references mermaid IDs with catalog/relationships rows and
+// emits node_orphan, catalog_orphan, edge_orphan, relationships_orphan findings.
+func auditOrphans(block *mermaidBlock, catalog []catalogRow, rels []relationshipsRow) []Finding {
+	if block == nil {
+		return nil
+	}
+	findings := []Finding{}
+	mermaidNodeIDs := map[string]int{}
+	for _, node := range block.nodes {
+		if matched := mermaidIDPrefix.FindString(strings.TrimSpace(node.label)); matched != "" {
+			mermaidNodeIDs[matched] = node.line
+		}
+	}
+	mermaidEdgeIDs := map[string]int{}
+	for _, edge := range block.edges {
+		label := strings.TrimSpace(edge.label)
+		if matched := regexp.MustCompile(`^R\d+`).FindString(label); matched != "" {
+			mermaidEdgeIDs[matched] = edge.line
+		}
+	}
+	catalogIDs := map[string]int{}
+	for _, row := range catalog {
+		catalogIDs[row.id] = row.line
+	}
+	relsIDs := map[string]int{}
+	for _, row := range rels {
+		relsIDs[row.id] = row.line
+	}
+	for nodeID, line := range mermaidNodeIDs {
+		if _, ok := catalogIDs[nodeID]; !ok {
+			findings = append(findings, Finding{
+				ID: "node_orphan", Line: line,
+				Detail: fmt.Sprintf("mermaid node %s has no catalog row", nodeID),
+			})
+		}
+	}
+	for catID, line := range catalogIDs {
+		if _, ok := mermaidNodeIDs[catID]; !ok {
+			findings = append(findings, Finding{
+				ID: "catalog_orphan", Line: line,
+				Detail: fmt.Sprintf("catalog row %s has no mermaid node", catID),
+			})
+		}
+	}
+	for edgeID, line := range mermaidEdgeIDs {
+		if _, ok := relsIDs[edgeID]; !ok {
+			findings = append(findings, Finding{
+				ID: "edge_orphan", Line: line,
+				Detail: fmt.Sprintf("mermaid edge %s has no relationships row", edgeID),
+			})
+		}
+	}
+	for relID, line := range relsIDs {
+		if _, ok := mermaidEdgeIDs[relID]; !ok {
+			findings = append(findings, Finding{
+				ID: "relationships_orphan", Line: line,
+				Detail: fmt.Sprintf("relationships row %s has no mermaid edge", relID),
+			})
+		}
+	}
+	return findings
+}
 
 func c4Audit(ctx context.Context, args C4AuditArgs) error {
 	if args.File == "" {
@@ -155,6 +477,44 @@ func c4Audit(ctx context.Context, args C4AuditArgs) error {
 	}
 	if len(findings) > 0 {
 		return fmt.Errorf("%d finding(s)", len(findings))
+	}
+	return nil
+}
+
+func c4History(ctx context.Context, args C4HistoryArgs) error {
+	limit := args.Limit
+	if limit == 0 {
+		limit = 50
+	}
+	var paths []string
+	if args.Paths != "" {
+		paths = strings.Split(args.Paths, ",")
+	}
+	commits, err := scanHistory(ctx, historyOptions{
+		root: ".", paths: paths, since: args.Since, limit: limit, grep: args.Grep,
+	})
+	if err != nil {
+		return err
+	}
+	type filters struct {
+		Paths []string `json:"paths"`
+		Since string   `json:"since"`
+		Limit int      `json:"limit"`
+		Grep  string   `json:"grep"`
+	}
+	type out struct {
+		SchemaVersion string          `json:"schema_version"`
+		Filters       filters         `json:"filters"`
+		Commits       []historyCommit `json:"commits"`
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(out{
+		SchemaVersion: "1",
+		Filters:       filters{Paths: paths, Since: args.Since, Limit: limit, Grep: args.Grep},
+		Commits:       commits,
+	}); err != nil {
+		return fmt.Errorf("encode history: %w", err)
 	}
 	return nil
 }
@@ -204,22 +564,6 @@ func c4L1Build(ctx context.Context, args C4L1BuildArgs) error {
 	return nil
 }
 
-func currentGitShortSHA(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD")
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("git rev-parse: %w", err)
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-// C4L1ExternalsArgs configures the c4-l1-externals target.
-type C4L1ExternalsArgs struct {
-	Root         string `targ:"flag,name=root,desc=Module root (default: .)"`
-	Packages     string `targ:"flag,name=packages,desc=Packages pattern (default: ./...)"`
-	IncludeTests bool   `targ:"flag,name=includetests,desc=Include _test.go files"`
-}
-
 func c4L1Externals(ctx context.Context, args C4L1ExternalsArgs) error {
 	root := args.Root
 	if root == "" {
@@ -247,153 +591,6 @@ func c4L1Externals(ctx context.Context, args C4L1ExternalsArgs) error {
 	return nil
 }
 
-// externalFinding is one detected outbound dependency from the scanned code.
-type externalFinding struct {
-	Kind     string `json:"kind"`
-	Target   string `json:"target"`
-	Source   string `json:"source"`
-	Evidence string `json:"evidence"`
-}
-
-func scanExternals(ctx context.Context, root, pattern string, includeTests bool) ([]externalFinding, error) {
-	cfg := &packages.Config{
-		Mode: packages.NeedSyntax | packages.NeedTypes | packages.NeedImports |
-			packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedTypesInfo |
-			packages.NeedName,
-		Dir:     root,
-		Context: ctx,
-		Tests:   includeTests,
-	}
-	pkgs, err := packages.Load(cfg, pattern)
-	if err != nil {
-		return nil, fmt.Errorf("packages.Load: %w", err)
-	}
-	findings := []externalFinding{}
-	for _, pkg := range pkgs {
-		for _, file := range pkg.Syntax {
-			ast.Inspect(file, func(node ast.Node) bool {
-				findings = append(findings, detectHTTPCall(pkg, node)...)
-				findings = append(findings, detectFSPath(pkg, node)...)
-				findings = append(findings, detectExec(pkg, node)...)
-				findings = append(findings, detectEnvRead(pkg, node)...)
-				return true
-			})
-		}
-	}
-	sort.Slice(findings, func(i, j int) bool {
-		if findings[i].Kind != findings[j].Kind {
-			return findings[i].Kind < findings[j].Kind
-		}
-		if findings[i].Source != findings[j].Source {
-			return findings[i].Source < findings[j].Source
-		}
-		return findings[i].Target < findings[j].Target
-	})
-	return findings, nil
-}
-
-var httpMethodSet = map[string]bool{
-	"NewRequest": true, "NewRequestWithContext": true,
-	"Get": true, "Post": true, "Put": true, "Delete": true, "Head": true, "PostForm": true,
-}
-
-func detectHTTPCall(pkg *packages.Package, node ast.Node) []externalFinding {
-	call, sel, pkgName := callOnPackage(pkg, node)
-	if call == nil || pkgName != "net/http" || !httpMethodSet[sel.Sel.Name] {
-		return nil
-	}
-	target := firstStringArg(pkg, call)
-	if target == "" {
-		return nil
-	}
-	return []externalFinding{{
-		Kind:     "http_call",
-		Target:   target,
-		Source:   positionOf(pkg, call.Pos()),
-		Evidence: exprText(pkg, call),
-	}}
-}
-
-func detectFSPath(pkg *packages.Package, node ast.Node) []externalFinding {
-	call, sel, pkgName := callOnPackage(pkg, node)
-	if call == nil {
-		return nil
-	}
-	if pkgName == "os" {
-		switch sel.Sel.Name {
-		case "UserHomeDir", "UserConfigDir", "UserCacheDir":
-			return []externalFinding{{
-				Kind:     "fs_path",
-				Target:   "$HOME",
-				Source:   positionOf(pkg, call.Pos()),
-				Evidence: exprText(pkg, call),
-			}}
-		case "Open", "OpenFile", "ReadFile", "WriteFile", "Create":
-			target := firstStringArg(pkg, call)
-			if target != "" && (strings.HasPrefix(target, "~/") || strings.HasPrefix(target, "/etc/") ||
-				strings.HasPrefix(target, "/var/") || strings.HasPrefix(target, "/tmp/")) {
-				return []externalFinding{{
-					Kind:     "fs_path",
-					Target:   target,
-					Source:   positionOf(pkg, call.Pos()),
-					Evidence: exprText(pkg, call),
-				}}
-			}
-		}
-	}
-	return nil
-}
-
-func detectExec(pkg *packages.Package, node ast.Node) []externalFinding {
-	call, sel, pkgName := callOnPackage(pkg, node)
-	if call == nil || pkgName != "os/exec" {
-		return nil
-	}
-	if sel.Sel.Name != "Command" && sel.Sel.Name != "CommandContext" {
-		return nil
-	}
-	argIdx := 0
-	if sel.Sel.Name == "CommandContext" {
-		argIdx = 1
-	}
-	if len(call.Args) <= argIdx {
-		return nil
-	}
-	target := stringValueOf(pkg, call.Args[argIdx])
-	if target == "" {
-		return nil
-	}
-	return []externalFinding{{
-		Kind:     "exec",
-		Target:   target,
-		Source:   positionOf(pkg, call.Pos()),
-		Evidence: exprText(pkg, call),
-	}}
-}
-
-func detectEnvRead(pkg *packages.Package, node ast.Node) []externalFinding {
-	call, sel, pkgName := callOnPackage(pkg, node)
-	if call == nil || pkgName != "os" {
-		return nil
-	}
-	if sel.Sel.Name != "Getenv" && sel.Sel.Name != "LookupEnv" {
-		return nil
-	}
-	if len(call.Args) == 0 {
-		return nil
-	}
-	target := stringValueOf(pkg, call.Args[0])
-	if target == "" {
-		return nil
-	}
-	return []externalFinding{{
-		Kind:     "env_read",
-		Target:   target,
-		Source:   positionOf(pkg, call.Pos()),
-		Evidence: exprText(pkg, call),
-	}}
-}
-
 func callOnPackage(pkg *packages.Package, node ast.Node) (*ast.CallExpr, *ast.SelectorExpr, string) {
 	call, ok := node.(*ast.CallExpr)
 	if !ok {
@@ -417,278 +614,166 @@ func callOnPackage(pkg *packages.Package, node ast.Node) (*ast.CallExpr, *ast.Se
 	return call, sel, use.Imported().Path()
 }
 
-func firstStringArg(pkg *packages.Package, call *ast.CallExpr) string {
-	for _, arg := range call.Args {
-		value := stringValueOf(pkg, arg)
-		if value != "" && (strings.Contains(value, "://") || strings.HasPrefix(value, "/") || strings.HasPrefix(value, "~")) {
-			return value
-		}
+func checkLastReviewedCommit(ctx context.Context, matter frontMatter) []Finding {
+	if !matter.hasLastReviewedCommit {
+		return nil
 	}
-	return ""
-}
-
-func stringValueOf(pkg *packages.Package, expr ast.Expr) string {
-	if pkg.TypesInfo == nil {
-		return ""
+	if matter.lastReviewedCommit == "" {
+		return []Finding{{
+			ID:     "last_reviewed_commit_invalid",
+			Line:   matter.lastReviewedCommitLine,
+			Detail: "last_reviewed_commit is empty",
+		}}
 	}
-	if tv, ok := pkg.TypesInfo.Types[expr]; ok && tv.Value != nil && tv.Value.Kind() == constant.String {
-		return constant.StringVal(tv.Value)
+	if _, err := exec.LookPath("git"); err != nil {
+		fmt.Fprintln(os.Stderr, "warning: git not on PATH; skipping last_reviewed_commit verification")
+		return nil
 	}
-	if lit, ok := expr.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		unquoted, err := strconv.Unquote(lit.Value)
-		if err == nil {
-			return unquoted
-		}
-	}
-	return ""
-}
-
-func positionOf(pkg *packages.Package, pos token.Pos) string {
-	if pkg.Fset == nil {
-		return ""
-	}
-	position := pkg.Fset.Position(pos)
-	return fmt.Sprintf("%s:%d", position.Filename, position.Line)
-}
-
-func exprText(pkg *packages.Package, node ast.Node) string {
-	if pkg.Fset == nil {
-		return ""
-	}
-	start := pkg.Fset.Position(node.Pos())
-	end := pkg.Fset.Position(node.End())
-	if start.Filename != end.Filename {
-		return ""
-	}
-	data, err := os.ReadFile(start.Filename)
-	if err != nil {
-		return ""
-	}
-	if start.Offset < 0 || end.Offset > len(data) || start.Offset > end.Offset {
-		return ""
-	}
-	return string(data[start.Offset:end.Offset])
-}
-
-// C4HistoryArgs configures the c4-history target.
-type C4HistoryArgs struct {
-	Limit int    `targ:"flag,name=limit,desc=Max commits (default: 50)"`
-	Since string `targ:"flag,name=since,desc=git log --since"`
-	Grep  string `targ:"flag,name=grep,desc=git log --grep"`
-	Paths string `targ:"flag,name=paths,desc=Comma-separated path filters"`
-}
-
-func c4History(ctx context.Context, args C4HistoryArgs) error {
-	limit := args.Limit
-	if limit == 0 {
-		limit = 50
-	}
-	var paths []string
-	if args.Paths != "" {
-		paths = strings.Split(args.Paths, ",")
-	}
-	commits, err := scanHistory(ctx, historyOptions{
-		root: ".", paths: paths, since: args.Since, limit: limit, grep: args.Grep,
-	})
-	if err != nil {
-		return err
-	}
-	type filters struct {
-		Paths []string `json:"paths"`
-		Since string   `json:"since"`
-		Limit int      `json:"limit"`
-		Grep  string   `json:"grep"`
-	}
-	type out struct {
-		SchemaVersion string          `json:"schema_version"`
-		Filters       filters         `json:"filters"`
-		Commits       []historyCommit `json:"commits"`
-	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(out{
-		SchemaVersion: "1",
-		Filters:       filters{Paths: paths, Since: args.Since, Limit: limit, Grep: args.Grep},
-		Commits:       commits,
-	}); err != nil {
-		return fmt.Errorf("encode history: %w", err)
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--quiet", "--verify", matter.lastReviewedCommit+"^{commit}")
+	if err := cmd.Run(); err != nil {
+		return []Finding{{
+			ID:     "last_reviewed_commit_invalid",
+			Line:   matter.lastReviewedCommitLine,
+			Detail: fmt.Sprintf("git rev-parse rejected %q", matter.lastReviewedCommit),
+		}}
 	}
 	return nil
 }
 
-type historyOptions struct {
-	root  string
-	paths []string
-	since string
-	limit int
-	grep  string
+func checkLevel(matter frontMatter) []Finding {
+	if !matter.hasLevel {
+		return nil
+	}
+	if matter.level < 1 || matter.level > 4 {
+		return []Finding{{
+			ID:     "level_invalid",
+			Line:   matter.levelLine,
+			Detail: fmt.Sprintf("level %d not in [1..4]", matter.level),
+		}}
+	}
+	return nil
 }
 
-type historyCommit struct {
-	SHA          string              `json:"sha"`
-	Date         string              `json:"date"`
-	Author       string              `json:"author"`
-	Subject      string              `json:"subject"`
-	Body         string              `json:"body"`
-	FilesChanged []historyFileChange `json:"files_changed"`
+func checkName(matter frontMatter, path string) []Finding {
+	if !matter.hasName {
+		return nil
+	}
+	base := strings.TrimSuffix(filepath.Base(path), ".md")
+	base = levelPrefixRe.ReplaceAllString(base, "")
+	expected := slug(base)
+	if matter.name != expected {
+		return []Finding{{
+			ID:     "name_filename_mismatch",
+			Line:   matter.nameLine,
+			Detail: fmt.Sprintf("name %q does not match filename slug %q", matter.name, expected),
+		}}
+	}
+	if !validNameRe.MatchString(matter.name) {
+		return []Finding{{
+			ID:     "name_filename_mismatch",
+			Line:   matter.nameLine,
+			Detail: fmt.Sprintf("name %q must match %s", matter.name, validNameRe),
+		}}
+	}
+	return nil
 }
 
-type historyFileChange struct {
-	Path   string `json:"path"`
-	Status string `json:"status"`
+func checkParent(matter frontMatter, path string) []Finding {
+	if !matter.hasParent || matter.parentNull {
+		return nil
+	}
+	resolved := filepath.Join(filepath.Dir(path), matter.parent)
+	if _, err := os.Stat(resolved); err != nil {
+		return []Finding{{
+			ID:     "parent_missing",
+			Line:   matter.parentLine,
+			Detail: fmt.Sprintf("parent %q resolves to %q but does not exist", matter.parent, resolved),
+		}}
+	}
+	return nil
 }
 
-func scanHistory(ctx context.Context, opts historyOptions) ([]historyCommit, error) {
-	args := []string{
-		"log",
-		"--format=%H%x09%aI%x09%an%x09%s%x00%B%x00",
-		"--name-status",
-	}
-	if opts.limit > 0 {
-		args = append(args, fmt.Sprintf("-n%d", opts.limit))
-	}
-	if opts.since != "" {
-		args = append(args, "--since="+opts.since)
-	}
-	if opts.grep != "" {
-		args = append(args, "--grep="+opts.grep)
-	}
-	if len(opts.paths) > 0 {
-		args = append(args, "--")
-		args = append(args, opts.paths...)
-	}
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = opts.root
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("git log: %w", err)
-	}
-	return parseGitLog(out), nil
-}
-
-// parseGitLog walks the NUL-delimited records produced by
-// `--format=%H%x09%aI%x09%an%x09%s%x00%B%x00 --name-status`.
-// Layout per commit:
-//   <sha> TAB <date> TAB <author> TAB <subject> NUL <body> NUL <name-status lines>
-func parseGitLog(raw []byte) []historyCommit {
-	commits := []historyCommit{}
-	for len(raw) > 0 {
-		commit, rest, ok := parseSingleCommit(raw)
-		if !ok {
-			break
-		}
-		commits = append(commits, commit)
-		raw = rest
-	}
-	return commits
-}
-
-func parseSingleCommit(raw []byte) (historyCommit, []byte, bool) {
-	header, rest, ok := bytes.Cut(raw, []byte{0})
-	if !ok {
-		return historyCommit{}, nil, false
-	}
-	headerStr := string(bytes.TrimLeft(header, "\n"))
-	parts := strings.SplitN(headerStr, "\t", 4)
-	if len(parts) < 4 {
-		return historyCommit{}, nil, false
-	}
-	body, rest, ok := bytes.Cut(rest, []byte{0})
-	if !ok {
-		return historyCommit{}, nil, false
-	}
-	commit := historyCommit{
-		SHA:     parts[0],
-		Date:    parts[1],
-		Author:  parts[2],
-		Subject: parts[3],
-		Body:    strings.TrimSpace(string(body)),
-	}
-	commit.FilesChanged = parseNameStatusBlock(&rest)
-	return commit, rest, true
-}
-
-var nameStatusLineRe = regexp.MustCompile(`^[A-Z][A-Z0-9]*\t`)
-
-func parseNameStatusBlock(rest *[]byte) []historyFileChange {
-	files := []historyFileChange{}
-	for len(*rest) > 0 {
-		newline := bytes.IndexByte(*rest, '\n')
-		var line []byte
-		if newline < 0 {
-			line = *rest
-		} else {
-			line = (*rest)[:newline]
-		}
-		if !nameStatusLineRe.Match(line) {
-			break
-		}
-		fields := strings.SplitN(string(line), "\t", 2)
-		files = append(files, historyFileChange{Status: fields[0], Path: fields[1]})
-		if newline < 0 {
-			*rest = nil
-			break
-		}
-		*rest = (*rest)[newline+1:]
-	}
-	// Skip leading whitespace/newlines before the next commit header.
-	*rest = bytes.TrimLeft(*rest, "\n")
-	return files
-}
-
-// auditFile reads path and returns all structural findings.
-// It returns an error only when the file itself cannot be read.
-func auditFile(ctx context.Context, path string) ([]Finding, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
+func checkRequiredFields(matter frontMatter) []Finding {
 	findings := []Finding{}
-	findings = append(findings, auditFrontMatter(ctx, path, raw)...)
-	block, mermaidFindings := parseMermaidBlock(raw)
-	findings = append(findings, mermaidFindings...)
-	catalog, rels := parseTables(raw)
-	findings = append(findings, auditOrphans(block, catalog, rels)...)
-	findings = append(findings, auditAnchorsAndClicks(block, catalog, rels)...)
-	return findings, nil
-}
-
-// auditFrontMatter parses the YAML front-matter and emits findings for missing
-// blocks, missing fields, invalid values, and broken cross-references.
-func auditFrontMatter(ctx context.Context, path string, raw []byte) []Finding {
-	matter, ok := parseFrontMatter(raw)
-	if !ok {
-		return []Finding{{ID: "front_matter_missing", Line: 1, Detail: "no leading --- block"}}
+	required := []struct {
+		present bool
+		name    string
+	}{
+		{matter.hasLevel, "level"},
+		{matter.hasName, "name"},
+		{matter.hasParent, "parent"},
+		{matter.hasChildren, "children"},
+		{matter.hasLastReviewedCommit, "last_reviewed_commit"},
 	}
-	findings := []Finding{}
-	findings = append(findings, checkRequiredFields(matter)...)
-	findings = append(findings, checkLevel(matter)...)
-	findings = append(findings, checkName(matter, path)...)
-	findings = append(findings, checkParent(matter, path)...)
-	findings = append(findings, checkLastReviewedCommit(ctx, matter)...)
+	for _, field := range required {
+		if !field.present {
+			findings = append(findings, Finding{
+				ID:     "front_matter_field_missing",
+				Line:   matter.startLine,
+				Detail: fmt.Sprintf("missing required field %q", field.name),
+			})
+		}
+	}
 	return findings
 }
 
-// parseFrontMatter scans for a leading --- ... --- block and extracts known
-// scalar fields. Returns ok=false when no front-matter block is present.
-func parseFrontMatter(raw []byte) (frontMatter, bool) {
-	matter := frontMatter{}
-	if !bytes.HasPrefix(raw, []byte(fmFence+"\n")) {
-		return matter, false
+func classFor(element L1Element) string {
+	if element.Kind == "person" {
+		return "person"
 	}
-	rest := raw[len(fmFence)+1:]
-	closing := []byte("\n" + fmFence + "\n")
-	body, _, found := bytes.Cut(rest, closing)
-	if !found {
-		return matter, false
+	if element.Kind == "container" {
+		return "container"
 	}
-	matter.present = true
-	matter.startLine = 1
-	matter.endLine = 2 + bytes.Count(body, []byte("\n"))
-	for line, content := range strings.Split(string(body), "\n") {
-		consumeFrontMatterLine(&matter, line+2, content)
+	return "external"
+}
+
+func collectMermaidFindings(block *mermaidBlock) []Finding {
+	findings := []Finding{}
+	requiredClasses := []string{"person", "external", "container"}
+	for _, name := range requiredClasses {
+		if !block.classes[name] {
+			findings = append(findings, Finding{
+				ID:     "classdef_missing",
+				Line:   block.startLine,
+				Detail: fmt.Sprintf("classDef %q not defined", name),
+			})
+		}
 	}
-	return matter, true
+	defined := map[string]mermaidNode{}
+	for _, node := range block.nodes {
+		defined[node.id] = node
+		if !mermaidIDPrefix.MatchString(strings.TrimSpace(node.label)) {
+			findings = append(findings, Finding{
+				ID:     "node_id_missing",
+				Line:   node.line,
+				Detail: fmt.Sprintf("node %q label %q does not start with E<n>", node.id, node.label),
+			})
+		}
+	}
+	for _, edge := range block.edges {
+		if _, ok := defined[edge.from]; !ok {
+			findings = append(findings, Finding{
+				ID:     "node_id_missing",
+				Line:   edge.line,
+				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.from),
+			})
+		}
+		if _, ok := defined[edge.to]; !ok {
+			findings = append(findings, Finding{
+				ID:     "node_id_missing",
+				Line:   edge.line,
+				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.to),
+			})
+		}
+		if !edgeIDPrefix.MatchString(strings.TrimSpace(edge.label)) {
+			findings = append(findings, Finding{
+				ID:     "edge_id_missing",
+				Line:   edge.line,
+				Detail: fmt.Sprintf("edge %q->%q label %q does not start with R<n>:", edge.from, edge.to, edge.label),
+			})
+		}
+	}
+	return findings
 }
 
 func consumeFrontMatterLine(matter *frontMatter, lineNum int, raw string) {
@@ -731,150 +816,369 @@ func consumeFrontMatterLine(matter *frontMatter, lineNum int, raw string) {
 	}
 }
 
-func checkRequiredFields(matter frontMatter) []Finding {
-	findings := []Finding{}
-	required := []struct {
-		present bool
-		name    string
-	}{
-		{matter.hasLevel, "level"},
-		{matter.hasName, "name"},
-		{matter.hasParent, "parent"},
-		{matter.hasChildren, "children"},
-		{matter.hasLastReviewedCommit, "last_reviewed_commit"},
+func currentGitShortSHA(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse: %w", err)
 	}
-	for _, field := range required {
-		if !field.present {
-			findings = append(findings, Finding{
-				ID:     "front_matter_field_missing",
-				Line:   matter.startLine,
-				Detail: fmt.Sprintf("missing required field %q", field.name),
-			})
+	return strings.TrimSpace(string(out)), nil
+}
+
+func detectEnvRead(pkg *packages.Package, node ast.Node) []externalFinding {
+	call, sel, pkgName := callOnPackage(pkg, node)
+	if call == nil || pkgName != "os" {
+		return nil
+	}
+	if sel.Sel.Name != "Getenv" && sel.Sel.Name != "LookupEnv" {
+		return nil
+	}
+	if len(call.Args) == 0 {
+		return nil
+	}
+	target := stringValueOf(pkg, call.Args[0])
+	if target == "" {
+		return nil
+	}
+	return []externalFinding{{
+		Kind:     "env_read",
+		Target:   target,
+		Source:   positionOf(pkg, call.Pos()),
+		Evidence: exprText(pkg, call),
+	}}
+}
+
+func detectExec(pkg *packages.Package, node ast.Node) []externalFinding {
+	call, sel, pkgName := callOnPackage(pkg, node)
+	if call == nil || pkgName != "os/exec" {
+		return nil
+	}
+	if sel.Sel.Name != "Command" && sel.Sel.Name != "CommandContext" {
+		return nil
+	}
+	argIdx := 0
+	if sel.Sel.Name == "CommandContext" {
+		argIdx = 1
+	}
+	if len(call.Args) <= argIdx {
+		return nil
+	}
+	target := stringValueOf(pkg, call.Args[argIdx])
+	if target == "" {
+		return nil
+	}
+	return []externalFinding{{
+		Kind:     "exec",
+		Target:   target,
+		Source:   positionOf(pkg, call.Pos()),
+		Evidence: exprText(pkg, call),
+	}}
+}
+
+func detectFSPath(pkg *packages.Package, node ast.Node) []externalFinding {
+	call, sel, pkgName := callOnPackage(pkg, node)
+	if call == nil {
+		return nil
+	}
+	if pkgName == "os" {
+		switch sel.Sel.Name {
+		case "UserHomeDir", "UserConfigDir", "UserCacheDir":
+			return []externalFinding{{
+				Kind:     "fs_path",
+				Target:   "$HOME",
+				Source:   positionOf(pkg, call.Pos()),
+				Evidence: exprText(pkg, call),
+			}}
+		case "Open", "OpenFile", "ReadFile", "WriteFile", "Create":
+			target := firstStringArg(pkg, call)
+			if target != "" && (strings.HasPrefix(target, "~/") || strings.HasPrefix(target, "/etc/") ||
+				strings.HasPrefix(target, "/var/") || strings.HasPrefix(target, "/tmp/")) {
+				return []externalFinding{{
+					Kind:     "fs_path",
+					Target:   target,
+					Source:   positionOf(pkg, call.Pos()),
+					Evidence: exprText(pkg, call),
+				}}
+			}
 		}
 	}
-	return findings
+	return nil
 }
 
-func checkLevel(matter frontMatter) []Finding {
-	if !matter.hasLevel {
+func detectHTTPCall(pkg *packages.Package, node ast.Node) []externalFinding {
+	call, sel, pkgName := callOnPackage(pkg, node)
+	if call == nil || pkgName != "net/http" || !httpMethodSet[sel.Sel.Name] {
 		return nil
 	}
-	if matter.level < 1 || matter.level > 4 {
-		return []Finding{{
-			ID:     "level_invalid",
-			Line:   matter.levelLine,
-			Detail: fmt.Sprintf("level %d not in [1..4]", matter.level),
-		}}
+	target := firstStringArg(pkg, call)
+	if target == "" {
+		return nil
+	}
+	return []externalFinding{{
+		Kind:     "http_call",
+		Target:   target,
+		Source:   positionOf(pkg, call.Pos()),
+		Evidence: exprText(pkg, call),
+	}}
+}
+
+func emitCatalog(buf *bytes.Buffer, elementIDs []elementID) {
+	buf.WriteString("## Element Catalog\n\n")
+	buf.WriteString("| ID | Name | Type | Responsibility | System of Record |\n")
+	buf.WriteString("|---|---|---|---|---|\n")
+	for _, item := range elementIDs {
+		typeCell := typeCellFor(item.Element)
+		fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s |\n",
+			item.AnchorID, item.ID, item.Element.Name, typeCell,
+			item.Element.Responsibility, item.Element.SystemOfRecord)
+	}
+	buf.WriteString("\n")
+}
+
+func emitCrossLinks(buf *bytes.Buffer, links L1CrossLinks) {
+	buf.WriteString("## Cross-links\n\n")
+	buf.WriteString("- Parent: none (L1 is the root).\n")
+	if len(links.RefinedBy) == 0 {
+		buf.WriteString("- Refined by: *(none yet)*\n")
+		return
+	}
+	buf.WriteString("- Refined by:\n")
+	for _, link := range links.RefinedBy {
+		fmt.Fprintf(buf, "  - [`%s`](./%s) — %s\n", link.File, link.File, link.Note)
+	}
+}
+
+func emitDriftNotes(buf *bytes.Buffer, notes []L1DriftNote) {
+	if len(notes) == 0 {
+		return
+	}
+	buf.WriteString("\n## Drift Notes\n\n")
+	for _, note := range notes {
+		fmt.Fprintf(buf, "- **%s** — %s. Reason: %s.\n", note.Date, note.Detail, note.Reason)
+	}
+}
+
+func emitFrontMatter(buf *bytes.Buffer, spec *L1Spec, lastReviewedCommit string) {
+	parent := "null"
+	if spec.Parent != nil {
+		parent = strconv.Quote(*spec.Parent)
+	}
+	fmt.Fprintf(buf, "---\nlevel: %d\nname: %s\nparent: %s\nchildren: []\nlast_reviewed_commit: %s\n---\n",
+		spec.Level, spec.Name, parent, lastReviewedCommit)
+}
+
+// emitMarkdown renders spec to canonical L1 markdown. lastReviewedCommit is
+// inserted into the front-matter; callers compute it (typically `git rev-parse
+// --short HEAD`).
+func emitMarkdown(w io.Writer, spec *L1Spec, lastReviewedCommit string) error {
+	elementIDs := assignElementIDs(spec.Elements)
+	relIDs := assignRelationshipIDs(spec.Relationships)
+	systemName := findSystemName(elementIDs)
+	var buf bytes.Buffer
+	emitFrontMatter(&buf, spec, lastReviewedCommit)
+	fmt.Fprintf(&buf, "\n# C1 — %s (System Context)\n\n%s\n\n", systemName, strings.TrimRight(spec.Preamble, "\n"))
+	emitMermaid(&buf, elementIDs, relIDs)
+	emitCatalog(&buf, elementIDs)
+	emitRelationships(&buf, elementIDs, relIDs)
+	emitCrossLinks(&buf, spec.CrossLinks)
+	emitDriftNotes(&buf, spec.DriftNotes)
+	if _, err := buf.WriteTo(w); err != nil {
+		return fmt.Errorf("write markdown: %w", err)
 	}
 	return nil
 }
 
-var levelPrefixRe = regexp.MustCompile(`^c[1-4]-`)
-
-func checkName(matter frontMatter, path string) []Finding {
-	if !matter.hasName {
-		return nil
+func emitMermaid(buf *bytes.Buffer, elementIDs []elementID, relIDs []relationshipID) {
+	buf.WriteString("```mermaid\nflowchart LR\n")
+	buf.WriteString("    classDef person      fill:#08427b,stroke:#052e56,color:#fff\n")
+	buf.WriteString("    classDef external    fill:#999,   stroke:#666,   color:#fff\n")
+	buf.WriteString("    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff\n\n")
+	for _, item := range elementIDs {
+		shape := mermaidShapeFor(item.Element)
+		label := mermaidLabelFor(item)
+		mermaidID := strings.ToLower(item.ID)
+		fmt.Fprintf(buf, "    %s%s%s%s\n", mermaidID, shape[0], label, shape[1])
 	}
-	base := strings.TrimSuffix(filepath.Base(path), ".md")
-	base = levelPrefixRe.ReplaceAllString(base, "")
-	expected := slug(base)
-	if matter.name != expected {
-		return []Finding{{
-			ID:     "name_filename_mismatch",
-			Line:   matter.nameLine,
-			Detail: fmt.Sprintf("name %q does not match filename slug %q", matter.name, expected),
-		}}
-	}
-	if !validNameRe.MatchString(matter.name) {
-		return []Finding{{
-			ID:     "name_filename_mismatch",
-			Line:   matter.nameLine,
-			Detail: fmt.Sprintf("name %q must match %s", matter.name, validNameRe),
-		}}
-	}
-	return nil
+	buf.WriteString("\n")
+	emitMermaidEdges(buf, relIDs, mermaidIDByName(elementIDs))
+	buf.WriteString("\n")
+	emitMermaidClasses(buf, elementIDs)
+	buf.WriteString("\n")
+	emitMermaidClicks(buf, elementIDs)
+	buf.WriteString("```\n\n")
 }
 
-func checkParent(matter frontMatter, path string) []Finding {
-	if !matter.hasParent || matter.parentNull {
-		return nil
+func emitMermaidClasses(buf *bytes.Buffer, elementIDs []elementID) {
+	groups := map[string][]string{}
+	classOrder := []string{"person", "external", "container"}
+	for _, item := range elementIDs {
+		class := classFor(item.Element)
+		mermaidID := strings.ToLower(item.ID)
+		groups[class] = append(groups[class], mermaidID)
 	}
-	resolved := filepath.Join(filepath.Dir(path), matter.parent)
-	if _, err := os.Stat(resolved); err != nil {
-		return []Finding{{
-			ID:     "parent_missing",
-			Line:   matter.parentLine,
-			Detail: fmt.Sprintf("parent %q resolves to %q but does not exist", matter.parent, resolved),
-		}}
+	for _, class := range classOrder {
+		ids := groups[class]
+		if len(ids) == 0 {
+			continue
+		}
+		fmt.Fprintf(buf, "    class %s %s\n", strings.Join(ids, ","), class)
 	}
-	return nil
 }
 
-func checkLastReviewedCommit(ctx context.Context, matter frontMatter) []Finding {
-	if !matter.hasLastReviewedCommit {
-		return nil
+func emitMermaidClicks(buf *bytes.Buffer, elementIDs []elementID) {
+	for _, item := range elementIDs {
+		mermaidID := strings.ToLower(item.ID)
+		fmt.Fprintf(buf, "    click %s href \"#%s\" \"%s\"\n", mermaidID, item.AnchorID, item.Element.Name)
 	}
-	if matter.lastReviewedCommit == "" {
-		return []Finding{{
-			ID:     "last_reviewed_commit_invalid",
-			Line:   matter.lastReviewedCommitLine,
-			Detail: "last_reviewed_commit is empty",
-		}}
+}
+
+func emitMermaidEdges(buf *bytes.Buffer, relIDs []relationshipID, idByName map[string]string) {
+	for _, rel := range relIDs {
+		arrow := "-->"
+		if rel.Rel.Bidirectional {
+			arrow = "<-->"
+		}
+		fmt.Fprintf(buf, "    %s %s|%s: %s| %s\n",
+			idByName[rel.Rel.From], arrow, rel.ID, rel.Rel.Description, idByName[rel.Rel.To])
 	}
-	if _, err := exec.LookPath("git"); err != nil {
-		fmt.Fprintln(os.Stderr, "warning: git not on PATH; skipping last_reviewed_commit verification")
-		return nil
+}
+
+func emitRelationships(buf *bytes.Buffer, _ []elementID, relIDs []relationshipID) {
+	buf.WriteString("## Relationships\n\n")
+	buf.WriteString("| ID | From | To | Description | Protocol/Medium |\n")
+	buf.WriteString("|---|---|---|---|---|\n")
+	for _, rel := range relIDs {
+		fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s |\n",
+			rel.AnchorID, rel.ID, rel.Rel.From, rel.Rel.To, rel.Rel.Description, rel.Rel.Protocol)
 	}
-	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--quiet", "--verify", matter.lastReviewedCommit+"^{commit}")
-	if err := cmd.Run(); err != nil {
-		return []Finding{{
-			ID:     "last_reviewed_commit_invalid",
-			Line:   matter.lastReviewedCommitLine,
-			Detail: fmt.Sprintf("git rev-parse rejected %q", matter.lastReviewedCommit),
-		}}
+	buf.WriteString("\n")
+}
+
+func exprText(pkg *packages.Package, node ast.Node) string {
+	if pkg.Fset == nil {
+		return ""
 	}
-	return nil
+	start := pkg.Fset.Position(node.Pos())
+	end := pkg.Fset.Position(node.End())
+	if start.Filename != end.Filename {
+		return ""
+	}
+	data, err := os.ReadFile(start.Filename)
+	if err != nil {
+		return ""
+	}
+	if start.Offset < 0 || end.Offset > len(data) || start.Offset > end.Offset {
+		return ""
+	}
+	return string(data[start.Offset:end.Offset])
 }
 
-// mermaidBlock holds the parsed contents of a ```mermaid fenced code block.
-type mermaidBlock struct {
-	startLine   int
-	endLine     int
-	body        string
-	hasClassDef bool
-	classes     map[string]bool
-	nodes       []mermaidNode
-	edges       []mermaidEdge
-	clicks      []mermaidClick
+func findSystemName(elementIDs []elementID) string {
+	for _, item := range elementIDs {
+		if item.Element.IsSystem {
+			return item.Element.Name
+		}
+	}
+	return ""
 }
 
-type mermaidNode struct {
-	id    string
-	label string
-	line  int
+func firstStringArg(pkg *packages.Package, call *ast.CallExpr) string {
+	for _, arg := range call.Args {
+		value := stringValueOf(pkg, arg)
+		if value != "" && (strings.Contains(value, "://") || strings.HasPrefix(value, "/") || strings.HasPrefix(value, "~")) {
+			return value
+		}
+	}
+	return ""
 }
 
-type mermaidEdge struct {
-	from  string
-	to    string
-	label string
-	line  int
+// loadAndValidateSpec reads a JSON L1 spec from path, decodes it strictly, and
+// validates every rule from the design spec. Returns the parsed spec on success.
+func loadAndValidateSpec(path string) (*L1Spec, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	var spec L1Spec
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&spec); err != nil {
+		return nil, fmt.Errorf("decode %s: %w", path, err)
+	}
+	if err := validateSpec(&spec); err != nil {
+		return nil, err
+	}
+	return &spec, nil
 }
 
-type mermaidClick struct {
-	node       string
-	hrefAnchor string
-	line       int
+func mermaidIDByName(elementIDs []elementID) map[string]string {
+	out := map[string]string{}
+	for _, item := range elementIDs {
+		out[item.Element.Name] = strings.ToLower(item.ID)
+	}
+	return out
 }
 
-var (
-	mermaidNodeRe   = regexp.MustCompile(`^\s*(\w+)\s*[(\[]+(.*?)[)\]]+\s*$`)
-	mermaidEdgeRe   = regexp.MustCompile(`^\s*(\w+)\s*<?-+>+\s*(?:\|([^|]*)\|\s*)?(\w+)\s*$`)
-	mermaidClickRe  = regexp.MustCompile(`^\s*click\s+(\w+)\s+href\s+"#([^"]+)"`)
-	mermaidClassRe  = regexp.MustCompile(`^\s*class\s+([\w,]+)\s+(\w+)\s*$`)
-	mermaidIDPrefix = regexp.MustCompile(`^E\d+`)
-	edgeIDPrefix    = regexp.MustCompile(`^R\d+\s*:`)
-)
+func mermaidLabelFor(item elementID) string {
+	label := fmt.Sprintf("%s · %s", item.ID, item.Element.Name)
+	if item.Element.Subtitle != nil && *item.Element.Subtitle != "" {
+		label = fmt.Sprintf("%s<br/>%s", label, *item.Element.Subtitle)
+	}
+	return label
+}
+
+func mermaidShapeFor(element L1Element) [2]string {
+	switch {
+	case element.Kind == "person":
+		return [2]string{"([", "])"}
+	case element.IsSystem:
+		return [2]string{"[", "]"}
+	case element.Kind == "container":
+		return [2]string{"[", "]"}
+	default:
+		return [2]string{"(", ")"}
+	}
+}
+
+// parseFrontMatter scans for a leading --- ... --- block and extracts known
+// scalar fields. Returns ok=false when no front-matter block is present.
+func parseFrontMatter(raw []byte) (frontMatter, bool) {
+	matter := frontMatter{}
+	if !bytes.HasPrefix(raw, []byte(fmFence+"\n")) {
+		return matter, false
+	}
+	rest := raw[len(fmFence)+1:]
+	closing := []byte("\n" + fmFence + "\n")
+	body, _, found := bytes.Cut(rest, closing)
+	if !found {
+		return matter, false
+	}
+	matter.present = true
+	matter.startLine = 1
+	matter.endLine = 2 + bytes.Count(body, []byte("\n"))
+	for line, content := range strings.Split(string(body), "\n") {
+		consumeFrontMatterLine(&matter, line+2, content)
+	}
+	return matter, true
+}
+
+// parseGitLog walks the NUL-delimited records produced by
+// `--format=%H%x09%aI%x09%an%x09%s%x00%B%x00 --name-status`.
+// Layout per commit:
+//
+//	<sha> TAB <date> TAB <author> TAB <subject> NUL <body> NUL <name-status lines>
+func parseGitLog(raw []byte) []historyCommit {
+	commits := []historyCommit{}
+	for len(raw) > 0 {
+		commit, rest, ok := parseSingleCommit(raw)
+		if !ok {
+			break
+		}
+		commits = append(commits, commit)
+		raw = rest
+	}
+	return commits
+}
 
 // parseMermaidBlock locates the first ```mermaid fenced block in raw and parses
 // its contents. Returns nil block + a single mermaid_block_missing finding when
@@ -941,91 +1245,55 @@ func parseMermaidLines(block *mermaidBlock) {
 	}
 }
 
-func collectMermaidFindings(block *mermaidBlock) []Finding {
-	findings := []Finding{}
-	requiredClasses := []string{"person", "external", "container"}
-	for _, name := range requiredClasses {
-		if !block.classes[name] {
-			findings = append(findings, Finding{
-				ID:     "classdef_missing",
-				Line:   block.startLine,
-				Detail: fmt.Sprintf("classDef %q not defined", name),
-			})
+func parseNameStatusBlock(rest *[]byte) []historyFileChange {
+	files := []historyFileChange{}
+	for len(*rest) > 0 {
+		newline := bytes.IndexByte(*rest, '\n')
+		var line []byte
+		if newline < 0 {
+			line = *rest
+		} else {
+			line = (*rest)[:newline]
 		}
+		if !nameStatusLineRe.Match(line) {
+			break
+		}
+		fields := strings.SplitN(string(line), "\t", 2)
+		files = append(files, historyFileChange{Status: fields[0], Path: fields[1]})
+		if newline < 0 {
+			*rest = nil
+			break
+		}
+		*rest = (*rest)[newline+1:]
 	}
-	defined := map[string]mermaidNode{}
-	for _, node := range block.nodes {
-		defined[node.id] = node
-		if !mermaidIDPrefix.MatchString(strings.TrimSpace(node.label)) {
-			findings = append(findings, Finding{
-				ID:     "node_id_missing",
-				Line:   node.line,
-				Detail: fmt.Sprintf("node %q label %q does not start with E<n>", node.id, node.label),
-			})
-		}
-	}
-	for _, edge := range block.edges {
-		if _, ok := defined[edge.from]; !ok {
-			findings = append(findings, Finding{
-				ID:     "node_id_missing",
-				Line:   edge.line,
-				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.from),
-			})
-		}
-		if _, ok := defined[edge.to]; !ok {
-			findings = append(findings, Finding{
-				ID:     "node_id_missing",
-				Line:   edge.line,
-				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.to),
-			})
-		}
-		if !edgeIDPrefix.MatchString(strings.TrimSpace(edge.label)) {
-			findings = append(findings, Finding{
-				ID:     "edge_id_missing",
-				Line:   edge.line,
-				Detail: fmt.Sprintf("edge %q->%q label %q does not start with R<n>:", edge.from, edge.to, edge.label),
-			})
-		}
-	}
-	return findings
+	// Skip leading whitespace/newlines before the next commit header.
+	*rest = bytes.TrimLeft(*rest, "\n")
+	return files
 }
 
-type catalogRow struct {
-	id       string
-	anchorID string
-	name     string
-	line     int
-}
-
-type relationshipsRow struct {
-	id       string
-	anchorID string
-	from     string
-	to       string
-	line     int
-}
-
-var (
-	catalogHeaderRe = regexp.MustCompile(`(?m)^##\s+Element Catalog\s*$`)
-	relsHeaderRe    = regexp.MustCompile(`(?m)^##\s+Relationships\s*$`)
-	tableRowFirstRe = regexp.MustCompile(`^\s*\|\s*(?:<a\s+id="([^"]+)"></a>)?\s*([ER]\d+)\s*\|`)
-	anchorInCellRe  = regexp.MustCompile(`<a\s+id="([^"]+)"></a>`)
-)
-
-// parseTables locates the "## Element Catalog" and "## Relationships" sections
-// and parses each table row's first cell to extract the anchor ID and the
-// E<n>/R<n> identifier.
-func parseTables(raw []byte) ([]catalogRow, []relationshipsRow) {
-	text := string(raw)
-	catalog := parseTableSection(text, catalogHeaderRe, true)
-	relsRaw := parseTableSection(text, relsHeaderRe, false)
-	rels := make([]relationshipsRow, 0, len(relsRaw))
-	for _, row := range relsRaw {
-		rels = append(rels, relationshipsRow{
-			id: row.id, anchorID: row.anchorID, line: row.line,
-		})
+func parseSingleCommit(raw []byte) (historyCommit, []byte, bool) {
+	header, rest, ok := bytes.Cut(raw, []byte{0})
+	if !ok {
+		return historyCommit{}, nil, false
 	}
-	return catalog, rels
+	headerStr := string(bytes.TrimLeft(header, "\n"))
+	parts := strings.SplitN(headerStr, "\t", 4)
+	if len(parts) < 4 {
+		return historyCommit{}, nil, false
+	}
+	body, rest, ok := bytes.Cut(rest, []byte{0})
+	if !ok {
+		return historyCommit{}, nil, false
+	}
+	commit := historyCommit{
+		SHA:     parts[0],
+		Date:    parts[1],
+		Author:  parts[2],
+		Subject: parts[3],
+		Body:    strings.TrimSpace(string(body)),
+	}
+	commit.FilesChanged = parseNameStatusBlock(&rest)
+	return commit, rest, true
 }
 
 func parseTableSection(text string, headerRe *regexp.Regexp, isCatalog bool) []catalogRow {
@@ -1067,164 +1335,130 @@ func parseTableSection(text string, headerRe *regexp.Regexp, isCatalog bool) []c
 	return rows
 }
 
-// auditOrphans cross-references mermaid IDs with catalog/relationships rows and
-// emits node_orphan, catalog_orphan, edge_orphan, relationships_orphan findings.
-func auditOrphans(block *mermaidBlock, catalog []catalogRow, rels []relationshipsRow) []Finding {
-	if block == nil {
-		return nil
+// parseTables locates the "## Element Catalog" and "## Relationships" sections
+// and parses each table row's first cell to extract the anchor ID and the
+// E<n>/R<n> identifier.
+func parseTables(raw []byte) ([]catalogRow, []relationshipsRow) {
+	text := string(raw)
+	catalog := parseTableSection(text, catalogHeaderRe, true)
+	relsRaw := parseTableSection(text, relsHeaderRe, false)
+	rels := make([]relationshipsRow, 0, len(relsRaw))
+	for _, row := range relsRaw {
+		rels = append(rels, relationshipsRow{
+			id: row.id, anchorID: row.anchorID, line: row.line,
+		})
 	}
-	findings := []Finding{}
-	mermaidNodeIDs := map[string]int{}
-	for _, node := range block.nodes {
-		if matched := mermaidIDPrefix.FindString(strings.TrimSpace(node.label)); matched != "" {
-			mermaidNodeIDs[matched] = node.line
-		}
-	}
-	mermaidEdgeIDs := map[string]int{}
-	for _, edge := range block.edges {
-		label := strings.TrimSpace(edge.label)
-		if matched := regexp.MustCompile(`^R\d+`).FindString(label); matched != "" {
-			mermaidEdgeIDs[matched] = edge.line
-		}
-	}
-	catalogIDs := map[string]int{}
-	for _, row := range catalog {
-		catalogIDs[row.id] = row.line
-	}
-	relsIDs := map[string]int{}
-	for _, row := range rels {
-		relsIDs[row.id] = row.line
-	}
-	for nodeID, line := range mermaidNodeIDs {
-		if _, ok := catalogIDs[nodeID]; !ok {
-			findings = append(findings, Finding{
-				ID: "node_orphan", Line: line,
-				Detail: fmt.Sprintf("mermaid node %s has no catalog row", nodeID),
-			})
-		}
-	}
-	for catID, line := range catalogIDs {
-		if _, ok := mermaidNodeIDs[catID]; !ok {
-			findings = append(findings, Finding{
-				ID: "catalog_orphan", Line: line,
-				Detail: fmt.Sprintf("catalog row %s has no mermaid node", catID),
-			})
-		}
-	}
-	for edgeID, line := range mermaidEdgeIDs {
-		if _, ok := relsIDs[edgeID]; !ok {
-			findings = append(findings, Finding{
-				ID: "edge_orphan", Line: line,
-				Detail: fmt.Sprintf("mermaid edge %s has no relationships row", edgeID),
-			})
-		}
-	}
-	for relID, line := range relsIDs {
-		if _, ok := mermaidEdgeIDs[relID]; !ok {
-			findings = append(findings, Finding{
-				ID: "relationships_orphan", Line: line,
-				Detail: fmt.Sprintf("relationships row %s has no mermaid edge", relID),
-			})
-		}
-	}
-	return findings
+	return catalog, rels
 }
 
-// auditAnchorsAndClicks emits click_missing for nodes lacking a click directive,
-// click_target_unresolved for click anchors that don't match any catalog or
-// relationships row anchor, and anchor_missing for table rows lacking an anchor.
-func auditAnchorsAndClicks(block *mermaidBlock, catalog []catalogRow, rels []relationshipsRow) []Finding {
-	if block == nil {
-		return nil
+func positionOf(pkg *packages.Package, pos token.Pos) string {
+	if pkg.Fset == nil {
+		return ""
 	}
-	findings := []Finding{}
-	anchorSet := map[string]bool{}
-	for _, row := range catalog {
-		if row.anchorID != "" {
-			anchorSet[row.anchorID] = true
-		} else {
-			findings = append(findings, Finding{
-				ID: "anchor_missing", Line: row.line,
-				Detail: fmt.Sprintf("catalog row %s has no <a id=\"...\"></a>", row.id),
-			})
-		}
-	}
-	for _, row := range rels {
-		if row.anchorID != "" {
-			anchorSet[row.anchorID] = true
-		} else {
-			findings = append(findings, Finding{
-				ID: "anchor_missing", Line: row.line,
-				Detail: fmt.Sprintf("relationships row %s has no <a id=\"...\"></a>", row.id),
-			})
-		}
-	}
-	clickedNodes := map[string]bool{}
-	for _, click := range block.clicks {
-		clickedNodes[click.node] = true
-		if !anchorSet[click.hrefAnchor] {
-			findings = append(findings, Finding{
-				ID: "click_target_unresolved", Line: click.line,
-				Detail: fmt.Sprintf("click %s href #%s does not match any catalog/relationships anchor",
-					click.node, click.hrefAnchor),
-			})
-		}
-	}
-	for _, node := range block.nodes {
-		if !clickedNodes[node.id] {
-			findings = append(findings, Finding{
-				ID: "click_missing", Line: node.line,
-				Detail: fmt.Sprintf("node %s has no click directive", node.id),
-			})
-		}
-	}
-	return findings
+	position := pkg.Fset.Position(pos)
+	return fmt.Sprintf("%s:%d", position.Filename, position.Line)
 }
 
-var (
-	validKinds          = map[string]bool{"person": true, "external": true, "container": true}
-	validRefinedByFile  = regexp.MustCompile(`^c2-[a-z0-9-]+\.md$`)
-)
-
-// loadAndValidateSpec reads a JSON L1 spec from path, decodes it strictly, and
-// validates every rule from the design spec. Returns the parsed spec on success.
-func loadAndValidateSpec(path string) (*L1Spec, error) {
-	raw, err := os.ReadFile(path)
+func scanExternals(ctx context.Context, root, pattern string, includeTests bool) ([]externalFinding, error) {
+	cfg := &packages.Config{
+		Mode: packages.NeedSyntax | packages.NeedTypes | packages.NeedImports |
+			packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedTypesInfo |
+			packages.NeedName,
+		Dir:     root,
+		Context: ctx,
+		Tests:   includeTests,
+	}
+	pkgs, err := packages.Load(cfg, pattern)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, fmt.Errorf("packages.Load: %w", err)
 	}
-	var spec L1Spec
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&spec); err != nil {
-		return nil, fmt.Errorf("decode %s: %w", path, err)
+	findings := []externalFinding{}
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Syntax {
+			ast.Inspect(file, func(node ast.Node) bool {
+				findings = append(findings, detectHTTPCall(pkg, node)...)
+				findings = append(findings, detectFSPath(pkg, node)...)
+				findings = append(findings, detectExec(pkg, node)...)
+				findings = append(findings, detectEnvRead(pkg, node)...)
+				return true
+			})
+		}
 	}
-	if err := validateSpec(&spec); err != nil {
-		return nil, err
-	}
-	return &spec, nil
+	sort.Slice(findings, func(i, j int) bool {
+		if findings[i].Kind != findings[j].Kind {
+			return findings[i].Kind < findings[j].Kind
+		}
+		if findings[i].Source != findings[j].Source {
+			return findings[i].Source < findings[j].Source
+		}
+		return findings[i].Target < findings[j].Target
+	})
+	return findings, nil
 }
 
-func validateSpec(spec *L1Spec) error {
-	if spec.SchemaVersion != "1" {
-		return fmt.Errorf("unknown schema_version %q (want \"1\")", spec.SchemaVersion)
+func scanHistory(ctx context.Context, opts historyOptions) ([]historyCommit, error) {
+	args := []string{
+		"log",
+		"--format=%H%x09%aI%x09%an%x09%s%x00%B%x00",
+		"--name-status",
 	}
-	if spec.Level != 1 {
-		return fmt.Errorf("level: want 1, got %d", spec.Level)
+	if opts.limit > 0 {
+		args = append(args, fmt.Sprintf("-n%d", opts.limit))
 	}
-	if !validNameRe.MatchString(spec.Name) {
-		return fmt.Errorf("name %q must match %s", spec.Name, validNameRe)
+	if opts.since != "" {
+		args = append(args, "--since="+opts.since)
 	}
-	if spec.Parent != nil {
-		return fmt.Errorf("parent: must be null at L1, got %q", *spec.Parent)
+	if opts.grep != "" {
+		args = append(args, "--grep="+opts.grep)
 	}
-	if strings.TrimSpace(spec.Preamble) == "" {
-		return errors.New("preamble: must be non-empty")
+	if len(opts.paths) > 0 {
+		args = append(args, "--")
+		args = append(args, opts.paths...)
 	}
-	if err := validateElements(spec.Elements); err != nil {
-		return err
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = opts.root
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git log: %w", err)
 	}
-	return validateRelationships(spec.Elements, spec.Relationships, spec.CrossLinks)
+	return parseGitLog(out), nil
+}
+
+// slug lowercases s and collapses non-[a-z0-9] runs into a single "-",
+// trimming leading and trailing "-" runs.
+func slug(s string) string {
+	lower := strings.ToLower(s)
+	collapsed := slugSplitRe.ReplaceAllString(lower, "-")
+	return strings.Trim(collapsed, "-")
+}
+
+func stringValueOf(pkg *packages.Package, expr ast.Expr) string {
+	if pkg.TypesInfo == nil {
+		return ""
+	}
+	if tv, ok := pkg.TypesInfo.Types[expr]; ok && tv.Value != nil && tv.Value.Kind() == constant.String {
+		return constant.StringVal(tv.Value)
+	}
+	if lit, ok := expr.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+		unquoted, err := strconv.Unquote(lit.Value)
+		if err == nil {
+			return unquoted
+		}
+	}
+	return ""
+}
+
+func typeCellFor(element L1Element) string {
+	switch {
+	case element.IsSystem:
+		return "The system in scope"
+	case element.Kind == "person":
+		return "Person"
+	case element.Kind == "container":
+		return "Container"
+	default:
+		return "External system"
+	}
 }
 
 func validateElements(elements []L1Element) error {
@@ -1275,267 +1509,26 @@ func validateRelationships(elements []L1Element, rels []L1Relationship, links L1
 	return nil
 }
 
-// elementID pairs a source element with its assigned E<n> identifier and
-// anchor slug.
-type elementID struct {
-	ID       string
-	AnchorID string
-	Element  L1Element
-}
-
-// relationshipID pairs a source relationship with its assigned R<n> identifier
-// and anchor slug.
-type relationshipID struct {
-	ID       string
-	AnchorID string
-	Rel      L1Relationship
-}
-
-// assignElementIDs returns elements paired with sequential E1..En IDs in source
-// order. AnchorID is "e<n>-<slug(name)>"; collisions append "-2", "-3"....
-func assignElementIDs(elements []L1Element) []elementID {
-	result := make([]elementID, 0, len(elements))
-	used := map[string]int{}
-	for index, element := range elements {
-		base := fmt.Sprintf("e%d-%s", index+1, slug(element.Name))
-		anchor := base
-		if used[base] > 0 {
-			used[base]++
-			anchor = fmt.Sprintf("%s-%d", base, used[base])
-		} else {
-			used[base] = 1
-		}
-		result = append(result, elementID{
-			ID:       fmt.Sprintf("E%d", index+1),
-			AnchorID: anchor,
-			Element:  element,
-		})
+func validateSpec(spec *L1Spec) error {
+	if spec.SchemaVersion != "1" {
+		return fmt.Errorf("unknown schema_version %q (want \"1\")", spec.SchemaVersion)
 	}
-	return result
-}
-
-// assignRelationshipIDs returns relationships paired with sequential R1..Rn IDs.
-// AnchorID is "r<n>-<slug(from)>-<slug(to)>"; collisions append "-2"....
-func assignRelationshipIDs(rels []L1Relationship) []relationshipID {
-	result := make([]relationshipID, 0, len(rels))
-	used := map[string]int{}
-	for index, rel := range rels {
-		base := fmt.Sprintf("r%d-%s-%s", index+1, slug(rel.From), slug(rel.To))
-		anchor := base
-		if used[base] > 0 {
-			used[base]++
-			anchor = fmt.Sprintf("%s-%d", base, used[base])
-		} else {
-			used[base] = 1
-		}
-		result = append(result, relationshipID{
-			ID:       fmt.Sprintf("R%d", index+1),
-			AnchorID: anchor,
-			Rel:      rel,
-		})
+	if spec.Level != 1 {
+		return fmt.Errorf("level: want 1, got %d", spec.Level)
 	}
-	return result
-}
-
-// emitMarkdown renders spec to canonical L1 markdown. lastReviewedCommit is
-// inserted into the front-matter; callers compute it (typically `git rev-parse
-// --short HEAD`).
-func emitMarkdown(w io.Writer, spec *L1Spec, lastReviewedCommit string) error {
-	elementIDs := assignElementIDs(spec.Elements)
-	relIDs := assignRelationshipIDs(spec.Relationships)
-	systemName := findSystemName(elementIDs)
-	var buf bytes.Buffer
-	emitFrontMatter(&buf, spec, lastReviewedCommit)
-	fmt.Fprintf(&buf, "\n# C1 — %s (System Context)\n\n%s\n\n", systemName, strings.TrimRight(spec.Preamble, "\n"))
-	emitMermaid(&buf, elementIDs, relIDs)
-	emitCatalog(&buf, elementIDs)
-	emitRelationships(&buf, elementIDs, relIDs)
-	emitCrossLinks(&buf, spec.CrossLinks)
-	emitDriftNotes(&buf, spec.DriftNotes)
-	if _, err := buf.WriteTo(w); err != nil {
-		return fmt.Errorf("write markdown: %w", err)
+	if !validNameRe.MatchString(spec.Name) {
+		return fmt.Errorf("name %q must match %s", spec.Name, validNameRe)
 	}
-	return nil
-}
-
-func findSystemName(elementIDs []elementID) string {
-	for _, item := range elementIDs {
-		if item.Element.IsSystem {
-			return item.Element.Name
-		}
-	}
-	return ""
-}
-
-func emitFrontMatter(buf *bytes.Buffer, spec *L1Spec, lastReviewedCommit string) {
-	parent := "null"
 	if spec.Parent != nil {
-		parent = strconv.Quote(*spec.Parent)
+		return fmt.Errorf("parent: must be null at L1, got %q", *spec.Parent)
 	}
-	fmt.Fprintf(buf, "---\nlevel: %d\nname: %s\nparent: %s\nchildren: []\nlast_reviewed_commit: %s\n---\n",
-		spec.Level, spec.Name, parent, lastReviewedCommit)
-}
-
-func emitMermaid(buf *bytes.Buffer, elementIDs []elementID, relIDs []relationshipID) {
-	buf.WriteString("```mermaid\nflowchart LR\n")
-	buf.WriteString("    classDef person      fill:#08427b,stroke:#052e56,color:#fff\n")
-	buf.WriteString("    classDef external    fill:#999,   stroke:#666,   color:#fff\n")
-	buf.WriteString("    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff\n\n")
-	for _, item := range elementIDs {
-		shape := mermaidShapeFor(item.Element)
-		label := mermaidLabelFor(item)
-		mermaidID := strings.ToLower(item.ID)
-		fmt.Fprintf(buf, "    %s%s%s%s\n", mermaidID, shape[0], label, shape[1])
+	if strings.TrimSpace(spec.Preamble) == "" {
+		return errors.New("preamble: must be non-empty")
 	}
-	buf.WriteString("\n")
-	emitMermaidEdges(buf, relIDs, mermaidIDByName(elementIDs))
-	buf.WriteString("\n")
-	emitMermaidClasses(buf, elementIDs)
-	buf.WriteString("\n")
-	emitMermaidClicks(buf, elementIDs)
-	buf.WriteString("```\n\n")
-}
-
-func mermaidShapeFor(element L1Element) [2]string {
-	switch {
-	case element.Kind == "person":
-		return [2]string{"([", "])"}
-	case element.IsSystem:
-		return [2]string{"[", "]"}
-	case element.Kind == "container":
-		return [2]string{"[", "]"}
-	default:
-		return [2]string{"(", ")"}
+	if err := validateElements(spec.Elements); err != nil {
+		return err
 	}
-}
-
-func mermaidLabelFor(item elementID) string {
-	label := fmt.Sprintf("%s · %s", item.ID, item.Element.Name)
-	if item.Element.Subtitle != nil && *item.Element.Subtitle != "" {
-		label = fmt.Sprintf("%s<br/>%s", label, *item.Element.Subtitle)
-	}
-	return label
-}
-
-func mermaidIDByName(elementIDs []elementID) map[string]string {
-	out := map[string]string{}
-	for _, item := range elementIDs {
-		out[item.Element.Name] = strings.ToLower(item.ID)
-	}
-	return out
-}
-
-func emitMermaidEdges(buf *bytes.Buffer, relIDs []relationshipID, idByName map[string]string) {
-	for _, rel := range relIDs {
-		arrow := "-->"
-		if rel.Rel.Bidirectional {
-			arrow = "<-->"
-		}
-		fmt.Fprintf(buf, "    %s %s|%s: %s| %s\n",
-			idByName[rel.Rel.From], arrow, rel.ID, rel.Rel.Description, idByName[rel.Rel.To])
-	}
-}
-
-func emitMermaidClasses(buf *bytes.Buffer, elementIDs []elementID) {
-	groups := map[string][]string{}
-	classOrder := []string{"person", "external", "container"}
-	for _, item := range elementIDs {
-		class := classFor(item.Element)
-		mermaidID := strings.ToLower(item.ID)
-		groups[class] = append(groups[class], mermaidID)
-	}
-	for _, class := range classOrder {
-		ids := groups[class]
-		if len(ids) == 0 {
-			continue
-		}
-		fmt.Fprintf(buf, "    class %s %s\n", strings.Join(ids, ","), class)
-	}
-}
-
-func classFor(element L1Element) string {
-	if element.Kind == "person" {
-		return "person"
-	}
-	if element.Kind == "container" {
-		return "container"
-	}
-	return "external"
-}
-
-func emitMermaidClicks(buf *bytes.Buffer, elementIDs []elementID) {
-	for _, item := range elementIDs {
-		mermaidID := strings.ToLower(item.ID)
-		fmt.Fprintf(buf, "    click %s href \"#%s\" \"%s\"\n", mermaidID, item.AnchorID, item.Element.Name)
-	}
-}
-
-func emitCatalog(buf *bytes.Buffer, elementIDs []elementID) {
-	buf.WriteString("## Element Catalog\n\n")
-	buf.WriteString("| ID | Name | Type | Responsibility | System of Record |\n")
-	buf.WriteString("|---|---|---|---|---|\n")
-	for _, item := range elementIDs {
-		typeCell := typeCellFor(item.Element)
-		fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s |\n",
-			item.AnchorID, item.ID, item.Element.Name, typeCell,
-			item.Element.Responsibility, item.Element.SystemOfRecord)
-	}
-	buf.WriteString("\n")
-}
-
-func typeCellFor(element L1Element) string {
-	switch {
-	case element.IsSystem:
-		return "The system in scope"
-	case element.Kind == "person":
-		return "Person"
-	case element.Kind == "container":
-		return "Container"
-	default:
-		return "External system"
-	}
-}
-
-func emitRelationships(buf *bytes.Buffer, _ []elementID, relIDs []relationshipID) {
-	buf.WriteString("## Relationships\n\n")
-	buf.WriteString("| ID | From | To | Description | Protocol/Medium |\n")
-	buf.WriteString("|---|---|---|---|---|\n")
-	for _, rel := range relIDs {
-		fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s |\n",
-			rel.AnchorID, rel.ID, rel.Rel.From, rel.Rel.To, rel.Rel.Description, rel.Rel.Protocol)
-	}
-	buf.WriteString("\n")
-}
-
-func emitCrossLinks(buf *bytes.Buffer, links L1CrossLinks) {
-	buf.WriteString("## Cross-links\n\n")
-	buf.WriteString("- Parent: none (L1 is the root).\n")
-	if len(links.RefinedBy) == 0 {
-		buf.WriteString("- Refined by: *(none yet)*\n")
-		return
-	}
-	buf.WriteString("- Refined by:\n")
-	for _, link := range links.RefinedBy {
-		fmt.Fprintf(buf, "  - [`%s`](./%s) — %s\n", link.File, link.File, link.Note)
-	}
-}
-
-func emitDriftNotes(buf *bytes.Buffer, notes []L1DriftNote) {
-	if len(notes) == 0 {
-		return
-	}
-	buf.WriteString("\n## Drift Notes\n\n")
-	for _, note := range notes {
-		fmt.Fprintf(buf, "- **%s** — %s. Reason: %s.\n", note.Date, note.Detail, note.Reason)
-	}
-}
-
-// slug lowercases s and collapses non-[a-z0-9] runs into a single "-",
-// trimming leading and trailing "-" runs.
-func slug(s string) string {
-	lower := strings.ToLower(s)
-	collapsed := slugSplitRe.ReplaceAllString(lower, "-")
-	return strings.Trim(collapsed, "-")
+	return validateRelationships(spec.Elements, spec.Relationships, spec.CrossLinks)
 }
 
 func writeFindingsJSON(w io.Writer, file string, findings []Finding) error {
