@@ -88,6 +88,39 @@ func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
 	}
 }
 
+func TestT13_HistoryParsesRealGitLog(t *testing.T) {
+	t.Parallel()
+
+	repoDir := t.TempDir()
+	mustRunIn(t, repoDir, "git", "init")
+	mustRunIn(t, repoDir, "git", "config", "user.email", "a@b")
+	mustRunIn(t, repoDir, "git", "config", "user.name", "Tester")
+	mustRunIn(t, repoDir, "git", "commit", "--allow-empty", "-m", "first\n\nbody line one\nbody line two")
+	mustRunIn(t, repoDir, "git", "commit", "--allow-empty", "-m", "second")
+	commits, err := scanHistory(context.Background(), historyOptions{root: repoDir, limit: 10})
+	if err != nil {
+		t.Fatalf("scanHistory: %v", err)
+	}
+	if len(commits) != 2 {
+		t.Fatalf("want 2 commits, got %d:\n%+v", len(commits), commits)
+	}
+	if commits[0].Subject != "second" {
+		t.Errorf("expected newest first; got subject %q", commits[0].Subject)
+	}
+	if !strings.Contains(commits[1].Body, "body line one") {
+		t.Errorf("expected body content in second commit; got %q", commits[1].Body)
+	}
+}
+
+func mustRunIn(t *testing.T, dir, name string, args ...string) {
+	t.Helper()
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("%s %v: %v\n%s", name, args, err, out)
+	}
+}
+
 func TestT11_ExternalsHTTPDetection(t *testing.T) {
 	t.Parallel()
 

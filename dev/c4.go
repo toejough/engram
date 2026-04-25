@@ -470,7 +470,171 @@ func exprText(pkg *packages.Package, node ast.Node) string {
 	return string(data[start.Offset:end.Offset])
 }
 
-func c4History(_ context.Context) error { return errors.New("c4-history: not implemented") }
+// C4HistoryArgs configures the c4-history target.
+type C4HistoryArgs struct {
+	Limit int    `targ:"flag,name=limit,desc=Max commits (default: 50)"`
+	Since string `targ:"flag,name=since,desc=git log --since"`
+	Grep  string `targ:"flag,name=grep,desc=git log --grep"`
+	Paths string `targ:"flag,name=paths,desc=Comma-separated path filters"`
+}
+
+func c4History(ctx context.Context, args C4HistoryArgs) error {
+	limit := args.Limit
+	if limit == 0 {
+		limit = 50
+	}
+	var paths []string
+	if args.Paths != "" {
+		paths = strings.Split(args.Paths, ",")
+	}
+	commits, err := scanHistory(ctx, historyOptions{
+		root: ".", paths: paths, since: args.Since, limit: limit, grep: args.Grep,
+	})
+	if err != nil {
+		return err
+	}
+	type filters struct {
+		Paths []string `json:"paths"`
+		Since string   `json:"since"`
+		Limit int      `json:"limit"`
+		Grep  string   `json:"grep"`
+	}
+	type out struct {
+		SchemaVersion string          `json:"schema_version"`
+		Filters       filters         `json:"filters"`
+		Commits       []historyCommit `json:"commits"`
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(out{
+		SchemaVersion: "1",
+		Filters:       filters{Paths: paths, Since: args.Since, Limit: limit, Grep: args.Grep},
+		Commits:       commits,
+	}); err != nil {
+		return fmt.Errorf("encode history: %w", err)
+	}
+	return nil
+}
+
+type historyOptions struct {
+	root  string
+	paths []string
+	since string
+	limit int
+	grep  string
+}
+
+type historyCommit struct {
+	SHA          string              `json:"sha"`
+	Date         string              `json:"date"`
+	Author       string              `json:"author"`
+	Subject      string              `json:"subject"`
+	Body         string              `json:"body"`
+	FilesChanged []historyFileChange `json:"files_changed"`
+}
+
+type historyFileChange struct {
+	Path   string `json:"path"`
+	Status string `json:"status"`
+}
+
+func scanHistory(ctx context.Context, opts historyOptions) ([]historyCommit, error) {
+	args := []string{
+		"log",
+		"--format=%H%x09%aI%x09%an%x09%s%x00%B%x00",
+		"--name-status",
+	}
+	if opts.limit > 0 {
+		args = append(args, fmt.Sprintf("-n%d", opts.limit))
+	}
+	if opts.since != "" {
+		args = append(args, "--since="+opts.since)
+	}
+	if opts.grep != "" {
+		args = append(args, "--grep="+opts.grep)
+	}
+	if len(opts.paths) > 0 {
+		args = append(args, "--")
+		args = append(args, opts.paths...)
+	}
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = opts.root
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git log: %w", err)
+	}
+	return parseGitLog(out), nil
+}
+
+// parseGitLog walks the NUL-delimited records produced by
+// `--format=%H%x09%aI%x09%an%x09%s%x00%B%x00 --name-status`.
+// Layout per commit:
+//   <sha> TAB <date> TAB <author> TAB <subject> NUL <body> NUL <name-status lines>
+func parseGitLog(raw []byte) []historyCommit {
+	commits := []historyCommit{}
+	for len(raw) > 0 {
+		commit, rest, ok := parseSingleCommit(raw)
+		if !ok {
+			break
+		}
+		commits = append(commits, commit)
+		raw = rest
+	}
+	return commits
+}
+
+func parseSingleCommit(raw []byte) (historyCommit, []byte, bool) {
+	header, rest, ok := bytes.Cut(raw, []byte{0})
+	if !ok {
+		return historyCommit{}, nil, false
+	}
+	headerStr := string(bytes.TrimLeft(header, "\n"))
+	parts := strings.SplitN(headerStr, "\t", 4)
+	if len(parts) < 4 {
+		return historyCommit{}, nil, false
+	}
+	body, rest, ok := bytes.Cut(rest, []byte{0})
+	if !ok {
+		return historyCommit{}, nil, false
+	}
+	commit := historyCommit{
+		SHA:     parts[0],
+		Date:    parts[1],
+		Author:  parts[2],
+		Subject: parts[3],
+		Body:    strings.TrimSpace(string(body)),
+	}
+	commit.FilesChanged = parseNameStatusBlock(&rest)
+	return commit, rest, true
+}
+
+var nameStatusLineRe = regexp.MustCompile(`^[A-Z][A-Z0-9]*\t`)
+
+func parseNameStatusBlock(rest *[]byte) []historyFileChange {
+	files := []historyFileChange{}
+	for len(*rest) > 0 {
+		newline := bytes.IndexByte(*rest, '\n')
+		var line []byte
+		if newline < 0 {
+			line = *rest
+		} else {
+			line = (*rest)[:newline]
+		}
+		if !nameStatusLineRe.Match(line) {
+			break
+		}
+		fields := strings.SplitN(string(line), "\t", 2)
+		files = append(files, historyFileChange{Status: fields[0], Path: fields[1]})
+		if newline < 0 {
+			*rest = nil
+			break
+		}
+		*rest = (*rest)[newline+1:]
+	}
+	// Skip leading whitespace/newlines before the next commit header.
+	*rest = bytes.TrimLeft(*rest, "\n")
+	return files
+}
 
 // auditFile reads path and returns all structural findings.
 // It returns an error only when the file itself cannot be read.
