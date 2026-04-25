@@ -789,6 +789,68 @@ func validateRelationships(elements []L1Element, rels []L1Relationship, links L1
 	return nil
 }
 
+// elementID pairs a source element with its assigned E<n> identifier and
+// anchor slug.
+type elementID struct {
+	ID       string
+	AnchorID string
+	Element  L1Element
+}
+
+// relationshipID pairs a source relationship with its assigned R<n> identifier
+// and anchor slug.
+type relationshipID struct {
+	ID       string
+	AnchorID string
+	Rel      L1Relationship
+}
+
+// assignElementIDs returns elements paired with sequential E1..En IDs in source
+// order. AnchorID is "e<n>-<slug(name)>"; collisions append "-2", "-3"....
+func assignElementIDs(elements []L1Element) []elementID {
+	result := make([]elementID, 0, len(elements))
+	used := map[string]int{}
+	for index, element := range elements {
+		base := fmt.Sprintf("e%d-%s", index+1, slug(element.Name))
+		anchor := base
+		if used[base] > 0 {
+			used[base]++
+			anchor = fmt.Sprintf("%s-%d", base, used[base])
+		} else {
+			used[base] = 1
+		}
+		result = append(result, elementID{
+			ID:       fmt.Sprintf("E%d", index+1),
+			AnchorID: anchor,
+			Element:  element,
+		})
+	}
+	return result
+}
+
+// assignRelationshipIDs returns relationships paired with sequential R1..Rn IDs.
+// AnchorID is "r<n>-<slug(from)>-<slug(to)>"; collisions append "-2"....
+func assignRelationshipIDs(rels []L1Relationship) []relationshipID {
+	result := make([]relationshipID, 0, len(rels))
+	used := map[string]int{}
+	for index, rel := range rels {
+		base := fmt.Sprintf("r%d-%s-%s", index+1, slug(rel.From), slug(rel.To))
+		anchor := base
+		if used[base] > 0 {
+			used[base]++
+			anchor = fmt.Sprintf("%s-%d", base, used[base])
+		} else {
+			used[base] = 1
+		}
+		result = append(result, relationshipID{
+			ID:       fmt.Sprintf("R%d", index+1),
+			AnchorID: anchor,
+			Rel:      rel,
+		})
+	}
+	return result
+}
+
 // slug lowercases s and collapses non-[a-z0-9] runs into a single "-",
 // trimming leading and trailing "-" runs.
 func slug(s string) string {

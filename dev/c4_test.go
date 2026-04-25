@@ -85,6 +85,42 @@ func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
 	}
 }
 
+func TestT8_Slug_Cases(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct{ in, want string }{
+		{"Joe", "joe"},
+		{"Engram plugin", "engram-plugin"},
+		{"Claude Code memory surfaces", "claude-code-memory-surfaces"},
+		{"Foo/Bar Baz", "foo-bar-baz"},
+		{"  Trim Me  ", "trim-me"},
+		{"---hyphens---", "hyphens"},
+	}
+	for _, testCase := range cases {
+		got := slug(testCase.in)
+		if got != testCase.want {
+			t.Errorf("slug(%q): want %q, got %q", testCase.in, testCase.want, got)
+		}
+	}
+}
+
+func TestT8_AssignIDs_SystemAtMiddleIndex(t *testing.T) {
+	t.Parallel()
+
+	elements := []L1Element{
+		{Name: "Joe", Kind: "person"},
+		{Name: "Engram plugin", Kind: "container", IsSystem: true},
+		{Name: "Claude Code", Kind: "external"},
+	}
+	ids := assignElementIDs(elements)
+	if len(ids) != 3 || ids[0].ID != "E1" || ids[1].ID != "E2" || ids[2].ID != "E3" {
+		t.Errorf("unexpected IDs: %+v", ids)
+	}
+	if ids[1].AnchorID != "e2-engram-plugin" {
+		t.Errorf("wrong system anchor: %s", ids[1].AnchorID)
+	}
+}
+
 func TestT7_BuildValidates_RejectsBadSchemas(t *testing.T) {
 	t.Parallel()
 
