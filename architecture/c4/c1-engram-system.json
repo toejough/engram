@@ -49,12 +49,12 @@
     }
   ],
   "relationships": [
-    {"from": "Joe", "to": "Claude Code", "description": "invokes /prepare /learn /recall /remember /migrate", "protocol": "Claude Code CLI"},
-    {"from": "Claude Code", "to": "Engram plugin", "description": "loads skills + fires SessionStart, UserPromptSubmit, PostToolUse hooks", "protocol": "plugin loader + hooks"},
-    {"from": "Engram plugin", "to": "Anthropic API", "description": "ranks + extracts via Haiku", "protocol": "HTTPS"},
-    {"from": "Engram plugin", "to": "Claude Code memory surfaces", "description": "reads memories, rules, skills, auto-memory", "protocol": "filesystem"},
-    {"from": "Engram plugin", "to": "Local filesystem", "description": "reads + writes feedback/ and facts/ TOML", "protocol": "filesystem", "bidirectional": true},
-    {"from": "Engram plugin", "to": "Claude Code", "description": "injects briefings and reminders back into context", "protocol": "stdout"}
+    {"from": "Joe", "to": "Claude Code", "description": "Invokes slash-commands and writes prompts that trigger skill auto-invocation", "protocol": "Claude Code CLI / TTY"},
+    {"from": "Claude Code", "to": "Engram plugin", "description": "Loads skill markdown, executes hooks (`SessionStart`, `UserPromptSubmit`, `PostToolUse`), invokes `engram` binary subcommands", "protocol": "Plugin manifest, shell hooks (stdin JSON), subprocess exec"},
+    {"from": "Engram plugin", "to": "Anthropic API", "description": "Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn", "protocol": "HTTPS, Anthropic Messages API (Haiku)"},
+    {"from": "Engram plugin", "to": "Claude Code memory surfaces", "description": "Discovers and reads CLAUDE.md (+ `@`-imports), `.claude/rules/*.md`, auto-memory topic files, and skill frontmatter for ranking", "protocol": "Local file reads (read-only; \"read everywhere, write only what you own\")"},
+    {"from": "Engram plugin", "to": "Local filesystem", "description": "Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary", "protocol": "Local file I/O, TOML", "bidirectional": true},
+    {"from": "Engram plugin", "to": "Claude Code", "description": "Returns briefings (`/prepare`), recall results (`/recall`), and hook reminders that re-enter the agent's context", "protocol": "Hook stdout JSON (`systemMessage`, `additionalContext`)"}
   ],
   "drift_notes": [],
   "cross_links": {

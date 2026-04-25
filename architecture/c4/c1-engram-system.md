@@ -3,10 +3,10 @@ level: 1
 name: engram-system
 parent: null
 children: []
-last_reviewed_commit: a7b7fc34
+last_reviewed_commit: 0618386e
 ---
 
-# C1 — Engram (System Context)
+# C1 — Engram plugin (System Context)
 
 Engram is a Claude Code plugin that gives the agent persistent, query-ranked memory.
 This diagram shows who and what Engram interacts with at the system boundary; it
@@ -18,30 +18,30 @@ flowchart LR
     classDef external    fill:#999,   stroke:#666,   color:#fff
     classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
 
-    user([E1 · Joe<br/>developer using Claude Code])
-    cc(E3 · Claude Code<br/>agent harness)
-    ccmem(E4 · Claude Code memory surfaces<br/>CLAUDE.md, .claude/rules, auto-memory, skills)
-    anth(E5 · Anthropic API<br/>Haiku rank + extract)
-    fs(E6 · Local filesystem<br/>~/.local/share/engram/)
-    engram[E2 · Engram plugin]
+    e1([E1 · Joe<br/>developer using Claude Code])
+    e2[E2 · Engram plugin]
+    e3(E3 · Claude Code<br/>agent harness)
+    e4(E4 · Claude Code memory surfaces<br/>CLAUDE.md, .claude/rules, auto-memory, skills)
+    e5(E5 · Anthropic API<br/>Haiku rank + extract)
+    e6(E6 · Local filesystem<br/>~/.local/share/engram/)
 
-    user -->|R1: invokes /prepare /learn /recall /remember /migrate| cc
-    cc -->|R2: loads skills + fires SessionStart, UserPromptSubmit, PostToolUse hooks| engram
-    engram -->|R3: ranks + extracts via Haiku| anth
-    engram -->|R4: reads memories, rules, skills, auto-memory| ccmem
-    engram <-->|R5: reads + writes feedback/ and facts/ TOML| fs
-    engram -->|R6: injects briefings and reminders back into context| cc
+    e1 -->|R1: Invokes slash-commands and writes prompts that trigger skill auto-invocation| e3
+    e3 -->|R2: Loads skill markdown, executes hooks (`SessionStart`, `UserPromptSubmit`, `PostToolUse`), invokes `engram` binary subcommands| e2
+    e2 -->|R3: Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn| e5
+    e2 -->|R4: Discovers and reads CLAUDE.md (+ `@`-imports), `.claude/rules/*.md`, auto-memory topic files, and skill frontmatter for ranking| e4
+    e2 <-->|R5: Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary| e6
+    e2 -->|R6: Returns briefings (`/prepare`), recall results (`/recall`), and hook reminders that re-enter the agent's context| e3
 
-    class user person
-    class cc,ccmem,anth,fs external
-    class engram container
+    class e1 person
+    class e3,e4,e5,e6 external
+    class e2 container
 
-    click user href "#e1-joe" "Joe"
-    click engram href "#e2-engram-plugin" "Engram plugin"
-    click cc href "#e3-claude-code" "Claude Code"
-    click ccmem href "#e4-claude-code-memory-surfaces" "Claude Code memory surfaces"
-    click anth href "#e5-anthropic-api" "Anthropic API"
-    click fs href "#e6-local-filesystem" "Local filesystem"
+    click e1 href "#e1-joe" "Joe"
+    click e2 href "#e2-engram-plugin" "Engram plugin"
+    click e3 href "#e3-claude-code" "Claude Code"
+    click e4 href "#e4-claude-code-memory-surfaces" "Claude Code memory surfaces"
+    click e5 href "#e5-anthropic-api" "Anthropic API"
+    click e6 href "#e6-local-filesystem" "Local filesystem"
 ```
 
 ## Element Catalog
@@ -59,14 +59,14 @@ flowchart LR
 
 | ID | From | To | Description | Protocol/Medium |
 |---|---|---|---|---|
-| <a id="r1-joe-cc"></a>R1 | Joe | Claude Code | Invokes slash-commands and writes prompts that trigger skill auto-invocation | Claude Code CLI / TTY |
-| <a id="r2-cc-engram"></a>R2 | Claude Code | Engram plugin | Loads skill markdown, executes hooks (`SessionStart`, `UserPromptSubmit`, `PostToolUse`), invokes `engram` binary subcommands | Plugin manifest, shell hooks (stdin JSON), subprocess exec |
-| <a id="r3-engram-anth"></a>R3 | Engram plugin | Anthropic API | Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn | HTTPS, Anthropic Messages API (Haiku) |
-| <a id="r4-engram-ccmem"></a>R4 | Engram plugin | Claude Code memory surfaces | Discovers and reads CLAUDE.md (+ `@`-imports), `.claude/rules/*.md`, auto-memory topic files, and skill frontmatter for ranking | Local file reads (read-only; "read everywhere, write only what you own") |
-| <a id="r5-engram-fs"></a>R5 | Engram plugin | Local filesystem | Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary | Local file I/O, TOML |
-| <a id="r6-engram-cc"></a>R6 | Engram plugin | Claude Code | Returns briefings (`/prepare`), recall results (`/recall`), and hook reminders that re-enter the agent's context | Hook stdout JSON (`systemMessage`, `additionalContext`) |
+| <a id="r1-joe-claude-code"></a>R1 | Joe | Claude Code | Invokes slash-commands and writes prompts that trigger skill auto-invocation | Claude Code CLI / TTY |
+| <a id="r2-claude-code-engram-plugin"></a>R2 | Claude Code | Engram plugin | Loads skill markdown, executes hooks (`SessionStart`, `UserPromptSubmit`, `PostToolUse`), invokes `engram` binary subcommands | Plugin manifest, shell hooks (stdin JSON), subprocess exec |
+| <a id="r3-engram-plugin-anthropic-api"></a>R3 | Engram plugin | Anthropic API | Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn | HTTPS, Anthropic Messages API (Haiku) |
+| <a id="r4-engram-plugin-claude-code-memory-surfaces"></a>R4 | Engram plugin | Claude Code memory surfaces | Discovers and reads CLAUDE.md (+ `@`-imports), `.claude/rules/*.md`, auto-memory topic files, and skill frontmatter for ranking | Local file reads (read-only; "read everywhere, write only what you own") |
+| <a id="r5-engram-plugin-local-filesystem"></a>R5 | Engram plugin | Local filesystem | Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary | Local file I/O, TOML |
+| <a id="r6-engram-plugin-claude-code"></a>R6 | Engram plugin | Claude Code | Returns briefings (`/prepare`), recall results (`/recall`), and hook reminders that re-enter the agent's context | Hook stdout JSON (`systemMessage`, `additionalContext`) |
 
 ## Cross-links
 
 - Parent: none (L1 is the root).
-- Refined by: *(none yet — to be authored at L2)*. Expected next file: `c2-engram-containers.md` decomposing **E2 · Engram plugin** into the `engram` Go binary (`cmd/engram` + `internal/`), the skill set (`skills/{prepare,recall,learn,remember,migrate,c4}`), the hook scripts (`hooks/{session-start,user-prompt-submit,post-tool-use}.sh`), and the on-disk memory store under `~/.local/share/engram/memory/`.
+- Refined by: *(none yet)*
