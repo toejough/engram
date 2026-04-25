@@ -3,17 +3,26 @@
 package dev
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/toejough/targ"
 )
 
-var errNotImplemented = errors.New("not implemented")
-
 func init() {
 	targ.Register(targ.Targ(c4Audit).Name("c4-audit").
-		Description("Structurally audit a C4 L1 markdown file (rule 6 + front-matter + cross-links). Exits 1 on any finding."))
+		Description("Structurally audit a C4 L1 markdown file. Exits 1 on any finding."))
 	targ.Register(targ.Targ(c4L1Build).Name("c4-l1-build").
 		Description("Build canonical C4 L1 markdown from a JSON spec next to the input file."))
 	targ.Register(targ.Targ(c4L1Externals).Name("c4-l1-externals").
@@ -22,7 +31,299 @@ func init() {
 		Description("Wrap git log and emit structured JSON of commit metadata + bodies."))
 }
 
-func c4Audit(_ context.Context) error       { return errNotImplemented }
-func c4L1Build(_ context.Context) error     { return errNotImplemented }
-func c4L1Externals(_ context.Context) error { return errNotImplemented }
-func c4History(_ context.Context) error     { return errNotImplemented }
+// Finding records a single structural problem detected by the audit.
+type Finding struct {
+	ID     string `json:"id"`
+	Line   int    `json:"line"`
+	Detail string `json:"detail"`
+}
+
+type auditJSON struct {
+	SchemaVersion string    `json:"schema_version"`
+	File          string    `json:"file"`
+	Findings      []Finding `json:"findings"`
+}
+
+// frontMatter holds the parsed YAML front-matter fields for a C4 markdown file.
+// Each field tracks whether it appeared and on which source line, to support
+// precise findings.
+type frontMatter struct {
+	present                bool
+	startLine              int
+	endLine                int
+	hasLevel               bool
+	level                  int
+	levelLine              int
+	hasName                bool
+	name                   string
+	nameLine               int
+	hasParent              bool
+	parentNull             bool
+	parent                 string
+	parentLine             int
+	hasChildren            bool
+	hasLastReviewedCommit  bool
+	lastReviewedCommit     string
+	lastReviewedCommitLine int
+}
+
+const fmFence = "---"
+
+var (
+	errNoArgs    = errors.New("--file is required")
+	validNameRe  = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+	slugSplitRe  = regexp.MustCompile(`[^a-z0-9]+`)
+)
+
+func c4Audit(ctx context.Context) error {
+	flagset := flag.NewFlagSet("c4-audit", flag.ContinueOnError)
+	file := flagset.String("file", "", "markdown file to audit (required)")
+	jsonOut := flagset.Bool("json", false, "emit findings as JSON")
+	if err := flagset.Parse(os.Args[1:]); err != nil {
+		return fmt.Errorf("parse flags: %w", err)
+	}
+	if *file == "" {
+		return errNoArgs
+	}
+	findings, err := auditFile(ctx, *file)
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		if err := writeFindingsJSON(os.Stdout, *file, findings); err != nil {
+			return err
+		}
+	} else {
+		writeFindingsText(os.Stdout, *file, findings)
+	}
+	if len(findings) > 0 {
+		return fmt.Errorf("%d finding(s)", len(findings))
+	}
+	return nil
+}
+
+func c4L1Build(_ context.Context) error     { return errors.New("c4-l1-build: not implemented") }
+func c4L1Externals(_ context.Context) error { return errors.New("c4-l1-externals: not implemented") }
+func c4History(_ context.Context) error     { return errors.New("c4-history: not implemented") }
+
+// auditFile reads path and returns all structural findings.
+// It returns an error only when the file itself cannot be read.
+func auditFile(ctx context.Context, path string) ([]Finding, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	findings := []Finding{}
+	findings = append(findings, auditFrontMatter(ctx, path, raw)...)
+	return findings, nil
+}
+
+// auditFrontMatter parses the YAML front-matter and emits findings for missing
+// blocks, missing fields, invalid values, and broken cross-references.
+func auditFrontMatter(ctx context.Context, path string, raw []byte) []Finding {
+	matter, ok := parseFrontMatter(raw)
+	if !ok {
+		return []Finding{{ID: "front_matter_missing", Line: 1, Detail: "no leading --- block"}}
+	}
+	findings := []Finding{}
+	findings = append(findings, checkRequiredFields(matter)...)
+	findings = append(findings, checkLevel(matter)...)
+	findings = append(findings, checkName(matter, path)...)
+	findings = append(findings, checkParent(matter, path)...)
+	findings = append(findings, checkLastReviewedCommit(ctx, matter)...)
+	return findings
+}
+
+// parseFrontMatter scans for a leading --- ... --- block and extracts known
+// scalar fields. Returns ok=false when no front-matter block is present.
+func parseFrontMatter(raw []byte) (frontMatter, bool) {
+	matter := frontMatter{}
+	if !bytes.HasPrefix(raw, []byte(fmFence+"\n")) {
+		return matter, false
+	}
+	rest := raw[len(fmFence)+1:]
+	closing := []byte("\n" + fmFence + "\n")
+	body, _, found := bytes.Cut(rest, closing)
+	if !found {
+		return matter, false
+	}
+	matter.present = true
+	matter.startLine = 1
+	matter.endLine = 2 + bytes.Count(body, []byte("\n"))
+	for line, content := range strings.Split(string(body), "\n") {
+		consumeFrontMatterLine(&matter, line+2, content)
+	}
+	return matter, true
+}
+
+func consumeFrontMatterLine(matter *frontMatter, lineNum int, raw string) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return
+	}
+	key, value, ok := strings.Cut(trimmed, ":")
+	if !ok {
+		return
+	}
+	value = strings.TrimSpace(value)
+	switch strings.TrimSpace(key) {
+	case "level":
+		matter.hasLevel = true
+		matter.levelLine = lineNum
+		if n, err := strconv.Atoi(value); err == nil {
+			matter.level = n
+		} else {
+			matter.level = -1
+		}
+	case "name":
+		matter.hasName = true
+		matter.nameLine = lineNum
+		matter.name = strings.Trim(value, `"'`)
+	case "parent":
+		matter.hasParent = true
+		matter.parentLine = lineNum
+		if value == "null" || value == "~" || value == "" {
+			matter.parentNull = true
+		} else {
+			matter.parent = strings.Trim(value, `"'`)
+		}
+	case "children":
+		matter.hasChildren = true
+	case "last_reviewed_commit":
+		matter.hasLastReviewedCommit = true
+		matter.lastReviewedCommitLine = lineNum
+		matter.lastReviewedCommit = strings.Trim(value, `"'`)
+	}
+}
+
+func checkRequiredFields(matter frontMatter) []Finding {
+	findings := []Finding{}
+	required := []struct {
+		present bool
+		name    string
+	}{
+		{matter.hasLevel, "level"},
+		{matter.hasName, "name"},
+		{matter.hasParent, "parent"},
+		{matter.hasChildren, "children"},
+		{matter.hasLastReviewedCommit, "last_reviewed_commit"},
+	}
+	for _, field := range required {
+		if !field.present {
+			findings = append(findings, Finding{
+				ID:     "front_matter_field_missing",
+				Line:   matter.startLine,
+				Detail: fmt.Sprintf("missing required field %q", field.name),
+			})
+		}
+	}
+	return findings
+}
+
+func checkLevel(matter frontMatter) []Finding {
+	if !matter.hasLevel {
+		return nil
+	}
+	if matter.level < 1 || matter.level > 4 {
+		return []Finding{{
+			ID:     "level_invalid",
+			Line:   matter.levelLine,
+			Detail: fmt.Sprintf("level %d not in [1..4]", matter.level),
+		}}
+	}
+	return nil
+}
+
+func checkName(matter frontMatter, path string) []Finding {
+	if !matter.hasName {
+		return nil
+	}
+	expected := slug(strings.TrimSuffix(filepath.Base(path), ".md"))
+	if matter.name != expected {
+		return []Finding{{
+			ID:     "name_filename_mismatch",
+			Line:   matter.nameLine,
+			Detail: fmt.Sprintf("name %q does not match filename slug %q", matter.name, expected),
+		}}
+	}
+	if !validNameRe.MatchString(matter.name) {
+		return []Finding{{
+			ID:     "name_filename_mismatch",
+			Line:   matter.nameLine,
+			Detail: fmt.Sprintf("name %q must match %s", matter.name, validNameRe),
+		}}
+	}
+	return nil
+}
+
+func checkParent(matter frontMatter, path string) []Finding {
+	if !matter.hasParent || matter.parentNull {
+		return nil
+	}
+	resolved := filepath.Join(filepath.Dir(path), matter.parent)
+	if _, err := os.Stat(resolved); err != nil {
+		return []Finding{{
+			ID:     "parent_missing",
+			Line:   matter.parentLine,
+			Detail: fmt.Sprintf("parent %q resolves to %q but does not exist", matter.parent, resolved),
+		}}
+	}
+	return nil
+}
+
+func checkLastReviewedCommit(ctx context.Context, matter frontMatter) []Finding {
+	if !matter.hasLastReviewedCommit {
+		return nil
+	}
+	if matter.lastReviewedCommit == "" {
+		return []Finding{{
+			ID:     "last_reviewed_commit_invalid",
+			Line:   matter.lastReviewedCommitLine,
+			Detail: "last_reviewed_commit is empty",
+		}}
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		fmt.Fprintln(os.Stderr, "warning: git not on PATH; skipping last_reviewed_commit verification")
+		return nil
+	}
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--quiet", "--verify", matter.lastReviewedCommit+"^{commit}")
+	if err := cmd.Run(); err != nil {
+		return []Finding{{
+			ID:     "last_reviewed_commit_invalid",
+			Line:   matter.lastReviewedCommitLine,
+			Detail: fmt.Sprintf("git rev-parse rejected %q", matter.lastReviewedCommit),
+		}}
+	}
+	return nil
+}
+
+// slug lowercases s and collapses non-[a-z0-9] runs into a single "-",
+// trimming leading and trailing "-" runs.
+func slug(s string) string {
+	lower := strings.ToLower(s)
+	collapsed := slugSplitRe.ReplaceAllString(lower, "-")
+	return strings.Trim(collapsed, "-")
+}
+
+func writeFindingsJSON(w io.Writer, file string, findings []Finding) error {
+	if findings == nil {
+		findings = []Finding{}
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(auditJSON{SchemaVersion: "1", File: file, Findings: findings}); err != nil {
+		return fmt.Errorf("encode findings: %w", err)
+	}
+	return nil
+}
+
+func writeFindingsText(w io.Writer, file string, findings []Finding) {
+	if len(findings) == 0 {
+		fmt.Fprintf(w, "%s: clean\n", file)
+		return
+	}
+	fmt.Fprintf(w, "%s: %d finding(s)\n\n", file, len(findings))
+	for index, finding := range findings {
+		fmt.Fprintf(w, "[%d] %s line %d: %s\n", index+1, finding.ID, finding.Line, finding.Detail)
+	}
+}
