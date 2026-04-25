@@ -32,6 +32,14 @@ Dispatch by intent. The user invokes `/c4 <sub-action> [args]`.
    :::external / :::container / :::component` classes. See `references/mermaid-conventions.md`.
 5. **Cross-link in the file body.** No index file. Each file names its parent and children
    directly with relative paths.
+6. **Every diagram element and edge carries an ID.** Each catalog row gets `E1, E2, …`, each
+   relationships row gets `R1, R2, …`, and the same IDs appear inside the mermaid node labels
+   and edge labels. Every node also gets a `click NODE href "#anchor"` directive that links to
+   the catalog row's anchor. Catalog and relationships rows carry HTML anchors
+   (`<a id="e1-…"></a>`) so the links resolve. Mismatches (a node ID with no catalog row, or a
+   catalog row whose ID isn't on the diagram) are reported as drift findings by `review` and
+   `audit`. See `references/mermaid-conventions.md` for the exact pattern. *(L4 ledgers use
+   `P1, P2, …` for properties; no diagram IDs needed since L4 has no diagram.)*
 
 ## Workflow: `create <level> <name>`
 
@@ -78,7 +86,8 @@ Dispatch by intent. The user invokes `/c4 <sub-action> [args]`.
 ## Workflow: `review <name>`
 
 Steps 1–4 of `update`, read-only. Output a report: drift findings, missing cross-links, broken
-code/test pointers, untested L4 properties added since last review. No edits.
+code/test pointers, untested L4 properties added since last review, AND **ID-mismatch findings**
+(diagram nodes/edges whose IDs don't match catalog/relationships rows, or vice versa). No edits.
 
 ## Workflow: `audit`
 

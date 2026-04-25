@@ -14,21 +14,23 @@ flowchart LR
     classDef external    fill:#999,   stroke:#666,   color:#fff
     classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
 
-    %% nodes
-    %% relationships
+    %% nodes — embed E<n> in label, e.g. user([E1 · Joe])
+    %% relationships — embed R<n> in edge label, e.g. user -->|R1: invokes ...| cc
     %% class assignments
+    %% click directives — one per node, e.g. click user href "#e1-joe"
 ```
 
 ## Element Catalog
 
-| Name | Type | Responsibility | System of Record |
-|---|---|---|---|
-| <element> | Person / External system / The system | <one sentence> | <where this lives in reality> |
+| ID | Name | Type | Responsibility | System of Record |
+|---|---|---|---|---|
+| <a id="e1-PLACEHOLDER"></a>E1 | <element> | Person / External system / The system | <one sentence> | <where this lives in reality> |
 
 ## Relationships
 
-| From | To | Description | Protocol/Medium |
-|---|---|---|---|
+| ID | From | To | Description | Protocol/Medium |
+|---|---|---|---|---|
+| <a id="r1-PLACEHOLDER"></a>R1 | <from> | <to> | <one sentence> | <protocol> |
 
 ## Cross-links
 

@@ -16,23 +16,24 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
 
     subgraph focus [<container name>]
-        %% components inside the focus container
+        %% components inside the focus container — embed E<n> in label
     end
     class focus container
     %% neighboring containers/people/externals as context
-    %% relationships
+    %% relationships — embed R<n> in edge label
+    %% click directives — one per node, jumping to its catalog row anchor
 ```
 
 ## Element Catalog
 
-| Name | Type | Responsibility | Code Pointer |
-|---|---|---|---|
-| <component> | Component | <one sentence> | [path/to/pkg](../../path/to/pkg) |
+| ID | Name | Type | Responsibility | Code Pointer |
+|---|---|---|---|---|
+| <a id="e1-PLACEHOLDER"></a>E1 | <component> | Component | <one sentence> | [path/to/pkg](../../path/to/pkg) |
 
 ## Relationships
 
-| From | To | Description | Protocol/Medium |
-|---|---|---|---|
+| ID | From | To | Description | Protocol/Medium |
+|---|---|---|---|---|
 
 ## Cross-links
 

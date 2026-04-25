@@ -14,20 +14,21 @@ flowchart LR
     classDef external    fill:#999,   stroke:#666,   color:#fff
     classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
 
-    %% nodes (containers + retained context from L1)
-    %% relationships
+    %% nodes — embed E<n> in label
+    %% relationships — embed R<n> in edge label
     %% class assignments
+    %% click directives — one per node, jumping to its anchor in the catalog table
 ```
 
 ## Element Catalog
 
-| Name | Type | Responsibility | System of Record |
-|---|---|---|---|
+| ID | Name | Type | Responsibility | System of Record |
+|---|---|---|---|---|
 
 ## Relationships
 
-| From | To | Description | Protocol/Medium |
-|---|---|---|---|
+| ID | From | To | Description | Protocol/Medium |
+|---|---|---|---|---|
 
 ## Cross-links
 
