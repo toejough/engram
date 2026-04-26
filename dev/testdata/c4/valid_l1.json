@@ -50,7 +50,7 @@
   ],
   "relationships": [
     {"from": "Joe", "to": "Claude Code", "description": "invokes /prepare /learn /recall /remember /migrate", "protocol": "Claude Code CLI"},
-    {"from": "Claude Code", "to": "Engram plugin", "description": "loads skills + fires SessionStart, UserPromptSubmit, PostToolUse hooks", "protocol": "plugin loader + hooks"},
+    {"from": "Claude Code", "to": "Engram plugin", "description": "loads skills + fires hooks (SessionStart, UserPromptSubmit, PostToolUse)", "protocol": "plugin loader + hooks"},
     {"from": "Engram plugin", "to": "Anthropic API", "description": "ranks + extracts via Haiku", "protocol": "HTTPS"},
     {"from": "Engram plugin", "to": "Claude Code memory surfaces", "description": "reads memories, rules, skills, auto-memory", "protocol": "filesystem"},
     {"from": "Engram plugin", "to": "Local filesystem", "description": "reads + writes feedback/ and facts/ TOML", "protocol": "filesystem", "bidirectional": true},

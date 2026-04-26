@@ -3,7 +3,7 @@ level: 1
 name: engram-system
 parent: null
 children: []
-last_reviewed_commit: 0618386e
+last_reviewed_commit: 8d3a5502
 ---
 
 # C1 — Engram plugin (System Context)
@@ -25,12 +25,12 @@ flowchart LR
     e5(E5 · Anthropic API<br/>Haiku rank + extract)
     e6(E6 · Local filesystem<br/>~/.local/share/engram/)
 
-    e1 -->|R1: Invokes slash-commands and writes prompts that trigger skill auto-invocation| e3
-    e3 -->|R2: Loads skill markdown, executes hooks (`SessionStart`, `UserPromptSubmit`, `PostToolUse`), invokes `engram` binary subcommands| e2
-    e2 -->|R3: Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn| e5
-    e2 -->|R4: Discovers and reads CLAUDE.md (+ `@`-imports), `.claude/rules/*.md`, auto-memory topic files, and skill frontmatter for ranking| e4
-    e2 <-->|R5: Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary| e6
-    e2 -->|R6: Returns briefings (`/prepare`), recall results (`/recall`), and hook reminders that re-enter the agent's context| e3
+    e1 -->|"R1: Invokes slash-commands and writes prompts that trigger skill auto-invocation"| e3
+    e3 -->|"R2: Loads skill markdown, executes hooks (`SessionStart`, `UserPromptSubmit`, `PostToolUse`), invokes `engram` binary subcommands"| e2
+    e2 -->|"R3: Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn"| e5
+    e2 -->|"R4: Discovers and reads CLAUDE.md (+ `@`-imports), `.claude/rules/*.md`, auto-memory topic files, and skill frontmatter for ranking"| e4
+    e2 <-->|"R5: Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary"| e6
+    e2 -->|"R6: Returns briefings (`/prepare`), recall results (`/recall`), and hook reminders that re-enter the agent's context"| e3
 
     class e1 person
     class e3,e4,e5,e6 external

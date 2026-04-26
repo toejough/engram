@@ -1070,7 +1070,7 @@ func emitMermaidEdges(buf *bytes.Buffer, relIDs []relationshipID, idByName map[s
 		if rel.Rel.Bidirectional {
 			arrow = "<-->"
 		}
-		fmt.Fprintf(buf, "    %s %s|%s: %s| %s\n",
+		fmt.Fprintf(buf, "    %s %s|\"%s: %s\"| %s\n",
 			idByName[rel.Rel.From], arrow, rel.ID, rel.Rel.Description, idByName[rel.Rel.To])
 	}
 }
@@ -1254,8 +1254,9 @@ func parseMermaidLines(block *mermaidBlock) {
 			continue
 		}
 		if matched := mermaidEdgeRe.FindStringSubmatch(trimmed); matched != nil {
+			label := strings.Trim(strings.TrimSpace(matched[2]), `"`)
 			block.edges = append(block.edges, mermaidEdge{
-				from: matched[1], label: matched[2], to: matched[3], line: lineNum,
+				from: matched[1], label: label, to: matched[3], line: lineNum,
 			})
 			continue
 		}

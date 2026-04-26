@@ -25,12 +25,12 @@ flowchart LR
     e5(E5 · Anthropic API<br/>Haiku rank + extract)
     e6(E6 · Local filesystem<br/>~/.local/share/engram/)
 
-    e1 -->|R1: invokes /prepare /learn /recall /remember /migrate| e3
-    e3 -->|R2: loads skills + fires SessionStart, UserPromptSubmit, PostToolUse hooks| e2
-    e2 -->|R3: ranks + extracts via Haiku| e5
-    e2 -->|R4: reads memories, rules, skills, auto-memory| e4
-    e2 <-->|R5: reads + writes feedback/ and facts/ TOML| e6
-    e2 -->|R6: injects briefings and reminders back into context| e3
+    e1 -->|"R1: invokes /prepare /learn /recall /remember /migrate"| e3
+    e3 -->|"R2: loads skills + fires hooks (SessionStart, UserPromptSubmit, PostToolUse)"| e2
+    e2 -->|"R3: ranks + extracts via Haiku"| e5
+    e2 -->|"R4: reads memories, rules, skills, auto-memory"| e4
+    e2 <-->|"R5: reads + writes feedback/ and facts/ TOML"| e6
+    e2 -->|"R6: injects briefings and reminders back into context"| e3
 
     class e1 person
     class e3,e4,e5,e6 external
@@ -60,7 +60,7 @@ flowchart LR
 | ID | From | To | Description | Protocol/Medium |
 |---|---|---|---|---|
 | <a id="r1-joe-claude-code"></a>R1 | Joe | Claude Code | invokes /prepare /learn /recall /remember /migrate | Claude Code CLI |
-| <a id="r2-claude-code-engram-plugin"></a>R2 | Claude Code | Engram plugin | loads skills + fires SessionStart, UserPromptSubmit, PostToolUse hooks | plugin loader + hooks |
+| <a id="r2-claude-code-engram-plugin"></a>R2 | Claude Code | Engram plugin | loads skills + fires hooks (SessionStart, UserPromptSubmit, PostToolUse) | plugin loader + hooks |
 | <a id="r3-engram-plugin-anthropic-api"></a>R3 | Engram plugin | Anthropic API | ranks + extracts via Haiku | HTTPS |
 | <a id="r4-engram-plugin-claude-code-memory-surfaces"></a>R4 | Engram plugin | Claude Code memory surfaces | reads memories, rules, skills, auto-memory | filesystem |
 | <a id="r5-engram-plugin-local-filesystem"></a>R5 | Engram plugin | Local filesystem | reads + writes feedback/ and facts/ TOML | filesystem |
