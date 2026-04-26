@@ -3,7 +3,7 @@
   "level": 2,
   "name": "engram-plugin",
   "parent": "c1-engram-system.md",
-  "preamble": "Refines L1's E2 Engram plugin into three internal containers — skill markdown files that drive agent behavior, shell hooks fired on Claude Code lifecycle events, and a Go CLI binary that performs all computation. External actors keep their L1 E-IDs; L1's E6 (Local filesystem) is renamed and refined here as E10 Engram memory store (the TOML feedback + facts directory under `~/.local/share/engram/memory/`).",
+  "preamble": "Refines L1's E2 Engram plugin into three internal containers — skill markdown files that drive agent behavior, shell hooks fired on Claude Code lifecycle events, and a Go CLI binary that performs all computation. External actors and the on-disk store keep their L1 E-IDs.",
   "elements": [
     {
       "id": "E1",
@@ -50,7 +50,7 @@
       "system_of_record": "`api.anthropic.com`"
     },
     {
-      "id": "E10",
+      "id": "E6",
       "name": "Engram memory store",
       "kind": "external",
       "from_parent": true,
@@ -59,6 +59,7 @@
       "system_of_record": "XDG data home on the user's machine"
     },
     {
+      "id": "E7",
       "name": "Skills",
       "kind": "container",
       "subtitle": "prepare / learn / recall / remember / migrate / c4",
@@ -66,6 +67,7 @@
       "system_of_record": "This repo, under `skills/`"
     },
     {
+      "id": "E8",
       "name": "Hooks",
       "kind": "container",
       "subtitle": "session-start / user-prompt-submit / post-tool-use",
@@ -73,6 +75,7 @@
       "system_of_record": "This repo, under `hooks/`"
     },
     {
+      "id": "E9",
       "name": "engram CLI binary",
       "kind": "container",
       "subtitle": "recall · learn · list · show · update",

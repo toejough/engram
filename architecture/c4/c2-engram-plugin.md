@@ -3,12 +3,12 @@ level: 2
 name: engram-plugin
 parent: "c1-engram-system.md"
 children: []
-last_reviewed_commit: 63f069ee
+last_reviewed_commit: 0eb52f06
 ---
 
 # C2 — Engram plugin (Container)
 
-Refines L1's E2 Engram plugin into three internal containers — skill markdown files that drive agent behavior, shell hooks fired on Claude Code lifecycle events, and a Go CLI binary that performs all computation. External actors keep their L1 E-IDs; L1's E6 (Local filesystem) is renamed and refined here as E10 Engram memory store (the TOML feedback + facts directory under `~/.local/share/engram/memory/`).
+Refines L1's E2 Engram plugin into three internal containers — skill markdown files that drive agent behavior, shell hooks fired on Claude Code lifecycle events, and a Go CLI binary that performs all computation. External actors and the on-disk store keep their L1 E-IDs.
 
 ```mermaid
 flowchart LR
@@ -20,29 +20,29 @@ flowchart LR
     e3(E3 · Claude Code<br/>agent harness)
     e4(E4 · Claude Code memory surfaces)
     e5(E5 · Anthropic API<br/>Haiku)
-    e10(E10 · Engram memory store<br/>~/.local/share/engram/memory/)
+    e6(E6 · Engram memory store<br/>~/.local/share/engram/memory/)
 
     subgraph e2 [E2 · Engram plugin]
-        e6[E6 · Skills<br/>prepare / learn / recall / remember / migrate / c4]
-        e7[E7 · Hooks<br/>session-start / user-prompt-submit / post-tool-use]
-        e8[E8 · engram CLI binary<br/>recall · learn · list · show · update]
+        e7[E7 · Skills<br/>prepare / learn / recall / remember / migrate / c4]
+        e8[E8 · Hooks<br/>session-start / user-prompt-submit / post-tool-use]
+        e9[E9 · engram CLI binary<br/>recall · learn · list · show · update]
     end
 
     e1 -->|"R1: invokes /prepare, /learn, /recall, /remember, /migrate"| e3
-    e3 -->|"R2: loads skill markdown on /command and on auto-trigger"| e6
-    e3 -->|"R3: fires SessionStart, UserPromptSubmit, PostToolUse"| e7
-    e3 -->|"R4: execs the binary as a subprocess each time the agent's Bash tool runs an engram subcommand"| e8
-    e6 -->|"R5: skill bodies returned to agent context include instructions to shell out to engram subcommands"| e3
-    e7 -->|"R6: session-start.sh runs go build and writes a fresh binary when source files are newer than cached mtime"| e8
-    e7 -->|"R7: emit hookSpecificOutput.additionalContext (and systemMessage) on stdout to inject reminders and the skill-availability banner"| e3
-    e8 -->|"R8: ranks candidates and extracts snippets via Haiku; classifies feedback/facts during learn"| e5
-    e8 -->|"R9: reads CLAUDE.md, .claude/rules, auto-memory, skill frontmatter for ranking"| e4
-    e8 -->|"R10: reads existing feedback + fact TOML during recall/list/show; writes new TOML during learn/remember/update"| e10
-    e8 -->|"R11: prints briefings, recall results, and other subcommand output to stdout, which re-enters the agent's context as the tool result"| e3
+    e3 -->|"R2: loads skill markdown on /command and on auto-trigger"| e7
+    e3 -->|"R3: fires SessionStart, UserPromptSubmit, PostToolUse"| e8
+    e3 -->|"R4: execs the binary as a subprocess each time the agent's Bash tool runs an engram subcommand"| e9
+    e7 -->|"R5: skill bodies returned to agent context include instructions to shell out to engram subcommands"| e3
+    e8 -->|"R6: session-start.sh runs go build and writes a fresh binary when source files are newer than cached mtime"| e9
+    e8 -->|"R7: emit hookSpecificOutput.additionalContext (and systemMessage) on stdout to inject reminders and the skill-availability banner"| e3
+    e9 -->|"R8: ranks candidates and extracts snippets via Haiku; classifies feedback/facts during learn"| e5
+    e9 -->|"R9: reads CLAUDE.md, .claude/rules, auto-memory, skill frontmatter for ranking"| e4
+    e9 -->|"R10: reads existing feedback + fact TOML during recall/list/show; writes new TOML during learn/remember/update"| e6
+    e9 -->|"R11: prints briefings, recall results, and other subcommand output to stdout, which re-enters the agent's context as the tool result"| e3
 
     class e1 person
-    class e3,e4,e5,e10 external
-    class e6,e7,e8 container
+    class e3,e4,e5,e6 external
+    class e7,e8,e9 container
     class e2 container
 
     click e1 href "#e1-developer" "Developer"
@@ -50,10 +50,10 @@ flowchart LR
     click e3 href "#e3-claude-code" "Claude Code"
     click e4 href "#e4-claude-code-memory-surfaces" "Claude Code memory surfaces"
     click e5 href "#e5-anthropic-api" "Anthropic API"
-    click e10 href "#e10-engram-memory-store" "Engram memory store"
-    click e6 href "#e6-skills" "Skills"
-    click e7 href "#e7-hooks" "Hooks"
-    click e8 href "#e8-engram-cli-binary" "engram CLI binary"
+    click e6 href "#e6-engram-memory-store" "Engram memory store"
+    click e7 href "#e7-skills" "Skills"
+    click e8 href "#e8-hooks" "Hooks"
+    click e9 href "#e9-engram-cli-binary" "engram CLI binary"
 ```
 
 ## Element Catalog
@@ -65,10 +65,10 @@ flowchart LR
 | <a id="e3-claude-code"></a>E3 | Claude Code | External system | Agent harness that loads skills, fires hooks, and execs the engram binary when the agent shells out | Anthropic Claude Code CLI |
 | <a id="e4-claude-code-memory-surfaces"></a>E4 | Claude Code memory surfaces | External system | Read-only inputs to recall ranking: project + user `CLAUDE.md`, `.claude/rules/*.md`, auto-memory, skill frontmatter | Owned by Claude Code and the user |
 | <a id="e5-anthropic-api"></a>E5 | Anthropic API | External system | Haiku model used for candidate ranking, snippet extraction, and learn-time classification | `api.anthropic.com` |
-| <a id="e10-engram-memory-store"></a>E10 | Engram memory store | External system | On-disk memory state: feedback TOML under `~/.local/share/engram/memory/feedback/` and fact TOML under `~/.local/share/engram/memory/facts/`. The filesystem belongs to the OS; Engram only reads and writes within these paths | XDG data home on the user's machine |
-| <a id="e6-skills"></a>E6 | Skills | Container | Markdown skill files (`skills/{prepare,learn,recall,remember,migrate,c4}/SKILL.md`) that Claude Code loads on command or auto-trigger; bodies instruct the agent to call `engram` subcommands and present results | This repo, under `skills/` |
-| <a id="e7-hooks"></a>E7 | Hooks | Container | Three bash scripts (`hooks/session-start.sh`, `hooks/user-prompt-submit.sh`, `hooks/post-tool-use.sh`) wired by `hooks/hooks.json`; emit JSON `additionalContext`, async-rebuild the binary on SessionStart | This repo, under `hooks/` |
-| <a id="e8-engram-cli-binary"></a>E8 | engram CLI binary | Container | Go binary (entry `cmd/engram/main.go`) implementing subcommands `recall`, `learn {feedback,fact}`, `list`, `show`, `update`. All I/O lives here; pure logic in `internal/{recall,memory,cli,…}`. Built by `session-start.sh` to `~/.claude/engram/bin/engram`; execed by Claude Code | This repo |
+| <a id="e6-engram-memory-store"></a>E6 | Engram memory store | External system | On-disk memory state: feedback TOML under `~/.local/share/engram/memory/feedback/` and fact TOML under `~/.local/share/engram/memory/facts/`. The filesystem belongs to the OS; Engram only reads and writes within these paths | XDG data home on the user's machine |
+| <a id="e7-skills"></a>E7 | Skills | Container | Markdown skill files (`skills/{prepare,learn,recall,remember,migrate,c4}/SKILL.md`) that Claude Code loads on command or auto-trigger; bodies instruct the agent to call `engram` subcommands and present results | This repo, under `skills/` |
+| <a id="e8-hooks"></a>E8 | Hooks | Container | Three bash scripts (`hooks/session-start.sh`, `hooks/user-prompt-submit.sh`, `hooks/post-tool-use.sh`) wired by `hooks/hooks.json`; emit JSON `additionalContext`, async-rebuild the binary on SessionStart | This repo, under `hooks/` |
+| <a id="e9-engram-cli-binary"></a>E9 | engram CLI binary | Container | Go binary (entry `cmd/engram/main.go`) implementing subcommands `recall`, `learn {feedback,fact}`, `list`, `show`, `update`. All I/O lives here; pure logic in `internal/{recall,memory,cli,…}`. Built by `session-start.sh` to `~/.claude/engram/bin/engram`; execed by Claude Code | This repo |
 
 ## Relationships
 
