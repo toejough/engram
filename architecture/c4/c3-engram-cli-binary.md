@@ -11,7 +11,6 @@ last_reviewed_commit: 1ba7e162
 Refines L2's E9 engram CLI binary into nine internal components. The shell of the binary (cmd/engram/main.go) only wires cli.Targets into targ.Main; all command logic, I/O adapters, and external integrations live under internal/. Pure-logic packages (recall, memory, tomlwriter) take all I/O as DI interfaces; thin adapter shims live in internal/cli so concrete I/O is wired only at the edge of the binary.
 
 ```mermaid
-%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 flowchart LR
     classDef person      fill:#08427b,stroke:#052e56,color:#fff
     classDef external    fill:#999,   stroke:#666,   color:#fff
@@ -41,8 +40,8 @@ flowchart LR
     e21 -->|"R4: reads / writes feedback + fact TOML through memory types and helpers"| e24
     e21 -->|"R5: discovers external source paths and shares the cache via discoverExternalSources"| e25
     e21 -->|"R6: builds the Anthropic caller used by recall.NewSummarizer"| e26
-    e21 -->|"R7: resolves API token (env or Keychain) before any LLM call"| e27
-    e27 -.->|"D1: invokes injected DI deps (getenv, execCmd, goos) wired by cli"| e21
+    e21 -->|"R7"| e27
+    e27 -.->|"D1"| e21
     e22 -->|"R8: reads + strips session transcripts within budget"| e23
     e22 -->|"R9: lists memories during recall ranking"| e24
     e22 -->|"R10: ranks candidates and extracts snippets via Haiku (through DI Summarizer)"| e26

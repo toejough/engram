@@ -22,7 +22,6 @@ calls E27 makes through dependencies wired by E21.
 The R-edge labels cite the P-list each edge backs.
 
 ```mermaid
-%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 flowchart LR
     classDef person      fill:#08427b,stroke:#052e56,color:#fff
     classDef external    fill:#999,   stroke:#666,   color:#fff
@@ -33,8 +32,8 @@ flowchart LR
     e21[E21 · cli<br/>dispatch + I/O adapters]
     e27[E27 · tokenresolver<br/>FOCUS]
 
-    e21 -->|"R7: Resolve(ctx)<br/>supported by: P1–P8"| e27
-    e27 -.->|"D1: invokes injected DI deps (getenv, execCmd, goos) wired by cli<br/>supported by: P1–P8"| e21
+    e21 -->|"R7 · P1–P8"| e27
+    e27 -.->|"D1 · P1–P8"| e21
 
     class e21 component
     class e27 focus
