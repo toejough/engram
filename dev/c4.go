@@ -208,6 +208,8 @@ type frontMatter struct {
 	parent                 string
 	parentLine             int
 	hasChildren            bool
+	children               []string
+	childrenLine           int
 	hasLastReviewedCommit  bool
 	lastReviewedCommit     string
 	lastReviewedCommitLine int
@@ -393,6 +395,9 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	catalog, rels := parseTables(raw)
 	findings = append(findings, auditOrphans(block, catalog, rels)...)
 	findings = append(findings, auditAnchorsAndClicks(block, catalog, rels)...)
+	matter, _ := parseFrontMatter(raw)
+	findings = append(findings, checkCodePointers(matter, raw, path)...)
+	findings = append(findings, checkRegistryCrossCheck(ctx, raw, path)...)
 	return findings, nil
 }
 
@@ -409,6 +414,7 @@ func auditFrontMatter(ctx context.Context, path string, raw []byte) []Finding {
 	findings = append(findings, checkName(matter, path)...)
 	findings = append(findings, checkParent(matter, path)...)
 	findings = append(findings, checkLastReviewedCommit(ctx, matter)...)
+	findings = append(findings, checkChildren(matter)...)
 	return findings
 }
 
@@ -824,6 +830,8 @@ func consumeFrontMatterLine(matter *frontMatter, lineNum int, raw string) {
 		}
 	case "children":
 		matter.hasChildren = true
+		matter.childrenLine = lineNum
+		matter.children = parseInlineYAMLArray(value)
 	case "last_reviewed_commit":
 		matter.hasLastReviewedCommit = true
 		matter.lastReviewedCommitLine = lineNum
