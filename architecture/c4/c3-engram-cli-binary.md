@@ -15,9 +15,7 @@ Refines L2's E9 engram CLI binary into nine internal components. The shell of th
 > Diagram source: [svg/c3-engram-cli-binary.mmd](svg/c3-engram-cli-binary.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c3-engram-cli-binary.mmd -o architecture/c4/svg/c3-engram-cli-binary.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair. Click handlers from the
-> mermaid source are not preserved in the SVG; element-catalog navigation works via
-> in-page anchors below.
+> separate bidirectional R/D edges between the same node pair.
 
 ## Element Catalog
 
