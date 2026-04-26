@@ -135,6 +135,51 @@ For `update`: edit the JSON, rerun `targ c4-l3-build`, rerun
 `targ c4-audit`, then run the Propagation Discipline sweep before
 presenting the diff.
 
+## Workflow: `create 4 <name>` (L4 specifics)
+
+L4 follows the same JSON-spec → build → audit pattern with one critical
+addition: property identification MUST use the **Two-Tier Extraction
+Discipline** (see below). One-pass single-tier authoring tends to
+over-decompose, miss test pointers, and let plausible-but-wrong rows
+stand. The discipline is non-negotiable.
+
+1. Read the parent c3 file to learn relevant E-IDs and neighbor names.
+   The L4's `focus.id` MUST already exist in the parent c3.
+2. **Tier 1 — wide scan.** Dispatch a Haiku-class sub-agent at the
+   component's source (Go package files, skill markdown, hook script,
+   or JSON manifest as applicable). Instruct it to enumerate **every
+   plausible property candidate** — testable behaviors, architectural
+   invariants likely UNTESTED (DI seams, no-direct-I/O, error-wrapping
+   discipline, format contracts), shape/parse/lifecycle invariants.
+   **Bias toward too many findings.** Tier 1 owns recall, not precision.
+3. **Tier 2 — verify and refine.** Take Tier 1's candidate list. For
+   each candidate: read source to verify the claim, prune false positives,
+   merge near-duplicates, split rows that smuggle two guarantees, locate
+   exact `enforced_at` and `tested_at` file:line, mark genuinely
+   untested as `tested_at: []`. **Tier 2 owns correctness.** When in
+   doubt, re-read the source — never invent test pointers.
+4. **Author `architecture/c4/c4-<name>.json`** per the L4Spec schema in
+   `dev/c4_l4.go`: `focus` (id, name, l3_container), `sources`,
+   `context_prose`, optional `legend_items`, `diagram` (context-strip
+   nodes + R/D edges), optional `dependency_manifest` (consumer side)
+   or `di_wires` (provider side), `properties`.
+5. **Run `targ c4-l4-build --input architecture/c4/c4-<name>.json --noconfirm`**
+   to emit both the markdown and the `.mmd` source.
+6. **Run `targ c4-render`** to regenerate the SVG from the new `.mmd`.
+7. **Run `targ c4-audit --file architecture/c4/c4-<name>.md`** —
+   `property_link_unresolved` will catch dead enforced/tested paths.
+8. Run the Propagation Discipline sweep — for an L4 create, that means
+   updating the parent c3 (no `refined_by` field on c3 today, but
+   verify the parent's catalog entry for `focus.id` is current) and
+   rebuilding peer L4 siblings so their auto-generated Siblings
+   cross-link picks up the new file.
+9. Show the rendered markdown to the user for approval; commit the
+   `.json`, `.md`, `.mmd`, and `.svg`.
+
+For `update`: edit the JSON, rerun `targ c4-l4-build`, rerun
+`targ c4-render`, rerun `targ c4-audit`, then run the Propagation
+Discipline sweep before presenting the diff.
+
 ## Workflow: `update <name>`
 
 1. Read the target file and its parent + children (per the file's front-matter `parent` and
@@ -170,6 +215,49 @@ code/test pointers, untested L4 properties added since last review, AND **ID-mis
 ## Workflow: `audit`
 
 Loop `review` over every file in `architecture/c4/`. Produce a roll-up report.
+
+## Two-Tier Extraction Discipline
+
+Property identification (and analogous candidate-mining tasks at any
+level) MUST be split across two model tiers. One-pass single-tier
+authoring is forbidden because the same agent's bias for plausible-
+looking output becomes the final output — it over-decomposes to
+appear thorough, marks tested things UNTESTED because it didn't trace
+the test, and lets conflated claims stand because no separate verifier
+ran.
+
+| Tier | Model class | Job | Owns |
+|---|---|---|---|
+| 1 | Haiku-class | Wide scan: enumerate every plausible candidate from source | Recall (bias toward too many) |
+| 2 | Sonnet-class+ | Verify each candidate against source, prune false positives, merge duplicates, split conflated rows, locate exact file:line, fill gaps Tier 1 missed | Precision and correctness of the final artifact |
+
+**Rules:**
+
+- Tier 1 output is **signal**, never the final artifact. Never write
+  `c4-<name>.json` directly from Tier 1.
+- Tier 2 must read source to verify, not just trust Tier 1's claims.
+  When Tier 1 says `tested_at: <file>:<line>`, Tier 2 opens that file
+  and confirms the line actually asserts the claim.
+- Tier 2 may add candidates Tier 1 missed. Tier 1's enumeration is a
+  floor, not a ceiling.
+- Tier 2 never invents test pointers (Rule 2 above). When Tier 1
+  proposed a `tested_at` that doesn't survive verification, Tier 2
+  marks the row UNTESTED — does not delete it, does not fabricate a
+  different test.
+
+**Empirical baseline that motivates the rule:** the 19-component L4
+regen run (commit history references the regen) showed that single-
+tier Sonnet sub-agents over-decomposed small components (`main`: 5
+properties where 3 sufficed) and missed individual test pointers
+that the original human author had located (`memory` round-trip,
+`cli` type-routing, `recall` FormatResult, `main` signal_test seam).
+Two-tier dispatch is designed to catch both classes of failure.
+
+**When this rule applies beyond L4:** any task that mines source
+artifacts for findings — refactor opportunities, untested invariants,
+audit candidates, DI-seam analysis. If the artifact has both "what
+COULD be a finding" and "what IS a finding" stages, separate the two
+across model tiers.
 
 ## Propagation Discipline
 
