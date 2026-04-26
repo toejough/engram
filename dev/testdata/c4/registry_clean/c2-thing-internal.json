@@ -1,0 +1,21 @@
+{
+  "schema_version": "1",
+  "level": 2,
+  "name": "thing-internal",
+  "parent": "c1-thing.md",
+  "preamble": "Test fixture for c4-registry: minimal L2 sharing E1-E3 with c1.",
+  "elements": [
+    {"id": "E1", "from_parent": true, "name": "User", "kind": "person", "responsibility": "uses Thing", "system_of_record": "human"},
+    {"id": "E2", "from_parent": true, "in_scope": true, "name": "Thing", "kind": "container", "responsibility": "the system in scope", "system_of_record": "this fixture"},
+    {"id": "E3", "from_parent": true, "name": "External Service", "kind": "external", "responsibility": "Thing calls it", "system_of_record": "external host"},
+    {"id": "E4", "name": "Frontend", "kind": "container", "responsibility": "user-facing layer", "system_of_record": "this fixture"},
+    {"id": "E5", "name": "Backend", "kind": "container", "responsibility": "domain logic", "system_of_record": "this fixture"}
+  ],
+  "relationships": [
+    {"from": "User", "to": "Frontend", "description": "uses", "protocol": "HTTPS"},
+    {"from": "Frontend", "to": "Backend", "description": "calls", "protocol": "RPC"},
+    {"from": "Backend", "to": "External Service", "description": "calls", "protocol": "HTTPS"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1",
+  "level": 1,
+  "name": "good",
+  "parent": null,
+  "preamble": "Test fixture: this one parses cleanly.",
+  "elements": [
+    {"name": "User", "kind": "person", "responsibility": "u", "system_of_record": "h"},
+    {"name": "Good Thing", "kind": "container", "is_system": true, "responsibility": "t", "system_of_record": "r"}
+  ],
+  "relationships": [
+    {"from": "User", "to": "Good Thing", "description": "uses", "protocol": "tty"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

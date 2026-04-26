@@ -1,0 +1,20 @@
+{
+  "schema_version": "1",
+  "level": 2,
+  "name": "thing-internal",
+  "parent": "c1-thing.md",
+  "preamble": "Test fixture: L2 introduces E10 'Anthropic Service Cache' which token-overlaps E3 'Anthropic Service' enough to trigger name_id_split.",
+  "elements": [
+    {"id": "E1", "from_parent": true, "name": "User", "kind": "person", "responsibility": "u", "system_of_record": "h"},
+    {"id": "E2", "from_parent": true, "in_scope": true, "name": "Thing", "kind": "container", "responsibility": "t", "system_of_record": "r"},
+    {"id": "E3", "from_parent": true, "name": "Anthropic Service", "kind": "external", "responsibility": "a", "system_of_record": "ext"},
+    {"id": "E10", "name": "Anthropic Service Cache", "kind": "external", "responsibility": "cache layer", "system_of_record": "ext"}
+  ],
+  "relationships": [
+    {"from": "User", "to": "Thing", "description": "uses", "protocol": "tty"},
+    {"from": "Thing", "to": "Anthropic Service Cache", "description": "calls", "protocol": "https"},
+    {"from": "Anthropic Service Cache", "to": "Anthropic Service", "description": "delegates", "protocol": "https"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

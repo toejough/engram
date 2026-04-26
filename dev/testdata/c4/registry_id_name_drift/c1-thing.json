@@ -1,0 +1,17 @@
+{
+  "schema_version": "1",
+  "level": 1,
+  "name": "thing",
+  "parent": null,
+  "preamble": "Test fixture: L1 names E2 'Thing'.",
+  "elements": [
+    {"name": "User", "kind": "person", "responsibility": "u", "system_of_record": "h"},
+    {"name": "Thing", "kind": "container", "is_system": true, "responsibility": "t", "system_of_record": "r"},
+    {"name": "API", "kind": "external", "responsibility": "a", "system_of_record": "ext"}
+  ],
+  "relationships": [
+    {"from": "User", "to": "Thing", "description": "uses", "protocol": "tty"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

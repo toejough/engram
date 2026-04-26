@@ -1,0 +1,18 @@
+{
+  "schema_version": "1",
+  "level": 1,
+  "name": "thing",
+  "parent": null,
+  "preamble": "Test fixture: L1 has 'Anthropic Service' as E3.",
+  "elements": [
+    {"name": "User", "kind": "person", "responsibility": "u", "system_of_record": "h"},
+    {"name": "Thing", "kind": "container", "is_system": true, "responsibility": "t", "system_of_record": "r"},
+    {"name": "Anthropic Service", "kind": "external", "responsibility": "a", "system_of_record": "ext"}
+  ],
+  "relationships": [
+    {"from": "User", "to": "Thing", "description": "uses", "protocol": "tty"},
+    {"from": "Thing", "to": "Anthropic Service", "description": "calls", "protocol": "https"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

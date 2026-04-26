@@ -1,0 +1,6 @@
+{
+  "schema_version": "1",
+  "level": 2,
+  "name": "broken",
+  "this-is": "not valid JSON for an L2 spec — missing required fields and contains an unknown key
+}

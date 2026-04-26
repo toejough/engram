@@ -1,0 +1,18 @@
+{
+  "schema_version": "1",
+  "level": 1,
+  "name": "thing",
+  "parent": null,
+  "preamble": "Test fixture for c4-registry: minimal L1.",
+  "elements": [
+    {"name": "User", "kind": "person", "responsibility": "uses Thing", "system_of_record": "human"},
+    {"name": "Thing", "kind": "container", "is_system": true, "responsibility": "the system in scope", "system_of_record": "this fixture"},
+    {"name": "External Service", "kind": "external", "responsibility": "Thing calls it", "system_of_record": "external host"}
+  ],
+  "relationships": [
+    {"from": "User", "to": "Thing", "description": "uses", "protocol": "TTY"},
+    {"from": "Thing", "to": "External Service", "description": "calls", "protocol": "HTTPS"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": "1",
+  "level": 2,
+  "name": "thing-internal",
+  "parent": "c1-thing.md",
+  "preamble": "Test fixture: L2 disagrees with L1 on the name of E2 — should trigger id_name_drift.",
+  "elements": [
+    {"id": "E1", "from_parent": true, "name": "User", "kind": "person", "responsibility": "u", "system_of_record": "h"},
+    {"id": "E2", "from_parent": true, "in_scope": true, "name": "Renamed Thing", "kind": "container", "responsibility": "t", "system_of_record": "r"},
+    {"id": "E3", "from_parent": true, "name": "API", "kind": "external", "responsibility": "a", "system_of_record": "ext"}
+  ],
+  "relationships": [
+    {"from": "User", "to": "Renamed Thing", "description": "uses", "protocol": "tty"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}
