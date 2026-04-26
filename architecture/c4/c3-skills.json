@@ -1,0 +1,32 @@
+{
+  "schema_version": "1",
+  "level": 3,
+  "name": "skills",
+  "parent": "c2-engram-plugin.md",
+  "preamble": "Refines L2's E7 Skills container into the six skill markdown files Claude Code loads on slash-command or auto-trigger. Each skill body returns instructions to the agent; most instruct it to shell out to the engram CLI binary. The c4 skill is the exception — it instructs the agent to use targ and edit architecture/c4/ directly, never calling the engram binary.",
+  "focus": {
+    "id": "E7",
+    "name": "Skills",
+    "responsibility": "Markdown skill files Claude Code loads on /command or auto-trigger; bodies instruct the agent to call engram subcommands and present results."
+  },
+  "elements": [
+    {"id": "E3", "from_parent": true, "name": "Claude Code", "kind": "external", "subtitle": "agent harness", "responsibility": "Loads skill bodies on slash-command or auto-trigger; renders them into the agent's context as the next message."},
+    {"id": "E9", "from_parent": true, "name": "engram CLI binary", "kind": "container", "subtitle": "recall / learn / list / show / update", "responsibility": "Go binary that performs recall, learn, list, show, update. Refined in c3-engram-cli-binary.md."},
+    {"id": "E10", "name": "prepare skill", "kind": "component", "subtitle": "briefs the agent before new work", "responsibility": "Tells the agent to make 2–3 targeted `engram recall` queries by task and present a summary.", "code_pointer": "../../skills/prepare/SKILL.md"},
+    {"id": "E11", "name": "learn skill", "kind": "component", "subtitle": "saves session lessons", "responsibility": "Reviews the recent session for learnable feedback/facts and walks the agent through saving them via `engram learn feedback` / `engram learn fact`.", "code_pointer": "../../skills/learn/SKILL.md"},
+    {"id": "E12", "name": "recall skill", "kind": "component", "subtitle": "loads prior session context", "responsibility": "Calls `engram recall` against the project's session transcripts and surfaces relevant memories.", "code_pointer": "../../skills/recall/SKILL.md"},
+    {"id": "E13", "name": "remember skill", "kind": "component", "subtitle": "explicit-knowledge capture", "responsibility": "Captures explicit knowledge the user dictates as feedback or fact memories with user approval, via `engram learn` or `engram update`.", "code_pointer": "../../skills/remember/SKILL.md"},
+    {"id": "E14", "name": "migrate skill", "kind": "component", "subtitle": "legacy memory upgrade", "responsibility": "Upgrades pre-cfd5fb5 (2026-04-17) flat-format memory files to the current split feedback/fact layout, calling `engram update` to rewrite each file.", "code_pointer": "../../skills/migrate/SKILL.md"},
+    {"id": "E15", "name": "c4 skill", "kind": "component", "subtitle": "architecture diagrams", "responsibility": "Generates and maintains C4 architecture diagrams under architecture/c4/. Uses targ c4-* targets; does not call the engram binary.", "code_pointer": "../../skills/c4/SKILL.md"}
+  ],
+  "relationships": [
+    {"from": "Claude Code", "to": "Skills", "description": "loads skill body on /command or auto-trigger", "protocol": "Plugin manifest, file read"},
+    {"from": "prepare skill", "to": "engram CLI binary", "description": "instructs agent to call `engram recall` (with --query per topic)", "protocol": "Skill body text → agent Bash subprocess"},
+    {"from": "recall skill", "to": "engram CLI binary", "description": "instructs agent to call `engram recall` for prior session context", "protocol": "Skill body text → agent Bash subprocess"},
+    {"from": "learn skill", "to": "engram CLI binary", "description": "instructs agent to call `engram learn feedback` / `engram learn fact`", "protocol": "Skill body text → agent Bash subprocess"},
+    {"from": "remember skill", "to": "engram CLI binary", "description": "instructs agent to call `engram learn` or `engram update`", "protocol": "Skill body text → agent Bash subprocess"},
+    {"from": "migrate skill", "to": "engram CLI binary", "description": "instructs agent to read legacy TOML and call `engram update` to rewrite each file", "protocol": "Skill body text → agent Bash subprocess"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

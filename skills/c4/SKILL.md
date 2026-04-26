@@ -89,6 +89,56 @@ and only judgment remains in the LLM:
 For `update`: edit the JSON, rerun `targ c4-l1-build`, rerun `targ c4-audit`,
 and present the diff.
 
+## Workflow: `create 3 <name>` (L3 specifics)
+
+L3 mirrors the L1 pattern: the LLM authors a JSON spec; `c4-l3-build` emits
+canonical markdown; `c4-audit` validates it. The differences from L1 are
+parent linkage (an L3 must refine a specific element of its parent L2) and
+component identification (each component has a code pointer).
+
+1. **Read `architecture/c4/`** and the parent L2 file. The L3's `focus.id` and
+   `focus.name` must match an in-scope element of the parent.
+2. **Run `targ c4-registry --dir architecture/c4`** to learn which E-IDs are
+   already taken across the existing diagrams. Pick component IDs that are
+   free; pick from_parent IDs that already exist with the correct names.
+3. **Deep-read the specific packages/files in scope.** Use the L1 externals
+   target if you need a focused scan: `targ c4-l1-externals --root . --packages ./internal/<pkg>/...`
+   gives a per-package list of HTTP/fs/exec/env calls that may surface as
+   external-system edges.
+4. **Read intent sources** (CLAUDE.md, docs/, recent commits via
+   `targ c4-history`, and `engram recall --query "<topic>"`).
+5. **If conflict** between code and intent: stop, present, ask. Record
+   resolutions as drift notes.
+6. **Author `architecture/c4/c3-<name>.json`** per the `L3Spec` schema (see
+   the design spec at
+   `docs/superpowers/specs/2026-04-26-c4-l3-and-registry-design.md`):
+   - `focus`: `{ id, name, responsibility }` — the parent L2 container being
+     refined. The L3 file gets a catalog row for the focus, even though the
+     parent owns the canonical definition.
+   - `elements`: every element has an explicit E-ID (no auto-assignment).
+     Components live inside the focus subgraph (`kind: "component"`,
+     `code_pointer` required); carry-over neighbors (people, externals,
+     containers) live outside (`from_parent: true`, `code_pointer` forbidden).
+   - `relationships`: `from`/`to` reference element names (or focus name).
+7. **Run `targ c4-l3-build --input architecture/c4/c3-<name>.json --noconfirm`**
+   to emit the markdown. The build performs registry validation: any
+   from_parent element disagreeing with peer specs on name, or any new
+   component reusing an existing E-ID under a different name, fails fast with
+   a clear error.
+8. **Run `targ c4-audit --file architecture/c4/c3-<name>.md`** to verify zero
+   findings. The audit's always-on registry cross-check catches drift between
+   the rendered markdown and peer JSONs; the level-aware child-prefix check
+   catches stale `Refined by` entries; the L3-only code-pointer audit
+   verifies every catalog code-pointer link resolves on disk.
+9. **Show user the rendered markdown for approval**; commit both `.json` and
+   `.md`.
+10. After write: scan the parent L2 file for cross-link updates. Present
+    those as propagation proposals (see Workflow: update). Apply approved
+    edits; skip/defer the rest.
+
+For `update`: edit the JSON, rerun `targ c4-l3-build`, rerun
+`targ c4-audit`, and present the diff.
+
 ## Workflow: `update <name>`
 
 1. Read the target file and its parent + children (per the file's front-matter `parent` and

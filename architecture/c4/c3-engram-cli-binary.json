@@ -1,0 +1,50 @@
+{
+  "schema_version": "1",
+  "level": 3,
+  "name": "engram-cli-binary",
+  "parent": "c2-engram-plugin.md",
+  "preamble": "Refines L2's E9 engram CLI binary into nine internal components. The shell of the binary (cmd/engram/main.go) only wires cli.Targets into targ.Main; all command logic, I/O adapters, and external integrations live under internal/. Pure-logic packages (recall, memory, tomlwriter) take all I/O as DI interfaces; thin adapter shims live in internal/cli so concrete I/O is wired only at the edge of the binary.",
+  "focus": {
+    "id": "E9",
+    "name": "engram CLI binary",
+    "responsibility": "Go binary entry cmd/engram/main.go, wiring internal/cli.Targets into targ.Main."
+  },
+  "elements": [
+    {"id": "E3", "from_parent": true, "name": "Claude Code", "kind": "external", "subtitle": "agent harness", "responsibility": "Execs the binary as a subprocess each time the agent's Bash tool runs an engram subcommand; consumes its stdout."},
+    {"id": "E4", "from_parent": true, "name": "Claude Code memory surfaces", "kind": "external", "responsibility": "Read-only inputs: project + user CLAUDE.md, .claude/rules/*.md, auto-memory, skill frontmatter."},
+    {"id": "E5", "from_parent": true, "name": "Anthropic API", "kind": "external", "subtitle": "Haiku", "responsibility": "Haiku model used for recall ranking, snippet extraction, and learn-time classification."},
+    {"id": "E6", "from_parent": true, "name": "Engram memory store", "kind": "external", "subtitle": "~/.local/share/engram/memory/", "responsibility": "On-disk feedback + fact TOML state under ~/.local/share/engram/memory/."},
+    {"id": "E20", "name": "main.go", "kind": "component", "subtitle": "process entry", "responsibility": "Process entry. Calls cli.SetupSignalHandling and forwards cli.Targets into targ.Main. No business logic; excluded from coverage per project convention.", "code_pointer": "../../cmd/engram/main.go"},
+    {"id": "E21", "name": "cli", "kind": "component", "subtitle": "dispatch + I/O adapters", "responsibility": "Subcommand dispatch for all five subcommands plus the embedded business-logic handlers for show, list, learn, and update (show.go, list.go, learn.go, update.go). Owns *Args arg structs and thin I/O adapter shims (os.ReadFile, os.ReadDir, os.UserHomeDir, os.Getwd, os.Getenv, exec.Command). Wires DI interfaces into the pure-logic packages. See Drift Notes — these handlers are intended to live as peer packages alongside `recall`.", "code_pointer": "../../internal/cli"},
+    {"id": "E22", "name": "recall", "kind": "component", "subtitle": "orchestrator + phases", "responsibility": "Recall pipeline: orchestrator + per-source phases (CLAUDE.md, auto-memory, skill, transcript). Pure logic; consumes Finder, TranscriptReader, Summarizer, MemoryLister via DI. Currently the only subcommand with a dedicated package; the other four are absorbed into cli.", "code_pointer": "../../internal/recall"},
+    {"id": "E23", "name": "context", "kind": "component", "subtitle": "transcript reader", "responsibility": "Session transcript parsing: reads .jsonl lines, computes deltas, strips tool-summary noise within a budget.", "code_pointer": "../../internal/context"},
+    {"id": "E24", "name": "memory", "kind": "component", "subtitle": "feedback / fact records", "responsibility": "Shared types and read-modify-write helpers for feedback (feedback/) and fact (facts/) memory TOML files; defines FactsDir / FeedbackDir paths under the data directory.", "code_pointer": "../../internal/memory"},
+    {"id": "E25", "name": "externalsources", "kind": "component", "subtitle": "CLAUDE.md / rules / auto-memory / skills", "responsibility": "Reads ranking inputs outside the engram store: project + user CLAUDE.md, .claude/rules/*.md, auto-memory, skill frontmatter; resolves frontmatter imports; caches per-discover-call.", "code_pointer": "../../internal/externalsources"},
+    {"id": "E26", "name": "anthropic", "kind": "component", "subtitle": "Messages API client", "responsibility": "Anthropic Messages API client. Owns the HTTP request, error sentinels, and exposes a CallerFunc consumed by recall.NewSummarizer. Pinned to claude-haiku-4-5-20251001.", "code_pointer": "../../internal/anthropic"},
+    {"id": "E27", "name": "tokenresolver", "kind": "component", "subtitle": "env + macOS Keychain", "responsibility": "Resolves the Anthropic API token from ANTHROPIC_API_KEY env or, on darwin, the macOS Keychain via security. Documented to never return a non-nil error.", "code_pointer": "../../internal/tokenresolver"},
+    {"id": "E28", "name": "tomlwriter", "kind": "component", "subtitle": "TOML serialization", "responsibility": "TOML serialization for new / updated feedback and fact memory files.", "code_pointer": "../../internal/tomlwriter"}
+  ],
+  "relationships": [
+    {"from": "Claude Code", "to": "main.go", "description": "execs the binary as a subprocess (Bash tool)", "protocol": "Subprocess exec"},
+    {"from": "main.go", "to": "cli", "description": "builds CLI targets and runs targ.Main", "protocol": "Go function call"},
+    {"from": "cli", "to": "recall", "description": "delegates the recall pipeline (Orchestrator + phases) to the dedicated recall package — the one subcommand currently extracted from cli (see Drift Notes)", "protocol": "Go function call"},
+    {"from": "cli", "to": "memory", "description": "reads / writes feedback + fact TOML through memory types and helpers", "protocol": "Go function call"},
+    {"from": "cli", "to": "externalsources", "description": "discovers external source paths and shares the cache via discoverExternalSources", "protocol": "Go function call"},
+    {"from": "cli", "to": "anthropic", "description": "builds the Anthropic caller used by recall.NewSummarizer", "protocol": "Go function call"},
+    {"from": "cli", "to": "tokenresolver", "description": "resolves API token (env or Keychain) before any LLM call", "protocol": "Go function call"},
+    {"from": "recall", "to": "context", "description": "reads + strips session transcripts within budget", "protocol": "Go function call"},
+    {"from": "recall", "to": "memory", "description": "lists memories during recall ranking", "protocol": "Go function call"},
+    {"from": "recall", "to": "anthropic", "description": "ranks candidates and extracts snippets via Haiku (through DI Summarizer)", "protocol": "Go function call"},
+    {"from": "recall", "to": "externalsources", "description": "reads CLAUDE.md / rules / auto-memory / skill frontmatter (cached)", "protocol": "Go function call"},
+    {"from": "cli", "to": "tomlwriter", "description": "writes new TOML on learn / remember / update", "protocol": "Go function call"},
+    {"from": "cli", "to": "Claude Code", "description": "prints briefings, recall results, and list / show output to stdout", "protocol": "stdout"},
+    {"from": "anthropic", "to": "Anthropic API", "description": "HTTPS POST /v1/messages (Haiku)", "protocol": "HTTPS, Anthropic Messages API"},
+    {"from": "externalsources", "to": "Claude Code memory surfaces", "description": "reads project + user CLAUDE.md, .claude/rules, auto-memory, skill frontmatter", "protocol": "Local file reads (read-only)"},
+    {"from": "memory", "to": "Engram memory store", "description": "reads existing feedback + fact TOML during recall / list / show", "protocol": "Local file I/O, TOML"},
+    {"from": "tomlwriter", "to": "Engram memory store", "description": "writes new feedback + fact TOML on learn / remember / update", "protocol": "Local file I/O, TOML"}
+  ],
+  "drift_notes": [
+    {"date": "2026-04-26", "detail": "Subcommands are not architectural equals in code: of recall, show, list, learn, and update, only recall has its business logic extracted into a peer package (internal/recall). The other four handlers live as files inside internal/cli/ (show.go, list.go, learn.go, update.go)", "reason": "Persisted misalignment between intent (subcommands as equals, each with its own package) and current code. Resolution: when next touching show / list / learn / update business logic, prefer extracting to internal/<subcommand>/ packages with DI interfaces, mirroring internal/recall. Update this diagram and the catalog row for E21 once peer packages exist"}
+  ],
+  "cross_links": {"refined_by": []}
+}
