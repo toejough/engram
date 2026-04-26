@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "level": 3,
+  "name": "cache",
+  "parent": "c2-mywebapp-internal.md",
+  "preamble": "Test fixture: refines Cache into a store component.",
+  "focus": {"id": "E6", "name": "Cache"},
+  "elements": [
+    {"id": "E14", "name": "store", "kind": "component", "responsibility": "stores hot data", "code_pointer": "./store.go"}
+  ],
+  "relationships": [],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": "1",
+  "level": 3,
+  "name": "worker",
+  "parent": "c2-mywebapp-internal.md",
+  "preamble": "Test fixture: refines Worker into a queue reader and email sender.",
+  "focus": {"id": "E5", "name": "Worker"},
+  "elements": [
+    {"id": "E12", "name": "queue", "kind": "component", "responsibility": "reads jobs off the queue", "code_pointer": "./queue.go"},
+    {"id": "E13", "name": "sender", "kind": "component", "responsibility": "sends email", "code_pointer": "./sender.go"}
+  ],
+  "relationships": [
+    {"from": "queue", "to": "sender", "description": "hands off jobs", "protocol": "Go function call"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

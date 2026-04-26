@@ -1,0 +1,23 @@
+{
+  "schema_version": "1",
+  "level": 2,
+  "name": "mywebapp-internal",
+  "parent": "c1-mywebapp.md",
+  "preamble": "Test fixture: refines MyWebApp into API, Worker, and Cache containers.",
+  "elements": [
+    {"id": "E1", "from_parent": true, "name": "Customer", "kind": "person", "responsibility": "uses the app", "system_of_record": "human"},
+    {"id": "E2", "from_parent": true, "in_scope": true, "name": "MyWebApp", "kind": "container", "responsibility": "the system in scope", "system_of_record": "this fixture"},
+    {"id": "E3", "from_parent": true, "name": "Database", "kind": "external", "responsibility": "stores app data", "system_of_record": "Postgres"},
+    {"id": "E4", "name": "API", "kind": "container", "responsibility": "HTTP API serving user requests", "system_of_record": "this fixture"},
+    {"id": "E5", "name": "Worker", "kind": "container", "responsibility": "background jobs", "system_of_record": "this fixture"},
+    {"id": "E6", "name": "Cache", "kind": "container", "responsibility": "hot-data cache", "system_of_record": "this fixture"}
+  ],
+  "relationships": [
+    {"from": "Customer", "to": "API", "description": "uses", "protocol": "HTTPS"},
+    {"from": "API", "to": "Database", "description": "reads/writes", "protocol": "TCP"},
+    {"from": "API", "to": "Cache", "description": "reads", "protocol": "TCP"},
+    {"from": "Worker", "to": "Database", "description": "reads/writes", "protocol": "TCP"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": [{"file": "c3-api.md", "note": "refines E4 · API"}, {"file": "c3-worker.md", "note": "refines E5 · Worker"}, {"file": "c3-cache.md", "note": "refines E6 · Cache"}]}
+}

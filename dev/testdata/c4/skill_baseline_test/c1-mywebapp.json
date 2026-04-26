@@ -1,0 +1,18 @@
+{
+  "schema_version": "1",
+  "level": 1,
+  "name": "mywebapp",
+  "parent": null,
+  "preamble": "Test fixture for skill TDD baseline: a small webapp.",
+  "elements": [
+    {"name": "Customer", "kind": "person", "responsibility": "uses the app", "system_of_record": "human"},
+    {"name": "MyWebApp", "kind": "container", "is_system": true, "responsibility": "the system in scope", "system_of_record": "this fixture"},
+    {"name": "Database", "kind": "external", "responsibility": "stores app data", "system_of_record": "Postgres"}
+  ],
+  "relationships": [
+    {"from": "Customer", "to": "MyWebApp", "description": "uses", "protocol": "HTTPS"},
+    {"from": "MyWebApp", "to": "Database", "description": "reads/writes", "protocol": "TCP"}
+  ],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

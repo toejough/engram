@@ -84,69 +84,43 @@ and only judgment remains in the LLM:
    to emit the markdown.
 9. **Run `targ c4-audit --file architecture/c4/c1-<name>.md`** to verify zero
    findings. If any: revise the JSON and rebuild.
-10. Show user the rendered markdown for approval; commit both `.json` and
-    `.md`.
-11. **After write: run the Propagation Discipline sweep** (see below). For
-    L1, the relevant propagation is downward: any L2/L3 file with a
-    `from_parent` carry-over from L1 should be checked for stale names and
-    rebuilt if needed.
+10. Show user the rendered markdown for approval; commit both `.json` and `.md`.
 
-For `update`: edit the JSON, rerun `targ c4-l1-build`, rerun
-`targ c4-audit`, and run the Propagation Discipline sweep before presenting
-the diff for approval.
+For `update`: edit the JSON, rerun `targ c4-l1-build`, rerun `targ c4-audit`,
+then run the **Propagation Discipline** sweep (see below) before presenting
+the diff.
 
 ## Workflow: `create 3 <name>` (L3 specifics)
 
-L3 mirrors the L1 pattern: the LLM authors a JSON spec; `c4-l3-build` emits
-canonical markdown; `c4-audit` validates it. The differences from L1 are
-parent linkage (an L3 must refine a specific element of its parent L2) and
-component identification (each component has a code pointer).
+L3 follows the same JSON-spec → build → audit pattern as `create 1`, with
+two L3-specific additions: each diagram has a `focus` field naming the L2
+container being refined, and components carry `code_pointer` paths that the
+audit verifies.
 
-1. **Read `architecture/c4/`** and the parent L2 file. The L3's `focus.id` and
-   `focus.name` must match an in-scope element of the parent.
-2. **Run `targ c4-registry --dir architecture/c4`** to learn which E-IDs are
+1. **Run `targ c4-registry --dir architecture/c4`** to learn which E-IDs are
    already taken across the existing diagrams. Pick component IDs that are
-   free; pick from_parent IDs that already exist with the correct names.
-3. **Deep-read the specific packages/files in scope.** Use the L1 externals
-   target if you need a focused scan: `targ c4-l1-externals --root . --packages ./internal/<pkg>/...`
-   gives a per-package list of HTTP/fs/exec/env calls that may surface as
-   external-system edges.
-4. **Read intent sources** (CLAUDE.md, docs/, recent commits via
-   `targ c4-history`, and `engram recall --query "<topic>"`).
-5. **If conflict** between code and intent: stop, present, ask. Record
-   resolutions as drift notes.
-6. **Author `architecture/c4/c3-<name>.json`** per the `L3Spec` schema (see
-   the design spec at
-   `docs/superpowers/specs/2026-04-26-c4-l3-and-registry-design.md`):
-   - `focus`: `{ id, name, responsibility }` — the parent L2 container being
-     refined. The L3 file gets a catalog row for the focus, even though the
-     parent owns the canonical definition.
-   - `elements`: every element has an explicit E-ID (no auto-assignment).
-     Components live inside the focus subgraph (`kind: "component"`,
-     `code_pointer` required); carry-over neighbors (people, externals,
-     containers) live outside (`from_parent: true`, `code_pointer` forbidden).
-   - `relationships`: `from`/`to` reference element names (or focus name).
-7. **Run `targ c4-l3-build --input architecture/c4/c3-<name>.json --noconfirm`**
-   to emit the markdown. The build performs registry validation: any
-   from_parent element disagreeing with peer specs on name, or any new
-   component reusing an existing E-ID under a different name, fails fast with
-   a clear error.
-8. **Run `targ c4-audit --file architecture/c4/c3-<name>.md`** to verify zero
-   findings. The audit's always-on registry cross-check catches drift between
-   the rendered markdown and peer JSONs; the level-aware child-prefix check
-   catches stale `Refined by` entries; the L3-only code-pointer audit
-   verifies every catalog code-pointer link resolves on disk.
-9. **Show user the rendered markdown for approval**; commit both `.json` and
-   `.md`.
-10. **After write: run the Propagation Discipline sweep** (see below). For an
-    L3 create that means, at minimum: rebuild any existing c3-*.md siblings
-    so their Cross-links pick up the new file, update the parent c2 file's
-    `children` list and "Refined by:" section, and rerun `targ c4-audit` +
-    `targ c4-registry` on the full set.
+   free; pick `from_parent` IDs that already exist with the correct names.
+2. Read the parent c2 file. The L3's `focus.id`/`focus.name` must match an
+   in-scope element of the parent.
+3. **Author `architecture/c4/c3-<name>.json`** per the L3Spec schema:
+   `focus` (id, name, responsibility), `elements` (each with explicit E-ID;
+   `kind: "component"` requires `code_pointer`; `from_parent: true`
+   neighbors carry IDs/names registered by peer specs), and `relationships`
+   referencing element names or `focus.name`.
+4. **Run `targ c4-l3-build --input architecture/c4/c3-<name>.json --noconfirm`**
+   to emit the markdown.
+5. **Run `targ c4-audit --file architecture/c4/c3-<name>.md`** to verify
+   zero findings.
+6. **Run the Propagation Discipline sweep** (see below) — for an L3 create,
+   that means updating the parent c2's `cross_links.refined_by`, rebuilding
+   existing c3 siblings so their auto-generated cross-links pick up the new
+   file, and confirming `targ c4-registry` is conflict-free.
+7. Show the rendered markdown to the user for approval; commit both `.json`
+   and `.md`.
 
 For `update`: edit the JSON, rerun `targ c4-l3-build`, rerun
-`targ c4-audit`, and run the Propagation Discipline sweep before presenting
-the diff for approval.
+`targ c4-audit`, then run the Propagation Discipline sweep before
+presenting the diff.
 
 ## Workflow: `update <name>`
 
@@ -157,18 +131,18 @@ the diff for approval.
 4. Resolve any new code/intent conflicts via ask-the-user.
 5. Draft the new diagram + catalog state.
 6. Classify the change so propagation knows what to do:
-   - **Renamed element** → parent's matching `from_parent` element + every child's `from_parent`
-     carry-over need the new name; the parent's mermaid edges using the old name need rewriting.
-   - **Removed element** → parent's `from_parent` reference becomes orphaned; every child whose
-     `focus.id` matches the removed ID is invalidated and must be rewritten or deleted.
-   - **New element** → parent's catalog should add a corresponding entry if appropriate; an
-     L(N+1) child can be scaffolded.
-   - **Changed responsibility / relationship** → parent's matching prose may drift; children
+   - **Renamed element** → parent's `from_parent` carry-over and every child's `from_parent`
+     carry-over need the same rename. Mermaid edges using the old name need rewriting.
+   - **Removed element** → parent's `from_parent` reference is orphaned; any child whose
+     `focus.id` matches the removed ID is invalidated.
+   - **New element** → parent's catalog should add a corresponding entry; an L(N+1) child can
+     be scaffolded.
+   - **Changed responsibility/relationship** → parent's matching prose may drift; children
      whose `from_parent` element previously had a different responsibility need a re-read.
    - **L3 code-pointer change** → the audit's `code_pointer_unresolved` finding catches dead
      paths automatically on next audit.
-7. **Run the Propagation Discipline sweep** (see below) to apply the classified change to
-   every affected file.
+7. **Run the Propagation Discipline sweep** (see below) to apply the classified change to every
+   affected file.
 8. Present, in order: the target-layer diff, then per-affected-layer proposed change. Each
    proposed edit is a unified diff with a one-line reason.
 9. For each proposal, the user picks `[a]pply`, `[s]kip`, or `[d]efer`. Apply approved edits.
@@ -186,56 +160,56 @@ Loop `review` over every file in `architecture/c4/`. Produce a roll-up report.
 
 ## Propagation Discipline
 
-Every C4 file is part of an interconnected set: a parent at level N-1,
-siblings at level N, children at level N+1. When you create or update any
-file, treat the change as potentially affecting all three directions and run
-this sweep before declaring done.
+A C4 diagram set is interconnected: parent ↔ children, siblings ↔ siblings.
+Whenever you create a new diagram or rename/remove elements that another
+diagram references, you MUST propagate. Skipping propagation creates drift
+the registry will surface on the next audit.
 
-The sweep is **always-on** — invoked from every `create`, `update`, and L1/L3
-build workflow above. Skipping it lets drift accumulate quietly until the
-next audit run surfaces it.
+**Required sweep after any create or update:**
 
-1. **Registry first.** Run `targ c4-registry --dir architecture/c4` and read
-   the conflict list. Empty is the goal. Any conflict (`id_name_drift`,
-   `name_id_split`, `id_collision_within_file`) is either a real bug to fix or
-   an intentional gap that needs a Drift Note in the relevant file.
+1. **Update the parent's `cross_links.refined_by`.** Open the parent JSON,
+   add or remove the entry for the affected child file, and rerun the
+   parent's build target. (L1's children are L2 files; L2's are L3; etc.)
+   The build re-emits the parent's "Refined by:" cross-link section from
+   that array. **This step is required even when the parent already has
+   unrelated drift in `refined_by`** — fix it now or capture as a Drift
+   Note. (Note: the front-matter `children` field is currently hard-stamped
+   `[]` by the build target and is not the propagation surface — work
+   through `cross_links.refined_by` only.)
 
-2. **Update the parent.** If the change introduced a new file or renamed an
-   element that the parent carries:
-   - Edit the parent JSON's front-matter `children` list to include or
-     remove the affected child filename.
-   - Edit the parent JSON's `cross_links.refined_by` array if the updated
-     child is the parent's first/new refinement target.
-   - If a from_parent element's name no longer matches what the parent
-     declares, propose either updating the parent's name or the child's
-     carry-over.
-   Rebuild the parent (`targ c4-l<N-1>-build --input ... --noconfirm`).
+2. **Rebuild siblings.** For any peer at the same level whose `parent`
+   matches the changed file, rerun the build target so its auto-generated
+   "Siblings:" cross-link section refreshes. Idempotent rebuild — only the
+   auto-generated sections will diff.
 
-3. **Rebuild siblings.** If you created or renamed a file at level N, every
-   other file at level N whose `parent` matches yours has a stale Cross-links
-   "Siblings:" section. Rerun `targ c4-l<N>-build` for each one — the build
-   re-emits deterministically, so only the affected line will diff. Without
-   this step, sibling lists drift the moment a peer is added.
+3. **Walk children.** For every child of the modified file, check whether
+   its `from_parent` carry-overs still match the parent's element names and
+   IDs. Rebuild any child whose carry-overs drift.
 
-4. **Notify children.** For every child of the modified file (front-matter
-   `children` array), check whether the child's `from_parent` carry-overs
-   still match the parent's element names and IDs. Propose updates as needed.
-   If an element was deleted at the parent level, any child whose
-   `focus.id` matched the deleted ID is orphaned and must be rewritten or
-   deleted.
+4. **Sweep.** Run `targ c4-audit` on every modified `.md` and
+   `targ c4-registry --dir architecture/c4`. Goal: zero findings. Capture
+   intentional gaps as Drift Notes in the relevant file.
 
-5. **Audit each touched file.** `targ c4-audit --file <each>` confirms the
-   level-aware child-prefix check, the L3 code-pointer check, and the
-   always-on registry cross-check are all clean.
+### Rule 3 reconciliation
 
-6. **Present propagation proposals** as unified diffs with one-line reasons.
-   For each, the user picks `[a]pply`, `[s]kip`, or `[d]efer`. Apply
-   approved edits. Persist deferred ones as Drift Notes in the target file.
+The non-target-edit rule (rule 3 above) forbids silent edits to files you
+weren't tasked to change. Propagation needs reconciling with that:
 
-The aim: the architecture set always represents a consistent, audited
-snapshot. Any edit that doesn't propagate creates drift the registry will
-surface on the next audit run — and by then it's harder to reconstruct the
-intent that should drive the fix.
+- **Rebuilds that only diff auto-generated sections** (mermaid block,
+  catalog, cross-links — anything `c4-l*-build` regenerates) **are
+  propagation, not edits**, and don't require per-file approval.
+- **JSON edits to non-target files** (changing element names, adding
+  carry-overs, etc.) **are edits and DO require per-file approval** —
+  present them as proposals with `[a]pply`/`[s]kip`/`[d]efer`.
+
+### Common rationalizations to reject
+
+| Excuse | Reality |
+|---|---|
+| "That's pre-existing drift, not caused by my change" | If you're touching this set, leaving known drift in place creates audit findings on the next run. Fix it as part of your change, or capture it as a Drift Note. |
+| "The change is too small to need propagation" | Every C4 file cross-references peers. Skipping the sweep means the registry surfaces conflicts later when context is gone. |
+| "Rebuilding peers feels like editing files I shouldn't" | Idempotent rebuilds of auto-generated sections are propagation; see Rule 3 reconciliation above. |
+| "I'll catch it in the next audit" | The next audit may be in a different session, after the rationale has been lost. Propagate now. |
 
 ## Drift Notes
 
