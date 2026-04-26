@@ -1,0 +1,21 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+
+    e4[E4 · Claude Code memory surfaces]
+    e21[E21 · cli]
+    e22[E22 · recall]
+    e25[E25 · externalsources<br/>FOCUS]
+
+    e21 -->|"R5: discoverExternalSources<br/>supported by: P2, P3, P7, P14"| e25
+    e22 -->|"R11: reads CLAUDE.md / rules / auto / skill (cached)<br/>supported by: P10, P11, P12"| e25
+    e25 -->|"R15: reads project + user CLAUDE.md, rules, auto memory, skill frontmatter<br/>supported by: P3, P4, P6, P7, P8"| e4
+    e25 -.->|"D4: StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder + CWD/Home/GOOS wired by cli<br/>supported by: P3, P4, P5, P6, P7, P8, P10, P11"| e21
+
+    class e25 focus
+    class e21,e22 component
+    class e4 external

@@ -1,0 +1,18 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+
+    e3(E3 · Claude Code<br/>agent harness)
+    e11[E11 · learn skill<br/>FOCUS]
+    e9[E9 · engram CLI binary]
+
+    e3 -->|"R1: loads skill body on /command<br/>supported by: P1"| e11
+    e11 -->|"R4: instructs agent to call engram learn feedback / engram learn fact<br/>supported by: P2–P8"| e9
+
+    class e3 external
+    class e9 container
+    class e11 focus

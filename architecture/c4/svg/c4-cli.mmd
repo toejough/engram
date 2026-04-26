@@ -1,0 +1,38 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+
+    e3[E3 · Claude Code]
+    e20[E20 · main.go]
+    e21[E21 · cli<br/>FOCUS]
+    e22[E22 · recall]
+    e23[E23 · context]
+    e24[E24 · memory]
+    e25[E25 · externalsources]
+    e26[E26 · anthropic]
+    e27[E27 · tokenresolver]
+    e28[E28 · tomlwriter]
+
+    e20 -->|"R2: builds CLI targets and runs targ.Main<br/>supported by: P1, P22"| e21
+    e21 -->|"R3: delegates the recall pipeline<br/>supported by: P18, P19, P20"| e22
+    e21 -->|"R4: reads / writes feedback + fact TOML<br/>supported by: P5, P6, P7, P8"| e24
+    e21 -->|"R5: discoverExternalSources<br/>supported by: P26, P27"| e25
+    e21 -->|"R6: builds the Anthropic caller<br/>supported by: P25"| e26
+    e21 -->|"R7: resolves API token (env or Keychain)<br/>supported by: P18"| e27
+    e21 -->|"R12: writes new TOML on learn / remember / update<br/>supported by: P10, P11, P12, P17"| e28
+    e21 -->|"R13: prints briefings / results / list / show output<br/>supported by: P7, P23"| e3
+    e22 -.->|"D5: Finder/Reader/Summarizer/MemoryLister wired by cli"| e21
+    e23 -.->|"D6: FileReader wired by cli"| e21
+    e24 -.->|"D7: readDir/readFile/writer wired by cli"| e21
+    e25 -.->|"D4: StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder wired by cli"| e21
+    e26 -.->|"D2: HTTPDoer + token + apiURL wired by cli"| e21
+    e27 -.->|"D1: getenv/execCmd/goos wired by cli"| e21
+    e28 -.->|"D3: createTemp/rename/mkdirAll/stat/remove wired by cli (defaults to os.*)"| e21
+
+    class e21 focus
+    class e20,e22,e23,e24,e25,e26,e27,e28 component
+    class e3 external

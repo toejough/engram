@@ -57,7 +57,13 @@ Refines L2's E9 engram CLI binary into nine internal components. The shell of th
 | <a id="r15-externalsources-claude-code-memory-surfaces"></a>R15 | externalsources | Claude Code memory surfaces | reads project + user CLAUDE.md, .claude/rules, auto-memory, skill frontmatter | Local file reads (read-only) |
 | <a id="r16-memory-engram-memory-store"></a>R16 | memory | Engram memory store | reads existing feedback + fact TOML during recall / list / show | Local file I/O, TOML |
 | <a id="r17-tomlwriter-engram-memory-store"></a>R17 | tomlwriter | Engram memory store | writes new feedback + fact TOML on learn / remember / update | Local file I/O, TOML |
-| <a id="d1-tokenresolver-cli"></a>D1 | tokenresolver | cli | DI back-edge: invokes injected `getenv`, `execCmd`, `goos` wired by cli at `tokenresolver.New`. Per-dep decomposition lives in [c4-tokenresolver.md](c4-tokenresolver.md) Dependency Manifest. | Function-pointer call (DI) |
+| <a id="d1-tokenresolver-cli"></a>D1 | tokenresolver | cli | DI back-edge: invokes injected `getenv`, `execCmd`, `goos` wired by cli at `tokenresolver.New`. Per-dep decomposition: [c4-tokenresolver.md](c4-tokenresolver.md). | Function-pointer call (DI) |
+| <a id="d2-anthropic-cli"></a>D2 | anthropic | cli | DI back-edge: invokes injected `HTTPDoer` (http.Client), `token`, `apiURL` wired by cli at `anthropic.New`. Per-dep decomposition: [c4-anthropic.md](c4-anthropic.md). | Function-pointer call (DI) |
+| <a id="d3-tomlwriter-cli"></a>D3 | tomlwriter | cli | DI back-edge: invokes injected `createTemp`, `rename`, `mkdirAll`, `stat`, `remove` (default `os.*`) wired by cli at `tomlwriter.New`. Per-dep decomposition: [c4-tomlwriter.md](c4-tomlwriter.md). | Function-pointer call (DI) |
+| <a id="d4-externalsources-cli"></a>D4 | externalsources | cli | DI back-edge: invokes injected `StatFn`, `Reader`, `Walker`, `Matcher`, `Settings`, `DirLister`, `SkillFinder` (+ CWD/Home/GOOS strings) wired by cli at `externalsources.Discover`. Per-dep decomposition: [c4-externalsources.md](c4-externalsources.md). | Function-pointer call (DI) |
+| <a id="d5-recall-cli"></a>D5 | recall | cli | DI back-edge: invokes injected `Finder`, `Reader`, `Summarizer`, `MemoryLister` (plus dataDir/statusWriter/externalFiles) wired by cli when constructing `recall.Orchestrator`. Per-dep decomposition: [c4-recall.md](c4-recall.md). | Function-pointer call (DI) |
+| <a id="d6-context-cli"></a>D6 | context | cli | DI back-edge: invokes injected `FileReader` wired by cli through `recall` (`os.ReadFile`-backed adapter) into `context.DeltaReader`. Per-dep decomposition: [c4-context.md](c4-context.md). | Function-pointer call (DI) |
+| <a id="d7-memory-cli"></a>D7 | memory | cli | DI back-edge: invokes injected `readDir`, `readFile`, `writer` (function-option-defaulted to `os.*`) wired by cli at `memory.NewLister` / `memory.NewModifier`. Per-dep decomposition: [c4-memory.md](c4-memory.md). | Function-pointer call (DI) |
 
 ## Cross-links
 
@@ -69,13 +75,5 @@ Refines L2's E9 engram CLI binary into nine internal components. The shell of th
 
 ## Drift Notes
 
-- **2026-04-26** — DI back-edge convention adopted only for E27 (D1) so far. The convention
-  applies equally to every other component on this diagram that takes DI deps wired by cli
-  (E22 recall, E23 context, E24 memory, E25 externalsources, E26 anthropic, E28 tomlwriter).
-  Reason: convention was adopted while drafting c4-tokenresolver.md; full propagation is
-  scoped as part of the L4 build-out across all components and deferred until each
-  component's wiring is verified. Resolution: as each component's L4 ledger is drafted,
-  verify its DI wiring, add a corresponding D-edge here, and remove that component from this
-  drift note. Note is fully resolved when all DI consumers have D-edges on this diagram.
 - **2026-04-26** — E27 tokenresolver catalog row originally said `ANTHROPIC_API_KEY`; code uses `ENGRAM_API_TOKEN` (see `internal/tokenresolver/tokenresolver.go:63`). Reason: stale intent in catalog from earlier design discussion. Resolution: catalog row corrected to match code while drafting `c4-tokenresolver.md`.
 - **2026-04-26** — Subcommands are not architectural equals in code: of recall, show, list, learn, and update, only recall has its business logic extracted into a peer package (internal/recall). The other four handlers live as files inside internal/cli/ (show.go, list.go, learn.go, update.go). Reason: Persisted misalignment between intent (subcommands as equals, each with its own package) and current code. Resolution: when next touching show / list / learn / update business logic, prefer extracting to internal/<subcommand>/ packages with DI interfaces, mirroring internal/recall. Update this diagram and the catalog row for E21 once peer packages exist.

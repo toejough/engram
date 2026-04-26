@@ -1,0 +1,14 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef component fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus     fill:#facc15,stroke:#a16207,color:#000
+
+    e21[E21 · cli]
+    e22[E22 · recall]
+    e23[E23 · context<br/>FOCUS]
+
+    e22 -->|"R8: reads + strips transcripts<br/>supported by: P1–P11"| e23
+    e23 -.->|"D6: DI deps via cli<br/>supported by: P7–P9, P12"| e21
+
+    class e21,e22 component
+    class e23 focus

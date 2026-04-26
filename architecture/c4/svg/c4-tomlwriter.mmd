@@ -1,0 +1,19 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+
+    e6[E6 · Engram memory store]
+    e21[E21 · cli]
+    e28[E28 · tomlwriter<br/>FOCUS]
+
+    e21 -->|"R12: writes new TOML on learn / remember / update<br/>supported by: P3, P4, P8, P9, P10"| e28
+    e28 -->|"R17: writes feedback + fact TOML<br/>supported by: P3, P4, P5, P8"| e6
+    e28 -.->|"D3: createTemp/rename/mkdirAll/stat/remove wired by cli (defaults to os.*)<br/>supported by: P3, P4, P5, P6, P7"| e21
+
+    class e28 focus
+    class e21 component
+    class e6 external

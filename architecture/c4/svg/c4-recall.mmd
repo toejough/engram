@@ -1,0 +1,24 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+
+    e21[E21 · cli]
+    e22[E22 · recall<br/>FOCUS]
+    e23[E23 · context]
+    e24[E24 · memory]
+    e25[E25 · externalsources]
+    e26[E26 · anthropic]
+
+    e21 -->|"R3: delegates the recall pipeline<br/>supported by: P5, P6, P9, P15"| e22
+    e22 -->|"R8: reads + strips session transcripts within budget<br/>supported by: P2, P4"| e23
+    e22 -->|"R9: lists memories during recall ranking<br/>supported by: P9, P10"| e24
+    e22 -->|"R10: ranks/extracts via Haiku (DI Summarizer)<br/>supported by: P7, P8, P11, P16"| e26
+    e22 -->|"R11: reads CLAUDE.md / rules / auto / skill (cached)<br/>supported by: P12"| e25
+    e22 -.->|"D5: Finder/Reader/SummarizerI/MemoryLister/dataDir/status/externalFiles wired by cli<br/>supported by: P1–P16"| e21
+
+    class e22 focus
+    class e21,e23,e24,e25,e26 component

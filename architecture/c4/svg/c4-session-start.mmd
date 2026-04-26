@@ -1,0 +1,17 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef external fill:#999,stroke:#666,color:#fff
+    classDef container fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef focus     fill:#facc15,stroke:#a16207,color:#000
+
+    e3(E3 · Claude Code<br/>agent harness)
+    e17[E17 · session-start.sh<br/>FOCUS]
+    e9[E9 · engram CLI binary]
+
+    e3 -->|"R5: fires SessionStart subprocess<br/>supported by: P1, P4"| e17
+    e17 -->|"R6: emits stdout JSON<br/>supported by: P2, P3"| e3
+    e17 -->|"R9: async go build<br/>supported by: P5–P9"| e9
+
+    class e3 external
+    class e9 container
+    class e17 focus

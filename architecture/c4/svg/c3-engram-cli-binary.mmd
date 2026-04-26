@@ -40,6 +40,12 @@ flowchart LR
     e25 -->|"R15: reads project + user CLAUDE.md, .claude/rules, auto-memory, skill frontmatter"| e4
     e24 -->|"R16: reads existing feedback + fact TOML during recall / list / show"| e6
     e28 -->|"R17: writes new feedback + fact TOML on learn / remember / update"| e6
+    e26 -.->|"D2: invokes injected HTTPDoer/token/apiURL wired by cli"| e21
+    e28 -.->|"D3: invokes injected createTemp/rename/mkdirAll/stat/remove wired by cli"| e21
+    e25 -.->|"D4: invokes injected StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder wired by cli"| e21
+    e22 -.->|"D5: invokes injected Finder/Reader/Summarizer/MemoryLister wired by cli"| e21
+    e23 -.->|"D6: invokes injected FileReader wired by cli"| e21
+    e24 -.->|"D7: invokes injected readDir/readFile/writer wired by cli"| e21
 
     class e3,e4,e5,e6 external
     class e20,e21,e22,e23,e24,e25,e26,e27,e28 component
