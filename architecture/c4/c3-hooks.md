@@ -3,7 +3,7 @@ level: 3
 name: hooks
 parent: "c2-engram-plugin.md"
 children: []
-last_reviewed_commit: 44cec351
+last_reviewed_commit: 1ba7e162
 ---
 
 # C3 — Hooks (Component)
@@ -81,5 +81,6 @@ flowchart LR
 
 - Parent: [c2-engram-plugin.md](c2-engram-plugin.md) (refines **E8 · Hooks**)
 - Siblings:
+  - [c3-engram-cli-binary.md](c3-engram-cli-binary.md)
   - [c3-skills.md](c3-skills.md)
 - Refined by: *(none yet)*

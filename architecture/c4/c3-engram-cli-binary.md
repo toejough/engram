@@ -3,7 +3,7 @@ level: 3
 name: engram-cli-binary
 parent: "c2-engram-plugin.md"
 children: []
-last_reviewed_commit: 44cec351
+last_reviewed_commit: 1ba7e162
 ---
 
 # C3 — engram CLI binary (Component)

@@ -3,7 +3,7 @@ level: 3
 name: skills
 parent: "c2-engram-plugin.md"
 children: []
-last_reviewed_commit: 44cec351
+last_reviewed_commit: 1ba7e162
 ---
 
 # C3 — Skills (Component)
@@ -80,5 +80,7 @@ flowchart LR
 ## Cross-links
 
 - Parent: [c2-engram-plugin.md](c2-engram-plugin.md) (refines **E7 · Skills**)
-- Siblings: *(none)*
+- Siblings:
+  - [c3-engram-cli-binary.md](c3-engram-cli-binary.md)
+  - [c3-hooks.md](c3-hooks.md)
 - Refined by: *(none yet)*
