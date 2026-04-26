@@ -11,6 +11,7 @@ last_reviewed_commit: 1ba7e162
 Refines L2's E9 engram CLI binary into nine internal components. The shell of the binary (cmd/engram/main.go) only wires cli.Targets into targ.Main; all command logic, I/O adapters, and external integrations live under internal/. Pure-logic packages (recall, memory, tomlwriter) take all I/O as DI interfaces; thin adapter shims live in internal/cli so concrete I/O is wired only at the edge of the binary.
 
 ```mermaid
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 flowchart LR
     classDef person      fill:#08427b,stroke:#052e56,color:#fff
     classDef external    fill:#999,   stroke:#666,   color:#fff
@@ -41,6 +42,7 @@ flowchart LR
     e21 -->|"R5: discovers external source paths and shares the cache via discoverExternalSources"| e25
     e21 -->|"R6: builds the Anthropic caller used by recall.NewSummarizer"| e26
     e21 -->|"R7: resolves API token (env or Keychain) before any LLM call"| e27
+    e27 -.->|"D1: invokes injected DI deps (getenv, execCmd, goos) wired by cli"| e21
     e22 -->|"R8: reads + strips session transcripts within budget"| e23
     e22 -->|"R9: lists memories during recall ranking"| e24
     e22 -->|"R10: ranks candidates and extracts snippets via Haiku (through DI Summarizer)"| e26
@@ -88,7 +90,7 @@ flowchart LR
 | <a id="e24-memory"></a>E24 | memory | Component | Shared types and read-modify-write helpers for feedback (feedback/) and fact (facts/) memory TOML files; defines FactsDir / FeedbackDir paths under the data directory. | [../../internal/memory](../../internal/memory) |
 | <a id="e25-externalsources"></a>E25 | externalsources | Component | Reads ranking inputs outside the engram store: project + user CLAUDE.md, .claude/rules/*.md, auto-memory, skill frontmatter; resolves frontmatter imports; caches per-discover-call. | [../../internal/externalsources](../../internal/externalsources) |
 | <a id="e26-anthropic"></a>E26 | anthropic | Component | Anthropic Messages API client. Owns the HTTP request, error sentinels, and exposes a CallerFunc consumed by recall.NewSummarizer. Pinned to claude-haiku-4-5-20251001. | [../../internal/anthropic](../../internal/anthropic) |
-| <a id="e27-tokenresolver"></a>E27 | tokenresolver | Component | Resolves the Anthropic API token from ANTHROPIC_API_KEY env or, on darwin, the macOS Keychain via security. Documented to never return a non-nil error. | [../../internal/tokenresolver](../../internal/tokenresolver) |
+| <a id="e27-tokenresolver"></a>E27 | tokenresolver | Component | Resolves the Anthropic API token from `ENGRAM_API_TOKEN` env or, on darwin, the macOS Keychain via `security`. Documented to never return a non-nil error. Refined in [c4-tokenresolver.md](c4-tokenresolver.md). | [../../internal/tokenresolver](../../internal/tokenresolver) |
 | <a id="e28-tomlwriter"></a>E28 | tomlwriter | Component | TOML serialization for new / updated feedback and fact memory files. | [../../internal/tomlwriter](../../internal/tomlwriter) |
 
 ## Relationships
@@ -112,6 +114,7 @@ flowchart LR
 | <a id="r15-externalsources-claude-code-memory-surfaces"></a>R15 | externalsources | Claude Code memory surfaces | reads project + user CLAUDE.md, .claude/rules, auto-memory, skill frontmatter | Local file reads (read-only) |
 | <a id="r16-memory-engram-memory-store"></a>R16 | memory | Engram memory store | reads existing feedback + fact TOML during recall / list / show | Local file I/O, TOML |
 | <a id="r17-tomlwriter-engram-memory-store"></a>R17 | tomlwriter | Engram memory store | writes new feedback + fact TOML on learn / remember / update | Local file I/O, TOML |
+| <a id="d1-tokenresolver-cli"></a>D1 | tokenresolver | cli | DI back-edge: invokes injected `getenv`, `execCmd`, `goos` wired by cli at `tokenresolver.New`. Per-dep decomposition lives in [c4-tokenresolver.md](c4-tokenresolver.md) Dependency Manifest. | Function-pointer call (DI) |
 
 ## Cross-links
 
@@ -123,4 +126,13 @@ flowchart LR
 
 ## Drift Notes
 
+- **2026-04-26** — DI back-edge convention adopted only for E27 (D1) so far. The convention
+  applies equally to every other component on this diagram that takes DI deps wired by cli
+  (E22 recall, E23 context, E24 memory, E25 externalsources, E26 anthropic, E28 tomlwriter).
+  Reason: convention was adopted while drafting c4-tokenresolver.md; full propagation is
+  scoped as part of the L4 build-out across all components and deferred until each
+  component's wiring is verified. Resolution: as each component's L4 ledger is drafted,
+  verify its DI wiring, add a corresponding D-edge here, and remove that component from this
+  drift note. Note is fully resolved when all DI consumers have D-edges on this diagram.
+- **2026-04-26** — E27 tokenresolver catalog row originally said `ANTHROPIC_API_KEY`; code uses `ENGRAM_API_TOKEN` (see `internal/tokenresolver/tokenresolver.go:63`). Reason: stale intent in catalog from earlier design discussion. Resolution: catalog row corrected to match code while drafting `c4-tokenresolver.md`.
 - **2026-04-26** — Subcommands are not architectural equals in code: of recall, show, list, learn, and update, only recall has its business logic extracted into a peer package (internal/recall). The other four handlers live as files inside internal/cli/ (show.go, list.go, learn.go, update.go). Reason: Persisted misalignment between intent (subcommands as equals, each with its own package) and current code. Resolution: when next touching show / list / learn / update business logic, prefer extracting to internal/<subcommand>/ packages with DI interfaces, mirroring internal/recall. Update this diagram and the catalog row for E21 once peer packages exist.
