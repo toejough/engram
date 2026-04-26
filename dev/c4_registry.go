@@ -73,11 +73,15 @@ type RegistryView struct {
 const (
 	minRegistryTokenLen = 5
 	// nameIDSplitJaccard is the Jaccard token-set similarity threshold above
-	// which two IDs' names are deemed to refer to the same element. Tuned so
-	// that incidental shared product names (e.g. "engram", "claude", "memory")
-	// don't fire on the canonical c1+c2 set, while genuine splits like
-	// "Claude (Anthropic API)" vs "Anthropic API" (Jaccard = 0.5) do.
+	// which two IDs' names are deemed to refer to the same element.
 	nameIDSplitJaccard = 0.5
+	// nameIDSplitMinShared is the minimum number of shared tokens required
+	// before name_id_split fires. Single-token overlap (e.g., a peer set of
+	// "X skill", "Y skill", "Z skill") is too common to flag — natural for
+	// architecturally peer elements. Two or more shared tokens (e.g.,
+	// "Anthropic API Service" vs "Anthropic Service") is a genuine
+	// same-thing-under-different-id signal.
+	nameIDSplitMinShared = 2
 )
 
 // unexported variables.
@@ -204,11 +208,15 @@ func detectNameIDSplits(records []registryRecord, groups []RegistryNameGroup) []
 			if len(tokensA) == 0 || len(tokensB) == 0 {
 				continue
 			}
+			shared := intersectStringSets(tokensA, tokensB)
+			if len(shared) < nameIDSplitMinShared {
+				continue
+			}
 			jaccard := jaccardSimilarity(tokensA, tokensB)
 			if jaccard < nameIDSplitJaccard {
 				continue
 			}
-			pattern := strings.Join(sortedKeys(intersectStringSets(tokensA, tokensB)), " ")
+			pattern := strings.Join(sortedKeys(shared), " ")
 			evidence := []string{}
 			for _, rec := range records {
 				if rec.ID == idA || rec.ID == idB {
