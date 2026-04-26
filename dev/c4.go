@@ -1066,12 +1066,11 @@ func emitMermaidClicks(buf *bytes.Buffer, elementIDs []elementID) {
 
 func emitMermaidEdges(buf *bytes.Buffer, relIDs []relationshipID, idByName map[string]string) {
 	for _, rel := range relIDs {
-		arrow := "-->"
+		from, to := idByName[rel.Rel.From], idByName[rel.Rel.To]
+		fmt.Fprintf(buf, "    %s -->|\"%s: %s\"| %s\n", from, rel.ID, rel.Rel.Description, to)
 		if rel.Rel.Bidirectional {
-			arrow = "<-->"
+			fmt.Fprintf(buf, "    %s -->|\"%s: %s\"| %s\n", to, rel.ID, rel.Rel.Description, from)
 		}
-		fmt.Fprintf(buf, "    %s %s|\"%s: %s\"| %s\n",
-			idByName[rel.Rel.From], arrow, rel.ID, rel.Rel.Description, idByName[rel.Rel.To])
 	}
 }
 

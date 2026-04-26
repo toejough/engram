@@ -29,7 +29,8 @@ flowchart LR
     e3 -->|"R2: loads skills + fires hooks (SessionStart, UserPromptSubmit, PostToolUse)"| e2
     e2 -->|"R3: ranks + extracts via Haiku"| e5
     e2 -->|"R4: reads memories, rules, skills, auto-memory"| e4
-    e2 <-->|"R5: reads + writes feedback/ and facts/ TOML"| e6
+    e2 -->|"R5: reads + writes feedback/ and facts/ TOML"| e6
+    e6 -->|"R5: reads + writes feedback/ and facts/ TOML"| e2
     e2 -->|"R6: injects briefings and reminders back into context"| e3
 
     class e1 person
