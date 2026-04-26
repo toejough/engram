@@ -250,7 +250,7 @@ func TestT17_HistorySinceShorthand(t *testing.T) {
 func TestT1_TargsRegistered(t *testing.T) {
 	t.Parallel()
 
-	want := []string{"c4-audit", "c4-l1-build", "c4-l1-externals", "c4-history"}
+	want := []string{"c4-audit", "c4-l1-build", "c4-l1-externals", "c4-l2-build", "c4-l3-build", "c4-history", "c4-registry"}
 	out, err := exec.CommandContext(context.Background(), "targ").CombinedOutput()
 	if err != nil {
 		t.Fatalf("targ: %v\n%s", err, out)

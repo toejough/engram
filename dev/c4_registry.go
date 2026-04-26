@@ -351,6 +351,25 @@ func normalizeL2(filename string, raw []byte) ([]registryRecord, error) {
 	return records, nil
 }
 
+// normalizeL3 emits one record per L3 element plus one for the focus carry-
+// over. Both contribute to cross-spec ID/name tracking the same way as L1/L2.
+func normalizeL3(filename string, raw []byte) ([]registryRecord, error) {
+	var spec L3Spec
+	if err := json.Unmarshal(raw, &spec); err != nil {
+		return nil, fmt.Errorf("parse L3 spec: %w", err)
+	}
+	records := make([]registryRecord, 0, len(spec.Elements)+1)
+	records = append(records, registryRecord{
+		File: filename, ID: spec.Focus.ID, Name: spec.Focus.Name,
+	})
+	for _, element := range spec.Elements {
+		records = append(records, registryRecord{
+			File: filename, ID: element.ID, Name: element.Name,
+		})
+	}
+	return records, nil
+}
+
 // normalizeSpec parses raw as the level-appropriate spec type and emits one
 // registryRecord per element using the same ID-assignment logic the level's
 // build target uses.
@@ -366,6 +385,8 @@ func normalizeSpec(filename string, raw []byte) ([]registryRecord, error) {
 		return normalizeL1(filename, raw)
 	case 2:
 		return normalizeL2(filename, raw)
+	case 3:
+		return normalizeL3(filename, raw)
 	default:
 		return nil, fmt.Errorf("unsupported level %d", meta.Level)
 	}
