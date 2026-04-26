@@ -6,10 +6,10 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e3(E3 · Claude Code<br/>agent harness)
-    e15[E15 · c4 skill<br/>FOCUS]
+    e15["E15 · c4 skill<br/>C4 diagram authoring skill"]
+    e3("E3 · Claude Code<br/>agent harness")
 
-    e3 -->|"R1: loads skill body on /command<br/>supported by: P1–P10"| e15
+    e3 -->|"R1: loads skill body on /command or auto-trigger"| e15
 
     class e3 external
     class e15 focus

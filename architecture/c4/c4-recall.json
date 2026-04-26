@@ -1,0 +1,279 @@
+{
+  "schema_version": "1",
+  "level": 4,
+  "name": "recall",
+  "parent": "c3-engram-cli-binary.md",
+  "focus": {
+    "id": "E22",
+    "name": "recall",
+    "l3_container": "E9 · engram CLI binary"
+  },
+  "sources": [
+    "internal/recall/recall.go",
+    "internal/recall/orchestrate.go",
+    "internal/recall/automemory_phase.go",
+    "internal/recall/claudemd_phase.go",
+    "internal/recall/skill_phase.go",
+    "internal/recall/summarize.go"
+  ],
+  "context_prose": "E22 · recall is the recall pipeline component: the only subcommand currently extracted into a peer package alongside internal/cli. It is pure logic — every I/O and LLM call enters through DI interfaces (`Finder`, `Reader`, `SummarizerI`, `MemoryLister`) plus optional `WithExternalSources` / `WithStatusWriter` options. The Orchestrator composes a multi-phase ranked extraction over session transcripts, engram memories, auto-memory, skills, and CLAUDE.md/rules, capped by a byte budget so Haiku call counts stay bounded. Mode A (empty query) returns raw stripped transcript tail plus session-windowed memories; Mode B (non-empty query) runs the full ranked pipeline ending in a structured summary.",
+  "legend_items": [
+    "Yellow = focus component (E22 · recall).",
+    "Blue components = sibling components in c3-engram-cli-binary.md.",
+    "Grey = external systems (E5 Anthropic API reached via E26 · anthropic).",
+    "Solid edges = runtime calls; dotted edges = DI back-edges (function values wired by E21 · cli).",
+    "All edges traceable to a relationship in c3-engram-cli-binary.md."
+  ],
+  "diagram": {
+    "nodes": [
+      {"id": "E22", "name": "recall", "subtitle": "Orchestrator + phases", "kind": "focus"},
+      {"id": "E21", "name": "cli", "subtitle": "wires DI deps", "kind": "component"},
+      {"id": "E23", "name": "context", "subtitle": "transcript strip", "kind": "component"},
+      {"id": "E24", "name": "memory", "subtitle": "MemoryLister", "kind": "component"},
+      {"id": "E25", "name": "externalsources", "subtitle": "ExternalFile + FileCache", "kind": "component"},
+      {"id": "E26", "name": "anthropic", "subtitle": "Haiku caller", "kind": "component"}
+    ],
+    "edges": [
+      {"id": "R3", "from": "E21", "to": "E22", "label": "constructs Orchestrator + invokes Recall / RecallMemoriesOnly"},
+      {"id": "R8", "from": "E22", "to": "E23", "label": "strips transcript via TranscriptReader"},
+      {"id": "R9", "from": "E22", "to": "E24", "label": "lists memories via MemoryLister"},
+      {"id": "R10", "from": "E22", "to": "E26", "label": "ranks + extracts + summarizes via SummarizerI"},
+      {"id": "R11", "from": "E22", "to": "E25", "label": "reads CLAUDE.md / rules / auto-memory / skills via FileCache"},
+      {"id": "D5", "from": "E22", "to": "E21", "label": "DI back-edge: Finder, Reader, SummarizerI, MemoryLister, externalFiles, statusWriter, dataDir", "dotted": true}
+    ]
+  },
+  "dependency_manifest": [
+    {
+      "field": "finder",
+      "type": "Finder",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`recall.NewSessionFinder` over an `os.ReadDir`-backed `DirLister`",
+      "properties": ["P1", "P2", "P9"]
+    },
+    {
+      "field": "reader",
+      "type": "Reader",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`recall.NewTranscriptReader` over an `os.ReadFile`-backed `context.FileReader`",
+      "properties": ["P3", "P4", "P9", "P10"]
+    },
+    {
+      "field": "summarizer",
+      "type": "SummarizerI",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`recall.NewSummarizer` over an `anthropic.CallerFunc` (Haiku HTTP)",
+      "properties": ["P5", "P6", "P7", "P8", "P11", "P12", "P13", "P14", "P15", "P16"]
+    },
+    {
+      "field": "memoryLister",
+      "type": "MemoryLister",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`memory.NewLister(...)` (or nil to disable memory surfacing)",
+      "properties": ["P11", "P12", "P13", "P15"]
+    },
+    {
+      "field": "externalFiles",
+      "type": "[]externalsources.ExternalFile",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "result of `externalsources.Discover` (CLAUDE.md, rules, auto-memory, skills)",
+      "properties": ["P5", "P6", "P7", "P8"]
+    },
+    {
+      "field": "fileCache",
+      "type": "*externalsources.FileCache",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "shared `externalsources.NewFileCache(os.ReadFile)`",
+      "properties": ["P5", "P6", "P7", "P17"]
+    },
+    {
+      "field": "statusWriter",
+      "type": "io.Writer",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`os.Stderr` (or nil to silence progress)",
+      "properties": ["P18"]
+    }
+  ],
+  "properties": [
+    {
+      "id": "P1",
+      "name": "Sessions sorted newest-first",
+      "statement": "For all listings returned by the injected DirLister, `SessionFinder.Find` returns FileEntry slices sorted by Mtime descending.",
+      "enforced_at": [{"path": "internal/recall/recall.go", "line": 44}],
+      "tested_at": [{"path": "internal/recall/recall_test.go", "line": 50}],
+      "notes": "Pure sort over the lister output; lister errors propagate wrapped."
+    },
+    {
+      "id": "P2",
+      "name": "Finder errors wrapped",
+      "statement": "For all errors returned by the injected DirLister, `SessionFinder.Find` returns a wrapped error containing the substring \"listing sessions\".",
+      "enforced_at": [{"path": "internal/recall/recall.go", "line": 41}],
+      "tested_at": [{"path": "internal/recall/recall_test.go", "line": 34}],
+      "notes": "Error contract that callers (Orchestrator.Recall) rely on."
+    },
+    {
+      "id": "P3",
+      "name": "Transcript reader respects byte budget",
+      "statement": "For all transcript paths P and budgets B>0, `TranscriptReader.Read(P, B)` returns content whose accumulated byte count does not exceed B once at least one line has been included.",
+      "enforced_at": [{"path": "internal/recall/recall.go", "line": 88}],
+      "tested_at": [{"path": "internal/recall/recall_test.go", "line": 95}, {"path": "internal/recall/recall_test.go", "line": 133}],
+      "notes": "First line is always included even if it alone exceeds B (bytesRead>0 guard)."
+    },
+    {
+      "id": "P4",
+      "name": "Tail-biased budgeting",
+      "statement": "For all transcript files exceeding the budget, `TranscriptReader.Read` returns a contiguous suffix of the stripped transcript (most recent lines), in chronological order.",
+      "enforced_at": [{"path": "internal/recall/recall.go", "line": 86}],
+      "tested_at": [{"path": "internal/recall/recall_test.go", "line": 133}],
+      "notes": "Backward iteration to choose startIdx, then forward write."
+    },
+    {
+      "id": "P5",
+      "name": "Mode B phase order is deterministic",
+      "statement": "For all non-empty queries Q in Mode B, phases run in fixed order: engram-memory, auto-memory, per-session, skills, CLAUDE.md/rules, then a single SummarizeFindings call.",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 264}],
+      "tested_at": [{"path": "internal/recall/orchestrate_test.go", "line": 1075}],
+      "notes": "Priority order is part of the contract — earlier phases get budget priority."
+    },
+    {
+      "id": "P6",
+      "name": "Bounded Haiku call count",
+      "statement": "For all Mode B invocations with N skills and M auto-memory topics, the total Haiku call count is ≤ 2 (rank) + per-phase extracts capped by `DefaultExtractCap` + 1 (CLAUDE.md combined) + 1 (synthesis), independent of N and M.",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 254}],
+      "tested_at": [{"path": "internal/recall/cost_test.go", "line": 17}],
+      "notes": "Cost-control invariant. With 50 skills + 20 topics, ≤50 calls is expected."
+    },
+    {
+      "id": "P7",
+      "name": "Extract phases respect byte cap",
+      "statement": "For all phases (auto-memory, skills, CLAUDE.md/rules), the phase function returns 0 immediately when bytesUsed≥bytesCap and never appends past the cap on entry.",
+      "enforced_at": [{"path": "internal/recall/automemory_phase.go", "line": 25}, {"path": "internal/recall/skill_phase.go", "line": 24}, {"path": "internal/recall/claudemd_phase.go", "line": 23}],
+      "tested_at": [{"path": "internal/recall/automemory_phase_test.go", "line": 14}, {"path": "internal/recall/skill_phase_test.go", "line": 14}, {"path": "internal/recall/claudemd_phase_test.go", "line": 15}],
+      "notes": "Entry-time gate; in-loop check `bytesUsed+added>=bytesCap` then breaks."
+    },
+    {
+      "id": "P8",
+      "name": "Nil summarizer is graceful",
+      "statement": "For all phase functions, a nil SummarizerI causes the phase to return 0 without panicking and without invoking the cache.",
+      "enforced_at": [{"path": "internal/recall/automemory_phase.go", "line": 25}, {"path": "internal/recall/skill_phase.go", "line": 24}, {"path": "internal/recall/claudemd_phase.go", "line": 23}],
+      "tested_at": [{"path": "internal/recall/automemory_phase_test.go", "line": 43}, {"path": "internal/recall/skill_phase_test.go", "line": 40}, {"path": "internal/recall/claudemd_phase_test.go", "line": 94}],
+      "notes": "Mode B as a whole also returns empty Result when summarizer is nil."
+    },
+    {
+      "id": "P9",
+      "name": "Mode A budget cap",
+      "statement": "For all Mode A invocations, the accumulated raw transcript content has length ≤ `DefaultModeABudget` (15KB).",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 235}, {"path": "internal/recall/orchestrate.go", "line": 243}],
+      "tested_at": [{"path": "internal/recall/orchestrate_test.go", "line": 445}],
+      "notes": "Reader is invoked with the remaining budget so it self-throttles."
+    },
+    {
+      "id": "P10",
+      "name": "Reader errors skip session, do not fail recall",
+      "statement": "For all Reader errors on a single session, both Mode A and Mode B's per-session extraction skip that session and continue with the next, never propagating the error.",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 137}, {"path": "internal/recall/orchestrate.go", "line": 237}],
+      "tested_at": [{"path": "internal/recall/orchestrate_test.go", "line": 418}, {"path": "internal/recall/orchestrate_test.go", "line": 918}],
+      "notes": "Per-session resilience — a corrupt transcript does not poison recall."
+    },
+    {
+      "id": "P11",
+      "name": "RecallMemoriesOnly limit honored",
+      "statement": "For all queries Q and limits L>0, `RecallMemoriesOnly(ctx, Q, L)` returns at most L memories; L≤0 is replaced by `DefaultMemoryLimit` (10).",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 103}, {"path": "internal/recall/orchestrate.go", "line": 215}],
+      "tested_at": [{"path": "internal/recall/orchestrate_test.go", "line": 231}],
+      "notes": "Limit applied after sort so the L most relevant survive."
+    },
+    {
+      "id": "P12",
+      "name": "Memory ranking by source then recency",
+      "statement": "For all matched memory sets, results are ordered: human-sourced before agent-sourced, and within each group most-recent UpdatedAt first.",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 573}],
+      "tested_at": [{"path": "internal/recall/orchestrate_test.go", "line": 309}],
+      "notes": "Stable sort.Slice over (source==human, UpdatedAt)."
+    },
+    {
+      "id": "P13",
+      "name": "Memory disabled when wires absent",
+      "statement": "For all invocations with nil memoryLister or empty dataDir, `RecallMemoriesOnly` returns an empty Result and the engram-memory phase contributes 0 bytes to Mode B.",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 185}, {"path": "internal/recall/orchestrate.go", "line": 159}],
+      "tested_at": [{"path": "internal/recall/orchestrate_test.go", "line": 166}, {"path": "internal/recall/orchestrate_test.go", "line": 212}],
+      "notes": "Optional dependency — Mode A still works without memory wiring."
+    },
+    {
+      "id": "P14",
+      "name": "Nil HaikuCaller returns sentinel",
+      "statement": "For all calls to `Summarizer.ExtractRelevant` or `SummarizeFindings` with a nil HaikuCaller, the methods return `ErrNilCaller` without panicking.",
+      "enforced_at": [{"path": "internal/recall/summarize.go", "line": 31}, {"path": "internal/recall/summarize.go", "line": 47}],
+      "tested_at": [{"path": "internal/recall/summarize_test.go", "line": 78}],
+      "notes": "Sentinel exported for caller-side `errors.Is` checks."
+    },
+    {
+      "id": "P15",
+      "name": "Mode A windows memories per session",
+      "statement": "For all Mode A invocations with a memoryLister, only memories whose UpdatedAt falls within some session's [prevMtime, mtime] window (or [mtime-24h, mtime] for the oldest) are included.",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 426}, {"path": "internal/recall/orchestrate.go", "line": 540}],
+      "tested_at": [{"path": "internal/recall/orchestrate_test.go", "line": 677}, {"path": "internal/recall/orchestrate_test.go", "line": 752}],
+      "notes": "Inter-session windowing aligns memories to the session that produced them."
+    },
+    {
+      "id": "P16",
+      "name": "Empty Mode B buffer skips synthesis",
+      "statement": "For all Mode B invocations where every phase contributes zero bytes, the orchestrator returns an empty Result without invoking SummarizeFindings.",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 299}],
+      "tested_at": [{"path": "internal/recall/orchestrate_test.go", "line": 954}],
+      "notes": "Avoids a wasted Haiku synthesis call when there is nothing to summarize."
+    },
+    {
+      "id": "P17",
+      "name": "FileCache shared across phases",
+      "statement": "For all Mode B invocations, every external file read by auto-memory, skill, and CLAUDE.md/rules phases goes through the same `*externalsources.FileCache`, so each path is read at most once per invocation.",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 385}],
+      "tested_at": [],
+      "notes": "Architectural invariant — cache is wired once via `WithExternalSources`. UNTESTED at the recall level (cache itself has its own unit tests)."
+    },
+    {
+      "id": "P18",
+      "name": "Nil status writer is silent",
+      "statement": "For all Orchestrator invocations without `WithStatusWriter`, no progress messages are emitted and `writeStatusf` is a no-op.",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 337}],
+      "tested_at": [{"path": "internal/recall/orchestrate_test.go", "line": 1011}],
+      "notes": "Default Orchestrator has statusWriter==nil."
+    },
+    {
+      "id": "P19",
+      "name": "Cancellation yields partial results",
+      "statement": "For all contexts canceled mid-recall, Mode A returns the partial accumulated content with nil error, and Mode B's per-session and ranked phases break out of their loops without propagating ctx.Err().",
+      "enforced_at": [{"path": "internal/recall/orchestrate.go", "line": 231}, {"path": "internal/recall/orchestrate.go", "line": 128}, {"path": "internal/recall/automemory_phase.go", "line": 45}, {"path": "internal/recall/skill_phase.go", "line": 43}],
+      "tested_at": [{"path": "internal/recall/orchestrate_test.go", "line": 497}],
+      "notes": "Deliberate: partial recall content is more useful to the agent than an error."
+    },
+    {
+      "id": "P20",
+      "name": "All I/O via DI",
+      "statement": "For all functions in `internal/recall`, no call is made to `os.*`, `http.*`, or any direct file/network primitive; every external effect enters through Finder, Reader, SummarizerI, MemoryLister, or externalsources.FileCache.",
+      "enforced_at": [{"path": "internal/recall/recall.go", "line": 17}, {"path": "internal/recall/orchestrate.go", "line": 25}],
+      "tested_at": [],
+      "notes": "Architectural rule from CLAUDE.md (\"DI everywhere\"). UNTESTED — would need a static check (e.g., grep + lint) to enforce mechanically."
+    }
+  ]
+}

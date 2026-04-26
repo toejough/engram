@@ -1,0 +1,179 @@
+{
+  "schema_version": "1",
+  "level": 4,
+  "name": "migrate-skill",
+  "parent": "c3-skills.md",
+  "focus": {
+    "id": "E14",
+    "name": "migrate skill",
+    "l3_container": "c3-skills.md"
+  },
+  "sources": [
+    "skills/migrate/SKILL.md"
+  ],
+  "context_prose": "Scoped slice of [c3-skills.md](c3-skills.md): the L3 edges that touch E14. The migrate skill is a one-shot upgrade tool for pre-`cfd5fb5` (2026-04-17) flat-format memory files. Its body text drives the agent through a 10-step flow: locate legacy data, read each file fully, classify as feedback or fact, rewrite hindsight-biased situations to task shape, build the new TOML using a feedback or fact template, derive `source` from legacy `confidence`/quotation, drop removed legacy fields unconditionally, write to the correct split destination, verify each migrated file via `engram show`, and finally archive (never delete) the legacy directory under a dated rename. R6 is the only outbound edge: the skill instructs the agent to invoke the engram CLI binary (E9) for verification of each rewritten file. R-edges cite the P-list each edge backs.",
+  "legend_items": [
+    "**Focus** — yellow (E14 migrate skill).",
+    "**Component** — light blue (sibling skills E10–E13, E15).",
+    "**Container** — darker blue (E9 engram CLI binary).",
+    "**External** — grey (E3 Claude Code).",
+    "**R-edges** — solid."
+  ],
+  "diagram": {
+    "nodes": [
+      {"id": "E14", "name": "migrate skill", "subtitle": "legacy memory upgrader", "kind": "focus"},
+      {"id": "E3", "name": "Claude Code", "subtitle": "skill loader", "kind": "external"},
+      {"id": "E9", "name": "engram CLI binary", "subtitle": "show / update", "kind": "container"}
+    ],
+    "edges": [
+      {"id": "R1", "from": "E3", "to": "E14", "label": "loads skill body on /migrate or trigger"},
+      {"id": "R6", "from": "E14", "to": "E9", "label": "instructs agent to verify rewritten files via `engram show`"}
+    ]
+  },
+  "properties": [
+    {
+      "id": "P1",
+      "name": "Trigger surface",
+      "statement": "For all invocations matching `/migrate`, the phrase \"migrate engram memories\", \"upgrade engram memories\", or detection of legacy-shaped TOML files under `~/.local/share/engram/`, the skill body is loaded into context.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 3}],
+      "tested_at": [],
+      "notes": "Trigger phrase enumerated in front-matter description; behavioral test absent."
+    },
+    {
+      "id": "P2",
+      "name": "Skip current-format files",
+      "statement": "For all candidate files where the file has `schema_version = 2` and a `[content]` sub-table, the skill instructs the agent to skip the file (do not migrate).",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 20}, {"path": "skills/migrate/SKILL.md", "line": 42}],
+      "tested_at": [],
+      "notes": "Prevents double-migration."
+    },
+    {
+      "id": "P3",
+      "name": "Legacy field detection set",
+      "statement": "For all candidate files, the skill instructs the agent to treat the file as legacy if any top-level field is one of: `confidence`, `surfaced_count`, `followed_count`, `not_followed_count`, `irrelevant_count`, `keywords`, `concepts`, `principle`, `anti_pattern`, `project_scoped`, or `title`.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 15}, {"path": "skills/migrate/SKILL.md", "line": 39}],
+      "tested_at": [],
+      "notes": "Enumerated in both \"When to use\" and Step 1; the two lists must stay in sync."
+    },
+    {
+      "id": "P4",
+      "name": "Read full file before classifying",
+      "statement": "For all legacy files, the skill instructs the agent to read the file's full contents before deciding feedback-vs-fact; classification by filename alone is forbidden.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 22}, {"path": "skills/migrate/SKILL.md", "line": 45}, {"path": "skills/migrate/SKILL.md", "line": 193}],
+      "tested_at": [],
+      "notes": "Reinforced under \"When NOT to use\", Step 2, and Red flags."
+    },
+    {
+      "id": "P5",
+      "name": "Feedback classification rule",
+      "statement": "For all legacy files exhibiting `behavior` + `impact` + `action`, or `principle` + `anti_pattern`, or content reading as \"do X when Y\" / \"don't do X\", the skill instructs the agent to classify the file as feedback.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 49}],
+      "tested_at": [],
+      "notes": "Quick-reference table at line 165 mirrors the same rule."
+    },
+    {
+      "id": "P6",
+      "name": "Fact classification rule",
+      "statement": "For all legacy files with subject–predicate–object shape or content reading as \"X is Y\" / \"project Z uses tool W\" / configuration-or-convention statements, the skill instructs the agent to classify the file as fact.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 54}],
+      "tested_at": [],
+      "notes": ""
+    },
+    {
+      "id": "P7",
+      "name": "Stop on ambiguous classification",
+      "statement": "For all legacy files where feedback-vs-fact classification is unclear, the skill instructs the agent to STOP and ask the user rather than batch-classifying.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 59}, {"path": "skills/migrate/SKILL.md", "line": 199}],
+      "tested_at": [],
+      "notes": "Prevents misfiled memories that fail to surface for the right query."
+    },
+    {
+      "id": "P8",
+      "name": "Task-shaped situation rewrite",
+      "statement": "For all legacy `situation` fields that are hindsight-biased (\"after I forgot…\", \"when we discovered…\"), the skill instructs the agent to rewrite the situation as the task a future agent would be starting before writing the new file.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 26}, {"path": "skills/migrate/SKILL.md", "line": 62}],
+      "tested_at": [],
+      "notes": "Core principle of the skill — same hindsight-bias rule used by `/learn` and `/remember`."
+    },
+    {
+      "id": "P9",
+      "name": "Feedback template shape",
+      "statement": "For all rewritten feedback files, the new file contains `schema_version = 2`, `type = \"feedback\"`, a `source`, a task-shaped `situation`, the legacy `created_at` preserved verbatim, an `updated_at` set to now (RFC3339 UTC), and a `[content]` sub-table with `behavior`, `impact`, and `action`.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 76}],
+      "tested_at": [],
+      "notes": "behavior/impact/action may be derived from legacy `anti_pattern` / `principle` when explicit fields are absent."
+    },
+    {
+      "id": "P10",
+      "name": "Fact template shape",
+      "statement": "For all rewritten fact files, the new file contains `schema_version = 2`, `type = \"fact\"`, a `source`, a task-shaped `situation`, the legacy `created_at` preserved verbatim, an `updated_at` set to now (RFC3339 UTC), and a `[content]` sub-table with `subject`, `predicate`, and `object`.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 91}],
+      "tested_at": [],
+      "notes": ""
+    },
+    {
+      "id": "P11",
+      "name": "Source derivation rules",
+      "statement": "For all rewritten files, `source = \"human\"` iff the legacy content contains a direct quotation of the user OR legacy `confidence = \"A\"`; otherwise `source = \"agent\"`. Reported speech does not qualify as a direct quotation.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 107}],
+      "tested_at": [],
+      "notes": "Default-to-agent bias is intentional: misclassified \"agent\" memories are corrected by users far more often than misclassified \"human\" ones."
+    },
+    {
+      "id": "P12",
+      "name": "Unconditional drop list",
+      "statement": "For all rewritten files, the legacy fields `surfaced_count`, `followed_count`, `not_followed_count`, `irrelevant_count`, `project_scoped`, `confidence`, `keywords`, `concepts`, and `title` are dropped — never carried forward, never re-encoded, and the user is not asked whether to keep them.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 117}, {"path": "skills/migrate/SKILL.md", "line": 125}],
+      "tested_at": [],
+      "notes": "Reinforced in Quick-reference and Common-mistakes tables."
+    },
+    {
+      "id": "P13",
+      "name": "Split destination by type",
+      "statement": "For all rewritten files, feedback memories are written to `~/.local/share/engram/memory/feedback/<slug>.toml` and fact memories to `~/.local/share/engram/memory/facts/<slug>.toml`.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 129}],
+      "tested_at": [],
+      "notes": "Matches the post-`cfd5fb5` split layout."
+    },
+    {
+      "id": "P14",
+      "name": "Slug filename rules",
+      "statement": "For all rewritten files, the filename slug is the legacy filename if it is already kebab-case (lowercase letters, digits, hyphens only; ≤60 chars); otherwise it is regenerated from the new situation by lowercasing, replacing non-alphanumerics with `-`, collapsing repeats, and trimming to 60 chars.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 132}],
+      "tested_at": [],
+      "notes": ""
+    },
+    {
+      "id": "P15",
+      "name": "Verify each migrated file",
+      "statement": "For all migrated files, the skill instructs the agent to run `engram show --name <slug>` and fix any parse error before moving to the next file.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 138}, {"path": "skills/migrate/SKILL.md", "line": 198}],
+      "tested_at": [],
+      "notes": "Backs L3 R6: the skill's outbound call to E9 (engram CLI binary)."
+    },
+    {
+      "id": "P16",
+      "name": "Build engram before verifying if missing",
+      "statement": "For all sessions in which the `engram` binary is not on `$PATH`, the skill instructs the agent to build it (`cd ~/repos/personal/engram && targ build`) and re-run verification rather than skipping verification.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 144}],
+      "tested_at": [],
+      "notes": "Verification is non-negotiable."
+    },
+    {
+      "id": "P17",
+      "name": "Archive (never delete) legacy source",
+      "statement": "For all completed migrations where every file has been verified, the skill instructs the agent to rename the legacy directory to `memories.legacy-migrated-<YYYYMMDD>` rather than deleting it, and to retain the archive until at least one real session has surfaced the migrated memories via `/recall` and `/prepare`.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 147}, {"path": "skills/migrate/SKILL.md", "line": 157}],
+      "tested_at": [],
+      "notes": "Defense against silent loss if a classification was wrong."
+    },
+    {
+      "id": "P18",
+      "name": "Fully qualified paths",
+      "statement": "For all path references in the skill flow, paths are absolute (rooted at `~/.local/share/engram/`); bare `memory/feedback/` or `memory/facts/` are never interpreted as relative to the current working directory.",
+      "enforced_at": [{"path": "skills/migrate/SKILL.md", "line": 161}],
+      "tested_at": [],
+      "notes": "Caller-cwd hazard called out explicitly."
+    }
+  ]
+}

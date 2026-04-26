@@ -1,0 +1,336 @@
+{
+  "schema_version": "1",
+  "level": 4,
+  "name": "cli",
+  "parent": "c3-engram-cli-binary.md",
+  "focus": {
+    "id": "E21",
+    "name": "cli",
+    "l3_container": "c3-engram-cli-binary.md"
+  },
+  "sources": [
+    "internal/cli/cli.go",
+    "internal/cli/targets.go",
+    "internal/cli/show.go",
+    "internal/cli/list.go",
+    "internal/cli/learn.go",
+    "internal/cli/update.go",
+    "internal/cli/signal.go",
+    "internal/cli/externalsources_adapters.go"
+  ],
+  "context_prose": "cli is the composition root of the engram binary. It owns the targ Target definitions for every subcommand (recall, show, list, learn feedback/fact, update), holds the *Args structs, defines the thin I/O adapter shims (osDirLister, osFileReader, osStatExists, osWalkMd, osWalkSkills, osDirListMd, osMatchAny, makeAnthropicCaller, newTokenResolver, readAutoMemoryDirectorySetting), and wires those adapters into every pure-logic component (recall, memory, externalsources, anthropic, tokenresolver, tomlwriter). cli also embeds business-logic handlers for show, list, learn, and update — see the c3 Drift Note: those four are intended to live as peer packages alongside recall but currently live inside cli.\n\ncli applies two universal CLI conventions before any subcommand runs business logic: it resolves an empty `--data-dir` to `$XDG_DATA_HOME/engram` (or `$HOME/.local/share/engram` when XDG is unset), and it resolves an empty `--project-slug` from cwd via `tr '/' '-'`. cli also enforces the SIGINT/SIGTERM force-exit-on-second-signal contract via SetupSignalHandling.",
+  "legend_items": [
+    "Yellow = focus component (cli)",
+    "Blue = peer components in the engram-cli-binary container",
+    "Grey = external systems",
+    "Solid R-edges = forward calls; dotted D-edges = DI back-edges (cli wires deps into peers)"
+  ],
+  "diagram": {
+    "nodes": [
+      {"id": "E21", "name": "cli", "kind": "focus"},
+      {"id": "E20", "name": "main.go", "kind": "component"},
+      {"id": "E22", "name": "recall", "kind": "component"},
+      {"id": "E24", "name": "memory", "kind": "component"},
+      {"id": "E25", "name": "externalsources", "kind": "component"},
+      {"id": "E26", "name": "anthropic", "kind": "component"},
+      {"id": "E27", "name": "tokenresolver", "kind": "component"},
+      {"id": "E28", "name": "tomlwriter", "kind": "component"},
+      {"id": "E3", "name": "Claude Code", "kind": "external"}
+    ],
+    "edges": [
+      {"id": "R2", "from": "E20", "to": "E21", "label": "builds targets, runs targ.Main"},
+      {"id": "R3", "from": "E21", "to": "E22", "label": "delegates recall pipeline"},
+      {"id": "R4", "from": "E21", "to": "E24", "label": "reads/writes memory TOML"},
+      {"id": "R5", "from": "E21", "to": "E25", "label": "discovers external sources"},
+      {"id": "R6", "from": "E21", "to": "E26", "label": "builds Anthropic caller"},
+      {"id": "R7", "from": "E21", "to": "E27", "label": "resolves API token"},
+      {"id": "R12", "from": "E21", "to": "E28", "label": "writes TOML on learn/update"},
+      {"id": "R13", "from": "E21", "to": "E3", "label": "stdout output"},
+      {"id": "D1", "from": "E27", "to": "E21", "label": "DI: getenv, execCmd, goos", "dotted": true},
+      {"id": "D2", "from": "E26", "to": "E21", "label": "DI: HTTPDoer, token, apiURL", "dotted": true},
+      {"id": "D3", "from": "E28", "to": "E21", "label": "DI: createTemp, rename, mkdirAll, stat, remove", "dotted": true},
+      {"id": "D4", "from": "E25", "to": "E21", "label": "DI: StatFn, Reader, Walker, Matcher, Settings, DirLister, SkillFinder", "dotted": true},
+      {"id": "D5", "from": "E22", "to": "E21", "label": "DI: Finder, Reader, Summarizer, MemoryLister", "dotted": true},
+      {"id": "D7", "from": "E24", "to": "E21", "label": "DI: readDir, readFile, writer", "dotted": true}
+    ]
+  },
+  "di_wires": [
+    {"wired_adapter": "`os.Getenv`", "concrete_value": "stdlib `os.Getenv`", "consumer_id": "E27", "consumer_name": "tokenresolver", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-tokenresolver.md", "consumer_field": "getenv"},
+    {"wired_adapter": "`execCmd` closure", "concrete_value": "inline closure wrapping `exec.CommandContext` ([cli.go:150](../../internal/cli/cli.go#L150))", "consumer_id": "E27", "consumer_name": "tokenresolver", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-tokenresolver.md", "consumer_field": "execCmd"},
+    {"wired_adapter": "`runtime.GOOS`", "concrete_value": "compile-time string from `runtime.GOOS`", "consumer_id": "E27", "consumer_name": "tokenresolver", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-tokenresolver.md", "consumer_field": "goos"},
+    {"wired_adapter": "`*http.Client`", "concrete_value": "`&http.Client{}` ([cli.go:131](../../internal/cli/cli.go#L131))", "consumer_id": "E26", "consumer_name": "anthropic", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-anthropic.md", "consumer_field": "httpClient"},
+    {"wired_adapter": "API URL string", "concrete_value": "`AnthropicAPIURL` package var (test-overridable)", "consumer_id": "E26", "consumer_name": "anthropic", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-anthropic.md", "consumer_field": "apiURL"},
+    {"wired_adapter": "API token string", "concrete_value": "result of `resolveToken(ctx)` (env or Keychain)", "consumer_id": "E26", "consumer_name": "anthropic", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-anthropic.md", "consumer_field": "token"},
+    {"wired_adapter": "`osDirLister.ListJSONL`", "concrete_value": "`os.ReadDir`-backed adapter ([cli.go:46](../../internal/cli/cli.go#L46))", "consumer_id": "E22", "consumer_name": "recall", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-recall.md", "consumer_field": "DirLister (SessionFinder)"},
+    {"wired_adapter": "`osFileReader.Read`", "concrete_value": "`os.ReadFile`-backed adapter ([cli.go:84](../../internal/cli/cli.go#L84))", "consumer_id": "E22", "consumer_name": "recall", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-recall.md", "consumer_field": "FileReader (TranscriptReader)"},
+    {"wired_adapter": "`haikuCallerAdapter`", "concrete_value": "wraps `makeAnthropicCaller(token)` to satisfy `recall.HaikuCaller` ([cli.go:139](../../internal/cli/cli.go#L139))", "consumer_id": "E22", "consumer_name": "recall", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-recall.md", "consumer_field": "Summarizer"},
+    {"wired_adapter": "`memory.Lister`", "concrete_value": "`memory.NewLister()` ([cli.go:179](../../internal/cli/cli.go#L179))", "consumer_id": "E22", "consumer_name": "recall", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-recall.md", "consumer_field": "MemoryLister"},
+    {"wired_adapter": "`os.Stderr`", "concrete_value": "stdlib `os.Stderr` via `recall.WithStatusWriter`", "consumer_id": "E22", "consumer_name": "recall", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-recall.md", "consumer_field": "statusWriter"},
+    {"wired_adapter": "external files + cache", "concrete_value": "`discoverExternalSources(ctx, home)` via `recall.WithExternalSources`", "consumer_id": "E22", "consumer_name": "recall", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-recall.md", "consumer_field": "externalFiles, externalCache"},
+    {"wired_adapter": "`os.Getwd`", "concrete_value": "stdlib `os.Getwd` (passed into `runRecallSessions`)", "consumer_id": "E22", "consumer_name": "recall", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-recall.md", "consumer_field": "getwd"},
+    {"wired_adapter": "`os.UserHomeDir`", "concrete_value": "stdlib `os.UserHomeDir` (passed into `runRecallSessions`)", "consumer_id": "E22", "consumer_name": "recall", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-recall.md", "consumer_field": "userHomeDir"},
+    {"wired_adapter": "`os.Stat` adapter", "concrete_value": "`osStatExists` ([externalsources_adapters.go:128](../../internal/cli/externalsources_adapters.go#L128))", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "StatFn"},
+    {"wired_adapter": "`FileCache.Read`", "concrete_value": "`externalsources.NewFileCache(os.ReadFile).Read` ([externalsources_adapters.go:61](../../internal/cli/externalsources_adapters.go#L61))", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "Reader"},
+    {"wired_adapter": "`osWalkMd`", "concrete_value": "`filepath.WalkDir`-backed adapter for `*.md` ([externalsources_adapters.go:143](../../internal/cli/externalsources_adapters.go#L143))", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "MdWalker"},
+    {"wired_adapter": "`osMatchAny(cwd)`", "concrete_value": "`filepath.Glob` closure over cwd ([externalsources_adapters.go:113](../../internal/cli/externalsources_adapters.go#L113))", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "MatchAny"},
+    {"wired_adapter": "`readAutoMemoryDirectorySetting(home)`", "concrete_value": "reads `.claude/settings.local.json` then `~/.claude/settings.json` ([externalsources_adapters.go:183](../../internal/cli/externalsources_adapters.go#L183))", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "Settings"},
+    {"wired_adapter": "`osDirListMd`", "concrete_value": "non-recursive `os.ReadDir` adapter ([externalsources_adapters.go:87](../../internal/cli/externalsources_adapters.go#L87))", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "DirLister"},
+    {"wired_adapter": "`osWalkSkills`", "concrete_value": "`filepath.WalkDir`-backed adapter for `SKILL.md` ([externalsources_adapters.go:162](../../internal/cli/externalsources_adapters.go#L162))", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "SkillFinder"},
+    {"wired_adapter": "cwd string", "concrete_value": "`os.Getwd()` (falls back to `/` on error)", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "CWD"},
+    {"wired_adapter": "home string", "concrete_value": "`os.UserHomeDir()` result threaded from caller", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "Home"},
+    {"wired_adapter": "GOOS string", "concrete_value": "`runtime.GOOS`", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "GOOS"},
+    {"wired_adapter": "main project dir string", "concrete_value": "`computeMainProjectDir(ctx, cwd, home)` via `git rev-parse --git-common-dir` ([externalsources_adapters.go:20](../../internal/cli/externalsources_adapters.go#L20))", "consumer_id": "E25", "consumer_name": "externalsources", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-externalsources.md", "consumer_field": "MainProjectDir"},
+    {"wired_adapter": "tomlwriter (defaults)", "concrete_value": "`tomlwriter.New()` accepts default `os.*` deps internally", "consumer_id": "E28", "consumer_name": "tomlwriter", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-tomlwriter.md", "consumer_field": "createTemp/rename/mkdirAll/stat/remove"},
+    {"wired_adapter": "memory.Lister (defaults)", "concrete_value": "`memory.NewLister()` accepts default `os.ReadDir`/`os.ReadFile` internally", "consumer_id": "E24", "consumer_name": "memory", "consumer_l3": "c3-engram-cli-binary.md", "consumer_l4": "c4-memory.md", "consumer_field": "readDir/readFile"}
+  ],
+  "properties": [
+    {
+      "id": "P1",
+      "name": "Subcommand surface is fixed",
+      "statement": "For all invocations of `Targets`, the returned target slice exposes exactly five top-level subcommands (recall, show, list, learn, update) with `learn` as a group of `feedback` and `fact`.",
+      "enforced_at": [{"path": "internal/cli/targets.go", "line": 100}],
+      "tested_at": [],
+      "notes": "Architectural invariant; no test asserts the set or shape of returned targets."
+    },
+    {
+      "id": "P2",
+      "name": "Empty data-dir resolves to XDG/HOME default",
+      "statement": "For all subcommand invocations with an empty `--data-dir`, `applyDataDirDefault` sets it to `$XDG_DATA_HOME/engram` if that env var is non-empty, otherwise to `$HOME/.local/share/engram`.",
+      "enforced_at": [{"path": "internal/cli/cli.go", "line": 89}, {"path": "internal/cli/targets.go", "line": 76}],
+      "tested_at": [{"path": "internal/cli/targets_test.go", "line": 18}],
+      "notes": "Tested via the pure helper `DataDirFromHome`; the wrapper `applyDataDirDefault` reads `os.Getenv`/`os.UserHomeDir` directly and is exercised end-to-end by every subcommand test."
+    },
+    {
+      "id": "P3",
+      "name": "Empty project-slug derives from cwd",
+      "statement": "For all paths P, `ProjectSlugFromPath(P)` returns P with every `filepath.Separator` replaced by `-`, matching the shell `tr '/' '-'` convention.",
+      "enforced_at": [{"path": "internal/cli/targets.go", "line": 86}],
+      "tested_at": [{"path": "internal/cli/targets_test.go", "line": 44}],
+      "notes": "applyProjectSlugDefault wraps this with an injected `getwd` so callers can stub cwd."
+    },
+    {
+      "id": "P4",
+      "name": "Source flag must be human or agent",
+      "statement": "For all `learn fact`, `learn feedback`, and `update --source=…` invocations, `validateSource` returns `errInvalidSource` unless source is exactly `\"human\"` or `\"agent\"`.",
+      "enforced_at": [{"path": "internal/cli/learn.go", "line": 286}],
+      "tested_at": [{"path": "internal/cli/learn_test.go", "line": 687}, {"path": "internal/cli/learn_test.go", "line": 695}, {"path": "internal/cli/learn_test.go", "line": 703}, {"path": "internal/cli/learn_test.go", "line": 711}],
+      "notes": "Empty source is rejected for learn but accepted for update (update only validates when --source is supplied)."
+    },
+    {
+      "id": "P5",
+      "name": "Show requires a slug",
+      "statement": "For all `show` invocations with empty `--name`, `runShow` returns `errShowMissingSlug` without touching the filesystem.",
+      "enforced_at": [{"path": "internal/cli/show.go", "line": 123}],
+      "tested_at": [{"path": "internal/cli/show_test.go", "line": 176}],
+      "notes": " "
+    },
+    {
+      "id": "P6",
+      "name": "Show prints only non-empty fields",
+      "statement": "For all memory records M, `renderMemory(w, M)` writes a line for a field iff that field is a non-empty string on M.",
+      "enforced_at": [{"path": "internal/cli/show.go", "line": 82}],
+      "tested_at": [{"path": "internal/cli/show_test.go", "line": 206}],
+      "notes": "Type, Source, CreatedAt, UpdatedAt and the type-specific content fields are independently gated."
+    },
+    {
+      "id": "P7",
+      "name": "Show selects renderer by Type",
+      "statement": "For all memory records M, `renderMemoryContent` calls `renderFactContent` iff M.Type == \"fact\", otherwise `renderFeedbackContent` (so feedback fields render for any non-fact type, including empty).",
+      "enforced_at": [{"path": "internal/cli/show.go", "line": 88}],
+      "tested_at": [{"path": "internal/cli/show_test.go", "line": 38}, {"path": "internal/cli/show_test.go", "line": 61}],
+      "notes": " "
+    },
+    {
+      "id": "P8",
+      "name": "List swallows missing data dir",
+      "statement": "For all `list` invocations against a data dir where `ListAllMemories` returns `os.ErrNotExist`, `runList` returns nil and writes nothing.",
+      "enforced_at": [{"path": "internal/cli/list.go", "line": 27}],
+      "tested_at": [{"path": "internal/cli/list_test.go", "line": 11}],
+      "notes": "First-run friendliness — an unprovisioned data dir is not an error."
+    },
+    {
+      "id": "P9",
+      "name": "List output format is type | name | situation",
+      "statement": "For all stored memories M, `runList` writes one line per memory in the form `<type> | <name> | <situation>\\n`.",
+      "enforced_at": [{"path": "internal/cli/list.go", "line": 37}],
+      "tested_at": [{"path": "internal/cli/list_test.go", "line": 22}, {"path": "internal/cli/list_test.go", "line": 74}],
+      "notes": " "
+    },
+    {
+      "id": "P10",
+      "name": "Learn skips dedup when no token",
+      "statement": "For all `learn fact`/`learn feedback` invocations where `resolveToken` returns the empty string, `makeConflictDeps` returns a nil caller and `checkForConflicts` short-circuits to (false, nil), so the write proceeds without an Anthropic call.",
+      "enforced_at": [{"path": "internal/cli/learn.go", "line": 88}, {"path": "internal/cli/learn.go", "line": 143}],
+      "tested_at": [{"path": "internal/cli/learn_test.go", "line": 117}, {"path": "internal/cli/learn_test.go", "line": 865}],
+      "notes": " "
+    },
+    {
+      "id": "P11",
+      "name": "Dedup API failure is non-fatal",
+      "statement": "For all `learn` invocations where the Haiku caller returns a non-nil error, `checkForConflicts` returns `(false, nil)` and the memory is still written.",
+      "enforced_at": [{"path": "internal/cli/learn.go", "line": 109}],
+      "tested_at": [{"path": "internal/cli/learn_test.go", "line": 95}],
+      "notes": "Intentional: Anthropic outages must not block memory capture."
+    },
+    {
+      "id": "P12",
+      "name": "Dedup conflict aborts write",
+      "statement": "For all `learn` invocations where Haiku reports a `DUPLICATE` or `CONTRADICTION` line and `--no-dup-check` is not set, `writeMemory` returns nil before invoking `tomlwriter.Write`, leaving the data dir unchanged.",
+      "enforced_at": [{"path": "internal/cli/learn.go", "line": 312}],
+      "tested_at": [{"path": "internal/cli/learn_test.go", "line": 764}],
+      "notes": " "
+    },
+    {
+      "id": "P13",
+      "name": "Dedup recognizes only NONE/DUPLICATE/CONTRADICTION",
+      "statement": "For all Haiku responses R, `parseConflictResponse(R, ...)` returns true iff at least one trimmed line begins with `DUPLICATE:` or `CONTRADICTION:`; the literal `NONE` and any other text return false.",
+      "enforced_at": [{"path": "internal/cli/learn.go", "line": 175}],
+      "tested_at": [{"path": "internal/cli/learn_test.go", "line": 504}, {"path": "internal/cli/learn_test.go", "line": 542}, {"path": "internal/cli/learn_test.go", "line": 595}, {"path": "internal/cli/learn_test.go", "line": 606}],
+      "notes": " "
+    },
+    {
+      "id": "P14",
+      "name": "Learn output announces created name",
+      "statement": "For all successful `learn fact` / `learn feedback` writes, stdout receives a single trailing line `CREATED: <name>\\n` where <name> is `memory.NameFromPath(filePath)`.",
+      "enforced_at": [{"path": "internal/cli/learn.go", "line": 332}],
+      "tested_at": [{"path": "internal/cli/learn_test.go", "line": 429}],
+      "notes": " "
+    },
+    {
+      "id": "P15",
+      "name": "Update preserves unspecified fields",
+      "statement": "For all `update` invocations and field F, if the corresponding `UpdateArgs` field is empty, `applyUpdateArgs` does not modify M[F].",
+      "enforced_at": [{"path": "internal/cli/update.go", "line": 14}],
+      "tested_at": [{"path": "internal/cli/update_test.go", "line": 262}],
+      "notes": "Update is a sparse patch, not a full replacement."
+    },
+    {
+      "id": "P16",
+      "name": "Update stamps UpdatedAt",
+      "statement": "For all successful `update` invocations, the persisted record's `UpdatedAt` field is set to `time.Now().UTC()` formatted as RFC3339.",
+      "enforced_at": [{"path": "internal/cli/update.go", "line": 75}],
+      "tested_at": [{"path": "internal/cli/update_test.go", "line": 218}],
+      "notes": "Time source is not injected — tests assert format/non-empty rather than exact value."
+    },
+    {
+      "id": "P17",
+      "name": "Update requires --name",
+      "statement": "For all `update` invocations missing `--name`, targ flag-parse returns an error and `runUpdate` is not called.",
+      "enforced_at": [{"path": "internal/cli/targets.go", "line": 61}],
+      "tested_at": [{"path": "internal/cli/update_test.go", "line": 210}],
+      "notes": "Enforced by `targ:\"flag,...,required\"` tag."
+    },
+    {
+      "id": "P18",
+      "name": "Second signal forces exit",
+      "statement": "For all signal channels S, after `ForceExitOnRepeatedSignal` receives two values on S, it invokes `exitFn(ExitCodeSigInt)` (130). The first signal is allowed to flow through targ's context cancellation.",
+      "enforced_at": [{"path": "internal/cli/signal.go", "line": 19}],
+      "tested_at": [{"path": "internal/cli/signal_test.go", "line": 16}],
+      "notes": "Buffered signal channel size is 10."
+    },
+    {
+      "id": "P19",
+      "name": "SetupSignalHandling returns Targets",
+      "statement": "For all (stdout, stderr, stdin, exitFn) tuples, `SetupSignalHandling` returns `Targets(stdout, stderr, stdin)` after registering SIGINT/SIGTERM and starting the force-exit goroutine.",
+      "enforced_at": [{"path": "internal/cli/signal.go", "line": 37}],
+      "tested_at": [{"path": "internal/cli/signal_test.go", "line": 65}],
+      "notes": "main.go relies on this to obtain the targ target slice."
+    },
+    {
+      "id": "P20",
+      "name": "osDirLister filters to .jsonl files",
+      "statement": "For all directories D, `osDirLister.ListJSONL(D)` returns one `recall.FileEntry` per non-directory entry whose name has suffix `.jsonl`, and only those entries.",
+      "enforced_at": [{"path": "internal/cli/cli.go", "line": 46}],
+      "tested_at": [{"path": "internal/cli/adapters_test.go", "line": 53}, {"path": "internal/cli/adapters_test.go", "line": 75}],
+      "notes": "Stat failures are logged to stderr and silently skipped, not surfaced."
+    },
+    {
+      "id": "P21",
+      "name": "osFileReader is a transparent os.ReadFile shim",
+      "statement": "For all paths P, `osFileReader.Read(P)` returns the same `(bytes, error)` pair as `os.ReadFile(P)` with no transformation.",
+      "enforced_at": [{"path": "internal/cli/cli.go", "line": 84}],
+      "tested_at": [{"path": "internal/cli/adapters_test.go", "line": 84}, {"path": "internal/cli/adapters_test.go", "line": 102}],
+      "notes": " "
+    },
+    {
+      "id": "P22",
+      "name": "osMatchAny ignores Glob errors",
+      "statement": "For all glob slices G and cwd C, `osMatchAny(C)(G)` returns true iff at least one glob in G yields a non-empty `filepath.Glob` match under C; pattern errors are treated as no-match.",
+      "enforced_at": [{"path": "internal/cli/externalsources_adapters.go", "line": 113}],
+      "tested_at": [{"path": "internal/cli/externalsources_adapters_test.go", "line": 56}],
+      "notes": "`**` patterns silently fail to match — known safe-failure mode."
+    },
+    {
+      "id": "P23",
+      "name": "osDirListMd swallows missing dir",
+      "statement": "For all directories D that do not exist or fail to read, `osDirListMd(D)` returns `(nil, nil)` so DiscoverAutoMemory treats it as no files.",
+      "enforced_at": [{"path": "internal/cli/externalsources_adapters.go", "line": 87}],
+      "tested_at": [{"path": "internal/cli/externalsources_adapters_test.go", "line": 42}],
+      "notes": "Auto-memory dir is opt-in; absent dir is the common case."
+    },
+    {
+      "id": "P24",
+      "name": "osWalkMd is recursive and lossy",
+      "statement": "For all roots R, `osWalkMd(R)` returns absolute paths to every file under R with extension `.md`; permission and read errors on subtrees are silently skipped, not propagated.",
+      "enforced_at": [{"path": "internal/cli/externalsources_adapters.go", "line": 143}],
+      "tested_at": [{"path": "internal/cli/externalsources_adapters_test.go", "line": 101}, {"path": "internal/cli/externalsources_adapters_test.go", "line": 118}],
+      "notes": " "
+    },
+    {
+      "id": "P25",
+      "name": "osWalkSkills filters to SKILL.md only",
+      "statement": "For all roots R, `osWalkSkills(R)` returns absolute paths only to files named exactly `SKILL.md` under R.",
+      "enforced_at": [{"path": "internal/cli/externalsources_adapters.go", "line": 162}],
+      "tested_at": [{"path": "internal/cli/externalsources_adapters_test.go", "line": 125}],
+      "notes": " "
+    },
+    {
+      "id": "P26",
+      "name": "Auto-memory settings precedence is local-then-user",
+      "statement": "For all home directories H, `readAutoMemoryDirectorySetting(H)()` returns the first non-empty `autoMemoryDirectory` it finds in `./.claude/settings.local.json` then `H/.claude/settings.json`, otherwise `(\"\", false)`.",
+      "enforced_at": [{"path": "internal/cli/externalsources_adapters.go", "line": 183}],
+      "tested_at": [{"path": "internal/cli/externalsources_adapters_test.go", "line": 139}, {"path": "internal/cli/externalsources_adapters_test.go", "line": 157}],
+      "notes": " "
+    },
+    {
+      "id": "P27",
+      "name": "Worktree detection falls back to empty",
+      "statement": "For all (ctx, cwd, home), `computeMainProjectDir` returns the empty string when cwd is not inside a git worktree distinct from the main checkout, when git is unavailable, or when `git rev-parse --git-common-dir` errors.",
+      "enforced_at": [{"path": "internal/cli/externalsources_adapters.go", "line": 20}],
+      "tested_at": [{"path": "internal/cli/externalsources_adapters_test.go", "line": 14}],
+      "notes": "Reciprocal-memory fallback for worktree-less repos."
+    },
+    {
+      "id": "P28",
+      "name": "haikuCallerAdapter pins Haiku model",
+      "statement": "For all (ctx, systemPrompt, userPrompt) tuples, `haikuCallerAdapter.Call` invokes the wrapped caller with model exactly `anthropic.HaikuModel` (claude-haiku-4-5-20251001).",
+      "enforced_at": [{"path": "internal/cli/cli.go", "line": 36}],
+      "tested_at": [{"path": "internal/cli/adapters_test.go", "line": 15}, {"path": "internal/cli/adapters_test.go", "line": 39}],
+      "notes": "Centralizes the model pin so subcommands cannot accidentally choose a different one."
+    },
+    {
+      "id": "P29",
+      "name": "newSummarizer returns nil on empty token",
+      "statement": "For all empty token strings, `newSummarizer(\"\")` returns nil, signalling the recall pipeline to skip LLM phases.",
+      "enforced_at": [{"path": "internal/cli/cli.go", "line": 137}],
+      "tested_at": [{"path": "internal/cli/learn_test.go", "line": 467}, {"path": "internal/cli/learn_test.go", "line": 475}],
+      "notes": " "
+    },
+    {
+      "id": "P30",
+      "name": "discoverExternalSources never returns nil cache",
+      "statement": "For all (ctx, home), `discoverExternalSources` returns a non-nil `*externalsources.FileCache` so downstream readers can always call `cache.Read` safely.",
+      "enforced_at": [{"path": "internal/cli/externalsources_adapters.go", "line": 52}],
+      "tested_at": [],
+      "notes": "Architectural invariant; no direct unit test — exercised indirectly via runRecallSessions."
+    },
+    {
+      "id": "P31",
+      "name": "All cli I/O lives at this seam",
+      "statement": "For all packages under `internal/` other than `internal/cli`, no production source calls `os.*`, `exec.*`, `runtime.GOOS`, or `http.*` directly — all such calls are wired through DI from cli.",
+      "enforced_at": [{"path": "internal/cli/cli.go", "line": 1}, {"path": "internal/cli/externalsources_adapters.go", "line": 1}],
+      "tested_at": [],
+      "notes": "Architectural invariant from the project's DI-everywhere principle (CLAUDE.md). No mechanical lint enforces it; review-time discipline."
+    }
+  ]
+}

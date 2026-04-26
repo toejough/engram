@@ -1,18 +1,20 @@
 %%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 flowchart LR
-    classDef external fill:#999,stroke:#666,color:#fff
-    classDef component fill:#85bbf0,stroke:#5d9bd1,color:#000
-    classDef focus     fill:#facc15,stroke:#a16207,color:#000
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e21[E21 · cli]
-    e22[E22 · recall]
-    e24[E24 · memory<br/>FOCUS]
-    e6(E6 · Engram memory store)
+    e24["E24 · memory<br/>internal/memory"]
+    e21["E21 · cli<br/>internal/cli"]
+    e22["E22 · recall<br/>internal/recall"]
+    e6("E6 · Engram memory store<br/>feedback/ + facts/ TOML")
 
-    e21 -->|"R4: reads/writes feedback + fact TOML<br/>supported by: P1–P11"| e24
-    e22 -->|"R9: lists memories during ranking<br/>supported by: P5, P6, P7"| e24
-    e24 -->|"R16: reads existing TOML<br/>supported by: P5, P10"| e6
-    e24 -.->|"D7: DI deps via cli<br/>supported by: P5–P9, P11"| e21
+    e21 -->|"R4: reads / writes feedback + fact TOML"| e24
+    e22 -->|"R9: lists memories during recall ranking"| e24
+    e24 -->|"R16: reads existing feedback + fact TOML"| e6
+    e24 -.->|"D7: DI back-edge (readDir, readFile, writer)"| e21
 
     class e6 external
     class e21,e22 component

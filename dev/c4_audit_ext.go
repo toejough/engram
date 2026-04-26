@@ -20,6 +20,13 @@ const (
 var (
 	inlineYAMLArrayRe = regexp.MustCompile(`\[(.*?)\]`)
 	markdownLinkRe    = regexp.MustCompile(`\[([^\]]*)\]\(([^)]+)\)`)
+	propertyLedgerRe  = regexp.MustCompile(`(?m)^##\s+Property Ledger\s*$`)
+)
+
+const (
+	propertyEnforcedCellIndex = 4
+	propertyTestedCellIndex   = 5
+	propertyMinCellCount      = 8
 )
 
 // catalogIDName is one (id, name) pair extracted from the audited markdown's
@@ -117,6 +124,79 @@ func checkCodePointers(matter frontMatter, raw []byte, mdPath string) []Finding 
 		}
 	}
 	return findings
+}
+
+// checkPropertyLinks scans an L4 ledger's Property Ledger table and emits a
+// finding for any markdown link in the Enforced-at or Tested-at columns whose
+// path does not resolve. Links resolved relative to the markdown file's
+// directory; the **⚠ UNTESTED** marker (no link present in Tested-at) is not
+// a finding by design.
+func checkPropertyLinks(matter frontMatter, raw []byte, mdPath string) []Finding {
+	if matter.level != 4 {
+		return nil
+	}
+	text := string(raw)
+	loc := propertyLedgerRe.FindStringIndex(text)
+	if loc == nil {
+		return nil
+	}
+	tail := text[loc[1]:]
+	startLine := 1 + strings.Count(text[:loc[0]], "\n")
+	findings := []Finding{}
+	for offset, line := range strings.Split(tail, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "## ") {
+			break
+		}
+		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
+			continue
+		}
+		findings = append(findings, propertyLinkFindings(line, mdPath, startLine+offset+1)...)
+	}
+	return findings
+}
+
+func propertyLinkFindings(line, mdPath string, lineNum int) []Finding {
+	cells := strings.Split(line, "|")
+	if len(cells) < propertyMinCellCount {
+		return nil
+	}
+	if !strings.Contains(cells[1], "P") || strings.Contains(cells[1], "---") {
+		return nil
+	}
+	dir := filepath.Dir(mdPath)
+	findings := []Finding{}
+	for _, cellIdx := range []int{propertyEnforcedCellIndex, propertyTestedCellIndex} {
+		findings = append(findings, brokenLinksInCell(cells[cellIdx], dir, lineNum)...)
+	}
+	return findings
+}
+
+func brokenLinksInCell(cell, dir string, lineNum int) []Finding {
+	matches := markdownLinkRe.FindAllStringSubmatch(cell, -1)
+	findings := []Finding{}
+	for _, match := range matches {
+		target := stripFragment(match[2])
+		if target == "" {
+			continue
+		}
+		resolved := filepath.Join(dir, target)
+		if _, err := os.Stat(resolved); err == nil {
+			continue
+		}
+		findings = append(findings, Finding{
+			ID:     "property_link_unresolved",
+			Line:   lineNum,
+			Detail: fmt.Sprintf("link target %q does not resolve from %s", match[2], dir),
+		})
+	}
+	return findings
+}
+
+func stripFragment(target string) string {
+	if hashIndex := strings.Index(target, "#"); hashIndex >= 0 {
+		return target[:hashIndex]
+	}
+	return target
 }
 
 // checkRegistryCrossCheck derives the registry from the audited markdown's

@@ -1,0 +1,73 @@
+{
+  "schema_version": "1",
+  "level": 4,
+  "name": "main",
+  "parent": "c3-engram-cli-binary.md",
+  "focus": {
+    "id": "E20",
+    "name": "main.go",
+    "l3_container": "c3-engram-cli-binary.md"
+  },
+  "sources": [
+    "cmd/engram/main.go"
+  ],
+  "context_prose": "main.go is the process entry point for the engram CLI binary. It contains no business logic: it wires real-OS I/O streams (`os.Stdout`, `os.Stderr`, `os.Stdin`) and `os.Exit` into `cli.SetupSignalHandling`, then forwards the resulting target list into `targ.Main`. By project convention it is excluded from coverage — only re-exports and thin wrappers, no testable logic. All command dispatch, signal-handler installation, and DI wiring is delegated to the `cli` package; this file's only architectural job is to be the boundary at which concrete OS handles enter the program.",
+  "legend_items": [
+    "**focus** (yellow): the file in scope for this ledger.",
+    "**component** (light blue): peer Go components inside the binary.",
+    "**external** (grey): code outside this repo (the `targ` framework)."
+  ],
+  "diagram": {
+    "nodes": [
+      {"id": "E20", "name": "main.go", "subtitle": "process entry", "kind": "focus"},
+      {"id": "E21", "name": "cli", "subtitle": "subcommand dispatch", "kind": "component"},
+      {"id": "ETARG", "name": "targ", "subtitle": "external framework", "kind": "external"}
+    ],
+    "edges": [
+      {"id": "R2a", "from": "E20", "to": "E21", "label": "calls SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit)"},
+      {"id": "R2b", "from": "E20", "to": "ETARG", "label": "forwards targets into targ.Main"}
+    ]
+  },
+  "properties": [
+    {
+      "id": "P1",
+      "name": "Single entry point",
+      "statement": "For all process invocations of the engram binary, control enters at `main.main` and exits only when `targ.Main` returns or a forced-exit signal handler calls `os.Exit`.",
+      "enforced_at": [{"path": "cmd/engram/main.go", "line": 12}],
+      "tested_at": [],
+      "notes": "main is excluded from coverage by project convention; entry behavior is exercised by every CLI integration run."
+    },
+    {
+      "id": "P2",
+      "name": "Concrete I/O wired at the edge",
+      "statement": "For all process invocations, the standard I/O handles supplied to the CLI are exactly `os.Stdout`, `os.Stderr`, and `os.Stdin` — no other code path injects real-OS streams into the binary.",
+      "enforced_at": [{"path": "cmd/engram/main.go", "line": 13}],
+      "tested_at": [],
+      "notes": "Honors the project's DI-at-the-edge rule: `internal/` packages never call `os.*` directly; the only `os.Stdout/Stderr/Stdin` reference is here."
+    },
+    {
+      "id": "P3",
+      "name": "Real os.Exit is the terminator",
+      "statement": "For all process invocations, the exit-function passed into the signal-handling setup is `os.Exit` — second-signal force-exit terminates the real process, not a stubbed one.",
+      "enforced_at": [{"path": "cmd/engram/main.go", "line": 13}],
+      "tested_at": [],
+      "notes": "Tests cover `SetupSignalHandling` with a stub `exitFn` (signal_test.go); the binding of the real `os.Exit` here is intentionally untested at the unit layer."
+    },
+    {
+      "id": "P4",
+      "name": "Signal handlers installed before dispatch",
+      "statement": "For all process invocations, `cli.SetupSignalHandling` is invoked before `targ.Main`, so SIGINT/SIGTERM handlers and the force-exit goroutine are active for the entire lifetime of subcommand execution.",
+      "enforced_at": [{"path": "cmd/engram/main.go", "line": 13}],
+      "tested_at": [],
+      "notes": "Ordering is a single-expression invariant: `SetupSignalHandling(...)` evaluates and returns before `targ.Main` receives its arguments."
+    },
+    {
+      "id": "P5",
+      "name": "No business logic in entry point",
+      "statement": "For all changes to `cmd/engram/main.go`, the file contains only the entry-point shell: package declaration, imports, and a `main` function that delegates to `cli` and `targ` — no command logic, parsing, or I/O is performed here.",
+      "enforced_at": [{"path": "cmd/engram/main.go", "line": 12}],
+      "tested_at": [],
+      "notes": "Enforced by convention and the L3 catalog row for E20 (\"No business logic; excluded from coverage per project convention.\"). Drift would show up as new statements inside `main`."
+    }
+  ]
+}

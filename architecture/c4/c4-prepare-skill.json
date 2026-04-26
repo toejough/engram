@@ -1,0 +1,122 @@
+{
+  "schema_version": "1",
+  "level": 4,
+  "name": "prepare-skill",
+  "parent": "c3-skills.md",
+  "focus": {
+    "id": "E10",
+    "name": "prepare skill",
+    "l3_container": "c3-skills.md"
+  },
+  "sources": [
+    "skills/prepare/SKILL.md"
+  ],
+  "context_prose": "E10 prepare skill is a markdown skill body Claude Code loads on /prepare or auto-trigger before new work begins. It contains no executable code: the body is a three-step instruction sequence the agent follows in its own context. Step 1 tells the agent to analyze the current conversation for what work is about to happen. Step 2 tells the agent to issue 2–3 targeted `engram recall --query \"<topic>\"` invocations described by task (not by fear). Step 3 tells the agent to summarize results back to the user. The skill's only outbound dependency is R2 (prepare skill → engram CLI binary, E9): the body's example bash lines instruct the agent to spawn `engram recall` subprocesses. R1 (Claude Code → Skills) is the inbound load edge from E3. The skill has no DI surface and no Go code — its \"contract\" is its prose, and every property below is enforced by the SKILL.md text itself.",
+  "legend_items": [
+    "**Focus** — yellow (E10 prepare skill).",
+    "**Component** — light blue (sibling skills not shown; E9 engram CLI binary as call target).",
+    "**External** — grey (E3 Claude Code, the loader).",
+    "**R-edges** — solid; no DI back-edges (the skill is pure markdown — no Go DI surface)."
+  ],
+  "diagram": {
+    "nodes": [
+      {"id": "E10", "name": "prepare skill", "subtitle": "skill body markdown", "kind": "focus"},
+      {"id": "E3", "name": "Claude Code", "subtitle": "loads skill body", "kind": "external"},
+      {"id": "E9", "name": "engram CLI binary", "subtitle": "recall subcommand target", "kind": "component"}
+    ],
+    "edges": [
+      {"id": "R1", "from": "E3", "to": "E10", "label": "loads skill body on /prepare"},
+      {"id": "R2", "from": "E10", "to": "E9", "label": "instructs agent to call engram recall --query"}
+    ]
+  },
+  "properties": [
+    {
+      "id": "P1",
+      "name": "Skill name matches directory",
+      "statement": "For all loads of this skill by Claude Code, the YAML front-matter `name` field equals `prepare`, matching the parent directory name `skills/prepare/` and the slash-command `/prepare`.",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 2}],
+      "tested_at": [],
+      "notes": "Architectural: Claude Code routes /prepare to the skill whose front-matter name is `prepare`. Mismatch breaks the slash-command binding."
+    },
+    {
+      "id": "P2",
+      "name": "Trigger description names work-start situations",
+      "statement": "For all readers of the front-matter `description`, the text enumerates concrete work-start situations (starting new work, switching tasks, beginning a feature, changing direction, tackling an issue) so Claude Code's auto-trigger heuristic fires before — not after — implementation effort.",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 3}],
+      "tested_at": [],
+      "notes": "Architectural: skill triggering is description-driven; vague triggers fail to fire at the intended boundaries."
+    },
+    {
+      "id": "P3",
+      "name": "Three-step flow shape",
+      "statement": "For all invocations of /prepare, the body presents exactly three flow steps in order: (1) analyze the situation, (2) make targeted recall queries, (3) present briefing to user.",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 14}, {"path": "skills/prepare/SKILL.md", "line": 22}, {"path": "skills/prepare/SKILL.md", "line": 41}],
+      "tested_at": [],
+      "notes": "Order matters: analysis must precede query construction, and queries must precede the briefing."
+    },
+    {
+      "id": "P4",
+      "name": "Bounded query count",
+      "statement": "For all invocations following the skill, Step 2 instructs the agent to issue between 2 and 3 targeted `engram recall` queries — not zero, not a flood.",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 23}],
+      "tested_at": [],
+      "notes": "Bounds prevent both no-context starts and context-budget exhaustion before work begins."
+    },
+    {
+      "id": "P5",
+      "name": "Recall invocation form",
+      "statement": "For all example query lines in Step 2, the bash command shape is `engram recall --query \"<topic>\"` (single subcommand `recall` with the `--query` flag), matching the engram CLI binary's documented recall surface.",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 26}, {"path": "skills/prepare/SKILL.md", "line": 27}],
+      "tested_at": [],
+      "notes": "Drift here would teach the agent to call a non-existent flag or subcommand. Mirrors R2 in c3-skills.md."
+    },
+    {
+      "id": "P6",
+      "name": "Query-by-task discipline",
+      "statement": "For all guidance about query phrasing, the skill instructs the agent to query by the task being undertaken (\"what are you trying to do\") rather than by anticipated failure modes (\"what might go wrong\").",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 30}, {"path": "skills/prepare/SKILL.md", "line": 32}],
+      "tested_at": [],
+      "notes": "Memory situations are stored task-shaped; fear-shaped queries miss because the cosine match space disagrees."
+    },
+    {
+      "id": "P7",
+      "name": "Positive and negative examples present",
+      "statement": "For all readers, the skill provides both positive query examples (e.g., \"implementing Claude Code hooks\", \"writing Go tests in [domain]\", \"git push workflow\") and at least one DON'T example demonstrating the failure mode (\"common mistakes when writing hooks\").",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 35}, {"path": "skills/prepare/SKILL.md", "line": 38}],
+      "tested_at": [],
+      "notes": "Pairing concrete dos with a contrasting don't materially raises adherence vs. abstract guidance alone."
+    },
+    {
+      "id": "P8",
+      "name": "Briefing surfaces context to user",
+      "statement": "For all invocations, Step 3 instructs the agent to summarize the relevant recalled context and memories back to the user before proceeding with the work itself.",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 42}],
+      "tested_at": [],
+      "notes": "Without an explicit user-facing briefing the user has no chance to correct trajectory before implementation begins."
+    },
+    {
+      "id": "P9",
+      "name": "No direct I/O in skill body",
+      "statement": "For all behaviors prescribed by this skill, no step instructs the agent to read or write filesystem state, network endpoints, or memory storage directly — every external effect routes through the engram CLI binary (E9) via R2.",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 25}],
+      "tested_at": [],
+      "notes": "Architectural: matches the project DI principle (skills are behavior, the binary owns I/O). Any future drift here would create a second I/O surface to keep in sync."
+    },
+    {
+      "id": "P10",
+      "name": "Read-only with respect to memory store",
+      "statement": "For all invocations following the skill, the only engram subcommand invoked is `recall`; the skill never instructs the agent to call `engram learn`, `engram update`, or any mutating subcommand.",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 26}, {"path": "skills/prepare/SKILL.md", "line": 27}],
+      "tested_at": [],
+      "notes": "Mutation belongs to remember/learn/migrate skills (E11/E13/E14). Prepare is a read-only context-loading boundary."
+    },
+    {
+      "id": "P11",
+      "name": "Front-matter parses as YAML",
+      "statement": "For all loads of skills/prepare/SKILL.md by Claude Code, the leading `---`-delimited block parses as YAML and exposes both `name` and `description` keys.",
+      "enforced_at": [{"path": "skills/prepare/SKILL.md", "line": 1}, {"path": "skills/prepare/SKILL.md", "line": 8}],
+      "tested_at": [],
+      "notes": "Architectural: Claude Code's skill loader requires valid YAML front-matter. Malformed YAML silently disables the skill."
+    }
+  ]
+}

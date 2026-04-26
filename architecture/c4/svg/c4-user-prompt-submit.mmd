@@ -1,13 +1,16 @@
 %%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 flowchart LR
-    classDef external fill:#999,stroke:#666,color:#fff
-    classDef focus     fill:#facc15,stroke:#a16207,color:#000
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e3(E3 · Claude Code<br/>agent harness)
-    e18[E18 · user-prompt-submit.sh<br/>FOCUS]
+    e3("E3 · Claude Code")
+    e18["E18 · user-prompt-submit.sh"]
 
-    e3 -->|"R5: fires UserPromptSubmit subprocess<br/>supported by: P1, P4, P5"| e18
-    e18 -->|"R7: emits stdout JSON<br/>supported by: P2, P3"| e3
+    e3 -->|"R5: exec on UserPromptSubmit"| e18
+    e18 -->|"R7: additionalContext JSON on stdout"| e3
 
     class e3 external
     class e18 focus

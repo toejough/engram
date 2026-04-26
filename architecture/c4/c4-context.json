@@ -1,0 +1,245 @@
+{
+  "schema_version": "1",
+  "level": 4,
+  "name": "context",
+  "parent": "c3-engram-cli-binary.md",
+  "focus": {
+    "id": "E23",
+    "name": "context",
+    "l3_container": "c3-engram-cli-binary"
+  },
+  "sources": [
+    "../../internal/context/context.go",
+    "../../internal/context/delta.go",
+    "../../internal/context/strip.go",
+    "../../internal/context/stripconfig.go",
+    "../../internal/context/toolsummary.go",
+    "../../internal/context/context_test.go",
+    "../../internal/context/stripconfig_test.go"
+  ],
+  "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E23. The DI back-edge convention (see legend) applies — E23 → E21 represents the category of `FileReader.Read` calls E23 makes through the dependency wired by E21 through E22 (recall). The R-edge label cites the P-list each edge backs.",
+  "legend_items": [
+    "Solid grey: L3 elements carried over.",
+    "Yellow: L4 focus component.",
+    "**Solid arrow (R[n])** = direct call. Standard C4 reading: \"source initiates the interaction with target.\"",
+    "**Dotted arrow (D[n])** = DI back-edge. Project-specific convention representing \"source initiates a category of calls whose concrete targets are determined by the dotted-arrow target (the wirer).\" One D-id per (consumer, wirer) pair regardless of how many concrete deps; the per-dep decomposition lives in the Dependency Manifest below.",
+    "**R8:** the existing L3 element-to-element call from E22 (recall) into E23.",
+    "**D6:** the DI back-edge from E23 to E21 (cli), mirrored from L3."
+  ],
+  "diagram": {
+    "nodes": [
+      {"id": "E22", "name": "recall", "kind": "component"},
+      {"id": "E21", "name": "cli", "kind": "component"},
+      {"id": "E23", "name": "context", "subtitle": "transcript delta + strip", "kind": "focus"}
+    ],
+    "edges": [
+      {"id": "R8", "from": "E22", "to": "E23", "label": "reads + strips transcript (P1–P4, P9–P15)"},
+      {"id": "D6", "from": "E23", "to": "E21", "label": "DI back-edge: FileReader (P1–P4)", "dotted": true}
+    ]
+  },
+  "dependency_manifest": [
+    {
+      "field": "reader",
+      "type": "FileReader",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "concrete_adapter": "`os.ReadFile`-backed adapter (passed through E22 recall)",
+      "properties": ["P1", "P2", "P3", "P4"]
+    }
+  ],
+  "properties": [
+    {
+      "id": "P1",
+      "name": "Delta from offset 0",
+      "statement": "For all transcript paths P with file content C of length N, calling `DeltaReader.Read(P, 0)` returns every non-empty line of C as the delta and N as the new offset.",
+      "enforced_at": [{"path": "internal/context/delta.go", "line": 20}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 151}],
+      "notes": "Splits on `\\n`; empty trailing line dropped."
+    },
+    {
+      "id": "P2",
+      "name": "Mid-file offset delta",
+      "statement": "For all transcript paths P with content C and any offset O where 0 ≤ O ≤ len(C), `DeltaReader.Read(P, O)` returns only the lines in C[O:] and len(C) as the new offset.",
+      "enforced_at": [{"path": "internal/context/delta.go", "line": 37}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 180}],
+      "notes": "Stable byte-offset semantics enable incremental reading."
+    },
+    {
+      "id": "P3",
+      "name": "Rotation reset",
+      "statement": "For all transcript paths P with content of length N and any offset O > N, `DeltaReader.Read(P, O)` resets to offset 0 and returns the full file as the delta.",
+      "enforced_at": [{"path": "internal/context/delta.go", "line": 33}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 218}],
+      "notes": "Handles log rotation / truncation gracefully."
+    },
+    {
+      "id": "P4",
+      "name": "Empty file delta",
+      "statement": "For all transcript paths P pointing to a zero-length file and any offset O, `DeltaReader.Read(P, O)` returns a nil/empty delta and offset 0.",
+      "enforced_at": [{"path": "internal/context/delta.go", "line": 28}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 244}],
+      "notes": "Resets offset because there is nothing to read past."
+    },
+    {
+      "id": "P5",
+      "name": "FileReader error propagated",
+      "statement": "For all errors E returned by the injected `FileReader.Read`, `DeltaReader.Read` returns (nil, 0, E') where E' wraps or matches E.",
+      "enforced_at": [{"path": "internal/context/delta.go", "line": 22}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 16}],
+      "notes": "I/O errors surface to caller; not silently swallowed."
+    },
+    {
+      "id": "P6",
+      "name": "Strip total",
+      "statement": "For all input lines L (any string content, malformed JSON, binary garbage included), `Strip(L)` returns successfully without panic and without error.",
+      "enforced_at": [{"path": "internal/context/strip.go", "line": 16}],
+      "tested_at": [],
+      "notes": "Function has no error return; lack of panic asserted only indirectly by other tests. No targeted fuzz/property test for malformed bytes."
+    },
+    {
+      "id": "P7",
+      "name": "Filter to user/assistant",
+      "statement": "For all input lines L, `Strip(L)` emits output only for lines whose JSONL `type` or message `role` equals `\"user\"` or `\"assistant\"`; all other entry types (progress, system, file-history-snapshot, etc.) are dropped.",
+      "enforced_at": [{"path": "internal/context/strip.go", "line": 154}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 91}],
+      "notes": "Role-only legacy format also accepted (P8)."
+    },
+    {
+      "id": "P8",
+      "name": "Legacy role fallback",
+      "statement": "For all input lines L lacking an outer `type` field but carrying `message.role` equal to `\"user\"` or `\"assistant\"`, `Strip(L)` still emits the corresponding `USER:` / `ASSISTANT:` line.",
+      "enforced_at": [{"path": "internal/context/strip.go", "line": 182}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 130}],
+      "notes": "Backwards compatibility with older transcript schemas."
+    },
+    {
+      "id": "P9",
+      "name": "Drops tool blocks (Strip)",
+      "statement": "For all input lines L, `Strip(L)` discards every `tool_use` and `tool_result` content block; only `text` blocks contribute to the output.",
+      "enforced_at": [{"path": "internal/context/strip.go", "line": 107}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 59}, {"path": "internal/context/context_test.go", "line": 359}],
+      "notes": "Mixed assistant messages (text + tool_use) keep only the text."
+    },
+    {
+      "id": "P10",
+      "name": "Drops system-reminders",
+      "statement": "For all text content T whose trimmed prefix is `<system-reminder`, T is excluded from `Strip` output regardless of whether it appears as a string content or inside a content block.",
+      "enforced_at": [{"path": "internal/context/strip.go", "line": 166}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 29}, {"path": "internal/context/stripconfig_test.go", "line": 14}],
+      "notes": "Mixed blocks: only the system-reminder text is dropped; other text blocks survive."
+    },
+    {
+      "id": "P11",
+      "name": "Base64 redaction",
+      "statement": "For all input lines L containing a contiguous `[A-Za-z0-9+/=]` run of length ≥ 100, `Strip(L)` replaces every such run with the literal `[base64 removed]` before extraction.",
+      "enforced_at": [{"path": "internal/context/strip.go", "line": 193}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 286}],
+      "notes": "Acts on the raw line, so it also redacts base64 inside otherwise-stripped tool blocks."
+    },
+    {
+      "id": "P12",
+      "name": "Per-line truncation",
+      "statement": "For all extracted lines E produced by `Strip`, `len(E) ≤ 2000 + len(\"[truncated]\")`; any longer extraction is cut to the first 2000 bytes and suffixed with `[truncated]`.",
+      "enforced_at": [{"path": "internal/context/strip.go", "line": 198}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 309}],
+      "notes": "Constant `maxContentBlockLen = 2000`."
+    },
+    {
+      "id": "P13",
+      "name": "Role prefix correctness",
+      "statement": "For all surviving messages M with normalized role R, `Strip` emits exactly one line beginning with `\"USER: \"` if R = user, or `\"ASSISTANT: \"` if R = assistant.",
+      "enforced_at": [{"path": "internal/context/strip.go", "line": 139}],
+      "tested_at": [{"path": "internal/context/context_test.go", "line": 114}, {"path": "internal/context/context_test.go", "line": 329}, {"path": "internal/context/context_test.go", "line": 344}],
+      "notes": "Plain-string content and array-of-blocks content both accepted."
+    },
+    {
+      "id": "P14",
+      "name": "Default config equals Strip",
+      "statement": "For all input lines L, `StripWithConfig(L, StripConfig{})` returns a result equal to `Strip(L)`.",
+      "enforced_at": [{"path": "internal/context/stripconfig.go", "line": 49}],
+      "tested_at": [{"path": "internal/context/stripconfig_test.go", "line": 96}, {"path": "internal/context/stripconfig_test.go", "line": 133}],
+      "notes": "Zero-value `StripConfig` is the recall-pipeline default."
+    },
+    {
+      "id": "P15",
+      "name": "KeepToolCalls preserves tools",
+      "statement": "For all input lines L containing `tool_use` and `tool_result` blocks, `StripWithConfig(L, StripConfig{KeepToolCalls: true})` emits a `TOOL_USE [Name]: <args>` line for each tool_use and a `TOOL_RESULT [ok|error]: <content>` line for each tool_result, in source order.",
+      "enforced_at": [{"path": "internal/context/stripconfig.go", "line": 62}],
+      "tested_at": [{"path": "internal/context/stripconfig_test.go", "line": 101}, {"path": "internal/context/stripconfig_test.go", "line": 55}],
+      "notes": "`is_error` true → `[error]`; false → `[ok]`."
+    },
+    {
+      "id": "P16",
+      "name": "ToolArgs/ResultTruncate honored",
+      "statement": "For all positive integer caps `A = ToolArgsTruncate` and `R = ToolResultTruncate`, args longer than A bytes and result content longer than R bytes are truncated to that length and suffixed with `[truncated]`; zero means no truncation.",
+      "enforced_at": [{"path": "internal/context/stripconfig.go", "line": 212}, {"path": "internal/context/stripconfig.go", "line": 230}],
+      "tested_at": [{"path": "internal/context/stripconfig_test.go", "line": 163}, {"path": "internal/context/stripconfig_test.go", "line": 196}],
+      "notes": "Only effective when `KeepToolCalls` is true and `ToolSummaryMode` is false."
+    },
+    {
+      "id": "P17",
+      "name": "ToolSummaryMode precedence",
+      "statement": "For all `StripConfig` C where `C.ToolSummaryMode` is true, `StripWithConfig` produces tool-summary output regardless of `C.KeepToolCalls`, `C.ToolArgsTruncate`, or `C.ToolResultTruncate`.",
+      "enforced_at": [{"path": "internal/context/stripconfig.go", "line": 45}],
+      "tested_at": [{"path": "internal/context/stripconfig_test.go", "line": 248}],
+      "notes": "Documented in the StripConfig comment."
+    },
+    {
+      "id": "P18",
+      "name": "Tool summary pairing",
+      "statement": "For all tool_use blocks U with id I followed (any distance) by a tool_result block with `tool_use_id` = I, ToolSummaryMode emits exactly one `[tool] <Name>(<args>) → exit <0|1> | <first non-empty line>` line; orphaned tool_use (no matching result) emits nothing.",
+      "enforced_at": [{"path": "internal/context/toolsummary.go", "line": 143}],
+      "tested_at": [{"path": "internal/context/stripconfig_test.go", "line": 248}, {"path": "internal/context/stripconfig_test.go", "line": 392}, {"path": "internal/context/stripconfig_test.go", "line": 364}],
+      "notes": "exit 0 when `is_error == false`, exit 1 when true."
+    },
+    {
+      "id": "P19",
+      "name": "Tool summary 120-char caps",
+      "statement": "For all tool summaries produced by ToolSummaryMode, the args portion inside the parentheses and the post-`|` first-line portion are each ≤ 120 + len(\"[truncated]\") bytes.",
+      "enforced_at": [{"path": "internal/context/toolsummary.go", "line": 119}, {"path": "internal/context/toolsummary.go", "line": 130}],
+      "tested_at": [{"path": "internal/context/stripconfig_test.go", "line": 222}, {"path": "internal/context/stripconfig_test.go", "line": 414}],
+      "notes": "Constants `toolSummaryArgsCap = 120`, `toolSummaryOutputCap = 120`."
+    },
+    {
+      "id": "P20",
+      "name": "Tool summary args determinism",
+      "statement": "For all `tool_use.input` JSON objects, `formatToolSummaryArgs` emits `key=value` pairs in lexicographic order of keys.",
+      "enforced_at": [{"path": "internal/context/toolsummary.go", "line": 101}],
+      "tested_at": [],
+      "notes": "Sorted via `sort.Strings`. Determinism is asserted indirectly by `ContainSubstring`-style tests but no test pins the ordering across multiple keys."
+    },
+    {
+      "id": "P21",
+      "name": "Tool summary first-line only",
+      "statement": "For all tool_result content blocks C, the post-`|` portion of the emitted summary is the first non-blank line of C (after `strings.TrimSpace`); subsequent lines never appear.",
+      "enforced_at": [{"path": "internal/context/toolsummary.go", "line": 73}],
+      "tested_at": [{"path": "internal/context/stripconfig_test.go", "line": 342}],
+      "notes": "Empty content omits the `| …` suffix entirely."
+    },
+    {
+      "id": "P22",
+      "name": "Unknown block types ignored",
+      "statement": "For all content blocks B whose `type` is not `text`, `tool_use`, or `tool_result` (e.g. `image`), B contributes nothing to `StripWithConfig` output in any mode.",
+      "enforced_at": [{"path": "internal/context/stripconfig.go", "line": 103}, {"path": "internal/context/toolsummary.go", "line": 184}],
+      "tested_at": [{"path": "internal/context/stripconfig_test.go", "line": 38}],
+      "notes": "Forward compatibility with new block types."
+    },
+    {
+      "id": "P23",
+      "name": "Malformed JSON dropped",
+      "statement": "For all input lines L that fail `json.Unmarshal` into `jsonlLine` (or have an empty/unrecognized role), `Strip` and `StripWithConfig` emit no output for L.",
+      "enforced_at": [{"path": "internal/context/strip.go", "line": 129}, {"path": "internal/context/stripconfig.go", "line": 147}],
+      "tested_at": [{"path": "internal/context/stripconfig_test.go", "line": 273}],
+      "notes": "Total-function behavior — malformed lines are silently discarded, not errored."
+    },
+    {
+      "id": "P24",
+      "name": "No direct I/O (DI-only)",
+      "statement": "For all package code in `internal/context`, no symbol references `os.*`, `io/ioutil`, `http.*`, `net.*`, or any other I/O primitive directly; the only file access is through the injected `FileReader` interface.",
+      "enforced_at": [{"path": "internal/context/context.go", "line": 7}],
+      "tested_at": [],
+      "notes": "Architectural invariant from project DI rule (CLAUDE.md \"DI everywhere\"). No automated guard; would need an import-scanner test or `forbidigo` lint rule."
+    }
+  ]
+}

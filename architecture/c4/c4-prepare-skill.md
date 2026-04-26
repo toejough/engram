@@ -3,19 +3,18 @@ level: 4
 name: prepare-skill
 parent: "c3-skills.md"
 children: []
-last_reviewed_commit: 6002fa69
+last_reviewed_commit: cd55eab2
 ---
 
 # C4 — prepare-skill (Property/Invariant Ledger)
 
-> Component in focus: **E10 · prepare skill** (refines L3 c3-skills).
+> Component in focus: **E10 · prepare skill** (refines L3 c3-skills.md).
 > Source files in scope:
-> - [../../skills/prepare/SKILL.md](../../skills/prepare/SKILL.md)
+> - [skills/prepare/SKILL.md](skills/prepare/SKILL.md)
 
 ## Context (from L3)
 
-Scoped slice of [c3-skills.md](c3-skills.md): the L3 edges that touch E10. R-edges cite the
-P-list each edge backs.
+E10 prepare skill is a markdown skill body Claude Code loads on /prepare or auto-trigger before new work begins. It contains no executable code: the body is a three-step instruction sequence the agent follows in its own context. Step 1 tells the agent to analyze the current conversation for what work is about to happen. Step 2 tells the agent to issue 2–3 targeted `engram recall --query "<topic>"` invocations described by task (not by fear). Step 3 tells the agent to summarize results back to the user. The skill's only outbound dependency is R2 (prepare skill → engram CLI binary, E9): the body's example bash lines instruct the agent to spawn `engram recall` subprocesses. R1 (Claude Code → Skills) is the inbound load edge from E3. The skill has no DI surface and no Go code — its "contract" is its prose, and every property below is enforced by the SKILL.md text itself.
 
 ![C4 prepare-skill context diagram](svg/c4-prepare-skill.svg)
 
@@ -24,19 +23,38 @@ P-list each edge backs.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
 > separate bidirectional R/D edges between the same node pair.
 
+**Legend:**
+- **Focus** — yellow (E10 prepare skill).
+- **Component** — light blue (sibling skills not shown; E9 engram CLI binary as call target).
+- **External** — grey (E3 Claude Code, the loader).
+- **R-edges** — solid; no DI back-edges (the skill is pure markdown — no Go DI surface).
+
 ## Property Ledger
 
 | ID | Property | Statement | Enforced at | Tested at | Notes |
 |---|---|---|---|---|---|
-| <a id="p1-three-step-flow"></a>P1 | Three-step flow | For all invocations of the prepare skill, the body instructs the agent to execute exactly three numbered steps: analyze the situation, make targeted recall queries, present a briefing. | [skills/prepare/SKILL.md:13](../../skills/prepare/SKILL.md#L13) | **⚠ UNTESTED** | No behavioral test under `skills/prepare/`. |
-| <a id="p2-query-budget"></a>P2 | Bounded query count | For all situations the agent analyzes, the skill instructs the agent to issue 2–3 targeted `engram recall` queries — not zero, not many. | [skills/prepare/SKILL.md:23](../../skills/prepare/SKILL.md#L23) | **⚠ UNTESTED** | Cap is content-level guidance only; no enforcement mechanism. |
-| <a id="p3-task-shaped-queries"></a>P3 | Task-shaped queries | For all queries the agent constructs, the skill instructs them to be phrased by task (activity + domain), not by anticipated failure mode ("query by task, not by fear"). | [skills/prepare/SKILL.md:36](../../skills/prepare/SKILL.md#L36) | **⚠ UNTESTED** | Aligns query phrasing with how `learn`/`remember` write situations. |
-| <a id="p4-calls-engram-recall"></a>P4 | Calls `engram recall` | For all queries issued by the agent, the skill instructs invocation of `engram recall --query "<topic>"` (no other subcommand). | [skills/prepare/SKILL.md:27](../../skills/prepare/SKILL.md#L27) | **⚠ UNTESTED** | Backs L3 R2. |
-| <a id="p5-presents-briefing"></a>P5 | Presents briefing to user | For all completed runs of the skill, the skill instructs the agent to summarize the recalled context for the user before proceeding to work. | [skills/prepare/SKILL.md:41](../../skills/prepare/SKILL.md#L41) | **⚠ UNTESTED** | Closes the loop — recall results are not silently consumed. |
+| <a id="p1-skill-name-matches-directory"></a>P1 | Skill name matches directory | For all loads of this skill by Claude Code, the YAML front-matter `name` field equals `prepare`, matching the parent directory name `skills/prepare/` and the slash-command `/prepare`. | [skills/prepare/SKILL.md:2](../../skills/prepare/SKILL.md#L2) | **⚠ UNTESTED** | Architectural: Claude Code routes /prepare to the skill whose front-matter name is `prepare`. Mismatch breaks the slash-command binding. |
+| <a id="p2-trigger-description-names-work-start-situations"></a>P2 | Trigger description names work-start situations | For all readers of the front-matter `description`, the text enumerates concrete work-start situations (starting new work, switching tasks, beginning a feature, changing direction, tackling an issue) so Claude Code's auto-trigger heuristic fires before — not after — implementation effort. | [skills/prepare/SKILL.md:3](../../skills/prepare/SKILL.md#L3) | **⚠ UNTESTED** | Architectural: skill triggering is description-driven; vague triggers fail to fire at the intended boundaries. |
+| <a id="p3-three-step-flow-shape"></a>P3 | Three-step flow shape | For all invocations of /prepare, the body presents exactly three flow steps in order: (1) analyze the situation, (2) make targeted recall queries, (3) present briefing to user. | [skills/prepare/SKILL.md:14](../../skills/prepare/SKILL.md#L14), [:22](../../skills/prepare/SKILL.md#L22), [:41](../../skills/prepare/SKILL.md#L41) | **⚠ UNTESTED** | Order matters: analysis must precede query construction, and queries must precede the briefing. |
+| <a id="p4-bounded-query-count"></a>P4 | Bounded query count | For all invocations following the skill, Step 2 instructs the agent to issue between 2 and 3 targeted `engram recall` queries — not zero, not a flood. | [skills/prepare/SKILL.md:23](../../skills/prepare/SKILL.md#L23) | **⚠ UNTESTED** | Bounds prevent both no-context starts and context-budget exhaustion before work begins. |
+| <a id="p5-recall-invocation-form"></a>P5 | Recall invocation form | For all example query lines in Step 2, the bash command shape is `engram recall --query "<topic>"` (single subcommand `recall` with the `--query` flag), matching the engram CLI binary's documented recall surface. | [skills/prepare/SKILL.md:26](../../skills/prepare/SKILL.md#L26), [:27](../../skills/prepare/SKILL.md#L27) | **⚠ UNTESTED** | Drift here would teach the agent to call a non-existent flag or subcommand. Mirrors R2 in c3-skills.md. |
+| <a id="p6-query-by-task-discipline"></a>P6 | Query-by-task discipline | For all guidance about query phrasing, the skill instructs the agent to query by the task being undertaken ("what are you trying to do") rather than by anticipated failure modes ("what might go wrong"). | [skills/prepare/SKILL.md:30](../../skills/prepare/SKILL.md#L30), [:32](../../skills/prepare/SKILL.md#L32) | **⚠ UNTESTED** | Memory situations are stored task-shaped; fear-shaped queries miss because the cosine match space disagrees. |
+| <a id="p7-positive-and-negative-examples-present"></a>P7 | Positive and negative examples present | For all readers, the skill provides both positive query examples (e.g., "implementing Claude Code hooks", "writing Go tests in [domain]", "git push workflow") and at least one DON'T example demonstrating the failure mode ("common mistakes when writing hooks"). | [skills/prepare/SKILL.md:35](../../skills/prepare/SKILL.md#L35), [:38](../../skills/prepare/SKILL.md#L38) | **⚠ UNTESTED** | Pairing concrete dos with a contrasting don't materially raises adherence vs. abstract guidance alone. |
+| <a id="p8-briefing-surfaces-context-to-user"></a>P8 | Briefing surfaces context to user | For all invocations, Step 3 instructs the agent to summarize the relevant recalled context and memories back to the user before proceeding with the work itself. | [skills/prepare/SKILL.md:42](../../skills/prepare/SKILL.md#L42) | **⚠ UNTESTED** | Without an explicit user-facing briefing the user has no chance to correct trajectory before implementation begins. |
+| <a id="p9-no-direct-i-o-in-skill-body"></a>P9 | No direct I/O in skill body | For all behaviors prescribed by this skill, no step instructs the agent to read or write filesystem state, network endpoints, or memory storage directly — every external effect routes through the engram CLI binary (E9) via R2. | [skills/prepare/SKILL.md:25](../../skills/prepare/SKILL.md#L25) | **⚠ UNTESTED** | Architectural: matches the project DI principle (skills are behavior, the binary owns I/O). Any future drift here would create a second I/O surface to keep in sync. |
+| <a id="p10-read-only-with-respect-to-memory-store"></a>P10 | Read-only with respect to memory store | For all invocations following the skill, the only engram subcommand invoked is `recall`; the skill never instructs the agent to call `engram learn`, `engram update`, or any mutating subcommand. | [skills/prepare/SKILL.md:26](../../skills/prepare/SKILL.md#L26), [:27](../../skills/prepare/SKILL.md#L27) | **⚠ UNTESTED** | Mutation belongs to remember/learn/migrate skills (E11/E13/E14). Prepare is a read-only context-loading boundary. |
+| <a id="p11-front-matter-parses-as-yaml"></a>P11 | Front-matter parses as YAML | For all loads of skills/prepare/SKILL.md by Claude Code, the leading `---`-delimited block parses as YAML and exposes both `name` and `description` keys. | [skills/prepare/SKILL.md:1](../../skills/prepare/SKILL.md#L1), [:8](../../skills/prepare/SKILL.md#L8) | **⚠ UNTESTED** | Architectural: Claude Code's skill loader requires valid YAML front-matter. Malformed YAML silently disables the skill. |
 
 ## Cross-links
 
 - Parent: [c3-skills.md](c3-skills.md) (refines **E10 · prepare skill**)
+- Siblings:
+  - [c4-c4-skill.md](c4-c4-skill.md)
+  - [c4-learn-skill.md](c4-learn-skill.md)
+  - [c4-migrate-skill.md](c4-migrate-skill.md)
+  - [c4-recall-skill.md](c4-recall-skill.md)
+  - [c4-remember-skill.md](c4-remember-skill.md)
 
 See `skills/c4/references/property-ledger-format.md` for the full row format and untested-property
 discipline.
+

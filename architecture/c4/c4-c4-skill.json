@@ -1,0 +1,230 @@
+{
+  "schema_version": "1",
+  "level": 4,
+  "name": "c4-skill",
+  "parent": "c3-skills.md",
+  "focus": {
+    "id": "E15",
+    "name": "c4 skill",
+    "l3_container": "c3-skills.md"
+  },
+  "sources": [
+    "skills/c4/SKILL.md",
+    "skills/c4/references/c4-principles.md",
+    "skills/c4/references/mermaid-conventions.md",
+    "skills/c4/references/property-ledger-format.md",
+    "skills/c4/tests/baseline-output-with-skill.md",
+    "skills/c4/tests/pressure-conflict.md",
+    "skills/c4/tests/pressure-propagation.md",
+    "skills/c4/tests/pressure-untested-property.md"
+  ],
+  "context_prose": "E15 c4 skill is the markdown skill body Claude Code loads when the user invokes `/c4 <sub-action>`. Unlike its sibling skills, it does NOT shell out to the engram CLI binary — its body instructs the agent to use `targ c4-*` build/audit/registry/render targets and to edit files under `architecture/c4/` directly. The properties below are behavioral guarantees the skill text imposes on the agent: dispatch rules, conflict-resolution discipline, propagation discipline, ID/format invariants, and untested-property handling. Tested rows point at the pressure-test markdown captures under `skills/c4/tests/`; rules with no pressure-test capture are marked **⚠ UNTESTED**.",
+  "legend_items": [
+    "**Focus** — yellow (E15 c4 skill).",
+    "**External** — grey (Claude Code, the harness that loads the skill body).",
+    "**R-edges** — solid; load relationships from the parent c3."
+  ],
+  "diagram": {
+    "nodes": [
+      {"id": "E15", "name": "c4 skill", "subtitle": "C4 diagram authoring skill", "kind": "focus"},
+      {"id": "E3", "name": "Claude Code", "subtitle": "agent harness", "kind": "external"}
+    ],
+    "edges": [
+      {"id": "R1", "from": "E3", "to": "E15", "label": "loads skill body on /command or auto-trigger"}
+    ]
+  },
+  "properties": [
+    {
+      "id": "P1",
+      "name": "Sub-action dispatch",
+      "statement": "For all invocations of `/c4 <sub-action> [args]`, the skill instructs the agent to dispatch on intent to exactly one of {create, update, review, audit} and follow the workflow for that sub-action.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 14}],
+      "tested_at": [],
+      "notes": "Dispatch table is content-level guidance; no test exercises every sub-action."
+    },
+    {
+      "id": "P2",
+      "name": "Ask-don't-guess on conflict",
+      "statement": "For all draft sessions where code reality and intent (docs / commit bodies / session memory) disagree, the skill instructs the agent to STOP drafting, present BOTH views, and ask the user which is correct — never silently pick one.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 25}],
+      "tested_at": [{"path": "skills/c4/tests/pressure-conflict.md", "line": 0}],
+      "notes": "Pressure test 1: subagent surfaced 4 distinct conflicts and held the draft pending answers."
+    },
+    {
+      "id": "P3",
+      "name": "Distinct conflicts asked separately",
+      "statement": "For all sets of N independent code/intent conflicts found while drafting, the skill instructs the agent to surface each conflict as a separate question — not to batch them into a single combined ask.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 25}],
+      "tested_at": [{"path": "skills/c4/tests/pressure-conflict.md", "line": 0}],
+      "notes": "Implicit in rule 1; pressure test 1 verifies subagent surfaced 4 distinct, separable conflicts."
+    },
+    {
+      "id": "P4",
+      "name": "Never invent test pointers",
+      "statement": "For all L4 properties whose test does not exist, the skill instructs the agent to mark the row **⚠ UNTESTED** verbatim — never fabricate a test link and never omit the property to make the ledger cleaner.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 28}],
+      "tested_at": [{"path": "skills/c4/tests/pressure-untested-property.md", "line": 0}],
+      "notes": "Pressure test 3: subagent marked 1 of 6 properties UNTESTED rather than fabricating a pointer."
+    },
+    {
+      "id": "P5",
+      "name": "Per-file approval for non-target edits",
+      "statement": "For all proposed edits to files other than the explicit target of the current sub-action, the skill instructs the agent to present each as a separate proposal with `[a]pply` / `[s]kip` / `[d]efer` — never silently edit a non-target file.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 30}],
+      "tested_at": [{"path": "skills/c4/tests/pressure-propagation.md", "line": 0}],
+      "notes": "Pressure test 2: subagent presented L1-parent and L3-child edits as separate apply/skip/defer proposals, not silent edits."
+    },
+    {
+      "id": "P6",
+      "name": "Mermaid classDef convention",
+      "statement": "For all L1–L3 diagrams the skill produces, the mermaid block opens with the project's classDef block (`person`, `external`, `container`, `component`) and every node is assigned its class via `:::` syntax or trailing `class` directives.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 31}],
+      "tested_at": [{"path": "skills/c4/tests/baseline-output-with-skill.md", "line": 0}],
+      "notes": "Baseline GREEN test verifies the classDef block is present in the produced L1 draft."
+    },
+    {
+      "id": "P7",
+      "name": "Cross-link in body, no index",
+      "statement": "For all C4 files the skill produces or updates, parent and children are named directly in the file body (relative paths) — there is no separate index file mediating cross-links.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 33}],
+      "tested_at": [{"path": "skills/c4/tests/baseline-output-with-skill.md", "line": 0}],
+      "notes": "Baseline GREEN test verifies explicit Cross-links section naming the expected L2 file."
+    },
+    {
+      "id": "P8",
+      "name": "Every element and edge carries an ID",
+      "statement": "For all L1–L3 diagrams, every catalog row is tagged `E<n>`, every relationships row `R<n>`, and the same IDs appear inside the mermaid node and edge labels; mismatches between diagram IDs and catalog/relationship IDs are reported as drift findings by `review` and `audit`.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 35}],
+      "tested_at": [],
+      "notes": "L4 ledgers use `P<n>` for properties (separate namespace)."
+    },
+    {
+      "id": "P9",
+      "name": "DI back-edges use D-namespace and dotted style",
+      "statement": "For all DI dependencies wired by another component into the focus, the skill instructs the agent to draw a dotted edge `consumer → wirer` labelled `D<n>` on both the parent L3 diagram and the L4 context strip; D-ids are independent of R-ids and one D-id per (consumer, wirer) pair.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 44}],
+      "tested_at": [],
+      "notes": "Per-dep decomposition lives in the consumer's L4 Dependency Manifest; reciprocal entries in the wirer's L4 DI Wires."
+    },
+    {
+      "id": "P10",
+      "name": "All diagrams pre-rendered to SVG",
+      "statement": "For all C4 diagrams produced or updated by the skill, the markdown embeds an SVG via `![alt](svg/...)` rather than an inline ` ```mermaid ` block; both `.mmd` source and `.svg` output live under `architecture/c4/svg/` and are committed.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 50}],
+      "tested_at": [],
+      "notes": "GitHub's mermaid renderer lacks the ELK layout engine the project relies on for clean bidirectional R/D edges."
+    },
+    {
+      "id": "P11",
+      "name": "L1/L3 use JSON-spec → build → audit",
+      "statement": "For all `create` / `update` actions at L1 and L3, the skill instructs the agent to author or edit `architecture/c4/c<n>-<name>.json`, run `targ c4-l<n>-build --input ... --noconfirm`, and verify zero findings via `targ c4-audit --file ...` — never hand-write the markdown.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 81}, {"path": "skills/c4/SKILL.md", "line": 106}],
+      "tested_at": [],
+      "notes": "Mechanical work is offloaded to targ targets so only judgment remains in the LLM."
+    },
+    {
+      "id": "P12",
+      "name": "Approval before write",
+      "statement": "For all `create` invocations, the skill instructs the agent to show the full draft to the user and get explicit approval before writing the file at `architecture/c4/c<level>-<name>.md`.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 75}],
+      "tested_at": [{"path": "skills/c4/tests/pressure-conflict.md", "line": 0}],
+      "notes": "Pressure test 1: subagent held the draft pending user answers, did not write the file."
+    },
+    {
+      "id": "P13",
+      "name": "Refines parent element",
+      "statement": "For all `create <level> <name>` with `level > 1`, the skill instructs the agent to first read the parent-level file and ensure the new diagram refines an existing element of its parent.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 60}],
+      "tested_at": [],
+      "notes": "L1 has no parent — explicitly skipped in the L1 sub-workflow."
+    },
+    {
+      "id": "P14",
+      "name": "Propagation sweep is required",
+      "statement": "For all `create` or `update` actions, the skill instructs the agent to perform the four-step Propagation Discipline sweep: update the parent's `cross_links.refined_by`, rebuild siblings, walk children, and run `targ c4-audit` + `targ c4-registry` — skipping creates registry findings on the next audit.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 175}],
+      "tested_at": [{"path": "skills/c4/tests/pressure-propagation.md", "line": 0}],
+      "notes": "Pressure test 2: subagent proposed all three required diffs (target L2, parent L1, child L3)."
+    },
+    {
+      "id": "P15",
+      "name": "Idempotent rebuilds are propagation, not edits",
+      "statement": "For all sibling and child rebuilds whose only diff is in auto-generated sections (mermaid, catalog, cross-links emitted by `c4-l*-build`), the skill classifies the rebuild as propagation that does NOT require per-file approval; JSON edits to non-target files DO require it.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 207}],
+      "tested_at": [],
+      "notes": "Reconciles propagation against the non-target-edit rule (P5)."
+    },
+    {
+      "id": "P16",
+      "name": "Drift Notes persist deferred work",
+      "statement": "For all propagation proposals the user defers and all code/intent gaps the user chooses not to resolve, the skill instructs the agent to append a dated entry to a `## Drift Notes` section at the bottom of the target file — drift notes never silently disappear.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 228}],
+      "tested_at": [{"path": "skills/c4/tests/pressure-untested-property.md", "line": 0}],
+      "notes": "Pressure test 3: subagent recorded a drift note flagging the UNTESTED coverage gap."
+    },
+    {
+      "id": "P17",
+      "name": "Review and audit are read-only",
+      "statement": "For all `review <name>` and `audit` invocations, the skill instructs the agent to produce a drift / mismatch report and make NO edits to any file.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 165}, {"path": "skills/c4/SKILL.md", "line": 171}],
+      "tested_at": [],
+      "notes": "Read-only contract distinguishes review/audit from create/update."
+    },
+    {
+      "id": "P18",
+      "name": "L4 row format",
+      "statement": "For all rows of an L4 ledger the skill produces, each row carries the columns Property, Statement, Enforced at (`file:line` link), Tested at (`test_file:line` link or **⚠ UNTESTED**), and Notes — and the Statement begins with a universal quantifier (\"For all …\").",
+      "enforced_at": [{"path": "skills/c4/references/property-ledger-format.md", "line": 14}, {"path": "skills/c4/references/property-ledger-format.md", "line": 26}],
+      "tested_at": [{"path": "skills/c4/tests/pressure-untested-property.md", "line": 0}],
+      "notes": "Pressure test 3 verifies universally-quantified statements (\"For all input lines L, …\")."
+    },
+    {
+      "id": "P19",
+      "name": "One property per row",
+      "statement": "For all L4 ledger rows, each row carries exactly one property — the skill forbids smuggling two properties into one Statement via `and`.",
+      "enforced_at": [{"path": "skills/c4/references/property-ledger-format.md", "line": 31}],
+      "tested_at": [],
+      "notes": "Anti-pattern guard from property-ledger-format.md."
+    },
+    {
+      "id": "P20",
+      "name": "Statement is guarantee, not implementation",
+      "statement": "For all L4 properties, the Statement column states the contract for ALL inputs (the durable guarantee), not the mechanism — implementation details belong in Notes.",
+      "enforced_at": [{"path": "skills/c4/references/property-ledger-format.md", "line": 28}],
+      "tested_at": [],
+      "notes": "Anti-pattern table maps vague claims to concrete guarantees."
+    },
+    {
+      "id": "P21",
+      "name": "DI-via-mocks counts as tested",
+      "statement": "For all L4 properties asserted by a unit test that injects mocks for the focus component's deps, the skill classifies the property as TESTED — never downgrades to UNTESTED merely because no integration test exists; integration coverage, if desired, is captured as a separate property.",
+      "enforced_at": [{"path": "skills/c4/references/property-ledger-format.md", "line": 99}],
+      "tested_at": [],
+      "notes": "Aligned with the project DI principle: test at the seam the property is about."
+    },
+    {
+      "id": "P22",
+      "name": "Update classifies the change",
+      "statement": "For all `update <name>` invocations, the skill instructs the agent to classify the change as one of {renamed element, removed element, new element, changed responsibility/relationship, L3 code-pointer change} and propagate accordingly to parents, siblings, and children.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 146}],
+      "tested_at": [{"path": "skills/c4/tests/pressure-propagation.md", "line": 0}],
+      "notes": "Pressure test 2 exercises the rename-classification path."
+    },
+    {
+      "id": "P23",
+      "name": "Diagrams live under architecture/c4",
+      "statement": "For all C4 files the skill produces, the file path is `architecture/c4/c<level>-<name>.md` — the skill never writes diagrams elsewhere in the repo.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 8}],
+      "tested_at": [],
+      "notes": "Path convention is structural; the audit and registry both rely on it."
+    },
+    {
+      "id": "P24",
+      "name": "Code-grounded drafts",
+      "statement": "For all `create` and `update` invocations at L3/L4, the skill instructs the agent to deep-read the specific packages/files in scope plus intent sources (CLAUDE.md, docs/, scoped `git log --format=full`, recent session memory via `engram recall`) before drafting.",
+      "enforced_at": [{"path": "skills/c4/SKILL.md", "line": 63}],
+      "tested_at": [{"path": "skills/c4/tests/baseline-output-with-skill.md", "line": 0}],
+      "notes": "Baseline GREEN: subagent ran 10 tool uses against repo source, vs RED baseline that ran zero."
+    }
+  ]
+}

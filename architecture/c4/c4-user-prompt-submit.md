@@ -3,19 +3,18 @@ level: 4
 name: user-prompt-submit
 parent: "c3-hooks.md"
 children: []
-last_reviewed_commit: 6002fa69
+last_reviewed_commit: cd55eab2
 ---
 
 # C4 — user-prompt-submit (Property/Invariant Ledger)
 
-> Component in focus: **E18 · user-prompt-submit.sh** (refines L3 c3-hooks).
+> Component in focus: **E18 · user-prompt-submit.sh** (refines L3 c3-hooks.md).
 > Source files in scope:
-> - [../../hooks/user-prompt-submit.sh](../../hooks/user-prompt-submit.sh)
+> - [hooks/user-prompt-submit.sh](hooks/user-prompt-submit.sh)
 
 ## Context (from L3)
 
-Scoped slice of [c3-hooks.md](c3-hooks.md): Claude Code execs the script on each user
-prompt submission (R5) and consumes the emitted `additionalContext` JSON (R7).
+user-prompt-submit.sh is the simplest of the three engram hooks. Claude Code execs it on every UserPromptSubmit lifecycle event (registered via R3 in hooks.json with a 5s timeout). The script emits a single fixed JSON document on stdout via `jq -n`, populating `hookSpecificOutput.hookEventName` with the literal `"UserPromptSubmit"` and `hookSpecificOutput.additionalContext` with a constant reminder string nudging the agent to call `/learn` at completion boundaries and `/prepare` at new-work boundaries. The script reads no stdin, performs no I/O beyond stdout, exits non-zero on any failure courtesy of `set -euo pipefail`, and has no inputs that influence its output — every invocation emits the same bytes.
 
 ![C4 user-prompt-submit context diagram](svg/c4-user-prompt-submit.svg)
 
@@ -28,19 +27,21 @@ prompt submission (R5) and consumes the emitted `additionalContext` JSON (R7).
 
 | ID | Property | Statement | Enforced at | Tested at | Notes |
 |---|---|---|---|---|---|
-| <a id="p1-strict-bash"></a>P1 | Strict bash mode | For all invocations, the script runs with `set -euo pipefail`. | [hooks/user-prompt-submit.sh:2](../../hooks/user-prompt-submit.sh#L2) | **⚠ UNTESTED** | — |
-| <a id="p2-emits-user-prompt-json"></a>P2 | Emits valid UserPromptSubmit JSON | For all invocations, the script writes a single JSON object to stdout matching `{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: <string>}}`. | [hooks/user-prompt-submit.sh:6](../../hooks/user-prompt-submit.sh#L6) | **⚠ UNTESTED** | Built with `jq -n` so the JSON is well-formed by construction. |
-| <a id="p3-nudges-prepare-learn"></a>P3 | Nudges /prepare and /learn | For all invocations, the emitted `additionalContext` mentions both `/prepare` and `/learn` and the boundaries at which each should be called. | [hooks/user-prompt-submit.sh:6](../../hooks/user-prompt-submit.sh#L6) | **⚠ UNTESTED** | Static literal; identical to the post-tool-use reminder. |
-| <a id="p4-non-destructive"></a>P4 | Non-destructive | For all invocations, the script performs no filesystem writes, network calls, or subprocess execs other than `jq`. | [hooks/user-prompt-submit.sh:1](../../hooks/user-prompt-submit.sh#L1) | **⚠ UNTESTED** | Hook fires on every user prompt — must be cheap and side-effect-free. |
-| <a id="p5-fast-completion"></a>P5 | Completes within timeout | For all invocations, the script completes within the manifest's 5-second UserPromptSubmit timeout. | [hooks/user-prompt-submit.sh:6](../../hooks/user-prompt-submit.sh#L6) | **⚠ UNTESTED** | Single `jq -n` call; bounded by jq startup. |
+| <a id="p1-strict-bash-mode"></a>P1 | strict-bash-mode | Script runs under `set -euo pipefail`, so any command failure, unset variable, or pipe failure aborts with non-zero exit before stdout is emitted. | [hooks/user-prompt-submit.sh:2](../../hooks/user-prompt-submit.sh#L2) | **⚠ UNTESTED** |   |
+| <a id="p2-fixed-event-name"></a>P2 | fixed-event-name | Emitted JSON has `hookSpecificOutput.hookEventName` set to the literal string `"UserPromptSubmit"`, matching the lifecycle event Claude Code dispatched. | [hooks/user-prompt-submit.sh:6](../../hooks/user-prompt-submit.sh#L6) | **⚠ UNTESTED** |   |
+| <a id="p3-constant-reminder-payload"></a>P3 | constant-reminder-payload | `hookSpecificOutput.additionalContext` is a constant string nudging the agent to call `/learn` at completion boundaries (task done, bug resolved, direction change, commit) and `/prepare` when starting new work; nothing in the input or environment alters its content. | [hooks/user-prompt-submit.sh:6](../../hooks/user-prompt-submit.sh#L6) | **⚠ UNTESTED** |   |
+| <a id="p4-single-json-document-on-stdout"></a>P4 | single-json-document-on-stdout | Script writes exactly one well-formed JSON document to stdout (via `jq -n`) and writes nothing else, so Claude Code's stdout-JSON consumer (R7) always receives a parseable payload. | [hooks/user-prompt-submit.sh:6](../../hooks/user-prompt-submit.sh#L6) | **⚠ UNTESTED** |   |
+| <a id="p5-no-stdin-no-side-effects"></a>P5 | no-stdin-no-side-effects | Script reads no stdin, performs no file I/O, spawns no background work, and depends only on `jq` being on PATH; output is a pure function of the script source. | [hooks/user-prompt-submit.sh:6](../../hooks/user-prompt-submit.sh#L6) | **⚠ UNTESTED** |   |
+| <a id="p6-fits-within-5s-timeout"></a>P6 | fits-within-5s-timeout | Single `jq -n` invocation completes well within the 5s timeout registered by R3 in hooks.json, so Claude Code never has to kill the hook for taking too long. | [hooks/user-prompt-submit.sh:6](../../hooks/user-prompt-submit.sh#L6) | **⚠ UNTESTED** |   |
 
 ## Cross-links
 
 - Parent: [c3-hooks.md](c3-hooks.md) (refines **E18 · user-prompt-submit.sh**)
 - Siblings:
   - [c4-hooks-json.md](c4-hooks-json.md)
-  - [c4-session-start.md](c4-session-start.md)
   - [c4-post-tool-use.md](c4-post-tool-use.md)
+  - [c4-session-start.md](c4-session-start.md)
 
 See `skills/c4/references/property-ledger-format.md` for the full row format and untested-property
 discipline.
+

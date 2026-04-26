@@ -3,21 +3,18 @@ level: 4
 name: main
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 6002fa69
+last_reviewed_commit: cd55eab2
 ---
 
 # C4 — main (Property/Invariant Ledger)
 
-> Component in focus: **E20 · main.go** (refines L3 c3-engram-cli-binary).
+> Component in focus: **E20 · main.go** (refines L3 c3-engram-cli-binary.md).
 > Source files in scope:
-> - [../../cmd/engram/main.go](../../cmd/engram/main.go)
+> - [cmd/engram/main.go](cmd/engram/main.go)
 
 ## Context (from L3)
 
-Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): Claude Code execs the
-binary as a subprocess (R1) and `main` forwards the cli targets to `targ.Main` (R2).
-`main.go` itself contains no business logic — all real I/O concrete adapters are wired by
-`cli.SetupSignalHandling`, which is the entry point's only call.
+main.go is the process entry point for the engram CLI binary. It contains no business logic: it wires real-OS I/O streams (`os.Stdout`, `os.Stderr`, `os.Stdin`) and `os.Exit` into `cli.SetupSignalHandling`, then forwards the resulting target list into `targ.Main`. By project convention it is excluded from coverage — only re-exports and thin wrappers, no testable logic. All command dispatch, signal-handler installation, and DI wiring is delegated to the `cli` package; this file's only architectural job is to be the boundary at which concrete OS handles enter the program.
 
 ![C4 main context diagram](svg/c4-main.svg)
 
@@ -26,21 +23,34 @@ binary as a subprocess (R1) and `main` forwards the cli targets to `targ.Main` (
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
 > separate bidirectional R/D edges between the same node pair.
 
+**Legend:**
+- **focus** (yellow): the file in scope for this ledger.
+- **component** (light blue): peer Go components inside the binary.
+- **external** (grey): code outside this repo (the `targ` framework).
+
 ## Property Ledger
 
 | ID | Property | Statement | Enforced at | Tested at | Notes |
 |---|---|---|---|---|---|
-| <a id="p1-thin-entry"></a>P1 | Thin entry, no business logic | For all invocations, `main` performs no work other than calling `cli.SetupSignalHandling` and forwarding its return value into `targ.Main`. | [cmd/engram/main.go:12](../../cmd/engram/main.go#L12) | **⚠ UNTESTED** | Excluded from coverage per project convention (entry-point exclusion in CLAUDE.md). |
-| <a id="p2-real-io-only-here"></a>P2 | Concrete I/O wired only at the edge | For all dependencies, `main` passes `os.Stdout`, `os.Stderr`, `os.Stdin`, and `os.Exit` to `cli.SetupSignalHandling`; no other concrete `os` / network / fs symbol is referenced from this file. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | **⚠ UNTESTED** | Architectural invariant: this is the single place where stdio fds and the process exit function become concrete. The downstream cli package consumes them through `io.Writer` / `io.Reader` / `func(int)`. |
-| <a id="p3-targ-targets-forwarded"></a>P3 | Forwards targets to targ.Main | For all invocations, `targ.Main` receives the variadic targets returned by `cli.SetupSignalHandling`. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | [internal/cli/signal_test.go:65](../../internal/cli/signal_test.go#L65) | The call shape is exercised indirectly: `signal_test.go` covers `SetupSignalHandling` returning the targets that `main` forwards. The forwarding statement itself is untested by design (entry point). |
+| <a id="p1-single-entry-point"></a>P1 | Single entry point | For all process invocations of the engram binary, control enters at `main.main` and exits only when `targ.Main` returns or a forced-exit signal handler calls `os.Exit`. | [cmd/engram/main.go:12](../../cmd/engram/main.go#L12) | **⚠ UNTESTED** | main is excluded from coverage by project convention; entry behavior is exercised by every CLI integration run. |
+| <a id="p2-concrete-i-o-wired-at-the-edge"></a>P2 | Concrete I/O wired at the edge | For all process invocations, the standard I/O handles supplied to the CLI are exactly `os.Stdout`, `os.Stderr`, and `os.Stdin` — no other code path injects real-OS streams into the binary. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | **⚠ UNTESTED** | Honors the project's DI-at-the-edge rule: `internal/` packages never call `os.*` directly; the only `os.Stdout/Stderr/Stdin` reference is here. |
+| <a id="p3-real-os-exit-is-the-terminator"></a>P3 | Real os.Exit is the terminator | For all process invocations, the exit-function passed into the signal-handling setup is `os.Exit` — second-signal force-exit terminates the real process, not a stubbed one. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | **⚠ UNTESTED** | Tests cover `SetupSignalHandling` with a stub `exitFn` (signal_test.go); the binding of the real `os.Exit` here is intentionally untested at the unit layer. |
+| <a id="p4-signal-handlers-installed-before-dispatch"></a>P4 | Signal handlers installed before dispatch | For all process invocations, `cli.SetupSignalHandling` is invoked before `targ.Main`, so SIGINT/SIGTERM handlers and the force-exit goroutine are active for the entire lifetime of subcommand execution. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | **⚠ UNTESTED** | Ordering is a single-expression invariant: `SetupSignalHandling(...)` evaluates and returns before `targ.Main` receives its arguments. |
+| <a id="p5-no-business-logic-in-entry-point"></a>P5 | No business logic in entry point | For all changes to `cmd/engram/main.go`, the file contains only the entry-point shell: package declaration, imports, and a `main` function that delegates to `cli` and `targ` — no command logic, parsing, or I/O is performed here. | [cmd/engram/main.go:12](../../cmd/engram/main.go#L12) | **⚠ UNTESTED** | Enforced by convention and the L3 catalog row for E20 ("No business logic; excluded from coverage per project convention."). Drift would show up as new statements inside `main`. |
 
 ## Cross-links
 
 - Parent: [c3-engram-cli-binary.md](c3-engram-cli-binary.md) (refines **E20 · main.go**)
 - Siblings:
+  - [c4-anthropic.md](c4-anthropic.md)
+  - [c4-cli.md](c4-cli.md)
   - [c4-context.md](c4-context.md)
+  - [c4-externalsources.md](c4-externalsources.md)
   - [c4-memory.md](c4-memory.md)
+  - [c4-recall.md](c4-recall.md)
   - [c4-tokenresolver.md](c4-tokenresolver.md)
+  - [c4-tomlwriter.md](c4-tomlwriter.md)
 
 See `skills/c4/references/property-ledger-format.md` for the full row format and untested-property
 discipline.
+

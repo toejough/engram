@@ -6,16 +6,16 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e5[E5 · Anthropic API]
-    e21[E21 · cli]
-    e22[E22 · recall]
-    e26[E26 · anthropic<br/>FOCUS]
+    e26["E26 · anthropic<br/>Messages API client"]
+    e21["E21 · cli<br/>wires *Client"]
+    e22["E22 · recall<br/>consumes CallerFunc"]
+    e5("E5 · Anthropic API<br/>Haiku model")
 
-    e21 -->|"R6: builds Anthropic caller<br/>supported by: P1, P3, P8, P9"| e26
-    e22 -->|"R10: ranks/extracts via Haiku (DI Summarizer)<br/>supported by: P2, P7, P8"| e26
-    e26 -->|"R14: HTTPS POST /v1/messages<br/>supported by: P3, P4, P5, P6, P7, P12"| e5
-    e26 -.->|"D2: HTTPDoer + token + apiURL wired by cli<br/>supported by: P1, P3, P9"| e21
+    e21 -->|"R6: builds Anthropic caller"| e26
+    e22 -->|"R10: ranks via Summarizer (DI CallerFunc)"| e26
+    e26 -->|"R14: HTTPS POST /v1/messages"| e5
+    e26 -.->|"D2: Rdi: HTTPDoer, token, apiURL"| e21
 
-    class e26 focus
-    class e21,e22 component
     class e5 external
+    class e21,e22 component
+    class e26 focus

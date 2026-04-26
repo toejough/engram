@@ -1,19 +1,21 @@
 %%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 flowchart LR
-    classDef external fill:#999,stroke:#666,color:#fff
-    classDef component fill:#85bbf0,stroke:#5d9bd1,color:#000
-    classDef focus     fill:#facc15,stroke:#a16207,color:#000
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e3(E3 · Claude Code<br/>agent harness)
-    e16[E16 · hooks.json<br/>FOCUS]
-    e17[E17 · session-start.sh]
-    e18[E18 · user-prompt-submit.sh]
-    e19[E19 · post-tool-use.sh]
+    e16["E16 · hooks.json<br/>manifest"]
+    e17["E17 · session-start.sh<br/>SessionStart, 10s"]
+    e18["E18 · user-prompt-submit.sh<br/>UserPromptSubmit, 5s"]
+    e19["E19 · post-tool-use.sh<br/>PostToolUse, 5s"]
+    e3("E3 · Claude Code<br/>plugin host")
 
-    e3 -->|"R1: reads manifest at plugin load<br/>supported by: P1, P7"| e16
-    e16 -->|"R2: registers SessionStart (10s)<br/>supported by: P2, P3, P4"| e17
-    e16 -->|"R3: registers UserPromptSubmit (5s)<br/>supported by: P2, P3, P6"| e18
-    e16 -->|"R4: registers PostToolUse (5s)<br/>supported by: P2, P3, P5"| e19
+    e3 -->|"R1: reads manifest at plugin load"| e16
+    e16 -->|"R2: SessionStart -> script (10s)"| e17
+    e16 -->|"R3: UserPromptSubmit -> script (5s)"| e18
+    e16 -->|"R4: PostToolUse -> script (5s)"| e19
 
     class e3 external
     class e17,e18,e19 component

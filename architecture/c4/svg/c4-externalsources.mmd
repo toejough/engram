@@ -6,16 +6,16 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e4[E4 · Claude Code memory surfaces]
-    e21[E21 · cli]
-    e22[E22 · recall]
-    e25[E25 · externalsources<br/>FOCUS]
+    e25["E25 · externalsources"]
+    e21["E21 · cli"]
+    e22["E22 · recall"]
+    ext-cc("EXT-CC · Claude Code memory surfaces<br/>CLAUDE.md / rules / auto-memory / skills")
 
-    e21 -->|"R5: discoverExternalSources<br/>supported by: P2, P3, P7, P14"| e25
-    e22 -->|"R11: reads CLAUDE.md / rules / auto / skill (cached)<br/>supported by: P10, P11, P12"| e25
-    e25 -->|"R15: reads project + user CLAUDE.md, rules, auto memory, skill frontmatter<br/>supported by: P3, P4, P6, P7, P8"| e4
-    e25 -.->|"D4: StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder + CWD/Home/GOOS wired by cli<br/>supported by: P3, P4, P5, P6, P7, P8, P10, P11"| e21
+    e21 -->|"R5: discovers external source paths"| e25
+    e22 -->|"R11: reads cached file contents"| e25
+    e25 -->|"R15: reads .md files (read-only)"| ext-cc
+    e25 -.->|"D4: DI back-edge: StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder"| e21
 
-    class e25 focus
+    class ext-cc external
     class e21,e22 component
-    class e4 external
+    class e25 focus

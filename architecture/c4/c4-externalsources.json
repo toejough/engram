@@ -1,0 +1,307 @@
+{
+  "schema_version": "1",
+  "level": 4,
+  "name": "externalsources",
+  "parent": "c3-engram-cli-binary.md",
+  "focus": {
+    "id": "E25",
+    "name": "externalsources",
+    "l3_container": "c3-engram-cli-binary.md"
+  },
+  "sources": [
+    "internal/externalsources/automemory.go",
+    "internal/externalsources/cache.go",
+    "internal/externalsources/claudemd.go",
+    "internal/externalsources/discover.go",
+    "internal/externalsources/externalsources.go",
+    "internal/externalsources/frontmatter.go",
+    "internal/externalsources/imports.go",
+    "internal/externalsources/rules.go",
+    "internal/externalsources/skills.go",
+    "internal/externalsources/slug.go"
+  ],
+  "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E25. The DI back-edge (D4) decomposes into the per-dependency Dependency Manifest below — each injected function is wired by E21 · cli at the `externalsources.Discover` call site.\n\nE25 reads four kinds of files (CLAUDE.md hierarchy, .claude/rules, auto memory, skill SKILL.md) plus transitive @import expansions. All filesystem effects flow through injected adapters; the package itself never calls `os.*`, `runtime.*`, or `filepath.WalkDir` directly.",
+  "diagram": {
+    "nodes": [
+      {"id": "E25", "name": "externalsources", "kind": "focus"},
+      {"id": "E21", "name": "cli", "kind": "component"},
+      {"id": "E22", "name": "recall", "kind": "component"},
+      {"id": "EXT-CC", "name": "Claude Code memory surfaces", "subtitle": "CLAUDE.md / rules / auto-memory / skills", "kind": "external"}
+    ],
+    "edges": [
+      {"id": "R5", "from": "E21", "to": "E25", "label": "discovers external source paths"},
+      {"id": "R11", "from": "E22", "to": "E25", "label": "reads cached file contents"},
+      {"id": "R15", "from": "E25", "to": "EXT-CC", "label": "reads .md files (read-only)"},
+      {"id": "D4", "from": "E25", "to": "E21", "label": "DI back-edge: StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder", "dotted": true}
+    ]
+  },
+  "dependency_manifest": [
+    {
+      "field": "StatFn",
+      "type": "func(path string) (bool, error)",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`osStatExists` wrapping `os.Stat`",
+      "properties": ["P1", "P2", "P3"]
+    },
+    {
+      "field": "Reader",
+      "type": "func(path string) ([]byte, error)",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`FileCache.Read` over `os.ReadFile`",
+      "properties": ["P5", "P6", "P7", "P8", "P10"]
+    },
+    {
+      "field": "MdWalker",
+      "type": "func(root string) []string",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`osWalkMd` wrapping `filepath.WalkDir`",
+      "properties": ["P10"]
+    },
+    {
+      "field": "MatchAny",
+      "type": "func(globs []string) bool",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`osMatchAny` wrapping `filepath.Glob`",
+      "properties": ["P10"]
+    },
+    {
+      "field": "Settings",
+      "type": "func() (dir string, found bool)",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`readAutoMemoryDirectorySetting` reading settings.json",
+      "properties": ["P11"]
+    },
+    {
+      "field": "DirLister",
+      "type": "func(dir string) ([]string, error)",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`osDirListMd` wrapping `os.ReadDir`",
+      "properties": ["P11", "P12", "P13"]
+    },
+    {
+      "field": "SkillFinder",
+      "type": "func(root string) []string",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`osWalkSkills` wrapping `filepath.WalkDir`",
+      "properties": ["P14"]
+    },
+    {
+      "field": "CWD / Home / GOOS",
+      "type": "string",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "concrete_adapter": "`os.Getwd`, `$HOME`, `runtime.GOOS`",
+      "properties": ["P3", "P4", "P14", "P15"]
+    }
+  ],
+  "properties": [
+    {
+      "id": "P1",
+      "name": "CLAUDE.md ancestor walk",
+      "statement": "For all start directories `cwd`, `DiscoverClaudeMd` visits each ancestor from `cwd` to the filesystem root and includes every `CLAUDE.md` and `CLAUDE.local.md` for which `StatFn` reports existence.",
+      "enforced_at": [{"path": "internal/externalsources/claudemd.go", "line": 79}],
+      "tested_at": [{"path": "internal/externalsources/claudemd_test.go", "line": 12}]
+    },
+    {
+      "id": "P2",
+      "name": "Stat errors silently skipped",
+      "statement": "For all stat results, `DiscoverClaudeMd` ignores any error returned by `StatFn` (treating it as `not exists`) and never propagates it to the caller.",
+      "enforced_at": [{"path": "internal/externalsources/claudemd.go", "line": 87}],
+      "tested_at": [{"path": "internal/externalsources/claudemd_test.go", "line": 97}]
+    },
+    {
+      "id": "P3",
+      "name": "Empty home skips user scope",
+      "statement": "For all calls to `DiscoverClaudeMd` where `home == \"\"`, no `~/.claude/CLAUDE.md` candidate is stat-ed and no user-scope entry appears in the result.",
+      "enforced_at": [{"path": "internal/externalsources/claudemd.go", "line": 65}],
+      "tested_at": [{"path": "internal/externalsources/claudemd_test.go", "line": 39}]
+    },
+    {
+      "id": "P4",
+      "name": "Managed-policy path is OS-specific",
+      "statement": "For `goos` in {`darwin`, `linux`, `windows`}, `ManagedPolicyPath(goos)` returns the documented system-wide CLAUDE.md path; for any other value it returns `\"\"` and `DiscoverClaudeMd` adds no managed-policy entry.",
+      "enforced_at": [{"path": "internal/externalsources/claudemd.go", "line": 29}],
+      "tested_at": [
+        {"path": "internal/externalsources/claudemd_test.go", "line": 121},
+        {"path": "internal/externalsources/claudemd_test.go", "line": 133},
+        {"path": "internal/externalsources/claudemd_test.go", "line": 107}
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "Imports depth-capped at 5",
+      "statement": "For all import graphs, `ExpandImports` enqueues no node at depth ≥ 5; transitive `@`-imports beyond five hops from the start file are never returned.",
+      "enforced_at": [{"path": "internal/externalsources/imports.go", "line": 23}],
+      "tested_at": [{"path": "internal/externalsources/imports_test.go", "line": 11}],
+      "notes": "`maxImportHops = 5` constant."
+    },
+    {
+      "id": "P6",
+      "name": "Import cycles broken",
+      "statement": "For all import graphs containing a cycle, `ExpandImports` returns each distinct file at most once and terminates.",
+      "enforced_at": [{"path": "internal/externalsources/imports.go", "line": 66}],
+      "tested_at": [{"path": "internal/externalsources/imports_test.go", "line": 48}],
+      "notes": "Visited map seeded with `startPath` so the start file is not re-emitted."
+    },
+    {
+      "id": "P7",
+      "name": "Relative imports resolved against containing file",
+      "statement": "For all `@target` references where `target` does not start with `/` or `~`, the resolved path is `filepath.Join(filepath.Dir(containingFile), target)`; absolute and `~`-rooted paths are returned unchanged.",
+      "enforced_at": [{"path": "internal/externalsources/imports.go", "line": 90}],
+      "tested_at": [
+        {"path": "internal/externalsources/imports_test.go", "line": 68},
+        {"path": "internal/externalsources/imports_test.go", "line": 87}
+      ]
+    },
+    {
+      "id": "P8",
+      "name": "Reader errors skipped silently",
+      "statement": "For all import-expansion `Reader` calls returning a non-nil error or nil body, `ExpandImports` skips that node without aborting; remaining queue items are still processed.",
+      "enforced_at": [{"path": "internal/externalsources/imports.go", "line": 28}],
+      "tested_at": [{"path": "internal/externalsources/imports_test.go", "line": 36}]
+    },
+    {
+      "id": "P9",
+      "name": "Imports deduplicated across ancestors",
+      "statement": "For all `Discover` invocations, every imported file path appears at most once in the returned slice even when multiple CLAUDE.md ancestors transitively import it.",
+      "enforced_at": [{"path": "internal/externalsources/discover.go", "line": 46}],
+      "tested_at": [{"path": "internal/externalsources/discover_test.go", "line": 97}]
+    },
+    {
+      "id": "P10",
+      "name": "Rules without paths-frontmatter always included",
+      "statement": "For all rule files where `ParseFrontmatter` yields an empty `Paths` slice, `DiscoverRules` includes the file unconditionally; rules with a non-empty `paths:` list are included only when `MatchAny` returns true for that list.",
+      "enforced_at": [{"path": "internal/externalsources/rules.go", "line": 49}],
+      "tested_at": [
+        {"path": "internal/externalsources/rules_test.go", "line": 12},
+        {"path": "internal/externalsources/rules_test.go", "line": 43},
+        {"path": "internal/externalsources/rules_test.go", "line": 63}
+      ]
+    },
+    {
+      "id": "P11",
+      "name": "Auto-memory resolution precedence",
+      "statement": "For all `DiscoverAutoMemory` calls, the resolved directory is the first of (1) the `Settings`-supplied directory when found and non-empty AND it has files, (2) `cwdProjectDir` when it has files, (3) `mainProjectDir` when set, non-empty, and distinct from `cwdProjectDir`.",
+      "enforced_at": [{"path": "internal/externalsources/automemory.go", "line": 25}],
+      "tested_at": [
+        {"path": "internal/externalsources/automemory_test.go", "line": 33},
+        {"path": "internal/externalsources/automemory_test.go", "line": 12},
+        {"path": "internal/externalsources/automemory_test.go", "line": 68},
+        {"path": "internal/externalsources/automemory_test.go", "line": 94}
+      ]
+    },
+    {
+      "id": "P12",
+      "name": "Auto-memory only includes *.md files",
+      "statement": "For all entries returned by `DirLister`, `DiscoverAutoMemory` includes only those with `filepath.Ext(path) == \".md\"` as `KindAutoMemory` files.",
+      "enforced_at": [{"path": "internal/externalsources/automemory.go", "line": 57}],
+      "tested_at": [{"path": "internal/externalsources/automemory_test.go", "line": 132}]
+    },
+    {
+      "id": "P13",
+      "name": "Empty result is normal",
+      "statement": "For all `DiscoverAutoMemory` calls where no resolution step yields any files, the returned slice is empty (length 0) and no error is surfaced.",
+      "enforced_at": [{"path": "internal/externalsources/automemory.go", "line": 41}],
+      "tested_at": [{"path": "internal/externalsources/automemory_test.go", "line": 116}]
+    },
+    {
+      "id": "P14",
+      "name": "Skill discovery roots",
+      "statement": "For all `DiscoverSkills` calls, `SkillFinder` is invoked on `<cwd>/.claude/skills` always, and additionally on `<home>/.claude/skills` and `<home>/.claude/plugins/cache` only when `home != \"\"`.",
+      "enforced_at": [{"path": "internal/externalsources/skills.go", "line": 15}],
+      "tested_at": [
+        {"path": "internal/externalsources/skills_test.go", "line": 12},
+        {"path": "internal/externalsources/skills_test.go", "line": 47}
+      ]
+    },
+    {
+      "id": "P15",
+      "name": "ProjectSlug substitution",
+      "statement": "For all absolute paths P, `ProjectSlug(P)` equals `strings.ReplaceAll(P, \"/\", \"-\")`; matches Claude Code's `~/.claude/projects/<slug>/` directory layout.",
+      "enforced_at": [{"path": "internal/externalsources/slug.go", "line": 15}],
+      "tested_at": [
+        {"path": "internal/externalsources/slug_test.go", "line": 11},
+        {"path": "internal/externalsources/slug_test.go", "line": 21}
+      ]
+    },
+    {
+      "id": "P16",
+      "name": "FileCache memoizes content and errors",
+      "statement": "For all paths P, `FileCache.Read(P)` invokes the underlying `ReaderFunc` at most once across the lifetime of a single `FileCache`; subsequent calls return the cached `(content, err)` pair, including cached errors.",
+      "enforced_at": [{"path": "internal/externalsources/cache.go", "line": 22}],
+      "tested_at": [
+        {"path": "internal/externalsources/cache_test.go", "line": 33},
+        {"path": "internal/externalsources/cache_test.go", "line": 56},
+        {"path": "internal/externalsources/cache_test.go", "line": 12}
+      ],
+      "notes": "Per-process; no cross-invocation persistence."
+    },
+    {
+      "id": "P17",
+      "name": "Frontmatter parser fence requirement",
+      "statement": "For all bodies that do not begin with `---\\n` or that lack a closing `\\n---\\n` fence, `ParseFrontmatter` returns a zero-value `Frontmatter` and the original body bytes unchanged.",
+      "enforced_at": [{"path": "internal/externalsources/frontmatter.go", "line": 24}],
+      "tested_at": [
+        {"path": "internal/externalsources/frontmatter_test.go", "line": 70},
+        {"path": "internal/externalsources/frontmatter_test.go", "line": 118}
+      ]
+    },
+    {
+      "id": "P18",
+      "name": "Frontmatter recognized keys",
+      "statement": "For all YAML blocks, `ParseFrontmatter` populates only the `name`, `description` (scalar or `>` folded), and `paths` (`- item` list) keys; all other keys are silently ignored.",
+      "enforced_at": [{"path": "internal/externalsources/frontmatter.go", "line": 121}],
+      "tested_at": [
+        {"path": "internal/externalsources/frontmatter_test.go", "line": 51},
+        {"path": "internal/externalsources/frontmatter_test.go", "line": 11},
+        {"path": "internal/externalsources/frontmatter_test.go", "line": 83}
+      ]
+    },
+    {
+      "id": "P19",
+      "name": "Discover ordering",
+      "statement": "For all `Discover` calls, the returned slice is the concatenation, in order, of CLAUDE.md ancestors → expanded imports → rules → auto memory → skills.",
+      "enforced_at": [{"path": "internal/externalsources/discover.go", "line": 31}],
+      "tested_at": [{"path": "internal/externalsources/discover_test.go", "line": 12}],
+      "notes": "Ordering here does NOT determine recall phase priority — that is set by recall/orchestrate."
+    },
+    {
+      "id": "P20",
+      "name": "Kinds are exhaustively stringified",
+      "statement": "For all `Kind` values defined in this package (`KindClaudeMd`, `KindRules`, `KindAutoMemory`, `KindSkill`, `KindUnknown`), `Kind.String()` returns the documented lowercase identifier; any other int value returns `\"invalid\"`.",
+      "enforced_at": [{"path": "internal/externalsources/externalsources.go", "line": 21}],
+      "tested_at": [{"path": "internal/externalsources/externalsources_test.go", "line": 25}]
+    },
+    {
+      "id": "P21",
+      "name": "No direct I/O (DI-only)",
+      "statement": "For all package code under `internal/externalsources/`, no symbol references `os.*`, `runtime.*`, `filepath.WalkDir`, `filepath.Glob`, or any other process/OS facility directly; all such effects flow through the injected `StatFn`, `Reader`, `MdWalker`, `MatchAny`, `Settings`, `DirLister`, `SkillFinder` adapters wired by E21 · cli.",
+      "enforced_at": [{"path": "internal/externalsources/discover.go", "line": 6}],
+      "tested_at": [],
+      "notes": "Architectural invariant from project DI rule (CLAUDE.md \"DI everywhere\"). No automated guard; would need an import-scanner test."
+    }
+  ]
+}

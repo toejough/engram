@@ -394,6 +394,7 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	findings = append(findings, auditFrontMatter(ctx, path, raw)...)
 	matter, _ := parseFrontMatter(raw)
 	findings = append(findings, checkCodePointers(matter, raw, path)...)
+	findings = append(findings, checkPropertyLinks(matter, raw, path)...)
 	if matter.level == 4 {
 		return findings, nil
 	}

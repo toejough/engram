@@ -1,0 +1,303 @@
+{
+  "schema_version": "1",
+  "level": 4,
+  "name": "memory",
+  "parent": "c3-engram-cli-binary.md",
+  "focus": {
+    "id": "E24",
+    "name": "memory",
+    "l3_container": "c3-engram-cli-binary"
+  },
+  "sources": [
+    "../../internal/memory/memory.go",
+    "../../internal/memory/record.go",
+    "../../internal/memory/readmodifywrite.go",
+    "../../internal/memory/memory_test.go",
+    "../../internal/memory/record_test.go",
+    "../../internal/memory/readmodifywrite_test.go",
+    "../../internal/memory/maintenance_test.go"
+  ],
+  "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E24. The DI back-edge convention (see below) applies — E24 → E21 represents the category of calls E24 makes through dependencies wired by E21.\n\nThe R-edge labels cite the P-list each edge backs.",
+  "legend_items": [
+    "Solid grey: L3 elements carried over.",
+    "Yellow: L4 focus component.",
+    "**Solid arrow (R[n])** = direct call. Standard C4 reading: \"source initiates the interaction with target.\"",
+    "**Dotted arrow (D[n])** = DI back-edge. Project-specific convention representing \"source initiates a category of calls whose concrete targets are determined by the dotted-arrow target (the wirer).\" One D-id per (consumer, wirer) pair regardless of how many concrete deps; the per-dep decomposition lives in the Dependency Manifest below.",
+    "**R4, R9:** the existing L3 element-to-element calls into E24 (cli, recall).",
+    "**R16:** the existing L3 file I/O edge from E24 to the engram memory store.",
+    "**D7:** the DI back-edge from E24 to E21, mirrored from L3."
+  ],
+  "diagram": {
+    "nodes": [
+      {"id": "E24", "name": "memory", "subtitle": "internal/memory", "kind": "focus"},
+      {"id": "E21", "name": "cli", "subtitle": "internal/cli", "kind": "component"},
+      {"id": "E22", "name": "recall", "subtitle": "internal/recall", "kind": "component"},
+      {"id": "E6", "name": "Engram memory store", "subtitle": "feedback/ + facts/ TOML", "kind": "external"}
+    ],
+    "edges": [
+      {"id": "R4", "from": "E21", "to": "E24", "label": "reads / writes feedback + fact TOML"},
+      {"id": "R9", "from": "E22", "to": "E24", "label": "lists memories during recall ranking"},
+      {"id": "R16", "from": "E24", "to": "E6", "label": "reads existing feedback + fact TOML"},
+      {"id": "D7", "from": "E24", "to": "E21", "label": "DI back-edge (readDir, readFile, writer)", "dotted": true}
+    ]
+  },
+  "dependency_manifest": [
+    {
+      "field": "readDir",
+      "type": "func(string) ([]os.DirEntry, error)",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "concrete_adapter": "`os.ReadDir` (default via `NewLister`); overridable via `WithListerReadDir`",
+      "properties": ["P8", "P9", "P12", "P13"]
+    },
+    {
+      "field": "readFile",
+      "type": "func(string) ([]byte, error)",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "concrete_adapter": "`os.ReadFile` (default via `NewLister` / `NewModifier`); overridable via `WithListerReadFile` / `WithModifierReadFile`",
+      "properties": ["P10", "P14", "P15"]
+    },
+    {
+      "field": "writer",
+      "type": "AtomicWriter (interface { AtomicWrite(targetPath string, record any) error })",
+      "wired_by_id": "E21",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "concrete_adapter": "`tomlwriter.New(...)` supplied via `WithModifierWriter`; required (no default)",
+      "properties": ["P14", "P17"]
+    }
+  ],
+  "properties": [
+    {
+      "id": "P1",
+      "name": "Layout dirs deterministic",
+      "statement": "For all `dataDir` strings D, `FactsDir(D)` returns `filepath.Join(D, \"memory\", \"facts\")` and `FeedbackDir(D)` returns `filepath.Join(D, \"memory\", \"feedback\")`; both are pure (no I/O, no mutation).",
+      "enforced_at": [
+        {"path": "internal/memory/memory.go", "line": 21},
+        {"path": "internal/memory/memory.go", "line": 26}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/memory_test.go", "line": 11},
+        {"path": "internal/memory/memory_test.go", "line": 17}
+      ],
+      "notes": "MemoriesDir at line 31 returns the legacy `<dataDir>/memories` path; same purity guarantee."
+    },
+    {
+      "id": "P2",
+      "name": "Resolve precedence feedback>facts>legacy",
+      "statement": "For all `(dataDir, slug, fileExists)` inputs where at least one of `feedback/<slug>.toml`, `facts/<slug>.toml`, or `memories/<slug>.toml` exists, `ResolveMemoryPath` returns the first existing candidate in the order feedback → facts → legacy.",
+      "enforced_at": [
+        {"path": "internal/memory/memory.go", "line": 44}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/memory_test.go", "line": 23},
+        {"path": "internal/memory/memory_test.go", "line": 36},
+        {"path": "internal/memory/memory_test.go", "line": 50}
+      ],
+      "notes": "Even when both feedback and legacy exist, feedback wins (TestResolveMemoryPath_FeedbackFirst)."
+    },
+    {
+      "id": "P3",
+      "name": "Resolve legacy fallback on miss",
+      "statement": "For all `(dataDir, slug)` where no candidate exists per `fileExists`, `ResolveMemoryPath` returns the legacy path `<dataDir>/memories/<slug>.toml` so the caller surfaces a meaningful \"file not found\" error.",
+      "enforced_at": [
+        {"path": "internal/memory/memory.go", "line": 60}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/memory_test.go", "line": 63}
+      ],
+      "notes": "Documented contract: legacy fallback even when missing."
+    },
+    {
+      "id": "P4",
+      "name": "NameFromPath strips extension",
+      "statement": "For all paths P, `NameFromPath(P)` returns `filepath.Base(P)` with its extension trimmed; pure, no I/O.",
+      "enforced_at": [
+        {"path": "internal/memory/memory.go", "line": 36}
+      ],
+      "tested_at": [],
+      "notes": "Used by callers (cli.show / list) to derive the user-visible memory slug."
+    },
+    {
+      "id": "P5",
+      "name": "ToStored preserves all fields",
+      "statement": "For all `MemoryRecord` r and file paths F, `r.ToStored(F)` returns a non-nil `*Stored` whose Type, Source, Situation, Content, and FilePath equal r's corresponding fields and F.",
+      "enforced_at": [
+        {"path": "internal/memory/record.go", "line": 39}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/maintenance_test.go", "line": 11},
+        {"path": "internal/memory/memory_test.go", "line": 88}
+      ],
+      "notes": "Field-loss bug (#353) is the documented motivation for the canonical struct."
+    },
+    {
+      "id": "P6",
+      "name": "ToStored tolerates malformed UpdatedAt",
+      "statement": "For all `MemoryRecord` r whose UpdatedAt is non-empty but unparseable as RFC3339, `r.ToStored(F)` returns a non-nil `*Stored` with `UpdatedAt.IsZero() == true` and writes a warning to stderr; never panics, never returns nil.",
+      "enforced_at": [
+        {"path": "internal/memory/record.go", "line": 40}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/memory_test.go", "line": 73},
+        {"path": "internal/memory/memory_test.go", "line": 103}
+      ],
+      "notes": "Empty UpdatedAt is silently zero (no warning); only non-empty + unparseable triggers the stderr line."
+    },
+    {
+      "id": "P7",
+      "name": "MemoryRecord is canonical TOML schema",
+      "statement": "For all code paths that read or write feedback/fact TOML, the on-disk shape is fixed by `MemoryRecord` (schema_version, type, source, situation, [content].behavior/impact/action/subject/predicate/object, created_at, updated_at) — no other struct is encoded or decoded against the file.",
+      "enforced_at": [
+        {"path": "internal/memory/record.go", "line": 26}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/record_test.go", "line": 18}
+      ],
+      "notes": "Architectural invariant codified in the package doc-comment (#353). No automated import-scanner enforces it; would need a forbidigo rule to flag direct toml.Decode against ad-hoc structs in other packages."
+    },
+    {
+      "id": "P8",
+      "name": "ListAll skips non-TOML entries",
+      "statement": "For all directory entries E whose name does not end in `.toml`, `Lister.ListAll` excludes E from the returned `[]StoredRecord`.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 49}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 35}
+      ],
+      "notes": "TestListAll_ReadsAllTOMLFiles writes a .md file that must be skipped."
+    },
+    {
+      "id": "P9",
+      "name": "ListAll skips subdirectories",
+      "statement": "For all directory entries E where `E.IsDir()` is true, `Lister.ListAll` excludes E from the returned records regardless of name.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 49}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 95}
+      ],
+      "notes": "Same predicate also covers .toml-named subdirectories."
+    },
+    {
+      "id": "P10",
+      "name": "ListAll silently skips bad files",
+      "statement": "For all `.toml` files whose `readFile` returns an error or whose contents fail `toml.Decode`, `Lister.ListAll` omits that file from the result and returns `nil` error overall.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 56},
+        {"path": "internal/memory/readmodifywrite.go", "line": 63}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 65}
+      ],
+      "notes": "Per-file errors are swallowed; only `readDir` failure surfaces as an error from ListAll."
+    },
+    {
+      "id": "P11",
+      "name": "ListStored sorted by UpdatedAt desc",
+      "statement": "For all directories D successfully read by `ListStored`, the returned `[]*Stored` is sorted such that for every i<j, `result[i].UpdatedAt.After(result[j].UpdatedAt) || result[i].UpdatedAt.Equal(result[j].UpdatedAt)`.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 98}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 346}
+      ],
+      "notes": "Sort uses `sort.Slice` with `After` predicate (not stable; ties may be reordered)."
+    },
+    {
+      "id": "P12",
+      "name": "ListAllMemories prefers new layout",
+      "statement": "For all `dataDir` D, `Lister.ListAllMemories(D)` returns the merged feedback+facts memories iff `feedback/` exists and contains at least one `.toml` entry; otherwise it falls back to listing `memories/`.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 76},
+        {"path": "internal/memory/readmodifywrite.go", "line": 106}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 135},
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 183},
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 229}
+      ],
+      "notes": "Empty feedback/ counts as \"no new layout\" — the legacy path is consulted (TestLister_ListAllMemories_EmptyFeedbackUsesLegacy)."
+    },
+    {
+      "id": "P13",
+      "name": "New layout merges feedback+facts",
+      "statement": "For all `dataDir` D where the new layout is detected, `listFromNewLayout(D)` returns the union of memories from `feedback/` and `facts/`, sorted by UpdatedAt descending; an `os.ErrNotExist` from either subdirectory is treated as an empty list, not a fatal error.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 123}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 229}
+      ],
+      "notes": "Non-NotExist errors propagate wrapped: `\"listing feedback: %w\"` / `\"listing facts: %w\"`."
+    },
+    {
+      "id": "P14",
+      "name": "ReadModifyWrite goes through writer",
+      "statement": "For all `(path, mutate)` calls, `Modifier.ReadModifyWrite` invokes the injected `AtomicWriter.AtomicWrite(path, record)` exactly once per successful read+decode+mutate; it never writes the file directly.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 187}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 528},
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 588}
+      ],
+      "notes": "Atomicity (temp+rename, cleanup on failure) is delegated to the writer; this property guarantees only that the seam is honored. See c4-tomlwriter.md for atomicity itself."
+    },
+    {
+      "id": "P15",
+      "name": "Read error propagated with context",
+      "statement": "For all errors E returned by the injected `readFile`, `ReadModifyWrite` returns `fmt.Errorf(\"reading %s: %w\", path, E)` and never invokes `mutate` or the writer.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 175}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 505},
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 779}
+      ],
+      "notes": "Wrapped error preserves the original via `%w` for `errors.Is` checks."
+    },
+    {
+      "id": "P16",
+      "name": "Decode error propagated with context",
+      "statement": "For all bytes B that fail `toml.Decode` into a `MemoryRecord`, `ReadModifyWrite` returns `fmt.Errorf(\"decoding %s: %w\", path, decErr)` and never invokes `mutate` or the writer.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 182}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 627},
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 649}
+      ],
+      "notes": "Distinct phase from read error so callers can distinguish I/O failures from corrupt-file failures."
+    },
+    {
+      "id": "P17",
+      "name": "Mutate sees decoded record",
+      "statement": "For all valid TOML at `path`, `ReadModifyWrite` calls `mutate(&record)` after successful decode and before invoking the writer; the writer receives the post-mutation value.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 185}
+      ],
+      "tested_at": [
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 674},
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 720},
+        {"path": "internal/memory/readmodifywrite_test.go", "line": 794}
+      ],
+      "notes": "TestReadModifyWrite_PreservesAllFields asserts non-mutated fields round-trip unchanged — i.e. mutate operates on the decoded record, not a fresh zero value."
+    },
+    {
+      "id": "P18",
+      "name": "No direct I/O (DI-only)",
+      "statement": "For all package code in `internal/memory`, no symbol references `os.Open`, `os.WriteFile`, `os.Remove`, `os.Rename`, or `os.CreateTemp` directly; all I/O flows through the injected `readDir`, `readFile`, and `AtomicWriter` fields. Default-wiring `os.ReadDir` / `os.ReadFile` is permitted only inside the constructors `NewLister` / `NewModifier`.",
+      "enforced_at": [
+        {"path": "internal/memory/readmodifywrite.go", "line": 27},
+        {"path": "internal/memory/readmodifywrite.go", "line": 161}
+      ],
+      "tested_at": [],
+      "notes": "Architectural invariant from project DI rule (CLAUDE.md \"DI everywhere\"). No automated guard; would need an import-scanner test or `forbidigo` lint rule. Memory writes are explicitly delegated to E28 (tomlwriter) — `internal/memory` itself does not write files."
+    }
+  ]
+}

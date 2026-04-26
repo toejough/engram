@@ -1,17 +1,23 @@
 %%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 flowchart LR
-    classDef external fill:#999,stroke:#666,color:#fff
-    classDef container fill:#1168bd,stroke:#0b4884,color:#fff
-    classDef focus     fill:#facc15,stroke:#a16207,color:#000
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e3(E3 · Claude Code<br/>agent harness)
-    e17[E17 · session-start.sh<br/>FOCUS]
-    e9[E9 · engram CLI binary]
+    e17["E17 · session-start.sh<br/>SessionStart hook"]
+    e3("E3 · Claude Code<br/>exec + stdout consumer")
+    e9["E9 · engram CLI binary<br/>~/.claude/engram/bin/engram"]
+    ejq("EJQ · jq<br/>JSON emitter")
+    ego("EGO · go build<br/>toolchain")
 
-    e3 -->|"R5: fires SessionStart subprocess<br/>supported by: P1, P4"| e17
-    e17 -->|"R6: emits stdout JSON<br/>supported by: P2, P3"| e3
-    e17 -->|"R9: async go build<br/>supported by: P5–P9"| e9
+    e3 -->|"R5: execs on SessionStart (timeout 10s)"| e17
+    e17 -->|"R6: emits additionalContext JSON on stdout"| e3
+    e17 -->|"Rjq: shells out to build hookSpecificOutput JSON"| ejq
+    e17 -->|"R9a: async go build ./cmd/engram/ when stale"| ego
+    e17 -->|"R9b: deletes + atomically replaces binary; symlinks ~/.local/bin/engram"| e9
 
-    class e3 external
-    class e9 container
+    class e3,ejq,ego external
+    class e9 component
     class e17 focus

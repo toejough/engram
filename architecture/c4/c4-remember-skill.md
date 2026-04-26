@@ -3,19 +3,18 @@ level: 4
 name: remember-skill
 parent: "c3-skills.md"
 children: []
-last_reviewed_commit: 6002fa69
+last_reviewed_commit: cd55eab2
 ---
 
 # C4 — remember-skill (Property/Invariant Ledger)
 
-> Component in focus: **E13 · remember skill** (refines L3 c3-skills).
+> Component in focus: **E13 · remember skill** (refines L3 c3-skills.md).
 > Source files in scope:
-> - [../../skills/remember/SKILL.md](../../skills/remember/SKILL.md)
+> - [skills/remember/SKILL.md](skills/remember/SKILL.md)
 
 ## Context (from L3)
 
-Scoped slice of [c3-skills.md](c3-skills.md): the L3 edges that touch E13. R-edges cite the
-P-list each edge backs.
+E13 remember skill captures explicit knowledge the user dictates ("remember this", "remember that", "don't forget", `/remember`) as feedback or fact memories with user approval. Unlike E11 learn skill, which reviews session work for implicit lessons, remember handles user-initiated saves: the user names what to capture and the skill walks the agent through classification, a three-gate quality check (Recurs, Actionable, Right home), drafting with a `/prepare`-shaped situation field, and persistence via `engram learn` (or `engram update` on dedup hit). The skill body is markdown text loaded by Claude Code (E3) on slash-command or trigger-phrase match (R1); the agent then shells out to the engram CLI binary (E9) per R5. The skill performs no I/O itself — it is text instructing the agent — so all properties below are textual invariants of SKILL.md, enforced by the prose at the cited line and validated only by reading the document.
 
 ![C4 remember-skill context diagram](svg/c4-remember-skill.svg)
 
@@ -24,22 +23,45 @@ P-list each edge backs.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
 > separate bidirectional R/D edges between the same node pair.
 
+**Legend:**
+- **Focus** — yellow (E13 remember skill).
+- **Component** — light blue (sibling skills in E7).
+- **Container** — blue (E9 engram CLI binary).
+- **External** — grey (E3 Claude Code).
+- **R-edges** — solid.
+
 ## Property Ledger
 
 | ID | Property | Statement | Enforced at | Tested at | Notes |
 |---|---|---|---|---|---|
-| <a id="p1-five-step-flow"></a>P1 | Five-step flow | For all invocations of the remember skill, the body instructs the agent to classify, run quality gates, draft + present, save, and handle results. | [skills/remember/SKILL.md:11](../../skills/remember/SKILL.md#L11) | **⚠ UNTESTED** | No behavioral test under `skills/remember/`. |
-| <a id="p2-classify-feedback-or-fact"></a>P2 | Classify feedback vs fact | For all candidates, the skill instructs the agent to classify each as feedback (SBIA) or fact (SPO), and to split a multi-memory utterance into multiple candidates. | [skills/remember/SKILL.md:15](../../skills/remember/SKILL.md#L15) | **⚠ UNTESTED** | Direct quotes can yield two facts. |
-| <a id="p3-quality-gates"></a>P3 | Three quality gates | For all candidates, the skill instructs the agent to apply Recurs, Actionable, and Right-home gates in order; a single failure drops the candidate with explanation to the user. | [skills/remember/SKILL.md:21](../../skills/remember/SKILL.md#L21) | **⚠ UNTESTED** | Mirrors learn skill's gates. |
-| <a id="p4-user-approval"></a>P4 | User approval before save | For all surviving candidates, the skill instructs the agent to draft all fields and present them for explicit user approval before invoking `engram learn`. | [skills/remember/SKILL.md:60](../../skills/remember/SKILL.md#L60) | **⚠ UNTESTED** | Distinguishes /remember from autonomous /learn. |
-| <a id="p5-task-shaped-situation"></a>P5 | Task-shaped situation | For all drafts, the skill instructs the agent to phrase `situation` as activity + domain matching how `/prepare` would query — not as diagnosis/symptom/fix. | [skills/remember/SKILL.md:63](../../skills/remember/SKILL.md#L63) | **⚠ UNTESTED** | Same hindsight-bias rule as learn. |
-| <a id="p6-source-human"></a>P6 | `--source human` | For all saves driven by `/remember`, the skill instructs the agent to pass `--source human` (the user dictated the memory). | [skills/remember/SKILL.md:73](../../skills/remember/SKILL.md#L73) | **⚠ UNTESTED** | Distinguishes user-explicit from agent-derived memories. |
-| <a id="p7-calls-engram-learn-or-update"></a>P7 | Calls `engram learn` / `engram update` | For all approved candidates, the skill instructs invocation of `engram learn feedback`, `engram learn fact`, or (on DUPLICATE) `engram update`. | [skills/remember/SKILL.md:73](../../skills/remember/SKILL.md#L73) | **⚠ UNTESTED** | Backs L3 R5. |
-| <a id="p8-contradiction-asks"></a>P8 | CONTRADICTION asks user | For all `engram learn` results returning CONTRADICTION, the skill instructs the agent to present the conflict and ask the user whether to update existing, replace, or keep both. | [skills/remember/SKILL.md:81](../../skills/remember/SKILL.md#L81) | **⚠ UNTESTED** | User-facing skill must not auto-resolve contradictions. |
+| <a id="p1-trigger-phrases-routed"></a>P1 | Trigger phrases routed | For all user inputs containing "remember this", "remember that", "don't forget", "save this for later", or `/remember`, Claude Code loads the remember skill body as the next agent message. | [skills/remember/SKILL.md:3](../../skills/remember/SKILL.md#L3) | **⚠ UNTESTED** | Enforced by the frontmatter description; matched by Claude Code's skill router (E3 → R1). No automated test in this repo. |
+| <a id="p2-five-step-flow-ordering"></a>P2 | Five-step flow ordering | For all candidate items the user wants saved, the agent executes the flow as Step 1 Classify → Step 2 Quality gate → Step 3 Draft and present → Step 4 Save → Step 5 Handle results, in that order. | [skills/remember/SKILL.md:13](../../skills/remember/SKILL.md#L13), [:20](../../skills/remember/SKILL.md#L20), [:59](../../skills/remember/SKILL.md#L59), [:70](../../skills/remember/SKILL.md#L70), [:77](../../skills/remember/SKILL.md#L77) | **⚠ UNTESTED** | Section ordering is the contract; no skill-runner asserts traversal. |
+| <a id="p3-classify-into-feedback-or-fact"></a>P3 | Classify into feedback or fact | For all candidates, Step 1 classifies each as either a Feedback memory (situation → behavior → impact → action) or a Fact memory (situation → subject → predicate → object); a single user request may yield multiple memories. | [skills/remember/SKILL.md:16](../../skills/remember/SKILL.md#L16), [:17](../../skills/remember/SKILL.md#L17), [:18](../../skills/remember/SKILL.md#L18) | **⚠ UNTESTED** | The two memory shapes correspond to the `engram learn feedback` and `engram learn fact` subcommands invoked in Step 4. |
+| <a id="p4-quality-gates-ordered-fail-fast"></a>P4 | Quality gates ordered, fail-fast | For all candidates, the three quality gates are checked in order — (1) Recurs, (2) Actionable, (3) Right home — and a single failure drops the candidate; the agent tells the user why and suggests the right home instead. | [skills/remember/SKILL.md:22](../../skills/remember/SKILL.md#L22) | **⚠ UNTESTED** | Short-circuit semantics: gate ordering matters because Recurs failures are the most common and cheapest to detect. |
+| <a id="p5-recurs-gate-strips-to-activity-domain"></a>P5 | Recurs gate strips to activity+domain | For all candidates, the Recurs gate fails if the situation, after stripping to "activity + domain", names this project (engram / traced / etc.), its internals or architecture, phase numbers, issue IDs, commit hashes, dates, one-time events, diary entries, or status snapshots. | [skills/remember/SKILL.md:24](../../skills/remember/SKILL.md#L24), [:26](../../skills/remember/SKILL.md#L26), [:28](../../skills/remember/SKILL.md#L28), [:29](../../skills/remember/SKILL.md#L29), [:30](../../skills/remember/SKILL.md#L30) | **⚠ UNTESTED** | Pass criterion: an agent working on an unrelated web app, game, or data pipeline should plausibly hit the same situation. |
+| <a id="p6-actionable-gate-requires-concrete-action"></a>P6 | Actionable gate requires concrete action | For all candidates, the Actionable gate fails on vague observations ("things can go wrong"), inert facts ("X exists"), or raw debug logs; a passing memory names a concrete action that changes what an agent would DO. | [skills/remember/SKILL.md:34](../../skills/remember/SKILL.md#L34) | **⚠ UNTESTED** |   |
+| <a id="p7-right-home-alternative-named"></a>P7 | Right-home alternative named | For all candidates that reach the Right-home gate, the agent first names the alternative home — one of: code, a doc, a skill, CLAUDE.md, a `.claude/rules/*.md` file, or a spec/plan under `docs/`. | [skills/remember/SKILL.md:40](../../skills/remember/SKILL.md#L40) | **⚠ UNTESTED** | Naming the alternative is mandatory before verification; prevents the gate from defaulting to memory. |
+| <a id="p8-right-home-verification-via-git-log"></a>P8 | Right-home verification via git log | For all Right-home checks, the agent verifies the claimed home by running `git log --since='14 days ago' --name-only --pretty=format: -- docs/ specs/ plans/ skills/ CLAUDE.md .claude/`, then reads the listed files and greps for the candidate's content. | [skills/remember/SKILL.md:44](../../skills/remember/SKILL.md#L44), [:45](../../skills/remember/SKILL.md#L45), [:46](../../skills/remember/SKILL.md#L46), [:47](../../skills/remember/SKILL.md#L47), [:49](../../skills/remember/SKILL.md#L49) | **⚠ UNTESTED** | 14-day window scopes verification to recently-touched files; sort -u dedupes paths. |
+| <a id="p9-verification-outcome-trichotomy"></a>P9 | Verification outcome trichotomy | For all Right-home verifications, exactly one of three outcomes is taken: (a) home contains it AND surfaced in time → Move on; (b) home contains it BUT did not surface → Ask user (reinforce vs note); (c) home lacks it or no home fits → Ask user (save anyway?). | [skills/remember/SKILL.md:53](../../skills/remember/SKILL.md#L53), [:55](../../skills/remember/SKILL.md#L55), [:56](../../skills/remember/SKILL.md#L56), [:57](../../skills/remember/SKILL.md#L57) | **⚠ UNTESTED** | Reading the home during verification does not count as surfacing — surfacing must come from /recall, /prepare, or CLAUDE.md auto-load earlier in the session. |
+| <a id="p10-reinforce-path-uses-engram-update-on-duplicate"></a>P10 | Reinforce path uses engram update on duplicate | For all reinforce-path persists where `engram learn` returns DUPLICATE, the agent broadens the existing memory's situation via `engram update --name ... --situation "..."` rather than dismissing the duplicate. | [skills/remember/SKILL.md:56](../../skills/remember/SKILL.md#L56), [:80](../../skills/remember/SKILL.md#L80) | **⚠ UNTESTED** | Duplicate is treated as a surfacing failure: the memory exists but did not reach the agent in time. |
+| <a id="p11-situation-framed-as-activity-domain"></a>P11 | Situation framed as activity+domain | For all surviving candidates, the drafted Situation field describes the task the agent would be embarking on as activity + domain — not the diagnosis, symptom, or fix — matching how `/prepare` queries would be phrased BEFORE the lesson is known. | [skills/remember/SKILL.md:63](../../skills/remember/SKILL.md#L63) | **⚠ UNTESTED** | Bad: "When fixing context cancellation in concurrent code" (bakes in hindsight). Good: "When writing concurrent Go code with context". |
+| <a id="p12-user-approval-before-save"></a>P12 | User approval before save | For all surviving candidates, the agent drafts all fields and presents them for user approval before issuing any `engram learn` or `engram update` command in Step 4. | [skills/remember/SKILL.md:61](../../skills/remember/SKILL.md#L61), [:70](../../skills/remember/SKILL.md#L70) | **⚠ UNTESTED** | Defining property of remember vs learn — the user opted in by name; approval confirms the drafted shape. |
+| <a id="p13-persistence-delegated-to-engram-cli"></a>P13 | Persistence delegated to engram CLI | For all approved candidates, persistence is performed by shelling out to `engram learn feedback --situation ... --behavior ... --impact ... --action ... --source human` (feedback) or `engram learn fact --situation ... --subject ... --predicate ... --object ... --source human` (fact); the skill itself performs no file or network I/O. | [skills/remember/SKILL.md:73](../../skills/remember/SKILL.md#L73), [:74](../../skills/remember/SKILL.md#L74) | **⚠ UNTESTED** | Realises R5 (remember skill → engram CLI binary) at the per-invocation level. |
+| <a id="p14-source-flag-pinned-to-human"></a>P14 | Source flag pinned to human | For all `engram learn` invocations issued from Step 4, the `--source` flag equals `human` — distinguishing user-dictated remember saves from agent-derived learn saves. | [skills/remember/SKILL.md:73](../../skills/remember/SKILL.md#L73), [:74](../../skills/remember/SKILL.md#L74) | **⚠ UNTESTED** | Lets downstream analytics weight human-sourced memories differently from machine-derived ones. |
+| <a id="p15-result-handling-trichotomy"></a>P15 | Result handling trichotomy | For all `engram learn` results, the agent handles exactly one of: CREATED → confirm to user; DUPLICATE → diagnose why /recall or /prepare missed it and broaden via `engram update` (never dismiss); CONTRADICTION → present the conflict and ask the user to update, replace, or keep both. | [skills/remember/SKILL.md:79](../../skills/remember/SKILL.md#L79), [:80](../../skills/remember/SKILL.md#L80), [:81](../../skills/remember/SKILL.md#L81) | **⚠ UNTESTED** | Matches the three result codes the engram CLI's learn pipeline can return. |
+| <a id="p16-duplicate-diagnosed-as-surfacing-failure"></a>P16 | Duplicate diagnosed as surfacing failure | For all DUPLICATE results, the agent treats the outcome as a surfacing failure (recall/prepare missed an existing memory), diagnoses why, and broadens the existing memory's situation rather than dismissing the duplicate. | [skills/remember/SKILL.md:80](../../skills/remember/SKILL.md#L80) | **⚠ UNTESTED** | Tightly coupled to P10; this property is the result-handling phrasing, P10 is the verify-phase phrasing. |
+| <a id="p17-contradiction-defers-to-user"></a>P17 | Contradiction defers to user | For all CONTRADICTION results, the agent presents the conflict to the user and asks whether to update existing, replace, or keep both — never auto-resolves. | [skills/remember/SKILL.md:81](../../skills/remember/SKILL.md#L81) | **⚠ UNTESTED** | User holds final authority on conflicting beliefs; agent is the messenger. |
 
 ## Cross-links
 
 - Parent: [c3-skills.md](c3-skills.md) (refines **E13 · remember skill**)
+- Siblings:
+  - [c4-c4-skill.md](c4-c4-skill.md)
+  - [c4-learn-skill.md](c4-learn-skill.md)
+  - [c4-migrate-skill.md](c4-migrate-skill.md)
+  - [c4-prepare-skill.md](c4-prepare-skill.md)
+  - [c4-recall-skill.md](c4-recall-skill.md)
 
 See `skills/c4/references/property-ledger-format.md` for the full row format and untested-property
 discipline.
+

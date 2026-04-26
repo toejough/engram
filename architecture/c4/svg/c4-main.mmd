@@ -1,16 +1,18 @@
 %%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 flowchart LR
-    classDef external fill:#999,stroke:#666,color:#fff
-    classDef component fill:#85bbf0,stroke:#5d9bd1,color:#000
-    classDef focus     fill:#facc15,stroke:#a16207,color:#000
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e3(E3 · Claude Code<br/>agent harness)
-    e20[E20 · main.go<br/>FOCUS]
-    e21[E21 · cli]
+    e20["E20 · main.go<br/>process entry"]
+    e21["E21 · cli<br/>subcommand dispatch"]
+    etarg("ETARG · targ<br/>external framework")
 
-    e3 -->|"R1: execs the binary<br/>supported by: P1, P2"| e20
-    e20 -->|"R2: builds CLI targets, runs targ.Main<br/>supported by: P1, P3"| e21
+    e20 -->|"R2a: calls SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit)"| e21
+    e20 -->|"R2b: forwards targets into targ.Main"| etarg
 
-    class e3 external
+    class etarg external
     class e21 component
     class e20 focus
