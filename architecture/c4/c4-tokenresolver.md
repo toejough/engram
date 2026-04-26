@@ -21,26 +21,12 @@ calls E27 makes through dependencies wired by E21.
 
 The R-edge labels cite the P-list each edge backs.
 
-```mermaid
-flowchart LR
-    classDef person      fill:#08427b,stroke:#052e56,color:#fff
-    classDef external    fill:#999,   stroke:#666,   color:#fff
-    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
-    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
-    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+![C4 tokenresolver context diagram](svg/c4-tokenresolver.svg)
 
-    e21[E21 · cli<br/>dispatch + I/O adapters]
-    e27[E27 · tokenresolver<br/>FOCUS]
-
-    e21 -->|"R7 · P1–P8"| e27
-    e27 -.->|"D1 · P1–P8"| e21
-
-    class e21 component
-    class e27 focus
-
-    click e21 href "c3-engram-cli-binary.md#e21-cli" "cli (L3)"
-    click e27 href "c3-engram-cli-binary.md#e27-tokenresolver" "tokenresolver (L3)"
-```
+> Diagram source: [svg/c4-tokenresolver.mmd](svg/c4-tokenresolver.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-tokenresolver.mmd -o architecture/c4/svg/c4-tokenresolver.svg`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
 
 **Legend:**
 - Solid grey: L3 elements carried over.

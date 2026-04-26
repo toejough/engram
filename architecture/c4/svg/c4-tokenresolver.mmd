@@ -1,0 +1,16 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+
+    e21[E21 · cli<br/>dispatch + I/O adapters]
+    e27[E27 · tokenresolver<br/>FOCUS]
+
+    e21 -->|"R7: Resolve(ctx)<br/>supported by: P1–P8"| e27
+    e27 -.->|"D1: invokes injected DI deps (getenv, execCmd, goos) wired by cli<br/>supported by: P1–P8"| e21
+
+    class e21 component
+    class e27 focus

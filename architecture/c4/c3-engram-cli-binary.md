@@ -10,68 +10,14 @@ last_reviewed_commit: 1ba7e162
 
 Refines L2's E9 engram CLI binary into nine internal components. The shell of the binary (cmd/engram/main.go) only wires cli.Targets into targ.Main; all command logic, I/O adapters, and external integrations live under internal/. Pure-logic packages (recall, memory, tomlwriter) take all I/O as DI interfaces; thin adapter shims live in internal/cli so concrete I/O is wired only at the edge of the binary.
 
-```mermaid
-flowchart LR
-    classDef person      fill:#08427b,stroke:#052e56,color:#fff
-    classDef external    fill:#999,   stroke:#666,   color:#fff
-    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
-    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+![C3 engram CLI binary diagram](svg/c3-engram-cli-binary.svg)
 
-    e3(E3 · Claude Code<br/>agent harness)
-    e4(E4 · Claude Code memory surfaces)
-    e5(E5 · Anthropic API<br/>Haiku)
-    e6(E6 · Engram memory store<br/>~/.local/share/engram/memory/)
-
-    subgraph e9 [E9 · engram CLI binary]
-        e20[E20 · main.go<br/>process entry]
-        e21[E21 · cli<br/>dispatch + I/O adapters]
-        e22[E22 · recall<br/>orchestrator + phases]
-        e23[E23 · context<br/>transcript reader]
-        e24[E24 · memory<br/>feedback / fact records]
-        e25[E25 · externalsources<br/>CLAUDE.md / rules / auto-memory / skills]
-        e26[E26 · anthropic<br/>Messages API client]
-        e27[E27 · tokenresolver<br/>env + macOS Keychain]
-        e28[E28 · tomlwriter<br/>TOML serialization]
-    end
-
-    e3 -->|"R1: execs the binary as a subprocess (Bash tool)"| e20
-    e20 -->|"R2: builds CLI targets and runs targ.Main"| e21
-    e21 -->|"R3: delegates the recall pipeline (Orchestrator + phases) to the dedicated recall package — the one subcommand currently extracted from cli (see Drift Notes)"| e22
-    e21 -->|"R4: reads / writes feedback + fact TOML through memory types and helpers"| e24
-    e21 -->|"R5: discovers external source paths and shares the cache via discoverExternalSources"| e25
-    e21 -->|"R6: builds the Anthropic caller used by recall.NewSummarizer"| e26
-    e21 -->|"R7"| e27
-    e27 -.->|"D1"| e21
-    e22 -->|"R8: reads + strips session transcripts within budget"| e23
-    e22 -->|"R9: lists memories during recall ranking"| e24
-    e22 -->|"R10: ranks candidates and extracts snippets via Haiku (through DI Summarizer)"| e26
-    e22 -->|"R11: reads CLAUDE.md / rules / auto-memory / skill frontmatter (cached)"| e25
-    e21 -->|"R12: writes new TOML on learn / remember / update"| e28
-    e21 -->|"R13: prints briefings, recall results, and list / show output to stdout"| e3
-    e26 -->|"R14: HTTPS POST /v1/messages (Haiku)"| e5
-    e25 -->|"R15: reads project + user CLAUDE.md, .claude/rules, auto-memory, skill frontmatter"| e4
-    e24 -->|"R16: reads existing feedback + fact TOML during recall / list / show"| e6
-    e28 -->|"R17: writes new feedback + fact TOML on learn / remember / update"| e6
-
-    class e3,e4,e5,e6 external
-    class e20,e21,e22,e23,e24,e25,e26,e27,e28 component
-    class e9 container
-
-    click e9 href "#e9-engram-cli-binary" "engram CLI binary"
-    click e3 href "#e3-claude-code" "Claude Code"
-    click e4 href "#e4-claude-code-memory-surfaces" "Claude Code memory surfaces"
-    click e5 href "#e5-anthropic-api" "Anthropic API"
-    click e6 href "#e6-engram-memory-store" "Engram memory store"
-    click e20 href "#e20-main-go" "main.go"
-    click e21 href "#e21-cli" "cli"
-    click e22 href "#e22-recall" "recall"
-    click e23 href "#e23-context" "context"
-    click e24 href "#e24-memory" "memory"
-    click e25 href "#e25-externalsources" "externalsources"
-    click e26 href "#e26-anthropic" "anthropic"
-    click e27 href "#e27-tokenresolver" "tokenresolver"
-    click e28 href "#e28-tomlwriter" "tomlwriter"
-```
+> Diagram source: [svg/c3-engram-cli-binary.mmd](svg/c3-engram-cli-binary.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c3-engram-cli-binary.mmd -o architecture/c4/svg/c3-engram-cli-binary.svg`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair. Click handlers from the
+> mermaid source are not preserved in the SVG; element-catalog navigation works via
+> in-page anchors below.
 
 ## Element Catalog
 

@@ -1,0 +1,46 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+
+    e3(E3 · Claude Code<br/>agent harness)
+    e4(E4 · Claude Code memory surfaces)
+    e5(E5 · Anthropic API<br/>Haiku)
+    e6(E6 · Engram memory store<br/>~/.local/share/engram/memory/)
+
+    subgraph e9 [E9 · engram CLI binary]
+        e20[E20 · main.go<br/>process entry]
+        e21[E21 · cli<br/>dispatch + I/O adapters]
+        e22[E22 · recall<br/>orchestrator + phases]
+        e23[E23 · context<br/>transcript reader]
+        e24[E24 · memory<br/>feedback / fact records]
+        e25[E25 · externalsources<br/>CLAUDE.md / rules / auto-memory / skills]
+        e26[E26 · anthropic<br/>Messages API client]
+        e27[E27 · tokenresolver<br/>env + macOS Keychain]
+        e28[E28 · tomlwriter<br/>TOML serialization]
+    end
+
+    e3 -->|"R1: execs the binary as a subprocess (Bash tool)"| e20
+    e20 -->|"R2: builds CLI targets and runs targ.Main"| e21
+    e21 -->|"R3: delegates the recall pipeline (Orchestrator + phases) to the dedicated recall package — the one subcommand currently extracted from cli (see Drift Notes)"| e22
+    e21 -->|"R4: reads / writes feedback + fact TOML through memory types and helpers"| e24
+    e21 -->|"R5: discovers external source paths and shares the cache via discoverExternalSources"| e25
+    e21 -->|"R6: builds the Anthropic caller used by recall.NewSummarizer"| e26
+    e21 -->|"R7: resolves API token (env or Keychain) before any LLM call"| e27
+    e27 -.->|"D1: invokes injected DI deps (getenv, execCmd, goos) wired by cli"| e21
+    e22 -->|"R8: reads + strips session transcripts within budget"| e23
+    e22 -->|"R9: lists memories during recall ranking"| e24
+    e22 -->|"R10: ranks candidates and extracts snippets via Haiku (through DI Summarizer)"| e26
+    e22 -->|"R11: reads CLAUDE.md / rules / auto-memory / skill frontmatter (cached)"| e25
+    e21 -->|"R12: writes new TOML on learn / remember / update"| e28
+    e21 -->|"R13: prints briefings, recall results, and list / show output to stdout"| e3
+    e26 -->|"R14: HTTPS POST /v1/messages (Haiku)"| e5
+    e25 -->|"R15: reads project + user CLAUDE.md, .claude/rules, auto-memory, skill frontmatter"| e4
+    e24 -->|"R16: reads existing feedback + fact TOML during recall / list / show"| e6
+    e28 -->|"R17: writes new feedback + fact TOML on learn / remember / update"| e6
+
+    class e3,e4,e5,e6 external
+    class e20,e21,e22,e23,e24,e25,e26,e27,e28 component
+    class e9 container
