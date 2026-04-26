@@ -1,0 +1,13 @@
+{
+  "schema_version": "1",
+  "level": 2,
+  "name": "x",
+  "parent": "c1-x.md",
+  "preamble": "in_scope without from_parent",
+  "elements": [
+    {"name": "Local", "kind": "container", "in_scope": true, "responsibility": "r", "system_of_record": "s"}
+  ],
+  "relationships": [],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

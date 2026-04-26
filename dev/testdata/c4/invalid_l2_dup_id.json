@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "level": 2,
+  "name": "x",
+  "parent": "c1-x.md",
+  "preamble": "duplicate ID across elements",
+  "elements": [
+    {"id": "E1", "name": "A", "kind": "external", "from_parent": true, "responsibility": "r", "system_of_record": "s"},
+    {"id": "E1", "name": "B", "kind": "container", "from_parent": true, "in_scope": true, "responsibility": "r", "system_of_record": "s"}
+  ],
+  "relationships": [],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

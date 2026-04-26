@@ -150,6 +150,7 @@ var (
 	mermaidEdgeRe      = regexp.MustCompile(`^\s*(\w+)\s*<?-+>+\s*(?:\|([^|]*)\|\s*)?(\w+)\s*$`)
 	mermaidIDPrefix    = regexp.MustCompile(`^E\d+`)
 	mermaidNodeRe      = regexp.MustCompile(`^\s*(\w+)\s*[(\[]+(.*?)[)\]]+\s*$`)
+	mermaidSubgraphRe  = regexp.MustCompile(`^\s*subgraph\s+(\w+)\s*\[(.*?)\]\s*$`)
 	nameStatusLineRe   = regexp.MustCompile(`^[A-Z][A-Z0-9]*\t`)
 	relsHeaderRe       = regexp.MustCompile(`(?m)^##\s+Relationships\s*$`)
 	sinceShorthandRe   = regexp.MustCompile(`^(\d+)([dwmy])$`)
@@ -1243,6 +1244,12 @@ func parseMermaidLines(block *mermaidBlock) {
 		lineNum := block.startLine + offset
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "%%") {
+			continue
+		}
+		if matched := mermaidSubgraphRe.FindStringSubmatch(trimmed); matched != nil {
+			block.nodes = append(block.nodes, mermaidNode{
+				id: matched[1], label: matched[2], line: lineNum,
+			})
 			continue
 		}
 		if strings.HasPrefix(trimmed, "classDef ") {

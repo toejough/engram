@@ -1,0 +1,13 @@
+{
+  "schema_version": "1",
+  "level": 2,
+  "name": "x",
+  "parent": "",
+  "preamble": "empty parent path",
+  "elements": [
+    {"id": "E1", "name": "Sys", "kind": "container", "from_parent": true, "in_scope": true, "responsibility": "r", "system_of_record": "s"}
+  ],
+  "relationships": [],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

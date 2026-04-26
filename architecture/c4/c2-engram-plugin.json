@@ -1,0 +1,100 @@
+{
+  "schema_version": "1",
+  "level": 2,
+  "name": "engram-plugin",
+  "parent": "c1-engram-system.md",
+  "preamble": "Refines L1's E2 Engram plugin into three internal containers — skill markdown files that drive agent behavior, shell hooks fired on Claude Code lifecycle events, and a Go CLI binary that performs all computation. External actors keep their L1 E-IDs; L1's E6 (Local filesystem) is renamed and refined here as E10 Engram memory store (the TOML feedback + facts directory under `~/.local/share/engram/memory/`).",
+  "elements": [
+    {
+      "id": "E1",
+      "name": "Developer",
+      "kind": "person",
+      "from_parent": true,
+      "subtitle": "uses Claude Code",
+      "responsibility": "Engineer who triggers slash-commands and writes prompts that produce memories",
+      "system_of_record": "Human, at a Claude Code session"
+    },
+    {
+      "id": "E2",
+      "name": "Engram plugin",
+      "kind": "container",
+      "from_parent": true,
+      "in_scope": true,
+      "responsibility": "Plugin providing persistent, query-ranked memory: skills decide when to load context, a slim Go binary computes recall/learn, hooks remind the agent at session and tool-use boundaries",
+      "system_of_record": "This repository (`github.com/toejough/engram`)"
+    },
+    {
+      "id": "E3",
+      "name": "Claude Code",
+      "kind": "external",
+      "from_parent": true,
+      "subtitle": "agent harness",
+      "responsibility": "Agent harness that loads skills, fires hooks, and execs the engram binary when the agent shells out",
+      "system_of_record": "Anthropic Claude Code CLI"
+    },
+    {
+      "id": "E4",
+      "name": "Claude Code memory surfaces",
+      "kind": "external",
+      "from_parent": true,
+      "responsibility": "Read-only inputs to recall ranking: project + user `CLAUDE.md`, `.claude/rules/*.md`, auto-memory, skill frontmatter",
+      "system_of_record": "Owned by Claude Code and the user"
+    },
+    {
+      "id": "E5",
+      "name": "Anthropic API",
+      "kind": "external",
+      "from_parent": true,
+      "subtitle": "Haiku",
+      "responsibility": "Haiku model used for candidate ranking, snippet extraction, and learn-time classification",
+      "system_of_record": "`api.anthropic.com`"
+    },
+    {
+      "id": "E10",
+      "name": "Engram memory store",
+      "kind": "external",
+      "from_parent": true,
+      "subtitle": "~/.local/share/engram/memory/",
+      "responsibility": "On-disk memory state: feedback TOML under `~/.local/share/engram/memory/feedback/` and fact TOML under `~/.local/share/engram/memory/facts/`. The filesystem belongs to the OS; Engram only reads and writes within these paths",
+      "system_of_record": "XDG data home on the user's machine"
+    },
+    {
+      "name": "Skills",
+      "kind": "container",
+      "subtitle": "prepare / learn / recall / remember / migrate / c4",
+      "responsibility": "Markdown skill files (`skills/{prepare,learn,recall,remember,migrate,c4}/SKILL.md`) that Claude Code loads on command or auto-trigger; bodies instruct the agent to call `engram` subcommands and present results",
+      "system_of_record": "This repo, under `skills/`"
+    },
+    {
+      "name": "Hooks",
+      "kind": "container",
+      "subtitle": "session-start / user-prompt-submit / post-tool-use",
+      "responsibility": "Three bash scripts (`hooks/session-start.sh`, `hooks/user-prompt-submit.sh`, `hooks/post-tool-use.sh`) wired by `hooks/hooks.json`; emit JSON `additionalContext`, async-rebuild the binary on SessionStart",
+      "system_of_record": "This repo, under `hooks/`"
+    },
+    {
+      "name": "engram CLI binary",
+      "kind": "container",
+      "subtitle": "recall · learn · list · show · update",
+      "responsibility": "Go binary (entry `cmd/engram/main.go`) implementing subcommands `recall`, `learn {feedback,fact}`, `list`, `show`, `update`. All I/O lives here; pure logic in `internal/{recall,memory,cli,…}`. Built by `session-start.sh` to `~/.claude/engram/bin/engram`; execed by Claude Code",
+      "system_of_record": "This repo"
+    }
+  ],
+  "relationships": [
+    {"from": "Developer", "to": "Claude Code", "description": "invokes /prepare, /learn, /recall, /remember, /migrate", "protocol": "Claude Code CLI / TTY"},
+    {"from": "Claude Code", "to": "Skills", "description": "loads skill markdown on /command and on auto-trigger", "protocol": "Plugin manifest, file read"},
+    {"from": "Claude Code", "to": "Hooks", "description": "fires SessionStart, UserPromptSubmit, PostToolUse", "protocol": "Subprocess exec, stdin JSON"},
+    {"from": "Claude Code", "to": "engram CLI binary", "description": "execs the binary as a subprocess each time the agent's Bash tool runs an engram subcommand", "protocol": "Subprocess exec"},
+    {"from": "Skills", "to": "Claude Code", "description": "skill bodies returned to agent context include instructions to shell out to engram subcommands", "protocol": "Skill body text rendered into context"},
+    {"from": "Hooks", "to": "engram CLI binary", "description": "session-start.sh runs go build and writes a fresh binary when source files are newer than cached mtime", "protocol": "go build, file mtime check, file write"},
+    {"from": "Hooks", "to": "Claude Code", "description": "emit hookSpecificOutput.additionalContext (and systemMessage) on stdout to inject reminders and the skill-availability banner", "protocol": "Hook stdout JSON"},
+    {"from": "engram CLI binary", "to": "Anthropic API", "description": "ranks candidates and extracts snippets via Haiku; classifies feedback/facts during learn", "protocol": "HTTPS, Anthropic Messages API (Haiku)"},
+    {"from": "engram CLI binary", "to": "Claude Code memory surfaces", "description": "reads CLAUDE.md, .claude/rules, auto-memory, skill frontmatter for ranking", "protocol": "Local file reads (read-only)"},
+    {"from": "engram CLI binary", "to": "Engram memory store", "description": "reads existing feedback + fact TOML during recall/list/show; writes new TOML during learn/remember/update", "protocol": "Local file I/O, TOML"},
+    {"from": "engram CLI binary", "to": "Claude Code", "description": "prints briefings, recall results, and other subcommand output to stdout, which re-enters the agent's context as the tool result", "protocol": "stdout"}
+  ],
+  "drift_notes": [],
+  "cross_links": {
+    "refined_by": []
+  }
+}
