@@ -34,12 +34,25 @@ Dispatch by intent. The user invokes `/c4 <sub-action> [args]`.
    directly with relative paths.
 6. **Every diagram element and edge carries an ID.** Each catalog row gets `E1, E2, …`, each
    relationships row gets `R1, R2, …`, and the same IDs appear inside the mermaid node labels
-   and edge labels. Every node also gets a `click NODE href "#anchor"` directive that links to
-   the catalog row's anchor. Catalog and relationships rows carry HTML anchors
+   and edge labels. Every L1–L3 node also gets a `click NODE href "#anchor"` directive that
+   links to the catalog row's anchor. Catalog and relationships rows carry HTML anchors
    (`<a id="e1-…"></a>`) so the links resolve. Mismatches (a node ID with no catalog row, or a
    catalog row whose ID isn't on the diagram) are reported as drift findings by `review` and
    `audit`. See `references/mermaid-conventions.md` for the exact pattern. *(L4 ledgers use
-   `P1, P2, …` for properties; no diagram IDs needed since L4 has no diagram.)*
+   `P1, P2, …` for properties and have a small context-strip diagram showing only L3
+   neighbors; click directives are dropped because the diagram is rendered to static SVG.)*
+7. **DI back-edges are dotted and use the D[n] namespace.** When a focus component receives
+   DI dependencies wired by another component, draw a dotted edge `consumer → wirer` labelled
+   `D[n]` on both the parent L3 diagram and the L4 context strip. D-ids are independent of
+   R-ids; one D-id per (consumer, wirer) pair. Per-dep decomposition lives in the consumer's
+   L4 `## Dependency Manifest` table; reciprocal entries live in the wirer's L4 `## DI Wires`
+   table. See `references/mermaid-conventions.md` and `references/property-ledger-format.md`.
+8. **All C4 diagrams are pre-rendered to SVG via `targ c4-render`.** GitHub's Mermaid
+   renderer doesn't support the ELK layout engine that we need for clean bidirectional R/D
+   edges. The `.mmd` source lives at `architecture/c4/svg/c<level>-<name>.mmd`, the rendered
+   SVG at `architecture/c4/svg/c<level>-<name>.svg`. The markdown file embeds the SVG via
+   `![alt](svg/...)` rather than an inline ` ```mermaid ` block. Both source and rendered
+   output are committed. Re-render with `targ c4-render` after editing any `.mmd`.
 
 ## Workflow: `create <level> <name>`
 

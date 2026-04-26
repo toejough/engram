@@ -155,6 +155,7 @@ var (
 	relsHeaderRe       = regexp.MustCompile(`(?m)^##\s+Relationships\s*$`)
 	sinceShorthandRe   = regexp.MustCompile(`^(\d+)([dwmy])$`)
 	slugSplitRe        = regexp.MustCompile(`[^a-z0-9]+`)
+	svgEmbedRe         = regexp.MustCompile(`!\[[^\]]*\]\(svg/([A-Za-z0-9._-]+)\.svg\)`)
 	tableRowFirstRe    = regexp.MustCompile(`^\s*\|\s*(?:<a\s+id="([^"]+)"></a>)?\s*([ER]\d+)\s*\|`)
 	validKinds         = map[string]bool{"person": true, "external": true, "container": true}
 	validNameRe        = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
@@ -330,9 +331,13 @@ func assignRelationshipIDs(rels []L1Relationship) []relationshipID {
 	return result
 }
 
-// auditAnchorsAndClicks emits click_missing for nodes lacking a click directive,
-// click_target_unresolved for click anchors that don't match any catalog or
-// relationships row anchor, and anchor_missing for table rows lacking an anchor.
+// auditAnchorsAndClicks emits click_target_unresolved for click anchors that
+// don't match any catalog or relationships row anchor, and anchor_missing for
+// table rows lacking an anchor. The earlier click_missing check (every node
+// must have a click directive) was dropped when diagrams moved to
+// pre-rendered SVG: click handlers don't carry through static SVG, so they're
+// optional in the .mmd source. Anchors on catalog/relationships rows remain
+// load-bearing because in-page links into them work in the markdown body.
 func auditAnchorsAndClicks(block *mermaidBlock, catalog []catalogRow, rels []relationshipsRow) []Finding {
 	if block == nil {
 		return nil
@@ -359,9 +364,7 @@ func auditAnchorsAndClicks(block *mermaidBlock, catalog []catalogRow, rels []rel
 			})
 		}
 	}
-	clickedNodes := map[string]bool{}
 	for _, click := range block.clicks {
-		clickedNodes[click.node] = true
 		if !anchorSet[click.hrefAnchor] {
 			findings = append(findings, Finding{
 				ID: "click_target_unresolved", Line: click.line,
@@ -370,19 +373,18 @@ func auditAnchorsAndClicks(block *mermaidBlock, catalog []catalogRow, rels []rel
 			})
 		}
 	}
-	for _, node := range block.nodes {
-		if !clickedNodes[node.id] {
-			findings = append(findings, Finding{
-				ID: "click_missing", Line: node.line,
-				Detail: fmt.Sprintf("node %s has no click directive", node.id),
-			})
-		}
-	}
 	return findings
 }
 
 // auditFile reads path and returns all structural findings.
 // It returns an error only when the file itself cannot be read.
+//
+// L1–L3 markdown is checked against the full set of structural rules
+// (mermaid block, element catalog, relationships table, click directives,
+// JSON registry cross-check). L4 ledgers use a different schema (Property
+// Ledger + Dependency Manifest + DI Wires; no Element Catalog table; no
+// JSON spec; rendered to SVG with no click handlers) so the L1–L3 checks
+// are skipped for level 4 — only front-matter and code-pointer checks run.
 func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -390,13 +392,16 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	}
 	findings := []Finding{}
 	findings = append(findings, auditFrontMatter(ctx, path, raw)...)
-	block, mermaidFindings := parseMermaidBlock(raw)
+	matter, _ := parseFrontMatter(raw)
+	findings = append(findings, checkCodePointers(matter, raw, path)...)
+	if matter.level == 4 {
+		return findings, nil
+	}
+	block, mermaidFindings := parseMermaidBlock(raw, path)
 	findings = append(findings, mermaidFindings...)
 	catalog, rels := parseTables(raw)
 	findings = append(findings, auditOrphans(block, catalog, rels)...)
 	findings = append(findings, auditAnchorsAndClicks(block, catalog, rels)...)
-	matter, _ := parseFrontMatter(raw)
-	findings = append(findings, checkCodePointers(matter, raw, path)...)
 	findings = append(findings, checkRegistryCrossCheck(ctx, raw, path)...)
 	return findings, nil
 }
@@ -1221,26 +1226,52 @@ func parseGitLog(raw []byte) []historyCommit {
 	return commits
 }
 
-// parseMermaidBlock locates the first ```mermaid fenced block in raw and parses
-// its contents. Returns nil block + a single mermaid_block_missing finding when
-// no block is present. Returns parsed-block findings (classdef/node/edge id) too.
-func parseMermaidBlock(raw []byte) (*mermaidBlock, []Finding) {
+// parseMermaidBlock locates the first diagram source for the markdown at path.
+// It first looks for an inline ```mermaid``` fence in raw; if none is present,
+// it looks for an SVG embed referencing svg/<stem>.mmd alongside, reads that
+// file, and parses it instead. Returns nil block + a single
+// mermaid_block_missing finding when neither source can be located.
+func parseMermaidBlock(raw []byte, path string) (*mermaidBlock, []Finding) {
 	openFence := []byte("```mermaid")
 	idx := bytes.Index(raw, openFence)
-	if idx < 0 {
-		return nil, []Finding{{ID: "mermaid_block_missing", Line: 1, Detail: "no ```mermaid fenced block"}}
+	if idx >= 0 {
+		startLine := 1 + bytes.Count(raw[:idx], []byte("\n"))
+		rest := raw[idx+len(openFence):]
+		closeFence := []byte("\n```")
+		body, _, found := bytes.Cut(rest, closeFence)
+		if !found {
+			return nil, []Finding{{ID: "mermaid_block_missing", Line: startLine, Detail: "unterminated ```mermaid block"}}
+		}
+		block := &mermaidBlock{
+			startLine: startLine,
+			endLine:   startLine + bytes.Count(body, []byte("\n")),
+			body:      string(body),
+			classes:   map[string]bool{},
+		}
+		parseMermaidLines(block)
+		return block, collectMermaidFindings(block)
 	}
-	startLine := 1 + bytes.Count(raw[:idx], []byte("\n"))
-	rest := raw[idx+len(openFence):]
-	closeFence := []byte("\n```")
-	body, _, found := bytes.Cut(rest, closeFence)
-	if !found {
-		return nil, []Finding{{ID: "mermaid_block_missing", Line: startLine, Detail: "unterminated ```mermaid block"}}
+
+	// No inline block — try the pre-rendered SVG embed pattern.
+	match := svgEmbedRe.FindSubmatchIndex(raw)
+	if match == nil {
+		return nil, []Finding{{ID: "mermaid_block_missing", Line: 1, Detail: "no ```mermaid fenced block and no svg/<stem>.svg embed"}}
+	}
+	stem := string(raw[match[2]:match[3]])
+	embedLine := 1 + bytes.Count(raw[:match[0]], []byte("\n"))
+	mmdPath := filepath.Join(filepath.Dir(path), "svg", stem+".mmd")
+	mmdBody, err := os.ReadFile(mmdPath)
+	if err != nil {
+		return nil, []Finding{{
+			ID:     "mermaid_block_missing",
+			Line:   embedLine,
+			Detail: fmt.Sprintf("svg embed references %s but %s could not be read: %v", stem+".svg", mmdPath, err),
+		}}
 	}
 	block := &mermaidBlock{
-		startLine: startLine,
-		endLine:   startLine + bytes.Count(body, []byte("\n")),
-		body:      string(body),
+		startLine: 1,
+		endLine:   1 + bytes.Count(mmdBody, []byte("\n")),
+		body:      string(mmdBody),
 		classes:   map[string]bool{},
 	}
 	parseMermaidLines(block)

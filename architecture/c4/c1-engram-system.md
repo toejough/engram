@@ -12,37 +12,12 @@ Engram is a Claude Code plugin that gives the agent persistent, query-ranked mem
 This diagram shows who and what Engram interacts with at the system boundary; it
 deliberately hides the CLI binary, hooks, on-disk stores, and skills (those live at L2).
 
-```mermaid
-flowchart LR
-    classDef person      fill:#08427b,stroke:#052e56,color:#fff
-    classDef external    fill:#999,   stroke:#666,   color:#fff
-    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+![C1 engram system diagram](svg/c1-engram-system.svg)
 
-    e1([E1 · Developer<br/>uses Claude Code])
-    e2[E2 · Engram plugin]
-    e3(E3 · Claude Code<br/>agent harness)
-    e4(E4 · Claude Code memory surfaces<br/>CLAUDE.md, .claude/rules, auto-memory, skills)
-    e5(E5 · Anthropic API<br/>Haiku rank + extract)
-    e6(E6 · Engram memory store<br/>~/.local/share/engram/memory/)
-
-    e1 -->|"R1: Invokes slash-commands and writes prompts that trigger skill auto-invocation"| e3
-    e3 -->|"R2: Loads skill markdown, executes hooks (`SessionStart`, `UserPromptSubmit`, `PostToolUse`), invokes `engram` binary subcommands"| e2
-    e2 -->|"R3: Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn"| e5
-    e2 -->|"R4: Discovers and reads CLAUDE.md (+ `@`-imports), `.claude/rules/*.md`, auto-memory topic files, and skill frontmatter for ranking"| e4
-    e2 <-->|"R5: Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary"| e6
-    e2 -->|"R6: Returns briefings (`/prepare`), recall results (`/recall`), and hook reminders that re-enter the agent's context"| e3
-
-    class e1 person
-    class e3,e4,e5,e6 external
-    class e2 container
-
-    click e1 href "#e1-developer" "Developer"
-    click e2 href "#e2-engram-plugin" "Engram plugin"
-    click e3 href "#e3-claude-code" "Claude Code"
-    click e4 href "#e4-claude-code-memory-surfaces" "Claude Code memory surfaces"
-    click e5 href "#e5-anthropic-api" "Anthropic API"
-    click e6 href "#e6-engram-memory-store" "Engram memory store"
-```
+> Diagram source: [svg/c1-engram-system.mmd](svg/c1-engram-system.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c1-engram-system.mmd -o architecture/c4/svg/c1-engram-system.svg`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
 
 ## Element Catalog
 

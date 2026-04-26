@@ -10,47 +10,12 @@ last_reviewed_commit: 1ba7e162
 
 Refines L2's E7 Skills container into the six skill markdown files Claude Code loads on slash-command or auto-trigger. Each skill body returns instructions to the agent; most instruct it to shell out to the engram CLI binary. The c4 skill is the exception — it instructs the agent to use targ and edit architecture/c4/ directly, never calling the engram binary.
 
-```mermaid
-flowchart LR
-    classDef person      fill:#08427b,stroke:#052e56,color:#fff
-    classDef external    fill:#999,   stroke:#666,   color:#fff
-    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
-    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+![C3 skills diagram](svg/c3-skills.svg)
 
-    e3(E3 · Claude Code<br/>agent harness)
-    e9[E9 · engram CLI binary<br/>recall / learn / list / show / update]
-
-    subgraph e7 [E7 · Skills]
-        e10[E10 · prepare skill<br/>briefs the agent before new work]
-        e11[E11 · learn skill<br/>saves session lessons]
-        e12[E12 · recall skill<br/>loads prior session context]
-        e13[E13 · remember skill<br/>explicit-knowledge capture]
-        e14[E14 · migrate skill<br/>legacy memory upgrade]
-        e15[E15 · c4 skill<br/>architecture diagrams]
-    end
-
-    e3 -->|"R1: loads skill body on /command or auto-trigger"| e7
-    e10 -->|"R2: instructs agent to call `engram recall` (with --query per topic)"| e9
-    e12 -->|"R3: instructs agent to call `engram recall` for prior session context"| e9
-    e11 -->|"R4: instructs agent to call `engram learn feedback` / `engram learn fact`"| e9
-    e13 -->|"R5: instructs agent to call `engram learn` or `engram update`"| e9
-    e14 -->|"R6: instructs agent to read legacy TOML and call `engram update` to rewrite each file"| e9
-
-    class e3 external
-    class e9 container
-    class e10,e11,e12,e13,e14,e15 component
-    class e7 container
-
-    click e7 href "#e7-skills" "Skills"
-    click e3 href "#e3-claude-code" "Claude Code"
-    click e9 href "#e9-engram-cli-binary" "engram CLI binary"
-    click e10 href "#e10-prepare-skill" "prepare skill"
-    click e11 href "#e11-learn-skill" "learn skill"
-    click e12 href "#e12-recall-skill" "recall skill"
-    click e13 href "#e13-remember-skill" "remember skill"
-    click e14 href "#e14-migrate-skill" "migrate skill"
-    click e15 href "#e15-c4-skill" "c4 skill"
-```
+> Diagram source: [svg/c3-skills.mmd](svg/c3-skills.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c3-skills.mmd -o architecture/c4/svg/c3-skills.svg`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
 
 ## Element Catalog
 

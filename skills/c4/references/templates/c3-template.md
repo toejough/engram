@@ -10,7 +10,16 @@ last_reviewed_commit: <SHA>
 
 > Container in focus: <name of the L2 container being expanded>
 
-```mermaid
+![C3 <name> diagram](svg/c3-<name>.svg)
+
+> Diagram source: [svg/c3-<name>.mmd](svg/c3-<name>.mmd). Re-render with `targ c4-render`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
+
+`.mmd` source skeleton:
+
+```
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 flowchart LR
     classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
@@ -20,8 +29,8 @@ flowchart LR
     end
     class focus container
     %% neighboring containers/people/externals as context
-    %% relationships — embed R<n> in edge label
-    %% click directives — one per node, jumping to its catalog row anchor
+    %% relationships — embed R<n> in edge label (solid arrow for direct calls)
+    %% DI back-edges — embed D<n> in edge label (dotted arrow `consumer -.-> wirer`)
 ```
 
 ## Element Catalog
@@ -34,6 +43,8 @@ flowchart LR
 
 | ID | From | To | Description | Protocol/Medium |
 |---|---|---|---|---|
+| <a id="r1-PLACEHOLDER"></a>R1 | <from> | <to> | <one sentence> | <protocol> |
+| <a id="d1-PLACEHOLDER"></a>D1 | <consumer> | <wirer> | DI back-edge: invokes injected `<dep1>`, `<dep2>` wired by <wirer>. Per-dep decomposition: [c4-<consumer>.md](c4-<consumer>.md). | Function-pointer call (DI) |
 
 ## Cross-links
 

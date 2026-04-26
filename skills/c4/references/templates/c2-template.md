@@ -8,7 +8,16 @@ last_reviewed_commit: <SHA>
 
 # C2 — <NAME> (Container)
 
-```mermaid
+![C2 <name> diagram](svg/c2-<name>.svg)
+
+> Diagram source: [svg/c2-<name>.mmd](svg/c2-<name>.mmd). Re-render with `targ c4-render`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
+
+`.mmd` source skeleton:
+
+```
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 flowchart LR
     classDef person      fill:#08427b,stroke:#052e56,color:#fff
     classDef external    fill:#999,   stroke:#666,   color:#fff
@@ -17,7 +26,6 @@ flowchart LR
     %% nodes — embed E<n> in label
     %% relationships — embed R<n> in edge label
     %% class assignments
-    %% click directives — one per node, jumping to its anchor in the catalog table
 ```
 
 ## Element Catalog

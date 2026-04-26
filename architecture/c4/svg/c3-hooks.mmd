@@ -1,0 +1,31 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+
+    e3(E3 · Claude Code<br/>agent harness)
+    e9[E9 · engram CLI binary<br/>Go binary built by session-start.sh]
+
+    subgraph e8 [E8 · Hooks]
+        e16[E16 · hooks.json<br/>manifest]
+        e17[E17 · session-start.sh<br/>skill announcement + async rebuild]
+        e18[E18 · user-prompt-submit.sh<br/>/prepare /learn nudge]
+        e19[E19 · post-tool-use.sh<br/>/prepare /learn nudge]
+    end
+
+    e3 -->|"R1: reads manifest at plugin load"| e16
+    e16 -->|"R2: registers SessionStart -> session-start.sh (timeout 10s)"| e17
+    e16 -->|"R3: registers UserPromptSubmit -> user-prompt-submit.sh (timeout 5s)"| e18
+    e16 -->|"R4: registers PostToolUse -> post-tool-use.sh (timeout 5s)"| e19
+    e3 -->|"R5: fires lifecycle events as subprocess execs with JSON stdin"| e8
+    e17 -->|"R6: emits SessionStart additionalContext announcing memory skills"| e3
+    e18 -->|"R7: emits UserPromptSubmit additionalContext nudging /prepare and /learn"| e3
+    e19 -->|"R8: emits PostToolUse additionalContext nudging /prepare and /learn"| e3
+    e17 -->|"R9: async go build to ~/.claude/engram/bin/engram when any *.go is newer than the cached binary"| e9
+
+    class e3 external
+    class e9 container
+    class e16,e17,e18,e19 component
+    class e8 container

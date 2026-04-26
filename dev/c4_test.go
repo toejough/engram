@@ -349,7 +349,12 @@ func TestT5_AuditDirtyAnchors_FindsClickAndAnchorIssues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("auditFile: %v", err)
 	}
-	wantIDs := []string{"click_missing", "click_target_unresolved", "anchor_missing"}
+	// Note: the "click_missing" check (every node must have a click directive)
+	// was dropped when diagrams moved to pre-rendered SVG — clicks don't carry
+	// through static SVG so they're optional in the .mmd source. Anchor checks
+	// (click_target_unresolved, anchor_missing) remain because in-page links
+	// into catalog/relationships rows still resolve in the markdown body.
+	wantIDs := []string{"click_target_unresolved", "anchor_missing"}
 	got := map[string]bool{}
 	for _, finding := range findings {
 		got[finding.ID] = true

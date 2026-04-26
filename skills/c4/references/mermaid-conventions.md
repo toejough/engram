@@ -143,3 +143,108 @@ flowchart LR
 - `subgraph` titles cannot contain commas in some renderers — replace with `&comma;` or omit.
 - Long labels: wrap with `<br/>`, don't trust auto-wrap.
 - Edge labels: always use `-->|label|` form, never `-- label -->` (the former renders consistently).
+
+## DI Back-Edge Convention (D[n])
+
+Standard C4 has no canonical way to render dependency injection. Engram adopts a project-specific
+convention: when component B has a dependency wired by component C, draw a **dotted** edge `B → C`
+labelled `D[n]`. This represents "B initiates a category of calls whose concrete targets are
+determined by C (the wirer)." It coexists with any direct-call `R[n]` edge B already has.
+
+```mermaid
+flowchart LR
+    e21[E21 · cli<br/>dispatch + I/O adapters]
+    e27[E27 · tokenresolver]
+    e21 -->|"R7: Resolve(ctx)"| e27
+    e27 -.->|"D1: invokes injected getenv/execCmd/goos wired by cli"| e21
+```
+
+Rules:
+
+1. **D-namespace is separate from R-namespace.** `R1, R2, …` for direct calls, `D1, D2, …` for
+   DI back-edges. Both spaces start at 1 within a diagram.
+2. **One D-id per (consumer, wirer) pair**, regardless of how many concrete deps. The per-dep
+   decomposition lives in the L4 Dependency Manifest table — never enumerate deps on the L3 edge.
+3. **Dotted arrow syntax:** `e27 -.->|"D1: ..."| e21`. Solid arrows are reserved for direct
+   call edges (R[n]).
+4. **Reciprocal at L4:** the consumer's L4 ledger has a Dependency Manifest table; the wirer's
+   L4 ledger has a DI Wires table. Both must list the same deps; they're cross-references for
+   each other (see `property-ledger-format.md`).
+5. **Edge labels can cite supporting properties:** `D1: ...<br/>supported by: P1–P8`. Use range
+   notation for contiguous P-runs (P1–P5 not P1, P2, P3, P4, P5).
+
+A C4-trained reader will read a normal solid arrow as "A initiates the interaction with B."
+Dotted D-edges deviate from that, so always pair the convention with a Legend (in L4 ledger
+files) or rely on the reader to recognize the label prefix.
+
+## L4 Focus Highlight
+
+In L4 context-strip diagrams, the focus component gets a yellow `:::focus` classDef so the
+subject is visible at a glance:
+
+```mermaid
+flowchart LR
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+    e27[E27 · tokenresolver<br/>FOCUS]
+    class e27 focus
+```
+
+L4 diagrams contain only L3-present elements (no synthetic externals invented at L4). DI
+callbacks land back on the L3 element that wired the dep, not on the wired-through external.
+
+## Pre-rendering to SVG (ELK layout)
+
+GitHub's Mermaid renderer does **not** support the ELK layout engine — `@mermaid-js/layout-elk`
+is not installed and the `%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%` directive is
+silently ignored. Default `dagre` collides bidirectional edges between the same node pair
+(R/D pairs, mermaid-js/mermaid#4745, #5060), making the diagram unreadable.
+
+Workaround: pre-render `.mmd` sources to `.svg` locally with `mmdc` (which honors the ELK
+directive) and embed the SVG in the markdown.
+
+### Layout
+
+```
+architecture/c4/
+├── c1-engram-system.md           # markdown links to svg/c1-engram-system.svg
+├── c2-engram-plugin.md
+├── c3-engram-cli-binary.md
+├── c4-tokenresolver.md
+└── svg/
+    ├── c1-engram-system.mmd      # source (with ELK init directive)
+    ├── c1-engram-system.svg      # rendered output (committed)
+    ├── c2-engram-plugin.mmd
+    ├── ...
+```
+
+### .mmd source preamble
+
+Every `.mmd` source starts with the ELK init directive (it's a no-op on GitHub but mmdc honors it):
+
+```
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    ...
+```
+
+### .md embed snippet
+
+Each markdown file replaces what would have been an inline ` ```mermaid ` block with:
+
+```
+![C<level> <name> diagram](svg/<file-stem>.svg)
+
+> Diagram source: [svg/<file-stem>.mmd](svg/<file-stem>.mmd). Re-render with `targ c4-render`
+> (or `npx @mermaid-js/mermaid-cli -i ... -o ...` directly).
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
+```
+
+### Render command
+
+`targ c4-render` walks `architecture/c4/svg/`, runs `npx @mermaid-js/mermaid-cli` for any
+`.mmd` whose `.svg` is missing or older, and prints a summary. Use `--force` to re-render
+everything.
+
+Click handlers in mermaid (`click foo href "#anchor"`) do not carry through the static SVG
+render; in-page anchors in the catalog tables still work for navigation.
