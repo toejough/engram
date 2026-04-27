@@ -228,6 +228,29 @@ func TestT48_L3ValidateIDs_RequiresFocusLevel2(t *testing.T) {
 	}
 }
 
+func TestT49_DiscoverL3Siblings_FiltersByParent(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	// Create three c3 files: two with same parent, one with different.
+	matcher := []byte("---\nlevel: 3\nname: a\nparent: \"c2-foo.md\"\nchildren: []\nlast_reviewed_commit: x\n---\n\n")
+	if err := os.WriteFile(filepath.Join(tmpDir, "c3-a.md"), matcher, 0o600); err != nil {
+		t.Fatalf("write a: %v", err)
+	}
+	other := []byte("---\nlevel: 3\nname: b\nparent: \"c2-foo.md\"\nchildren: []\nlast_reviewed_commit: x\n---\n\n")
+	if err := os.WriteFile(filepath.Join(tmpDir, "c3-b.md"), other, 0o600); err != nil {
+		t.Fatalf("write b: %v", err)
+	}
+	wrong := []byte("---\nlevel: 3\nname: c\nparent: \"c2-bar.md\"\nchildren: []\nlast_reviewed_commit: x\n---\n\n")
+	if err := os.WriteFile(filepath.Join(tmpDir, "c3-c.md"), wrong, 0o600); err != nil {
+		t.Fatalf("write c: %v", err)
+	}
+	siblings := discoverL3Siblings(filepath.Join(tmpDir, "c3-a.json"), "c2-foo.md")
+	if len(siblings) != 1 || siblings[0] != "c3-b.md" {
+		t.Errorf("want [c3-b.md], got %v", siblings)
+	}
+}
+
 func TestT49_L3ValidateIDs_AcceptsHierarchical(t *testing.T) {
 	t.Parallel()
 
@@ -290,29 +313,6 @@ func TestT51_L3ValidateIDs_RejectsOutOfFocusM(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not under focus") {
 		t.Errorf("want error mentioning 'not under focus', got %q", err.Error())
-	}
-}
-
-func TestT49_DiscoverL3Siblings_FiltersByParent(t *testing.T) {
-	t.Parallel()
-
-	tmpDir := t.TempDir()
-	// Create three c3 files: two with same parent, one with different.
-	matcher := []byte("---\nlevel: 3\nname: a\nparent: \"c2-foo.md\"\nchildren: []\nlast_reviewed_commit: x\n---\n\n")
-	if err := os.WriteFile(filepath.Join(tmpDir, "c3-a.md"), matcher, 0o600); err != nil {
-		t.Fatalf("write a: %v", err)
-	}
-	other := []byte("---\nlevel: 3\nname: b\nparent: \"c2-foo.md\"\nchildren: []\nlast_reviewed_commit: x\n---\n\n")
-	if err := os.WriteFile(filepath.Join(tmpDir, "c3-b.md"), other, 0o600); err != nil {
-		t.Fatalf("write b: %v", err)
-	}
-	wrong := []byte("---\nlevel: 3\nname: c\nparent: \"c2-bar.md\"\nchildren: []\nlast_reviewed_commit: x\n---\n\n")
-	if err := os.WriteFile(filepath.Join(tmpDir, "c3-c.md"), wrong, 0o600); err != nil {
-		t.Fatalf("write c: %v", err)
-	}
-	siblings := discoverL3Siblings(filepath.Join(tmpDir, "c3-a.json"), "c2-foo.md")
-	if len(siblings) != 1 || siblings[0] != "c3-b.md" {
-		t.Errorf("want [c3-b.md], got %v", siblings)
 	}
 }
 

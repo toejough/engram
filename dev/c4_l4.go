@@ -64,11 +64,11 @@ type L4Edge struct {
 	Dotted bool   `json:"dotted,omitempty"`
 }
 
-// L4Focus identifies the L3 component being refined.
+// L4Focus identifies the L3 component being refined. ID must be a level-3
+// (S<n>-N<m>-M<k>) hierarchical path.
 type L4Focus struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	L3Container string `json:"l3_container"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // L4Node is one node on the context-strip diagram. Kind "focus" gets the focus
@@ -121,8 +121,7 @@ type L4WireRow struct {
 
 // unexported variables.
 var (
-	dEdgeIDPrefix    = regexp.MustCompile(`^[RD]\d+$`)
-	propertyIDPrefix = regexp.MustCompile(`^P\d+$`)
+	dEdgeIDPrefix = regexp.MustCompile(`^[RD]\d+$`)
 )
 
 func c4L4Build(ctx context.Context, args C4L4BuildArgs) error {
@@ -131,9 +130,6 @@ func c4L4Build(ctx context.Context, args C4L4BuildArgs) error {
 	}
 	spec, err := loadAndValidateL4Spec(args.Input)
 	if err != nil {
-		return err
-	}
-	if err := validateL4DiagramIDs(ctx, spec, filepath.Dir(args.Input)); err != nil {
 		return err
 	}
 	sha, shaErr := currentGitShortSHA(ctx)
@@ -258,8 +254,8 @@ func emitL4DependencyManifest(buf *bytes.Buffer, spec *L4Spec) {
 }
 
 func emitL4FocusBlockquote(buf *bytes.Buffer, spec *L4Spec) {
-	fmt.Fprintf(buf, "> Component in focus: **%s · %s** (refines L3 %s).\n",
-		spec.Focus.ID, spec.Focus.Name, spec.Focus.L3Container)
+	fmt.Fprintf(buf, "> Component in focus: **%s · %s**.\n",
+		spec.Focus.ID, spec.Focus.Name)
 	if len(spec.Sources) == 0 {
 		buf.WriteString("\n")
 		return
@@ -433,34 +429,67 @@ func formatNextLink(link L4CodeLink) string {
 }
 
 // formatPropertyList collapses contiguous P-id runs into ranges, e.g.
-// ["P2","P3","P4","P5","P6","P7","P8"] -> "P2–P8".
-// Single items and non-contiguous lists are joined with ", ".
+// ["S2-N3-M3-P2","S2-N3-M3-P3","S2-N3-M3-P4"] -> "S2-N3-M3-P2–P4".
+// IDs must all share the same prefix (everything before the last "-P<n>").
+// If prefixes differ or parsing fails, items are joined with ", ".
 func formatPropertyList(ids []string) string {
 	if len(ids) == 0 {
 		return ""
 	}
 	const minRunLength = 3
-	nums := make([]int, 0, len(ids))
+	type entry struct {
+		prefix string
+		num    int
+		raw    string
+	}
+	entries := make([]entry, 0, len(ids))
 	for _, id := range ids {
-		num, err := strconv.Atoi(strings.TrimPrefix(id, "P"))
+		lastDash := strings.LastIndex(id, "-P")
+		if lastDash < 0 {
+			// bare P<n> (legacy or unexpected) — fall back
+			num, err := strconv.Atoi(strings.TrimPrefix(id, "P"))
+			if err != nil {
+				return strings.Join(ids, ", ")
+			}
+			entries = append(entries, entry{prefix: "", num: num, raw: id})
+			continue
+		}
+		prefix := id[:lastDash]
+		suffix := id[lastDash+2:] // skip "-P"
+		num, err := strconv.Atoi(suffix)
 		if err != nil {
 			return strings.Join(ids, ", ")
 		}
-		nums = append(nums, num)
+		entries = append(entries, entry{prefix: prefix, num: num, raw: id})
+	}
+	// Verify all share the same prefix
+	sharedPrefix := entries[0].prefix
+	for _, ent := range entries[1:] {
+		if ent.prefix != sharedPrefix {
+			return strings.Join(ids, ", ")
+		}
+	}
+	nums := make([]int, 0, len(entries))
+	for _, ent := range entries {
+		nums = append(nums, ent.num)
 	}
 	sort.Ints(nums)
 	var groups []string
 	runStart := 0
+	pPrefix := sharedPrefix + "-P"
+	if sharedPrefix == "" {
+		pPrefix = "P"
+	}
 	for index := 1; index <= len(nums); index++ {
 		if index < len(nums) && nums[index] == nums[index-1]+1 {
 			continue
 		}
 		runLen := index - runStart
 		if runLen >= minRunLength {
-			groups = append(groups, fmt.Sprintf("P%d–P%d", nums[runStart], nums[index-1]))
+			groups = append(groups, fmt.Sprintf("%s%d–P%d", pPrefix, nums[runStart], nums[index-1]))
 		} else {
 			for inner := runStart; inner < index; inner++ {
-				groups = append(groups, fmt.Sprintf("P%d", nums[inner]))
+				groups = append(groups, fmt.Sprintf("%s%d", pPrefix, nums[inner]))
 			}
 		}
 		runStart = index
@@ -480,10 +509,9 @@ func l4NodeShape(kind string) (string, string) {
 }
 
 // l4PropertyAnchor returns the lowercase HTML anchor ID for a property row,
-// e.g. "p1-env-precedence".
+// e.g. "s2-n3-m2-p1-subcommand-surface-is-fixed".
 func l4PropertyAnchor(id, name string) string {
-	number := strings.TrimPrefix(id, "P")
-	return fmt.Sprintf("p%s-%s", number, slug(name))
+	return strings.ToLower(id) + "-" + slug(name)
 }
 
 func loadAndValidateL4Spec(path string) (*L4Spec, error) {
@@ -503,56 +531,75 @@ func loadAndValidateL4Spec(path string) (*L4Spec, error) {
 	return &spec, nil
 }
 
-// validateL4DiagramIDs enforces L4 namespace discipline against the JSON spec:
-// every node id matches E<n> and resolves to the L1-L3 registry derived from
-// sibling c{1,2,3}-*.json files in inputDir, and every edge id matches bare
-// R<n> or D<n>. All violations are aggregated into one error so authors see
-// the full list in one pass rather than fixing them one at a time.
-func validateL4DiagramIDs(ctx context.Context, spec *L4Spec, inputDir string) error {
+// sharesParentPath reports whether two same-depth paths share all but the last
+// segment (i.e. are siblings under the same parent).
+func sharesParentPath(a, b IDPath) bool {
+	if len(a.Segments) != len(b.Segments) || len(a.Segments) == 0 {
+		return false
+	}
+	for index := range a.Segments[:len(a.Segments)-1] {
+		if a.Segments[index] != b.Segments[index] {
+			return false
+		}
+	}
+	return true
+}
+
+// validateL4NodeIDs validates that every diagram node has an explicit
+// hierarchical path ID and that edge IDs match the R<n>/D<n> convention.
+// Node IDs must satisfy one of:
+//   - equals the focus (level 3, S<n>-N<m>-M<k>)
+//   - is an ancestor of the focus (level 1 or 2)
+//   - is a sibling of the focus: same depth (level 3) AND shares all but the
+//     last segment with the focus (e.g. S2-N3-M5 is a sibling of S2-N3-M3)
+//
+// All violations are aggregated into one error.
+func validateL4NodeIDs(spec *L4Spec) error {
+	focusPath, err := ParseIDPath(spec.Focus.ID)
+	if err != nil {
+		return fmt.Errorf("focus.id: %w", err)
+	}
 	violations := []string{}
-	badShape := map[int]bool{}
 	for index, edge := range spec.Diagram.Edges {
 		if !dEdgeIDPrefix.MatchString(edge.ID) {
 			violations = append(violations, fmt.Sprintf(
 				"diagram.edges[%d].id %q: must match R<n> (call relationship) or D<n> "+
-					"(DI back-edge); no letter suffixes — allocate a new sequential R<n> "+
-					"for related calls",
+					"(DI back-edge); no letter suffixes",
 				index, edge.ID))
 		}
 	}
 	for index, node := range spec.Diagram.Nodes {
-		if !mermaidIDPrefix.MatchString(node.ID) {
+		path, pathErr := ParseIDPath(node.ID)
+		if pathErr != nil {
 			violations = append(violations, fmt.Sprintf(
-				"diagram.nodes[%d].id %q: must match E<n>; if this represents an external "+
-					"system, add it to the L3 registry first or describe it in the "+
-					`Dependency Manifest's "Concrete adapter" column instead of inventing `+
-					"an L4-only id",
-				index, node.ID))
-			badShape[index] = true
+				"diagram.nodes[%d].id %q: must be a hierarchical path (S<n>, S<n>-N<m>, or S<n>-N<m>-M<k>): %v",
+				index, node.ID, pathErr))
+			continue
 		}
-	}
-	files, records, err := scanRegistryDir(ctx, inputDir)
-	if err != nil {
-		return fmt.Errorf("scan registry dir for L4 id check: %w", err)
-	}
-	if len(files) > 0 {
-		view := deriveRegistry(inputDir, files, records)
-		known := map[string]bool{}
-		for _, element := range view.Elements {
-			known[element.ID] = true
+		if node.ID == spec.Focus.ID {
+			continue // focus itself
 		}
-		for index, node := range spec.Diagram.Nodes {
-			if badShape[index] || node.ID == spec.Focus.ID {
+		switch path.Level {
+		case 1, 2:
+			// carried-over L1/L2 peer (system or container) — accept any
+		case 3:
+			if focusPath.IsAncestorOf(path) {
+				violations = append(violations, fmt.Sprintf(
+					"diagram.nodes[%d].id %q: is a descendant of focus %s; "+
+						"diagram nodes must be the focus, ancestors, or siblings",
+					index, node.ID, spec.Focus.ID))
 				continue
 			}
-			if !known[node.ID] {
+			if !sharesParentPath(path, focusPath) {
 				violations = append(violations, fmt.Sprintf(
-					"diagram.nodes[%d].id %q: not in L1-L3 registry for parent %q — "+
-						"add the element at L3 first, or describe it in the Dependency "+
-						`Manifest's "Concrete adapter" column instead of inventing an `+
-						"L4-only id",
-					index, node.ID, spec.Parent))
+					"diagram.nodes[%d].id %q: not a sibling of focus %s "+
+						"(must share parent S<n>-N<m>)",
+					index, node.ID, spec.Focus.ID))
 			}
+		default:
+			violations = append(violations, fmt.Sprintf(
+				"diagram.nodes[%d].id %q: unsupported L4 node depth %d",
+				index, node.ID, path.Level))
 		}
 	}
 	if len(violations) == 0 {
@@ -561,11 +608,28 @@ func validateL4DiagramIDs(ctx context.Context, spec *L4Spec, inputDir string) er
 	return fmt.Errorf("L4 id validation failed:\n  - %s", strings.Join(violations, "\n  - "))
 }
 
-func validateL4Properties(props []L4Property) error {
+// validateL4PropertiesWithFocus validates each property ID is a level-4 path
+// (S<n>-N<m>-M<k>-P<j>) directly under the focus, and that the P<j> segment
+// matches the 1-based array index.
+func validateL4PropertiesWithFocus(focusPath IDPath, props []L4Property) error {
 	seenID := map[string]bool{}
 	for index, prop := range props {
-		if !propertyIDPrefix.MatchString(prop.ID) {
-			return fmt.Errorf("properties[%d]: id %q must match P<n>", index, prop.ID)
+		path, err := ParseIDPath(prop.ID)
+		if err != nil {
+			return fmt.Errorf("properties[%d]: id %q must be a hierarchical path: %w", index, prop.ID, err)
+		}
+		if path.Level != 4 {
+			return fmt.Errorf("properties[%d]: id %q must be level 4 (S<n>-N<m>-M<k>-P<j>), got level %d",
+				index, prop.ID, path.Level)
+		}
+		if !focusPath.IsAncestorOf(path) {
+			return fmt.Errorf("properties[%d]: id %q is not under focus %s",
+				index, prop.ID, focusPath.String())
+		}
+		expectedSuffix := fmt.Sprintf("P%d", index+1)
+		if path.Segments[3] != expectedSuffix {
+			return fmt.Errorf("properties[%d]: id %q last segment must be %s (index+1)",
+				index, prop.ID, expectedSuffix)
 		}
 		if seenID[prop.ID] {
 			return fmt.Errorf("properties[%d]: duplicate id %q", index, prop.ID)
@@ -597,17 +661,22 @@ func validateL4Spec(spec *L4Spec) error {
 	if strings.TrimSpace(spec.Parent) == "" {
 		return errors.New("parent: must be non-empty at L4")
 	}
-	if !mermaidIDPrefix.MatchString(spec.Focus.ID) {
-		return fmt.Errorf("focus.id %q must match E<n>", spec.Focus.ID)
+	focusPath, err := ParseIDPath(spec.Focus.ID)
+	if err != nil {
+		return fmt.Errorf("focus.id %q must be a hierarchical path: %w", spec.Focus.ID, err)
+	}
+	if focusPath.Level != 3 {
+		return fmt.Errorf("focus.id %q must be level 3 (S<n>-N<m>-M<k>), got level %d",
+			spec.Focus.ID, focusPath.Level)
 	}
 	if strings.TrimSpace(spec.Focus.Name) == "" {
 		return errors.New("focus.name: must be non-empty")
 	}
-	if strings.TrimSpace(spec.Focus.L3Container) == "" {
-		return errors.New("focus.l3_container: must be non-empty")
-	}
 	if strings.TrimSpace(spec.ContextProse) == "" {
 		return errors.New("context_prose: must be non-empty")
 	}
-	return validateL4Properties(spec.Properties)
+	if err := validateL4NodeIDs(spec); err != nil {
+		return err
+	}
+	return validateL4PropertiesWithFocus(focusPath, spec.Properties)
 }

@@ -6,13 +6,13 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e25["E25 · externalsources"]
-    e21["E21 · cli"]
-    e22["E22 · recall"]
+    s2-n3-m6["S2-N3-M6 · externalsources"]
+    s2-n3-m2["S2-N3-M2 · cli"]
+    s2-n3-m3["S2-N3-M3 · recall"]
 
-    e21 -->|"R5: discovers external source paths"| e25
-    e22 -->|"R11: reads cached file contents"| e25
-    e25 -.->|"D4: DI back-edge: StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder"| e21
+    s2-n3-m2 -->|"R5: discovers external source paths"| s2-n3-m6
+    s2-n3-m3 -->|"R11: reads cached file contents"| s2-n3-m6
+    s2-n3-m6 -.->|"D4: DI back-edge: StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder"| s2-n3-m2
 
-    class e21,e22 component
-    class e25 focus
+    class s2-n3-m2,s2-n3-m3 component
+    class s2-n3-m6 focus

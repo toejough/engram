@@ -6,19 +6,19 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e22["E22 · recall<br/>Orchestrator + phases"]
-    e21["E21 · cli<br/>wires DI deps"]
-    e23["E23 · context<br/>transcript strip"]
-    e24["E24 · memory<br/>MemoryLister"]
-    e25["E25 · externalsources<br/>ExternalFile + FileCache"]
-    e26["E26 · anthropic<br/>Haiku caller"]
+    s2-n3-m3["S2-N3-M3 · recall<br/>Orchestrator + phases"]
+    s2-n3-m2["S2-N3-M2 · cli<br/>wires DI deps"]
+    s2-n3-m4["S2-N3-M4 · context<br/>transcript strip"]
+    s2-n3-m5["S2-N3-M5 · memory<br/>MemoryLister"]
+    s2-n3-m6["S2-N3-M6 · externalsources<br/>ExternalFile + FileCache"]
+    s2-n3-m7["S2-N3-M7 · anthropic<br/>Haiku caller"]
 
-    e21 -->|"R3: constructs Orchestrator + invokes Recall / RecallMemoriesOnly"| e22
-    e22 -->|"R8: strips transcript via TranscriptReader"| e23
-    e22 -->|"R9: lists memories via MemoryLister"| e24
-    e22 -->|"R10: ranks + extracts + summarizes via SummarizerI"| e26
-    e22 -->|"R11: reads CLAUDE.md / rules / auto-memory / skills via FileCache"| e25
-    e22 -.->|"D5: DI back-edge: Finder, Reader, SummarizerI, MemoryLister, externalFiles, statusWriter, dataDir"| e21
+    s2-n3-m2 -->|"R3: constructs Orchestrator + invokes Recall / RecallMemoriesOnly"| s2-n3-m3
+    s2-n3-m3 -->|"R8: strips transcript via TranscriptReader"| s2-n3-m4
+    s2-n3-m3 -->|"R9: lists memories via MemoryLister"| s2-n3-m5
+    s2-n3-m3 -->|"R10: ranks + extracts + summarizes via SummarizerI"| s2-n3-m7
+    s2-n3-m3 -->|"R11: reads CLAUDE.md / rules / auto-memory / skills via FileCache"| s2-n3-m6
+    s2-n3-m3 -.->|"D5: DI back-edge: Finder, Reader, SummarizerI, MemoryLister, externalFiles, statusWriter, dataDir"| s2-n3-m2
 
-    class e21,e23,e24,e25,e26 component
-    class e22 focus
+    class s2-n3-m2,s2-n3-m4,s2-n3-m5,s2-n3-m6,s2-n3-m7 component
+    class s2-n3-m3 focus

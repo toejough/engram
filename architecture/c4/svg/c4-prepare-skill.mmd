@@ -6,13 +6,13 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e10["E10 · prepare skill<br/>skill body markdown"]
-    e3("E3 · Claude Code<br/>loads skill body")
-    e9["E9 · engram CLI binary<br/>recall subcommand target"]
+    s2-n1-m1["S2-N1-M1 · prepare skill<br/>skill body markdown"]
+    s3("S3 · Claude Code<br/>loads skill body")
+    s2-n3["S2-N3 · engram CLI binary<br/>recall subcommand target"]
 
-    e3 -->|"R1: loads skill body on /prepare"| e10
-    e10 -->|"R2: instructs agent to call engram recall --query"| e9
+    s3 -->|"R1: loads skill body on /prepare"| s2-n1-m1
+    s2-n1-m1 -->|"R2: instructs agent to call engram recall --query"| s2-n3
 
-    class e3 external
-    class e9 component
-    class e10 focus
+    class s3 external
+    class s2-n3 component
+    class s2-n1-m1 focus

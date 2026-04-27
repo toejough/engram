@@ -6,10 +6,10 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e20["E20 · main.go<br/>process entry"]
-    e21["E21 · cli<br/>subcommand dispatch"]
+    s2-n3-m1["S2-N3-M1 · main.go<br/>process entry"]
+    s2-n3-m2["S2-N3-M2 · cli<br/>subcommand dispatch"]
 
-    e20 -->|"R2: calls SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit) and forwards targets into targ.Main"| e21
+    s2-n3-m1 -->|"R2: calls SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit) and forwards targets into targ.Main"| s2-n3-m2
 
-    class e21 component
-    class e20 focus
+    class s2-n3-m2 component
+    class s2-n3-m1 focus

@@ -6,10 +6,10 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e11["E11 · learn skill"]
-    e9["E9 · engram CLI binary"]
+    s2-n1-m2["S2-N1-M2 · learn skill"]
+    s2-n3["S2-N3 · engram CLI binary"]
 
-    e11 -->|"R4: instructs agent to call engram learn feedback / engram learn fact (P9)"| e9
+    s2-n1-m2 -->|"R4: instructs agent to call engram learn feedback / engram learn fact (P9)"| s2-n3
 
-    class e9 container
-    class e11 focus
+    class s2-n3 container
+    class s2-n1-m2 focus

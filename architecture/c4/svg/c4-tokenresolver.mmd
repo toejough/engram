@@ -6,11 +6,11 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e27["E27 · tokenresolver<br/>API token resolution"]
-    e21["E21 · cli<br/>wirer / consumer"]
+    s2-n3-m8["S2-N3-M8 · tokenresolver<br/>API token resolution"]
+    s2-n3-m2["S2-N3-M2 · cli<br/>wirer / consumer"]
 
-    e21 -->|"R7: calls Resolver.Resolve"| e27
-    e27 -.->|"D1: invokes injected getenv / execCmd / goos"| e21
+    s2-n3-m2 -->|"R7: calls Resolver.Resolve"| s2-n3-m8
+    s2-n3-m8 -.->|"D1: invokes injected getenv / execCmd / goos"| s2-n3-m2
 
-    class e21 component
-    class e27 focus
+    class s2-n3-m2 component
+    class s2-n3-m8 focus

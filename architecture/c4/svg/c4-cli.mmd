@@ -6,31 +6,31 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e21["E21 · cli"]
-    e20["E20 · main.go"]
-    e22["E22 · recall"]
-    e24["E24 · memory"]
-    e25["E25 · externalsources"]
-    e26["E26 · anthropic"]
-    e27["E27 · tokenresolver"]
-    e28["E28 · tomlwriter"]
-    e3("E3 · Claude Code")
+    s2-n3-m2["S2-N3-M2 · cli"]
+    s2-n3-m1["S2-N3-M1 · main.go"]
+    s2-n3-m3["S2-N3-M3 · recall"]
+    s2-n3-m5["S2-N3-M5 · memory"]
+    s2-n3-m6["S2-N3-M6 · externalsources"]
+    s2-n3-m7["S2-N3-M7 · anthropic"]
+    s2-n3-m8["S2-N3-M8 · tokenresolver"]
+    s2-n3-m9["S2-N3-M9 · tomlwriter"]
+    s3("S3 · Claude Code")
 
-    e20 -->|"R2: builds targets, runs targ.Main"| e21
-    e21 -->|"R3: delegates recall pipeline"| e22
-    e21 -->|"R4: reads/writes memory TOML"| e24
-    e21 -->|"R5: discovers external sources"| e25
-    e21 -->|"R6: builds Anthropic caller"| e26
-    e21 -->|"R7: resolves API token"| e27
-    e21 -->|"R12: writes TOML on learn/update"| e28
-    e21 -->|"R13: stdout output"| e3
-    e27 -.->|"D1: DI: getenv, execCmd, goos"| e21
-    e26 -.->|"D2: DI: HTTPDoer, token, apiURL"| e21
-    e28 -.->|"D3: DI: createTemp, rename, mkdirAll, stat, remove"| e21
-    e25 -.->|"D4: DI: StatFn, Reader, Walker, Matcher, Settings, DirLister, SkillFinder"| e21
-    e22 -.->|"D5: DI: Finder, Reader, Summarizer, MemoryLister"| e21
-    e24 -.->|"D7: DI: readDir, readFile, writer"| e21
+    s2-n3-m1 -->|"R2: builds targets, runs targ.Main"| s2-n3-m2
+    s2-n3-m2 -->|"R3: delegates recall pipeline"| s2-n3-m3
+    s2-n3-m2 -->|"R4: reads/writes memory TOML"| s2-n3-m5
+    s2-n3-m2 -->|"R5: discovers external sources"| s2-n3-m6
+    s2-n3-m2 -->|"R6: builds Anthropic caller"| s2-n3-m7
+    s2-n3-m2 -->|"R7: resolves API token"| s2-n3-m8
+    s2-n3-m2 -->|"R12: writes TOML on learn/update"| s2-n3-m9
+    s2-n3-m2 -->|"R13: stdout output"| s3
+    s2-n3-m8 -.->|"D1: DI: getenv, execCmd, goos"| s2-n3-m2
+    s2-n3-m7 -.->|"D2: DI: HTTPDoer, token, apiURL"| s2-n3-m2
+    s2-n3-m9 -.->|"D3: DI: createTemp, rename, mkdirAll, stat, remove"| s2-n3-m2
+    s2-n3-m6 -.->|"D4: DI: StatFn, Reader, Walker, Matcher, Settings, DirLister, SkillFinder"| s2-n3-m2
+    s2-n3-m3 -.->|"D5: DI: Finder, Reader, Summarizer, MemoryLister"| s2-n3-m2
+    s2-n3-m5 -.->|"D7: DI: readDir, readFile, writer"| s2-n3-m2
 
-    class e3 external
-    class e20,e22,e24,e25,e26,e27,e28 component
-    class e21 focus
+    class s3 external
+    class s2-n3-m1,s2-n3-m3,s2-n3-m5,s2-n3-m6,s2-n3-m7,s2-n3-m8,s2-n3-m9 component
+    class s2-n3-m2 focus

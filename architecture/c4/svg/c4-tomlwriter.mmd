@@ -6,14 +6,14 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e28["E28 · tomlwriter"]
-    e21["E21 · cli"]
-    e6("E6 · Engram memory store")
+    s2-n3-m9["S2-N3-M9 · tomlwriter"]
+    s2-n3-m2["S2-N3-M2 · cli"]
+    s6("S6 · Engram memory store")
 
-    e21 -->|"R12: writes new TOML on learn / remember / update"| e28
-    e28 -->|"R17: writes new feedback + fact TOML"| e6
-    e28 -.->|"D3: DI back-edge: createTemp/rename/mkdirAll/stat/remove"| e21
+    s2-n3-m2 -->|"R12: writes new TOML on learn / remember / update"| s2-n3-m9
+    s2-n3-m9 -->|"R17: writes new feedback + fact TOML"| s6
+    s2-n3-m9 -.->|"D3: DI back-edge: createTemp/rename/mkdirAll/stat/remove"| s2-n3-m2
 
-    class e6 external
-    class e21 component
-    class e28 focus
+    class s6 external
+    class s2-n3-m2 component
+    class s2-n3-m9 focus

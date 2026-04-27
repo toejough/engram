@@ -6,14 +6,14 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e3("E3 · Claude Code")
-    e16["E16 · hooks.json"]
-    e19["E19 · post-tool-use.sh"]
+    s3("S3 · Claude Code")
+    s2-n2-m1["S2-N2-M1 · hooks.json"]
+    s2-n2-m4["S2-N2-M4 · post-tool-use.sh"]
 
-    e16 -->|"R4: registers PostToolUse -> post-tool-use.sh (timeout 5s)"| e19
-    e3 -->|"R5: execs on PostToolUse event"| e19
-    e19 -->|"R8: emits PostToolUse additionalContext"| e3
+    s2-n2-m1 -->|"R4: registers PostToolUse -> post-tool-use.sh (timeout 5s)"| s2-n2-m4
+    s3 -->|"R5: execs on PostToolUse event"| s2-n2-m4
+    s2-n2-m4 -->|"R8: emits PostToolUse additionalContext"| s3
 
-    class e3 external
-    class e16 component
-    class e19 focus
+    class s3 external
+    class s2-n2-m1 component
+    class s2-n2-m4 focus

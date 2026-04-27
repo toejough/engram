@@ -3,12 +3,12 @@ level: 4
 name: main
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 3970e94c
+last_reviewed_commit: 035a717d
 ---
 
 # C4 — main (Property/Invariant Ledger)
 
-> Component in focus: **E20 · main.go** (refines L3 c3-engram-cli-binary.md).
+> Component in focus: **S2-N3-M1 · main.go**.
 > Source files in scope:
 > - [cmd/engram/main.go](cmd/engram/main.go)
 
@@ -31,15 +31,15 @@ main.go is the process entry point for the engram CLI binary. It contains no bus
 
 | ID | Property | Statement | Enforced at | Tested at | Notes |
 |---|---|---|---|---|---|
-| <a id="p1-single-entry-point"></a>P1 | Single entry point | For all process invocations of the engram binary, control enters at `main.main` and exits only when `targ.Main` returns or a forced-exit signal handler calls `os.Exit`. | [cmd/engram/main.go:12](../../cmd/engram/main.go#L12) | **⚠ UNTESTED** | main is excluded from coverage by project convention; entry behavior is exercised by every CLI integration run. |
-| <a id="p2-concrete-i-o-wired-at-the-edge"></a>P2 | Concrete I/O wired at the edge | For all process invocations, the standard I/O handles supplied to the CLI are exactly `os.Stdout`, `os.Stderr`, and `os.Stdin` — no other code path injects real-OS streams into the binary. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | **⚠ UNTESTED** | Honors the project's DI-at-the-edge rule: `internal/` packages never call `os.*` directly; the only `os.Stdout/Stderr/Stdin` reference is here. |
-| <a id="p3-real-os-exit-is-the-terminator"></a>P3 | Real os.Exit is the terminator | For all process invocations, the exit-function passed into the signal-handling setup is `os.Exit` — second-signal force-exit terminates the real process, not a stubbed one. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | **⚠ UNTESTED** | Tests cover `SetupSignalHandling` with a stub `exitFn` (signal_test.go); the binding of the real `os.Exit` here is intentionally untested at the unit layer. |
-| <a id="p4-signal-handlers-installed-before-dispatch"></a>P4 | Signal handlers installed before dispatch | For all process invocations, `cli.SetupSignalHandling` is invoked before `targ.Main`, so SIGINT/SIGTERM handlers and the force-exit goroutine are active for the entire lifetime of subcommand execution. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | **⚠ UNTESTED** | Ordering is a single-expression invariant: `SetupSignalHandling(...)` evaluates and returns before `targ.Main` receives its arguments. |
-| <a id="p5-no-business-logic-in-entry-point"></a>P5 | No business logic in entry point | For all changes to `cmd/engram/main.go`, the file contains only the entry-point shell: package declaration, imports, and a `main` function that delegates to `cli` and `targ` — no command logic, parsing, or I/O is performed here. | [cmd/engram/main.go:12](../../cmd/engram/main.go#L12) | **⚠ UNTESTED** | Enforced by convention and the L3 catalog row for E20 ("No business logic; excluded from coverage per project convention."). Drift would show up as new statements inside `main`. |
+| <a id="s2-n3-m1-p1-single-entry-point"></a>S2-N3-M1-P1 | Single entry point | For all process invocations of the engram binary, control enters at `main.main` and exits only when `targ.Main` returns or a forced-exit signal handler calls `os.Exit`. | [cmd/engram/main.go:12](../../cmd/engram/main.go#L12) | **⚠ UNTESTED** | main is excluded from coverage by project convention; entry behavior is exercised by every CLI integration run. |
+| <a id="s2-n3-m1-p2-concrete-i-o-wired-at-the-edge"></a>S2-N3-M1-P2 | Concrete I/O wired at the edge | For all process invocations, the standard I/O handles supplied to the CLI are exactly `os.Stdout`, `os.Stderr`, and `os.Stdin` — no other code path injects real-OS streams into the binary. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | **⚠ UNTESTED** | Honors the project's DI-at-the-edge rule: `internal/` packages never call `os.*` directly; the only `os.Stdout/Stderr/Stdin` reference is here. |
+| <a id="s2-n3-m1-p3-real-os-exit-is-the-terminator"></a>S2-N3-M1-P3 | Real os.Exit is the terminator | For all process invocations, the exit-function passed into the signal-handling setup is `os.Exit` — second-signal force-exit terminates the real process, not a stubbed one. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | **⚠ UNTESTED** | Tests cover `SetupSignalHandling` with a stub `exitFn` (signal_test.go); the binding of the real `os.Exit` here is intentionally untested at the unit layer. |
+| <a id="s2-n3-m1-p4-signal-handlers-installed-before-dispatch"></a>S2-N3-M1-P4 | Signal handlers installed before dispatch | For all process invocations, `cli.SetupSignalHandling` is invoked before `targ.Main`, so SIGINT/SIGTERM handlers and the force-exit goroutine are active for the entire lifetime of subcommand execution. | [cmd/engram/main.go:13](../../cmd/engram/main.go#L13) | **⚠ UNTESTED** | Ordering is a single-expression invariant: `SetupSignalHandling(...)` evaluates and returns before `targ.Main` receives its arguments. |
+| <a id="s2-n3-m1-p5-no-business-logic-in-entry-point"></a>S2-N3-M1-P5 | No business logic in entry point | For all changes to `cmd/engram/main.go`, the file contains only the entry-point shell: package declaration, imports, and a `main` function that delegates to `cli` and `targ` — no command logic, parsing, or I/O is performed here. | [cmd/engram/main.go:12](../../cmd/engram/main.go#L12) | **⚠ UNTESTED** | Enforced by convention and the L3 catalog row for E20 ("No business logic; excluded from coverage per project convention."). Drift would show up as new statements inside `main`. |
 
 ## Cross-links
 
-- Parent: [c3-engram-cli-binary.md](c3-engram-cli-binary.md) (refines **E20 · main.go**)
+- Parent: [c3-engram-cli-binary.md](c3-engram-cli-binary.md) (refines **S2-N3-M1 · main.go**)
 - Siblings:
   - [c4-anthropic.md](c4-anthropic.md)
   - [c4-cli.md](c4-cli.md)

@@ -6,11 +6,11 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e3("E3 · Claude Code")
-    e18["E18 · user-prompt-submit.sh"]
+    s3("S3 · Claude Code")
+    s2-n2-m3["S2-N2-M3 · user-prompt-submit.sh"]
 
-    e3 -->|"R5: exec on UserPromptSubmit"| e18
-    e18 -->|"R7: additionalContext JSON on stdout"| e3
+    s3 -->|"R5: exec on UserPromptSubmit"| s2-n2-m3
+    s2-n2-m3 -->|"R7: additionalContext JSON on stdout"| s3
 
-    class e3 external
-    class e18 focus
+    class s3 external
+    class s2-n2-m3 focus

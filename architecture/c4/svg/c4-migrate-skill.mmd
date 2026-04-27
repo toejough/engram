@@ -6,13 +6,13 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e14["E14 · migrate skill<br/>legacy memory upgrader"]
-    e3("E3 · Claude Code<br/>skill loader")
-    e9["E9 · engram CLI binary<br/>show / update"]
+    s2-n1-m5["S2-N1-M5 · migrate skill<br/>legacy memory upgrader"]
+    s3("S3 · Claude Code<br/>skill loader")
+    s2-n3["S2-N3 · engram CLI binary<br/>show / update"]
 
-    e3 -->|"R1: loads skill body on /migrate or trigger"| e14
-    e14 -->|"R6: instructs agent to verify rewritten files via `engram show`"| e9
+    s3 -->|"R1: loads skill body on /migrate or trigger"| s2-n1-m5
+    s2-n1-m5 -->|"R6: instructs agent to verify rewritten files via `engram show`"| s2-n3
 
-    class e3 external
-    class e9 container
-    class e14 focus
+    class s3 external
+    class s2-n3 container
+    class s2-n1-m5 focus

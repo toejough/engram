@@ -88,67 +88,6 @@ func c4L3Build(ctx context.Context, args C4L3BuildArgs) error {
 	return writeOrCheckMarkdown(outPath, buf.Bytes(), args.Check, args.NoConfirm)
 }
 
-// validateL3ElementIDs validates that the focus has a level-2 (S<n>-N<m>) ID
-// and that each element has an explicit hierarchical path ID. Elements may be:
-//   - L1 paths (S<n>): carried-over system-level peers.
-//   - L2 paths (S<n>-N<m>): carried-over containers; equals focus or peers.
-//   - L3 paths (S<n>-N<m>-M<k>) under the focus: new components.
-//
-// On success returns elementIDs with anchors of the form
-// "<lower-id>-<slug(name)>" (e.g. "s2-n3-m9-tokenresolver").
-func validateL3ElementIDs(spec *L3Spec) ([]elementID, error) {
-	focusPath, err := ParseIDPath(spec.Focus.ID)
-	if err != nil {
-		return nil, fmt.Errorf("focus.id: %w", err)
-	}
-	if focusPath.Level != 2 {
-		return nil, fmt.Errorf("focus.id %q must be level 2 (S<n>-N<m>), got level %d",
-			spec.Focus.ID, focusPath.Level)
-	}
-	result := make([]elementID, 0, len(spec.Elements))
-	used := map[string]int{}
-	for _, element := range spec.Elements {
-		path, pathErr := ParseIDPath(element.ID)
-		if pathErr != nil {
-			return nil, fmt.Errorf("element %q: %w", element.Name, pathErr)
-		}
-		switch path.Level {
-		case 1:
-			// carried-over L1 peer (person/external system)
-		case 2:
-			// carried-over L2 container (equals focus or peer)
-		case 3:
-			if !focusPath.IsAncestorOf(path) {
-				return nil, fmt.Errorf("element %q id %s is not under focus %s",
-					element.Name, element.ID, focusPath.String())
-			}
-		default:
-			return nil, fmt.Errorf("element %q has unsupported L3 id depth %d (%s)",
-				element.Name, path.Level, element.ID)
-		}
-		base := strings.ToLower(element.ID) + "-" + slug(element.Name)
-		anchor := base
-		if used[base] > 0 {
-			used[base]++
-			anchor = fmt.Sprintf("%s-%d", base, used[base])
-		} else {
-			used[base] = 1
-		}
-		result = append(result, elementID{
-			ID:       element.ID,
-			AnchorID: anchor,
-			Element: L1Element{
-				ID:             element.ID,
-				Name:           element.Name,
-				Kind:           element.Kind,
-				Subtitle:       element.Subtitle,
-				Responsibility: element.Responsibility,
-			},
-		})
-	}
-	return result, nil
-}
-
 // discoverL3Siblings returns relative-path entries for any other c3-*.md whose
 // front-matter `parent` matches this spec's parent. Read-only; sibling files
 // are not edited. Errors are silenced — siblings are best-effort discovery.
@@ -409,6 +348,67 @@ func loadAndValidateL3Spec(path string) (*L3Spec, error) {
 	return &spec, nil
 }
 
+// validateL3ElementIDs validates that the focus has a level-2 (S<n>-N<m>) ID
+// and that each element has an explicit hierarchical path ID. Elements may be:
+//   - L1 paths (S<n>): carried-over system-level peers.
+//   - L2 paths (S<n>-N<m>): carried-over containers; equals focus or peers.
+//   - L3 paths (S<n>-N<m>-M<k>) under the focus: new components.
+//
+// On success returns elementIDs with anchors of the form
+// "<lower-id>-<slug(name)>" (e.g. "s2-n3-m9-tokenresolver").
+func validateL3ElementIDs(spec *L3Spec) ([]elementID, error) {
+	focusPath, err := ParseIDPath(spec.Focus.ID)
+	if err != nil {
+		return nil, fmt.Errorf("focus.id: %w", err)
+	}
+	if focusPath.Level != 2 {
+		return nil, fmt.Errorf("focus.id %q must be level 2 (S<n>-N<m>), got level %d",
+			spec.Focus.ID, focusPath.Level)
+	}
+	result := make([]elementID, 0, len(spec.Elements))
+	used := map[string]int{}
+	for _, element := range spec.Elements {
+		path, pathErr := ParseIDPath(element.ID)
+		if pathErr != nil {
+			return nil, fmt.Errorf("element %q: %w", element.Name, pathErr)
+		}
+		switch path.Level {
+		case 1:
+			// carried-over L1 peer (person/external system)
+		case 2:
+			// carried-over L2 container (equals focus or peer)
+		case 3:
+			if !focusPath.IsAncestorOf(path) {
+				return nil, fmt.Errorf("element %q id %s is not under focus %s",
+					element.Name, element.ID, focusPath.String())
+			}
+		default:
+			return nil, fmt.Errorf("element %q has unsupported L3 id depth %d (%s)",
+				element.Name, path.Level, element.ID)
+		}
+		base := strings.ToLower(element.ID) + "-" + slug(element.Name)
+		anchor := base
+		if used[base] > 0 {
+			used[base]++
+			anchor = fmt.Sprintf("%s-%d", base, used[base])
+		} else {
+			used[base] = 1
+		}
+		result = append(result, elementID{
+			ID:       element.ID,
+			AnchorID: anchor,
+			Element: L1Element{
+				ID:             element.ID,
+				Name:           element.Name,
+				Kind:           element.Kind,
+				Subtitle:       element.Subtitle,
+				Responsibility: element.Responsibility,
+			},
+		})
+	}
+	return result, nil
+}
+
 func validateL3Elements(spec *L3Spec) error {
 	seenName := map[string]bool{spec.Focus.Name: true}
 	seenID := map[string]bool{spec.Focus.ID: true}
@@ -492,7 +492,6 @@ func validateL3Spec(spec *L3Spec) error {
 	}
 	return validateL3Elements(spec)
 }
-
 
 // writeOrCheckMarkdown reuses the same write/check semantics as
 // c4-l1-build / c4-l2-build for the L3 build.

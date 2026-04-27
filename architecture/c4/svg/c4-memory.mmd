@@ -6,16 +6,16 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e24["E24 · memory<br/>internal/memory"]
-    e21["E21 · cli<br/>internal/cli"]
-    e22["E22 · recall<br/>internal/recall"]
-    e6("E6 · Engram memory store<br/>feedback/ + facts/ TOML")
+    s2-n3-m5["S2-N3-M5 · memory<br/>internal/memory"]
+    s2-n3-m2["S2-N3-M2 · cli<br/>internal/cli"]
+    s2-n3-m3["S2-N3-M3 · recall<br/>internal/recall"]
+    s6("S6 · Engram memory store<br/>feedback/ + facts/ TOML")
 
-    e21 -->|"R4: reads / writes feedback + fact TOML"| e24
-    e22 -->|"R9: lists memories during recall ranking"| e24
-    e24 -->|"R16: reads existing feedback + fact TOML"| e6
-    e24 -.->|"D7: DI back-edge (readDir, readFile, writer)"| e21
+    s2-n3-m2 -->|"R4: reads / writes feedback + fact TOML"| s2-n3-m5
+    s2-n3-m3 -->|"R9: lists memories during recall ranking"| s2-n3-m5
+    s2-n3-m5 -->|"R16: reads existing feedback + fact TOML"| s6
+    s2-n3-m5 -.->|"D7: DI back-edge (readDir, readFile, writer)"| s2-n3-m2
 
-    class e6 external
-    class e21,e22 component
-    class e24 focus
+    class s6 external
+    class s2-n3-m2,s2-n3-m3 component
+    class s2-n3-m5 focus

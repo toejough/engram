@@ -6,16 +6,16 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
-    e13["E13 · remember skill<br/>explicit-save flow"]
-    e3("E3 · Claude Code<br/>loads skill body")
-    e9["E9 · engram CLI binary<br/>learn / update"]
-    e11["E11 · learn skill<br/>implicit lessons (sibling)"]
-    e10["E10 · prepare skill<br/>situation-shape audience"]
+    s2-n1-m4["S2-N1-M4 · remember skill<br/>explicit-save flow"]
+    s3("S3 · Claude Code<br/>loads skill body")
+    s2-n3["S2-N3 · engram CLI binary<br/>learn / update"]
+    s2-n1-m2["S2-N1-M2 · learn skill<br/>implicit lessons (sibling)"]
+    s2-n1-m1["S2-N1-M1 · prepare skill<br/>situation-shape audience"]
 
-    e3 -->|"R1: loads skill body on /remember or trigger phrase"| e13
-    e13 -->|"R5: instructs agent: engram learn / engram update"| e9
+    s3 -->|"R1: loads skill body on /remember or trigger phrase"| s2-n1-m4
+    s2-n1-m4 -->|"R5: instructs agent: engram learn / engram update"| s2-n3
 
-    class e3 external
-    class e9 container
-    class e11,e10 component
-    class e13 focus
+    class s3 external
+    class s2-n3 container
+    class s2-n1-m2,s2-n1-m1 component
+    class s2-n1-m4 focus
