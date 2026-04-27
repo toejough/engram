@@ -89,7 +89,7 @@
       "description": "fires lifecycle events as subprocess execs with JSON stdin",
       "from": "S3",
       "protocol": "Subprocess exec, stdin JSON",
-      "to": "Hooks"
+      "to": "S2-N2"
     },
     {
       "description": "emits SessionStart additionalContext announcing memory skills",

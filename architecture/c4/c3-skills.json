@@ -81,7 +81,7 @@
       "description": "loads skill body on /command or auto-trigger",
       "from": "S3",
       "protocol": "Plugin manifest, file read",
-      "to": "Skills"
+      "to": "S2-N1"
     },
     {
       "description": "instructs agent to call `engram recall` (with --query per topic)",

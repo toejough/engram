@@ -5,21 +5,20 @@
   "parent": "c2-foo-system.md",
   "preamble": "Test fixture for c4-l3-build. Refines an L2 container into two components and a carry-over neighbor.",
   "focus": {
-    "id": "E2",
+    "id": "S1-N2",
     "name": "Foo",
     "responsibility": "The L2 container being refined; canonical entry lives in the parent L2 catalog."
   },
   "elements": [
     {
-      "id": "E1",
-      "from_parent": true,
+      "id": "S2",
       "name": "Operator",
       "kind": "person",
       "subtitle": "runs Foo",
       "responsibility": "Operator who triggers Foo runs"
     },
     {
-      "id": "E10",
+      "id": "S1-N2-M1",
       "name": "Worker",
       "kind": "component",
       "subtitle": "processes input",
@@ -27,7 +26,7 @@
       "code_pointer": "./worker.go"
     },
     {
-      "id": "E11",
+      "id": "S1-N2-M2",
       "name": "Loader",
       "kind": "component",
       "subtitle": "hydrates state",
@@ -36,8 +35,8 @@
     }
   ],
   "relationships": [
-    {"from": "Operator", "to": "Worker", "description": "submits jobs", "protocol": "tty"},
-    {"from": "Worker", "to": "Loader", "description": "reads loaded state", "protocol": "in-process"}
+    {"from": "S2", "to": "S1-N2-M1", "description": "submits jobs", "protocol": "tty"},
+    {"from": "S1-N2-M1", "to": "S1-N2-M2", "description": "reads loaded state", "protocol": "in-process"}
   ],
   "drift_notes": [],
   "cross_links": {"refined_by": []}

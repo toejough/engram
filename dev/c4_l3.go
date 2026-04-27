@@ -32,7 +32,9 @@ type C4L3BuildArgs struct {
 
 // L3Element is one element on an L3 diagram. Components live inside the focus
 // subgraph; carry-over neighbors (kind person/external/container) live outside.
-// All elements carry an explicit ID — no auto-assignment.
+// Each element has an explicit hierarchical ID: carried-over L1/L2 elements
+// use their parent S<n> or S<n>-N<m> ID; new components under the focus use
+// <focusPath>-M<k>. The focus must have a level-2 (S<n>-N<m>) ID.
 type L3Element struct {
 	ID             string  `json:"id"`
 	Name           string  `json:"name"`
@@ -40,7 +42,6 @@ type L3Element struct {
 	Subtitle       *string `json:"subtitle,omitempty"`
 	Responsibility string  `json:"responsibility"`
 	CodePointer    string  `json:"code_pointer,omitempty"`
-	FromParent     bool    `json:"from_parent,omitempty"`
 }
 
 // L3Focus identifies the parent L2 container being refined. ID + Name together
@@ -74,9 +75,6 @@ func c4L3Build(ctx context.Context, args C4L3BuildArgs) error {
 	if err != nil {
 		return err
 	}
-	if regErr := validateL3SpecAgainstRegistry(ctx, args.Input, spec); regErr != nil {
-		return regErr
-	}
 	sha, shaErr := currentGitShortSHA(ctx)
 	if shaErr != nil {
 		return fmt.Errorf("git rev-parse: %w", shaErr)
@@ -90,39 +88,65 @@ func c4L3Build(ctx context.Context, args C4L3BuildArgs) error {
 	return writeOrCheckMarkdown(outPath, buf.Bytes(), args.Check, args.NoConfirm)
 }
 
-func checkFocusAgainstRegistry(focus L3Focus, elementByID map[string]RegistryElement) error {
-	entry, ok := elementByID[focus.ID]
-	if !ok {
-		// No peer registers this ID — accept (the parent L2 may not be in this
-		// directory yet, e.g. during bootstrap). Audit will catch the markdown
-		// later if the parent is missing.
-		return nil
+// validateL3ElementIDs validates that the focus has a level-2 (S<n>-N<m>) ID
+// and that each element has an explicit hierarchical path ID. Elements may be:
+//   - L1 paths (S<n>): carried-over system-level peers.
+//   - L2 paths (S<n>-N<m>): carried-over containers; equals focus or peers.
+//   - L3 paths (S<n>-N<m>-M<k>) under the focus: new components.
+//
+// On success returns elementIDs with anchors of the form
+// "<lower-id>-<slug(name)>" (e.g. "s2-n3-m9-tokenresolver").
+func validateL3ElementIDs(spec *L3Spec) ([]elementID, error) {
+	focusPath, err := ParseIDPath(spec.Focus.ID)
+	if err != nil {
+		return nil, fmt.Errorf("focus.id: %w", err)
 	}
-	if !containsString(entry.Names, focus.Name) {
-		return fmt.Errorf("focus.name %q for %s conflicts with registry %v",
-			focus.Name, focus.ID, entry.Names)
+	if focusPath.Level != 2 {
+		return nil, fmt.Errorf("focus.id %q must be level 2 (S<n>-N<m>), got level %d",
+			spec.Focus.ID, focusPath.Level)
 	}
-	return nil
-}
-
-func checkL3ElementAgainstRegistry(element L3Element, elementByID map[string]RegistryElement) error {
-	entry, ok := elementByID[element.ID]
-	if !ok {
-		return nil
-	}
-	if element.FromParent {
-		if !containsString(entry.Names, element.Name) {
-			return fmt.Errorf("element %s name %q does not match registry %v (from_parent)",
-				element.ID, element.Name, entry.Names)
+	result := make([]elementID, 0, len(spec.Elements))
+	used := map[string]int{}
+	for _, element := range spec.Elements {
+		path, pathErr := ParseIDPath(element.ID)
+		if pathErr != nil {
+			return nil, fmt.Errorf("element %q: %w", element.Name, pathErr)
 		}
-		return nil
+		switch path.Level {
+		case 1:
+			// carried-over L1 peer (person/external system)
+		case 2:
+			// carried-over L2 container (equals focus or peer)
+		case 3:
+			if !focusPath.IsAncestorOf(path) {
+				return nil, fmt.Errorf("element %q id %s is not under focus %s",
+					element.Name, element.ID, focusPath.String())
+			}
+		default:
+			return nil, fmt.Errorf("element %q has unsupported L3 id depth %d (%s)",
+				element.Name, path.Level, element.ID)
+		}
+		base := strings.ToLower(element.ID) + "-" + slug(element.Name)
+		anchor := base
+		if used[base] > 0 {
+			used[base]++
+			anchor = fmt.Sprintf("%s-%d", base, used[base])
+		} else {
+			used[base] = 1
+		}
+		result = append(result, elementID{
+			ID:       element.ID,
+			AnchorID: anchor,
+			Element: L1Element{
+				ID:             element.ID,
+				Name:           element.Name,
+				Kind:           element.Kind,
+				Subtitle:       element.Subtitle,
+				Responsibility: element.Responsibility,
+			},
+		})
 	}
-	if !containsString(entry.Names, element.Name) {
-		return fmt.Errorf(
-			"element %s name %q collides with existing registry IDs (%v) — pick a different ID",
-			element.ID, element.Name, entry.Names)
-	}
-	return nil
+	return result, nil
 }
 
 // discoverL3Siblings returns relative-path entries for any other c3-*.md whose
@@ -244,6 +268,9 @@ func emitL3FrontMatter(buf *bytes.Buffer, spec *L3Spec, lastReviewedCommit strin
 
 // emitL3Markdown renders spec to canonical L3 markdown.
 func emitL3Markdown(w io.Writer, spec *L3Spec, lastReviewedCommit string, siblings []string) error {
+	if _, err := validateL3ElementIDs(spec); err != nil {
+		return fmt.Errorf("validate l3 element ids: %w", err)
+	}
 	var buf bytes.Buffer
 	emitL3FrontMatter(&buf, spec, lastReviewedCommit)
 	fmt.Fprintf(&buf, "\n# C3 — %s (Component)\n\n%s\n\n",
@@ -307,14 +334,14 @@ func emitL3MermaidClicks(buf *bytes.Buffer, spec *L3Spec) {
 }
 
 func emitL3MermaidEdges(buf *bytes.Buffer, spec *L3Spec) {
-	idByName := map[string]string{
-		spec.Focus.Name: strings.ToLower(spec.Focus.ID),
+	idByElementID := map[string]string{
+		spec.Focus.ID: strings.ToLower(spec.Focus.ID),
 	}
 	for _, element := range spec.Elements {
-		idByName[element.Name] = strings.ToLower(element.ID)
+		idByElementID[element.ID] = strings.ToLower(element.ID)
 	}
 	relIDs := assignRelationshipIDs(spec.Relationships)
-	emitMermaidEdges(buf, relIDs, idByName)
+	emitMermaidEdges(buf, relIDs, idByElementID)
 }
 
 // emitL3NeighborNodes emits one mermaid node per non-component element. These
@@ -337,8 +364,7 @@ func emitL3Relationships(buf *bytes.Buffer, spec *L3Spec) {
 }
 
 func l3AnchorID(id, name string) string {
-	number := strings.TrimPrefix(id, "E")
-	return fmt.Sprintf("e%s-%s", number, slug(name))
+	return strings.ToLower(id) + "-" + slug(name)
 }
 
 func l3MermaidLabel(id, name string, subtitle *string) string {
@@ -403,15 +429,15 @@ func validateL3Elements(spec *L3Spec) error {
 }
 
 func validateL3Relationships(spec *L3Spec) error {
-	names := map[string]bool{spec.Focus.Name: true}
+	ids := map[string]bool{spec.Focus.ID: true}
 	for _, element := range spec.Elements {
-		names[element.Name] = true
+		ids[element.ID] = true
 	}
 	for index, rel := range spec.Relationships {
-		if !names[rel.From] {
+		if !ids[rel.From] {
 			return fmt.Errorf("relationships[%d]: from %q not in elements or focus", index, rel.From)
 		}
-		if !names[rel.To] {
+		if !ids[rel.To] {
 			return fmt.Errorf("relationships[%d]: to %q not in elements or focus", index, rel.To)
 		}
 	}
@@ -419,17 +445,15 @@ func validateL3Relationships(spec *L3Spec) error {
 }
 
 func validateL3SingleElement(index int, element L3Element) error {
-	if !mermaidIDPrefix.MatchString(element.ID) {
-		return fmt.Errorf("elements[%d]: id %q must match E<n>", index, element.ID)
+	if _, err := ParseIDPath(element.ID); err != nil {
+		return fmt.Errorf("elements[%d]: id %q must be a hierarchical path (S<n>, S<n>-N<m>, or S<n>-N<m>-M<k>): %w",
+			index, element.ID, err)
 	}
 	if strings.TrimSpace(element.Name) == "" {
 		return fmt.Errorf("elements[%d]: name must be non-empty", index)
 	}
 	switch element.Kind {
 	case "component":
-		if element.FromParent {
-			return fmt.Errorf("elements[%d]: kind=component cannot be from_parent", index)
-		}
 		if strings.TrimSpace(element.CodePointer) == "" {
 			return fmt.Errorf("elements[%d]: kind=component requires code_pointer", index)
 		}
@@ -460,8 +484,8 @@ func validateL3Spec(spec *L3Spec) error {
 	if strings.TrimSpace(spec.Preamble) == "" {
 		return errors.New("preamble: must be non-empty")
 	}
-	if !mermaidIDPrefix.MatchString(spec.Focus.ID) {
-		return fmt.Errorf("focus.id %q must match E<n>", spec.Focus.ID)
+	if _, err := ParseIDPath(spec.Focus.ID); err != nil {
+		return fmt.Errorf("focus.id %q must be a hierarchical path: %w", spec.Focus.ID, err)
 	}
 	if strings.TrimSpace(spec.Focus.Name) == "" {
 		return errors.New("focus.name: must be non-empty")
@@ -469,47 +493,6 @@ func validateL3Spec(spec *L3Spec) error {
 	return validateL3Elements(spec)
 }
 
-// validateL3SpecAgainstRegistry derives the registry from peer specs in the
-// same directory (excluding the input itself) and verifies that every
-// from_parent element + the focus reference an existing registry entry by both
-// ID and name. New (component) elements must not collide with registry IDs
-// under a different name.
-func validateL3SpecAgainstRegistry(ctx context.Context, inputPath string, spec *L3Spec) error {
-	dir := filepath.Dir(inputPath)
-	files, records, err := scanRegistryDir(ctx, dir)
-	if err != nil {
-		return fmt.Errorf("registry scan: %w", err)
-	}
-	inputBase := filepath.Base(inputPath)
-	peerFiles := make([]string, 0, len(files))
-	peerRecords := make([]registryRecord, 0, len(records))
-	for _, file := range files {
-		if file == inputBase {
-			continue
-		}
-		peerFiles = append(peerFiles, file)
-	}
-	for _, rec := range records {
-		if rec.File == inputBase {
-			continue
-		}
-		peerRecords = append(peerRecords, rec)
-	}
-	view := deriveRegistry(dir, peerFiles, peerRecords)
-	elementByID := map[string]RegistryElement{}
-	for _, element := range view.Elements {
-		elementByID[element.ID] = element
-	}
-	if err := checkFocusAgainstRegistry(spec.Focus, elementByID); err != nil {
-		return err
-	}
-	for _, element := range spec.Elements {
-		if err := checkL3ElementAgainstRegistry(element, elementByID); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // writeOrCheckMarkdown reuses the same write/check semantics as
 // c4-l1-build / c4-l2-build for the L3 build.

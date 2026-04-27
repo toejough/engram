@@ -99,21 +99,9 @@ func TestT44_L3Validates_RejectsBadSchemas(t *testing.T) {
 			wantError: "duplicate id",
 		},
 		{
-			name: "from_parent component",
-			mutate: func(s *L3Spec) {
-				for index := range s.Elements {
-					if s.Elements[index].Kind == "component" {
-						s.Elements[index].FromParent = true
-						return
-					}
-				}
-			},
-			wantError: "from_parent",
-		},
-		{
 			name: "relationship to unknown element",
 			mutate: func(s *L3Spec) {
-				s.Relationships[0].To = "Nonexistent"
+				s.Relationships[0].To = "S9-N9-M9"
 			},
 			wantError: "not in elements",
 		},
@@ -150,17 +138,17 @@ func TestT45_L3EmitContainsExpectedStructure(t *testing.T) {
 		"parent: \"c2-foo-system.md\"",
 		"# C3 — Foo (Component)",
 		"classDef component",
-		"subgraph e2 [E2 · Foo]",
-		"e10[E10 · Worker",
-		"e11[E11 · Loader",
-		"e1([E1 · Operator",
+		"subgraph s1-n2 [S1-N2 · Foo]",
+		"s1-n2-m1[S1-N2-M1 · Worker",
+		"s1-n2-m2[S1-N2-M2 · Loader",
+		"s2([S2 · Operator",
 		"## Element Catalog",
 		"| Code Pointer |",
-		"<a id=\"e2-foo\"></a>E2 | Foo | Container in focus",
-		"<a id=\"e10-worker\"></a>E10 | Worker | Component",
+		"<a id=\"s1-n2-foo\"></a>S1-N2 | Foo | Container in focus",
+		"<a id=\"s1-n2-m1-worker\"></a>S1-N2-M1 | Worker | Component",
 		"[./worker.go](./worker.go)",
 		"## Relationships",
-		"R1 | Operator | Worker",
+		"R1 | S2 | S1-N2-M1",
 		"## Cross-links",
 		"Parent: [c2-foo-system.md]",
 		"Refined by: *(none yet)*",
@@ -226,37 +214,82 @@ func TestT47_L3BuildLiveAndAuditClean(t *testing.T) {
 	}
 }
 
-func TestT48_L3BuildRegistryRejection_FromParentNameMismatch(t *testing.T) {
+func TestT48_L3ValidateIDs_RequiresFocusLevel2(t *testing.T) {
 	t.Parallel()
 
-	tmpDir := t.TempDir()
-	// Peer L1 spec defines E1 as "Owner", not "Operator".
-	peerJSON := []byte(`{"schema_version":"1","level":1,"name":"foo-system","parent":null,
-		"preamble":"x","elements":[
-		{"name":"Owner","kind":"person","responsibility":"u","system_of_record":"h"},
-		{"name":"Foo","kind":"container","is_system":true,"responsibility":"t","system_of_record":"r"}
-		],"relationships":[{"from":"Owner","to":"Foo","description":"uses","protocol":"tty"}],
-		"drift_notes":[],"cross_links":{"refined_by":[]}}`)
-	if err := os.WriteFile(filepath.Join(tmpDir, "c1-foo-system.json"), peerJSON, 0o600); err != nil {
-		t.Fatalf("write peer: %v", err)
-	}
-	// L3 spec claims E1 = "Operator" with from_parent. Should be rejected.
-	src, err := os.ReadFile("testdata/c4/valid_l3/c3-foo-internal.json")
-	if err != nil {
-		t.Fatalf("read source spec: %v", err)
-	}
-	specPath := filepath.Join(tmpDir, "c3-foo-internal.json")
-	if err := os.WriteFile(specPath, src, 0o600); err != nil {
-		t.Fatalf("write spec: %v", err)
-	}
-	cmd := exec.CommandContext(context.Background(),
-		"targ", "c4-l3-build", "--input", specPath, "--noconfirm")
-	out, err := cmd.CombinedOutput()
+	spec := loadValidL3Spec(t)
+	spec.Focus.ID = "S1" // level 1, not level 2
+	_, err := validateL3ElementIDs(spec)
 	if err == nil {
-		t.Fatalf("want build failure on registry mismatch, got success:\n%s", out)
+		t.Fatal("expected error for level-1 focus id, got nil")
 	}
-	if !strings.Contains(string(out), "Operator") || !strings.Contains(string(out), "Owner") {
-		t.Errorf("expected error to cite both Operator and Owner, got: %s", out)
+	if !strings.Contains(err.Error(), "level 2") {
+		t.Errorf("want error mentioning 'level 2', got %q", err.Error())
+	}
+}
+
+func TestT49_L3ValidateIDs_AcceptsHierarchical(t *testing.T) {
+	t.Parallel()
+
+	spec := &L3Spec{
+		Focus: L3Focus{ID: "S1-N2", Name: "Foo"},
+		Elements: []L3Element{
+			{ID: "S2", Name: "Operator", Kind: "person", Responsibility: "x"},
+			{ID: "S1-N2-M1", Name: "Worker", Kind: "component", Responsibility: "x", CodePointer: "./w.go"},
+			{ID: "S1-N2-M2", Name: "Loader", Kind: "component", Responsibility: "x", CodePointer: "./l.go"},
+		},
+	}
+	ids, err := validateL3ElementIDs(spec)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	wantIDs := []string{"S2", "S1-N2-M1", "S1-N2-M2"}
+	for index, want := range wantIDs {
+		if ids[index].ID != want {
+			t.Errorf("ids[%d]: want %s, got %s", index, want, ids[index].ID)
+		}
+	}
+	if ids[1].AnchorID != "s1-n2-m1-worker" {
+		t.Errorf("worker anchor: want s1-n2-m1-worker, got %s", ids[1].AnchorID)
+	}
+	if ids[0].AnchorID != "s2-operator" {
+		t.Errorf("operator anchor: want s2-operator, got %s", ids[0].AnchorID)
+	}
+}
+
+func TestT50_L3ValidateIDs_RejectsTooDeep(t *testing.T) {
+	t.Parallel()
+
+	spec := &L3Spec{
+		Focus: L3Focus{ID: "S1-N2", Name: "Foo"},
+		Elements: []L3Element{
+			{ID: "S1-N2-M1-P1", Name: "TooDeep", Kind: "component", Responsibility: "x", CodePointer: "./x.go"},
+		},
+	}
+	_, err := validateL3ElementIDs(spec)
+	if err == nil {
+		t.Fatal("expected error rejecting depth-4 id, got nil")
+	}
+	if !strings.Contains(err.Error(), "unsupported L3 id depth") {
+		t.Errorf("want error mentioning 'unsupported L3 id depth', got %q", err.Error())
+	}
+}
+
+func TestT51_L3ValidateIDs_RejectsOutOfFocusM(t *testing.T) {
+	t.Parallel()
+
+	spec := &L3Spec{
+		Focus: L3Focus{ID: "S1-N2", Name: "Foo"},
+		Elements: []L3Element{
+			{ID: "S1-N3-M1", Name: "Wrong", Kind: "component", Responsibility: "x", CodePointer: "./x.go"},
+		},
+	}
+	_, err := validateL3ElementIDs(spec)
+	if err == nil {
+		t.Fatal("expected error rejecting M-id outside focus, got nil")
+	}
+	if !strings.Contains(err.Error(), "not under focus") {
+		t.Errorf("want error mentioning 'not under focus', got %q", err.Error())
 	}
 }
 
