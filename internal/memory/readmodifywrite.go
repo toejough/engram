@@ -72,13 +72,19 @@ func (l *Lister) ListAll(dir string) ([]StoredRecord, error) {
 
 // ListAllMemories reads memories from the new layout (memory/feedback/ + memory/facts/)
 // when available, falling back to the legacy memories/ directory.
-// It returns all memories sorted by UpdatedAt descending.
+// It returns all memories sorted by UpdatedAt descending. The new layout is
+// considered active when feedback/ contains at least one memory.
 func (l *Lister) ListAllMemories(dataDir string) ([]*Stored, error) {
-	if l.hasNewLayout(dataDir) {
-		return l.listFromNewLayout(dataDir)
+	feedback, err := l.ListStored(FeedbackDir(dataDir))
+	if err != nil && !isNotExist(err) {
+		return nil, fmt.Errorf("listing feedback: %w", err)
 	}
 
-	return l.ListStored(MemoriesDir(dataDir))
+	if len(feedback) == 0 {
+		return l.ListStored(MemoriesDir(dataDir))
+	}
+
+	return l.listFromNewLayout(dataDir, feedback)
 }
 
 // ListStored reads all .toml files from a directory, converts them to Stored,
@@ -102,38 +108,17 @@ func (l *Lister) ListStored(dir string) ([]*Stored, error) {
 	return stored, nil
 }
 
-// hasNewLayout returns true if the feedback directory exists and is non-empty.
-func (l *Lister) hasNewLayout(dataDir string) bool {
-	entries, err := l.readDir(FeedbackDir(dataDir))
-	if err != nil {
-		return false
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".toml") {
-			return true
-		}
-	}
-
-	return false
-}
-
-// listFromNewLayout reads memories from both feedback/ and facts/ directories,
-// merges them, and returns sorted by UpdatedAt descending.
-func (l *Lister) listFromNewLayout(dataDir string) ([]*Stored, error) {
-	feedbackMemories, feedbackErr := l.ListStored(FeedbackDir(dataDir))
-	if feedbackErr != nil && !isNotExist(feedbackErr) {
-		return nil, fmt.Errorf("listing feedback: %w", feedbackErr)
-	}
-
-	factsMemories, factsErr := l.ListStored(FactsDir(dataDir))
+// listFromNewLayout merges already-loaded feedback memories with facts/ and
+// returns the combined slice sorted by UpdatedAt descending.
+func (l *Lister) listFromNewLayout(dataDir string, feedback []*Stored) ([]*Stored, error) {
+	facts, factsErr := l.ListStored(FactsDir(dataDir))
 	if factsErr != nil && !isNotExist(factsErr) {
 		return nil, fmt.Errorf("listing facts: %w", factsErr)
 	}
 
-	combined := make([]*Stored, 0, len(feedbackMemories)+len(factsMemories))
-	combined = append(combined, feedbackMemories...)
-	combined = append(combined, factsMemories...)
+	combined := make([]*Stored, 0, len(feedback)+len(facts))
+	combined = append(combined, feedback...)
+	combined = append(combined, facts...)
 
 	sort.Slice(combined, func(i, j int) bool {
 		return combined[i].UpdatedAt.After(combined[j].UpdatedAt)
