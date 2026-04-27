@@ -21,9 +21,21 @@ const (
 	DefaultStripBudget = 50 * 1024 // 50KB per-session read budget (mode B)
 )
 
+// Extractor pulls query-relevant snippets out of transcripts via LLM.
+// All phase functions depend on this narrow interface (ISP).
+type Extractor interface {
+	ExtractRelevant(ctx context.Context, content, query string) (string, error)
+}
+
 // Finder finds session transcript files.
 type Finder interface {
 	Find(projectDir string) ([]FileEntry, error)
+}
+
+// FindingSummarizer condenses accumulated findings into a structured summary.
+// Used only by the final phase of mode B recall.
+type FindingSummarizer interface {
+	SummarizeFindings(ctx context.Context, content, query string) (string, error)
 }
 
 // MemoryLister lists all memories from the data directory.
@@ -182,7 +194,7 @@ func (o *Orchestrator) listAndMatchMemories(
 	query string,
 	limit int,
 ) ([]*memory.Stored, error) {
-	if o.summarizer == nil || o.memoryLister == nil || o.dataDir == "" {
+	if o.memoryLister == nil || o.dataDir == "" {
 		return nil, nil
 	}
 
@@ -256,10 +268,6 @@ func (o *Orchestrator) recallModeB(
 	sessions []FileEntry,
 	query string,
 ) (*Result, error) {
-	if o.summarizer == nil {
-		return &Result{}, nil
-	}
-
 	var buffer strings.Builder
 
 	// Phase 1: Engram memory search.
@@ -355,10 +363,10 @@ type Result struct {
 	Memories string `json:"memories,omitempty"`
 }
 
-// SummarizerI extracts relevant content from transcripts via LLM.
+// SummarizerI is the union the Orchestrator depends on (it runs both phases).
 type SummarizerI interface {
-	ExtractRelevant(ctx context.Context, content, query string) (string, error)
-	SummarizeFindings(ctx context.Context, content, query string) (string, error)
+	Extractor
+	FindingSummarizer
 }
 
 // FormatResult writes the recall result as plain text with an optional memories section.

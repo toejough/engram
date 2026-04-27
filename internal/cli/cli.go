@@ -135,13 +135,13 @@ func newAnthropicClient(token string) *anthropic.Client {
 }
 
 func newSummarizer(token string) recall.SummarizerI {
-	if token != "" {
-		return recall.NewSummarizer(&haikuCallerAdapter{
-			caller: makeAnthropicCaller(token),
-		})
+	if token == "" {
+		return recall.NoopSummarizer{}
 	}
 
-	return nil
+	return recall.NewSummarizer(&haikuCallerAdapter{
+		caller: makeAnthropicCaller(token),
+	})
 }
 
 func newTokenResolver() *tokenresolver.Resolver {

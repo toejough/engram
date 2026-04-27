@@ -2,13 +2,7 @@ package recall
 
 import (
 	"context"
-	"errors"
 	"fmt"
-)
-
-// Exported variables.
-var (
-	ErrNilCaller = errors.New("haiku caller is nil")
 )
 
 // HaikuCaller calls the Haiku API for summarization/extraction.
@@ -16,22 +10,36 @@ type HaikuCaller interface {
 	Call(ctx context.Context, systemPrompt, userPrompt string) (string, error)
 }
 
+// NoopSummarizer satisfies SummarizerI without performing any LLM call.
+// Used when no API token is configured: extraction returns empty (no match),
+// summarization returns empty (caller short-circuits on empty buffer).
+type NoopSummarizer struct{}
+
+// ExtractRelevant returns an empty result.
+func (NoopSummarizer) ExtractRelevant(_ context.Context, _, _ string) (string, error) {
+	return "", nil
+}
+
+// SummarizeFindings returns an empty result.
+func (NoopSummarizer) SummarizeFindings(_ context.Context, _, _ string) (string, error) {
+	return "", nil
+}
+
 // Summarizer extracts relevant content from session transcripts via LLM.
+// The HaikuCaller is required; pass NoopSummarizer at the wiring edge when
+// no LLM access is configured.
 type Summarizer struct {
 	caller HaikuCaller
 }
 
-// NewSummarizer creates a Summarizer with the given HaikuCaller.
+// NewSummarizer creates a Summarizer backed by the given HaikuCaller.
+// caller must be non-nil; use NoopSummarizer when LLM access is disabled.
 func NewSummarizer(caller HaikuCaller) *Summarizer {
 	return &Summarizer{caller: caller}
 }
 
 // ExtractRelevant extracts content relevant to a specific query from transcript content.
 func (s *Summarizer) ExtractRelevant(ctx context.Context, content, query string) (string, error) {
-	if s.caller == nil {
-		return "", ErrNilCaller
-	}
-
 	userPrompt := "Query: " + query + "\n\nTranscript:\n" + content
 
 	result, err := s.caller.Call(ctx, extractSystemPrompt, userPrompt)
@@ -44,10 +52,6 @@ func (s *Summarizer) ExtractRelevant(ctx context.Context, content, query string)
 
 // SummarizeFindings produces a structured summary from accumulated findings.
 func (s *Summarizer) SummarizeFindings(ctx context.Context, content, query string) (string, error) {
-	if s.caller == nil {
-		return "", ErrNilCaller
-	}
-
 	userPrompt := "Query: " + query + "\n\nFindings:\n" + content
 
 	result, err := s.caller.Call(ctx, summarizeFindingsPrompt, userPrompt)

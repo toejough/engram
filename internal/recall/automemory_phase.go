@@ -18,7 +18,7 @@ func ExtractFromAutoMemory(
 	files []externalsources.ExternalFile,
 	query string,
 	cache *externalsources.FileCache,
-	summarizer SummarizerI,
+	summarizer Extractor,
 	buffer *strings.Builder,
 	bytesUsed, bytesCap int,
 ) int {
@@ -72,7 +72,7 @@ func processOneTopic(
 	name string,
 	topicByName map[string]string,
 	cache *externalsources.FileCache,
-	summarizer SummarizerI,
+	summarizer Extractor,
 	query string,
 	buffer *strings.Builder,
 ) int {

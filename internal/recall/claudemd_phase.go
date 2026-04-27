@@ -16,7 +16,7 @@ func ExtractFromClaudeMd(
 	files []externalsources.ExternalFile,
 	query string,
 	cache *externalsources.FileCache,
-	summarizer SummarizerI,
+	summarizer Extractor,
 	buffer *strings.Builder,
 	bytesUsed, bytesCap int,
 ) int {

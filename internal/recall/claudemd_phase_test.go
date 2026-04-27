@@ -155,7 +155,7 @@ func TestExtractFromClaudeMd_ReadErrorSkipsFile(t *testing.T) {
 
 // unexported variables.
 var (
-	errClaudeMdExtractFailed = recall.ErrNilCaller
+	errClaudeMdExtractFailed = errors.New("extract failed")
 )
 
 // claudeMdFakeSummarizer satisfies recall.SummarizerI.

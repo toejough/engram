@@ -49,6 +49,22 @@ func TestExtractRelevant_ReturnsErrorOnCallerFailure(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("extracting relevant")))
 }
 
+func TestNoopSummarizer_ReturnsEmptyForBothMethods(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	noop := recall.NoopSummarizer{}
+
+	extracted, extractErr := noop.ExtractRelevant(context.Background(), "content", "query")
+	g.Expect(extractErr).NotTo(HaveOccurred())
+	g.Expect(extracted).To(BeEmpty())
+
+	summary, summaryErr := noop.SummarizeFindings(context.Background(), "content", "query")
+	g.Expect(summaryErr).NotTo(HaveOccurred())
+	g.Expect(summary).To(BeEmpty())
+}
+
 func TestSummarizeFindings_CallsHaikuCallerWithSummaryPrompt(t *testing.T) {
 	t.Parallel()
 
@@ -73,17 +89,6 @@ func TestSummarizeFindings_CallsHaikuCallerWithSummaryPrompt(t *testing.T) {
 	g.Expect(caller.userPrompt).To(ContainSubstring("targ argument parsing"))
 	g.Expect(caller.userPrompt).To(ContainSubstring("memory excerpts"))
 	g.Expect(result).To(Equal("structured summary"))
-}
-
-func TestSummarizeFindings_NilCallerReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	summarizer := recall.NewSummarizer(nil)
-
-	_, err := summarizer.SummarizeFindings(context.Background(), "content", "query")
-	g.Expect(err).To(MatchError(recall.ErrNilCaller))
 }
 
 func TestSummarizeFindings_ReturnsErrorOnCallerFailure(t *testing.T) {

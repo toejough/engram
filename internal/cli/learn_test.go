@@ -464,12 +464,16 @@ func TestLearn_UnknownSubcommand_ReturnsError(t *testing.T) {
 	g.Expect(stderr).NotTo(BeEmpty())
 }
 
-func TestNewSummarizer_EmptyToken_ReturnsNil(t *testing.T) {
+func TestNewSummarizer_EmptyToken_ReturnsNoop(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	result := cli.ExportNewSummarizer("")
-	g.Expect(result).To(BeNil())
+	g.Expect(result).NotTo(BeNil())
+
+	extracted, err := result.ExtractRelevant(context.Background(), "content", "query")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(extracted).To(BeEmpty())
 }
 
 func TestNewSummarizer_WithToken_ReturnsNonNil(t *testing.T) {

@@ -17,7 +17,7 @@ func ExtractFromSkills(
 	files []externalsources.ExternalFile,
 	query string,
 	cache *externalsources.FileCache,
-	summarizer SummarizerI,
+	summarizer Extractor,
 	buffer *strings.Builder,
 	bytesUsed, bytesCap int,
 ) int {
@@ -62,7 +62,7 @@ func extractOneSkill(
 	name, query string,
 	pathByName map[string]string,
 	cache *externalsources.FileCache,
-	summarizer SummarizerI,
+	summarizer Extractor,
 ) string {
 	path, ok := pathByName[name]
 	if !ok {

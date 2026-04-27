@@ -163,7 +163,7 @@ func TestOrchestrator_RecallMemoriesOnly(t *testing.T) {
 		g.Expect(result.Memories).NotTo(ContainSubstring("Python"))
 	})
 
-	t.Run("nil summarizer returns empty", func(t *testing.T) {
+	t.Run("noop summarizer returns empty", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
@@ -176,7 +176,7 @@ func TestOrchestrator_RecallMemoriesOnly(t *testing.T) {
 			},
 		}}
 
-		orch := recall.NewOrchestrator(nil, nil, nil, memLister, "/data")
+		orch := recall.NewOrchestrator(nil, nil, recall.NoopSummarizer{}, memLister, "/data")
 
 		result, err := orch.RecallMemoriesOnly(context.Background(), "query", 0)
 		g.Expect(err).NotTo(HaveOccurred())
@@ -982,7 +982,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		g.Expect(result.Summary).To(BeEmpty())
 	})
 
-	t.Run("nil summarizer returns empty result", func(t *testing.T) {
+	t.Run("noop summarizer returns empty result", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
@@ -995,7 +995,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 			sizes:    map[string]int{"/a.jsonl": 7},
 		}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
+		orch := recall.NewOrchestrator(finder, reader, recall.NoopSummarizer{}, nil, "")
 
 		result, err := orch.Recall(context.Background(), "/proj", "query")
 		g.Expect(err).NotTo(HaveOccurred())
