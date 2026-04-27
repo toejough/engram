@@ -5,13 +5,13 @@
   "parent": null,
   "preamble": "Test fixture for c4-registry: minimal L1.",
   "elements": [
-    {"name": "User", "kind": "person", "responsibility": "uses Thing", "system_of_record": "human"},
-    {"name": "Thing", "kind": "container", "is_system": true, "responsibility": "the system in scope", "system_of_record": "this fixture"},
-    {"name": "External Service", "kind": "external", "responsibility": "Thing calls it", "system_of_record": "external host"}
+    {"id": "S1", "name": "User", "kind": "person", "responsibility": "uses Thing", "system_of_record": "human"},
+    {"id": "S2", "name": "Thing", "kind": "container", "responsibility": "the system in scope", "system_of_record": "this fixture"},
+    {"id": "S3", "name": "External Service", "kind": "external", "responsibility": "Thing calls it", "system_of_record": "external host"}
   ],
   "relationships": [
-    {"from": "User", "to": "Thing", "description": "uses", "protocol": "TTY"},
-    {"from": "Thing", "to": "External Service", "description": "calls", "protocol": "HTTPS"}
+    {"from": "S1", "to": "S2", "description": "uses", "protocol": "TTY"},
+    {"from": "S2", "to": "S3", "description": "calls", "protocol": "HTTPS"}
   ],
   "drift_notes": [],
   "cross_links": {"refined_by": []}

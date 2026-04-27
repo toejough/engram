@@ -1,0 +1,28 @@
+{
+  "schema_version": "1",
+  "level": 1,
+  "name": "engram-system",
+  "parent": null,
+  "preamble": "L1 spec with a non-S id.\nMust fail validation because element ids must be S<n> at level 1.",
+  "elements": [
+    {
+      "id": "E1",
+      "name": "Joe",
+      "kind": "person",
+      "responsibility": "Developer",
+      "system_of_record": "Human"
+    },
+    {
+      "id": "S2",
+      "name": "Engram plugin",
+      "kind": "container",
+      "responsibility": "Plugin",
+      "system_of_record": "Repo"
+    }
+  ],
+  "relationships": [],
+  "drift_notes": [],
+  "cross_links": {
+    "refined_by": []
+  }
+}

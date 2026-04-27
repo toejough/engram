@@ -6,6 +6,7 @@
   "preamble": "Engram is a Claude Code plugin that gives the agent persistent, query-ranked memory.\nThis diagram shows who and what Engram interacts with at the system boundary; it\ndeliberately hides the CLI binary, hooks, on-disk stores, and skills (those live at L2).",
   "elements": [
     {
+      "id": "S1",
       "name": "Joe",
       "kind": "person",
       "subtitle": "developer using Claude Code",
@@ -13,13 +14,14 @@
       "system_of_record": "Human, at a Claude Code session"
     },
     {
+      "id": "S2",
       "name": "Engram plugin",
       "kind": "container",
-      "is_system": true,
       "responsibility": "Plugin providing persistent, query-ranked memory: skills decide when to load context, a slim Go binary computes recall/learn, hooks remind the agent at session and tool-use boundaries",
       "system_of_record": "This repository (`github.com/toejough/engram`)"
     },
     {
+      "id": "S3",
       "name": "Claude Code",
       "kind": "external",
       "subtitle": "agent harness",
@@ -27,6 +29,7 @@
       "system_of_record": "Anthropic Claude Code CLI"
     },
     {
+      "id": "S4",
       "name": "Claude Code memory surfaces",
       "kind": "external",
       "subtitle": "CLAUDE.md, .claude/rules, auto-memory, skills",
@@ -34,6 +37,7 @@
       "system_of_record": "Files owned by Claude Code and the user; never written by Engram"
     },
     {
+      "id": "S5",
       "name": "Anthropic API",
       "kind": "external",
       "subtitle": "Haiku rank + extract",
@@ -41,6 +45,7 @@
       "system_of_record": "`api.anthropic.com`"
     },
     {
+      "id": "S6",
       "name": "Local filesystem",
       "kind": "external",
       "subtitle": "~/.local/share/engram/",
@@ -49,12 +54,12 @@
     }
   ],
   "relationships": [
-    {"from": "Joe", "to": "Claude Code", "description": "invokes /prepare /learn /recall /remember /migrate", "protocol": "Claude Code CLI"},
-    {"from": "Claude Code", "to": "Engram plugin", "description": "loads skills + fires hooks (SessionStart, UserPromptSubmit, PostToolUse)", "protocol": "plugin loader + hooks"},
-    {"from": "Engram plugin", "to": "Anthropic API", "description": "ranks + extracts via Haiku", "protocol": "HTTPS"},
-    {"from": "Engram plugin", "to": "Claude Code memory surfaces", "description": "reads memories, rules, skills, auto-memory", "protocol": "filesystem"},
-    {"from": "Engram plugin", "to": "Local filesystem", "description": "reads + writes feedback/ and facts/ TOML", "protocol": "filesystem", "bidirectional": true},
-    {"from": "Engram plugin", "to": "Claude Code", "description": "injects briefings and reminders back into context", "protocol": "stdout"}
+    {"from": "S1", "to": "S3", "description": "invokes /prepare /learn /recall /remember /migrate", "protocol": "Claude Code CLI"},
+    {"from": "S3", "to": "S2", "description": "loads skills + fires hooks (SessionStart, UserPromptSubmit, PostToolUse)", "protocol": "plugin loader + hooks"},
+    {"from": "S2", "to": "S5", "description": "ranks + extracts via Haiku", "protocol": "HTTPS"},
+    {"from": "S2", "to": "S4", "description": "reads memories, rules, skills, auto-memory", "protocol": "filesystem"},
+    {"from": "S2", "to": "S6", "description": "reads + writes feedback/ and facts/ TOML", "protocol": "filesystem", "bidirectional": true},
+    {"from": "S2", "to": "S3", "description": "injects briefings and reminders back into context", "protocol": "stdout"}
   ],
   "drift_notes": [],
   "cross_links": {

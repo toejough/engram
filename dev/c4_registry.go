@@ -334,7 +334,10 @@ func normalizeL1(filename string, raw []byte) ([]registryRecord, error) {
 	if err := json.Unmarshal(raw, &spec); err != nil {
 		return nil, fmt.Errorf("parse L1 spec: %w", err)
 	}
-	ids := assignElementIDs(spec.Elements)
+	ids, err := assignElementIDs(spec.Elements)
+	if err != nil {
+		return nil, fmt.Errorf("assign L1 element ids: %w", err)
+	}
 	records := make([]registryRecord, 0, len(ids))
 	for _, item := range ids {
 		records = append(records, registryRecord{

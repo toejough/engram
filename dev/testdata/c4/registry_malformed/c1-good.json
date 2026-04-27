@@ -5,11 +5,11 @@
   "parent": null,
   "preamble": "Test fixture: this one parses cleanly.",
   "elements": [
-    {"name": "User", "kind": "person", "responsibility": "u", "system_of_record": "h"},
-    {"name": "Good Thing", "kind": "container", "is_system": true, "responsibility": "t", "system_of_record": "r"}
+    {"id": "S1", "name": "User", "kind": "person", "responsibility": "u", "system_of_record": "h"},
+    {"id": "S2", "name": "Good Thing", "kind": "container", "responsibility": "t", "system_of_record": "r"}
   ],
   "relationships": [
-    {"from": "User", "to": "Good Thing", "description": "uses", "protocol": "tty"}
+    {"from": "S1", "to": "S2", "description": "uses", "protocol": "tty"}
   ],
   "drift_notes": [],
   "cross_links": {"refined_by": []}

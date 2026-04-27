@@ -82,9 +82,9 @@ type L1DriftNote struct {
 }
 
 type L1Element struct {
+	ID             string  `json:"id"`
 	Name           string  `json:"name"`
 	Kind           string  `json:"kind"`
-	IsSystem       bool    `json:"is_system,omitempty"`
 	Subtitle       *string `json:"subtitle,omitempty"`
 	Responsibility string  `json:"responsibility"`
 	SystemOfRecord string  `json:"system_of_record"`
@@ -289,13 +289,29 @@ type relationshipsRow struct {
 	line     int
 }
 
-// assignElementIDs returns elements paired with sequential E1..En IDs in source
-// order. AnchorID is "e<n>-<slug(name)>"; collisions append "-2", "-3"....
-func assignElementIDs(elements []L1Element) []elementID {
+// assignElementIDs reads explicit S<n> IDs from each element and returns them
+// paired with their lowercase-ID + slug anchor. AnchorID is
+// "<lower(id)>-<slug(name)>"; collisions append "-2", "-3".... Returns an error
+// if any element has an empty id or one that is not a level-1 hierarchical
+// path (i.e. exactly "S<n>").
+func assignElementIDs(elements []L1Element) ([]elementID, error) {
 	result := make([]elementID, 0, len(elements))
 	used := map[string]int{}
 	for index, element := range elements {
-		base := fmt.Sprintf("e%d-%s", index+1, slug(element.Name))
+		if element.ID == "" {
+			return nil, fmt.Errorf("elements[%d]: missing id", index)
+		}
+		path, err := ParseIDPath(element.ID)
+		if err != nil {
+			return nil, fmt.Errorf("elements[%d]: %w", index, err)
+		}
+		if path.Level != 1 {
+			return nil, fmt.Errorf(
+				"elements[%d]: id %q must be level 1 (S<n>), got level %d",
+				index, element.ID, path.Level,
+			)
+		}
+		base := fmt.Sprintf("%s-%s", strings.ToLower(element.ID), slug(element.Name))
 		anchor := base
 		if used[base] > 0 {
 			used[base]++
@@ -304,16 +320,19 @@ func assignElementIDs(elements []L1Element) []elementID {
 			used[base] = 1
 		}
 		result = append(result, elementID{
-			ID:       fmt.Sprintf("E%d", index+1),
+			ID:       element.ID,
 			AnchorID: anchor,
 			Element:  element,
 		})
 	}
-	return result
+	return result, nil
 }
 
 // assignRelationshipIDs returns relationships paired with sequential R1..Rn IDs.
 // AnchorID is "r<n>-<slug(from)>-<slug(to)>"; collisions append "-2"....
+// At L2/L3 the from/to fields hold S/N/M-IDs directly, producing anchors like
+// "r1-s2-n3". L1 callers pre-substitute names into from/to via
+// l1RelsWithNames before calling this so anchors slug from display names.
 func assignRelationshipIDs(rels []L1Relationship) []relationshipID {
 	result := make([]relationshipID, 0, len(rels))
 	used := map[string]int{}
@@ -860,6 +879,18 @@ func consumeFrontMatterLine(matter *frontMatter, lineNum int, raw string) {
 	}
 }
 
+// containerCount returns the number of elements with kind="container". At L1
+// exactly one element is the system in scope, marked by kind=container.
+func containerCount(elements []L1Element) int {
+	count := 0
+	for _, element := range elements {
+		if element.Kind == "container" {
+			count++
+		}
+	}
+	return count
+}
+
 func currentGitShortSHA(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD")
 	out, err := cmd.Output()
@@ -1033,8 +1064,13 @@ func emitFrontMatter(buf *bytes.Buffer, spec *L1Spec, lastReviewedCommit string)
 // inserted into the front-matter; callers compute it (typically `git rev-parse
 // --short HEAD`).
 func emitMarkdown(w io.Writer, spec *L1Spec, lastReviewedCommit string) error {
-	elementIDs := assignElementIDs(spec.Elements)
-	relIDs := assignRelationshipIDs(spec.Relationships)
+	elementIDs, err := assignElementIDs(spec.Elements)
+	if err != nil {
+		return fmt.Errorf("assign element ids: %w", err)
+	}
+	nameByID := nameByElementID(elementIDs)
+	relsByName := l1RelsWithNames(spec.Relationships, nameByID)
+	relIDs := assignRelationshipIDs(relsByName)
 	systemName := findSystemName(elementIDs)
 	var buf bytes.Buffer
 	emitFrontMatter(&buf, spec, lastReviewedCommit)
@@ -1135,9 +1171,12 @@ func exprText(pkg *packages.Package, node ast.Node) string {
 	return string(data[start.Offset:end.Offset])
 }
 
+// findSystemName returns the name of the unique container element. At L1 the
+// system in scope is identified by kind=container; validateElements guarantees
+// exactly one such element exists.
 func findSystemName(elementIDs []elementID) string {
 	for _, item := range elementIDs {
-		if item.Element.IsSystem {
+		if item.Element.Kind == "container" {
 			return item.Element.Name
 		}
 	}
@@ -1152,6 +1191,21 @@ func firstStringArg(pkg *packages.Package, call *ast.CallExpr) string {
 		}
 	}
 	return ""
+}
+
+// l1RelsWithNames returns a copy of rels where each from/to has been
+// substituted from S-ID to display name via nameByID. It preserves the
+// original relationship list (not mutated). Used at L1 only — L2/L3 keep
+// IDs in from/to to drive their hierarchical anchors.
+func l1RelsWithNames(rels []L1Relationship, nameByID map[string]string) []L1Relationship {
+	out := make([]L1Relationship, 0, len(rels))
+	for _, rel := range rels {
+		copied := rel
+		copied.From = nameByID[rel.From]
+		copied.To = nameByID[rel.To]
+		out = append(out, copied)
+	}
+	return out
 }
 
 // loadAndValidateSpec reads a JSON L1 spec from path, decodes it strictly, and
@@ -1231,8 +1285,11 @@ func loadMermaidBlock(raw []byte, path string) (*mermaidBlock, []Finding) {
 	return block, nil
 }
 
+// mermaidIDByName maps each element's display name to its lowercase mermaid
+// node ID. Used at L1 where the Relationships table is rendered by name and
+// relIDs have their from/to substituted from S-ID to name before edge emit.
 func mermaidIDByName(elementIDs []elementID) map[string]string {
-	out := map[string]string{}
+	out := make(map[string]string, len(elementIDs))
 	for _, item := range elementIDs {
 		out[item.Element.Name] = strings.ToLower(item.ID)
 	}
@@ -1248,16 +1305,25 @@ func mermaidLabelFor(item elementID) string {
 }
 
 func mermaidShapeFor(element L1Element) [2]string {
-	switch {
-	case element.Kind == "person":
+	switch element.Kind {
+	case "person":
 		return [2]string{"([", "])"}
-	case element.IsSystem:
-		return [2]string{"[", "]"}
-	case element.Kind == "container":
+	case "container":
 		return [2]string{"[", "]"}
 	default:
 		return [2]string{"(", ")"}
 	}
+}
+
+// nameByElementID maps each element's S-ID to its display name. Used to
+// substitute relationship from/to fields before rendering the Relationships
+// table and computing anchors.
+func nameByElementID(elementIDs []elementID) map[string]string {
+	out := make(map[string]string, len(elementIDs))
+	for _, item := range elementIDs {
+		out[item.ID] = item.Element.Name
+	}
+	return out
 }
 
 // parseFrontMatter scans for a leading --- ... --- block and extracts known
@@ -1576,55 +1642,65 @@ func translateSinceShorthand(input string) string {
 	return fmt.Sprintf("%s %s ago", matches[1], units[matches[2]])
 }
 
+// typeCellFor returns the catalog "Type" cell label. At L1 the unique
+// container element is the system in scope; person and external have direct
+// mappings.
 func typeCellFor(element L1Element) string {
-	switch {
-	case element.IsSystem:
-		return "The system in scope"
-	case element.Kind == "person":
+	switch element.Kind {
+	case "person":
 		return "Person"
-	case element.Kind == "container":
-		return "Container"
+	case "container":
+		return "The system in scope"
 	default:
 		return "External system"
 	}
 }
 
 func validateElements(elements []L1Element) error {
-	systemCount := 0
-	seen := map[string]bool{}
-	for _, element := range elements {
-		if element.IsSystem {
-			systemCount++
+	seenName := map[string]bool{}
+	seenID := map[string]bool{}
+	for index, element := range elements {
+		if element.ID == "" {
+			return fmt.Errorf("elements[%d]: missing id", index)
 		}
-		if seen[element.Name] {
+		path, err := ParseIDPath(element.ID)
+		if err != nil {
+			return fmt.Errorf("elements[%d]: %w", index, err)
+		}
+		if path.Level != 1 {
+			return fmt.Errorf(
+				"elements[%d]: id %q must be level 1 (S<n>), got level %d",
+				index, element.ID, path.Level,
+			)
+		}
+		if seenID[element.ID] {
+			return fmt.Errorf("elements: duplicate id %q", element.ID)
+		}
+		seenID[element.ID] = true
+		if seenName[element.Name] {
 			return fmt.Errorf("elements: duplicate name %q", element.Name)
 		}
-		seen[element.Name] = true
-	}
-	if systemCount != 1 {
-		return fmt.Errorf("expected exactly one is_system: true, got %d", systemCount)
-	}
-	for index, element := range elements {
+		seenName[element.Name] = true
 		if !validKinds[element.Kind] {
 			return fmt.Errorf("elements[%d]: kind %q not in {person, external, container}", index, element.Kind)
 		}
-		if element.IsSystem && element.Kind != "container" {
-			return fmt.Errorf("elements[%d]: is_system=true requires kind=container, got %q", index, element.Kind)
-		}
+	}
+	if count := containerCount(elements); count != 1 {
+		return fmt.Errorf("expected exactly one container (the system in scope), got %d", count)
 	}
 	return nil
 }
 
 func validateRelationships(elements []L1Element, rels []L1Relationship, links L1CrossLinks) error {
-	names := map[string]bool{}
+	ids := map[string]bool{}
 	for _, element := range elements {
-		names[element.Name] = true
+		ids[element.ID] = true
 	}
 	for index, rel := range rels {
-		if !names[rel.From] {
+		if !ids[rel.From] {
 			return fmt.Errorf("relationships[%d]: from %q not in elements", index, rel.From)
 		}
-		if !names[rel.To] {
+		if !ids[rel.To] {
 			return fmt.Errorf("relationships[%d]: to %q not in elements", index, rel.To)
 		}
 	}

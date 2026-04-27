@@ -99,9 +99,9 @@ func assignL2ElementIDs(elements []L2Element) []elementID {
 			ID:       id,
 			AnchorID: anchor,
 			Element: L1Element{
+				ID:             id,
 				Name:           element.Name,
 				Kind:           element.Kind,
-				IsSystem:       element.InScope,
 				Subtitle:       element.Subtitle,
 				Responsibility: element.Responsibility,
 				SystemOfRecord: element.SystemOfRecord,

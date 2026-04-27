@@ -3,15 +3,15 @@
   "level": 1,
   "name": "thing",
   "parent": null,
-  "preamble": "Test fixture: L1 has 'Anthropic Service' as E3.",
+  "preamble": "Test fixture: L1 has 'Anthropic Service' as S3.",
   "elements": [
-    {"name": "User", "kind": "person", "responsibility": "u", "system_of_record": "h"},
-    {"name": "Thing", "kind": "container", "is_system": true, "responsibility": "t", "system_of_record": "r"},
-    {"name": "Anthropic Service", "kind": "external", "responsibility": "a", "system_of_record": "ext"}
+    {"id": "S1", "name": "User", "kind": "person", "responsibility": "u", "system_of_record": "h"},
+    {"id": "S2", "name": "Thing", "kind": "container", "responsibility": "t", "system_of_record": "r"},
+    {"id": "S3", "name": "Anthropic Service", "kind": "external", "responsibility": "a", "system_of_record": "ext"}
   ],
   "relationships": [
-    {"from": "User", "to": "Thing", "description": "uses", "protocol": "tty"},
-    {"from": "Thing", "to": "Anthropic Service", "description": "calls", "protocol": "https"}
+    {"from": "S1", "to": "S2", "description": "uses", "protocol": "tty"},
+    {"from": "S2", "to": "S3", "description": "calls", "protocol": "https"}
   ],
   "drift_notes": [],
   "cross_links": {"refined_by": []}

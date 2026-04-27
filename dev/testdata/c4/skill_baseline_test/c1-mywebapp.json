@@ -5,13 +5,13 @@
   "parent": null,
   "preamble": "Test fixture for skill TDD baseline: a small webapp.",
   "elements": [
-    {"name": "Customer", "kind": "person", "responsibility": "uses the app", "system_of_record": "human"},
-    {"name": "MyWebApp", "kind": "container", "is_system": true, "responsibility": "the system in scope", "system_of_record": "this fixture"},
-    {"name": "Database", "kind": "external", "responsibility": "stores app data", "system_of_record": "Postgres"}
+    {"id": "S1", "name": "Customer", "kind": "person", "responsibility": "uses the app", "system_of_record": "human"},
+    {"id": "S2", "name": "MyWebApp", "kind": "container", "responsibility": "the system in scope", "system_of_record": "this fixture"},
+    {"id": "S3", "name": "Database", "kind": "external", "responsibility": "stores app data", "system_of_record": "Postgres"}
   ],
   "relationships": [
-    {"from": "Customer", "to": "MyWebApp", "description": "uses", "protocol": "HTTPS"},
-    {"from": "MyWebApp", "to": "Database", "description": "reads/writes", "protocol": "TCP"}
+    {"from": "S1", "to": "S2", "description": "uses", "protocol": "HTTPS"},
+    {"from": "S2", "to": "S3", "description": "reads/writes", "protocol": "TCP"}
   ],
   "drift_notes": [],
   "cross_links": {"refined_by": []}

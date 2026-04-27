@@ -418,10 +418,13 @@ func TestT7_BuildValidates_RejectsBadSchemas(t *testing.T) {
 		errSub string
 	}{
 		{"testdata/c4/invalid_schema_version.json", "schema_version"},
-		{"testdata/c4/invalid_no_system.json", "is_system"},
-		{"testdata/c4/invalid_two_systems.json", "exactly one"},
+		{"testdata/c4/invalid_no_system.json", "exactly one container"},
+		{"testdata/c4/invalid_two_systems.json", "exactly one container"},
 		{"testdata/c4/invalid_dup_names.json", "duplicate"},
 		{"testdata/c4/invalid_dangling_rel.json", "elements"},
+		{"testdata/c4/invalid_l1_bad_id.json", "id path"},
+		{"testdata/c4/invalid_l1_dup_id.json", "duplicate id"},
+		{"testdata/c4/invalid_l1_missing_id.json", "missing id"},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.file, func(t *testing.T) {
@@ -437,20 +440,38 @@ func TestT7_BuildValidates_RejectsBadSchemas(t *testing.T) {
 	}
 }
 
-func TestT8_AssignIDs_SystemAtMiddleIndex(t *testing.T) {
+func TestT8_AssignIDs_ReadsExplicitSIDs(t *testing.T) {
 	t.Parallel()
 
 	elements := []L1Element{
-		{Name: "Joe", Kind: "person"},
-		{Name: "Engram plugin", Kind: "container", IsSystem: true},
-		{Name: "Claude Code", Kind: "external"},
+		{ID: "S1", Name: "Joe", Kind: "person"},
+		{ID: "S2", Name: "Engram plugin", Kind: "container"},
+		{ID: "S3", Name: "Claude Code", Kind: "external"},
 	}
-	ids := assignElementIDs(elements)
-	if len(ids) != 3 || ids[0].ID != "E1" || ids[1].ID != "E2" || ids[2].ID != "E3" {
+	ids, err := assignElementIDs(elements)
+	if err != nil {
+		t.Fatalf("assignElementIDs: %v", err)
+	}
+	if len(ids) != 3 || ids[0].ID != "S1" || ids[1].ID != "S2" || ids[2].ID != "S3" {
 		t.Errorf("unexpected IDs: %+v", ids)
 	}
-	if ids[1].AnchorID != "e2-engram-plugin" {
-		t.Errorf("wrong system anchor: %s", ids[1].AnchorID)
+	if ids[1].AnchorID != "s2-engram-plugin" {
+		t.Errorf("wrong anchor: %s", ids[1].AnchorID)
+	}
+	if ids[0].AnchorID != "s1-joe" {
+		t.Errorf("wrong anchor: %s", ids[0].AnchorID)
+	}
+}
+
+func TestT8_AssignIDs_RejectsNonLevel1ID(t *testing.T) {
+	t.Parallel()
+
+	elements := []L1Element{
+		{ID: "S1-N2", Name: "Joe", Kind: "person"},
+	}
+	_, err := assignElementIDs(elements)
+	if err == nil {
+		t.Fatalf("expected error for non-L1 id, got nil")
 	}
 }
 
