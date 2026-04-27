@@ -35,6 +35,20 @@ type MemoryRecord struct {
 	UpdatedAt string `toml:"updated_at"`
 }
 
+// TargetDir returns the data-dir-relative directory where this record
+// should be written, dispatched on r.Type. Unknown types fall back to the
+// legacy memories/ directory.
+func (r *MemoryRecord) TargetDir(dataDir string) string {
+	switch r.Type {
+	case "fact":
+		return FactsDir(dataDir)
+	case "feedback":
+		return FeedbackDir(dataDir)
+	default:
+		return MemoriesDir(dataDir)
+	}
+}
+
 // ToStored converts a MemoryRecord to a Stored for in-memory use.
 func (r *MemoryRecord) ToStored(filePath string) *Stored {
 	updatedAt, parseErr := time.Parse(time.RFC3339, r.UpdatedAt)
