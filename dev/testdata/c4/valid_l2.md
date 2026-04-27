@@ -8,7 +8,7 @@ last_reviewed_commit: df51bc93
 
 # C2 — Foo (Container)
 
-Refines E2 Foo into a worker that processes input and a loader that hydrates state from disk.
+Refines S2 Foo into a worker that processes input and a loader that hydrates state from disk.
 
 ```mermaid
 flowchart LR
@@ -16,54 +16,54 @@ flowchart LR
     classDef external    fill:#999,   stroke:#666,   color:#fff
     classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
 
-    e1([E1 · Operator<br/>runs Foo])
-    e3(E3 · BarAPI<br/>remote service)
-    e4(E4 · Disk<br/>local filesystem)
+    s1([S1 · Operator<br/>runs Foo])
+    s3(S3 · BarAPI<br/>remote service)
+    s4(S4 · Disk<br/>local filesystem)
 
-    subgraph e2 [E2 · Foo]
-        e5[E5 · Worker]
-        e6[E6 · Loader]
+    subgraph s2 [S2 · Foo]
+        s2-n1[S2-N1 · Worker]
+        s2-n2[S2-N2 · Loader]
     end
 
-    e1 -->|"R1: submits work items"| e5
-    e6 -->|"R2: reads cached state"| e4
-    e5 -->|"R3: fetches input"| e3
-    e5 -->|"R4: asks for hydrated state"| e6
+    s1 -->|"R1: submits work items"| s2-n1
+    s2-n2 -->|"R2: reads cached state"| s4
+    s2-n1 -->|"R3: fetches input"| s3
+    s2-n1 -->|"R4: asks for hydrated state"| s2-n2
 
-    class e1 person
-    class e3,e4 external
-    class e5,e6 container
-    class e2 container
+    class s1 person
+    class s3,s4 external
+    class s2-n1,s2-n2 container
+    class s2 container
 
-    click e1 href "#e1-operator" "Operator"
-    click e2 href "#e2-foo" "Foo"
-    click e3 href "#e3-barapi" "BarAPI"
-    click e4 href "#e4-disk" "Disk"
-    click e5 href "#e5-worker" "Worker"
-    click e6 href "#e6-loader" "Loader"
+    click s1 href "#s1-operator" "Operator"
+    click s2 href "#s2-foo" "Foo"
+    click s3 href "#s3-barapi" "BarAPI"
+    click s4 href "#s4-disk" "Disk"
+    click s2-n1 href "#s2-n1-worker" "Worker"
+    click s2-n2 href "#s2-n2-loader" "Loader"
 ```
 
 ## Element Catalog
 
 | ID | Name | Type | Responsibility | System of Record |
 |---|---|---|---|---|
-| <a id="e1-operator"></a>E1 | Operator | Person | Operator who triggers Foo runs | Human |
-| <a id="e2-foo"></a>E2 | Foo | The system in scope | The system being refined at this level | This repo |
-| <a id="e3-barapi"></a>E3 | BarAPI | External system | Upstream data source | bar.example.com |
-| <a id="e4-disk"></a>E4 | Disk | External system | On-disk state | OS filesystem |
-| <a id="e5-worker"></a>E5 | Worker | Container | Processes incoming work items | internal/worker |
-| <a id="e6-loader"></a>E6 | Loader | Container | Hydrates state from disk on startup | internal/loader |
+| <a id="s1-operator"></a>S1 | Operator | Person | Operator who triggers Foo runs | Human |
+| <a id="s2-foo"></a>S2 | Foo | The system in scope | The system being refined at this level | This repo |
+| <a id="s3-barapi"></a>S3 | BarAPI | External system | Upstream data source | bar.example.com |
+| <a id="s4-disk"></a>S4 | Disk | External system | On-disk state | OS filesystem |
+| <a id="s2-n1-worker"></a>S2-N1 | Worker | The system in scope | Processes incoming work items | internal/worker |
+| <a id="s2-n2-loader"></a>S2-N2 | Loader | The system in scope | Hydrates state from disk on startup | internal/loader |
 
 ## Relationships
 
 | ID | From | To | Description | Protocol/Medium |
 |---|---|---|---|---|
-| <a id="r1-operator-worker"></a>R1 | Operator | Worker | submits work items | CLI |
-| <a id="r2-loader-disk"></a>R2 | Loader | Disk | reads cached state | filesystem |
-| <a id="r3-worker-barapi"></a>R3 | Worker | BarAPI | fetches input | HTTPS |
-| <a id="r4-worker-loader"></a>R4 | Worker | Loader | asks for hydrated state | function call |
+| <a id="r1-s1-s2-n1"></a>R1 | S1 | S2-N1 | submits work items | CLI |
+| <a id="r2-s2-n2-s4"></a>R2 | S2-N2 | S4 | reads cached state | filesystem |
+| <a id="r3-s2-n1-s3"></a>R3 | S2-N1 | S3 | fetches input | HTTPS |
+| <a id="r4-s2-n1-s2-n2"></a>R4 | S2-N1 | S2-N2 | asks for hydrated state | function call |
 
 ## Cross-links
 
-- Parent: [c1-foo-system.md](c1-foo-system.md) (refines **E2 · Foo**)
+- Parent: [c1-foo-system.md](c1-foo-system.md) (refines **S2 · Foo**)
 - Refined by: *(none yet)*

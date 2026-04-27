@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "level": 2,
+  "name": "x",
+  "parent": "c1-x.md",
+  "preamble": "N-id under wrong focus",
+  "elements": [
+    {"id": "S2", "name": "Sys", "kind": "container", "in_scope": true, "responsibility": "r", "system_of_record": "s"},
+    {"id": "S3-N1", "name": "Wrong", "kind": "container", "responsibility": "r", "system_of_record": "s"}
+  ],
+  "relationships": [],
+  "drift_notes": [],
+  "cross_links": {"refined_by": []}
+}

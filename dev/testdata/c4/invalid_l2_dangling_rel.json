@@ -5,11 +5,11 @@
   "parent": "c1-x.md",
   "preamble": "relationship references unknown element",
   "elements": [
-    {"id": "E1", "name": "Sys", "kind": "container", "from_parent": true, "in_scope": true, "responsibility": "r", "system_of_record": "s"},
-    {"name": "Inner", "kind": "container", "responsibility": "r", "system_of_record": "s"}
+    {"id": "S1", "name": "Sys", "kind": "container", "in_scope": true, "responsibility": "r", "system_of_record": "s"},
+    {"id": "S1-N1", "name": "Inner", "kind": "container", "responsibility": "r", "system_of_record": "s"}
   ],
   "relationships": [
-    {"from": "Inner", "to": "Ghost", "description": "to nowhere", "protocol": "x"}
+    {"from": "S1-N1", "to": "S99", "description": "to nowhere", "protocol": "x"}
   ],
   "drift_notes": [],
   "cross_links": {"refined_by": []}

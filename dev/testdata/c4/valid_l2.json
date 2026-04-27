@@ -3,51 +3,49 @@
   "level": 2,
   "name": "foo-system",
   "parent": "c1-foo-system.md",
-  "preamble": "Refines E2 Foo into a worker that processes input and a loader that hydrates state from disk.",
+  "preamble": "Refines S2 Foo into a worker that processes input and a loader that hydrates state from disk.",
   "elements": [
     {
-      "id": "E1",
+      "id": "S1",
       "name": "Operator",
       "kind": "person",
-      "from_parent": true,
       "subtitle": "runs Foo",
       "responsibility": "Operator who triggers Foo runs",
       "system_of_record": "Human"
     },
     {
-      "id": "E2",
+      "id": "S2",
       "name": "Foo",
       "kind": "container",
-      "from_parent": true,
       "in_scope": true,
       "responsibility": "The system being refined at this level",
       "system_of_record": "This repo"
     },
     {
-      "id": "E3",
+      "id": "S3",
       "name": "BarAPI",
       "kind": "external",
-      "from_parent": true,
       "subtitle": "remote service",
       "responsibility": "Upstream data source",
       "system_of_record": "bar.example.com"
     },
     {
-      "id": "E4",
+      "id": "S4",
       "name": "Disk",
       "kind": "external",
-      "from_parent": true,
       "subtitle": "local filesystem",
       "responsibility": "On-disk state",
       "system_of_record": "OS filesystem"
     },
     {
+      "id": "S2-N1",
       "name": "Worker",
       "kind": "container",
       "responsibility": "Processes incoming work items",
       "system_of_record": "internal/worker"
     },
     {
+      "id": "S2-N2",
       "name": "Loader",
       "kind": "container",
       "responsibility": "Hydrates state from disk on startup",
@@ -55,10 +53,10 @@
     }
   ],
   "relationships": [
-    {"from": "Operator", "to": "Worker", "description": "submits work items", "protocol": "CLI"},
-    {"from": "Loader", "to": "Disk", "description": "reads cached state", "protocol": "filesystem"},
-    {"from": "Worker", "to": "BarAPI", "description": "fetches input", "protocol": "HTTPS"},
-    {"from": "Worker", "to": "Loader", "description": "asks for hydrated state", "protocol": "function call"}
+    {"from": "S1", "to": "S2-N1", "description": "submits work items", "protocol": "CLI"},
+    {"from": "S2-N2", "to": "S4", "description": "reads cached state", "protocol": "filesystem"},
+    {"from": "S2-N1", "to": "S3", "description": "fetches input", "protocol": "HTTPS"},
+    {"from": "S2-N1", "to": "S2-N2", "description": "asks for hydrated state", "protocol": "function call"}
   ],
   "drift_notes": [],
   "cross_links": {

@@ -352,7 +352,10 @@ func normalizeL2(filename string, raw []byte) ([]registryRecord, error) {
 	if err := json.Unmarshal(raw, &spec); err != nil {
 		return nil, fmt.Errorf("parse L2 spec: %w", err)
 	}
-	ids := assignL2ElementIDs(spec.Elements)
+	ids, err := validateL2ElementIDs(spec.Elements)
+	if err != nil {
+		return nil, fmt.Errorf("validate L2 element ids: %w", err)
+	}
 	records := make([]registryRecord, 0, len(ids))
 	for _, item := range ids {
 		records = append(records, registryRecord{

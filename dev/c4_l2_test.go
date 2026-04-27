@@ -39,8 +39,6 @@ func TestT18_L2BuildValidates_RejectsBadSchemas(t *testing.T) {
 	}{
 		{"testdata/c4/invalid_l2_no_in_scope.json", "in_scope"},
 		{"testdata/c4/invalid_l2_two_in_scope.json", "exactly one"},
-		{"testdata/c4/invalid_l2_in_scope_not_from_parent.json", "from_parent"},
-		{"testdata/c4/invalid_l2_from_parent_no_id.json", "explicit id"},
 		{"testdata/c4/invalid_l2_dup_id.json", "duplicate id"},
 		{"testdata/c4/invalid_l2_empty_parent.json", "parent"},
 		{"testdata/c4/invalid_l2_dangling_rel.json", "elements"},
@@ -56,28 +54,6 @@ func TestT18_L2BuildValidates_RejectsBadSchemas(t *testing.T) {
 				t.Errorf("error %q does not contain %q", err.Error(), testCase.errSub)
 			}
 		})
-	}
-}
-
-func TestT19_L2AssignIDs_CarryOverFromParent(t *testing.T) {
-	t.Parallel()
-
-	elements := []L2Element{
-		{ID: "E1", Name: "Person", Kind: "person", FromParent: true},
-		{ID: "E2", Name: "Sys", Kind: "container", FromParent: true, InScope: true},
-		{ID: "E5", Name: "Ext", Kind: "external", FromParent: true},
-		{Name: "Inner1", Kind: "container"},
-		{Name: "Inner2", Kind: "container"},
-	}
-	ids := assignL2ElementIDs(elements)
-	wantIDs := []string{"E1", "E2", "E5", "E3", "E4"}
-	for index, want := range wantIDs {
-		if ids[index].ID != want {
-			t.Errorf("ids[%d]: want %s, got %s", index, want, ids[index].ID)
-		}
-	}
-	if ids[3].AnchorID != "e3-inner1" {
-		t.Errorf("inner1 anchor: want e3-inner1, got %s", ids[3].AnchorID)
 	}
 }
 
@@ -120,6 +96,22 @@ func TestT19_L2BuildIdempotent(t *testing.T) {
 	}
 }
 
+func TestT19_L2ValidateIDs_RequiresInScope(t *testing.T) {
+	t.Parallel()
+
+	elements := []L2Element{
+		{ID: "S1", Name: "Person", Kind: "person"},
+		{ID: "S2", Name: "Sys", Kind: "container"},
+	}
+	_, err := validateL2ElementIDs(elements)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "no in_scope element") {
+		t.Errorf("want error mentioning 'no in_scope element', got %q", err.Error())
+	}
+}
+
 func TestT20_L2BuildLiveC2_AuditsClean(t *testing.T) {
 	t.Parallel()
 
@@ -155,5 +147,65 @@ func TestT20_L2BuildLiveC2_AuditsClean(t *testing.T) {
 	}
 	if len(findings) != 0 {
 		t.Errorf("expected zero findings on built file, got %d:\n%+v", len(findings), findings)
+	}
+}
+
+func TestT20_L2ValidateIDs_AcceptsHierarchical(t *testing.T) {
+	t.Parallel()
+
+	elements := []L2Element{
+		{ID: "S1", Name: "Person", Kind: "person"},
+		{ID: "S2", Name: "Focus", Kind: "container", InScope: true},
+		{ID: "S3", Name: "Peer", Kind: "external"},
+		{ID: "S2-N1", Name: "Inner1", Kind: "container"},
+		{ID: "S2-N2", Name: "Inner2", Kind: "container"},
+	}
+	ids, err := validateL2ElementIDs(elements)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	wantIDs := []string{"S1", "S2", "S3", "S2-N1", "S2-N2"}
+	for index, want := range wantIDs {
+		if ids[index].ID != want {
+			t.Errorf("ids[%d]: want %s, got %s", index, want, ids[index].ID)
+		}
+	}
+	if ids[3].AnchorID != "s2-n1-inner1" {
+		t.Errorf("inner1 anchor: want s2-n1-inner1, got %s", ids[3].AnchorID)
+	}
+	if ids[0].AnchorID != "s1-person" {
+		t.Errorf("person anchor: want s1-person, got %s", ids[0].AnchorID)
+	}
+}
+
+func TestT21_L2ValidateIDs_RejectsBadDepth(t *testing.T) {
+	t.Parallel()
+
+	elements := []L2Element{
+		{ID: "S2", Name: "Focus", Kind: "container", InScope: true},
+		{ID: "S2-N3-M5", Name: "TooDeep", Kind: "container"},
+	}
+	_, err := validateL2ElementIDs(elements)
+	if err == nil {
+		t.Fatal("expected error rejecting depth-3 id, got nil")
+	}
+	if !strings.Contains(err.Error(), "unsupported L2 id depth") {
+		t.Errorf("want error mentioning 'unsupported L2 id depth', got %q", err.Error())
+	}
+}
+
+func TestT22_L2ValidateIDs_RejectsOutOfFocusN(t *testing.T) {
+	t.Parallel()
+
+	elements := []L2Element{
+		{ID: "S2", Name: "Focus", Kind: "container", InScope: true},
+		{ID: "S3-N1", Name: "Wrong", Kind: "container"},
+	}
+	_, err := validateL2ElementIDs(elements)
+	if err == nil {
+		t.Fatal("expected error rejecting N-id outside focus, got nil")
+	}
+	if !strings.Contains(err.Error(), "not under focus") {
+		t.Errorf("want error mentioning 'not under focus', got %q", err.Error())
 	}
 }

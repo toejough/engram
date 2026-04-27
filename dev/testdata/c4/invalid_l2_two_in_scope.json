@@ -5,8 +5,8 @@
   "parent": "c1-x.md",
   "preamble": "two in_scope",
   "elements": [
-    {"id": "E1", "name": "A", "kind": "container", "from_parent": true, "in_scope": true, "responsibility": "r", "system_of_record": "s"},
-    {"id": "E2", "name": "B", "kind": "container", "from_parent": true, "in_scope": true, "responsibility": "r", "system_of_record": "s"}
+    {"id": "S1", "name": "A", "kind": "container", "in_scope": true, "responsibility": "r", "system_of_record": "s"},
+    {"id": "S2", "name": "B", "kind": "container", "in_scope": true, "responsibility": "r", "system_of_record": "s"}
   ],
   "relationships": [],
   "drift_notes": [],

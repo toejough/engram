@@ -28,19 +28,19 @@ type C4L2BuildArgs struct {
 	NoConfirm bool   `targ:"flag,name=noconfirm,desc=Overwrite existing .md without prompting"`
 }
 
-// L2Element is one element on an L2 diagram. Carry-over elements from the
-// parent L1 must set FromParent=true and ID to the parent's E-ID. Exactly one
-// element must set InScope=true; that element is rendered as a mermaid
-// subgraph wrapping all internal containers and is the L1 element being
-// refined.
+// L2Element is one element on an L2 diagram. Each element has an explicit
+// hierarchical ID: carried-over L1 elements use the parent's S<n> ID; new
+// containers under the focus use <focusPath>-N<m>. Exactly one element must
+// set InScope=true; that element is rendered as a mermaid subgraph wrapping
+// all internal containers and is the L1 element being refined. Its ID must
+// be a level-1 (S<n>) path.
 type L2Element struct {
-	ID             string  `json:"id,omitempty"`
+	ID             string  `json:"id"`
 	Name           string  `json:"name"`
 	Kind           string  `json:"kind"`
 	Subtitle       *string `json:"subtitle,omitempty"`
 	Responsibility string  `json:"responsibility"`
 	SystemOfRecord string  `json:"system_of_record"`
-	FromParent     bool    `json:"from_parent,omitempty"`
 	InScope        bool    `json:"in_scope,omitempty"`
 }
 
@@ -55,60 +55,6 @@ type L2Spec struct {
 	Relationships []L1Relationship `json:"relationships"`
 	DriftNotes    []L1DriftNote    `json:"drift_notes"`
 	CrossLinks    L1CrossLinks     `json:"cross_links"`
-}
-
-// assignL2ElementIDs returns elements paired with E-IDs. Elements with an
-// explicit ID keep it; the rest are assigned the smallest unused E-id (in
-// source order), filling gaps left by carry-over IDs from the parent before
-// extending past the maximum. AnchorIDs use the same e<n>-<slug> shape as L1.
-func assignL2ElementIDs(elements []L2Element) []elementID {
-	explicit := map[int]bool{}
-	for _, element := range elements {
-		if element.ID == "" {
-			continue
-		}
-		if number, err := strconv.Atoi(strings.TrimPrefix(element.ID, "E")); err == nil {
-			explicit[number] = true
-		}
-	}
-	result := make([]elementID, 0, len(elements))
-	used := map[string]int{}
-	next := 1
-	for _, element := range elements {
-		var id string
-		if element.ID != "" {
-			id = element.ID
-		} else {
-			for explicit[next] {
-				next++
-			}
-			id = fmt.Sprintf("E%d", next)
-			explicit[next] = true
-			next++
-		}
-		number, _ := strconv.Atoi(strings.TrimPrefix(id, "E"))
-		base := fmt.Sprintf("e%d-%s", number, slug(element.Name))
-		anchor := base
-		if used[base] > 0 {
-			used[base]++
-			anchor = fmt.Sprintf("%s-%d", base, used[base])
-		} else {
-			used[base] = 1
-		}
-		result = append(result, elementID{
-			ID:       id,
-			AnchorID: anchor,
-			Element: L1Element{
-				ID:             id,
-				Name:           element.Name,
-				Kind:           element.Kind,
-				Subtitle:       element.Subtitle,
-				Responsibility: element.Responsibility,
-				SystemOfRecord: element.SystemOfRecord,
-			},
-		})
-	}
-	return result
 }
 
 func c4L2Build(ctx context.Context, args C4L2BuildArgs) error {
@@ -177,7 +123,10 @@ func emitL2FrontMatter(buf *bytes.Buffer, spec *L2Spec, lastReviewedCommit strin
 
 // emitL2Markdown renders spec to canonical L2 markdown.
 func emitL2Markdown(w io.Writer, spec *L2Spec, lastReviewedCommit string) error {
-	elementIDs := assignL2ElementIDs(spec.Elements)
+	elementIDs, err := validateL2ElementIDs(spec.Elements)
+	if err != nil {
+		return fmt.Errorf("validate l2 element ids: %w", err)
+	}
 	relIDs := assignRelationshipIDs(spec.Relationships)
 	inScope, ok := findInScopeElement(elementIDs, spec.Elements)
 	if !ok {
@@ -206,7 +155,7 @@ func emitL2Mermaid(buf *bytes.Buffer, elementIDs []elementID, relIDs []relations
 	buf.WriteString("\n")
 	emitL2Subgraph(buf, elementIDs, inScope)
 	buf.WriteString("\n")
-	emitMermaidEdges(buf, relIDs, mermaidIDByName(elementIDs))
+	emitMermaidEdges(buf, relIDs, mermaidIDByElementID(elementIDs))
 	buf.WriteString("\n")
 	emitL2MermaidClasses(buf, elementIDs, inScope)
 	buf.WriteString("\n")
@@ -296,6 +245,85 @@ func loadAndValidateL2Spec(path string) (*L2Spec, error) {
 	return &spec, nil
 }
 
+// mermaidIDByElementID maps each element's hierarchical ID to its lowercase
+// mermaid node ID. Used at L2+ where relationships are keyed directly by
+// hierarchical ID (no name substitution needed).
+func mermaidIDByElementID(elementIDs []elementID) map[string]string {
+	out := make(map[string]string, len(elementIDs))
+	for _, item := range elementIDs {
+		out[item.ID] = strings.ToLower(item.ID)
+	}
+	return out
+}
+
+// validateL2ElementIDs validates that each element has an explicit
+// hierarchical path ID. The InScope element must have an L1 (S<n>) ID; that
+// path becomes the focus. Other elements may be either:
+//   - L1 paths (S<n>): carried-over peers from the parent diagram, or
+//   - L2 paths (S<n>-N<m>): new containers under the focus.
+//
+// On success it returns elementIDs with anchors of the form
+// "<lower-id>-<slug(name)>" (e.g. "s1-developer", "s2-n1-skills").
+func validateL2ElementIDs(elements []L2Element) ([]elementID, error) {
+	var focusPath IDPath
+	for _, element := range elements {
+		path, err := ParseIDPath(element.ID)
+		if err != nil {
+			return nil, fmt.Errorf("element %q: %w", element.Name, err)
+		}
+		if element.InScope {
+			if path.Level != 1 {
+				return nil, fmt.Errorf("in_scope element %q must have an L1 (S<n>) id, got %s",
+					element.Name, element.ID)
+			}
+			focusPath = path
+		}
+	}
+	if focusPath.Level == 0 {
+		return nil, errors.New("L2 spec has no in_scope element")
+	}
+	result := make([]elementID, 0, len(elements))
+	used := map[string]int{}
+	for _, element := range elements {
+		if !element.InScope {
+			path, _ := ParseIDPath(element.ID)
+			switch path.Level {
+			case 1:
+				// carried-over peer from L1 (e.g. external/person)
+			case 2:
+				if !focusPath.IsAncestorOf(path) {
+					return nil, fmt.Errorf("element %q id %s is not under focus %s",
+						element.Name, element.ID, focusPath.String())
+				}
+			default:
+				return nil, fmt.Errorf("element %q has unsupported L2 id depth %d (%s)",
+					element.Name, path.Level, element.ID)
+			}
+		}
+		base := strings.ToLower(element.ID) + "-" + slug(element.Name)
+		anchor := base
+		if used[base] > 0 {
+			used[base]++
+			anchor = fmt.Sprintf("%s-%d", base, used[base])
+		} else {
+			used[base] = 1
+		}
+		result = append(result, elementID{
+			ID:       element.ID,
+			AnchorID: anchor,
+			Element: L1Element{
+				ID:             element.ID,
+				Name:           element.Name,
+				Kind:           element.Kind,
+				Subtitle:       element.Subtitle,
+				Responsibility: element.Responsibility,
+				SystemOfRecord: element.SystemOfRecord,
+			},
+		})
+	}
+	return result, nil
+}
+
 func validateL2Elements(elements []L2Element) error {
 	inScopeCount := 0
 	seenName := map[string]bool{}
@@ -308,23 +336,15 @@ func validateL2Elements(elements []L2Element) error {
 			return fmt.Errorf("elements: duplicate name %q", element.Name)
 		}
 		seenName[element.Name] = true
-		if element.FromParent && element.ID == "" {
-			return fmt.Errorf("elements[%d]: from_parent=true requires explicit id", index)
+		if element.ID == "" {
+			return fmt.Errorf("elements[%d]: id is required", index)
 		}
-		if element.ID != "" {
-			if !mermaidIDPrefix.MatchString(element.ID) {
-				return fmt.Errorf("elements[%d]: id %q must match E<n>", index, element.ID)
-			}
-			if seenID[element.ID] {
-				return fmt.Errorf("elements: duplicate id %q", element.ID)
-			}
-			seenID[element.ID] = true
+		if seenID[element.ID] {
+			return fmt.Errorf("elements: duplicate id %q", element.ID)
 		}
+		seenID[element.ID] = true
 		if element.InScope {
 			inScopeCount++
-			if !element.FromParent {
-				return fmt.Errorf("elements[%d]: in_scope=true requires from_parent=true", index)
-			}
 			if element.Kind != "container" {
 				return fmt.Errorf("elements[%d]: in_scope=true requires kind=container", index)
 			}
@@ -337,15 +357,15 @@ func validateL2Elements(elements []L2Element) error {
 }
 
 func validateL2Relationships(elements []L2Element, rels []L1Relationship, links L1CrossLinks) error {
-	names := map[string]bool{}
+	ids := map[string]bool{}
 	for _, element := range elements {
-		names[element.Name] = true
+		ids[element.ID] = true
 	}
 	for index, rel := range rels {
-		if !names[rel.From] {
+		if !ids[rel.From] {
 			return fmt.Errorf("relationships[%d]: from %q not in elements", index, rel.From)
 		}
-		if !names[rel.To] {
+		if !ids[rel.To] {
 			return fmt.Errorf("relationships[%d]: to %q not in elements", index, rel.To)
 		}
 	}
