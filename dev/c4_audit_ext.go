@@ -3,7 +3,6 @@
 package dev
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,14 +25,6 @@ var (
 	propertyLedgerRe  = regexp.MustCompile(`(?m)^##\s+Property Ledger\s*$`)
 )
 
-// catalogIDName is one (id, name) pair extracted from the audited markdown's
-// Element Catalog along with the source line for finding placement.
-type catalogIDName struct {
-	id   string
-	name string
-	line int
-}
-
 func brokenLinksInCell(cell, dir string, lineNum int) []Finding {
 	matches := markdownLinkRe.FindAllStringSubmatch(cell, -1)
 	findings := []Finding{}
@@ -53,27 +44,6 @@ func brokenLinksInCell(cell, dir string, lineNum int) []Finding {
 		})
 	}
 	return findings
-}
-
-// catalogPairFromRow parses one Element Catalog markdown row into a
-// catalogIDName. Returns false for header, separator, and non-data rows.
-func catalogPairFromRow(line string, lineNum int) (catalogIDName, bool) {
-	cells := strings.Split(line, "|")
-	if len(cells) < 4 {
-		return catalogIDName{}, false
-	}
-	idCell := strings.TrimSpace(cells[1])
-	nameCell := strings.TrimSpace(cells[2])
-	idCell = anchorInCellRe.ReplaceAllString(idCell, "")
-	idCell = strings.TrimSpace(idCell)
-	if !mermaidIDPrefix.MatchString(idCell) {
-		return catalogIDName{}, false
-	}
-	id := mermaidIDPrefix.FindString(idCell)
-	if id == "" || nameCell == "" {
-		return catalogIDName{}, false
-	}
-	return catalogIDName{id: id, name: nameCell, line: lineNum}, true
 }
 
 // checkChildren validates each entry of the front-matter `children` array
@@ -173,63 +143,6 @@ func checkPropertyLinks(matter frontMatter, raw []byte, mdPath string) []Finding
 	return findings
 }
 
-// checkRegistryCrossCheck derives the registry from the audited markdown's
-// parent directory and verifies that every (id, name) pair in the markdown's
-// Element Catalog matches the registry. Emits:
-//
-//   - `registry_orphan` (single, line 1) when the dir has spec JSONs but no
-//     JSON matches this markdown's basename;
-//   - `id_name_drift` per-row when a markdown id has no registry entry, or the
-//     registry's name(s) for that id don't include the markdown's name.
-//
-// When the dir has zero `c*.json` files, the audit is skipped (no findings).
-func checkRegistryCrossCheck(ctx context.Context, raw []byte, mdPath string) []Finding {
-	dir := filepath.Dir(mdPath)
-	files, records, err := scanRegistryDir(ctx, dir)
-	if err != nil || len(files) == 0 {
-		return nil
-	}
-	base := strings.TrimSuffix(filepath.Base(mdPath), ".md")
-	matchingJSON := base + ".json"
-	if !containsString(files, matchingJSON) {
-		return []Finding{{
-			ID:   "registry_orphan",
-			Line: 1,
-			Detail: fmt.Sprintf(
-				"no matching %s among scanned specs %v", matchingJSON, files),
-		}}
-	}
-	view := deriveRegistry(dir, files, records)
-	elementByID := map[string]RegistryElement{}
-	for _, element := range view.Elements {
-		elementByID[element.ID] = element
-	}
-	pairs := parseCatalogIDNames(raw)
-	findings := []Finding{}
-	for _, pair := range pairs {
-		entry, ok := elementByID[pair.id]
-		if !ok {
-			findings = append(findings, Finding{
-				ID:   "id_name_drift",
-				Line: pair.line,
-				Detail: fmt.Sprintf(
-					"markdown declares %s but no JSON in %s does", pair.id, dir),
-			})
-			continue
-		}
-		if !containsString(entry.Names, pair.name) {
-			findings = append(findings, Finding{
-				ID:   "id_name_drift",
-				Line: pair.line,
-				Detail: fmt.Sprintf(
-					"markdown declares %s = %q but registry has %v",
-					pair.id, pair.name, entry.Names),
-			})
-		}
-	}
-	return findings
-}
-
 // codePointerFindingForRow returns a finding when the catalog row's code-
 // pointer cell contains a markdown link to a non-existent path. Returns nil
 // for header rows, separator rows, rows without enough cells, or rows whose
@@ -258,43 +171,6 @@ func codePointerFindingForRow(line, mdPath string, lineNum int) *Finding {
 		Detail: fmt.Sprintf(
 			"code pointer %q resolves to %q but does not exist", target, resolved),
 	}
-}
-
-func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
-}
-
-// parseCatalogIDNames extracts (id, name) pairs from the Element Catalog. The
-// id comes from the first cell after the leading empty cell (stripping any
-// `<a id="..."></a>` anchor); the name is column 2.
-func parseCatalogIDNames(raw []byte) []catalogIDName {
-	text := string(raw)
-	loc := catalogHeaderRe.FindStringIndex(text)
-	if loc == nil {
-		return nil
-	}
-	tail := text[loc[1]:]
-	startLine := 1 + strings.Count(text[:loc[0]], "\n")
-	pairs := []catalogIDName{}
-	for offset, line := range strings.Split(tail, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "## ") {
-			break
-		}
-		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
-			continue
-		}
-		pair, ok := catalogPairFromRow(line, startLine+offset+1)
-		if !ok {
-			continue
-		}
-		pairs = append(pairs, pair)
-	}
-	return pairs
 }
 
 // parseInlineYAMLArray parses a YAML inline array like

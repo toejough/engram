@@ -148,19 +148,19 @@ var (
 		"Get": true, "Post": true, "Put": true, "Delete": true, "Head": true, "PostForm": true,
 	}
 	levelPrefixRe      = regexp.MustCompile(`^c[1-4]-`)
-	mermaidClassRe     = regexp.MustCompile(`^\s*class\s+([\w,]+)\s+(\w+)\s*$`)
-	mermaidClickRe     = regexp.MustCompile(`^\s*click\s+(\w+)\s+href\s+"#([^"]+)"`)
-	mermaidEdgeRe      = regexp.MustCompile(`^\s*(\w+)\s*<?[-.=]+>+\s*(?:\|([^|]*)\|\s*)?(\w+)\s*$`)
+	mermaidClassRe     = regexp.MustCompile(`^\s*class\s+([\w,-]+)\s+(\w+)\s*$`)
+	mermaidClickRe     = regexp.MustCompile(`^\s*click\s+([\w-]+)\s+href\s+"#([^"]+)"`)
+	mermaidEdgeRe      = regexp.MustCompile(`^\s*([\w-]+?)\s+<?[-.=]+>+\s*(?:\|([^|]*)\|\s*)?([\w-]+)\s*$`)
 	mermaidFenceRe     = regexp.MustCompile("(?m)^```mermaid")
-	mermaidIDPrefix    = regexp.MustCompile(`^E\d+`)
-	mermaidNodeRe      = regexp.MustCompile(`^\s*(\w+)\s*[(\[]+(.*?)[)\]]+\s*$`)
-	mermaidSubgraphRe  = regexp.MustCompile(`^\s*subgraph\s+(\w+)\s*\[(.*?)\]\s*$`)
+	mermaidIDPrefix    = regexp.MustCompile(`^[SNMP]\d+(?:-[SNMP]\d+)*`)
+	mermaidNodeRe      = regexp.MustCompile(`^\s*([\w-]+)\s*[(\[]+(.*?)[)\]]+\s*$`)
+	mermaidSubgraphRe  = regexp.MustCompile(`^\s*subgraph\s+([\w-]+)\s*\[(.*?)\]\s*$`)
 	nameStatusLineRe   = regexp.MustCompile(`^[A-Z][A-Z0-9]*\t`)
 	relsHeaderRe       = regexp.MustCompile(`(?m)^##\s+Relationships\s*$`)
 	sinceShorthandRe   = regexp.MustCompile(`^(\d+)([dwmy])$`)
 	slugSplitRe        = regexp.MustCompile(`[^a-z0-9]+`)
 	svgEmbedRe         = regexp.MustCompile(`!\[[^\]]*\]\(svg/([A-Za-z0-9._-]+)\.svg\)`)
-	tableRowFirstRe    = regexp.MustCompile(`^\s*\|\s*(?:<a\s+id="([^"]+)"></a>)?\s*([ER]\d+)\s*\|`)
+	tableRowFirstRe    = regexp.MustCompile(`^\s*\|\s*(?:<a\s+id="([^"]+)"></a>)?\s*([SNMPR]\d+(?:-[SNMP]\d+)*)\s*\|`)
 	validKinds         = map[string]bool{"person": true, "external": true, "container": true}
 	validNameRe        = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 	validRefinedByFile = regexp.MustCompile(`^c2-[a-z0-9-]+\.md$`)
@@ -431,7 +431,6 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	catalog, rels := parseTables(raw)
 	findings = append(findings, auditOrphans(block, catalog, rels)...)
 	findings = append(findings, auditAnchorsAndClicks(block, catalog, rels)...)
-	findings = append(findings, checkRegistryCrossCheck(ctx, raw, path)...)
 	return findings, nil
 }
 
@@ -807,7 +806,7 @@ func collectMermaidFindings(block *mermaidBlock) []Finding {
 			findings = append(findings, Finding{
 				ID:     "node_id_missing",
 				Line:   node.line,
-				Detail: fmt.Sprintf("node %q label %q does not start with E<n>", node.id, node.label),
+				Detail: fmt.Sprintf("node %q label %q does not start with a hierarchical ID (S<n>, S<n>-N<n>, …)", node.id, node.label),
 			})
 		}
 	}
@@ -1498,12 +1497,14 @@ func parseTableSection(text string, headerRe *regexp.Regexp, isCatalog bool) []c
 				anchor = a[1]
 			}
 		}
-		// Skip catalog/rels prefix mismatches: catalog has E<n>, rels has R<n>.
+		// Skip catalog/rels prefix mismatches: catalog has hierarchical
+		// S/N/M/P IDs (validated by ParseIDPath), rels has R<n>.
 		identifier := matched[2]
-		if isCatalog && !strings.HasPrefix(identifier, "E") {
-			continue
-		}
-		if !isCatalog && !strings.HasPrefix(identifier, "R") {
+		if isCatalog {
+			if _, err := ParseIDPath(identifier); err != nil {
+				continue
+			}
+		} else if !strings.HasPrefix(identifier, "R") {
 			continue
 		}
 		rows = append(rows, catalogRow{

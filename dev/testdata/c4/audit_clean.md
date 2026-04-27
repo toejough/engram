@@ -18,12 +18,12 @@ flowchart LR
     classDef external    fill:#999,   stroke:#666,   color:#fff
     classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
 
-    user([E1 · Joe<br/>developer using Claude Code])
-    cc(E3 · Claude Code<br/>agent harness)
-    ccmem(E4 · Claude Code memory surfaces<br/>CLAUDE.md, .claude/rules, auto-memory, skills)
-    anth(E5 · Anthropic API<br/>Haiku rank + extract)
-    fs(E6 · Local filesystem<br/>~/.local/share/engram/)
-    engram[E2 · Engram plugin]
+    user([S1 · Joe<br/>developer using Claude Code])
+    cc(S3 · Claude Code<br/>agent harness)
+    ccmem(S4 · Claude Code memory surfaces<br/>CLAUDE.md, .claude/rules, auto-memory, skills)
+    anth(S5 · Anthropic API<br/>Haiku rank + extract)
+    fs(S6 · Local filesystem<br/>~/.local/share/engram/)
+    engram[S2 · Engram plugin]
 
     user -->|R1: invokes /prepare /learn /recall /remember /migrate| cc
     cc -->|R2: loads skills + fires SessionStart, UserPromptSubmit, PostToolUse hooks| engram
@@ -36,24 +36,24 @@ flowchart LR
     class cc,ccmem,anth,fs external
     class engram container
 
-    click user href "#e1-joe" "Joe"
-    click engram href "#e2-engram-plugin" "Engram plugin"
-    click cc href "#e3-claude-code" "Claude Code"
-    click ccmem href "#e4-claude-code-memory-surfaces" "Claude Code memory surfaces"
-    click anth href "#e5-anthropic-api" "Anthropic API"
-    click fs href "#e6-local-filesystem" "Local filesystem"
+    click user href "#s1-joe" "Joe"
+    click engram href "#s2-engram-plugin" "Engram plugin"
+    click cc href "#s3-claude-code" "Claude Code"
+    click ccmem href "#s4-claude-code-memory-surfaces" "Claude Code memory surfaces"
+    click anth href "#s5-anthropic-api" "Anthropic API"
+    click fs href "#s6-local-filesystem" "Local filesystem"
 ```
 
 ## Element Catalog
 
 | ID | Name | Type | Responsibility | System of Record |
 |---|---|---|---|---|
-| <a id="e1-joe"></a>E1 | Joe | Person | Developer who triggers `/prepare`, `/recall`, `/remember`, `/learn`, `/migrate` and authors the work that produces memories | Human, at a Claude Code session |
-| <a id="e2-engram-plugin"></a>E2 | Engram plugin | The system in scope | Plugin providing persistent, query-ranked memory: skills decide when to load context, a slim Go binary computes recall/learn, hooks remind the agent at session and tool-use boundaries | This repository (`github.com/toejough/engram`) |
-| <a id="e3-claude-code"></a>E3 | Claude Code | External system | Agent harness that loads the plugin, dispatches skills, fires hooks, and exposes its own memory surfaces | Anthropic Claude Code CLI |
-| <a id="e4-claude-code-memory-surfaces"></a>E4 | Claude Code memory surfaces | External system | Read-only sources Engram merges into recall: project + user `CLAUDE.md` (with `@`-imports), `.claude/rules/*.md`, auto-memory under `~/.claude/projects/<slug>/memory/`, and project + user + plugin skill frontmatter | Files owned by Claude Code and the user; never written by Engram |
-| <a id="e5-anthropic-api"></a>E5 | Anthropic API | External system | LLM service used by the recall pipeline for Haiku ranking and extraction; also the classification step in `/learn` and `/remember` quality gates | `api.anthropic.com` |
-| <a id="e6-local-filesystem"></a>E6 | Local filesystem | External system | Engram's own writable data directory: `~/.local/share/engram/memory/feedback/*.toml` and `~/.local/share/engram/memory/facts/*.toml`; also the cached binary at `~/.claude/engram/bin/engram` | XDG data home on the user's machine |
+| <a id="s1-joe"></a>S1 | Joe | Person | Developer who triggers `/prepare`, `/recall`, `/remember`, `/learn`, `/migrate` and authors the work that produces memories | Human, at a Claude Code session |
+| <a id="s2-engram-plugin"></a>S2 | Engram plugin | The system in scope | Plugin providing persistent, query-ranked memory: skills decide when to load context, a slim Go binary computes recall/learn, hooks remind the agent at session and tool-use boundaries | This repository (`github.com/toejough/engram`) |
+| <a id="s3-claude-code"></a>S3 | Claude Code | External system | Agent harness that loads the plugin, dispatches skills, fires hooks, and exposes its own memory surfaces | Anthropic Claude Code CLI |
+| <a id="s4-claude-code-memory-surfaces"></a>S4 | Claude Code memory surfaces | External system | Read-only sources Engram merges into recall: project + user `CLAUDE.md` (with `@`-imports), `.claude/rules/*.md`, auto-memory under `~/.claude/projects/<slug>/memory/`, and project + user + plugin skill frontmatter | Files owned by Claude Code and the user; never written by Engram |
+| <a id="s5-anthropic-api"></a>S5 | Anthropic API | External system | LLM service used by the recall pipeline for Haiku ranking and extraction; also the classification step in `/learn` and `/remember` quality gates | `api.anthropic.com` |
+| <a id="s6-local-filesystem"></a>S6 | Local filesystem | External system | Engram's own writable data directory: `~/.local/share/engram/memory/feedback/*.toml` and `~/.local/share/engram/memory/facts/*.toml`; also the cached binary at `~/.claude/engram/bin/engram` | XDG data home on the user's machine |
 
 ## Relationships
 
@@ -69,4 +69,4 @@ flowchart LR
 ## Cross-links
 
 - Parent: none (L1 is the root).
-- Refined by: *(none yet — to be authored at L2)*. Expected next file: `c2-engram-containers.md` decomposing **E2 · Engram plugin** into the `engram` Go binary (`cmd/engram` + `internal/`), the skill set (`skills/{prepare,recall,learn,remember,migrate,c4}`), the hook scripts (`hooks/{session-start,user-prompt-submit,post-tool-use}.sh`), and the on-disk memory store under `~/.local/share/engram/memory/`.
+- Refined by: *(none yet — to be authored at L2)*. Expected next file: `c2-engram-containers.md` decomposing **S2 · Engram plugin** into the `engram` Go binary (`cmd/engram` + `internal/`), the skill set (`skills/{prepare,recall,learn,remember,migrate,c4}`), the hook scripts (`hooks/{session-start,user-prompt-submit,post-tool-use}.sh`), and the on-disk memory store under `~/.local/share/engram/memory/`.

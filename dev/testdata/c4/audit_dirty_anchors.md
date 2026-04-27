@@ -14,9 +14,9 @@ flowchart LR
     classDef external    fill:#000
     classDef container   fill:#000
 
-    a[E1 · Foo]
-    b[E2 · Bar]
-    c[E3 · Baz]
+    a[S1 · Foo]
+    b[S2 · Bar]
+    c[S3 · Baz]
 
     a -->|R1: foo to bar| b
     b -->|R2: bar to baz| c
@@ -26,16 +26,16 @@ flowchart LR
     class c external
 
     click a href "#nowhere" "Foo"
-    click b href "#e2-bar" "Bar"
+    click b href "#s2-bar" "Bar"
 ```
 
 ## Element Catalog
 
 | ID | Name | Type | Responsibility | System of Record |
 |---|---|---|---|---|
-| <a id="e1-foo"></a>E1 | Foo | Person | resp | sor |
-| <a id="e2-bar"></a>E2 | Bar | Container | resp | sor |
-| E3 | Baz | External system | resp | sor |
+| <a id="s1-foo"></a>S1 | Foo | Person | resp | sor |
+| <a id="s2-bar"></a>S2 | Bar | Container | resp | sor |
+| S3 | Baz | External system | resp | sor |
 
 ## Relationships
 
