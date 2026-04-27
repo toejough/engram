@@ -2,6 +2,7 @@
 package tomlwriter
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -132,7 +133,7 @@ func (w *Writer) availablePath(memoriesDir, slug string) (string, error) {
 
 	for suffix := 2; ; suffix++ {
 		_, statErr := w.stat(candidate)
-		if os.IsNotExist(statErr) {
+		if errors.Is(statErr, os.ErrNotExist) {
 			return candidate, nil
 		}
 
