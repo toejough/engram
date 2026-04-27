@@ -1,17 +1,57 @@
 {
-  "schema_version": "1",
-  "level": 4,
-  "name": "remember-skill",
-  "parent": "c3-skills.md",
-  "focus": {
-    "id": "E13",
-    "name": "remember skill",
-    "l3_container": "c3-skills.md"
-  },
-  "sources": [
-    "skills/remember/SKILL.md"
-  ],
   "context_prose": "E13 remember skill captures explicit knowledge the user dictates (\"remember this\", \"remember that\", \"don't forget\", `/remember`) as feedback or fact memories with user approval. Unlike E11 learn skill, which reviews session work for implicit lessons, remember handles user-initiated saves: the user names what to capture and the skill walks the agent through classification, a three-gate quality check (Recurs, Actionable, Right home), drafting with a `/prepare`-shaped situation field, and persistence via `engram learn` (or `engram update` on dedup hit). The skill body is markdown text loaded by Claude Code (E3) on slash-command or trigger-phrase match (R1); the agent then shells out to the engram CLI binary (E9) per R5. The skill performs no I/O itself — it is text instructing the agent — so all properties below are textual invariants of SKILL.md, enforced by the prose at the cited line and validated only by reading the document.",
+  "diagram": {
+    "edges": [
+      {
+        "from": "S3",
+        "id": "R1",
+        "label": "loads skill body on /remember or trigger phrase",
+        "to": "S2-N1-M4"
+      },
+      {
+        "from": "S2-N1-M4",
+        "id": "R5",
+        "label": "instructs agent: engram learn / engram update",
+        "to": "S2-N3"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "S2-N1-M4",
+        "kind": "focus",
+        "name": "remember skill",
+        "subtitle": "explicit-save flow"
+      },
+      {
+        "id": "S3",
+        "kind": "external",
+        "name": "Claude Code",
+        "subtitle": "loads skill body"
+      },
+      {
+        "id": "S2-N3",
+        "kind": "container",
+        "name": "engram CLI binary",
+        "subtitle": "learn / update"
+      },
+      {
+        "id": "S2-N1-M2",
+        "kind": "component",
+        "name": "learn skill",
+        "subtitle": "implicit lessons (sibling)"
+      },
+      {
+        "id": "S2-N1-M1",
+        "kind": "component",
+        "name": "prepare skill",
+        "subtitle": "situation-shape audience"
+      }
+    ]
+  },
+  "focus": {
+    "id": "S2-N1-M4",
+    "name": "remember skill"
+  },
   "legend_items": [
     "**Focus** — yellow (E13 remember skill).",
     "**Component** — light blue (sibling skills in E7).",
@@ -19,198 +59,326 @@
     "**External** — grey (E3 Claude Code).",
     "**R-edges** — solid."
   ],
-  "diagram": {
-    "nodes": [
-      {"id": "E13", "name": "remember skill", "subtitle": "explicit-save flow", "kind": "focus"},
-      {"id": "E3", "name": "Claude Code", "subtitle": "loads skill body", "kind": "external"},
-      {"id": "E9", "name": "engram CLI binary", "subtitle": "learn / update", "kind": "container"},
-      {"id": "E11", "name": "learn skill", "subtitle": "implicit lessons (sibling)", "kind": "component"},
-      {"id": "E10", "name": "prepare skill", "subtitle": "situation-shape audience", "kind": "component"}
-    ],
-    "edges": [
-      {"id": "R1", "from": "E3", "to": "E13", "label": "loads skill body on /remember or trigger phrase"},
-      {"id": "R5", "from": "E13", "to": "E9", "label": "instructs agent: engram learn / engram update"}
-    ]
-  },
+  "level": 4,
+  "name": "remember-skill",
+  "parent": "c3-skills.md",
   "properties": [
     {
-      "id": "P1",
+      "enforced_at": [
+        {
+          "line": 3,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P1",
       "name": "Trigger phrases routed",
+      "notes": "Enforced by the frontmatter description; matched by Claude Code's skill router (E3 → R1). No automated test in this repo.",
       "statement": "For all user inputs containing \"remember this\", \"remember that\", \"don't forget\", \"save this for later\", or `/remember`, Claude Code loads the remember skill body as the next agent message.",
-      "enforced_at": [{"path": "skills/remember/SKILL.md", "line": 3}],
-      "tested_at": [],
-      "notes": "Enforced by the frontmatter description; matched by Claude Code's skill router (E3 → R1). No automated test in this repo."
+      "tested_at": []
     },
     {
-      "id": "P2",
+      "enforced_at": [
+        {
+          "line": 13,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 20,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 59,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 70,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 77,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P2",
       "name": "Five-step flow ordering",
+      "notes": "Section ordering is the contract; no skill-runner asserts traversal.",
       "statement": "For all candidate items the user wants saved, the agent executes the flow as Step 1 Classify → Step 2 Quality gate → Step 3 Draft and present → Step 4 Save → Step 5 Handle results, in that order.",
-      "enforced_at": [
-        {"path": "skills/remember/SKILL.md", "line": 13},
-        {"path": "skills/remember/SKILL.md", "line": 20},
-        {"path": "skills/remember/SKILL.md", "line": 59},
-        {"path": "skills/remember/SKILL.md", "line": 70},
-        {"path": "skills/remember/SKILL.md", "line": 77}
-      ],
-      "tested_at": [],
-      "notes": "Section ordering is the contract; no skill-runner asserts traversal."
+      "tested_at": []
     },
     {
-      "id": "P3",
+      "enforced_at": [
+        {
+          "line": 16,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 17,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 18,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P3",
       "name": "Classify into feedback or fact",
+      "notes": "The two memory shapes correspond to the `engram learn feedback` and `engram learn fact` subcommands invoked in Step 4.",
       "statement": "For all candidates, Step 1 classifies each as either a Feedback memory (situation → behavior → impact → action) or a Fact memory (situation → subject → predicate → object); a single user request may yield multiple memories.",
-      "enforced_at": [
-        {"path": "skills/remember/SKILL.md", "line": 16},
-        {"path": "skills/remember/SKILL.md", "line": 17},
-        {"path": "skills/remember/SKILL.md", "line": 18}
-      ],
-      "tested_at": [],
-      "notes": "The two memory shapes correspond to the `engram learn feedback` and `engram learn fact` subcommands invoked in Step 4."
+      "tested_at": []
     },
     {
-      "id": "P4",
+      "enforced_at": [
+        {
+          "line": 22,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P4",
       "name": "Quality gates ordered, fail-fast",
+      "notes": "Short-circuit semantics: gate ordering matters because Recurs failures are the most common and cheapest to detect.",
       "statement": "For all candidates, the three quality gates are checked in order — (1) Recurs, (2) Actionable, (3) Right home — and a single failure drops the candidate; the agent tells the user why and suggests the right home instead.",
-      "enforced_at": [{"path": "skills/remember/SKILL.md", "line": 22}],
-      "tested_at": [],
-      "notes": "Short-circuit semantics: gate ordering matters because Recurs failures are the most common and cheapest to detect."
+      "tested_at": []
     },
     {
-      "id": "P5",
+      "enforced_at": [
+        {
+          "line": 24,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 26,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 28,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 29,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 30,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P5",
       "name": "Recurs gate strips to activity+domain",
+      "notes": "Pass criterion: an agent working on an unrelated web app, game, or data pipeline should plausibly hit the same situation.",
       "statement": "For all candidates, the Recurs gate fails if the situation, after stripping to \"activity + domain\", names this project (engram / traced / etc.), its internals or architecture, phase numbers, issue IDs, commit hashes, dates, one-time events, diary entries, or status snapshots.",
-      "enforced_at": [
-        {"path": "skills/remember/SKILL.md", "line": 24},
-        {"path": "skills/remember/SKILL.md", "line": 26},
-        {"path": "skills/remember/SKILL.md", "line": 28},
-        {"path": "skills/remember/SKILL.md", "line": 29},
-        {"path": "skills/remember/SKILL.md", "line": 30}
-      ],
-      "tested_at": [],
-      "notes": "Pass criterion: an agent working on an unrelated web app, game, or data pipeline should plausibly hit the same situation."
+      "tested_at": []
     },
     {
-      "id": "P6",
+      "enforced_at": [
+        {
+          "line": 34,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P6",
       "name": "Actionable gate requires concrete action",
+      "notes": "",
       "statement": "For all candidates, the Actionable gate fails on vague observations (\"things can go wrong\"), inert facts (\"X exists\"), or raw debug logs; a passing memory names a concrete action that changes what an agent would DO.",
-      "enforced_at": [{"path": "skills/remember/SKILL.md", "line": 34}],
-      "tested_at": [],
-      "notes": ""
+      "tested_at": []
     },
     {
-      "id": "P7",
+      "enforced_at": [
+        {
+          "line": 40,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P7",
       "name": "Right-home alternative named",
+      "notes": "Naming the alternative is mandatory before verification; prevents the gate from defaulting to memory.",
       "statement": "For all candidates that reach the Right-home gate, the agent first names the alternative home — one of: code, a doc, a skill, CLAUDE.md, a `.claude/rules/*.md` file, or a spec/plan under `docs/`.",
-      "enforced_at": [{"path": "skills/remember/SKILL.md", "line": 40}],
-      "tested_at": [],
-      "notes": "Naming the alternative is mandatory before verification; prevents the gate from defaulting to memory."
+      "tested_at": []
     },
     {
-      "id": "P8",
+      "enforced_at": [
+        {
+          "line": 44,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 45,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 46,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 47,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 49,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P8",
       "name": "Right-home verification via git log",
+      "notes": "14-day window scopes verification to recently-touched files; sort -u dedupes paths.",
       "statement": "For all Right-home checks, the agent verifies the claimed home by running `git log --since='14 days ago' --name-only --pretty=format: -- docs/ specs/ plans/ skills/ CLAUDE.md .claude/`, then reads the listed files and greps for the candidate's content.",
-      "enforced_at": [
-        {"path": "skills/remember/SKILL.md", "line": 44},
-        {"path": "skills/remember/SKILL.md", "line": 45},
-        {"path": "skills/remember/SKILL.md", "line": 46},
-        {"path": "skills/remember/SKILL.md", "line": 47},
-        {"path": "skills/remember/SKILL.md", "line": 49}
-      ],
-      "tested_at": [],
-      "notes": "14-day window scopes verification to recently-touched files; sort -u dedupes paths."
+      "tested_at": []
     },
     {
-      "id": "P9",
+      "enforced_at": [
+        {
+          "line": 53,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 55,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 56,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 57,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P9",
       "name": "Verification outcome trichotomy",
+      "notes": "Reading the home during verification does not count as surfacing — surfacing must come from /recall, /prepare, or CLAUDE.md auto-load earlier in the session.",
       "statement": "For all Right-home verifications, exactly one of three outcomes is taken: (a) home contains it AND surfaced in time → Move on; (b) home contains it BUT did not surface → Ask user (reinforce vs note); (c) home lacks it or no home fits → Ask user (save anyway?).",
-      "enforced_at": [
-        {"path": "skills/remember/SKILL.md", "line": 53},
-        {"path": "skills/remember/SKILL.md", "line": 55},
-        {"path": "skills/remember/SKILL.md", "line": 56},
-        {"path": "skills/remember/SKILL.md", "line": 57}
-      ],
-      "tested_at": [],
-      "notes": "Reading the home during verification does not count as surfacing — surfacing must come from /recall, /prepare, or CLAUDE.md auto-load earlier in the session."
+      "tested_at": []
     },
     {
-      "id": "P10",
+      "enforced_at": [
+        {
+          "line": 56,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 80,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P10",
       "name": "Reinforce path uses engram update on duplicate",
+      "notes": "Duplicate is treated as a surfacing failure: the memory exists but did not reach the agent in time.",
       "statement": "For all reinforce-path persists where `engram learn` returns DUPLICATE, the agent broadens the existing memory's situation via `engram update --name ... --situation \"...\"` rather than dismissing the duplicate.",
-      "enforced_at": [
-        {"path": "skills/remember/SKILL.md", "line": 56},
-        {"path": "skills/remember/SKILL.md", "line": 80}
-      ],
-      "tested_at": [],
-      "notes": "Duplicate is treated as a surfacing failure: the memory exists but did not reach the agent in time."
+      "tested_at": []
     },
     {
-      "id": "P11",
+      "enforced_at": [
+        {
+          "line": 63,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P11",
       "name": "Situation framed as activity+domain",
+      "notes": "Bad: \"When fixing context cancellation in concurrent code\" (bakes in hindsight). Good: \"When writing concurrent Go code with context\".",
       "statement": "For all surviving candidates, the drafted Situation field describes the task the agent would be embarking on as activity + domain — not the diagnosis, symptom, or fix — matching how `/prepare` queries would be phrased BEFORE the lesson is known.",
-      "enforced_at": [{"path": "skills/remember/SKILL.md", "line": 63}],
-      "tested_at": [],
-      "notes": "Bad: \"When fixing context cancellation in concurrent code\" (bakes in hindsight). Good: \"When writing concurrent Go code with context\"."
+      "tested_at": []
     },
     {
-      "id": "P12",
+      "enforced_at": [
+        {
+          "line": 61,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 70,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P12",
       "name": "User approval before save",
+      "notes": "Defining property of remember vs learn — the user opted in by name; approval confirms the drafted shape.",
       "statement": "For all surviving candidates, the agent drafts all fields and presents them for user approval before issuing any `engram learn` or `engram update` command in Step 4.",
-      "enforced_at": [
-        {"path": "skills/remember/SKILL.md", "line": 61},
-        {"path": "skills/remember/SKILL.md", "line": 70}
-      ],
-      "tested_at": [],
-      "notes": "Defining property of remember vs learn — the user opted in by name; approval confirms the drafted shape."
+      "tested_at": []
     },
     {
-      "id": "P13",
+      "enforced_at": [
+        {
+          "line": 73,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 74,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P13",
       "name": "Persistence delegated to engram CLI",
+      "notes": "Realises R5 (remember skill → engram CLI binary) at the per-invocation level.",
       "statement": "For all approved candidates, persistence is performed by shelling out to `engram learn feedback --situation ... --behavior ... --impact ... --action ... --source human` (feedback) or `engram learn fact --situation ... --subject ... --predicate ... --object ... --source human` (fact); the skill itself performs no file or network I/O.",
-      "enforced_at": [
-        {"path": "skills/remember/SKILL.md", "line": 73},
-        {"path": "skills/remember/SKILL.md", "line": 74}
-      ],
-      "tested_at": [],
-      "notes": "Realises R5 (remember skill → engram CLI binary) at the per-invocation level."
+      "tested_at": []
     },
     {
-      "id": "P14",
+      "enforced_at": [
+        {
+          "line": 73,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 74,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P14",
       "name": "Source flag pinned to human",
+      "notes": "Lets downstream analytics weight human-sourced memories differently from machine-derived ones.",
       "statement": "For all `engram learn` invocations issued from Step 4, the `--source` flag equals `human` — distinguishing user-dictated remember saves from agent-derived learn saves.",
-      "enforced_at": [
-        {"path": "skills/remember/SKILL.md", "line": 73},
-        {"path": "skills/remember/SKILL.md", "line": 74}
-      ],
-      "tested_at": [],
-      "notes": "Lets downstream analytics weight human-sourced memories differently from machine-derived ones."
+      "tested_at": []
     },
     {
-      "id": "P15",
+      "enforced_at": [
+        {
+          "line": 79,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 80,
+          "path": "skills/remember/SKILL.md"
+        },
+        {
+          "line": 81,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P15",
       "name": "Result handling trichotomy",
+      "notes": "Matches the three result codes the engram CLI's learn pipeline can return.",
       "statement": "For all `engram learn` results, the agent handles exactly one of: CREATED → confirm to user; DUPLICATE → diagnose why /recall or /prepare missed it and broaden via `engram update` (never dismiss); CONTRADICTION → present the conflict and ask the user to update, replace, or keep both.",
+      "tested_at": []
+    },
+    {
       "enforced_at": [
-        {"path": "skills/remember/SKILL.md", "line": 79},
-        {"path": "skills/remember/SKILL.md", "line": 80},
-        {"path": "skills/remember/SKILL.md", "line": 81}
+        {
+          "line": 80,
+          "path": "skills/remember/SKILL.md"
+        }
       ],
-      "tested_at": [],
-      "notes": "Matches the three result codes the engram CLI's learn pipeline can return."
-    },
-    {
-      "id": "P16",
+      "id": "S2-N1-M4-P16",
       "name": "Duplicate diagnosed as surfacing failure",
+      "notes": "Tightly coupled to P10; this property is the result-handling phrasing, P10 is the verify-phase phrasing.",
       "statement": "For all DUPLICATE results, the agent treats the outcome as a surfacing failure (recall/prepare missed an existing memory), diagnoses why, and broadens the existing memory's situation rather than dismissing the duplicate.",
-      "enforced_at": [{"path": "skills/remember/SKILL.md", "line": 80}],
-      "tested_at": [],
-      "notes": "Tightly coupled to P10; this property is the result-handling phrasing, P10 is the verify-phase phrasing."
+      "tested_at": []
     },
     {
-      "id": "P17",
+      "enforced_at": [
+        {
+          "line": 81,
+          "path": "skills/remember/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M4-P17",
       "name": "Contradiction defers to user",
+      "notes": "User holds final authority on conflicting beliefs; agent is the messenger.",
       "statement": "For all CONTRADICTION results, the agent presents the conflict to the user and asks whether to update existing, replace, or keep both — never auto-resolves.",
-      "enforced_at": [{"path": "skills/remember/SKILL.md", "line": 81}],
-      "tested_at": [],
-      "notes": "User holds final authority on conflicting beliefs; agent is the messenger."
+      "tested_at": []
     }
+  ],
+  "schema_version": "1",
+  "sources": [
+    "skills/remember/SKILL.md"
   ]
 }

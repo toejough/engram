@@ -1,33 +1,120 @@
 {
-  "schema_version": "1",
+  "cross_links": {
+    "refined_by": []
+  },
+  "drift_notes": [],
+  "elements": [
+    {
+      "id": "S3",
+      "kind": "external",
+      "name": "Claude Code",
+      "responsibility": "Reads the hook manifest at plugin load and execs the registered scripts on lifecycle events; consumes their stdout JSON to inject context.",
+      "subtitle": "agent harness"
+    },
+    {
+      "id": "S2-N3",
+      "kind": "container",
+      "name": "engram CLI binary",
+      "responsibility": "Go binary built and refreshed by session-start.sh. Refined in c3-engram-cli-binary.md.",
+      "subtitle": "Go binary built by session-start.sh"
+    },
+    {
+      "code_pointer": "../../hooks/hooks.json",
+      "id": "S2-N2-M1",
+      "kind": "component",
+      "name": "hooks.json",
+      "responsibility": "Manifest mapping SessionStart, UserPromptSubmit, and PostToolUse events to their scripts via ${CLAUDE_PLUGIN_ROOT} paths and per-event timeouts (10s / 5s / 5s).",
+      "subtitle": "manifest"
+    },
+    {
+      "code_pointer": "../../hooks/session-start.sh",
+      "id": "S2-N2-M2",
+      "kind": "component",
+      "name": "session-start.sh",
+      "responsibility": "Synchronously emits the memory-skill announcement. Asynchronously rebuilds the Go binary when any *.go is newer than the cached binary mtime, deleting the prior binary first to avoid macOS provenance SIGKILL, then symlinks ~/.local/bin/engram to it.",
+      "subtitle": "skill announcement + async rebuild"
+    },
+    {
+      "code_pointer": "../../hooks/user-prompt-submit.sh",
+      "id": "S2-N2-M3",
+      "kind": "component",
+      "name": "user-prompt-submit.sh",
+      "responsibility": "Emits additionalContext reminding the agent of /learn and /prepare boundaries on every user prompt.",
+      "subtitle": "/prepare /learn nudge"
+    },
+    {
+      "code_pointer": "../../hooks/post-tool-use.sh",
+      "id": "S2-N2-M4",
+      "kind": "component",
+      "name": "post-tool-use.sh",
+      "responsibility": "Emits the same /learn / /prepare reminder after each tool use.",
+      "subtitle": "/prepare /learn nudge"
+    }
+  ],
+  "focus": {
+    "id": "S2-N2",
+    "name": "Hooks",
+    "responsibility": "Three bash scripts wired by hooks/hooks.json; emit JSON additionalContext, async-rebuild the binary on SessionStart."
+  },
   "level": 3,
   "name": "hooks",
   "parent": "c2-engram-plugin.md",
   "preamble": "Refines L2's E8 Hooks container into the manifest plus three bash scripts wired to Claude Code lifecycle events. Hooks emit hookSpecificOutput.additionalContext JSON on stdout to inject reminders into the agent's context. The SessionStart hook additionally rebuilds the Go binary asynchronously when any source file is newer than the cached binary, isolating the build from the agent's own Bash provenance so macOS doesn't SIGKILL it on exec.",
-  "focus": {
-    "id": "E8",
-    "name": "Hooks",
-    "responsibility": "Three bash scripts wired by hooks/hooks.json; emit JSON additionalContext, async-rebuild the binary on SessionStart."
-  },
-  "elements": [
-    {"id": "E3", "from_parent": true, "name": "Claude Code", "kind": "external", "subtitle": "agent harness", "responsibility": "Reads the hook manifest at plugin load and execs the registered scripts on lifecycle events; consumes their stdout JSON to inject context."},
-    {"id": "E9", "from_parent": true, "name": "engram CLI binary", "kind": "container", "subtitle": "Go binary built by session-start.sh", "responsibility": "Go binary built and refreshed by session-start.sh. Refined in c3-engram-cli-binary.md."},
-    {"id": "E16", "name": "hooks.json", "kind": "component", "subtitle": "manifest", "responsibility": "Manifest mapping SessionStart, UserPromptSubmit, and PostToolUse events to their scripts via ${CLAUDE_PLUGIN_ROOT} paths and per-event timeouts (10s / 5s / 5s).", "code_pointer": "../../hooks/hooks.json"},
-    {"id": "E17", "name": "session-start.sh", "kind": "component", "subtitle": "skill announcement + async rebuild", "responsibility": "Synchronously emits the memory-skill announcement. Asynchronously rebuilds the Go binary when any *.go is newer than the cached binary mtime, deleting the prior binary first to avoid macOS provenance SIGKILL, then symlinks ~/.local/bin/engram to it.", "code_pointer": "../../hooks/session-start.sh"},
-    {"id": "E18", "name": "user-prompt-submit.sh", "kind": "component", "subtitle": "/prepare /learn nudge", "responsibility": "Emits additionalContext reminding the agent of /learn and /prepare boundaries on every user prompt.", "code_pointer": "../../hooks/user-prompt-submit.sh"},
-    {"id": "E19", "name": "post-tool-use.sh", "kind": "component", "subtitle": "/prepare /learn nudge", "responsibility": "Emits the same /learn / /prepare reminder after each tool use.", "code_pointer": "../../hooks/post-tool-use.sh"}
-  ],
   "relationships": [
-    {"from": "Claude Code", "to": "hooks.json", "description": "reads manifest at plugin load", "protocol": "File read"},
-    {"from": "hooks.json", "to": "session-start.sh", "description": "registers SessionStart -> session-start.sh (timeout 10s)", "protocol": "Manifest entry"},
-    {"from": "hooks.json", "to": "user-prompt-submit.sh", "description": "registers UserPromptSubmit -> user-prompt-submit.sh (timeout 5s)", "protocol": "Manifest entry"},
-    {"from": "hooks.json", "to": "post-tool-use.sh", "description": "registers PostToolUse -> post-tool-use.sh (timeout 5s)", "protocol": "Manifest entry"},
-    {"from": "Claude Code", "to": "Hooks", "description": "fires lifecycle events as subprocess execs with JSON stdin", "protocol": "Subprocess exec, stdin JSON"},
-    {"from": "session-start.sh", "to": "Claude Code", "description": "emits SessionStart additionalContext announcing memory skills", "protocol": "Hook stdout JSON"},
-    {"from": "user-prompt-submit.sh", "to": "Claude Code", "description": "emits UserPromptSubmit additionalContext nudging /prepare and /learn", "protocol": "Hook stdout JSON"},
-    {"from": "post-tool-use.sh", "to": "Claude Code", "description": "emits PostToolUse additionalContext nudging /prepare and /learn", "protocol": "Hook stdout JSON"},
-    {"from": "session-start.sh", "to": "engram CLI binary", "description": "async go build to ~/.claude/engram/bin/engram when any *.go is newer than the cached binary", "protocol": "Subprocess (go build), file I/O"}
+    {
+      "description": "reads manifest at plugin load",
+      "from": "S3",
+      "protocol": "File read",
+      "to": "S2-N2-M1"
+    },
+    {
+      "description": "registers SessionStart -\u003e session-start.sh (timeout 10s)",
+      "from": "S2-N2-M1",
+      "protocol": "Manifest entry",
+      "to": "S2-N2-M2"
+    },
+    {
+      "description": "registers UserPromptSubmit -\u003e user-prompt-submit.sh (timeout 5s)",
+      "from": "S2-N2-M1",
+      "protocol": "Manifest entry",
+      "to": "S2-N2-M3"
+    },
+    {
+      "description": "registers PostToolUse -\u003e post-tool-use.sh (timeout 5s)",
+      "from": "S2-N2-M1",
+      "protocol": "Manifest entry",
+      "to": "S2-N2-M4"
+    },
+    {
+      "description": "fires lifecycle events as subprocess execs with JSON stdin",
+      "from": "S3",
+      "protocol": "Subprocess exec, stdin JSON",
+      "to": "Hooks"
+    },
+    {
+      "description": "emits SessionStart additionalContext announcing memory skills",
+      "from": "S2-N2-M2",
+      "protocol": "Hook stdout JSON",
+      "to": "S3"
+    },
+    {
+      "description": "emits UserPromptSubmit additionalContext nudging /prepare and /learn",
+      "from": "S2-N2-M3",
+      "protocol": "Hook stdout JSON",
+      "to": "S3"
+    },
+    {
+      "description": "emits PostToolUse additionalContext nudging /prepare and /learn",
+      "from": "S2-N2-M4",
+      "protocol": "Hook stdout JSON",
+      "to": "S3"
+    },
+    {
+      "description": "async go build to ~/.claude/engram/bin/engram when any *.go is newer than the cached binary",
+      "from": "S2-N2-M2",
+      "protocol": "Subprocess (go build), file I/O",
+      "to": "S2-N3"
+    }
   ],
-  "drift_notes": [],
-  "cross_links": {"refined_by": []}
+  "schema_version": "1"
 }

@@ -1,214 +1,464 @@
 {
-  "schema_version": "1",
-  "level": 4,
-  "name": "anthropic",
-  "parent": "c3-engram-cli-binary.md",
-  "focus": {
-    "id": "E26",
-    "name": "anthropic",
-    "l3_container": "c3-engram-cli-binary.md"
-  },
-  "sources": [
-    "internal/anthropic/anthropic.go",
-    "internal/anthropic/anthropic_test.go"
-  ],
   "context_prose": "E26 anthropic is the shared client for the Anthropic Messages API. It owns the HTTP request shape, the API-version / beta-header pinning, the error sentinels, and the small `CallerFunc` adapter consumed by `recall.NewSummarizer`. Its single external dependency is the Anthropic API (E5), reached via R14 (HTTPS POST /v1/messages). The `cli` component (E21) constructs a `*Client` at startup, wiring in the `HTTPDoer` (`http.DefaultClient`), the resolved API token, and (in tests) an alternate API URL — that wiring is the per-dep decomposition of D2 (cli → anthropic, DI back-edge) shown below in the Dependency Manifest. Recall (E22) consumes the resulting `CallerFunc` purely as a function value; it does not see the `Client` struct.",
+  "dependency_manifest": [
+    {
+      "concrete_adapter": "value resolved by `tokenresolver.Resolve` (env `ENGRAM_API_TOKEN` or macOS Keychain)",
+      "field": "token",
+      "properties": [
+        "S2-N3-M7-P1"
+      ],
+      "type": "string",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "",
+      "wired_by_name": "cli"
+    },
+    {
+      "concrete_adapter": "`http.DefaultClient` in production; `fakeDoer` in tests",
+      "field": "client",
+      "properties": [
+        "S2-N3-M7-P2",
+        "S2-N3-M7-P3",
+        "S2-N3-M7-P4",
+        "S2-N3-M7-P5",
+        "S2-N3-M7-P6",
+        "S2-N3-M7-P7",
+        "S2-N3-M7-P8",
+        "S2-N3-M7-P9",
+        "S2-N3-M7-P10",
+        "S2-N3-M7-P11"
+      ],
+      "type": "HTTPDoer",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "",
+      "wired_by_name": "cli"
+    },
+    {
+      "concrete_adapter": "default `https://api.anthropic.com/v1/messages`; overridable via `SetAPIURL` (test-only)",
+      "field": "apiURL",
+      "properties": [
+        "S2-N3-M7-P12"
+      ],
+      "type": "string",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "",
+      "wired_by_name": "cli"
+    }
+  ],
+  "diagram": {
+    "edges": [
+      {
+        "from": "S2-N3-M2",
+        "id": "R6",
+        "label": "builds Anthropic caller",
+        "to": "S2-N3-M7"
+      },
+      {
+        "from": "S2-N3-M3",
+        "id": "R10",
+        "label": "ranks via Summarizer (DI CallerFunc)",
+        "to": "S2-N3-M7"
+      },
+      {
+        "from": "S2-N3-M7",
+        "id": "R14",
+        "label": "HTTPS POST /v1/messages",
+        "to": "S5"
+      },
+      {
+        "dotted": true,
+        "from": "S2-N3-M7",
+        "id": "D2",
+        "label": "Rdi: HTTPDoer, token, apiURL",
+        "to": "S2-N3-M2"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "S2-N3-M7",
+        "kind": "focus",
+        "name": "anthropic",
+        "subtitle": "Messages API client"
+      },
+      {
+        "id": "S2-N3-M2",
+        "kind": "component",
+        "name": "cli",
+        "subtitle": "wires *Client"
+      },
+      {
+        "id": "S2-N3-M3",
+        "kind": "component",
+        "name": "recall",
+        "subtitle": "consumes CallerFunc"
+      },
+      {
+        "id": "S5",
+        "kind": "external",
+        "name": "Anthropic API",
+        "subtitle": "Haiku model"
+      }
+    ]
+  },
+  "focus": {
+    "id": "S2-N3-M7",
+    "name": "anthropic"
+  },
   "legend_items": [
     "**Focus** — yellow (E26 anthropic).",
     "**Component** — light blue (sibling components in E9).",
     "**External** — grey (Anthropic API).",
     "**R-edges** — solid; **D / Rdi back-edges** — dotted."
   ],
-  "diagram": {
-    "nodes": [
-      {"id": "E26", "name": "anthropic", "subtitle": "Messages API client", "kind": "focus"},
-      {"id": "E21", "name": "cli", "subtitle": "wires *Client", "kind": "component"},
-      {"id": "E22", "name": "recall", "subtitle": "consumes CallerFunc", "kind": "component"},
-      {"id": "E5", "name": "Anthropic API", "subtitle": "Haiku model", "kind": "external"}
-    ],
-    "edges": [
-      {"id": "R6", "from": "E21", "to": "E26", "label": "builds Anthropic caller"},
-      {"id": "R10", "from": "E22", "to": "E26", "label": "ranks via Summarizer (DI CallerFunc)"},
-      {"id": "R14", "from": "E26", "to": "E5", "label": "HTTPS POST /v1/messages"},
-      {"id": "D2", "from": "E26", "to": "E21", "label": "Rdi: HTTPDoer, token, apiURL", "dotted": true}
-    ]
-  },
-  "dependency_manifest": [
-    {
-      "field": "token",
-      "type": "string",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "",
-      "concrete_adapter": "value resolved by `tokenresolver.Resolve` (env `ENGRAM_API_TOKEN` or macOS Keychain)",
-      "properties": ["P1"]
-    },
-    {
-      "field": "client",
-      "type": "HTTPDoer",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "",
-      "concrete_adapter": "`http.DefaultClient` in production; `fakeDoer` in tests",
-      "properties": ["P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11"]
-    },
-    {
-      "field": "apiURL",
-      "type": "string",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "",
-      "concrete_adapter": "default `https://api.anthropic.com/v1/messages`; overridable via `SetAPIURL` (test-only)",
-      "properties": ["P12"]
-    }
-  ],
+  "level": 4,
+  "name": "anthropic",
+  "parent": "c3-engram-cli-binary.md",
   "properties": [
     {
-      "id": "P1",
+      "enforced_at": [
+        {
+          "line": 55,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P1",
       "name": "Empty token short-circuit",
+      "notes": "Guard runs before `doRequest`, so the injected `HTTPDoer` is never invoked.",
       "statement": "For all calls to `Client.Call` where the configured `token` is the empty string, the method returns `ErrNoToken` and performs no HTTP request.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 55}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 116}],
-      "notes": "Guard runs before `doRequest`, so the injected `HTTPDoer` is never invoked."
+      "tested_at": [
+        {
+          "line": 116,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P2",
+      "enforced_at": [
+        {
+          "line": 107,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P2",
       "name": "Bearer authorization header",
+      "notes": "",
       "statement": "For all successful HTTP requests issued by `Client.Call`, the `Authorization` header equals `\"Bearer \" + token`.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 107}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 167}],
-      "notes": ""
+      "tested_at": [
+        {
+          "line": 167,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P3",
+      "enforced_at": [
+        {
+          "line": 108,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P3",
       "name": "Pinned API version header",
+      "notes": "Constant pinned at file scope (`apiVersion`).",
       "statement": "For all HTTP requests issued by `Client.Call`, the `Anthropic-Version` header equals `\"2023-06-01\"`.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 108}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 168}],
-      "notes": "Constant pinned at file scope (`apiVersion`)."
+      "tested_at": [
+        {
+          "line": 168,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P4",
+      "enforced_at": [
+        {
+          "line": 109,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P4",
       "name": "Pinned beta header",
+      "notes": "Constant pinned at file scope (`betaHeader`).",
       "statement": "For all HTTP requests issued by `Client.Call`, the `Anthropic-Beta` header equals `\"oauth-2025-04-20\"`.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 109}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 169}],
-      "notes": "Constant pinned at file scope (`betaHeader`)."
+      "tested_at": [
+        {
+          "line": 169,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P5",
+      "enforced_at": [
+        {
+          "line": 110,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P5",
       "name": "JSON content-type",
+      "notes": "`tagliatelle` lint suppression documents that snake_case is required by the Anthropic API.",
       "statement": "For all HTTP requests issued by `Client.Call`, the `Content-Type` header equals `\"application/json\"` and the body is a JSON-marshalled `request` struct with snake_case fields (`model`, `max_tokens`, `system`, `messages`).",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 110}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 170}],
-      "notes": "`tagliatelle` lint suppression documents that snake_case is required by the Anthropic API."
+      "tested_at": [
+        {
+          "line": 170,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P6",
+      "enforced_at": [
+        {
+          "line": 97,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P6",
       "name": "Context propagation",
+      "notes": "Architectural: required by project rule (`http.NewRequestWithContext` not `http.Get`). No test currently asserts cancellation semantics.",
       "statement": "For all calls `Client.Call(ctx, ...)`, the outgoing HTTP request is constructed with `http.NewRequestWithContext(ctx, …)` so the caller's context governs cancellation and deadlines.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 97}],
-      "tested_at": [],
-      "notes": "Architectural: required by project rule (`http.NewRequestWithContext` not `http.Get`). No test currently asserts cancellation semantics."
+      "tested_at": []
     },
     {
-      "id": "P7",
+      "enforced_at": [
+        {
+          "line": 117,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P7",
       "name": "Nil response sentinel",
+      "notes": "Guards against doer implementations that violate the `http.RoundTripper` contract.",
       "statement": "For all calls where the injected `HTTPDoer.Do` returns `(nil, nil)`, `Client.Call` returns `ErrNilResponse`.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 117}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 105}],
-      "notes": "Guards against doer implementations that violate the `http.RoundTripper` contract."
+      "tested_at": [
+        {
+          "line": 105,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P8",
+      "enforced_at": [
+        {
+          "line": 128,
+          "path": "internal/anthropic/anthropic.go"
+        },
+        {
+          "line": 218,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P8",
       "name": "Non-2xx wraps ErrAPIError",
+      "notes": "Tested with 401 (JSON error body), 502 (non-JSON body), and 429 (rate-limit JSON).",
       "statement": "For all HTTP responses with status code outside [200, 300), `Client.Call` returns an error that wraps `ErrAPIError` and includes the status code and the API error message (or raw body if not parseable).",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 128}, {"path": "internal/anthropic/anthropic.go", "line": 218}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 16}, {"path": "internal/anthropic/anthropic_test.go", "line": 38}, {"path": "internal/anthropic/anthropic_test.go", "line": 58}],
-      "notes": "Tested with 401 (JSON error body), 502 (non-JSON body), and 429 (rate-limit JSON)."
+      "tested_at": [
+        {
+          "line": 16,
+          "path": "internal/anthropic/anthropic_test.go"
+        },
+        {
+          "line": 38,
+          "path": "internal/anthropic/anthropic_test.go"
+        },
+        {
+          "line": 58,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P9",
+      "enforced_at": [
+        {
+          "line": 239,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P9",
       "name": "Empty content sentinel",
+      "notes": "",
       "statement": "For all 2xx responses whose JSON body decodes to a `response` with zero content blocks, `Client.Call` returns `ErrNoContentBlocks`.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 239}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 79}],
-      "notes": ""
+      "tested_at": [
+        {
+          "line": 79,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P10",
+      "enforced_at": [
+        {
+          "line": 243,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P10",
       "name": "Returns first content block text",
+      "notes": "Subsequent blocks (if any) are silently dropped — current Haiku usage returns a single text block.",
       "statement": "For all 2xx responses with at least one content block, `Client.Call` returns the `text` field of the first content block and a nil error.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 243}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 126}],
-      "notes": "Subsequent blocks (if any) are silently dropped — current Haiku usage returns a single text block."
+      "tested_at": [
+        {
+          "line": 126,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P11",
+      "enforced_at": [
+        {
+          "line": 121,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P11",
       "name": "Response body always closed",
+      "notes": "Architectural: deferred close immediately after nil-check. No test directly observes leak.",
       "statement": "For all paths that reach a non-nil `*http.Response`, `Client.Call` closes `resp.Body` exactly once before returning.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 121}],
-      "tested_at": [],
-      "notes": "Architectural: deferred close immediately after nil-check. No test directly observes leak."
+      "tested_at": []
     },
     {
-      "id": "P12",
+      "enforced_at": [
+        {
+          "line": 75,
+          "path": "internal/anthropic/anthropic.go"
+        },
+        {
+          "line": 100,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P12",
       "name": "API URL override",
+      "notes": "Test-only seam. Production code never calls `SetAPIURL`.",
       "statement": "For all clients on which `SetAPIURL(url)` has been called, every subsequent `Client.Call` POSTs to `url` instead of the default `https://api.anthropic.com/v1/messages`.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 75}, {"path": "internal/anthropic/anthropic.go", "line": 100}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 199}],
-      "notes": "Test-only seam. Production code never calls `SetAPIURL`."
+      "tested_at": [
+        {
+          "line": 199,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P13",
+      "enforced_at": [
+        {
+          "line": 68,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P13",
       "name": "Caller delegates to Call",
+      "notes": "`CallerFunc` is the DI surface consumed by `recall.NewSummarizer`; the closure binds `maxTokens` at construction.",
       "statement": "For all `(ctx, model, system, user)` and all `maxTokens`, `c.Caller(maxTokens)(ctx, model, system, user)` returns the same `(string, error)` as `c.Call(ctx, model, system, user, maxTokens)`.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 68}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 173}],
-      "notes": "`CallerFunc` is the DI surface consumed by `recall.NewSummarizer`; the closure binds `maxTokens` at construction."
+      "tested_at": [
+        {
+          "line": 173,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P14",
+      "enforced_at": [
+        {
+          "line": 94,
+          "path": "internal/anthropic/anthropic.go"
+        },
+        {
+          "line": 104,
+          "path": "internal/anthropic/anthropic.go"
+        },
+        {
+          "line": 114,
+          "path": "internal/anthropic/anthropic.go"
+        },
+        {
+          "line": 125,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P14",
       "name": "Wrapped errors carry package prefix",
+      "notes": "Architectural: project rule requires wrapped errors with context. Sentinel-bearing errors covered by P1, P7-P9.",
       "statement": "For all errors returned by `Client.Call` other than the bare sentinels, the error string is prefixed with `\"anthropic: \"` and wraps the underlying cause via `%w`.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 94}, {"path": "internal/anthropic/anthropic.go", "line": 104}, {"path": "internal/anthropic/anthropic.go", "line": 114}, {"path": "internal/anthropic/anthropic.go", "line": 125}],
-      "tested_at": [],
-      "notes": "Architectural: project rule requires wrapped errors with context. Sentinel-bearing errors covered by P1, P7-P9."
+      "tested_at": []
     },
     {
-      "id": "P15",
+      "enforced_at": [
+        {
+          "line": 142,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P15",
       "name": "StripCodeFences is total",
+      "notes": "Covers fenced ```json, plain ```, preamble+suffix, unclosed fence, no-fence object/array extraction, plain text passthrough, whitespace, empty string.",
       "statement": "For all input strings `s`, `StripCodeFences(s)` returns a string without panicking and without returning an error.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 142}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 226}],
-      "notes": "Covers fenced ```json, plain ```, preamble+suffix, unclosed fence, no-fence object/array extraction, plain text passthrough, whitespace, empty string."
+      "tested_at": [
+        {
+          "line": 226,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P16",
+      "enforced_at": [
+        {
+          "line": 146,
+          "path": "internal/anthropic/anthropic.go"
+        },
+        {
+          "line": 161,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P16",
       "name": "StripCodeFences extracts JSON payload",
+      "notes": "Balanced extraction uses first opener / last matching closer; unbalanced or mismatched delimiters fall through to trimmed input.",
       "statement": "For all inputs of the form `prefix + \"```json\\n\" + body + \"\\n```\" + suffix` (or `prefix + \"```\\n\" + body + \"\\n```\" + suffix`), `StripCodeFences` returns `body` with surrounding whitespace trimmed; for fenceless inputs containing balanced `{...}` or `[...]`, it returns the outermost balanced substring.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 146}, {"path": "internal/anthropic/anthropic.go", "line": 161}],
-      "tested_at": [{"path": "internal/anthropic/anthropic_test.go", "line": 229}, {"path": "internal/anthropic/anthropic_test.go", "line": 261}],
-      "notes": "Balanced extraction uses first opener / last matching closer; unbalanced or mismatched delimiters fall through to trimmed input."
+      "tested_at": [
+        {
+          "line": 229,
+          "path": "internal/anthropic/anthropic_test.go"
+        },
+        {
+          "line": 261,
+          "path": "internal/anthropic/anthropic_test.go"
+        }
+      ]
     },
     {
-      "id": "P17",
+      "enforced_at": [
+        {
+          "line": 33,
+          "path": "internal/anthropic/anthropic.go"
+        },
+        {
+          "line": 112,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P17",
       "name": "No direct I/O outside injected doer",
+      "notes": "Architectural invariant from project DI rule (`internal/` performs I/O only through injected interfaces). Verified by inspection of imports: only `bytes`, `context`, `encoding/json`, `errors`, `fmt`, `io`, `net/http`, `strings`.",
       "statement": "For all package-level functions and methods, the only I/O performed is via the injected `HTTPDoer.Do`; no calls to `os.*`, `net/http.Get/Post`, `sql.Open`, or other stdlib I/O escape the package.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 33}, {"path": "internal/anthropic/anthropic.go", "line": 112}],
-      "tested_at": [],
-      "notes": "Architectural invariant from project DI rule (`internal/` performs I/O only through injected interfaces). Verified by inspection of imports: only `bytes`, `context`, `encoding/json`, `errors`, `fmt`, `io`, `net/http`, `strings`."
+      "tested_at": []
     },
     {
-      "id": "P18",
+      "enforced_at": [
+        {
+          "line": 16,
+          "path": "internal/anthropic/anthropic.go"
+        }
+      ],
+      "id": "S2-N3-M7-P18",
       "name": "Model constants pinned",
+      "notes": "Pinning is structural — bumping a model is a one-line edit here that reaches every caller. Recall + learn use `HaikuModel` exclusively today.",
       "statement": "For all consumers of this package, the exported model identifier constants `HaikuModel` and `SonnetModel` resolve to the dated Anthropic model strings (`claude-haiku-4-5-20251001`, `claude-sonnet-4-20250514`) and are the only sanctioned model names within the binary.",
-      "enforced_at": [{"path": "internal/anthropic/anthropic.go", "line": 16}],
-      "tested_at": [],
-      "notes": "Pinning is structural — bumping a model is a one-line edit here that reaches every caller. Recall + learn use `HaikuModel` exclusively today."
+      "tested_at": []
     }
+  ],
+  "schema_version": "1",
+  "sources": [
+    "internal/anthropic/anthropic.go",
+    "internal/anthropic/anthropic_test.go"
   ]
 }

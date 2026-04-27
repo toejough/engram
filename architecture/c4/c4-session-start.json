@@ -1,173 +1,278 @@
 {
-  "schema_version": "1",
-  "level": 4,
-  "name": "session-start",
-  "parent": "c3-hooks.md",
-  "focus": {
-    "id": "E17",
-    "name": "session-start.sh",
-    "l3_container": "c3-hooks.md"
-  },
-  "sources": [
-    "hooks/session-start.sh",
-    "hooks/hooks.json"
-  ],
   "context_prose": "session-start.sh is the SessionStart hook bash script registered in hooks.json (10s timeout). On every Claude Code session start it does two things: synchronously, it prints a single JSON object on stdout containing `hookSpecificOutput.additionalContext` with the static memory-skills announcement, which Claude Code injects into the agent's context; asynchronously, in a backgrounded-and-disowned subshell, it rebuilds the engram Go binary at `~/.claude/engram/bin/engram` whenever the binary is missing or any `*.go` source under the plugin root is newer than the cached binary mtime. The script deletes the previous binary before rebuilding so the freshly compiled artifact does not inherit `com.apple.provenance` from a Claude-Code-spawned shell (which would cause macOS to SIGKILL it on exec), writes to a `.tmp` path and atomically renames into place, and finally maintains a `~/.local/bin/engram` symlink to the binary. The async portion is fully detached so the synchronous JSON emit returns immediately within the 10s hook budget; build failures are intentionally swallowed (`|| exit 0`) so a transient compile error never blocks a session.",
+  "diagram": {
+    "edges": [
+      {
+        "from": "S3",
+        "id": "R5",
+        "label": "execs on SessionStart (timeout 10s)",
+        "to": "S2-N2-M2"
+      },
+      {
+        "from": "S2-N2-M2",
+        "id": "R6",
+        "label": "emits additionalContext JSON on stdout (built via jq)",
+        "to": "S3"
+      },
+      {
+        "from": "S2-N2-M2",
+        "id": "R9",
+        "label": "async go build, then deletes + atomically replaces binary; symlinks ~/.local/bin/engram",
+        "to": "S2-N3"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "S2-N2-M2",
+        "kind": "focus",
+        "name": "session-start.sh",
+        "subtitle": "SessionStart hook"
+      },
+      {
+        "id": "S3",
+        "kind": "external",
+        "name": "Claude Code",
+        "subtitle": "exec + stdout consumer"
+      },
+      {
+        "id": "S2-N3",
+        "kind": "component",
+        "name": "engram CLI binary",
+        "subtitle": "~/.claude/engram/bin/engram"
+      }
+    ]
+  },
+  "focus": {
+    "id": "S2-N2-M2",
+    "name": "session-start.sh"
+  },
   "legend_items": [
     "**focus** (yellow): the script in scope for this ledger.",
     "**external** (grey): the Claude Code runtime that execs the hook.",
     "**component** (light blue): the engram CLI binary artifact this script maintains."
   ],
-  "diagram": {
-    "nodes": [
-      {"id": "E17", "name": "session-start.sh", "subtitle": "SessionStart hook", "kind": "focus"},
-      {"id": "E3", "name": "Claude Code", "subtitle": "exec + stdout consumer", "kind": "external"},
-      {"id": "E9", "name": "engram CLI binary", "subtitle": "~/.claude/engram/bin/engram", "kind": "component"}
-    ],
-    "edges": [
-      {"id": "R5", "from": "E3", "to": "E17", "label": "execs on SessionStart (timeout 10s)"},
-      {"id": "R6", "from": "E17", "to": "E3", "label": "emits additionalContext JSON on stdout (built via jq)"},
-      {"id": "R9", "from": "E17", "to": "E9", "label": "async go build, then deletes + atomically replaces binary; symlinks ~/.local/bin/engram"}
-    ]
-  },
+  "level": 4,
+  "name": "session-start",
+  "parent": "c3-hooks.md",
   "properties": [
     {
-      "id": "P1",
+      "enforced_at": [
+        {
+          "line": 11,
+          "path": "hooks/session-start.sh"
+        },
+        {
+          "line": 13,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P1",
       "name": "Always emits skills announcement",
+      "notes": "Static message; no branching. Claude Code injects this string into the agent context.",
       "statement": "For all SessionStart invocations, the script writes exactly one JSON object on stdout whose `hookSpecificOutput.additionalContext` field is the static memory-skills announcement listing /prepare, /learn, /recall, and /remember.",
-      "enforced_at": [
-        {"path": "hooks/session-start.sh", "line": 11},
-        {"path": "hooks/session-start.sh", "line": 13}
-      ],
-      "tested_at": [],
-      "notes": "Static message; no branching. Claude Code injects this string into the agent context."
+      "tested_at": []
     },
     {
-      "id": "P2",
+      "enforced_at": [
+        {
+          "line": 13,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P2",
       "name": "Hook stdout is well-formed Claude Code JSON",
-      "statement": "For all SessionStart invocations, the synchronous stdout payload parses as a single JSON object with shape `{hookSpecificOutput: {hookEventName: \"SessionStart\", additionalContext: <string>}}`.",
-      "enforced_at": [{"path": "hooks/session-start.sh", "line": 13}],
-      "tested_at": [],
-      "notes": "Constructed via `jq -n` so quoting/escaping of the announcement string is handled by jq."
+      "notes": "Constructed via `jq -n` so quoting/escaping of the announcement string is handled by jq.",
+      "statement": "For all SessionStart invocations, the synchronous stdout payload parses as a single JSON object with shape `{hookSpecificOutput: {hookEventName: \"SessionStart\", additionalContext: \u003cstring\u003e}}`.",
+      "tested_at": []
     },
     {
-      "id": "P3",
+      "enforced_at": [
+        {
+          "line": 17,
+          "path": "hooks/session-start.sh"
+        },
+        {
+          "line": 41,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P3",
       "name": "Synchronous return inside hook timeout",
+      "notes": "The build subshell is backgrounded with `\u0026` and disowned so the parent shell exits independently.",
       "statement": "For all SessionStart invocations, the script returns to Claude Code after emitting the announcement without waiting for the build, so wall-clock duration is dominated by jq and is far below the 10s manifest timeout.",
-      "enforced_at": [
-        {"path": "hooks/session-start.sh", "line": 17},
-        {"path": "hooks/session-start.sh", "line": 41}
-      ],
-      "tested_at": [],
-      "notes": "The build subshell is backgrounded with `&` and disowned so the parent shell exits independently."
+      "tested_at": []
     },
     {
-      "id": "P4",
+      "enforced_at": [
+        {
+          "line": 6,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P4",
       "name": "Plugin root resolves with fallback",
+      "notes": "Lets the script run both inside Claude Code (which exports CLAUDE_PLUGIN_ROOT) and standalone for testing.",
       "statement": "For all invocations, `PLUGIN_ROOT` is `$CLAUDE_PLUGIN_ROOT` when set; otherwise it is the parent directory of the script (resolved via `dirname \"$0\"`).",
-      "enforced_at": [{"path": "hooks/session-start.sh", "line": 6}],
-      "tested_at": [],
-      "notes": "Lets the script run both inside Claude Code (which exports CLAUDE_PLUGIN_ROOT) and standalone for testing."
+      "tested_at": []
     },
     {
-      "id": "P5",
+      "enforced_at": [
+        {
+          "line": 7,
+          "path": "hooks/session-start.sh"
+        },
+        {
+          "line": 8,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P5",
       "name": "Binary path is fixed under HOME",
+      "notes": "Stable path so other components (skills, hooks) can rely on it.",
       "statement": "For all invocations, the engram binary is built and read at `${HOME}/.claude/engram/bin/engram`; no other path is used by this script.",
-      "enforced_at": [
-        {"path": "hooks/session-start.sh", "line": 7},
-        {"path": "hooks/session-start.sh", "line": 8}
-      ],
-      "tested_at": [],
-      "notes": "Stable path so other components (skills, hooks) can rely on it."
+      "tested_at": []
     },
     {
-      "id": "P6",
+      "enforced_at": [
+        {
+          "line": 19,
+          "path": "hooks/session-start.sh"
+        },
+        {
+          "line": 20,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P6",
       "name": "Build triggered when binary missing",
+      "notes": "First-run bootstrap path.",
       "statement": "For all invocations, if `$ENGRAM_BIN` is not an executable file (`[[ ! -x ]]`), the async subshell sets `NEEDS_BUILD=true` and proceeds to compile.",
-      "enforced_at": [
-        {"path": "hooks/session-start.sh", "line": 19},
-        {"path": "hooks/session-start.sh", "line": 20}
-      ],
-      "tested_at": [],
-      "notes": "First-run bootstrap path."
+      "tested_at": []
     },
     {
-      "id": "P7",
+      "enforced_at": [
+        {
+          "line": 21,
+          "path": "hooks/session-start.sh"
+        },
+        {
+          "line": 22,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P7",
       "name": "Build triggered on stale Go source",
+      "notes": "`find ... -newer ... -print -quit | grep -q .` short-circuits on the first match. Non-`.go` edits do not trigger a rebuild.",
       "statement": "For all invocations where `$ENGRAM_BIN` exists and `$PLUGIN_ROOT` is a directory, the async subshell rebuilds iff `find` discovers at least one `*.go` file under PLUGIN_ROOT with mtime newer than the binary.",
-      "enforced_at": [
-        {"path": "hooks/session-start.sh", "line": 21},
-        {"path": "hooks/session-start.sh", "line": 22}
-      ],
-      "tested_at": [],
-      "notes": "`find ... -newer ... -print -quit | grep -q .` short-circuits on the first match. Non-`.go` edits do not trigger a rebuild."
+      "tested_at": []
     },
     {
-      "id": "P8",
+      "enforced_at": [
+        {
+          "line": 27,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P8",
       "name": "Skips rebuild when binary fresh",
+      "notes": "`NEEDS_BUILD` defaults to false; the rebuild block is gated on it.",
       "statement": "For all invocations where `$ENGRAM_BIN` is executable and no `*.go` under PLUGIN_ROOT is newer, the async subshell does not invoke `go build` and does not delete the binary.",
-      "enforced_at": [
-        {"path": "hooks/session-start.sh", "line": 27}
-      ],
-      "tested_at": [],
-      "notes": "`NEEDS_BUILD` defaults to false; the rebuild block is gated on it."
+      "tested_at": []
     },
     {
-      "id": "P9",
+      "enforced_at": [
+        {
+          "line": 33,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P9",
       "name": "Pre-build delete avoids macOS SIGKILL",
+      "notes": "Documented inline (lines 30-32). Provenance attribute would otherwise cause macOS to SIGKILL the binary on exec.",
       "statement": "For all rebuild paths, the previous `$ENGRAM_BIN` and `$ENGRAM_BIN.tmp` are removed before `go build` runs, so the new artifact is produced from a clean shell context and does not inherit `com.apple.provenance` from a Claude-Code-spawned ancestor.",
-      "enforced_at": [{"path": "hooks/session-start.sh", "line": 33}],
-      "tested_at": [],
-      "notes": "Documented inline (lines 30-32). Provenance attribute would otherwise cause macOS to SIGKILL the binary on exec."
+      "tested_at": []
     },
     {
-      "id": "P10",
+      "enforced_at": [
+        {
+          "line": 34,
+          "path": "hooks/session-start.sh"
+        },
+        {
+          "line": 35,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P10",
       "name": "Atomic binary install",
+      "notes": "Same-filesystem rename under `~/.claude/engram/bin/` is atomic on POSIX.",
       "statement": "For all successful rebuilds, the binary becomes visible at `$ENGRAM_BIN` only after `go build` writes `$ENGRAM_BIN.tmp` and `mv` renames it into place — no partial binary is ever observable at the canonical path.",
-      "enforced_at": [
-        {"path": "hooks/session-start.sh", "line": 34},
-        {"path": "hooks/session-start.sh", "line": 35}
-      ],
-      "tested_at": [],
-      "notes": "Same-filesystem rename under `~/.claude/engram/bin/` is atomic on POSIX."
+      "tested_at": []
     },
     {
-      "id": "P11",
+      "enforced_at": [
+        {
+          "line": 34,
+          "path": "hooks/session-start.sh"
+        },
+        {
+          "line": 43,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P11",
       "name": "Build failure cannot fail the hook",
+      "notes": "Combined with backgrounding, this means a broken build never blocks a session — the previous binary (if any) keeps working until the next attempt succeeds.",
       "statement": "For all invocations where `go build` exits non-zero, the async subshell returns 0 (`|| exit 0`) and the parent script still exits 0; Claude Code observes a successful SessionStart hook regardless of compile errors.",
-      "enforced_at": [
-        {"path": "hooks/session-start.sh", "line": 34},
-        {"path": "hooks/session-start.sh", "line": 43}
-      ],
-      "tested_at": [],
-      "notes": "Combined with backgrounding, this means a broken build never blocks a session — the previous binary (if any) keeps working until the next attempt succeeds."
+      "tested_at": []
     },
     {
-      "id": "P12",
+      "enforced_at": [
+        {
+          "line": 39,
+          "path": "hooks/session-start.sh"
+        },
+        {
+          "line": 40,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P12",
       "name": "PATH symlink maintained best-effort",
-      "statement": "For all rebuild paths, the script ensures `~/.local/bin` exists and refreshes `~/.local/bin/engram -> $ENGRAM_BIN`; symlink failures are suppressed (`|| true`) and do not abort the subshell.",
+      "notes": "`ln -sf` is idempotent. The symlink update runs whether or not a rebuild happened.",
+      "statement": "For all rebuild paths, the script ensures `~/.local/bin` exists and refreshes `~/.local/bin/engram -\u003e $ENGRAM_BIN`; symlink failures are suppressed (`|| true`) and do not abort the subshell.",
+      "tested_at": []
+    },
+    {
       "enforced_at": [
-        {"path": "hooks/session-start.sh", "line": 39},
-        {"path": "hooks/session-start.sh", "line": 40}
+        {
+          "line": 2,
+          "path": "hooks/session-start.sh"
+        }
       ],
-      "tested_at": [],
-      "notes": "`ln -sf` is idempotent. The symlink update runs whether or not a rebuild happened."
-    },
-    {
-      "id": "P13",
+      "id": "S2-N2-M2-P13",
       "name": "Strict mode in foreground",
+      "notes": "Strict-mode applies to the parent shell; the async subshell intentionally suppresses build failures via `|| exit 0`.",
       "statement": "For all invocations, the synchronous portion runs under `set -euo pipefail`, so any failure of the jq emit or the variable expansions before backgrounding aborts the script.",
-      "enforced_at": [{"path": "hooks/session-start.sh", "line": 2}],
-      "tested_at": [],
-      "notes": "Strict-mode applies to the parent shell; the async subshell intentionally suppresses build failures via `|| exit 0`."
+      "tested_at": []
     },
     {
-      "id": "P14",
+      "enforced_at": [
+        {
+          "line": 43,
+          "path": "hooks/session-start.sh"
+        }
+      ],
+      "id": "S2-N2-M2-P14",
       "name": "Always exits zero",
+      "notes": "If the synchronous jq emit itself fails, `set -e` aborts before reaching exit 0; that is the only path on which Claude Code sees a non-zero hook.",
       "statement": "For all invocations where the synchronous jq emit succeeds, the script reaches `exit 0` after backgrounding the build, so Claude Code sees a successful hook.",
-      "enforced_at": [{"path": "hooks/session-start.sh", "line": 43}],
-      "tested_at": [],
-      "notes": "If the synchronous jq emit itself fails, `set -e` aborts before reaching exit 0; that is the only path on which Claude Code sees a non-zero hook."
+      "tested_at": []
     }
+  ],
+  "schema_version": "1",
+  "sources": [
+    "hooks/session-start.sh",
+    "hooks/hooks.json"
   ]
 }

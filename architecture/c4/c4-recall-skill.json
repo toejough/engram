@@ -1,74 +1,117 @@
 {
-  "schema_version": "1",
+  "context_prose": "Scoped slice of [c3-skills.md](c3-skills.md): the L3 edges that touch E12. R-edges cite the\nP-list each edge backs.",
+  "diagram": {
+    "edges": [
+      {
+        "from": "S2-N1-M3",
+        "id": "R3",
+        "label": "instructs agent to call engram recall (P1–P3)",
+        "to": "S2-N3"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "S2-N1-M3",
+        "kind": "focus",
+        "name": "recall skill"
+      },
+      {
+        "id": "S2-N3",
+        "kind": "container",
+        "name": "engram CLI binary",
+        "subtitle": "Container"
+      }
+    ]
+  },
+  "focus": {
+    "id": "S2-N1-M3",
+    "name": "recall skill"
+  },
   "level": 4,
   "name": "recall-skill",
   "parent": "c3-skills.md",
-  "focus": {
-    "id": "E12",
-    "name": "recall skill",
-    "l3_container": "c3-skills"
-  },
-  "sources": [
-    "skills/recall/SKILL.md"
-  ],
-  "context_prose": "Scoped slice of [c3-skills.md](c3-skills.md): the L3 edges that touch E12. R-edges cite the\nP-list each edge backs.",
-  "diagram": {
-    "nodes": [
-      {"id": "E12", "name": "recall skill", "kind": "focus"},
-      {"id": "E9", "name": "engram CLI binary", "subtitle": "Container", "kind": "container"}
-    ],
-    "edges": [
-      {"id": "R3", "from": "E12", "to": "E9", "label": "instructs agent to call engram recall (P1–P3)"}
-    ]
-  },
   "properties": [
     {
-      "id": "P1",
+      "enforced_at": [
+        {
+          "line": 13,
+          "path": "skills/recall/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M3-P1",
       "name": "Two invocation modes",
-      "statement": "For all invocations of the recall skill, the body distinguishes exactly two modes: a no-args mode triggered by `/recall` with no query, and a query mode triggered by `/recall <query>`.",
-      "enforced_at": [{"path": "skills/recall/SKILL.md", "line": 13}],
-      "tested_at": [],
-      "notes": "No behavioral test under `skills/recall/`."
+      "notes": "No behavioral test under `skills/recall/`.",
+      "statement": "For all invocations of the recall skill, the body distinguishes exactly two modes: a no-args mode triggered by `/recall` with no query, and a query mode triggered by `/recall \u003cquery\u003e`.",
+      "tested_at": []
     },
     {
-      "id": "P2",
+      "enforced_at": [
+        {
+          "line": 17,
+          "path": "skills/recall/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M3-P2",
       "name": "Calls `engram recall` (no-args)",
+      "notes": "Backs L3 R3 for the no-args branch.",
       "statement": "For all no-args invocations, the skill instructs the agent to run `engram recall` with no flags.",
-      "enforced_at": [{"path": "skills/recall/SKILL.md", "line": 17}],
-      "tested_at": [],
-      "notes": "Backs L3 R3 for the no-args branch."
+      "tested_at": []
     },
     {
-      "id": "P3",
+      "enforced_at": [
+        {
+          "line": 30,
+          "path": "skills/recall/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M3-P3",
       "name": "Calls `engram recall --query` (query mode)",
-      "statement": "For all query-mode invocations, the skill instructs the agent to run `engram recall --query \"<the user's query>\"` with the user-supplied query string.",
-      "enforced_at": [{"path": "skills/recall/SKILL.md", "line": 30}],
-      "tested_at": [],
-      "notes": "Backs L3 R3 for the query branch."
+      "notes": "Backs L3 R3 for the query branch.",
+      "statement": "For all query-mode invocations, the skill instructs the agent to run `engram recall --query \"\u003cthe user's query\u003e\"` with the user-supplied query string.",
+      "tested_at": []
     },
     {
-      "id": "P4",
+      "enforced_at": [
+        {
+          "line": 21,
+          "path": "skills/recall/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M3-P4",
       "name": "Summarizes no-args output",
+      "notes": "Three-bullet summary contract; output is not silently consumed.",
       "statement": "For all completed no-args invocations, the skill instructs the agent to summarize the output covering: what was being discussed/decided, what work was done (filtering mundane tool calls), and which memories were active.",
-      "enforced_at": [{"path": "skills/recall/SKILL.md", "line": 21}],
-      "tested_at": [],
-      "notes": "Three-bullet summary contract; output is not silently consumed."
+      "tested_at": []
     },
     {
-      "id": "P5",
+      "enforced_at": [
+        {
+          "line": 34,
+          "path": "skills/recall/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M3-P5",
       "name": "Presents query results",
+      "notes": "Closes the loop in query mode — results surface to the user.",
       "statement": "For all completed query-mode invocations, the skill instructs the agent to present the filtered results to the user.",
-      "enforced_at": [{"path": "skills/recall/SKILL.md", "line": 34}],
-      "tested_at": [],
-      "notes": "Closes the loop in query mode — results surface to the user."
+      "tested_at": []
     },
     {
-      "id": "P6",
+      "enforced_at": [
+        {
+          "line": 3,
+          "path": "skills/recall/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M3-P6",
       "name": "Trigger phrases declared",
+      "notes": "Discoverability contract; routing is performed by the harness, not the skill body.",
       "statement": "For all skill loads, the description frontmatter declares the trigger phrases (`/recall`, \"what was I working on\", \"load previous context\", \"search session history\", resume work from a previous session) used by Claude Code's skill router to dispatch to this skill.",
-      "enforced_at": [{"path": "skills/recall/SKILL.md", "line": 3}],
-      "tested_at": [],
-      "notes": "Discoverability contract; routing is performed by the harness, not the skill body."
+      "tested_at": []
     }
+  ],
+  "schema_version": "1",
+  "sources": [
+    "skills/recall/SKILL.md"
   ]
 }

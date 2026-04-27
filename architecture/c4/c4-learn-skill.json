@@ -1,146 +1,233 @@
 {
-  "schema_version": "1",
+  "context_prose": "Scoped slice of [c3-skills.md](c3-skills.md): the L3 edges that touch E11. R-edges cite the P-list each edge backs.",
+  "diagram": {
+    "edges": [
+      {
+        "from": "S2-N1-M2",
+        "id": "R4",
+        "label": "instructs agent to call engram learn feedback / engram learn fact (P9)",
+        "to": "S2-N3"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "S2-N1-M2",
+        "kind": "focus",
+        "name": "learn skill"
+      },
+      {
+        "id": "S2-N3",
+        "kind": "container",
+        "name": "engram CLI binary"
+      }
+    ]
+  },
+  "focus": {
+    "id": "S2-N1-M2",
+    "name": "learn skill"
+  },
   "level": 4,
   "name": "learn-skill",
   "parent": "c3-skills.md",
-  "focus": {
-    "id": "E11",
-    "name": "learn skill",
-    "l3_container": "c3-skills"
-  },
-  "sources": [
-    "../../skills/learn/SKILL.md"
-  ],
-  "context_prose": "Scoped slice of [c3-skills.md](c3-skills.md): the L3 edges that touch E11. R-edges cite the P-list each edge backs.",
-  "diagram": {
-    "nodes": [
-      {"id": "E11", "name": "learn skill", "kind": "focus"},
-      {"id": "E9", "name": "engram CLI binary", "kind": "container"}
-    ],
-    "edges": [
-      {"id": "R4", "from": "E11", "to": "E9", "label": "instructs agent to call engram learn feedback / engram learn fact (P9)"}
-    ]
-  },
   "properties": [
     {
-      "id": "P1",
+      "enforced_at": [
+        {
+          "line": 12,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P1",
       "name": "Five-step flow",
+      "notes": "No behavioral test under skills/learn/.",
       "statement": "For all invocations of the learn skill, the body instructs the agent to execute five numbered steps in order: identify learnable moments, apply the quality gate, draft memories, persist, and handle results.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 12}],
-      "tested_at": [],
-      "notes": "No behavioral test under skills/learn/."
+      "tested_at": []
     },
     {
-      "id": "P2",
+      "enforced_at": [
+        {
+          "line": 16,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P2",
       "name": "Four candidate sources",
+      "notes": "Closed list; not a brainstorm prompt.",
       "statement": "For all session reviews, the skill instructs the agent to consider exactly four candidate sources — user corrections, failed approaches, discovered facts, and recurring patterns — when identifying learnable moments.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 16}],
-      "tested_at": [],
-      "notes": "Closed list; not a brainstorm prompt."
+      "tested_at": []
     },
     {
-      "id": "P3",
+      "enforced_at": [
+        {
+          "line": 24,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P3",
       "name": "Ordered quality gate",
+      "notes": "Short-circuit semantics — no gate is skipped, no gate runs after a failure.",
       "statement": "For all candidate memories, the skill instructs the agent to evaluate the three quality gates (Recurs, Actionable, Right home) in order, dropping the candidate on the first failure.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 24}],
-      "tested_at": [],
-      "notes": "Short-circuit semantics — no gate is skipped, no gate runs after a failure."
+      "tested_at": []
     },
     {
-      "id": "P4",
+      "enforced_at": [
+        {
+          "line": 26,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P4",
       "name": "Recurs strips to activity+domain",
+      "notes": "Cross-project plausibility test.",
       "statement": "For all candidates, the skill instructs the agent to reduce the situation to activity+domain and reject any candidate whose stripped form names this project, its internals, phase numbers, issue IDs, commit hashes, dates, or one-time events.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 26}],
-      "tested_at": [],
-      "notes": "Cross-project plausibility test."
+      "tested_at": []
     },
     {
-      "id": "P5",
+      "enforced_at": [
+        {
+          "line": 37,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P5",
       "name": "Actionable requires concrete action",
+      "notes": "Memory must change agent behavior, not merely describe.",
       "statement": "For all candidates, the skill instructs the agent to reject memories that do not name a concrete action — vague observations, inert facts, and raw debug logs all fail.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 37}],
-      "tested_at": [],
-      "notes": "Memory must change agent behavior, not merely describe."
+      "tested_at": []
     },
     {
-      "id": "P6",
+      "enforced_at": [
+        {
+          "line": 41,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P6",
       "name": "Right-home verification",
+      "notes": "git log command is exact — `git log --since='14 days ago' --name-only`.",
       "statement": "For all surviving candidates, the skill instructs the agent to name an alternative home (code, doc, skill, CLAUDE.md, .claude/rules/*.md, or docs/ spec) and verify by running git log over the last 14 days and reading the listed files before deciding whether to persist a memory.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 41}],
-      "tested_at": [],
-      "notes": "git log command is exact — `git log --since='14 days ago' --name-only`."
+      "tested_at": []
     },
     {
-      "id": "P7",
+      "enforced_at": [
+        {
+          "line": 56,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P7",
       "name": "Surfacing-failure routing",
+      "notes": "Reading the home during verification does not count as surfacing.",
       "statement": "For all candidates whose alternative home contains the lesson but did not surface in time this session, the skill instructs the agent to persist a new memory rather than defer to the home, because surfacing — not authorship — is the failure to repair.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 56}],
-      "tested_at": [],
-      "notes": "Reading the home during verification does not count as surfacing."
+      "tested_at": []
     },
     {
-      "id": "P8",
+      "enforced_at": [
+        {
+          "line": 63,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P8",
       "name": "Memory-kind routing",
+      "notes": "Two memory kinds, deterministic mapping from candidate source.",
       "statement": "For all surviving candidates, the skill instructs the agent to draft corrections and failed approaches as feedback (SBIA shape) and discovered facts and patterns as fact (situation + subject/predicate/object).",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 63}],
-      "tested_at": [],
-      "notes": "Two memory kinds, deterministic mapping from candidate source."
+      "tested_at": []
     },
     {
-      "id": "P9",
+      "enforced_at": [
+        {
+          "line": 79,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P9",
       "name": "Calls engram learn",
+      "notes": "Backs L3 R4.",
       "statement": "For all persistence steps, the skill instructs the agent to invoke `engram learn feedback` or `engram learn fact` (no other subcommand) with the drafted fields.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 79}],
-      "tested_at": [],
-      "notes": "Backs L3 R4."
+      "tested_at": []
     },
     {
-      "id": "P10",
+      "enforced_at": [
+        {
+          "line": 67,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P10",
       "name": "Activity+domain situation field",
+      "notes": "Hindsight-baking is the named anti-pattern.",
       "statement": "For all drafted memories, the skill instructs the agent to phrase the `situation` field as activity+domain matching how a /prepare query would be phrased before the lesson is known — not as the diagnosis, symptom, or fix.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 67}],
-      "tested_at": [],
-      "notes": "Hindsight-baking is the named anti-pattern."
+      "tested_at": []
     },
     {
-      "id": "P11",
+      "enforced_at": [
+        {
+          "line": 76,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P11",
       "name": "Autonomous default at boundaries",
+      "notes": "Interactive approval is reserved for explicit /learn invocations.",
       "statement": "For all task-boundary invocations (not user-initiated /learn), the skill instructs the agent to persist memories autonomously with `--source agent` rather than presenting findings for approval.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 76}],
-      "tested_at": [],
-      "notes": "Interactive approval is reserved for explicit /learn invocations."
+      "tested_at": []
     },
     {
-      "id": "P12",
+      "enforced_at": [
+        {
+          "line": 77,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P12",
       "name": "Interactive approval on /learn",
+      "notes": "Reciprocal of P11.",
       "statement": "For all user-initiated /learn invocations, the skill instructs the agent to present drafted findings to the user for approval before persisting.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 77}],
-      "tested_at": [],
-      "notes": "Reciprocal of P11."
+      "tested_at": []
     },
     {
-      "id": "P13",
+      "enforced_at": [
+        {
+          "line": 87,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P13",
       "name": "DUPLICATE broadens situation",
-      "statement": "For all DUPLICATE responses from `engram learn`, the skill instructs the agent to diagnose why /recall or /prepare missed the existing memory and broaden its situation via `engram update --name <name> --situation \"...\"`, never dismissing the candidate.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 87}],
-      "tested_at": [],
-      "notes": "Surfacing failure, not authorship failure — the existing memory is widened."
+      "notes": "Surfacing failure, not authorship failure — the existing memory is widened.",
+      "statement": "For all DUPLICATE responses from `engram learn`, the skill instructs the agent to diagnose why /recall or /prepare missed the existing memory and broaden its situation via `engram update --name \u003cname\u003e --situation \"...\"`, never dismissing the candidate.",
+      "tested_at": []
     },
     {
-      "id": "P14",
+      "enforced_at": [
+        {
+          "line": 88,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P14",
       "name": "CONTRADICTION mode-split",
+      "notes": "Autonomous mode never silently overwrites contradictory memories.",
       "statement": "For all CONTRADICTION responses, the skill instructs the agent to ask the user to resolve (update / replace / keep both) when interactive, and to skip the candidate when autonomous.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 88}],
-      "tested_at": [],
-      "notes": "Autonomous mode never silently overwrites contradictory memories."
+      "tested_at": []
     },
     {
-      "id": "P15",
+      "enforced_at": [
+        {
+          "line": 86,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P15",
       "name": "CREATED confirmation only when interactive",
+      "notes": "Keeps autonomous task-boundary persistence non-chatty.",
       "statement": "For all CREATED responses, the skill instructs the agent to confirm to the user only in interactive mode; autonomous runs treat CREATED as silent success.",
-      "enforced_at": [{"path": "skills/learn/SKILL.md", "line": 86}],
-      "tested_at": [],
-      "notes": "Keeps autonomous task-boundary persistence non-chatty."
+      "tested_at": []
     }
+  ],
+  "schema_version": "1",
+  "sources": [
+    "../../skills/learn/SKILL.md"
   ]
 }

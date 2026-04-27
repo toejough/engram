@@ -1,69 +1,116 @@
 {
-  "schema_version": "1",
+  "context_prose": "user-prompt-submit.sh is the simplest of the three engram hooks. Claude Code execs it on every UserPromptSubmit lifecycle event (registered via R3 in hooks.json with a 5s timeout). The script emits a single fixed JSON document on stdout via `jq -n`, populating `hookSpecificOutput.hookEventName` with the literal `\"UserPromptSubmit\"` and `hookSpecificOutput.additionalContext` with a constant reminder string nudging the agent to call `/learn` at completion boundaries and `/prepare` at new-work boundaries. The script reads no stdin, performs no I/O beyond stdout, exits non-zero on any failure courtesy of `set -euo pipefail`, and has no inputs that influence its output — every invocation emits the same bytes.",
+  "diagram": {
+    "edges": [
+      {
+        "from": "S3",
+        "id": "R5",
+        "label": "exec on UserPromptSubmit",
+        "to": "S2-N2-M3"
+      },
+      {
+        "from": "S2-N2-M3",
+        "id": "R7",
+        "label": "additionalContext JSON on stdout",
+        "to": "S3"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "S3",
+        "kind": "external",
+        "name": "Claude Code"
+      },
+      {
+        "id": "S2-N2-M3",
+        "kind": "focus",
+        "name": "user-prompt-submit.sh"
+      }
+    ]
+  },
+  "focus": {
+    "id": "S2-N2-M3",
+    "name": "user-prompt-submit.sh"
+  },
   "level": 4,
   "name": "user-prompt-submit",
   "parent": "c3-hooks.md",
-  "focus": {
-    "id": "E18",
-    "name": "user-prompt-submit.sh",
-    "l3_container": "c3-hooks.md"
-  },
-  "sources": [
-    "hooks/user-prompt-submit.sh"
-  ],
-  "context_prose": "user-prompt-submit.sh is the simplest of the three engram hooks. Claude Code execs it on every UserPromptSubmit lifecycle event (registered via R3 in hooks.json with a 5s timeout). The script emits a single fixed JSON document on stdout via `jq -n`, populating `hookSpecificOutput.hookEventName` with the literal `\"UserPromptSubmit\"` and `hookSpecificOutput.additionalContext` with a constant reminder string nudging the agent to call `/learn` at completion boundaries and `/prepare` at new-work boundaries. The script reads no stdin, performs no I/O beyond stdout, exits non-zero on any failure courtesy of `set -euo pipefail`, and has no inputs that influence its output — every invocation emits the same bytes.",
-  "diagram": {
-    "nodes": [
-      {"id": "E3", "name": "Claude Code", "kind": "external"},
-      {"id": "E18", "name": "user-prompt-submit.sh", "kind": "focus"}
-    ],
-    "edges": [
-      {"id": "R5", "from": "E3", "to": "E18", "label": "exec on UserPromptSubmit"},
-      {"id": "R7", "from": "E18", "to": "E3", "label": "additionalContext JSON on stdout"}
-    ]
-  },
   "properties": [
     {
-      "id": "P1",
+      "enforced_at": [
+        {
+          "line": 2,
+          "path": "hooks/user-prompt-submit.sh"
+        }
+      ],
+      "id": "S2-N2-M3-P1",
       "name": "strict-bash-mode",
       "statement": "Script runs under `set -euo pipefail`, so any command failure, unset variable, or pipe failure aborts with non-zero exit before stdout is emitted.",
-      "enforced_at": [{"path": "hooks/user-prompt-submit.sh", "line": 2}],
       "tested_at": []
     },
     {
-      "id": "P2",
+      "enforced_at": [
+        {
+          "line": 6,
+          "path": "hooks/user-prompt-submit.sh"
+        }
+      ],
+      "id": "S2-N2-M3-P2",
       "name": "fixed-event-name",
       "statement": "Emitted JSON has `hookSpecificOutput.hookEventName` set to the literal string `\"UserPromptSubmit\"`, matching the lifecycle event Claude Code dispatched.",
-      "enforced_at": [{"path": "hooks/user-prompt-submit.sh", "line": 6}],
       "tested_at": []
     },
     {
-      "id": "P3",
+      "enforced_at": [
+        {
+          "line": 6,
+          "path": "hooks/user-prompt-submit.sh"
+        }
+      ],
+      "id": "S2-N2-M3-P3",
       "name": "constant-reminder-payload",
       "statement": "`hookSpecificOutput.additionalContext` is a constant string nudging the agent to call `/learn` at completion boundaries (task done, bug resolved, direction change, commit) and `/prepare` when starting new work; nothing in the input or environment alters its content.",
-      "enforced_at": [{"path": "hooks/user-prompt-submit.sh", "line": 6}],
       "tested_at": []
     },
     {
-      "id": "P4",
+      "enforced_at": [
+        {
+          "line": 6,
+          "path": "hooks/user-prompt-submit.sh"
+        }
+      ],
+      "id": "S2-N2-M3-P4",
       "name": "single-json-document-on-stdout",
       "statement": "Script writes exactly one well-formed JSON document to stdout (via `jq -n`) and writes nothing else, so Claude Code's stdout-JSON consumer (R7) always receives a parseable payload.",
-      "enforced_at": [{"path": "hooks/user-prompt-submit.sh", "line": 6}],
       "tested_at": []
     },
     {
-      "id": "P5",
+      "enforced_at": [
+        {
+          "line": 6,
+          "path": "hooks/user-prompt-submit.sh"
+        }
+      ],
+      "id": "S2-N2-M3-P5",
       "name": "no-stdin-no-side-effects",
       "statement": "Script reads no stdin, performs no file I/O, spawns no background work, and depends only on `jq` being on PATH; output is a pure function of the script source.",
-      "enforced_at": [{"path": "hooks/user-prompt-submit.sh", "line": 6}],
       "tested_at": []
     },
     {
-      "id": "P6",
+      "enforced_at": [
+        {
+          "line": 6,
+          "path": "hooks/user-prompt-submit.sh"
+        }
+      ],
+      "id": "S2-N2-M3-P6",
       "name": "fits-within-5s-timeout",
       "statement": "Single `jq -n` invocation completes well within the 5s timeout registered by R3 in hooks.json, so Claude Code never has to kill the hook for taking too long.",
-      "enforced_at": [{"path": "hooks/user-prompt-submit.sh", "line": 6}],
       "tested_at": []
     }
+  ],
+  "schema_version": "1",
+  "sources": [
+    "hooks/user-prompt-submit.sh"
   ]
 }

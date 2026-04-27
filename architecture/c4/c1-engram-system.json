@@ -1,63 +1,99 @@
 {
-  "schema_version": "1",
-  "level": 1,
-  "name": "engram-system",
-  "parent": null,
-  "preamble": "Engram is a Claude Code plugin that gives the agent persistent, query-ranked memory.\nThis diagram shows who and what Engram interacts with at the system boundary; it\ndeliberately hides the CLI binary, hooks, on-disk stores, and skills (those live at L2).",
+  "cross_links": {
+    "refined_by": []
+  },
+  "drift_notes": [],
   "elements": [
     {
-      "name": "Developer",
+      "id": "S1",
       "kind": "person",
-      "subtitle": "uses Claude Code",
+      "name": "Developer",
       "responsibility": "Developer who triggers `/prepare`, `/recall`, `/remember`, `/learn`, `/migrate` and authors the work that produces memories",
+      "subtitle": "uses Claude Code",
       "system_of_record": "Human, at a Claude Code session"
     },
     {
-      "name": "Engram plugin",
+      "id": "S2",
       "kind": "container",
-      "is_system": true,
+      "name": "Engram plugin",
       "responsibility": "Plugin providing persistent, query-ranked memory: skills decide when to load context, a slim Go binary computes recall/learn, hooks remind the agent at session and tool-use boundaries",
       "system_of_record": "This repository (`github.com/toejough/engram`)"
     },
     {
-      "name": "Claude Code",
+      "id": "S3",
       "kind": "external",
-      "subtitle": "agent harness",
+      "name": "Claude Code",
       "responsibility": "Agent harness that loads the plugin, dispatches skills, fires hooks, and exposes its own memory surfaces",
+      "subtitle": "agent harness",
       "system_of_record": "Anthropic Claude Code CLI"
     },
     {
-      "name": "Claude Code memory surfaces",
+      "id": "S4",
       "kind": "external",
+      "name": "Claude Code memory surfaces",
+      "responsibility": "Read-only sources Engram merges into recall: project + user `CLAUDE.md` (with `@`-imports), `.claude/rules/*.md`, auto-memory under `~/.claude/projects/\u003cslug\u003e/memory/`, and project + user + plugin skill frontmatter",
       "subtitle": "CLAUDE.md, .claude/rules, auto-memory, skills",
-      "responsibility": "Read-only sources Engram merges into recall: project + user `CLAUDE.md` (with `@`-imports), `.claude/rules/*.md`, auto-memory under `~/.claude/projects/<slug>/memory/`, and project + user + plugin skill frontmatter",
       "system_of_record": "Files owned by Claude Code and the user; never written by Engram"
     },
     {
-      "name": "Anthropic API",
+      "id": "S5",
       "kind": "external",
-      "subtitle": "Haiku rank + extract",
+      "name": "Anthropic API",
       "responsibility": "LLM service used by the recall pipeline for Haiku ranking and extraction; also the classification step in `/learn` and `/remember` quality gates",
+      "subtitle": "Haiku rank + extract",
       "system_of_record": "`api.anthropic.com`"
     },
     {
-      "name": "Engram memory store",
+      "id": "S6",
       "kind": "external",
-      "subtitle": "~/.local/share/engram/memory/",
+      "name": "Engram memory store",
       "responsibility": "Engram's own writable data directory: `~/.local/share/engram/memory/feedback/*.toml` and `~/.local/share/engram/memory/facts/*.toml`. The filesystem belongs to the OS; Engram only reads and writes within these paths",
+      "subtitle": "~/.local/share/engram/memory/",
       "system_of_record": "XDG data home on the user's machine"
     }
   ],
+  "level": 1,
+  "name": "engram-system",
+  "parent": null,
+  "preamble": "Engram is a Claude Code plugin that gives the agent persistent, query-ranked memory.\nThis diagram shows who and what Engram interacts with at the system boundary; it\ndeliberately hides the CLI binary, hooks, on-disk stores, and skills (those live at L2).",
   "relationships": [
-    {"from": "Developer", "to": "Claude Code", "description": "Invokes slash-commands and writes prompts that trigger skill auto-invocation", "protocol": "Claude Code CLI / TTY"},
-    {"from": "Claude Code", "to": "Engram plugin", "description": "Loads skill markdown, executes hooks (`SessionStart`, `UserPromptSubmit`, `PostToolUse`), invokes `engram` binary subcommands", "protocol": "Plugin manifest, shell hooks (stdin JSON), subprocess exec"},
-    {"from": "Engram plugin", "to": "Anthropic API", "description": "Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn", "protocol": "HTTPS, Anthropic Messages API (Haiku)"},
-    {"from": "Engram plugin", "to": "Claude Code memory surfaces", "description": "Discovers and reads CLAUDE.md (+ `@`-imports), `.claude/rules/*.md`, auto-memory topic files, and skill frontmatter for ranking", "protocol": "Local file reads (read-only; \"read everywhere, write only what you own\")"},
-    {"from": "Engram plugin", "to": "Engram memory store", "description": "Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary", "protocol": "Local file I/O, TOML", "bidirectional": true},
-    {"from": "Engram plugin", "to": "Claude Code", "description": "Returns briefings (`/prepare`), recall results (`/recall`), and hook reminders that re-enter the agent's context", "protocol": "Hook stdout JSON (`systemMessage`, `additionalContext`)"}
+    {
+      "description": "Invokes slash-commands and writes prompts that trigger skill auto-invocation",
+      "from": "S1",
+      "protocol": "Claude Code CLI / TTY",
+      "to": "S3"
+    },
+    {
+      "description": "Loads skill markdown, executes hooks (`SessionStart`, `UserPromptSubmit`, `PostToolUse`), invokes `engram` binary subcommands",
+      "from": "S3",
+      "protocol": "Plugin manifest, shell hooks (stdin JSON), subprocess exec",
+      "to": "S2"
+    },
+    {
+      "description": "Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn",
+      "from": "S2",
+      "protocol": "HTTPS, Anthropic Messages API (Haiku)",
+      "to": "S5"
+    },
+    {
+      "description": "Discovers and reads CLAUDE.md (+ `@`-imports), `.claude/rules/*.md`, auto-memory topic files, and skill frontmatter for ranking",
+      "from": "S2",
+      "protocol": "Local file reads (read-only; \"read everywhere, write only what you own\")",
+      "to": "S4"
+    },
+    {
+      "bidirectional": true,
+      "description": "Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary",
+      "from": "S2",
+      "protocol": "Local file I/O, TOML",
+      "to": "S6"
+    },
+    {
+      "description": "Returns briefings (`/prepare`), recall results (`/recall`), and hook reminders that re-enter the agent's context",
+      "from": "S2",
+      "protocol": "Hook stdout JSON (`systemMessage`, `additionalContext`)",
+      "to": "S3"
+    }
   ],
-  "drift_notes": [],
-  "cross_links": {
-    "refined_by": []
-  }
+  "schema_version": "1"
 }

@@ -1,164 +1,313 @@
 {
-  "schema_version": "1",
-  "level": 4,
-  "name": "tokenresolver",
-  "parent": "c3-engram-cli-binary.md",
-  "focus": {
-    "id": "E27",
-    "name": "tokenresolver",
-    "l3_container": "c3-engram-cli-binary.md"
-  },
-  "sources": [
-    "internal/tokenresolver/tokenresolver.go",
-    "internal/tokenresolver/tokenresolver_test.go"
-  ],
   "context_prose": "tokenresolver is the API-token resolution component for the engram CLI. It is consumed by `cli` (E21) before any Anthropic LLM call (R7). The component itself has no outgoing R/D edges to other components — it only invokes its three injected dependencies (`getenv`, `execCmd`, `goos`) which are wired by `cli` at construction time (D1 back-edge). The component encodes one strict architectural invariant: Resolve never returns a non-nil error. All failure modes (env unset, non-darwin OS, Keychain process failure, malformed JSON, missing JSON field) collapse to `(\"\", nil)` so callers can branch on empty-string alone.",
+  "dependency_manifest": [
+    {
+      "concrete_adapter": "`os.Getenv`",
+      "field": "getenv",
+      "properties": [
+        "S2-N3-M8-P1",
+        "S2-N3-M8-P2",
+        "S2-N3-M8-P8"
+      ],
+      "type": "func(string) string",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wired_by_name": "cli"
+    },
+    {
+      "concrete_adapter": "inline closure wrapping `exec.CommandContext(...).Output()`",
+      "field": "execCmd",
+      "properties": [
+        "S2-N3-M8-P3",
+        "S2-N3-M8-P4",
+        "S2-N3-M8-P5",
+        "S2-N3-M8-P6",
+        "S2-N3-M8-P7",
+        "S2-N3-M8-P8"
+      ],
+      "type": "func(ctx, name, args...) ([]byte, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wired_by_name": "cli"
+    },
+    {
+      "concrete_adapter": "`runtime.GOOS`",
+      "field": "goos",
+      "properties": [
+        "S2-N3-M8-P3",
+        "S2-N3-M8-P8"
+      ],
+      "type": "string",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wired_by_name": "cli"
+    }
+  ],
+  "diagram": {
+    "edges": [
+      {
+        "from": "S2-N3-M2",
+        "id": "R7",
+        "label": "calls Resolver.Resolve",
+        "to": "S2-N3-M8"
+      },
+      {
+        "dotted": true,
+        "from": "S2-N3-M8",
+        "id": "D1",
+        "label": "invokes injected getenv / execCmd / goos",
+        "to": "S2-N3-M2"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "S2-N3-M8",
+        "kind": "focus",
+        "name": "tokenresolver",
+        "subtitle": "API token resolution"
+      },
+      {
+        "id": "S2-N3-M2",
+        "kind": "component",
+        "name": "cli",
+        "subtitle": "wirer / consumer"
+      }
+    ]
+  },
+  "focus": {
+    "id": "S2-N3-M8",
+    "name": "tokenresolver"
+  },
   "legend_items": [
     "**E27 · tokenresolver** (focus, yellow) — this ledger.",
     "**E21 · cli** — the wirer; consumer-side R7 plus DI back-edge D1."
   ],
-  "diagram": {
-    "nodes": [
-      {"id": "E27", "name": "tokenresolver", "subtitle": "API token resolution", "kind": "focus"},
-      {"id": "E21", "name": "cli", "subtitle": "wirer / consumer", "kind": "component"}
-    ],
-    "edges": [
-      {"id": "R7", "from": "E21", "to": "E27", "label": "calls Resolver.Resolve"},
-      {"id": "D1", "from": "E27", "to": "E21", "label": "invokes injected getenv / execCmd / goos", "dotted": true}
-    ]
-  },
-  "dependency_manifest": [
-    {
-      "field": "getenv",
-      "type": "func(string) string",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "concrete_adapter": "`os.Getenv`",
-      "properties": ["P1", "P2", "P8"]
-    },
-    {
-      "field": "execCmd",
-      "type": "func(ctx, name, args...) ([]byte, error)",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "concrete_adapter": "inline closure wrapping `exec.CommandContext(...).Output()`",
-      "properties": ["P3", "P4", "P5", "P6", "P7", "P8"]
-    },
-    {
-      "field": "goos",
-      "type": "string",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "concrete_adapter": "`runtime.GOOS`",
-      "properties": ["P3", "P8"]
-    }
-  ],
+  "level": 4,
+  "name": "tokenresolver",
+  "parent": "c3-engram-cli-binary.md",
   "properties": [
     {
-      "id": "P1",
-      "name": "Env precedence",
-      "statement": "For all calls to Resolve, if `getenv(\"ENGRAM_API_TOKEN\")` returns a non-empty string, Resolve returns that string and never invokes `execCmd`.",
-      "enforced_at": [{"path": "internal/tokenresolver/tokenresolver.go", "line": 34}],
-      "tested_at": [{"path": "internal/tokenresolver/tokenresolver_test.go", "line": 13}],
-      "notes": "Asserts the executor stays uncalled — no Keychain side-effect when env is set."
-    },
-    {
-      "id": "P2",
-      "name": "Empty env not used",
-      "statement": "For all calls to Resolve, if `getenv(\"ENGRAM_API_TOKEN\")` returns the empty string, Resolve does not return that empty string as the token; it falls through to the OS-gated Keychain branch.",
-      "enforced_at": [{"path": "internal/tokenresolver/tokenresolver.go", "line": 34}],
-      "tested_at": [{"path": "internal/tokenresolver/tokenresolver_test.go", "line": 90}],
-      "notes": "The `if token != \"\"` guard is what enables every keychain-branch test."
-    },
-    {
-      "id": "P3",
-      "name": "Non-darwin skips Keychain",
-      "statement": "For all calls to Resolve where env is empty and `goos != \"darwin\"`, Resolve returns `(\"\", nil)` and never invokes `execCmd`.",
-      "enforced_at": [{"path": "internal/tokenresolver/tokenresolver.go", "line": 38}],
-      "tested_at": [{"path": "internal/tokenresolver/tokenresolver_test.go", "line": 156}],
-      "notes": "Guards Linux/Windows callers from spurious `security` invocations."
-    },
-    {
-      "id": "P4",
-      "name": "Keychain happy path",
-      "statement": "For all calls to Resolve on darwin where env is empty and `execCmd` returns valid JSON containing `claudeAiOauth.accessToken = T`, Resolve returns `(T, nil)`.",
-      "enforced_at": [{"path": "internal/tokenresolver/tokenresolver.go", "line": 58}],
-      "tested_at": [{"path": "internal/tokenresolver/tokenresolver_test.go", "line": 90}],
-      "notes": "The single nested-field path documented in `keychainPayload`."
-    },
-    {
-      "id": "P5",
-      "name": "Keychain exec error swallowed",
-      "statement": "For all calls to Resolve on darwin where `execCmd` returns a non-nil error, Resolve returns `(\"\", nil)` — the error is not propagated.",
-      "enforced_at": [{"path": "internal/tokenresolver/tokenresolver.go", "line": 47}],
-      "tested_at": [{"path": "internal/tokenresolver/tokenresolver_test.go", "line": 68}],
-      "notes": "`//nolint:nilerr` documents the intentional swallow. Keychain unavailable ≠ fatal."
-    },
-    {
-      "id": "P6",
-      "name": "Malformed JSON swallowed",
-      "statement": "For all calls to Resolve on darwin where `execCmd` returns bytes that do not parse as JSON, Resolve returns `(\"\", nil)`.",
-      "enforced_at": [{"path": "internal/tokenresolver/tokenresolver.go", "line": 54}],
-      "tested_at": [{"path": "internal/tokenresolver/tokenresolver_test.go", "line": 112}],
-      "notes": "Second `//nolint:nilerr` site. Robustness against future Keychain output drift."
-    },
-    {
-      "id": "P7",
-      "name": "Missing JSON field returns empty",
-      "statement": "For all calls to Resolve on darwin where `execCmd` returns valid JSON without `claudeAiOauth.accessToken`, Resolve returns `(\"\", nil)`.",
-      "enforced_at": [{"path": "internal/tokenresolver/tokenresolver.go", "line": 58}],
-      "tested_at": [{"path": "internal/tokenresolver/tokenresolver_test.go", "line": 134}],
-      "notes": "Zero-value of the typed payload field is the empty string. Also covers explicit empty-string accessToken (test at line 46)."
-    },
-    {
-      "id": "P8",
-      "name": "Resolve never errors",
-      "statement": "For all inputs and all DI configurations, Resolve returns a nil error.",
       "enforced_at": [
-        {"path": "internal/tokenresolver/tokenresolver.go", "line": 33},
-        {"path": "internal/tokenresolver/tokenresolver.go", "line": 47},
-        {"path": "internal/tokenresolver/tokenresolver.go", "line": 54}
+        {
+          "line": 34,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
       ],
+      "id": "S2-N3-M8-P1",
+      "name": "Env precedence",
+      "notes": "Asserts the executor stays uncalled — no Keychain side-effect when env is set.",
+      "statement": "For all calls to Resolve, if `getenv(\"ENGRAM_API_TOKEN\")` returns a non-empty string, Resolve returns that string and never invokes `execCmd`.",
       "tested_at": [
-        {"path": "internal/tokenresolver/tokenresolver_test.go", "line": 35},
-        {"path": "internal/tokenresolver/tokenresolver_test.go", "line": 59},
-        {"path": "internal/tokenresolver/tokenresolver_test.go", "line": 81},
-        {"path": "internal/tokenresolver/tokenresolver_test.go", "line": 102},
-        {"path": "internal/tokenresolver/tokenresolver_test.go", "line": 125},
-        {"path": "internal/tokenresolver/tokenresolver_test.go", "line": 146},
-        {"path": "internal/tokenresolver/tokenresolver_test.go", "line": 172}
+        {
+          "line": 13,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        }
+      ]
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 34,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
       ],
-      "notes": "Architectural invariant: the doc comment guarantees Resolve's signature degrades to (\"\", nil) on every failure path. Every test asserts `err NotTo HaveOccurred`. Callers branch on empty-string alone."
+      "id": "S2-N3-M8-P2",
+      "name": "Empty env not used",
+      "notes": "The `if token != \"\"` guard is what enables every keychain-branch test.",
+      "statement": "For all calls to Resolve, if `getenv(\"ENGRAM_API_TOKEN\")` returns the empty string, Resolve does not return that empty string as the token; it falls through to the OS-gated Keychain branch.",
+      "tested_at": [
+        {
+          "line": 90,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        }
+      ]
     },
     {
-      "id": "P9",
+      "enforced_at": [
+        {
+          "line": 38,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
+      ],
+      "id": "S2-N3-M8-P3",
+      "name": "Non-darwin skips Keychain",
+      "notes": "Guards Linux/Windows callers from spurious `security` invocations.",
+      "statement": "For all calls to Resolve where env is empty and `goos != \"darwin\"`, Resolve returns `(\"\", nil)` and never invokes `execCmd`.",
+      "tested_at": [
+        {
+          "line": 156,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        }
+      ]
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 58,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
+      ],
+      "id": "S2-N3-M8-P4",
+      "name": "Keychain happy path",
+      "notes": "The single nested-field path documented in `keychainPayload`.",
+      "statement": "For all calls to Resolve on darwin where env is empty and `execCmd` returns valid JSON containing `claudeAiOauth.accessToken = T`, Resolve returns `(T, nil)`.",
+      "tested_at": [
+        {
+          "line": 90,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        }
+      ]
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 47,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
+      ],
+      "id": "S2-N3-M8-P5",
+      "name": "Keychain exec error swallowed",
+      "notes": "`//nolint:nilerr` documents the intentional swallow. Keychain unavailable ≠ fatal.",
+      "statement": "For all calls to Resolve on darwin where `execCmd` returns a non-nil error, Resolve returns `(\"\", nil)` — the error is not propagated.",
+      "tested_at": [
+        {
+          "line": 68,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        }
+      ]
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 54,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
+      ],
+      "id": "S2-N3-M8-P6",
+      "name": "Malformed JSON swallowed",
+      "notes": "Second `//nolint:nilerr` site. Robustness against future Keychain output drift.",
+      "statement": "For all calls to Resolve on darwin where `execCmd` returns bytes that do not parse as JSON, Resolve returns `(\"\", nil)`.",
+      "tested_at": [
+        {
+          "line": 112,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        }
+      ]
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 58,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
+      ],
+      "id": "S2-N3-M8-P7",
+      "name": "Missing JSON field returns empty",
+      "notes": "Zero-value of the typed payload field is the empty string. Also covers explicit empty-string accessToken (test at line 46).",
+      "statement": "For all calls to Resolve on darwin where `execCmd` returns valid JSON without `claudeAiOauth.accessToken`, Resolve returns `(\"\", nil)`.",
+      "tested_at": [
+        {
+          "line": 134,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        }
+      ]
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 33,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        },
+        {
+          "line": 47,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        },
+        {
+          "line": 54,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
+      ],
+      "id": "S2-N3-M8-P8",
+      "name": "Resolve never errors",
+      "notes": "Architectural invariant: the doc comment guarantees Resolve's signature degrades to (\"\", nil) on every failure path. Every test asserts `err NotTo HaveOccurred`. Callers branch on empty-string alone.",
+      "statement": "For all inputs and all DI configurations, Resolve returns a nil error.",
+      "tested_at": [
+        {
+          "line": 35,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        },
+        {
+          "line": 59,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        },
+        {
+          "line": 81,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        },
+        {
+          "line": 102,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        },
+        {
+          "line": 125,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        },
+        {
+          "line": 146,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        },
+        {
+          "line": 172,
+          "path": "internal/tokenresolver/tokenresolver_test.go"
+        }
+      ]
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 11,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
+      ],
+      "id": "S2-N3-M8-P9",
       "name": "No direct I/O",
+      "notes": "Architectural invariant aligned with the project's DI-everywhere rule. UNTESTED — there is no static-analysis check that the package's import set excludes `os`/`exec`/`runtime`.",
       "statement": "For all code paths in package tokenresolver, no function calls `os.*`, `exec.*`, `runtime.*`, or any other I/O package directly; all OS interaction is mediated by injected `getenv`, `execCmd`, and `goos`.",
-      "enforced_at": [{"path": "internal/tokenresolver/tokenresolver.go", "line": 11}],
-      "tested_at": [],
-      "notes": "Architectural invariant aligned with the project's DI-everywhere rule. UNTESTED — there is no static-analysis check that the package's import set excludes `os`/`exec`/`runtime`."
+      "tested_at": []
     },
     {
-      "id": "P10",
+      "enforced_at": [
+        {
+          "line": 46,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
+      ],
+      "id": "S2-N3-M8-P10",
       "name": "Keychain query parameters fixed",
+      "notes": "UNTESTED — existing tests ignore the args passed to execCmd. A drift in the service name would silently break Keychain lookup.",
       "statement": "For all calls into resolveFromKeychain, `execCmd` is invoked with arguments `(\"security\", \"find-generic-password\", \"-s\", \"Claude Code-credentials\", \"-w\")`.",
-      "enforced_at": [{"path": "internal/tokenresolver/tokenresolver.go", "line": 46}],
-      "tested_at": [],
-      "notes": "UNTESTED — existing tests ignore the args passed to execCmd. A drift in the service name would silently break Keychain lookup."
+      "tested_at": []
     },
     {
-      "id": "P11",
+      "enforced_at": [
+        {
+          "line": 46,
+          "path": "internal/tokenresolver/tokenresolver.go"
+        }
+      ],
+      "id": "S2-N3-M8-P11",
       "name": "Context propagation",
+      "notes": "UNTESTED — no test cancels ctx and asserts execCmd received the cancelled context.",
       "statement": "For all calls Resolve(ctx), the same ctx is forwarded into every `execCmd` invocation, so a cancelled context cancels the underlying `security` process.",
-      "enforced_at": [{"path": "internal/tokenresolver/tokenresolver.go", "line": 46}],
-      "tested_at": [],
-      "notes": "UNTESTED — no test cancels ctx and asserts execCmd received the cancelled context."
+      "tested_at": []
     }
+  ],
+  "schema_version": "1",
+  "sources": [
+    "internal/tokenresolver/tokenresolver.go",
+    "internal/tokenresolver/tokenresolver_test.go"
   ]
 }

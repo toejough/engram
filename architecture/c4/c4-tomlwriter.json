@@ -1,240 +1,422 @@
 {
-  "schema_version": "1",
-  "level": 4,
-  "name": "tomlwriter",
-  "parent": "c3-engram-cli-binary.md",
-  "focus": {
-    "id": "E28",
-    "name": "tomlwriter",
-    "l3_container": "c3-engram-cli-binary.md"
-  },
-  "sources": [
-    "internal/tomlwriter/tomlwriter.go",
-    "internal/tomlwriter/tomlwriter_test.go"
-  ],
   "context_prose": "tomlwriter is the TOML serialization component for new and updated feedback and fact memory files. The cli component (E21) calls Writer.Write on learn / remember / update flows; tomlwriter routes the record to the correct subdirectory by Type (fact / feedback / fallback memories), generates a slug-based filename with collision-avoiding numeric suffixes, stamps timestamps if missing, and writes the TOML atomically via temp-file + rename with cleanup on any failure. All filesystem syscalls (createTemp, rename, mkdirAll, stat, remove) are injected as function values defaulted to their os.* counterparts, so the package contains no direct os.* I/O calls outside the New constructor's defaults — wiring happens at the cli edge.",
+  "dependency_manifest": [
+    {
+      "concrete_adapter": "`os.CreateTemp` (default in `New`)",
+      "field": "createTemp",
+      "properties": [
+        "S2-N3-M9-P1",
+        "S2-N3-M9-P2",
+        "S2-N3-M9-P5",
+        "S2-N3-M9-P6"
+      ],
+      "type": "func(dir, pattern string) (*os.File, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wired_by_name": "cli"
+    },
+    {
+      "concrete_adapter": "`os.Rename` (default in `New`)",
+      "field": "rename",
+      "properties": [
+        "S2-N3-M9-P1",
+        "S2-N3-M9-P2",
+        "S2-N3-M9-P6"
+      ],
+      "type": "func(oldpath, newpath string) error",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wired_by_name": "cli"
+    },
+    {
+      "concrete_adapter": "`os.MkdirAll` (default in `New`)",
+      "field": "mkdirAll",
+      "properties": [
+        "S2-N3-M9-P3",
+        "S2-N3-M9-P6"
+      ],
+      "type": "func(path string, perm os.FileMode) error",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wired_by_name": "cli"
+    },
+    {
+      "concrete_adapter": "`os.Stat` (default in `New`)",
+      "field": "stat",
+      "properties": [
+        "S2-N3-M9-P4",
+        "S2-N3-M9-P6"
+      ],
+      "type": "func(name string) (os.FileInfo, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wired_by_name": "cli"
+    },
+    {
+      "concrete_adapter": "`os.Remove` (default in `New`)",
+      "field": "remove",
+      "properties": [
+        "S2-N3-M9-P2"
+      ],
+      "type": "func(name string) error",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wired_by_name": "cli"
+    }
+  ],
+  "diagram": {
+    "edges": [
+      {
+        "from": "S2-N3-M2",
+        "id": "R12",
+        "label": "writes new TOML on learn / remember / update",
+        "to": "S2-N3-M9"
+      },
+      {
+        "from": "S2-N3-M9",
+        "id": "R17",
+        "label": "writes new feedback + fact TOML",
+        "to": "S6"
+      },
+      {
+        "dotted": true,
+        "from": "S2-N3-M9",
+        "id": "D3",
+        "label": "DI back-edge: createTemp/rename/mkdirAll/stat/remove",
+        "to": "S2-N3-M2"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "S2-N3-M9",
+        "kind": "focus",
+        "name": "tomlwriter"
+      },
+      {
+        "id": "S2-N3-M2",
+        "kind": "component",
+        "name": "cli"
+      },
+      {
+        "id": "S6",
+        "kind": "external",
+        "name": "Engram memory store"
+      }
+    ]
+  },
+  "focus": {
+    "id": "S2-N3-M9",
+    "name": "tomlwriter"
+  },
   "legend_items": [
     "Solid arrows: runtime calls (R-edges) from L3.",
     "Dotted arrow: DI back-edge (D3) — function-value adapters wired by cli at tomlwriter.New."
   ],
-  "diagram": {
-    "nodes": [
-      {"id": "E28", "name": "tomlwriter", "kind": "focus"},
-      {"id": "E21", "name": "cli", "kind": "component"},
-      {"id": "E6", "name": "Engram memory store", "kind": "external"}
-    ],
-    "edges": [
-      {"id": "R12", "from": "E21", "to": "E28", "label": "writes new TOML on learn / remember / update"},
-      {"id": "R17", "from": "E28", "to": "E6", "label": "writes new feedback + fact TOML"},
-      {"id": "D3", "from": "E28", "to": "E21", "label": "DI back-edge: createTemp/rename/mkdirAll/stat/remove", "dotted": true}
-    ]
-  },
-  "dependency_manifest": [
-    {
-      "field": "createTemp",
-      "type": "func(dir, pattern string) (*os.File, error)",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "concrete_adapter": "`os.CreateTemp` (default in `New`)",
-      "properties": ["P1", "P2", "P5", "P6"]
-    },
-    {
-      "field": "rename",
-      "type": "func(oldpath, newpath string) error",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "concrete_adapter": "`os.Rename` (default in `New`)",
-      "properties": ["P1", "P2", "P6"]
-    },
-    {
-      "field": "mkdirAll",
-      "type": "func(path string, perm os.FileMode) error",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "concrete_adapter": "`os.MkdirAll` (default in `New`)",
-      "properties": ["P3", "P6"]
-    },
-    {
-      "field": "stat",
-      "type": "func(name string) (os.FileInfo, error)",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "concrete_adapter": "`os.Stat` (default in `New`)",
-      "properties": ["P4", "P6"]
-    },
-    {
-      "field": "remove",
-      "type": "func(name string) error",
-      "wired_by_id": "E21",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "concrete_adapter": "`os.Remove` (default in `New`)",
-      "properties": ["P2"]
-    }
-  ],
+  "level": 4,
+  "name": "tomlwriter",
+  "parent": "c3-engram-cli-binary.md",
   "properties": [
     {
-      "id": "P1",
+      "enforced_at": [
+        {
+          "line": 53,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 77,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
+      ],
+      "id": "S2-N3-M9-P1",
       "name": "Atomic publish",
+      "notes": "Temp file is created in the same directory as the target so rename is same-filesystem and atomic on POSIX.",
       "statement": "For all records R and target paths P, a successful `AtomicWrite(P, R)` makes R's TOML appear at P in one rename step — readers never observe a partial file at P.",
-      "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 53},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 77}
-      ],
       "tested_at": [
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 41},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 350}
-      ],
-      "notes": "Temp file is created in the same directory as the target so rename is same-filesystem and atomic on POSIX."
+        {
+          "line": 41,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 350,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        }
+      ]
     },
     {
-      "id": "P2",
+      "enforced_at": [
+        {
+          "line": 59,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 65,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 72,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 79,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
+      ],
+      "id": "S2-N3-M9-P2",
       "name": "Temp cleanup on failure",
+      "notes": "Encode-error path is exercised by injecting an unencodable value (chan int); close- and rename-error paths covered by DI mocks.",
       "statement": "For all records R and target paths P, if any step (encode, close, rename) of `AtomicWrite(P, R)` fails, the temp file is removed and no stray file is left in the target directory.",
-      "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 59},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 65},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 72},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 79}
-      ],
       "tested_at": [
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 19}
-      ],
-      "notes": "Encode-error path is exercised by injecting an unencodable value (chan int); close- and rename-error paths covered by DI mocks."
+        {
+          "line": 19,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        }
+      ]
     },
     {
-      "id": "P3",
+      "enforced_at": [
+        {
+          "line": 96,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 180,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
+      ],
+      "id": "S2-N3-M9-P3",
       "name": "Target directory is created",
+      "notes": "Routing by Type: \"fact\" → memory/facts, \"feedback\" → memory/feedback, otherwise → memories/.",
       "statement": "For all records R, slugs S, and data dirs D, `Write(R, S, D)` ensures the type-specific target directory (facts / feedback / memories) exists before writing, creating it with mode 0o750 if missing.",
-      "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 96},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 180}
-      ],
       "tested_at": [
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 69},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 390}
-      ],
-      "notes": "Routing by Type: \"fact\" → memory/facts, \"feedback\" → memory/feedback, otherwise → memories/."
+        {
+          "line": 69,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 390,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        }
+      ]
     },
     {
-      "id": "P4",
+      "enforced_at": [
+        {
+          "line": 130,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
+      ],
+      "id": "S2-N3-M9-P4",
       "name": "Filename collision avoidance",
-      "statement": "For all data dirs D and slugs S, repeated `Write` calls with the same slug produce distinct filenames: the first uses `<S>.toml`, subsequent calls use `<S>-2.toml`, `<S>-3.toml`, … picking the first numeric suffix not present in D.",
-      "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 130}
-      ],
+      "notes": "Stat errors other than IsNotExist are propagated as `tomlwriter: stat …` rather than silently treated as free.",
+      "statement": "For all data dirs D and slugs S, repeated `Write` calls with the same slug produce distinct filenames: the first uses `\u003cS\u003e.toml`, subsequent calls use `\u003cS\u003e-2.toml`, `\u003cS\u003e-3.toml`, … picking the first numeric suffix not present in D.",
       "tested_at": [
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 200},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 90}
-      ],
-      "notes": "Stat errors other than IsNotExist are propagated as `tomlwriter: stat …` rather than silently treated as free."
+        {
+          "line": 200,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 90,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        }
+      ]
     },
     {
-      "id": "P5",
+      "enforced_at": [
+        {
+          "line": 101,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 190,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
+      ],
+      "id": "S2-N3-M9-P5",
       "name": "Slug normalization",
+      "notes": "Property test exercises the alphabet `[A-Za-z0-9 \\-_]`. Behaviour outside that alphabet (e.g., unicode) is not pinned by tests.",
       "statement": "For all input summaries S drawn from `[A-Za-z0-9 \\-_]*`, the resulting filename slug is non-empty, lowercase, hyphen-separated, and matches `^[a-z0-9]+(-[a-z0-9]+)*$`; an empty or all-separator input becomes the literal slug `memory`.",
-      "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 101},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 190}
-      ],
       "tested_at": [
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 246},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 270}
-      ],
-      "notes": "Property test exercises the alphabet `[A-Za-z0-9 \\-_]`. Behaviour outside that alphabet (e.g., unicode) is not pinned by tests."
+        {
+          "line": 246,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 270,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        }
+      ]
     },
     {
-      "id": "P6",
+      "enforced_at": [
+        {
+          "line": 112,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 116,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
+      ],
+      "id": "S2-N3-M9-P6",
       "name": "Timestamp defaulting",
+      "notes": "Caller-supplied timestamps are preserved (asserted in TestWrite_CreatesTomlFileWithAllFields). The default-population branch is observed indirectly via duplicate-suffix and atomic-write tests but not asserted as RFC3339-shaped.",
       "statement": "For all records R passed to `Write`, on return either R.CreatedAt and R.UpdatedAt are both already set (caller-supplied values preserved) or are populated with the current time formatted as RFC3339 UTC.",
-      "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 112},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 116}
-      ],
       "tested_at": [
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 153}
-      ],
-      "notes": "Caller-supplied timestamps are preserved (asserted in TestWrite_CreatesTomlFileWithAllFields). The default-population branch is observed indirectly via duplicate-suffix and atomic-write tests but not asserted as RFC3339-shaped."
+        {
+          "line": 153,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        }
+      ]
     },
     {
-      "id": "P7",
+      "enforced_at": [
+        {
+          "line": 55,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 67,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 74,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 81,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 98,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 140,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
+      ],
+      "id": "S2-N3-M9-P7",
       "name": "Error wrapping with context",
+      "notes": "Each error path is asserted via DI-injected failure and ContainSubstring on the wrapped message.",
       "statement": "For all I/O failure paths in `Write` and `AtomicWrite`, the returned error wraps the underlying error with a human-readable phase prefix (`creating temp file`, `encoding TOML`, `closing temp file`, `renaming temp file`, `tomlwriter: create memories dir`, `tomlwriter: stat …`).",
-      "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 55},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 67},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 74},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 81},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 98},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 140}
-      ],
       "tested_at": [
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 69},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 90},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 111},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 132}
-      ],
-      "notes": "Each error path is asserted via DI-injected failure and ContainSubstring on the wrapped message."
+        {
+          "line": 69,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 90,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 111,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 132,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        }
+      ]
     },
     {
-      "id": "P8",
+      "enforced_at": [
+        {
+          "line": 22,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 31,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
+      ],
+      "id": "S2-N3-M9-P8",
       "name": "All I/O is injectable",
+      "notes": "Architectural property derived from project DI principle (CLAUDE.md). Validated indirectly: the With* options exercised by tests demonstrate every syscall is overridable.",
       "statement": "For all functions in package tomlwriter, every filesystem syscall (CreateTemp, Rename, MkdirAll, Stat, Remove) is invoked through a Writer field, never via direct `os.*` call — defaults are wired only inside `New`.",
-      "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 22},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 31}
-      ],
       "tested_at": [
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 69},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 90},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 111},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 132}
-      ],
-      "notes": "Architectural property derived from project DI principle (CLAUDE.md). Validated indirectly: the With* options exercised by tests demonstrate every syscall is overridable."
+        {
+          "line": 69,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 90,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 111,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 132,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        }
+      ]
     },
     {
-      "id": "P9",
+      "enforced_at": [
+        {
+          "line": 101,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
+      ],
+      "id": "S2-N3-M9-P9",
       "name": "Empty slug fallback",
+      "notes": "Distinct from P5: P5 covers the slugify-empty-result fallback; P9 covers the caller-passed-empty-string short-circuit before slugify.",
       "statement": "For all calls `Write(R, \"\", D)`, the empty slug is replaced by the literal `memory` before slug normalization, so the file becomes `memory.toml` (or `memory-N.toml` on collision).",
-      "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 101}
-      ],
-      "tested_at": [],
-      "notes": "Distinct from P5: P5 covers the slugify-empty-result fallback; P9 covers the caller-passed-empty-string short-circuit before slugify."
+      "tested_at": []
     },
     {
-      "id": "P10",
+      "enforced_at": [
+        {
+          "line": 107,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 125,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
+      ],
+      "id": "S2-N3-M9-P10",
       "name": "Returned path is the written file",
+      "notes": "",
       "statement": "For all successful `Write(R, S, D)` calls, the returned path satisfies (a) `filepath.Base` ends with `.toml`, (b) the file exists at that path after return, and (c) the path is under the type-specific target directory.",
-      "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 107},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 125}
-      ],
       "tested_at": [
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 153},
-        {"path": "internal/tomlwriter/tomlwriter_test.go", "line": 350}
-      ],
-      "notes": ""
+        {
+          "line": 153,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        },
+        {
+          "line": 350,
+          "path": "internal/tomlwriter/tomlwriter_test.go"
+        }
+      ]
     },
     {
-      "id": "P11",
-      "name": "Path cleaning",
-      "statement": "For all target paths P passed to `AtomicWrite`, the rename destination and the temp directory are computed from `filepath.Clean(P)`, so trailing slashes, `.`, and `..` segments are normalized before any filesystem call.",
       "enforced_at": [
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 50},
-        {"path": "internal/tomlwriter/tomlwriter.go", "line": 51}
+        {
+          "line": 50,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        },
+        {
+          "line": 51,
+          "path": "internal/tomlwriter/tomlwriter.go"
+        }
       ],
-      "tested_at": [],
-      "notes": "Defensive normalization; no test asserts behaviour for unclean inputs."
+      "id": "S2-N3-M9-P11",
+      "name": "Path cleaning",
+      "notes": "Defensive normalization; no test asserts behaviour for unclean inputs.",
+      "statement": "For all target paths P passed to `AtomicWrite`, the rename destination and the temp directory are computed from `filepath.Clean(P)`, so trailing slashes, `.`, and `..` segments are normalized before any filesystem call.",
+      "tested_at": []
     }
+  ],
+  "schema_version": "1",
+  "sources": [
+    "internal/tomlwriter/tomlwriter.go",
+    "internal/tomlwriter/tomlwriter_test.go"
   ]
 }

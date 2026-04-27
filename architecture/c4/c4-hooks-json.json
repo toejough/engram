@@ -1,133 +1,237 @@
 {
-  "schema_version": "1",
-  "level": 4,
-  "name": "hooks-json",
-  "parent": "c3-hooks.md",
-  "focus": {
-    "id": "E16",
-    "name": "hooks.json",
-    "l3_container": "c3-hooks.md"
-  },
-  "sources": [
-    "hooks/hooks.json"
-  ],
   "context_prose": "hooks.json is the static manifest Claude Code reads at plugin load. It maps three lifecycle events — SessionStart, UserPromptSubmit, and PostToolUse — to one bash script each, addressed via the `${CLAUDE_PLUGIN_ROOT}` placeholder so the manifest stays portable across install paths. Each registration is a `command`-typed hook with a per-event timeout (10s for SessionStart so the async rebuild has room to fork; 5s each for UserPromptSubmit and PostToolUse, which only emit JSON). The manifest contains no logic, no shared state, and no fallbacks — it is a pure declarative wiring that defines which scripts fire on which events and how long Claude Code will wait for them.",
+  "diagram": {
+    "edges": [
+      {
+        "from": "S3",
+        "id": "R1",
+        "label": "reads manifest at plugin load",
+        "to": "S2-N2-M1"
+      },
+      {
+        "from": "S2-N2-M1",
+        "id": "R2",
+        "label": "SessionStart -\u003e script (10s)",
+        "to": "S2-N2-M2"
+      },
+      {
+        "from": "S2-N2-M1",
+        "id": "R3",
+        "label": "UserPromptSubmit -\u003e script (5s)",
+        "to": "S2-N2-M3"
+      },
+      {
+        "from": "S2-N2-M1",
+        "id": "R4",
+        "label": "PostToolUse -\u003e script (5s)",
+        "to": "S2-N2-M4"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "S2-N2-M1",
+        "kind": "focus",
+        "name": "hooks.json",
+        "subtitle": "manifest"
+      },
+      {
+        "id": "S2-N2-M2",
+        "kind": "component",
+        "name": "session-start.sh",
+        "subtitle": "SessionStart, 10s"
+      },
+      {
+        "id": "S2-N2-M3",
+        "kind": "component",
+        "name": "user-prompt-submit.sh",
+        "subtitle": "UserPromptSubmit, 5s"
+      },
+      {
+        "id": "S2-N2-M4",
+        "kind": "component",
+        "name": "post-tool-use.sh",
+        "subtitle": "PostToolUse, 5s"
+      },
+      {
+        "id": "S3",
+        "kind": "external",
+        "name": "Claude Code",
+        "subtitle": "plugin host"
+      }
+    ]
+  },
+  "focus": {
+    "id": "S2-N2-M1",
+    "name": "hooks.json"
+  },
   "legend_items": [
     "**focus** (yellow): the manifest file in scope for this ledger.",
     "**component** (light blue): the three bash scripts the manifest registers.",
     "**external** (grey): Claude Code, the runtime that reads the manifest and execs the scripts."
   ],
-  "diagram": {
-    "nodes": [
-      {"id": "E16", "name": "hooks.json", "subtitle": "manifest", "kind": "focus"},
-      {"id": "E17", "name": "session-start.sh", "subtitle": "SessionStart, 10s", "kind": "component"},
-      {"id": "E18", "name": "user-prompt-submit.sh", "subtitle": "UserPromptSubmit, 5s", "kind": "component"},
-      {"id": "E19", "name": "post-tool-use.sh", "subtitle": "PostToolUse, 5s", "kind": "component"},
-      {"id": "E3", "name": "Claude Code", "subtitle": "plugin host", "kind": "external"}
-    ],
-    "edges": [
-      {"id": "R1", "from": "E3", "to": "E16", "label": "reads manifest at plugin load"},
-      {"id": "R2", "from": "E16", "to": "E17", "label": "SessionStart -> script (10s)"},
-      {"id": "R3", "from": "E16", "to": "E18", "label": "UserPromptSubmit -> script (5s)"},
-      {"id": "R4", "from": "E16", "to": "E19", "label": "PostToolUse -> script (5s)"}
-    ]
-  },
+  "level": 4,
+  "name": "hooks-json",
+  "parent": "c3-hooks.md",
   "properties": [
     {
-      "id": "P1",
+      "enforced_at": [
+        {
+          "line": 2,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P1",
       "name": "Three events registered",
+      "notes": "Adding or removing an event here changes the L3 catalog (E16 description) and requires a c3-hooks.md update.",
       "statement": "For all plugin loads, hooks.json declares hook entries for exactly the three lifecycle events SessionStart, UserPromptSubmit, and PostToolUse — no more, no fewer.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 2}],
-      "tested_at": [],
-      "notes": "Adding or removing an event here changes the L3 catalog (E16 description) and requires a c3-hooks.md update."
+      "tested_at": []
     },
     {
-      "id": "P2",
+      "enforced_at": [
+        {
+          "line": 8,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P2",
       "name": "SessionStart wired to session-start.sh",
+      "notes": "Refines L3 R2.",
       "statement": "For all SessionStart events fired by Claude Code, the manifest registers `${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh` as the command to exec.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 8}],
-      "tested_at": [],
-      "notes": "Refines L3 R2."
+      "tested_at": []
     },
     {
-      "id": "P3",
+      "enforced_at": [
+        {
+          "line": 30,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P3",
       "name": "UserPromptSubmit wired to user-prompt-submit.sh",
+      "notes": "Refines L3 R3.",
       "statement": "For all UserPromptSubmit events fired by Claude Code, the manifest registers `${CLAUDE_PLUGIN_ROOT}/hooks/user-prompt-submit.sh` as the command to exec.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 30}],
-      "tested_at": [],
-      "notes": "Refines L3 R3."
+      "tested_at": []
     },
     {
-      "id": "P4",
+      "enforced_at": [
+        {
+          "line": 19,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P4",
       "name": "PostToolUse wired to post-tool-use.sh",
+      "notes": "Refines L3 R4.",
       "statement": "For all PostToolUse events fired by Claude Code, the manifest registers `${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-use.sh` as the command to exec.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 19}],
-      "tested_at": [],
-      "notes": "Refines L3 R4."
+      "tested_at": []
     },
     {
-      "id": "P5",
+      "enforced_at": [
+        {
+          "line": 7,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P5",
       "name": "All hooks are command type",
+      "notes": "Command-type hooks exec a subprocess; the scripts read JSON stdin and emit additionalContext on stdout.",
       "statement": "For all hook entries in the manifest, the `type` field is exactly `command` — no prompt-type or other hook variants are used.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 7}],
-      "tested_at": [],
-      "notes": "Command-type hooks exec a subprocess; the scripts read JSON stdin and emit additionalContext on stdout."
+      "tested_at": []
     },
     {
-      "id": "P6",
+      "enforced_at": [
+        {
+          "line": 8,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P6",
       "name": "Portable plugin-root paths",
+      "notes": "Claude Code substitutes the placeholder at exec time.",
       "statement": "For all hook commands, the script path is prefixed with the literal `${CLAUDE_PLUGIN_ROOT}/` placeholder rather than an absolute or repo-relative path, so the manifest works regardless of where Claude Code installs the plugin.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 8}],
-      "tested_at": [],
-      "notes": "Claude Code substitutes the placeholder at exec time."
+      "tested_at": []
     },
     {
-      "id": "P7",
+      "enforced_at": [
+        {
+          "line": 9,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P7",
       "name": "SessionStart timeout is 10s",
+      "notes": "Longer than the other two because session-start.sh forks an async go build; the parent must finish quickly but needs headroom for the fork.",
       "statement": "For all SessionStart hook executions, Claude Code waits up to 10 seconds for the hook to return before timing it out.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 9}],
-      "tested_at": [],
-      "notes": "Longer than the other two because session-start.sh forks an async go build; the parent must finish quickly but needs headroom for the fork."
+      "tested_at": []
     },
     {
-      "id": "P8",
+      "enforced_at": [
+        {
+          "line": 31,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P8",
       "name": "UserPromptSubmit timeout is 5s",
+      "notes": "user-prompt-submit.sh only emits a fixed JSON reminder; 5s is generous.",
       "statement": "For all UserPromptSubmit hook executions, Claude Code waits up to 5 seconds for the hook to return before timing it out.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 31}],
-      "tested_at": [],
-      "notes": "user-prompt-submit.sh only emits a fixed JSON reminder; 5s is generous."
+      "tested_at": []
     },
     {
-      "id": "P9",
+      "enforced_at": [
+        {
+          "line": 20,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P9",
       "name": "PostToolUse timeout is 5s",
+      "notes": "post-tool-use.sh only emits a fixed JSON reminder; 5s is generous.",
       "statement": "For all PostToolUse hook executions, Claude Code waits up to 5 seconds for the hook to return before timing it out.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 20}],
-      "tested_at": [],
-      "notes": "post-tool-use.sh only emits a fixed JSON reminder; 5s is generous."
+      "tested_at": []
     },
     {
-      "id": "P10",
+      "enforced_at": [
+        {
+          "line": 3,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P10",
       "name": "One script per event",
+      "notes": "Each event's `hooks` array has length 1, and the three scripts are distinct.",
       "statement": "For each registered event, the manifest binds exactly one hook script — no event chains multiple commands and no script is registered to more than one event.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 3}],
-      "tested_at": [],
-      "notes": "Each event's `hooks` array has length 1, and the three scripts are distinct."
+      "tested_at": []
     },
     {
-      "id": "P11",
+      "enforced_at": [
+        {
+          "line": 14,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P11",
       "name": "No matcher filters",
+      "notes": "PostToolUse in particular fires for every tool call rather than a filtered subset.",
       "statement": "For all hook entries, no `matcher` field is set, so the registered script fires on every occurrence of its event regardless of tool name or other Claude Code metadata.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 14}],
-      "tested_at": [],
-      "notes": "PostToolUse in particular fires for every tool call rather than a filtered subset."
+      "tested_at": []
     },
     {
-      "id": "P12",
+      "enforced_at": [
+        {
+          "line": 1,
+          "path": "hooks/hooks.json"
+        }
+      ],
+      "id": "S2-N2-M1-P12",
       "name": "Pure declarative manifest",
+      "notes": "All behavior lives in the referenced bash scripts; the manifest's only job is wiring.",
       "statement": "For all reads of hooks.json, the file contains only static JSON describing event-to-command bindings — no scripts, environment variables (other than the documented `${CLAUDE_PLUGIN_ROOT}` placeholder), or executable logic live here.",
-      "enforced_at": [{"path": "hooks/hooks.json", "line": 1}],
-      "tested_at": [],
-      "notes": "All behavior lives in the referenced bash scripts; the manifest's only job is wiring."
+      "tested_at": []
     }
+  ],
+  "schema_version": "1",
+  "sources": [
+    "hooks/hooks.json"
   ]
 }
