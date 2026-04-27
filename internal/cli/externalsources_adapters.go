@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -131,7 +132,7 @@ func osStatExists(path string) (bool, error) {
 		return true, nil
 	}
 
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 
@@ -141,40 +142,16 @@ func osStatExists(path string) (bool, error) {
 // osWalkMd returns absolute paths to all *.md files under root (recursive).
 // Errors and missing directories are silently treated as empty.
 func osWalkMd(root string) []string {
-	found := make([]string, 0)
-
-	_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return nil //nolint:nilerr // skip unreadable subtrees, continue walk
-		}
-
-		if filepath.Ext(entry.Name()) == ".md" {
-			found = append(found, path)
-		}
-
-		return nil
+	return walkMatching(root, func(entry fs.DirEntry) bool {
+		return filepath.Ext(entry.Name()) == ".md"
 	})
-
-	return found
 }
 
 // osWalkSkills returns absolute paths to all SKILL.md files under root.
 func osWalkSkills(root string) []string {
-	found := make([]string, 0)
-
-	_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return nil //nolint:nilerr // skip unreadable subtrees, continue walk
-		}
-
-		if entry.Name() == "SKILL.md" {
-			found = append(found, path)
-		}
-
-		return nil
+	return walkMatching(root, func(entry fs.DirEntry) bool {
+		return entry.Name() == "SKILL.md"
 	})
-
-	return found
 }
 
 // readAutoMemoryDirectorySetting returns an AutoMemorySettingsFunc that reads
@@ -204,4 +181,24 @@ func readAutoMemoryDirectorySetting(home string) externalsources.AutoMemorySetti
 
 		return "", false
 	}
+}
+
+// walkMatching returns absolute paths to every non-directory entry under root
+// for which match returns true. Per-subtree errors are silently skipped.
+func walkMatching(root string, match func(fs.DirEntry) bool) []string {
+	found := make([]string, 0)
+
+	_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return nil //nolint:nilerr // skip unreadable subtrees, continue walk
+		}
+
+		if match(entry) {
+			found = append(found, path)
+		}
+
+		return nil
+	})
+
+	return found
 }
