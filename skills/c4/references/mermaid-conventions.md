@@ -192,6 +192,11 @@ flowchart LR
 L4 diagrams contain only L3-present elements (no synthetic externals invented at L4). DI
 callbacks land back on the L3 element that wired the dep, not on the wired-through external.
 
+Enforced at build time by `targ c4-l4-build`: it rejects diagram node ids outside `E<n>` (and
+any `E<n>` not in the L1-L3 registry derived from sibling `c{1,2,3}-*.json`) and edge ids
+outside bare `R<n>` (call) or `D<n>` (DI back-edge) — no letter suffixes (`R2a`, `Rjq`), no
+other prefixes (`EXT1`, `X1`). Read the build error for the specific violation and fix.
+
 ## Pre-rendering to SVG (ELK layout)
 
 GitHub's Mermaid renderer does **not** support the ELK layout engine — `@mermaid-js/layout-elk`
