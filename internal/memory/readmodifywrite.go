@@ -137,13 +137,13 @@ type Modifier struct {
 	writer   AtomicWriter
 }
 
-// NewModifier creates a Modifier with real filesystem operations.
-// The caller must provide a writer via WithModifierWriter; if none is given,
-// the Modifier will panic on first use. This avoids importing tomlwriter
-// from the memory package.
-func NewModifier(opts ...ModifierOption) *Modifier {
+// NewModifier creates a Modifier with the given AtomicWriter and default
+// filesystem read. The writer is required so the Modifier cannot be misused;
+// pass a tomlwriter.Writer (or any AtomicWriter) at the wiring edge.
+func NewModifier(writer AtomicWriter, opts ...ModifierOption) *Modifier {
 	m := &Modifier{
 		readFile: os.ReadFile,
+		writer:   writer,
 	}
 
 	for _, opt := range opts {
@@ -199,11 +199,6 @@ func WithListerReadFile(fn func(string) ([]byte, error)) ListerOption {
 // WithModifierReadFile overrides the file reading function.
 func WithModifierReadFile(fn func(string) ([]byte, error)) ModifierOption {
 	return func(m *Modifier) { m.readFile = fn }
-}
-
-// WithModifierWriter sets the AtomicWriter for atomic writes.
-func WithModifierWriter(w AtomicWriter) ModifierOption {
-	return func(m *Modifier) { m.writer = w }
 }
 
 // isNotExist checks if an error wraps os.ErrNotExist.

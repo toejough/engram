@@ -481,18 +481,16 @@ func TestModifier_CleansUpTempOnFailure(t *testing.T) {
 
 	removeCalled := false
 
-	modifier := memory.NewModifier(
-		memory.WithModifierWriter(tomlwriter.New(
-			tomlwriter.WithRename(func(_, _ string) error {
-				return errors.New("rename failed")
-			}),
-			tomlwriter.WithRemove(func(_ string) error {
-				removeCalled = true
+	modifier := memory.NewModifier(tomlwriter.New(
+		tomlwriter.WithRename(func(_, _ string) error {
+			return errors.New("rename failed")
+		}),
+		tomlwriter.WithRemove(func(_ string) error {
+			removeCalled = true
 
-				return nil
-			}),
-		)),
-	)
+			return nil
+		}),
+	))
 
 	writeErr := modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
 		r.Source = "mutated"
@@ -508,10 +506,10 @@ func TestModifier_ReadFileError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	modifier := memory.NewModifier(
+		tomlwriter.New(),
 		memory.WithModifierReadFile(func(_ string) ([]byte, error) {
 			return nil, errors.New("injected read error")
 		}),
-		memory.WithModifierWriter(tomlwriter.New()),
 	)
 
 	err := modifier.ReadModifyWrite("/fake/path.toml", func(r *memory.MemoryRecord) {
@@ -551,9 +549,7 @@ func TestModifier_WithDI(t *testing.T) {
 		return
 	}
 
-	modifier := memory.NewModifier(
-		memory.WithModifierWriter(tomlwriter.New()),
-	)
+	modifier := memory.NewModifier(tomlwriter.New())
 
 	err = modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
 		r.Source = "mutated"
@@ -604,14 +600,14 @@ func TestModifier_WriterError(t *testing.T) {
 	tomlData := buf.Bytes()
 
 	modifier := memory.NewModifier(
-		memory.WithModifierReadFile(func(_ string) ([]byte, error) {
-			return tomlData, nil
-		}),
-		memory.WithModifierWriter(tomlwriter.New(
+		tomlwriter.New(
 			tomlwriter.WithCreateTemp(func(_, _ string) (*os.File, error) {
 				return nil, errors.New("injected create error")
 			}),
-		)),
+		),
+		memory.WithModifierReadFile(func(_ string) ([]byte, error) {
+			return tomlData, nil
+		}),
 	)
 
 	err := modifier.ReadModifyWrite("/fake/path.toml", func(r *memory.MemoryRecord) {
@@ -630,10 +626,10 @@ func TestReadModifyWrite_DecodeError_InjectedInvalidTOML(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	modifier := memory.NewModifier(
+		tomlwriter.New(),
 		memory.WithModifierReadFile(func(_ string) ([]byte, error) {
 			return []byte("not = [valid toml"), nil
 		}),
-		memory.WithModifierWriter(tomlwriter.New()),
 	)
 
 	err := modifier.ReadModifyWrite("/fake/path.toml", func(r *memory.MemoryRecord) {
@@ -661,9 +657,7 @@ func TestReadModifyWrite_InvalidTOML(t *testing.T) {
 		return
 	}
 
-	modifier := memory.NewModifier(
-		memory.WithModifierWriter(tomlwriter.New()),
-	)
+	modifier := memory.NewModifier(tomlwriter.New())
 
 	err = modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
 		r.Source = "mutated"
@@ -692,14 +686,14 @@ func TestReadModifyWrite_MutateIsCalledWithDecodedRecord(t *testing.T) {
 	var capturedRecord *memory.MemoryRecord
 
 	modifier := memory.NewModifier(
-		memory.WithModifierReadFile(func(_ string) ([]byte, error) {
-			return tomlData, nil
-		}),
-		memory.WithModifierWriter(tomlwriter.New(
+		tomlwriter.New(
 			tomlwriter.WithCreateTemp(func(_, _ string) (*os.File, error) {
 				return nil, errors.New("stop after mutate")
 			}),
-		)),
+		),
+		memory.WithModifierReadFile(func(_ string) ([]byte, error) {
+			return tomlData, nil
+		}),
 	)
 
 	_ = modifier.ReadModifyWrite("/fake/path.toml", func(r *memory.MemoryRecord) {
@@ -743,9 +737,7 @@ func TestReadModifyWrite_MutatesField(t *testing.T) {
 		return
 	}
 
-	modifier := memory.NewModifier(
-		memory.WithModifierWriter(tomlwriter.New()),
-	)
+	modifier := memory.NewModifier(tomlwriter.New())
 
 	err = modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
 		r.Source = "mutated"
@@ -781,9 +773,7 @@ func TestReadModifyWrite_NonexistentFile(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	modifier := memory.NewModifier(
-		memory.WithModifierWriter(tomlwriter.New()),
-	)
+	modifier := memory.NewModifier(tomlwriter.New())
 
 	err := modifier.ReadModifyWrite("/nonexistent/path/test.toml", func(r *memory.MemoryRecord) {
 		r.Source = "mutated"
@@ -828,9 +818,7 @@ func TestReadModifyWrite_PreservesAllFields(t *testing.T) {
 		return
 	}
 
-	modifier := memory.NewModifier(
-		memory.WithModifierWriter(tomlwriter.New()),
-	)
+	modifier := memory.NewModifier(tomlwriter.New())
 
 	err = modifier.ReadModifyWrite(path, func(r *memory.MemoryRecord) {
 		r.Source = "mutated"
