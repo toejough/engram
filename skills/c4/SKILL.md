@@ -32,15 +32,19 @@ Dispatch by intent. The user invokes `/c4 <sub-action> [args]`.
    :::external / :::container / :::component` classes. See `references/mermaid-conventions.md`.
 5. **Cross-link in the file body.** No index file. Each file names its parent and children
    directly with relative paths.
-6. **Every diagram element and edge carries an ID.** Each catalog row gets `E1, E2, …`, each
-   relationships row gets `R1, R2, …`, and the same IDs appear inside the mermaid node labels
-   and edge labels. Every L1–L3 node also gets a `click NODE href "#anchor"` directive that
-   links to the catalog row's anchor. Catalog and relationships rows carry HTML anchors
-   (`<a id="e1-…"></a>`) so the links resolve. Mismatches (a node ID with no catalog row, or a
-   catalog row whose ID isn't on the diagram) are reported as drift findings by `review` and
-   `audit`. See `references/mermaid-conventions.md` for the exact pattern. *(L4 ledgers use
-   `P1, P2, …` for properties and have a small context-strip diagram showing only L3
-   neighbors; click directives are dropped because the diagram is rendered to static SVG.)*
+6. **Every diagram element and edge carries a hierarchical ID.** Node IDs follow a level-scoped
+   namespace: L1 nodes use `S<n>`, L2 nodes use `N<n>`, L3 nodes use `M<n>`, L4 properties use
+   `P<n>`. Cross-doc references use the full hyphen-separated path (`S2-N3-M5-P1`). Relationship
+   rows use `R<n>` (direct calls) and `D<n>` (DI back-edges), both flat per-diagram. The same
+   IDs appear inside mermaid node labels and edge labels. Every L1–L3 node also gets a
+   `click NODE href "#anchor"` directive linking to the catalog row's anchor. Catalog and
+   relationships rows carry HTML anchors (`<a id="s1-…"></a>`, `<a id="m3-…"></a>`, etc.) so
+   the links resolve. Mismatches (a node ID with no catalog row, or a catalog row whose ID isn't
+   on the diagram) are reported as drift findings by `review` and `audit`. See
+   `references/mermaid-conventions.md` for the exact pattern. Lower-level docs consult
+   higher-level docs to find their ancestors' path prefix when constructing cross-doc references.
+   ID validation is syntactic — `ParseIDPath` enforces the namespace rules; no global registry
+   is needed.
 7. **DI back-edges are dotted and use the D[n] namespace.** When a focus component receives
    DI dependencies wired by another component, draw a dotted edge `consumer → wirer` labelled
    `D[n]` on both the parent L3 diagram and the L4 context strip. D-ids are independent of
@@ -110,25 +114,23 @@ two L3-specific additions: each diagram has a `focus` field naming the L2
 container being refined, and components carry `code_pointer` paths that the
 audit verifies.
 
-1. **Run `targ c4-registry --dir architecture/c4`** to learn which E-IDs are
-   already taken across the existing diagrams. Pick component IDs that are
-   free; pick `from_parent` IDs that already exist with the correct names.
-2. Read the parent c2 file. The L3's `focus.id`/`focus.name` must match an
-   in-scope element of the parent.
-3. **Author `architecture/c4/c3-<name>.json`** per the L3Spec schema:
-   `focus` (id, name, responsibility), `elements` (each with explicit E-ID;
+1. Read the parent c2 file to find the parent's node IDs (e.g., `N3`).
+   The L3's `focus.id`/`focus.name` must match an in-scope element of the parent.
+   L3 component IDs use `M<n>` scoped within this diagram (start at `M1`).
+   `from_parent` neighbors carry IDs/names from the parent c2 spec.
+2. **Author `architecture/c4/c3-<name>.json`** per the L3Spec schema:
+   `focus` (id, name, responsibility), `elements` (each with explicit `M<n>` ID;
    `kind: "component"` requires `code_pointer`; `from_parent: true`
-   neighbors carry IDs/names registered by peer specs), and `relationships`
+   neighbors carry IDs/names from peer specs), and `relationships`
    referencing element names or `focus.name`.
-4. **Run `targ c4-l3-build --input architecture/c4/c3-<name>.json --noconfirm`**
+3. **Run `targ c4-l3-build --input architecture/c4/c3-<name>.json --noconfirm`**
    to emit the markdown.
-5. **Run `targ c4-audit --file architecture/c4/c3-<name>.md`** to verify
+4. **Run `targ c4-audit --file architecture/c4/c3-<name>.md`** to verify
    zero findings.
-6. **Run the Propagation Discipline sweep** (see below) — for an L3 create,
-   that means updating the parent c2's `cross_links.refined_by`, rebuilding
-   existing c3 siblings so their auto-generated cross-links pick up the new
-   file, and confirming `targ c4-registry` is conflict-free.
-7. Show the rendered markdown to the user for approval; commit both `.json`
+5. **Run the Propagation Discipline sweep** (see below) — for an L3 create,
+   that means updating the parent c2's `cross_links.refined_by` and rebuilding
+   existing c3 siblings so their auto-generated cross-links pick up the new file.
+6. Show the rendered markdown to the user for approval; commit both `.json`
    and `.md`.
 
 For `update`: edit the JSON, rerun `targ c4-l3-build`, rerun
@@ -143,7 +145,7 @@ Discipline** (see below). One-pass single-tier authoring tends to
 over-decompose, miss test pointers, and let plausible-but-wrong rows
 stand. The discipline is non-negotiable.
 
-1. Read the parent c3 file to learn relevant E-IDs and neighbor names.
+1. Read the parent c3 file to learn relevant `M<n>` IDs and neighbor names.
    The L4's `focus.id` MUST already exist in the parent c3.
 2. **Tier 1 — wide scan.** Dispatch a Haiku-class sub-agent at the
    component's source (Go package files, skill markdown, hook script,
@@ -287,8 +289,7 @@ the registry will surface on the next audit.
    its `from_parent` carry-overs still match the parent's element names and
    IDs. Rebuild any child whose carry-overs drift.
 
-4. **Sweep.** Run `targ c4-audit` on every modified `.md` and
-   `targ c4-registry --dir architecture/c4`. Goal: zero findings. Capture
+4. **Sweep.** Run `targ c4-audit` on every modified `.md`. Goal: zero findings. Capture
    intentional gaps as Drift Notes in the relevant file.
 
 ### Rule 3 reconciliation
@@ -308,7 +309,7 @@ weren't tasked to change. Propagation needs reconciling with that:
 | Excuse | Reality |
 |---|---|
 | "That's pre-existing drift, not caused by my change" | If you're touching this set, leaving known drift in place creates audit findings on the next run. Fix it as part of your change, or capture it as a Drift Note. |
-| "The change is too small to need propagation" | Every C4 file cross-references peers. Skipping the sweep means the registry surfaces conflicts later when context is gone. |
+| "The change is too small to need propagation" | Every C4 file cross-references peers. Skipping the sweep means `c4-audit` surfaces conflicts later when context is gone. |
 | "Rebuilding peers feels like editing files I shouldn't" | Idempotent rebuilds of auto-generated sections are propagation; see Rule 3 reconciliation above. |
 | "I'll catch it in the next audit" | The next audit may be in a different session, after the rationale has been lost. Propagate now. |
 

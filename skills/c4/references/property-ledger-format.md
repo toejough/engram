@@ -69,13 +69,13 @@ the single L3 D-edge.
 | Concrete adapter | The actual value the wirer supplies: `os.Getenv`, an inline closure, a default like `os.CreateTemp`. |
 | Properties | Comma-separated P-IDs from this same ledger that depend on this dep. Use range notation for contiguous runs. |
 
-Example (from c4-tokenresolver.md):
+Example (from c4-tokenresolver.md, where tokenresolver is `S2-N1-M7`):
 
 | Dep field | Type | Wired by | Concrete adapter | Properties |
 |---|---|---|---|---|
-| `getenv` | `func(string) string` | [E21 · cli](c3-engram-cli-binary.md#e21-cli) ([c4-cli.md](c4-cli.md)) | `os.Getenv` | P1, P2, P8 |
-| `execCmd` | `func(ctx, name, args...) ([]byte, error)` | [E21 · cli](c3-engram-cli-binary.md#e21-cli) ([c4-cli.md](c4-cli.md)) | inline closure wrapping `exec.CommandContext` | P2–P8 |
-| `goos` | `string` | [E21 · cli](c3-engram-cli-binary.md#e21-cli) ([c4-cli.md](c4-cli.md)) | `runtime.GOOS` | P3, P8 |
+| `getenv` | `func(string) string` | [M1 · cli](c3-engram-cli-binary.md#m1-cli) ([c4-cli.md](c4-cli.md)) | `os.Getenv` | S2-N1-M7-P1, S2-N1-M7-P2, S2-N1-M7-P8 |
+| `execCmd` | `func(ctx, name, args...) ([]byte, error)` | [M1 · cli](c3-engram-cli-binary.md#m1-cli) ([c4-cli.md](c4-cli.md)) | inline closure wrapping `exec.CommandContext` | S2-N1-M7-P2–P8 |
+| `goos` | `string` | [M1 · cli](c3-engram-cli-binary.md#m1-cli) ([c4-cli.md](c4-cli.md)) | `runtime.GOOS` | S2-N1-M7-P3, S2-N1-M7-P8 |
 
 ## DI Wires (provider-side)
 

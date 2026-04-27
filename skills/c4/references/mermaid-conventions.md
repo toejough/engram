@@ -74,25 +74,27 @@ Every L1–L3 diagram is paired with two tables: an **Element Catalog** (catalog
 make every diagram node click through to its catalog row — the c4 skill enforces this
 convention:
 
-1. **Every catalog row has an ID** of the form `E1`, `E2`, … (one per row, sequential).
+1. **Every catalog row has a level-scoped ID:** `S<n>` at L1, `N<n>` at L2, `M<n>` at L3.
+   IDs are sequential within a diagram. Cross-doc references use the full hyphen-separated
+   path (e.g., `S2-N3-M5`). Lower-level docs read their parent to find the path prefix.
 2. **Every relationships row has an ID** of the form `R1`, `R2`, … (one per row, sequential).
-3. **Every mermaid node label embeds its catalog ID:** `engram[E2 · Engram plugin]`. The dot
+3. **Every mermaid node label embeds its catalog ID:** `engram[N2 · Engram plugin]`. The dot
    separator is for readability; the ID prefix is the contract.
 4. **Every mermaid edge label embeds its relationship ID:** `cc -->|R2: loads skills + fires hooks| engram`.
 5. **Every node has a `click` directive** to its catalog row's anchor:
    ```mermaid
-   click engram href "#e2-engram-plugin" "Engram plugin"
+   click engram href "#n2-engram-plugin" "Engram plugin"
    ```
 6. **Every catalog and relationships row has an HTML anchor** in its first cell so the click
    resolves on GitHub:
    ```markdown
-   | <a id="e2-engram-plugin"></a>E2 | Engram plugin | The system in scope | … |
+   | <a id="n2-engram-plugin"></a>N2 | Engram plugin | The system in scope | … |
    ```
 
 ### Mismatch as drift
 
-- A node label with `En` that has no matching catalog row → orphan-in-diagram drift.
-- A catalog row with ID `En` whose ID never appears in any node label → orphan-in-catalog drift.
+- A node label with a hierarchical ID that has no matching catalog row → orphan-in-diagram drift.
+- A catalog row whose ID never appears in any node label → orphan-in-catalog drift.
 - Same rules apply to `Rn` and edge labels.
 - The skill's `review` and `audit` sub-actions report these as drift findings.
 
@@ -102,7 +104,7 @@ Mermaid does not support `click` on edges, only on nodes. Edge `Rn` IDs are visu
 only — the reader scans the relationships table by ID. Nodes ARE clickable; clicking a node on
 GitHub jumps to its catalog row.
 
-### Worked example
+### Worked example (L1 — `S<n>` IDs)
 
 ```mermaid
 flowchart LR
@@ -110,10 +112,10 @@ flowchart LR
     classDef external    fill:#999,   stroke:#666,   color:#fff
     classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
 
-    user([E1 · Joe<br/>engram user])
-    cc(E3 · Claude Code)
-    engram[E2 · Engram]
-    anth(E4 · Anthropic API)
+    user([S1 · Joe<br/>engram user])
+    cc(S3 · Claude Code)
+    engram[S2 · Engram]
+    anth(S4 · Anthropic API)
 
     user -->|R1: invokes /prepare, /learn, ...| cc
     cc -->|R2: hooks + skills| engram
@@ -123,18 +125,18 @@ flowchart LR
     class cc,anth external
     class engram container
 
-    click user href "#e1-joe"
-    click engram href "#e2-engram"
-    click cc href "#e3-claude-code"
-    click anth href "#e4-anthropic-api"
+    click user href "#s1-joe"
+    click engram href "#s2-engram"
+    click cc href "#s3-claude-code"
+    click anth href "#s4-anthropic-api"
 ```
 
 | ID | Name | Type | Responsibility | System of Record |
 |---|---|---|---|---|
-| <a id="e1-joe"></a>E1 | Joe | Person | engram user | Human |
-| <a id="e2-engram"></a>E2 | Engram | The system | … | This repo |
-| <a id="e3-claude-code"></a>E3 | Claude Code | External system | … | Anthropic CLI |
-| <a id="e4-anthropic-api"></a>E4 | Anthropic API | External system | … | api.anthropic.com |
+| <a id="s1-joe"></a>S1 | Joe | Person | engram user | Human |
+| <a id="s2-engram"></a>S2 | Engram | The system | … | This repo |
+| <a id="s3-claude-code"></a>S3 | Claude Code | External system | … | Anthropic CLI |
+| <a id="s4-anthropic-api"></a>S4 | Anthropic API | External system | … | api.anthropic.com |
 
 ## GitHub Mermaid Quirks
 
@@ -153,10 +155,10 @@ determined by C (the wirer)." It coexists with any direct-call `R[n]` edge B alr
 
 ```mermaid
 flowchart LR
-    e21[E21 · cli<br/>dispatch + I/O adapters]
-    e27[E27 · tokenresolver]
-    e21 -->|"R7: Resolve(ctx)"| e27
-    e27 -.->|"D1: invokes injected getenv/execCmd/goos wired by cli"| e21
+    m1[M1 · cli<br/>dispatch + I/O adapters]
+    m7[M7 · tokenresolver]
+    m1 -->|"R7: Resolve(ctx)"| m7
+    m7 -.->|"D1: invokes injected getenv/execCmd/goos wired by cli"| m1
 ```
 
 Rules:
@@ -185,15 +187,15 @@ subject is visible at a glance:
 ```mermaid
 flowchart LR
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
-    e27[E27 · tokenresolver<br/>FOCUS]
-    class e27 focus
+    m7[M7 · tokenresolver<br/>FOCUS]
+    class m7 focus
 ```
 
 L4 diagrams contain only L3-present elements (no synthetic externals invented at L4). DI
 callbacks land back on the L3 element that wired the dep, not on the wired-through external.
 
-Enforced at build time by `targ c4-l4-build`: it rejects diagram node ids outside `E<n>` (and
-any `E<n>` not in the L1-L3 registry derived from sibling `c{1,2,3}-*.json`) and edge ids
+Enforced at build time by `targ c4-l4-build`: it validates diagram node ids using `ParseIDPath`
+(hierarchical IDs only — `S<n>`, `N<n>`, `M<n>`, or full path like `S2-N3-M5`) and edge ids
 outside bare `R<n>` (call) or `D<n>` (DI back-edge) — no letter suffixes (`R2a`, `Rjq`), no
 other prefixes (`EXT1`, `X1`). Read the build error for the specific violation and fix.
 

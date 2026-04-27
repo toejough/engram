@@ -25,7 +25,7 @@ flowchart LR
     classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
 
     subgraph focus [<container name>]
-        %% components inside the focus container — embed E<n> in label
+        %% components inside the focus container — embed M<n> in label, e.g. cli[M1 · cli dispatcher]
     end
     class focus container
     %% neighboring containers/people/externals as context
@@ -37,7 +37,7 @@ flowchart LR
 
 | ID | Name | Type | Responsibility | Code Pointer |
 |---|---|---|---|---|
-| <a id="e1-PLACEHOLDER"></a>E1 | <component> | Component | <one sentence> | [path/to/pkg](../../path/to/pkg) |
+| <a id="m1-PLACEHOLDER"></a>M1 | <component> | Component | <one sentence> | [path/to/pkg](../../path/to/pkg) |
 
 ## Relationships
 

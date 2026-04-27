@@ -23,7 +23,7 @@ flowchart LR
     classDef external    fill:#999,   stroke:#666,   color:#fff
     classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
 
-    %% nodes — embed E<n> in label, e.g. user([E1 · Joe])
+    %% nodes — embed S<n> in label, e.g. user([S1 · Joe])
     %% relationships — embed R<n> in edge label, e.g. user -->|R1: invokes ...| cc
     %% class assignments
 ```
@@ -32,7 +32,7 @@ flowchart LR
 
 | ID | Name | Type | Responsibility | System of Record |
 |---|---|---|---|---|
-| <a id="e1-PLACEHOLDER"></a>E1 | <element> | Person / External system / The system | <one sentence> | <where this lives in reality> |
+| <a id="s1-PLACEHOLDER"></a>S1 | <element> | Person / External system / The system | <one sentence> | <where this lives in reality> |
 
 ## Relationships
 

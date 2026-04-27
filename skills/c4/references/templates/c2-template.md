@@ -23,7 +23,7 @@ flowchart LR
     classDef external    fill:#999,   stroke:#666,   color:#fff
     classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
 
-    %% nodes — embed E<n> in label
+    %% nodes — embed N<n> in label, e.g. engram[N2 · Engram CLI]
     %% relationships — embed R<n> in edge label
     %% class assignments
 ```
