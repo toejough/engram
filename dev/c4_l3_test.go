@@ -137,11 +137,8 @@ func TestT45_L3EmitContainsExpectedStructure(t *testing.T) {
 		"name: foo-internal",
 		"parent: \"c2-foo-system.md\"",
 		"# C3 — Foo (Component)",
-		"classDef component",
-		"subgraph s1-n2 [S1-N2 · Foo]",
-		"s1-n2-m1[S1-N2-M1 · Worker",
-		"s1-n2-m2[S1-N2-M2 · Loader",
-		"s2([S2 · Operator",
+		"![C3 foo-internal component diagram](svg/c3-foo-internal.svg)",
+		"> Diagram source: [svg/c3-foo-internal.mmd](svg/c3-foo-internal.mmd)",
 		"## Element Catalog",
 		"| Code Pointer |",
 		"<a id=\"s1-n2-foo\"></a>S1-N2 | Foo | Container in focus",
@@ -156,6 +153,29 @@ func TestT45_L3EmitContainsExpectedStructure(t *testing.T) {
 	for _, want := range wantSubstrings {
 		if !strings.Contains(got, want) {
 			t.Errorf("output missing substring %q\nfull output:\n%s", want, got)
+		}
+	}
+}
+
+func TestT45b_L3MermaidContainsExpectedStructure(t *testing.T) {
+	t.Parallel()
+
+	spec := loadValidL3Spec(t)
+	var buf bytes.Buffer
+	emitL3Mermaid(&buf, spec)
+	got := buf.String()
+	wantSubstrings := []string{
+		"%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%",
+		"flowchart LR",
+		"classDef component",
+		"subgraph s1-n2 [S1-N2 · Foo]",
+		"s1-n2-m1[S1-N2-M1 · Worker",
+		"s1-n2-m2[S1-N2-M2 · Loader",
+		"s2([S2 · Operator",
+	}
+	for _, want := range wantSubstrings {
+		if !strings.Contains(got, want) {
+			t.Errorf("mermaid output missing substring %q\nfull output:\n%s", want, got)
 		}
 	}
 }

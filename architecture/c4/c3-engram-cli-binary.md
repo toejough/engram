@@ -3,74 +3,19 @@ level: 3
 name: engram-cli-binary
 parent: "c2-engram-plugin.md"
 children: []
-last_reviewed_commit: 7da51d0c
+last_reviewed_commit: 1caf804c
 ---
 
 # C3 — engram CLI binary (Component)
 
 Refines L2's E9 engram CLI binary into nine internal components. The shell of the binary (cmd/engram/main.go) only wires cli.Targets into targ.Main; all command logic, I/O adapters, and external integrations live under internal/. Pure-logic packages (recall, memory, tomlwriter) take all I/O as DI interfaces; thin adapter shims live in internal/cli so concrete I/O is wired only at the edge of the binary.
 
-```mermaid
-flowchart LR
-    classDef person      fill:#08427b,stroke:#052e56,color:#fff
-    classDef external    fill:#999,   stroke:#666,   color:#fff
-    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
-    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+![C3 engram-cli-binary component diagram](svg/c3-engram-cli-binary.svg)
 
-    s3(S3 · Claude Code<br/>agent harness)
-    s4(S4 · Claude Code memory surfaces)
-    s5(S5 · Anthropic API<br/>Haiku)
-    s6(S6 · Engram memory store<br/>~/.local/share/engram/memory/)
-
-    subgraph s2-n3 [S2-N3 · engram CLI binary]
-        s2-n3-m1[S2-N3-M1 · main.go<br/>process entry]
-        s2-n3-m2[S2-N3-M2 · cli<br/>dispatch + I/O adapters]
-        s2-n3-m3[S2-N3-M3 · recall<br/>orchestrator + phases]
-        s2-n3-m4[S2-N3-M4 · context<br/>transcript reader]
-        s2-n3-m5[S2-N3-M5 · memory<br/>feedback / fact records]
-        s2-n3-m6[S2-N3-M6 · externalsources<br/>CLAUDE.md / rules / auto-memory / skills]
-        s2-n3-m7[S2-N3-M7 · anthropic<br/>Messages API client]
-        s2-n3-m8[S2-N3-M8 · tokenresolver<br/>env + macOS Keychain]
-        s2-n3-m9[S2-N3-M9 · tomlwriter<br/>TOML serialization]
-    end
-
-    s3 -->|"R1: execs the binary as a subprocess (Bash tool)"| s2-n3-m1
-    s2-n3-m1 -->|"R2: builds CLI targets and runs targ.Main"| s2-n3-m2
-    s2-n3-m2 -->|"R3: delegates the recall pipeline (Orchestrator + phases) to the dedicated recall package — the one subcommand currently extracted from cli (see Drift Notes)"| s2-n3-m3
-    s2-n3-m2 -->|"R4: reads / writes feedback + fact TOML through memory types and helpers"| s2-n3-m5
-    s2-n3-m2 -->|"R5: discovers external source paths and shares the cache via discoverExternalSources"| s2-n3-m6
-    s2-n3-m2 -->|"R6: builds the Anthropic caller used by recall.NewSummarizer"| s2-n3-m7
-    s2-n3-m2 -->|"R7: resolves API token (env or Keychain) before any LLM call"| s2-n3-m8
-    s2-n3-m3 -->|"R8: reads + strips session transcripts within budget"| s2-n3-m4
-    s2-n3-m3 -->|"R9: lists memories during recall ranking"| s2-n3-m5
-    s2-n3-m3 -->|"R10: ranks candidates and extracts snippets via Haiku (through DI Summarizer)"| s2-n3-m7
-    s2-n3-m3 -->|"R11: reads CLAUDE.md / rules / auto-memory / skill frontmatter (cached)"| s2-n3-m6
-    s2-n3-m2 -->|"R12: writes new TOML on learn / remember / update"| s2-n3-m9
-    s2-n3-m2 -->|"R13: prints briefings, recall results, and list / show output to stdout"| s3
-    s2-n3-m7 -->|"R14: HTTPS POST /v1/messages (Haiku)"| s5
-    s2-n3-m6 -->|"R15: reads project + user CLAUDE.md, .claude/rules, auto-memory, skill frontmatter"| s4
-    s2-n3-m5 -->|"R16: reads existing feedback + fact TOML during recall / list / show"| s6
-    s2-n3-m9 -->|"R17: writes new feedback + fact TOML on learn / remember / update"| s6
-
-    class s3,s4,s5,s6 external
-    class s2-n3-m1,s2-n3-m2,s2-n3-m3,s2-n3-m4,s2-n3-m5,s2-n3-m6,s2-n3-m7,s2-n3-m8,s2-n3-m9 component
-    class s2-n3 container
-
-    click s2-n3 href "#s2-n3-engram-cli-binary" "engram CLI binary"
-    click s3 href "#s3-claude-code" "Claude Code"
-    click s4 href "#s4-claude-code-memory-surfaces" "Claude Code memory surfaces"
-    click s5 href "#s5-anthropic-api" "Anthropic API"
-    click s6 href "#s6-engram-memory-store" "Engram memory store"
-    click s2-n3-m1 href "#s2-n3-m1-main-go" "main.go"
-    click s2-n3-m2 href "#s2-n3-m2-cli" "cli"
-    click s2-n3-m3 href "#s2-n3-m3-recall" "recall"
-    click s2-n3-m4 href "#s2-n3-m4-context" "context"
-    click s2-n3-m5 href "#s2-n3-m5-memory" "memory"
-    click s2-n3-m6 href "#s2-n3-m6-externalsources" "externalsources"
-    click s2-n3-m7 href "#s2-n3-m7-anthropic" "anthropic"
-    click s2-n3-m8 href "#s2-n3-m8-tokenresolver" "tokenresolver"
-    click s2-n3-m9 href "#s2-n3-m9-tomlwriter" "tomlwriter"
-```
+> Diagram source: [svg/c3-engram-cli-binary.mmd](svg/c3-engram-cli-binary.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c3-engram-cli-binary.mmd -o architecture/c4/svg/c3-engram-cli-binary.svg`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
 
 ## Element Catalog
 

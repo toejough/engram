@@ -10,38 +10,12 @@ last_reviewed_commit: df51bc93
 
 Refines S2 Foo into a worker that processes input and a loader that hydrates state from disk.
 
-```mermaid
-flowchart LR
-    classDef person      fill:#08427b,stroke:#052e56,color:#fff
-    classDef external    fill:#999,   stroke:#666,   color:#fff
-    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+![C2 foo-system container diagram](svg/c2-foo-system.svg)
 
-    s1([S1 · Operator<br/>runs Foo])
-    s3(S3 · BarAPI<br/>remote service)
-    s4(S4 · Disk<br/>local filesystem)
-
-    subgraph s2 [S2 · Foo]
-        s2-n1[S2-N1 · Worker]
-        s2-n2[S2-N2 · Loader]
-    end
-
-    s1 -->|"R1: submits work items"| s2-n1
-    s2-n2 -->|"R2: reads cached state"| s4
-    s2-n1 -->|"R3: fetches input"| s3
-    s2-n1 -->|"R4: asks for hydrated state"| s2-n2
-
-    class s1 person
-    class s3,s4 external
-    class s2-n1,s2-n2 container
-    class s2 container
-
-    click s1 href "#s1-operator" "Operator"
-    click s2 href "#s2-foo" "Foo"
-    click s3 href "#s3-barapi" "BarAPI"
-    click s4 href "#s4-disk" "Disk"
-    click s2-n1 href "#s2-n1-worker" "Worker"
-    click s2-n2 href "#s2-n2-loader" "Loader"
-```
+> Diagram source: [svg/c2-foo-system.mmd](svg/c2-foo-system.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c2-foo-system.mmd -o architecture/c4/svg/c2-foo-system.svg`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
 
 ## Element Catalog
 

@@ -3,53 +3,19 @@ level: 3
 name: hooks
 parent: "c2-engram-plugin.md"
 children: []
-last_reviewed_commit: 7da51d0c
+last_reviewed_commit: 1caf804c
 ---
 
 # C3 — Hooks (Component)
 
 Refines L2's E8 Hooks container into the manifest plus three bash scripts wired to Claude Code lifecycle events. Hooks emit hookSpecificOutput.additionalContext JSON on stdout to inject reminders into the agent's context. The SessionStart hook additionally rebuilds the Go binary asynchronously when any source file is newer than the cached binary, isolating the build from the agent's own Bash provenance so macOS doesn't SIGKILL it on exec.
 
-```mermaid
-flowchart LR
-    classDef person      fill:#08427b,stroke:#052e56,color:#fff
-    classDef external    fill:#999,   stroke:#666,   color:#fff
-    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
-    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+![C3 hooks component diagram](svg/c3-hooks.svg)
 
-    s3(S3 · Claude Code<br/>agent harness)
-    s2-n3[S2-N3 · engram CLI binary<br/>Go binary built by session-start.sh]
-
-    subgraph s2-n2 [S2-N2 · Hooks]
-        s2-n2-m1[S2-N2-M1 · hooks.json<br/>manifest]
-        s2-n2-m2[S2-N2-M2 · session-start.sh<br/>skill announcement + async rebuild]
-        s2-n2-m3[S2-N2-M3 · user-prompt-submit.sh<br/>/prepare /learn nudge]
-        s2-n2-m4[S2-N2-M4 · post-tool-use.sh<br/>/prepare /learn nudge]
-    end
-
-    s3 -->|"R1: reads manifest at plugin load"| s2-n2-m1
-    s2-n2-m1 -->|"R2: registers SessionStart -> session-start.sh (timeout 10s)"| s2-n2-m2
-    s2-n2-m1 -->|"R3: registers UserPromptSubmit -> user-prompt-submit.sh (timeout 5s)"| s2-n2-m3
-    s2-n2-m1 -->|"R4: registers PostToolUse -> post-tool-use.sh (timeout 5s)"| s2-n2-m4
-    s3 -->|"R5: fires lifecycle events as subprocess execs with JSON stdin"| s2-n2
-    s2-n2-m2 -->|"R6: emits SessionStart additionalContext announcing memory skills"| s3
-    s2-n2-m3 -->|"R7: emits UserPromptSubmit additionalContext nudging /prepare and /learn"| s3
-    s2-n2-m4 -->|"R8: emits PostToolUse additionalContext nudging /prepare and /learn"| s3
-    s2-n2-m2 -->|"R9: async go build to ~/.claude/engram/bin/engram when any *.go is newer than the cached binary"| s2-n3
-
-    class s3 external
-    class s2-n3 container
-    class s2-n2-m1,s2-n2-m2,s2-n2-m3,s2-n2-m4 component
-    class s2-n2 container
-
-    click s2-n2 href "#s2-n2-hooks" "Hooks"
-    click s3 href "#s3-claude-code" "Claude Code"
-    click s2-n3 href "#s2-n3-engram-cli-binary" "engram CLI binary"
-    click s2-n2-m1 href "#s2-n2-m1-hooks-json" "hooks.json"
-    click s2-n2-m2 href "#s2-n2-m2-session-start-sh" "session-start.sh"
-    click s2-n2-m3 href "#s2-n2-m3-user-prompt-submit-sh" "user-prompt-submit.sh"
-    click s2-n2-m4 href "#s2-n2-m4-post-tool-use-sh" "post-tool-use.sh"
-```
+> Diagram source: [svg/c3-hooks.mmd](svg/c3-hooks.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c3-hooks.mmd -o architecture/c4/svg/c3-hooks.svg`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
 
 ## Element Catalog
 

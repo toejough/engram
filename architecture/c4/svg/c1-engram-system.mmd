@@ -4,20 +4,27 @@ flowchart LR
     classDef external    fill:#999,   stroke:#666,   color:#fff
     classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
 
-    e1([E1 · Developer<br/>uses Claude Code])
-    e2[E2 · Engram plugin]
-    e3(E3 · Claude Code<br/>agent harness)
-    e4(E4 · Claude Code memory surfaces<br/>CLAUDE.md, .claude/rules, auto-memory, skills)
-    e5(E5 · Anthropic API<br/>Haiku rank + extract)
-    e6(E6 · Engram memory store<br/>~/.local/share/engram/memory/)
+    s1([S1 · Developer<br/>uses Claude Code])
+    s2[S2 · Engram plugin]
+    s3(S3 · Claude Code<br/>agent harness)
+    s4(S4 · Claude Code memory surfaces<br/>CLAUDE.md, .claude/rules, auto-memory, skills)
+    s5(S5 · Anthropic API<br/>Haiku rank + extract)
+    s6(S6 · Engram memory store<br/>~/.local/share/engram/memory/)
 
-    e1 -->|"R1: Invokes slash-commands and writes prompts that trigger skill auto-invocation"| e3
-    e3 -->|"R2: Loads skill markdown, executes hooks (SessionStart, UserPromptSubmit, PostToolUse), invokes engram binary subcommands"| e2
-    e2 -->|"R3: Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn"| e5
-    e2 -->|"R4: Discovers and reads CLAUDE.md (+ @-imports), .claude/rules/*.md, auto-memory topic files, and skill frontmatter for ranking"| e4
-    e2 <-->|"R5: Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary"| e6
-    e2 -->|"R6: Returns briefings (/prepare), recall results (/recall), and hook reminders that re-enter the agent's context"| e3
+    s1 -->|"R1: Invokes slash-commands and writes prompts that trigger skill auto-invocation"| s3
+    s3 -->|"R2: Loads skill markdown, executes hooks (`SessionStart`, `UserPromptSubmit`, `PostToolUse`), invokes `engram` binary subcommands"| s2
+    s2 -->|"R3: Ranks memory/skill/auto-memory candidates and extracts snippets during recall; classifies feedback/facts during learn"| s5
+    s2 -->|"R4: Discovers and reads CLAUDE.md (+ `@`-imports), `.claude/rules/*.md`, auto-memory topic files, and skill frontmatter for ranking"| s4
+    s2 <-->|"R5: Reads and writes Engram's own feedback/fact TOML; reads/writes the cached binary"| s6
+    s2 -->|"R6: Returns briefings (`/prepare`), recall results (`/recall`), and hook reminders that re-enter the agent's context"| s3
 
-    class e1 person
-    class e3,e4,e5,e6 external
-    class e2 container
+    class s1 person
+    class s3,s4,s5,s6 external
+    class s2 container
+
+    click s1 href "#s1-developer" "Developer"
+    click s2 href "#s2-engram-plugin" "Engram plugin"
+    click s3 href "#s3-claude-code" "Claude Code"
+    click s4 href "#s4-claude-code-memory-surfaces" "Claude Code memory surfaces"
+    click s5 href "#s5-anthropic-api" "Anthropic API"
+    click s6 href "#s6-engram-memory-store" "Engram memory store"

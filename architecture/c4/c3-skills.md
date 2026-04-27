@@ -3,54 +3,19 @@ level: 3
 name: skills
 parent: "c2-engram-plugin.md"
 children: []
-last_reviewed_commit: 7da51d0c
+last_reviewed_commit: 1caf804c
 ---
 
 # C3 — Skills (Component)
 
 Refines L2's E7 Skills container into the six skill markdown files Claude Code loads on slash-command or auto-trigger. Each skill body returns instructions to the agent; most instruct it to shell out to the engram CLI binary. The c4 skill is the exception — it instructs the agent to use targ and edit architecture/c4/ directly, never calling the engram binary.
 
-```mermaid
-flowchart LR
-    classDef person      fill:#08427b,stroke:#052e56,color:#fff
-    classDef external    fill:#999,   stroke:#666,   color:#fff
-    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
-    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+![C3 skills component diagram](svg/c3-skills.svg)
 
-    s3(S3 · Claude Code<br/>agent harness)
-    s2-n3[S2-N3 · engram CLI binary<br/>recall / learn / list / show / update]
-
-    subgraph s2-n1 [S2-N1 · Skills]
-        s2-n1-m1[S2-N1-M1 · prepare skill<br/>briefs the agent before new work]
-        s2-n1-m2[S2-N1-M2 · learn skill<br/>saves session lessons]
-        s2-n1-m3[S2-N1-M3 · recall skill<br/>loads prior session context]
-        s2-n1-m4[S2-N1-M4 · remember skill<br/>explicit-knowledge capture]
-        s2-n1-m5[S2-N1-M5 · migrate skill<br/>legacy memory upgrade]
-        s2-n1-m6[S2-N1-M6 · c4 skill<br/>architecture diagrams]
-    end
-
-    s3 -->|"R1: loads skill body on /command or auto-trigger"| s2-n1
-    s2-n1-m1 -->|"R2: instructs agent to call `engram recall` (with --query per topic)"| s2-n3
-    s2-n1-m3 -->|"R3: instructs agent to call `engram recall` for prior session context"| s2-n3
-    s2-n1-m2 -->|"R4: instructs agent to call `engram learn feedback` / `engram learn fact`"| s2-n3
-    s2-n1-m4 -->|"R5: instructs agent to call `engram learn` or `engram update`"| s2-n3
-    s2-n1-m5 -->|"R6: instructs agent to read legacy TOML and call `engram update` to rewrite each file"| s2-n3
-
-    class s3 external
-    class s2-n3 container
-    class s2-n1-m1,s2-n1-m2,s2-n1-m3,s2-n1-m4,s2-n1-m5,s2-n1-m6 component
-    class s2-n1 container
-
-    click s2-n1 href "#s2-n1-skills" "Skills"
-    click s3 href "#s3-claude-code" "Claude Code"
-    click s2-n3 href "#s2-n3-engram-cli-binary" "engram CLI binary"
-    click s2-n1-m1 href "#s2-n1-m1-prepare-skill" "prepare skill"
-    click s2-n1-m2 href "#s2-n1-m2-learn-skill" "learn skill"
-    click s2-n1-m3 href "#s2-n1-m3-recall-skill" "recall skill"
-    click s2-n1-m4 href "#s2-n1-m4-remember-skill" "remember skill"
-    click s2-n1-m5 href "#s2-n1-m5-migrate-skill" "migrate skill"
-    click s2-n1-m6 href "#s2-n1-m6-c4-skill" "c4 skill"
-```
+> Diagram source: [svg/c3-skills.mmd](svg/c3-skills.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c3-skills.mmd -o architecture/c4/svg/c3-skills.svg`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
 
 ## Element Catalog
 

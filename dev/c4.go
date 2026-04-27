@@ -578,37 +578,26 @@ func c4L1Build(ctx context.Context, args C4L1BuildArgs) error {
 	if err != nil {
 		return fmt.Errorf("git rev-parse: %w", err)
 	}
-	outPath := strings.TrimSuffix(args.Input, ".json") + ".md"
-	var buf bytes.Buffer
-	if err := emitMarkdown(&buf, spec, sha); err != nil {
+	mdPath := strings.TrimSuffix(args.Input, ".json") + ".md"
+	mmdPath := filepath.Join(filepath.Dir(args.Input), "svg",
+		strings.TrimSuffix(filepath.Base(args.Input), ".json")+".mmd")
+	var mdBuf bytes.Buffer
+	if err := emitMarkdown(&mdBuf, spec, sha); err != nil {
 		return err
 	}
-	if args.Check {
-		existing, readErr := os.ReadFile(outPath)
-		if readErr != nil {
-			return fmt.Errorf("read existing %s: %w", outPath, readErr)
-		}
-		if !bytes.Equal(existing, buf.Bytes()) {
-			fmt.Fprintln(os.Stderr, "diff between source-of-truth JSON and rendered markdown:")
-			return errors.New("markdown out of sync with JSON")
-		}
-		return nil
+	elementIDs, err := assignElementIDs(spec.Elements)
+	if err != nil {
+		return fmt.Errorf("assign element ids: %w", err)
 	}
-	if !args.NoConfirm {
-		existing, readErr := os.ReadFile(outPath)
-		if readErr == nil && !bytes.Equal(existing, buf.Bytes()) {
-			fmt.Fprintf(os.Stderr, "%s already exists and differs. Overwrite? [y/N] ", outPath)
-			var resp string
-			_, _ = fmt.Fscanln(os.Stdin, &resp)
-			if !strings.EqualFold(resp, "y") {
-				return errors.New("aborted")
-			}
-		}
+	nameByID := nameByElementID(elementIDs)
+	relsByName := l1RelsWithNames(spec.Relationships, nameByID)
+	relIDs := assignRelationshipIDs(relsByName)
+	var mmdBuf bytes.Buffer
+	emitMermaid(&mmdBuf, elementIDs, relIDs)
+	if err := writeOrCheckMarkdown(mdPath, mdBuf.Bytes(), args.Check, args.NoConfirm); err != nil {
+		return err
 	}
-	if err := os.WriteFile(outPath, buf.Bytes(), 0o600); err != nil {
-		return fmt.Errorf("write %s: %w", outPath, err)
-	}
-	return nil
+	return writeOrCheckMarkdown(mmdPath, mmdBuf.Bytes(), args.Check, args.NoConfirm)
 }
 
 func c4L1Externals(ctx context.Context, args C4L1ExternalsArgs) error {
@@ -1067,7 +1056,7 @@ func emitMarkdown(w io.Writer, spec *L1Spec, lastReviewedCommit string) error {
 	var buf bytes.Buffer
 	emitFrontMatter(&buf, spec, lastReviewedCommit)
 	fmt.Fprintf(&buf, "\n# C1 — %s (System Context)\n\n%s\n\n", systemName, strings.TrimRight(spec.Preamble, "\n"))
-	emitMermaid(&buf, elementIDs, relIDs)
+	emitSVGEmbed(&buf, "c1-"+spec.Name, fmt.Sprintf("C1 %s system context", spec.Name))
 	emitCatalog(&buf, elementIDs)
 	emitRelationships(&buf, elementIDs, relIDs)
 	emitCrossLinks(&buf, spec.CrossLinks)
@@ -1078,8 +1067,12 @@ func emitMarkdown(w io.Writer, spec *L1Spec, lastReviewedCommit string) error {
 	return nil
 }
 
+// emitMermaid writes the canonical L1 mermaid source (with the ELK render
+// directive at the top) suitable for writing to architecture/c4/svg/<stem>.mmd
+// and rendering to SVG via mmdc.
 func emitMermaid(buf *bytes.Buffer, elementIDs []elementID, relIDs []relationshipID) {
-	buf.WriteString("```mermaid\nflowchart LR\n")
+	buf.WriteString("%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%\n")
+	buf.WriteString("flowchart LR\n")
 	buf.WriteString("    classDef person      fill:#08427b,stroke:#052e56,color:#fff\n")
 	buf.WriteString("    classDef external    fill:#999,   stroke:#666,   color:#fff\n")
 	buf.WriteString("    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff\n\n")
@@ -1095,7 +1088,6 @@ func emitMermaid(buf *bytes.Buffer, elementIDs []elementID, relIDs []relationshi
 	emitMermaidClasses(buf, elementIDs)
 	buf.WriteString("\n")
 	emitMermaidClicks(buf, elementIDs)
-	buf.WriteString("```\n\n")
 }
 
 func emitMermaidClasses(buf *bytes.Buffer, elementIDs []elementID) {
@@ -1142,6 +1134,20 @@ func emitRelationships(buf *bytes.Buffer, _ []elementID, relIDs []relationshipID
 			rel.AnchorID, rel.ID, rel.Rel.From, rel.Rel.To, rel.Rel.Description, rel.Rel.Protocol)
 	}
 	buf.WriteString("\n")
+}
+
+// emitSVGEmbed writes the markdown stanza that references a pre-rendered SVG
+// under architecture/c4/svg/<mmdName>.svg, plus the boilerplate caption
+// describing the source .mmd and the re-render command. All four C4 levels
+// share this stanza for cross-level visual consistency.
+func emitSVGEmbed(buf *bytes.Buffer, mmdName, label string) {
+	fmt.Fprintf(buf, "![%s](svg/%s.svg)\n\n", label, mmdName)
+	fmt.Fprintf(buf,
+		"> Diagram source: [svg/%s.mmd](svg/%s.mmd). Re-render with\n"+
+			"> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/%s.mmd -o architecture/c4/svg/%s.svg`.\n"+
+			"> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to\n"+
+			"> separate bidirectional R/D edges between the same node pair.\n\n",
+		mmdName, mmdName, mmdName, mmdName)
 }
 
 func exprText(pkg *packages.Package, node ast.Node) string {

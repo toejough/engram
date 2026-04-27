@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -69,37 +70,28 @@ func c4L2Build(ctx context.Context, args C4L2BuildArgs) error {
 	if err != nil {
 		return fmt.Errorf("git rev-parse: %w", err)
 	}
-	outPath := strings.TrimSuffix(args.Input, ".json") + ".md"
-	var buf bytes.Buffer
-	if err := emitL2Markdown(&buf, spec, sha); err != nil {
+	mdPath := strings.TrimSuffix(args.Input, ".json") + ".md"
+	mmdPath := filepath.Join(filepath.Dir(args.Input), "svg",
+		strings.TrimSuffix(filepath.Base(args.Input), ".json")+".mmd")
+	var mdBuf bytes.Buffer
+	if err := emitL2Markdown(&mdBuf, spec, sha); err != nil {
 		return err
 	}
-	if args.Check {
-		existing, readErr := os.ReadFile(outPath)
-		if readErr != nil {
-			return fmt.Errorf("read existing %s: %w", outPath, readErr)
-		}
-		if !bytes.Equal(existing, buf.Bytes()) {
-			fmt.Fprintln(os.Stderr, "diff between source-of-truth JSON and rendered markdown:")
-			return errors.New("markdown out of sync with JSON")
-		}
-		return nil
+	elementIDs, err := validateL2ElementIDs(spec.Elements)
+	if err != nil {
+		return fmt.Errorf("validate l2 element ids: %w", err)
 	}
-	if !args.NoConfirm {
-		existing, readErr := os.ReadFile(outPath)
-		if readErr == nil && !bytes.Equal(existing, buf.Bytes()) {
-			fmt.Fprintf(os.Stderr, "%s already exists and differs. Overwrite? [y/N] ", outPath)
-			var resp string
-			_, _ = fmt.Fscanln(os.Stdin, &resp)
-			if !strings.EqualFold(resp, "y") {
-				return errors.New("aborted")
-			}
-		}
+	relIDs := assignRelationshipIDs(spec.Relationships)
+	inScope, ok := findInScopeElement(elementIDs, spec.Elements)
+	if !ok {
+		return errors.New("no in_scope element found")
 	}
-	if err := os.WriteFile(outPath, buf.Bytes(), 0o600); err != nil {
-		return fmt.Errorf("write %s: %w", outPath, err)
+	var mmdBuf bytes.Buffer
+	emitL2Mermaid(&mmdBuf, elementIDs, relIDs, inScope)
+	if err := writeOrCheckMarkdown(mdPath, mdBuf.Bytes(), args.Check, args.NoConfirm); err != nil {
+		return err
 	}
-	return nil
+	return writeOrCheckMarkdown(mmdPath, mmdBuf.Bytes(), args.Check, args.NoConfirm)
 }
 
 func emitL2CrossLinks(buf *bytes.Buffer, spec *L2Spec, inScope elementID) {
@@ -135,7 +127,7 @@ func emitL2Markdown(w io.Writer, spec *L2Spec, lastReviewedCommit string) error 
 	var buf bytes.Buffer
 	emitL2FrontMatter(&buf, spec, lastReviewedCommit)
 	fmt.Fprintf(&buf, "\n# C2 — %s (Container)\n\n%s\n\n", inScope.Element.Name, strings.TrimRight(spec.Preamble, "\n"))
-	emitL2Mermaid(&buf, elementIDs, relIDs, inScope)
+	emitSVGEmbed(&buf, "c2-"+spec.Name, fmt.Sprintf("C2 %s container diagram", spec.Name))
 	emitCatalog(&buf, elementIDs)
 	emitRelationships(&buf, elementIDs, relIDs)
 	emitL2CrossLinks(&buf, spec, inScope)
@@ -146,8 +138,12 @@ func emitL2Markdown(w io.Writer, spec *L2Spec, lastReviewedCommit string) error 
 	return nil
 }
 
+// emitL2Mermaid writes the canonical L2 mermaid source (with the ELK render
+// directive at the top) suitable for writing to architecture/c4/svg/<stem>.mmd
+// and rendering to SVG via mmdc.
 func emitL2Mermaid(buf *bytes.Buffer, elementIDs []elementID, relIDs []relationshipID, inScope elementID) {
-	buf.WriteString("```mermaid\nflowchart LR\n")
+	buf.WriteString("%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%\n")
+	buf.WriteString("flowchart LR\n")
 	buf.WriteString("    classDef person      fill:#08427b,stroke:#052e56,color:#fff\n")
 	buf.WriteString("    classDef external    fill:#999,   stroke:#666,   color:#fff\n")
 	buf.WriteString("    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff\n\n")
@@ -160,7 +156,6 @@ func emitL2Mermaid(buf *bytes.Buffer, elementIDs []elementID, relIDs []relations
 	emitL2MermaidClasses(buf, elementIDs, inScope)
 	buf.WriteString("\n")
 	emitMermaidClicks(buf, elementIDs)
-	buf.WriteString("```\n\n")
 }
 
 func emitL2MermaidClasses(buf *bytes.Buffer, elementIDs []elementID, inScope elementID) {

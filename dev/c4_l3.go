@@ -79,13 +79,20 @@ func c4L3Build(ctx context.Context, args C4L3BuildArgs) error {
 	if shaErr != nil {
 		return fmt.Errorf("git rev-parse: %w", shaErr)
 	}
-	outPath := strings.TrimSuffix(args.Input, ".json") + ".md"
+	mdPath := strings.TrimSuffix(args.Input, ".json") + ".md"
+	mmdPath := filepath.Join(filepath.Dir(args.Input), "svg",
+		strings.TrimSuffix(filepath.Base(args.Input), ".json")+".mmd")
 	siblings := discoverL3Siblings(args.Input, spec.Parent)
-	var buf bytes.Buffer
-	if emitErr := emitL3Markdown(&buf, spec, sha, siblings); emitErr != nil {
+	var mdBuf bytes.Buffer
+	if emitErr := emitL3Markdown(&mdBuf, spec, sha, siblings); emitErr != nil {
 		return emitErr
 	}
-	return writeOrCheckMarkdown(outPath, buf.Bytes(), args.Check, args.NoConfirm)
+	var mmdBuf bytes.Buffer
+	emitL3Mermaid(&mmdBuf, spec)
+	if err := writeOrCheckMarkdown(mdPath, mdBuf.Bytes(), args.Check, args.NoConfirm); err != nil {
+		return err
+	}
+	return writeOrCheckMarkdown(mmdPath, mmdBuf.Bytes(), args.Check, args.NoConfirm)
 }
 
 // discoverL3Siblings returns relative-path entries for any other c3-*.md whose
@@ -214,7 +221,7 @@ func emitL3Markdown(w io.Writer, spec *L3Spec, lastReviewedCommit string, siblin
 	emitL3FrontMatter(&buf, spec, lastReviewedCommit)
 	fmt.Fprintf(&buf, "\n# C3 — %s (Component)\n\n%s\n\n",
 		spec.Focus.Name, strings.TrimRight(spec.Preamble, "\n"))
-	emitL3Mermaid(&buf, spec)
+	emitSVGEmbed(&buf, "c3-"+spec.Name, fmt.Sprintf("C3 %s component diagram", spec.Name))
 	emitL3Catalog(&buf, spec)
 	emitL3Relationships(&buf, spec)
 	emitL3CrossLinks(&buf, spec, siblings)
@@ -225,8 +232,12 @@ func emitL3Markdown(w io.Writer, spec *L3Spec, lastReviewedCommit string, siblin
 	return nil
 }
 
+// emitL3Mermaid writes the canonical L3 mermaid source (with the ELK render
+// directive at the top) suitable for writing to architecture/c4/svg/<stem>.mmd
+// and rendering to SVG via mmdc.
 func emitL3Mermaid(buf *bytes.Buffer, spec *L3Spec) {
-	buf.WriteString("```mermaid\nflowchart LR\n")
+	buf.WriteString("%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%\n")
+	buf.WriteString("flowchart LR\n")
 	buf.WriteString("    classDef person      fill:#08427b,stroke:#052e56,color:#fff\n")
 	buf.WriteString("    classDef external    fill:#999,   stroke:#666,   color:#fff\n")
 	buf.WriteString("    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff\n")
@@ -241,7 +252,6 @@ func emitL3Mermaid(buf *bytes.Buffer, spec *L3Spec) {
 	emitL3MermaidClasses(buf, spec)
 	buf.WriteString("\n")
 	emitL3MermaidClicks(buf, spec)
-	buf.WriteString("```\n\n")
 }
 
 // emitL3MermaidClasses emits class statements grouping mermaid IDs by class.
@@ -498,6 +508,9 @@ func writeOrCheckMarkdown(outPath string, content []byte, check, noConfirm bool)
 				return errors.New("aborted")
 			}
 		}
+	}
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o700); err != nil {
+		return fmt.Errorf("mkdir %s: %w", filepath.Dir(outPath), err)
 	}
 	if err := os.WriteFile(outPath, content, 0o600); err != nil {
 		return fmt.Errorf("write %s: %w", outPath, err)

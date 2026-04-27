@@ -3,58 +3,19 @@ level: 2
 name: engram-plugin
 parent: "c1-engram-system.md"
 children: []
-last_reviewed_commit: ff9fc22a
+last_reviewed_commit: 1caf804c
 ---
 
 # C2 — Engram plugin (Container)
 
 Refines L1's E2 Engram plugin into three internal containers — skill markdown files that drive agent behavior, shell hooks fired on Claude Code lifecycle events, and a Go CLI binary that performs all computation. External actors and the on-disk store keep their L1 E-IDs.
 
-```mermaid
-flowchart LR
-    classDef person      fill:#08427b,stroke:#052e56,color:#fff
-    classDef external    fill:#999,   stroke:#666,   color:#fff
-    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+![C2 engram-plugin container diagram](svg/c2-engram-plugin.svg)
 
-    s1([S1 · Developer<br/>uses Claude Code])
-    s3(S3 · Claude Code<br/>agent harness)
-    s4(S4 · Claude Code memory surfaces)
-    s5(S5 · Anthropic API<br/>Haiku)
-    s6(S6 · Engram memory store<br/>~/.local/share/engram/memory/)
-
-    subgraph s2 [S2 · Engram plugin]
-        s2-n1[S2-N1 · Skills<br/>prepare / learn / recall / remember / migrate / c4]
-        s2-n2[S2-N2 · Hooks<br/>session-start / user-prompt-submit / post-tool-use]
-        s2-n3[S2-N3 · engram CLI binary<br/>recall · learn · list · show · update]
-    end
-
-    s1 -->|"R1: invokes /prepare, /learn, /recall, /remember, /migrate"| s3
-    s3 -->|"R2: loads skill markdown on /command and on auto-trigger"| s2-n1
-    s3 -->|"R3: fires SessionStart, UserPromptSubmit, PostToolUse"| s2-n2
-    s3 -->|"R4: execs the binary as a subprocess each time the agent's Bash tool runs an engram subcommand"| s2-n3
-    s2-n1 -->|"R5: skill bodies returned to agent context include instructions to shell out to engram subcommands"| s3
-    s2-n2 -->|"R6: session-start.sh runs go build and writes a fresh binary when source files are newer than cached mtime"| s2-n3
-    s2-n2 -->|"R7: emit hookSpecificOutput.additionalContext (and systemMessage) on stdout to inject reminders and the skill-availability banner"| s3
-    s2-n3 -->|"R8: ranks candidates and extracts snippets via Haiku; classifies feedback/facts during learn"| s5
-    s2-n3 -->|"R9: reads CLAUDE.md, .claude/rules, auto-memory, skill frontmatter for ranking"| s4
-    s2-n3 -->|"R10: reads existing feedback + fact TOML during recall/list/show; writes new TOML during learn/remember/update"| s6
-    s2-n3 -->|"R11: prints briefings, recall results, and other subcommand output to stdout, which re-enters the agent's context as the tool result"| s3
-
-    class s1 person
-    class s3,s4,s5,s6 external
-    class s2-n1,s2-n2,s2-n3 container
-    class s2 container
-
-    click s1 href "#s1-developer" "Developer"
-    click s2 href "#s2-engram-plugin" "Engram plugin"
-    click s3 href "#s3-claude-code" "Claude Code"
-    click s4 href "#s4-claude-code-memory-surfaces" "Claude Code memory surfaces"
-    click s5 href "#s5-anthropic-api" "Anthropic API"
-    click s6 href "#s6-engram-memory-store" "Engram memory store"
-    click s2-n1 href "#s2-n1-skills" "Skills"
-    click s2-n2 href "#s2-n2-hooks" "Hooks"
-    click s2-n3 href "#s2-n3-engram-cli-binary" "engram CLI binary"
-```
+> Diagram source: [svg/c2-engram-plugin.mmd](svg/c2-engram-plugin.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c2-engram-plugin.mmd -o architecture/c4/svg/c2-engram-plugin.svg`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
 
 ## Element Catalog
 

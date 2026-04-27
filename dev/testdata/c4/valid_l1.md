@@ -12,37 +12,12 @@ Engram is a Claude Code plugin that gives the agent persistent, query-ranked mem
 This diagram shows who and what Engram interacts with at the system boundary; it
 deliberately hides the CLI binary, hooks, on-disk stores, and skills (those live at L2).
 
-```mermaid
-flowchart LR
-    classDef person      fill:#08427b,stroke:#052e56,color:#fff
-    classDef external    fill:#999,   stroke:#666,   color:#fff
-    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+![C1 engram-system system context](svg/c1-engram-system.svg)
 
-    s1([S1 · Joe<br/>developer using Claude Code])
-    s2[S2 · Engram plugin]
-    s3(S3 · Claude Code<br/>agent harness)
-    s4(S4 · Claude Code memory surfaces<br/>CLAUDE.md, .claude/rules, auto-memory, skills)
-    s5(S5 · Anthropic API<br/>Haiku rank + extract)
-    s6(S6 · Local filesystem<br/>~/.local/share/engram/)
-
-    s1 -->|"R1: invokes /prepare /learn /recall /remember /migrate"| s3
-    s3 -->|"R2: loads skills + fires hooks (SessionStart, UserPromptSubmit, PostToolUse)"| s2
-    s2 -->|"R3: ranks + extracts via Haiku"| s5
-    s2 -->|"R4: reads memories, rules, skills, auto-memory"| s4
-    s2 <-->|"R5: reads + writes feedback/ and facts/ TOML"| s6
-    s2 -->|"R6: injects briefings and reminders back into context"| s3
-
-    class s1 person
-    class s3,s4,s5,s6 external
-    class s2 container
-
-    click s1 href "#s1-joe" "Joe"
-    click s2 href "#s2-engram-plugin" "Engram plugin"
-    click s3 href "#s3-claude-code" "Claude Code"
-    click s4 href "#s4-claude-code-memory-surfaces" "Claude Code memory surfaces"
-    click s5 href "#s5-anthropic-api" "Anthropic API"
-    click s6 href "#s6-local-filesystem" "Local filesystem"
-```
+> Diagram source: [svg/c1-engram-system.mmd](svg/c1-engram-system.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c1-engram-system.mmd -o architecture/c4/svg/c1-engram-system.svg`.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
+> separate bidirectional R/D edges between the same node pair.
 
 ## Element Catalog
 
