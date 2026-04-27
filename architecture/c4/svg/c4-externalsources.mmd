@@ -9,13 +9,10 @@ flowchart LR
     e25["E25 · externalsources"]
     e21["E21 · cli"]
     e22["E22 · recall"]
-    ext-cc("EXT-CC · Claude Code memory surfaces<br/>CLAUDE.md / rules / auto-memory / skills")
 
     e21 -->|"R5: discovers external source paths"| e25
     e22 -->|"R11: reads cached file contents"| e25
-    e25 -->|"R15: reads .md files (read-only)"| ext-cc
     e25 -.->|"D4: DI back-edge: StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder"| e21
 
-    class ext-cc external
     class e21,e22 component
     class e25 focus

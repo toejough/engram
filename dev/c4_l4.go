@@ -133,6 +133,9 @@ func c4L4Build(ctx context.Context, args C4L4BuildArgs) error {
 	if err != nil {
 		return err
 	}
+	if err := validateL4DiagramIDs(ctx, spec, filepath.Dir(args.Input)); err != nil {
+		return err
+	}
 	sha, shaErr := currentGitShortSHA(ctx)
 	if shaErr != nil {
 		return fmt.Errorf("git rev-parse: %w", shaErr)
@@ -498,6 +501,64 @@ func loadAndValidateL4Spec(path string) (*L4Spec, error) {
 		return nil, err
 	}
 	return &spec, nil
+}
+
+// validateL4DiagramIDs enforces L4 namespace discipline against the JSON spec:
+// every node id matches E<n> and resolves to the L1-L3 registry derived from
+// sibling c{1,2,3}-*.json files in inputDir, and every edge id matches bare
+// R<n> or D<n>. All violations are aggregated into one error so authors see
+// the full list in one pass rather than fixing them one at a time.
+func validateL4DiagramIDs(ctx context.Context, spec *L4Spec, inputDir string) error {
+	violations := []string{}
+	badShape := map[int]bool{}
+	for index, edge := range spec.Diagram.Edges {
+		if !dEdgeIDPrefix.MatchString(edge.ID) {
+			violations = append(violations, fmt.Sprintf(
+				"diagram.edges[%d].id %q: must match R<n> (call relationship) or D<n> "+
+					"(DI back-edge); no letter suffixes — allocate a new sequential R<n> "+
+					"for related calls",
+				index, edge.ID))
+		}
+	}
+	for index, node := range spec.Diagram.Nodes {
+		if !mermaidIDPrefix.MatchString(node.ID) {
+			violations = append(violations, fmt.Sprintf(
+				"diagram.nodes[%d].id %q: must match E<n>; if this represents an external "+
+					"system, add it to the L3 registry first or describe it in the "+
+					`Dependency Manifest's "Concrete adapter" column instead of inventing `+
+					"an L4-only id",
+				index, node.ID))
+			badShape[index] = true
+		}
+	}
+	files, records, err := scanRegistryDir(ctx, inputDir)
+	if err != nil {
+		return fmt.Errorf("scan registry dir for L4 id check: %w", err)
+	}
+	if len(files) > 0 {
+		view := deriveRegistry(inputDir, files, records)
+		known := map[string]bool{}
+		for _, element := range view.Elements {
+			known[element.ID] = true
+		}
+		for index, node := range spec.Diagram.Nodes {
+			if badShape[index] || node.ID == spec.Focus.ID {
+				continue
+			}
+			if !known[node.ID] {
+				violations = append(violations, fmt.Sprintf(
+					"diagram.nodes[%d].id %q: not in L1-L3 registry for parent %q — "+
+						"add the element at L3 first, or describe it in the Dependency "+
+						`Manifest's "Concrete adapter" column instead of inventing an `+
+						"L4-only id",
+					index, node.ID, spec.Parent))
+			}
+		}
+	}
+	if len(violations) == 0 {
+		return nil
+	}
+	return fmt.Errorf("L4 id validation failed:\n  - %s", strings.Join(violations, "\n  - "))
 }
 
 func validateL4Properties(props []L4Property) error {

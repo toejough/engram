@@ -3,7 +3,7 @@ level: 4
 name: externalsources
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: cd55eab2
+last_reviewed_commit: c6c63c23
 ---
 
 # C4 — externalsources (Property/Invariant Ledger)

@@ -25,13 +25,11 @@
     "nodes": [
       {"id": "E25", "name": "externalsources", "kind": "focus"},
       {"id": "E21", "name": "cli", "kind": "component"},
-      {"id": "E22", "name": "recall", "kind": "component"},
-      {"id": "EXT-CC", "name": "Claude Code memory surfaces", "subtitle": "CLAUDE.md / rules / auto-memory / skills", "kind": "external"}
+      {"id": "E22", "name": "recall", "kind": "component"}
     ],
     "edges": [
       {"id": "R5", "from": "E21", "to": "E25", "label": "discovers external source paths"},
       {"id": "R11", "from": "E22", "to": "E25", "label": "reads cached file contents"},
-      {"id": "R15", "from": "E25", "to": "EXT-CC", "label": "reads .md files (read-only)"},
       {"id": "D4", "from": "E25", "to": "E21", "label": "DI back-edge: StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder", "dotted": true}
     ]
   },
