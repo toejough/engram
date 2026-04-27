@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/onsi/gomega"
@@ -266,7 +265,7 @@ func TestTargets(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{})
 		g.Expect(targets).To(gomega.HaveLen(5))
 	})
 
@@ -276,7 +275,7 @@ func TestTargets(t *testing.T) {
 
 		var stdout bytes.Buffer
 
-		targets := cli.Targets(&stdout, &bytes.Buffer{}, strings.NewReader(""))
+		targets := cli.Targets(&stdout, &bytes.Buffer{})
 		_, _ = targ.Execute([]string{"engram", "show", "--data-dir", t.TempDir()}, targets...)
 
 		// show without slug produces an error (written to stderr), stdout is empty.
@@ -292,7 +291,7 @@ func executeForTest(t *testing.T, args []string) (stdoutStr, stderrStr string) {
 
 	var stdout, stderr bytes.Buffer
 
-	targets := cli.Targets(&stdout, &stderr, strings.NewReader(""))
+	targets := cli.Targets(&stdout, &stderr)
 
 	_, err := targ.Execute(args, targets...)
 	if err != nil {

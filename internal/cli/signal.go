@@ -34,13 +34,13 @@ func ForceExitOnRepeatedSignal(signals <-chan os.Signal, exitFn func(int)) {
 
 // SetupSignalHandling registers signal handlers and starts the force-exit goroutine.
 // Returns the configured targets for targ.Main.
-func SetupSignalHandling(stdout, stderr io.Writer, stdin io.Reader, exitFn func(int)) []any {
+func SetupSignalHandling(stdout, stderr io.Writer, exitFn func(int)) []any {
 	sigCh := make(chan os.Signal, signalChannelBuffer)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	ForceExitOnRepeatedSignal(sigCh, exitFn)
 
-	return Targets(stdout, stderr, stdin)
+	return Targets(stdout, stderr)
 }
 
 // unexported constants.

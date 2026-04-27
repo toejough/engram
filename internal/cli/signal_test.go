@@ -3,7 +3,6 @@ package cli_test
 import (
 	"bytes"
 	"os"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -68,6 +67,6 @@ func TestSetupSignalHandling_ReturnsTargets(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 
-	targets := cli.SetupSignalHandling(&stdout, &stderr, strings.NewReader(""), func(_ int) {})
+	targets := cli.SetupSignalHandling(&stdout, &stderr, func(_ int) {})
 	g.Expect(targets).To(HaveLen(5))
 }

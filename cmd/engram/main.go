@@ -10,5 +10,5 @@ import (
 )
 
 func main() {
-	targ.Main(cli.SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit)...)
+	targ.Main(cli.SetupSignalHandling(os.Stdout, os.Stderr, os.Exit)...)
 }

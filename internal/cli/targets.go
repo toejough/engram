@@ -88,9 +88,7 @@ func ProjectSlugFromPath(path string) string {
 }
 
 // Targets returns all targ targets for the engram CLI.
-func Targets(stdout, stderr io.Writer, stdin io.Reader) []any {
-	_ = stdin
-
+func Targets(stdout, stderr io.Writer) []any {
 	errHandler := func(err error) {
 		if err != nil {
 			_, _ = fmt.Fprintln(stderr, err)
