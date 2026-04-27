@@ -11,7 +11,6 @@ import (
 // are detected and broken; depth is capped at maxImportHops.
 func ExpandImports(startPath string, reader ReaderFunc) []ExternalFile {
 	visited := map[string]bool{startPath: true}
-	pattern := importRegexp()
 
 	discovered := make([]ExternalFile, 0)
 	queue := []importNode{{path: startPath, depth: 0}}
@@ -29,7 +28,7 @@ func ExpandImports(startPath string, reader ReaderFunc) []ExternalFile {
 			continue
 		}
 
-		newDiscovered, newQueue := enqueueImports(node, body, pattern, visited)
+		newDiscovered, newQueue := enqueueImports(node, body, visited)
 		discovered = append(discovered, newDiscovered...)
 		queue = append(queue, newQueue...)
 	}
@@ -42,6 +41,11 @@ const (
 	maxImportHops = 5
 )
 
+// unexported variables.
+var (
+	importPattern = regexp.MustCompile(`(?:^|[\s(])@([^\s@()]+)`)
+)
+
 // importNode represents one item in the BFS queue.
 type importNode struct {
 	path  string
@@ -52,9 +56,9 @@ type importNode struct {
 // to record plus the new BFS nodes to enqueue. Mutates visited so subsequent
 // references to the same path are skipped.
 func enqueueImports(
-	node importNode, body []byte, pattern *regexp.Regexp, visited map[string]bool,
+	node importNode, body []byte, visited map[string]bool,
 ) ([]ExternalFile, []importNode) {
-	matches := pattern.FindAllStringSubmatch(string(body), -1)
+	matches := importPattern.FindAllStringSubmatch(string(body), -1)
 
 	discovered := make([]ExternalFile, 0, len(matches))
 	queued := make([]importNode, 0, len(matches))
@@ -74,14 +78,6 @@ func enqueueImports(
 	}
 
 	return discovered, queued
-}
-
-// importRegexp compiles the @path pattern. The expression matches:
-//   - start-of-line, whitespace, or "(" before the "@" so we don't pick up
-//     email addresses
-//   - path segments without whitespace, "@", or parentheses
-func importRegexp() *regexp.Regexp {
-	return regexp.MustCompile(`(?:^|[\s(])@([^\s@()]+)`)
 }
 
 // resolveImportPath returns the absolute path for a @import target relative
