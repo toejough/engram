@@ -138,7 +138,10 @@ var (
 		"go.yaml.in/yaml/v3":         "yaml",
 		"gopkg.in/yaml.v3":           "yaml",
 	}
-	edgeIDPrefix  = regexp.MustCompile(`^R\d+\s*:`)
+	// edgeIDPrefix accepts R<n> (direct call) or D<n> (DI back-edge) labels.
+	// Both prefixes appear at L2-L4; L1 only uses R<n> but D<n> never appears
+	// there so the union is harmless.
+	edgeIDPrefix  = regexp.MustCompile(`^[RD]\d+\s*:`)
 	errNoArgs     = errors.New("--file is required")
 	httpMethodSet = map[string]bool{
 		"NewRequest": true, "NewRequestWithContext": true,
@@ -147,7 +150,8 @@ var (
 	levelPrefixRe      = regexp.MustCompile(`^c[1-4]-`)
 	mermaidClassRe     = regexp.MustCompile(`^\s*class\s+([\w,]+)\s+(\w+)\s*$`)
 	mermaidClickRe     = regexp.MustCompile(`^\s*click\s+(\w+)\s+href\s+"#([^"]+)"`)
-	mermaidEdgeRe      = regexp.MustCompile(`^\s*(\w+)\s*<?-+>+\s*(?:\|([^|]*)\|\s*)?(\w+)\s*$`)
+	mermaidEdgeRe      = regexp.MustCompile(`^\s*(\w+)\s*<?[-.=]+>+\s*(?:\|([^|]*)\|\s*)?(\w+)\s*$`)
+	mermaidFenceRe     = regexp.MustCompile("(?m)^```mermaid")
 	mermaidIDPrefix    = regexp.MustCompile(`^E\d+`)
 	mermaidNodeRe      = regexp.MustCompile(`^\s*(\w+)\s*[(\[]+(.*?)[)\]]+\s*$`)
 	mermaidSubgraphRe  = regexp.MustCompile(`^\s*subgraph\s+(\w+)\s*\[(.*?)\]\s*$`)
@@ -396,6 +400,12 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	findings = append(findings, checkCodePointers(matter, raw, path)...)
 	findings = append(findings, checkPropertyLinks(matter, raw, path)...)
 	if matter.level == 4 {
+		block, mermaidFindings := loadMermaidBlock(raw, path)
+		findings = append(findings, mermaidFindings...)
+		if block != nil {
+			findings = append(findings, collectL4MermaidFindings(block)...)
+			findings = append(findings, checkL4NodesInRegistry(ctx, block, path)...)
+		}
 		return findings, nil
 	}
 	block, mermaidFindings := parseMermaidBlock(raw, path)
@@ -641,6 +651,51 @@ func callOnPackage(pkg *packages.Package, node ast.Node) (*ast.CallExpr, *ast.Se
 	return call, sel, use.Imported().Path()
 }
 
+// collectL4MermaidFindings is the L4 counterpart to collectMermaidFindings.
+// It validates that every node label starts with E<n> (registry-derived) and
+// that every edge label starts with R<n>: (consumer-side relationship) or
+// D<n>: (DI back-edge). No other prefixes (e.g. EXT, X) are allowed — the
+// node ID space is closed to the L3 registry and the edge ID space is closed
+// to the two documented namespaces.
+// checkL4NodesInRegistry verifies every E<n> ID referenced in an L4 mermaid
+// diagram resolves to an entry in the L1-L3 registry derived from sibling
+// c{1,2,3}-*.json files. Catches "fabricated" nodes whose label happens to
+// pass the format check (e.g. an invented E99 with no underlying spec). Skips
+// silently when no spec JSONs are present in the directory.
+func checkL4NodesInRegistry(ctx context.Context, block *mermaidBlock, mdPath string) []Finding {
+	if block == nil {
+		return nil
+	}
+	dir := filepath.Dir(mdPath)
+	files, records, err := scanRegistryDir(ctx, dir)
+	if err != nil || len(files) == 0 {
+		return nil
+	}
+	view := deriveRegistry(dir, files, records)
+	knownIDs := map[string]bool{}
+	for _, element := range view.Elements {
+		knownIDs[element.ID] = true
+	}
+	findings := []Finding{}
+	for _, node := range block.nodes {
+		label := strings.Trim(strings.TrimSpace(node.label), `"`)
+		nodeID := mermaidIDPrefix.FindString(label)
+		if nodeID == "" {
+			continue
+		}
+		if !knownIDs[nodeID] {
+			findings = append(findings, Finding{
+				ID:   "node_id_unknown",
+				Line: node.line,
+				Detail: fmt.Sprintf(
+					"node %q references %s but no L1-L3 registry entry exists",
+					node.id, nodeID),
+			})
+		}
+	}
+	return findings
+}
+
 func checkLastReviewedCommit(ctx context.Context, matter frontMatter) []Finding {
 	if !matter.hasLastReviewedCommit {
 		return nil
@@ -754,6 +809,50 @@ func classFor(element L1Element) string {
 	return "external"
 }
 
+func collectL4MermaidFindings(block *mermaidBlock) []Finding {
+	findings := []Finding{}
+	defined := map[string]mermaidNode{}
+	for _, node := range block.nodes {
+		defined[node.id] = node
+		// L4 .mmd quotes node labels (e.g. e1["E1 · …"]) so strip the
+		// surrounding quotes before the prefix check.
+		label := strings.Trim(strings.TrimSpace(node.label), `"`)
+		if !mermaidIDPrefix.MatchString(label) {
+			findings = append(findings, Finding{
+				ID:     "node_id_missing",
+				Line:   node.line,
+				Detail: fmt.Sprintf("node %q label %q does not start with E<n>", node.id, node.label),
+			})
+		}
+	}
+	for _, edge := range block.edges {
+		if _, ok := defined[edge.from]; !ok {
+			findings = append(findings, Finding{
+				ID:     "node_id_missing",
+				Line:   edge.line,
+				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.from),
+			})
+		}
+		if _, ok := defined[edge.to]; !ok {
+			findings = append(findings, Finding{
+				ID:     "node_id_missing",
+				Line:   edge.line,
+				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.to),
+			})
+		}
+		if !edgeIDPrefix.MatchString(strings.TrimSpace(edge.label)) {
+			findings = append(findings, Finding{
+				ID:   "edge_id_missing",
+				Line: edge.line,
+				Detail: fmt.Sprintf(
+					"edge %q->%q label %q does not start with R<n>: or D<n>:",
+					edge.from, edge.to, edge.label),
+			})
+		}
+	}
+	return findings
+}
+
 func collectMermaidFindings(block *mermaidBlock) []Finding {
 	findings := []Finding{}
 	requiredClasses := []string{"person", "external", "container"}
@@ -796,7 +895,7 @@ func collectMermaidFindings(block *mermaidBlock) []Finding {
 			findings = append(findings, Finding{
 				ID:     "edge_id_missing",
 				Line:   edge.line,
-				Detail: fmt.Sprintf("edge %q->%q label %q does not start with R<n>:", edge.from, edge.to, edge.label),
+				Detail: fmt.Sprintf("edge %q->%q label %q does not start with R<n>: or D<n>:", edge.from, edge.to, edge.label),
 			})
 		}
 	}
@@ -1158,6 +1257,64 @@ func loadAndValidateSpec(path string) (*L1Spec, error) {
 	return &spec, nil
 }
 
+// loadMermaidBlock locates the first diagram source for the markdown at path.
+// It first looks for an inline ```mermaid``` fence in raw; if none is present,
+// it looks for an SVG embed referencing svg/<stem>.mmd alongside, reads that
+// file, and parses it instead. Returns nil block + a single
+// mermaid_block_missing finding when neither source can be located. Unlike
+// parseMermaidBlock, this does not run any L-level structural collector — the
+// caller chooses which collector(s) to apply.
+func loadMermaidBlock(raw []byte, path string) (*mermaidBlock, []Finding) {
+	// Anchor the fence to the start of a line so literal ```mermaid inside
+	// markdown prose / table cells (used as documentation references) is not
+	// mistaken for a real code fence.
+	openFence := []byte("```mermaid")
+	fenceLoc := mermaidFenceRe.FindIndex(raw)
+	if fenceLoc != nil {
+		idx := fenceLoc[0]
+		startLine := 1 + bytes.Count(raw[:idx], []byte("\n"))
+		rest := raw[idx+len(openFence):]
+		closeFence := []byte("\n```")
+		body, _, found := bytes.Cut(rest, closeFence)
+		if !found {
+			return nil, []Finding{{ID: "mermaid_block_missing", Line: startLine, Detail: "unterminated ```mermaid block"}}
+		}
+		block := &mermaidBlock{
+			startLine: startLine,
+			endLine:   startLine + bytes.Count(body, []byte("\n")),
+			body:      string(body),
+			classes:   map[string]bool{},
+		}
+		parseMermaidLines(block)
+		return block, nil
+	}
+
+	// No inline block — try the pre-rendered SVG embed pattern.
+	match := svgEmbedRe.FindSubmatchIndex(raw)
+	if match == nil {
+		return nil, []Finding{{ID: "mermaid_block_missing", Line: 1, Detail: "no ```mermaid fenced block and no svg/<stem>.svg embed"}}
+	}
+	stem := string(raw[match[2]:match[3]])
+	embedLine := 1 + bytes.Count(raw[:match[0]], []byte("\n"))
+	mmdPath := filepath.Join(filepath.Dir(path), "svg", stem+".mmd")
+	mmdBody, err := os.ReadFile(mmdPath)
+	if err != nil {
+		return nil, []Finding{{
+			ID:     "mermaid_block_missing",
+			Line:   embedLine,
+			Detail: fmt.Sprintf("svg embed references %s but %s could not be read: %v", stem+".svg", mmdPath, err),
+		}}
+	}
+	block := &mermaidBlock{
+		startLine: 1,
+		endLine:   1 + bytes.Count(mmdBody, []byte("\n")),
+		body:      string(mmdBody),
+		classes:   map[string]bool{},
+	}
+	parseMermaidLines(block)
+	return block, nil
+}
+
 func mermaidIDByName(elementIDs []elementID) map[string]string {
 	out := map[string]string{}
 	for _, item := range elementIDs {
@@ -1227,56 +1384,15 @@ func parseGitLog(raw []byte) []historyCommit {
 	return commits
 }
 
-// parseMermaidBlock locates the first diagram source for the markdown at path.
-// It first looks for an inline ```mermaid``` fence in raw; if none is present,
-// it looks for an SVG embed referencing svg/<stem>.mmd alongside, reads that
-// file, and parses it instead. Returns nil block + a single
-// mermaid_block_missing finding when neither source can be located.
+// parseMermaidBlock locates the first diagram source for the markdown at path
+// and runs the L1-style structural collector against it. Use loadMermaidBlock
+// when you need the parsed block for a level-specific collector (e.g. L4).
 func parseMermaidBlock(raw []byte, path string) (*mermaidBlock, []Finding) {
-	openFence := []byte("```mermaid")
-	idx := bytes.Index(raw, openFence)
-	if idx >= 0 {
-		startLine := 1 + bytes.Count(raw[:idx], []byte("\n"))
-		rest := raw[idx+len(openFence):]
-		closeFence := []byte("\n```")
-		body, _, found := bytes.Cut(rest, closeFence)
-		if !found {
-			return nil, []Finding{{ID: "mermaid_block_missing", Line: startLine, Detail: "unterminated ```mermaid block"}}
-		}
-		block := &mermaidBlock{
-			startLine: startLine,
-			endLine:   startLine + bytes.Count(body, []byte("\n")),
-			body:      string(body),
-			classes:   map[string]bool{},
-		}
-		parseMermaidLines(block)
-		return block, collectMermaidFindings(block)
+	block, findings := loadMermaidBlock(raw, path)
+	if block != nil {
+		findings = append(findings, collectMermaidFindings(block)...)
 	}
-
-	// No inline block — try the pre-rendered SVG embed pattern.
-	match := svgEmbedRe.FindSubmatchIndex(raw)
-	if match == nil {
-		return nil, []Finding{{ID: "mermaid_block_missing", Line: 1, Detail: "no ```mermaid fenced block and no svg/<stem>.svg embed"}}
-	}
-	stem := string(raw[match[2]:match[3]])
-	embedLine := 1 + bytes.Count(raw[:match[0]], []byte("\n"))
-	mmdPath := filepath.Join(filepath.Dir(path), "svg", stem+".mmd")
-	mmdBody, err := os.ReadFile(mmdPath)
-	if err != nil {
-		return nil, []Finding{{
-			ID:     "mermaid_block_missing",
-			Line:   embedLine,
-			Detail: fmt.Sprintf("svg embed references %s but %s could not be read: %v", stem+".svg", mmdPath, err),
-		}}
-	}
-	block := &mermaidBlock{
-		startLine: 1,
-		endLine:   1 + bytes.Count(mmdBody, []byte("\n")),
-		body:      string(mmdBody),
-		classes:   map[string]bool{},
-	}
-	parseMermaidLines(block)
-	return block, collectMermaidFindings(block)
+	return block, findings
 }
 
 func parseMermaidLines(block *mermaidBlock) {

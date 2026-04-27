@@ -14,6 +14,9 @@ import (
 // unexported constants.
 const (
 	catalogCellsForCodePointer = 7
+	propertyEnforcedCellIndex  = 4
+	propertyMinCellCount       = 8
+	propertyTestedCellIndex    = 5
 )
 
 // unexported variables.
@@ -23,18 +26,33 @@ var (
 	propertyLedgerRe  = regexp.MustCompile(`(?m)^##\s+Property Ledger\s*$`)
 )
 
-const (
-	propertyEnforcedCellIndex = 4
-	propertyTestedCellIndex   = 5
-	propertyMinCellCount      = 8
-)
-
 // catalogIDName is one (id, name) pair extracted from the audited markdown's
 // Element Catalog along with the source line for finding placement.
 type catalogIDName struct {
 	id   string
 	name string
 	line int
+}
+
+func brokenLinksInCell(cell, dir string, lineNum int) []Finding {
+	matches := markdownLinkRe.FindAllStringSubmatch(cell, -1)
+	findings := []Finding{}
+	for _, match := range matches {
+		target := stripFragment(match[2])
+		if target == "" {
+			continue
+		}
+		resolved := filepath.Join(dir, target)
+		if _, err := os.Stat(resolved); err == nil {
+			continue
+		}
+		findings = append(findings, Finding{
+			ID:     "property_link_unresolved",
+			Line:   lineNum,
+			Detail: fmt.Sprintf("link target %q does not resolve from %s", match[2], dir),
+		})
+	}
+	return findings
 }
 
 // catalogPairFromRow parses one Element Catalog markdown row into a
@@ -153,50 +171,6 @@ func checkPropertyLinks(matter frontMatter, raw []byte, mdPath string) []Finding
 		findings = append(findings, propertyLinkFindings(line, mdPath, startLine+offset+1)...)
 	}
 	return findings
-}
-
-func propertyLinkFindings(line, mdPath string, lineNum int) []Finding {
-	cells := strings.Split(line, "|")
-	if len(cells) < propertyMinCellCount {
-		return nil
-	}
-	if !strings.Contains(cells[1], "P") || strings.Contains(cells[1], "---") {
-		return nil
-	}
-	dir := filepath.Dir(mdPath)
-	findings := []Finding{}
-	for _, cellIdx := range []int{propertyEnforcedCellIndex, propertyTestedCellIndex} {
-		findings = append(findings, brokenLinksInCell(cells[cellIdx], dir, lineNum)...)
-	}
-	return findings
-}
-
-func brokenLinksInCell(cell, dir string, lineNum int) []Finding {
-	matches := markdownLinkRe.FindAllStringSubmatch(cell, -1)
-	findings := []Finding{}
-	for _, match := range matches {
-		target := stripFragment(match[2])
-		if target == "" {
-			continue
-		}
-		resolved := filepath.Join(dir, target)
-		if _, err := os.Stat(resolved); err == nil {
-			continue
-		}
-		findings = append(findings, Finding{
-			ID:     "property_link_unresolved",
-			Line:   lineNum,
-			Detail: fmt.Sprintf("link target %q does not resolve from %s", match[2], dir),
-		})
-	}
-	return findings
-}
-
-func stripFragment(target string) string {
-	if hashIndex := strings.Index(target, "#"); hashIndex >= 0 {
-		return target[:hashIndex]
-	}
-	return target
 }
 
 // checkRegistryCrossCheck derives the registry from the audited markdown's
@@ -349,4 +323,27 @@ func parseInlineYAMLArray(value string) []string {
 		out = append(out, entry)
 	}
 	return out
+}
+
+func propertyLinkFindings(line, mdPath string, lineNum int) []Finding {
+	cells := strings.Split(line, "|")
+	if len(cells) < propertyMinCellCount {
+		return nil
+	}
+	if !strings.Contains(cells[1], "P") || strings.Contains(cells[1], "---") {
+		return nil
+	}
+	dir := filepath.Dir(mdPath)
+	findings := []Finding{}
+	for _, cellIdx := range []int{propertyEnforcedCellIndex, propertyTestedCellIndex} {
+		findings = append(findings, brokenLinksInCell(cells[cellIdx], dir, lineNum)...)
+	}
+	return findings
+}
+
+func stripFragment(target string) string {
+	if hashIndex := strings.Index(target, "#"); hashIndex >= 0 {
+		return target[:hashIndex]
+	}
+	return target
 }
