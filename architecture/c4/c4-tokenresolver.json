@@ -15,19 +15,16 @@
   "context_prose": "tokenresolver is the API-token resolution component for the engram CLI. It is consumed by `cli` (E21) before any Anthropic LLM call (R7). The component itself has no outgoing R/D edges to other components — it only invokes its three injected dependencies (`getenv`, `execCmd`, `goos`) which are wired by `cli` at construction time (D1 back-edge). The component encodes one strict architectural invariant: Resolve never returns a non-nil error. All failure modes (env unset, non-darwin OS, Keychain process failure, malformed JSON, missing JSON field) collapse to `(\"\", nil)` so callers can branch on empty-string alone.",
   "legend_items": [
     "**E27 · tokenresolver** (focus, yellow) — this ledger.",
-    "**E21 · cli** — the wirer; consumer-side R7 plus DI back-edge D1.",
-    "**Process / Keychain** — external resources reached through injected `execCmd` (the `security` binary on darwin)."
+    "**E21 · cli** — the wirer; consumer-side R7 plus DI back-edge D1."
   ],
   "diagram": {
     "nodes": [
       {"id": "E27", "name": "tokenresolver", "subtitle": "API token resolution", "kind": "focus"},
-      {"id": "E21", "name": "cli", "subtitle": "wirer / consumer", "kind": "component"},
-      {"id": "EXT1", "name": "macOS Keychain", "subtitle": "via security(1)", "kind": "external"}
+      {"id": "E21", "name": "cli", "subtitle": "wirer / consumer", "kind": "component"}
     ],
     "edges": [
       {"id": "R7", "from": "E21", "to": "E27", "label": "calls Resolver.Resolve"},
-      {"id": "D1", "from": "E27", "to": "E21", "label": "invokes injected getenv / execCmd / goos", "dotted": true},
-      {"id": "X1", "from": "E27", "to": "EXT1", "label": "execCmd(security find-generic-password) on darwin", "dotted": true}
+      {"id": "D1", "from": "E27", "to": "E21", "label": "invokes injected getenv / execCmd / goos", "dotted": true}
     ]
   },
   "dependency_manifest": [

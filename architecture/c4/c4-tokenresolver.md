@@ -3,7 +3,7 @@ level: 4
 name: tokenresolver
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: cd55eab2
+last_reviewed_commit: 3970e94c
 ---
 
 # C4 — tokenresolver (Property/Invariant Ledger)
@@ -27,7 +27,6 @@ tokenresolver is the API-token resolution component for the engram CLI. It is co
 **Legend:**
 - **E27 · tokenresolver** (focus, yellow) — this ledger.
 - **E21 · cli** — the wirer; consumer-side R7 plus DI back-edge D1.
-- **Process / Keychain** — external resources reached through injected `execCmd` (the `security` binary on darwin).
 
 ## Dependency Manifest
 

@@ -15,23 +15,19 @@
   "context_prose": "session-start.sh is the SessionStart hook bash script registered in hooks.json (10s timeout). On every Claude Code session start it does two things: synchronously, it prints a single JSON object on stdout containing `hookSpecificOutput.additionalContext` with the static memory-skills announcement, which Claude Code injects into the agent's context; asynchronously, in a backgrounded-and-disowned subshell, it rebuilds the engram Go binary at `~/.claude/engram/bin/engram` whenever the binary is missing or any `*.go` source under the plugin root is newer than the cached binary mtime. The script deletes the previous binary before rebuilding so the freshly compiled artifact does not inherit `com.apple.provenance` from a Claude-Code-spawned shell (which would cause macOS to SIGKILL it on exec), writes to a `.tmp` path and atomically renames into place, and finally maintains a `~/.local/bin/engram` symlink to the binary. The async portion is fully detached so the synchronous JSON emit returns immediately within the 10s hook budget; build failures are intentionally swallowed (`|| exit 0`) so a transient compile error never blocks a session.",
   "legend_items": [
     "**focus** (yellow): the script in scope for this ledger.",
-    "**external** (grey): runtime systems the script invokes (Claude Code, jq, go toolchain, filesystem).",
+    "**external** (grey): the Claude Code runtime that execs the hook.",
     "**component** (light blue): the engram CLI binary artifact this script maintains."
   ],
   "diagram": {
     "nodes": [
       {"id": "E17", "name": "session-start.sh", "subtitle": "SessionStart hook", "kind": "focus"},
       {"id": "E3", "name": "Claude Code", "subtitle": "exec + stdout consumer", "kind": "external"},
-      {"id": "E9", "name": "engram CLI binary", "subtitle": "~/.claude/engram/bin/engram", "kind": "component"},
-      {"id": "EJQ", "name": "jq", "subtitle": "JSON emitter", "kind": "external"},
-      {"id": "EGO", "name": "go build", "subtitle": "toolchain", "kind": "external"}
+      {"id": "E9", "name": "engram CLI binary", "subtitle": "~/.claude/engram/bin/engram", "kind": "component"}
     ],
     "edges": [
       {"id": "R5", "from": "E3", "to": "E17", "label": "execs on SessionStart (timeout 10s)"},
-      {"id": "R6", "from": "E17", "to": "E3", "label": "emits additionalContext JSON on stdout"},
-      {"id": "Rjq", "from": "E17", "to": "EJQ", "label": "shells out to build hookSpecificOutput JSON"},
-      {"id": "R9a", "from": "E17", "to": "EGO", "label": "async go build ./cmd/engram/ when stale"},
-      {"id": "R9b", "from": "E17", "to": "E9", "label": "deletes + atomically replaces binary; symlinks ~/.local/bin/engram"}
+      {"id": "R6", "from": "E17", "to": "E3", "label": "emits additionalContext JSON on stdout (built via jq)"},
+      {"id": "R9", "from": "E17", "to": "E9", "label": "async go build, then deletes + atomically replaces binary; symlinks ~/.local/bin/engram"}
     ]
   },
   "properties": [

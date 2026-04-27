@@ -8,11 +8,8 @@ flowchart LR
 
     e20["E20 · main.go<br/>process entry"]
     e21["E21 · cli<br/>subcommand dispatch"]
-    etarg("ETARG · targ<br/>external framework")
 
-    e20 -->|"R2a: calls SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit)"| e21
-    e20 -->|"R2b: forwards targets into targ.Main"| etarg
+    e20 -->|"R2: calls SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit) and forwards targets into targ.Main"| e21
 
-    class etarg external
     class e21 component
     class e20 focus

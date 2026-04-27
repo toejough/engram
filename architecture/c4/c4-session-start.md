@@ -3,7 +3,7 @@ level: 4
 name: session-start
 parent: "c3-hooks.md"
 children: []
-last_reviewed_commit: cd55eab2
+last_reviewed_commit: 3970e94c
 ---
 
 # C4 — session-start (Property/Invariant Ledger)
@@ -26,7 +26,7 @@ session-start.sh is the SessionStart hook bash script registered in hooks.json (
 
 **Legend:**
 - **focus** (yellow): the script in scope for this ledger.
-- **external** (grey): runtime systems the script invokes (Claude Code, jq, go toolchain, filesystem).
+- **external** (grey): the Claude Code runtime that execs the hook.
 - **component** (light blue): the engram CLI binary artifact this script maintains.
 
 ## Property Ledger

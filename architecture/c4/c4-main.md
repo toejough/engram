@@ -3,7 +3,7 @@ level: 4
 name: main
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: cd55eab2
+last_reviewed_commit: 3970e94c
 ---
 
 # C4 — main (Property/Invariant Ledger)
@@ -26,7 +26,6 @@ main.go is the process entry point for the engram CLI binary. It contains no bus
 **Legend:**
 - **focus** (yellow): the file in scope for this ledger.
 - **component** (light blue): peer Go components inside the binary.
-- **external** (grey): code outside this repo (the `targ` framework).
 
 ## Property Ledger
 

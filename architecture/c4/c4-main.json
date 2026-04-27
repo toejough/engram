@@ -14,18 +14,15 @@
   "context_prose": "main.go is the process entry point for the engram CLI binary. It contains no business logic: it wires real-OS I/O streams (`os.Stdout`, `os.Stderr`, `os.Stdin`) and `os.Exit` into `cli.SetupSignalHandling`, then forwards the resulting target list into `targ.Main`. By project convention it is excluded from coverage — only re-exports and thin wrappers, no testable logic. All command dispatch, signal-handler installation, and DI wiring is delegated to the `cli` package; this file's only architectural job is to be the boundary at which concrete OS handles enter the program.",
   "legend_items": [
     "**focus** (yellow): the file in scope for this ledger.",
-    "**component** (light blue): peer Go components inside the binary.",
-    "**external** (grey): code outside this repo (the `targ` framework)."
+    "**component** (light blue): peer Go components inside the binary."
   ],
   "diagram": {
     "nodes": [
       {"id": "E20", "name": "main.go", "subtitle": "process entry", "kind": "focus"},
-      {"id": "E21", "name": "cli", "subtitle": "subcommand dispatch", "kind": "component"},
-      {"id": "ETARG", "name": "targ", "subtitle": "external framework", "kind": "external"}
+      {"id": "E21", "name": "cli", "subtitle": "subcommand dispatch", "kind": "component"}
     ],
     "edges": [
-      {"id": "R2a", "from": "E20", "to": "E21", "label": "calls SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit)"},
-      {"id": "R2b", "from": "E20", "to": "ETARG", "label": "forwards targets into targ.Main"}
+      {"id": "R2", "from": "E20", "to": "E21", "label": "calls SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit) and forwards targets into targ.Main"}
     ]
   },
   "properties": [
