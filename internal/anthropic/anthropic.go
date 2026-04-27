@@ -9,13 +9,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 )
 
 // Exported constants.
 const (
-	HaikuModel  = "claude-haiku-4-5-20251001"
-	SonnetModel = "claude-sonnet-4-20250514"
+	HaikuModel = "claude-haiku-4-5-20251001"
 )
 
 // Exported variables.
@@ -135,41 +133,6 @@ func (c *Client) doRequest(
 // HTTPDoer is the interface for making HTTP requests.
 type HTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
-}
-
-// StripCodeFences extracts JSON from an LLM response by stripping markdown code
-// fences and any surrounding text. Handles preamble, fenced blocks, and suffix.
-func StripCodeFences(s string) string {
-	trimmed := strings.TrimSpace(s)
-
-	// Strip fenced code blocks: ```json ... ``` or ``` ... ```
-	for _, prefix := range []string{"```json", "```"} {
-		_, after, found := strings.Cut(trimmed, prefix)
-		if !found {
-			continue
-		}
-
-		body, _, hasFence := strings.Cut(after, "```")
-		if hasFence {
-			return strings.TrimSpace(body)
-		}
-
-		return strings.TrimSpace(after)
-	}
-
-	// No fences — extract the first JSON object or array by finding balanced delimiters.
-	if idx := strings.IndexAny(trimmed, "{["); idx >= 0 {
-		closer := byte('}')
-		if trimmed[idx] == '[' {
-			closer = ']'
-		}
-
-		if end := strings.LastIndexByte(trimmed, closer); end > idx {
-			return trimmed[idx : end+1]
-		}
-	}
-
-	return trimmed
 }
 
 // unexported constants.

@@ -1,7 +1,6 @@
 package context_test
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -10,21 +9,6 @@ import (
 
 	sessionctx "engram/internal/context"
 )
-
-// --- Coverage: DeltaReader with file read error ---
-
-func TestDeltaReader_FileReadError(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	reader := sessionctx.NewDeltaReader(&fakeFileReader{
-		err: errors.New("permission denied"),
-	})
-
-	_, _, err := reader.Read("/transcript.jsonl", 0)
-	g.Expect(err).To(MatchError(ContainSubstring("permission denied")))
-}
 
 func TestStrip_DropsSystemReminderContent(t *testing.T) {
 	t.Parallel()
@@ -146,121 +130,6 @@ func TestStrip_LegacyRoleFallback(t *testing.T) {
 	g.Expect(result[1]).To(Equal("ASSISTANT: legacy assistant msg"))
 }
 
-// --- T-134: TranscriptDeltaReader reads from offset 0 ---
-
-func TestT134_ReadFromOffset0ReturnsFullFile(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	lines := make([]string, 0, 10)
-	for i := range 10 {
-		lines = append(lines, fmt.Sprintf(`{"line":%d}`, i))
-	}
-
-	content := strings.Join(lines, "\n") + "\n"
-
-	reader := sessionctx.NewDeltaReader(&fakeFileReader{
-		contents: map[string][]byte{"/transcript.jsonl": []byte(content)},
-	})
-
-	delta, newOffset, err := reader.Read("/transcript.jsonl", 0)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(delta).To(HaveLen(10))
-	g.Expect(newOffset).To(Equal(int64(len(content))))
-}
-
-// --- T-135: TranscriptDeltaReader reads from mid-file offset ---
-
-func TestT135_ReadFromMidFileOffset(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// Each line is exactly 14 bytes: `{"line":X}` + newline
-	// Use fixed-width lines for predictable offsets.
-	lines := make([]string, 0, 10)
-	for i := range 10 {
-		lines = append(lines, fmt.Sprintf(`{"line":%d}`, i))
-	}
-
-	content := strings.Join(lines, "\n") + "\n"
-
-	// Find offset after line 5 (index 5).
-	offsetAfterLine5 := 0
-	for i := range 5 {
-		offsetAfterLine5 += len(lines[i]) + 1 // +1 for newline
-		_ = i
-	}
-
-	reader := sessionctx.NewDeltaReader(&fakeFileReader{
-		contents: map[string][]byte{"/transcript.jsonl": []byte(content)},
-	})
-
-	delta, newOffset, err := reader.Read("/transcript.jsonl", int64(offsetAfterLine5))
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(delta).To(HaveLen(5))
-	g.Expect(newOffset).To(Equal(int64(len(content))))
-}
-
-// --- T-136: File shorter than offset resets to 0 ---
-
-func TestT136_FileShorterThanOffsetResetsTo0(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	content := `{"line":0}` + "\n" + `{"line":1}` + "\n"
-
-	reader := sessionctx.NewDeltaReader(&fakeFileReader{
-		contents: map[string][]byte{"/transcript.jsonl": []byte(content)},
-	})
-
-	const staleOffset = 2000
-
-	delta, newOffset, err := reader.Read("/transcript.jsonl", staleOffset)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(delta).To(HaveLen(2))
-	g.Expect(newOffset).To(Equal(int64(len(content))))
-}
-
-// --- T-137: Empty file returns empty delta ---
-
-func TestT137_EmptyFileReturnsEmptyDelta(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	reader := sessionctx.NewDeltaReader(&fakeFileReader{
-		contents: map[string][]byte{"/transcript.jsonl": {}},
-	})
-
-	delta, newOffset, err := reader.Read("/transcript.jsonl", 0)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(delta).To(BeEmpty())
-	g.Expect(newOffset).To(Equal(int64(0)))
-}
-
 // --- T-138: ContentStripper removes tool result blocks ---
 
 func TestT138_StripRemovesToolResultBlocks(t *testing.T) {
@@ -369,24 +238,4 @@ func TestT143_StripDropsToolUseAndToolResultLines(t *testing.T) {
 	result := sessionctx.Strip(lines)
 
 	g.Expect(result).To(BeEmpty())
-}
-
-// --- Fake implementations ---
-
-type fakeFileReader struct {
-	contents map[string][]byte
-	err      error
-}
-
-func (f *fakeFileReader) Read(path string) ([]byte, error) {
-	if f.err != nil {
-		return nil, f.err
-	}
-
-	content, ok := f.contents[path]
-	if !ok {
-		return nil, fmt.Errorf("open %s: no such file or directory", path)
-	}
-
-	return content, nil
 }
