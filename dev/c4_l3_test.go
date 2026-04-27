@@ -293,8 +293,8 @@ func TestT50_L3ValidateIDs_RejectsTooDeep(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error rejecting depth-4 id, got nil")
 	}
-	if !strings.Contains(err.Error(), "unsupported L3 id depth") {
-		t.Errorf("want error mentioning 'unsupported L3 id depth', got %q", err.Error())
+	if !strings.Contains(err.Error(), "is not valid at level 3") {
+		t.Errorf("want error mentioning 'is not valid at level 3', got %q", err.Error())
 	}
 }
 
@@ -311,8 +311,8 @@ func TestT51_L3ValidateIDs_RejectsOutOfFocusM(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error rejecting M-id outside focus, got nil")
 	}
-	if !strings.Contains(err.Error(), "not under focus") {
-		t.Errorf("want error mentioning 'not under focus', got %q", err.Error())
+	if !strings.Contains(err.Error(), "is not valid at level 3") {
+		t.Errorf("want error mentioning 'is not valid at level 3', got %q", err.Error())
 	}
 }
 

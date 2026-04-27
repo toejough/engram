@@ -189,8 +189,8 @@ func TestT21_L2ValidateIDs_RejectsBadDepth(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error rejecting depth-3 id, got nil")
 	}
-	if !strings.Contains(err.Error(), "unsupported L2 id depth") {
-		t.Errorf("want error mentioning 'unsupported L2 id depth', got %q", err.Error())
+	if !strings.Contains(err.Error(), "is not valid at level 2") {
+		t.Errorf("want error mentioning 'is not valid at level 2', got %q", err.Error())
 	}
 }
 
@@ -205,7 +205,7 @@ func TestT22_L2ValidateIDs_RejectsOutOfFocusN(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error rejecting N-id outside focus, got nil")
 	}
-	if !strings.Contains(err.Error(), "not under focus") {
-		t.Errorf("want error mentioning 'not under focus', got %q", err.Error())
+	if !strings.Contains(err.Error(), "is not valid at level 2") {
+		t.Errorf("want error mentioning 'is not valid at level 2', got %q", err.Error())
 	}
 }

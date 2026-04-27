@@ -138,8 +138,8 @@ func TestT61_ValidateL4Properties_RequiresFocusAncestry(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for property not under focus, got nil")
 	}
-	if !strings.Contains(err.Error(), "not under focus") {
-		t.Errorf("want error mentioning 'not under focus', got %q", err.Error())
+	if !strings.Contains(err.Error(), "is not valid at level 4") {
+		t.Errorf("want error mentioning 'is not valid at level 4', got %q", err.Error())
 	}
 }
 
@@ -156,9 +156,9 @@ func TestT62_ValidateL4Properties_RequiresSequentialIndex(t *testing.T) {
 	}
 }
 
-func TestT63_L4PropertyAnchor_UsesHierarchicalID(t *testing.T) {
+func TestT63_Anchor_UsesHierarchicalID(t *testing.T) {
 	t.Parallel()
-	anchor := l4PropertyAnchor("S2-N3-M3-P1", "Sessions sorted newest-first")
+	anchor := Anchor("S2-N3-M3-P1", "Sessions sorted newest-first")
 	want := "s2-n3-m3-p1-sessions-sorted-newest-first"
 	if anchor != want {
 		t.Errorf("want %q, got %q", want, anchor)

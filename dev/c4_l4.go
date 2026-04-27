@@ -230,7 +230,7 @@ func emitL4DIWires(buf *bytes.Buffer, spec *L4Spec) {
 
 func emitL4DepRow(buf *bytes.Buffer, row L4DepRow) {
 	wiredBy := fmt.Sprintf("[%s · %s](%s#%s)",
-		row.WiredByID, row.WiredByName, row.WiredByL3, l3AnchorID(row.WiredByID, row.WiredByName))
+		row.WiredByID, row.WiredByName, row.WiredByL3, Anchor(row.WiredByID, row.WiredByName))
 	if row.WiredByL4 != "" {
 		wiredBy += fmt.Sprintf(" ([%s](%s))", row.WiredByL4, row.WiredByL4)
 	} else {
@@ -385,13 +385,13 @@ func emitL4PropertyRow(buf *bytes.Buffer, prop L4Property) {
 		notes = " "
 	}
 	fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s | %s |\n",
-		l4PropertyAnchor(prop.ID, prop.Name),
+		Anchor(prop.ID, prop.Name),
 		prop.ID, prop.Name, prop.Statement, enforcedCell, testedCell, notes)
 }
 
 func emitL4WireRow(buf *bytes.Buffer, row L4WireRow) {
 	consumer := fmt.Sprintf("[%s · %s](%s#%s)",
-		row.ConsumerID, row.ConsumerName, row.ConsumerL3, l3AnchorID(row.ConsumerID, row.ConsumerName))
+		row.ConsumerID, row.ConsumerName, row.ConsumerL3, Anchor(row.ConsumerID, row.ConsumerName))
 	if row.ConsumerL4 != "" {
 		consumer += fmt.Sprintf(" ([%s](%s))", row.ConsumerL4, row.ConsumerL4)
 	}
@@ -508,12 +508,6 @@ func l4NodeShape(kind string) (string, string) {
 	}
 }
 
-// l4PropertyAnchor returns the lowercase HTML anchor ID for a property row,
-// e.g. "s2-n3-m2-p1-subcommand-surface-is-fixed".
-func l4PropertyAnchor(id, name string) string {
-	return strings.ToLower(id) + "-" + slug(name)
-}
-
 func loadAndValidateL4Spec(path string) (*L4Spec, error) {
 	raw, err := os.ReadFile(path) //nolint:gosec // dev tool
 	if err != nil {
@@ -569,37 +563,8 @@ func validateL4NodeIDs(spec *L4Spec) error {
 		}
 	}
 	for index, node := range spec.Diagram.Nodes {
-		path, pathErr := ParseIDPath(node.ID)
-		if pathErr != nil {
-			violations = append(violations, fmt.Sprintf(
-				"diagram.nodes[%d].id %q: must be a hierarchical path (S<n>, S<n>-N<m>, or S<n>-N<m>-M<k>): %v",
-				index, node.ID, pathErr))
-			continue
-		}
-		if node.ID == spec.Focus.ID {
-			continue // focus itself
-		}
-		switch path.Level {
-		case 1, 2:
-			// carried-over L1/L2 peer (system or container) — accept any
-		case 3:
-			if focusPath.IsAncestorOf(path) {
-				violations = append(violations, fmt.Sprintf(
-					"diagram.nodes[%d].id %q: is a descendant of focus %s; "+
-						"diagram nodes must be the focus, ancestors, or siblings",
-					index, node.ID, spec.Focus.ID))
-				continue
-			}
-			if !sharesParentPath(path, focusPath) {
-				violations = append(violations, fmt.Sprintf(
-					"diagram.nodes[%d].id %q: not a sibling of focus %s "+
-						"(must share parent S<n>-N<m>)",
-					index, node.ID, spec.Focus.ID))
-			}
-		default:
-			violations = append(violations, fmt.Sprintf(
-				"diagram.nodes[%d].id %q: unsupported L4 node depth %d",
-				index, node.ID, path.Level))
+		if nodeErr := ValidateDiagramNodeID(focusPath, node.ID); nodeErr != nil {
+			violations = append(violations, fmt.Sprintf("diagram.nodes[%d].id: %v", index, nodeErr))
 		}
 	}
 	if len(violations) == 0 {
@@ -614,17 +579,13 @@ func validateL4NodeIDs(spec *L4Spec) error {
 func validateL4PropertiesWithFocus(focusPath IDPath, props []L4Property) error {
 	seenID := map[string]bool{}
 	for index, prop := range props {
-		path, err := ParseIDPath(prop.ID)
-		if err != nil {
-			return fmt.Errorf("properties[%d]: id %q must be a hierarchical path: %w", index, prop.ID, err)
+		if err := ValidateElementID(4, focusPath, prop.ID); err != nil {
+			return fmt.Errorf("properties[%d]: %w", index, err)
 		}
+		path, _ := ParseIDPath(prop.ID) // safe: ValidateElementID already validated
 		if path.Level != 4 {
 			return fmt.Errorf("properties[%d]: id %q must be level 4 (S<n>-N<m>-M<k>-P<j>), got level %d",
 				index, prop.ID, path.Level)
-		}
-		if !focusPath.IsAncestorOf(path) {
-			return fmt.Errorf("properties[%d]: id %q is not under focus %s",
-				index, prop.ID, focusPath.String())
 		}
 		expectedSuffix := fmt.Sprintf("P%d", index+1)
 		if path.Segments[3] != expectedSuffix {

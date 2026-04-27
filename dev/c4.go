@@ -179,8 +179,8 @@ type catalogRow struct {
 	line     int
 }
 
-// elementID pairs a source element with its assigned E<n> identifier and
-// anchor slug.
+// elementID pairs a source element with its assigned hierarchical identifier
+// and anchor slug.
 type elementID struct {
 	ID       string
 	AnchorID string
@@ -301,17 +301,10 @@ func assignElementIDs(elements []L1Element) ([]elementID, error) {
 		if element.ID == "" {
 			return nil, fmt.Errorf("elements[%d]: missing id", index)
 		}
-		path, err := ParseIDPath(element.ID)
-		if err != nil {
+		if err := ValidateElementID(1, IDPath{}, element.ID); err != nil {
 			return nil, fmt.Errorf("elements[%d]: %w", index, err)
 		}
-		if path.Level != 1 {
-			return nil, fmt.Errorf(
-				"elements[%d]: id %q must be level 1 (S<n>), got level %d",
-				index, element.ID, path.Level,
-			)
-		}
-		base := fmt.Sprintf("%s-%s", strings.ToLower(element.ID), slug(element.Name))
+		base := Anchor(element.ID, element.Name)
 		anchor := base
 		if used[base] > 0 {
 			used[base]++
@@ -669,11 +662,11 @@ func callOnPackage(pkg *packages.Package, node ast.Node) (*ast.CallExpr, *ast.Se
 }
 
 // collectL4MermaidFindings is the L4 counterpart to collectMermaidFindings.
-// It validates that every node label starts with E<n> (registry-derived) and
-// that every edge label starts with R<n>: (consumer-side relationship) or
-// D<n>: (DI back-edge). No other prefixes (e.g. EXT, X) are allowed — the
-// node ID space is closed to the L3 registry and the edge ID space is closed
-// to the two documented namespaces.
+// It validates that every node label is a hierarchical path ID (S<n>-N<m>-M<k>
+// or shallower) and that every edge label starts with R<n>: (consumer-side
+// relationship) or D<n>: (DI back-edge). No other prefixes are allowed — the
+// node ID space is closed to the L4 context strip and the edge ID space is
+// closed to the two documented namespaces.
 func checkLastReviewedCommit(ctx context.Context, matter frontMatter) []Finding {
 	if !matter.hasLastReviewedCommit {
 		return nil
@@ -1518,7 +1511,7 @@ func parseTableSection(text string, headerRe *regexp.Regexp, isCatalog bool) []c
 
 // parseTables locates the "## Element Catalog" and "## Relationships" sections
 // and parses each table row's first cell to extract the anchor ID and the
-// E<n>/R<n> identifier.
+// hierarchical element ID or relationship ID.
 func parseTables(raw []byte) ([]catalogRow, []relationshipsRow) {
 	text := string(raw)
 	catalog := parseTableSection(text, catalogHeaderRe, true)

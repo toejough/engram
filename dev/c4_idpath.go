@@ -56,9 +56,40 @@ func (path IDPath) IsAncestorOf(other IDPath) bool {
 	return true
 }
 
+// IsAncestorOrEqual reports whether this path is a prefix of other or equal
+// to other. It is reflexive: a path is an ancestor-or-equal of itself.
+func (path IDPath) IsAncestorOrEqual(other IDPath) bool {
+	if len(path.Segments) > len(other.Segments) {
+		return false
+	}
+	for index, segment := range path.Segments {
+		if other.Segments[index] != segment {
+			return false
+		}
+	}
+	return true
+}
+
 // String returns the canonical hyphen-separated form (e.g. "S2-N3-M5").
 func (path IDPath) String() string {
 	return strings.Join(path.Segments, "-")
+}
+
+// Anchor returns the canonical HTML anchor for an element: lowercase id, a
+// hyphen, then the slug of name (e.g. Anchor("S2-N3-M5", "Recall") →
+// "s2-n3-m5-recall").
+func Anchor(id, name string) string {
+	return strings.ToLower(id) + "-" + slug(name)
+}
+
+// LocalLetter returns the letter that a spec at the given level allocates for
+// new elements: level 1→S, 2→N, 3→M, 4→P. Returns an error for out-of-range
+// levels.
+func LocalLetter(level int) (string, error) {
+	if level < 1 || level > maxIDPathDepth {
+		return "", fmt.Errorf("LocalLetter: level %d out of range [1..%d]", level, maxIDPathDepth)
+	}
+	return levelLetters[level-1], nil
 }
 
 // ParseIDPath parses a hyphen-separated hierarchical path string. The first
@@ -94,6 +125,71 @@ func ParseIDPath(input string) (IDPath, error) {
 		}
 	}
 	return IDPath{Segments: segments, Level: len(segments)}, nil
+}
+
+// ValidateDiagramNodeID returns nil iff id is acceptable as a node in a
+// diagram whose focus is focus. Valid shapes:
+//   - identical to focus
+//   - any path shallower than focus (carried-over peers from parent diagrams)
+//   - sibling at focus's depth (same depth, shares focus's parent prefix)
+//
+// Descendants of focus are rejected.
+func ValidateDiagramNodeID(focus IDPath, id string) error {
+	path, err := ParseIDPath(id)
+	if err != nil {
+		return fmt.Errorf("id %q: %w", id, err)
+	}
+	if path.String() == focus.String() {
+		return nil
+	}
+	// Any path shallower than focus: carried-over peer (any system, container).
+	if path.Level < focus.Level {
+		return nil
+	}
+	// Sibling: same depth, shares all but last segment with focus.
+	if path.Level == focus.Level && sharesParentPath(path, focus) {
+		return nil
+	}
+	return fmt.Errorf(
+		"id %q is not valid as a diagram node for focus %q: must be focus, ancestor, or sibling",
+		id, focus.String(),
+	)
+}
+
+// ValidateElementID returns nil iff id is acceptable for an element in a spec
+// at the given level whose focus is focus. Valid shapes:
+//   - any path shallower than focus's depth (carry-over from parent diagrams)
+//   - identical to focus (the focus element itself)
+//   - a new local: exactly one level deeper than focus, under focus, using
+//     LocalLetter(level) (e.g. focus "S2-N3" at level 3 → "S2-N3-M<n>")
+//
+// For level 1 the focus is the empty IDPath (depth 0); accepted shapes are
+// "S<n>" (depth 1 = focus.Level+1).
+func ValidateElementID(level int, focus IDPath, id string) error {
+	letter, err := LocalLetter(level)
+	if err != nil {
+		return err
+	}
+	path, err := ParseIDPath(id)
+	if err != nil {
+		return fmt.Errorf("id %q: %w", id, err)
+	}
+	// Any path at or shallower than the focus depth is a carried-over peer —
+	// always OK (other systems, containers, etc. from parent diagrams).
+	if path.Level <= focus.Level {
+		return nil
+	}
+	// New local element: exactly one level deeper than focus, under focus,
+	// using the expected letter for this spec level.
+	if path.Level == focus.Level+1 && focus.IsAncestorOrEqual(path) &&
+		path.Segments[path.Level-1][0:1] == letter {
+		return nil
+	}
+	return fmt.Errorf(
+		"id %q is not valid at level %d (focus %q): must be a carry-over (depth ≤ %d), "+
+			"or %s<n> directly under focus",
+		id, level, focus.String(), focus.Level, letter,
+	)
 }
 
 // unexported constants.

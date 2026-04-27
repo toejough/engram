@@ -285,22 +285,10 @@ func validateL2ElementIDs(elements []L2Element) ([]elementID, error) {
 	result := make([]elementID, 0, len(elements))
 	used := map[string]int{}
 	for _, element := range elements {
-		if !element.InScope {
-			path, _ := ParseIDPath(element.ID)
-			switch path.Level {
-			case 1:
-				// carried-over peer from L1 (e.g. external/person)
-			case 2:
-				if !focusPath.IsAncestorOf(path) {
-					return nil, fmt.Errorf("element %q id %s is not under focus %s",
-						element.Name, element.ID, focusPath.String())
-				}
-			default:
-				return nil, fmt.Errorf("element %q has unsupported L2 id depth %d (%s)",
-					element.Name, path.Level, element.ID)
-			}
+		if err := ValidateElementID(2, focusPath, element.ID); err != nil {
+			return nil, fmt.Errorf("element %q: %w", element.Name, err)
 		}
-		base := strings.ToLower(element.ID) + "-" + slug(element.Name)
+		base := Anchor(element.ID, element.Name)
 		anchor := base
 		if used[base] > 0 {
 			used[base]++

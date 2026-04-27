@@ -136,7 +136,7 @@ func emitL3Catalog(buf *bytes.Buffer, spec *L3Spec) {
 		focusResp = "Container in focus — refined from " + spec.Parent + "."
 	}
 	fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | Container in focus | %s | — |\n",
-		l3AnchorID(spec.Focus.ID, spec.Focus.Name), spec.Focus.ID, spec.Focus.Name, focusResp)
+		Anchor(spec.Focus.ID, spec.Focus.Name), spec.Focus.ID, spec.Focus.Name, focusResp)
 	for _, element := range spec.Elements {
 		emitL3CatalogRow(buf, element)
 	}
@@ -150,7 +150,7 @@ func emitL3CatalogRow(buf *bytes.Buffer, element L3Element) {
 		codePointerCell = fmt.Sprintf("[%s](%s)", element.CodePointer, element.CodePointer)
 	}
 	fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s |\n",
-		l3AnchorID(element.ID, element.Name),
+		Anchor(element.ID, element.Name),
 		element.ID,
 		element.Name,
 		typeCell,
@@ -265,10 +265,10 @@ func emitL3MermaidClasses(buf *bytes.Buffer, spec *L3Spec) {
 
 func emitL3MermaidClicks(buf *bytes.Buffer, spec *L3Spec) {
 	fmt.Fprintf(buf, "    click %s href \"#%s\" \"%s\"\n",
-		strings.ToLower(spec.Focus.ID), l3AnchorID(spec.Focus.ID, spec.Focus.Name), spec.Focus.Name)
+		strings.ToLower(spec.Focus.ID), Anchor(spec.Focus.ID, spec.Focus.Name), spec.Focus.Name)
 	for _, element := range spec.Elements {
 		fmt.Fprintf(buf, "    click %s href \"#%s\" \"%s\"\n",
-			strings.ToLower(element.ID), l3AnchorID(element.ID, element.Name), element.Name)
+			strings.ToLower(element.ID), Anchor(element.ID, element.Name), element.Name)
 	}
 }
 
@@ -300,10 +300,6 @@ func emitL3NeighborNodes(buf *bytes.Buffer, spec *L3Spec) {
 func emitL3Relationships(buf *bytes.Buffer, spec *L3Spec) {
 	relIDs := assignRelationshipIDs(spec.Relationships)
 	emitRelationships(buf, nil, relIDs)
-}
-
-func l3AnchorID(id, name string) string {
-	return strings.ToLower(id) + "-" + slug(name)
 }
 
 func l3MermaidLabel(id, name string, subtitle *string) string {
@@ -368,25 +364,10 @@ func validateL3ElementIDs(spec *L3Spec) ([]elementID, error) {
 	result := make([]elementID, 0, len(spec.Elements))
 	used := map[string]int{}
 	for _, element := range spec.Elements {
-		path, pathErr := ParseIDPath(element.ID)
-		if pathErr != nil {
-			return nil, fmt.Errorf("element %q: %w", element.Name, pathErr)
+		if err := ValidateElementID(3, focusPath, element.ID); err != nil {
+			return nil, fmt.Errorf("element %q: %w", element.Name, err)
 		}
-		switch path.Level {
-		case 1:
-			// carried-over L1 peer (person/external system)
-		case 2:
-			// carried-over L2 container (equals focus or peer)
-		case 3:
-			if !focusPath.IsAncestorOf(path) {
-				return nil, fmt.Errorf("element %q id %s is not under focus %s",
-					element.Name, element.ID, focusPath.String())
-			}
-		default:
-			return nil, fmt.Errorf("element %q has unsupported L3 id depth %d (%s)",
-				element.Name, path.Level, element.ID)
-		}
-		base := strings.ToLower(element.ID) + "-" + slug(element.Name)
+		base := Anchor(element.ID, element.Name)
 		anchor := base
 		if used[base] > 0 {
 			used[base]++
