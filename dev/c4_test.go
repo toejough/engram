@@ -512,39 +512,6 @@ func TestT9_BuildIdempotent(t *testing.T) {
 	}
 }
 
-func TestT_AuditL4_Clean_NoIDFindings(t *testing.T) {
-	t.Parallel()
-
-	findings, err := auditFile(context.Background(), "testdata/c4/audit_l4_clean.md")
-	if err != nil {
-		t.Fatalf("auditFile: %v", err)
-	}
-	for _, finding := range findings {
-		if finding.ID == "node_id_missing" || finding.ID == "edge_id_missing" {
-			t.Errorf("clean L4 should not emit %s; got: %+v", finding.ID, finding)
-		}
-	}
-}
-
-func TestT_AuditL4_InvalidIDs_Flagged(t *testing.T) {
-	t.Parallel()
-
-	findings, err := auditFile(context.Background(), "testdata/c4/audit_l4_invalid_ids.md")
-	if err != nil {
-		t.Fatalf("auditFile: %v", err)
-	}
-	got := map[string]int{}
-	for _, finding := range findings {
-		got[finding.ID]++
-	}
-	if got["node_id_missing"] == 0 {
-		t.Errorf("want node_id_missing for fabricated EXT1 node; findings:\n%+v", findings)
-	}
-	if got["edge_id_missing"] == 0 {
-		t.Errorf("want edge_id_missing for fabricated X1 edge; findings:\n%+v", findings)
-	}
-}
-
 func mustRunIn(t *testing.T, dir, name string, args ...string) {
 	t.Helper()
 	cmd := exec.Command(name, args...)

@@ -400,12 +400,11 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	findings = append(findings, checkCodePointers(matter, raw, path)...)
 	findings = append(findings, checkPropertyLinks(matter, raw, path)...)
 	if matter.level == 4 {
-		block, mermaidFindings := loadMermaidBlock(raw, path)
-		findings = append(findings, mermaidFindings...)
-		if block != nil {
-			findings = append(findings, collectL4MermaidFindings(block)...)
-			findings = append(findings, checkL4NodesInRegistry(ctx, block, path)...)
-		}
+		// L4 ledgers use a different schema (no Element Catalog, no JSON
+		// registry cross-check at audit time, SVG-rendered with no click
+		// handlers). Diagram-id discipline is enforced by c4-l4-build at
+		// generation time (#598), so audit only runs front-matter and
+		// code-pointer checks for L4.
 		return findings, nil
 	}
 	block, mermaidFindings := parseMermaidBlock(raw, path)
@@ -657,45 +656,6 @@ func callOnPackage(pkg *packages.Package, node ast.Node) (*ast.CallExpr, *ast.Se
 // D<n>: (DI back-edge). No other prefixes (e.g. EXT, X) are allowed — the
 // node ID space is closed to the L3 registry and the edge ID space is closed
 // to the two documented namespaces.
-// checkL4NodesInRegistry verifies every E<n> ID referenced in an L4 mermaid
-// diagram resolves to an entry in the L1-L3 registry derived from sibling
-// c{1,2,3}-*.json files. Catches "fabricated" nodes whose label happens to
-// pass the format check (e.g. an invented E99 with no underlying spec). Skips
-// silently when no spec JSONs are present in the directory.
-func checkL4NodesInRegistry(ctx context.Context, block *mermaidBlock, mdPath string) []Finding {
-	if block == nil {
-		return nil
-	}
-	dir := filepath.Dir(mdPath)
-	files, records, err := scanRegistryDir(ctx, dir)
-	if err != nil || len(files) == 0 {
-		return nil
-	}
-	view := deriveRegistry(dir, files, records)
-	knownIDs := map[string]bool{}
-	for _, element := range view.Elements {
-		knownIDs[element.ID] = true
-	}
-	findings := []Finding{}
-	for _, node := range block.nodes {
-		label := strings.Trim(strings.TrimSpace(node.label), `"`)
-		nodeID := mermaidIDPrefix.FindString(label)
-		if nodeID == "" {
-			continue
-		}
-		if !knownIDs[nodeID] {
-			findings = append(findings, Finding{
-				ID:   "node_id_unknown",
-				Line: node.line,
-				Detail: fmt.Sprintf(
-					"node %q references %s but no L1-L3 registry entry exists",
-					node.id, nodeID),
-			})
-		}
-	}
-	return findings
-}
-
 func checkLastReviewedCommit(ctx context.Context, matter frontMatter) []Finding {
 	if !matter.hasLastReviewedCommit {
 		return nil
@@ -807,50 +767,6 @@ func classFor(element L1Element) string {
 		return "container"
 	}
 	return "external"
-}
-
-func collectL4MermaidFindings(block *mermaidBlock) []Finding {
-	findings := []Finding{}
-	defined := map[string]mermaidNode{}
-	for _, node := range block.nodes {
-		defined[node.id] = node
-		// L4 .mmd quotes node labels (e.g. e1["E1 · …"]) so strip the
-		// surrounding quotes before the prefix check.
-		label := strings.Trim(strings.TrimSpace(node.label), `"`)
-		if !mermaidIDPrefix.MatchString(label) {
-			findings = append(findings, Finding{
-				ID:     "node_id_missing",
-				Line:   node.line,
-				Detail: fmt.Sprintf("node %q label %q does not start with E<n>", node.id, node.label),
-			})
-		}
-	}
-	for _, edge := range block.edges {
-		if _, ok := defined[edge.from]; !ok {
-			findings = append(findings, Finding{
-				ID:     "node_id_missing",
-				Line:   edge.line,
-				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.from),
-			})
-		}
-		if _, ok := defined[edge.to]; !ok {
-			findings = append(findings, Finding{
-				ID:     "node_id_missing",
-				Line:   edge.line,
-				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.to),
-			})
-		}
-		if !edgeIDPrefix.MatchString(strings.TrimSpace(edge.label)) {
-			findings = append(findings, Finding{
-				ID:   "edge_id_missing",
-				Line: edge.line,
-				Detail: fmt.Sprintf(
-					"edge %q->%q label %q does not start with R<n>: or D<n>:",
-					edge.from, edge.to, edge.label),
-			})
-		}
-	}
-	return findings
 }
 
 func collectMermaidFindings(block *mermaidBlock) []Finding {
