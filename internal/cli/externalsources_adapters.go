@@ -15,11 +15,24 @@ import (
 	"engram/internal/externalsources"
 )
 
+// gitCommonDirFn returns the trimmed output of `git rev-parse --git-common-dir`
+// for cwd, or an error. Injected so the worktree-derivation logic in
+// detectMainRepoRoot can be tested without spawning git.
+type gitCommonDirFn func(ctx context.Context, cwd string) (string, error)
+
 // computeMainProjectDir returns the slug-based memory dir for the main repo
 // when cwd is inside a worktree distinct from the main checkout. Returns
 // empty string when not in a worktree (or git is unavailable).
 func computeMainProjectDir(ctx context.Context, cwd, home string) string {
-	mainRepoRoot := detectMainRepoRoot(ctx, cwd)
+	return computeMainProjectDirWith(ctx, runGitCommonDir, cwd, home)
+}
+
+func computeMainProjectDirWith(
+	ctx context.Context,
+	gitCommonDir gitCommonDirFn,
+	cwd, home string,
+) string {
+	mainRepoRoot := detectMainRepoRoot(ctx, gitCommonDir, cwd)
 	if mainRepoRoot == "" || mainRepoRoot == cwd {
 		return ""
 	}
@@ -30,17 +43,9 @@ func computeMainProjectDir(ctx context.Context, cwd, home string) string {
 // detectMainRepoRoot returns the main repo root if cwd is inside a git
 // worktree distinct from the main checkout. Returns "" on any error or
 // non-worktree case.
-func detectMainRepoRoot(ctx context.Context, cwd string) string {
-	cmd := exec.CommandContext(ctx, //nolint:gosec // fixed argv
-		"git", "-C", cwd, "rev-parse", "--git-common-dir")
-
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-
-	commonDir := strings.TrimSpace(string(out))
-	if commonDir == "" {
+func detectMainRepoRoot(ctx context.Context, gitCommonDir gitCommonDirFn, cwd string) string {
+	commonDir, err := gitCommonDir(ctx, cwd)
+	if err != nil || commonDir == "" {
 		return ""
 	}
 
@@ -181,6 +186,19 @@ func readAutoMemoryDirectorySetting(home string) externalsources.AutoMemorySetti
 
 		return "", false
 	}
+}
+
+// runGitCommonDir is the production gitCommonDirFn: it shells out to git.
+func runGitCommonDir(ctx context.Context, cwd string) (string, error) {
+	cmd := exec.CommandContext(ctx, //nolint:gosec // fixed argv
+		"git", "-C", cwd, "rev-parse", "--git-common-dir")
+
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse: %w", err)
+	}
+
+	return strings.TrimSpace(string(out)), nil
 }
 
 // walkMatching returns absolute paths to every non-directory entry under root
