@@ -203,7 +203,7 @@ func (o *Orchestrator) listAndMatchMemories(
 		return nil, nil //nolint:nilerr // empty list is not an error for callers
 	}
 
-	index := buildMemoryIndex(allMemories)
+	index := memory.BuildIndex(allMemories)
 
 	matchPrompt := fmt.Sprintf(
 		"Return ONLY the names of memories relevant to this query, one per line."+
@@ -413,18 +413,6 @@ const (
 type timeWindow struct {
 	start time.Time
 	end   time.Time
-}
-
-// buildMemoryIndex creates the type | name | situation index for Haiku matching.
-func buildMemoryIndex(memories []*memory.Stored) string {
-	var builder strings.Builder
-
-	for _, mem := range memories {
-		name := memory.NameFromPath(mem.FilePath)
-		fmt.Fprintf(&builder, "%s | %s | %s\n", mem.Type, name, mem.Situation)
-	}
-
-	return builder.String()
 }
 
 // buildTimeWindows creates time windows from session entries.

@@ -49,18 +49,6 @@ type memoryLister interface {
 	ListAllMemories(dataDir string) ([]*memory.Stored, error)
 }
 
-func buildMemoryIndex(memories []*memory.Stored) string {
-	var builder strings.Builder
-
-	for _, mem := range memories {
-		name := memory.NameFromPath(mem.FilePath)
-
-		_, _ = fmt.Fprintf(&builder, "%s | %s | %s\n", mem.Type, name, mem.Situation)
-	}
-
-	return builder.String()
-}
-
 func callHaikuForConflicts(
 	ctx context.Context,
 	caller llmCaller,
@@ -103,7 +91,7 @@ func checkForConflicts(
 		return false, nil
 	}
 
-	index := buildMemoryIndex(memories)
+	index := memory.BuildIndex(memories)
 	description := describeNewMemory(record)
 
 	response, callErr := callHaikuForConflicts(ctx, caller, index, description)

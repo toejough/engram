@@ -8,6 +8,34 @@ import (
 	"engram/internal/memory"
 )
 
+func TestBuildIndex_EmptyList_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+	g.Expect(memory.BuildIndex(nil)).To(BeEmpty())
+}
+
+func TestBuildIndex_FormatsCorrectly(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Type:      "feedback",
+			Situation: "when running tests",
+			FilePath:  "/data/memory/feedback/use-targ.toml",
+		},
+		{
+			Type:      "fact",
+			Situation: "Go projects",
+			FilePath:  "/data/memory/facts/engram-uses-go.toml",
+		},
+	}
+
+	result := memory.BuildIndex(memories)
+	g.Expect(result).To(ContainSubstring("feedback | use-targ | when running tests"))
+	g.Expect(result).To(ContainSubstring("fact | engram-uses-go | Go projects"))
+}
+
 func TestFactsDir(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)

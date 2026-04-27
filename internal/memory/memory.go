@@ -2,6 +2,7 @@
 package memory
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,6 +16,19 @@ type Stored struct {
 	Content   ContentFields
 	UpdatedAt time.Time
 	FilePath  string
+}
+
+// BuildIndex renders the type | name | situation index used for Haiku matching
+// during recall and conflict detection.
+func BuildIndex(memories []*Stored) string {
+	var builder strings.Builder
+
+	for _, mem := range memories {
+		name := NameFromPath(mem.FilePath)
+		fmt.Fprintf(&builder, "%s | %s | %s\n", mem.Type, name, mem.Situation)
+	}
+
+	return builder.String()
 }
 
 // FactsDir returns the directory for fact memory files.

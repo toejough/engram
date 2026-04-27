@@ -15,36 +15,6 @@ import (
 	"engram/internal/memory"
 )
 
-func TestBuildMemoryIndex_EmptyList_ReturnsEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	result := cli.ExportBuildMemoryIndex(nil)
-	g.Expect(result).To(BeEmpty())
-}
-
-func TestBuildMemoryIndex_FormatsCorrectly(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memories := []*memory.Stored{
-		{
-			Type:      "feedback",
-			Situation: "when running tests",
-			FilePath:  "/data/memory/feedback/use-targ.toml",
-		},
-		{
-			Type:      "fact",
-			Situation: "Go projects",
-			FilePath:  "/data/memory/facts/engram-uses-go.toml",
-		},
-	}
-
-	result := cli.ExportBuildMemoryIndex(memories)
-	g.Expect(result).To(ContainSubstring("feedback | use-targ | when running tests"))
-	g.Expect(result).To(ContainSubstring("fact | engram-uses-go | Go projects"))
-}
-
 func TestCallHaikuForConflicts_PropagatesError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

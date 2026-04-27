@@ -12,7 +12,6 @@ import (
 var (
 	ExportApplyDataDirDefault            = applyDataDirDefault
 	ExportApplyProjectSlugDefault        = applyProjectSlugDefault
-	ExportBuildMemoryIndex               = buildMemoryIndex
 	ExportComputeMainProjectDir          = computeMainProjectDir
 	ExportDescribeNewMemory              = describeNewMemory
 	ExportOsDirListMd                    = osDirListMd
