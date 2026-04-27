@@ -41,7 +41,7 @@ func ExtractFromAutoMemory(
 	topicByName := indexAutoMemoryFiles(files)
 	added := 0
 
-	for _, name := range parseRankedNames(rankResponse) {
+	for _, name := range parseRankedLines(rankResponse) {
 		if ctx.Err() != nil || bytesUsed+added >= bytesCap {
 			break
 		}
@@ -63,20 +63,6 @@ func indexAutoMemoryFiles(files []externalsources.ExternalFile) map[string]strin
 	}
 
 	return index
-}
-
-// parseRankedNames extracts file names from a Haiku rank response (one per line).
-func parseRankedNames(response string) []string {
-	lines := make([]string, 0, strings.Count(response, "\n")+1)
-
-	for name := range strings.SplitSeq(strings.TrimSpace(response), "\n") {
-		trimmed := strings.TrimSpace(name)
-		if trimmed != "" {
-			lines = append(lines, trimmed)
-		}
-	}
-
-	return lines
 }
 
 // processOneTopic extracts a snippet from one ranked topic file and writes it

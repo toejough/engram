@@ -204,7 +204,7 @@ func (o *Orchestrator) listAndMatchMemories(
 		return nil, fmt.Errorf("matching memories: %w", extractErr)
 	}
 
-	names := parseMemoryNames(response)
+	names := parseRankedLines(response)
 	if len(names) == 0 {
 		return nil, nil
 	}
@@ -553,8 +553,9 @@ func matchMemoriesToWindows(memories []*memory.Stored, windows []timeWindow) []*
 	return matched
 }
 
-// parseMemoryNames extracts memory names from the Haiku response (one per line).
-func parseMemoryNames(response string) []string {
+// parseRankedLines extracts non-empty trimmed lines from a Haiku rank response.
+// Used to parse newline-separated memory/skill/file names.
+func parseRankedLines(response string) []string {
 	lines := strings.Split(strings.TrimSpace(response), "\n")
 	names := make([]string, 0, len(lines))
 

@@ -39,7 +39,7 @@ func ExtractFromSkills(
 
 	added := 0
 
-	for _, name := range parseRankedSkillNames(rankResponse) {
+	for _, name := range parseRankedLines(rankResponse) {
 		if ctx.Err() != nil || bytesUsed+added >= bytesCap {
 			break
 		}
@@ -115,19 +115,4 @@ func loadSkillIndex(
 	}
 
 	return pathByName, builder.String()
-}
-
-// parseRankedSkillNames extracts skill names from a Haiku rank response (one per line).
-func parseRankedSkillNames(response string) []string {
-	lines := strings.Split(strings.TrimSpace(response), "\n")
-	names := make([]string, 0, len(lines))
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" {
-			names = append(names, trimmed)
-		}
-	}
-
-	return names
 }
