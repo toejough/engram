@@ -139,6 +139,8 @@ func c4L4Build(ctx context.Context, args C4L4BuildArgs) error {
 	mdPath := strings.TrimSuffix(args.Input, ".json") + ".md"
 	mmdPath := filepath.Join(filepath.Dir(args.Input), "svg",
 		strings.TrimSuffix(filepath.Base(args.Input), ".json")+".mmd")
+	wiringMmdPath := filepath.Join(filepath.Dir(args.Input), "svg",
+		strings.TrimSuffix(filepath.Base(args.Input), ".json")+"-wiring.mmd")
 	siblings := discoverL4Siblings(args.Input, spec.Parent)
 	var mdBuf bytes.Buffer
 	if emitErr := emitL4Markdown(&mdBuf, spec, sha, siblings); emitErr != nil {
@@ -146,10 +148,15 @@ func c4L4Build(ctx context.Context, args C4L4BuildArgs) error {
 	}
 	var mmdBuf bytes.Buffer
 	emitL4Mermaid(&mmdBuf, spec)
+	var wiringBuf bytes.Buffer
+	emitL4WiringMermaid(&wiringBuf, spec)
 	if err := writeOrCheckMarkdown(mdPath, mdBuf.Bytes(), args.Check, args.NoConfirm); err != nil {
 		return err
 	}
-	return writeOrCheckMarkdown(mmdPath, mmdBuf.Bytes(), args.Check, args.NoConfirm)
+	if err := writeOrCheckMarkdown(mmdPath, mmdBuf.Bytes(), args.Check, args.NoConfirm); err != nil {
+		return err
+	}
+	return writeOrCheckMarkdown(wiringMmdPath, wiringBuf.Bytes(), args.Check, args.NoConfirm)
 }
 
 // discoverL4Siblings walks the directory of inputPath and returns relative
@@ -290,6 +297,7 @@ func emitL4Markdown(w io.Writer, spec *L4Spec, lastReviewedCommit string, siblin
 		emitL4Legend(&buf, spec)
 	}
 	if len(spec.DependencyManifest) > 0 {
+		emitL4WiringSection(&buf, spec)
 		emitL4DependencyManifest(&buf, spec)
 	}
 	if len(spec.DIWires) > 0 {
@@ -332,6 +340,25 @@ func emitL4MermaidClasses(buf *bytes.Buffer, spec *L4Spec) {
 		groups[node.Kind] = append(groups[node.Kind], strings.ToLower(node.ID))
 	}
 	for _, class := range classOrder {
+		ids := groups[class]
+		if len(ids) == 0 {
+			continue
+		}
+		fmt.Fprintf(buf, "    class %s %s\n", strings.Join(ids, ","), class)
+	}
+}
+
+// emitL4MermaidClassesForNodes writes class assignments restricted to the
+// referenced node set, mirroring emitL4MermaidClasses' structure.
+func emitL4MermaidClassesForNodes(buf *bytes.Buffer, spec *L4Spec, referenced map[string]bool) {
+	groups := map[string][]string{}
+	for _, n := range spec.Diagram.Nodes {
+		if !referenced[n.ID] {
+			continue
+		}
+		groups[n.Kind] = append(groups[n.Kind], strings.ToLower(n.ID))
+	}
+	for _, class := range []string{"person", "external", "container", "component", "focus"} {
 		ids := groups[class]
 		if len(ids) == 0 {
 			continue
@@ -395,6 +422,69 @@ func emitL4WireRow(buf *bytes.Buffer, row L4WireRow) {
 	}
 	fmt.Fprintf(buf, "| `%s` | `%s` | %s | `%s` |\n",
 		row.Field, row.Type, consumer, row.WrappedEntityID)
+}
+
+// emitL4WiringMermaid emits the L4 wiring diagram: wirer→focus edges,
+// one per (wirer, wrapped_entity) pair, label = WrappedEntityID. Multiple
+// manifest rows that share both fields collapse into a single edge.
+func emitL4WiringMermaid(buf *bytes.Buffer, spec *L4Spec) {
+	buf.WriteString("%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%\n")
+	buf.WriteString("flowchart LR\n")
+	buf.WriteString("    classDef person      fill:#08427b,stroke:#052e56,color:#fff\n")
+	buf.WriteString("    classDef external    fill:#999,   stroke:#666,   color:#fff\n")
+	buf.WriteString("    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff\n")
+	buf.WriteString("    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000\n")
+	buf.WriteString("    classDef focus       fill:#facc15,stroke:#a16207,color:#000\n\n")
+
+	// Collect distinct nodes referenced by the wiring diagram.
+	referenced := map[string]bool{spec.Focus.ID: true}
+	type edgeKey struct{ wirer, wrapped string }
+	seen := map[edgeKey]bool{}
+	edges := []edgeKey{}
+	for _, row := range spec.DependencyManifest {
+		referenced[row.WiredByID] = true
+		referenced[row.WrappedEntityID] = true
+		key := edgeKey{row.WiredByID, row.WrappedEntityID}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		edges = append(edges, key)
+	}
+
+	// Emit nodes in deterministic order (the order they appear on the call diagram).
+	for _, n := range spec.Diagram.Nodes {
+		if !referenced[n.ID] {
+			continue
+		}
+		emitL4MermaidNode(buf, n)
+	}
+	buf.WriteString("\n")
+
+	// Emit deduped wiring edges.
+	for _, e := range edges {
+		from := strings.ToLower(e.wirer)
+		to := strings.ToLower(spec.Focus.ID)
+		fmt.Fprintf(buf, "    %s -->|%q| %s\n", from, e.wrapped, to)
+	}
+	buf.WriteString("\n")
+
+	emitL4MermaidClassesForNodes(buf, spec, referenced)
+}
+
+func emitL4WiringSection(buf *bytes.Buffer, spec *L4Spec) {
+	fmt.Fprintf(buf, "## Wiring\n\n")
+	fmt.Fprintf(buf,
+		"Each edge is one or more DI seams the wirer plugs into %s, deduped by the\n"+
+			"wrapped entity (label = SNM ID). The Dependency Manifest below shows the\n"+
+			"per-seam breakdown.\n\n",
+		spec.Focus.Name)
+	fmt.Fprintf(buf, "![C4 %s wiring diagram](svg/c4-%s-wiring.svg)\n\n", spec.Name, spec.Name)
+	fmt.Fprintf(buf,
+		"> Diagram source: [svg/c4-%s-wiring.mmd](svg/c4-%s-wiring.mmd). Re-render with\n"+
+			"> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-%s-wiring.mmd "+
+			"-o architecture/c4/svg/c4-%s-wiring.svg`.\n\n",
+		spec.Name, spec.Name, spec.Name, spec.Name)
 }
 
 func formatFirstLink(link L4CodeLink) string {

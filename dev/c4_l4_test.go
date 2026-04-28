@@ -37,6 +37,29 @@ func TestEmitL4MermaidEdge_OmitsSuffixWhenNoProperties(t *testing.T) {
 	}
 }
 
+func TestEmitL4WiringMermaid_DedupesByWrappedEntity(t *testing.T) {
+	t.Parallel()
+	spec := validL4Spec()
+	spec.DependencyManifest = []L4DepRow{
+		{Field: "f1", Type: "T", WiredByID: "S2-N3-M2", WiredByName: "cli", WiredByL3: "x.md", WrappedEntityID: "S3"},
+		{Field: "f2", Type: "T", WiredByID: "S2-N3-M2", WiredByName: "cli", WiredByL3: "x.md", WrappedEntityID: "S3"},
+		{Field: "f3", Type: "T", WiredByID: "S2-N3-M2", WiredByName: "cli", WiredByL3: "x.md", WrappedEntityID: "S2-N3-M7"},
+	}
+	spec.Diagram.Nodes = append(spec.Diagram.Nodes,
+		L4Node{ID: "S3", Name: "Claude Code", Kind: "external"},
+		L4Node{ID: "S2-N3-M7", Name: "anthropic", Kind: "component"},
+	)
+	var buf bytes.Buffer
+	emitL4WiringMermaid(&buf, spec)
+	out := buf.String()
+	// Expect exactly two cli→focus edges, labeled "S3" and "S2-N3-M7".
+	s3Count := strings.Count(out, `|"S3"|`)
+	antCount := strings.Count(out, `|"S2-N3-M7"|`)
+	if s3Count != 1 || antCount != 1 {
+		t.Fatalf("expected one S3 edge and one S2-N3-M7 edge, got s3=%d ant=%d in:\n%s", s3Count, antCount, out)
+	}
+}
+
 func TestL4DepRow_HasSlimSchema(t *testing.T) {
 	t.Parallel()
 	row := L4DepRow{
