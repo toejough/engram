@@ -3,9 +3,38 @@
 package dev
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
+
+func TestEmitL4MermaidEdge_AppendsPropertySuffix(t *testing.T) {
+	t.Parallel()
+	edge := L4Edge{
+		ID: "R8", From: "S2-N3-M3", To: "S2-N3-M4",
+		Label: "strips transcript", Properties: []string{"P3", "P4", "P9"},
+	}
+	var buf bytes.Buffer
+	emitL4MermaidEdge(&buf, edge)
+	out := buf.String()
+	if !strings.Contains(out, "R8: strips transcript [P3, P4, P9]") {
+		t.Fatalf("expected bracketed property suffix, got: %s", out)
+	}
+}
+
+func TestEmitL4MermaidEdge_OmitsSuffixWhenNoProperties(t *testing.T) {
+	t.Parallel()
+	edge := L4Edge{
+		ID: "R3", From: "S2-N3-M2", To: "S2-N3-M3",
+		Label: "constructs + invokes",
+	}
+	var buf bytes.Buffer
+	emitL4MermaidEdge(&buf, edge)
+	out := buf.String()
+	if strings.Contains(out, "[") {
+		t.Fatalf("expected no brackets, got: %s", out)
+	}
+}
 
 func TestL4Spec_RejectsDEdges(t *testing.T) {
 	t.Parallel()

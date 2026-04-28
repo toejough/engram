@@ -57,10 +57,11 @@ type L4Diagram struct {
 
 // L4Edge is one R edge on the context-strip diagram.
 type L4Edge struct {
-	ID    string `json:"id"`
-	From  string `json:"from"`
-	To    string `json:"to"`
-	Label string `json:"label"`
+	ID         string   `json:"id"`
+	From       string   `json:"from"`
+	To         string   `json:"to"`
+	Label      string   `json:"label"`
+	Properties []string `json:"properties,omitempty"`
 }
 
 // L4Focus identifies the L3 component being refined. ID must be a level-3
@@ -344,6 +345,9 @@ func emitL4MermaidEdge(buf *bytes.Buffer, edge L4Edge) {
 	from := strings.ToLower(edge.From)
 	to := strings.ToLower(edge.To)
 	label := fmt.Sprintf("%s: %s", edge.ID, edge.Label)
+	if len(edge.Properties) > 0 {
+		label = fmt.Sprintf("%s [%s]", label, strings.Join(edge.Properties, ", "))
+	}
 	fmt.Fprintf(buf, "    %s -->|%q| %s\n", from, label, to)
 }
 
