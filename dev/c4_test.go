@@ -49,6 +49,29 @@ func TestAuditFile_L4CarryoverEmitsFindings(t *testing.T) {
 	}
 }
 
+func TestAuditFile_L4CarryoverUnreadableWhenJSONMissing(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	md := []byte("---\nlevel: 4\nname: focus\nparent: c3-x.md\nchildren: []\nlast_reviewed_commit: 0000000\n---\n")
+	mdPath := filepath.Join(dir, "c4-focus.md")
+	if err := os.WriteFile(mdPath, md, 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	findings, err := auditFile(context.Background(), mdPath)
+	if err != nil {
+		t.Fatalf("audit: %v", err)
+	}
+	var seen int
+	for _, f := range findings {
+		if f.ID == "l4_carryover_unreadable" {
+			seen++
+		}
+	}
+	if seen != 1 {
+		t.Fatalf("expected 1 l4_carryover_unreadable finding, got %d: %+v", seen, findings)
+	}
+}
+
 func TestEdgeIDPrefix_AcceptsROnly(t *testing.T) {
 	t.Parallel()
 
