@@ -3,7 +3,7 @@ level: 4
 name: anthropic
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: d811f546
 ---
 
 # C4 — anthropic (Property/Invariant Ledger)
@@ -15,32 +15,43 @@ last_reviewed_commit: 035a717d
 
 ## Context (from L3)
 
-E26 anthropic is the shared client for the Anthropic Messages API. It owns the HTTP request shape, the API-version / beta-header pinning, the error sentinels, and the small `CallerFunc` adapter consumed by `recall.NewSummarizer`. Its single external dependency is the Anthropic API (E5), reached via R14 (HTTPS POST /v1/messages). The `cli` component (E21) constructs a `*Client` at startup, wiring in the `HTTPDoer` (`http.DefaultClient`), the resolved API token, and (in tests) an alternate API URL — that wiring is the per-dep decomposition of D2 (cli → anthropic, DI back-edge) shown below in the Dependency Manifest. Recall (E22) consumes the resulting `CallerFunc` purely as a function value; it does not see the `Client` struct.
+E26 anthropic is the shared client for the Anthropic Messages API. It owns the HTTP request shape, the API-version / beta-header pinning, the error sentinels, and the small `CallerFunc` adapter consumed by `recall.NewSummarizer`. Its single external dependency is the Anthropic API (E5), reached via R14 (HTTPS POST /v1/messages). cli constructs a `*Client` at startup, wiring in the `HTTPDoer` (`http.DefaultClient`) — the only true DI seam on the package. The `token` and `apiURL` fields are plain string configuration values (not interfaces / function values) so they don't appear on the manifest under the new schema. Recall (E22) consumes the resulting `CallerFunc` purely as a function value; it does not see the `Client` struct.
 
 ![C4 anthropic context diagram](svg/c4-anthropic.svg)
 
 > Diagram source: [svg/c4-anthropic.mmd](svg/c4-anthropic.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-anthropic.mmd -o architecture/c4/svg/c4-anthropic.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 **Legend:**
-- **Focus** — yellow (E26 anthropic).
-- **Component** — light blue (sibling components in E9).
-- **External** — grey (Anthropic API).
-- **R-edges** — solid; **D / Rdi back-edges** — dotted.
+- Yellow = focus component (S2-N3-M7 · anthropic).
+- Blue components = sibling components in c3-engram-cli-binary.md.
+- Grey = external systems (S5 · Anthropic API).
+- R-edges carry inline property IDs `[P…]` linking to the Property Ledger.
+- All edges traceable to a relationship in c3-engram-cli-binary.md.
+
+## Wiring
+
+Each edge is one or more DI seams the wirer plugs into anthropic, deduped by the
+wrapped entity (label = SNM ID). The Dependency Manifest below shows the
+per-seam breakdown.
+
+![C4 anthropic wiring diagram](svg/c4-anthropic-wiring.svg)
+
+> Diagram source: [svg/c4-anthropic-wiring.mmd](svg/c4-anthropic-wiring.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-anthropic-wiring.mmd -o architecture/c4/svg/c4-anthropic-wiring.svg`.
 
 ## Dependency Manifest
 
-Each row is one injected dependency the focus component receives. Manifest expands the
-Rdi back-edge into per-dep wiring rows. Reciprocal entries live in the wirer's L4 under
-"DI Wires" — those two sections must stay in sync.
+Each row is one DI seam the focus consumes. The wrapped entity is the diagram
+node (component or external) the seam ultimately drives behavior against; it
+must also appear on the call diagram. The wiring diagram dedupes manifest
+rows by wrapped entity.
 
-| Dep field | Type | Wired by | Concrete adapter | Properties |
+| Field | Type | Wired by | Wrapped entity | Properties |
 |---|---|---|---|---|
-| `token` | `string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) (L4: c4-cli.md — TBD) | value resolved by `tokenresolver.Resolve` (env `ENGRAM_API_TOKEN` or macOS Keychain) | S2-N3-M7-P1 |
-| `client` | `HTTPDoer` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) (L4: c4-cli.md — TBD) | `http.DefaultClient` in production; `fakeDoer` in tests | S2-N3-M7-P2–P11 |
-| `apiURL` | `string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) (L4: c4-cli.md — TBD) | default `https://api.anthropic.com/v1/messages`; overridable via `SetAPIURL` (test-only) | S2-N3-M7-P12 |
+| `client` | `HTTPDoer` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S5` | S2-N3-M7-P2–P11 |
 
 ## Property Ledger
 

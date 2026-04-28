@@ -8,13 +8,8 @@ flowchart LR
 
     s2-n3-m7["S2-N3-M7 · anthropic<br/>Messages API client"]
     s2-n3-m2["S2-N3-M2 · cli<br/>wires *Client"]
-    s2-n3-m3["S2-N3-M3 · recall<br/>consumes CallerFunc"]
-    s5("S5 · Anthropic API<br/>Haiku model")
 
-    s2-n3-m2 -->|"R6: builds Anthropic caller"| s2-n3-m7
-    s2-n3-m3 -->|"R10: ranks via Summarizer (DI CallerFunc)"| s2-n3-m7
-    s2-n3-m7 -.->|"R14: HTTPS POST /v1/messages [P2, P3, P4, P5, P6, P7, P8, P9, P10, P11]"| s5
+    s2-n3-m2 -->|"S5"| s2-n3-m7
 
-    class s5 external
-    class s2-n3-m2,s2-n3-m3 component
+    class s2-n3-m2 component
     class s2-n3-m7 focus
