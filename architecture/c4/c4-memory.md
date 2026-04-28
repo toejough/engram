@@ -3,7 +3,7 @@ level: 4
 name: memory
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: 13d6d1ab
 ---
 
 # C4 — memory (Property/Invariant Ledger)
@@ -20,37 +20,45 @@ last_reviewed_commit: 035a717d
 
 ## Context (from L3)
 
-Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E24. The DI back-edge convention (see below) applies — E24 → E21 represents the category of calls E24 makes through dependencies wired by E21.
-
-The R-edge labels cite the P-list each edge backs.
+Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E24. internal/memory consumes three DI seams: `readDir` and `readFile` funcs (which ultimately drive S6 · Engram memory store), and an `AtomicWriter` interface (wired to internal/tomlwriter, which itself drives S6). The R-edges below describe what memory invokes at runtime; the wiring diagram (derived from the manifest) shows how cli plugs those seams in.
 
 ![C4 memory context diagram](svg/c4-memory.svg)
 
 > Diagram source: [svg/c4-memory.mmd](svg/c4-memory.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-memory.mmd -o architecture/c4/svg/c4-memory.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 **Legend:**
-- Solid grey: L3 elements carried over.
-- Yellow: L4 focus component.
-- **Solid arrow (R[n])** = direct call. Standard C4 reading: "source initiates the interaction with target."
-- **Dotted arrow (D[n])** = DI back-edge. Project-specific convention representing "source initiates a category of calls whose concrete targets are determined by the dotted-arrow target (the wirer)." One D-id per (consumer, wirer) pair regardless of how many concrete deps; the per-dep decomposition lives in the Dependency Manifest below.
-- **R4, R9:** the existing L3 element-to-element calls into E24 (cli, recall).
-- **R16:** the existing L3 file I/O edge from E24 to the engram memory store.
-- **D7:** the DI back-edge from E24 to E21, mirrored from L3.
+- Yellow = focus component (S2-N3-M5 · memory).
+- Blue components = sibling components in c3-engram-cli-binary.md.
+- Grey = external systems (S6 · Engram memory store).
+- R-edges carry inline property IDs `[P…]` linking to the Property Ledger.
+- All edges traceable to a relationship in c3-engram-cli-binary.md.
+
+## Wiring
+
+Each edge is one or more DI seams the wirer plugs into memory, deduped by the
+wrapped entity (label = SNM ID). The Dependency Manifest below shows the
+per-seam breakdown.
+
+![C4 memory wiring diagram](svg/c4-memory-wiring.svg)
+
+> Diagram source: [svg/c4-memory-wiring.mmd](svg/c4-memory-wiring.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-memory-wiring.mmd -o architecture/c4/svg/c4-memory-wiring.svg`.
 
 ## Dependency Manifest
 
-Each row is one injected dependency the focus component receives. Manifest expands the
-Rdi back-edge into per-dep wiring rows. Reciprocal entries live in the wirer's L4 under
-"DI Wires" — those two sections must stay in sync.
+Each row is one DI seam the focus consumes. The wrapped entity is the diagram
+node (component or external) the seam ultimately drives behavior against; it
+must also appear on the call diagram. The wiring diagram dedupes manifest
+rows by wrapped entity.
 
-| Dep field | Type | Wired by | Concrete adapter | Properties |
+| Field | Type | Wired by | Wrapped entity | Properties |
 |---|---|---|---|---|
-| `readDir` | `func(string) ([]os.DirEntry, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) (L4: c4-cli.md — TBD) | `os.ReadDir` (default via `NewLister`); overridable via `WithListerReadDir` | S2-N3-M5-P8, S2-N3-M5-P9, S2-N3-M5-P12, S2-N3-M5-P13 |
-| `readFile` | `func(string) ([]byte, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) (L4: c4-cli.md — TBD) | `os.ReadFile` (default via `NewLister` / `NewModifier`); overridable via `WithListerReadFile` / `WithModifierReadFile` | S2-N3-M5-P10, S2-N3-M5-P14, S2-N3-M5-P15 |
-| `writer` | `AtomicWriter (interface { AtomicWrite(targetPath string, record any) error })` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) (L4: c4-cli.md — TBD) | `tomlwriter.New(...)` supplied via `WithModifierWriter`; required (no default) | S2-N3-M5-P14, S2-N3-M5-P17 |
+| `readDir` | `func(string) ([]os.DirEntry, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M5-P8, S2-N3-M5-P9, S2-N3-M5-P12, S2-N3-M5-P13 |
+| `readFile` | `func(string) ([]byte, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M5-P10, S2-N3-M5-P14, S2-N3-M5-P15 |
+| `writer` | `AtomicWriter` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S2-N3-M9` | S2-N3-M5-P14, S2-N3-M5-P17 |
 
 ## Property Ledger
 

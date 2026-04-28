@@ -9,13 +9,14 @@ flowchart LR
     s2-n3-m5["S2-N3-M5 · memory<br/>internal/memory"]
     s2-n3-m2["S2-N3-M2 · cli<br/>internal/cli"]
     s2-n3-m3["S2-N3-M3 · recall<br/>internal/recall"]
+    s2-n3-m9["S2-N3-M9 · tomlwriter<br/>AtomicWriter impl"]
     s6("S6 · Engram memory store<br/>feedback/ + facts/ TOML")
 
     s2-n3-m2 -->|"R4: reads / writes feedback + fact TOML"| s2-n3-m5
     s2-n3-m3 -->|"R9: lists memories during recall ranking"| s2-n3-m5
-    s2-n3-m5 -->|"R16: reads existing feedback + fact TOML"| s6
-    s2-n3-m5 -.->|"D7: DI back-edge (readDir, readFile, writer)"| s2-n3-m2
+    s2-n3-m5 -.->|"R16: reads feedback + fact TOML via readDir / readFile [P8, P9, P10, P12, P13, P15]"| s6
+    s2-n3-m5 -.->|"R20: atomic-writes new TOML via AtomicWriter [P14, P17]"| s2-n3-m9
 
     class s6 external
-    class s2-n3-m2,s2-n3-m3 component
+    class s2-n3-m2,s2-n3-m3,s2-n3-m9 component
     class s2-n3-m5 focus

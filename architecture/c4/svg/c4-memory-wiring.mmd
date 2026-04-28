@@ -1,0 +1,16 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+
+    s2-n3-m5["S2-N3-M5 · memory<br/>internal/memory"]
+    s2-n3-m2["S2-N3-M2 · cli<br/>internal/cli"]
+
+    s2-n3-m2 -->|"S6"| s2-n3-m5
+    s2-n3-m2 -->|"S2-N3-M9"| s2-n3-m5
+
+    class s2-n3-m2 component
+    class s2-n3-m5 focus

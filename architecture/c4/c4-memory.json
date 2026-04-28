@@ -1,44 +1,47 @@
 {
-  "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E24. The DI back-edge convention (see below) applies — E24 → E21 represents the category of calls E24 makes through dependencies wired by E21.\n\nThe R-edge labels cite the P-list each edge backs.",
+  "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E24. internal/memory consumes three DI seams: `readDir` and `readFile` funcs (which ultimately drive S6 · Engram memory store), and an `AtomicWriter` interface (wired to internal/tomlwriter, which itself drives S6). The R-edges below describe what memory invokes at runtime; the wiring diagram (derived from the manifest) shows how cli plugs those seams in.",
   "dependency_manifest": [
     {
-      "concrete_adapter": "`os.ReadDir` (default via `NewLister`); overridable via `WithListerReadDir`",
       "field": "readDir",
+      "type": "func(string) ([]os.DirEntry, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S6",
       "properties": [
         "S2-N3-M5-P8",
         "S2-N3-M5-P9",
         "S2-N3-M5-P12",
         "S2-N3-M5-P13"
-      ],
-      "type": "func(string) ([]os.DirEntry, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`os.ReadFile` (default via `NewLister` / `NewModifier`); overridable via `WithListerReadFile` / `WithModifierReadFile`",
       "field": "readFile",
+      "type": "func(string) ([]byte, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S6",
       "properties": [
         "S2-N3-M5-P10",
         "S2-N3-M5-P14",
         "S2-N3-M5-P15"
-      ],
-      "type": "func(string) ([]byte, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`tomlwriter.New(...)` supplied via `WithModifierWriter`; required (no default)",
       "field": "writer",
+      "type": "AtomicWriter",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S2-N3-M9",
       "properties": [
         "S2-N3-M5-P14",
         "S2-N3-M5-P17"
-      ],
-      "type": "AtomicWriter (interface { AtomicWrite(targetPath string, record any) error })",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_name": "cli"
+      ]
     }
   ],
   "diagram": {
@@ -58,15 +61,16 @@
       {
         "from": "S2-N3-M5",
         "id": "R16",
-        "label": "reads existing feedback + fact TOML",
-        "to": "S6"
+        "label": "reads feedback + fact TOML via readDir / readFile",
+        "to": "S6",
+        "properties": ["P8", "P9", "P10", "P12", "P13", "P15"]
       },
       {
-        "dotted": true,
         "from": "S2-N3-M5",
-        "id": "D7",
-        "label": "DI back-edge (readDir, readFile, writer)",
-        "to": "S2-N3-M2"
+        "id": "R20",
+        "label": "atomic-writes new TOML via AtomicWriter",
+        "to": "S2-N3-M9",
+        "properties": ["P14", "P17"]
       }
     ],
     "nodes": [
@@ -89,6 +93,12 @@
         "subtitle": "internal/recall"
       },
       {
+        "id": "S2-N3-M9",
+        "kind": "component",
+        "name": "tomlwriter",
+        "subtitle": "AtomicWriter impl"
+      },
+      {
         "id": "S6",
         "kind": "external",
         "name": "Engram memory store",
@@ -101,13 +111,11 @@
     "name": "memory"
   },
   "legend_items": [
-    "Solid grey: L3 elements carried over.",
-    "Yellow: L4 focus component.",
-    "**Solid arrow (R[n])** = direct call. Standard C4 reading: \"source initiates the interaction with target.\"",
-    "**Dotted arrow (D[n])** = DI back-edge. Project-specific convention representing \"source initiates a category of calls whose concrete targets are determined by the dotted-arrow target (the wirer).\" One D-id per (consumer, wirer) pair regardless of how many concrete deps; the per-dep decomposition lives in the Dependency Manifest below.",
-    "**R4, R9:** the existing L3 element-to-element calls into E24 (cli, recall).",
-    "**R16:** the existing L3 file I/O edge from E24 to the engram memory store.",
-    "**D7:** the DI back-edge from E24 to E21, mirrored from L3."
+    "Yellow = focus component (S2-N3-M5 · memory).",
+    "Blue components = sibling components in c3-engram-cli-binary.md.",
+    "Grey = external systems (S6 · Engram memory store).",
+    "R-edges carry inline property IDs `[P…]` linking to the Property Ledger.",
+    "All edges traceable to a relationship in c3-engram-cli-binary.md."
   ],
   "level": 4,
   "name": "memory",
