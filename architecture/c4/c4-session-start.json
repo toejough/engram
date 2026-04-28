@@ -19,6 +19,12 @@
         "id": "R9",
         "label": "async go build, then deletes + atomically replaces binary; symlinks ~/.local/bin/engram",
         "to": "S2-N3"
+      },
+      {
+        "from": "S2-N2-M1",
+        "id": "R10",
+        "label": "registers SessionStart -> session-start.sh (timeout 10s)",
+        "to": "S2-N2-M2"
       }
     ],
     "nodes": [
@@ -36,9 +42,15 @@
       },
       {
         "id": "S2-N3",
-        "kind": "component",
+        "kind": "container",
         "name": "engram CLI binary",
         "subtitle": "~/.claude/engram/bin/engram"
+      },
+      {
+        "id": "S2-N2-M1",
+        "kind": "component",
+        "name": "hooks.json",
+        "subtitle": "manifest"
       }
     ]
   },

@@ -3,7 +3,7 @@ level: 4
 name: session-start
 parent: "c3-hooks.md"
 children: []
-last_reviewed_commit: 658e2ee3
+last_reviewed_commit: 528263bc
 ---
 
 # C4 — session-start (Property/Invariant Ledger)

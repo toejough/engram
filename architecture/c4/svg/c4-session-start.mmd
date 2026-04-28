@@ -9,11 +9,14 @@ flowchart LR
     s2-n2-m2["S2-N2-M2 · session-start.sh<br/>SessionStart hook"]
     s3("S3 · Claude Code<br/>exec + stdout consumer")
     s2-n3["S2-N3 · engram CLI binary<br/>~/.claude/engram/bin/engram"]
+    s2-n2-m1["S2-N2-M1 · hooks.json<br/>manifest"]
 
     s3 -->|"R5: execs on SessionStart (timeout 10s)"| s2-n2-m2
     s2-n2-m2 -->|"R6: emits additionalContext JSON on stdout (built via jq)"| s3
     s2-n2-m2 -->|"R9: async go build, then deletes + atomically replaces binary; symlinks ~/.local/bin/engram"| s2-n3
+    s2-n2-m1 -->|"R10: registers SessionStart -> session-start.sh (timeout 10s)"| s2-n2-m2
 
     class s3 external
-    class s2-n3 component
+    class s2-n3 container
+    class s2-n2-m1 component
     class s2-n2-m2 focus
