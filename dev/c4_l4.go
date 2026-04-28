@@ -669,7 +669,8 @@ func sharesParentPath(a, b IDPath) bool {
 }
 
 // validateL4Carryover enforces the L4↔L3 cross-level invariant. Both
-// directions are checked; all violations are aggregated via errors.Join.
+// directions are checked; violations after the focus-existence check are
+// aggregated via errors.Join.
 //
 // The L4 focus is rendered with kind "focus" but corresponds to a
 // "component" on the L3 parent — that one ID receives a relaxed kind

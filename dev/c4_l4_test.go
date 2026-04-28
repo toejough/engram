@@ -361,6 +361,22 @@ func TestT65_FormatPropertyList_JoinsDifferentPrefixes(t *testing.T) {
 	}
 }
 
+func TestValidateL4Carryover_FocusKindRelaxed(t *testing.T) {
+	t.Parallel()
+	l4 := &L4Spec{
+		Focus:   L4Focus{ID: "F", Name: "focus"},
+		Parent:  "c3-x.md",
+		Diagram: L4Diagram{Nodes: []L4Node{{ID: "F", Name: "focus", Kind: "focus"}}},
+	}
+	l3 := &L3Spec{
+		Focus:    L3Focus{ID: "S2-N3", Name: "n", Responsibility: "r"},
+		Elements: []L3Element{{ID: "F", Name: "focus", Kind: "component"}},
+	}
+	if err := validateL4Carryover(l4, l3); err != nil {
+		t.Fatalf("focus kind relaxation should pass, got: %v", err)
+	}
+}
+
 func TestValidateL4Carryover_FocusMissingFromL3(t *testing.T) {
 	t.Parallel()
 	l4 := &L4Spec{Focus: L4Focus{ID: "S2-N3-M3", Name: "recall"}, Parent: "c3-x.md"}
