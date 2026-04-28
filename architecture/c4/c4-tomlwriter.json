@@ -1,72 +1,72 @@
 {
-  "context_prose": "tomlwriter is the TOML serialization component for new and updated feedback and fact memory files. The cli component (E21) calls Writer.Write on learn / remember / update flows; tomlwriter routes the record to the correct subdirectory by Type (fact / feedback / fallback memories), generates a slug-based filename with collision-avoiding numeric suffixes, stamps timestamps if missing, and writes the TOML atomically via temp-file + rename with cleanup on any failure. All filesystem syscalls (createTemp, rename, mkdirAll, stat, remove) are injected as function values defaulted to their os.* counterparts, so the package contains no direct os.* I/O calls outside the New constructor's defaults — wiring happens at the cli edge.",
+  "context_prose": "tomlwriter is the TOML serialization component for new and updated feedback and fact memory files. cli calls Writer.Write on learn / remember / update flows (R12); memory.Modifier also consumes it via the AtomicWriter interface (R20). tomlwriter routes the record to the correct subdirectory by Type (fact / feedback / fallback memories), generates a slug-based filename with collision-avoiding numeric suffixes, stamps timestamps if missing, and writes the TOML atomically via temp-file + rename with cleanup on any failure. All five filesystem syscalls — createTemp, rename, mkdirAll, stat, remove — are injected as function values, all wrapping S6 · Engram memory store; cli installs the os.* defaults at construction time.",
   "dependency_manifest": [
     {
-      "concrete_adapter": "`os.CreateTemp` (default in `New`)",
       "field": "createTemp",
+      "type": "func(dir, pattern string) (*os.File, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S6",
       "properties": [
         "S2-N3-M9-P1",
         "S2-N3-M9-P2",
         "S2-N3-M9-P5",
         "S2-N3-M9-P6"
-      ],
-      "type": "func(dir, pattern string) (*os.File, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`os.Rename` (default in `New`)",
       "field": "rename",
+      "type": "func(oldpath, newpath string) error",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S6",
       "properties": [
         "S2-N3-M9-P1",
         "S2-N3-M9-P2",
         "S2-N3-M9-P6"
-      ],
-      "type": "func(oldpath, newpath string) error",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`os.MkdirAll` (default in `New`)",
       "field": "mkdirAll",
+      "type": "func(path string, perm os.FileMode) error",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S6",
       "properties": [
         "S2-N3-M9-P3",
         "S2-N3-M9-P6"
-      ],
-      "type": "func(path string, perm os.FileMode) error",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`os.Stat` (default in `New`)",
       "field": "stat",
+      "type": "func(name string) (os.FileInfo, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S6",
       "properties": [
         "S2-N3-M9-P4",
         "S2-N3-M9-P6"
-      ],
-      "type": "func(name string) (os.FileInfo, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`os.Remove` (default in `New`)",
       "field": "remove",
-      "properties": [
-        "S2-N3-M9-P2"
-      ],
       "type": "func(name string) error",
       "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
       "wired_by_l3": "c3-engram-cli-binary.md",
       "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      "wrapped_entity_id": "S6",
+      "properties": [
+        "S2-N3-M9-P2"
+      ]
     }
   ],
   "diagram": {
@@ -78,17 +78,17 @@
         "to": "S2-N3-M9"
       },
       {
-        "from": "S2-N3-M9",
-        "id": "R17",
-        "label": "writes new feedback + fact TOML",
-        "to": "S6"
+        "from": "S2-N3-M5",
+        "id": "R20",
+        "label": "atomic-writes feedback + fact TOML via AtomicWriter",
+        "to": "S2-N3-M9"
       },
       {
-        "dotted": true,
         "from": "S2-N3-M9",
-        "id": "D3",
-        "label": "DI back-edge: createTemp/rename/mkdirAll/stat/remove",
-        "to": "S2-N3-M2"
+        "id": "R17",
+        "label": "writes new feedback + fact TOML via createTemp / rename / mkdirAll / stat / remove",
+        "to": "S6",
+        "properties": ["P1", "P2", "P3", "P4", "P5", "P6"]
       }
     ],
     "nodes": [
@@ -103,6 +103,12 @@
         "name": "cli"
       },
       {
+        "id": "S2-N3-M5",
+        "kind": "component",
+        "name": "memory",
+        "subtitle": "Modifier consumer"
+      },
+      {
         "id": "S6",
         "kind": "external",
         "name": "Engram memory store"
@@ -114,8 +120,11 @@
     "name": "tomlwriter"
   },
   "legend_items": [
-    "Solid arrows: runtime calls (R-edges) from L3.",
-    "Dotted arrow: DI back-edge (D3) — function-value adapters wired by cli at tomlwriter.New."
+    "Yellow = focus component (S2-N3-M9 · tomlwriter).",
+    "Blue components = sibling components in c3-engram-cli-binary.md.",
+    "Grey = external systems (S6 · Engram memory store).",
+    "R-edges carry inline property IDs `[P…]` linking to the Property Ledger.",
+    "All edges traceable to a relationship in c3-engram-cli-binary.md."
   ],
   "level": 4,
   "name": "tomlwriter",

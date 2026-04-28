@@ -8,13 +8,8 @@ flowchart LR
 
     s2-n3-m9["S2-N3-M9 · tomlwriter"]
     s2-n3-m2["S2-N3-M2 · cli"]
-    s2-n3-m5["S2-N3-M5 · memory<br/>Modifier consumer"]
-    s6("S6 · Engram memory store")
 
-    s2-n3-m2 -->|"R12: writes new TOML on learn / remember / update"| s2-n3-m9
-    s2-n3-m5 -->|"R20: atomic-writes feedback + fact TOML via AtomicWriter"| s2-n3-m9
-    s2-n3-m9 -.->|"R17: writes new feedback + fact TOML via createTemp / rename / mkdirAll / stat / remove [P1, P2, P3, P4, P5, P6]"| s6
+    s2-n3-m2 -->|"S6"| s2-n3-m9
 
-    class s6 external
-    class s2-n3-m2,s2-n3-m5 component
+    class s2-n3-m2 component
     class s2-n3-m9 focus

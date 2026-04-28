@@ -3,7 +3,7 @@ level: 4
 name: tomlwriter
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: c02ceb53
 ---
 
 # C4 — tomlwriter (Property/Invariant Ledger)
@@ -15,32 +15,47 @@ last_reviewed_commit: 035a717d
 
 ## Context (from L3)
 
-tomlwriter is the TOML serialization component for new and updated feedback and fact memory files. The cli component (E21) calls Writer.Write on learn / remember / update flows; tomlwriter routes the record to the correct subdirectory by Type (fact / feedback / fallback memories), generates a slug-based filename with collision-avoiding numeric suffixes, stamps timestamps if missing, and writes the TOML atomically via temp-file + rename with cleanup on any failure. All filesystem syscalls (createTemp, rename, mkdirAll, stat, remove) are injected as function values defaulted to their os.* counterparts, so the package contains no direct os.* I/O calls outside the New constructor's defaults — wiring happens at the cli edge.
+tomlwriter is the TOML serialization component for new and updated feedback and fact memory files. cli calls Writer.Write on learn / remember / update flows (R12); memory.Modifier also consumes it via the AtomicWriter interface (R20). tomlwriter routes the record to the correct subdirectory by Type (fact / feedback / fallback memories), generates a slug-based filename with collision-avoiding numeric suffixes, stamps timestamps if missing, and writes the TOML atomically via temp-file + rename with cleanup on any failure. All five filesystem syscalls — createTemp, rename, mkdirAll, stat, remove — are injected as function values, all wrapping S6 · Engram memory store; cli installs the os.* defaults at construction time.
 
 ![C4 tomlwriter context diagram](svg/c4-tomlwriter.svg)
 
 > Diagram source: [svg/c4-tomlwriter.mmd](svg/c4-tomlwriter.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-tomlwriter.mmd -o architecture/c4/svg/c4-tomlwriter.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 **Legend:**
-- Solid arrows: runtime calls (R-edges) from L3.
-- Dotted arrow: DI back-edge (D3) — function-value adapters wired by cli at tomlwriter.New.
+- Yellow = focus component (S2-N3-M9 · tomlwriter).
+- Blue components = sibling components in c3-engram-cli-binary.md.
+- Grey = external systems (S6 · Engram memory store).
+- R-edges carry inline property IDs `[P…]` linking to the Property Ledger.
+- All edges traceable to a relationship in c3-engram-cli-binary.md.
+
+## Wiring
+
+Each edge is one or more DI seams the wirer plugs into tomlwriter, deduped by the
+wrapped entity (label = SNM ID). The Dependency Manifest below shows the
+per-seam breakdown.
+
+![C4 tomlwriter wiring diagram](svg/c4-tomlwriter-wiring.svg)
+
+> Diagram source: [svg/c4-tomlwriter-wiring.mmd](svg/c4-tomlwriter-wiring.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-tomlwriter-wiring.mmd -o architecture/c4/svg/c4-tomlwriter-wiring.svg`.
 
 ## Dependency Manifest
 
-Each row is one injected dependency the focus component receives. Manifest expands the
-Rdi back-edge into per-dep wiring rows. Reciprocal entries live in the wirer's L4 under
-"DI Wires" — those two sections must stay in sync.
+Each row is one DI seam the focus consumes. The wrapped entity is the diagram
+node (component or external) the seam ultimately drives behavior against; it
+must also appear on the call diagram. The wiring diagram dedupes manifest
+rows by wrapped entity.
 
-| Dep field | Type | Wired by | Concrete adapter | Properties |
+| Field | Type | Wired by | Wrapped entity | Properties |
 |---|---|---|---|---|
-| `createTemp` | `func(dir, pattern string) (*os.File, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `os.CreateTemp` (default in `New`) | S2-N3-M9-P1, S2-N3-M9-P2, S2-N3-M9-P5, S2-N3-M9-P6 |
-| `rename` | `func(oldpath, newpath string) error` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `os.Rename` (default in `New`) | S2-N3-M9-P1, S2-N3-M9-P2, S2-N3-M9-P6 |
-| `mkdirAll` | `func(path string, perm os.FileMode) error` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `os.MkdirAll` (default in `New`) | S2-N3-M9-P3, S2-N3-M9-P6 |
-| `stat` | `func(name string) (os.FileInfo, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `os.Stat` (default in `New`) | S2-N3-M9-P4, S2-N3-M9-P6 |
-| `remove` | `func(name string) error` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `os.Remove` (default in `New`) | S2-N3-M9-P2 |
+| `createTemp` | `func(dir, pattern string) (*os.File, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M9-P1, S2-N3-M9-P2, S2-N3-M9-P5, S2-N3-M9-P6 |
+| `rename` | `func(oldpath, newpath string) error` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M9-P1, S2-N3-M9-P2, S2-N3-M9-P6 |
+| `mkdirAll` | `func(path string, perm os.FileMode) error` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M9-P3, S2-N3-M9-P6 |
+| `stat` | `func(name string) (os.FileInfo, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M9-P4, S2-N3-M9-P6 |
+| `remove` | `func(name string) error` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M9-P2 |
 
 ## Property Ledger
 
