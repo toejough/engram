@@ -12,6 +12,36 @@ import (
 	"testing"
 )
 
+func TestEdgeIDPrefix_AcceptsROnly(t *testing.T) {
+	t.Parallel()
+
+	findings := collectMermaidFindings(blockWithEdgeLabel("R1: ok"))
+	for _, finding := range findings {
+		if finding.ID == "edge_id_missing" {
+			t.Errorf("unexpected edge_id_missing finding for R1 label: %+v", finding)
+		}
+	}
+}
+
+func TestEdgeIDPrefix_RejectsDEdges(t *testing.T) {
+	t.Parallel()
+
+	findings := collectMermaidFindings(blockWithEdgeLabel("D1: legacy"))
+	hits := 0
+	for _, finding := range findings {
+		if finding.ID != "edge_id_missing" {
+			continue
+		}
+		hits++
+		if !strings.Contains(finding.Detail, "R<n>:") {
+			t.Errorf("edge_id_missing detail %q does not cite R<n>:", finding.Detail)
+		}
+	}
+	if hits != 1 {
+		t.Errorf("want exactly 1 edge_id_missing finding, got %d:\n%+v", hits, findings)
+	}
+}
+
 func TestT10_BuildLiveC1_AuditsClean(t *testing.T) {
 	t.Parallel()
 
@@ -530,6 +560,20 @@ func TestT9_BuildIdempotent(t *testing.T) {
 	}
 	if buf1.String() != buf2.String() {
 		t.Error("emitMarkdown is not deterministic")
+	}
+}
+
+func blockWithEdgeLabel(label string) *mermaidBlock {
+	return &mermaidBlock{
+		startLine: 1,
+		classes:   map[string]bool{"person": true, "external": true, "container": true},
+		nodes: []mermaidNode{
+			{id: "a", label: "S1: from", line: 2},
+			{id: "b", label: "S2: to", line: 3},
+		},
+		edges: []mermaidEdge{
+			{from: "a", to: "b", label: label, line: 4},
+		},
 	}
 }
 

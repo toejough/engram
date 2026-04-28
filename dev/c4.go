@@ -138,10 +138,10 @@ var (
 		"go.yaml.in/yaml/v3":         "yaml",
 		"gopkg.in/yaml.v3":           "yaml",
 	}
-	// edgeIDPrefix accepts R<n> (direct call) or D<n> (DI back-edge) labels.
-	// Both prefixes appear at L2-L4; L1 only uses R<n> but D<n> never appears
-	// there so the union is harmless.
-	edgeIDPrefix  = regexp.MustCompile(`^[RD]\d+\s*:`)
+	// edgeIDPrefix accepts R<n>: (runtime call). D<n>: (legacy DI back-edge)
+	// is rejected — the wiring relationship now lives in a separate wiring
+	// diagram, not as a back-edge in the call diagram.
+	edgeIDPrefix  = regexp.MustCompile(`^R\d+\s*:`)
 	errNoArgs     = errors.New("--file is required")
 	httpMethodSet = map[string]bool{
 		"NewRequest": true, "NewRequestWithContext": true,
@@ -811,7 +811,7 @@ func collectMermaidFindings(block *mermaidBlock) []Finding {
 			findings = append(findings, Finding{
 				ID:     "edge_id_missing",
 				Line:   edge.line,
-				Detail: fmt.Sprintf("edge %q->%q label %q does not start with R<n>: or D<n>:", edge.from, edge.to, edge.label),
+				Detail: fmt.Sprintf("edge %q->%q label %q does not start with R<n>:", edge.from, edge.to, edge.label),
 			})
 		}
 	}
