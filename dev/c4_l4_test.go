@@ -58,6 +58,14 @@ func TestEmitL4WiringMermaid_DedupesByWrappedEntity(t *testing.T) {
 	if s3Count != 1 || antCount != 1 {
 		t.Fatalf("expected one S3 edge and one S2-N3-M7 edge, got s3=%d ant=%d in:\n%s", s3Count, antCount, out)
 	}
+	// Wrapped-entity nodes must NOT appear as standalone nodes — their SNM
+	// IDs are conveyed by the edge labels alone.
+	if strings.Contains(out, `s3[`) || strings.Contains(out, `s3(`) {
+		t.Errorf("wrapped entity S3 unexpectedly rendered as a node:\n%s", out)
+	}
+	if strings.Contains(out, `s2-n3-m7[`) || strings.Contains(out, `s2-n3-m7(`) {
+		t.Errorf("wrapped entity S2-N3-M7 unexpectedly rendered as a node:\n%s", out)
+	}
 }
 
 func TestL4DepRow_HasSlimSchema(t *testing.T) {

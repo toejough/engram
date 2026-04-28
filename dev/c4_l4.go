@@ -436,14 +436,15 @@ func emitL4WiringMermaid(buf *bytes.Buffer, spec *L4Spec) {
 	buf.WriteString("    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000\n")
 	buf.WriteString("    classDef focus       fill:#facc15,stroke:#a16207,color:#000\n\n")
 
-	// Collect distinct nodes referenced by the wiring diagram.
+	// Collect distinct nodes referenced by the wiring diagram. Only wirers
+	// and the focus appear as nodes; wrapped entities are conveyed by edge
+	// labels (their SNM IDs) and would otherwise float disconnected.
 	referenced := map[string]bool{spec.Focus.ID: true}
 	type edgeKey struct{ wirer, wrapped string }
 	seen := map[edgeKey]bool{}
 	edges := []edgeKey{}
 	for _, row := range spec.DependencyManifest {
 		referenced[row.WiredByID] = true
-		referenced[row.WrappedEntityID] = true
 		key := edgeKey{row.WiredByID, row.WrappedEntityID}
 		if seen[key] {
 			continue

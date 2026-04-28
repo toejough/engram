@@ -8,16 +8,11 @@ flowchart LR
 
     s2-n3-m3["S2-N3-M3 · recall<br/>Orchestrator + phases"]
     s2-n3-m2["S2-N3-M2 · cli<br/>wires DI deps"]
-    s2-n3-m5["S2-N3-M5 · memory<br/>MemoryLister"]
-    s2-n3-m6["S2-N3-M6 · externalsources<br/>ExternalFile + FileCache"]
-    s2-n3-m7["S2-N3-M7 · anthropic<br/>Haiku caller"]
-    s3("S3 · Claude Code<br/>session files + status stderr")
 
     s2-n3-m2 -->|"S3"| s2-n3-m3
     s2-n3-m2 -->|"S2-N3-M7"| s2-n3-m3
     s2-n3-m2 -->|"S2-N3-M5"| s2-n3-m3
     s2-n3-m2 -->|"S2-N3-M6"| s2-n3-m3
 
-    class s3 external
-    class s2-n3-m2,s2-n3-m5,s2-n3-m6,s2-n3-m7 component
+    class s2-n3-m2 component
     class s2-n3-m3 focus
