@@ -30,7 +30,7 @@
       },
       {
         "id": "S2-N3",
-        "kind": "component",
+        "kind": "container",
         "name": "engram CLI binary",
         "subtitle": "recall subcommand target"
       }

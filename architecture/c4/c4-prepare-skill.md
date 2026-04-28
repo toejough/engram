@@ -3,7 +3,7 @@ level: 4
 name: prepare-skill
 parent: "c3-skills.md"
 children: []
-last_reviewed_commit: 658e2ee3
+last_reviewed_commit: 528263bc
 ---
 
 # C4 — prepare-skill (Property/Invariant Ledger)
