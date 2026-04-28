@@ -334,17 +334,6 @@ func emitL4Mermaid(buf *bytes.Buffer, spec *L4Spec) {
 	emitL4MermaidClasses(buf, spec)
 }
 
-// wrappedEntityIDSet returns the set of entity IDs that appear as
-// wrapped_entity_id in the dependency manifest. R-edges whose `to` is
-// in this set are rendered dotted (the call goes through a DI seam).
-func wrappedEntityIDSet(spec *L4Spec) map[string]bool {
-	out := map[string]bool{}
-	for _, row := range spec.DependencyManifest {
-		out[row.WrappedEntityID] = true
-	}
-	return out
-}
-
 func emitL4MermaidClasses(buf *bytes.Buffer, spec *L4Spec) {
 	groups := map[string][]string{}
 	classOrder := []string{"person", "external", "container", "component", "focus"}
@@ -768,4 +757,15 @@ func validateL4Spec(spec *L4Spec) error {
 		return err
 	}
 	return validateL4PropertiesWithFocus(focusPath, spec.Properties)
+}
+
+// wrappedEntityIDSet returns the set of entity IDs that appear as
+// wrapped_entity_id in the dependency manifest. R-edges whose `to` is
+// in this set are rendered dotted (the call goes through a DI seam).
+func wrappedEntityIDSet(spec *L4Spec) map[string]bool {
+	out := map[string]bool{}
+	for _, row := range spec.DependencyManifest {
+		out[row.WrappedEntityID] = true
+	}
+	return out
 }

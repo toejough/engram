@@ -23,20 +23,6 @@ func TestEmitL4MermaidEdge_AppendsPropertySuffix(t *testing.T) {
 	}
 }
 
-func TestEmitL4MermaidEdge_OmitsSuffixWhenNoProperties(t *testing.T) {
-	t.Parallel()
-	edge := L4Edge{
-		ID: "R3", From: "S2-N3-M2", To: "S2-N3-M3",
-		Label: "constructs + invokes",
-	}
-	var buf bytes.Buffer
-	emitL4MermaidEdge(&buf, edge, nil)
-	out := buf.String()
-	if strings.Contains(out, "[") {
-		t.Fatalf("expected no brackets, got: %s", out)
-	}
-}
-
 func TestEmitL4MermaidEdge_DottedWhenTargetIsDIWrapped(t *testing.T) {
 	t.Parallel()
 	edge := L4Edge{
@@ -49,6 +35,20 @@ func TestEmitL4MermaidEdge_DottedWhenTargetIsDIWrapped(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "-.->") {
 		t.Fatalf("expected dotted arrow for DI-mediated R-edge, got: %s", out)
+	}
+}
+
+func TestEmitL4MermaidEdge_OmitsSuffixWhenNoProperties(t *testing.T) {
+	t.Parallel()
+	edge := L4Edge{
+		ID: "R3", From: "S2-N3-M2", To: "S2-N3-M3",
+		Label: "constructs + invokes",
+	}
+	var buf bytes.Buffer
+	emitL4MermaidEdge(&buf, edge, nil)
+	out := buf.String()
+	if strings.Contains(out, "[") {
+		t.Fatalf("expected no brackets, got: %s", out)
 	}
 }
 
