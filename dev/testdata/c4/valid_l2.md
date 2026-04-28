@@ -15,7 +15,7 @@ Refines S2 Foo into a worker that processes input and a loader that hydrates sta
 > Diagram source: [svg/c2-foo-system.mmd](svg/c2-foo-system.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c2-foo-system.mmd -o architecture/c4/svg/c2-foo-system.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 ## Element Catalog
 

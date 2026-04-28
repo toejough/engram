@@ -202,7 +202,7 @@ func emitL4ContextSection(buf *bytes.Buffer, spec *L4Spec) {
 		"> Diagram source: [svg/%s.mmd](svg/%s.mmd). Re-render with\n"+
 			"> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/%s.mmd -o architecture/c4/svg/%s.svg`.\n"+
 			"> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to\n"+
-			"> separate bidirectional R/D edges between the same node pair.\n\n",
+			"> separate bidirectional R-edges between the same node pair.\n\n",
 		mmdName, mmdName, mmdName, mmdName)
 }
 
@@ -666,8 +666,7 @@ func validateL4NodeIDs(spec *L4Spec) error {
 	for index, edge := range spec.Diagram.Edges {
 		if !rEdgeIDPrefix.MatchString(edge.ID) {
 			violations = append(violations, fmt.Sprintf(
-				"diagram.edges[%d].id %q: must match R<n> (call relationship); "+
-					"D<n> (legacy DI back-edge) is no longer accepted",
+				"diagram.edges[%d].id %q: must match R<n> (call relationship)",
 				index, edge.ID))
 		}
 	}

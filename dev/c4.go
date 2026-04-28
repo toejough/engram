@@ -138,9 +138,8 @@ var (
 		"go.yaml.in/yaml/v3":         "yaml",
 		"gopkg.in/yaml.v3":           "yaml",
 	}
-	// edgeIDPrefix accepts R<n>: (runtime call). D<n>: (legacy DI back-edge)
-	// is rejected — the wiring relationship now lives in a separate wiring
-	// diagram, not as a back-edge in the call diagram.
+	// edgeIDPrefix accepts R<n>: (runtime call). The wiring relationship lives
+	// in a separate wiring diagram, not as a back-edge in the call diagram.
 	edgeIDPrefix  = regexp.MustCompile(`^R\d+\s*:`)
 	errNoArgs     = errors.New("--file is required")
 	httpMethodSet = map[string]bool{
@@ -653,9 +652,8 @@ func callOnPackage(pkg *packages.Package, node ast.Node) (*ast.CallExpr, *ast.Se
 // collectL4MermaidFindings is the L4 counterpart to collectMermaidFindings.
 // It validates that every node label is a hierarchical path ID (S<n>-N<m>-M<k>
 // or shallower) and that every edge label starts with R<n>: (consumer-side
-// relationship) or D<n>: (DI back-edge). No other prefixes are allowed — the
-// node ID space is closed to the L4 context strip and the edge ID space is
-// closed to the two documented namespaces.
+// relationship). No other prefixes are allowed — the node ID space is closed
+// to the L4 context strip and the edge ID space is closed to R<n>:.
 func checkLastReviewedCommit(ctx context.Context, matter frontMatter) []Finding {
 	if !matter.hasLastReviewedCommit {
 		return nil
@@ -1146,7 +1144,7 @@ func emitSVGEmbed(buf *bytes.Buffer, mmdName, label string) {
 		"> Diagram source: [svg/%s.mmd](svg/%s.mmd). Re-render with\n"+
 			"> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/%s.mmd -o architecture/c4/svg/%s.svg`.\n"+
 			"> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to\n"+
-			"> separate bidirectional R/D edges between the same node pair.\n\n",
+			"> separate bidirectional R-edges between the same node pair.\n\n",
 		mmdName, mmdName, mmdName, mmdName)
 }
 
