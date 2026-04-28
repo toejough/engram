@@ -1,35 +1,13 @@
 {
-  "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E23. The DI back-edge convention (see legend) applies — E23 → E21 represents the category of `FileReader.Read` calls E23 makes through the dependency wired by E21 through E22 (recall). The R-edge label cites the P-list each edge backs.",
-  "dependency_manifest": [
-    {
-      "concrete_adapter": "`os.ReadFile`-backed adapter (passed through E22 recall)",
-      "field": "reader",
-      "properties": [
-        "S2-N3-M4-P1",
-        "S2-N3-M4-P2",
-        "S2-N3-M4-P3",
-        "S2-N3-M4-P4"
-      ],
-      "type": "FileReader",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_name": "cli"
-    }
-  ],
+  "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E23. internal/context declares a `FileReader` interface as a public type but no function in the package consumes it — the recall package wires its own `TranscriptReader` adapter when invoking `context.StripSeqAndConvertHumanTurns`. context therefore has zero DI seams of its own and no Dependency Manifest under the new schema.",
   "diagram": {
     "edges": [
       {
         "from": "S2-N3-M3",
         "id": "R8",
-        "label": "reads + strips transcript (P1–P4, P9–P15)",
-        "to": "S2-N3-M4"
-      },
-      {
-        "dotted": true,
-        "from": "S2-N3-M4",
-        "id": "D6",
-        "label": "DI back-edge: FileReader (P1–P4)",
-        "to": "S2-N3-M2"
+        "label": "reads + strips transcript",
+        "to": "S2-N3-M4",
+        "properties": ["P1", "P2", "P3", "P4", "P6", "P7", "P8", "P9", "P10", "P11", "P12", "P13", "P14", "P15"]
       }
     ],
     "nodes": [
@@ -37,11 +15,6 @@
         "id": "S2-N3-M3",
         "kind": "component",
         "name": "recall"
-      },
-      {
-        "id": "S2-N3-M2",
-        "kind": "component",
-        "name": "cli"
       },
       {
         "id": "S2-N3-M4",
@@ -56,12 +29,10 @@
     "name": "context"
   },
   "legend_items": [
-    "Solid grey: L3 elements carried over.",
-    "Yellow: L4 focus component.",
-    "**Solid arrow (R[n])** = direct call. Standard C4 reading: \"source initiates the interaction with target.\"",
-    "**Dotted arrow (D[n])** = DI back-edge. Project-specific convention representing \"source initiates a category of calls whose concrete targets are determined by the dotted-arrow target (the wirer).\" One D-id per (consumer, wirer) pair regardless of how many concrete deps; the per-dep decomposition lives in the Dependency Manifest below.",
-    "**R8:** the existing L3 element-to-element call from E22 (recall) into E23.",
-    "**D6:** the DI back-edge from E23 to E21 (cli), mirrored from L3."
+    "Yellow = focus component (S2-N3-M4 · context).",
+    "Blue components = sibling components in c3-engram-cli-binary.md.",
+    "R-edges carry inline property IDs `[P…]` linking to the Property Ledger.",
+    "All edges traceable to a relationship in c3-engram-cli-binary.md."
   ],
   "level": 4,
   "name": "context",

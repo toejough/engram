@@ -7,11 +7,9 @@ flowchart LR
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
 
     s2-n3-m3["S2-N3-M3 · recall"]
-    s2-n3-m2["S2-N3-M2 · cli"]
     s2-n3-m4["S2-N3-M4 · context<br/>transcript delta + strip"]
 
-    s2-n3-m3 -->|"R8: reads + strips transcript (P1–P4, P9–P15)"| s2-n3-m4
-    s2-n3-m4 -.->|"D6: DI back-edge: FileReader (P1–P4)"| s2-n3-m2
+    s2-n3-m3 -->|"R8: reads + strips transcript [P1, P2, P3, P4, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15]"| s2-n3-m4
 
-    class s2-n3-m3,s2-n3-m2 component
+    class s2-n3-m3 component
     class s2-n3-m4 focus

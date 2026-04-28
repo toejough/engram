@@ -3,7 +3,7 @@ level: 4
 name: context
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: 95a5a92f
 ---
 
 # C4 — context (Property/Invariant Ledger)
@@ -20,32 +20,20 @@ last_reviewed_commit: 035a717d
 
 ## Context (from L3)
 
-Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E23. The DI back-edge convention (see legend) applies — E23 → E21 represents the category of `FileReader.Read` calls E23 makes through the dependency wired by E21 through E22 (recall). The R-edge label cites the P-list each edge backs.
+Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E23. internal/context declares a `FileReader` interface as a public type but no function in the package consumes it — the recall package wires its own `TranscriptReader` adapter when invoking `context.StripSeqAndConvertHumanTurns`. context therefore has zero DI seams of its own and no Dependency Manifest under the new schema.
 
 ![C4 context context diagram](svg/c4-context.svg)
 
 > Diagram source: [svg/c4-context.mmd](svg/c4-context.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-context.mmd -o architecture/c4/svg/c4-context.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 **Legend:**
-- Solid grey: L3 elements carried over.
-- Yellow: L4 focus component.
-- **Solid arrow (R[n])** = direct call. Standard C4 reading: "source initiates the interaction with target."
-- **Dotted arrow (D[n])** = DI back-edge. Project-specific convention representing "source initiates a category of calls whose concrete targets are determined by the dotted-arrow target (the wirer)." One D-id per (consumer, wirer) pair regardless of how many concrete deps; the per-dep decomposition lives in the Dependency Manifest below.
-- **R8:** the existing L3 element-to-element call from E22 (recall) into E23.
-- **D6:** the DI back-edge from E23 to E21 (cli), mirrored from L3.
-
-## Dependency Manifest
-
-Each row is one injected dependency the focus component receives. Manifest expands the
-Rdi back-edge into per-dep wiring rows. Reciprocal entries live in the wirer's L4 under
-"DI Wires" — those two sections must stay in sync.
-
-| Dep field | Type | Wired by | Concrete adapter | Properties |
-|---|---|---|---|---|
-| `reader` | `FileReader` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) (L4: c4-cli.md — TBD) | `os.ReadFile`-backed adapter (passed through E22 recall) | S2-N3-M4-P1–P4 |
+- Yellow = focus component (S2-N3-M4 · context).
+- Blue components = sibling components in c3-engram-cli-binary.md.
+- R-edges carry inline property IDs `[P…]` linking to the Property Ledger.
+- All edges traceable to a relationship in c3-engram-cli-binary.md.
 
 ## Property Ledger
 
