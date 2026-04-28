@@ -326,11 +326,23 @@ func emitL4Mermaid(buf *bytes.Buffer, spec *L4Spec) {
 	if len(spec.Diagram.Edges) > 0 {
 		buf.WriteString("\n")
 	}
+	diTargets := wrappedEntityIDSet(spec)
 	for _, edge := range spec.Diagram.Edges {
-		emitL4MermaidEdge(buf, edge)
+		emitL4MermaidEdge(buf, edge, diTargets)
 	}
 	buf.WriteString("\n")
 	emitL4MermaidClasses(buf, spec)
+}
+
+// wrappedEntityIDSet returns the set of entity IDs that appear as
+// wrapped_entity_id in the dependency manifest. R-edges whose `to` is
+// in this set are rendered dotted (the call goes through a DI seam).
+func wrappedEntityIDSet(spec *L4Spec) map[string]bool {
+	out := map[string]bool{}
+	for _, row := range spec.DependencyManifest {
+		out[row.WrappedEntityID] = true
+	}
+	return out
 }
 
 func emitL4MermaidClasses(buf *bytes.Buffer, spec *L4Spec) {
@@ -367,14 +379,18 @@ func emitL4MermaidClassesForNodes(buf *bytes.Buffer, spec *L4Spec, referenced ma
 	}
 }
 
-func emitL4MermaidEdge(buf *bytes.Buffer, edge L4Edge) {
+func emitL4MermaidEdge(buf *bytes.Buffer, edge L4Edge, diTargets map[string]bool) {
 	from := strings.ToLower(edge.From)
 	to := strings.ToLower(edge.To)
 	label := fmt.Sprintf("%s: %s", edge.ID, edge.Label)
 	if len(edge.Properties) > 0 {
 		label = fmt.Sprintf("%s [%s]", label, strings.Join(edge.Properties, ", "))
 	}
-	fmt.Fprintf(buf, "    %s -->|%q| %s\n", from, label, to)
+	arrow := "-->"
+	if diTargets[edge.To] {
+		arrow = "-.->"
+	}
+	fmt.Fprintf(buf, "    %s %s|%q| %s\n", from, arrow, label, to)
 }
 
 func emitL4MermaidNode(buf *bytes.Buffer, node L4Node) {

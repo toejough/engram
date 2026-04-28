@@ -16,7 +16,7 @@ func TestEmitL4MermaidEdge_AppendsPropertySuffix(t *testing.T) {
 		Label: "strips transcript", Properties: []string{"P3", "P4", "P9"},
 	}
 	var buf bytes.Buffer
-	emitL4MermaidEdge(&buf, edge)
+	emitL4MermaidEdge(&buf, edge, nil)
 	out := buf.String()
 	if !strings.Contains(out, "R8: strips transcript [P3, P4, P9]") {
 		t.Fatalf("expected bracketed property suffix, got: %s", out)
@@ -30,10 +30,43 @@ func TestEmitL4MermaidEdge_OmitsSuffixWhenNoProperties(t *testing.T) {
 		Label: "constructs + invokes",
 	}
 	var buf bytes.Buffer
-	emitL4MermaidEdge(&buf, edge)
+	emitL4MermaidEdge(&buf, edge, nil)
 	out := buf.String()
 	if strings.Contains(out, "[") {
 		t.Fatalf("expected no brackets, got: %s", out)
+	}
+}
+
+func TestEmitL4MermaidEdge_DottedWhenTargetIsDIWrapped(t *testing.T) {
+	t.Parallel()
+	edge := L4Edge{
+		ID: "R10", From: "S2-N3-M3", To: "S2-N3-M7",
+		Label: "ranks via SummarizerI",
+	}
+	diTargets := map[string]bool{"S2-N3-M7": true}
+	var buf bytes.Buffer
+	emitL4MermaidEdge(&buf, edge, diTargets)
+	out := buf.String()
+	if !strings.Contains(out, "-.->") {
+		t.Fatalf("expected dotted arrow for DI-mediated R-edge, got: %s", out)
+	}
+}
+
+func TestEmitL4MermaidEdge_SolidWhenTargetIsDirectCall(t *testing.T) {
+	t.Parallel()
+	edge := L4Edge{
+		ID: "R8", From: "S2-N3-M3", To: "S2-N3-M4",
+		Label: "strips transcript",
+	}
+	diTargets := map[string]bool{"S2-N3-M7": true}
+	var buf bytes.Buffer
+	emitL4MermaidEdge(&buf, edge, diTargets)
+	out := buf.String()
+	if strings.Contains(out, "-.->") {
+		t.Fatalf("expected solid arrow for non-DI R-edge, got: %s", out)
+	}
+	if !strings.Contains(out, "-->") {
+		t.Fatalf("expected solid arrow, got: %s", out)
 	}
 }
 
