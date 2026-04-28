@@ -387,6 +387,34 @@ func TestValidateL4Carryover_FocusMissingFromL3(t *testing.T) {
 	}
 }
 
+func TestValidateL4Carryover_HappyPath(t *testing.T) {
+	t.Parallel()
+	l4 := &L4Spec{
+		Focus:  L4Focus{ID: "F", Name: "focus"},
+		Parent: "c3-x.md",
+		Diagram: L4Diagram{Nodes: []L4Node{
+			{ID: "F", Name: "focus", Kind: "focus"},
+			{ID: "M", Name: "memory", Kind: "component"},
+			{ID: "C", Name: "cli", Kind: "component"},
+		}},
+	}
+	l3 := &L3Spec{
+		Focus: L3Focus{ID: "S2-N3", Name: "n", Responsibility: "r"},
+		Elements: []L3Element{
+			{ID: "F", Name: "focus", Kind: "component"},
+			{ID: "M", Name: "memory", Kind: "component"},
+			{ID: "C", Name: "cli", Kind: "component"},
+		},
+		Relationships: []L1Relationship{
+			{From: "F", To: "M", Description: "writes"},
+			{From: "C", To: "F", Description: "calls"},
+		},
+	}
+	if err := validateL4Carryover(l4, l3); err != nil {
+		t.Fatalf("happy path should pass: %v", err)
+	}
+}
+
 func TestValidateL4Carryover_KindMismatch(t *testing.T) {
 	t.Parallel()
 	l4 := &L4Spec{
@@ -418,6 +446,59 @@ func TestValidateL4Carryover_L4ExtraNode(t *testing.T) {
 	err := validateL4Carryover(l4, l3)
 	if err == nil || !strings.Contains(err.Error(), `"X"`) {
 		t.Fatalf("expected extra-node error citing X, got: %v", err)
+	}
+}
+
+func TestValidateL4Carryover_MissingNeighborInbound(t *testing.T) {
+	t.Parallel()
+	l4 := &L4Spec{
+		Focus:   L4Focus{ID: "F", Name: "focus"},
+		Parent:  "c3-x.md",
+		Diagram: L4Diagram{Nodes: []L4Node{{ID: "F", Name: "focus", Kind: "focus"}}},
+	}
+	l3 := &L3Spec{
+		Focus:         L3Focus{ID: "S2-N3", Name: "n", Responsibility: "r"},
+		Elements:      []L3Element{{ID: "F", Name: "focus", Kind: "component"}, {ID: "C", Name: "cli", Kind: "component"}},
+		Relationships: []L1Relationship{{From: "C", To: "F", Description: "calls"}},
+	}
+	err := validateL4Carryover(l4, l3)
+	if err == nil || !strings.Contains(err.Error(), `"C"`) {
+		t.Fatalf("expected missing-neighbor C, got: %v", err)
+	}
+}
+
+func TestValidateL4Carryover_MissingNeighborOutbound(t *testing.T) {
+	t.Parallel()
+	l4 := &L4Spec{
+		Focus:   L4Focus{ID: "F", Name: "focus"},
+		Parent:  "c3-x.md",
+		Diagram: L4Diagram{Nodes: []L4Node{{ID: "F", Name: "focus", Kind: "focus"}}},
+	}
+	l3 := &L3Spec{
+		Focus:         L3Focus{ID: "S2-N3", Name: "n", Responsibility: "r"},
+		Elements:      []L3Element{{ID: "F", Name: "focus", Kind: "component"}, {ID: "M", Name: "memory", Kind: "component"}},
+		Relationships: []L1Relationship{{From: "F", To: "M", Description: "writes"}},
+	}
+	err := validateL4Carryover(l4, l3)
+	if err == nil || !strings.Contains(err.Error(), `"M"`) {
+		t.Fatalf("expected missing-neighbor M, got: %v", err)
+	}
+}
+
+func TestValidateL4Carryover_SelfLoopIgnored(t *testing.T) {
+	t.Parallel()
+	l4 := &L4Spec{
+		Focus:   L4Focus{ID: "F", Name: "focus"},
+		Parent:  "c3-x.md",
+		Diagram: L4Diagram{Nodes: []L4Node{{ID: "F", Name: "focus", Kind: "focus"}}},
+	}
+	l3 := &L3Spec{
+		Focus:         L3Focus{ID: "S2-N3", Name: "n", Responsibility: "r"},
+		Elements:      []L3Element{{ID: "F", Name: "focus", Kind: "component"}},
+		Relationships: []L1Relationship{{From: "F", To: "F", Description: "self"}},
+	}
+	if err := validateL4Carryover(l4, l3); err != nil {
+		t.Fatalf("self-loop should not produce a neighbor: %v", err)
 	}
 }
 

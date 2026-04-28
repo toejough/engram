@@ -698,7 +698,30 @@ func validateL4Carryover(l4 *L4Spec, l3 *L3Spec) error {
 		}
 	}
 
-	// L3→L4 direction added in Task 3.
+	l4Nodes := map[string]bool{}
+	for _, node := range l4.Diagram.Nodes {
+		l4Nodes[node.ID] = true
+	}
+	connected := map[string]bool{}
+	for _, rel := range l3.Relationships {
+		switch {
+		case rel.From == l4.Focus.ID && rel.To != l4.Focus.ID:
+			connected[rel.To] = true
+		case rel.To == l4.Focus.ID && rel.From != l4.Focus.ID:
+			connected[rel.From] = true
+		}
+	}
+	connectedIDs := make([]string, 0, len(connected))
+	for id := range connected {
+		connectedIDs = append(connectedIDs, id)
+	}
+	sort.Strings(connectedIDs)
+	for _, id := range connectedIDs {
+		if !l4Nodes[id] {
+			errs = append(errs, fmt.Errorf("L3 parent %q has node %q connected to focus %q, but %q is missing from L4 diagram.nodes",
+				l4.Parent, id, l4.Focus.ID, id))
+		}
+	}
 	return errors.Join(errs...)
 }
 
