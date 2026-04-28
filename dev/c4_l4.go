@@ -45,7 +45,7 @@ type L4DepRow struct {
 	WiredByName     string   `json:"wired_by_name"`
 	WiredByL3       string   `json:"wired_by_l3"`
 	WiredByL4       string   `json:"wired_by_l4,omitempty"`
-	ConcreteAdapter string   `json:"concrete_adapter"`
+	WrappedEntityID string   `json:"wrapped_entity_id"`
 	Properties      []string `json:"properties"`
 }
 
@@ -110,13 +110,13 @@ type L4Spec struct {
 
 // L4WireRow is one row of the provider-side DI Wires table.
 type L4WireRow struct {
-	WiredAdapter  string `json:"wired_adapter"`
-	ConcreteValue string `json:"concrete_value"`
-	ConsumerID    string `json:"consumer_id"`
-	ConsumerName  string `json:"consumer_name"`
-	ConsumerL3    string `json:"consumer_l3"`
-	ConsumerL4    string `json:"consumer_l4,omitempty"`
-	ConsumerField string `json:"consumer_field"`
+	Field           string `json:"field"`
+	Type            string `json:"type"`
+	ConsumerID      string `json:"consumer_id"`
+	ConsumerName    string `json:"consumer_name"`
+	ConsumerL3      string `json:"consumer_l3"`
+	ConsumerL4      string `json:"consumer_l4,omitempty"`
+	WrappedEntityID string `json:"wrapped_entity_id"`
 }
 
 // unexported variables.
@@ -218,9 +218,9 @@ func emitL4CrossLinks(buf *bytes.Buffer, spec *L4Spec, siblings []string) {
 
 func emitL4DIWires(buf *bytes.Buffer, spec *L4Spec) {
 	buf.WriteString("## DI Wires\n\n")
-	buf.WriteString("Each row is one adapter this component wires into a consumer. Reciprocal entries\n")
+	buf.WriteString("Each row is one DI seam this component wires into a consumer. Reciprocal entries\n")
 	buf.WriteString("live in the consumer's L4 under \"Dependency Manifest\".\n\n")
-	buf.WriteString("| Wired adapter | Concrete value | Consumer | Consumer field |\n")
+	buf.WriteString("| Field | Type | Consumer | Wrapped entity |\n")
 	buf.WriteString("|---|---|---|---|\n")
 	for _, row := range spec.DIWires {
 		emitL4WireRow(buf, row)
@@ -233,19 +233,18 @@ func emitL4DepRow(buf *bytes.Buffer, row L4DepRow) {
 		row.WiredByID, row.WiredByName, row.WiredByL3, Anchor(row.WiredByID, row.WiredByName))
 	if row.WiredByL4 != "" {
 		wiredBy += fmt.Sprintf(" ([%s](%s))", row.WiredByL4, row.WiredByL4)
-	} else {
-		wiredBy += fmt.Sprintf(" (L4: c4-%s.md — TBD)", row.WiredByName)
 	}
-	fmt.Fprintf(buf, "| `%s` | `%s` | %s | %s | %s |\n",
-		row.Field, row.Type, wiredBy, row.ConcreteAdapter, formatPropertyList(row.Properties))
+	fmt.Fprintf(buf, "| `%s` | `%s` | %s | `%s` | %s |\n",
+		row.Field, row.Type, wiredBy, row.WrappedEntityID, formatPropertyList(row.Properties))
 }
 
 func emitL4DependencyManifest(buf *bytes.Buffer, spec *L4Spec) {
 	buf.WriteString("## Dependency Manifest\n\n")
-	buf.WriteString("Each row is one injected dependency the focus component receives. Manifest expands the\n")
-	buf.WriteString("Rdi back-edge into per-dep wiring rows. Reciprocal entries live in the wirer's L4 under\n")
-	buf.WriteString("\"DI Wires\" — those two sections must stay in sync.\n\n")
-	buf.WriteString("| Dep field | Type | Wired by | Concrete adapter | Properties |\n")
+	buf.WriteString("Each row is one DI seam the focus consumes. The wrapped entity is the diagram\n")
+	buf.WriteString("node (component or external) the seam ultimately drives behavior against; it\n")
+	buf.WriteString("must also appear on the call diagram. The wiring diagram dedupes manifest\n")
+	buf.WriteString("rows by wrapped entity.\n\n")
+	buf.WriteString("| Field | Type | Wired by | Wrapped entity | Properties |\n")
 	buf.WriteString("|---|---|---|---|---|\n")
 	for _, row := range spec.DependencyManifest {
 		emitL4DepRow(buf, row)
@@ -394,8 +393,8 @@ func emitL4WireRow(buf *bytes.Buffer, row L4WireRow) {
 	if row.ConsumerL4 != "" {
 		consumer += fmt.Sprintf(" ([%s](%s))", row.ConsumerL4, row.ConsumerL4)
 	}
-	fmt.Fprintf(buf, "| %s | %s | %s | `%s` |\n",
-		row.WiredAdapter, row.ConcreteValue, consumer, row.ConsumerField)
+	fmt.Fprintf(buf, "| `%s` | `%s` | %s | `%s` |\n",
+		row.Field, row.Type, consumer, row.WrappedEntityID)
 }
 
 func formatFirstLink(link L4CodeLink) string {
@@ -538,6 +537,27 @@ func sharesParentPath(a, b IDPath) bool {
 	return true
 }
 
+// validateL4Manifest verifies that every dependency-manifest row's
+// wrapped_entity_id matches a node on the diagram. The wrapped entity is the
+// label that appears on the wiring diagram, so it must be a node we can render.
+func validateL4Manifest(spec *L4Spec) error {
+	known := map[string]bool{}
+	for _, node := range spec.Diagram.Nodes {
+		known[node.ID] = true
+	}
+	for index, row := range spec.DependencyManifest {
+		if row.WrappedEntityID == "" {
+			return fmt.Errorf("dependency_manifest[%d]: wrapped_entity_id must be non-empty", index)
+		}
+		if !known[row.WrappedEntityID] {
+			return fmt.Errorf(
+				"dependency_manifest[%d]: wrapped_entity_id %q does not match any diagram node",
+				index, row.WrappedEntityID)
+		}
+	}
+	return nil
+}
+
 // validateL4NodeIDs validates that every diagram node has an explicit
 // hierarchical path ID and that edge IDs match the R<n> convention.
 // Node IDs must satisfy one of:
@@ -636,6 +656,9 @@ func validateL4Spec(spec *L4Spec) error {
 		return errors.New("context_prose: must be non-empty")
 	}
 	if err := validateL4NodeIDs(spec); err != nil {
+		return err
+	}
+	if err := validateL4Manifest(spec); err != nil {
 		return err
 	}
 	return validateL4PropertiesWithFocus(focusPath, spec.Properties)

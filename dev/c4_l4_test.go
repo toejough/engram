@@ -4,6 +4,7 @@ package dev
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -36,6 +37,31 @@ func TestEmitL4MermaidEdge_OmitsSuffixWhenNoProperties(t *testing.T) {
 	}
 }
 
+func TestL4DepRow_HasSlimSchema(t *testing.T) {
+	t.Parallel()
+	row := L4DepRow{
+		Field: "summarizer", Type: "SummarizerI",
+		WiredByID: "S2-N3-M2", WiredByName: "cli", WiredByL3: "c3-engram-cli-binary.md",
+		WrappedEntityID: "S2-N3-M7",
+		Properties:      []string{"P5", "P6"},
+	}
+	raw, err := json.Marshal(row)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	s := string(raw)
+	for _, want := range []string{"field", "wired_by_id", "wrapped_entity_id"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("missing %q: %s", want, s)
+		}
+	}
+	for _, gone := range []string{"concrete_adapter", "wired_adapter", "concrete_value", "consumer_field"} {
+		if strings.Contains(s, gone) {
+			t.Errorf("legacy field %q still present: %s", gone, s)
+		}
+	}
+}
+
 func TestL4Spec_RejectsDEdges(t *testing.T) {
 	t.Parallel()
 	spec := validL4Spec()
@@ -45,6 +71,23 @@ func TestL4Spec_RejectsDEdges(t *testing.T) {
 	err := validateL4Spec(spec)
 	if err == nil || !strings.Contains(err.Error(), "R<n>") {
 		t.Fatalf("expected D-edge rejection mentioning R<n>, got: %v", err)
+	}
+}
+
+func TestL4Spec_RejectsManifestWrappedEntityNotInDiagram(t *testing.T) {
+	t.Parallel()
+	spec := validL4Spec()
+	spec.DependencyManifest = []L4DepRow{
+		{
+			Field: "ghost", Type: "Ghost",
+			WiredByID: "S2-N3-M2", WiredByName: "cli", WiredByL3: "c3-engram-cli-binary.md",
+			WrappedEntityID: "S99-NOT-IN-DIAGRAM",
+			Properties:      nil,
+		},
+	}
+	err := validateL4Spec(spec)
+	if err == nil || !strings.Contains(err.Error(), "S99-NOT-IN-DIAGRAM") {
+		t.Fatalf("expected wrapped-entity validation failure, got: %v", err)
 	}
 }
 
