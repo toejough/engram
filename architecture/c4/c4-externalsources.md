@@ -3,7 +3,7 @@ level: 4
 name: externalsources
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: d1b781ea
 ---
 
 # C4 — externalsources (Property/Invariant Ledger)
@@ -23,33 +23,42 @@ last_reviewed_commit: 035a717d
 
 ## Context (from L3)
 
-Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E25. The DI back-edge (D4) decomposes into the per-dependency Dependency Manifest below — each injected function is wired by E21 · cli at the `externalsources.Discover` call site.
-
-E25 reads four kinds of files (CLAUDE.md hierarchy, .claude/rules, auto memory, skill SKILL.md) plus transitive @import expansions. All filesystem effects flow through injected adapters; the package itself never calls `os.*`, `runtime.*`, or `filepath.WalkDir` directly.
+Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E25. internal/externalsources reads four kinds of files (CLAUDE.md hierarchy, .claude/rules, auto memory, skill SKILL.md) plus transitive @import expansions. All filesystem effects flow through 7 injected adapters (StatFn, Reader, MdWalker, MatchAny, Settings, DirLister, SkillFinder) — every one of them ultimately drives S3 · Claude Code's filesystem (CLAUDE.md, .claude/, settings.json, skill SKILL.md trees). CWD / Home / GOOS are plain string configuration values, not DI seams, and are omitted from the manifest under the new schema.
 
 ![C4 externalsources context diagram](svg/c4-externalsources.svg)
 
 > Diagram source: [svg/c4-externalsources.mmd](svg/c4-externalsources.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-externalsources.mmd -o architecture/c4/svg/c4-externalsources.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
+
+## Wiring
+
+Each edge is one or more DI seams the wirer plugs into externalsources, deduped by the
+wrapped entity (label = SNM ID). The Dependency Manifest below shows the
+per-seam breakdown.
+
+![C4 externalsources wiring diagram](svg/c4-externalsources-wiring.svg)
+
+> Diagram source: [svg/c4-externalsources-wiring.mmd](svg/c4-externalsources-wiring.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-externalsources-wiring.mmd -o architecture/c4/svg/c4-externalsources-wiring.svg`.
 
 ## Dependency Manifest
 
-Each row is one injected dependency the focus component receives. Manifest expands the
-Rdi back-edge into per-dep wiring rows. Reciprocal entries live in the wirer's L4 under
-"DI Wires" — those two sections must stay in sync.
+Each row is one DI seam the focus consumes. The wrapped entity is the diagram
+node (component or external) the seam ultimately drives behavior against; it
+must also appear on the call diagram. The wiring diagram dedupes manifest
+rows by wrapped entity.
 
-| Dep field | Type | Wired by | Concrete adapter | Properties |
+| Field | Type | Wired by | Wrapped entity | Properties |
 |---|---|---|---|---|
-| `StatFn` | `func(path string) (bool, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `osStatExists` wrapping `os.Stat` | S2-N3-M6-P1–P3 |
-| `Reader` | `func(path string) ([]byte, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `FileCache.Read` over `os.ReadFile` | S2-N3-M6-P5–P8, S2-N3-M6-P10 |
-| `MdWalker` | `func(root string) []string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `osWalkMd` wrapping `filepath.WalkDir` | S2-N3-M6-P10 |
-| `MatchAny` | `func(globs []string) bool` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `osMatchAny` wrapping `filepath.Glob` | S2-N3-M6-P10 |
-| `Settings` | `func() (dir string, found bool)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `readAutoMemoryDirectorySetting` reading settings.json | S2-N3-M6-P11 |
-| `DirLister` | `func(dir string) ([]string, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `osDirListMd` wrapping `os.ReadDir` | S2-N3-M6-P11–P13 |
-| `SkillFinder` | `func(root string) []string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `osWalkSkills` wrapping `filepath.WalkDir` | S2-N3-M6-P14 |
-| `CWD / Home / GOOS` | `string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `os.Getwd`, `$HOME`, `runtime.GOOS` | S2-N3-M6-P3, S2-N3-M6-P4, S2-N3-M6-P14, S2-N3-M6-P15 |
+| `StatFn` | `func(path string) (bool, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P1–P3 |
+| `Reader` | `func(path string) ([]byte, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P5–P8, S2-N3-M6-P10 |
+| `MdWalker` | `func(root string) []string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P10 |
+| `MatchAny` | `func(globs []string) bool` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P10 |
+| `Settings` | `func() (dir string, found bool)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P11 |
+| `DirLister` | `func(dir string) ([]string, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P11–P13 |
+| `SkillFinder` | `func(root string) []string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P14 |
 
 ## Property Ledger
 

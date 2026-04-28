@@ -1,112 +1,97 @@
 {
-  "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E25. The DI back-edge (D4) decomposes into the per-dependency Dependency Manifest below — each injected function is wired by E21 · cli at the `externalsources.Discover` call site.\n\nE25 reads four kinds of files (CLAUDE.md hierarchy, .claude/rules, auto memory, skill SKILL.md) plus transitive @import expansions. All filesystem effects flow through injected adapters; the package itself never calls `os.*`, `runtime.*`, or `filepath.WalkDir` directly.",
+  "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E25. internal/externalsources reads four kinds of files (CLAUDE.md hierarchy, .claude/rules, auto memory, skill SKILL.md) plus transitive @import expansions. All filesystem effects flow through 7 injected adapters (StatFn, Reader, MdWalker, MatchAny, Settings, DirLister, SkillFinder) — every one of them ultimately drives S3 · Claude Code's filesystem (CLAUDE.md, .claude/, settings.json, skill SKILL.md trees). CWD / Home / GOOS are plain string configuration values, not DI seams, and are omitted from the manifest under the new schema.",
   "dependency_manifest": [
     {
-      "concrete_adapter": "`osStatExists` wrapping `os.Stat`",
       "field": "StatFn",
+      "type": "func(path string) (bool, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S3",
       "properties": [
         "S2-N3-M6-P1",
         "S2-N3-M6-P2",
         "S2-N3-M6-P3"
-      ],
-      "type": "func(path string) (bool, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`FileCache.Read` over `os.ReadFile`",
       "field": "Reader",
+      "type": "func(path string) ([]byte, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S3",
       "properties": [
         "S2-N3-M6-P5",
         "S2-N3-M6-P6",
         "S2-N3-M6-P7",
         "S2-N3-M6-P8",
         "S2-N3-M6-P10"
-      ],
-      "type": "func(path string) ([]byte, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`osWalkMd` wrapping `filepath.WalkDir`",
       "field": "MdWalker",
-      "properties": [
-        "S2-N3-M6-P10"
-      ],
       "type": "func(root string) []string",
       "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
       "wired_by_l3": "c3-engram-cli-binary.md",
       "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
-    },
-    {
-      "concrete_adapter": "`osMatchAny` wrapping `filepath.Glob`",
-      "field": "MatchAny",
+      "wrapped_entity_id": "S3",
       "properties": [
         "S2-N3-M6-P10"
-      ],
+      ]
+    },
+    {
+      "field": "MatchAny",
       "type": "func(globs []string) bool",
       "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
       "wired_by_l3": "c3-engram-cli-binary.md",
       "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      "wrapped_entity_id": "S3",
+      "properties": [
+        "S2-N3-M6-P10"
+      ]
     },
     {
-      "concrete_adapter": "`readAutoMemoryDirectorySetting` reading settings.json",
       "field": "Settings",
-      "properties": [
-        "S2-N3-M6-P11"
-      ],
       "type": "func() (dir string, found bool)",
       "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
       "wired_by_l3": "c3-engram-cli-binary.md",
       "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      "wrapped_entity_id": "S3",
+      "properties": [
+        "S2-N3-M6-P11"
+      ]
     },
     {
-      "concrete_adapter": "`osDirListMd` wrapping `os.ReadDir`",
       "field": "DirLister",
+      "type": "func(dir string) ([]string, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S3",
       "properties": [
         "S2-N3-M6-P11",
         "S2-N3-M6-P12",
         "S2-N3-M6-P13"
-      ],
-      "type": "func(dir string) ([]string, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`osWalkSkills` wrapping `filepath.WalkDir`",
       "field": "SkillFinder",
-      "properties": [
-        "S2-N3-M6-P14"
-      ],
       "type": "func(root string) []string",
       "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
       "wired_by_l3": "c3-engram-cli-binary.md",
       "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
-    },
-    {
-      "concrete_adapter": "`os.Getwd`, `$HOME`, `runtime.GOOS`",
-      "field": "CWD / Home / GOOS",
+      "wrapped_entity_id": "S3",
       "properties": [
-        "S2-N3-M6-P3",
-        "S2-N3-M6-P4",
-        "S2-N3-M6-P14",
-        "S2-N3-M6-P15"
-      ],
-      "type": "string",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+        "S2-N3-M6-P14"
+      ]
     }
   ],
   "diagram": {
@@ -124,11 +109,11 @@
         "to": "S2-N3-M6"
       },
       {
-        "dotted": true,
         "from": "S2-N3-M6",
-        "id": "D4",
-        "label": "DI back-edge: StatFn/Reader/Walker/Matcher/Settings/DirLister/SkillFinder",
-        "to": "S2-N3-M2"
+        "id": "R19",
+        "label": "stats / lists / reads CLAUDE.md, .claude/rules, auto-memory, skill SKILL.md, settings.json via injected adapters",
+        "to": "S3",
+        "properties": ["P1", "P2", "P3", "P5", "P6", "P7", "P8", "P10", "P11", "P12", "P13", "P14"]
       }
     ],
     "nodes": [
@@ -146,6 +131,12 @@
         "id": "S2-N3-M3",
         "kind": "component",
         "name": "recall"
+      },
+      {
+        "id": "S3",
+        "kind": "external",
+        "name": "Claude Code",
+        "subtitle": "CLAUDE.md, .claude/, skill SKILL.md trees"
       }
     ]
   },

@@ -8,13 +8,8 @@ flowchart LR
 
     s2-n3-m6["S2-N3-M6 · externalsources"]
     s2-n3-m2["S2-N3-M2 · cli"]
-    s2-n3-m3["S2-N3-M3 · recall"]
-    s3("S3 · Claude Code<br/>CLAUDE.md, .claude/, skill SKILL.md trees")
 
-    s2-n3-m2 -->|"R5: discovers external source paths"| s2-n3-m6
-    s2-n3-m3 -->|"R11: reads cached file contents"| s2-n3-m6
-    s2-n3-m6 -.->|"R19: stats / lists / reads CLAUDE.md, .claude/rules, auto-memory, skill SKILL.md, settings.json via injected adapters [P1, P2, P3, P5, P6, P7, P8, P10, P11, P12, P13, P14]"| s3
+    s2-n3-m2 -->|"S3"| s2-n3-m6
 
-    class s3 external
-    class s2-n3-m2,s2-n3-m3 component
+    class s2-n3-m2 component
     class s2-n3-m6 focus
