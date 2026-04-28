@@ -12,13 +12,15 @@ flowchart LR
     s2-n3-m5["S2-N3-M5 · memory<br/>MemoryLister"]
     s2-n3-m6["S2-N3-M6 · externalsources<br/>ExternalFile + FileCache"]
     s2-n3-m7["S2-N3-M7 · anthropic<br/>Haiku caller"]
+    s3("S3 · Claude Code<br/>session files + status stderr")
 
     s2-n3-m2 -->|"R3: constructs Orchestrator + invokes Recall / RecallMemoriesOnly"| s2-n3-m3
-    s2-n3-m3 -->|"R8: strips transcript via TranscriptReader"| s2-n3-m4
-    s2-n3-m3 -->|"R9: lists memories via MemoryLister"| s2-n3-m5
-    s2-n3-m3 -->|"R10: ranks + extracts + summarizes via SummarizerI"| s2-n3-m7
-    s2-n3-m3 -->|"R11: reads CLAUDE.md / rules / auto-memory / skills via FileCache"| s2-n3-m6
-    s2-n3-m3 -.->|"D5: DI back-edge: Finder, Reader, SummarizerI, MemoryLister, externalFiles, statusWriter, dataDir"| s2-n3-m2
+    s2-n3-m3 -->|"R8: strips transcript via context.StripSeqAndConvertHumanTurns [P3, P4]"| s2-n3-m4
+    s2-n3-m3 -->|"R9: lists memories via MemoryLister [P11, P12, P13, P15]"| s2-n3-m5
+    s2-n3-m3 -->|"R10: ranks + extracts + summarizes via SummarizerI [P5, P6, P7, P8, P11, P12, P13, P14, P15, P16]"| s2-n3-m7
+    s2-n3-m3 -->|"R11: discovers + reads CLAUDE.md / rules / auto-memory / skills via FileCache + externalFiles [P5, P6, P7, P8, P17]"| s2-n3-m6
+    s2-n3-m3 -->|"R12: reads session listings (Finder), transcript bytes (Reader), writes status (statusWriter) [P1, P2, P3, P4, P9, P10, P18]"| s3
 
+    class s3 external
     class s2-n3-m2,s2-n3-m4,s2-n3-m5,s2-n3-m6,s2-n3-m7 component
     class s2-n3-m3 focus

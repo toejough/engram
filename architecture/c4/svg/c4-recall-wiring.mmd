@@ -1,0 +1,23 @@
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart LR
+    classDef person      fill:#08427b,stroke:#052e56,color:#fff
+    classDef external    fill:#999,   stroke:#666,   color:#fff
+    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+
+    s2-n3-m3["S2-N3-M3 · recall<br/>Orchestrator + phases"]
+    s2-n3-m2["S2-N3-M2 · cli<br/>wires DI deps"]
+    s2-n3-m5["S2-N3-M5 · memory<br/>MemoryLister"]
+    s2-n3-m6["S2-N3-M6 · externalsources<br/>ExternalFile + FileCache"]
+    s2-n3-m7["S2-N3-M7 · anthropic<br/>Haiku caller"]
+    s3("S3 · Claude Code<br/>session files + status stderr")
+
+    s2-n3-m2 -->|"S3"| s2-n3-m3
+    s2-n3-m2 -->|"S2-N3-M7"| s2-n3-m3
+    s2-n3-m2 -->|"S2-N3-M5"| s2-n3-m3
+    s2-n3-m2 -->|"S2-N3-M6"| s2-n3-m3
+
+    class s3 external
+    class s2-n3-m2,s2-n3-m5,s2-n3-m6,s2-n3-m7 component
+    class s2-n3-m3 focus

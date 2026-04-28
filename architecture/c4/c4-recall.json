@@ -2,37 +2,42 @@
   "context_prose": "E22 · recall is the recall pipeline component: the only subcommand currently extracted into a peer package alongside internal/cli. It is pure logic — every I/O and LLM call enters through DI interfaces (`Finder`, `Reader`, `SummarizerI`, `MemoryLister`) plus optional `WithExternalSources` / `WithStatusWriter` options. The Orchestrator composes a multi-phase ranked extraction over session transcripts, engram memories, auto-memory, skills, and CLAUDE.md/rules, capped by a byte budget so Haiku call counts stay bounded. Mode A (empty query) returns raw stripped transcript tail plus session-windowed memories; Mode B (non-empty query) runs the full ranked pipeline ending in a structured summary.",
   "dependency_manifest": [
     {
-      "concrete_adapter": "`recall.NewSessionFinder` over an `os.ReadDir`-backed `DirLister`",
       "field": "finder",
+      "type": "Finder",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S3",
       "properties": [
         "S2-N3-M3-P1",
         "S2-N3-M3-P2",
         "S2-N3-M3-P9"
-      ],
-      "type": "Finder",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`recall.NewTranscriptReader` over an `os.ReadFile`-backed `context.FileReader`",
       "field": "reader",
+      "type": "Reader",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S3",
       "properties": [
         "S2-N3-M3-P3",
         "S2-N3-M3-P4",
         "S2-N3-M3-P9",
         "S2-N3-M3-P10"
-      ],
-      "type": "Reader",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`recall.NewSummarizer` over an `anthropic.CallerFunc` (Haiku HTTP)",
       "field": "summarizer",
+      "type": "SummarizerI",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S2-N3-M7",
       "properties": [
         "S2-N3-M3-P5",
         "S2-N3-M3-P6",
@@ -44,71 +49,67 @@
         "S2-N3-M3-P14",
         "S2-N3-M3-P15",
         "S2-N3-M3-P16"
-      ],
-      "type": "SummarizerI",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`memory.NewLister(...)` (or nil to disable memory surfacing)",
       "field": "memoryLister",
+      "type": "MemoryLister",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S2-N3-M5",
       "properties": [
         "S2-N3-M3-P11",
         "S2-N3-M3-P12",
         "S2-N3-M3-P13",
         "S2-N3-M3-P15"
-      ],
-      "type": "MemoryLister",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "result of `externalsources.Discover` (CLAUDE.md, rules, auto-memory, skills)",
       "field": "externalFiles",
+      "type": "[]externalsources.ExternalFile",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S2-N3-M6",
       "properties": [
         "S2-N3-M3-P5",
         "S2-N3-M3-P6",
         "S2-N3-M3-P7",
         "S2-N3-M3-P8"
-      ],
-      "type": "[]externalsources.ExternalFile",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "shared `externalsources.NewFileCache(os.ReadFile)`",
       "field": "fileCache",
+      "type": "*externalsources.FileCache",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S2-N3-M6",
       "properties": [
         "S2-N3-M3-P5",
         "S2-N3-M3-P6",
         "S2-N3-M3-P7",
         "S2-N3-M3-P17"
-      ],
-      "type": "*externalsources.FileCache",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "`os.Stderr` (or nil to silence progress)",
       "field": "statusWriter",
-      "properties": [
-        "S2-N3-M3-P18"
-      ],
       "type": "io.Writer",
       "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
       "wired_by_l3": "c3-engram-cli-binary.md",
       "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      "wrapped_entity_id": "S3",
+      "properties": [
+        "S2-N3-M3-P18"
+      ]
     }
   ],
+  "di_wires": [],
   "diagram": {
     "edges": [
       {
@@ -120,33 +121,37 @@
       {
         "from": "S2-N3-M3",
         "id": "R8",
-        "label": "strips transcript via TranscriptReader",
-        "to": "S2-N3-M4"
+        "label": "strips transcript via context.StripSeqAndConvertHumanTurns",
+        "to": "S2-N3-M4",
+        "properties": ["P3", "P4"]
       },
       {
         "from": "S2-N3-M3",
         "id": "R9",
         "label": "lists memories via MemoryLister",
-        "to": "S2-N3-M5"
+        "to": "S2-N3-M5",
+        "properties": ["P11", "P12", "P13", "P15"]
       },
       {
         "from": "S2-N3-M3",
         "id": "R10",
         "label": "ranks + extracts + summarizes via SummarizerI",
-        "to": "S2-N3-M7"
+        "to": "S2-N3-M7",
+        "properties": ["P5", "P6", "P7", "P8", "P11", "P12", "P13", "P14", "P15", "P16"]
       },
       {
         "from": "S2-N3-M3",
         "id": "R11",
-        "label": "reads CLAUDE.md / rules / auto-memory / skills via FileCache",
-        "to": "S2-N3-M6"
+        "label": "discovers + reads CLAUDE.md / rules / auto-memory / skills via FileCache + externalFiles",
+        "to": "S2-N3-M6",
+        "properties": ["P5", "P6", "P7", "P8", "P17"]
       },
       {
-        "dotted": true,
         "from": "S2-N3-M3",
-        "id": "D5",
-        "label": "DI back-edge: Finder, Reader, SummarizerI, MemoryLister, externalFiles, statusWriter, dataDir",
-        "to": "S2-N3-M2"
+        "id": "R12",
+        "label": "reads session listings (Finder), transcript bytes (Reader), writes status (statusWriter)",
+        "to": "S3",
+        "properties": ["P1", "P2", "P3", "P4", "P9", "P10", "P18"]
       }
     ],
     "nodes": [
@@ -185,6 +190,12 @@
         "kind": "component",
         "name": "anthropic",
         "subtitle": "Haiku caller"
+      },
+      {
+        "id": "S3",
+        "kind": "external",
+        "name": "Claude Code",
+        "subtitle": "session files + status stderr"
       }
     ]
   },
@@ -195,8 +206,8 @@
   "legend_items": [
     "Yellow = focus component (E22 · recall).",
     "Blue components = sibling components in c3-engram-cli-binary.md.",
-    "Grey = external systems (E5 Anthropic API reached via E26 · anthropic).",
-    "Solid edges = runtime calls; dotted edges = DI back-edges (function values wired by E21 · cli).",
+    "Grey = external systems (S3 · Claude Code carried over from L3).",
+    "R-edges carry inline property IDs `[P…]` linking to the Property Ledger.",
     "All edges traceable to a relationship in c3-engram-cli-binary.md."
   ],
   "level": 4,
@@ -248,8 +259,8 @@
       ],
       "id": "S2-N3-M3-P3",
       "name": "Transcript reader respects byte budget",
-      "notes": "First line is always included even if it alone exceeds B (bytesRead\u003e0 guard).",
-      "statement": "For all transcript paths P and budgets B\u003e0, `TranscriptReader.Read(P, B)` returns content whose accumulated byte count does not exceed B once at least one line has been included.",
+      "notes": "First line is always included even if it alone exceeds B (bytesRead>0 guard).",
+      "statement": "For all transcript paths P and budgets B>0, `TranscriptReader.Read(P, B)` returns content whose accumulated byte count does not exceed B once at least one line has been included.",
       "tested_at": [
         {
           "line": 95,
@@ -332,7 +343,7 @@
       ],
       "id": "S2-N3-M3-P7",
       "name": "Extract phases respect byte cap",
-      "notes": "Entry-time gate; in-loop check `bytesUsed+added\u003e=bytesCap` then breaks.",
+      "notes": "Entry-time gate; in-loop check `bytesUsed+added>=bytesCap` then breaks.",
       "statement": "For all phases (auto-memory, skills, CLAUDE.md/rules), the phase function returns 0 immediately when bytesUsed≥bytesCap and never appends past the cap on entry.",
       "tested_at": [
         {
@@ -445,7 +456,7 @@
       "id": "S2-N3-M3-P11",
       "name": "RecallMemoriesOnly limit honored",
       "notes": "Limit applied after sort so the L most relevant survive.",
-      "statement": "For all queries Q and limits L\u003e0, `RecallMemoriesOnly(ctx, Q, L)` returns at most L memories; L≤0 is replaced by `DefaultMemoryLimit` (10).",
+      "statement": "For all queries Q and limits L>0, `RecallMemoriesOnly(ctx, Q, L)` returns at most L memories; L≤0 is replaced by `DefaultMemoryLimit` (10).",
       "tested_at": [
         {
           "line": 231,
