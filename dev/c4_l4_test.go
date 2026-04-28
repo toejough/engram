@@ -134,7 +134,7 @@ func TestL4Spec_RejectsDEdges(t *testing.T) {
 	spec.Diagram.Edges = append(spec.Diagram.Edges, L4Edge{
 		ID: "D1", From: "S2-N3-M3", To: "S2-N3-M2", Label: "legacy",
 	})
-	err := validateL4Spec(spec)
+	err := validateL4Spec(spec, nil)
 	if err == nil || !strings.Contains(err.Error(), "R<n>") {
 		t.Fatalf("expected D-edge rejection mentioning R<n>, got: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestL4Spec_RejectsManifestWrappedEntityNotInDiagram(t *testing.T) {
 			Properties:      nil,
 		},
 	}
-	err := validateL4Spec(spec)
+	err := validateL4Spec(spec, nil)
 	if err == nil || !strings.Contains(err.Error(), "S99-NOT-IN-DIAGRAM") {
 		t.Fatalf("expected wrapped-entity validation failure, got: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestLoadL3Parent_ReadsSiblingJSON(t *testing.T) {
 func TestT52_ValidateL4Spec_AcceptsValidSpec(t *testing.T) {
 	t.Parallel()
 	spec := validL4Spec()
-	if err := validateL4Spec(spec); err != nil {
+	if err := validateL4Spec(spec, nil); err != nil {
 		t.Fatalf("valid spec rejected: %v", err)
 	}
 }
@@ -196,7 +196,7 @@ func TestT53_ValidateL4Spec_RequiresFocusLevel3(t *testing.T) {
 	t.Parallel()
 	spec := validL4Spec()
 	spec.Focus.ID = "S2-N3" // level 2, not level 3
-	err := validateL4Spec(spec)
+	err := validateL4Spec(spec, nil)
 	if err == nil {
 		t.Fatal("expected error for level-2 focus id, got nil")
 	}
@@ -298,7 +298,7 @@ func TestT60_ValidateL4Properties_RequiresLevel4ID(t *testing.T) {
 	t.Parallel()
 	spec := validL4Spec()
 	spec.Properties[0].ID = "S2-N3-M3" // level 3, not level 4
-	err := validateL4Spec(spec)
+	err := validateL4Spec(spec, nil)
 	if err == nil {
 		t.Fatal("expected error for level-3 property id, got nil")
 	}
@@ -311,7 +311,7 @@ func TestT61_ValidateL4Properties_RequiresFocusAncestry(t *testing.T) {
 	t.Parallel()
 	spec := validL4Spec()
 	spec.Properties[0].ID = "S2-N3-M5-P1" // under sibling M5, not focus M3
-	err := validateL4Spec(spec)
+	err := validateL4Spec(spec, nil)
 	if err == nil {
 		t.Fatal("expected error for property not under focus, got nil")
 	}
@@ -324,7 +324,7 @@ func TestT62_ValidateL4Properties_RequiresSequentialIndex(t *testing.T) {
 	t.Parallel()
 	spec := validL4Spec()
 	spec.Properties[0].ID = "S2-N3-M3-P2" // should be P1 at index 0
-	err := validateL4Spec(spec)
+	err := validateL4Spec(spec, nil)
 	if err == nil {
 		t.Fatal("expected error for wrong P index, got nil")
 	}
@@ -485,6 +485,24 @@ func TestValidateL4Carryover_MissingNeighborOutbound(t *testing.T) {
 	}
 }
 
+func TestValidateL4Carryover_RelationshipNeighborNotInElements(t *testing.T) {
+	t.Parallel()
+	l4 := &L4Spec{
+		Focus:   L4Focus{ID: "F", Name: "focus"},
+		Parent:  "c3-x.md",
+		Diagram: L4Diagram{Nodes: []L4Node{{ID: "F", Name: "focus", Kind: "focus"}}},
+	}
+	l3 := &L3Spec{
+		Focus:         L3Focus{ID: "S2-N3", Name: "n", Responsibility: "r"},
+		Elements:      []L3Element{{ID: "F", Name: "focus", Kind: "component"}}, // no "PHANTOM"
+		Relationships: []L1Relationship{{From: "F", To: "PHANTOM", Description: "x"}},
+	}
+	err := validateL4Carryover(l4, l3)
+	if err == nil || !strings.Contains(err.Error(), "PHANTOM") {
+		t.Fatalf("expected missing-neighbor PHANTOM citing the L3-relationship-only node, got: %v", err)
+	}
+}
+
 func TestValidateL4Carryover_SelfLoopIgnored(t *testing.T) {
 	t.Parallel()
 	l4 := &L4Spec{
@@ -500,6 +518,45 @@ func TestValidateL4Carryover_SelfLoopIgnored(t *testing.T) {
 	if err := validateL4Carryover(l4, l3); err != nil {
 		t.Fatalf("self-loop should not produce a neighbor: %v", err)
 	}
+}
+
+func TestValidateL4Spec_RunsCarryover(t *testing.T) {
+	t.Parallel()
+	spec := validL4Spec()
+	spec.Diagram.Nodes = append(spec.Diagram.Nodes, L4Node{ID: "BOGUS", Name: "ghost", Kind: "component"})
+	l3 := minimalL3ParentFor(spec)
+	// Remove BOGUS from l3 so the carryover check fires.
+	filtered := make([]L3Element, 0, len(l3.Elements))
+	for _, elem := range l3.Elements {
+		if elem.ID != "BOGUS" {
+			filtered = append(filtered, elem)
+		}
+	}
+	l3.Elements = filtered
+	err := validateL4Spec(spec, l3)
+	if err == nil || !strings.Contains(err.Error(), "BOGUS") {
+		t.Fatalf("expected carryover error citing BOGUS, got: %v", err)
+	}
+}
+
+// minimalL3ParentFor returns an L3Spec that exactly satisfies the carryover
+// check for the given L4 spec — every L4 node mirrored as an L3 element,
+// every L3 neighbor of focus drawn from L4's nodes.
+func minimalL3ParentFor(l4 *L4Spec) *L3Spec {
+	l3 := &L3Spec{Focus: L3Focus{ID: "S2-N3", Name: "stub", Responsibility: "stub"}}
+	for _, node := range l4.Diagram.Nodes {
+		kind := node.Kind
+		if node.ID == l4.Focus.ID && kind == "focus" {
+			kind = "component"
+		}
+		l3.Elements = append(l3.Elements, L3Element{ID: node.ID, Name: node.Name, Kind: kind})
+		if node.ID != l4.Focus.ID {
+			l3.Relationships = append(l3.Relationships, L1Relationship{
+				From: l4.Focus.ID, To: node.ID, Description: "stub",
+			})
+		}
+	}
+	return l3
 }
 
 // validL4Spec returns a minimal spec that passes all validateL4Spec checks.

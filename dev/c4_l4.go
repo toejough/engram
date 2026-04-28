@@ -630,8 +630,12 @@ func loadAndValidateL4Spec(path string) (*L4Spec, error) {
 	if err := dec.Decode(&spec); err != nil {
 		return nil, fmt.Errorf("decode %s: %w", path, err)
 	}
-	if err := validateL4Spec(&spec); err != nil {
+	l3, err := loadL3Parent(&spec, filepath.Dir(path))
+	if err != nil {
 		return nil, err
+	}
+	if err := validateL4Spec(&spec, l3); err != nil {
+		return nil, fmt.Errorf("validating %s: %w", path, err)
 	}
 	return &spec, nil
 }
@@ -815,7 +819,7 @@ func validateL4PropertiesWithFocus(focusPath IDPath, props []L4Property) error {
 	return nil
 }
 
-func validateL4Spec(spec *L4Spec) error {
+func validateL4Spec(spec *L4Spec, l3 *L3Spec) error {
 	if spec.SchemaVersion != "1" {
 		return fmt.Errorf("unknown schema_version %q (want \"1\")", spec.SchemaVersion)
 	}
@@ -848,7 +852,15 @@ func validateL4Spec(spec *L4Spec) error {
 	if err := validateL4Manifest(spec); err != nil {
 		return err
 	}
-	return validateL4PropertiesWithFocus(focusPath, spec.Properties)
+	if err := validateL4PropertiesWithFocus(focusPath, spec.Properties); err != nil {
+		return err
+	}
+	if l3 != nil {
+		if err := validateL4Carryover(spec, l3); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // wrappedEntityIDSet returns the set of entity IDs that appear as
