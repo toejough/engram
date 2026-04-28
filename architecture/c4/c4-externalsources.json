@@ -114,6 +114,12 @@
         "label": "stats / lists / reads CLAUDE.md, .claude/rules, auto-memory, skill SKILL.md, settings.json via injected adapters",
         "to": "S3",
         "properties": ["P1", "P2", "P3", "P5", "P6", "P7", "P8", "P10", "P11", "P12", "P13", "P14"]
+      },
+      {
+        "from": "S2-N3-M6",
+        "id": "R20",
+        "label": "reads project + user CLAUDE.md, .claude/rules, auto-memory, skill frontmatter",
+        "to": "S4"
       }
     ],
     "nodes": [
@@ -137,6 +143,11 @@
         "kind": "external",
         "name": "Claude Code",
         "subtitle": "CLAUDE.md, .claude/, skill SKILL.md trees"
+      },
+      {
+        "id": "S4",
+        "kind": "external",
+        "name": "Claude Code memory surfaces"
       }
     ]
   },
