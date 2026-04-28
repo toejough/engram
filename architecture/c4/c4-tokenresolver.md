@@ -3,7 +3,7 @@ level: 4
 name: tokenresolver
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: 264488af
 ---
 
 # C4 — tokenresolver (Property/Invariant Ledger)
@@ -15,30 +15,44 @@ last_reviewed_commit: 035a717d
 
 ## Context (from L3)
 
-tokenresolver is the API-token resolution component for the engram CLI. It is consumed by `cli` (E21) before any Anthropic LLM call (R7). The component itself has no outgoing R/D edges to other components — it only invokes its three injected dependencies (`getenv`, `execCmd`, `goos`) which are wired by `cli` at construction time (D1 back-edge). The component encodes one strict architectural invariant: Resolve never returns a non-nil error. All failure modes (env unset, non-darwin OS, Keychain process failure, malformed JSON, missing JSON field) collapse to `("", nil)` so callers can branch on empty-string alone.
+tokenresolver is the API-token resolution component for the engram CLI. It is consumed by `cli` before any Anthropic LLM call (R7). At runtime it invokes its two true DI seams — `getenv` and `execCmd` (function values) — both of which ultimately drive S3 · Claude Code's host OS (env vars and the macOS Keychain via `security`). The `goos` string is a plain configuration value and not a DI seam, so it's omitted from the manifest under the new schema. The component encodes one strict architectural invariant: Resolve never returns a non-nil error. All failure modes collapse to `("", nil)` so callers can branch on empty-string alone.
 
 ![C4 tokenresolver context diagram](svg/c4-tokenresolver.svg)
 
 > Diagram source: [svg/c4-tokenresolver.mmd](svg/c4-tokenresolver.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-tokenresolver.mmd -o architecture/c4/svg/c4-tokenresolver.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 **Legend:**
-- **E27 · tokenresolver** (focus, yellow) — this ledger.
-- **E21 · cli** — the wirer; consumer-side R7 plus DI back-edge D1.
+- Yellow = focus component (S2-N3-M8 · tokenresolver).
+- Blue components = sibling components in c3-engram-cli-binary.md.
+- Grey = external systems (S3 · Claude Code carried over from L3 — host OS env + Keychain).
+- R-edges carry inline property IDs `[P…]` linking to the Property Ledger.
+- All edges traceable to a relationship in c3-engram-cli-binary.md.
+
+## Wiring
+
+Each edge is one or more DI seams the wirer plugs into tokenresolver, deduped by the
+wrapped entity (label = SNM ID). The Dependency Manifest below shows the
+per-seam breakdown.
+
+![C4 tokenresolver wiring diagram](svg/c4-tokenresolver-wiring.svg)
+
+> Diagram source: [svg/c4-tokenresolver-wiring.mmd](svg/c4-tokenresolver-wiring.mmd). Re-render with
+> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-tokenresolver-wiring.mmd -o architecture/c4/svg/c4-tokenresolver-wiring.svg`.
 
 ## Dependency Manifest
 
-Each row is one injected dependency the focus component receives. Manifest expands the
-Rdi back-edge into per-dep wiring rows. Reciprocal entries live in the wirer's L4 under
-"DI Wires" — those two sections must stay in sync.
+Each row is one DI seam the focus consumes. The wrapped entity is the diagram
+node (component or external) the seam ultimately drives behavior against; it
+must also appear on the call diagram. The wiring diagram dedupes manifest
+rows by wrapped entity.
 
-| Dep field | Type | Wired by | Concrete adapter | Properties |
+| Field | Type | Wired by | Wrapped entity | Properties |
 |---|---|---|---|---|
-| `getenv` | `func(string) string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `os.Getenv` | S2-N3-M8-P1, S2-N3-M8-P2, S2-N3-M8-P8 |
-| `execCmd` | `func(ctx, name, args...) ([]byte, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | inline closure wrapping `exec.CommandContext(...).Output()` | S2-N3-M8-P3–P8 |
-| `goos` | `string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `runtime.GOOS` | S2-N3-M8-P3, S2-N3-M8-P8 |
+| `getenv` | `func(string) string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M8-P1, S2-N3-M8-P2, S2-N3-M8-P8 |
+| `execCmd` | `func(ctx, name, args...) ([]byte, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M8-P3–P8 |
 
 ## Property Ledger
 

@@ -1,23 +1,28 @@
 {
-  "context_prose": "tokenresolver is the API-token resolution component for the engram CLI. It is consumed by `cli` (E21) before any Anthropic LLM call (R7). The component itself has no outgoing R/D edges to other components — it only invokes its three injected dependencies (`getenv`, `execCmd`, `goos`) which are wired by `cli` at construction time (D1 back-edge). The component encodes one strict architectural invariant: Resolve never returns a non-nil error. All failure modes (env unset, non-darwin OS, Keychain process failure, malformed JSON, missing JSON field) collapse to `(\"\", nil)` so callers can branch on empty-string alone.",
+  "context_prose": "tokenresolver is the API-token resolution component for the engram CLI. It is consumed by `cli` before any Anthropic LLM call (R7). At runtime it invokes its two true DI seams — `getenv` and `execCmd` (function values) — both of which ultimately drive S3 · Claude Code's host OS (env vars and the macOS Keychain via `security`). The `goos` string is a plain configuration value and not a DI seam, so it's omitted from the manifest under the new schema. The component encodes one strict architectural invariant: Resolve never returns a non-nil error. All failure modes collapse to `(\"\", nil)` so callers can branch on empty-string alone.",
   "dependency_manifest": [
     {
-      "concrete_adapter": "`os.Getenv`",
       "field": "getenv",
+      "type": "func(string) string",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S3",
       "properties": [
         "S2-N3-M8-P1",
         "S2-N3-M8-P2",
         "S2-N3-M8-P8"
-      ],
-      "type": "func(string) string",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     },
     {
-      "concrete_adapter": "inline closure wrapping `exec.CommandContext(...).Output()`",
       "field": "execCmd",
+      "type": "func(ctx, name, args...) ([]byte, error)",
+      "wired_by_id": "S2-N3-M2",
+      "wired_by_name": "cli",
+      "wired_by_l3": "c3-engram-cli-binary.md",
+      "wired_by_l4": "c4-cli.md",
+      "wrapped_entity_id": "S3",
       "properties": [
         "S2-N3-M8-P3",
         "S2-N3-M8-P4",
@@ -25,25 +30,7 @@
         "S2-N3-M8-P6",
         "S2-N3-M8-P7",
         "S2-N3-M8-P8"
-      ],
-      "type": "func(ctx, name, args...) ([]byte, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
-    },
-    {
-      "concrete_adapter": "`runtime.GOOS`",
-      "field": "goos",
-      "properties": [
-        "S2-N3-M8-P3",
-        "S2-N3-M8-P8"
-      ],
-      "type": "string",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wired_by_name": "cli"
+      ]
     }
   ],
   "diagram": {
@@ -55,11 +42,11 @@
         "to": "S2-N3-M8"
       },
       {
-        "dotted": true,
         "from": "S2-N3-M8",
-        "id": "D1",
-        "label": "invokes injected getenv / execCmd / goos",
-        "to": "S2-N3-M2"
+        "id": "R18",
+        "label": "reads ENGRAM_API_TOKEN env / shells out to security find-generic-password",
+        "to": "S3",
+        "properties": ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"]
       }
     ],
     "nodes": [
@@ -74,6 +61,12 @@
         "kind": "component",
         "name": "cli",
         "subtitle": "wirer / consumer"
+      },
+      {
+        "id": "S3",
+        "kind": "external",
+        "name": "Claude Code",
+        "subtitle": "host OS env + Keychain"
       }
     ]
   },
@@ -82,8 +75,11 @@
     "name": "tokenresolver"
   },
   "legend_items": [
-    "**E27 · tokenresolver** (focus, yellow) — this ledger.",
-    "**E21 · cli** — the wirer; consumer-side R7 plus DI back-edge D1."
+    "Yellow = focus component (S2-N3-M8 · tokenresolver).",
+    "Blue components = sibling components in c3-engram-cli-binary.md.",
+    "Grey = external systems (S3 · Claude Code carried over from L3 — host OS env + Keychain).",
+    "R-edges carry inline property IDs `[P…]` linking to the Property Ledger.",
+    "All edges traceable to a relationship in c3-engram-cli-binary.md."
   ],
   "level": 4,
   "name": "tokenresolver",

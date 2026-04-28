@@ -8,11 +8,8 @@ flowchart LR
 
     s2-n3-m8["S2-N3-M8 · tokenresolver<br/>API token resolution"]
     s2-n3-m2["S2-N3-M2 · cli<br/>wirer / consumer"]
-    s3("S3 · Claude Code<br/>host OS env + Keychain")
 
-    s2-n3-m2 -->|"R7: calls Resolver.Resolve"| s2-n3-m8
-    s2-n3-m8 -.->|"R18: reads ENGRAM_API_TOKEN env / shells out to security find-generic-password [P1, P2, P3, P4, P5, P6, P7, P8]"| s3
+    s2-n3-m2 -->|"S3"| s2-n3-m8
 
-    class s3 external
     class s2-n3-m2 component
     class s2-n3-m8 focus
