@@ -146,58 +146,99 @@ flowchart LR
 - Long labels: wrap with `<br/>`, don't trust auto-wrap.
 - Edge labels: always use `-->|label|` form, never `-- label -->` (the former renders consistently).
 
-## DI Back-Edge Convention (D[n])
+## L4: Two Diagrams (Call + Wiring)
 
-Standard C4 has no canonical way to render dependency injection. Engram adopts a project-specific
-convention: when component B has a dependency wired by component C, draw a **dotted** edge `B → C`
-labelled `D[n]`. This represents "B initiates a category of calls whose concrete targets are
-determined by C (the wirer)." It coexists with any direct-call `R[n]` edge B already has.
+L4 ships two `.mmd`/`.svg` pairs per focus component:
 
-```mermaid
-flowchart LR
-    m1[M1 · cli<br/>dispatch + I/O adapters]
-    m7[M7 · tokenresolver]
-    m1 -->|"R7: Resolve(ctx)"| m7
-    m7 -.->|"D1: invokes injected getenv/execCmd/goos wired by cli"| m1
-```
+1. **Call diagram** (`<name>.mmd`) — strict C4 with `R<n>` runtime-call edges only.
+2. **Wiring diagram** (`<name>-wiring.mmd`) — companion view of `wirer → focus` edges
+   labelled with the wrapped-entity SNM ID.
 
-Rules:
+No D-edges, no port nodes, no `W`/`A` edge namespaces. Standard C4 idiom only.
 
-1. **D-namespace is separate from R-namespace.** `R1, R2, …` for direct calls, `D1, D2, …` for
-   DI back-edges. Both spaces start at 1 within a diagram.
-2. **One D-id per (consumer, wirer) pair**, regardless of how many concrete deps. The per-dep
-   decomposition lives in the L4 Dependency Manifest table — never enumerate deps on the L3 edge.
-3. **Dotted arrow syntax:** `e27 -.->|"D1: ..."| e21`. Solid arrows are reserved for direct
-   call edges (R[n]).
-4. **Reciprocal at L4:** the consumer's L4 ledger has a Dependency Manifest table; the wirer's
-   L4 ledger has a DI Wires table. Both must list the same deps; they're cross-references for
-   each other (see `property-ledger-format.md`).
-5. **Edge labels can cite supporting properties:** `D1: ...<br/>supported by: P1–P8`. Use range
-   notation for contiguous P-runs (P1–P5 not P1, P2, P3, P4, P5).
-
-A C4-trained reader will read a normal solid arrow as "A initiates the interaction with B."
-Dotted D-edges deviate from that, so always pair the convention with a Legend (in L4 ledger
-files) or rely on the reader to recognize the label prefix.
-
-## L4 Focus Highlight
-
-In L4 context-strip diagrams, the focus component gets a yellow `:::focus` classDef so the
-subject is visible at a glance:
+### Call diagram
 
 ```mermaid
 flowchart LR
     classDef focus       fill:#facc15,stroke:#a16207,color:#000
-    m7[M7 · tokenresolver<br/>FOCUS]
-    class m7 focus
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef external    fill:#999,stroke:#666,color:#fff
+
+    cli[S2-N3-M2 · cli]
+    recall[S2-N3-M3 · recall<br/>FOCUS]
+    anthropic[S2-N3-M7 · anthropic]
+    cc(S3 · Claude Code)
+
+    cli -->|"R3: constructs Orchestrator + invokes Recall"| recall
+    recall -->|"R10: ranks + summarizes via SummarizerI [P5–P8, P11–P16]"| anthropic
+    recall -->|"R12: reads sessions, transcripts; writes status [P1, P2, P3, P9, P10, P18]"| cc
+
+    class recall focus
+    class cli,anthropic component
+    class cc external
 ```
 
-L4 diagrams contain only L3-present elements (no synthetic externals invented at L4). DI
-callbacks land back on the L3 element that wired the dep, not on the wired-through external.
+Rules:
 
-Enforced at build time by `targ c4-l4-build`: it validates diagram node ids using `ParseIDPath`
-(hierarchical IDs only — `S<n>`, `N<n>`, `M<n>`, or full path like `S2-N3-M5`) and edge ids
-outside bare `R<n>` (call) or `D<n>` (DI back-edge) — no letter suffixes (`R2a`, `Rjq`), no
-other prefixes (`EXT1`, `X1`). Read the build error for the specific violation and fix.
+1. **R-edges only.** Edge IDs are bare `R<n>` (no letter suffixes, no other prefixes —
+   `EXT1`, `X1`, `D1`, `R2a` are all rejected by `targ c4-l4-build`).
+2. **Property tags on R-edges.** Each R-edge label may end with the P-IDs the call realizes:
+   `R8: ... [P3, P4, P9, P10]`. Use range notation for contiguous P-runs (`[P5–P8]` not
+   `[P5, P6, P7, P8]`). Authored as the `properties: ["P3", ...]` field on the L4Spec edge;
+   the renderer formats the suffix.
+3. **Externals required.** Every external system the focus crosses to via DI (filesystem,
+   OS, Anthropic API, Claude Code, etc.) must appear as a `kind: external` node here with
+   at least one R-edge from the focus to it. Carry over from the L3 parent's external set.
+4. **Focus highlight.** The focus component carries the yellow `:::focus` classDef.
+
+### Wiring diagram
+
+```mermaid
+flowchart LR
+    classDef focus       fill:#facc15,stroke:#a16207,color:#000
+    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
+    classDef external    fill:#999,stroke:#666,color:#fff
+
+    cli[S2-N3-M2 · cli]
+    recall[S2-N3-M3 · recall<br/>FOCUS]
+    anthropic[S2-N3-M7 · anthropic]
+    memory[S2-N3-M5 · memory]
+    externalsources[S2-N3-M6 · externalsources]
+    cc(S3 · Claude Code)
+
+    cli -->|"S2-N3-M5"| recall
+    cli -->|"S2-N3-M6"| recall
+    cli -->|"S2-N3-M7"| recall
+    cli -->|"S3"| recall
+
+    class recall focus
+    class cli,anthropic,memory,externalsources component
+    class cc external
+```
+
+Rules:
+
+1. **Derived, not authored.** The build target groups manifest rows by
+   `(wired_by_id, wrapped_entity_id)` and emits one wiring edge per group. Multiple DI
+   seams sharing both wirer and wrapped entity collapse into one edge.
+2. **Edge label = SNM ID of the wrapped entity.** Unadorned, no `R<n>` prefix.
+3. **Strict alignment.** Every wrapped-entity node on the wiring diagram must already
+   exist on the call diagram (same shape/class carries over). The wiring diagram
+   introduces no new nodes; the L4 builder rejects manifests that violate this.
+4. **Reciprocal manifest tables.** The consumer's L4 has a `## Dependency Manifest`
+   listing each DI seam (with `wrapped_entity_id`); the wirer's L4 has a `## DI Wires`
+   listing the reciprocal rows. See `property-ledger-format.md` for column schema.
+
+### Build-time validation
+
+`targ c4-l4-build` enforces:
+
+- Node IDs are hierarchical (`S<n>`, `N<n>`, `M<n>`, or full path like `S2-N3-M5`) via
+  `ParseIDPath`.
+- Edge IDs are bare `R<n>`. D-edges, A-edges, and letter-suffixed IDs are rejected.
+- Every manifest row's `wrapped_entity_id` matches some `id` on `diagram.nodes`.
+
+Read the build error for the specific violation and fix.
 
 ## Pre-rendering to SVG (ELK layout)
 
@@ -244,7 +285,7 @@ Each markdown file replaces what would have been an inline ` ```mermaid ` block 
 > Diagram source: [svg/<file-stem>.mmd](svg/<file-stem>.mmd). Re-render with `targ c4-render`
 > (or `npx @mermaid-js/mermaid-cli -i ... -o ...` directly).
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> lay out R-edges cleanly.
 ```
 
 ### Render command

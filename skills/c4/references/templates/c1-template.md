@@ -11,8 +11,7 @@ last_reviewed_commit: <SHA>
 ![C1 <name> diagram](svg/c1-<name>.svg)
 
 > Diagram source: [svg/c1-<name>.mmd](svg/c1-<name>.mmd). Re-render with `targ c4-render`.
-> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine.
 
 `.mmd` source skeleton (place at `architecture/c4/svg/c1-<name>.mmd`):
 

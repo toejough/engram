@@ -35,7 +35,7 @@ Dispatch by intent. The user invokes `/c4 <sub-action> [args]`.
 6. **Every diagram element and edge carries a hierarchical ID.** Node IDs follow a level-scoped
    namespace: L1 nodes use `S<n>`, L2 nodes use `N<n>`, L3 nodes use `M<n>`, L4 properties use
    `P<n>`. Cross-doc references use the full hyphen-separated path (`S2-N3-M5-P1`). Relationship
-   rows use `R<n>` (direct calls) and `D<n>` (DI back-edges), both flat per-diagram. The same
+   rows use `R<n>` (runtime calls) — the only edge namespace at any level. The same
    IDs appear inside mermaid node labels and edge labels. Every L1–L3 node also gets a
    `click NODE href "#anchor"` directive linking to the catalog row's anchor. Catalog and
    relationships rows carry HTML anchors (`<a id="s1-…"></a>`, `<a id="m3-…"></a>`, etc.) so
@@ -45,18 +45,37 @@ Dispatch by intent. The user invokes `/c4 <sub-action> [args]`.
    higher-level docs to find their ancestors' path prefix when constructing cross-doc references.
    ID validation is syntactic — `ParseIDPath` enforces the namespace rules; no global registry
    is needed.
-7. **DI back-edges are dotted and use the D[n] namespace.** When a focus component receives
-   DI dependencies wired by another component, draw a dotted edge `consumer → wirer` labelled
-   `D[n]` on both the parent L3 diagram and the L4 context strip. D-ids are independent of
-   R-ids; one D-id per (consumer, wirer) pair. Per-dep decomposition lives in the consumer's
-   L4 `## Dependency Manifest` table; reciprocal entries live in the wirer's L4 `## DI Wires`
-   table. See `references/mermaid-conventions.md` and `references/property-ledger-format.md`.
+7. **L4 has two diagrams: a strict C4 call diagram + a wiring diagram.** No D-edges, no port
+   nodes, no `W`/`A` edges anywhere. The convention:
+   - **Call diagram.** Strict C4: SNMPR-style nodes and `R<n>` runtime-call edges only.
+     Each R-edge label may end with the property IDs the call realizes:
+     `R8: strips transcript via TranscriptReader [P3, P4, P9, P10]`. The focus component is
+     a node on this diagram; every external the focus crosses to via DI is also a node here
+     with at least one R-edge from the focus to it.
+   - **Wiring diagram.** A small companion view. Edges go `wirer → focus`; the label is the
+     SNM ID of the **wrapped entity** — the diagram entity (component or external) the DI
+     seam ultimately drives behavior against. Multiple DI seams that share both a wirer and
+     a wrapped entity collapse into one wiring edge. The wiring diagram introduces no nodes
+     the call diagram lacks.
+   - **Manifest row schema** (consumer-side `## Dependency Manifest`): `field`, `type`,
+     `wired_by_id` / `wired_by_name` / `wired_by_l3` / `wired_by_l4`, `wrapped_entity_id`,
+     `properties` (P-ID short-form list). No `concrete_adapter` field.
+   - **Strict alignment.** Every `wrapped_entity_id` on a manifest row must match an `id` on
+     the call diagram. The L4 builder rejects any wiring that violates this.
+   - **Wiring edges are derived, not authored.** Group manifest rows by
+     `(wired_by_id, wrapped_entity_id)`; emit one wiring edge per group. The build target
+     produces both `.mmd` files (`<name>.mmd` and `<name>-wiring.mmd`).
+
+   See `references/mermaid-conventions.md` for shape/edge syntax and
+   `references/property-ledger-format.md` for the manifest + DI Wires table schemas.
+
 8. **All C4 diagrams are pre-rendered to SVG via `targ c4-render`.** GitHub's Mermaid
-   renderer doesn't support the ELK layout engine that we need for clean bidirectional R/D
-   edges. The `.mmd` source lives at `architecture/c4/svg/c<level>-<name>.mmd`, the rendered
-   SVG at `architecture/c4/svg/c<level>-<name>.svg`. The markdown file embeds the SVG via
-   `![alt](svg/...)` rather than an inline ` ```mermaid ` block. Both source and rendered
-   output are committed. Re-render with `targ c4-render` after editing any `.mmd`.
+   renderer doesn't support the ELK layout engine that we need for clean R-edge layout.
+   The `.mmd` source lives at `architecture/c4/svg/c<level>-<name>.mmd`, the rendered
+   SVG at `architecture/c4/svg/c<level>-<name>.svg`. L4 emits two of each pair (call +
+   wiring). The markdown file embeds the SVG via `![alt](svg/...)` rather than an inline
+   ` ```mermaid ` block. Both source and rendered output are committed. Re-render with
+   `targ c4-render` after editing any `.mmd`.
 
 ## Workflow: `create <level> <name>`
 
@@ -150,24 +169,51 @@ stand. The discipline is non-negotiable.
 2. **Tier 1 — wide scan.** Dispatch a Haiku-class sub-agent at the
    component's source (Go package files, skill markdown, hook script,
    or JSON manifest as applicable). Instruct it to enumerate **every
-   plausible property candidate** — testable behaviors, architectural
-   invariants likely UNTESTED (DI seams, no-direct-I/O, error-wrapping
-   discipline, format contracts), shape/parse/lifecycle invariants.
+   plausible candidate** across the L4 schema:
+   - **Property candidates** — testable behaviors, architectural invariants
+     likely UNTESTED (DI seams, no-direct-I/O, error-wrapping discipline,
+     format contracts), shape/parse/lifecycle invariants.
+   - **Call-diagram nodes** — sibling components the focus calls and every
+     external system the focus crosses to via DI (filesystem, network, OS,
+     Anthropic API, etc.). Each external must end up as a node on the call
+     diagram — the L4 builder enforces this via the strict-alignment rule.
+   - **Manifest rows** — one per DI seam: `field`, `type`, wirer
+     (`wired_by_id`/`name`/`l3`), and `wrapped_entity_id` (which call-diagram
+     node the seam ultimately drives behavior against).
+   - **R-edge property tags** — for each R-edge, the property IDs the call
+     realizes (these become the `properties` field on the edge).
+
    **Bias toward too many findings.** Tier 1 owns recall, not precision.
-3. **Tier 2 — verify and refine.** Take Tier 1's candidate list. For
-   each candidate: read source to verify the claim, prune false positives,
-   merge near-duplicates, split rows that smuggle two guarantees, locate
-   exact `enforced_at` and `tested_at` file:line, mark genuinely
-   untested as `tested_at: []`. **Tier 2 owns correctness.** When in
-   doubt, re-read the source — never invent test pointers.
+3. **Tier 2 — verify and refine.** Take Tier 1's candidate list. For each
+   tier of candidate:
+   - **Properties:** read source to verify the claim, prune false positives,
+     merge near-duplicates, split rows that smuggle two guarantees, locate
+     exact `enforced_at` and `tested_at` file:line, mark genuinely untested
+     as `tested_at: []`.
+   - **Call-diagram nodes:** confirm each external the focus crosses to
+     appears on the diagram with at least one R-edge from the focus; confirm
+     siblings appear in the L3 parent's catalog (no fabricated nodes).
+   - **Manifest rows:** confirm `wrapped_entity_id` matches a node on the
+     call diagram (strict alignment); confirm each row's wirer is correct
+     by reading the wirer's construction code.
+   - **R-edge property tags:** confirm each P-ID in an R-edge's `properties`
+     list corresponds to a property the called code path actually realizes.
+
+   **Tier 2 owns correctness.** When in doubt, re-read the source — never
+   invent test pointers, never invent externals not actually crossed.
 4. **Author `architecture/c4/c4-<name>.json`** per the L4Spec schema in
    `dev/c4_l4.go`: `focus` (id, name, l3_container), `sources`,
-   `context_prose`, optional `legend_items`, `diagram` (context-strip
-   nodes + R/D edges), optional `dependency_manifest` (consumer side)
-   or `di_wires` (provider side), `properties`.
+   `context_prose`, optional `legend_items`, `diagram` (call-diagram nodes —
+   focus + sibling components touched + every external the focus crosses to
+   via DI — and `R<n>` edges with optional `properties: ["P3", ...]` lists),
+   optional `dependency_manifest` (consumer side: each row carries
+   `wrapped_entity_id` matching a `diagram.nodes[].id`) or `di_wires`
+   (provider side), `properties`. The wiring diagram is derived from the
+   manifest by the build target — never authored directly.
 5. **Run `targ c4-l4-build --input architecture/c4/c4-<name>.json --noconfirm`**
-   to emit both the markdown and the `.mmd` source.
-6. **Run `targ c4-render`** to regenerate the SVG from the new `.mmd`.
+   to emit the markdown and the two `.mmd` sources (`<name>.mmd` for the
+   call diagram, `<name>-wiring.mmd` for the wiring diagram).
+6. **Run `targ c4-render`** to regenerate both SVGs from the new `.mmd` pair.
 7. **Run `targ c4-audit --file architecture/c4/c4-<name>.md`** —
    `property_link_unresolved` will catch dead enforced/tested paths.
 8. Run the Propagation Discipline sweep — for an L4 create, that means
@@ -260,6 +306,52 @@ artifacts for findings — refactor opportunities, untested invariants,
 audit candidates, DI-seam analysis. If the artifact has both "what
 COULD be a finding" and "what IS a finding" stages, separate the two
 across model tiers.
+
+## Worked example: c4-recall (two-diagram L4)
+
+Concrete walk-through of rule 7 applied to one focus component. The full
+spec is at `architecture/c4/c4-recall.json`; rendered output at
+`architecture/c4/c4-recall.md` + `svg/c4-recall.svg` + `svg/c4-recall-wiring.svg`.
+
+**Call-diagram nodes** (focus + siblings touched + externals crossed):
+
+- `S2-N3-M3 · recall` (focus)
+- `S2-N3-M2 · cli` · `S2-N3-M4 · context` · `S2-N3-M5 · memory`
+  · `S2-N3-M6 · externalsources` · `S2-N3-M7 · anthropic` (sibling components)
+- `S3 · Claude Code` (external — carried over from the L3 parent;
+  required because recall's DI crosses to Claude Code's session
+  directory and stderr)
+
+**Call-diagram R-edges** (each ends with the P-IDs the call realizes):
+
+- `R8: recall → context: strips transcript via TranscriptReader [P3, P4]`
+- `R9: recall → memory: lists memories via MemoryLister [P11, P12, P13, P15]`
+- `R10: recall → anthropic: ranks + extracts + summarizes [P5–P8, P11–P16]`
+- `R12: recall → S3: reads sessions, transcripts; writes status [P1, P2, P3, P4, P9, P10, P18]`
+
+**Manifest rows** (one per DI seam — wirer `cli` plugs each seam into recall):
+
+| Field | Type | Wired by | Wrapped entity | Properties |
+|---|---|---|---|---|
+| `finder` | `Finder` | cli | `S3` | P1, P2, P9 |
+| `reader` | `Reader` | cli | `S3` | P3, P4, P9, P10 |
+| `summarizer` | `SummarizerI` | cli | `S2-N3-M7` | P5–P8, P11–P16 |
+| `memoryLister` | `MemoryLister` | cli | `S2-N3-M5` | P11–P13, P15 |
+| `externalFiles` | `[]ExternalFile` | cli | `S2-N3-M6` | P5–P8 |
+| `fileCache` | `*FileCache` | cli | `S2-N3-M6` | P5–P7, P17 |
+| `statusWriter` | `io.Writer` | cli | `S3` | P18 |
+
+**Wiring edges** (derived from the manifest by grouping
+`(wired_by_id, wrapped_entity_id)`; 7 manifest rows collapse to 4 edges):
+
+- `cli → recall` label `S2-N3-M5` (covers `memoryLister`)
+- `cli → recall` label `S2-N3-M7` (covers `summarizer`)
+- `cli → recall` label `S2-N3-M6` (covers `externalFiles`, `fileCache`)
+- `cli → recall` label `S3` (covers `finder`, `reader`, `statusWriter`)
+
+Strict-alignment check: every wrapped entity (`S3`, `S2-N3-M5`, `S2-N3-M6`,
+`S2-N3-M7`) is also a node on the call diagram. The L4 builder rejects the
+spec if it isn't.
 
 ## Propagation Discipline
 

@@ -58,43 +58,43 @@ Every row in an L4 ledger has these columns:
 ## Dependency Manifest (consumer-side)
 
 When the focus component receives DI dependencies (function values, interfaces) from a wirer,
-add a `## Dependency Manifest` section listing each dep. This is the per-dep decomposition of
-the single L3 D-edge.
+add a `## Dependency Manifest` section listing each DI seam. The wiring diagram (companion
+to the call diagram — see `mermaid-conventions.md`) is derived from this table by grouping
+rows by `(wired_by_id, wrapped_entity_id)`.
 
 | Column | Content |
 |---|---|
-| Dep field | The struct field or constructor parameter name (e.g., `getenv`, `execCmd`). |
-| Type | Go type signature (`func(string) string`) or interface name (`HTTPDoer`). |
+| Field | The struct field or constructor parameter name (e.g., `finder`, `summarizer`). |
+| Type | Go type signature or interface name (`Finder`, `func(string) string`). |
 | Wired by | Markdown link to the wirer's L3 catalog row + the wirer's L4 ledger (or `TBD` if not yet drafted). |
-| Concrete adapter | The actual value the wirer supplies: `os.Getenv`, an inline closure, a default like `os.CreateTemp`. |
-| Properties | Comma-separated P-IDs from this same ledger that depend on this dep. Use range notation for contiguous runs. |
+| Wrapped entity | SNM ID of the diagram node (component or external) the seam ultimately drives behavior against. **Must match a node on the call diagram** — `targ c4-l4-build` rejects manifests that violate this. |
+| Properties | Comma-separated P-IDs from this same ledger that depend on this seam. Use range notation for contiguous runs. |
 
-Example (from c4-tokenresolver.md, where tokenresolver is `S2-N1-M7`):
+Example (from c4-recall.md, where recall is `S2-N3-M3`):
 
-| Dep field | Type | Wired by | Concrete adapter | Properties |
+| Field | Type | Wired by | Wrapped entity | Properties |
 |---|---|---|---|---|
-| `getenv` | `func(string) string` | [M1 · cli](c3-engram-cli-binary.md#m1-cli) ([c4-cli.md](c4-cli.md)) | `os.Getenv` | S2-N1-M7-P1, S2-N1-M7-P2, S2-N1-M7-P8 |
-| `execCmd` | `func(ctx, name, args...) ([]byte, error)` | [M1 · cli](c3-engram-cli-binary.md#m1-cli) ([c4-cli.md](c4-cli.md)) | inline closure wrapping `exec.CommandContext` | S2-N1-M7-P2–P8 |
-| `goos` | `string` | [M1 · cli](c3-engram-cli-binary.md#m1-cli) ([c4-cli.md](c4-cli.md)) | `runtime.GOOS` | S2-N1-M7-P3, S2-N1-M7-P8 |
+| `finder` | `Finder` | [M2 · cli](c3-engram-cli-binary.md#m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M3-P1, S2-N3-M3-P2, S2-N3-M3-P9 |
+| `summarizer` | `SummarizerI` | [M2 · cli](c3-engram-cli-binary.md#m2-cli) ([c4-cli.md](c4-cli.md)) | `S2-N3-M7` | S2-N3-M3-P5–P8, S2-N3-M3-P11–P16 |
+| `memoryLister` | `MemoryLister` | [M2 · cli](c3-engram-cli-binary.md#m2-cli) ([c4-cli.md](c4-cli.md)) | `S2-N3-M5` | S2-N3-M3-P11–P13, S2-N3-M3-P15 |
+
+The wrapped-entity column distinguishes "I depend on `Finder`" (the seam) from "behavior
+ultimately runs against the OS filesystem / Claude Code" (the wrapped entity, `S3`). Two
+seams sharing a wrapped entity collapse to one wiring edge.
 
 ## DI Wires (provider-side)
 
 When the focus component **wires** dependencies into other components — a composition root or
-adapter-shim owner — add a `## DI Wires` section listing every adapter wired *for others*.
-This is the reciprocal of consumer-side Dependency Manifests; together they form the
-forward/back chain that lets a reader walk from "who consumes X?" to "where is X concretely
-defined?" and vice versa.
+adapter-shim owner — add a `## DI Wires` section listing every DI seam wired *for others*.
+This is the reciprocal of consumer-side Dependency Manifests; the audit checks symmetry —
+every Dependency Manifest row in a consumer must have a matching DI Wires row in the wirer.
 
 | Column | Content |
 |---|---|
-| Wired adapter | Description of the adapter (e.g., `os.Getenv`, `&osDirLister{}`). |
-| Concrete value | The actual code at this site: a stdlib function, an inline closure, a wrapper type. Include a `file:line` link if non-trivial. |
+| Field | The seam's field name in the consumer's struct (matches that consumer's Dependency Manifest row). |
+| Type | Go type signature or interface name (matches the consumer's Dependency Manifest row). |
 | Consumer | Markdown link to consumer's L3 catalog row + L4 ledger. |
-| Consumer field | The dep name in the consumer's struct (matches that consumer's Dependency Manifest row). |
-
-The Dependency Manifest in each consumer's L4 must have a row matching every DI Wires row
-where it appears as the consumer. Drift between the two is detectable by inspection — the
-skill's `audit` action should sanity-check the symmetry.
+| Wrapped entity | SNM ID of the diagram node behavior ultimately drives against — same value as the consumer's row. |
 
 ## Untested-Property Discipline (revisited under DI)
 

@@ -15,16 +15,28 @@ last_reviewed_commit: <SHA>
 
 ## Context (from L3)
 
-Scoped slice of [c3-<parent>.md](c3-<parent>.md): only the L3 elements and edges that touch
-the focus, plus DI back-edges to wirers (dotted). The DI back-edge convention is per
-`skills/c4/references/mermaid-conventions.md`.
+Strict C4 call diagram: focus + sibling components touched + every external the focus
+crosses to via DI (carried over from the L3 parent's external set). R-edges only;
+labels carry inline property IDs `[P…]`. See
+`skills/c4/references/mermaid-conventions.md` for shape conventions.
 
 ![C4 <name> context diagram](svg/c4-<name>.svg)
 
 > Diagram source: [svg/c4-<name>.mmd](svg/c4-<name>.mmd). Re-render with `targ c4-render`
 > (or `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-<name>.mmd -o architecture/c4/svg/c4-<name>.svg`).
-> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> Pre-rendered because GitHub's Mermaid lacks the ELK layout engine.
+
+## Wiring
+
+(Include only if focus has DI deps. Drop the section otherwise.)
+
+Companion view of the call diagram. Edges go `wirer → focus`; each label is the SNM ID
+of the wrapped entity (the diagram node the seam ultimately drives behavior against).
+Multiple manifest rows that share both wirer and wrapped entity collapse into one edge.
+
+![C4 <name> wiring diagram](svg/c4-<name>-wiring.svg)
+
+> Diagram source: [svg/c4-<name>-wiring.mmd](svg/c4-<name>-wiring.mmd). Re-render with `targ c4-render`.
 
 ## Property Ledger
 
@@ -36,24 +48,25 @@ the focus, plus DI back-edges to wirers (dotted). The DI back-edge convention is
 
 (Include only if focus has DI deps. Drop the section otherwise.)
 
-Each row is one injected dependency the focus receives. Manifest expands the L3 D-edge into
-per-dep wiring rows. Reciprocal entries live in the wirer's L4 under `## DI Wires` — the two
-sections must stay in sync.
+Each row is one DI seam the focus consumes. The wrapped entity is the diagram node
+(component or external) the seam ultimately drives behavior against; it must also
+appear on the call diagram (strict alignment, enforced by `targ c4-l4-build`).
+Reciprocal entries live in the wirer's L4 under `## DI Wires`.
 
-| Dep field | Type | Wired by | Concrete adapter | Properties |
+| Field | Type | Wired by | Wrapped entity | Properties |
 |---|---|---|---|---|
-| `<field>` | `<go-type>` | [M# · <wirer>](c3-<parent>.md#m#-<wirer>) ([c4-<wirer>.md](c4-<wirer>.md)) | <concrete adapter> | <P-list with range notation, e.g. S2-N1-M#-P1–P3> |
+| `<field>` | `<go-type>` | [M# · <wirer>](c3-<parent>.md#m#-<wirer>) ([c4-<wirer>.md](c4-<wirer>.md)) | `<SNM ID>` | <P-list with range notation, e.g. S2-N1-M#-P1–P3> |
 
 ## DI Wires
 
 (Include only if focus is a composition root / wires deps into OTHER components. Drop otherwise.)
 
-Each row is one adapter the focus wires for a downstream consumer. Reciprocal entries live in
-each consumer's L4 under `## Dependency Manifest`.
+Each row is one DI seam this component wires into a downstream consumer. Reciprocal
+entries live in each consumer's L4 under `## Dependency Manifest`.
 
-| Wired adapter | Concrete value | Consumer | Consumer field |
+| Field | Type | Consumer | Wrapped entity |
 |---|---|---|---|
-| <adapter> | <concrete value at file:line> | [M# · <consumer>](c3-<parent>.md#m#-<consumer>) ([c4-<consumer>.md](c4-<consumer>.md)) | `<field>` |
+| `<field>` | `<go-type>` | [M# · <consumer>](c3-<parent>.md#m#-<consumer>) ([c4-<consumer>.md](c4-<consumer>.md)) | `<SNM ID>` |
 
 ## Cross-links
 
@@ -61,6 +74,6 @@ each consumer's L4 under `## Dependency Manifest`.
 
 See also:
 - `skills/c4/references/property-ledger-format.md` for property statement style + Dependency
-  Manifest / DI Wires conventions.
-- `skills/c4/references/mermaid-conventions.md` for the D[n] dotted back-edge convention and
-  the SVG pre-render rule.
+  Manifest / DI Wires column schemas.
+- `skills/c4/references/mermaid-conventions.md` for the L4 two-diagram convention (call +
+  wiring) and the SVG pre-render rule.
