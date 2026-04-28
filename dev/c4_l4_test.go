@@ -5,6 +5,8 @@ package dev
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -152,6 +154,33 @@ func TestL4Spec_RejectsManifestWrappedEntityNotInDiagram(t *testing.T) {
 	err := validateL4Spec(spec)
 	if err == nil || !strings.Contains(err.Error(), "S99-NOT-IN-DIAGRAM") {
 		t.Fatalf("expected wrapped-entity validation failure, got: %v", err)
+	}
+}
+
+func TestLoadL3Parent_MissingFileWrapsError(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	l4 := &L4Spec{Parent: "c3-nope.md"}
+	_, err := loadL3Parent(l4, dir)
+	if err == nil || !strings.Contains(err.Error(), "c3-nope.json") {
+		t.Fatalf("expected wrapped error mentioning c3-nope.json, got: %v", err)
+	}
+}
+
+func TestLoadL3Parent_ReadsSiblingJSON(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	l3JSON := []byte(`{"schema_version":"1","level":3,"name":"engram-cli-binary","parent":"c2-engram-plugin.md","focus":{"id":"S2-N3","name":"engram CLI binary","responsibility":"x"},"elements":[],"relationships":[]}`)
+	if err := os.WriteFile(filepath.Join(dir, "c3-engram-cli-binary.json"), l3JSON, 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	l4 := &L4Spec{Parent: "c3-engram-cli-binary.md"}
+	l3, err := loadL3Parent(l4, dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if l3 == nil || l3.Name != "engram-cli-binary" {
+		t.Fatalf("bad load: %+v", l3)
 	}
 }
 

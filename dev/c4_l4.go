@@ -626,6 +626,24 @@ func loadAndValidateL4Spec(path string) (*L4Spec, error) {
 	return &spec, nil
 }
 
+// loadL3Parent reads the L3 spec sibling of an L4 spec from dirPath. The
+// filename is derived from l4.Parent by replacing the .md suffix with .json.
+func loadL3Parent(l4 *L4Spec, dirPath string) (*L3Spec, error) {
+	parentJSON := strings.TrimSuffix(l4.Parent, ".md") + ".json"
+	fullPath := filepath.Join(dirPath, parentJSON)
+	raw, err := os.ReadFile(fullPath) //nolint:gosec // dev tool
+	if err != nil {
+		return nil, fmt.Errorf("loading L3 parent %q: %w", parentJSON, err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	var spec L3Spec
+	if err := decoder.Decode(&spec); err != nil {
+		return nil, fmt.Errorf("decoding L3 parent %q: %w", parentJSON, err)
+	}
+	return &spec, nil
+}
+
 // sharesParentPath reports whether two same-depth paths share all but the last
 // segment (i.e. are siblings under the same parent).
 func sharesParentPath(a, b IDPath) bool {
