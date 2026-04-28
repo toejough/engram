@@ -13,6 +13,12 @@
         "id": "R7",
         "label": "additionalContext JSON on stdout",
         "to": "S3"
+      },
+      {
+        "from": "S2-N2-M1",
+        "id": "R8",
+        "label": "registers UserPromptSubmit -> user-prompt-submit.sh (timeout 5s)",
+        "to": "S2-N2-M3"
       }
     ],
     "nodes": [
@@ -25,6 +31,12 @@
         "id": "S2-N2-M3",
         "kind": "focus",
         "name": "user-prompt-submit.sh"
+      },
+      {
+        "id": "S2-N2-M1",
+        "kind": "component",
+        "name": "hooks.json",
+        "subtitle": "manifest"
       }
     ]
   },

@@ -3,7 +3,7 @@ level: 4
 name: user-prompt-submit
 parent: "c3-hooks.md"
 children: []
-last_reviewed_commit: 658e2ee3
+last_reviewed_commit: 528263bc
 ---
 
 # C4 — user-prompt-submit (Property/Invariant Ledger)

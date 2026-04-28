@@ -8,9 +8,12 @@ flowchart LR
 
     s3("S3 · Claude Code")
     s2-n2-m3["S2-N2-M3 · user-prompt-submit.sh"]
+    s2-n2-m1["S2-N2-M1 · hooks.json<br/>manifest"]
 
     s3 -->|"R5: exec on UserPromptSubmit"| s2-n2-m3
     s2-n2-m3 -->|"R7: additionalContext JSON on stdout"| s3
+    s2-n2-m1 -->|"R8: registers UserPromptSubmit -> user-prompt-submit.sh (timeout 5s)"| s2-n2-m3
 
     class s3 external
+    class s2-n2-m1 component
     class s2-n2-m3 focus
