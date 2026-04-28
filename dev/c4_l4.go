@@ -148,14 +148,21 @@ func c4L4Build(ctx context.Context, args C4L4BuildArgs) error {
 	}
 	var mmdBuf bytes.Buffer
 	emitL4Mermaid(&mmdBuf, spec)
-	var wiringBuf bytes.Buffer
-	emitL4WiringMermaid(&wiringBuf, spec)
 	if err := writeOrCheckMarkdown(mdPath, mdBuf.Bytes(), args.Check, args.NoConfirm); err != nil {
 		return err
 	}
 	if err := writeOrCheckMarkdown(mmdPath, mmdBuf.Bytes(), args.Check, args.NoConfirm); err != nil {
 		return err
 	}
+	// Skip the wiring mmd entirely when there is nothing to show. The
+	// markdown emit applies the same gate (len(manifest) > 0) so the two
+	// stay aligned: no wiring section in the markdown, no wiring file on
+	// disk.
+	if len(spec.DependencyManifest) == 0 {
+		return nil
+	}
+	var wiringBuf bytes.Buffer
+	emitL4WiringMermaid(&wiringBuf, spec)
 	return writeOrCheckMarkdown(wiringMmdPath, wiringBuf.Bytes(), args.Check, args.NoConfirm)
 }
 

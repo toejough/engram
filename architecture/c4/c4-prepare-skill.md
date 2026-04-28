@@ -3,7 +3,7 @@ level: 4
 name: prepare-skill
 parent: "c3-skills.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: 658e2ee3
 ---
 
 # C4 — prepare-skill (Property/Invariant Ledger)
@@ -21,7 +21,7 @@ E10 prepare skill is a markdown skill body Claude Code loads on /prepare or auto
 > Diagram source: [svg/c4-prepare-skill.mmd](svg/c4-prepare-skill.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-prepare-skill.mmd -o architecture/c4/svg/c4-prepare-skill.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 **Legend:**
 - **Focus** — yellow (E10 prepare skill).

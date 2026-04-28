@@ -3,7 +3,7 @@ level: 4
 name: c4-skill
 parent: "c3-skills.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: 658e2ee3
 ---
 
 # C4 — c4-skill (Property/Invariant Ledger)
@@ -28,7 +28,7 @@ E15 c4 skill is the markdown skill body Claude Code loads when the user invokes 
 > Diagram source: [svg/c4-c4-skill.mmd](svg/c4-c4-skill.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-c4-skill.mmd -o architecture/c4/svg/c4-c4-skill.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 **Legend:**
 - **Focus** — yellow (E15 c4 skill).

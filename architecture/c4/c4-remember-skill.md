@@ -3,7 +3,7 @@ level: 4
 name: remember-skill
 parent: "c3-skills.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: 658e2ee3
 ---
 
 # C4 — remember-skill (Property/Invariant Ledger)
@@ -21,7 +21,7 @@ E13 remember skill captures explicit knowledge the user dictates ("remember this
 > Diagram source: [svg/c4-remember-skill.mmd](svg/c4-remember-skill.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-remember-skill.mmd -o architecture/c4/svg/c4-remember-skill.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 **Legend:**
 - **Focus** — yellow (E13 remember skill).

@@ -3,7 +3,7 @@ level: 4
 name: post-tool-use
 parent: "c3-hooks.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: 658e2ee3
 ---
 
 # C4 — post-tool-use (Property/Invariant Ledger)
@@ -21,7 +21,7 @@ post-tool-use.sh is a single-line bash script wired to Claude Code's PostToolUse
 > Diagram source: [svg/c4-post-tool-use.mmd](svg/c4-post-tool-use.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-post-tool-use.mmd -o architecture/c4/svg/c4-post-tool-use.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 ## Property Ledger
 

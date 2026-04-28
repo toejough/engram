@@ -3,7 +3,7 @@ level: 4
 name: hooks-json
 parent: "c3-hooks.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: 658e2ee3
 ---
 
 # C4 — hooks-json (Property/Invariant Ledger)
@@ -21,7 +21,7 @@ hooks.json is the static manifest Claude Code reads at plugin load. It maps thre
 > Diagram source: [svg/c4-hooks-json.mmd](svg/c4-hooks-json.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-hooks-json.mmd -o architecture/c4/svg/c4-hooks-json.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 **Legend:**
 - **focus** (yellow): the manifest file in scope for this ledger.
