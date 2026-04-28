@@ -12,6 +12,43 @@ import (
 	"testing"
 )
 
+func TestAuditFile_L4CarryoverEmitsFindings(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// L3 with focus F and one neighbor M.
+	l3 := []byte(`{"schema_version":"1","level":3,"name":"x","parent":"c2-x.md","focus":{"id":"S2-N3","name":"x","responsibility":"r"},"elements":[{"id":"F","name":"focus","kind":"component"},{"id":"M","name":"memory","kind":"component"}],"relationships":[{"from":"F","to":"M","description":"writes","protocol":"go"}]}`)
+	if err := os.WriteFile(filepath.Join(dir, "c3-x.json"), l3, 0o600); err != nil {
+		t.Fatalf("write c3-x.json: %v", err)
+	}
+
+	// L4 referencing F as focus, no M, plus an extra "GHOST" node — two violations.
+	l4JSON := []byte(`{"schema_version":"1","level":4,"name":"focus","parent":"c3-x.md","focus":{"id":"F","name":"focus"},"diagram":{"nodes":[{"id":"F","name":"focus","kind":"focus"},{"id":"GHOST","name":"ghost","kind":"component"}],"edges":[]},"dependency_manifest":[],"di_wires":[]}`)
+	if err := os.WriteFile(filepath.Join(dir, "c4-focus.json"), l4JSON, 0o600); err != nil {
+		t.Fatalf("write c4-focus.json: %v", err)
+	}
+
+	// Minimal L4 markdown: front-matter only; auditFile keys off matter.level == 4.
+	md := []byte("---\nlevel: 4\nname: focus\nparent: c3-x.md\nchildren: []\nlast_reviewed_commit: 0000000\n---\n")
+	mdPath := filepath.Join(dir, "c4-focus.md")
+	if err := os.WriteFile(mdPath, md, 0o600); err != nil {
+		t.Fatalf("write c4-focus.md: %v", err)
+	}
+
+	findings, err := auditFile(context.Background(), mdPath)
+	if err != nil {
+		t.Fatalf("audit: %v", err)
+	}
+	var carryover []Finding
+	for _, f := range findings {
+		if f.ID == "l4_carryover" {
+			carryover = append(carryover, f)
+		}
+	}
+	if len(carryover) != 2 {
+		t.Fatalf("expected 2 l4_carryover findings (extra GHOST + missing M), got %d: %+v", len(carryover), carryover)
+	}
+}
+
 func TestEdgeIDPrefix_AcceptsROnly(t *testing.T) {
 	t.Parallel()
 

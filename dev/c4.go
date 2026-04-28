@@ -411,11 +411,7 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	findings = append(findings, checkCodePointers(matter, raw, path)...)
 	findings = append(findings, checkPropertyLinks(matter, raw, path)...)
 	if matter.level == 4 {
-		// L4 ledgers use a different schema (no Element Catalog, no JSON
-		// registry cross-check at audit time, SVG-rendered with no click
-		// handlers). Diagram-id discipline is enforced by c4-l4-build at
-		// generation time (#598), so audit only runs front-matter and
-		// code-pointer checks for L4.
+		findings = append(findings, auditL4Carryover(path, matter)...)
 		return findings, nil
 	}
 	block, mermaidFindings := parseMermaidBlock(raw, path)
@@ -441,6 +437,34 @@ func auditFrontMatter(ctx context.Context, path string, raw []byte) []Finding {
 	findings = append(findings, checkLastReviewedCommit(ctx, matter)...)
 	findings = append(findings, checkChildren(matter)...)
 	return findings
+}
+
+// auditL4Carryover loads the L4 JSON sibling of an audited L4 markdown plus
+// the L3 parent JSON, runs validateL4Carryover, and emits one l4_carryover
+// finding per leaf error from the joined error.
+func auditL4Carryover(mdPath string, matter frontMatter) []Finding {
+	dir := filepath.Dir(mdPath)
+	base := strings.TrimSuffix(filepath.Base(mdPath), ".md")
+	l4Path := filepath.Join(dir, base+".json")
+	l4Raw, err := os.ReadFile(l4Path)
+	if err != nil {
+		return []Finding{{ID: "l4_carryover", Detail: fmt.Sprintf("read %s: %v", l4Path, err)}}
+	}
+	var l4 L4Spec
+	decoder := json.NewDecoder(bytes.NewReader(l4Raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&l4); err != nil {
+		return []Finding{{ID: "l4_carryover", Detail: fmt.Sprintf("decode %s: %v", l4Path, err)}}
+	}
+	l3, err := loadL3Parent(&l4, dir)
+	if err != nil {
+		return []Finding{{ID: "l4_carryover", Detail: err.Error()}}
+	}
+	err = validateL4Carryover(&l4, l3)
+	if err == nil {
+		return nil
+	}
+	return splitJoinedError(err)
 }
 
 // auditOrphans cross-references mermaid IDs with catalog/relationships rows and
@@ -1609,6 +1633,21 @@ func slug(s string) string {
 	lower := strings.ToLower(s)
 	collapsed := slugSplitRe.ReplaceAllString(lower, "-")
 	return strings.Trim(collapsed, "-")
+}
+
+// splitJoinedError walks an error tree produced by errors.Join and returns one
+// l4_carryover Finding per leaf. Falls back to a single finding if the input
+// was not produced by Join.
+func splitJoinedError(err error) []Finding {
+	type joiner interface{ Unwrap() []error }
+	if j, ok := err.(joiner); ok {
+		var out []Finding
+		for _, sub := range j.Unwrap() {
+			out = append(out, splitJoinedError(sub)...)
+		}
+		return out
+	}
+	return []Finding{{ID: "l4_carryover", Detail: err.Error()}}
 }
 
 func stringValueOf(pkg *packages.Package, expr ast.Expr) string {
