@@ -3,7 +3,7 @@ level: 4
 name: recall
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: bc541abc
+last_reviewed_commit: 75cfb34c
 ---
 
 # C4 — recall (Property/Invariant Ledger)
