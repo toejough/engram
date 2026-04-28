@@ -55,13 +55,12 @@ type L4Diagram struct {
 	Edges []L4Edge `json:"edges"`
 }
 
-// L4Edge is one R or D edge on the context-strip diagram.
+// L4Edge is one R edge on the context-strip diagram.
 type L4Edge struct {
-	ID     string `json:"id"`
-	From   string `json:"from"`
-	To     string `json:"to"`
-	Label  string `json:"label"`
-	Dotted bool   `json:"dotted,omitempty"`
+	ID    string `json:"id"`
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Label string `json:"label"`
 }
 
 // L4Focus identifies the L3 component being refined. ID must be a level-3
@@ -121,7 +120,7 @@ type L4WireRow struct {
 
 // unexported variables.
 var (
-	dEdgeIDPrefix = regexp.MustCompile(`^[RD]\d+$`)
+	rEdgeIDPrefix = regexp.MustCompile(`^R\d+$`)
 )
 
 func c4L4Build(ctx context.Context, args C4L4BuildArgs) error {
@@ -344,12 +343,8 @@ func emitL4MermaidClasses(buf *bytes.Buffer, spec *L4Spec) {
 func emitL4MermaidEdge(buf *bytes.Buffer, edge L4Edge) {
 	from := strings.ToLower(edge.From)
 	to := strings.ToLower(edge.To)
-	arrow := "-->"
-	if edge.Dotted {
-		arrow = "-.->"
-	}
 	label := fmt.Sprintf("%s: %s", edge.ID, edge.Label)
-	fmt.Fprintf(buf, "    %s %s|%q| %s\n", from, arrow, label, to)
+	fmt.Fprintf(buf, "    %s -->|%q| %s\n", from, label, to)
 }
 
 func emitL4MermaidNode(buf *bytes.Buffer, node L4Node) {
@@ -540,7 +535,7 @@ func sharesParentPath(a, b IDPath) bool {
 }
 
 // validateL4NodeIDs validates that every diagram node has an explicit
-// hierarchical path ID and that edge IDs match the R<n>/D<n> convention.
+// hierarchical path ID and that edge IDs match the R<n> convention.
 // Node IDs must satisfy one of:
 //   - equals the focus (level 3, S<n>-N<m>-M<k>)
 //   - is an ancestor of the focus (level 1 or 2)
@@ -555,10 +550,10 @@ func validateL4NodeIDs(spec *L4Spec) error {
 	}
 	violations := []string{}
 	for index, edge := range spec.Diagram.Edges {
-		if !dEdgeIDPrefix.MatchString(edge.ID) {
+		if !rEdgeIDPrefix.MatchString(edge.ID) {
 			violations = append(violations, fmt.Sprintf(
-				"diagram.edges[%d].id %q: must match R<n> (call relationship) or D<n> "+
-					"(DI back-edge); no letter suffixes",
+				"diagram.edges[%d].id %q: must match R<n> (call relationship); "+
+					"D<n> (legacy DI back-edge) is no longer accepted",
 				index, edge.ID))
 		}
 	}

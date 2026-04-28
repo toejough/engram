@@ -7,6 +7,18 @@ import (
 	"testing"
 )
 
+func TestL4Spec_RejectsDEdges(t *testing.T) {
+	t.Parallel()
+	spec := validL4Spec()
+	spec.Diagram.Edges = append(spec.Diagram.Edges, L4Edge{
+		ID: "D1", From: "S2-N3-M3", To: "S2-N3-M2", Label: "legacy",
+	})
+	err := validateL4Spec(spec)
+	if err == nil || !strings.Contains(err.Error(), "R<n>") {
+		t.Fatalf("expected D-edge rejection mentioning R<n>, got: %v", err)
+	}
+}
+
 func TestT52_ValidateL4Spec_AcceptsValidSpec(t *testing.T) {
 	t.Parallel()
 	spec := validL4Spec()
@@ -203,7 +215,6 @@ func validL4Spec() *L4Spec {
 			},
 			Edges: []L4Edge{
 				{ID: "R1", From: "S2-N3-M2", To: "S2-N3-M3", Label: "calls"},
-				{ID: "D1", From: "S2-N3-M3", To: "S2-N3-M2", Label: "DI back-edge", Dotted: true},
 			},
 		},
 		Properties: []L4Property{
