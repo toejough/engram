@@ -3,7 +3,7 @@ level: 4
 name: cli
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 035a717d
+last_reviewed_commit: 8c85d7e9
 ---
 
 # C4 — cli (Property/Invariant Ledger)
@@ -30,48 +30,46 @@ cli applies two universal CLI conventions before any subcommand runs business lo
 > Diagram source: [svg/c4-cli.mmd](svg/c4-cli.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-cli.mmd -o architecture/c4/svg/c4-cli.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 **Legend:**
 - Yellow = focus component (cli)
 - Blue = peer components in the engram-cli-binary container
 - Grey = external systems
-- Solid R-edges = forward calls; dotted D-edges = DI back-edges (cli wires deps into peers)
+- Solid R-edges = forward calls cli makes into peers and externals
 
 ## DI Wires
 
-Each row is one adapter this component wires into a consumer. Reciprocal entries
+Each row is one DI seam this component wires into a consumer. Reciprocal entries
 live in the consumer's L4 under "Dependency Manifest".
 
-| Wired adapter | Concrete value | Consumer | Consumer field |
+| Field | Type | Consumer | Wrapped entity |
 |---|---|---|---|
-| `os.Getenv` | stdlib `os.Getenv` | [S2-N3-M8 · tokenresolver](c3-engram-cli-binary.md#s2-n3-m8-tokenresolver) ([c4-tokenresolver.md](c4-tokenresolver.md)) | `getenv` |
-| `execCmd` closure | inline closure wrapping `exec.CommandContext` ([cli.go:150](../../internal/cli/cli.go#L150)) | [S2-N3-M8 · tokenresolver](c3-engram-cli-binary.md#s2-n3-m8-tokenresolver) ([c4-tokenresolver.md](c4-tokenresolver.md)) | `execCmd` |
-| `runtime.GOOS` | compile-time string from `runtime.GOOS` | [S2-N3-M8 · tokenresolver](c3-engram-cli-binary.md#s2-n3-m8-tokenresolver) ([c4-tokenresolver.md](c4-tokenresolver.md)) | `goos` |
-| `*http.Client` | `&http.Client{}` ([cli.go:131](../../internal/cli/cli.go#L131)) | [S2-N3-M7 · anthropic](c3-engram-cli-binary.md#s2-n3-m7-anthropic) ([c4-anthropic.md](c4-anthropic.md)) | `httpClient` |
-| API URL string | `AnthropicAPIURL` package var (test-overridable) | [S2-N3-M7 · anthropic](c3-engram-cli-binary.md#s2-n3-m7-anthropic) ([c4-anthropic.md](c4-anthropic.md)) | `apiURL` |
-| API token string | result of `resolveToken(ctx)` (env or Keychain) | [S2-N3-M7 · anthropic](c3-engram-cli-binary.md#s2-n3-m7-anthropic) ([c4-anthropic.md](c4-anthropic.md)) | `token` |
-| `osDirLister.ListJSONL` | `os.ReadDir`-backed adapter ([cli.go:46](../../internal/cli/cli.go#L46)) | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `DirLister (SessionFinder)` |
-| `osFileReader.Read` | `os.ReadFile`-backed adapter ([cli.go:84](../../internal/cli/cli.go#L84)) | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `FileReader (TranscriptReader)` |
-| `haikuCallerAdapter` | wraps `makeAnthropicCaller(token)` to satisfy `recall.HaikuCaller` ([cli.go:139](../../internal/cli/cli.go#L139)) | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `Summarizer` |
-| `memory.Lister` | `memory.NewLister()` ([cli.go:179](../../internal/cli/cli.go#L179)) | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `MemoryLister` |
-| `os.Stderr` | stdlib `os.Stderr` via `recall.WithStatusWriter` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `statusWriter` |
-| external files + cache | `discoverExternalSources(ctx, home)` via `recall.WithExternalSources` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `externalFiles, externalCache` |
-| `os.Getwd` | stdlib `os.Getwd` (passed into `runRecallSessions`) | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `getwd` |
-| `os.UserHomeDir` | stdlib `os.UserHomeDir` (passed into `runRecallSessions`) | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `userHomeDir` |
-| `os.Stat` adapter | `osStatExists` ([externalsources_adapters.go:128](../../internal/cli/externalsources_adapters.go#L128)) | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `StatFn` |
-| `FileCache.Read` | `externalsources.NewFileCache(os.ReadFile).Read` ([externalsources_adapters.go:61](../../internal/cli/externalsources_adapters.go#L61)) | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `Reader` |
-| `osWalkMd` | `filepath.WalkDir`-backed adapter for `*.md` ([externalsources_adapters.go:143](../../internal/cli/externalsources_adapters.go#L143)) | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `MdWalker` |
-| `osMatchAny(cwd)` | `filepath.Glob` closure over cwd ([externalsources_adapters.go:113](../../internal/cli/externalsources_adapters.go#L113)) | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `MatchAny` |
-| `readAutoMemoryDirectorySetting(home)` | reads `.claude/settings.local.json` then `~/.claude/settings.json` ([externalsources_adapters.go:183](../../internal/cli/externalsources_adapters.go#L183)) | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `Settings` |
-| `osDirListMd` | non-recursive `os.ReadDir` adapter ([externalsources_adapters.go:87](../../internal/cli/externalsources_adapters.go#L87)) | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `DirLister` |
-| `osWalkSkills` | `filepath.WalkDir`-backed adapter for `SKILL.md` ([externalsources_adapters.go:162](../../internal/cli/externalsources_adapters.go#L162)) | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `SkillFinder` |
-| cwd string | `os.Getwd()` (falls back to `/` on error) | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `CWD` |
-| home string | `os.UserHomeDir()` result threaded from caller | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `Home` |
-| GOOS string | `runtime.GOOS` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `GOOS` |
-| main project dir string | `computeMainProjectDir(ctx, cwd, home)` via `git rev-parse --git-common-dir` ([externalsources_adapters.go:20](../../internal/cli/externalsources_adapters.go#L20)) | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `MainProjectDir` |
-| tomlwriter (defaults) | `tomlwriter.New()` accepts default `os.*` deps internally | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `createTemp/rename/mkdirAll/stat/remove` |
-| memory.Lister (defaults) | `memory.NewLister()` accepts default `os.ReadDir`/`os.ReadFile` internally | [S2-N3-M5 · memory](c3-engram-cli-binary.md#s2-n3-m5-memory) ([c4-memory.md](c4-memory.md)) | `readDir/readFile` |
+| `client` | `HTTPDoer` | [S2-N3-M7 · anthropic](c3-engram-cli-binary.md#s2-n3-m7-anthropic) ([c4-anthropic.md](c4-anthropic.md)) | `S5` |
+| `getenv` | `func(string) string` | [S2-N3-M8 · tokenresolver](c3-engram-cli-binary.md#s2-n3-m8-tokenresolver) ([c4-tokenresolver.md](c4-tokenresolver.md)) | `S3` |
+| `execCmd` | `func(ctx, name, args...) ([]byte, error)` | [S2-N3-M8 · tokenresolver](c3-engram-cli-binary.md#s2-n3-m8-tokenresolver) ([c4-tokenresolver.md](c4-tokenresolver.md)) | `S3` |
+| `finder` | `Finder` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S3` |
+| `reader` | `Reader` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S3` |
+| `summarizer` | `SummarizerI` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S2-N3-M7` |
+| `memoryLister` | `MemoryLister` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S2-N3-M5` |
+| `externalFiles` | `[]externalsources.ExternalFile` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S2-N3-M6` |
+| `fileCache` | `*externalsources.FileCache` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S2-N3-M6` |
+| `statusWriter` | `io.Writer` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S3` |
+| `StatFn` | `func(path string) (bool, error)` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
+| `Reader` | `func(path string) ([]byte, error)` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
+| `MdWalker` | `func(root string) []string` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
+| `MatchAny` | `func(globs []string) bool` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
+| `Settings` | `func() (dir string, found bool)` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
+| `DirLister` | `func(dir string) ([]string, error)` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
+| `SkillFinder` | `func(root string) []string` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
+| `createTemp` | `func(dir, pattern string) (*os.File, error)` | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `S6` |
+| `rename` | `func(oldpath, newpath string) error` | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `S6` |
+| `mkdirAll` | `func(path string, perm os.FileMode) error` | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `S6` |
+| `stat` | `func(name string) (os.FileInfo, error)` | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `S6` |
+| `remove` | `func(name string) error` | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `S6` |
+| `readDir` | `func(string) ([]os.DirEntry, error)` | [S2-N3-M5 · memory](c3-engram-cli-binary.md#s2-n3-m5-memory) ([c4-memory.md](c4-memory.md)) | `S6` |
+| `readFile` | `func(string) ([]byte, error)` | [S2-N3-M5 · memory](c3-engram-cli-binary.md#s2-n3-m5-memory) ([c4-memory.md](c4-memory.md)) | `S6` |
+| `writer` | `AtomicWriter` | [S2-N3-M5 · memory](c3-engram-cli-binary.md#s2-n3-m5-memory) ([c4-memory.md](c4-memory.md)) | `S2-N3-M9` |
 
 ## Property Ledger
 

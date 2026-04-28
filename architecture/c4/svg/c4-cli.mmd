@@ -15,6 +15,8 @@ flowchart LR
     s2-n3-m8["S2-N3-M8 · tokenresolver"]
     s2-n3-m9["S2-N3-M9 · tomlwriter"]
     s3("S3 · Claude Code")
+    s5("S5 · Anthropic API")
+    s6("S6 · Engram memory store")
 
     s2-n3-m1 -->|"R2: builds targets, runs targ.Main"| s2-n3-m2
     s2-n3-m2 -->|"R3: delegates recall pipeline"| s2-n3-m3
@@ -24,13 +26,7 @@ flowchart LR
     s2-n3-m2 -->|"R7: resolves API token"| s2-n3-m8
     s2-n3-m2 -->|"R12: writes TOML on learn/update"| s2-n3-m9
     s2-n3-m2 -->|"R13: stdout output"| s3
-    s2-n3-m8 -.->|"D1: DI: getenv, execCmd, goos"| s2-n3-m2
-    s2-n3-m7 -.->|"D2: DI: HTTPDoer, token, apiURL"| s2-n3-m2
-    s2-n3-m9 -.->|"D3: DI: createTemp, rename, mkdirAll, stat, remove"| s2-n3-m2
-    s2-n3-m6 -.->|"D4: DI: StatFn, Reader, Walker, Matcher, Settings, DirLister, SkillFinder"| s2-n3-m2
-    s2-n3-m3 -.->|"D5: DI: Finder, Reader, Summarizer, MemoryLister"| s2-n3-m2
-    s2-n3-m5 -.->|"D7: DI: readDir, readFile, writer"| s2-n3-m2
 
-    class s3 external
+    class s3,s5,s6 external
     class s2-n3-m1,s2-n3-m3,s2-n3-m5,s2-n3-m6,s2-n3-m7,s2-n3-m8,s2-n3-m9 component
     class s2-n3-m2 focus

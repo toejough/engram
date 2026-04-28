@@ -2,247 +2,229 @@
   "context_prose": "cli is the composition root of the engram binary. It owns the targ Target definitions for every subcommand (recall, show, list, learn feedback/fact, update), holds the *Args structs, defines the thin I/O adapter shims (osDirLister, osFileReader, osStatExists, osWalkMd, osWalkSkills, osDirListMd, osMatchAny, makeAnthropicCaller, newTokenResolver, readAutoMemoryDirectorySetting), and wires those adapters into every pure-logic component (recall, memory, externalsources, anthropic, tokenresolver, tomlwriter). cli also embeds business-logic handlers for show, list, learn, and update — see the c3 Drift Note: those four are intended to live as peer packages alongside recall but currently live inside cli.\n\ncli applies two universal CLI conventions before any subcommand runs business logic: it resolves an empty `--data-dir` to `$XDG_DATA_HOME/engram` (or `$HOME/.local/share/engram` when XDG is unset), and it resolves an empty `--project-slug` from cwd via `tr '/' '-'`. cli also enforces the SIGINT/SIGTERM force-exit-on-second-signal contract via SetupSignalHandling.",
   "di_wires": [
     {
-      "concrete_value": "stdlib `os.Getenv`",
-      "consumer_field": "getenv",
-      "consumer_id": "S2-N3-M8",
-      "consumer_l3": "c3-engram-cli-binary.md",
-      "consumer_l4": "c4-tokenresolver.md",
-      "consumer_name": "tokenresolver",
-      "wired_adapter": "`os.Getenv`"
-    },
-    {
-      "concrete_value": "inline closure wrapping `exec.CommandContext` ([cli.go:150](../../internal/cli/cli.go#L150))",
-      "consumer_field": "execCmd",
-      "consumer_id": "S2-N3-M8",
-      "consumer_l3": "c3-engram-cli-binary.md",
-      "consumer_l4": "c4-tokenresolver.md",
-      "consumer_name": "tokenresolver",
-      "wired_adapter": "`execCmd` closure"
-    },
-    {
-      "concrete_value": "compile-time string from `runtime.GOOS`",
-      "consumer_field": "goos",
-      "consumer_id": "S2-N3-M8",
-      "consumer_l3": "c3-engram-cli-binary.md",
-      "consumer_l4": "c4-tokenresolver.md",
-      "consumer_name": "tokenresolver",
-      "wired_adapter": "`runtime.GOOS`"
-    },
-    {
-      "concrete_value": "`\u0026http.Client{}` ([cli.go:131](../../internal/cli/cli.go#L131))",
-      "consumer_field": "httpClient",
+      "field": "client",
+      "type": "HTTPDoer",
       "consumer_id": "S2-N3-M7",
+      "consumer_name": "anthropic",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-anthropic.md",
-      "consumer_name": "anthropic",
-      "wired_adapter": "`*http.Client`"
+      "wrapped_entity_id": "S5"
     },
     {
-      "concrete_value": "`AnthropicAPIURL` package var (test-overridable)",
-      "consumer_field": "apiURL",
-      "consumer_id": "S2-N3-M7",
+      "field": "getenv",
+      "type": "func(string) string",
+      "consumer_id": "S2-N3-M8",
+      "consumer_name": "tokenresolver",
       "consumer_l3": "c3-engram-cli-binary.md",
-      "consumer_l4": "c4-anthropic.md",
-      "consumer_name": "anthropic",
-      "wired_adapter": "API URL string"
+      "consumer_l4": "c4-tokenresolver.md",
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "result of `resolveToken(ctx)` (env or Keychain)",
-      "consumer_field": "token",
-      "consumer_id": "S2-N3-M7",
+      "field": "execCmd",
+      "type": "func(ctx, name, args...) ([]byte, error)",
+      "consumer_id": "S2-N3-M8",
+      "consumer_name": "tokenresolver",
       "consumer_l3": "c3-engram-cli-binary.md",
-      "consumer_l4": "c4-anthropic.md",
-      "consumer_name": "anthropic",
-      "wired_adapter": "API token string"
+      "consumer_l4": "c4-tokenresolver.md",
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "`os.ReadDir`-backed adapter ([cli.go:46](../../internal/cli/cli.go#L46))",
-      "consumer_field": "DirLister (SessionFinder)",
+      "field": "finder",
+      "type": "Finder",
       "consumer_id": "S2-N3-M3",
+      "consumer_name": "recall",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-recall.md",
-      "consumer_name": "recall",
-      "wired_adapter": "`osDirLister.ListJSONL`"
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "`os.ReadFile`-backed adapter ([cli.go:84](../../internal/cli/cli.go#L84))",
-      "consumer_field": "FileReader (TranscriptReader)",
+      "field": "reader",
+      "type": "Reader",
       "consumer_id": "S2-N3-M3",
+      "consumer_name": "recall",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-recall.md",
-      "consumer_name": "recall",
-      "wired_adapter": "`osFileReader.Read`"
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "wraps `makeAnthropicCaller(token)` to satisfy `recall.HaikuCaller` ([cli.go:139](../../internal/cli/cli.go#L139))",
-      "consumer_field": "Summarizer",
+      "field": "summarizer",
+      "type": "SummarizerI",
       "consumer_id": "S2-N3-M3",
+      "consumer_name": "recall",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-recall.md",
-      "consumer_name": "recall",
-      "wired_adapter": "`haikuCallerAdapter`"
+      "wrapped_entity_id": "S2-N3-M7"
     },
     {
-      "concrete_value": "`memory.NewLister()` ([cli.go:179](../../internal/cli/cli.go#L179))",
-      "consumer_field": "MemoryLister",
+      "field": "memoryLister",
+      "type": "MemoryLister",
       "consumer_id": "S2-N3-M3",
+      "consumer_name": "recall",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-recall.md",
-      "consumer_name": "recall",
-      "wired_adapter": "`memory.Lister`"
+      "wrapped_entity_id": "S2-N3-M5"
     },
     {
-      "concrete_value": "stdlib `os.Stderr` via `recall.WithStatusWriter`",
-      "consumer_field": "statusWriter",
+      "field": "externalFiles",
+      "type": "[]externalsources.ExternalFile",
       "consumer_id": "S2-N3-M3",
+      "consumer_name": "recall",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-recall.md",
-      "consumer_name": "recall",
-      "wired_adapter": "`os.Stderr`"
+      "wrapped_entity_id": "S2-N3-M6"
     },
     {
-      "concrete_value": "`discoverExternalSources(ctx, home)` via `recall.WithExternalSources`",
-      "consumer_field": "externalFiles, externalCache",
+      "field": "fileCache",
+      "type": "*externalsources.FileCache",
       "consumer_id": "S2-N3-M3",
+      "consumer_name": "recall",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-recall.md",
-      "consumer_name": "recall",
-      "wired_adapter": "external files + cache"
+      "wrapped_entity_id": "S2-N3-M6"
     },
     {
-      "concrete_value": "stdlib `os.Getwd` (passed into `runRecallSessions`)",
-      "consumer_field": "getwd",
+      "field": "statusWriter",
+      "type": "io.Writer",
       "consumer_id": "S2-N3-M3",
+      "consumer_name": "recall",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-recall.md",
-      "consumer_name": "recall",
-      "wired_adapter": "`os.Getwd`"
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "stdlib `os.UserHomeDir` (passed into `runRecallSessions`)",
-      "consumer_field": "userHomeDir",
-      "consumer_id": "S2-N3-M3",
-      "consumer_l3": "c3-engram-cli-binary.md",
-      "consumer_l4": "c4-recall.md",
-      "consumer_name": "recall",
-      "wired_adapter": "`os.UserHomeDir`"
-    },
-    {
-      "concrete_value": "`osStatExists` ([externalsources_adapters.go:128](../../internal/cli/externalsources_adapters.go#L128))",
-      "consumer_field": "StatFn",
+      "field": "StatFn",
+      "type": "func(path string) (bool, error)",
       "consumer_id": "S2-N3-M6",
+      "consumer_name": "externalsources",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "`os.Stat` adapter"
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "`externalsources.NewFileCache(os.ReadFile).Read` ([externalsources_adapters.go:61](../../internal/cli/externalsources_adapters.go#L61))",
-      "consumer_field": "Reader",
+      "field": "Reader",
+      "type": "func(path string) ([]byte, error)",
       "consumer_id": "S2-N3-M6",
+      "consumer_name": "externalsources",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "`FileCache.Read`"
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "`filepath.WalkDir`-backed adapter for `*.md` ([externalsources_adapters.go:143](../../internal/cli/externalsources_adapters.go#L143))",
-      "consumer_field": "MdWalker",
+      "field": "MdWalker",
+      "type": "func(root string) []string",
       "consumer_id": "S2-N3-M6",
+      "consumer_name": "externalsources",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "`osWalkMd`"
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "`filepath.Glob` closure over cwd ([externalsources_adapters.go:113](../../internal/cli/externalsources_adapters.go#L113))",
-      "consumer_field": "MatchAny",
+      "field": "MatchAny",
+      "type": "func(globs []string) bool",
       "consumer_id": "S2-N3-M6",
+      "consumer_name": "externalsources",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "`osMatchAny(cwd)`"
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "reads `.claude/settings.local.json` then `~/.claude/settings.json` ([externalsources_adapters.go:183](../../internal/cli/externalsources_adapters.go#L183))",
-      "consumer_field": "Settings",
+      "field": "Settings",
+      "type": "func() (dir string, found bool)",
       "consumer_id": "S2-N3-M6",
+      "consumer_name": "externalsources",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "`readAutoMemoryDirectorySetting(home)`"
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "non-recursive `os.ReadDir` adapter ([externalsources_adapters.go:87](../../internal/cli/externalsources_adapters.go#L87))",
-      "consumer_field": "DirLister",
+      "field": "DirLister",
+      "type": "func(dir string) ([]string, error)",
       "consumer_id": "S2-N3-M6",
+      "consumer_name": "externalsources",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "`osDirListMd`"
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "`filepath.WalkDir`-backed adapter for `SKILL.md` ([externalsources_adapters.go:162](../../internal/cli/externalsources_adapters.go#L162))",
-      "consumer_field": "SkillFinder",
+      "field": "SkillFinder",
+      "type": "func(root string) []string",
       "consumer_id": "S2-N3-M6",
+      "consumer_name": "externalsources",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "`osWalkSkills`"
+      "wrapped_entity_id": "S3"
     },
     {
-      "concrete_value": "`os.Getwd()` (falls back to `/` on error)",
-      "consumer_field": "CWD",
-      "consumer_id": "S2-N3-M6",
-      "consumer_l3": "c3-engram-cli-binary.md",
-      "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "cwd string"
-    },
-    {
-      "concrete_value": "`os.UserHomeDir()` result threaded from caller",
-      "consumer_field": "Home",
-      "consumer_id": "S2-N3-M6",
-      "consumer_l3": "c3-engram-cli-binary.md",
-      "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "home string"
-    },
-    {
-      "concrete_value": "`runtime.GOOS`",
-      "consumer_field": "GOOS",
-      "consumer_id": "S2-N3-M6",
-      "consumer_l3": "c3-engram-cli-binary.md",
-      "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "GOOS string"
-    },
-    {
-      "concrete_value": "`computeMainProjectDir(ctx, cwd, home)` via `git rev-parse --git-common-dir` ([externalsources_adapters.go:20](../../internal/cli/externalsources_adapters.go#L20))",
-      "consumer_field": "MainProjectDir",
-      "consumer_id": "S2-N3-M6",
-      "consumer_l3": "c3-engram-cli-binary.md",
-      "consumer_l4": "c4-externalsources.md",
-      "consumer_name": "externalsources",
-      "wired_adapter": "main project dir string"
-    },
-    {
-      "concrete_value": "`tomlwriter.New()` accepts default `os.*` deps internally",
-      "consumer_field": "createTemp/rename/mkdirAll/stat/remove",
+      "field": "createTemp",
+      "type": "func(dir, pattern string) (*os.File, error)",
       "consumer_id": "S2-N3-M9",
+      "consumer_name": "tomlwriter",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-tomlwriter.md",
-      "consumer_name": "tomlwriter",
-      "wired_adapter": "tomlwriter (defaults)"
+      "wrapped_entity_id": "S6"
     },
     {
-      "concrete_value": "`memory.NewLister()` accepts default `os.ReadDir`/`os.ReadFile` internally",
-      "consumer_field": "readDir/readFile",
+      "field": "rename",
+      "type": "func(oldpath, newpath string) error",
+      "consumer_id": "S2-N3-M9",
+      "consumer_name": "tomlwriter",
+      "consumer_l3": "c3-engram-cli-binary.md",
+      "consumer_l4": "c4-tomlwriter.md",
+      "wrapped_entity_id": "S6"
+    },
+    {
+      "field": "mkdirAll",
+      "type": "func(path string, perm os.FileMode) error",
+      "consumer_id": "S2-N3-M9",
+      "consumer_name": "tomlwriter",
+      "consumer_l3": "c3-engram-cli-binary.md",
+      "consumer_l4": "c4-tomlwriter.md",
+      "wrapped_entity_id": "S6"
+    },
+    {
+      "field": "stat",
+      "type": "func(name string) (os.FileInfo, error)",
+      "consumer_id": "S2-N3-M9",
+      "consumer_name": "tomlwriter",
+      "consumer_l3": "c3-engram-cli-binary.md",
+      "consumer_l4": "c4-tomlwriter.md",
+      "wrapped_entity_id": "S6"
+    },
+    {
+      "field": "remove",
+      "type": "func(name string) error",
+      "consumer_id": "S2-N3-M9",
+      "consumer_name": "tomlwriter",
+      "consumer_l3": "c3-engram-cli-binary.md",
+      "consumer_l4": "c4-tomlwriter.md",
+      "wrapped_entity_id": "S6"
+    },
+    {
+      "field": "readDir",
+      "type": "func(string) ([]os.DirEntry, error)",
       "consumer_id": "S2-N3-M5",
+      "consumer_name": "memory",
       "consumer_l3": "c3-engram-cli-binary.md",
       "consumer_l4": "c4-memory.md",
+      "wrapped_entity_id": "S6"
+    },
+    {
+      "field": "readFile",
+      "type": "func(string) ([]byte, error)",
+      "consumer_id": "S2-N3-M5",
       "consumer_name": "memory",
-      "wired_adapter": "memory.Lister (defaults)"
+      "consumer_l3": "c3-engram-cli-binary.md",
+      "consumer_l4": "c4-memory.md",
+      "wrapped_entity_id": "S6"
+    },
+    {
+      "field": "writer",
+      "type": "AtomicWriter",
+      "consumer_id": "S2-N3-M5",
+      "consumer_name": "memory",
+      "consumer_l3": "c3-engram-cli-binary.md",
+      "consumer_l4": "c4-memory.md",
+      "wrapped_entity_id": "S2-N3-M9"
     }
   ],
   "diagram": {
@@ -294,48 +276,6 @@
         "id": "R13",
         "label": "stdout output",
         "to": "S3"
-      },
-      {
-        "dotted": true,
-        "from": "S2-N3-M8",
-        "id": "D1",
-        "label": "DI: getenv, execCmd, goos",
-        "to": "S2-N3-M2"
-      },
-      {
-        "dotted": true,
-        "from": "S2-N3-M7",
-        "id": "D2",
-        "label": "DI: HTTPDoer, token, apiURL",
-        "to": "S2-N3-M2"
-      },
-      {
-        "dotted": true,
-        "from": "S2-N3-M9",
-        "id": "D3",
-        "label": "DI: createTemp, rename, mkdirAll, stat, remove",
-        "to": "S2-N3-M2"
-      },
-      {
-        "dotted": true,
-        "from": "S2-N3-M6",
-        "id": "D4",
-        "label": "DI: StatFn, Reader, Walker, Matcher, Settings, DirLister, SkillFinder",
-        "to": "S2-N3-M2"
-      },
-      {
-        "dotted": true,
-        "from": "S2-N3-M3",
-        "id": "D5",
-        "label": "DI: Finder, Reader, Summarizer, MemoryLister",
-        "to": "S2-N3-M2"
-      },
-      {
-        "dotted": true,
-        "from": "S2-N3-M5",
-        "id": "D7",
-        "label": "DI: readDir, readFile, writer",
-        "to": "S2-N3-M2"
       }
     ],
     "nodes": [
@@ -383,6 +323,16 @@
         "id": "S3",
         "kind": "external",
         "name": "Claude Code"
+      },
+      {
+        "id": "S5",
+        "kind": "external",
+        "name": "Anthropic API"
+      },
+      {
+        "id": "S6",
+        "kind": "external",
+        "name": "Engram memory store"
       }
     ]
   },
@@ -394,7 +344,7 @@
     "Yellow = focus component (cli)",
     "Blue = peer components in the engram-cli-binary container",
     "Grey = external systems",
-    "Solid R-edges = forward calls; dotted D-edges = DI back-edges (cli wires deps into peers)"
+    "Solid R-edges = forward calls cli makes into peers and externals"
   ],
   "level": 4,
   "name": "cli",
@@ -569,7 +519,7 @@
       "id": "S2-N3-M2-P9",
       "name": "List output format is type | name | situation",
       "notes": " ",
-      "statement": "For all stored memories M, `runList` writes one line per memory in the form `\u003ctype\u003e | \u003cname\u003e | \u003csituation\u003e\\n`.",
+      "statement": "For all stored memories M, `runList` writes one line per memory in the form `<type> | <name> | <situation>\\n`.",
       "tested_at": [
         {
           "line": 22,
@@ -683,7 +633,7 @@
       "id": "S2-N3-M2-P14",
       "name": "Learn output announces created name",
       "notes": " ",
-      "statement": "For all successful `learn fact` / `learn feedback` writes, stdout receives a single trailing line `CREATED: \u003cname\u003e\\n` where \u003cname\u003e is `memory.NameFromPath(filePath)`.",
+      "statement": "For all successful `learn fact` / `learn feedback` writes, stdout receives a single trailing line `CREATED: <name>\\n` where <name> is `memory.NameFromPath(filePath)`.",
       "tested_at": [
         {
           "line": 429,
