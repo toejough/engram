@@ -361,6 +361,50 @@ func TestT65_FormatPropertyList_JoinsDifferentPrefixes(t *testing.T) {
 	}
 }
 
+func TestValidateL4Carryover_FocusMissingFromL3(t *testing.T) {
+	t.Parallel()
+	l4 := &L4Spec{Focus: L4Focus{ID: "S2-N3-M3", Name: "recall"}, Parent: "c3-x.md"}
+	l3 := &L3Spec{Elements: []L3Element{}}
+	err := validateL4Carryover(l4, l3)
+	if err == nil || !strings.Contains(err.Error(), "S2-N3-M3") {
+		t.Fatalf("expected focus-id error, got: %v", err)
+	}
+}
+
+func TestValidateL4Carryover_KindMismatch(t *testing.T) {
+	t.Parallel()
+	l4 := &L4Spec{
+		Focus:   L4Focus{ID: "F", Name: "focus"},
+		Parent:  "c3-x.md",
+		Diagram: L4Diagram{Nodes: []L4Node{{ID: "F", Name: "focus", Kind: "focus"}, {ID: "S5", Name: "anthropic", Kind: "component"}}},
+	}
+	l3 := &L3Spec{
+		Focus:    L3Focus{ID: "S2-N3", Name: "n", Responsibility: "r"},
+		Elements: []L3Element{{ID: "F", Name: "focus", Kind: "component"}, {ID: "S5", Name: "anthropic", Kind: "external"}},
+	}
+	err := validateL4Carryover(l4, l3)
+	if err == nil || !strings.Contains(err.Error(), "kind") || !strings.Contains(err.Error(), "S5") {
+		t.Fatalf("expected kind mismatch citing S5, got: %v", err)
+	}
+}
+
+func TestValidateL4Carryover_L4ExtraNode(t *testing.T) {
+	t.Parallel()
+	l4 := &L4Spec{
+		Focus:   L4Focus{ID: "F", Name: "focus"},
+		Parent:  "c3-x.md",
+		Diagram: L4Diagram{Nodes: []L4Node{{ID: "F", Name: "focus", Kind: "focus"}, {ID: "X", Name: "ghost", Kind: "component"}}},
+	}
+	l3 := &L3Spec{
+		Focus:    L3Focus{ID: "S2-N3", Name: "n", Responsibility: "r"},
+		Elements: []L3Element{{ID: "F", Name: "focus", Kind: "component"}},
+	}
+	err := validateL4Carryover(l4, l3)
+	if err == nil || !strings.Contains(err.Error(), `"X"`) {
+		t.Fatalf("expected extra-node error citing X, got: %v", err)
+	}
+}
+
 // validL4Spec returns a minimal spec that passes all validateL4Spec checks.
 // Focus is S2-N3-M3, siblings are S2-N3-M2 and S2-N3-M4, ancestor is S2-N3.
 func validL4Spec() *L4Spec {

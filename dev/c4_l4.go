@@ -598,6 +598,16 @@ func formatPropertyList(ids []string) string {
 	return strings.Join(groups, ", ")
 }
 
+// kindsMatch reports whether an L4 node kind is compatible with the L3
+// element kind. The L4 focus has kind "focus" but the L3 element it
+// refines has kind "component"; for that one ID the comparison relaxes.
+func kindsMatch(nodeID, l4Kind, l3Kind, focusID string) bool {
+	if nodeID == focusID && l4Kind == "focus" && l3Kind == "component" {
+		return true
+	}
+	return l4Kind == l3Kind
+}
+
 func l4NodeShape(kind string) (string, string) {
 	switch kind {
 	case "person":
@@ -656,6 +666,39 @@ func sharesParentPath(a, b IDPath) bool {
 		}
 	}
 	return true
+}
+
+// validateL4Carryover enforces the L4↔L3 cross-level invariant. Both
+// directions are checked; all violations are aggregated via errors.Join.
+//
+// The L4 focus is rendered with kind "focus" but corresponds to a
+// "component" on the L3 parent — that one ID receives a relaxed kind
+// comparison.
+func validateL4Carryover(l4 *L4Spec, l3 *L3Spec) error {
+	l3ByID := map[string]L3Element{}
+	for _, el := range l3.Elements {
+		l3ByID[el.ID] = el
+	}
+	if _, ok := l3ByID[l4.Focus.ID]; !ok {
+		return fmt.Errorf("focus.id %q: not present on L3 parent %q", l4.Focus.ID, l4.Parent)
+	}
+
+	var errs []error
+	for i, node := range l4.Diagram.Nodes {
+		l3el, ok := l3ByID[node.ID]
+		if !ok {
+			errs = append(errs, fmt.Errorf("diagram.nodes[%d] %q: not present on L3 parent %q",
+				i, node.ID, l4.Parent))
+			continue
+		}
+		if !kindsMatch(node.ID, node.Kind, l3el.Kind, l4.Focus.ID) {
+			errs = append(errs, fmt.Errorf("diagram.nodes[%d] %q: kind %q does not match L3 parent kind %q",
+				i, node.ID, node.Kind, l3el.Kind))
+		}
+	}
+
+	// L3→L4 direction added in Task 3.
+	return errors.Join(errs...)
 }
 
 // validateL4Manifest verifies that every dependency-manifest row's
