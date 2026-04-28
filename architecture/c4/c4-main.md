@@ -3,7 +3,7 @@ level: 4
 name: main
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 658e2ee3
+last_reviewed_commit: 528263bc
 ---
 
 # C4 — main (Property/Invariant Ledger)

@@ -7,6 +7,12 @@
         "id": "R2",
         "label": "calls SetupSignalHandling(os.Stdout, os.Stderr, os.Stdin, os.Exit) and forwards targets into targ.Main",
         "to": "S2-N3-M2"
+      },
+      {
+        "from": "S3",
+        "id": "R3",
+        "label": "execs the binary as a subprocess (Bash tool)",
+        "to": "S2-N3-M1"
       }
     ],
     "nodes": [
@@ -21,6 +27,12 @@
         "kind": "component",
         "name": "cli",
         "subtitle": "subcommand dispatch"
+      },
+      {
+        "id": "S3",
+        "kind": "external",
+        "name": "Claude Code",
+        "subtitle": "agent harness"
       }
     ]
   },
