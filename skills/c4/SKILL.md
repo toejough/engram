@@ -54,15 +54,21 @@ These rules apply at every level. Level-specific rules live in *Level-Specific S
    Tier 2 (Sonnet-class+ — typically you, the orchestrator) verifies each candidate against
    source, prunes false positives, merges near-duplicates, splits conflated rows, locates
    exact file:line, marks genuinely unverifiable items as untested/unfound — Tier 2 owns
-   precision. Applies to:
-   - L1 external-system identification
-   - L2 container identification
-   - L3 component identification + `source` location
-   - L4 property + manifest + R-edge property-tag extraction
-   - Any future "mine source artifacts for findings" task
-   Tier 1 output is **signal**, never the final artifact. Never write `c<level>-<name>.json`
-   directly from Tier 1. Tier 2 must read source to verify, not just trust Tier 1's claims.
-   Full discipline (per-level enumeration lists, empirical baseline, untested-pointer rule):
+   precision. **Every extraction has two sub-tasks: the *what* (identification) and the
+   *where* (location). Both must go through Tier 1 → Tier 2; Tier 2 must open every *where*
+   pointer and verify it against source.** Per level:
+
+   | Level | What (identify) | Where (locate) |
+   |---|---|---|
+   | L1 | external systems + in-scope system | each element's `source` |
+   | L2 | containers under the in-scope L1 element | each element's `source` |
+   | L3 | components inside the focus container | each component's `source` (file:line path) |
+   | L4 | properties + manifest seams + R-edge property-tag assignments | each property's `enforced_at` + `tested_at`; each manifest row's `wired_by_*` + `wrapped_entity_id` |
+
+   Also applies to any future "mine source artifacts for findings" task. Tier 1 output is
+   **signal**, never the final artifact — never write `c<level>-<name>.json` directly from
+   Tier 1. Tier 2 must read source to verify, not just trust Tier 1's claims. Full
+   discipline (per-level enumeration lists, empirical baseline, untested-pointer rule):
    `references/two-tier-extraction.md`.
 
 ## Workflow: `create <level> <name>`

@@ -18,25 +18,31 @@ conflated claims stand because no separate verifier ran.
 What Tier 1 enumerates depends on the level. Tier 2's job is always: read source, verify,
 prune, locate, fill gaps.
 
-### L1 — external-system identification
+### L1 — external-system identification + `source` location
 
 **Tier 1 enumerates:** every plausible external boundary the system crosses — HTTP/API
 calls, filesystem reads/writes, subprocess invocations, environment-variable reads, OS
-signal handling, IPC. Use `targ c4-l1-externals` JSON output as the seed; instruct Tier 1
-to expand beyond it (the target is conservative).
+signal handling, IPC. For each, also speculate a `source` value (URL, vendor identifier,
+repo path, or descriptive text). Use `targ c4-l1-externals` JSON output as the seed;
+instruct Tier 1 to expand beyond it (the target is conservative).
 
 **Tier 2 verifies:** which crossings rise to "external system" in the diagram (vs.
-implementation detail), names + responsibilities, system-of-record column.
+implementation detail); names + responsibilities; **each element's `source`** — for
+path-like values, open the path and confirm it exists; for URLs and identifiers, confirm
+the value matches what the code actually points at.
 
-### L2 — container identification
+### L2 — container identification + `source` location
 
 **Tier 1 enumerates:** every distinct deployable/loadable artifact within the in-scope L1
 element — binaries, libraries loaded by other systems, hooks, skills, on-disk stores,
-config files that act as runtime contracts.
+config files that act as runtime contracts. For each, also speculate a `source` value
+(usually a repo path: `cmd/<name>`, `hooks/`, `skills/<name>/`, `~/.local/share/<name>`,
+etc.).
 
 **Tier 2 verifies:** which are first-class containers vs. internal sub-modules of one
 container; in-scope flag (exactly one `in_scope: true` element); `from_parent` carry-overs
-match the L1 parent.
+match the L1 parent; **each element's `source`** — repo paths must resolve on disk; the
+audit catches dead paths via `source_path_unresolved`.
 
 ### L3 — component identification + `source` location
 
