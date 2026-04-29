@@ -5,8 +5,8 @@
   "parent": "c1-x.md",
   "preamble": "duplicate ID across elements",
   "elements": [
-    {"id": "S1", "name": "A", "kind": "external", "responsibility": "r", "system_of_record": "s"},
-    {"id": "S1", "name": "B", "kind": "container", "in_scope": true, "responsibility": "r", "system_of_record": "s"}
+    {"id": "S1", "name": "A", "kind": "external", "responsibility": "r", "source": "s"},
+    {"id": "S1", "name": "B", "kind": "container", "in_scope": true, "responsibility": "r", "source": "s"}
   ],
   "relationships": [],
   "drift_notes": [],

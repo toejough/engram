@@ -87,7 +87,7 @@ type L1Element struct {
 	Kind           string  `json:"kind"`
 	Subtitle       *string `json:"subtitle,omitempty"`
 	Responsibility string  `json:"responsibility"`
-	SystemOfRecord string  `json:"system_of_record"`
+	Source         string  `json:"source"`
 }
 
 type L1RefinedBy struct {
@@ -408,7 +408,7 @@ func auditFile(ctx context.Context, path string) ([]Finding, error) {
 	findings := []Finding{}
 	findings = append(findings, auditFrontMatter(ctx, path, raw)...)
 	matter, _ := parseFrontMatter(raw)
-	findings = append(findings, checkCodePointers(matter, raw, path)...)
+	findings = append(findings, checkSourcePaths(matter, raw, path)...)
 	findings = append(findings, checkPropertyLinks(matter, raw, path)...)
 	if matter.level == 4 {
 		findings = append(findings, auditL4Carryover(path)...)
@@ -1022,13 +1022,13 @@ func detectHTTPCall(pkg *packages.Package, node ast.Node) []externalFinding {
 
 func emitCatalog(buf *bytes.Buffer, elementIDs []elementID) {
 	buf.WriteString("## Element Catalog\n\n")
-	buf.WriteString("| ID | Name | Type | Responsibility | System of Record |\n")
+	buf.WriteString("| ID | Name | Type | Responsibility | Source |\n")
 	buf.WriteString("|---|---|---|---|---|\n")
 	for _, item := range elementIDs {
 		typeCell := typeCellFor(item.Element)
 		fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s |\n",
 			item.AnchorID, item.ID, item.Element.Name, typeCell,
-			item.Element.Responsibility, item.Element.SystemOfRecord)
+			item.Element.Responsibility, renderSourceCell(item.Element.Source))
 	}
 	buf.WriteString("\n")
 }
@@ -1213,6 +1213,23 @@ func firstStringArg(pkg *packages.Package, call *ast.CallExpr) string {
 		}
 	}
 	return ""
+}
+
+// isLikelyPath returns true when source looks like a repo-relative file path:
+// contains a slash, no whitespace, no URL scheme. Used by the audit to decide
+// whether to validate the value against the filesystem.
+func isLikelyPath(source string) bool {
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return false
+	}
+	if strings.ContainsAny(source, " \t") {
+		return false
+	}
+	if strings.Contains(source, "://") {
+		return false
+	}
+	return strings.Contains(source, "/")
 }
 
 // l1RelsWithNames returns a copy of rels where each from/to has been
@@ -1561,6 +1578,19 @@ func positionOf(pkg *packages.Package, pos token.Pos) string {
 	}
 	position := pkg.Fset.Position(pos)
 	return fmt.Sprintf("%s:%d", position.Filename, position.Line)
+}
+
+// renderSourceCell formats a Source value for an Element Catalog cell. Path-like
+// values render as a markdown link (so the audit can validate them); free-text
+// values render plain. Empty values render as the em-dash placeholder.
+func renderSourceCell(source string) string {
+	if source == "" {
+		return "—"
+	}
+	if isLikelyPath(source) {
+		return fmt.Sprintf("[%s](%s)", source, source)
+	}
+	return source
 }
 
 func scanExternals(ctx context.Context, root, pattern string, includeTests bool) ([]externalFinding, error) {

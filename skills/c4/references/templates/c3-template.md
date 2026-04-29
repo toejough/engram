@@ -33,7 +33,7 @@ flowchart LR
 
 ## Element Catalog
 
-| ID | Name | Type | Responsibility | Code Pointer |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="m1-PLACEHOLDER"></a>M1 | <component> | Component | <one sentence> | [path/to/pkg](../../path/to/pkg) |
 

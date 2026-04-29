@@ -5,8 +5,8 @@
   "parent": "c1-x.md",
   "preamble": "N-id under wrong focus",
   "elements": [
-    {"id": "S2", "name": "Sys", "kind": "container", "in_scope": true, "responsibility": "r", "system_of_record": "s"},
-    {"id": "S3-N1", "name": "Wrong", "kind": "container", "responsibility": "r", "system_of_record": "s"}
+    {"id": "S2", "name": "Sys", "kind": "container", "in_scope": true, "responsibility": "r", "source": "s"},
+    {"id": "S3-N1", "name": "Wrong", "kind": "container", "responsibility": "r", "source": "s"}
   ],
   "relationships": [],
   "drift_notes": [],

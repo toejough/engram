@@ -31,7 +31,7 @@ flowchart LR
 
 ## Element Catalog
 
-| ID | Name | Type | Responsibility | System of Record |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="s1-foo"></a>S1 | Foo | Person | resp | sor |
 | <a id="s2-bar"></a>S2 | Bar | Container | resp | sor |

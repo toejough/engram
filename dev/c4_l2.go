@@ -41,7 +41,7 @@ type L2Element struct {
 	Kind           string  `json:"kind"`
 	Subtitle       *string `json:"subtitle,omitempty"`
 	Responsibility string  `json:"responsibility"`
-	SystemOfRecord string  `json:"system_of_record"`
+	Source         string  `json:"source"`
 	InScope        bool    `json:"in_scope,omitempty"`
 }
 
@@ -300,7 +300,7 @@ func validateL2ElementIDs(elements []L2Element) ([]elementID, error) {
 				Kind:           element.Kind,
 				Subtitle:       element.Subtitle,
 				Responsibility: element.Responsibility,
-				SystemOfRecord: element.SystemOfRecord,
+				Source:         element.Source,
 			},
 		})
 	}

@@ -19,7 +19,7 @@
       "subtitle": "Go binary built by session-start.sh"
     },
     {
-      "code_pointer": "../../hooks/hooks.json",
+      "source": "../../hooks/hooks.json",
       "id": "S2-N2-M1",
       "kind": "component",
       "name": "hooks.json",
@@ -27,7 +27,7 @@
       "subtitle": "manifest"
     },
     {
-      "code_pointer": "../../hooks/session-start.sh",
+      "source": "../../hooks/session-start.sh",
       "id": "S2-N2-M2",
       "kind": "component",
       "name": "session-start.sh",
@@ -35,7 +35,7 @@
       "subtitle": "skill announcement + async rebuild"
     },
     {
-      "code_pointer": "../../hooks/user-prompt-submit.sh",
+      "source": "../../hooks/user-prompt-submit.sh",
       "id": "S2-N2-M3",
       "kind": "component",
       "name": "user-prompt-submit.sh",
@@ -43,7 +43,7 @@
       "subtitle": "/prepare /learn nudge"
     },
     {
-      "code_pointer": "../../hooks/post-tool-use.sh",
+      "source": "../../hooks/post-tool-use.sh",
       "id": "S2-N2-M4",
       "kind": "component",
       "name": "post-tool-use.sh",

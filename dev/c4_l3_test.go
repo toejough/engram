@@ -68,28 +68,28 @@ func TestT44_L3Validates_RejectsBadSchemas(t *testing.T) {
 			wantError: "focus.name",
 		},
 		{
-			name: "component without code_pointer",
+			name: "component without source",
 			mutate: func(s *L3Spec) {
 				for index := range s.Elements {
 					if s.Elements[index].Kind == "component" {
-						s.Elements[index].CodePointer = ""
+						s.Elements[index].Source = ""
 						return
 					}
 				}
 			},
-			wantError: "code_pointer",
+			wantError: "source",
 		},
 		{
-			name: "non-component with code_pointer",
+			name: "non-component with source",
 			mutate: func(s *L3Spec) {
 				for index := range s.Elements {
 					if s.Elements[index].Kind != "component" {
-						s.Elements[index].CodePointer = "../../README.md"
+						s.Elements[index].Source = "../../README.md"
 						return
 					}
 				}
 			},
-			wantError: "code_pointer is only valid",
+			wantError: "source is only valid",
 		},
 		{
 			name: "duplicate id with focus",
@@ -140,7 +140,7 @@ func TestT45_L3EmitContainsExpectedStructure(t *testing.T) {
 		"![C3 foo-internal component diagram](svg/c3-foo-internal.svg)",
 		"> Diagram source: [svg/c3-foo-internal.mmd](svg/c3-foo-internal.mmd)",
 		"## Element Catalog",
-		"| Code Pointer |",
+		"| Source |",
 		"<a id=\"s1-n2-foo\"></a>S1-N2 | Foo | Container in focus",
 		"<a id=\"s1-n2-m1-worker\"></a>S1-N2-M1 | Worker | Component",
 		"[./worker.go](./worker.go)",
@@ -278,8 +278,8 @@ func TestT49_L3ValidateIDs_AcceptsHierarchical(t *testing.T) {
 		Focus: L3Focus{ID: "S1-N2", Name: "Foo"},
 		Elements: []L3Element{
 			{ID: "S2", Name: "Operator", Kind: "person", Responsibility: "x"},
-			{ID: "S1-N2-M1", Name: "Worker", Kind: "component", Responsibility: "x", CodePointer: "./w.go"},
-			{ID: "S1-N2-M2", Name: "Loader", Kind: "component", Responsibility: "x", CodePointer: "./l.go"},
+			{ID: "S1-N2-M1", Name: "Worker", Kind: "component", Responsibility: "x", Source: "./w.go"},
+			{ID: "S1-N2-M2", Name: "Loader", Kind: "component", Responsibility: "x", Source: "./l.go"},
 		},
 	}
 	ids, err := validateL3ElementIDs(spec)
@@ -306,7 +306,7 @@ func TestT50_L3ValidateIDs_RejectsTooDeep(t *testing.T) {
 	spec := &L3Spec{
 		Focus: L3Focus{ID: "S1-N2", Name: "Foo"},
 		Elements: []L3Element{
-			{ID: "S1-N2-M1-P1", Name: "TooDeep", Kind: "component", Responsibility: "x", CodePointer: "./x.go"},
+			{ID: "S1-N2-M1-P1", Name: "TooDeep", Kind: "component", Responsibility: "x", Source: "./x.go"},
 		},
 	}
 	_, err := validateL3ElementIDs(spec)
@@ -324,7 +324,7 @@ func TestT51_L3ValidateIDs_RejectsOutOfFocusM(t *testing.T) {
 	spec := &L3Spec{
 		Focus: L3Focus{ID: "S1-N2", Name: "Foo"},
 		Elements: []L3Element{
-			{ID: "S1-N3-M1", Name: "Wrong", Kind: "component", Responsibility: "x", CodePointer: "./x.go"},
+			{ID: "S1-N3-M1", Name: "Wrong", Kind: "component", Responsibility: "x", Source: "./x.go"},
 		},
 	}
 	_, err := validateL3ElementIDs(spec)

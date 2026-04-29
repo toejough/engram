@@ -10,21 +10,21 @@
       "name": "Joe",
       "kind": "person",
       "responsibility": "Developer",
-      "system_of_record": "Human"
+      "source": "Human"
     },
     {
       "id": "S2",
       "name": "Engram plugin",
       "kind": "container",
       "responsibility": "Plugin",
-      "system_of_record": "Repo"
+      "source": "Repo"
     },
     {
       "id": "S2",
       "name": "Claude Code",
       "kind": "external",
       "responsibility": "Agent harness",
-      "system_of_record": "Anthropic"
+      "source": "Anthropic"
     }
   ],
   "relationships": [],

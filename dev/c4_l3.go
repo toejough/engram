@@ -41,7 +41,7 @@ type L3Element struct {
 	Kind           string  `json:"kind"`
 	Subtitle       *string `json:"subtitle,omitempty"`
 	Responsibility string  `json:"responsibility"`
-	CodePointer    string  `json:"code_pointer,omitempty"`
+	Source         string  `json:"source,omitempty"`
 }
 
 // L3Focus identifies the parent L2 container being refined. ID + Name together
@@ -131,12 +131,11 @@ func discoverL3Siblings(inputPath, parent string) []string {
 	return siblings
 }
 
-// emitL3Catalog emits the Element Catalog with a Code Pointer column. The
-// focus container is always the first row, followed by every element in spec
-// order.
+// emitL3Catalog emits the Element Catalog with a Source column. The focus
+// container is always the first row, followed by every element in spec order.
 func emitL3Catalog(buf *bytes.Buffer, spec *L3Spec) {
 	buf.WriteString("## Element Catalog\n\n")
-	buf.WriteString("| ID | Name | Type | Responsibility | Code Pointer |\n")
+	buf.WriteString("| ID | Name | Type | Responsibility | Source |\n")
 	buf.WriteString("|---|---|---|---|---|\n")
 	focusResp := spec.Focus.Responsibility
 	if focusResp == "" {
@@ -152,17 +151,13 @@ func emitL3Catalog(buf *bytes.Buffer, spec *L3Spec) {
 
 func emitL3CatalogRow(buf *bytes.Buffer, element L3Element) {
 	typeCell := l3TypeCell(element.Kind)
-	codePointerCell := "—"
-	if element.CodePointer != "" {
-		codePointerCell = fmt.Sprintf("[%s](%s)", element.CodePointer, element.CodePointer)
-	}
 	fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s |\n",
 		Anchor(element.ID, element.Name),
 		element.ID,
 		element.Name,
 		typeCell,
 		element.Responsibility,
-		codePointerCell)
+		renderSourceCell(element.Source))
 }
 
 // emitL3CrossLinks emits the Cross-links section: parent reference (always),
@@ -445,12 +440,12 @@ func validateL3SingleElement(index int, element L3Element) error {
 	}
 	switch element.Kind {
 	case "component":
-		if strings.TrimSpace(element.CodePointer) == "" {
-			return fmt.Errorf("elements[%d]: kind=component requires code_pointer", index)
+		if strings.TrimSpace(element.Source) == "" {
+			return fmt.Errorf("elements[%d]: kind=component requires source", index)
 		}
 	case "person", "external", "container":
-		if strings.TrimSpace(element.CodePointer) != "" {
-			return fmt.Errorf("elements[%d]: code_pointer is only valid for kind=component", index)
+		if strings.TrimSpace(element.Source) != "" {
+			return fmt.Errorf("elements[%d]: source is only valid for kind=component", index)
 		}
 	default:
 		return fmt.Errorf("elements[%d]: kind %q not in {person, external, container, component}",

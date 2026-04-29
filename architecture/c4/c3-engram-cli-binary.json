@@ -38,7 +38,7 @@
       "subtitle": "~/.local/share/engram/memory/"
     },
     {
-      "code_pointer": "../../cmd/engram/main.go",
+      "source": "../../cmd/engram/main.go",
       "id": "S2-N3-M1",
       "kind": "component",
       "name": "main.go",
@@ -46,7 +46,7 @@
       "subtitle": "process entry"
     },
     {
-      "code_pointer": "../../internal/cli",
+      "source": "../../internal/cli",
       "id": "S2-N3-M2",
       "kind": "component",
       "name": "cli",
@@ -54,7 +54,7 @@
       "subtitle": "dispatch + I/O adapters"
     },
     {
-      "code_pointer": "../../internal/recall",
+      "source": "../../internal/recall",
       "id": "S2-N3-M3",
       "kind": "component",
       "name": "recall",
@@ -62,7 +62,7 @@
       "subtitle": "orchestrator + phases"
     },
     {
-      "code_pointer": "../../internal/context",
+      "source": "../../internal/context",
       "id": "S2-N3-M4",
       "kind": "component",
       "name": "context",
@@ -70,7 +70,7 @@
       "subtitle": "transcript reader"
     },
     {
-      "code_pointer": "../../internal/memory",
+      "source": "../../internal/memory",
       "id": "S2-N3-M5",
       "kind": "component",
       "name": "memory",
@@ -78,7 +78,7 @@
       "subtitle": "feedback / fact records"
     },
     {
-      "code_pointer": "../../internal/externalsources",
+      "source": "../../internal/externalsources",
       "id": "S2-N3-M6",
       "kind": "component",
       "name": "externalsources",
@@ -86,7 +86,7 @@
       "subtitle": "CLAUDE.md / rules / auto-memory / skills"
     },
     {
-      "code_pointer": "../../internal/anthropic",
+      "source": "../../internal/anthropic",
       "id": "S2-N3-M7",
       "kind": "component",
       "name": "anthropic",
@@ -94,7 +94,7 @@
       "subtitle": "Messages API client"
     },
     {
-      "code_pointer": "../../internal/tokenresolver",
+      "source": "../../internal/tokenresolver",
       "id": "S2-N3-M8",
       "kind": "component",
       "name": "tokenresolver",
@@ -102,7 +102,7 @@
       "subtitle": "env + macOS Keychain"
     },
     {
-      "code_pointer": "../../internal/tomlwriter",
+      "source": "../../internal/tomlwriter",
       "id": "S2-N3-M9",
       "kind": "component",
       "name": "tomlwriter",

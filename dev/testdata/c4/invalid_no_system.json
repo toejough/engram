@@ -11,14 +11,14 @@
       "kind": "person",
       "subtitle": "developer using Claude Code",
       "responsibility": "Developer who triggers `/prepare`, `/recall`, `/remember`, `/learn`, `/migrate` and authors the work that produces memories",
-      "system_of_record": "Human, at a Claude Code session"
+      "source": "Human, at a Claude Code session"
     },
     {
       "id": "S2",
       "name": "Engram plugin",
       "kind": "external",
       "responsibility": "Plugin providing persistent, query-ranked memory",
-      "system_of_record": "This repository (`github.com/toejough/engram`)"
+      "source": "This repository (`github.com/toejough/engram`)"
     },
     {
       "id": "S3",
@@ -26,7 +26,7 @@
       "kind": "external",
       "subtitle": "agent harness",
       "responsibility": "Agent harness that loads the plugin, dispatches skills, fires hooks, and exposes its own memory surfaces",
-      "system_of_record": "Anthropic Claude Code CLI"
+      "source": "Anthropic Claude Code CLI"
     }
   ],
   "relationships": [

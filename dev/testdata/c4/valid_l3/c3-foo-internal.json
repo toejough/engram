@@ -23,7 +23,7 @@
       "kind": "component",
       "subtitle": "processes input",
       "responsibility": "Reads queued jobs and processes them.",
-      "code_pointer": "./worker.go"
+      "source": "./worker.go"
     },
     {
       "id": "S1-N2-M2",
@@ -31,7 +31,7 @@
       "kind": "component",
       "subtitle": "hydrates state",
       "responsibility": "Loads state from disk on startup.",
-      "code_pointer": "./loader.go"
+      "source": "./loader.go"
     }
   ],
   "relationships": [

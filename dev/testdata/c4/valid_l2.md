@@ -19,14 +19,14 @@ Refines S2 Foo into a worker that processes input and a loader that hydrates sta
 
 ## Element Catalog
 
-| ID | Name | Type | Responsibility | System of Record |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="s1-operator"></a>S1 | Operator | Person | Operator who triggers Foo runs | Human |
 | <a id="s2-foo"></a>S2 | Foo | The system in scope | The system being refined at this level | This repo |
 | <a id="s3-barapi"></a>S3 | BarAPI | External system | Upstream data source | bar.example.com |
 | <a id="s4-disk"></a>S4 | Disk | External system | On-disk state | OS filesystem |
-| <a id="s2-n1-worker"></a>S2-N1 | Worker | The system in scope | Processes incoming work items | internal/worker |
-| <a id="s2-n2-loader"></a>S2-N2 | Loader | The system in scope | Hydrates state from disk on startup | internal/loader |
+| <a id="s2-n1-worker"></a>S2-N1 | Worker | The system in scope | Processes incoming work items | [internal/worker](internal/worker) |
+| <a id="s2-n2-loader"></a>S2-N2 | Loader | The system in scope | Hydrates state from disk on startup | [internal/loader](internal/loader) |
 
 ## Relationships
 

@@ -5,8 +5,8 @@
   "parent": "c1-x.md",
   "preamble": "L2 element with depth-3 id is rejected",
   "elements": [
-    {"id": "S2", "name": "Sys", "kind": "container", "in_scope": true, "responsibility": "r", "system_of_record": "s"},
-    {"id": "S2-N3-M5", "name": "TooDeep", "kind": "container", "responsibility": "r", "system_of_record": "s"}
+    {"id": "S2", "name": "Sys", "kind": "container", "in_scope": true, "responsibility": "r", "source": "s"},
+    {"id": "S2-N3-M5", "name": "TooDeep", "kind": "container", "responsibility": "r", "source": "s"}
   ],
   "relationships": [],
   "drift_notes": [],

@@ -11,14 +11,14 @@
       "kind": "person",
       "subtitle": "developer using Claude Code",
       "responsibility": "Developer who triggers /prepare etc.",
-      "system_of_record": "Human, at a Claude Code session"
+      "source": "Human, at a Claude Code session"
     },
     {
       "id": "S2",
       "name": "Engram plugin",
       "kind": "container",
       "responsibility": "Plugin providing persistent, query-ranked memory",
-      "system_of_record": "This repository (`github.com/toejough/engram`)"
+      "source": "This repository (`github.com/toejough/engram`)"
     }
   ],
   "relationships": [

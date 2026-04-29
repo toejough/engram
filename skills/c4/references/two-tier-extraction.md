@@ -38,15 +38,15 @@ config files that act as runtime contracts.
 container; in-scope flag (exactly one `in_scope: true` element); `from_parent` carry-overs
 match the L1 parent.
 
-### L3 — component identification + code_pointer location
+### L3 — component identification + `source` location
 
 **Tier 1 enumerates:** every Go package, every notable file, every cohesive cluster of
 functions inside the focus container's source surface. Bias toward many.
 
 **Tier 2 verifies:** which clusters merit a separate component vs. collapse together;
-exact `code_pointer` paths; `from_parent` neighbors; `kind: "component"` requires a
-`code_pointer` that resolves on disk (the audit catches dead paths via
-`code_pointer_unresolved`).
+exact `source` paths; `from_parent` neighbors; `kind: "component"` requires a
+`source` that resolves on disk (the audit catches dead paths via
+`source_path_unresolved`).
 
 ### L4 — properties, manifest, R-edge tags
 
@@ -89,7 +89,7 @@ Tier 1 enumerates **four candidate types**:
 - **Tier 2 may add candidates Tier 1 missed.** Tier 1's enumeration is a floor, not a
   ceiling.
 - **Tier 2 never invents pointers** (Rule 2 of the skill). When Tier 1 proposed a
-  `tested_at` or `code_pointer` that doesn't survive verification, Tier 2 marks the row
+  `tested_at` or `source` that doesn't survive verification, Tier 2 marks the row
   UNTESTED / removes the bad pointer — does not delete the row, does not fabricate a
   different pointer.
 - **Tier 1 sub-agent dispatch must specify the model.** Use the Agent tool with the
@@ -116,7 +116,7 @@ Source: <files/packages/paths>
 
 Enumerate every plausible <property | component | container | external | manifest row | ...>.
 For each candidate include: name, the source file:line you spotted it from, a one-line
-description, and any guess at related fields (code_pointer, tested_at, wrapped_entity_id).
+description, and any guess at related fields (source, tested_at, wrapped_entity_id).
 
 Do NOT prune. Do NOT verify pointers — speculate them with file:line and let Tier 2
 verify. If you're unsure whether something belongs, INCLUDE IT and flag it as uncertain.

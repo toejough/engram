@@ -5,8 +5,8 @@
   "parent": "c1-x.md",
   "preamble": "relationship references unknown element",
   "elements": [
-    {"id": "S1", "name": "Sys", "kind": "container", "in_scope": true, "responsibility": "r", "system_of_record": "s"},
-    {"id": "S1-N1", "name": "Inner", "kind": "container", "responsibility": "r", "system_of_record": "s"}
+    {"id": "S1", "name": "Sys", "kind": "container", "in_scope": true, "responsibility": "r", "source": "s"},
+    {"id": "S1-N1", "name": "Inner", "kind": "container", "responsibility": "r", "source": "s"}
   ],
   "relationships": [
     {"from": "S1-N1", "to": "S99", "description": "to nowhere", "protocol": "x"}

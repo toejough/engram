@@ -21,7 +21,7 @@ deliberately hides the CLI binary, hooks, on-disk stores, and skills (those live
 
 ## Element Catalog
 
-| ID | Name | Type | Responsibility | System of Record |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="s1-joe"></a>S1 | Joe | Person | Developer who triggers `/prepare`, `/recall`, `/remember`, `/learn`, `/migrate` and authors the work that produces memories | Human, at a Claude Code session |
 | <a id="s2-engram-plugin"></a>S2 | Engram plugin | The system in scope | Plugin providing persistent, query-ranked memory: skills decide when to load context, a slim Go binary computes recall/learn, hooks remind the agent at session and tool-use boundaries | This repository (`github.com/toejough/engram`) |

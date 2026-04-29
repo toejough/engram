@@ -27,7 +27,11 @@ These rules apply at every level. Level-specific rules live in *Level-Specific S
    bodies / session memory) disagree, STOP. Present both views. Ask the user. Record the
    resolution as a drift note or proceed per their answer.
 2. **Never invent pointers.** L4 properties without tests are **⚠ UNTESTED**. L3 components
-   without `code_pointer` are flagged. Don't fabricate file:line references at any level.
+   without `source` are flagged. L1/L2 elements with a path-like `source` that doesn't resolve
+   are flagged. Don't fabricate file:line references at any level. **Every catalog row carries
+   a *where*** — `source` at L1/L2/L3 (path or descriptive identifier), `enforced_at` +
+   `tested_at` at L4 properties, `wired_by_*` + `wrapped_entity_id` at L4 manifest. Tier 2 of
+   Two-Tier Extraction (Rule 7) MUST verify every *where* by reading the source it points to.
 3. **Never edit a non-target file without per-file approval.** Propagation is by proposal +
    approve/skip/defer, not silent edit. Idempotent rebuilds of auto-generated sections
    (mermaid block, catalog, cross-links — anything `c4-l*-build` regenerates) are propagation,
@@ -53,7 +57,7 @@ These rules apply at every level. Level-specific rules live in *Level-Specific S
    precision. Applies to:
    - L1 external-system identification
    - L2 container identification
-   - L3 component identification + `code_pointer` location
+   - L3 component identification + `source` location
    - L4 property + manifest + R-edge property-tag extraction
    - Any future "mine source artifacts for findings" task
    Tier 1 output is **signal**, never the final artifact. Never write `c<level>-<name>.json`
@@ -108,7 +112,7 @@ specifics are tabled below.
      be scaffolded.
    - **Changed responsibility/relationship** → parent's matching prose may drift; children
      whose `from_parent` element previously had a different responsibility need a re-read.
-   - **L3 code-pointer change** → the audit's `code_pointer_unresolved` finding catches dead
+   - **L3 source change** → the audit's `source_path_unresolved` finding catches dead
      paths automatically on next audit.
 7. Edit JSON, run the level's build target, run `targ c4-render`, run `targ c4-audit`.
 8. Run *Propagation Discipline* sweep.
@@ -191,9 +195,10 @@ Drift notes never silently disappear. They persist until a future `update` resol
 - L3 has a `focus` field naming the L2 container being refined. `focus.id`/`focus.name` must
   match an in-scope element of the parent L2.
 - IDs are `M<n>`, scoped within this diagram (start at `M1`).
-- Each `kind: "component"` element requires `code_pointer`. `from_parent: true` neighbors
-  carry IDs/names from peer specs.
-- Audit catches dead `code_pointer` paths via `code_pointer_unresolved`.
+- Each `kind: "component"` element requires `source` (a repo-relative path).
+  `from_parent: true` neighbors carry IDs/names from peer specs.
+- Audit catches dead `source` paths via `source_path_unresolved` (same finding fires at L1/L2
+  whenever a path-like `source` value doesn't resolve).
 
 ### L4 specifics
 

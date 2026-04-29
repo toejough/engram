@@ -29,7 +29,7 @@ flowchart LR
 
 ## Element Catalog
 
-| ID | Name | Type | Responsibility | System of Record |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 
 ## Relationships

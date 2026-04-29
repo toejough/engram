@@ -12,10 +12,10 @@ import (
 
 // unexported constants.
 const (
-	catalogCellsForCodePointer = 7
-	propertyEnforcedCellIndex  = 4
-	propertyMinCellCount       = 8
-	propertyTestedCellIndex    = 5
+	catalogCellsForSource     = 7
+	propertyEnforcedCellIndex = 4
+	propertyMinCellCount      = 8
+	propertyTestedCellIndex   = 5
 )
 
 // unexported variables.
@@ -81,39 +81,6 @@ func checkChildren(matter frontMatter) []Finding {
 	return findings
 }
 
-// checkCodePointers walks an L3 markdown's Element Catalog table, locates the
-// "Code Pointer" cell (column 5 in a 7-piece split — empty | id | name | type
-// | responsibility | code_pointer | empty), extracts the markdown link target,
-// and emits `code_pointer_unresolved` for any path that does not stat.
-//
-// Returns nil for non-L3 files; only L3 catalogs use a code-pointer column.
-func checkCodePointers(matter frontMatter, raw []byte, mdPath string) []Finding {
-	if matter.level != 3 {
-		return nil
-	}
-	text := string(raw)
-	loc := catalogHeaderRe.FindStringIndex(text)
-	if loc == nil {
-		return nil
-	}
-	tail := text[loc[1]:]
-	startLine := 1 + strings.Count(text[:loc[0]], "\n")
-	findings := []Finding{}
-	for offset, line := range strings.Split(tail, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "## ") {
-			break
-		}
-		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
-			continue
-		}
-		finding := codePointerFindingForRow(line, mdPath, startLine+offset+1)
-		if finding != nil {
-			findings = append(findings, *finding)
-		}
-	}
-	return findings
-}
-
 // checkPropertyLinks scans an L4 ledger's Property Ledger table and emits a
 // finding for any markdown link in the Enforced-at or Tested-at columns whose
 // path does not resolve. Links resolved relative to the markdown file's
@@ -143,34 +110,40 @@ func checkPropertyLinks(matter frontMatter, raw []byte, mdPath string) []Finding
 	return findings
 }
 
-// codePointerFindingForRow returns a finding when the catalog row's code-
-// pointer cell contains a markdown link to a non-existent path. Returns nil
-// for header rows, separator rows, rows without enough cells, or rows whose
-// code-pointer cell has no link.
-func codePointerFindingForRow(line, mdPath string, lineNum int) *Finding {
-	cells := strings.Split(line, "|")
-	if len(cells) < catalogCellsForCodePointer {
+// checkSourcePaths walks an L1/L2/L3 markdown's Element Catalog table,
+// locates the "Source" cell (column 5 in a 7-piece split — empty | id | name
+// | type | responsibility | source | empty), extracts the markdown link
+// target if present, and emits `source_path_unresolved` for any path that
+// does not stat. Free-text Source values render plain (no link) and are
+// ignored by this check; only path-like values are rendered as links by the
+// L1/L2/L3 builders, so this finder catches dead repo-relative paths only.
+//
+// Returns nil for L4 files; L4 has its own property-link audit.
+func checkSourcePaths(matter frontMatter, raw []byte, mdPath string) []Finding {
+	if matter.level < 1 || matter.level > 3 {
 		return nil
 	}
-	codeCell := cells[5]
-	match := markdownLinkRe.FindStringSubmatch(codeCell)
-	if len(match) < 3 {
+	text := string(raw)
+	loc := catalogHeaderRe.FindStringIndex(text)
+	if loc == nil {
 		return nil
 	}
-	target := strings.TrimSpace(match[2])
-	if target == "" {
-		return nil
+	tail := text[loc[1]:]
+	startLine := 1 + strings.Count(text[:loc[0]], "\n")
+	findings := []Finding{}
+	for offset, line := range strings.Split(tail, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "## ") {
+			break
+		}
+		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
+			continue
+		}
+		finding := sourcePathFindingForRow(line, mdPath, startLine+offset+1)
+		if finding != nil {
+			findings = append(findings, *finding)
+		}
 	}
-	resolved := filepath.Join(filepath.Dir(mdPath), target)
-	if _, err := os.Stat(resolved); err == nil {
-		return nil
-	}
-	return &Finding{
-		ID:   "code_pointer_unresolved",
-		Line: lineNum,
-		Detail: fmt.Sprintf(
-			"code pointer %q resolves to %q but does not exist", target, resolved),
-	}
+	return findings
 }
 
 // parseInlineYAMLArray parses a YAML inline array like
@@ -215,6 +188,36 @@ func propertyLinkFindings(line, mdPath string, lineNum int) []Finding {
 		findings = append(findings, brokenLinksInCell(cells[cellIdx], dir, lineNum)...)
 	}
 	return findings
+}
+
+// sourcePathFindingForRow returns a finding when the catalog row's source
+// cell contains a markdown link to a non-existent path. Returns nil for
+// header rows, separator rows, rows without enough cells, or rows whose
+// source cell has no link (free-text values are not validated).
+func sourcePathFindingForRow(line, mdPath string, lineNum int) *Finding {
+	cells := strings.Split(line, "|")
+	if len(cells) < catalogCellsForSource {
+		return nil
+	}
+	sourceCell := cells[5]
+	match := markdownLinkRe.FindStringSubmatch(sourceCell)
+	if len(match) < 3 {
+		return nil
+	}
+	target := strings.TrimSpace(match[2])
+	if target == "" {
+		return nil
+	}
+	resolved := filepath.Join(filepath.Dir(mdPath), target)
+	if _, err := os.Stat(resolved); err == nil {
+		return nil
+	}
+	return &Finding{
+		ID:   "source_path_unresolved",
+		Line: lineNum,
+		Detail: fmt.Sprintf(
+			"source path %q resolves to %q but does not exist", target, resolved),
+	}
 }
 
 func stripFragment(target string) string {

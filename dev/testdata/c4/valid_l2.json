@@ -11,7 +11,7 @@
       "kind": "person",
       "subtitle": "runs Foo",
       "responsibility": "Operator who triggers Foo runs",
-      "system_of_record": "Human"
+      "source": "Human"
     },
     {
       "id": "S2",
@@ -19,7 +19,7 @@
       "kind": "container",
       "in_scope": true,
       "responsibility": "The system being refined at this level",
-      "system_of_record": "This repo"
+      "source": "This repo"
     },
     {
       "id": "S3",
@@ -27,7 +27,7 @@
       "kind": "external",
       "subtitle": "remote service",
       "responsibility": "Upstream data source",
-      "system_of_record": "bar.example.com"
+      "source": "bar.example.com"
     },
     {
       "id": "S4",
@@ -35,21 +35,21 @@
       "kind": "external",
       "subtitle": "local filesystem",
       "responsibility": "On-disk state",
-      "system_of_record": "OS filesystem"
+      "source": "OS filesystem"
     },
     {
       "id": "S2-N1",
       "name": "Worker",
       "kind": "container",
       "responsibility": "Processes incoming work items",
-      "system_of_record": "internal/worker"
+      "source": "internal/worker"
     },
     {
       "id": "S2-N2",
       "name": "Loader",
       "kind": "container",
       "responsibility": "Hydrates state from disk on startup",
-      "system_of_record": "internal/loader"
+      "source": "internal/loader"
     }
   ],
   "relationships": [

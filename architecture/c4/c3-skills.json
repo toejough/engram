@@ -19,7 +19,7 @@
       "subtitle": "recall / learn / list / show / update"
     },
     {
-      "code_pointer": "../../skills/prepare/SKILL.md",
+      "source": "../../skills/prepare/SKILL.md",
       "id": "S2-N1-M1",
       "kind": "component",
       "name": "prepare skill",
@@ -27,7 +27,7 @@
       "subtitle": "briefs the agent before new work"
     },
     {
-      "code_pointer": "../../skills/learn/SKILL.md",
+      "source": "../../skills/learn/SKILL.md",
       "id": "S2-N1-M2",
       "kind": "component",
       "name": "learn skill",
@@ -35,7 +35,7 @@
       "subtitle": "saves session lessons"
     },
     {
-      "code_pointer": "../../skills/recall/SKILL.md",
+      "source": "../../skills/recall/SKILL.md",
       "id": "S2-N1-M3",
       "kind": "component",
       "name": "recall skill",
@@ -43,7 +43,7 @@
       "subtitle": "loads prior session context"
     },
     {
-      "code_pointer": "../../skills/remember/SKILL.md",
+      "source": "../../skills/remember/SKILL.md",
       "id": "S2-N1-M4",
       "kind": "component",
       "name": "remember skill",
@@ -51,7 +51,7 @@
       "subtitle": "explicit-knowledge capture"
     },
     {
-      "code_pointer": "../../skills/migrate/SKILL.md",
+      "source": "../../skills/migrate/SKILL.md",
       "id": "S2-N1-M5",
       "kind": "component",
       "name": "migrate skill",
@@ -59,7 +59,7 @@
       "subtitle": "legacy memory upgrade"
     },
     {
-      "code_pointer": "../../skills/c4/SKILL.md",
+      "source": "../../skills/c4/SKILL.md",
       "id": "S2-N1-M6",
       "kind": "component",
       "name": "c4 skill",

@@ -3,7 +3,7 @@ level: 3
 name: skills
 parent: "c2-engram-plugin.md"
 children: []
-last_reviewed_commit: 1caf804c
+last_reviewed_commit: abb1f55e
 ---
 
 # C3 — Skills (Component)
@@ -15,11 +15,11 @@ Refines L2's E7 Skills container into the six skill markdown files Claude Code l
 > Diagram source: [svg/c3-skills.mmd](svg/c3-skills.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c3-skills.mmd -o architecture/c4/svg/c3-skills.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 ## Element Catalog
 
-| ID | Name | Type | Responsibility | Code Pointer |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="s2-n1-skills"></a>S2-N1 | Skills | Container in focus | Markdown skill files Claude Code loads on /command or auto-trigger; bodies instruct the agent to call engram subcommands and present results. | — |
 | <a id="s3-claude-code"></a>S3 | Claude Code | External system | Loads skill bodies on slash-command or auto-trigger; renders them into the agent's context as the next message. | — |

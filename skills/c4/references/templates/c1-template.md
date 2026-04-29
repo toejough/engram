@@ -29,7 +29,7 @@ flowchart LR
 
 ## Element Catalog
 
-| ID | Name | Type | Responsibility | System of Record |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="s1-PLACEHOLDER"></a>S1 | <element> | Person / External system / The system | <one sentence> | <where this lives in reality> |
 

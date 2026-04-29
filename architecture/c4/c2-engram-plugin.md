@@ -3,7 +3,7 @@ level: 2
 name: engram-plugin
 parent: "c1-engram-system.md"
 children: []
-last_reviewed_commit: 1caf804c
+last_reviewed_commit: abb1f55e
 ---
 
 # C2 — Engram plugin (Container)
@@ -15,11 +15,11 @@ Refines L1's E2 Engram plugin into three internal containers — skill markdown 
 > Diagram source: [svg/c2-engram-plugin.mmd](svg/c2-engram-plugin.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c2-engram-plugin.mmd -o architecture/c4/svg/c2-engram-plugin.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 ## Element Catalog
 
-| ID | Name | Type | Responsibility | System of Record |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="s1-developer"></a>S1 | Developer | Person | Engineer who triggers slash-commands and writes prompts that produce memories | Human, at a Claude Code session |
 | <a id="s2-engram-plugin"></a>S2 | Engram plugin | The system in scope | Plugin providing persistent, query-ranked memory: skills decide when to load context, a slim Go binary computes recall/learn, hooks remind the agent at session and tool-use boundaries | This repository (`github.com/toejough/engram`) |

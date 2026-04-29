@@ -10,14 +10,14 @@
       "name": "Developer",
       "responsibility": "Developer who triggers `/prepare`, `/recall`, `/remember`, `/learn`, `/migrate` and authors the work that produces memories",
       "subtitle": "uses Claude Code",
-      "system_of_record": "Human, at a Claude Code session"
+      "source": "Human, at a Claude Code session"
     },
     {
       "id": "S2",
       "kind": "container",
       "name": "Engram plugin",
       "responsibility": "Plugin providing persistent, query-ranked memory: skills decide when to load context, a slim Go binary computes recall/learn, hooks remind the agent at session and tool-use boundaries",
-      "system_of_record": "This repository (`github.com/toejough/engram`)"
+      "source": "This repository (`github.com/toejough/engram`)"
     },
     {
       "id": "S3",
@@ -25,7 +25,7 @@
       "name": "Claude Code",
       "responsibility": "Agent harness that loads the plugin, dispatches skills, fires hooks, and exposes its own memory surfaces",
       "subtitle": "agent harness",
-      "system_of_record": "Anthropic Claude Code CLI"
+      "source": "Anthropic Claude Code CLI"
     },
     {
       "id": "S4",
@@ -33,7 +33,7 @@
       "name": "Claude Code memory surfaces",
       "responsibility": "Read-only sources Engram merges into recall: project + user `CLAUDE.md` (with `@`-imports), `.claude/rules/*.md`, auto-memory under `~/.claude/projects/\u003cslug\u003e/memory/`, and project + user + plugin skill frontmatter",
       "subtitle": "CLAUDE.md, .claude/rules, auto-memory, skills",
-      "system_of_record": "Files owned by Claude Code and the user; never written by Engram"
+      "source": "Files owned by Claude Code and the user; never written by Engram"
     },
     {
       "id": "S5",
@@ -41,7 +41,7 @@
       "name": "Anthropic API",
       "responsibility": "LLM service used by the recall pipeline for Haiku ranking and extraction; also the classification step in `/learn` and `/remember` quality gates",
       "subtitle": "Haiku rank + extract",
-      "system_of_record": "`api.anthropic.com`"
+      "source": "`api.anthropic.com`"
     },
     {
       "id": "S6",
@@ -49,7 +49,7 @@
       "name": "Engram memory store",
       "responsibility": "Engram's own writable data directory: `~/.local/share/engram/memory/feedback/*.toml` and `~/.local/share/engram/memory/facts/*.toml`. The filesystem belongs to the OS; Engram only reads and writes within these paths",
       "subtitle": "~/.local/share/engram/memory/",
-      "system_of_record": "XDG data home on the user's machine"
+      "source": "XDG data home on the user's machine"
     }
   ],
   "level": 1,

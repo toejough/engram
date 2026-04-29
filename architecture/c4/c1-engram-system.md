@@ -3,7 +3,7 @@ level: 1
 name: engram-system
 parent: null
 children: []
-last_reviewed_commit: 1caf804c
+last_reviewed_commit: abb1f55e
 ---
 
 # C1 — Engram plugin (System Context)
@@ -17,11 +17,11 @@ deliberately hides the CLI binary, hooks, on-disk stores, and skills (those live
 > Diagram source: [svg/c1-engram-system.mmd](svg/c1-engram-system.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c1-engram-system.mmd -o architecture/c4/svg/c1-engram-system.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 ## Element Catalog
 
-| ID | Name | Type | Responsibility | System of Record |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="s1-developer"></a>S1 | Developer | Person | Developer who triggers `/prepare`, `/recall`, `/remember`, `/learn`, `/migrate` and authors the work that produces memories | Human, at a Claude Code session |
 | <a id="s2-engram-plugin"></a>S2 | Engram plugin | The system in scope | Plugin providing persistent, query-ranked memory: skills decide when to load context, a slim Go binary computes recall/learn, hooks remind the agent at session and tool-use boundaries | This repository (`github.com/toejough/engram`) |

@@ -3,7 +3,7 @@ level: 3
 name: engram-cli-binary
 parent: "c2-engram-plugin.md"
 children: []
-last_reviewed_commit: 1caf804c
+last_reviewed_commit: abb1f55e
 ---
 
 # C3 — engram CLI binary (Component)
@@ -15,11 +15,11 @@ Refines L2's E9 engram CLI binary into nine internal components. The shell of th
 > Diagram source: [svg/c3-engram-cli-binary.mmd](svg/c3-engram-cli-binary.mmd). Re-render with
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c3-engram-cli-binary.mmd -o architecture/c4/svg/c3-engram-cli-binary.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
-> separate bidirectional R/D edges between the same node pair.
+> separate bidirectional R-edges between the same node pair.
 
 ## Element Catalog
 
-| ID | Name | Type | Responsibility | Code Pointer |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="s2-n3-engram-cli-binary"></a>S2-N3 | engram CLI binary | Container in focus | Go binary entry cmd/engram/main.go, wiring internal/cli.Targets into targ.Main. | — |
 | <a id="s3-claude-code"></a>S3 | Claude Code | External system | Execs the binary as a subprocess each time the agent's Bash tool runs an engram subcommand; consumes its stdout. | — |

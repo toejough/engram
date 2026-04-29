@@ -5,8 +5,8 @@
   "parent": "c1-x.md",
   "preamble": "no in_scope marker",
   "elements": [
-    {"id": "S1", "name": "P", "kind": "person", "responsibility": "r", "system_of_record": "s"},
-    {"id": "S2", "name": "C", "kind": "container", "responsibility": "r", "system_of_record": "s"}
+    {"id": "S1", "name": "P", "kind": "person", "responsibility": "r", "source": "s"},
+    {"id": "S2", "name": "C", "kind": "container", "responsibility": "r", "source": "s"}
   ],
   "relationships": [],
   "drift_notes": [],

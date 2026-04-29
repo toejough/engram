@@ -96,40 +96,55 @@ func TestT34_CheckChildren_L4ForbidsAny(t *testing.T) {
 	}
 }
 
-func TestT35_CheckCodePointers_MissingFile(t *testing.T) {
+func TestT35_CheckSourcePaths_MissingFile(t *testing.T) {
 	t.Parallel()
 
 	tmp := t.TempDir()
 	mdPath := filepath.Join(tmp, "c3-x.md")
 	raw := []byte("---\nlevel: 3\n---\n\n## Element Catalog\n\n" +
-		"| ID | Name | Type | Responsibility | Code Pointer |\n" +
+		"| ID | Name | Type | Responsibility | Source |\n" +
 		"|---|---|---|---|---|\n" +
 		"| <a id=\"s1-foo\"></a>S1 | Foo | Component | does | [missing](./does-not-exist) |\n")
 	if err := os.WriteFile(mdPath, raw, 0o600); err != nil {
 		t.Fatalf("write fixture: %v", err)
 	}
-	findings := checkCodePointers(frontMatter{hasLevel: true, level: 3}, raw, mdPath)
-	if len(findings) != 1 || findings[0].ID != "code_pointer_unresolved" {
-		t.Errorf("want one code_pointer_unresolved finding, got %+v", findings)
+	findings := checkSourcePaths(frontMatter{hasLevel: true, level: 3}, raw, mdPath)
+	if len(findings) != 1 || findings[0].ID != "source_path_unresolved" {
+		t.Errorf("want one source_path_unresolved finding, got %+v", findings)
 	}
 }
 
-func TestT36_CheckCodePointers_NotL3(t *testing.T) {
+func TestT36_CheckSourcePaths_L1MissingFile(t *testing.T) {
 	t.Parallel()
 
 	tmp := t.TempDir()
 	mdPath := filepath.Join(tmp, "c1-x.md")
 	raw := []byte("---\nlevel: 1\n---\n\n## Element Catalog\n\n" +
-		"| ID | Name | Type | Responsibility | Code Pointer |\n" +
+		"| ID | Name | Type | Responsibility | Source |\n" +
 		"|---|---|---|---|---|\n" +
-		"| <a id=\"s1-foo\"></a>S1 | Foo | Component | does | [missing](./does-not-exist) |\n")
-	findings := checkCodePointers(frontMatter{hasLevel: true, level: 1}, raw, mdPath)
-	if len(findings) != 0 {
-		t.Errorf("want 0 findings on L1, got %+v", findings)
+		"| <a id=\"s1-foo\"></a>S1 | Foo | Container | does | [missing](./does-not-exist) |\n")
+	findings := checkSourcePaths(frontMatter{hasLevel: true, level: 1}, raw, mdPath)
+	if len(findings) != 1 || findings[0].ID != "source_path_unresolved" {
+		t.Errorf("want one source_path_unresolved finding on L1, got %+v", findings)
 	}
 }
 
-func TestT37_CheckCodePointers_PathExists(t *testing.T) {
+func TestT36b_CheckSourcePaths_L4Skipped(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	mdPath := filepath.Join(tmp, "c4-x.md")
+	raw := []byte("---\nlevel: 4\n---\n\n## Element Catalog\n\n" +
+		"| ID | Name | Type | Responsibility | Source |\n" +
+		"|---|---|---|---|---|\n" +
+		"| <a id=\"s1-foo\"></a>S1 | Foo | Component | does | [missing](./does-not-exist) |\n")
+	findings := checkSourcePaths(frontMatter{hasLevel: true, level: 4}, raw, mdPath)
+	if len(findings) != 0 {
+		t.Errorf("want 0 findings on L4 (handled by property-link audit), got %+v", findings)
+	}
+}
+
+func TestT37_CheckSourcePaths_PathExists(t *testing.T) {
 	t.Parallel()
 
 	tmp := t.TempDir()
@@ -139,12 +154,28 @@ func TestT37_CheckCodePointers_PathExists(t *testing.T) {
 	}
 	mdPath := filepath.Join(tmp, "c3-x.md")
 	raw := []byte("---\nlevel: 3\n---\n\n## Element Catalog\n\n" +
-		"| ID | Name | Type | Responsibility | Code Pointer |\n" +
+		"| ID | Name | Type | Responsibility | Source |\n" +
 		"|---|---|---|---|---|\n" +
 		"| <a id=\"s1-foo\"></a>S1 | Foo | Component | does | [exists](./exists.txt) |\n")
-	findings := checkCodePointers(frontMatter{hasLevel: true, level: 3}, raw, mdPath)
+	findings := checkSourcePaths(frontMatter{hasLevel: true, level: 3}, raw, mdPath)
 	if len(findings) != 0 {
 		t.Errorf("want 0 findings when target exists, got %+v", findings)
+	}
+}
+
+func TestT37b_CheckSourcePaths_FreeTextNotValidated(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	mdPath := filepath.Join(tmp, "c1-x.md")
+	raw := []byte("---\nlevel: 1\n---\n\n## Element Catalog\n\n" +
+		"| ID | Name | Type | Responsibility | Source |\n" +
+		"|---|---|---|---|---|\n" +
+		"| <a id=\"s1-foo\"></a>S1 | Foo | External system | x | api.anthropic.com |\n" +
+		"| <a id=\"s2-bar\"></a>S2 | Bar | Person | y | Human |\n")
+	findings := checkSourcePaths(frontMatter{hasLevel: true, level: 1}, raw, mdPath)
+	if len(findings) != 0 {
+		t.Errorf("free-text Source values must not be validated, got %+v", findings)
 	}
 }
 
@@ -167,7 +198,7 @@ const (
 		"    click s2 href \"#s2-tiny\"\n" +
 		"```\n\n" +
 		"## Element Catalog\n\n" +
-		"| ID | Name | Type | Responsibility | System of Record |\n" +
+		"| ID | Name | Type | Responsibility | Source |\n" +
 		"|---|---|---|---|---|\n" +
 		"| <a id=\"s1-user\"></a>S1 | User | Person | uses | human |\n" +
 		"| <a id=\"s2-tiny\"></a>S2 | Tiny | The system in scope | t | r |\n\n" +

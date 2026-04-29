@@ -131,7 +131,7 @@ flowchart LR
     click anth href "#s4-anthropic-api"
 ```
 
-| ID | Name | Type | Responsibility | System of Record |
+| ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="s1-joe"></a>S1 | Joe | Person | engram user | Human |
 | <a id="s2-engram"></a>S2 | Engram | The system | … | This repo |
