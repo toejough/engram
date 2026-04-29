@@ -27,7 +27,8 @@ import (
 
 func init() {
 	targ.Register(targ.Targ(c4Audit).Name("c4-audit").
-		Description("Structurally audit a C4 L1 markdown file. Exits 1 on any finding."))
+		Description("Structurally audit a C4 JSON spec. Validates spec schema, source paths, " +
+			"and (byte-compare) freshness of the rendered .md sibling. Exits 1 on any finding."))
 	targ.Register(targ.Targ(c4L1Build).Name("c4-l1-build").
 		Description("Build canonical C4 L1 markdown from a JSON spec next to the input file."))
 	targ.Register(targ.Targ(c4L1Externals).Name("c4-l1-externals").
@@ -38,7 +39,7 @@ func init() {
 
 // C4AuditArgs configures the c4-audit target.
 type C4AuditArgs struct {
-	File string `targ:"flag,name=file,desc=Markdown file to audit (required)"`
+	File string `targ:"flag,name=file,desc=JSON spec to audit (required; .md input is rejected)"`
 	JSON bool   `targ:"flag,name=json,desc=Emit findings as JSON"`
 }
 
@@ -171,13 +172,6 @@ type auditJSON struct {
 	Findings      []Finding `json:"findings"`
 }
 
-type catalogRow struct {
-	id       string
-	anchorID string
-	name     string
-	line     int
-}
-
 // elementID pairs a source element with its assigned hierarchical identifier
 // and anchor slug.
 type elementID struct {
@@ -241,51 +235,12 @@ type historyOptions struct {
 	grep  string
 }
 
-// mermaidBlock holds the parsed contents of a ```mermaid fenced code block.
-type mermaidBlock struct {
-	startLine   int
-	endLine     int
-	body        string
-	hasClassDef bool
-	classes     map[string]bool
-	nodes       []mermaidNode
-	edges       []mermaidEdge
-	clicks      []mermaidClick
-}
-
-type mermaidClick struct {
-	node       string
-	hrefAnchor string
-	line       int
-}
-
-type mermaidEdge struct {
-	from  string
-	to    string
-	label string
-	line  int
-}
-
-type mermaidNode struct {
-	id    string
-	label string
-	line  int
-}
-
 // relationshipID pairs a source relationship with its assigned R<n> identifier
 // and anchor slug.
 type relationshipID struct {
 	ID       string
 	AnchorID string
 	Rel      L1Relationship
-}
-
-type relationshipsRow struct {
-	id       string
-	anchorID string
-	from     string
-	to       string
-	line     int
 }
 
 // assignElementIDs reads explicit S<n> IDs from each element and returns them
@@ -346,51 +301,6 @@ func assignRelationshipIDs(rels []L1Relationship) []relationshipID {
 	return result
 }
 
-// auditAnchorsAndClicks emits click_target_unresolved for click anchors that
-// don't match any catalog or relationships row anchor, and anchor_missing for
-// table rows lacking an anchor. The earlier click_missing check (every node
-// must have a click directive) was dropped when diagrams moved to
-// pre-rendered SVG: click handlers don't carry through static SVG, so they're
-// optional in the .mmd source. Anchors on catalog/relationships rows remain
-// load-bearing because in-page links into them work in the markdown body.
-func auditAnchorsAndClicks(block *mermaidBlock, catalog []catalogRow, rels []relationshipsRow) []Finding {
-	if block == nil {
-		return nil
-	}
-	findings := []Finding{}
-	anchorSet := map[string]bool{}
-	for _, row := range catalog {
-		if row.anchorID != "" {
-			anchorSet[row.anchorID] = true
-		} else {
-			findings = append(findings, Finding{
-				ID: "anchor_missing", Line: row.line,
-				Detail: fmt.Sprintf("catalog row %s has no <a id=\"...\"></a>", row.id),
-			})
-		}
-	}
-	for _, row := range rels {
-		if row.anchorID != "" {
-			anchorSet[row.anchorID] = true
-		} else {
-			findings = append(findings, Finding{
-				ID: "anchor_missing", Line: row.line,
-				Detail: fmt.Sprintf("relationships row %s has no <a id=\"...\"></a>", row.id),
-			})
-		}
-	}
-	for _, click := range block.clicks {
-		if !anchorSet[click.hrefAnchor] {
-			findings = append(findings, Finding{
-				ID: "click_target_unresolved", Line: click.line,
-				Detail: fmt.Sprintf("click %s href #%s does not match any catalog/relationships anchor",
-					click.node, click.hrefAnchor),
-			})
-		}
-	}
-	return findings
-}
-
 // auditFile reads path and returns all structural findings.
 // It returns an error only when the file itself cannot be read.
 //
@@ -400,136 +310,168 @@ func auditAnchorsAndClicks(block *mermaidBlock, catalog []catalogRow, rels []rel
 // Ledger + Dependency Manifest + DI Wires; no Element Catalog table; no
 // JSON spec; rendered to SVG with no click handlers) so the L1–L3 checks
 // are skipped for level 4 — only front-matter and code-pointer checks run.
+// auditFile audits a C4 JSON spec. The .json is the source of truth; the
+// rendered .md is a mechanical artifact and is checked only for staleness
+// (byte-compare against a fresh emit using the SHA already stamped in the
+// existing front-matter — robust against git checkouts that move mtimes).
+//
+// Refuses non-.json input with a hint to pass the JSON sibling.
 func auditFile(ctx context.Context, path string) ([]Finding, error) {
+	if !strings.HasSuffix(path, ".json") {
+		return nil, fmt.Errorf(
+			"audit input must be a .json spec, got %s — pass the JSON sibling", path)
+	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
-	findings := []Finding{}
-	findings = append(findings, auditFrontMatter(ctx, path, raw)...)
-	matter, _ := parseFrontMatter(raw)
-	findings = append(findings, checkSourcePaths(matter, raw, path)...)
-	findings = append(findings, checkPropertyLinks(matter, raw, path)...)
-	if matter.level == 4 {
-		findings = append(findings, auditL4Carryover(path)...)
-		return findings, nil
+	var levelOnly struct {
+		Level int `json:"level"`
 	}
-	block, mermaidFindings := parseMermaidBlock(raw, path)
-	findings = append(findings, mermaidFindings...)
-	catalog, rels := parseTables(raw)
-	findings = append(findings, auditOrphans(block, catalog, rels)...)
-	findings = append(findings, auditAnchorsAndClicks(block, catalog, rels)...)
+	if jsonErr := json.Unmarshal(raw, &levelOnly); jsonErr != nil {
+		return []Finding{{
+			ID:     "spec_invalid",
+			Detail: fmt.Sprintf("decode level: %v", jsonErr),
+		}}, nil
+	}
+	switch levelOnly.Level {
+	case 1:
+		return auditL1JSON(path, raw)
+	case 2:
+		return auditL2JSON(path, raw)
+	case 3:
+		return auditL3JSON(path, raw)
+	case 4:
+		return auditL4JSON(path, raw)
+	default:
+		return []Finding{{
+			ID:     "spec_invalid",
+			Detail: fmt.Sprintf("unknown level %d", levelOnly.Level),
+		}}, nil
+	}
+}
+
+// auditL1JSON audits a c1-*.json spec.
+func auditL1JSON(jsonPath string, raw []byte) ([]Finding, error) {
+	var spec L1Spec
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&spec); err != nil {
+		return []Finding{{ID: "spec_invalid", Detail: err.Error()}}, nil
+	}
+	findings := []Finding{}
+	if err := validateSpec(&spec); err != nil {
+		findings = append(findings, Finding{ID: "spec_invalid", Detail: err.Error()})
+	}
+	findings = append(findings, validateElementSourcePaths(jsonPath, spec.Elements)...)
+	findings = append(findings, checkRenderedFreshness(jsonPath, func(sha string) ([]byte, error) {
+		var buf bytes.Buffer
+		if err := emitMarkdown(&buf, &spec, sha); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	})...)
 	return findings, nil
 }
 
-// auditFrontMatter parses the YAML front-matter and emits findings for missing
-// blocks, missing fields, invalid values, and broken cross-references.
-func auditFrontMatter(ctx context.Context, path string, raw []byte) []Finding {
-	matter, ok := parseFrontMatter(raw)
-	if !ok {
-		return []Finding{{ID: "front_matter_missing", Line: 1, Detail: "no leading --- block"}}
+// auditL2JSON audits a c2-*.json spec.
+func auditL2JSON(jsonPath string, raw []byte) ([]Finding, error) {
+	var spec L2Spec
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&spec); err != nil {
+		return []Finding{{ID: "spec_invalid", Detail: err.Error()}}, nil
 	}
 	findings := []Finding{}
-	findings = append(findings, checkRequiredFields(matter)...)
-	findings = append(findings, checkLevel(matter)...)
-	findings = append(findings, checkName(matter, path)...)
-	findings = append(findings, checkParent(matter, path)...)
-	findings = append(findings, checkLastReviewedCommit(ctx, matter)...)
-	findings = append(findings, checkChildren(matter)...)
-	return findings
+	if err := validateL2Spec(&spec); err != nil {
+		findings = append(findings, Finding{ID: "spec_invalid", Detail: err.Error()})
+	}
+	l2Elements := make([]L1Element, 0, len(spec.Elements))
+	for _, element := range spec.Elements {
+		l2Elements = append(l2Elements, L1Element{
+			ID: element.ID, Name: element.Name, Kind: element.Kind,
+			Subtitle: element.Subtitle, Responsibility: element.Responsibility,
+			Source: element.Source,
+		})
+	}
+	findings = append(findings, validateElementSourcePaths(jsonPath, l2Elements)...)
+	findings = append(findings, checkRenderedFreshness(jsonPath, func(sha string) ([]byte, error) {
+		var buf bytes.Buffer
+		if err := emitL2Markdown(&buf, &spec, sha); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	})...)
+	return findings, nil
 }
 
-// auditL4Carryover loads the L4 JSON sibling of an audited L4 markdown plus
-// the L3 parent JSON, runs validateL4Carryover, and emits one l4_carryover
-// finding per leaf error from the joined error. Infrastructure errors (read,
-// decode, parent load failures) emit l4_carryover_unreadable; validation
-// errors emit l4_carryover.
-func auditL4Carryover(mdPath string) []Finding {
-	dir := filepath.Dir(mdPath)
-	base := strings.TrimSuffix(filepath.Base(mdPath), ".md")
-	l4Path := filepath.Join(dir, base+".json")
-	l4Raw, err := os.ReadFile(l4Path)
-	if err != nil {
-		return []Finding{{ID: "l4_carryover_unreadable", Detail: fmt.Sprintf("read %s: %v", l4Path, err)}}
+// auditL3JSON audits a c3-*.json spec.
+func auditL3JSON(jsonPath string, raw []byte) ([]Finding, error) {
+	var spec L3Spec
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&spec); err != nil {
+		return []Finding{{ID: "spec_invalid", Detail: err.Error()}}, nil
 	}
-	var l4 L4Spec
-	decoder := json.NewDecoder(bytes.NewReader(l4Raw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&l4); err != nil {
-		return []Finding{{ID: "l4_carryover_unreadable", Detail: fmt.Sprintf("decode %s: %v", l4Path, err)}}
+	findings := []Finding{}
+	if err := validateL3Spec(&spec); err != nil {
+		findings = append(findings, Finding{ID: "spec_invalid", Detail: err.Error()})
 	}
-	l3, err := loadL3Parent(&l4, dir)
+	l3Elements := make([]L1Element, 0, len(spec.Elements))
+	for _, element := range spec.Elements {
+		l3Elements = append(l3Elements, L1Element{
+			ID: element.ID, Name: element.Name, Kind: element.Kind,
+			Subtitle: element.Subtitle, Responsibility: element.Responsibility,
+			Source: element.Source,
+		})
+	}
+	findings = append(findings, validateElementSourcePaths(jsonPath, l3Elements)...)
+	siblings := discoverL3Siblings(jsonPath, spec.Parent)
+	findings = append(findings, checkRenderedFreshness(jsonPath, func(sha string) ([]byte, error) {
+		var buf bytes.Buffer
+		if err := emitL3Markdown(&buf, &spec, sha, siblings); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	})...)
+	return findings, nil
+}
+
+// auditL4CarryoverFromJSON reuses the existing L4 carryover validator, taking
+// a parsed L4Spec instead of loading from disk.
+func auditL4CarryoverFromJSON(jsonPath string, spec *L4Spec) []Finding {
+	dir := filepath.Dir(jsonPath)
+	l3, err := loadL3Parent(spec, dir)
 	if err != nil {
 		return []Finding{{ID: "l4_carryover_unreadable", Detail: err.Error()}}
 	}
-	err = validateL4Carryover(&l4, l3)
-	if err == nil {
+	carryErr := validateL4Carryover(spec, l3)
+	if carryErr == nil {
 		return nil
 	}
-	return splitJoinedError(err)
+	return splitJoinedError(carryErr)
 }
 
-// auditOrphans cross-references mermaid IDs with catalog/relationships rows and
-// emits node_orphan, catalog_orphan, edge_orphan, relationships_orphan findings.
-func auditOrphans(block *mermaidBlock, catalog []catalogRow, rels []relationshipsRow) []Finding {
-	if block == nil {
-		return nil
+// auditL4JSON audits a c4-*.json spec.
+func auditL4JSON(jsonPath string, raw []byte) ([]Finding, error) {
+	var spec L4Spec
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&spec); err != nil {
+		return []Finding{{ID: "spec_invalid", Detail: err.Error()}}, nil
 	}
 	findings := []Finding{}
-	mermaidNodeIDs := map[string]int{}
-	for _, node := range block.nodes {
-		if matched := mermaidIDPrefix.FindString(strings.TrimSpace(node.label)); matched != "" {
-			mermaidNodeIDs[matched] = node.line
+	findings = append(findings, validatePropertyPaths(jsonPath, spec.Properties)...)
+	findings = append(findings, auditL4CarryoverFromJSON(jsonPath, &spec)...)
+	siblings := discoverL4Siblings(jsonPath, spec.Parent)
+	findings = append(findings, checkRenderedFreshness(jsonPath, func(sha string) ([]byte, error) {
+		var buf bytes.Buffer
+		if err := emitL4Markdown(&buf, &spec, sha, siblings); err != nil {
+			return nil, err
 		}
-	}
-	mermaidEdgeIDs := map[string]int{}
-	for _, edge := range block.edges {
-		label := strings.TrimSpace(edge.label)
-		if matched := regexp.MustCompile(`^R\d+`).FindString(label); matched != "" {
-			mermaidEdgeIDs[matched] = edge.line
-		}
-	}
-	catalogIDs := map[string]int{}
-	for _, row := range catalog {
-		catalogIDs[row.id] = row.line
-	}
-	relsIDs := map[string]int{}
-	for _, row := range rels {
-		relsIDs[row.id] = row.line
-	}
-	for nodeID, line := range mermaidNodeIDs {
-		if _, ok := catalogIDs[nodeID]; !ok {
-			findings = append(findings, Finding{
-				ID: "node_orphan", Line: line,
-				Detail: fmt.Sprintf("mermaid node %s has no catalog row", nodeID),
-			})
-		}
-	}
-	for catID, line := range catalogIDs {
-		if _, ok := mermaidNodeIDs[catID]; !ok {
-			findings = append(findings, Finding{
-				ID: "catalog_orphan", Line: line,
-				Detail: fmt.Sprintf("catalog row %s has no mermaid node", catID),
-			})
-		}
-	}
-	for edgeID, line := range mermaidEdgeIDs {
-		if _, ok := relsIDs[edgeID]; !ok {
-			findings = append(findings, Finding{
-				ID: "edge_orphan", Line: line,
-				Detail: fmt.Sprintf("mermaid edge %s has no relationships row", edgeID),
-			})
-		}
-	}
-	for relID, line := range relsIDs {
-		if _, ok := mermaidEdgeIDs[relID]; !ok {
-			findings = append(findings, Finding{
-				ID: "relationships_orphan", Line: line,
-				Detail: fmt.Sprintf("relationships row %s has no mermaid edge", relID),
-			})
-		}
-	}
-	return findings
+		return buf.Bytes(), nil
+	})...)
+	return findings, nil
 }
 
 func c4Audit(ctx context.Context, args C4AuditArgs) error {
@@ -675,112 +617,69 @@ func callOnPackage(pkg *packages.Package, node ast.Node) (*ast.CallExpr, *ast.Se
 	return call, sel, use.Imported().Path()
 }
 
-// collectL4MermaidFindings is the L4 counterpart to collectMermaidFindings.
-// It validates that every node label is a hierarchical path ID (S<n>-N<m>-M<k>
-// or shallower) and that every edge label starts with R<n>: (consumer-side
-// relationship). No other prefixes are allowed — the node ID space is closed
-// to the L4 context strip and the edge ID space is closed to R<n>:.
-func checkLastReviewedCommit(ctx context.Context, matter frontMatter) []Finding {
-	if !matter.hasLastReviewedCommit {
+func checkCodeLink(dir string, link L4CodeLink, where string) *Finding {
+	if strings.TrimSpace(link.Path) == "" {
 		return nil
 	}
-	if matter.lastReviewedCommit == "" {
-		return []Finding{{
-			ID:     "last_reviewed_commit_invalid",
-			Line:   matter.lastReviewedCommitLine,
-			Detail: "last_reviewed_commit is empty",
-		}}
-	}
-	if _, err := exec.LookPath("git"); err != nil {
-		fmt.Fprintln(os.Stderr, "warning: git not on PATH; skipping last_reviewed_commit verification")
+	// L4 spec paths are repo-relative without `../../` prefix; the L4 emit
+	// hardcodes `../../` because the rendered .md sits two levels deep
+	// (architecture/c4/). Mirror that resolution here so the audit matches
+	// what the renderer would produce.
+	resolved := filepath.Join(dir, "..", "..", link.Path)
+	if _, err := os.Stat(resolved); err == nil {
 		return nil
 	}
-	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--quiet", "--verify", matter.lastReviewedCommit+"^{commit}")
-	if err := cmd.Run(); err != nil {
-		return []Finding{{
-			ID:     "last_reviewed_commit_invalid",
-			Line:   matter.lastReviewedCommitLine,
-			Detail: fmt.Sprintf("git rev-parse rejected %q", matter.lastReviewedCommit),
-		}}
+	return &Finding{
+		ID: "property_link_unresolved",
+		Detail: fmt.Sprintf("%s.path %q resolves to %q but does not exist",
+			where, link.Path, resolved),
 	}
-	return nil
 }
 
-func checkLevel(matter frontMatter) []Finding {
-	if !matter.hasLevel {
-		return nil
-	}
-	if matter.level < 1 || matter.level > 4 {
-		return []Finding{{
-			ID:     "level_invalid",
-			Line:   matter.levelLine,
-			Detail: fmt.Sprintf("level %d not in [1..4]", matter.level),
-		}}
-	}
-	return nil
-}
-
-func checkName(matter frontMatter, path string) []Finding {
-	if !matter.hasName {
-		return nil
-	}
-	base := strings.TrimSuffix(filepath.Base(path), ".md")
-	base = levelPrefixRe.ReplaceAllString(base, "")
-	expected := slug(base)
-	if matter.name != expected {
-		return []Finding{{
-			ID:     "name_filename_mismatch",
-			Line:   matter.nameLine,
-			Detail: fmt.Sprintf("name %q does not match filename slug %q", matter.name, expected),
-		}}
-	}
-	if !validNameRe.MatchString(matter.name) {
-		return []Finding{{
-			ID:     "name_filename_mismatch",
-			Line:   matter.nameLine,
-			Detail: fmt.Sprintf("name %q must match %s", matter.name, validNameRe),
-		}}
-	}
-	return nil
-}
-
-func checkParent(matter frontMatter, path string) []Finding {
-	if !matter.hasParent || matter.parentNull {
-		return nil
-	}
-	resolved := filepath.Join(filepath.Dir(path), matter.parent)
-	if _, err := os.Stat(resolved); err != nil {
-		return []Finding{{
-			ID:     "parent_missing",
-			Line:   matter.parentLine,
-			Detail: fmt.Sprintf("parent %q resolves to %q but does not exist", matter.parent, resolved),
-		}}
-	}
-	return nil
-}
-
-func checkRequiredFields(matter frontMatter) []Finding {
-	findings := []Finding{}
-	required := []struct {
-		present bool
-		name    string
-	}{
-		{matter.hasLevel, "level"},
-		{matter.hasName, "name"},
-		{matter.hasParent, "parent"},
-		{matter.hasChildren, "children"},
-		{matter.hasLastReviewedCommit, "last_reviewed_commit"},
-	}
-	for _, field := range required {
-		if !field.present {
-			findings = append(findings, Finding{
-				ID:     "front_matter_field_missing",
-				Line:   matter.startLine,
-				Detail: fmt.Sprintf("missing required field %q", field.name),
-			})
+// checkRenderedFreshness compares the on-disk .md sibling to a fresh emit from
+// the spec. The emit uses the SHA already stamped in the on-disk front-matter
+// (so audit-vs-build SHA drift doesn't generate false positives). Findings:
+//   - rendered_markdown_missing: no .md sibling.
+//   - rendered_markdown_unreadable: read error or could not extract SHA.
+//   - rendered_markdown_unbuildable: emit returned an error (spec issue already
+//     surfaced by spec_invalid; this catches second-order build failures).
+//   - rendered_markdown_stale: byte-compare diff. Caller must rerun build.
+func checkRenderedFreshness(jsonPath string, emit func(sha string) ([]byte, error)) []Finding {
+	mdPath := strings.TrimSuffix(jsonPath, ".json") + ".md"
+	existing, err := os.ReadFile(mdPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []Finding{{
+				ID:     "rendered_markdown_missing",
+				Detail: fmt.Sprintf("no rendered markdown at %s; run the level's build target", mdPath),
+			}}
 		}
+		return []Finding{{
+			ID:     "rendered_markdown_unreadable",
+			Detail: fmt.Sprintf("read %s: %v", mdPath, err),
+		}}
 	}
-	return findings
+	sha := extractLastReviewedSHA(existing)
+	if sha == "" {
+		return []Finding{{
+			ID:     "rendered_markdown_unreadable",
+			Detail: fmt.Sprintf("no last_reviewed_commit in front-matter of %s", mdPath),
+		}}
+	}
+	fresh, emitErr := emit(sha)
+	if emitErr != nil {
+		return []Finding{{
+			ID:     "rendered_markdown_unbuildable",
+			Detail: fmt.Sprintf("emit %s: %v", mdPath, emitErr),
+		}}
+	}
+	if !bytes.Equal(existing, fresh) {
+		return []Finding{{
+			ID:     "rendered_markdown_stale",
+			Detail: fmt.Sprintf("rendered %s differs from spec; rerun the level's build target", mdPath),
+		}}
+	}
+	return nil
 }
 
 func classFor(element L1Element) string {
@@ -791,55 +690,6 @@ func classFor(element L1Element) string {
 		return "container"
 	}
 	return "external"
-}
-
-func collectMermaidFindings(block *mermaidBlock) []Finding {
-	findings := []Finding{}
-	requiredClasses := []string{"person", "external", "container"}
-	for _, name := range requiredClasses {
-		if !block.classes[name] {
-			findings = append(findings, Finding{
-				ID:     "classdef_missing",
-				Line:   block.startLine,
-				Detail: fmt.Sprintf("classDef %q not defined", name),
-			})
-		}
-	}
-	defined := map[string]mermaidNode{}
-	for _, node := range block.nodes {
-		defined[node.id] = node
-		if !mermaidIDPrefix.MatchString(strings.TrimSpace(node.label)) {
-			findings = append(findings, Finding{
-				ID:     "node_id_missing",
-				Line:   node.line,
-				Detail: fmt.Sprintf("node %q label %q does not start with a hierarchical ID (S<n>, S<n>-N<n>, …)", node.id, node.label),
-			})
-		}
-	}
-	for _, edge := range block.edges {
-		if _, ok := defined[edge.from]; !ok {
-			findings = append(findings, Finding{
-				ID:     "node_id_missing",
-				Line:   edge.line,
-				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.from),
-			})
-		}
-		if _, ok := defined[edge.to]; !ok {
-			findings = append(findings, Finding{
-				ID:     "node_id_missing",
-				Line:   edge.line,
-				Detail: fmt.Sprintf("edge endpoint %q has no node definition", edge.to),
-			})
-		}
-		if !edgeIDPrefix.MatchString(strings.TrimSpace(edge.label)) {
-			findings = append(findings, Finding{
-				ID:     "edge_id_missing",
-				Line:   edge.line,
-				Detail: fmt.Sprintf("edge %q->%q label %q does not start with R<n>:", edge.from, edge.to, edge.label),
-			})
-		}
-	}
-	return findings
 }
 
 func consumeFrontMatterLine(matter *frontMatter, lineNum int, raw string) {
@@ -876,7 +726,7 @@ func consumeFrontMatterLine(matter *frontMatter, lineNum int, raw string) {
 	case "children":
 		matter.hasChildren = true
 		matter.childrenLine = lineNum
-		matter.children = parseInlineYAMLArray(value)
+		matter.children = nil // children list no longer audited; parsing skipped
 	case "last_reviewed_commit":
 		matter.hasLastReviewedCommit = true
 		matter.lastReviewedCommitLine = lineNum
@@ -1193,6 +1043,16 @@ func exprText(pkg *packages.Package, node ast.Node) string {
 	return string(data[start.Offset:end.Offset])
 }
 
+// extractLastReviewedSHA reads the front-matter of an audited .md and returns
+// the last_reviewed_commit value. Empty string if not found or unparseable.
+func extractLastReviewedSHA(raw []byte) string {
+	matter, ok := parseFrontMatter(raw)
+	if !ok || !matter.hasLastReviewedCommit {
+		return ""
+	}
+	return strings.TrimSpace(matter.lastReviewedCommit)
+}
+
 // findSystemName returns the name of the unique container element. At L1 the
 // system in scope is identified by kind=container; validateElements guarantees
 // exactly one such element exists.
@@ -1264,64 +1124,6 @@ func loadAndValidateSpec(path string) (*L1Spec, error) {
 		return nil, err
 	}
 	return &spec, nil
-}
-
-// loadMermaidBlock locates the first diagram source for the markdown at path.
-// It first looks for an inline ```mermaid``` fence in raw; if none is present,
-// it looks for an SVG embed referencing svg/<stem>.mmd alongside, reads that
-// file, and parses it instead. Returns nil block + a single
-// mermaid_block_missing finding when neither source can be located. Unlike
-// parseMermaidBlock, this does not run any L-level structural collector — the
-// caller chooses which collector(s) to apply.
-func loadMermaidBlock(raw []byte, path string) (*mermaidBlock, []Finding) {
-	// Anchor the fence to the start of a line so literal ```mermaid inside
-	// markdown prose / table cells (used as documentation references) is not
-	// mistaken for a real code fence.
-	openFence := []byte("```mermaid")
-	fenceLoc := mermaidFenceRe.FindIndex(raw)
-	if fenceLoc != nil {
-		idx := fenceLoc[0]
-		startLine := 1 + bytes.Count(raw[:idx], []byte("\n"))
-		rest := raw[idx+len(openFence):]
-		closeFence := []byte("\n```")
-		body, _, found := bytes.Cut(rest, closeFence)
-		if !found {
-			return nil, []Finding{{ID: "mermaid_block_missing", Line: startLine, Detail: "unterminated ```mermaid block"}}
-		}
-		block := &mermaidBlock{
-			startLine: startLine,
-			endLine:   startLine + bytes.Count(body, []byte("\n")),
-			body:      string(body),
-			classes:   map[string]bool{},
-		}
-		parseMermaidLines(block)
-		return block, nil
-	}
-
-	// No inline block — try the pre-rendered SVG embed pattern.
-	match := svgEmbedRe.FindSubmatchIndex(raw)
-	if match == nil {
-		return nil, []Finding{{ID: "mermaid_block_missing", Line: 1, Detail: "no ```mermaid fenced block and no svg/<stem>.svg embed"}}
-	}
-	stem := string(raw[match[2]:match[3]])
-	embedLine := 1 + bytes.Count(raw[:match[0]], []byte("\n"))
-	mmdPath := filepath.Join(filepath.Dir(path), "svg", stem+".mmd")
-	mmdBody, err := os.ReadFile(mmdPath)
-	if err != nil {
-		return nil, []Finding{{
-			ID:     "mermaid_block_missing",
-			Line:   embedLine,
-			Detail: fmt.Sprintf("svg embed references %s but %s could not be read: %v", stem+".svg", mmdPath, err),
-		}}
-	}
-	block := &mermaidBlock{
-		startLine: 1,
-		endLine:   1 + bytes.Count(mmdBody, []byte("\n")),
-		body:      string(mmdBody),
-		classes:   map[string]bool{},
-	}
-	parseMermaidLines(block)
-	return block, nil
 }
 
 // mermaidIDByName maps each element's display name to its lowercase mermaid
@@ -1405,63 +1207,6 @@ func parseGitLog(raw []byte) []historyCommit {
 	return commits
 }
 
-// parseMermaidBlock locates the first diagram source for the markdown at path
-// and runs the L1-style structural collector against it. Use loadMermaidBlock
-// when you need the parsed block for a level-specific collector (e.g. L4).
-func parseMermaidBlock(raw []byte, path string) (*mermaidBlock, []Finding) {
-	block, findings := loadMermaidBlock(raw, path)
-	if block != nil {
-		findings = append(findings, collectMermaidFindings(block)...)
-	}
-	return block, findings
-}
-
-func parseMermaidLines(block *mermaidBlock) {
-	for offset, line := range strings.Split(block.body, "\n") {
-		lineNum := block.startLine + offset
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "%%") {
-			continue
-		}
-		if matched := mermaidSubgraphRe.FindStringSubmatch(trimmed); matched != nil {
-			block.nodes = append(block.nodes, mermaidNode{
-				id: matched[1], label: matched[2], line: lineNum,
-			})
-			continue
-		}
-		if strings.HasPrefix(trimmed, "classDef ") {
-			fields := strings.Fields(trimmed)
-			if len(fields) >= 2 {
-				block.hasClassDef = true
-				block.classes[fields[1]] = true
-			}
-			continue
-		}
-		if matched := mermaidEdgeRe.FindStringSubmatch(trimmed); matched != nil {
-			label := strings.Trim(strings.TrimSpace(matched[2]), `"`)
-			block.edges = append(block.edges, mermaidEdge{
-				from: matched[1], label: label, to: matched[3], line: lineNum,
-			})
-			continue
-		}
-		if matched := mermaidNodeRe.FindStringSubmatch(trimmed); matched != nil {
-			block.nodes = append(block.nodes, mermaidNode{
-				id: matched[1], label: matched[2], line: lineNum,
-			})
-			continue
-		}
-		if matched := mermaidClickRe.FindStringSubmatch(trimmed); matched != nil {
-			block.clicks = append(block.clicks, mermaidClick{
-				node: matched[1], hrefAnchor: matched[2], line: lineNum,
-			})
-			continue
-		}
-		if mermaidClassRe.MatchString(trimmed) {
-			continue
-		}
-	}
-}
-
 func parseNameStatusBlock(rest *[]byte) []historyFileChange {
 	// Skip the leading newline(s) git emits between body-NUL and either the
 	// name-status block or the next commit header.
@@ -1513,63 +1258,6 @@ func parseSingleCommit(raw []byte) (historyCommit, []byte, bool) {
 	}
 	commit.FilesChanged = parseNameStatusBlock(&rest)
 	return commit, rest, true
-}
-
-func parseTableSection(text string, headerRe *regexp.Regexp, isCatalog bool) []catalogRow {
-	loc := headerRe.FindStringIndex(text)
-	if loc == nil {
-		return nil
-	}
-	tail := text[loc[1]:]
-	startLine := 1 + strings.Count(text[:loc[0]], "\n")
-	rows := []catalogRow{}
-	for offset, line := range strings.Split(tail, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "## ") {
-			break
-		}
-		matched := tableRowFirstRe.FindStringSubmatch(line)
-		if matched == nil {
-			continue
-		}
-		anchor := matched[1]
-		if anchor == "" {
-			if a := anchorInCellRe.FindStringSubmatch(line); a != nil {
-				anchor = a[1]
-			}
-		}
-		// Skip catalog/rels prefix mismatches: catalog has hierarchical
-		// S/N/M/P IDs (validated by ParseIDPath), rels has R<n>.
-		identifier := matched[2]
-		if isCatalog {
-			if _, err := ParseIDPath(identifier); err != nil {
-				continue
-			}
-		} else if !strings.HasPrefix(identifier, "R") {
-			continue
-		}
-		rows = append(rows, catalogRow{
-			id:       identifier,
-			anchorID: anchor,
-			line:     startLine + offset + 1,
-		})
-	}
-	return rows
-}
-
-// parseTables locates the "## Element Catalog" and "## Relationships" sections
-// and parses each table row's first cell to extract the anchor ID and the
-// hierarchical element ID or relationship ID.
-func parseTables(raw []byte) ([]catalogRow, []relationshipsRow) {
-	text := string(raw)
-	catalog := parseTableSection(text, catalogHeaderRe, true)
-	relsRaw := parseTableSection(text, relsHeaderRe, false)
-	rels := make([]relationshipsRow, 0, len(relsRaw))
-	for _, row := range relsRaw {
-		rels = append(rels, relationshipsRow{
-			id: row.id, anchorID: row.anchorID, line: row.line,
-		})
-	}
-	return catalog, rels
 }
 
 func positionOf(pkg *packages.Package, pos token.Pos) string {
@@ -1725,6 +1413,29 @@ func typeCellFor(element L1Element) string {
 	}
 }
 
+// validateElementSourcePaths walks an element list and emits source_path_unresolved
+// for any path-like Source value that does not stat. Free-text values (no slash,
+// containing spaces, or with a URL scheme) pass through unvalidated.
+func validateElementSourcePaths(jsonPath string, elements []L1Element) []Finding {
+	dir := filepath.Dir(jsonPath)
+	findings := []Finding{}
+	for index, element := range elements {
+		if !isLikelyPath(element.Source) {
+			continue
+		}
+		resolved := filepath.Join(dir, element.Source)
+		if _, err := os.Stat(resolved); err == nil {
+			continue
+		}
+		findings = append(findings, Finding{
+			ID: "source_path_unresolved",
+			Detail: fmt.Sprintf("elements[%d].source %q resolves to %q but does not exist",
+				index, element.Source, resolved),
+		})
+	}
+	return findings
+}
+
 func validateElements(elements []L1Element) error {
 	seenName := map[string]bool{}
 	seenID := map[string]bool{}
@@ -1758,6 +1469,29 @@ func validateElements(elements []L1Element) error {
 		return fmt.Errorf("expected exactly one container (the system in scope), got %d", count)
 	}
 	return nil
+}
+
+// validatePropertyPaths walks an L4 property list and emits property_link_unresolved
+// for any enforced_at or tested_at file:line whose path does not stat. Empty
+// tested_at lists (the **⚠ UNTESTED** marker) are not findings by design.
+func validatePropertyPaths(jsonPath string, properties []L4Property) []Finding {
+	dir := filepath.Dir(jsonPath)
+	findings := []Finding{}
+	for propIndex, prop := range properties {
+		for linkIndex, link := range prop.EnforcedAt {
+			if finding := checkCodeLink(dir, link, fmt.Sprintf(
+				"properties[%d].enforced_at[%d]", propIndex, linkIndex)); finding != nil {
+				findings = append(findings, *finding)
+			}
+		}
+		for linkIndex, link := range prop.TestedAt {
+			if finding := checkCodeLink(dir, link, fmt.Sprintf(
+				"properties[%d].tested_at[%d]", propIndex, linkIndex)); finding != nil {
+				findings = append(findings, *finding)
+			}
+		}
+	}
+	return findings
 }
 
 func validateRelationships(elements []L1Element, rels []L1Relationship, links L1CrossLinks) error {

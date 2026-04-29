@@ -215,8 +215,7 @@ func TestT47_L3BuildLiveAndAuditClean(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("c4-l3-build: %v\n%s", err, out)
 	}
-	mdPath := filepath.Join(tmpDir, "c3-foo-internal.md")
-	findings, err := auditFile(context.Background(), mdPath)
+	findings, err := auditFile(context.Background(), specPath)
 	if err != nil {
 		t.Fatalf("audit: %v", err)
 	}

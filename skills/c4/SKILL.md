@@ -89,7 +89,10 @@ specifics are tabled below.
 6. Author `architecture/c4/c<level>-<name>.json` per the level's spec schema.
 7. Run the level's build target.
 8. Run `targ c4-render` to (re)generate any new/stale `.svg`.
-9. Run `targ c4-audit --file architecture/c4/c<level>-<name>.md`. Zero findings.
+9. Run `targ c4-audit --file architecture/c4/c<level>-<name>.json`. Zero findings. The
+   audit takes the `.json` spec only (the source of truth); rendered `.md`/`.mmd`/`.svg`
+   files are mechanical artifacts and the audit checks them only for staleness via
+   byte-compare against a fresh emit.
 10. Run *Propagation Discipline* sweep (below).
 11. Show the rendered markdown to the user. On approval, commit `.json`, `.md`, `.mmd`, `.svg`.
 
@@ -153,8 +156,9 @@ diagram references, propagate. Skipping = drift on the next audit.
 3. **Walk children.** For every child of the modified file, check whether its `from_parent`
    carry-overs still match the parent's element names and IDs. Rebuild any whose
    carry-overs drift.
-4. **Sweep audit.** Run `targ c4-audit` on every modified `.md`. Zero findings. Capture
-   intentional gaps as Drift Notes.
+4. **Sweep audit.** Run `targ c4-audit --file <spec>.json` on every modified spec. Zero
+   findings. Capture intentional gaps as Drift Notes. The audit reads the JSON spec; do
+   not pass a rendered `.md` (it will be rejected with a hint).
 
 ### Common rationalizations to reject
 

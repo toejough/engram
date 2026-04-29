@@ -140,8 +140,7 @@ func TestT20_L2BuildLiveC2_AuditsClean(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("c4-l2-build: %v\n%s", err, out)
 	}
-	mdPath := filepath.Join(tmpDir, "c2-engram-plugin.md")
-	findings, err := auditFile(context.Background(), mdPath)
+	findings, err := auditFile(context.Background(), specPath)
 	if err != nil {
 		t.Fatalf("audit: %v", err)
 	}

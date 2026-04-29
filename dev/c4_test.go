@@ -27,14 +27,8 @@ func TestAuditFile_L4CarryoverEmitsFindings(t *testing.T) {
 		t.Fatalf("write c4-focus.json: %v", err)
 	}
 
-	// Minimal L4 markdown: front-matter only; auditFile keys off matter.level == 4.
-	md := []byte("---\nlevel: 4\nname: focus\nparent: c3-x.md\nchildren: []\nlast_reviewed_commit: 0000000\n---\n")
-	mdPath := filepath.Join(dir, "c4-focus.md")
-	if err := os.WriteFile(mdPath, md, 0o600); err != nil {
-		t.Fatalf("write c4-focus.md: %v", err)
-	}
-
-	findings, err := auditFile(context.Background(), mdPath)
+	jsonPath := filepath.Join(dir, "c4-focus.json")
+	findings, err := auditFile(context.Background(), jsonPath)
 	if err != nil {
 		t.Fatalf("audit: %v", err)
 	}
@@ -49,15 +43,16 @@ func TestAuditFile_L4CarryoverEmitsFindings(t *testing.T) {
 	}
 }
 
-func TestAuditFile_L4CarryoverUnreadableWhenJSONMissing(t *testing.T) {
+func TestAuditFile_L4CarryoverUnreadableWhenL3ParentMissing(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	md := []byte("---\nlevel: 4\nname: focus\nparent: c3-x.md\nchildren: []\nlast_reviewed_commit: 0000000\n---\n")
-	mdPath := filepath.Join(dir, "c4-focus.md")
-	if err := os.WriteFile(mdPath, md, 0o600); err != nil {
+	// Valid L4 JSON pointing at an L3 parent that does not exist on disk.
+	l4JSON := []byte(`{"schema_version":"1","level":4,"name":"focus","parent":"c3-missing.md","focus":{"id":"F","name":"focus"},"diagram":{"nodes":[{"id":"F","name":"focus","kind":"focus"}],"edges":[]},"dependency_manifest":[],"di_wires":[]}`)
+	jsonPath := filepath.Join(dir, "c4-focus.json")
+	if err := os.WriteFile(jsonPath, l4JSON, 0o600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	findings, err := auditFile(context.Background(), mdPath)
+	findings, err := auditFile(context.Background(), jsonPath)
 	if err != nil {
 		t.Fatalf("audit: %v", err)
 	}
@@ -69,36 +64,6 @@ func TestAuditFile_L4CarryoverUnreadableWhenJSONMissing(t *testing.T) {
 	}
 	if seen != 1 {
 		t.Fatalf("expected 1 l4_carryover_unreadable finding, got %d: %+v", seen, findings)
-	}
-}
-
-func TestEdgeIDPrefix_AcceptsROnly(t *testing.T) {
-	t.Parallel()
-
-	findings := collectMermaidFindings(blockWithEdgeLabel("R1: ok"))
-	for _, finding := range findings {
-		if finding.ID == "edge_id_missing" {
-			t.Errorf("unexpected edge_id_missing finding for R1 label: %+v", finding)
-		}
-	}
-}
-
-func TestEdgeIDPrefix_RejectsDEdges(t *testing.T) {
-	t.Parallel()
-
-	findings := collectMermaidFindings(blockWithEdgeLabel("D1: legacy"))
-	hits := 0
-	for _, finding := range findings {
-		if finding.ID != "edge_id_missing" {
-			continue
-		}
-		hits++
-		if !strings.Contains(finding.Detail, "R<n>:") {
-			t.Errorf("edge_id_missing detail %q does not cite R<n>:", finding.Detail)
-		}
-	}
-	if hits != 1 {
-		t.Errorf("want exactly 1 edge_id_missing finding, got %d:\n%+v", hits, findings)
 	}
 }
 
@@ -119,8 +84,7 @@ func TestT10_BuildLiveC1_AuditsClean(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("c4-l1-build: %v\n%s", err, out)
 	}
-	mdPath := filepath.Join(tmpDir, "c1-engram-system.md")
-	findings, err := auditFile(context.Background(), mdPath)
+	findings, err := auditFile(context.Background(), specPath)
 	if err != nil {
 		t.Fatalf("audit: %v", err)
 	}
@@ -352,136 +316,15 @@ func TestT1_TargsRegistered(t *testing.T) {
 	}
 }
 
-func TestT2_AuditClean_NoFindings(t *testing.T) {
-	t.Parallel()
-
-	findings, err := auditFile(context.Background(), "testdata/c4/audit_clean.md")
-	if err != nil {
-		t.Fatalf("auditFile: %v", err)
-	}
-	if len(findings) != 0 {
-		t.Errorf("want 0 findings, got %d:\n%v", len(findings), findings)
-	}
-}
-
-func TestT2_AuditDirtyFrontmatter_AllFindings(t *testing.T) {
-	t.Parallel()
-
-	findings, err := auditFile(context.Background(), "testdata/c4/audit_dirty_frontmatter.md")
-	if err != nil {
-		t.Fatalf("auditFile: %v", err)
-	}
-	wantIDs := map[string]bool{
-		"front_matter_field_missing":   false,
-		"level_invalid":                false,
-		"name_filename_mismatch":       false,
-		"parent_missing":               false,
-		"last_reviewed_commit_invalid": false,
-	}
-	for _, finding := range findings {
-		if _, ok := wantIDs[finding.ID]; ok {
-			wantIDs[finding.ID] = true
-		}
-	}
-	hits := 0
-	for _, present := range wantIDs {
-		if present {
-			hits++
-		}
-	}
-	if hits < 3 {
-		t.Errorf("want >=3 distinct front-matter findings, got %d:\n%+v", hits, findings)
-	}
-}
-
-func TestT3_AuditDirtyMermaid_FindsBlockIssues(t *testing.T) {
-	t.Parallel()
-
-	findings, err := auditFile(context.Background(), "testdata/c4/audit_dirty_mermaid.md")
-	if err != nil {
-		t.Fatalf("auditFile: %v", err)
-	}
-	wantIDs := []string{"classdef_missing", "node_id_missing", "edge_id_missing"}
-	got := map[string]bool{}
-	for _, finding := range findings {
-		got[finding.ID] = true
-	}
-	for _, id := range wantIDs {
-		if !got[id] {
-			t.Errorf("missing finding id %q in:\n%+v", id, findings)
-		}
-	}
-}
-
-func TestT4_AuditDirtyOrphans_FindsBidirectionalMismatch(t *testing.T) {
-	t.Parallel()
-
-	findings, err := auditFile(context.Background(), "testdata/c4/audit_dirty_orphans.md")
-	if err != nil {
-		t.Fatalf("auditFile: %v", err)
-	}
-	wantIDs := []string{"node_orphan", "catalog_orphan", "edge_orphan", "relationships_orphan"}
-	got := map[string]bool{}
-	for _, finding := range findings {
-		got[finding.ID] = true
-	}
-	for _, id := range wantIDs {
-		if !got[id] {
-			t.Errorf("missing finding %q in:\n%+v", id, findings)
-		}
-	}
-}
-
-func TestT5_AuditDirtyAnchors_FindsClickAndAnchorIssues(t *testing.T) {
-	t.Parallel()
-
-	findings, err := auditFile(context.Background(), "testdata/c4/audit_dirty_anchors.md")
-	if err != nil {
-		t.Fatalf("auditFile: %v", err)
-	}
-	// Note: the "click_missing" check (every node must have a click directive)
-	// was dropped when diagrams moved to pre-rendered SVG — clicks don't carry
-	// through static SVG so they're optional in the .mmd source. Anchor checks
-	// (click_target_unresolved, anchor_missing) remain because in-page links
-	// into catalog/relationships rows still resolve in the markdown body.
-	wantIDs := []string{"click_target_unresolved", "anchor_missing"}
-	got := map[string]bool{}
-	for _, finding := range findings {
-		got[finding.ID] = true
-	}
-	for _, id := range wantIDs {
-		if !got[id] {
-			t.Errorf("missing finding %q in:\n%+v", id, findings)
-		}
-	}
-}
-
 func TestT5_AuditLiveC1_ZeroFindings(t *testing.T) {
 	t.Parallel()
 
-	findings, err := auditFile(context.Background(), "../architecture/c4/c1-engram-system.md")
+	findings, err := auditFile(context.Background(), "../architecture/c4/c1-engram-system.json")
 	if err != nil {
 		t.Fatalf("auditFile: %v", err)
 	}
 	if len(findings) != 0 {
 		t.Errorf("live c1 should audit clean; got %d findings:\n%+v", len(findings), findings)
-	}
-}
-
-func TestT6_AuditCLI_JSONFormat(t *testing.T) {
-	t.Parallel()
-
-	cmd := exec.CommandContext(context.Background(),
-		"targ", "c4-audit", "--file", "testdata/c4/audit_dirty_orphans.md", "--json")
-	out, _ := cmd.CombinedOutput()
-	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() == 0 {
-		t.Fatalf("expected non-zero exit, got %d\nout: %s", cmd.ProcessState.ExitCode(), out)
-	}
-	if !strings.Contains(string(out), `"schema_version": "1"`) {
-		t.Errorf("expected JSON with schema_version, got:\n%s", out)
-	}
-	if !strings.Contains(string(out), `"findings":`) {
-		t.Errorf("expected JSON findings array, got:\n%s", out)
 	}
 }
 
@@ -620,20 +463,6 @@ func TestT9_BuildIdempotent(t *testing.T) {
 	}
 	if buf1.String() != buf2.String() {
 		t.Error("emitMarkdown is not deterministic")
-	}
-}
-
-func blockWithEdgeLabel(label string) *mermaidBlock {
-	return &mermaidBlock{
-		startLine: 1,
-		classes:   map[string]bool{"person": true, "external": true, "container": true},
-		nodes: []mermaidNode{
-			{id: "a", label: "S1: from", line: 2},
-			{id: "b", label: "S2: to", line: 3},
-		},
-		edges: []mermaidEdge{
-			{from: "a", to: "b", label: label, line: 4},
-		},
 	}
 }
 
