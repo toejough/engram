@@ -71,94 +71,174 @@ These rules apply at every level. Level-specific rules live in *Level-Specific S
    discipline (per-level enumeration lists, empirical baseline, untested-pointer rule):
    `references/two-tier-extraction.md`.
 
+## Notation
+
+Workflows below use actor-prefixed pseudocode. Read each line as a single message:
+
+- `LLM    → X:    msg` — you (the orchestrator) ask actor X for something.
+- `LLM    ← X:    result` — X returns to you.
+- `LLM:           verb` — internal cognition (no I/O — pure thinking, classifying, deciding).
+- `if … :` / `loop per … :` / `else …` — control flow over the lines below.
+
+Actors: **User** (the human), **Subagent** (a Haiku-class sub-agent dispatched for Tier 1
+wide-scan), **targ** (the build-tool binary — `c4-l*-build`, `c4-render`, `c4-audit`,
+`c4-l1-externals`, `c4-history`, `engram recall`), **FS** (filesystem reads/writes,
+including `git` for commits), **VCS** (`git` specifically when noted).
+
 ## Workflow: `create <level> <name>`
 
-Universal procedure — same shape for L1–L4. Per-level discovery, schema, build target, and
-specifics are tabled below.
+Same shape for L1–L4. Per-level discovery, spec schema, and build target tabled below.
 
-1. Read `architecture/c4/`. Note what exists.
-2. If `level > 1`, read the parent file. The new diagram MUST refine an element of its parent.
-3. **Run discovery via Two-Tier Extraction** (Rule 7). Tier 1 dispatch → wide candidate list.
-   Discovery target per level table.
-4. Read intent: `CLAUDE.md` (project + user-global), `docs/`, `git log --format=full` (scoped
-   for L3/L4 to packages in play; recent N=50 repo-wide for L1/L2 — commit bodies are
-   first-class evidence of *why*), and `engram recall --query "<topic>"`.
-5. **Tier 2 verify.** For each Tier 1 candidate, read source, prune/merge/split, locate
-   exact file:line. **If conflict** between code and intent: stop, present, ask. Record
-   resolutions.
-6. Author `architecture/c4/c<level>-<name>.json` per the level's spec schema.
-7. Run the level's build target.
-8. Run `targ c4-render` to (re)generate any new/stale `.svg`.
-9. Run `targ c4-audit --file architecture/c4/c<level>-<name>.json`. Zero findings. The
-   audit takes the `.json` spec only (the source of truth); rendered `.md`/`.mmd`/`.svg`
-   files are mechanical artifacts and the audit checks them only for staleness via
-   byte-compare against a fresh emit.
-10. Run *Propagation Discipline* sweep (below).
-11. Show the rendered markdown to the user. On approval, commit `.json`, `.md`, `.mmd`, `.svg`.
+```
+LLM      → FS:       read architecture/c4/, CLAUDE.md, docs/
+LLM      ← FS:       existing diagrams, intent
+if level > 1:
+  LLM    → FS:       read parent c<level-1>-*.json
+  LLM    ← FS:       parent IDs, element names
+LLM      → targ:     <per-level discovery target — see table>
+LLM      ← targ:     candidates JSON (externals, commit metadata, ...)
+LLM      → targ:     engram recall --query "<topic>"
+LLM      ← targ:     prior session memories
+LLM      → Subagent: Tier 1 — wide-scan source for candidates (Rule 7)
+LLM      ← Subagent: candidates (each with the WHAT and the WHERE)
+LLM:                 Tier 2 — verify each candidate by re-reading source
+                     prune false positives, merge duplicates, locate file:line
+if code/intent conflict:
+  LLM    → User:     present both views, ask
+  LLM    ← User:     resolution (or → Drift Note)
+LLM      → FS:       author architecture/c4/c<level>-<name>.json
+LLM      → targ:     c4-l<level>-build --input <spec> --noconfirm
+LLM      → targ:     c4-render
+LLM      → targ:     c4-audit --file <spec>
+LLM      ← targ:     findings (must be zero)
+LLM:                 run Propagation Discipline sweep (below)
+LLM      → User:     show rendered markdown
+LLM      ← User:     approve
+LLM      → VCS:      stage + commit .json + .md + .mmd + .svg
+```
 
-| Level | Discovery (Tier 1 input) | Spec schema | Build target | Specifics |
+Per-level table:
+
+| Level | Tier 1 discovery surface | Spec schema | Build target | Specifics |
 |---|---|---|---|---|
-| 1 | `targ c4-l1-externals --root . --packages ./...` + `targ c4-history --since 90d --limit 50` | `L1Spec` (see `dev/c4_l1.go`) | `targ c4-l1-build` | *L1 specifics* |
-| 2 | Manual scan + Tier 1 sub-agent over the in-scope L1 element's source surface | `L2Spec` (see `dev/c4_l2.go`) | `targ c4-l2-build` | *L2 specifics* |
-| 3 | Tier 1 sub-agent over packages/files in scope | `L3Spec` (see `dev/c4_l3.go`) | `targ c4-l3-build` | *L3 specifics* |
-| 4 | Tier 1 sub-agent over the focus component's source | `L4Spec` (see `dev/c4_l4.go`) | `targ c4-l4-build` | *L4 specifics* |
+| 1 | `targ c4-l1-externals --root . --packages ./...` + `targ c4-history --since 90d --limit 50` | `L1Spec` (`dev/c4_l1.go`) | `targ c4-l1-build` | *L1 specifics* |
+| 2 | repo top + in-scope L1 element's source surface | `L2Spec` (`dev/c4_l2.go`) | `targ c4-l2-build` | *L2 specifics* |
+| 3 | packages/files inside the focus container | `L3Spec` (`dev/c4_l3.go`) | `targ c4-l3-build` | *L3 specifics* |
+| 4 | focus component's source | `L4Spec` (`dev/c4_l4.go`) | `targ c4-l4-build` | *L4 specifics* |
 
 ## Workflow: `update <name>`
 
-1. Read the target file and its parent + children (per the file's front-matter `parent` and
-   `children` fields).
-2. Take the user's requested change.
-3. Re-ground in code (steps 3–5 of `create`, scoped to affected packages — Two-Tier
-   Extraction still applies to any re-discovery work).
-4. Resolve any new code/intent conflicts via ask-the-user.
-5. Draft the new diagram + catalog state.
-6. **Classify the change** so propagation knows what to do:
-   - **Renamed element** → parent's `from_parent` carry-over and every child's `from_parent`
-     carry-over need the same rename. Mermaid edges using the old name need rewriting.
-   - **Removed element** → parent's `from_parent` reference is orphaned; any child whose
-     `focus.id` matches the removed ID is invalidated.
-   - **New element** → parent's catalog should add a corresponding entry; an L(N+1) child can
-     be scaffolded.
-   - **Changed responsibility/relationship** → parent's matching prose may drift; children
-     whose `from_parent` element previously had a different responsibility need a re-read.
-   - **L3 source change** → the audit's `source_path_unresolved` finding catches dead
-     paths automatically on next audit.
-7. Edit JSON, run the level's build target, run `targ c4-render`, run `targ c4-audit`.
-8. Run *Propagation Discipline* sweep.
-9. Present, in order: the target-layer diff, then per-affected-layer proposed change. Each
-   proposed edit is a unified diff with a one-line reason.
-10. For each proposal, the user picks `[a]pply`, `[s]kip`, or `[d]efer`. Apply approved
-    edits. Persist deferred ones as drift notes in the target file.
+```
+LLM      ← User:     change request
+LLM      → FS:       read target c<level>-<name>.json + parent + children
+LLM      ← FS:       linked specs
+LLM      → FS:       re-read affected packages
+LLM      ← FS:       current code
+LLM:                 judge — does the change touch identification (new/renamed/removed
+                     elements that need re-discovery, vs purely a description tweak)?
+if yes:
+  LLM    → Subagent: Tier 1 — re-discover (Rule 7)
+  LLM    ← Subagent: candidates
+  LLM:               Tier 2 — verify
+if new code/intent conflict:
+  LLM    → User:     present, ask
+  LLM    ← User:     resolution (or → Drift Note)
+LLM:                 classify change (see classification cheat sheet below)
+LLM      → FS:       edit target spec
+LLM      → targ:     c4-l<level>-build --input <spec> --noconfirm
+LLM      → targ:     c4-render
+LLM      → targ:     c4-audit --file <spec>
+LLM      ← targ:     findings
+LLM:                 run Propagation Discipline sweep (below)
+LLM      → User:     present target diff + per-affected-file proposed changes
+                     (each = unified diff + one-line reason)
+loop per propagation proposal:
+  LLM    ← User:     [a]pply | [s]kip | [d]efer
+  if apply:
+    LLM  → FS:       edit affected spec
+    LLM  → targ:     rebuild affected
+  if defer:
+    LLM  → FS:       append Drift Note to target spec
+LLM      → User:     present final diff
+LLM      ← User:     approve commit
+LLM      → VCS:      stage + commit
+```
+
+Change-classification cheat sheet (drives what propagation must touch):
+
+- **Renamed element** → parent's `from_parent` carry-over and every child's `from_parent`
+  carry-over need the same rename.
+- **Removed element** → parent's `from_parent` reference is orphaned, any child whose
+  `focus.id` matches the removed ID is invalidated.
+- **New element** → parent's catalog should add a corresponding entry, an L(N+1) child
+  can be scaffolded.
+- **Changed responsibility/relationship** → parent's matching prose may drift, children
+  whose `from_parent` element previously had a different responsibility need a re-read.
+- **L3 source change** → audit's `source_path_unresolved` catches dead paths on next audit.
 
 ## Workflow: `audit [<name>]`
 
-Read-only. With `<name>`: steps 1–4 of `update` against that file, then output a report —
-drift findings, missing cross-links, broken code/test pointers, untested L4 properties added
-since last audit, AND **ID-mismatch findings** (diagram nodes/edges whose IDs don't match
-catalog/relationships rows, or vice versa). Without `<name>`: loop the same over every file
-in `architecture/c4/` and produce a roll-up. No edits in either mode.
+Read-only. With `<name>` = scoped to one spec, without = sweep `architecture/c4/`. No
+edits in either mode.
+
+```
+if <name> given:
+  LLM    → targ:     c4-audit --file architecture/c4/c<level>-<name>.json
+  LLM    ← targ:     findings
+else (sweep):
+  LLM    → FS:       list architecture/c4/c*-*.json
+  LLM    ← FS:       file list
+  loop per spec:
+    LLM  → targ:     c4-audit --file <spec>
+    LLM  ← targ:     findings for <spec>
+LLM:                 roll up findings (per file or aggregate)
+LLM      → User:     drift report
+```
+
+The audit takes the `.json` spec only — passing `.md` is rejected with a hint. Finding
+IDs include: `spec_invalid`, `source_path_unresolved` (L1/L2/L3),
+`property_link_unresolved` (L4), `l4_carryover` (L4↔L3 element parity),
+`rendered_markdown_missing` / `rendered_markdown_stale` (byte-compare against fresh emit).
 
 ## Propagation Discipline
 
 A C4 set is interconnected. Whenever you create or rename/remove an element another
 diagram references, propagate. Skipping = drift on the next audit.
 
-**Required sweep after any create or update:**
+Required sweep after any `create` or `update`:
 
-1. **Update parent's `cross_links.refined_by`** in the parent JSON; rerun the parent's build.
-   This step is required even when the parent already has unrelated drift in `refined_by` —
-   fix it now or capture as a Drift Note. (The front-matter `children` field is currently
-   hard-stamped `[]` by the build target and is not the propagation surface — work through
-   `cross_links.refined_by` only.)
-2. **Rebuild siblings.** For any peer at the same level whose `parent` matches the changed
-   file, rerun the build target so its auto-generated "Siblings:" cross-link section
-   refreshes. Idempotent — only auto-generated sections diff.
-3. **Walk children.** For every child of the modified file, check whether its `from_parent`
-   carry-overs still match the parent's element names and IDs. Rebuild any whose
-   carry-overs drift.
-4. **Sweep audit.** Run `targ c4-audit --file <spec>.json` on every modified spec. Zero
-   findings. Capture intentional gaps as Drift Notes. The audit reads the JSON spec; do
-   not pass a rendered `.md` (it will be rejected with a hint).
+```
+if level > 1:
+  LLM    → FS:       open parent c<level-1> spec
+  LLM    → User:     propose update to parent's `cross_links.refined_by`
+  LLM    ← User:     [a]pply | [s]kip | [d]efer
+  if apply:
+    LLM  → FS:       edit parent spec
+    LLM  → targ:     c4-l<level-1>-build (rebuild parent's auto sections)
+LLM      → FS:       list architecture/c4/c<level>-*.json
+LLM      ← FS:       sibling peer files
+LLM:                 filter to peers whose `parent` matches the changed file
+loop per sibling peer:
+  LLM    → targ:     c4-l<level>-build (idempotent — no JSON edit, no approval)
+LLM      → FS:       list architecture/c4/c<child-level>-*.json
+LLM      ← FS:       candidate children
+LLM:                 filter to children whose `parent` matches the modified file
+loop per child:
+  LLM    → FS:       check `from_parent` carry-overs vs current parent
+  if drift:
+    LLM  → User:     propose carry-over update
+    LLM  ← User:     [a]pply | [s]kip | [d]efer
+    if apply:
+      LLM → FS:      edit child spec
+      LLM → targ:    c4-l<child-level>-build
+LLM      → targ:     c4-audit --file <each-modified-spec>
+LLM      ← targ:     findings (target zero, or recorded as Drift Notes)
+```
+
+Idempotent rebuilds of auto-generated sections (mermaid block, catalog, cross-links —
+anything `c4-l*-build` regenerates) are propagation, not edits, and don't require
+approval. JSON edits to non-target specs DO. (Rule 3.) The front-matter `children` field
+is hard-stamped `[]` by the build target — work through `cross_links.refined_by` only.
 
 ### Common rationalizations to reject
 
