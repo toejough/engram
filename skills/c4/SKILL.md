@@ -122,12 +122,17 @@ LLM      → VCS:      stage + commit .json + .md + .mmd + .svg
 
 Per-level table:
 
-| Level | Tier 1 discovery surface | Spec schema | Build target | Specifics |
-|---|---|---|---|---|
-| 1 | `targ c4-l1-externals --root . --packages ./...` + `targ c4-history --since 90d --limit 50` | `L1Spec` (`dev/c4_l1.go`) | `targ c4-l1-build` | *L1 specifics* |
-| 2 | repo top + in-scope L1 element's source surface | `L2Spec` (`dev/c4_l2.go`) | `targ c4-l2-build` | *L2 specifics* |
-| 3 | packages/files inside the focus container | `L3Spec` (`dev/c4_l3.go`) | `targ c4-l3-build` | *L3 specifics* |
-| 4 | focus component's source | `L4Spec` (`dev/c4_l4.go`) | `targ c4-l4-build` | *L4 specifics* |
+| Level | Tier 1 discovery surface | Build target | Specifics |
+|---|---|---|---|
+| 1 | `targ c4-l1-externals --root . --packages ./...` + `targ c4-history --since 90d --limit 50` | `targ c4-l1-build` | *L1 specifics* |
+| 2 | repo top + in-scope L1 element's source surface | `targ c4-l2-build` | *L2 specifics* |
+| 3 | packages/files inside the focus container | `targ c4-l3-build` | *L3 specifics* |
+| 4 | focus component's source | `targ c4-l4-build` | *L4 specifics* |
+
+For the JSON spec shape per level, copy from an existing
+`architecture/c4/c<level>-*.json` as a template. For the canonical schema (field types,
+required vs optional, validation rules), see `references/spec-schemas.md`. The build
+target validates and rejects malformed input with a clear error.
 
 ## Workflow: `update <name>`
 
@@ -332,6 +337,9 @@ validation) before authoring. A complete worked example lives at
   schemas + untested-property discipline.
 - `references/two-tier-extraction.md` — Tier 1/Tier 2 discipline, per-level enumeration
   lists, empirical baseline.
+- `references/spec-schemas.md` — per-level JSON spec schema source-of-truth pointers
+  (Go struct names + files), authoring shortcuts, when to read the struct vs copy a
+  sibling.
 - `references/worked-example-c4-recall.md` — c4-recall walk-through (call + wiring +
   manifest).
 - `references/templates/c<1-4>-template.md` — per-level starter scaffolds.
