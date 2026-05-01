@@ -43,11 +43,13 @@ type ListArgs struct {
 
 // RecallArgs holds parsed flags for the recall subcommand.
 type RecallArgs struct {
-	DataDir      string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	ProjectSlug  string `targ:"flag,name=project-slug,desc=project directory slug"`
-	Query        string `targ:"flag,name=query,desc=search query (omit for summary mode)"`
-	MemoriesOnly bool   `targ:"flag,name=memories-only,desc=search only memory files"`
-	Limit        int    `targ:"flag,name=limit,desc=max memories to return (default 10)"`
+	DataDir           string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	ProjectSlug       string `targ:"flag,name=project-slug,desc=project directory slug"`
+	Query             string `targ:"flag,name=query,desc=search query (omit for summary mode)"`
+	MemoriesOnly      bool   `targ:"flag,name=memories-only,desc=search only memory files"`
+	Limit             int    `targ:"flag,name=limit,desc=max memories to return (default 10)"`
+	TranscriptDir     string `targ:"flag,name=transcript-dir,env=ENGRAM_TRANSCRIPT_DIR,desc=override transcript directory"`
+	NoExternalSources bool   `targ:"flag,name=no-external-sources,desc=skip external source discovery"`
 }
 
 // ShowArgs holds parsed flags for the show subcommand.

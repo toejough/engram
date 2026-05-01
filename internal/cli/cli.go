@@ -192,6 +192,7 @@ func runRecall(ctx context.Context, args RecallArgs, stdout io.Writer) error {
 	return runRecallSessions(
 		ctx, stdout, &projectSlug, summarizer, memLister,
 		dataDir, args.Query, os.Getwd, os.UserHomeDir,
+		args.TranscriptDir, args.NoExternalSources,
 	)
 }
 
@@ -222,6 +223,8 @@ func runRecallSessions(
 	dataDir, query string,
 	getwd func() (string, error),
 	userHomeDir func() (string, error),
+	transcriptDir string,
+	noExternalSources bool,
 ) error {
 	slugErr := applyProjectSlugDefault(projectSlug, getwd)
 	if slugErr != nil {
@@ -233,17 +236,24 @@ func runRecallSessions(
 		return fmt.Errorf("recall: %w", homeErr)
 	}
 
-	projectDir := filepath.Join(home, ".claude", "projects", *projectSlug)
+	var projectDir string
+	if transcriptDir != "" {
+		projectDir = transcriptDir
+	} else {
+		projectDir = filepath.Join(home, ".claude", "projects", *projectSlug)
+	}
 
 	finder := recall.NewSessionFinder(&osDirLister{})
 	reader := recall.NewTranscriptReader(&osFileReader{})
 
-	externalFiles, externalCache := discoverExternalSources(ctx, home)
+	opts := []recall.OrchestratorOption{recall.WithStatusWriter(os.Stderr)}
 
-	orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, dataDir,
-		recall.WithStatusWriter(os.Stderr),
-		recall.WithExternalSources(externalFiles, externalCache),
-	)
+	if !noExternalSources {
+		externalFiles, externalCache := discoverExternalSources(ctx, home)
+		opts = append(opts, recall.WithExternalSources(externalFiles, externalCache))
+	}
+
+	orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, dataDir, opts...)
 
 	result, err := orch.Recall(ctx, projectDir, query)
 	if err != nil {

@@ -245,6 +245,96 @@ func TestRunRecall(t *testing.T) {
 	})
 }
 
+func TestRunRecallOpenCodeFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no-external-sources flag accepted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dataDir := t.TempDir()
+		projectSlug := "test-no-external-sources"
+
+		home, homeErr := os.UserHomeDir()
+		g.Expect(homeErr).NotTo(gomega.HaveOccurred())
+
+		if homeErr != nil {
+			return
+		}
+
+		projectDir := filepath.Join(home, ".claude", "projects", projectSlug)
+		g.Expect(os.MkdirAll(projectDir, 0o750)).To(gomega.Succeed())
+
+		t.Cleanup(func() { _ = os.RemoveAll(projectDir) })
+
+		_, stderr := executeForTest(t, []string{
+			"engram", "recall",
+			"--data-dir", dataDir,
+			"--project-slug", projectSlug,
+			"--no-external-sources",
+		})
+		g.Expect(stderr).To(gomega.BeEmpty())
+	})
+
+	t.Run("transcript-dir flag accepted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dataDir := t.TempDir()
+		transcriptDir := t.TempDir()
+
+		_, stderr := executeForTest(t, []string{
+			"engram", "recall",
+			"--data-dir", dataDir,
+			"--transcript-dir", transcriptDir,
+			"--no-external-sources",
+		})
+		g.Expect(stderr).To(gomega.BeEmpty())
+	})
+
+	t.Run("sessions uses transcript-dir when provided", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var buf bytes.Buffer
+
+		transcriptDir := t.TempDir()
+
+		err := cli.ExportRunRecallSessionsWithOpts(
+			context.Background(), &buf,
+			"", nil, nil, t.TempDir(), "",
+			func() (string, error) { return "/fake", nil },
+			func() (string, error) { return "/home", nil },
+			transcriptDir,
+			true,
+		)
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+	})
+
+	t.Run("sessions with external sources enabled", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var buf bytes.Buffer
+
+		home := t.TempDir()
+		projectDir := filepath.Join(home, ".claude", "projects", "test-external")
+		g.Expect(os.MkdirAll(projectDir, 0o750)).To(gomega.Succeed())
+
+		t.Cleanup(func() { _ = os.RemoveAll(projectDir) })
+
+		err := cli.ExportRunRecallSessionsWithOpts(
+			context.Background(), &buf,
+			"test-external", nil, nil, t.TempDir(), "",
+			func() (string, error) { return "/fake", nil },
+			func() (string, error) { return home, nil },
+			"",
+			false,
+		)
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+	})
+}
+
 func TestRunSafe(t *testing.T) {
 	t.Parallel()
 

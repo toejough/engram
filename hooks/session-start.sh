@@ -4,7 +4,7 @@ set -euo pipefail
 # SessionStart hook — announce memory skills, surface memories, build binary if needed.
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-ENGRAM_HOME="${HOME}/.claude/engram"
+ENGRAM_HOME="${HOME}/.local/share/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
 
 # --- Sync portion: announce skills ---
