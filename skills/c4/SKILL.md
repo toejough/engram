@@ -24,9 +24,10 @@ The user invokes `/c4 <sub-action> [args]`.
 These rules apply at every level. Level-specific rules live in *Level-Specific Sections*.
 
 1. **Ask, don't guess, on code/intent conflict.** When code reality and intent (docs / commit
-   bodies / session memory) disagree, STOP. Present both views. Ask the user. If they choose
-   to record the gap rather than resolve it now, file an issue (via the available
-   issue-filing skill); otherwise proceed per their answer.
+   bodies / session memory) disagree, STOP. Present both views. Ask the user. Deferred gaps
+   and skipped propagation proposals become issues via the available issue-filing skill —
+   never inline drift annotations. (Legacy `## Drift Notes` sections are read-only; surface
+   them as input to the issue-filing decision.)
 2. **Never invent pointers.** L4 properties without tests are **⚠ UNTESTED**. L3 components
    without `source` are flagged. L1/L2 elements with a path-like `source` that doesn't resolve
    are flagged. Don't fabricate file:line references at any level. **Every catalog row carries
@@ -49,42 +50,23 @@ These rules apply at every level. Level-specific rules live in *Level-Specific S
 6. **Pre-render every diagram to SVG via `targ c4-render` and commit both `.mmd` and `.svg`.**
    GitHub's Mermaid renderer doesn't support the ELK layout engine; pre-rendering is
    required for clean R-edge layout.
-7. **Two-Tier Extraction Discipline applies to every "scan source for findings" task at every level.**
-   Single-pass authoring is forbidden. Tier 1 (Haiku-class sub-agent) wide-scans the source
-   and enumerates every plausible candidate — Tier 1 owns recall and biases toward too many.
-   Tier 2 (Sonnet-class+ — typically you, the orchestrator) verifies each candidate against
-   source, prunes false positives, merges near-duplicates, splits conflated rows, locates
-   exact file:line, marks genuinely unverifiable items as untested/unfound — Tier 2 owns
-   precision. **Every extraction has two sub-tasks: the *what* (identification) and the
-   *where* (location). Both must go through Tier 1 → Tier 2; Tier 2 must open every *where*
-   pointer and verify it against source.** Per level:
-
-   | Level | What (identify) | Where (locate) |
-   |---|---|---|
-   | L1 | external systems + in-scope system | each element's `source` |
-   | L2 | containers under the in-scope L1 element | each element's `source` |
-   | L3 | components inside the focus container | each component's `source` (file:line path) |
-   | L4 | properties + R-edge property-tag assignments | each property's `enforced_at` + `tested_at` |
-
-   Also applies to any future "mine source artifacts for findings" task. Tier 1 output is
-   **signal**, never the final artifact — never write `c<level>-<name>.json` directly from
-   Tier 1. Tier 2 must read source to verify, not just trust Tier 1's claims. Full
-   discipline (per-level enumeration lists, empirical baseline, untested-pointer rule):
+7. **Two-Tier Extraction.** Every "scan source for findings" task — at every level, for the
+   *what* (identification) and the *where* (location) — runs Tier 1 (Haiku sub-agent,
+   wide-scan recall) → Tier 2 (you, precision verification by re-reading source). Single-pass
+   authoring is forbidden; Tier 1 output is signal, never the final spec. Per-level
+   enumeration lists, the iron rules, and the dispatch template:
    `references/two-tier-extraction.md`.
 
 ## Notation
 
-Workflows below use actor-prefixed pseudocode. Read each line as a single message:
+Workflow lines are single messages: `LLM → X:` outbound, `LLM ← X:` inbound,
+`LLM:` internal cognition, `if/loop/else` control flow. Actors: **User**, **Subagent**
+(Haiku Tier 1), **targ** (`c4-l*-build`, `c4-render`, `c4-audit`, `c4-l1-externals`,
+`c4-history`, `engram recall`), **FS**, **VCS**.
 
-- `LLM    → X:    msg` — you (the orchestrator) ask actor X for something.
-- `LLM    ← X:    result` — X returns to you.
-- `LLM:           verb` — internal cognition (no I/O — pure thinking, classifying, deciding).
-- `if … :` / `loop per … :` / `else …` — control flow over the lines below.
-
-Actors: **User** (the human), **Subagent** (a Haiku-class sub-agent dispatched for Tier 1
-wide-scan), **targ** (the build-tool binary — `c4-l*-build`, `c4-render`, `c4-audit`,
-`c4-l1-externals`, `c4-history`, `engram recall`), **FS** (filesystem reads/writes,
-including `git` for commits), **VCS** (`git` specifically when noted).
+**Memory consultation.** Wherever a workflow says `consult memories`, you query whatever
+memory plugin is installed for prior false positives, conflict resolutions, and
+granularity preferences in this domain. Same step everywhere it appears.
 
 ## Workflow: `create <level> <name>`
 
@@ -102,12 +84,9 @@ LLM      → Subagent: Tier 1 — wide-scan source for candidates (Rule 7)
 LLM      ← Subagent: candidates (each with the WHAT and the WHERE)
 LLM:                 Tier 2 — verify each candidate by re-reading source
                      prune false positives, merge duplicates, locate file:line
-LLM:                 consult memories — Tier 1 patterns that proved misleading
-                     before, granularity preferences, prior false positives
-                     (any installed memory plugin handles the lookup)
+LLM:                 consult memories
 if code/intent conflict:
-  LLM:               consult memories — has this exact conflict been resolved
-                     before? if yes, surface the prior resolution
+  LLM:               consult memories
   LLM    → User:     present both views (and prior resolution if any), ask
   LLM    ← User:     resolution (or → file as issue)
 LLM      → FS:       author architecture/c4/c<level>-<name>.json
@@ -121,14 +100,14 @@ LLM      ← User:     approve
 LLM      → VCS:      stage + commit .json + .md + .mmd + .svg
 ```
 
-Per-level table:
+Per-level discovery surface and build target (per-level rules in *Level-Specific Sections*):
 
-| Level | Tier 1 discovery surface | Build target | Specifics |
-|---|---|---|---|
-| 1 | `targ c4-l1-externals --root . --packages ./...` + `targ c4-history --since 90d --limit 50` | `targ c4-l1-build` | *L1 specifics* |
-| 2 | repo top + in-scope L1 element's source surface | `targ c4-l2-build` | *L2 specifics* |
-| 3 | packages/files inside the focus container | `targ c4-l3-build` | *L3 specifics* |
-| 4 | focus component's source | `targ c4-l4-build` | *L4 specifics* |
+| Level | Tier 1 discovery surface | Build target |
+|---|---|---|
+| 1 | `targ c4-l1-externals --root . --packages ./...` + `targ c4-history --since 90d --limit 50` | `targ c4-l1-build` |
+| 2 | repo top + in-scope L1 element's source surface | `targ c4-l2-build` |
+| 3 | packages/files inside the focus container | `targ c4-l3-build` |
+| 4 | focus component's source | `targ c4-l4-build` |
 
 For the JSON spec shape per level — field names, types, required vs optional,
 validation rules — see `references/spec-schemas.md`. That reference is the source of
@@ -148,14 +127,13 @@ LLM:                 judge — does the change touch identification (new/renamed
 if yes:
   LLM    → Subagent: Tier 1 — re-discover (Rule 7)
   LLM    ← Subagent: candidates
-  LLM:               consult memories — prior false positives in this domain
+  LLM:               consult memories
   LLM:               Tier 2 — verify
 if new code/intent conflict:
-  LLM:               consult memories — was this conflict resolved before?
+  LLM:               consult memories
   LLM    → User:     present (with prior resolution if any), ask
   LLM    ← User:     resolution (or → file as issue)
-LLM:                 consult memories — for this kind of change in this set,
-                     what did the user pick last time?
+LLM:                 consult memories
 LLM:                 classify change (see classification cheat sheet below)
 LLM      → FS:       edit target spec
 LLM      → targ:     c4-l<level>-build --input <spec> --noconfirm
@@ -263,20 +241,6 @@ is hard-stamped `[]` by the build target — work through `cross_links.refined_b
 | "I'll catch it in the next audit" | The next audit may be in a different session, after rationale is lost. Propagate now. |
 | "Single-pass extraction is good enough this time" | Rule 7. Single-pass is forbidden. Tier 1 → Tier 2, every time. |
 
-## Recording deferred work
-
-When the user defers a propagation proposal, or chooses to record a code/intent gap
-rather than resolve it now, file an issue using the available issue-filing skill
-(e.g. the `issue:issue-file` skill). The issue captures: which spec the gap is in,
-what the gap is, the reason it's deferred, and a hint at how to resolve it. Issues are
-the durable record of deferred work — the C4 specs themselves stay clean of inline
-drift annotations.
-
-Existing `## Drift Notes` sections in legacy specs are now read-only; don't add to
-them. When such a section is encountered during `update`, surface it as input to the
-issue-filing decision (whatever was deferred there is still deferred — file an issue
-or resolve it).
-
 ## Level-Specific Sections
 
 ### L1 specifics
@@ -306,53 +270,26 @@ or resolve it).
 
 ### L4 specifics
 
-L4 is the most complex level and has its own schema and conventions. Read
-`references/property-ledger-format.md` (row format + untested-property discipline) and
-`references/mermaid-conventions.md` (call diagram, R-edge property tags, build-time
-validation) before authoring.
+Read `references/property-ledger-format.md` (row format + untested-property discipline)
+and `references/mermaid-conventions.md` (call diagram, R-edge property tags) before
+authoring.
 
-- **One diagram.** A strict C4 call diagram (`<name>.mmd`) with SNMPR-style nodes and
-  `R<n>` runtime-call edges only — no D-edges, no port nodes, no `W`/`A` namespaces.
+- **One strict C4 call diagram.** SNMPR-style nodes, `R<n>` runtime-call edges only — no
+  D-edges, no port nodes, no `W`/`A` namespaces.
 - **Externals required on the call diagram.** Every external system the focus crosses to
-  (filesystem, OS, network, Anthropic API, Claude Code, etc.) must appear as a node with
-  at least one R-edge from the focus.
-- **R-edge property tags.** Each R-edge label may end with the P-IDs the call realizes:
-  `R8: ... [P3, P4, P9, P10]`. Use range notation for contiguous P-runs (`[P5–P8]`).
-- **Two-Tier Extraction (Rule 7) applies with extra rigor.** Tier 1 enumerates three
-  candidate types: properties, call-diagram nodes, R-edge property tags. Tier 2 verifies
-  each against source — never invent test pointers, never invent externals not actually
-  crossed. See `references/two-tier-extraction.md` for the full per-tier enumeration lists.
-- **`property_link_unresolved` audit finding** catches dead enforced/tested paths.
+  must appear as a node with at least one R-edge from the focus.
+- **Tier 1 enumerates** properties, call-diagram nodes, and R-edge property tags;
+  never invent test pointers or externals not actually crossed.
+- **`property_link_unresolved`** audit finding catches dead enforced/tested paths.
 
 ## References (load on demand)
 
-- `references/c4-principles.md` — the 4 abstractions, 4 levels, common pitfalls.
-- `references/mermaid-conventions.md` — classDef + shape conventions + ID namespace + L4
-  call diagrams + GitHub quirks + render setup.
-- `references/property-ledger-format.md` — L4 row format + untested-property discipline.
-- `references/two-tier-extraction.md` — Tier 1/Tier 2 discipline, per-level enumeration
-  lists, empirical baseline.
-- `references/spec-schemas.md` — per-level JSON spec schema source-of-truth pointers
-  (Go struct names + files), authoring shortcuts, when to read the struct vs copy a
-  sibling.
-- `references/templates/c<1-4>-template.md` — per-level starter scaffolds.
+| File | Use when |
+|---|---|
+| `references/c4-principles.md` | learning the 4 abstractions / 4 levels / common pitfalls |
+| `references/mermaid-conventions.md` | authoring diagrams (classDef, shapes, ID namespace, L4 call diagram, render setup) |
+| `references/property-ledger-format.md` | authoring L4 (row format, untested-property discipline) |
+| `references/two-tier-extraction.md` | dispatching Tier 1, verifying Tier 2 (per-level enumeration, dispatch template) |
+| `references/spec-schemas.md` | finding the canonical Go-struct schema for a level |
+| `references/templates/c<1-4>-template.md` | scaffolding a new spec |
 
-## Verification
-
-This skill was verified with:
-
-1. **Behavioral RED/GREEN test** — `tests/baseline-output-no-skill.md` vs.
-   `tests/baseline-output-with-skill.md`. The skill-loaded run must produce a file at
-   `architecture/c4/c1-<name>.md` with mermaid classDef block, element catalog,
-   relationships table, and explicit cross-links to L2.
-2. **Pressure test 1 — code/intent conflict** (`tests/pressure-conflict.md`): given docs
-   that disagree with code, the skill must surface the conflict and ask, not silently pick one.
-3. **Pressure test 2 — propagation** (`tests/pressure-propagation.md`): renaming a
-   container at L2 must trigger proposed updates to the L1 parent and every L3 child file
-   referencing it.
-4. **Pressure test 3 — L4 untested property** (`tests/pressure-untested-property.md`):
-   given a real invariant with no test, the skill must mark it **⚠ UNTESTED**, not omit it
-   and not fabricate a test link.
-5. **Pressure test 4 — Two-Tier Extraction at L3** (`tests/pressure-two-tier-l3.md`): given
-   an L3 component-identification task, the skill must dispatch a Tier 1 sub-agent before
-   Tier 2 verification, not single-pass identify.
