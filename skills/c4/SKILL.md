@@ -97,14 +97,17 @@ if level > 1:
   LLM    ← FS:       parent IDs, element names
 LLM      → targ:     <per-level discovery target — see table>
 LLM      ← targ:     candidates JSON (externals, commit metadata, ...)
-LLM      → targ:     engram recall --query "<topic>"
-LLM      ← targ:     prior session memories
 LLM      → Subagent: Tier 1 — wide-scan source for candidates (Rule 7)
 LLM      ← Subagent: candidates (each with the WHAT and the WHERE)
 LLM:                 Tier 2 — verify each candidate by re-reading source
                      prune false positives, merge duplicates, locate file:line
+LLM:                 consult memories — Tier 1 patterns that proved misleading
+                     before, granularity preferences, prior false positives
+                     (any installed memory plugin handles the lookup)
 if code/intent conflict:
-  LLM    → User:     present both views, ask
+  LLM:               consult memories — has this exact conflict been resolved
+                     before? if yes, surface the prior resolution
+  LLM    → User:     present both views (and prior resolution if any), ask
   LLM    ← User:     resolution (or → Drift Note)
 LLM      → FS:       author architecture/c4/c<level>-<name>.json
 LLM      → targ:     c4-l<level>-build --input <spec> --noconfirm
@@ -139,10 +142,14 @@ LLM:                 judge — does the change touch identification (new/renamed
 if yes:
   LLM    → Subagent: Tier 1 — re-discover (Rule 7)
   LLM    ← Subagent: candidates
+  LLM:               consult memories — prior false positives in this domain
   LLM:               Tier 2 — verify
 if new code/intent conflict:
-  LLM    → User:     present, ask
+  LLM:               consult memories — was this conflict resolved before?
+  LLM    → User:     present (with prior resolution if any), ask
   LLM    ← User:     resolution (or → Drift Note)
+LLM:                 consult memories — for this kind of change in this set,
+                     what did the user pick last time?
 LLM:                 classify change (see classification cheat sheet below)
 LLM      → FS:       edit target spec
 LLM      → targ:     c4-l<level>-build --input <spec> --noconfirm
