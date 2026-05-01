@@ -129,10 +129,10 @@ Per-level table:
 | 3 | packages/files inside the focus container | `targ c4-l3-build` | *L3 specifics* |
 | 4 | focus component's source | `targ c4-l4-build` | *L4 specifics* |
 
-For the JSON spec shape per level, copy from an existing
-`architecture/c4/c<level>-*.json` as a template. For the canonical schema (field types,
-required vs optional, validation rules), see `references/spec-schemas.md`. The build
-target validates and rejects malformed input with a clear error.
+For the JSON spec shape per level — field names, types, required vs optional,
+validation rules — see `references/spec-schemas.md`. That reference is the source of
+truth for authoring. The build target validates and rejects malformed input with a
+clear error.
 
 ## Workflow: `update <name>`
 
