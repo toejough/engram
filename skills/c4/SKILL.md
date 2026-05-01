@@ -24,8 +24,9 @@ The user invokes `/c4 <sub-action> [args]`.
 These rules apply at every level. Level-specific rules live in *Level-Specific Sections*.
 
 1. **Ask, don't guess, on code/intent conflict.** When code reality and intent (docs / commit
-   bodies / session memory) disagree, STOP. Present both views. Ask the user. Record the
-   resolution as a drift note or proceed per their answer.
+   bodies / session memory) disagree, STOP. Present both views. Ask the user. If they choose
+   to record the gap rather than resolve it now, file an issue (via the available
+   issue-filing skill); otherwise proceed per their answer.
 2. **Never invent pointers.** L4 properties without tests are **⚠ UNTESTED**. L3 components
    without `source` are flagged. L1/L2 elements with a path-like `source` that doesn't resolve
    are flagged. Don't fabricate file:line references at any level. **Every catalog row carries
@@ -108,7 +109,7 @@ if code/intent conflict:
   LLM:               consult memories — has this exact conflict been resolved
                      before? if yes, surface the prior resolution
   LLM    → User:     present both views (and prior resolution if any), ask
-  LLM    ← User:     resolution (or → Drift Note)
+  LLM    ← User:     resolution (or → file as issue)
 LLM      → FS:       author architecture/c4/c<level>-<name>.json
 LLM      → targ:     c4-l<level>-build --input <spec> --noconfirm
 LLM      → targ:     c4-render
@@ -152,7 +153,7 @@ if yes:
 if new code/intent conflict:
   LLM:               consult memories — was this conflict resolved before?
   LLM    → User:     present (with prior resolution if any), ask
-  LLM    ← User:     resolution (or → Drift Note)
+  LLM    ← User:     resolution (or → file as issue)
 LLM:                 consult memories — for this kind of change in this set,
                      what did the user pick last time?
 LLM:                 classify change (see classification cheat sheet below)
@@ -170,7 +171,7 @@ loop per propagation proposal:
     LLM  → FS:       edit affected spec
     LLM  → targ:     rebuild affected
   if defer:
-    LLM  → FS:       append Drift Note to target spec
+    LLM  → issues:   file gap as issue (via available issue-filing skill)
 LLM      → User:     present final diff
 LLM      ← User:     approve commit
 LLM      → VCS:      stage + commit
@@ -244,7 +245,7 @@ loop per child:
       LLM → FS:      edit child spec
       LLM → targ:    c4-l<child-level>-build
 LLM      → targ:     c4-audit --file <each-modified-spec>
-LLM      ← targ:     findings (target zero, or recorded as Drift Notes)
+LLM      ← targ:     findings (target zero, or filed as issues)
 ```
 
 Idempotent rebuilds of auto-generated sections (mermaid block, catalog, cross-links —
@@ -256,24 +257,25 @@ is hard-stamped `[]` by the build target — work through `cross_links.refined_b
 
 | Excuse | Reality |
 |---|---|
-| "Pre-existing drift, not caused by my change" | Touching this set means leaving known drift creates audit findings on the next run. Fix it as part of your change, or capture it as a Drift Note. |
+| "Pre-existing drift, not caused by my change" | Touching this set means leaving known drift creates audit findings on the next run. Fix it as part of your change, or file it as an issue. |
 | "The change is too small to need propagation" | Every C4 file cross-references peers. Skipping the sweep means `c4-audit` surfaces conflicts later when context is gone. |
 | "Rebuilding peers feels like editing files I shouldn't" | Idempotent rebuilds of auto-generated sections are propagation; see Rule 3. |
 | "I'll catch it in the next audit" | The next audit may be in a different session, after rationale is lost. Propagate now. |
 | "Single-pass extraction is good enough this time" | Rule 7. Single-pass is forbidden. Tier 1 → Tier 2, every time. |
 
-## Drift Notes
+## Recording deferred work
 
-When the user defers a propagation proposal or chooses to record a code/intent gap rather
-than resolve it, append to a `## Drift Notes` section at the bottom of the target file:
+When the user defers a propagation proposal, or chooses to record a code/intent gap
+rather than resolve it now, file an issue using the available issue-filing skill
+(e.g. the `issue:issue-file` skill). The issue captures: which spec the gap is in,
+what the gap is, the reason it's deferred, and a hint at how to resolve it. Issues are
+the durable record of deferred work — the C4 specs themselves stay clean of inline
+drift annotations.
 
-```markdown
-## Drift Notes
-
-- **YYYY-MM-DD** — <one-line description>. Reason: <why deferred>.
-```
-
-Drift notes never silently disappear. They persist until a future `update` resolves them.
+Existing `## Drift Notes` sections in legacy specs are now read-only; don't add to
+them. When such a section is encountered during `update`, surface it as input to the
+issue-filing decision (whatever was deferred there is still deferred — file an issue
+or resolve it).
 
 ## Level-Specific Sections
 
