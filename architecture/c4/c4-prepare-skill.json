@@ -44,7 +44,7 @@
     "**Focus** — yellow (E10 prepare skill).",
     "**Component** — light blue (sibling skills not shown; E9 engram CLI binary as call target).",
     "**External** — grey (E3 Claude Code, the loader).",
-    "**R-edges** — solid; no DI back-edges (the skill is pure markdown — no Go DI surface)."
+    "**R-edges** — solid."
   ],
   "level": 4,
   "name": "prepare-skill",

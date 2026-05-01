@@ -3,7 +3,7 @@ level: 4
 name: prepare-skill
 parent: "c3-skills.md"
 children: []
-last_reviewed_commit: 528263bc
+last_reviewed_commit: 0ec9dfb1
 ---
 
 # C4 — prepare-skill (Property/Invariant Ledger)
@@ -27,7 +27,7 @@ E10 prepare skill is a markdown skill body Claude Code loads on /prepare or auto
 - **Focus** — yellow (E10 prepare skill).
 - **Component** — light blue (sibling skills not shown; E9 engram CLI binary as call target).
 - **External** — grey (E3 Claude Code, the loader).
-- **R-edges** — solid; no DI back-edges (the skill is pure markdown — no Go DI surface).
+- **R-edges** — solid.
 
 ## Property Ledger
 

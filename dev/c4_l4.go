@@ -37,18 +37,6 @@ type L4CodeLink struct {
 	Line int    `json:"line"`
 }
 
-// L4DepRow is one row of the consumer-side Dependency Manifest table.
-type L4DepRow struct {
-	Field           string   `json:"field"`
-	Type            string   `json:"type"`
-	WiredByID       string   `json:"wired_by_id"`
-	WiredByName     string   `json:"wired_by_name"`
-	WiredByL3       string   `json:"wired_by_l3"`
-	WiredByL4       string   `json:"wired_by_l4,omitempty"`
-	WrappedEntityID string   `json:"wrapped_entity_id"`
-	Properties      []string `json:"properties"`
-}
-
 // L4Diagram describes the L4 context-strip mermaid graph.
 type L4Diagram struct {
 	Nodes []L4Node `json:"nodes"`
@@ -93,30 +81,17 @@ type L4Property struct {
 
 // L4Spec is the JSON-source-of-truth representation of a C4 L4 ledger.
 type L4Spec struct {
-	SchemaVersion      string        `json:"schema_version"`
-	Level              int           `json:"level"`
-	Name               string        `json:"name"`
-	Parent             string        `json:"parent"`
-	Focus              L4Focus       `json:"focus"`
-	Sources            []string      `json:"sources"`
-	ContextProse       string        `json:"context_prose"`
-	LegendItems        []string      `json:"legend_items,omitempty"`
-	Diagram            L4Diagram     `json:"diagram"`
-	DependencyManifest []L4DepRow    `json:"dependency_manifest,omitempty"`
-	DIWires            []L4WireRow   `json:"di_wires,omitempty"`
-	Properties         []L4Property  `json:"properties"`
-	DriftNotes         []L1DriftNote `json:"drift_notes,omitempty"`
-}
-
-// L4WireRow is one row of the provider-side DI Wires table.
-type L4WireRow struct {
-	Field           string `json:"field"`
-	Type            string `json:"type"`
-	ConsumerID      string `json:"consumer_id"`
-	ConsumerName    string `json:"consumer_name"`
-	ConsumerL3      string `json:"consumer_l3"`
-	ConsumerL4      string `json:"consumer_l4,omitempty"`
-	WrappedEntityID string `json:"wrapped_entity_id"`
+	SchemaVersion string        `json:"schema_version"`
+	Level         int           `json:"level"`
+	Name          string        `json:"name"`
+	Parent        string        `json:"parent"`
+	Focus         L4Focus       `json:"focus"`
+	Sources       []string      `json:"sources"`
+	ContextProse  string        `json:"context_prose"`
+	LegendItems   []string      `json:"legend_items,omitempty"`
+	Diagram       L4Diagram     `json:"diagram"`
+	Properties    []L4Property  `json:"properties"`
+	DriftNotes    []L1DriftNote `json:"drift_notes,omitempty"`
 }
 
 // unexported variables.
@@ -139,8 +114,6 @@ func c4L4Build(ctx context.Context, args C4L4BuildArgs) error {
 	mdPath := strings.TrimSuffix(args.Input, ".json") + ".md"
 	mmdPath := filepath.Join(filepath.Dir(args.Input), "svg",
 		strings.TrimSuffix(filepath.Base(args.Input), ".json")+".mmd")
-	wiringMmdPath := filepath.Join(filepath.Dir(args.Input), "svg",
-		strings.TrimSuffix(filepath.Base(args.Input), ".json")+"-wiring.mmd")
 	siblings := discoverL4Siblings(args.Input, spec.Parent)
 	var mdBuf bytes.Buffer
 	if emitErr := emitL4Markdown(&mdBuf, spec, sha, siblings); emitErr != nil {
@@ -151,19 +124,7 @@ func c4L4Build(ctx context.Context, args C4L4BuildArgs) error {
 	if err := writeOrCheckMarkdown(mdPath, mdBuf.Bytes(), args.Check, args.NoConfirm); err != nil {
 		return err
 	}
-	if err := writeOrCheckMarkdown(mmdPath, mmdBuf.Bytes(), args.Check, args.NoConfirm); err != nil {
-		return err
-	}
-	// Skip the wiring mmd entirely when there is nothing to show. The
-	// markdown emit applies the same gate (len(manifest) > 0) so the two
-	// stay aligned: no wiring section in the markdown, no wiring file on
-	// disk.
-	if len(spec.DependencyManifest) == 0 {
-		return nil
-	}
-	var wiringBuf bytes.Buffer
-	emitL4WiringMermaid(&wiringBuf, spec)
-	return writeOrCheckMarkdown(wiringMmdPath, wiringBuf.Bytes(), args.Check, args.NoConfirm)
+	return writeOrCheckMarkdown(mmdPath, mmdBuf.Bytes(), args.Check, args.NoConfirm)
 }
 
 // discoverL4Siblings walks the directory of inputPath and returns relative
@@ -230,42 +191,6 @@ func emitL4CrossLinks(buf *bytes.Buffer, spec *L4Spec, siblings []string) {
 	buf.WriteString("discipline.\n\n")
 }
 
-func emitL4DIWires(buf *bytes.Buffer, spec *L4Spec) {
-	buf.WriteString("## DI Wires\n\n")
-	buf.WriteString("Each row is one DI seam this component wires into a consumer. Reciprocal entries\n")
-	buf.WriteString("live in the consumer's L4 under \"Dependency Manifest\".\n\n")
-	buf.WriteString("| Field | Type | Consumer | Wrapped entity |\n")
-	buf.WriteString("|---|---|---|---|\n")
-	for _, row := range spec.DIWires {
-		emitL4WireRow(buf, row)
-	}
-	buf.WriteString("\n")
-}
-
-func emitL4DepRow(buf *bytes.Buffer, row L4DepRow) {
-	wiredBy := fmt.Sprintf("[%s · %s](%s#%s)",
-		row.WiredByID, row.WiredByName, row.WiredByL3, Anchor(row.WiredByID, row.WiredByName))
-	if row.WiredByL4 != "" {
-		wiredBy += fmt.Sprintf(" ([%s](%s))", row.WiredByL4, row.WiredByL4)
-	}
-	fmt.Fprintf(buf, "| `%s` | `%s` | %s | `%s` | %s |\n",
-		row.Field, row.Type, wiredBy, row.WrappedEntityID, formatPropertyList(row.Properties))
-}
-
-func emitL4DependencyManifest(buf *bytes.Buffer, spec *L4Spec) {
-	buf.WriteString("## Dependency Manifest\n\n")
-	buf.WriteString("Each row is one DI seam the focus consumes. The wrapped entity is the diagram\n")
-	buf.WriteString("node (component or external) the seam ultimately drives behavior against; it\n")
-	buf.WriteString("must also appear on the call diagram. The wiring diagram dedupes manifest\n")
-	buf.WriteString("rows by wrapped entity.\n\n")
-	buf.WriteString("| Field | Type | Wired by | Wrapped entity | Properties |\n")
-	buf.WriteString("|---|---|---|---|---|\n")
-	for _, row := range spec.DependencyManifest {
-		emitL4DepRow(buf, row)
-	}
-	buf.WriteString("\n")
-}
-
 func emitL4FocusBlockquote(buf *bytes.Buffer, spec *L4Spec) {
 	fmt.Fprintf(buf, "> Component in focus: **%s · %s**.\n",
 		spec.Focus.ID, spec.Focus.Name)
@@ -303,13 +228,6 @@ func emitL4Markdown(w io.Writer, spec *L4Spec, lastReviewedCommit string, siblin
 	if len(spec.LegendItems) > 0 {
 		emitL4Legend(&buf, spec)
 	}
-	if len(spec.DependencyManifest) > 0 {
-		emitL4WiringSection(&buf, spec)
-		emitL4DependencyManifest(&buf, spec)
-	}
-	if len(spec.DIWires) > 0 {
-		emitL4DIWires(&buf, spec)
-	}
 	emitL4PropertyLedger(&buf, spec)
 	emitL4CrossLinks(&buf, spec, siblings)
 	emitDriftNotes(&buf, spec.DriftNotes)
@@ -333,9 +251,8 @@ func emitL4Mermaid(buf *bytes.Buffer, spec *L4Spec) {
 	if len(spec.Diagram.Edges) > 0 {
 		buf.WriteString("\n")
 	}
-	diTargets := wrappedEntityIDSet(spec)
 	for _, edge := range spec.Diagram.Edges {
-		emitL4MermaidEdge(buf, edge, diTargets)
+		emitL4MermaidEdge(buf, edge)
 	}
 	buf.WriteString("\n")
 	emitL4MermaidClasses(buf, spec)
@@ -356,37 +273,14 @@ func emitL4MermaidClasses(buf *bytes.Buffer, spec *L4Spec) {
 	}
 }
 
-// emitL4MermaidClassesForNodes writes class assignments restricted to the
-// referenced node set, mirroring emitL4MermaidClasses' structure.
-func emitL4MermaidClassesForNodes(buf *bytes.Buffer, spec *L4Spec, referenced map[string]bool) {
-	groups := map[string][]string{}
-	for _, n := range spec.Diagram.Nodes {
-		if !referenced[n.ID] {
-			continue
-		}
-		groups[n.Kind] = append(groups[n.Kind], strings.ToLower(n.ID))
-	}
-	for _, class := range []string{"person", "external", "container", "component", "focus"} {
-		ids := groups[class]
-		if len(ids) == 0 {
-			continue
-		}
-		fmt.Fprintf(buf, "    class %s %s\n", strings.Join(ids, ","), class)
-	}
-}
-
-func emitL4MermaidEdge(buf *bytes.Buffer, edge L4Edge, diTargets map[string]bool) {
+func emitL4MermaidEdge(buf *bytes.Buffer, edge L4Edge) {
 	from := strings.ToLower(edge.From)
 	to := strings.ToLower(edge.To)
 	label := fmt.Sprintf("%s: %s", edge.ID, edge.Label)
 	if len(edge.Properties) > 0 {
 		label = fmt.Sprintf("%s [%s]", label, strings.Join(edge.Properties, ", "))
 	}
-	arrow := "-->"
-	if diTargets[edge.To] {
-		arrow = "-.->"
-	}
-	fmt.Fprintf(buf, "    %s %s|%q| %s\n", from, arrow, label, to)
+	fmt.Fprintf(buf, "    %s -->|%q| %s\n", from, label, to)
 }
 
 func emitL4MermaidNode(buf *bytes.Buffer, node L4Node) {
@@ -424,80 +318,6 @@ func emitL4PropertyRow(buf *bytes.Buffer, prop L4Property) {
 	fmt.Fprintf(buf, "| <a id=\"%s\"></a>%s | %s | %s | %s | %s | %s |\n",
 		Anchor(prop.ID, prop.Name),
 		prop.ID, prop.Name, prop.Statement, enforcedCell, testedCell, notes)
-}
-
-func emitL4WireRow(buf *bytes.Buffer, row L4WireRow) {
-	consumer := fmt.Sprintf("[%s · %s](%s#%s)",
-		row.ConsumerID, row.ConsumerName, row.ConsumerL3, Anchor(row.ConsumerID, row.ConsumerName))
-	if row.ConsumerL4 != "" {
-		consumer += fmt.Sprintf(" ([%s](%s))", row.ConsumerL4, row.ConsumerL4)
-	}
-	fmt.Fprintf(buf, "| `%s` | `%s` | %s | `%s` |\n",
-		row.Field, row.Type, consumer, row.WrappedEntityID)
-}
-
-// emitL4WiringMermaid emits the L4 wiring diagram: wirer→focus edges,
-// one per (wirer, wrapped_entity) pair, label = WrappedEntityID. Multiple
-// manifest rows that share both fields collapse into a single edge.
-func emitL4WiringMermaid(buf *bytes.Buffer, spec *L4Spec) {
-	buf.WriteString("%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%\n")
-	buf.WriteString("flowchart LR\n")
-	buf.WriteString("    classDef person      fill:#08427b,stroke:#052e56,color:#fff\n")
-	buf.WriteString("    classDef external    fill:#999,   stroke:#666,   color:#fff\n")
-	buf.WriteString("    classDef container   fill:#1168bd,stroke:#0b4884,color:#fff\n")
-	buf.WriteString("    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000\n")
-	buf.WriteString("    classDef focus       fill:#facc15,stroke:#a16207,color:#000\n\n")
-
-	// Collect distinct nodes referenced by the wiring diagram. Only wirers
-	// and the focus appear as nodes; wrapped entities are conveyed by edge
-	// labels (their SNM IDs) and would otherwise float disconnected.
-	referenced := map[string]bool{spec.Focus.ID: true}
-	type edgeKey struct{ wirer, wrapped string }
-	seen := map[edgeKey]bool{}
-	edges := []edgeKey{}
-	for _, row := range spec.DependencyManifest {
-		referenced[row.WiredByID] = true
-		key := edgeKey{row.WiredByID, row.WrappedEntityID}
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		edges = append(edges, key)
-	}
-
-	// Emit nodes in deterministic order (the order they appear on the call diagram).
-	for _, n := range spec.Diagram.Nodes {
-		if !referenced[n.ID] {
-			continue
-		}
-		emitL4MermaidNode(buf, n)
-	}
-	buf.WriteString("\n")
-
-	// Emit deduped wiring edges.
-	for _, e := range edges {
-		from := strings.ToLower(e.wirer)
-		to := strings.ToLower(spec.Focus.ID)
-		fmt.Fprintf(buf, "    %s -->|%q| %s\n", from, e.wrapped, to)
-	}
-	buf.WriteString("\n")
-
-	emitL4MermaidClassesForNodes(buf, spec, referenced)
-}
-
-func emitL4WiringSection(buf *bytes.Buffer, spec *L4Spec) {
-	fmt.Fprintf(buf, "## Wiring\n\n")
-	fmt.Fprintf(buf,
-		"Each edge is one or more DI seams the wirer plugs into %s, deduped by the\n"+
-			"wrapped entity (label = SNM ID). The Dependency Manifest below shows the\n"+
-			"per-seam breakdown.\n\n",
-		spec.Focus.Name)
-	fmt.Fprintf(buf, "![C4 %s wiring diagram](svg/c4-%s-wiring.svg)\n\n", spec.Name, spec.Name)
-	fmt.Fprintf(buf,
-		"> Diagram source: [svg/c4-%s-wiring.mmd](svg/c4-%s-wiring.mmd). Re-render with\n"+
-			"> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-%s-wiring.mmd "+
-			"-o architecture/c4/svg/c4-%s-wiring.svg`.\n\n",
-		spec.Name, spec.Name, spec.Name, spec.Name)
 }
 
 func formatFirstLink(link L4CodeLink) string {
@@ -729,27 +549,6 @@ func validateL4Carryover(l4 *L4Spec, l3 *L3Spec) error {
 	return errors.Join(errs...)
 }
 
-// validateL4Manifest verifies that every dependency-manifest row's
-// wrapped_entity_id matches a node on the diagram. The wrapped entity is the
-// label that appears on the wiring diagram, so it must be a node we can render.
-func validateL4Manifest(spec *L4Spec) error {
-	known := map[string]bool{}
-	for _, node := range spec.Diagram.Nodes {
-		known[node.ID] = true
-	}
-	for index, row := range spec.DependencyManifest {
-		if row.WrappedEntityID == "" {
-			return fmt.Errorf("dependency_manifest[%d]: wrapped_entity_id must be non-empty", index)
-		}
-		if !known[row.WrappedEntityID] {
-			return fmt.Errorf(
-				"dependency_manifest[%d]: wrapped_entity_id %q does not match any diagram node",
-				index, row.WrappedEntityID)
-		}
-	}
-	return nil
-}
-
 // validateL4NodeIDs validates that every diagram node has an explicit
 // hierarchical path ID and that edge IDs match the R<n> convention.
 // Node IDs must satisfy one of:
@@ -849,9 +648,6 @@ func validateL4Spec(spec *L4Spec, l3 *L3Spec) error {
 	if err := validateL4NodeIDs(spec); err != nil {
 		return err
 	}
-	if err := validateL4Manifest(spec); err != nil {
-		return err
-	}
 	if err := validateL4PropertiesWithFocus(focusPath, spec.Properties); err != nil {
 		return err
 	}
@@ -861,15 +657,4 @@ func validateL4Spec(spec *L4Spec, l3 *L3Spec) error {
 		}
 	}
 	return nil
-}
-
-// wrappedEntityIDSet returns the set of entity IDs that appear as
-// wrapped_entity_id in the dependency manifest. R-edges whose `to` is
-// in this set are rendered dotted (the call goes through a DI seam).
-func wrappedEntityIDSet(spec *L4Spec) map[string]bool {
-	out := map[string]bool{}
-	for _, row := range spec.DependencyManifest {
-		out[row.WrappedEntityID] = true
-	}
-	return out
 }

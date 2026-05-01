@@ -7,7 +7,7 @@ description: Use when generating, updating, or reviewing C4 architecture diagram
 
 Generate and maintain C4 architecture diagrams under `architecture/c4/`. L1–L3 are
 SNMPR-style node-and-relationship diagrams + element catalog. L4 is a property/invariant
-ledger plus a strict call diagram and a derived wiring diagram.
+ledger plus a strict call diagram.
 
 ## Sub-actions
 
@@ -31,8 +31,8 @@ These rules apply at every level. Level-specific rules live in *Level-Specific S
    without `source` are flagged. L1/L2 elements with a path-like `source` that doesn't resolve
    are flagged. Don't fabricate file:line references at any level. **Every catalog row carries
    a *where*** — `source` at L1/L2/L3 (path or descriptive identifier), `enforced_at` +
-   `tested_at` at L4 properties, `wired_by_*` + `wrapped_entity_id` at L4 manifest. Tier 2 of
-   Two-Tier Extraction (Rule 7) MUST verify every *where* by reading the source it points to.
+   `tested_at` at L4 properties. Tier 2 of Two-Tier Extraction (Rule 7) MUST verify every
+   *where* by reading the source it points to.
 3. **Never edit a non-target file without per-file approval.** Propagation is by proposal +
    approve/skip/defer, not silent edit. Idempotent rebuilds of auto-generated sections
    (mermaid block, catalog, cross-links — anything `c4-l*-build` regenerates) are propagation,
@@ -64,7 +64,7 @@ These rules apply at every level. Level-specific rules live in *Level-Specific S
    | L1 | external systems + in-scope system | each element's `source` |
    | L2 | containers under the in-scope L1 element | each element's `source` |
    | L3 | components inside the focus container | each component's `source` (file:line path) |
-   | L4 | properties + manifest seams + R-edge property-tag assignments | each property's `enforced_at` + `tested_at`; each manifest row's `wired_by_*` + `wrapped_entity_id` |
+   | L4 | properties + R-edge property-tag assignments | each property's `enforced_at` + `tested_at` |
 
    Also applies to any future "mine source artifacts for findings" task. Tier 1 output is
    **signal**, never the final artifact — never write `c<level>-<name>.json` directly from
@@ -306,44 +306,35 @@ or resolve it).
 
 ### L4 specifics
 
-L4 is the most complex level and has its own diagrams, schemas, and conventions. Read
-`references/property-ledger-format.md` (manifest + DI Wires schemas) and
-`references/mermaid-conventions.md` (call + wiring diagrams, R-edge property tags, build-time
-validation) before authoring. A complete worked example lives at
-`references/worked-example-c4-recall.md`.
+L4 is the most complex level and has its own schema and conventions. Read
+`references/property-ledger-format.md` (row format + untested-property discipline) and
+`references/mermaid-conventions.md` (call diagram, R-edge property tags, build-time
+validation) before authoring.
 
-- **Two diagrams.** A strict C4 call diagram (`<name>.mmd`) and a wiring diagram
-  (`<name>-wiring.mmd`). The call diagram has SNMPR-style nodes and `R<n>` runtime-call
-  edges only — no D-edges, no port nodes, no `W`/`A` namespaces. The wiring diagram is
-  **derived** from the dependency manifest by grouping rows by `(wired_by_id,
-  wrapped_entity_id)`. The L4 builder enforces strict alignment: every manifest
-  `wrapped_entity_id` must match a node on the call diagram.
+- **One diagram.** A strict C4 call diagram (`<name>.mmd`) with SNMPR-style nodes and
+  `R<n>` runtime-call edges only — no D-edges, no port nodes, no `W`/`A` namespaces.
 - **Externals required on the call diagram.** Every external system the focus crosses to
-  via DI (filesystem, OS, network, Anthropic API, Claude Code, etc.) must appear as a node
-  with at least one R-edge from the focus.
+  (filesystem, OS, network, Anthropic API, Claude Code, etc.) must appear as a node with
+  at least one R-edge from the focus.
 - **R-edge property tags.** Each R-edge label may end with the P-IDs the call realizes:
   `R8: ... [P3, P4, P9, P10]`. Use range notation for contiguous P-runs (`[P5–P8]`).
-- **Two-Tier Extraction (Rule 7) applies with extra rigor.** Tier 1 enumerates four
-  candidate types: properties, call-diagram nodes, manifest rows, R-edge property tags.
-  Tier 2 verifies each against source — never invent test pointers, never invent externals
-  not actually crossed. See `references/two-tier-extraction.md` for the full per-tier
-  enumeration lists.
+- **Two-Tier Extraction (Rule 7) applies with extra rigor.** Tier 1 enumerates three
+  candidate types: properties, call-diagram nodes, R-edge property tags. Tier 2 verifies
+  each against source — never invent test pointers, never invent externals not actually
+  crossed. See `references/two-tier-extraction.md` for the full per-tier enumeration lists.
 - **`property_link_unresolved` audit finding** catches dead enforced/tested paths.
 
 ## References (load on demand)
 
 - `references/c4-principles.md` — the 4 abstractions, 4 levels, common pitfalls.
 - `references/mermaid-conventions.md` — classDef + shape conventions + ID namespace + L4
-  call/wiring diagrams + GitHub quirks + render setup.
-- `references/property-ledger-format.md` — L4 row format + Dependency Manifest + DI Wires
-  schemas + untested-property discipline.
+  call diagrams + GitHub quirks + render setup.
+- `references/property-ledger-format.md` — L4 row format + untested-property discipline.
 - `references/two-tier-extraction.md` — Tier 1/Tier 2 discipline, per-level enumeration
   lists, empirical baseline.
 - `references/spec-schemas.md` — per-level JSON spec schema source-of-truth pointers
   (Go struct names + files), authoring shortcuts, when to read the struct vs copy a
   sibling.
-- `references/worked-example-c4-recall.md` — c4-recall walk-through (call + wiring +
-  manifest).
 - `references/templates/c<1-4>-template.md` — per-level starter scaffolds.
 
 ## Verification

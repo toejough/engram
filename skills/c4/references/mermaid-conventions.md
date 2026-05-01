@@ -146,17 +146,11 @@ flowchart LR
 - Long labels: wrap with `<br/>`, don't trust auto-wrap.
 - Edge labels: always use `-->|label|` form, never `-- label -->` (the former renders consistently).
 
-## L4: Two Diagrams (Call + Wiring)
+## L4: Call Diagram
 
-L4 ships two `.mmd`/`.svg` pairs per focus component:
-
-1. **Call diagram** (`<name>.mmd`) — strict C4 with `R<n>` runtime-call edges only.
-2. **Wiring diagram** (`<name>-wiring.mmd`) — companion view of `wirer → focus` edges
-   labelled with the wrapped-entity SNM ID.
-
-No D-edges, no port nodes, no `W`/`A` edge namespaces. Standard C4 idiom only.
-
-### Call diagram
+L4 ships one `.mmd`/`.svg` pair per focus component: a strict C4 call diagram with
+`R<n>` runtime-call edges only. No D-edges, no port nodes, no `W`/`A` edge namespaces.
+Standard C4 idiom only.
 
 ```mermaid
 flowchart LR
@@ -186,48 +180,10 @@ Rules:
    `R8: ... [P3, P4, P9, P10]`. Use range notation for contiguous P-runs (`[P5–P8]` not
    `[P5, P6, P7, P8]`). Authored as the `properties: ["P3", ...]` field on the L4Spec edge;
    the renderer formats the suffix.
-3. **Externals required.** Every external system the focus crosses to via DI (filesystem,
-   OS, Anthropic API, Claude Code, etc.) must appear as a `kind: external` node here with
-   at least one R-edge from the focus to it. Carry over from the L3 parent's external set.
+3. **Externals required.** Every external system the focus crosses to (filesystem, OS,
+   Anthropic API, Claude Code, etc.) must appear as a `kind: external` node here with at
+   least one R-edge from the focus to it. Carry over from the L3 parent's external set.
 4. **Focus highlight.** The focus component carries the yellow `:::focus` classDef.
-
-### Wiring diagram
-
-```mermaid
-flowchart LR
-    classDef focus       fill:#facc15,stroke:#a16207,color:#000
-    classDef component   fill:#85bbf0,stroke:#5d9bd1,color:#000
-    classDef external    fill:#999,stroke:#666,color:#fff
-
-    cli[S2-N3-M2 · cli]
-    recall[S2-N3-M3 · recall<br/>FOCUS]
-    anthropic[S2-N3-M7 · anthropic]
-    memory[S2-N3-M5 · memory]
-    externalsources[S2-N3-M6 · externalsources]
-    cc(S3 · Claude Code)
-
-    cli -->|"S2-N3-M5"| recall
-    cli -->|"S2-N3-M6"| recall
-    cli -->|"S2-N3-M7"| recall
-    cli -->|"S3"| recall
-
-    class recall focus
-    class cli,anthropic,memory,externalsources component
-    class cc external
-```
-
-Rules:
-
-1. **Derived, not authored.** The build target groups manifest rows by
-   `(wired_by_id, wrapped_entity_id)` and emits one wiring edge per group. Multiple DI
-   seams sharing both wirer and wrapped entity collapse into one edge.
-2. **Edge label = SNM ID of the wrapped entity.** Unadorned, no `R<n>` prefix.
-3. **Strict alignment.** Every wrapped-entity node on the wiring diagram must already
-   exist on the call diagram (same shape/class carries over). The wiring diagram
-   introduces no new nodes; the L4 builder rejects manifests that violate this.
-4. **Reciprocal manifest tables.** The consumer's L4 has a `## Dependency Manifest`
-   listing each DI seam (with `wrapped_entity_id`); the wirer's L4 has a `## DI Wires`
-   listing the reciprocal rows. See `property-ledger-format.md` for column schema.
 
 ### Build-time validation
 
@@ -236,7 +192,6 @@ Rules:
 - Node IDs are hierarchical (`S<n>`, `N<n>`, `M<n>`, or full path like `S2-N3-M5`) via
   `ParseIDPath`.
 - Edge IDs are bare `R<n>`. D-edges, A-edges, and letter-suffixed IDs are rejected.
-- Every manifest row's `wrapped_entity_id` matches some `id` on `diagram.nodes`.
 
 Read the build error for the specific violation and fix.
 

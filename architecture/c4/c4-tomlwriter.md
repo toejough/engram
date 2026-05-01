@@ -3,7 +3,7 @@ level: 4
 name: tomlwriter
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: c02ceb53
+last_reviewed_commit: 0ec9dfb1
 ---
 
 # C4 — tomlwriter (Property/Invariant Ledger)
@@ -30,32 +30,6 @@ tomlwriter is the TOML serialization component for new and updated feedback and 
 - Grey = external systems (S6 · Engram memory store).
 - R-edges carry inline property IDs `[P…]` linking to the Property Ledger.
 - All edges traceable to a relationship in c3-engram-cli-binary.md.
-
-## Wiring
-
-Each edge is one or more DI seams the wirer plugs into tomlwriter, deduped by the
-wrapped entity (label = SNM ID). The Dependency Manifest below shows the
-per-seam breakdown.
-
-![C4 tomlwriter wiring diagram](svg/c4-tomlwriter-wiring.svg)
-
-> Diagram source: [svg/c4-tomlwriter-wiring.mmd](svg/c4-tomlwriter-wiring.mmd). Re-render with
-> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-tomlwriter-wiring.mmd -o architecture/c4/svg/c4-tomlwriter-wiring.svg`.
-
-## Dependency Manifest
-
-Each row is one DI seam the focus consumes. The wrapped entity is the diagram
-node (component or external) the seam ultimately drives behavior against; it
-must also appear on the call diagram. The wiring diagram dedupes manifest
-rows by wrapped entity.
-
-| Field | Type | Wired by | Wrapped entity | Properties |
-|---|---|---|---|---|
-| `createTemp` | `func(dir, pattern string) (*os.File, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M9-P1, S2-N3-M9-P2, S2-N3-M9-P5, S2-N3-M9-P6 |
-| `rename` | `func(oldpath, newpath string) error` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M9-P1, S2-N3-M9-P2, S2-N3-M9-P6 |
-| `mkdirAll` | `func(path string, perm os.FileMode) error` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M9-P3, S2-N3-M9-P6 |
-| `stat` | `func(name string) (os.FileInfo, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M9-P4, S2-N3-M9-P6 |
-| `remove` | `func(name string) error` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S6` | S2-N3-M9-P2 |
 
 ## Property Ledger
 

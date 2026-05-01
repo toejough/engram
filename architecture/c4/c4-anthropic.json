@@ -1,28 +1,5 @@
 {
   "context_prose": "E26 anthropic is the shared client for the Anthropic Messages API. It owns the HTTP request shape, the API-version / beta-header pinning, the error sentinels, and the small `CallerFunc` adapter consumed by `recall.NewSummarizer`. Its single external dependency is the Anthropic API (E5), reached via R14 (HTTPS POST /v1/messages). cli constructs a `*Client` at startup, wiring in the `HTTPDoer` (`http.DefaultClient`) — the only true DI seam on the package. The `token` and `apiURL` fields are plain string configuration values (not interfaces / function values) so they don't appear on the manifest under the new schema. Recall (E22) consumes the resulting `CallerFunc` purely as a function value; it does not see the `Client` struct.",
-  "dependency_manifest": [
-    {
-      "field": "client",
-      "type": "HTTPDoer",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S5",
-      "properties": [
-        "S2-N3-M7-P2",
-        "S2-N3-M7-P3",
-        "S2-N3-M7-P4",
-        "S2-N3-M7-P5",
-        "S2-N3-M7-P6",
-        "S2-N3-M7-P7",
-        "S2-N3-M7-P8",
-        "S2-N3-M7-P9",
-        "S2-N3-M7-P10",
-        "S2-N3-M7-P11"
-      ]
-    }
-  ],
   "diagram": {
     "edges": [
       {
@@ -42,7 +19,18 @@
         "id": "R14",
         "label": "HTTPS POST /v1/messages",
         "to": "S5",
-        "properties": ["P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11"]
+        "properties": [
+          "P2",
+          "P3",
+          "P4",
+          "P5",
+          "P6",
+          "P7",
+          "P8",
+          "P9",
+          "P10",
+          "P11"
+        ]
       }
     ],
     "nodes": [

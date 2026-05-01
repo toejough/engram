@@ -1,74 +1,5 @@
 {
   "context_prose": "tomlwriter is the TOML serialization component for new and updated feedback and fact memory files. cli calls Writer.Write on learn / remember / update flows (R12); memory.Modifier also consumes it via the AtomicWriter interface (R20). tomlwriter routes the record to the correct subdirectory by Type (fact / feedback / fallback memories), generates a slug-based filename with collision-avoiding numeric suffixes, stamps timestamps if missing, and writes the TOML atomically via temp-file + rename with cleanup on any failure. All five filesystem syscalls — createTemp, rename, mkdirAll, stat, remove — are injected as function values, all wrapping S6 · Engram memory store; cli installs the os.* defaults at construction time.",
-  "dependency_manifest": [
-    {
-      "field": "createTemp",
-      "type": "func(dir, pattern string) (*os.File, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S6",
-      "properties": [
-        "S2-N3-M9-P1",
-        "S2-N3-M9-P2",
-        "S2-N3-M9-P5",
-        "S2-N3-M9-P6"
-      ]
-    },
-    {
-      "field": "rename",
-      "type": "func(oldpath, newpath string) error",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S6",
-      "properties": [
-        "S2-N3-M9-P1",
-        "S2-N3-M9-P2",
-        "S2-N3-M9-P6"
-      ]
-    },
-    {
-      "field": "mkdirAll",
-      "type": "func(path string, perm os.FileMode) error",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S6",
-      "properties": [
-        "S2-N3-M9-P3",
-        "S2-N3-M9-P6"
-      ]
-    },
-    {
-      "field": "stat",
-      "type": "func(name string) (os.FileInfo, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S6",
-      "properties": [
-        "S2-N3-M9-P4",
-        "S2-N3-M9-P6"
-      ]
-    },
-    {
-      "field": "remove",
-      "type": "func(name string) error",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S6",
-      "properties": [
-        "S2-N3-M9-P2"
-      ]
-    }
-  ],
   "diagram": {
     "edges": [
       {
@@ -88,7 +19,14 @@
         "id": "R17",
         "label": "writes new feedback + fact TOML via createTemp / rename / mkdirAll / stat / remove",
         "to": "S6",
-        "properties": ["P1", "P2", "P3", "P4", "P5", "P6"]
+        "properties": [
+          "P1",
+          "P2",
+          "P3",
+          "P4",
+          "P5",
+          "P6"
+        ]
       }
     ],
     "nodes": [
@@ -222,7 +160,7 @@
       "id": "S2-N3-M9-P4",
       "name": "Filename collision avoidance",
       "notes": "Stat errors other than IsNotExist are propagated as `tomlwriter: stat …` rather than silently treated as free.",
-      "statement": "For all data dirs D and slugs S, repeated `Write` calls with the same slug produce distinct filenames: the first uses `\u003cS\u003e.toml`, subsequent calls use `\u003cS\u003e-2.toml`, `\u003cS\u003e-3.toml`, … picking the first numeric suffix not present in D.",
+      "statement": "For all data dirs D and slugs S, repeated `Write` calls with the same slug produce distinct filenames: the first uses `<S>.toml`, subsequent calls use `<S>-2.toml`, `<S>-3.toml`, … picking the first numeric suffix not present in D.",
       "tested_at": [
         {
           "line": 200,

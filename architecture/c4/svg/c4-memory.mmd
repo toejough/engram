@@ -14,8 +14,8 @@ flowchart LR
 
     s2-n3-m2 -->|"R4: reads / writes feedback + fact TOML"| s2-n3-m5
     s2-n3-m3 -->|"R9: lists memories during recall ranking"| s2-n3-m5
-    s2-n3-m5 -.->|"R16: reads feedback + fact TOML via readDir / readFile [P8, P9, P10, P12, P13, P15]"| s6
-    s2-n3-m5 -.->|"R20: atomic-writes new TOML via AtomicWriter [P14, P17]"| s2-n3-m9
+    s2-n3-m5 -->|"R16: reads feedback + fact TOML via readDir / readFile [P8, P9, P10, P12, P13, P15]"| s6
+    s2-n3-m5 -->|"R20: atomic-writes new TOML via AtomicWriter [P14, P17]"| s2-n3-m9
 
     class s6 external
     class s2-n3-m2,s2-n3-m3,s2-n3-m9 component

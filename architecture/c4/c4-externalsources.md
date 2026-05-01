@@ -3,7 +3,7 @@ level: 4
 name: externalsources
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 528263bc
+last_reviewed_commit: 0ec9dfb1
 ---
 
 # C4 — externalsources (Property/Invariant Ledger)
@@ -31,34 +31,6 @@ Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges
 > `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-externalsources.mmd -o architecture/c4/svg/c4-externalsources.svg`.
 > Pre-rendered because GitHub's Mermaid lacks the ELK layout engine, which is needed to
 > separate bidirectional R-edges between the same node pair.
-
-## Wiring
-
-Each edge is one or more DI seams the wirer plugs into externalsources, deduped by the
-wrapped entity (label = SNM ID). The Dependency Manifest below shows the
-per-seam breakdown.
-
-![C4 externalsources wiring diagram](svg/c4-externalsources-wiring.svg)
-
-> Diagram source: [svg/c4-externalsources-wiring.mmd](svg/c4-externalsources-wiring.mmd). Re-render with
-> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-externalsources-wiring.mmd -o architecture/c4/svg/c4-externalsources-wiring.svg`.
-
-## Dependency Manifest
-
-Each row is one DI seam the focus consumes. The wrapped entity is the diagram
-node (component or external) the seam ultimately drives behavior against; it
-must also appear on the call diagram. The wiring diagram dedupes manifest
-rows by wrapped entity.
-
-| Field | Type | Wired by | Wrapped entity | Properties |
-|---|---|---|---|---|
-| `StatFn` | `func(path string) (bool, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P1–P3 |
-| `Reader` | `func(path string) ([]byte, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P5–P8, S2-N3-M6-P10 |
-| `MdWalker` | `func(root string) []string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P10 |
-| `MatchAny` | `func(globs []string) bool` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P10 |
-| `Settings` | `func() (dir string, found bool)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P11 |
-| `DirLister` | `func(dir string) ([]string, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P11–P13 |
-| `SkillFinder` | `func(root string) []string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M6-P14 |
 
 ## Property Ledger
 

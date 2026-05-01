@@ -1,99 +1,5 @@
 {
   "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E25. internal/externalsources reads four kinds of files (CLAUDE.md hierarchy, .claude/rules, auto memory, skill SKILL.md) plus transitive @import expansions. All filesystem effects flow through 7 injected adapters (StatFn, Reader, MdWalker, MatchAny, Settings, DirLister, SkillFinder) — every one of them ultimately drives S3 · Claude Code's filesystem (CLAUDE.md, .claude/, settings.json, skill SKILL.md trees). CWD / Home / GOOS are plain string configuration values, not DI seams, and are omitted from the manifest under the new schema.",
-  "dependency_manifest": [
-    {
-      "field": "StatFn",
-      "type": "func(path string) (bool, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S3",
-      "properties": [
-        "S2-N3-M6-P1",
-        "S2-N3-M6-P2",
-        "S2-N3-M6-P3"
-      ]
-    },
-    {
-      "field": "Reader",
-      "type": "func(path string) ([]byte, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S3",
-      "properties": [
-        "S2-N3-M6-P5",
-        "S2-N3-M6-P6",
-        "S2-N3-M6-P7",
-        "S2-N3-M6-P8",
-        "S2-N3-M6-P10"
-      ]
-    },
-    {
-      "field": "MdWalker",
-      "type": "func(root string) []string",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S3",
-      "properties": [
-        "S2-N3-M6-P10"
-      ]
-    },
-    {
-      "field": "MatchAny",
-      "type": "func(globs []string) bool",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S3",
-      "properties": [
-        "S2-N3-M6-P10"
-      ]
-    },
-    {
-      "field": "Settings",
-      "type": "func() (dir string, found bool)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S3",
-      "properties": [
-        "S2-N3-M6-P11"
-      ]
-    },
-    {
-      "field": "DirLister",
-      "type": "func(dir string) ([]string, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S3",
-      "properties": [
-        "S2-N3-M6-P11",
-        "S2-N3-M6-P12",
-        "S2-N3-M6-P13"
-      ]
-    },
-    {
-      "field": "SkillFinder",
-      "type": "func(root string) []string",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S3",
-      "properties": [
-        "S2-N3-M6-P14"
-      ]
-    }
-  ],
   "diagram": {
     "edges": [
       {
@@ -113,7 +19,20 @@
         "id": "R19",
         "label": "stats / lists / reads CLAUDE.md, .claude/rules, auto-memory, skill SKILL.md, settings.json via injected adapters",
         "to": "S3",
-        "properties": ["P1", "P2", "P3", "P5", "P6", "P7", "P8", "P10", "P11", "P12", "P13", "P14"]
+        "properties": [
+          "P1",
+          "P2",
+          "P3",
+          "P5",
+          "P6",
+          "P7",
+          "P8",
+          "P10",
+          "P11",
+          "P12",
+          "P13",
+          "P14"
+        ]
       },
       {
         "from": "S2-N3-M6",
@@ -423,7 +342,7 @@
       ],
       "id": "S2-N3-M6-P14",
       "name": "Skill discovery roots",
-      "statement": "For all `DiscoverSkills` calls, `SkillFinder` is invoked on `\u003ccwd\u003e/.claude/skills` always, and additionally on `\u003chome\u003e/.claude/skills` and `\u003chome\u003e/.claude/plugins/cache` only when `home != \"\"`.",
+      "statement": "For all `DiscoverSkills` calls, `SkillFinder` is invoked on `<cwd>/.claude/skills` always, and additionally on `<home>/.claude/skills` and `<home>/.claude/plugins/cache` only when `home != \"\"`.",
       "tested_at": [
         {
           "line": 12,
@@ -444,7 +363,7 @@
       ],
       "id": "S2-N3-M6-P15",
       "name": "ProjectSlug substitution",
-      "statement": "For all absolute paths P, `ProjectSlug(P)` equals `strings.ReplaceAll(P, \"/\", \"-\")`; matches Claude Code's `~/.claude/projects/\u003cslug\u003e/` directory layout.",
+      "statement": "For all absolute paths P, `ProjectSlug(P)` equals `strings.ReplaceAll(P, \"/\", \"-\")`; matches Claude Code's `~/.claude/projects/<slug>/` directory layout.",
       "tested_at": [
         {
           "line": 11,
@@ -512,7 +431,7 @@
       ],
       "id": "S2-N3-M6-P18",
       "name": "Frontmatter recognized keys",
-      "statement": "For all YAML blocks, `ParseFrontmatter` populates only the `name`, `description` (scalar or `\u003e` folded), and `paths` (`- item` list) keys; all other keys are silently ignored.",
+      "statement": "For all YAML blocks, `ParseFrontmatter` populates only the `name`, `description` (scalar or `>` folded), and `paths` (`- item` list) keys; all other keys are silently ignored.",
       "tested_at": [
         {
           "line": 51,

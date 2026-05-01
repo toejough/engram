@@ -16,7 +16,7 @@ between siblings becomes drift in the new spec.
 | 1 | `dev/c4.go` | `L1Spec` | Element types: `L1Element` (with `Source` for the where), `L1Relationship`, `L1CrossLinks`, `L1DriftNote`, `L1RefinedBy`. |
 | 2 | `dev/c4_l2.go` | `L2Spec` | Element type: `L2Element` (adds `InScope bool` — exactly one element must be in-scope). |
 | 3 | `dev/c4_l3.go` | `L3Spec` | Adds `Focus L3Focus` naming the parent L2 element being refined. Element type: `L3Element` (each `kind: "component"` requires `Source`). |
-| 4 | `dev/c4_l4.go` | `L4Spec` | Largest schema. Includes `Focus`, `Diagram` (call-diagram nodes + R-edges), `Properties` (each with `EnforcedAt`/`TestedAt` `[]L4CodeLink`), `DependencyManifest` (rows with `wired_by_*` + `wrapped_entity_id`), `DIWires` (provider side). |
+| 4 | `dev/c4_l4.go` | `L4Spec` | Includes `Focus`, `Diagram` (call-diagram nodes + R-edges), `Properties` (each with `EnforcedAt`/`TestedAt` `[]L4CodeLink`). |
 
 ## When to read these
 

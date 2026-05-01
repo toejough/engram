@@ -3,7 +3,7 @@ level: 4
 name: tokenresolver
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 264488af
+last_reviewed_commit: 0ec9dfb1
 ---
 
 # C4 — tokenresolver (Property/Invariant Ledger)
@@ -30,29 +30,6 @@ tokenresolver is the API-token resolution component for the engram CLI. It is co
 - Grey = external systems (S3 · Claude Code carried over from L3 — host OS env + Keychain).
 - R-edges carry inline property IDs `[P…]` linking to the Property Ledger.
 - All edges traceable to a relationship in c3-engram-cli-binary.md.
-
-## Wiring
-
-Each edge is one or more DI seams the wirer plugs into tokenresolver, deduped by the
-wrapped entity (label = SNM ID). The Dependency Manifest below shows the
-per-seam breakdown.
-
-![C4 tokenresolver wiring diagram](svg/c4-tokenresolver-wiring.svg)
-
-> Diagram source: [svg/c4-tokenresolver-wiring.mmd](svg/c4-tokenresolver-wiring.mmd). Re-render with
-> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-tokenresolver-wiring.mmd -o architecture/c4/svg/c4-tokenresolver-wiring.svg`.
-
-## Dependency Manifest
-
-Each row is one DI seam the focus consumes. The wrapped entity is the diagram
-node (component or external) the seam ultimately drives behavior against; it
-must also appear on the call diagram. The wiring diagram dedupes manifest
-rows by wrapped entity.
-
-| Field | Type | Wired by | Wrapped entity | Properties |
-|---|---|---|---|---|
-| `getenv` | `func(string) string` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M8-P1, S2-N3-M8-P2, S2-N3-M8-P8 |
-| `execCmd` | `func(ctx, name, args...) ([]byte, error)` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M8-P3–P8 |
 
 ## Property Ledger
 

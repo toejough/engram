@@ -22,7 +22,7 @@ func TestAuditFile_L4CarryoverEmitsFindings(t *testing.T) {
 	}
 
 	// L4 referencing F as focus, no M, plus an extra "GHOST" node — two violations.
-	l4JSON := []byte(`{"schema_version":"1","level":4,"name":"focus","parent":"c3-x.md","focus":{"id":"F","name":"focus"},"diagram":{"nodes":[{"id":"F","name":"focus","kind":"focus"},{"id":"GHOST","name":"ghost","kind":"component"}],"edges":[]},"dependency_manifest":[],"di_wires":[]}`)
+	l4JSON := []byte(`{"schema_version":"1","level":4,"name":"focus","parent":"c3-x.md","focus":{"id":"F","name":"focus"},"diagram":{"nodes":[{"id":"F","name":"focus","kind":"focus"},{"id":"GHOST","name":"ghost","kind":"component"}],"edges":[]}}`)
 	if err := os.WriteFile(filepath.Join(dir, "c4-focus.json"), l4JSON, 0o600); err != nil {
 		t.Fatalf("write c4-focus.json: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestAuditFile_L4CarryoverUnreadableWhenL3ParentMissing(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	// Valid L4 JSON pointing at an L3 parent that does not exist on disk.
-	l4JSON := []byte(`{"schema_version":"1","level":4,"name":"focus","parent":"c3-missing.md","focus":{"id":"F","name":"focus"},"diagram":{"nodes":[{"id":"F","name":"focus","kind":"focus"}],"edges":[]},"dependency_manifest":[],"di_wires":[]}`)
+	l4JSON := []byte(`{"schema_version":"1","level":4,"name":"focus","parent":"c3-missing.md","focus":{"id":"F","name":"focus"},"diagram":{"nodes":[{"id":"F","name":"focus","kind":"focus"}],"edges":[]}}`)
 	jsonPath := filepath.Join(dir, "c4-focus.json")
 	if err := os.WriteFile(jsonPath, l4JSON, 0o600); err != nil {
 		t.Fatalf("write: %v", err)

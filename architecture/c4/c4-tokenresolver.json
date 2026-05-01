@@ -1,38 +1,5 @@
 {
   "context_prose": "tokenresolver is the API-token resolution component for the engram CLI. It is consumed by `cli` before any Anthropic LLM call (R7). At runtime it invokes its two true DI seams — `getenv` and `execCmd` (function values) — both of which ultimately drive S3 · Claude Code's host OS (env vars and the macOS Keychain via `security`). The `goos` string is a plain configuration value and not a DI seam, so it's omitted from the manifest under the new schema. The component encodes one strict architectural invariant: Resolve never returns a non-nil error. All failure modes collapse to `(\"\", nil)` so callers can branch on empty-string alone.",
-  "dependency_manifest": [
-    {
-      "field": "getenv",
-      "type": "func(string) string",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S3",
-      "properties": [
-        "S2-N3-M8-P1",
-        "S2-N3-M8-P2",
-        "S2-N3-M8-P8"
-      ]
-    },
-    {
-      "field": "execCmd",
-      "type": "func(ctx, name, args...) ([]byte, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S3",
-      "properties": [
-        "S2-N3-M8-P3",
-        "S2-N3-M8-P4",
-        "S2-N3-M8-P5",
-        "S2-N3-M8-P6",
-        "S2-N3-M8-P7",
-        "S2-N3-M8-P8"
-      ]
-    }
-  ],
   "diagram": {
     "edges": [
       {
@@ -46,7 +13,16 @@
         "id": "R18",
         "label": "reads ENGRAM_API_TOKEN env / shells out to security find-generic-password",
         "to": "S3",
-        "properties": ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"]
+        "properties": [
+          "P1",
+          "P2",
+          "P3",
+          "P4",
+          "P5",
+          "P6",
+          "P7",
+          "P8"
+        ]
       }
     ],
     "nodes": [

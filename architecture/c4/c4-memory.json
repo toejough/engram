@@ -1,49 +1,5 @@
 {
   "context_prose": "Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E24. internal/memory consumes three DI seams: `readDir` and `readFile` funcs (which ultimately drive S6 · Engram memory store), and an `AtomicWriter` interface (wired to internal/tomlwriter, which itself drives S6). The R-edges below describe what memory invokes at runtime; the wiring diagram (derived from the manifest) shows how cli plugs those seams in.",
-  "dependency_manifest": [
-    {
-      "field": "readDir",
-      "type": "func(string) ([]os.DirEntry, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S6",
-      "properties": [
-        "S2-N3-M5-P8",
-        "S2-N3-M5-P9",
-        "S2-N3-M5-P12",
-        "S2-N3-M5-P13"
-      ]
-    },
-    {
-      "field": "readFile",
-      "type": "func(string) ([]byte, error)",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S6",
-      "properties": [
-        "S2-N3-M5-P10",
-        "S2-N3-M5-P14",
-        "S2-N3-M5-P15"
-      ]
-    },
-    {
-      "field": "writer",
-      "type": "AtomicWriter",
-      "wired_by_id": "S2-N3-M2",
-      "wired_by_name": "cli",
-      "wired_by_l3": "c3-engram-cli-binary.md",
-      "wired_by_l4": "c4-cli.md",
-      "wrapped_entity_id": "S2-N3-M9",
-      "properties": [
-        "S2-N3-M5-P14",
-        "S2-N3-M5-P17"
-      ]
-    }
-  ],
   "diagram": {
     "edges": [
       {
@@ -63,14 +19,24 @@
         "id": "R16",
         "label": "reads feedback + fact TOML via readDir / readFile",
         "to": "S6",
-        "properties": ["P8", "P9", "P10", "P12", "P13", "P15"]
+        "properties": [
+          "P8",
+          "P9",
+          "P10",
+          "P12",
+          "P13",
+          "P15"
+        ]
       },
       {
         "from": "S2-N3-M5",
         "id": "R20",
         "label": "atomic-writes new TOML via AtomicWriter",
         "to": "S2-N3-M9",
-        "properties": ["P14", "P17"]
+        "properties": [
+          "P14",
+          "P17"
+        ]
       }
     ],
     "nodes": [
@@ -134,7 +100,7 @@
       ],
       "id": "S2-N3-M5-P1",
       "name": "Layout dirs deterministic",
-      "notes": "MemoriesDir at line 31 returns the legacy `\u003cdataDir\u003e/memories` path; same purity guarantee.",
+      "notes": "MemoriesDir at line 31 returns the legacy `<dataDir>/memories` path; same purity guarantee.",
       "statement": "For all `dataDir` strings D, `FactsDir(D)` returns `filepath.Join(D, \"memory\", \"facts\")` and `FeedbackDir(D)` returns `filepath.Join(D, \"memory\", \"feedback\")`; both are pure (no I/O, no mutation).",
       "tested_at": [
         {
@@ -155,9 +121,9 @@
         }
       ],
       "id": "S2-N3-M5-P2",
-      "name": "Resolve precedence feedback\u003efacts\u003elegacy",
+      "name": "Resolve precedence feedback>facts>legacy",
       "notes": "Even when both feedback and legacy exist, feedback wins (TestResolveMemoryPath_FeedbackFirst).",
-      "statement": "For all `(dataDir, slug, fileExists)` inputs where at least one of `feedback/\u003cslug\u003e.toml`, `facts/\u003cslug\u003e.toml`, or `memories/\u003cslug\u003e.toml` exists, `ResolveMemoryPath` returns the first existing candidate in the order feedback → facts → legacy.",
+      "statement": "For all `(dataDir, slug, fileExists)` inputs where at least one of `feedback/<slug>.toml`, `facts/<slug>.toml`, or `memories/<slug>.toml` exists, `ResolveMemoryPath` returns the first existing candidate in the order feedback → facts → legacy.",
       "tested_at": [
         {
           "line": 23,
@@ -183,7 +149,7 @@
       "id": "S2-N3-M5-P3",
       "name": "Resolve legacy fallback on miss",
       "notes": "Documented contract: legacy fallback even when missing.",
-      "statement": "For all `(dataDir, slug)` where no candidate exists per `fileExists`, `ResolveMemoryPath` returns the legacy path `\u003cdataDir\u003e/memories/\u003cslug\u003e.toml` so the caller surfaces a meaningful \"file not found\" error.",
+      "statement": "For all `(dataDir, slug)` where no candidate exists per `fileExists`, `ResolveMemoryPath` returns the legacy path `<dataDir>/memories/<slug>.toml` so the caller surfaces a meaningful \"file not found\" error.",
       "tested_at": [
         {
           "line": 63,
@@ -334,7 +300,7 @@
       "id": "S2-N3-M5-P11",
       "name": "ListStored sorted by UpdatedAt desc",
       "notes": "Sort uses `sort.Slice` with `After` predicate (not stable; ties may be reordered).",
-      "statement": "For all directories D successfully read by `ListStored`, the returned `[]*Stored` is sorted such that for every i\u003cj, `result[i].UpdatedAt.After(result[j].UpdatedAt) || result[i].UpdatedAt.Equal(result[j].UpdatedAt)`.",
+      "statement": "For all directories D successfully read by `ListStored`, the returned `[]*Stored` is sorted such that for every i<j, `result[i].UpdatedAt.After(result[j].UpdatedAt) || result[i].UpdatedAt.Equal(result[j].UpdatedAt)`.",
       "tested_at": [
         {
           "line": 346,
@@ -466,7 +432,7 @@
       "id": "S2-N3-M5-P17",
       "name": "Mutate sees decoded record",
       "notes": "TestReadModifyWrite_PreservesAllFields asserts non-mutated fields round-trip unchanged — i.e. mutate operates on the decoded record, not a fresh zero value.",
-      "statement": "For all valid TOML at `path`, `ReadModifyWrite` calls `mutate(\u0026record)` after successful decode and before invoking the writer; the writer receives the post-mutation value.",
+      "statement": "For all valid TOML at `path`, `ReadModifyWrite` calls `mutate(&record)` after successful decode and before invoking the writer; the writer receives the post-mutation value.",
       "tested_at": [
         {
           "line": 674,

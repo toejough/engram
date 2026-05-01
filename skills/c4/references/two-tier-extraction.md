@@ -54,21 +54,17 @@ exact `source` paths; `from_parent` neighbors; `kind: "component"` requires a
 `source` that resolves on disk (the audit catches dead paths via
 `source_path_unresolved`).
 
-### L4 — properties, manifest, R-edge tags
+### L4 — properties, R-edge tags
 
-Tier 1 enumerates **four candidate types**:
+Tier 1 enumerates **three candidate types**:
 
-1. **Property candidates** — testable behaviors, architectural invariants likely UNTESTED
-   (DI seams, no-direct-I/O, error-wrapping discipline, format contracts), shape/parse/lifecycle
-   invariants.
+1. **Property candidates** — testable behaviors and architectural invariants likely
+   UNTESTED: no-direct-I/O, error-wrapping discipline, format contracts, shape/parse/
+   lifecycle invariants.
 2. **Call-diagram nodes** — sibling components the focus calls and every external system
-   the focus crosses to via DI (filesystem, network, OS, Anthropic API, Claude Code, etc.).
-   Each external must end up as a node with at least one R-edge from the focus — the L4
-   builder enforces this via strict alignment.
-3. **Manifest rows** — one per DI seam: `field`, `type`, wirer (`wired_by_id`/`name`/`l3`),
-   and `wrapped_entity_id` (which call-diagram node the seam ultimately drives behavior
-   against).
-4. **R-edge property tags** — for each R-edge, the property IDs the call realizes (these
+   the focus crosses to (filesystem, network, OS, Anthropic API, Claude Code, etc.). Each
+   external must end up as a node with at least one R-edge from the focus.
+3. **R-edge property tags** — for each R-edge, the property IDs the call realizes (these
    become the `properties` field on the edge).
 
 **Tier 2 verifies each:**
@@ -79,9 +75,6 @@ Tier 1 enumerates **four candidate types**:
 - **Call-diagram nodes** — confirm each external the focus crosses to appears with at
   least one R-edge from the focus; confirm siblings appear in the L3 parent's catalog
   (no fabricated nodes).
-- **Manifest rows** — confirm `wrapped_entity_id` matches a node on the call diagram
-  (strict alignment); confirm each row's wirer is correct by reading the wirer's
-  construction code.
 - **R-edge property tags** — confirm each P-ID in an R-edge's `properties` list
   corresponds to a property the called code path actually realizes.
 
@@ -120,9 +113,9 @@ Bias toward enumerating too many candidates — Tier 2 will prune.
 Target: <component / container / system surface>
 Source: <files/packages/paths>
 
-Enumerate every plausible <property | component | container | external | manifest row | ...>.
+Enumerate every plausible <property | component | container | external | ...>.
 For each candidate include: name, the source file:line you spotted it from, a one-line
-description, and any guess at related fields (source, tested_at, wrapped_entity_id).
+description, and any guess at related fields (source, tested_at).
 
 Do NOT prune. Do NOT verify pointers — speculate them with file:line and let Tier 2
 verify. If you're unsure whether something belongs, INCLUDE IT and flag it as uncertain.

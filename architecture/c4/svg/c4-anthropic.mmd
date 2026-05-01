@@ -13,7 +13,7 @@ flowchart LR
 
     s2-n3-m2 -->|"R6: builds Anthropic caller"| s2-n3-m7
     s2-n3-m3 -->|"R10: ranks via Summarizer (DI CallerFunc)"| s2-n3-m7
-    s2-n3-m7 -.->|"R14: HTTPS POST /v1/messages [P2, P3, P4, P5, P6, P7, P8, P9, P10, P11]"| s5
+    s2-n3-m7 -->|"R14: HTTPS POST /v1/messages [P2, P3, P4, P5, P6, P7, P8, P9, P10, P11]"| s5
 
     class s5 external
     class s2-n3-m2,s2-n3-m3 component

@@ -3,7 +3,7 @@ level: 4
 name: recall
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: c7e6bf61
+last_reviewed_commit: 0ec9dfb1
 ---
 
 # C4 — recall (Property/Invariant Ledger)
@@ -34,34 +34,6 @@ E22 · recall is the recall pipeline component: the only subcommand currently ex
 - Grey = external systems (S3 · Claude Code carried over from L3).
 - R-edges carry inline property IDs `[P…]` linking to the Property Ledger.
 - All edges traceable to a relationship in c3-engram-cli-binary.md.
-
-## Wiring
-
-Each edge is one or more DI seams the wirer plugs into recall, deduped by the
-wrapped entity (label = SNM ID). The Dependency Manifest below shows the
-per-seam breakdown.
-
-![C4 recall wiring diagram](svg/c4-recall-wiring.svg)
-
-> Diagram source: [svg/c4-recall-wiring.mmd](svg/c4-recall-wiring.mmd). Re-render with
-> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-recall-wiring.mmd -o architecture/c4/svg/c4-recall-wiring.svg`.
-
-## Dependency Manifest
-
-Each row is one DI seam the focus consumes. The wrapped entity is the diagram
-node (component or external) the seam ultimately drives behavior against; it
-must also appear on the call diagram. The wiring diagram dedupes manifest
-rows by wrapped entity.
-
-| Field | Type | Wired by | Wrapped entity | Properties |
-|---|---|---|---|---|
-| `finder` | `Finder` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M3-P1, S2-N3-M3-P2, S2-N3-M3-P9 |
-| `reader` | `Reader` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M3-P3, S2-N3-M3-P4, S2-N3-M3-P9, S2-N3-M3-P10 |
-| `summarizer` | `SummarizerI` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S2-N3-M7` | S2-N3-M3-P5–P8, S2-N3-M3-P11–P16 |
-| `memoryLister` | `MemoryLister` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S2-N3-M5` | S2-N3-M3-P11–P13, S2-N3-M3-P15 |
-| `externalFiles` | `[]externalsources.ExternalFile` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S2-N3-M6` | S2-N3-M3-P5–P8 |
-| `fileCache` | `*externalsources.FileCache` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S2-N3-M6` | S2-N3-M3-P5–P7, S2-N3-M3-P17 |
-| `statusWriter` | `io.Writer` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S3` | S2-N3-M3-P18 |
 
 ## Property Ledger
 

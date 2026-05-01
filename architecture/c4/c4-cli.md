@@ -3,7 +3,7 @@ level: 4
 name: cli
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 8c85d7e9
+last_reviewed_commit: 0ec9dfb1
 ---
 
 # C4 — cli (Property/Invariant Ledger)
@@ -37,39 +37,6 @@ cli applies two universal CLI conventions before any subcommand runs business lo
 - Blue = peer components in the engram-cli-binary container
 - Grey = external systems
 - Solid R-edges = forward calls cli makes into peers and externals
-
-## DI Wires
-
-Each row is one DI seam this component wires into a consumer. Reciprocal entries
-live in the consumer's L4 under "Dependency Manifest".
-
-| Field | Type | Consumer | Wrapped entity |
-|---|---|---|---|
-| `client` | `HTTPDoer` | [S2-N3-M7 · anthropic](c3-engram-cli-binary.md#s2-n3-m7-anthropic) ([c4-anthropic.md](c4-anthropic.md)) | `S5` |
-| `getenv` | `func(string) string` | [S2-N3-M8 · tokenresolver](c3-engram-cli-binary.md#s2-n3-m8-tokenresolver) ([c4-tokenresolver.md](c4-tokenresolver.md)) | `S3` |
-| `execCmd` | `func(ctx, name, args...) ([]byte, error)` | [S2-N3-M8 · tokenresolver](c3-engram-cli-binary.md#s2-n3-m8-tokenresolver) ([c4-tokenresolver.md](c4-tokenresolver.md)) | `S3` |
-| `finder` | `Finder` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S3` |
-| `reader` | `Reader` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S3` |
-| `summarizer` | `SummarizerI` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S2-N3-M7` |
-| `memoryLister` | `MemoryLister` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S2-N3-M5` |
-| `externalFiles` | `[]externalsources.ExternalFile` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S2-N3-M6` |
-| `fileCache` | `*externalsources.FileCache` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S2-N3-M6` |
-| `statusWriter` | `io.Writer` | [S2-N3-M3 · recall](c3-engram-cli-binary.md#s2-n3-m3-recall) ([c4-recall.md](c4-recall.md)) | `S3` |
-| `StatFn` | `func(path string) (bool, error)` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
-| `Reader` | `func(path string) ([]byte, error)` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
-| `MdWalker` | `func(root string) []string` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
-| `MatchAny` | `func(globs []string) bool` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
-| `Settings` | `func() (dir string, found bool)` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
-| `DirLister` | `func(dir string) ([]string, error)` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
-| `SkillFinder` | `func(root string) []string` | [S2-N3-M6 · externalsources](c3-engram-cli-binary.md#s2-n3-m6-externalsources) ([c4-externalsources.md](c4-externalsources.md)) | `S3` |
-| `createTemp` | `func(dir, pattern string) (*os.File, error)` | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `S6` |
-| `rename` | `func(oldpath, newpath string) error` | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `S6` |
-| `mkdirAll` | `func(path string, perm os.FileMode) error` | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `S6` |
-| `stat` | `func(name string) (os.FileInfo, error)` | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `S6` |
-| `remove` | `func(name string) error` | [S2-N3-M9 · tomlwriter](c3-engram-cli-binary.md#s2-n3-m9-tomlwriter) ([c4-tomlwriter.md](c4-tomlwriter.md)) | `S6` |
-| `readDir` | `func(string) ([]os.DirEntry, error)` | [S2-N3-M5 · memory](c3-engram-cli-binary.md#s2-n3-m5-memory) ([c4-memory.md](c4-memory.md)) | `S6` |
-| `readFile` | `func(string) ([]byte, error)` | [S2-N3-M5 · memory](c3-engram-cli-binary.md#s2-n3-m5-memory) ([c4-memory.md](c4-memory.md)) | `S6` |
-| `writer` | `AtomicWriter` | [S2-N3-M5 · memory](c3-engram-cli-binary.md#s2-n3-m5-memory) ([c4-memory.md](c4-memory.md)) | `S2-N3-M9` |
 
 ## Property Ledger
 

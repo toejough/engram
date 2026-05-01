@@ -4,7 +4,6 @@ package dev
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,25 +17,10 @@ func TestEmitL4MermaidEdge_AppendsPropertySuffix(t *testing.T) {
 		Label: "strips transcript", Properties: []string{"P3", "P4", "P9"},
 	}
 	var buf bytes.Buffer
-	emitL4MermaidEdge(&buf, edge, nil)
+	emitL4MermaidEdge(&buf, edge)
 	out := buf.String()
 	if !strings.Contains(out, "R8: strips transcript [P3, P4, P9]") {
 		t.Fatalf("expected bracketed property suffix, got: %s", out)
-	}
-}
-
-func TestEmitL4MermaidEdge_DottedWhenTargetIsDIWrapped(t *testing.T) {
-	t.Parallel()
-	edge := L4Edge{
-		ID: "R10", From: "S2-N3-M3", To: "S2-N3-M7",
-		Label: "ranks via SummarizerI",
-	}
-	diTargets := map[string]bool{"S2-N3-M7": true}
-	var buf bytes.Buffer
-	emitL4MermaidEdge(&buf, edge, diTargets)
-	out := buf.String()
-	if !strings.Contains(out, "-.->") {
-		t.Fatalf("expected dotted arrow for DI-mediated R-edge, got: %s", out)
 	}
 }
 
@@ -47,84 +31,10 @@ func TestEmitL4MermaidEdge_OmitsSuffixWhenNoProperties(t *testing.T) {
 		Label: "constructs + invokes",
 	}
 	var buf bytes.Buffer
-	emitL4MermaidEdge(&buf, edge, nil)
+	emitL4MermaidEdge(&buf, edge)
 	out := buf.String()
 	if strings.Contains(out, "[") {
 		t.Fatalf("expected no brackets, got: %s", out)
-	}
-}
-
-func TestEmitL4MermaidEdge_SolidWhenTargetIsDirectCall(t *testing.T) {
-	t.Parallel()
-	edge := L4Edge{
-		ID: "R8", From: "S2-N3-M3", To: "S2-N3-M4",
-		Label: "strips transcript",
-	}
-	diTargets := map[string]bool{"S2-N3-M7": true}
-	var buf bytes.Buffer
-	emitL4MermaidEdge(&buf, edge, diTargets)
-	out := buf.String()
-	if strings.Contains(out, "-.->") {
-		t.Fatalf("expected solid arrow for non-DI R-edge, got: %s", out)
-	}
-	if !strings.Contains(out, "-->") {
-		t.Fatalf("expected solid arrow, got: %s", out)
-	}
-}
-
-func TestEmitL4WiringMermaid_DedupesByWrappedEntity(t *testing.T) {
-	t.Parallel()
-	spec := validL4Spec()
-	spec.DependencyManifest = []L4DepRow{
-		{Field: "f1", Type: "T", WiredByID: "S2-N3-M2", WiredByName: "cli", WiredByL3: "x.md", WrappedEntityID: "S3"},
-		{Field: "f2", Type: "T", WiredByID: "S2-N3-M2", WiredByName: "cli", WiredByL3: "x.md", WrappedEntityID: "S3"},
-		{Field: "f3", Type: "T", WiredByID: "S2-N3-M2", WiredByName: "cli", WiredByL3: "x.md", WrappedEntityID: "S2-N3-M7"},
-	}
-	spec.Diagram.Nodes = append(spec.Diagram.Nodes,
-		L4Node{ID: "S3", Name: "Claude Code", Kind: "external"},
-		L4Node{ID: "S2-N3-M7", Name: "anthropic", Kind: "component"},
-	)
-	var buf bytes.Buffer
-	emitL4WiringMermaid(&buf, spec)
-	out := buf.String()
-	// Expect exactly two cli→focus edges, labeled "S3" and "S2-N3-M7".
-	s3Count := strings.Count(out, `|"S3"|`)
-	antCount := strings.Count(out, `|"S2-N3-M7"|`)
-	if s3Count != 1 || antCount != 1 {
-		t.Fatalf("expected one S3 edge and one S2-N3-M7 edge, got s3=%d ant=%d in:\n%s", s3Count, antCount, out)
-	}
-	// Wrapped-entity nodes must NOT appear as standalone nodes — their SNM
-	// IDs are conveyed by the edge labels alone.
-	if strings.Contains(out, `s3[`) || strings.Contains(out, `s3(`) {
-		t.Errorf("wrapped entity S3 unexpectedly rendered as a node:\n%s", out)
-	}
-	if strings.Contains(out, `s2-n3-m7[`) || strings.Contains(out, `s2-n3-m7(`) {
-		t.Errorf("wrapped entity S2-N3-M7 unexpectedly rendered as a node:\n%s", out)
-	}
-}
-
-func TestL4DepRow_HasSlimSchema(t *testing.T) {
-	t.Parallel()
-	row := L4DepRow{
-		Field: "summarizer", Type: "SummarizerI",
-		WiredByID: "S2-N3-M2", WiredByName: "cli", WiredByL3: "c3-engram-cli-binary.md",
-		WrappedEntityID: "S2-N3-M7",
-		Properties:      []string{"P5", "P6"},
-	}
-	raw, err := json.Marshal(row)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	s := string(raw)
-	for _, want := range []string{"field", "wired_by_id", "wrapped_entity_id"} {
-		if !strings.Contains(s, want) {
-			t.Errorf("missing %q: %s", want, s)
-		}
-	}
-	for _, gone := range []string{"concrete_adapter", "wired_adapter", "concrete_value", "consumer_field"} {
-		if strings.Contains(s, gone) {
-			t.Errorf("legacy field %q still present: %s", gone, s)
-		}
 	}
 }
 
@@ -137,23 +47,6 @@ func TestL4Spec_RejectsDEdges(t *testing.T) {
 	err := validateL4Spec(spec, nil)
 	if err == nil || !strings.Contains(err.Error(), "R<n>") {
 		t.Fatalf("expected D-edge rejection mentioning R<n>, got: %v", err)
-	}
-}
-
-func TestL4Spec_RejectsManifestWrappedEntityNotInDiagram(t *testing.T) {
-	t.Parallel()
-	spec := validL4Spec()
-	spec.DependencyManifest = []L4DepRow{
-		{
-			Field: "ghost", Type: "Ghost",
-			WiredByID: "S2-N3-M2", WiredByName: "cli", WiredByL3: "c3-engram-cli-binary.md",
-			WrappedEntityID: "S99-NOT-IN-DIAGRAM",
-			Properties:      nil,
-		},
-	}
-	err := validateL4Spec(spec, nil)
-	if err == nil || !strings.Contains(err.Error(), "S99-NOT-IN-DIAGRAM") {
-		t.Fatalf("expected wrapped-entity validation failure, got: %v", err)
 	}
 }
 

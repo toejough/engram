@@ -3,7 +3,7 @@ level: 4
 name: context
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: 95a5a92f
+last_reviewed_commit: 0ec9dfb1
 ---
 
 # C4 — context (Property/Invariant Ledger)
@@ -20,7 +20,7 @@ last_reviewed_commit: 95a5a92f
 
 ## Context (from L3)
 
-Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E23. internal/context declares a `FileReader` interface as a public type but no function in the package consumes it — the recall package wires its own `TranscriptReader` adapter when invoking `context.StripSeqAndConvertHumanTurns`. context therefore has zero DI seams of its own and no Dependency Manifest under the new schema.
+Scoped slice of [c3-engram-cli-binary.md](c3-engram-cli-binary.md): the L3 edges that touch E23. internal/context declares a `FileReader` interface as a public type but no function in the package consumes it — the recall package supplies its own `TranscriptReader` when invoking `context.StripSeqAndConvertHumanTurns`.
 
 ![C4 context context diagram](svg/c4-context.svg)
 

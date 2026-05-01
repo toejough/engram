@@ -3,7 +3,7 @@ level: 4
 name: anthropic
 parent: "c3-engram-cli-binary.md"
 children: []
-last_reviewed_commit: d811f546
+last_reviewed_commit: 0ec9dfb1
 ---
 
 # C4 — anthropic (Property/Invariant Ledger)
@@ -30,28 +30,6 @@ E26 anthropic is the shared client for the Anthropic Messages API. It owns the H
 - Grey = external systems (S5 · Anthropic API).
 - R-edges carry inline property IDs `[P…]` linking to the Property Ledger.
 - All edges traceable to a relationship in c3-engram-cli-binary.md.
-
-## Wiring
-
-Each edge is one or more DI seams the wirer plugs into anthropic, deduped by the
-wrapped entity (label = SNM ID). The Dependency Manifest below shows the
-per-seam breakdown.
-
-![C4 anthropic wiring diagram](svg/c4-anthropic-wiring.svg)
-
-> Diagram source: [svg/c4-anthropic-wiring.mmd](svg/c4-anthropic-wiring.mmd). Re-render with
-> `npx @mermaid-js/mermaid-cli -i architecture/c4/svg/c4-anthropic-wiring.mmd -o architecture/c4/svg/c4-anthropic-wiring.svg`.
-
-## Dependency Manifest
-
-Each row is one DI seam the focus consumes. The wrapped entity is the diagram
-node (component or external) the seam ultimately drives behavior against; it
-must also appear on the call diagram. The wiring diagram dedupes manifest
-rows by wrapped entity.
-
-| Field | Type | Wired by | Wrapped entity | Properties |
-|---|---|---|---|---|
-| `client` | `HTTPDoer` | [S2-N3-M2 · cli](c3-engram-cli-binary.md#s2-n3-m2-cli) ([c4-cli.md](c4-cli.md)) | `S5` | S2-N3-M7-P2–P11 |
 
 ## Property Ledger
 
