@@ -257,8 +257,63 @@ All three scenarios produced sensible, on-topic queries. Notable:
 - Companion didn't actually CALL engram_recall on its proposed queries — that's a separate validation. Step is: feed each proposed query back through `engram_recall --query <q>` and verify hits.
 - Output formatting (numbered list, single-line vs newline-separated) varies; downstream consumer needs to be tolerant or the prompt should pin a JSON-array shape.
 
-## Phase 5 — Companion plumbing (next)
+## Phase 5 — Companion plumbing end-to-end
 
-**Goal:** wire the companion into the OpenCode plugin: `chat.message` triggers companion, `system.transform` injects the result.
+**Goal:** wire the companion into the OpenCode plugin and validate end-to-end with a planted-token verification.
+
+**Status:** ✅ working (2026-05-03), with cost concerns flagged for the next pass.
+
+### Architecture (revised mid-phase)
+
+Initial split was `chat.message` → companion → write sidecar; `system.transform` → read sidecar → inject. Two problems surfaced:
+
+1. **Recursion**: the companion's `opencode run` ALSO loads this plugin in its own process, which fires `chat.message`, which spawns *another* companion. Infinite recursion.
+2. **Two hooks for one job** added complexity for no benefit.
+
+**Revised**: do everything in `experimental.chat.system.transform`. Recursion is broken by passing `ENGRAM_COMPANION_MODE=1` in the spawned companion's env; the hook checks the env var at the top and short-circuits to the plain reminder injection if set.
+
+### Implementation
+
+`opencode/plugins/engram.ts`:
+
+- `system.transform` (top): if `ENGRAM_COMPANION_MODE === "1"` → inject reminder only, return.
+- Else: run `engram recall --no-external-sources` (project-scoped via Phase 2's filter); compose the companion prompt (Phase 4 v1 wording, asking for a memory-injection block); run `opencode run -m opencode/qwen3.6-plus -s <companion> --format json <prompt>` synchronously; capture the companion's text; append to `output.system[0]`.
+- Companion session ID is stored at `~/.local/share/engram/companion-session/<primarySessionID>.txt` for reuse across primary turns.
+- Trace events go to `~/.local/share/engram/companion-trace.jsonl` at every stage: `system.transform-start`, `recall-complete`, `companion-session-created`, `companion-complete`, `companion-injected` / `companion-skipped`, `system.transform-skipped-companion`.
+
+### End-to-end validation
+
+Planted a verifiable fact memory: `engram` → `secret verification token is` → `MAGENTA-VERIFICATION-PHRASE-7392`. Then asked a fresh primary OpenCode session: *"Tell me any unusual facts you remember about engram from our previous work together. Quote them exactly if you can."*
+
+**Result**: primary's response included verbatim:
+
+> "engram's secret verification phrase for end-to-end companion tests is `MAGENTA-VERIFICATION-PHRASE-7392` (planted today, 2026-05-03)"
+
+Plus 6 other real project memories surfaced (ESC-interrupts-stuck-agents, FD-exhaustion bug, zombie-tasks bug, stale `coverage.out` after rebase, worktree chat path bug, "keywords blob suffixes" cleanup) — all entries from prior project session memories.
+
+The trace shows the full pipeline firing: recall (~280–350ms), companion qwen call (~14–17s), inject. Recursion guard fires correctly: `system.transform-skipped-companion` events are logged for the inner opencode-run invocations the companion spawns.
+
+### ⚠️ Cost issue — needs addressing before this is usable
+
+`system.transform` fires **multiple times per primary turn** (once per LLM step — and a single user message can trigger several internal LLM steps even without explicit tool use). In the test, **4 companion runs fired for one user message**, each ~17s. Total ~68s of companion overhead for a single primary turn that would otherwise take ~5s. **~13× slowdown.**
+
+The companion's actual work (qwen extraction over ~26KB of recall output) is ~17s, much higher than my Phase 3 estimate (~3–5s) because Phase 3 was just `engram show` of a tiny memory. With a full recall + extraction, qwen is doing substantive reasoning per call.
+
+Caching paths to consider in Phase 6:
+
+- **Per-turn cache keyed by latest user message timestamp/ID.** Compute companion once per turn (first system.transform fire); reuse for subsequent fires within the same turn. Invalidate when user sends new message.
+- **Trim the companion's input.** Phase 4 used a synthetic, short transcript; Phase 5 hands it the full recall output (~26KB). The latency scales with input size. Truncating to last N user/assistant pairs would speed it up.
+- **Skip the companion entirely on tool-followup turns** (no new user message → no new context → reuse prior result).
+- **Use a faster companion model** (haiku-class) for the extraction step — qwen3.6-plus is overkill for "summarize this transcript."
+
+### Implications for the architecture
+
+- Architecture works end-to-end. Memory recall → companion synthesis → primary injection is fully validated.
+- **Not yet shippable**: the fan-out cost makes it impractical for real use. Phase 6 = caching + cost reduction.
+- The recursion guard pattern (env-var-as-mode-flag) is a generalizable trick for any plugin that recursively invokes its own host.
+
+## Phase 6 — Cost reduction (next)
+
+**Goal:** cut companion overhead from ~13× primary-turn cost to <2×, primarily through per-turn caching of the companion's output.
 
 **Status:** not started.

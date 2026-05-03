@@ -52,6 +52,21 @@ async function getReminder(kind: "system" | "session-start" | "user-prompt" | "p
 }
 
 const DEBUG_LOG = path.join(os.homedir(), ".local", "share", "engram", "debug-system-transform.log")
+const COMPANION_TRACE = path.join(os.homedir(), ".local", "share", "engram", "companion-trace.jsonl")
+const COMPANION_SESSION_DIR = path.join(os.homedir(), ".local", "share", "engram", "companion-session")
+const COMPANION_MODEL = "opencode/qwen3.6-plus"
+const COMPANION_PROMPT_PREFIX = `You are a memory steward observing a primary AI agent's project session. Your job: read the recent project history below and emit a concise block of "memories worth injecting" — facts, prior corrections, and project context the primary agent should see for its upcoming turn.
+
+Format your output exactly like this, and emit nothing else:
+
+## Recalled memories
+- <one sentence per relevant memory or fact, drawn directly from the project history below>
+- <another, if relevant>
+
+If nothing in the history seems relevant for the upcoming turn, output exactly: NO RELEVANT MEMORIES
+
+PROJECT HISTORY (most recent message at end):
+`
 
 function logTransform(before: string, reminder: string, after: string): void {
   try {
@@ -74,6 +89,85 @@ function logTransform(before: string, reminder: string, after: string): void {
   }
 }
 
+function companionTrace(stage: string, info: Record<string, any>): void {
+  try {
+    const dir = path.dirname(COMPANION_TRACE)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    const entry = JSON.stringify({ ts: new Date().toISOString(), stage, ...info }) + "\n"
+    fs.appendFileSync(COMPANION_TRACE, entry, "utf8")
+  } catch {
+    // tracing failure is non-fatal
+  }
+}
+
+async function runEngramRecall(): Promise<string> {
+  const proc = Bun.spawn([ENGRAM_BIN, "recall", "--no-external-sources"], { stdout: "pipe", stderr: "pipe" })
+  await proc.exited
+  return (await proc.stdout.text()).trim()
+}
+
+function readCompanionSession(primarySessionID: string): string | null {
+  try {
+    const p = path.join(COMPANION_SESSION_DIR, `${primarySessionID}.txt`)
+    if (!fs.existsSync(p)) return null
+    return fs.readFileSync(p, "utf8").trim()
+  } catch {
+    return null
+  }
+}
+
+function writeCompanionSession(primarySessionID: string, companionSessionID: string): void {
+  try {
+    if (!fs.existsSync(COMPANION_SESSION_DIR)) fs.mkdirSync(COMPANION_SESSION_DIR, { recursive: true })
+    fs.writeFileSync(path.join(COMPANION_SESSION_DIR, `${primarySessionID}.txt`), companionSessionID, "utf8")
+  } catch {
+    // non-fatal
+  }
+}
+
+async function runCompanion(primarySessionID: string, prompt: string): Promise<string> {
+  const existingCompanion = readCompanionSession(primarySessionID)
+  const args = ["run", "-m", COMPANION_MODEL, "--format", "json"]
+  if (existingCompanion) args.push("-s", existingCompanion)
+  args.push(prompt)
+
+  // ENGRAM_COMPANION_MODE breaks the recursive companion-spawning loop:
+  // when the companion's opencode process loads this plugin, the
+  // system.transform hook checks the env var and skips its own companion call.
+  const proc = Bun.spawn(["opencode", ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...process.env, ENGRAM_COMPANION_MODE: "1" },
+  })
+  await proc.exited
+  if (proc.exitCode !== 0) {
+    companionTrace("companion-run-failed", { exitCode: proc.exitCode, stderr: (await proc.stderr.text()).slice(0, 1000) })
+    return ""
+  }
+
+  const stdout = await proc.stdout.text()
+  let capturedSessionID = ""
+  let companionText = ""
+
+  for (const line of stdout.split("\n")) {
+    if (!line.trim()) continue
+    try {
+      const ev = JSON.parse(line)
+      if (ev.sessionID && !capturedSessionID) capturedSessionID = ev.sessionID
+      if (ev.type === "text" && ev.part?.text) companionText += ev.part.text
+    } catch {
+      // skip non-JSON lines
+    }
+  }
+
+  if (!existingCompanion && capturedSessionID) {
+    writeCompanionSession(primarySessionID, capturedSessionID)
+    companionTrace("companion-session-created", { primarySessionID, companionSessionID: capturedSessionID })
+  }
+
+  return companionText.trim()
+}
+
 export const EngramPlugin: Plugin = async ({ client, $ }) => {
   await ensureBinary()
 
@@ -84,11 +178,47 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
       }
     },
 
-    "experimental.chat.system.transform": async (_input, output) => {
+    "experimental.chat.system.transform": async (input: any, output) => {
       const before = output.system[0]
       const reminder = await getReminder("system")
-      output.system[0] = before + reminder
-      logTransform(before, reminder, output.system[0])
+      const sessionID = input?.sessionID
+
+      // Guard against recursion: when this plugin is loaded inside the
+      // companion's own opencode process, ENGRAM_COMPANION_MODE is set and
+      // we must NOT spawn another companion. We still inject the reminder.
+      if (process.env.ENGRAM_COMPANION_MODE === "1") {
+        companionTrace("system.transform-skipped-companion", { sessionID, reason: "ENGRAM_COMPANION_MODE" })
+        output.system[0] = before + reminder
+        logTransform(before, reminder, output.system[0])
+        return
+      }
+
+      let companionBlock = ""
+      try {
+        companionTrace("system.transform-start", { sessionID })
+
+        const recallStart = Date.now()
+        const recallOutput = await runEngramRecall()
+        companionTrace("recall-complete", { sessionID, recallMs: Date.now() - recallStart, recallLen: recallOutput.length })
+
+        const prompt = COMPANION_PROMPT_PREFIX + recallOutput
+        const companionStart = Date.now()
+        const companionOutput = await runCompanion(sessionID || "default", prompt)
+        companionTrace("companion-complete", { sessionID, companionMs: Date.now() - companionStart, companionOutLen: companionOutput.length, companionOutSample: companionOutput.slice(0, 500) })
+
+        if (companionOutput && !companionOutput.includes("NO RELEVANT MEMORIES")) {
+          companionBlock = "\n\n" + companionOutput
+          companionTrace("companion-injected", { sessionID, blockLen: companionBlock.length })
+        } else {
+          companionTrace("companion-skipped", { sessionID, reason: companionOutput ? "no-memories" : "empty-output" })
+        }
+      } catch (err: any) {
+        companionTrace("companion-error", { sessionID, error: String(err) })
+      }
+
+      const injected = reminder + companionBlock
+      output.system[0] = before + injected
+      logTransform(before, injected, output.system[0])
     },
 
     "tool.execute.after": async (_input, output) => {
