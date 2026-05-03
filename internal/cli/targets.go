@@ -118,5 +118,11 @@ func Targets(stdout, stderr io.Writer) []any {
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
 			errHandler(runUpdate(ctx, a, stdout))
 		}).Name("update").Description("Update an existing memory"),
+		targ.Targ(func(ctx context.Context, a ReminderArgs) {
+			errHandler(runReminder(ctx, a, stdout))
+		}).Name("reminder").Description("Emit canonical reminder text"),
+		targ.Targ(func(ctx context.Context, a BuildSelfArgs) {
+			errHandler(runBuildSelf(ctx, a, stdout))
+		}).Name("build-self").Description("Build the engram binary"),
 	}
 }

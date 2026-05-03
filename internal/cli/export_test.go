@@ -12,6 +12,7 @@ import (
 var (
 	ExportApplyDataDirDefault            = applyDataDirDefault
 	ExportApplyProjectSlugDefault        = applyProjectSlugDefault
+	ExportBuildAndInstall                = buildAndInstall
 	ExportComputeMainProjectDir          = computeMainProjectDir
 	ExportDescribeNewMemory              = describeNewMemory
 	ExportOsDirListMd                    = osDirListMd
@@ -24,6 +25,7 @@ var (
 	ExportRenderConflictContent          = renderConflictContent
 	ExportRenderFactContent              = renderFactContent
 	ExportRenderMemoryContent            = renderMemoryContent
+	ExportRunBuildSelf                   = runBuildSelf
 	ExportValidateSource                 = validateSource
 )
 
