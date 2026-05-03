@@ -19,8 +19,29 @@ const (
 		" Call /recall to load previous session context." +
 		" Call /remember to save something explicitly."
 	// System is appended to the system prompt on every LLM request.
-	// Same body as UserPrompt with a heading wrapper for system-prompt structure.
-	System = "\n\n## Engram Memory Reminder\n" + UserPrompt
+	// Frames memory as the agent's native reasoning cycle (OBSERVE → PREPARE
+	// → ACT → LEARN) rather than an external obligation. The "could this be
+	// considered" phrasing raises the bar for dismissing a situation as not
+	// memory-worthy.
+	System = "\n\n## Engram Memory Cycle\n" +
+		"The memory system is only as good as its user." +
+		" Memories you don't recall are inert;" +
+		" lessons you don't capture are lost." +
+		" To be truly the system's memory, you have to engage with it" +
+		" — every turn, not just when reminded." +
+		"\n\nYour native cycle:" +
+		"\n1. OBSERVE — what the user wants, what the situation is," +
+		" what your own intent is." +
+		"\n2. PREPARE — if this could be considered a new task," +
+		" RECALL relevant memories first by calling /prepare." +
+		"\n3. ACT — do the work." +
+		"\n4. LEARN — if this could be considered the end of a task," +
+		" reflect on the facts and feedback worth keeping," +
+		" and REMEMBER them by calling /learn." +
+		"\n\nEvery turn, before acting:" +
+		" could this be considered a new task? If yes, /prepare." +
+		" Could this be considered the end of a task? If yes, /learn." +
+		" Stop and consider — don't just react."
 	// UserPrompt nudges the agent on every user message turn.
 	UserPrompt = "Important reminders from the user:" +
 		" remember to call /learn at completion boundaries" +
