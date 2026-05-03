@@ -162,7 +162,39 @@ A note on the `event` hook: 122 invocations in a 3-turn conversation. Most are n
 - The trace file grew to 149 entries / 164KB for 3 short turns. We don't want this in production. Plan: strip the `trace()` helper after Phase 2; keep a thin `engram debug-trace` toggle behind an env var if we ever need it again.
 - `chat.message` fired *before* any of the LLM-request-time hooks (system.transform, params, headers). So a synchronous companion call from `chat.message` will block the primary's turn. Expected for sync mode; document.
 
-## Phase 3 — Companion prompt design (next)
+## Phase 3 — Validate sync engram callout + dynamic injection
+
+**Goal:** confirm the plugin can synchronously call out to engram from `experimental.chat.system.transform`, fetch fresh state per invocation (not cached at plugin load), and inject it into the system prompt — and that the LLM picks it up.
+
+**Status:** ✅ complete (2026-05-03).
+
+### Method
+
+Planted a fact memory `engram-favorite-color-test-memory` with `object=blue`. Temporarily modified `experimental.chat.system.transform` to also spawn `engram show --name engram-favorite-color-test-memory` and append its output to the system prompt. Ran `opencode run -m opencode/qwen3.6-plus "What is engram's favorite color? Answer with just the color name."` in 5 fresh sessions, updating the memory to a different color (`engram update --name ... --object <color>`) between each. Reverted the hook modification and deleted the test memory after.
+
+### Findings
+
+| Memory state | Model said | Elapsed |
+|---|---|---|
+| blue | "Blue" | 7316ms |
+| red | "Red" | 6409ms |
+| yellow | "Yellow" | 4609ms |
+| magenta | "Magenta" | 4121ms |
+| cyan | "cyan" | 3412ms |
+
+5/5 correct. Each fresh `opencode run` read the **current** memory state (no plugin-load-time caching). The sync shell-out → injection → LLM consumption loop works end-to-end.
+
+**Latency**: cold start ~7s, warmed ~3.4s. The decrease is OpenCode's system-prompt cache becoming warm across invocations of the same model. Per-turn budget for the companion's sync work: roughly **3–7 seconds without bursting OpenCode's tolerance**, with a downward trend as the session warms.
+
+**Q3 resolved: yes, sync injection of fresh state works.** Confirms hook can `await` an arbitrarily-paced shell command and inject its output without breaking.
+
+### Implications for the architecture
+
+- The sync companion model is feasible. A `chat.message` hook can spawn `opencode run -s <companion>` synchronously, wait for the companion's recall result, and the next `system.transform` (which fires very shortly after) can inject the result. Total added latency per primary turn ≈ companion turn cost (~3–7s for qwen-class).
+- The cold-start of ~7s is paid once per companion session; long-lived companion sessions (one per primary, persisted) amortize that. Subsequent turns are ~3–4s.
+- We don't need anything fancier than `engram show` / `engram recall` returning text, and a string append. No streaming, no protocol — file IO + stdout.
+
+## Phase 4 — Companion prompt design (next)
 
 **Goal:** find a prompt for the companion that reliably emits the right action (recall query, learn payload, or "no action") given a primary transcript snippet + the latest user message.
 
