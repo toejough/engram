@@ -53,6 +53,7 @@ async function getReminder(kind: "system" | "session-start" | "user-prompt" | "p
 
 const DEBUG_LOG = path.join(os.homedir(), ".local", "share", "engram", "debug-system-transform.log")
 const COMPANION_TRACE = path.join(os.homedir(), ".local", "share", "engram", "companion-trace.jsonl")
+const COMPANION_INJECTIONS = path.join(os.homedir(), ".local", "share", "engram", "companion-injections.log")
 const COMPANION_SESSION_DIR = path.join(os.homedir(), ".local", "share", "engram", "companion-session")
 const COMPANION_MODEL = "opencode/qwen3.6-plus"
 const COMPANION_PROMPT_PREFIX = `You are a memory steward observing a primary AI agent's project session. Your job: read the recent project history below and emit a concise block of "memories worth injecting" — facts, prior corrections, and project context the primary agent should see for its upcoming turn.
@@ -97,6 +98,22 @@ function companionTrace(stage: string, info: Record<string, any>): void {
     fs.appendFileSync(COMPANION_TRACE, entry, "utf8")
   } catch {
     // tracing failure is non-fatal
+  }
+}
+
+// logCompanionInjection appends a human-readable entry to a tail-friendly log
+// for ongoing validation of which memories are surfacing. One block per
+// successful injection. Skipped/empty injections are not logged here (they
+// still appear in the JSONL trace).
+function logCompanionInjection(sessionID: string, recallMs: number, companionMs: number, injection: string): void {
+  try {
+    const dir = path.dirname(COMPANION_INJECTIONS)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    const ts = new Date().toISOString()
+    const entry = `=== ${ts} primary=${sessionID} recall=${recallMs}ms companion=${companionMs}ms inject=${injection.length}chars ===\n${injection}\n=== END ===\n\n`
+    fs.appendFileSync(COMPANION_INJECTIONS, entry, "utf8")
+  } catch {
+    // logging failure is non-fatal
   }
 }
 
@@ -199,16 +216,19 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
 
         const recallStart = Date.now()
         const recallOutput = await runEngramRecall()
-        companionTrace("recall-complete", { sessionID, recallMs: Date.now() - recallStart, recallLen: recallOutput.length })
+        const recallMs = Date.now() - recallStart
+        companionTrace("recall-complete", { sessionID, recallMs, recallLen: recallOutput.length })
 
         const prompt = COMPANION_PROMPT_PREFIX + recallOutput
         const companionStart = Date.now()
         const companionOutput = await runCompanion(sessionID || "default", prompt)
-        companionTrace("companion-complete", { sessionID, companionMs: Date.now() - companionStart, companionOutLen: companionOutput.length, companionOutSample: companionOutput.slice(0, 500) })
+        const companionMs = Date.now() - companionStart
+        companionTrace("companion-complete", { sessionID, companionMs, companionOutLen: companionOutput.length, companionOut: companionOutput })
 
         if (companionOutput && !companionOutput.includes("NO RELEVANT MEMORIES")) {
           companionBlock = "\n\n" + companionOutput
           companionTrace("companion-injected", { sessionID, blockLen: companionBlock.length })
+          logCompanionInjection(sessionID || "default", recallMs, companionMs, companionOutput)
         } else {
           companionTrace("companion-skipped", { sessionID, reason: companionOutput ? "no-memories" : "empty-output" })
         }
