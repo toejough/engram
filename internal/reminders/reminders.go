@@ -10,6 +10,8 @@ import (
 
 // Exported constants.
 const (
+	// PostTool nudges the agent after every tool execution.
+	PostTool = UserPrompt
 	// SessionStart announces skill availability at the start of a session.
 	SessionStart = "[engram] Memory skills available." +
 		" Call /prepare before starting new work." +
@@ -17,22 +19,18 @@ const (
 		" Call /recall to load previous session context." +
 		" Call /remember to save something explicitly."
 	// System is appended to the system prompt on every LLM request.
-	// Uses imperative language — these are requirements, not suggestions.
-	System = "\n\n## Engram Memory Requirements\n" +
-		"BEFORE starting any new work, switching tasks, or beginning implementation:" +
-		" you MUST call /prepare to load relevant context." +
-		" Do NOT skip this step even if you think you already know the context." +
-		"\nAFTER completing any task, resolving a bug, or changing direction:" +
-		" you MUST call /learn to capture lessons for future sessions." +
-		" Lessons not captured are lost." +
-		"\nThese are system requirements, not optional reminders."
+	// Same body as UserPrompt with a heading wrapper for system-prompt structure.
+	System = "\n\n## Engram Memory Reminder\n" + UserPrompt
 	// UserPrompt nudges the agent on every user message turn.
-	UserPrompt = "MEMORY REQUIREMENTS:" +
-		" Before starting new work, call /prepare." +
-		" After completing work, call /learn." +
-		" These are not optional."
-	// PostTool nudges the agent after every tool execution.
-	PostTool = UserPrompt
+	UserPrompt = "Important reminders from the user:" +
+		" remember to call /learn at completion boundaries" +
+		" (task done, bug resolved, direction change, commit)" +
+		" and /prepare when starting new work." +
+		" These are CRITICAL memory boundaries." +
+		" If you are at one or recently completed work without calling /learn," +
+		" PAUSE and CALL IT NOW." +
+		" If you are at one or recently started work without calling /prepare," +
+		" PAUSE and CALL IT NOW."
 )
 
 // Exported variables.
