@@ -29,7 +29,7 @@ type Extractor interface {
 
 // Finder finds session transcript files.
 type Finder interface {
-	Find(projectDir string) ([]FileEntry, error)
+	Find(dirs ...string) ([]FileEntry, error)
 }
 
 // FindingSummarizer condenses accumulated findings into a structured summary.
@@ -85,9 +85,10 @@ func NewOrchestrator(
 // If query is non-empty (mode B): for each session, extract relevant content via LLM.
 func (o *Orchestrator) Recall(
 	ctx context.Context,
-	projectDir, query string,
+	query string,
+	dirs ...string,
 ) (*Result, error) {
-	sessions, err := o.finder.Find(projectDir)
+	sessions, err := o.finder.Find(dirs...)
 	if err != nil {
 		return nil, fmt.Errorf("recalling: %w", err)
 	}
@@ -194,7 +195,7 @@ func (o *Orchestrator) listAndMatchMemories(
 	query string,
 	limit int,
 ) ([]*memory.Stored, error) {
-	if o.memoryLister == nil || o.dataDir == "" {
+	if o.summarizer == nil || o.memoryLister == nil || o.dataDir == "" {
 		return nil, nil
 	}
 

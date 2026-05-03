@@ -46,6 +46,10 @@ type osDirLister struct{}
 func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("listing directory: %w", err)
 	}
 
@@ -63,8 +67,6 @@ func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
 
 		info, infoErr := entry.Info()
 		if infoErr != nil {
-			fmt.Fprintf(os.Stderr, "engram: listing directory: stat %s: %v\n", name, infoErr)
-
 			continue
 		}
 
@@ -236,15 +238,23 @@ func runRecallSessions(
 		return fmt.Errorf("recall: %w", homeErr)
 	}
 
-	var projectDir string
+	var dirs []string
 	if transcriptDir != "" {
-		projectDir = transcriptDir
+		dirs = []string{transcriptDir}
 	} else {
-		projectDir = filepath.Join(home, ".claude", "projects", *projectSlug)
+		dirs = []string{
+			filepath.Join(home, ".claude", "projects", *projectSlug),
+		}
 	}
 
-	finder := recall.NewSessionFinder(&osDirLister{})
-	reader := recall.NewTranscriptReader(&osFileReader{})
+	finder := recall.NewCompositeSessionFinder(
+		recall.NewSessionFinder(&osDirLister{}),
+		recall.NewOpencodeSessionFinder(recall.DefaultOpencodeDBPath()),
+	)
+	reader := recall.NewCompositeTranscriptReader(
+		recall.NewTranscriptReader(&osFileReader{}),
+		recall.NewOpencodeTranscriptReader(recall.DefaultOpencodeDBPath()),
+	)
 
 	opts := []recall.OrchestratorOption{recall.WithStatusWriter(os.Stderr)}
 
@@ -255,7 +265,7 @@ func runRecallSessions(
 
 	orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, dataDir, opts...)
 
-	result, err := orch.Recall(ctx, projectDir, query)
+	result, err := orch.Recall(ctx, query, dirs...)
 	if err != nil {
 		return fmt.Errorf("recall: %w", err)
 	}

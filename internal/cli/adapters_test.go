@@ -72,13 +72,26 @@ func TestOsDirLister_ListJSONL(t *testing.T) {
 	g.Expect(entries).To(HaveLen(2))
 }
 
-func TestOsDirLister_ListJSONL_Error(t *testing.T) {
+func TestOsDirLister_ListJSONL_NotADirectory(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	filePath := filepath.Join(t.TempDir(), "notadir.jsonl")
+	g.Expect(os.WriteFile(filePath, []byte("{}"), 0o644)).To(Succeed())
+
+	lister := cli.ExportNewOsDirLister()
+	_, err := lister.ListJSONL(filePath)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestOsDirLister_ListJSONL_NotExist(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	lister := cli.ExportNewOsDirLister()
-	_, err := lister.ListJSONL("/nonexistent/path")
-	g.Expect(err).To(HaveOccurred())
+	entries, err := lister.ListJSONL("/nonexistent/path")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
 }
 
 func TestOsFileReader_Read(t *testing.T) {

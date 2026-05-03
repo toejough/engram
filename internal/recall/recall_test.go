@@ -12,6 +12,31 @@ import (
 	"engram/internal/recall"
 )
 
+func TestSessionFinder_DeduplicatesAcrossDirectories(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Now()
+	lister := &fakeDirLister{
+		entries: []recall.FileEntry{
+			{Path: "/shared/session.jsonl", Mtime: now},
+		},
+	}
+
+	finder := recall.NewSessionFinder(lister)
+
+	entries, err := finder.Find("/claude", "/opencode")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entries).To(HaveLen(1))
+	g.Expect(entries[0].Path).To(Equal("/shared/session.jsonl"))
+}
+
 func TestSessionFinder_EmptyDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -42,10 +67,51 @@ func TestSessionFinder_ListerError(t *testing.T) {
 
 	_, err := finder.Find("/project")
 	g.Expect(err).To(MatchError(ContainSubstring("access denied")))
-	g.Expect(err).To(MatchError(ContainSubstring("listing sessions")))
+	g.Expect(err).To(MatchError(ContainSubstring("listing sessions in /project")))
 }
 
-// --- SessionFinder tests ---
+func TestSessionFinder_MultipleDirectoriesMerged(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Now()
+	lister := &fakeDirLister{
+		entries: []recall.FileEntry{
+			{Path: "/claude/a.jsonl", Mtime: now.Add(-1 * time.Hour)},
+			{Path: "/claude/c.jsonl", Mtime: now.Add(-3 * time.Hour)},
+			{Path: "/opencode/b.jsonl", Mtime: now.Add(-2 * time.Hour)},
+		},
+	}
+
+	finder := recall.NewSessionFinder(lister)
+
+	entries, err := finder.Find("/claude", "/opencode")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entries).To(HaveLen(3))
+	g.Expect(entries[0].Path).To(Equal("/claude/a.jsonl"))
+	g.Expect(entries[1].Path).To(Equal("/opencode/b.jsonl"))
+	g.Expect(entries[2].Path).To(Equal("/claude/c.jsonl"))
+}
+
+func TestSessionFinder_NoDirectories(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	lister := &fakeDirLister{entries: []recall.FileEntry{}}
+
+	finder := recall.NewSessionFinder(lister)
+
+	entries, err := finder.Find()
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
+}
 
 func TestSessionFinder_SortsByMtimeDescending(t *testing.T) {
 	t.Parallel()
@@ -97,7 +163,6 @@ func TestTranscriptReader_RespectsBudget(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	// Create content that exceeds a small budget.
 	lines := make([]string, 0, 20)
 	for i := range 20 {
 		lines = append(
@@ -121,11 +186,9 @@ func TestTranscriptReader_RespectsBudget(t *testing.T) {
 		return
 	}
 
-	// Should return less content than the full transcript.
 	g.Expect(bytesRead).To(BeNumerically(">", 0))
 	g.Expect(len(result)).To(BeNumerically("<", len(content)))
 
-	// Should contain the tail (most recent messages), not the head.
 	g.Expect(result).To(ContainSubstring("message 19"), "should contain last message")
 	g.Expect(result).NotTo(ContainSubstring("message 0"), "should not contain first message")
 }
@@ -135,7 +198,6 @@ func TestTranscriptReader_ReturnsTailWhenBudgetLimited(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	// Create content where early messages are different from late messages.
 	lines := []string{
 		`{"type":"user","message":{"role":"user","content":"early message alpha"}}`,
 		`{"type":"assistant","message":{"role":"assistant","content":"early response beta"}}`,
@@ -150,7 +212,6 @@ func TestTranscriptReader_ReturnsTailWhenBudgetLimited(t *testing.T) {
 		contents: map[string][]byte{"/transcript.jsonl": []byte(content)},
 	})
 
-	// Budget enough for ~2 lines but not all 6.
 	const limitedBudget = 80
 
 	result, _, err := reader.Read("/transcript.jsonl", limitedBudget)
@@ -160,12 +221,9 @@ func TestTranscriptReader_ReturnsTailWhenBudgetLimited(t *testing.T) {
 		return
 	}
 
-	// Should contain the TAIL (most recent) content, not the head.
 	g.Expect(result).To(ContainSubstring("zeta"), "should contain latest content")
 	g.Expect(result).NotTo(ContainSubstring("alpha"), "should not contain earliest content")
 }
-
-// --- TranscriptReader tests ---
 
 func TestTranscriptReader_StripsToolResults(t *testing.T) {
 	t.Parallel()

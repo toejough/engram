@@ -4,8 +4,7 @@ import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
 
-const ENGRAM_BIN = path.join(os.homedir(), ".local", "share", "engram", "bin", "engram")
-const SYMLINK_PATH = path.join(os.homedir(), ".local", "bin", "engram")
+const ENGRAM_BIN = path.join(os.homedir(), ".local", "bin", "engram")
 
 function findPluginRoot(): string | null {
   const possible = [
@@ -19,35 +18,12 @@ function findPluginRoot(): string | null {
   return null
 }
 
-async function buildIfNeeded($: typeof Bun.$): Promise<boolean> {
-  const needsBuild =
-    !fs.existsSync(ENGRAM_BIN) ||
-    !fs.statSync(ENGRAM_BIN).isFile()
-
-  if (!needsBuild) {
-    const pluginRoot = findPluginRoot()
-    if (pluginRoot) {
-      try {
-        const { execSync } = await import("child_process")
-        const result = execSync(
-          `find "${pluginRoot}" -name '*.go' -newer "${ENGRAM_BIN}" -print -quit`,
-          { encoding: "utf8" },
-        )
-        if (result.trim().length > 0) {
-          return true
-        }
-      } catch {
-        // find failed, assume no build needed
-      }
-    }
-    return false
-  }
-
-  return needsBuild
+async function buildIfNeeded(): Promise<boolean> {
+  return !fs.existsSync(ENGRAM_BIN) || !fs.statSync(ENGRAM_BIN).isFile()
 }
 
-async function ensureBinary($: typeof Bun.$): Promise<void> {
-  const shouldBuild = await buildIfNeeded($)
+async function ensureBinary(): Promise<void> {
+  const shouldBuild = await buildIfNeeded()
   if (!shouldBuild) return
 
   const pluginRoot = findPluginRoot()
@@ -55,56 +31,58 @@ async function ensureBinary($: typeof Bun.$): Promise<void> {
 
   const binDir = path.dirname(ENGRAM_BIN)
   try {
-    await $`mkdir -p ${binDir}`.cwd(pluginRoot)
-    await $`rm -f ${ENGRAM_BIN} ${ENGRAM_BIN}.tmp`.cwd(pluginRoot)
-    await $`go build -o ${ENGRAM_BIN}.tmp ./cmd/engram/`.cwd(pluginRoot)
-    await $`mv ${ENGRAM_BIN}.tmp ${ENGRAM_BIN}`.cwd(pluginRoot)
-
-    const localBin = path.dirname(SYMLINK_PATH)
-    await $`mkdir -p ${localBin}`
-    await $`ln -sf ${ENGRAM_BIN} ${SYMLINK_PATH}`
+    await Bun.spawn(["mkdir", "-p", binDir], { cwd: pluginRoot, stdout: "pipe", stderr: "pipe" }).exited
+    await Bun.spawn(["rm", "-f", ENGRAM_BIN, ENGRAM_BIN + ".tmp"], { cwd: pluginRoot, stdout: "pipe", stderr: "pipe" }).exited
+    const buildProc = Bun.spawn(["go", "build", "-o", ENGRAM_BIN + ".tmp", "./cmd/engram/"], { cwd: pluginRoot, stdout: "pipe", stderr: "pipe" })
+    await buildProc.exited
+    await Bun.spawn(["mv", ENGRAM_BIN + ".tmp", ENGRAM_BIN], { cwd: pluginRoot, stdout: "pipe", stderr: "pipe" }).exited
   } catch (err) {
-    // Build failed — log silently, user can build manually
     console.error("[engram] binary build failed:", err)
   }
 }
 
-function runEngramCommand(
-  args: string[],
-): (ctx: { directory: string; worktree?: string }) => Promise<string> {
-  return async () => {
-    try {
-      const result = await Bun.$`${ENGRAM_BIN} ${args}`
-      return result.text().trim()
-    } catch (err: unknown) {
-      if (err instanceof Error && "stderr" in err) {
-        return `engram error: ${(err as { stderr?: string }).stderr || err.message}`
-      }
-      return `engram error: ${err instanceof Error ? err.message : String(err)}`
-    }
+const ENGRAM_REMINDER =
+  "\n\n## Engram Memory Reminder\n" +
+  "Use /prepare before starting new work. Use /learn after completing work to capture lessons.\n" +
+  "Use /recall to load previous session context. Use /remember to save something explicitly."
+
+const DEBUG_LOG = path.join(os.homedir(), ".local", "share", "engram", "debug-system-transform.log")
+
+function logTransform(before: string, reminder: string, after: string): void {
+  try {
+    const dir = path.dirname(DEBUG_LOG)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    const entry = [
+      "=== SYSTEM TRANSFORM ===",
+      `--- BEFORE (${before.length} chars) ---`,
+      before,
+      `--- ENGRAM REMINDER (${reminder.length} chars) ---`,
+      reminder,
+      `--- AFTER (${after.length} chars) ---`,
+      after,
+      `=== END ===\n`,
+      "",
+    ].join("\n")
+    fs.appendFileSync(DEBUG_LOG, entry, "utf8")
+  } catch {
+    // logging failure is non-fatal
   }
 }
 
-const seenSessions = new Set<string>()
+export const EngramPlugin: Plugin = async ({ client, $ }) => {
+  await ensureBinary()
 
-export const EngramPlugin: Plugin = async ({ $ }) => {
   return {
     event: async ({ event }) => {
       if (event.type === "session.created") {
-        ensureBinary($)
+        await ensureBinary()
       }
     },
 
     "experimental.chat.system.transform": async (_input, output) => {
-      const sessionID = (_input as { sessionID?: string })?.sessionID
-      if (sessionID && !seenSessions.has(sessionID)) {
-        seenSessions.add(sessionID)
-        const reminder =
-          "## Engram Memory\n" +
-          "Use /prepare before starting new work. Use /learn after completing work to capture lessons.\n" +
-          "Use /recall to load previous session context. Use /remember to save something explicitly."
-        output.system[0] = output.system[0] + "\n\n" + reminder
-      }
+      const before = output.system[0]
+      output.system[0] = before + ENGRAM_REMINDER
+      logTransform(before, ENGRAM_REMINDER, output.system[0])
     },
 
     tool: {
@@ -116,9 +94,9 @@ export const EngramPlugin: Plugin = async ({ $ }) => {
         async execute(args) {
           const cmdArgs = ["recall"]
           if (args.query) cmdArgs.push("--query", args.query)
-          cmdArgs.push("--no-external-sources")
-          const result = await Bun.$`${ENGRAM_BIN} ${cmdArgs}`
-          return result.text().trim()
+          const proc = Bun.spawn([ENGRAM_BIN, ...cmdArgs], { stdout: "pipe", stderr: "pipe" })
+          const [stdout, stderr] = await Promise.all([proc.stdout.text(), proc.stderr.text()])
+          return (stdout + (stderr ? "\n" + stderr : "")).trim()
         },
       }),
 
@@ -132,13 +110,9 @@ export const EngramPlugin: Plugin = async ({ $ }) => {
           source: tool.schema.string().optional().describe("Human or agent (default: human)"),
         },
         async execute(args) {
-          const result = await Bun.$`${ENGRAM_BIN} learn feedback \
-            --situation ${args.situation} \
-            --behavior ${args.behavior} \
-            --impact ${args.impact} \
-            --action ${args.action} \
-            --source ${args.source || "human"}`
-          return result.text().trim()
+          const proc = Bun.spawn([ENGRAM_BIN, "learn", "feedback", "--situation", args.situation, "--behavior", args.behavior, "--impact", args.impact, "--action", args.action, "--source", args.source || "human"], { stdout: "pipe", stderr: "pipe" })
+          const [stdout, stderr] = await Promise.all([proc.stdout.text(), proc.stderr.text()])
+          return (stdout + (stderr ? "\n" + stderr : "")).trim()
         },
       }),
 
@@ -152,13 +126,9 @@ export const EngramPlugin: Plugin = async ({ $ }) => {
           source: tool.schema.string().optional().describe("Human or agent (default: human)"),
         },
         async execute(args) {
-          const result = await Bun.$`${ENGRAM_BIN} learn fact \
-            --situation ${args.situation} \
-            --subject ${args.subject} \
-            --predicate ${args.predicate} \
-            --object ${args.object} \
-            --source ${args.source || "human"}`
-          return result.text().trim()
+          const proc = Bun.spawn([ENGRAM_BIN, "learn", "fact", "--situation", args.situation, "--subject", args.subject, "--predicate", args.predicate, "--object", args.object, "--source", args.source || "human"], { stdout: "pipe", stderr: "pipe" })
+          const [stdout, stderr] = await Promise.all([proc.stdout.text(), proc.stderr.text()])
+          return (stdout + (stderr ? "\n" + stderr : "")).trim()
         },
       }),
 
@@ -168,8 +138,9 @@ export const EngramPlugin: Plugin = async ({ $ }) => {
           name: tool.schema.string().describe("Memory slug to display"),
         },
         async execute(args) {
-          const result = await Bun.$`${ENGRAM_BIN} show --name ${args.name}`
-          return result.text().trim()
+          const proc = Bun.spawn([ENGRAM_BIN, "show", "--name", args.name], { stdout: "pipe", stderr: "pipe" })
+          const [stdout, stderr] = await Promise.all([proc.stdout.text(), proc.stderr.text()])
+          return (stdout + (stderr ? "\n" + stderr : "")).trim()
         },
       }),
 
@@ -177,8 +148,9 @@ export const EngramPlugin: Plugin = async ({ $ }) => {
         description: "List all memories with type, name, and situation",
         args: {},
         async execute() {
-          const result = await Bun.$`${ENGRAM_BIN} list`
-          return result.text().trim()
+          const proc = Bun.spawn([ENGRAM_BIN, "list"], { stdout: "pipe", stderr: "pipe" })
+          const [stdout, stderr] = await Promise.all([proc.stdout.text(), proc.stderr.text()])
+          return (stdout + (stderr ? "\n" + stderr : "")).trim()
         },
       }),
     },

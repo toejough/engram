@@ -34,18 +34,31 @@ func NewSessionFinder(lister DirLister) *SessionFinder {
 	return &SessionFinder{lister: lister}
 }
 
-// Find returns transcript entries sorted by mtime descending (newest first).
-func (f *SessionFinder) Find(projectDir string) ([]FileEntry, error) {
-	entries, err := f.lister.ListJSONL(projectDir)
-	if err != nil {
-		return nil, fmt.Errorf("listing sessions: %w", err)
+// Find returns transcript entries from all directories, merged and sorted by
+// mtime descending (newest first). Missing directories are silently skipped.
+func (f *SessionFinder) Find(dirs ...string) ([]FileEntry, error) {
+	seen := make(map[string]struct{})
+	all := make([]FileEntry, 0)
+
+	for _, dir := range dirs {
+		entries, err := f.lister.ListJSONL(dir)
+		if err != nil {
+			return nil, fmt.Errorf("listing sessions in %s: %w", dir, err)
+		}
+
+		for _, e := range entries {
+			if _, ok := seen[e.Path]; !ok {
+				seen[e.Path] = struct{}{}
+				all = append(all, e)
+			}
+		}
 	}
 
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Mtime.After(entries[j].Mtime)
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Mtime.After(all[j].Mtime)
 	})
 
-	return entries, nil
+	return all, nil
 }
 
 // TranscriptReader reads session transcripts and strips noise.

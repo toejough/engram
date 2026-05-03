@@ -66,7 +66,7 @@ func TestRecall_HaikuCallCountStaysBounded(t *testing.T) {
 		recall.WithExternalSources(files, cache),
 	)
 
-	_, err := orch.Recall(context.Background(), "/anywhere", "query")
+	_, err := orch.Recall(context.Background(), "query", "/anywhere")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

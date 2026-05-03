@@ -387,7 +387,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -404,7 +404,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 		finder := &fakeFinder{entries: []recall.FileEntry{}}
 		orch := recall.NewOrchestrator(finder, nil, nil, nil, "")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -432,7 +432,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -464,7 +464,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -482,7 +482,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 		finder := &fakeFinder{err: errors.New("find failed")}
 		orch := recall.NewOrchestrator(finder, nil, nil, nil, "")
 
-		_, err := orch.Recall(context.Background(), "/proj", "")
+		_, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).To(HaveOccurred())
 
 		if err != nil {
@@ -526,7 +526,7 @@ func TestOrchestrator_Recall_ModeA_CancellationStopsProcessing(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // pre-cancel
 
-		result, err := orch.Recall(ctx, "/proj", "")
+		result, err := orch.Recall(ctx, "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -578,7 +578,7 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -617,7 +617,7 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -658,7 +658,7 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -709,7 +709,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -738,7 +738,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -777,7 +777,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -804,7 +804,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "/proj", "")
+		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -853,7 +853,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "/proj", "my query")
+		result, err := orch.Recall(context.Background(), "my query", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -902,7 +902,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
-		result, err := orch.Recall(context.Background(), "/proj", "query")
+		result, err := orch.Recall(context.Background(), "query", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -938,7 +938,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
-		result, err := orch.Recall(context.Background(), "/proj", "query")
+		result, err := orch.Recall(context.Background(), "query", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -971,7 +971,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
-		result, err := orch.Recall(context.Background(), "/proj", "query")
+		result, err := orch.Recall(context.Background(), "query", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -997,7 +997,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 
 		orch := recall.NewOrchestrator(finder, reader, recall.NoopSummarizer{}, nil, "")
 
-		result, err := orch.Recall(context.Background(), "/proj", "query")
+		result, err := orch.Recall(context.Background(), "query", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -1031,7 +1031,7 @@ func TestOrchestrator_Recall_ModeB_StatusOutput(t *testing.T) {
 	orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "",
 		recall.WithStatusWriter(&statusBuf))
 
-	_, err := orch.Recall(context.Background(), "/proj", "query")
+	_, err := orch.Recall(context.Background(), "query", "/proj")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -1064,7 +1064,7 @@ func TestOrchestrator_Recall_ModeB_SummarizeError(t *testing.T) {
 
 	orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
-	_, err := orch.Recall(context.Background(), "/proj", "query")
+	_, err := orch.Recall(context.Background(), "query", "/proj")
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -1108,7 +1108,7 @@ func TestRecallModeB_FullPipelinePriorityOrder(t *testing.T) {
 		recall.WithExternalSources(files, cache),
 	)
 
-	_, err := orch.Recall(context.Background(), "/anywhere", "what's relevant?")
+	_, err := orch.Recall(context.Background(), "what's relevant?", "/anywhere")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -1204,7 +1204,7 @@ type fakeFinder struct {
 	err     error
 }
 
-func (f *fakeFinder) Find(_ string) ([]recall.FileEntry, error) {
+func (f *fakeFinder) Find(_ ...string) ([]recall.FileEntry, error) {
 	return f.entries, f.err
 }
 
