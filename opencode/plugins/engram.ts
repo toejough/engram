@@ -18,26 +18,15 @@ function findPluginRoot(): string | null {
   return null
 }
 
-async function buildIfNeeded(): Promise<boolean> {
-  return !fs.existsSync(ENGRAM_BIN) || !fs.statSync(ENGRAM_BIN).isFile()
-}
-
 async function ensureBinary(): Promise<void> {
-  const shouldBuild = await buildIfNeeded()
-  if (!shouldBuild) return
-
   const pluginRoot = findPluginRoot()
   if (!pluginRoot) return
 
-  const binDir = path.dirname(ENGRAM_BIN)
   try {
-    await Bun.spawn(["mkdir", "-p", binDir], { cwd: pluginRoot, stdout: "pipe", stderr: "pipe" }).exited
-    await Bun.spawn(["rm", "-f", ENGRAM_BIN, ENGRAM_BIN + ".tmp"], { cwd: pluginRoot, stdout: "pipe", stderr: "pipe" }).exited
-    const buildProc = Bun.spawn(["go", "build", "-o", ENGRAM_BIN + ".tmp", "./cmd/engram/"], { cwd: pluginRoot, stdout: "pipe", stderr: "pipe" })
-    await buildProc.exited
-    await Bun.spawn(["mv", ENGRAM_BIN + ".tmp", ENGRAM_BIN], { cwd: pluginRoot, stdout: "pipe", stderr: "pipe" }).exited
-  } catch (err) {
-    console.error("[engram] binary build failed:", err)
+    const proc = Bun.spawn([ENGRAM_BIN, "build-self", "--if-stale", "--plugin-root", pluginRoot, "--bin-path", ENGRAM_BIN], { stdout: "pipe", stderr: "pipe" })
+    await proc.exited
+  } catch {
+    // build failure is non-fatal
   }
 }
 
