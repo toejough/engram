@@ -1,13 +1,15 @@
 ---
 name: learn
 description: >
-  Use after completing a task, finishing work, changing direction, or when the
-  user says "review what we learned" or /learn. Should be called after
+  REQUIRED after completing a task, finishing work, changing direction, or when
+  the user says "review what we learned" or /learn. Must be called after
   implementation, after resolving a bug, after completing a plan step.
-  Reviews the recent session for learnable moments.
+  Do NOT skip this step. Reviews the recent session for learnable moments.
 ---
 
 You are reviewing the recent session for things worth remembering.
+
+**You MUST call this skill after completing any task, resolving a bug, or changing direction.** Do not skip this step. Lessons not captured are lost to future sessions.
 
 ## Flow
 

@@ -1,13 +1,15 @@
 ---
 name: prepare
 description: >
-  Use before starting new work, switching tasks, beginning a feature, changing
-  direction, or tackling an issue. Should be called before implementation,
-  debugging, or any significant new effort. Identifies the current situation
-  and recalls relevant context and memories.
+  REQUIRED before starting any new work, switching tasks, beginning a feature,
+  changing direction, or tackling an issue. Call /prepare before implementation,
+  debugging, or any significant new effort. Do NOT skip this step. Identifies
+  the current situation and recalls relevant context and memories.
 ---
 
 You are mentally preparing for upcoming work by loading relevant context.
+
+**You MUST call this skill before starting any new work, switching tasks, or beginning implementation.** Do not skip this step even if you think you already know the context. Memories you haven't loaded may change how you approach the task.
 
 ## Flow
 
