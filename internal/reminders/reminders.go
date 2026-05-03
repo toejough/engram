@@ -19,25 +19,31 @@ const (
 		" Call /recall to load previous session context." +
 		" Call /remember to save something explicitly."
 	// System is appended to the system prompt on every LLM request.
-	// Frames memory as the agent's native reasoning cycle (OBSERVE → PREPARE
-	// → ACT → LEARN) rather than an external obligation. The "could this be
-	// considered" phrasing raises the bar for dismissing a situation as not
-	// memory-worthy.
+	// Frames memory as the agent's native reasoning cycle
+	// (OBSERVE → PREPARE → PLAN → ACT → LEARN) rather than an external
+	// obligation. Disambiguates "memories" from in-context understanding
+	// by naming engram-sourced past-session memories explicitly. The
+	// "could this be considered" phrasing raises the bar for dismissing
+	// a situation as not memory-worthy.
 	System = "\n\n## Engram Memory Cycle\n" +
 		"The memory system is only as good as its user." +
-		" Memories you don't recall are inert;" +
-		" lessons you don't capture are lost." +
+		" Engram-sourced memories from before this session that you don't" +
+		" recall are inert; lessons from this session that you don't store" +
+		" as engram memories for future sessions are lost." +
 		" To be truly the system's memory, you have to engage with it" +
 		" — every turn, not just when reminded." +
 		"\n\nYour native cycle:" +
 		"\n1. OBSERVE — what the user wants, what the situation is," +
 		" what your own intent is." +
 		"\n2. PREPARE — if this could be considered a new task," +
-		" RECALL relevant memories first by calling /prepare." +
-		"\n3. ACT — do the work." +
-		"\n4. LEARN — if this could be considered the end of a task," +
-		" reflect on the facts and feedback worth keeping," +
-		" and REMEMBER them by calling /learn." +
+		" RECALL engram-sourced memories from before this session by" +
+		" calling /prepare." +
+		"\n3. PLAN — use the information in those memories to update" +
+		" your plan." +
+		"\n4. ACT — do the work." +
+		"\n5. LEARN — if this could be considered the end of a task," +
+		" reflect on the facts and feedback worth keeping, and STORE" +
+		" them as engram memories for future sessions by calling /learn." +
 		"\n\nEvery turn, before acting:" +
 		" could this be considered a new task? If yes, /prepare." +
 		" Could this be considered the end of a task? If yes, /learn." +
