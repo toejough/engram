@@ -5,7 +5,32 @@
 
 ## Overview
 
-Engram is a [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code/plugins) that gives agents persistent memory. Four skills help agents prepare for work, recall context, learn from experience, and remember explicitly.
+Engram is a plugin for **Claude Code** and **OpenCode** that gives agents persistent memory. Four skills help agents prepare for work, recall context, learn from experience, and remember explicitly.
+
+## Installing
+
+### Claude Code
+
+1. Run `/plugin` in Claude Code and select `engram`. That's the whole install.
+2. On first use (and whenever Go sources change), the `SessionStart` hook builds the `engram` binary in the background to `~/.local/bin/engram`. You never `git clone` or run `targ build` yourself. Requires Go 1.25+ on `PATH`.
+
+### OpenCode
+
+1. Copy the plugin to your OpenCode plugins directory:
+   ```
+   cp opencode/plugins/engram.ts ~/.config/opencode/plugins/engram.ts
+   ```
+   Or install from npm if published:
+   ```
+   opencode plugin add engram
+   ```
+2. On first use (and whenever Go sources change), the plugin calls `engram build-self --if-stale` to build the binary to `~/.local/bin/engram`. Requires Go 1.25+ on `PATH`.
+3. Restart OpenCode to load the plugin.
+
+### Both platforms
+
+- **Upgrading from a pre-`cfd5fb5` install?** Run `/migrate` before your first new session. See [Migrating existing memories](#migrating-existing-memories).
+- The binary path is always `~/.local/bin/engram`. The data directory is `~/.local/share/engram/` (respects `$XDG_DATA_HOME`).
 
 ## Core loop
 
@@ -20,15 +45,7 @@ flowchart LR
 
 `/prepare` loads relevant context before starting work. `/learn` extracts feedback after work completes. `/recall` searches session history and memories on demand. `/remember` captures explicit knowledge immediately.
 
-## Getting started
-
-1. Run `/plugin` in Claude Code and select `engram`. That's the whole install.
-2. On first use (and whenever Go sources change), the `SessionStart` hook builds the `engram` binary in the background into `~/.claude/engram/bin/engram` and symlinks it to `~/.local/bin/engram`. You never `git clone` or run `targ build` yourself. Requires Go 1.25+ on `PATH`.
-3. **Upgrading from a pre-`cfd5fb5` install?** Run `/migrate` before your first new session. See [Migrating existing memories](#migrating-existing-memories).
-
 ### Commands you invoke manually
-
-These are the two you reach for by hand. Everything else in the core loop should happen without you asking.
 
 | Command | When you use it |
 |---------|-----------------|
