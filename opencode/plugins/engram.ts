@@ -189,12 +189,6 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
   await ensureBinary()
 
   return {
-    event: async ({ event }) => {
-      if (event.type === "session.created") {
-        await ensureBinary()
-      }
-    },
-
     "experimental.chat.system.transform": async (input: any, output) => {
       const before = output.system[0]
       const reminder = await getReminder("system")
@@ -239,11 +233,6 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
       const injected = reminder + companionBlock
       output.system[0] = before + injected
       logTransform(before, injected, output.system[0])
-    },
-
-    "tool.execute.after": async (_input, output) => {
-      const reminder = await getReminder("post-tool")
-      output.output += "\n\n" + reminder
     },
 
     tool: {
