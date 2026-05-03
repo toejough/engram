@@ -194,8 +194,71 @@ Planted a fact memory `engram-favorite-color-test-memory` with `object=blue`. Te
 - The cold-start of ~7s is paid once per companion session; long-lived companion sessions (one per primary, persisted) amortize that. Subsequent turns are ~3–4s.
 - We don't need anything fancier than `engram show` / `engram recall` returning text, and a string append. No streaming, no protocol — file IO + stdout.
 
-## Phase 4 — Companion prompt design (next)
+## Phase 4 — Companion prompt design
 
-**Goal:** find a prompt for the companion that reliably emits the right action (recall query, learn payload, or "no action") given a primary transcript snippet + the latest user message.
+**Goal:** find a prompt for the companion that reliably emits sensible targeted recall queries given a primary transcript snippet + recent project history. Validate across realistic conversational twists.
+
+**Status:** ✅ v1 works (2026-05-03).
+
+### Snag found and fixed first
+
+The OpenCode SQLite recall hardcoded `role: "assistant"` for every text part — so transcripts read back with `ASSISTANT:` prefixed on user messages too. The role actually lives on `message.data.role`. Fixed `queryParts` to JOIN the `message` table and pass role through to `buildJSONLLine`. Companion now sees correct USER/ASSISTANT alternation.
+
+### Method
+
+Three fake sessions inserted directly into `~/.local/share/opencode/opencode.db`, each in its own `/tmp/companion-scen-*` directory, with proper user/assistant roles via the `message` table:
+
+1. **Pivot**: user wants rate-limiting; mid-conversation pivots to "actually fix the auth bug first."
+2. **Sparse**: user asks "should I create a worktree?", assistant explains, user says "yes do it."
+3. **Tool result**: user asks for `ls`, assistant lists files including a 47MB `debug-trace.log` that shouldn't be there; user reacts to the anomaly.
+
+For each scenario, ran `engram recall --no-external-sources` from the scenario's directory, captured the project history portion (USER/ASSISTANT transcript), prepended a companion-role prompt, and sent to `opencode run -m opencode/qwen3.6-plus`.
+
+### v1 prompt
+
+```
+You are a memory steward observing a primary AI agent's project session.
+Your job: read the recent conversation in the project history below, and
+propose 2 to 4 targeted recall queries that would surface helpful past
+memories about what is currently happening.
+
+Output your queries as a numbered list, one per line, with no other text
+or commentary. Each query should be 5 to 15 words capturing a specific
+facet you would want to recall about. If nothing in the history seems
+memory worthy, output exactly: no action
+
+PROJECT HISTORY (most recent message at end):
+<recall output>
+```
+
+### Findings — qwen3.6-plus output per scenario
+
+| Scenario | Companion's queries |
+|---|---|
+| Pivot | (1) auth middleware 401 intermittent token validation bug · (2) token bucket rate limiting implementation patterns · (3) internal/auth/middleware.go previous modifications or issues · (4) API authentication token validation logic history |
+| Sparse | (1) Previous auth module refactoring patterns and design decisions · (2) Rate limiting implementation history and architectural choices · (3) Git worktree setup preferences and past usage patterns · (4) Multi-file refactor approaches and lessons learned |
+| Tool result | (1) internal/recall package structure and purpose in this project · (2) past incidents with large files accidentally committed to repository · (3) debug tracing log file handling and cleanup procedures · (4) git history conventions for log files in this codebase |
+
+All three scenarios produced sensible, on-topic queries. Notable:
+
+- **Pivot**: the companion correctly weighted toward the new direction (auth bug) but kept one fallback query about rate-limiting (the pre-pivot topic) — exactly the right judgment, since a pivot can revert.
+- **Sparse "yes do it"**: the companion synthesized queries from prior context (auth+rate-limit refactor, worktrees) without anchoring on the literal "yes do it." Sparse-turn handling works without further engineering.
+- **Tool result anomaly**: the companion caught the 47MB-file outlier specifically and proposed queries about accidentally-committed large files + repo conventions — reading the *anomaly*, not just the topic.
+
+### Implications for the architecture
+
+- v1 prompt is good enough to wire into a real companion. No further iteration needed before plumbing.
+- A non-frontier model (qwen3.6-plus) is sufficient. Latency/cost stays in the budget from Phase 3 (~3–5s warm).
+- The two-stage flow (bare recall → companion proposes targeted queries → companion calls engram_recall on each → aggregate → inject) is validated end-to-end on the prompt side. The plumbing side is what's next.
+
+### Caveats / open items
+
+- **Companion was given the recall output as input text**; in the real companion it would have `engram_recall` as a tool and call it itself. Need to verify tool-use works the same way (the model's tool-call decision should be similar but worth a check).
+- Companion didn't actually CALL engram_recall on its proposed queries — that's a separate validation. Step is: feed each proposed query back through `engram_recall --query <q>` and verify hits.
+- Output formatting (numbered list, single-line vs newline-separated) varies; downstream consumer needs to be tolerant or the prompt should pin a JSON-array shape.
+
+## Phase 5 — Companion plumbing (next)
+
+**Goal:** wire the companion into the OpenCode plugin: `chat.message` triggers companion, `system.transform` injects the result.
 
 **Status:** not started.
