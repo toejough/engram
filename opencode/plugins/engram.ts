@@ -76,11 +76,6 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
       logTransform(before, reminder, output.system[0])
     },
 
-    "chat.message": async (_input, output) => {
-      const reminder = await getReminder("user-prompt")
-      output.parts.push({ type: "text", text: reminder })
-    },
-
     "tool.execute.after": async (_input, output) => {
       const reminder = await getReminder("post-tool")
       output.output += "\n\n" + reminder
