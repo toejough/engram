@@ -207,9 +207,12 @@ func (r *OpencodeTranscriptReader) queryParts(sessionID string) ([]string, error
 
 	rows, queryErr := db.QueryContext(
 		ctx,
-		"SELECT json_extract(data, '$.type'), json_extract(data, '$.text'), "+
-			"json_extract(data, '$.tool'), json_extract(data, '$.state') "+
-			"FROM part WHERE session_id = ? ORDER BY time_created",
+		"SELECT json_extract(p.data, '$.type'), json_extract(p.data, '$.text'), "+
+			"json_extract(p.data, '$.tool'), json_extract(p.data, '$.state'), "+
+			"json_extract(m.data, '$.role') "+
+			"FROM part p LEFT JOIN message m ON p.message_id = m.id "+
+			"WHERE p.session_id = ? "+
+			"ORDER BY p.time_created",
 		sessionID,
 	)
 	if queryErr != nil {
@@ -221,14 +224,14 @@ func (r *OpencodeTranscriptReader) queryParts(sessionID string) ([]string, error
 	jsonlLines := make([]string, 0)
 
 	for rows.Next() {
-		var partType, text, toolName, state sql.NullString
+		var partType, text, toolName, state, role sql.NullString
 
-		scanErr := rows.Scan(&partType, &text, &toolName, &state)
+		scanErr := rows.Scan(&partType, &text, &toolName, &state, &role)
 		if scanErr != nil {
 			return nil, fmt.Errorf("scanning part row: %w", scanErr)
 		}
 
-		line := buildJSONLLine(partType, text, toolName, state)
+		line := buildJSONLLine(partType, text, toolName, state, role)
 		if line != "" {
 			jsonlLines = append(jsonlLines, line)
 		}
@@ -274,7 +277,7 @@ func DefaultOpencodeDBPath() string {
 	return defaultOpencodeDBPath()
 }
 
-func buildJSONLLine(partType, text, toolName, state sql.NullString) string {
+func buildJSONLLine(partType, text, toolName, state, role sql.NullString) string {
 	if !partType.Valid {
 		return ""
 	}
@@ -285,7 +288,12 @@ func buildJSONLLine(partType, text, toolName, state sql.NullString) string {
 			return ""
 		}
 
-		return `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":` +
+		msgRole := "assistant"
+		if role.Valid && role.String == "user" {
+			msgRole = "user"
+		}
+
+		return `{"type":"` + msgRole + `","message":{"role":"` + msgRole + `","content":[{"type":"text","text":` +
 			mustMarshalJSON(text.String) + `}]}}`
 	case "tool":
 		if !toolName.Valid || !state.Valid {

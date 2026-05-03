@@ -236,6 +236,28 @@ func TestOpencodeTranscriptReader_NullPartType(t *testing.T) {
 	g.Expect(content).To(BeEmpty())
 }
 
+func TestOpencodeTranscriptReader_PreservesMessageRole(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_role1", Title: "Test", Updated: time.Now()},
+	})
+	insertParts(t, dbPath, "ses_role1", []testPart{
+		{Type: "text", Text: "user said this", Role: "user", TimeCreated: 1},
+		{Type: "text", Text: "assistant replied", Role: "assistant", TimeCreated: 2},
+		{Type: "text", Text: "user said that", Role: "user", TimeCreated: 3},
+	})
+
+	reader := recall.NewOpencodeTranscriptReader(dbPath)
+
+	content, _, err := reader.Read("opencode://ses_role1", 1024*50)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(content).To(ContainSubstring("USER: user said this"))
+	g.Expect(content).To(ContainSubstring("ASSISTANT: assistant replied"))
+	g.Expect(content).To(ContainSubstring("USER: user said that"))
+}
+
 func TestOpencodeTranscriptReader_UnknownPartType(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -327,6 +349,7 @@ type testPart struct {
 	Text        string
 	Tool        string
 	State       string
+	Role        string
 	TimeCreated int64
 }
 
@@ -382,6 +405,19 @@ func createTestOpencodeDB(t *testing.T, sessions []testSession) string {
 		t.Fatalf("creating part table: %v", err)
 	}
 
+	_, err = db.Exec(`
+		CREATE TABLE message (
+			id text PRIMARY KEY,
+			session_id text NOT NULL,
+			time_created integer NOT NULL,
+			time_updated integer NOT NULL,
+			data text NOT NULL
+		)
+	`)
+	if err != nil {
+		t.Fatalf("creating message table: %v", err)
+	}
+
 	for i, s := range sessions {
 		updatedAt := s.Updated.UnixMilli()
 		slug := "slug-" + strconv.Itoa(i)
@@ -433,7 +469,23 @@ func insertParts(t *testing.T, dbPath string, sessionID string, parts []testPart
 		partID := "prt_" + strconv.Itoa(i)
 		msgID := "msg_" + strconv.Itoa(i)
 
+		role := p.Role
+		if role == "" {
+			role = "user"
+		}
+
 		updatedAt := time.Now().UnixMilli()
+		msgData := fmt.Sprintf(`{"role":%q}`, role)
+
+		_, err = db.Exec(
+			"INSERT INTO message "+
+				"(id, session_id, time_created, time_updated, data) "+
+				"VALUES (?, ?, ?, ?, ?)",
+			msgID, sessionID, p.TimeCreated, updatedAt, msgData,
+		)
+		if err != nil {
+			t.Fatalf("inserting message: %v", err)
+		}
 
 		_, err = db.Exec(
 			"INSERT INTO part "+
