@@ -12,7 +12,15 @@ Engram is distributed as source — clone the repo and point OpenCode at the clo
 git clone https://github.com/toejough/engram ~/src/engram
 ```
 
-2. Add the plugin path to `~/.config/opencode/opencode.json`:
+2. Install the plugin's runtime dependencies inside the cloned `opencode/` directory:
+
+```bash
+cd ~/src/engram/opencode && npm install   # or `bun install`
+```
+
+OpenCode resolves the plugin's `import { Plugin } from "@opencode-ai/plugin"` from a `node_modules` directory in the plugin's parent chain, so this `node_modules` must exist next to the plugin's `package.json`. Without it, OpenCode logs `Cannot find module '@opencode-ai/plugin'` at startup and silently disables the plugin.
+
+3. Add the plugin path to `~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -20,17 +28,7 @@ git clone https://github.com/toejough/engram ~/src/engram
 }
 ```
 
-3. Ensure `~/.config/opencode/package.json` has the OpenCode plugin dep:
-
-```json
-{
-  "dependencies": {
-    "@opencode-ai/plugin": "^1.1.25"
-  }
-}
-```
-
-That's it. On first session, the plugin compiles `engram` to `~/.local/bin/engram` via `go build`. On subsequent sessions, `engram build-self --if-stale` rebuilds only when source changes. To upgrade, `git pull` in the cloned directory — the next session picks up the change automatically.
+That's it. On first session, the plugin compiles `engram` to `~/.local/bin/engram` via `go build`. On subsequent sessions, `engram build-self --if-stale` rebuilds only when source changes. To upgrade, `git pull` in the cloned directory and re-run `npm install` if `opencode/package.json` changed — the next session picks up the change automatically.
 
 ## Features
 
