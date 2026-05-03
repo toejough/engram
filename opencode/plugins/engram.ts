@@ -7,13 +7,10 @@ import * as os from "os"
 const ENGRAM_BIN = path.join(os.homedir(), ".local", "bin", "engram")
 
 function findPluginRoot(): string | null {
-  const possible = [
-    path.join(import.meta.dirname || __dirname, "..", "..", ".."),
-    path.join(os.homedir(), ".config", "opencode"),
-    path.join(process.cwd(), ".opencode"),
-  ]
-  for (const p of possible) {
-    if (fs.existsSync(path.join(p, "go.mod"))) return p
+  let dir = import.meta.dirname || __dirname
+  while (dir !== path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, "go.mod"))) return dir
+    dir = path.dirname(dir)
   }
   return null
 }
@@ -22,17 +19,35 @@ async function ensureBinary(): Promise<void> {
   const pluginRoot = findPluginRoot()
   if (!pluginRoot) return
 
-  try {
-    const proc = Bun.spawn([ENGRAM_BIN, "build-self", "--if-stale", "--plugin-root", pluginRoot, "--bin-path", ENGRAM_BIN], { stdout: "pipe", stderr: "pipe" })
+  if (!fs.existsSync(ENGRAM_BIN)) {
+    const binDir = path.dirname(ENGRAM_BIN)
+    if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true })
+    const proc = Bun.spawn(["go", "build", "-o", ENGRAM_BIN, "./cmd/engram/"], {
+      cwd: pluginRoot, stdout: "pipe", stderr: "pipe",
+    })
     await proc.exited
-  } catch {
-    // build failure is non-fatal
+    if (proc.exitCode !== 0) {
+      console.error("[engram] bootstrap go build failed:", await proc.stderr.text())
+    }
+    return
+  }
+
+  const proc = Bun.spawn([ENGRAM_BIN, "build-self", "--if-stale",
+    "--plugin-root", pluginRoot, "--bin-path", ENGRAM_BIN],
+    { stdout: "pipe", stderr: "pipe" })
+  await proc.exited
+  if (proc.exitCode !== 0) {
+    console.error("[engram] build-self failed:", await proc.stderr.text())
   }
 }
 
 async function getReminder(kind: "system" | "session-start" | "user-prompt" | "post-tool"): Promise<string> {
   const proc = Bun.spawn([ENGRAM_BIN, "reminder", kind], { stdout: "pipe", stderr: "pipe" })
   await proc.exited
+  if (proc.exitCode !== 0) {
+    console.error(`[engram] reminder ${kind} failed:`, await proc.stderr.text())
+    return ""
+  }
   return (await proc.stdout.text()).trim()
 }
 

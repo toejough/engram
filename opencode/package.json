@@ -4,8 +4,7 @@
   "description": "Self-correcting memory for LLM agents",
   "type": "module",
   "main": "plugins/engram.ts",
-  "files": ["plugins/", "commands/", "skills/"],
-  "keywords": ["opencode", "opencode-plugin", "memory", "ai-agents"],
+  "private": true,
   "dependencies": {
     "@opencode-ai/plugin": "^1.1.25"
   }

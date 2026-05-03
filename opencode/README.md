@@ -4,25 +4,23 @@ Self-correcting memory for LLM agents. Tracks what works, what doesn't, and what
 
 ## Installation
 
-### Local installation
+Engram is distributed as source — clone the repo and point OpenCode at the cloned directory. Requires Go 1.25+ on your `PATH`.
 
-1. Add the plugin to your `opencode.json`:
+1. Clone the repo:
+
+```bash
+git clone https://github.com/toejough/engram ~/src/engram
+```
+
+2. Add the plugin path to `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "plugin": ["./path/to/engram/opencode"]
+  "plugin": ["~/src/engram/opencode"]
 }
 ```
 
-Or copy the `opencode/` folder contents to your OpenCode config directory:
-
-```bash
-cp -r opencode/plugins ~/.config/opencode/
-cp -r opencode/commands ~/.config/opencode/
-cp -r opencode/skills ~/.config/opencode/
-```
-
-2. Add the dependency to `~/.config/opencode/package.json`:
+3. Ensure `~/.config/opencode/package.json` has the OpenCode plugin dep:
 
 ```json
 {
@@ -32,19 +30,7 @@ cp -r opencode/skills ~/.config/opencode/
 }
 ```
 
-### npm installation
-
-```bash
-npm install opencode-plugin-engram
-```
-
-Then add to your `opencode.json`:
-
-```json
-{
-  "plugin": ["opencode-plugin-engram"]
-}
-```
+That's it. On first session, the plugin compiles `engram` to `~/.local/bin/engram` via `go build`. On subsequent sessions, `engram build-self --if-stale` rebuilds only when source changes. To upgrade, `git pull` in the cloned directory — the next session picks up the change automatically.
 
 ## Features
 
@@ -77,12 +63,12 @@ Copies of the core Engram skills are included for self-containment:
 
 ## Binary
 
-The Engram binary (`engram`) is built automatically on session start. It is stored at `~/.local/share/engram/bin/engram` with a symlink at `~/.local/bin/engram`.
+The plugin builds the `engram` binary at `~/.local/bin/engram` on first session. Bootstrap uses `go build` (chicken-and-egg: `engram build-self` can't run before the binary exists). Subsequent rebuilds are handled by `engram build-self --if-stale` which re-runs only when Go source files are newer than the binary.
 
-The binary requires Go to be installed on your PATH for automatic building. If Go is not available, build manually:
+Requires Go 1.25+ on `PATH`. If you need to rebuild manually:
 
 ```bash
-go build -o ~/.local/share/engram/bin/engram ./cmd/engram/
+go build -o ~/.local/bin/engram ./cmd/engram/
 ```
 
 ## Configuration
