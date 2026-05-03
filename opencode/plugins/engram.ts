@@ -41,10 +41,11 @@ async function ensureBinary(): Promise<void> {
   }
 }
 
-const ENGRAM_REMINDER =
-  "\n\n## Engram Memory Reminder\n" +
-  "Use /prepare before starting new work. Use /learn after completing work to capture lessons.\n" +
-  "Use /recall to load previous session context. Use /remember to save something explicitly."
+async function getReminder(kind: "system" | "session-start" | "user-prompt" | "post-tool"): Promise<string> {
+  const proc = Bun.spawn([ENGRAM_BIN, "reminder", kind], { stdout: "pipe", stderr: "pipe" })
+  await proc.exited
+  return (await proc.stdout.text()).trim()
+}
 
 const DEBUG_LOG = path.join(os.homedir(), ".local", "share", "engram", "debug-system-transform.log")
 
@@ -81,8 +82,19 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
 
     "experimental.chat.system.transform": async (_input, output) => {
       const before = output.system[0]
-      output.system[0] = before + ENGRAM_REMINDER
-      logTransform(before, ENGRAM_REMINDER, output.system[0])
+      const reminder = await getReminder("system")
+      output.system[0] = before + reminder
+      logTransform(before, reminder, output.system[0])
+    },
+
+    "chat.message": async (_input, output) => {
+      const reminder = await getReminder("user-prompt")
+      output.parts.push({ type: "text", text: reminder })
+    },
+
+    "tool.execute.after": async (_input, output) => {
+      const reminder = await getReminder("post-tool")
+      output.output += "\n\n" + reminder
     },
 
     tool: {
