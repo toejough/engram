@@ -107,10 +107,17 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
           behavior: tool.schema.string().describe("Observed behavior"),
           impact: tool.schema.string().describe("Impact of the behavior"),
           action: tool.schema.string().describe("Recommended action"),
-          source: tool.schema.string().optional().describe("Human or agent (default: human)"),
+          source: tool.schema.string().optional().describe("Human or agent"),
         },
         async execute(args) {
-          const proc = Bun.spawn([ENGRAM_BIN, "learn", "feedback", "--situation", args.situation, "--behavior", args.behavior, "--impact", args.impact, "--action", args.action, "--source", args.source || "human"], { stdout: "pipe", stderr: "pipe" })
+          const cmdArgs = ["learn", "feedback",
+            "--situation", args.situation,
+            "--behavior", args.behavior,
+            "--impact", args.impact,
+            "--action", args.action,
+          ]
+          if (args.source) cmdArgs.push("--source", args.source)
+          const proc = Bun.spawn([ENGRAM_BIN, ...cmdArgs], { stdout: "pipe", stderr: "pipe" })
           const [stdout, stderr] = await Promise.all([proc.stdout.text(), proc.stderr.text()])
           return (stdout + (stderr ? "\n" + stderr : "")).trim()
         },
@@ -123,10 +130,46 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
           subject: tool.schema.string().describe("Subject of the fact"),
           predicate: tool.schema.string().describe("Relationship or verb"),
           object: tool.schema.string().describe("Object of the fact"),
-          source: tool.schema.string().optional().describe("Human or agent (default: human)"),
+          source: tool.schema.string().optional().describe("Human or agent"),
         },
         async execute(args) {
-          const proc = Bun.spawn([ENGRAM_BIN, "learn", "fact", "--situation", args.situation, "--subject", args.subject, "--predicate", args.predicate, "--object", args.object, "--source", args.source || "human"], { stdout: "pipe", stderr: "pipe" })
+          const cmdArgs = ["learn", "fact",
+            "--situation", args.situation,
+            "--subject", args.subject,
+            "--predicate", args.predicate,
+            "--object", args.object,
+          ]
+          if (args.source) cmdArgs.push("--source", args.source)
+          const proc = Bun.spawn([ENGRAM_BIN, ...cmdArgs], { stdout: "pipe", stderr: "pipe" })
+          const [stdout, stderr] = await Promise.all([proc.stdout.text(), proc.stderr.text()])
+          return (stdout + (stderr ? "\n" + stderr : "")).trim()
+        },
+      }),
+
+      engram_update: tool({
+        description: "Update fields on an existing memory",
+        args: {
+          name: tool.schema.string().describe("Memory slug to update"),
+          situation: tool.schema.string().optional().describe("Context when this applies"),
+          behavior: tool.schema.string().optional().describe("Observed behavior"),
+          impact: tool.schema.string().optional().describe("Impact of the behavior"),
+          action: tool.schema.string().optional().describe("Recommended action"),
+          subject: tool.schema.string().optional().describe("Subject of the fact"),
+          predicate: tool.schema.string().optional().describe("Relationship or verb"),
+          object: tool.schema.string().optional().describe("Object of the fact"),
+          source: tool.schema.string().optional().describe("Human or agent"),
+        },
+        async execute(args) {
+          const cmdArgs = ["update", "--name", args.name]
+          if (args.situation) cmdArgs.push("--situation", args.situation)
+          if (args.behavior) cmdArgs.push("--behavior", args.behavior)
+          if (args.impact) cmdArgs.push("--impact", args.impact)
+          if (args.action) cmdArgs.push("--action", args.action)
+          if (args.subject) cmdArgs.push("--subject", args.subject)
+          if (args.predicate) cmdArgs.push("--predicate", args.predicate)
+          if (args.object) cmdArgs.push("--object", args.object)
+          if (args.source) cmdArgs.push("--source", args.source)
+          const proc = Bun.spawn([ENGRAM_BIN, ...cmdArgs], { stdout: "pipe", stderr: "pipe" })
           const [stdout, stderr] = await Promise.all([proc.stdout.text(), proc.stderr.text()])
           return (stdout + (stderr ? "\n" + stderr : "")).trim()
         },
