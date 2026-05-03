@@ -19,11 +19,17 @@ const (
 		" Call /recall to load previous session context." +
 		" Call /remember to save something explicitly."
 	// System is appended to the system prompt on every LLM request.
+	// Uses urgent language to maximize compliance with memory boundaries.
 	System = "\n\n## Engram Memory Reminder\n" +
-		"Use /prepare before starting new work." +
-		" Use /learn after completing work to capture lessons.\n" +
-		"Use /recall to load previous session context." +
-		" Use /remember to save something explicitly."
+		"Important reminders from the user:" +
+		" remember to call /learn at completion boundaries" +
+		" (task done, bug resolved, direction change, commit)" +
+		" and /prepare when starting new work." +
+		" These are CRITICAL memory boundaries." +
+		" If you are at one or recently completed work without calling /learn," +
+		" PAUSE and CALL IT NOW." +
+		" If you are at one or recently started work without calling /prepare," +
+		" PAUSE and CALL IT NOW."
 	// UserPrompt nudges the agent on every user message turn.
 	UserPrompt = "Important reminders from the user:" +
 		" remember to call /learn at completion boundaries" +
