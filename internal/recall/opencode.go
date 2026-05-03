@@ -85,17 +85,25 @@ func (r *CompositeTranscriptReader) Read(path string, budgetBytes int) (string, 
 }
 
 // OpencodeSessionFinder finds OpenCode session transcripts from a SQLite database.
+// When cwd is non-empty, sessions are filtered to those whose stored directory
+// equals cwd or is a subdirectory of cwd (matched against the session table's
+// `directory` column with a trailing-slash prefix). Empty cwd returns all
+// sessions globally — same behavior as before this filter existed.
 type OpencodeSessionFinder struct {
 	dbPath string
+	cwd    string
 }
 
-// NewOpencodeSessionFinder creates a finder that queries the OpenCode SQLite database.
-func NewOpencodeSessionFinder(dbPath string) *OpencodeSessionFinder {
-	return &OpencodeSessionFinder{dbPath: dbPath}
+// NewOpencodeSessionFinder creates a finder that queries the OpenCode SQLite
+// database, optionally scoped to sessions opened in cwd or a subdirectory of cwd.
+// Pass an empty cwd to disable directory filtering.
+func NewOpencodeSessionFinder(dbPath, cwd string) *OpencodeSessionFinder {
+	return &OpencodeSessionFinder{dbPath: dbPath, cwd: cwd}
 }
 
-// Find returns transcript entries for all sessions in the OpenCode database,
-// sorted by time_updated descending (newest first).
+// Find returns transcript entries for sessions in the OpenCode database,
+// optionally scoped to the finder's cwd, sorted by time_updated descending
+// (newest first).
 func (f *OpencodeSessionFinder) Find(_ ...string) ([]FileEntry, error) {
 	db, openErr := sql.Open("sqlite", f.dbPath)
 	if openErr != nil {
@@ -106,7 +114,7 @@ func (f *OpencodeSessionFinder) Find(_ ...string) ([]FileEntry, error) {
 
 	ctx := context.Background()
 
-	rows, queryErr := db.QueryContext(ctx, "SELECT id, time_updated FROM session ORDER BY time_updated DESC")
+	rows, queryErr := f.querySessions(ctx, db)
 	if queryErr != nil {
 		return nil, fmt.Errorf("querying sessions: %w", queryErr)
 	}
@@ -137,6 +145,26 @@ func (f *OpencodeSessionFinder) Find(_ ...string) ([]FileEntry, error) {
 	}
 
 	return entries, nil
+}
+
+// querySessions runs the session-list query, optionally filtered by f.cwd.
+func (f *OpencodeSessionFinder) querySessions(ctx context.Context, db *sql.DB) (*sql.Rows, error) {
+	if f.cwd == "" {
+		return db.QueryContext(ctx, "SELECT id, time_updated FROM session ORDER BY time_updated DESC") //nolint:wrapcheck
+	}
+
+	prefix := f.cwd
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+
+	return db.QueryContext( //nolint:wrapcheck
+		ctx,
+		"SELECT id, time_updated FROM session "+
+			"WHERE directory = ? OR directory LIKE ? "+
+			"ORDER BY time_updated DESC",
+		f.cwd, prefix+"%",
+	)
 }
 
 // OpencodeTranscriptReader reads OpenCode session transcripts from SQLite.

@@ -22,7 +22,7 @@ func TestCompositeSessionFinder_MergesFinders(t *testing.T) {
 		{ID: "ses_oc1", Title: "OpenCode session", Updated: time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)},
 	})
 
-	opencodeFinder := recall.NewOpencodeSessionFinder(dbPath)
+	opencodeFinder := recall.NewOpencodeSessionFinder(dbPath, "")
 	claudeFinder := recall.NewSessionFinder(&fakeDirLister{
 		entries: []recall.FileEntry{
 			{Path: "/claude/ses_cc1.jsonl", Mtime: time.Date(2026, 5, 2, 11, 0, 0, 0, time.UTC)},
@@ -71,18 +71,46 @@ func TestOpencodeSessionFinder_EmptyDB(t *testing.T) {
 
 	dbPath := createTestOpencodeDB(t, nil)
 
-	finder := recall.NewOpencodeSessionFinder(dbPath)
+	finder := recall.NewOpencodeSessionFinder(dbPath, "")
 
 	entries, err := finder.Find()
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(entries).To(BeEmpty())
 }
 
+func TestOpencodeSessionFinder_FiltersByCwd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_proj_root", Directory: "/projects/foo", Updated: time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC)},
+		{ID: "ses_proj_sub", Directory: "/projects/foo/sub", Updated: time.Date(2026, 5, 2, 11, 0, 0, 0, time.UTC)},
+		{ID: "ses_other_proj", Directory: "/projects/bar", Updated: time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)},
+		{ID: "ses_prefix_collide", Directory: "/projects/foobar", Updated: time.Date(2026, 5, 2, 13, 0, 0, 0, time.UTC)},
+	})
+
+	finder := recall.NewOpencodeSessionFinder(dbPath, "/projects/foo")
+
+	entries, err := finder.Find()
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	paths := make([]string, 0, len(entries))
+	for _, e := range entries {
+		paths = append(paths, e.Path)
+	}
+
+	g.Expect(paths).To(ConsistOf("opencode://ses_proj_root", "opencode://ses_proj_sub"))
+}
+
 func TestOpencodeSessionFinder_NonexistentDB(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	finder := recall.NewOpencodeSessionFinder("/nonexistent/path/opencode.db")
+	finder := recall.NewOpencodeSessionFinder("/nonexistent/path/opencode.db", "")
 
 	_, err := finder.Find()
 	g.Expect(err).To(HaveOccurred())
@@ -98,7 +126,7 @@ func TestOpencodeSessionFinder_ReturnsEntries(t *testing.T) {
 		{ID: "ses_def456", Title: "Test session 2", Updated: time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)},
 	})
 
-	finder := recall.NewOpencodeSessionFinder(dbPath)
+	finder := recall.NewOpencodeSessionFinder(dbPath, "")
 
 	entries, err := finder.Find()
 	g.Expect(err).NotTo(HaveOccurred())
@@ -180,6 +208,96 @@ func TestOpencodeTranscriptReader_ReadsTextParts(t *testing.T) {
 	g.Expect(content).To(ContainSubstring("Hello from assistant"))
 }
 
+func TestOpencodeTranscriptReader_NullPartType(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_null1", Title: "Test", Updated: time.Now()},
+	})
+
+	db, err := sql.Open("sqlite", dbPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	defer db.Close() //nolint:errcheck
+
+	now := time.Now().UnixMilli()
+	_, err = db.Exec(
+		"INSERT INTO part (id, message_id, session_id, time_created, time_updated, data) "+
+			"VALUES (?, ?, ?, ?, ?, ?)",
+		"prt_nulltype", "msg_nulltype", "ses_null1", now, now, `{"text":"orphan text without type"}`,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	reader := recall.NewOpencodeTranscriptReader(dbPath)
+
+	content, _, err := reader.Read("opencode://ses_null1", 1024*50)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(content).To(BeEmpty())
+}
+
+func TestOpencodeTranscriptReader_UnknownPartType(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_unk1", Title: "Test", Updated: time.Now()},
+	})
+	insertParts(t, dbPath, "ses_unk1", []testPart{
+		{Type: "unknown-part-kind", Text: "should be ignored", TimeCreated: 1},
+	})
+
+	reader := recall.NewOpencodeTranscriptReader(dbPath)
+
+	content, _, err := reader.Read("opencode://ses_unk1", 1024*50)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(content).To(BeEmpty())
+}
+
+func TestOpencodeTranscriptReader_InvalidToolState(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_bad1", Title: "Test", Updated: time.Now()},
+	})
+	insertParts(t, dbPath, "ses_bad1", []testPart{
+		{Type: "tool", Tool: "bash", State: `"plain string, not an object"`, TimeCreated: 1},
+	})
+
+	reader := recall.NewOpencodeTranscriptReader(dbPath)
+
+	content, _, err := reader.Read("opencode://ses_bad1", 1024*50)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(content).To(BeEmpty())
+}
+
+func TestOpencodeTranscriptReader_ToolMissingStatus(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_nostatus1", Title: "Test", Updated: time.Now()},
+	})
+	insertParts(t, dbPath, "ses_nostatus1", []testPart{
+		{Type: "tool", Tool: "bash", State: `{"input":{"command":"ls"}}`, TimeCreated: 1},
+	})
+
+	reader := recall.NewOpencodeTranscriptReader(dbPath)
+
+	content, _, err := reader.Read("opencode://ses_nostatus1", 1024*50)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(content).To(BeEmpty())
+}
+
+func TestDefaultOpencodeDBPath_UsesHome(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	got := recall.DefaultOpencodeDBPath()
+	g.Expect(got).To(HaveSuffix("/.local/share/opencode/opencode.db"))
+}
+
 func TestOpencodeTranscriptReader_ReadsToolParts(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -213,9 +331,10 @@ type testPart struct {
 }
 
 type testSession struct {
-	ID      string
-	Title   string
-	Updated time.Time
+	ID        string
+	Title     string
+	Directory string
+	Updated   time.Time
 }
 
 func (s testSession) UnixMilli() int64 {
@@ -266,12 +385,17 @@ func createTestOpencodeDB(t *testing.T, sessions []testSession) string {
 	for i, s := range sessions {
 		updatedAt := s.Updated.UnixMilli()
 		slug := "slug-" + strconv.Itoa(i)
+		directory := s.Directory
+
+		if directory == "" {
+			directory = "/test/dir"
+		}
 
 		_, err = db.Exec(
 			"INSERT INTO session "+
 				"(id, project_id, slug, directory, title, time_created, time_updated) "+
 				"VALUES (?, ?, ?, ?, ?, ?, ?)",
-			s.ID, "proj_test", slug, "/test/dir", s.Title, updatedAt, updatedAt,
+			s.ID, "proj_test", slug, directory, s.Title, updatedAt, updatedAt,
 		)
 		if err != nil {
 			t.Fatalf("inserting session: %v", err)

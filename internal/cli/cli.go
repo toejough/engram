@@ -238,6 +238,11 @@ func runRecallSessions(
 		return fmt.Errorf("recall: %w", homeErr)
 	}
 
+	cwd, cwdErr := getwd()
+	if cwdErr != nil {
+		return fmt.Errorf("recall: %w", cwdErr)
+	}
+
 	var dirs []string
 	if transcriptDir != "" {
 		dirs = []string{transcriptDir}
@@ -249,7 +254,7 @@ func runRecallSessions(
 
 	finder := recall.NewCompositeSessionFinder(
 		recall.NewSessionFinder(&osDirLister{}),
-		recall.NewOpencodeSessionFinder(recall.DefaultOpencodeDBPath()),
+		recall.NewOpencodeSessionFinder(recall.DefaultOpencodeDBPath(), cwd),
 	)
 	reader := recall.NewCompositeTranscriptReader(
 		recall.NewTranscriptReader(&osFileReader{}),
