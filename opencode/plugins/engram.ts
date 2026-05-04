@@ -56,15 +56,12 @@ const COMPANION_TRACE = path.join(os.homedir(), ".local", "share", "engram", "co
 const COMPANION_INJECTIONS = path.join(os.homedir(), ".local", "share", "engram", "companion-injections.log")
 const COMPANION_SESSION_DIR = path.join(os.homedir(), ".local", "share", "engram", "companion-session")
 const COMPANION_MODEL = "opencode/qwen3.6-plus"
-const COMPANION_PROMPT_PREFIX = `You are a memory steward observing a primary AI agent's project session. Your job: read the recent project history below and emit a concise block of "memories worth injecting" — facts, prior corrections, and project context the primary agent should see for its upcoming turn.
+const COMPANION_PROMPT_PREFIX = `You are a memory steward observing a primary AI agent's project session. Read the project history below and propose 3 to 5 targeted recall queries that would surface helpful past memories about what is currently happening.
 
-Format your output exactly like this, and emit nothing else:
+Output the queries only, one per line, no numbering, no commentary, no other text. Each query should be 5 to 15 words capturing a specific facet you want to recall about.
 
-## Recalled memories
-- <one sentence per relevant memory or fact, drawn directly from the project history below>
-- <another, if relevant>
-
-If nothing in the history seems relevant for the upcoming turn, output exactly: NO RELEVANT MEMORIES
+If nothing in the history is worth recalling on, output exactly:
+NO QUERIES
 
 PROJECT HISTORY (most recent message at end):
 `
@@ -103,26 +100,33 @@ function companionTrace(stage: string, info: Record<string, any>): void {
 
 // logCompanionInjection appends a human-readable entry to a tail-friendly log
 // for ongoing validation of which memories are surfacing. One block per
-// successful injection, including the recall output (companion's input) and
-// the companion's emitted memories block (its output). Skipped/empty
-// injections are not logged here (they still appear in the JSONL trace).
+// successful injection, including the recall output (companion's input),
+// the queries the companion emitted, and the per-query recall results that
+// were injected. Skipped/empty/errored injections are not logged here —
+// they still appear in the JSONL trace as companion-skipped or companion-error.
 function logCompanionInjection(
   sessionID: string,
   recallMs: number,
   companionMs: number,
   recallOutput: string,
-  injection: string,
+  queries: string[],
+  perQueryResults: { query: string; result: string }[],
 ): void {
   try {
     const dir = path.dirname(COMPANION_INJECTIONS)
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
     const ts = new Date().toISOString()
+    const blocks = perQueryResults
+      .map(({ query, result }) => `--- QUERY: ${query} ---\n${result}`)
+      .join("\n\n")
     const entry = [
-      `=== ${ts} primary=${sessionID} recall=${recallMs}ms companion=${companionMs}ms recallChars=${recallOutput.length} injectChars=${injection.length} ===`,
+      `=== ${ts} primary=${sessionID} recall=${recallMs}ms companion=${companionMs}ms recallChars=${recallOutput.length} queries=${queries.length} ===`,
       `--- RECALL OUTPUT (input to companion) ---`,
       recallOutput,
-      `--- COMPANION OUTPUT (memories injected) ---`,
-      injection,
+      `--- COMPANION OUTPUT (queries emitted) ---`,
+      queries.join("\n"),
+      `--- SECONDARY RECALL RESULTS (memories injected) ---`,
+      blocks,
       `=== END ===`,
       "",
       "",
@@ -135,6 +139,15 @@ function logCompanionInjection(
 
 async function runEngramRecall(): Promise<string> {
   const proc = Bun.spawn([ENGRAM_BIN, "recall", "--no-external-sources"], { stdout: "pipe", stderr: "pipe" })
+  await proc.exited
+  return (await proc.stdout.text()).trim()
+}
+
+async function runEngramRecallWithQuery(query: string): Promise<string> {
+  const proc = Bun.spawn(
+    [ENGRAM_BIN, "recall", "--query", query, "--no-external-sources"],
+    { stdout: "pipe", stderr: "pipe" },
+  )
   await proc.exited
   return (await proc.stdout.text()).trim()
 }
@@ -235,12 +248,42 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
         const companionMs = Date.now() - companionStart
         companionTrace("companion-complete", { sessionID, companionMs, companionOutLen: companionOutput.length, companionOut: companionOutput })
 
-        if (companionOutput && !companionOutput.includes("NO RELEVANT MEMORIES")) {
-          companionBlock = "\n\n" + companionOutput
-          companionTrace("companion-injected", { sessionID, blockLen: companionBlock.length })
-          logCompanionInjection(sessionID || "default", recallMs, companionMs, recallOutput, companionOutput)
+        const SENTINEL = "NO QUERIES"
+        const MAX_QUERIES = 5
+        const allLines = companionOutput.split("\n").map((s) => s.trim()).filter(Boolean)
+        const sentinelOnly = allLines.length === 1 && allLines[0] === SENTINEL
+        const queries = allLines.filter((l) => l !== SENTINEL).slice(0, MAX_QUERIES)
+
+        if (allLines.length === 0) {
+          companionTrace("companion-skipped", { sessionID, reason: "empty-output" })
+        } else if (sentinelOnly || queries.length === 0) {
+          companionTrace("companion-skipped", { sessionID, reason: "no-queries" })
         } else {
-          companionTrace("companion-skipped", { sessionID, reason: companionOutput ? "no-memories" : "empty-output" })
+          const queryStart = Date.now()
+          const perQueryResults = await Promise.all(
+            queries.map(async (query) => {
+              const start = Date.now()
+              const result = await runEngramRecallWithQuery(query)
+              companionTrace("secondary-recall-complete", {
+                sessionID, query, ms: Date.now() - start, resultLen: result.length,
+              })
+              return { query, result }
+            }),
+          )
+          const totalQueryMs = Date.now() - queryStart
+
+          let block = "## Recalled memories\n\n"
+          for (const { query, result } of perQueryResults) {
+            block += `### Query: ${query}\n${result}\n\n`
+          }
+          companionBlock = "\n\n" + block.trimEnd()
+
+          companionTrace("companion-injected", {
+            sessionID, blockLen: companionBlock.length, queryCount: queries.length, totalQueryMs,
+          })
+          logCompanionInjection(
+            sessionID || "default", recallMs, companionMs, recallOutput, queries, perQueryResults,
+          )
         }
       } catch (err: any) {
         companionTrace("companion-error", { sessionID, error: String(err) })
