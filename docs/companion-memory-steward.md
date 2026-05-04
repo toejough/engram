@@ -443,3 +443,28 @@ Pass criterion: at least one query per scenario is non-empty + on-topic.
 - Tool result: **PASS** (all 5 queries Y/Y — recalled the 47MB debug-trace.log incident, proper log storage paths, gitignore patterns, and cleanup procedures)
 
 Notable: the "pivot" scenario's auth-specific queries (1, 2, 5) returned empty because the engram repo has no auth middleware memories — the companion generated sensible queries but the underlying memory store doesn't contain that domain. The queries that hit (3, 4) did so because engram *does* have memories about token validation (the planted MAGENTA phrase and pipeline validation) and middleware patterns (hook refactoring). The tool-result scenario performed best (5/5) because the 47MB log incident was a real engram event that generated real memories.
+
+#### Validation 3 — empty project history
+
+Setup: fresh `/tmp/companion-empty` directory (only `.` and `..`), companion sessions cleared.
+
+`engram recall --no-external-sources` from the empty dir produced: empty output (no bytes, no summary, no status message).
+
+Trace events from this turn (19 total new events):
+
+| Stage | Count |
+|---|---|
+| `system.transform-start` | 3 |
+| `recall-complete` | 3 |
+| `system.transform-skipped-companion` | 5 |
+| `companion-session-created` | 2 |
+| `companion-complete` | 3 |
+| `companion-skipped` | 3 |
+
+Companion-skipped events: 3, all with reason `no-queries` (sessionID `ses_20f3b468fffeLh4Dcv1iojNuHu`).
+
+System-prompt check across new fires: 8 fires, 0 has-recall-block, 8 no-recall-block.
+
+Pass criterion: at least one fire produced `companion-skipped` with a recognized reason and no `## Recalled memories` block in that fire's AFTER section → **PASS**
+
+All 3 companion-complete events produced `no-queries` — qwen3.6-plus correctly emitted the sentinel on empty/sparse input rather than hallucinating queries. No noise floor issue observed.
