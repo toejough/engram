@@ -103,14 +103,30 @@ function companionTrace(stage: string, info: Record<string, any>): void {
 
 // logCompanionInjection appends a human-readable entry to a tail-friendly log
 // for ongoing validation of which memories are surfacing. One block per
-// successful injection. Skipped/empty injections are not logged here (they
-// still appear in the JSONL trace).
-function logCompanionInjection(sessionID: string, recallMs: number, companionMs: number, injection: string): void {
+// successful injection, including the recall output (companion's input) and
+// the companion's emitted memories block (its output). Skipped/empty
+// injections are not logged here (they still appear in the JSONL trace).
+function logCompanionInjection(
+  sessionID: string,
+  recallMs: number,
+  companionMs: number,
+  recallOutput: string,
+  injection: string,
+): void {
   try {
     const dir = path.dirname(COMPANION_INJECTIONS)
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
     const ts = new Date().toISOString()
-    const entry = `=== ${ts} primary=${sessionID} recall=${recallMs}ms companion=${companionMs}ms inject=${injection.length}chars ===\n${injection}\n=== END ===\n\n`
+    const entry = [
+      `=== ${ts} primary=${sessionID} recall=${recallMs}ms companion=${companionMs}ms recallChars=${recallOutput.length} injectChars=${injection.length} ===`,
+      `--- RECALL OUTPUT (input to companion) ---`,
+      recallOutput,
+      `--- COMPANION OUTPUT (memories injected) ---`,
+      injection,
+      `=== END ===`,
+      "",
+      "",
+    ].join("\n")
     fs.appendFileSync(COMPANION_INJECTIONS, entry, "utf8")
   } catch {
     // logging failure is non-fatal
@@ -211,7 +227,7 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
         const recallStart = Date.now()
         const recallOutput = await runEngramRecall()
         const recallMs = Date.now() - recallStart
-        companionTrace("recall-complete", { sessionID, recallMs, recallLen: recallOutput.length })
+        companionTrace("recall-complete", { sessionID, recallMs, recallLen: recallOutput.length, recallOut: recallOutput })
 
         const prompt = COMPANION_PROMPT_PREFIX + recallOutput
         const companionStart = Date.now()
@@ -222,7 +238,7 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
         if (companionOutput && !companionOutput.includes("NO RELEVANT MEMORIES")) {
           companionBlock = "\n\n" + companionOutput
           companionTrace("companion-injected", { sessionID, blockLen: companionBlock.length })
-          logCompanionInjection(sessionID || "default", recallMs, companionMs, companionOutput)
+          logCompanionInjection(sessionID || "default", recallMs, companionMs, recallOutput, companionOutput)
         } else {
           companionTrace("companion-skipped", { sessionID, reason: companionOutput ? "no-memories" : "empty-output" })
         }
