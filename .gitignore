@@ -26,6 +26,8 @@ docs/session-logs/
 # Playground (large generated files, regenerated from memories)
 playground/scoring-playground.html
 playground/corpus/
+playground/c4-workflow-sequence-diagrams.md
+playground/issue-603-di-notation-sketch.md
 
 # Skill results
 result.toml
