@@ -415,3 +415,31 @@ Pass criteria:
 - Pivot: kept at least one query about pre-pivot rate-limiting topic + emphasized auth bug → **PASS** (query 2 covers rate-limiting; queries 1, 3, 5 cover auth bug)
 - Sparse: synthesized queries from prior context (auth+rate-limit, worktrees) without anchoring on "yes do it" → **PASS** (all 3 queries draw from substantive content, none anchor on "yes do it")
 - Tool result: at least one query specifically about the 47MB anomaly or accidentally-committed large files → **PASS** (query 1 directly addresses misplaced log; query 3 addresses accidentally-committed files)
+
+#### Validation 2 — per-query payout
+
+For each Validation 1 query, ran `engram recall --query <q> --no-external-sources` from the engram repo.
+
+| Scenario | # | Query | Non-empty | On-topic |
+|---|---|---|---|---|
+| Pivot | 1 | auth middleware intermittent 401 token validation errors debugging | N | N |
+| Pivot | 2 | rate limiting middleware implementation patterns internal codebase | N | N |
+| Pivot | 3 | authentication token validation previous fixes and troubleshooting | Y | Y |
+| Pivot | 4 | middleware error handling patterns in internal middleware directory | Y | Y |
+| Pivot | 5 | previous work on API authentication and token validation | N | N |
+| Sparse | 1 | auth rate-limit module refactoring architecture changes | N | N |
+| Sparse | 2 | worktree branch setup and isolation strategy | Y | Y |
+| Sparse | 3 | multi-file refactoring subsystem coupling patterns | Y | Y |
+| Tool result | 1 | debug trace log misplaced internal recall package cleanup procedure | Y | Y |
+| Tool result | 2 | proper storage location debug trace logs engram project | Y | Y |
+| Tool result | 3 | gitignore patterns prevent log files committed source tree | Y | Y |
+| Tool result | 4 | engram logging configuration log file paths setup | Y | Y |
+| Tool result | 5 | previous debug log cleanup incidents engram repository | Y | Y |
+
+Pass criterion: at least one query per scenario is non-empty + on-topic.
+
+- Pivot: **PASS** (queries 3 and 4 both Y/Y — recalled engram project memories about token validation pipeline and middleware error handling patterns)
+- Sparse: **PASS** (queries 2 and 3 both Y/Y — recalled worktree setup bugs/workflow and single-responsibility hook refactoring pattern)
+- Tool result: **PASS** (all 5 queries Y/Y — recalled the 47MB debug-trace.log incident, proper log storage paths, gitignore patterns, and cleanup procedures)
+
+Notable: the "pivot" scenario's auth-specific queries (1, 2, 5) returned empty because the engram repo has no auth middleware memories — the companion generated sensible queries but the underlying memory store doesn't contain that domain. The queries that hit (3, 4) did so because engram *does* have memories about token validation (the planted MAGENTA phrase and pipeline validation) and middleware patterns (hook refactoring). The tool-result scenario performed best (5/5) because the 47MB log incident was a real engram event that generated real memories.
