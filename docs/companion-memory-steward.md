@@ -534,3 +534,66 @@ Median values across smoke + validation runs (sample sizes vary; secondary-recal
 With `system.transform` firing 4–5× per primary turn, unmitigated per-turn companion overhead is ~`63810 × 4-5` ms. Phase 5 baseline was ~17000ms × 4-5 ≈ 68000ms. Phase 7 changes that profile: a single qwen call per fire is roughly comparable, but the added parallel-recall step adds ~`47485` ms per fire on top.
 
 Implication for Phase 6: per-turn cache keyed by user-message ID is required before this is shippable. Cache scope: full `companionBlock` (the concatenated `## Recalled memories` block) — invalidated on new user message.
+
+## Phase 7.1 — Companion cwd isolation (regression fix)
+
+**Status:** ✅ implemented (2026-05-04). Empirical validation partial — see below.
+
+### Regression observed
+
+Within hours of Phase 7 landing, real multi-turn use produced runaway recall blobs (~150KB) that consumed the user's opencode balance. Root cause: the companion subprocess inherited the primary's working directory, so its opencode sessions appeared in the primary's project-scoped recall (`engram recall --no-external-sources` is cwd-scoped). The recall blob fed to the companion thus grew each turn because it pulled in prior companion turns' content — which contained prior recall blobs — recursively.
+
+The Phase 5 recursion guard (`ENGRAM_COMPANION_MODE=1`) prevented respawn-recursion (companion's plugin spawning another companion) but did *not* prevent data-scope recursion (companion's session content showing up in primary's recall). Phase 5 had the same root cause but produced ~100-byte filtered output, so growth was negligible. Phase 7 stores ~26KB recall blob as the companion's user-prompt input each turn, so growth was severe.
+
+**Concrete evidence** (trace, 2026-05-04 23:03 UTC, real user session `ses_20ac47883ffeicWz`):
+- `recallLen: 148957`
+- `recallOut` includes `USER: "You are a memory steward observing a primar...` — the companion's prompt prefix appearing inside the primary's recall blob.
+
+### Fix
+
+Commit `fb43fe46`: companion subprocess spawns with `cwd: ~/.local/share/engram/companion-cwd`. Companion's opencode sessions now live in that bucket; primary's project recall scope no longer overlaps.
+
+Diff: 3 lines added in `opencode/plugins/engram.ts` — declare `COMPANION_CWD`, mkdir-recursive guard, `cwd` option on `Bun.spawn`.
+
+### Validation
+
+**Structural (PASS):** Post-fix SQLite session distribution:
+
+| Directory | Sessions |
+|---|---|
+| `~/.local/share/engram/companion-cwd` | 12 |
+| `/private/tmp/companion-multi` (initial test attempts) | 4 |
+| `/private/tmp/companion-multi-v2` (multi-turn test) | 1 |
+
+All companion sessions land in `companion-cwd`; primary sessions stay in their own directories. Cross-bucket separation is verified.
+
+**Empirical multi-turn (partial):** 3 sequential turns in one fresh primary session at `/private/tmp/companion-multi-v2`:
+
+| Turn | recallLen |
+|---|---|
+| 1 (2 fires) | 0 |
+| 2 (1 fire) | 0 |
+| 3 (1 fire) | 0 |
+
+`recallLen=0` across all fires confirms no companion-session pollution in the test cwd, but the test directory was too sterile to exercise normal session-history accumulation. A non-zero baseline showing bounded growth (e.g., 200 → 400 → 600 bytes per turn) would have been a stronger signal.
+
+The 148KB pre-fix data point above + the structural separation above + the absence of any non-zero recall in the post-fix test together establish the fix is wired correctly. Full empirical demonstration of bounded per-turn growth requires a real multi-turn session with substantive primary content; the next real session will provide that data.
+
+### Cleanup notes for existing primary sessions
+
+The fix only affects NEW companion sessions. Existing primary sessions still have a stored companion-session-id pointing at a session in the polluted bucket (e.g., `~/.local/share/engram/companion-session/<primary>.txt`). Until cleared, those primary sessions continue to suffer from polluted recall.
+
+To force a fresh companion session in the new cwd on next turn:
+
+```bash
+rm ~/.local/share/engram/companion-session/<primary>.txt
+```
+
+To also remove the polluted companion sessions from opencode's DB so they stop appearing in any project's recall:
+
+```bash
+sqlite3 ~/.local/share/opencode/opencode.db \
+  "DELETE FROM session WHERE directory = '/Users/joe/repos/personal/engram-worktrees/opencode-plugin' AND title LIKE '%memory steward%';"
+```
+
+(Adjust the `directory` value to match the project where the polluted companion sessions live; check with `SELECT directory, title FROM session WHERE title LIKE '%memory steward%';` first.)
