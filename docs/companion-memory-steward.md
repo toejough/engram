@@ -317,3 +317,84 @@ Caching paths to consider in Phase 6:
 **Goal:** cut companion overhead from ~13× primary-turn cost to <2×, primarily through per-turn caching of the companion's output.
 
 **Status:** not started.
+
+## Phase 7 — Wire companion-emitted queries through recall
+
+**Goal:** close the Phase 4 open item — instead of asking the companion to filter the bare recall output, ask it to emit targeted recall queries; have the plugin run each query through `engram recall` and inject the concatenated per-query results.
+
+**Status:** in design (2026-05-03), ahead of Phase 6.
+
+### Motivation
+
+Phase 5 wired in a companion prompt that asks the companion to *filter* the bare project-history blob into a "memories worth injecting" list. That works, but it bypasses engram's actual relevance retrieval (memory ranking, two-phase Haiku extract). The companion is being asked to pick from a fixed input rather than to ask better questions.
+
+Phase 4 already validated that a companion reliably emits on-topic queries from project context across three scenarios (pivot, sparse, tool-result). Phase 7 closes that loop: companion proposes queries → plugin runs them → primary sees query-targeted memories.
+
+Sequencing ahead of Phase 6 (caching) is intentional — Phase 7 changes the shape of what is cached, so building the cache against the wrong shape is wasted work.
+
+### Design
+
+**Companion prompt (replaces the Phase 5 filter prompt):**
+
+```
+You are a memory steward observing a primary AI agent's project session.
+Read the project history below and propose 3 to 5 targeted recall queries
+that would surface helpful past memories about what is currently happening.
+
+Output the queries only, one per line, no numbering, no commentary, no
+other text. Each query should be 5 to 15 words capturing a specific facet
+you want to recall about.
+
+If nothing in the history is worth recalling on, output exactly:
+NO QUERIES
+
+PROJECT HISTORY (most recent message at end):
+<recall output>
+```
+
+Adapted from Phase 4 v1: drops the numbered-list framing so a plain `split("\n")` is unambiguous; renames the empty sentinel from `no action` to `NO QUERIES` for log clarity.
+
+**Plugin flow** (in `experimental.chat.system.transform`, replacing the current filter pass):
+
+1. Run `engram recall --no-external-sources` (unchanged) to get the project-history blob.
+2. Send the blob to the companion via `opencode run` with the new prompt. Companion session persistence and `ENGRAM_COMPANION_MODE=1` recursion guard are unchanged from Phase 5.
+3. Parse companion output:
+   - Split on `\n`, trim each line, drop empties → `lines: string[]`.
+   - If `lines.length === 1 && lines[0] === "NO QUERIES"` → skip injection (trace `companion-skipped` with reason `no-queries`).
+   - If the companion returned nothing at all (`lines.length === 0`, or the spawn produced empty output / non-zero exit / threw) → log and skip injection (trace `companion-skipped` with reason `empty-output`, or `companion-error` for thrown errors — both already exist in the current implementation).
+4. For the remaining query lines, run `engram recall --query <q> --no-external-sources` for each in parallel via `Promise.all`.
+5. Concatenate the results into a single block:
+
+   ```
+   ## Recalled memories
+
+   ### Query: <query 1>
+   <recall summary 1>
+
+   ### Query: <query 2>
+   <recall summary 2>
+   ```
+
+6. Append the block to the system prompt at the same point the current implementation injects.
+
+The plugin makes no judgment about per-query result usefulness. Whatever each `engram recall --query <q>` returns is passed through verbatim. Filtering would require an extra LLM evaluation that this design intentionally avoids.
+
+**Logging:**
+- `companion-trace.jsonl`: existing stages plus one `secondary-recall-complete` event per query (query text, ms, output length).
+- `companion-injections.log`: new shape per entry — the companion's emitted query lines (its output, fed into the secondary recalls) and the concatenated per-query recall outputs (what is actually injected).
+
+### Validation
+
+End-to-end against example project repos, mirroring the Phase 4/5 harnesses.
+
+| # | Test | Pass criterion |
+|---|---|---|
+| 1 | **Phase 4 scenario replay** — re-run the pivot, sparse, and tool-result scenarios with the new prompt | All three scenarios produce 3–5 on-topic queries. Pivot weights toward the new direction (auth bug) while keeping at least one fallback to the pre-pivot topic. Tool-result scenario produces at least one query about the anomaly itself, not just the surrounding topic. |
+| 2 | **Per-query payout** — for each scenario, run each emitted query through `engram recall --query <q> --no-external-sources` directly | For each scenario, at least one of the emitted queries returns a non-empty recall summary that is on-topic for that query. |
+| 3 | **Empty project history** — fresh repo with no session history; run the new pipeline once | Companion emits exactly `NO QUERIES`. Plugin skips injection. Resulting system prompt contains no `## Recalled memories` block. `companion-trace.jsonl` shows a `companion-skipped` event with a `no-queries` reason. |
+| 4 | **Nil/failed companion response** — point `opencode` at a shim that exits non-zero, run the pipeline once | Plugin logs `companion-error` (or `companion-run-failed`), skips injection, primary turn completes without crash. System prompt has no recall block. |
+| 5 | **Phase 5 planted-token replay** — plant a fact memory with a unique token (e.g., `MAGENTA-VERIFICATION-PHRASE-N`) whose `situation` field is something like "asked about unusual facts about engram"; user message in the fresh primary `opencode run` is "Tell me any unusual facts you remember about engram from our previous work together. Quote them exactly if you can." | Token appears verbatim in the primary's response. Trace shows at least one companion-emitted query that overlaps the planted memory's situation, and the per-query recall result for that query contains the token. |
+
+### Cost note
+
+Each `system.transform` fire now does 1 companion call plus N (3–5) parallel `engram recall --query` calls. Each per-query recall internally does its own Haiku two-phase extraction, so this multiplies LLM work per fire compared to Phase 5. With `system.transform` firing 4–5× per primary turn, the unmitigated cost is materially higher than Phase 5. Phase 6 (per-turn caching keyed by user-message ID) becomes more important after Phase 7 lands. Cost measurements collected during the validation tests above feed directly into the Phase 6 cache design.
