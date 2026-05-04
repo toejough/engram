@@ -175,6 +175,21 @@ flowchart LR
 
 The asymmetry is deliberate. Reading everywhere surfaces knowledge already captured in CLAUDE.md, rules, or auto memory without requiring you to re-enter it. Writing only to engram's own directory means engram never rewrites your CLAUDE.md, edits a skill it didn't author, or mutates auto-memory Claude Code manages. Uninstall engram and every other source survives untouched; only `~/.local/share/engram/` and the built binary at `~/.claude/engram/bin/engram` need cleanup.
 
+## How hooks, skills, and the binary work together
+
+```mermaid
+flowchart LR
+    user[User prompt] --> hook[Claude Code hook]
+    hook -->|injects reminder| skill[Skill frontmatter]
+    skill -->|triggers| binary[engram binary]
+    binary -->|reads/writes| toml[TOML memory files]
+    binary -->|classifies| api[Anthropic API]
+    binary -->|returns| ctx[Session context]
+    api -->|ranks| binary
+```
+
+Hooks inject reminders into Claude Code's context. Skill frontmatter describes *when* to invoke (e.g. "before starting new work"). When conditions match, Claude Code invokes the skill, which calls the `engram` binary. The binary reads/writes TOML files, uses the Anthropic API for ranking, and returns context into the session.
+
 ## How the skills work
 
 ### `/recall`
