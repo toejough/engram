@@ -322,7 +322,7 @@ Caching paths to consider in Phase 6:
 
 **Goal:** close the Phase 4 open item — instead of asking the companion to filter the bare recall output, ask it to emit targeted recall queries; have the plugin run each query through `engram recall` and inject the concatenated per-query results.
 
-**Status:** in design (2026-05-03), ahead of Phase 6.
+**Status:** ✅ implemented and validated (2026-05-04), ahead of Phase 6. See findings sections below.
 
 ### Motivation
 
@@ -519,3 +519,18 @@ The primary received the `## Recalled memories` block containing the token and q
 Cleanup: planted memory file deleted at `~/.local/share/engram/memory/facts/asked-about-unusual-facts-about-engram.toml`.
 
 Pass criterion: token verbatim in primary response, traced to companion-emitted queries → secondary recall → injection → **PASS**
+
+#### Cost measurements
+
+Median values across smoke + validation runs (sample sizes vary; secondary-recall samples drawn from the most recent ~100 events):
+
+| Stage | Median ms |
+|---|---|
+| `companion-complete` (single qwen call, prompt + 3-5 query emit) | 16325 |
+| `secondary-recall-complete` (single `engram recall --query` call) | 42284 |
+| `companion-injected` `totalQueryMs` (wall time for the parallel-recall batch, ≈ max of individual recalls) | 47485 |
+| Approx total per-fire overhead (companion + parallel recalls) | 63810 |
+
+With `system.transform` firing 4–5× per primary turn, unmitigated per-turn companion overhead is ~`63810 × 4-5` ms. Phase 5 baseline was ~17000ms × 4-5 ≈ 68000ms. Phase 7 changes that profile: a single qwen call per fire is roughly comparable, but the added parallel-recall step adds ~`47485` ms per fire on top.
+
+Implication for Phase 6: per-turn cache keyed by user-message ID is required before this is shippable. Cache scope: full `companionBlock` (the concatenated `## Recalled memories` block) — invalidated on new user message.
