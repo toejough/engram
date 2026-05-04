@@ -3,7 +3,7 @@ level: 1
 name: engram-system
 parent: null
 children: []
-last_reviewed_commit: abb1f55e
+last_reviewed_commit: 01f5def5
 ---
 
 # C1 — Engram plugin (System Context)
