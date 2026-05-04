@@ -468,3 +468,26 @@ System-prompt check across new fires: 8 fires, 0 has-recall-block, 8 no-recall-b
 Pass criterion: at least one fire produced `companion-skipped` with a recognized reason and no `## Recalled memories` block in that fire's AFTER section → **PASS**
 
 All 3 companion-complete events produced `no-queries` — qwen3.6-plus correctly emitted the sentinel on empty/sparse input rather than hallucinating queries. No noise floor issue observed.
+
+#### Validation 4 — nil/failed companion response
+
+Setup: PATH-shimmed `opencode` binary that exits 1; primary opencode invoked directly by full path (`/opt/homebrew/Cellar/opencode/1.14.30/libexec/lib/node_modules/opencode-ai/node_modules/opencode-darwin-arm64/bin/opencode`) via `OPENCODE_BIN_PATH` env var. The wrapper script checks `OPENCODE_BIN_PATH` first, so the primary ran the real binary; the plugin's `Bun.spawn(["opencode", ...])` resolved `"opencode"` via PATH and found the shim.
+
+Trace observed (new events from this turn — 4 system.transform fires):
+
+| Stage | Count | Key fields |
+|---|---|---|
+| `system.transform-start` | 4 | — |
+| `recall-complete` | 4 | — |
+| `companion-run-failed` | 4 | `exitCode: 1` |
+| `companion-complete` | 4 | `companionOutLen: 0` |
+| `companion-skipped` | 4 | `reason: "empty-output"` |
+| `companion-error` | 0 | — |
+
+Note: `companion-complete` is logged in `system.transform` after `runCompanion` returns — it records `companionOutLen: 0` (the empty string returned after the failed exit). It does not mean the companion process succeeded.
+
+Per-fire system prompt check: 4 fires, all `no-recall-block`.
+
+Primary turn: completed normally (exit 0), model responded to the test message. System prompt had no `## Recalled memories` block in any fire.
+
+Pass criterion: plugin handles companion-process failure via existing exit-code path → no injection, primary unaffected → **PASS**
