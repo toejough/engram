@@ -202,6 +202,7 @@ func TestRunRecall(t *testing.T) {
 			"test-slug", nil, nil, t.TempDir(), "",
 			func() (string, error) { return "/fake", nil },
 			func() (string, error) { return "", errors.New("no home") },
+			func(context.Context, string) (string, error) { return "", nil },
 		)
 		g.Expect(err).To(gomega.HaveOccurred())
 
@@ -221,12 +222,47 @@ func TestRunRecall(t *testing.T) {
 			"", nil, nil, t.TempDir(), "",
 			func() (string, error) { return "", errors.New("no cwd") },
 			func() (string, error) { return "/home", nil },
+			func(context.Context, string) (string, error) { return "", nil },
 		)
 		g.Expect(err).To(gomega.HaveOccurred())
 
 		if err != nil {
 			g.Expect(err.Error()).To(gomega.ContainSubstring("no cwd"))
 		}
+	})
+
+	t.Run("worktree uses main repo project dir for sessions", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		mainRepo := t.TempDir()
+		worktree := t.TempDir()
+
+		home := t.TempDir()
+		mainSlug := cli.ProjectSlugFromPath(mainRepo)
+		projectDir := filepath.Join(home, ".claude", "projects", mainSlug)
+		g.Expect(os.MkdirAll(projectDir, 0o750)).To(gomega.Succeed())
+
+		g.Expect(os.WriteFile(
+			filepath.Join(projectDir, "2025-01-01.jsonl"),
+			[]byte(`{"role":"user","content":"hello"}`),
+			0o600,
+		)).To(gomega.Succeed())
+
+		dataDir := t.TempDir()
+
+		var buf bytes.Buffer
+
+		err := cli.ExportRunRecallSessions(
+			context.Background(), &buf,
+			"", nil, nil, dataDir, "",
+			func() (string, error) { return worktree, nil },
+			func() (string, error) { return home, nil },
+			func(context.Context, string) (string, error) {
+				return filepath.Join(mainRepo, ".git"), nil
+			},
+		)
+		g.Expect(err).NotTo(gomega.HaveOccurred())
 	})
 
 	t.Run("memories-only with limit", func(t *testing.T) {

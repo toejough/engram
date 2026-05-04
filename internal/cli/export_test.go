@@ -87,9 +87,10 @@ func ExportRunRecallSessions(
 	dataDir, query string,
 	getwd func() (string, error),
 	userHomeDir func() (string, error),
+	gitCommonDir func(ctx context.Context, cwd string) (string, error),
 ) error {
 	slug := projectSlug
-	return runRecallSessions(ctx, stdout, &slug, summarizer, memLister, dataDir, query, getwd, userHomeDir)
+	return runRecallSessions(ctx, stdout, &slug, summarizer, memLister, dataDir, query, getwd, userHomeDir, gitCommonDir)
 }
 
 // ExportWriteMemoryForTest wraps writeMemory for testing with a pre-built record.

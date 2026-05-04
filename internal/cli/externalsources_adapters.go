@@ -49,7 +49,17 @@ func detectMainRepoRoot(ctx context.Context, gitCommonDir gitCommonDirFn, cwd st
 		return ""
 	}
 
-	return filepath.Dir(commonDir)
+	if !filepath.IsAbs(commonDir) {
+		commonDir = filepath.Join(cwd, commonDir)
+	}
+
+	mainRepoRoot := filepath.Dir(filepath.Clean(commonDir))
+
+	if mainRepoRoot == cwd {
+		return ""
+	}
+
+	return mainRepoRoot
 }
 
 // discoverExternalSources builds the externalsources.Discover input for the

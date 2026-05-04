@@ -191,7 +191,7 @@ func runRecall(ctx context.Context, args RecallArgs, stdout io.Writer) error {
 
 	return runRecallSessions(
 		ctx, stdout, &projectSlug, summarizer, memLister,
-		dataDir, args.Query, os.Getwd, os.UserHomeDir,
+		dataDir, args.Query, os.Getwd, os.UserHomeDir, runGitCommonDir,
 	)
 }
 
@@ -222,6 +222,7 @@ func runRecallSessions(
 	dataDir, query string,
 	getwd func() (string, error),
 	userHomeDir func() (string, error),
+	gitCommonDir gitCommonDirFn,
 ) error {
 	slugErr := applyProjectSlugDefault(projectSlug, getwd)
 	if slugErr != nil {
@@ -233,7 +234,16 @@ func runRecallSessions(
 		return fmt.Errorf("recall: %w", homeErr)
 	}
 
+	cwd, cwdErr := getwd()
+	if cwdErr != nil {
+		return fmt.Errorf("recall: %w", cwdErr)
+	}
+
 	projectDir := filepath.Join(home, ".claude", "projects", *projectSlug)
+
+	if mainRepoRoot := detectMainRepoRoot(ctx, gitCommonDir, cwd); mainRepoRoot != "" && mainRepoRoot != cwd {
+		projectDir = filepath.Join(home, ".claude", "projects", ProjectSlugFromPath(mainRepoRoot))
+	}
 
 	finder := recall.NewSessionFinder(&osDirLister{})
 	reader := recall.NewTranscriptReader(&osFileReader{})
