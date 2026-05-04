@@ -398,3 +398,20 @@ End-to-end against example project repos, mirroring the Phase 4/5 harnesses.
 ### Cost note
 
 Each `system.transform` fire now does 1 companion call plus N (3–5) parallel `engram recall --query` calls. Each per-query recall internally does its own Haiku two-phase extraction, so this multiplies LLM work per fire compared to Phase 5. With `system.transform` firing 4–5× per primary turn, the unmitigated cost is materially higher than Phase 5. Phase 6 (per-turn caching keyed by user-message ID) becomes more important after Phase 7 lands. Cost measurements collected during the validation tests above feed directly into the Phase 6 cache design.
+
+### Phase 7 — Validation findings (2026-05-04)
+
+#### Validation 1 — scenario replay
+
+Re-ran Phase 4's three scenarios against the new prompt, using `opencode/qwen3.6-plus`.
+
+| Scenario | Companion's queries |
+|---|---|
+| Pivot | auth middleware intermittent 401 token validation errors debugging · rate limiting middleware implementation patterns internal codebase · authentication token validation previous fixes and troubleshooting · middleware error handling patterns in internal middleware directory · previous work on API authentication and token validation |
+| Sparse | auth rate-limit module refactoring architecture changes · worktree branch setup and isolation strategy · multi-file refactoring subsystem coupling patterns |
+| Tool result | debug trace log misplaced internal recall package cleanup procedure · proper storage location debug trace logs engram project · gitignore patterns prevent log files committed source tree · engram logging configuration log file paths setup · previous debug log cleanup incidents engram repository |
+
+Pass criteria:
+- Pivot: kept at least one query about pre-pivot rate-limiting topic + emphasized auth bug → **PASS** (query 2 covers rate-limiting; queries 1, 3, 5 cover auth bug)
+- Sparse: synthesized queries from prior context (auth+rate-limit, worktrees) without anchoring on "yes do it" → **PASS** (all 3 queries draw from substantive content, none anchor on "yes do it")
+- Tool result: at least one query specifically about the 47MB anomaly or accidentally-committed large files → **PASS** (query 1 directly addresses misplaced log; query 3 addresses accidentally-committed files)
