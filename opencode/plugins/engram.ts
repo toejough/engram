@@ -55,6 +55,7 @@ const DEBUG_LOG = path.join(os.homedir(), ".local", "share", "engram", "debug-sy
 const COMPANION_TRACE = path.join(os.homedir(), ".local", "share", "engram", "companion-trace.jsonl")
 const COMPANION_INJECTIONS = path.join(os.homedir(), ".local", "share", "engram", "companion-injections.log")
 const COMPANION_SESSION_DIR = path.join(os.homedir(), ".local", "share", "engram", "companion-session")
+const COMPANION_CWD = path.join(os.homedir(), ".local", "share", "engram", "companion-cwd")
 const COMPANION_MODEL = "opencode/qwen3.6-plus"
 const COMPANION_PROMPT_PREFIX = `You are a memory steward observing a primary AI agent's project session. Read the project history below and propose 3 to 5 targeted recall queries that would surface helpful past memories about what is currently happening.
 
@@ -180,7 +181,9 @@ async function runCompanion(primarySessionID: string, prompt: string): Promise<s
   // ENGRAM_COMPANION_MODE breaks the recursive companion-spawning loop:
   // when the companion's opencode process loads this plugin, the
   // system.transform hook checks the env var and skips its own companion call.
+  if (!fs.existsSync(COMPANION_CWD)) fs.mkdirSync(COMPANION_CWD, { recursive: true })
   const proc = Bun.spawn(["opencode", ...args], {
+    cwd: COMPANION_CWD,
     stdout: "pipe",
     stderr: "pipe",
     env: { ...process.env, ENGRAM_COMPANION_MODE: "1" },
