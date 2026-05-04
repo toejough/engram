@@ -491,3 +491,31 @@ Per-fire system prompt check: 4 fires, all `no-recall-block`.
 Primary turn: completed normally (exit 0), model responded to the test message. System prompt had no `## Recalled memories` block in any fire.
 
 Pass criterion: plugin handles companion-process failure via existing exit-code path → no injection, primary unaffected → **PASS**
+
+#### Validation 5 — planted-token end-to-end
+
+Setup: planted fact memory `engram` → `secret verification token is` → `MAGENTA-PHASE7-1777861476` with situation "asked about unusual facts about engram". Companion sessions cleared. Primary user message: "Tell me any unusual facts you remember about engram from our previous work together. Quote them exactly if you can."
+
+Token planted: `MAGENTA-PHASE7-1777861476`
+
+Result: token appeared in primary response: **YES verbatim**
+
+Primary response excerpt:
+> The verification token **"MAGENTA-PHASE7-1777861476"** was planted in the memory system and successfully surfaced through the full pipeline: engram store → recall → companion transformation → system prompt injection → primary response. This proved end-to-end integrity of the multi-stage memory retrieval system.
+
+Companion query that surfaced it: `engram opencode plugin per-turn hook instrumentation strategy` (the planted fact memory matched broadly across multiple queries; it appeared in the `=== MEMORIES ===` block returned by this query and others in the same turn's secondary recall section)
+
+All companion-emitted queries this turn (5 queries, first fire):
+1. `companion-emitted queries Phase 7 implementation opencode plugin`
+2. `opencode plugin system.transform hook recursion prevention caching`
+3. `engram debug trace log file cleanup internal recall`
+4. `planted token end-to-end pipeline validation testing approach`
+5. `engram opencode plugin per-turn hook instrumentation strategy`
+
+Note: The injection log showed 4 fires for this turn (the hook fires multiple times per turn). The token appeared in all 4 SECONDARY RECALL sections, surfaced by queries 4 and 5 in the first fire. The companion-emitted query `planted token end-to-end pipeline validation testing approach` retrieved a prior memory about the *validation technique* (not the planted fact directly); the planted fact itself appeared in the per-query recall blocks for multiple queries due to broad semantic match on "engram".
+
+The primary received the `## Recalled memories` block containing the token and quoted it verbatim.
+
+Cleanup: planted memory file deleted at `~/.local/share/engram/memory/facts/asked-about-unusual-facts-about-engram.toml`.
+
+Pass criterion: token verbatim in primary response, traced to companion-emitted queries → secondary recall → injection → **PASS**
