@@ -248,34 +248,6 @@ func TestRunRecall(t *testing.T) {
 func TestRunRecallOpenCodeFlags(t *testing.T) {
 	t.Parallel()
 
-	t.Run("no-external-sources flag accepted", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		dataDir := t.TempDir()
-		projectSlug := "test-no-external-sources"
-
-		home, homeErr := os.UserHomeDir()
-		g.Expect(homeErr).NotTo(gomega.HaveOccurred())
-
-		if homeErr != nil {
-			return
-		}
-
-		projectDir := filepath.Join(home, ".claude", "projects", projectSlug)
-		g.Expect(os.MkdirAll(projectDir, 0o750)).To(gomega.Succeed())
-
-		t.Cleanup(func() { _ = os.RemoveAll(projectDir) })
-
-		_, stderr := executeForTest(t, []string{
-			"engram", "recall",
-			"--data-dir", dataDir,
-			"--project-slug", projectSlug,
-			"--no-external-sources",
-		})
-		g.Expect(stderr).To(gomega.BeEmpty())
-	})
-
 	t.Run("transcript-dir flag accepted", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
@@ -287,7 +259,6 @@ func TestRunRecallOpenCodeFlags(t *testing.T) {
 			"engram", "recall",
 			"--data-dir", dataDir,
 			"--transcript-dir", transcriptDir,
-			"--no-external-sources",
 		})
 		g.Expect(stderr).To(gomega.BeEmpty())
 	})
@@ -306,7 +277,6 @@ func TestRunRecallOpenCodeFlags(t *testing.T) {
 			func() (string, error) { return "/fake", nil },
 			func() (string, error) { return "/home", nil },
 			transcriptDir,
-			true,
 		)
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 	})
@@ -329,7 +299,6 @@ func TestRunRecallOpenCodeFlags(t *testing.T) {
 			func() (string, error) { return "/fake", nil },
 			func() (string, error) { return home, nil },
 			"",
-			false,
 		)
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 	})

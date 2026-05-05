@@ -93,10 +93,10 @@ func ExportRunRecallSessions(
 	slug := projectSlug
 
 	return runRecallSessions(ctx, stdout, &slug, summarizer, memLister, dataDir, query, getwd,
-		userHomeDir, "", false)
+		userHomeDir, "")
 }
 
-// ExportRunRecallSessionsWithOpts wraps runRecallSessions for testing with transcript-dir and no-external-sources.
+// ExportRunRecallSessionsWithOpts wraps runRecallSessions for testing with transcript-dir.
 func ExportRunRecallSessionsWithOpts(
 	ctx context.Context,
 	stdout io.Writer,
@@ -107,12 +107,11 @@ func ExportRunRecallSessionsWithOpts(
 	getwd func() (string, error),
 	userHomeDir func() (string, error),
 	transcriptDir string,
-	noExternalSources bool,
 ) error {
 	slug := projectSlug
 
 	return runRecallSessions(ctx, stdout, &slug, summarizer, memLister, dataDir, query, getwd,
-		userHomeDir, transcriptDir, noExternalSources)
+		userHomeDir, transcriptDir)
 }
 
 // ExportWriteMemoryForTest wraps writeMemory for testing with a pre-built record.

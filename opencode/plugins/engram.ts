@@ -180,14 +180,14 @@ function extractLatestUserMessage(recallBlob: string): string | null {
 }
 
 async function runEngramRecall(): Promise<string> {
-  const proc = Bun.spawn([ENGRAM_BIN, "recall", "--no-external-sources"], { stdout: "pipe", stderr: "pipe" })
+  const proc = Bun.spawn([ENGRAM_BIN, "recall"], { stdout: "pipe", stderr: "pipe" })
   await proc.exited
   return (await proc.stdout.text()).trim()
 }
 
 async function runEngramRecallWithQuery(query: string): Promise<string> {
   const proc = Bun.spawn(
-    [ENGRAM_BIN, "recall", "--query", query, "--no-external-sources"],
+    [ENGRAM_BIN, "recall", "--query", query],
     { stdout: "pipe", stderr: "pipe" },
   )
   await proc.exited
@@ -288,7 +288,7 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
       try {
         companionTrace("system.transform-start", { sessionID })
 
-        debugFireSection("BARE RECALL: COMMAND", `${ENGRAM_BIN} recall --no-external-sources`)
+        debugFireSection("BARE RECALL: COMMAND", `${ENGRAM_BIN} recall`)
         const recallStart = Date.now()
         const recallOutput = await runEngramRecall()
         const recallMs = Date.now() - recallStart
@@ -325,7 +325,7 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
           const perQueryResults: { query: string; result: string }[] = []
           await Promise.all(
             queries.map(async (query, i) => {
-              const cmd = `${ENGRAM_BIN} recall --query "${query}" --no-external-sources`
+              const cmd = `${ENGRAM_BIN} recall --query "${query}"`
               debugFireSection(`SECONDARY RECALL [${i + 1}] COMMAND`, cmd)
               const start = Date.now()
               const result = await runEngramRecallWithQuery(query)

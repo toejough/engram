@@ -65,6 +65,41 @@ func TestCompositeTranscriptReader_TriesReaders(t *testing.T) {
 	g.Expect(content).To(ContainSubstring("Composite test content"))
 }
 
+func TestDefaultOpencodeDBPath_ErrorsWhenNoHome(t *testing.T) {
+	// No t.Parallel() — t.Setenv modifies a shared environment variable.
+	g := NewWithT(t)
+
+	t.Setenv("HOME", "")
+
+	got := recall.DefaultOpencodeDBPath()
+	g.Expect(got).To(BeEmpty())
+}
+
+func TestDefaultOpencodeDBPath_UsesHome(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	got := recall.DefaultOpencodeDBPath()
+	g.Expect(got).To(HaveSuffix("/.local/share/opencode/opencode.db"))
+}
+
+func TestMustMarshalJSON_MarshalableValue(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	got := recall.MustMarshalJSON("hello world")
+	g.Expect(got).To(Equal(`"hello world"`))
+}
+
+func TestMustMarshalJSON_UnmarshalableValue(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Channels cannot be marshalled to JSON; json.Marshal returns an error.
+	got := recall.MustMarshalJSON(make(chan int))
+	g.Expect(got).To(Equal(`""`))
+}
+
 func TestOpencodeSessionFinder_EmptyDB(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -174,6 +209,24 @@ func TestOpencodeTranscriptReader_IgnoresNonTextParts(t *testing.T) {
 	g.Expect(content).NotTo(ContainSubstring("thinking"))
 }
 
+func TestOpencodeTranscriptReader_InvalidToolState(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_bad1", Title: "Test", Updated: time.Now()},
+	})
+	insertParts(t, dbPath, "ses_bad1", []testPart{
+		{Type: "tool", Tool: "bash", State: `"plain string, not an object"`, TimeCreated: 1},
+	})
+
+	reader := recall.NewOpencodeTranscriptReader(dbPath)
+
+	content, _, err := reader.Read("opencode://ses_bad1", 1024*50)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(content).To(BeEmpty())
+}
+
 func TestOpencodeTranscriptReader_NonexistentSession(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -185,27 +238,6 @@ func TestOpencodeTranscriptReader_NonexistentSession(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(content).To(BeEmpty())
 	g.Expect(size).To(Equal(0))
-}
-
-func TestOpencodeTranscriptReader_ReadsTextParts(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dbPath := createTestOpencodeDB(t, []testSession{
-		{ID: "ses_test1", Title: "Test", Updated: time.Now()},
-	})
-	insertParts(t, dbPath, "ses_test1", []testPart{
-		{Type: "text", Text: "Hello from user", TimeCreated: 1},
-		{Type: "text", Text: "Hello from assistant", TimeCreated: 2},
-	})
-
-	reader := recall.NewOpencodeTranscriptReader(dbPath)
-
-	content, size, err := reader.Read("opencode://ses_test1", 1024*50)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(size).To(BeNumerically(">", 0))
-	g.Expect(content).To(ContainSubstring("Hello from user"))
-	g.Expect(content).To(ContainSubstring("Hello from assistant"))
 }
 
 func TestOpencodeTranscriptReader_NullPartType(t *testing.T) {
@@ -258,66 +290,25 @@ func TestOpencodeTranscriptReader_PreservesMessageRole(t *testing.T) {
 	g.Expect(content).To(ContainSubstring("USER: user said that"))
 }
 
-func TestOpencodeTranscriptReader_UnknownPartType(t *testing.T) {
+func TestOpencodeTranscriptReader_ReadsTextParts(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	dbPath := createTestOpencodeDB(t, []testSession{
-		{ID: "ses_unk1", Title: "Test", Updated: time.Now()},
+		{ID: "ses_test1", Title: "Test", Updated: time.Now()},
 	})
-	insertParts(t, dbPath, "ses_unk1", []testPart{
-		{Type: "unknown-part-kind", Text: "should be ignored", TimeCreated: 1},
-	})
-
-	reader := recall.NewOpencodeTranscriptReader(dbPath)
-
-	content, _, err := reader.Read("opencode://ses_unk1", 1024*50)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(content).To(BeEmpty())
-}
-
-func TestOpencodeTranscriptReader_InvalidToolState(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dbPath := createTestOpencodeDB(t, []testSession{
-		{ID: "ses_bad1", Title: "Test", Updated: time.Now()},
-	})
-	insertParts(t, dbPath, "ses_bad1", []testPart{
-		{Type: "tool", Tool: "bash", State: `"plain string, not an object"`, TimeCreated: 1},
+	insertParts(t, dbPath, "ses_test1", []testPart{
+		{Type: "text", Text: "Hello from user", TimeCreated: 1},
+		{Type: "text", Text: "Hello from assistant", TimeCreated: 2},
 	})
 
 	reader := recall.NewOpencodeTranscriptReader(dbPath)
 
-	content, _, err := reader.Read("opencode://ses_bad1", 1024*50)
+	content, size, err := reader.Read("opencode://ses_test1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(content).To(BeEmpty())
-}
-
-func TestOpencodeTranscriptReader_ToolMissingStatus(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dbPath := createTestOpencodeDB(t, []testSession{
-		{ID: "ses_nostatus1", Title: "Test", Updated: time.Now()},
-	})
-	insertParts(t, dbPath, "ses_nostatus1", []testPart{
-		{Type: "tool", Tool: "bash", State: `{"input":{"command":"ls"}}`, TimeCreated: 1},
-	})
-
-	reader := recall.NewOpencodeTranscriptReader(dbPath)
-
-	content, _, err := reader.Read("opencode://ses_nostatus1", 1024*50)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(content).To(BeEmpty())
-}
-
-func TestDefaultOpencodeDBPath_UsesHome(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	got := recall.DefaultOpencodeDBPath()
-	g.Expect(got).To(HaveSuffix("/.local/share/opencode/opencode.db"))
+	g.Expect(size).To(BeNumerically(">", 0))
+	g.Expect(content).To(ContainSubstring("Hello from user"))
+	g.Expect(content).To(ContainSubstring("Hello from assistant"))
 }
 
 func TestOpencodeTranscriptReader_ReadsToolParts(t *testing.T) {
@@ -342,6 +333,42 @@ func TestOpencodeTranscriptReader_ReadsToolParts(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(size).To(BeNumerically(">", 0))
 	g.Expect(content).To(ContainSubstring("bash"))
+}
+
+func TestOpencodeTranscriptReader_ToolMissingStatus(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_nostatus1", Title: "Test", Updated: time.Now()},
+	})
+	insertParts(t, dbPath, "ses_nostatus1", []testPart{
+		{Type: "tool", Tool: "bash", State: `{"input":{"command":"ls"}}`, TimeCreated: 1},
+	})
+
+	reader := recall.NewOpencodeTranscriptReader(dbPath)
+
+	content, _, err := reader.Read("opencode://ses_nostatus1", 1024*50)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(content).To(BeEmpty())
+}
+
+func TestOpencodeTranscriptReader_UnknownPartType(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_unk1", Title: "Test", Updated: time.Now()},
+	})
+	insertParts(t, dbPath, "ses_unk1", []testPart{
+		{Type: "unknown-part-kind", Text: "should be ignored", TimeCreated: 1},
+	})
+
+	reader := recall.NewOpencodeTranscriptReader(dbPath)
+
+	content, _, err := reader.Read("opencode://ses_unk1", 1024*50)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(content).To(BeEmpty())
 }
 
 type testPart struct {

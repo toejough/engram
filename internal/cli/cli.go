@@ -26,6 +26,7 @@ var (
 // unexported constants.
 const (
 	anthropicMaxTokens = 1024
+	recallOptsCapacity = 2 // WithStatusWriter + WithExternalSources
 )
 
 // haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
@@ -194,7 +195,7 @@ func runRecall(ctx context.Context, args RecallArgs, stdout io.Writer) error {
 	return runRecallSessions(
 		ctx, stdout, &projectSlug, summarizer, memLister,
 		dataDir, args.Query, os.Getwd, os.UserHomeDir,
-		args.TranscriptDir, args.NoExternalSources,
+		args.TranscriptDir,
 	)
 }
 
@@ -226,7 +227,6 @@ func runRecallSessions(
 	getwd func() (string, error),
 	userHomeDir func() (string, error),
 	transcriptDir string,
-	noExternalSources bool,
 ) error {
 	slugErr := applyProjectSlugDefault(projectSlug, getwd)
 	if slugErr != nil {
@@ -261,12 +261,11 @@ func runRecallSessions(
 		recall.NewOpencodeTranscriptReader(recall.DefaultOpencodeDBPath()),
 	)
 
-	opts := []recall.OrchestratorOption{recall.WithStatusWriter(os.Stderr)}
+	opts := make([]recall.OrchestratorOption, 0, recallOptsCapacity)
+	opts = append(opts, recall.WithStatusWriter(os.Stderr))
 
-	if !noExternalSources {
-		externalFiles, externalCache := discoverExternalSources(ctx, home)
-		opts = append(opts, recall.WithExternalSources(externalFiles, externalCache))
-	}
+	externalFiles, externalCache := discoverExternalSources(ctx, home)
+	opts = append(opts, recall.WithExternalSources(externalFiles, externalCache))
 
 	orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, dataDir, opts...)
 

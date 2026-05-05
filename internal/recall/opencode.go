@@ -277,6 +277,11 @@ func DefaultOpencodeDBPath() string {
 	return defaultOpencodeDBPath()
 }
 
+// unexported constants.
+const (
+	userRole = "user"
+)
+
 func buildJSONLLine(partType, text, toolName, state, role sql.NullString) string {
 	if !partType.Valid {
 		return ""
@@ -284,17 +289,7 @@ func buildJSONLLine(partType, text, toolName, state, role sql.NullString) string
 
 	switch partType.String {
 	case "text":
-		if !text.Valid || text.String == "" {
-			return ""
-		}
-
-		msgRole := "assistant"
-		if role.Valid && role.String == "user" {
-			msgRole = "user"
-		}
-
-		return `{"type":"` + msgRole + `","message":{"role":"` + msgRole + `","content":[{"type":"text","text":` +
-			mustMarshalJSON(text.String) + `}]}}`
+		return buildTextJSONL(text, role)
 	case "tool":
 		if !toolName.Valid || !state.Valid {
 			return ""
@@ -304,6 +299,20 @@ func buildJSONLLine(partType, text, toolName, state, role sql.NullString) string
 	default:
 		return ""
 	}
+}
+
+func buildTextJSONL(text, role sql.NullString) string {
+	if !text.Valid || text.String == "" {
+		return ""
+	}
+
+	msgRole := "assistant"
+	if role.Valid && role.String == userRole {
+		msgRole = userRole
+	}
+
+	return `{"type":"` + msgRole + `","message":{"role":"` + msgRole + `","content":[{"type":"text","text":` +
+		mustMarshalJSON(text.String) + `}]}}`
 }
 
 func buildToolJSONL(toolName, stateJSON string) string {
@@ -321,7 +330,7 @@ func buildToolJSONL(toolName, stateJSON string) string {
 
 	role := "assistant"
 	if status == "completed" {
-		role = "user"
+		role = userRole
 	}
 
 	inputBytes, marshalErr := json.Marshal(toolState["input"])
@@ -351,7 +360,7 @@ func defaultOpencodeDBPath() string {
 	return filepath.Join(home, ".local", "share", "opencode", "opencode.db")
 }
 
-func mustMarshalJSON(v string) string {
+func mustMarshalJSON(v any) string {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return `""`
