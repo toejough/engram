@@ -56,7 +56,6 @@ const COMPANION_TRACE = path.join(os.homedir(), ".local", "share", "engram", "co
 const COMPANION_INJECTIONS = path.join(os.homedir(), ".local", "share", "engram", "companion-injections.log")
 const COMPANION_DEBUG = path.join(os.homedir(), ".local", "share", "engram", "companion-debug.log")
 const COMPANION_SESSION_DIR = path.join(os.homedir(), ".local", "share", "engram", "companion-session")
-const LAST_USER_MESSAGE_DIR = path.join(os.homedir(), ".local", "share", "engram", "last-user-message")
 const COMPANION_CWD = path.join(os.homedir(), ".local", "share", "engram", "companion-cwd")
 const COMPANION_MODEL = "opencode/qwen3.6-plus"
 const COMPANION_PROMPT_PREFIX = `You are a memory steward observing a primary AI agent's project session. Read the project history below and propose 3 to 5 targeted recall queries that would surface helpful past memories about what is currently happening.
@@ -180,25 +179,6 @@ function extractLatestUserMessage(recallBlob: string): string | null {
   return null
 }
 
-function writeLastUserMessage(sessionID: string, text: string): void {
-  try {
-    if (!fs.existsSync(LAST_USER_MESSAGE_DIR)) fs.mkdirSync(LAST_USER_MESSAGE_DIR, { recursive: true })
-    fs.writeFileSync(path.join(LAST_USER_MESSAGE_DIR, `${sessionID}.txt`), text, "utf8")
-  } catch {
-    // non-fatal
-  }
-}
-
-function readLastUserMessage(sessionID: string): string | null {
-  try {
-    const p = path.join(LAST_USER_MESSAGE_DIR, `${sessionID}.txt`)
-    if (!fs.existsSync(p)) return null
-    return fs.readFileSync(p, "utf8")
-  } catch {
-    return null
-  }
-}
-
 async function runEngramRecall(): Promise<string> {
   const proc = Bun.spawn([ENGRAM_BIN, "recall", "--no-external-sources"], { stdout: "pipe", stderr: "pipe" })
   await proc.exited
@@ -282,31 +262,6 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
   await ensureBinary()
 
   return {
-    "chat.message": async (input: any, output: any) => {
-      // Capture primary user messages to a sidecar so system.transform can show
-      // the user message in its debug log. Skip when running inside a companion
-      // subprocess (the companion's "user message" is just our prompt prefix).
-      if (process.env.ENGRAM_COMPANION_MODE === "1") return
-
-      try {
-        const sessionID = input?.sessionID
-        const role = output?.message?.role
-        if (sessionID && role === "user") {
-          // Phase 2's inventory confirmed: text is at output.parts[0].text
-          // Be permissive across opencode versions — try a couple of shapes.
-          const parts = output?.parts
-          let text: string | null = null
-          if (Array.isArray(parts)) {
-            const firstText = parts.find((p: any) => p?.type === "text" && typeof p?.text === "string")
-            if (firstText) text = firstText.text
-          }
-          if (!text && typeof output?.message?.text === "string") text = output.message.text
-          if (text) writeLastUserMessage(sessionID, text)
-        }
-      } catch {
-        // non-fatal
-      }
-    },
 
     "experimental.chat.system.transform": async (input: any, output) => {
       const before = output.system[0]
