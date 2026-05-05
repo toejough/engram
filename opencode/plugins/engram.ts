@@ -56,6 +56,7 @@ const COMPANION_TRACE = path.join(os.homedir(), ".local", "share", "engram", "co
 const COMPANION_INJECTIONS = path.join(os.homedir(), ".local", "share", "engram", "companion-injections.log")
 const COMPANION_DEBUG = path.join(os.homedir(), ".local", "share", "engram", "companion-debug.log")
 const COMPANION_SESSION_DIR = path.join(os.homedir(), ".local", "share", "engram", "companion-session")
+const LAST_USER_MESSAGE_DIR = path.join(os.homedir(), ".local", "share", "engram", "last-user-message")
 const COMPANION_CWD = path.join(os.homedir(), ".local", "share", "engram", "companion-cwd")
 const COMPANION_MODEL = "opencode/qwen3.6-plus"
 const COMPANION_PROMPT_PREFIX = `You are a memory steward observing a primary AI agent's project session. Read the project history below and propose 3 to 5 targeted recall queries that would surface helpful past memories about what is currently happening.
@@ -139,88 +140,49 @@ function logCompanionInjection(
   }
 }
 
-function extractUserMessage(input: any): string | null {
-  try {
-    if (typeof input?.message?.text === "string") return input.message.text
-    if (Array.isArray(input?.message?.parts)) {
-      const last = [...input.message.parts].reverse().find((p: any) => p?.type === "text" && typeof p?.text === "string")
-      if (last) return last.text
-    }
-    if (Array.isArray(input?.parts)) {
-      const last = [...input.parts].reverse().find((p: any) => p?.type === "text" && typeof p?.text === "string")
-      if (last) return last.text
-    }
-    if (typeof input?.text === "string") return input.text
-  } catch {
-    // ignore
-  }
-  return null
-}
+const COMPANION_DEBUG_DIVIDER = "##################################################"
 
-type FireDebugRecord = {
-  sessionID: string
-  inputDump: string
-  userMessage: string | null
-  recallCommand: string
-  recallResult: string | null
-  companionPrompt: string | null
-  companionResponse: string | null
-  parsedQueries: string[] | null
-  skipReason: string | null
-  secondaryRecalls: { command: string; result: string }[]
-  injectedBlock: string | null
-}
-
-function logFireDebug(record: FireDebugRecord): void {
+function debugAppend(text: string): void {
   try {
     const dir = path.dirname(COMPANION_DEBUG)
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    const ts = new Date().toISOString()
-    const sep = (label: string) => `\n=========== ${label} ===========\n`
-    const parts: string[] = []
-    parts.push(`\n##################################################`)
-    parts.push(`### FIRE ${ts} primary=${record.sessionID}`)
-    parts.push(`##################################################`)
-    parts.push(sep("HOOK INPUT (raw, truncated to 4KB)"))
-    parts.push(record.inputDump)
-    parts.push(sep("USER MESSAGE (if extractable)"))
-    parts.push(record.userMessage ?? "(not extractable from hook input)")
-    parts.push(sep("BARE RECALL: COMMAND"))
-    parts.push(record.recallCommand)
-    parts.push(sep("BARE RECALL: RESULT"))
-    parts.push(record.recallResult ?? "(not run)")
-    parts.push(sep("COMPANION: PROMPT SENT"))
-    parts.push(record.companionPrompt ?? "(not sent)")
-    parts.push(sep("COMPANION: RESPONSE"))
-    parts.push(record.companionResponse ?? "(not received)")
-    parts.push(sep("PARSED QUERIES OR SKIP REASON"))
-    if (record.skipReason) {
-      parts.push(`SKIPPED — reason: ${record.skipReason}`)
-    } else if (record.parsedQueries) {
-      parts.push(record.parsedQueries.map((q, i) => `${i + 1}. ${q}`).join("\n"))
-    } else {
-      parts.push("(neither)")
-    }
-    parts.push(sep("SECONDARY RECALLS"))
-    if (record.secondaryRecalls.length === 0) {
-      parts.push("(none)")
-    } else {
-      record.secondaryRecalls.forEach((r, i) => {
-        parts.push(`--- [${i + 1}] COMMAND ---`)
-        parts.push(r.command)
-        parts.push(`--- [${i + 1}] RESULT ---`)
-        parts.push(r.result)
-        parts.push("")
-      })
-    }
-    parts.push(sep("INJECTED INTO SYSTEM PROMPT"))
-    parts.push(record.injectedBlock ?? "(nothing injected)")
-    parts.push(`\n##################################################`)
-    parts.push(`### END FIRE ${ts}`)
-    parts.push(`##################################################\n\n`)
-    fs.appendFileSync(COMPANION_DEBUG, parts.join("\n"), "utf8")
+    fs.appendFileSync(COMPANION_DEBUG, text, "utf8")
   } catch {
     // logging failure is non-fatal
+  }
+}
+
+function debugFireHeader(sessionID: string, inputDump: string): void {
+  const ts = new Date().toISOString()
+  debugAppend(`\n${COMPANION_DEBUG_DIVIDER}\n### FIRE ${ts} primary=${sessionID}\n${COMPANION_DEBUG_DIVIDER}\n`)
+  debugAppend(`\n=========== HOOK INPUT (raw, truncated to 4KB) ===========\n\n${inputDump}\n`)
+}
+
+function debugFireSection(label: string, content: string): void {
+  debugAppend(`\n=========== ${label} ===========\n\n${content}\n`)
+}
+
+function debugFireFooter(sessionID: string): void {
+  const ts = new Date().toISOString()
+  debugAppend(`\n${COMPANION_DEBUG_DIVIDER}\n### END FIRE ${ts} primary=${sessionID}\n${COMPANION_DEBUG_DIVIDER}\n\n`)
+}
+
+function writeLastUserMessage(sessionID: string, text: string): void {
+  try {
+    if (!fs.existsSync(LAST_USER_MESSAGE_DIR)) fs.mkdirSync(LAST_USER_MESSAGE_DIR, { recursive: true })
+    fs.writeFileSync(path.join(LAST_USER_MESSAGE_DIR, `${sessionID}.txt`), text, "utf8")
+  } catch {
+    // non-fatal
+  }
+}
+
+function readLastUserMessage(sessionID: string): string | null {
+  try {
+    const p = path.join(LAST_USER_MESSAGE_DIR, `${sessionID}.txt`)
+    if (!fs.existsSync(p)) return null
+    return fs.readFileSync(p, "utf8")
+  } catch {
+    return null
   }
 }
 
@@ -307,111 +269,131 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
   await ensureBinary()
 
   return {
+    "chat.message": async (input: any, output: any) => {
+      // Capture primary user messages to a sidecar so system.transform can show
+      // the user message in its debug log. Skip when running inside a companion
+      // subprocess (the companion's "user message" is just our prompt prefix).
+      if (process.env.ENGRAM_COMPANION_MODE === "1") return
+
+      try {
+        const sessionID = input?.sessionID
+        const role = output?.message?.role
+        if (sessionID && role === "user") {
+          // Phase 2's inventory confirmed: text is at output.parts[0].text
+          // Be permissive across opencode versions — try a couple of shapes.
+          const parts = output?.parts
+          let text: string | null = null
+          if (Array.isArray(parts)) {
+            const firstText = parts.find((p: any) => p?.type === "text" && typeof p?.text === "string")
+            if (firstText) text = firstText.text
+          }
+          if (!text && typeof output?.message?.text === "string") text = output.message.text
+          if (text) writeLastUserMessage(sessionID, text)
+        }
+      } catch {
+        // non-fatal
+      }
+    },
+
     "experimental.chat.system.transform": async (input: any, output) => {
       const before = output.system[0]
       const reminder = await getReminder("system")
       const sessionID = input?.sessionID
 
-      const debugRecord: FireDebugRecord = {
-        sessionID: sessionID ?? "(none)",
-        inputDump: JSON.stringify(input ?? {}).slice(0, 4096),
-        userMessage: extractUserMessage(input),
-        recallCommand: "engram recall --no-external-sources",
-        recallResult: null,
-        companionPrompt: null,
-        companionResponse: null,
-        parsedQueries: null,
-        skipReason: null,
-        secondaryRecalls: [],
-        injectedBlock: null,
+      const inputDump = JSON.stringify(input ?? {}).slice(0, 4096)
+      debugFireHeader(sessionID ?? "(none)", inputDump)
+
+      // USER MESSAGE: read from sidecar populated by chat.message
+      const userMessage = sessionID ? readLastUserMessage(sessionID) : null
+      debugFireSection("USER MESSAGE", userMessage ?? "(no user message captured for this session yet)")
+
+      // Guard against recursion: when this plugin is loaded inside the
+      // companion's own opencode process, ENGRAM_COMPANION_MODE is set and
+      // we must NOT spawn another companion. We still inject the reminder.
+      if (process.env.ENGRAM_COMPANION_MODE === "1") {
+        companionTrace("system.transform-skipped-companion", { sessionID, reason: "ENGRAM_COMPANION_MODE" })
+        debugFireSection("PARSED QUERIES OR SKIP REASON", "SKIPPED — reason: ENGRAM_COMPANION_MODE")
+        debugFireSection("INJECTED INTO SYSTEM PROMPT", "(reminder only — no companion block)")
+        output.system[0] = before + reminder
+        logTransform(before, reminder, output.system[0])
+        debugFireFooter(sessionID ?? "(none)")
+        return
       }
 
+      let companionBlock = ""
       try {
-        // Guard against recursion: when this plugin is loaded inside the
-        // companion's own opencode process, ENGRAM_COMPANION_MODE is set and
-        // we must NOT spawn another companion. We still inject the reminder.
-        if (process.env.ENGRAM_COMPANION_MODE === "1") {
-          debugRecord.skipReason = "ENGRAM_COMPANION_MODE"
-          companionTrace("system.transform-skipped-companion", { sessionID, reason: "ENGRAM_COMPANION_MODE" })
-          output.system[0] = before + reminder
-          logTransform(before, reminder, output.system[0])
-          return
-        }
+        companionTrace("system.transform-start", { sessionID })
 
-        let companionBlock = ""
-        try {
-          companionTrace("system.transform-start", { sessionID })
+        debugFireSection("BARE RECALL: COMMAND", `${ENGRAM_BIN} recall --no-external-sources`)
+        const recallStart = Date.now()
+        const recallOutput = await runEngramRecall()
+        const recallMs = Date.now() - recallStart
+        companionTrace("recall-complete", { sessionID, recallMs, recallLen: recallOutput.length, recallOut: recallOutput })
+        debugFireSection("BARE RECALL: RESULT", recallOutput || "(empty)")
 
-          const recallStart = Date.now()
-          const recallOutput = await runEngramRecall()
-          const recallMs = Date.now() - recallStart
-          debugRecord.recallResult = recallOutput
-          companionTrace("recall-complete", { sessionID, recallMs, recallLen: recallOutput.length, recallOut: recallOutput })
+        const prompt = COMPANION_PROMPT_PREFIX + recallOutput
+        debugFireSection("COMPANION: PROMPT SENT", prompt)
+        const companionStart = Date.now()
+        const companionOutput = await runCompanion(sessionID || "default", prompt)
+        const companionMs = Date.now() - companionStart
+        companionTrace("companion-complete", { sessionID, companionMs, companionOutLen: companionOutput.length, companionOut: companionOutput })
+        debugFireSection("COMPANION: RESPONSE", companionOutput || "(empty)")
 
-          const prompt = COMPANION_PROMPT_PREFIX + recallOutput
-          debugRecord.companionPrompt = prompt
-          const companionStart = Date.now()
-          const companionOutput = await runCompanion(sessionID || "default", prompt)
-          const companionMs = Date.now() - companionStart
-          debugRecord.companionResponse = companionOutput
-          companionTrace("companion-complete", { sessionID, companionMs, companionOutLen: companionOutput.length, companionOut: companionOutput })
+        const SENTINEL = "NO QUERIES"
+        const MAX_QUERIES = 5
+        const allLines = companionOutput.split("\n").map((s) => s.trim()).filter(Boolean)
+        const sentinelOnly = allLines.length === 1 && allLines[0] === SENTINEL
+        const queries = allLines.filter((l) => l !== SENTINEL).slice(0, MAX_QUERIES)
 
-          const SENTINEL = "NO QUERIES"
-          const MAX_QUERIES = 5
-          const allLines = companionOutput.split("\n").map((s) => s.trim()).filter(Boolean)
-          const sentinelOnly = allLines.length === 1 && allLines[0] === SENTINEL
-          const queries = allLines.filter((l) => l !== SENTINEL).slice(0, MAX_QUERIES)
+        if (allLines.length === 0) {
+          companionTrace("companion-skipped", { sessionID, reason: "empty-output" })
+          debugFireSection("PARSED QUERIES OR SKIP REASON", "SKIPPED — reason: empty-output")
+        } else if (sentinelOnly || queries.length === 0) {
+          companionTrace("companion-skipped", { sessionID, reason: "no-queries" })
+          debugFireSection("PARSED QUERIES OR SKIP REASON", "SKIPPED — reason: no-queries")
+        } else {
+          debugFireSection("PARSED QUERIES OR SKIP REASON", queries.map((q, i) => `${i + 1}. ${q}`).join("\n"))
 
-          if (allLines.length === 0) {
-            debugRecord.skipReason = "empty-output"
-            companionTrace("companion-skipped", { sessionID, reason: "empty-output" })
-          } else if (sentinelOnly || queries.length === 0) {
-            debugRecord.skipReason = "no-queries"
-            companionTrace("companion-skipped", { sessionID, reason: "no-queries" })
-          } else {
-            debugRecord.parsedQueries = queries
-            const queryStart = Date.now()
-            const perQueryResults = await Promise.all(
-              queries.map(async (query) => {
-                const start = Date.now()
-                const result = await runEngramRecallWithQuery(query)
-                debugRecord.secondaryRecalls.push({
-                  command: `engram recall --query ${query} --no-external-sources`,
-                  result,
-                })
-                companionTrace("secondary-recall-complete", {
-                  sessionID, query, ms: Date.now() - start, resultLen: result.length,
-                })
-                return { query, result }
-              }),
-            )
-            const totalQueryMs = Date.now() - queryStart
+          const queryStart = Date.now()
+          const perQueryResults: { query: string; result: string }[] = []
+          await Promise.all(
+            queries.map(async (query, i) => {
+              const cmd = `${ENGRAM_BIN} recall --query "${query}" --no-external-sources`
+              debugFireSection(`SECONDARY RECALL [${i + 1}] COMMAND`, cmd)
+              const start = Date.now()
+              const result = await runEngramRecallWithQuery(query)
+              companionTrace("secondary-recall-complete", {
+                sessionID, query, ms: Date.now() - start, resultLen: result.length,
+              })
+              debugFireSection(`SECONDARY RECALL [${i + 1}] RESULT`, result || "(empty)")
+              perQueryResults[i] = { query, result }
+            }),
+          )
+          const totalQueryMs = Date.now() - queryStart
 
-            let block = "## Recalled memories\n\n"
-            for (const { query, result } of perQueryResults) {
-              block += `### Query: ${query}\n${result}\n\n`
-            }
-            companionBlock = "\n\n" + block.trimEnd()
-
-            companionTrace("companion-injected", {
-              sessionID, blockLen: companionBlock.length, queryCount: queries.length, totalQueryMs,
-            })
-            logCompanionInjection(
-              sessionID || "default", recallMs, companionMs, recallOutput, queries, perQueryResults,
-            )
+          let block = "## Recalled memories\n\n"
+          for (const { query, result } of perQueryResults) {
+            block += `### Query: ${query}\n${result}\n\n`
           }
-        } catch (err: any) {
-          companionTrace("companion-error", { sessionID, error: String(err) })
-          debugRecord.skipReason = "companion-error: " + String(err).slice(0, 500)
-        }
+          companionBlock = "\n\n" + block.trimEnd()
 
-        debugRecord.injectedBlock = companionBlock
-        const injected = reminder + companionBlock
-        output.system[0] = before + injected
-        logTransform(before, injected, output.system[0])
-      } finally {
-        logFireDebug(debugRecord)
+          companionTrace("companion-injected", {
+            sessionID, blockLen: companionBlock.length, queryCount: queries.length, totalQueryMs,
+          })
+          logCompanionInjection(
+            sessionID || "default", recallMs, companionMs, recallOutput, queries, perQueryResults,
+          )
+        }
+      } catch (err: any) {
+        companionTrace("companion-error", { sessionID, error: String(err) })
+        debugFireSection("ERROR", String(err).slice(0, 4096))
       }
+
+      const injected = reminder + companionBlock
+      output.system[0] = before + injected
+      logTransform(before, injected, output.system[0])
+      debugFireSection("INJECTED INTO SYSTEM PROMPT", companionBlock || "(nothing — reminder only)")
+      debugFireFooter(sessionID ?? "(none)")
     },
 
     tool: {
