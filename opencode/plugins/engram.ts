@@ -167,6 +167,19 @@ function debugFireFooter(sessionID: string): void {
   debugAppend(`\n${COMPANION_DEBUG_DIVIDER}\n### END FIRE ${ts} primary=${sessionID}\n${COMPANION_DEBUG_DIVIDER}\n\n`)
 }
 
+function extractLatestUserMessage(recallBlob: string): string | null {
+  // The bare recall blob renders project session history in chronological
+  // order, with lines like "USER: ..." and "ASSISTANT: ...". The last
+  // "USER: " line is the most recent user message.
+  if (!recallBlob) return null
+  const lines = recallBlob.split("\n")
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]
+    if (line.startsWith("USER: ")) return line.slice("USER: ".length)
+  }
+  return null
+}
+
 function writeLastUserMessage(sessionID: string, text: string): void {
   try {
     if (!fs.existsSync(LAST_USER_MESSAGE_DIR)) fs.mkdirSync(LAST_USER_MESSAGE_DIR, { recursive: true })
@@ -303,10 +316,6 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
       const inputDump = JSON.stringify(input ?? {}).slice(0, 4096)
       debugFireHeader(sessionID ?? "(none)", inputDump)
 
-      // USER MESSAGE: read from sidecar populated by chat.message
-      const userMessage = sessionID ? readLastUserMessage(sessionID) : null
-      debugFireSection("USER MESSAGE", userMessage ?? "(no user message captured for this session yet)")
-
       // Guard against recursion: when this plugin is loaded inside the
       // companion's own opencode process, ENGRAM_COMPANION_MODE is set and
       // we must NOT spawn another companion. We still inject the reminder.
@@ -330,6 +339,9 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
         const recallMs = Date.now() - recallStart
         companionTrace("recall-complete", { sessionID, recallMs, recallLen: recallOutput.length, recallOut: recallOutput })
         debugFireSection("BARE RECALL: RESULT", recallOutput || "(empty)")
+
+        const latestUser = extractLatestUserMessage(recallOutput)
+        debugFireSection("USER MESSAGE (latest from recall)", latestUser ?? "(no USER: line found in recall blob)")
 
         const prompt = COMPANION_PROMPT_PREFIX + recallOutput
         debugFireSection("COMPANION: PROMPT SENT", prompt)
