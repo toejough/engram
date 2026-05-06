@@ -97,6 +97,7 @@ Both arrays may be empty. Empty `learned` and empty `recalled` mean "this cycle 
    > Examine the transcript and propose any new learnings: corrections you observe, completed work that taught a lesson, decisions made, or facts established.
    >
    > Output a JSON array of objects, each with:
+   >
    > - `type`: `"feedback"` or `"fact"`
    > - `situation`: short context phrase identifying when this applies
    > - For feedback: `behavior`, `impact`, `action`
@@ -136,14 +137,14 @@ Both arrays may be empty. Empty `learned` and empty `recalled` mean "this cycle 
 
 The query-mode pipeline retains its existing phase shape but replaces the final output:
 
-| Phase | Today | After |
-|-------|-------|-------|
-| Phase 1: Memory rank | LLM picks names from index | Same, via `--llm-cmd` |
-| Phase 2: Auto memory extract | LLM extracts snippets | Same, via `--llm-cmd` |
-| Phase 3: Per-session extract | LLM extracts snippets | Same, via `--llm-cmd` |
-| Phase 4: Skill extract | LLM extracts snippets | Same, via `--llm-cmd` |
-| Phase 5: CLAUDE.md extract | LLM extracts snippets | Same, via `--llm-cmd` |
-| Phase 6: Synthesis | `SummarizeFindings` (query-only) | New synthesis prompt, via `--llm-cmd` |
+| Phase                        | Today                            | After                                 |
+| ---------------------------- | -------------------------------- | ------------------------------------- |
+| Phase 1: Memory rank         | LLM picks names from index       | Same, via `--llm-cmd`                 |
+| Phase 2: Auto memory extract | LLM extracts snippets            | Same, via `--llm-cmd`                 |
+| Phase 3: Per-session extract | LLM extracts snippets            | Same, via `--llm-cmd`                 |
+| Phase 4: Skill extract       | LLM extracts snippets            | Same, via `--llm-cmd`                 |
+| Phase 5: CLAUDE.md extract   | LLM extracts snippets            | Same, via `--llm-cmd`                 |
+| Phase 6: Synthesis           | `SummarizeFindings` (query-only) | New synthesis prompt, via `--llm-cmd` |
 
 **Bare mode (no `--query`)** was previously a raw concatenation of recent transcripts plus time-window-matched memories. After this change, bare mode collects the same inputs (time-window-matched memories + recent transcripts under budget) and feeds them to the new Phase 6 synthesis prompt. No per-source extraction (Phases 2, 4, 5) runs in bare mode — those are query-anchored. The output of `engram recall` (with or without `--query`) is always the prose report on stdout.
 
@@ -151,7 +152,9 @@ The query-mode pipeline retains its existing phase shape but replaces the final 
 
 > You are synthesizing engram memory sources into a coherent report for an AI agent.
 >
-> The sources include facts, behavioral feedback, action records, and outcomes drawn from prior project work. Weave them into a narrative that captures what has been learned and tried, then end with explicit advice on what the reader should keep in mind moving forward.
+> The sources include facts, behavioral feedback, action records, and outcomes drawn from prior project work. Weave them into a narrative that captures what has been learned and tried.
+>
+> Then end with directive advice — concrete instructions, warnings, or constraints the reader must apply going forward. Use imperative voice ("Do X", "Avoid Y", "Verify Z before W"). Cite the specific memory or outcome that grounds each piece of advice. Do not hedge with "consider", "you might", or "think about" — issue clear guidance derived from prior evidence.
 >
 > [If query: "Focus on material relevant to: <query>"]
 >
@@ -178,14 +181,22 @@ type Result struct {
 
 2. **Drop CONTRADICTION.** Detector returns only `DUPLICATE: <name>` or `NONE`. Contradicting memories coexist — recall surfaces both, the consuming LLM reconciles.
 
-3. **Slug-collision auto-increment.** When `writeMemory` decides to write (no DUPLICATE returned by the detector), it computes `slug := Slugify(situation)`, then:
+3. **Slug-collision auto-increment with atomic create.** When `writeMemory` decides to write (no DUPLICATE returned by the detector), it computes `slug := Slugify(situation)` and then loops:
 
-   - If `<dataDir>/<type>/<slug>.toml` does not exist → write there.
-   - If it exists, scan for the smallest unused `<slug>-N` (N starting at 1) and write there.
+   ```
+   candidate := slug
+   for i := 0; ; i++ {
+       if i > 0 { candidate = fmt.Sprintf("%s-%d", slug, i) }
+       path := filepath.Join(dataDir, type, candidate+".toml")
+       f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+       if errors.Is(err, os.ErrExist) { continue }
+       if err != nil { return err }
+       // f acquired exclusively; write contents and close.
+       break
+   }
+   ```
 
-   No `--force` flag. No silent overwrite. The detector + auto-increment together guarantee: identical content is dropped, distinct content always lands at a fresh path.
-
-   Race window (two concurrent writes choosing the same suffix) is not addressed in this design — `engram learn` is invoked from a single host hook serially per primary session, and we accept the tiny race risk for the simplicity. A one-line fix (`O_EXCL` on create) is a follow-up if it ever bites.
+   `O_EXCL` makes the create atomic at the filesystem level: concurrent writers cannot both succeed at the same path. The first writer wins; losers see `os.ErrExist` and increment. The detector + atomic-auto-increment together guarantee: identical content is dropped, distinct content always lands at a fresh path, and concurrent writes are race-free without a lockfile.
 
 The dedup detector itself uses `--llm-cmd` like everything else (see next section).
 
@@ -216,13 +227,9 @@ A single command-line abstraction replaces the Anthropic client.
 
 A trace of the failure is logged to engram's stderr in every case so hosts/users can debug without `--llm-cmd` becoming a black hole.
 
-**Default plumbing:** `ENGRAM_LLM_CMD` environment variable provides the default. `--llm-cmd` overrides. If neither is set:
+**Required, no graceful fallback.** `--llm-cmd` (or `ENGRAM_LLM_CMD` as the env-var equivalent) is required for every engram command that performs evaluation: `cycle`, `recall`, `learn` (for dedup). If neither flag nor env var is set, the command exits non-zero with a clear error message. No silent skips, no partial work.
 
-- `engram cycle`: returns `{"learned": [], "recalled": []}`, logs a notice to stderr.
-- `engram recall`: returns an error. Synthesis cannot run without an LLM.
-- `engram learn`: writes the memory (skips dedup).
-
-The plugin sets `ENGRAM_LLM_CMD` in the OpenCode session environment when the plugin loads, so skill bash blocks (e.g. `/prepare`) inherit the same configuration.
+The plugin sets `ENGRAM_LLM_CMD` in the OpenCode session environment when the plugin loads, so skill bash blocks (e.g. `/prepare`) inherit the same configuration. Hosts other than opencode are responsible for setting the env var (or passing the flag) in whatever environment their skills/scripts run.
 
 ### Anthropic removal
 
@@ -250,7 +257,7 @@ The `Extractor` and `FindingSummarizer` interfaces in `internal/recall/orchestra
     return
   }
 
-  const llmCmd = "opencode-companion-shim"  // see below
+  const llmCmd = `opencode run -m opencode/qwen3.6-plus`
   const cycleResult = await runEngramCycle(projectDir, llmCmd)
 
   const block = formatCycleResult(cycleResult)
@@ -260,16 +267,11 @@ The `Extractor` and `FindingSummarizer` interfaces in `internal/recall/orchestra
 
 `runEngramCycle` shells out to `engram cycle --llm-cmd <cmd> --project-dir <projectDir>`, parses JSON, returns `{learned, recalled}`. `formatCycleResult` renders the `recalled[]` array as the `## Recalled memories` block (one report per query, headed by the query text).
 
-**Companion shim:** because `opencode run --format json` emits NDJSON streaming events rather than plain text, the plugin ships a tiny shim script (`opencode/bin/engram-llm-shim`) that:
+**No shim required.** Engram pipes the prompt to `--llm-cmd`'s stdin and reads the entire stdout as the LLM's response. `opencode run -m <model>` (without `--format json`) emits the model's text response directly on stdout — no NDJSON parsing needed. The plugin sets `ENGRAM_LLM_CMD="opencode run -m opencode/qwen3.6-plus"` in the OpenCode session environment so skill bash blocks reach the same backend.
 
-1. Reads the prompt from stdin.
-2. Runs `opencode run -m opencode/qwen3.6-plus --format json` with the prompt as the message argument.
-3. Parses NDJSON, concatenates `text` events, emits the result on stdout.
-4. Exits 0 on success, non-zero on subprocess failure.
+If implementation discovers opencode's default output mode includes preamble/banner text, the spec stays unchanged: the cmd string is updated to whatever produces clean text (e.g., `opencode run --quiet -m ...`), or a tiny shim is added at that point. Engram itself is unaware of the host's wire format either way.
 
-The shim is the only place that knows about opencode's wire format. Engram remains opencode-agnostic. The plugin sets `ENGRAM_LLM_CMD=<absolute path to shim>` in the session environment so skill bash blocks reach the same backend.
-
-The recursion guard (`ENGRAM_COMPANION_MODE=1`) is still set on the companion's environment by the shim, so when the companion's own opencode process loads the plugin, the plugin's `system.transform` returns the reminder only and does not re-enter cycle.
+The recursion guard (`ENGRAM_COMPANION_MODE=1`) is set on the spawned `--llm-cmd` process's environment by engram (not by a shim) before exec. When that process loads the engram plugin (because it's an opencode process), the plugin's `system.transform` checks the env var and returns the reminder only without re-entering cycle.
 
 ### Files modified
 
@@ -277,8 +279,7 @@ The recursion guard (`ENGRAM_COMPANION_MODE=1`) is still set on the companion's 
 
 - `internal/cli/cycle.go` — cycle command entry point + flag parsing.
 - `internal/cycle/` (new package) — orchestration, prompt templates, JSON output.
-- `internal/llmcmd/` (new package) — `--llm-cmd` execution, stdin/stdout protocol, timeout, failure handling. Implements `Extractor`, `FindingSummarizer`, and the dedup `llmCaller` signature.
-- `opencode/bin/engram-llm-shim` — shim that bridges opencode's NDJSON to plain stdin/stdout.
+- `internal/llmcmd/` (new package) — `--llm-cmd` execution, stdin/stdout protocol, timeout, failure handling, recursion-guard env-var injection. Implements `Extractor`, `FindingSummarizer`, and the dedup `llmCaller` signature.
 
 **Modified:**
 
@@ -299,7 +300,6 @@ Tests for every modified package are updated; new packages get their own tests u
 ### Out of scope
 
 - **Cost optimization.** Today's plugin fires `system.transform` 4-5x per primary turn; each fire now drives a full cycle (2 + N×6 LLM calls). At ~7s cold start per `--llm-cmd` invocation, this is materially expensive. The user has flagged this as a deliberate later-pass concern. Caching the cycle result per primary turn (keyed by the latest user message ID) is the obvious follow-up.
-- **Concurrent slug-collision races.** Single-host serial invocation only; no `O_EXCL` or lockfile.
 - **MCP wrapper around engram.** Discussed and intentionally deferred. Strategic value (cross-host portability) is independent of this redesign.
 - **Companion session reuse.** Each `--llm-cmd` invocation is independent. Future optimization could share an opencode session across the cycle's internal LLM calls.
 - **`--force` flag on `learn`.** Not needed under the new write logic. If a use case appears, it can be added.
@@ -314,6 +314,8 @@ Tests for every modified package are updated; new packages get their own tests u
 
 4. **Slug auto-increment:** plant `feedback/foo.toml`; run cycle that extracts a feedback memory whose slug also resolves to `foo` but with different content. Verify a `feedback/foo-1.toml` exists after the run and shows up in `learned[]`.
 
-5. **`--llm-cmd` failure paths:** point `--llm-cmd` at a script that exits 1, then a script that times out, then a script that emits empty stdout. Verify cycle returns the expected empty/skip JSON in each case and logs the failure to stderr.
+5. **Concurrent slug auto-increment:** plant `feedback/foo.toml`; spawn N goroutines that each invoke `writeMemory` with content distinct from the planted memory and from each other but with situations that all slugify to `foo`. Verify N distinct files are written (`foo-1.toml` through `foo-N.toml`), no overwrites, no errors due to the race.
 
-6. **Plugin integration:** with the shim wired into the engram plugin, run a multi-turn opencode session. Verify the plugin's `system.transform` produces the expected `## Recalled memories` block from cycle's `recalled[]` and that `learned[]` memories appear under `~/.local/share/engram/memory/`.
+6. **`--llm-cmd` failure paths:** point `--llm-cmd` at a script that exits 1, then a script that times out, then a script that emits empty stdout. Verify cycle returns the expected empty/skip JSON in each case and logs the failure to stderr. Also verify that running cycle, recall, or learn with neither `--llm-cmd` nor `ENGRAM_LLM_CMD` set exits non-zero with a clear error.
+
+7. **Plugin integration:** with the engram plugin setting `ENGRAM_LLM_CMD="opencode run -m opencode/qwen3.6-plus"`, run a multi-turn opencode session. Verify the plugin's `system.transform` produces the expected `## Recalled memories` block from cycle's `recalled[]` and that `learned[]` memories appear under `~/.local/share/engram/memory/`.
