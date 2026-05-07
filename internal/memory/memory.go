@@ -28,33 +28,41 @@ func BuildIndex(memories []*Stored) string {
 		fmt.Fprintf(&builder, "%s | %s | %s\n", mem.Type, name, mem.Situation)
 
 		if mem.Type == "feedback" {
-			if mem.Content.Behavior != "" {
-				fmt.Fprintf(&builder, "  behavior: %s\n", mem.Content.Behavior)
-			}
-
-			if mem.Content.Impact != "" {
-				fmt.Fprintf(&builder, "  impact: %s\n", mem.Content.Impact)
-			}
-
-			if mem.Content.Action != "" {
-				fmt.Fprintf(&builder, "  action: %s\n", mem.Content.Action)
-			}
+			writeFeedbackContent(&builder, mem.Content)
 		} else {
-			if mem.Content.Subject != "" {
-				fmt.Fprintf(&builder, "  subject: %s\n", mem.Content.Subject)
-			}
-
-			if mem.Content.Predicate != "" {
-				fmt.Fprintf(&builder, "  predicate: %s\n", mem.Content.Predicate)
-			}
-
-			if mem.Content.Object != "" {
-				fmt.Fprintf(&builder, "  object: %s\n", mem.Content.Object)
-			}
+			writeFactContent(&builder, mem.Content)
 		}
 	}
 
 	return builder.String()
+}
+
+func writeFeedbackContent(builder *strings.Builder, content ContentFields) {
+	if content.Behavior != "" {
+		fmt.Fprintf(builder, "  behavior: %s\n", content.Behavior)
+	}
+
+	if content.Impact != "" {
+		fmt.Fprintf(builder, "  impact: %s\n", content.Impact)
+	}
+
+	if content.Action != "" {
+		fmt.Fprintf(builder, "  action: %s\n", content.Action)
+	}
+}
+
+func writeFactContent(builder *strings.Builder, content ContentFields) {
+	if content.Subject != "" {
+		fmt.Fprintf(builder, "  subject: %s\n", content.Subject)
+	}
+
+	if content.Predicate != "" {
+		fmt.Fprintf(builder, "  predicate: %s\n", content.Predicate)
+	}
+
+	if content.Object != "" {
+		fmt.Fprintf(builder, "  object: %s\n", content.Object)
+	}
 }
 
 // FactsDir returns the directory for fact memory files.
