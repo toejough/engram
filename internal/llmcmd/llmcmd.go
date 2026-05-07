@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+const (
+	defaultShell = "/bin/sh"
+)
+
 // Runner spawns a shell command, pipes the prompt to stdin, returns stdout.
 type Runner struct {
 	cmdString string
@@ -41,8 +45,3 @@ func (r *Runner) Run(ctx context.Context, prompt string) (string, error) {
 
 	return strings.TrimRight(stdout.String(), "\n"), nil
 }
-
-// unexported constants.
-const (
-	defaultShell = "/bin/sh"
-)
