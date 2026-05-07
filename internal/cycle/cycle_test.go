@@ -2,6 +2,7 @@ package cycle_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -12,11 +13,21 @@ import (
 type fakeRunner struct {
 	calls     []string
 	responses []string
+	errors    []error // index-aligned with responses; nil means no error
 }
 
 func (f *fakeRunner) Run(_ context.Context, prompt string) (string, error) {
 	idx := len(f.calls)
 	f.calls = append(f.calls, prompt)
+
+	var err error
+	if idx < len(f.errors) {
+		err = f.errors[idx]
+	}
+
+	if err != nil {
+		return "", err
+	}
 
 	if idx >= len(f.responses) {
 		return "", nil
@@ -70,9 +81,16 @@ func (f *fakePersister) WriteFact(
 
 type fakeRecaller struct {
 	reports map[string]string
+	errors  map[string]error // optional: if set for a query, returns that error
 }
 
 func (f *fakeRecaller) Recall(_ context.Context, _, query string) (string, error) {
+	if f.errors != nil {
+		if err, ok := f.errors[query]; ok && err != nil {
+			return "", err
+		}
+	}
+
 	return f.reports[query], nil
 }
 
@@ -144,4 +162,77 @@ func TestCycle_RunsRecallPerProposedQuery(t *testing.T) {
 	g.Expect(out.Recalled).To(HaveLen(2))
 	g.Expect(out.Recalled[0].Query).To(Equal("query one"))
 	g.Expect(out.Recalled[0].Report).To(Equal("report one"))
+}
+
+func TestCycle_LLMCallAFailureProducesEmptyLearned(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Runner errors on call 0 (learn extraction); call 1 (query proposal) succeeds.
+	runner := &fakeRunner{
+		errors:    []error{errors.New("llm failed"), nil},
+		responses: []string{"", "NO QUERIES"},
+	}
+	transcripts := &fakeTranscript{content: "anything"}
+
+	c := cycle.New(runner, transcripts, &fakePersister{}, &fakeRecaller{})
+
+	out, err := c.Run(context.Background(), "/tmp/x")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.Learned).To(BeEmpty())
+}
+
+func TestCycle_LLMCallBFailureProducesEmptyRecalled(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Call 0 (learn extraction) returns []. Call 1 (query proposal) errors.
+	runner := &fakeRunner{
+		responses: []string{"[]", ""},
+		errors:    []error{nil, errors.New("llm B failed")},
+	}
+	transcripts := &fakeTranscript{content: "anything"}
+
+	c := cycle.New(runner, transcripts, &fakePersister{}, &fakeRecaller{})
+
+	out, err := c.Run(context.Background(), "/tmp/x")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.Recalled).To(BeEmpty())
+}
+
+func TestCycle_PerQueryRecallFailureSkipsEntry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Two queries proposed. Recaller fails on "bad query" but succeeds on "good query".
+	runner := &fakeRunner{responses: []string{"good query\nbad query"}}
+	transcripts := &fakeTranscript{content: "anything"}
+	recaller := &fakeRecaller{
+		reports: map[string]string{"good query": "good report"},
+		errors:  map[string]error{"bad query": errors.New("recall failed")},
+	}
+
+	c := cycle.New(runner, transcripts, nil, recaller)
+
+	out, err := c.Run(context.Background(), "/tmp/x")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Only the successful query produces a RecalledReport.
+	g.Expect(out.Recalled).To(HaveLen(1))
+	g.Expect(out.Recalled[0].Query).To(Equal("good query"))
+	g.Expect(out.Recalled[0].Report).To(Equal("good report"))
 }
