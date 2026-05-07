@@ -9,34 +9,6 @@ import (
 	"engram/internal/memory"
 )
 
-// Runner runs a single LLM prompt and returns the response text.
-type Runner interface {
-	Run(ctx context.Context, prompt string) (string, error)
-}
-
-// TranscriptReader returns the recent project transcript under a budget.
-type TranscriptReader interface {
-	Read(projectDir string, budget int) (string, error)
-}
-
-// Persister persists a candidate learning. Returns the slug-name written
-// (post auto-increment) and whether dedup skipped it.
-type Persister interface {
-	WriteFeedback(
-		ctx context.Context,
-		situation, behavior, impact, action string,
-	) (name string, persisted bool, err error)
-	WriteFact(
-		ctx context.Context,
-		situation, subject, predicate, object string,
-	) (name string, persisted bool, err error)
-}
-
-// Recaller runs the existing recall pipeline for a single query.
-type Recaller interface {
-	Recall(ctx context.Context, projectDir, query string) (report string, err error)
-}
-
 // Cycle orchestrates a single per-turn evaluation cycle: it extracts
 // learnings from the recent transcript, persists them, then proposes
 // recall queries and runs them.
@@ -72,26 +44,6 @@ func (c *Cycle) Run(ctx context.Context, projectDir string) (*Output, error) {
 	c.runRecallStep(ctx, transcript, projectDir, out)
 
 	return out, nil
-}
-
-func (c *Cycle) runLearningStep(ctx context.Context, transcript string, out *Output) {
-	if c.persister == nil {
-		return
-	}
-
-	resp, err := c.runner.Run(ctx, LearnExtractionPrompt(transcript))
-	if err != nil {
-		return
-	}
-
-	candidates, parseErr := parseLearnCandidates(resp)
-	if parseErr != nil {
-		return
-	}
-
-	for _, cand := range candidates {
-		c.persistOne(ctx, cand, out)
-	}
 }
 
 func (c *Cycle) persistOne(ctx context.Context, cand learnCandidate, out *Output) {
@@ -142,6 +94,26 @@ func (c *Cycle) persistOne(ctx context.Context, cand learnCandidate, out *Output
 	}
 }
 
+func (c *Cycle) runLearningStep(ctx context.Context, transcript string, out *Output) {
+	if c.persister == nil {
+		return
+	}
+
+	resp, err := c.runner.Run(ctx, LearnExtractionPrompt(transcript))
+	if err != nil {
+		return
+	}
+
+	candidates, parseErr := parseLearnCandidates(resp)
+	if parseErr != nil {
+		return
+	}
+
+	for _, cand := range candidates {
+		c.persistOne(ctx, cand, out)
+	}
+}
+
 func (c *Cycle) runRecallStep(ctx context.Context, transcript, projectDir string, out *Output) {
 	if c.recaller == nil {
 		return
@@ -165,6 +137,41 @@ func (c *Cycle) runRecallStep(ctx context.Context, transcript, projectDir string
 		})
 	}
 }
+
+// Persister persists a candidate learning. Returns the slug-name written
+// (post auto-increment) and whether dedup skipped it.
+type Persister interface {
+	WriteFeedback(
+		ctx context.Context,
+		situation, behavior, impact, action string,
+	) (name string, persisted bool, err error)
+	WriteFact(
+		ctx context.Context,
+		situation, subject, predicate, object string,
+	) (name string, persisted bool, err error)
+}
+
+// Recaller runs the existing recall pipeline for a single query.
+type Recaller interface {
+	Recall(ctx context.Context, projectDir, query string) (report string, err error)
+}
+
+// Runner runs a single LLM prompt and returns the response text.
+type Runner interface {
+	Run(ctx context.Context, prompt string) (string, error)
+}
+
+// TranscriptReader returns the recent project transcript under a budget.
+type TranscriptReader interface {
+	Read(projectDir string, budget int) (string, error)
+}
+
+// unexported constants.
+const (
+	defaultTranscriptBudget = 15 * 1024
+	maxQueries              = 5
+	noQueriesSentinel       = "NO QUERIES"
+)
 
 type learnCandidate struct {
 	Type      string `json:"type"`
@@ -217,10 +224,3 @@ func parseQueries(input string) []string {
 
 	return queries
 }
-
-// unexported constants.
-const (
-	defaultTranscriptBudget = 15 * 1024
-	maxQueries              = 5
-	noQueriesSentinel       = "NO QUERIES"
-)

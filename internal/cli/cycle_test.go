@@ -11,20 +11,6 @@ import (
 	"engram/internal/cli"
 )
 
-func TestRunCycle_RequiresLLMCmd(t *testing.T) {
-	// No t.Parallel() — t.Setenv is incompatible with parallel tests.
-	g := NewWithT(t)
-
-	t.Setenv("ENGRAM_LLM_CMD", "")
-
-	args := cli.CycleArgs{ProjectDir: "/tmp/x"}
-
-	var stdout bytes.Buffer
-
-	err := cli.RunCycle(context.Background(), args, &stdout)
-	g.Expect(err).To(MatchError(ContainSubstring("llm-cmd is required")))
-}
-
 func TestRunCycle_EmitsValidJSONWithEmptyArrays(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -60,4 +46,18 @@ func TestRunCycle_EmitsValidJSONWithEmptyArrays(t *testing.T) {
 	g.Expect(json.Unmarshal(stdout.Bytes(), &decoded)).To(Succeed())
 	g.Expect(decoded.Learned).To(BeEmpty())
 	g.Expect(decoded.Recalled).To(BeEmpty())
+}
+
+func TestRunCycle_RequiresLLMCmd(t *testing.T) {
+	// No t.Parallel() — t.Setenv is incompatible with parallel tests.
+	g := NewWithT(t)
+
+	t.Setenv("ENGRAM_LLM_CMD", "")
+
+	args := cli.CycleArgs{ProjectDir: "/tmp/x"}
+
+	var stdout bytes.Buffer
+
+	err := cli.RunCycle(context.Background(), args, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("llm-cmd is required")))
 }

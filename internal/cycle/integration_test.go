@@ -12,81 +12,6 @@ import (
 	"engram/internal/tomlwriter"
 )
 
-// realPersisterAdapter wraps tomlwriter to persist candidate memories to disk
-// under dataDir. Used in the planted-token integration test.
-type realPersisterAdapter struct {
-	dataDir string
-}
-
-func (a *realPersisterAdapter) WriteFeedback(
-	_ context.Context,
-	situation, behavior, impact, action string,
-) (string, bool, error) {
-	rec := &memory.MemoryRecord{
-		SchemaVersion: 2,
-		Source:        "agent",
-		Situation:     situation,
-		Type:          "feedback",
-		Content: memory.ContentFields{
-			Behavior: behavior,
-			Impact:   impact,
-			Action:   action,
-		},
-	}
-
-	writer := tomlwriter.New()
-
-	path, err := writer.Write(rec, situation, a.dataDir)
-	if err != nil {
-		return "", false, err
-	}
-
-	return memory.NameFromPath(path), true, nil
-}
-
-func (a *realPersisterAdapter) WriteFact(
-	_ context.Context,
-	situation, subject, predicate, object string,
-) (string, bool, error) {
-	rec := &memory.MemoryRecord{
-		SchemaVersion: 2,
-		Source:        "agent",
-		Situation:     situation,
-		Type:          "fact",
-		Content: memory.ContentFields{
-			Subject:   subject,
-			Predicate: predicate,
-			Object:    object,
-		},
-	}
-
-	writer := tomlwriter.New()
-
-	path, err := writer.Write(rec, situation, a.dataDir)
-	if err != nil {
-		return "", false, err
-	}
-
-	return memory.NameFromPath(path), true, nil
-}
-
-// recallReportingFakeRecaller returns a canned report for known queries.
-type recallReportingFakeRecaller struct {
-	reports map[string]string
-}
-
-func (r *recallReportingFakeRecaller) Recall(
-	_ context.Context,
-	_, query string,
-) (string, error) {
-	report, ok := r.reports[query]
-	if !ok {
-		return "", errors.New("unknown query")
-	}
-
-	return report, nil
-}
-
 // TestE2E_LearnedMemoryPersistsAndPlantedTokenSurfacesInRecall verifies the
 // full cycle.Cycle.Run path with real tomlwriter-based persistence and a stub
 // LLM/recaller:
@@ -131,4 +56,79 @@ func TestE2E_LearnedMemoryPersistsAndPlantedTokenSurfacesInRecall(t *testing.T) 
 	// The recall step produced a report containing the planted token.
 	g.Expect(out.Recalled).To(HaveLen(1))
 	g.Expect(out.Recalled[0].Report).To(ContainSubstring(plantedToken))
+}
+
+// realPersisterAdapter wraps tomlwriter to persist candidate memories to disk
+// under dataDir. Used in the planted-token integration test.
+type realPersisterAdapter struct {
+	dataDir string
+}
+
+func (a *realPersisterAdapter) WriteFact(
+	_ context.Context,
+	situation, subject, predicate, object string,
+) (string, bool, error) {
+	rec := &memory.MemoryRecord{
+		SchemaVersion: 2,
+		Source:        "agent",
+		Situation:     situation,
+		Type:          "fact",
+		Content: memory.ContentFields{
+			Subject:   subject,
+			Predicate: predicate,
+			Object:    object,
+		},
+	}
+
+	writer := tomlwriter.New()
+
+	path, err := writer.Write(rec, situation, a.dataDir)
+	if err != nil {
+		return "", false, err
+	}
+
+	return memory.NameFromPath(path), true, nil
+}
+
+func (a *realPersisterAdapter) WriteFeedback(
+	_ context.Context,
+	situation, behavior, impact, action string,
+) (string, bool, error) {
+	rec := &memory.MemoryRecord{
+		SchemaVersion: 2,
+		Source:        "agent",
+		Situation:     situation,
+		Type:          "feedback",
+		Content: memory.ContentFields{
+			Behavior: behavior,
+			Impact:   impact,
+			Action:   action,
+		},
+	}
+
+	writer := tomlwriter.New()
+
+	path, err := writer.Write(rec, situation, a.dataDir)
+	if err != nil {
+		return "", false, err
+	}
+
+	return memory.NameFromPath(path), true, nil
+}
+
+// recallReportingFakeRecaller returns a canned report for known queries.
+type recallReportingFakeRecaller struct {
+	reports map[string]string
+}
+
+func (r *recallReportingFakeRecaller) Recall(
+	_ context.Context,
+	_, query string,
+) (string, error) {
+	report, ok := r.reports[query]
+	if !ok {
+		return "", errors.New("unknown query")
+	}
+
+	return report, nil
 }

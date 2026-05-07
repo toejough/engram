@@ -10,6 +10,23 @@ import (
 	"engram/internal/memory"
 )
 
+func TestOutput_EmptyArraysWhenNothingHappened(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	out := cycle.NewOutput()
+
+	encoded, err := json.Marshal(out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(encoded)).To(ContainSubstring(`"learned":[]`))
+	g.Expect(string(encoded)).To(ContainSubstring(`"recalled":[]`))
+}
+
 func TestOutput_MarshalsLearnedAndRecalled(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -43,21 +60,4 @@ func TestOutput_MarshalsLearnedAndRecalled(t *testing.T) {
 	g.Expect(json.Unmarshal(encoded, &roundtrip)).To(Succeed())
 	g.Expect(roundtrip).To(HaveKey("learned"))
 	g.Expect(roundtrip).To(HaveKey("recalled"))
-}
-
-func TestOutput_EmptyArraysWhenNothingHappened(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	out := cycle.NewOutput()
-
-	encoded, err := json.Marshal(out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(encoded)).To(ContainSubstring(`"learned":[]`))
-	g.Expect(string(encoded)).To(ContainSubstring(`"recalled":[]`))
 }

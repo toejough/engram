@@ -4,12 +4,6 @@ package cycle
 
 import "engram/internal/memory"
 
-// Output is the JSON shape returned by `engram cycle`.
-type Output struct {
-	Learned  []LearnedMemory  `json:"learned"`
-	Recalled []RecalledReport `json:"recalled"`
-}
-
 // LearnedMemory is a memory record that was actually persisted by this cycle.
 // MemoryRecord is embedded so its fields appear flattened in the JSON output;
 // Name is added at the top level.
@@ -19,10 +13,10 @@ type LearnedMemory struct {
 	Name string `json:"name"`
 }
 
-// RecalledReport is a query and the synthesized prose report it produced.
-type RecalledReport struct {
-	Query  string `json:"query"`
-	Report string `json:"report"`
+// Output is the JSON shape returned by `engram cycle`.
+type Output struct {
+	Learned  []LearnedMemory  `json:"learned"`
+	Recalled []RecalledReport `json:"recalled"`
 }
 
 // NewOutput returns an Output with non-nil empty slices so JSON serializes
@@ -32,4 +26,10 @@ func NewOutput() *Output {
 		Learned:  []LearnedMemory{},
 		Recalled: []RecalledReport{},
 	}
+}
+
+// RecalledReport is a query and the synthesized prose report it produced.
+type RecalledReport struct {
+	Query  string `json:"query"`
+	Report string `json:"report"`
 }

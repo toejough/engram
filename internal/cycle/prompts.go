@@ -29,7 +29,6 @@ Return [] if there is nothing learnable.
 
 Transcript:
 `
-
 	//nolint:lll
 	queryProposalHeader = `You are reviewing a project session transcript to decide if memories should be recalled.
 
