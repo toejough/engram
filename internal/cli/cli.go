@@ -8,16 +8,13 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"engram/internal/anthropic"
 	"engram/internal/llmcmd"
 	"engram/internal/memory"
 	"engram/internal/recall"
-	"engram/internal/tokenresolver"
 )
 
 // Exported variables.
@@ -150,21 +147,6 @@ func newSummarizer(token string) recall.SummarizerI {
 	})
 }
 
-func newTokenResolver() *tokenresolver.Resolver {
-	return tokenresolver.New(
-		os.Getenv,
-		func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			cmd := exec.CommandContext( //nolint:gosec // platform-internal cmd, not user input
-				ctx,
-				name,
-				args...)
-
-			return cmd.Output()
-		},
-		runtime.GOOS,
-	)
-}
-
 // resolveLLMCmd returns the explicit flag value if set, otherwise the
 // ENGRAM_LLM_CMD env var, otherwise the empty string.
 func resolveLLMCmd(flagValue string) string {
@@ -185,13 +167,6 @@ func requireLLMCmd(flagValue string) error {
 	}
 
 	return nil
-}
-
-// resolveToken returns the API token from the environment or macOS Keychain.
-// tokenresolver.Resolve is documented to never return a non-nil error.
-func resolveToken(ctx context.Context) string {
-	token, _ := newTokenResolver().Resolve(ctx)
-	return token
 }
 
 func runRecall(ctx context.Context, args RecallArgs, stdout io.Writer) error {

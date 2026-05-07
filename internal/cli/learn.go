@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"engram/internal/llmcmd"
 	"engram/internal/memory"
 	"engram/internal/tomlwriter"
 )
@@ -126,15 +127,15 @@ func describeNewMemory(record *memory.MemoryRecord) string {
 
 // unexported functions.
 
-// makeConflictDeps wires real I/O deps for conflict detection.
-// Returns nil caller when no API token is available (skips dedup).
-func makeConflictDeps(ctx context.Context) (llmCaller, memoryLister) {
-	token := resolveToken(ctx)
-
-	var caller llmCaller
-	if token != "" {
-		caller = makeAnthropicCaller(token)
+// makeConflictDeps wires real I/O deps for conflict detection using llm-cmd.
+// Returns a nil caller when llmCmdString is empty (skips dedup).
+func makeConflictDeps(llmCmdString string) (llmCaller, memoryLister) {
+	if llmCmdString == "" {
+		return nil, memory.NewLister()
 	}
+
+	runner := llmcmd.New(llmCmdString)
+	caller := llmcmd.CallerFunc(runner)
 
 	return caller, memory.NewLister()
 }
@@ -242,7 +243,7 @@ func runLearnFact(ctx context.Context, args LearnFactArgs, stdout io.Writer) err
 	}
 
 	dataDir := args.DataDir
-	caller, lister := makeConflictDeps(ctx)
+	caller, lister := makeConflictDeps(resolveLLMCmd(args.LLMCmd))
 
 	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn fact", caller, lister)
 }
@@ -266,7 +267,7 @@ func runLearnFeedback(ctx context.Context, args LearnFeedbackArgs, stdout io.Wri
 	}
 
 	dataDir := args.DataDir
-	caller, lister := makeConflictDeps(ctx)
+	caller, lister := makeConflictDeps(resolveLLMCmd(args.LLMCmd))
 
 	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn feedback", caller, lister)
 }
