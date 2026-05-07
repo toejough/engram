@@ -34,3 +34,22 @@ func TestResolveLLMCmd_PrefersFlagOverEnv(t *testing.T) {
 	got := cli.ExportResolveLLMCmd("from-flag")
 	g.Expect(got).To(Equal("from-flag"))
 }
+
+func TestRequireLLMCmd_ErrorsWhenMissing(t *testing.T) {
+	g := NewWithT(t)
+
+	t.Setenv("ENGRAM_LLM_CMD", "")
+
+	err := cli.ExportRequireLLMCmd("")
+	g.Expect(err).To(MatchError(ContainSubstring("llm-cmd is required")))
+	g.Expect(err).To(MatchError(ContainSubstring("ENGRAM_LLM_CMD")))
+}
+
+func TestRequireLLMCmd_OkWhenFlagSet(t *testing.T) {
+	g := NewWithT(t)
+
+	t.Setenv("ENGRAM_LLM_CMD", "")
+
+	err := cli.ExportRequireLLMCmd("opencode run -m foo")
+	g.Expect(err).NotTo(HaveOccurred())
+}

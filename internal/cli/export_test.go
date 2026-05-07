@@ -25,6 +25,7 @@ var (
 	ExportRenderConflictContent          = renderConflictContent
 	ExportRenderFactContent              = renderFactContent
 	ExportRenderMemoryContent            = renderMemoryContent
+	ExportRequireLLMCmd                  = requireLLMCmd
 	ExportResolveLLMCmd                  = resolveLLMCmd
 	ExportRunBuildSelf                   = runBuildSelf
 	ExportValidateSource                 = validateSource

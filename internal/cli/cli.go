@@ -3,6 +3,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -171,6 +172,18 @@ func resolveLLMCmd(flagValue string) string {
 	}
 
 	return os.Getenv(envLLMCmd)
+}
+
+var errLLMCmdRequired = errors.New(
+	"llm-cmd is required: set --llm-cmd flag or ENGRAM_LLM_CMD environment variable",
+)
+
+func requireLLMCmd(flagValue string) error {
+	if resolveLLMCmd(flagValue) == "" {
+		return errLLMCmdRequired
+	}
+
+	return nil
 }
 
 // resolveToken returns the API token from the environment or macOS Keychain.
