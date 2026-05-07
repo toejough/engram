@@ -21,11 +21,11 @@ type Option func(*Writer)
 // Writer writes memories to TOML files.
 // I/O operations are injected for testability (ARCH-7).
 type Writer struct {
-	createTemp func(dir, pattern string) (*os.File, error)
-	rename     func(oldpath, newpath string) error
-	mkdirAll   func(path string, perm os.FileMode) error
-	stat       func(name string) (os.FileInfo, error)
-	remove     func(name string) error
+	createTemp   func(dir, pattern string) (*os.File, error)
+	rename       func(oldpath, newpath string) error
+	mkdirAll     func(path string, perm os.FileMode) error
+	remove       func(name string) error
+	openFileExcl func(name string, perm os.FileMode) (*os.File, error)
 }
 
 // New creates a Writer with real file system operations.
@@ -34,8 +34,10 @@ func New(opts ...Option) *Writer {
 		createTemp: os.CreateTemp,
 		rename:     os.Rename,
 		mkdirAll:   os.MkdirAll,
-		stat:       os.Stat,
 		remove:     os.Remove,
+		openFileExcl: func(name string, perm os.FileMode) (*os.File, error) {
+			return os.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec
+		},
 	}
 
 	for _, opt := range opts {
@@ -105,7 +107,7 @@ func (w *Writer) Write(record *memory.MemoryRecord, slug, dataDir string) (strin
 
 	slug = slugify(slug)
 
-	finalPath, err := w.availablePath(targetDir, slug)
+	finalPath, err := w.claimPath(targetDir, slug)
 	if err != nil {
 		return "", err
 	}
@@ -126,19 +128,20 @@ func (w *Writer) Write(record *memory.MemoryRecord, slug, dataDir string) (strin
 	return finalPath, nil
 }
 
-// availablePath returns the first available file path for slug in memoriesDir.
-// Tries <slug>.toml, then <slug>-2.toml, <slug>-3.toml, etc.
-func (w *Writer) availablePath(memoriesDir, slug string) (string, error) {
+// claimPath atomically claims an unused slug path by creating a 0-byte placeholder
+// with O_EXCL. Returns the claimed path. The placeholder will be overwritten by AtomicWrite.
+func (w *Writer) claimPath(memoriesDir, slug string) (string, error) {
 	candidate := filepath.Join(memoriesDir, slug+".toml")
 
 	for suffix := 2; ; suffix++ {
-		_, statErr := w.stat(candidate)
-		if errors.Is(statErr, os.ErrNotExist) {
+		file, err := w.openFileExcl(candidate, claimedFilePerm)
+		if err == nil {
+			_ = file.Close() // placeholder claimed; AtomicWrite will overwrite
 			return candidate, nil
 		}
 
-		if statErr != nil {
-			return "", fmt.Errorf("tomlwriter: stat %s: %w", candidate, statErr)
+		if !errors.Is(err, os.ErrExist) {
+			return "", fmt.Errorf("tomlwriter: open %s: %w", candidate, err)
 		}
 
 		candidate = filepath.Join(memoriesDir, fmt.Sprintf("%s-%d.toml", slug, suffix))
@@ -171,14 +174,15 @@ func WithRename(fn func(oldpath, newpath string) error) Option {
 	return func(w *Writer) { w.rename = fn }
 }
 
-// WithStat overrides the file stat function.
-func WithStat(fn func(name string) (os.FileInfo, error)) Option {
-	return func(w *Writer) { w.stat = fn }
+// WithOpenFileExcl overrides the exclusive file open function used for atomic slug claiming.
+func WithOpenFileExcl(fn func(name string, perm os.FileMode) (*os.File, error)) Option {
+	return func(w *Writer) { w.openFileExcl = fn }
 }
 
 // unexported constants.
 const (
 	memoriesDirPerm = 0o750
+	claimedFilePerm = 0o644
 )
 
 // unexported variables.
