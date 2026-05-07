@@ -6,6 +6,30 @@ import * as os from "os"
 
 const ENGRAM_BIN = path.join(os.homedir(), ".local", "bin", "engram")
 const COMPANION_MODEL = "opencode/qwen3.6-plus"
+const DEBUG_LOG_PATH = process.env.ENGRAM_DEBUG_LOG ||
+  path.join(os.homedir(), ".local", "share", "engram", "cycle-debug.log")
+const TRUNCATE_PREVIEW = 200
+
+function truncate(s: string, max: number): string {
+  const collapsed = s.replace(/[\r\n]+/g, " ")
+  if (collapsed.length <= max) return collapsed
+  return collapsed.slice(0, Math.max(0, max - 3)) + "..."
+}
+
+function debugLog(stage: string, fields: Record<string, any> = {}): void {
+  try {
+    const ts = new Date().toISOString()
+    const fieldStr = Object.entries(fields)
+      .map(([k, v]) => {
+        const s = typeof v === "string" ? v : JSON.stringify(v)
+        return `${k}=${truncate(s, TRUNCATE_PREVIEW)}`
+      })
+      .join(" ")
+    fs.appendFileSync(DEBUG_LOG_PATH, `${ts} [plugin] ${stage}: ${fieldStr}\n`)
+  } catch {
+    // Never let logging break the plugin path.
+  }
+}
 
 function findPluginRoot(): string | null {
   let dir = import.meta.dirname || __dirname
@@ -17,10 +41,15 @@ function findPluginRoot(): string | null {
 }
 
 async function ensureBinary(): Promise<void> {
+  const start = Date.now()
   const pluginRoot = findPluginRoot()
-  if (!pluginRoot) return
+  if (!pluginRoot) {
+    debugLog("ensureBinary.skip", { reason: "no plugin root" })
+    return
+  }
 
   if (!fs.existsSync(ENGRAM_BIN)) {
+    debugLog("ensureBinary.bootstrap.start", { binPath: ENGRAM_BIN, pluginRoot })
     const binDir = path.dirname(ENGRAM_BIN)
     if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true })
     const proc = Bun.spawn(["go", "build", "-o", ENGRAM_BIN, "./cmd/engram/"], {
@@ -30,9 +59,11 @@ async function ensureBinary(): Promise<void> {
     if (proc.exitCode !== 0) {
       console.error("[engram] bootstrap go build failed:", await proc.stderr.text())
     }
+    debugLog("ensureBinary.bootstrap.end", { exit: proc.exitCode, took_ms: Date.now() - start })
     return
   }
 
+  debugLog("ensureBinary.buildSelf.start", { binPath: ENGRAM_BIN })
   const proc = Bun.spawn([ENGRAM_BIN, "build-self", "--if-stale",
     "--plugin-root", pluginRoot, "--bin-path", ENGRAM_BIN],
     { stdout: "pipe", stderr: "pipe" })
@@ -40,16 +71,21 @@ async function ensureBinary(): Promise<void> {
   if (proc.exitCode !== 0) {
     console.error("[engram] build-self failed:", await proc.stderr.text())
   }
+  debugLog("ensureBinary.buildSelf.end", { exit: proc.exitCode, took_ms: Date.now() - start })
 }
 
 async function getReminder(kind: "system" | "session-start" | "user-prompt" | "post-tool"): Promise<string> {
+  const start = Date.now()
   const proc = Bun.spawn([ENGRAM_BIN, "reminder", kind], { stdout: "pipe", stderr: "pipe" })
   await proc.exited
   if (proc.exitCode !== 0) {
     console.error(`[engram] reminder ${kind} failed:`, await proc.stderr.text())
+    debugLog("getReminder.error", { kind, exit: proc.exitCode, took_ms: Date.now() - start })
     return ""
   }
-  return (await proc.stdout.text()).trim()
+  const text = (await proc.stdout.text()).trim()
+  debugLog("getReminder.end", { kind, bytes: text.length, took_ms: Date.now() - start })
+  return text
 }
 
 interface CycleResult {
@@ -58,14 +94,20 @@ interface CycleResult {
 }
 
 async function runEngramCycle(projectDir: string): Promise<CycleResult> {
+  const start = Date.now()
   await ensureBinary()
   const llmCmd = `opencode run -m ${COMPANION_MODEL}`
+  debugLog("runEngramCycle.start", { projectDir, llmCmd, debugLogPath: DEBUG_LOG_PATH })
   const proc = Bun.spawn(
     [ENGRAM_BIN, "cycle", "--llm-cmd", llmCmd, "--project-dir", projectDir],
     {
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, ENGRAM_COMPANION_MODE: "1" },
+      env: {
+        ...process.env,
+        ENGRAM_COMPANION_MODE: "1",
+        ENGRAM_DEBUG_LOG: DEBUG_LOG_PATH,
+      },
     },
   )
 
@@ -79,18 +121,38 @@ async function runEngramCycle(projectDir: string): Promise<CycleResult> {
 
   if (proc.exitCode !== 0) {
     console.error(`[engram] cycle exit ${proc.exitCode}: ${stderr.slice(0, 2000)}`)
+    debugLog("runEngramCycle.error", {
+      exit: proc.exitCode,
+      stderr_bytes: stderr.length,
+      stderr_head: stderr.slice(0, TRUNCATE_PREVIEW),
+      took_ms: Date.now() - start,
+    })
     return { learned: [], recalled: [] }
   }
 
   const trimmed = stdout.trim()
   if (!trimmed) {
+    debugLog("runEngramCycle.end", { exit: 0, stdout_bytes: 0, took_ms: Date.now() - start })
     return { learned: [], recalled: [] }
   }
 
   try {
-    return JSON.parse(trimmed) as CycleResult
+    const result = JSON.parse(trimmed) as CycleResult
+    debugLog("runEngramCycle.end", {
+      exit: 0,
+      stdout_bytes: trimmed.length,
+      learned: result.learned.length,
+      recalled: result.recalled.length,
+      took_ms: Date.now() - start,
+    })
+    return result
   } catch (parseErr) {
     console.error(`[engram] cycle JSON parse failed: ${String(parseErr).slice(0, 500)}`)
+    debugLog("runEngramCycle.parseError", {
+      err: String(parseErr).slice(0, TRUNCATE_PREVIEW),
+      stdout_head: trimmed.slice(0, TRUNCATE_PREVIEW),
+      took_ms: Date.now() - start,
+    })
     return { learned: [], recalled: [] }
   }
 }
@@ -114,11 +176,25 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
   return {
 
     "experimental.chat.system.transform": async (input: any, output) => {
+      const start = Date.now()
+      const sessionID = input?.sessionID ?? "<none>"
+      const recursionGuard = process.env.ENGRAM_COMPANION_MODE === "1"
+      debugLog("system.transform.start", {
+        sessionID,
+        directory: input?.directory ?? "<none>",
+        recursionGuard: recursionGuard ? "active" : "inactive",
+      })
+
       const before = output.system[0]
       const reminder = await getReminder("system")
 
-      if (process.env.ENGRAM_COMPANION_MODE === "1") {
+      if (recursionGuard) {
         output.system[0] = before + reminder
+        debugLog("system.transform.end", {
+          sessionID,
+          path: "short-circuit",
+          took_ms: Date.now() - start,
+        })
         return
       }
 
@@ -128,9 +204,22 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
         const cycleResult = await runEngramCycle(projectDir)
         const block = formatCycleResult(cycleResult)
         output.system[0] = before + reminder + (block ? "\n\n" + block : "")
+        debugLog("system.transform.end", {
+          sessionID,
+          path: "cycle",
+          learned: cycleResult.learned.length,
+          recalled: cycleResult.recalled.length,
+          block_bytes: block.length,
+          took_ms: Date.now() - start,
+        })
       } catch (err) {
         console.error(`[engram] cycle invocation failed: ${String(err).slice(0, 500)}`)
         output.system[0] = before + reminder
+        debugLog("system.transform.error", {
+          sessionID,
+          err: String(err).slice(0, TRUNCATE_PREVIEW),
+          took_ms: Date.now() - start,
+        })
       }
     },
 
