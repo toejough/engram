@@ -30,13 +30,13 @@ func TestDefaultExtractCap(t *testing.T) {
 func TestFormatResult(t *testing.T) {
 	t.Parallel()
 
-	t.Run("summary only", func(t *testing.T) {
+	t.Run("report only", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
 		var buf bytes.Buffer
 
-		err := recall.FormatResult(&buf, &recall.Result{Summary: "session content"})
+		err := recall.FormatResult(&buf, &recall.Result{Report: "session content"})
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -46,15 +46,14 @@ func TestFormatResult(t *testing.T) {
 		g.Expect(buf.String()).To(Equal("session content"))
 	})
 
-	t.Run("summary with memories", func(t *testing.T) {
+	t.Run("report with memories", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
 		var buf bytes.Buffer
 
 		err := recall.FormatResult(&buf, &recall.Result{
-			Summary:  "session content",
-			Memories: "memory1\nmemory2",
+			Report: "session content\n=== MEMORIES ===\nmemory1\nmemory2",
 		})
 		g.Expect(err).NotTo(HaveOccurred())
 
@@ -65,32 +64,15 @@ func TestFormatResult(t *testing.T) {
 		g.Expect(buf.String()).To(Equal("session content\n=== MEMORIES ===\nmemory1\nmemory2"))
 	})
 
-	t.Run("write error on summary", func(t *testing.T) {
+	t.Run("write error on report", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		err := recall.FormatResult(&failWriter{}, &recall.Result{Summary: "content"})
+		err := recall.FormatResult(&failWriter{}, &recall.Result{Report: "content"})
 		g.Expect(err).To(HaveOccurred())
 
 		if err != nil {
-			g.Expect(err.Error()).To(ContainSubstring("writing summary"))
-		}
-	})
-
-	t.Run("write error on memories", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		w := &failAfterNWriter{remaining: len("session content")}
-
-		err := recall.FormatResult(w, &recall.Result{
-			Summary:  "session content",
-			Memories: "mem",
-		})
-		g.Expect(err).To(HaveOccurred())
-
-		if err != nil {
-			g.Expect(err.Error()).To(ContainSubstring("writing memories"))
+			g.Expect(err.Error()).To(ContainSubstring("writing report"))
 		}
 	})
 
@@ -158,9 +140,9 @@ func TestOrchestrator_RecallMemoriesOnly(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Memories).To(ContainSubstring("[feedback]"))
-		g.Expect(result.Memories).To(ContainSubstring("When testing"))
-		g.Expect(result.Memories).NotTo(ContainSubstring("Python"))
+		g.Expect(result.Report).To(ContainSubstring("[feedback]"))
+		g.Expect(result.Report).To(ContainSubstring("When testing"))
+		g.Expect(result.Report).NotTo(ContainSubstring("Python"))
 	})
 
 	t.Run("noop summarizer returns empty", func(t *testing.T) {
@@ -185,8 +167,8 @@ func TestOrchestrator_RecallMemoriesOnly(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(BeEmpty())
-		g.Expect(result.Memories).To(BeEmpty())
+		g.Expect(result.Report).To(BeEmpty())
+		g.Expect(result.Report).NotTo(ContainSubstring("=== MEMORIES ==="))
 	})
 
 	t.Run("empty memory list returns empty", func(t *testing.T) {
@@ -205,8 +187,8 @@ func TestOrchestrator_RecallMemoriesOnly(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(BeEmpty())
-		g.Expect(result.Memories).To(BeEmpty())
+		g.Expect(result.Report).To(BeEmpty())
+		g.Expect(result.Report).NotTo(ContainSubstring("=== MEMORIES ==="))
 	})
 
 	t.Run("nil memory lister returns empty", func(t *testing.T) {
@@ -224,8 +206,8 @@ func TestOrchestrator_RecallMemoriesOnly(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(BeEmpty())
-		g.Expect(result.Memories).To(BeEmpty())
+		g.Expect(result.Report).To(BeEmpty())
+		g.Expect(result.Report).NotTo(ContainSubstring("=== MEMORIES ==="))
 	})
 
 	t.Run("respects limit", func(t *testing.T) {
@@ -266,9 +248,9 @@ func TestOrchestrator_RecallMemoriesOnly(t *testing.T) {
 		}
 
 		// Should contain A and B but not C.
-		g.Expect(result.Memories).To(ContainSubstring("subject: A"))
-		g.Expect(result.Memories).To(ContainSubstring("subject: B"))
-		g.Expect(result.Memories).NotTo(ContainSubstring("subject: C"))
+		g.Expect(result.Report).To(ContainSubstring("subject: A"))
+		g.Expect(result.Report).To(ContainSubstring("subject: B"))
+		g.Expect(result.Report).NotTo(ContainSubstring("subject: C"))
 	})
 
 	t.Run("builds correct index for summarizer", func(t *testing.T) {
@@ -348,10 +330,10 @@ func TestOrchestrator_RecallMemoriesOnly_Ranking(t *testing.T) {
 		}
 
 		// Expected order: HumanNew, HumanOld, AgentNew, AgentOld.
-		humanNewIdx := strings.Index(result.Memories, "HumanNew")
-		humanOldIdx := strings.Index(result.Memories, "HumanOld")
-		agentNewIdx := strings.Index(result.Memories, "AgentNew")
-		agentOldIdx := strings.Index(result.Memories, "AgentOld")
+		humanNewIdx := strings.Index(result.Report, "HumanNew")
+		humanOldIdx := strings.Index(result.Report, "HumanOld")
+		agentNewIdx := strings.Index(result.Report, "AgentNew")
+		agentOldIdx := strings.Index(result.Report, "AgentOld")
 
 		g.Expect(humanNewIdx).To(BeNumerically("<", humanOldIdx),
 			"human new should come before human old")
@@ -394,7 +376,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(Equal("session a contentsession b content"))
+		g.Expect(result.Report).To(Equal("session a contentsession b content"))
 	})
 
 	t.Run("no sessions found returns empty result", func(t *testing.T) {
@@ -411,8 +393,8 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(BeEmpty())
-		g.Expect(result.Memories).To(BeEmpty())
+		g.Expect(result.Report).To(BeEmpty())
+		g.Expect(result.Report).NotTo(ContainSubstring("=== MEMORIES ==="))
 	})
 
 	t.Run("reader error skips session and continues", func(t *testing.T) {
@@ -439,7 +421,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(Equal("good content"))
+		g.Expect(result.Report).To(Equal("good content"))
 	})
 
 	t.Run("budget exceeded stops reading sessions", func(t *testing.T) {
@@ -472,7 +454,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 		}
 
 		// Only first session's content should be returned.
-		g.Expect(result.Summary).To(Equal("big content"))
+		g.Expect(result.Report).To(Equal("big content"))
 	})
 
 	t.Run("finder error propagates", func(t *testing.T) {
@@ -534,7 +516,7 @@ func TestOrchestrator_Recall_ModeA_CancellationStopsProcessing(t *testing.T) {
 		}
 
 		// With a pre-cancelled context, mode A should read zero sessions.
-		g.Expect(result.Summary).To(BeEmpty())
+		g.Expect(result.Report).To(BeEmpty())
 		g.Expect(int(reader.readCalls.Load())).To(Equal(0))
 	})
 }
@@ -585,8 +567,8 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Memories).To(ContainSubstring("[feedback]"))
-		g.Expect(result.Memories).To(ContainSubstring("Between sessions"))
+		g.Expect(result.Report).To(ContainSubstring("[feedback]"))
+		g.Expect(result.Report).To(ContainSubstring("Between sessions"))
 	})
 
 	t.Run("formats fact memory with partial fields", func(t *testing.T) {
@@ -624,10 +606,10 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Memories).To(ContainSubstring("[fact]"))
-		g.Expect(result.Memories).To(ContainSubstring("subject: Go"))
-		g.Expect(result.Memories).NotTo(ContainSubstring("predicate"))
-		g.Expect(result.Memories).NotTo(ContainSubstring("object"))
+		g.Expect(result.Report).To(ContainSubstring("[fact]"))
+		g.Expect(result.Report).To(ContainSubstring("subject: Go"))
+		g.Expect(result.Report).NotTo(ContainSubstring("predicate"))
+		g.Expect(result.Report).NotTo(ContainSubstring("object"))
 	})
 
 	t.Run("formats feedback memory with partial fields", func(t *testing.T) {
@@ -665,9 +647,9 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Memories).To(ContainSubstring("[feedback]"))
-		g.Expect(result.Memories).To(ContainSubstring("action: use DI"))
-		g.Expect(result.Memories).NotTo(ContainSubstring("behavior"))
+		g.Expect(result.Report).To(ContainSubstring("[feedback]"))
+		g.Expect(result.Report).To(ContainSubstring("action: use DI"))
+		g.Expect(result.Report).NotTo(ContainSubstring("behavior"))
 	})
 }
 
@@ -716,11 +698,11 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(Equal("session content"))
-		g.Expect(result.Memories).To(ContainSubstring("[feedback]"))
-		g.Expect(result.Memories).To(ContainSubstring("use targ test instead"))
-		g.Expect(result.Memories).To(ContainSubstring("[fact]"))
-		g.Expect(result.Memories).To(ContainSubstring("Dependency Injection"))
+		g.Expect(result.Report).To(ContainSubstring("session content"))
+		g.Expect(result.Report).To(ContainSubstring("[feedback]"))
+		g.Expect(result.Report).To(ContainSubstring("use targ test instead"))
+		g.Expect(result.Report).To(ContainSubstring("[fact]"))
+		g.Expect(result.Report).To(ContainSubstring("Dependency Injection"))
 	})
 
 	t.Run("nil memory lister works as before", func(t *testing.T) {
@@ -745,8 +727,8 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(Equal("session content"))
-		g.Expect(result.Memories).To(BeEmpty())
+		g.Expect(result.Report).To(Equal("session content"))
+		g.Expect(result.Report).NotTo(ContainSubstring("=== MEMORIES ==="))
 	})
 
 	t.Run("excludes memories outside session time window", func(t *testing.T) {
@@ -784,7 +766,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Memories).To(BeEmpty())
+		g.Expect(result.Report).NotTo(ContainSubstring("=== MEMORIES ==="))
 	})
 
 	t.Run("memory lister error returns empty memories", func(t *testing.T) {
@@ -811,8 +793,8 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(Equal("session content"))
-		g.Expect(result.Memories).To(BeEmpty())
+		g.Expect(result.Report).To(Equal("session content"))
+		g.Expect(result.Report).NotTo(ContainSubstring("=== MEMORIES ==="))
 	})
 }
 
@@ -869,7 +851,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		g.Expect(summarizer.lastSummarizeContent).To(ContainSubstring("[feedback]"))
 		g.Expect(summarizer.lastSummarizeContent).To(ContainSubstring("snippet from a"))
 		g.Expect(summarizer.lastSummarizeContent).To(ContainSubstring("snippet from b"))
-		g.Expect(result.Summary).To(Equal("final structured summary"))
+		g.Expect(result.Report).To(Equal("final structured summary"))
 	})
 
 	t.Run("stops per-session extraction when buffer full", func(t *testing.T) {
@@ -912,7 +894,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		// Only 1 extract call — buffer full after first session.
 		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(1))
 		g.Expect(summarizer.lastSummarizeContent).NotTo(ContainSubstring("should not appear"))
-		g.Expect(result.Summary).To(Equal("summary"))
+		g.Expect(result.Report).To(Equal("summary"))
 	})
 
 	t.Run("skips sessions with empty extraction", func(t *testing.T) {
@@ -948,7 +930,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		g.Expect(int(summarizer.extractCalls.Load())).To(Equal(2))
 		g.Expect(summarizer.lastSummarizeContent).To(ContainSubstring("good snippet"))
 		g.Expect(summarizer.lastSummarizeContent).NotTo(ContainSubstring("irrelevant"))
-		g.Expect(result.Summary).To(Equal("summary"))
+		g.Expect(result.Report).To(Equal("summary"))
 	})
 
 	t.Run("empty buffer returns empty result without summarizing", func(t *testing.T) {
@@ -979,7 +961,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		}
 
 		g.Expect(int(summarizer.summarizeCalls.Load())).To(Equal(0))
-		g.Expect(result.Summary).To(BeEmpty())
+		g.Expect(result.Report).To(BeEmpty())
 	})
 
 	t.Run("noop summarizer returns empty result", func(t *testing.T) {
@@ -1004,7 +986,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(BeEmpty())
+		g.Expect(result.Report).To(BeEmpty())
 	})
 }
 
@@ -1173,22 +1155,6 @@ func (r *countingReader) Read(path string, budget int) (string, int, error) {
 	_ = budget
 
 	return r.contents[path], r.sizes[path], nil
-}
-
-// failAfterNWriter succeeds for the first `remaining` bytes, then fails.
-type failAfterNWriter struct {
-	remaining int
-}
-
-func (w *failAfterNWriter) Write(p []byte) (int, error) {
-	if w.remaining <= 0 {
-		return 0, errors.New("write failed")
-	}
-
-	n := min(len(p), w.remaining)
-	w.remaining -= n
-
-	return n, nil
 }
 
 type failWriter struct{}

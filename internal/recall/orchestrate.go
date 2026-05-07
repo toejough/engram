@@ -126,7 +126,7 @@ func (o *Orchestrator) RecallMemoriesOnly(
 		return &Result{}, nil
 	}
 
-	return &Result{Memories: formatMemories(memories)}, nil
+	return &Result{Report: formatMemories(memories)}, nil
 }
 
 // extractFromSessions runs phase 2: extract verbatim snippets per session.
@@ -260,8 +260,12 @@ func (o *Orchestrator) recallModeA(
 
 	memories := o.findSessionMemories(sessions)
 
-	//nolint:nilerr // cancellation returns partial results, not an error.
-	return &Result{Summary: builder.String(), Memories: memories}, nil
+	report := builder.String()
+	if memories != "" {
+		report += "\n=== MEMORIES ===\n" + memories
+	}
+
+	return &Result{Report: report}, nil
 }
 
 func (o *Orchestrator) recallModeB(
@@ -317,7 +321,7 @@ func (o *Orchestrator) recallModeB(
 		return nil, fmt.Errorf("summarizing recall: %w", err)
 	}
 
-	return &Result{Summary: summary}, nil
+	return &Result{Report: summary}, nil
 }
 
 // searchMemories runs phase 1: find and format relevant memories.
@@ -360,8 +364,7 @@ type Reader interface {
 
 // Result holds the output of a recall operation.
 type Result struct {
-	Summary  string `json:"summary"`
-	Memories string `json:"memories,omitempty"`
+	Report string `json:"report"`
 }
 
 // SummarizerI is the union the Orchestrator depends on (it runs both phases).
@@ -370,18 +373,11 @@ type SummarizerI interface {
 	FindingSummarizer
 }
 
-// FormatResult writes the recall result as plain text with an optional memories section.
+// FormatResult writes the recall result as plain text.
 func FormatResult(w io.Writer, result *Result) error {
-	_, err := fmt.Fprint(w, result.Summary)
+	_, err := fmt.Fprint(w, result.Report)
 	if err != nil {
-		return fmt.Errorf("writing summary: %w", err)
-	}
-
-	if result.Memories != "" {
-		_, err = fmt.Fprintf(w, "\n=== MEMORIES ===\n%s", result.Memories)
-		if err != nil {
-			return fmt.Errorf("writing memories: %w", err)
-		}
+		return fmt.Errorf("writing report: %w", err)
 	}
 
 	return nil
