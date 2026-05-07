@@ -244,7 +244,12 @@ func runLearnFact(ctx context.Context, args LearnFactArgs, stdout io.Writer) err
 	dataDir := args.DataDir
 	caller, lister := makeConflictDeps(resolveLLMCmd(args.LLMCmd))
 
-	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn fact", caller, lister)
+	_, _, werr := writeMemory(
+		ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn fact", caller,
+		lister,
+	)
+
+	return werr
 }
 
 func runLearnFeedback(ctx context.Context, args LearnFeedbackArgs, stdout io.Writer) error {
@@ -268,7 +273,12 @@ func runLearnFeedback(ctx context.Context, args LearnFeedbackArgs, stdout io.Wri
 	dataDir := args.DataDir
 	caller, lister := makeConflictDeps(resolveLLMCmd(args.LLMCmd))
 
-	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn feedback", caller, lister)
+	_, _, werr := writeMemory(
+		ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn feedback", caller,
+		lister,
+	)
+
+	return werr
 }
 
 func validateSource(source string) error {
@@ -289,10 +299,10 @@ func writeMemory(
 	cmdName string,
 	caller llmCaller,
 	lister memoryLister,
-) error {
+) (string, bool, error) {
 	defaultErr := applyDataDirDefault(dataDir)
 	if defaultErr != nil {
-		return fmt.Errorf("%s: %w", cmdName, defaultErr)
+		return "", false, fmt.Errorf("%s: %w", cmdName, defaultErr)
 	}
 
 	slug := tomlwriter.Slugify(situation)
@@ -300,11 +310,11 @@ func writeMemory(
 	if !noDupCheck {
 		conflict, checkErr := checkForConflicts(ctx, record, *dataDir, stdout, caller, lister)
 		if checkErr != nil {
-			return fmt.Errorf("%s: %w", cmdName, checkErr)
+			return "", false, fmt.Errorf("%s: %w", cmdName, checkErr)
 		}
 
 		if conflict {
-			return nil
+			return "", false, nil
 		}
 	}
 
@@ -312,15 +322,15 @@ func writeMemory(
 
 	filePath, writeErr := writer.Write(record, slug, *dataDir)
 	if writeErr != nil {
-		return fmt.Errorf("%s: %w", cmdName, writeErr)
+		return "", false, fmt.Errorf("%s: %w", cmdName, writeErr)
 	}
 
 	name := memory.NameFromPath(filePath)
 
 	_, printErr := fmt.Fprintf(stdout, "CREATED: %s\n", name)
 	if printErr != nil {
-		return fmt.Errorf("%s: %w", cmdName, printErr)
+		return name, true, fmt.Errorf("%s: %w", cmdName, printErr)
 	}
 
-	return nil
+	return name, true, nil
 }

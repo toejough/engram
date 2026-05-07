@@ -29,6 +29,7 @@ var (
 	ExportResolveLLMCmd                  = resolveLLMCmd
 	ExportRunBuildSelf                   = runBuildSelf
 	ExportValidateSource                 = validateSource
+	ExportWriteMemory                    = writeMemory
 )
 
 // ExportCallHaikuForConflicts wraps callHaikuForConflicts for testing.
@@ -114,7 +115,11 @@ func ExportWriteMemoryForTest(
 	cmdName string,
 ) error {
 	dd := dataDir
-	return writeMemory(ctx, record, situation, &dd, noDupCheck, stdout, cmdName, nil, memory.NewLister())
+	_, _, err := writeMemory(
+		ctx, record, situation, &dd, noDupCheck, stdout, cmdName, nil, memory.NewLister(),
+	)
+
+	return err
 }
 
 // ExportWriteMemoryWithDeps wraps writeMemory for testing with injected deps.
@@ -129,5 +134,7 @@ func ExportWriteMemoryWithDeps(
 	lister memoryLister,
 ) error {
 	dd := dataDir
-	return writeMemory(ctx, record, situation, &dd, noDupCheck, stdout, cmdName, caller, lister)
+	_, _, err := writeMemory(ctx, record, situation, &dd, noDupCheck, stdout, cmdName, caller, lister)
+
+	return err
 }

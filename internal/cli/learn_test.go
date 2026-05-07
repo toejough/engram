@@ -455,24 +455,6 @@ func TestParseConflictLine_ValidLine_PrintsConflict(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("DUPLICATE: some-memory"))
 }
 
-func TestParseConflictResponse_IgnoresContradictionLines(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	got := cli.ExportParseConflictResponse("CONTRADICTION: foo", dataDir, &bytes.Buffer{})
-	g.Expect(got).To(BeFalse())
-}
-
-func TestParseConflictResponse_RecognizesDuplicate(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	got := cli.ExportParseConflictResponse("DUPLICATE: foo", dataDir, &bytes.Buffer{})
-	g.Expect(got).To(BeTrue())
-}
-
 func TestParseConflictResponse_Duplicate_ReturnsTrue(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -512,6 +494,15 @@ action = "use targ"
 	g.Expect(output).To(ContainSubstring("behavior: use go test"))
 }
 
+func TestParseConflictResponse_IgnoresContradictionLines(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	got := cli.ExportParseConflictResponse("CONTRADICTION: foo", dataDir, &bytes.Buffer{})
+	g.Expect(got).To(BeFalse())
+}
+
 func TestParseConflictResponse_MissingFile_StillReturnsTrueButSkipsContent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -535,6 +526,15 @@ func TestParseConflictResponse_None_ReturnsFalse(t *testing.T) {
 	result := cli.ExportParseConflictResponse("NONE", t.TempDir(), &buf)
 	g.Expect(result).To(BeFalse())
 	g.Expect(buf.String()).To(BeEmpty())
+}
+
+func TestParseConflictResponse_RecognizesDuplicate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	got := cli.ExportParseConflictResponse("DUPLICATE: foo", dataDir, &bytes.Buffer{})
+	g.Expect(got).To(BeTrue())
 }
 
 func TestParseConflictResponse_UnrecognizedLine_ReturnsFalse(t *testing.T) {
@@ -693,6 +693,68 @@ func TestWriteMemory_NoDupCheck_CreatesFile(t *testing.T) {
 	}
 
 	g.Expect(entries).To(HaveLen(1))
+}
+
+func TestWriteMemory_ReturnsNameAndPersisted_OnSuccess(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	rec := &memory.MemoryRecord{
+		SchemaVersion: 2,
+		Source:        "agent",
+		Situation:     "test situation",
+		Type:          "feedback",
+		Content:       memory.ContentFields{Behavior: "b", Impact: "i", Action: "a"},
+	}
+
+	name, persisted, err := cli.ExportWriteMemory(
+		context.Background(),
+		rec, "test situation",
+		&dataDir, true, // noDupCheck
+		&bytes.Buffer{}, "test", nil, nil,
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(persisted).To(BeTrue())
+	g.Expect(name).To(Equal("test-situation"))
+}
+
+func TestWriteMemory_ReturnsNotPersisted_OnDuplicate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	dupCaller := func(_ context.Context, _, _, _ string) (string, error) {
+		return "DUPLICATE: existing", nil
+	}
+
+	planted := &memory.MemoryRecord{
+		SchemaVersion: 2, Source: "agent", Situation: "existing",
+		Type: "feedback", Content: memory.ContentFields{Behavior: "b1"},
+	}
+	_, _, _ = cli.ExportWriteMemory(
+		context.Background(),
+		planted, "existing", &dataDir, true,
+		&bytes.Buffer{}, "test", nil, nil,
+	)
+
+	rec := &memory.MemoryRecord{
+		SchemaVersion: 2, Source: "agent", Situation: "different",
+		Type: "feedback", Content: memory.ContentFields{Behavior: "b2"},
+	}
+
+	name, persisted, err := cli.ExportWriteMemory(
+		context.Background(),
+		rec, "different",
+		&dataDir, false,
+		&bytes.Buffer{}, "test", dupCaller, memory.NewLister(),
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(persisted).To(BeFalse())
+	g.Expect(name).To(BeEmpty())
 }
 
 func TestWriteMemory_WithDupCheck_CallerDetectsConflict_SkipsWrite(t *testing.T) {
