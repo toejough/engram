@@ -16,6 +16,7 @@ type CommonLearnArgs struct {
 	Source     string `targ:"flag,name=source,desc=human or agent"`
 	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	NoDupCheck bool   `targ:"flag,name=no-dup-check,desc=skip duplicate/contradiction detection"`
+	LLMCmd     string `targ:"flag,name=llm-cmd,desc=command to invoke for LLM calls (overrides ENGRAM_LLM_CMD)"`
 }
 
 // LearnFactArgs holds parsed flags for the learn fact subcommand.
@@ -49,6 +50,7 @@ type RecallArgs struct {
 	MemoriesOnly  bool   `targ:"flag,name=memories-only,desc=search only memory files"`
 	Limit         int    `targ:"flag,name=limit,desc=max memories to return (default 10)"`
 	TranscriptDir string `targ:"flag,name=transcript-dir,env=ENGRAM_TRANSCRIPT_DIR,desc=override transcript directory"`
+	LLMCmd        string `targ:"flag,name=llm-cmd,desc=command to invoke for LLM calls (overrides ENGRAM_LLM_CMD)"`
 }
 
 // ShowArgs holds parsed flags for the show subcommand.

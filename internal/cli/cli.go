@@ -26,6 +26,7 @@ var (
 // unexported constants.
 const (
 	anthropicMaxTokens = 1024
+	envLLMCmd          = "ENGRAM_LLM_CMD"
 	recallOptsCapacity = 2 // WithStatusWriter + WithExternalSources
 )
 
@@ -160,6 +161,16 @@ func newTokenResolver() *tokenresolver.Resolver {
 		},
 		runtime.GOOS,
 	)
+}
+
+// resolveLLMCmd returns the explicit flag value if set, otherwise the
+// ENGRAM_LLM_CMD env var, otherwise the empty string.
+func resolveLLMCmd(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+
+	return os.Getenv(envLLMCmd)
 }
 
 // resolveToken returns the API token from the environment or macOS Keychain.
