@@ -36,6 +36,42 @@ func TestBuildIndex_FormatsCorrectly(t *testing.T) {
 	g.Expect(result).To(ContainSubstring("fact | engram-uses-go | Go projects"))
 }
 
+func TestBuildIndex_IncludesContentFields(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	mems := []*memory.Stored{
+		{
+			Type:      "feedback",
+			Situation: "doing X",
+			FilePath:  "/tmp/feedback/doing-x.toml",
+			Content: memory.ContentFields{
+				Behavior: "behaved poorly",
+				Impact:   "bad outcome",
+				Action:   "do better",
+			},
+		},
+		{
+			Type:      "fact",
+			Situation: "knowing Y",
+			FilePath:  "/tmp/fact/knowing-y.toml",
+			Content: memory.ContentFields{
+				Subject:   "Y",
+				Predicate: "is",
+				Object:    "true",
+			},
+		},
+	}
+
+	idx := memory.BuildIndex(mems)
+	g.Expect(idx).To(ContainSubstring("behaved poorly"))
+	g.Expect(idx).To(ContainSubstring("bad outcome"))
+	g.Expect(idx).To(ContainSubstring("do better"))
+	g.Expect(idx).To(ContainSubstring("Y"))
+	g.Expect(idx).To(ContainSubstring("is"))
+	g.Expect(idx).To(ContainSubstring("true"))
+}
+
 func TestFactsDir(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)

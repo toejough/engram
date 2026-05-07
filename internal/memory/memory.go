@@ -26,6 +26,32 @@ func BuildIndex(memories []*Stored) string {
 	for _, mem := range memories {
 		name := NameFromPath(mem.FilePath)
 		fmt.Fprintf(&builder, "%s | %s | %s\n", mem.Type, name, mem.Situation)
+
+		if mem.Type == "feedback" {
+			if mem.Content.Behavior != "" {
+				fmt.Fprintf(&builder, "  behavior: %s\n", mem.Content.Behavior)
+			}
+
+			if mem.Content.Impact != "" {
+				fmt.Fprintf(&builder, "  impact: %s\n", mem.Content.Impact)
+			}
+
+			if mem.Content.Action != "" {
+				fmt.Fprintf(&builder, "  action: %s\n", mem.Content.Action)
+			}
+		} else {
+			if mem.Content.Subject != "" {
+				fmt.Fprintf(&builder, "  subject: %s\n", mem.Content.Subject)
+			}
+
+			if mem.Content.Predicate != "" {
+				fmt.Fprintf(&builder, "  predicate: %s\n", mem.Content.Predicate)
+			}
+
+			if mem.Content.Object != "" {
+				fmt.Fprintf(&builder, "  object: %s\n", mem.Content.Object)
+			}
+		}
 	}
 
 	return builder.String()
