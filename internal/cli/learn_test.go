@@ -455,42 +455,22 @@ func TestParseConflictLine_ValidLine_PrintsConflict(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("DUPLICATE: some-memory"))
 }
 
-func TestParseConflictResponse_Contradiction_ReturnsTrue(t *testing.T) {
+func TestParseConflictResponse_IgnoresContradictionLines(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	dataDir := t.TempDir()
-	factsDir := filepath.Join(dataDir, "memory", "facts")
-	err := os.MkdirAll(factsDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
+	got := cli.ExportParseConflictResponse("CONTRADICTION: foo", dataDir, &bytes.Buffer{})
+	g.Expect(got).To(BeFalse())
+}
 
-	if err != nil {
-		return
-	}
+func TestParseConflictResponse_RecognizesDuplicate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
 
-	tomlContent := `type = "fact"
-situation = "Go projects"
-
-[content]
-subject = "engram"
-predicate = "uses"
-object = "Go"
-`
-	err = os.WriteFile(filepath.Join(factsDir, "engram-uses-go.toml"), []byte(tomlContent), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var buf bytes.Buffer
-
-	result := cli.ExportParseConflictResponse("CONTRADICTION: engram-uses-go", dataDir, &buf)
-	g.Expect(result).To(BeTrue())
-
-	output := buf.String()
-	g.Expect(output).To(ContainSubstring("CONTRADICTION: engram-uses-go"))
-	g.Expect(output).To(ContainSubstring("subject: engram"))
+	dataDir := t.TempDir()
+	got := cli.ExportParseConflictResponse("DUPLICATE: foo", dataDir, &bytes.Buffer{})
+	g.Expect(got).To(BeTrue())
 }
 
 func TestParseConflictResponse_Duplicate_ReturnsTrue(t *testing.T) {

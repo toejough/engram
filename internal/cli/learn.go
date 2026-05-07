@@ -17,12 +17,11 @@ import (
 const (
 	conflictDetectionSystemPrompt = `You are a memory deduplication checker. ` +
 		`Given an index of existing memories and a new memory, determine if the new memory ` +
-		`is a duplicate or contradiction of any existing one.
+		`is a true duplicate of any existing one (matching on type, situation, AND content).
 
 Respond with one of:
-- "NONE" if no duplicates or contradictions found
+- "NONE" if no duplicates found
 - "DUPLICATE: <name>" if it duplicates an existing memory (one per line)
-- "CONTRADICTION: <name>" if it contradicts an existing memory (one per line)
 
 Only output the result lines, nothing else.`
 	conflictDetectionUserPrompt = `Existing memories:
@@ -30,7 +29,7 @@ Only output the result lines, nothing else.`
 New memory:
 %s
 
-Is this new memory a duplicate or contradiction of any existing one?`
+Is this new memory a duplicate of any existing one?`
 	memorySchemaVersion = 2
 	splitNParts         = 2
 	typeFact            = "fact"
@@ -174,7 +173,7 @@ func parseConflictResponse(response, dataDir string, stdout io.Writer) bool {
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		if strings.HasPrefix(line, "DUPLICATE:") || strings.HasPrefix(line, "CONTRADICTION:") {
+		if strings.HasPrefix(line, "DUPLICATE:") {
 			foundConflict = true
 
 			parseConflictLine(line, dataDir, stdout)
