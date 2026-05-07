@@ -164,6 +164,11 @@ func WithMkdirAll(fn func(path string, perm os.FileMode) error) Option {
 	return func(w *Writer) { w.mkdirAll = fn }
 }
 
+// WithOpenFileExcl overrides the exclusive file open function used for atomic slug claiming.
+func WithOpenFileExcl(fn func(name string, perm os.FileMode) (*os.File, error)) Option {
+	return func(w *Writer) { w.openFileExcl = fn }
+}
+
 // WithRemove overrides the file removal function.
 func WithRemove(fn func(name string) error) Option {
 	return func(w *Writer) { w.remove = fn }
@@ -174,15 +179,10 @@ func WithRename(fn func(oldpath, newpath string) error) Option {
 	return func(w *Writer) { w.rename = fn }
 }
 
-// WithOpenFileExcl overrides the exclusive file open function used for atomic slug claiming.
-func WithOpenFileExcl(fn func(name string, perm os.FileMode) (*os.File, error)) Option {
-	return func(w *Writer) { w.openFileExcl = fn }
-}
-
 // unexported constants.
 const (
-	memoriesDirPerm = 0o750
 	claimedFilePerm = 0o644
+	memoriesDirPerm = 0o750
 )
 
 // unexported variables.

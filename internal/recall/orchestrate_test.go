@@ -813,33 +813,6 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 	})
 }
 
-func TestRecallModeA_RunsSynthesisOverTranscriptsAndMemories(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	now := time.Now()
-	finder := &fakeFinder{entries: []recall.FileEntry{
-		{Path: "/tmp/x", Mtime: now},
-	}}
-	reader := &fakeReader{
-		contents: map[string]string{"/tmp/x": "USER: hi\nASSISTANT: hello"},
-		sizes:    map[string]int{"/tmp/x": 25},
-	}
-
-	fakeSum := &fakeSummarizer{summarizeResult: "synthesized prose"}
-	orch := recall.NewOrchestrator(finder, reader, fakeSum, nil, "")
-
-	result, err := orch.Recall(context.Background(), "")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(fakeSum.summarizeCalled).To(BeTrue())
-	g.Expect(result.Report).To(Equal("synthesized prose"))
-}
-
 func TestOrchestrator_Recall_ModeB(t *testing.T) {
 	t.Parallel()
 
@@ -1094,6 +1067,33 @@ func TestOrchestrator_Recall_ModeB_SummarizeError(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("summariz"))
 	}
+}
+
+func TestRecallModeA_RunsSynthesisOverTranscriptsAndMemories(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Now()
+	finder := &fakeFinder{entries: []recall.FileEntry{
+		{Path: "/tmp/x", Mtime: now},
+	}}
+	reader := &fakeReader{
+		contents: map[string]string{"/tmp/x": "USER: hi\nASSISTANT: hello"},
+		sizes:    map[string]int{"/tmp/x": 25},
+	}
+
+	fakeSum := &fakeSummarizer{summarizeResult: "synthesized prose"}
+	orch := recall.NewOrchestrator(finder, reader, fakeSum, nil, "")
+
+	result, err := orch.Recall(context.Background(), "")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(fakeSum.summarizeCalled).To(BeTrue())
+	g.Expect(result.Report).To(Equal("synthesized prose"))
 }
 
 func TestRecallModeB_FullPipelinePriorityOrder(t *testing.T) {

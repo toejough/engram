@@ -37,34 +37,6 @@ func BuildIndex(memories []*Stored) string {
 	return builder.String()
 }
 
-func writeFeedbackContent(builder *strings.Builder, content ContentFields) {
-	if content.Behavior != "" {
-		fmt.Fprintf(builder, "  behavior: %s\n", content.Behavior)
-	}
-
-	if content.Impact != "" {
-		fmt.Fprintf(builder, "  impact: %s\n", content.Impact)
-	}
-
-	if content.Action != "" {
-		fmt.Fprintf(builder, "  action: %s\n", content.Action)
-	}
-}
-
-func writeFactContent(builder *strings.Builder, content ContentFields) {
-	if content.Subject != "" {
-		fmt.Fprintf(builder, "  subject: %s\n", content.Subject)
-	}
-
-	if content.Predicate != "" {
-		fmt.Fprintf(builder, "  predicate: %s\n", content.Predicate)
-	}
-
-	if content.Object != "" {
-		fmt.Fprintf(builder, "  object: %s\n", content.Object)
-	}
-}
-
 // FactsDir returns the directory for fact memory files.
 func FactsDir(dataDir string) string {
 	return filepath.Join(dataDir, "memory", "facts")
@@ -107,4 +79,32 @@ func ResolveMemoryPath(dataDir, slug string, fileExists func(string) bool) strin
 	// Fall back to legacy path even if it doesn't exist, so the caller
 	// gets a meaningful "file not found" error.
 	return filepath.Join(MemoriesDir(dataDir), filename)
+}
+
+func writeFactContent(builder *strings.Builder, content ContentFields) {
+	if content.Subject != "" {
+		fmt.Fprintf(builder, "  subject: %s\n", content.Subject)
+	}
+
+	if content.Predicate != "" {
+		fmt.Fprintf(builder, "  predicate: %s\n", content.Predicate)
+	}
+
+	if content.Object != "" {
+		fmt.Fprintf(builder, "  object: %s\n", content.Object)
+	}
+}
+
+func writeFeedbackContent(builder *strings.Builder, content ContentFields) {
+	if content.Behavior != "" {
+		fmt.Fprintf(builder, "  behavior: %s\n", content.Behavior)
+	}
+
+	if content.Impact != "" {
+		fmt.Fprintf(builder, "  impact: %s\n", content.Impact)
+	}
+
+	if content.Action != "" {
+		fmt.Fprintf(builder, "  action: %s\n", content.Action)
+	}
 }

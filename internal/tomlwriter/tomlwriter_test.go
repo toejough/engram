@@ -151,6 +151,92 @@ func TestWriteAtomicRenameError(t *testing.T) {
 	}
 }
 
+func TestWrite_AutoIncrementIsRaceFree(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	writer := tomlwriter.New()
+
+	const concurrent = 10
+
+	type res struct {
+		path string
+		err  error
+	}
+
+	results := make(chan res, concurrent)
+
+	for i := range concurrent {
+		go func(i int) {
+			rec := &memory.MemoryRecord{
+				SchemaVersion: 2,
+				Source:        "agent",
+				Situation:     "race situation",
+				Type:          "feedback",
+				Content:       memory.ContentFields{Behavior: fmt.Sprintf("b%d", i)},
+			}
+
+			path, writeErr := writer.Write(rec, "race-situation", dataDir)
+			results <- res{path, writeErr}
+		}(i)
+	}
+
+	paths := make(map[string]bool)
+
+	for range concurrent {
+		result := <-results
+		g.Expect(result.err).NotTo(HaveOccurred())
+
+		if result.err != nil {
+			return
+		}
+
+		g.Expect(paths[result.path]).To(BeFalse())
+		paths[result.path] = true
+	}
+
+	g.Expect(paths).To(HaveLen(concurrent))
+}
+
+func TestWrite_AutoIncrementsOnSlugCollision(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	writer := tomlwriter.New()
+
+	rec := &memory.MemoryRecord{
+		SchemaVersion: 2,
+		Source:        "agent",
+		Situation:     "shared situation",
+		Type:          "feedback",
+		Content:       memory.ContentFields{Behavior: "first", Impact: "i", Action: "a"},
+	}
+
+	path1, err := writer.Write(rec, "shared-situation", dataDir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	rec2 := *rec
+	rec2.Content.Behavior = "second-distinct"
+
+	path2, err := writer.Write(&rec2, "shared-situation", dataDir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(path1).NotTo(Equal(path2))
+	g.Expect(path2).To(HaveSuffix("-2.toml"))
+}
+
 func TestWrite_CreatesTomlFileWithAllFields(t *testing.T) {
 	t.Parallel()
 
@@ -426,90 +512,4 @@ func TestWrite_MemoriesDirectoryCreatedIfMissing(t *testing.T) {
 
 	_, fileStatErr := os.Stat(filePath)
 	g.Expect(fileStatErr).NotTo(HaveOccurred())
-}
-
-func TestWrite_AutoIncrementsOnSlugCollision(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	writer := tomlwriter.New()
-
-	rec := &memory.MemoryRecord{
-		SchemaVersion: 2,
-		Source:        "agent",
-		Situation:     "shared situation",
-		Type:          "feedback",
-		Content:       memory.ContentFields{Behavior: "first", Impact: "i", Action: "a"},
-	}
-
-	path1, err := writer.Write(rec, "shared-situation", dataDir)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	rec2 := *rec
-	rec2.Content.Behavior = "second-distinct"
-
-	path2, err := writer.Write(&rec2, "shared-situation", dataDir)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(path1).NotTo(Equal(path2))
-	g.Expect(path2).To(HaveSuffix("-2.toml"))
-}
-
-func TestWrite_AutoIncrementIsRaceFree(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	writer := tomlwriter.New()
-
-	const concurrent = 10
-
-	type res struct {
-		path string
-		err  error
-	}
-
-	results := make(chan res, concurrent)
-
-	for i := range concurrent {
-		go func(i int) {
-			rec := &memory.MemoryRecord{
-				SchemaVersion: 2,
-				Source:        "agent",
-				Situation:     "race situation",
-				Type:          "feedback",
-				Content:       memory.ContentFields{Behavior: fmt.Sprintf("b%d", i)},
-			}
-
-			path, writeErr := writer.Write(rec, "race-situation", dataDir)
-			results <- res{path, writeErr}
-		}(i)
-	}
-
-	paths := make(map[string]bool)
-
-	for range concurrent {
-		result := <-results
-		g.Expect(result.err).NotTo(HaveOccurred())
-
-		if result.err != nil {
-			return
-		}
-
-		g.Expect(paths[result.path]).To(BeFalse())
-		paths[result.path] = true
-	}
-
-	g.Expect(paths).To(HaveLen(concurrent))
 }
