@@ -367,7 +367,8 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			},
 		}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
+		summarizer := &fakeSummarizer{summarizeResult: "synthesized prose"}
+		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
 		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
@@ -376,7 +377,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Report).To(Equal("session a contentsession b content"))
+		g.Expect(result.Report).To(Equal("synthesized prose"))
 	})
 
 	t.Run("no sessions found returns empty result", func(t *testing.T) {
@@ -412,7 +413,8 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			errs:     map[string]error{"/bad.jsonl": errors.New("read failed")},
 		}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
+		summarizer := &fakeSummarizer{summarizeResult: "synthesized"}
+		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
 		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
@@ -421,7 +423,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Report).To(Equal("good content"))
+		g.Expect(result.Report).To(Equal("synthesized"))
 	})
 
 	t.Run("budget exceeded stops reading sessions", func(t *testing.T) {
@@ -444,7 +446,8 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			},
 		}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
+		summarizer := &fakeSummarizer{summarizeResult: "synthesized"}
+		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
 		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
@@ -453,8 +456,8 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		// Only first session's content should be returned.
-		g.Expect(result.Report).To(Equal("big content"))
+		// Only first session's content should be returned (via synthesizer).
+		g.Expect(result.Report).To(Equal("synthesized"))
 	})
 
 	t.Run("finder error propagates", func(t *testing.T) {
@@ -503,7 +506,8 @@ func TestOrchestrator_Recall_ModeA_CancellationStopsProcessing(t *testing.T) {
 			sizes:    sizes,
 		}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
+		summarizer := &fakeSummarizer{summarizeResult: "should not synthesize"}
+		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // pre-cancel
@@ -515,9 +519,11 @@ func TestOrchestrator_Recall_ModeA_CancellationStopsProcessing(t *testing.T) {
 			return
 		}
 
-		// With a pre-cancelled context, mode A should read zero sessions.
+		// With a pre-cancelled context, mode A should read zero sessions and return empty.
 		g.Expect(result.Report).To(BeEmpty())
 		g.Expect(int(reader.readCalls.Load())).To(Equal(0))
+		// No summarizer call since buffer is empty
+		g.Expect(int(summarizer.summarizeCalls.Load())).To(Equal(0))
 	})
 }
 
@@ -558,7 +564,8 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 			},
 		}}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
+		summarizer := &fakeSummarizer{summarizeResult: "synthesized with memories"}
+		orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, "/data")
 
 		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
@@ -567,8 +574,7 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Report).To(ContainSubstring("[feedback]"))
-		g.Expect(result.Report).To(ContainSubstring("Between sessions"))
+		g.Expect(result.Report).To(Equal("synthesized with memories"))
 	})
 
 	t.Run("formats fact memory with partial fields", func(t *testing.T) {
@@ -597,19 +603,21 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 			},
 		}}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
+		capturingSummarizer := &capturingSummarizer{summarizeResult: "synthesized"}
+		orch := recall.NewOrchestrator(finder, reader, capturingSummarizer, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "", "/proj")
+		_, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
 			return
 		}
 
-		g.Expect(result.Report).To(ContainSubstring("[fact]"))
-		g.Expect(result.Report).To(ContainSubstring("subject: Go"))
-		g.Expect(result.Report).NotTo(ContainSubstring("predicate"))
-		g.Expect(result.Report).NotTo(ContainSubstring("object"))
+		// Check that the synthesizer received the fact in its input
+		g.Expect(capturingSummarizer.lastSummarizeInput).To(ContainSubstring("[fact]"))
+		g.Expect(capturingSummarizer.lastSummarizeInput).To(ContainSubstring("subject: Go"))
+		g.Expect(capturingSummarizer.lastSummarizeInput).NotTo(ContainSubstring("predicate"))
+		g.Expect(capturingSummarizer.lastSummarizeInput).NotTo(ContainSubstring("object"))
 	})
 
 	t.Run("formats feedback memory with partial fields", func(t *testing.T) {
@@ -638,18 +646,20 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 			},
 		}}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
+		capturingSummarizer := &capturingSummarizer{summarizeResult: "synthesized"}
+		orch := recall.NewOrchestrator(finder, reader, capturingSummarizer, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "", "/proj")
+		_, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
 			return
 		}
 
-		g.Expect(result.Report).To(ContainSubstring("[feedback]"))
-		g.Expect(result.Report).To(ContainSubstring("action: use DI"))
-		g.Expect(result.Report).NotTo(ContainSubstring("behavior"))
+		// Check that the synthesizer received the feedback in its input
+		g.Expect(capturingSummarizer.lastSummarizeInput).To(ContainSubstring("[feedback]"))
+		g.Expect(capturingSummarizer.lastSummarizeInput).To(ContainSubstring("action: use DI"))
+		g.Expect(capturingSummarizer.lastSummarizeInput).NotTo(ContainSubstring("behavior"))
 	})
 }
 
@@ -689,20 +699,22 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 			},
 		}}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
+		capturingSummarizer := &capturingSummarizer{summarizeResult: "synthesized"}
+		orch := recall.NewOrchestrator(finder, reader, capturingSummarizer, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "", "/proj")
+		_, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
 			return
 		}
 
-		g.Expect(result.Report).To(ContainSubstring("session content"))
-		g.Expect(result.Report).To(ContainSubstring("[feedback]"))
-		g.Expect(result.Report).To(ContainSubstring("use targ test instead"))
-		g.Expect(result.Report).To(ContainSubstring("[fact]"))
-		g.Expect(result.Report).To(ContainSubstring("Dependency Injection"))
+		// Check synthesizer received the content
+		g.Expect(capturingSummarizer.lastSummarizeInput).To(ContainSubstring("session content"))
+		g.Expect(capturingSummarizer.lastSummarizeInput).To(ContainSubstring("[feedback]"))
+		g.Expect(capturingSummarizer.lastSummarizeInput).To(ContainSubstring("use targ test instead"))
+		g.Expect(capturingSummarizer.lastSummarizeInput).To(ContainSubstring("[fact]"))
+		g.Expect(capturingSummarizer.lastSummarizeInput).To(ContainSubstring("Dependency Injection"))
 	})
 
 	t.Run("nil memory lister works as before", func(t *testing.T) {
@@ -718,7 +730,8 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 			sizes:    map[string]int{"/session.jsonl": 15},
 		}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, nil, "")
+		summarizer := &fakeSummarizer{summarizeResult: "synthesized"}
+		orch := recall.NewOrchestrator(finder, reader, summarizer, nil, "")
 
 		result, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
@@ -727,8 +740,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Report).To(Equal("session content"))
-		g.Expect(result.Report).NotTo(ContainSubstring("=== MEMORIES ==="))
+		g.Expect(result.Report).To(Equal("synthesized"))
 	})
 
 	t.Run("excludes memories outside session time window", func(t *testing.T) {
@@ -757,16 +769,18 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 			},
 		}}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
+		capturingSummarizer := &capturingSummarizer{summarizeResult: "synthesized"}
+		orch := recall.NewOrchestrator(finder, reader, capturingSummarizer, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "", "/proj")
+		_, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
 			return
 		}
 
-		g.Expect(result.Report).NotTo(ContainSubstring("=== MEMORIES ==="))
+		// Old memory should not be in synthesizer input
+		g.Expect(capturingSummarizer.lastSummarizeInput).NotTo(ContainSubstring("=== MEMORIES ==="))
 	})
 
 	t.Run("memory lister error returns empty memories", func(t *testing.T) {
@@ -784,18 +798,46 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 
 		memLister := &fakeMemoryLister{err: errors.New("disk error")}
 
-		orch := recall.NewOrchestrator(finder, reader, nil, memLister, "/data")
+		capturingSummarizer := &capturingSummarizer{summarizeResult: "synthesized"}
+		orch := recall.NewOrchestrator(finder, reader, capturingSummarizer, memLister, "/data")
 
-		result, err := orch.Recall(context.Background(), "", "/proj")
+		_, err := orch.Recall(context.Background(), "", "/proj")
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
 			return
 		}
 
-		g.Expect(result.Report).To(Equal("session content"))
-		g.Expect(result.Report).NotTo(ContainSubstring("=== MEMORIES ==="))
+		// Synthesizer should not receive memories when lister errors
+		g.Expect(capturingSummarizer.lastSummarizeInput).NotTo(ContainSubstring("=== MEMORIES ==="))
 	})
+}
+
+func TestRecallModeA_RunsSynthesisOverTranscriptsAndMemories(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Now()
+	finder := &fakeFinder{entries: []recall.FileEntry{
+		{Path: "/tmp/x", Mtime: now},
+	}}
+	reader := &fakeReader{
+		contents: map[string]string{"/tmp/x": "USER: hi\nASSISTANT: hello"},
+		sizes:    map[string]int{"/tmp/x": 25},
+	}
+
+	fakeSum := &fakeSummarizer{summarizeResult: "synthesized prose"}
+	orch := recall.NewOrchestrator(finder, reader, fakeSum, nil, "")
+
+	result, err := orch.Recall(context.Background(), "")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(fakeSum.summarizeCalled).To(BeTrue())
+	g.Expect(result.Report).To(Equal("synthesized prose"))
 }
 
 func TestOrchestrator_Recall_ModeB(t *testing.T) {
@@ -1114,14 +1156,15 @@ func TestRecallModeB_FullPipelinePriorityOrder(t *testing.T) {
 
 // capturingSummarizer records content and query for inspection.
 type capturingSummarizer struct {
-	extractResult   string
-	extractErr      error
-	lastContent     string
-	lastQuery       string
-	extractCalls    atomic.Int32
-	summarizeResult string
-	summarizeErr    error
-	summarizeCalls  atomic.Int32
+	extractResult      string
+	extractErr         error
+	lastContent        string
+	lastQuery          string
+	extractCalls       atomic.Int32
+	summarizeResult    string
+	summarizeErr       error
+	summarizeCalls     atomic.Int32
+	lastSummarizeInput string
 }
 
 func (s *capturingSummarizer) ExtractRelevant(
@@ -1135,9 +1178,10 @@ func (s *capturingSummarizer) ExtractRelevant(
 }
 
 func (s *capturingSummarizer) SummarizeFindings(
-	_ context.Context, _, _ string,
+	_ context.Context, content, _ string,
 ) (string, error) {
 	s.summarizeCalls.Add(1)
+	s.lastSummarizeInput = content
 
 	return s.summarizeResult, s.summarizeErr
 }
@@ -1203,9 +1247,13 @@ func (r *fakeReader) Read(path string, _ int) (string, int, error) {
 }
 
 type fakeSummarizer struct {
-	extractResult string
-	extractErr    error
-	extractCalls  atomic.Int32
+	extractResult   string
+	extractErr      error
+	extractCalls    atomic.Int32
+	summarizeResult string
+	summarizeErr    error
+	summarizeCalls  atomic.Int32
+	summarizeCalled bool
 }
 
 func (s *fakeSummarizer) ExtractRelevant(_ context.Context, _, _ string) (string, error) {
@@ -1215,7 +1263,10 @@ func (s *fakeSummarizer) ExtractRelevant(_ context.Context, _, _ string) (string
 }
 
 func (s *fakeSummarizer) SummarizeFindings(_ context.Context, _, _ string) (string, error) {
-	return s.extractResult, s.extractErr
+	s.summarizeCalls.Add(1)
+	s.summarizeCalled = true
+
+	return s.summarizeResult, s.summarizeErr
 }
 
 // orderTrackingSummarizer records the order of extract calls by source kind,

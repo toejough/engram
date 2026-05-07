@@ -259,10 +259,18 @@ func (o *Orchestrator) recallModeA(
 	}
 
 	memories := o.findSessionMemories(sessions)
-
-	report := builder.String()
 	if memories != "" {
-		report += "\n=== MEMORIES ===\n" + memories
+		builder.WriteString("\n\n=== MEMORIES ===\n")
+		builder.WriteString(memories)
+	}
+
+	if builder.Len() == 0 {
+		return &Result{}, nil
+	}
+
+	report, err := o.summarizer.SummarizeFindings(ctx, builder.String(), "")
+	if err != nil {
+		return nil, fmt.Errorf("synthesizing bare-mode recall: %w", err)
 	}
 
 	return &Result{Report: report}, nil
