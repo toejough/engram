@@ -44,3 +44,21 @@ func TestExtractor_SummarizeFindings_PromptIncludesBufferAndQuery(t *testing.T) 
 	g.Expect(out).To(ContainSubstring("buffer contents"))
 	g.Expect(out).To(ContainSubstring("the query"))
 }
+
+func TestExtractor_SummarizeFindings_RequestsDirectiveAdvice(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	ext := llmcmd.NewExtractor(llmcmd.New("cat"))
+
+	out, err := ext.SummarizeFindings(context.Background(), "sources here", "the topic")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("directive advice"))
+	g.Expect(out).To(ContainSubstring("imperative voice"))
+	g.Expect(out).To(ContainSubstring("cite the specific memory or outcome"))
+}
