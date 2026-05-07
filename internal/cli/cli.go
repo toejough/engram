@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"engram/internal/anthropic"
+	"engram/internal/llmcmd"
 	"engram/internal/memory"
 	"engram/internal/recall"
 	"engram/internal/tokenresolver"
@@ -201,8 +202,8 @@ func runRecall(ctx context.Context, args RecallArgs, stdout io.Writer) error {
 		return fmt.Errorf("recall: %w", defaultErr)
 	}
 
-	token := resolveToken(ctx)
-	summarizer := newSummarizer(token)
+	runner := llmcmd.New(resolveLLMCmd(args.LLMCmd))
+	summarizer := llmcmd.NewExtractor(runner)
 	memLister := memory.NewLister()
 
 	if args.MemoriesOnly {
