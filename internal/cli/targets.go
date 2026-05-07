@@ -102,6 +102,9 @@ func Targets(stdout, stderr io.Writer) []any {
 		targ.Targ(func(ctx context.Context, a RecallArgs) {
 			errHandler(runRecall(ctx, a, stdout))
 		}).Name("recall").Description("Recall recent session context"),
+		targ.Targ(func(ctx context.Context, a CycleArgs) {
+			errHandler(RunCycle(ctx, a, stdout))
+		}).Name("cycle").Description("Run a learn-and-recall evaluation cycle"),
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
 			errHandler(runShow(ctx, a, stdout))
 		}).Name("show").Description("Display full memory details"),

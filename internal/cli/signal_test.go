@@ -68,5 +68,5 @@ func TestSetupSignalHandling_ReturnsTargets(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 
 	targets := cli.SetupSignalHandling(&stdout, &stderr, func(_ int) {})
-	g.Expect(targets).To(HaveLen(7))
+	g.Expect(targets).To(HaveLen(8))
 }
