@@ -5,23 +5,32 @@ package llmcmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 const (
-	defaultShell = "/bin/sh"
+	defaultShell   = "/bin/sh"
+	defaultTimeout = 60 * time.Second
 )
 
 // Runner spawns a shell command, pipes the prompt to stdin, returns stdout.
 type Runner struct {
 	cmdString string
+	timeout   time.Duration
 }
 
-// New returns a Runner that invokes cmdString via /bin/sh -c when called.
+// New returns a Runner with the default 60s timeout.
 func New(cmdString string) *Runner {
-	return &Runner{cmdString: cmdString}
+	return NewWithTimeout(cmdString, defaultTimeout)
+}
+
+// NewWithTimeout sets a custom wall-clock timeout.
+func NewWithTimeout(cmdString string, timeout time.Duration) *Runner {
+	return &Runner{cmdString: cmdString, timeout: timeout}
 }
 
 // Run pipes prompt to the command's stdin and returns trimmed stdout.
@@ -29,7 +38,10 @@ func New(cmdString string) *Runner {
 //
 //nolint:gosec // cmdString is set at construction, not from user input
 func (r *Runner) Run(ctx context.Context, prompt string) (string, error) {
-	cmd := exec.CommandContext(ctx, defaultShell, "-c", r.cmdString)
+	timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(timeoutCtx, defaultShell, "-c", r.cmdString)
 	cmd.Stdin = strings.NewReader(prompt)
 
 	var stdout, stderr bytes.Buffer
@@ -38,9 +50,12 @@ func (r *Runner) Run(ctx context.Context, prompt string) (string, error) {
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
+	if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
+		return "", fmt.Errorf("llm-cmd timeout after %s: %w", r.timeout, timeoutCtx.Err())
+	}
+
 	if err != nil {
-		return "", fmt.Errorf("llm-cmd exited: %w (stderr: %s)",
-			err, stderr.String())
+		return "", fmt.Errorf("llm-cmd exited: %w (stderr: %s)", err, stderr.String())
 	}
 
 	return strings.TrimRight(stdout.String(), "\n"), nil
