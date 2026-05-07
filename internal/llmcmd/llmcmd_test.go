@@ -50,3 +50,20 @@ func TestRun_TimeoutKillsProcess(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("timeout")))
 	g.Expect(elapsed).To(BeNumerically("<", 5*time.Second))
 }
+
+func TestRun_SetsRecursionGuardEnvVar(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Print ENGRAM_COMPANION_MODE — confirms it was passed to the child.
+	runner := llmcmd.New(`printf '%s' "$ENGRAM_COMPANION_MODE"`)
+
+	out, err := runner.Run(context.Background(), "")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).To(Equal("1"))
+}

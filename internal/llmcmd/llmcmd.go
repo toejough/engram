@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -43,6 +44,7 @@ func (r *Runner) Run(ctx context.Context, prompt string) (string, error) {
 
 	cmd := exec.CommandContext(timeoutCtx, defaultShell, "-c", r.cmdString)
 	cmd.Stdin = strings.NewReader(prompt)
+	cmd.Env = append(os.Environ(), "ENGRAM_COMPANION_MODE=1")
 
 	var stdout, stderr bytes.Buffer
 
