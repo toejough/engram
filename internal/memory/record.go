@@ -9,12 +9,12 @@ import (
 // ContentFields holds type-specific content for a memory record.
 // Feedback memories use Behavior/Impact/Action; fact memories use Subject/Predicate/Object.
 type ContentFields struct {
-	Behavior  string `toml:"behavior,omitempty"`
-	Impact    string `toml:"impact,omitempty"`
-	Action    string `toml:"action,omitempty"`
-	Subject   string `toml:"subject,omitempty"`
-	Predicate string `toml:"predicate,omitempty"`
-	Object    string `toml:"object,omitempty"`
+	Behavior  string `json:"behavior,omitempty"  toml:"behavior,omitempty"`
+	Impact    string `json:"impact,omitempty"    toml:"impact,omitempty"`
+	Action    string `json:"action,omitempty"    toml:"action,omitempty"`
+	Subject   string `json:"subject,omitempty"   toml:"subject,omitempty"`
+	Predicate string `json:"predicate,omitempty" toml:"predicate,omitempty"`
+	Object    string `json:"object,omitempty"    toml:"object,omitempty"`
 }
 
 // MemoryRecord is the canonical struct for reading and writing memory TOML files.
@@ -24,15 +24,15 @@ type ContentFields struct {
 //
 //nolint:revive // "memory.MemoryRecord" stutter is intentional for clarity. See #353.
 type MemoryRecord struct {
-	SchemaVersion int    `toml:"schema_version,omitempty"`
-	Type          string `toml:"type"`
-	Source        string `toml:"source"`
-	Situation     string `toml:"situation"`
+	SchemaVersion int    `json:"schemaVersion,omitempty" toml:"schema_version,omitempty"`
+	Type          string `json:"type"                    toml:"type"`
+	Source        string `json:"source"                  toml:"source"`
+	Situation     string `json:"situation"               toml:"situation"`
 
-	Content ContentFields `toml:"content"`
+	Content ContentFields `json:"content" toml:"content"`
 
-	CreatedAt string `toml:"created_at"`
-	UpdatedAt string `toml:"updated_at"`
+	CreatedAt string `json:"createdAt" toml:"created_at"`
+	UpdatedAt string `json:"updatedAt" toml:"updated_at"`
 }
 
 // TargetDir returns the data-dir-relative directory where this record
