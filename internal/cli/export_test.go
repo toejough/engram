@@ -52,13 +52,6 @@ func ExportCheckForConflicts(
 	return checkForConflicts(ctx, record, dataDir, stdout, caller, lister)
 }
 
-// ExportNewHaikuCallerAdapter creates a haikuCallerAdapter for testing.
-func ExportNewHaikuCallerAdapter(
-	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
-) recall.HaikuCaller {
-	return &haikuCallerAdapter{caller: caller}
-}
-
 // ExportNewOsDirLister creates an osDirLister for testing.
 func ExportNewOsDirLister() recall.DirLister {
 	return &osDirLister{}
@@ -69,11 +62,6 @@ func ExportNewOsFileReader() interface {
 	Read(path string) ([]byte, error)
 } {
 	return &osFileReader{}
-}
-
-// ExportNewSummarizer wraps newSummarizer for testing.
-func ExportNewSummarizer(token string) recall.SummarizerI {
-	return newSummarizer(token)
 }
 
 // ExportParseConflictLine wraps parseConflictLine for testing.

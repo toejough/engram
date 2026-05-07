@@ -1,8 +1,6 @@
 package cli_test
 
 import (
-	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,44 +9,6 @@ import (
 
 	"engram/internal/cli"
 )
-
-func TestHaikuCallerAdapter_Call(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var capturedModel string
-
-	adapter := cli.ExportNewHaikuCallerAdapter(
-		func(_ context.Context, model, _, _ string) (string, error) {
-			capturedModel = model
-			return "response text", nil
-		},
-	)
-
-	result, err := adapter.Call(context.Background(), "system prompt", "user prompt")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(Equal("response text"))
-	g.Expect(capturedModel).To(Equal("claude-haiku-4-5-20251001"))
-}
-
-func TestHaikuCallerAdapter_CallError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	adapter := cli.ExportNewHaikuCallerAdapter(
-		func(_ context.Context, _, _, _ string) (string, error) {
-			return "", errors.New("api error")
-		},
-	)
-
-	_, err := adapter.Call(context.Background(), "sys", "usr")
-	g.Expect(err).To(MatchError("api error"))
-}
 
 func TestOsDirLister_ListJSONL(t *testing.T) {
 	t.Parallel()

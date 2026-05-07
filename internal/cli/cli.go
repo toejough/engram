@@ -6,40 +6,27 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"engram/internal/anthropic"
 	"engram/internal/llmcmd"
 	"engram/internal/memory"
 	"engram/internal/recall"
 )
 
-// Exported variables.
-var (
-	AnthropicAPIURL = "https://api.anthropic.com/v1/messages" //nolint:gochecknoglobals // test-overridable endpoint
-)
-
 // unexported constants.
 const (
-	anthropicMaxTokens = 1024
 	envLLMCmd          = "ENGRAM_LLM_CMD"
 	recallOptsCapacity = 2 // WithStatusWriter + WithExternalSources
 )
 
-// haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
-type haikuCallerAdapter struct {
-	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
-}
-
-func (a *haikuCallerAdapter) Call(
-	ctx context.Context,
-	systemPrompt, userPrompt string,
-) (string, error) {
-	return a.caller(ctx, anthropic.HaikuModel, systemPrompt, userPrompt)
-}
+// unexported variables.
+var (
+	errLLMCmdRequired = errors.New(
+		"llm-cmd is required: set --llm-cmd flag or ENGRAM_LLM_CMD environment variable",
+	)
+)
 
 // osDirLister lists .jsonl files in a directory using os.ReadDir.
 type osDirLister struct{}
@@ -120,31 +107,12 @@ func applyProjectSlugDefault(slug *string, getwd func() (string, error)) error {
 	return nil
 }
 
-// makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
-func makeAnthropicCaller(
-	token string,
-) func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
-	client := newAnthropicClient(token)
-	return client.Caller(anthropicMaxTokens)
-}
-
-// newAnthropicClient creates a shared anthropic.Client configured with the
-// current AnthropicAPIURL (supports test overrides).
-func newAnthropicClient(token string) *anthropic.Client {
-	client := anthropic.NewClient(token, &http.Client{})
-	client.SetAPIURL(AnthropicAPIURL)
-
-	return client
-}
-
-func newSummarizer(token string) recall.SummarizerI {
-	if token == "" {
-		return recall.NoopSummarizer{}
+func requireLLMCmd(flagValue string) error {
+	if resolveLLMCmd(flagValue) == "" {
+		return errLLMCmdRequired
 	}
 
-	return recall.NewSummarizer(&haikuCallerAdapter{
-		caller: makeAnthropicCaller(token),
-	})
+	return nil
 }
 
 // resolveLLMCmd returns the explicit flag value if set, otherwise the
@@ -155,18 +123,6 @@ func resolveLLMCmd(flagValue string) string {
 	}
 
 	return os.Getenv(envLLMCmd)
-}
-
-var errLLMCmdRequired = errors.New(
-	"llm-cmd is required: set --llm-cmd flag or ENGRAM_LLM_CMD environment variable",
-)
-
-func requireLLMCmd(flagValue string) error {
-	if resolveLLMCmd(flagValue) == "" {
-		return errLLMCmdRequired
-	}
-
-	return nil
 }
 
 func runRecall(ctx context.Context, args RecallArgs, stdout io.Writer) error {
