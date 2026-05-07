@@ -68,20 +68,27 @@ async function runEngramCycle(projectDir: string): Promise<CycleResult> {
       env: { ...process.env, ENGRAM_COMPANION_MODE: "1" },
     },
   )
+
+  // Read stdout and stderr concurrently to keep the subprocess from blocking
+  // on a full stderr pipe (engram recall logs ~5KB+ per session inspected).
+  const [stdout, stderr] = await Promise.all([
+    proc.stdout.text(),
+    proc.stderr.text(),
+  ])
   await proc.exited
+
   if (proc.exitCode !== 0) {
-    const errText = (await proc.stderr.text()).slice(0, 2000)
-    console.error(`[engram] cycle exit ${proc.exitCode}: ${errText}`)
+    console.error(`[engram] cycle exit ${proc.exitCode}: ${stderr.slice(0, 2000)}`)
     return { learned: [], recalled: [] }
   }
 
-  const stdout = (await proc.stdout.text()).trim()
-  if (!stdout) {
+  const trimmed = stdout.trim()
+  if (!trimmed) {
     return { learned: [], recalled: [] }
   }
 
   try {
-    return JSON.parse(stdout) as CycleResult
+    return JSON.parse(trimmed) as CycleResult
   } catch (parseErr) {
     console.error(`[engram] cycle JSON parse failed: ${String(parseErr).slice(0, 500)}`)
     return { learned: [], recalled: [] }
