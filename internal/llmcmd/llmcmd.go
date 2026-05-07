@@ -13,11 +13,6 @@ import (
 	"time"
 )
 
-const (
-	defaultShell   = "/bin/sh"
-	defaultTimeout = 60 * time.Second
-)
-
 // Runner spawns a shell command, pipes the prompt to stdin, returns stdout.
 type Runner struct {
 	cmdString string
@@ -42,23 +37,29 @@ func (r *Runner) Run(ctx context.Context, prompt string) (string, error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(timeoutCtx, defaultShell, "-c", r.cmdString)
-	cmd.Stdin = strings.NewReader(prompt)
-	cmd.Env = append(os.Environ(), "ENGRAM_COMPANION_MODE=1")
-
 	var stdout, stderr bytes.Buffer
 
+	cmd := exec.CommandContext(timeoutCtx, defaultShell, "-c", r.cmdString)
+	cmd.Stdin = strings.NewReader(prompt)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
-	if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
-		return "", fmt.Errorf("llm-cmd timeout after %s: %w", r.timeout, timeoutCtx.Err())
-	}
+	cmd.Env = append(os.Environ(), "ENGRAM_COMPANION_MODE=1")
 
+	err := cmd.Run()
 	if err != nil {
+		if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
+			return "", fmt.Errorf("llm-cmd timeout after %s: %w", r.timeout, timeoutCtx.Err())
+		}
+
 		return "", fmt.Errorf("llm-cmd exited: %w (stderr: %s)", err, stderr.String())
 	}
 
 	return strings.TrimRight(stdout.String(), "\n"), nil
 }
+
+// unexported constants.
+const (
+	defaultShell   = "/bin/sh"
+	defaultTimeout = 60 * time.Second
+)

@@ -5,12 +5,6 @@ import (
 	"fmt"
 )
 
-const (
-	extractRelevantSystemPrompt = `Extract only content relevant to the following query. ` +
-		`Return relevant excerpts verbatim or very lightly paraphrased in service of grammatical ` +
-		`correctness and consistency. Return nothing if irrelevant.`
-)
-
 // Extractor implements recall.Extractor and recall.FindingSummarizer
 // by composing a single-prompt call through the underlying Runner.
 type Extractor struct {
@@ -52,3 +46,10 @@ func (e *Extractor) SummarizeFindings(ctx context.Context, content, query string
 
 	return out, nil
 }
+
+// unexported constants.
+const (
+	extractRelevantSystemPrompt = `Extract only content relevant to the following query. ` +
+		`Return relevant excerpts verbatim or very lightly paraphrased in service of grammatical ` +
+		`correctness and consistency. Return nothing if irrelevant.`
+)

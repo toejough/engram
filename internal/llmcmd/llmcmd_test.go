@@ -37,20 +37,6 @@ func TestRun_PipesPromptToStdinAndReturnsStdout(t *testing.T) {
 	g.Expect(out).To(Equal("hello world"))
 }
 
-func TestRun_TimeoutKillsProcess(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	runner := llmcmd.NewWithTimeout("sleep 60", 50*time.Millisecond)
-
-	start := time.Now()
-	_, err := runner.Run(context.Background(), "irrelevant")
-	elapsed := time.Since(start)
-
-	g.Expect(err).To(MatchError(ContainSubstring("timeout")))
-	g.Expect(elapsed).To(BeNumerically("<", 5*time.Second))
-}
-
 func TestRun_SetsRecursionGuardEnvVar(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -66,4 +52,18 @@ func TestRun_SetsRecursionGuardEnvVar(t *testing.T) {
 	}
 
 	g.Expect(out).To(Equal("1"))
+}
+
+func TestRun_TimeoutKillsProcess(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	runner := llmcmd.NewWithTimeout("sleep 60", 50*time.Millisecond)
+
+	start := time.Now()
+	_, err := runner.Run(context.Background(), "irrelevant")
+	elapsed := time.Since(start)
+
+	g.Expect(err).To(MatchError(ContainSubstring("timeout")))
+	g.Expect(elapsed).To(BeNumerically("<", 5*time.Second))
 }
