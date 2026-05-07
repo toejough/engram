@@ -24,19 +24,73 @@ If `targ test` fails or lint produces new issues, something regressed since this
 
 ---
 
-## Done (Phase A — `internal/llmcmd` foundation)
+## Done — All phases (B → H) complete except H3 manual smoke test
 
-All five Phase A tasks committed. Commits, oldest first:
+Status as of 2026-05-07: every automated task in the plan landed. H3 (live opencode plugin smoke test with API credit) is the only remaining step and requires the user.
 
-| SHA | Message | Notes |
-|---|---|---|
-| `c7500ebe` | feat(llmcmd): stdin/stdout shell-cmd runner | A1 — Runner.New, Runner.Run via /bin/sh -c |
-| `2f79abf6` | style(llmcmd): move constants block to idiomatic position | post-A1 cleanup from review |
-| `791c60b4` | feat(llmcmd): wall-clock timeout | A2 — NewWithTimeout, default 60s, kills on timeout |
-| `01dce7ef` | feat(llmcmd): inject ENGRAM_COMPANION_MODE=1 for recursion guard | A3 — env var on spawned process |
-| `a0006091` | feat(llmcmd): implement Extractor and FindingSummarizer adapters | A4 — extractor.go with ExtractRelevant, SummarizeFindings |
-| `fb0928d8` | feat(llmcmd): CallerFunc for learn dedup | A5 — CallerFunc(runner) → llmCaller signature |
-| `64307cc5` | style(llmcmd): reorder decls, fix wsl whitespace, drop unused param name | lint cleanup |
+### Phase A — `internal/llmcmd` foundation (committed pre-handoff)
+
+| SHA | Message |
+|---|---|
+| `c7500ebe` | feat(llmcmd): stdin/stdout shell-cmd runner |
+| `2f79abf6` | style(llmcmd): move constants block to idiomatic position |
+| `791c60b4` | feat(llmcmd): wall-clock timeout |
+| `01dce7ef` | feat(llmcmd): inject ENGRAM_COMPANION_MODE=1 for recursion guard |
+| `a0006091` | feat(llmcmd): implement Extractor and FindingSummarizer adapters |
+| `fb0928d8` | feat(llmcmd): CallerFunc for learn dedup |
+| `64307cc5` | style(llmcmd): reorder decls, fix wsl whitespace, drop unused param name |
+
+### Phases B/G — wire `--llm-cmd` and delete Anthropic
+
+| SHA | Message |
+|---|---|
+| `e528c279` | feat(cli): add --llm-cmd flag with ENGRAM_LLM_CMD fallback (B1) |
+| `5efb76c1` | feat(cli): requireLLMCmd helper for non-empty enforcement (B2) |
+| `79dd0d25` | refactor(cli): route recall through llmcmd backend (B3) |
+| `89ba5a5d` | refactor(learn): route dedup through llmcmd backend (B4) |
+| `8b226060` | refactor: delete internal/anthropic package and dead chain (G1) |
+
+### Phase C — recall pipeline updates
+
+| SHA | Message |
+|---|---|
+| `441bf517` | refactor(recall): collapse Result to single Report field (C1) |
+| `f595e6d6` | feat(llmcmd): synthesis prompt demands directive advice (C2) |
+| `2ecf7668` | feat(recall): bare mode runs synthesis (C3) |
+
+### Phase D — learn pipeline + race-safe slug claim
+
+| SHA | Message |
+|---|---|
+| `7207458e` | feat(memory): BuildIndex includes content fields for richer dedup (D1) |
+| `02ccb32d` | style(memory): extract content-field writers to flatten BuildIndex |
+| `805bb523` | refactor(learn): drop CONTRADICTION from dedup prompt and parser (D2) |
+| `ecc353f0` | feat(tomlwriter): O_EXCL atomic auto-increment for slug collisions (D3) |
+| `5431f8fa` | refactor(learn): writeMemory returns (name, persisted, err) (D4) |
+
+### Phase E — `engram cycle` package and CLI
+
+| SHA | Message |
+|---|---|
+| `73f8c002` | feat(cycle): JSON output schema (E1, also added JSON tags to MemoryRecord/ContentFields) |
+| `2c01bec2` | style: apply reorder-decls across packages |
+| `f3c0f950` | feat(cycle): learn-extraction and query-proposal prompts (E2) |
+| `f53eb8ea` | feat(cycle): orchestrator with learning extraction and query-driven recall (E3) |
+| `4a0def50` | feat(cli): engram cycle subcommand (E4) |
+
+### Phase F — TypeScript plugin rewrite
+
+| SHA | Message |
+|---|---|
+| `7c460bba` | refactor(plugin): use engram cycle for learn+recall (F1; opencode/plugins/engram.ts dropped from 479 → 243 lines) |
+
+### Phase H — validation tests
+
+| SHA | Message |
+|---|---|
+| `9ebd44e3` | test(cycle): llm-cmd failure paths produce empty arrays (H2 — three failure-mode tests) |
+| `a0d5f711` | test(cycle): planted-token integration verifies persist + recall (H1 — leaner than the plan's exec-engram form; uses real tomlwriter persister + stub Runner/Recaller) |
+| `8caf0782` | style: apply reorder-decls to cycle and cycle CLI files |
 
 **Files created in Phase A:**
 - `internal/llmcmd/llmcmd.go` — Runner type, New, NewWithTimeout, Run
@@ -46,9 +100,9 @@ All five Phase A tasks committed. Commits, oldest first:
 - `internal/llmcmd/dedup.go` — CallerFunc(runner) returns the llmCaller-shaped function
 - `internal/llmcmd/dedup_test.go` — 1 test (system+user concatenation)
 
-**Phase A's final state runs cleanly:** `targ test` passes, `targ lint-full` passes (0 issues).
+**Final state:** `targ test` passes, `targ lint-full` passes (0 issues).
 
-**Coverage gate caveat:** `targ check-full` fails on `check-coverage-for-fail` because functions in the new package report 50-52% function coverage (threshold is 80%). All behavioral paths in `Run` are tested (success, timeout, non-timeout error, env-var injection). The percentage appears to be the project's custom per-statement counting being strict on small functions. **Don't chase this with extra tests** — Phase B adds callers that exercise the package more, and Phase G removes `internal/anthropic` (currently 2.6% coverage and apparently grandfathered, suggesting the gate has historical exemption logic). Re-evaluate the coverage failure after Phase G lands.
+**Coverage gate caveat (still failing):** `targ check-full` reports `check-coverage-for-fail` because some functions in `internal/cycle` and the cycle CLI adapters fall below the 80% function-coverage threshold. Behavioral paths are covered by unit tests + the planted-token integration test, but the exec-style adapters (transcriptReaderAdapter, cyclePersisterAdapter, cycleRecallerAdapter wiring in `internal/cli/cycle.go`) are exercised end-to-end only by H3, not by unit tests. Re-running `targ check-full` after H3 lands the smoke test should not change this — the gate is a known structural mismatch with the DI adapter layer. Either lower the threshold for adapter packages, add explicit adapter unit tests, or accept the failure as documented.
 
 ---
 
@@ -78,7 +132,30 @@ All five Phase A tasks committed. Commits, oldest first:
 
 ---
 
-## Remaining tasks (19) — quick reference
+## Remaining tasks — H3 only
+
+**H3 (manual smoke test, requires user with API credit):**
+
+1. Plant a verification token via `engram learn fact`:
+   ```bash
+   engram learn fact \
+     --source agent --no-dup-check \
+     --situation "asked about plugin integration verification" \
+     --subject plugin --predicate "integration token is" --object PLUGIN-VERIFY-99181
+   ```
+2. Run a fresh opencode session that prompts about the planted token:
+   ```bash
+   opencode run -m opencode/qwen3.6-plus 'What plugin integration verification details do you remember?' 2>&1 | tail -50
+   ```
+3. Expected: response contains `PLUGIN-VERIFY-99181` and the engram cycle subprocess emits JSON with at least one `recalled[].report` mentioning the token.
+4. Run `targ check-full` and confirm the only failures are the pre-existing coverage and reorder issues (or all-clean if those have been addressed).
+5. Clean up: `rm -f ~/.local/share/engram/companion-{trace,injections,debug}.{jsonl,log}` and any session-cwd artifacts (the new plugin no longer writes these, but old runs may have left them).
+
+---
+
+## Original remaining tasks reference (kept for archaeology)
+
+
 
 For each task, the plan has full code and steps. This table just maps task → file → key gotcha.
 
