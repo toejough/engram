@@ -5,6 +5,7 @@ import * as path from "path"
 import * as os from "os"
 
 const ENGRAM_BIN = path.join(os.homedir(), ".local", "bin", "engram")
+const COMPANION_MODEL = "opencode/qwen3.6-plus"
 
 function findPluginRoot(): string | null {
   let dir = import.meta.dirname || __dirname
@@ -51,211 +52,53 @@ async function getReminder(kind: "system" | "session-start" | "user-prompt" | "p
   return (await proc.stdout.text()).trim()
 }
 
-const DEBUG_LOG = path.join(os.homedir(), ".local", "share", "engram", "debug-system-transform.log")
-const COMPANION_TRACE = path.join(os.homedir(), ".local", "share", "engram", "companion-trace.jsonl")
-const COMPANION_INJECTIONS = path.join(os.homedir(), ".local", "share", "engram", "companion-injections.log")
-const COMPANION_DEBUG = path.join(os.homedir(), ".local", "share", "engram", "companion-debug.log")
-const COMPANION_SESSION_DIR = path.join(os.homedir(), ".local", "share", "engram", "companion-session")
-const COMPANION_CWD = path.join(os.homedir(), ".local", "share", "engram", "companion-cwd")
-const COMPANION_MODEL = "opencode/qwen3.6-plus"
-const COMPANION_PROMPT_PREFIX = `You are a memory steward observing a primary AI agent's project session. Read the project history below and propose 3 to 5 targeted recall queries that would surface helpful past memories about what is currently happening.
-
-Output the queries only, one per line, no numbering, no commentary, no other text. Each query should be 5 to 15 words capturing a specific facet you want to recall about.
-
-If nothing in the history is worth recalling on, output exactly:
-NO QUERIES
-
-PROJECT HISTORY (most recent message at end):
-`
-
-function logTransform(before: string, reminder: string, after: string): void {
-  try {
-    const dir = path.dirname(DEBUG_LOG)
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    const entry = [
-      "=== SYSTEM TRANSFORM ===",
-      `--- BEFORE (${before.length} chars) ---`,
-      before,
-      `--- ENGRAM REMINDER (${reminder.length} chars) ---`,
-      reminder,
-      `--- AFTER (${after.length} chars) ---`,
-      after,
-      `=== END ===\n`,
-      "",
-    ].join("\n")
-    fs.appendFileSync(DEBUG_LOG, entry, "utf8")
-  } catch {
-    // logging failure is non-fatal
-  }
+interface CycleResult {
+  learned: any[]
+  recalled: { query: string; report: string }[]
 }
 
-function companionTrace(stage: string, info: Record<string, any>): void {
-  try {
-    const dir = path.dirname(COMPANION_TRACE)
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    const entry = JSON.stringify({ ts: new Date().toISOString(), stage, ...info }) + "\n"
-    fs.appendFileSync(COMPANION_TRACE, entry, "utf8")
-  } catch {
-    // tracing failure is non-fatal
-  }
-}
-
-// logCompanionInjection appends a human-readable entry to a tail-friendly log
-// for ongoing validation of which memories are surfacing. One block per
-// successful injection, including the recall output (companion's input),
-// the queries the companion emitted, and the per-query recall results that
-// were injected. Skipped/empty/errored injections are not logged here —
-// they still appear in the JSONL trace as companion-skipped or companion-error.
-function logCompanionInjection(
-  sessionID: string,
-  recallMs: number,
-  companionMs: number,
-  recallOutput: string,
-  queries: string[],
-  perQueryResults: { query: string; result: string }[],
-): void {
-  try {
-    const dir = path.dirname(COMPANION_INJECTIONS)
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    const ts = new Date().toISOString()
-    const blocks = perQueryResults
-      .map(({ query, result }) => `--- QUERY: ${query} ---\n${result}`)
-      .join("\n\n")
-    const entry = [
-      `=== ${ts} primary=${sessionID} recall=${recallMs}ms companion=${companionMs}ms recallChars=${recallOutput.length} queries=${queries.length} ===`,
-      `--- RECALL OUTPUT (input to companion) ---`,
-      recallOutput,
-      `--- COMPANION OUTPUT (queries emitted) ---`,
-      queries.join("\n"),
-      `--- SECONDARY RECALL RESULTS (memories injected) ---`,
-      blocks,
-      `=== END ===`,
-      "",
-      "",
-    ].join("\n")
-    fs.appendFileSync(COMPANION_INJECTIONS, entry, "utf8")
-  } catch {
-    // logging failure is non-fatal
-  }
-}
-
-const COMPANION_DEBUG_DIVIDER = "##################################################"
-
-function debugAppend(text: string): void {
-  try {
-    const dir = path.dirname(COMPANION_DEBUG)
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    fs.appendFileSync(COMPANION_DEBUG, text, "utf8")
-  } catch {
-    // logging failure is non-fatal
-  }
-}
-
-function debugFireHeader(sessionID: string, inputDump: string): void {
-  const ts = new Date().toISOString()
-  debugAppend(`\n${COMPANION_DEBUG_DIVIDER}\n### FIRE ${ts} primary=${sessionID}\n${COMPANION_DEBUG_DIVIDER}\n`)
-  debugAppend(`\n=========== HOOK INPUT (raw, truncated to 4KB) ===========\n\n${inputDump}\n`)
-}
-
-function debugFireSection(label: string, content: string): void {
-  debugAppend(`\n=========== ${label} ===========\n\n${content}\n`)
-}
-
-function debugFireFooter(sessionID: string): void {
-  const ts = new Date().toISOString()
-  debugAppend(`\n${COMPANION_DEBUG_DIVIDER}\n### END FIRE ${ts} primary=${sessionID}\n${COMPANION_DEBUG_DIVIDER}\n\n`)
-}
-
-function extractLatestUserMessage(recallBlob: string): string | null {
-  // The bare recall blob renders project session history in chronological
-  // order, with lines like "USER: ..." and "ASSISTANT: ...". The last
-  // "USER: " line is the most recent user message.
-  if (!recallBlob) return null
-  const lines = recallBlob.split("\n")
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i]
-    if (line.startsWith("USER: ")) return line.slice("USER: ".length)
-  }
-  return null
-}
-
-async function runEngramRecall(): Promise<string> {
-  const proc = Bun.spawn([ENGRAM_BIN, "recall"], { stdout: "pipe", stderr: "pipe" })
-  await proc.exited
-  return (await proc.stdout.text()).trim()
-}
-
-async function runEngramRecallWithQuery(query: string): Promise<string> {
+async function runEngramCycle(projectDir: string): Promise<CycleResult> {
+  await ensureBinary()
+  const llmCmd = `opencode run -m ${COMPANION_MODEL}`
   const proc = Bun.spawn(
-    [ENGRAM_BIN, "recall", "--query", query],
-    { stdout: "pipe", stderr: "pipe" },
+    [ENGRAM_BIN, "cycle", "--llm-cmd", llmCmd, "--project-dir", projectDir],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...process.env, ENGRAM_COMPANION_MODE: "1" },
+    },
   )
   await proc.exited
-  return (await proc.stdout.text()).trim()
-}
-
-function readCompanionSession(primarySessionID: string): string | null {
-  try {
-    const p = path.join(COMPANION_SESSION_DIR, `${primarySessionID}.txt`)
-    if (!fs.existsSync(p)) return null
-    return fs.readFileSync(p, "utf8").trim()
-  } catch {
-    return null
-  }
-}
-
-function writeCompanionSession(primarySessionID: string, companionSessionID: string): void {
-  try {
-    if (!fs.existsSync(COMPANION_SESSION_DIR)) fs.mkdirSync(COMPANION_SESSION_DIR, { recursive: true })
-    fs.writeFileSync(path.join(COMPANION_SESSION_DIR, `${primarySessionID}.txt`), companionSessionID, "utf8")
-  } catch {
-    // non-fatal
-  }
-}
-
-async function runCompanion(primarySessionID: string, prompt: string): Promise<string> {
-  const existingCompanion = readCompanionSession(primarySessionID)
-  const args = ["run", "-m", COMPANION_MODEL, "--format", "json"]
-  if (existingCompanion) args.push("-s", existingCompanion)
-  args.push(prompt)
-
-  // ENGRAM_COMPANION_MODE breaks the recursive companion-spawning loop:
-  // when the companion's opencode process loads this plugin, the
-  // system.transform hook checks the env var and skips its own companion call.
-  if (!fs.existsSync(COMPANION_CWD)) fs.mkdirSync(COMPANION_CWD, { recursive: true })
-  const proc = Bun.spawn(["opencode", ...args], {
-    cwd: COMPANION_CWD,
-    stdout: "pipe",
-    stderr: "pipe",
-    env: { ...process.env, ENGRAM_COMPANION_MODE: "1" },
-  })
-  await proc.exited
   if (proc.exitCode !== 0) {
-    companionTrace("companion-run-failed", { exitCode: proc.exitCode, stderr: (await proc.stderr.text()).slice(0, 1000) })
+    const errText = (await proc.stderr.text()).slice(0, 2000)
+    console.error(`[engram] cycle exit ${proc.exitCode}: ${errText}`)
+    return { learned: [], recalled: [] }
+  }
+
+  const stdout = (await proc.stdout.text()).trim()
+  if (!stdout) {
+    return { learned: [], recalled: [] }
+  }
+
+  try {
+    return JSON.parse(stdout) as CycleResult
+  } catch (parseErr) {
+    console.error(`[engram] cycle JSON parse failed: ${String(parseErr).slice(0, 500)}`)
+    return { learned: [], recalled: [] }
+  }
+}
+
+function formatCycleResult(result: CycleResult): string {
+  if (!result.recalled || result.recalled.length === 0) {
     return ""
   }
 
-  const stdout = await proc.stdout.text()
-  let capturedSessionID = ""
-  let companionText = ""
-
-  for (const line of stdout.split("\n")) {
-    if (!line.trim()) continue
-    try {
-      const ev = JSON.parse(line)
-      if (ev.sessionID && !capturedSessionID) capturedSessionID = ev.sessionID
-      if (ev.type === "text" && ev.part?.text) companionText += ev.part.text
-    } catch {
-      // skip non-JSON lines
-    }
+  let block = "## Recalled memories\n"
+  for (const { query, report } of result.recalled) {
+    block += `\n### Query: ${query}\n${report}\n`
   }
 
-  if (!existingCompanion && capturedSessionID) {
-    writeCompanionSession(primarySessionID, capturedSessionID)
-    companionTrace("companion-session-created", { primarySessionID, companionSessionID: capturedSessionID })
-  }
-
-  return companionText.trim()
+  return block.trimEnd()
 }
 
 export const EngramPlugin: Plugin = async ({ client, $ }) => {
@@ -266,101 +109,22 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
     "experimental.chat.system.transform": async (input: any, output) => {
       const before = output.system[0]
       const reminder = await getReminder("system")
-      const sessionID = input?.sessionID
 
-      const inputDump = JSON.stringify(input ?? {}).slice(0, 4096)
-      debugFireHeader(sessionID ?? "(none)", inputDump)
-
-      // Guard against recursion: when this plugin is loaded inside the
-      // companion's own opencode process, ENGRAM_COMPANION_MODE is set and
-      // we must NOT spawn another companion. We still inject the reminder.
       if (process.env.ENGRAM_COMPANION_MODE === "1") {
-        companionTrace("system.transform-skipped-companion", { sessionID, reason: "ENGRAM_COMPANION_MODE" })
-        debugFireSection("PARSED QUERIES OR SKIP REASON", "SKIPPED — reason: ENGRAM_COMPANION_MODE")
-        debugFireSection("INJECTED INTO SYSTEM PROMPT", "(reminder only — no companion block)")
         output.system[0] = before + reminder
-        logTransform(before, reminder, output.system[0])
-        debugFireFooter(sessionID ?? "(none)")
         return
       }
 
-      let companionBlock = ""
+      const projectDir = input?.directory ?? process.cwd()
+
       try {
-        companionTrace("system.transform-start", { sessionID })
-
-        debugFireSection("BARE RECALL: COMMAND", `${ENGRAM_BIN} recall`)
-        const recallStart = Date.now()
-        const recallOutput = await runEngramRecall()
-        const recallMs = Date.now() - recallStart
-        companionTrace("recall-complete", { sessionID, recallMs, recallLen: recallOutput.length, recallOut: recallOutput })
-        debugFireSection("BARE RECALL: RESULT", recallOutput || "(empty)")
-
-        const latestUser = extractLatestUserMessage(recallOutput)
-        debugFireSection("USER MESSAGE (latest from recall)", latestUser ?? "(no USER: line found in recall blob)")
-
-        const prompt = COMPANION_PROMPT_PREFIX + recallOutput
-        debugFireSection("COMPANION: PROMPT SENT", prompt)
-        const companionStart = Date.now()
-        const companionOutput = await runCompanion(sessionID || "default", prompt)
-        const companionMs = Date.now() - companionStart
-        companionTrace("companion-complete", { sessionID, companionMs, companionOutLen: companionOutput.length, companionOut: companionOutput })
-        debugFireSection("COMPANION: RESPONSE", companionOutput || "(empty)")
-
-        const SENTINEL = "NO QUERIES"
-        const MAX_QUERIES = 5
-        const allLines = companionOutput.split("\n").map((s) => s.trim()).filter(Boolean)
-        const sentinelOnly = allLines.length === 1 && allLines[0] === SENTINEL
-        const queries = allLines.filter((l) => l !== SENTINEL).slice(0, MAX_QUERIES)
-
-        if (allLines.length === 0) {
-          companionTrace("companion-skipped", { sessionID, reason: "empty-output" })
-          debugFireSection("PARSED QUERIES OR SKIP REASON", "SKIPPED — reason: empty-output")
-        } else if (sentinelOnly || queries.length === 0) {
-          companionTrace("companion-skipped", { sessionID, reason: "no-queries" })
-          debugFireSection("PARSED QUERIES OR SKIP REASON", "SKIPPED — reason: no-queries")
-        } else {
-          debugFireSection("PARSED QUERIES OR SKIP REASON", queries.map((q, i) => `${i + 1}. ${q}`).join("\n"))
-
-          const queryStart = Date.now()
-          const perQueryResults: { query: string; result: string }[] = []
-          await Promise.all(
-            queries.map(async (query, i) => {
-              const cmd = `${ENGRAM_BIN} recall --query "${query}"`
-              debugFireSection(`SECONDARY RECALL [${i + 1}] COMMAND`, cmd)
-              const start = Date.now()
-              const result = await runEngramRecallWithQuery(query)
-              companionTrace("secondary-recall-complete", {
-                sessionID, query, ms: Date.now() - start, resultLen: result.length,
-              })
-              debugFireSection(`SECONDARY RECALL [${i + 1}] RESULT`, result || "(empty)")
-              perQueryResults[i] = { query, result }
-            }),
-          )
-          const totalQueryMs = Date.now() - queryStart
-
-          let block = "## Recalled memories\n\n"
-          for (const { query, result } of perQueryResults) {
-            block += `### Query: ${query}\n${result}\n\n`
-          }
-          companionBlock = "\n\n" + block.trimEnd()
-
-          companionTrace("companion-injected", {
-            sessionID, blockLen: companionBlock.length, queryCount: queries.length, totalQueryMs,
-          })
-          logCompanionInjection(
-            sessionID || "default", recallMs, companionMs, recallOutput, queries, perQueryResults,
-          )
-        }
-      } catch (err: any) {
-        companionTrace("companion-error", { sessionID, error: String(err) })
-        debugFireSection("ERROR", String(err).slice(0, 4096))
+        const cycleResult = await runEngramCycle(projectDir)
+        const block = formatCycleResult(cycleResult)
+        output.system[0] = before + reminder + (block ? "\n\n" + block : "")
+      } catch (err) {
+        console.error(`[engram] cycle invocation failed: ${String(err).slice(0, 500)}`)
+        output.system[0] = before + reminder
       }
-
-      const injected = reminder + companionBlock
-      output.system[0] = before + injected
-      logTransform(before, injected, output.system[0])
-      debugFireSection("INJECTED INTO SYSTEM PROMPT", companionBlock || "(nothing — reminder only)")
-      debugFireFooter(sessionID ?? "(none)")
     },
 
     tool: {
