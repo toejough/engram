@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
+	"engram/internal/debuglog"
 	"engram/internal/memory"
 )
 
@@ -33,15 +35,26 @@ func New(runner Runner, transcripts TranscriptReader, persister Persister, recal
 
 // Run executes one cycle: extract → persist → propose queries → per-query recall.
 func (c *Cycle) Run(ctx context.Context, projectDir string) (*Output, error) {
+	debuglog.Log("Cycle.Run.start", "projectDir=%s budget=%d", projectDir, c.budget)
+
+	cycleStart := time.Now()
+
 	out := NewOutput()
 
+	transcriptStart := time.Now()
 	transcript, err := c.transcripts.Read(projectDir, c.budget)
+
+	debuglog.Log("transcript.Read.end", "bytes=%d err=%v took=%s", len(transcript), err, time.Since(transcriptStart))
+
 	if err != nil {
 		return out, fmt.Errorf("reading transcript: %w", err)
 	}
 
 	c.runLearningStep(ctx, transcript, out)
 	c.runRecallStep(ctx, transcript, projectDir, out)
+
+	debuglog.Log("Cycle.Run.end", "learned=%d recalled=%d took=%s",
+		len(out.Learned), len(out.Recalled), time.Since(cycleStart))
 
 	return out, nil
 }
@@ -52,6 +65,10 @@ func (c *Cycle) persistOne(ctx context.Context, cand learnCandidate, out *Output
 		name, ok, err := c.persister.WriteFeedback(
 			ctx, cand.Situation, cand.Behavior, cand.Impact, cand.Action,
 		)
+
+		debuglog.Log("persistOne", "type=feedback situation=%q name=%s persisted=%v err=%v",
+			cand.Situation, name, ok, err)
+
 		if err != nil || !ok {
 			return
 		}
@@ -74,6 +91,10 @@ func (c *Cycle) persistOne(ctx context.Context, cand learnCandidate, out *Output
 		name, ok, err := c.persister.WriteFact(
 			ctx, cand.Situation, cand.Subject, cand.Predicate, cand.Object,
 		)
+
+		debuglog.Log("persistOne", "type=fact situation=%q name=%s persisted=%v err=%v",
+			cand.Situation, name, ok, err)
+
 		if err != nil || !ok {
 			return
 		}
@@ -99,15 +120,23 @@ func (c *Cycle) runLearningStep(ctx context.Context, transcript string, out *Out
 		return
 	}
 
+	debuglog.Log("runLearningStep.start", "transcript_bytes=%d", len(transcript))
+
+	start := time.Now()
+
 	resp, err := c.runner.Run(ctx, LearnExtractionPrompt(transcript))
 	if err != nil {
+		debuglog.Log("runLearningStep.end", "err=%v took=%s", err, time.Since(start))
 		return
 	}
 
 	candidates, parseErr := parseLearnCandidates(resp)
 	if parseErr != nil {
+		debuglog.Log("runLearningStep.end", "parse_err=%v took=%s", parseErr, time.Since(start))
 		return
 	}
+
+	debuglog.Log("runLearningStep.end", "candidates=%d took=%s", len(candidates), time.Since(start))
 
 	for _, cand := range candidates {
 		c.persistOne(ctx, cand, out)
@@ -119,14 +148,27 @@ func (c *Cycle) runRecallStep(ctx context.Context, transcript, projectDir string
 		return
 	}
 
+	debuglog.Log("runRecallStep.start", "transcript_bytes=%d", len(transcript))
+
+	start := time.Now()
+
 	resp, err := c.runner.Run(ctx, QueryProposalPrompt(transcript))
 	if err != nil {
+		debuglog.Log("runRecallStep.end", "err=%v took=%s", err, time.Since(start))
 		return
 	}
 
 	queries := parseQueries(resp)
+
+	debuglog.Log("runRecallStep.queries", "count=%d", len(queries))
+
 	for _, query := range queries {
+		recallStart := time.Now()
 		report, recErr := c.recaller.Recall(ctx, projectDir, query)
+
+		debuglog.Log("Recall.Recall.end", "query=%q report_bytes=%d err=%v took=%s",
+			query, len(report), recErr, time.Since(recallStart))
+
 		if recErr != nil || report == "" {
 			continue
 		}
@@ -136,6 +178,8 @@ func (c *Cycle) runRecallStep(ctx context.Context, transcript, projectDir string
 			Report: report,
 		})
 	}
+
+	debuglog.Log("runRecallStep.end", "recalled=%d took=%s", len(out.Recalled), time.Since(start))
 }
 
 // Persister persists a candidate learning. Returns the slug-name written

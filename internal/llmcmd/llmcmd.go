@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"engram/internal/debuglog"
 )
 
 // Runner spawns a shell command, pipes the prompt to stdin, returns stdout.
@@ -34,6 +36,11 @@ func NewWithTimeout(cmdString string, timeout time.Duration) *Runner {
 //
 //nolint:gosec // cmdString is set at construction, not from user input
 func (r *Runner) Run(ctx context.Context, prompt string) (string, error) {
+	debuglog.Log("Runner.Run.start", "cmd=%q prompt_bytes=%d prompt_head=%q",
+		r.cmdString, len(prompt), debuglog.Truncate(prompt, truncatePreviewLen))
+
+	start := time.Now()
+
 	timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
@@ -47,19 +54,33 @@ func (r *Runner) Run(ctx context.Context, prompt string) (string, error) {
 	cmd.Env = append(os.Environ(), "ENGRAM_COMPANION_MODE=1")
 
 	err := cmd.Run()
+
+	out := strings.TrimRight(stdout.String(), "\n")
+	stderrText := stderr.String()
+
 	if err != nil {
 		if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
+			debuglog.Log("Runner.Run.end", "exit=timeout stdout_bytes=%d stderr_bytes=%d took=%s",
+				len(out), len(stderrText), time.Since(start))
+
 			return "", fmt.Errorf("llm-cmd timeout after %s: %w", r.timeout, timeoutCtx.Err())
 		}
 
-		return "", fmt.Errorf("llm-cmd exited: %w (stderr: %s)", err, stderr.String())
+		debuglog.Log("Runner.Run.end", "exit=error stdout_bytes=%d stderr_bytes=%d took=%s err=%v",
+			len(out), len(stderrText), time.Since(start), err)
+
+		return "", fmt.Errorf("llm-cmd exited: %w (stderr: %s)", err, stderrText)
 	}
 
-	return strings.TrimRight(stdout.String(), "\n"), nil
+	debuglog.Log("Runner.Run.end", "exit=0 stdout_bytes=%d stderr_bytes=%d took=%s stdout_head=%q",
+		len(out), len(stderrText), time.Since(start), debuglog.Truncate(out, truncatePreviewLen))
+
+	return out, nil
 }
 
 // unexported constants.
 const (
-	defaultShell   = "/bin/sh"
-	defaultTimeout = 60 * time.Second
+	defaultShell      = "/bin/sh"
+	defaultTimeout    = 60 * time.Second
+	truncatePreviewLen = 200
 )

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"engram/internal/cycle"
+	"engram/internal/debuglog"
 	"engram/internal/llmcmd"
 	"engram/internal/memory"
 	"engram/internal/recall"
@@ -23,6 +24,8 @@ type CycleArgs struct {
 
 // RunCycle executes one engram cycle and writes the JSON output to stdout.
 func RunCycle(ctx context.Context, args CycleArgs, stdout io.Writer) error {
+	debuglog.Log("RunCycle.start", "projectDir=%s dataDir=%s", args.ProjectDir, args.DataDir)
+
 	requireErr := requireLLMCmd(args.LLMCmd)
 	if requireErr != nil {
 		return fmt.Errorf("cycle: %w", requireErr)
@@ -61,6 +64,8 @@ func RunCycle(ctx context.Context, args CycleArgs, stdout io.Writer) error {
 	if marshalErr != nil {
 		return fmt.Errorf("cycle: marshalling output: %w", marshalErr)
 	}
+
+	debuglog.Log("RunCycle.end", "stdout_bytes=%d err=%v", len(encoded), runErr)
 
 	_, writeErr := stdout.Write(append(encoded, '\n'))
 	if writeErr != nil {
