@@ -36,8 +36,11 @@ func NewWithTimeout(cmdString string, timeout time.Duration) *Runner {
 //
 //nolint:gosec // cmdString is set at construction, not from user input
 func (r *Runner) Run(ctx context.Context, prompt string) (string, error) {
-	debuglog.Log("Runner.Run.start", "cmd=%q prompt_bytes=%d prompt_head=%q",
-		r.cmdString, len(prompt), debuglog.Truncate(prompt, truncatePreviewLen))
+	cycleID := debuglog.CycleIDFromContext(ctx)
+	phase := debuglog.PhaseFromContext(ctx)
+
+	debuglog.Log("llm.start", "cycle=%s phase=%s prompt_head=%q",
+		cycleID, phase, debuglog.Truncate(prompt, truncatePreviewLen))
 
 	start := time.Now()
 
@@ -60,20 +63,20 @@ func (r *Runner) Run(ctx context.Context, prompt string) (string, error) {
 
 	if err != nil {
 		if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
-			debuglog.Log("Runner.Run.end", "exit=timeout stdout_bytes=%d stderr_bytes=%d took=%s",
-				len(out), len(stderrText), time.Since(start))
+			debuglog.Log("llm.timeout", "cycle=%s phase=%s took=%s",
+				cycleID, phase, time.Since(start))
 
 			return "", fmt.Errorf("llm-cmd timeout after %s: %w", r.timeout, timeoutCtx.Err())
 		}
 
-		debuglog.Log("Runner.Run.end", "exit=error stdout_bytes=%d stderr_bytes=%d took=%s err=%v",
-			len(out), len(stderrText), time.Since(start), err)
+		debuglog.Log("llm.error", "cycle=%s phase=%s took=%s err=%v",
+			cycleID, phase, time.Since(start), err)
 
 		return "", fmt.Errorf("llm-cmd exited: %w (stderr: %s)", err, stderrText)
 	}
 
-	debuglog.Log("Runner.Run.end", "exit=0 stdout_bytes=%d stderr_bytes=%d took=%s stdout_head=%q",
-		len(out), len(stderrText), time.Since(start), debuglog.Truncate(out, truncatePreviewLen))
+	debuglog.Log("llm.done", "cycle=%s phase=%s took=%s response_head=%q",
+		cycleID, phase, time.Since(start), debuglog.Truncate(out, truncatePreviewLen))
 
 	return out, nil
 }

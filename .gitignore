@@ -36,3 +36,4 @@ chat.toml
 
 # Node deps (OpenCode plugin's resolved deps; package-lock pins versions)
 node_modules/
+.claude/scheduled_tasks.lock

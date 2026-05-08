@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"engram/internal/debuglog"
 	"engram/internal/externalsources"
 	"engram/internal/memory"
 )
@@ -276,55 +277,99 @@ func (o *Orchestrator) recallModeA(
 	return &Result{Report: report}, nil
 }
 
+//nolint:funlen // explicit phase progression with logging is the point of this function
 func (o *Orchestrator) recallModeB(
 	ctx context.Context,
 	sessions []FileEntry,
 	query string,
 ) (*Result, error) {
+	cycleID := debuglog.CycleIDFromContext(ctx)
+	parentPhase := debuglog.PhaseFromContext(ctx)
+
 	var buffer strings.Builder
 
 	// Phase 1: Engram memory search.
-	memoriesLen := o.searchMemories(ctx, query, &buffer)
+	debuglog.Log("recall.phase", "cycle=%s parent=%s phase=memory quota=0/%d",
+		cycleID, parentPhase, DefaultExtractCap)
+
+	memoryCtx := debuglog.WithPhase(ctx, parentPhase+".memory")
+	memoriesLen := o.searchMemories(memoryCtx, query, &buffer)
 	bytesUsed := memoriesLen
 
+	debuglog.Log("recall.phase.done", "cycle=%s phase=memory contributed=%d quota=%d/%d",
+		cycleID, memoriesLen, bytesUsed, DefaultExtractCap)
+
 	// Phase 2: Auto memory extraction.
+	debuglog.Log("recall.phase", "cycle=%s parent=%s phase=auto_memory quota=%d/%d",
+		cycleID, parentPhase, bytesUsed, DefaultExtractCap)
+
+	autoCtx := debuglog.WithPhase(ctx, parentPhase+".auto_memory")
 	autoLen := ExtractFromAutoMemory(
-		ctx, o.externalFiles, query, o.fileCache, o.summarizer,
+		autoCtx, o.externalFiles, query, o.fileCache, o.summarizer,
 		&buffer, bytesUsed, DefaultExtractCap,
 	)
 	bytesUsed += autoLen
 	o.writeStatusf("auto memory contributed %d bytes", autoLen)
+	debuglog.Log("recall.phase.done", "cycle=%s phase=auto_memory contributed=%d quota=%d/%d",
+		cycleID, autoLen, bytesUsed, DefaultExtractCap)
 
 	// Phase 3: Per-session extraction.
+	debuglog.Log("recall.phase", "cycle=%s parent=%s phase=sessions quota=%d/%d sessions=%d",
+		cycleID, parentPhase, bytesUsed, DefaultExtractCap, len(sessions))
+
 	preSessionLen := buffer.Len()
-	o.extractFromSessions(ctx, sessions, query, &buffer, bytesUsed)
+	sessionCtx := debuglog.WithPhase(ctx, parentPhase+".sessions")
+	o.extractFromSessions(sessionCtx, sessions, query, &buffer, bytesUsed)
 	bytesUsed += buffer.Len() - preSessionLen
 
-	// Phase 4: Skill extraction.
-	o.writeStatusf("ranking %d skills", countByKind(o.externalFiles, externalsources.KindSkill))
+	debuglog.Log("recall.phase.done", "cycle=%s phase=sessions contributed=%d quota=%d/%d",
+		cycleID, buffer.Len()-preSessionLen, bytesUsed, DefaultExtractCap)
 
+	// Phase 4: Skill extraction.
+	skillCount := countByKind(o.externalFiles, externalsources.KindSkill)
+	debuglog.Log("recall.phase", "cycle=%s parent=%s phase=skills quota=%d/%d skills=%d",
+		cycleID, parentPhase, bytesUsed, DefaultExtractCap, skillCount)
+
+	o.writeStatusf("ranking %d skills", skillCount)
+
+	skillCtx := debuglog.WithPhase(ctx, parentPhase+".skills")
 	skillLen := ExtractFromSkills(
-		ctx, o.externalFiles, query, o.fileCache, o.summarizer,
+		skillCtx, o.externalFiles, query, o.fileCache, o.summarizer,
 		&buffer, bytesUsed, DefaultExtractCap,
 	)
 	bytesUsed += skillLen
 	o.writeStatusf("skills contributed %d bytes", skillLen)
+	debuglog.Log("recall.phase.done", "cycle=%s phase=skills contributed=%d quota=%d/%d",
+		cycleID, skillLen, bytesUsed, DefaultExtractCap)
 
 	// Phase 5: CLAUDE.md + rules extraction.
+	debuglog.Log("recall.phase", "cycle=%s parent=%s phase=claudemd quota=%d/%d",
+		cycleID, parentPhase, bytesUsed, DefaultExtractCap)
+
+	claudeCtx := debuglog.WithPhase(ctx, parentPhase+".claudemd")
 	claudeLen := ExtractFromClaudeMd(
-		ctx, o.externalFiles, query, o.fileCache, o.summarizer,
+		claudeCtx, o.externalFiles, query, o.fileCache, o.summarizer,
 		&buffer, bytesUsed, DefaultExtractCap,
 	)
 	o.writeStatusf("claude.md contributed %d bytes", claudeLen)
+	debuglog.Log("recall.phase.done", "cycle=%s phase=claudemd contributed=%d quota=%d/%d",
+		cycleID, claudeLen, bytesUsed+claudeLen, DefaultExtractCap)
 
 	if buffer.Len() == 0 {
+		debuglog.Log("recall.phase", "cycle=%s parent=%s phase=synthesize skipped=empty_buffer",
+			cycleID, parentPhase)
+
 		return &Result{}, nil
 	}
 
 	// Phase 6: Structured summary.
 	o.writeStatusf("summarizing %d bytes of findings", buffer.Len())
+	debuglog.Log("recall.phase", "cycle=%s parent=%s phase=synthesize input_bytes=%d",
+		cycleID, parentPhase, buffer.Len())
 
-	summary, err := o.summarizer.SummarizeFindings(ctx, buffer.String(), query)
+	synthCtx := debuglog.WithPhase(ctx, parentPhase+".synthesize")
+
+	summary, err := o.summarizer.SummarizeFindings(synthCtx, buffer.String(), query)
 	if err != nil {
 		return nil, fmt.Errorf("summarizing recall: %w", err)
 	}

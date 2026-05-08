@@ -84,7 +84,7 @@ async function getReminder(kind: "system" | "session-start" | "user-prompt" | "p
     return ""
   }
   const text = (await proc.stdout.text()).trim()
-  debugLog("getReminder.end", { kind, bytes: text.length, took_ms: Date.now() - start })
+  debugLog("getReminder.end", { kind, took_ms: Date.now() - start })
   return text
 }
 
@@ -123,7 +123,6 @@ async function runEngramCycle(projectDir: string): Promise<CycleResult> {
     console.error(`[engram] cycle exit ${proc.exitCode}: ${stderr.slice(0, 2000)}`)
     debugLog("runEngramCycle.error", {
       exit: proc.exitCode,
-      stderr_bytes: stderr.length,
       stderr_head: stderr.slice(0, TRUNCATE_PREVIEW),
       took_ms: Date.now() - start,
     })
@@ -132,7 +131,7 @@ async function runEngramCycle(projectDir: string): Promise<CycleResult> {
 
   const trimmed = stdout.trim()
   if (!trimmed) {
-    debugLog("runEngramCycle.end", { exit: 0, stdout_bytes: 0, took_ms: Date.now() - start })
+    debugLog("runEngramCycle.end", { exit: 0, outcome: "empty_stdout", took_ms: Date.now() - start })
     return { learned: [], recalled: [] }
   }
 
@@ -140,7 +139,7 @@ async function runEngramCycle(projectDir: string): Promise<CycleResult> {
     const result = JSON.parse(trimmed) as CycleResult
     debugLog("runEngramCycle.end", {
       exit: 0,
-      stdout_bytes: trimmed.length,
+      outcome: "ok",
       learned: result.learned.length,
       recalled: result.recalled.length,
       took_ms: Date.now() - start,
@@ -209,7 +208,7 @@ export const EngramPlugin: Plugin = async ({ client, $ }) => {
           path: "cycle",
           learned: cycleResult.learned.length,
           recalled: cycleResult.recalled.length,
-          block_bytes: block.length,
+          block_present: block.length > 0,
           took_ms: Date.now() - start,
         })
       } catch (err) {
