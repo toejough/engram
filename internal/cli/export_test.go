@@ -26,6 +26,7 @@ var (
 	ExportRenderConflictContent          = renderConflictContent
 	ExportRenderFactContent              = renderFactContent
 	ExportRenderMemoryContent            = renderMemoryContent
+	ExportRequireFleetingDir             = requireFleetingDir
 	ExportRequireLLMCmd                  = requireLLMCmd
 	ExportResolveContent                 = resolveContent
 	ExportResolveLLMCmd                  = resolveLLMCmd

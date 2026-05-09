@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -107,4 +108,19 @@ func TestFleetingPath_BuildsExpectedPath(t *testing.T) {
 	when := time.Date(2026, time.May, 9, 17, 0, 0, 0, time.UTC)
 	got := cli.ExportFleetingPath("/vault", "my-tag", when)
 	g.Expect(got).To(Equal("/vault/Fleeting/2026-05-09.my-tag.md"))
+}
+
+func TestRequireFleetingDir_PassesWhenStatSucceeds(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	statOK := func(string) error { return nil }
+	g.Expect(cli.ExportRequireFleetingDir("/vault", statOK)).To(Succeed())
+}
+
+func TestRequireFleetingDir_ErrorsWhenStatFails(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	statFail := func(string) error { return errors.New("not found") }
+	err := cli.ExportRequireFleetingDir("/vault", statFail)
+	g.Expect(err).To(MatchError(ContainSubstring("Fleeting")))
 }

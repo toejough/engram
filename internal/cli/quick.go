@@ -78,3 +78,12 @@ func fleetingPath(vault, slug string, when time.Time) string {
 	filename := fmt.Sprintf("%s.%s.md", when.Format(dateFormat), slug)
 	return filepath.Join(vault, fleetingSubdir, filename)
 }
+
+// requireFleetingDir checks that <vault>/Fleeting exists, via the injected stat function.
+func requireFleetingDir(vault string, statDir func(string) error) error {
+	dir := filepath.Join(vault, fleetingSubdir)
+	if err := statDir(dir); err != nil {
+		return fmt.Errorf("quick: vault Fleeting directory not accessible at %s: %w", dir, err)
+	}
+	return nil
+}
