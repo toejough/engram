@@ -26,6 +26,7 @@ var (
 	errLLMCmdRequired = errors.New(
 		"llm-cmd is required: set --llm-cmd flag or ENGRAM_LLM_CMD environment variable",
 	)
+	errNotADirectory = errors.New("not a directory")
 )
 
 // osDirLister lists .jsonl files in a directory using os.ReadDir.
@@ -65,6 +66,42 @@ func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
 	}
 
 	return results, nil
+}
+
+// osQuickFS is the production filesystem adapter for the quick subcommand.
+type osQuickFS struct{}
+
+// StatDir returns an error if the directory does not exist or isn't accessible.
+func (*osQuickFS) StatDir(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat: %w", err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("%w: %s", errNotADirectory, path)
+	}
+
+	return nil
+}
+
+// WriteNew creates the file with O_EXCL — errors with fs.ErrExist if it already exists.
+func (*osQuickFS) WriteNew(path string, data []byte) error {
+	const perm = 0o600
+
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // path from caller
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+
+	defer func() { _ = f.Close() }()
+
+	_, writeErr := f.Write(data)
+	if writeErr != nil {
+		return fmt.Errorf("write: %w", writeErr)
+	}
+
+	return nil
 }
 
 // I/O adapters for context package DI interfaces.

@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/toejough/targ"
 )
@@ -126,6 +128,17 @@ func Targets(stdout, stderr io.Writer) []any {
 				errHandler(runLearnFact(ctx, a, stdout))
 			}).Name("fact").Description("Learn a factual statement"),
 		),
+		targ.Targ(func(ctx context.Context, a QuickArgs) {
+			fsAdapter := &osQuickFS{}
+			deps := QuickDeps{
+				Now:      time.Now,
+				Stdin:    os.Stdin,
+				Getenv:   os.Getenv,
+				StatDir:  fsAdapter.StatDir,
+				WriteNew: fsAdapter.WriteNew,
+			}
+			errHandler(runQuick(ctx, a, deps, stdout))
+		}).Name("quick").Description("Write a fleeting note to the agent-memory vault"),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
 			errHandler(runUpdate(ctx, a, stdout))
 		}).Name("update").Description("Update an existing memory"),

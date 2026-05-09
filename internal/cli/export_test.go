@@ -64,6 +64,14 @@ func ExportNewOsDirLister() recall.DirLister {
 	return &osDirLister{}
 }
 
+// ExportNewOsQuickFS returns the production osQuickFS adapter for testing.
+func ExportNewOsQuickFS() interface {
+	StatDir(path string) error
+	WriteNew(path string, data []byte) error
+} {
+	return &osQuickFS{}
+}
+
 // ExportNewOsFileReader creates an osFileReader for testing.
 func ExportNewOsFileReader() interface {
 	Read(path string) ([]byte, error)

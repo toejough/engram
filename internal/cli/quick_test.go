@@ -2,7 +2,9 @@ package cli_test
 
 import (
 	"errors"
-	"io/fs"
+	ioFs "io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -171,7 +173,7 @@ func TestRunQuick_ErrorsWhenWriteNewReportsExist(t *testing.T) {
 		Getenv:  func(string) string { return "" },
 		StatDir: func(string) error { return nil },
 		WriteNew: func(string, []byte) error {
-			return fs.ErrExist
+			return ioFs.ErrExist
 		},
 	}
 	args := cli.QuickArgs{Slug: "tag", Content: "body", Vault: "/vault"}
@@ -192,4 +194,59 @@ func TestRunQuick_PropagatesSlugValidationError(t *testing.T) {
 	args := cli.QuickArgs{Slug: "Bad Slug", Content: "body", Vault: "/vault"}
 	err := cli.ExportRunQuick(t.Context(), args, deps, &strings.Builder{})
 	g.Expect(err).To(MatchError(ContainSubstring("slug")))
+}
+
+func TestOsQuickFS_WriteNew_ErrorsOnExisting(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "exists.md")
+	g.Expect(os.WriteFile(path, []byte("old"), 0o600)).To(Succeed())
+
+	fs := cli.ExportNewOsQuickFS()
+	err := fs.WriteNew(path, []byte("new"))
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(errors.Is(err, ioFs.ErrExist)).To(BeTrue())
+}
+
+func TestOsQuickFS_WriteNew_CreatesNewFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "new.md")
+
+	fs := cli.ExportNewOsQuickFS()
+	g.Expect(fs.WriteNew(path, []byte("hello"))).To(Succeed())
+
+	got, err := os.ReadFile(path)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(got)).To(Equal("hello"))
+}
+
+func TestOsQuickFS_StatDir_ErrorsOnMissing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := cli.ExportNewOsQuickFS()
+	err := fs.StatDir(filepath.Join(t.TempDir(), "missing"))
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestOsQuickFS_StatDir_PassesOnExisting(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := cli.ExportNewOsQuickFS()
+	g.Expect(fs.StatDir(t.TempDir())).To(Succeed())
 }

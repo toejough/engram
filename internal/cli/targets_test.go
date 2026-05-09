@@ -325,7 +325,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{})
-		g.Expect(targets).To(gomega.HaveLen(8))
+		g.Expect(targets).To(gomega.HaveLen(9))
 	})
 
 	t.Run("closure wiring invokes command with injected IO", func(t *testing.T) {
