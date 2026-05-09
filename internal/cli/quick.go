@@ -24,3 +24,18 @@ func validateSlug(slug string) error {
 	}
 	return nil
 }
+
+const envVaultDir = "ENGRAM_VAULT_DIR"
+
+var errVaultUnset = errors.New("quick: vault path is required (--vault flag or ENGRAM_VAULT_DIR env)")
+
+// resolveVault returns the vault path: flag wins, env is fallback, error if neither set.
+func resolveVault(flagValue string, getenv func(string) string) (string, error) {
+	if flagValue != "" {
+		return flagValue, nil
+	}
+	if env := getenv(envVaultDir); env != "" {
+		return env, nil
+	}
+	return "", errVaultUnset
+}

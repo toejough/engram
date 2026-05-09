@@ -27,6 +27,7 @@ var (
 	ExportRenderMemoryContent            = renderMemoryContent
 	ExportRequireLLMCmd                  = requireLLMCmd
 	ExportResolveLLMCmd                  = resolveLLMCmd
+	ExportResolveVault                   = resolveVault
 	ExportRunBuildSelf                   = runBuildSelf
 	ExportValidateSlug                   = validateSlug
 	ExportValidateSource                 = validateSource
