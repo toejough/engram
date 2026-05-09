@@ -4,6 +4,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 )
 
@@ -38,4 +39,29 @@ func resolveVault(flagValue string, getenv func(string) string) (string, error) 
 		return env, nil
 	}
 	return "", errVaultUnset
+}
+
+var (
+	errContentBoth    = errors.New("quick: provide --content OR stdin, not both")
+	errContentNeither = errors.New("quick: --content flag or stdin required")
+)
+
+// resolveContent picks content from flag XOR stdin. Errors on both or neither.
+func resolveContent(flagValue string, stdin io.Reader) (string, error) {
+	stdinBytes, err := io.ReadAll(stdin)
+	if err != nil {
+		return "", fmt.Errorf("quick: reading stdin: %w", err)
+	}
+	hasFlag := flagValue != ""
+	hasStdin := len(stdinBytes) > 0
+	if hasFlag && hasStdin {
+		return "", errContentBoth
+	}
+	if !hasFlag && !hasStdin {
+		return "", errContentNeither
+	}
+	if hasFlag {
+		return flagValue, nil
+	}
+	return string(stdinBytes), nil
 }

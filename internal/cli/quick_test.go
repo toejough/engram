@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -61,4 +62,40 @@ func TestResolveVault_ErrorsWhenNeitherSet(t *testing.T) {
 	getenv := func(string) string { return "" }
 	_, err := cli.ExportResolveVault("", getenv)
 	g.Expect(err).To(MatchError(ContainSubstring("vault")))
+}
+
+func TestResolveContent_FlagOnly(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got, err := cli.ExportResolveContent("hello body", strings.NewReader(""))
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(got).To(Equal("hello body"))
+}
+
+func TestResolveContent_StdinOnly(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got, err := cli.ExportResolveContent("", strings.NewReader("hello stdin"))
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(got).To(Equal("hello stdin"))
+}
+
+func TestResolveContent_ErrorsWhenBoth(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	_, err := cli.ExportResolveContent("flag body", strings.NewReader("stdin body"))
+	g.Expect(err).To(MatchError(ContainSubstring("content")))
+}
+
+func TestResolveContent_ErrorsWhenNeither(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	_, err := cli.ExportResolveContent("", strings.NewReader(""))
+	g.Expect(err).To(MatchError(ContainSubstring("content")))
 }
