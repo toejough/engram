@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
+	"time"
 )
 
 var (
@@ -64,4 +66,15 @@ func resolveContent(flagValue string, stdin io.Reader) (string, error) {
 		return flagValue, nil
 	}
 	return string(stdinBytes), nil
+}
+
+const (
+	fleetingSubdir = "Fleeting"
+	dateFormat     = "2006-01-02"
+)
+
+// fleetingPath builds the absolute path for a fleeting note file.
+func fleetingPath(vault, slug string, when time.Time) string {
+	filename := fmt.Sprintf("%s.%s.md", when.Format(dateFormat), slug)
+	return filepath.Join(vault, fleetingSubdir, filename)
 }

@@ -15,6 +15,7 @@ var (
 	ExportBuildAndInstall                = buildAndInstall
 	ExportComputeMainProjectDir          = computeMainProjectDir
 	ExportDescribeNewMemory              = describeNewMemory
+	ExportFleetingPath                   = fleetingPath
 	ExportOsDirListMd                    = osDirListMd
 	ExportOsMatchAny                     = osMatchAny
 	ExportOsStatExists                   = osStatExists

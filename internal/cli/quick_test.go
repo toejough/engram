@@ -3,6 +3,7 @@ package cli_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -98,4 +99,12 @@ func TestResolveContent_ErrorsWhenNeither(t *testing.T) {
 	g := NewWithT(t)
 	_, err := cli.ExportResolveContent("", strings.NewReader(""))
 	g.Expect(err).To(MatchError(ContainSubstring("content")))
+}
+
+func TestFleetingPath_BuildsExpectedPath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 17, 0, 0, 0, time.UTC)
+	got := cli.ExportFleetingPath("/vault", "my-tag", when)
+	g.Expect(got).To(Equal("/vault/Fleeting/2026-05-09.my-tag.md"))
 }
