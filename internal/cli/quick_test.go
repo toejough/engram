@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"errors"
+	"io/fs"
 	"strings"
 	"testing"
 	"time"
@@ -123,4 +124,72 @@ func TestRequireFleetingDir_ErrorsWhenStatFails(t *testing.T) {
 	statFail := func(string) error { return errors.New("not found") }
 	err := cli.ExportRequireFleetingDir("/vault", statFail)
 	g.Expect(err).To(MatchError(ContainSubstring("Fleeting")))
+}
+
+func TestRunQuick_HappyPath_WritesExpectedFileAndPath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		gotPath string
+		gotData []byte
+	)
+	deps := cli.QuickDeps{
+		Now:     func() time.Time { return time.Date(2026, time.May, 9, 17, 0, 0, 0, time.UTC) },
+		Stdin:   strings.NewReader(""),
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		WriteNew: func(path string, data []byte) error {
+			gotPath = path
+			gotData = data
+			return nil
+		},
+	}
+	args := cli.QuickArgs{
+		Slug:    "test-tag",
+		Content: "# tag\n\nbody.\n",
+		Vault:   "/vault",
+	}
+	var stdout strings.Builder
+	err := cli.ExportRunQuick(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(gotPath).To(Equal("/vault/Fleeting/2026-05-09.test-tag.md"))
+	g.Expect(string(gotData)).To(Equal("# tag\n\nbody.\n"))
+	g.Expect(stdout.String()).To(ContainSubstring("/vault/Fleeting/2026-05-09.test-tag.md"))
+}
+
+func TestRunQuick_ErrorsWhenWriteNewReportsExist(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.QuickDeps{
+		Now:     func() time.Time { return time.Date(2026, time.May, 9, 17, 0, 0, 0, time.UTC) },
+		Stdin:   strings.NewReader(""),
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		WriteNew: func(string, []byte) error {
+			return fs.ErrExist
+		},
+	}
+	args := cli.QuickArgs{Slug: "tag", Content: "body", Vault: "/vault"}
+	err := cli.ExportRunQuick(t.Context(), args, deps, &strings.Builder{})
+	g.Expect(err).To(MatchError(ContainSubstring("exists")))
+}
+
+func TestRunQuick_PropagatesSlugValidationError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	deps := cli.QuickDeps{
+		Now:      func() time.Time { return time.Now() },
+		Stdin:    strings.NewReader(""),
+		Getenv:   func(string) string { return "" },
+		StatDir:  func(string) error { return nil },
+		WriteNew: func(string, []byte) error { return nil },
+	}
+	args := cli.QuickArgs{Slug: "Bad Slug", Content: "body", Vault: "/vault"}
+	err := cli.ExportRunQuick(t.Context(), args, deps, &strings.Builder{})
+	g.Expect(err).To(MatchError(ContainSubstring("slug")))
 }

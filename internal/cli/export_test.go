@@ -32,6 +32,7 @@ var (
 	ExportResolveLLMCmd                  = resolveLLMCmd
 	ExportResolveVault                   = resolveVault
 	ExportRunBuildSelf                   = runBuildSelf
+	ExportRunQuick                       = runQuick
 	ExportValidateSlug                   = validateSlug
 	ExportValidateSource                 = validateSource
 	ExportWriteMemory                    = writeMemory

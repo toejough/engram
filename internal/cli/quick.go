@@ -2,9 +2,11 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path/filepath"
 	"regexp"
 	"time"
@@ -85,5 +87,41 @@ func requireFleetingDir(vault string, statDir func(string) error) error {
 	if err := statDir(dir); err != nil {
 		return fmt.Errorf("quick: vault Fleeting directory not accessible at %s: %w", dir, err)
 	}
+	return nil
+}
+
+// QuickDeps holds injected dependencies for runQuick. All fields required.
+type QuickDeps struct {
+	Now      func() time.Time
+	Stdin    io.Reader
+	Getenv   func(string) string
+	StatDir  func(string) error
+	WriteNew func(path string, data []byte) error // must error with fs.ErrExist if file exists
+}
+
+// runQuick orchestrates the quick subcommand: validates inputs, derives the path, writes the file.
+func runQuick(_ context.Context, args QuickArgs, deps QuickDeps, stdout io.Writer) error {
+	if err := validateSlug(args.Slug); err != nil {
+		return err
+	}
+	vault, err := resolveVault(args.Vault, deps.Getenv)
+	if err != nil {
+		return err
+	}
+	if err := requireFleetingDir(vault, deps.StatDir); err != nil {
+		return err
+	}
+	content, err := resolveContent(args.Content, deps.Stdin)
+	if err != nil {
+		return err
+	}
+	path := fleetingPath(vault, args.Slug, deps.Now())
+	if err := deps.WriteNew(path, []byte(content)); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			return fmt.Errorf("quick: target file already exists: %s", path)
+		}
+		return fmt.Errorf("quick: writing %s: %w", path, err)
+	}
+	_, _ = fmt.Fprintln(stdout, path)
 	return nil
 }
