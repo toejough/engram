@@ -28,6 +28,7 @@ var (
 	ExportRequireLLMCmd                  = requireLLMCmd
 	ExportResolveLLMCmd                  = resolveLLMCmd
 	ExportRunBuildSelf                   = runBuildSelf
+	ExportValidateSlug                   = validateSlug
 	ExportValidateSource                 = validateSource
 	ExportWriteMemory                    = writeMemory
 )
