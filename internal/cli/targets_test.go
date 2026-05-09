@@ -40,6 +40,47 @@ func TestDataDirFromHome(t *testing.T) {
 	})
 }
 
+func TestNewErrHandler(t *testing.T) {
+	t.Parallel()
+
+	t.Run("calls exit with non-zero when err is non-nil", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var (
+			stderr   bytes.Buffer
+			exitCode int
+			called   bool
+		)
+
+		handler := cli.ExportNewErrHandler(&stderr, func(code int) {
+			exitCode = code
+			called = true
+		})
+		handler(errors.New("boom"))
+
+		g.Expect(called).To(gomega.BeTrue())
+		g.Expect(exitCode).NotTo(gomega.Equal(0))
+		g.Expect(stderr.String()).To(gomega.ContainSubstring("boom"))
+	})
+
+	t.Run("does not call exit when err is nil", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var (
+			stderr bytes.Buffer
+			called bool
+		)
+
+		handler := cli.ExportNewErrHandler(&stderr, func(int) { called = true })
+		handler(nil)
+
+		g.Expect(called).To(gomega.BeFalse())
+		g.Expect(stderr.String()).To(gomega.BeEmpty())
+	})
+}
+
 func TestProjectSlugFromPath(t *testing.T) {
 	t.Parallel()
 
@@ -324,7 +365,7 @@ func TestTargets(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{})
+		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {})
 		g.Expect(targets).To(gomega.HaveLen(9))
 	})
 
@@ -334,7 +375,7 @@ func TestTargets(t *testing.T) {
 
 		var stdout bytes.Buffer
 
-		targets := cli.Targets(&stdout, &bytes.Buffer{})
+		targets := cli.Targets(&stdout, &bytes.Buffer{}, func(int) {})
 		_, _ = targ.Execute([]string{"engram", "show", "--data-dir", t.TempDir()}, targets...)
 
 		// show without slug produces an error (written to stderr), stdout is empty.
@@ -350,7 +391,7 @@ func executeForTest(t *testing.T, args []string) (stdoutStr, stderrStr string) {
 
 	var stdout, stderr bytes.Buffer
 
-	targets := cli.Targets(&stdout, &stderr)
+	targets := cli.Targets(&stdout, &stderr, func(int) {})
 
 	_, err := targ.Execute(args, targets...)
 	if err != nil {

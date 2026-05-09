@@ -40,7 +40,7 @@ func SetupSignalHandling(stdout, stderr io.Writer, exitFn func(int)) []any {
 
 	ForceExitOnRepeatedSignal(sigCh, exitFn)
 
-	return Targets(stdout, stderr)
+	return Targets(stdout, stderr, exitFn)
 }
 
 // unexported constants.

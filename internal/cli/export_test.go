@@ -16,6 +16,7 @@ var (
 	ExportComputeMainProjectDir          = computeMainProjectDir
 	ExportDescribeNewMemory              = describeNewMemory
 	ExportFleetingPath                   = fleetingPath
+	ExportNewErrHandler                  = newErrHandler
 	ExportOsDirListMd                    = osDirListMd
 	ExportOsMatchAny                     = osMatchAny
 	ExportOsStatExists                   = osStatExists

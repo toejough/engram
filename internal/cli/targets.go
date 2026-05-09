@@ -100,12 +100,8 @@ func ProjectSlugFromPath(path string) string {
 }
 
 // Targets returns all targ targets for the engram CLI.
-func Targets(stdout, stderr io.Writer) []any {
-	errHandler := func(err error) {
-		if err != nil {
-			_, _ = fmt.Fprintln(stderr, err)
-		}
-	}
+func Targets(stdout, stderr io.Writer, exit func(int)) []any {
+	errHandler := newErrHandler(stderr, exit)
 
 	return []any{
 		targ.Targ(func(ctx context.Context, a RecallArgs) {
@@ -148,5 +144,19 @@ func Targets(stdout, stderr io.Writer) []any {
 		targ.Targ(func(ctx context.Context, a BuildSelfArgs) {
 			errHandler(runBuildSelf(ctx, a, stdout))
 		}).Name("build-self").Description("Build the engram binary"),
+	}
+}
+
+// newErrHandler returns a function that prints err to stderr and signals
+// failure via exit(1). When err is nil the handler is a no-op.
+func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
+	return func(err error) {
+		if err == nil {
+			return
+		}
+
+		_, _ = fmt.Fprintln(stderr, err)
+
+		exit(1)
 	}
 }
