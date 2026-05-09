@@ -39,16 +39,16 @@ type LearnFeedbackArgs struct {
 	Action   string `targ:"flag,name=action,desc=recommended action"`
 }
 
+// ListArgs holds parsed flags for the list subcommand.
+type ListArgs struct {
+	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+}
+
 // QuickArgs holds parsed flags for the quick subcommand.
 type QuickArgs struct {
 	Slug    string `targ:"flag,name=slug,desc=kebab-case tag for the fleeting note"`
 	Content string `targ:"flag,name=content,desc=full body markdown (or pipe via stdin)"`
 	Vault   string `targ:"flag,name=vault,env=ENGRAM_VAULT_DIR,desc=vault root directory"`
-}
-
-// ListArgs holds parsed flags for the list subcommand.
-type ListArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
 
 // RecallArgs holds parsed flags for the recall subcommand.

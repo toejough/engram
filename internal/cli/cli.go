@@ -68,6 +68,14 @@ func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
 	return results, nil
 }
 
+// I/O adapters for context package DI interfaces.
+
+type osFileReader struct{}
+
+func (r *osFileReader) Read(path string) ([]byte, error) {
+	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
+}
+
 // osQuickFS is the production filesystem adapter for the quick subcommand.
 type osQuickFS struct{}
 
@@ -102,14 +110,6 @@ func (*osQuickFS) WriteNew(path string, data []byte) error {
 	}
 
 	return nil
-}
-
-// I/O adapters for context package DI interfaces.
-
-type osFileReader struct{}
-
-func (r *osFileReader) Read(path string) ([]byte, error) {
-	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
 }
 
 // applyDataDirDefault sets *dataDir to the standard engram data path when empty.
