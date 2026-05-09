@@ -78,29 +78,47 @@ func TestOsQuickFS_WriteNew_ErrorsOnExisting(t *testing.T) {
 	g.Expect(errors.Is(err, ioFs.ErrExist)).To(BeTrue())
 }
 
-func TestRequireFleetingDir_ErrorsWhenStatFails(t *testing.T) {
+// panicReader panics on Read. Used to assert resolveContent does not consume stdin
+// when --content is provided.
+type panicReader struct{}
+
+func (panicReader) Read(_ []byte) (int, error) {
+	panic("stdin should not be read when --content is set")
+}
+
+func TestRequireVaultDirs_ErrorsWhenVaultMissing(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 	statFail := func(string) error { return errors.New("not found") }
-	err := cli.ExportRequireFleetingDir("/vault", statFail)
+	err := cli.ExportRequireVaultDirs("/vault", statFail)
+	g.Expect(err).To(MatchError(ContainSubstring("vault")))
+	g.Expect(err.Error()).NotTo(ContainSubstring("Fleeting"))
+}
+
+func TestRequireVaultDirs_ErrorsWhenFleetingMissing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	calls := 0
+	statFn := func(_ string) error {
+		calls++
+		if calls == 1 {
+			return nil
+		}
+
+		return errors.New("not found")
+	}
+	err := cli.ExportRequireVaultDirs("/vault", statFn)
 	g.Expect(err).To(MatchError(ContainSubstring("Fleeting")))
 }
 
-func TestRequireFleetingDir_PassesWhenStatSucceeds(t *testing.T) {
+func TestRequireVaultDirs_PassesWhenBothExist(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 	statOK := func(string) error { return nil }
-	g.Expect(cli.ExportRequireFleetingDir("/vault", statOK)).To(Succeed())
-}
-
-func TestResolveContent_ErrorsWhenBoth(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	_, err := cli.ExportResolveContent("flag body", strings.NewReader("stdin body"))
-	g.Expect(err).To(MatchError(ContainSubstring("content")))
+	g.Expect(cli.ExportRequireVaultDirs("/vault", statOK)).To(Succeed())
 }
 
 func TestResolveContent_ErrorsWhenNeither(t *testing.T) {
@@ -111,11 +129,11 @@ func TestResolveContent_ErrorsWhenNeither(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("content")))
 }
 
-func TestResolveContent_FlagOnly(t *testing.T) {
+func TestResolveContent_FlagOnly_DoesNotReadStdin(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	got, err := cli.ExportResolveContent("hello body", strings.NewReader(""))
+	got, err := cli.ExportResolveContent("hello body", panicReader{})
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

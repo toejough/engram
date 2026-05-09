@@ -29,7 +29,6 @@ const (
 
 // unexported variables.
 var (
-	errContentBoth    = errors.New("quick: provide --content OR stdin, not both")
 	errContentNeither = errors.New("quick: --content flag or stdin required")
 	errFileExists     = errors.New("quick: target file already exists")
 	errSlugEmpty      = errors.New("quick: slug is required")
@@ -45,38 +44,38 @@ func fleetingPath(vault, slug string, when time.Time) string {
 	return filepath.Join(vault, fleetingSubdir, filename)
 }
 
-// requireFleetingDir checks that <vault>/Fleeting exists, via the injected stat function.
-func requireFleetingDir(vault string, statDir func(string) error) error {
-	dir := filepath.Join(vault, fleetingSubdir)
-
-	err := statDir(dir)
+// requireVaultDirs verifies vault root exists, then Fleeting/ subdir exists.
+// Two-stage check produces a clear message for whichever level is missing.
+func requireVaultDirs(vault string, statDir func(string) error) error {
+	err := statDir(vault)
 	if err != nil {
-		return fmt.Errorf("quick: vault Fleeting directory not accessible at %s: %w", dir, err)
+		return fmt.Errorf("quick: vault directory not accessible at %s: %w", vault, err)
+	}
+
+	fleeting := filepath.Join(vault, fleetingSubdir)
+
+	err = statDir(fleeting)
+	if err != nil {
+		return fmt.Errorf("quick: vault Fleeting directory not accessible at %s: %w", fleeting, err)
 	}
 
 	return nil
 }
 
-// resolveContent picks content from flag XOR stdin. Errors on both or neither.
+// resolveContent picks content from flag or stdin. Flag wins without reading stdin.
+// Reading stdin only when the flag is empty avoids consuming/blocking on the parent's stdin.
 func resolveContent(flagValue string, stdin io.Reader) (string, error) {
+	if flagValue != "" {
+		return flagValue, nil
+	}
+
 	stdinBytes, err := io.ReadAll(stdin)
 	if err != nil {
 		return "", fmt.Errorf("quick: reading stdin: %w", err)
 	}
 
-	hasFlag := flagValue != ""
-	hasStdin := len(stdinBytes) > 0
-
-	if hasFlag && hasStdin {
-		return "", errContentBoth
-	}
-
-	if !hasFlag && !hasStdin {
+	if len(stdinBytes) == 0 {
 		return "", errContentNeither
-	}
-
-	if hasFlag {
-		return flagValue, nil
 	}
 
 	return string(stdinBytes), nil
@@ -107,7 +106,7 @@ func runQuick(_ context.Context, args QuickArgs, deps QuickDeps, stdout io.Write
 		return err
 	}
 
-	dirErr := requireFleetingDir(vault, deps.StatDir)
+	dirErr := requireVaultDirs(vault, deps.StatDir)
 	if dirErr != nil {
 		return dirErr
 	}
