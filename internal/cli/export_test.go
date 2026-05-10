@@ -15,6 +15,7 @@ var (
 	ExportBuildAndInstall                = buildAndInstall
 	ExportComputeMainProjectDir          = computeMainProjectDir
 	ExportDescribeNewMemory              = describeNewMemory
+	ExportExtractLuhmannFromFilename     = extractLuhmannFromFilename
 	ExportFleetingPath                   = fleetingPath
 	ExportNewErrHandler                  = newErrHandler
 	ExportNextLuhmannID                  = nextLuhmannID

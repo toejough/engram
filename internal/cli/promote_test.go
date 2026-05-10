@@ -10,6 +10,21 @@ import (
 	"engram/internal/cli"
 )
 
+func TestExtractLuhmannFromFilename(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got, ok := cli.ExportExtractLuhmannFromFilename("1a3.2026-05-09.subagent-recovery.md")
+	g.Expect(ok).To(BeTrue())
+	g.Expect(got).To(Equal("1a3"))
+}
+
+func TestExtractLuhmannFromFilename_RejectsBadFormat(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	_, ok := cli.ExportExtractLuhmannFromFilename("README.md")
+	g.Expect(ok).To(BeFalse())
+}
+
 func TestPromotePath_MOC(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

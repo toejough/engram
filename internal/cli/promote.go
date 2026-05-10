@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -12,6 +13,13 @@ const (
 	mocSubdir       = "MOCs"
 	permanentSubdir = "Permanent"
 	typeMOC         = "moc"
+)
+
+// unexported variables.
+var (
+	luhmannFilenamePattern = regexp.MustCompile(
+		`^([0-9][0-9a-z]*)\.\d{4}-\d{2}-\d{2}\..+\.md$`,
+	)
 )
 
 type factFields struct {
@@ -36,6 +44,15 @@ type mocFields struct {
 	Topic   string
 	Luhmann string
 	Source  string
+}
+
+func extractLuhmannFromFilename(name string) (string, bool) {
+	m := luhmannFilenamePattern.FindStringSubmatch(name)
+	if m == nil {
+		return "", false
+	}
+
+	return m[1], true
 }
 
 func promotePath(vault, memType, luhmann, slug string, when time.Time) string {
