@@ -2,8 +2,16 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
+)
+
+// unexported constants.
+const (
+	mocSubdir       = "MOCs"
+	permanentSubdir = "Permanent"
+	typeMOC         = "moc"
 )
 
 type factFields struct {
@@ -28,6 +36,17 @@ type mocFields struct {
 	Topic   string
 	Luhmann string
 	Source  string
+}
+
+func promotePath(vault, memType, luhmann, slug string, when time.Time) string {
+	subdir := permanentSubdir
+	if memType == typeMOC {
+		subdir = mocSubdir
+	}
+
+	filename := fmt.Sprintf("%s.%s.%s.md", luhmann, when.Format(dateFormat), slug)
+
+	return filepath.Join(vault, subdir, filename)
 }
 
 func renderFactBody(f factFields, relatedSection string) string {

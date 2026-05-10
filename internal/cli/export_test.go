@@ -25,6 +25,7 @@ var (
 	ExportOsWalkSkills                   = osWalkSkills
 	ExportParseConflictResponse          = parseConflictResponse
 	ExportParseLuhmannID                 = parseLuhmannID
+	ExportPromotePath                    = promotePath
 	ExportReadAutoMemoryDirectorySetting = readAutoMemoryDirectorySetting
 	ExportRenderConflictContent          = renderConflictContent
 	ExportRenderFactBody                 = renderFactBody

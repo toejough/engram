@@ -10,6 +10,22 @@ import (
 	"engram/internal/cli"
 )
 
+func TestPromotePath_MOC(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportPromotePath("/vault", "moc", "5", "llm-rationalization-patterns", when)
+	g.Expect(got).To(Equal("/vault/MOCs/5.2026-05-09.llm-rationalization-patterns.md"))
+}
+
+func TestPromotePath_Permanent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportPromotePath("/vault", "feedback", "1a3", "subagent-driven-recovery", when)
+	g.Expect(got).To(Equal("/vault/Permanent/1a3.2026-05-09.subagent-driven-recovery.md"))
+}
+
 func TestRenderBody_Fact(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
