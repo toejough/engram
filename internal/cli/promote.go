@@ -30,6 +30,15 @@ type mocFields struct {
 	Source  string
 }
 
+func renderFactBody(f factFields, relatedSection string) string {
+	formula := fmt.Sprintf(
+		"Information learned: when in %s, %s %s %s.\n",
+		f.Situation, f.Subject, f.Predicate, f.Object,
+	)
+
+	return formula + "\n" + relatedSection
+}
+
 func renderFactFrontmatter(f factFields, when time.Time) string {
 	return strings.Join([]string{
 		"---",
@@ -46,6 +55,12 @@ func renderFactFrontmatter(f factFields, when time.Time) string {
 	}, "\n")
 }
 
+func renderFeedbackBody(f feedbackFields, relatedSection string) string {
+	formula := fmt.Sprintf("Lesson learned: when %s, %s.\n", f.Situation, f.Action)
+
+	return formula + "\n" + relatedSection
+}
+
 func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 	return strings.Join([]string{
 		"---",
@@ -60,6 +75,10 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 		"---",
 		"",
 	}, "\n")
+}
+
+func renderMOCBody(framing string) string {
+	return framing
 }
 
 func renderMOCFrontmatter(f mocFields, when time.Time) string {

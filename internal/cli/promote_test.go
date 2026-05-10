@@ -10,6 +10,45 @@ import (
 	"engram/internal/cli"
 )
 
+func TestRenderBody_Fact(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderFactBody(cli.ExportFactFields{
+		Situation: "reasoning about agent coordination",
+		Subject:   "subagent dispatch",
+		Predicate: "is fundamentally",
+		Object:    "a verification problem dressed as coordination",
+	}, "Related to:\n- [[X]] — adjacent.\n")
+	g.Expect(got).To(Equal(
+		"Information learned: when in reasoning about agent coordination, " +
+			"subagent dispatch is fundamentally a verification problem dressed as coordination.\n" +
+			"\n" +
+			"Related to:\n- [[X]] — adjacent.\n"))
+}
+
+func TestRenderBody_Feedback(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	action := "set up a task list with self-contained briefs and dispatch; " +
+		"if a small model cannot finish a subtask, shrink the task"
+	got := cli.ExportRenderFeedbackBody(cli.ExportFeedbackFields{
+		Situation: "orchestrating multi-step work as the main LLM under context pressure",
+		Action:    action,
+	}, "Related to:\n- [[1a.foo]] — same shape.\n- [[5.bar]] — the MOC.\n")
+	g.Expect(got).To(Equal(
+		"Lesson learned: when orchestrating multi-step work as the main LLM under context pressure, " +
+			action + ".\n" +
+			"\n" +
+			"Related to:\n- [[1a.foo]] — same shape.\n- [[5.bar]] — the MOC.\n"))
+}
+
+func TestRenderBody_MOC_PassesThrough(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderMOCBody("This cluster names a recurring pattern of LLM rationalization under pressure.\n")
+	g.Expect(got).To(Equal("This cluster names a recurring pattern of LLM rationalization under pressure.\n"))
+}
+
 func TestRenderFrontmatter_Fact(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

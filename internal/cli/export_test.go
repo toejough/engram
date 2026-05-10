@@ -27,13 +27,16 @@ var (
 	ExportParseLuhmannID                 = parseLuhmannID
 	ExportReadAutoMemoryDirectorySetting = readAutoMemoryDirectorySetting
 	ExportRenderConflictContent          = renderConflictContent
+	ExportRenderFactBody                 = renderFactBody
 	ExportRenderFactContent              = renderFactContent
 	ExportRenderFactFrontmatter          = renderFactFrontmatter
+	ExportRenderFeedbackBody             = renderFeedbackBody
 	ExportRenderFeedbackFrontmatter      = renderFeedbackFrontmatter
+	ExportRenderMOCBody                  = renderMOCBody
 	ExportRenderMOCFrontmatter           = renderMOCFrontmatter
 	ExportRenderMemoryContent            = renderMemoryContent
-	ExportRequireVaultDirs               = requireVaultDirs
 	ExportRequireLLMCmd                  = requireLLMCmd
+	ExportRequireVaultDirs               = requireVaultDirs
 	ExportResolveContent                 = resolveContent
 	ExportResolveLLMCmd                  = resolveLLMCmd
 	ExportResolveVault                   = resolveVault
