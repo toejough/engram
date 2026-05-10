@@ -70,3 +70,23 @@ func TestParseLuhmannID_TopLevelDigit(t *testing.T) {
 
 	g.Expect(got).To(Equal([]string{"1"}))
 }
+
+func TestSortLuhmannIDs_NumericNotLexical(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	in := []string{"10", "2", "1"}
+	cli.ExportSortLuhmannIDs(in)
+	g.Expect(in).To(Equal([]string{"1", "2", "10"}))
+}
+
+func TestSortLuhmannIDs_TreeOrder(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	in := []string{"2", "1b", "1a1", "1", "1a", "10", "1a2"}
+	cli.ExportSortLuhmannIDs(in)
+	g.Expect(in).To(Equal([]string{"1", "1a", "1a1", "1a2", "1b", "2", "10"}))
+}

@@ -3,6 +3,8 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
 	"unicode"
 )
 
@@ -11,6 +13,29 @@ var (
 	errLuhmannEmpty         = errors.New("luhmann: empty ID")
 	errLuhmannLeadingLetter = errors.New("luhmann: ID must start with a digit")
 )
+
+func luhmannLess(a, b string) bool {
+	aSegs, _ := parseLuhmannID(a)
+	bSegs, _ := parseLuhmannID(b)
+
+	for idx := 0; idx < len(aSegs) && idx < len(bSegs); idx++ {
+		if aSegs[idx] == bSegs[idx] {
+			continue
+		}
+
+		aIsDigit := unicode.IsDigit(rune(aSegs[idx][0]))
+		if aIsDigit {
+			aNum, _ := strconv.Atoi(aSegs[idx])
+			bNum, _ := strconv.Atoi(bSegs[idx])
+
+			return aNum < bNum
+		}
+
+		return aSegs[idx] < bSegs[idx]
+	}
+
+	return len(aSegs) < len(bSegs)
+}
 
 // parseLuhmannID splits a Luhmann ID into alternating digit/letter segments.
 // "1a3b" → ["1", "a", "3", "b"]. "12ab3" → ["12", "ab", "3"]. Top-level segment
@@ -43,4 +68,12 @@ func parseLuhmannID(id string) ([]string, error) {
 	segments = append(segments, string(current))
 
 	return segments, nil
+}
+
+// sortLuhmannIDs sorts in tree order: parent before children, numeric segments
+// compared numerically, alphabetic segments compared lexically. Mutates the input.
+func sortLuhmannIDs(ids []string) {
+	sort.Slice(ids, func(i, j int) bool {
+		return luhmannLess(ids[i], ids[j])
+	})
 }

@@ -35,6 +35,7 @@ var (
 	ExportResolveVault                   = resolveVault
 	ExportRunBuildSelf                   = runBuildSelf
 	ExportRunQuick                       = runQuick
+	ExportSortLuhmannIDs                 = sortLuhmannIDs
 	ExportValidateSlug                   = validateSlug
 	ExportValidateSource                 = validateSource
 	ExportWriteMemory                    = writeMemory
