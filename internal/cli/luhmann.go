@@ -3,10 +3,10 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
-	"unicode"
+
+	"engram/internal/luhmann"
 )
 
 // unexported constants.
@@ -18,8 +18,6 @@ const (
 
 // unexported variables.
 var (
-	errLuhmannEmpty                    = errors.New("luhmann: empty ID")
-	errLuhmannLeadingLetter            = errors.New("luhmann: ID must start with a digit")
 	errLuhmannRelation                 = errors.New("luhmann: relation must be top, continuation, or sibling")
 	errLuhmannSiblingTopLevelMustBeTop = errors.New(
 		"luhmann: sibling of top-level requires relation=top",
@@ -37,7 +35,7 @@ func directChildSegments(existing []string, parent string, depth int) []string {
 			continue
 		}
 
-		segs, parseErr := parseLuhmannID(id)
+		segs, parseErr := luhmann.ParseID(id)
 		if parseErr != nil || len(segs) != depth+1 {
 			continue
 		}
@@ -48,36 +46,13 @@ func directChildSegments(existing []string, parent string, depth int) []string {
 	return out
 }
 
-func luhmannLess(a, b string) bool {
-	aSegs, _ := parseLuhmannID(a)
-	bSegs, _ := parseLuhmannID(b)
-
-	for idx := 0; idx < len(aSegs) && idx < len(bSegs); idx++ {
-		if aSegs[idx] == bSegs[idx] {
-			continue
-		}
-
-		aIsDigit := unicode.IsDigit(rune(aSegs[idx][0]))
-		if aIsDigit {
-			aNum, _ := strconv.Atoi(aSegs[idx])
-			bNum, _ := strconv.Atoi(bSegs[idx])
-
-			return aNum < bNum
-		}
-
-		return aSegs[idx] < bSegs[idx]
-	}
-
-	return len(aSegs) < len(bSegs)
-}
-
 // maxDigitSeg returns the largest integer value among segs (0 if empty).
-// Caller must guarantee every seg is non-empty all-digit (parseLuhmannID-derived).
+// Caller must guarantee every seg is non-empty all-digit (luhmann.ParseID-derived).
 func maxDigitSeg(segs []string) int {
 	maxN := 0
 
 	for _, seg := range segs {
-		n, _ := strconv.Atoi(seg) // safe: segs from parseLuhmannID at digit position
+		n, _ := strconv.Atoi(seg) // safe: segs from luhmann.ParseID at digit position
 
 		if n > maxN {
 			maxN = n
@@ -101,9 +76,9 @@ func maxLetterSeg(segs []string) string {
 }
 
 func nextChild(existing []string, parent string) (string, error) {
-	parentSegs, err := parseLuhmannID(parent)
+	parentSegs, err := luhmann.ParseID(parent)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parsing parent: %w", err)
 	}
 
 	depth := len(parentSegs)
@@ -165,9 +140,9 @@ func nextLuhmannID(existing []string, target, relation string) (string, error) {
 }
 
 func nextSibling(existing []string, target string) (string, error) {
-	targetSegs, err := parseLuhmannID(target)
+	targetSegs, err := luhmann.ParseID(target)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parsing target: %w", err)
 	}
 
 	if len(targetSegs) == 1 {
@@ -183,7 +158,7 @@ func nextTopLevel(existing []string) string {
 	maxN := 0
 
 	for _, id := range existing {
-		segs, err := parseLuhmannID(id)
+		segs, err := luhmann.ParseID(id)
 		if err != nil || len(segs) != 1 {
 			continue
 		}
@@ -195,45 +170,4 @@ func nextTopLevel(existing []string) string {
 	}
 
 	return strconv.Itoa(maxN + 1)
-}
-
-// parseLuhmannID splits a Luhmann ID into alternating digit/letter segments.
-// "1a3b" → ["1", "a", "3", "b"]. "12ab3" → ["12", "ab", "3"]. Top-level segment
-// must be digits.
-func parseLuhmannID(id string) ([]string, error) {
-	if id == "" {
-		return nil, errLuhmannEmpty
-	}
-
-	if !unicode.IsDigit(rune(id[0])) {
-		return nil, fmt.Errorf("%w: %q", errLuhmannLeadingLetter, id)
-	}
-
-	segments := make([]string, 0, 4) //nolint:mnd // initial capacity hint
-	current := []rune{rune(id[0])}
-	currentIsDigit := unicode.IsDigit(rune(id[0]))
-
-	for _, r := range id[1:] {
-		isDigit := unicode.IsDigit(r)
-		if isDigit == currentIsDigit {
-			current = append(current, r)
-			continue
-		}
-
-		segments = append(segments, string(current))
-		current = []rune{r}
-		currentIsDigit = isDigit
-	}
-
-	segments = append(segments, string(current))
-
-	return segments, nil
-}
-
-// sortLuhmannIDs sorts in tree order: parent before children, numeric segments
-// compared numerically, alphabetic segments compared lexically. Mutates the input.
-func sortLuhmannIDs(ids []string) {
-	sort.Slice(ids, func(i, j int) bool {
-		return luhmannLess(ids[i], ids[j])
-	})
 }

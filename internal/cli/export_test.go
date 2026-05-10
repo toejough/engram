@@ -25,7 +25,6 @@ var (
 	ExportOsWalkMd                       = osWalkMd
 	ExportOsWalkSkills                   = osWalkSkills
 	ExportParseConflictResponse          = parseConflictResponse
-	ExportParseLuhmannID                 = parseLuhmannID
 	ExportPromotePath                    = promotePath
 	ExportReadAutoMemoryDirectorySetting = readAutoMemoryDirectorySetting
 	ExportRenderConflictContent          = renderConflictContent
@@ -45,7 +44,6 @@ var (
 	ExportRunBuildSelf                   = runBuildSelf
 	ExportRunPromote                     = runPromote
 	ExportRunQuick                       = runQuick
-	ExportSortLuhmannIDs                 = sortLuhmannIDs
 	ExportValidateSlug                   = validateSlug
 	ExportValidateSource                 = validateSource
 	ExportWriteMemory                    = writeMemory
