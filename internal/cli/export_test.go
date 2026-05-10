@@ -17,6 +17,7 @@ var (
 	ExportDescribeNewMemory              = describeNewMemory
 	ExportFleetingPath                   = fleetingPath
 	ExportNewErrHandler                  = newErrHandler
+	ExportNextLuhmannID                  = nextLuhmannID
 	ExportOsDirListMd                    = osDirListMd
 	ExportOsMatchAny                     = osMatchAny
 	ExportOsStatExists                   = osStatExists
