@@ -28,6 +28,9 @@ var (
 	ExportReadAutoMemoryDirectorySetting = readAutoMemoryDirectorySetting
 	ExportRenderConflictContent          = renderConflictContent
 	ExportRenderFactContent              = renderFactContent
+	ExportRenderFactFrontmatter          = renderFactFrontmatter
+	ExportRenderFeedbackFrontmatter      = renderFeedbackFrontmatter
+	ExportRenderMOCFrontmatter           = renderMOCFrontmatter
 	ExportRenderMemoryContent            = renderMemoryContent
 	ExportRequireVaultDirs               = requireVaultDirs
 	ExportRequireLLMCmd                  = requireLLMCmd
@@ -40,6 +43,13 @@ var (
 	ExportValidateSlug                   = validateSlug
 	ExportValidateSource                 = validateSource
 	ExportWriteMemory                    = writeMemory
+)
+
+// Exported type aliases.
+type (
+	ExportFactFields     = factFields
+	ExportFeedbackFields = feedbackFields
+	ExportMOCFields      = mocFields
 )
 
 // ExportCallHaikuForConflicts wraps callHaikuForConflicts for testing.
