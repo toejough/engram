@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -79,4 +80,75 @@ func TestOsFileReader_ReadError(t *testing.T) {
 	reader := cli.ExportNewOsFileReader()
 	_, err := reader.Read("/nonexistent/file.txt")
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestOsPromoteFS_DeleteFleeting_RemovesFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fleeting.md")
+	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
+
+	fs := cli.ExportNewOsPromoteFS()
+	g.Expect(fs.DeleteFleeting(path)).To(Succeed())
+	_, err := os.Stat(path)
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+}
+
+func TestOsPromoteFS_ListIDs_ReturnsBothPermanentAndMOC(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-09.foo.md"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1a.2026-05-09.bar.md"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "MOCs", "5.2026-05-09.moc.md"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "README.md"), nil, 0o600)).To(Succeed())
+
+	fs := cli.ExportNewOsPromoteFS()
+	got, err := fs.ListIDs(vault)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(ConsistOf("1", "1a", "5"))
+}
+
+func TestOsPromoteFS_Lock_ExclusiveAcrossSecondAcquisition(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	vault := t.TempDir()
+
+	fs := cli.ExportNewOsPromoteFS()
+	release1, err := fs.Lock(vault)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	done := make(chan struct{})
+
+	go func() {
+		release2, err2 := fs.Lock(vault)
+		g.Expect(err2).NotTo(HaveOccurred())
+
+		if release2 != nil {
+			release2()
+		}
+
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("second Lock should not have succeeded while first holds")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	release1()
+	<-done
 }

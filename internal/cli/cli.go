@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"syscall"
+
 	"engram/internal/llmcmd"
 	"engram/internal/memory"
 	"engram/internal/recall"
@@ -18,6 +20,7 @@ import (
 // unexported constants.
 const (
 	envLLMCmd          = "ENGRAM_LLM_CMD"
+	luhmannLockFile    = ".luhmann.lock"
 	recallOptsCapacity = 2 // WithStatusWriter + WithExternalSources
 )
 
@@ -74,6 +77,111 @@ type osFileReader struct{}
 
 func (r *osFileReader) Read(path string) ([]byte, error) {
 	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
+}
+
+// osPromoteFS is the production filesystem adapter for the promote subcommand.
+type osPromoteFS struct{}
+
+// DeleteFleeting removes the fleeting file at path.
+func (*osPromoteFS) DeleteFleeting(path string) error {
+	err := os.Remove(path)
+	if err != nil {
+		return fmt.Errorf("remove: %w", err)
+	}
+
+	return nil
+}
+
+// ListIDs returns Luhmann IDs from filenames in vault/Permanent and vault/MOCs.
+func (*osPromoteFS) ListIDs(vault string) ([]string, error) {
+	out := []string{}
+
+	for _, sub := range []string{"Permanent", "MOCs"} {
+		entries, err := os.ReadDir(filepath.Join(vault, sub))
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return nil, fmt.Errorf("read %s: %w", sub, err)
+		}
+
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+
+			id, ok := extractLuhmannFromFilename(e.Name())
+			if !ok {
+				continue
+			}
+
+			out = append(out, id)
+		}
+	}
+
+	return out, nil
+}
+
+// Lock acquires an exclusive flock on vault/.luhmann.lock; returns a release func.
+func (*osPromoteFS) Lock(vault string) (func(), error) {
+	path := filepath.Join(vault, luhmannLockFile)
+
+	const perm = 0o600
+
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, perm) //nolint:gosec // path from caller
+	if err != nil {
+		return nil, fmt.Errorf("open lock: %w", err)
+	}
+
+	fileDescriptor := int(f.Fd()) //nolint:gosec // fd fits in int on supported platforms
+
+	flockErr := syscall.Flock(fileDescriptor, syscall.LOCK_EX)
+	if flockErr != nil {
+		_ = f.Close()
+
+		return nil, fmt.Errorf("flock: %w", flockErr)
+	}
+
+	release := func() {
+		_ = syscall.Flock(fileDescriptor, syscall.LOCK_UN)
+		_ = f.Close()
+	}
+
+	return release, nil
+}
+
+// StatDir returns an error if the directory does not exist or isn't accessible.
+func (*osPromoteFS) StatDir(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat: %w", err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("%w: %s", errNotADirectory, path)
+	}
+
+	return nil
+}
+
+// WriteNew creates the file with O_EXCL — errors with fs.ErrExist if it already exists.
+func (*osPromoteFS) WriteNew(path string, data []byte) error {
+	const perm = 0o600
+
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // path from caller
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+
+	defer func() { _ = f.Close() }()
+
+	_, writeErr := f.Write(data)
+	if writeErr != nil {
+		return fmt.Errorf("write: %w", writeErr)
+	}
+
+	return nil
 }
 
 // osQuickFS is the production filesystem adapter for the quick subcommand.

@@ -90,6 +90,9 @@ func ExportNewOsFileReader() interface {
 	return &osFileReader{}
 }
 
+// ExportNewOsPromoteFS returns the production osPromoteFS adapter for testing.
+func ExportNewOsPromoteFS() *osPromoteFS { return &osPromoteFS{} }
+
 // ExportNewOsQuickFS returns the production osQuickFS adapter for testing.
 func ExportNewOsQuickFS() interface {
 	StatDir(path string) error
