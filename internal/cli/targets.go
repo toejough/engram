@@ -105,6 +105,11 @@ type ShowArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
 
+// StartingPointsArgs holds parsed flags for the starting-points subcommand.
+type StartingPointsArgs struct {
+	VaultPath string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=path to agent-memory vault root"`
+}
+
 // UpdateArgs holds parsed flags for the update subcommand.
 type UpdateArgs struct {
 	Name      string `targ:"flag,name=name,required,desc=memory slug (required)"`
@@ -153,6 +158,9 @@ func Targets(stdout, stderr io.Writer, exit func(int)) []any {
 		targ.Targ(func(ctx context.Context, a ListArgs) {
 			errHandler(runList(ctx, a, stdout))
 		}).Name("list").Description("List all memories with type, name, and situation"),
+		targ.Targ(func(ctx context.Context, a StartingPointsArgs) {
+			errHandler(runStartingPoints(ctx, a, stdout))
+		}).Name("starting-points").Description("Emit vault graph traversal entry points (one wikilink per line)"),
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
 				errHandler(runLearnFeedback(ctx, a, stdout))
