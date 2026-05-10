@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -120,6 +121,21 @@ func extractLuhmannFromFilename(name string) (string, bool) {
 	return m[1], true
 }
 
+func newOsPromoteDeps() PromoteDeps {
+	fs := &osPromoteFS{}
+
+	return PromoteDeps{
+		Now:            time.Now,
+		Stdin:          os.Stdin,
+		Getenv:         os.Getenv,
+		StatDir:        fs.StatDir,
+		ListIDs:        fs.ListIDs,
+		Lock:           fs.Lock,
+		WriteNew:       fs.WriteNew,
+		DeleteFleeting: fs.DeleteFleeting,
+	}
+}
+
 func promotePath(vault, memType, luhmann, slug string, when time.Time) string {
 	subdir := permanentSubdir
 	if memType == typeMOC {
@@ -233,6 +249,57 @@ func runPromote(_ context.Context, args PromoteArgs, deps PromoteDeps, stdout io
 	_, _ = fmt.Fprintln(stdout, path)
 
 	return nil
+}
+
+func runPromoteFromFactArgs(ctx context.Context, a PromoteFactArgs, stdout io.Writer) error {
+	deps := newOsPromoteDeps()
+
+	return runPromote(ctx, PromoteArgs{
+		Type:           typeFact,
+		Slug:           a.Slug,
+		Vault:          a.Vault,
+		Target:         a.Target,
+		Relation:       a.Relation,
+		Source:         a.Source,
+		DeleteFleeting: a.DeleteFleeting,
+		Situation:      a.Situation,
+		Subject:        a.Subject,
+		Predicate:      a.Predicate,
+		Object:         a.Object,
+	}, deps, stdout)
+}
+
+func runPromoteFromFeedbackArgs(ctx context.Context, a PromoteFeedbackArgs, stdout io.Writer) error {
+	deps := newOsPromoteDeps()
+
+	return runPromote(ctx, PromoteArgs{
+		Type:           typeFeedback,
+		Slug:           a.Slug,
+		Vault:          a.Vault,
+		Target:         a.Target,
+		Relation:       a.Relation,
+		Source:         a.Source,
+		DeleteFleeting: a.DeleteFleeting,
+		Situation:      a.Situation,
+		Behavior:       a.Behavior,
+		Impact:         a.Impact,
+		Action:         a.Action,
+	}, deps, stdout)
+}
+
+func runPromoteFromMOCArgs(ctx context.Context, a PromoteMOCArgs, stdout io.Writer) error {
+	deps := newOsPromoteDeps()
+
+	return runPromote(ctx, PromoteArgs{
+		Type:           typeMOC,
+		Slug:           a.Slug,
+		Vault:          a.Vault,
+		Target:         a.Target,
+		Relation:       a.Relation,
+		Source:         a.Source,
+		DeleteFleeting: a.DeleteFleeting,
+		Topic:          a.Topic,
+	}, deps, stdout)
 }
 
 // writePromoteUnderLock acquires the vault lock, computes the next Luhmann ID,

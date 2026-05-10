@@ -21,6 +21,16 @@ type CommonLearnArgs struct {
 	LLMCmd     string `targ:"flag,name=llm-cmd,desc=command to invoke for LLM calls (overrides ENGRAM_LLM_CMD)"`
 }
 
+// CommonPromoteArgs holds shared flags for promote subcommands.
+type CommonPromoteArgs struct {
+	Slug           string `targ:"flag,name=slug,desc=kebab-case tag for the filename"`
+	Vault          string `targ:"flag,name=vault,env=ENGRAM_VAULT_DIR,desc=vault root directory"`
+	Target         string `targ:"flag,name=target,desc=Luhmann ID this note relates to (empty for top-level)"`
+	Relation       string `targ:"flag,name=relation,desc=top|continuation|sibling"`
+	Source         string `targ:"flag,name=source,desc=provenance string for the source field"`
+	DeleteFleeting string `targ:"flag,name=delete-fleeting,desc=path to fleeting note to delete after success"`
+}
+
 // LearnFactArgs holds parsed flags for the learn fact subcommand.
 type LearnFactArgs struct {
 	CommonLearnArgs
@@ -42,6 +52,33 @@ type LearnFeedbackArgs struct {
 // ListArgs holds parsed flags for the list subcommand.
 type ListArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+}
+
+// PromoteFactArgs holds parsed flags for the promote fact subcommand.
+type PromoteFactArgs struct {
+	CommonPromoteArgs
+
+	Situation string `targ:"flag,name=situation,desc=context when this applies"`
+	Subject   string `targ:"flag,name=subject,desc=subject of the fact"`
+	Predicate string `targ:"flag,name=predicate,desc=relationship or verb"`
+	Object    string `targ:"flag,name=object,desc=object of the fact"`
+}
+
+// PromoteFeedbackArgs holds parsed flags for the promote feedback subcommand.
+type PromoteFeedbackArgs struct {
+	CommonPromoteArgs
+
+	Situation string `targ:"flag,name=situation,desc=context when this applies"`
+	Behavior  string `targ:"flag,name=behavior,desc=observed behavior"`
+	Impact    string `targ:"flag,name=impact,desc=impact of the behavior"`
+	Action    string `targ:"flag,name=action,desc=recommended action"`
+}
+
+// PromoteMOCArgs holds parsed flags for the promote moc subcommand.
+type PromoteMOCArgs struct {
+	CommonPromoteArgs
+
+	Topic string `targ:"flag,name=topic,desc=cluster topic name"`
 }
 
 // QuickArgs holds parsed flags for the quick subcommand.
@@ -123,6 +160,17 @@ func Targets(stdout, stderr io.Writer, exit func(int)) []any {
 			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
 				errHandler(runLearnFact(ctx, a, stdout))
 			}).Name("fact").Description("Learn a factual statement"),
+		),
+		targ.Group("promote",
+			targ.Targ(func(ctx context.Context, a PromoteFeedbackArgs) {
+				errHandler(runPromoteFromFeedbackArgs(ctx, a, stdout))
+			}).Name("feedback").Description("Promote a feedback note to Permanent/"),
+			targ.Targ(func(ctx context.Context, a PromoteFactArgs) {
+				errHandler(runPromoteFromFactArgs(ctx, a, stdout))
+			}).Name("fact").Description("Promote a fact note to Permanent/"),
+			targ.Targ(func(ctx context.Context, a PromoteMOCArgs) {
+				errHandler(runPromoteFromMOCArgs(ctx, a, stdout))
+			}).Name("moc").Description("Promote a MOC note to MOCs/"),
 		),
 		targ.Targ(func(ctx context.Context, a QuickArgs) {
 			fsAdapter := &osQuickFS{}
