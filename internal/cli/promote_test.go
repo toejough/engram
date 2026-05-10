@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -134,4 +135,365 @@ func TestRenderFrontmatter_MOC(t *testing.T) {
 	}, when)
 	g.Expect(got).To(ContainSubstring("type: moc"))
 	g.Expect(got).To(ContainSubstring("topic: llm rationalization patterns under pressure"))
+}
+
+func TestRunPromote_DeletesFleetingWhenAsked(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deletedFleetings := []string{}
+
+	deps := cli.PromoteDeps{
+		Now:      func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Stdin:    strings.NewReader("Related to:\n- [[X]] — adjacent.\n"),
+		Getenv:   func(string) string { return "" },
+		StatDir:  func(string) error { return nil },
+		ListIDs:  func(string) ([]string, error) { return nil, nil },
+		Lock:     func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(string, []byte) error { return nil },
+		DeleteFleeting: func(path string) error {
+			deletedFleetings = append(deletedFleetings, path)
+
+			return nil
+		},
+	}
+
+	args := cli.PromoteArgs{
+		Type:           "feedback",
+		Slug:           "rule",
+		Vault:          "/vault",
+		Relation:       "top",
+		Situation:      "x",
+		Behavior:       "y",
+		Impact:         "z",
+		Action:         "w",
+		DeleteFleeting: "/vault/Fleeting/2026-05-08.note.md",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(deletedFleetings).To(Equal([]string{"/vault/Fleeting/2026-05-08.note.md"}))
+}
+
+func TestRunPromote_Fact_WritesExpectedFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		writtenPath    string
+		writtenContent []byte
+	)
+
+	deps := cli.PromoteDeps{
+		Now:     func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Stdin:   strings.NewReader(""),
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		ListIDs: func(string) ([]string, error) { return nil, nil },
+		Lock:    func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(path string, data []byte) error {
+			writtenPath = path
+			writtenContent = data
+
+			return nil
+		},
+		DeleteFleeting: func(string) error { return nil },
+	}
+
+	args := cli.PromoteArgs{
+		Type:      "fact",
+		Slug:      "fact-slug",
+		Vault:     "/vault",
+		Relation:  "top",
+		Situation: "s",
+		Subject:   "subj",
+		Predicate: "is",
+		Object:    "obj",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(writtenPath).To(Equal("/vault/Permanent/1.2026-05-09.fact-slug.md"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("type: fact"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("Information learned"))
+}
+
+func TestRunPromote_Feedback_WritesExpectedFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		lockAcquired, lockReleased bool
+		writtenPath                string
+		writtenContent             []byte
+	)
+
+	deletedFleetings := []string{}
+
+	deps := cli.PromoteDeps{
+		Now:     func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Stdin:   strings.NewReader("Related to:\n- [[X]] — adjacent.\n"),
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		ListIDs: func(string) ([]string, error) {
+			return []string{"1", "2"}, nil
+		},
+		Lock: func(string) (func(), error) {
+			lockAcquired = true
+
+			return func() { lockReleased = true }, nil
+		},
+		WriteNew: func(path string, data []byte) error {
+			writtenPath = path
+			writtenContent = data
+
+			return nil
+		},
+		DeleteFleeting: func(path string) error {
+			deletedFleetings = append(deletedFleetings, path)
+
+			return nil
+		},
+	}
+
+	args := cli.PromoteArgs{
+		Type:           "feedback",
+		Slug:           "ctx-cancellation-rule",
+		Vault:          "/vault",
+		Target:         "",
+		Relation:       "top",
+		Source:         "session log foo, 2026-05-09 12:00 UTC",
+		Situation:      "writing concurrent Go code",
+		Behavior:       "ignoring ctx.Done()",
+		Impact:         "leaks goroutines",
+		Action:         "always check ctx.Done() in select",
+		DeleteFleeting: "",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(lockAcquired).To(BeTrue())
+	g.Expect(lockReleased).To(BeTrue())
+	g.Expect(writtenPath).To(Equal("/vault/Permanent/3.2026-05-09.ctx-cancellation-rule.md"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("type: feedback"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("Lesson learned: when writing concurrent Go code"))
+	g.Expect(deletedFleetings).To(BeEmpty())
+}
+
+func TestRunPromote_MOC_WritesExpectedFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenPath string
+
+	deps := cli.PromoteDeps{
+		Now:     func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Stdin:   strings.NewReader("framing body\n"),
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		ListIDs: func(string) ([]string, error) { return nil, nil },
+		Lock:    func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(path string, _ []byte) error {
+			writtenPath = path
+
+			return nil
+		},
+		DeleteFleeting: func(string) error { return nil },
+	}
+
+	args := cli.PromoteArgs{
+		Type:     "moc",
+		Slug:     "moc-slug",
+		Vault:    "/vault",
+		Relation: "top",
+		Topic:    "the topic",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(writtenPath).To(Equal("/vault/MOCs/1.2026-05-09.moc-slug.md"))
+}
+
+func TestRunPromote_PropagatesDeleteFleetingError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.PromoteDeps{
+		Now:            func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Stdin:          strings.NewReader(""),
+		Getenv:         func(string) string { return "" },
+		StatDir:        func(string) error { return nil },
+		ListIDs:        func(string) ([]string, error) { return nil, nil },
+		Lock:           func(string) (func(), error) { return func() {}, nil },
+		WriteNew:       func(string, []byte) error { return nil },
+		DeleteFleeting: func(string) error { return errors.New("delete failed") },
+	}
+	args := cli.PromoteArgs{
+		Type: "moc", Slug: "x", Vault: "/v", Relation: "top", Topic: "t",
+		DeleteFleeting: "/v/Fleeting/x.md",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("deleting fleeting")))
+}
+
+func TestRunPromote_PropagatesListIDsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.PromoteDeps{
+		Now:            func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Stdin:          strings.NewReader(""),
+		Getenv:         func(string) string { return "" },
+		StatDir:        func(string) error { return nil },
+		ListIDs:        func(string) ([]string, error) { return nil, errors.New("io fail") },
+		Lock:           func(string) (func(), error) { return func() {}, nil },
+		WriteNew:       func(string, []byte) error { return nil },
+		DeleteFleeting: func(string) error { return nil },
+	}
+	args := cli.PromoteArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top", Topic: "t"}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("listing existing IDs")))
+}
+
+func TestRunPromote_PropagatesLockError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.PromoteDeps{
+		Now:            func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Stdin:          strings.NewReader(""),
+		Getenv:         func(string) string { return "" },
+		StatDir:        func(string) error { return nil },
+		ListIDs:        func(string) ([]string, error) { return nil, nil },
+		Lock:           func(string) (func(), error) { return nil, errors.New("locked") },
+		WriteNew:       func(string, []byte) error { return nil },
+		DeleteFleeting: func(string) error { return nil },
+	}
+	args := cli.PromoteArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top", Topic: "t"}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("acquiring lock")))
+}
+
+func TestRunPromote_PropagatesStatDirError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.PromoteDeps{
+		Now:            time.Now,
+		Stdin:          strings.NewReader(""),
+		Getenv:         func(string) string { return "" },
+		StatDir:        func(string) error { return errors.New("nope") },
+		ListIDs:        func(string) ([]string, error) { return nil, nil },
+		Lock:           func(string) (func(), error) { return func() {}, nil },
+		WriteNew:       func(string, []byte) error { return nil },
+		DeleteFleeting: func(string) error { return nil },
+	}
+	args := cli.PromoteArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top"}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("vault")))
+}
+
+func TestRunPromote_RejectsInvalidSlug(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.PromoteDeps{
+		Now:            time.Now,
+		Stdin:          strings.NewReader(""),
+		Getenv:         func(string) string { return "" },
+		StatDir:        func(string) error { return nil },
+		ListIDs:        func(string) ([]string, error) { return nil, nil },
+		Lock:           func(string) (func(), error) { return func() {}, nil },
+		WriteNew:       func(string, []byte) error { return nil },
+		DeleteFleeting: func(string) error { return nil },
+	}
+	args := cli.PromoteArgs{Type: "moc", Slug: "Bad Slug", Vault: "/v", Relation: "top"}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunPromote_RejectsMissingVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.PromoteDeps{
+		Now:            time.Now,
+		Stdin:          strings.NewReader(""),
+		Getenv:         func(string) string { return "" },
+		StatDir:        func(string) error { return nil },
+		ListIDs:        func(string) ([]string, error) { return nil, nil },
+		Lock:           func(string) (func(), error) { return func() {}, nil },
+		WriteNew:       func(string, []byte) error { return nil },
+		DeleteFleeting: func(string) error { return nil },
+	}
+	args := cli.PromoteArgs{Type: "moc", Slug: "x", Vault: "", Relation: "top"}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunPromote_RejectsUnknownType(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	deps := cli.PromoteDeps{
+		Now:            time.Now,
+		Stdin:          strings.NewReader(""),
+		Getenv:         func(string) string { return "" },
+		StatDir:        func(string) error { return nil },
+		ListIDs:        func(string) ([]string, error) { return nil, nil },
+		Lock:           func(string) (func(), error) { return func() {}, nil },
+		WriteNew:       func(string, []byte) error { return nil },
+		DeleteFleeting: func(string) error { return nil },
+	}
+	args := cli.PromoteArgs{Type: "principle", Slug: "x", Vault: "/v", Relation: "top"}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(HaveOccurred())
 }

@@ -43,6 +43,7 @@ var (
 	ExportResolveLLMCmd                  = resolveLLMCmd
 	ExportResolveVault                   = resolveVault
 	ExportRunBuildSelf                   = runBuildSelf
+	ExportRunPromote                     = runPromote
 	ExportRunQuick                       = runQuick
 	ExportSortLuhmannIDs                 = sortLuhmannIDs
 	ExportValidateSlug                   = validateSlug
@@ -50,12 +51,11 @@ var (
 	ExportWriteMemory                    = writeMemory
 )
 
-// Exported type aliases.
-type (
-	ExportFactFields     = factFields
-	ExportFeedbackFields = feedbackFields
-	ExportMOCFields      = mocFields
-)
+type ExportFactFields = factFields
+
+type ExportFeedbackFields = feedbackFields
+
+type ExportMOCFields = mocFields
 
 // ExportCallHaikuForConflicts wraps callHaikuForConflicts for testing.
 func ExportCallHaikuForConflicts(
