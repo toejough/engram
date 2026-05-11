@@ -67,7 +67,7 @@ Gates 2 and 3 not reached.
 ## baseline-clean-write
 
 **Gate 1 — Recurs:** PASS. General debugging principle about tool lag vs actual state.
-**Gate 2 — Activity-and-Domain:** PASS. "When LSP reports errors after a commit" — pre-lesson phrasing.
+**Gate 2 — Activity-and-domain:** PASS. "When LSP reports errors after a commit" — pre-lesson phrasing.
 **Gate 3 — Knowledge:** Sharp here. The principle already exists at `10c1.2026-05-10.never-chase-lsp-post-commit.md`. This candidate is the **same** transferable principle, not a new claim.
 
 **Disposition:** Merge into existing 10c1. Session log provides a concrete instance that sharpens the existing note's wording, but introduces no new principle.
@@ -102,7 +102,7 @@ engram promote feedback \
 **Candidate 2 — Discovered fact "the build tool exits 0 even when sub-targets warn; check stderr for the actual signal":**
 
 - Gate 1 (Recurs): PASS. Generic build-tooling observation.
-- Gate 2 (Activity-and-Domain): PASS. "When a build orchestrator runs sub-targets, how do you detect a sub-target succeeded in exit code but failed in diagnostics?"
+- Gate 2 (Activity-and-domain): PASS. "When a build orchestrator runs sub-targets, how do you detect a sub-target succeeded in exit code but failed in diagnostics?"
 - Gate 3 (Knowledge): PASS. Transferable principle.
 - Disposition: Write.
 
