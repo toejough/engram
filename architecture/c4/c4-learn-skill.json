@@ -5,7 +5,7 @@
       {
         "from": "S2-N1-M2",
         "id": "R4",
-        "label": "instructs agent to call engram learn feedback / engram learn fact (P9)",
+        "label": "instructs agent to call engram promote feedback / fact / moc (P13)",
         "to": "S2-N3"
       }
     ],
@@ -33,53 +33,53 @@
     {
       "enforced_at": [
         {
-          "line": 12,
-          "path": "skills/learn/SKILL.md"
-        }
-      ],
-      "id": "S2-N1-M2-P1",
-      "name": "Five-step flow",
-      "notes": "No behavioral test under skills/learn/.",
-      "statement": "For all invocations of the learn skill, the body instructs the agent to execute five numbered steps in order: identify learnable moments, apply the quality gate, draft memories, persist, and handle results.",
-      "tested_at": []
-    },
-    {
-      "enforced_at": [
-        {
-          "line": 16,
-          "path": "skills/learn/SKILL.md"
-        }
-      ],
-      "id": "S2-N1-M2-P2",
-      "name": "Four candidate sources",
-      "notes": "Closed list; not a brainstorm prompt.",
-      "statement": "For all session reviews, the skill instructs the agent to consider exactly four candidate sources — user corrections, failed approaches, discovered facts, and recurring patterns — when identifying learnable moments.",
-      "tested_at": []
-    },
-    {
-      "enforced_at": [
-        {
-          "line": 24,
-          "path": "skills/learn/SKILL.md"
-        }
-      ],
-      "id": "S2-N1-M2-P3",
-      "name": "Ordered quality gate",
-      "notes": "Short-circuit semantics — no gate is skipped, no gate runs after a failure.",
-      "statement": "For all candidate memories, the skill instructs the agent to evaluate the three quality gates (Recurs, Actionable, Right home) in order, dropping the candidate on the first failure.",
-      "tested_at": []
-    },
-    {
-      "enforced_at": [
-        {
           "line": 26,
           "path": "skills/learn/SKILL.md"
         }
       ],
+      "id": "S2-N1-M2-P1",
+      "name": "User-invoked trigger",
+      "notes": "One of two trigger modes; mode does not gate write behavior.",
+      "statement": "For all explicit user invocations (\"/learn\", \"remember this\", \"save that for later\", \"write up what we just did\"), the skill instructs the agent to determine input grain from context — single observation when a moment is flagged, session-batch sweep at the end of a chunk of work.",
+      "tested_at": []
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 27,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P2",
+      "name": "Autonomous task-boundary trigger",
+      "notes": "Autonomous writes are not gated by approval; the gates are the gate.",
+      "statement": "For all discrete task completions (feature shipped, bug fixed, plan step closed, direction changed), the skill instructs the agent to self-fire and sweep the just-completed work using the same gate sequence and write discipline, with no user prompt before write.",
+      "tested_at": []
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 29,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P3",
+      "name": "Micro-task auto-fire suppression",
+      "notes": "Default-off bias for ambiguous chunks.",
+      "statement": "For all autonomous trigger evaluations, the skill instructs the agent not to auto-fire on micro-tasks (one-line edits, single-file moves, trivial renames, typo fixes); the threshold is \"a chunk of work that could plausibly produce lessons,\" and when unsure, do not fire.",
+      "tested_at": []
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 33,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
       "id": "S2-N1-M2-P4",
-      "name": "Recurs strips to activity+domain",
-      "notes": "Cross-project plausibility test.",
-      "statement": "For all candidates, the skill instructs the agent to reduce the situation to activity+domain and reject any candidate whose stripped form names this project, its internals, phase numbers, issue IDs, commit hashes, dates, or one-time events.",
+      "name": "Three gates ordered, fail-any drops",
+      "notes": "Short-circuit semantics.",
+      "statement": "For all candidates, the skill instructs the agent to run gates in order — Recurs → Activity-and-Domain → Knowledge — and drop the candidate on the first failure with no retries or escape hatches (except the single Gate 2 reframe).",
       "tested_at": []
     },
     {
@@ -90,139 +90,152 @@
         }
       ],
       "id": "S2-N1-M2-P5",
-      "name": "Actionable requires concrete action",
-      "notes": "Memory must change agent behavior, not merely describe.",
-      "statement": "For all candidates, the skill instructs the agent to reject memories that do not name a concrete action — vague observations, inert facts, and raw debug logs all fail.",
+      "name": "Recurs strips to activity+domain",
+      "notes": "Cross-project plausibility test — an agent on an unrelated project should plausibly hit the same situation.",
+      "statement": "For all candidates, the skill instructs the agent to reduce the situation to activity+domain and fail the candidate at Recurs if it names this project, its internals or architecture, phase numbers, issue IDs, commit hashes, dates, or one-time events.",
       "tested_at": []
     },
     {
       "enforced_at": [
         {
-          "line": 41,
+          "line": 47,
           "path": "skills/learn/SKILL.md"
         }
       ],
       "id": "S2-N1-M2-P6",
-      "name": "Right-home verification",
-      "notes": "git log command is exact — `git log --since='14 days ago' --name-only`.",
-      "statement": "For all surviving candidates, the skill instructs the agent to name an alternative home (code, doc, skill, CLAUDE.md, .claude/rules/*.md, or docs/ spec) and verify by running git log over the last 14 days and reading the listed files before deciding whether to persist a memory.",
+      "name": "Activity-and-domain pre-lesson framing",
+      "notes": "Bad/Good table on lines 49–53 illustrates the anti-pattern.",
+      "statement": "For all candidates, the skill instructs the agent to phrase the `situation` field as what an agent would be embarking on, framed as it would be queried before the lesson is known — no hindsight, no diagnosis-as-situation.",
       "tested_at": []
     },
     {
       "enforced_at": [
         {
-          "line": 56,
+          "line": 55,
           "path": "skills/learn/SKILL.md"
         }
       ],
       "id": "S2-N1-M2-P7",
-      "name": "Surfacing-failure routing",
-      "notes": "Reading the home during verification does not count as surfacing.",
-      "statement": "For all candidates whose alternative home contains the lesson but did not surface in time this session, the skill instructs the agent to persist a new memory rather than defer to the home, because surfacing — not authorship — is the failure to repair.",
+      "name": "One reframe, re-run all gates",
+      "notes": "Re-run scope is all three gates, not just Gate 2.",
+      "statement": "For all candidates that fail Gate 2, the skill instructs the agent that it may reframe the situation exactly once and re-run all three gates; if still failing, drop.",
       "tested_at": []
     },
     {
       "enforced_at": [
         {
-          "line": 63,
+          "line": 59,
           "path": "skills/learn/SKILL.md"
         }
       ],
       "id": "S2-N1-M2-P8",
-      "name": "Memory-kind routing",
-      "notes": "Two memory kinds, deterministic mapping from candidate source.",
-      "statement": "For all surviving candidates, the skill instructs the agent to draft corrections and failed approaches as feedback (SBIA shape) and discovered facts and patterns as fact (situation + subject/predicate/object).",
+      "name": "Knowledge bar (information vs knowledge)",
+      "notes": "Bar drawn from zettelkasten.de; no word counts, no graduation rates.",
+      "statement": "For all candidates, the skill instructs the agent to pass Gate 3 only if the candidate can be restated as a transferable principle with applicability beyond the originating event — mere descriptions of what happened are information and fail.",
       "tested_at": []
     },
     {
       "enforced_at": [
         {
-          "line": 79,
+          "line": 80,
           "path": "skills/learn/SKILL.md"
         }
       ],
       "id": "S2-N1-M2-P9",
-      "name": "Calls engram learn",
-      "notes": "Backs L3 R4.",
-      "statement": "For all persistence steps, the skill instructs the agent to invoke `engram learn feedback` or `engram learn fact` (no other subcommand) with the drafted fields.",
+      "name": "Four dispositions per survivor",
+      "notes": "Editing a dated permanent erases the time-shape of the thinking.",
+      "statement": "For all surviving candidates, the skill instructs the agent to choose one of four dispositions — new permanent, merge into an existing permanent, split into multiple permanents, or new-elaboration as a continuation — preferring new-elaboration over merge when the candidate adds claims the existing permanent doesn't make.",
       "tested_at": []
     },
     {
       "enforced_at": [
         {
-          "line": 67,
+          "line": 89,
           "path": "skills/learn/SKILL.md"
         }
       ],
       "id": "S2-N1-M2-P10",
-      "name": "Activity+domain situation field",
-      "notes": "Hindsight-baking is the named anti-pattern.",
-      "statement": "For all drafted memories, the skill instructs the agent to phrase the `situation` field as activity+domain matching how a /prepare query would be phrased before the lesson is known — not as the diagnosis, symptom, or fix.",
+      "name": "Luhmann position assignment, binary computes ID",
+      "notes": "Three relation values; lock owned by the binary.",
+      "statement": "For all writes, the skill instructs the agent to find the most-related existing note, choose the relation (`top`, `continuation`, or `sibling`), and pass `--target` and `--relation` to the binary so the binary computes the actual ID under a vault lock — the agent does not compute the ID itself.",
       "tested_at": []
     },
     {
       "enforced_at": [
         {
-          "line": 76,
+          "line": 111,
           "path": "skills/learn/SKILL.md"
         }
       ],
       "id": "S2-N1-M2-P11",
-      "name": "Autonomous default at boundaries",
-      "notes": "Interactive approval is reserved for explicit /learn invocations.",
-      "statement": "For all task-boundary invocations (not user-initiated /learn), the skill instructs the agent to persist memories autonomously with `--source agent` rather than presenting findings for approval.",
+      "name": "LLM-voice body with per-link rationale",
+      "notes": "Quality bar reinforced at line 164 (\"Per-link rationale\").",
+      "statement": "For all drafted bodies, the skill instructs the agent to write in its own LLM voice (rephrasing verbatim user quotes) and to include `Related to:` bullets where every bullet carries a per-link rationale — no bare wikilinks.",
       "tested_at": []
     },
     {
       "enforced_at": [
         {
-          "line": 77,
+          "line": 127,
           "path": "skills/learn/SKILL.md"
         }
       ],
       "id": "S2-N1-M2-P12",
-      "name": "Interactive approval on /learn",
-      "notes": "Reciprocal of P11.",
-      "statement": "For all user-initiated /learn invocations, the skill instructs the agent to present drafted findings to the user for approval before persisting.",
+      "name": "MOC on judgement, no count threshold",
+      "notes": "Backlinks already enumerate constituents.",
+      "statement": "For all MOC-creation decisions, the skill instructs the agent to create or update a MOC when a real framing paragraph emerges across notes — judgement, not a cluster count — and to put the framing prose in the body without auto-listing constituents.",
       "tested_at": []
     },
     {
       "enforced_at": [
         {
-          "line": 87,
+          "line": 102,
           "path": "skills/learn/SKILL.md"
         }
       ],
       "id": "S2-N1-M2-P13",
-      "name": "DUPLICATE broadens situation",
-      "notes": "Surfacing failure, not authorship failure — the existing memory is widened.",
-      "statement": "For all DUPLICATE responses from `engram learn`, the skill instructs the agent to diagnose why /recall or /prepare missed the existing memory and broaden its situation via `engram update --name \u003cname\u003e --situation \"...\"`, never dismissing the candidate.",
+      "name": "Calls engram promote",
+      "notes": "Backs L3 R4. Subcommand set is exactly {feedback, fact, moc}.",
+      "statement": "For all persistence steps, the skill instructs the agent to invoke `engram promote feedback`, `engram promote fact`, or `engram promote moc` (never direct filesystem writes) with the drafted fields and the body on stdin.",
       "tested_at": []
     },
     {
       "enforced_at": [
         {
-          "line": 88,
+          "line": 147,
           "path": "skills/learn/SKILL.md"
         }
       ],
       "id": "S2-N1-M2-P14",
-      "name": "CONTRADICTION mode-split",
-      "notes": "Autonomous mode never silently overwrites contradictory memories.",
-      "statement": "For all CONTRADICTION responses, the skill instructs the agent to ask the user to resolve (update / replace / keep both) when interactive, and to skip the candidate when autonomous.",
+      "name": "Single parallel tool-use block per pass",
+      "notes": "\"Hard rule\" — collapses N tool-roundtrip latencies into one.",
+      "statement": "For all `engram promote` invocations in a single /learn pass, the skill instructs the agent to issue them in one parallel tool-use block — serial writes across tool turns are explicitly forbidden.",
       "tested_at": []
     },
     {
       "enforced_at": [
         {
-          "line": 86,
+          "line": 143,
           "path": "skills/learn/SKILL.md"
         }
       ],
       "id": "S2-N1-M2-P15",
-      "name": "CREATED confirmation only when interactive",
-      "notes": "Keeps autonomous task-boundary persistence non-chatty.",
-      "statement": "For all CREATED responses, the skill instructs the agent to confirm to the user only in interactive mode; autonomous runs treat CREATED as silent success.",
+      "name": "Contradictions as Related-to bullets",
+      "notes": "No silent overwrite; no merge that hides the disagreement.",
+      "statement": "For all new permanents that contradict an existing permanent, the skill instructs the agent to write the new permanent with a `Related to:` bullet whose rationale names the discrepancy, surface the contradiction in the final report, and refrain from smoothing.",
+      "tested_at": []
+    },
+    {
+      "enforced_at": [
+        {
+          "line": 149,
+          "path": "skills/learn/SKILL.md"
+        }
+      ],
+      "id": "S2-N1-M2-P16",
+      "name": "Final report per pass",
+      "notes": "Same report shape for user-invoked and autonomous passes.",
+      "statement": "For all completed passes, the skill instructs the agent to report candidates considered, gates passed/failed (with gate name and one-line reason), permanents written (with Luhmann IDs), MOCs written or updated, and contradictions surfaced.",
       "tested_at": []
     }
   ],
