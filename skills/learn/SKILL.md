@@ -77,12 +77,11 @@ For each candidate, run **Recurs → Activity-and-Domain → Knowledge** in orde
 
 ### 3. Decide disposition per survivor
 
-- **New permanent** — one candidate → one new permanent
-- **Merge** — sharpens an existing permanent's wording or adds an example without new claims; fold into that note
+- **New permanent** — one candidate → one new top-level permanent
+- **Continuation** — write a new permanent as a continuation under an existing one (`--target <id> --position continuation`, e.g. existing `1` → new `1a`). Covers both sharpening the parent's wording with another instance and adding claims that elaborate it; the distinction is a body-content judgment, not a separate disposition.
 - **Split** — one candidate bundles multiple principles → multiple permanents
-- **New-elaboration** — if it adds claims the existing permanent doesn't make, write a new permanent as a continuation (e.g. existing `1` → new `1a`)
 
-**Merge vs. new-elaboration:** if the candidate adds claims the existing permanent doesn't make, prefer new-elaboration. Editing a published, dated permanent erases the time-shape of the thinking.
+Continuation is always a fresh file under the parent's lineage — never an in-place edit. `engram learn` has no edit operation; reinforcing or elaborating an existing principle IS a new continuation note, which preserves the time-shape of the thinking.
 
 ### 4. Decide Luhmann position per write
 
