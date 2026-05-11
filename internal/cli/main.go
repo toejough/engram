@@ -1,4 +1,3 @@
-// Package cli wires the engram CLI binary's entry-point composition.
 package cli
 
 import (
