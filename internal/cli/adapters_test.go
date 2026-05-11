@@ -82,7 +82,7 @@ func TestOsFileReader_ReadError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestOsPromoteFS_ListIDs_ReturnsBothPermanentAndMOC(t *testing.T) {
+func TestOsLearnFS_ListIDs_ReturnsBothPermanentAndMOC(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	vault := t.TempDir()
@@ -93,7 +93,7 @@ func TestOsPromoteFS_ListIDs_ReturnsBothPermanentAndMOC(t *testing.T) {
 	g.Expect(os.WriteFile(filepath.Join(vault, "MOCs", "5.2026-05-09.moc.md"), nil, 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "README.md"), nil, 0o600)).To(Succeed())
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	got, err := fs.ListIDs(vault)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -104,12 +104,12 @@ func TestOsPromoteFS_ListIDs_ReturnsBothPermanentAndMOC(t *testing.T) {
 	g.Expect(got).To(ConsistOf("1", "1a", "5"))
 }
 
-func TestOsPromoteFS_Lock_ExclusiveAcrossSecondAcquisition(t *testing.T) {
+func TestOsLearnFS_Lock_ExclusiveAcrossSecondAcquisition(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	vault := t.TempDir()
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	release1, err := fs.Lock(vault)
 	g.Expect(err).NotTo(HaveOccurred())
 

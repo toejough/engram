@@ -380,7 +380,7 @@ func TestTargets(t *testing.T) {
 		g.Expect(stderr).NotTo(gomega.BeEmpty())
 	})
 
-	t.Run("invokes promote feedback closure", func(t *testing.T) {
+	t.Run("invokes learn feedback closure", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
@@ -388,7 +388,7 @@ func TestTargets(t *testing.T) {
 		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
 
 		_, stderr := executeForTest(t, []string{
-			"engram", "promote", "feedback",
+			"engram", "learn", "feedback",
 			"--slug", "test-slug",
 			"--vault", vault,
 			"--relation", "top",
@@ -397,7 +397,7 @@ func TestTargets(t *testing.T) {
 		_ = stderr
 	})
 
-	t.Run("invokes promote fact closure", func(t *testing.T) {
+	t.Run("invokes learn fact closure", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
@@ -405,7 +405,7 @@ func TestTargets(t *testing.T) {
 		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
 
 		_, stderr := executeForTest(t, []string{
-			"engram", "promote", "fact",
+			"engram", "learn", "fact",
 			"--slug", "test-slug",
 			"--vault", vault,
 			"--relation", "top",
@@ -413,7 +413,7 @@ func TestTargets(t *testing.T) {
 		_ = stderr
 	})
 
-	t.Run("invokes promote moc closure", func(t *testing.T) {
+	t.Run("invokes learn moc closure", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
@@ -421,7 +421,7 @@ func TestTargets(t *testing.T) {
 		g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
 		_, stderr := executeForTest(t, []string{
-			"engram", "promote", "moc",
+			"engram", "learn", "moc",
 			"--slug", "test-slug",
 			"--vault", vault,
 			"--relation", "top",

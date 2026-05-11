@@ -17,6 +17,7 @@ var (
 	ExportDescribeNewMemory              = describeNewMemory
 	ExportExtractLuhmannFromFilename     = extractLuhmannFromFilename
 	ExportFleetingPath                   = fleetingPath
+	ExportLearnPath                      = learnPath
 	ExportNewErrHandler                  = newErrHandler
 	ExportNextLuhmannID                  = nextLuhmannID
 	ExportOsDirListMd                    = osDirListMd
@@ -25,7 +26,6 @@ var (
 	ExportOsWalkMd                       = osWalkMd
 	ExportOsWalkSkills                   = osWalkSkills
 	ExportParseConflictResponse          = parseConflictResponse
-	ExportPromotePath                    = promotePath
 	ExportReadAutoMemoryDirectorySetting = readAutoMemoryDirectorySetting
 	ExportRenderConflictContent          = renderConflictContent
 	ExportRenderFactBody                 = renderFactBody
@@ -42,7 +42,7 @@ var (
 	ExportResolveLLMCmd                  = resolveLLMCmd
 	ExportResolveVault                   = resolveVault
 	ExportRunBuildSelf                   = runBuildSelf
-	ExportRunPromote                     = runPromote
+	ExportRunLearn                       = runLearn
 	ExportRunQuick                       = runQuick
 	ExportValidateSlug                   = validateSlug
 	ExportValidateSource                 = validateSource
@@ -113,8 +113,8 @@ func ExportNewOsFileReader() interface {
 	return &osFileReader{}
 }
 
-// ExportNewOsPromoteFS returns the production osPromoteFS adapter for testing.
-func ExportNewOsPromoteFS() *osPromoteFS { return &osPromoteFS{} }
+// ExportNewOsLearnFS returns the production osLearnFS adapter for testing.
+func ExportNewOsLearnFS() *osLearnFS { return &osLearnFS{} }
 
 // ExportNewOsQuickFS returns the production osQuickFS adapter for testing.
 func ExportNewOsQuickFS() interface {
@@ -137,19 +137,19 @@ func ExportParseConflictLine(line, dataDir string, stdout io.Writer) {
 	parseConflictLine(line, dataDir, stdout)
 }
 
-// ExportRunPromoteFromFactArgs invokes the unexported runPromoteFromFactArgs for testing.
-func ExportRunPromoteFromFactArgs(ctx context.Context, a PromoteFactArgs, stdout io.Writer) error {
-	return runPromoteFromFactArgs(ctx, a, stdout)
+// ExportRunLearnFromFactArgs invokes the unexported runLearnFromFactArgs for testing.
+func ExportRunLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer) error {
+	return runLearnFromFactArgs(ctx, a, stdout)
 }
 
-// ExportRunPromoteFromFeedbackArgs invokes the unexported runPromoteFromFeedbackArgs for testing.
-func ExportRunPromoteFromFeedbackArgs(ctx context.Context, a PromoteFeedbackArgs, stdout io.Writer) error {
-	return runPromoteFromFeedbackArgs(ctx, a, stdout)
+// ExportRunLearnFromFeedbackArgs invokes the unexported runLearnFromFeedbackArgs for testing.
+func ExportRunLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout io.Writer) error {
+	return runLearnFromFeedbackArgs(ctx, a, stdout)
 }
 
-// ExportRunPromoteFromMOCArgs invokes the unexported runPromoteFromMOCArgs for testing.
-func ExportRunPromoteFromMOCArgs(ctx context.Context, a PromoteMOCArgs, stdout io.Writer) error {
-	return runPromoteFromMOCArgs(ctx, a, stdout)
+// ExportRunLearnFromMOCArgs invokes the unexported runLearnFromMOCArgs for testing.
+func ExportRunLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Writer) error {
+	return runLearnFromMOCArgs(ctx, a, stdout)
 }
 
 // ExportRunRecallSessions wraps runRecallSessions for testing.

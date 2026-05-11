@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// PromoteArgs holds the parsed flags for the promote subcommand.
-type PromoteArgs struct {
+// LearnArgs holds the parsed flags for the learn subcommand.
+type LearnArgs struct {
 	Type     string
 	Slug     string
 	Vault    string
@@ -35,8 +35,8 @@ type PromoteArgs struct {
 	Topic string
 }
 
-// PromoteDeps holds injected dependencies for runPromote. All fields required.
-type PromoteDeps struct {
+// LearnDeps holds injected dependencies for runLearn. All fields required.
+type LearnDeps struct {
 	Now      func() time.Time
 	Stdin    io.Reader
 	Getenv   func(string) string
@@ -55,7 +55,7 @@ const (
 
 // unexported variables.
 var (
-	errPromoteUnknownType  = errors.New("promote: type must be feedback, fact, or moc")
+	errLearnUnknownType    = errors.New("learn: type must be feedback, fact, or moc")
 	luhmannFilenamePattern = regexp.MustCompile(
 		`^([0-9][0-9a-z]*)\.\d{4}-\d{2}-\d{2}\..+\.md$`,
 	)
@@ -85,7 +85,7 @@ type mocFields struct {
 	Source  string
 }
 
-func assemblePromoteContent(args PromoteArgs, luhmann string, when time.Time, body string) (string, error) {
+func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, body string) (string, error) {
 	switch args.Type {
 	case typeFeedback:
 		f := feedbackFields{
@@ -106,7 +106,7 @@ func assemblePromoteContent(args PromoteArgs, luhmann string, when time.Time, bo
 
 		return renderMOCFrontmatter(f, when) + renderMOCBody(body), nil
 	default:
-		return "", fmt.Errorf("%w: got %q", errPromoteUnknownType, args.Type)
+		return "", fmt.Errorf("%w: got %q", errLearnUnknownType, args.Type)
 	}
 }
 
@@ -119,21 +119,7 @@ func extractLuhmannFromFilename(name string) (string, bool) {
 	return m[1], true
 }
 
-func newOsPromoteDeps() PromoteDeps {
-	fs := &osPromoteFS{}
-
-	return PromoteDeps{
-		Now:      time.Now,
-		Stdin:    os.Stdin,
-		Getenv:   os.Getenv,
-		StatDir:  fs.StatDir,
-		ListIDs:  fs.ListIDs,
-		Lock:     fs.Lock,
-		WriteNew: fs.WriteNew,
-	}
-}
-
-func promotePath(vault, memType, luhmann, slug string, when time.Time) string {
+func learnPath(vault, memType, luhmann, slug string, when time.Time) string {
 	subdir := permanentSubdir
 	if memType == typeMOC {
 		subdir = mocSubdir
@@ -142,6 +128,20 @@ func promotePath(vault, memType, luhmann, slug string, when time.Time) string {
 	filename := fmt.Sprintf("%s.%s.%s.md", luhmann, when.Format(dateFormat), slug)
 
 	return filepath.Join(vault, subdir, filename)
+}
+
+func newOsLearnDeps() LearnDeps {
+	fs := &osLearnFS{}
+
+	return LearnDeps{
+		Now:      time.Now,
+		Stdin:    os.Stdin,
+		Getenv:   os.Getenv,
+		StatDir:  fs.StatDir,
+		ListIDs:  fs.ListIDs,
+		Lock:     fs.Lock,
+		WriteNew: fs.WriteNew,
+	}
 }
 
 func renderFactBody(f factFields, relatedSection string) string {
@@ -208,30 +208,30 @@ func renderMOCFrontmatter(f mocFields, when time.Time) string {
 	}, "\n")
 }
 
-// runPromote orchestrates the promote subcommand: validates inputs, acquires the lock,
+// runLearn orchestrates the learn subcommand: validates inputs, acquires the lock,
 // computes the next Luhmann ID, and writes the file.
-func runPromote(_ context.Context, args PromoteArgs, deps PromoteDeps, stdout io.Writer) error {
+func runLearn(_ context.Context, args LearnArgs, deps LearnDeps, stdout io.Writer) error {
 	slugErr := validateSlug(args.Slug)
 	if slugErr != nil {
-		return fmt.Errorf("promote: %w", slugErr)
+		return fmt.Errorf("learn: %w", slugErr)
 	}
 
 	vault, err := resolveVault(args.Vault, deps.Getenv)
 	if err != nil {
-		return fmt.Errorf("promote: %w", err)
+		return fmt.Errorf("learn: %w", err)
 	}
 
 	dirErr := deps.StatDir(vault)
 	if dirErr != nil {
-		return fmt.Errorf("promote: vault %s: %w", vault, dirErr)
+		return fmt.Errorf("learn: vault %s: %w", vault, dirErr)
 	}
 
 	body, bodyErr := io.ReadAll(deps.Stdin)
 	if bodyErr != nil {
-		return fmt.Errorf("promote: reading stdin: %w", bodyErr)
+		return fmt.Errorf("learn: reading stdin: %w", bodyErr)
 	}
 
-	path, writeErr := writePromoteUnderLock(args, deps, vault, string(body))
+	path, writeErr := writeLearnUnderLock(args, deps, vault, string(body))
 	if writeErr != nil {
 		return writeErr
 	}
@@ -241,10 +241,10 @@ func runPromote(_ context.Context, args PromoteArgs, deps PromoteDeps, stdout io
 	return nil
 }
 
-func runPromoteFromFactArgs(ctx context.Context, a PromoteFactArgs, stdout io.Writer) error {
-	deps := newOsPromoteDeps()
+func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer) error {
+	deps := newOsLearnDeps()
 
-	return runPromote(ctx, PromoteArgs{
+	return runLearn(ctx, LearnArgs{
 		Type:      typeFact,
 		Slug:      a.Slug,
 		Vault:     a.Vault,
@@ -258,10 +258,10 @@ func runPromoteFromFactArgs(ctx context.Context, a PromoteFactArgs, stdout io.Wr
 	}, deps, stdout)
 }
 
-func runPromoteFromFeedbackArgs(ctx context.Context, a PromoteFeedbackArgs, stdout io.Writer) error {
-	deps := newOsPromoteDeps()
+func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout io.Writer) error {
+	deps := newOsLearnDeps()
 
-	return runPromote(ctx, PromoteArgs{
+	return runLearn(ctx, LearnArgs{
 		Type:      typeFeedback,
 		Slug:      a.Slug,
 		Vault:     a.Vault,
@@ -275,10 +275,10 @@ func runPromoteFromFeedbackArgs(ctx context.Context, a PromoteFeedbackArgs, stdo
 	}, deps, stdout)
 }
 
-func runPromoteFromMOCArgs(ctx context.Context, a PromoteMOCArgs, stdout io.Writer) error {
-	deps := newOsPromoteDeps()
+func runLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Writer) error {
+	deps := newOsLearnDeps()
 
-	return runPromote(ctx, PromoteArgs{
+	return runLearn(ctx, LearnArgs{
 		Type:     typeMOC,
 		Slug:     a.Slug,
 		Vault:    a.Vault,
@@ -289,37 +289,37 @@ func runPromoteFromMOCArgs(ctx context.Context, a PromoteMOCArgs, stdout io.Writ
 	}, deps, stdout)
 }
 
-// writePromoteUnderLock acquires the vault lock, computes the next Luhmann ID,
+// writeLearnUnderLock acquires the vault lock, computes the next Luhmann ID,
 // assembles file content, and writes it. The lock spans listing existing IDs
 // through writing the new file to prevent ID collisions.
-func writePromoteUnderLock(args PromoteArgs, deps PromoteDeps, vault, body string) (string, error) {
+func writeLearnUnderLock(args LearnArgs, deps LearnDeps, vault, body string) (string, error) {
 	release, lockErr := deps.Lock(vault)
 	if lockErr != nil {
-		return "", fmt.Errorf("promote: acquiring lock: %w", lockErr)
+		return "", fmt.Errorf("learn: acquiring lock: %w", lockErr)
 	}
 	defer release()
 
 	existing, listErr := deps.ListIDs(vault)
 	if listErr != nil {
-		return "", fmt.Errorf("promote: listing existing IDs: %w", listErr)
+		return "", fmt.Errorf("learn: listing existing IDs: %w", listErr)
 	}
 
 	luhmann, idErr := nextLuhmannID(existing, args.Target, args.Relation)
 	if idErr != nil {
-		return "", fmt.Errorf("promote: %w", idErr)
+		return "", fmt.Errorf("learn: %w", idErr)
 	}
 
 	when := deps.Now()
-	path := promotePath(vault, args.Type, luhmann, args.Slug, when)
+	path := learnPath(vault, args.Type, luhmann, args.Slug, when)
 
-	content, contentErr := assemblePromoteContent(args, luhmann, when, body)
+	content, contentErr := assembleLearnContent(args, luhmann, when, body)
 	if contentErr != nil {
-		return "", fmt.Errorf("promote: %w", contentErr)
+		return "", fmt.Errorf("learn: %w", contentErr)
 	}
 
 	writeErr := deps.WriteNew(path, []byte(content))
 	if writeErr != nil {
-		return "", fmt.Errorf("promote: writing %s: %w", path, writeErr)
+		return "", fmt.Errorf("learn: writing %s: %w", path, writeErr)
 	}
 
 	return path, nil

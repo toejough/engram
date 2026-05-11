@@ -14,8 +14,8 @@ import (
 	"github.com/toejough/targ"
 )
 
-// CommonPromoteArgs holds shared flags for promote subcommands.
-type CommonPromoteArgs struct {
+// CommonLearnArgs holds shared flags for learn subcommands.
+type CommonLearnArgs struct {
 	Slug     string `targ:"flag,name=slug,desc=kebab-case tag for the filename"`
 	Vault    string `targ:"flag,name=vault,env=ENGRAM_VAULT_DIR,desc=vault root directory"`
 	Target   string `targ:"flag,name=target,desc=Luhmann ID this note relates to (empty for top-level)"`
@@ -23,14 +23,9 @@ type CommonPromoteArgs struct {
 	Source   string `targ:"flag,name=source,desc=provenance string for the source field"`
 }
 
-// ListArgs holds parsed flags for the list subcommand.
-type ListArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-}
-
-// PromoteFactArgs holds parsed flags for the promote fact subcommand.
-type PromoteFactArgs struct {
-	CommonPromoteArgs
+// LearnFactArgs holds parsed flags for the learn fact subcommand.
+type LearnFactArgs struct {
+	CommonLearnArgs
 
 	Situation string `targ:"flag,name=situation,desc=context when this applies"`
 	Subject   string `targ:"flag,name=subject,desc=subject of the fact"`
@@ -38,9 +33,9 @@ type PromoteFactArgs struct {
 	Object    string `targ:"flag,name=object,desc=object of the fact"`
 }
 
-// PromoteFeedbackArgs holds parsed flags for the promote feedback subcommand.
-type PromoteFeedbackArgs struct {
-	CommonPromoteArgs
+// LearnFeedbackArgs holds parsed flags for the learn feedback subcommand.
+type LearnFeedbackArgs struct {
+	CommonLearnArgs
 
 	Situation string `targ:"flag,name=situation,desc=context when this applies"`
 	Behavior  string `targ:"flag,name=behavior,desc=observed behavior"`
@@ -48,11 +43,16 @@ type PromoteFeedbackArgs struct {
 	Action    string `targ:"flag,name=action,desc=recommended action"`
 }
 
-// PromoteMOCArgs holds parsed flags for the promote moc subcommand.
-type PromoteMOCArgs struct {
-	CommonPromoteArgs
+// LearnMOCArgs holds parsed flags for the learn moc subcommand.
+type LearnMOCArgs struct {
+	CommonLearnArgs
 
 	Topic string `targ:"flag,name=topic,desc=cluster topic name"`
+}
+
+// ListArgs holds parsed flags for the list subcommand.
+type ListArgs struct {
+	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
 
 // QuickArgs holds parsed flags for the quick subcommand.
@@ -141,16 +141,16 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 		targ.Targ(func(ctx context.Context, a StartingPointsArgs) {
 			errHandler(runStartingPoints(withLog(ctx), a, stdout))
 		}).Name("starting-points").Description("Emit vault graph traversal entry points (one wikilink per line)"),
-		targ.Group("promote",
-			targ.Targ(func(ctx context.Context, a PromoteFeedbackArgs) {
-				errHandler(runPromoteFromFeedbackArgs(withLog(ctx), a, stdout))
-			}).Name("feedback").Description("Promote a feedback note to Permanent/"),
-			targ.Targ(func(ctx context.Context, a PromoteFactArgs) {
-				errHandler(runPromoteFromFactArgs(withLog(ctx), a, stdout))
-			}).Name("fact").Description("Promote a fact note to Permanent/"),
-			targ.Targ(func(ctx context.Context, a PromoteMOCArgs) {
-				errHandler(runPromoteFromMOCArgs(withLog(ctx), a, stdout))
-			}).Name("moc").Description("Promote a MOC note to MOCs/"),
+		targ.Group("learn",
+			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
+				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, stdout))
+			}).Name("feedback").Description("Write a feedback note to Permanent/"),
+			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
+				errHandler(runLearnFromFactArgs(withLog(ctx), a, stdout))
+			}).Name("fact").Description("Write a fact note to Permanent/"),
+			targ.Targ(func(ctx context.Context, a LearnMOCArgs) {
+				errHandler(runLearnFromMOCArgs(withLog(ctx), a, stdout))
+			}).Name("moc").Description("Write a MOC note to MOCs/"),
 		),
 		targ.Targ(func(ctx context.Context, a QuickArgs) {
 			fsAdapter := &osQuickFS{}

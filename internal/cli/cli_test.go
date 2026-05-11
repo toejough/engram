@@ -12,7 +12,7 @@ import (
 	"engram/internal/cli"
 )
 
-func TestEngramPromote_Feedback_EndToEnd(t *testing.T) {
+func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -30,7 +30,7 @@ func TestEngramPromote_Feedback_EndToEnd(t *testing.T) {
 		return
 	}
 
-	run := exec.Command(binPath, "promote", "feedback",
+	run := exec.Command(binPath, "learn", "feedback",
 		"--slug", "ctx-rule",
 		"--vault", vault,
 		"--relation", "top",

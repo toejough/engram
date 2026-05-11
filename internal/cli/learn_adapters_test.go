@@ -12,7 +12,7 @@ import (
 	"engram/internal/cli"
 )
 
-func TestOsPromoteFS_ListIDs_BadVaultReturnsError(t *testing.T) {
+func TestOsLearnFS_ListIDs_BadVaultReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -20,19 +20,19 @@ func TestOsPromoteFS_ListIDs_BadVaultReturnsError(t *testing.T) {
 	vault := filepath.Join(t.TempDir(), "file")
 	g.Expect(os.WriteFile(vault, []byte("x"), 0o600)).To(Succeed())
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	_, err := fs.ListIDs(vault)
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestOsPromoteFS_ListIDs_MissingSubdirsTolerated(t *testing.T) {
+func TestOsLearnFS_ListIDs_MissingSubdirsTolerated(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	// vault exists but neither Permanent nor MOCs subdirs.
 	vault := t.TempDir()
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	got, err := fs.ListIDs(vault)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -43,51 +43,51 @@ func TestOsPromoteFS_ListIDs_MissingSubdirsTolerated(t *testing.T) {
 	g.Expect(got).To(BeEmpty())
 }
 
-func TestOsPromoteFS_Lock_BadVaultReturnsError(t *testing.T) {
+func TestOsLearnFS_Lock_BadVaultReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	_, err := fs.Lock("/nonexistent/parent/that/does/not/exist")
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestOsPromoteFS_StatDir_OnDirectory(t *testing.T) {
+func TestOsLearnFS_StatDir_OnDirectory(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	g.Expect(fs.StatDir(dir)).To(Succeed())
 }
 
-func TestOsPromoteFS_StatDir_OnFileFails(t *testing.T) {
+func TestOsLearnFS_StatDir_OnFileFails(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	path := filepath.Join(t.TempDir(), "file.txt")
 	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	g.Expect(fs.StatDir(path)).To(MatchError(ContainSubstring("not a directory")))
 }
 
-func TestOsPromoteFS_StatDir_OnMissingPathFails(t *testing.T) {
+func TestOsLearnFS_StatDir_OnMissingPathFails(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	g.Expect(fs.StatDir("/nonexistent/path/here")).To(HaveOccurred())
 }
 
-func TestOsPromoteFS_WriteNew_CreatesFile(t *testing.T) {
+func TestOsLearnFS_WriteNew_CreatesFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	path := filepath.Join(t.TempDir(), "new.md")
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	g.Expect(fs.WriteNew(path, []byte("hello"))).To(Succeed())
 
 	data, err := os.ReadFile(path)
@@ -100,38 +100,38 @@ func TestOsPromoteFS_WriteNew_CreatesFile(t *testing.T) {
 	g.Expect(string(data)).To(Equal("hello"))
 }
 
-func TestOsPromoteFS_WriteNew_ErrorsOnExisting(t *testing.T) {
+func TestOsLearnFS_WriteNew_ErrorsOnExisting(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	path := filepath.Join(t.TempDir(), "existing.md")
 	g.Expect(os.WriteFile(path, []byte("already"), 0o600)).To(Succeed())
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	g.Expect(fs.WriteNew(path, []byte("nope"))).To(HaveOccurred())
 }
 
-func TestOsPromoteFS_WriteNew_OnBadDirectoryFails(t *testing.T) {
+func TestOsLearnFS_WriteNew_OnBadDirectoryFails(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	fs := cli.ExportNewOsPromoteFS()
+	fs := cli.ExportNewOsLearnFS()
 	g.Expect(fs.WriteNew("/nonexistent/dir/file.md", []byte("x"))).To(HaveOccurred())
 }
 
-// runPromoteFrom*Args use newOsPromoteDeps() and call runPromote. Driving these
+// runLearnFrom*Args use newOsLearnDeps() and call runLearn. Driving these
 // with a real vault dir exercises the full struct-conversion + delegation path
 // (which previously had 0% coverage).
 
-func TestRunPromoteFromFactArgs_WritesFile(t *testing.T) {
+func TestRunLearnFromFactArgs_WritesFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
 	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
 
-	args := cli.PromoteFactArgs{
-		CommonPromoteArgs: cli.CommonPromoteArgs{
+	args := cli.LearnFactArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
 			Slug:     "fact-slug",
 			Vault:    vault,
 			Relation: "top",
@@ -142,7 +142,7 @@ func TestRunPromoteFromFactArgs_WritesFile(t *testing.T) {
 		Object:    "obj",
 	}
 
-	err := cli.ExportRunPromoteFromFactArgs(context.Background(), args, io.Discard)
+	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -155,15 +155,15 @@ func TestRunPromoteFromFactArgs_WritesFile(t *testing.T) {
 	g.Expect(entries).NotTo(BeEmpty())
 }
 
-func TestRunPromoteFromFeedbackArgs_WritesFile(t *testing.T) {
+func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
 	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
 
-	args := cli.PromoteFeedbackArgs{
-		CommonPromoteArgs: cli.CommonPromoteArgs{
+	args := cli.LearnFeedbackArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
 			Slug:     "feedback-slug",
 			Vault:    vault,
 			Relation: "top",
@@ -174,7 +174,7 @@ func TestRunPromoteFromFeedbackArgs_WritesFile(t *testing.T) {
 		Action:    "write tests",
 	}
 
-	err := cli.ExportRunPromoteFromFeedbackArgs(context.Background(), args, io.Discard)
+	err := cli.ExportRunLearnFromFeedbackArgs(context.Background(), args, io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -186,15 +186,15 @@ func TestRunPromoteFromFeedbackArgs_WritesFile(t *testing.T) {
 	g.Expect(entries).NotTo(BeEmpty())
 }
 
-func TestRunPromoteFromMOCArgs_WritesFile(t *testing.T) {
+func TestRunLearnFromMOCArgs_WritesFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(Succeed())
 
-	args := cli.PromoteMOCArgs{
-		CommonPromoteArgs: cli.CommonPromoteArgs{
+	args := cli.LearnMOCArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
 			Slug:     "moc-slug",
 			Vault:    vault,
 			Relation: "top",
@@ -202,7 +202,7 @@ func TestRunPromoteFromMOCArgs_WritesFile(t *testing.T) {
 		Topic: "engram",
 	}
 
-	err := cli.ExportRunPromoteFromMOCArgs(context.Background(), args, io.Discard)
+	err := cli.ExportRunLearnFromMOCArgs(context.Background(), args, io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

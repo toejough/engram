@@ -6,7 +6,7 @@ Five fresh general-purpose subagents (haiku) were each loaded with the full text
 
 **Gate 1 — Recurs:** FAIL. The candidate names:
 - This project (engram)
-- A specific binary (engram promote)
+- A specific binary (engram learn)
 - A specific issue (Task 8)
 - A specific refactoring event (extracting writePromoteUnderLock when cyclomatic complexity fired)
 
@@ -35,7 +35,7 @@ If the user had phrased it generically ("when a cyclomatic complexity linter fir
 
 **Subcommand call (drafted):**
 ```
-engram promote feedback \
+engram learn feedback \
   --slug "parent-context-propagates-to-goroutines" \
   --vault /Users/joe/repos/personal/agent-memory \
   --target "" \
@@ -74,7 +74,7 @@ Gates 2 and 3 not reached.
 
 **Subcommand call (drafted as a continuation that reinforces):**
 ```
-engram promote feedback \
+engram learn feedback \
   --slug merge-existing-lsp-lag-note \
   --vault /Users/joe/repos/personal/agent-memory \
   --target 10c1 \
@@ -86,7 +86,7 @@ engram promote feedback \
   --action "On any post-commit LSP error, run build tool first"
 ```
 
-(Note: the subagent's reading of "merge" — fold without new write — is a real ambiguity in the skill prose. `engram promote` always creates a new file; there is no in-place edit mechanism. The skill should clarify that "merge" disposition is implemented as a continuation write under the related note, not as an edit. Filed as follow-up; doesn't block this task.)
+(Note: the subagent's reading of "merge" — fold without new write — is a real ambiguity in the skill prose. `engram learn` always creates a new file; there is no in-place edit mechanism. The skill should clarify that "merge" disposition is implemented as a continuation write under the related note, not as an edit. Filed as follow-up; doesn't block this task.)
 
 **Would NOT write a fresh top-level note** (correctly merges/reinforces existing).
 
@@ -113,7 +113,7 @@ engram promote feedback \
 
 **Subcommand call for Candidate 2 (drafted):**
 ```
-engram promote fact \
+engram learn fact \
   --slug "build-tool-masks-subtarget-failures" \
   --vault /Users/joe/repos/personal/agent-memory \
   --target "" \
@@ -141,7 +141,7 @@ engram promote fact \
 **Partial mismatch (autonomous, C1):** The scenario's expected behavior assumed the agent would reframe "computing Luhmann IDs / --target / --relation" into "using a binary that manages IDs" and pass. The actual subagent treated those terms as project-specific and failed Recurs. Both readings are defensible — the scenario expectation was slightly more permissive than what the skill enforces. This is not a skill bug; if anything, the strictness is desirable (the candidate IS engram-specific phrasing). The expected-behavior text in the scenario file is the looser interpretation; leaving the skill as-is.
 
 **Follow-up issues identified (not blocking):**
-1. "Merge" disposition prose is ambiguous — `engram promote` always writes a new file, so "fold into existing" needs to be re-specified as "write a continuation".
+1. "Merge" disposition prose is ambiguous — `engram learn` always writes a new file, so "fold into existing" needs to be re-specified as "write a continuation".
 2. The `--source` flag isn't strictly enforced in the drafts the subagents produced; not all included it.
 
 No edits to SKILL.md were required to make these GREEN — the skill produced behavior matching expected (or stricter, which is acceptable) on the first pass.

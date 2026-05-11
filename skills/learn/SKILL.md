@@ -99,7 +99,7 @@ The binary computes the actual ID under a vault lock. **You do not compute the I
 **Feedback:**
 
 ```
-engram promote feedback \
+engram learn feedback \
   --slug <kebab-case-tag> \
   --vault /Users/joe/repos/personal/agent-memory \
   --target <luhmann-id-of-related-note-or-empty> \
@@ -113,7 +113,7 @@ Body content (`Related to:` bullets with per-link rationale) on stdin.
 **Fact:**
 
 ```
-engram promote fact \
+engram learn fact \
   --slug <kebab-case-tag> \
   --vault /Users/joe/repos/personal/agent-memory \
   --target <id-or-empty> \
@@ -127,7 +127,7 @@ Body (`Related to:` bullets) on stdin.
 **MOC** (judgement-based, no count threshold):
 
 ```
-engram promote moc \
+engram learn moc \
   --slug <kebab-case-tag> \
   --vault /Users/joe/repos/personal/agent-memory \
   --target <id-or-empty> \
@@ -144,7 +144,7 @@ If a new permanent contradicts an existing one, write the new permanent with a `
 
 ### 7. Write — one parallel tool-use block
 
-**Hard rule: all `engram promote` invocations for a single /learn pass go in a single parallel tool-use block.** Serial writes cost a tool roundtrip each (~15–20s); batching collapses that.
+**Hard rule: all `engram learn` invocations for a single /learn pass go in a single parallel tool-use block.** Serial writes cost a tool roundtrip each (~15–20s); batching collapses that.
 
 ### 8. Report
 
@@ -173,11 +173,11 @@ Per pass:
 | Hindsight-baked situation ("When fixing the bug in X") | Fail at Activity+Domain gate; reframe to pre-lesson query phrasing |
 | Writing "we observed X" without stating it as a principle | Fail at Knowledge gate; either restate as principle or drop |
 | Drafting and asking for human voice rewrite | You're the writer. Just write. |
-| Writing files directly with the filesystem | Use `engram promote {feedback|fact|moc}` — handles ID assignment under lock |
+| Writing files directly with the filesystem | Use `engram learn {feedback|fact|moc}` — handles ID assignment under lock |
 | Computing the Luhmann ID yourself | Pass `--target` and `--relation`; binary computes the ID |
 | Auto-listing MOC constituents in body | Backlinks already do this — MOC body is framing prose only |
 | Bare wikilinks without rationale | Every `Related to:` bullet must include per-link rationale |
-| Serial `engram promote` calls across tool turns | One message, N parallel tool calls |
+| Serial `engram learn` calls across tool turns | One message, N parallel tool calls |
 | Auto-firing on a one-line micro-task | Only autonomous-trigger on chunks that plausibly produce lessons; when unsure, don't fire |
 | Creating a MOC because the cluster crossed a count threshold | Judgement, not count — a real framing paragraph must emerge |
 | Putting an H1 title or `Luhmann-ID · date` line in the body | Filename is the display name; `luhmann` and `created` live in frontmatter |

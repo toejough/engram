@@ -26,19 +26,19 @@ func TestExtractLuhmannFromFilename_RejectsBadFormat(t *testing.T) {
 	g.Expect(ok).To(BeFalse())
 }
 
-func TestPromotePath_MOC(t *testing.T) {
+func TestLearnPath_MOC(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportPromotePath("/vault", "moc", "5", "llm-rationalization-patterns", when)
+	got := cli.ExportLearnPath("/vault", "moc", "5", "llm-rationalization-patterns", when)
 	g.Expect(got).To(Equal("/vault/MOCs/5.2026-05-09.llm-rationalization-patterns.md"))
 }
 
-func TestPromotePath_Permanent(t *testing.T) {
+func TestLearnPath_Permanent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportPromotePath("/vault", "feedback", "1a3", "subagent-driven-recovery", when)
+	got := cli.ExportLearnPath("/vault", "feedback", "1a3", "subagent-driven-recovery", when)
 	g.Expect(got).To(Equal("/vault/Permanent/1a3.2026-05-09.subagent-driven-recovery.md"))
 }
 
@@ -137,7 +137,7 @@ func TestRenderFrontmatter_MOC(t *testing.T) {
 	g.Expect(got).To(ContainSubstring("topic: llm rationalization patterns under pressure"))
 }
 
-func TestRunPromote_Fact_WritesExpectedFile(t *testing.T) {
+func TestRunLearn_Fact_WritesExpectedFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -146,7 +146,7 @@ func TestRunPromote_Fact_WritesExpectedFile(t *testing.T) {
 		writtenContent []byte
 	)
 
-	deps := cli.PromoteDeps{
+	deps := cli.LearnDeps{
 		Now:     func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Stdin:   strings.NewReader(""),
 		Getenv:  func(string) string { return "" },
@@ -161,7 +161,7 @@ func TestRunPromote_Fact_WritesExpectedFile(t *testing.T) {
 		},
 	}
 
-	args := cli.PromoteArgs{
+	args := cli.LearnArgs{
 		Type:      "fact",
 		Slug:      "fact-slug",
 		Vault:     "/vault",
@@ -174,7 +174,7 @@ func TestRunPromote_Fact_WritesExpectedFile(t *testing.T) {
 
 	var stdout strings.Builder
 
-	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -186,7 +186,7 @@ func TestRunPromote_Fact_WritesExpectedFile(t *testing.T) {
 	g.Expect(string(writtenContent)).To(ContainSubstring("Information learned"))
 }
 
-func TestRunPromote_Feedback_WritesExpectedFile(t *testing.T) {
+func TestRunLearn_Feedback_WritesExpectedFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -196,7 +196,7 @@ func TestRunPromote_Feedback_WritesExpectedFile(t *testing.T) {
 		writtenContent             []byte
 	)
 
-	deps := cli.PromoteDeps{
+	deps := cli.LearnDeps{
 		Now:     func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Stdin:   strings.NewReader("Related to:\n- [[X]] — adjacent.\n"),
 		Getenv:  func(string) string { return "" },
@@ -217,7 +217,7 @@ func TestRunPromote_Feedback_WritesExpectedFile(t *testing.T) {
 		},
 	}
 
-	args := cli.PromoteArgs{
+	args := cli.LearnArgs{
 		Type:      "feedback",
 		Slug:      "ctx-cancellation-rule",
 		Vault:     "/vault",
@@ -232,7 +232,7 @@ func TestRunPromote_Feedback_WritesExpectedFile(t *testing.T) {
 
 	var stdout strings.Builder
 
-	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -246,13 +246,13 @@ func TestRunPromote_Feedback_WritesExpectedFile(t *testing.T) {
 	g.Expect(string(writtenContent)).To(ContainSubstring("Lesson learned: when writing concurrent Go code"))
 }
 
-func TestRunPromote_MOC_WritesExpectedFile(t *testing.T) {
+func TestRunLearn_MOC_WritesExpectedFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	var writtenPath string
 
-	deps := cli.PromoteDeps{
+	deps := cli.LearnDeps{
 		Now:     func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Stdin:   strings.NewReader("framing body\n"),
 		Getenv:  func(string) string { return "" },
@@ -266,7 +266,7 @@ func TestRunPromote_MOC_WritesExpectedFile(t *testing.T) {
 		},
 	}
 
-	args := cli.PromoteArgs{
+	args := cli.LearnArgs{
 		Type:     "moc",
 		Slug:     "moc-slug",
 		Vault:    "/vault",
@@ -276,7 +276,7 @@ func TestRunPromote_MOC_WritesExpectedFile(t *testing.T) {
 
 	var stdout strings.Builder
 
-	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -286,11 +286,11 @@ func TestRunPromote_MOC_WritesExpectedFile(t *testing.T) {
 	g.Expect(writtenPath).To(Equal("/vault/MOCs/1.2026-05-09.moc-slug.md"))
 }
 
-func TestRunPromote_PropagatesListIDsError(t *testing.T) {
+func TestRunLearn_PropagatesListIDsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := cli.PromoteDeps{
+	deps := cli.LearnDeps{
 		Now:      func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
@@ -299,19 +299,19 @@ func TestRunPromote_PropagatesListIDsError(t *testing.T) {
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.PromoteArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top", Topic: "t"}
+	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top", Topic: "t"}
 
 	var stdout strings.Builder
 
-	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).To(MatchError(ContainSubstring("listing existing IDs")))
 }
 
-func TestRunPromote_PropagatesLockError(t *testing.T) {
+func TestRunLearn_PropagatesLockError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := cli.PromoteDeps{
+	deps := cli.LearnDeps{
 		Now:      func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
@@ -320,19 +320,19 @@ func TestRunPromote_PropagatesLockError(t *testing.T) {
 		Lock:     func(string) (func(), error) { return nil, errors.New("locked") },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.PromoteArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top", Topic: "t"}
+	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top", Topic: "t"}
 
 	var stdout strings.Builder
 
-	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).To(MatchError(ContainSubstring("acquiring lock")))
 }
 
-func TestRunPromote_PropagatesStatDirError(t *testing.T) {
+func TestRunLearn_PropagatesStatDirError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := cli.PromoteDeps{
+	deps := cli.LearnDeps{
 		Now:      time.Now,
 		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
@@ -341,19 +341,19 @@ func TestRunPromote_PropagatesStatDirError(t *testing.T) {
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.PromoteArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top"}
+	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top"}
 
 	var stdout strings.Builder
 
-	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).To(MatchError(ContainSubstring("vault")))
 }
 
-func TestRunPromote_RejectsInvalidSlug(t *testing.T) {
+func TestRunLearn_RejectsInvalidSlug(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := cli.PromoteDeps{
+	deps := cli.LearnDeps{
 		Now:      time.Now,
 		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
@@ -362,19 +362,19 @@ func TestRunPromote_RejectsInvalidSlug(t *testing.T) {
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.PromoteArgs{Type: "moc", Slug: "Bad Slug", Vault: "/v", Relation: "top"}
+	args := cli.LearnArgs{Type: "moc", Slug: "Bad Slug", Vault: "/v", Relation: "top"}
 
 	var stdout strings.Builder
 
-	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestRunPromote_RejectsMissingVault(t *testing.T) {
+func TestRunLearn_RejectsMissingVault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := cli.PromoteDeps{
+	deps := cli.LearnDeps{
 		Now:      time.Now,
 		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
@@ -383,18 +383,18 @@ func TestRunPromote_RejectsMissingVault(t *testing.T) {
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.PromoteArgs{Type: "moc", Slug: "x", Vault: "", Relation: "top"}
+	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "", Relation: "top"}
 
 	var stdout strings.Builder
 
-	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestRunPromote_RejectsUnknownType(t *testing.T) {
+func TestRunLearn_RejectsUnknownType(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
-	deps := cli.PromoteDeps{
+	deps := cli.LearnDeps{
 		Now:      time.Now,
 		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
@@ -403,10 +403,10 @@ func TestRunPromote_RejectsUnknownType(t *testing.T) {
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.PromoteArgs{Type: "principle", Slug: "x", Vault: "/v", Relation: "top"}
+	args := cli.LearnArgs{Type: "principle", Slug: "x", Vault: "/v", Relation: "top"}
 
 	var stdout strings.Builder
 
-	err := cli.ExportRunPromote(t.Context(), args, deps, &stdout)
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
 }

@@ -79,11 +79,11 @@ func (r *osFileReader) Read(path string) ([]byte, error) {
 	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
 }
 
-// osPromoteFS is the production filesystem adapter for the promote subcommand.
-type osPromoteFS struct{}
+// osLearnFS is the production filesystem adapter for the learn subcommand.
+type osLearnFS struct{}
 
 // ListIDs returns Luhmann IDs from filenames in vault/Permanent and vault/MOCs.
-func (*osPromoteFS) ListIDs(vault string) ([]string, error) {
+func (*osLearnFS) ListIDs(vault string) ([]string, error) {
 	out := []string{}
 
 	for _, sub := range []string{"Permanent", "MOCs"} {
@@ -114,7 +114,7 @@ func (*osPromoteFS) ListIDs(vault string) ([]string, error) {
 }
 
 // Lock acquires an exclusive flock on vault/.luhmann.lock; returns a release func.
-func (*osPromoteFS) Lock(vault string) (func(), error) {
+func (*osLearnFS) Lock(vault string) (func(), error) {
 	path := filepath.Join(vault, luhmannLockFile)
 
 	const perm = 0o600
@@ -142,7 +142,7 @@ func (*osPromoteFS) Lock(vault string) (func(), error) {
 }
 
 // StatDir returns an error if the directory does not exist or isn't accessible.
-func (*osPromoteFS) StatDir(path string) error {
+func (*osLearnFS) StatDir(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("stat: %w", err)
@@ -156,7 +156,7 @@ func (*osPromoteFS) StatDir(path string) error {
 }
 
 // WriteNew creates the file with O_EXCL — errors with fs.ErrExist if it already exists.
-func (*osPromoteFS) WriteNew(path string, data []byte) error {
+func (*osLearnFS) WriteNew(path string, data []byte) error {
 	const perm = 0o600
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // path from caller

@@ -2,7 +2,7 @@
 
 Five fresh general-purpose subagents were each loaded with the full text of all four current skills (`capturing-fleeting-notes`, `promoting-to-permanent-notes`, `learn` in-repo, `remember` in-repo) and handed one scenario. Each was asked to describe — not execute — what they would do.
 
-**Meta-finding.** The in-repo `/remember` and `/learn` skills already apply Recurs / Actionable / Right-Home gates. The two-stage capture→promote rhythm is unique to the global vault skills, but for the simulated "user asks /remember" scenarios, the subagents reached for the in-repo `/remember` rather than the global capturing skill. So RED is less stark than the plan predicted: the new skill mainly consolidates four skills into one, switches the backend from the SBIA store (`engram learn`) to the vault (`engram promote`), and removes the interactive-approval step.
+**Meta-finding.** The in-repo `/remember` and `/learn` skills already apply Recurs / Actionable / Right-Home gates. The two-stage capture→promote rhythm is unique to the global vault skills, but for the simulated "user asks /remember" scenarios, the subagents reached for the in-repo `/remember` rather than the global capturing skill. So RED is less stark than the plan predicted: the new skill mainly consolidates four skills into one, switches the backend from the SBIA store (`engram learn`) to the vault (`engram learn`), and removes the interactive-approval step.
 
 The new skill should still be verified per scenario in Task 4 against its own expected behavior, but the RED→GREEN behavioral *delta* is consolidation, not gate-introduction.
 
@@ -93,7 +93,7 @@ All three dropped. **Would NOT write any notes autonomously.** No `engram learn`
 The new unified `/learn` skill's value is therefore:
 
 1. **One skill instead of four** — removes the "which one applies?" decision.
-2. **Vault backend** — writes to the agent-memory zettelkasten via `engram promote`, replacing SBIA writes via `engram learn`. This affects how recall surfaces things and how the memory graph grows.
+2. **Vault backend** — writes to the agent-memory zettelkasten via `engram learn`, replacing SBIA writes via `engram learn`. This affects how recall surfaces things and how the memory graph grows.
 3. **Autonomous decide-and-write** — no interactive approval step. The agent decides and writes; the human curates by directing the work, not by approving each save.
 4. **Single gate vocabulary** — Recurs, Activity+Domain (with mandatory reframe-once), Knowledge — applied at write time instead of being scattered across capture-vs-promote and skill-vs-skill.
 
