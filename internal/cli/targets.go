@@ -12,15 +12,6 @@ import (
 	"github.com/toejough/targ"
 )
 
-// CommonLearnArgs holds shared flags for learn subcommands.
-type CommonLearnArgs struct {
-	Situation  string `targ:"flag,name=situation,desc=context when this applies"`
-	Source     string `targ:"flag,name=source,desc=human or agent"`
-	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	NoDupCheck bool   `targ:"flag,name=no-dup-check,desc=skip duplicate/contradiction detection"`
-	LLMCmd     string `targ:"flag,name=llm-cmd,desc=command to invoke for LLM calls (overrides ENGRAM_LLM_CMD)"`
-}
-
 // CommonPromoteArgs holds shared flags for promote subcommands.
 type CommonPromoteArgs struct {
 	Slug           string `targ:"flag,name=slug,desc=kebab-case tag for the filename"`
@@ -29,24 +20,6 @@ type CommonPromoteArgs struct {
 	Relation       string `targ:"flag,name=relation,desc=top|continuation|sibling"`
 	Source         string `targ:"flag,name=source,desc=provenance string for the source field"`
 	DeleteFleeting string `targ:"flag,name=delete-fleeting,desc=path to fleeting note to delete after success"`
-}
-
-// LearnFactArgs holds parsed flags for the learn fact subcommand.
-type LearnFactArgs struct {
-	CommonLearnArgs
-
-	Subject   string `targ:"flag,name=subject,desc=subject of the fact"`
-	Predicate string `targ:"flag,name=predicate,desc=relationship or verb"`
-	Object    string `targ:"flag,name=object,desc=object of the fact"`
-}
-
-// LearnFeedbackArgs holds parsed flags for the learn feedback subcommand.
-type LearnFeedbackArgs struct {
-	CommonLearnArgs
-
-	Behavior string `targ:"flag,name=behavior,desc=observed behavior"`
-	Impact   string `targ:"flag,name=impact,desc=impact of the behavior"`
-	Action   string `targ:"flag,name=action,desc=recommended action"`
 }
 
 // ListArgs holds parsed flags for the list subcommand.
@@ -161,14 +134,6 @@ func Targets(stdout, stderr io.Writer, exit func(int)) []any {
 		targ.Targ(func(ctx context.Context, a StartingPointsArgs) {
 			errHandler(runStartingPoints(ctx, a, stdout))
 		}).Name("starting-points").Description("Emit vault graph traversal entry points (one wikilink per line)"),
-		targ.Group("learn",
-			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
-				errHandler(runLearnFeedback(ctx, a, stdout))
-			}).Name("feedback").Description("Learn from behavioral feedback"),
-			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
-				errHandler(runLearnFact(ctx, a, stdout))
-			}).Name("fact").Description("Learn a factual statement"),
-		),
 		targ.Group("promote",
 			targ.Targ(func(ctx context.Context, a PromoteFeedbackArgs) {
 				errHandler(runPromoteFromFeedbackArgs(ctx, a, stdout))
