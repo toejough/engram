@@ -20,7 +20,7 @@ type CommonLearnArgs struct {
 	Vault    string `targ:"flag,name=vault,env=ENGRAM_VAULT_DIR,desc=vault root directory"`
 	Target   string `targ:"flag,name=target,desc=Luhmann ID this note relates to (empty for top-level)"`
 	Relation string `targ:"flag,name=relation,desc=top|continuation|sibling"`
-	Source   string `targ:"flag,name=source,desc=provenance string for the source field"`
+	Source   string `targ:"flag,name=source,required,desc=provenance string for the source field (required)"`
 }
 
 // LearnFactArgs holds parsed flags for the learn fact subcommand.

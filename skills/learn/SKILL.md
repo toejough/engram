@@ -96,6 +96,12 @@ The binary computes the actual ID under a vault lock. **You do not compute the I
 
 ### 5. Draft body in LLM voice
 
+**Every `engram learn` invocation MUST include `--source`.** It is a required flag; the binary errors out when it is missing. The provenance string takes one of these forms:
+
+- For feedback/fact derived from session activity: `session log <project>, <YYYY-MM-DD HH:MM UTC>, context: <short description>`
+- For MOCs synthesized from cluster analysis: `constructed from cluster analysis, <YYYY-MM-DD>`
+- For end-to-end smoke or test runs: a short label naming the run (e.g. `smoke test`)
+
 **Feedback:**
 
 ```
