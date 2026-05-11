@@ -7,6 +7,8 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
+	"go.yaml.in/yaml/v3"
+	"pgregory.net/rapid"
 
 	"engram/internal/cli"
 )
@@ -40,6 +42,17 @@ func TestLearnPath_Permanent(t *testing.T) {
 	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
 	got := cli.ExportLearnPath("/vault", "feedback", "1a3", "subagent-driven-recovery", when)
 	g.Expect(got).To(Equal("/vault/Permanent/1a3.2026-05-09.subagent-driven-recovery.md"))
+}
+
+// TestMarshalFrontmatter_WrapsValidValue verifies the helper produces the
+// expected "---"-delimited block. Error returns are unreachable for the
+// typed-string struct callers used in production, so only the happy path is
+// covered here.
+func TestMarshalFrontmatter_WrapsValidValue(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportMarshalFrontmatter(map[string]string{"k": "v"})
+	g.Expect(got).To(Equal("---\nk: v\n---\n\n"))
 }
 
 func TestRenderBody_Fact(t *testing.T) {
@@ -88,6 +101,105 @@ func TestRenderBody_MOC_FramingPlusRelated(t *testing.T) {
 	g.Expect(got).To(Equal("framing prose\n\nRelated to:\n- [[X]] — r.\n"))
 }
 
+// TestRenderFactFrontmatter_SafelyEncodesTrickyValues mirrors the feedback
+// safety check for the fact frontmatter.
+func TestRenderFactFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFactFields{
+		Situation: "context: tricky",
+		Subject:   "- subj",
+		Predicate: "is\nmultiline",
+		Object:    "* obj",
+		Luhmann:   "11",
+		Source:    "src",
+	}
+	got := cli.ExportRenderFactFrontmatter(fields, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed["situation"]).To(Equal(fields.Situation))
+	g.Expect(parsed["subject"]).To(Equal(fields.Subject))
+	g.Expect(parsed["predicate"]).To(Equal(fields.Predicate))
+	g.Expect(parsed["object"]).To(Equal(fields.Object))
+}
+
+// TestRenderFeedbackFrontmatter_RoundtripFidelity is a property test: for any
+// printable string values, the rendered frontmatter parses back to the same
+// values. This is the invariant the YAML library buys us — verify it holds
+// across the input space, not just hand-picked examples.
+func TestRenderFeedbackFrontmatter_RoundtripFidelity(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		// Restricted to printable ASCII plus newline. Tab is excluded because
+		// yaml.v3's block-scalar emitter and parser disagree about indented
+		// tabs; CLI flag values don't carry tabs in practice, so this is not
+		// a meaningful gap for engram learn.
+		gen := rapid.StringMatching(`[ -~\n]{0,40}`)
+		fields := cli.ExportFeedbackFields{
+			Situation: gen.Draw(rt, "situation"),
+			Behavior:  gen.Draw(rt, "behavior"),
+			Impact:    gen.Draw(rt, "impact"),
+			Action:    gen.Draw(rt, "action"),
+			Luhmann:   rapid.StringMatching(`[0-9][0-9a-z]{0,3}`).Draw(rt, "luhmann"),
+			Source:    gen.Draw(rt, "source"),
+		}
+		when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+		got := cli.ExportRenderFeedbackFrontmatter(fields, when)
+
+		// Use Unmarshal directly to surface decode errors as property failures.
+		const delim = "---\n"
+
+		body := strings.TrimPrefix(got, delim)
+		end := strings.Index(body, "\n"+delim)
+
+		if end < 0 {
+			rt.Fatalf("no closing delimiter in %q", got)
+		}
+
+		parsed := map[string]string{}
+
+		if err := yaml.Unmarshal([]byte(body[:end+1]), &parsed); err != nil {
+			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
+		}
+
+		for key, want := range map[string]string{
+			"situation": fields.Situation, "behavior": fields.Behavior,
+			"impact": fields.Impact, "action": fields.Action,
+			"luhmann": fields.Luhmann, "source": fields.Source,
+		} {
+			if parsed[key] != want {
+				rt.Fatalf("%s: got %q want %q\nfull:\n%s", key, parsed[key], want, got)
+			}
+		}
+	})
+}
+
+// TestRenderFeedbackFrontmatter_SafelyEncodesTrickyValues verifies that values
+// containing YAML-significant characters (newlines, colons, leading dashes,
+// asterisks) survive a roundtrip — the original bug was that raw string
+// concatenation let a multi-line Behavior end the frontmatter mid-document.
+func TestRenderFeedbackFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFeedbackFields{
+		Situation: "writing tests: a guide",
+		Behavior:  "first line\nsecond line",
+		Impact:    "- leading dash list marker",
+		Action:    "* alias-looking marker",
+		Luhmann:   "11",
+		Source:    "src: with colon",
+	}
+	got := cli.ExportRenderFeedbackFrontmatter(fields, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed["situation"]).To(Equal(fields.Situation))
+	g.Expect(parsed["behavior"]).To(Equal(fields.Behavior))
+	g.Expect(parsed["impact"]).To(Equal(fields.Impact))
+	g.Expect(parsed["action"]).To(Equal(fields.Action))
+	g.Expect(parsed["luhmann"]).To(Equal(fields.Luhmann))
+	g.Expect(parsed["source"]).To(Equal(fields.Source))
+}
+
 func TestRenderFrontmatter_Fact(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -100,8 +212,11 @@ func TestRenderFrontmatter_Fact(t *testing.T) {
 		Luhmann:   "11",
 		Source:    "session log bar, 2026-05-09 13:00 UTC",
 	}, when)
-	g.Expect(got).To(ContainSubstring("type: fact"))
-	g.Expect(got).To(ContainSubstring("subject: subagent dispatch"))
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed["type"]).To(Equal("fact"))
+	g.Expect(parsed["subject"]).To(Equal("subagent dispatch"))
+	g.Expect(parsed["luhmann"]).To(Equal("11"))
+	g.Expect(parsed["created"]).To(Equal("2026-05-09"))
 }
 
 func TestRenderFrontmatter_Feedback(t *testing.T) {
@@ -116,19 +231,17 @@ func TestRenderFrontmatter_Feedback(t *testing.T) {
 		Luhmann:   "9z",
 		Source:    "session log foo, 2026-05-09 12:00 UTC",
 	}, when)
-	g.Expect(got).To(Equal(strings.Join([]string{
-		"---",
-		"type: feedback",
-		"situation: writing concurrent Go code with context",
-		"behavior: ignoring context cancellation",
-		"impact: leaks goroutines on shutdown",
-		"action: always check ctx.Done() in select loops",
-		`luhmann: "9z"`,
-		"created: 2026-05-09",
-		"source: session log foo, 2026-05-09 12:00 UTC",
-		"---",
-		"",
-	}, "\n")))
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed).To(Equal(map[string]string{
+		"type":      "feedback",
+		"situation": "writing concurrent Go code with context",
+		"behavior":  "ignoring context cancellation",
+		"impact":    "leaks goroutines on shutdown",
+		"action":    "always check ctx.Done() in select loops",
+		"luhmann":   "9z",
+		"created":   "2026-05-09",
+		"source":    "session log foo, 2026-05-09 12:00 UTC",
+	}))
 }
 
 func TestRenderFrontmatter_MOC(t *testing.T) {
@@ -140,8 +253,26 @@ func TestRenderFrontmatter_MOC(t *testing.T) {
 		Luhmann: "5",
 		Source:  "constructed from cluster analysis, 2026-05-09",
 	}, when)
-	g.Expect(got).To(ContainSubstring("type: moc"))
-	g.Expect(got).To(ContainSubstring("topic: llm rationalization patterns under pressure"))
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed["type"]).To(Equal("moc"))
+	g.Expect(parsed["topic"]).To(Equal("llm rationalization patterns under pressure"))
+}
+
+// TestRenderMOCFrontmatter_SafelyEncodesTrickyValues mirrors the safety check
+// for MOC frontmatter.
+func TestRenderMOCFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportMOCFields{
+		Topic:   "topic:\nwith newline",
+		Luhmann: "11",
+		Source:  "- src",
+	}
+	got := cli.ExportRenderMOCFrontmatter(fields, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed["topic"]).To(Equal(fields.Topic))
+	g.Expect(parsed["source"]).To(Equal(fields.Source))
 }
 
 func TestRenderRelatedSection_Empty(t *testing.T) {
@@ -431,4 +562,27 @@ func TestRunLearn_RejectsUnknownType(t *testing.T) {
 
 	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
+}
+
+// parseFrontmatter strips the "---" delimiters from a rendered frontmatter
+// block and decodes the inner YAML mapping into key→string pairs. Tests use
+// it to assert frontmatter values survive a YAML roundtrip regardless of the
+// quoting style the encoder happens to choose.
+func parseFrontmatter(t *testing.T, rendered string) map[string]string {
+	t.Helper()
+
+	g := NewWithT(t)
+
+	const delim = "---\n"
+
+	g.Expect(strings.HasPrefix(rendered, delim)).To(BeTrue(), "missing opening ---")
+
+	body := strings.TrimPrefix(rendered, delim)
+	end := strings.Index(body, "\n"+delim)
+	g.Expect(end).To(BeNumerically(">=", 0), "missing closing ---")
+
+	parsed := map[string]string{}
+	g.Expect(yaml.Unmarshal([]byte(body[:end+1]), &parsed)).To(Succeed())
+
+	return parsed
 }

@@ -18,6 +18,7 @@ var (
 	ExportExtractLuhmannFromFilename     = extractLuhmannFromFilename
 	ExportFleetingPath                   = fleetingPath
 	ExportLearnPath                      = learnPath
+	ExportMarshalFrontmatter             = marshalFrontmatter
 	ExportNewErrHandler                  = newErrHandler
 	ExportNextLuhmannID                  = nextLuhmannID
 	ExportOsDirListMd                    = osDirListMd

@@ -7,6 +7,7 @@ require (
 	github.com/onsi/gomega v1.39.1
 	github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e
 	github.com/toejough/targ v0.0.0-20260402141037-105fb05f62e1
+	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/tools v0.43.0
 	modernc.org/sqlite v1.50.0
 	pgregory.net/rapid v1.2.0
@@ -35,7 +36,6 @@ require (
 	github.com/toejough/go-reorder v0.0.0-20260323214627-2c2148c725b2 // indirect
 	github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
 	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/net v0.52.0 // indirect

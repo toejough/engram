@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // LearnArgs holds the parsed flags for the learn subcommand.
@@ -73,6 +75,19 @@ type factFields struct {
 	Source    string
 }
 
+// factFrontmatterDoc is the YAML shape of a fact's frontmatter. Field order
+// here determines key order in the rendered document.
+type factFrontmatterDoc struct {
+	Type      string `yaml:"type"`
+	Situation string `yaml:"situation"`
+	Subject   string `yaml:"subject"`
+	Predicate string `yaml:"predicate"`
+	Object    string `yaml:"object"`
+	Luhmann   string `yaml:"luhmann"`
+	Created   string `yaml:"created"`
+	Source    string `yaml:"source"`
+}
+
 type feedbackFields struct {
 	Situation string
 	Behavior  string
@@ -82,10 +97,31 @@ type feedbackFields struct {
 	Source    string
 }
 
+// feedbackFrontmatterDoc is the YAML shape of a feedback note's frontmatter.
+type feedbackFrontmatterDoc struct {
+	Type      string `yaml:"type"`
+	Situation string `yaml:"situation"`
+	Behavior  string `yaml:"behavior"`
+	Impact    string `yaml:"impact"`
+	Action    string `yaml:"action"`
+	Luhmann   string `yaml:"luhmann"`
+	Created   string `yaml:"created"`
+	Source    string `yaml:"source"`
+}
+
 type mocFields struct {
 	Topic   string
 	Luhmann string
 	Source  string
+}
+
+// mocFrontmatterDoc is the YAML shape of an MOC note's frontmatter.
+type mocFrontmatterDoc struct {
+	Type    string `yaml:"type"`
+	Topic   string `yaml:"topic"`
+	Luhmann string `yaml:"luhmann"`
+	Created string `yaml:"created"`
+	Source  string `yaml:"source"`
 }
 
 func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
@@ -135,6 +171,17 @@ func learnPath(vault, memType, luhmann, slug string, when time.Time) string {
 	return filepath.Join(vault, subdir, filename)
 }
 
+// marshalFrontmatter encodes v as YAML and wraps the result with the "---"
+// delimiters and trailing blank line used by Permanent/MOC notes. All callers
+// pass structs of typed string fields and do not implement MarshalYAML, so
+// yaml.Marshal cannot fail on them — yaml.v3 returns errors only via custom
+// marshalers, and panics on truly unencodable types (programmer error).
+func marshalFrontmatter(v any) string {
+	body, _ := yaml.Marshal(v)
+
+	return "---\n" + string(body) + "---\n\n"
+}
+
 func newOsLearnDeps() LearnDeps {
 	fs := &osLearnFS{}
 
@@ -158,19 +205,16 @@ func renderFactBody(f factFields, relatedSection string) string {
 }
 
 func renderFactFrontmatter(f factFields, when time.Time) string {
-	return strings.Join([]string{
-		"---",
-		"type: fact",
-		"situation: " + f.Situation,
-		"subject: " + f.Subject,
-		"predicate: " + f.Predicate,
-		"object: " + f.Object,
-		fmt.Sprintf("luhmann: %q", f.Luhmann),
-		"created: " + when.Format(dateFormat),
-		"source: " + f.Source,
-		"---",
-		"",
-	}, "\n")
+	return marshalFrontmatter(factFrontmatterDoc{
+		Type:      "fact",
+		Situation: f.Situation,
+		Subject:   f.Subject,
+		Predicate: f.Predicate,
+		Object:    f.Object,
+		Luhmann:   f.Luhmann,
+		Created:   when.Format(dateFormat),
+		Source:    f.Source,
+	})
 }
 
 func renderFeedbackBody(f feedbackFields, relatedSection string) string {
@@ -180,19 +224,16 @@ func renderFeedbackBody(f feedbackFields, relatedSection string) string {
 }
 
 func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
-	return strings.Join([]string{
-		"---",
-		"type: feedback",
-		"situation: " + f.Situation,
-		"behavior: " + f.Behavior,
-		"impact: " + f.Impact,
-		"action: " + f.Action,
-		fmt.Sprintf("luhmann: %q", f.Luhmann),
-		"created: " + when.Format(dateFormat),
-		"source: " + f.Source,
-		"---",
-		"",
-	}, "\n")
+	return marshalFrontmatter(feedbackFrontmatterDoc{
+		Type:      "feedback",
+		Situation: f.Situation,
+		Behavior:  f.Behavior,
+		Impact:    f.Impact,
+		Action:    f.Action,
+		Luhmann:   f.Luhmann,
+		Created:   when.Format(dateFormat),
+		Source:    f.Source,
+	})
 }
 
 func renderMOCBody(framing, relatedSection string) string {
@@ -211,16 +252,13 @@ func renderMOCBody(framing, relatedSection string) string {
 }
 
 func renderMOCFrontmatter(f mocFields, when time.Time) string {
-	return strings.Join([]string{
-		"---",
-		"type: moc",
-		"topic: " + f.Topic,
-		fmt.Sprintf("luhmann: %q", f.Luhmann),
-		"created: " + when.Format(dateFormat),
-		"source: " + f.Source,
-		"---",
-		"",
-	}, "\n")
+	return marshalFrontmatter(mocFrontmatterDoc{
+		Type:    "moc",
+		Topic:   f.Topic,
+		Luhmann: f.Luhmann,
+		Created: when.Format(dateFormat),
+		Source:  f.Source,
+	})
 }
 
 // renderRelatedSection turns a list of "wikilink|rationale" entries into the
