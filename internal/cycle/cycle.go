@@ -38,7 +38,7 @@ func (c *Cycle) Run(ctx context.Context, projectDir string) (*Output, error) {
 	cycleID := debuglog.NewCycleID()
 	ctx = debuglog.WithCycleID(ctx, cycleID)
 
-	debuglog.Log("cycle.start", "cycle=%s projectDir=%s", cycleID, projectDir)
+	debuglog.Log(ctx, "cycle.start", "cycle=%s projectDir=%s", cycleID, projectDir)
 
 	cycleStart := time.Now()
 
@@ -47,7 +47,7 @@ func (c *Cycle) Run(ctx context.Context, projectDir string) (*Output, error) {
 	transcriptStart := time.Now()
 	transcript, err := c.transcripts.Read(projectDir, c.budget)
 
-	debuglog.Log("cycle.transcript", "cycle=%s bytes=%d err=%v took=%s",
+	debuglog.Log(ctx, "cycle.transcript", "cycle=%s bytes=%d err=%v took=%s",
 		cycleID, len(transcript), err, time.Since(transcriptStart))
 
 	if err != nil {
@@ -57,7 +57,7 @@ func (c *Cycle) Run(ctx context.Context, projectDir string) (*Output, error) {
 	c.runLearningStep(ctx, transcript, out)
 	c.runRecallStep(ctx, transcript, projectDir, out)
 
-	debuglog.Log("cycle.end", "cycle=%s learned=%d recalled=%d took=%s",
+	debuglog.Log(ctx, "cycle.end", "cycle=%s learned=%d recalled=%d took=%s",
 		cycleID, len(out.Learned), len(out.Recalled), time.Since(cycleStart))
 
 	return out, nil
@@ -70,7 +70,7 @@ func (c *Cycle) persistOne(ctx context.Context, cand learnCandidate, out *Output
 			ctx, cand.Situation, cand.Behavior, cand.Impact, cand.Action,
 		)
 
-		debuglog.Log("persistOne", "type=feedback situation=%q name=%s persisted=%v err=%v",
+		debuglog.Log(ctx, "persistOne", "type=feedback situation=%q name=%s persisted=%v err=%v",
 			cand.Situation, name, ok, err)
 
 		if err != nil || !ok {
@@ -96,7 +96,7 @@ func (c *Cycle) persistOne(ctx context.Context, cand learnCandidate, out *Output
 			ctx, cand.Situation, cand.Subject, cand.Predicate, cand.Object,
 		)
 
-		debuglog.Log("persistOne", "type=fact situation=%q name=%s persisted=%v err=%v",
+		debuglog.Log(ctx, "persistOne", "type=fact situation=%q name=%s persisted=%v err=%v",
 			cand.Situation, name, ok, err)
 
 		if err != nil || !ok {
@@ -127,13 +127,13 @@ func (c *Cycle) runLearningStep(ctx context.Context, transcript string, out *Out
 	cycleID := debuglog.CycleIDFromContext(ctx)
 	learnCtx := debuglog.WithPhase(ctx, "cycle.learn")
 
-	debuglog.Log("cycle.learn.start", "cycle=%s", cycleID)
+	debuglog.Log(ctx, "cycle.learn.start", "cycle=%s", cycleID)
 
 	start := time.Now()
 
 	resp, err := c.runner.Run(learnCtx, LearnExtractionPrompt(transcript))
 	if err != nil {
-		debuglog.Log("cycle.learn.end", "cycle=%s outcome=llm_error err=%v took=%s",
+		debuglog.Log(ctx, "cycle.learn.end", "cycle=%s outcome=llm_error err=%v took=%s",
 			cycleID, err, time.Since(start))
 
 		return
@@ -141,13 +141,13 @@ func (c *Cycle) runLearningStep(ctx context.Context, transcript string, out *Out
 
 	candidates, parseErr := parseLearnCandidates(resp)
 	if parseErr != nil {
-		debuglog.Log("cycle.learn.end", "cycle=%s outcome=parse_error err=%v took=%s",
+		debuglog.Log(ctx, "cycle.learn.end", "cycle=%s outcome=parse_error err=%v took=%s",
 			cycleID, parseErr, time.Since(start))
 
 		return
 	}
 
-	debuglog.Log("cycle.learn.end", "cycle=%s outcome=ok candidates=%d took=%s",
+	debuglog.Log(ctx, "cycle.learn.end", "cycle=%s outcome=ok candidates=%d took=%s",
 		cycleID, len(candidates), time.Since(start))
 
 	for _, cand := range candidates {
@@ -163,13 +163,13 @@ func (c *Cycle) runRecallStep(ctx context.Context, transcript, projectDir string
 	cycleID := debuglog.CycleIDFromContext(ctx)
 	proposeCtx := debuglog.WithPhase(ctx, "cycle.propose_queries")
 
-	debuglog.Log("cycle.propose_queries.start", "cycle=%s", cycleID)
+	debuglog.Log(ctx, "cycle.propose_queries.start", "cycle=%s", cycleID)
 
 	start := time.Now()
 
 	resp, err := c.runner.Run(proposeCtx, QueryProposalPrompt(transcript))
 	if err != nil {
-		debuglog.Log("cycle.propose_queries.end", "cycle=%s outcome=llm_error err=%v took=%s",
+		debuglog.Log(ctx, "cycle.propose_queries.end", "cycle=%s outcome=llm_error err=%v took=%s",
 			cycleID, err, time.Since(start))
 
 		return
@@ -177,18 +177,18 @@ func (c *Cycle) runRecallStep(ctx context.Context, transcript, projectDir string
 
 	queries := parseQueries(resp)
 
-	debuglog.Log("cycle.propose_queries.end", "cycle=%s outcome=ok count=%d took=%s",
+	debuglog.Log(ctx, "cycle.propose_queries.end", "cycle=%s outcome=ok count=%d took=%s",
 		cycleID, len(queries), time.Since(start))
 
 	for idx, query := range queries {
 		queryCtx := debuglog.WithPhase(ctx, fmt.Sprintf("cycle.recall.q%d", idx))
 
-		debuglog.Log("cycle.recall.start", "cycle=%s q=%d query=%q", cycleID, idx, query)
+		debuglog.Log(ctx, "cycle.recall.start", "cycle=%s q=%d query=%q", cycleID, idx, query)
 
 		recallStart := time.Now()
 		report, recErr := c.recaller.Recall(queryCtx, projectDir, query)
 
-		debuglog.Log("cycle.recall.end", "cycle=%s q=%d report_bytes=%d err=%v took=%s",
+		debuglog.Log(ctx, "cycle.recall.end", "cycle=%s q=%d report_bytes=%d err=%v took=%s",
 			cycleID, idx, len(report), recErr, time.Since(recallStart))
 
 		if recErr != nil || report == "" {

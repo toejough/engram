@@ -17,6 +17,15 @@ func CycleIDFromContext(ctx context.Context) string {
 	return id
 }
 
+// LoggerFromContext returns the *Logger stored in ctx, or nil if none
+// was set. The returned *Logger is safe to call methods on directly —
+// Logger methods are nil-receiver safe.
+func LoggerFromContext(ctx context.Context) *Logger {
+	logger, _ := ctx.Value(loggerKey{}).(*Logger)
+
+	return logger
+}
+
 // NewCycleID returns a short hex id suitable for tagging a single
 // engram-cycle invocation. Falls back to a fixed sentinel if the
 // system rng is unavailable.
@@ -48,6 +57,12 @@ func WithCycleID(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, cycleIDKey{}, id)
 }
 
+// WithLogger returns a copy of ctx that carries logger. Package-level
+// Log and Timed read this value; if absent (or nil), they no-op.
+func WithLogger(ctx context.Context, logger *Logger) context.Context {
+	return context.WithValue(ctx, loggerKey{}, logger)
+}
+
 // WithPhase returns a copy of ctx that carries phase as a debug-log
 // label (e.g. "cycle.learn", "recall.skills[brainstorming]"). The
 // llmcmd Runner reads this to tag every LLM call with where it
@@ -62,5 +77,7 @@ const (
 )
 
 type cycleIDKey struct{}
+
+type loggerKey struct{}
 
 type phaseKey struct{}

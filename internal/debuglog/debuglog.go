@@ -1,9 +1,14 @@
 // Package debuglog provides a tail-friendly debug logger for engram pipelines.
-// Init opens an append-mode log file. Subsequent Log calls write atomically
-// and sync to disk so `tail -F` shows progress live.
+// New opens an append-mode log file and returns a *Logger. Log calls write
+// atomically and sync to disk so `tail -F` shows progress live.
+//
+// Loggers are threaded through context (see WithLogger / LoggerFromContext).
+// The package-level Log and Timed helpers read the logger from ctx, so call
+// sites stay short while production wiring stays explicit.
 package debuglog
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -11,71 +16,86 @@ import (
 	"time"
 )
 
-// Init opens the log file at path in append mode. Subsequent calls replace
-// the previous file. If path is empty, logging is disabled (no-op).
-// Init is idempotent for the same path.
-func Init(path, comp string) error {
-	mu.Lock()
-	defer mu.Unlock()
+// Logger writes structured debug lines to an append-mode file. Methods are
+// safe for concurrent use within one process and safe to call on a nil
+// receiver (no-op), which means tests can pass a nil logger without panics.
+type Logger struct {
+	component string
+	file      *os.File
+	mu        sync.Mutex
+}
 
+// New opens path in append mode and returns a *Logger tagged with comp.
+// If path is empty, returns a no-op *Logger that ignores all writes.
+// Errors only surface for non-empty paths that fail to open.
+func New(path, comp string) (*Logger, error) {
 	if path == "" {
-		file = nil
-		component = ""
-
-		return nil
-	}
-
-	if file != nil {
-		_ = file.Close()
-		file = nil
+		return &Logger{}, nil
 	}
 
 	// Path comes from operator-set env var (ENGRAM_DEBUG_LOG), not user input.
 	//nolint:gosec // operator-controlled path
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, filePerm)
 	if err != nil {
-		return fmt.Errorf("opening debug log %s: %w", path, err)
+		return nil, fmt.Errorf("opening debug log %s: %w", path, err)
 	}
 
-	file = f
-	component = comp
-
-	return nil
+	return &Logger{file: f, component: comp}, nil
 }
 
 // Log writes a single line: <timestamp> [<component>] <stage>: <message>.
-// Each call appends and syncs. Safe for concurrent use within one process.
-// No-op when Init was called with empty path.
+// Each call appends and syncs. Safe on a nil receiver (no-op) and safe for
+// concurrent use.
 //
 //nolint:goprintffuncname // "Log" reads more naturally than "Logf" at call sites
-func Log(stage, format string, args ...any) {
-	mu.Lock()
-	defer mu.Unlock()
+func (l *Logger) Log(stage, format string, args ...any) {
+	if l == nil {
+		return
+	}
 
-	if file == nil {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.file == nil {
 		return
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	msg := fmt.Sprintf(format, args...)
-	line := fmt.Sprintf("%s [%s] %s: %s\n", now, component, stage, msg)
+	line := fmt.Sprintf("%s [%s] %s: %s\n", now, l.component, stage, msg)
 
-	_, _ = file.WriteString(line)
-	_ = file.Sync()
+	_, _ = l.file.WriteString(line)
+	_ = l.file.Sync()
 }
 
 // Timed wraps a stage with .start and .end log entries plus duration.
 // Returns a defer-friendly closer:
 //
-//	defer debuglog.Timed("Cycle.Run", "projectDir=%s", projectDir)()
-func Timed(stage, format string, args ...any) func() {
-	Log(stage+".start", format, args...)
+//	defer logger.Timed("Cycle.Run", "projectDir=%s", projectDir)()
+//
+// Safe on a nil receiver.
+func (l *Logger) Timed(stage, format string, args ...any) func() {
+	l.Log(stage+".start", format, args...)
 
 	start := time.Now()
 
 	return func() {
-		Log(stage+".end", "took=%s", time.Since(start))
+		l.Log(stage+".end", "took=%s", time.Since(start))
 	}
+}
+
+// Log reads a *Logger from ctx and writes a line. No-op when ctx carries
+// no logger.
+//
+//nolint:goprintffuncname // mirrors Logger.Log naming
+func Log(ctx context.Context, stage, format string, args ...any) {
+	LoggerFromContext(ctx).Log(stage, format, args...)
+}
+
+// Timed reads a *Logger from ctx and starts a timed entry. No-op closer
+// when ctx carries no logger.
+func Timed(ctx context.Context, stage, format string, args ...any) func() {
+	return LoggerFromContext(ctx).Timed(stage, format, args...)
 }
 
 // Truncate returns s capped at truncateMax bytes, with newlines collapsed
@@ -99,11 +119,4 @@ const (
 	ellipsis    = "..."
 	filePerm    = 0o644
 	truncateMax = 200
-)
-
-// unexported variables.
-var (
-	component string
-	file      *os.File
-	mu        sync.Mutex
 )

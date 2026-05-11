@@ -24,7 +24,7 @@ type CycleArgs struct {
 
 // RunCycle executes one engram cycle and writes the JSON output to stdout.
 func RunCycle(ctx context.Context, args CycleArgs, stdout io.Writer) error {
-	debuglog.Log("engram_cycle.invoke", "projectDir=%s dataDir=%s", args.ProjectDir, args.DataDir)
+	debuglog.Log(ctx, "engram_cycle.invoke", "projectDir=%s dataDir=%s", args.ProjectDir, args.DataDir)
 
 	requireErr := requireLLMCmd(args.LLMCmd)
 	if requireErr != nil {
@@ -65,7 +65,7 @@ func RunCycle(ctx context.Context, args CycleArgs, stdout io.Writer) error {
 		return fmt.Errorf("cycle: marshalling output: %w", marshalErr)
 	}
 
-	debuglog.Log("engram_cycle.done", "err=%v", runErr)
+	debuglog.Log(ctx, "engram_cycle.done", "err=%v", runErr)
 
 	_, writeErr := stdout.Write(append(encoded, '\n'))
 	if writeErr != nil {

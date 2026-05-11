@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"engram/internal/debuglog"
+
 	"github.com/toejough/targ"
 )
 
@@ -113,35 +115,41 @@ func ProjectSlugFromPath(path string) string {
 	return strings.ReplaceAll(path, string(filepath.Separator), "-")
 }
 
-// Targets returns all targ targets for the engram CLI.
-func Targets(stdout, stderr io.Writer, exit func(int)) []any {
+// Targets returns all targ targets for the engram CLI. The logger is
+// attached to each handler's ctx so downstream code can call debuglog.Log
+// without an explicit logger argument.
+func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) []any {
 	errHandler := newErrHandler(stderr, exit)
+
+	withLog := func(ctx context.Context) context.Context {
+		return debuglog.WithLogger(ctx, logger)
+	}
 
 	return []any{
 		targ.Targ(func(ctx context.Context, a RecallArgs) {
-			errHandler(runRecall(ctx, a, stdout))
+			errHandler(runRecall(withLog(ctx), a, stdout))
 		}).Name("recall").Description("Recall recent session context"),
 		targ.Targ(func(ctx context.Context, a CycleArgs) {
-			errHandler(RunCycle(ctx, a, stdout))
+			errHandler(RunCycle(withLog(ctx), a, stdout))
 		}).Name("cycle").Description("Run a learn-and-recall evaluation cycle"),
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
-			errHandler(runShow(ctx, a, stdout))
+			errHandler(runShow(withLog(ctx), a, stdout))
 		}).Name("show").Description("Display full memory details"),
 		targ.Targ(func(ctx context.Context, a ListArgs) {
-			errHandler(runList(ctx, a, stdout))
+			errHandler(runList(withLog(ctx), a, stdout))
 		}).Name("list").Description("List all memories with type, name, and situation"),
 		targ.Targ(func(ctx context.Context, a StartingPointsArgs) {
-			errHandler(runStartingPoints(ctx, a, stdout))
+			errHandler(runStartingPoints(withLog(ctx), a, stdout))
 		}).Name("starting-points").Description("Emit vault graph traversal entry points (one wikilink per line)"),
 		targ.Group("promote",
 			targ.Targ(func(ctx context.Context, a PromoteFeedbackArgs) {
-				errHandler(runPromoteFromFeedbackArgs(ctx, a, stdout))
+				errHandler(runPromoteFromFeedbackArgs(withLog(ctx), a, stdout))
 			}).Name("feedback").Description("Promote a feedback note to Permanent/"),
 			targ.Targ(func(ctx context.Context, a PromoteFactArgs) {
-				errHandler(runPromoteFromFactArgs(ctx, a, stdout))
+				errHandler(runPromoteFromFactArgs(withLog(ctx), a, stdout))
 			}).Name("fact").Description("Promote a fact note to Permanent/"),
 			targ.Targ(func(ctx context.Context, a PromoteMOCArgs) {
-				errHandler(runPromoteFromMOCArgs(ctx, a, stdout))
+				errHandler(runPromoteFromMOCArgs(withLog(ctx), a, stdout))
 			}).Name("moc").Description("Promote a MOC note to MOCs/"),
 		),
 		targ.Targ(func(ctx context.Context, a QuickArgs) {
@@ -153,16 +161,16 @@ func Targets(stdout, stderr io.Writer, exit func(int)) []any {
 				StatDir:  fsAdapter.StatDir,
 				WriteNew: fsAdapter.WriteNew,
 			}
-			errHandler(runQuick(ctx, a, deps, stdout))
+			errHandler(runQuick(withLog(ctx), a, deps, stdout))
 		}).Name("quick").Description("Write a fleeting note to the agent-memory vault"),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
-			errHandler(runUpdate(ctx, a, stdout))
+			errHandler(runUpdate(withLog(ctx), a, stdout))
 		}).Name("update").Description("Update an existing memory"),
 		targ.Targ(func(ctx context.Context, a ReminderArgs) {
-			errHandler(runReminder(ctx, a, stdout))
+			errHandler(runReminder(withLog(ctx), a, stdout))
 		}).Name("reminder").Description("Emit canonical reminder text"),
 		targ.Targ(func(ctx context.Context, a BuildSelfArgs) {
-			errHandler(runBuildSelf(ctx, a, stdout))
+			errHandler(runBuildSelf(withLog(ctx), a, stdout))
 		}).Name("build-self").Description("Build the engram binary"),
 	}
 }

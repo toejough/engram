@@ -1,6 +1,7 @@
 package debuglog_test
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
@@ -10,21 +11,35 @@ import (
 	g "github.com/onsi/gomega"
 )
 
-//nolint:paralleltest // package-level state requires serial tests
-func TestLog_NoopWhenDisabled(t *testing.T) {
-	gomega := g.NewWithT(t)
+func TestLog_NilReceiverIsSafe(t *testing.T) {
+	t.Parallel()
 
-	initErr := debuglog.Init("", "")
-	gomega.Expect(initErr).NotTo(g.HaveOccurred())
+	var nilLogger *debuglog.Logger
 
-	// Must not panic.
-	debuglog.Log("stage", "msg=%s", "value")
+	// Nil-receiver methods must not panic.
+	nilLogger.Log("stage", "msg=%s", "value")
+	closer := nilLogger.Timed("stage", "arg=%s", "v")
+	closer()
 }
 
-// debuglog uses package-level state; tests cannot run in parallel.
-//
-//nolint:paralleltest // package-level state requires serial tests
+func TestLog_NoopWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	gomega := g.NewWithT(t)
+
+	logger, err := debuglog.New("", "")
+	gomega.Expect(err).NotTo(g.HaveOccurred())
+
+	// Must not panic on a disabled (no-op) logger.
+	logger.Log("stage", "msg=%s", "value")
+
+	// Must also no-op when nothing is in ctx.
+	debuglog.Log(context.Background(), "stage", "msg=%s", "value")
+}
+
 func TestLog_WritesAndSyncs(t *testing.T) {
+	t.Parallel()
+
 	tmp, err := os.CreateTemp(t.TempDir(), "debuglog-*.log")
 	if err != nil {
 		t.Fatal(err)
@@ -35,14 +50,15 @@ func TestLog_WritesAndSyncs(t *testing.T) {
 
 	gomega := g.NewWithT(t)
 
-	initErr := debuglog.Init(path, "test")
-	gomega.Expect(initErr).NotTo(g.HaveOccurred())
+	logger, newErr := debuglog.New(path, "test")
+	gomega.Expect(newErr).NotTo(g.HaveOccurred())
 
-	if initErr != nil {
+	if newErr != nil {
 		return
 	}
 
-	debuglog.Log("some.stage", "key=%s val=%d", "hello", 42)
+	ctx := debuglog.WithLogger(context.Background(), logger)
+	debuglog.Log(ctx, "some.stage", "key=%s val=%d", "hello", 42)
 
 	contents, readErr := os.ReadFile(path)
 	gomega.Expect(readErr).NotTo(g.HaveOccurred())
@@ -55,8 +71,9 @@ func TestLog_WritesAndSyncs(t *testing.T) {
 	gomega.Expect(line).To(g.ContainSubstring("[test] some.stage: key=hello val=42"))
 }
 
-//nolint:paralleltest // package-level state requires serial tests
 func TestTimed_LogsStartAndEnd(t *testing.T) {
+	t.Parallel()
+
 	tmp, err := os.CreateTemp(t.TempDir(), "debuglog-timed-*.log")
 	if err != nil {
 		t.Fatal(err)
@@ -67,14 +84,15 @@ func TestTimed_LogsStartAndEnd(t *testing.T) {
 
 	gomega := g.NewWithT(t)
 
-	initErr := debuglog.Init(path, "timed")
-	gomega.Expect(initErr).NotTo(g.HaveOccurred())
+	logger, newErr := debuglog.New(path, "timed")
+	gomega.Expect(newErr).NotTo(g.HaveOccurred())
 
-	if initErr != nil {
+	if newErr != nil {
 		return
 	}
 
-	closer := debuglog.Timed("MyStage", "arg=%s", "val")
+	ctx := debuglog.WithLogger(context.Background(), logger)
+	closer := debuglog.Timed(ctx, "MyStage", "arg=%s", "val")
 	closer()
 
 	contents, readErr := os.ReadFile(path)
@@ -90,4 +108,12 @@ func TestTimed_LogsStartAndEnd(t *testing.T) {
 
 	lines := strings.Split(strings.TrimSpace(text), "\n")
 	gomega.Expect(lines).To(g.HaveLen(2))
+}
+
+func TestTimed_NoLoggerInContext(t *testing.T) {
+	t.Parallel()
+
+	// Package-level Timed with no logger in ctx returns a no-op closer.
+	closer := debuglog.Timed(context.Background(), "stage", "arg=%s", "v")
+	closer()
 }
