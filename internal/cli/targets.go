@@ -64,26 +64,24 @@ type QuickArgs struct {
 	Vault   string `targ:"flag,name=vault,env=ENGRAM_VAULT_DIR,desc=vault root directory"`
 }
 
-// RecallArgs holds parsed flags for the recall subcommand.
+// RecallArgs holds parsed flags for the recall subcommand. Recall is
+// vault-only; three modes are mutually selected by flag:
+//
+//   - No args: emit structural anchors (MOCs + per-component winners).
+//   - --recent: emit the most-recent notes by filename date prefix.
+//   - --follow: emit cascade frontier expansion (outgoing + backlinks).
 type RecallArgs struct {
-	DataDir       string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	ProjectSlug   string `targ:"flag,name=project-slug,desc=project directory slug"`
-	Query         string `targ:"flag,name=query,desc=search query (omit for summary mode)"`
-	MemoriesOnly  bool   `targ:"flag,name=memories-only,desc=search only memory files"`
-	Limit         int    `targ:"flag,name=limit,desc=max memories to return (default 10)"`
-	TranscriptDir string `targ:"flag,name=transcript-dir,env=ENGRAM_TRANSCRIPT_DIR,desc=override transcript directory"`
-	LLMCmd        string `targ:"flag,name=llm-cmd,desc=command to invoke for LLM calls (overrides ENGRAM_LLM_CMD)"`
+	VaultPath   string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=path to vault root (required)"`
+	Recent      bool     `targ:"flag,name=recent,desc=emit most-recent notes by filename date instead of anchors"`
+	Limit       int      `targ:"flag,name=limit,desc=cap for --recent output (default 20)"`
+	Follow      []string `targ:"flag,name=follow,desc=basenames to expand (outgoing + backlinks)"`
+	AlreadyRead []string `targ:"flag,name=already-read,desc=basenames to subtract from --follow output"`
 }
 
 // ShowArgs holds parsed flags for the show subcommand.
 type ShowArgs struct {
 	Name    string `targ:"flag,name=name,desc=memory slug to display"`
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-}
-
-// StartingPointsArgs holds parsed flags for the starting-points subcommand.
-type StartingPointsArgs struct {
-	VaultPath string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=path to agent-memory vault root"`
 }
 
 // UpdateArgs holds parsed flags for the update subcommand.
@@ -140,9 +138,6 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 		targ.Targ(func(ctx context.Context, a ListArgs) {
 			errHandler(runList(withLog(ctx), a, stdout))
 		}).Name("list").Description("List all memories with type, name, and situation"),
-		targ.Targ(func(ctx context.Context, a StartingPointsArgs) {
-			errHandler(runStartingPoints(withLog(ctx), a, stdout))
-		}).Name("starting-points").Description("Emit vault graph traversal entry points (one wikilink per line)"),
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
 				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, stdout))

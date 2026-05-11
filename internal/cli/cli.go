@@ -9,20 +9,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
 	"syscall"
 
-	"engram/internal/llmcmd"
-	"engram/internal/memory"
-	"engram/internal/recall"
 	"engram/internal/transcript"
+	"engram/internal/vaultgraph"
 )
 
 // unexported constants.
 const (
-	envLLMCmd          = "ENGRAM_LLM_CMD"
-	luhmannLockFile    = ".luhmann.lock"
-	recallOptsCapacity = 2 // WithStatusWriter + WithExternalSources
+	defaultRecallRecentLimit = 20
+	envLLMCmd                = "ENGRAM_LLM_CMD"
+	luhmannLockFile          = ".luhmann.lock"
 )
 
 // unexported variables.
@@ -30,7 +27,10 @@ var (
 	errLLMCmdRequired = errors.New(
 		"llm-cmd is required: set --llm-cmd flag or ENGRAM_LLM_CMD environment variable",
 	)
-	errNotADirectory = errors.New("not a directory")
+	errNotADirectory       = errors.New("not a directory")
+	errRecallVaultRequired = errors.New(
+		"recall: --vault required (or set ENGRAM_VAULT_PATH)",
+	)
 )
 
 // osDirLister lists .jsonl files in a directory using os.ReadDir.
@@ -227,18 +227,13 @@ func applyDataDirDefault(dataDir *string) error {
 	return nil
 }
 
-// applyProjectSlugDefault sets *slug to the PWD-derived slug when empty.
-func applyProjectSlugDefault(slug *string, getwd func() (string, error)) error {
-	if *slug != "" {
-		return nil
+func emitBasenames(stdout io.Writer, names []string) error {
+	for _, name := range names {
+		_, err := fmt.Fprintln(stdout, name)
+		if err != nil {
+			return fmt.Errorf("recall: writing output: %w", err)
+		}
 	}
-
-	cwd, err := getwd()
-	if err != nil {
-		return fmt.Errorf("resolving working directory: %w", err)
-	}
-
-	*slug = ProjectSlugFromPath(cwd)
 
 	return nil
 }
@@ -261,110 +256,53 @@ func resolveLLMCmd(flagValue string) string {
 	return os.Getenv(envLLMCmd)
 }
 
-func runRecall(ctx context.Context, args RecallArgs, stdout io.Writer) error {
-	dataDir := args.DataDir
-
-	defaultErr := applyDataDirDefault(&dataDir)
-	if defaultErr != nil {
-		return fmt.Errorf("recall: %w", defaultErr)
+func runRecall(_ context.Context, args RecallArgs, stdout io.Writer) error {
+	if args.VaultPath == "" {
+		return errRecallVaultRequired
 	}
 
-	runner := llmcmd.New(resolveLLMCmd(args.LLMCmd))
-	summarizer := llmcmd.NewExtractor(runner)
-	memLister := memory.NewLister()
+	fs := &osVaultFS{}
 
-	if args.MemoriesOnly {
-		limit := args.Limit
-		if limit == 0 {
-			limit = recall.DefaultMemoryLimit
-		}
-
-		return runRecallMemoriesOnly(ctx, stdout, summarizer, memLister, dataDir, args.Query, limit)
+	switch {
+	case len(args.Follow) > 0:
+		return runRecallFollow(fs, args, stdout)
+	case args.Recent:
+		return runRecallRecent(fs, args, stdout)
+	default:
+		return runRecallAnchors(fs, args, stdout)
 	}
-
-	projectSlug := args.ProjectSlug
-
-	return runRecallSessions(
-		ctx, stdout, &projectSlug, summarizer, memLister,
-		dataDir, args.Query, os.Getwd, os.UserHomeDir,
-		args.TranscriptDir,
-	)
 }
 
-func runRecallMemoriesOnly(
-	ctx context.Context,
-	stdout io.Writer,
-	summarizer recall.SummarizerI,
-	memLister recall.MemoryLister,
-	dataDir, query string,
-	limit int,
-) error {
-	orch := recall.NewOrchestrator(nil, nil, summarizer, memLister, dataDir)
-
-	result, err := orch.RecallMemoriesOnly(ctx, query, limit)
+func runRecallAnchors(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
+	points, err := vaultgraph.StartingPoints(fs, args.VaultPath)
 	if err != nil {
 		return fmt.Errorf("recall: %w", err)
 	}
 
-	return recall.FormatResult(stdout, result)
+	return emitBasenames(stdout, points)
 }
 
-func runRecallSessions(
-	ctx context.Context,
-	stdout io.Writer,
-	projectSlug *string,
-	summarizer recall.SummarizerI,
-	memLister recall.MemoryLister,
-	dataDir, query string,
-	getwd func() (string, error),
-	userHomeDir func() (string, error),
-	transcriptDir string,
-) error {
-	slugErr := applyProjectSlugDefault(projectSlug, getwd)
-	if slugErr != nil {
-		return fmt.Errorf("recall: %w", slugErr)
-	}
-
-	home, homeErr := userHomeDir()
-	if homeErr != nil {
-		return fmt.Errorf("recall: %w", homeErr)
-	}
-
-	cwd, cwdErr := getwd()
-	if cwdErr != nil {
-		return fmt.Errorf("recall: %w", cwdErr)
-	}
-
-	var dirs []string
-	if transcriptDir != "" {
-		dirs = []string{transcriptDir}
-	} else {
-		dirs = []string{
-			filepath.Join(home, ".claude", "projects", *projectSlug),
-		}
-	}
-
-	finder := transcript.NewCompositeSessionFinder(
-		transcript.NewSessionFinder(&osDirLister{}),
-		transcript.NewOpencodeSessionFinder(transcript.DefaultOpencodeDBPath(), cwd),
-	)
-	reader := transcript.NewCompositeTranscriptReader(
-		transcript.NewJSONLReader(&osFileReader{}),
-		transcript.NewOpencodeTranscriptReader(transcript.DefaultOpencodeDBPath()),
-	)
-
-	opts := make([]recall.OrchestratorOption, 0, recallOptsCapacity)
-	opts = append(opts, recall.WithStatusWriter(os.Stderr))
-
-	externalFiles, externalCache := discoverExternalSources(ctx, home)
-	opts = append(opts, recall.WithExternalSources(externalFiles, externalCache))
-
-	orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, dataDir, opts...)
-
-	result, err := orch.Recall(ctx, query, dirs...)
+func runRecallFollow(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
+	notes, err := vaultgraph.ScanVault(fs, args.VaultPath)
 	if err != nil {
 		return fmt.Errorf("recall: %w", err)
 	}
 
-	return recall.FormatResult(stdout, result)
+	graph := vaultgraph.BuildGraph(notes)
+
+	return emitBasenames(stdout, vaultgraph.Follow(graph, args.Follow, args.AlreadyRead))
+}
+
+func runRecallRecent(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
+	notes, err := vaultgraph.ScanVault(fs, args.VaultPath)
+	if err != nil {
+		return fmt.Errorf("recall: %w", err)
+	}
+
+	limit := args.Limit
+	if limit == 0 {
+		limit = defaultRecallRecentLimit
+	}
+
+	return emitBasenames(stdout, vaultgraph.Recent(notes, limit))
 }

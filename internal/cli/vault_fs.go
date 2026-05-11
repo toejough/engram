@@ -1,22 +1,11 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"engram/internal/vaultgraph"
-)
-
-// unexported variables.
-var (
-	errVaultPathRequired = errors.New(
-		"starting-points: vault path required (pass --vault or set ENGRAM_VAULT_PATH)",
-	)
 )
 
 // osVaultFS is the production adapter satisfying vaultgraph.VaultFS. Listing a
@@ -60,27 +49,4 @@ func (*osVaultFS) ReadFile(path string) ([]byte, error) {
 	}
 
 	return data, nil
-}
-
-// runStartingPoints prints one wikilink per starting point of the vault graph.
-// Starting points = every MOC plus the per-component winner of every MOC-less
-// connected component. Output is globally sorted by Luhmann tree order.
-func runStartingPoints(_ context.Context, args StartingPointsArgs, stdout io.Writer) error {
-	if args.VaultPath == "" {
-		return errVaultPathRequired
-	}
-
-	points, err := vaultgraph.StartingPoints(&osVaultFS{}, args.VaultPath)
-	if err != nil {
-		return fmt.Errorf("starting-points: %w", err)
-	}
-
-	for _, name := range points {
-		_, writeErr := fmt.Fprintln(stdout, "[["+name+"]]")
-		if writeErr != nil {
-			return fmt.Errorf("starting-points: writing output: %w", writeErr)
-		}
-	}
-
-	return nil
 }

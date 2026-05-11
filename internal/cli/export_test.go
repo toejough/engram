@@ -11,45 +11,37 @@ import (
 
 // Exported variables.
 var (
-	ExportApplyDataDirDefault            = applyDataDirDefault
-	ExportApplyProjectSlugDefault        = applyProjectSlugDefault
-	ExportBuildAndInstall                = buildAndInstall
-	ExportComputeMainProjectDir          = computeMainProjectDir
-	ExportDescribeNewMemory              = describeNewMemory
-	ExportExtractLuhmannFromFilename     = extractLuhmannFromFilename
-	ExportFleetingPath                   = fleetingPath
-	ExportLearnPath                      = learnPath
-	ExportMarshalFrontmatter             = marshalFrontmatter
-	ExportNewErrHandler                  = newErrHandler
-	ExportNextLuhmannID                  = nextLuhmannID
-	ExportOsDirListMd                    = osDirListMd
-	ExportOsMatchAny                     = osMatchAny
-	ExportOsStatExists                   = osStatExists
-	ExportOsWalkMd                       = osWalkMd
-	ExportOsWalkSkills                   = osWalkSkills
-	ExportParseConflictResponse          = parseConflictResponse
-	ExportReadAutoMemoryDirectorySetting = readAutoMemoryDirectorySetting
-	ExportRenderConflictContent          = renderConflictContent
-	ExportRenderFactBody                 = renderFactBody
-	ExportRenderFactContent              = renderFactContent
-	ExportRenderFactFrontmatter          = renderFactFrontmatter
-	ExportRenderFeedbackBody             = renderFeedbackBody
-	ExportRenderFeedbackFrontmatter      = renderFeedbackFrontmatter
-	ExportRenderMOCBody                  = renderMOCBody
-	ExportRenderMOCFrontmatter           = renderMOCFrontmatter
-	ExportRenderMemoryContent            = renderMemoryContent
-	ExportRenderRelatedSection           = renderRelatedSection
-	ExportRequireLLMCmd                  = requireLLMCmd
-	ExportRequireVaultDirs               = requireVaultDirs
-	ExportResolveContent                 = resolveContent
-	ExportResolveLLMCmd                  = resolveLLMCmd
-	ExportResolveVault                   = resolveVault
-	ExportRunBuildSelf                   = runBuildSelf
-	ExportRunLearn                       = runLearn
-	ExportRunQuick                       = runQuick
-	ExportValidateSlug                   = validateSlug
-	ExportValidateSource                 = validateSource
-	ExportWriteMemory                    = writeMemory
+	ExportApplyDataDirDefault        = applyDataDirDefault
+	ExportBuildAndInstall            = buildAndInstall
+	ExportDescribeNewMemory          = describeNewMemory
+	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
+	ExportFleetingPath               = fleetingPath
+	ExportLearnPath                  = learnPath
+	ExportMarshalFrontmatter         = marshalFrontmatter
+	ExportNewErrHandler              = newErrHandler
+	ExportNextLuhmannID              = nextLuhmannID
+	ExportParseConflictResponse      = parseConflictResponse
+	ExportRenderConflictContent      = renderConflictContent
+	ExportRenderFactBody             = renderFactBody
+	ExportRenderFactContent          = renderFactContent
+	ExportRenderFactFrontmatter      = renderFactFrontmatter
+	ExportRenderFeedbackBody         = renderFeedbackBody
+	ExportRenderFeedbackFrontmatter  = renderFeedbackFrontmatter
+	ExportRenderMOCBody              = renderMOCBody
+	ExportRenderMOCFrontmatter       = renderMOCFrontmatter
+	ExportRenderMemoryContent        = renderMemoryContent
+	ExportRenderRelatedSection       = renderRelatedSection
+	ExportRequireLLMCmd              = requireLLMCmd
+	ExportRequireVaultDirs           = requireVaultDirs
+	ExportResolveContent             = resolveContent
+	ExportResolveLLMCmd              = resolveLLMCmd
+	ExportResolveVault               = resolveVault
+	ExportRunBuildSelf               = runBuildSelf
+	ExportRunLearn                   = runLearn
+	ExportRunQuick                   = runQuick
+	ExportValidateSlug               = validateSlug
+	ExportValidateSource             = validateSource
+	ExportWriteMemory                = writeMemory
 )
 
 type ExportFactFields = factFields
@@ -155,41 +147,6 @@ func ExportRunLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Wr
 	return runLearnFromMOCArgs(ctx, a, stdout)
 }
 
-// ExportRunRecallSessions wraps runRecallSessions for testing.
-func ExportRunRecallSessions(
-	ctx context.Context,
-	stdout io.Writer,
-	projectSlug string,
-	summarizer recall.SummarizerI,
-	memLister recall.MemoryLister,
-	dataDir, query string,
-	getwd func() (string, error),
-	userHomeDir func() (string, error),
-) error {
-	slug := projectSlug
-
-	return runRecallSessions(ctx, stdout, &slug, summarizer, memLister, dataDir, query, getwd,
-		userHomeDir, "")
-}
-
-// ExportRunRecallSessionsWithOpts wraps runRecallSessions for testing with transcript-dir.
-func ExportRunRecallSessionsWithOpts(
-	ctx context.Context,
-	stdout io.Writer,
-	projectSlug string,
-	summarizer recall.SummarizerI,
-	memLister recall.MemoryLister,
-	dataDir, query string,
-	getwd func() (string, error),
-	userHomeDir func() (string, error),
-	transcriptDir string,
-) error {
-	slug := projectSlug
-
-	return runRecallSessions(ctx, stdout, &slug, summarizer, memLister, dataDir, query, getwd,
-		userHomeDir, transcriptDir)
-}
-
 // ExportWriteMemoryForTest wraps writeMemory for testing with a pre-built record.
 func ExportWriteMemoryForTest(
 	ctx context.Context,
@@ -222,4 +179,9 @@ func ExportWriteMemoryWithDeps(
 	_, _, err := writeMemory(ctx, record, situation, &dd, noDupCheck, stdout, cmdName, caller, lister)
 
 	return err
+}
+
+// RunRecallForTest exposes runRecall for whitebox testing.
+func RunRecallForTest(ctx context.Context, args RecallArgs, stdout io.Writer) error {
+	return runRecall(ctx, args, stdout)
 }
