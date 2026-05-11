@@ -82,16 +82,6 @@ func (r *osFileReader) Read(path string) ([]byte, error) {
 // osPromoteFS is the production filesystem adapter for the promote subcommand.
 type osPromoteFS struct{}
 
-// DeleteFleeting removes the fleeting file at path.
-func (*osPromoteFS) DeleteFleeting(path string) error {
-	err := os.Remove(path)
-	if err != nil {
-		return fmt.Errorf("remove: %w", err)
-	}
-
-	return nil
-}
-
 // ListIDs returns Luhmann IDs from filenames in vault/Permanent and vault/MOCs.
 func (*osPromoteFS) ListIDs(vault string) ([]string, error) {
 	out := []string{}

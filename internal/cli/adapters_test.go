@@ -82,19 +82,6 @@ func TestOsFileReader_ReadError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestOsPromoteFS_DeleteFleeting_RemovesFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	dir := t.TempDir()
-	path := filepath.Join(dir, "fleeting.md")
-	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
-
-	fs := cli.ExportNewOsPromoteFS()
-	g.Expect(fs.DeleteFleeting(path)).To(Succeed())
-	_, err := os.Stat(path)
-	g.Expect(os.IsNotExist(err)).To(BeTrue())
-}
-
 func TestOsPromoteFS_ListIDs_ReturnsBothPermanentAndMOC(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

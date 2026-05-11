@@ -14,13 +14,12 @@ import (
 
 // PromoteArgs holds the parsed flags for the promote subcommand.
 type PromoteArgs struct {
-	Type           string
-	Slug           string
-	Vault          string
-	Target         string
-	Relation       string
-	Source         string
-	DeleteFleeting string
+	Type     string
+	Slug     string
+	Vault    string
+	Target   string
+	Relation string
+	Source   string
 
 	// feedback / fact share these
 	Situation string
@@ -38,14 +37,13 @@ type PromoteArgs struct {
 
 // PromoteDeps holds injected dependencies for runPromote. All fields required.
 type PromoteDeps struct {
-	Now            func() time.Time
-	Stdin          io.Reader
-	Getenv         func(string) string
-	StatDir        func(string) error
-	ListIDs        func(vault string) ([]string, error)
-	Lock           func(vault string) (release func(), err error)
-	WriteNew       func(path string, data []byte) error
-	DeleteFleeting func(path string) error
+	Now      func() time.Time
+	Stdin    io.Reader
+	Getenv   func(string) string
+	StatDir  func(string) error
+	ListIDs  func(vault string) ([]string, error)
+	Lock     func(vault string) (release func(), err error)
+	WriteNew func(path string, data []byte) error
 }
 
 // unexported constants.
@@ -125,14 +123,13 @@ func newOsPromoteDeps() PromoteDeps {
 	fs := &osPromoteFS{}
 
 	return PromoteDeps{
-		Now:            time.Now,
-		Stdin:          os.Stdin,
-		Getenv:         os.Getenv,
-		StatDir:        fs.StatDir,
-		ListIDs:        fs.ListIDs,
-		Lock:           fs.Lock,
-		WriteNew:       fs.WriteNew,
-		DeleteFleeting: fs.DeleteFleeting,
+		Now:      time.Now,
+		Stdin:    os.Stdin,
+		Getenv:   os.Getenv,
+		StatDir:  fs.StatDir,
+		ListIDs:  fs.ListIDs,
+		Lock:     fs.Lock,
+		WriteNew: fs.WriteNew,
 	}
 }
 
@@ -212,7 +209,7 @@ func renderMOCFrontmatter(f mocFields, when time.Time) string {
 }
 
 // runPromote orchestrates the promote subcommand: validates inputs, acquires the lock,
-// computes the next Luhmann ID, writes the file, and optionally deletes the originating fleeting.
+// computes the next Luhmann ID, and writes the file.
 func runPromote(_ context.Context, args PromoteArgs, deps PromoteDeps, stdout io.Writer) error {
 	slugErr := validateSlug(args.Slug)
 	if slugErr != nil {
@@ -239,13 +236,6 @@ func runPromote(_ context.Context, args PromoteArgs, deps PromoteDeps, stdout io
 		return writeErr
 	}
 
-	if args.DeleteFleeting != "" {
-		delErr := deps.DeleteFleeting(args.DeleteFleeting)
-		if delErr != nil {
-			return fmt.Errorf("promote: deleting fleeting %s: %w", args.DeleteFleeting, delErr)
-		}
-	}
-
 	_, _ = fmt.Fprintln(stdout, path)
 
 	return nil
@@ -255,17 +245,16 @@ func runPromoteFromFactArgs(ctx context.Context, a PromoteFactArgs, stdout io.Wr
 	deps := newOsPromoteDeps()
 
 	return runPromote(ctx, PromoteArgs{
-		Type:           typeFact,
-		Slug:           a.Slug,
-		Vault:          a.Vault,
-		Target:         a.Target,
-		Relation:       a.Relation,
-		Source:         a.Source,
-		DeleteFleeting: a.DeleteFleeting,
-		Situation:      a.Situation,
-		Subject:        a.Subject,
-		Predicate:      a.Predicate,
-		Object:         a.Object,
+		Type:      typeFact,
+		Slug:      a.Slug,
+		Vault:     a.Vault,
+		Target:    a.Target,
+		Relation:  a.Relation,
+		Source:    a.Source,
+		Situation: a.Situation,
+		Subject:   a.Subject,
+		Predicate: a.Predicate,
+		Object:    a.Object,
 	}, deps, stdout)
 }
 
@@ -273,17 +262,16 @@ func runPromoteFromFeedbackArgs(ctx context.Context, a PromoteFeedbackArgs, stdo
 	deps := newOsPromoteDeps()
 
 	return runPromote(ctx, PromoteArgs{
-		Type:           typeFeedback,
-		Slug:           a.Slug,
-		Vault:          a.Vault,
-		Target:         a.Target,
-		Relation:       a.Relation,
-		Source:         a.Source,
-		DeleteFleeting: a.DeleteFleeting,
-		Situation:      a.Situation,
-		Behavior:       a.Behavior,
-		Impact:         a.Impact,
-		Action:         a.Action,
+		Type:      typeFeedback,
+		Slug:      a.Slug,
+		Vault:     a.Vault,
+		Target:    a.Target,
+		Relation:  a.Relation,
+		Source:    a.Source,
+		Situation: a.Situation,
+		Behavior:  a.Behavior,
+		Impact:    a.Impact,
+		Action:    a.Action,
 	}, deps, stdout)
 }
 
@@ -291,14 +279,13 @@ func runPromoteFromMOCArgs(ctx context.Context, a PromoteMOCArgs, stdout io.Writ
 	deps := newOsPromoteDeps()
 
 	return runPromote(ctx, PromoteArgs{
-		Type:           typeMOC,
-		Slug:           a.Slug,
-		Vault:          a.Vault,
-		Target:         a.Target,
-		Relation:       a.Relation,
-		Source:         a.Source,
-		DeleteFleeting: a.DeleteFleeting,
-		Topic:          a.Topic,
+		Type:     typeMOC,
+		Slug:     a.Slug,
+		Vault:    a.Vault,
+		Target:   a.Target,
+		Relation: a.Relation,
+		Source:   a.Source,
+		Topic:    a.Topic,
 	}, deps, stdout)
 }
 
