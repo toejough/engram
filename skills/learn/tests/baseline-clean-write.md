@@ -10,7 +10,7 @@ After a long debugging session, the user says: "let's remember: when an LSP erro
 - Gate 3 (Knowledge): PASS — transferable principle with concrete action.
 - Decide Luhmann position. Most-related existing note: `10c1.2026-05-10.never-chase-lsp-post-commit.md` (already in vault). This candidate merges or new-elaborates.
 - If merge: fold into existing. If new-elaboration: write as continuation.
-- Call `engram learn feedback` with full args; body on stdin includes `Related to:` bullet with rationale.
+- Call `engram learn feedback` with full args, including one or more `--relation "<wikilink>|<rationale>"` flags for the `Related to:` bullets.
 - Report: 1 candidate, 1 pass, 1 written.
 
 ## Expected current-skill behavior (RED baseline)

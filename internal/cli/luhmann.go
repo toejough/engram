@@ -11,16 +11,16 @@ import (
 
 // unexported constants.
 const (
-	relationContinuation = "continuation"
-	relationSibling      = "sibling"
-	relationTop          = "top"
+	positionContinuation = "continuation"
+	positionSibling      = "sibling"
+	positionTop          = "top"
 )
 
 // unexported variables.
 var (
-	errLuhmannRelation                 = errors.New("luhmann: relation must be top, continuation, or sibling")
+	errLuhmannPosition                 = errors.New("luhmann: position must be top, continuation, or sibling")
 	errLuhmannSiblingTopLevelMustBeTop = errors.New(
-		"luhmann: sibling of top-level requires relation=top",
+		"luhmann: sibling of top-level requires position=top",
 	)
 	errLuhmannTargetEmpty = errors.New("luhmann: target required for continuation/sibling")
 )
@@ -114,28 +114,28 @@ func nextLetter(cur string) string {
 	return "a" + string(runes)
 }
 
-// nextLuhmannID computes the next available Luhmann ID given existing IDs and a (target, relation).
-// relation=top  → next available top-level (ignores target)
-// relation=continuation → next child of target
-// relation=sibling → next sibling of target (target must have a parent; for top-level use relation=top)
-func nextLuhmannID(existing []string, target, relation string) (string, error) {
-	switch relation {
-	case relationTop:
+// nextLuhmannID computes the next available Luhmann ID given existing IDs and a (target, position).
+// position=top  → next available top-level (ignores target)
+// position=continuation → next child of target
+// position=sibling → next sibling of target (target must have a parent; for top-level use position=top)
+func nextLuhmannID(existing []string, target, position string) (string, error) {
+	switch position {
+	case positionTop:
 		return nextTopLevel(existing), nil
-	case relationContinuation:
+	case positionContinuation:
 		if target == "" {
 			return "", errLuhmannTargetEmpty
 		}
 
 		return nextChild(existing, target)
-	case relationSibling:
+	case positionSibling:
 		if target == "" {
 			return "", errLuhmannTargetEmpty
 		}
 
 		return nextSibling(existing, target)
 	default:
-		return "", fmt.Errorf("%w: got %q", errLuhmannRelation, relation)
+		return "", fmt.Errorf("%w: got %q", errLuhmannPosition, position)
 	}
 }
 

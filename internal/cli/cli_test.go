@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -33,14 +32,14 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 	run := exec.Command(binPath, "learn", "feedback",
 		"--slug", "ctx-rule",
 		"--vault", vault,
-		"--relation", "top",
+		"--position", "top",
 		"--source", "smoke test",
 		"--situation", "writing concurrent Go code",
 		"--behavior", "ignoring ctx",
 		"--impact", "leaks goroutines",
 		"--action", "check ctx.Done()",
+		"--relation", "X|adjacent",
 	)
-	run.Stdin = strings.NewReader("Related to:\n- [[X]] — adjacent.\n")
 	runOut, runErr := run.CombinedOutput()
 	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
 

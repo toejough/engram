@@ -134,7 +134,7 @@ func TestRunLearnFromFactArgs_WritesFile(t *testing.T) {
 		CommonLearnArgs: cli.CommonLearnArgs{
 			Slug:     "fact-slug",
 			Vault:    vault,
-			Relation: "top",
+			Position: "top",
 		},
 		Situation: "running tests",
 		Subject:   "subj",
@@ -166,7 +166,7 @@ func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 		CommonLearnArgs: cli.CommonLearnArgs{
 			Slug:     "feedback-slug",
 			Vault:    vault,
-			Relation: "top",
+			Position: "top",
 		},
 		Situation: "writing code",
 		Behavior:  "no tests",
@@ -197,7 +197,7 @@ func TestRunLearnFromMOCArgs_WritesFile(t *testing.T) {
 		CommonLearnArgs: cli.CommonLearnArgs{
 			Slug:     "moc-slug",
 			Vault:    vault,
-			Relation: "top",
+			Position: "top",
 		},
 		Topic: "engram",
 	}

@@ -36,6 +36,7 @@ var (
 	ExportRenderMOCBody                  = renderMOCBody
 	ExportRenderMOCFrontmatter           = renderMOCFrontmatter
 	ExportRenderMemoryContent            = renderMemoryContent
+	ExportRenderRelatedSection           = renderRelatedSection
 	ExportRequireLLMCmd                  = requireLLMCmd
 	ExportRequireVaultDirs               = requireVaultDirs
 	ExportResolveContent                 = resolveContent

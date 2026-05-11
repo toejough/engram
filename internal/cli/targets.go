@@ -16,11 +16,12 @@ import (
 
 // CommonLearnArgs holds shared flags for learn subcommands.
 type CommonLearnArgs struct {
-	Slug     string `targ:"flag,name=slug,desc=kebab-case tag for the filename"`
-	Vault    string `targ:"flag,name=vault,env=ENGRAM_VAULT_DIR,desc=vault root directory"`
-	Target   string `targ:"flag,name=target,desc=Luhmann ID this note relates to (empty for top-level)"`
-	Relation string `targ:"flag,name=relation,desc=top|continuation|sibling"`
-	Source   string `targ:"flag,name=source,required,desc=provenance string for the source field (required)"`
+	Slug      string   `targ:"flag,name=slug,desc=kebab-case tag for the filename"`
+	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_DIR,desc=vault root directory"`
+	Target    string   `targ:"flag,name=target,desc=Luhmann ID this note relates to (empty for top-level)"`
+	Position  string   `targ:"flag,name=position,desc=top|continuation|sibling"`
+	Source    string   `targ:"flag,name=source,required,desc=provenance string for the source field (required)"`
+	Relations []string `targ:"flag,name=relation,desc=related note as <wikilink-target>|<rationale> (repeatable)"`
 }
 
 // LearnFactArgs holds parsed flags for the learn fact subcommand.
@@ -47,7 +48,8 @@ type LearnFeedbackArgs struct {
 type LearnMOCArgs struct {
 	CommonLearnArgs
 
-	Topic string `targ:"flag,name=topic,desc=cluster topic name"`
+	Topic   string `targ:"flag,name=topic,desc=cluster topic name"`
+	Framing string `targ:"flag,name=framing,desc=framing paragraph(s) for the MOC body"`
 }
 
 // ListArgs holds parsed flags for the list subcommand.

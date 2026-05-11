@@ -74,11 +74,18 @@ func TestRenderBody_Feedback(t *testing.T) {
 			"Related to:\n- [[1a.foo]] — same shape.\n- [[5.bar]] — the MOC.\n"))
 }
 
-func TestRenderBody_MOC_PassesThrough(t *testing.T) {
+func TestRenderBody_MOC_FramingOnly(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
-	got := cli.ExportRenderMOCBody("This cluster names a recurring pattern of LLM rationalization under pressure.\n")
+	got := cli.ExportRenderMOCBody("This cluster names a recurring pattern of LLM rationalization under pressure.", "")
 	g.Expect(got).To(Equal("This cluster names a recurring pattern of LLM rationalization under pressure.\n"))
+}
+
+func TestRenderBody_MOC_FramingPlusRelated(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderMOCBody("framing prose", "Related to:\n- [[X]] — r.\n")
+	g.Expect(got).To(Equal("framing prose\n\nRelated to:\n- [[X]] — r.\n"))
 }
 
 func TestRenderFrontmatter_Fact(t *testing.T) {
@@ -137,6 +144,30 @@ func TestRenderFrontmatter_MOC(t *testing.T) {
 	g.Expect(got).To(ContainSubstring("topic: llm rationalization patterns under pressure"))
 }
 
+func TestRenderRelatedSection_Empty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportRenderRelatedSection(nil)).To(Equal(""))
+}
+
+func TestRenderRelatedSection_MultipleEntries(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderRelatedSection([]string{
+		"1a.foo|same shape",
+		"5.bar | the MOC",
+	})
+	g.Expect(got).To(Equal(
+		"Related to:\n- [[1a.foo]] — same shape.\n- [[5.bar]] — the MOC.\n"))
+}
+
+func TestRenderRelatedSection_NoPipeMeansEmptyRationale(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderRelatedSection([]string{"7"})
+	g.Expect(got).To(Equal("Related to:\n- [[7]] — .\n"))
+}
+
 func TestRunLearn_Fact_WritesExpectedFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -148,7 +179,6 @@ func TestRunLearn_Fact_WritesExpectedFile(t *testing.T) {
 
 	deps := cli.LearnDeps{
 		Now:     func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Stdin:   strings.NewReader(""),
 		Getenv:  func(string) string { return "" },
 		StatDir: func(string) error { return nil },
 		ListIDs: func(string) ([]string, error) { return nil, nil },
@@ -165,7 +195,7 @@ func TestRunLearn_Fact_WritesExpectedFile(t *testing.T) {
 		Type:      "fact",
 		Slug:      "fact-slug",
 		Vault:     "/vault",
-		Relation:  "top",
+		Position:  "top",
 		Situation: "s",
 		Subject:   "subj",
 		Predicate: "is",
@@ -198,7 +228,6 @@ func TestRunLearn_Feedback_WritesExpectedFile(t *testing.T) {
 
 	deps := cli.LearnDeps{
 		Now:     func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Stdin:   strings.NewReader("Related to:\n- [[X]] — adjacent.\n"),
 		Getenv:  func(string) string { return "" },
 		StatDir: func(string) error { return nil },
 		ListIDs: func(string) ([]string, error) {
@@ -222,7 +251,7 @@ func TestRunLearn_Feedback_WritesExpectedFile(t *testing.T) {
 		Slug:      "ctx-cancellation-rule",
 		Vault:     "/vault",
 		Target:    "",
-		Relation:  "top",
+		Position:  "top",
 		Source:    "session log foo, 2026-05-09 12:00 UTC",
 		Situation: "writing concurrent Go code",
 		Behavior:  "ignoring ctx.Done()",
@@ -254,7 +283,6 @@ func TestRunLearn_MOC_WritesExpectedFile(t *testing.T) {
 
 	deps := cli.LearnDeps{
 		Now:     func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Stdin:   strings.NewReader("framing body\n"),
 		Getenv:  func(string) string { return "" },
 		StatDir: func(string) error { return nil },
 		ListIDs: func(string) ([]string, error) { return nil, nil },
@@ -270,7 +298,7 @@ func TestRunLearn_MOC_WritesExpectedFile(t *testing.T) {
 		Type:     "moc",
 		Slug:     "moc-slug",
 		Vault:    "/vault",
-		Relation: "top",
+		Position: "top",
 		Topic:    "the topic",
 	}
 
@@ -292,14 +320,13 @@ func TestRunLearn_PropagatesListIDsError(t *testing.T) {
 
 	deps := cli.LearnDeps{
 		Now:      func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
 		StatDir:  func(string) error { return nil },
 		ListIDs:  func(string) ([]string, error) { return nil, errors.New("io fail") },
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top", Topic: "t"}
+	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Position: "top", Topic: "t"}
 
 	var stdout strings.Builder
 
@@ -313,14 +340,13 @@ func TestRunLearn_PropagatesLockError(t *testing.T) {
 
 	deps := cli.LearnDeps{
 		Now:      func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
 		StatDir:  func(string) error { return nil },
 		ListIDs:  func(string) ([]string, error) { return nil, nil },
 		Lock:     func(string) (func(), error) { return nil, errors.New("locked") },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top", Topic: "t"}
+	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Position: "top", Topic: "t"}
 
 	var stdout strings.Builder
 
@@ -334,14 +360,13 @@ func TestRunLearn_PropagatesStatDirError(t *testing.T) {
 
 	deps := cli.LearnDeps{
 		Now:      time.Now,
-		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
 		StatDir:  func(string) error { return errors.New("nope") },
 		ListIDs:  func(string) ([]string, error) { return nil, nil },
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Relation: "top"}
+	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Position: "top"}
 
 	var stdout strings.Builder
 
@@ -355,14 +380,13 @@ func TestRunLearn_RejectsInvalidSlug(t *testing.T) {
 
 	deps := cli.LearnDeps{
 		Now:      time.Now,
-		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
 		StatDir:  func(string) error { return nil },
 		ListIDs:  func(string) ([]string, error) { return nil, nil },
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.LearnArgs{Type: "moc", Slug: "Bad Slug", Vault: "/v", Relation: "top"}
+	args := cli.LearnArgs{Type: "moc", Slug: "Bad Slug", Vault: "/v", Position: "top"}
 
 	var stdout strings.Builder
 
@@ -376,14 +400,13 @@ func TestRunLearn_RejectsMissingVault(t *testing.T) {
 
 	deps := cli.LearnDeps{
 		Now:      time.Now,
-		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
 		StatDir:  func(string) error { return nil },
 		ListIDs:  func(string) ([]string, error) { return nil, nil },
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "", Relation: "top"}
+	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "", Position: "top"}
 
 	var stdout strings.Builder
 
@@ -396,14 +419,13 @@ func TestRunLearn_RejectsUnknownType(t *testing.T) {
 	g := NewWithT(t)
 	deps := cli.LearnDeps{
 		Now:      time.Now,
-		Stdin:    strings.NewReader(""),
 		Getenv:   func(string) string { return "" },
 		StatDir:  func(string) error { return nil },
 		ListIDs:  func(string) ([]string, error) { return nil, nil },
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.LearnArgs{Type: "principle", Slug: "x", Vault: "/v", Relation: "top"}
+	args := cli.LearnArgs{Type: "principle", Slug: "x", Vault: "/v", Position: "top"}
 
 	var stdout strings.Builder
 

@@ -86,13 +86,15 @@ For each candidate, run **Recurs → Activity-and-Domain → Knowledge** in orde
 
 ### 4. Decide Luhmann position per write
 
-For each write, find the most-related existing note. Choose the relation:
+For each write, find the most-related existing note. Choose `--position`:
 
 - `continuation` — extends the related note's lineage (`1a` → `1a1`)
 - `sibling` — parallel branch at the same level (`1a` → `1b`)
 - `top` — brand new top-level thought (`5`, `6`, ...)
 
 The binary computes the actual ID under a vault lock. **You do not compute the ID yourself.**
+
+`--position` controls Luhmann placement. **`--relation` is a separate, repeatable flag** that supplies the `Related to:` bullets — see step 5.
 
 ### 5. Draft body in LLM voice
 
@@ -102,6 +104,13 @@ The binary computes the actual ID under a vault lock. **You do not compute the I
 - For MOCs synthesized from cluster analysis: `constructed from cluster analysis, <YYYY-MM-DD>`
 - For end-to-end smoke or test runs: a short label naming the run (e.g. `smoke test`)
 
+**All body content is supplied via flags. Stdin is not read.**
+
+- `--relation <wikilink-target>|<rationale>` — repeatable; each instance adds one `Related to:` bullet. The pipe `|` separates the wikilink target from its per-link rationale. Example: `--relation "1a.foo|same shape, different domain"`.
+- `--framing "..."` — MOC only; the framing paragraph(s) that form the MOC body. Do NOT auto-list constituents; backlinks already do that.
+
+The `Lesson learned: ...` / `Information learned: ...` opener line is auto-generated from `--situation` and `--action`/`--subject`/`--predicate`/`--object`. **Do not duplicate it in any flag.**
+
 **Feedback:**
 
 ```
@@ -109,12 +118,12 @@ engram learn feedback \
   --slug <kebab-case-tag> \
   --vault /Users/joe/repos/personal/agent-memory \
   --target <luhmann-id-of-related-note-or-empty> \
-  --relation <top|continuation|sibling> \
+  --position <top|continuation|sibling> \
   --source "session log <project>, <YYYY-MM-DD HH:MM UTC>, context: ..." \
-  --situation "..." --behavior "..." --impact "..." --action "..."
+  --situation "..." --behavior "..." --impact "..." --action "..." \
+  --relation "<wikilink>|<rationale>" \
+  --relation "<wikilink>|<rationale>"
 ```
-
-Body content (`Related to:` bullets with per-link rationale) on stdin.
 
 **Fact:**
 
@@ -123,12 +132,11 @@ engram learn fact \
   --slug <kebab-case-tag> \
   --vault /Users/joe/repos/personal/agent-memory \
   --target <id-or-empty> \
-  --relation <top|continuation|sibling> \
+  --position <top|continuation|sibling> \
   --source "..." \
-  --situation "..." --subject "..." --predicate "..." --object "..."
+  --situation "..." --subject "..." --predicate "..." --object "..." \
+  --relation "<wikilink>|<rationale>"
 ```
-
-Body (`Related to:` bullets) on stdin.
 
 **MOC** (judgement-based, no count threshold):
 
@@ -137,12 +145,12 @@ engram learn moc \
   --slug <kebab-case-tag> \
   --vault /Users/joe/repos/personal/agent-memory \
   --target <id-or-empty> \
-  --relation <top|continuation|sibling> \
+  --position <top|continuation|sibling> \
   --source "constructed from cluster analysis, <YYYY-MM-DD>" \
-  --topic "<theme name>"
+  --topic "<theme name>" \
+  --framing "<framing paragraph(s)>" \
+  --relation "<wikilink>|<rationale>"
 ```
-
-Body (the framing paragraph(s) — no constituent list) on stdin.
 
 ### 6. Contradictions
 
@@ -180,7 +188,9 @@ Per pass:
 | Writing "we observed X" without stating it as a principle | Fail at Knowledge gate; either restate as principle or drop |
 | Drafting and asking for human voice rewrite | You're the writer. Just write. |
 | Writing files directly with the filesystem | Use `engram learn {feedback|fact|moc}` — handles ID assignment under lock |
-| Computing the Luhmann ID yourself | Pass `--target` and `--relation`; binary computes the ID |
+| Computing the Luhmann ID yourself | Pass `--target` and `--position`; binary computes the ID |
+| Putting a `Lesson learned:`/`Information learned:` opener inside `--framing` or any flag | The opener is auto-generated; never repeat it. Body bullets go in `--relation`, framing in `--framing`. |
+| Piping body content via stdin | Stdin is ignored. All body content goes through `--relation` and `--framing` flags. |
 | Auto-listing MOC constituents in body | Backlinks already do this — MOC body is framing prose only |
 | Bare wikilinks without rationale | Every `Related to:` bullet must include per-link rationale |
 | Serial `engram learn` calls across tool turns | One message, N parallel tool calls |

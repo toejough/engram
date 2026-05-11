@@ -18,8 +18,11 @@ type LearnArgs struct {
 	Slug     string
 	Vault    string
 	Target   string
-	Relation string
+	Position string
 	Source   string
+
+	// feedback / fact / moc all support related-note bullets
+	Relations []string
 
 	// feedback / fact share these
 	Situation string
@@ -32,13 +35,13 @@ type LearnArgs struct {
 	Predicate string
 	Object    string
 	// moc only
-	Topic string
+	Topic   string
+	Framing string
 }
 
 // LearnDeps holds injected dependencies for runLearn. All fields required.
 type LearnDeps struct {
 	Now      func() time.Time
-	Stdin    io.Reader
 	Getenv   func(string) string
 	StatDir  func(string) error
 	ListIDs  func(vault string) ([]string, error)
@@ -85,7 +88,9 @@ type mocFields struct {
 	Source  string
 }
 
-func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, body string) (string, error) {
+func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
+	related := renderRelatedSection(args.Relations)
+
 	switch args.Type {
 	case typeFeedback:
 		f := feedbackFields{
@@ -93,18 +98,18 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, body s
 			Action: args.Action, Luhmann: luhmann, Source: args.Source,
 		}
 
-		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f, body), nil
+		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f, related), nil
 	case typeFact:
 		f := factFields{
 			Situation: args.Situation, Subject: args.Subject, Predicate: args.Predicate,
 			Object: args.Object, Luhmann: luhmann, Source: args.Source,
 		}
 
-		return renderFactFrontmatter(f, when) + renderFactBody(f, body), nil
+		return renderFactFrontmatter(f, when) + renderFactBody(f, related), nil
 	case typeMOC:
 		f := mocFields{Topic: args.Topic, Luhmann: luhmann, Source: args.Source}
 
-		return renderMOCFrontmatter(f, when) + renderMOCBody(body), nil
+		return renderMOCFrontmatter(f, when) + renderMOCBody(args.Framing, related), nil
 	default:
 		return "", fmt.Errorf("%w: got %q", errLearnUnknownType, args.Type)
 	}
@@ -135,7 +140,6 @@ func newOsLearnDeps() LearnDeps {
 
 	return LearnDeps{
 		Now:      time.Now,
-		Stdin:    os.Stdin,
 		Getenv:   os.Getenv,
 		StatDir:  fs.StatDir,
 		ListIDs:  fs.ListIDs,
@@ -191,8 +195,19 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 	}, "\n")
 }
 
-func renderMOCBody(framing string) string {
-	return framing
+func renderMOCBody(framing, relatedSection string) string {
+	framing = strings.TrimRight(framing, "\n")
+
+	switch {
+	case framing == "" && relatedSection == "":
+		return ""
+	case framing == "":
+		return relatedSection
+	case relatedSection == "":
+		return framing + "\n"
+	default:
+		return framing + "\n\n" + relatedSection
+	}
 }
 
 func renderMOCFrontmatter(f mocFields, when time.Time) string {
@@ -206,6 +221,24 @@ func renderMOCFrontmatter(f mocFields, when time.Time) string {
 		"---",
 		"",
 	}, "\n")
+}
+
+// renderRelatedSection turns a list of "wikilink|rationale" entries into the
+// "Related to:\n- [[...]] — rationale.\n" block. Returns "" when empty.
+func renderRelatedSection(entries []string) string {
+	if len(entries) == 0 {
+		return ""
+	}
+
+	lines := make([]string, 0, len(entries)+1)
+	lines = append(lines, "Related to:")
+
+	for _, entry := range entries {
+		target, rationale, _ := strings.Cut(entry, "|")
+		lines = append(lines, fmt.Sprintf("- [[%s]] — %s.", strings.TrimSpace(target), strings.TrimSpace(rationale)))
+	}
+
+	return strings.Join(lines, "\n") + "\n"
 }
 
 // runLearn orchestrates the learn subcommand: validates inputs, acquires the lock,
@@ -226,12 +259,7 @@ func runLearn(_ context.Context, args LearnArgs, deps LearnDeps, stdout io.Write
 		return fmt.Errorf("learn: vault %s: %w", vault, dirErr)
 	}
 
-	body, bodyErr := io.ReadAll(deps.Stdin)
-	if bodyErr != nil {
-		return fmt.Errorf("learn: reading stdin: %w", bodyErr)
-	}
-
-	path, writeErr := writeLearnUnderLock(args, deps, vault, string(body))
+	path, writeErr := writeLearnUnderLock(args, deps, vault)
 	if writeErr != nil {
 		return writeErr
 	}
@@ -249,8 +277,9 @@ func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer
 		Slug:      a.Slug,
 		Vault:     a.Vault,
 		Target:    a.Target,
-		Relation:  a.Relation,
+		Position:  a.Position,
 		Source:    a.Source,
+		Relations: a.Relations,
 		Situation: a.Situation,
 		Subject:   a.Subject,
 		Predicate: a.Predicate,
@@ -266,8 +295,9 @@ func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout i
 		Slug:      a.Slug,
 		Vault:     a.Vault,
 		Target:    a.Target,
-		Relation:  a.Relation,
+		Position:  a.Position,
 		Source:    a.Source,
+		Relations: a.Relations,
 		Situation: a.Situation,
 		Behavior:  a.Behavior,
 		Impact:    a.Impact,
@@ -279,20 +309,22 @@ func runLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Writer) 
 	deps := newOsLearnDeps()
 
 	return runLearn(ctx, LearnArgs{
-		Type:     typeMOC,
-		Slug:     a.Slug,
-		Vault:    a.Vault,
-		Target:   a.Target,
-		Relation: a.Relation,
-		Source:   a.Source,
-		Topic:    a.Topic,
+		Type:      typeMOC,
+		Slug:      a.Slug,
+		Vault:     a.Vault,
+		Target:    a.Target,
+		Position:  a.Position,
+		Source:    a.Source,
+		Relations: a.Relations,
+		Topic:     a.Topic,
+		Framing:   a.Framing,
 	}, deps, stdout)
 }
 
 // writeLearnUnderLock acquires the vault lock, computes the next Luhmann ID,
 // assembles file content, and writes it. The lock spans listing existing IDs
 // through writing the new file to prevent ID collisions.
-func writeLearnUnderLock(args LearnArgs, deps LearnDeps, vault, body string) (string, error) {
+func writeLearnUnderLock(args LearnArgs, deps LearnDeps, vault string) (string, error) {
 	release, lockErr := deps.Lock(vault)
 	if lockErr != nil {
 		return "", fmt.Errorf("learn: acquiring lock: %w", lockErr)
@@ -304,7 +336,7 @@ func writeLearnUnderLock(args LearnArgs, deps LearnDeps, vault, body string) (st
 		return "", fmt.Errorf("learn: listing existing IDs: %w", listErr)
 	}
 
-	luhmann, idErr := nextLuhmannID(existing, args.Target, args.Relation)
+	luhmann, idErr := nextLuhmannID(existing, args.Target, args.Position)
 	if idErr != nil {
 		return "", fmt.Errorf("learn: %w", idErr)
 	}
@@ -312,7 +344,7 @@ func writeLearnUnderLock(args LearnArgs, deps LearnDeps, vault, body string) (st
 	when := deps.Now()
 	path := learnPath(vault, args.Type, luhmann, args.Slug, when)
 
-	content, contentErr := assembleLearnContent(args, luhmann, when, body)
+	content, contentErr := assembleLearnContent(args, luhmann, when)
 	if contentErr != nil {
 		return "", fmt.Errorf("learn: %w", contentErr)
 	}
