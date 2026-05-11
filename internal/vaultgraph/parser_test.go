@@ -210,6 +210,11 @@ func TestParseWikilinks_NoNesting(t *testing.T) {
 
 	result := vaultgraph.ParseWikilinks(body)
 	g.Expect(result).To(HaveLen(1))
+
+	if len(result) < 1 {
+		return
+	}
+
 	g.Expect(result[0]).To(Equal("outer[[inner"))
 }
 

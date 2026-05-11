@@ -78,24 +78,6 @@ func TestOsQuickFS_WriteNew_ErrorsOnExisting(t *testing.T) {
 	g.Expect(errors.Is(err, ioFs.ErrExist)).To(BeTrue())
 }
 
-// panicReader panics on Read. Used to assert resolveContent does not consume stdin
-// when --content is provided.
-type panicReader struct{}
-
-func (panicReader) Read(_ []byte) (int, error) {
-	panic("stdin should not be read when --content is set")
-}
-
-func TestRequireVaultDirs_ErrorsWhenVaultMissing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	statFail := func(string) error { return errors.New("not found") }
-	err := cli.ExportRequireVaultDirs("/vault", statFail)
-	g.Expect(err).To(MatchError(ContainSubstring("vault")))
-	g.Expect(err.Error()).NotTo(ContainSubstring("Fleeting"))
-}
-
 func TestRequireVaultDirs_ErrorsWhenFleetingMissing(t *testing.T) {
 	t.Parallel()
 
@@ -111,6 +93,16 @@ func TestRequireVaultDirs_ErrorsWhenFleetingMissing(t *testing.T) {
 	}
 	err := cli.ExportRequireVaultDirs("/vault", statFn)
 	g.Expect(err).To(MatchError(ContainSubstring("Fleeting")))
+}
+
+func TestRequireVaultDirs_ErrorsWhenVaultMissing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	statFail := func(string) error { return errors.New("not found") }
+	err := cli.ExportRequireVaultDirs("/vault", statFail)
+	g.Expect(err).To(MatchError(ContainSubstring("vault")))
+	g.Expect(err.Error()).NotTo(ContainSubstring("Fleeting"))
 }
 
 func TestRequireVaultDirs_PassesWhenBothExist(t *testing.T) {
@@ -314,4 +306,12 @@ func TestValidateSlug_RejectsInvalid(t *testing.T) {
 	g.Expect(cli.ExportValidateSlug("has space")).To(MatchError(ContainSubstring("slug")))
 	g.Expect(cli.ExportValidateSlug("dot.in.it")).To(MatchError(ContainSubstring("slug")))
 	g.Expect(cli.ExportValidateSlug("under_score")).To(MatchError(ContainSubstring("slug")))
+}
+
+// panicReader panics on Read. Used to assert resolveContent does not consume stdin
+// when --content is provided.
+type panicReader struct{}
+
+func (panicReader) Read(_ []byte) (int, error) {
+	panic("stdin should not be read when --content is set")
 }

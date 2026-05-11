@@ -5,13 +5,14 @@ import (
 	"path/filepath"
 )
 
-// Vault subdirectory names. Filenames within them are <luhmann-id>.<YYYY-MM-DD>.<slug>.md
-// for promoted notes; fleetings may have arbitrary names but must end in .md.
-const (
-	mocsSubdir      = "MOCs"
-	permanentSubdir = "Permanent"
-	fleetingSubdir  = "Fleeting"
-)
+// Note is a vault node: a single markdown file with its parsed metadata and outgoing wikilinks.
+// LuhmannID is empty for files (e.g. fleetings) whose filename does not begin with a valid ID.
+type Note struct {
+	Basename  string   // graph-node key, e.g. "9o1.2026-05-10.cross-cutting"
+	LuhmannID string   // "9o1", or "" if the basename has no leading Luhmann ID
+	IsMOC     bool     // true if the file lives in MOCs/
+	Outgoing  []string // wikilink targets parsed from the body (deduped, in first-appearance order)
+}
 
 // VaultFS lists and reads markdown files in vault subdirectories. All filesystem
 // access in vaultgraph goes through this interface so logic stays pure and testable.
@@ -21,15 +22,6 @@ type VaultFS interface {
 	ListMD(dir string) ([]string, error)
 	// ReadFile reads the bytes at path.
 	ReadFile(path string) ([]byte, error)
-}
-
-// Note is a vault node: a single markdown file with its parsed metadata and outgoing wikilinks.
-// LuhmannID is empty for files (e.g. fleetings) whose filename does not begin with a valid ID.
-type Note struct {
-	Basename  string   // graph-node key, e.g. "9o1.2026-05-10.cross-cutting"
-	LuhmannID string   // "9o1", or "" if the basename has no leading Luhmann ID
-	IsMOC     bool     // true if the file lives in MOCs/
-	Outgoing  []string // wikilink targets parsed from the body (deduped, in first-appearance order)
 }
 
 // ScanVault reads MOCs/, Permanent/, and Fleeting/ under vaultPath and returns one Note per .md file.
@@ -72,6 +64,13 @@ func ScanVault(fs VaultFS, vaultPath string) ([]Note, error) {
 
 	return notes, nil
 }
+
+// unexported constants.
+const (
+	fleetingSubdir  = "Fleeting"
+	mocsSubdir      = "MOCs"
+	permanentSubdir = "Permanent"
+)
 
 func scanNote(fs VaultFS, dirPath, filename string, isMOC bool) (Note, bool, error) {
 	basename, ok := ParseBasename(filename)

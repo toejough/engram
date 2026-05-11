@@ -11,22 +11,6 @@ import (
 	"time"
 )
 
-// Singleton logger state. The package is a process-singleton observability
-// tool intentionally; do not refactor to DI.
-//
-//nolint:gochecknoglobals // intentional package-level singleton
-var (
-	mu        sync.Mutex
-	file      *os.File
-	component string
-)
-
-const (
-	filePerm    = 0o644
-	truncateMax = 200
-	ellipsis    = "..."
-)
-
 // Init opens the log file at path in append mode. Subsequent calls replace
 // the previous file. If path is empty, logging is disabled (no-op).
 // Init is idempotent for the same path.
@@ -109,3 +93,17 @@ func Truncate(s string, maxLen int) string {
 
 	return collapsed[:maxLen-len(ellipsis)] + ellipsis
 }
+
+// unexported constants.
+const (
+	ellipsis    = "..."
+	filePerm    = 0o644
+	truncateMax = 200
+)
+
+// unexported variables.
+var (
+	component string
+	file      *os.File
+	mu        sync.Mutex
+)

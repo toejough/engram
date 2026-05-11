@@ -6,38 +6,6 @@ import (
 	"encoding/hex"
 )
 
-type (
-	phaseKey   struct{}
-	cycleIDKey struct{}
-)
-
-const cycleIDBytes = 3
-
-// WithPhase returns a copy of ctx that carries phase as a debug-log
-// label (e.g. "cycle.learn", "recall.skills[brainstorming]"). The
-// llmcmd Runner reads this to tag every LLM call with where it
-// originated in the pipeline.
-func WithPhase(ctx context.Context, phase string) context.Context {
-	return context.WithValue(ctx, phaseKey{}, phase)
-}
-
-// PhaseFromContext returns the phase label set by WithPhase, or
-// "<unspecified>" if none was set. Safe to call with any context.
-func PhaseFromContext(ctx context.Context) string {
-	phase, _ := ctx.Value(phaseKey{}).(string)
-	if phase == "" {
-		return "<unspecified>"
-	}
-
-	return phase
-}
-
-// WithCycleID returns a copy of ctx that carries a cycle-invocation
-// id. Use NewCycleID to mint one at the entry point.
-func WithCycleID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, cycleIDKey{}, id)
-}
-
 // CycleIDFromContext returns the cycle id set by WithCycleID, or
 // "?" if none was set.
 func CycleIDFromContext(ctx context.Context) string {
@@ -62,3 +30,37 @@ func NewCycleID() string {
 
 	return hex.EncodeToString(buf)
 }
+
+// PhaseFromContext returns the phase label set by WithPhase, or
+// "<unspecified>" if none was set. Safe to call with any context.
+func PhaseFromContext(ctx context.Context) string {
+	phase, _ := ctx.Value(phaseKey{}).(string)
+	if phase == "" {
+		return "<unspecified>"
+	}
+
+	return phase
+}
+
+// WithCycleID returns a copy of ctx that carries a cycle-invocation
+// id. Use NewCycleID to mint one at the entry point.
+func WithCycleID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, cycleIDKey{}, id)
+}
+
+// WithPhase returns a copy of ctx that carries phase as a debug-log
+// label (e.g. "cycle.learn", "recall.skills[brainstorming]"). The
+// llmcmd Runner reads this to tag every LLM call with where it
+// originated in the pipeline.
+func WithPhase(ctx context.Context, phase string) context.Context {
+	return context.WithValue(ctx, phaseKey{}, phase)
+}
+
+// unexported constants.
+const (
+	cycleIDBytes = 3
+)
+
+type cycleIDKey struct{}
+
+type phaseKey struct{}

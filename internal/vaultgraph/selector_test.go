@@ -17,36 +17,6 @@ func TestSelectStartingPoints_EmptyComponent(t *testing.T) {
 	g.Expect(got).To(BeEmpty())
 }
 
-func TestSelectStartingPoints_SingleMOC(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	notes := []vaultgraph.Note{
-		{Basename: "7.2026-05-09.zk", LuhmannID: "7", IsMOC: true, Outgoing: []string{"4.x.y"}},
-		{Basename: "4.x.y", LuhmannID: "4"},
-	}
-	graph := vaultgraph.BuildGraph(notes)
-
-	got := vaultgraph.SelectStartingPoints([]string{"7.2026-05-09.zk", "4.x.y"}, graph)
-	g.Expect(got).To(Equal([]string{"7.2026-05-09.zk"}))
-}
-
-func TestSelectStartingPoints_MultipleMOCsSortedAlphabetically(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	notes := []vaultgraph.Note{
-		{Basename: "12.zk-craft", LuhmannID: "12", IsMOC: true, Outgoing: []string{"7.zk-mem"}},
-		{Basename: "7.zk-mem", LuhmannID: "7", IsMOC: true},
-	}
-	graph := vaultgraph.BuildGraph(notes)
-
-	got := vaultgraph.SelectStartingPoints([]string{"12.zk-craft", "7.zk-mem"}, graph)
-	g.Expect(got).To(Equal([]string{"12.zk-craft", "7.zk-mem"}))
-}
-
 func TestSelectStartingPoints_MOCWinsOverHighInDegreeNonMOC(t *testing.T) {
 	t.Parallel()
 
@@ -64,6 +34,21 @@ func TestSelectStartingPoints_MOCWinsOverHighInDegreeNonMOC(t *testing.T) {
 	g.Expect(got).To(Equal([]string{"M"}))
 }
 
+func TestSelectStartingPoints_MultipleMOCsSortedAlphabetically(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	notes := []vaultgraph.Note{
+		{Basename: "12.zk-craft", LuhmannID: "12", IsMOC: true, Outgoing: []string{"7.zk-mem"}},
+		{Basename: "7.zk-mem", LuhmannID: "7", IsMOC: true},
+	}
+	graph := vaultgraph.BuildGraph(notes)
+
+	got := vaultgraph.SelectStartingPoints([]string{"12.zk-craft", "7.zk-mem"}, graph)
+	g.Expect(got).To(Equal([]string{"12.zk-craft", "7.zk-mem"}))
+}
+
 func TestSelectStartingPoints_NoMOC_ClearInDegreeWinner(t *testing.T) {
 	t.Parallel()
 
@@ -77,6 +62,21 @@ func TestSelectStartingPoints_NoMOC_ClearInDegreeWinner(t *testing.T) {
 	graph := vaultgraph.BuildGraph(notes)
 	got := vaultgraph.SelectStartingPoints([]string{"A", "B", "C"}, graph)
 	g.Expect(got).To(Equal([]string{"C"}))
+}
+
+func TestSelectStartingPoints_NoMOC_IDBeatsIDLessOnTie(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	notes := []vaultgraph.Note{
+		{Basename: "fleeting", LuhmannID: ""},
+		{Basename: "9a.x.slug", LuhmannID: "9a"},
+		{Basename: "linker", LuhmannID: "1", Outgoing: []string{"fleeting", "9a.x.slug"}},
+	}
+	graph := vaultgraph.BuildGraph(notes)
+	got := vaultgraph.SelectStartingPoints([]string{"fleeting", "9a.x.slug", "linker"}, graph)
+	g.Expect(got).To(Equal([]string{"9a.x.slug"}))
 }
 
 func TestSelectStartingPoints_NoMOC_LuhmannTieBreak(t *testing.T) {
@@ -111,19 +111,19 @@ func TestSelectStartingPoints_NoMOC_UnbreakableTieAllIDLess(t *testing.T) {
 	g.Expect(got).To(Equal([]string{"fleeting-a", "fleeting-b"}))
 }
 
-func TestSelectStartingPoints_NoMOC_IDBeatsIDLessOnTie(t *testing.T) {
+func TestSelectStartingPoints_SingleMOC(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	notes := []vaultgraph.Note{
-		{Basename: "fleeting", LuhmannID: ""},
-		{Basename: "9a.x.slug", LuhmannID: "9a"},
-		{Basename: "linker", LuhmannID: "1", Outgoing: []string{"fleeting", "9a.x.slug"}},
+		{Basename: "7.2026-05-09.zk", LuhmannID: "7", IsMOC: true, Outgoing: []string{"4.x.y"}},
+		{Basename: "4.x.y", LuhmannID: "4"},
 	}
 	graph := vaultgraph.BuildGraph(notes)
-	got := vaultgraph.SelectStartingPoints([]string{"fleeting", "9a.x.slug", "linker"}, graph)
-	g.Expect(got).To(Equal([]string{"9a.x.slug"}))
+
+	got := vaultgraph.SelectStartingPoints([]string{"7.2026-05-09.zk", "4.x.y"}, graph)
+	g.Expect(got).To(Equal([]string{"7.2026-05-09.zk"}))
 }
 
 func TestSelectStartingPoints_SingletonIsolatedNode(t *testing.T) {

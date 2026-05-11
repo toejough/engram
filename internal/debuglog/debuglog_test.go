@@ -10,6 +10,17 @@ import (
 	g "github.com/onsi/gomega"
 )
 
+//nolint:paralleltest // package-level state requires serial tests
+func TestLog_NoopWhenDisabled(t *testing.T) {
+	gomega := g.NewWithT(t)
+
+	initErr := debuglog.Init("", "")
+	gomega.Expect(initErr).NotTo(g.HaveOccurred())
+
+	// Must not panic.
+	debuglog.Log("stage", "msg=%s", "value")
+}
+
 // debuglog uses package-level state; tests cannot run in parallel.
 //
 //nolint:paralleltest // package-level state requires serial tests
@@ -42,17 +53,6 @@ func TestLog_WritesAndSyncs(t *testing.T) {
 
 	line := string(contents)
 	gomega.Expect(line).To(g.ContainSubstring("[test] some.stage: key=hello val=42"))
-}
-
-//nolint:paralleltest // package-level state requires serial tests
-func TestLog_NoopWhenDisabled(t *testing.T) {
-	gomega := g.NewWithT(t)
-
-	initErr := debuglog.Init("", "")
-	gomega.Expect(initErr).NotTo(g.HaveOccurred())
-
-	// Must not panic.
-	debuglog.Log("stage", "msg=%s", "value")
 }
 
 //nolint:paralleltest // package-level state requires serial tests

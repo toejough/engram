@@ -12,6 +12,33 @@ type Graph struct {
 	Incoming map[string]map[string]struct{} // dst basename → set of src basenames
 }
 
+// InDegree returns the count of notes that wikilink to basename. Returns 0 for
+// unknown basenames.
+func (g Graph) InDegree(basename string) int {
+	return len(g.Incoming[basename])
+}
+
+// UndirectedNeighbors returns the set of basenames connected to basename by an
+// edge in either direction. Order is unspecified.
+func (g Graph) UndirectedNeighbors(basename string) []string {
+	seen := make(map[string]struct{}, len(g.Outgoing[basename])+len(g.Incoming[basename]))
+
+	for target := range g.Outgoing[basename] {
+		seen[target] = struct{}{}
+	}
+
+	for source := range g.Incoming[basename] {
+		seen[source] = struct{}{}
+	}
+
+	out := make([]string, 0, len(seen))
+	for name := range seen {
+		out = append(out, name)
+	}
+
+	return out
+}
+
 // BuildGraph constructs the graph from a flat slice of notes (e.g. ScanVault output).
 // Drops broken-target edges (target not in notes) and self-links.
 func BuildGraph(notes []Note) Graph {
@@ -39,33 +66,6 @@ func BuildGraph(notes []Note) Graph {
 	}
 
 	return Graph{Notes: noteByName, Outgoing: outgoing, Incoming: incoming}
-}
-
-// InDegree returns the count of notes that wikilink to basename. Returns 0 for
-// unknown basenames.
-func (g Graph) InDegree(basename string) int {
-	return len(g.Incoming[basename])
-}
-
-// UndirectedNeighbors returns the set of basenames connected to basename by an
-// edge in either direction. Order is unspecified.
-func (g Graph) UndirectedNeighbors(basename string) []string {
-	seen := make(map[string]struct{}, len(g.Outgoing[basename])+len(g.Incoming[basename]))
-
-	for target := range g.Outgoing[basename] {
-		seen[target] = struct{}{}
-	}
-
-	for source := range g.Incoming[basename] {
-		seen[source] = struct{}{}
-	}
-
-	out := make([]string, 0, len(seen))
-	for name := range seen {
-		out = append(out, name)
-	}
-
-	return out
 }
 
 func ensureSet(m map[string]map[string]struct{}, key string) map[string]struct{} {

@@ -10,17 +10,6 @@ import (
 	"engram/internal/vaultgraph"
 )
 
-func TestBuildGraph_EmptyInput(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	got := vaultgraph.BuildGraph(nil)
-	g.Expect(got.Notes).To(BeEmpty())
-	g.Expect(got.Outgoing).To(BeEmpty())
-	g.Expect(got.Incoming).To(BeEmpty())
-}
-
 func TestBuildGraph_DropsBrokenLinks(t *testing.T) {
 	t.Parallel()
 
@@ -52,6 +41,49 @@ func TestBuildGraph_DropsSelfLinks(t *testing.T) {
 	g.Expect(got.Outgoing["A"]).To(HaveKey("B"))
 }
 
+func TestBuildGraph_EdgeCountBoundsProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		gExpect := NewWithT(rt)
+
+		notes := genNotesProperty(rt)
+		got := vaultgraph.BuildGraph(notes)
+
+		// Σ outgoing edge counts ≤ Σ raw outgoing lengths (post-filter ≤ pre-filter).
+		rawTotal := 0
+		for _, note := range notes {
+			rawTotal += len(note.Outgoing)
+		}
+
+		gotTotal := 0
+		for _, dsts := range got.Outgoing {
+			gotTotal += len(dsts)
+		}
+
+		gExpect.Expect(gotTotal).To(BeNumerically("<=", rawTotal))
+
+		// Σ in-degree = Σ out-degree (every edge counted both ways).
+		inSum := 0
+		for name := range got.Notes {
+			inSum += got.InDegree(name)
+		}
+
+		gExpect.Expect(inSum).To(Equal(gotTotal))
+	})
+}
+
+func TestBuildGraph_EmptyInput(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	got := vaultgraph.BuildGraph(nil)
+	g.Expect(got.Notes).To(BeEmpty())
+	g.Expect(got.Outgoing).To(BeEmpty())
+	g.Expect(got.Incoming).To(BeEmpty())
+}
+
 func TestBuildGraph_InDegree(t *testing.T) {
 	t.Parallel()
 
@@ -69,6 +101,22 @@ func TestBuildGraph_InDegree(t *testing.T) {
 	g.Expect(got.InDegree("A")).To(Equal(1))
 	g.Expect(got.InDegree("B")).To(Equal(0))
 	g.Expect(got.InDegree("D")).To(Equal(0))
+}
+
+func TestBuildGraph_NoSelfLinksProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		gExpect := NewWithT(rt)
+
+		notes := genNotesProperty(rt)
+		got := vaultgraph.BuildGraph(notes)
+
+		for src, dsts := range got.Outgoing {
+			_, selfLoop := dsts[src]
+			gExpect.Expect(selfLoop).To(BeFalse())
+		}
+	})
 }
 
 func TestBuildGraph_UndirectedNeighbors(t *testing.T) {
@@ -120,52 +168,4 @@ func genNotesProperty(rt *rapid.T) []vaultgraph.Note {
 	}
 
 	return notes
-}
-
-func TestBuildGraph_EdgeCountBoundsProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		gExpect := NewWithT(rt)
-
-		notes := genNotesProperty(rt)
-		got := vaultgraph.BuildGraph(notes)
-
-		// Σ outgoing edge counts ≤ Σ raw outgoing lengths (post-filter ≤ pre-filter).
-		rawTotal := 0
-		for _, note := range notes {
-			rawTotal += len(note.Outgoing)
-		}
-
-		gotTotal := 0
-		for _, dsts := range got.Outgoing {
-			gotTotal += len(dsts)
-		}
-
-		gExpect.Expect(gotTotal).To(BeNumerically("<=", rawTotal))
-
-		// Σ in-degree = Σ out-degree (every edge counted both ways).
-		inSum := 0
-		for name := range got.Notes {
-			inSum += got.InDegree(name)
-		}
-
-		gExpect.Expect(inSum).To(Equal(gotTotal))
-	})
-}
-
-func TestBuildGraph_NoSelfLinksProperty(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		gExpect := NewWithT(rt)
-
-		notes := genNotesProperty(rt)
-		got := vaultgraph.BuildGraph(notes)
-
-		for src, dsts := range got.Outgoing {
-			_, selfLoop := dsts[src]
-			gExpect.Expect(selfLoop).To(BeFalse())
-		}
-	})
 }

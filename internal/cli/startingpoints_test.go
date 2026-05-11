@@ -8,31 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// writeNote creates dir/<name>.md with the given body. Returns the basename
-// without extension for convenience when building expected wikilink outputs.
-func writeNote(t *testing.T, dir, name, body string) {
-	t.Helper()
-
-	const (
-		dirPerm  = 0o750
-		filePerm = 0o600
-	)
-
-	err := os.MkdirAll(dir, dirPerm)
-	NewWithT(t).Expect(err).NotTo(HaveOccurred())
-
-	err = os.WriteFile(filepath.Join(dir, name+".md"), []byte(body), filePerm)
-	NewWithT(t).Expect(err).NotTo(HaveOccurred())
-}
-
-func TestStartingPoints_RequiresVaultFlag(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	_, stderr := executeForTest(t, []string{"engram", "starting-points"})
-	g.Expect(stderr).To(ContainSubstring("vault path required"))
-}
-
 func TestStartingPoints_EmptyVaultEmitsNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -95,6 +70,14 @@ func TestStartingPoints_MissingSubdirsTolerated(t *testing.T) {
 	g.Expect(stdout).To(Equal("[[1.2026-05-10.solo]]\n"))
 }
 
+func TestStartingPoints_RequiresVaultFlag(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, stderr := executeForTest(t, []string{"engram", "starting-points"})
+	g.Expect(stderr).To(ContainSubstring("vault path required"))
+}
+
 func TestStartingPoints_VaultPathFromEnv(t *testing.T) {
 	// No t.Parallel: this test uses t.Setenv which mutates process env.
 	g := NewWithT(t)
@@ -109,4 +92,21 @@ func TestStartingPoints_VaultPathFromEnv(t *testing.T) {
 	stdout, stderr := executeForTest(t, []string{"engram", "starting-points"})
 	g.Expect(stderr).To(BeEmpty())
 	g.Expect(stdout).To(Equal("[[5.2026-05-10.only]]\n"))
+}
+
+// writeNote creates dir/<name>.md with the given body. Returns the basename
+// without extension for convenience when building expected wikilink outputs.
+func writeNote(t *testing.T, dir, name, body string) {
+	t.Helper()
+
+	const (
+		dirPerm  = 0o750
+		filePerm = 0o600
+	)
+
+	err := os.MkdirAll(dir, dirPerm)
+	NewWithT(t).Expect(err).NotTo(HaveOccurred())
+
+	err = os.WriteFile(filepath.Join(dir, name+".md"), []byte(body), filePerm)
+	NewWithT(t).Expect(err).NotTo(HaveOccurred())
 }

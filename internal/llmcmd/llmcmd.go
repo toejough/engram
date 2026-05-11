@@ -83,7 +83,7 @@ func (r *Runner) Run(ctx context.Context, prompt string) (string, error) {
 
 // unexported constants.
 const (
-	defaultShell      = "/bin/sh"
-	defaultTimeout    = 60 * time.Second
+	defaultShell       = "/bin/sh"
+	defaultTimeout     = 60 * time.Second
 	truncatePreviewLen = 200
 )

@@ -9,47 +9,6 @@ import (
 	"engram/internal/vaultgraph"
 )
 
-// inputForStartingPoints describes a vault to feed into a mock VaultFS for end-to-end
-// tests of StartingPoints. Each entry is one note: subdir, filename, and body bytes.
-type inputForStartingPoints struct {
-	subdir   string
-	filename string
-	body     string
-}
-
-const fixtureVault = "/vault"
-
-// programVaultFSMock configures the mock to answer ListMD for the three subdirs
-// (with the given filenames) and ReadFile for each note's path with the given body.
-// Must be called from within the goroutine that drives the SUT — call ListMD orders
-// follow scanner's loop order: MOCs, Permanent, Fleeting.
-func programVaultFSMock(imp *VaultFSImp, inputs []inputForStartingPoints) {
-	bySubdir := map[string][]inputForStartingPoints{
-		"MOCs":      nil,
-		"Permanent": nil,
-		"Fleeting":  nil,
-	}
-
-	for _, input := range inputs {
-		bySubdir[input.subdir] = append(bySubdir[input.subdir], input)
-	}
-
-	for _, subdir := range []string{"MOCs", "Permanent", "Fleeting"} {
-		dirPath := filepath.Join(fixtureVault, subdir)
-		filenames := make([]string, 0, len(bySubdir[subdir]))
-
-		for _, input := range bySubdir[subdir] {
-			filenames = append(filenames, input.filename)
-		}
-
-		imp.ListMD.ArgsEqual(dirPath).Return(filenames, nil)
-
-		for _, input := range bySubdir[subdir] {
-			imp.ReadFile.ArgsEqual(filepath.Join(dirPath, input.filename)).Return([]byte(input.body), nil)
-		}
-	}
-}
-
 func TestStartingPoints_EmptyVault(t *testing.T) {
 	t.Parallel()
 
@@ -68,30 +27,6 @@ func TestStartingPoints_EmptyVault(t *testing.T) {
 	}()
 
 	programVaultFSMock(imp, nil)
-	<-done
-}
-
-func TestStartingPoints_SingleMOCComponent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	mock, imp := MockVaultFS(t)
-
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-
-		got, err := vaultgraph.StartingPoints(mock, fixtureVault)
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(got).To(Equal([]string{"7.2026-05-09.zk"}))
-	}()
-
-	programVaultFSMock(imp, []inputForStartingPoints{
-		{"MOCs", "7.2026-05-09.zk.md", "links to [[4.2026-05-09.x]]"},
-		{"Permanent", "4.2026-05-09.x.md", "body"},
-	})
 	<-done
 }
 
@@ -183,4 +118,72 @@ func TestStartingPoints_NonLuhmannBasenamesSortAfter(t *testing.T) {
 		{"Fleeting", "scratch.md", "no links"},
 	})
 	<-done
+}
+
+func TestStartingPoints_SingleMOCComponent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	mock, imp := MockVaultFS(t)
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		got, err := vaultgraph.StartingPoints(mock, fixtureVault)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(got).To(Equal([]string{"7.2026-05-09.zk"}))
+	}()
+
+	programVaultFSMock(imp, []inputForStartingPoints{
+		{"MOCs", "7.2026-05-09.zk.md", "links to [[4.2026-05-09.x]]"},
+		{"Permanent", "4.2026-05-09.x.md", "body"},
+	})
+	<-done
+}
+
+// unexported constants.
+const (
+	fixtureVault = "/vault"
+)
+
+// inputForStartingPoints describes a vault to feed into a mock VaultFS for end-to-end
+// tests of StartingPoints. Each entry is one note: subdir, filename, and body bytes.
+type inputForStartingPoints struct {
+	subdir   string
+	filename string
+	body     string
+}
+
+// programVaultFSMock configures the mock to answer ListMD for the three subdirs
+// (with the given filenames) and ReadFile for each note's path with the given body.
+// Must be called from within the goroutine that drives the SUT — call ListMD orders
+// follow scanner's loop order: MOCs, Permanent, Fleeting.
+func programVaultFSMock(imp *VaultFSImp, inputs []inputForStartingPoints) {
+	bySubdir := map[string][]inputForStartingPoints{
+		"MOCs":      nil,
+		"Permanent": nil,
+		"Fleeting":  nil,
+	}
+
+	for _, input := range inputs {
+		bySubdir[input.subdir] = append(bySubdir[input.subdir], input)
+	}
+
+	for _, subdir := range []string{"MOCs", "Permanent", "Fleeting"} {
+		dirPath := filepath.Join(fixtureVault, subdir)
+		filenames := make([]string, 0, len(bySubdir[subdir]))
+
+		for _, input := range bySubdir[subdir] {
+			filenames = append(filenames, input.filename)
+		}
+
+		imp.ListMD.ArgsEqual(dirPath).Return(filenames, nil)
+
+		for _, input := range bySubdir[subdir] {
+			imp.ReadFile.ArgsEqual(filepath.Join(dirPath, input.filename)).Return([]byte(input.body), nil)
+		}
+	}
 }
