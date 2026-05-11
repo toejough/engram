@@ -103,6 +103,72 @@ func TestCycle_PerQueryRecallFailureSkipsEntry(t *testing.T) {
 	g.Expect(out.Recalled[0].Report).To(Equal("good report"))
 }
 
+func TestCycle_PersistFailureForFactSkipsLearned(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	llmA := `[{"type":"fact","situation":"x","subject":"s","predicate":"p","object":"o"}]`
+	runner := &fakeRunner{responses: []string{llmA, "NO QUERIES"}}
+	transcripts := &fakeTranscript{content: "anything"}
+
+	persister := &errPersister{err: errors.New("disk full")}
+	c := cycle.New(runner, transcripts, persister, nil)
+
+	out, err := c.Run(context.Background(), "/tmp/x")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.Learned).To(BeEmpty())
+}
+
+func TestCycle_PersistFailureForFeedbackSkipsLearned(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	llmA := `[{"type":"feedback","situation":"x","behavior":"b","impact":"i","action":"a"}]`
+	runner := &fakeRunner{responses: []string{llmA, "NO QUERIES"}}
+	transcripts := &fakeTranscript{content: "anything"}
+
+	persister := &errPersister{err: errors.New("disk full")}
+	c := cycle.New(runner, transcripts, persister, nil)
+
+	out, err := c.Run(context.Background(), "/tmp/x")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.Learned).To(BeEmpty())
+}
+
+func TestCycle_PersistsFactFromLLMResponseA(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	llmA := `[{"type":"fact","situation":"engram","subject":"engram","predicate":"uses","object":"targ"}]`
+	runner := &fakeRunner{responses: []string{llmA, "NO QUERIES"}}
+	transcripts := &fakeTranscript{content: "anything"}
+
+	persister := &fakePersister{}
+	c := cycle.New(runner, transcripts, persister, nil)
+
+	out, err := c.Run(context.Background(), "/tmp/x")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(persister.factCalls).To(HaveLen(1))
+	g.Expect(persister.factCalls[0].Subject).To(Equal("engram"))
+	g.Expect(out.Learned).To(HaveLen(1))
+	g.Expect(out.Learned[0].Type).To(Equal("fact"))
+}
+
 func TestCycle_PersistsLearnedFromLLMResponseA(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -151,6 +217,17 @@ func TestCycle_RunsRecallPerProposedQuery(t *testing.T) {
 	g.Expect(out.Recalled).To(HaveLen(2))
 	g.Expect(out.Recalled[0].Query).To(Equal("query one"))
 	g.Expect(out.Recalled[0].Report).To(Equal("report one"))
+}
+
+// errPersister always returns the configured error from both Write methods.
+type errPersister struct{ err error }
+
+func (e *errPersister) WriteFact(_ context.Context, _, _, _, _ string) (string, bool, error) {
+	return "", false, e.err
+}
+
+func (e *errPersister) WriteFeedback(_ context.Context, _, _, _, _ string) (string, bool, error) {
+	return "", false, e.err
 }
 
 type factCall struct {

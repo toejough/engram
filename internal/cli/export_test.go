@@ -76,6 +76,31 @@ func ExportCheckForConflicts(
 	return checkForConflicts(ctx, record, dataDir, stdout, caller, lister)
 }
 
+// ExportNewCyclePersisterAdapter returns a cycle.Persister built from injected deps.
+func ExportNewCyclePersisterAdapter(
+	dataDir string,
+	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
+	lister memoryLister,
+	stdout io.Writer,
+) interface {
+	WriteFact(ctx context.Context, situation, subject, predicate, object string) (string, bool, error)
+	WriteFeedback(ctx context.Context, situation, behavior, impact, action string) (string, bool, error)
+} {
+	return &cyclePersisterAdapter{
+		dataDir: dataDir,
+		caller:  caller,
+		lister:  lister,
+		stdout:  stdout,
+	}
+}
+
+// ExportNewCycleRecallerAdapter returns a cycle.Recaller built with no LLM summarizer (nil-safe error path).
+func ExportNewCycleRecallerAdapter(dataDir string, summarizer recall.SummarizerI) interface {
+	Recall(ctx context.Context, projectDir, query string) (string, error)
+} {
+	return &cycleRecallerAdapter{dataDir: dataDir, summarizer: summarizer}
+}
+
 // ExportNewOsDirLister creates an osDirLister for testing.
 func ExportNewOsDirLister() recall.DirLister {
 	return &osDirLister{}
@@ -99,9 +124,32 @@ func ExportNewOsQuickFS() interface {
 	return &osQuickFS{}
 }
 
+// ExportNewOsVaultFS returns the production osVaultFS adapter for testing.
+func ExportNewOsVaultFS() interface {
+	ListMD(dir string) ([]string, error)
+	ReadFile(path string) ([]byte, error)
+} {
+	return &osVaultFS{}
+}
+
 // ExportParseConflictLine wraps parseConflictLine for testing.
 func ExportParseConflictLine(line, dataDir string, stdout io.Writer) {
 	parseConflictLine(line, dataDir, stdout)
+}
+
+// ExportRunPromoteFromFactArgs invokes the unexported runPromoteFromFactArgs for testing.
+func ExportRunPromoteFromFactArgs(ctx context.Context, a PromoteFactArgs, stdout io.Writer) error {
+	return runPromoteFromFactArgs(ctx, a, stdout)
+}
+
+// ExportRunPromoteFromFeedbackArgs invokes the unexported runPromoteFromFeedbackArgs for testing.
+func ExportRunPromoteFromFeedbackArgs(ctx context.Context, a PromoteFeedbackArgs, stdout io.Writer) error {
+	return runPromoteFromFeedbackArgs(ctx, a, stdout)
+}
+
+// ExportRunPromoteFromMOCArgs invokes the unexported runPromoteFromMOCArgs for testing.
+func ExportRunPromoteFromMOCArgs(ctx context.Context, a PromoteMOCArgs, stdout io.Writer) error {
+	return runPromoteFromMOCArgs(ctx, a, stdout)
 }
 
 // ExportRunRecallSessions wraps runRecallSessions for testing.

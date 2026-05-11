@@ -178,3 +178,31 @@ func TestMemoryRecord_RoundTrip_SchemaVersion(t *testing.T) {
 
 	g.Expect(decoded).To(Equal(original))
 }
+
+func TestMemoryRecord_TargetDir(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fact routes to facts dir", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		r := &memory.MemoryRecord{Type: "fact"}
+		g.Expect(r.TargetDir("/data")).To(Equal(memory.FactsDir("/data")))
+	})
+
+	t.Run("feedback routes to feedback dir", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		r := &memory.MemoryRecord{Type: "feedback"}
+		g.Expect(r.TargetDir("/data")).To(Equal(memory.FeedbackDir("/data")))
+	})
+
+	t.Run("unknown type falls back to memories dir", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		r := &memory.MemoryRecord{Type: "something-else"}
+		g.Expect(r.TargetDir("/data")).To(Equal(memory.MemoriesDir("/data")))
+	})
+}

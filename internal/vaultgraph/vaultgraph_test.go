@@ -120,6 +120,35 @@ func TestStartingPoints_NonLuhmannBasenamesSortAfter(t *testing.T) {
 	<-done
 }
 
+func TestStartingPoints_SameLuhmannIDBasenamesTieBreakLexically(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	mock, imp := MockVaultFS(t)
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		got, err := vaultgraph.StartingPoints(mock, fixtureVault)
+		g.Expect(err).NotTo(HaveOccurred())
+		// Two isolated MOCs share Luhmann ID "5"; both emit. Tie-break is lexical
+		// over the full basename, so "5.2026-05-09.alpha" precedes "5.2026-05-10.beta".
+		g.Expect(got).To(Equal([]string{
+			"5.2026-05-09.alpha",
+			"5.2026-05-10.beta",
+		}))
+	}()
+
+	programVaultFSMock(imp, []inputForStartingPoints{
+		{"MOCs", "5.2026-05-10.beta.md", "no links"},
+		{"MOCs", "5.2026-05-09.alpha.md", "no links"},
+	})
+	<-done
+}
+
 func TestStartingPoints_SingleMOCComponent(t *testing.T) {
 	t.Parallel()
 
@@ -140,6 +169,31 @@ func TestStartingPoints_SingleMOCComponent(t *testing.T) {
 	programVaultFSMock(imp, []inputForStartingPoints{
 		{"MOCs", "7.2026-05-09.zk.md", "links to [[4.2026-05-09.x]]"},
 		{"Permanent", "4.2026-05-09.x.md", "body"},
+	})
+	<-done
+}
+
+func TestStartingPoints_TwoIDlessBasenamesSortLexically(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	mock, imp := MockVaultFS(t)
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		got, err := vaultgraph.StartingPoints(mock, fixtureVault)
+		g.Expect(err).NotTo(HaveOccurred())
+		// Both basenames have no Luhmann ID → sort lexically.
+		g.Expect(got).To(Equal([]string{"alpha", "beta"}))
+	}()
+
+	programVaultFSMock(imp, []inputForStartingPoints{
+		{"Fleeting", "beta.md", "no links"},
+		{"Fleeting", "alpha.md", "no links"},
 	})
 	<-done
 }
