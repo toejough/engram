@@ -12,6 +12,7 @@ import (
 
 	"engram/internal/externalsources"
 	"engram/internal/recall"
+	"engram/internal/transcript"
 )
 
 func TestRecall_HaikuCallCountStaysBounded(t *testing.T) {
@@ -53,7 +54,7 @@ func TestRecall_HaikuCallCountStaysBounded(t *testing.T) {
 		return contents[p], nil
 	})
 
-	finder := &fakeFinder{entries: []recall.FileEntry{
+	finder := &fakeFinder{entries: []transcript.FileEntry{
 		{Path: "/sessions/now.jsonl", Mtime: time.Now()},
 	}}
 	reader := &fakeReader{contents: map[string]string{

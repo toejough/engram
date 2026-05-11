@@ -15,6 +15,7 @@ import (
 	"engram/internal/externalsources"
 	"engram/internal/memory"
 	"engram/internal/recall"
+	"engram/internal/transcript"
 )
 
 func TestDefaultExtractCap(t *testing.T) {
@@ -352,7 +353,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 		g := NewWithT(t)
 
 		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/a.jsonl", Mtime: now},
 			{Path: "/b.jsonl", Mtime: now.Add(-time.Hour)},
 		}}
@@ -384,7 +385,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		finder := &fakeFinder{entries: []recall.FileEntry{}}
+		finder := &fakeFinder{entries: []transcript.FileEntry{}}
 		orch := recall.NewOrchestrator(finder, nil, nil, nil, "")
 
 		result, err := orch.Recall(context.Background(), "", "/proj")
@@ -403,7 +404,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 		g := NewWithT(t)
 
 		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/bad.jsonl", Mtime: now},
 			{Path: "/good.jsonl", Mtime: now.Add(-time.Hour)},
 		}}
@@ -431,7 +432,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 		g := NewWithT(t)
 
 		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/a.jsonl", Mtime: now},
 			{Path: "/b.jsonl", Mtime: now.Add(-time.Hour)},
 		}}
@@ -486,13 +487,13 @@ func TestOrchestrator_Recall_ModeA_CancellationStopsProcessing(t *testing.T) {
 		const totalSessions = 10
 
 		now := time.Now()
-		entries := make([]recall.FileEntry, 0, totalSessions)
+		entries := make([]transcript.FileEntry, 0, totalSessions)
 		contents := make(map[string]string, totalSessions)
 		sizes := make(map[string]int, totalSessions)
 
 		for i := range totalSessions {
 			path := fmt.Sprintf("/s%d.jsonl", i)
-			entries = append(entries, recall.FileEntry{
+			entries = append(entries, transcript.FileEntry{
 				Path:  path,
 				Mtime: now.Add(-time.Duration(i) * time.Hour),
 			})
@@ -538,7 +539,7 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 		newerMtime := now.Add(-time.Hour)
 		olderMtime := now.Add(-3 * time.Hour)
 
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/newer.jsonl", Mtime: newerMtime},
 			{Path: "/older.jsonl", Mtime: olderMtime},
 		}}
@@ -584,7 +585,7 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 		now := time.Now()
 		sessionMtime := now.Add(-time.Hour)
 
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/session.jsonl", Mtime: sessionMtime},
 		}}
 		reader := &fakeReader{
@@ -627,7 +628,7 @@ func TestOrchestrator_Recall_ModeA_MemoryFormatting(t *testing.T) {
 		now := time.Now()
 		sessionMtime := now.Add(-time.Hour)
 
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/session.jsonl", Mtime: sessionMtime},
 		}}
 		reader := &fakeReader{
@@ -673,7 +674,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 		now := time.Now()
 		sessionMtime := now.Add(-time.Hour)
 
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/session.jsonl", Mtime: sessionMtime},
 		}}
 		reader := &fakeReader{
@@ -722,7 +723,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 		g := NewWithT(t)
 
 		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/session.jsonl", Mtime: now},
 		}}
 		reader := &fakeReader{
@@ -750,7 +751,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 		now := time.Now()
 		sessionMtime := now.Add(-time.Hour)
 
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/session.jsonl", Mtime: sessionMtime},
 		}}
 		reader := &fakeReader{
@@ -788,7 +789,7 @@ func TestOrchestrator_Recall_ModeA_MemoryWindowing(t *testing.T) {
 		g := NewWithT(t)
 
 		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/session.jsonl", Mtime: now},
 		}}
 		reader := &fakeReader{
@@ -821,7 +822,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		g := NewWithT(t)
 
 		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/a.jsonl", Mtime: now},
 			{Path: "/b.jsonl", Mtime: now.Add(-time.Hour)},
 		}}
@@ -881,7 +882,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		}
 
 		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/a.jsonl", Mtime: now},
 			{Path: "/b.jsonl", Mtime: now.Add(-time.Hour)},
 		}}
@@ -917,7 +918,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		g := NewWithT(t)
 
 		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/empty.jsonl", Mtime: now},
 			{Path: "/good.jsonl", Mtime: now.Add(-time.Hour)},
 		}}
@@ -953,7 +954,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		g := NewWithT(t)
 
 		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/a.jsonl", Mtime: now},
 		}}
 		reader := &fakeReader{
@@ -984,7 +985,7 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		g := NewWithT(t)
 
 		now := time.Now()
-		finder := &fakeFinder{entries: []recall.FileEntry{
+		finder := &fakeFinder{entries: []transcript.FileEntry{
 			{Path: "/a.jsonl", Mtime: now},
 		}}
 		reader := &fakeReader{
@@ -1010,7 +1011,7 @@ func TestOrchestrator_Recall_ModeB_StatusOutput(t *testing.T) {
 	g := NewWithT(t)
 
 	now := time.Now()
-	finder := &fakeFinder{entries: []recall.FileEntry{
+	finder := &fakeFinder{entries: []transcript.FileEntry{
 		{Path: "/a.jsonl", Mtime: now},
 	}}
 	reader := &fakeReader{
@@ -1046,7 +1047,7 @@ func TestOrchestrator_Recall_ModeB_SummarizeError(t *testing.T) {
 	g := NewWithT(t)
 
 	now := time.Now()
-	finder := &fakeFinder{entries: []recall.FileEntry{
+	finder := &fakeFinder{entries: []transcript.FileEntry{
 		{Path: "/a.jsonl", Mtime: now},
 	}}
 	reader := &fakeReader{
@@ -1074,7 +1075,7 @@ func TestRecallModeA_RunsSynthesisOverTranscriptsAndMemories(t *testing.T) {
 	g := NewWithT(t)
 
 	now := time.Now()
-	finder := &fakeFinder{entries: []recall.FileEntry{
+	finder := &fakeFinder{entries: []transcript.FileEntry{
 		{Path: "/tmp/x", Mtime: now},
 	}}
 	reader := &fakeReader{
@@ -1118,7 +1119,7 @@ func TestRecallModeB_FullPipelinePriorityOrder(t *testing.T) {
 		return contents[path], nil
 	})
 
-	finder := &fakeFinder{entries: []recall.FileEntry{
+	finder := &fakeFinder{entries: []transcript.FileEntry{
 		{Path: "/sessions/now.jsonl", Mtime: time.Now()},
 	}}
 
@@ -1210,11 +1211,11 @@ func (w *failWriter) Write(_ []byte) (int, error) {
 // --- Fakes ---
 
 type fakeFinder struct {
-	entries []recall.FileEntry
+	entries []transcript.FileEntry
 	err     error
 }
 
-func (f *fakeFinder) Find(_ ...string) ([]recall.FileEntry, error) {
+func (f *fakeFinder) Find(_ ...string) ([]transcript.FileEntry, error) {
 	return f.entries, f.err
 }
 

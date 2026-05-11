@@ -1,3 +1,5 @@
+// Package recall implements the recall pipeline: session-finding, LLM extraction,
+// memory matching, and summarization for the engram recall command.
 package recall
 
 import (

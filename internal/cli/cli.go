@@ -15,6 +15,7 @@ import (
 	"engram/internal/llmcmd"
 	"engram/internal/memory"
 	"engram/internal/recall"
+	"engram/internal/transcript"
 )
 
 // unexported constants.
@@ -35,7 +36,7 @@ var (
 // osDirLister lists .jsonl files in a directory using os.ReadDir.
 type osDirLister struct{}
 
-func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
+func (l *osDirLister) ListJSONL(dir string) ([]transcript.FileEntry, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -45,7 +46,7 @@ func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
 		return nil, fmt.Errorf("listing directory: %w", err)
 	}
 
-	results := make([]recall.FileEntry, 0, len(entries))
+	results := make([]transcript.FileEntry, 0, len(entries))
 
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -62,7 +63,7 @@ func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
 			continue
 		}
 
-		results = append(results, recall.FileEntry{
+		results = append(results, transcript.FileEntry{
 			Path:  filepath.Join(dir, name),
 			Mtime: info.ModTime(),
 		})
@@ -343,13 +344,13 @@ func runRecallSessions(
 		}
 	}
 
-	finder := recall.NewCompositeSessionFinder(
-		recall.NewSessionFinder(&osDirLister{}),
-		recall.NewOpencodeSessionFinder(recall.DefaultOpencodeDBPath(), cwd),
+	finder := transcript.NewCompositeSessionFinder(
+		transcript.NewSessionFinder(&osDirLister{}),
+		transcript.NewOpencodeSessionFinder(transcript.DefaultOpencodeDBPath(), cwd),
 	)
-	reader := recall.NewCompositeTranscriptReader(
-		recall.NewTranscriptReader(&osFileReader{}),
-		recall.NewOpencodeTranscriptReader(recall.DefaultOpencodeDBPath()),
+	reader := transcript.NewCompositeTranscriptReader(
+		transcript.NewJSONLReader(&osFileReader{}),
+		transcript.NewOpencodeTranscriptReader(transcript.DefaultOpencodeDBPath()),
 	)
 
 	opts := make([]recall.OrchestratorOption, 0, recallOptsCapacity)

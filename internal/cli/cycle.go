@@ -12,6 +12,7 @@ import (
 	"engram/internal/llmcmd"
 	"engram/internal/memory"
 	"engram/internal/recall"
+	"engram/internal/transcript"
 )
 
 // CycleArgs holds the flag values for `engram cycle`.
@@ -133,13 +134,13 @@ type cycleRecallerAdapter struct {
 }
 
 func (a *cycleRecallerAdapter) Recall(ctx context.Context, projectDir, query string) (string, error) {
-	finder := recall.NewCompositeSessionFinder(
-		recall.NewSessionFinder(&osDirLister{}),
-		recall.NewOpencodeSessionFinder(recall.DefaultOpencodeDBPath(), ""),
+	finder := transcript.NewCompositeSessionFinder(
+		transcript.NewSessionFinder(&osDirLister{}),
+		transcript.NewOpencodeSessionFinder(transcript.DefaultOpencodeDBPath(), ""),
 	)
-	reader := recall.NewCompositeTranscriptReader(
-		recall.NewTranscriptReader(&osFileReader{}),
-		recall.NewOpencodeTranscriptReader(recall.DefaultOpencodeDBPath()),
+	reader := transcript.NewCompositeTranscriptReader(
+		transcript.NewJSONLReader(&osFileReader{}),
+		transcript.NewOpencodeTranscriptReader(transcript.DefaultOpencodeDBPath()),
 	)
 
 	orch := recall.NewOrchestrator(finder, reader, a.summarizer, memory.NewLister(), a.dataDir)
@@ -190,13 +191,13 @@ func (a *transcriptReaderAdapter) Read(projectDir string, budget int) (string, e
 
 func newTranscriptReaderAdapter() *transcriptReaderAdapter {
 	return &transcriptReaderAdapter{
-		finder: recall.NewCompositeSessionFinder(
-			recall.NewSessionFinder(&osDirLister{}),
-			recall.NewOpencodeSessionFinder(recall.DefaultOpencodeDBPath(), ""),
+		finder: transcript.NewCompositeSessionFinder(
+			transcript.NewSessionFinder(&osDirLister{}),
+			transcript.NewOpencodeSessionFinder(transcript.DefaultOpencodeDBPath(), ""),
 		),
-		reader: recall.NewCompositeTranscriptReader(
-			recall.NewTranscriptReader(&osFileReader{}),
-			recall.NewOpencodeTranscriptReader(recall.DefaultOpencodeDBPath()),
+		reader: transcript.NewCompositeTranscriptReader(
+			transcript.NewJSONLReader(&osFileReader{}),
+			transcript.NewOpencodeTranscriptReader(transcript.DefaultOpencodeDBPath()),
 		),
 	}
 }

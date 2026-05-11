@@ -6,6 +6,7 @@ import (
 
 	"engram/internal/memory"
 	"engram/internal/recall"
+	"engram/internal/transcript"
 )
 
 // Exported variables.
@@ -104,7 +105,7 @@ func ExportNewCycleRecallerAdapter(dataDir string, summarizer recall.SummarizerI
 }
 
 // ExportNewOsDirLister creates an osDirLister for testing.
-func ExportNewOsDirLister() recall.DirLister {
+func ExportNewOsDirLister() transcript.DirLister {
 	return &osDirLister{}
 }
 

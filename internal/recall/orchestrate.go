@@ -12,6 +12,7 @@ import (
 	"engram/internal/debuglog"
 	"engram/internal/externalsources"
 	"engram/internal/memory"
+	"engram/internal/transcript"
 )
 
 // Exported constants.
@@ -30,7 +31,7 @@ type Extractor interface {
 
 // Finder finds session transcript files.
 type Finder interface {
-	Find(dirs ...string) ([]FileEntry, error)
+	Find(dirs ...string) ([]transcript.FileEntry, error)
 }
 
 // FindingSummarizer condenses accumulated findings into a structured summary.
@@ -133,7 +134,7 @@ func (o *Orchestrator) RecallMemoriesOnly(
 // extractFromSessions runs phase 2: extract verbatim snippets per session.
 func (o *Orchestrator) extractFromSessions(
 	ctx context.Context,
-	sessions []FileEntry,
+	sessions []transcript.FileEntry,
 	query string,
 	buffer *strings.Builder,
 	bytesUsed int,
@@ -169,7 +170,7 @@ func (o *Orchestrator) extractFromSessions(
 // findSessionMemories returns formatted memories whose UpdatedAt falls within
 // any of the given sessions' time windows. Returns empty string if no
 // memoryLister is configured or no memories match.
-func (o *Orchestrator) findSessionMemories(sessions []FileEntry) string {
+func (o *Orchestrator) findSessionMemories(sessions []transcript.FileEntry) string {
 	if o.memoryLister == nil || o.dataDir == "" {
 		return ""
 	}
@@ -235,7 +236,7 @@ func (o *Orchestrator) listAndMatchMemories(
 
 func (o *Orchestrator) recallModeA(
 	ctx context.Context,
-	sessions []FileEntry,
+	sessions []transcript.FileEntry,
 ) (*Result, error) {
 	var builder strings.Builder
 
@@ -280,7 +281,7 @@ func (o *Orchestrator) recallModeA(
 //nolint:funlen // explicit phase progression with logging is the point of this function
 func (o *Orchestrator) recallModeB(
 	ctx context.Context,
-	sessions []FileEntry,
+	sessions []transcript.FileEntry,
 	query string,
 ) (*Result, error) {
 	cycleID := debuglog.CycleIDFromContext(ctx)
@@ -469,7 +470,7 @@ type timeWindow struct {
 // Sessions are expected in mtime-descending order.
 // Each session's end is its mtime; start is the previous session's mtime
 // (or 24h before for the first/only session).
-func buildTimeWindows(sessions []FileEntry) []timeWindow {
+func buildTimeWindows(sessions []transcript.FileEntry) []timeWindow {
 	if len(sessions) == 0 {
 		return nil
 	}
