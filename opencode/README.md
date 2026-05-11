@@ -37,9 +37,8 @@ That's it. On first session, the plugin compiles `engram` to `~/.local/bin/engra
 | Command | Description |
 |---------|-------------|
 | `/recall [query]` | Recall recent session context or search memories |
-| `/remember "..."` | Save something explicitly for future sessions |
 | `/prepare` | Load relevant context before starting new work |
-| `/learn` | Review recent session for lessons worth persisting |
+| `/learn` | Review recent session for lessons worth persisting; also the explicit-capture command ("remember this" / "save that for later") |
 
 ### Tools
 

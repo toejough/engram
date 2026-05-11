@@ -81,7 +81,7 @@
       "id": "S2-N2-M2-P1",
       "name": "Always emits skills announcement",
       "notes": "Static message; no branching. Claude Code injects this string into the agent context.",
-      "statement": "For all SessionStart invocations, the script writes exactly one JSON object on stdout whose `hookSpecificOutput.additionalContext` field is the static memory-skills announcement listing /prepare, /learn, /recall, and /remember.",
+      "statement": "For all SessionStart invocations, the script writes exactly one JSON object on stdout whose `hookSpecificOutput.additionalContext` field is the static memory-skills announcement listing /prepare, /learn, and /recall.",
       "tested_at": []
     },
     {

@@ -18,7 +18,7 @@ Walks through classifying and rewriting each legacy memory into the current shap
 ## When NOT to use
 
 - Files already have `schema_version = 2` and a `[content]` sub-table — they are in the current format. Skip.
-- User is authoring a *new* memory — use `/remember` or `/learn`, not this.
+- User is authoring a *new* memory — use `/learn`, not this.
 - You haven't read the file. Read first, then classify. Do not batch-migrate on filename alone.
 
 ## Core principle

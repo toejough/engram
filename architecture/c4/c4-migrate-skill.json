@@ -175,7 +175,7 @@
       ],
       "id": "S2-N1-M5-P8",
       "name": "Task-shaped situation rewrite",
-      "notes": "Core principle of the skill — same hindsight-bias rule used by `/learn` and `/remember`.",
+      "notes": "Core principle of the skill — same hindsight-bias rule used by `/learn`.",
       "statement": "For all legacy `situation` fields that are hindsight-biased (\"after I forgot…\", \"when we discovered…\"), the skill instructs the agent to rewrite the situation as the task a future agent would be starting before writing the new file.",
       "tested_at": []
     },

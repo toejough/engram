@@ -8,7 +8,7 @@
       "id": "S1",
       "kind": "person",
       "name": "Developer",
-      "responsibility": "Developer who triggers `/prepare`, `/recall`, `/remember`, `/learn`, `/migrate` and authors the work that produces memories",
+      "responsibility": "Developer who triggers `/prepare`, `/recall`, `/learn`, `/migrate` and authors the work that produces memories",
       "subtitle": "uses Claude Code",
       "source": "Human, at a Claude Code session"
     },
@@ -39,7 +39,7 @@
       "id": "S5",
       "kind": "external",
       "name": "Anthropic API",
-      "responsibility": "LLM service used by the recall pipeline for Haiku ranking and extraction; also the classification step in `/learn` and `/remember` quality gates",
+      "responsibility": "LLM service used by the recall pipeline for Haiku ranking and extraction; also the classification step in `/learn` quality gates",
       "subtitle": "Haiku rank + extract",
       "source": "`api.anthropic.com`"
     },

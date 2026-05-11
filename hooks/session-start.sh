@@ -13,7 +13,7 @@ ENGRAM_BIN="${HOME}/.local/bin/engram"
 if [[ -x "$ENGRAM_BIN" ]]; then
     STATIC_MSG=$("$ENGRAM_BIN" reminder session-start 2>/dev/null || true)
 fi
-: "${STATIC_MSG:=[engram] Memory skills available. Call /prepare before starting new work. Call /learn after completing work. Call /recall to load previous session context. Call /remember to save something explicitly.}"
+: "${STATIC_MSG:=[engram] Memory skills available. Call /prepare before starting new work. Call /learn at task completion or to save something explicitly (\"remember this\", \"save that for later\"). Call /recall to load previous session context.}"
 
 jq -n --arg ctx "$STATIC_MSG" \
     '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'

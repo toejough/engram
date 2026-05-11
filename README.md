@@ -5,7 +5,7 @@
 
 ## Overview
 
-Engram is a plugin for **Claude Code** and **OpenCode** that gives agents persistent memory. Four skills help agents prepare for work, recall context, learn from experience, and remember explicitly.
+Engram is a plugin for **Claude Code** and **OpenCode** that gives agents persistent memory. Three skills help agents prepare for work, recall context, and learn from experience (autonomously or on explicit cue).
 
 ## Installing
 
@@ -37,20 +37,19 @@ Engram is a plugin for **Claude Code** and **OpenCode** that gives agents persis
 ```mermaid
 flowchart LR
     prepare["/prepare<br/>load context"] --> work[work]
-    work --> learn["/learn<br/>extract feedback"]
+    work --> learn["/learn<br/>extract & capture"]
     learn -. next session .-> prepare
     work -. any time .-> recall["/recall<br/>search"]
-    work -. any time .-> remember["/remember<br/>capture"]
 ```
 
-`/prepare` loads relevant context before starting work. `/learn` extracts feedback after work completes. `/recall` searches session history and memories on demand. `/remember` captures explicit knowledge immediately.
+`/prepare` loads relevant context before starting work. `/learn` extracts feedback after work completes — and is also the explicit-capture command when you say "remember this" or "save that for later". `/recall` searches session history and memories on demand.
 
 ### Commands you invoke manually
 
 | Command | When you use it |
 |---------|-----------------|
 | `/recall` | Ask Claude to recall something. With no query, Claude pulls recent history for this project and any engram memories from that same span of time. With a query, Claude searches all memory — engram's own feedback/facts plus Claude Code's various memory files — for anything relevant, and pulls it into the current context. |
-| `/remember "..."` | Tell Claude to remember something going forward — a project fact, a convention, or a correction Claude just received. Instead of "don't do that again," say `/remember not to do that again`, so the lesson carries into future sessions instead of living only in this one. |
+| `/learn "..."` | Tell Claude to remember something going forward — a project fact, a convention, or a correction Claude just received. Saying "remember this", "save that for later", or `/learn` all route here; the lesson is captured to the vault so it carries into future sessions instead of living only in this one. |
 
 ### Commands the system invokes automatically
 
@@ -59,7 +58,7 @@ flowchart LR
 - **Skill frontmatter.** Each skill's `description` lists triggering conditions ("before starting new work", "at completion boundaries"). Claude Code auto-invokes the matching skill when those conditions are met.
 - **Hook reminders.** On every `UserPromptSubmit`, engram injects a reminder to call `/prepare` before new work. On every `PostToolUse`, it injects a reminder to call `/learn` at completion boundaries. The hooks don't *force* the call — they make sure the model considers it.
 
-When `/prepare` fires, it runs `/recall` against the current task and primes Claude with the highest-ranked memories, rules, and skill pointers before work begins. When `/learn` fires, it reviews what happened in the session so far, identifies reusable patterns (not one-off events), and writes SBIA feedback memories. `/learn` runs autonomously at completion boundaries and interactively when you invoke it by hand.
+When `/prepare` fires, it runs `/recall` against the current task and primes Claude with the highest-ranked memories, rules, and skill pointers before work begins. When `/learn` fires, it reviews what happened in the session so far, identifies reusable patterns (not one-off events), and writes vault notes. `/learn` runs autonomously at completion boundaries and interactively when you invoke it by hand (or say "remember this" / "save that for later").
 
 You can still call `/prepare` and `/learn` by hand, but if the automation is working you shouldn't need to. If you notice you're running them manually a lot, that's a sign the skill frontmatter or the hook reminders need sharpening — please [open an issue](https://github.com/toejough/engram/issues) so we can tune them.
 
@@ -118,7 +117,7 @@ Memories split into **feedback** and **fact** because they answer different ques
 - **Feedback** answers *"how should I behave here?"* — a correction or pattern you want applied or avoided. Only useful if you can tell *when* to apply it and *what* to do differently.
 - **Fact** answers *"what's true about this project or environment?"* — declarative knowledge the agent would otherwise have to rediscover.
 
-Mixing them under a single schema forces every memory to either lose structure ("freeform blob") or pretend to be one type. Keeping them separate means recall can weight them differently and `/learn` / `/remember` can guide you through the right fields for each kind.
+Mixing them under a single schema forces every memory to either lose structure ("freeform blob") or pretend to be one type. Keeping them separate means recall can weight them differently and `/learn` can guide you through the right fields for each kind.
 
 This split mirrors a long-standing distinction in cognitive psychology. Tulving (1972)¹ distinguished **semantic memory** (general facts about the world) from **episodic memory** (personal experiences); Graf & Schacter (1985)² formalized the **explicit/implicit** divide; Squire (2004)³ consolidated these into the modern taxonomy of long-term memory systems (declarative, with semantic and episodic subtypes, vs. non-declarative, including procedural memory). The distinction also appears in computational cognitive architectures: Anderson's **ACT-R**⁴ treats declarative facts (chunks) and procedural knowledge (productions) as separate memory stores with different retrieval and learning rules.
 
@@ -170,12 +169,12 @@ Engram doesn't replace any of this — engram reads from all of it, and adds a q
 
 | Dimension | Auto memory (built-in) | Engram |
 |-----------|------------------------|--------|
-| Who writes | Claude, implicitly during a session | You (via `/remember`) or Claude (via `/learn`), with a quality gate before write |
+| Who writes | Claude, implicitly during a session | You or Claude, via `/learn` (autonomously at completion or on explicit cue), with a quality gate before write |
 | Shape | Freeform markdown | Typed TOML: feedback (SBIA) or fact (SPO) |
 | How retrieved | First 200 lines / 25 KB of `MEMORY.md` loaded at session start; topic files read on-demand during the session by Claude's judgement | Query-ranked via Haiku against the task in `/prepare` or `/recall` |
 | Scope of retrieval | Auto memory only | Auto memory **plus** `.claude/rules/`, CLAUDE.md (with `@`-imports), project/user/plugin skills, and engram's own feedback/facts — merged and ranked together |
 | Duplicate detection | None — Claude just appends | `engram learn` returns `CREATED` / `DUPLICATE` / `CONTRADICTION`; `/learn` can broaden an existing memory's situation when it sees a near-miss |
-| Capture point | Implicit, inside a session | Explicit: `/learn` at completion boundaries, `/remember` on user cue |
+| Capture point | Implicit, inside a session | Explicit: `/learn` at completion boundaries or on user cue ("remember this", "save that for later") |
 
 The short version: auto memory persists text. Engram persists *structure*, ranks against a query, and pulls from every surface Claude Code exposes — not just its own directory. Feedback memories enforce situation/behavior/impact/action; fact memories enforce situation + subject/predicate/object. The shape exists so ranking has something sharper to match against than freeform prose.
 
@@ -185,8 +184,8 @@ The short version: auto memory persists text. Engram persists *structure*, ranks
 
 | Kind | Path (resolved per session) | Source |
 |------|------------------------------|--------|
-| Engram feedback | `~/.local/share/engram/memory/feedback/*.toml` | Written by `/learn`, `/remember` |
-| Engram facts | `~/.local/share/engram/memory/facts/*.toml` | Written by `/learn`, `/remember` |
+| Engram feedback | `~/.local/share/engram/memory/feedback/*.toml` | Written by `/learn` |
+| Engram facts | `~/.local/share/engram/memory/facts/*.toml` | Written by `/learn` |
 | Claude Code auto-memory | `~/.claude/projects/<project-slug>/memory/*.md` | Written by Claude Code's built-in memory system |
 | Project rules | `.claude/rules/*.md` (walking up from cwd) | Written by the project (checked in) |
 | CLAUDE.md | Project root, user (`~/.claude/CLAUDE.md`), plus `@`-imports | Written by project and user |
@@ -278,7 +277,7 @@ flowchart LR
 
 ### `/learn`
 
-`/learn` fires at completion boundaries (via skill trigger, the `PostToolUse` reminder, or an explicit invocation). It scans the recent session for lessons worth persisting, then filters each candidate through three gates before writing. The gates exist to keep retrieval clean: memories that won't recur, aren't actionable, or belong in a different home (code, CLAUDE.md, a rule, a skill) get dropped rather than poisoning future recalls. Autonomous runs use `--source agent`; interactive runs present findings for approval first.
+`/learn` is the unified capture command. It fires autonomously at completion boundaries (via skill trigger, the `PostToolUse` reminder), and you can also invoke it explicitly — `/learn`, "remember this", or "save that for later" all route here. It scans the recent session for lessons worth persisting, then filters each candidate through three gates before writing a permanent vault note. The gates exist to keep retrieval clean: memories that won't recur, aren't framed around an activity-and-domain, or don't clear the knowledge bar (i.e. belong in code, CLAUDE.md, a rule, or a skill) get dropped rather than poisoning future recalls. Autonomous runs write without prompting; interactive runs present findings for approval first.
 
 ```mermaid
 flowchart TB
@@ -288,36 +287,12 @@ flowchart TB
     loop -- yes --> recurs{Recurs<br/>beyond this<br/>project?}
     recurs -- no --> drop[drop]
     drop --> loop
-    recurs -- yes --> actionable{Actionable<br/>change to<br/>behavior?}
-    actionable -- no --> drop
-    actionable -- yes --> home{Home missed<br/>or no home<br/>fits?}
-    home -- home already surfaced --> drop
-    home -- yes --> write["engram learn<br/>--source agent"]
-    write --> r{result}
-    r -- CREATED --> loop
-    r -- DUPLICATE --> broaden["update existing<br/>situation to broaden"]
-    broaden --> loop
-    r -- CONTRADICTION --> skip["skip (autonomous)<br/>or ask (interactive)"]
-    skip --> loop
-```
-
-### `/remember`
-
-`/remember` is `/learn`'s user-triggered sibling. The same three gates apply, but nothing writes without your approval, and the resulting memory is marked `--source human`. A `DUPLICATE` doesn't get silently dropped — engram already knew this but failed to surface it in time, so the existing memory's situation gets broadened so next session finds it.
-
-```mermaid
-flowchart TB
-    user(["user: /remember X"]) --> classify{"feedback<br/>or fact?<br/>(maybe both)"}
-    classify --> gates["Same 3 gates as /learn<br/>Recurs · Actionable · Right home"]
-    gates -- drop --> tell["tell user why,<br/>suggest the right home"]
-    gates -- pass --> draft["Draft fields,<br/>present for approval"]
-    draft --> approve{user<br/>approves?}
-    approve -- no --> tell
-    approve -- yes --> write["engram learn<br/>--source human"]
-    write --> r{result}
-    r -- CREATED --> saved([saved])
-    r -- DUPLICATE --> broaden["broaden existing<br/>situation"] --> saved
-    r -- CONTRADICTION --> conflict["present conflict:<br/>update · replace · keep both"] --> saved
+    recurs -- yes --> framing{Activity-and-<br/>domain framing<br/>holds?}
+    framing -- no --> drop
+    framing -- yes --> knowledge{Knowledge bar<br/>cleared?<br/>(not code/rule/skill)}
+    knowledge -- no --> drop
+    knowledge -- yes --> write["engram promote<br/>→ vault note"]
+    write --> loop
 ```
 
 ## Implementation details
@@ -348,7 +323,7 @@ internal/            Business logic (DI boundaries)
   recall/            Recall pipeline (six phases)
   tokenresolver/     Token budgeting
   tomlwriter/        TOML serialization
-skills/              Plugin skills (recall, prepare, learn, remember, migrate)
+skills/              Plugin skills (recall, prepare, learn, migrate)
 hooks/               Shell hooks for Claude Code integration
 .claude-plugin/      Plugin manifest
 archive/             Historical planning artifacts
@@ -372,7 +347,7 @@ archive/             Historical planning artifacts
 ## What it doesn't do
 
 - **No always-on surfacing.** The BM25 hook-surfacing pipeline was removed in this revision. Skills decide when to load memories; nothing is injected at every prompt.
-- **No self-tuning adaptation loop.** The previous `/adapt` skill and effectiveness quadrants are gone. Memory quality depends on situation-query alignment (see `/learn` and `/remember` skill guidance).
+- **No self-tuning adaptation loop.** The previous `/adapt` skill and effectiveness quadrants are gone. Memory quality depends on situation-query alignment (see `/learn` skill guidance).
 - **No cross-agent coordination.** Engram is per-user, per-machine. For multi-agent coordination, use `mycelium`.
 - **No vector embeddings.** Text similarity uses TF-IDF + Haiku classification. Pure Go, no CGO, no ONNX.
 

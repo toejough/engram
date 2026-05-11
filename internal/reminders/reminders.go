@@ -15,9 +15,9 @@ const (
 	// SessionStart announces skill availability at the start of a session.
 	SessionStart = "[engram] Memory skills available." +
 		" Call /prepare before starting new work." +
-		" Call /learn after completing work." +
-		" Call /recall to load previous session context." +
-		" Call /remember to save something explicitly."
+		" Call /learn at task completion or to save something explicitly" +
+		" (\"remember this\", \"save that for later\")." +
+		" Call /recall to load previous session context."
 	// System is appended to the system prompt on every LLM request.
 	// Frames memory as the agent's native reasoning cycle
 	// (OBSERVE → PREPARE → PLAN → ACT → LEARN) rather than an external
