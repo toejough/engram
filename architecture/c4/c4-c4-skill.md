@@ -72,7 +72,6 @@ E15 c4 skill is the markdown skill body Claude Code loads when the user invokes 
   - [c4-migrate-skill.md](c4-migrate-skill.md)
   - [c4-prepare-skill.md](c4-prepare-skill.md)
   - [c4-recall-skill.md](c4-recall-skill.md)
-  - [c4-remember-skill.md](c4-remember-skill.md)
 
 See `skills/c4/references/property-ledger-format.md` for the full row format and untested-property
 discipline.

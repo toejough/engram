@@ -55,8 +55,8 @@
       "id": "S2-N1",
       "kind": "container",
       "name": "Skills",
-      "responsibility": "Markdown skill files (`skills/{prepare,learn,recall,remember,migrate,c4}/SKILL.md`) that Claude Code loads on command or auto-trigger; bodies instruct the agent to call `engram` subcommands and present results",
-      "subtitle": "prepare / learn / recall / remember / migrate / c4",
+      "responsibility": "Markdown skill files (`skills/{prepare,learn,recall,migrate,c4}/SKILL.md`) that Claude Code loads on command or auto-trigger; bodies instruct the agent to call `engram` subcommands and present results",
+      "subtitle": "prepare / learn / recall / migrate / c4",
       "source": "This repo, under `skills/`"
     },
     {
@@ -82,7 +82,7 @@
   "preamble": "Refines L1's E2 Engram plugin into three internal containers — skill markdown files that drive agent behavior, shell hooks fired on Claude Code lifecycle events, and a Go CLI binary that performs all computation. External actors and the on-disk store keep their L1 E-IDs.",
   "relationships": [
     {
-      "description": "invokes /prepare, /learn, /recall, /remember, /migrate",
+      "description": "invokes /prepare, /learn, /recall, /migrate",
       "from": "S1",
       "protocol": "Claude Code CLI / TTY",
       "to": "S3"
@@ -136,7 +136,7 @@
       "to": "S4"
     },
     {
-      "description": "reads existing feedback + fact TOML during recall/list/show; writes new TOML during learn/remember/update",
+      "description": "reads existing feedback + fact TOML during recall/list/show; writes new TOML during learn/update",
       "from": "S2-N3",
       "protocol": "Local file I/O, TOML",
       "to": "S6"

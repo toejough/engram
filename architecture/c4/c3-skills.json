@@ -31,8 +31,8 @@
       "id": "S2-N1-M2",
       "kind": "component",
       "name": "learn skill",
-      "responsibility": "Reviews the recent session for learnable feedback/facts and walks the agent through saving them via `engram learn feedback` / `engram learn fact`.",
-      "subtitle": "saves session lessons"
+      "responsibility": "Reviews the recent session (autonomously at completion boundaries, or when the user invokes `/learn`) for lessons that pass Recurs + Activity-and-Domain + Knowledge gates, then writes vault notes via `engram promote`. Unified successor to the prior capturing-fleeting-notes / promoting-to-permanent-notes / learn / remember skill set.",
+      "subtitle": "saves session lessons (vault)"
     },
     {
       "source": "../../skills/recall/SKILL.md",
@@ -41,14 +41,6 @@
       "name": "recall skill",
       "responsibility": "Calls `engram recall` against the project's session transcripts and surfaces relevant memories.",
       "subtitle": "loads prior session context"
-    },
-    {
-      "source": "../../skills/remember/SKILL.md",
-      "id": "S2-N1-M4",
-      "kind": "component",
-      "name": "remember skill",
-      "responsibility": "Captures explicit knowledge the user dictates as feedback or fact memories with user approval, via `engram learn` or `engram update`.",
-      "subtitle": "explicit-knowledge capture"
     },
     {
       "source": "../../skills/migrate/SKILL.md",
@@ -75,7 +67,7 @@
   "level": 3,
   "name": "skills",
   "parent": "c2-engram-plugin.md",
-  "preamble": "Refines L2's E7 Skills container into the six skill markdown files Claude Code loads on slash-command or auto-trigger. Each skill body returns instructions to the agent; most instruct it to shell out to the engram CLI binary. The c4 skill is the exception — it instructs the agent to use targ and edit architecture/c4/ directly, never calling the engram binary.",
+  "preamble": "Refines L2's E7 Skills container into the five skill markdown files Claude Code loads on slash-command or auto-trigger. Each skill body returns instructions to the agent; most instruct it to shell out to the engram CLI binary. The c4 skill is the exception — it instructs the agent to use targ and edit architecture/c4/ directly, never calling the engram binary.",
   "relationships": [
     {
       "description": "loads skill body on /command or auto-trigger",
@@ -96,14 +88,8 @@
       "to": "S2-N3"
     },
     {
-      "description": "instructs agent to call `engram learn feedback` / `engram learn fact`",
+      "description": "instructs agent to call `engram promote` to write vault notes for surviving lesson candidates",
       "from": "S2-N1-M2",
-      "protocol": "Skill body text → agent Bash subprocess",
-      "to": "S2-N3"
-    },
-    {
-      "description": "instructs agent to call `engram learn` or `engram update`",
-      "from": "S2-N1-M4",
       "protocol": "Skill body text → agent Bash subprocess",
       "to": "S2-N3"
     },

@@ -43,7 +43,6 @@ P-list each edge backs.
   - [c4-learn-skill.md](c4-learn-skill.md)
   - [c4-migrate-skill.md](c4-migrate-skill.md)
   - [c4-prepare-skill.md](c4-prepare-skill.md)
-  - [c4-remember-skill.md](c4-remember-skill.md)
 
 See `skills/c4/references/property-ledger-format.md` for the full row format and untested-property
 discipline.
