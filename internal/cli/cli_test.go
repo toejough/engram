@@ -192,6 +192,112 @@ func TestEngramLearn_MOC_EndToEnd(t *testing.T) {
 	g.Expect(string(body)).To(ContainSubstring("Notes about how ctx flows through the system."))
 }
 
+func TestEngramRecall_AnchorsEndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	mocsDir := filepath.Join(vault, "MOCs")
+	g.Expect(os.MkdirAll(mocsDir, 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(
+		filepath.Join(mocsDir, "1.2026-03-15.alpha.md"),
+		[]byte("# alpha MOC\nFraming prose with [[1a.2026-03-16.beta]]"),
+		0o600,
+	)).To(Succeed())
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+	build := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	build.Dir = projectRoot(t)
+	buildOut, buildErr := build.CombinedOutput()
+	g.Expect(buildErr).NotTo(HaveOccurred(), "build failed: %s", buildOut)
+
+	if buildErr != nil {
+		return
+	}
+
+	run := exec.Command(binPath, "recall", "--vault", vault)
+	runOut, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
+
+	if runErr != nil {
+		return
+	}
+
+	g.Expect(string(runOut)).To(ContainSubstring("1.2026-03-15.alpha"))
+}
+
+func TestEngramRecall_RecentEndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	permDir := filepath.Join(vault, "Permanent")
+	g.Expect(os.MkdirAll(permDir, 0o700)).To(Succeed())
+
+	for _, name := range []string{
+		"1.2026-01-01.old.md",
+		"2.2026-05-01.new.md",
+	} {
+		g.Expect(os.WriteFile(filepath.Join(permDir, name), []byte("body"), 0o600)).To(Succeed())
+	}
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+	build := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	build.Dir = projectRoot(t)
+	buildOut, buildErr := build.CombinedOutput()
+	g.Expect(buildErr).NotTo(HaveOccurred(), "build failed: %s", buildOut)
+
+	if buildErr != nil {
+		return
+	}
+
+	run := exec.Command(binPath, "recall", "--vault", vault, "--recent", "--limit", "1")
+	runOut, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
+
+	if runErr != nil {
+		return
+	}
+
+	g.Expect(string(runOut)).To(ContainSubstring("2.2026-05-01.new"))
+	g.Expect(string(runOut)).NotTo(ContainSubstring("1.2026-01-01.old"))
+}
+
+func TestEngramTranscript_DateRangeEndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	transcriptDir := t.TempDir()
+	transcriptPath := filepath.Join(transcriptDir, "session-abc.jsonl")
+	body := `{"type":"user","message":{"content":"hello-smoke-test"}}` + "\n"
+	g.Expect(os.WriteFile(transcriptPath, []byte(body), 0o600)).To(Succeed())
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+	build := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	build.Dir = projectRoot(t)
+	buildOut, buildErr := build.CombinedOutput()
+	g.Expect(buildErr).NotTo(HaveOccurred(), "build failed: %s", buildOut)
+
+	if buildErr != nil {
+		return
+	}
+
+	// Use a wide date range so the file mtime (today) falls in.
+	run := exec.Command(binPath, "transcript",
+		"--from", "2020-01-01",
+		"--to", "2099-12-31",
+		"--transcript-dir", transcriptDir,
+	)
+	runOut, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
+
+	if runErr != nil {
+		return
+	}
+
+	g.Expect(string(runOut)).To(ContainSubstring("hello-smoke-test"))
+}
+
 func TestRequireLLMCmd_ErrorsWhenMissing(t *testing.T) {
 	g := NewWithT(t)
 
