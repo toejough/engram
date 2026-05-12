@@ -19,14 +19,6 @@
       "subtitle": "recall / learn / list / show / update"
     },
     {
-      "source": "../../skills/prepare/SKILL.md",
-      "id": "S2-N1-M1",
-      "kind": "component",
-      "name": "prepare skill",
-      "responsibility": "Tells the agent to make 2–3 targeted `engram recall` queries by task and present a summary.",
-      "subtitle": "briefs the agent before new work"
-    },
-    {
       "source": "../../skills/learn/SKILL.md",
       "id": "S2-N1-M2",
       "kind": "component",
@@ -39,8 +31,8 @@
       "id": "S2-N1-M3",
       "kind": "component",
       "name": "recall skill",
-      "responsibility": "Calls `engram recall` against the project's session transcripts and surfaces relevant memories.",
-      "subtitle": "loads prior session context"
+      "responsibility": "Drives a frontier-expansion cascade via `engram recall` (anchors / --recent / --follow + --already-read) against the agent-memory vault and synthesizes surfaced notes for the LLM caller. Absorbs the prior prepare skill's pre-work briefing role.",
+      "subtitle": "loads vault notes for the current situation"
     },
     {
       "source": "../../skills/migrate/SKILL.md",
@@ -76,13 +68,7 @@
       "to": "S2-N1"
     },
     {
-      "description": "instructs agent to call `engram recall` (with --query per topic)",
-      "from": "S2-N1-M1",
-      "protocol": "Skill body text → agent Bash subprocess",
-      "to": "S2-N3"
-    },
-    {
-      "description": "instructs agent to call `engram recall` for prior session context",
+      "description": "instructs agent to drive a frontier-expansion cascade calling `engram recall` (anchors / --recent / --follow + --already-read) against the agent-memory vault",
       "from": "S2-N1-M3",
       "protocol": "Skill body text → agent Bash subprocess",
       "to": "S2-N3"
