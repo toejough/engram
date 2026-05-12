@@ -129,6 +129,9 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 		targ.Targ(func(ctx context.Context, a RecallArgs) {
 			errHandler(runRecall(withLog(ctx), a, stdout))
 		}).Name("recall").Description("Recall recent session context"),
+		targ.Targ(func(ctx context.Context, a TranscriptArgs) {
+			errHandler(runTranscript(withLog(ctx), a, stdout))
+		}).Name("transcript").Description("Read session transcripts in a date range"),
 		targ.Targ(func(ctx context.Context, a CycleArgs) {
 			errHandler(RunCycle(withLog(ctx), a, stdout))
 		}).Name("cycle").Description("Run a learn-and-recall evaluation cycle"),

@@ -71,6 +71,11 @@ func ExportCheckForConflicts(
 	return checkForConflicts(ctx, record, dataDir, stdout, caller, lister)
 }
 
+// ExportEmitTranscripts exposes emitTranscripts for whitebox testing.
+func ExportEmitTranscripts(reader transcript.Reader, entries []transcript.FileEntry, stdout io.Writer) error {
+	return emitTranscripts(reader, entries, stdout)
+}
+
 // ExportNewCyclePersisterAdapter returns a cycle.Persister built from injected deps.
 func ExportNewCyclePersisterAdapter(
 	dataDir string,
@@ -184,4 +189,9 @@ func ExportWriteMemoryWithDeps(
 // RunRecallForTest exposes runRecall for whitebox testing.
 func RunRecallForTest(ctx context.Context, args RecallArgs, stdout io.Writer) error {
 	return runRecall(ctx, args, stdout)
+}
+
+// RunTranscriptForTest exposes runTranscript for whitebox testing.
+func RunTranscriptForTest(ctx context.Context, args TranscriptArgs, stdout io.Writer) error {
+	return runTranscript(ctx, args, stdout)
 }
