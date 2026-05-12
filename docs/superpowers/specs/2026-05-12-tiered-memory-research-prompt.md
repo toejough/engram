@@ -1,0 +1,181 @@
+# Research brief: tiered memory architecture for engram
+
+## Goal
+
+Design (not yet build) a redesigned memory system for engram that addresses
+a felt limitation in the current vault: too much raw signal is discarded
+because the only durable artifacts are heavily-distilled "permanent" notes
+under a Luhmann-ID Zettelkasten. Cross-session patterns that need multiple
+exposures to recognize are being lost.
+
+Produce a design document, not code. The terminal deliverable is a written
+spec the user can review and iterate on. If implementation seems obvious,
+resist — surface the design decision first.
+
+## Vision (the user's framing — preserve these constraints)
+
+Memory as a lopsided hourglass: very wide at the bottom (raw data), narrowing
+upward through distillation, then re-widening slightly into synthesis. Tiers:
+
+- **L0 — references.** URI/file-handle pointers to raw source material:
+  Claude Code session JSONL files, code commits, external docs. No content
+  stored; just addressable handles. ~1.3 GB / 4,712 sessions exist today
+  under ~/.claude/projects/.
+
+- **L1 — stripped source.** Likely-relevant material extracted from L0,
+  stripped of formatting cruft and extraneous metadata. Still raw-shaped
+  (conversational turns, code, prose) — not yet a "fact." Purely additive.
+
+- **L2 — facts and feedback.** Atomic extracted claims, roughly what the
+  current vault calls Permanent notes (without Luhmann IDs). Purely additive.
+
+- **L3+ — synthesis.** MOCs, themes, MOCs-of-MOCs, up to a single top-level
+  synthesis of memory. **Mutable** — regularly reassessed as L2 grows.
+  Conflict resolution lives here. Conflict at L2 surfaces both; L3 reconciles.
+
+L0–L2 are append-only. L3+ is regenerated. Luhmann IDs are dropped — they
+don't survive a mutable layer.
+
+### MOC dimensions
+
+To prevent arbitrary connection explosion, MOCs aggregate along a constrained
+set of dimensions. Initial candidates:
+
+- time
+- reference metadata (file types, authors, locations)
+- subject / predicate / object
+- situation / behavior / impact / action
+
+A single L2 note may appear in MOCs along multiple dimensions.
+
+### Recall as deep-dive
+
+A user query "what do we know about X" with no direct L3/L2 hit should not
+return empty. The system descends — through related L3 nodes, into related
+L2 facts, into L1/L0 if warranted — searching for an un-noticed pattern.
+On finding one, it writes new L2 facts and *may* cascade upward into L3+
+regeneration. Cascade depth depends on impact; small patterns don't redraw
+the top of the hourglass.
+
+### TDD for memories
+
+Every L2 and L3+ entry carries 2–3 tests, modeled on the TDD pattern in the
+existing writing-skills skill. Each test answers:
+
+1. When would we expect this memory to be relevant?
+2. What would the LLM plausibly search for in that situation?
+3. Does that search actually surface this memory?
+4. Does the surfaced memory lead to better behavior on the first pass?
+
+A memory that fails its own tests is a candidate for revision or deletion.
+
+## Current state (read these before designing)
+
+- Repo: ~/repos/personal/engram (and worktrees)
+- Vault: ~/repos/personal/agent-memory (Permanent/, MOCs/, Fleeting/, MEMORY.md)
+- Active skills: skills/recall/SKILL.md, skills/learn/SKILL.md, skills/dev,
+  skills/audit
+- Recent collapse: the Fleeting tier was just removed; capture/promote became
+  single-stage /learn writes. Filenames standardized to
+  `<luhmann-id>.<YYYY-MM-DD>.<slug>.md`. Read recent commits and the notes
+  under tag "tier-collapse" to understand what was just simplified — the
+  redesign should not silently re-introduce complexity that was deliberately
+  removed.
+- engram CLI: `engram recall`, `engram transcript --from --to`, vault path
+  via `--vault` or `ENGRAM_VAULT_PATH`. Read `cmd/engram/*`,
+  `internal/recall/*`, `internal/cli/*`.
+- Session data: `~/.claude/projects/`, ~1.3 GB, JSONL per session.
+
+## Open questions to grapple with
+
+These are what the design must resolve. Do not pre-answer them in this brief
+— answer them in the design doc, with rationale or with the experiment
+needed to resolve each.
+
+1. **L1 selection function.** What promotes a session segment from L0 to L1?
+   Pre-extraction at session end? Post-hoc on demand? A scheduled triage
+   pass? What's the cost ceiling?
+
+2. **Identity without Luhmann.** If L3 is mutable, what's the stable
+   reference handle for an L2 note cited by an L3 MOC? Slug? Content hash?
+   UUID? How do wikilinks resolve after L3 regeneration moves things?
+
+3. **Regeneration triggers and cadence.** When does L3+ rebuild? On every
+   L2 write (expensive)? Batched? Drift-detected? On query?
+
+4. **MOC dimension orthogonality.** Are the four dimensions independent
+   indices (a note appears in N MOCs)? Or does each MOC commit to one
+   dimension? How do MOCs-of-MOCs aggregate across dimensions?
+
+5. **Cascade write-path.** When deep-dive discovers a pattern, what
+   exactly gets written? New L2 only? Or also a draft L3 update? What's
+   the trust model — is the LLM's mid-query extraction durable, or does it
+   need a confirmation step?
+
+6. **Conflict semantics.** Two L2 facts disagree. L3 resolves "to what" —
+   a third synthesizing note that cites both? A scored winner? Both
+   preserved with a contradiction flag, surfaced together at recall?
+
+7. **Test storage and execution.** Where do the 2–3 tests per memory live?
+   Same file? Sidecar? Index? What runs them — a separate `engram test`
+   command? How often? What's the failure consequence — auto-archive,
+   flag-for-review, or noop until human triage?
+
+8. **Top-level synthesis.** What does the single root MOC look like?
+   Generated artifact, regenerated each session? Living document edited
+   by hand and validated by the system? Something else?
+
+9. **Recall cascade redesign.** Current recall expands a frontier across
+   one tier (Permanent/MOCs/Fleeting). With four+ tiers, where does the
+   cascade start, and what makes it descend? Cost model — descending to
+   L0 reads raw JSONL, which is expensive; what gates that?
+
+10. **Migration.** The existing vault has Luhmann-IDed Permanent notes
+    and several MOCs. How do they map onto L2 vs L3? Is migration
+    automatic, scripted, or done by re-running /learn against L0?
+
+11. **Failure modes.** What does this system look like when broken —
+    L1 grows unboundedly? L3 thrashes on every write? Tests pass but
+    behavior doesn't improve? Spec out the diagnostics.
+
+## Prior art to survey
+
+- Zettelkasten — Niklas Luhmann's original, plus Sönke Ahrens (*How to Take
+  Smart Notes*). Confirm what's being kept vs. dropped.
+- LLM long-term memory papers: MemGPT (Letta), Generative Agents (Park et
+  al. 2023, the Smallville paper) — both stratify memory by abstraction
+  level with reflection/synthesis cycles. Compare their tiering.
+- OS memory hierarchies (L1/L2/L3 cache, virtual memory) — borrowed
+  terminology suggests borrowed mechanics; check what carries over and
+  what doesn't (cache eviction has no L3-style synthesis analogue).
+- RAG and re-ranking literature for the L0→L1 selection problem.
+- The existing engram codebase and the writing-skills TDD discipline for
+  the testing-of-memories pattern.
+
+## Deliverable
+
+A design document at
+`docs/superpowers/specs/YYYY-MM-DD-tiered-memory-design.md` that:
+
+- Restates the vision in your own words (verify understanding).
+- For each of the 11 open questions, proposes an answer with rationale,
+  OR explicitly defers it with the experiment needed to resolve it.
+- Sketches the data layout: directories, file formats, naming, indexes.
+- Sketches the lifecycle: write paths, regeneration paths, recall paths,
+  test execution.
+- Names what's deliberately out of scope (don't re-litigate decisions the
+  recent tier-collapse settled).
+- Identifies the smallest first slice that could be built and measured.
+
+Do not write code yet. Do not start the implementation plan. The next
+session, after the user reviews this design, will run writing-plans.
+
+## Working style
+
+- Read source code and existing notes before guessing at formats or
+  contracts.
+- Ask one clarifying question at a time when the user is available.
+- When the user isn't available, make the most defensible choice, name it
+  as a choice (not a finding), and continue.
+- Treat the vision section as constraints, not suggestions. If a
+  constraint seems wrong, surface it explicitly before designing around it.
