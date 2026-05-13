@@ -43,8 +43,19 @@ Add the plugin path to `~/.config/opencode/opencode.json`:
 
 ### Upgrading
 
-- Refresh the binary: `go install github.com/toejough/engram/cmd/engram@latest`
-- Refresh skills and commands: `git pull` in your local clone
+Run `engram update` to refresh both the binary and the harness skill/command
+files in one step. The command auto-detects local clone vs. remote module:
+
+```bash
+engram update            # install + copy
+engram update --dry-run  # show what would change
+```
+
+If you're inside a local clone, `engram update` re-runs `go install ./cmd/engram/`
+and copies the current `skills/` and `opencode/commands/` files into every
+detected harness (Claude Code at `~/.claude/`, OpenCode at `~/.config/opencode/`).
+Otherwise it pulls the latest published module via `go install …@latest` and
+copies from the module cache.
 
 ## Core loop
 

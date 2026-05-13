@@ -28,7 +28,9 @@ Engram is distributed as source — clone the repo and point OpenCode at the clo
    }
    ```
 
-To upgrade: `git pull` in the cloned directory (refreshes skills) and re-run the `go install` command above (refreshes the binary).
+To upgrade: run `engram update` (add `--dry-run` to preview). The command
+reinstalls the binary via `go install` and copies the current skill and
+command files into `~/.config/opencode/{skills,commands}/`.
 
 ## What's included
 

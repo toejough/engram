@@ -1,0 +1,349 @@
+package cli_test
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	. "github.com/onsi/gomega"
+
+	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/update"
+)
+
+func TestAnyHarnessSucceeded(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportAnyHarnessSucceeded(update.Report{})).To(BeFalse())
+	g.Expect(cli.ExportAnyHarnessSucceeded(update.Report{
+		Harnesses: []update.HarnessReport{{Err: errors.New("boom")}},
+	})).To(BeFalse())
+	g.Expect(cli.ExportAnyHarnessSucceeded(update.Report{
+		Harnesses: []update.HarnessReport{{}},
+	})).To(BeTrue())
+	g.Expect(cli.ExportAnyHarnessSucceeded(update.Report{
+		Harnesses: []update.HarnessReport{{Err: errors.New("boom")}, {}},
+	})).To(BeTrue())
+}
+
+func TestDescribeSource_UnknownMode(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("source: unknown"))
+}
+
+func TestFinishUpdate_AllHarnessesFailed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		Harnesses: []update.HarnessReport{{Name: "X", Err: errors.New("disk")}},
+	}
+
+	err := cli.ExportFinishUpdate(&buffer, report, nil)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("all detected harnesses failed"))
+}
+
+func TestFinishUpdate_HappyPath(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
+		GoInstall: "go install ./cmd/engram/",
+		Harnesses: []update.HarnessReport{{Name: "X"}},
+	}
+
+	err := cli.ExportFinishUpdate(&buffer, report, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestFinishUpdate_PropagatesRunError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	runErr := errors.New("boom")
+	err := cli.ExportFinishUpdate(&buffer, update.Report{}, runErr)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, runErr)).To(BeTrue())
+}
+
+func TestOsCommander_ReportsFailure(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	cmd := cli.ExportNewOsCommander()
+
+	_, _, err := cmd.Run(context.Background(), "false")
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestOsCommander_RunsCommand(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	cmd := cli.ExportNewOsCommander()
+
+	stdout, _, err := cmd.Run(context.Background(), "echo", "hello world")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(strings.TrimSpace(string(stdout))).To(Equal("hello world"))
+}
+
+func TestOsUpdateEnv_ReturnsValues(t *testing.T) {
+	g := NewWithT(t)
+
+	env := cli.ExportNewOsUpdateEnv()
+
+	home, homeErr := env.UserHomeDir()
+	g.Expect(homeErr).NotTo(HaveOccurred())
+	g.Expect(home).NotTo(BeEmpty())
+
+	cwd, cwdErr := env.Getwd()
+	g.Expect(cwdErr).NotTo(HaveOccurred())
+	g.Expect(cwd).NotTo(BeEmpty())
+
+	t.Setenv("ENGRAM_UPDATE_TEST", "1")
+	g.Expect(env.Getenv("ENGRAM_UPDATE_TEST")).To(Equal("1"))
+}
+
+func TestOsUpdateFS_MkdirAllOnFileErrors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	osFS := cli.ExportNewOsUpdateFS()
+
+	tmp := t.TempDir()
+	filePath := filepath.Join(tmp, "blocking")
+
+	writeErr := os.WriteFile(filePath, []byte("x"), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	// MkdirAll fails because filePath exists and is not a directory.
+	err := osFS.MkdirAll(filepath.Join(filePath, "sub"), 0o755)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// osUpdateFS round-trip tests: exercise the production adapters against
+// a tmp dir so coverage credits them.
+
+func TestOsUpdateFS_ReadDirEmpty(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	osFS := cli.ExportNewOsUpdateFS()
+
+	entries, err := osFS.ReadDir(tmp)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
+}
+
+func TestOsUpdateFS_ReadDirMissing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	osFS := cli.ExportNewOsUpdateFS()
+
+	_, err := osFS.ReadDir(filepath.Join(t.TempDir(), "nope"))
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+}
+
+func TestOsUpdateFS_ReadFileMissing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	osFS := cli.ExportNewOsUpdateFS()
+
+	_, err := osFS.ReadFile(filepath.Join(t.TempDir(), "nope"))
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestOsUpdateFS_StatMissing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	osFS := cli.ExportNewOsUpdateFS()
+
+	_, err := osFS.Stat(filepath.Join(t.TempDir(), "nope"))
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+}
+
+func TestOsUpdateFS_WriteAndRead(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	osFS := cli.ExportNewOsUpdateFS()
+	tmp := t.TempDir()
+	target := filepath.Join(tmp, "sub", "file.txt")
+	body := []byte("hello")
+
+	mkErr := osFS.MkdirAll(filepath.Dir(target), 0o755)
+	g.Expect(mkErr).NotTo(HaveOccurred())
+
+	writeErr := osFS.WriteFile(target, body, 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	got, readErr := osFS.ReadFile(target)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal(body))
+
+	info, statErr := osFS.Stat(filepath.Dir(target))
+	g.Expect(statErr).NotTo(HaveOccurred())
+
+	if statErr != nil || info == nil {
+		return
+	}
+
+	g.Expect(info.IsDir()).To(BeTrue())
+
+	entries, listErr := osFS.ReadDir(filepath.Dir(target))
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	if listErr != nil || entries == nil {
+		return
+	}
+
+	g.Expect(entries).To(HaveLen(1))
+	g.Expect(entries[0].Name()).To(Equal("file.txt"))
+	g.Expect(entries[0].IsDir()).To(BeFalse())
+}
+
+func TestOsUpdateFS_WriteToBadPathErrors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	osFS := cli.ExportNewOsUpdateFS()
+
+	// Writing to a directory path returns an error.
+	err := osFS.WriteFile(t.TempDir(), []byte("x"), 0o644)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunUpdate_DryRunFromCwd(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	stdout := &bytes.Buffer{}
+
+	// We run a dry-run against the live filesystem. The current cwd is
+	// inside the engram worktree, so source resolution will pick local
+	// mode without invoking `go install` (DryRun=true).
+	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{DryRun: true}, stdout)
+	// Result depends on the local environment: at least one of
+	// ~/.claude or ~/.config/opencode must be present, else
+	// ErrNoHarness surfaces. Accept either outcome but verify output
+	// when successful.
+	out := stdout.String()
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("update"))
+
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("[dry-run] engram update"))
+	g.Expect(out).To(ContainSubstring("source: local clone at "))
+}
+
+func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		DryRun:    true,
+		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/repo"},
+		GoInstall: "go install ./cmd/engram/",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:         update.HarnessClaude,
+				SkillsRoot:   "/home/joe/.claude/skills",
+				SkillFiles:   3,
+				CommandFiles: 0,
+			},
+			{
+				Name:         update.HarnessOpencode,
+				SkillsRoot:   "/home/joe/.config/opencode/skills",
+				CommandsRoot: "/home/joe/.config/opencode/commands",
+				SkillFiles:   3,
+				CommandFiles: 2,
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("[dry-run] engram update"))
+	g.Expect(out).To(ContainSubstring("source: local clone at /repo"))
+	g.Expect(out).To(ContainSubstring("binary: go install ./cmd/engram/"))
+	g.Expect(out).To(ContainSubstring("Claude Code (/home/joe/.claude/skills):"))
+	g.Expect(out).To(ContainSubstring("skills: 3 file(s)"))
+	g.Expect(out).To(ContainSubstring("commands: 2 file(s)"))
+	g.Expect(out).To(ContainSubstring("[dry-run] installed: Claude Code, OpenCode"))
+}
+
+func TestWriteUpdateReport_RemoteHarnessFailure(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Source:    update.SourceInfo{Mode: update.SourceRemote, Version: "v0.2.0"},
+		GoInstall: "go install github.com/toejough/engram/cmd/engram@latest",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:       update.HarnessClaude,
+				SkillsRoot: "/home/joe/.claude/skills",
+				Err:        errors.New("disk full"),
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("source: remote module github.com/toejough/engram v0.2.0"))
+	g.Expect(out).To(ContainSubstring("error: disk full"))
+	g.Expect(out).NotTo(ContainSubstring("installed:"))
+}

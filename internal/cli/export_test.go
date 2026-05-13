@@ -9,8 +9,10 @@ import (
 
 // Exported variables.
 var (
+	ExportAnyHarnessSucceeded        = anyHarnessSucceeded
 	ExportBuildAndInstall            = buildAndInstall
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
+	ExportFinishUpdate               = finishUpdate
 	ExportLearnPath                  = learnPath
 	ExportMarshalFrontmatter         = marshalFrontmatter
 	ExportNewErrHandler              = newErrHandler
@@ -25,7 +27,9 @@ var (
 	ExportResolveVault               = resolveVault
 	ExportRunBuildSelf               = runBuildSelf
 	ExportRunLearn                   = runLearn
+	ExportRunUpdate                  = runUpdate
 	ExportValidateSlug               = validateSlug
+	ExportWriteUpdateReport          = writeUpdateReport
 )
 
 // Exported types.
@@ -46,6 +50,9 @@ func ExportEmitTranscripts(
 	return emitTranscripts(reader, entries, stdout)
 }
 
+// ExportNewOsCommander returns the production Commander adapter for testing.
+func ExportNewOsCommander() *osCommander { return &osCommander{} }
+
 // ExportNewOsDirLister creates an osDirLister for testing.
 func ExportNewOsDirLister() transcript.DirLister {
 	return &osDirLister{}
@@ -60,6 +67,12 @@ func ExportNewOsFileReader() interface {
 
 // ExportNewOsLearnFS returns the production osLearnFS adapter for testing.
 func ExportNewOsLearnFS() *osLearnFS { return &osLearnFS{} }
+
+// ExportNewOsUpdateEnv returns the production Env adapter for testing.
+func ExportNewOsUpdateEnv() *osUpdateEnv { return &osUpdateEnv{} }
+
+// ExportNewOsUpdateFS returns the production Filesystem adapter for testing.
+func ExportNewOsUpdateFS() *osUpdateFS { return &osUpdateFS{} }
 
 // ExportNewOsVaultFS returns the production osVaultFS adapter for testing.
 func ExportNewOsVaultFS() interface {
