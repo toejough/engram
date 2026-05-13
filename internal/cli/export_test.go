@@ -51,6 +51,18 @@ func ExportEmitTranscripts(
 	return emitTranscripts(reader, entries, math.MaxInt32, stdout)
 }
 
+// EmitTranscriptsForTest is an exported entry point so the cli_test package can
+// exercise emitTranscripts directly without going through the full runTranscript
+// flow. Production code does not call this.
+func EmitTranscriptsForTest(
+	reader transcript.Reader,
+	entries []transcript.FileEntry,
+	maxBytes int,
+	stdout io.Writer,
+) error {
+	return emitTranscripts(reader, entries, maxBytes, stdout)
+}
+
 // ExportNewOsCommander returns the production Commander adapter for testing.
 func ExportNewOsCommander() *osCommander { return &osCommander{} }
 

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -371,4 +373,46 @@ func writeTranscriptFixture(g Gomega, dir, name, line string, mtime time.Time) {
 
 	g.Expect(os.WriteFile(filePath, []byte(line+"\n"), 0o600)).To(Succeed())
 	g.Expect(os.Chtimes(filePath, mtime, mtime)).To(Succeed())
+}
+
+// fakeReader is a test-local Reader that returns content from a map.
+type fakeReader struct{ contents map[string]string }
+
+func (f *fakeReader) Read(path string, _ int) (string, int, error) {
+	c, ok := f.contents[path]
+	if !ok {
+		return "", 0, fmt.Errorf("fakeReader: no content for %s", path)
+	}
+	return c, len(c), nil
+}
+
+func TestEmitTranscripts_DropsOldestWhenOverCap(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Three 100-byte entries; cap at 150 should keep only the newest.
+	mkContent := func(prefix string) string { return prefix + strings.Repeat("x", 99) }
+	reader := &fakeReader{contents: map[string]string{
+		"/a": mkContent("A"),
+		"/b": mkContent("B"),
+		"/c": mkContent("C"),
+	}}
+	entries := []transcript.FileEntry{
+		{Path: "/a", Mtime: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)},
+		{Path: "/b", Mtime: time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC)},
+		{Path: "/c", Mtime: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)},
+	}
+
+	var buf bytes.Buffer
+	err := cli.EmitTranscriptsForTest(reader, entries, 150, &buf)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	out := buf.String()
+	g.Expect(out).To(ContainSubstring("dropped 2 oldest"))
+	g.Expect(out).To(ContainSubstring("C"))
+	g.Expect(out).NotTo(ContainSubstring("A"))
+	g.Expect(out).NotTo(ContainSubstring("B"))
 }
