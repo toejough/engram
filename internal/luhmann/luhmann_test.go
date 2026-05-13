@@ -46,6 +46,22 @@ func TestLess_LuhmannLetterOrder(t *testing.T) {
 	g.Expect(luhmann.Less("1zz", "1aaa")).To(BeTrue(), "zz should sort before aaa")
 }
 
+// TestLetterLess_LuhmannOrder pins the contract of the shared comparator
+// used by Less and (in internal/cli) maxLetterSeg. Length-first, then lex
+// within equal length. The cardinal cases match nextLetter's rollover.
+func TestLetterLess_LuhmannOrder(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(luhmann.LetterLess("z", "aa")).To(BeTrue())
+	g.Expect(luhmann.LetterLess("aa", "ab")).To(BeTrue())
+	g.Expect(luhmann.LetterLess("az", "ba")).To(BeTrue())
+	g.Expect(luhmann.LetterLess("zz", "aaa")).To(BeTrue())
+	g.Expect(luhmann.LetterLess("aa", "aa")).To(BeFalse())
+	g.Expect(luhmann.LetterLess("aa", "z")).To(BeFalse())
+}
+
 func TestParseID_AlternatingSegments(t *testing.T) {
 	t.Parallel()
 

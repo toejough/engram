@@ -65,15 +65,13 @@ func maxDigitSeg(segs []string) int {
 }
 
 // maxLetterSeg returns the lexically-largest letter segment ("" if none).
-// maxLetterSeg returns the lexically-largest letter segment in Luhmann order
-// (length-first, then lex). Pure lexical "z" < "aa" — but Luhmann ordering
-// goes a..z, aa..az, ba..bz, ..., zz, aaa, ..., so "aa" comes after "z".
-// Using length first preserves that ordering; ties broken by lex.
+// maxLetterSeg returns the largest letter segment in Luhmann order — see
+// luhmann.LetterLess for the ordering rule.
 func maxLetterSeg(segs []string) string {
 	maxL := ""
 
 	for _, seg := range segs {
-		if len(seg) > len(maxL) || (len(seg) == len(maxL) && seg > maxL) {
+		if luhmann.LetterLess(maxL, seg) {
 			maxL = seg
 		}
 	}
