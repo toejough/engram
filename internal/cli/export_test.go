@@ -10,13 +10,13 @@ import (
 // Exported variables.
 var (
 	ExportAnyHarnessSucceeded        = anyHarnessSucceeded
-	ExportBuildAndInstall            = buildAndInstall
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
 	ExportFinishUpdate               = finishUpdate
 	ExportLearnPath                  = learnPath
 	ExportMarshalFrontmatter         = marshalFrontmatter
 	ExportNewErrHandler              = newErrHandler
 	ExportNextLuhmannID              = nextLuhmannID
+	ExportPluralFile                 = pluralFile
 	ExportRenderFactBody             = renderFactBody
 	ExportRenderFactFrontmatter      = renderFactFrontmatter
 	ExportRenderFeedbackBody         = renderFeedbackBody
@@ -25,9 +25,9 @@ var (
 	ExportRenderMOCFrontmatter       = renderMOCFrontmatter
 	ExportRenderRelatedSection       = renderRelatedSection
 	ExportResolveVault               = resolveVault
-	ExportRunBuildSelf               = runBuildSelf
 	ExportRunLearn                   = runLearn
 	ExportRunUpdate                  = runUpdate
+	ExportTildify                    = tildify
 	ExportValidateSlug               = validateSlug
 	ExportWriteUpdateReport          = writeUpdateReport
 )

@@ -2,7 +2,7 @@
 
 **Branch:** `opencode-plugin` (continuing the in-flight body of work — Luhmann utilities and promote machinery already live here).
 
-**Goal:** Add `engram starting-points [--vault <path>]` that emits one wikilink per line: every MOC, plus the in-degree winner (Luhmann tie-break) of each MOC-less connected component. Then update the `recalling-from-vault` skill to consume it.
+**Goal:** Add `engram starting-points [--vault <path>]` that emits one wikilink per line: every MOC, plus the in-degree winner (Luhmann tie-break) of each MOC-less connected component. Then update the `recall` skill to consume it.
 
 ---
 
@@ -172,7 +172,7 @@ Expected: every MOC ([[5.2026-05-09.llm-rationalization-patterns]], [[7.2026-05-
 
 ## Skill update (Phase 7)
 
-`/Users/joe/.claude/skills/recalling-from-vault/SKILL.md` — edited via `superpowers:writing-skills` (TDD: baseline test → edit → pressure test).
+`skills/recall/SKILL.md` (symlinked into `~/.claude/skills/recall/`) — edited via `superpowers:writing-skills` (TDD: baseline test → edit → pressure test).
 
 Changes:
 1. Replace the "read MOCs and orphans" cascade entry with: "Shell out to `engram starting-points --vault <path>`. The binary returns one wikilink per starting point — every MOC plus one anchor per MOC-unreachable component. Read each emitted note. Traverse outgoing wikilinks adaptively from there."
@@ -186,7 +186,7 @@ This is a separate commit in the skills directory (not part of the engram PR).
 
 ## Risks & open questions
 
-- **Skill repo isn't in this engram tree.** The skills dir at `/Users/joe/.claude/skills/recalling-from-vault/` is its own thing. Skill update commit goes there. #612 doesn't fully close until both ship — captured in #612's acceptance criteria.
+- **Skill lives in this repo now.** `skills/recall/` is symlinked into `~/.claude/skills/recall/`, so the skill update lands in the same engram PR as the binary work — no separate skills-repo commit needed.
 - **Existing `extractLuhmannFromFilename` in promote.go** is similar to the filename parser I'd write for vaultgraph. Can be lifted/shared via the new `internal/luhmann/` package if the code reads cleanly that way; otherwise duplicate the small regex.
 - **Relationship to in-flight opencode-plugin work.** Building on the existing branch is correct (per user). When this branch eventually merges, both #612 and the existing promote work land together.
 

@@ -121,7 +121,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		g.Expect(targets).To(gomega.HaveLen(5))
+		g.Expect(targets).To(gomega.HaveLen(4))
 	})
 
 	t.Run("invokes learn feedback closure", func(t *testing.T) {
@@ -254,14 +254,11 @@ func TestTargets(t *testing.T) {
 		})
 	})
 
-	t.Run("invokes build-self closure with stale check on missing bin", func(t *testing.T) {
+	t.Run("invokes update closure in dry-run mode", func(t *testing.T) {
 		t.Parallel()
 
-		// Use a non-existent plugin-root; build-self errors but the closure executes.
 		_ = executeForTest(t, []string{
-			"engram", "build-self", "--plugin-root", "/nonexistent/plugin/root",
-			"--bin-path", filepath.Join(t.TempDir(), "engram"),
-			"--if-stale",
+			"engram", "update", "--dry-run",
 		})
 	})
 }

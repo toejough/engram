@@ -106,15 +106,35 @@ Union the outputs. These are the initial files to evaluate.
 
 **Contradictions.** If two surfaced notes make incompatible claims about the same thing, mark them. The vault preserves contradictions; recall surfaces both, never picks a side.
 
-### Step 4 — Synthesize for context injection
+### Step 4 — Synthesize: two outputs, different destinations
 
-Format for an LLM reader (the parent agent). Wikilinks are required — the parent may re-read source notes for depth. Stay human-readable too.
+This step produces two things that go to different places. Do not conflate them.
+
+#### 4a. Structured form → agent context, NOT the user's screen
+
+The full sectioned block (vault state, query matches, situational matches, fleetings, contradictions, with wikilinks) is for the parent LLM's working context only. It is already present as tool-call results from the cascade — your subagent(s) returned it. **Do not re-emit it as your user-facing reply.** Wikilinks, "Context:" excerpts, and the Contradictions section never appear in the user-visible reply.
+
+If the structured block hasn't been materialized anywhere (e.g., the cascade went direct-read and no subagent assembled it), have your *last* cascade subagent assemble it and return it — don't compose it in the parent reply, because composing it there leaks it to the user.
+
+#### 4b. User-facing reply → short bulleted prose synthesis
+
+This is the only thing the user sees. Rules — non-negotiable:
+
+- **≤10 lines total.** Hard cap.
+- **Bullets, paraphrased prose.** No section headers. No tables.
+- **No wikilinks.** No `[[note-id]]`. Name notes only by what they *say*, not by their filename.
+- **No contradictions section.** Contradictions stay in the structured form (4a) — if a contradiction is load-bearing for the user's next action, mention it as one bullet in plain prose.
+- **No `(no matches)` placeholders** and no "from your query / from your situation" framing. Just bullets.
+- One optional leading sentence naming the mode and rough scope (e.g., "No-arg recap surfaced ~25 notes; highlights:"). Then bullets.
+- If nothing surfaced, say so in one sentence and stop.
+
+#### Other rules (apply to the structured form in 4a)
 
 **If a note matches both the explicit query and a situational feature**, surface it once under the more specifically relevant section and list both signals (e.g., add a `Also matches: <feature>` line). Don't duplicate the same note under two sections.
 
 **Fleetings get their own section.** Fleetings are raw observation, not principle-stated; surface them under `### From recent fleetings` with the observation as-written. Don't translate to a principle.
 
-**Output template** (use the structure; phrase content naturally):
+**Structured-form template** (internal — for 4a, not the user-facing reply):
 
 ```
 ## Recall — <mode>
@@ -145,7 +165,20 @@ Format for an LLM reader (the parent agent). Wikilinks are required — the pare
   <one-line summary of the disagreement>
 ```
 
-Empty section — write `(no matches)` rather than omitting. Exception: if a section is empty *because* its matches were consolidated under another section per the dedup rule above, write `(matches consolidated above)`.
+Empty section in the structured form (4a) — write `(no matches)` rather than omitting. Exception: if a section is empty *because* its matches were consolidated under another section per the dedup rule above, write `(matches consolidated above)`. These placeholders are for the structured form only; they never appear in the user-facing reply (4b).
+
+#### Red flags — STOP, you are leaking the structured form
+
+If you catch yourself doing any of these in your user-facing reply, rewrite it as 4b bullets:
+
+| Sign you're leaking | What you should be doing |
+|---------------------|--------------------------|
+| Writing `[[…]]` wikilinks in the reply | Paraphrase the claim; no wikilinks in 4b |
+| Writing a `### Contradictions` section | Contradictions stay in 4a; mention only if load-bearing, as one prose bullet |
+| Writing `### From your query` / `### From your situation` headers | No section headers in 4b — just bullets |
+| Writing `Context:` excerpts under each bullet | Excerpts belong to 4a only |
+| Reply is >10 lines | Cut. Hard cap. |
+| Writing `(no matches)` or `(matches consolidated above)` in the reply | Those are 4a placeholders; in 4b just omit empty topics |
 
 ## Failure modes
 

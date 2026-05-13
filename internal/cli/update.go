@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -131,12 +132,26 @@ func anyHarnessSucceeded(report update.Report) bool {
 	return slices.ContainsFunc(report.Harnesses, harnessOK)
 }
 
-func describeSource(source update.SourceInfo) string {
-	switch source.Mode {
+func describeBinary(report update.Report) string {
+	if report.DryRun {
+		return report.GoInstall
+	}
+
+	suffix := "engram"
+	if report.BinaryVersion != "" {
+		suffix = "engram " + report.BinaryVersion
+	}
+
+	return fmt.Sprintf("%s ... ok (%s → %s)",
+		report.GoInstall, suffix, tildify(report.BinaryPath, report.Home))
+}
+
+func describeSource(report update.Report, home string) string {
+	switch report.Source.Mode {
 	case update.SourceLocal:
-		return "local clone at " + source.Root
+		return "local clone at " + tildify(report.Source.Root, home)
 	case update.SourceRemote:
-		return "remote module " + update.ModulePath + " " + source.Version
+		return "remote module " + update.ModulePath + " " + report.Source.Version
 	default:
 		return "unknown"
 	}
@@ -162,6 +177,14 @@ func finishUpdate(stdout io.Writer, report update.Report, runErr error) error {
 
 func harnessOK(harness update.HarnessReport) bool { return harness.Err == nil }
 
+func pluralFile(n int) string {
+	if n == 1 {
+		return "file"
+	}
+
+	return "files"
+}
+
 // runUpdate wires production adapters and invokes Updater.Run.
 func runUpdate(ctx context.Context, args UpdateArgs, stdout io.Writer) error {
 	updater := &update.Updater{
@@ -175,6 +198,61 @@ func runUpdate(ctx context.Context, args UpdateArgs, stdout io.Writer) error {
 	return finishUpdate(stdout, report, runErr)
 }
 
+// tildify replaces a leading home path with "~" for spec-style output.
+func tildify(path, home string) string {
+	if home == "" || !strings.HasPrefix(path, home) {
+		return path
+	}
+
+	return "~" + strings.TrimPrefix(path, home)
+}
+
+func writeCommandRows(buffer *bytes.Buffer, harness update.HarnessReport, home string) {
+	if harness.CommandsRoot == "" {
+		return
+	}
+
+	for _, name := range harness.CommandFiles {
+		dst := filepath.Join(harness.CommandsRoot, name)
+		fmt.Fprintf(buffer, "    opencode/commands/%s → %s\n", name, tildify(dst, home))
+	}
+}
+
+func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
+	successes := make([]string, 0, len(report.Harnesses))
+
+	for _, harness := range report.Harnesses {
+		fmt.Fprintf(buffer, "  %s (%s):\n",
+			harness.Name,
+			tildify(filepath.Join(report.Home, harness.ProbeRoot)+string(filepath.Separator), report.Home),
+		)
+
+		if harness.Err != nil {
+			fmt.Fprintf(buffer, "    error: %v\n", harness.Err)
+
+			continue
+		}
+
+		writeSkillRows(buffer, harness, report.Home)
+		writeCommandRows(buffer, harness, report.Home)
+		successes = append(successes, string(harness.Name))
+	}
+
+	return successes
+}
+
+func writeSkillRows(buffer *bytes.Buffer, harness update.HarnessReport, home string) {
+	for _, dirCount := range harness.SkillDirs {
+		dst := filepath.Join(harness.SkillsRoot, dirCount.Name) + string(filepath.Separator)
+		fmt.Fprintf(buffer, "    skills/%s/ → %s  (%d %s)\n",
+			dirCount.Name,
+			tildify(dst, home),
+			dirCount.Files,
+			pluralFile(dirCount.Files),
+		)
+	}
+}
+
 func writeUpdateReport(out io.Writer, report update.Report) error {
 	var buffer bytes.Buffer
 
@@ -184,28 +262,10 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	}
 
 	fmt.Fprintf(&buffer, "%sengram update\n", prefix)
-	fmt.Fprintf(&buffer, "  source: %s\n", describeSource(report.Source))
-	fmt.Fprintf(&buffer, "  binary: %s\n", report.GoInstall)
+	fmt.Fprintf(&buffer, "  source: %s\n", describeSource(report, report.Home))
+	fmt.Fprintf(&buffer, "  binary: %s\n", describeBinary(report))
 
-	successes := make([]string, 0, len(report.Harnesses))
-
-	for _, harness := range report.Harnesses {
-		fmt.Fprintf(&buffer, "  %s (%s):\n", harness.Name, harness.SkillsRoot)
-
-		if harness.Err != nil {
-			fmt.Fprintf(&buffer, "    error: %v\n", harness.Err)
-
-			continue
-		}
-
-		fmt.Fprintf(&buffer, "    skills: %d file(s)\n", harness.SkillFiles)
-
-		if harness.CommandsRoot != "" {
-			fmt.Fprintf(&buffer, "    commands: %d file(s)\n", harness.CommandFiles)
-		}
-
-		successes = append(successes, string(harness.Name))
-	}
+	successes := writeHarnessSections(&buffer, report)
 
 	if len(successes) > 0 {
 		fmt.Fprintf(&buffer, "%sinstalled: %s\n", prefix, strings.Join(successes, ", "))

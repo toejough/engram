@@ -53,7 +53,7 @@ A single L2 note may appear in MOCs along multiple dimensions.
 A user query "what do we know about X" with no direct L3/L2 hit should not
 return empty. The system descends — through related L3 nodes, into related
 L2 facts, into L1/L0 if warranted — searching for an un-noticed pattern.
-On finding one, it writes new L2 facts and *may* cascade upward into L3+
+On finding one, it writes new L2 facts and _may_ cascade upward into L3+
 regeneration. Cascade depth depends on impact; small patterns don't redraw
 the top of the hourglass.
 
@@ -69,7 +69,7 @@ inherited from the engram codebase:
 
 - Pure Go, no CGO (rules out ONNX runtime, FAISS bindings, etc.).
 - No LLM calls from the binary — keep `engram recall` snappy and offline.
-- External embedding API at *write* time is acceptable; the binary should
+- External embedding API at _write_ time is acceptable; the binary should
   query precomputed vectors at read time.
 
 Design dimensions to explore:
@@ -168,7 +168,7 @@ needed to resolve each.
    L0 reads raw JSONL, which is expensive; what gates that?
 
 10. **Migration.** The existing vault has Luhmann-IDed Permanent notes
-    and several MOCs. How do they map onto L2 vs L3? Is migration
+    and several MOCs. How do they ma tp onto L2 vs L3? Is migration
     automatic, scripted, or done by re-running /learn against L0?
 
 11. **Failure modes.** What does this system look like when broken —
@@ -184,8 +184,8 @@ needed to resolve each.
 
 ## Prior art to survey
 
-- Zettelkasten — Niklas Luhmann's original, plus Sönke Ahrens (*How to Take
-  Smart Notes*). Confirm what's being kept vs. dropped.
+- Zettelkasten — Niklas Luhmann's original, plus Sönke Ahrens (_How to Take
+  Smart Notes_). Confirm what's being kept vs. dropped.
 - LLM long-term memory papers: MemGPT (Letta), Generative Agents (Park et
   al. 2023, the Smallville paper) — both stratify memory by abstraction
   level with reflection/synthesis cycles. Compare their tiering.

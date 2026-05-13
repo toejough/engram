@@ -252,6 +252,16 @@ func TestOsUpdateFS_WriteToBadPathErrors(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestPluralFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportPluralFile(0)).To(Equal("files"))
+	g.Expect(cli.ExportPluralFile(1)).To(Equal("file"))
+	g.Expect(cli.ExportPluralFile(2)).To(Equal("files"))
+}
+
 func TestRunUpdate_DryRunFromCwd(t *testing.T) {
 	t.Parallel()
 
@@ -279,6 +289,16 @@ func TestRunUpdate_DryRunFromCwd(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("source: local clone at "))
 }
 
+func TestTildify(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportTildify("/home/joe/x", "/home/joe")).To(Equal("~/x"))
+	g.Expect(cli.ExportTildify("/other/x", "/home/joe")).To(Equal("/other/x"))
+	g.Expect(cli.ExportTildify("/home/joe/x", "")).To(Equal("/home/joe/x"))
+}
+
 func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
 	t.Parallel()
 
@@ -286,21 +306,29 @@ func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
 
 	report := update.Report{
 		DryRun:    true,
-		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/repo"},
+		Home:      "/home/joe",
+		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/home/joe/src/engram"},
 		GoInstall: "go install ./cmd/engram/",
 		Harnesses: []update.HarnessReport{
 			{
-				Name:         update.HarnessClaude,
-				SkillsRoot:   "/home/joe/.claude/skills",
-				SkillFiles:   3,
-				CommandFiles: 0,
+				Name:       update.HarnessClaude,
+				ProbeRoot:  ".claude",
+				SkillsRoot: "/home/joe/.claude/skills",
+				SkillDirs: []update.SkillDirCount{
+					{Name: "learn", Files: 3},
+					{Name: "recall", Files: 1},
+				},
 			},
 			{
 				Name:         update.HarnessOpencode,
+				ProbeRoot:    ".config/opencode",
 				SkillsRoot:   "/home/joe/.config/opencode/skills",
 				CommandsRoot: "/home/joe/.config/opencode/commands",
-				SkillFiles:   3,
-				CommandFiles: 2,
+				SkillDirs: []update.SkillDirCount{
+					{Name: "learn", Files: 3},
+					{Name: "recall", Files: 1},
+				},
+				CommandFiles: []string{"learn.md", "recall.md"},
 			},
 		},
 	}
@@ -312,12 +340,68 @@ func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
 
 	out := buffer.String()
 	g.Expect(out).To(ContainSubstring("[dry-run] engram update"))
-	g.Expect(out).To(ContainSubstring("source: local clone at /repo"))
+	g.Expect(out).To(ContainSubstring("source: local clone at ~/src/engram"))
 	g.Expect(out).To(ContainSubstring("binary: go install ./cmd/engram/"))
-	g.Expect(out).To(ContainSubstring("Claude Code (/home/joe/.claude/skills):"))
-	g.Expect(out).To(ContainSubstring("skills: 3 file(s)"))
-	g.Expect(out).To(ContainSubstring("commands: 2 file(s)"))
+	g.Expect(out).To(ContainSubstring("Claude Code (~/.claude/):"))
+	g.Expect(out).To(ContainSubstring("skills/learn/ → ~/.claude/skills/learn/  (3 files)"))
+	g.Expect(out).To(ContainSubstring("skills/recall/ → ~/.claude/skills/recall/  (1 file)"))
+	g.Expect(out).To(ContainSubstring("opencode/commands/learn.md → ~/.config/opencode/commands/learn.md"))
 	g.Expect(out).To(ContainSubstring("[dry-run] installed: Claude Code, OpenCode"))
+}
+
+func TestWriteUpdateReport_RealRunLocalNoVersion(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Home:       "/home/joe",
+		Source:     update.SourceInfo{Mode: update.SourceLocal, Root: "/home/joe/src/engram"},
+		GoInstall:  "go install ./cmd/engram/",
+		BinaryPath: "/home/joe/go/bin/engram",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:       update.HarnessClaude,
+				ProbeRoot:  ".claude",
+				SkillsRoot: "/home/joe/.claude/skills",
+				SkillDirs:  []update.SkillDirCount{{Name: "learn", Files: 3}},
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("binary: go install ./cmd/engram/ ... ok (engram → ~/go/bin/engram)"))
+}
+
+func TestWriteUpdateReport_RealRunRemoteVersionAndBinary(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Home:          "/home/joe",
+		Source:        update.SourceInfo{Mode: update.SourceRemote, Version: "v0.2.0"},
+		GoInstall:     "go install github.com/toejough/engram/cmd/engram@latest",
+		BinaryPath:    "/home/joe/go/bin/engram",
+		BinaryVersion: "v0.2.0",
+		Harnesses: []update.HarnessReport{
+			{Name: update.HarnessClaude, ProbeRoot: ".claude", SkillsRoot: "/home/joe/.claude/skills"},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("ok (engram v0.2.0 → ~/go/bin/engram)"))
+	g.Expect(out).To(ContainSubstring("source: remote module github.com/toejough/engram v0.2.0"))
 }
 
 func TestWriteUpdateReport_RemoteHarnessFailure(t *testing.T) {

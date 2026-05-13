@@ -109,9 +109,6 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 				errHandler(runLearnFromMOCArgs(withLog(ctx), a, stdout))
 			}).Name("moc").Description("Write a MOC note to MOCs/"),
 		),
-		targ.Targ(func(ctx context.Context, a BuildSelfArgs) {
-			errHandler(runBuildSelf(withLog(ctx), a, stdout))
-		}).Name("build-self").Description("Build the engram binary"),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
 			errHandler(runUpdate(withLog(ctx), a, stdout))
 		}).Name("update").Description("Refresh engram binary and harness skills"),

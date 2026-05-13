@@ -43,10 +43,15 @@ type Commander interface {
 }
 
 // CopyOp describes a single source→target file copy planned for a harness.
+// SkillDir is the top-level skill subdir name (e.g. "learn") when the file
+// belongs to a skill, empty otherwise. CommandFile is the basename when the
+// file is a command .md, empty otherwise. Exactly one of these is set.
 type CopyOp struct {
-	Harness Harness
-	Src     string
-	Dst     string
+	Harness     Harness
+	Src         string
+	Dst         string
+	SkillDir    string
+	CommandFile string
 }
 
 // DirEntry is the subset of fs.DirEntry used by Updater.
@@ -83,10 +88,11 @@ type Harness string
 // HarnessReport summarizes one harness install attempt.
 type HarnessReport struct {
 	Name         Harness
-	SkillsRoot   string
-	CommandsRoot string
-	SkillFiles   int
-	CommandFiles int
+	ProbeRoot    string // home-relative harness root, e.g. ".claude"
+	SkillsRoot   string // absolute skills install dir
+	CommandsRoot string // absolute commands install dir (empty if harness has no commands)
+	SkillDirs    []SkillDirCount
+	CommandFiles []string // basenames of .md files copied
 	Err          error
 }
 
@@ -105,10 +111,19 @@ type Options struct {
 
 // Report is the final outcome of Updater.Run, suitable for formatting.
 type Report struct {
-	DryRun    bool
-	Source    SourceInfo
-	GoInstall string // command line invoked (or planned)
-	Harnesses []HarnessReport
+	DryRun        bool
+	Home          string // user home (so the CLI can tildify paths)
+	Source        SourceInfo
+	GoInstall     string // command line invoked (or planned)
+	BinaryPath    string // resolved install location, e.g. /Users/joe/go/bin/engram
+	BinaryVersion string // resolved engram version, empty when unknown
+	Harnesses     []HarnessReport
+}
+
+// SkillDirCount records how many files were copied into one skill dir.
+type SkillDirCount struct {
+	Name  string // top-level skill dir name, e.g. "learn"
+	Files int    // number of files copied into <skills-root>/<Name>/
 }
 
 // SourceInfo describes where the binary was installed from and where the
@@ -135,6 +150,9 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 		return report, fmt.Errorf("resolving home: %w", homeErr)
 	}
 
+	report.Home = home
+	report.BinaryPath = resolveBinaryPath(home, u.Env)
+
 	harnesses, detectErr := detectHarnesses(home, u.FS)
 	if detectErr != nil {
 		return report, fmt.Errorf("detecting harnesses: %w", detectErr)
@@ -151,6 +169,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 
 	report.Source = source
 	report.GoInstall = describeGoInstall(source)
+	report.BinaryVersion = source.Version // local mode leaves this empty
 
 	srcSkills := filepath.Join(source.Root, "skills")
 	srcCommands := filepath.Join(source.Root, "opencode", "commands")
@@ -176,6 +195,9 @@ func (u *Updater) applyForHarness(
 	skillOps, cmdOps []CopyOp,
 	dryRun bool,
 ) {
+	skillCounts := map[string]int{}
+	skillOrder := make([]string, 0)
+
 	for _, copyOp := range skillOps {
 		if copyOp.Harness != name {
 			continue
@@ -184,12 +206,19 @@ func (u *Updater) applyForHarness(
 		applyErr := u.applyOne(copyOp, dryRun)
 		if applyErr != nil {
 			rep.Err = applyErr
+			rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts)
 
 			return
 		}
 
-		rep.SkillFiles++
+		if _, seen := skillCounts[copyOp.SkillDir]; !seen {
+			skillOrder = append(skillOrder, copyOp.SkillDir)
+		}
+
+		skillCounts[copyOp.SkillDir]++
 	}
+
+	rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts)
 
 	for _, copyOp := range cmdOps {
 		if copyOp.Harness != name {
@@ -203,7 +232,7 @@ func (u *Updater) applyForHarness(
 			return
 		}
 
-		rep.CommandFiles++
+		rep.CommandFiles = append(rep.CommandFiles, copyOp.CommandFile)
 	}
 }
 
@@ -244,6 +273,7 @@ func (u *Updater) applyOps(
 	for _, spec := range harnesses {
 		rep := HarnessReport{
 			Name:         spec.Name,
+			ProbeRoot:    spec.ProbeRel,
 			SkillsRoot:   filepath.Join(home, spec.SkillsTargetRel),
 			CommandsRoot: cmdRootFor(spec, home),
 		}
@@ -332,6 +362,16 @@ func cmdRootFor(spec HarnessSpec, home string) string {
 	}
 
 	return filepath.Join(home, spec.CommandsTargetRel)
+}
+
+func collectSkillDirs(order []string, counts map[string]int) []SkillDirCount {
+	out := make([]SkillDirCount, 0, len(order))
+
+	for _, name := range order {
+		out = append(out, SkillDirCount{Name: name, Files: counts[name]})
+	}
+
+	return out
 }
 
 func describeGoInstall(source SourceInfo) string {
@@ -479,9 +519,10 @@ func planCommandCopies(
 
 		for _, name := range cmdFiles {
 			ops = append(ops, CopyOp{
-				Harness: spec.Name,
-				Src:     filepath.Join(srcCommands, name),
-				Dst:     filepath.Join(dstRoot, name),
+				Harness:     spec.Name,
+				Src:         filepath.Join(srcCommands, name),
+				Dst:         filepath.Join(dstRoot, name),
+				CommandFile: name,
 			})
 		}
 	}
@@ -509,14 +550,29 @@ func planSkillCopies(
 
 		for _, rel := range files {
 			ops = append(ops, CopyOp{
-				Harness: spec.Name,
-				Src:     filepath.Join(srcSkills, rel),
-				Dst:     filepath.Join(dstRoot, rel),
+				Harness:  spec.Name,
+				Src:      filepath.Join(srcSkills, rel),
+				Dst:      filepath.Join(dstRoot, rel),
+				SkillDir: topLevelDir(rel),
 			})
 		}
 	}
 
 	return ops, nil
+}
+
+// resolveBinaryPath returns where `go install` will drop the engram binary.
+// Order matches the go toolchain: GOBIN, then GOPATH/bin, then ~/go/bin.
+func resolveBinaryPath(home string, env Env) string {
+	if gobin := env.Getenv("GOBIN"); gobin != "" {
+		return filepath.Join(gobin, "engram")
+	}
+
+	if gopath := env.Getenv("GOPATH"); gopath != "" {
+		return filepath.Join(gopath, "bin", "engram")
+	}
+
+	return filepath.Join(home, "go", "bin", "engram")
 }
 
 // supportedHarnesses returns the canonical list in install order.
@@ -534,6 +590,13 @@ func supportedHarnesses() []HarnessSpec {
 			CommandsTargetRel: filepath.Join(".config", "opencode", "commands"),
 		},
 	}
+}
+
+// topLevelDir returns the first path segment of rel (skill-dir name).
+func topLevelDir(rel string) string {
+	first, _, _ := strings.Cut(rel, string(filepath.Separator))
+
+	return first
 }
 
 func walkFilesRecursive(dir, rel string, fileSystem Filesystem, files *[]string) error {

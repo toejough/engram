@@ -132,7 +132,7 @@ func TestUpdater_Run_DryRun_NoWritesNoCommands(t *testing.T) {
 	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(report.DryRun).To(BeTrue())
-	g.Expect(report.Harnesses[0].SkillFiles).To(Equal(1))
+	g.Expect(skillFileCount(report.Harnesses[0])).To(Equal(1))
 	// No real writes occurred.
 	g.Expect(fileSystem.written).To(BeEmpty())
 	// No commands invoked.
@@ -221,7 +221,7 @@ func TestUpdater_Run_Local_HappyPath(t *testing.T) {
 	g.Expect(report.Source.Root).To(Equal("/repo"))
 	g.Expect(report.Harnesses).To(HaveLen(1))
 	g.Expect(report.Harnesses[0].Name).To(Equal(update.HarnessClaude))
-	g.Expect(report.Harnesses[0].SkillFiles).To(Equal(2))
+	g.Expect(skillFileCount(report.Harnesses[0])).To(Equal(2))
 	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
 
 	// Confirm files written under home, not under repo.
@@ -269,8 +269,8 @@ func TestUpdater_Run_Local_OpencodeOnly_CopiesCommands(t *testing.T) {
 	}
 
 	g.Expect(report.Harnesses[0].Name).To(Equal(update.HarnessOpencode))
-	g.Expect(report.Harnesses[0].SkillFiles).To(Equal(1))
-	g.Expect(report.Harnesses[0].CommandFiles).To(Equal(2))
+	g.Expect(skillFileCount(report.Harnesses[0])).To(Equal(1))
+	g.Expect(report.Harnesses[0].CommandFiles).To(HaveLen(2))
 
 	_, ok := fileSystem.written["/home/joe/.config/opencode/commands/recall.md"]
 	g.Expect(ok).To(BeTrue())
@@ -531,4 +531,14 @@ func (f *fakeEnv) UserHomeDir() (string, error) {
 	}
 
 	return f.home, nil
+}
+
+func skillFileCount(h update.HarnessReport) int {
+	total := 0
+
+	for _, d := range h.SkillDirs {
+		total += d.Files
+	}
+
+	return total
 }
