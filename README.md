@@ -7,7 +7,7 @@
 
 ## Overview
 
-Engram is a plugin for **Claude Code** and **OpenCode** that gives agents persistent memory. Three skills help agents prepare for work, recall context, and learn from experience (autonomously or on explicit cue).
+Engram is a plugin for **Claude Code** and **OpenCode** that gives agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand.
 
 ## Installing
 
@@ -57,337 +57,63 @@ detected harness (Claude Code at `~/.claude/`, OpenCode at `~/.config/opencode/`
 Otherwise it pulls the latest published module via `go install …@latest` and
 copies from the module cache.
 
-## Core loop
+## Skills
 
-```mermaid
-flowchart LR
-    prepare["/prepare<br/>load context"] --> work[work]
-    work --> learn["/learn<br/>extract & capture"]
-    learn -. next session .-> prepare
-    work -. any time .-> recall["/recall<br/>search"]
-```
+| Skill | What it does |
+|-------|--------------|
+| `recall` | Walks an agent-memory vault (Permanent/ + MOCs/) via explicit query plus situational baseline. Cascades through the wikilink graph and returns surfaced notes. |
+| `learn` | Captures lessons from completed work as permanent vault notes. Each candidate passes three gates — Recurs + Activity-and-domain + Knowledge — before writing. |
 
-`/prepare` loads relevant context before starting work. `/learn` extracts feedback after work completes — and is also the explicit-capture command when you say "remember this" or "save that for later". `/recall` searches session history and memories on demand.
+See `skills/recall/SKILL.md` and `skills/learn/SKILL.md` for the full skill definitions.
 
-### Commands you invoke manually
+## Vault location
 
-| Command | When you use it |
-|---------|-----------------|
-| `/recall` | Ask Claude to recall something. With no query, Claude pulls recent history for this project and any engram memories from that same span of time. With a query, Claude searches all memory — engram's own feedback/facts plus Claude Code's various memory files — for anything relevant, and pulls it into the current context. |
-| `/learn "..."` | Tell Claude to remember something going forward — a project fact, a convention, or a correction Claude just received. Saying "remember this", "save that for later", or `/learn` all route here; the lesson is captured to the vault so it carries into future sessions instead of living only in this one. |
-
-### Commands the system invokes automatically
-
-`/prepare` and `/learn` are expected to fire without you asking, via two complementary mechanisms:
-
-- **Skill frontmatter.** Each skill's `description` lists triggering conditions ("before starting new work", "at completion boundaries"). Claude Code auto-invokes the matching skill when those conditions are met.
-- **Hook reminders.** On every `UserPromptSubmit`, engram injects a reminder to call `/prepare` before new work. On every `PostToolUse`, it injects a reminder to call `/learn` at completion boundaries. The hooks don't *force* the call — they make sure the model considers it.
-
-When `/prepare` fires, it runs `/recall` against the current task and primes Claude with the highest-ranked memories, rules, and skill pointers before work begins. When `/learn` fires, it reviews what happened in the session so far, identifies reusable patterns (not one-off events), and writes vault notes. `/learn` runs autonomously at completion boundaries and interactively when you invoke it by hand (or say "remember this" / "save that for later").
-
-You can still call `/prepare` and `/learn` by hand, but if the automation is working you shouldn't need to. If you notice you're running them manually a lot, that's a sign the skill frontmatter or the hook reminders need sharpening — please [open an issue](https://github.com/toejough/engram/issues) so we can tune them.
-
-## Data directory
-
-All data lives under `~/.local/share/engram/` (respects `$XDG_DATA_HOME`):
+Engram reads and writes a zettelkasten vault. Pass `--vault <path>` to every `engram` invocation, or set `ENGRAM_VAULT_PATH`. Vault layout:
 
 ```
-~/.local/share/engram/memory/
-├── feedback/   Behavioral observation memories (SBIA)
-└── facts/      Declarative knowledge memories (SPO)
+<vault>/
+  Permanent/   atomic principle-stated notes; <luhmann-id>.<YYYY-MM-DD>.<slug>.md
+  MOCs/        Maps of Content with framing prose
 ```
 
-## Memory format
-
-Memories are TOML files with two types: **feedback** and **fact**.
-
-**Feedback** (behavioral observations, SBIA: situation/behavior/impact/action):
-
-```toml
-schema_version = 2
-type = "feedback"
-source = "agent"
-situation = "implementing new features"
-
-[content]
-behavior = "skipped writing tests before implementation"
-impact = "bugs found late, rework required"
-action = "always write failing test first (TDD red phase)"
-
-created_at = "2026-04-14T12:00:00Z"
-updated_at = "2026-04-14T12:00:00Z"
-```
-
-**Fact** (declarative knowledge, SPO: subject/predicate/object):
-
-```toml
-schema_version = 2
-type = "fact"
-source = "human"
-situation = "building engram"
-
-[content]
-subject = "engram"
-predicate = "uses"
-object = "targ build system for all build/test/check operations"
-
-created_at = "2026-04-14T12:00:00Z"
-updated_at = "2026-04-14T12:00:00Z"
-```
-
-## Why two types?
-
-Memories split into **feedback** and **fact** because they answer different questions and surface at different moments.
-
-- **Feedback** answers *"how should I behave here?"* — a correction or pattern you want applied or avoided. Only useful if you can tell *when* to apply it and *what* to do differently.
-- **Fact** answers *"what's true about this project or environment?"* — declarative knowledge the agent would otherwise have to rediscover.
-
-Mixing them under a single schema forces every memory to either lose structure ("freeform blob") or pretend to be one type. Keeping them separate means recall can weight them differently and `/learn` can guide you through the right fields for each kind.
-
-This split mirrors a long-standing distinction in cognitive psychology. Tulving (1972)¹ distinguished **semantic memory** (general facts about the world) from **episodic memory** (personal experiences); Graf & Schacter (1985)² formalized the **explicit/implicit** divide; Squire (2004)³ consolidated these into the modern taxonomy of long-term memory systems (declarative, with semantic and episodic subtypes, vs. non-declarative, including procedural memory). The distinction also appears in computational cognitive architectures: Anderson's **ACT-R**⁴ treats declarative facts (chunks) and procedural knowledge (productions) as separate memory stores with different retrieval and learning rules.
-
-Engram's **fact** type maps to semantic memory — declarative knowledge about a project or environment. Engram's **feedback** type is closer to an *explicit behavioral rule*: a procedure stated as a rule the agent can read and apply, rather than truly implicit procedural memory (which is unconscious skill acquired through practice and not directly readable).
-
-> ¹ Tulving, E. (1972). "Episodic and semantic memory." In *Organization of Memory*, ed. Tulving & Donaldson. Academic Press.
-> ² Graf, P. & Schacter, D. L. (1985). "Implicit and explicit memory for new associations in normal and amnesic subjects." *Journal of Experimental Psychology: Learning, Memory, and Cognition*, 11(3), 501–518.
-> ³ [Squire, L. R. (2004). "Memory systems of the brain: A brief history and current perspective." *Neurobiology of Learning and Memory*, 82(3), 171–177.](http://whoville.ucsd.edu/PDFs/384_Squire_%20NeurobiolLearnMem2004.pdf)
-> ⁴ [Anderson, J. R., Bothell, D., Byrne, M. D., Douglass, S., Lebiere, C., & Qin, Y. (2004). "An integrated theory of the mind." *Psychological Review*, 111(4).](https://act-r.psy.cmu.edu/about/) See the Carnegie Mellon ACT-R project for a current overview of the declarative/procedural split.
-
-### Why SBIA for feedback?
-
-SBIA = **S**ituation, **B**ehavior, **I**mpact, **A**ction.
-
-- **Situation** — the task the agent would be doing *before* this lesson is known (e.g. "writing async Go tests"). This is what the recall query matches against. If it describes the diagnosed problem instead ("after a race condition in test X"), the memory never surfaces for a fresh attempt.
-- **Behavior** — what was actually done that needs changing.
-- **Impact** — the consequence. Without impact, the agent has no reason to prefer the new action over the old one.
-- **Action** — what to do instead.
-
-SBIA is the minimum structure that makes a behavioral correction generalize. Without Situation you can't retrieve it; without Impact the agent rationalizes around it; without Action it isn't actionable.
-
-SBIA builds on the **SBI model** (Situation-Behavior-Impact™), a feedback framework developed by the [Center for Creative Leadership](https://www.ccl.org/articles/leading-effectively-articles/closing-the-gap-between-intent-vs-impact-sbii/)⁵ and canonicalized in Weitzel (2000)⁶. The **A**ction extension has been applied in medical education — notably in analyzing narrative feedback from clinical preceptors in Entrustable Professional Activities (EPAs) e-portfolio systems — where structured action steps are needed alongside the observational triad (Hsu et al., 2021⁷). SBI's three-part structure was designed for live human conversations: pin the moment, describe the observable behavior, name its impact. That's enough in person because the receiver can ask "what should I do differently?" A memory file has no such feedback channel, so engram uses the SBIA form with Action written down at capture time. Engram didn't invent the "SBI + Action" shape — it adopts an existing research-grade framework for the same reason medical educators did: written feedback without an action step isn't actionable.
-
-> ⁵ [Center for Creative Leadership. "Use SBI to Understand Intent vs. Impact."](https://www.ccl.org/articles/leading-effectively-articles/closing-the-gap-between-intent-vs-impact-sbii/)
-> ⁶ Weitzel, S. R. (2000). *Feedback That Works: How to Build and Deliver Your Message*. Center for Creative Leadership.
-> ⁷ [Hsu, T.-C. et al. (2021). "A Study to Analyze Narrative Feedback Record of an Emergency Department." *International Journal of Environmental Research and Public Health* 18(12): 6265.](https://pmc.ncbi.nlm.nih.gov/articles/PMC8238687/) — uses the SBIA framework to evaluate clinical preceptor feedback in EPA-based e-portfolios.
-> ⁸ [Mindtools. "The Situation-Behavior-Impact™ Feedback Tool."](https://www.mindtools.com/ay86376/the-situation-behavior-impact-feedback-tool/)
-
-### Why subject/predicate/object for facts?
-
-Facts use SPO because declarative knowledge is naturally a triple: *some entity* has *some relationship* to *some value*. "engram uses targ", "the reorder-decls linter requires alphabetical test functions", "the auto-memory path derives from the git main repo root".
-
-The triple form forces you to name the entity explicitly, which keeps facts from drifting into freeform prose that's hard to search and impossible to update. It also makes duplicate detection tractable — two facts with the same subject and predicate are candidates for merging.
-
-Situation still matters for facts — it's *when* the fact is relevant, not *what* the fact says. A fact with no situation surfaces for every query; a fact with a sharp situation surfaces only when it matters.
-
-This shape is the **RDF triple** — the atomic data unit in the W3C Resource Description Framework⁹, introduced in RDF 1.0 (Lassila & Swick, 1999)¹⁰ and refined as RDF 1.1 (2014)¹¹. Triples are also the foundation of Berners-Lee, Hendler & Lassila's (2001) vision of the Semantic Web¹². A triple makes a claim: the relationship indicated by the *predicate* holds between the *subject* and the *object*. Engram doesn't build an RDF graph, but it borrows the shape because the same constraint — you have to name the entity explicitly to say anything about it — keeps facts retrievable rather than drifting into freeform paragraphs.
-
-> ⁹ [Semantic triple — Wikipedia](https://en.wikipedia.org/wiki/Semantic_triple) for an overview of how triples are used in knowledge graphs.
-> ¹⁰ [Lassila, O. & Swick, R. R., eds. (1999). *Resource Description Framework (RDF) Model and Syntax Specification*. W3C Recommendation.](https://www.w3.org/TR/1999/REC-rdf-syntax-19990222/)
-> ¹¹ [W3C (2014). *RDF 1.1 Concepts and Abstract Syntax*. W3C Recommendation.](https://www.w3.org/TR/rdf11-concepts/)
-> ¹² Berners-Lee, T., Hendler, J. & Lassila, O. (2001). "The Semantic Web." *Scientific American*, 284(5), 34–43.
-
-## Why not just use auto memory?
-
-[Claude Code already persists memory across sessions](https://code.claude.com/docs/en/memory) via `CLAUDE.md`, `.claude/rules/`, and [auto memory](https://code.claude.com/docs/en/memory#auto-memory) — the last of which has Claude write notes to itself across sessions. The built-in surfaces get loaded either in full or by a static cap (auto memory's `MEMORY.md` is capped at the first 200 lines or 25 KB), and there is no query-based retrieval. The more memories accumulate, the more context gets spent on irrelevant ones.
-
-Engram doesn't replace any of this — engram reads from all of it, and adds a query-ranked retrieval layer on top.
-
-| Dimension | Auto memory (built-in) | Engram |
-|-----------|------------------------|--------|
-| Who writes | Claude, implicitly during a session | You or Claude, via `/learn` (autonomously at completion or on explicit cue), with a quality gate before write |
-| Shape | Freeform markdown | Typed TOML: feedback (SBIA) or fact (SPO) |
-| How retrieved | First 200 lines / 25 KB of `MEMORY.md` loaded at session start; topic files read on-demand during the session by Claude's judgement | Query-ranked via Haiku against the task in `/prepare` or `/recall` |
-| Scope of retrieval | Auto memory only | Auto memory **plus** `.claude/rules/`, CLAUDE.md (with `@`-imports), project/user/plugin skills, and engram's own feedback/facts — merged and ranked together |
-| Duplicate detection | None — Claude just appends | `engram learn` returns `CREATED` / `DUPLICATE` / `CONTRADICTION`; `/learn` can broaden an existing memory's situation when it sees a near-miss |
-| Capture point | Implicit, inside a session | Explicit: `/learn` at completion boundaries or on user cue ("remember this", "save that for later") |
-
-The short version: auto memory persists text. Engram persists *structure*, ranks against a query, and pulls from every surface Claude Code exposes — not just its own directory. Feedback memories enforce situation/behavior/impact/action; fact memories enforce situation + subject/predicate/object. The shape exists so ranking has something sharper to match against than freeform prose.
-
-## Where engram reads memories from
-
-`/prepare` and `/recall` merge memories from several sources before ranking them with Haiku. You write only to engram's own data directory; you read from everywhere Claude Code already knows about.
-
-| Kind | Path (resolved per session) | Source |
-|------|------------------------------|--------|
-| Engram feedback | `~/.local/share/engram/memory/feedback/*.toml` | Written by `/learn` |
-| Engram facts | `~/.local/share/engram/memory/facts/*.toml` | Written by `/learn` |
-| Claude Code auto-memory | `~/.claude/projects/<project-slug>/memory/*.md` | Written by Claude Code's built-in memory system |
-| Project rules | `.claude/rules/*.md` (walking up from cwd) | Written by the project (checked in) |
-| CLAUDE.md | Project root, user (`~/.claude/CLAUDE.md`), plus `@`-imports | Written by project and user |
-| Skills | Project `.claude/skills/`, user `~/.claude/skills/`, plugin cache | Written by project, user, and installed plugins |
-
-The `<project-slug>` for auto-memory is derived from the git main repo root (not the worktree), replacing `/` with `-`. External sources are discovered once per recall invocation, cached via a per-call `FileCache`, then ranked against your query.
-
-## Read everywhere, write only what you own
-
-```mermaid
-flowchart LR
-    src1[CLAUDE.md] -. read .-> eng
-    src2[.claude/rules/] -. read .-> eng
-    src3[auto memory] -. read .-> eng
-    src4[skills<br/>project + user + plugin] -. read .-> eng
-    own[engram feedback/facts] -. read .-> eng
-    eng{{engram}} == write ==> own
-```
-
-The asymmetry is deliberate. Reading everywhere surfaces knowledge already captured in CLAUDE.md, rules, or auto memory without requiring you to re-enter it. Writing only to engram's own directory means engram never rewrites your CLAUDE.md, edits a skill it didn't author, or mutates auto-memory Claude Code manages. Uninstall engram and every other source survives untouched; only `~/.local/share/engram/` and the built binary at `~/.claude/engram/bin/engram` need cleanup.
-
-## How the skills work
-
-### `/recall`
-
-`/recall` is the retrieval engine the other skills build on. No query ⇒ plain session read (Mode A). Query ⇒ six extraction phases (Mode B), each sharing one byte budget, with early exits when the budget is exhausted or nothing was found:
-
-```mermaid
-flowchart TB
-    start([recall]) --> qcheck{query<br/>given?}
-    qcheck -- no --> modeA["Mode A<br/>read recent sessions<br/>until Mode-A budget cap"]
-    modeA --> ret([return context])
-
-    qcheck -- yes --> p1["Phase 1<br/>engram memories"]
-    p1 --> g1{budget<br/>left?}
-    g1 -- no --> empty{buffer<br/>empty?}
-    g1 -- yes --> p2["Phase 2<br/>auto memory"]
-    p2 --> g2{budget<br/>left?}
-    g2 -- no --> empty
-    g2 -- yes --> p3["Phase 3<br/>session transcripts"]
-    p3 --> g3{budget<br/>left?}
-    g3 -- no --> empty
-    g3 -- yes --> p4["Phase 4<br/>skills"]
-    p4 --> g4{budget<br/>left?}
-    g4 -- no --> empty
-    g4 -- yes --> p5["Phase 5<br/>CLAUDE.md + rules"]
-    p5 --> empty
-    empty -- yes --> ret_empty([return empty])
-    empty -- no --> p6["Phase 6<br/>Haiku summarize"]
-    p6 --> ret
-```
-
-Every extraction phase (Phases 1–5) shares the same inner shape. The rank call is a single Haiku request; the extract calls are one per winner, and the loop can cancel on context or budget *mid-phase*:
-
-```mermaid
-flowchart LR
-    enter([enter phase]) --> bcheck{budget<br/>remaining?}
-    bcheck -- no --> skip([skip phase])
-    bcheck -- yes --> idxcheck{index<br/>file<br/>readable?}
-    idxcheck -- no --> skip
-    idxcheck -- yes --> rank["Haiku rank<br/>one call"]
-    rank --> loop{next<br/>ranked<br/>item?}
-    loop -- none --> done([return bytes added])
-    loop -- yes --> itemok{budget<br/>and ctx<br/>ok?}
-    itemok -- no --> done
-    itemok -- yes --> extract["Haiku extract<br/>snippet → buffer"]
-    extract --> loop
-```
-
-So "the pipeline" is really six conditional phases feeding a shared buffer through an inner rank-then-iterate loop, with three classes of early exit: budget exhausted, context cancelled, or nothing relevant found. File I/O is cached once per invocation via `FileCache` so the same path isn't read twice across phases.
-
-### `/prepare`
-
-`/prepare` answers "what do I need to know before starting this?" It breaks the pending task into 2–3 sub-topic queries, runs `/recall` for each, and presents a combined briefing. The situations engram writes at learn-time are phrased as *tasks* ("writing Go tests in internal/"), so `/prepare` queries in the same voice — by task, not by fear. Asking "common mistakes when writing tests" will miss memories that were actually stored against "writing tests."
-
-```mermaid
-flowchart LR
-    start([prepare]) --> analyze["Analyze pending task<br/>activity + domain"]
-    analyze --> queries["Pick 2–3 sub-topic queries<br/>(phrased by task)"]
-    queries --> fan(("fan out"))
-    fan --> r1[["/recall sub-topic 1"]]
-    fan --> r2[["/recall sub-topic 2"]]
-    fan --> r3[["/recall sub-topic 3"]]
-    r1 --> brief
-    r2 --> brief
-    r3 --> brief["Summarize into<br/>task briefing"]
-    brief --> done([ready to work])
-```
-
-### `/learn`
-
-`/learn` is the unified capture command. It fires autonomously at completion boundaries (via skill trigger, the `PostToolUse` reminder), and you can also invoke it explicitly — `/learn`, "remember this", or "save that for later" all route here. It scans the recent session for lessons worth persisting, then filters each candidate through three gates before writing a permanent vault note. The gates exist to keep retrieval clean: memories that won't recur, aren't framed around an activity-and-domain, or don't clear the knowledge bar (i.e. belong in code, CLAUDE.md, a rule, or a skill) get dropped rather than poisoning future recalls. Autonomous runs write without prompting; interactive runs present findings for approval first.
-
-```mermaid
-flowchart TB
-    start([learn]) --> scan["Scan session for candidates<br/>corrections · failures · facts · patterns"]
-    scan --> loop{next<br/>candidate?}
-    loop -- none --> fin([done])
-    loop -- yes --> recurs{Recurs<br/>beyond this<br/>project?}
-    recurs -- no --> drop[drop]
-    drop --> loop
-    recurs -- yes --> framing{Activity-and-<br/>domain framing<br/>holds?}
-    framing -- no --> drop
-    framing -- yes --> knowledge{Knowledge bar<br/>cleared?<br/>(not code/rule/skill)}
-    knowledge -- no --> drop
-    knowledge -- yes --> write["engram promote<br/>→ vault note"]
-    write --> loop
-```
-
-## Implementation details
-
-### Binary commands
-
-The `engram` binary provides CLI access against the agent-memory vault:
+## Binary commands
 
 ```
-engram recall      Surface anchors, recent notes, or follow basenames from a vault
-engram transcript  Read Claude Code session transcripts in a date range
+engram recall                          Surface anchors, recent notes, or follow basenames from a vault
+engram transcript                      Read Claude Code session transcripts in a date range
 engram learn feedback --slug ... --vault ... --source ... --situation ... --behavior ... --impact ... --action ...
 engram learn fact     --slug ... --vault ... --source ... --situation ... --subject ... --predicate ... --object ...
 engram learn moc      --slug ... --vault ... --source ... --topic ...
-engram update      Refresh binary and harness skills/commands ([--dry-run])
+engram update                          Refresh binary and harness skills/commands ([--dry-run])
 ```
 
-### Project structure
+## Project structure
 
 ```
 cmd/engram/          CLI entry point (thin wiring layer)
 internal/            Business logic (DI boundaries)
-  cli/               CLI command wiring
-  context/           Context extraction
+  cli/               CLI command wiring (targ targets)
+  context/           Transcript processing
   debuglog/          Structured debug logging
   luhmann/           Luhmann-ID allocation under file lock
-  tokenresolver/     Token budgeting
+  tokenresolver/     API token resolution
   transcript/        Session transcript reading
+  update/            Self-refresh subcommand
   vaultgraph/        Vault traversal (MOCs/Permanent, anchors, follow)
-skills/              Plugin skills (recall, learn, migrate, c4)
+skills/              Plugin skills (recall, learn)
 .claude-plugin/      Plugin manifest
 opencode/            OpenCode plugin (commands, skills)
 ```
 
-### Development
+## Development
 
 - `targ build` — build the `engram` binary
 - `targ test` — run unit + integration tests
 - `targ check-full` — lint + coverage (use this to see ALL errors at once)
 - Never run `go test` / `go build` / `go vet` directly — use `targ`
 
-### Design principles
+## Design principles
 
 - **DI everywhere** — No function in `internal/` calls `os.*`, `http.*`, or any I/O directly. All I/O through injected interfaces, wired at CLI edges.
-- **Pure Go, no CGO** — TF-IDF for text similarity. External API for LLM classification only.
-- **Plugin form factor** — Skills for behavior, slim Go binary for computation.
-- **Measure impact, not frequency** — Content quality over mechanical sophistication.
-- **Read everywhere, write only what you own** — Pull context from every surface Claude Code exposes; never mutate files engram didn't create.
-
-## What it doesn't do
-
-- **No always-on surfacing.** The BM25 hook-surfacing pipeline was removed in this revision. Skills decide when to load memories; nothing is injected at every prompt.
-- **No self-tuning adaptation loop.** The previous `/adapt` skill and effectiveness quadrants are gone. Memory quality depends on situation-query alignment (see `/learn` skill guidance).
-- **No cross-agent coordination.** Engram is per-user, per-machine. For multi-agent coordination, use `mycelium`.
-- **No vector embeddings.** Text similarity uses TF-IDF + Haiku classification. Pure Go, no CGO, no ONNX.
-
----
-
-## Changes since `062f127`
-
-This is a substantial rewrite. Everything listed below changed between commit [`062f127`](../../commit/062f127) (2026-04-04) and commit [`cfd5fb5`](../../commit/cfd5fb5) (2026-04-17).
-
-| Area | Before (at `062f127`) | After (at `cfd5fb5`) |
-|------|-----------------------|----------------------|
-| Surfacing | BM25 scoring on every `UserPromptSubmit`, hook-driven | Skills load context on demand (`/prepare`, `/recall`) |
-| Memory file layout | Flat `~/.local/share/engram/memories/*.toml` | Split: `~/.local/share/engram/memory/feedback/*.toml` and `~/.local/share/engram/memory/facts/*.toml` |
-| TOML schema | Flat fields: `title`, `content`, `concepts`, `keywords`, `principle`, `anti_pattern`, `confidence`, outcome counters | `schema_version = 2`, `type` discriminator, `source`, `situation`, `[content]` sub-table |
-| Outcome tracking | Per-memory counters (`surfaced_count`, `followed_count`, `not_followed_count`, `irrelevant_count`) | Removed — focus moved to situation-query matching |
-| Confidence tiers | A / B / C | Removed — replaced by `source = "human"` or `source = "agent"` |
-| Adaptation | `/adapt` skill, effectiveness quadrants, proposals | Removed — simpler model, no self-tuning loop |
-| Hooks | `Stop` (async extract), `UserPromptSubmit` (surface) | `SessionStart`, `UserPromptSubmit`, `PostToolUse` — reminders only, no surfacing |
-| Recall | Always-on injection via BM25 | Three-phase pipeline: auto-memory ranking, skill frontmatter ranking, CLAUDE.md/rules extraction. Haiku filters for relevance. Triggered by `/recall` or `/prepare`. |
-
+- **Pure Go, no CGO** — external API for LLM operations only.
+- **Plugin form factor** — skills for behavior, slim Go binary for computation.

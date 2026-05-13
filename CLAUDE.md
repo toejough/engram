@@ -1,10 +1,10 @@
 # Engram
 
-Self-correcting memory for LLM agents. Measures impact, not just frequency — memories that don't improve outcomes get diagnosed and fixed.
+Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand.
 
 ## Core Principles
 
-- **Verify, don't guess.** Always read source code and documentation before guessing at formats, paths, or API contracts. Never assume directory structures, hook output formats, or payload fields — verify first.
+- **Verify, don't guess.** Always read source code and documentation before guessing at formats, paths, or API contracts. Never assume directory structures or payload fields — verify first.
 
 ## Directory Structure
 
@@ -12,34 +12,33 @@ Self-correcting memory for LLM agents. Measures impact, not just frequency — m
 engram/
 ├── cmd/engram/        # CLI binary entry point
 ├── internal/          # Non-public implementation
-│   ├── anthropic/     # Anthropic API client
-│   ├── cli/           # CLI command wiring
-│   ├── context/       # Context extraction
-│   ├── memory/        # Memory storage/retrieval
-│   ├── recall/        # Recall pipeline
-│   ├── tokenresolver/ # Token resolution
-│   └── tomlwriter/    # TOML serialization
-├── skills/            # Claude Code skill definitions (learn, prepare, recall, remember)
-├── hooks/             # Claude Code hooks (session-start, post-tool-use, user-prompt-submit)
+│   ├── cli/           # CLI command wiring (targ targets)
+│   ├── context/       # Transcript processing for LLM agents
+│   ├── debuglog/      # Tail-friendly debug logger
+│   ├── luhmann/       # Luhmann zettelkasten ID parsing/sorting
+│   ├── tokenresolver/ # API token resolution
+│   ├── transcript/    # Claude Code session transcript reading
+│   ├── update/        # `engram update` subcommand
+│   └── vaultgraph/    # Wikilink graph analysis of the vault
+├── skills/            # Claude Code skill definitions (learn, recall)
+├── opencode/          # OpenCode plugin (commands, skills)
 ├── dev/               # Build tooling (targ definitions, linter configs)
-├── docs/              # Design docs, specs, plans
-└── playground/        # Experimental/scratch space
+└── docs/              # Active design docs and research prompts
 ```
 
 ## Key Files
 
 - `cmd/engram/main.go` — CLI entry point
-- `hooks/hooks.json` — Hook definitions for Claude Code integration
-- `skills/{learn,prepare,recall,remember}/` — Skill markdown files
+- `internal/cli/targets.go` — Subcommand wiring
+- `skills/{learn,recall}/SKILL.md` — Skill definitions
 - `dev/targs.go` — Build targets (targ definitions)
 
 ## Design Principles
 
 - **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges.
-- **Pure Go, no CGO:** TF-IDF instead of ONNX. External embedding API if vector similarity needed.
-- **Plugin form factor:** Skills for behavior (learn, prepare, recall, remember), slim Go binary for computation (recall, show).
+- **Pure Go, no CGO.** External API only for LLM operations.
+- **Plugin form factor:** Skills for behavior (learn, recall), slim Go binary for computation.
 - **Test hard-to-test code by refactoring for DI**, not by writing integration tests around I/O.
-- **Content quality > mechanical sophistication.** Measure impact, not just frequency.
 - **Test categorization:** Unit tests verify business logic via DI + mocks (imptest). Integration tests verify wiring of thin I/O wrappers with real dependencies. If a function has business logic AND I/O, refactor to separate them — don't write an integration test around the whole thing.
 
 ## Code Quality
