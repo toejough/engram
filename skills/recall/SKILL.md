@@ -1,13 +1,15 @@
 ---
 name: recall
 description: >
-  Use when the user invokes recall ("/recall", "recall about X", "what do we
-  know about Y"), references prior work ("like we did before", "the auth
-  refactor", "didn't we already build"), or before starting new work,
-  switching tasks, beginning a feature, changing direction, tackling an issue,
-  or any other non-trivial action where prior vault guidance may apply.
-  Retrieves relevant notes from the agent-memory vault and structures them for
-  the LLM caller.
+  Use at the start of every user request before doing non-trivial work —
+  beginning a feature, tackling an issue, switching tasks, changing direction,
+  debugging, designing, or any action where prior vault guidance may apply.
+  Also fires on explicit cues ("/recall", "recall about X", "what do we know
+  about Y") and references to prior work ("like we did before", "the auth
+  refactor", "didn't we already build"). Default to firing; skip only for
+  pure lookups, trivial edits, or follow-on turns where recall already ran for
+  the same task. Retrieves relevant notes from the agent-memory vault and
+  structures them for the LLM caller.
 ---
 
 # Recall from the Agent-Memory Vault
@@ -41,11 +43,11 @@ Notes are LLM-voiced. Wikilinks appear in prose with surrounding context — tha
 
 | Mode | Trigger | Explicit query |
 |------|---------|----------------|
-| **No-arg recap** | User said `/recall` with no topic, or you self-invoke for orientation | `engram recall` (anchors) seeded with `engram recall --recent` (latest activity) |
-| **Topic query** | User named a topic, or you formed one from context | The topic, phrased as the user gave it |
-| **Self-invoked** | You decided recall applies | Phrase your own seed; treated as a topic query |
+| **Request-start sweep (primary)** | A new user request is starting and non-trivial work is about to begin (feature, bug, design, debug, direction change, etc.). Self-fire. | Phrase a seed from the request and current situation; treated as a topic query, combined with situational baseline |
+| **No-arg recap** | `/recall` with no topic, or self-invoke for orientation | `engram recall` (anchors) seeded with `engram recall --recent` (latest activity) |
+| **Topic query** | A topic is named, or you formed one from context | The topic, phrased as given |
 
-If the user's invocation is ambiguous ("recall that thing"), make a best-effort phrasing rather than asking. If results are off-target, the user can refine.
+**Default to firing at request start.** Skip only for pure lookups, trivial edits, or follow-on turns where recall already ran for the same task. If a topic is ambiguous ("recall that thing"), make a best-effort phrasing rather than asking — if results are off-target, the user can refine.
 
 ## The retrieval pipeline
 

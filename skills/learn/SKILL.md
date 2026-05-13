@@ -1,6 +1,6 @@
 ---
 name: learn
-description: Use when the user says "remember this", "save that for later", "/learn", "write up what we just did", or after a discrete task completes (feature shipped, bug fixed, plan step closed, direction changed). Captures lessons from the current session as permanent agent-memory vault notes that pass the Recurs + Activity-and-Domain + Knowledge gates.
+description: Use at the end of every user request once meaningful work has happened — feature implemented, bug fixed, plan step closed, decision made, direction changed, discussion resolved. Also fires on explicit cues ("remember this", "save that for later", "/learn", "write up what we just did"). Default to firing; skip only for trivial edits (typo, rename, one-liner) where no lesson could plausibly exist. Captures lessons from the current session as permanent agent-memory vault notes that pass the Recurs + Activity-and-Domain + Knowledge gates.
 ---
 
 # Learn
@@ -23,10 +23,10 @@ No `Fleeting/` directory. No `Main Index.md`. No log file. Chronology lives in f
 
 ## Trigger modes
 
-- **User-invoked** — `/learn`, "remember this", "save that for later", "write up what we just did". Input grain is determined from context: single observation when the user flags a specific moment; session-batch sweep when invoked at the end of a chunk of work.
-- **Autonomous at task boundaries** — after a discrete task completes (feature shipped, bug fixed, plan step closed, direction changed), the skill self-fires to sweep the just-completed work using the same gate sequence and write discipline. No user prompt before write.
+- **End of user request (primary)** — when a user request is complete, the skill self-fires to sweep the just-completed work. "Complete" means meaningful work has finished: feature shipped, bug fixed, plan step closed, decision made, direction changed, discussion resolved. Same gate sequence and write discipline. No user prompt before write. **Default to firing.**
+- **Explicit cue** — `/learn`, "remember this", "save that for later", "write up what we just did". Input grain is determined from context: single observation when a specific moment is flagged; session-batch sweep when invoked at the end of a chunk of work.
 
-**Do not auto-fire on micro-tasks** (one-line edits, single-file moves, trivial renames, typo fixes). The threshold is "a chunk of work that *could plausibly* produce lessons" — not "anything ended." When unsure, do not fire.
+**Do not fire on micro-tasks** (one-line edits, single-file moves, trivial renames, typo fixes, pure lookups). The threshold is "a chunk of work that *could plausibly* produce lessons" — not "anything ended." When unsure between firing and not firing, fire.
 
 ## The three gates
 
