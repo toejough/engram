@@ -107,8 +107,9 @@ const defaultLookback = 24 * time.Hour
 
 // ResolveTimeWindow returns the effective (from, to) time range for a
 // transcript scan. Precedence: explicit --from > marker > now - 24h.
-// Explicit --to > now. Date-only forms ("YYYY-MM-DD") have inclusive
-// end-of-day semantics applied to To.
+// Explicit --to > now. A date-only To ("YYYY-MM-DD") is extended to
+// end-of-day for inclusive semantics; a date-only From parses as
+// midnight start-of-day (no extension applied).
 func ResolveTimeWindow(in TimeWindowInputs) (time.Time, time.Time, error) {
 	from := in.Now.Add(-defaultLookback)
 	if in.MarkerFound {
