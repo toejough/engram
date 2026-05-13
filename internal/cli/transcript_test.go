@@ -18,6 +18,146 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
+func TestAdvanceAndReportMarker_StatusLineContainsBothFromAndEffectiveEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	markerPath := filepath.Join(tmp, "marker.txt")
+
+	fromTime := time.Date(2026, 5, 10, 10, 0, 0, 0, time.UTC)
+	lastIncluded := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 5, 13, 18, 30, 0, 0, time.UTC)
+
+	var stdout bytes.Buffer
+
+	err := cli.AdvanceAndReportMarkerForTest(markerPath, fromTime, lastIncluded, true, now, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	statusLine := stdout.String()
+	expectedFrom := fromTime.UTC().Format(time.RFC3339Nano)
+	expectedEnd := lastIncluded.UTC().Format(time.RFC3339Nano)
+
+	g.Expect(statusLine).To(ContainSubstring(expectedFrom))
+	g.Expect(statusLine).To(ContainSubstring(expectedEnd))
+	g.Expect(statusLine).To(ContainSubstring("[engram transcript: scanned ["))
+	g.Expect(statusLine).To(ContainSubstring("]; marker advanced to "))
+}
+
+func TestAdvanceAndReportMarker_UsesLastIncludedWhenCapHit(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	markerPath := filepath.Join(tmp, "marker.txt")
+
+	fromTime := time.Date(2026, 5, 10, 10, 0, 0, 0, time.UTC)
+	lastIncluded := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 5, 13, 18, 30, 0, 0, time.UTC)
+
+	var stdout bytes.Buffer
+
+	err := cli.AdvanceAndReportMarkerForTest(markerPath, fromTime, lastIncluded, true, now, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	markerBytes, readErr := os.ReadFile(markerPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	parsed, parseErr := time.Parse(time.RFC3339Nano, string(markerBytes))
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	g.Expect(parsed.Equal(lastIncluded)).To(BeTrue())
+}
+
+func TestAdvanceAndReportMarker_UsesNowWhenEverythingFit(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	markerPath := filepath.Join(tmp, "marker.txt")
+
+	fromTime := time.Date(2026, 5, 10, 10, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 5, 13, 18, 30, 0, 0, time.UTC)
+
+	var stdout bytes.Buffer
+
+	// When lastIncluded == now (not Before now), use now
+	err := cli.AdvanceAndReportMarkerForTest(markerPath, fromTime, now, true, now, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	markerBytes, readErr := os.ReadFile(markerPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	parsed, parseErr := time.Parse(time.RFC3339Nano, string(markerBytes))
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	g.Expect(parsed.Equal(now)).To(BeTrue())
+}
+
+func TestAdvanceAndReportMarker_UsesNowWhenNoEntries(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	markerPath := filepath.Join(tmp, "marker.txt")
+
+	fromTime := time.Date(2026, 5, 10, 10, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 5, 13, 18, 30, 0, 0, time.UTC)
+
+	var stdout bytes.Buffer
+
+	err := cli.AdvanceAndReportMarkerForTest(markerPath, fromTime, time.Time{}, false, now, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	markerBytes, readErr := os.ReadFile(markerPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	parsed, parseErr := time.Parse(time.RFC3339Nano, string(markerBytes))
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	g.Expect(parsed.Equal(now)).To(BeTrue())
+}
+
 func TestApplyTranscriptDirDefault(t *testing.T) {
 	t.Parallel()
 
@@ -65,26 +205,22 @@ func TestApplyTranscriptDirDefault(t *testing.T) {
 	})
 }
 
-func TestEmitTranscripts_DropsOldestWhenOverCap(t *testing.T) {
+func TestEmitTranscripts_AlwaysIncludesFirstEntryEvenWhenOversized(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// Three 100-byte entries; cap at 150 should keep only the newest.
-	mkContent := func(prefix string) string { return prefix + strings.Repeat("x", 99) }
+	// Single entry larger than cap — progress guarantee includes it anyway,
+	// otherwise the marker would never advance past it.
+	mkContent := func(prefix string) string { return prefix + strings.Repeat("x", 999) }
 	reader := &fakeReader{contents: map[string]string{
 		"/a": mkContent("A"),
-		"/b": mkContent("B"),
-		"/c": mkContent("C"),
 	}}
-	entries := []transcript.FileEntry{
-		{Path: "/a", Mtime: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)},
-		{Path: "/b", Mtime: time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC)},
-		{Path: "/c", Mtime: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)},
-	}
+	may1 := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	entries := []transcript.FileEntry{{Path: "/a", Mtime: may1}}
 
 	var buf bytes.Buffer
 
-	err := cli.EmitTranscriptsForTest(reader, entries, 150, &buf)
+	lastIncluded, hadEntries, err := cli.EmitTranscriptsForTest(reader, entries, 100, &buf)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -92,11 +228,30 @@ func TestEmitTranscripts_DropsOldestWhenOverCap(t *testing.T) {
 		return
 	}
 
-	out := buf.String()
-	g.Expect(out).To(ContainSubstring("dropped 2 oldest"))
-	g.Expect(out).To(ContainSubstring("C"))
-	g.Expect(out).NotTo(ContainSubstring("A"))
-	g.Expect(out).NotTo(ContainSubstring("B"))
+	g.Expect(hadEntries).To(BeTrue())
+	g.Expect(lastIncluded.Equal(may1)).To(BeTrue())
+	g.Expect(buf.String()).To(ContainSubstring("A"))
+}
+
+func TestEmitTranscripts_NoEntriesReturnsZeroAndFalse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reader := &fakeReader{contents: map[string]string{}}
+
+	var buf bytes.Buffer
+
+	lastIncluded, hadEntries, err := cli.EmitTranscriptsForTest(reader, nil, 1000, &buf)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(hadEntries).To(BeFalse())
+	g.Expect(lastIncluded.IsZero()).To(BeTrue())
+	g.Expect(buf.Len()).To(Equal(0))
 }
 
 func TestEmitTranscripts_ReadError(t *testing.T) {
@@ -115,6 +270,45 @@ func TestEmitTranscripts_ReadError(t *testing.T) {
 	}
 
 	g.Expect(err.Error()).To(ContainSubstring("transcript: reading"))
+}
+
+func TestEmitTranscripts_ScansForwardAndStopsAtCap(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Three 100-byte entries (chronological); cap at 150 — first entry is always
+	// included (progress guarantee), second would push total to 200 > 150 so the
+	// scan stops. Effective end = first entry's Mtime.
+	mkContent := func(prefix string) string { return prefix + strings.Repeat("x", 99) }
+	reader := &fakeReader{contents: map[string]string{
+		"/a": mkContent("A"),
+		"/b": mkContent("B"),
+		"/c": mkContent("C"),
+	}}
+	may1 := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	entries := []transcript.FileEntry{
+		{Path: "/a", Mtime: may1},
+		{Path: "/b", Mtime: time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC)},
+		{Path: "/c", Mtime: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)},
+	}
+
+	var buf bytes.Buffer
+
+	lastIncluded, hadEntries, err := cli.EmitTranscriptsForTest(reader, entries, 150, &buf)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(hadEntries).To(BeTrue())
+	g.Expect(lastIncluded.Equal(may1)).To(BeTrue())
+
+	out := buf.String()
+	g.Expect(out).To(ContainSubstring("A"))
+	g.Expect(out).NotTo(ContainSubstring("B"))
+	g.Expect(out).NotTo(ContainSubstring("C"))
 }
 
 func TestParseDate(t *testing.T) {
@@ -437,6 +631,33 @@ func TestRunTranscript_HappyPath(t *testing.T) {
 	})
 }
 
+func TestRunTranscript_MarkEmitsStatusLine(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+
+	var stdout bytes.Buffer
+
+	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
+		ProjectSlug:   "Users-joe-repos-test",
+		StateDir:      stateDir,
+		TranscriptDir: t.TempDir(),
+		Mark:          true,
+	}, &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("[engram transcript: scanned ["))
+	g.Expect(out).To(ContainSubstring("]; marker advanced to "))
+}
+
 func TestRunTranscript_MarkFlagAdvancesMarkerToNow(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -472,6 +693,31 @@ func TestRunTranscript_MarkFlagAdvancesMarkerToNow(t *testing.T) {
 
 	g.Expect(parsed.After(before.Add(-time.Second)) && parsed.Before(after.Add(time.Second))).
 		To(BeTrue())
+}
+
+func TestRunTranscript_NoMarkOmitsStatusLine(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+
+	var stdout bytes.Buffer
+
+	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
+		ProjectSlug:   "Users-joe-repos-test",
+		StateDir:      stateDir,
+		TranscriptDir: t.TempDir(),
+		Mark:          false,
+	}, &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).NotTo(ContainSubstring("marker advanced to"))
 }
 
 func TestRunTranscript_PropagatesEmitError(t *testing.T) {

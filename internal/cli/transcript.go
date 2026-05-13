@@ -86,6 +86,40 @@ var (
 	)
 )
 
+// advanceAndReportMarker computes the effective scan end (Mtime of last
+// fully-included entry if the cap was hit, otherwise `now`), writes the marker,
+// and emits the status line to stdout.
+func advanceAndReportMarker(
+	markerPath string,
+	fromTime, lastIncluded time.Time,
+	hadEntries bool,
+	now time.Time,
+	stdout io.Writer,
+) error {
+	effectiveEnd := now
+	if hadEntries && lastIncluded.Before(now) {
+		effectiveEnd = lastIncluded
+	}
+
+	writeErr := learnmarker.Write(learnmarker.OSFS{}, markerPath, effectiveEnd)
+	if writeErr != nil {
+		return fmt.Errorf("transcript: advancing marker: %w", writeErr)
+	}
+
+	_, statusErr := fmt.Fprintf(
+		stdout,
+		"[engram transcript: scanned [%s, %s]; marker advanced to %s]\n",
+		fromTime.UTC().Format(time.RFC3339Nano),
+		effectiveEnd.UTC().Format(time.RFC3339Nano),
+		effectiveEnd.UTC().Format(time.RFC3339Nano),
+	)
+	if statusErr != nil {
+		return fmt.Errorf("transcript: writing status: %w", statusErr)
+	}
+
+	return nil
+}
+
 // applyTranscriptDirDefault sets *dir to the ~/.claude/projects/<slug> path when empty.
 // slug is derived from ProjectSlug or from PWD when ProjectSlug is empty.
 func applyTranscriptDirDefault(dir *string, slug string, getwd func() (string, error)) error {
@@ -112,57 +146,47 @@ func applyTranscriptDirDefault(dir *string, slug string, getwd func() (string, e
 	return nil
 }
 
-// emitTranscripts writes entries (oldest first) to stdout, capped at maxBytes
-// of total content. When the cap is reached, oldest content is dropped —
-// the most recent transcript wins. A one-line truncation notice is emitted
-// when content was dropped.
+// emitTranscripts emits content chronologically (oldest first), stopping when
+// the next entry's content would push total bytes over maxBytes. The first
+// entry is always included even if it alone exceeds the cap — a single
+// oversized entry must not stall marker progress forever. Returns the Mtime of
+// the last fully-included entry and a hadEntries bool; callers use these to
+// advance the per-project marker to the actual scan boundary.
 func emitTranscripts(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
 	maxBytes int,
 	stdout io.Writer,
-) error {
-	contents := make([]string, 0, len(entries))
-	total := 0
+) (time.Time, bool, error) {
+	var (
+		lastIncluded time.Time
+		hadEntries   bool
+		total        int
+	)
 
-	for _, entry := range entries {
+	for index, entry := range entries {
 		content, _, readErr := reader.Read(entry.Path, math.MaxInt32)
 		if readErr != nil {
-			return fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
+			return time.Time{}, false, fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
 		}
 
-		contents = append(contents, content)
+		// First entry is always included (progress guarantee). Subsequent entries
+		// stop the scan when their content would push total over maxBytes.
+		if index > 0 && total+len(content) > maxBytes {
+			break
+		}
+
+		_, writeErr := io.WriteString(stdout, content)
+		if writeErr != nil {
+			return time.Time{}, false, fmt.Errorf("transcript: writing output: %w", writeErr)
+		}
+
 		total += len(content)
+		lastIncluded = entry.Mtime
+		hadEntries = true
 	}
 
-	dropped := 0
-
-	for total > maxBytes && len(contents) > 1 {
-		total -= len(contents[0])
-		dropped++
-		contents = contents[1:]
-	}
-
-	if dropped > 0 {
-		notice := fmt.Sprintf(
-			"[engram transcript: dropped %d oldest session(s) to fit %d-byte cap]\n",
-			dropped, maxBytes,
-		)
-
-		_, err := io.WriteString(stdout, notice)
-		if err != nil {
-			return fmt.Errorf("transcript: writing output: %w", err)
-		}
-	}
-
-	for _, content := range contents {
-		_, err := io.WriteString(stdout, content)
-		if err != nil {
-			return fmt.Errorf("transcript: writing output: %w", err)
-		}
-	}
-
-	return nil
+	return lastIncluded, hadEntries, nil
 }
 
 // filterByDateRange returns entries whose Mtime falls in [from, to] inclusive.
@@ -226,7 +250,6 @@ func resolveProjectSlug(args TranscriptArgs) (string, error) {
 	return ProjectSlugFromPath(cwd), nil
 }
 
-// resolveStateDir returns the effective state directory for the given args.
 func resolveStateDir(args TranscriptArgs) (string, error) {
 	if args.StateDir != "" {
 		return args.StateDir, nil
@@ -287,15 +310,15 @@ func runTranscript(_ context.Context, args TranscriptArgs, stdout io.Writer) err
 	filtered := filterByDateRange(entries, fromTime, toTime)
 	slices.Reverse(filtered) // chronological for output
 
-	emitErr := emitTranscripts(reader, filtered, maxBytes, stdout)
+	lastIncluded, hadEntries, emitErr := emitTranscripts(reader, filtered, maxBytes, stdout)
 	if emitErr != nil {
 		return emitErr
 	}
 
 	if args.Mark {
-		writeErr := learnmarker.Write(learnmarker.OSFS{}, markerPath, now)
-		if writeErr != nil {
-			return fmt.Errorf("transcript: advancing marker: %w", writeErr)
+		markErr := advanceAndReportMarker(markerPath, fromTime, lastIncluded, hadEntries, now, stdout)
+		if markErr != nil {
+			return markErr
 		}
 	}
 

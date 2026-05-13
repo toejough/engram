@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"math"
+	"time"
 
 	"github.com/toejough/engram/internal/transcript"
 )
@@ -40,27 +41,43 @@ type ExportFeedbackFields = feedbackFields
 
 type ExportMOCFields = mocFields
 
+// AdvanceAndReportMarkerForTest exposes advanceAndReportMarker for unit testing.
+func AdvanceAndReportMarkerForTest(
+	markerPath string,
+	fromTime, lastIncluded time.Time,
+	hadEntries bool,
+	now time.Time,
+	stdout io.Writer,
+) error {
+	return advanceAndReportMarker(markerPath, fromTime, lastIncluded, hadEntries, now, stdout)
+}
+
 // EmitTranscriptsForTest is an exported entry point so the cli_test package can
 // exercise emitTranscripts directly without going through the full runTranscript
-// flow. Production code does not call this.
+// flow. Returns (lastIncludedMtime, hadEntries, error) — same as the wrapped
+// internal function. Production code does not call this.
 func EmitTranscriptsForTest(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
 	maxBytes int,
 	stdout io.Writer,
-) error {
+) (time.Time, bool, error) {
 	return emitTranscripts(reader, entries, maxBytes, stdout)
 }
 
 // Exported functions.
 
-// ExportEmitTranscripts exposes emitTranscripts for whitebox testing.
+// ExportEmitTranscripts exposes emitTranscripts for whitebox testing with an
+// unlimited byte budget. Discards the (lastIncludedMtime, hadEntries) returns
+// because the legacy tests using this wrapper only care about error paths.
 func ExportEmitTranscripts(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
 	stdout io.Writer,
 ) error {
-	return emitTranscripts(reader, entries, math.MaxInt32, stdout)
+	_, _, err := emitTranscripts(reader, entries, math.MaxInt32, stdout)
+
+	return err
 }
 
 // ExportNewOsCommander returns the production Commander adapter for testing.

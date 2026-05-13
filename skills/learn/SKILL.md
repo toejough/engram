@@ -64,12 +64,11 @@ No word counts. No graduation rates. No "useful 2 years out." Just: can this be 
 
 ### 1. Identify candidates
 
-Source of candidates depends on what's already loaded:
+Always run `engram transcript --mark` to fetch transcripts since the last `/learn` for this project. The command scans forward chronologically from the marker, stops when it would exceed the byte cap (~200KB by default), and advances the marker to the effective scan end (`now` if everything fit, otherwise the Mtime of the last fully-included session). Its trailing status line — `[engram transcript: scanned [<from>, <to>]; marker advanced to <to>]` — tells you the new marker position; **capture it and include it verbatim in your final report (§8).**
 
-- **In-context conversation** (default when this skill fires mid-session): scan the recent turns directly. No CLI call needed.
-- **Session logs** (when this skill fires fresh, or the recent in-context window doesn't cover the just-completed work): run `engram transcript --mark` to fetch transcripts since the last `/learn` for this project. The `--mark` flag advances the per-project marker after read so the next pass starts from the right place. Output is capped at ~200KB by default; if `engram` reports oldest sessions dropped, that's expected — most-recent content wins.
+If the in-context conversation also covers relevant turns from this session, scan it too — but the transcript fetch is non-optional and runs every `/learn` pass so the marker keeps moving forward.
 
-In either source, look for:
+Look for, in either source:
 
 - **User corrections** — the user told you to do something differently
 - **Failed approaches** — something was tried and didn't work
@@ -167,6 +166,7 @@ If a new permanent contradicts an existing one, write the new permanent with a `
 ### 8. Report
 
 Per pass:
+- The `engram transcript --mark` status line verbatim (so the human and future-you can see the new marker position)
 - Candidates considered
 - Gates passed / failed (with gate name and one-line reason)
 - Permanents written (with Luhmann IDs)
