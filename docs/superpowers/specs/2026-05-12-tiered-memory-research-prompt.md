@@ -185,6 +185,87 @@ has it but in the wrong tier. A user asking "remember when we…" should
 not be told "no" just because L2/L3 didn't hit — that's a recall bug,
 not a memory gap.
 
+## Context as a harvestable substrate
+
+The prior section framed the recovery as an L0 indexing problem. There's a
+parallel question the design should treat as a first-class option:
+
+**The agent's live context window is itself a tier — finer than L0, coarser
+than L1, and *attention-filtered* in a way L0 isn't.** Raw session JSONL
+contains everything; the live context contains what the agent currently
+judges relevant. Capturing context at the right moments could produce
+higher-signal L1 segments than mechanical L0 selection ever will.
+
+But context is also messy: stale tool output, abandoned hypotheses, system
+reminders. A bulk dump would be worse than JSONL. The valuable artifact is
+the agent's *segmentation* of its own context — "these 4 tool calls
+together established X," "this user correction reframed Y" — which can't
+be extracted mechanically. It requires the agent to emit it.
+
+### Three production paths to evaluate
+
+In increasing order of agent involvement:
+
+1. **Mechanical context snapshots.** Harness hook (PreCompact, Stop) dumps
+   the live context window. Cheap, mostly redundant with JSONL because
+   compaction is rare and Stop already triggers `/learn` today. Probably
+   not worth its own tier.
+
+2. **Agent-emitted L1 segments at task boundaries.** On task close, the
+   agent writes N small L1 notes: "Working on X, I found Y via Z; here
+   are the entities and links," with structured provenance (session ID,
+   file paths, tool-use IDs). Distinct from L2 in gating: `/learn` writes
+   L2 only when content passes Recurs/Activity/Knowledge gates. L1 is
+   everything below that gate, with a softer test: "would a future query
+   about this *situation* benefit from finding this verbatim?"
+
+3. **Live inline indexing.** Agent emits "this matters" markers as it
+   works (a small `index(entities, situation, link-back)` tool call),
+   not just at task end. Each one is cheap; the index is built
+   incrementally. Avoids the end-of-task amnesia problem where what was
+   load-bearing 80 turns ago is no longer salient enough to be captured.
+
+These aren't mutually exclusive — (1) is a fallback when the agent
+forgets, (2) is the workhorse, (3) catches what (2) would lose to
+attention decay. The design should pick a default and name when the
+others kick in.
+
+### The actual blocker is cross-session dedup and linking
+
+Capture is the easy half. The hard half:
+
+- Session A writes `engram-update-walkup-bug` describing a finding. Three
+  days later, session B is investigating the same bug area and re-derives
+  the same finding because the system never surfaced A's note.
+- Or worse: B writes a contradicting note without seeing A's, and now L2
+  has two facts that need L3 reconciliation that no one asked for.
+
+Today's vault links by filename basename — a wikilink to `[[foo]]` resolves
+iff `foo.md` exists with the same slug. Renames break it, fuzzy matches
+don't exist, semantic equivalence is invisible. With L1 capturing
+hundreds of segments per session, naive linking will produce either
+duplicate sprawl or arbitrary divergence depending on whether the agent
+happened to land on the same slug.
+
+Design must specify:
+
+- **Stable handles that survive content rewrites.** Content hash? UUID
+  plus title? Vector centroid?
+- **A dedup pass on write.** When an L1 segment is created, the system
+  must check whether a sufficiently-similar segment already exists, and
+  link/merge rather than duplicate. This is the same operation the
+  agent's `/learn` skill performs today via the Recurs gate, but at L1
+  it has to run automatically — there's no human in the loop for every
+  small segment.
+- **Backward links.** If A merges into B, anything that linked to A's
+  handle has to follow. The Luhmann-ID system avoided this by being
+  immutable; once L3 is mutable, this becomes a graph-maintenance
+  problem.
+
+This is the same hard problem as the existing "identity without Luhmann"
+question — just pushed down a tier. Resolving it at L1 likely resolves
+it at L3 too.
+
 ## Open questions to grapple with
 
 These are what the design must resolve. Do not pre-answer them in this brief
@@ -193,7 +274,9 @@ needed to resolve each.
 
 1. **L1 selection function.** What promotes a session segment from L0 to L1?
    Pre-extraction at session end? Post-hoc on demand? A scheduled triage
-   pass? What's the cost ceiling?
+   pass? Agent-emitted from live context (per the "Context as a harvestable
+   substrate" section)? What's the cost ceiling, and which of the three
+   production paths is default?
 
 2. **Identity without Luhmann.** If L3 is mutable, what's the stable
    reference handle for an L2 note cited by an L3 MOC? Slug? Content hash?
