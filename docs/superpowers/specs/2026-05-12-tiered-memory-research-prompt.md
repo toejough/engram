@@ -123,6 +123,68 @@ A memory that fails its own tests is a candidate for revision or deletion.
   `internal/recall/*`, `internal/cli/*`.
 - Session data: `~/.claude/projects/`, ~1.3 GB, JSONL per session.
 
+## Motivating example: "you did it but you don't remember"
+
+Concrete case from 2026-05-13 that the redesign should make tractable.
+
+Context: during the `engram update` implementation, two uncommitted edits
+(`docs/issue-612-plan.md` and `skills/recall/SKILL.md`) got stashed and
+then accidentally dropped during an impgen module-rename detour. The user
+asked me to recover them. My first instinct — "I never saw the diff
+content in context, so it's unrecoverable" — was wrong. The user
+corrected: try reading session JSONL files, since *I* was the only editor
+and the edits had to be in *some* prior session's transcript.
+
+What worked: grep `~/.claude/projects/<encoded-path>/*.jsonl` for the
+file path, find tool-use records of `Edit`/`Write` with their
+`old_string`/`new_string` payloads, correlate with `tool_result` records
+to confirm which ones succeeded, replay the successful Edits onto the
+current file. Three Edits in session `a22ad7f7` and three more in
+session `677d4acf` — all six recovered verbatim.
+
+Why this matters for the design:
+
+- The information was there the whole time; it was just outside the
+  current conversation's context window. The current vault would never
+  surface it because the vault only contains heavily-distilled Permanent
+  notes — raw session content lives in L0 and is invisible to recall.
+- The recovery method was a manual L0 traversal: a human-prompted grep
+  over JSONL. The system should be able to do this kind of
+  deep-into-L0 dive on its own when a query (or a situation) implies
+  "the answer might exist in a prior session even though no L2 fact
+  captures it yet."
+- This is exactly the "recall as deep-dive" cascade pattern from the
+  vision: query → L3/L2 misses → descend through L1 → reach into L0,
+  searching for an un-noticed pattern. On finding one, *write a new L2
+  fact* so the next time the system doesn't need to re-dive.
+
+What the design should specify, prompted by this example:
+
+- **L0 indexing for file-path / symbol queries.** Not full semantic
+  embedding — just a fast inverted index over file paths, tool-use
+  names, and `old_string`/`new_string` snippets in session JSONL, so a
+  query like "edits to `skills/recall/SKILL.md`" returns a ranked list
+  of sessions with timestamps. Without this, every dive is a linear
+  scan of ~1.3 GB.
+- **Tool-result correlation.** Edits whose `tool_result` records an
+  error didn't actually apply. The recovery loop has to distinguish
+  succeeded-and-applied from attempted-but-rejected. The L0→L1 selector
+  function needs to know about tool-result semantics, not just
+  tool-use payloads.
+- **Provenance survives into L1/L2.** A note synthesized from L0 dives
+  must carry the source session ID and tool-use ID, so the system can
+  re-derive (or contradict) later. Otherwise the next dive doesn't know
+  which sessions it has already mined.
+- **Triggers for write-back.** Should every successful L0 dive write an
+  L2 fact? Probably not (creates churn). But "I had to dive twice for
+  the same answer" is a strong signal that an L2 note is overdue.
+
+This example also illustrates a subtler failure mode the design needs
+to name: the system *appearing* to lack information when in fact it
+has it but in the wrong tier. A user asking "remember when we…" should
+not be told "no" just because L2/L3 didn't hit — that's a recall bug,
+not a memory gap.
+
 ## Open questions to grapple with
 
 These are what the design must resolve. Do not pre-answer them in this brief
