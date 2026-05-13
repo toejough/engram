@@ -57,6 +57,43 @@ On finding one, it writes new L2 facts and *may* cascade upward into L3+
 regeneration. Cascade depth depends on impact; small patterns don't redraw
 the top of the hourglass.
 
+### Retrieval substrate
+
+The current recall pipeline reaches notes by anchors, recent activity, and
+basename-driven cascade — effectively exact-match graph traversal seeded
+by a few entry points. That's the bottleneck this redesign needs to break.
+
+The target is **fast semantic lookup that does not require exact matches
+and does not call an LLM from inside the binary.** Hard constraints
+inherited from the engram codebase:
+
+- Pure Go, no CGO (rules out ONNX runtime, FAISS bindings, etc.).
+- No LLM calls from the binary — keep `engram recall` snappy and offline.
+- External embedding API at *write* time is acceptable; the binary should
+  query precomputed vectors at read time.
+
+Design dimensions to explore:
+
+- **Vector source.** External embedding API (Voyage, OpenAI, Cohere) called
+  by `/learn` at write time and cached alongside the note. Re-embedding
+  cost on model changes.
+- **Vector store.** Flat files + cosine in Go? sqlite-vec / sqlite-vss?
+  An HNSW Go library (e.g., `hnsw-go`)? Tradeoffs: build complexity,
+  recall@k quality, query latency at vault size of 10²–10⁴ notes.
+- **Lexical complement.** TF-IDF / BM25 in pure Go as a cheap baseline or
+  hybrid signal. Reciprocal rank fusion between lexical and dense.
+- **Per-tier indexing.** L1 (raw-ish, long) and L2 (short atomic claims)
+  embed differently — chunking strategy, summary embeddings, or both.
+  L3 MOCs may benefit from being embedded as their constituent L2 set
+  rather than their prose.
+- **Query expansion.** The recall skill already runs explicit + situational
+  queries; embeddings let the situational baseline expand cheaply. What
+  does the cascade look like when the frontier is "k nearest" instead of
+  "wikilinks from this note"?
+- **Freshness vs. recall@k.** Tradeoff between always-precomputed vectors
+  (stale on edits) and lazy re-embed (slower writes). Single-stage `/learn`
+  already pays an external-API cost; piggyback?
+
 ### TDD for memories
 
 Every L2 and L3+ entry carries 2–3 tests, modeled on the TDD pattern in the
@@ -138,6 +175,13 @@ needed to resolve each.
     L1 grows unboundedly? L3 thrashes on every write? Tests pass but
     behavior doesn't improve? Spec out the diagnostics.
 
+12. **Retrieval substrate choice.** Pick a concrete combination of
+    embedding provider + vector store + lexical fallback. Justify against
+    the constraints (pure Go, no in-binary LLM, vault size 10²–10⁴ today,
+    growing). Name the recall@k target and the latency budget for
+    `engram recall`. Specify what happens when the embedding API is
+    unreachable (graceful degrade to lexical-only? hard fail?).
+
 ## Prior art to survey
 
 - Zettelkasten — Niklas Luhmann's original, plus Sönke Ahrens (*How to Take
@@ -151,6 +195,16 @@ needed to resolve each.
 - RAG and re-ranking literature for the L0→L1 selection problem.
 - The existing engram codebase and the writing-skills TDD discipline for
   the testing-of-memories pattern.
+- Embedding + vector-store options compatible with the pure-Go / no-CGO
+  constraint: sqlite-vec, sqlite-vss, `github.com/coder/hnsw`,
+  `philippgille/chromem-go`, flat-file cosine. External embedding
+  providers: Voyage (voyage-3, voyage-code-2), OpenAI text-embedding-3,
+  Cohere embed-v3.
+- Lexical retrieval baselines: BM25, TF-IDF (already referenced in the
+  engram CLAUDE.md as the fallback), reciprocal rank fusion for
+  hybrid retrieval.
+- Late-interaction and re-ranking: ColBERT, cross-encoder re-rankers —
+  probably out of scope for the in-binary path but worth naming.
 
 ## Deliverable
 
