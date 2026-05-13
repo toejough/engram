@@ -215,7 +215,7 @@ func runTranscript(_ context.Context, args TranscriptArgs, stdout io.Writer) err
 	markerPath := learnmarker.MarkerPath(stateDir, slug)
 	markerTime, markerFound, err := learnmarker.Read(learnmarker.OSFS{}, markerPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("transcript: reading marker: %w", err)
 	}
 
 	now := time.Now().UTC()
@@ -251,7 +251,7 @@ func runTranscript(_ context.Context, args TranscriptArgs, stdout io.Writer) err
 
 	if args.Mark {
 		if writeErr := learnmarker.Write(learnmarker.OSFS{}, markerPath, now); writeErr != nil {
-			return writeErr
+			return fmt.Errorf("transcript: advancing marker: %w", writeErr)
 		}
 	}
 

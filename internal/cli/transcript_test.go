@@ -308,7 +308,7 @@ func runTranscript(_ context.Context, args cli.TranscriptArgs) (string, error) {
 	return stdout.String(), err
 }
 
-func TestRunTranscript_NoFlagsUsesMarkerAndDoesNotErrorOnMissingFrom(t *testing.T) {
+func TestRunTranscript_AcceptsEmptyFromAndToWhenMarkerExists(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
