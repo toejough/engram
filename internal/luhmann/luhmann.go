@@ -16,7 +16,10 @@ var (
 )
 
 // Less reports whether ID a sorts before ID b in tree order: parent before
-// children, numeric segments compared numerically, alphabetic segments lex.
+// children, numeric segments compared numerically, alphabetic segments in
+// Luhmann order (a..z, then aa..az, ba..bz, ..., zz, aaa, ...) — i.e.
+// shorter letter segments sort before longer ones; within equal length, lex.
+// This matches the z→aa rollover convention in nextLetter (internal/cli/luhmann.go).
 func Less(a, b string) bool {
 	aSegs, _ := ParseID(a)
 	bSegs, _ := ParseID(b)
@@ -31,6 +34,10 @@ func Less(a, b string) bool {
 			bNum, _ := strconv.Atoi(bSegs[idx])
 
 			return aNum < bNum
+		}
+
+		if len(aSegs[idx]) != len(bSegs[idx]) {
+			return len(aSegs[idx]) < len(bSegs[idx])
 		}
 
 		return aSegs[idx] < bSegs[idx]

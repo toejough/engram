@@ -32,6 +32,20 @@ func TestLess_AntiSymmetricProperty(t *testing.T) {
 	})
 }
 
+// TestLess_LuhmannLetterOrder pins the contract that Less follows Luhmann
+// letter ordering (length-first, then lex), matching nextLetter's z→aa
+// rollover convention in internal/cli/luhmann.go.
+func TestLess_LuhmannLetterOrder(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(luhmann.Less("1z", "1aa")).To(BeTrue(), "z should sort before aa")
+	g.Expect(luhmann.Less("1aa", "1ab")).To(BeTrue(), "aa should sort before ab")
+	g.Expect(luhmann.Less("1az", "1ba")).To(BeTrue(), "az should sort before ba")
+	g.Expect(luhmann.Less("1zz", "1aaa")).To(BeTrue(), "zz should sort before aaa")
+}
+
 func TestParseID_AlternatingSegments(t *testing.T) {
 	t.Parallel()
 
@@ -93,6 +107,20 @@ func TestParseID_TopLevelDigit(t *testing.T) {
 	}
 
 	g.Expect(got).To(Equal([]string{"1"}))
+}
+
+// TestSortIDs_DoubleLetterAfterSingle guards against the regression where
+// Less used pure lexical comparison for letter segments. In Luhmann letter
+// ordering, "z" < "aa" — single letters come before double letters. Lexical
+// comparison reverses this ("aa" < "z"), producing the wrong sort.
+func TestSortIDs_DoubleLetterAfterSingle(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	in := []string{"1z", "1aa", "1ab", "1a"}
+	luhmann.SortIDs(in)
+	g.Expect(in).To(Equal([]string{"1a", "1z", "1aa", "1ab"}))
 }
 
 func TestSortIDs_IdempotentProperty(t *testing.T) {
