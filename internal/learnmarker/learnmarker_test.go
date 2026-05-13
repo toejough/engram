@@ -136,7 +136,7 @@ func TestWrite_CreatesParentDirAndWritesRFC3339Nano(t *testing.T) {
 		To(gomega.Equal(when.Format(time.RFC3339Nano)))
 }
 
-func TestWrite_PropagatesMkdirError(t *testing.T) {
+func TestWrite_PropagatesWriteError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	fs := &fakeFS{files: map[string][]byte{}, writeErr: errors.New("disk full")}
