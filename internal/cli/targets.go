@@ -84,20 +84,6 @@ type ShowArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
 
-// UpdateArgs holds parsed flags for the update subcommand.
-type UpdateArgs struct {
-	Name      string `targ:"flag,name=name,required,desc=memory slug (required)"`
-	DataDir   string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Situation string `targ:"flag,name=situation,desc=context when this applies"`
-	Behavior  string `targ:"flag,name=behavior,desc=observed behavior"`
-	Impact    string `targ:"flag,name=impact,desc=impact of the behavior"`
-	Action    string `targ:"flag,name=action,desc=recommended action"`
-	Subject   string `targ:"flag,name=subject,desc=subject of the fact"`
-	Predicate string `targ:"flag,name=predicate,desc=relationship or verb"`
-	Object    string `targ:"flag,name=object,desc=object of the fact"`
-	Source    string `targ:"flag,name=source,desc=human or agent"`
-}
-
 // DataDirFromHome returns the standard engram data directory for a given home path.
 // It respects $XDG_DATA_HOME if set, otherwise defaults to $HOME/.local/share/engram.
 // getenv is injected so callers control environment access (pass os.Getenv in production).
@@ -163,9 +149,6 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 			}
 			errHandler(runQuick(withLog(ctx), a, deps, stdout))
 		}).Name("quick").Description("Write a fleeting note to the agent-memory vault"),
-		targ.Targ(func(ctx context.Context, a UpdateArgs) {
-			errHandler(runUpdate(withLog(ctx), a, stdout))
-		}).Name("update").Description("Update an existing memory"),
 		targ.Targ(func(ctx context.Context, a ReminderArgs) {
 			errHandler(runReminder(withLog(ctx), a, stdout))
 		}).Name("reminder").Description("Emit canonical reminder text"),
