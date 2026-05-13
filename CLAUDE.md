@@ -23,8 +23,7 @@ engram/
 ├── hooks/             # Claude Code hooks (session-start, post-tool-use, user-prompt-submit)
 ├── dev/               # Build tooling (targ definitions, linter configs)
 ├── docs/              # Design docs, specs, plans
-├── playground/        # Experimental/scratch space
-└── archive/           # Archived/deprecated code
+└── playground/        # Experimental/scratch space
 ```
 
 ## Key Files

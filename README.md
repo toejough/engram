@@ -350,7 +350,6 @@ internal/            Business logic (DI boundaries)
 skills/              Plugin skills (recall, learn, migrate, c4)
 .claude-plugin/      Plugin manifest
 opencode/            OpenCode plugin (commands, skills)
-archive/             Historical planning artifacts
 ```
 
 ### Development
