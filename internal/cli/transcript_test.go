@@ -259,6 +259,62 @@ func TestRunTranscript_HappyPath(t *testing.T) {
 	})
 }
 
+func TestResolveTimeWindow_UsesMarkerWhenFromMissing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	markerTime := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
+
+	from, to, err := cli.ResolveTimeWindow(
+		cli.TimeWindowInputs{From: "", To: "", Marker: markerTime, MarkerFound: true, Now: now},
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(from.Equal(markerTime)).To(BeTrue())
+	g.Expect(to.Equal(now)).To(BeTrue())
+}
+
+func TestResolveTimeWindow_FallsBackTo24hWhenNoMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
+
+	from, to, err := cli.ResolveTimeWindow(
+		cli.TimeWindowInputs{From: "", To: "", MarkerFound: false, Now: now},
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(from.Equal(now.Add(-24 * time.Hour))).To(BeTrue())
+	g.Expect(to.Equal(now)).To(BeTrue())
+}
+
+func TestResolveTimeWindow_ExplicitFromOverridesMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	explicit := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
+	markerTime := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
+
+	from, _, err := cli.ResolveTimeWindow(
+		cli.TimeWindowInputs{From: "2026-05-10", Marker: markerTime, MarkerFound: true, Now: now},
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(from.Equal(explicit)).To(BeTrue())
+}
+
 // failReader is a test-local Reader that always returns an error.
 type failReader struct{}
 

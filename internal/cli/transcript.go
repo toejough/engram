@@ -92,6 +92,55 @@ func filterByDateRange(entries []transcript.FileEntry, from, to time.Time) []tra
 	return filtered
 }
 
+// TimeWindowInputs is the resolution input for ResolveTimeWindow. From/To are
+// raw CLI strings (may be empty); Marker is the marker timestamp; MarkerFound
+// distinguishes a missing-marker first-run from a zero-time marker. Now is the
+// current time, injected for testability.
+type TimeWindowInputs struct {
+	From, To    string
+	Marker      time.Time
+	MarkerFound bool
+	Now         time.Time
+}
+
+const defaultLookback = 24 * time.Hour
+
+// ResolveTimeWindow returns the effective (from, to) time range for a
+// transcript scan. Precedence: explicit --from > marker > now - 24h.
+// Explicit --to > now. Date-only forms ("YYYY-MM-DD") have inclusive
+// end-of-day semantics applied to To.
+func ResolveTimeWindow(in TimeWindowInputs) (time.Time, time.Time, error) {
+	from := in.Now.Add(-defaultLookback)
+	if in.MarkerFound {
+		from = in.Marker
+	}
+
+	if in.From != "" {
+		parsed, err := parseDate(in.From)
+		if err != nil {
+			return time.Time{}, time.Time{}, err
+		}
+
+		from = parsed
+	}
+
+	to := in.Now
+	if in.To != "" {
+		parsed, err := parseDate(in.To)
+		if err != nil {
+			return time.Time{}, time.Time{}, err
+		}
+
+		if len(in.To) == len("2006-01-02") {
+			parsed = parsed.AddDate(0, 0, 1).Add(-time.Nanosecond)
+		}
+
+		to = parsed
+	}
+
+	return from, to, nil
+}
+
 // parseDate parses a date string, accepting RFC3339 or YYYY-MM-DD layout.
 func parseDate(s string) (time.Time, error) {
 	// Try RFC3339 first.
