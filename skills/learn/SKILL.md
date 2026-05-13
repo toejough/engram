@@ -64,7 +64,12 @@ No word counts. No graduation rates. No "useful 2 years out." Just: can this be 
 
 ### 1. Identify candidates
 
-Scan the in-context conversation (default) or session logs (when source isn't loaded) for:
+Source of candidates depends on what's already loaded:
+
+- **In-context conversation** (default when this skill fires mid-session): scan the recent turns directly. No CLI call needed.
+- **Session logs** (when this skill fires fresh, or the recent in-context window doesn't cover the just-completed work): run `engram transcript --mark` to fetch transcripts since the last `/learn` for this project. The `--mark` flag advances the per-project marker after read so the next pass starts from the right place. Output is capped at ~200KB by default; if `engram` reports oldest sessions dropped, that's expected — most-recent content wins.
+
+In either source, look for:
 
 - **User corrections** — the user told you to do something differently
 - **Failed approaches** — something was tried and didn't work
