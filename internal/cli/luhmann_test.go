@@ -26,6 +26,28 @@ func TestNextLuhmannID_ContinuationRequiresTarget(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+// TestNextLuhmannID_DoubleLetterRollover guards against the regression where
+// maxLetterSeg used pure lexical comparison: with children {a..z, aa, ab},
+// lexical "z" > "aa" so the allocator returned "z"→"aa" (collision) instead of
+// the correct Luhmann order (a..z, aa..az, ba..) which puts "ab" as max.
+func TestNextLuhmannID_DoubleLetterRollover(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	existing := buildLetterChildren("1", 'a', 'z')
+	existing = append(existing, "1aa", "1ab")
+
+	got, err := cli.ExportNextLuhmannID(existing, "1", "continuation")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(Equal("1ac"))
+}
+
 func TestNextLuhmannID_FirstChild(t *testing.T) {
 	t.Parallel()
 

@@ -106,6 +106,23 @@ func TestRenderBody_MOC_FramingPlusRelated(t *testing.T) {
 	g.Expect(got).To(Equal("framing prose\n\nRelated to:\n- [[X]] — r.\n"))
 }
 
+// TestRenderFactBody_StripsLeadingWhenFromSituation is the fact-type variant of
+// the double-"when" bug guard.
+func TestRenderFactBody_StripsLeadingWhenFromSituation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderFactBody(cli.ExportFactFields{
+		Situation: "When reasoning about agent coordination",
+		Subject:   "subagent dispatch",
+		Predicate: "is fundamentally",
+		Object:    "a verification problem",
+	}, "")
+	g.Expect(got).
+		To(HavePrefix("Information learned: when in reasoning about agent coordination, " +
+			"subagent dispatch is fundamentally a verification problem."))
+	g.Expect(got).NotTo(ContainSubstring("when in When"))
+}
+
 // TestRenderFactFrontmatter_SafelyEncodesTrickyValues mirrors the feedback
 // safety check for the fact frontmatter.
 func TestRenderFactFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
@@ -126,6 +143,36 @@ func TestRenderFactFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
 	g.Expect(parsed["subject"]).To(Equal(fields.Subject))
 	g.Expect(parsed["predicate"]).To(Equal(fields.Predicate))
 	g.Expect(parsed["object"]).To(Equal(fields.Object))
+}
+
+// TestRenderFeedbackBody_StripsLeadingWhenFromSituation guards against the
+// double-"when" bug where the body template prepended "when " to a situation
+// that already started with "When" — producing "Lesson learned: when When ...".
+func TestRenderFeedbackBody_StripsLeadingWhenFromSituation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderFeedbackBody(cli.ExportFeedbackFields{
+		Situation: "When writing concurrent Go code",
+		Action:    "check ctx.Done()",
+	}, "")
+	g.Expect(got).To(HavePrefix("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
+	g.Expect(got).NotTo(ContainSubstring("when When"))
+}
+
+// TestRenderFeedbackFrontmatter_LuhmannIsQuoted guards against yaml.v3's
+// default behavior of emitting alphanumeric scalars unquoted. The vault
+// convention is luhmann: "<id>" (double-quoted) so reads stay consistent
+// across hand-written, migrated, and engram-learn-written notes; the existing
+// pre-migration vault and the 218 migrated notes all quote this field.
+func TestRenderFeedbackFrontmatter_LuhmannIsQuoted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderFeedbackFrontmatter(cli.ExportFeedbackFields{
+		Situation: "x", Behavior: "x", Impact: "x", Action: "x",
+		Luhmann: "9aa", Source: "src",
+	}, when)
+	g.Expect(got).To(ContainSubstring(`luhmann: "9aa"`))
 }
 
 // TestRenderFeedbackFrontmatter_RoundtripFidelity is a property test: for any

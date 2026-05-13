@@ -88,14 +88,14 @@ type factFields struct {
 // factFrontmatterDoc is the YAML shape of a fact's frontmatter. Field order
 // here determines key order in the rendered document.
 type factFrontmatterDoc struct {
-	Type      string `yaml:"type"`
-	Situation string `yaml:"situation"`
-	Subject   string `yaml:"subject"`
-	Predicate string `yaml:"predicate"`
-	Object    string `yaml:"object"`
-	Luhmann   string `yaml:"luhmann"`
-	Created   string `yaml:"created"`
-	Source    string `yaml:"source"`
+	Type      string       `yaml:"type"`
+	Situation string       `yaml:"situation"`
+	Subject   string       `yaml:"subject"`
+	Predicate string       `yaml:"predicate"`
+	Object    string       `yaml:"object"`
+	Luhmann   quotedString `yaml:"luhmann"`
+	Created   string       `yaml:"created"`
+	Source    string       `yaml:"source"`
 }
 
 type feedbackFields struct {
@@ -109,14 +109,14 @@ type feedbackFields struct {
 
 // feedbackFrontmatterDoc is the YAML shape of a feedback note's frontmatter.
 type feedbackFrontmatterDoc struct {
-	Type      string `yaml:"type"`
-	Situation string `yaml:"situation"`
-	Behavior  string `yaml:"behavior"`
-	Impact    string `yaml:"impact"`
-	Action    string `yaml:"action"`
-	Luhmann   string `yaml:"luhmann"`
-	Created   string `yaml:"created"`
-	Source    string `yaml:"source"`
+	Type      string       `yaml:"type"`
+	Situation string       `yaml:"situation"`
+	Behavior  string       `yaml:"behavior"`
+	Impact    string       `yaml:"impact"`
+	Action    string       `yaml:"action"`
+	Luhmann   quotedString `yaml:"luhmann"`
+	Created   string       `yaml:"created"`
+	Source    string       `yaml:"source"`
 }
 
 type mocFields struct {
@@ -127,11 +127,27 @@ type mocFields struct {
 
 // mocFrontmatterDoc is the YAML shape of an MOC note's frontmatter.
 type mocFrontmatterDoc struct {
-	Type    string `yaml:"type"`
-	Topic   string `yaml:"topic"`
-	Luhmann string `yaml:"luhmann"`
-	Created string `yaml:"created"`
-	Source  string `yaml:"source"`
+	Type    string       `yaml:"type"`
+	Topic   string       `yaml:"topic"`
+	Luhmann quotedString `yaml:"luhmann"`
+	Created string       `yaml:"created"`
+	Source  string       `yaml:"source"`
+}
+
+// quotedString is a YAML scalar that always renders double-quoted. Used for
+// the Luhmann ID field so the rendered frontmatter matches the vault
+// convention (luhmann: "9aa") regardless of whether yaml.v3 would otherwise
+// quote the value. Without this, IDs like "9aa" emit unquoted, and IDs like
+// "1e1" would mis-parse as the float 10.0 on read-back.
+type quotedString string
+
+// MarshalYAML emits the value as a double-quoted scalar node.
+func (q quotedString) MarshalYAML() (any, error) {
+	return &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Style: yaml.DoubleQuotedStyle,
+		Value: string(q),
+	}, nil
 }
 
 func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
@@ -208,7 +224,7 @@ func newOsLearnDeps() LearnDeps {
 func renderFactBody(f factFields, relatedSection string) string {
 	formula := fmt.Sprintf(
 		"Information learned: when in %s, %s %s %s.\n",
-		f.Situation, f.Subject, f.Predicate, f.Object,
+		stripLeadingWhen(f.Situation), f.Subject, f.Predicate, f.Object,
 	)
 
 	return formula + "\n" + relatedSection
@@ -221,14 +237,17 @@ func renderFactFrontmatter(f factFields, when time.Time) string {
 		Subject:   f.Subject,
 		Predicate: f.Predicate,
 		Object:    f.Object,
-		Luhmann:   f.Luhmann,
+		Luhmann:   quotedString(f.Luhmann),
 		Created:   when.Format(dateFormat),
 		Source:    f.Source,
 	})
 }
 
 func renderFeedbackBody(f feedbackFields, relatedSection string) string {
-	formula := fmt.Sprintf("Lesson learned: when %s, %s.\n", f.Situation, f.Action)
+	formula := fmt.Sprintf(
+		"Lesson learned: when %s, %s.\n",
+		stripLeadingWhen(f.Situation), f.Action,
+	)
 
 	return formula + "\n" + relatedSection
 }
@@ -240,7 +259,7 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 		Behavior:  f.Behavior,
 		Impact:    f.Impact,
 		Action:    f.Action,
-		Luhmann:   f.Luhmann,
+		Luhmann:   quotedString(f.Luhmann),
 		Created:   when.Format(dateFormat),
 		Source:    f.Source,
 	})
@@ -265,7 +284,7 @@ func renderMOCFrontmatter(f mocFields, when time.Time) string {
 	return marshalFrontmatter(mocFrontmatterDoc{
 		Type:    "moc",
 		Topic:   f.Topic,
-		Luhmann: f.Luhmann,
+		Luhmann: quotedString(f.Luhmann),
 		Created: when.Format(dateFormat),
 		Source:  f.Source,
 	})
@@ -383,6 +402,25 @@ func runLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Writer) 
 		Topic:     a.Topic,
 		Framing:   a.Framing,
 	}, deps, stdout)
+}
+
+// stripLeadingWhen removes a case-insensitive leading "When " or "when " from
+// the situation field so body templates that prepend "when " don't double up.
+// Skill-spec example situations conventionally start with "When ..." but the
+// body template prepends "when " — without this strip, the rendered line
+// reads "Lesson learned: when When ...".
+func stripLeadingWhen(situation string) string {
+	const whenPrefixLen = 5
+
+	if len(situation) < whenPrefixLen {
+		return situation
+	}
+
+	if strings.EqualFold(situation[:whenPrefixLen], "when ") {
+		return situation[whenPrefixLen:]
+	}
+
+	return situation
 }
 
 // validateSlug returns an error if slug is empty or does not match [a-z0-9-]+.
