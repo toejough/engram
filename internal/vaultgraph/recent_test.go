@@ -5,7 +5,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/vaultgraph"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 func TestRecent_DropsBasenamesWithoutDatePrefix(t *testing.T) {

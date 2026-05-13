@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
 
-	"engram/internal/vaultgraph"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 func TestLuhmannFromBasename_ExtractsLeadingID(t *testing.T) {
@@ -225,5 +225,6 @@ func TestParseWikilinks_SingleLink(t *testing.T) {
 
 	body := []byte("see [[9o.2026-05-09.holistic-final-review]] for context.")
 
-	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"9o.2026-05-09.holistic-final-review"}))
+	g.Expect(vaultgraph.ParseWikilinks(body)).
+		To(Equal([]string{"9o.2026-05-09.holistic-final-review"}))
 }

@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
 
-	"engram/internal/vaultgraph"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 func TestBuildGraph_DropsBrokenLinks(t *testing.T) {

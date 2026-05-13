@@ -12,7 +12,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/cli"
+	"github.com/toejough/engram/internal/cli"
 )
 
 func TestBuildAndInstall_BuildFails_ReturnsError(t *testing.T) {

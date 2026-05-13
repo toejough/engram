@@ -4,7 +4,7 @@ package main
 import (
 	"os"
 
-	"engram/internal/cli"
+	"github.com/toejough/engram/internal/cli"
 )
 
 func main() {

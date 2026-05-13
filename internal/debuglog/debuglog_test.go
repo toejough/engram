@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"engram/internal/debuglog"
-
 	g "github.com/onsi/gomega"
+
+	"github.com/toejough/engram/internal/debuglog"
 )
 
 func TestLog_NilReceiverIsSafe(t *testing.T) {

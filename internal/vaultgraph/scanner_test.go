@@ -7,10 +7,10 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/vaultgraph"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-//go:generate impgen engram/internal/vaultgraph.VaultFS --dependency
+//go:generate impgen vaultgraph.VaultFS --dependency --import-path github.com/toejough/engram/internal/vaultgraph
 
 func TestScanVault_EmptyVault(t *testing.T) {
 	t.Parallel()
@@ -60,7 +60,8 @@ func TestScanVault_FleetingWithoutLuhmannID(t *testing.T) {
 	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).Return([]string{}, nil)
 	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{}, nil)
 	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Fleeting")).Return([]string{"scratch.md"}, nil)
-	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "Fleeting", "scratch.md")).Return([]byte("no links"), nil)
+	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "Fleeting", "scratch.md")).
+		Return([]byte("no links"), nil)
 
 	<-done
 }
@@ -106,7 +107,8 @@ func TestScanVault_PropagatesReadError(t *testing.T) {
 		g.Expect(err).To(MatchError(wantErr))
 	}()
 
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).Return([]string{"7.2026-05-09.zk.md"}, nil)
+	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).
+		Return([]string{"7.2026-05-09.zk.md"}, nil)
 	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "MOCs", "7.2026-05-09.zk.md")).Return(
 		[]byte(nil), wantErr)
 
@@ -134,7 +136,8 @@ func TestScanVault_SingleMOC(t *testing.T) {
 		g.Expect(notes[0].Outgoing).To(Equal([]string{"4.2026-05-09.anti-index"}))
 	}()
 
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).Return([]string{"7.2026-05-09.zk.md"}, nil)
+	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).
+		Return([]string{"7.2026-05-09.zk.md"}, nil)
 	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "MOCs", "7.2026-05-09.zk.md")).Return(
 		[]byte("body with [[4.2026-05-09.anti-index]] reference"), nil)
 	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{}, nil)

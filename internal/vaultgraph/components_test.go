@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
 
-	"engram/internal/vaultgraph"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 func TestComponents_AddingEdgeCanOnlyMergeProperty(t *testing.T) {
@@ -87,7 +87,8 @@ func TestComponents_PartitionCoversAllNodesProperty(t *testing.T) {
 
 		// Each node appears in exactly one component.
 		for name := range graph.Notes {
-			gExpect.Expect(seen[name]).To(Equal(1), "node %s appears in %d components", name, seen[name])
+			gExpect.Expect(seen[name]).
+				To(Equal(1), "node %s appears in %d components", name, seen[name])
 		}
 
 		gExpect.Expect(seen).To(HaveLen(len(graph.Notes)))

@@ -16,7 +16,7 @@ import (
 	// Pure-Go SQLite driver. Registered via init() side effect.
 	_ "modernc.org/sqlite"
 
-	sessionctx "engram/internal/context"
+	sessionctx "github.com/toejough/engram/internal/context"
 )
 
 // Exported variables.
@@ -150,7 +150,11 @@ func (f *OpencodeSessionFinder) Find(_ ...string) ([]FileEntry, error) {
 // querySessions runs the session-list query, optionally filtered by f.cwd.
 func (f *OpencodeSessionFinder) querySessions(ctx context.Context, db *sql.DB) (*sql.Rows, error) {
 	if f.cwd == "" {
-		return db.QueryContext(ctx, "SELECT id, time_updated FROM session ORDER BY time_updated DESC") //nolint:wrapcheck
+		//nolint:wrapcheck // sql driver error returned to caller verbatim
+		return db.QueryContext(
+			ctx,
+			"SELECT id, time_updated FROM session ORDER BY time_updated DESC",
+		)
 	}
 
 	prefix := f.cwd
@@ -312,7 +316,9 @@ func buildTextJSONL(text, role sql.NullString) string {
 	}
 
 	return `{"type":"` + msgRole + `","message":{"role":"` + msgRole + `","content":[{"type":"text","text":` +
-		mustMarshalJSON(text.String) + `}]}}`
+		mustMarshalJSON(
+			text.String,
+		) + `}]}}`
 }
 
 func buildToolJSONL(toolName, stateJSON string) string {

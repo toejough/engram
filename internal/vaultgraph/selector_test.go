@@ -5,7 +5,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/vaultgraph"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 func TestSelectStartingPoints_EmptyComponent(t *testing.T) {

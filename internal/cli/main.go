@@ -4,9 +4,9 @@ import (
 	"io"
 	"os"
 
-	"engram/internal/debuglog"
-
 	"github.com/toejough/targ"
+
+	"github.com/toejough/engram/internal/debuglog"
 )
 
 // Main is the engram binary's entry-point composition. Constructs the

@@ -11,8 +11,8 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/cli"
-	"engram/internal/transcript"
+	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/transcript"
 )
 
 func TestApplyTranscriptDirDefault(t *testing.T) {

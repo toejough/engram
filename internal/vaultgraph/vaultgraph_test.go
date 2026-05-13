@@ -6,7 +6,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/vaultgraph"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 func TestStartingPoints_EmptyVault(t *testing.T) {
@@ -237,7 +237,8 @@ func programVaultFSMock(imp *VaultFSImp, inputs []inputForStartingPoints) {
 		imp.ListMD.ArgsEqual(dirPath).Return(filenames, nil)
 
 		for _, input := range bySubdir[subdir] {
-			imp.ReadFile.ArgsEqual(filepath.Join(dirPath, input.filename)).Return([]byte(input.body), nil)
+			imp.ReadFile.ArgsEqual(filepath.Join(dirPath, input.filename)).
+				Return([]byte(input.body), nil)
 		}
 	}
 }

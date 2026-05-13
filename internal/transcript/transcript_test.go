@@ -9,7 +9,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/transcript"
+	"github.com/toejough/engram/internal/transcript"
 )
 
 func TestSessionFinder_DeduplicatesAcrossDirectories(t *testing.T) {

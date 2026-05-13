@@ -64,10 +64,12 @@ const (
 
 // unexported variables.
 var (
-	errLearnUnknownType    = errors.New("learn: type must be feedback, fact, or moc")
-	errSlugEmpty           = errors.New("slug is required")
-	errSlugInvalid         = errors.New("slug must match [a-z0-9-]+")
-	errVaultUnset          = errors.New("vault path is required (--vault flag or ENGRAM_VAULT_DIR env)")
+	errLearnUnknownType = errors.New("learn: type must be feedback, fact, or moc")
+	errSlugEmpty        = errors.New("slug is required")
+	errSlugInvalid      = errors.New("slug must match [a-z0-9-]+")
+	errVaultUnset       = errors.New(
+		"vault path is required (--vault flag or ENGRAM_VAULT_DIR env)",
+	)
 	luhmannFilenamePattern = regexp.MustCompile(
 		`^([0-9][0-9a-z]*)\.\d{4}-\d{2}-\d{2}\..+\.md$`,
 	)
@@ -281,7 +283,10 @@ func renderRelatedSection(entries []string) string {
 
 	for _, entry := range entries {
 		target, rationale, _ := strings.Cut(entry, "|")
-		lines = append(lines, fmt.Sprintf("- [[%s]] — %s.", strings.TrimSpace(target), strings.TrimSpace(rationale)))
+		lines = append(
+			lines,
+			fmt.Sprintf("- [[%s]] — %s.", strings.TrimSpace(target), strings.TrimSpace(rationale)),
+		)
 	}
 
 	return strings.Join(lines, "\n") + "\n"

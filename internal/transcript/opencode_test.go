@@ -8,10 +8,9 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-
-	"engram/internal/transcript"
-
 	_ "modernc.org/sqlite"
+
+	"github.com/toejough/engram/internal/transcript"
 )
 
 func TestCompositeSessionFinder_MergesFinders(t *testing.T) {
@@ -19,7 +18,11 @@ func TestCompositeSessionFinder_MergesFinders(t *testing.T) {
 	g := NewWithT(t)
 
 	dbPath := createTestOpencodeDB(t, []testSession{
-		{ID: "ses_oc1", Title: "OpenCode session", Updated: time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)},
+		{
+			ID:      "ses_oc1",
+			Title:   "OpenCode session",
+			Updated: time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC),
+		},
 	})
 
 	opencodeFinder := transcript.NewOpencodeSessionFinder(dbPath, "")
@@ -118,10 +121,26 @@ func TestOpencodeSessionFinder_FiltersByCwd(t *testing.T) {
 	g := NewWithT(t)
 
 	dbPath := createTestOpencodeDB(t, []testSession{
-		{ID: "ses_proj_root", Directory: "/projects/foo", Updated: time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC)},
-		{ID: "ses_proj_sub", Directory: "/projects/foo/sub", Updated: time.Date(2026, 5, 2, 11, 0, 0, 0, time.UTC)},
-		{ID: "ses_other_proj", Directory: "/projects/bar", Updated: time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)},
-		{ID: "ses_prefix_collide", Directory: "/projects/foobar", Updated: time.Date(2026, 5, 2, 13, 0, 0, 0, time.UTC)},
+		{
+			ID:        "ses_proj_root",
+			Directory: "/projects/foo",
+			Updated:   time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC),
+		},
+		{
+			ID:        "ses_proj_sub",
+			Directory: "/projects/foo/sub",
+			Updated:   time.Date(2026, 5, 2, 11, 0, 0, 0, time.UTC),
+		},
+		{
+			ID:        "ses_other_proj",
+			Directory: "/projects/bar",
+			Updated:   time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC),
+		},
+		{
+			ID:        "ses_prefix_collide",
+			Directory: "/projects/foobar",
+			Updated:   time.Date(2026, 5, 2, 13, 0, 0, 0, time.UTC),
+		},
 	})
 
 	finder := transcript.NewOpencodeSessionFinder(dbPath, "/projects/foo")
@@ -157,8 +176,16 @@ func TestOpencodeSessionFinder_ReturnsEntries(t *testing.T) {
 	g := NewWithT(t)
 
 	dbPath := createTestOpencodeDB(t, []testSession{
-		{ID: "ses_abc123", Title: "Test session 1", Updated: time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC)},
-		{ID: "ses_def456", Title: "Test session 2", Updated: time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)},
+		{
+			ID:      "ses_abc123",
+			Title:   "Test session 1",
+			Updated: time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC),
+		},
+		{
+			ID:      "ses_def456",
+			Title:   "Test session 2",
+			Updated: time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC),
+		},
 	})
 
 	finder := transcript.NewOpencodeSessionFinder(dbPath, "")
@@ -257,7 +284,12 @@ func TestOpencodeTranscriptReader_NullPartType(t *testing.T) {
 	_, err = db.Exec(
 		"INSERT INTO part (id, message_id, session_id, time_created, time_updated, data) "+
 			"VALUES (?, ?, ?, ?, ?, ?)",
-		"prt_nulltype", "msg_nulltype", "ses_null1", now, now, `{"text":"orphan text without type"}`,
+		"prt_nulltype",
+		"msg_nulltype",
+		"ses_null1",
+		now,
+		now,
+		`{"text":"orphan text without type"}`,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -468,7 +500,7 @@ func createTestOpencodeDB(t *testing.T, sessions []testSession) string {
 	return dbPath
 }
 
-func insertParts(t *testing.T, dbPath string, sessionID string, parts []testPart) {
+func insertParts(t *testing.T, dbPath, sessionID string, parts []testPart) {
 	t.Helper()
 
 	db, err := sql.Open("sqlite", dbPath)

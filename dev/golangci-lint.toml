@@ -43,7 +43,7 @@ text = 'dot-imports'
 files = ['$all', '!$test']
 allow = [
 	'$gostd',
-	'engram',
+	'github.com/toejough/engram',
 	'github.com/BurntSushi/toml',
 	'github.com/akedrou/textdiff',
 	'github.com/bmatcuk/doublestar/v4',
@@ -62,7 +62,7 @@ allow = [
 files = ['$test']
 allow = [
 	'$gostd',
-	'engram',
+	'github.com/toejough/engram',
 	'github.com/BurntSushi/toml',
 	'github.com/akedrou/textdiff',
 	'github.com/charmbracelet/lipgloss',

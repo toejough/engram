@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"engram/internal/debuglog"
+	"github.com/toejough/engram/internal/debuglog"
 )
 
 // Exported constants.
@@ -36,7 +36,11 @@ func ForceExitOnRepeatedSignal(signals <-chan os.Signal, exitFn func(int)) {
 
 // SetupSignalHandling registers signal handlers and starts the force-exit goroutine.
 // Returns the configured targets for targ.Main.
-func SetupSignalHandling(stdout, stderr io.Writer, exitFn func(int), logger *debuglog.Logger) []any {
+func SetupSignalHandling(
+	stdout, stderr io.Writer,
+	exitFn func(int),
+	logger *debuglog.Logger,
+) []any {
 	sigCh := make(chan os.Signal, signalChannelBuffer)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 

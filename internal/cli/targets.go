@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"engram/internal/debuglog"
-
 	"github.com/toejough/targ"
+
+	"github.com/toejough/engram/internal/debuglog"
 )
 
 // CommonLearnArgs holds shared flags for learn subcommands.

@@ -10,7 +10,7 @@ import (
 	"go.yaml.in/yaml/v3"
 	"pgregory.net/rapid"
 
-	"engram/internal/cli"
+	"github.com/toejough/engram/internal/cli"
 )
 
 func TestExtractLuhmannFromFilename(t *testing.T) {
@@ -84,14 +84,19 @@ func TestRenderBody_Feedback(t *testing.T) {
 		"Lesson learned: when orchestrating multi-step work as the main LLM under context pressure, " +
 			action + ".\n" +
 			"\n" +
-			"Related to:\n- [[1a.foo]] — same shape.\n- [[5.bar]] — the MOC.\n"))
+			"Related to:\n- [[1a.foo]] — same shape.\n- [[5.bar]] — the MOC.\n",
+	))
 }
 
 func TestRenderBody_MOC_FramingOnly(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
-	got := cli.ExportRenderMOCBody("This cluster names a recurring pattern of LLM rationalization under pressure.", "")
-	g.Expect(got).To(Equal("This cluster names a recurring pattern of LLM rationalization under pressure.\n"))
+	got := cli.ExportRenderMOCBody(
+		"This cluster names a recurring pattern of LLM rationalization under pressure.",
+		"",
+	)
+	g.Expect(got).
+		To(Equal("This cluster names a recurring pattern of LLM rationalization under pressure.\n"))
 }
 
 func TestRenderBody_MOC_FramingPlusRelated(t *testing.T) {
@@ -403,7 +408,8 @@ func TestRunLearn_Feedback_WritesExpectedFile(t *testing.T) {
 	g.Expect(lockReleased).To(BeTrue())
 	g.Expect(writtenPath).To(Equal("/vault/Permanent/3.2026-05-09.ctx-cancellation-rule.md"))
 	g.Expect(string(writtenContent)).To(ContainSubstring("type: feedback"))
-	g.Expect(string(writtenContent)).To(ContainSubstring("Lesson learned: when writing concurrent Go code"))
+	g.Expect(string(writtenContent)).
+		To(ContainSubstring("Lesson learned: when writing concurrent Go code"))
 }
 
 func TestRunLearn_MOC_WritesExpectedFile(t *testing.T) {

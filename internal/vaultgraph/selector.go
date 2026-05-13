@@ -3,7 +3,7 @@ package vaultgraph
 import (
 	"sort"
 
-	"engram/internal/luhmann"
+	"github.com/toejough/engram/internal/luhmann"
 )
 
 // SelectStartingPoints picks the starting points for one component:

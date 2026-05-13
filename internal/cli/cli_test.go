@@ -125,7 +125,8 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 	}
 
 	g.Expect(string(body)).To(ContainSubstring("type: feedback"))
-	g.Expect(string(body)).To(ContainSubstring("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
+	g.Expect(string(body)).
+		To(ContainSubstring("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
 	g.Expect(string(body)).To(ContainSubstring("Related to:"))
 }
 

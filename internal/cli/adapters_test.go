@@ -8,7 +8,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/cli"
+	"github.com/toejough/engram/internal/cli"
 )
 
 func TestOsDirLister_ListJSONL(t *testing.T) {
@@ -88,9 +88,12 @@ func TestOsLearnFS_ListIDs_ReturnsBothPermanentAndMOC(t *testing.T) {
 	vault := t.TempDir()
 	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-09.foo.md"), nil, 0o600)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1a.2026-05-09.bar.md"), nil, 0o600)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(vault, "MOCs", "5.2026-05-09.moc.md"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-09.foo.md"), nil, 0o600)).
+		To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1a.2026-05-09.bar.md"), nil, 0o600)).
+		To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "MOCs", "5.2026-05-09.moc.md"), nil, 0o600)).
+		To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "README.md"), nil, 0o600)).To(Succeed())
 
 	fs := cli.ExportNewOsLearnFS()

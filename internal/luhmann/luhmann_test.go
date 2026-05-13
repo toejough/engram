@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
 
-	"engram/internal/luhmann"
+	"github.com/toejough/engram/internal/luhmann"
 )
 
 func TestLess_AntiSymmetricProperty(t *testing.T) {

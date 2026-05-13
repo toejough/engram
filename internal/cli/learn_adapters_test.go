@@ -9,7 +9,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/cli"
+	"github.com/toejough/engram/internal/cli"
 )
 
 func TestOsLearnFS_ListIDs_BadVaultReturnsError(t *testing.T) {

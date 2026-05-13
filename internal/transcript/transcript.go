@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	sessionctx "engram/internal/context"
+	sessionctx "github.com/toejough/engram/internal/context"
 )
 
 // DirLister lists .jsonl files in a directory with their modification times.

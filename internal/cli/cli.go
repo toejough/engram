@@ -11,8 +11,8 @@ import (
 	"strings"
 	"syscall"
 
-	"engram/internal/transcript"
-	"engram/internal/vaultgraph"
+	"github.com/toejough/engram/internal/transcript"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 // unexported constants.
@@ -156,7 +156,11 @@ func (*osLearnFS) StatDir(path string) error {
 func (*osLearnFS) WriteNew(path string, data []byte) error {
 	const perm = 0o600
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // path from caller
+	f, err := os.OpenFile( //nolint:gosec // path from caller
+		path,
+		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
+		perm,
+	)
 	if err != nil {
 		return fmt.Errorf("open: %w", err)
 	}

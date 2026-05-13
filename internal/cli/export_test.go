@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"engram/internal/transcript"
+	"github.com/toejough/engram/internal/transcript"
 )
 
 // Exported variables.
@@ -38,7 +38,11 @@ type ExportMOCFields = mocFields
 // Exported functions.
 
 // ExportEmitTranscripts exposes emitTranscripts for whitebox testing.
-func ExportEmitTranscripts(reader transcript.Reader, entries []transcript.FileEntry, stdout io.Writer) error {
+func ExportEmitTranscripts(
+	reader transcript.Reader,
+	entries []transcript.FileEntry,
+	stdout io.Writer,
+) error {
 	return emitTranscripts(reader, entries, stdout)
 }
 
@@ -71,7 +75,11 @@ func ExportRunLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.
 }
 
 // ExportRunLearnFromFeedbackArgs invokes the unexported runLearnFromFeedbackArgs for testing.
-func ExportRunLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout io.Writer) error {
+func ExportRunLearnFromFeedbackArgs(
+	ctx context.Context,
+	a LearnFeedbackArgs,
+	stdout io.Writer,
+) error {
 	return runLearnFromFeedbackArgs(ctx, a, stdout)
 }
 

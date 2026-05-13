@@ -9,7 +9,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/cli"
+	"github.com/toejough/engram/internal/cli"
 )
 
 func TestRunRecall_AnchorsScanErrorPropagates(t *testing.T) {
@@ -45,8 +45,10 @@ func TestRunRecall_FollowReturnsExpansionMinusAlreadyRead(t *testing.T) {
 		[]byte("body with [[2.2026-01-02.b]] and [[3.2026-01-03.c]]"),
 		0o644,
 	)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(permDir, "2.2026-01-02.b.md"), []byte("b body"), 0o644)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(permDir, "3.2026-01-03.c.md"), []byte("c body"), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(permDir, "2.2026-01-02.b.md"), []byte("b body"), 0o644)).
+		To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(permDir, "3.2026-01-03.c.md"), []byte("c body"), 0o644)).
+		To(Succeed())
 
 	var stdout bytes.Buffer
 

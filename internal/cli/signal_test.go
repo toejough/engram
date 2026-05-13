@@ -9,7 +9,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/cli"
+	"github.com/toejough/engram/internal/cli"
 )
 
 func TestForceExitOnRepeatedSignal(t *testing.T) {

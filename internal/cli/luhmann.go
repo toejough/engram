@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"engram/internal/luhmann"
+	"github.com/toejough/engram/internal/luhmann"
 )
 
 // unexported constants.
@@ -18,7 +18,9 @@ const (
 
 // unexported variables.
 var (
-	errLuhmannPosition                 = errors.New("luhmann: position must be top, continuation, or sibling")
+	errLuhmannPosition = errors.New(
+		"luhmann: position must be top, continuation, or sibling",
+	)
 	errLuhmannSiblingTopLevelMustBeTop = errors.New(
 		"luhmann: sibling of top-level requires position=top",
 	)

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"engram/internal/luhmann"
+	"github.com/toejough/engram/internal/luhmann"
 )
 
 // StartingPoints returns the deduped, globally Luhmann-sorted set of vault

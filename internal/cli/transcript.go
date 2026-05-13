@@ -10,7 +10,7 @@ import (
 	"slices"
 	"time"
 
-	"engram/internal/transcript"
+	"github.com/toejough/engram/internal/transcript"
 )
 
 // TranscriptArgs holds parsed flags for the transcript subcommand.
@@ -24,8 +24,10 @@ type TranscriptArgs struct {
 // unexported variables.
 var (
 	errTranscriptFromRequired = errors.New("transcript: --from is required")
-	errTranscriptInvalidDate  = errors.New("transcript: invalid date: expected YYYY-MM-DD or RFC3339")
-	errTranscriptToRequired   = errors.New("transcript: --to is required")
+	errTranscriptInvalidDate  = errors.New(
+		"transcript: invalid date: expected YYYY-MM-DD or RFC3339",
+	)
+	errTranscriptToRequired = errors.New("transcript: --to is required")
 )
 
 // applyTranscriptDirDefault sets *dir to the ~/.claude/projects/<slug> path when empty.
@@ -55,7 +57,11 @@ func applyTranscriptDirDefault(dir *string, slug string, getwd func() (string, e
 }
 
 // emitTranscripts reads and writes stripped content for the given entries.
-func emitTranscripts(reader transcript.Reader, entries []transcript.FileEntry, stdout io.Writer) error {
+func emitTranscripts(
+	reader transcript.Reader,
+	entries []transcript.FileEntry,
+	stdout io.Writer,
+) error {
 	const budgetBytes = math.MaxInt32
 
 	for _, entry := range entries {

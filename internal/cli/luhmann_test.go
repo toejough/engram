@@ -5,7 +5,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/cli"
+	"github.com/toejough/engram/internal/cli"
 )
 
 func TestNextLuhmannID_ContinuationRejectsInvalidTarget(t *testing.T) {
