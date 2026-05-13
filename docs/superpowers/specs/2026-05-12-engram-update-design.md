@@ -55,9 +55,12 @@ both get the same skills.
 | Claude Code | `~/.claude/`           | `~/.claude/skills/<name>/`                     | (none — this plugin ships no Claude commands) |
 | OpenCode    | `~/.config/opencode/`  | `~/.config/opencode/skills/<name>/`            | `~/.config/opencode/commands/<file>`        |
 
-If neither probe exists, exit with a clear message ("no supported harness
-found at `~/.claude/` or `~/.config/opencode/`") and exit code 0 — not
-finding a harness is not an error.
+If neither probe exists, exit 1 with a clear message ("no supported
+harness found at `~/.claude/` or `~/.config/opencode/`"). At least one
+detected harness is required for a successful run.
+
+The trailing line of normal output names which harnesses were
+detected and written to (e.g. `installed: Claude Code, OpenCode`).
 
 ## Copy semantics
 
@@ -86,7 +89,7 @@ engram update
     skills/recall/ → ~/.config/opencode/skills/recall/  (1 file)
     opencode/commands/learn.md → ~/.config/opencode/commands/learn.md
     opencode/commands/recall.md → ~/.config/opencode/commands/recall.md
-done.
+installed: Claude Code, OpenCode
 ```
 
 `--dry-run` adds the prefix `[dry-run] ` and skips execution.
@@ -126,5 +129,5 @@ done.
 | `go list -m -json ...` fails (remote)| Print stderr; suggest network / proxy. Exit 1.        |
 | Module cache path doesn't exist      | Error: "module cache miss after go install". Exit 1.  |
 | Source `skills/` missing             | Error naming the missing path; exit 1.                |
-| Target dir not writable              | Error naming the path; exit 1.                        |
-| One harness writable, other not      | Report partial success per-harness; exit 1.           |
+| Target dir not writable              | Report the failure for that harness; continue with the others. Exit 0 if any harness succeeded, exit 1 if all detected harnesses failed. |
+| No harnesses detected                | Error: "no supported harness found at `~/.claude/` or `~/.config/opencode/`". Exit 1. |
