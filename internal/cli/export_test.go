@@ -40,17 +40,6 @@ type ExportFeedbackFields = feedbackFields
 
 type ExportMOCFields = mocFields
 
-// Exported functions.
-
-// ExportEmitTranscripts exposes emitTranscripts for whitebox testing.
-func ExportEmitTranscripts(
-	reader transcript.Reader,
-	entries []transcript.FileEntry,
-	stdout io.Writer,
-) error {
-	return emitTranscripts(reader, entries, math.MaxInt32, stdout)
-}
-
 // EmitTranscriptsForTest is an exported entry point so the cli_test package can
 // exercise emitTranscripts directly without going through the full runTranscript
 // flow. Production code does not call this.
@@ -61,6 +50,17 @@ func EmitTranscriptsForTest(
 	stdout io.Writer,
 ) error {
 	return emitTranscripts(reader, entries, maxBytes, stdout)
+}
+
+// Exported functions.
+
+// ExportEmitTranscripts exposes emitTranscripts for whitebox testing.
+func ExportEmitTranscripts(
+	reader transcript.Reader,
+	entries []transcript.FileEntry,
+	stdout io.Writer,
+) error {
+	return emitTranscripts(reader, entries, math.MaxInt32, stdout)
 }
 
 // ExportNewOsCommander returns the production Commander adapter for testing.
@@ -114,12 +114,25 @@ func ExportRunLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Wr
 	return runLearnFromMOCArgs(ctx, a, stdout)
 }
 
+// ResolveMaxBytesForTest exposes resolveMaxBytes for unit testing.
+func ResolveMaxBytesForTest(maxBytes int) int { return resolveMaxBytes(maxBytes) }
+
+// ResolveProjectSlugForTest exposes resolveProjectSlug for unit testing.
+func ResolveProjectSlugForTest(args TranscriptArgs) (string, error) {
+	return resolveProjectSlug(args)
+}
+
+// ResolveStateDirForTest exposes resolveStateDir for unit testing.
+func ResolveStateDirForTest(args TranscriptArgs) (string, error) {
+	return resolveStateDir(args)
+}
+
 // RunRecallForTest exposes runRecall for whitebox testing.
 func RunRecallForTest(ctx context.Context, args RecallArgs, stdout io.Writer) error {
 	return runRecall(ctx, args, stdout)
 }
 
 // RunTranscriptForTest exposes runTranscript for whitebox testing.
-func RunTranscriptForTest(args TranscriptArgs, stdout io.Writer) error {
-	return runTranscript(context.Background(), args, stdout)
+func RunTranscriptForTest(ctx context.Context, args TranscriptArgs, stdout io.Writer) error {
+	return runTranscript(ctx, args, stdout)
 }

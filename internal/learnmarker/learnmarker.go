@@ -11,28 +11,17 @@ import (
 	"time"
 )
 
-// StateDirFromHome returns the engram state directory.
-// Respects $XDG_STATE_HOME if set, otherwise defaults to $HOME/.local/state/engram.
-// getenv is injected so callers control environment access (pass os.Getenv in production).
-func StateDirFromHome(home string, getenv func(string) string) string {
-	if xdg := getenv("XDG_STATE_HOME"); xdg != "" {
-		return filepath.Join(xdg, "engram")
-	}
-
-	return filepath.Join(home, ".local", "state", "engram")
-}
-
-// MarkerPath returns the full path to the last-learn-at file for a given project slug.
-func MarkerPath(stateDir, projectSlug string) string {
-	return filepath.Join(stateDir, "projects", projectSlug, "last-learn-at")
-}
-
 // FS is the minimal filesystem surface learnmarker needs.
 // OSFS in osfs.go wraps os.* for production; tests inject fakes.
 type FS interface {
 	ReadFile(path string) ([]byte, error)
 	WriteFile(path string, data []byte, perm os.FileMode) error
 	MkdirAll(path string, perm os.FileMode) error
+}
+
+// MarkerPath returns the full path to the last-learn-at file for a given project slug.
+func MarkerPath(stateDir, projectSlug string) string {
+	return filepath.Join(stateDir, "projects", projectSlug, "last-learn-at")
 }
 
 // Read returns the marker timestamp at path. The bool return is true when the
@@ -44,6 +33,7 @@ func Read(fs FS, path string) (time.Time, bool, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return time.Time{}, false, nil
 		}
+
 		return time.Time{}, false, fmt.Errorf("learnmarker: reading %s: %w", path, err)
 	}
 
@@ -55,16 +45,35 @@ func Read(fs FS, path string) (time.Time, bool, error) {
 	return t, true, nil
 }
 
+// StateDirFromHome returns the engram state directory.
+// Respects $XDG_STATE_HOME if set, otherwise defaults to $HOME/.local/state/engram.
+// getenv is injected so callers control environment access (pass os.Getenv in production).
+func StateDirFromHome(home string, getenv func(string) string) string {
+	if xdg := getenv("XDG_STATE_HOME"); xdg != "" {
+		return filepath.Join(xdg, "engram")
+	}
+
+	return filepath.Join(home, ".local", "state", "engram")
+}
+
 // Write replaces the marker file at path with the RFC3339Nano-formatted timestamp.
 // Creates parent directories as needed (0o755 perms).
 func Write(fs FS, path string, when time.Time) error {
-	if err := fs.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	err := fs.MkdirAll(filepath.Dir(path), dirPerm)
+	if err != nil {
 		return fmt.Errorf("learnmarker: writing %s: %w", path, err)
 	}
 
-	if err := fs.WriteFile(path, []byte(when.Format(time.RFC3339Nano)), 0o644); err != nil {
+	err = fs.WriteFile(path, []byte(when.Format(time.RFC3339Nano)), filePerm)
+	if err != nil {
 		return fmt.Errorf("learnmarker: writing %s: %w", path, err)
 	}
 
 	return nil
 }
+
+// unexported constants.
+const (
+	dirPerm  = 0o755
+	filePerm = 0o644
+)

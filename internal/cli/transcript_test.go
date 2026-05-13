@@ -65,6 +65,40 @@ func TestApplyTranscriptDirDefault(t *testing.T) {
 	})
 }
 
+func TestEmitTranscripts_DropsOldestWhenOverCap(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Three 100-byte entries; cap at 150 should keep only the newest.
+	mkContent := func(prefix string) string { return prefix + strings.Repeat("x", 99) }
+	reader := &fakeReader{contents: map[string]string{
+		"/a": mkContent("A"),
+		"/b": mkContent("B"),
+		"/c": mkContent("C"),
+	}}
+	entries := []transcript.FileEntry{
+		{Path: "/a", Mtime: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)},
+		{Path: "/b", Mtime: time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC)},
+		{Path: "/c", Mtime: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)},
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.EmitTranscriptsForTest(reader, entries, 150, &buf)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	out := buf.String()
+	g.Expect(out).To(ContainSubstring("dropped 2 oldest"))
+	g.Expect(out).To(ContainSubstring("C"))
+	g.Expect(out).NotTo(ContainSubstring("A"))
+	g.Expect(out).NotTo(ContainSubstring("B"))
+}
+
 func TestEmitTranscripts_ReadError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -113,6 +147,171 @@ func TestParseDate(t *testing.T) {
 		})
 		g.Expect(stderr).NotTo(ContainSubstring("invalid date"))
 	})
+}
+
+func TestResolveMaxBytes_ReturnsDefaultWhenZero(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	result := cli.ResolveMaxBytesForTest(0)
+
+	g.Expect(result).To(Equal(200_000))
+}
+
+func TestResolveMaxBytes_ReturnsValueWhenPositive(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	result := cli.ResolveMaxBytesForTest(500)
+
+	g.Expect(result).To(Equal(500))
+}
+
+func TestResolveProjectSlug_DerivesCwdWhenEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	slug, err := cli.ResolveProjectSlugForTest(cli.TranscriptArgs{})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(slug).NotTo(BeEmpty())
+}
+
+func TestResolveProjectSlug_ReturnsSlugWhenProvided(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	slug, err := cli.ResolveProjectSlugForTest(cli.TranscriptArgs{ProjectSlug: "my-project"})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(slug).To(Equal("my-project"))
+}
+
+func TestResolveStateDir_DefaultsToXDGWhenEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir, err := cli.ResolveStateDirForTest(cli.TranscriptArgs{})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(dir).NotTo(BeEmpty())
+}
+
+func TestResolveStateDir_ReturnsDirWhenProvided(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir, err := cli.ResolveStateDirForTest(cli.TranscriptArgs{StateDir: "/custom/state"})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(dir).To(Equal("/custom/state"))
+}
+
+func TestResolveTimeWindow_ExplicitFromOverridesMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	explicit := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
+	markerTime := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
+
+	from, _, err := cli.ResolveTimeWindow(
+		cli.TimeWindowInputs{From: "2026-05-10", Marker: markerTime, MarkerFound: true, Now: now},
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(from.Equal(explicit)).To(BeTrue())
+}
+
+func TestResolveTimeWindow_FallsBackTo24hWhenNoMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
+
+	from, toTime, err := cli.ResolveTimeWindow(
+		cli.TimeWindowInputs{From: "", To: "", MarkerFound: false, Now: now},
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(from.Equal(now.Add(-24 * time.Hour))).To(BeTrue())
+	g.Expect(toTime.Equal(now)).To(BeTrue())
+}
+
+func TestResolveTimeWindow_UsesMarkerWhenFromMissing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	markerTime := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
+
+	from, toTime, err := cli.ResolveTimeWindow(
+		cli.TimeWindowInputs{From: "", To: "", Marker: markerTime, MarkerFound: true, Now: now},
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(from.Equal(markerTime)).To(BeTrue())
+	g.Expect(toTime.Equal(now)).To(BeTrue())
+}
+
+func TestRunTranscript_AcceptsEmptyFromAndToWhenMarkerExists(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+	slug := "Users-joe-repos-test"
+	markerPath := learnmarker.MarkerPath(stateDir, slug)
+	g.Expect(os.MkdirAll(filepath.Dir(markerPath), 0o755)).To(Succeed())
+
+	markerTime := time.Now().Add(-2 * time.Hour).UTC()
+	g.Expect(os.WriteFile(markerPath, []byte(markerTime.Format(time.RFC3339Nano)), 0o644)).
+		To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
+		ProjectSlug:   slug,
+		StateDir:      stateDir,
+		TranscriptDir: t.TempDir(), // empty dir; we only care that flags resolved
+	}, &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestRunTranscript_Errors(t *testing.T) {
@@ -238,101 +437,6 @@ func TestRunTranscript_HappyPath(t *testing.T) {
 	})
 }
 
-func TestResolveTimeWindow_UsesMarkerWhenFromMissing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	markerTime := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
-	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
-
-	from, to, err := cli.ResolveTimeWindow(
-		cli.TimeWindowInputs{From: "", To: "", Marker: markerTime, MarkerFound: true, Now: now},
-	)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-	g.Expect(from.Equal(markerTime)).To(BeTrue())
-	g.Expect(to.Equal(now)).To(BeTrue())
-}
-
-func TestResolveTimeWindow_FallsBackTo24hWhenNoMarker(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
-
-	from, to, err := cli.ResolveTimeWindow(
-		cli.TimeWindowInputs{From: "", To: "", MarkerFound: false, Now: now},
-	)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-	g.Expect(from.Equal(now.Add(-24 * time.Hour))).To(BeTrue())
-	g.Expect(to.Equal(now)).To(BeTrue())
-}
-
-func TestResolveTimeWindow_ExplicitFromOverridesMarker(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	explicit := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
-	markerTime := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
-	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
-
-	from, _, err := cli.ResolveTimeWindow(
-		cli.TimeWindowInputs{From: "2026-05-10", Marker: markerTime, MarkerFound: true, Now: now},
-	)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-	g.Expect(from.Equal(explicit)).To(BeTrue())
-}
-
-// failReader is a test-local Reader that always returns an error.
-type failReader struct{}
-
-func (r *failReader) Read(_ string, _ int) (string, int, error) {
-	return "", 0, errors.New("read failed")
-}
-
-// runTranscript is a test-local shorthand.
-func runTranscript(_ context.Context, args cli.TranscriptArgs) (string, error) {
-	var stdout bytes.Buffer
-
-	err := cli.RunTranscriptForTest(args, &stdout)
-
-	return stdout.String(), err
-}
-
-func TestRunTranscript_AcceptsEmptyFromAndToWhenMarkerExists(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tmp := t.TempDir()
-	stateDir := filepath.Join(tmp, ".local", "state", "engram")
-	slug := "Users-joe-repos-test"
-	markerPath := learnmarker.MarkerPath(stateDir, slug)
-	g.Expect(os.MkdirAll(filepath.Dir(markerPath), 0o755)).To(Succeed())
-	markerTime := time.Now().Add(-2 * time.Hour).UTC()
-	g.Expect(os.WriteFile(markerPath, []byte(markerTime.Format(time.RFC3339Nano)), 0o644)).
-		To(Succeed())
-
-	var stdout bytes.Buffer
-	err := cli.RunTranscriptForTest(cli.TranscriptArgs{
-		ProjectSlug:   slug,
-		StateDir:      stateDir,
-		TranscriptDir: t.TempDir(), // empty dir; we only care that flags resolved
-	}, &stdout)
-
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
 func TestRunTranscript_MarkFlagAdvancesMarkerToNow(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -342,8 +446,9 @@ func TestRunTranscript_MarkFlagAdvancesMarkerToNow(t *testing.T) {
 	slug := "Users-joe-repos-test"
 
 	var stdout bytes.Buffer
+
 	before := time.Now().UTC()
-	err := cli.RunTranscriptForTest(cli.TranscriptArgs{
+	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
 		ProjectSlug:   slug,
 		StateDir:      stateDir,
 		TranscriptDir: t.TempDir(),
@@ -352,6 +457,7 @@ func TestRunTranscript_MarkFlagAdvancesMarkerToNow(t *testing.T) {
 	after := time.Now().UTC()
 
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
@@ -359,20 +465,70 @@ func TestRunTranscript_MarkFlagAdvancesMarkerToNow(t *testing.T) {
 	got, _ := os.ReadFile(learnmarker.MarkerPath(stateDir, slug))
 	parsed, parseErr := time.Parse(time.RFC3339Nano, string(got))
 	g.Expect(parseErr).NotTo(HaveOccurred())
+
 	if parseErr != nil {
 		return
 	}
+
 	g.Expect(parsed.After(before.Add(-time.Second)) && parsed.Before(after.Add(time.Second))).
 		To(BeTrue())
 }
 
-// writeTranscriptFixture writes a JSONL line to dir/<name> and sets its mtime.
-// Fails the test immediately via g.Expect if any step fails.
-func writeTranscriptFixture(g Gomega, dir, name, line string, mtime time.Time) {
-	filePath := filepath.Join(dir, name)
+func TestRunTranscript_PropagatesEmitError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
 
-	g.Expect(os.WriteFile(filePath, []byte(line+"\n"), 0o600)).To(Succeed())
-	g.Expect(os.Chtimes(filePath, mtime, mtime)).To(Succeed())
+	dir := t.TempDir()
+	line := `{"type":"user","message":{"content":"trigger emit"}}`
+	mtime := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	writeTranscriptFixture(g, dir, "session.jsonl", line, mtime)
+
+	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
+		From:          "2026-05-10",
+		To:            "2026-05-10",
+		TranscriptDir: dir,
+	}, &failWriter{})
+
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunTranscript_RespectsMaxBytesFlag(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	line := `{"type":"user","message":{"content":"hello"}}`
+	mtime := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	writeTranscriptFixture(g, dir, "session.jsonl", line, mtime)
+
+	out, err := runTranscript(context.Background(), cli.TranscriptArgs{
+		From:          "2026-05-10",
+		To:            "2026-05-10",
+		TranscriptDir: dir,
+		MaxBytes:      1000,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("hello"))
+}
+
+// failReader is a test-local Reader that always returns an error.
+type failReader struct{}
+
+func (r *failReader) Read(_ string, _ int) (string, int, error) {
+	return "", 0, errors.New("read failed")
+}
+
+// failWriter is an io.Writer that always returns an error.
+type failWriter struct{}
+
+func (f *failWriter) Write(_ []byte) (int, error) {
+	return 0, errors.New("write failed")
 }
 
 // fakeReader is a test-local Reader that returns content from a map.
@@ -383,36 +539,24 @@ func (f *fakeReader) Read(path string, _ int) (string, int, error) {
 	if !ok {
 		return "", 0, fmt.Errorf("fakeReader: no content for %s", path)
 	}
+
 	return c, len(c), nil
 }
 
-func TestEmitTranscripts_DropsOldestWhenOverCap(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+// runTranscript is a test-local shorthand.
+func runTranscript(ctx context.Context, args cli.TranscriptArgs) (string, error) {
+	var stdout bytes.Buffer
 
-	// Three 100-byte entries; cap at 150 should keep only the newest.
-	mkContent := func(prefix string) string { return prefix + strings.Repeat("x", 99) }
-	reader := &fakeReader{contents: map[string]string{
-		"/a": mkContent("A"),
-		"/b": mkContent("B"),
-		"/c": mkContent("C"),
-	}}
-	entries := []transcript.FileEntry{
-		{Path: "/a", Mtime: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)},
-		{Path: "/b", Mtime: time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC)},
-		{Path: "/c", Mtime: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)},
-	}
+	err := cli.RunTranscriptForTest(ctx, args, &stdout)
 
-	var buf bytes.Buffer
-	err := cli.EmitTranscriptsForTest(reader, entries, 150, &buf)
+	return stdout.String(), err
+}
 
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-	out := buf.String()
-	g.Expect(out).To(ContainSubstring("dropped 2 oldest"))
-	g.Expect(out).To(ContainSubstring("C"))
-	g.Expect(out).NotTo(ContainSubstring("A"))
-	g.Expect(out).NotTo(ContainSubstring("B"))
+// writeTranscriptFixture writes a JSONL line to dir/<name> and sets its mtime.
+// Fails the test immediately via g.Expect if any step fails.
+func writeTranscriptFixture(g Gomega, dir, name, line string, mtime time.Time) {
+	filePath := filepath.Join(dir, name)
+
+	g.Expect(os.WriteFile(filePath, []byte(line+"\n"), 0o600)).To(Succeed())
+	g.Expect(os.Chtimes(filePath, mtime, mtime)).To(Succeed())
 }

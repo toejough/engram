@@ -14,18 +14,70 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
+// TimeWindowInputs is the resolution input for ResolveTimeWindow. From/To are
+// raw CLI strings (may be empty); Marker is the marker timestamp; MarkerFound
+// distinguishes a missing-marker first-run from a zero-time marker. Now is the
+// current time, injected for testability.
+type TimeWindowInputs struct {
+	From, To    string
+	Marker      time.Time
+	MarkerFound bool
+	Now         time.Time
+}
+
 // TranscriptArgs holds parsed flags for the transcript subcommand.
 type TranscriptArgs struct {
 	From          string `targ:"flag,name=from,desc=start date (YYYY-MM-DD or RFC3339); defaults to marker or 24h ago"`
 	To            string `targ:"flag,name=to,desc=end date (YYYY-MM-DD or RFC3339); defaults to now"`
 	TranscriptDir string `targ:"flag,name=transcript-dir,env=ENGRAM_TRANSCRIPT_DIR,desc=path to transcript directory"`
 	ProjectSlug   string `targ:"flag,name=project-slug,desc=project slug for transcript-dir and marker derivation"`
-	StateDir      string `targ:"flag,name=state-dir,env=ENGRAM_STATE_DIR,desc=state directory (defaults to XDG_STATE_HOME/engram)"`
+	StateDir      string `targ:"flag,name=state-dir,env=ENGRAM_STATE_DIR,desc=state dir (XDG_STATE_HOME/engram default)"`
 	Mark          bool   `targ:"flag,name=mark,desc=advance the last-learn marker to now after reading"`
 	MaxBytes      int    `targ:"flag,name=max-bytes,desc=byte cap for transcript output (default 200000)"`
 }
 
-const defaultMaxBytes = 200_000
+// ResolveTimeWindow returns the effective (from, to) time range for a
+// transcript scan. Precedence: explicit --from > marker > now - 24h.
+// Explicit --to > now. A date-only To ("YYYY-MM-DD") is extended to
+// end-of-day for inclusive semantics; a date-only From parses as
+// midnight start-of-day (no extension applied).
+func ResolveTimeWindow(inputs TimeWindowInputs) (time.Time, time.Time, error) {
+	from := inputs.Now.Add(-defaultLookback)
+	if inputs.MarkerFound {
+		from = inputs.Marker
+	}
+
+	if inputs.From != "" {
+		parsed, err := parseDate(inputs.From)
+		if err != nil {
+			return time.Time{}, time.Time{}, err
+		}
+
+		from = parsed
+	}
+
+	toTime := inputs.Now
+	if inputs.To != "" {
+		parsed, err := parseDate(inputs.To)
+		if err != nil {
+			return time.Time{}, time.Time{}, err
+		}
+
+		if len(inputs.To) == len("2006-01-02") {
+			parsed = parsed.AddDate(0, 0, 1).Add(-time.Nanosecond)
+		}
+
+		toTime = parsed
+	}
+
+	return from, toTime, nil
+}
+
+// unexported constants.
+const (
+	defaultLookback = 24 * time.Hour
+	defaultMaxBytes = 200_000
+)
 
 // unexported variables.
 var (
@@ -72,16 +124,19 @@ func emitTranscripts(
 ) error {
 	contents := make([]string, 0, len(entries))
 	total := 0
+
 	for _, entry := range entries {
 		content, _, readErr := reader.Read(entry.Path, math.MaxInt32)
 		if readErr != nil {
 			return fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
 		}
+
 		contents = append(contents, content)
 		total += len(content)
 	}
 
 	dropped := 0
+
 	for total > maxBytes && len(contents) > 1 {
 		total -= len(contents[0])
 		dropped++
@@ -93,13 +148,16 @@ func emitTranscripts(
 			"[engram transcript: dropped %d oldest session(s) to fit %d-byte cap]\n",
 			dropped, maxBytes,
 		)
-		if _, err := io.WriteString(stdout, notice); err != nil {
+
+		_, err := io.WriteString(stdout, notice)
+		if err != nil {
 			return fmt.Errorf("transcript: writing output: %w", err)
 		}
 	}
 
 	for _, content := range contents {
-		if _, err := io.WriteString(stdout, content); err != nil {
+		_, err := io.WriteString(stdout, content)
+		if err != nil {
 			return fmt.Errorf("transcript: writing output: %w", err)
 		}
 	}
@@ -120,54 +178,12 @@ func filterByDateRange(entries []transcript.FileEntry, from, to time.Time) []tra
 	return filtered
 }
 
-// TimeWindowInputs is the resolution input for ResolveTimeWindow. From/To are
-// raw CLI strings (may be empty); Marker is the marker timestamp; MarkerFound
-// distinguishes a missing-marker first-run from a zero-time marker. Now is the
-// current time, injected for testability.
-type TimeWindowInputs struct {
-	From, To    string
-	Marker      time.Time
-	MarkerFound bool
-	Now         time.Time
-}
+// newOsFinderAndReader constructs the production session finder and transcript reader.
+func newOsFinderAndReader() (transcript.Finder, transcript.Reader) {
+	finder := transcript.NewCompositeSessionFinder(transcript.NewSessionFinder(&osDirLister{}))
+	reader := transcript.NewCompositeTranscriptReader(transcript.NewJSONLReader(&osFileReader{}))
 
-const defaultLookback = 24 * time.Hour
-
-// ResolveTimeWindow returns the effective (from, to) time range for a
-// transcript scan. Precedence: explicit --from > marker > now - 24h.
-// Explicit --to > now. A date-only To ("YYYY-MM-DD") is extended to
-// end-of-day for inclusive semantics; a date-only From parses as
-// midnight start-of-day (no extension applied).
-func ResolveTimeWindow(in TimeWindowInputs) (time.Time, time.Time, error) {
-	from := in.Now.Add(-defaultLookback)
-	if in.MarkerFound {
-		from = in.Marker
-	}
-
-	if in.From != "" {
-		parsed, err := parseDate(in.From)
-		if err != nil {
-			return time.Time{}, time.Time{}, err
-		}
-
-		from = parsed
-	}
-
-	to := in.Now
-	if in.To != "" {
-		parsed, err := parseDate(in.To)
-		if err != nil {
-			return time.Time{}, time.Time{}, err
-		}
-
-		if len(in.To) == len("2006-01-02") {
-			parsed = parsed.AddDate(0, 0, 1).Add(-time.Nanosecond)
-		}
-
-		to = parsed
-	}
-
-	return from, to, nil
+	return finder, reader
 }
 
 // parseDate parses a date string, accepting RFC3339 or YYYY-MM-DD layout.
@@ -187,38 +203,71 @@ func parseDate(s string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("%w: %q", errTranscriptInvalidDate, s)
 }
 
+// resolveMaxBytes returns the effective byte cap, defaulting to defaultMaxBytes when zero or negative.
+func resolveMaxBytes(maxBytes int) int {
+	if maxBytes <= 0 {
+		return defaultMaxBytes
+	}
+
+	return maxBytes
+}
+
+// resolveProjectSlug returns the effective project slug for the given args.
+func resolveProjectSlug(args TranscriptArgs) (string, error) {
+	if args.ProjectSlug != "" {
+		return args.ProjectSlug, nil
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("transcript: resolving working directory: %w", err)
+	}
+
+	return ProjectSlugFromPath(cwd), nil
+}
+
+// resolveStateDir returns the effective state directory for the given args.
+func resolveStateDir(args TranscriptArgs) (string, error) {
+	if args.StateDir != "" {
+		return args.StateDir, nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("transcript: resolving home dir: %w", err)
+	}
+
+	return learnmarker.StateDirFromHome(home, os.Getenv), nil
+}
+
 // runTranscript reads session transcripts in [from, to] (inclusive) and emits stripped content.
 func runTranscript(_ context.Context, args TranscriptArgs, stdout io.Writer) error {
 	transcriptDir := args.TranscriptDir
-	if err := applyTranscriptDirDefault(&transcriptDir, args.ProjectSlug, os.Getwd); err != nil {
+
+	err := applyTranscriptDirDefault(&transcriptDir, args.ProjectSlug, os.Getwd)
+	if err != nil {
 		return err
 	}
 
-	stateDir := args.StateDir
-	if stateDir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("transcript: resolving home dir: %w", err)
-		}
-		stateDir = learnmarker.StateDirFromHome(home, os.Getenv)
+	stateDir, err := resolveStateDir(args)
+	if err != nil {
+		return err
 	}
 
-	slug := args.ProjectSlug
-	if slug == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("transcript: resolving working directory: %w", err)
-		}
-		slug = ProjectSlugFromPath(cwd)
+	slug, err := resolveProjectSlug(args)
+	if err != nil {
+		return err
 	}
 
 	markerPath := learnmarker.MarkerPath(stateDir, slug)
+
 	markerTime, markerFound, err := learnmarker.Read(learnmarker.OSFS{}, markerPath)
 	if err != nil {
 		return fmt.Errorf("transcript: reading marker: %w", err)
 	}
 
 	now := time.Now().UTC()
+
 	fromTime, toTime, err := ResolveTimeWindow(TimeWindowInputs{
 		From: args.From, To: args.To,
 		Marker: markerTime, MarkerFound: markerFound, Now: now,
@@ -227,15 +276,8 @@ func runTranscript(_ context.Context, args TranscriptArgs, stdout io.Writer) err
 		return err
 	}
 
-	maxBytes := args.MaxBytes
-	if maxBytes <= 0 {
-		maxBytes = defaultMaxBytes
-	}
-
-	lister := &osDirLister{}
-	finder := transcript.NewCompositeSessionFinder(transcript.NewSessionFinder(lister))
-	fileReader := &osFileReader{}
-	reader := transcript.NewCompositeTranscriptReader(transcript.NewJSONLReader(fileReader))
+	maxBytes := resolveMaxBytes(args.MaxBytes)
+	finder, reader := newOsFinderAndReader()
 
 	entries, findErr := finder.Find(transcriptDir)
 	if findErr != nil {
@@ -245,12 +287,14 @@ func runTranscript(_ context.Context, args TranscriptArgs, stdout io.Writer) err
 	filtered := filterByDateRange(entries, fromTime, toTime)
 	slices.Reverse(filtered) // chronological for output
 
-	if emitErr := emitTranscripts(reader, filtered, maxBytes, stdout); emitErr != nil {
+	emitErr := emitTranscripts(reader, filtered, maxBytes, stdout)
+	if emitErr != nil {
 		return emitErr
 	}
 
 	if args.Mark {
-		if writeErr := learnmarker.Write(learnmarker.OSFS{}, markerPath, now); writeErr != nil {
+		writeErr := learnmarker.Write(learnmarker.OSFS{}, markerPath, now)
+		if writeErr != nil {
 			return fmt.Errorf("transcript: advancing marker: %w", writeErr)
 		}
 	}
