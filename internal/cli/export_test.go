@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"io"
+	"math"
 
 	"github.com/toejough/engram/internal/transcript"
 )
@@ -47,7 +48,7 @@ func ExportEmitTranscripts(
 	entries []transcript.FileEntry,
 	stdout io.Writer,
 ) error {
-	return emitTranscripts(reader, entries, stdout)
+	return emitTranscripts(reader, entries, math.MaxInt32, stdout)
 }
 
 // ExportNewOsCommander returns the production Commander adapter for testing.
@@ -107,6 +108,6 @@ func RunRecallForTest(ctx context.Context, args RecallArgs, stdout io.Writer) er
 }
 
 // RunTranscriptForTest exposes runTranscript for whitebox testing.
-func RunTranscriptForTest(ctx context.Context, args TranscriptArgs, stdout io.Writer) error {
-	return runTranscript(ctx, args, stdout)
+func RunTranscriptForTest(args TranscriptArgs, stdout io.Writer) error {
+	return runTranscript(context.Background(), args, stdout)
 }

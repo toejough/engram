@@ -10,24 +10,28 @@ import (
 	"slices"
 	"time"
 
+	"github.com/toejough/engram/internal/learnmarker"
 	"github.com/toejough/engram/internal/transcript"
 )
 
 // TranscriptArgs holds parsed flags for the transcript subcommand.
 type TranscriptArgs struct {
-	From          string `targ:"flag,name=from,required,desc=start date (YYYY-MM-DD or RFC3339 inclusive)"`
-	To            string `targ:"flag,name=to,required,desc=end date (YYYY-MM-DD or RFC3339 inclusive)"`
+	From          string `targ:"flag,name=from,desc=start date (YYYY-MM-DD or RFC3339); defaults to marker or 24h ago"`
+	To            string `targ:"flag,name=to,desc=end date (YYYY-MM-DD or RFC3339); defaults to now"`
 	TranscriptDir string `targ:"flag,name=transcript-dir,env=ENGRAM_TRANSCRIPT_DIR,desc=path to transcript directory"`
-	ProjectSlug   string `targ:"flag,name=project-slug,desc=project slug for default transcript-dir derivation"`
+	ProjectSlug   string `targ:"flag,name=project-slug,desc=project slug for transcript-dir and marker derivation"`
+	StateDir      string `targ:"flag,name=state-dir,env=ENGRAM_STATE_DIR,desc=state directory (defaults to XDG_STATE_HOME/engram)"`
+	Mark          bool   `targ:"flag,name=mark,desc=advance the last-learn marker to now after reading"`
+	MaxBytes      int    `targ:"flag,name=max-bytes,desc=byte cap for transcript output (default 200000)"`
 }
+
+const defaultMaxBytes = 200_000
 
 // unexported variables.
 var (
-	errTranscriptFromRequired = errors.New("transcript: --from is required")
-	errTranscriptInvalidDate  = errors.New(
+	errTranscriptInvalidDate = errors.New(
 		"transcript: invalid date: expected YYYY-MM-DD or RFC3339",
 	)
-	errTranscriptToRequired = errors.New("transcript: --to is required")
 )
 
 // applyTranscriptDirDefault sets *dir to the ~/.claude/projects/<slug> path when empty.
@@ -56,23 +60,47 @@ func applyTranscriptDirDefault(dir *string, slug string, getwd func() (string, e
 	return nil
 }
 
-// emitTranscripts reads and writes stripped content for the given entries.
+// emitTranscripts writes entries (oldest first) to stdout, capped at maxBytes
+// of total content. When the cap is reached, oldest content is dropped —
+// the most recent transcript wins. A one-line truncation notice is emitted
+// when content was dropped.
 func emitTranscripts(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
+	maxBytes int,
 	stdout io.Writer,
 ) error {
-	const budgetBytes = math.MaxInt32
-
+	contents := make([]string, 0, len(entries))
+	total := 0
 	for _, entry := range entries {
-		content, _, readErr := reader.Read(entry.Path, budgetBytes)
+		content, _, readErr := reader.Read(entry.Path, math.MaxInt32)
 		if readErr != nil {
 			return fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
 		}
+		contents = append(contents, content)
+		total += len(content)
+	}
 
-		_, writeErr := io.WriteString(stdout, content)
-		if writeErr != nil {
-			return fmt.Errorf("transcript: writing output: %w", writeErr)
+	dropped := 0
+	for total > maxBytes && len(contents) > 1 {
+		total -= len(contents[0])
+		dropped++
+		contents = contents[1:]
+	}
+
+	if dropped > 0 {
+		notice := fmt.Sprintf(
+			"[engram transcript: dropped %d oldest session(s) to fit %d-byte cap]\n",
+			dropped, maxBytes,
+		)
+		if _, err := io.WriteString(stdout, notice); err != nil {
+			return fmt.Errorf("transcript: writing output: %w", err)
+		}
+	}
+
+	for _, content := range contents {
+		if _, err := io.WriteString(stdout, content); err != nil {
+			return fmt.Errorf("transcript: writing output: %w", err)
 		}
 	}
 
@@ -161,34 +189,47 @@ func parseDate(s string) (time.Time, error) {
 
 // runTranscript reads session transcripts in [from, to] (inclusive) and emits stripped content.
 func runTranscript(_ context.Context, args TranscriptArgs, stdout io.Writer) error {
-	if args.From == "" {
-		return errTranscriptFromRequired
-	}
-
-	if args.To == "" {
-		return errTranscriptToRequired
-	}
-
-	fromTime, err := parseDate(args.From)
-	if err != nil {
-		return err
-	}
-
-	toTime, err := parseDate(args.To)
-	if err != nil {
-		return err
-	}
-
-	// If --to was given as YYYY-MM-DD, extend to end-of-day for inclusive semantics.
-	if len(args.To) == len("2006-01-02") {
-		toTime = toTime.AddDate(0, 0, 1).Add(-time.Nanosecond)
-	}
-
 	transcriptDir := args.TranscriptDir
+	if err := applyTranscriptDirDefault(&transcriptDir, args.ProjectSlug, os.Getwd); err != nil {
+		return err
+	}
 
-	dirErr := applyTranscriptDirDefault(&transcriptDir, args.ProjectSlug, os.Getwd)
-	if dirErr != nil {
-		return dirErr
+	stateDir := args.StateDir
+	if stateDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("transcript: resolving home dir: %w", err)
+		}
+		stateDir = learnmarker.StateDirFromHome(home, os.Getenv)
+	}
+
+	slug := args.ProjectSlug
+	if slug == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("transcript: resolving working directory: %w", err)
+		}
+		slug = ProjectSlugFromPath(cwd)
+	}
+
+	markerPath := learnmarker.MarkerPath(stateDir, slug)
+	markerTime, markerFound, err := learnmarker.Read(learnmarker.OSFS{}, markerPath)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now().UTC()
+	fromTime, toTime, err := ResolveTimeWindow(TimeWindowInputs{
+		From: args.From, To: args.To,
+		Marker: markerTime, MarkerFound: markerFound, Now: now,
+	})
+	if err != nil {
+		return err
+	}
+
+	maxBytes := args.MaxBytes
+	if maxBytes <= 0 {
+		maxBytes = defaultMaxBytes
 	}
 
 	lister := &osDirLister{}
@@ -202,9 +243,17 @@ func runTranscript(_ context.Context, args TranscriptArgs, stdout io.Writer) err
 	}
 
 	filtered := filterByDateRange(entries, fromTime, toTime)
+	slices.Reverse(filtered) // chronological for output
 
-	// Finder returns newest-first; reverse for chronological output.
-	slices.Reverse(filtered)
+	if emitErr := emitTranscripts(reader, filtered, maxBytes, stdout); emitErr != nil {
+		return emitErr
+	}
 
-	return emitTranscripts(reader, filtered, stdout)
+	if args.Mark {
+		if writeErr := learnmarker.Write(learnmarker.OSFS{}, markerPath, now); writeErr != nil {
+			return writeErr
+		}
+	}
+
+	return nil
 }

@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/learnmarker"
 	"github.com/toejough/engram/internal/transcript"
 )
 
@@ -114,30 +115,6 @@ func TestParseDate(t *testing.T) {
 
 func TestRunTranscript_Errors(t *testing.T) {
 	t.Parallel()
-
-	t.Run("empty --from returns error", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		_, err := runTranscript(context.Background(), cli.TranscriptArgs{
-			From:          "",
-			To:            "2026-05-10",
-			TranscriptDir: t.TempDir(),
-		})
-		g.Expect(err).To(HaveOccurred())
-	})
-
-	t.Run("empty --to returns error", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		_, err := runTranscript(context.Background(), cli.TranscriptArgs{
-			From:          "2026-05-10",
-			To:            "",
-			TranscriptDir: t.TempDir(),
-		})
-		g.Expect(err).To(HaveOccurred())
-	})
 
 	t.Run("invalid --from date returns error", func(t *testing.T) {
 		t.Parallel()
@@ -323,12 +300,68 @@ func (r *failReader) Read(_ string, _ int) (string, int, error) {
 }
 
 // runTranscript is a test-local shorthand.
-func runTranscript(ctx context.Context, args cli.TranscriptArgs) (string, error) {
+func runTranscript(_ context.Context, args cli.TranscriptArgs) (string, error) {
 	var stdout bytes.Buffer
 
-	err := cli.RunTranscriptForTest(ctx, args, &stdout)
+	err := cli.RunTranscriptForTest(args, &stdout)
 
 	return stdout.String(), err
+}
+
+func TestRunTranscript_NoFlagsUsesMarkerAndDoesNotErrorOnMissingFrom(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+	slug := "Users-joe-repos-test"
+	markerPath := learnmarker.MarkerPath(stateDir, slug)
+	g.Expect(os.MkdirAll(filepath.Dir(markerPath), 0o755)).To(Succeed())
+	markerTime := time.Now().Add(-2 * time.Hour).UTC()
+	g.Expect(os.WriteFile(markerPath, []byte(markerTime.Format(time.RFC3339Nano)), 0o644)).
+		To(Succeed())
+
+	var stdout bytes.Buffer
+	err := cli.RunTranscriptForTest(cli.TranscriptArgs{
+		ProjectSlug:   slug,
+		StateDir:      stateDir,
+		TranscriptDir: t.TempDir(), // empty dir; we only care that flags resolved
+	}, &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRunTranscript_MarkFlagAdvancesMarkerToNow(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+	slug := "Users-joe-repos-test"
+
+	var stdout bytes.Buffer
+	before := time.Now().UTC()
+	err := cli.RunTranscriptForTest(cli.TranscriptArgs{
+		ProjectSlug:   slug,
+		StateDir:      stateDir,
+		TranscriptDir: t.TempDir(),
+		Mark:          true,
+	}, &stdout)
+	after := time.Now().UTC()
+
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	got, _ := os.ReadFile(learnmarker.MarkerPath(stateDir, slug))
+	parsed, parseErr := time.Parse(time.RFC3339Nano, string(got))
+	g.Expect(parseErr).NotTo(HaveOccurred())
+	if parseErr != nil {
+		return
+	}
+	g.Expect(parsed.After(before.Add(-time.Second)) && parsed.Before(after.Add(time.Second))).
+		To(BeTrue())
 }
 
 // writeTranscriptFixture writes a JSONL line to dir/<name> and sets its mtime.
