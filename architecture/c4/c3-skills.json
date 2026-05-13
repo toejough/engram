@@ -35,14 +35,6 @@
       "subtitle": "loads vault notes for the current situation"
     },
     {
-      "source": "../../skills/migrate/SKILL.md",
-      "id": "S2-N1-M5",
-      "kind": "component",
-      "name": "migrate skill",
-      "responsibility": "Upgrades pre-cfd5fb5 (2026-04-17) flat-format memory files to the current split feedback/fact layout, calling `engram update` to rewrite each file.",
-      "subtitle": "legacy memory upgrade"
-    },
-    {
       "source": "../../skills/c4/SKILL.md",
       "id": "S2-N1-M6",
       "kind": "component",
@@ -79,12 +71,6 @@
       "protocol": "Skill body text → agent Bash subprocess",
       "to": "S2-N3"
     },
-    {
-      "description": "instructs agent to read legacy TOML and call `engram update` to rewrite each file",
-      "from": "S2-N1-M5",
-      "protocol": "Skill body text → agent Bash subprocess",
-      "to": "S2-N3"
-    }
   ],
   "schema_version": "1"
 }

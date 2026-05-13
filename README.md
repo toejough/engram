@@ -1,7 +1,9 @@
 # Engram
 
-> ⚠️ **Breaking change since [`062f127`](../../commit/062f127) (2026-04-04).**
-> Everything from hook behavior to memory file layout to the TOML schema has changed between `062f127` (2026-04-04) and `cfd5fb5` (2026-04-17). If you have memories written before this change, **do not start a new session until you run the `/migrate` skill.** See [Changes since `062f127`](#changes-since-062f127) and [Migrating existing memories](#migrating-existing-memories) at the end of this document.
+> ⚠️ **Breaking change.** The pre-vault TOML memory-record storage layer
+> (`~/.local/share/engram/memory/`) was removed. Engram now writes only
+> to an agent-memory vault (Permanent/ and MOCs/). Migration from the
+> old layout is not automated — see commit history for context.
 
 ## Overview
 
@@ -311,15 +313,15 @@ flowchart TB
 
 ### Binary commands
 
-The `engram` binary provides CLI access to memory operations:
+The `engram` binary provides CLI access against the agent-memory vault:
 
 ```
-engram recall      Recall recent session context
-engram list        List all memories with type, name, and situation
-engram learn feedback --behavior "..." --impact "..." --action "..." --source human --situation "..."
-engram learn fact    --subject "..." --predicate "..." --object "..." --source human --situation "..."
-engram update      Modify fields of an existing memory (--name required)
-engram show        Display full memory details (--name required)
+engram recall      Surface anchors, recent notes, or follow basenames from a vault
+engram transcript  Read Claude Code session transcripts in a date range
+engram learn feedback --slug ... --vault ... --source ... --situation ... --behavior ... --impact ... --action ...
+engram learn fact     --slug ... --vault ... --source ... --situation ... --subject ... --predicate ... --object ...
+engram learn moc      --slug ... --vault ... --source ... --topic ...
+engram build-self  Build the engram binary
 ```
 
 ### Project structure
@@ -327,17 +329,16 @@ engram show        Display full memory details (--name required)
 ```
 cmd/engram/          CLI entry point (thin wiring layer)
 internal/            Business logic (DI boundaries)
-  anthropic/         Anthropic API client
   cli/               CLI command wiring
   context/           Context extraction
-  externalsources/   CLAUDE.md, rules, skills, auto-memory discovery
-  memory/            Memory storage/retrieval
-  recall/            Recall pipeline (six phases)
+  debuglog/          Structured debug logging
+  luhmann/           Luhmann-ID allocation under file lock
   tokenresolver/     Token budgeting
-  tomlwriter/        TOML serialization
-skills/              Plugin skills (recall, prepare, learn, migrate)
-hooks/               Shell hooks for Claude Code integration
+  transcript/        Session transcript reading
+  vaultgraph/        Vault traversal (MOCs/Permanent, anchors, follow)
+skills/              Plugin skills (recall, learn, migrate, c4)
 .claude-plugin/      Plugin manifest
+opencode/            OpenCode plugin (commands, skills)
 archive/             Historical planning artifacts
 ```
 
@@ -380,20 +381,3 @@ This is a substantial rewrite. Everything listed below changed between commit [`
 | Hooks | `Stop` (async extract), `UserPromptSubmit` (surface) | `SessionStart`, `UserPromptSubmit`, `PostToolUse` — reminders only, no surfacing |
 | Recall | Always-on injection via BM25 | Three-phase pipeline: auto-memory ranking, skill frontmatter ranking, CLAUDE.md/rules extraction. Haiku filters for relevance. Triggered by `/recall` or `/prepare`. |
 
-## Migrating existing memories
-
-If you ran engram before `cfd5fb5` (2026-04-17), you have memories in the old flat layout with `confidence`, `surfaced_count`, and other fields that no longer exist. They will not load under the current code.
-
-**Do not start a new session on the updated engram until you migrate.** Running fresh against unmigrated memories will create a mixed state that's hard to untangle.
-
-The `/migrate` skill walks you through:
-
-1. Locating your existing memory files under `~/.local/share/engram/`.
-2. Reading each file and classifying it as **feedback** or **fact** (judgement required — the skill guides this).
-3. Rewriting the situation to a task-shaped form that recall can actually match.
-4. Dropping obsolete fields (`surfaced_count`, `followed_count`, `not_followed_count`, `irrelevant_count`, `project_scoped`, `confidence`, `keywords`, `concepts`, `title`).
-5. Writing the new file to `~/.local/share/engram/memory/feedback/` or `~/.local/share/engram/memory/facts/`.
-6. Verifying each migrated file with `engram show --name <slug>`.
-7. Archiving the old files to a dated directory (not deleting them).
-
-The skill file is at `skills/migrate/SKILL.md`. Invoke with `/migrate` in Claude Code.
