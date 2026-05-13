@@ -1,11 +1,6 @@
 {
   "name": "opencode-plugin-engram",
   "version": "0.1.0",
-  "description": "Self-correcting memory for LLM agents",
-  "type": "module",
-  "main": "plugins/engram.ts",
-  "private": true,
-  "dependencies": {
-    "@opencode-ai/plugin": "^1.1.25"
-  }
+  "description": "Memory for LLM agents — recall and learn skills backed by the engram CLI.",
+  "private": true
 }

@@ -1,4 +1,4 @@
 {
   "name": "engram",
-  "description": "Memory for LLM agents — recall context, prepare for work, learn from experience, remember explicitly."
+  "description": "Memory for LLM agents — recall context from the agent-memory vault, and learn lessons from completed work."
 }

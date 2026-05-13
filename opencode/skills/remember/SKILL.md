@@ -1,1 +1,0 @@
-../../../skills/remember/SKILL.md

@@ -4,16 +4,16 @@
     "name": "toejough"
   },
   "metadata": {
-    "description": "Self-correcting memory for LLM agents — detects corrections and remembers them as structured TOML files.",
+    "description": "Memory for LLM agents — recall context from the agent-memory vault, and learn lessons from completed work.",
     "version": "0.1.0"
   },
   "plugins": [
     {
       "name": "engram",
       "source": "./",
-      "description": "Self-correcting memory for LLM agents. Detects corrections, extracts SBIA-structured memories, surfaces them at relevant moments, and evaluates their effectiveness.",
+      "description": "Memory for LLM agents. The recall skill surfaces relevant notes from an agent-memory vault; the learn skill captures lessons as permanent notes when they pass three gates (Recurs / Activity-and-domain / Knowledge).",
       "category": "memory",
-      "tags": ["memory", "learning", "corrections", "sbia", "feedback"]
+      "tags": ["memory", "learning", "zettelkasten", "recall", "learn"]
     }
   ]
 }

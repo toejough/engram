@@ -1,6 +1,5 @@
 ---
-description: Recall recent session context or search memories
+description: Recall relevant notes from the agent-memory vault
 ---
 
-Use the engram_recall tool to recall context.
-$ARGUMENTS
+Invoke the `recall` skill. $ARGUMENTS
