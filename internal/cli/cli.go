@@ -18,15 +18,11 @@ import (
 // unexported constants.
 const (
 	defaultRecallRecentLimit = 20
-	envLLMCmd                = "ENGRAM_LLM_CMD"
 	luhmannLockFile          = ".luhmann.lock"
 )
 
 // unexported variables.
 var (
-	errLLMCmdRequired = errors.New(
-		"llm-cmd is required: set --llm-cmd flag or ENGRAM_LLM_CMD environment variable",
-	)
 	errNotADirectory       = errors.New("not a directory")
 	errRecallVaultRequired = errors.New(
 		"recall: --vault required (or set ENGRAM_VAULT_PATH)",
@@ -175,58 +171,6 @@ func (*osLearnFS) WriteNew(path string, data []byte) error {
 	return nil
 }
 
-// osQuickFS is the production filesystem adapter for the quick subcommand.
-type osQuickFS struct{}
-
-// StatDir returns an error if the directory does not exist or isn't accessible.
-func (*osQuickFS) StatDir(path string) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("stat: %w", err)
-	}
-
-	if !info.IsDir() {
-		return fmt.Errorf("%w: %s", errNotADirectory, path)
-	}
-
-	return nil
-}
-
-// WriteNew creates the file with O_EXCL — errors with fs.ErrExist if it already exists.
-func (*osQuickFS) WriteNew(path string, data []byte) error {
-	const perm = 0o600
-
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // path from caller
-	if err != nil {
-		return fmt.Errorf("open: %w", err)
-	}
-
-	defer func() { _ = f.Close() }()
-
-	_, writeErr := f.Write(data)
-	if writeErr != nil {
-		return fmt.Errorf("write: %w", writeErr)
-	}
-
-	return nil
-}
-
-// applyDataDirDefault sets *dataDir to the standard engram data path when empty.
-func applyDataDirDefault(dataDir *string) error {
-	if *dataDir != "" {
-		return nil
-	}
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("resolving home directory: %w", err)
-	}
-
-	*dataDir = DataDirFromHome(home, os.Getenv)
-
-	return nil
-}
-
 func emitBasenames(stdout io.Writer, names []string) error {
 	for _, name := range names {
 		_, err := fmt.Fprintln(stdout, name)
@@ -236,24 +180,6 @@ func emitBasenames(stdout io.Writer, names []string) error {
 	}
 
 	return nil
-}
-
-func requireLLMCmd(flagValue string) error {
-	if resolveLLMCmd(flagValue) == "" {
-		return errLLMCmdRequired
-	}
-
-	return nil
-}
-
-// resolveLLMCmd returns the explicit flag value if set, otherwise the
-// ENGRAM_LLM_CMD env var, otherwise the empty string.
-func resolveLLMCmd(flagValue string) string {
-	if flagValue != "" {
-		return flagValue
-	}
-
-	return os.Getenv(envLLMCmd)
 }
 
 func runRecall(_ context.Context, args RecallArgs, stdout io.Writer) error {

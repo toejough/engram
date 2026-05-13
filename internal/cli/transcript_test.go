@@ -87,7 +87,7 @@ func TestParseDate(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		_, stderr := executeForTest(t, []string{
+		stderr := executeForTest(t, []string{
 			"engram", "transcript",
 			"--from", "2026-05-10",
 			"--to", "2026-05-10",
@@ -102,7 +102,7 @@ func TestParseDate(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		_, stderr := executeForTest(t, []string{
+		stderr := executeForTest(t, []string{
 			"engram", "transcript",
 			"--from", "2026-05-10T00:00:00Z",
 			"--to", "2026-05-10T23:59:59Z",

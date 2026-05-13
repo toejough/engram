@@ -108,7 +108,7 @@ func TestRunSafe(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		// Invalid subcommand triggers error path — no filesystem I/O.
-		_, stderr := executeForTest(t, []string{"engram", "nonexistent-subcommand"})
+		stderr := executeForTest(t, []string{"engram", "nonexistent-subcommand"})
 		g.Expect(stderr).NotTo(gomega.BeEmpty())
 	})
 }
@@ -121,18 +121,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		g.Expect(targets).To(gomega.HaveLen(9))
-	})
-
-	t.Run("invokes cycle closure", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		// cycle requires --llm-cmd; with empty it errors → still enters closure.
-		_, stderr := executeForTest(t, []string{
-			"engram", "cycle", "--llm-cmd", "", "--project-dir", t.TempDir(),
-		})
-		g.Expect(stderr).NotTo(gomega.BeEmpty())
+		g.Expect(targets).To(gomega.HaveLen(4))
 	})
 
 	t.Run("invokes learn feedback closure", func(t *testing.T) {
@@ -142,10 +131,11 @@ func TestTargets(t *testing.T) {
 		vault := t.TempDir()
 		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
 
-		_, stderr := executeForTest(t, []string{
+		stderr := executeForTest(t, []string{
 			"engram", "learn", "feedback",
 			"--slug", "test-slug",
 			"--vault", vault,
+			"--source", "agent",
 			"--relation", "top",
 		})
 		// May or may not error; goal is to invoke the closure.
@@ -159,10 +149,11 @@ func TestTargets(t *testing.T) {
 		vault := t.TempDir()
 		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
 
-		_, stderr := executeForTest(t, []string{
+		stderr := executeForTest(t, []string{
 			"engram", "learn", "fact",
 			"--slug", "test-slug",
 			"--vault", vault,
+			"--source", "agent",
 			"--relation", "top",
 		})
 		_ = stderr
@@ -175,10 +166,11 @@ func TestTargets(t *testing.T) {
 		vault := t.TempDir()
 		g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
-		_, stderr := executeForTest(t, []string{
+		stderr := executeForTest(t, []string{
 			"engram", "learn", "moc",
 			"--slug", "test-slug",
 			"--vault", vault,
+			"--source", "agent",
 			"--relation", "top",
 		})
 		_ = stderr
@@ -246,7 +238,7 @@ func TestTargets(t *testing.T) {
 
 		vault := t.TempDir()
 
-		_, _ = executeForTest(t, []string{
+		_ = executeForTest(t, []string{
 			"engram", "recall", "--vault", vault,
 		})
 	})
@@ -254,7 +246,7 @@ func TestTargets(t *testing.T) {
 	t.Run("invokes transcript closure", func(t *testing.T) {
 		t.Parallel()
 
-		_, _ = executeForTest(t, []string{
+		_ = executeForTest(t, []string{
 			"engram", "transcript",
 			"--from", "2026-01-01",
 			"--to", "2026-12-31",
@@ -262,69 +254,22 @@ func TestTargets(t *testing.T) {
 		})
 	})
 
-	t.Run("invokes list closure", func(t *testing.T) {
-		t.Parallel()
-
-		_, _ = executeForTest(t, []string{
-			"engram", "list", "--data-dir", t.TempDir(),
-		})
-	})
-
-	t.Run("invokes reminder closure", func(t *testing.T) {
-		t.Parallel()
-
-		_, _ = executeForTest(t, []string{
-			"engram", "reminder",
-		})
-	})
-
-	t.Run("invokes update closure", func(t *testing.T) {
-		t.Parallel()
-
-		_, _ = executeForTest(t, []string{
-			"engram", "update", "--name", "x", "--data-dir", t.TempDir(),
-		})
-	})
-
-	t.Run("invokes quick closure", func(t *testing.T) {
-		t.Parallel()
-
-		vault := t.TempDir()
-
-		_, _ = executeForTest(t, []string{
-			"engram", "quick", "--slug", "test-slug", "--vault", vault, "--content", "x",
-		})
-	})
-
 	t.Run("invokes build-self closure with stale check on missing bin", func(t *testing.T) {
 		t.Parallel()
 
 		// Use a non-existent plugin-root; build-self errors but the closure executes.
-		_, _ = executeForTest(t, []string{
+		_ = executeForTest(t, []string{
 			"engram", "build-self", "--plugin-root", "/nonexistent/plugin/root",
 			"--bin-path", filepath.Join(t.TempDir(), "engram"),
 			"--if-stale",
 		})
 	})
-
-	t.Run("closure wiring invokes command with injected IO", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		var stdout bytes.Buffer
-
-		targets := cli.Targets(&stdout, &bytes.Buffer{}, func(int) {}, nil)
-		_, _ = targ.Execute([]string{"engram", "show", "--data-dir", t.TempDir()}, targets...)
-
-		// show without slug produces an error (written to stderr), stdout is empty.
-		g.Expect(stdout.String()).To(gomega.BeEmpty())
-	})
 }
 
-// executeForTest runs an engram CLI command through targ, returning stdout content.
+// executeForTest runs an engram CLI command through targ, returning stderr content.
 // Command-level errors are written to stderr (errHandler contract), not returned as Go errors.
 // Targ-level errors (unknown flags, missing required args) are also written to stderr.
-func executeForTest(t *testing.T, args []string) (stdoutStr, stderrStr string) {
+func executeForTest(t *testing.T, args []string) string {
 	t.Helper()
 
 	var stdout, stderr bytes.Buffer
@@ -337,5 +282,5 @@ func executeForTest(t *testing.T, args []string) (stdoutStr, stderrStr string) {
 		stderr.WriteString("\n")
 	}
 
-	return stdout.String(), stderr.String()
+	return stderr.String()
 }

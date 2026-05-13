@@ -53,17 +53,25 @@ type LearnDeps struct {
 
 // unexported constants.
 const (
+	dateFormat      = "2006-01-02"
+	envVaultDir     = "ENGRAM_VAULT_DIR"
 	mocSubdir       = "MOCs"
 	permanentSubdir = "Permanent"
+	typeFact        = "fact"
+	typeFeedback    = "feedback"
 	typeMOC         = "moc"
 )
 
 // unexported variables.
 var (
 	errLearnUnknownType    = errors.New("learn: type must be feedback, fact, or moc")
+	errSlugEmpty           = errors.New("slug is required")
+	errSlugInvalid         = errors.New("slug must match [a-z0-9-]+")
+	errVaultUnset          = errors.New("vault path is required (--vault flag or ENGRAM_VAULT_DIR env)")
 	luhmannFilenamePattern = regexp.MustCompile(
 		`^([0-9][0-9a-z]*)\.\d{4}-\d{2}-\d{2}\..+\.md$`,
 	)
+	slugPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 )
 
 type factFields struct {
@@ -279,6 +287,19 @@ func renderRelatedSection(entries []string) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
+// resolveVault returns the vault path: flag wins, env fallback, error if neither set.
+func resolveVault(flagValue string, getenv func(string) string) (string, error) {
+	if flagValue != "" {
+		return flagValue, nil
+	}
+
+	if env := getenv(envVaultDir); env != "" {
+		return env, nil
+	}
+
+	return "", errVaultUnset
+}
+
 // runLearn orchestrates the learn subcommand: validates inputs, acquires the lock,
 // computes the next Luhmann ID, and writes the file.
 func runLearn(_ context.Context, args LearnArgs, deps LearnDeps, stdout io.Writer) error {
@@ -357,6 +378,19 @@ func runLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Writer) 
 		Topic:     a.Topic,
 		Framing:   a.Framing,
 	}, deps, stdout)
+}
+
+// validateSlug returns an error if slug is empty or does not match [a-z0-9-]+.
+func validateSlug(slug string) error {
+	if slug == "" {
+		return errSlugEmpty
+	}
+
+	if !slugPattern.MatchString(slug) {
+		return fmt.Errorf("%w: got %q", errSlugInvalid, slug)
+	}
+
+	return nil
 }
 
 // writeLearnUnderLock acquires the vault lock, computes the next Luhmann ID,

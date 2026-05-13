@@ -11,7 +11,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 )
@@ -98,25 +97,7 @@ func Timed(ctx context.Context, stage, format string, args ...any) func() {
 	return LoggerFromContext(ctx).Timed(stage, format, args...)
 }
 
-// Truncate returns s capped at truncateMax bytes, with newlines collapsed
-// to spaces and trailing "..." if truncated. Suitable for prompt/output previews.
-func Truncate(s string, maxLen int) string {
-	collapsed := strings.NewReplacer("\n", " ", "\r", " ").Replace(s)
-
-	if len(collapsed) <= maxLen {
-		return collapsed
-	}
-
-	if maxLen <= len(ellipsis) {
-		return collapsed[:maxLen]
-	}
-
-	return collapsed[:maxLen-len(ellipsis)] + ellipsis
-}
-
 // unexported constants.
 const (
-	ellipsis    = "..."
-	filePerm    = 0o644
-	truncateMax = 200
+	filePerm = 0o644
 )
