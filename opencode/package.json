@@ -1,6 +1,0 @@
-{
-  "name": "opencode-plugin-engram",
-  "version": "0.1.0",
-  "description": "Memory for LLM agents — recall and learn skills backed by the engram CLI.",
-  "private": true
-}

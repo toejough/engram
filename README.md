@@ -9,28 +9,40 @@ Engram is a plugin for **Claude Code** and **OpenCode** that gives agents persis
 
 ## Installing
 
+Both hosts need the `engram` binary and the plugin source. Requires Go 1.25+ on `PATH`.
+
+1. Install the binary:
+
+   ```bash
+   go install github.com/toejough/engram/cmd/engram@latest
+   ```
+
+   Make sure `$GOBIN` (or `$GOPATH/bin`, default `~/go/bin`) is on your `PATH`.
+
+2. Clone the repo somewhere stable — both hosts read skills and commands from this location:
+
+   ```bash
+   git clone https://github.com/toejough/engram ~/src/engram
+   ```
+
 ### Claude Code
 
-1. Run `/plugin` in Claude Code and select `engram`. That's the whole install.
-2. On first use (and whenever Go sources change), the `SessionStart` hook builds the `engram` binary in the background to `~/.local/bin/engram`. You never `git clone` or run `targ build` yourself. Requires Go 1.25+ on `PATH`.
+Add the plugin via the marketplace (`/plugin`) pointed at your local clone, or configure the marketplace path in your Claude Code settings.
 
 ### OpenCode
 
-1. Copy the plugin to your OpenCode plugins directory:
-   ```
-   cp opencode/plugins/engram.ts ~/.config/opencode/plugins/engram.ts
-   ```
-   Or install from npm if published:
-   ```
-   opencode plugin add engram
-   ```
-2. On first use (and whenever Go sources change), the plugin calls `engram build-self --if-stale` to build the binary to `~/.local/bin/engram`. Requires Go 1.25+ on `PATH`.
-3. Restart OpenCode to load the plugin.
+Add the plugin path to `~/.config/opencode/opencode.json`:
 
-### Both platforms
+```json
+{
+  "plugin": ["~/src/engram/opencode"]
+}
+```
 
-- **Upgrading from a pre-`cfd5fb5` install?** Run `/migrate` before your first new session. See [Migrating existing memories](#migrating-existing-memories).
-- The binary path is always `~/.local/bin/engram`. The data directory is `~/.local/share/engram/` (respects `$XDG_DATA_HOME`).
+### Upgrading
+
+- Refresh the binary: `go install github.com/toejough/engram/cmd/engram@latest`
+- Refresh skills and commands: `git pull` in your local clone
 
 ## Core loop
 

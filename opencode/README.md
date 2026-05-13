@@ -12,13 +12,13 @@ Engram is distributed as source — clone the repo and point OpenCode at the clo
    git clone https://github.com/toejough/engram ~/src/engram
    ```
 
-2. Build the `engram` binary:
+2. Install the `engram` binary:
 
    ```bash
-   cd ~/src/engram && go build -o ~/.local/bin/engram ./cmd/engram/
+   go install github.com/toejough/engram/cmd/engram@latest
    ```
 
-   Make sure `~/.local/bin` is on your `PATH`.
+   Make sure `$GOBIN` (or `$GOPATH/bin`, default `~/go/bin`) is on your `PATH`.
 
 3. Add the plugin path to `~/.config/opencode/opencode.json`:
 
@@ -28,7 +28,7 @@ Engram is distributed as source — clone the repo and point OpenCode at the clo
    }
    ```
 
-To upgrade, `git pull` in the cloned directory and re-run the `go build` command.
+To upgrade: `git pull` in the cloned directory (refreshes skills) and re-run the `go install` command above (refreshes the binary).
 
 ## What's included
 
