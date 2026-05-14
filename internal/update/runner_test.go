@@ -235,6 +235,35 @@ func TestUpdater_Run_Local_HappyPath(t *testing.T) {
 	g.Expect(cmd.calls[0]).To(Equal([]string{"go", "install", "./cmd/engram/"}))
 }
 
+func TestUpdater_Run_Local_GoInstallRunsFromModuleRoot(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/repo"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs["/repo/skills/learn"] = true
+	fileSystem.files["/repo/skills/learn/SKILL.md"] = []byte("x")
+
+	cmd := &fakeCmd{}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: cmd,
+		Env: &fakeEnv{home: "/home/joe", cwd: "/repo/internal/update"},
+	}
+
+	_, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// go install must run from the module root, not from the process cwd.
+	g.Expect(cmd.calls).To(HaveLen(1))
+	g.Expect(cmd.dirs[0]).To(Equal("/repo"))
+}
+
 func TestUpdater_Run_Local_OpencodeOnly_CopiesCommands(t *testing.T) {
 	t.Parallel()
 
@@ -476,11 +505,13 @@ type fakeCmd struct {
 	responses map[string][]byte
 	err       error
 	calls     [][]string
+	dirs      []string
 }
 
-func (f *fakeCmd) Run(_ context.Context, name string, args ...string) ([]byte, []byte, error) {
+func (f *fakeCmd) Run(_ context.Context, dir, name string, args ...string) ([]byte, []byte, error) {
 	call := append([]string{name}, args...)
 	f.calls = append(f.calls, call)
+	f.dirs = append(f.dirs, dir)
 
 	if f.err != nil {
 		return nil, nil, f.err

@@ -30,9 +30,10 @@ var (
 type osCommander struct{}
 
 func (*osCommander) Run(
-	ctx context.Context, name string, args ...string,
+	ctx context.Context, dir, name string, args ...string,
 ) ([]byte, []byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // name/args from internal callers
+	cmd.Dir = dir
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	cmd.Stdout = stdout

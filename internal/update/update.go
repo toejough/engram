@@ -38,8 +38,9 @@ var (
 )
 
 // Commander runs an external command, capturing stdout and stderr.
+// dir sets the working directory; empty string inherits the process cwd.
 type Commander interface {
-	Run(ctx context.Context, name string, args ...string) (stdout, stderr []byte, err error)
+	Run(ctx context.Context, dir, name string, args ...string) (stdout, stderr []byte, err error)
 }
 
 // CopyOp describes a single source→target file copy planned for a harness.
@@ -288,7 +289,7 @@ func (u *Updater) applyOps(
 // resolveRemoteModuleRoot calls `go list -m -json` to find the module
 // cache directory where the @latest version is unpacked.
 func (u *Updater) resolveRemoteModuleRoot(ctx context.Context) (string, string, error) {
-	stdout, _, runErr := u.Cmd.Run(ctx, "go", "list", "-m", "-json", ModulePath+"@latest")
+	stdout, _, runErr := u.Cmd.Run(ctx, "", "go", "list", "-m", "-json", ModulePath+"@latest")
 	if runErr != nil {
 		return "", "", fmt.Errorf("go list module: %w", runErr)
 	}
@@ -322,7 +323,7 @@ func (u *Updater) resolveSource(ctx context.Context, dryRun bool) (SourceInfo, e
 
 	if found {
 		if !dryRun {
-			_, _, runErr := u.Cmd.Run(ctx, "go", "install", "./cmd/engram/")
+			_, _, runErr := u.Cmd.Run(ctx, root, "go", "install", "./cmd/engram/")
 			if runErr != nil {
 				return SourceInfo{}, fmt.Errorf("go install (local): %w", runErr)
 			}
@@ -332,7 +333,7 @@ func (u *Updater) resolveSource(ctx context.Context, dryRun bool) (SourceInfo, e
 	}
 
 	if !dryRun {
-		_, _, runErr := u.Cmd.Run(ctx, "go", "install", goInstallTarget)
+		_, _, runErr := u.Cmd.Run(ctx, "", "go", "install", goInstallTarget)
 		if runErr != nil {
 			return SourceInfo{}, fmt.Errorf("go install (remote): %w", runErr)
 		}

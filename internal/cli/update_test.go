@@ -97,7 +97,7 @@ func TestOsCommander_ReportsFailure(t *testing.T) {
 
 	cmd := cli.ExportNewOsCommander()
 
-	_, _, err := cmd.Run(context.Background(), "false")
+	_, _, err := cmd.Run(context.Background(), "", "false")
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -108,7 +108,7 @@ func TestOsCommander_RunsCommand(t *testing.T) {
 
 	cmd := cli.ExportNewOsCommander()
 
-	stdout, _, err := cmd.Run(context.Background(), "echo", "hello world")
+	stdout, _, err := cmd.Run(context.Background(), "", "echo", "hello world")
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(strings.TrimSpace(string(stdout))).To(Equal("hello world"))
 }
