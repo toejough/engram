@@ -12,6 +12,9 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
+//go:generate impgen transcript.Finder --dependency --import-path github.com/toejough/engram/internal/transcript
+//go:generate impgen transcript.Reader --dependency --import-path github.com/toejough/engram/internal/transcript
+
 func TestSessionFinder_DeduplicatesAcrossDirectories(t *testing.T) {
 	t.Parallel()
 

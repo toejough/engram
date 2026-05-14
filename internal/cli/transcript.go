@@ -86,6 +86,12 @@ var (
 	)
 )
 
+type transcriptState struct {
+	dir, markerPath string
+	markerTime      time.Time
+	markerFound     bool
+}
+
 // advanceAndReportMarker computes the effective scan end (Mtime of last
 // fully-included entry if the cap was hit, otherwise `now`), writes the marker,
 // and emits the status line to stdout.
@@ -202,14 +208,6 @@ func filterByDateRange(entries []transcript.FileEntry, from, to time.Time) []tra
 	return filtered
 }
 
-// newOsFinderAndReader constructs the production session finder and transcript reader.
-func newOsFinderAndReader() (transcript.Finder, transcript.Reader) {
-	finder := transcript.NewCompositeSessionFinder(transcript.NewSessionFinder(&osDirLister{}))
-	reader := transcript.NewCompositeTranscriptReader(transcript.NewJSONLReader(&osFileReader{}))
-
-	return finder, reader
-}
-
 // parseDate parses a date string, accepting RFC3339 or YYYY-MM-DD layout.
 func parseDate(s string) (time.Time, error) {
 	// Try RFC3339 first.
@@ -263,60 +261,79 @@ func resolveStateDir(args TranscriptArgs) (string, error) {
 	return learnmarker.StateDirFromHome(home, os.Getenv), nil
 }
 
-// runTranscript reads session transcripts in [from, to] (inclusive) and emits stripped content.
-func runTranscript(_ context.Context, args TranscriptArgs, stdout io.Writer) error {
+func resolveTranscriptState(args TranscriptArgs) (transcriptState, error) {
 	transcriptDir := args.TranscriptDir
 
 	err := applyTranscriptDirDefault(&transcriptDir, args.ProjectSlug, os.Getwd)
 	if err != nil {
-		return err
+		return transcriptState{}, err
 	}
 
 	stateDir, err := resolveStateDir(args)
 	if err != nil {
-		return err
+		return transcriptState{}, err
 	}
 
 	slug, err := resolveProjectSlug(args)
 	if err != nil {
-		return err
+		return transcriptState{}, err
 	}
 
 	markerPath := learnmarker.MarkerPath(stateDir, slug)
 
 	markerTime, markerFound, err := learnmarker.Read(learnmarker.OSFS{}, markerPath)
 	if err != nil {
-		return fmt.Errorf("transcript: reading marker: %w", err)
+		return transcriptState{}, fmt.Errorf("transcript: reading marker: %w", err)
+	}
+
+	return transcriptState{
+		dir: transcriptDir, markerPath: markerPath,
+		markerTime: markerTime, markerFound: markerFound,
+	}, nil
+}
+
+// runTranscript reads session transcripts in [from, to] (inclusive) and emits stripped content.
+func runTranscript(
+	_ context.Context,
+	args TranscriptArgs,
+	finder transcript.Finder,
+	reader transcript.Reader,
+	stdout io.Writer,
+) error {
+	state, err := resolveTranscriptState(args)
+	if err != nil {
+		return err
 	}
 
 	now := time.Now().UTC()
 
 	fromTime, toTime, err := ResolveTimeWindow(TimeWindowInputs{
 		From: args.From, To: args.To,
-		Marker: markerTime, MarkerFound: markerFound, Now: now,
+		Marker: state.markerTime, MarkerFound: state.markerFound, Now: now,
 	})
 	if err != nil {
 		return err
 	}
 
-	maxBytes := resolveMaxBytes(args.MaxBytes)
-	finder, reader := newOsFinderAndReader()
-
-	entries, findErr := finder.Find(transcriptDir)
+	entries, findErr := finder.Find(state.dir)
 	if findErr != nil {
 		return fmt.Errorf("transcript: finding sessions: %w", findErr)
 	}
 
 	filtered := filterByDateRange(entries, fromTime, toTime)
-	slices.Reverse(filtered) // chronological for output
+	slices.Reverse(filtered)
 
-	lastIncluded, hadEntries, emitErr := emitTranscripts(reader, filtered, maxBytes, stdout)
+	lastIncluded, hadEntries, emitErr := emitTranscripts(
+		reader, filtered, resolveMaxBytes(args.MaxBytes), stdout,
+	)
 	if emitErr != nil {
 		return emitErr
 	}
 
 	if args.Mark {
-		markErr := advanceAndReportMarker(markerPath, fromTime, lastIncluded, hadEntries, now, stdout)
+		markErr := advanceAndReportMarker(
+			state.markerPath, fromTime, lastIncluded, hadEntries, now, stdout,
+		)
 		if markErr != nil {
 			return markErr
 		}

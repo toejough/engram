@@ -190,6 +190,35 @@ func TestUpdater_Run_GoListBadJSON(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("parsing go list"))
 }
 
+func TestUpdater_Run_Local_GoInstallRunsFromModuleRoot(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/repo"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs["/repo/skills/learn"] = true
+	fileSystem.files["/repo/skills/learn/SKILL.md"] = []byte("x")
+
+	cmd := &fakeCmd{}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: cmd,
+		Env: &fakeEnv{home: "/home/joe", cwd: "/repo/internal/update"},
+	}
+
+	_, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// go install must run from the module root, not from the process cwd.
+	g.Expect(cmd.calls).To(HaveLen(1))
+	g.Expect(cmd.dirs[0]).To(Equal("/repo"))
+}
+
 func TestUpdater_Run_Local_HappyPath(t *testing.T) {
 	t.Parallel()
 
@@ -233,35 +262,6 @@ func TestUpdater_Run_Local_HappyPath(t *testing.T) {
 	// `go install ./cmd/engram/` should have been invoked.
 	g.Expect(cmd.calls).To(HaveLen(1))
 	g.Expect(cmd.calls[0]).To(Equal([]string{"go", "install", "./cmd/engram/"}))
-}
-
-func TestUpdater_Run_Local_GoInstallRunsFromModuleRoot(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.claude"] = true
-	fileSystem.dirs["/repo"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.dirs["/repo/skills/learn"] = true
-	fileSystem.files["/repo/skills/learn/SKILL.md"] = []byte("x")
-
-	cmd := &fakeCmd{}
-
-	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo/internal/update"},
-	}
-
-	_, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// go install must run from the module root, not from the process cwd.
-	g.Expect(cmd.calls).To(HaveLen(1))
-	g.Expect(cmd.dirs[0]).To(Equal("/repo"))
 }
 
 func TestUpdater_Run_Local_OpencodeOnly_CopiesCommands(t *testing.T) {

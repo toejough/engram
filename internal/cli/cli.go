@@ -201,6 +201,24 @@ func emitRelPaths(stdout io.Writer, basenames []string, isMOCByBasename map[stri
 	return nil
 }
 
+// newTranscriptDeps constructs production transcript finder and reader,
+// combining Claude Code (.jsonl) and OpenCode (SQLite) sources. The cwd
+// parameter filters OpenCode sessions to those whose stored directory
+// matches cwd or is a subdirectory of cwd.
+func newTranscriptDeps(cwd string) (transcript.Finder, transcript.Reader) {
+	dbPath := transcript.DefaultOpencodeDBPath()
+
+	claudeFinder := transcript.NewSessionFinder(&osDirLister{})
+	ocFinder := transcript.NewOpencodeSessionFinder(dbPath, cwd)
+	finder := transcript.NewCompositeSessionFinder(claudeFinder, ocFinder)
+
+	claudeReader := transcript.NewJSONLReader(&osFileReader{})
+	ocReader := transcript.NewOpencodeTranscriptReader(dbPath)
+	reader := transcript.NewCompositeTranscriptReader(claudeReader, ocReader)
+
+	return finder, reader
+}
+
 // parseRecallPath validates a single --follow / --already-read argument and
 // returns the basename for graph lookup. Inputs MUST be the exact format that
 // recall stdout emits: "<Subdir>/<basename>.md". Anything else is a hard error;

@@ -131,6 +131,11 @@ func ExportRunLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Wr
 	return runLearnFromMOCArgs(ctx, a, stdout)
 }
 
+// NewTranscriptDepsForTest exposes newTranscriptDeps for whitebox testing.
+func NewTranscriptDepsForTest(cwd string) (transcript.Finder, transcript.Reader) {
+	return newTranscriptDeps(cwd)
+}
+
 // ResolveMaxBytesForTest exposes resolveMaxBytes for unit testing.
 func ResolveMaxBytesForTest(maxBytes int) int { return resolveMaxBytes(maxBytes) }
 
@@ -150,6 +155,12 @@ func RunRecallForTest(ctx context.Context, args RecallArgs, stdout io.Writer) er
 }
 
 // RunTranscriptForTest exposes runTranscript for whitebox testing.
-func RunTranscriptForTest(ctx context.Context, args TranscriptArgs, stdout io.Writer) error {
-	return runTranscript(ctx, args, stdout)
+func RunTranscriptForTest(
+	ctx context.Context,
+	args TranscriptArgs,
+	finder transcript.Finder,
+	reader transcript.Reader,
+	stdout io.Writer,
+) error {
+	return runTranscript(ctx, args, finder, reader, stdout)
 }

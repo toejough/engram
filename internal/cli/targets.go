@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -96,7 +97,9 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 			errHandler(runRecall(withLog(ctx), a, stdout))
 		}).Name("recall").Description("Recall recent session context"),
 		targ.Targ(func(ctx context.Context, a TranscriptArgs) {
-			errHandler(runTranscript(withLog(ctx), a, stdout))
+			cwd, _ := os.Getwd()
+			finder, reader := newTranscriptDeps(cwd)
+			errHandler(runTranscript(withLog(ctx), a, finder, reader, stdout))
 		}).Name("transcript").Description("Read session transcripts in a date range"),
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
