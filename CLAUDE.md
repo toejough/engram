@@ -15,6 +15,7 @@ engram/
 │   ├── cli/           # CLI command wiring (targ targets)
 │   ├── context/       # Transcript processing for LLM agents
 │   ├── debuglog/      # Tail-friendly debug logger
+│   ├── learnmarker/   # Per-harness progress marker (read/write/FS interface)
 │   ├── luhmann/       # Luhmann zettelkasten ID parsing/sorting
 │   ├── tokenresolver/ # API token resolution
 │   ├── transcript/    # Claude Code session transcript reading
