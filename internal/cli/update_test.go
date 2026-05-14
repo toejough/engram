@@ -249,6 +249,52 @@ func TestOsUpdateFS_ReadFileMissing(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestOsUpdateFS_RemoveAllClearsDirAndIsIdempotent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	osFS := cli.ExportNewOsUpdateFS()
+	tmp := t.TempDir()
+	target := filepath.Join(tmp, "skill")
+
+	mkErr := osFS.MkdirAll(filepath.Join(target, "nested"), 0o755)
+	g.Expect(mkErr).NotTo(HaveOccurred())
+
+	writeErr := osFS.WriteFile(filepath.Join(target, "x.md"), []byte("x"), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	removeErr := osFS.RemoveAll(target)
+	g.Expect(removeErr).NotTo(HaveOccurred())
+
+	_, statErr := osFS.Stat(target)
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
+
+	// Idempotent: removing a non-existent path returns nil.
+	g.Expect(osFS.RemoveAll(target)).NotTo(HaveOccurred())
+}
+
+func TestOsUpdateFS_RemoveAllErrorsOnReadOnlyParent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	osFS := cli.ExportNewOsUpdateFS()
+	tmp := t.TempDir()
+	parent := filepath.Join(tmp, "ro")
+	child := filepath.Join(parent, "leaf")
+
+	g.Expect(os.MkdirAll(child, 0o755)).NotTo(HaveOccurred())
+	g.Expect(os.WriteFile(filepath.Join(child, "x"), []byte("x"), 0o644)).NotTo(HaveOccurred())
+
+	// Read-only parent prevents removing the child entry.
+	g.Expect(os.Chmod(parent, 0o500)).NotTo(HaveOccurred())
+	t.Cleanup(func() { _ = os.Chmod(parent, 0o700) })
+
+	err := osFS.RemoveAll(child)
+	g.Expect(err).To(MatchError(ContainSubstring("remove")))
+}
+
 func TestOsUpdateFS_StatMissing(t *testing.T) {
 	t.Parallel()
 

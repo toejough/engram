@@ -81,6 +81,12 @@ type Filesystem interface {
 	ReadFile(path string) ([]byte, error)
 	WriteFile(path string, data []byte, perm fs.FileMode) error
 	ReadDir(path string) ([]DirEntry, error)
+	// RemoveAll removes path and any children. Used to clear stale
+	// destinations (broken symlinks, old files, symlinks pointing at the
+	// source repo) before writing fresh content. Same semantics as
+	// os.RemoveAll: nil if the path doesn't exist; errors only on real
+	// I/O failure.
+	RemoveAll(path string) error
 }
 
 // Harness names a supported agent harness. The zero value is invalid.
@@ -190,51 +196,47 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	return report, nil
 }
 
-func (u *Updater) applyForHarness(
-	rep *HarnessReport,
-	name Harness,
-	skillOps, cmdOps []CopyOp,
-	dryRun bool,
-) {
-	skillCounts := map[string]int{}
-	skillOrder := make([]string, 0)
-
-	for _, copyOp := range skillOps {
-		if copyOp.Harness != name {
-			continue
+func (u *Updater) applyCmdOne(copyOp CopyOp, dryRun bool) error {
+	if !dryRun {
+		removeErr := u.FS.RemoveAll(copyOp.Dst)
+		if removeErr != nil {
+			return fmt.Errorf("clear %s: %w", copyOp.Dst, removeErr)
 		}
-
-		applyErr := u.applyOne(copyOp, dryRun)
-		if applyErr != nil {
-			rep.Err = applyErr
-			rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts)
-
-			return
-		}
-
-		if _, seen := skillCounts[copyOp.SkillDir]; !seen {
-			skillOrder = append(skillOrder, copyOp.SkillDir)
-		}
-
-		skillCounts[copyOp.SkillDir]++
 	}
 
-	rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts)
+	return u.applyOne(copyOp, dryRun)
+}
 
+func (u *Updater) applyCmdOps(rep *HarnessReport, name Harness, cmdOps []CopyOp, dryRun bool) {
 	for _, copyOp := range cmdOps {
 		if copyOp.Harness != name {
 			continue
 		}
 
-		applyErr := u.applyOne(copyOp, dryRun)
-		if applyErr != nil {
-			rep.Err = applyErr
+		opErr := u.applyCmdOne(copyOp, dryRun)
+		if opErr != nil {
+			rep.Err = opErr
 
 			return
 		}
 
 		rep.CommandFiles = append(rep.CommandFiles, copyOp.CommandFile)
 	}
+}
+
+func (u *Updater) applyForHarness(
+	rep *HarnessReport,
+	name Harness,
+	skillOps, cmdOps []CopyOp,
+	dryRun bool,
+) {
+	u.applySkillOps(rep, name, skillOps, dryRun)
+
+	if rep.Err != nil {
+		return
+	}
+
+	u.applyCmdOps(rep, name, cmdOps, dryRun)
 }
 
 func (u *Updater) applyOne(copyOp CopyOp, dryRun bool) error {
@@ -284,6 +286,69 @@ func (u *Updater) applyOps(
 	}
 
 	return reports
+}
+
+func (u *Updater) applySkillOps(rep *HarnessReport, name Harness, skillOps []CopyOp, dryRun bool) {
+	skillCounts := map[string]int{}
+	skillOrder := make([]string, 0)
+	cleared := map[string]bool{}
+
+	defer func() { rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts) }()
+
+	for _, copyOp := range skillOps {
+		if copyOp.Harness != name {
+			continue
+		}
+
+		clearErr := u.clearSkillDirOnce(rep, copyOp, cleared, dryRun)
+		if clearErr != nil {
+			return
+		}
+
+		applyErr := u.applyOne(copyOp, dryRun)
+		if applyErr != nil {
+			rep.Err = applyErr
+
+			return
+		}
+
+		if _, seen := skillCounts[copyOp.SkillDir]; !seen {
+			skillOrder = append(skillOrder, copyOp.SkillDir)
+		}
+
+		skillCounts[copyOp.SkillDir]++
+	}
+}
+
+// clearSkillDirOnce removes the per-harness top-level skill directory the
+// first time a CopyOp for that SkillDir is processed. This ensures stale
+// files are dropped, broken symlinks are replaced, and symlinks pointing
+// at the source repo cannot cause WriteFile to mutate the source.
+func (u *Updater) clearSkillDirOnce(
+	rep *HarnessReport,
+	copyOp CopyOp,
+	cleared map[string]bool,
+	dryRun bool,
+) error {
+	if dryRun || copyOp.SkillDir == "" {
+		return nil
+	}
+
+	target := filepath.Join(rep.SkillsRoot, copyOp.SkillDir)
+	if cleared[target] {
+		return nil
+	}
+
+	removeErr := u.FS.RemoveAll(target)
+	if removeErr != nil {
+		rep.Err = fmt.Errorf("clear %s: %w", target, removeErr)
+
+		return removeErr
+	}
+
+	cleared[target] = true
+
+	return nil
 }
 
 // resolveRemoteModuleRoot calls `go list -m -json` to find the module

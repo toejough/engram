@@ -110,6 +110,15 @@ func (*osUpdateFS) ReadFile(path string) ([]byte, error) {
 	return data, nil
 }
 
+func (*osUpdateFS) RemoveAll(path string) error {
+	err := os.RemoveAll(path)
+	if err != nil {
+		return fmt.Errorf("remove: %w", err)
+	}
+
+	return nil
+}
+
 func (*osUpdateFS) Stat(path string) (update.FileInfo, error) {
 	info, err := os.Stat(path)
 	if err != nil {

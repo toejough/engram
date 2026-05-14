@@ -218,6 +218,10 @@ func (e *errFS) ReadFile(_ string) ([]byte, error) {
 	return nil, e.readErr
 }
 
+func (*errFS) RemoveAll(_ string) error {
+	return nil
+}
+
 func (*errFS) Stat(_ string) (update.FileInfo, error) {
 	return nil, fs.ErrNotExist
 }
@@ -241,6 +245,7 @@ type memFS struct {
 	files   map[string][]byte
 	dirs    map[string]bool
 	written map[string][]byte
+	removed []string
 }
 
 func (m *memFS) MkdirAll(path string, _ fs.FileMode) error {
@@ -277,6 +282,28 @@ func (m *memFS) ReadFile(path string) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+func (m *memFS) RemoveAll(path string) error {
+	m.removed = append(m.removed, path)
+	delete(m.dirs, path)
+	delete(m.files, path)
+
+	prefix := dirPrefix(path)
+
+	for p := range m.files {
+		if strings.HasPrefix(p, prefix) {
+			delete(m.files, p)
+		}
+	}
+
+	for p := range m.dirs {
+		if strings.HasPrefix(p, prefix) {
+			delete(m.dirs, p)
+		}
+	}
+
+	return nil
 }
 
 func (m *memFS) Stat(path string) (update.FileInfo, error) {

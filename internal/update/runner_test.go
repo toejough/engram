@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"strconv"
 	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/update"
 )
@@ -190,6 +192,69 @@ func TestUpdater_Run_GoListBadJSON(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("parsing go list"))
 }
 
+func TestUpdater_Run_Local_BothHarnesses_CommandsOnlyOpencode(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/home/joe/.config/opencode"] = true
+	fileSystem.dirs["/repo"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs["/repo/skills/recall"] = true
+	fileSystem.files["/repo/skills/recall/SKILL.md"] = []byte("r")
+	fileSystem.dirs["/repo/commands"] = true
+	fileSystem.files["/repo/commands/recall.md"] = []byte("c")
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(2))
+	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses[1].Err).NotTo(HaveOccurred())
+	// Only opencode receives the command file.
+	g.Expect(report.Harnesses[0].CommandFiles).To(BeEmpty())
+	g.Expect(report.Harnesses[1].CommandFiles).To(ContainElement("recall.md"))
+}
+
+func TestUpdater_Run_Local_CommandRemoveAllFailureIsHarnessError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	mem := newMemFS()
+	mem.dirs["/home/joe/.config/opencode"] = true
+	mem.dirs["/repo"] = true
+	mem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	mem.dirs["/repo/skills"] = true
+	mem.dirs["/repo/skills/recall"] = true
+	mem.files["/repo/skills/recall/SKILL.md"] = []byte("r")
+	mem.dirs["/repo/commands"] = true
+	mem.files["/repo/commands/recall.md"] = []byte("c")
+
+	// Fail RemoveAll for command path only (skill RemoveAll succeeds).
+	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "commands"}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
+	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("clear"))
+}
+
 func TestUpdater_Run_Local_GoInstallRunsFromModuleRoot(t *testing.T) {
 	t.Parallel()
 
@@ -264,6 +329,46 @@ func TestUpdater_Run_Local_HappyPath(t *testing.T) {
 	g.Expect(cmd.calls[0]).To(Equal([]string{"go", "install", "./cmd/engram/"}))
 }
 
+func TestUpdater_Run_Local_Idempotent_Property(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		fileCount := rapid.IntRange(1, 4).Draw(rt, "fileCount")
+		preExisting := rapid.Bool().Draw(rt, "preExisting")
+
+		fs1 := newMemFS()
+		buildLocalRepoForRapid(fs1, fileCount)
+
+		if preExisting {
+			fs1.dirs["/home/joe/.claude/skills/learn"] = true
+			fs1.files["/home/joe/.claude/skills/learn/leftover.md"] = []byte("stale")
+		}
+
+		updater := &update.Updater{
+			FS:  fs1,
+			Cmd: &fakeCmd{},
+			Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		}
+
+		_, runErr := updater.Run(rapidCtx(), update.Options{})
+		if runErr != nil {
+			rt.Fatalf("first run: %v", runErr)
+		}
+
+		afterFirst := snapshotDestFiles(fs1)
+
+		_, runErr = updater.Run(rapidCtx(), update.Options{})
+		if runErr != nil {
+			rt.Fatalf("second run: %v", runErr)
+		}
+
+		afterSecond := snapshotDestFiles(fs1)
+		if !equalStringByteMap(afterFirst, afterSecond) {
+			rt.Fatalf("re-run not idempotent: %v vs %v", afterFirst, afterSecond)
+		}
+	})
+}
+
 func TestUpdater_Run_Local_OpencodeOnly_CopiesCommands(t *testing.T) {
 	t.Parallel()
 
@@ -304,6 +409,106 @@ func TestUpdater_Run_Local_OpencodeOnly_CopiesCommands(t *testing.T) {
 	g.Expect(ok).To(BeTrue())
 	_, ok = fileSystem.written["/home/joe/.config/opencode/commands/README.txt"]
 	g.Expect(ok).To(BeFalse())
+}
+
+func TestUpdater_Run_Local_OverwritesExistingCommandFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.config/opencode"] = true
+	fileSystem.dirs["/repo"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs["/repo/skills/recall"] = true
+	fileSystem.files["/repo/skills/recall/SKILL.md"] = []byte("recall")
+	fileSystem.dirs["/repo/commands"] = true
+	fileSystem.files["/repo/commands/recall.md"] = []byte("new cmd")
+
+	// Pre-existing command file at the destination (simulates a stale link).
+	fileSystem.files["/home/joe/.config/opencode/commands/recall.md"] = []byte("old cmd")
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
+
+	g.Expect(fileSystem.removed).To(ContainElement("/home/joe/.config/opencode/commands/recall.md"))
+	g.Expect(fileSystem.files["/home/joe/.config/opencode/commands/recall.md"]).To(Equal([]byte("new cmd")))
+}
+
+func TestUpdater_Run_Local_OverwritesExistingSkillDir(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/repo"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs["/repo/skills/learn"] = true
+	fileSystem.files["/repo/skills/learn/SKILL.md"] = []byte("new")
+
+	// Pre-existing stale content at the destination.
+	fileSystem.dirs["/home/joe/.claude/skills/learn"] = true
+	fileSystem.files["/home/joe/.claude/skills/learn/stale.md"] = []byte("old")
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
+
+	// Destination dir was removed before being recreated, so the stale
+	// file is gone and the new file is in place.
+	g.Expect(fileSystem.removed).To(ContainElement("/home/joe/.claude/skills/learn"))
+
+	_, staleStillThere := fileSystem.files["/home/joe/.claude/skills/learn/stale.md"]
+	g.Expect(staleStillThere).To(BeFalse())
+
+	_, newPresent := fileSystem.files["/home/joe/.claude/skills/learn/SKILL.md"]
+	g.Expect(newPresent).To(BeTrue())
+}
+
+func TestUpdater_Run_Local_RemoveAllFailureIsHarnessError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	mem := newMemFS()
+	mem.dirs["/home/joe/.claude"] = true
+	mem.dirs["/repo"] = true
+	mem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	mem.dirs["/repo/skills"] = true
+	mem.dirs["/repo/skills/learn"] = true
+	mem.files["/repo/skills/learn/SKILL.md"] = []byte("x")
+
+	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "learn"}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
+	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("remove boom"))
 }
 
 func TestUpdater_Run_ModuleCacheMiss(t *testing.T) {
@@ -486,6 +691,21 @@ func TestUpdater_Run_SkillsSrcMissing(t *testing.T) {
 	g.Expect(errors.Is(err, update.ErrSkillsSrcMissing)).To(BeTrue())
 }
 
+// failRemoveAllFS wraps memFS but returns an error from RemoveAll.
+type failRemoveAllFS struct {
+	*memFS
+
+	failOn string
+}
+
+func (f *failRemoveAllFS) RemoveAll(path string) error {
+	if strings.Contains(path, f.failOn) {
+		return errors.New("remove boom")
+	}
+
+	return f.memFS.RemoveAll(path)
+}
+
 // failWriteFS wraps memFS but returns an error from WriteFile.
 type failWriteFS struct {
 	*memFS
@@ -562,6 +782,36 @@ func (f *fakeEnv) UserHomeDir() (string, error) {
 	return f.home, nil
 }
 
+func buildLocalRepoForRapid(fileSystem *memFS, fileCount int) {
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/repo"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs["/repo/skills/learn"] = true
+
+	for i := range fileCount {
+		fileSystem.files["/repo/skills/learn/file"+strconv.Itoa(i)+".md"] = []byte("content")
+	}
+}
+
+func equalStringByteMap(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+
+	return true
+}
+
+func rapidCtx() context.Context {
+	return context.Background()
+}
+
 func skillFileCount(h update.HarnessReport) int {
 	total := 0
 
@@ -570,4 +820,16 @@ func skillFileCount(h update.HarnessReport) int {
 	}
 
 	return total
+}
+
+func snapshotDestFiles(fileSystem *memFS) map[string]string {
+	out := map[string]string{}
+
+	for path, data := range fileSystem.files {
+		if strings.HasPrefix(path, "/home/") {
+			out[path] = string(data)
+		}
+	}
+
+	return out
 }
