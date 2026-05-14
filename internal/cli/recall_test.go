@@ -12,6 +12,34 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func TestRunRecall_AlreadyReadRejectsBareBasename(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	permDir := filepath.Join(vault, "Permanent")
+	g.Expect(os.MkdirAll(permDir, 0o755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(permDir, "1.2026-01-01.a.md"), []byte("body"), 0o644)).
+		To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunRecallForTest(context.Background(), cli.RecallArgs{
+		VaultPath:   vault,
+		Follow:      []string{"Permanent/1.2026-01-01.a.md"},
+		AlreadyRead: []string{"2.2026-01-02.b"},
+	}, &stdout)
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("--already-read"))
+	g.Expect(err.Error()).To(ContainSubstring("2.2026-01-02.b"))
+}
+
 func TestRunRecall_AnchorsScanErrorPropagates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -28,6 +56,33 @@ func TestRunRecall_AnchorsScanErrorPropagates(t *testing.T) {
 	}, &stdout)
 
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunRecall_FollowRejectsBareBasename(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	permDir := filepath.Join(vault, "Permanent")
+	g.Expect(os.MkdirAll(permDir, 0o755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(permDir, "1.2026-01-01.a.md"), []byte("body"), 0o644)).
+		To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunRecallForTest(context.Background(), cli.RecallArgs{
+		VaultPath: vault,
+		Follow:    []string{"1.2026-01-01.a"},
+	}, &stdout)
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("--follow"))
+	g.Expect(err.Error()).To(ContainSubstring("1.2026-01-01.a"))
 }
 
 func TestRunRecall_FollowReturnsExpansionMinusAlreadyRead(t *testing.T) {
@@ -52,11 +107,12 @@ func TestRunRecall_FollowReturnsExpansionMinusAlreadyRead(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	// Basenames passed to Follow are WITHOUT .md extension.
+	// Follow and AlreadyRead accept ONLY full relative paths
+	// (Subdir/basename.md) — same shape as recall's stdout.
 	err := cli.RunRecallForTest(context.Background(), cli.RecallArgs{
 		VaultPath:   vault,
-		Follow:      []string{"1.2026-01-01.a"},
-		AlreadyRead: []string{"2.2026-01-02.b"},
+		Follow:      []string{"Permanent/1.2026-01-01.a.md"},
+		AlreadyRead: []string{"Permanent/2.2026-01-02.b.md"},
 	}, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -65,11 +121,12 @@ func TestRunRecall_FollowReturnsExpansionMinusAlreadyRead(t *testing.T) {
 		return
 	}
 
-	// Output basenames are WITHOUT .md extension.
-	g.Expect(stdout.String()).To(Equal("3.2026-01-03.c\n"))
+	// Output is full relative paths so the caller can Read() directly
+	// without guessing which subdirectory the note lives in.
+	g.Expect(stdout.String()).To(Equal("Permanent/3.2026-01-03.c.md\n"))
 }
 
-func TestRunRecall_NoArgsEmitsAnchorsAsBasenamesOneLinePerEntry(t *testing.T) {
+func TestRunRecall_NoArgsEmitsAnchorsAsFullRelativePathsOneLinePerEntry(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -94,8 +151,9 @@ func TestRunRecall_NoArgsEmitsAnchorsAsBasenamesOneLinePerEntry(t *testing.T) {
 		return
 	}
 
-	// Basenames are WITHOUT .md extension (vaultgraph ParseBasename strips it).
-	g.Expect(stdout.String()).To(Equal("1.2026-03-15.alpha\n"))
+	// Full relative path so the caller can Read() directly without
+	// guessing which vault subdirectory the note lives in.
+	g.Expect(stdout.String()).To(Equal("MOCs/1.2026-03-15.alpha.md\n"))
 }
 
 func TestRunRecall_NoVaultPathReturnsError(t *testing.T) {
@@ -145,8 +203,8 @@ func TestRunRecall_RecentReturnsMostRecentByDate(t *testing.T) {
 		return
 	}
 
-	// Basenames are WITHOUT .md extension; sorted newest first.
-	g.Expect(stdout.String()).To(Equal("2.2026-05-01.new\n3.2026-03-15.mid\n"))
+	// Full relative paths; sorted newest first.
+	g.Expect(stdout.String()).To(Equal("Permanent/2.2026-05-01.new.md\nPermanent/3.2026-03-15.mid.md\n"))
 }
 
 func TestRunRecall_RecentScanErrorPropagates(t *testing.T) {

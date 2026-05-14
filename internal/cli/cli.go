@@ -23,7 +23,10 @@ const (
 
 // unexported variables.
 var (
-	errNotADirectory       = errors.New("not a directory")
+	errNotADirectory    = errors.New("not a directory")
+	errRecallPathFormat = errors.New(
+		"must be a full relative path of the form MOCs/<basename>.md or Permanent/<basename>.md",
+	)
 	errRecallVaultRequired = errors.New(
 		"recall: --vault required (or set ENGRAM_VAULT_PATH)",
 	)
@@ -175,15 +178,71 @@ func (*osLearnFS) WriteNew(path string, data []byte) error {
 	return nil
 }
 
-func emitBasenames(stdout io.Writer, names []string) error {
-	for _, name := range names {
-		_, err := fmt.Fprintln(stdout, name)
+// buildSubdirMap returns a basename→subdir-name lookup for every note in the vault.
+// "MOCs" or "Permanent" — used to format recall output as full relative paths.
+func buildSubdirMap(notes []vaultgraph.Note) map[string]bool {
+	out := make(map[string]bool, len(notes))
+
+	for _, note := range notes {
+		out[note.Basename] = note.IsMOC
+	}
+
+	return out
+}
+
+func emitRelPaths(stdout io.Writer, basenames []string, isMOCByBasename map[string]bool) error {
+	for _, basename := range basenames {
+		_, err := fmt.Fprintln(stdout, pathOf(basename, isMOCByBasename[basename]))
 		if err != nil {
 			return fmt.Errorf("recall: writing output: %w", err)
 		}
 	}
 
 	return nil
+}
+
+// parseRecallPath validates a single --follow / --already-read argument and
+// returns the basename for graph lookup. Inputs MUST be the exact format that
+// recall stdout emits: "<Subdir>/<basename>.md". Anything else is a hard error;
+// the previous silent-miss behavior was a footgun.
+func parseRecallPath(flag, raw string) (string, error) {
+	subdir, rest, ok := strings.Cut(raw, "/")
+	if !ok || (subdir != vaultgraph.MOCsSubdir && subdir != vaultgraph.PermanentSubdir) {
+		return "", fmt.Errorf("%s: %q: %w", flag, raw, errRecallPathFormat)
+	}
+
+	basename, ok := strings.CutSuffix(rest, ".md")
+	if !ok || basename == "" {
+		return "", fmt.Errorf("%s: %q: %w", flag, raw, errRecallPathFormat)
+	}
+
+	return basename, nil
+}
+
+func parseRecallPaths(flag string, raws []string) ([]string, error) {
+	out := make([]string, 0, len(raws))
+
+	for _, raw := range raws {
+		basename, err := parseRecallPath(flag, raw)
+		if err != nil {
+			return nil, err
+		}
+
+		out = append(out, basename)
+	}
+
+	return out, nil
+}
+
+// pathOf returns the vault-relative path for a note, e.g. "Permanent/foo.md"
+// or "MOCs/bar.md". Callers can pass the result directly to Read tools.
+func pathOf(basename string, isMOC bool) string {
+	subdir := vaultgraph.PermanentSubdir
+	if isMOC {
+		subdir = vaultgraph.MOCsSubdir
+	}
+
+	return subdir + "/" + basename + ".md"
 }
 
 func runRecall(_ context.Context, args RecallArgs, stdout io.Writer) error {
@@ -204,15 +263,30 @@ func runRecall(_ context.Context, args RecallArgs, stdout io.Writer) error {
 }
 
 func runRecallAnchors(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
+	notes, err := vaultgraph.ScanVault(fs, args.VaultPath)
+	if err != nil {
+		return fmt.Errorf("recall: %w", err)
+	}
+
 	points, err := vaultgraph.StartingPoints(fs, args.VaultPath)
 	if err != nil {
 		return fmt.Errorf("recall: %w", err)
 	}
 
-	return emitBasenames(stdout, points)
+	return emitRelPaths(stdout, points, buildSubdirMap(notes))
 }
 
 func runRecallFollow(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
+	follow, err := parseRecallPaths("--follow", args.Follow)
+	if err != nil {
+		return fmt.Errorf("recall: %w", err)
+	}
+
+	alreadyRead, err := parseRecallPaths("--already-read", args.AlreadyRead)
+	if err != nil {
+		return fmt.Errorf("recall: %w", err)
+	}
+
 	notes, err := vaultgraph.ScanVault(fs, args.VaultPath)
 	if err != nil {
 		return fmt.Errorf("recall: %w", err)
@@ -220,7 +294,7 @@ func runRecallFollow(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) e
 
 	graph := vaultgraph.BuildGraph(notes)
 
-	return emitBasenames(stdout, vaultgraph.Follow(graph, args.Follow, args.AlreadyRead))
+	return emitRelPaths(stdout, vaultgraph.Follow(graph, follow, alreadyRead), buildSubdirMap(notes))
 }
 
 func runRecallRecent(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
@@ -234,5 +308,5 @@ func runRecallRecent(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) e
 		limit = defaultRecallRecentLimit
 	}
 
-	return emitBasenames(stdout, vaultgraph.Recent(notes, limit))
+	return emitRelPaths(stdout, vaultgraph.Recent(notes, limit), buildSubdirMap(notes))
 }

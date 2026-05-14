@@ -81,7 +81,7 @@ engram recall --vault /Users/joe/repos/personal/agent-memory
 engram recall --vault /Users/joe/repos/personal/agent-memory --recent --limit 20
 ```
 
-Union the outputs. These are the initial files to evaluate.
+Union the outputs. Each line is a vault-relative path like `Permanent/<basename>.md` or `MOCs/<basename>.md` — pass it directly to your file-read tool; no path-guessing.
 
 **Loop (until ≥100 surfaced memories OR frontier empties):**
 
@@ -91,11 +91,11 @@ Union the outputs. These are the initial files to evaluate.
 
    ```bash
    engram recall --vault <path> \
-     --follow A,B,C \
-     --already-read X,Y,Z,...
+     --follow Permanent/A.md,MOCs/B.md \
+     --already-read Permanent/X.md,Permanent/Y.md,...
    ```
 
-   `--follow` = basenames that scored above threshold *and* whose surrounding prose signaled there is more worth chasing. `--already-read` = the cumulative set. Basenames are extension-less (no `.md`).
+   `--follow` = paths that scored above threshold *and* whose surrounding prose signaled there is more worth chasing. `--already-read` = the cumulative set. **Inputs are the full relative paths recall emitted** (`<Subdir>/<basename>.md`). Bare basenames are rejected with an error — pass paths back exactly as recall printed them.
 
 4. **Repeat** from step 1 with the new frontier.
 
