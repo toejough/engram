@@ -53,12 +53,19 @@ Engram reads and writes a zettelkasten vault. Pass `--vault <path>` to every `en
 
 ```
 engram recall                          Surface anchors, recent notes, or follow paths from a vault
-engram transcript                      Read Claude Code session transcripts in a date range
+engram transcript                      Read session transcripts since last /learn (Claude Code + OpenCode)
+engram transcript --mark               Same, then advance per-harness progress markers
+engram transcript --from <date>        Override marker; scan from explicit date
+engram transcript --max-bytes <n>      Set byte budget (default 200000)
 engram learn feedback --slug ... --vault ... --source ... --situation ... --behavior ... --impact ... --action ...
 engram learn fact     --slug ... --vault ... --source ... --situation ... --subject ... --predicate ... --object ...
 engram learn moc      --slug ... --vault ... --source ... --topic ...
 engram update                          Refresh binary and harness skills/commands ([--dry-run])
 ```
+
+## Transcript progress tracking
+
+`engram transcript` tracks a separate progress marker per harness (`last-learn-at-claude`, `last-learn-at-opencode`) under `${XDG_STATE_HOME:-$HOME/.local/state}/engram/projects/<slug>/`. Each marker is advanced independently by `--mark` so that sessions from one harness don't skip unprocessed sessions from the other. On first run (no marker), the scan defaults to the last 24 hours; use `--from` to include older history.
 
 ## Project structure
 
@@ -68,9 +75,10 @@ internal/            Business logic (DI boundaries)
   cli/               CLI command wiring (targ targets)
   context/           Transcript processing
   debuglog/          Structured debug logging
+  learnmarker/       Per-harness progress marker (read/write/FS interface)
   luhmann/           Luhmann-ID allocation under file lock
   tokenresolver/     API token resolution
-  transcript/        Session transcript reading
+  transcript/        Session transcript reading (Claude Code JSONL + OpenCode SQLite)
   update/            Self-refresh subcommand
   vaultgraph/        Vault traversal (MOCs/Permanent, anchors, follow)
 skills/              Source for the recall and learn skills

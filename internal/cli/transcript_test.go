@@ -427,6 +427,27 @@ func TestResolveStateDir_ReturnsDirWhenProvided(t *testing.T) {
 	g.Expect(dir).To(Equal("/custom/state"))
 }
 
+func TestResolveTimeWindow_DateOnlyToExtendedToEOD(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
+
+	_, toTime, err := cli.ResolveTimeWindow(
+		cli.TimeWindowInputs{To: "2026-05-11", MarkerFound: false, Now: now},
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Date-only "2026-05-11" should be extended to end of day.
+	expected := time.Date(2026, 5, 11, 23, 59, 59, 999999999, time.UTC)
+	g.Expect(toTime.Equal(expected)).To(BeTrue())
+}
+
 func TestResolveTimeWindow_ExplicitFromOverridesMarker(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -468,6 +489,52 @@ func TestResolveTimeWindow_FallsBackTo24hWhenNoMarker(t *testing.T) {
 	g.Expect(toTime.Equal(now)).To(BeTrue())
 }
 
+func TestResolveTimeWindow_InvalidFromReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
+
+	_, _, err := cli.ResolveTimeWindow(
+		cli.TimeWindowInputs{From: "not-a-date", MarkerFound: false, Now: now},
+	)
+
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestResolveTimeWindow_InvalidToReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
+
+	_, _, err := cli.ResolveTimeWindow(
+		cli.TimeWindowInputs{To: "not-a-date", MarkerFound: false, Now: now},
+	)
+
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestResolveTimeWindow_RFC3339ToNoExtension(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 5, 13, 18, 0, 0, 0, time.UTC)
+
+	_, toTime, err := cli.ResolveTimeWindow(
+		cli.TimeWindowInputs{To: "2026-05-11T15:30:00Z", MarkerFound: false, Now: now},
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	expected := time.Date(2026, 5, 11, 15, 30, 0, 0, time.UTC)
+	g.Expect(toTime.Equal(expected)).To(BeTrue())
+}
+
 func TestResolveTimeWindow_UsesMarkerWhenFromMissing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -503,14 +570,15 @@ func TestRunTranscript_AcceptsEmptyFromAndToWhenMarkerExists(t *testing.T) {
 	g.Expect(os.WriteFile(markerPath, []byte(markerTime.Format(time.RFC3339Nano)), 0o644)).
 		To(Succeed())
 
-	var stdout bytes.Buffer
+	finder := &fakeFinder{entries: []transcript.FileEntry{}}
+	reader := &fakeReader{contents: map[string]string{}}
 
-	finder, reader := cli.NewTranscriptDepsForTest("")
+	var stdout bytes.Buffer
 
 	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
 		ProjectSlug:   slug,
 		StateDir:      stateDir,
-		TranscriptDir: t.TempDir(), // empty dir; we only care that flags resolved
+		TranscriptDir: t.TempDir(),
 	}, finder, reader, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -734,13 +802,27 @@ func TestRunTranscript_MarkEmitsStatusLine(t *testing.T) {
 
 	tmp := t.TempDir()
 	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+	slug := "Users-joe-repos-test"
+	markerPath := learnmarker.MarkerPathWithSuffix(stateDir, slug, "claude")
+	g.Expect(os.MkdirAll(filepath.Dir(markerPath), 0o755)).To(Succeed())
+
+	markerTime := time.Date(2026, 5, 9, 0, 0, 0, 0, time.UTC)
+	g.Expect(os.WriteFile(markerPath, []byte(markerTime.Format(time.RFC3339Nano)), 0o644)).
+		To(Succeed())
+
+	may10 := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+
+	finder := &fakeFinder{entries: []transcript.FileEntry{
+		{Path: "opencode://ses1", Mtime: may10, Source: "claude"},
+	}}
+	reader := &fakeReader{contents: map[string]string{
+		"opencode://ses1": "status line content",
+	}}
 
 	var stdout bytes.Buffer
 
-	finder, reader := cli.NewTranscriptDepsForTest("")
-
 	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
-		ProjectSlug:   "Users-joe-repos-test",
+		ProjectSlug:   slug,
 		StateDir:      stateDir,
 		TranscriptDir: t.TempDir(),
 		Mark:          true,
@@ -880,13 +962,27 @@ func TestRunTranscript_NoMarkOmitsStatusLine(t *testing.T) {
 
 	tmp := t.TempDir()
 	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+	slug := "Users-joe-repos-test"
+	markerPath := learnmarker.MarkerPathWithSuffix(stateDir, slug, "claude")
+	g.Expect(os.MkdirAll(filepath.Dir(markerPath), 0o755)).To(Succeed())
+
+	markerTime := time.Date(2026, 5, 9, 0, 0, 0, 0, time.UTC)
+	g.Expect(os.WriteFile(markerPath, []byte(markerTime.Format(time.RFC3339Nano)), 0o644)).
+		To(Succeed())
+
+	may10 := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+
+	finder := &fakeFinder{entries: []transcript.FileEntry{
+		{Path: "opencode://ses1", Mtime: may10, Source: "claude"},
+	}}
+	reader := &fakeReader{contents: map[string]string{
+		"opencode://ses1": "no mark content",
+	}}
 
 	var stdout bytes.Buffer
 
-	finder, reader := cli.NewTranscriptDepsForTest("")
-
 	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
-		ProjectSlug:   "Users-joe-repos-test",
+		ProjectSlug:   slug,
 		StateDir:      stateDir,
 		TranscriptDir: t.TempDir(),
 		Mark:          false,
@@ -915,17 +1011,19 @@ func TestRunTranscript_PropagatesEmitError(t *testing.T) {
 	g.Expect(os.WriteFile(markerPath, []byte(markerTime.Format(time.RFC3339Nano)), 0o644)).
 		To(Succeed())
 
-	dir := t.TempDir()
-	line := `{"type":"user","message":{"content":"trigger emit"}}`
-	mtime := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
-	writeTranscriptFixture(g, dir, "session.jsonl", line, mtime)
+	may10 := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
 
-	finder, reader := cli.NewTranscriptDepsForTest("")
+	finder := &fakeFinder{entries: []transcript.FileEntry{
+		{Path: "opencode://ses1", Mtime: may10, Source: "claude"},
+	}}
+	reader := &fakeReader{contents: map[string]string{
+		"opencode://ses1": "trigger emit",
+	}}
 
 	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
 		ProjectSlug:   slug,
 		StateDir:      stateDir,
-		TranscriptDir: dir,
+		TranscriptDir: t.TempDir(),
 	}, finder, reader, &failWriter{})
 
 	g.Expect(err).To(HaveOccurred())
@@ -983,19 +1081,21 @@ func TestRunTranscript_RespectsMaxBytesFlag(t *testing.T) {
 	g.Expect(os.WriteFile(markerPath, []byte(markerTime.Format(time.RFC3339Nano)), 0o644)).
 		To(Succeed())
 
-	dir := t.TempDir()
-	line := `{"type":"user","message":{"content":"hello"}}`
-	mtime := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
-	writeTranscriptFixture(g, dir, "session.jsonl", line, mtime)
+	may10 := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
 
-	finder, reader := cli.NewTranscriptDepsForTest("")
+	finder := &fakeFinder{entries: []transcript.FileEntry{
+		{Path: "opencode://ses1", Mtime: may10, Source: "claude"},
+	}}
+	reader := &fakeReader{contents: map[string]string{
+		"opencode://ses1": `{"type":"user","message":{"content":"hello"}}`,
+	}}
 
 	var stdout bytes.Buffer
 
 	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
 		ProjectSlug:   slug,
 		StateDir:      stateDir,
-		TranscriptDir: dir,
+		TranscriptDir: t.TempDir(),
 		MaxBytes:      1000,
 	}, finder, reader, &stdout)
 
