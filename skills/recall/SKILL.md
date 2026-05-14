@@ -29,13 +29,10 @@ Most of this skill's value lives in the situational baseline. Your instinct is t
 
 ```
 /Users/joe/repos/personal/agent-memory/
-  Fleeting/    raw captures, transient
   Permanent/   atomic principle-stated notes; <Luhmann-ID>.YYYY-MM-DD.<slug>.md
   MOCs/        Maps of Content with framing prose and in-prose wikilinks; same filename format
   MEMORY.md    index — names notes; substance is in the notes themselves
 ```
-
-Permanents are higher-quality than fleetings (promoted, principle-stated, wikilinks established). Fleetings are recent raw signal; missing them means missing the most recent material. Surface fleetings as raw observation, not polished claims — promotion does the principle-stating; recall just preserves the shape.
 
 Notes are LLM-voiced. Wikilinks appear in prose with surrounding context — that context is the relevance signal. Luhmann IDs (`1`, `1a`, `1a1`) signal lineage; following wikilinks reaches Luhmann-adjacent notes by construction.
 
@@ -114,7 +111,7 @@ This step produces two things that go to different places. Do not conflate them.
 
 #### 4a. Structured form → agent context, NOT the user's screen
 
-The full sectioned block (vault state, query matches, situational matches, fleetings, contradictions, with wikilinks) is for the parent LLM's working context only. It is already present as tool-call results from the cascade — your subagent(s) returned it. **Do not re-emit it as your user-facing reply.** Wikilinks, "Context:" excerpts, and the Contradictions section never appear in the user-visible reply.
+The full sectioned block (vault state, query matches, situational matches, contradictions, with wikilinks) is for the parent LLM's working context only. It is already present as tool-call results from the cascade — your subagent(s) returned it. **Do not re-emit it as your user-facing reply.** Wikilinks, "Context:" excerpts, and the Contradictions section never appear in the user-visible reply.
 
 If the structured block hasn't been materialized anywhere (e.g., the cascade went direct-read and no subagent assembled it), have your *last* cascade subagent assemble it and return it — don't compose it in the parent reply, because composing it there leaks it to the user.
 
@@ -134,8 +131,6 @@ This is the only thing the user sees. Rules — non-negotiable:
 
 **If a note matches both the explicit query and a situational feature**, surface it once under the more specifically relevant section and list both signals (e.g., add a `Also matches: <feature>` line). Don't duplicate the same note under two sections.
 
-**Fleetings get their own section.** Fleetings are raw observation, not principle-stated; surface them under `### From recent fleetings` with the observation as-written. Don't translate to a principle.
-
 **Structured-form template** (internal — for 4a, not the user-facing reply):
 
 ```
@@ -153,12 +148,6 @@ This is the only thing the user sees. Rules — non-negotiable:
 - [[<wikilink>]] — <one-line claim>
   Matches: <situational feature(s) this applies to>
   Context: <1–2 sentence excerpt>
-- ...
-
-### From recent fleetings (pre-promotion, raw)
-(omit section if no fleeting matches; if it has matches, list them here regardless of which seed they matched)
-- [[<fleeting-wikilink>]] (fleeting) — <raw observation, as-written, 1–2 lines>
-  Matches: <signal it matched — query / situation feature>
 - ...
 
 ### Contradictions in the vault
@@ -189,7 +178,7 @@ If you catch yourself doing any of these in your user-facing reply, rewrite it a
 | `--vault` not provided and `ENGRAM_VAULT_PATH` unset | `engram recall` errors; report "vault path required" and stop. |
 | Vault directory does not exist | Report "vault not found" and stop. Do not create. |
 | Vault exists but is empty | Report "vault is empty; no recall produced." Do not fabricate. |
-| `engram recall` command not found | Fall back: read every `.md` under `MOCs/` and `Permanent/` and `Fleeting/` directly, scoring as in Step 3. Note the missing binary in *Vault state*. |
+| `engram recall` command not found | Fall back: read every `.md` under `MOCs/` and `Permanent/` directly, scoring as in Step 3. Note the missing binary in *Vault state*. |
 | No matches for explicit query | `(no matches)` for that section. Situational baseline may still produce. |
 | No matches anywhere | State plainly. Normal early in a vault's life. |
 | A note read fails | Log which note, continue with the rest. One bad note ≠ abort. |
