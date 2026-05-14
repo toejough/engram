@@ -262,7 +262,7 @@ func (u *Updater) applyOne(copyOp CopyOp, dryRun bool) error {
 
 // applyOps copies files for every CopyOp and returns per-harness reports.
 // Failures for one harness do not stop the others. The CLI is responsible
-// for deciding the exit code (any-success → 0, all-fail → 1).
+// for deciding the exit code (any detected harness failed → 1).
 func (u *Updater) applyOps(
 	harnesses []HarnessSpec,
 	home string,

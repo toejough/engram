@@ -11,7 +11,7 @@ import (
 
 // Exported variables.
 var (
-	ExportAnyHarnessSucceeded        = anyHarnessSucceeded
+	ExportAnyHarnessFailed           = anyHarnessFailed
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
 	ExportFinishUpdate               = finishUpdate
 	ExportLearnPath                  = learnPath

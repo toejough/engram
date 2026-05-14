@@ -10,24 +10,25 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/update"
 )
 
-func TestAnyHarnessSucceeded(t *testing.T) {
+func TestAnyHarnessFailed(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	g.Expect(cli.ExportAnyHarnessSucceeded(update.Report{})).To(BeFalse())
-	g.Expect(cli.ExportAnyHarnessSucceeded(update.Report{
-		Harnesses: []update.HarnessReport{{Err: errors.New("boom")}},
-	})).To(BeFalse())
-	g.Expect(cli.ExportAnyHarnessSucceeded(update.Report{
+	g.Expect(cli.ExportAnyHarnessFailed(update.Report{})).To(BeFalse())
+	g.Expect(cli.ExportAnyHarnessFailed(update.Report{
 		Harnesses: []update.HarnessReport{{}},
+	})).To(BeFalse())
+	g.Expect(cli.ExportAnyHarnessFailed(update.Report{
+		Harnesses: []update.HarnessReport{{Err: errors.New("boom")}},
 	})).To(BeTrue())
-	g.Expect(cli.ExportAnyHarnessSucceeded(update.Report{
+	g.Expect(cli.ExportAnyHarnessFailed(update.Report{
 		Harnesses: []update.HarnessReport{{Err: errors.New("boom")}, {}},
 	})).To(BeTrue())
 }
@@ -44,7 +45,7 @@ func TestDescribeSource_UnknownMode(t *testing.T) {
 	g.Expect(buffer.String()).To(ContainSubstring("source: unknown"))
 }
 
-func TestFinishUpdate_AllHarnessesFailed(t *testing.T) {
+func TestFinishUpdate_AnyHarnessFailureIsAnError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -57,7 +58,46 @@ func TestFinishUpdate_AllHarnessesFailed(t *testing.T) {
 
 	err := cli.ExportFinishUpdate(&buffer, report, nil)
 	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("all detected harnesses failed"))
+	g.Expect(err.Error()).To(ContainSubstring("harness"))
+}
+
+func TestFinishUpdate_ExitStatusProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		count := rapid.IntRange(1, 5).Draw(rt, "count")
+		fail := rapid.SliceOfN(rapid.Bool(), count, count).Draw(rt, "fail")
+
+		harnesses := make([]update.HarnessReport, 0, count)
+		anyFailed := false
+
+		for i, failed := range fail {
+			rep := update.HarnessReport{Name: update.Harness(rune('A' + i))}
+			if failed {
+				rep.Err = errors.New("boom")
+				anyFailed = true
+			}
+
+			harnesses = append(harnesses, rep)
+		}
+
+		report := update.Report{
+			Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
+			GoInstall: "go install ./cmd/engram/",
+			Harnesses: harnesses,
+		}
+
+		var buffer bytes.Buffer
+
+		err := cli.ExportFinishUpdate(&buffer, report, nil)
+		if anyFailed {
+			if err == nil {
+				rt.Fatalf("expected error when any harness failed, got nil")
+			}
+		} else if err != nil {
+			rt.Fatalf("expected no error when no harness failed, got %v", err)
+		}
+	})
 }
 
 func TestFinishUpdate_HappyPath(t *testing.T) {
@@ -75,6 +115,28 @@ func TestFinishUpdate_HappyPath(t *testing.T) {
 
 	err := cli.ExportFinishUpdate(&buffer, report, nil)
 	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestFinishUpdate_PartialFailureIsAnError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		Source:    update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
+		GoInstall: "go install ./cmd/engram/",
+		Harnesses: []update.HarnessReport{
+			{Name: "A", Err: errors.New("disk")},
+			{Name: "B"},
+		},
+	}
+
+	err := cli.ExportFinishUpdate(&buffer, report, nil)
+	g.Expect(err).To(HaveOccurred())
+	// Report still written so the user sees per-harness detail.
+	g.Expect(buffer.String()).To(ContainSubstring("error: disk"))
 }
 
 func TestFinishUpdate_PropagatesRunError(t *testing.T) {

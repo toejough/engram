@@ -23,8 +23,8 @@ type UpdateArgs struct {
 
 // unexported variables.
 var (
-	_                     update.Filesystem = (*osUpdateFS)(nil)
-	errAllHarnessesFailed                   = errors.New("update: all detected harnesses failed")
+	_                      update.Filesystem = (*osUpdateFS)(nil)
+	errSomeHarnessesFailed                   = errors.New("update: one or more detected harnesses failed")
 )
 
 type osCommander struct{}
@@ -129,8 +129,8 @@ func (*osUpdateFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
 	return nil
 }
 
-func anyHarnessSucceeded(report update.Report) bool {
-	return slices.ContainsFunc(report.Harnesses, harnessOK)
+func anyHarnessFailed(report update.Report) bool {
+	return slices.ContainsFunc(report.Harnesses, harnessFailed)
 }
 
 func describeBinary(report update.Report) string {
@@ -169,14 +169,14 @@ func finishUpdate(stdout io.Writer, report update.Report, runErr error) error {
 		return fmt.Errorf("update: writing report: %w", writeErr)
 	}
 
-	if !anyHarnessSucceeded(report) {
-		return errAllHarnessesFailed
+	if anyHarnessFailed(report) {
+		return errSomeHarnessesFailed
 	}
 
 	return nil
 }
 
-func harnessOK(harness update.HarnessReport) bool { return harness.Err == nil }
+func harnessFailed(harness update.HarnessReport) bool { return harness.Err != nil }
 
 func pluralFile(n int) string {
 	if n == 1 {
