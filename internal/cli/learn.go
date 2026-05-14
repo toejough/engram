@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/toejough/engram/internal/luhmann"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 // LearnArgs holds the parsed flags for the learn subcommand.
@@ -53,13 +56,11 @@ type LearnDeps struct {
 
 // unexported constants.
 const (
-	dateFormat      = "2006-01-02"
-	envVaultDir     = "ENGRAM_VAULT_DIR"
-	mocSubdir       = "MOCs"
-	permanentSubdir = "Permanent"
-	typeFact        = "fact"
-	typeFeedback    = "feedback"
-	typeMOC         = "moc"
+	dateFormat   = "2006-01-02"
+	envVaultDir  = "ENGRAM_VAULT_DIR"
+	typeFact     = "fact"
+	typeFeedback = "feedback"
+	typeMOC      = "moc"
 )
 
 // unexported variables.
@@ -69,9 +70,6 @@ var (
 	errSlugInvalid      = errors.New("slug must match [a-z0-9-]+")
 	errVaultUnset       = errors.New(
 		"vault path is required (--vault flag or ENGRAM_VAULT_DIR env)",
-	)
-	luhmannFilenamePattern = regexp.MustCompile(
-		`^([0-9][0-9a-z]*)\.\d{4}-\d{2}-\d{2}\..+\.md$`,
 	)
 	slugPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 )
@@ -177,19 +175,23 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 	}
 }
 
+// extractLuhmannFromFilename strips the `.md` extension and delegates to
+// luhmann.FromBasename — the canonical extractor (see #626). Returns
+// ("", false) for any non-`.md` filename or one without a valid leading ID.
 func extractLuhmannFromFilename(name string) (string, bool) {
-	m := luhmannFilenamePattern.FindStringSubmatch(name)
-	if m == nil {
+	const mdExt = ".md"
+
+	if !strings.HasSuffix(name, mdExt) {
 		return "", false
 	}
 
-	return m[1], true
+	return luhmann.FromBasename(strings.TrimSuffix(name, mdExt))
 }
 
 func learnPath(vault, memType, luhmann, slug string, when time.Time) string {
-	subdir := permanentSubdir
+	subdir := vaultgraph.PermanentSubdir
 	if memType == typeMOC {
-		subdir = mocSubdir
+		subdir = vaultgraph.MOCsSubdir
 	}
 
 	filename := fmt.Sprintf("%s.%s.%s.md", luhmann, when.Format(dateFormat), slug)

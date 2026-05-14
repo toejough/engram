@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"unicode"
 )
 
@@ -14,6 +15,33 @@ var (
 	ErrEmpty         = errors.New("luhmann: empty ID")
 	ErrLeadingLetter = errors.New("luhmann: ID must start with a digit")
 )
+
+// FromBasename extracts the leading Luhmann ID from a basename of the form
+// `<luhmann-id>.<YYYY-MM-DD>.<slug>` (no `.md` suffix). Returns ("", false)
+// when the leading dot-segment is not a valid Luhmann ID: empty, doesn't
+// start with a digit, or contains a non-digit non-letter rune. Letters are
+// classified by unicode.IsLetter; this is the canonical character class for
+// Luhmann IDs in this codebase. Callers with full filenames should strip
+// the `.md` extension before calling.
+func FromBasename(basename string) (string, bool) {
+	dotIdx := strings.IndexByte(basename, '.')
+	if dotIdx <= 0 {
+		return "", false
+	}
+
+	candidate := basename[:dotIdx]
+	if !unicode.IsDigit(rune(candidate[0])) {
+		return "", false
+	}
+
+	for _, r := range candidate {
+		if !unicode.IsDigit(r) && !unicode.IsLetter(r) {
+			return "", false
+		}
+	}
+
+	return candidate, true
+}
 
 // Less reports whether ID a sorts before ID b in tree order: parent before
 // children, numeric segments compared numerically, alphabetic segments via

@@ -83,7 +83,7 @@ type osLearnFS struct{}
 func (*osLearnFS) ListIDs(vault string) ([]string, error) {
 	out := []string{}
 
-	for _, sub := range []string{"Permanent", "MOCs"} {
+	for _, sub := range []string{vaultgraph.PermanentSubdir, vaultgraph.MOCsSubdir} {
 		entries, err := os.ReadDir(filepath.Join(vault, sub))
 		if err != nil {
 			if os.IsNotExist(err) {

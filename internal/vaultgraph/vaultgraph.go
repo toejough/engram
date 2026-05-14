@@ -56,8 +56,8 @@ func StartingPoints(fs VaultFS, vaultPath string) ([]string, error) {
 // without a valid Luhmann ID sort after every basename that has one; among
 // IDless basenames, fall back to lexical order.
 func basenameLess(a, b string) bool {
-	aID, aOK := LuhmannFromBasename(a)
-	bID, bOK := LuhmannFromBasename(b)
+	aID, aOK := luhmann.FromBasename(a)
+	bID, bOK := luhmann.FromBasename(b)
 
 	switch {
 	case aOK && bOK:

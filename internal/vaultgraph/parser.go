@@ -6,32 +6,7 @@ package vaultgraph
 import (
 	"regexp"
 	"strings"
-	"unicode"
 )
-
-// LuhmannFromBasename extracts the leading Luhmann ID from a basename of the form
-// `<luhmann-id>.<YYYY-MM-DD>.<slug>`. Returns ("", false) when the leading
-// dot-segment is not a valid Luhmann ID (starts with a digit, alternating
-// digit/letter segments). Used for tie-breaking in component-winner selection.
-func LuhmannFromBasename(basename string) (string, bool) {
-	dotIdx := strings.IndexByte(basename, '.')
-	if dotIdx <= 0 {
-		return "", false
-	}
-
-	candidate := basename[:dotIdx]
-	if !unicode.IsDigit(rune(candidate[0])) {
-		return "", false
-	}
-
-	for _, r := range candidate {
-		if !unicode.IsDigit(r) && !unicode.IsLetter(r) {
-			return "", false
-		}
-	}
-
-	return candidate, true
-}
 
 // ParseBasename returns the filename without its ".md" extension, plus ok=true
 // if filename has a ".md" extension. Returns "", false for non-md filenames.

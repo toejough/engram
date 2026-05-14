@@ -63,7 +63,7 @@ func ResolveTimeWindow(inputs TimeWindowInputs) (time.Time, time.Time, error) {
 			return time.Time{}, time.Time{}, err
 		}
 
-		if len(inputs.To) == len("2006-01-02") {
+		if len(inputs.To) == len(dateFormat) {
 			parsed = parsed.AddDate(0, 0, 1).Add(-time.Nanosecond)
 		}
 
@@ -219,7 +219,7 @@ func parseDate(s string) (time.Time, error) {
 	}
 
 	// Fall back to YYYY-MM-DD.
-	t, err = time.Parse("2006-01-02", s)
+	t, err = time.Parse(dateFormat, s)
 	if err == nil {
 		return t, nil
 	}

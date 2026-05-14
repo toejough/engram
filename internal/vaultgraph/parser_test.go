@@ -10,52 +10,6 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-func TestLuhmannFromBasename_ExtractsLeadingID(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	cases := map[string]string{
-		"9o1.2026-05-10.slug":           "9o1",
-		"14.2026-05-10.drop-by-example": "14",
-		"1a3b.2026-05-09.foo":           "1a3b",
-		"5.2026-05-09.rationalization":  "5",
-	}
-
-	for input, want := range cases {
-		got, ok := vaultgraph.LuhmannFromBasename(input)
-		g.Expect(ok).To(BeTrue(), "input: %s", input)
-		g.Expect(got).To(Equal(want), "input: %s", input)
-	}
-}
-
-func TestLuhmannFromBasename_RejectsLeadingDot(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	_, ok := vaultgraph.LuhmannFromBasename(".2026-05-10.slug")
-	g.Expect(ok).To(BeFalse())
-}
-
-func TestLuhmannFromBasename_RejectsNoDot(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	_, ok := vaultgraph.LuhmannFromBasename("9o1nodate")
-	g.Expect(ok).To(BeFalse())
-}
-
-func TestLuhmannFromBasename_RejectsNoLeadingDigit(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	_, ok := vaultgraph.LuhmannFromBasename("notes-only.2026-05-10.something")
-	g.Expect(ok).To(BeFalse())
-}
-
 func TestParseBasename_RejectsNonMd(t *testing.T) {
 	t.Parallel()
 

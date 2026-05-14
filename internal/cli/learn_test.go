@@ -28,6 +28,13 @@ func TestExtractLuhmannFromFilename_RejectsBadFormat(t *testing.T) {
 	g.Expect(ok).To(BeFalse())
 }
 
+func TestExtractLuhmannFromFilename_RejectsNonMd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	_, ok := cli.ExportExtractLuhmannFromFilename("1a3.2026-05-09.subagent-recovery.txt")
+	g.Expect(ok).To(BeFalse())
+}
+
 func TestLearnPath_MOC(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

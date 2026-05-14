@@ -3,6 +3,15 @@ package vaultgraph
 import (
 	"fmt"
 	"path/filepath"
+
+	"github.com/toejough/engram/internal/luhmann"
+)
+
+// Exported constants.
+const (
+	FleetingSubdir  = "Fleeting"
+	MOCsSubdir      = "MOCs"
+	PermanentSubdir = "Permanent"
 )
 
 // Note is a vault node: a single markdown file with its parsed metadata and outgoing wikilinks.
@@ -33,9 +42,9 @@ func ScanVault(fs VaultFS, vaultPath string) ([]Note, error) {
 		name  string
 		isMOC bool
 	}{
-		{mocsSubdir, true},
-		{permanentSubdir, false},
-		{fleetingSubdir, false},
+		{MOCsSubdir, true},
+		{PermanentSubdir, false},
+		{FleetingSubdir, false},
 	}
 
 	var notes []Note
@@ -65,13 +74,6 @@ func ScanVault(fs VaultFS, vaultPath string) ([]Note, error) {
 	return notes, nil
 }
 
-// unexported constants.
-const (
-	fleetingSubdir  = "Fleeting"
-	mocsSubdir      = "MOCs"
-	permanentSubdir = "Permanent"
-)
-
 func scanNote(fs VaultFS, dirPath, filename string, isMOC bool) (Note, bool, error) {
 	basename, ok := ParseBasename(filename)
 	if !ok {
@@ -85,7 +87,7 @@ func scanNote(fs VaultFS, dirPath, filename string, isMOC bool) (Note, bool, err
 		return Note{}, false, fmt.Errorf("reading %s: %w", path, err)
 	}
 
-	luhmannID, _ := LuhmannFromBasename(basename)
+	luhmannID, _ := luhmann.FromBasename(basename)
 
 	return Note{
 		Basename:  basename,
