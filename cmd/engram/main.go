@@ -4,11 +4,9 @@ package main
 import (
 	"os"
 
-	"engram/internal/cli"
-
-	"github.com/toejough/targ"
+	"github.com/toejough/engram/internal/cli"
 )
 
 func main() {
-	targ.Main(cli.SetupSignalHandling(os.Stdout, os.Stderr, os.Exit)...)
+	cli.Main(os.Stdout, os.Stderr, os.Exit)
 }

@@ -3,53 +3,49 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
+	"syscall"
 
-	"engram/internal/anthropic"
-	"engram/internal/memory"
-	"engram/internal/recall"
-	"engram/internal/tokenresolver"
-)
-
-// Exported variables.
-var (
-	AnthropicAPIURL = "https://api.anthropic.com/v1/messages" //nolint:gochecknoglobals // test-overridable endpoint
+	"github.com/toejough/engram/internal/transcript"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 // unexported constants.
 const (
-	anthropicMaxTokens = 1024
+	defaultRecallRecentLimit = 20
+	luhmannLockFile          = ".luhmann.lock"
 )
 
-// haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
-type haikuCallerAdapter struct {
-	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
-}
-
-func (a *haikuCallerAdapter) Call(
-	ctx context.Context,
-	systemPrompt, userPrompt string,
-) (string, error) {
-	return a.caller(ctx, anthropic.HaikuModel, systemPrompt, userPrompt)
-}
+// unexported variables.
+var (
+	errNotADirectory    = errors.New("not a directory")
+	errRecallPathFormat = errors.New(
+		"must be a full relative path of the form MOCs/<basename>.md or Permanent/<basename>.md",
+	)
+	errRecallVaultRequired = errors.New(
+		"recall: --vault required (or set ENGRAM_VAULT_PATH)",
+	)
+)
 
 // osDirLister lists .jsonl files in a directory using os.ReadDir.
 type osDirLister struct{}
 
-func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
+func (l *osDirLister) ListJSONL(dir string) ([]transcript.FileEntry, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("listing directory: %w", err)
 	}
 
-	results := make([]recall.FileEntry, 0, len(entries))
+	results := make([]transcript.FileEntry, 0, len(entries))
 
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -63,12 +59,10 @@ func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
 
 		info, infoErr := entry.Info()
 		if infoErr != nil {
-			fmt.Fprintf(os.Stderr, "engram: listing directory: stat %s: %v\n", name, infoErr)
-
 			continue
 		}
 
-		results = append(results, recall.FileEntry{
+		results = append(results, transcript.FileEntry{
 			Path:  filepath.Join(dir, name),
 			Mtime: info.ModTime(),
 		})
@@ -85,180 +79,252 @@ func (r *osFileReader) Read(path string) ([]byte, error) {
 	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
 }
 
-// applyDataDirDefault sets *dataDir to the standard engram data path when empty.
-func applyDataDirDefault(dataDir *string) error {
-	if *dataDir != "" {
-		return nil
-	}
+// osLearnFS is the production filesystem adapter for the learn subcommand.
+type osLearnFS struct{}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("resolving home directory: %w", err)
-	}
+// ListIDs returns Luhmann IDs from filenames in vault/Permanent and vault/MOCs.
+func (*osLearnFS) ListIDs(vault string) ([]string, error) {
+	out := []string{}
 
-	*dataDir = DataDirFromHome(home, os.Getenv)
+	for _, sub := range []string{vaultgraph.PermanentSubdir, vaultgraph.MOCsSubdir} {
+		entries, err := os.ReadDir(filepath.Join(vault, sub))
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
 
-	return nil
-}
-
-// applyProjectSlugDefault sets *slug to the PWD-derived slug when empty.
-func applyProjectSlugDefault(slug *string, getwd func() (string, error)) error {
-	if *slug != "" {
-		return nil
-	}
-
-	cwd, err := getwd()
-	if err != nil {
-		return fmt.Errorf("resolving working directory: %w", err)
-	}
-
-	*slug = ProjectSlugFromPath(cwd)
-
-	return nil
-}
-
-// makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
-func makeAnthropicCaller(
-	token string,
-) func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
-	client := newAnthropicClient(token)
-	return client.Caller(anthropicMaxTokens)
-}
-
-// newAnthropicClient creates a shared anthropic.Client configured with the
-// current AnthropicAPIURL (supports test overrides).
-func newAnthropicClient(token string) *anthropic.Client {
-	client := anthropic.NewClient(token, &http.Client{})
-	client.SetAPIURL(AnthropicAPIURL)
-
-	return client
-}
-
-func newSummarizer(token string) recall.SummarizerI {
-	if token == "" {
-		return recall.NoopSummarizer{}
-	}
-
-	return recall.NewSummarizer(&haikuCallerAdapter{
-		caller: makeAnthropicCaller(token),
-	})
-}
-
-func newTokenResolver() *tokenresolver.Resolver {
-	return tokenresolver.New(
-		os.Getenv,
-		func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			cmd := exec.CommandContext( //nolint:gosec // platform-internal cmd, not user input
-				ctx,
-				name,
-				args...)
-
-			return cmd.Output()
-		},
-		runtime.GOOS,
-	)
-}
-
-// resolveToken returns the API token from the environment or macOS Keychain.
-// tokenresolver.Resolve is documented to never return a non-nil error.
-func resolveToken(ctx context.Context) string {
-	token, _ := newTokenResolver().Resolve(ctx)
-	return token
-}
-
-func runRecall(ctx context.Context, args RecallArgs, stdout io.Writer) error {
-	dataDir := args.DataDir
-
-	defaultErr := applyDataDirDefault(&dataDir)
-	if defaultErr != nil {
-		return fmt.Errorf("recall: %w", defaultErr)
-	}
-
-	token := resolveToken(ctx)
-	summarizer := newSummarizer(token)
-	memLister := memory.NewLister()
-
-	if args.MemoriesOnly {
-		limit := args.Limit
-		if limit == 0 {
-			limit = recall.DefaultMemoryLimit
+			return nil, fmt.Errorf("read %s: %w", sub, err)
 		}
 
-		return runRecallMemoriesOnly(ctx, stdout, summarizer, memLister, dataDir, args.Query, limit)
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+
+			id, ok := extractLuhmannFromFilename(e.Name())
+			if !ok {
+				continue
+			}
+
+			out = append(out, id)
+		}
 	}
 
-	projectSlug := args.ProjectSlug
-
-	return runRecallSessions(
-		ctx, stdout, &projectSlug, summarizer, memLister,
-		dataDir, args.Query, os.Getwd, os.UserHomeDir, runGitCommonDir,
-	)
+	return out, nil
 }
 
-func runRecallMemoriesOnly(
-	ctx context.Context,
-	stdout io.Writer,
-	summarizer recall.SummarizerI,
-	memLister recall.MemoryLister,
-	dataDir, query string,
-	limit int,
-) error {
-	orch := recall.NewOrchestrator(nil, nil, summarizer, memLister, dataDir)
+// Lock acquires an exclusive flock on vault/.luhmann.lock; returns a release func.
+func (*osLearnFS) Lock(vault string) (func(), error) {
+	path := filepath.Join(vault, luhmannLockFile)
 
-	result, err := orch.RecallMemoriesOnly(ctx, query, limit)
+	const perm = 0o600
+
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, perm) //nolint:gosec // path from caller
+	if err != nil {
+		return nil, fmt.Errorf("open lock: %w", err)
+	}
+
+	fileDescriptor := int(f.Fd()) //nolint:gosec // fd fits in int on supported platforms
+
+	flockErr := syscall.Flock(fileDescriptor, syscall.LOCK_EX)
+	if flockErr != nil {
+		_ = f.Close()
+
+		return nil, fmt.Errorf("flock: %w", flockErr)
+	}
+
+	release := func() {
+		_ = syscall.Flock(fileDescriptor, syscall.LOCK_UN)
+		_ = f.Close()
+	}
+
+	return release, nil
+}
+
+// StatDir returns an error if the directory does not exist or isn't accessible.
+func (*osLearnFS) StatDir(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat: %w", err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("%w: %s", errNotADirectory, path)
+	}
+
+	return nil
+}
+
+// WriteNew creates the file with O_EXCL — errors with fs.ErrExist if it already exists.
+func (*osLearnFS) WriteNew(path string, data []byte) error {
+	const perm = 0o600
+
+	f, err := os.OpenFile( //nolint:gosec // path from caller
+		path,
+		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
+		perm,
+	)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+
+	defer func() { _ = f.Close() }()
+
+	_, writeErr := f.Write(data)
+	if writeErr != nil {
+		return fmt.Errorf("write: %w", writeErr)
+	}
+
+	return nil
+}
+
+// buildSubdirMap returns a basename→subdir-name lookup for every note in the vault.
+// "MOCs" or "Permanent" — used to format recall output as full relative paths.
+func buildSubdirMap(notes []vaultgraph.Note) map[string]bool {
+	out := make(map[string]bool, len(notes))
+
+	for _, note := range notes {
+		out[note.Basename] = note.IsMOC
+	}
+
+	return out
+}
+
+func emitRelPaths(stdout io.Writer, basenames []string, isMOCByBasename map[string]bool) error {
+	for _, basename := range basenames {
+		_, err := fmt.Fprintln(stdout, pathOf(basename, isMOCByBasename[basename]))
+		if err != nil {
+			return fmt.Errorf("recall: writing output: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// newTranscriptDeps constructs production transcript finder and reader,
+// combining Claude Code (.jsonl) and OpenCode (SQLite) sources. The cwd
+// parameter filters OpenCode sessions to those whose stored directory
+// matches cwd or is a subdirectory of cwd.
+func newTranscriptDeps(cwd string) (transcript.Finder, transcript.Reader) {
+	dbPath := transcript.DefaultOpencodeDBPath()
+
+	claudeFinder := transcript.NewSessionFinder(&osDirLister{})
+	ocFinder := transcript.NewOpencodeSessionFinder(dbPath, cwd)
+	finder := transcript.NewCompositeSessionFinder(claudeFinder, ocFinder)
+
+	claudeReader := transcript.NewJSONLReader(&osFileReader{})
+	ocReader := transcript.NewOpencodeTranscriptReader(dbPath)
+	reader := transcript.NewCompositeTranscriptReader(claudeReader, ocReader)
+
+	return finder, reader
+}
+
+// parseRecallPath validates a single --follow / --already-read argument and
+// returns the basename for graph lookup. Inputs MUST be the exact format that
+// recall stdout emits: "<Subdir>/<basename>.md". Anything else is a hard error;
+// the previous silent-miss behavior was a footgun.
+func parseRecallPath(flag, raw string) (string, error) {
+	subdir, rest, ok := strings.Cut(raw, "/")
+	if !ok || (subdir != vaultgraph.MOCsSubdir && subdir != vaultgraph.PermanentSubdir) {
+		return "", fmt.Errorf("%s: %q: %w", flag, raw, errRecallPathFormat)
+	}
+
+	basename, ok := strings.CutSuffix(rest, ".md")
+	if !ok || basename == "" {
+		return "", fmt.Errorf("%s: %q: %w", flag, raw, errRecallPathFormat)
+	}
+
+	return basename, nil
+}
+
+func parseRecallPaths(flag string, raws []string) ([]string, error) {
+	out := make([]string, 0, len(raws))
+
+	for _, raw := range raws {
+		basename, err := parseRecallPath(flag, raw)
+		if err != nil {
+			return nil, err
+		}
+
+		out = append(out, basename)
+	}
+
+	return out, nil
+}
+
+// pathOf returns the vault-relative path for a note, e.g. "Permanent/foo.md"
+// or "MOCs/bar.md". Callers can pass the result directly to Read tools.
+func pathOf(basename string, isMOC bool) string {
+	subdir := vaultgraph.PermanentSubdir
+	if isMOC {
+		subdir = vaultgraph.MOCsSubdir
+	}
+
+	return subdir + "/" + basename + ".md"
+}
+
+func runRecall(_ context.Context, args RecallArgs, stdout io.Writer) error {
+	if args.VaultPath == "" {
+		return errRecallVaultRequired
+	}
+
+	fs := &osVaultFS{}
+
+	switch {
+	case len(args.Follow) > 0:
+		return runRecallFollow(fs, args, stdout)
+	case args.Recent:
+		return runRecallRecent(fs, args, stdout)
+	default:
+		return runRecallAnchors(fs, args, stdout)
+	}
+}
+
+func runRecallAnchors(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
+	notes, err := vaultgraph.ScanVault(fs, args.VaultPath)
 	if err != nil {
 		return fmt.Errorf("recall: %w", err)
 	}
 
-	return recall.FormatResult(stdout, result)
-}
-
-func runRecallSessions(
-	ctx context.Context,
-	stdout io.Writer,
-	projectSlug *string,
-	summarizer recall.SummarizerI,
-	memLister recall.MemoryLister,
-	dataDir, query string,
-	getwd func() (string, error),
-	userHomeDir func() (string, error),
-	gitCommonDir gitCommonDirFn,
-) error {
-	slugErr := applyProjectSlugDefault(projectSlug, getwd)
-	if slugErr != nil {
-		return fmt.Errorf("recall: %w", slugErr)
-	}
-
-	home, homeErr := userHomeDir()
-	if homeErr != nil {
-		return fmt.Errorf("recall: %w", homeErr)
-	}
-
-	cwd, cwdErr := getwd()
-	if cwdErr != nil {
-		return fmt.Errorf("recall: %w", cwdErr)
-	}
-
-	projectDir := filepath.Join(home, ".claude", "projects", *projectSlug)
-
-	if mainRepoRoot := detectMainRepoRoot(ctx, gitCommonDir, cwd); mainRepoRoot != "" && mainRepoRoot != cwd {
-		projectDir = filepath.Join(home, ".claude", "projects", ProjectSlugFromPath(mainRepoRoot))
-	}
-
-	finder := recall.NewSessionFinder(&osDirLister{})
-	reader := recall.NewTranscriptReader(&osFileReader{})
-
-	externalFiles, externalCache := discoverExternalSources(ctx, home)
-
-	orch := recall.NewOrchestrator(finder, reader, summarizer, memLister, dataDir,
-		recall.WithStatusWriter(os.Stderr),
-		recall.WithExternalSources(externalFiles, externalCache),
-	)
-
-	result, err := orch.Recall(ctx, projectDir, query)
+	points, err := vaultgraph.StartingPoints(fs, args.VaultPath)
 	if err != nil {
 		return fmt.Errorf("recall: %w", err)
 	}
 
-	return recall.FormatResult(stdout, result)
+	return emitRelPaths(stdout, points, buildSubdirMap(notes))
+}
+
+func runRecallFollow(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
+	follow, err := parseRecallPaths("--follow", args.Follow)
+	if err != nil {
+		return fmt.Errorf("recall: %w", err)
+	}
+
+	alreadyRead, err := parseRecallPaths("--already-read", args.AlreadyRead)
+	if err != nil {
+		return fmt.Errorf("recall: %w", err)
+	}
+
+	notes, err := vaultgraph.ScanVault(fs, args.VaultPath)
+	if err != nil {
+		return fmt.Errorf("recall: %w", err)
+	}
+
+	graph := vaultgraph.BuildGraph(notes)
+
+	return emitRelPaths(stdout, vaultgraph.Follow(graph, follow, alreadyRead), buildSubdirMap(notes))
+}
+
+func runRecallRecent(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
+	notes, err := vaultgraph.ScanVault(fs, args.VaultPath)
+	if err != nil {
+		return fmt.Errorf("recall: %w", err)
+	}
+
+	limit := args.Limit
+	if limit == 0 {
+		limit = defaultRecallRecentLimit
+	}
+
+	return emitRelPaths(stdout, vaultgraph.Recent(notes, limit), buildSubdirMap(notes))
 }

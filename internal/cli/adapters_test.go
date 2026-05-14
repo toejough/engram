@@ -1,54 +1,15 @@
 package cli_test
 
 import (
-	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/cli"
+	"github.com/toejough/engram/internal/cli"
 )
-
-func TestHaikuCallerAdapter_Call(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var capturedModel string
-
-	adapter := cli.ExportNewHaikuCallerAdapter(
-		func(_ context.Context, model, _, _ string) (string, error) {
-			capturedModel = model
-			return "response text", nil
-		},
-	)
-
-	result, err := adapter.Call(context.Background(), "system prompt", "user prompt")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(Equal("response text"))
-	g.Expect(capturedModel).To(Equal("claude-haiku-4-5-20251001"))
-}
-
-func TestHaikuCallerAdapter_CallError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	adapter := cli.ExportNewHaikuCallerAdapter(
-		func(_ context.Context, _, _, _ string) (string, error) {
-			return "", errors.New("api error")
-		},
-	)
-
-	_, err := adapter.Call(context.Background(), "sys", "usr")
-	g.Expect(err).To(MatchError("api error"))
-}
 
 func TestOsDirLister_ListJSONL(t *testing.T) {
 	t.Parallel()
@@ -72,13 +33,26 @@ func TestOsDirLister_ListJSONL(t *testing.T) {
 	g.Expect(entries).To(HaveLen(2))
 }
 
-func TestOsDirLister_ListJSONL_Error(t *testing.T) {
+func TestOsDirLister_ListJSONL_NotADirectory(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	filePath := filepath.Join(t.TempDir(), "notadir.jsonl")
+	g.Expect(os.WriteFile(filePath, []byte("{}"), 0o644)).To(Succeed())
+
+	lister := cli.ExportNewOsDirLister()
+	_, err := lister.ListJSONL(filePath)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestOsDirLister_ListJSONL_NotExist(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	lister := cli.ExportNewOsDirLister()
-	_, err := lister.ListJSONL("/nonexistent/path")
-	g.Expect(err).To(HaveOccurred())
+	entries, err := lister.ListJSONL("/nonexistent/path")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
 }
 
 func TestOsFileReader_Read(t *testing.T) {
@@ -106,4 +80,65 @@ func TestOsFileReader_ReadError(t *testing.T) {
 	reader := cli.ExportNewOsFileReader()
 	_, err := reader.Read("/nonexistent/file.txt")
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestOsLearnFS_ListIDs_ReturnsBothPermanentAndMOC(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-09.foo.md"), nil, 0o600)).
+		To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1a.2026-05-09.bar.md"), nil, 0o600)).
+		To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "MOCs", "5.2026-05-09.moc.md"), nil, 0o600)).
+		To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "README.md"), nil, 0o600)).To(Succeed())
+
+	fs := cli.ExportNewOsLearnFS()
+	got, err := fs.ListIDs(vault)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(ConsistOf("1", "1a", "5"))
+}
+
+func TestOsLearnFS_Lock_ExclusiveAcrossSecondAcquisition(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	vault := t.TempDir()
+
+	fs := cli.ExportNewOsLearnFS()
+	release1, err := fs.Lock(vault)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	done := make(chan struct{})
+
+	go func() {
+		release2, err2 := fs.Lock(vault)
+		g.Expect(err2).NotTo(HaveOccurred())
+
+		if release2 != nil {
+			release2()
+		}
+
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("second Lock should not have succeeded while first holds")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	release1()
+	<-done
 }

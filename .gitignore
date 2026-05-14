@@ -26,8 +26,6 @@ docs/session-logs/
 # Playground (large generated files, regenerated from memories)
 playground/scoring-playground.html
 playground/corpus/
-playground/c4-workflow-sequence-diagrams.md
-playground/issue-603-di-notation-sketch.md
 
 # Skill results
 result.toml
@@ -35,3 +33,7 @@ skills/*/result.toml
 skills/*/test-coverage.md
 .worktrees/
 chat.toml
+
+# Node deps (OpenCode plugin's resolved deps; package-lock pins versions)
+node_modules/
+.claude/scheduled_tasks.lock

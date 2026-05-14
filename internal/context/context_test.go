@@ -7,7 +7,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	sessionctx "engram/internal/context"
+	sessionctx "github.com/toejough/engram/internal/context"
 )
 
 func TestStrip_DropsSystemReminderContent(t *testing.T) {

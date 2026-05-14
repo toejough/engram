@@ -7,7 +7,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/tokenresolver"
+	"github.com/toejough/engram/internal/tokenresolver"
 )
 
 func TestResolver_EnvVarPresent(t *testing.T) {

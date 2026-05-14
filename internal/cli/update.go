@@ -1,91 +1,280 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"time"
+	"io/fs"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strings"
 
-	"engram/internal/memory"
-	"engram/internal/tomlwriter"
+	"github.com/toejough/engram/internal/update"
 )
 
-// applyUpdateArgs sets only non-empty field values on the record.
-func applyUpdateArgs(record *memory.MemoryRecord, args UpdateArgs) {
-	if args.Situation != "" {
-		record.Situation = args.Situation
+// UpdateArgs holds parsed flags for the update subcommand.
+type UpdateArgs struct {
+	DryRun bool `targ:"flag,name=dry-run,desc=print planned actions without executing them"`
+}
+
+// unexported variables.
+var (
+	_                     update.Filesystem = (*osUpdateFS)(nil)
+	errAllHarnessesFailed                   = errors.New("update: all detected harnesses failed")
+)
+
+type osCommander struct{}
+
+func (*osCommander) Run(
+	ctx context.Context, dir, name string, args ...string,
+) ([]byte, []byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // name/args from internal callers
+	cmd.Dir = dir
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	err := cmd.Run()
+	if err != nil {
+		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("%s %v: %w", name, args, err)
 	}
 
-	if args.Behavior != "" {
-		record.Content.Behavior = args.Behavior
+	return stdout.Bytes(), stderr.Bytes(), nil
+}
+
+type osDirEntry struct{ entry fs.DirEntry }
+
+func (o *osDirEntry) IsDir() bool { return o.entry.IsDir() }
+
+func (o *osDirEntry) Name() string { return o.entry.Name() }
+
+type osFileInfo struct{ info fs.FileInfo }
+
+func (o *osFileInfo) IsDir() bool { return o.info.IsDir() }
+
+type osUpdateEnv struct{}
+
+func (*osUpdateEnv) Getenv(key string) string {
+	return os.Getenv(key)
+}
+
+func (*osUpdateEnv) Getwd() (string, error) {
+	return os.Getwd() //nolint:wrapcheck // adapter; caller wraps with context
+}
+
+func (*osUpdateEnv) UserHomeDir() (string, error) {
+	return os.UserHomeDir() //nolint:wrapcheck // adapter; caller wraps with context
+}
+
+// --- production adapters --------------------------------------------------
+
+type osUpdateFS struct{}
+
+func (*osUpdateFS) MkdirAll(path string, perm fs.FileMode) error {
+	err := os.MkdirAll(path, perm)
+	if err != nil {
+		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	if args.Impact != "" {
-		record.Content.Impact = args.Impact
+	return nil
+}
+
+func (*osUpdateFS) ReadDir(path string) ([]update.DirEntry, error) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		//nolint:wrapcheck // caller distinguishes fs.ErrNotExist via errors.Is
+		return nil, err
 	}
 
-	if args.Action != "" {
-		record.Content.Action = args.Action
+	out := make([]update.DirEntry, 0, len(entries))
+
+	for _, entry := range entries {
+		out = append(out, &osDirEntry{entry: entry})
 	}
 
-	if args.Subject != "" {
-		record.Content.Subject = args.Subject
+	return out, nil
+}
+
+func (*osUpdateFS) ReadFile(path string) ([]byte, error) {
+	data, err := os.ReadFile(path) //nolint:gosec // path supplied by walker
+	if err != nil {
+		//nolint:wrapcheck // adapter; caller adds context
+		return nil, err
 	}
 
-	if args.Predicate != "" {
-		record.Content.Predicate = args.Predicate
+	return data, nil
+}
+
+func (*osUpdateFS) Stat(path string) (update.FileInfo, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		//nolint:wrapcheck // thin I/O adapter; caller distinguishes fs.ErrNotExist via errors.Is
+		return nil, err
 	}
 
-	if args.Object != "" {
-		record.Content.Object = args.Object
+	return &osFileInfo{info: info}, nil
+}
+
+func (*osUpdateFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
+	err := os.WriteFile(path, data, perm)
+	if err != nil {
+		return fmt.Errorf("write: %w", err)
 	}
 
-	if args.Source != "" {
-		record.Source = args.Source
+	return nil
+}
+
+func anyHarnessSucceeded(report update.Report) bool {
+	return slices.ContainsFunc(report.Harnesses, harnessOK)
+}
+
+func describeBinary(report update.Report) string {
+	if report.DryRun {
+		return report.GoInstall
+	}
+
+	suffix := "engram"
+	if report.BinaryVersion != "" {
+		suffix = "engram " + report.BinaryVersion
+	}
+
+	return fmt.Sprintf("%s ... ok (%s → %s)",
+		report.GoInstall, suffix, tildify(report.BinaryPath, report.Home))
+}
+
+func describeSource(report update.Report, home string) string {
+	switch report.Source.Mode {
+	case update.SourceLocal:
+		return "local clone at " + tildify(report.Source.Root, home)
+	case update.SourceRemote:
+		return "remote module " + update.ModulePath + " " + report.Source.Version
+	default:
+		return "unknown"
 	}
 }
 
-// runUpdate implements the update subcommand: modifies individual fields of an existing memory.
-func runUpdate(ctx context.Context, args UpdateArgs, stdout io.Writer) error {
-	_ = ctx
-
-	if args.Source != "" {
-		srcErr := validateSource(args.Source)
-		if srcErr != nil {
-			return fmt.Errorf("update: %w", srcErr)
-		}
+// finishUpdate is the pure-decision tail of runUpdate, broken out for tests.
+func finishUpdate(stdout io.Writer, report update.Report, runErr error) error {
+	if runErr != nil {
+		return fmt.Errorf("update: %w", runErr)
 	}
 
-	dataDir := args.DataDir
-
-	defaultErr := applyDataDirDefault(&dataDir)
-	if defaultErr != nil {
-		return fmt.Errorf("update: %w", defaultErr)
-	}
-
-	memPath := memory.ResolveMemoryPath(dataDir, args.Name, fileExists)
-
-	record, loadErr := loadMemoryTOML(memPath)
-	if loadErr != nil {
-		return fmt.Errorf("update: loading %s: %w", args.Name, loadErr)
-	}
-
-	applyUpdateArgs(record, args)
-
-	record.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-
-	writer := tomlwriter.New()
-
-	writeErr := writer.AtomicWrite(memPath, record)
+	writeErr := writeUpdateReport(stdout, report)
 	if writeErr != nil {
-		return fmt.Errorf("update: writing %s: %w", args.Name, writeErr)
+		return fmt.Errorf("update: writing report: %w", writeErr)
 	}
 
-	name := memory.NameFromPath(memPath)
+	if !anyHarnessSucceeded(report) {
+		return errAllHarnessesFailed
+	}
 
-	_, printErr := fmt.Fprintf(stdout, "UPDATED: %s\n", name)
-	if printErr != nil {
-		return fmt.Errorf("update: %w", printErr)
+	return nil
+}
+
+func harnessOK(harness update.HarnessReport) bool { return harness.Err == nil }
+
+func pluralFile(n int) string {
+	if n == 1 {
+		return "file"
+	}
+
+	return "files"
+}
+
+// runUpdate wires production adapters and invokes Updater.Run.
+func runUpdate(ctx context.Context, args UpdateArgs, stdout io.Writer) error {
+	updater := &update.Updater{
+		FS:  &osUpdateFS{},
+		Cmd: &osCommander{},
+		Env: &osUpdateEnv{},
+	}
+
+	report, runErr := updater.Run(ctx, update.Options{DryRun: args.DryRun})
+
+	return finishUpdate(stdout, report, runErr)
+}
+
+// tildify replaces a leading home path with "~" for spec-style output.
+func tildify(path, home string) string {
+	if home == "" || !strings.HasPrefix(path, home) {
+		return path
+	}
+
+	return "~" + strings.TrimPrefix(path, home)
+}
+
+func writeCommandRows(buffer *bytes.Buffer, harness update.HarnessReport, home string) {
+	if harness.CommandsRoot == "" {
+		return
+	}
+
+	for _, name := range harness.CommandFiles {
+		dst := filepath.Join(harness.CommandsRoot, name)
+		fmt.Fprintf(buffer, "    commands/%s → %s\n", name, tildify(dst, home))
+	}
+}
+
+func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
+	successes := make([]string, 0, len(report.Harnesses))
+
+	for _, harness := range report.Harnesses {
+		fmt.Fprintf(buffer, "  %s (%s):\n",
+			harness.Name,
+			tildify(filepath.Join(report.Home, harness.ProbeRoot)+string(filepath.Separator), report.Home),
+		)
+
+		if harness.Err != nil {
+			fmt.Fprintf(buffer, "    error: %v\n", harness.Err)
+
+			continue
+		}
+
+		writeSkillRows(buffer, harness, report.Home)
+		writeCommandRows(buffer, harness, report.Home)
+		successes = append(successes, string(harness.Name))
+	}
+
+	return successes
+}
+
+func writeSkillRows(buffer *bytes.Buffer, harness update.HarnessReport, home string) {
+	for _, dirCount := range harness.SkillDirs {
+		dst := filepath.Join(harness.SkillsRoot, dirCount.Name) + string(filepath.Separator)
+		fmt.Fprintf(buffer, "    skills/%s/ → %s  (%d %s)\n",
+			dirCount.Name,
+			tildify(dst, home),
+			dirCount.Files,
+			pluralFile(dirCount.Files),
+		)
+	}
+}
+
+func writeUpdateReport(out io.Writer, report update.Report) error {
+	var buffer bytes.Buffer
+
+	prefix := ""
+	if report.DryRun {
+		prefix = "[dry-run] "
+	}
+
+	fmt.Fprintf(&buffer, "%sengram update\n", prefix)
+	fmt.Fprintf(&buffer, "  source: %s\n", describeSource(report, report.Home))
+	fmt.Fprintf(&buffer, "  binary: %s\n", describeBinary(report))
+
+	successes := writeHarnessSections(&buffer, report)
+
+	if len(successes) > 0 {
+		fmt.Fprintf(&buffer, "%sinstalled: %s\n", prefix, strings.Join(successes, ", "))
+	}
+
+	_, err := out.Write(buffer.Bytes())
+	if err != nil {
+		return fmt.Errorf("write: %w", err)
 	}
 
 	return nil

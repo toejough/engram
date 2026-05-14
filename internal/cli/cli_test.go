@@ -1,0 +1,309 @@
+package cli_test
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	. "github.com/onsi/gomega"
+)
+
+func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	cmd.Dir = projectRoot(t)
+	out, err := cmd.CombinedOutput()
+	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
+
+	if err != nil {
+		return
+	}
+
+	run := exec.Command(binPath, "learn", "fact",
+		"--slug", "ctx-fact",
+		"--vault", vault,
+		"--position", "top",
+		"--source", "smoke test",
+		"--situation", "concurrent Go code",
+		"--subject", "goroutines",
+		"--predicate", "leak when",
+		"--object", "ctx is ignored",
+	)
+	runOut, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
+
+	if runErr != nil {
+		return
+	}
+
+	expectedPath := filepath.Join(vault, "Permanent")
+	entries, err := os.ReadDir(expectedPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entries).To(HaveLen(1))
+	name := entries[0].Name()
+	g.Expect(name).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-fact\.md$`))
+
+	body, err := os.ReadFile(filepath.Join(expectedPath, name))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(body)).To(ContainSubstring("type: fact"))
+	g.Expect(string(body)).To(ContainSubstring(
+		"Information learned: when in concurrent Go code, goroutines leak when ctx is ignored.",
+	))
+}
+
+func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	cmd.Dir = projectRoot(t)
+	out, err := cmd.CombinedOutput()
+	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
+
+	if err != nil {
+		return
+	}
+
+	run := exec.Command(binPath, "learn", "feedback",
+		"--slug", "ctx-rule",
+		"--vault", vault,
+		"--position", "top",
+		"--source", "smoke test",
+		"--situation", "writing concurrent Go code",
+		"--behavior", "ignoring ctx",
+		"--impact", "leaks goroutines",
+		"--action", "check ctx.Done()",
+		"--relation", "X|adjacent",
+	)
+	runOut, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
+
+	if runErr != nil {
+		return
+	}
+
+	expectedPath := filepath.Join(vault, "Permanent")
+	entries, err := os.ReadDir(expectedPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entries).To(HaveLen(1))
+	name := entries[0].Name()
+	g.Expect(name).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-rule\.md$`))
+
+	body, err := os.ReadFile(filepath.Join(expectedPath, name))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(body)).To(ContainSubstring("type: feedback"))
+	g.Expect(string(body)).
+		To(ContainSubstring("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
+	g.Expect(string(body)).To(ContainSubstring("Related to:"))
+}
+
+func TestEngramLearn_MOC_EndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	cmd.Dir = projectRoot(t)
+	out, err := cmd.CombinedOutput()
+	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
+
+	if err != nil {
+		return
+	}
+
+	run := exec.Command(binPath, "learn", "moc",
+		"--slug", "ctx-cluster",
+		"--vault", vault,
+		"--position", "top",
+		"--source", "smoke test",
+		"--topic", "context handling",
+		"--framing", "Notes about how ctx flows through the system.",
+	)
+	runOut, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
+
+	if runErr != nil {
+		return
+	}
+
+	mocPath := filepath.Join(vault, "MOCs")
+	entries, err := os.ReadDir(mocPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(entries).To(HaveLen(1))
+	name := entries[0].Name()
+	g.Expect(name).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-cluster\.md$`))
+
+	permEntries, err := os.ReadDir(filepath.Join(vault, "Permanent"))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(permEntries).To(BeEmpty(), "MOC must not be written to Permanent/")
+
+	body, err := os.ReadFile(filepath.Join(mocPath, name))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(body)).To(ContainSubstring("type: moc"))
+	g.Expect(string(body)).To(ContainSubstring("topic: context handling"))
+	g.Expect(string(body)).To(ContainSubstring("Notes about how ctx flows through the system."))
+}
+
+func TestEngramRecall_AnchorsEndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	mocsDir := filepath.Join(vault, "MOCs")
+	g.Expect(os.MkdirAll(mocsDir, 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(
+		filepath.Join(mocsDir, "1.2026-03-15.alpha.md"),
+		[]byte("# alpha MOC\nFraming prose with [[1a.2026-03-16.beta]]"),
+		0o600,
+	)).To(Succeed())
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+	build := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	build.Dir = projectRoot(t)
+	buildOut, buildErr := build.CombinedOutput()
+	g.Expect(buildErr).NotTo(HaveOccurred(), "build failed: %s", buildOut)
+
+	if buildErr != nil {
+		return
+	}
+
+	run := exec.Command(binPath, "recall", "--vault", vault)
+	runOut, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
+
+	if runErr != nil {
+		return
+	}
+
+	g.Expect(string(runOut)).To(ContainSubstring("1.2026-03-15.alpha"))
+}
+
+func TestEngramRecall_RecentEndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	permDir := filepath.Join(vault, "Permanent")
+	g.Expect(os.MkdirAll(permDir, 0o700)).To(Succeed())
+
+	for _, name := range []string{
+		"1.2026-01-01.old.md",
+		"2.2026-05-01.new.md",
+	} {
+		g.Expect(os.WriteFile(filepath.Join(permDir, name), []byte("body"), 0o600)).To(Succeed())
+	}
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+	build := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	build.Dir = projectRoot(t)
+	buildOut, buildErr := build.CombinedOutput()
+	g.Expect(buildErr).NotTo(HaveOccurred(), "build failed: %s", buildOut)
+
+	if buildErr != nil {
+		return
+	}
+
+	run := exec.Command(binPath, "recall", "--vault", vault, "--recent", "--limit", "1")
+	runOut, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
+
+	if runErr != nil {
+		return
+	}
+
+	g.Expect(string(runOut)).To(ContainSubstring("2.2026-05-01.new"))
+	g.Expect(string(runOut)).NotTo(ContainSubstring("1.2026-01-01.old"))
+}
+
+func TestEngramTranscript_DateRangeEndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	transcriptDir := t.TempDir()
+	transcriptPath := filepath.Join(transcriptDir, "session-abc.jsonl")
+	body := `{"type":"user","message":{"content":"hello-smoke-test"}}` + "\n"
+	g.Expect(os.WriteFile(transcriptPath, []byte(body), 0o600)).To(Succeed())
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+	build := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	build.Dir = projectRoot(t)
+	buildOut, buildErr := build.CombinedOutput()
+	g.Expect(buildErr).NotTo(HaveOccurred(), "build failed: %s", buildOut)
+
+	if buildErr != nil {
+		return
+	}
+
+	// Use a wide date range so the file mtime (today) falls in.
+	run := exec.Command(binPath, "transcript",
+		"--from", "2020-01-01",
+		"--to", "2099-12-31",
+		"--transcript-dir", transcriptDir,
+	)
+	runOut, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
+
+	if runErr != nil {
+		return
+	}
+
+	g.Expect(string(runOut)).To(ContainSubstring("hello-smoke-test"))
+}
+
+func projectRoot(t *testing.T) string {
+	t.Helper()
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// internal/cli → ../..
+	return filepath.Clean(filepath.Join(wd, "..", ".."))
+}

@@ -43,7 +43,7 @@ text = 'dot-imports'
 files = ['$all', '!$test']
 allow = [
 	'$gostd',
-	'engram',
+	'github.com/toejough/engram',
 	'github.com/BurntSushi/toml',
 	'github.com/akedrou/textdiff',
 	'github.com/bmatcuk/doublestar/v4',
@@ -54,6 +54,7 @@ allow = [
 	'github.com/toejough/imptest',
 	'github.com/toejough/targ',
 	'golang.org/x/tools/go/packages',
+	'go.yaml.in/yaml/v3',
 	'modernc.org/sqlite',
 ]
 
@@ -61,7 +62,7 @@ allow = [
 files = ['$test']
 allow = [
 	'$gostd',
-	'engram',
+	'github.com/toejough/engram',
 	'github.com/BurntSushi/toml',
 	'github.com/akedrou/textdiff',
 	'github.com/charmbracelet/lipgloss',
@@ -70,6 +71,7 @@ allow = [
 	'github.com/toejough/imptest',
 	'github.com/toejough/targ',
 	'github.com/toejough/testredundancy',
+	'go.yaml.in/yaml/v3',
 	'modernc.org/sqlite',
 	'pgregory.net/rapid',
 ]

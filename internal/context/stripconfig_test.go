@@ -7,7 +7,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	sessionctx "engram/internal/context"
+	sessionctx "github.com/toejough/engram/internal/context"
 )
 
 // TestStripWithConfig_DropsSystemReminders verifies system-reminders are dropped in both modes.

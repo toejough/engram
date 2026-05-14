@@ -6,321 +6,470 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 
-	"engram/internal/memory"
-	"engram/internal/tomlwriter"
+	"go.yaml.in/yaml/v3"
+
+	"github.com/toejough/engram/internal/luhmann"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
+
+// LearnArgs holds the parsed flags for the learn subcommand.
+type LearnArgs struct {
+	Type     string
+	Slug     string
+	Vault    string
+	Target   string
+	Position string
+	Source   string
+
+	// feedback / fact / moc all support related-note bullets
+	Relations []string
+
+	// feedback / fact share these
+	Situation string
+	// feedback only
+	Behavior string
+	Impact   string
+	Action   string
+	// fact only
+	Subject   string
+	Predicate string
+	Object    string
+	// moc only
+	Topic   string
+	Framing string
+}
+
+// LearnDeps holds injected dependencies for runLearn. All fields required.
+type LearnDeps struct {
+	Now      func() time.Time
+	Getenv   func(string) string
+	StatDir  func(string) error
+	ListIDs  func(vault string) ([]string, error)
+	Lock     func(vault string) (release func(), err error)
+	WriteNew func(path string, data []byte) error
+}
 
 // unexported constants.
 const (
-	conflictDetectionSystemPrompt = `You are a memory deduplication checker. ` +
-		`Given an index of existing memories and a new memory, determine if the new memory ` +
-		`is a duplicate or contradiction of any existing one.
-
-Respond with one of:
-- "NONE" if no duplicates or contradictions found
-- "DUPLICATE: <name>" if it duplicates an existing memory (one per line)
-- "CONTRADICTION: <name>" if it contradicts an existing memory (one per line)
-
-Only output the result lines, nothing else.`
-	conflictDetectionUserPrompt = `Existing memories:
-%s
-New memory:
-%s
-
-Is this new memory a duplicate or contradiction of any existing one?`
-	memorySchemaVersion = 2
-	splitNParts         = 2
-	typeFact            = "fact"
-	typeFeedback        = "feedback"
+	dateFormat   = "2006-01-02"
+	envVaultDir  = "ENGRAM_VAULT_DIR"
+	typeFact     = "fact"
+	typeFeedback = "feedback"
+	typeMOC      = "moc"
 )
 
 // unexported variables.
 var (
-	errInvalidSource = errors.New("source must be \"human\" or \"agent\"")
+	errLearnUnknownType = errors.New("learn: type must be feedback, fact, or moc")
+	errSlugEmpty        = errors.New("slug is required")
+	errSlugInvalid      = errors.New("slug must match [a-z0-9-]+")
+	errVaultUnset       = errors.New(
+		"vault path is required (--vault flag or ENGRAM_VAULT_DIR env)",
+	)
+	slugPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 )
 
-// llmCaller calls an LLM with a model, system prompt, and user prompt.
-type llmCaller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
-
-// memoryLister lists all stored memories.
-type memoryLister interface {
-	ListAllMemories(dataDir string) ([]*memory.Stored, error)
+type factFields struct {
+	Situation string
+	Subject   string
+	Predicate string
+	Object    string
+	Luhmann   string
+	Source    string
 }
 
-func callHaikuForConflicts(
-	ctx context.Context,
-	caller llmCaller,
-	index, description string,
-) (string, error) {
-	systemPrompt := conflictDetectionSystemPrompt
-	userPrompt := fmt.Sprintf(conflictDetectionUserPrompt, index, description)
+// factFrontmatterDoc is the YAML shape of a fact's frontmatter. Field order
+// here determines key order in the rendered document.
+type factFrontmatterDoc struct {
+	Type      string       `yaml:"type"`
+	Situation string       `yaml:"situation"`
+	Subject   string       `yaml:"subject"`
+	Predicate string       `yaml:"predicate"`
+	Object    string       `yaml:"object"`
+	Luhmann   quotedString `yaml:"luhmann"`
+	Created   string       `yaml:"created"`
+	Source    string       `yaml:"source"`
+}
 
-	response, err := caller(ctx, "claude-haiku-4-5-20251001", systemPrompt, userPrompt)
+type feedbackFields struct {
+	Situation string
+	Behavior  string
+	Impact    string
+	Action    string
+	Luhmann   string
+	Source    string
+}
+
+// feedbackFrontmatterDoc is the YAML shape of a feedback note's frontmatter.
+type feedbackFrontmatterDoc struct {
+	Type      string       `yaml:"type"`
+	Situation string       `yaml:"situation"`
+	Behavior  string       `yaml:"behavior"`
+	Impact    string       `yaml:"impact"`
+	Action    string       `yaml:"action"`
+	Luhmann   quotedString `yaml:"luhmann"`
+	Created   string       `yaml:"created"`
+	Source    string       `yaml:"source"`
+}
+
+type mocFields struct {
+	Topic   string
+	Luhmann string
+	Source  string
+}
+
+// mocFrontmatterDoc is the YAML shape of an MOC note's frontmatter.
+type mocFrontmatterDoc struct {
+	Type    string       `yaml:"type"`
+	Topic   string       `yaml:"topic"`
+	Luhmann quotedString `yaml:"luhmann"`
+	Created string       `yaml:"created"`
+	Source  string       `yaml:"source"`
+}
+
+// quotedString is a YAML scalar that always renders double-quoted. Used for
+// the Luhmann ID field so the rendered frontmatter matches the vault
+// convention (luhmann: "9aa") regardless of whether yaml.v3 would otherwise
+// quote the value. Without this, IDs like "9aa" emit unquoted, and IDs like
+// "1e1" would mis-parse as the float 10.0 on read-back.
+type quotedString string
+
+// MarshalYAML emits the value as a double-quoted scalar node.
+func (q quotedString) MarshalYAML() (any, error) {
+	return &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Style: yaml.DoubleQuotedStyle,
+		Value: string(q),
+	}, nil
+}
+
+func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
+	related := renderRelatedSection(args.Relations)
+
+	switch args.Type {
+	case typeFeedback:
+		f := feedbackFields{
+			Situation: args.Situation, Behavior: args.Behavior, Impact: args.Impact,
+			Action: args.Action, Luhmann: luhmann, Source: args.Source,
+		}
+
+		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f, related), nil
+	case typeFact:
+		f := factFields{
+			Situation: args.Situation, Subject: args.Subject, Predicate: args.Predicate,
+			Object: args.Object, Luhmann: luhmann, Source: args.Source,
+		}
+
+		return renderFactFrontmatter(f, when) + renderFactBody(f, related), nil
+	case typeMOC:
+		f := mocFields{Topic: args.Topic, Luhmann: luhmann, Source: args.Source}
+
+		return renderMOCFrontmatter(f, when) + renderMOCBody(args.Framing, related), nil
+	default:
+		return "", fmt.Errorf("%w: got %q", errLearnUnknownType, args.Type)
+	}
+}
+
+// extractLuhmannFromFilename strips the `.md` extension and delegates to
+// luhmann.FromBasename — the canonical extractor (see #626). Returns
+// ("", false) for any non-`.md` filename or one without a valid leading ID.
+func extractLuhmannFromFilename(name string) (string, bool) {
+	const mdExt = ".md"
+
+	if !strings.HasSuffix(name, mdExt) {
+		return "", false
+	}
+
+	return luhmann.FromBasename(strings.TrimSuffix(name, mdExt))
+}
+
+func learnPath(vault, memType, luhmann, slug string, when time.Time) string {
+	subdir := vaultgraph.PermanentSubdir
+	if memType == typeMOC {
+		subdir = vaultgraph.MOCsSubdir
+	}
+
+	filename := fmt.Sprintf("%s.%s.%s.md", luhmann, when.Format(dateFormat), slug)
+
+	return filepath.Join(vault, subdir, filename)
+}
+
+// marshalFrontmatter encodes v as YAML and wraps the result with the "---"
+// delimiters and trailing blank line used by Permanent/MOC notes. All callers
+// pass structs of typed string fields and do not implement MarshalYAML, so
+// yaml.Marshal cannot fail on them — yaml.v3 returns errors only via custom
+// marshalers, and panics on truly unencodable types (programmer error).
+func marshalFrontmatter(v any) string {
+	body, _ := yaml.Marshal(v)
+
+	return "---\n" + string(body) + "---\n\n"
+}
+
+func newOsLearnDeps() LearnDeps {
+	fs := &osLearnFS{}
+
+	return LearnDeps{
+		Now:      time.Now,
+		Getenv:   os.Getenv,
+		StatDir:  fs.StatDir,
+		ListIDs:  fs.ListIDs,
+		Lock:     fs.Lock,
+		WriteNew: fs.WriteNew,
+	}
+}
+
+func renderFactBody(f factFields, relatedSection string) string {
+	formula := fmt.Sprintf(
+		"Information learned: when in %s, %s %s %s.\n",
+		stripLeadingWhen(f.Situation), f.Subject, f.Predicate, f.Object,
+	)
+
+	return formula + "\n" + relatedSection
+}
+
+func renderFactFrontmatter(f factFields, when time.Time) string {
+	return marshalFrontmatter(factFrontmatterDoc{
+		Type:      "fact",
+		Situation: f.Situation,
+		Subject:   f.Subject,
+		Predicate: f.Predicate,
+		Object:    f.Object,
+		Luhmann:   quotedString(f.Luhmann),
+		Created:   when.Format(dateFormat),
+		Source:    f.Source,
+	})
+}
+
+func renderFeedbackBody(f feedbackFields, relatedSection string) string {
+	formula := fmt.Sprintf(
+		"Lesson learned: when %s, %s.\n",
+		stripLeadingWhen(f.Situation), f.Action,
+	)
+
+	return formula + "\n" + relatedSection
+}
+
+func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
+	return marshalFrontmatter(feedbackFrontmatterDoc{
+		Type:      "feedback",
+		Situation: f.Situation,
+		Behavior:  f.Behavior,
+		Impact:    f.Impact,
+		Action:    f.Action,
+		Luhmann:   quotedString(f.Luhmann),
+		Created:   when.Format(dateFormat),
+		Source:    f.Source,
+	})
+}
+
+func renderMOCBody(framing, relatedSection string) string {
+	framing = strings.TrimRight(framing, "\n")
+
+	switch {
+	case framing == "" && relatedSection == "":
+		return ""
+	case framing == "":
+		return relatedSection
+	case relatedSection == "":
+		return framing + "\n"
+	default:
+		return framing + "\n\n" + relatedSection
+	}
+}
+
+func renderMOCFrontmatter(f mocFields, when time.Time) string {
+	return marshalFrontmatter(mocFrontmatterDoc{
+		Type:    "moc",
+		Topic:   f.Topic,
+		Luhmann: quotedString(f.Luhmann),
+		Created: when.Format(dateFormat),
+		Source:  f.Source,
+	})
+}
+
+// renderRelatedSection turns a list of "wikilink|rationale" entries into the
+// "Related to:\n- [[...]] — rationale.\n" block. Returns "" when empty.
+func renderRelatedSection(entries []string) string {
+	if len(entries) == 0 {
+		return ""
+	}
+
+	lines := make([]string, 0, len(entries)+1)
+	lines = append(lines, "Related to:")
+
+	for _, entry := range entries {
+		target, rationale, _ := strings.Cut(entry, "|")
+		lines = append(
+			lines,
+			fmt.Sprintf("- [[%s]] — %s.", strings.TrimSpace(target), strings.TrimSpace(rationale)),
+		)
+	}
+
+	return strings.Join(lines, "\n") + "\n"
+}
+
+// resolveVault returns the vault path: flag wins, env fallback, error if neither set.
+func resolveVault(flagValue string, getenv func(string) string) (string, error) {
+	if flagValue != "" {
+		return flagValue, nil
+	}
+
+	if env := getenv(envVaultDir); env != "" {
+		return env, nil
+	}
+
+	return "", errVaultUnset
+}
+
+// runLearn orchestrates the learn subcommand: validates inputs, acquires the lock,
+// computes the next Luhmann ID, and writes the file.
+func runLearn(_ context.Context, args LearnArgs, deps LearnDeps, stdout io.Writer) error {
+	slugErr := validateSlug(args.Slug)
+	if slugErr != nil {
+		return fmt.Errorf("learn: %w", slugErr)
+	}
+
+	vault, err := resolveVault(args.Vault, deps.Getenv)
 	if err != nil {
-		return "", fmt.Errorf("calling Haiku: %w", err)
+		return fmt.Errorf("learn: %w", err)
 	}
 
-	return response, nil
-}
-
-func checkForConflicts(
-	ctx context.Context,
-	record *memory.MemoryRecord,
-	dataDir string,
-	stdout io.Writer,
-	caller llmCaller,
-	lister memoryLister,
-) (bool, error) {
-	if caller == nil || lister == nil {
-		return false, nil
+	dirErr := deps.StatDir(vault)
+	if dirErr != nil {
+		return fmt.Errorf("learn: vault %s: %w", vault, dirErr)
 	}
 
-	memories, err := lister.ListAllMemories(dataDir)
-	if err != nil {
-		// No existing memories is not an error -- nothing to conflict with.
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
-		}
-
-		return false, fmt.Errorf("listing memories: %w", err)
-	}
-
-	if len(memories) == 0 {
-		return false, nil
-	}
-
-	index := memory.BuildIndex(memories)
-	description := describeNewMemory(record)
-
-	response, callErr := callHaikuForConflicts(ctx, caller, index, description)
-	if callErr != nil {
-		// API errors are non-fatal for dedup: fall through and write anyway.
-		return false, nil //nolint:nilerr // intentional: API failure is non-fatal
-	}
-
-	return parseConflictResponse(response, dataDir, stdout), nil
-}
-
-func describeNewMemory(record *memory.MemoryRecord) string {
-	var builder strings.Builder
-
-	_, _ = fmt.Fprintf(&builder, "Type: %s\n", record.Type)
-	_, _ = fmt.Fprintf(&builder, "Situation: %s\n", record.Situation)
-
-	if record.Type == typeFact {
-		_, _ = fmt.Fprintf(&builder, "Subject: %s\n", record.Content.Subject)
-		_, _ = fmt.Fprintf(&builder, "Predicate: %s\n", record.Content.Predicate)
-		_, _ = fmt.Fprintf(&builder, "Object: %s\n", record.Content.Object)
-	} else {
-		_, _ = fmt.Fprintf(&builder, "Behavior: %s\n", record.Content.Behavior)
-		_, _ = fmt.Fprintf(&builder, "Impact: %s\n", record.Content.Impact)
-		_, _ = fmt.Fprintf(&builder, "Action: %s\n", record.Content.Action)
-	}
-
-	_, _ = fmt.Fprintf(&builder, "Source: %s\n", record.Source)
-
-	return builder.String()
-}
-
-// unexported functions.
-
-// makeConflictDeps wires real I/O deps for conflict detection.
-// Returns nil caller when no API token is available (skips dedup).
-func makeConflictDeps(ctx context.Context) (llmCaller, memoryLister) {
-	token := resolveToken(ctx)
-
-	var caller llmCaller
-	if token != "" {
-		caller = makeAnthropicCaller(token)
-	}
-
-	return caller, memory.NewLister()
-}
-
-func parseConflictLine(line, dataDir string, stdout io.Writer) {
-	parts := strings.SplitN(line, ":", splitNParts)
-	if len(parts) < splitNParts {
-		return
-	}
-
-	conflictType := parts[0]
-	name := strings.TrimSpace(parts[1])
-
-	_, _ = fmt.Fprintf(stdout, "%s: %s\n", conflictType, name)
-
-	memPath := memory.ResolveMemoryPath(dataDir, name, fileExists)
-
-	mem, loadErr := loadMemoryTOML(memPath)
-	if loadErr != nil {
-		return
-	}
-
-	renderConflictContent(stdout, mem)
-}
-
-func parseConflictResponse(response, dataDir string, stdout io.Writer) bool {
-	trimmed := strings.TrimSpace(response)
-
-	if trimmed == "NONE" {
-		return false
-	}
-
-	lines := strings.Split(trimmed, "\n")
-	foundConflict := false
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		if strings.HasPrefix(line, "DUPLICATE:") || strings.HasPrefix(line, "CONTRADICTION:") {
-			foundConflict = true
-
-			parseConflictLine(line, dataDir, stdout)
-		}
-	}
-
-	return foundConflict
-}
-
-func renderConflictContent(writer io.Writer, mem *memory.MemoryRecord) {
-	if mem.Situation != "" {
-		_, _ = fmt.Fprintf(writer, "situation: %s\n", mem.Situation)
-	}
-
-	if mem.Type == typeFact {
-		renderConflictFactFields(writer, mem)
-	} else {
-		renderConflictFeedbackFields(writer, mem)
-	}
-}
-
-func renderConflictFactFields(writer io.Writer, mem *memory.MemoryRecord) {
-	if mem.Content.Subject != "" {
-		_, _ = fmt.Fprintf(writer, "subject: %s\n", mem.Content.Subject)
-	}
-
-	if mem.Content.Predicate != "" {
-		_, _ = fmt.Fprintf(writer, "predicate: %s\n", mem.Content.Predicate)
-	}
-
-	if mem.Content.Object != "" {
-		_, _ = fmt.Fprintf(writer, "object: %s\n", mem.Content.Object)
-	}
-}
-
-func renderConflictFeedbackFields(writer io.Writer, mem *memory.MemoryRecord) {
-	if mem.Content.Behavior != "" {
-		_, _ = fmt.Fprintf(writer, "behavior: %s\n", mem.Content.Behavior)
-	}
-
-	if mem.Content.Impact != "" {
-		_, _ = fmt.Fprintf(writer, "impact: %s\n", mem.Content.Impact)
-	}
-
-	if mem.Content.Action != "" {
-		_, _ = fmt.Fprintf(writer, "action: %s\n", mem.Content.Action)
-	}
-}
-
-func runLearnFact(ctx context.Context, args LearnFactArgs, stdout io.Writer) error {
-	srcErr := validateSource(args.Source)
-	if srcErr != nil {
-		return fmt.Errorf("learn fact: %w", srcErr)
-	}
-
-	record := &memory.MemoryRecord{
-		SchemaVersion: memorySchemaVersion,
-		Source:        args.Source,
-		Situation:     args.Situation,
-		Type:          typeFact,
-		Content: memory.ContentFields{
-			Subject:   args.Subject,
-			Predicate: args.Predicate,
-			Object:    args.Object,
-		},
-	}
-
-	dataDir := args.DataDir
-	caller, lister := makeConflictDeps(ctx)
-
-	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn fact", caller, lister)
-}
-
-func runLearnFeedback(ctx context.Context, args LearnFeedbackArgs, stdout io.Writer) error {
-	srcErr := validateSource(args.Source)
-	if srcErr != nil {
-		return fmt.Errorf("learn feedback: %w", srcErr)
-	}
-
-	record := &memory.MemoryRecord{
-		SchemaVersion: memorySchemaVersion,
-		Source:        args.Source,
-		Situation:     args.Situation,
-		Type:          typeFeedback,
-		Content: memory.ContentFields{
-			Behavior: args.Behavior,
-			Impact:   args.Impact,
-			Action:   args.Action,
-		},
-	}
-
-	dataDir := args.DataDir
-	caller, lister := makeConflictDeps(ctx)
-
-	return writeMemory(ctx, record, args.Situation, &dataDir, args.NoDupCheck, stdout, "learn feedback", caller, lister)
-}
-
-func validateSource(source string) error {
-	if source != "human" && source != "agent" {
-		return errInvalidSource
-	}
-
-	return nil
-}
-
-func writeMemory(
-	ctx context.Context,
-	record *memory.MemoryRecord,
-	situation string,
-	dataDir *string,
-	noDupCheck bool,
-	stdout io.Writer,
-	cmdName string,
-	caller llmCaller,
-	lister memoryLister,
-) error {
-	defaultErr := applyDataDirDefault(dataDir)
-	if defaultErr != nil {
-		return fmt.Errorf("%s: %w", cmdName, defaultErr)
-	}
-
-	slug := tomlwriter.Slugify(situation)
-
-	if !noDupCheck {
-		conflict, checkErr := checkForConflicts(ctx, record, *dataDir, stdout, caller, lister)
-		if checkErr != nil {
-			return fmt.Errorf("%s: %w", cmdName, checkErr)
-		}
-
-		if conflict {
-			return nil
-		}
-	}
-
-	writer := tomlwriter.New()
-
-	filePath, writeErr := writer.Write(record, slug, *dataDir)
+	path, writeErr := writeLearnUnderLock(args, deps, vault)
 	if writeErr != nil {
-		return fmt.Errorf("%s: %w", cmdName, writeErr)
+		return writeErr
 	}
 
-	name := memory.NameFromPath(filePath)
+	_, _ = fmt.Fprintln(stdout, path)
 
-	_, printErr := fmt.Fprintf(stdout, "CREATED: %s\n", name)
-	if printErr != nil {
-		return fmt.Errorf("%s: %w", cmdName, printErr)
+	return nil
+}
+
+func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer) error {
+	deps := newOsLearnDeps()
+
+	return runLearn(ctx, LearnArgs{
+		Type:      typeFact,
+		Slug:      a.Slug,
+		Vault:     a.Vault,
+		Target:    a.Target,
+		Position:  a.Position,
+		Source:    a.Source,
+		Relations: a.Relations,
+		Situation: a.Situation,
+		Subject:   a.Subject,
+		Predicate: a.Predicate,
+		Object:    a.Object,
+	}, deps, stdout)
+}
+
+func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout io.Writer) error {
+	deps := newOsLearnDeps()
+
+	return runLearn(ctx, LearnArgs{
+		Type:      typeFeedback,
+		Slug:      a.Slug,
+		Vault:     a.Vault,
+		Target:    a.Target,
+		Position:  a.Position,
+		Source:    a.Source,
+		Relations: a.Relations,
+		Situation: a.Situation,
+		Behavior:  a.Behavior,
+		Impact:    a.Impact,
+		Action:    a.Action,
+	}, deps, stdout)
+}
+
+func runLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Writer) error {
+	deps := newOsLearnDeps()
+
+	return runLearn(ctx, LearnArgs{
+		Type:      typeMOC,
+		Slug:      a.Slug,
+		Vault:     a.Vault,
+		Target:    a.Target,
+		Position:  a.Position,
+		Source:    a.Source,
+		Relations: a.Relations,
+		Topic:     a.Topic,
+		Framing:   a.Framing,
+	}, deps, stdout)
+}
+
+// stripLeadingWhen removes a case-insensitive leading "When " or "when " from
+// the situation field so body templates that prepend "when " don't double up.
+// Skill-spec example situations conventionally start with "When ..." but the
+// body template prepends "when " — without this strip, the rendered line
+// reads "Lesson learned: when When ...".
+func stripLeadingWhen(situation string) string {
+	const whenPrefixLen = 5
+
+	if len(situation) < whenPrefixLen {
+		return situation
+	}
+
+	if strings.EqualFold(situation[:whenPrefixLen], "when ") {
+		return situation[whenPrefixLen:]
+	}
+
+	return situation
+}
+
+// validateSlug returns an error if slug is empty or does not match [a-z0-9-]+.
+func validateSlug(slug string) error {
+	if slug == "" {
+		return errSlugEmpty
+	}
+
+	if !slugPattern.MatchString(slug) {
+		return fmt.Errorf("%w: got %q", errSlugInvalid, slug)
 	}
 
 	return nil
+}
+
+// writeLearnUnderLock acquires the vault lock, computes the next Luhmann ID,
+// assembles file content, and writes it. The lock spans listing existing IDs
+// through writing the new file to prevent ID collisions.
+func writeLearnUnderLock(args LearnArgs, deps LearnDeps, vault string) (string, error) {
+	release, lockErr := deps.Lock(vault)
+	if lockErr != nil {
+		return "", fmt.Errorf("learn: acquiring lock: %w", lockErr)
+	}
+	defer release()
+
+	existing, listErr := deps.ListIDs(vault)
+	if listErr != nil {
+		return "", fmt.Errorf("learn: listing existing IDs: %w", listErr)
+	}
+
+	luhmann, idErr := nextLuhmannID(existing, args.Target, args.Position)
+	if idErr != nil {
+		return "", fmt.Errorf("learn: %w", idErr)
+	}
+
+	when := deps.Now()
+	path := learnPath(vault, args.Type, luhmann, args.Slug, when)
+
+	content, contentErr := assembleLearnContent(args, luhmann, when)
+	if contentErr != nil {
+		return "", fmt.Errorf("learn: %w", contentErr)
+	}
+
+	writeErr := deps.WriteNew(path, []byte(content))
+	if writeErr != nil {
+		return "", fmt.Errorf("learn: writing %s: %w", path, writeErr)
+	}
+
+	return path, nil
 }

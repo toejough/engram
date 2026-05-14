@@ -3,60 +3,88 @@ package cli
 import (
 	"context"
 	"io"
+	"math"
+	"time"
 
-	"engram/internal/memory"
-	"engram/internal/recall"
+	"github.com/toejough/engram/internal/transcript"
 )
 
 // Exported variables.
 var (
-	ExportApplyDataDirDefault            = applyDataDirDefault
-	ExportApplyProjectSlugDefault        = applyProjectSlugDefault
-	ExportComputeMainProjectDir          = computeMainProjectDir
-	ExportDescribeNewMemory              = describeNewMemory
-	ExportOsDirListMd                    = osDirListMd
-	ExportOsMatchAny                     = osMatchAny
-	ExportOsStatExists                   = osStatExists
-	ExportOsWalkMd                       = osWalkMd
-	ExportOsWalkSkills                   = osWalkSkills
-	ExportParseConflictResponse          = parseConflictResponse
-	ExportReadAutoMemoryDirectorySetting = readAutoMemoryDirectorySetting
-	ExportRenderConflictContent          = renderConflictContent
-	ExportRenderFactContent              = renderFactContent
-	ExportRenderMemoryContent            = renderMemoryContent
-	ExportValidateSource                 = validateSource
+	ExportAnyHarnessSucceeded        = anyHarnessSucceeded
+	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
+	ExportFinishUpdate               = finishUpdate
+	ExportLearnPath                  = learnPath
+	ExportMarshalFrontmatter         = marshalFrontmatter
+	ExportNewErrHandler              = newErrHandler
+	ExportNextLuhmannID              = nextLuhmannID
+	ExportPluralFile                 = pluralFile
+	ExportRenderFactBody             = renderFactBody
+	ExportRenderFactFrontmatter      = renderFactFrontmatter
+	ExportRenderFeedbackBody         = renderFeedbackBody
+	ExportRenderFeedbackFrontmatter  = renderFeedbackFrontmatter
+	ExportRenderMOCBody              = renderMOCBody
+	ExportRenderMOCFrontmatter       = renderMOCFrontmatter
+	ExportRenderRelatedSection       = renderRelatedSection
+	ExportResolveVault               = resolveVault
+	ExportRunLearn                   = runLearn
+	ExportRunUpdate                  = runUpdate
+	ExportTildify                    = tildify
+	ExportValidateSlug               = validateSlug
+	ExportWriteUpdateReport          = writeUpdateReport
 )
 
-// ExportCallHaikuForConflicts wraps callHaikuForConflicts for testing.
-func ExportCallHaikuForConflicts(
-	ctx context.Context,
-	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
-	index, description string,
-) (string, error) {
-	return callHaikuForConflicts(ctx, caller, index, description)
-}
+// Exported types.
+type ExportFactFields = factFields
 
-// ExportCheckForConflicts wraps checkForConflicts for testing.
-func ExportCheckForConflicts(
-	ctx context.Context,
-	record *memory.MemoryRecord,
-	dataDir string,
+type ExportFeedbackFields = feedbackFields
+
+type ExportMOCFields = mocFields
+
+// AdvanceAndReportMarkerForTest exposes advanceAndReportMarker for unit testing.
+func AdvanceAndReportMarkerForTest(
+	markerPath string,
+	fromTime, lastIncluded time.Time,
+	hadEntries bool,
+	now time.Time,
 	stdout io.Writer,
-	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
-	lister memoryLister,
-) (bool, error) {
-	return checkForConflicts(ctx, record, dataDir, stdout, caller, lister)
+) error {
+	return advanceAndReportMarker(markerPath, fromTime, lastIncluded, hadEntries, now, stdout)
 }
 
-// ExportNewHaikuCallerAdapter creates a haikuCallerAdapter for testing.
-func ExportNewHaikuCallerAdapter(
-	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
-) recall.HaikuCaller {
-	return &haikuCallerAdapter{caller: caller}
+// EmitTranscriptsForTest is an exported entry point so the cli_test package can
+// exercise emitTranscripts directly without going through the full runTranscript
+// flow. Returns (lastIncludedMtime per source, hadEntries per source, error) — same as the wrapped
+// internal function. Production code does not call this.
+func EmitTranscriptsForTest(
+	reader transcript.Reader,
+	entries []transcript.FileEntry,
+	maxBytes int,
+	stdout io.Writer,
+) (map[string]time.Time, map[string]bool, error) {
+	return emitTranscripts(reader, entries, maxBytes, stdout)
 }
+
+// Exported functions.
+
+// ExportEmitTranscripts exposes emitTranscripts for whitebox testing with an
+// unlimited byte budget. Discards the (lastIncludedMtime, hadEntries) returns
+// because the legacy tests using this wrapper only care about error paths.
+func ExportEmitTranscripts(
+	reader transcript.Reader,
+	entries []transcript.FileEntry,
+	stdout io.Writer,
+) error {
+	_, _, err := emitTranscripts(reader, entries, math.MaxInt32, stdout)
+
+	return err
+}
+
+// ExportNewOsCommander returns the production Commander adapter for testing.
+func ExportNewOsCommander() *osCommander { return &osCommander{} }
 
 // ExportNewOsDirLister creates an osDirLister for testing.
-func ExportNewOsDirLister() recall.DirLister {
+func ExportNewOsDirLister() transcript.DirLister {
 	return &osDirLister{}
 }
 
@@ -67,56 +95,72 @@ func ExportNewOsFileReader() interface {
 	return &osFileReader{}
 }
 
-// ExportNewSummarizer wraps newSummarizer for testing.
-func ExportNewSummarizer(token string) recall.SummarizerI {
-	return newSummarizer(token)
+// ExportNewOsLearnFS returns the production osLearnFS adapter for testing.
+func ExportNewOsLearnFS() *osLearnFS { return &osLearnFS{} }
+
+// ExportNewOsUpdateEnv returns the production Env adapter for testing.
+func ExportNewOsUpdateEnv() *osUpdateEnv { return &osUpdateEnv{} }
+
+// ExportNewOsUpdateFS returns the production Filesystem adapter for testing.
+func ExportNewOsUpdateFS() *osUpdateFS { return &osUpdateFS{} }
+
+// ExportNewOsVaultFS returns the production osVaultFS adapter for testing.
+func ExportNewOsVaultFS() interface {
+	ListMD(dir string) ([]string, error)
+	ReadFile(path string) ([]byte, error)
+} {
+	return &osVaultFS{}
 }
 
-// ExportParseConflictLine wraps parseConflictLine for testing.
-func ExportParseConflictLine(line, dataDir string, stdout io.Writer) {
-	parseConflictLine(line, dataDir, stdout)
+// ExportRunLearnFromFactArgs invokes the unexported runLearnFromFactArgs for testing.
+func ExportRunLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer) error {
+	return runLearnFromFactArgs(ctx, a, stdout)
 }
 
-// ExportRunRecallSessions wraps runRecallSessions for testing.
-func ExportRunRecallSessions(
+// ExportRunLearnFromFeedbackArgs invokes the unexported runLearnFromFeedbackArgs for testing.
+func ExportRunLearnFromFeedbackArgs(
 	ctx context.Context,
+	a LearnFeedbackArgs,
 	stdout io.Writer,
-	projectSlug string,
-	summarizer recall.SummarizerI,
-	memLister recall.MemoryLister,
-	dataDir, query string,
-	getwd func() (string, error),
-	userHomeDir func() (string, error),
-	gitCommonDir func(ctx context.Context, cwd string) (string, error),
 ) error {
-	slug := projectSlug
-	return runRecallSessions(ctx, stdout, &slug, summarizer, memLister, dataDir, query, getwd, userHomeDir, gitCommonDir)
+	return runLearnFromFeedbackArgs(ctx, a, stdout)
 }
 
-// ExportWriteMemoryForTest wraps writeMemory for testing with a pre-built record.
-func ExportWriteMemoryForTest(
-	ctx context.Context,
-	record *memory.MemoryRecord,
-	situation, dataDir string,
-	noDupCheck bool,
-	stdout io.Writer,
-	cmdName string,
-) error {
-	dd := dataDir
-	return writeMemory(ctx, record, situation, &dd, noDupCheck, stdout, cmdName, nil, memory.NewLister())
+// ExportRunLearnFromMOCArgs invokes the unexported runLearnFromMOCArgs for testing.
+func ExportRunLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Writer) error {
+	return runLearnFromMOCArgs(ctx, a, stdout)
 }
 
-// ExportWriteMemoryWithDeps wraps writeMemory for testing with injected deps.
-func ExportWriteMemoryWithDeps(
+// NewTranscriptDepsForTest exposes newTranscriptDeps for whitebox testing.
+func NewTranscriptDepsForTest(cwd string) (transcript.Finder, transcript.Reader) {
+	return newTranscriptDeps(cwd)
+}
+
+// ResolveMaxBytesForTest exposes resolveMaxBytes for unit testing.
+func ResolveMaxBytesForTest(maxBytes int) int { return resolveMaxBytes(maxBytes) }
+
+// ResolveProjectSlugForTest exposes resolveProjectSlug for unit testing.
+func ResolveProjectSlugForTest(args TranscriptArgs) (string, error) {
+	return resolveProjectSlug(args)
+}
+
+// ResolveStateDirForTest exposes resolveStateDir for unit testing.
+func ResolveStateDirForTest(args TranscriptArgs) (string, error) {
+	return resolveStateDir(args)
+}
+
+// RunRecallForTest exposes runRecall for whitebox testing.
+func RunRecallForTest(ctx context.Context, args RecallArgs, stdout io.Writer) error {
+	return runRecall(ctx, args, stdout)
+}
+
+// RunTranscriptForTest exposes runTranscript for whitebox testing.
+func RunTranscriptForTest(
 	ctx context.Context,
-	record *memory.MemoryRecord,
-	situation, dataDir string,
-	noDupCheck bool,
+	args TranscriptArgs,
+	finder transcript.Finder,
+	reader transcript.Reader,
 	stdout io.Writer,
-	cmdName string,
-	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
-	lister memoryLister,
 ) error {
-	dd := dataDir
-	return writeMemory(ctx, record, situation, &dd, noDupCheck, stdout, cmdName, caller, lister)
+	return runTranscript(ctx, args, finder, reader, stdout)
 }

@@ -9,7 +9,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"engram/internal/cli"
+	"github.com/toejough/engram/internal/cli"
 )
 
 func TestForceExitOnRepeatedSignal(t *testing.T) {
@@ -67,6 +67,6 @@ func TestSetupSignalHandling_ReturnsTargets(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 
-	targets := cli.SetupSignalHandling(&stdout, &stderr, func(_ int) {})
-	g.Expect(targets).To(HaveLen(5))
+	targets := cli.SetupSignalHandling(&stdout, &stderr, func(_ int) {}, nil)
+	g.Expect(targets).To(HaveLen(4))
 }
