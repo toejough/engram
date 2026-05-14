@@ -20,8 +20,9 @@ type DirLister interface {
 
 // FileEntry represents a transcript file with its path and modification time.
 type FileEntry struct {
-	Path  string
-	Mtime time.Time
+	Path   string
+	Mtime  time.Time
+	Source string
 }
 
 // Finder finds session transcript files.
@@ -116,6 +117,7 @@ func (f *SessionFinder) Find(dirs ...string) ([]FileEntry, error) {
 		for _, e := range entries {
 			if _, ok := seen[e.Path]; !ok {
 				seen[e.Path] = struct{}{}
+				e.Source = sourceClaude
 				all = append(all, e)
 			}
 		}
@@ -127,3 +129,9 @@ func (f *SessionFinder) Find(dirs ...string) ([]FileEntry, error) {
 
 	return all, nil
 }
+
+// unexported constants.
+const (
+	sourceClaude   = "claude"
+	sourceOpencode = "opencode"
+)

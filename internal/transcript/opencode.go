@@ -134,8 +134,9 @@ func (f *OpencodeSessionFinder) Find(_ ...string) ([]FileEntry, error) {
 		}
 
 		entries = append(entries, FileEntry{
-			Path:  "opencode://" + id,
-			Mtime: time.UnixMilli(rowUpdatedAt),
+			Path:   "opencode://" + id,
+			Mtime:  time.UnixMilli(rowUpdatedAt),
+			Source: sourceOpencode,
 		})
 	}
 

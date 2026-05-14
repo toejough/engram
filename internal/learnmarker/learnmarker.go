@@ -24,6 +24,12 @@ func MarkerPath(stateDir, projectSlug string) string {
 	return filepath.Join(stateDir, "projects", projectSlug, "last-learn-at")
 }
 
+// MarkerPathWithSuffix returns the full path to a per-harness marker file,
+// e.g. "last-learn-at-claude" or "last-learn-at-opencode".
+func MarkerPathWithSuffix(stateDir, projectSlug, suffix string) string {
+	return filepath.Join(stateDir, "projects", projectSlug, "last-learn-at-"+suffix)
+}
+
 // Read returns the marker timestamp at path. The bool return is true when the
 // marker file existed; false (with nil error) when it did not — callers handle
 // the absent case (first-run) without treating it as an error.

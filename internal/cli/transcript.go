@@ -86,10 +86,15 @@ var (
 	)
 )
 
+type harnessMarker struct {
+	path  string
+	mtime time.Time
+	found bool
+}
+
 type transcriptState struct {
-	dir, markerPath string
-	markerTime      time.Time
-	markerFound     bool
+	dir     string
+	markers map[string]harnessMarker
 }
 
 // advanceAndReportMarker computes the effective scan end (Mtime of last
@@ -156,24 +161,23 @@ func applyTranscriptDirDefault(dir *string, slug string, getwd func() (string, e
 // the next entry's content would push total bytes over maxBytes. The first
 // entry is always included even if it alone exceeds the cap — a single
 // oversized entry must not stall marker progress forever. Returns the Mtime of
-// the last fully-included entry and a hadEntries bool; callers use these to
-// advance the per-project marker to the actual scan boundary.
+// the last fully-included entry per source and a hadEntries bool per source;
+// callers use these to advance the per-source markers to the actual scan boundary.
 func emitTranscripts(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
 	maxBytes int,
 	stdout io.Writer,
-) (time.Time, bool, error) {
-	var (
-		lastIncluded time.Time
-		hadEntries   bool
-		total        int
-	)
+) (map[string]time.Time, map[string]bool, error) {
+	lastIncluded := make(map[string]time.Time)
+	hadEntries := make(map[string]bool)
+
+	var total int
 
 	for index, entry := range entries {
 		content, _, readErr := reader.Read(entry.Path, math.MaxInt32)
 		if readErr != nil {
-			return time.Time{}, false, fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
+			return nil, nil, fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
 		}
 
 		// First entry is always included (progress guarantee). Subsequent entries
@@ -184,28 +188,52 @@ func emitTranscripts(
 
 		_, writeErr := io.WriteString(stdout, content)
 		if writeErr != nil {
-			return time.Time{}, false, fmt.Errorf("transcript: writing output: %w", writeErr)
+			return nil, nil, fmt.Errorf("transcript: writing output: %w", writeErr)
 		}
 
 		total += len(content)
-		lastIncluded = entry.Mtime
-		hadEntries = true
+		lastIncluded[entry.Source] = entry.Mtime
+		hadEntries[entry.Source] = true
 	}
 
 	return lastIncluded, hadEntries, nil
 }
 
-// filterByDateRange returns entries whose Mtime falls in [from, to] inclusive.
-func filterByDateRange(entries []transcript.FileEntry, from, to time.Time) []transcript.FileEntry {
+// filterBySourceMarkers returns entries whose Mtime falls within each source's
+// [from, to] range, where from is derived from that source's marker.
+func filterBySourceMarkers(
+	entries []transcript.FileEntry,
+	markers map[string]harnessMarker,
+	now time.Time,
+) []transcript.FileEntry {
 	filtered := make([]transcript.FileEntry, 0, len(entries))
 
 	for _, entry := range entries {
-		if !entry.Mtime.Before(from) && !entry.Mtime.After(to) {
+		marker, ok := markers[entry.Source]
+		if !ok {
+			continue
+		}
+
+		from := now.Add(-defaultLookback)
+		if marker.found {
+			from = marker.mtime
+		}
+
+		if !entry.Mtime.Before(from) && !entry.Mtime.After(now) {
 			filtered = append(filtered, entry)
 		}
 	}
 
 	return filtered
+}
+
+// fromForSource returns the effective from time for a given source's marker.
+func fromForSource(_ string, marker harnessMarker, now time.Time) time.Time {
+	if marker.found {
+		return marker.mtime
+	}
+
+	return now.Add(-defaultLookback)
 }
 
 // parseDate parses a date string, accepting RFC3339 or YYYY-MM-DD layout.
@@ -279,17 +307,21 @@ func resolveTranscriptState(args TranscriptArgs) (transcriptState, error) {
 		return transcriptState{}, err
 	}
 
-	markerPath := learnmarker.MarkerPath(stateDir, slug)
+	sources := []string{"claude", "opencode"}
+	markers := make(map[string]harnessMarker, len(sources))
 
-	markerTime, markerFound, err := learnmarker.Read(learnmarker.OSFS{}, markerPath)
-	if err != nil {
-		return transcriptState{}, fmt.Errorf("transcript: reading marker: %w", err)
+	for _, src := range sources {
+		mPath := learnmarker.MarkerPathWithSuffix(stateDir, slug, src)
+
+		mTime, mFound, mErr := learnmarker.Read(learnmarker.OSFS{}, mPath)
+		if mErr != nil {
+			return transcriptState{}, fmt.Errorf("transcript: reading marker: %w", mErr)
+		}
+
+		markers[src] = harnessMarker{path: mPath, mtime: mTime, found: mFound}
 	}
 
-	return transcriptState{
-		dir: transcriptDir, markerPath: markerPath,
-		markerTime: markerTime, markerFound: markerFound,
-	}, nil
+	return transcriptState{dir: transcriptDir, markers: markers}, nil
 }
 
 // runTranscript reads session transcripts in [from, to] (inclusive) and emits stripped content.
@@ -307,20 +339,12 @@ func runTranscript(
 
 	now := time.Now().UTC()
 
-	fromTime, toTime, err := ResolveTimeWindow(TimeWindowInputs{
-		From: args.From, To: args.To,
-		Marker: state.markerTime, MarkerFound: state.markerFound, Now: now,
-	})
-	if err != nil {
-		return err
-	}
-
 	entries, findErr := finder.Find(state.dir)
 	if findErr != nil {
 		return fmt.Errorf("transcript: finding sessions: %w", findErr)
 	}
 
-	filtered := filterByDateRange(entries, fromTime, toTime)
+	filtered := filterBySourceMarkers(entries, state.markers, now)
 	slices.Reverse(filtered)
 
 	lastIncluded, hadEntries, emitErr := emitTranscripts(
@@ -331,11 +355,18 @@ func runTranscript(
 	}
 
 	if args.Mark {
-		markErr := advanceAndReportMarker(
-			state.markerPath, fromTime, lastIncluded, hadEntries, now, stdout,
-		)
-		if markErr != nil {
-			return markErr
+		for src, marker := range state.markers {
+			markErr := advanceAndReportMarker(
+				marker.path,
+				fromForSource(src, marker, now),
+				lastIncluded[src],
+				hadEntries[src],
+				now,
+				stdout,
+			)
+			if markErr != nil {
+				return markErr
+			}
 		}
 	}
 

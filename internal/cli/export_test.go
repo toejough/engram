@@ -54,14 +54,14 @@ func AdvanceAndReportMarkerForTest(
 
 // EmitTranscriptsForTest is an exported entry point so the cli_test package can
 // exercise emitTranscripts directly without going through the full runTranscript
-// flow. Returns (lastIncludedMtime, hadEntries, error) — same as the wrapped
+// flow. Returns (lastIncludedMtime per source, hadEntries per source, error) — same as the wrapped
 // internal function. Production code does not call this.
 func EmitTranscriptsForTest(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
 	maxBytes int,
 	stdout io.Writer,
-) (time.Time, bool, error) {
+) (map[string]time.Time, map[string]bool, error) {
 	return emitTranscripts(reader, entries, maxBytes, stdout)
 }
 
