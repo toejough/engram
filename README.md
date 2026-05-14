@@ -7,11 +7,11 @@
 
 ## Overview
 
-Engram is a plugin for **Claude Code** and **OpenCode** that gives agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand.
+Engram gives Claude Code and OpenCode agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand. Both skills shell out to the `engram` binary for vault traversal and writes.
 
 ## Installing
 
-Both hosts need the `engram` binary and the plugin source. Requires Go 1.25+ on `PATH`.
+Requires Go 1.25+ on `PATH`.
 
 1. Install the binary:
 
@@ -21,41 +21,14 @@ Both hosts need the `engram` binary and the plugin source. Requires Go 1.25+ on 
 
    Make sure `$GOBIN` (or `$GOPATH/bin`, default `~/go/bin`) is on your `PATH`.
 
-2. Clone the repo somewhere stable — both hosts read skills and commands from this location:
+2. Copy the skills and commands into every detected harness's user directory:
 
    ```bash
-   git clone https://github.com/toejough/engram ~/src/engram
+   engram update            # install / refresh
+   engram update --dry-run  # show what would change
    ```
 
-### Claude Code
-
-Add the plugin via the marketplace (`/plugin`) pointed at your local clone, or configure the marketplace path in your Claude Code settings.
-
-### OpenCode
-
-Add the plugin path to `~/.config/opencode/opencode.json`:
-
-```json
-{
-  "plugin": ["~/src/engram/opencode"]
-}
-```
-
-### Upgrading
-
-Run `engram update` to refresh both the binary and the harness skill/command
-files in one step. The command auto-detects local clone vs. remote module:
-
-```bash
-engram update            # install + copy
-engram update --dry-run  # show what would change
-```
-
-If you're inside a local clone, `engram update` re-runs `go install ./cmd/engram/`
-and copies the current `skills/` and `opencode/commands/` files into every
-detected harness (Claude Code at `~/.claude/`, OpenCode at `~/.config/opencode/`).
-Otherwise it pulls the latest published module via `go install …@latest` and
-copies from the module cache.
+   `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`.
 
 ## Skills
 
@@ -79,7 +52,7 @@ Engram reads and writes a zettelkasten vault. Pass `--vault <path>` to every `en
 ## Binary commands
 
 ```
-engram recall                          Surface anchors, recent notes, or follow basenames from a vault
+engram recall                          Surface anchors, recent notes, or follow paths from a vault
 engram transcript                      Read Claude Code session transcripts in a date range
 engram learn feedback --slug ... --vault ... --source ... --situation ... --behavior ... --impact ... --action ...
 engram learn fact     --slug ... --vault ... --source ... --situation ... --subject ... --predicate ... --object ...
@@ -100,9 +73,8 @@ internal/            Business logic (DI boundaries)
   transcript/        Session transcript reading
   update/            Self-refresh subcommand
   vaultgraph/        Vault traversal (MOCs/Permanent, anchors, follow)
-skills/              Plugin skills (recall, learn)
-.claude-plugin/      Plugin manifest
-opencode/            OpenCode plugin (commands, skills)
+skills/              Source for the recall and learn skills
+commands/            Source for OpenCode slash commands
 ```
 
 ## Development
@@ -116,4 +88,4 @@ opencode/            OpenCode plugin (commands, skills)
 
 - **DI everywhere** — No function in `internal/` calls `os.*`, `http.*`, or any I/O directly. All I/O through injected interfaces, wired at CLI edges.
 - **Pure Go, no CGO** — external API for LLM operations only.
-- **Plugin form factor** — skills for behavior, slim Go binary for computation.
+- **Skills for behavior, slim Go binary for computation.**

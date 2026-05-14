@@ -214,7 +214,7 @@ func writeCommandRows(buffer *bytes.Buffer, harness update.HarnessReport, home s
 
 	for _, name := range harness.CommandFiles {
 		dst := filepath.Join(harness.CommandsRoot, name)
-		fmt.Fprintf(buffer, "    opencode/commands/%s → %s\n", name, tildify(dst, home))
+		fmt.Fprintf(buffer, "    commands/%s → %s\n", name, tildify(dst, home))
 	}
 }
 

@@ -20,8 +20,8 @@ engram/
 │   ├── transcript/    # Claude Code session transcript reading
 │   ├── update/        # `engram update` subcommand
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
-├── skills/            # Claude Code skill definitions (learn, recall)
-├── opencode/          # OpenCode plugin (commands, skills)
+├── skills/            # Source for the recall and learn skills
+├── commands/          # Source for OpenCode slash commands
 ├── dev/               # Build tooling (targ definitions, linter configs)
 └── docs/              # Active design docs and research prompts
 ```
@@ -37,7 +37,7 @@ engram/
 
 - **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges.
 - **Pure Go, no CGO.** External API only for LLM operations.
-- **Plugin form factor:** Skills for behavior (learn, recall), slim Go binary for computation.
+- **Skills + binary:** Skills for behavior (learn, recall), slim Go binary for computation.
 - **Test hard-to-test code by refactoring for DI**, not by writing integration tests around I/O.
 - **Test categorization:** Unit tests verify business logic via DI + mocks (imptest). Integration tests verify wiring of thin I/O wrappers with real dependencies. If a function has business logic AND I/O, refactor to separate them — don't write an integration test around the whole thing.
 

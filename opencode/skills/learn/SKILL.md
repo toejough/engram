@@ -1,1 +1,0 @@
-../../../skills/learn/SKILL.md

@@ -172,7 +172,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	report.BinaryVersion = source.Version // local mode leaves this empty
 
 	srcSkills := filepath.Join(source.Root, "skills")
-	srcCommands := filepath.Join(source.Root, "opencode", "commands")
+	srcCommands := filepath.Join(source.Root, "commands")
 
 	skillOps, planErr := planSkillCopies(srcSkills, home, harnesses, u.FS)
 	if planErr != nil {

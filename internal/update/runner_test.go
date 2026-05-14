@@ -198,7 +198,7 @@ func TestUpdater_Run_Local_HappyPath(t *testing.T) {
 	fileSystem := newMemFS()
 	// One harness present.
 	fileSystem.dirs["/home/joe/.claude"] = true
-	// Local repo with go.mod, skills, no opencode commands.
+	// Local repo with go.mod, skills, no slash commands.
 	fileSystem.dirs["/repo"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
 	fileSystem.dirs["/repo/skills"] = true
@@ -247,12 +247,11 @@ func TestUpdater_Run_Local_OpencodeOnly_CopiesCommands(t *testing.T) {
 	fileSystem.dirs["/repo/skills"] = true
 	fileSystem.dirs["/repo/skills/recall"] = true
 	fileSystem.files["/repo/skills/recall/SKILL.md"] = []byte("recall")
-	fileSystem.dirs["/repo/opencode"] = true
-	fileSystem.dirs["/repo/opencode/commands"] = true
-	fileSystem.files["/repo/opencode/commands/recall.md"] = []byte("recall cmd")
-	fileSystem.files["/repo/opencode/commands/learn.md"] = []byte("learn cmd")
+	fileSystem.dirs["/repo/commands"] = true
+	fileSystem.files["/repo/commands/recall.md"] = []byte("recall cmd")
+	fileSystem.files["/repo/commands/learn.md"] = []byte("learn cmd")
 	// Non-md should be ignored.
-	fileSystem.files["/repo/opencode/commands/README.txt"] = []byte("readme")
+	fileSystem.files["/repo/commands/README.txt"] = []byte("readme")
 
 	updater := &update.Updater{
 		FS:  fileSystem,
@@ -398,9 +397,8 @@ func TestUpdater_Run_Remote_HappyPath(t *testing.T) {
 	fileSystem.dirs[modCache+"/skills"] = true
 	fileSystem.dirs[modCache+"/skills/learn"] = true
 	fileSystem.files[modCache+"/skills/learn/SKILL.md"] = []byte("learn from cache")
-	fileSystem.dirs[modCache+"/opencode"] = true
-	fileSystem.dirs[modCache+"/opencode/commands"] = true
-	fileSystem.files[modCache+"/opencode/commands/learn.md"] = []byte("learn cmd")
+	fileSystem.dirs[modCache+"/commands"] = true
+	fileSystem.files[modCache+"/commands/learn.md"] = []byte("learn cmd")
 
 	goListOut := []byte(`{"Dir":"` + modCache + `","Version":"v0.2.0"}`)
 	cmd := &fakeCmd{
