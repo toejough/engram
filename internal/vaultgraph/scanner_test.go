@@ -29,15 +29,14 @@ func TestScanVault_EmptyVault(t *testing.T) {
 		g.Expect(notes).To(BeEmpty())
 	}()
 
-	// All three subdirs queried; all return empty.
+	// Both subdirs queried; both return empty.
 	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).Return([]string{}, nil)
 	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{}, nil)
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Fleeting")).Return([]string{}, nil)
 
 	<-done
 }
 
-func TestScanVault_FleetingWithoutLuhmannID(t *testing.T) {
+func TestScanVault_PermanentWithoutLuhmannID(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -58,9 +57,8 @@ func TestScanVault_FleetingWithoutLuhmannID(t *testing.T) {
 	}()
 
 	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).Return([]string{}, nil)
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{}, nil)
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Fleeting")).Return([]string{"scratch.md"}, nil)
-	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "Fleeting", "scratch.md")).
+	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{"scratch.md"}, nil)
+	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "Permanent", "scratch.md")).
 		Return([]byte("no links"), nil)
 
 	<-done
@@ -141,7 +139,6 @@ func TestScanVault_SingleMOC(t *testing.T) {
 	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "MOCs", "7.2026-05-09.zk.md")).Return(
 		[]byte("body with [[4.2026-05-09.anti-index]] reference"), nil)
 	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{}, nil)
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Fleeting")).Return([]string{}, nil)
 
 	<-done
 }
@@ -166,7 +163,6 @@ func TestScanVault_SkipsNonMD(t *testing.T) {
 	// `notes.txt` returned by ListMD but ParseBasename rejects it → no ReadFile call.
 	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).Return([]string{"notes.txt"}, nil)
 	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{}, nil)
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Fleeting")).Return([]string{}, nil)
 
 	<-done
 }

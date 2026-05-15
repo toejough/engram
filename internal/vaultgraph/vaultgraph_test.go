@@ -115,7 +115,7 @@ func TestStartingPoints_NonLuhmannBasenamesSortAfter(t *testing.T) {
 
 	programVaultFSMock(imp, []inputForStartingPoints{
 		{"Permanent", "9a.2026-05-10.x.md", "no links"},
-		{"Fleeting", "scratch.md", "no links"},
+		{"Permanent", "scratch.md", "no links"},
 	})
 	<-done
 }
@@ -192,8 +192,8 @@ func TestStartingPoints_TwoIDlessBasenamesSortLexically(t *testing.T) {
 	}()
 
 	programVaultFSMock(imp, []inputForStartingPoints{
-		{"Fleeting", "beta.md", "no links"},
-		{"Fleeting", "alpha.md", "no links"},
+		{"Permanent", "beta.md", "no links"},
+		{"Permanent", "alpha.md", "no links"},
 	})
 	<-done
 }
@@ -211,22 +211,21 @@ type inputForStartingPoints struct {
 	body     string
 }
 
-// programVaultFSMock configures the mock to answer ListMD for the three subdirs
+// programVaultFSMock configures the mock to answer ListMD for both subdirs
 // (with the given filenames) and ReadFile for each note's path with the given body.
 // Must be called from within the goroutine that drives the SUT — call ListMD orders
-// follow scanner's loop order: MOCs, Permanent, Fleeting.
+// follow scanner's loop order: MOCs, then Permanent.
 func programVaultFSMock(imp *VaultFSImp, inputs []inputForStartingPoints) {
 	bySubdir := map[string][]inputForStartingPoints{
 		"MOCs":      nil,
 		"Permanent": nil,
-		"Fleeting":  nil,
 	}
 
 	for _, input := range inputs {
 		bySubdir[input.subdir] = append(bySubdir[input.subdir], input)
 	}
 
-	for _, subdir := range []string{"MOCs", "Permanent", "Fleeting"} {
+	for _, subdir := range []string{"MOCs", "Permanent"} {
 		dirPath := filepath.Join(fixtureVault, subdir)
 		filenames := make([]string, 0, len(bySubdir[subdir]))
 

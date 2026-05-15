@@ -10,7 +10,7 @@ import (
 
 // osVaultFS is the production adapter satisfying vaultgraph.VaultFS. Listing a
 // non-existent directory returns an empty slice (not an error) — the scanner
-// uses this to skip missing subdirs like an absent Fleeting/.
+// uses this to skip missing subdirs (e.g. an absent MOCs/ on a brand-new vault).
 type osVaultFS struct{}
 
 // ListMD returns the .md filenames in dir. Missing dir → empty, nil.

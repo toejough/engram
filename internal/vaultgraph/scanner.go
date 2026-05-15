@@ -9,13 +9,12 @@ import (
 
 // Exported constants.
 const (
-	FleetingSubdir  = "Fleeting"
 	MOCsSubdir      = "MOCs"
 	PermanentSubdir = "Permanent"
 )
 
 // Note is a vault node: a single markdown file with its parsed metadata and outgoing wikilinks.
-// LuhmannID is empty for files (e.g. fleetings) whose filename does not begin with a valid ID.
+// LuhmannID is empty for files whose filename does not begin with a valid Luhmann ID.
 type Note struct {
 	Basename  string   // graph-node key, e.g. "9o1.2026-05-10.cross-cutting"
 	LuhmannID string   // "9o1", or "" if the basename has no leading Luhmann ID
@@ -33,9 +32,9 @@ type VaultFS interface {
 	ReadFile(path string) ([]byte, error)
 }
 
-// ScanVault reads MOCs/, Permanent/, and Fleeting/ under vaultPath and returns one Note per .md file.
-// Missing subdirs are silently skipped. The returned slice has stable order: MOCs first by Basename,
-// then Permanent, then Fleeting — but downstream consumers should not rely on this and instead
+// ScanVault reads MOCs/ and Permanent/ under vaultPath and returns one Note per .md file.
+// Missing subdirs are silently skipped. The returned slice has stable order: MOCs first by
+// Basename, then Permanent — but downstream consumers should not rely on this and instead
 // look up by Basename.
 func ScanVault(fs VaultFS, vaultPath string) ([]Note, error) {
 	subdirs := []struct {
@@ -44,7 +43,6 @@ func ScanVault(fs VaultFS, vaultPath string) ([]Note, error) {
 	}{
 		{MOCsSubdir, true},
 		{PermanentSubdir, false},
-		{FleetingSubdir, false},
 	}
 
 	var notes []Note
