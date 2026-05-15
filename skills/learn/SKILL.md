@@ -65,7 +65,11 @@ If a single observation has both a "should have done X" component and a "here's 
 
 ### 1. Identify candidates
 
-Always run `engram transcript --mark` to fetch transcripts since the last `/learn` for this project. The command scans forward chronologically from the marker, stops when it would exceed the byte cap (~200KB by default), and advances the marker to the effective scan end (`now` if everything fit, otherwise the Mtime of the last fully-included session). Its trailing status line — `[engram transcript: scanned [<from>, <to>]; marker advanced to <to>]` — tells you the new marker position; **capture it and include it verbatim in your final report (§7).**
+Always run `engram transcript --mark` to fetch transcripts since the last `/learn` for this project. The command scans forward chronologically from the marker, stops when it would exceed the byte cap (~200KB by default), and advances the marker to the effective scan end (`now` if everything fit, otherwise the Mtime of the last fully-included session). Its trailing status line — `[engram transcript: scanned [<from>, <to>]; marker advanced to <to>]` — tells you the new marker position; **capture it and include it verbatim in your final report (§9).**
+
+**First-run handling.** If `engram transcript --mark` exits non-zero with `transcript: no progress marker (...) ... earliest session: <date>`, this is the project's first scan (no marker yet). **Stop and prompt the user via `AskUserQuestion`** — do not pick a date yourself. The error message names each source's earliest session date; offer at least two options: "Scan from the beginning (`--from all`)" and "Scan from <earliest>". After the user answers, re-run `engram transcript --mark --from <chosen>`. Capture that re-run's status line for the final report.
+
+**Byte-cap continuation.** If the output includes a `[engram transcript: byte cap hit; ... onward not yet scanned; run again to continue]` line, more sessions remain unread. Include the continuation line verbatim in your final report, and mention in the report that `/learn` should be re-run (after `/clear` if context is tight) to catch up. Do not loop in this pass — one transcript scan per `/learn` invocation.
 
 If the in-context conversation also covers relevant turns from this session, scan it too — but the transcript fetch is non-optional and runs every `/learn` pass so the marker keeps moving forward.
 
@@ -191,9 +195,10 @@ If a new permanent contradicts an existing one, write the new permanent with a `
 
 ### 9. Report
 
-The final user-facing report is **only** these two things:
+The final user-facing report is **only** these things:
 
 - The `engram transcript --mark` status line(s) verbatim.
+- Any `[engram transcript: byte cap hit; ...]` continuation lines verbatim, plus a one-sentence note that `/learn` should be re-run to catch up.
 - The permanents and MOCs written, each as one line: `Permanent/<id>` or `MOCs/<id>` + slug.
 
 Nothing else. Do not include the Path A/B disclosure, the scratch list, the candidates-considered table, the dropped-with-reasons list, a recap of `--situation` strings, or a separate "Contradictions surfaced" section. Those are scaffolding for the writer, not output for the reader.
