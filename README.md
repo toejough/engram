@@ -9,6 +9,10 @@
 
 Engram gives Claude Code and OpenCode agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand. Both skills shell out to the `engram` binary for vault traversal and writes.
 
+After a few months of use, the vault's wikilink graph looks like this in Obsidian — each dot is a note, each line a `[[wikilink]]`; dense clusters are MOCs pulling related Permanents together, and the connective tissue between clusters is how recall cascades between topics:
+
+![Obsidian graph view of an engram vault](docs/images/vault-graph.png)
+
 ## Installing
 
 Requires Go 1.25+ on `PATH`.
