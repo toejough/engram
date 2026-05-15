@@ -28,7 +28,17 @@ The recall-mirror test, applied to every candidate note:
 
 ## Vault paths
 
-- Vault root: `/Users/joe/repos/personal/agent-memory/`
+The binary resolves the vault automatically — `--vault` and
+`ENGRAM_VAULT_PATH` are overrides, not requirements. Default:
+`$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`).
+On first `engram learn` against a non-existent vault, the directory is
+bootstrapped with `Permanent/`, `MOCs/`, `MEMORY.md`, a minimal
+`.obsidian/` config, a `.gitignore`, and a `README.md`. **Do not pass
+`--vault` in `engram learn` / `engram recall` invocations unless the
+user explicitly tells you the vault is elsewhere.**
+
+Layout:
+
 - Permanents: `<vault>/Permanent/`
 - MOCs: `<vault>/MOCs/`
 
@@ -138,7 +148,6 @@ The `Lesson learned: ...` / `Information learned: ...` opener line is auto-gener
 ```
 engram learn feedback \
   --slug <kebab-case-tag> \
-  --vault /Users/joe/repos/personal/agent-memory \
   --target <luhmann-id-of-related-note-or-empty> \
   --position <top|continuation|sibling> \
   --source "session log <project>, <YYYY-MM-DD HH:MM UTC>, context: ..." \
@@ -152,7 +161,6 @@ engram learn feedback \
 ```
 engram learn fact \
   --slug <kebab-case-tag> \
-  --vault /Users/joe/repos/personal/agent-memory \
   --target <id-or-empty> \
   --position <top|continuation|sibling> \
   --source "..." \
@@ -165,7 +173,6 @@ engram learn fact \
 ```
 engram learn moc \
   --slug <kebab-case-tag> \
-  --vault /Users/joe/repos/personal/agent-memory \
   --target <id-or-empty> \
   --position <top|continuation|sibling> \
   --source "constructed from cluster analysis, <YYYY-MM-DD>" \

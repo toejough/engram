@@ -41,7 +41,19 @@ See `skills/recall/SKILL.md` and `skills/learn/SKILL.md` for the full skill defi
 
 ## Vault location
 
-Engram reads and writes a zettelkasten vault. Pass `--vault <path>` to every `engram` invocation, or set `ENGRAM_VAULT_PATH`. Vault layout:
+Engram reads and writes a zettelkasten vault. Resolution order:
+
+1. `--vault <path>` flag
+2. `ENGRAM_VAULT_PATH` environment variable
+3. `$XDG_DATA_HOME/engram/vault` (fallback: `~/.local/share/engram/vault`)
+
+On first `engram learn` against a missing vault, the directory is
+bootstrapped with `Permanent/`, `MOCs/`, `MEMORY.md`, a minimal
+`.obsidian/` config so Obsidian recognizes it, a `.gitignore`, and a
+`README.md`. `engram recall` does not bootstrap — it errors with
+"vault not found" so the user notices.
+
+Vault layout:
 
 ```
 <vault>/
@@ -57,9 +69,9 @@ engram transcript                      Read session transcripts since last /lear
 engram transcript --mark               Same, then advance per-harness progress markers
 engram transcript --from <date>        Override marker; scan from explicit date
 engram transcript --max-bytes <n>      Set byte budget (default 200000)
-engram learn feedback --slug ... --vault ... --source ... --situation ... --behavior ... --impact ... --action ...
-engram learn fact     --slug ... --vault ... --source ... --situation ... --subject ... --predicate ... --object ...
-engram learn moc      --slug ... --vault ... --source ... --topic ...
+engram learn feedback --slug ... --source ... --situation ... --behavior ... --impact ... --action ...
+engram learn fact     --slug ... --source ... --situation ... --subject ... --predicate ... --object ...
+engram learn moc      --slug ... --source ... --topic ...
 engram update                          Refresh binary and harness skills/commands ([--dry-run])
 ```
 

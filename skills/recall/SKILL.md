@@ -22,8 +22,14 @@ Most of the skill's value is in (1) and (3). The cascade in (2) is mechanical; w
 
 ## Vault structure
 
+The binary resolves the vault automatically — `--vault` and
+`ENGRAM_VAULT_PATH` are overrides, not requirements. Default:
+`$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`).
+**Do not pass `--vault` in `engram recall` invocations unless the user
+explicitly tells you the vault is elsewhere.**
+
 ```
-/Users/joe/repos/personal/agent-memory/
+<vault>/
   Permanent/   atomic principle-stated notes; <Luhmann-ID>.YYYY-MM-DD.<slug>.md
   MOCs/        Maps of Content with framing prose and in-prose wikilinks; same filename format
   MEMORY.md    index — names notes; substance is in the notes themselves
@@ -83,8 +89,8 @@ The skill drives the cascade as a loop calling `engram recall`. The binary is a 
 **Initial frontier:**
 
 ```bash
-engram recall --vault /Users/joe/repos/personal/agent-memory
-engram recall --vault /Users/joe/repos/personal/agent-memory --recent --limit 20
+engram recall
+engram recall --recent --limit 20
 ```
 
 Union the outputs. Each line is a vault-relative path like `Permanent/<basename>.md` or `MOCs/<basename>.md` — pass it directly to your file-read tool; no path-guessing.
@@ -104,7 +110,7 @@ Union the outputs. Each line is a vault-relative path like `Permanent/<basename>
 4. **Expand the frontier** for every note that scored relevant:
 
    ```bash
-   engram recall --vault <path> \
+   engram recall \
      --follow Permanent/A.md,MOCs/B.md \
      --already-read Permanent/X.md,Permanent/Y.md,...
    ```
@@ -192,8 +198,7 @@ If you catch yourself doing any of these in the user-facing reply, rewrite:
 
 | Situation                                            | Behavior                                                                                                                             |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `--vault` not provided and `ENGRAM_VAULT_PATH` unset | `engram recall` errors; report "vault path required" and stop.                                                                       |
-| Vault directory does not exist                       | Report "vault not found" and stop. Do not create.                                                                                    |
+| Default vault directory does not exist               | `engram recall` reports "vault not found"; tell the user to run `engram learn` (which bootstraps it) or set `ENGRAM_VAULT_PATH` to an existing vault. Do not create the directory yourself. |
 | Vault exists but is empty                            | Report "vault is empty; no recall produced." Do not fabricate.                                                                       |
 | `engram recall` command not found                    | Fall back: read every `.md` under `MOCs/` and `Permanent/` directly, scoring as in Step 3. Note the missing binary in _Vault state_. |
 | No matches for explicit query                        | `(no matches)` for that section in 4a. Situational baseline may still produce.                                                       |
