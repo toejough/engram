@@ -52,6 +52,48 @@ func TestOsLearnFS_Lock_BadVaultReturnsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestOsLearnFS_MkdirAll_CreatesNestedDirs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	root := t.TempDir()
+	nested := filepath.Join(root, "a", "b", "c")
+
+	fs := cli.ExportNewOsLearnFS()
+	g.Expect(fs.MkdirAll(nested, 0o755)).To(Succeed())
+
+	info, statErr := os.Stat(nested)
+	g.Expect(statErr).NotTo(HaveOccurred())
+
+	if statErr != nil {
+		return
+	}
+
+	g.Expect(info.IsDir()).To(BeTrue())
+}
+
+func TestOsLearnFS_MkdirAll_FailsWhenParentIsFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	root := t.TempDir()
+	filePath := filepath.Join(root, "f")
+	g.Expect(os.WriteFile(filePath, []byte("x"), 0o600)).To(Succeed())
+
+	fs := cli.ExportNewOsLearnFS()
+	g.Expect(fs.MkdirAll(filepath.Join(filePath, "child"), 0o755)).To(MatchError(ContainSubstring("mkdir")))
+}
+
+func TestOsLearnFS_MkdirAll_IdempotentOnExistingDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+
+	fs := cli.ExportNewOsLearnFS()
+	g.Expect(fs.MkdirAll(dir, 0o755)).To(Succeed())
+}
+
 func TestOsLearnFS_StatDir_OnDirectory(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -79,6 +121,53 @@ func TestOsLearnFS_StatDir_OnMissingPathFails(t *testing.T) {
 
 	fs := cli.ExportNewOsLearnFS()
 	g.Expect(fs.StatDir("/nonexistent/path/here")).To(HaveOccurred())
+}
+
+func TestOsLearnFS_WriteFileIfMissing_CreatesNew(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	path := filepath.Join(t.TempDir(), "f.txt")
+
+	fs := cli.ExportNewOsLearnFS()
+	g.Expect(fs.WriteFileIfMissing(path, []byte("hello"), 0o600)).To(Succeed())
+
+	got, readErr := os.ReadFile(path)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(got)).To(Equal("hello"))
+}
+
+func TestOsLearnFS_WriteFileIfMissing_FailsOnMissingDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := cli.ExportNewOsLearnFS()
+	g.Expect(fs.WriteFileIfMissing("/nonexistent/dir/f.txt", []byte("x"), 0o600)).To(HaveOccurred())
+}
+
+func TestOsLearnFS_WriteFileIfMissing_LeavesExistingUntouched(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	path := filepath.Join(t.TempDir(), "f.txt")
+	g.Expect(os.WriteFile(path, []byte("original"), 0o600)).To(Succeed())
+
+	fs := cli.ExportNewOsLearnFS()
+	g.Expect(fs.WriteFileIfMissing(path, []byte("replacement"), 0o600)).To(Succeed())
+
+	got, readErr := os.ReadFile(path)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(got)).To(Equal("original"))
 }
 
 func TestOsLearnFS_WriteNew_CreatesFile(t *testing.T) {
@@ -117,6 +206,54 @@ func TestOsLearnFS_WriteNew_OnBadDirectoryFails(t *testing.T) {
 
 	fs := cli.ExportNewOsLearnFS()
 	g.Expect(fs.WriteNew("/nonexistent/dir/file.md", []byte("x"))).To(HaveOccurred())
+}
+
+func TestRunLearnFromFactArgs_BootstrapsMissingVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Vault dir does NOT exist; runLearn must bootstrap it before writing.
+	vault := filepath.Join(t.TempDir(), "fresh-vault")
+
+	args := cli.LearnFactArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "bootstrap-fact",
+			Vault:    vault,
+			Position: "top",
+			Source:   "test",
+		},
+		Situation: "first run",
+		Subject:   "engram",
+		Predicate: "bootstraps",
+		Object:    "the vault",
+	}
+
+	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Bootstrap created Permanent/, MOCs/, .obsidian/ and MEMORY.md.
+	for _, sub := range []string{"Permanent", "MOCs", ".obsidian"} {
+		info, statErr := os.Stat(filepath.Join(vault, sub))
+		g.Expect(statErr).NotTo(HaveOccurred())
+
+		if statErr != nil {
+			return
+		}
+
+		g.Expect(info.IsDir()).To(BeTrue())
+	}
+
+	_, memErr := os.Stat(filepath.Join(vault, "MEMORY.md"))
+	g.Expect(memErr).NotTo(HaveOccurred())
+
+	// And the actual fact note landed.
+	entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(entries).NotTo(BeEmpty())
 }
 
 // runLearnFrom*Args use newOsLearnDeps() and call runLearn. Driving these

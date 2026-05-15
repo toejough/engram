@@ -16,7 +16,7 @@ import (
 // CommonLearnArgs holds shared flags for learn subcommands.
 type CommonLearnArgs struct {
 	Slug      string   `targ:"flag,name=slug,desc=kebab-case tag for the filename"`
-	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_DIR,desc=vault root directory"`
+	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	Target    string   `targ:"flag,name=target,desc=Luhmann ID this note relates to (empty for top-level)"`
 	Position  string   `targ:"flag,name=position,desc=top|continuation|sibling"`
 	Source    string   `targ:"flag,name=source,required,desc=provenance string for the source field (required)"`
@@ -58,7 +58,7 @@ type LearnMOCArgs struct {
 //   - --recent: emit the most-recent notes by filename date prefix.
 //   - --follow: emit cascade frontier expansion (outgoing + backlinks).
 type RecallArgs struct {
-	VaultPath   string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=path to vault root (required)"`
+	VaultPath   string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default XDG)"`
 	Recent      bool     `targ:"flag,name=recent,desc=emit most-recent notes by filename date instead of anchors"`
 	Limit       int      `targ:"flag,name=limit,desc=cap for --recent output (default 20)"`
 	Follow      []string `targ:"flag,name=follow,desc=basenames to expand (outgoing + backlinks)"`
@@ -92,8 +92,15 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 		return debuglog.WithLogger(ctx, logger)
 	}
 
+	homeOrEmpty := func() string {
+		home, _ := os.UserHomeDir()
+
+		return home
+	}
+
 	return []any{
 		targ.Targ(func(ctx context.Context, a RecallArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
 			errHandler(runRecall(withLog(ctx), a, stdout))
 		}).Name("recall").Description("Recall recent session context"),
 		targ.Targ(func(ctx context.Context, a TranscriptArgs) {
@@ -103,12 +110,15 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 		}).Name("transcript").Description("Read session transcripts in a date range"),
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
+				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, stdout))
 			}).Name("feedback").Description("Write a feedback note to Permanent/"),
 			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
+				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, stdout))
 			}).Name("fact").Description("Write a fact note to Permanent/"),
 			targ.Targ(func(ctx context.Context, a LearnMOCArgs) {
+				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 				errHandler(runLearnFromMOCArgs(withLog(ctx), a, stdout))
 			}).Name("moc").Description("Write a MOC note to MOCs/"),
 		),

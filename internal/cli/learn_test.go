@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"errors"
+	"io/fs"
 	"strings"
 	"testing"
 	"time"
@@ -358,6 +359,34 @@ func TestRenderRelatedSection_NoPipeMeansEmptyRationale(t *testing.T) {
 	g.Expect(got).To(Equal("Related to:\n- [[7]] — .\n"))
 }
 
+func TestRunLearn_BootstrapsVaultWhenMissing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	initCalled := false
+	deps := cli.LearnDeps{
+		Now:       func() time.Time { return time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC) },
+		Getenv:    func(string) string { return "" },
+		StatDir:   func(string) error { return fs.ErrNotExist },
+		InitVault: func(string) error { initCalled = true; return nil },
+		ListIDs:   func(string) ([]string, error) { return nil, nil },
+		Lock:      func(string) (func(), error) { return func() {}, nil },
+		WriteNew:  func(string, []byte) error { return nil },
+	}
+	args := cli.LearnArgs{
+		Type:     "feedback",
+		Slug:     "x",
+		Vault:    "/v",
+		Position: "top",
+		Source:   "test",
+	}
+
+	var stdout strings.Builder
+
+	g.Expect(cli.ExportRunLearn(t.Context(), args, deps, &stdout)).To(Succeed())
+	g.Expect(initCalled).To(BeTrue())
+}
+
 func TestRunLearn_Fact_WritesExpectedFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -585,36 +614,17 @@ func TestRunLearn_RejectsInvalidSlug(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestRunLearn_RejectsMissingVault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.LearnDeps{
-		Now:      time.Now,
-		Getenv:   func(string) string { return "" },
-		StatDir:  func(string) error { return nil },
-		ListIDs:  func(string) ([]string, error) { return nil, nil },
-		Lock:     func(string) (func(), error) { return func() {}, nil },
-		WriteNew: func(string, []byte) error { return nil },
-	}
-	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "", Position: "top"}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).To(HaveOccurred())
-}
-
 func TestRunLearn_RejectsUnknownType(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	deps := cli.LearnDeps{
-		Now:      time.Now,
-		Getenv:   func(string) string { return "" },
-		StatDir:  func(string) error { return nil },
-		ListIDs:  func(string) ([]string, error) { return nil, nil },
-		Lock:     func(string) (func(), error) { return func() {}, nil },
-		WriteNew: func(string, []byte) error { return nil },
+		Now:       time.Now,
+		Getenv:    func(string) string { return "" },
+		StatDir:   func(string) error { return nil },
+		InitVault: func(string) error { return nil },
+		ListIDs:   func(string) ([]string, error) { return nil, nil },
+		Lock:      func(string) (func(), error) { return func() {}, nil },
+		WriteNew:  func(string, []byte) error { return nil },
 	}
 	args := cli.LearnArgs{Type: "principle", Slug: "x", Vault: "/v", Position: "top"}
 

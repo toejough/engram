@@ -170,7 +170,7 @@ func TestRunRecall_NoVaultPathReturnsError(t *testing.T) {
 		return
 	}
 
-	g.Expect(err.Error()).To(ContainSubstring("--vault required"))
+	g.Expect(err.Error()).To(ContainSubstring("vault not found"))
 }
 
 func TestRunRecall_RecentReturnsMostRecentByDate(t *testing.T) {

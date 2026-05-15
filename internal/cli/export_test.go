@@ -14,6 +14,7 @@ var (
 	ExportAnyHarnessFailed           = anyHarnessFailed
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
 	ExportFinishUpdate               = finishUpdate
+	ExportInitializeVault            = initializeVault
 	ExportLearnPath                  = learnPath
 	ExportMarshalFrontmatter         = marshalFrontmatter
 	ExportNewErrHandler              = newErrHandler
@@ -34,12 +35,14 @@ var (
 	ExportWriteUpdateReport          = writeUpdateReport
 )
 
-// Exported types.
 type ExportFactFields = factFields
 
 type ExportFeedbackFields = feedbackFields
 
 type ExportMOCFields = mocFields
+
+// Exported types.
+type ExportVaultInitFS = VaultInitFS
 
 // AdvanceAndReportMarkerForTest exposes advanceAndReportMarker for unit testing.
 func AdvanceAndReportMarkerForTest(

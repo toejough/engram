@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,8 +28,8 @@ var (
 	errRecallPathFormat = errors.New(
 		"must be a full relative path of the form MOCs/<basename>.md or Permanent/<basename>.md",
 	)
-	errRecallVaultRequired = errors.New(
-		"recall: --vault required (or set ENGRAM_VAULT_PATH)",
+	errRecallVaultMissing = errors.New(
+		"recall: vault not found (set --vault or ENGRAM_VAULT_PATH, or run `engram learn` to bootstrap the default)",
 	)
 )
 
@@ -141,15 +142,56 @@ func (*osLearnFS) Lock(vault string) (func(), error) {
 	return release, nil
 }
 
-// StatDir returns an error if the directory does not exist or isn't accessible.
+// MkdirAll creates path with any missing parents; no-op when path exists.
+func (*osLearnFS) MkdirAll(path string, perm fs.FileMode) error {
+	err := os.MkdirAll(path, perm)
+	if err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+
+	return nil
+}
+
+// StatDir returns fs.ErrNotExist if the directory is missing, errNotADirectory
+// if the path exists but is a file, or a wrapped error otherwise.
 func (*osLearnFS) StatDir(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return fs.ErrNotExist
+		}
+
 		return fmt.Errorf("stat: %w", err)
 	}
 
 	if !info.IsDir() {
 		return fmt.Errorf("%w: %s", errNotADirectory, path)
+	}
+
+	return nil
+}
+
+// WriteFileIfMissing writes data with O_EXCL so existing files are left
+// untouched; ErrExist is swallowed so initializeVault is idempotent.
+func (*osLearnFS) WriteFileIfMissing(path string, data []byte, perm fs.FileMode) error {
+	f, err := os.OpenFile( //nolint:gosec // path from caller
+		path,
+		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
+		perm,
+	)
+	if err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			return nil
+		}
+
+		return fmt.Errorf("open: %w", err)
+	}
+
+	defer func() { _ = f.Close() }()
+
+	_, writeErr := f.Write(data)
+	if writeErr != nil {
+		return fmt.Errorf("write: %w", writeErr)
 	}
 
 	return nil
@@ -265,7 +307,7 @@ func pathOf(basename string, isMOC bool) string {
 
 func runRecall(_ context.Context, args RecallArgs, stdout io.Writer) error {
 	if args.VaultPath == "" {
-		return errRecallVaultRequired
+		return errRecallVaultMissing
 	}
 
 	fs := &osVaultFS{}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -46,18 +47,19 @@ type LearnArgs struct {
 
 // LearnDeps holds injected dependencies for runLearn. All fields required.
 type LearnDeps struct {
-	Now      func() time.Time
-	Getenv   func(string) string
-	StatDir  func(string) error
-	ListIDs  func(vault string) ([]string, error)
-	Lock     func(vault string) (release func(), err error)
-	WriteNew func(path string, data []byte) error
+	Now       func() time.Time
+	Getenv    func(string) string
+	StatDir   func(string) error
+	InitVault func(string) error
+	ListIDs   func(vault string) ([]string, error)
+	Lock      func(vault string) (release func(), err error)
+	WriteNew  func(path string, data []byte) error
 }
 
 // unexported constants.
 const (
 	dateFormat   = "2006-01-02"
-	envVaultDir  = "ENGRAM_VAULT_DIR"
+	envVaultPath = "ENGRAM_VAULT_PATH"
 	typeFact     = "fact"
 	typeFeedback = "feedback"
 	typeMOC      = "moc"
@@ -68,10 +70,7 @@ var (
 	errLearnUnknownType = errors.New("learn: type must be feedback, fact, or moc")
 	errSlugEmpty        = errors.New("slug is required")
 	errSlugInvalid      = errors.New("slug must match [a-z0-9-]+")
-	errVaultUnset       = errors.New(
-		"vault path is required (--vault flag or ENGRAM_VAULT_DIR env)",
-	)
-	slugPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
+	slugPattern         = regexp.MustCompile(`^[a-z0-9-]+$`)
 )
 
 type factFields struct {
@@ -211,15 +210,16 @@ func marshalFrontmatter(v any) string {
 }
 
 func newOsLearnDeps() LearnDeps {
-	fs := &osLearnFS{}
+	vaultFS := &osLearnFS{}
 
 	return LearnDeps{
-		Now:      time.Now,
-		Getenv:   os.Getenv,
-		StatDir:  fs.StatDir,
-		ListIDs:  fs.ListIDs,
-		Lock:     fs.Lock,
-		WriteNew: fs.WriteNew,
+		Now:       time.Now,
+		Getenv:    os.Getenv,
+		StatDir:   vaultFS.StatDir,
+		InitVault: func(path string) error { return initializeVault(vaultFS, path) },
+		ListIDs:   vaultFS.ListIDs,
+		Lock:      vaultFS.Lock,
+		WriteNew:  vaultFS.WriteNew,
 	}
 }
 
@@ -313,35 +313,46 @@ func renderRelatedSection(entries []string) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-// resolveVault returns the vault path: flag wins, env fallback, error if neither set.
-func resolveVault(flagValue string, getenv func(string) string) (string, error) {
+// resolveVault returns the vault path. Flag wins, then env, then the XDG
+// default ($XDG_DATA_HOME/engram/vault, falling back to
+// $HOME/.local/share/engram/vault). home and getenv are injected so callers
+// control environment access; pass the result of os.UserHomeDir and
+// os.Getenv in production. The returned path is never empty — callers that
+// need "does this exist?" semantics must stat it separately.
+func resolveVault(flagValue, home string, getenv func(string) string) string {
 	if flagValue != "" {
-		return flagValue, nil
+		return flagValue
 	}
 
-	if env := getenv(envVaultDir); env != "" {
-		return env, nil
+	if env := getenv(envVaultPath); env != "" {
+		return env
 	}
 
-	return "", errVaultUnset
+	return filepath.Join(DataDirFromHome(home, getenv), "vault")
 }
 
-// runLearn orchestrates the learn subcommand: validates inputs, acquires the lock,
-// computes the next Luhmann ID, and writes the file.
+// runLearn orchestrates the learn subcommand: validates inputs, ensures the
+// vault directory exists (creating it on first use), acquires the lock,
+// computes the next Luhmann ID, and writes the file. args.Vault must
+// already be resolved by the caller via resolveVault.
 func runLearn(_ context.Context, args LearnArgs, deps LearnDeps, stdout io.Writer) error {
 	slugErr := validateSlug(args.Slug)
 	if slugErr != nil {
 		return fmt.Errorf("learn: %w", slugErr)
 	}
 
-	vault, err := resolveVault(args.Vault, deps.Getenv)
-	if err != nil {
-		return fmt.Errorf("learn: %w", err)
-	}
+	vault := args.Vault
 
 	dirErr := deps.StatDir(vault)
 	if dirErr != nil {
-		return fmt.Errorf("learn: vault %s: %w", vault, dirErr)
+		if !errors.Is(dirErr, fs.ErrNotExist) {
+			return fmt.Errorf("learn: vault %s: %w", vault, dirErr)
+		}
+
+		initErr := deps.InitVault(vault)
+		if initErr != nil {
+			return fmt.Errorf("learn: %w", initErr)
+		}
 	}
 
 	path, writeErr := writeLearnUnderLock(args, deps, vault)
