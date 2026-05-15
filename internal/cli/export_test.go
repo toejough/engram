@@ -55,30 +55,32 @@ func AdvanceAndReportMarkerForTest(
 	return advanceAndReportMarker(markerPath, fromTime, lastIncluded, hadEntries, now, stdout)
 }
 
-// EmitTranscriptsForTest is an exported entry point so the cli_test package can
-// exercise emitTranscripts directly without going through the full runTranscript
-// flow. Returns (lastIncludedMtime per source, hadEntries per source, error) — same as the wrapped
-// internal function. Production code does not call this.
+// EmitTranscriptsForTest is an exported entry point so the cli_test package
+// can exercise emitTranscripts directly without going through the full
+// runTranscript flow. Returns the lastIncluded, hadEntries, and
+// firstUnincluded per-source maps. Production code does not call this.
 func EmitTranscriptsForTest(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
 	maxBytes int,
 	stdout io.Writer,
-) (map[string]time.Time, map[string]bool, error) {
-	return emitTranscripts(reader, entries, maxBytes, stdout)
+) (map[string]time.Time, map[string]bool, map[string]time.Time, error) {
+	result, err := emitTranscripts(reader, entries, maxBytes, stdout)
+
+	return result.lastIncluded, result.hadEntries, result.firstUnincluded, err
 }
 
 // Exported functions.
 
 // ExportEmitTranscripts exposes emitTranscripts for whitebox testing with an
-// unlimited byte budget. Discards the (lastIncludedMtime, hadEntries) returns
-// because the legacy tests using this wrapper only care about error paths.
+// unlimited byte budget. Discards per-source bookkeeping because the legacy
+// tests using this wrapper only care about error paths.
 func ExportEmitTranscripts(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
 	stdout io.Writer,
 ) error {
-	_, _, err := emitTranscripts(reader, entries, math.MaxInt32, stdout)
+	_, err := emitTranscripts(reader, entries, math.MaxInt32, stdout)
 
 	return err
 }

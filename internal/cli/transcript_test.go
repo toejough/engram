@@ -226,7 +226,7 @@ func TestEmitTranscripts_AlwaysIncludesFirstEntryEvenWhenOversized(t *testing.T)
 
 	var buf bytes.Buffer
 
-	lastIncluded, hadEntries, err := cli.EmitTranscriptsForTest(reader, entries, 100, &buf)
+	lastIncluded, hadEntries, _, err := cli.EmitTranscriptsForTest(reader, entries, 100, &buf)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -247,7 +247,7 @@ func TestEmitTranscripts_NoEntriesReturnsZeroAndFalse(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	lastIncluded, hadEntries, err := cli.EmitTranscriptsForTest(reader, nil, 1000, &buf)
+	lastIncluded, hadEntries, _, err := cli.EmitTranscriptsForTest(reader, nil, 1000, &buf)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -300,7 +300,7 @@ func TestEmitTranscripts_ScansForwardAndStopsAtCap(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	lastIncluded, hadEntries, err := cli.EmitTranscriptsForTest(reader, entries, 150, &buf)
+	lastIncluded, hadEntries, firstUnincluded, err := cli.EmitTranscriptsForTest(reader, entries, 150, &buf)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -310,6 +310,10 @@ func TestEmitTranscripts_ScansForwardAndStopsAtCap(t *testing.T) {
 
 	g.Expect(hadEntries["claude"]).To(BeTrue())
 	g.Expect(lastIncluded["claude"].Equal(may1)).To(BeTrue())
+	// First excluded entry was /b (2026-05-02), so callers can warn the user
+	// that older sessions remain through that timestamp.
+	g.Expect(firstUnincluded["claude"].Equal(time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC))).
+		To(BeTrue())
 
 	out := buf.String()
 	g.Expect(out).To(ContainSubstring("A"))
@@ -347,6 +351,25 @@ func TestParseDate(t *testing.T) {
 		})
 		g.Expect(stderr).NotTo(ContainSubstring("invalid date"))
 	})
+}
+
+func TestParseDate_AcceptsAllSentinel(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// "all" must round-trip through ResolveTimeWindow as an early date so
+	// downstream filters see "scan everything".
+	from, _, err := cli.ResolveTimeWindow(cli.TimeWindowInputs{
+		From: "all",
+		Now:  time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC),
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(from.Year()).To(BeNumerically("<=", 1970))
 }
 
 func TestResolveMaxBytes_ReturnsDefaultWhenZero(t *testing.T) {
@@ -696,6 +719,106 @@ func TestRunTranscript_FinderErrorPropagates(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("transcript: finding sessions"))
 }
 
+func TestRunTranscript_FirstRunHardFails(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+	slug := "Users-joe-repos-test"
+
+	// No marker files written → both sources first-run. Finder reports one
+	// claude entry from a real date so the error message can quote it.
+	earliest := time.Date(2025, 8, 21, 0, 0, 0, 0, time.UTC)
+	finder := &fakeFinder{entries: []transcript.FileEntry{
+		{Path: "/old", Mtime: earliest, Source: "claude"},
+	}}
+	reader := &fakeReader{contents: map[string]string{}}
+
+	var stdout bytes.Buffer
+
+	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
+		ProjectSlug:   slug,
+		StateDir:      stateDir,
+		TranscriptDir: t.TempDir(),
+		Mark:          true,
+	}, finder, reader, &stdout)
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("no progress marker"))
+	g.Expect(err.Error()).To(ContainSubstring("claude"))
+	g.Expect(err.Error()).To(ContainSubstring("2025-08-21"))
+}
+
+func TestRunTranscript_FirstRunWithNoEntriesAdvancesMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// No markers, no entries → first-run check is a no-op; marker advances
+	// to now so the next run starts cleanly. Matches existing
+	// TestRunTranscript_MarkFlagAdvancesMarkerToNow behavior — guard against
+	// regression as the first-run check is added.
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+	slug := "Users-joe-repos-test"
+
+	finder := &fakeFinder{entries: []transcript.FileEntry{}}
+	reader := &fakeReader{contents: map[string]string{}}
+
+	var stdout bytes.Buffer
+
+	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
+		ProjectSlug:   slug,
+		StateDir:      stateDir,
+		TranscriptDir: t.TempDir(),
+		Mark:          true,
+	}, finder, reader, &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRunTranscript_FromAllSkipsFirstRunGate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+	slug := "Users-joe-repos-test"
+
+	earliest := time.Date(2025, 8, 21, 0, 0, 0, 0, time.UTC)
+	finder := &fakeFinder{entries: []transcript.FileEntry{
+		{Path: "/old", Mtime: earliest, Source: "claude"},
+	}}
+	reader := &fakeReader{contents: map[string]string{
+		"/old": "ancient content",
+	}}
+
+	var stdout bytes.Buffer
+
+	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
+		ProjectSlug:   slug,
+		StateDir:      stateDir,
+		TranscriptDir: t.TempDir(),
+		Mark:          true,
+		From:          "all",
+	}, finder, reader, &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("ancient content"))
+	g.Expect(out).To(ContainSubstring("[engram transcript: scanned ["))
+}
+
 func TestRunTranscript_HappyPath(t *testing.T) {
 	t.Parallel()
 
@@ -995,6 +1118,58 @@ func TestRunTranscript_NoMarkOmitsStatusLine(t *testing.T) {
 	}
 
 	g.Expect(stdout.String()).NotTo(ContainSubstring("marker advanced to"))
+}
+
+func TestRunTranscript_PartialScanEmitsContinuationWarning(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+	slug := "Users-joe-repos-test"
+	markerPath := learnmarker.MarkerPathWithSuffix(stateDir, slug, "claude")
+	g.Expect(os.MkdirAll(filepath.Dir(markerPath), 0o755)).To(Succeed())
+
+	markerTime := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+	g.Expect(os.WriteFile(markerPath, []byte(markerTime.Format(time.RFC3339Nano)), 0o644)).
+		To(Succeed())
+
+	// Three entries, each ~100 bytes; with a 150 cap, only the first is
+	// emitted and the byte cap fires before /b is included. The continuation
+	// warning should name /b's mtime.
+	mkContent := func(prefix string) string { return prefix + strings.Repeat("x", 99) }
+	finder := &fakeFinder{entries: []transcript.FileEntry{
+		{Path: "/a", Mtime: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC), Source: "claude"},
+		{Path: "/b", Mtime: time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC), Source: "claude"},
+		{Path: "/c", Mtime: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC), Source: "claude"},
+	}}
+	reader := &fakeReader{contents: map[string]string{
+		"/a": mkContent("A"),
+		"/b": mkContent("B"),
+		"/c": mkContent("C"),
+	}}
+
+	var stdout bytes.Buffer
+
+	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
+		ProjectSlug:   slug,
+		StateDir:      stateDir,
+		TranscriptDir: t.TempDir(),
+		Mark:          true,
+		MaxBytes:      150,
+	}, finder, reader, &stdout)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("byte cap hit"))
+	g.Expect(out).To(ContainSubstring("claude sessions from"))
+	g.Expect(out).To(ContainSubstring("onward not yet scanned"))
+	g.Expect(out).To(ContainSubstring("2026-05-02"))
 }
 
 func TestRunTranscript_PropagatesEmitError(t *testing.T) {
