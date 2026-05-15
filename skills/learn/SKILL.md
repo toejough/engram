@@ -184,15 +184,16 @@ If a new permanent contradicts an existing one, write the new permanent with a `
 
 ### 9. Report
 
-Per pass:
+The final user-facing report is **only** these two things:
 
-- The `engram transcript --mark` status line verbatim (so the human and future-you can see the new marker position)
-- Path A or Path B, and the scratch list of phrases the writes were measured against
-- Candidates considered
-- Per candidate: kept (Feedback or Fact, with `--situation`) or dropped (with one-line reason)
-- Permanents written (with Luhmann IDs)
-- MOCs written or updated
-- Contradictions surfaced
+- The `engram transcript --mark` status line(s) verbatim.
+- The permanents and MOCs written, each as one line: `Permanent/<id>` or `MOCs/<id>` + slug.
+
+Nothing else. Do not include the Path A/B disclosure, the scratch list, the candidates-considered table, the dropped-with-reasons list, a recap of `--situation` strings, or a separate "Contradictions surfaced" section. Those are scaffolding for the writer, not output for the reader.
+
+If a permanent you just wrote contradicts an existing note, mention it **inline** with that permanent's one-line entry (e.g. `Permanent/87 — one-canonical-handle-per-node (contradicts Permanent/4e on …)`). No separate section.
+
+**Red flag:** if your report contains any of the words "Path", "scratch list", "candidates", "dropped", or a `| # | … |` table, you are leaking workflow scaffolding into the report. Rewrite to the two-line form above.
 
 ## Quality bars
 
