@@ -20,6 +20,9 @@ internal/memory/embeddings.db
 .claude/settings.local.json
 .claude/worktrees/
 
+# Obsidian workspace
+.obsidian/
+
 # Session logs (local to developer, not committed)
 docs/session-logs/
 
