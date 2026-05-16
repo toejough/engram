@@ -2,8 +2,8 @@
 
 > ⚠️ **Breaking change.** The pre-vault TOML memory-record storage layer
 > (`~/.local/share/engram/memory/`) was removed. Engram now writes only
-> to an agent-memory vault (Permanent/ and MOCs/). Migration from the
-> old layout is not automated — see commit history for context.
+> to an agent-memory Obsidian vault. Migration from the
+> old layout is not automated. An LLM should be able to migrate easily.
 
 ## Overview
 
@@ -39,7 +39,7 @@ Requires Go 1.25+ on `PATH`.
 | Skill | What it does |
 |-------|--------------|
 | `recall` | Walks an agent-memory vault (Permanent/ + MOCs/) via explicit query plus situational baseline. Cascades through the wikilink graph and returns surfaced notes. |
-| `learn` | Captures lessons from completed work as permanent vault notes. Each candidate passes three gates — Recurs + Activity-and-domain + Knowledge — before writing. |
+| `learn` | Captures lessons from completed work as permanent vault notes. Each candidate passes a recall-mirror test — "would a future recall, querying the same situation, surface this note?" — before writing. |
 
 See `skills/recall/SKILL.md` and `skills/learn/SKILL.md` for the full skill definitions.
 
@@ -71,7 +71,7 @@ Vault layout:
 engram recall                          Surface anchors, recent notes, or follow paths from a vault
 engram transcript                      Read session transcripts since last /learn (Claude Code + OpenCode)
 engram transcript --mark               Same, then advance per-harness progress markers
-engram transcript --from <date>        Override marker; scan from explicit date
+engram transcript --from <date|all>    Override marker; scan from explicit date or epoch ('all')
 engram transcript --max-bytes <n>      Set byte budget (default 200000)
 engram learn feedback --slug ... --source ... --situation ... --behavior ... --impact ... --action ...
 engram learn fact     --slug ... --source ... --situation ... --subject ... --predicate ... --object ...
@@ -81,7 +81,11 @@ engram update                          Refresh binary and harness skills/command
 
 ## Transcript progress tracking
 
-`engram transcript` tracks a separate progress marker per harness (`last-learn-at-claude`, `last-learn-at-opencode`) under `${XDG_STATE_HOME:-$HOME/.local/state}/engram/projects/<slug>/`. Each marker is advanced independently by `--mark` so that sessions from one harness don't skip unprocessed sessions from the other. On first run (no marker), the scan defaults to the last 24 hours; use `--from` to include older history.
+`engram transcript` tracks a separate progress marker per harness (`last-learn-at-claude`, `last-learn-at-opencode`) under `${XDG_STATE_HOME:-$HOME/.local/state}/engram/projects/<slug>/`. Each marker is advanced independently by `--mark` so that sessions from one harness don't skip unprocessed sessions from the other.
+
+**First-run behavior.** When a source has no marker yet and `--from` is unset, `engram transcript --mark` exits non-zero with a message naming each source's earliest detectable session date. Re-run with `--from <YYYY-MM-DD>` (to start at a specific cutoff) or `--from all` (to scan from the Unix epoch). After the first scan establishes the marker, subsequent `--mark` runs advance incrementally as usual. The `learn` skill catches this error and prompts the user before re-running.
+
+**Byte-cap continuation.** Each scan stops at `--max-bytes` (default 200000). When the cap halts a scan partway, a tail line names the first unscanned mtime per source: `[engram transcript: byte cap hit; <source> sessions from <date> onward not yet scanned; run again to continue]`. Run `/learn` again (after `/clear` if context is tight) to catch up.
 
 ## Project structure
 
