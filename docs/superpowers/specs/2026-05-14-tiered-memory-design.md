@@ -3,7 +3,12 @@
 Status: draft for user review. No code yet. Companion research brief:
 `2026-05-12-tiered-memory-research-prompt.md`.
 
-## 1. Vision (restated)
+This revision reorders the original Q1–Q12 answers into a flow-shaped
+structure so each concept is defined before it is referenced. The
+original Q labels are preserved as parentheticals on section
+headings for cross-reference with the brief.
+
+## 1. Vision
 
 Memory is a lopsided hourglass. The bottom is wide — every session
 the agent has ever run, addressed but not copied. The waist is narrow
@@ -47,64 +52,48 @@ to change them, do it explicitly.
   read time stays offline.
 - **"L0–L2 are append-only. L3+ is regenerated."**
 - **"Every L2 and L3+ entry carries 2–3 tests."** Adopted with the
-  retrieval-mirror consolidation explained at Q7.
+  retrieval-mirror consolidation explained under §11 (Tests).
 - **MOC craft rules (Permanent/4, 4a, 4b, 8a)** — no global index,
   no bare `Related:` lists, LLM-voiced framing prose, every wikilink
   in a sentence that explains the connection. The dimension scheme
-  in Q4 must not become tags-in-disguise.
+  in §6.1 must not become tags-in-disguise.
 
 One constraint the brief mandates has been relaxed by user decision
 during this design pass: **Luhmann IDs are retained at L2 only as a
-secondary retrieval signal.** See Q2.
+secondary retrieval signal.** See §4.
 
-## 3. Answers to the 12 open questions
+## 3. The four tiers
 
-### Q1 — L1 selection function
+Each tier has its own write path, retention rule, and role in recall.
+Later sections define the mechanics; this section is the at-a-glance
+reference.
 
-**Answer: agent-emitted L1 segments at task boundaries are the default;
-a PreCompact / Stop hook is the safety net; live inline indexing is
-deferred to a later round.**
+- **L0 — provenance index.** Append-only inverted index over session
+  JSONL (file paths from tool-use payloads, tool names, short
+  snippets). No transcript content copied. Read on demand from
+  `~/.claude/projects/` and `~/.opencode/...`. The widest tier; cheap
+  to grow, expensive to read.
+- **L1 — stripped task-boundary segments.** Append-only. Small
+  LLM-voiced segments emitted by the active skill at task close,
+  carrying situation framing, summary, entities, and L0 provenance.
+  Indexed both lexically and via embeddings.
+- **L2 — atomic facts.** Append-only with redirects for merges.
+  Principle-stated notes that earned a place by passing a
+  retrieval-mirror test. Carries `contradicts:` and `supersedes:`
+  edges. This is the workhorse of recall.
+- **L3 — synthesis.** Mutable, regenerated. MOCs and MOC-of-MOCs
+  with LLM-voiced framing prose that organize L2 facts along
+  constrained dimensions. A single root MOC sits at the apex.
 
-The brief offers three production paths, in increasing agent
-involvement. Path 2 (task-boundary emission) is the workhorse. Path 1
-(mechanical hook dumps) is mostly redundant with JSONL but catches
-the case where the agent forgets to emit. Path 3 (live inline
-indexing) is the most promising long-term but introduces an
-in-context tool surface that hasn't been pressure-tested and would
-require both a CLI primitive and a skill rewrite. Defer.
+Append-only tiers (L0–L2) survive forever; conflicts and supersession
+are tracked by edges, not by deletion. L3 is regenerated whenever
+drift over its constituents passes threshold.
 
-At task close, the active skill emits N small L1 segments through
-`engram learn segment` (new subcommand). Each segment carries:
+## 4. Identity, links, and merges (Q2)
 
-- `segment_id` (ULID-derived UUID, the canonical L1 handle)
-- `source.session_id`, `source.tool_use_ids[]` (the L0 provenance)
-- `situation` (phrased as the *task the agent was on*, per
-  Permanent/8k — so write and read share framing)
-- `summary` (1–3 sentences; LLM-voiced)
-- `entities[]` (file paths, symbols, identifiers — verbatim, indexed
-  lexically)
-- `links_back[]` (related existing handles, resolved at write)
-
-L1 gating uses a softer test than L2: "would a future query about
-this *situation* benefit from finding this verbatim?" That's weaker
-than the L2 retrieval-mirror test (which asks "would this be the
-right answer?"). L1 is allowed to be redundant; L2 is not.
-
-Cost ceiling: ~10–30 L1 segments per non-trivial session. At 10³
-sessions/year that's 10⁴–3×10⁴ L1 segments — well inside the chosen
-substrate (Q12).
-
-The PreCompact / Stop hook fires only when no L1 emission has
-occurred for a session whose JSONL crossed a turn-count threshold
-(default: 30 turns). It dumps a minimal "session abandoned without
-L1 capture" stub pointing at the JSONL — recall can then dive into
-L0 if the situation calls for it.
-
-### Q2 — Identity without Luhmann (relaxed: with Luhmann at L2)
-
-**Answer: UUIDs are the canonical handle at every tier; wikilinks
-resolve through a UUID map; L2 retains Luhmann IDs as a redundant
-retrieval signal only.**
+**UUIDs are the canonical handle at every tier; wikilinks resolve
+through a UUID map; L2 retains Luhmann IDs as a redundant retrieval
+signal only.**
 
 User decision during design: Permanent/4e's argument that Luhmann
 sibling-proximity is a load-bearing free retrieval signal is
@@ -133,7 +122,7 @@ appended for collision safety). L3 filenames drop the Luhmann
 segment: `L3/<YYYY-MM-DD>.<slug>.<uuid8>.md`.
 
 **Merge/rename graph.** When two L2 segments are deduped at write
-(see Q5), the new one is the canonical UUID and the duplicate
+(see §5.1), the new one is the canonical UUID and the duplicate
 becomes a `redirect` stub: a one-line file mapping its UUID to the
 canonical. Resolvers follow redirects transparently. Inbound links
 are *not* rewritten — the resolver handles it lazily. A nightly
@@ -144,35 +133,95 @@ merges into B, anything that linked to A has to follow."
 **Outbound links from a merged note** are unioned into the canonical
 on first merge; subsequent recall sees the merged set.
 
-### Q3 — Regeneration triggers and cadence
+## 5. Write paths
 
-**Answer: drift-detected + threshold-batched, never per-write,
-never on read.**
+### 5.1 L2 — atomic facts (Q5)
 
-Per-write L3 regeneration would thrash. Always-on read-time
-regeneration violates the binary's no-LLM constraint. The middle
-ground:
+**New L2 only on first dive; draft L3 only on subsequent dives or
+threshold; mid-query extraction is durable.**
 
-A regeneration job (`engram synthesize`) is invoked by the user (or
-a Stop hook at session end). The job:
+`/learn fact` writes L2. The binary mints a UUID, optionally allocates
+a Luhmann ID via the existing locked allocator, embeds the note via
+the embedding API (§8), writes a `.vec.json` sidecar, generates a
+retrieval-mirror test (§11), updates the in-memory BM25 index, and
+runs a dedup pass against existing L2 (top-5 vector + lexical; merge
+if cosine > 0.92 AND BM25-overlap > 0.7).
 
-1. Computes per-MOC drift: count of new L2 facts in the MOC's
-   constituent set since the MOC's last regeneration, plus a
-   centroid-shift score (cosine distance between the old constituent
-   centroid and the new one).
-2. Regenerates MOCs whose drift exceeds `regenerate_when` thresholds
-   (default: 5 new constituents OR centroid shift > 0.15).
-3. Regeneration calls the *user's* LLM via an external prompt — *not*
-   the engram binary — so the "no LLM in binary" constraint holds.
-   The binary prepares the prompt (constituents + framing); the
-   skill or shell wrapper executes it.
+When recall descends into L1 or L0 and finds a pattern, the cascade
+write-back path (§10) also lands here:
 
-The single root MOC regenerates on user demand only.
+1. **Always:** writes a new L2 fact with `source.cascade: true` and
+   provenance pointing at the L1/L0 segments that fed it.
+2. **Conditional:** marks the touched cluster as "regeneration
+   candidate." The next `engram synthesize` invocation will pick it
+   up if drift thresholds (§6.2) are crossed.
+3. **Never:** rewrites L3 inline mid-recall. L3 regeneration is
+   always a separate step with the user's LLM.
 
-### Q4 — MOC dimension orthogonality
+Mid-query extraction is durable — no confirmation step — because
+(a) the retrieval-mirror test catches mis-extraction on the next
+recall, and (b) L2 is append-only with `supersedes:` so a wrong
+extraction can be soft-deleted later without information loss.
 
-**Answer: N independent indices; each MOC commits to exactly one
-primary dimension; a note appears in many MOCs.**
+The brief asks "should every successful L0 dive write an L2 fact?"
+The answer is yes by default, *with deduplication on write* (the
+merge path in §4). The brief's worry ("creates churn") is handled by
+the dedup gate, not by skipping writes.
+
+### 5.2 L1 — task-boundary segments (Q1)
+
+**Agent-emitted L1 segments at task boundaries are the default;
+a PreCompact / Stop hook is the safety net; live inline indexing is
+deferred to a later round.**
+
+The brief offers three production paths, in increasing agent
+involvement. Path 2 (task-boundary emission) is the workhorse. Path 1
+(mechanical hook dumps) is mostly redundant with JSONL but catches
+the case where the agent forgets to emit. Path 3 (live inline
+indexing) is the most promising long-term but introduces an
+in-context tool surface that hasn't been pressure-tested and would
+require both a CLI primitive and a skill rewrite. Defer.
+
+At task close, the active skill emits N small L1 segments through
+`engram learn segment` (new subcommand). Each segment carries:
+
+- `segment_id` (ULID-derived UUID, the canonical L1 handle)
+- `source.session_id`, `source.tool_use_ids[]` (the L0 provenance)
+- `situation` (phrased as the *task the agent was on*, per
+  Permanent/8k — so write and read share framing)
+- `summary` (1–3 sentences; LLM-voiced)
+- `entities[]` (file paths, symbols, identifiers — verbatim, indexed
+  lexically)
+- `links_back[]` (related existing handles, resolved at write)
+
+L1 gating uses a softer test than L2: "would a future query about
+this *situation* benefit from finding this verbatim?" That's weaker
+than the L2 retrieval-mirror test (§11), which asks "would this be
+the right answer?" L1 is allowed to be redundant; L2 is not.
+
+Cost ceiling: ~10–30 L1 segments per non-trivial session. At 10³
+sessions/year that's 10⁴–3×10⁴ L1 segments — well inside the chosen
+substrate (§8).
+
+The PreCompact / Stop hook fires only when no L1 emission has
+occurred for a session whose JSONL crossed a turn-count threshold
+(default: 30 turns). It dumps a minimal "session abandoned without
+L1 capture" stub pointing at the JSONL — recall can then dive into
+L0 if the situation calls for it.
+
+### 5.3 L0 — provenance index
+
+`engram l0 ingest` updates the L0 inverted index from new JSONL
+files since the last marker. It uses the existing `learnmarker`
+per-harness state. Indexed fields: file paths from tool-use payloads,
+tool names, short snippets. No transcript content is copied.
+
+## 6. Synthesis and regeneration
+
+### 6.1 MOC dimensions (Q4)
+
+**N independent indices; each MOC commits to exactly one primary
+dimension; a note appears in many MOCs.**
 
 The brief's initial dimensions: time, reference metadata, subject /
 predicate / object, situation / behavior / impact / action.
@@ -200,35 +249,49 @@ system design" pulls from the subject dimension (notes on memory)
 MOC-of-MOC commits to a *cross-dimensional theme*, not to a single
 dimension.
 
-### Q5 — Cascade write-path
+### 6.2 Regeneration cadence (Q3)
 
-**Answer: new L2 only on first dive; draft L3 only on subsequent
-dives or threshold; mid-query extraction is durable.**
+**Drift-detected + threshold-batched, never per-write, never on
+read.**
 
-When recall descends into L1 or L0 and finds a pattern, the cascade:
+Per-write L3 regeneration would thrash. Always-on read-time
+regeneration violates the binary's no-LLM constraint. The middle
+ground:
 
-1. **Always:** writes a new L2 fact with `source.cascade: true` and
-   provenance pointing at the L1/L0 segments that fed it.
-2. **Conditional:** marks the touched cluster as "regeneration
-   candidate." The next `engram synthesize` invocation will pick it
-   up if drift thresholds are crossed.
-3. **Never:** rewrites L3 inline mid-recall. L3 regeneration is
-   always a separate step with the user's LLM.
+A regeneration job (`engram synthesize`) is invoked by the user (or
+a Stop hook at session end). The job:
 
-Mid-query extraction is durable — no confirmation step — because
-(a) the retrieval-mirror test (Q7) catches mis-extraction on the
-next recall, and (b) L2 is append-only with `supersedes:` so a
-wrong extraction can be soft-deleted later without information loss.
+1. Computes per-MOC drift: count of new L2 facts in the MOC's
+   constituent set since the MOC's last regeneration, plus a
+   centroid-shift score (cosine distance between the old constituent
+   centroid and the new one).
+2. Regenerates MOCs whose drift exceeds `regenerate_when` thresholds
+   (default: 5 new constituents OR centroid shift > 0.15).
+3. Regeneration calls the *user's* LLM via an external prompt — *not*
+   the engram binary — so the "no LLM in binary" constraint holds.
+   The binary prepares the prompt (constituents + framing); the
+   skill or shell wrapper executes it.
 
-The brief asks "should every successful L0 dive write an L2 fact?"
-The answer is yes by default, *with deduplication on write* (see
-Q2's merge path). The brief's worry ("creates churn") is handled by
-the dedup gate, not by skipping writes.
+The single root MOC regenerates on user demand only.
 
-### Q6 — Conflict semantics
+### 6.3 The root MOC (Q8)
 
-**Answer: both preserved with `contradicts:` edges; surfaced
-together on recall; L3 reconciles in prose, never elects a winner.**
+**A single regenerated artifact (`L3/root.md`), produced on user
+demand, with provenance to its constituent MOCs.**
+
+Not edited by hand. The root MOC is a regeneration of all top-level
+MOC clusters into one navigation surface. It is the closest thing
+the design has to MEMORY.md, but it's LLM-voiced, not human-curated,
+and it's explicitly *not* the entry point for recall (the cascade
+starts at L3 via vector search, not at root).
+
+MEMORY.md remains a human-readable index, mostly redirected to
+`L3/root.md` for current state.
+
+## 7. Conflict semantics (Q6)
+
+**Both preserved with `contradicts:` edges; surfaced together on
+recall; L3 reconciles in prose, never elects a winner.**
 
 Two L2 facts that disagree both stay. Each carries a `contradicts:`
 field listing the UUID(s) it contradicts. Recall always surfaces
@@ -245,153 +308,7 @@ A `contradiction-flag` is a per-note metadata field surfaced in
 every retrieval — the LLM reading recall output sees the conflict
 immediately and doesn't need to derive it.
 
-### Q7 — Test storage and execution
-
-**Answer: sidecar `.tests.yaml` per L2/L3 note; one retrieval-mirror
-test by default, up to three for high-stakes notes; `engram test`
-runs them; failure flags for review, never auto-deletes.**
-
-The brief asks for 2–3 tests answering four questions: relevance,
-search phrasing, retrieval surfacing, behavior change. Permanent/83
-argues these collapse into a single retrieval-mirror test: "would
-the query phrasings a future agent would use in this situation
-surface this note?" The other questions are *facets* of that test,
-not independent.
-
-Default: one retrieval-mirror test per L2/L3 note, generated by the
-write-time skill. High-stakes notes (those linked from MOCs-of-MOCs
-or the root) may add a second test from a different situational
-framing. A third test is reserved for notes flagged as
-behavior-changing on first pass — these get a *cold-agent* test (a
-subagent runs the situation cold, with and without the memory, to
-verify behavior diverges).
-
-Sidecar format:
-
-```yaml
-# L2/<...>.<uuid8>.tests.yaml
-tests:
-  - kind: retrieval-mirror
-    situation: "implementing OpenCode harness wiring"
-    query_phrases:
-      - "OpenCode reader alongside Claude Code"
-      - "per-harness session marker"
-    expect_surfaced_in_top_k: 10
-  - kind: cold-agent
-    situation: "..."
-    expect_diff_summary: "uses per-harness marker, not shared marker"
-```
-
-`engram test` runs the retrieval against the index, checks
-expectations, and writes results to `.tests-status.json`. Failures
-flag the note for review (`engram test --failed` lists them).
-Auto-deletion is never appropriate — Permanent/4g3's "delete
-corrupted memories" applies to *empty-action* notes, not to
-test-failing ones, which may indicate retrieval-index drift, not
-note staleness.
-
-Cadence: pre-commit hook (changed notes only) + nightly full sweep.
-
-### Q8 — Top-level synthesis
-
-**Answer: a single regenerated artifact (`L3/root.md`), produced on
-user demand, with provenance to its constituent MOCs.**
-
-Not edited by hand. The root MOC is a regeneration of all top-level
-MOC clusters into one navigation surface. It is the closest thing
-the design has to MEMORY.md, but it's LLM-voiced, not human-curated,
-and it's explicitly *not* the entry point for recall (the cascade
-starts at L3 via vector search, not at root).
-
-MEMORY.md remains human-readable index, mostly redirected to
-`L3/root.md` for current state.
-
-### Q9 — Recall cascade redesign
-
-**Answer: start at L3; descend to L2 → L1 → L0 with per-tier
-budgets and per-tier query shapes; L0 entry requires a structural
-signal (file path, symbol, exact phrase).**
-
-Round 0: vector + lexical hybrid retrieval over L3 (RRF, k=10).
-This is the new anchor stage. The MOC layer's framing prose is the
-embedding source, not the constituent list.
-
-Round 1: for each surfaced L3 node, expand via wikilinks (the
-current cascade pattern) AND via vector NN over L2 (top-k per L3
-hit, k=5). Union into the L2 frontier.
-
-Round 2: read L2 frontier (parallel subagents for >10), score
-relevance against query + situation phrases (current skill
-pattern). Expand frontier via wikilinks and `contradicts:` edges.
-
-Round 3 (L1 entry): if L2 produces fewer than `min_l2_hits`
-surfaced notes OR the query carries L1-shaped signal (file path,
-symbol, "what did I do when…"), descend into L1. Vector + lexical
-search over the L1 segment index. Surfaced L1 segments score
-against situation phrases.
-
-Round 4 (L0 entry): only entered when L1 also produces few hits
-AND the query carries explicit L0-shaped signal (a file path that
-matches no L1 entity, a tool-use payload, "in a prior session…").
-The L0 inverted index is consulted; relevant session JSONLs are
-read by a subagent (raw content stays out of parent context).
-Patterns discovered are written back as L2 facts (Q5).
-
-Cost model: L0 reads are 100–1000× more expensive than L2 reads in
-both token and wall-clock terms. The L0 gate is conservative by
-design. Tier descent is *not* speculative — if L2/L1 produced
-adequate results, L0 is not entered.
-
-Visible progress per round (per Permanent/81): the binary emits a
-status line each round (`round N: surfaced=X, frontier=Y,
-budget_left=Z, next_tier=L1`).
-
-### Q10 — Migration
-
-**Answer: scripted one-shot migration; existing Permanent → L2 with
-UUID minted; existing MOCs → L3 with UUID minted; Luhmann IDs
-preserved at L2 only.**
-
-`engram migrate` runs once:
-
-1. Walks `Permanent/`, `MOCs/`, computes UUID per note (ULID), writes
-   new file under `L2/` or `L3/` with frontmatter including the new
-   UUID and original Luhmann ID.
-2. Rewrites all wikilinks from `[[<luhmann>.<date>.<slug>]]` to
-   `[[<uuid>|<slug>]]` using a luhmann→uuid map.
-3. Generates retrieval-mirror tests for migrated notes (LLM-driven,
-   one pass).
-4. Generates embeddings for all migrated L2 notes (one batch call to
-   Voyage).
-5. Does *not* attempt L1 backfill or L3 regeneration. L1 starts
-   empty and accumulates from new sessions. L3 starts as the
-   migrated MOCs and regenerates from there.
-
-Migration is not reversible. The old `Permanent/` and `MOCs/`
-directories are kept (renamed to `_legacy/`) for one release cycle,
-then removed.
-
-### Q11 — Failure modes
-
-Spec'd diagnostics:
-
-| Failure | Symptom | Diagnostic | Action |
-|---------|---------|------------|--------|
-| L1 unbounded growth | Segment count >10⁵; vector index >500 MB | `engram doctor --tier=L1` reports size, growth rate | Tighten task-boundary gate; soft-evict segments not surfaced in last 90 days (move to cold tier, not deleted) |
-| L3 thrashing | Same MOC regenerated >3× per week | Regeneration log shows drift bouncing | Raise drift threshold; investigate whether L2 writes are duplicates passing dedup |
-| Tests pass, behavior unchanged | Recall surfaces note, but cold-agent test shows no behavior diff | `engram test --kind=cold-agent --failed` | Rewrite note framing; if persistent, the note is *retrievable but useless* — flag for human review |
-| Embeddings drift (model change) | `embedding_model_id` mismatch between query and stored vectors | Recall refuses cross-version queries | Re-embed batch job; tracked as a single migration |
-| External API unreachable at write | `/learn` fails on embedding step | Skill retries with backoff; falls back to "stage without embedding" mode, marks segment as `embedding: pending` | Background job picks up pending and embeds when API returns |
-| External API unreachable at read | (Should never happen — read is offline) | If a skill mistakenly attempts API at recall, lint blocks it | — |
-| L0 dive returns nothing | Query had L0 shape but no JSONL matches | Status line reports `L0 frontier empty: 0 matches` | Normal; no action |
-| L0 dive returns everything | Query matched too broadly; thousands of sessions | Budget-cap at top-1000 by mtime, surface to user | User refines query |
-
-The diagnostic command `engram doctor` runs all of these and
-reports counts; intended for periodic vault health checks.
-
-### Q12 — Retrieval substrate
-
-**Answer:**
+## 8. Retrieval substrate (Q12)
 
 - **Embedding provider: Voyage `voyage-3-large` at 1024-dim.**
   Top of MTEB (65.1), strong on code retrieval, Matryoshka allows
@@ -445,7 +362,7 @@ reports counts; intended for periodic vault health checks.
   no stored vector (queued), BM25-only ranking is used for that
   note (it can still surface lexically).**
 
-## 4. Data layout
+## 9. Data layout
 
 ```
 agent-memory/
@@ -484,39 +401,137 @@ paths, tool-use names, and short `old_string`/`new_string` snippets
 `~/.claude/projects/` and `~/.opencode/...` via existing
 `engram transcript` infrastructure.
 
-## 5. Lifecycle
+## 10. Recall cascade (Q9)
 
-**Write paths.**
+**Start at L3; descend to L2 → L1 → L0 with per-tier budgets and
+per-tier query shapes; L0 entry requires a structural signal (file
+path, symbol, exact phrase).**
 
-- **`/learn fact`** → writes L2. Mints UUID, optional Luhmann ID via
-  existing locked allocator, embeds via Voyage API, writes
-  `.vec.json` sidecar, generates retrieval-mirror test, updates
-  in-memory BM25, runs dedup pass against existing L2 (top-5 vector
-  + lexical; merge if cosine > 0.92 AND BM25-overlap > 0.7).
+Round 0: vector + lexical hybrid retrieval over L3 (RRF, k=10).
+This is the new anchor stage. The MOC layer's framing prose is the
+embedding source, not the constituent list.
 
-- **`/learn moc`** → writes L3. Same shape as L2 minus Luhmann.
-  Tags constituent L2 UUIDs as "MOC'd" so the regeneration job knows
-  the cluster membership.
+Round 1: for each surfaced L3 node, expand via wikilinks (the
+current cascade pattern) AND via vector NN over L2 (top-k per L3
+hit, k=5). Union into the L2 frontier.
 
-- **`/learn segment` (new)** → writes L1 at task close. Skill emits
-  list of segments; binary persists, embeds in batch, updates BM25.
+Round 2: read L2 frontier (parallel subagents for >10), score
+relevance against query + situation phrases (current skill
+pattern). Expand frontier via wikilinks and `contradicts:` edges.
 
-- **`engram l0 ingest`** → updates L0 inverted index from new JSONL
-  files since last marker. Uses existing `learnmarker` per-harness.
-  Indexed fields: file paths from tool-use payloads, tool names,
-  short snippets. No transcript content copied.
+Round 3 (L1 entry): if L2 produces fewer than `min_l2_hits`
+surfaced notes OR the query carries L1-shaped signal (file path,
+symbol, "what did I do when…"), descend into L1. Vector + lexical
+search over the L1 segment index. Surfaced L1 segments score
+against situation phrases.
 
-- **`engram synthesize`** → user-triggered regeneration. Detects
-  drift per MOC, produces regeneration prompts, expects external LLM
-  to author new MOC prose, writes new L3 file (UUID changes;
-  outbound links from old MOC become a redirect).
+Round 4 (L0 entry): only entered when L1 also produces few hits
+AND the query carries explicit L0-shaped signal (a file path that
+matches no L1 entry, a tool-use payload, "in a prior session…").
+The L0 inverted index is consulted; relevant session JSONLs are
+read by a subagent (raw content stays out of parent context).
+Patterns discovered are written back as L2 facts (§5.1).
 
-**Recall path.** See Q9.
+Cost model: L0 reads are 100–1000× more expensive than L2 reads in
+both token and wall-clock terms. The L0 gate is conservative by
+design. Tier descent is *not* speculative — if L2/L1 produced
+adequate results, L0 is not entered.
 
-**Test execution.** See Q7. `engram test` is offline and fast (no
-API calls — all queries hit pre-stored vectors).
+Visible progress per round (per Permanent/81): the binary emits a
+status line each round (`round N: surfaced=X, frontier=Y,
+budget_left=Z, next_tier=L1`).
 
-## 6. Out of scope (deliberately)
+## 11. Tests (Q7)
+
+**Sidecar `.tests.yaml` per L2/L3 note; one retrieval-mirror test
+by default, up to three for high-stakes notes; `engram test` runs
+them; failure flags for review, never auto-deletes.**
+
+The brief asks for 2–3 tests answering four questions: relevance,
+search phrasing, retrieval surfacing, behavior change. Permanent/83
+argues these collapse into a single retrieval-mirror test: "would
+the query phrasings a future agent would use in this situation
+surface this note?" The other questions are *facets* of that test,
+not independent.
+
+Default: one retrieval-mirror test per L2/L3 note, generated by the
+write-time skill. High-stakes notes (those linked from MOCs-of-MOCs
+or the root) may add a second test from a different situational
+framing. A third test is reserved for notes flagged as
+behavior-changing on first pass — these get a *cold-agent* test (a
+subagent runs the situation cold, with and without the memory, to
+verify behavior diverges).
+
+Sidecar format:
+
+```yaml
+# L2/<...>.<uuid8>.tests.yaml
+tests:
+  - kind: retrieval-mirror
+    situation: "implementing OpenCode harness wiring"
+    query_phrases:
+      - "OpenCode reader alongside Claude Code"
+      - "per-harness session marker"
+    expect_surfaced_in_top_k: 10
+  - kind: cold-agent
+    situation: "..."
+    expect_diff_summary: "uses per-harness marker, not shared marker"
+```
+
+`engram test` runs the retrieval against the index, checks
+expectations, and writes results to `.tests-status.json`. Failures
+flag the note for review (`engram test --failed` lists them).
+Auto-deletion is never appropriate — Permanent/4g3's "delete
+corrupted memories" applies to *empty-action* notes, not to
+test-failing ones, which may indicate retrieval-index drift, not
+note staleness.
+
+Cadence: pre-commit hook (changed notes only) + nightly full sweep.
+
+## 12. Failure modes and diagnostics (Q11)
+
+Spec'd diagnostics:
+
+| Failure | Symptom | Diagnostic | Action |
+|---------|---------|------------|--------|
+| L1 unbounded growth | Segment count >10⁵; vector index >500 MB | `engram doctor --tier=L1` reports size, growth rate | Tighten task-boundary gate; soft-evict segments not surfaced in last 90 days (move to cold tier, not deleted) |
+| L3 thrashing | Same MOC regenerated >3× per week | Regeneration log shows drift bouncing | Raise drift threshold; investigate whether L2 writes are duplicates passing dedup |
+| Tests pass, behavior unchanged | Recall surfaces note, but cold-agent test shows no behavior diff | `engram test --kind=cold-agent --failed` | Rewrite note framing; if persistent, the note is *retrievable but useless* — flag for human review |
+| Embeddings drift (model change) | `embedding_model_id` mismatch between query and stored vectors | Recall refuses cross-version queries | Re-embed batch job; tracked as a single migration |
+| External API unreachable at write | `/learn` fails on embedding step | Skill retries with backoff; falls back to "stage without embedding" mode, marks segment as `embedding: pending` | Background job picks up pending and embeds when API returns |
+| External API unreachable at read | (Should never happen — read is offline) | If a skill mistakenly attempts API at recall, lint blocks it | — |
+| L0 dive returns nothing | Query had L0 shape but no JSONL matches | Status line reports `L0 frontier empty: 0 matches` | Normal; no action |
+| L0 dive returns everything | Query matched too broadly; thousands of sessions | Budget-cap at top-1000 by mtime, surface to user | User refines query |
+
+The diagnostic command `engram doctor` runs all of these and
+reports counts; intended for periodic vault health checks.
+
+## 13. Migration (Q10)
+
+**Scripted one-shot migration; existing Permanent → L2 with UUID
+minted; existing MOCs → L3 with UUID minted; Luhmann IDs preserved
+at L2 only.**
+
+`engram migrate` runs once:
+
+1. Walks `Permanent/`, `MOCs/`, computes UUID per note (ULID), writes
+   new file under `L2/` or `L3/` with frontmatter including the new
+   UUID and original Luhmann ID.
+2. Rewrites all wikilinks from `[[<luhmann>.<date>.<slug>]]` to
+   `[[<uuid>|<slug>]]` using a luhmann→uuid map.
+3. Generates retrieval-mirror tests for migrated notes (LLM-driven,
+   one pass).
+4. Generates embeddings for all migrated L2 notes (one batch call to
+   Voyage).
+5. Does *not* attempt L1 backfill or L3 regeneration. L1 starts
+   empty and accumulates from new sessions. L3 starts as the
+   migrated MOCs and regenerates from there.
+
+Migration is not reversible. The old `Permanent/` and `MOCs/`
+directories are kept (renamed to `_legacy/`) for one release cycle,
+then removed.
+
+## 14. Out of scope (deliberately)
 
 - **Re-introducing Fleeting.** Tier-collapse removed this for good
   reason (Permanent/9g). L1 is *not* Fleeting reborn — L1 segments
@@ -535,7 +550,7 @@ API calls — all queries hit pre-stored vectors).
   is Permanent/11a — that's about Claude Code's path/glob loading,
   not engram's retrieval. Keep them disjoint.
 
-## 7. Smallest first slice (build & measure)
+## 15. Smallest first slice (build & measure)
 
 **Goal of the slice:** demonstrate that semantic retrieval at L2 +
 an L0 inverted index together solve the motivating "you did it but
@@ -583,12 +598,12 @@ migration.
   at current vault size (~400 notes).
 
 If the slice passes those three measurements, build L1 capture next.
-If recall@10 < 60%, the substrate choice is wrong and Q12 needs
+If recall@10 < 60%, the substrate choice is wrong and §8 needs
 revisiting before more tiers are added.
 
-## 8. Open items the user should adjudicate before implementation
+## 16. Open items the user should adjudicate before implementation
 
-1. **The Luhmann relaxation (Q2)** was decided in this design pass.
+1. **The Luhmann relaxation (§4)** was decided in this design pass.
    Confirm.
 2. **Voyage vs OpenAI** as the default embedder. Voyage recommended;
    OpenAI is a safe alternative if Voyage account setup is friction.
