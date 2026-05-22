@@ -53,8 +53,8 @@ Engram reads and writes a zettelkasten vault. Resolution order:
 3. `$XDG_DATA_HOME/engram/vault` (fallback: `~/.local/share/engram/vault`)
 
 On first `engram learn` against a missing vault, the directory is
-bootstrapped with `Permanent/`, `MOCs/`, `MEMORY.md`, a minimal
-`.obsidian/` config so Obsidian recognizes it, a `.gitignore`, and a
+bootstrapped with `Permanent/`, `MOCs/`, a minimal `.obsidian/` config
+so Obsidian recognizes it, a `.gitignore`, and a
 `README.md`. `engram recall` does not bootstrap — it errors with
 "vault not found" so the user notices.
 

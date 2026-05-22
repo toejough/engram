@@ -35,11 +35,9 @@ func TestInitializeVault_CreatesDirsAndStarterFiles(t *testing.T) {
 	g.Expect(written).To(Equal([]string{
 		"/v/.gitignore",
 		"/v/.obsidian/app.json",
-		"/v/MEMORY.md",
 		"/v/README.md",
 	}))
 	g.Expect(string(fakeFS.wrote[filepath.Join("/v", ".obsidian", "app.json")])).To(Equal("{}\n"))
-	g.Expect(string(fakeFS.wrote[filepath.Join("/v", "MEMORY.md")])).To(Equal("# Memory Index\n"))
 }
 
 func TestInitializeVault_Idempotent(t *testing.T) {

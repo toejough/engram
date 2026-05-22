@@ -32,7 +32,6 @@ explicitly tells you the vault is elsewhere.**
 <vault>/
   Permanent/   atomic principle-stated notes; <Luhmann-ID>.YYYY-MM-DD.<slug>.md
   MOCs/        Maps of Content with framing prose and in-prose wikilinks; same filename format
-  MEMORY.md    index — names notes; substance is in the notes themselves
 ```
 
 Notes are LLM-voiced. Wikilinks appear in prose with surrounding context — that context is the relevance signal. Luhmann IDs (`1`, `1a`, `1a1`) signal lineage; following wikilinks reaches Luhmann-adjacent notes by construction.

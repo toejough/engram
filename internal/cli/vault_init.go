@@ -38,10 +38,10 @@ type vaultStarterFile struct {
 }
 
 // initializeVault creates the standard layout under vaultPath: Permanent/,
-// MOCs/, an empty MEMORY.md, a minimal .obsidian/app.json so Obsidian
-// recognizes the directory as a vault, a .gitignore, and a short README.
-// All file writes are skip-if-exists; calling on an existing vault is a
-// safe no-op (e.g., re-runs after partial initialization).
+// MOCs/, a minimal .obsidian/app.json so Obsidian recognizes the directory
+// as a vault, a .gitignore, and a short README. All file writes are
+// skip-if-exists; calling on an existing vault is a safe no-op (e.g.,
+// re-runs after partial initialization).
 func initializeVault(vaultFS VaultInitFS, vaultPath string) error {
 	for _, sub := range []string{"Permanent", "MOCs", ".obsidian"} {
 		mkErr := vaultFS.MkdirAll(filepath.Join(vaultPath, sub), vaultDirPerm)
@@ -71,7 +71,6 @@ func initializeVault(vaultFS VaultInitFS, vaultPath string) error {
 // who choose to track their vault.
 func vaultStarters() []vaultStarterFile {
 	return []vaultStarterFile{
-		{"MEMORY.md", "# Memory Index\n"},
 		{".obsidian/app.json", "{}\n"},
 		{".gitignore", ".luhmann.lock\n.obsidian/workspace*\n.obsidian/cache\n"},
 		{"README.md", readmeBody},

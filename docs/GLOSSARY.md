@@ -74,10 +74,6 @@ The kebab-case tag at the end of a note filename. Passed via `--slug` on
 `engram learn`. Variants seen: *kebab-case tag*, *slug*. **Canonical:
 slug.**
 
-### MEMORY.md
-The vault's index file. Names notes; substance lives in the notes
-themselves. Bootstrapped on first vault creation.
-
 ### bootstrap
 The first-time creation of a missing vault (or its child directories and
 metadata files) on first `engram learn`. `engram recall` does **not**

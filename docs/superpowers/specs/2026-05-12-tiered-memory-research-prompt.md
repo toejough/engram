@@ -109,7 +109,7 @@ A memory that fails its own tests is a candidate for revision or deletion.
 ## Current state (read these before designing)
 
 - Repo: ~/repos/personal/engram (and worktrees)
-- Vault: ~/repos/personal/agent-memory (Permanent/, MOCs/, Fleeting/, MEMORY.md)
+- Vault: ~/repos/personal/agent-memory (Permanent/, MOCs/, Fleeting/)
 - Active skills: skills/recall/SKILL.md, skills/learn/SKILL.md, skills/dev,
   skills/audit
 - Recent collapse: the Fleeting tier was just removed; capture/promote became

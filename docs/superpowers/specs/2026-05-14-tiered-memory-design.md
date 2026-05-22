@@ -280,13 +280,9 @@ The single root MOC regenerates on user demand only.
 demand, with provenance to its constituent MOCs.**
 
 Not edited by hand. The root MOC is a regeneration of all top-level
-MOC clusters into one navigation surface. It is the closest thing
-the design has to MEMORY.md, but it's LLM-voiced, not human-curated,
-and it's explicitly *not* the entry point for recall (the cascade
-starts at L3 via vector search, not at root).
-
-MEMORY.md remains a human-readable index, mostly redirected to
-`L3/root.md` for current state.
+MOC clusters into one navigation surface. It is LLM-voiced, not
+human-curated, and it's explicitly *not* the entry point for recall
+(the cascade starts at L3 via vector search, not at root).
 
 ## 7. Conflict semantics (Q6)
 
@@ -389,7 +385,6 @@ agent-memory/
     bm25.l0.gob
     uuid-map.gob                 # uuid → relative path
     redirects.gob                # merged uuid → canonical uuid
-  MEMORY.md                      # human index, redirects to L3/root.md
 ```
 
 Filename note: `<uuid8>` is the last 8 hex chars of the ULID, for
@@ -545,10 +540,6 @@ then removed.
 - **Mutable L2.** L2 is append-only with redirects for merges. No
   in-place edits. Permanent/4c1 is honored: identical content =
   skip; different content = new file.
-- **MEMORY.md as a memory tier.** It's a human-readable index.
-  Treating it as a tier (loaded by Claude Code path-based memory)
-  is Permanent/11a — that's about Claude Code's path/glob loading,
-  not engram's retrieval. Keep them disjoint.
 
 ## 15. Smallest first slice (build & measure)
 
@@ -582,7 +573,6 @@ migration.
 - L3 regeneration.
 - Test runner / `engram test`.
 - Dedup-on-write merge graph (rely on existing slug-based behavior).
-- MEMORY.md → L3 root redirect.
 
 **Measurement:**
 

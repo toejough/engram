@@ -235,7 +235,7 @@ func TestRunLearnFromFactArgs_BootstrapsMissingVault(t *testing.T) {
 		return
 	}
 
-	// Bootstrap created Permanent/, MOCs/, .obsidian/ and MEMORY.md.
+	// Bootstrap created Permanent/, MOCs/, and .obsidian/.
 	for _, sub := range []string{"Permanent", "MOCs", ".obsidian"} {
 		info, statErr := os.Stat(filepath.Join(vault, sub))
 		g.Expect(statErr).NotTo(HaveOccurred())
@@ -246,9 +246,6 @@ func TestRunLearnFromFactArgs_BootstrapsMissingVault(t *testing.T) {
 
 		g.Expect(info.IsDir()).To(BeTrue())
 	}
-
-	_, memErr := os.Stat(filepath.Join(vault, "MEMORY.md"))
-	g.Expect(memErr).NotTo(HaveOccurred())
 
 	// And the actual fact note landed.
 	entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
