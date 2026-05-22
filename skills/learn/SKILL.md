@@ -2,8 +2,10 @@
 name: learn
 description: >
   Use after completing any action we started with a recall call, or after any work that involved more than one tool
-  call or more than quick shallow thinking. This preserves relevant memories that are VITAL to recall for a good user
-  experience and a greater chance at first-pass success for similar work in the future.
+  call or more than quick shallow thinking. Also use immediately on explicit save-requests like "remember this",
+  "remember that X", "save that for later", "note for next time", "don't forget X", "write this down". This preserves
+  relevant memories that are VITAL to recall for a good user experience and a greater chance at first-pass success
+  for similar work in the future.
 ---
 
 # Learn — write to the agent-memory vault
