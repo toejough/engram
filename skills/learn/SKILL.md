@@ -82,25 +82,27 @@ Look for, in either source:
 - **Discovered facts** — new knowledge about tools, idioms, conventions, gotchas
 - **Recurring patterns** — behaviors that should be codified
 
-### 2. Anchor on the recall framing (Path A or Path B)
+### 2. Anchor on the recall framing — per candidate
 
-Before scoring any candidate, lay out the framing the writes will be measured against:
+For each candidate, lay out the framing **that candidate's** write will be measured against. The choice of framing is per-candidate (or per-segment), not session-global — different candidates can come from different segments of work and need different scratch lists.
 
-- **Path A:** scroll back to the most recent recall in context and copy its Step 1 phrases verbatim into a short scratch list.
-- **Path B:** if no recall ran, write down 3–5 phrases capturing what you would have queried before starting this work. Plan-grounded phrases (the actions you took) and situational phrases (the ambient features) — same shape recall uses.
+For a given candidate, determine which path applies to **that candidate's** segment:
 
-This scratch list is the retrieval target for your writes. Every `--situation` will be tested against it.
+- **Path A — a recall ran during the candidate's segment.** Scroll back to the recall whose Step 0 (Ask / Situation / Plan) bracketed the work that produced this candidate, and copy its Step 1 phrases verbatim into the candidate's scratch list. If multiple recalls ran in-session, pick the one that bracketed *this* candidate's segment — not necessarily the most recent.
+- **Path B — no recall bracketed this candidate.** Applies when the candidate predates any in-context recall, or comes from `engram transcript --mark` history (a prior session) — even if some recall ran later in the session. Write down 3–5 phrases capturing what an agent doing this kind of work would have queried *at the time*: plan-grounded phrases (the actions then in flight) and situational phrases (the ambient features). Same shape recall uses.
+
+Each candidate's scratch list is the retrieval target for its write. Every `--situation` will be tested against its own candidate's scratch list — not against a shared session-global list.
 
 ### 3. Apply the recall-mirror test per candidate
 
 For each candidate, phrase the `--situation` and ask:
 
-> Would a future agent querying any of the phrases in the scratch list (or close paraphrases) surface this note?
+> Would a future agent querying any of the phrases in **this candidate's** scratch list (or close paraphrases) surface this note?
 
 Three outcomes:
 
-- **Yes** → write it. Use the closest matching phrase from the scratch list as the `--situation`, lightly normalized to "When …" form. If multiple phrases match, pick the one most specific to the lesson.
-- **Not yet, but the lesson is real** → rephrase the `--situation`. Lessons are durable; framings are revisable. You may rephrase as many times as needed; each rephrase re-tests against the scratch list.
+- **Yes** → write it. Use the closest matching phrase from this candidate's scratch list as the `--situation`, lightly normalized to "When …" form. If multiple phrases match, pick the one most specific to the lesson.
+- **Not yet, but the lesson is real** → rephrase the `--situation`. Lessons are durable; framings are revisable. You may rephrase as many times as needed; each rephrase re-tests against this candidate's scratch list.
 - **No, even after rephrasing** → drop. Either the lesson is too project-specific, too event-bound, or not a transferable principle. Report the drop with a one-line reason in §7.
 
 Common ways a candidate fails the test (and what to do):
@@ -110,7 +112,8 @@ Common ways a candidate fails the test (and what to do):
 | Situation names this project, this file, this issue, or today's date         | Rephrase to the activity + domain. If the project name is load-bearing for the lesson, the lesson is project knowledge, not vault knowledge — drop. |
 | Situation bakes in hindsight ("When fixing X", "When debugging Y")           | Rephrase as the activity you'd be embarking on **before** the lesson is known.                   |
 | Situation describes one event, not a recurring kind of work                  | Generalize to the kind of work; if you can't, drop.                                              |
-| Situation phrasing wouldn't appear in any plausible recall                   | Look at the scratch list; pick the closest phrase and rebuild the situation around it.           |
+| Situation phrasing wouldn't appear in any plausible recall                   | Look at the candidate's scratch list; pick the closest phrase and rebuild the situation around it. |
+| Measured against the wrong segment's scratch list (e.g., topic-B framing applied to a topic-A candidate, or session-global anchor applied to a `transcript --mark` candidate) | Re-select the scratch list per §2 for *this* candidate — Path A from the recall that bracketed its segment, or Path B reconstructed for its segment if no such recall ran. |
 
 Note: this replaces the older Recurs / Activity-and-Domain / Knowledge gate machinery. The same disciplines (no project names, no hindsight, must be a principle) are still enforced — but as outcomes of the recall-mirror test rather than as standalone gates.
 
@@ -223,7 +226,8 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 
 | Sign you're off the principle                                                       | What you should be doing                                                                                          |
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| You started writing without locating the recall (Path A) or reconstructing it (Path B) | Stop. Write the scratch list first. Without it, you're guessing at retrieval framings.                            |
+| You started writing without locating each candidate's recall (Path A) or reconstructing it (Path B) | Stop. Write a per-candidate scratch list first. Without it, you're guessing at retrieval framings — and the guess is almost always the most-recent-recall framing, which mis-judges earlier-segment and prior-session candidates. |
+| You produced a single session-global scratch list and applied it to every candidate     | Per §2, scratch lists are per-candidate. Re-select each one for the segment that produced its candidate.           |
 | Your `--situation` names this project, this commit, today's date                    | Project-specific knowledge doesn't belong in the vault. Either generalize or drop.                                 |
 | Your `--situation` reads like a diagnosis ("When fixing the X bug")                 | Pre-lesson framing only. Rewrite to the activity an agent would be starting, before the lesson exists.            |
 | You're categorizing a "here's how X works" note as Feedback                         | That's a Fact. Feedback is for "do differently next time" only.                                                   |
