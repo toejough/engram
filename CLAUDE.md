@@ -24,7 +24,7 @@ engram/
 ├── skills/            # Source for the recall, learn, and please skills
 ├── commands/          # Source for OpenCode slash commands
 ├── dev/               # Build tooling (targ definitions, linter configs)
-└── docs/              # Active design docs and research prompts
+└── docs/              # Active design docs, research prompts, and C4 architecture diagrams
 ```
 
 ## Key Files
@@ -33,6 +33,7 @@ engram/
 - `internal/cli/targets.go` — Subcommand wiring
 - `skills/{learn,recall,please}/SKILL.md` — Skill definitions
 - `dev/targs.go` — Build targets (targ definitions)
+- `docs/architecture/c1-system-context.md` — L1 C4 system context diagram
 
 ## Design Principles
 
