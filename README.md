@@ -7,7 +7,7 @@
 
 ## Overview
 
-Engram gives Claude Code and OpenCode agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand. Both skills shell out to the `engram` binary for vault traversal and writes.
+Engram gives Claude Code and OpenCode agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand. A third skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other skills around a user's `<ask>`. `recall` and `learn` shell out to the `engram` binary; `please` is pure meta-orchestration.
 
 After a few months of use, the vault's wikilink graph looks like this in Obsidian — each dot is a note, each line a `[[wikilink]]`; dense clusters are MOCs pulling related Permanents together, and the connective tissue between clusters is how recall cascades between topics:
 
@@ -40,8 +40,9 @@ Requires Go 1.25+ on `PATH`.
 |-------|--------------|
 | `recall` | Walks an agent-memory vault (Permanent/ + MOCs/) via explicit query plus situational baseline. Cascades through the wikilink graph and returns surfaced notes. |
 | `learn` | Captures lessons from completed work as permanent vault notes. Each candidate passes a recall-mirror test — "would a future recall, querying the same situation, surface this note?" — before writing. |
+| `please` | Drives an ask end-to-end through a fixed seven-step workflow — capture, orient, plan, execute (TDD), document, complete, capture. Sequences `recall`, `learn`, and other available skills; tracks each step on the task list. Triggers on `/please <ask>` and natural-language phrasings of the same intent. |
 
-See `skills/recall/SKILL.md` and `skills/learn/SKILL.md` for the full skill definitions.
+See `skills/recall/SKILL.md`, `skills/learn/SKILL.md`, and `skills/please/SKILL.md` for the full skill definitions.
 
 ## Vault location
 

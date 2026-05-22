@@ -1,6 +1,6 @@
 # Engram
 
-Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand.
+Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand. A third skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other available skills around a user's `<ask>`.
 
 ## Core Principles
 
@@ -21,7 +21,7 @@ engram/
 │   ├── transcript/    # Claude Code session transcript reading
 │   ├── update/        # `engram update` subcommand
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
-├── skills/            # Source for the recall and learn skills
+├── skills/            # Source for the recall, learn, and please skills
 ├── commands/          # Source for OpenCode slash commands
 ├── dev/               # Build tooling (targ definitions, linter configs)
 └── docs/              # Active design docs and research prompts
@@ -31,7 +31,7 @@ engram/
 
 - `cmd/engram/main.go` — CLI entry point
 - `internal/cli/targets.go` — Subcommand wiring
-- `skills/{learn,recall}/SKILL.md` — Skill definitions
+- `skills/{learn,recall,please}/SKILL.md` — Skill definitions
 - `dev/targs.go` — Build targets (targ definitions)
 
 ## Design Principles
