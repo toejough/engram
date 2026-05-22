@@ -18,15 +18,17 @@ This vault is your (the LLM's) persistent memory. You write everything; the huma
 
 Recall and learn are paired. Recall reads the vault by phrasing queries from your stated plan and situational features. Learn writes to the vault in the same shape — so the next agent in a similar situation, querying the same way, will surface what you learned.
 
-Concretely, two paths.
+Concretely, three paths — chosen per candidate, after classifying the candidate's **injection locus** (the work that *caused* the lesson, not the work that *surfaced* it).
 
-**Path A — recall ran earlier in this session.** Its Step 0 (Ask / Situation / Plan) and Step 1 (5–15 short queryable phrases) are in your context. Those phrases are the literal queries you proved you'd want answered for this kind of work. **Every note you write must be framed so a future recall using one of those phrases (or a close variant) would surface it.** Lift `--situation` strings directly from Step 1 phrasings where possible; for net-new lessons, write the `--situation` so it would appear in a parallel phrase added to Step 1.
+**Path A — current-locus candidate; a recall bracketed its segment.** The mistake or discovery originated in *this session*, and a recall ran during that segment. Its Step 0 (Ask / Situation / Plan) and Step 1 (5–15 short queryable phrases) are in your context. **Every note you write must be framed so a future recall using one of those phrases (or a close variant) would surface it.** Lift `--situation` strings directly from Step 1 phrasings where possible; for net-new lessons, write the `--situation` so it would appear in a parallel phrase added to Step 1.
 
-**Path B — recall did not run.** Mentally reconstruct what Step 0 and Step 1 would have been, before you started the work. What would I have searched for? What ambient features would I have queried under? Write the list down internally — even 3–5 phrases is enough — then frame writes against it. Without this reconstruction step, the writes are random.
+**Path B — current-locus candidate; no recall bracketed its segment.** The lesson originated in *this session*, but no recall ran during that segment. Mentally reconstruct what Step 0 and Step 1 would have been, before you started the work. What would I have searched for? What ambient features would I have queried under? Write the list down internally — even 3–5 phrases is enough — then frame writes against it.
+
+**Path C — retro-locus candidate.** The lesson's *injection locus* is a prior session, even though the candidate surfaced during current-session work (or came from `engram transcript --mark` history of an earlier session). Reconstruct the scratch list from what the **injecting agent** was doing — the activity and domain in flight when the mistake was made — not from any recall that bracketed this session's discovery. Sources for the reconstruction: `git blame` / `git log` on the offending line (commit message + surrounding work), prior-session transcript content (if `engram transcript --mark` produced it), or behavioral inference for purely conceptual mistakes. **Path C overrides Path A** — when the candidate is retro-locus, ignore the in-session recall framing even if a recall bracketed the discovery; the discovery context is not the retrieval target.
 
 The recall-mirror test, applied to every candidate note:
 
-> Phrase the `--situation` out loud. Would a future agent, querying for the same kind of work I started this session with, see this note in their cascade? If no, rephrase. If still no, the lesson is real but the framing is wrong — fix the framing, not the lesson.
+> Phrase the `--situation` out loud. Would a future agent, querying for the same kind of work **this candidate's scratch list targets** (current-locus → this session's work; retro-locus → the injecting agent's work), see this note in their cascade? If no, rephrase. If still no, the lesson is real but the framing is wrong — fix the framing, not the lesson.
 
 ## Vault paths
 
@@ -82,16 +84,31 @@ Look for, in either source:
 - **Discovered facts** — new knowledge about tools, idioms, conventions, gotchas
 - **Recurring patterns** — behaviors that should be codified
 
+For each candidate, also note its **injection locus** — the work that *caused* the lesson, not the work that *surfaced* it. A current-session discovery can have a prior-session origin: a bug found today during a docs cleanup may have been wired wrong six commits ago by a different agent. Cheap signals — apply in order:
+
+- **Concrete file/decision locus** — `git blame` / `git log` on the offending line or config decision. Authorship before this session's first commit → retro-locus.
+- **Session-log locus** — prior-session transcript content present in `engram transcript --mark` output that names the moment the mistake was made → retro-locus.
+- **Behavioral inference** — for purely conceptual mistakes (a misconception carried into this session, a correction the agent had absorbed wrong), ask: *would I have done the wrong thing in this session independently, or did I inherit it?* If inherited → retro-locus. Otherwise → current-locus.
+
+Carry the locus tag forward into §2 — it determines which path applies.
+
 ### 2. Anchor on the recall framing — per candidate
 
 For each candidate, lay out the framing **that candidate's** write will be measured against. The choice of framing is per-candidate (or per-segment), not session-global — different candidates can come from different segments of work and need different scratch lists.
 
-For a given candidate, determine which path applies to **that candidate's** segment:
+**Selection is two-step: classify locus first (from §1), then pick the path.**
 
-- **Path A — a recall ran during the candidate's segment.** Scroll back to the recall whose Step 0 (Ask / Situation / Plan) bracketed the work that produced this candidate, and copy its Step 1 phrases verbatim into the candidate's scratch list. If multiple recalls ran in-session, pick the one that bracketed *this* candidate's segment — not necessarily the most recent.
-- **Path B — no recall bracketed this candidate.** Applies when the candidate predates any in-context recall, or comes from `engram transcript --mark` history (a prior session) — even if some recall ran later in the session. Write down 3–5 phrases capturing what an agent doing this kind of work would have queried *at the time*: plan-grounded phrases (the actions then in flight) and situational phrases (the ambient features). Same shape recall uses.
+For retro-locus candidates → **Path C** (regardless of whether a recall bracketed the discovery this session). For current-locus candidates → **Path A or Path B** depending on whether a recall bracketed the candidate's segment.
 
-Each candidate's scratch list is the retrieval target for its write. Every `--situation` will be tested against its own candidate's scratch list — not against a shared session-global list.
+- **Path A — current-locus, recall bracketed the candidate's segment.** Scroll back to the recall whose Step 0 (Ask / Situation / Plan) bracketed the work that produced this candidate, and copy its Step 1 phrases verbatim into the candidate's scratch list. If multiple recalls ran in-session, pick the one that bracketed *this* candidate's segment — not necessarily the most recent. **Do not apply Path A to a retro-locus candidate even if a current-session recall bracketed the discovery** — the discovery context is not the retrieval target; the injection context is.
+- **Path B — current-locus, no recall bracketed the candidate's segment.** The lesson originated in this session but no recall ran during that segment. Write down 3–5 phrases capturing what an agent doing this kind of work would have queried *at the time*: plan-grounded phrases (the actions then in flight) and situational phrases (the ambient features). Same shape recall uses.
+- **Path C — retro-locus, injecting agent's situation reconstructed.** The lesson's cause is in a prior session, even if the discovery happened this session. Reconstruct the scratch list from the **injecting agent's** situation, not the surfacing agent's. Sources (use what's available):
+  - `git blame` / `git log` on the offending line — read the commit message and surrounding work to infer the activity in flight: *what was that agent trying to accomplish?*
+  - Prior-session transcript content from `engram transcript --mark` output — the ambient plan and situational features from the actual session.
+  - Behavioral inference — for conceptual mistakes with no file locus, ask: *under what kind of work would I have first formed this misconception?* That activity + domain is the retrieval target.
+  - Write 3–5 phrases capturing what an agent doing **the injecting kind of work** would have queried — plan-grounded and situational, same shape recall uses.
+
+Each candidate's scratch list is the retrieval target for its write. Every `--situation` will be tested against its own candidate's scratch list — not against a shared session-global list, and not against a list built from the surfacing session's framing when the candidate is retro-locus.
 
 ### 3. Apply the recall-mirror test per candidate
 
@@ -114,6 +131,7 @@ Common ways a candidate fails the test (and what to do):
 | Situation describes one event, not a recurring kind of work                  | Generalize to the kind of work; if you can't, drop.                                              |
 | Situation phrasing wouldn't appear in any plausible recall                   | Look at the candidate's scratch list; pick the closest phrase and rebuild the situation around it. |
 | Measured against the wrong segment's scratch list (e.g., topic-B framing applied to a topic-A candidate, or session-global anchor applied to a `transcript --mark` candidate) | Re-select the scratch list per §2 for *this* candidate — Path A from the recall that bracketed its segment, or Path B reconstructed for its segment if no such recall ran. |
+| Scratch list anchored on the **discovery** situation rather than the **injection** situation (e.g., docs-cleanup phrases used for a CLI-wiring lesson surfaced during the cleanup) | The candidate is retro-locus. Re-select via Path C per §2 — reconstruct the injecting agent's situation from git blame / prior-session transcript / behavioral inference, not from the current-session recall. |
 
 Note: this replaces the older Recurs / Activity-and-Domain / Knowledge gate machinery. The same disciplines (no project names, no hindsight, must be a principle) are still enforced — but as outcomes of the recall-mirror test rather than as standalone gates.
 
@@ -125,6 +143,8 @@ For each surviving candidate:
 - "Here's how X actually works / behaves / is shaped" / "this saves time when …" → **Fact**.
 
 Both kinds use the same retrieval framing. The split tells future-you what kind of help to expect.
+
+**Locus check (sanity gate before writing).** For Feedback especially, ask: *who made the mistake — me this session, or someone earlier?* If earlier, the candidate should already be tagged retro-locus from §1 and routed through Path C in §2. If the categorization felt like Feedback but the locus was retro and you didn't pick Path C, back up to §2 and re-select — the framing will retrieve under the wrong activity otherwise. Facts that describe how a thing actually behaves are usually current-locus (the discovery is the lesson), but a Fact whose *content* names a prior-session decision or wiring may still be retro-locus — the framing should still target the kind of work the injecting agent was doing.
 
 ### 5. Decide disposition and Luhmann position
 
@@ -228,6 +248,7 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | You started writing without locating each candidate's recall (Path A) or reconstructing it (Path B) | Stop. Write a per-candidate scratch list first. Without it, you're guessing at retrieval framings — and the guess is almost always the most-recent-recall framing, which mis-judges earlier-segment and prior-session candidates. |
 | You produced a single session-global scratch list and applied it to every candidate     | Per §2, scratch lists are per-candidate. Re-select each one for the segment that produced its candidate.           |
+| You picked Path A for a candidate whose mistake originated in a prior session, because a current-session recall happened to bracket the discovery | Classify locus first per §1. A retro-locus candidate takes Path C regardless of what bracketed the discovery — frame against the injecting agent's situation, not the surfacing agent's. |
 | Your `--situation` names this project, this commit, today's date                    | Project-specific knowledge doesn't belong in the vault. Either generalize or drop.                                 |
 | Your `--situation` reads like a diagnosis ("When fixing the X bug")                 | Pre-lesson framing only. Rewrite to the activity an agent would be starting, before the lesson exists.            |
 | You're categorizing a "here's how X works" note as Feedback                         | That's a Fact. Feedback is for "do differently next time" only.                                                   |
