@@ -17,7 +17,6 @@ engram/
 │   ├── debuglog/      # Tail-friendly debug logger
 │   ├── learnmarker/   # Per-harness progress marker (read/write/FS interface)
 │   ├── luhmann/       # Luhmann zettelkasten ID parsing/sorting
-│   ├── tokenresolver/ # API token resolution
 │   ├── transcript/    # Claude Code session transcript reading
 │   ├── update/        # `engram update` subcommand
 │   └── vaultgraph/    # Wikilink graph analysis of the vault

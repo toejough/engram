@@ -98,7 +98,6 @@ internal/            Business logic (DI boundaries)
   debuglog/          Structured debug logging
   learnmarker/       Per-harness progress marker (read/write/FS interface)
   luhmann/           Luhmann-ID allocation under file lock
-  tokenresolver/     API token resolution
   transcript/        Session transcript reading (Claude Code JSONL + OpenCode SQLite)
   update/            Self-refresh subcommand
   vaultgraph/        Vault traversal (MOCs/Permanent, anchors, follow)
