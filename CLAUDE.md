@@ -32,7 +32,7 @@ engram/
 - `internal/cli/targets.go` — Subcommand wiring
 - `skills/{learn,recall,please}/SKILL.md` — Skill definitions
 - `dev/targs.go` — Build targets (targ definitions)
-- `docs/architecture/c1-system-context.md` — L1 C4 system context diagram
+- `docs/architecture/c1-system-context.md` — L1 C4 system context diagram + sequence diagrams for the four key flows (recall, learn, please, update)
 
 ## Design Principles
 
