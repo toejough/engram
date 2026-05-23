@@ -24,6 +24,7 @@ flowchart LR
     engram -->|"R3: reads & writes notes and MOCs"| vault
     engram -->|"R4: reads session transcripts via per-harness markers"| sessions
     engram -->|"R5: invokes go install / go list for self-update"| gotool
+    engram -->|"R6: writes refreshed skill and command files during engram update"| harness
 
     class user person
     class harness,vault,sessions,gotool external
@@ -57,6 +58,7 @@ flowchart LR
 | <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes and MOCs under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | Reads JSONL transcripts (Claude Code) and SQLite rows (OpenCode) starting from a per-harness marker held in `$XDG_STATE_HOME/engram` |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go list -m -json` and `go install` to self-update |
+| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, copies refreshed `skills/` and `commands/` files into each detected harness's install root (`~/.claude/`, `~/.config/opencode/`) |
 
 ## Key flows
 
@@ -268,12 +270,8 @@ sequenceDiagram
     H-->>Op: rendered report
 ```
 
-> **Drift note (2026-05-22):** the static L1 R5 models only the
-> `engram → Go toolchain` half of this flow. The copy step in the loop above
-> writes to harness install roots (the same paths the static L1 names as S3's
-> `source`), but there is no static edge for that interaction. This is a known
-> gap in the static L1; the sequence diagram is rendered faithfully against
-> the code and the gap is recorded here rather than smoothed away.
+The copy loop and the Go-toolchain calls are modeled in the static L1 as
+relationships [R6](#r6) and [R5](#r5) respectively.
 
 ## Out of scope at L1
 
