@@ -1,13 +1,57 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
 )
+
+// splitMdAndSidecar returns the .md and .vec.json basenames found in
+// entries. Tests use it to verify both files exist after a learn with
+// auto-embed.
+func splitMdAndSidecar(entries []os.DirEntry) (md, sidecar string) {
+	for _, entry := range entries {
+		name := entry.Name()
+
+		switch {
+		case strings.HasSuffix(name, ".vec.json"):
+			sidecar = name
+		case strings.HasSuffix(name, ".md"):
+			md = name
+		}
+	}
+
+	return md, sidecar
+}
+
+// expectSidecarValid asserts the sidecar file parses as a Sidecar with
+// non-zero dims and a vector of the declared length.
+func expectSidecarValid(g Gomega, path string) {
+	data, err := os.ReadFile(path) //nolint:gosec // test-controlled path
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed struct {
+		EmbeddingModelID string    `json:"embedding_model_id"`
+		Dims             int       `json:"dims"`
+		Vector           []float32 `json:"vector"`
+		ContentHash      string    `json:"content_hash"`
+	}
+
+	g.Expect(json.Unmarshal(data, &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.EmbeddingModelID).NotTo(BeEmpty())
+	g.Expect(parsed.Dims).To(BeNumerically(">", 0))
+	g.Expect(parsed.Vector).To(HaveLen(parsed.Dims))
+	g.Expect(parsed.ContentHash).To(HavePrefix("sha256:"))
+}
 
 func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 	t.Parallel()
@@ -52,11 +96,11 @@ func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 		return
 	}
 
-	g.Expect(entries).To(HaveLen(1))
-	name := entries[0].Name()
-	g.Expect(name).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-fact\.md$`))
+	mdName, sidecarName := splitMdAndSidecar(entries)
+	g.Expect(mdName).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-fact\.md$`))
+	g.Expect(sidecarName).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-fact\.vec\.json$`))
 
-	body, err := os.ReadFile(filepath.Join(expectedPath, name))
+	body, err := os.ReadFile(filepath.Join(expectedPath, mdName))
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -67,6 +111,8 @@ func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 	g.Expect(string(body)).To(ContainSubstring(
 		"Information learned: when in concurrent Go code, goroutines leak when ctx is ignored.",
 	))
+
+	expectSidecarValid(g, filepath.Join(expectedPath, sidecarName))
 }
 
 func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
@@ -113,11 +159,11 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 		return
 	}
 
-	g.Expect(entries).To(HaveLen(1))
-	name := entries[0].Name()
-	g.Expect(name).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-rule\.md$`))
+	mdName, sidecarName := splitMdAndSidecar(entries)
+	g.Expect(mdName).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-rule\.md$`))
+	g.Expect(sidecarName).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-rule\.vec\.json$`))
 
-	body, err := os.ReadFile(filepath.Join(expectedPath, name))
+	body, err := os.ReadFile(filepath.Join(expectedPath, mdName))
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -128,6 +174,8 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 	g.Expect(string(body)).
 		To(ContainSubstring("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
 	g.Expect(string(body)).To(ContainSubstring("Related to:"))
+
+	expectSidecarValid(g, filepath.Join(expectedPath, sidecarName))
 }
 
 func TestEngramLearn_MOC_EndToEnd(t *testing.T) {
@@ -171,15 +219,16 @@ func TestEngramLearn_MOC_EndToEnd(t *testing.T) {
 		return
 	}
 
-	g.Expect(entries).To(HaveLen(1))
-	name := entries[0].Name()
-	g.Expect(name).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-cluster\.md$`))
+	mdName, sidecarName := splitMdAndSidecar(entries)
+	g.Expect(mdName).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-cluster\.md$`))
+	g.Expect(sidecarName).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-cluster\.vec\.json$`))
+	expectSidecarValid(g, filepath.Join(mocPath, sidecarName))
 
 	permEntries, err := os.ReadDir(filepath.Join(vault, "Permanent"))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(permEntries).To(BeEmpty(), "MOC must not be written to Permanent/")
 
-	body, err := os.ReadFile(filepath.Join(mocPath, name))
+	body, err := os.ReadFile(filepath.Join(mocPath, mdName))
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

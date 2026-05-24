@@ -125,6 +125,20 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
 			errHandler(runUpdate(withLog(ctx), a, stdout))
 		}).Name("update").Description("Refresh engram binary and harness skills"),
+		targ.Group("embed",
+			targ.Targ(func(ctx context.Context, a EmbedApplyArgs) {
+				a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+				errHandler(RunEmbedApply(withLog(ctx), a, newOsEmbedDeps(), stdout))
+			}).Name("apply").Description("Embed notes (default: missing only)"),
+			targ.Targ(func(ctx context.Context, a EmbedStatusArgs) {
+				a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+				errHandler(RunEmbedStatus(withLog(ctx), a, newOsEmbedDeps(), stdout))
+			}).Name("status").Description("Report embedding state counts"),
+		),
+		targ.Targ(func(ctx context.Context, a QueryArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			errHandler(RunQuery(withLog(ctx), a, newOsQueryDeps(), stdout))
+		}).Name("query").Description("Semantic search over the vault (YAML output)"),
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/luhmann"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
@@ -45,15 +46,21 @@ type LearnArgs struct {
 	Framing string
 }
 
-// LearnDeps holds injected dependencies for runLearn. All fields required.
+// LearnDeps holds injected dependencies for runLearn. All fields are
+// required except Embedder / WriteSidecar / LogWarning, which together
+// drive the auto-embed step. A nil Embedder skips auto-embed entirely
+// (used by tests that don't exercise the embedding pipeline).
 type LearnDeps struct {
-	Now       func() time.Time
-	Getenv    func(string) string
-	StatDir   func(string) error
-	InitVault func(string) error
-	ListIDs   func(vault string) ([]string, error)
-	Lock      func(vault string) (release func(), err error)
-	WriteNew  func(path string, data []byte) error
+	Now          func() time.Time
+	Getenv       func(string) string
+	StatDir      func(string) error
+	InitVault    func(string) error
+	ListIDs      func(vault string) ([]string, error)
+	Lock         func(vault string) (release func(), err error)
+	WriteNew     func(path string, data []byte) error
+	Embedder     embed.Embedder
+	WriteSidecar func(path string, data []byte) error
+	LogWarning   func(format string, args ...any)
 }
 
 // unexported constants.
@@ -212,6 +219,8 @@ func marshalFrontmatter(v any) string {
 func newOsLearnDeps() LearnDeps {
 	vaultFS := &osLearnFS{}
 
+	const sidecarPerm = 0o600
+
 	return LearnDeps{
 		Now:       time.Now,
 		Getenv:    os.Getenv,
@@ -220,6 +229,18 @@ func newOsLearnDeps() LearnDeps {
 		ListIDs:   vaultFS.ListIDs,
 		Lock:      vaultFS.Lock,
 		WriteNew:  vaultFS.WriteNew,
+		Embedder:  sharedEmbedder,
+		WriteSidecar: func(path string, data []byte) error {
+			err := os.WriteFile(path, data, sidecarPerm) //nolint:gosec // path from caller
+			if err != nil {
+				return fmt.Errorf("write sidecar: %w", err)
+			}
+
+			return nil
+		},
+		LogWarning: func(format string, args ...any) {
+			_, _ = fmt.Fprintf(os.Stderr, "warning: "+format+"\n", args...)
+		},
 	}
 }
 
@@ -482,5 +503,48 @@ func writeLearnUnderLock(args LearnArgs, deps LearnDeps, vault string) (string, 
 		return "", fmt.Errorf("learn: writing %s: %w", path, writeErr)
 	}
 
+	autoEmbedNote(deps, path, content)
+
 	return path, nil
+}
+
+// autoEmbedNote writes a sidecar for the newly-created note. Failure is
+// warned-and-ignored: the Luhmann write is atomic, so a missing sidecar
+// is recoverable via `engram embed apply --missing` later.
+func autoEmbedNote(deps LearnDeps, notePath, content string) {
+	if deps.Embedder == nil || deps.WriteSidecar == nil {
+		return
+	}
+
+	body := embed.ExtractBody([]byte(content))
+
+	vector, embErr := deps.Embedder.Embed(context.Background(), string(body))
+	if embErr != nil {
+		if deps.LogWarning != nil {
+			deps.LogWarning("learn: embed failed for %s: %v", notePath, embErr)
+		}
+
+		return
+	}
+
+	sidecar := embed.Sidecar{
+		EmbeddingModelID: deps.Embedder.ModelID(),
+		Dims:             deps.Embedder.Dims(),
+		Vector:           vector,
+		ContentHash:      embed.ContentHash([]byte(content)),
+	}
+
+	scBytes, marshalErr := embed.MarshalSidecar(sidecar)
+	if marshalErr != nil {
+		if deps.LogWarning != nil {
+			deps.LogWarning("learn: sidecar marshal failed for %s: %v", notePath, marshalErr)
+		}
+
+		return
+	}
+
+	writeErr := deps.WriteSidecar(embed.SidecarPath(notePath), scBytes)
+	if writeErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("learn: sidecar write failed for %s: %v", notePath, writeErr)
+	}
 }
