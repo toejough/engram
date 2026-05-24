@@ -1,0 +1,31 @@
+{
+  "model_id": "sentence-transformers/all-MiniLM-L6-v2",
+  "dims": 384,
+  "pairs": [
+    {
+      "left": "The cat sat on the mat.",
+      "right": "A cat is sitting on the mat.",
+      "cosine": 0.9365083575248718
+    },
+    {
+      "left": "Verify the current behaviour before claiming a delta.",
+      "right": "Check what the system does today before asserting how a change differs.",
+      "cosine": 0.4405226707458496
+    },
+    {
+      "left": "The agent embeds notes on write.",
+      "right": "The agent eats notes on Wednesdays.",
+      "cosine": 0.566347599029541
+    },
+    {
+      "left": "Cosine similarity ranges from minus one to one.",
+      "right": "Pour the batter into the greased pan.",
+      "cosine": -0.01947138085961342
+    },
+    {
+      "left": "Identical sentences embed to identical vectors.",
+      "right": "Identical sentences embed to identical vectors.",
+      "cosine": 1.0000001192092896
+    }
+  ]
+}
