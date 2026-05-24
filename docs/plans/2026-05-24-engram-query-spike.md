@@ -122,6 +122,36 @@ git add go.mod go.sum internal/embed/probe_main_test.go
 git commit -m "spike: probe Hugot+GoMLX simplego links in pure Go"
 ```
 
+- [ ] **Step 0.5: Verify Hugot API signatures via `go doc` before writing Task 3**
+
+The Task 3 code references `hugot.NewGoSession`, `hugot.FeatureExtractionConfig`, `hugot.NewPipeline`, `pipe.RunPipeline([]string)`, `pipelines.FeatureExtractionPipeline`, `session.Destroy`. These names came from the compat doc, not from inspection of the installed package. Verify them now so Task 3 doesn't turn into import-path archaeology.
+
+```bash
+go doc github.com/knights-analytics/hugot
+go doc github.com/knights-analytics/hugot.Session
+go doc github.com/knights-analytics/hugot.FeatureExtractionConfig
+go doc github.com/knights-analytics/hugot.NewGoSession
+go doc github.com/knights-analytics/hugot.NewPipeline
+go doc github.com/knights-analytics/hugot/pipelines
+go doc github.com/knights-analytics/hugot/pipelines.FeatureExtractionPipeline
+```
+
+Expected: real type/func definitions matching what Task 3 assumes (or close enough that name/signature adjustments are mechanical). If they differ materially (e.g., `pipelines.NewFeatureExtractionPipeline(session, cfg)` instead of `hugot.NewPipeline(session, cfg)`), update Task 3's code blocks inline before running them.
+
+If a referenced symbol does not exist, search for the equivalent: `go doc -all github.com/knights-analytics/hugot/pipelines | rg -i feature|extract|embed`.
+
+Then set up git-lfs for the model files that arrive in Task 2:
+
+```bash
+git lfs install
+git lfs track "internal/embed/assets/model/model.onnx"
+# Also track tokenizer.json if it's > 100KB (small ones are fine in regular git).
+git add .gitattributes
+git commit -m "spike: configure git-lfs for bundled ONNX model"
+```
+
+Expected: `.gitattributes` written; LFS reports `Tracking "internal/embed/assets/model/model.onnx"`.
+
 ### Task 1: Generate Python reference cosines via uv
 
 **Files:**
@@ -245,14 +275,15 @@ ls -la internal/embed/testdata/model/
 
 Expected: `model.onnx` (~22 MB), `tokenizer.json`, plus config files.
 
-- [ ] **Step 2.2: Commit the model files**
+- [ ] **Step 2.2: Commit the model files (via git-lfs configured in Step 0.5)**
 
 ```bash
 git add internal/embed/testdata/model/
+git status   # confirm model.onnx shows as LFS-tracked
 git commit -m "spike: stage Arctic-xs ONNX + tokenizer for UAT 13 gate"
 ```
 
-(If the user objects to committing 22 MB of model into the repo, swap to git-lfs or to a download-on-first-use cache. For the spike we accept the size; the final binary will `go:embed` the same files anyway.)
+Decision (user, 2026-05-24): use git-lfs from the start. The `.gitattributes` written in Step 0.5 routes `model.onnx` through LFS so clones stay small for people without LFS and pull-on-checkout for those with it.
 
 ### Task 3: UAT 13 gate — Go cross-runtime parity test
 
@@ -1137,6 +1168,7 @@ package embed
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 )
 
 // FS is the read-only filesystem surface used by ComputeState. The
@@ -1146,20 +1178,20 @@ type FS interface {
 	ReadFile(path string) ([]byte, error)
 }
 
-// notExistError reports whether err is a "file does not exist" error.
-// Production code (internal/cli) hands ComputeState an FS whose ReadFile
-// returns os.PathError-style errors that satisfy os.IsNotExist; tests can
-// hand any error type that implements `IsNotExist() bool`.
+// notExist reports whether err is a "file does not exist" error. The
+// production reader returns *os.PathError (which doesn't itself implement
+// IsNotExist), so we check errors.Is against fs.ErrNotExist first; the
+// interface fallback covers test fakes that wrap a custom IsNotExist().
 func notExist(err error) bool {
 	if err == nil {
 		return false
 	}
-	var typed interface{ IsNotExist() bool }
-	if errors.As(err, &typed) && typed.IsNotExist() {
+	if errors.Is(err, fs.ErrNotExist) {
 		return true
 	}
-	// Defer to fs.PathError handling done by callers; the production
-	// wrapper in internal/cli flips os.IsNotExist into a typed error.
+	if t, ok := err.(interface{ IsNotExist() bool }); ok && t.IsNotExist() {
+		return true
+	}
 	return false
 }
 
@@ -1240,58 +1272,101 @@ In `internal/embed/parity_test.go`, change `filepath.Abs("testdata/model")` to `
 
 - [ ] **Step 8.3: Add NewBundledHugotEmbedder + go:embed directive**
 
-Append to `internal/embed/hugot.go`:
+Append to `internal/embed/hugot.go` (note the `stdembed` alias — our local package is also called `embed`, so the stdlib `embed` package must be aliased to avoid identifier collision):
 
 ```go
 import (
-	"embed"
+	stdembed "embed"
 	"os"
 	"path/filepath"
 )
 
 //go:embed assets/model/*
-var bundledModel embed.FS
+var bundledModel stdembed.FS
 
 const bundledModelID = "snowflake-arctic-embed-xs@384"
 // (Or "minilm-l6-v2@384" if the gate fell back. Keep this in lockstep
 // with the model files in assets/model/.)
 
-// NewBundledHugotEmbedder unpacks the embedded ONNX model to a temp
-// directory and constructs a Hugot embedder against it. The temp
-// directory persists for the life of the process; Close() removes it.
-//
-// This pattern (unpack-to-temp) is needed because Hugot reads its inputs
-// from disk, not from an embed.FS.
-func NewBundledHugotEmbedder() (*HugotEmbedder, error) {
-	tmp, mkErr := os.MkdirTemp("", "engram-embed-model-*")
-	if mkErr != nil {
-		return nil, fmt.Errorf("temp dir: %w", mkErr)
+// unpackModelToTemp copies every file from modelFS rooted at modelDir into a
+// fresh temp directory and returns its path. Extracted so UAT 10 (missing
+// model file) can be exercised by passing an empty embed.FS.
+func unpackModelToTemp(modelFS stdembed.FS, modelDir string) (string, error) {
+	entries, dirErr := modelFS.ReadDir(modelDir)
+	if dirErr != nil {
+		return "", fmt.Errorf("read embedded model dir %s: %w", modelDir, dirErr)
+	}
+	if len(entries) == 0 {
+		return "", fmt.Errorf(
+			"bundled model %s is empty — rebuild the binary with the model in place, "+
+				"or set ENGRAM_MODEL_PATH to a directory containing model.onnx",
+			modelDir,
+		)
 	}
 
-	entries, _ := bundledModel.ReadDir("assets/model")
+	tmp, mkErr := os.MkdirTemp("", "engram-embed-model-*")
+	if mkErr != nil {
+		return "", fmt.Errorf("temp dir: %w", mkErr)
+	}
+
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
-		data, readErr := bundledModel.ReadFile(filepath.Join("assets/model", e.Name()))
+		data, readErr := modelFS.ReadFile(filepath.Join(modelDir, e.Name()))
 		if readErr != nil {
 			_ = os.RemoveAll(tmp)
-			return nil, fmt.Errorf("read embedded %s: %w", e.Name(), readErr)
+			return "", fmt.Errorf("read embedded %s: %w", e.Name(), readErr)
 		}
-		writeErr := os.WriteFile(filepath.Join(tmp, e.Name()), data, 0o600)
-		if writeErr != nil {
+		if writeErr := os.WriteFile(filepath.Join(tmp, e.Name()), data, 0o600); writeErr != nil {
 			_ = os.RemoveAll(tmp)
-			return nil, fmt.Errorf("unpack %s: %w", e.Name(), writeErr)
+			return "", fmt.Errorf("unpack %s: %w", e.Name(), writeErr)
 		}
 	}
+	return tmp, nil
+}
 
-	emb, embErr := NewHugotEmbedderFromDir(tmp, bundledModelID)
+// NewHugotEmbedderFromFS constructs an embedder from any embed.FS rooted
+// at modelDir. Tests pass an empty FS to verify UAT 10's clear-error path.
+// Production constructs an FS from the bundled assets.
+func NewHugotEmbedderFromFS(modelFS stdembed.FS, modelDir, modelID string) (*HugotEmbedder, error) {
+	tmp, unpackErr := unpackModelToTemp(modelFS, modelDir)
+	if unpackErr != nil {
+		return nil, unpackErr
+	}
+	emb, embErr := NewHugotEmbedderFromDir(tmp, modelID)
 	if embErr != nil {
 		_ = os.RemoveAll(tmp)
 		return nil, embErr
 	}
 	emb.tmpDir = tmp
 	return emb, nil
+}
+
+// NewBundledHugotEmbedder is the production constructor: bundled assets
+// FS, fixed model directory, fixed model ID.
+func NewBundledHugotEmbedder() (*HugotEmbedder, error) {
+	return NewHugotEmbedderFromFS(bundledModel, "assets/model", bundledModelID)
+}
+```
+
+Add UAT 10 unit test in `internal/embed/hugot_test.go` (no build tag — runs in normal `targ test`):
+
+```go
+// In hugot_test.go (package embed_test), alias stdlib embed to avoid the
+// import-name collision with our local embed package.
+import (
+	stdembed "embed"
+	"github.com/toejough/engram/internal/embed"
+)
+
+func TestT10_MissingBundledModel_ClearError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	var emptyFS stdembed.FS // zero-value: no entries
+	_, err := embed.NewHugotEmbedderFromFS(emptyFS, "assets/model", "x@1")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("ENGRAM_MODEL_PATH"))
 }
 ```
 
@@ -1642,16 +1717,54 @@ targ.Group("embed",
 ),
 ```
 
-Production `newOsEmbedDeps`:
+Production `newOsEmbedDeps` — **lazy** embedder construction so `engram --help`, `engram update`, etc. don't pay the model-unpack cost or die if model loading fails (advisor #5):
 
 ```go
-func newOsEmbedDeps() EmbedDeps {
-	emb, err := embed.NewBundledHugotEmbedder()
-	if err != nil {
-		// Embedder construction failure at process start is fatal —
-		// every embed/query operation depends on it.
-		panic(fmt.Sprintf("init bundled embedder: %v", err))
+// lazyEmbedder constructs the bundled Hugot embedder on first Embed() and
+// caches it. Construction failures surface at first use, not at process
+// start, so commands that don't need the embedder (--help, update,
+// transcript, learn-without-auto-embed) remain available.
+type lazyEmbedder struct {
+	once    sync.Once
+	emb     *embed.HugotEmbedder
+	initErr error
+}
+
+func (l *lazyEmbedder) init() {
+	l.once.Do(func() {
+		l.emb, l.initErr = embed.NewBundledHugotEmbedder()
+	})
+}
+
+func (l *lazyEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
+	l.init()
+	if l.initErr != nil {
+		return nil, fmt.Errorf("embedder unavailable: %w", l.initErr)
 	}
+	return l.emb.Embed(ctx, text)
+}
+
+func (l *lazyEmbedder) ModelID() string {
+	l.init()
+	if l.initErr != nil {
+		return "" // surfaced via Embed error path
+	}
+	return l.emb.ModelID()
+}
+
+func (l *lazyEmbedder) Dims() int {
+	l.init()
+	if l.initErr != nil {
+		return 0
+	}
+	return l.emb.Dims()
+}
+
+// Shared singleton — Targets() can call newOsEmbedDeps() multiple times
+// during construction without paying the model-unpack cost more than once.
+var sharedEmbedder = &lazyEmbedder{}
+
+func newOsEmbedDeps() EmbedDeps {
 	return EmbedDeps{
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
 			return vaultgraph.ScanVault(&osVaultFS{}, vault)
@@ -1670,7 +1783,7 @@ func newOsEmbedDeps() EmbedDeps {
 			}
 			return true, nil
 		},
-		Embedder: emb,
+		Embedder: sharedEmbedder,
 	}
 }
 ```
@@ -1727,6 +1840,14 @@ For UAT 5, 6, 7 the stub embedder in tests can be deterministic — generate a v
 - [ ] **Step 10.2: Implement**
 
 ```go
+// errQueryNoEmbeddings is returned when the vault has notes but no sidecars.
+// Per spike spec decision #3, this is a non-zero exit so the user knows to
+// run `engram embed apply --all` explicitly. Distinct from UAT 9 (empty
+// vault — that emits items: [] and exits 0).
+var errQueryNoEmbeddings = errors.New(
+	"query: vault has notes but no embeddings; run `engram embed apply --all`",
+)
+
 func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Writer) error {
 	if args.Query == "" {
 		return errors.New("query: empty query string")
@@ -1739,6 +1860,25 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 	notes, scanErr := deps.Scan(args.VaultPath)
 	if scanErr != nil {
 		return fmt.Errorf("query: scan: %w", scanErr)
+	}
+
+	// Distinguish UAT 9 (empty vault → items: []) from decision #3
+	// (vault has notes but no sidecars → error). Count sidecar presence
+	// before embedding the query so we don't pay the embed cost on a
+	// command that will exit non-zero anyway.
+	if len(notes) > 0 {
+		hasAny := false
+		for _, n := range notes {
+			notePath := pathOf(n.Basename, n.IsMOC)
+			scFull := filepath.Join(args.VaultPath, embed.SidecarPath(notePath))
+			if _, err := deps.Read(scFull); err == nil {
+				hasAny = true
+				break
+			}
+		}
+		if !hasAny {
+			return errQueryNoEmbeddings
+		}
 	}
 
 	queryVec, qErr := deps.Embedder.Embed(ctx, args.Query)
