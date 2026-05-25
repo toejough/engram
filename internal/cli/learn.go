@@ -28,10 +28,10 @@ type LearnArgs struct {
 	Position string
 	Source   string
 
-	// feedback / fact both support related-note bullets
+	// feedback / fact / episode all support related-note bullets
 	Relations []string
 
-	// feedback / fact share these
+	// feedback / fact / episode share these
 	Situation string
 	// feedback only
 	Behavior string
@@ -41,6 +41,11 @@ type LearnArgs struct {
 	Subject   string
 	Predicate string
 	Object    string
+	// episode only
+	Summaries       []string
+	Outcomes        []string
+	Sessions        []string
+	TranscriptRange string
 }
 
 // LearnDeps holds injected dependencies for runLearn. All fields are
@@ -64,17 +69,65 @@ type LearnDeps struct {
 const (
 	dateFormat   = "2006-01-02"
 	envVaultPath = "ENGRAM_VAULT_PATH"
+	typeEpisode  = "episode"
 	typeFact     = "fact"
 	typeFeedback = "feedback"
 )
 
 // unexported variables.
 var (
-	errLearnUnknownType = errors.New("learn: type must be feedback or fact")
-	errSlugEmpty        = errors.New("slug is required")
-	errSlugInvalid      = errors.New("slug must match [a-z0-9-]+")
-	slugPattern         = regexp.MustCompile(`^[a-z0-9-]+$`)
+	errEpisodeOutcomeEmpty         = errors.New("episode: --outcome must not be empty")
+	errEpisodeOutcomeRequired      = errors.New("episode: at least one --outcome is required")
+	errEpisodeSessionEmpty         = errors.New("episode: --session must not be empty")
+	errEpisodeSessionRequired      = errors.New("episode: at least one --session is required")
+	errEpisodeSituationRequired    = errors.New("episode: --situation is required")
+	errEpisodeSummaryEmpty         = errors.New("episode: --summary must not be empty")
+	errEpisodeSummaryRequired      = errors.New("episode: at least one --summary is required")
+	errEpisodeTranscriptRangeFmt   = errors.New("episode: --transcript-range must be <RFC3339>..<RFC3339>")
+	errEpisodeTranscriptRangeOrder = errors.New("episode: --transcript-range start must be before end")
+	errEpisodeTranscriptRangeReq   = errors.New("episode: --transcript-range is required")
+	errLearnUnknownType            = errors.New("learn: type must be feedback, fact, or episode")
+	errSlugEmpty                   = errors.New("slug is required")
+	errSlugInvalid                 = errors.New("slug must match [a-z0-9-]+")
+	slugPattern                    = regexp.MustCompile(`^[a-z0-9-]+$`)
 )
+
+type episodeFields struct {
+	Situation       string
+	Summaries       []string
+	Outcomes        []string
+	Sessions        []string
+	TranscriptStart string
+	TranscriptEnd   string
+	Luhmann         string
+	Source          string
+}
+
+// episodeFrontmatterDoc is the YAML shape of an episode note's frontmatter.
+// Field order here determines key order in the rendered document. Nested
+// provenance.sessions + provenance.transcript_range live in named structs so
+// yaml.v3 emits stable nested key order.
+type episodeFrontmatterDoc struct {
+	Type       string               `yaml:"type"`
+	Situation  string               `yaml:"situation"`
+	Provenance episodeProvenanceDoc `yaml:"provenance"`
+	Luhmann    quotedString         `yaml:"luhmann"`
+	Created    string               `yaml:"created"`
+	Source     string               `yaml:"source"`
+}
+
+// episodeProvenanceDoc holds the nested provenance fields for an episode.
+type episodeProvenanceDoc struct {
+	Sessions        []string             `yaml:"sessions"`
+	TranscriptRange episodeTranscriptDoc `yaml:"transcript_range"`
+}
+
+// episodeTranscriptDoc holds the start/end RFC3339 bounds for an episode's
+// transcript range.
+type episodeTranscriptDoc struct {
+	Start string `yaml:"start"`
+	End   string `yaml:"end"`
+}
 
 type factFields struct {
 	Situation string
@@ -153,6 +206,13 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 		}
 
 		return renderFactFrontmatter(f, when) + renderFactBody(f, related), nil
+	case typeEpisode:
+		f, parseErr := buildEpisodeFields(args, luhmann)
+		if parseErr != nil {
+			return "", parseErr
+		}
+
+		return renderEpisodeFrontmatter(f, when) + renderEpisodeBody(f, related), nil
 	default:
 		return "", fmt.Errorf("%w: got %q", errLearnUnknownType, args.Type)
 	}
@@ -190,6 +250,48 @@ func autoEmbedNote(ctx context.Context, deps LearnDeps, notePath, content string
 	if writeErr != nil && deps.LogWarning != nil {
 		deps.LogWarning("learn: sidecar write failed for %s: %v", notePath, writeErr)
 	}
+}
+
+// buildEpisodeFields validates and parses LearnArgs into the episodeFields
+// projection used for rendering. Validation here covers required-field
+// presence beyond what targ's `required` tag enforces (empty values for
+// required flags reject) and the --transcript-range format / ordering.
+func buildEpisodeFields(args LearnArgs, luhmann string) (episodeFields, error) {
+	situationErr := validateEpisodeSituation(args.Situation)
+	if situationErr != nil {
+		return episodeFields{}, situationErr
+	}
+
+	summaries, summaryErr := validateEpisodeSummaries(args.Summaries)
+	if summaryErr != nil {
+		return episodeFields{}, summaryErr
+	}
+
+	outcomes, outcomeErr := validateEpisodeOutcomes(args.Outcomes)
+	if outcomeErr != nil {
+		return episodeFields{}, outcomeErr
+	}
+
+	sessions, sessionErr := validateEpisodeSessions(args.Sessions)
+	if sessionErr != nil {
+		return episodeFields{}, sessionErr
+	}
+
+	start, end, rangeErr := parseTranscriptRange(args.TranscriptRange)
+	if rangeErr != nil {
+		return episodeFields{}, rangeErr
+	}
+
+	return episodeFields{
+		Situation:       args.Situation,
+		Summaries:       summaries,
+		Outcomes:        outcomes,
+		Sessions:        sessions,
+		TranscriptStart: start,
+		TranscriptEnd:   end,
+		Luhmann:         luhmann,
+		Source:          args.Source,
+	}, nil
 }
 
 // extractLuhmannFromFilename strips the `.md` extension and delegates to
@@ -244,6 +346,89 @@ func newOsLearnDeps() LearnDeps {
 		WriteSidecar: vaultFS.WriteSidecar,
 		LogWarning:   logWarningToStderrf,
 	}
+}
+
+// parseTranscriptRange parses a "<RFC3339-start>..<RFC3339-end>" string into
+// its two RFC3339 components. Returns an error if the literal is malformed,
+// either side fails to parse as RFC3339, or start is not strictly before end.
+func parseTranscriptRange(raw string) (string, string, error) {
+	if raw == "" {
+		return "", "", errEpisodeTranscriptRangeReq
+	}
+
+	const sep = ".."
+
+	startRaw, endRaw, ok := strings.Cut(raw, sep)
+	if !ok || startRaw == "" || endRaw == "" {
+		return "", "", fmt.Errorf("%w: got %q", errEpisodeTranscriptRangeFmt, raw)
+	}
+
+	start, startErr := time.Parse(time.RFC3339, startRaw)
+	if startErr != nil {
+		return "", "", fmt.Errorf("%w: start %q: %w", errEpisodeTranscriptRangeFmt, startRaw, startErr)
+	}
+
+	end, endErr := time.Parse(time.RFC3339, endRaw)
+	if endErr != nil {
+		return "", "", fmt.Errorf("%w: end %q: %w", errEpisodeTranscriptRangeFmt, endRaw, endErr)
+	}
+
+	if !start.Before(end) {
+		return "", "", fmt.Errorf("%w: %s..%s", errEpisodeTranscriptRangeOrder, startRaw, endRaw)
+	}
+
+	return startRaw, endRaw, nil
+}
+
+// renderEpisodeBody assembles the body of an episode note: summary
+// paragraph(s) followed by an "## Outcomes" bulleted list followed by the
+// related-to block. No auto-prefix line (unlike facts/feedback).
+func renderEpisodeBody(f episodeFields, relatedSection string) string {
+	var builder strings.Builder
+
+	for index, paragraph := range f.Summaries {
+		if index > 0 {
+			builder.WriteString("\n")
+		}
+
+		builder.WriteString(paragraph)
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString("\n## Outcomes\n")
+
+	for _, outcome := range f.Outcomes {
+		builder.WriteString("- ")
+		builder.WriteString(outcome)
+		builder.WriteString("\n")
+	}
+
+	if relatedSection != "" {
+		builder.WriteString("\n")
+		builder.WriteString(relatedSection)
+	}
+
+	return builder.String()
+}
+
+// renderEpisodeFrontmatter encodes an episode's metadata as YAML wrapped in
+// "---" delimiters. Key order is fixed by the field declaration order on
+// episodeFrontmatterDoc / episodeProvenanceDoc.
+func renderEpisodeFrontmatter(f episodeFields, when time.Time) string {
+	return marshalFrontmatter(episodeFrontmatterDoc{
+		Type:      typeEpisode,
+		Situation: f.Situation,
+		Provenance: episodeProvenanceDoc{
+			Sessions: f.Sessions,
+			TranscriptRange: episodeTranscriptDoc{
+				Start: f.TranscriptStart,
+				End:   f.TranscriptEnd,
+			},
+		},
+		Luhmann: quotedString(f.Luhmann),
+		Created: when.Format(dateFormat),
+		Source:  f.Source,
+	})
 }
 
 func renderFactBody(f factFields, relatedSection string) string {
@@ -363,6 +548,25 @@ func runLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 	return nil
 }
 
+func runLearnFromEpisodeArgs(ctx context.Context, a LearnEpisodeArgs, stdout io.Writer) error {
+	deps := newOsLearnDeps()
+
+	return runLearn(ctx, LearnArgs{
+		Type:            typeEpisode,
+		Slug:            a.Slug,
+		Vault:           a.Vault,
+		Target:          a.Target,
+		Position:        a.Position,
+		Source:          a.Source,
+		Relations:       a.Relations,
+		Situation:       a.Situation,
+		Summaries:       a.Summaries,
+		Outcomes:        a.Outcomes,
+		Sessions:        a.Sessions,
+		TranscriptRange: a.TranscriptRange,
+	}, deps, stdout)
+}
+
 func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer) error {
 	deps := newOsLearnDeps()
 
@@ -416,6 +620,63 @@ func stripLeadingWhen(situation string) string {
 	}
 
 	return situation
+}
+
+// validateEpisodeOutcomes returns the outcomes slice unchanged on success.
+// Rejects when the slice is empty or any entry is empty/whitespace.
+func validateEpisodeOutcomes(outcomes []string) ([]string, error) {
+	if len(outcomes) == 0 {
+		return nil, errEpisodeOutcomeRequired
+	}
+
+	for _, outcome := range outcomes {
+		if strings.TrimSpace(outcome) == "" {
+			return nil, errEpisodeOutcomeEmpty
+		}
+	}
+
+	return outcomes, nil
+}
+
+// validateEpisodeSessions returns the sessions slice unchanged on success.
+// Rejects when the slice is empty or any entry is empty/whitespace.
+func validateEpisodeSessions(sessions []string) ([]string, error) {
+	if len(sessions) == 0 {
+		return nil, errEpisodeSessionRequired
+	}
+
+	for _, session := range sessions {
+		if strings.TrimSpace(session) == "" {
+			return nil, errEpisodeSessionEmpty
+		}
+	}
+
+	return sessions, nil
+}
+
+// validateEpisodeSituation rejects empty/whitespace situation strings.
+func validateEpisodeSituation(situation string) error {
+	if strings.TrimSpace(situation) == "" {
+		return errEpisodeSituationRequired
+	}
+
+	return nil
+}
+
+// validateEpisodeSummaries returns the summaries slice unchanged on success.
+// Rejects when the slice is empty or any entry is empty/whitespace.
+func validateEpisodeSummaries(summaries []string) ([]string, error) {
+	if len(summaries) == 0 {
+		return nil, errEpisodeSummaryRequired
+	}
+
+	for _, summary := range summaries {
+		if strings.TrimSpace(summary) == "" {
+			return nil, errEpisodeSummaryEmpty
+		}
+	}
+
+	return summaries, nil
 }
 
 // validateSlug returns an error if slug is empty or does not match [a-z0-9-]+.

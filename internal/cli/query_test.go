@@ -135,7 +135,6 @@ func TestQuery_RanksByDescendingCosine(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 
-	//nolint:tagliatelle // mirrors the spec-contract YAML keys from cli/query.go
 	var parsed struct {
 		Items []struct {
 			Path        string   `yaml:"path"`

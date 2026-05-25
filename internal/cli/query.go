@@ -98,8 +98,6 @@ type compatibleSidecar struct {
 // queryBudget reports the totals visible to the caller per the YAML schema.
 // Snake-case keys are spec contract — see
 // docs/superpowers/research/2026-05-24-engram-query-spike.md §Spike query output.
-//
-//nolint:tagliatelle // YAML keys are spec contract
 type queryBudget struct {
 	TotalNotes         int `yaml:"total_notes"`
 	WithEmbeddings     int `yaml:"with_embeddings"`

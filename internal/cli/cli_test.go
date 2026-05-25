@@ -11,6 +11,88 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// TestEngramLearn_Episode_EndToEnd builds the real binary and runs
+// `engram learn episode` against a temp vault. Verifies the rendered
+// note exists with expected filename, has the spec-mandated frontmatter
+// + body shape, and produces the auto-embed sidecar.
+func TestEngramLearn_Episode_EndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	cmd.Dir = projectRoot(t)
+	out, err := cmd.CombinedOutput()
+	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
+
+	if err != nil {
+		return
+	}
+
+	run := exec.Command(binPath, "learn", "episode",
+		"--slug", "smoke-episode",
+		"--vault", vault,
+		"--position", "top",
+		"--source", "smoke test",
+		"--situation", "End-to-end smoke for the episode subcommand",
+		"--summary", "First summary paragraph.",
+		"--summary", "Second summary paragraph.",
+		"--outcome", "smoke outcome one",
+		"--outcome", "smoke outcome two",
+		"--session", "971fc252-8b44-4bd2-b44a-4f44464105eb",
+		"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:30:00Z",
+		"--relation", "157|adjacent",
+	)
+	runOut, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
+
+	if runErr != nil {
+		return
+	}
+
+	expectedPath := filepath.Join(vault, "Permanent")
+	entries, err := os.ReadDir(expectedPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	mdName, sidecarName := splitMdAndSidecar(entries)
+	g.Expect(mdName).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.smoke-episode\.md$`))
+	g.Expect(sidecarName).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.smoke-episode\.vec\.json$`))
+
+	body, err := os.ReadFile(filepath.Join(expectedPath, mdName))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	bodyStr := string(body)
+	g.Expect(bodyStr).To(ContainSubstring("type: episode"))
+	g.Expect(bodyStr).To(ContainSubstring("provenance:"))
+	g.Expect(bodyStr).To(ContainSubstring("- 971fc252-8b44-4bd2-b44a-4f44464105eb"))
+	g.Expect(bodyStr).To(ContainSubstring(`start: "2026-05-25T22:00:00Z"`))
+	g.Expect(bodyStr).To(ContainSubstring(`end: "2026-05-25T23:30:00Z"`))
+	g.Expect(bodyStr).To(ContainSubstring("First summary paragraph."))
+	g.Expect(bodyStr).To(ContainSubstring("Second summary paragraph."))
+	g.Expect(bodyStr).To(ContainSubstring("## Outcomes"))
+	g.Expect(bodyStr).To(ContainSubstring("- smoke outcome one"))
+	g.Expect(bodyStr).To(ContainSubstring("- smoke outcome two"))
+	g.Expect(bodyStr).To(ContainSubstring("Related to:"))
+	g.Expect(bodyStr).To(ContainSubstring("- [[157]] — adjacent."))
+	// No auto-prefix lines.
+	g.Expect(bodyStr).NotTo(ContainSubstring("Information learned"))
+	g.Expect(bodyStr).NotTo(ContainSubstring("Lesson learned"))
+
+	expectSidecarValid(g, filepath.Join(expectedPath, sidecarName))
+}
+
 func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

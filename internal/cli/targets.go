@@ -23,6 +23,20 @@ type CommonLearnArgs struct {
 	Relations []string `targ:"flag,name=relation,desc=related note as <wikilink-target>|<rationale> (repeatable)"`
 }
 
+// LearnEpisodeArgs holds parsed flags for the learn episode subcommand.
+// Episodes record the narrative arc of a session or work segment: what
+// happened, in what order, with what outcomes. See
+// docs/superpowers/research/2026-05-25-episode-kind-spec.md.
+type LearnEpisodeArgs struct {
+	CommonLearnArgs
+
+	Situation       string   `targ:"flag,name=situation,required,desc=narrative situation phrase (required)"`
+	Summaries       []string `targ:"flag,name=summary,required,desc=summary paragraph (repeatable; required)"`
+	Outcomes        []string `targ:"flag,name=outcome,required,desc=outcome bullet (repeatable; required)"`
+	Sessions        []string `targ:"flag,name=session,required,desc=provenance.sessions entry (repeatable; required)"`
+	TranscriptRange string   `targ:"flag,name=transcript-range,required,desc=<RFC3339-start>..<RFC3339-end> (required)"`
+}
+
 // LearnFactArgs holds parsed flags for the learn fact subcommand.
 type LearnFactArgs struct {
 	CommonLearnArgs
@@ -109,6 +123,10 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, stdout))
 			}).Name("fact").Description("Write a fact note to Permanent/"),
+			targ.Targ(func(ctx context.Context, a LearnEpisodeArgs) {
+				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
+				errHandler(runLearnFromEpisodeArgs(withLog(ctx), a, stdout))
+			}).Name("episode").Description("Write an episode note to Permanent/"),
 		),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
 			errHandler(runUpdate(withLog(ctx), a, stdout))

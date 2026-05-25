@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"strings"
@@ -12,7 +13,453 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/embed"
 )
+
+// TestEngramLearn_Episode_AutoEmbedsSidecar verifies an episode write
+// produces a `.vec.json` sidecar via the same auto-embed path
+// facts/feedback use. Uses a fake embedder and captures the sidecar
+// path/bytes that hit WriteSidecar.
+func TestEngramLearn_Episode_AutoEmbedsSidecar(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		sidecarPath  string
+		sidecarBytes []byte
+	)
+
+	deps := cli.LearnDeps{
+		Now:      func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:   func(string) string { return "" },
+		StatDir:  func(string) error { return nil },
+		ListIDs:  func(string) ([]string, error) { return nil, nil },
+		Lock:     func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(string, []byte) error { return nil },
+		Embedder: successEmbedder{},
+		WriteSidecar: func(path string, data []byte) error {
+			sidecarPath = path
+			sidecarBytes = data
+
+			return nil
+		},
+		LogWarning: func(string, ...any) {
+			t.Fatal("happy path should not warn")
+		},
+	}
+
+	args := cli.LearnArgs{
+		Type:            "episode",
+		Slug:            "embed-shape",
+		Vault:           "/v",
+		Position:        "top",
+		Source:          "src",
+		Situation:       "embedding check",
+		Summaries:       []string{"summary body."},
+		Outcomes:        []string{"outcome."},
+		Sessions:        []string{"sess"},
+		TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(sidecarPath).To(Equal("/v/Permanent/1.2026-05-25.embed-shape.vec.json"))
+
+	var parsed embed.Sidecar
+	g.Expect(json.Unmarshal(sidecarBytes, &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.EmbeddingModelID).To(Equal("m@4"))
+	g.Expect(parsed.Dims).To(Equal(4))
+	g.Expect(parsed.Vector).To(HaveLen(4))
+	g.Expect(parsed.ContentHash).To(HavePrefix("sha256:"))
+}
+
+// TestEngramLearn_Episode_LuhmannPlacement exercises the three
+// --position values (top, continuation, sibling) against a fixed
+// existing-IDs list and verifies the computed filename has the correct
+// Luhmann ID and the frontmatter's luhmann field matches.
+func TestEngramLearn_Episode_LuhmannPlacement(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		target   string
+		position string
+		wantID   string
+	}{
+		{name: "top", position: "top", wantID: "11"},
+		{name: "continuation", target: "1", position: "continuation", wantID: "1c"},
+		{name: "sibling", target: "1b", position: "sibling", wantID: "1c"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			var (
+				writtenPath    string
+				writtenContent []byte
+			)
+
+			deps := cli.LearnDeps{
+				Now:     func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+				Getenv:  func(string) string { return "" },
+				StatDir: func(string) error { return nil },
+				ListIDs: func(string) ([]string, error) {
+					return []string{"1", "1a", "1b", "2", "10"}, nil
+				},
+				Lock: func(string) (func(), error) { return func() {}, nil },
+				WriteNew: func(path string, data []byte) error {
+					writtenPath = path
+					writtenContent = data
+
+					return nil
+				},
+			}
+
+			args := cli.LearnArgs{
+				Type:            "episode",
+				Slug:            "placement",
+				Vault:           "/v",
+				Target:          tc.target,
+				Position:        tc.position,
+				Source:          "src",
+				Situation:       "ordering",
+				Summaries:       []string{"summary"},
+				Outcomes:        []string{"outcome"},
+				Sessions:        []string{"sess"},
+				TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+			}
+
+			var stdout strings.Builder
+
+			err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			if err != nil {
+				return
+			}
+
+			expectedPath := "/v/Permanent/" + tc.wantID + ".2026-05-25.placement.md"
+			g.Expect(writtenPath).To(Equal(expectedPath))
+			g.Expect(string(writtenContent)).To(ContainSubstring(`luhmann: "` + tc.wantID + `"`))
+		})
+	}
+}
+
+// TestEngramLearn_Episode_OutcomeRepeatable verifies that multiple
+// --outcome flags emit in the input order as a bulleted list under the
+// "## Outcomes" header.
+func TestEngramLearn_Episode_OutcomeRepeatable(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:     func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		ListIDs: func(string) ([]string, error) { return nil, nil },
+		Lock:    func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error {
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	outcomes := []string{
+		"first outcome — landed.",
+		"second outcome — dispatched.",
+		"third outcome — captured.",
+	}
+
+	args := cli.LearnArgs{
+		Type:            "episode",
+		Slug:            "outcome-order",
+		Vault:           "/v",
+		Position:        "top",
+		Source:          "src",
+		Situation:       "ordering check",
+		Summaries:       []string{"summary"},
+		Outcomes:        outcomes,
+		Sessions:        []string{"sess"},
+		TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(writtenContent)
+	// Outcomes appear in order and immediately under "## Outcomes".
+	expected := "## Outcomes\n- first outcome — landed.\n- second outcome — dispatched.\n- third outcome — captured.\n"
+	g.Expect(body).To(ContainSubstring(expected))
+}
+
+// TestEngramLearn_Episode_ProvenanceRequired covers the required-field
+// validation surface for episodes: missing or empty --situation,
+// --summary, --outcome, --session, missing or malformed
+// --transcript-range, unparseable RFC3339 component, and non-ordered
+// range (start >= end).
+func TestEngramLearn_Episode_ProvenanceRequired(t *testing.T) {
+	t.Parallel()
+
+	baseArgs := func() cli.LearnArgs {
+		return cli.LearnArgs{
+			Type:            "episode",
+			Slug:            "x",
+			Vault:           "/v",
+			Position:        "top",
+			Source:          "src",
+			Situation:       "s",
+			Summaries:       []string{"summary"},
+			Outcomes:        []string{"outcome"},
+			Sessions:        []string{"sess"},
+			TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+		}
+	}
+
+	cases := []struct {
+		name      string
+		mutate    func(*cli.LearnArgs)
+		expectMsg string
+	}{
+		{
+			name:      "missing --situation",
+			mutate:    func(a *cli.LearnArgs) { a.Situation = "" },
+			expectMsg: "--situation",
+		},
+		{
+			name:      "whitespace --situation",
+			mutate:    func(a *cli.LearnArgs) { a.Situation = "   " },
+			expectMsg: "--situation",
+		},
+		{
+			name:      "missing --summary",
+			mutate:    func(a *cli.LearnArgs) { a.Summaries = nil },
+			expectMsg: "--summary",
+		},
+		{
+			name:      "empty --summary entry",
+			mutate:    func(a *cli.LearnArgs) { a.Summaries = []string{""} },
+			expectMsg: "--summary",
+		},
+		{
+			name:      "missing --outcome",
+			mutate:    func(a *cli.LearnArgs) { a.Outcomes = nil },
+			expectMsg: "--outcome",
+		},
+		{
+			name:      "empty --outcome entry",
+			mutate:    func(a *cli.LearnArgs) { a.Outcomes = []string{""} },
+			expectMsg: "--outcome",
+		},
+		{
+			name:      "missing --session",
+			mutate:    func(a *cli.LearnArgs) { a.Sessions = nil },
+			expectMsg: "--session",
+		},
+		{
+			name:      "empty --session entry",
+			mutate:    func(a *cli.LearnArgs) { a.Sessions = []string{""} },
+			expectMsg: "--session",
+		},
+		{
+			name:      "missing --transcript-range",
+			mutate:    func(a *cli.LearnArgs) { a.TranscriptRange = "" },
+			expectMsg: "transcript-range",
+		},
+		{
+			name:      "malformed --transcript-range (no separator)",
+			mutate:    func(a *cli.LearnArgs) { a.TranscriptRange = "2026-05-25T22:00:00Z" },
+			expectMsg: "transcript-range",
+		},
+		{
+			name:      "unparseable RFC3339 start",
+			mutate:    func(a *cli.LearnArgs) { a.TranscriptRange = "yesterday..2026-05-25T23:00:00Z" },
+			expectMsg: "transcript-range",
+		},
+		{
+			name:      "unparseable RFC3339 end",
+			mutate:    func(a *cli.LearnArgs) { a.TranscriptRange = "2026-05-25T22:00:00Z..nope" },
+			expectMsg: "transcript-range",
+		},
+		{
+			name:      "start > end",
+			mutate:    func(a *cli.LearnArgs) { a.TranscriptRange = "2026-05-25T23:00:00Z..2026-05-25T22:00:00Z" },
+			expectMsg: "transcript-range",
+		},
+		{
+			name:      "start == end",
+			mutate:    func(a *cli.LearnArgs) { a.TranscriptRange = "2026-05-25T22:00:00Z..2026-05-25T22:00:00Z" },
+			expectMsg: "transcript-range",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			deps := cli.LearnDeps{
+				Now:      func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+				Getenv:   func(string) string { return "" },
+				StatDir:  func(string) error { return nil },
+				ListIDs:  func(string) ([]string, error) { return nil, nil },
+				Lock:     func(string) (func(), error) { return func() {}, nil },
+				WriteNew: func(string, []byte) error { return nil },
+			}
+
+			args := baseArgs()
+			tc.mutate(&args)
+
+			var stdout strings.Builder
+
+			err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(err.Error()).To(ContainSubstring(tc.expectMsg))
+		})
+	}
+}
+
+// TestEngramLearn_Episode_RenderingShape verifies the rendered episode
+// note has the spec-mandated frontmatter keys (type=episode, nested
+// provenance.sessions and provenance.transcript_range, standard
+// luhmann/created/source) and the spec-mandated body (summary paragraph
+// + "## Outcomes" bulleted list + Related-to block, with no auto-prefix
+// "Information learned" / "Lesson learned" line).
+func TestEngramLearn_Episode_RenderingShape(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:     func() time.Time { return time.Date(2026, time.May, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		ListIDs: func(string) ([]string, error) { return nil, nil },
+		Lock:    func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error {
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	args := cli.LearnArgs{
+		Type:            "episode",
+		Slug:            "episode-shape",
+		Vault:           "/vault",
+		Position:        "top",
+		Source:          "session log engram, 2026-05-25",
+		Situation:       "Sharpening the F1 episode spec",
+		Summaries:       []string{"Wrote the spec; dispatched implementation."},
+		Outcomes:        []string{"Spec landed.", "Implementation dispatched."},
+		Sessions:        []string{"971fc252-8b44-4bd2-b44a-4f44464105eb"},
+		TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:30:00Z",
+		Relations:       []string{"157|applied subtraction"},
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(writtenContent)
+	// Frontmatter
+	g.Expect(body).To(ContainSubstring("type: episode"))
+	g.Expect(body).To(ContainSubstring("situation: Sharpening the F1 episode spec"))
+	g.Expect(body).To(ContainSubstring("provenance:"))
+	g.Expect(body).To(ContainSubstring("sessions:"))
+	g.Expect(body).To(ContainSubstring("- 971fc252-8b44-4bd2-b44a-4f44464105eb"))
+	g.Expect(body).To(ContainSubstring("transcript_range:"))
+	g.Expect(body).To(ContainSubstring(`start: "2026-05-25T22:00:00Z"`))
+	g.Expect(body).To(ContainSubstring(`end: "2026-05-25T23:30:00Z"`))
+	g.Expect(body).To(ContainSubstring(`luhmann: "1"`))
+	g.Expect(body).To(ContainSubstring(`created: "2026-05-25"`))
+	g.Expect(body).To(ContainSubstring("source: session log engram, 2026-05-25"))
+	// Body: no auto-prefix lines, summary paragraph, outcomes header, bullets, related block.
+	g.Expect(body).NotTo(ContainSubstring("Information learned"))
+	g.Expect(body).NotTo(ContainSubstring("Lesson learned"))
+	g.Expect(body).To(ContainSubstring("Wrote the spec; dispatched implementation."))
+	g.Expect(body).To(ContainSubstring("## Outcomes"))
+	g.Expect(body).To(ContainSubstring("- Spec landed."))
+	g.Expect(body).To(ContainSubstring("- Implementation dispatched."))
+	g.Expect(body).To(ContainSubstring("Related to:"))
+	g.Expect(body).To(ContainSubstring("- [[157]] — applied subtraction."))
+}
+
+// TestEngramLearn_Episode_SummaryParagraphs verifies that multiple
+// --summary flags concatenate as separate paragraphs (blank line between
+// them) in the body, in the input order, before the "## Outcomes"
+// header.
+func TestEngramLearn_Episode_SummaryParagraphs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:     func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		ListIDs: func(string) ([]string, error) { return nil, nil },
+		Lock:    func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error {
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	args := cli.LearnArgs{
+		Type:            "episode",
+		Slug:            "para-order",
+		Vault:           "/v",
+		Position:        "top",
+		Source:          "src",
+		Situation:       "paragraph ordering",
+		Summaries:       []string{"first paragraph.", "second paragraph.", "third paragraph."},
+		Outcomes:        []string{"outcome"},
+		Sessions:        []string{"sess"},
+		TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(writtenContent)
+	// Each paragraph occupies its own line, separated by a blank line; the
+	// last paragraph is immediately followed by the blank line that
+	// precedes "## Outcomes".
+	expected := "first paragraph.\n\nsecond paragraph.\n\nthird paragraph.\n\n## Outcomes\n"
+	g.Expect(body).To(ContainSubstring(expected))
+}
 
 func TestExtractLuhmannFromFilename(t *testing.T) {
 	t.Parallel()

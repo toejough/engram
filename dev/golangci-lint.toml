@@ -133,6 +133,10 @@ field-writes-are-uses = false
 exported-fields-are-used = false
 local-variables-are-used = false
 
+[linters.settings.tagliatelle.case.rules]
+# Project convention: YAML keys are snake_case (vault frontmatter spec).
+yaml = 'snake'
+
 [linters.settings.wrapcheck]
 # Allow internal packages without wrapping (they're part of this project)
 ignore-package-globs = ['*/internal/*']

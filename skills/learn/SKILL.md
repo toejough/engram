@@ -61,14 +61,17 @@ Default to firing after any action that meets the description threshold: post-re
 
 ## What to write
 
-Two kinds of notes, distinguished by why a future agent would want them:
+Three kinds of notes, distinguished by why a future agent would want them:
 
 - **Feedback** — anything you'd do differently next time. Mistakes, user corrections, reasonable actions that didn't pan out, dead-ends, surprising costs. The note exists so future-you avoids the same loss.
 - **Fact** — anything else that would help reach the right outcome more efficiently (time- or cost-wise) in similar situations. Tool behaviors, idioms, conventions, integration shapes, gotchas, the way a thing actually works. The note exists so future-you spends less to get to the same right answer.
+- **Episode** — narrative arc of a session or work segment. "What I did, in what order, with what outcomes." Project names, dates, first-person framing all OK; vocabulary stays verbatim. The note exists so future-you can answer "what was I working on" and trace where facts/feedback came from.
 
-If a single observation has both a "should have done X" component and a "here's how Y works" component, write two notes — one Feedback, one Fact.
+If a single observation has both a "should have done X" component and a "here's how Y works" component, write two notes — one Feedback, one Fact. Episodes are independent: at most one per /learn pass, alongside any facts/feedback that pass the recall-mirror test.
 
 ## Workflow
+
+> **Two parallel tracks.** §§1–5 cover **facts/feedback** — retrieval-shaped notes scanned per-candidate from session activity. **Episodes** are decided once per pass (one-time, not per-candidate) and follow a different pipeline — see §6a. Episodes do NOT go through locus classification (§1), path A/B/C selection (§2), the recall-mirror test (§3), or the Feedback-vs-Fact categorization (§4). When in doubt about whether something is an episode, fact, or feedback: principles → fact; "do differently next time" → feedback; narrative arc of the session → episode.
 
 ### 1. Identify candidates
 
@@ -197,6 +200,39 @@ engram learn fact \
   --situation "..." --subject "..." --predicate "..." --object "..." \
   --relation "<wikilink>|<rationale>"
 ```
+
+#### 6a. Episodes — narrative connective tissue
+
+**At most one episode per /learn pass.** Skip when the session is a continuation with no narrative arc of its own (you picked up where the last session left off; nothing new structurally happened). Write one when the session has a discrete shape — opened, drove some work, produced outcomes.
+
+**Voice + vocabulary discipline** (full rules:
+`docs/superpowers/research/2026-05-25-episode-kind-spec.md`):
+
+- **Voice freedom** — first-person, project names, dates, file paths, commit SHAs, error strings all OK. Episodes are the place for "I did X then Y because Z" framing that facts/feedback forbid.
+- **Vocabulary fidelity** — named decisions, session IDs, file paths, commit SHAs, error strings stay verbatim. Do not paraphrase a session ID; do not re-name a decision.
+- **Episodes are connective tissue, not analysis.** Principles → write a fact. "Do X differently next time" → write feedback. Episodes narrate what happened so future-you can trace where the facts/feedback came from.
+
+**Path A/B/C and the recall-mirror test do NOT apply to episodes.** Those rules govern facts/feedback because facts/feedback are retrieved by phrase-matching against future plans. Episodes are retrieved through the situational stream (project context, time range, related-note traversal), so the `situation` field is a narrative phrase locating the work (project, dates, file paths OK), not a retrieval-shaped "When …" string.
+
+**Invocation:**
+
+```
+engram learn episode \
+  --slug <kebab-case-tag> \
+  --target <id-or-empty> \
+  --position <top|continuation|sibling> \
+  --source "..." \
+  --situation "<narrative phrase locating the work>" \
+  --summary "<paragraph>" --summary "<another paragraph>" \
+  --outcome "<bullet 1>" --outcome "<bullet 2>" --outcome "<bullet 3>" \
+  --session "<session-id-or-transcript-filename>" \
+  --transcript-range "<RFC3339-start>..<RFC3339-end>" \
+  --relation "<wikilink>|<rationale>"
+```
+
+Repeatable: `--summary` (each is one paragraph), `--outcome` (each is one bullet), `--session` (multi-session is rare; default is one), `--relation`. Required: `--slug`, `--source`, `--situation`, `--summary`, `--outcome`, `--session`, `--transcript-range`.
+
+**Related links between episodes and facts/feedback are encouraged but not required.** Episodes MAY `--relation` forward to facts/feedback they spawned; facts/feedback MAY `--relation` back to the episode they came from. Backlinks are not synthesized — both directions are explicit `--relation` flags at write time.
 
 ### 7. Contradictions
 
