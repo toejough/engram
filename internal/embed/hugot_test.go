@@ -40,6 +40,19 @@ func TestBundledHugotEmbedder_Smoke(t *testing.T) {
 	vec, embErr := embedder.Embed(t.Context(), "hello world")
 	g.Expect(embErr).NotTo(HaveOccurred())
 	g.Expect(vec).To(HaveLen(expectedDims))
+
+	// Send a very long input to exercise the >hugotInputCharLimit
+	// truncation branch in HugotEmbedder.Embed.
+	const longLen = 4000
+
+	longText := make([]byte, longLen)
+	for i := range longText {
+		longText[i] = 'a' + byte(i%26)
+	}
+
+	vec2, embErr2 := embedder.Embed(t.Context(), string(longText))
+	g.Expect(embErr2).NotTo(HaveOccurred())
+	g.Expect(vec2).To(HaveLen(expectedDims))
 }
 
 func TestT10_MissingBundledModel_ClearError(t *testing.T) {

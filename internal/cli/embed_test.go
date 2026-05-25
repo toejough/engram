@@ -86,9 +86,7 @@ func TestEmbedApply_StaleVsIncompatibleDistinction(t *testing.T) {
 		Vector:           []float32{1, 1, 1, 1},
 		ContentHash:      embed.ContentHash(noteBody),
 	}
-	incompatBytes, marshalErr := embed.MarshalSidecar(incompatSidecar)
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
+	incompatBytes := embed.MarshalSidecar(incompatSidecar)
 	memFS.files[scPath] = incompatBytes
 
 	// --stale should not touch incompatible sidecars.

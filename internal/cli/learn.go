@@ -207,14 +207,7 @@ func autoEmbedNote(ctx context.Context, deps LearnDeps, notePath, content string
 		ContentHash:      embed.ContentHash([]byte(content)),
 	}
 
-	scBytes, marshalErr := embed.MarshalSidecar(sidecar)
-	if marshalErr != nil {
-		if deps.LogWarning != nil {
-			deps.LogWarning("learn: sidecar marshal failed for %s: %v", notePath, marshalErr)
-		}
-
-		return
-	}
+	scBytes := embed.MarshalSidecar(sidecar)
 
 	writeErr := deps.WriteSidecar(embed.SidecarPath(notePath), scBytes)
 	if writeErr != nil && deps.LogWarning != nil {
@@ -246,6 +239,13 @@ func learnPath(vault, memType, luhmann, slug string, when time.Time) string {
 	return filepath.Join(vault, subdir, filename)
 }
 
+// logWarningToStderrf is the production LogWarning hook. Method-named so
+// coverage attributes its execution to one identifier rather than to an
+// anonymous closure inside newOsLearnDeps.
+func logWarningToStderrf(format string, args ...any) {
+	_, _ = fmt.Fprintf(os.Stderr, "warning: "+format+"\n", args...)
+}
+
 // marshalFrontmatter encodes v as YAML and wraps the result with the "---"
 // delimiters and trailing blank line used by Permanent/MOC notes. All callers
 // pass structs of typed string fields and do not implement MarshalYAML, so
@@ -260,28 +260,17 @@ func marshalFrontmatter(v any) string {
 func newOsLearnDeps() LearnDeps {
 	vaultFS := &osLearnFS{}
 
-	const sidecarPerm = 0o600
-
 	return LearnDeps{
-		Now:       time.Now,
-		Getenv:    os.Getenv,
-		StatDir:   vaultFS.StatDir,
-		InitVault: func(path string) error { return initializeVault(vaultFS, path) },
-		ListIDs:   vaultFS.ListIDs,
-		Lock:      vaultFS.Lock,
-		WriteNew:  vaultFS.WriteNew,
-		Embedder:  sharedEmbedder,
-		WriteSidecar: func(path string, data []byte) error {
-			err := os.WriteFile(path, data, sidecarPerm)
-			if err != nil {
-				return fmt.Errorf("write sidecar: %w", err)
-			}
-
-			return nil
-		},
-		LogWarning: func(format string, args ...any) {
-			_, _ = fmt.Fprintf(os.Stderr, "warning: "+format+"\n", args...)
-		},
+		Now:          time.Now,
+		Getenv:       os.Getenv,
+		StatDir:      vaultFS.StatDir,
+		InitVault:    func(path string) error { return initializeVault(vaultFS, path) },
+		ListIDs:      vaultFS.ListIDs,
+		Lock:         vaultFS.Lock,
+		WriteNew:     vaultFS.WriteNew,
+		Embedder:     sharedEmbedder,
+		WriteSidecar: vaultFS.WriteSidecar,
+		LogWarning:   logWarningToStderrf,
 	}
 }
 

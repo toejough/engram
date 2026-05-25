@@ -12,35 +12,6 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestAutoEmbedNote_NilEmbedderIsNoOp asserts the helper returns early
-// when no embedder is wired — used by tests that don't exercise the
-// embedding pipeline.
-func TestAutoEmbedNote_NilEmbedderIsNoOp(t *testing.T) {
-	t.Parallel()
-
-	deps := cli.LearnDeps{
-		WriteSidecar: func(string, []byte) error {
-			t.Fatal("WriteSidecar should not be called when Embedder is nil")
-
-			return nil
-		},
-	}
-
-	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
-}
-
-// TestAutoEmbedNote_NilWriterIsNoOp asserts the helper returns early
-// when WriteSidecar is unset — same shape, opposite arm.
-func TestAutoEmbedNote_NilWriterIsNoOp(t *testing.T) {
-	t.Parallel()
-
-	deps := cli.LearnDeps{
-		Embedder: failingEmbedder{},
-	}
-
-	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
-}
-
 // TestAutoEmbedNote_EmbedFailureWarnsButReturns asserts the warn-and-
 // proceed semantics (UAT 3 spec): embed failure is logged, sidecar is
 // not written, but the caller's learn write succeeds.
@@ -67,25 +38,6 @@ func TestAutoEmbedNote_EmbedFailureWarnsButReturns(t *testing.T) {
 
 	g.Expect(warned).To(BeTrue())
 	g.Expect(wroteSidecar).To(BeFalse())
-}
-
-// TestAutoEmbedNote_WriteFailureLoggedButSwallowed asserts that even a
-// failed sidecar write doesn't propagate — warn-and-proceed.
-func TestAutoEmbedNote_WriteFailureLoggedButSwallowed(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	var warned bool
-
-	deps := cli.LearnDeps{
-		Embedder:     successEmbedder{},
-		WriteSidecar: func(string, []byte) error { return errors.New("disk full") },
-		LogWarning:   func(string, ...any) { warned = true },
-	}
-
-	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
-	g.Expect(warned).To(BeTrue())
 }
 
 // TestAutoEmbedNote_HappyPathWritesValidSidecar asserts the happy path:
@@ -124,18 +76,73 @@ func TestAutoEmbedNote_HappyPathWritesValidSidecar(t *testing.T) {
 	g.Expect(parsed.ContentHash).To(HavePrefix("sha256:"))
 }
 
+// TestAutoEmbedNote_NilEmbedderIsNoOp asserts the helper returns early
+// when no embedder is wired — used by tests that don't exercise the
+// embedding pipeline.
+func TestAutoEmbedNote_NilEmbedderIsNoOp(t *testing.T) {
+	t.Parallel()
+
+	deps := cli.LearnDeps{
+		WriteSidecar: func(string, []byte) error {
+			t.Fatal("WriteSidecar should not be called when Embedder is nil")
+
+			return nil
+		},
+	}
+
+	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
+}
+
+// TestAutoEmbedNote_NilWriterIsNoOp asserts the helper returns early
+// when WriteSidecar is unset — same shape, opposite arm.
+func TestAutoEmbedNote_NilWriterIsNoOp(t *testing.T) {
+	t.Parallel()
+
+	deps := cli.LearnDeps{
+		Embedder: failingEmbedder{},
+	}
+
+	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
+}
+
+// TestAutoEmbedNote_WriteFailureLoggedButSwallowed asserts that even a
+// failed sidecar write doesn't propagate — warn-and-proceed.
+func TestAutoEmbedNote_WriteFailureLoggedButSwallowed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var warned bool
+
+	deps := cli.LearnDeps{
+		Embedder:     successEmbedder{},
+		WriteSidecar: func(string, []byte) error { return errors.New("disk full") },
+		LogWarning:   func(string, ...any) { warned = true },
+	}
+
+	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
+	g.Expect(warned).To(BeTrue())
+}
+
+// unexported variables.
+var (
+	errEmbedDown = errors.New("embedder down")
+)
+
 type failingEmbedder struct{}
 
-func (failingEmbedder) Dims() int                                              { return 4 }
-func (failingEmbedder) Embed(context.Context, string) ([]float32, error)       { return nil, errEmbedDown }
-func (failingEmbedder) ModelID() string                                        { return "m@4" }
+func (failingEmbedder) Dims() int { return 4 }
+
+func (failingEmbedder) Embed(context.Context, string) ([]float32, error) { return nil, errEmbedDown }
+
+func (failingEmbedder) ModelID() string { return "m@4" }
 
 type successEmbedder struct{}
 
 func (successEmbedder) Dims() int { return 4 }
+
 func (successEmbedder) Embed(context.Context, string) ([]float32, error) {
 	return []float32{0.1, 0.2, 0.3, 0.4}, nil
 }
-func (successEmbedder) ModelID() string { return "m@4" }
 
-var errEmbedDown = errors.New("embedder down")
+func (successEmbedder) ModelID() string { return "m@4" }

@@ -18,12 +18,7 @@ func TestMarshalUnmarshal_RoundTrip(t *testing.T) {
 		Vector:           []float32{0.1, 0.2, 0.3},
 		ContentHash:      "sha256:deadbeef",
 	}
-	encoded, err := embed.MarshalSidecar(original)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
+	encoded := embed.MarshalSidecar(original)
 
 	out, parseErr := embed.UnmarshalSidecar(encoded)
 	g.Expect(parseErr).NotTo(HaveOccurred())

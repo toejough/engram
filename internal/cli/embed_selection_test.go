@@ -9,15 +9,46 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+// TestKindFromContent covers the frontmatter type-extraction's three
+// outcomes: too-short content, missing type line, and a parsed kind.
+func TestKindFromContent(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{"empty content", "", "unknown"},
+		{"shorter than minViableLen", "---", "unknown"},
+		{"no type line", "---\nsituation: x\n---\nbody", "unknown"},
+		{"valid fact frontmatter", "---\ntype: fact\nluhmann: \"1\"\n---\nbody", "fact"},
+		{"valid feedback frontmatter", "---\ntype: feedback\n---\nbody", "feedback"},
+		{
+			"type line beyond max scan returns unknown",
+			"---\n" + repeat("a: b\n", 80) + "type: fact\n---\nbody",
+			"unknown",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+			g.Expect(cli.ExportKindFromContent(tc.content)).To(Equal(tc.want))
+		})
+	}
+}
+
 // TestSelectStates exercises every flag combination so the
 // shouldEmbed dispatcher covers every State branch.
 func TestSelectStates(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name             string
-		args             cli.EmbedApplyArgs
-		expectByState    map[embed.State]bool
+		name          string
+		args          cli.EmbedApplyArgs
+		expectByState map[embed.State]bool
 	}{
 		{
 			name: "empty selection defaults to missing only",
@@ -81,56 +112,15 @@ func TestSelectStates(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
 
-			selection := cli.ExportSelectStates(tc.args)
+			// ExportSelectStates is exposed for documentation; the
+			// real assertions are on shouldEmbed below.
+			_ = cli.ExportSelectStates(tc.args)
 
-			// Probe every state through the selection's shouldEmbed
-			// behavior — encoded via a tiny round-trip through the
-			// public API rather than poking selection internals.
-			for _, state := range []embed.State{
-				embed.StateOK, embed.StateMissing, embed.StateStale,
-				embed.StateIncompatible, embed.StateBroken,
-			} {
-				_ = state
+			for state, want := range tc.expectByState {
+				got := cli.ExportShouldEmbed(tc.args, state)
+				g.Expect(got).To(Equal(want),
+					"args=%+v state=%s want=%v got=%v", tc.args, state, want, got)
 			}
-
-			// The selection is a value type; we don't expose its
-			// fields directly, but the expected-by-state map is what
-			// shouldEmbed should return. Verify via the public surface
-			// (RunEmbedApply with one note per state) in companion
-			// tests; here we at least assert the selection is
-			// constructable for every flag combination.
-			g.Expect(selection).NotTo(BeNil())
-		})
-	}
-}
-
-// TestKindFromContent covers the frontmatter type-extraction's three
-// outcomes: too-short content, missing type line, and a parsed kind.
-func TestKindFromContent(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name    string
-		content string
-		want    string
-	}{
-		{"empty content", "", "unknown"},
-		{"shorter than minViableLen", "---", "unknown"},
-		{"no type line", "---\nsituation: x\n---\nbody", "unknown"},
-		{"valid fact frontmatter", "---\ntype: fact\nluhmann: \"1\"\n---\nbody", "fact"},
-		{"valid feedback frontmatter", "---\ntype: feedback\n---\nbody", "feedback"},
-		{
-			"type line beyond max scan returns unknown",
-			"---\n" + repeat("a: b\n", 80) + "type: fact\n---\nbody",
-			"unknown",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-			g.Expect(cli.ExportKindFromContent(tc.content)).To(Equal(tc.want))
 		})
 	}
 }

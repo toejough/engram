@@ -220,6 +220,21 @@ func (*osLearnFS) WriteNew(path string, data []byte) error {
 	return nil
 }
 
+// WriteSidecar writes a .vec.json sidecar to path with 0o600 perms. Used
+// by autoEmbedNote after a successful note write; lives on osLearnFS so
+// the production wiring uses a named method (visible to coverage) instead
+// of an anonymous closure.
+func (*osLearnFS) WriteSidecar(path string, data []byte) error {
+	const perm = 0o600
+
+	err := os.WriteFile(path, data, perm)
+	if err != nil {
+		return fmt.Errorf("write sidecar: %w", err)
+	}
+
+	return nil
+}
+
 // buildSubdirMap returns a basename→subdir-name lookup for every note in the vault.
 // "MOCs" or "Permanent" — used to format recall output as full relative paths.
 func buildSubdirMap(notes []vaultgraph.Note) map[string]bool {

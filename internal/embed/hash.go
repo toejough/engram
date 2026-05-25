@@ -6,8 +6,6 @@ import (
 	"encoding/hex"
 )
 
-const frontmatterDelim = "---\n"
-
 // ContentHash returns a sha256: prefixed hex digest of the note's body
 // (frontmatter stripped). Used to detect stale sidecars when a note's
 // body has changed.
@@ -41,3 +39,8 @@ func ExtractBody(raw []byte) []byte {
 
 	return bytes.TrimPrefix(body, []byte("\n"))
 }
+
+// unexported constants.
+const (
+	frontmatterDelim = "---\n"
+)

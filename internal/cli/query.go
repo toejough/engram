@@ -71,7 +71,7 @@ const (
 	unknownKind       = "unknown"
 )
 
-// unexported sentinel errors.
+// unexported variables.
 var (
 	errQueryEmptyString  = errors.New("query: empty query string")
 	errQueryNoEmbeddings = errors.New(

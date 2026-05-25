@@ -264,6 +264,20 @@ func TestTargets(t *testing.T) {
 	})
 }
 
+// TestTargets_EmbedApplyDryRun exercises embed apply closure with --dry-run
+// against an empty vault. Lazy embedder's ModelID() doesn't unpack model.
+func TestTargets_EmbedApplyDryRun(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
+
+	stderr := executeForTest(t, []string{"engram", "embed", "apply", "--dry-run", "--vault", vault})
+	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
 // TestTargets_EmbedStatus exercises the embed status closure end-to-end
 // through Targets() so newOsEmbedDeps wiring is covered. Uses an empty
 // vault so the LazyEmbedder's ModelID() path doesn't trigger model unpack.
@@ -276,20 +290,6 @@ func TestTargets_EmbedStatus(t *testing.T) {
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
 	stderr := executeForTest(t, []string{"engram", "embed", "status", "--vault", vault})
-	g.Expect(stderr).To(gomega.BeEmpty())
-}
-
-// TestTargets_EmbedApplyDryRun exercises embed apply closure with --dry-run
-// against an empty vault. Lazy embedder's ModelID() doesn't unpack model.
-func TestTargets_EmbedApplyDryRun(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
-	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
-
-	stderr := executeForTest(t, []string{"engram", "embed", "apply", "--dry-run", "--vault", vault})
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 

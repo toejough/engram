@@ -194,10 +194,5 @@ func plantNoteWithSidecar(t *testing.T, memFS *inMemoryFS, vault, relPath, body 
 		ContentHash:      embed.ContentHash([]byte(body)),
 	}
 
-	scBytes, marshalErr := embed.MarshalSidecar(sidecar)
-	if marshalErr != nil {
-		t.Fatalf("marshal sidecar: %v", marshalErr)
-	}
-
-	memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = scBytes
+	memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(sidecar)
 }

@@ -19,8 +19,7 @@ func TestComputeState_Broken_BadJSON(t *testing.T) {
 		"Permanent/x.vec.json": []byte("{not json"),
 	}
 
-	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
-	g.Expect(err).NotTo(HaveOccurred())
+	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateBroken))
 }
 
@@ -35,8 +34,7 @@ func TestComputeState_Broken_DimsMismatch(t *testing.T) {
 		),
 	}
 
-	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
-	g.Expect(err).NotTo(HaveOccurred())
+	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateBroken))
 }
 
@@ -56,8 +54,7 @@ func TestComputeState_Incompatible(t *testing.T) {
 		"Permanent/x.vec.json": mustSidecar(t, sidecar),
 	}
 
-	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
-	g.Expect(err).NotTo(HaveOccurred())
+	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateIncompatible))
 }
 
@@ -67,8 +64,7 @@ func TestComputeState_Missing(t *testing.T) {
 	g := NewWithT(t)
 	filesystem := fakeFS{"Permanent/x.md": []byte("---\nx: 1\n---\nbody\n")}
 
-	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
-	g.Expect(err).NotTo(HaveOccurred())
+	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateMissing))
 }
 
@@ -88,8 +84,7 @@ func TestComputeState_OK(t *testing.T) {
 		"Permanent/x.vec.json": mustSidecar(t, sidecar),
 	}
 
-	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
-	g.Expect(err).NotTo(HaveOccurred())
+	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateOK))
 }
 
@@ -108,8 +103,7 @@ func TestComputeState_Stale(t *testing.T) {
 		"Permanent/x.vec.json": mustSidecar(t, sidecar),
 	}
 
-	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
-	g.Expect(err).NotTo(HaveOccurred())
+	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateStale))
 }
 

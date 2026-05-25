@@ -58,6 +58,7 @@ allow = [
 	'modernc.org/sqlite',
 	# Embedder pipeline (engram query spike).
 	'github.com/knights-analytics/hugot',
+	'github.com/knights-analytics/hugot/pipelines',
 ]
 
 [linters.settings.depguard.rules.test]

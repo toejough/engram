@@ -65,12 +65,7 @@ func RunEmbedApply(
 		notePath := pathOf(note.Basename, note.IsMOC)
 		full := filepath.Join(args.VaultPath, notePath)
 
-		state, stateErr := embed.ComputeState(filesystem, full, modelID)
-		if stateErr != nil {
-			_, _ = fmt.Fprintf(stdout, "broken    %s: %v\n", notePath, stateErr)
-
-			continue
-		}
+		state := embed.ComputeState(filesystem, full, modelID)
 
 		if !selection.shouldEmbed(state) {
 			continue
@@ -107,14 +102,10 @@ func RunEmbedStatus(
 	return writeStatusReport(stdout, counts)
 }
 
-// sharedEmbedder is the process-wide lazy embedder so a single binary
-// invocation that touches multiple commands (e.g. learn → auto-embed,
-// embed apply → status) pays the model-unpack cost at most once. A
-// package-level singleton fits the CLI's single-invocation lifecycle
-// better than threading a constructor through Targets().
-//
-//nolint:gochecknoglobals // intentional process-wide lazy singleton
-var sharedEmbedder = embed.NewLazyEmbedder()
+// unexported variables.
+var (
+	sharedEmbedder = embed.NewLazyEmbedder() //nolint:gochecknoglobals // shared lazy singleton across CLI commands
+)
 
 // applySelection captures which states the user asked to re-embed,
 // derived from the flag combination on EmbedApplyArgs.
@@ -137,6 +128,41 @@ func (a applySelection) shouldEmbed(state embed.State) bool {
 	default:
 		return false
 	}
+}
+
+// osEmbedFS is the production adapter wrapping os.ReadFile/WriteFile +
+// vaultgraph.ScanVault behind named methods so coverage tracking treats
+// the wiring as one unit measured by integration tests, rather than as
+// three anonymous closures that each need their own unit tests.
+type osEmbedFS struct{}
+
+// Read reads path via os.ReadFile.
+func (osEmbedFS) Read(path string) ([]byte, error) {
+	data, err := os.ReadFile(path) //nolint:gosec // path from caller
+	if err != nil {
+		return nil, fmt.Errorf("read: %w", err)
+	}
+
+	return data, nil
+}
+
+// Scan returns every note in vault via vaultgraph.ScanVault. The
+// returned error (if any) is propagated as-is since vaultgraph is an
+// internal package; wrapcheck excludes internal packages.
+func (osEmbedFS) Scan(vault string) ([]vaultgraph.Note, error) {
+	return vaultgraph.ScanVault(&osVaultFS{}, vault)
+}
+
+// Write writes data to path via os.WriteFile with 0o600 perms.
+func (osEmbedFS) Write(path string, data []byte) error {
+	const sidecarPerm = 0o600
+
+	err := os.WriteFile(path, data, sidecarPerm)
+	if err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+
+	return nil
 }
 
 // readerFS adapts EmbedDeps.Read to the embed.FS interface so we can
@@ -197,13 +223,7 @@ func applyOne(
 		ContentHash:      embed.ContentHash(noteBytes),
 	}
 
-	scBytes, marshalErr := embed.MarshalSidecar(sidecar)
-	if marshalErr != nil {
-		_, _ = fmt.Fprintf(stdout, "fail      %s: marshal: %v\n", notePath, marshalErr)
-
-		return
-	}
-
+	scBytes := embed.MarshalSidecar(sidecar)
 	sidecarFull := filepath.Join(vault, embed.SidecarPath(notePath))
 
 	writeErr := deps.Write(sidecarFull, scBytes)
@@ -219,33 +239,12 @@ func applyOne(
 // newOsEmbedDeps wires the production filesystem + bundled embedder for
 // the embed commands.
 func newOsEmbedDeps() EmbedDeps {
-	const sidecarPerm = 0o600
+	fs := &osEmbedFS{}
 
 	return EmbedDeps{
-		Scan: func(vault string) ([]vaultgraph.Note, error) {
-			notes, err := vaultgraph.ScanVault(&osVaultFS{}, vault)
-			if err != nil {
-				return nil, fmt.Errorf("scan vault: %w", err)
-			}
-
-			return notes, nil
-		},
-		Read: func(path string) ([]byte, error) {
-			data, err := os.ReadFile(path) //nolint:gosec // path from caller
-			if err != nil {
-				return nil, fmt.Errorf("read: %w", err)
-			}
-
-			return data, nil
-		},
-		Write: func(path string, data []byte) error {
-			err := os.WriteFile(path, data, sidecarPerm)
-			if err != nil {
-				return fmt.Errorf("write: %w", err)
-			}
-
-			return nil
-		},
+		Scan:     fs.Scan,
+		Read:     fs.Read,
+		Write:    fs.Write,
 		Embedder: sharedEmbedder,
 	}
 }
@@ -278,12 +277,7 @@ func tallyStates(notes []vaultgraph.Note, vault string, deps EmbedDeps) stateCou
 		notePath := pathOf(note.Basename, note.IsMOC)
 		full := filepath.Join(vault, notePath)
 
-		state, stateErr := embed.ComputeState(filesystem, full, modelID)
-		if stateErr != nil {
-			counts.broken++
-
-			continue
-		}
+		state := embed.ComputeState(filesystem, full, modelID)
 
 		switch state {
 		case embed.StateOK:

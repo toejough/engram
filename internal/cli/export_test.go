@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/transcript"
 )
 
@@ -13,12 +14,12 @@ import (
 var (
 	ExportAnyHarnessFailed           = anyHarnessFailed
 	ExportAutoEmbedNote              = autoEmbedNote
-	ExportKindFromContent            = kindFromContent
-	ExportSelectStates               = selectStates
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
 	ExportFinishUpdate               = finishUpdate
 	ExportInitializeVault            = initializeVault
+	ExportKindFromContent            = kindFromContent
 	ExportLearnPath                  = learnPath
+	ExportLogWarningToStderr         = logWarningToStderrf
 	ExportMarshalFrontmatter         = marshalFrontmatter
 	ExportNewErrHandler              = newErrHandler
 	ExportNextLuhmannID              = nextLuhmannID
@@ -33,9 +34,13 @@ var (
 	ExportResolveVault               = resolveVault
 	ExportRunLearn                   = runLearn
 	ExportRunUpdate                  = runUpdate
-	ExportTildify                    = tildify
-	ExportValidateSlug               = validateSlug
-	ExportWriteUpdateReport          = writeUpdateReport
+	ExportSelectStates               = selectStates
+	ExportShouldEmbed                = func(args EmbedApplyArgs, state embed.State) bool {
+		return selectStates(args).shouldEmbed(state)
+	}
+	ExportTildify           = tildify
+	ExportValidateSlug      = validateSlug
+	ExportWriteUpdateReport = writeUpdateReport
 )
 
 type ExportFactFields = factFields
@@ -94,6 +99,16 @@ func ExportNewOsCommander() *osCommander { return &osCommander{} }
 // ExportNewOsDirLister creates an osDirLister for testing.
 func ExportNewOsDirLister() transcript.DirLister {
 	return &osDirLister{}
+}
+
+// ExportNewOsEmbedDeps returns production EmbedDeps with an injected
+// embedder so coverage tests can drive Read/Write/Scan without going
+// through the lazy bundled embedder.
+func ExportNewOsEmbedDeps(emb embed.Embedder) EmbedDeps {
+	deps := newOsEmbedDeps()
+	deps.Embedder = emb
+
+	return deps
 }
 
 // ExportNewOsFileReader creates an osFileReader for testing.
