@@ -77,8 +77,49 @@ engram transcript --max-bytes <n>      Set byte budget (default 200000)
 engram learn feedback --slug ... --source ... --situation ... --behavior ... --impact ... --action ...
 engram learn fact     --slug ... --source ... --situation ... --subject ... --predicate ... --object ...
 engram learn moc      --slug ... --source ... --topic ...
+engram embed apply [--all|--missing|--stale|--force|--dry-run]   (Re-)embed notes per selection (default: missing)
+engram embed status                    Report counts per state (total / with-embeddings / without / stale / incompatible / broken)
+engram query <string> [--limit N]      Semantic search over the vault; YAML output, default limit 20
 engram update                          Refresh binary and harness skills/commands ([--dry-run])
 ```
+
+## Semantic search (`engram query`) and the embed-on-write pipeline
+
+Engram bundles an embedding model (`sentence-transformers/all-MiniLM-L6-v2`, 384 dims) inside the binary via `go:embed`. Inference runs in pure Go through [Hugot](https://github.com/knights-analytics/hugot) + [GoMLX](https://github.com/gomlx/gomlx)'s `simplego` backend — no CGO, no daemon, no API key.
+
+Each note (`Permanent/<id>.<date>.<slug>.md`, `MOCs/<id>.<date>.<slug>.md`) has a sibling `.vec.json` sidecar:
+
+```
+Permanent/132.2026-05-23.foo.md
+Permanent/132.2026-05-23.foo.vec.json
+```
+
+Sidecar shape:
+
+```json
+{
+  "embedding_model_id": "minilm-l6-v2@384",
+  "dims": 384,
+  "vector": [-0.044, -0.043, ...],
+  "content_hash": "sha256:..."
+}
+```
+
+`content_hash` is sha256 over the markdown **body** (frontmatter stripped) so adding a `Related to:` line doesn't trigger re-embed.
+
+Pipeline behavior:
+
+- `engram learn` auto-embeds the new note before returning. Embedder failure is a warning, not an error — the Luhmann write is atomic, and `engram embed apply --missing` will fill the gap later.
+- `engram embed status` reports per-state counts: `ok` / `missing` (no sidecar) / `stale` (body changed) / `incompatible` (different model_id) / `broken` (malformed JSON or dims mismatch).
+- `engram embed apply` modes:
+  - `--missing` (default): only notes without sidecars
+  - `--stale`: also re-embed notes whose body hash changed (and broken sidecars)
+  - `--force`: also re-embed sidecars whose model_id differs from the bundled model
+  - `--all`: every note, regardless of state
+  - `--dry-run`: report what would change without writing
+- `engram query` embeds the query string, scores every note's sidecar by cosine similarity, ranks descending, emits YAML matching the spike-spec schema. Empty vault → `items: []` exit 0. Vault with notes but no sidecars → error with the `engram embed apply --all` recovery hint.
+
+Inputs longer than 1500 chars are truncated to fit MiniLM-L6's 512-token positional limit. For engram's 200–500-word notes this is a non-issue; long MOCs and feedback notes lose tail context but still embed cleanly.
 
 ## Transcript progress tracking
 
@@ -96,6 +137,7 @@ internal/            Business logic (DI boundaries)
   cli/               CLI command wiring (targ targets)
   context/           Transcript processing
   debuglog/          Structured debug logging
+  embed/             Embedder interface + Hugot/GoMLX backend, sidecar I/O, state classification
   learnmarker/       Per-harness progress marker (read/write/FS interface)
   luhmann/           Luhmann-ID allocation under file lock
   transcript/        Session transcript reading (Claude Code JSONL + OpenCode SQLite)
@@ -115,5 +157,6 @@ commands/            Source for OpenCode slash commands
 ## Design principles
 
 - **DI everywhere** — No function in `internal/` calls `os.*`, `http.*`, or any I/O directly. All I/O through injected interfaces, wired at CLI edges.
-- **Pure Go, no CGO** — external API for LLM operations only.
+- **Pure Go, no CGO** — external API for LLM operations only. The bundled embedder runs through GoMLX's pure-Go `simplego` backend.
 - **Skills for behavior, slim Go binary for computation.**
+- **Embed-on-write** — the vault is self-describing: a note plus its sidecar contain everything needed to participate in semantic search. No index file, no separate database; the vault remains a directory of markdown files.

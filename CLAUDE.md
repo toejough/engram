@@ -15,6 +15,7 @@ engram/
 │   ├── cli/           # CLI command wiring (targ targets)
 │   ├── context/       # Transcript processing for LLM agents
 │   ├── debuglog/      # Tail-friendly debug logger
+│   ├── embed/         # Embedder interface + Hugot/GoMLX backend, sidecar I/O, state classification
 │   ├── learnmarker/   # Per-harness progress marker (read/write/FS interface)
 │   ├── luhmann/       # Luhmann zettelkasten ID parsing/sorting
 │   ├── transcript/    # Claude Code session transcript reading
@@ -37,8 +38,9 @@ engram/
 ## Design Principles
 
 - **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges.
-- **Pure Go, no CGO.** External API only for LLM operations.
+- **Pure Go, no CGO.** External API only for LLM operations. Embedder runs through GoMLX's `simplego` backend (CGO not required).
 - **Skills + binary:** Skills for behavior (learn, recall), slim Go binary for computation.
+- **Embed-on-write:** Every note gets a sibling `.vec.json` sidecar on `engram learn`. The bundled MiniLM-L6 model (`minilm-l6-v2@384`) is `go:embed`-ed into the binary from `internal/embed/assets/model/` (git-lfs tracked). Sidecars are stamped with the model_id so future swaps require explicit `engram embed apply --force`.
 - **Test hard-to-test code by refactoring for DI**, not by writing integration tests around I/O.
 - **Test categorization:** Unit tests verify business logic via DI + mocks (imptest). Integration tests verify wiring of thin I/O wrappers with real dependencies. If a function has business logic AND I/O, refactor to separate them — don't write an integration test around the whole thing.
 
