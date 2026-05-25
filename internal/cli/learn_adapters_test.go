@@ -236,8 +236,8 @@ func TestRunLearnFromFactArgs_BootstrapsMissingVault(t *testing.T) {
 		return
 	}
 
-	// Bootstrap created Permanent/, MOCs/, and .obsidian/.
-	for _, sub := range []string{"Permanent", "MOCs", ".obsidian"} {
+	// Bootstrap created Permanent/ and .obsidian/.
+	for _, sub := range []string{"Permanent", ".obsidian"} {
 		info, statErr := os.Stat(filepath.Join(vault, sub))
 		g.Expect(statErr).NotTo(HaveOccurred())
 

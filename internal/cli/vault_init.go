@@ -22,7 +22,6 @@ const (
 This directory is an engram zettelkasten vault. Notes live under:
 
 - ` + "`Permanent/`" + ` — atomic notes (one principle per file)
-- ` + "`MOCs/`" + ` — maps of content (cluster framings)
 
 Engram's ` + "`recall`" + ` and ` + "`learn`" + ` skills read and write this directory.
 The ` + "`.obsidian/`" + ` directory lets Obsidian open this vault directly.
@@ -38,12 +37,12 @@ type vaultStarterFile struct {
 }
 
 // initializeVault creates the standard layout under vaultPath: Permanent/,
-// MOCs/, a minimal .obsidian/app.json so Obsidian recognizes the directory
-// as a vault, a .gitignore, and a short README. All file writes are
+// a minimal .obsidian/app.json so Obsidian recognizes the directory as a
+// vault, a .gitignore, and a short README. All file writes are
 // skip-if-exists; calling on an existing vault is a safe no-op (e.g.,
 // re-runs after partial initialization).
 func initializeVault(vaultFS VaultInitFS, vaultPath string) error {
-	for _, sub := range []string{"Permanent", "MOCs", ".obsidian"} {
+	for _, sub := range []string{"Permanent", ".obsidian"} {
 		mkErr := vaultFS.MkdirAll(filepath.Join(vaultPath, sub), vaultDirPerm)
 		if mkErr != nil {
 			return fmt.Errorf("initialize vault: mkdir %s: %w", sub, mkErr)

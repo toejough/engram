@@ -22,7 +22,6 @@ func TestInitializeVault_CreatesDirsAndStarterFiles(t *testing.T) {
 	sort.Strings(fakeFS.mkdirs)
 	g.Expect(fakeFS.mkdirs).To(Equal([]string{
 		"/v/.obsidian",
-		"/v/MOCs",
 		"/v/Permanent",
 	}))
 
