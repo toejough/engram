@@ -47,8 +47,10 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return fmt.Errorf("query: scan: %w", scanErr)
 	}
 
-	withSidecars := countWithSidecars(notes, args.VaultPath, deps.Read)
-	if len(notes) > 0 && withSidecars == 0 {
+	modelID := deps.Embedder.ModelID()
+	hits := loadCompatibleSidecars(notes, args.VaultPath, deps.Read, modelID)
+
+	if len(notes) > 0 && len(hits) == 0 {
 		return errQueryNoEmbeddings
 	}
 
@@ -57,12 +59,12 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return fmt.Errorf("query: embed: %w", qErr)
 	}
 
-	candidates := rankCandidates(notes, args.VaultPath, deps, queryVec)
+	candidates := rankCandidates(hits, args.VaultPath, deps.Read, queryVec)
 	if len(candidates) > limit {
 		candidates = candidates[:limit]
 	}
 
-	return renderQueryPayload(stdout, args.Query, candidates, len(notes), withSidecars, limit)
+	return renderQueryPayload(stdout, args.Query, candidates, len(notes), len(hits), limit)
 }
 
 // unexported constants.
@@ -75,9 +77,17 @@ const (
 var (
 	errQueryEmptyString  = errors.New("query: empty query string")
 	errQueryNoEmbeddings = errors.New(
-		"query: vault has notes but no embeddings; run `engram embed apply --all`",
+		"query: vault has notes but no current-model embeddings; run `engram embed apply --all`",
 	)
 )
+
+// compatibleSidecar bundles a note with its already-loaded current-model
+// sidecar — the result of loadCompatibleSidecars's filtering pass. Carrying
+// the parsed sidecar forward avoids re-reading it during scoring.
+type compatibleSidecar struct {
+	note    vaultgraph.Note
+	sidecar embed.Sidecar
+}
 
 // queryBudget reports the totals visible to the caller per the YAML schema.
 // Snake-case keys are spec contract — see
@@ -115,26 +125,6 @@ type scoredCandidate struct {
 	content  string
 }
 
-func countWithSidecars(
-	notes []vaultgraph.Note,
-	vault string,
-	read func(string) ([]byte, error),
-) int {
-	count := 0
-
-	for _, note := range notes {
-		notePath := pathOf(note.Basename, note.IsMOC)
-		scFull := filepath.Join(vault, embed.SidecarPath(notePath))
-
-		_, err := read(scFull)
-		if err == nil {
-			count++
-		}
-	}
-
-	return count
-}
-
 // kindFromContent reads the frontmatter type field to label the item.
 // Falls back to "unknown" — engram's other readers (notes, recall)
 // already tolerate this case.
@@ -167,33 +157,24 @@ func kindFromContent(content string) string {
 	return kind
 }
 
-// newOsQueryDeps wires the production scan + read for the query command.
-func newOsQueryDeps() QueryDeps {
-	embedDeps := newOsEmbedDeps()
-
-	return QueryDeps{
-		Scan:     embedDeps.Scan,
-		Read:     embedDeps.Read,
-		Embedder: embedDeps.Embedder,
-	}
-}
-
-func rankCandidates(
+// loadCompatibleSidecars reads every note's sidecar once, parses it, and
+// returns only those whose EmbeddingModelID matches the active model.
+// Missing, malformed, or incompatible sidecars are silently skipped — the
+// missing-coverage case (none compatible) is surfaced by RunQuery's guard.
+func loadCompatibleSidecars(
 	notes []vaultgraph.Note,
 	vault string,
-	deps QueryDeps,
-	queryVec []float32,
-) []scoredCandidate {
-	candidates := make([]scoredCandidate, 0, len(notes))
-	modelID := deps.Embedder.ModelID()
+	read func(string) ([]byte, error),
+	modelID string,
+) []compatibleSidecar {
+	hits := make([]compatibleSidecar, 0, len(notes))
 
 	for _, note := range notes {
 		notePath := pathOf(note.Basename, note.IsMOC)
-		full := filepath.Join(vault, notePath)
 		scFull := filepath.Join(vault, embed.SidecarPath(notePath))
 
-		scBytes, scErr := deps.Read(scFull)
-		if scErr != nil {
+		scBytes, readErr := read(scFull)
+		if readErr != nil {
 			continue
 		}
 
@@ -206,14 +187,47 @@ func rankCandidates(
 			continue
 		}
 
-		noteBytes, noteErr := deps.Read(full)
+		hits = append(hits, compatibleSidecar{note: note, sidecar: sidecar})
+	}
+
+	return hits
+}
+
+// newOsQueryDeps wires the production scan + read for the query command.
+func newOsQueryDeps() QueryDeps {
+	embedDeps := newOsEmbedDeps()
+
+	return QueryDeps{
+		Scan:     embedDeps.Scan,
+		Read:     embedDeps.Read,
+		Embedder: embedDeps.Embedder,
+	}
+}
+
+// rankCandidates scores each pre-filtered hit against queryVec, reads the
+// note body for inclusion in the payload, and returns candidates sorted by
+// descending cosine. Sidecars have already been validated and parsed by
+// loadCompatibleSidecars, so no sidecar I/O happens here.
+func rankCandidates(
+	hits []compatibleSidecar,
+	vault string,
+	read func(string) ([]byte, error),
+	queryVec []float32,
+) []scoredCandidate {
+	candidates := make([]scoredCandidate, 0, len(hits))
+
+	for _, hit := range hits {
+		notePath := pathOf(hit.note.Basename, hit.note.IsMOC)
+		full := filepath.Join(vault, notePath)
+
+		noteBytes, noteErr := read(full)
 		if noteErr != nil {
 			continue
 		}
 
 		candidates = append(candidates, scoredCandidate{
 			notePath: notePath,
-			score:    embed.Cosine(queryVec, sidecar.Vector),
+			score:    embed.Cosine(queryVec, hit.sidecar.Vector),
 			content:  string(noteBytes),
 		})
 	}

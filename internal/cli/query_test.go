@@ -78,6 +78,41 @@ func TestQuery_NotesButNoSidecars_ErrorWithRecoveryHint(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("engram embed apply --all")))
 }
 
+func TestQuery_NotesWithIncompatibleSidecars_ErrorWithRecoveryHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Plant a note with a sidecar from a different model — the active
+	// embedder uses modelID "m@4", but this sidecar is stamped "OLD@384".
+	// Before the bug fix, countWithSidecars would count this sidecar as
+	// satisfying the guard, then rankCandidates would silently drop it,
+	// producing empty results with exit 0. The guard must trigger.
+	const relPath = "Permanent/1.foo.md"
+
+	body := []byte("---\ntype: fact\n---\nbody\n")
+	memFS.files[filepath.Join(vault, relPath)] = body
+
+	incompat := embed.Sidecar{
+		EmbeddingModelID: "OLD@384",
+		Dims:             4,
+		Vector:           []float32{0, 0, 0, 0},
+		ContentHash:      embed.ContentHash(body),
+	}
+	memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(incompat)
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Query: "anything", VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("engram embed apply --all")))
+}
+
 func TestQuery_RanksByDescendingCosine(t *testing.T) {
 	t.Parallel()
 
