@@ -83,8 +83,7 @@ func TestQuery_NotesButNoSidecars_ErrorWithRecoveryHint(t *testing.T) {
 		cli.QueryArgs{Query: "anything", VaultPath: vault},
 		newQueryDeps(memFS), &out)
 
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("engram embed apply --all"))
+	g.Expect(err).To(MatchError(ContainSubstring("engram embed apply --all")))
 }
 
 func TestQuery_RanksByDescendingCosine(t *testing.T) {
@@ -183,8 +182,7 @@ func TestQuery_EmbeddingFailureSurfacesError(t *testing.T) {
 	err := cli.RunQuery(context.Background(),
 		cli.QueryArgs{Query: "x", VaultPath: vault}, deps, &out)
 
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("embed"))
+	g.Expect(err).To(MatchError(ContainSubstring("embed")))
 }
 
 type errorEmbedder struct{}

@@ -21,7 +21,7 @@ type EmbedApplyArgs struct {
 	Missing   bool   `targ:"flag,name=missing,desc=embed only notes without sidecars (default if no mode flag)"`
 	Stale     bool   `targ:"flag,name=stale,desc=re-embed notes whose body hash changed"`
 	Force     bool   `targ:"flag,name=force,desc=also re-embed sidecars whose model_id differs from the binary"`
-	DryRun    bool   `targ:"flag,name=dry-run,desc=report what would change, don't write"`
+	DryRun    bool   `targ:"flag,name=dry-run,desc=report what would change without writing"`
 }
 
 // EmbedStatusArgs holds parsed flags for `engram embed status`.
@@ -139,12 +139,22 @@ type applySelection struct {
 }
 
 func selectStates(args EmbedApplyArgs) applySelection {
-	return applySelection{
-		wantOK:       args.All,
-		wantMissing:  args.Missing || (!args.All && !args.Stale),
-		wantStale:    args.Stale || args.All,
-		wantIncompat: args.Force || args.All,
+	if args.All {
+		return applySelection{wantOK: true, wantMissing: true, wantStale: true, wantIncompat: true}
 	}
+
+	selection := applySelection{
+		wantMissing:  args.Missing,
+		wantStale:    args.Stale,
+		wantIncompat: args.Force,
+	}
+
+	// No explicit mode → default to embedding missing-sidecar notes.
+	if !selection.wantMissing && !selection.wantStale && !selection.wantIncompat {
+		selection.wantMissing = true
+	}
+
+	return selection
 }
 
 func (a applySelection) shouldEmbed(state embed.State) bool {

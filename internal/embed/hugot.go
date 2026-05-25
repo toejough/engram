@@ -186,8 +186,22 @@ func NewBundledHugotEmbedder(ctx context.Context) (*HugotEmbedder, error) {
 	return NewHugotEmbedderFromFS(ctx, bundledModel, "assets/model", BundledModelID)
 }
 
-// Embed runs the pipeline on text and returns the resulting vector.
+// hugotInputCharLimit caps inputs to fit under the model's 512-token
+// positional embedding limit. Hugot's pure-Go tokenizer doesn't
+// truncate, so over-long inputs panic the GoMLX graph compile.
+// Empirically MiniLM-L6's WordPiece tokenizer averages ≈3.7 chars/token
+// on engram's prose (a 2000-char input produces ~545 tokens), so 1500
+// chars stays safely under 512 with margin for sub-word splitting on
+// rare vocab.
+const hugotInputCharLimit = 1500
+
+// Embed runs the pipeline on text (truncated to fit the model's context
+// window) and returns the resulting vector.
 func (h *HugotEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
+	if len(text) > hugotInputCharLimit {
+		text = text[:hugotInputCharLimit]
+	}
+
 	out, err := h.pipeline.RunPipeline(ctx, []string{text})
 	if err != nil {
 		return nil, err
