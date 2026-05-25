@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -79,6 +80,11 @@ var (
 	errQueryNoEmbeddings = errors.New(
 		"query: vault has notes but no current-model embeddings; run `engram embed apply --all`",
 	)
+	// wikilinkRE matches `[[target]]` and `[[target|display]]`.
+	// Used by stripWikilinks to remove pointer syntax from the
+	// rendered items.content per the spike spec — engram returns
+	// the relevant set in `items`; inline pointers are noise.
+	wikilinkRE = regexp.MustCompile(`\[\[([^\]|]+)(?:\|([^\]]+))?\]\]`)
 )
 
 // compatibleSidecar bundles a note with its already-loaded current-model
@@ -228,7 +234,7 @@ func rankCandidates(
 		candidates = append(candidates, scoredCandidate{
 			notePath: notePath,
 			score:    embed.Cosine(queryVec, hit.sidecar.Vector),
-			content:  string(noteBytes),
+			content:  stripWikilinks(string(noteBytes)),
 		})
 	}
 
@@ -285,4 +291,23 @@ func renderQueryPayload(
 	}
 
 	return nil
+}
+
+// stripWikilinks removes `[[target]]` and `[[target|display]]` syntax
+// from markdown text. The display text (or target if no display) is kept
+// so the human-readable signal remains. Used at query time to keep
+// `items.content` focused: wikilink targets that are relevant to the
+// query appear as their own items in the payload; targets that aren't
+// surfaced are irrelevant by construction; either way `[[...]]` syntax
+// is noise. Authored wikilinks remain in the on-disk note — this is a
+// payload-shaping step only, per the spike spec.
+func stripWikilinks(content string) string {
+	return wikilinkRE.ReplaceAllStringFunc(content, func(match string) string {
+		groups := wikilinkRE.FindStringSubmatch(match)
+		if groups[2] != "" {
+			return groups[2]
+		}
+
+		return groups[1]
+	})
 }

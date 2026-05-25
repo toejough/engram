@@ -195,6 +195,41 @@ func TestQuery_RespectsLimit(t *testing.T) {
 	g.Expect(parsed.Items).To(HaveLen(2))
 }
 
+func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	body := "---\ntype: fact\n---\n" +
+		"See [[1a.foo]] and [[2b.bar|the bar note]] for context.\n"
+
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md", body)
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Query: "context", VaultPath: vault, Limit: 1},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Items []struct {
+			Content string `yaml:"content"`
+		} `yaml:"items"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Items).To(HaveLen(1))
+	// Both wikilink shapes are stripped; display/target text remains.
+	g.Expect(parsed.Items[0].Content).NotTo(ContainSubstring("[["))
+	g.Expect(parsed.Items[0].Content).NotTo(ContainSubstring("]]"))
+	g.Expect(parsed.Items[0].Content).To(ContainSubstring("See 1a.foo and the bar note for context."))
+}
+
 type errorEmbedder struct{}
 
 func (errorEmbedder) Dims() int { return 4 }
