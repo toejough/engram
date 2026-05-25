@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -105,7 +106,7 @@ func nextLetter(cur string) string {
 	}
 
 	runes := []rune(cur)
-	for idx := len(runes) - 1; idx >= 0; idx-- {
+	for idx := range slices.Backward(runes) {
 		if runes[idx] < 'z' {
 			runes[idx]++
 

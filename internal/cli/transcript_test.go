@@ -187,7 +187,13 @@ func TestApplyTranscriptDirDefault(t *testing.T) {
 
 		var stdout bytes.Buffer
 
-		err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{}, finder, reader, &stdout)
+		err := cli.RunTranscriptForTest(
+			context.Background(),
+			cli.TranscriptArgs{},
+			finder,
+			reader,
+			&stdout,
+		)
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(stdout.String()).To(BeEmpty())
@@ -300,7 +306,12 @@ func TestEmitTranscripts_ScansForwardAndStopsAtCap(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	lastIncluded, hadEntries, firstUnincluded, err := cli.EmitTranscriptsForTest(reader, entries, 150, &buf)
+	lastIncluded, hadEntries, firstUnincluded, err := cli.EmitTranscriptsForTest(
+		reader,
+		entries,
+		150,
+		&buf,
+	)
 
 	g.Expect(err).NotTo(HaveOccurred())
 

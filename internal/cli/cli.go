@@ -125,7 +125,7 @@ func (*osLearnFS) Lock(vault string) (func(), error) {
 		return nil, fmt.Errorf("open lock: %w", err)
 	}
 
-	fileDescriptor := int(f.Fd()) //nolint:gosec // fd fits in int on supported platforms
+	fileDescriptor := int(f.Fd())
 
 	flockErr := syscall.Flock(fileDescriptor, syscall.LOCK_EX)
 	if flockErr != nil {
@@ -354,7 +354,11 @@ func runRecallFollow(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) e
 
 	graph := vaultgraph.BuildGraph(notes)
 
-	return emitRelPaths(stdout, vaultgraph.Follow(graph, follow, alreadyRead), buildSubdirMap(notes))
+	return emitRelPaths(
+		stdout,
+		vaultgraph.Follow(graph, follow, alreadyRead),
+		buildSubdirMap(notes),
+	)
 }
 
 func runRecallRecent(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {

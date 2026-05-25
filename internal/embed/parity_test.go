@@ -22,18 +22,6 @@ import (
 	"github.com/knights-analytics/hugot"
 )
 
-const parityTolerance = 1e-3 // ~3 decimal places per spec.
-
-type referencePayload struct {
-	ModelID string `json:"model_id"`
-	Dims    int    `json:"dims"`
-	Pairs   []struct {
-		Left   string  `json:"left"`
-		Right  string  `json:"right"`
-		Cosine float64 `json:"cosine"`
-	} `json:"pairs"`
-}
-
 func TestT13_ParityWithPythonReference(t *testing.T) {
 	t.Parallel()
 
@@ -124,6 +112,21 @@ func TestT13_ParityWithPythonReference(t *testing.T) {
 			)
 		}
 	}
+}
+
+// unexported constants.
+const (
+	parityTolerance = 1e-3
+)
+
+type referencePayload struct {
+	ModelID string `json:"model_id"`
+	Dims    int    `json:"dims"`
+	Pairs   []struct {
+		Left   string  `json:"left"`
+		Right  string  `json:"right"`
+		Cosine float64 `json:"cosine"`
+	} `json:"pairs"`
 }
 
 // cosine32 — local copy. The package's exported Cosine lives in

@@ -11,48 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// splitMdAndSidecar returns the .md and .vec.json basenames found in
-// entries. Tests use it to verify both files exist after a learn with
-// auto-embed.
-func splitMdAndSidecar(entries []os.DirEntry) (md, sidecar string) {
-	for _, entry := range entries {
-		name := entry.Name()
-
-		switch {
-		case strings.HasSuffix(name, ".vec.json"):
-			sidecar = name
-		case strings.HasSuffix(name, ".md"):
-			md = name
-		}
-	}
-
-	return md, sidecar
-}
-
-// expectSidecarValid asserts the sidecar file parses as a Sidecar with
-// non-zero dims and a vector of the declared length.
-func expectSidecarValid(g Gomega, path string) {
-	data, err := os.ReadFile(path) //nolint:gosec // test-controlled path
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var parsed struct {
-		EmbeddingModelID string    `json:"embedding_model_id"`
-		Dims             int       `json:"dims"`
-		Vector           []float32 `json:"vector"`
-		ContentHash      string    `json:"content_hash"`
-	}
-
-	g.Expect(json.Unmarshal(data, &parsed)).NotTo(HaveOccurred())
-	g.Expect(parsed.EmbeddingModelID).NotTo(BeEmpty())
-	g.Expect(parsed.Dims).To(BeNumerically(">", 0))
-	g.Expect(parsed.Vector).To(HaveLen(parsed.Dims))
-	g.Expect(parsed.ContentHash).To(HavePrefix("sha256:"))
-}
-
 func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -346,6 +304,31 @@ func TestEngramTranscript_DateRangeEndToEnd(t *testing.T) {
 	g.Expect(string(runOut)).To(ContainSubstring("hello-smoke-test"))
 }
 
+// expectSidecarValid asserts the sidecar file parses as a Sidecar with
+// non-zero dims and a vector of the declared length.
+func expectSidecarValid(g Gomega, path string) {
+	data, err := os.ReadFile(path)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	//nolint:tagliatelle // mirrors the spec-contract JSON keys from internal/embed.Sidecar
+	var parsed struct {
+		EmbeddingModelID string    `json:"embedding_model_id"`
+		Dims             int       `json:"dims"`
+		Vector           []float32 `json:"vector"`
+		ContentHash      string    `json:"content_hash"`
+	}
+
+	g.Expect(json.Unmarshal(data, &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.EmbeddingModelID).NotTo(BeEmpty())
+	g.Expect(parsed.Dims).To(BeNumerically(">", 0))
+	g.Expect(parsed.Vector).To(HaveLen(parsed.Dims))
+	g.Expect(parsed.ContentHash).To(HavePrefix("sha256:"))
+}
+
 func projectRoot(t *testing.T) string {
 	t.Helper()
 
@@ -355,4 +338,22 @@ func projectRoot(t *testing.T) string {
 	}
 	// internal/cli → ../..
 	return filepath.Clean(filepath.Join(wd, "..", ".."))
+}
+
+// splitMdAndSidecar returns the .md and .vec.json basenames found in
+// entries. Tests use it to verify both files exist after a learn with
+// auto-embed.
+func splitMdAndSidecar(entries []os.DirEntry) (md, sidecar string) {
+	for _, entry := range entries {
+		name := entry.Name()
+
+		switch {
+		case strings.HasSuffix(name, ".vec.json"):
+			sidecar = name
+		case strings.HasSuffix(name, ".md"):
+			md = name
+		}
+	}
+
+	return md, sidecar
 }

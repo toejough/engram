@@ -10,14 +10,19 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-const cosineFloatTolerance = 1e-6
-
 func TestCosine_Identical(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 	v := []float32{0.1, 0.2, 0.3, 0.4}
 	g.Expect(float64(embed.Cosine(v, v))).To(BeNumerically("~", 1.0, cosineFloatTolerance))
+}
+
+func TestCosine_MismatchedLengths(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	g.Expect(embed.Cosine([]float32{1}, []float32{1, 2})).To(Equal(float32(0)))
 }
 
 func TestCosine_Orthogonal(t *testing.T) {
@@ -27,22 +32,6 @@ func TestCosine_Orthogonal(t *testing.T) {
 	a := []float32{1, 0}
 	b := []float32{0, 1}
 	g.Expect(float64(embed.Cosine(a, b))).To(BeNumerically("~", 0.0, cosineFloatTolerance))
-}
-
-func TestCosine_ZeroVector(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	a := []float32{0, 0, 0}
-	b := []float32{1, 2, 3}
-	g.Expect(embed.Cosine(a, b)).To(Equal(float32(0)))
-}
-
-func TestCosine_MismatchedLengths(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	g.Expect(embed.Cosine([]float32{1}, []float32{1, 2})).To(Equal(float32(0)))
 }
 
 // TestCosine_SelfSimilarityProperty asserts cosine(v,v) == 1 for any
@@ -71,3 +60,17 @@ func TestCosine_SelfSimilarityProperty(t *testing.T) {
 		}
 	})
 }
+
+func TestCosine_ZeroVector(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	a := []float32{0, 0, 0}
+	b := []float32{1, 2, 3}
+	g.Expect(embed.Cosine(a, b)).To(Equal(float32(0)))
+}
+
+// unexported constants.
+const (
+	cosineFloatTolerance = 1e-6
+)

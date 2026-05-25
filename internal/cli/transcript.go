@@ -267,7 +267,8 @@ func emitContinuationWarnings(firstUnincluded map[string]time.Time, stdout io.Wr
 		_, _ = fmt.Fprintf(
 			stdout,
 			"[engram transcript: byte cap hit; %s sessions from %s onward not yet scanned; run again to continue]\n",
-			src, firstUnincluded[src].UTC().Format(time.RFC3339Nano),
+			src,
+			firstUnincluded[src].UTC().Format(time.RFC3339Nano),
 		)
 	}
 }

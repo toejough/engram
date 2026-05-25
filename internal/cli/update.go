@@ -24,7 +24,9 @@ type UpdateArgs struct {
 // unexported variables.
 var (
 	_                      update.Filesystem = (*osUpdateFS)(nil)
-	errSomeHarnessesFailed                   = errors.New("update: one or more detected harnesses failed")
+	errSomeHarnessesFailed                   = errors.New(
+		"update: one or more detected harnesses failed",
+	)
 )
 
 type osCommander struct{}
@@ -232,9 +234,14 @@ func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
 	successes := make([]string, 0, len(report.Harnesses))
 
 	for _, harness := range report.Harnesses {
-		fmt.Fprintf(buffer, "  %s (%s):\n",
+		fmt.Fprintf(
+			buffer,
+			"  %s (%s):\n",
 			harness.Name,
-			tildify(filepath.Join(report.Home, harness.ProbeRoot)+string(filepath.Separator), report.Home),
+			tildify(
+				filepath.Join(report.Home, harness.ProbeRoot)+string(filepath.Separator),
+				report.Home,
+			),
 		)
 
 		if harness.Err != nil {

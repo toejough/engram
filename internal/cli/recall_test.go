@@ -204,7 +204,8 @@ func TestRunRecall_RecentReturnsMostRecentByDate(t *testing.T) {
 	}
 
 	// Full relative paths; sorted newest first.
-	g.Expect(stdout.String()).To(Equal("Permanent/2.2026-05-01.new.md\nPermanent/3.2026-03-15.mid.md\n"))
+	g.Expect(stdout.String()).
+		To(Equal("Permanent/2.2026-05-01.new.md\nPermanent/3.2026-03-15.mid.md\n"))
 }
 
 func TestRunRecall_RecentScanErrorPropagates(t *testing.T) {

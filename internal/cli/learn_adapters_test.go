@@ -81,7 +81,8 @@ func TestOsLearnFS_MkdirAll_FailsWhenParentIsFile(t *testing.T) {
 	g.Expect(os.WriteFile(filePath, []byte("x"), 0o600)).To(Succeed())
 
 	fs := cli.ExportNewOsLearnFS()
-	g.Expect(fs.MkdirAll(filepath.Join(filePath, "child"), 0o755)).To(MatchError(ContainSubstring("mkdir")))
+	g.Expect(fs.MkdirAll(filepath.Join(filePath, "child"), 0o755)).
+		To(MatchError(ContainSubstring("mkdir")))
 }
 
 func TestOsLearnFS_MkdirAll_IdempotentOnExistingDir(t *testing.T) {

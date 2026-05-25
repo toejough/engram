@@ -97,7 +97,9 @@ func TestPlanSkillCopies_MissingSrc(t *testing.T) {
 	g := NewWithT(t)
 
 	fileSystem := newMemFS()
-	harnesses := []update.HarnessSpec{{Name: update.HarnessClaude, ProbeRel: ".claude", SkillsTargetRel: ".claude/skills"}}
+	harnesses := []update.HarnessSpec{
+		{Name: update.HarnessClaude, ProbeRel: ".claude", SkillsTargetRel: ".claude/skills"},
+	}
 
 	_, err := update.ExportPlanSkillCopies("/nonexistent", "/home/joe", harnesses, fileSystem)
 	g.Expect(err).To(HaveOccurred())

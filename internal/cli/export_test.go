@@ -12,6 +12,9 @@ import (
 // Exported variables.
 var (
 	ExportAnyHarnessFailed           = anyHarnessFailed
+	ExportAutoEmbedNote              = autoEmbedNote
+	ExportKindFromContent            = kindFromContent
+	ExportSelectStates               = selectStates
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
 	ExportFinishUpdate               = finishUpdate
 	ExportInitializeVault            = initializeVault

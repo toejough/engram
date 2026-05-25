@@ -10,27 +10,55 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// fakeFS is a trivial in-memory file map for ComputeState tests.
-type fakeFS map[string][]byte
+func TestComputeState_Broken_BadJSON(t *testing.T) {
+	t.Parallel()
 
-func (f fakeFS) ReadFile(path string) ([]byte, error) {
-	data, ok := f[path]
-	if !ok {
-		return nil, &fs.PathError{Op: "open", Path: path, Err: fs.ErrNotExist}
+	g := NewWithT(t)
+	filesystem := fakeFS{
+		"Permanent/x.md":       []byte("body\n"),
+		"Permanent/x.vec.json": []byte("{not json"),
 	}
 
-	return data, nil
+	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(state).To(Equal(embed.StateBroken))
 }
 
-func mustSidecar(t *testing.T, s embed.Sidecar) []byte {
-	t.Helper()
+func TestComputeState_Broken_DimsMismatch(t *testing.T) {
+	t.Parallel()
 
-	out, err := json.Marshal(s)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
+	g := NewWithT(t)
+	filesystem := fakeFS{
+		"Permanent/x.md": []byte("body\n"),
+		"Permanent/x.vec.json": []byte(
+			`{"embedding_model_id":"model@384","dims":2,"vector":[0.1,0.2,0.3],"content_hash":"sha256:abc"}`,
+		),
 	}
 
-	return out
+	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(state).To(Equal(embed.StateBroken))
+}
+
+func TestComputeState_Incompatible(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	noteBytes := []byte("---\nx: 1\n---\nbody\n")
+	sidecar := embed.Sidecar{
+		EmbeddingModelID: "OLDmodel@256",
+		Dims:             1,
+		Vector:           []float32{0.1},
+		ContentHash:      embed.ContentHash(noteBytes),
+	}
+	filesystem := fakeFS{
+		"Permanent/x.md":       noteBytes,
+		"Permanent/x.vec.json": mustSidecar(t, sidecar),
+	}
+
+	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(state).To(Equal(embed.StateIncompatible))
 }
 
 func TestComputeState_Missing(t *testing.T) {
@@ -85,53 +113,25 @@ func TestComputeState_Stale(t *testing.T) {
 	g.Expect(state).To(Equal(embed.StateStale))
 }
 
-func TestComputeState_Incompatible(t *testing.T) {
-	t.Parallel()
+// fakeFS is a trivial in-memory file map for ComputeState tests.
+type fakeFS map[string][]byte
 
-	g := NewWithT(t)
-	noteBytes := []byte("---\nx: 1\n---\nbody\n")
-	sidecar := embed.Sidecar{
-		EmbeddingModelID: "OLDmodel@256",
-		Dims:             1,
-		Vector:           []float32{0.1},
-		ContentHash:      embed.ContentHash(noteBytes),
-	}
-	filesystem := fakeFS{
-		"Permanent/x.md":       noteBytes,
-		"Permanent/x.vec.json": mustSidecar(t, sidecar),
+func (f fakeFS) ReadFile(path string) ([]byte, error) {
+	data, ok := f[path]
+	if !ok {
+		return nil, &fs.PathError{Op: "open", Path: path, Err: fs.ErrNotExist}
 	}
 
-	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(state).To(Equal(embed.StateIncompatible))
+	return data, nil
 }
 
-func TestComputeState_Broken_BadJSON(t *testing.T) {
-	t.Parallel()
+func mustSidecar(t *testing.T, s embed.Sidecar) []byte {
+	t.Helper()
 
-	g := NewWithT(t)
-	filesystem := fakeFS{
-		"Permanent/x.md":       []byte("body\n"),
-		"Permanent/x.vec.json": []byte("{not json"),
+	out, err := json.Marshal(s)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
 	}
 
-	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(state).To(Equal(embed.StateBroken))
-}
-
-func TestComputeState_Broken_DimsMismatch(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	filesystem := fakeFS{
-		"Permanent/x.md": []byte("body\n"),
-		"Permanent/x.vec.json": []byte(
-			`{"embedding_model_id":"model@384","dims":2,"vector":[0.1,0.2,0.3],"content_hash":"sha256:abc"}`,
-		),
-	}
-
-	state, err := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(state).To(Equal(embed.StateBroken))
+	return out
 }

@@ -99,11 +99,17 @@ func TestParseGoListJSON_EmptyDir(t *testing.T) {
 	cmd := &fakeCmd{
 		responses: map[string][]byte{
 			"go install github.com/toejough/engram/cmd/engram@latest": []byte("ok"),
-			"go list -m -json github.com/toejough/engram@latest":      []byte(`{"Dir":"","Version":"v1"}`),
+			"go list -m -json github.com/toejough/engram@latest": []byte(
+				`{"Dir":"","Version":"v1"}`,
+			),
 		},
 	}
 
-	updater := &update.Updater{FS: fileSystem, Cmd: cmd, Env: &fakeEnv{home: "/home/joe", cwd: "/tmp"}}
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: cmd,
+		Env: &fakeEnv{home: "/home/joe", cwd: "/tmp"},
+	}
 
 	_, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).To(HaveOccurred())
@@ -441,7 +447,8 @@ func TestUpdater_Run_Local_OverwritesExistingCommandFile(t *testing.T) {
 	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
 
 	g.Expect(fileSystem.removed).To(ContainElement("/home/joe/.config/opencode/commands/recall.md"))
-	g.Expect(fileSystem.files["/home/joe/.config/opencode/commands/recall.md"]).To(Equal([]byte("new cmd")))
+	g.Expect(fileSystem.files["/home/joe/.config/opencode/commands/recall.md"]).
+		To(Equal([]byte("new cmd")))
 }
 
 func TestUpdater_Run_Local_OverwritesExistingSkillDir(t *testing.T) {
@@ -523,7 +530,9 @@ func TestUpdater_Run_ModuleCacheMiss(t *testing.T) {
 	cmd := &fakeCmd{
 		responses: map[string][]byte{
 			"go install github.com/toejough/engram/cmd/engram@latest": []byte("ok"),
-			"go list -m -json github.com/toejough/engram@latest":      []byte(`{"Dir":"/nope","Version":"v1"}`),
+			"go list -m -json github.com/toejough/engram@latest": []byte(
+				`{"Dir":"/nope","Version":"v1"}`,
+			),
 		},
 	}
 

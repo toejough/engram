@@ -163,7 +163,8 @@ func TestRenderFeedbackBody_StripsLeadingWhenFromSituation(t *testing.T) {
 		Situation: "When writing concurrent Go code",
 		Action:    "check ctx.Done()",
 	}, "")
-	g.Expect(got).To(HavePrefix("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
+	g.Expect(got).
+		To(HavePrefix("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
 	g.Expect(got).NotTo(ContainSubstring("when When"))
 }
 

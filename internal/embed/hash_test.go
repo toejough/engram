@@ -10,28 +10,13 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestExtractBody_StripsFrontmatter(t *testing.T) {
+func TestContentHash_FrontmatterChangeDoesNotChangeHash(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	in := []byte("---\ntype: fact\nluhmann: \"5\"\n---\n\nThis is the body.\n")
-	g.Expect(string(embed.ExtractBody(in))).To(Equal("This is the body.\n"))
-}
-
-func TestExtractBody_NoFrontmatter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("Just a body, no frontmatter.\n")
-	g.Expect(string(embed.ExtractBody(in))).To(Equal("Just a body, no frontmatter.\n"))
-}
-
-func TestExtractBody_UnterminatedFrontmatterReturnedUnchanged(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("---\ntype: fact\n(no closing delimiter)\n")
-	g.Expect(string(embed.ExtractBody(in))).To(Equal(string(in)))
+	a := []byte("---\ntype: fact\nluhmann: \"1\"\n---\nshared body.\n")
+	b := []byte("---\ntype: fact\nluhmann: \"1\"\nextra: added\n---\nshared body.\n")
+	g.Expect(embed.ContentHash(a)).To(Equal(embed.ContentHash(b)))
 }
 
 func TestContentHash_IsSha256OfBody(t *testing.T) {
@@ -44,11 +29,26 @@ func TestContentHash_IsSha256OfBody(t *testing.T) {
 		To(Equal("sha256:" + hex.EncodeToString(want[:])))
 }
 
-func TestContentHash_FrontmatterChangeDoesNotChangeHash(t *testing.T) {
+func TestExtractBody_NoFrontmatter(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	a := []byte("---\ntype: fact\nluhmann: \"1\"\n---\nshared body.\n")
-	b := []byte("---\ntype: fact\nluhmann: \"1\"\nextra: added\n---\nshared body.\n")
-	g.Expect(embed.ContentHash(a)).To(Equal(embed.ContentHash(b)))
+	in := []byte("Just a body, no frontmatter.\n")
+	g.Expect(string(embed.ExtractBody(in))).To(Equal("Just a body, no frontmatter.\n"))
+}
+
+func TestExtractBody_StripsFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: fact\nluhmann: \"5\"\n---\n\nThis is the body.\n")
+	g.Expect(string(embed.ExtractBody(in))).To(Equal("This is the body.\n"))
+}
+
+func TestExtractBody_UnterminatedFrontmatterReturnedUnchanged(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: fact\n(no closing delimiter)\n")
+	g.Expect(string(embed.ExtractBody(in))).To(Equal(string(in)))
 }

@@ -264,6 +264,49 @@ func TestTargets(t *testing.T) {
 	})
 }
 
+// TestTargets_EmbedStatus exercises the embed status closure end-to-end
+// through Targets() so newOsEmbedDeps wiring is covered. Uses an empty
+// vault so the LazyEmbedder's ModelID() path doesn't trigger model unpack.
+func TestTargets_EmbedStatus(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
+
+	stderr := executeForTest(t, []string{"engram", "embed", "status", "--vault", vault})
+	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
+// TestTargets_EmbedApplyDryRun exercises embed apply closure with --dry-run
+// against an empty vault. Lazy embedder's ModelID() doesn't unpack model.
+func TestTargets_EmbedApplyDryRun(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
+
+	stderr := executeForTest(t, []string{"engram", "embed", "apply", "--dry-run", "--vault", vault})
+	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
+// TestTargets_QueryEmptyVault exercises the query closure on an empty
+// vault — fast path returns items:[] without invoking the embedder.
+func TestTargets_QueryEmptyVault(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
+
+	stderr := executeForTest(t, []string{"engram", "query", "anything", "--vault", vault})
+	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
 // executeForTest runs an engram CLI command through targ, returning stderr content.
 // Command-level errors are written to stderr (errHandler contract), not returned as Go errors.
 // Targ-level errors (unknown flags, missing required args) are also written to stderr.

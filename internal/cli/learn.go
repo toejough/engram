@@ -181,6 +181,47 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 	}
 }
 
+// autoEmbedNote writes a sidecar for the newly-created note. Failure is
+// warned-and-ignored: the Luhmann write is atomic, so a missing sidecar
+// is recoverable via `engram embed apply --missing` later.
+func autoEmbedNote(ctx context.Context, deps LearnDeps, notePath, content string) {
+	if deps.Embedder == nil || deps.WriteSidecar == nil {
+		return
+	}
+
+	body := embed.ExtractBody([]byte(content))
+
+	vector, embErr := deps.Embedder.Embed(ctx, string(body))
+	if embErr != nil {
+		if deps.LogWarning != nil {
+			deps.LogWarning("learn: embed failed for %s: %v", notePath, embErr)
+		}
+
+		return
+	}
+
+	sidecar := embed.Sidecar{
+		EmbeddingModelID: deps.Embedder.ModelID(),
+		Dims:             deps.Embedder.Dims(),
+		Vector:           vector,
+		ContentHash:      embed.ContentHash([]byte(content)),
+	}
+
+	scBytes, marshalErr := embed.MarshalSidecar(sidecar)
+	if marshalErr != nil {
+		if deps.LogWarning != nil {
+			deps.LogWarning("learn: sidecar marshal failed for %s: %v", notePath, marshalErr)
+		}
+
+		return
+	}
+
+	writeErr := deps.WriteSidecar(embed.SidecarPath(notePath), scBytes)
+	if writeErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("learn: sidecar write failed for %s: %v", notePath, writeErr)
+	}
+}
+
 // extractLuhmannFromFilename strips the `.md` extension and delegates to
 // luhmann.FromBasename — the canonical extractor (see #626). Returns
 // ("", false) for any non-`.md` filename or one without a valid leading ID.
@@ -231,7 +272,7 @@ func newOsLearnDeps() LearnDeps {
 		WriteNew:  vaultFS.WriteNew,
 		Embedder:  sharedEmbedder,
 		WriteSidecar: func(path string, data []byte) error {
-			err := os.WriteFile(path, data, sidecarPerm) //nolint:gosec // path from caller
+			err := os.WriteFile(path, data, sidecarPerm)
 			if err != nil {
 				return fmt.Errorf("write sidecar: %w", err)
 			}
@@ -356,7 +397,7 @@ func resolveVault(flagValue, home string, getenv func(string) string) string {
 // vault directory exists (creating it on first use), acquires the lock,
 // computes the next Luhmann ID, and writes the file. args.Vault must
 // already be resolved by the caller via resolveVault.
-func runLearn(_ context.Context, args LearnArgs, deps LearnDeps, stdout io.Writer) error {
+func runLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Writer) error {
 	slugErr := validateSlug(args.Slug)
 	if slugErr != nil {
 		return fmt.Errorf("learn: %w", slugErr)
@@ -376,7 +417,7 @@ func runLearn(_ context.Context, args LearnArgs, deps LearnDeps, stdout io.Write
 		}
 	}
 
-	path, writeErr := writeLearnUnderLock(args, deps, vault)
+	path, writeErr := writeLearnUnderLock(ctx, args, deps, vault)
 	if writeErr != nil {
 		return writeErr
 	}
@@ -473,7 +514,12 @@ func validateSlug(slug string) error {
 // writeLearnUnderLock acquires the vault lock, computes the next Luhmann ID,
 // assembles file content, and writes it. The lock spans listing existing IDs
 // through writing the new file to prevent ID collisions.
-func writeLearnUnderLock(args LearnArgs, deps LearnDeps, vault string) (string, error) {
+func writeLearnUnderLock(
+	ctx context.Context,
+	args LearnArgs,
+	deps LearnDeps,
+	vault string,
+) (string, error) {
 	release, lockErr := deps.Lock(vault)
 	if lockErr != nil {
 		return "", fmt.Errorf("learn: acquiring lock: %w", lockErr)
@@ -503,48 +549,7 @@ func writeLearnUnderLock(args LearnArgs, deps LearnDeps, vault string) (string, 
 		return "", fmt.Errorf("learn: writing %s: %w", path, writeErr)
 	}
 
-	autoEmbedNote(deps, path, content)
+	autoEmbedNote(ctx, deps, path, content)
 
 	return path, nil
-}
-
-// autoEmbedNote writes a sidecar for the newly-created note. Failure is
-// warned-and-ignored: the Luhmann write is atomic, so a missing sidecar
-// is recoverable via `engram embed apply --missing` later.
-func autoEmbedNote(deps LearnDeps, notePath, content string) {
-	if deps.Embedder == nil || deps.WriteSidecar == nil {
-		return
-	}
-
-	body := embed.ExtractBody([]byte(content))
-
-	vector, embErr := deps.Embedder.Embed(context.Background(), string(body))
-	if embErr != nil {
-		if deps.LogWarning != nil {
-			deps.LogWarning("learn: embed failed for %s: %v", notePath, embErr)
-		}
-
-		return
-	}
-
-	sidecar := embed.Sidecar{
-		EmbeddingModelID: deps.Embedder.ModelID(),
-		Dims:             deps.Embedder.Dims(),
-		Vector:           vector,
-		ContentHash:      embed.ContentHash([]byte(content)),
-	}
-
-	scBytes, marshalErr := embed.MarshalSidecar(sidecar)
-	if marshalErr != nil {
-		if deps.LogWarning != nil {
-			deps.LogWarning("learn: sidecar marshal failed for %s: %v", notePath, marshalErr)
-		}
-
-		return
-	}
-
-	writeErr := deps.WriteSidecar(embed.SidecarPath(notePath), scBytes)
-	if writeErr != nil && deps.LogWarning != nil {
-		deps.LogWarning("learn: sidecar write failed for %s: %v", notePath, writeErr)
-	}
 }

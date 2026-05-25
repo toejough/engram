@@ -538,7 +538,7 @@ func mdFilesIn(entries []DirEntry) []string {
 // parseGoListJSON extracts Dir and Version from `go list -m -json` output.
 // The field names are PascalCase because that's the literal JSON `go list`
 // emits — not the Go-conventional camelCase a linter would prefer.
-func parseGoListJSON(data []byte) (dir string, version string, err error) {
+func parseGoListJSON(data []byte) (dir, version string, err error) {
 	var payload struct {
 		Dir     string `json:"Dir"`     //nolint:tagliatelle // `go list -m -json` emits PascalCase
 		Version string `json:"Version"` //nolint:tagliatelle // `go list -m -json` emits PascalCase

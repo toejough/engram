@@ -483,7 +483,8 @@ func TestWriteUpdateReport_RealRunLocalNoVersion(t *testing.T) {
 	g.Expect(writeErr).NotTo(HaveOccurred())
 
 	out := buffer.String()
-	g.Expect(out).To(ContainSubstring("binary: go install ./cmd/engram/ ... ok (engram → ~/go/bin/engram)"))
+	g.Expect(out).
+		To(ContainSubstring("binary: go install ./cmd/engram/ ... ok (engram → ~/go/bin/engram)"))
 }
 
 func TestWriteUpdateReport_RealRunRemoteVersionAndBinary(t *testing.T) {
@@ -498,7 +499,11 @@ func TestWriteUpdateReport_RealRunRemoteVersionAndBinary(t *testing.T) {
 		BinaryPath:    "/home/joe/go/bin/engram",
 		BinaryVersion: "v0.2.0",
 		Harnesses: []update.HarnessReport{
-			{Name: update.HarnessClaude, ProbeRoot: ".claude", SkillsRoot: "/home/joe/.claude/skills"},
+			{
+				Name:       update.HarnessClaude,
+				ProbeRoot:  ".claude",
+				SkillsRoot: "/home/joe/.claude/skills",
+			},
 		},
 	}
 

@@ -15,35 +15,25 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func newQueryDeps(memFS *inMemoryFS) cli.QueryDeps {
-	return cli.QueryDeps{
-		Scan:     memFS.Scan,
-		Read:     memFS.Read,
-		Embedder: stubEmbedder{modelID: "m@4", dims: 4},
-	}
-}
+func TestQuery_EmbeddingFailureSurfacesError(t *testing.T) {
+	t.Parallel()
 
-// plantNoteWithSidecar populates memFS with a note + matching sidecar.
-func plantNoteWithSidecar(t *testing.T, memFS *inMemoryFS, vault, relPath, body string) {
-	t.Helper()
+	g := NewWithT(t)
 
-	notePath := filepath.Join(vault, relPath)
-	memFS.files[notePath] = []byte(body)
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
+		"---\ntype: fact\n---\nbody\n")
 
-	emb := stubEmbedder{modelID: "m@4", dims: 4}
-	vec, _ := emb.Embed(context.Background(), string(embed.ExtractBody([]byte(body))))
-	sidecar := embed.Sidecar{
-		EmbeddingModelID: emb.ModelID(),
-		Dims:             emb.Dims(),
-		Vector:           vec,
-		ContentHash:      embed.ContentHash([]byte(body)),
-	}
-	scBytes, marshalErr := embed.MarshalSidecar(sidecar)
-	if marshalErr != nil {
-		t.Fatalf("marshal sidecar: %v", marshalErr)
-	}
+	deps := newQueryDeps(memFS)
+	deps.Embedder = errorEmbedder{}
 
-	memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = scBytes
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Query: "x", VaultPath: vault}, deps, &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("embed")))
 }
 
 func TestQuery_EmptyVault_ItemsEmpty(t *testing.T) {
@@ -55,6 +45,7 @@ func TestQuery_EmptyVault_ItemsEmpty(t *testing.T) {
 	memFS := newInMemoryFS()
 
 	var out bytes.Buffer
+
 	err := cli.RunQuery(context.Background(),
 		cli.QueryArgs{Query: "anything", VaultPath: vault},
 		newQueryDeps(memFS), &out)
@@ -79,6 +70,7 @@ func TestQuery_NotesButNoSidecars_ErrorWithRecoveryHint(t *testing.T) {
 	memFS.files[filepath.Join(vault, "Permanent/1.foo.md")] = []byte("body")
 
 	var out bytes.Buffer
+
 	err := cli.RunQuery(context.Background(),
 		cli.QueryArgs{Query: "anything", VaultPath: vault},
 		newQueryDeps(memFS), &out)
@@ -101,12 +93,14 @@ func TestQuery_RanksByDescendingCosine(t *testing.T) {
 		"---\ntype: fact\n---\nzzz\n")
 
 	var out bytes.Buffer
+
 	err := cli.RunQuery(context.Background(),
 		cli.QueryArgs{Query: "the query string body", VaultPath: vault, Limit: 2},
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
+	//nolint:tagliatelle // mirrors the spec-contract YAML keys from cli/query.go
 	var parsed struct {
 		Items []struct {
 			Path        string   `yaml:"path"`
@@ -151,6 +145,7 @@ func TestQuery_RespectsLimit(t *testing.T) {
 	}
 
 	var out bytes.Buffer
+
 	err := cli.RunQuery(context.Background(),
 		cli.QueryArgs{Query: "body", VaultPath: vault, Limit: 2},
 		newQueryDeps(memFS), &out)
@@ -165,31 +160,44 @@ func TestQuery_RespectsLimit(t *testing.T) {
 	g.Expect(parsed.Items).To(HaveLen(2))
 }
 
-func TestQuery_EmbeddingFailureSurfacesError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
-		"---\ntype: fact\n---\nbody\n")
-
-	deps := newQueryDeps(memFS)
-	deps.Embedder = errorEmbedder{}
-
-	var out bytes.Buffer
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "x", VaultPath: vault}, deps, &out)
-
-	g.Expect(err).To(MatchError(ContainSubstring("embed")))
-}
-
 type errorEmbedder struct{}
+
+func (errorEmbedder) Dims() int { return 4 }
 
 func (errorEmbedder) Embed(context.Context, string) ([]float32, error) {
 	return nil, errors.New("embedder down")
 }
 
 func (errorEmbedder) ModelID() string { return "m@4" }
-func (errorEmbedder) Dims() int       { return 4 }
+
+func newQueryDeps(memFS *inMemoryFS) cli.QueryDeps {
+	return cli.QueryDeps{
+		Scan:     memFS.Scan,
+		Read:     memFS.Read,
+		Embedder: stubEmbedder{modelID: "m@4", dims: 4},
+	}
+}
+
+// plantNoteWithSidecar populates memFS with a note + matching sidecar.
+func plantNoteWithSidecar(t *testing.T, memFS *inMemoryFS, vault, relPath, body string) {
+	t.Helper()
+
+	notePath := filepath.Join(vault, relPath)
+	memFS.files[notePath] = []byte(body)
+
+	emb := stubEmbedder{modelID: "m@4", dims: 4}
+	vec, _ := emb.Embed(context.Background(), string(embed.ExtractBody([]byte(body))))
+	sidecar := embed.Sidecar{
+		EmbeddingModelID: emb.ModelID(),
+		Dims:             emb.Dims(),
+		Vector:           vec,
+		ContentHash:      embed.ContentHash([]byte(body)),
+	}
+
+	scBytes, marshalErr := embed.MarshalSidecar(sidecar)
+	if marshalErr != nil {
+		t.Fatalf("marshal sidecar: %v", marshalErr)
+	}
+
+	memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = scBytes
+}

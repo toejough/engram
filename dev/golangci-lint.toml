@@ -56,6 +56,8 @@ allow = [
 	'golang.org/x/tools/go/packages',
 	'go.yaml.in/yaml/v3',
 	'modernc.org/sqlite',
+	# Embedder pipeline (engram query spike).
+	'github.com/knights-analytics/hugot',
 ]
 
 [linters.settings.depguard.rules.test]
@@ -74,6 +76,8 @@ allow = [
 	'go.yaml.in/yaml/v3',
 	'modernc.org/sqlite',
 	'pgregory.net/rapid',
+	# Embedder parity gate (engram query spike).
+	'github.com/knights-analytics/hugot',
 ]
 
 [linters.settings.nlreturn]
