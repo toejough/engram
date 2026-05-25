@@ -116,7 +116,7 @@ sequenceDiagram
 Operator runs `/learn` (or the harness self-fires after substantive work). The
 harness first invokes `engram transcript --mark` to read session JSONL or
 SQLite from S5 and advance the per-harness marker forward, then writes any
-captured lessons into the vault via `engram learn {feedback|fact}`. Each
+captured lessons into the vault via `engram learn {feedback|fact|episode}`. Each
 write acquires a `flock` on the vault root before computing the Luhmann ID and
 emitting the new file. Source: `internal/cli/transcript.go:117`
 (`advanceAndReportMarker`) and `internal/cli/learn.go:338` (`runLearn`).
@@ -149,7 +149,7 @@ sequenceDiagram
     Note over H: read transcript output plus in-context turns, identify candidates, apply recall-mirror test
 
     loop per candidate (one parallel tool-use block)
-        H->>E: engram learn feedback|fact --slug ... --source ... --situation ...
+        H->>E: engram learn feedback|fact|episode --slug ... --source ... --situation ...
         alt vault dir missing
             E->>V: bootstrap Permanent, .obsidian, README, .gitignore
         end
@@ -216,7 +216,7 @@ sequenceDiagram
         H->>E: engram transcript --mark
         E-->>H: marker status
         loop per lesson
-            H->>E: engram learn feedback|fact ...
+            H->>E: engram learn feedback|fact|episode ...
             E-->>H: written path
         end
     end

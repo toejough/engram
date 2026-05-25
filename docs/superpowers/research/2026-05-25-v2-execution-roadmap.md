@@ -35,21 +35,23 @@ landed; this roadmap tracks what remains.
 | F4 cleanup (167 inbound wikilink rewrites; 74 cross-MOC related-to bullets; orphan sidecars) | Vault edits only; no repo commits | ✅ Done |
 | Drop `engram learn moc` | `d34b24d5` | ✅ Done |
 | Vault bootstrap + L1 diagram MOC cleanup | `da469c36` | ✅ Done |
+| F1 — episode kind spec | `f9d3a6cb` | ✅ Done |
+| F1 — episode kind implementation (`engram learn episode` subcommand) | `118269bb` | ✅ Done |
 
-Repo state: main at `da469c36`, 22 commits ahead of origin/main,
-working tree clean. Vault state: 480 notes total, all embedded,
-0 missing/stale/incompatible. `MOCs/` directory empty;
-`_legacy/MOCs/` holds 25 original MOC `.md` + `.vec.json` pairs.
+Repo state: main, working tree clean. Vault state: 480 notes
+total, all embedded, 0 missing/stale/incompatible. `MOCs/`
+directory empty; `_legacy/MOCs/` holds 25 original MOC `.md` +
+`.vec.json` pairs.
 
 ## What's next, in order
 
 | # | Item | Notes |
 |---|---|---|
-| **1** | **F1 — episode kind** | Add `engram learn episode` + episode schema + SKILL.md update. See "Immediate next step" below. |
-| 2 | F6 + F9.1 — subgraph clustering at query time | Add 3-hop link expansion + auto-k-means clustering + hub identification to `engram query`. Expand payload per F7's resolved shape (clusters section + richer items.provenances). |
-| 3 | Updated `/recall` SKILL.md | Replace cascade logic with `engram query` invocation; add the synthesis-gate per-cluster discipline (write fact/feedback via `/learn` when a cluster has a binding principle). |
+| 1 | F6 + F9.1 — subgraph clustering at query time | Add 3-hop link expansion + auto-k-means clustering + hub identification to `engram query`. Expand payload per F7's resolved shape (clusters section + richer items.provenances). |
+| 2 | Updated `/recall` SKILL.md | Replace cascade logic with `engram query` invocation; add the synthesis-gate per-cluster discipline (write fact/feedback via `/learn` when a cluster has a binding principle). |
 
-Items 1–3 are the only remaining v2 work. F4 is the largest item by token-cost; it's done. F1 is medium; F6+F9.1 is medium-large; the SKILL update is small-medium.
+Items 1–2 are the only remaining v2 work. F6+F9.1 is
+medium-large; the SKILL update is small-medium.
 
 ## Outstanding loose ends (low-priority cleanup)
 
@@ -59,11 +61,20 @@ These were flagged during F4 work but deliberately deferred:
 - **Historical doc references** to `engram learn moc` in `docs/superpowers/research/*` and `docs/plans/*`. Kept as historical context.
 - **Merged worktree branch** `worktree-engram-query-spike` still exists in `git branch` output. Worktree directory removed. Can be deleted with `git branch -d worktree-engram-query-spike` if you want a tidy branch list.
 
-## Immediate next step: F1 — episode kind
+## Immediate next step: F6 + F9.1 — subgraph clustering at query time
 
-**Plan (user-ratified 2026-05-25):** (b) sharpen the spec first,
-then (a) dispatch to a subagent for implementation. Same pattern
-as the `drop engram learn moc` dispatch that worked well.
+The next slice is to ship subgraph clustering inside `engram
+query`. See the F6 + F9.1 resolution in
+`2026-05-22-tiered-memory-research-log.md` for the design; no
+spec yet — write one next, then dispatch implementation. Pattern
+matches the F1 sharpen-then-dispatch flow (spec at
+`docs/superpowers/research/2026-05-25-f6-f91-spec.md`).
+
+## Completed: F1 — episode kind
+
+**Plan (user-ratified 2026-05-25):** (b) sharpened the spec
+first, then (a) dispatched to a subagent for implementation.
+Same pattern as the `drop engram learn moc` dispatch.
 
 ### Why sharpen first
 

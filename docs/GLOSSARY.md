@@ -134,11 +134,12 @@ The skill at `skills/learn/SKILL.md`, invoked as `/learn` or fired after
 recall-flow work. Writes new notes to the vault.
 
 ### `engram learn` (subcommand)
-The binary subcommand. Two forms: `engram learn feedback` and
-`engram learn fact`. Both require `--source` and take body content
-via flags (stdin is ignored). The `moc` subcommand was retired after
-the F4 migration; the 25 historical MOCs are archived for audit in
-`<vault>/_legacy/MOCs/` and are not part of the active recall graph.
+The binary subcommand. Three forms: `engram learn feedback`,
+`engram learn fact`, and `engram learn episode`. All require
+`--source` and take body content via flags (stdin is ignored). The
+`moc` subcommand was retired after the F4 migration; the 25
+historical MOCs are archived for audit in `<vault>/_legacy/MOCs/`
+and are not part of the active recall graph.
 
 ### Feedback (note type)
 A note recording something to do differently next time — user corrections,
@@ -147,6 +148,16 @@ dead-ends, failed approaches. Auto-generated opener: `Lesson learned: …`.
 ### Fact (note type)
 A note recording how something actually works — tool behaviors, idioms,
 conventions, gotchas. Auto-generated opener: `Information learned: …`.
+
+### Episode (note type)
+A note recording the narrative arc of a session or work segment — what was
+done, in what order, with what outcomes. Voice is narrative (first-person,
+project names, dates OK); vocabulary stays verbatim from source. No
+auto-generated opener — the summary IS the body. Frontmatter carries
+nested `provenance.sessions` and `provenance.transcript_range`
+(RFC3339 UTC start/end). Path A/B/C and the recall-mirror test do
+NOT apply to episodes — they are retrieved through the situational
+stream, not phrase-matching.
 
 ### recall-mirror test
 The gate every candidate note must pass before being written: *"Would a

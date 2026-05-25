@@ -76,6 +76,7 @@ engram transcript --from <date|all>    Override marker; scan from explicit date 
 engram transcript --max-bytes <n>      Set byte budget (default 200000)
 engram learn feedback --slug ... --source ... --situation ... --behavior ... --impact ... --action ...
 engram learn fact     --slug ... --source ... --situation ... --subject ... --predicate ... --object ...
+engram learn episode  --slug ... --source ... --situation ... --summary ... --outcome ... --session ... --transcript-range <start>..<end>
 engram embed apply [--all|--missing|--stale|--force|--dry-run]   (Re-)embed notes per selection (default: missing)
 engram embed status                    Report counts per state (total / with-embeddings / without / stale / incompatible / broken)
 engram query <string> [--limit N]      Semantic search over the vault; YAML output, default limit 20
