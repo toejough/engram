@@ -28,8 +28,6 @@ var (
 	ExportRenderFactFrontmatter      = renderFactFrontmatter
 	ExportRenderFeedbackBody         = renderFeedbackBody
 	ExportRenderFeedbackFrontmatter  = renderFeedbackFrontmatter
-	ExportRenderMOCBody              = renderMOCBody
-	ExportRenderMOCFrontmatter       = renderMOCFrontmatter
 	ExportRenderRelatedSection       = renderRelatedSection
 	ExportResolveVault               = resolveVault
 	ExportRunLearn                   = runLearn
@@ -46,8 +44,6 @@ var (
 type ExportFactFields = factFields
 
 type ExportFeedbackFields = feedbackFields
-
-type ExportMOCFields = mocFields
 
 // Exported types.
 type ExportVaultInitFS = VaultInitFS
@@ -147,11 +143,6 @@ func ExportRunLearnFromFeedbackArgs(
 	stdout io.Writer,
 ) error {
 	return runLearnFromFeedbackArgs(ctx, a, stdout)
-}
-
-// ExportRunLearnFromMOCArgs invokes the unexported runLearnFromMOCArgs for testing.
-func ExportRunLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Writer) error {
-	return runLearnFromMOCArgs(ctx, a, stdout)
 }
 
 // NewTranscriptDepsForTest exposes newTranscriptDeps for whitebox testing.

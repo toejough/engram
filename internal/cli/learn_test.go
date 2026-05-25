@@ -36,19 +36,11 @@ func TestExtractLuhmannFromFilename_RejectsNonMd(t *testing.T) {
 	g.Expect(ok).To(BeFalse())
 }
 
-func TestLearnPath_MOC(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportLearnPath("/vault", "moc", "5", "llm-rationalization-patterns", when)
-	g.Expect(got).To(Equal("/vault/MOCs/5.2026-05-09.llm-rationalization-patterns.md"))
-}
-
 func TestLearnPath_Permanent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportLearnPath("/vault", "feedback", "1a3", "subagent-driven-recovery", when)
+	got := cli.ExportLearnPath("/vault", "1a3", "subagent-driven-recovery", when)
 	g.Expect(got).To(Equal("/vault/Permanent/1a3.2026-05-09.subagent-driven-recovery.md"))
 }
 
@@ -94,24 +86,6 @@ func TestRenderBody_Feedback(t *testing.T) {
 			"\n" +
 			"Related to:\n- [[1a.foo]] — same shape.\n- [[5.bar]] — the MOC.\n",
 	))
-}
-
-func TestRenderBody_MOC_FramingOnly(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportRenderMOCBody(
-		"This cluster names a recurring pattern of LLM rationalization under pressure.",
-		"",
-	)
-	g.Expect(got).
-		To(Equal("This cluster names a recurring pattern of LLM rationalization under pressure.\n"))
-}
-
-func TestRenderBody_MOC_FramingPlusRelated(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportRenderMOCBody("framing prose", "Related to:\n- [[X]] — r.\n")
-	g.Expect(got).To(Equal("framing prose\n\nRelated to:\n- [[X]] — r.\n"))
 }
 
 // TestRenderFactBody_StripsLeadingWhenFromSituation is the fact-type variant of
@@ -305,37 +279,6 @@ func TestRenderFrontmatter_Feedback(t *testing.T) {
 	}))
 }
 
-func TestRenderFrontmatter_MOC(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	got := cli.ExportRenderMOCFrontmatter(cli.ExportMOCFields{
-		Topic:   "llm rationalization patterns under pressure",
-		Luhmann: "5",
-		Source:  "constructed from cluster analysis, 2026-05-09",
-	}, when)
-	parsed := parseFrontmatter(t, got)
-	g.Expect(parsed["type"]).To(Equal("moc"))
-	g.Expect(parsed["topic"]).To(Equal("llm rationalization patterns under pressure"))
-}
-
-// TestRenderMOCFrontmatter_SafelyEncodesTrickyValues mirrors the safety check
-// for MOC frontmatter.
-func TestRenderMOCFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
-	fields := cli.ExportMOCFields{
-		Topic:   "topic:\nwith newline",
-		Luhmann: "11",
-		Source:  "- src",
-	}
-	got := cli.ExportRenderMOCFrontmatter(fields, when)
-	parsed := parseFrontmatter(t, got)
-	g.Expect(parsed["topic"]).To(Equal(fields.Topic))
-	g.Expect(parsed["source"]).To(Equal(fields.Source))
-}
-
 func TestRenderRelatedSection_Empty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -496,45 +439,6 @@ func TestRunLearn_Feedback_WritesExpectedFile(t *testing.T) {
 		To(ContainSubstring("Lesson learned: when writing concurrent Go code"))
 }
 
-func TestRunLearn_MOC_WritesExpectedFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var writtenPath string
-
-	deps := cli.LearnDeps{
-		Now:     func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
-		Getenv:  func(string) string { return "" },
-		StatDir: func(string) error { return nil },
-		ListIDs: func(string) ([]string, error) { return nil, nil },
-		Lock:    func(string) (func(), error) { return func() {}, nil },
-		WriteNew: func(path string, _ []byte) error {
-			writtenPath = path
-
-			return nil
-		},
-	}
-
-	args := cli.LearnArgs{
-		Type:     "moc",
-		Slug:     "moc-slug",
-		Vault:    "/vault",
-		Position: "top",
-		Topic:    "the topic",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(writtenPath).To(Equal("/vault/MOCs/1.2026-05-09.moc-slug.md"))
-}
-
 func TestRunLearn_PropagatesListIDsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -547,7 +451,7 @@ func TestRunLearn_PropagatesListIDsError(t *testing.T) {
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Position: "top", Topic: "t"}
+	args := cli.LearnArgs{Type: "fact", Slug: "x", Vault: "/v", Position: "top"}
 
 	var stdout strings.Builder
 
@@ -567,7 +471,7 @@ func TestRunLearn_PropagatesLockError(t *testing.T) {
 		Lock:     func(string) (func(), error) { return nil, errors.New("locked") },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Position: "top", Topic: "t"}
+	args := cli.LearnArgs{Type: "fact", Slug: "x", Vault: "/v", Position: "top"}
 
 	var stdout strings.Builder
 
@@ -587,7 +491,7 @@ func TestRunLearn_PropagatesStatDirError(t *testing.T) {
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.LearnArgs{Type: "moc", Slug: "x", Vault: "/v", Position: "top"}
+	args := cli.LearnArgs{Type: "fact", Slug: "x", Vault: "/v", Position: "top"}
 
 	var stdout strings.Builder
 
@@ -607,7 +511,7 @@ func TestRunLearn_RejectsInvalidSlug(t *testing.T) {
 		Lock:     func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(string, []byte) error { return nil },
 	}
-	args := cli.LearnArgs{Type: "moc", Slug: "Bad Slug", Vault: "/v", Position: "top"}
+	args := cli.LearnArgs{Type: "fact", Slug: "Bad Slug", Vault: "/v", Position: "top"}
 
 	var stdout strings.Builder
 

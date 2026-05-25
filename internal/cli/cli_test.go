@@ -136,68 +136,6 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 	expectSidecarValid(g, filepath.Join(expectedPath, sidecarName))
 }
 
-func TestEngramLearn_MOC_EndToEnd(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
-	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
-
-	binPath := filepath.Join(t.TempDir(), "engram")
-	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
-	cmd.Dir = projectRoot(t)
-	out, err := cmd.CombinedOutput()
-	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
-
-	if err != nil {
-		return
-	}
-
-	run := exec.Command(binPath, "learn", "moc",
-		"--slug", "ctx-cluster",
-		"--vault", vault,
-		"--position", "top",
-		"--source", "smoke test",
-		"--topic", "context handling",
-		"--framing", "Notes about how ctx flows through the system.",
-	)
-	runOut, runErr := run.CombinedOutput()
-	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
-
-	if runErr != nil {
-		return
-	}
-
-	mocPath := filepath.Join(vault, "MOCs")
-	entries, err := os.ReadDir(mocPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	mdName, sidecarName := splitMdAndSidecar(entries)
-	g.Expect(mdName).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-cluster\.md$`))
-	g.Expect(sidecarName).To(MatchRegexp(`^1\.\d{4}-\d{2}-\d{2}\.ctx-cluster\.vec\.json$`))
-	expectSidecarValid(g, filepath.Join(mocPath, sidecarName))
-
-	permEntries, err := os.ReadDir(filepath.Join(vault, "Permanent"))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(permEntries).To(BeEmpty(), "MOC must not be written to Permanent/")
-
-	body, err := os.ReadFile(filepath.Join(mocPath, mdName))
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(body)).To(ContainSubstring("type: moc"))
-	g.Expect(string(body)).To(ContainSubstring("topic: context handling"))
-	g.Expect(string(body)).To(ContainSubstring("Notes about how ctx flows through the system."))
-}
-
 func TestEngramRecall_AnchorsEndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

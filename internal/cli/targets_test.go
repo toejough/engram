@@ -160,23 +160,6 @@ func TestTargets(t *testing.T) {
 		_ = stderr
 	})
 
-	t.Run("invokes learn moc closure", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
-
-		stderr := executeForTest(t, []string{
-			"engram", "learn", "moc",
-			"--slug", "test-slug",
-			"--vault", vault,
-			"--source", "agent",
-			"--relation", "top",
-		})
-		_ = stderr
-	})
-
 	t.Run("learn feedback errors when --source is missing", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
@@ -210,25 +193,6 @@ func TestTargets(t *testing.T) {
 			"--vault", vault,
 			"--relation", "top",
 			"--situation", "x", "--subject", "x", "--predicate", "x", "--object", "x",
-		}, targets...)
-		g.Expect(err).To(gomega.HaveOccurred())
-		g.Expect(result.Output).To(gomega.ContainSubstring("source"))
-	})
-
-	t.Run("learn moc errors when --source is missing", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
-
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		result, err := targ.Execute([]string{
-			"engram", "learn", "moc",
-			"--slug", "test-slug",
-			"--vault", vault,
-			"--relation", "top",
-			"--topic", "x",
 		}, targets...)
 		g.Expect(err).To(gomega.HaveOccurred())
 		g.Expect(result.Output).To(gomega.ContainSubstring("source"))

@@ -43,14 +43,6 @@ type LearnFeedbackArgs struct {
 	Action    string `targ:"flag,name=action,desc=recommended action"`
 }
 
-// LearnMOCArgs holds parsed flags for the learn moc subcommand.
-type LearnMOCArgs struct {
-	CommonLearnArgs
-
-	Topic   string `targ:"flag,name=topic,desc=cluster topic name"`
-	Framing string `targ:"flag,name=framing,desc=framing paragraph(s) for the MOC body"`
-}
-
 // RecallArgs holds parsed flags for the recall subcommand. Recall is
 // vault-only; three modes are mutually selected by flag:
 //
@@ -117,10 +109,6 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, stdout))
 			}).Name("fact").Description("Write a fact note to Permanent/"),
-			targ.Targ(func(ctx context.Context, a LearnMOCArgs) {
-				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
-				errHandler(runLearnFromMOCArgs(withLog(ctx), a, stdout))
-			}).Name("moc").Description("Write a MOC note to MOCs/"),
 		),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
 			errHandler(runUpdate(withLog(ctx), a, stdout))

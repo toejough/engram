@@ -28,7 +28,7 @@ type LearnArgs struct {
 	Position string
 	Source   string
 
-	// feedback / fact / moc all support related-note bullets
+	// feedback / fact both support related-note bullets
 	Relations []string
 
 	// feedback / fact share these
@@ -41,9 +41,6 @@ type LearnArgs struct {
 	Subject   string
 	Predicate string
 	Object    string
-	// moc only
-	Topic   string
-	Framing string
 }
 
 // LearnDeps holds injected dependencies for runLearn. All fields are
@@ -69,12 +66,11 @@ const (
 	envVaultPath = "ENGRAM_VAULT_PATH"
 	typeFact     = "fact"
 	typeFeedback = "feedback"
-	typeMOC      = "moc"
 )
 
 // unexported variables.
 var (
-	errLearnUnknownType = errors.New("learn: type must be feedback, fact, or moc")
+	errLearnUnknownType = errors.New("learn: type must be feedback or fact")
 	errSlugEmpty        = errors.New("slug is required")
 	errSlugInvalid      = errors.New("slug must match [a-z0-9-]+")
 	slugPattern         = regexp.MustCompile(`^[a-z0-9-]+$`)
@@ -123,21 +119,6 @@ type feedbackFrontmatterDoc struct {
 	Source    string       `yaml:"source"`
 }
 
-type mocFields struct {
-	Topic   string
-	Luhmann string
-	Source  string
-}
-
-// mocFrontmatterDoc is the YAML shape of an MOC note's frontmatter.
-type mocFrontmatterDoc struct {
-	Type    string       `yaml:"type"`
-	Topic   string       `yaml:"topic"`
-	Luhmann quotedString `yaml:"luhmann"`
-	Created string       `yaml:"created"`
-	Source  string       `yaml:"source"`
-}
-
 // quotedString is a YAML scalar that always renders double-quoted. Used for
 // the Luhmann ID field so the rendered frontmatter matches the vault
 // convention (luhmann: "9aa") regardless of whether yaml.v3 would otherwise
@@ -172,10 +153,6 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 		}
 
 		return renderFactFrontmatter(f, when) + renderFactBody(f, related), nil
-	case typeMOC:
-		f := mocFields{Topic: args.Topic, Luhmann: luhmann, Source: args.Source}
-
-		return renderMOCFrontmatter(f, when) + renderMOCBody(args.Framing, related), nil
 	default:
 		return "", fmt.Errorf("%w: got %q", errLearnUnknownType, args.Type)
 	}
@@ -228,15 +205,10 @@ func extractLuhmannFromFilename(name string) (string, bool) {
 	return luhmann.FromBasename(strings.TrimSuffix(name, mdExt))
 }
 
-func learnPath(vault, memType, luhmann, slug string, when time.Time) string {
-	subdir := vaultgraph.PermanentSubdir
-	if memType == typeMOC {
-		subdir = vaultgraph.MOCsSubdir
-	}
-
+func learnPath(vault, luhmann, slug string, when time.Time) string {
 	filename := fmt.Sprintf("%s.%s.%s.md", luhmann, when.Format(dateFormat), slug)
 
-	return filepath.Join(vault, subdir, filename)
+	return filepath.Join(vault, vaultgraph.PermanentSubdir, filename)
 }
 
 // logWarningToStderrf is the production LogWarning hook. Method-named so
@@ -315,31 +287,6 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 		Luhmann:   quotedString(f.Luhmann),
 		Created:   when.Format(dateFormat),
 		Source:    f.Source,
-	})
-}
-
-func renderMOCBody(framing, relatedSection string) string {
-	framing = strings.TrimRight(framing, "\n")
-
-	switch {
-	case framing == "" && relatedSection == "":
-		return ""
-	case framing == "":
-		return relatedSection
-	case relatedSection == "":
-		return framing + "\n"
-	default:
-		return framing + "\n\n" + relatedSection
-	}
-}
-
-func renderMOCFrontmatter(f mocFields, when time.Time) string {
-	return marshalFrontmatter(mocFrontmatterDoc{
-		Type:    "moc",
-		Topic:   f.Topic,
-		Luhmann: quotedString(f.Luhmann),
-		Created: when.Format(dateFormat),
-		Source:  f.Source,
 	})
 }
 
@@ -452,22 +399,6 @@ func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout i
 	}, deps, stdout)
 }
 
-func runLearnFromMOCArgs(ctx context.Context, a LearnMOCArgs, stdout io.Writer) error {
-	deps := newOsLearnDeps()
-
-	return runLearn(ctx, LearnArgs{
-		Type:      typeMOC,
-		Slug:      a.Slug,
-		Vault:     a.Vault,
-		Target:    a.Target,
-		Position:  a.Position,
-		Source:    a.Source,
-		Relations: a.Relations,
-		Topic:     a.Topic,
-		Framing:   a.Framing,
-	}, deps, stdout)
-}
-
 // stripLeadingWhen removes a case-insensitive leading "When " or "when " from
 // the situation field so body templates that prepend "when " don't double up.
 // Skill-spec example situations conventionally start with "When ..." but the
@@ -526,7 +457,7 @@ func writeLearnUnderLock(
 	}
 
 	when := deps.Now()
-	path := learnPath(vault, args.Type, luhmann, args.Slug, when)
+	path := learnPath(vault, luhmann, args.Slug, when)
 
 	content, contentErr := assembleLearnContent(args, luhmann, when)
 	if contentErr != nil {

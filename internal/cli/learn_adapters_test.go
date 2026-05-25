@@ -320,31 +320,3 @@ func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).NotTo(BeEmpty())
 }
-
-func TestRunLearnFromMOCArgs_WritesFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(Succeed())
-
-	args := cli.LearnMOCArgs{
-		CommonLearnArgs: cli.CommonLearnArgs{
-			Slug:     "moc-slug",
-			Vault:    vault,
-			Position: "top",
-		},
-		Topic: "engram",
-	}
-
-	err := cli.ExportRunLearnFromMOCArgs(context.Background(), args, io.Discard)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	entries, readErr := os.ReadDir(filepath.Join(vault, "MOCs"))
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(entries).NotTo(BeEmpty())
-}

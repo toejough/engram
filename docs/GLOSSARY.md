@@ -134,9 +134,11 @@ The skill at `skills/learn/SKILL.md`, invoked as `/learn` or fired after
 recall-flow work. Writes new notes to the vault.
 
 ### `engram learn` (subcommand)
-The binary subcommand. Three forms: `engram learn feedback`,
-`engram learn fact`, `engram learn moc`. All require `--source` and
-take body content via flags (stdin is ignored).
+The binary subcommand. Two forms: `engram learn feedback` and
+`engram learn fact`. Both require `--source` and take body content
+via flags (stdin is ignored). The `moc` subcommand was retired after
+the F4 migration; the 25 historical MOCs are archived for audit in
+`<vault>/_legacy/MOCs/` and are not part of the active recall graph.
 
 ### Feedback (note type)
 A note recording something to do differently next time — user corrections,
@@ -199,15 +201,10 @@ Repeatable flag that adds one `Related to:` bullet per occurrence. Format:
 `--relation "<wikilink-target>|<per-link rationale>"`. Every related entry
 must include rationale; bare wikilinks are rejected.
 
-### `--framing`
-MOC-only flag carrying the framing paragraph(s). MOCs never list their
-constituents — backlinks already do that.
-
 ### `--source`
 Required provenance field on every `engram learn` invocation. Format:
 `session log <project>, <YYYY-MM-DD HH:MM UTC>, context: <short
-description>` for session-derived notes, or `constructed from cluster
-analysis, <date>` for MOCs.
+description>` for session-derived notes.
 
 ---
 

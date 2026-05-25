@@ -10,7 +10,7 @@ description: >
 
 # Learn — write to the agent-memory vault
 
-Preserve lessons from completed work as **permanent notes** (and **MOCs** when a real framing paragraph emerges across notes). One stage — no fleeting tier, no escape hatch.
+Preserve lessons from completed work as **permanent notes**. One stage — no fleeting tier, no escape hatch.
 
 This vault is your (the LLM's) persistent memory. You write everything; the human curates by directing what gets worked on. **Don't draft and ask for review** — you decide what becomes permanent and write it.
 
@@ -37,16 +37,21 @@ The binary resolves the vault automatically — `--vault` and
 `$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`).
 On first `engram learn` against a non-existent vault, the directory is
 bootstrapped with `Permanent/`, `MOCs/`, a minimal `.obsidian/` config,
-a `.gitignore`, and a `README.md`. **Do not pass
-`--vault` in `engram learn` / `engram recall` invocations unless the
-user explicitly tells you the vault is elsewhere.**
+a `.gitignore`, and a `README.md`. New writes go to `Permanent/` only;
+`MOCs/` is bootstrapped for backward compatibility but receives no new
+content. Historical MOCs from the F4 migration live under
+`<vault>/_legacy/MOCs/` for audit only — they are not part of the
+active recall graph. **Do not pass `--vault` in `engram learn` /
+`engram recall` invocations unless the user explicitly tells you the
+vault is elsewhere.**
 
 Layout:
 
-- Permanents: `<vault>/Permanent/`
-- MOCs: `<vault>/MOCs/`
+- Permanents (write target): `<vault>/Permanent/`
+- MOCs (bootstrap stub, no active content): `<vault>/MOCs/`
+- Archived MOCs (audit only, not read by recall): `<vault>/_legacy/MOCs/`
 
-No `Fleeting/` directory. No `Main Index.md`. No log file. Chronology lives in filenames; navigation lives in MOCs and link context.
+No `Fleeting/` directory. No `Main Index.md`. No log file. Chronology lives in filenames; navigation lives in link context across permanents.
 
 ## Trigger
 
@@ -62,8 +67,6 @@ Two kinds of notes, distinguished by why a future agent would want them:
 - **Fact** — anything else that would help reach the right outcome more efficiently (time- or cost-wise) in similar situations. Tool behaviors, idioms, conventions, integration shapes, gotchas, the way a thing actually works. The note exists so future-you spends less to get to the same right answer.
 
 If a single observation has both a "should have done X" component and a "here's how Y works" component, write two notes — one Feedback, one Fact.
-
-**MOCs** emerge when a real framing paragraph forms across notes — a synthesis you can write in your own words, not a list of constituents. Judgement-based; no count threshold.
 
 ## Workflow
 
@@ -162,13 +165,11 @@ The binary computes the actual ID under a vault lock. **You do not compute the I
 **Every `engram learn` invocation MUST include `--source`.** It is a required flag; the binary errors out when it is missing. Forms:
 
 - For feedback/fact derived from session activity: `session log <project>, <YYYY-MM-DD HH:MM UTC>, context: <short description>`
-- For MOCs synthesized from cluster analysis: `constructed from cluster analysis, <YYYY-MM-DD>`
 - For end-to-end smoke or test runs: a short label naming the run
 
 **All body content is supplied via flags. Stdin is not read.**
 
 - `--relation <wikilink-target>|<rationale>` — repeatable; each instance adds one `Related to:` bullet. The pipe `|` separates the wikilink target from its per-link rationale. Example: `--relation "1a.foo|same shape, different domain"`.
-- `--framing "..."` — MOC only; the framing paragraph(s) that form the MOC body. Do NOT auto-list constituents; backlinks already do that.
 
 The `Lesson learned: ...` / `Information learned: ...` opener line is auto-generated from `--situation` and `--action`/`--subject`/`--predicate`/`--object`. **Do not duplicate it in any flag.**
 
@@ -197,19 +198,6 @@ engram learn fact \
   --relation "<wikilink>|<rationale>"
 ```
 
-**MOC** (judgement-based, no count threshold):
-
-```
-engram learn moc \
-  --slug <kebab-case-tag> \
-  --target <id-or-empty> \
-  --position <top|continuation|sibling> \
-  --source "constructed from cluster analysis, <YYYY-MM-DD>" \
-  --topic "<theme name>" \
-  --framing "<framing paragraph(s)>" \
-  --relation "<wikilink>|<rationale>"
-```
-
 ### 7. Contradictions
 
 If a new permanent contradicts an existing one, write the new permanent with a `Related to:` bullet whose rationale names the discrepancy. Surface in the final report. Don't smooth.
@@ -224,7 +212,7 @@ The final user-facing report is **only** these things:
 
 - The `engram transcript --mark` status line(s) verbatim.
 - Any `[engram transcript: byte cap hit; ...]` continuation lines verbatim, plus a one-sentence note that `/learn` should be re-run to catch up.
-- The permanents and MOCs written, each as one line: `Permanent/<id>` or `MOCs/<id>` + slug.
+- The permanents written, each as one line: `Permanent/<id>` + slug.
 
 Nothing else. Do not include the Path A/B disclosure, the scratch list, the candidates-considered table, the dropped-with-reasons list, a recap of `--situation` strings, or a separate "Contradictions surfaced" section. Those are scaffolding for the writer, not output for the reader.
 
@@ -239,7 +227,7 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 - **Retrieval-shaped** — every `--situation` is phrased so a future recall using a Step 1 phrase (or the equivalent reconstructed phrase) would surface it.
 - **LLM voice** — translate raw material into your own synthesis. Verbatim user quotes get rephrased on writing.
 - **Per-link rationale** — every `Related to:` bullet explains why the connection exists. No bare wikilinks.
-- **Heterarchy** — a permanent can belong to multiple MOCs; one `Related to:` bullet per MOC with its own rationale.
+- **Heterarchy** — a permanent can relate to multiple threads of thought; one `Related to:` bullet per neighbor with its own rationale.
 - **Surface contradictions** — link them with rationale naming the discrepancy.
 
 ## Red flags — STOP and rephrase
@@ -264,15 +252,13 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 | Hindsight-baked situation ("When fixing the bug in X")                                                 | Rewrite to pre-lesson query phrasing.                                                                                                                     |
 | Writing "we observed X" without stating it as a principle                                              | Restate as principle or drop.                                                                                                                             |
 | Drafting and asking for human voice rewrite                                                            | You're the writer. Just write.                                                                                                                            |
-| Writing files directly with the filesystem                                                             | Use `engram learn {feedback|fact|moc}` — handles ID assignment under lock.                                                                                |
+| Writing files directly with the filesystem                                                             | Use `engram learn {feedback|fact}` — handles ID assignment under lock.                                                                                    |
 | Computing the Luhmann ID yourself                                                                      | Pass `--target` and `--position`; binary computes the ID.                                                                                                 |
-| Putting a `Lesson learned:`/`Information learned:` opener inside `--framing` or any flag               | The opener is auto-generated; never repeat it. Body bullets go in `--relation`, framing in `--framing`.                                                   |
-| Piping body content via stdin                                                                          | Stdin is ignored. All body content goes through `--relation` and `--framing` flags.                                                                       |
-| Auto-listing MOC constituents in body                                                                  | Backlinks already do this — MOC body is framing prose only.                                                                                               |
+| Putting a `Lesson learned:`/`Information learned:` opener inside any flag                              | The opener is auto-generated; never repeat it. Body bullets go in `--relation`.                                                                            |
+| Piping body content via stdin                                                                          | Stdin is ignored. All body content goes through `--relation` and per-kind field flags.                                                                     |
 | Bare wikilinks without rationale                                                                       | Every `Related to:` bullet must include per-link rationale.                                                                                               |
 | Serial `engram learn` calls across tool turns                                                          | One message, N parallel tool calls.                                                                                                                       |
 | Auto-firing on a one-line micro-task                                                                   | Only autonomous-trigger on chunks that plausibly produce lessons; when unsure, don't fire.                                                                |
-| Creating a MOC because the cluster crossed a count threshold                                           | Judgement, not count — a real framing paragraph must emerge.                                                                                              |
 | Putting an H1 title or `Luhmann-ID · date` line in the body                                            | Filename is the display name; `luhmann` and `created` live in frontmatter.                                                                                |
 | Smoothing over contradictions                                                                          | Write `Related to:` bullets that name the discrepancy.                                                                                                    |
 | Categorizing every survivor as Feedback because the old gates didn't distinguish                       | Feedback = do-differently; Fact = how-it-works. Methodological principles with no mistake or correction are usually Facts.                                |
