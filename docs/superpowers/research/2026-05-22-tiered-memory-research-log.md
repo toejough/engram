@@ -543,7 +543,7 @@ items:                              # front-loaded full content, dedup'd
     cluster_id: 0                   # iff cluster_rep in provenances
     in_degree: 9                    # iff hub in provenances
     content: |
-      <full text of .md>
+      <full text of .md, wikilink syntax stripped>
   - path: ...
   # ... ordered by:
   #   1. provenance count descending (more provenances = higher)
@@ -599,9 +599,21 @@ budget:
 - **Hubs:** no separate top-level section. Found by filtering
   `items` on `provenances` containing `hub`.
 - **`items.content`** is the full text of the `.md` file
-  (frontmatter + body). Consumer parses what it needs.
+  (frontmatter + body) **with wikilink syntax stripped** —
+  `[[Permanent/65...|memory architecture]]` becomes
+  `memory architecture`; bare `[[Permanent/65...]]` is dropped.
+  Consumer parses what it needs.
   Typical item ~1 KB; 25-30 items per response ~25-30 KB
   total — comfortable for any modern LLM context.
+  - **Why strip:** engram already returns the relevant set in
+    `items`. A wikilink target that isn't surfaced elsewhere
+    in the payload is, by construction, not relevant to this
+    query and would just pollute context. A target that *is*
+    surfaced is already present as its own item — repeating
+    the pointer inline adds nothing. Either way, the link
+    syntax is noise at retrieval time. (Authored wikilinks
+    remain in the on-disk note, untouched; stripping is a
+    payload-shaping step at query time only.)
 - **`clusters.members.content`** intentionally absent. Consumer
   reads non-rep members by path lookup if interested.
 
@@ -1678,3 +1690,11 @@ discipline applied to every recall, not deferred polish.
   (F4) → drop `engram learn moc` → episodes (F1) → subgraph
   clustering (F6+F9.1) → updated `/recall` skill. Settled
   decisions extended (#6: YAML payload only, from F7).
+- **2026-05-24k:** F7 payload refinement — `items.content`
+  has wikilink syntax stripped at query time. Engram already
+  returns the relevant set; wikilink targets not surfaced
+  elsewhere in `items` are not relevant to the query, and
+  ones that are surfaced are already in the payload as their
+  own item. Either way, inline `[[…]]` syntax is noise.
+  Authored wikilinks remain in the on-disk note; stripping
+  is a payload-shaping step only.

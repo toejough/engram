@@ -237,7 +237,12 @@ budget:
 
 - Every item has `provenances: [direct]` in the spike — no
   cluster_rep or hub provenances exist yet.
-- `content` includes the full `.md` text (frontmatter + body).
+- `content` includes the full `.md` text (frontmatter + body)
+  with wikilink syntax stripped at query time — same rule as
+  F7. Rationale: engram returns the relevant set in `items`;
+  inline `[[…]]` pointers to targets not also in `items` are
+  irrelevant by construction, and pointers to targets that
+  *are* in `items` duplicate what the consumer already has.
 - Ordering: score descending.
 - No `clusters` section in the spike. That ships post-spike.
 
