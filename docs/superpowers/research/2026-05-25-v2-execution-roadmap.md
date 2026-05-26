@@ -39,21 +39,44 @@ landed; this roadmap tracks what remains.
 | F1 — episode kind implementation (`engram learn episode` subcommand) | `118269bb` | ✅ Done |
 | F6+F9.1 — subgraph clustering spec | `2faf834a` | ✅ Done |
 | F6+F9.1 — subgraph clustering implementation (3-hop BFS + k-means + hub in-degree) | `1dbfe86e` | ✅ Done |
+| `/recall` SKILL.md rewrite (single `engram query` + per-cluster synthesis gate) | `e11e5a13` | ✅ Done |
 
-Repo state: main, working tree clean. Vault state: 493+ notes,
+Repo state: main, working tree clean. Vault state: 500+ notes,
 all embedded, 0 missing/stale/incompatible. `MOCs/` directory
 empty; `_legacy/MOCs/` holds 25 original MOC `.md` + `.vec.json`
 pairs.
 
-## What's next, in order
+## v2 complete
 
-| # | Item | Notes |
-|---|---|---|
-| 1 | Updated `/recall` SKILL.md | Replace cascade logic with `engram query` invocation; add the synthesis-gate per-cluster discipline (write fact/feedback via `/learn` when a cluster has a binding principle). |
+All v2 work has shipped. The roadmap is closed.
 
-The `/recall` SKILL.md update is the only remaining v2 work.
-F6+F9.1 already returns clusters + hubs in the payload; the
-skill update is the consumer side.
+What landed:
+
+- **Spike** — embed-on-write pipeline, sidecar I/O, `engram query`
+  semantic search, MiniLM-L6 bundled via `go:embed`.
+- **F4** — MOC migration; 25 historical MOCs split into ~39
+  facts/feedback notes; `engram learn moc` retired; vault no
+  longer writes `MOCs/`.
+- **F1** — episode kind as a third Permanent kind alongside
+  facts and feedback; `engram learn episode` ships with
+  narrative-voice discipline and structured provenance
+  (sessions + transcript range).
+- **F6+F9.1** — `engram query` adds 3-hop wikilink subgraph
+  expansion (cap 200), k-means clustering (k=2..7
+  silhouette-selected, deterministic per query), and top-5 hub
+  identification by in-degree. Payload gains a `clusters`
+  section and richer `items.provenances` (direct / cluster_rep /
+  hub).
+- **`/recall` rewrite** — manual cascade replaced with a single
+  `engram query` call; per-cluster synthesis gate may dispatch
+  `/learn` subagents to capture binding principles into the
+  vault on demand; hubs surface as "anchor concepts" in the
+  user-facing synthesis.
+
+Subsequent slices are their own initiatives (no v3 plan exists
+yet — F9.1 auto-synthesis at engram-level, F9.2 block-level
+granularity, and whole-vault clustering are the named deferrals
+from the research log).
 
 ## Outstanding loose ends (low-priority cleanup)
 
@@ -63,19 +86,16 @@ These were flagged during F4 work but deliberately deferred:
 - **Historical doc references** to `engram learn moc` in `docs/superpowers/research/*` and `docs/plans/*`. Kept as historical context.
 - **Merged worktree branch** `worktree-engram-query-spike` still exists in `git branch` output. Worktree directory removed. Can be deleted with `git branch -d worktree-engram-query-spike` if you want a tidy branch list.
 
-## Immediate next step: Update the `/recall` SKILL.md
+## Completed: `/recall` SKILL.md rewrite
 
-`engram query` now returns the full subgraph payload — direct
-hits, clusters, hubs. The consuming skill (`/recall`) still
-implements the old cascade by hand. Replace that with: invoke
-`engram query`, walk the returned clusters, apply the synthesis
-gate (per cluster, decide whether to dispatch a subagent to
-synthesize a binding fact/feedback via `engram learn`). The
-synthesis discipline is already specified in
-`2026-05-22-tiered-memory-research-log.md` §F6+F9.1
-"Synthesis expectations for the consuming skill". Use
-`superpowers:writing-skills` for the SKILL.md edit (TDD on
-trigger + behavior change).
+**Plan (followed 2026-05-26):** edited
+`skills/recall/SKILL.md` via `superpowers:writing-skills` with
+strict RED → GREEN → REFACTOR. RED test confirmed agents follow
+the manual cascade with the old skill; GREEN test confirmed
+single `engram query` invocation with the new skill. Pressure
+tests caught one rationalization (skip-the-gate when clusters
+"look organized") that was closed in a REFACTOR pass. Commit
+`e11e5a13`.
 
 ## Completed: F6 + F9.1 — subgraph clustering at query time
 

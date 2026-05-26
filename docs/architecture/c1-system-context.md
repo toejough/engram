@@ -70,10 +70,16 @@ file:line references point at the entry points on `main`.
 ### Flow: recall
 
 Operator asks a question that needs prior memory. The harness loads the `recall`
-skill, prints its Step 0 judgement (Ask, Situation, Plan), then drives a cascade
-of subprocess calls into `engram recall` until the budget is spent or the
-wikilink frontier empties. Source: `internal/cli/cli.go:308` (`runRecall`) and
-its three branches `runRecallAnchors`, `runRecallRecent`, `runRecallFollow`.
+skill, prints its Step 0 judgement (Ask, Situation, Plan), phrases a topic
+query, then issues a single `engram query` call. The binary embeds the query,
+expands the wikilink subgraph 3 hops from direct hits (cap 200), clusters the
+subgraph with k-means + silhouette, and identifies hubs by in-degree; the YAML
+payload returns items (with provenance roles), clusters, hubs, and budget. The
+harness then applies a per-cluster synthesis gate — potentially dispatching a
+subagent to write new facts/feedback via `engram learn` when a cluster has a
+binding principle not stated in any single member. Source:
+`internal/cli/query.go:36` (`RunQuery`) and the new `internal/cluster/` package
+(`kmeans.go`, `silhouette.go`, `autok.go`).
 
 ```mermaid
 sequenceDiagram
@@ -84,31 +90,31 @@ sequenceDiagram
     participant V as S4 Vault
 
     Op->>H: prompt that may need memory
-    Note over H: print Step 0 (Ask, Situation, Plan), phrase 5-15 queries
+    Note over H: print Step 0 (Ask, Situation, Plan), phrase 5-15 queries, pick the topic phrase
 
-    H->>E: engram recall (anchors)
-    E->>V: scan MOCs and Permanent for starting points
-    V-->>E: anchor paths
-    E-->>H: vault-relative paths on stdout
+    H->>E: engram query <topic> --limit N
+    E->>V: scan sidecars + bodies for compatible-embed notes
+    V-->>E: notes and vectors
+    Note over E: embed query, top-k cosine, BFS 3 hops (cap 200), k-means k=2..7 silhouette, in-degree top-5
+    E-->>H: YAML payload (items with provenances, clusters, hubs, budget)
 
-    H->>E: engram recall --recent --limit 20
-    E->>V: rank notes by Mtime
-    V-->>E: recent paths
-    E-->>H: vault-relative paths on stdout
+    Note over H: 4a structured form is the YAML; surface anchor concepts from hubs
 
-    Note over H: union frontier, score against queries and Step 1 phrases
-
-    loop until 100 surfaced or frontier empty
-        Note over H: read relevant notes inline or via subagent
-        H->>E: engram recall --follow A,B --already-read X,Y
-        E->>V: expand wikilink graph from follow set, minus already-read
-        V-->>E: expanded paths
-        E-->>H: vault-relative paths on stdout
-        Note over H: print round status, score new frontier
+    loop per cluster
+        Note over H: read the cluster representative
+        alt cluster shows a binding principle not in any single member
+            H->>+H: dispatch synthesis subagent (fire-and-forget)
+            Note over H: subagent reads all cluster members
+            H-)E: engram learn fact or feedback (--relation per constituent)
+            E->>V: acquire flock, compute Luhmann, write note
+            V-->>E: written path
+        else cluster is noise or principle already stated
+            Note over H: skip; cluster members remain as context
+        end
     end
 
-    Note over H: Step 4 synthesis against the Step 0 plan
-    H-->>Op: reply naming which plan items were confirmed, adjusted, or contradicted
+    Note over H: Step 4b synthesis against the Step 0 plan
+    H-->>Op: reply opening with anchor concepts, then plan walk (confirmed / adjusted / contradicted / silent)
 ```
 
 ### Flow: learn
