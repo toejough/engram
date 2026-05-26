@@ -189,11 +189,6 @@ func ResolveStateDirForTest(args TranscriptArgs) (string, error) {
 	return resolveStateDir(args)
 }
 
-// RunRecallForTest exposes runRecall for whitebox testing.
-func RunRecallForTest(ctx context.Context, args RecallArgs, stdout io.Writer) error {
-	return runRecall(ctx, args, stdout)
-}
-
 // RunTranscriptForTest exposes runTranscript for whitebox testing.
 func RunTranscriptForTest(
 	ctx context.Context,

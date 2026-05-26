@@ -36,9 +36,9 @@ and **OpenCode**. The plural is *harnesses*. When the same concept appears
 in code, it is sometimes called a *source* (see triage).
 
 ### binary
-The compiled `engram` Go program. Subcommands: `recall`, `transcript`,
-`learn`, `update`. The binary handles all I/O (vault read/write, transcript
-parsing, file locking); skills handle behavior and prompting.
+The compiled `engram` Go program. Subcommands: `transcript`, `learn`,
+`query`, `embed`, `update`. The binary handles all I/O (vault read/write,
+transcript parsing, file locking); skills handle behavior and prompting.
 
 ---
 
@@ -76,8 +76,8 @@ slug.**
 
 ### bootstrap
 The first-time creation of a missing vault (or its child directories and
-metadata files) on first `engram learn`. `engram recall` does **not**
-bootstrap — it errors out so the user notices.
+metadata files) on first `engram learn`. Other subcommands do **not**
+bootstrap — they error out so the user notices.
 
 ---
 
@@ -86,10 +86,6 @@ bootstrap — it errors out so the user notices.
 ### recall (skill)
 The skill at `skills/recall/SKILL.md`, invoked as `/recall` in a harness or
 self-fired by the agent. Walks the vault and surfaces relevant notes.
-
-### `engram recall` (subcommand)
-The binary subcommand the skill drives. A thin graph primitive — relevance
-evaluation lives in the skill, not the binary.
 
 ### cascade
 The recall loop that expands the frontier round by round, following
@@ -102,10 +98,12 @@ recent; **expanded frontiers** are the wikilink targets of relevant notes
 from the prior round.
 
 ### anchors
-The starting points of the cascade — every MOC plus the in-degree winner of
-each MOC-less connected component. Emitted by `engram recall` (no flags) so
-the cascade has a canonical entry. **In code** the same concept is named
-`StartingPoints` (see triage).
+Legacy term from the pre-`engram query` recall cascade — every MOC plus
+the in-degree winner of each MOC-less connected component. **In code** the
+same concept is named `StartingPoints` (see triage); still computed inside
+the vault graph package but no longer exposed via a binary subcommand.
+Hubs from `engram query` (top-5 in-degree within the query subgraph) are
+the live successor concept.
 
 ### explicit query
 The user-named topic (or the agent-formed topic from context). One of the

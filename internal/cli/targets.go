@@ -57,20 +57,6 @@ type LearnFeedbackArgs struct {
 	Action    string `targ:"flag,name=action,desc=recommended action"`
 }
 
-// RecallArgs holds parsed flags for the recall subcommand. Recall is
-// vault-only; three modes are mutually selected by flag:
-//
-//   - No args: emit structural anchors (MOCs + per-component winners).
-//   - --recent: emit the most-recent notes by filename date prefix.
-//   - --follow: emit cascade frontier expansion (outgoing + backlinks).
-type RecallArgs struct {
-	VaultPath   string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default XDG)"`
-	Recent      bool     `targ:"flag,name=recent,desc=emit most-recent notes by filename date instead of anchors"`
-	Limit       int      `targ:"flag,name=limit,desc=cap for --recent output (default 20)"`
-	Follow      []string `targ:"flag,name=follow,desc=basenames to expand (outgoing + backlinks)"`
-	AlreadyRead []string `targ:"flag,name=already-read,desc=basenames to subtract from --follow output"`
-}
-
 // DataDirFromHome returns the standard engram data directory for a given home path.
 // It respects $XDG_DATA_HOME if set, otherwise defaults to $HOME/.local/share/engram.
 // getenv is injected so callers control environment access (pass os.Getenv in production).
@@ -105,10 +91,6 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 	}
 
 	return []any{
-		targ.Targ(func(ctx context.Context, a RecallArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
-			errHandler(runRecall(withLog(ctx), a, stdout))
-		}).Name("recall").Description("Recall recent session context"),
 		targ.Targ(func(ctx context.Context, a TranscriptArgs) {
 			cwd, _ := os.Getwd()
 			finder, reader := newTranscriptDeps(cwd)

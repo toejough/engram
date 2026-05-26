@@ -121,8 +121,8 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		// recall, transcript, learn (group), update, embed (group), query
-		g.Expect(targets).To(gomega.HaveLen(6))
+		// transcript, learn (group), update, embed (group), query
+		g.Expect(targets).To(gomega.HaveLen(5))
 	})
 
 	t.Run("invokes learn feedback closure", func(t *testing.T) {
@@ -283,16 +283,6 @@ func TestTargets(t *testing.T) {
 		}, targets...)
 		g.Expect(err).To(gomega.HaveOccurred())
 		g.Expect(result.Output).To(gomega.ContainSubstring("source"))
-	})
-
-	t.Run("invokes recall closure", func(t *testing.T) {
-		t.Parallel()
-
-		vault := t.TempDir()
-
-		_ = executeForTest(t, []string{
-			"engram", "recall", "--vault", vault,
-		})
 	})
 
 	t.Run("invokes transcript closure", func(t *testing.T) {

@@ -2,10 +2,8 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -18,19 +16,12 @@ import (
 
 // unexported constants.
 const (
-	defaultRecallRecentLimit = 20
-	luhmannLockFile          = ".luhmann.lock"
+	luhmannLockFile = ".luhmann.lock"
 )
 
 // unexported variables.
 var (
-	errNotADirectory    = errors.New("not a directory")
-	errRecallPathFormat = errors.New(
-		"must be a full relative path of the form MOCs/<basename>.md or Permanent/<basename>.md",
-	)
-	errRecallVaultMissing = errors.New(
-		"recall: vault not found (set --vault or ENGRAM_VAULT_PATH, or run `engram learn` to bootstrap the default)",
-	)
+	errNotADirectory = errors.New("not a directory")
 )
 
 // osDirLister lists .jsonl files in a directory using os.ReadDir.
@@ -235,29 +226,6 @@ func (*osLearnFS) WriteSidecar(path string, data []byte) error {
 	return nil
 }
 
-// buildSubdirMap returns a basename→subdir-name lookup for every note in the vault.
-// "MOCs" or "Permanent" — used to format recall output as full relative paths.
-func buildSubdirMap(notes []vaultgraph.Note) map[string]bool {
-	out := make(map[string]bool, len(notes))
-
-	for _, note := range notes {
-		out[note.Basename] = note.IsMOC
-	}
-
-	return out
-}
-
-func emitRelPaths(stdout io.Writer, basenames []string, isMOCByBasename map[string]bool) error {
-	for _, basename := range basenames {
-		_, err := fmt.Fprintln(stdout, pathOf(basename, isMOCByBasename[basename]))
-		if err != nil {
-			return fmt.Errorf("recall: writing output: %w", err)
-		}
-	}
-
-	return nil
-}
-
 // newTranscriptDeps constructs production transcript finder and reader,
 // combining Claude Code (.jsonl) and OpenCode (SQLite) sources. The cwd
 // parameter filters OpenCode sessions to those whose stored directory
@@ -276,39 +244,6 @@ func newTranscriptDeps(cwd string) (transcript.Finder, transcript.Reader) {
 	return finder, reader
 }
 
-// parseRecallPath validates a single --follow / --already-read argument and
-// returns the basename for graph lookup. Inputs MUST be the exact format that
-// recall stdout emits: "<Subdir>/<basename>.md". Anything else is a hard error;
-// the previous silent-miss behavior was a footgun.
-func parseRecallPath(flag, raw string) (string, error) {
-	subdir, rest, ok := strings.Cut(raw, "/")
-	if !ok || (subdir != vaultgraph.MOCsSubdir && subdir != vaultgraph.PermanentSubdir) {
-		return "", fmt.Errorf("%s: %q: %w", flag, raw, errRecallPathFormat)
-	}
-
-	basename, ok := strings.CutSuffix(rest, ".md")
-	if !ok || basename == "" {
-		return "", fmt.Errorf("%s: %q: %w", flag, raw, errRecallPathFormat)
-	}
-
-	return basename, nil
-}
-
-func parseRecallPaths(flag string, raws []string) ([]string, error) {
-	out := make([]string, 0, len(raws))
-
-	for _, raw := range raws {
-		basename, err := parseRecallPath(flag, raw)
-		if err != nil {
-			return nil, err
-		}
-
-		out = append(out, basename)
-	}
-
-	return out, nil
-}
-
 // pathOf returns the vault-relative path for a note, e.g. "Permanent/foo.md"
 // or "MOCs/bar.md". Callers can pass the result directly to Read tools.
 func pathOf(basename string, isMOC bool) string {
@@ -318,74 +253,4 @@ func pathOf(basename string, isMOC bool) string {
 	}
 
 	return subdir + "/" + basename + ".md"
-}
-
-func runRecall(_ context.Context, args RecallArgs, stdout io.Writer) error {
-	if args.VaultPath == "" {
-		return errRecallVaultMissing
-	}
-
-	fs := &osVaultFS{}
-
-	switch {
-	case len(args.Follow) > 0:
-		return runRecallFollow(fs, args, stdout)
-	case args.Recent:
-		return runRecallRecent(fs, args, stdout)
-	default:
-		return runRecallAnchors(fs, args, stdout)
-	}
-}
-
-func runRecallAnchors(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
-	notes, err := vaultgraph.ScanVault(fs, args.VaultPath)
-	if err != nil {
-		return fmt.Errorf("recall: %w", err)
-	}
-
-	points, err := vaultgraph.StartingPoints(fs, args.VaultPath)
-	if err != nil {
-		return fmt.Errorf("recall: %w", err)
-	}
-
-	return emitRelPaths(stdout, points, buildSubdirMap(notes))
-}
-
-func runRecallFollow(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
-	follow, err := parseRecallPaths("--follow", args.Follow)
-	if err != nil {
-		return fmt.Errorf("recall: %w", err)
-	}
-
-	alreadyRead, err := parseRecallPaths("--already-read", args.AlreadyRead)
-	if err != nil {
-		return fmt.Errorf("recall: %w", err)
-	}
-
-	notes, err := vaultgraph.ScanVault(fs, args.VaultPath)
-	if err != nil {
-		return fmt.Errorf("recall: %w", err)
-	}
-
-	graph := vaultgraph.BuildGraph(notes)
-
-	return emitRelPaths(
-		stdout,
-		vaultgraph.Follow(graph, follow, alreadyRead),
-		buildSubdirMap(notes),
-	)
-}
-
-func runRecallRecent(fs vaultgraph.VaultFS, args RecallArgs, stdout io.Writer) error {
-	notes, err := vaultgraph.ScanVault(fs, args.VaultPath)
-	if err != nil {
-		return fmt.Errorf("recall: %w", err)
-	}
-
-	limit := args.Limit
-	if limit == 0 {
-		limit = defaultRecallRecentLimit
-	}
-
-	return emitRelPaths(stdout, vaultgraph.Recent(notes, limit), buildSubdirMap(notes))
 }

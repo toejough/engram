@@ -55,7 +55,7 @@ Engram reads and writes a zettelkasten vault. Resolution order:
 On first `engram learn` against a missing vault, the directory is
 bootstrapped with `Permanent/`, `MOCs/`, a minimal `.obsidian/` config
 so Obsidian recognizes it, a `.gitignore`, and a
-`README.md`. `engram recall` does not bootstrap — it errors with
+`README.md`. Other subcommands do not bootstrap — they error with
 "vault not found" so the user notices.
 
 Vault layout:
@@ -69,7 +69,6 @@ Vault layout:
 ## Binary commands
 
 ```
-engram recall                          Surface anchors, recent notes, or follow paths from a vault
 engram transcript                      Read session transcripts since last /learn (Claude Code + OpenCode)
 engram transcript --mark               Same, then advance per-harness progress markers
 engram transcript --from <date|all>    Override marker; scan from explicit date or epoch ('all')

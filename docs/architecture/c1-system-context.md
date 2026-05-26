@@ -194,9 +194,9 @@ sequenceDiagram
 
     rect rgb(245,245,255)
         Note over H: Step 2 — orient via /recall
-        loop cascade rounds
-            H->>E: engram recall (anchors, recent, follow)
-            E-->>H: vault-relative paths
+        loop per phrased query
+            H->>E: engram query <phrase>
+            E-->>H: YAML payload (items, clusters, hubs, budget)
         end
         Note over H: clarify with the operator via AskUserQuestion if intent is unclear
     end
