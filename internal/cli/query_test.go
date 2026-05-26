@@ -240,6 +240,49 @@ func (errorEmbedder) Embed(context.Context, string) ([]float32, error) {
 
 func (errorEmbedder) ModelID() string { return "m@4" }
 
+func TestQuery_PhrasesFlag_AcceptsMultiplePhrases(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
+		"---\ntype: fact\n---\nbody\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body", "fact"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Phrases []string `yaml:"phrases"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Phrases).To(ConsistOf("body", "fact"))
+}
+
+func TestQuery_EmptyPhrasesAndEmptyQuery_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("empty query")))
+}
+
 func newQueryDeps(memFS *inMemoryFS) cli.QueryDeps {
 	return cli.QueryDeps{
 		Scan:     memFS.Scan,

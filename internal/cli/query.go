@@ -21,9 +21,10 @@ import (
 
 // QueryArgs holds parsed flags for `engram query`.
 type QueryArgs struct {
-	Query     string `targ:"positional,name=query,desc=natural-language query string"`
-	VaultPath string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
-	Limit     int    `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
+	Query     string   `targ:"positional,name=query,desc=natural-language query string"`
+	Phrases   []string `targ:"flag,name=phrase,desc=query phrase (repeatable; use instead of positional for multi-phrase)"`
+	VaultPath string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
+	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -39,8 +40,13 @@ type QueryDeps struct {
 // identifies hubs by in-degree before emitting the resolved YAML
 // payload per the F6+F9.1 spec.
 func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Writer) error {
-	if args.Query == "" {
-		return errQueryEmptyString
+	phrases := args.Phrases
+	if len(phrases) == 0 {
+		if args.Query == "" {
+			return errQueryEmptyString
+		}
+
+		phrases = []string{args.Query}
 	}
 
 	limit := args.Limit
@@ -60,7 +66,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return errQueryNoEmbeddings
 	}
 
-	queryVec, qErr := deps.Embedder.Embed(ctx, args.Query)
+	queryVec, qErr := deps.Embedder.Embed(ctx, phrases[0])
 	if qErr != nil {
 		return fmt.Errorf("query: embed: %w", qErr)
 	}
@@ -72,13 +78,13 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 
 	subgraph := expandSubgraph(notes, hits, directHits, args.VaultPath, deps.Read, queryVec)
 
-	clusters := clusterSubgraph(subgraph, args.Query)
+	clusters := clusterSubgraph(subgraph, phrases[0])
 
 	hubs := identifyHubs(subgraph)
 
 	resolved := mergeProvenances(directHits, subgraph, clusters, hubs)
 
-	return renderQueryPayload(stdout, args.Query, queryPipelineSummary{
+	return renderQueryPayload(stdout, phrases[0], queryPipelineSummary{
 		directHits:     directHits,
 		subgraph:       subgraph,
 		clusters:       clusters,
