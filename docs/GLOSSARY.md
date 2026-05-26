@@ -125,6 +125,33 @@ cascade; Step 4 = synthesis.
 Notes that scored relevant during the cascade. Distinct from *read* (every
 frontier note is read; only some are surfaced).
 
+### subgraph (query-time)
+The set of notes `engram query` operates on after expanding 3 hops via
+authored wikilinks (both outgoing and inbound) from each direct hit. Hard
+cap of 200 notes. Notes without compatible `.vec.json` sidecars are
+excluded. Reported in the query payload as `budget.subgraph_size` /
+`subgraph_size_capped`.
+
+### cluster (query-time)
+A subgraph partition produced by k-means with k=2..7 chosen by max
+silhouette score. Deterministic per query against an unchanged vault.
+Each cluster has a `representative` (member closest to centroid) and
+`members` (path + score + is_representative). Tiny subgraphs
+(`subgraph_size < 6`) skip clustering entirely; subgraphs with
+max-silhouette < 0.10 return `clusters: []`.
+
+### hub (query-time)
+A subgraph note with high in-degree (counted only within the subgraph).
+Top 5 returned. Hubs appear in `items.provenances` as the `hub` role with
+the `in_degree` field populated.
+
+### provenances (item roles)
+A query item's `provenances` list names every role it fills: `direct`
+(top-k cosine hit), `cluster_rep` (cluster representative), `hub` (top-5
+by in-degree). Items dedup across roles; a path appears once regardless
+of how many roles it fills. Item ordering: provenance count desc → role
+priority (direct > cluster_rep > hub) → score desc.
+
 ---
 
 ## Learn

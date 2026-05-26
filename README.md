@@ -79,7 +79,7 @@ engram learn fact     --slug ... --source ... --situation ... --subject ... --pr
 engram learn episode  --slug ... --source ... --situation ... --summary ... --outcome ... --session ... --transcript-range <start>..<end>
 engram embed apply [--all|--missing|--stale|--force|--dry-run]   (Re-)embed notes per selection (default: missing)
 engram embed status                    Report counts per state (total / with-embeddings / without / stale / incompatible / broken)
-engram query <string> [--limit N]      Semantic search over the vault; YAML output, default limit 20
+engram query <string> [--limit N]      Semantic search + 3-hop subgraph clustering + hub identification; YAML output, default limit 20
 engram update                          Refresh binary and harness skills/commands ([--dry-run])
 ```
 
@@ -117,7 +117,7 @@ Pipeline behavior:
   - `--force`: also re-embed sidecars whose model_id differs from the bundled model
   - `--all`: every note, regardless of state
   - `--dry-run`: report what would change without writing
-- `engram query` embeds the query string, scores every note's sidecar by cosine similarity, ranks descending, emits YAML matching the spike-spec schema. Empty vault → `items: []` exit 0. Vault with notes but no sidecars → error with the `engram embed apply --all` recovery hint.
+- `engram query` embeds the query string, scores every note's sidecar by cosine similarity for direct hits, then expands 3 hops through the authored wikilink graph to build a subgraph (cap 200), auto-k-means clusters the subgraph (k=2..7, silhouette-selected, deterministic per query), and identifies the top-5 hubs by subgraph in-degree. The YAML output includes direct hits, cluster_rep, and hub provenances on each item, a separate `clusters` section with per-cluster silhouette + members, and a budget reporting subgraph size, hops traversed, clusters found, and hubs returned. Empty vault → `items: []` exit 0. Vault with notes but no sidecars → error with the `engram embed apply --all` recovery hint.
 
 Inputs longer than 1500 chars are truncated to fit MiniLM-L6's 512-token positional limit. For engram's 200–500-word notes this is a non-issue; long MOCs and feedback notes lose tail context but still embed cleanly.
 

@@ -37,21 +37,23 @@ landed; this roadmap tracks what remains.
 | Vault bootstrap + L1 diagram MOC cleanup | `da469c36` | ✅ Done |
 | F1 — episode kind spec | `f9d3a6cb` | ✅ Done |
 | F1 — episode kind implementation (`engram learn episode` subcommand) | `118269bb` | ✅ Done |
+| F6+F9.1 — subgraph clustering spec | `2faf834a` | ✅ Done |
+| F6+F9.1 — subgraph clustering implementation (3-hop BFS + k-means + hub in-degree) | `1dbfe86e` | ✅ Done |
 
-Repo state: main, working tree clean. Vault state: 480 notes
-total, all embedded, 0 missing/stale/incompatible. `MOCs/`
-directory empty; `_legacy/MOCs/` holds 25 original MOC `.md` +
-`.vec.json` pairs.
+Repo state: main, working tree clean. Vault state: 493+ notes,
+all embedded, 0 missing/stale/incompatible. `MOCs/` directory
+empty; `_legacy/MOCs/` holds 25 original MOC `.md` + `.vec.json`
+pairs.
 
 ## What's next, in order
 
 | # | Item | Notes |
 |---|---|---|
-| 1 | F6 + F9.1 — subgraph clustering at query time | Add 3-hop link expansion + auto-k-means clustering + hub identification to `engram query`. Expand payload per F7's resolved shape (clusters section + richer items.provenances). |
-| 2 | Updated `/recall` SKILL.md | Replace cascade logic with `engram query` invocation; add the synthesis-gate per-cluster discipline (write fact/feedback via `/learn` when a cluster has a binding principle). |
+| 1 | Updated `/recall` SKILL.md | Replace cascade logic with `engram query` invocation; add the synthesis-gate per-cluster discipline (write fact/feedback via `/learn` when a cluster has a binding principle). |
 
-Items 1–2 are the only remaining v2 work. F6+F9.1 is
-medium-large; the SKILL update is small-medium.
+The `/recall` SKILL.md update is the only remaining v2 work.
+F6+F9.1 already returns clusters + hubs in the payload; the
+skill update is the consumer side.
 
 ## Outstanding loose ends (low-priority cleanup)
 
@@ -61,14 +63,29 @@ These were flagged during F4 work but deliberately deferred:
 - **Historical doc references** to `engram learn moc` in `docs/superpowers/research/*` and `docs/plans/*`. Kept as historical context.
 - **Merged worktree branch** `worktree-engram-query-spike` still exists in `git branch` output. Worktree directory removed. Can be deleted with `git branch -d worktree-engram-query-spike` if you want a tidy branch list.
 
-## Immediate next step: F6 + F9.1 — subgraph clustering at query time
+## Immediate next step: Update the `/recall` SKILL.md
 
-The next slice is to ship subgraph clustering inside `engram
-query`. See the F6 + F9.1 resolution in
-`2026-05-22-tiered-memory-research-log.md` for the design; no
-spec yet — write one next, then dispatch implementation. Pattern
-matches the F1 sharpen-then-dispatch flow (spec at
-`docs/superpowers/research/2026-05-25-f6-f91-spec.md`).
+`engram query` now returns the full subgraph payload — direct
+hits, clusters, hubs. The consuming skill (`/recall`) still
+implements the old cascade by hand. Replace that with: invoke
+`engram query`, walk the returned clusters, apply the synthesis
+gate (per cluster, decide whether to dispatch a subagent to
+synthesize a binding fact/feedback via `engram learn`). The
+synthesis discipline is already specified in
+`2026-05-22-tiered-memory-research-log.md` §F6+F9.1
+"Synthesis expectations for the consuming skill". Use
+`superpowers:writing-skills` for the SKILL.md edit (TDD on
+trigger + behavior change).
+
+## Completed: F6 + F9.1 — subgraph clustering at query time
+
+**Plan (followed 2026-05-25):** (b) sharpened the spec
+(`f6-f91-spec.md`, commit `2faf834a`), then (a) dispatched
+implementation (commit `1dbfe86e`). 3-hop wikilink BFS with
+200-cap, in-tree k-means + silhouette + autok in a new
+`internal/cluster/` package, in-degree hub identification in
+`internal/vaultgraph`. Smoke shows 4 clusters surfaced from a
+182-note subgraph against the real vault.
 
 ## Completed: F1 — episode kind
 
