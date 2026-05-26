@@ -60,31 +60,30 @@ Skipping Step 0 is forbidden. The whole purpose of recall is to test a stated pl
 
 ### Step 1 — Phrase queries from your plan and situation
 
-The plan you just printed is the primary query seed. Re-read it and write down — internally — 5 to 15 short queryable phrases. Mix two kinds:
+The plan you just printed is the primary query seed. Re-read it and write down 5 to 15 short queryable phrases. Mix two kinds:
 
 - **Plan-grounded** — phrases drawn directly from the actions you said you would take ("wire OpenCode reader alongside Claude Code", "advance per-harness marker").
 - **Situational** — features continuously true around the action (tooling, language, the kind of operation, the user's role, what's loaded into context).
 
-**Apply this test to each candidate:**
+**No pre-filter test.** Don't ask "would a memory about this phrase be worth surfacing" — you can't know what's in the vault before you query. Generate the phrases; the binary ranks every compatible-sidecar note for each, and Step 3a's per-cluster gate handles relevance downstream. The only phrases to drop are obvious dross (a literal single noun like "coding", or a phrase that names a specific line of code in this session).
 
-> If a future-me on a fresh context were dropped into roughly this same situation, and there were one memory about _this phrase alone_, would it be worth surfacing?
+This list is internal scratch — not part of the user-facing output, but it IS the input to Step 3 (every phrase becomes its own `engram query` invocation).
 
-If yes, keep it. If you can't imagine what that memory would even be about, the phrase is either too generic ("coding") or too specific to this exact moment ("a bug at line 47").
+### Step 2 — Use Step 1's phrases as-is
 
-This list is internal scratch — not part of the user-facing output.
-
-### Step 2 — Form the explicit query
-
-Collapse Step 1 into one or two short phrases for the `engram query` invocation. The binary embeds your query string, ranks every compatible-sidecar note by cosine similarity, expands a 3-hop subgraph over authored wikilinks, clusters that subgraph, and identifies in-degree hubs — all of that runs from a single query string, so spend your effort on the phrasing.
+**Do not collapse Step 1 into "one or two short phrases."** Each Step 1 phrase becomes its own `engram query` invocation in Step 3. Paraphrasing or merging phrases loses the distinct retrieval angles the original wording carried — a single collapsed phrase risks weak matches that miss the specific details each Step 1 phrase was probing.
 
 **Query by task, not by fear.** What are you trying to do? Not what might go wrong. "implementing Claude Code hooks" — not "common mistakes when writing hooks." Memories are written to match task descriptions, so query the same way.
 
-### Step 3 — Run `engram query` once
+### Step 3 — Run one `engram query` per Step 1 phrase
 
-One call, no loop, no follow-ups:
+Issue one `engram query` invocation per Step 1 phrase. Do them in a single parallel tool-use block — serial queries would cost a roundtrip each and add no signal.
 
 ```bash
-engram query "<your phrase from Step 2>"
+engram query "<Step 1 phrase 1>"
+engram query "<Step 1 phrase 2>"
+engram query "<Step 1 phrase 3>"
+# ... one per phrase
 ```
 
 The binary returns a YAML payload (full schema in `docs/superpowers/research/2026-05-25-f6-f91-spec.md`):
@@ -123,42 +122,61 @@ budget:
 
 `--limit N` caps direct hits considered for expansion. Cluster reps and hubs can appear in `items` beyond `--limit`. Default limit is 20; raise it (`--limit 50`) only when the topic is genuinely broad — wider limits expand the subgraph more aggressively. Lower it (`--limit 5`) when you want a narrow cone around a precise concept.
 
-**No `--follow`, no `--already-read`, no rounds.** The 3-hop expansion, clustering, and hub identification happened inside the binary. Do not invoke `engram recall` here — that command exists for a different (legacy) flow; the F6+F9.1 pipeline runs through `engram query` only.
+**No `--follow`, no `--already-read`, no rounds.** The 3-hop expansion, clustering, and hub identification happened inside the binary.
 
-### Step 3a — Per-cluster synthesis gate
+#### Merging results across queries
+
+Each `engram query` returns its own payload. Combine them agent-side before Step 3a:
+
+- **items**: dedup by path. When a path appears in multiple query results, keep the max score and **union the `provenances` lists** (so a note that was a `direct` hit in one query and a `cluster_rep` in another carries both roles in the merged view).
+- **clusters**: list clusters per-query — **do not merge clusters across queries.** A cluster is a binding within one query's subgraph; cross-query merge would conflate different bindings. Step 3a runs per-cluster from each query's `clusters[]` independently.
+- **hubs**: union and dedup by path. When a note shows up as a hub for multiple queries, keep the max `in_degree`.
+
+The merged view feeds Step 4a/4b. Step 3a iterates per-cluster across all query results.
+
+### Step 3a — Per-cluster synthesis gate (dispatch-driven, role-split)
 
 **Read this callout first. It controls everything below.**
 
-> The rules in this section (path A/B/C, recall-mirror test, fact-vs-feedback categorization, Luhmann positioning) govern the **dispatched synthesis subagent**, not the /recall agent reading this skill. /recall's job here is one decision per cluster — *is there a binding principle worth capturing?* — and, if yes, dispatch. The /learn discipline lives inside the subagent's context after dispatch. Do not apply path A/B/C or the recall-mirror test to how you frame the recall reply to the user; those tests are for vault writes, not for the synthesis output you are about to produce.
+> Step 3a is a **role-split** between two agents — the parent /recall agent making a dispatch decision, and the dispatched synthesis subagent making the binding-principle judgement. The parent never reads all cluster members; it sees only the representative (already in `items[]`) and decides whether to dispatch. The subagent, after dispatch, reads every member from disk in its own context and makes the binding-principle judgement using the criteria below. The parent does NOT apply path A/B/C, fact-vs-feedback split, or the recall-mirror test — those govern the subagent's /learn invocation, not the recall reply.
 
-**Step 3a is not optional.** Running it on every cluster is what makes clustering valuable. The binary produces clusters because that is the *only* place a binding principle across multiple notes can be detected at query time — no single member states it, so no embedding search will find it. Skipping the gate reduces /recall to a note-dump and silently throws away the one job clustering exists to enable. Time pressure, "user only asked for recall", and "the clusters are already there" are not exits from Step 3a — they are the moments the gate matters most, because that is when past-you's principles get lost in the surface.
+**Step 3a is not optional.** Running it on every cluster is what makes clustering valuable. The binary produces clusters because that is the *only* place a binding principle across multiple notes can be detected at query time — no single member states it, so no embedding search will find it. Skipping the gate reduces /recall to a note-dump and silently throws away the one job clustering exists to enable. Time pressure, "user only asked for recall", and "the clusters are already there" are not exits from Step 3a — they are the moments the gate matters most, because that is when past-you's binding principle gets lost in the surface.
 
-For each cluster in `clusters[]` returned by `engram query`:
+#### Parent /recall: dispatch decision
 
-1. **Read the cluster representative's content.** It is already in `items[]` (dedup'd, full text). No extra read needed.
-2. **Decide one thing only:** *is there a binding principle visible across cluster members that no single member states?* This is the only judgement /recall makes here.
-   - **Cluster size < 3 members** → no. Skip.
-   - **Cluster silhouette unimpressive** (the binary already filters silhouette < 0.10; everything you see passed that floor) → still ask the question; small silhouette can still bind around a shared principle.
-   - **The shared content is generic vocabulary, not a principle** → no. Skip.
-   - **The principle is already stated in any one member** → no. The vault already has it; skip.
-3. **If yes, dispatch a subagent.** Pass it: the full member list (paths only — it will read them), the user's query string, and the criteria below. /recall does NOT wait for the subagent's output. The subagent writes (or declines to write) via `engram learn` in its own context; the result lands in the vault. Your user-facing reply (Step 4b) does not include the synthesis output — that is a vault write, not a recall surface.
-4. **If no, the cluster stays as context.** Its members are already in `items[]` (the representative) and in `clusters[].members` (the rest). They will inform Step 4 like any other surfaced note.
+For each cluster in the merged per-query `clusters[]` lists:
 
-**Synthesis criteria the subagent applies (NOT the /recall agent):**
+1. **Read the cluster representative's content** (already in `items[]`, no extra read needed).
+2. **Dispatch decision** — two cheap, parent-side gates:
+   - **Cluster size ≥ 3 members.** Otherwise skip — the cluster is too thin to bind a principle.
+   - **The representative hints at a coherent theme** — its content is recognizable as a principle or a worked example, not generic vocabulary. (You do not need to verify the binding from the rep alone; the subagent will check.)
+3. **If both gates pass, dispatch a synthesis subagent.** Pass it: the full member list (paths only — it will read them all), the user's query string, the representative's content for context. The parent /recall does NOT read the other members and does NOT decide whether a binding principle exists — that is the subagent's job. The parent does NOT wait for the subagent's output; subagents are fire-and-forget and write to the vault directly via `engram learn`.
+4. **If either parent gate fails**, the cluster stays as context. Its members are already in `clusters[].members`; they will inform Step 4 like any other surfaced note.
 
-- Cluster has ≥ 3 members. (Cheap re-check inside the subagent.)
-- Binding principle is **not already stated** in any individual member.
-- Principle passes the recall-mirror test (a future query about this kind of work would surface it).
-- Principle is generalizable, not project-specific.
-- `--source "synthesized from cluster, <YYYY-MM-DD>, context: <query>"`.
-- `--relation "<luhmann-id>|<one-line rationale per constituent>"`, one bullet per cluster member.
-- Path A/B/C and the fact-vs-feedback split apply per the /learn skill — the subagent loads /learn itself.
+**Dispatch shape.** One subagent per cluster that passed both parent gates. Subagents are independent; dispatch them in a single parallel tool-use block.
 
-**Dispatch shape.** One subagent per cluster you decide passes the binding-principle test. Subagents are independent; dispatch them in parallel where the orchestration allows.
-
-**The only carve-out for not dispatching:** the harness genuinely does not expose a subagent-dispatch tool in this environment. Verify that empirically — try to invoke the dispatch tool; if the tool is absent or refuses, note the cluster members in 4a as context and proceed. **"User is waiting", "clusters look organized enough", "the principle might already be in a member I haven't read", and "synthesis adds latency" are not the carve-out** — they are exactly the moments past-you's binding principle gets dropped on the floor. Do not inline-synthesize from /recall's own context as a workaround; that is the rationalization the gate exists to prevent.
+**The only carve-out for not dispatching:** the harness does not expose a subagent-dispatch tool in this environment. Verify empirically — try to invoke the dispatch tool; if it is absent or refuses, note the cluster members in 4a as context and proceed. **"User is waiting", "clusters look organized enough", and "synthesis adds latency" are not the carve-out** — they are exactly the moments past-you's binding principle gets dropped on the floor. Do not inline-synthesize from /recall's own context as a workaround; the parent has only seen the rep, so any inline binding-principle judgement is uninformed by definition.
 
 **Hubs do not go through the gate.** Hubs are individual notes (high in-degree in the subgraph), not clusters. Surface them in Step 4b as orientation; do not synthesize from a hub alone.
+
+#### Dispatched synthesis subagent: binding-principle judgement + link-to-bind
+
+The subagent receives the cluster members, the query string, and the rep's content. It then:
+
+1. **Reads all member notes from disk.** This is non-negotiable. Without the full member content, the binding-principle judgement is impossible.
+2. **Asks: is there a binding principle visible across the members?**
+   - **If yes and the principle is NOT stated in any single member** → write a new permanent that states it. Sourcing and relations per the criteria below.
+   - **If yes and the principle IS already stated in one member (the "anchor")** → **link-to-bind.** Do NOT skip. The vault has the principle but the members are not connected by authored wikilinks. Write `--relation "<anchor-luhmann>|<one-line rationale>"` bullets on each non-anchor member, pointing to the anchor. (Use `engram learn` with the appropriate kind and Luhmann placement; the subagent loads /learn itself for the discipline.) Result: a hub-and-spoke binding.
+   - **If no** (members do not share a binding principle; the cluster was a vocabulary coincidence) → write nothing.
+
+**Subagent criteria for synthesis writes:**
+
+- Cluster has ≥ 3 members. (Cheap re-check inside the subagent.)
+- `--source "synthesized from cluster, <YYYY-MM-DD>, context: <query>"`.
+- `--relation "<luhmann-id>|<one-line rationale per constituent>"`, one bullet per cluster member (synthesis writes only — link-to-bind writes target the anchor on each non-anchor member separately).
+- Path A/B/C and the fact-vs-feedback split apply per the /learn skill — the subagent loads /learn itself.
+
+(Project-specific principles — those that name a project, issue, or named decision — are NOT excluded at this layer. Tracking project metadata in vault notes is a follow-up captured in `docs/issues.md`; for now, write the principle as it is and let the next iteration sharpen the framing.)
 
 ### Step 4 — Closing synthesis: did the memories change the plan?
 
@@ -220,13 +238,13 @@ If you catch yourself doing any of these in the user-facing reply, rewrite:
 | Writing `### From your query` / `### Clusters` / `### Anchor concepts` headers in 4b | No structured-form headers in 4b — preface + walk-the-plan only                       |
 | Recap is a generic "highlights:" bullet list with no plan reference         | You skipped synthesis. Restart Step 4b: walk the plan from Step 0 and judge each piece |
 | You never printed Step 0                                                    | Back up. The whole skill is a no-op without it                                        |
-| You wrote `engram recall --follow` / `--already-read` / multiple rounds     | The cascade is gone. Re-do Step 3 with a single `engram query` call                   |
+| You collapsed Step 1's phrases into one query before invoking the binary    | Each Step 1 phrase becomes its own `engram query`. Go back to Step 3 and re-issue one query per phrase, in parallel. |
 | You applied path A/B/C or the recall-mirror test to how you wrote 4b        | Those rules are for synthesis subagents, not for the /recall reply. Re-read the 3a callout |
 | You called fact-vs-feedback categorization on a note you were summarizing   | Same mis-routing. Categorization is a /learn-write decision, not a recall surface     |
-| You inline-synthesized a cluster instead of dispatching                     | Dispatch one subagent per cluster that passed the gate. Inline-synthesis is forbidden — it is the rationalization 3a exists to prevent. |
+| You inline-synthesized a cluster instead of dispatching                     | Dispatch one subagent per cluster that passed the parent gates. Inline-synthesis is forbidden — the parent has only seen the rep, so any inline binding-principle judgement is uninformed. |
 | You skipped Step 3a because clusters "look organized" or the user "only asked for recall" | The clusters being organized is a precondition for the gate, not an exit from it. Run 3a on every cluster. The only carve-out is a missing dispatch tool — verify empirically. |
 | `(no matches)` or `(matches consolidated above)` appears in 4b              | Those are 4a placeholders; in 4b just say "memories were silent on this action"       |
-| You called `engram recall` anywhere in the pipeline                         | `engram recall` is the legacy command. The F6+F9.1 pipeline is `engram query` only.   |
+| You read all cluster members from the parent /recall agent                  | The parent reads only the representative. Member reads happen inside the dispatched subagent. If you find yourself opening member files in /recall's own context, you're inline-synthesizing — dispatch instead. |
 
 ## Failure modes
 
@@ -243,11 +261,12 @@ If you catch yourself doing any of these in the user-facing reply, rewrite:
 
 - Reading session transcripts. Use `engram transcript` if you need past-session activity.
 - Writing to the vault from /recall directly. Capture is the `learn` skill. (The synthesis subagent dispatched in 3a writes — but it is a /learn invocation in a separate context, not a /recall write.)
-- Driving a manual link-cascade. `engram recall --follow` is the legacy primitive; do not invoke it from this skill.
+- Driving a manual link-cascade. The 3-hop subgraph expansion happens inside `engram query`; the agent does not chase wikilinks by hand.
 - Computing the Luhmann ID, choosing path A/B/C, or applying the recall-mirror test in the /recall reply. Those are /learn responsibilities; if 3a dispatches a synthesis subagent, that subagent handles them.
 - Inventing memories. If `engram query` returns nothing, surface nothing.
 - Inventing classifications (confidence tiers, freshness scores, priority ranks) the binary does not produce.
 - Deduplicating against your prior context. The parent agent handles that.
+- Field-targeted queries (subject/object/predicate, time-window filters). The binary does not yet expose `--field` flags; if you find yourself wanting to query by frontmatter field, that's an engram feature gap captured in `docs/superpowers/research/2026-05-26-v3-field-query-research.md`, not a /recall workaround.
 
 ## Discovery and trigger ceiling
 
