@@ -26,7 +26,7 @@ At the start of execution, push all seven steps below to the task list via `Task
 ## The workflow (fixed, seven steps)
 
 1. **Capture (open) — `/learn`.** Before starting new work, run the `learn` skill to preserve anything pending from the session so far. This advances the transcript marker and clears the slate.
-2. **Orient — understand the context and the ask.** Loop until the ask is understood:
+2. **Orient — understand the context and the ask.** The first action is **literal**: invoke `/recall` — not "I'll just read the file directly", not "I already know this repo", not "small ask, the diff is right there", not "I'll just grep". Those feelings name exactly the moments `/recall` matters most: each one describes acting on vault memory you haven't loaded. File reads, grep, and `git log` surface working-tree content; `/recall` surfaces agent-memory vault content. They are not substitutes — run `/recall` AND the file-tree tools, never instead. Loop until the ask is understood:
    - Invoke `/recall` with queries derived from the `<ask>`. Evaluate the returned memories against the ask.
    - Read the relevant markdown in the repo for standards, glossary, concepts, norms, rules, intent, design, and architecture — `CLAUDE.md`, files under `docs/`, any `GLOSSARY.md`, architecture or design notes.
    - Ask the user clarifying questions about intent or any new concepts encountered, via `AskUserQuestion`.
@@ -55,7 +55,7 @@ At the start of execution, push all seven steps below to the task list via `Task
 | Sign you're off the workflow | What you should be doing |
 | --- | --- |
 | You're about to start working without running step 1 (`/learn`) | Stop. Open the workflow with `/learn` first. |
-| You skipped `/recall` because you "already know the codebase" | Run `/recall`. The point is to test your plan against memory you don't have loaded. |
+| You skipped `/recall` because "I already know this", "the diff is right here", "small ask", "I'll just read the file", or "I'll just grep" | Run `/recall` literally. Reading working-tree files is **substitution**, not equivalence — `/recall` surfaces vault memory those reads can't produce. The feelings that say "skip" are exactly the moments the gate counters. |
 | You're writing code before the plan is committed (step 3) | Stop. Write the plan first, commit it, then execute. |
 | You're skipping RED because "this is too simple to test" | Apply `superpowers:test-driven-development` regardless. |
 | You declared a unit done without running the verifier | Apply `superpowers:verification-before-completion` before claiming done. |
