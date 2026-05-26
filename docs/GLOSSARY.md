@@ -175,14 +175,18 @@ A note recording how something actually works — tool behaviors, idioms,
 conventions, gotchas. Auto-generated opener: `Information learned: …`.
 
 ### Episode (note type)
-A note recording the narrative arc of a session or work segment — what was
-done, in what order, with what outcomes. Voice is narrative (first-person,
-project names, dates OK); vocabulary stays verbatim from source. No
-auto-generated opener — the summary IS the body. Frontmatter carries
-nested `provenance.sessions` and `provenance.transcript_range`
-(RFC3339 UTC start/end). Path A/B/C and the recall-mirror test do
-NOT apply to episodes — they are retrieved through the situational
-stream, not phrase-matching.
+An **L1 filtered-transcript chunk** — the slice of session activity that a
+fact or feedback note was extracted from. Frontmatter carries `situation`
+(retrieval-shaped topic phrase), `boundary_rationale` (why this chunk's
+bounds), and nested `provenance.sessions` + `provenance.transcript_range`
+(RFC3339 UTC start/end). Body is the filtered transcript content itself —
+either inlined verbatim (`--transcript-text`) or read by engram from a
+session × time range (`--from-transcript-range <session>:<start>..<end>`).
+Multiple episodes per `/learn` pass is the norm — one per natural chunk
+boundary in the filtered transcript. Facts and feedback derived from a
+chunk link back via `--relation "<episode-id>|extracted from this chunk"`.
+Path A/B/C and the recall-mirror test do NOT apply to episodes — those
+govern L2 (facts/feedback); L1 episodes are the evidence layer.
 
 ### recall-mirror test
 The gate every candidate note must pass before being written: *"Would a
