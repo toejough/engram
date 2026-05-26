@@ -59,6 +59,13 @@ func AdvanceAndReportMarkerForTest(
 	return advanceAndReportMarker(markerPath, fromTime, lastIncluded, hadEntries, now, stdout)
 }
 
+// DefaultSessionPathResolverForTest exposes defaultSessionPathResolver
+// for coverage. The resolver maps a Claude Code session ID to its
+// per-project JSONL path.
+func DefaultSessionPathResolverForTest(sessionID string) (string, error) {
+	return defaultSessionPathResolver(sessionID)
+}
+
 // EmitTranscriptsForTest is an exported entry point so the cli_test package
 // can exercise emitTranscripts directly without going through the full
 // runTranscript flow. Returns the lastIncluded, hadEntries, and
@@ -87,7 +94,12 @@ func ExportAppendUniqueProvenance(initial []string, roles ...string) []string {
 
 // ExportBreakRepresentativeTie is a whitebox handle on the tiebreak helper
 // used by cluster representative selection.
-func ExportBreakRepresentativeTie(scoreA float32, pathA string, scoreB float32, pathB string) string {
+func ExportBreakRepresentativeTie(
+	scoreA float32,
+	pathA string,
+	scoreB float32,
+	pathB string,
+) string {
 	subgraph := expandedSubgraph{
 		members: []subgraphMember{
 			{notePath: pathA, score: scoreA, vector: []float32{1, 0}},
@@ -176,6 +188,14 @@ func NewTranscriptDepsForTest(cwd string) (transcript.Finder, transcript.Reader)
 	return newTranscriptDeps(cwd)
 }
 
+// ParseFromTranscriptRangeForTest exposes parseFromTranscriptRange so
+// tests can drive every error branch (malformed input, unparseable
+// timestamps, out-of-order range) without going through the full
+// runLearnFromEpisodeArgsWithReader path.
+func ParseFromTranscriptRangeForTest(raw string) (string, time.Time, time.Time, error) {
+	return parseFromTranscriptRange(raw)
+}
+
 // ResolveMaxBytesForTest exposes resolveMaxBytes for unit testing.
 func ResolveMaxBytesForTest(maxBytes int) int { return resolveMaxBytes(maxBytes) }
 
@@ -184,9 +204,34 @@ func ResolveProjectSlugForTest(args TranscriptArgs) (string, error) {
 	return resolveProjectSlug(args)
 }
 
+// ResolveSessionPathForTest exposes resolveSessionPath so the cwd/home
+// error branches are unit-testable via injected fakes.
+func ResolveSessionPathForTest(
+	sessionID string,
+	getwd func() (string, error),
+	homeDir func() (string, error),
+) (string, error) {
+	return resolveSessionPath(sessionID, getwd, homeDir)
+}
+
 // ResolveStateDirForTest exposes resolveStateDir for unit testing.
 func ResolveStateDirForTest(args TranscriptArgs) (string, error) {
 	return resolveStateDir(args)
+}
+
+// RunLearnFromEpisodeArgsWithReaderForTest exposes
+// runLearnFromEpisodeArgsWithReader so tests can drive the
+// --from-transcript-range / --transcript-text body-source XOR with an
+// injected RangeReader and session-path resolver.
+func RunLearnFromEpisodeArgsWithReaderForTest(
+	ctx context.Context,
+	a LearnEpisodeArgs,
+	reader transcript.RangeReader,
+	sessionPath func(sessionID string) (string, error),
+	deps LearnDeps,
+	stdout io.Writer,
+) error {
+	return runLearnFromEpisodeArgsWithReader(ctx, a, reader, sessionPath, deps, stdout)
 }
 
 // RunTranscriptForTest exposes runTranscript for whitebox testing.

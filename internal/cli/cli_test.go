@@ -11,11 +11,13 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// TestEngramLearn_Episode_EndToEnd builds the real binary and runs
-// `engram learn episode` against a temp vault. Verifies the rendered
-// note exists with expected filename, has the spec-mandated frontmatter
-// + body shape, and produces the auto-embed sidecar.
-func TestEngramLearn_Episode_EndToEnd(t *testing.T) {
+// TestEngramLearn_Episode_L1_EndToEnd builds the real binary and runs
+// `engram learn episode` against a temp vault using the L1 episode shape:
+// --boundary-rationale + --transcript-text. Verifies the rendered note
+// exists with the spec-mandated L1 frontmatter (boundary_rationale, no
+// outcomes), body equals the transcript chunk, and the auto-embed
+// sidecar lands.
+func TestEngramLearn_Episode_L1_EndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -33,16 +35,16 @@ func TestEngramLearn_Episode_EndToEnd(t *testing.T) {
 		return
 	}
 
+	const chunkBody = "USER: please execute the spec\nASSISTANT: I'll set up the task list...\n"
+
 	run := exec.Command(binPath, "learn", "episode",
 		"--slug", "smoke-episode",
 		"--vault", vault,
 		"--position", "top",
 		"--source", "smoke test",
-		"--situation", "End-to-end smoke for the episode subcommand",
-		"--summary", "First summary paragraph.",
-		"--summary", "Second summary paragraph.",
-		"--outcome", "smoke outcome one",
-		"--outcome", "smoke outcome two",
+		"--situation", "End-to-end L1 smoke",
+		"--boundary-rationale", "Discrete sharpen-then-dispatch arc",
+		"--transcript-text", chunkBody,
 		"--session", "971fc252-8b44-4bd2-b44a-4f44464105eb",
 		"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:30:00Z",
 		"--relation", "157|adjacent",
@@ -74,21 +76,21 @@ func TestEngramLearn_Episode_EndToEnd(t *testing.T) {
 	}
 
 	bodyStr := string(body)
+	// L1 frontmatter.
 	g.Expect(bodyStr).To(ContainSubstring("type: episode"))
+	g.Expect(bodyStr).To(ContainSubstring("boundary_rationale: Discrete sharpen-then-dispatch arc"))
 	g.Expect(bodyStr).To(ContainSubstring("provenance:"))
 	g.Expect(bodyStr).To(ContainSubstring("- 971fc252-8b44-4bd2-b44a-4f44464105eb"))
 	g.Expect(bodyStr).To(ContainSubstring(`start: "2026-05-25T22:00:00Z"`))
 	g.Expect(bodyStr).To(ContainSubstring(`end: "2026-05-25T23:30:00Z"`))
-	g.Expect(bodyStr).To(ContainSubstring("First summary paragraph."))
-	g.Expect(bodyStr).To(ContainSubstring("Second summary paragraph."))
-	g.Expect(bodyStr).To(ContainSubstring("## Outcomes"))
-	g.Expect(bodyStr).To(ContainSubstring("- smoke outcome one"))
-	g.Expect(bodyStr).To(ContainSubstring("- smoke outcome two"))
+	// L1 body: filtered transcript chunk verbatim + related block.
+	g.Expect(bodyStr).To(ContainSubstring(chunkBody))
 	g.Expect(bodyStr).To(ContainSubstring("Related to:"))
 	g.Expect(bodyStr).To(ContainSubstring("- [[157]] — adjacent."))
-	// No auto-prefix lines.
+	// No auto-prefix lines, no Outcomes, no narrative summary.
 	g.Expect(bodyStr).NotTo(ContainSubstring("Information learned"))
 	g.Expect(bodyStr).NotTo(ContainSubstring("Lesson learned"))
+	g.Expect(bodyStr).NotTo(ContainSubstring("## Outcomes"))
 
 	expectSidecarValid(g, filepath.Join(expectedPath, sidecarName))
 }

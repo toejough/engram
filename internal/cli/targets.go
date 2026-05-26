@@ -24,17 +24,18 @@ type CommonLearnArgs struct {
 }
 
 // LearnEpisodeArgs holds parsed flags for the learn episode subcommand.
-// Episodes record the narrative arc of a session or work segment: what
-// happened, in what order, with what outcomes. See
-// docs/superpowers/research/2026-05-25-episode-kind-spec.md.
+// Episodes are L1 evidence — the noise-filtered transcript chunk that
+// captures what happened during a discrete segment of work. See
+// docs/superpowers/research/2026-05-26-l1-episode-fix-spec.md.
 type LearnEpisodeArgs struct {
 	CommonLearnArgs
 
-	Situation       string   `targ:"flag,name=situation,required,desc=narrative situation phrase (required)"`
-	Summaries       []string `targ:"flag,name=summary,required,desc=summary paragraph (repeatable; required)"`
-	Outcomes        []string `targ:"flag,name=outcome,required,desc=outcome bullet (repeatable; required)"`
-	Sessions        []string `targ:"flag,name=session,required,desc=provenance.sessions entry (repeatable; required)"`
-	TranscriptRange string   `targ:"flag,name=transcript-range,required,desc=<RFC3339-start>..<RFC3339-end> (required)"`
+	Situation           string   `targ:"flag,name=situation,required,desc=retrieval-shaped topic phrase (required)"`
+	BoundaryRationale   string   `targ:"flag,name=boundary-rationale,required,desc=why this chunk's bounds (required)"`
+	FromTranscriptRange []string `targ:"flag,name=from-transcript-range,desc=<session>:<start>..<end>"`
+	TranscriptText      string   `targ:"flag,name=transcript-text,desc=literal transcript chunk content"`
+	Sessions            []string `targ:"flag,name=session,required,desc=provenance.sessions entry (required)"`
+	TranscriptRange     string   `targ:"flag,name=transcript-range,required,desc=<start>..<end> RFC3339 (required)"`
 }
 
 // LearnFactArgs holds parsed flags for the learn fact subcommand.

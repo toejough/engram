@@ -173,8 +173,8 @@ func TestTargets(t *testing.T) {
 			"--vault", vault,
 			"--source", "agent",
 			"--situation", "x",
-			"--summary", "x",
-			"--outcome", "x",
+			"--boundary-rationale", "discrete arc",
+			"--transcript-text", "USER: hi\n",
 			"--session", "x",
 			"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
 		})
@@ -194,8 +194,8 @@ func TestTargets(t *testing.T) {
 			"--slug", "test-slug",
 			"--vault", vault,
 			"--situation", "x",
-			"--summary", "x",
-			"--outcome", "x",
+			"--boundary-rationale", "discrete arc",
+			"--transcript-text", "USER: hi\n",
 			"--session", "x",
 			"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
 		}, targets...)
@@ -217,8 +217,8 @@ func TestTargets(t *testing.T) {
 			"--vault", vault,
 			"--source", "src",
 			"--situation", "x",
-			"--summary", "x",
-			"--outcome", "x",
+			"--boundary-rationale", "discrete arc",
+			"--transcript-text", "USER: hi\n",
 			"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
 		}, targets...)
 		g.Expect(err).To(gomega.HaveOccurred())
@@ -239,12 +239,34 @@ func TestTargets(t *testing.T) {
 			"--vault", vault,
 			"--source", "src",
 			"--situation", "x",
-			"--summary", "x",
-			"--outcome", "x",
+			"--boundary-rationale", "discrete arc",
+			"--transcript-text", "USER: hi\n",
 			"--session", "x",
 		}, targets...)
 		g.Expect(err).To(gomega.HaveOccurred())
 		g.Expect(result.Output).To(gomega.ContainSubstring("transcript-range"))
+	})
+
+	t.Run("learn episode errors when --boundary-rationale is missing", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		vault := t.TempDir()
+		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+
+		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
+		result, err := targ.Execute([]string{
+			"engram", "learn", "episode",
+			"--slug", "test-slug",
+			"--vault", vault,
+			"--source", "src",
+			"--situation", "x",
+			"--transcript-text", "USER: hi\n",
+			"--session", "x",
+			"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+		}, targets...)
+		g.Expect(err).To(gomega.HaveOccurred())
+		g.Expect(result.Output).To(gomega.ContainSubstring("boundary-rationale"))
 	})
 
 	t.Run("learn feedback errors when --source is missing", func(t *testing.T) {

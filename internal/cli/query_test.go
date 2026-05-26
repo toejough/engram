@@ -226,7 +226,8 @@ func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 	// Both wikilink shapes are stripped; display/target text remains.
 	g.Expect(parsed.Items[0].Content).NotTo(ContainSubstring("[["))
 	g.Expect(parsed.Items[0].Content).NotTo(ContainSubstring("]]"))
-	g.Expect(parsed.Items[0].Content).To(ContainSubstring("See 1a.foo and the bar note for context."))
+	g.Expect(parsed.Items[0].Content).
+		To(ContainSubstring("See 1a.foo and the bar note for context."))
 }
 
 type errorEmbedder struct{}

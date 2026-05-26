@@ -72,7 +72,11 @@ func ExportProductionTempFS() ExportTempFS { return productionTempFS{} }
 // ExportUnpackModelToTemp exposes the unexported unpack helper with an
 // injectable tempFS so tests can exercise mkdir/write/remove error
 // branches without touching the real disk.
-func ExportUnpackModelToTemp(tfs ExportTempFS, modelFS stdembed.FS, modelDir string) (string, error) {
+func ExportUnpackModelToTemp(
+	tfs ExportTempFS,
+	modelFS stdembed.FS,
+	modelDir string,
+) (string, error) {
 	return unpackModelToTemp(tfs, modelFS, modelDir)
 }
 

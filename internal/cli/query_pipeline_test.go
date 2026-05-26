@@ -481,8 +481,13 @@ func plantDeterministicCluster(t *testing.T, memFS *inMemoryFS, vault string) {
 	// All link to A so they form one connected subgraph; the embedder
 	// stub's text-based hashing keeps "alpha-tagged" and "beta-tagged"
 	// notes embeddings-distant.
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/A.md",
-		"---\ntype: fact\n---\nanchor body matches anchor query\n[[B]]\n[[C]]\n[[D]]\n[[E]]\n[[F]]\n[[G]]\n[[H]]\n[[I]]\n")
+	plantNoteWithSidecar(
+		t,
+		memFS,
+		vault,
+		"Permanent/A.md",
+		"---\ntype: fact\n---\nanchor body matches anchor query\n[[B]]\n[[C]]\n[[D]]\n[[E]]\n[[F]]\n[[G]]\n[[H]]\n[[I]]\n",
+	)
 
 	for _, name := range []string{"B", "C", "D", "E"} {
 		plantNoteWithSidecar(t, memFS, vault, "Permanent/"+name+".md",
@@ -497,7 +502,12 @@ func plantDeterministicCluster(t *testing.T, memFS *inMemoryFS, vault string) {
 
 // plantWithFixedVector overrides the stub-embedder behavior by writing
 // a sidecar with an exact vector, bypassing text-hash variation.
-func plantWithFixedVector(t *testing.T, memFS *inMemoryFS, vault, relPath, body string, vec []float32) {
+func plantWithFixedVector(
+	t *testing.T,
+	memFS *inMemoryFS,
+	vault, relPath, body string,
+	vec []float32,
+) {
 	t.Helper()
 
 	notePath := filepath.Join(vault, relPath)

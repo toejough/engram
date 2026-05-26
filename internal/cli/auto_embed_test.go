@@ -133,7 +133,12 @@ type failingEmbedder struct{}
 
 func (failingEmbedder) Dims() int { return 4 }
 
-func (failingEmbedder) Embed(context.Context, string) ([]float32, error) { return nil, errEmbedDown }
+func (failingEmbedder) Embed(
+	context.Context,
+	string,
+) ([]float32, error) {
+	return nil, errEmbedDown
+}
 
 func (failingEmbedder) ModelID() string { return "m@4" }
 

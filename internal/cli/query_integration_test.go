@@ -53,7 +53,13 @@ func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 			memberBody := "---\ntype: fact\n---\nmember of cluster " +
 				strconv.Itoa(clusterIdx) + " body\n[[" + hubBasename + "]]\n"
 
-			writeSyntheticNote(g, permDir, memberBase, memberBody, syntheticVector(clusterIdx, memberIdx, dims))
+			writeSyntheticNote(
+				g,
+				permDir,
+				memberBase,
+				memberBody,
+				syntheticVector(clusterIdx, memberIdx, dims),
+			)
 		}
 	}
 

@@ -52,12 +52,20 @@ func KMeans(vectors [][]float32, clusterCount int, seed uint64) (KMeansResult, e
 	}
 
 	if clusterCount > len(vectors) {
-		return KMeansResult{}, fmt.Errorf("%w (k=%d, n=%d)", ErrKMeansKTooLarge, clusterCount, len(vectors))
+		return KMeansResult{}, fmt.Errorf(
+			"%w (k=%d, n=%d)",
+			ErrKMeansKTooLarge,
+			clusterCount,
+			len(vectors),
+		)
 	}
 
 	dims := len(vectors[0])
 
-	prng := rand.New(rand.NewPCG(seed, seed^kmeansPCGSalt)) //nolint:gosec // determinism, not security
+	//nolint:gosec // determinism, not security
+	prng := rand.New(
+		rand.NewPCG(seed, seed^kmeansPCGSalt),
+	)
 
 	centroids := initialCentroids(vectors, clusterCount, prng)
 	assignments := make([]int, len(vectors))
@@ -83,7 +91,7 @@ const (
 
 // assignAll updates assignments to nearest centroid by cosine distance.
 // Returns true if any assignment changed.
-func assignAll(vectors [][]float32, centroids [][]float32, assignments []int) bool {
+func assignAll(vectors, centroids [][]float32, assignments []int) bool {
 	changed := false
 
 	for i, vec := range vectors {

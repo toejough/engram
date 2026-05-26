@@ -97,7 +97,10 @@ type fakeBackend struct {
 	handle  *fakePipelineHandle
 }
 
-func (f *fakeBackend) OpenPipeline(_ context.Context, _ string) (embed.ExportHugotPipelineHandle, error) {
+func (f *fakeBackend) OpenPipeline(
+	_ context.Context,
+	_ string,
+) (embed.ExportHugotPipelineHandle, error) {
 	if f.openErr != nil {
 		return nil, f.openErr
 	}

@@ -46,7 +46,8 @@ func TestOpenPipeline_PipelineFailDestroysSession(t *testing.T) {
 	_, err := embed.BuildEmbedderForTest(t.Context(), backend, "/tmp/x", "fake@1")
 	g.Expect(err).To(MatchError(ContainSubstring("hugot pipeline")))
 	g.Expect(err).To(MatchError(ContainSubstring("pipeline blocked")))
-	g.Expect(session.destroyCalls).To(Equal(1), "session.Destroy must be called on pipeline failure")
+	g.Expect(session.destroyCalls).
+		To(Equal(1), "session.Destroy must be called on pipeline failure")
 }
 
 // TestOpenPipeline_SessionFailPropagates exercises the first error branch
@@ -109,7 +110,10 @@ type fakeRawPipeline struct {
 	runErr error
 }
 
-func (f *fakeRawPipeline) RunPipeline(_ context.Context, _ []string) (*pipelines.FeatureExtractionOutput, error) {
+func (f *fakeRawPipeline) RunPipeline(
+	_ context.Context,
+	_ []string,
+) (*pipelines.FeatureExtractionOutput, error) {
 	if f.runErr != nil {
 		return nil, f.runErr
 	}

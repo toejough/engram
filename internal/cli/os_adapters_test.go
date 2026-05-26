@@ -89,7 +89,8 @@ func TestApplyOneErrorPaths(t *testing.T) {
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("embedded  Permanent/1.2026-05-24.stale.md (stale)"))
-	g.Expect(out.String()).To(ContainSubstring("embedded  Permanent/2.2026-05-24.broken.md (broken)"))
+	g.Expect(out.String()).
+		To(ContainSubstring("embedded  Permanent/2.2026-05-24.broken.md (broken)"))
 
 	// Also run status to exercise every tallyStates branch (ok / stale /
 	// incompatible / broken / missing — though missing requires a 5th

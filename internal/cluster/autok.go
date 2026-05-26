@@ -25,7 +25,12 @@ type AutoKResult struct {
 // clusters than points). If minK > maxK after that cap, returns K: 0.
 //
 // seed is forwarded to KMeans for deterministic results.
-func AutoK(vectors [][]float32, minK, maxK int, threshold float64, seed uint64) (AutoKResult, error) {
+func AutoK(
+	vectors [][]float32,
+	minK, maxK int,
+	threshold float64,
+	seed uint64,
+) (AutoKResult, error) {
 	if len(vectors) < minK {
 		return AutoKResult{}, nil
 	}
@@ -104,7 +109,11 @@ func absorbSingletons(vectors [][]float32, assignments []int, centroids [][]floa
 // computeCentroidsForAssignments returns the mean vector per cluster
 // over the given assignments. Used after singleton absorption to give
 // the caller centroids consistent with the final assignments.
-func computeCentroidsForAssignments(vectors [][]float32, assignments []int, clusterCount int) [][]float32 {
+func computeCentroidsForAssignments(
+	vectors [][]float32,
+	assignments []int,
+	clusterCount int,
+) [][]float32 {
 	if len(vectors) == 0 {
 		return nil
 	}
@@ -135,7 +144,9 @@ func computeCentroidsForAssignments(vectors [][]float32, assignments []int, clus
 		}
 
 		for dim := range dims {
-			centroids[clusterIdx][dim] = float32(sums[clusterIdx][dim] / float64(counts[clusterIdx]))
+			centroids[clusterIdx][dim] = float32(
+				sums[clusterIdx][dim] / float64(counts[clusterIdx]),
+			)
 		}
 	}
 

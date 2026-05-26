@@ -16,6 +16,19 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+// TestDefaultSessionPathResolver exercises the production resolver so
+// coverage attributes a hit. The resolver concatenates HOME + projects/
+// + cwd-slug + sessionID, returning a Claude Code JSONL path.
+func TestDefaultSessionPathResolver(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	path, err := cli.DefaultSessionPathResolverForTest("abc-123")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(path).To(HaveSuffix("/abc-123.jsonl"))
+	g.Expect(path).To(ContainSubstring(".claude/projects/"))
+}
+
 // TestEngramLearn_Episode_AutoEmbedsSidecar verifies an episode write
 // produces a `.vec.json` sidecar via the same auto-embed path
 // facts/feedback use. Uses a fake embedder and captures the sidecar
@@ -49,16 +62,16 @@ func TestEngramLearn_Episode_AutoEmbedsSidecar(t *testing.T) {
 	}
 
 	args := cli.LearnArgs{
-		Type:            "episode",
-		Slug:            "embed-shape",
-		Vault:           "/v",
-		Position:        "top",
-		Source:          "src",
-		Situation:       "embedding check",
-		Summaries:       []string{"summary body."},
-		Outcomes:        []string{"outcome."},
-		Sessions:        []string{"sess"},
-		TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+		Type:              "episode",
+		Slug:              "embed-shape",
+		Vault:             "/v",
+		Position:          "top",
+		Source:            "src",
+		Situation:         "embedding check",
+		BoundaryRationale: "topic shift",
+		TranscriptText:    "USER: hi\nASSISTANT: hello\n",
+		Sessions:          []string{"sess"},
+		TranscriptRange:   "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
 	}
 
 	var stdout strings.Builder
@@ -78,6 +91,260 @@ func TestEngramLearn_Episode_AutoEmbedsSidecar(t *testing.T) {
 	g.Expect(parsed.Dims).To(Equal(4))
 	g.Expect(parsed.Vector).To(HaveLen(4))
 	g.Expect(parsed.ContentHash).To(HavePrefix("sha256:"))
+}
+
+// TestEngramLearn_Episode_BoundaryRationaleRequired verifies the
+// --boundary-rationale flag is required and rejects empty/whitespace.
+func TestEngramLearn_Episode_BoundaryRationaleRequired(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		raw  string
+	}{
+		{name: "empty", raw: ""},
+		{name: "whitespace", raw: "   "},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			deps := cli.LearnDeps{
+				Now:      func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+				Getenv:   func(string) string { return "" },
+				StatDir:  func(string) error { return nil },
+				ListIDs:  func(string) ([]string, error) { return nil, nil },
+				Lock:     func(string) (func(), error) { return func() {}, nil },
+				WriteNew: func(string, []byte) error { return nil },
+			}
+
+			args := cli.LearnArgs{
+				Type:              "episode",
+				Slug:              "x",
+				Vault:             "/v",
+				Position:          "top",
+				Source:            "src",
+				Situation:         "s",
+				BoundaryRationale: tc.raw,
+				TranscriptText:    "USER: hi\n",
+				Sessions:          []string{"sess"},
+				TranscriptRange:   "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+			}
+
+			var stdout strings.Builder
+
+			err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+			g.Expect(err).To(MatchError(ContainSubstring("--boundary-rationale")))
+		})
+	}
+}
+
+// TestEngramLearn_Episode_ExactlyOneBodySource verifies the XOR contract:
+// exactly one of --from-transcript-range or --transcript-text must be set.
+// Neither errors; both errors. This lives at the args-to-args layer
+// (runLearnFromEpisodeArgsWithReader), since the resolver enforces the
+// XOR before runLearn sees a body string.
+func TestEngramLearn_Episode_ExactlyOneBodySource(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name        string
+		mutate      func(*cli.LearnEpisodeArgs)
+		expectMatch string
+	}{
+		{
+			name:        "neither set",
+			mutate:      func(*cli.LearnEpisodeArgs) {},
+			expectMatch: "exactly one of",
+		},
+		{
+			name: "both set",
+			mutate: func(a *cli.LearnEpisodeArgs) {
+				a.TranscriptText = "USER: hi\n"
+				a.FromTranscriptRange = []string{
+					"sess-1:2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+				}
+			},
+			expectMatch: "mutually exclusive",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			args := cli.LearnEpisodeArgs{
+				CommonLearnArgs: cli.CommonLearnArgs{
+					Slug:     "x",
+					Vault:    "/v",
+					Position: "top",
+					Source:   "src",
+				},
+				Situation:         "s",
+				BoundaryRationale: "discrete arc",
+				Sessions:          []string{"sess"},
+				TranscriptRange:   "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+			}
+			tc.mutate(&args)
+
+			deps := cli.LearnDeps{
+				Now:      func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+				Getenv:   func(string) string { return "" },
+				StatDir:  func(string) error { return nil },
+				ListIDs:  func(string) ([]string, error) { return nil, nil },
+				Lock:     func(string) (func(), error) { return func() {}, nil },
+				WriteNew: func(string, []byte) error { return nil },
+			}
+
+			var stdout strings.Builder
+
+			err := cli.RunLearnFromEpisodeArgsWithReaderForTest(
+				t.Context(), args,
+				stubRangeReader{},
+				func(string) (string, error) { return "/unused.jsonl", nil },
+				deps, &stdout,
+			)
+			g.Expect(err).To(MatchError(ContainSubstring(tc.expectMatch)))
+		})
+	}
+}
+
+// TestEngramLearn_Episode_FromTranscriptRange_ReadsChunk verifies
+// --from-transcript-range A:start..end uses the injected RangeReader to
+// fetch the chunk and inlines it as the body.
+func TestEngramLearn_Episode_FromTranscriptRange_ReadsChunk(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:     func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		ListIDs: func(string) ([]string, error) { return nil, nil },
+		Lock:    func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error {
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	const fakeChunk = "USER: hello from range reader\nASSISTANT: chunk content here\n"
+
+	reader := stubRangeReader{
+		chunks: map[string]string{
+			"/sessions/sess-1.jsonl": fakeChunk,
+		},
+	}
+
+	args := cli.LearnEpisodeArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "range-read",
+			Vault:    "/v",
+			Position: "top",
+			Source:   "src",
+		},
+		Situation:           "range read check",
+		BoundaryRationale:   "discrete arc",
+		FromTranscriptRange: []string{"sess-1:2026-05-25T22:00:00Z..2026-05-25T23:00:00Z"},
+		Sessions:            []string{"sess-1"},
+		TranscriptRange:     "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+	}
+
+	var stdout strings.Builder
+
+	sessionPath := func(id string) (string, error) {
+		return "/sessions/" + id + ".jsonl", nil
+	}
+
+	err := cli.RunLearnFromEpisodeArgsWithReaderForTest(
+		t.Context(), args, reader, sessionPath, deps, &stdout,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(writtenContent)).To(ContainSubstring(fakeChunk))
+}
+
+// TestEngramLearn_Episode_FrontmatterShape verifies the rendered
+// L1 episode frontmatter contains the spec-mandated keys
+// (type=episode, situation, boundary_rationale, nested
+// provenance.sessions and provenance.transcript_range, standard
+// luhmann/created/source). The L1 spec drops the "outcomes" field.
+func TestEngramLearn_Episode_FrontmatterShape(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:     func() time.Time { return time.Date(2026, time.May, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		ListIDs: func(string) ([]string, error) { return nil, nil },
+		Lock:    func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error {
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	args := cli.LearnArgs{
+		Type:              "episode",
+		Slug:              "episode-shape",
+		Vault:             "/vault",
+		Position:          "top",
+		Source:            "session log engram, 2026-05-25",
+		Situation:         "Sharpening the F1 episode spec",
+		BoundaryRationale: "Discrete sharpen-then-dispatch arc",
+		TranscriptText:    "USER: please execute the spec\nASSISTANT: I'll set up the task list...\n",
+		Sessions:          []string{"971fc252-8b44-4bd2-b44a-4f44464105eb"},
+		TranscriptRange:   "2026-05-25T22:00:00Z..2026-05-25T23:30:00Z",
+		Relations:         []string{"157|applied subtraction"},
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(writtenContent)
+	// Frontmatter
+	g.Expect(body).To(ContainSubstring("type: episode"))
+	g.Expect(body).To(ContainSubstring("situation: Sharpening the F1 episode spec"))
+	g.Expect(body).To(ContainSubstring("boundary_rationale: Discrete sharpen-then-dispatch arc"))
+	g.Expect(body).To(ContainSubstring("provenance:"))
+	g.Expect(body).To(ContainSubstring("sessions:"))
+	g.Expect(body).To(ContainSubstring("- 971fc252-8b44-4bd2-b44a-4f44464105eb"))
+	g.Expect(body).To(ContainSubstring("transcript_range:"))
+	g.Expect(body).To(ContainSubstring(`start: "2026-05-25T22:00:00Z"`))
+	g.Expect(body).To(ContainSubstring(`end: "2026-05-25T23:30:00Z"`))
+	g.Expect(body).To(ContainSubstring(`luhmann: "1"`))
+	g.Expect(body).To(ContainSubstring(`created: "2026-05-25"`))
+	g.Expect(body).To(ContainSubstring("source: session log engram, 2026-05-25"))
+	// L1 episode body: filtered transcript chunk verbatim + related block.
+	// No auto-prefix lines, no Outcomes section, no narrative summary.
+	g.Expect(body).NotTo(ContainSubstring("Information learned"))
+	g.Expect(body).NotTo(ContainSubstring("Lesson learned"))
+	g.Expect(body).NotTo(ContainSubstring("## Outcomes"))
+	g.Expect(body).NotTo(ContainSubstring("outcomes:"))
+	g.Expect(body).To(ContainSubstring("USER: please execute the spec"))
+	g.Expect(body).To(ContainSubstring("ASSISTANT: I'll set up the task list..."))
+	g.Expect(body).To(ContainSubstring("Related to:"))
+	g.Expect(body).To(ContainSubstring("- [[157]] — applied subtraction."))
 }
 
 // TestEngramLearn_Episode_LuhmannPlacement exercises the three
@@ -125,17 +392,17 @@ func TestEngramLearn_Episode_LuhmannPlacement(t *testing.T) {
 			}
 
 			args := cli.LearnArgs{
-				Type:            "episode",
-				Slug:            "placement",
-				Vault:           "/v",
-				Target:          tc.target,
-				Position:        tc.position,
-				Source:          "src",
-				Situation:       "ordering",
-				Summaries:       []string{"summary"},
-				Outcomes:        []string{"outcome"},
-				Sessions:        []string{"sess"},
-				TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+				Type:              "episode",
+				Slug:              "placement",
+				Vault:             "/v",
+				Target:            tc.target,
+				Position:          tc.position,
+				Source:            "src",
+				Situation:         "ordering",
+				BoundaryRationale: "discrete arc",
+				TranscriptText:    "USER: ping\nASSISTANT: pong\n",
+				Sessions:          []string{"sess"},
+				TranscriptRange:   "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
 			}
 
 			var stdout strings.Builder
@@ -154,82 +421,27 @@ func TestEngramLearn_Episode_LuhmannPlacement(t *testing.T) {
 	}
 }
 
-// TestEngramLearn_Episode_OutcomeRepeatable verifies that multiple
-// --outcome flags emit in the input order as a bulleted list under the
-// "## Outcomes" header.
-func TestEngramLearn_Episode_OutcomeRepeatable(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var writtenContent []byte
-
-	deps := cli.LearnDeps{
-		Now:     func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
-		Getenv:  func(string) string { return "" },
-		StatDir: func(string) error { return nil },
-		ListIDs: func(string) ([]string, error) { return nil, nil },
-		Lock:    func(string) (func(), error) { return func() {}, nil },
-		WriteNew: func(_ string, data []byte) error {
-			writtenContent = data
-
-			return nil
-		},
-	}
-
-	outcomes := []string{
-		"first outcome — landed.",
-		"second outcome — dispatched.",
-		"third outcome — captured.",
-	}
-
-	args := cli.LearnArgs{
-		Type:            "episode",
-		Slug:            "outcome-order",
-		Vault:           "/v",
-		Position:        "top",
-		Source:          "src",
-		Situation:       "ordering check",
-		Summaries:       []string{"summary"},
-		Outcomes:        outcomes,
-		Sessions:        []string{"sess"},
-		TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	body := string(writtenContent)
-	// Outcomes appear in order and immediately under "## Outcomes".
-	expected := "## Outcomes\n- first outcome — landed.\n- second outcome — dispatched.\n- third outcome — captured.\n"
-	g.Expect(body).To(ContainSubstring(expected))
-}
-
-// TestEngramLearn_Episode_ProvenanceRequired covers the required-field
-// validation surface for episodes: missing or empty --situation,
-// --summary, --outcome, --session, missing or malformed
-// --transcript-range, unparseable RFC3339 component, and non-ordered
-// range (start >= end).
-func TestEngramLearn_Episode_ProvenanceRequired(t *testing.T) {
+// TestEngramLearn_Episode_RequiredFields covers required-field validation
+// at the runLearn layer (situation, boundary-rationale, session,
+// transcript-range — all enforced before the body source check kicks in,
+// since runLearnFromEpisodeArgsWithReader's resolver enforces XOR
+// separately). Pre-populates TranscriptText so the body-source XOR
+// gate passes.
+func TestEngramLearn_Episode_RequiredFields(t *testing.T) {
 	t.Parallel()
 
 	baseArgs := func() cli.LearnArgs {
 		return cli.LearnArgs{
-			Type:            "episode",
-			Slug:            "x",
-			Vault:           "/v",
-			Position:        "top",
-			Source:          "src",
-			Situation:       "s",
-			Summaries:       []string{"summary"},
-			Outcomes:        []string{"outcome"},
-			Sessions:        []string{"sess"},
-			TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+			Type:              "episode",
+			Slug:              "x",
+			Vault:             "/v",
+			Position:          "top",
+			Source:            "src",
+			Situation:         "s",
+			BoundaryRationale: "discrete arc",
+			TranscriptText:    "USER: hi\nASSISTANT: hello\n",
+			Sessions:          []string{"sess"},
+			TranscriptRange:   "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
 		}
 	}
 
@@ -249,24 +461,9 @@ func TestEngramLearn_Episode_ProvenanceRequired(t *testing.T) {
 			expectMsg: "--situation",
 		},
 		{
-			name:      "missing --summary",
-			mutate:    func(a *cli.LearnArgs) { a.Summaries = nil },
-			expectMsg: "--summary",
-		},
-		{
-			name:      "empty --summary entry",
-			mutate:    func(a *cli.LearnArgs) { a.Summaries = []string{""} },
-			expectMsg: "--summary",
-		},
-		{
-			name:      "missing --outcome",
-			mutate:    func(a *cli.LearnArgs) { a.Outcomes = nil },
-			expectMsg: "--outcome",
-		},
-		{
-			name:      "empty --outcome entry",
-			mutate:    func(a *cli.LearnArgs) { a.Outcomes = []string{""} },
-			expectMsg: "--outcome",
+			name:      "missing --boundary-rationale",
+			mutate:    func(a *cli.LearnArgs) { a.BoundaryRationale = "" },
+			expectMsg: "--boundary-rationale",
 		},
 		{
 			name:      "missing --session",
@@ -330,89 +527,15 @@ func TestEngramLearn_Episode_ProvenanceRequired(t *testing.T) {
 			var stdout strings.Builder
 
 			err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-			g.Expect(err).To(HaveOccurred())
-			g.Expect(err.Error()).To(ContainSubstring(tc.expectMsg))
+			g.Expect(err).To(MatchError(ContainSubstring(tc.expectMsg)))
 		})
 	}
 }
 
-// TestEngramLearn_Episode_RenderingShape verifies the rendered episode
-// note has the spec-mandated frontmatter keys (type=episode, nested
-// provenance.sessions and provenance.transcript_range, standard
-// luhmann/created/source) and the spec-mandated body (summary paragraph
-// + "## Outcomes" bulleted list + Related-to block, with no auto-prefix
-// "Information learned" / "Lesson learned" line).
-func TestEngramLearn_Episode_RenderingShape(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var writtenContent []byte
-
-	deps := cli.LearnDeps{
-		Now:     func() time.Time { return time.Date(2026, time.May, 25, 0, 0, 0, 0, time.UTC) },
-		Getenv:  func(string) string { return "" },
-		StatDir: func(string) error { return nil },
-		ListIDs: func(string) ([]string, error) { return nil, nil },
-		Lock:    func(string) (func(), error) { return func() {}, nil },
-		WriteNew: func(_ string, data []byte) error {
-			writtenContent = data
-
-			return nil
-		},
-	}
-
-	args := cli.LearnArgs{
-		Type:            "episode",
-		Slug:            "episode-shape",
-		Vault:           "/vault",
-		Position:        "top",
-		Source:          "session log engram, 2026-05-25",
-		Situation:       "Sharpening the F1 episode spec",
-		Summaries:       []string{"Wrote the spec; dispatched implementation."},
-		Outcomes:        []string{"Spec landed.", "Implementation dispatched."},
-		Sessions:        []string{"971fc252-8b44-4bd2-b44a-4f44464105eb"},
-		TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:30:00Z",
-		Relations:       []string{"157|applied subtraction"},
-	}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	body := string(writtenContent)
-	// Frontmatter
-	g.Expect(body).To(ContainSubstring("type: episode"))
-	g.Expect(body).To(ContainSubstring("situation: Sharpening the F1 episode spec"))
-	g.Expect(body).To(ContainSubstring("provenance:"))
-	g.Expect(body).To(ContainSubstring("sessions:"))
-	g.Expect(body).To(ContainSubstring("- 971fc252-8b44-4bd2-b44a-4f44464105eb"))
-	g.Expect(body).To(ContainSubstring("transcript_range:"))
-	g.Expect(body).To(ContainSubstring(`start: "2026-05-25T22:00:00Z"`))
-	g.Expect(body).To(ContainSubstring(`end: "2026-05-25T23:30:00Z"`))
-	g.Expect(body).To(ContainSubstring(`luhmann: "1"`))
-	g.Expect(body).To(ContainSubstring(`created: "2026-05-25"`))
-	g.Expect(body).To(ContainSubstring("source: session log engram, 2026-05-25"))
-	// Body: no auto-prefix lines, summary paragraph, outcomes header, bullets, related block.
-	g.Expect(body).NotTo(ContainSubstring("Information learned"))
-	g.Expect(body).NotTo(ContainSubstring("Lesson learned"))
-	g.Expect(body).To(ContainSubstring("Wrote the spec; dispatched implementation."))
-	g.Expect(body).To(ContainSubstring("## Outcomes"))
-	g.Expect(body).To(ContainSubstring("- Spec landed."))
-	g.Expect(body).To(ContainSubstring("- Implementation dispatched."))
-	g.Expect(body).To(ContainSubstring("Related to:"))
-	g.Expect(body).To(ContainSubstring("- [[157]] — applied subtraction."))
-}
-
-// TestEngramLearn_Episode_SummaryParagraphs verifies that multiple
-// --summary flags concatenate as separate paragraphs (blank line between
-// them) in the body, in the input order, before the "## Outcomes"
-// header.
-func TestEngramLearn_Episode_SummaryParagraphs(t *testing.T) {
+// TestEngramLearn_Episode_TranscriptTextInlined verifies --transcript-text
+// produces a body containing the literal text verbatim (no narrative
+// rewrite, no Outcomes section).
+func TestEngramLearn_Episode_TranscriptTextInlined(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -431,34 +554,78 @@ func TestEngramLearn_Episode_SummaryParagraphs(t *testing.T) {
 		},
 	}
 
-	args := cli.LearnArgs{
-		Type:            "episode",
-		Slug:            "para-order",
-		Vault:           "/v",
-		Position:        "top",
-		Source:          "src",
-		Situation:       "paragraph ordering",
-		Summaries:       []string{"first paragraph.", "second paragraph.", "third paragraph."},
-		Outcomes:        []string{"outcome"},
-		Sessions:        []string{"sess"},
-		TranscriptRange: "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+	const literal = "USER: build the spec\nASSISTANT: starting now\n[tool] Edit(...)\n"
+
+	args := cli.LearnEpisodeArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "literal-body",
+			Vault:    "/v",
+			Position: "top",
+			Source:   "src",
+		},
+		Situation:         "literal body check",
+		BoundaryRationale: "verbatim chunk",
+		TranscriptText:    literal,
+		Sessions:          []string{"sess"},
+		TranscriptRange:   "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
 	}
 
 	var stdout strings.Builder
 
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	err := cli.RunLearnFromEpisodeArgsWithReaderForTest(
+		t.Context(), args,
+		stubRangeReader{},
+		func(string) (string, error) { return "/unused.jsonl", nil },
+		deps, &stdout,
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	body := string(writtenContent)
-	// Each paragraph occupies its own line, separated by a blank line; the
-	// last paragraph is immediately followed by the blank line that
-	// precedes "## Outcomes".
-	expected := "first paragraph.\n\nsecond paragraph.\n\nthird paragraph.\n\n## Outcomes\n"
-	g.Expect(body).To(ContainSubstring(expected))
+	g.Expect(string(writtenContent)).To(ContainSubstring(literal))
+}
+
+// TestEpisode_FromTranscriptRange_ParseErrorPropagates verifies that a
+// malformed --from-transcript-range argument bubbles up cleanly through
+// the args-to-args resolver layer.
+func TestEpisode_FromTranscriptRange_ParseErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	args := cli.LearnEpisodeArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "bad-range",
+			Vault:    "/v",
+			Position: "top",
+			Source:   "src",
+		},
+		Situation:           "x",
+		BoundaryRationale:   "discrete arc",
+		FromTranscriptRange: []string{"not-a-range"},
+		Sessions:            []string{"sess"},
+		TranscriptRange:     "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+	}
+
+	deps := cli.LearnDeps{
+		Now:      func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:   func(string) string { return "" },
+		StatDir:  func(string) error { return nil },
+		ListIDs:  func(string) ([]string, error) { return nil, nil },
+		Lock:     func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(string, []byte) error { return nil },
+	}
+
+	var stdout strings.Builder
+
+	err := cli.RunLearnFromEpisodeArgsWithReaderForTest(
+		t.Context(), args,
+		stubRangeReader{},
+		func(string) (string, error) { return "/unused.jsonl", nil },
+		deps, &stdout,
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("from-transcript-range")))
 }
 
 func TestExtractLuhmannFromFilename(t *testing.T) {
@@ -500,6 +667,96 @@ func TestMarshalFrontmatter_WrapsValidValue(t *testing.T) {
 	g := NewWithT(t)
 	got := cli.ExportMarshalFrontmatter(map[string]string{"k": "v"})
 	g.Expect(got).To(Equal("---\nk: v\n---\n\n"))
+}
+
+// TestParseFromTranscriptRange_ErrorBranches drives every malformed
+// input branch so coverage attributes hits to each error path.
+func TestParseFromTranscriptRange_ErrorBranches(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		raw       string
+		expectMsg string
+	}{
+		{
+			name:      "empty",
+			raw:       "",
+			expectMsg: "from-transcript-range",
+		},
+		{
+			name:      "no separator",
+			raw:       "sess-1:2026-05-25T22:00:00Z",
+			expectMsg: "from-transcript-range",
+		},
+		{
+			name:      "no end after ..",
+			raw:       "sess-1:2026-05-25T22:00:00Z..",
+			expectMsg: "from-transcript-range",
+		},
+		{
+			name:      "no colon (missing session-id)",
+			raw:       "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+			expectMsg: "from-transcript-range",
+		},
+		{
+			name:      "empty session-id",
+			raw:       ":2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+			expectMsg: "from-transcript-range",
+		},
+		{
+			name:      "unparseable start",
+			raw:       "sess-1:yesterday..2026-05-25T23:00:00Z",
+			expectMsg: "from-transcript-range",
+		},
+		{
+			name:      "unparseable end",
+			raw:       "sess-1:2026-05-25T22:00:00Z..nope",
+			expectMsg: "from-transcript-range",
+		},
+		{
+			name:      "start equals end",
+			raw:       "sess-1:2026-05-25T22:00:00Z..2026-05-25T22:00:00Z",
+			expectMsg: "start must be before end",
+		},
+		{
+			name:      "start after end",
+			raw:       "sess-1:2026-05-25T23:00:00Z..2026-05-25T22:00:00Z",
+			expectMsg: "start must be before end",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			_, _, _, err := cli.ParseFromTranscriptRangeForTest(tc.raw)
+			g.Expect(err).To(MatchError(ContainSubstring(tc.expectMsg)))
+		})
+	}
+}
+
+// TestParseFromTranscriptRange_HappyPath verifies the parser splits
+// "<session-id>:<RFC3339-start>..<RFC3339-end>" correctly. The session
+// ID is the literal text before the first colon; the start/end are
+// RFC3339 timestamps (which themselves contain colons).
+func TestParseFromTranscriptRange_HappyPath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	raw := "971fc252-8b44-4bd2-b44a-4f44464105eb:2026-05-25T22:00:00Z..2026-05-25T23:30:00Z"
+
+	sessionID, start, end, err := cli.ParseFromTranscriptRangeForTest(raw)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(sessionID).To(Equal("971fc252-8b44-4bd2-b44a-4f44464105eb"))
+	g.Expect(start.Format(time.RFC3339)).To(Equal("2026-05-25T22:00:00Z"))
+	g.Expect(end.Format(time.RFC3339)).To(Equal("2026-05-25T23:30:00Z"))
 }
 
 func TestRenderBody_Fact(t *testing.T) {
@@ -750,6 +1007,49 @@ func TestRenderRelatedSection_NoPipeMeansEmptyRationale(t *testing.T) {
 	g.Expect(got).To(Equal("Related to:\n- [[7]] — .\n"))
 }
 
+// TestResolveSessionPath_GetwdError covers the getwd error branch.
+func TestResolveSessionPath_GetwdError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, err := cli.ResolveSessionPathForTest(
+		"abc-123",
+		func() (string, error) { return "", errors.New("cwd boom") },
+		func() (string, error) { return "/Users/joe", nil },
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("getwd")))
+	g.Expect(err).To(MatchError(ContainSubstring("cwd boom")))
+}
+
+// TestResolveSessionPath_HappyPath exercises the injected resolver with
+// fake getwd/homeDir that return successful values.
+func TestResolveSessionPath_HappyPath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	path, err := cli.ResolveSessionPathForTest(
+		"abc-123",
+		func() (string, error) { return "/Users/joe/repos/x", nil },
+		func() (string, error) { return "/Users/joe", nil },
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(path).To(Equal("/Users/joe/.claude/projects/-Users-joe-repos-x/abc-123.jsonl"))
+}
+
+// TestResolveSessionPath_HomeError covers the homeDir error branch.
+func TestResolveSessionPath_HomeError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, err := cli.ResolveSessionPathForTest(
+		"abc-123",
+		func() (string, error) { return "/Users/joe", nil },
+		func() (string, error) { return "", errors.New("home boom") },
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("home dir")))
+	g.Expect(err).To(MatchError(ContainSubstring("home boom")))
+}
+
 func TestRunLearn_BootstrapsVaultWhenMissing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -984,6 +1284,19 @@ func TestRunLearn_RejectsUnknownType(t *testing.T) {
 
 	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
+}
+
+// stubRangeReader returns deterministic content per path.
+type stubRangeReader struct {
+	chunks map[string]string
+}
+
+func (s stubRangeReader) ReadRange(path string, _, _ time.Time) (string, error) {
+	if chunk, ok := s.chunks[path]; ok {
+		return chunk, nil
+	}
+
+	return "", nil
 }
 
 // parseFrontmatter strips the "---" delimiters from a rendered frontmatter

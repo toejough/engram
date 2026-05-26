@@ -396,7 +396,11 @@ func newProductionHugotBackend() productionHugotBackend {
 				OnnxFilename: "model.onnx",
 			}
 
-			return hugot.NewPipeline(session.(*hugot.Session), config) //nolint:forcetypeassert // production invariant
+			//nolint:forcetypeassert // production invariant
+			return hugot.NewPipeline(
+				session.(*hugot.Session),
+				config,
+			)
 		},
 	}
 }
