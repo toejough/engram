@@ -36,22 +36,11 @@ The binary resolves the vault automatically — `--vault` and
 `ENGRAM_VAULT_PATH` are overrides, not requirements. Default:
 `$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`).
 On first `engram learn` against a non-existent vault, the directory is
-bootstrapped with `Permanent/`, `MOCs/`, a minimal `.obsidian/` config,
-a `.gitignore`, and a `README.md`. New writes go to `Permanent/` only;
-`MOCs/` is bootstrapped for backward compatibility but receives no new
-content. Historical MOCs from the F4 migration live under
-`<vault>/_legacy/MOCs/` for audit only — they are not part of the
-active recall graph. **Do not pass `--vault` in `engram learn` /
-`engram recall` invocations unless the user explicitly tells you the
-vault is elsewhere.**
+bootstrapped. New writes go to `<vault>/Permanent/`. **Do not pass
+`--vault` unless the user explicitly tells you the vault is elsewhere.**
 
-Layout:
-
-- Permanents (write target): `<vault>/Permanent/`
-- MOCs (bootstrap stub, no active content): `<vault>/MOCs/`
-- Archived MOCs (audit only, not read by recall): `<vault>/_legacy/MOCs/`
-
-No `Fleeting/` directory. No `Main Index.md`. No log file. Chronology lives in filenames; navigation lives in link context across permanents.
+Chronology lives in filenames (`<luhmann-id>.<YYYY-MM-DD>.<slug>.md`);
+navigation lives in link context across permanents.
 
 ## Trigger
 
@@ -65,13 +54,15 @@ Three kinds of notes, distinguished by why a future agent would want them:
 
 - **Feedback** — anything you'd do differently next time. Mistakes, user corrections, reasonable actions that didn't pan out, dead-ends, surprising costs. The note exists so future-you avoids the same loss.
 - **Fact** — anything else that would help reach the right outcome more efficiently (time- or cost-wise) in similar situations. Tool behaviors, idioms, conventions, integration shapes, gotchas, the way a thing actually works. The note exists so future-you spends less to get to the same right answer.
-- **Episode** — narrative arc of a session or work segment. "What I did, in what order, with what outcomes." Project names, dates, first-person framing all OK; vocabulary stays verbatim. The note exists so future-you can answer "what was I working on" and trace where facts/feedback came from.
+- **Episode** — **L1 evidence: a noise-filtered transcript chunk capturing _what you were doing, to what, and when_.** Each episode is one chunk of the filtered transcript engram already produced, sliced on a natural boundary, with a one-phrase rationale explaining why those bounds. Episodes preserve the actual interactions (not just the narrative arc) so future-you can answer "what did we do yesterday" with high detail — the literal back-and-forth, the tool calls, the file paths. Facts and feedback derived from an episode link back to it via `--relation "<episode-luhmann>|extracted from this chunk"`.
 
-If a single observation has both a "should have done X" component and a "here's how Y works" component, write two notes — one Feedback, one Fact. Episodes are independent: at most one per /learn pass, alongside any facts/feedback that pass the recall-mirror test.
+If a single observation has both a "should have done X" component and a "here's how Y works" component, write two notes — one Feedback, one Fact.
+
+**Episodes are episodic — write as many as the session calls for, never zero.** The session may span multiple discrete arcs of work; write one episode per natural chunk boundary. Boundaries are temporal (a multi-day gap between chunks), subjective (you switched topics), or objective (a discrete piece of work landed). **Every /learn pass produces at least one episode** — even a pure continuation chunk with no topic shift gets an episode (boundary rationale: "continuation of prior arc; <stop-reason>"). The failure mode is *losing the interactions*: replying "we did X" with no details, because you only remembered the narrative. Episodes prevent that.
 
 ## Workflow
 
-> **Two parallel tracks.** §§1–5 cover **facts/feedback** — retrieval-shaped notes scanned per-candidate from session activity. **Episodes** are decided once per pass (one-time, not per-candidate) and follow a different pipeline — see §6a. Episodes do NOT go through locus classification (§1), path A/B/C selection (§2), the recall-mirror test (§3), or the Feedback-vs-Fact categorization (§4). When in doubt about whether something is an episode, fact, or feedback: principles → fact; "do differently next time" → feedback; narrative arc of the session → episode.
+> **Two parallel tracks.** §§1–5 cover **facts/feedback** — retrieval-shaped abstractions scanned per-candidate from session activity. **Episodes** are L1 evidence — one per natural chunk boundary in the session's filtered transcript — and follow a different pipeline (see §6a). Episodes do NOT go through locus classification (§1), path A/B/C selection (§2), the recall-mirror test (§3), or the Feedback-vs-Fact categorization (§4). When in doubt about kind: principles → fact; "do differently next time" → feedback; the chunk of interactions itself → episode. Facts and feedback derived from a specific episode chunk link back to it via `--relation`.
 
 ### 1. Identify candidates
 
@@ -201,18 +192,27 @@ engram learn fact \
   --relation "<wikilink>|<rationale>"
 ```
 
-#### 6a. Episodes — narrative connective tissue
+#### 6a. Episodes — L1 evidence layer
 
-**At most one episode per /learn pass.** Skip when the session is a continuation with no narrative arc of its own (you picked up where the last session left off; nothing new structurally happened). Write one when the session has a discrete shape — opened, drove some work, produced outcomes.
+**Write one episode per natural chunk boundary in the session.** A pass typically produces multiple episodes when the session spans multiple arcs of work. Boundaries to chunk on:
+
+- **Topic shift** — you stopped working on X and started working on Y.
+- **Temporal gap** — a multi-hour or multi-day pause (note the gap on both sides).
+- **Arc completion** — a discrete piece of work landed (bug fix shipped, spec written, commit made).
+- **Operator redirect** — the user redirected from cleanup to a new feature, or paused current work.
+- **Session end / start** — the in-flight work crosses a session boundary.
+
+For each chunk, identify the start/end RFC3339 timestamps in the filtered transcript and a one-phrase `--boundary-rationale`. Use `--from-transcript-range <session-id>:<start>..<end>` to have engram read+filter the chunk from the JSONL on disk; the binary inlines the filtered content as the body. Use `--transcript-text "<literal>"` only when the chunk is already in hand (e.g., the agent already has the filtered text and prefers not to re-read).
 
 **Voice + vocabulary discipline** (full rules:
-`docs/superpowers/research/2026-05-25-episode-kind-spec.md`):
+`docs/superpowers/research/2026-05-26-l1-episode-fix-spec.md`):
 
-- **Voice freedom** — first-person, project names, dates, file paths, commit SHAs, error strings all OK. Episodes are the place for "I did X then Y because Z" framing that facts/feedback forbid.
-- **Vocabulary fidelity** — named decisions, session IDs, file paths, commit SHAs, error strings stay verbatim. Do not paraphrase a session ID; do not re-name a decision.
-- **Episodes are connective tissue, not analysis.** Principles → write a fact. "Do X differently next time" → write feedback. Episodes narrate what happened so future-you can trace where the facts/feedback came from.
+- **Verbatim chunk content** — the body is the filtered transcript chunk itself (USER:/ASSISTANT:/[tool] lines), not a paraphrase or summary. Voice is whatever the chunk is.
+- **`--situation`** — a short retrieval-shaped topic phrase (project + activity), not a narrative paragraph.
+- **`--boundary-rationale`** — one phrase explaining why this chunk's bounds. Examples: "topic shift from F1 to F6+F9.1 work", "3-day gap before resuming", "completed a discrete UAT case", "user redirected from cleanup to new feature".
+- **No analysis in the body.** Principles → write a fact. "Do X differently next time" → write feedback. Episodes are the evidence; the abstraction lives in the fact/feedback note.
 
-**Path A/B/C and the recall-mirror test do NOT apply to episodes.** Those rules govern facts/feedback because facts/feedback are retrieved by phrase-matching against future plans. Episodes are retrieved through the situational stream (project context, time range, related-note traversal), so the `situation` field is a narrative phrase locating the work (project, dates, file paths OK), not a retrieval-shaped "When …" string.
+**Path A/B/C and the recall-mirror test do NOT apply to episodes.** Those rules govern facts/feedback because facts/feedback are retrieved by phrase-matching against future plans. Episodes are retrieved through the situational stream (project context, time range, related-note traversal).
 
 **Invocation:**
 
@@ -222,17 +222,17 @@ engram learn episode \
   --target <id-or-empty> \
   --position <top|continuation|sibling> \
   --source "..." \
-  --situation "<narrative phrase locating the work>" \
-  --summary "<paragraph>" --summary "<another paragraph>" \
-  --outcome "<bullet 1>" --outcome "<bullet 2>" --outcome "<bullet 3>" \
-  --session "<session-id-or-transcript-filename>" \
+  --situation "<short retrieval-shaped topic phrase>" \
+  --boundary-rationale "<why this chunk's bounds>" \
+  --from-transcript-range "<session-id>:<RFC3339-start>..<RFC3339-end>" \
+  --session "<session-id>" \
   --transcript-range "<RFC3339-start>..<RFC3339-end>" \
   --relation "<wikilink>|<rationale>"
 ```
 
-Repeatable: `--summary` (each is one paragraph), `--outcome` (each is one bullet), `--session` (multi-session is rare; default is one), `--relation`. Required: `--slug`, `--source`, `--situation`, `--summary`, `--outcome`, `--session`, `--transcript-range`.
+Required: `--slug`, `--source`, `--situation`, `--boundary-rationale`, `--session`, `--transcript-range`, and exactly one of `--from-transcript-range` (repeatable, the canonical form) or `--transcript-text` (literal content; XOR with `--from-transcript-range`). Optional: `--relation`.
 
-**Related links between episodes and facts/feedback are encouraged but not required.** Episodes MAY `--relation` forward to facts/feedback they spawned; facts/feedback MAY `--relation` back to the episode they came from. Backlinks are not synthesized — both directions are explicit `--relation` flags at write time.
+**Cross-link facts/feedback to their originating episode.** When a fact or feedback note is extracted from a specific episode's chunk, include `--relation "<episode-luhmann>|extracted from this chunk"` on the fact/feedback write. Backlinks are not synthesized — both directions are explicit `--relation` flags at write time. More-abstracted facts/feedback can still link to the same anchor episodes through intermediate notes.
 
 ### 7. Contradictions
 
@@ -279,6 +279,10 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 | You're categorizing a user correction or dead-end as Fact                           | That's Feedback. Facts describe how things are; corrections describe how to act differently.                      |
 | You can't say which Step 1 phrase (or scratch-list phrase) the note retrieves under | The framing is wrong. Lift the closest phrase and rebuild the situation around it.                                |
 | You're invoking "Recurs / Activity-and-Domain / Knowledge" by name                  | Those gates have been replaced by the recall-mirror test. Apply that test instead.                                |
+| Writing only one episode per /learn pass when the session spans multiple arcs        | Episodes are per natural chunk boundary, not per pass. Re-chunk the transcript and write one episode per chunk.   |
+| Skipping episodes because "no new narrative arc occurred"                            | The L1 episode is the *chunk of interactions*, not the narrative. Even a continuation chunk is worth preserving.  |
+| Using `--summary` / `--outcome` on `engram learn episode`                            | Those flags were removed. Body is the filtered transcript chunk via `--from-transcript-range` or `--transcript-text`. Use `--boundary-rationale` for the one-phrase explanation of why this chunk's bounds. |
+| Writing a fact/feedback derived from an episode without backlinking                  | Add `--relation "<episode-luhmann>|extracted from this chunk"` on the fact/feedback write so retrieval can trace the abstraction back to its evidence. |
 
 ## Common mistakes
 
