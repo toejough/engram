@@ -21,7 +21,7 @@ flowchart LR
 
     user -->|"R1: directs work via prompts"| harness
     harness -->|"R2: invokes /recall, /learn, /please; runs engram CLI"| engram
-    engram -->|"R3: reads & writes notes and MOCs"| vault
+    engram -->|"R3: reads & writes notes + sidecars"| vault
     engram -->|"R4: reads session transcripts via per-harness markers"| sessions
     engram -->|"R5: invokes go install / go list for self-update"| gotool
     engram -->|"R6: writes refreshed skill and command files during engram update"| harness
@@ -45,7 +45,7 @@ flowchart LR
 | <a id="s1-engram-operator"></a>S1 | Engram operator | Person | Directs work through the LLM coding harness; configures engram via environment variables (`ENGRAM_VAULT_PATH`, `ENGRAM_STATE_DIR`, `ENGRAM_TRANSCRIPT_DIR`, etc.) | Human |
 | <a id="s2-engram"></a>S2 | Engram | System in scope | Persistent memory for LLM coding agents: reads & writes a Luhmann zettelkasten vault, reads per-harness session transcripts via markers, and self-updates | This repo (`cmd/engram/`, `internal/`, `skills/`) |
 | <a id="s3-llm-coding-harness"></a>S3 | LLM coding harness | External system | Hosts engram's slash commands and subprocess-invokes the engram CLI. Engram skills are loaded by the harness's skill mechanism. | Claude Code (`~/.claude/`), OpenCode (`~/.config/opencode/`) |
-| <a id="s4-agent-memory-vault"></a>S4 | Agent-memory vault | External system | Luhmann zettelkasten on the local filesystem — `Permanent/` notes and `MOCs/` | `$ENGRAM_VAULT_PATH` or `$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`) |
+| <a id="s4-agent-memory-vault"></a>S4 | Agent-memory vault | External system | Luhmann zettelkasten on the local filesystem — `Permanent/` notes (each with a sibling `.vec.json` embedding sidecar). `MOCs/` is a bootstrap stub kept for backward compatibility; no new writes go there. `_legacy/MOCs/` holds the 25 historical MOCs as audit-only artifacts | `$ENGRAM_VAULT_PATH` or `$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`) |
 | <a id="s5-harness-session-stores"></a>S5 | Harness session stores | External system | The LLM harness's per-session transcript storage; engram reads them at the filesystem level, not via a harness API | Claude Code: `~/.claude/projects/<slug>/*.jsonl` · OpenCode: `~/.local/share/opencode/opencode.db` (SQLite) |
 | <a id="s6-go-toolchain"></a>S6 | Go toolchain | External system | Resolves module versions and installs the engram binary during `engram update` | `go` binary on `$PATH` |
 
@@ -55,7 +55,7 @@ flowchart LR
 |---|---|---|---|
 | <a id="r1"></a>R1 | S1 Engram operator | S3 LLM coding harness | Directs work via prompts in the harness; configures engram via environment variables |
 | <a id="r2"></a>R2 | S3 LLM coding harness | S2 Engram | Invokes `/recall`, `/learn`, `/please` slash commands; subprocess-executes the engram CLI for each invocation |
-| <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes and MOCs under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
+| <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes plus their `.vec.json` embedding sidecars under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | Reads JSONL transcripts (Claude Code) and SQLite rows (OpenCode) starting from a per-harness marker held in `$XDG_STATE_HOME/engram` |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go list -m -json` and `go install` to self-update |
 | <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, copies refreshed `skills/` and `commands/` files into each detected harness's install root (`~/.claude/`, `~/.config/opencode/`) |
@@ -70,15 +70,20 @@ file:line references point at the entry points on `main`.
 ### Flow: recall
 
 Operator asks a question that needs prior memory. The harness loads the `recall`
-skill, prints its Step 0 judgement (Ask, Situation, Plan), phrases a topic
-query, then issues a single `engram query` call. The binary embeds the query,
-expands the wikilink subgraph 3 hops from direct hits (cap 200), clusters the
-subgraph with k-means + silhouette, and identifies hubs by in-degree; the YAML
-payload returns items (with provenance roles), clusters, hubs, and budget. The
-harness then applies a per-cluster synthesis gate — potentially dispatching a
-subagent to write new facts/feedback via `engram learn` when a cluster has a
-binding principle not stated in any single member. Source:
-`internal/cli/query.go:36` (`RunQuery`) and the new `internal/cluster/` package
+skill, prints its Step 0 judgement (Ask, Situation, Plan), then phrases 5–15
+query strings from the plan and runs one `engram query` per phrase (no
+collapse/paraphrase). Each call embeds the phrase, expands the wikilink
+subgraph 3 hops from direct hits (cap 200), clusters the subgraph with
+k-means + silhouette, and identifies hubs by in-degree; the YAML payload
+returns items (with provenance roles), clusters, hubs, and budget. The
+harness unions the per-phrase results agent-side (items dedup by path,
+hubs union-and-dedup, clusters listed per-query). Then it applies a
+per-cluster synthesis gate: dispatches a fire-and-forget subagent for any
+cluster meeting cheap gates (≥3 members, rep hints at coherence); the
+subagent reads all members from disk, decides whether a binding principle is
+worth capturing, and writes a new fact/feedback via `engram learn` with
+`--relation` bullets to each constituent. Source:
+`internal/cli/query.go:36` (`RunQuery`) and the `internal/cluster/` package
 (`kmeans.go`, `silhouette.go`, `autok.go`).
 
 ```mermaid
@@ -88,28 +93,34 @@ sequenceDiagram
     participant H as S3 Harness
     participant E as S2 Engram CLI
     participant V as S4 Vault
+    participant Sub as S3 Synthesis subagent
 
     Op->>H: prompt that may need memory
-    Note over H: print Step 0 (Ask, Situation, Plan), phrase 5-15 queries, pick the topic phrase
+    Note over H: print Step 0 (Ask, Situation, Plan), phrase 5-15 query strings
 
-    H->>E: engram query <topic> --limit N
-    E->>V: scan sidecars + bodies for compatible-embed notes
-    V-->>E: notes and vectors
-    Note over E: embed query, top-k cosine, BFS 3 hops (cap 200), k-means k=2..7 silhouette, in-degree top-5
-    E-->>H: YAML payload (items with provenances, clusters, hubs, budget)
+    loop per Step 1 phrase
+        H->>E: engram query <phrase> --limit N
+        E->>V: scan sidecars + bodies for compatible-embed notes
+        V-->>E: notes and vectors
+        Note over E: embed query, top-k cosine, BFS 3 hops (cap 200), k-means k=2..7 silhouette, in-degree top-5
+        E-->>H: YAML payload (items, clusters, hubs, budget)
+    end
 
-    Note over H: 4a structured form is the YAML; surface anchor concepts from hubs
+    Note over H: union across queries — items dedup by path, hubs union-dedup, clusters listed per-query
+    Note over H: surface anchor concepts from hubs
 
     loop per cluster
-        Note over H: read the cluster representative
-        alt cluster shows a binding principle not in any single member
-            H->>+H: dispatch synthesis subagent (fire-and-forget)
-            Note over H: subagent reads all cluster members
-            H-)E: engram learn fact or feedback (--relation per constituent)
+        Note over H: read the cluster representative — gate on ≥3 members and rep-coherence hint
+        alt cluster passes the cheap gate
+            H-)Sub: dispatch synthesis subagent (fire-and-forget)
+            Sub->>V: read all cluster members
+            V-->>Sub: member contents
+            Note over Sub: decide whether a binding principle is worth capturing
+            Sub-)E: engram learn fact or feedback (--relation per constituent)
             E->>V: acquire flock, compute Luhmann, write note
             V-->>E: written path
-        else cluster is noise or principle already stated
-            Note over H: skip; cluster members remain as context
+        else cluster fails the cheap gate
+            Note over H: skip — cluster members remain as context
         end
     end
 
@@ -285,10 +296,17 @@ L1 hides containers, components, technologies, protocols, and internal structure
 Engram's internal containers (CLI binary, skills, transcript reader, vault writer,
 update subsystem, debug logger) are deferred to L2.
 
-The Voyage embedding API discussed in
-[`docs/superpowers/specs/2026-05-14-tiered-memory-design.md`](../superpowers/specs/2026-05-14-tiered-memory-design.md)
-is **not** an external at L1: that design is not built. When it lands, it joins as
-an additional external system.
+The embedding model is **not** an external at L1. Engram bundles
+`sentence-transformers/all-MiniLM-L6-v2` (384 dims) inside the binary via
+`go:embed`; inference runs in pure Go through
+[Hugot](https://github.com/knights-analytics/hugot) +
+[GoMLX](https://github.com/gomlx/gomlx)'s `simplego` backend. There is no
+embedding-API external, no daemon, no network dependency. The embedder
+is therefore a container of S2 (visible at L2 once that diagram is
+authored), not a separate L1 element. The legacy
+`docs/superpowers/specs/2026-05-14-tiered-memory-design.md` design that
+proposed an external Voyage API was superseded by the 2026-05-22 research
+log and the v2 implementation.
 
 ## Related
 
