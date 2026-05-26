@@ -176,7 +176,7 @@ func (m *inMemoryFS) Scan(_ string) ([]vaultgraph.Note, error) {
 	notes := make([]vaultgraph.Note, 0, len(m.files))
 	seen := map[string]bool{}
 
-	for path := range m.files {
+	for path, body := range m.files {
 		if !strings.HasSuffix(path, ".md") {
 			continue
 		}
@@ -189,7 +189,11 @@ func (m *inMemoryFS) Scan(_ string) ([]vaultgraph.Note, error) {
 		}
 
 		seen[base] = true
-		notes = append(notes, vaultgraph.Note{Basename: base, IsMOC: isMOC})
+		notes = append(notes, vaultgraph.Note{
+			Basename: base,
+			IsMOC:    isMOC,
+			Outgoing: vaultgraph.ParseWikilinks(body),
+		})
 	}
 
 	sort.Slice(notes, func(i, j int) bool { return notes[i].Basename < notes[j].Basename })

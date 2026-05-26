@@ -74,6 +74,32 @@ func EmitTranscriptsForTest(
 	return result.lastIncluded, result.hadEntries, result.firstUnincluded, err
 }
 
+// ExportAppendUniqueProvenance returns the provenances slice after adding
+// role twice via the helper; verifies idempotency in tests.
+func ExportAppendUniqueProvenance(initial []string, roles ...string) []string {
+	item := &resolvedItem{provenances: initial}
+	for _, role := range roles {
+		appendUniqueProvenance(item, role)
+	}
+
+	return item.provenances
+}
+
+// ExportBreakRepresentativeTie is a whitebox handle on the tiebreak helper
+// used by cluster representative selection.
+func ExportBreakRepresentativeTie(scoreA float32, pathA string, scoreB float32, pathB string) string {
+	subgraph := expandedSubgraph{
+		members: []subgraphMember{
+			{notePath: pathA, score: scoreA, vector: []float32{1, 0}},
+			{notePath: pathB, score: scoreB, vector: []float32{1, 0}},
+		},
+	}
+
+	winnerIdx := breakRepresentativeTie(subgraph, 0, 1)
+
+	return subgraph.members[winnerIdx].notePath
+}
+
 // Exported functions.
 
 // ExportEmitTranscripts exposes emitTranscripts for whitebox testing with an

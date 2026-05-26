@@ -18,6 +18,25 @@ func (g Graph) InDegree(basename string) int {
 	return len(g.Incoming[basename])
 }
 
+// InDegreeIn returns the count of notes within subset that wikilink to
+// basename. Returns 0 for unknown basenames or empty subsets. The
+// subset is used as a set (only keys are consulted).
+func (g Graph) InDegreeIn(basename string, subset map[string]struct{}) int {
+	if len(subset) == 0 {
+		return 0
+	}
+
+	count := 0
+
+	for source := range g.Incoming[basename] {
+		if _, ok := subset[source]; ok {
+			count++
+		}
+	}
+
+	return count
+}
+
 // UndirectedNeighbors returns the set of basenames connected to basename by an
 // edge in either direction. Order is unspecified.
 func (g Graph) UndirectedNeighbors(basename string) []string {
