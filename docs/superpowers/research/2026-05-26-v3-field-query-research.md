@@ -107,6 +107,9 @@ limit and can decide to invest.
 ## Status
 
 **Deferred to v3.** No v3 roadmap yet; this doc is a placeholder
-to surface the question when the v3 roadmap gets drafted. See
-also `docs/issues.md` (project/issue metadata, R9) for an
-adjacent vault-shape change deferred from the same /please pass.
+to surface the question when the v3 roadmap gets drafted.
+Tracked as GitHub issue
+[#637](https://github.com/toejough/engram/issues/637). See also
+issue [#636](https://github.com/toejough/engram/issues/636)
+(project/issue metadata on vault notes) — an adjacent
+vault-shape change deferred from the same /please pass.
