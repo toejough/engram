@@ -25,6 +25,7 @@ type QueryArgs struct {
 	Phrases   []string `targ:"flag,name=phrase,desc=query phrase (repeatable; use instead of positional for multi-phrase)"`
 	VaultPath string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
 	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
+	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -78,6 +79,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 	}
 
 	merged := aggregatePhraseSummaries(phrases, summaries, limit)
+	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
 
 	return renderQueryPayload(stdout, merged)
 }
@@ -107,6 +109,10 @@ var (
 	errQueryNoEmbeddings = errors.New(
 		"query: vault has notes but no current-model embeddings; run `engram embed apply --all`",
 	)
+	// projectLineRE matches a `project: <slug>` line in YAML frontmatter,
+	// anchored to start-of-line so body text can't false-match. Slug shape
+	// mirrors the write-side validation: [a-z0-9-]+.
+	projectLineRE = regexp.MustCompile(`(?m)^project:\s*([a-z0-9-]+)\s*$`)
 	// wikilinkRE matches `[[target]]` and `[[target|display]]`.
 	// Used by stripWikilinks to remove pointer syntax from the
 	// rendered items.content per the spike spec — engram returns
@@ -318,6 +324,29 @@ func appendUniqueProvenance(item *resolvedItem, role string) {
 	}
 
 	item.provenances = append(item.provenances, role)
+}
+
+// applyProjectFilter drops items whose frontmatter project: field doesn't
+// match the requested slug. Empty project is a no-op (returns items
+// unchanged). Items with no loaded content cannot be verified and are
+// dropped when a non-empty project is specified — the wikilink graph
+// stayed intact during BFS, so a project-A note still reaches its
+// project-A neighbors through a project-B bridge; the filter only
+// affects which items are emitted, not which ones were considered.
+func applyProjectFilter(items []resolvedItem, project string) []resolvedItem {
+	if project == "" {
+		return items
+	}
+
+	out := make([]resolvedItem, 0, len(items))
+
+	for _, item := range items {
+		if itemMatchesProject(item, project) {
+			out = append(out, item)
+		}
+	}
+
+	return out
 }
 
 // breakRepresentativeTie returns whichever of two member indices wins
@@ -615,6 +644,30 @@ func indexHitsByBasename(hits []compatibleSidecar) map[string]compatibleSidecar 
 	}
 
 	return out
+}
+
+// itemMatchesProject scans the item's loaded content's frontmatter for a
+// project: <slug> line matching the requested project. Returns false when
+// content is missing or when the frontmatter block is malformed.
+func itemMatchesProject(item resolvedItem, project string) bool {
+	if item.content == "" {
+		return false
+	}
+
+	const delim = "---\n"
+
+	body := strings.TrimPrefix(item.content, delim)
+
+	end := strings.Index(body, "\n"+delim)
+	if end < 0 {
+		return false
+	}
+
+	front := body[:end+1]
+
+	match := projectLineRE.FindStringSubmatch(front)
+
+	return len(match) == 2 && match[1] == project
 }
 
 // kindFromContent reads the frontmatter type field to label the item.

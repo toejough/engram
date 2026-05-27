@@ -12,6 +12,49 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func TestLearnFactArgs_AcceptsProjectAndIssueFlags(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+
+	args := cli.LearnFactArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "with-project",
+			Vault:    vault,
+			Position: "top",
+			Source:   "test",
+			Project:  "engram",
+			Issue:    "636",
+		},
+		Situation: "running tests",
+		Subject:   "engram",
+		Predicate: "supports",
+		Object:    "project metadata",
+	}
+
+	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	matches, globErr := filepath.Glob(filepath.Join(vault, "Permanent", "*.md"))
+	g.Expect(globErr).NotTo(HaveOccurred())
+	g.Expect(matches).To(HaveLen(1))
+
+	if len(matches) == 0 {
+		return
+	}
+
+	body, readErr := os.ReadFile(matches[0])
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(body)).To(ContainSubstring("project: engram\n"))
+	g.Expect(string(body)).To(ContainSubstring("issue: \"636\"\n"))
+}
+
 func TestOsLearnFS_ListIDs_BadVaultReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -319,47 +362,4 @@ func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 	entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).NotTo(BeEmpty())
-}
-
-func TestLearnFactArgs_AcceptsProjectAndIssueFlags(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
-
-	args := cli.LearnFactArgs{
-		CommonLearnArgs: cli.CommonLearnArgs{
-			Slug:     "with-project",
-			Vault:    vault,
-			Position: "top",
-			Source:   "test",
-			Project:  "engram",
-			Issue:    "636",
-		},
-		Situation: "running tests",
-		Subject:   "engram",
-		Predicate: "supports",
-		Object:    "project metadata",
-	}
-
-	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	matches, globErr := filepath.Glob(filepath.Join(vault, "Permanent", "*.md"))
-	g.Expect(globErr).NotTo(HaveOccurred())
-	g.Expect(matches).To(HaveLen(1))
-
-	if len(matches) == 0 {
-		return
-	}
-
-	body, readErr := os.ReadFile(matches[0])
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(string(body)).To(ContainSubstring("project: engram\n"))
-	g.Expect(string(body)).To(ContainSubstring("issue: \"636\"\n"))
 }

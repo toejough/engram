@@ -14,6 +14,7 @@ import (
 // Exported variables.
 var (
 	ExportAnyHarnessFailed           = anyHarnessFailed
+	ExportApplyProjectFilter         = applyProjectFilter
 	ExportAutoEmbedNote              = autoEmbedNote
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
 	ExportFinishUpdate               = finishUpdate
@@ -25,8 +26,8 @@ var (
 	ExportNewErrHandler              = newErrHandler
 	ExportNextLuhmannID              = nextLuhmannID
 	ExportPluralFile                 = pluralFile
-	ExportRenderFactBody             = renderFactBody
 	ExportRenderEpisodeFrontmatter   = renderEpisodeFrontmatter
+	ExportRenderFactBody             = renderFactBody
 	ExportRenderFactFrontmatter      = renderFactFrontmatter
 	ExportRenderFeedbackBody         = renderFeedbackBody
 	ExportRenderFeedbackFrontmatter  = renderFeedbackFrontmatter
@@ -50,6 +51,10 @@ type ExportEpisodeFields = episodeFields
 type ExportFactFields = factFields
 
 type ExportFeedbackFields = feedbackFields
+
+// ExportResolvedItem aliases the unexported resolvedItem so cli_test can
+// construct test fixtures via ExportNewResolvedItem.
+type ExportResolvedItem = resolvedItem
 
 // Exported types.
 type ExportVaultInitFS = VaultInitFS
@@ -174,6 +179,15 @@ func ExportNewOsVaultFS() interface {
 } {
 	return &osVaultFS{}
 }
+
+// ExportNewResolvedItem builds a resolvedItem for tests that need to
+// drive applyProjectFilter without going through the full pipeline.
+func ExportNewResolvedItem(notePath, content string) ExportResolvedItem {
+	return ExportResolvedItem{notePath: notePath, content: content}
+}
+
+// ExportResolvedItemPath exposes the unexported notePath field for assertions.
+func ExportResolvedItemPath(item ExportResolvedItem) string { return item.notePath }
 
 // ExportRunLearnFromFactArgs invokes the unexported runLearnFromFactArgs for testing.
 func ExportRunLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer) error {

@@ -16,6 +16,54 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+func TestApplyProjectFilter_BodyProjectMentionDoesNotMatch(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewResolvedItem("Permanent/a.md",
+			"---\ntype: fact\n---\nthis body mentions project: engram in text\n"),
+	}
+
+	filtered := cli.ExportApplyProjectFilter(items, "engram")
+	g.Expect(filtered).To(BeEmpty())
+}
+
+func TestApplyProjectFilter_DropsNonMatching(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewResolvedItem("Permanent/a.md",
+			"---\ntype: fact\nproject: engram\n---\nbody\n"),
+		cli.ExportNewResolvedItem("Permanent/b.md",
+			"---\ntype: fact\nproject: other\n---\nbody\n"),
+		cli.ExportNewResolvedItem("Permanent/c.md",
+			"---\ntype: fact\n---\nbody\n"),
+	}
+
+	filtered := cli.ExportApplyProjectFilter(items, "engram")
+
+	g.Expect(filtered).To(HaveLen(1))
+	g.Expect(cli.ExportResolvedItemPath(filtered[0])).To(Equal("Permanent/a.md"))
+}
+
+func TestApplyProjectFilter_EmptyProjectReturnsAll(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewResolvedItem("Permanent/a.md",
+			"---\ntype: fact\nproject: engram\n---\nbody\n"),
+		cli.ExportNewResolvedItem("Permanent/b.md",
+			"---\ntype: fact\n---\nbody\n"),
+	}
+
+	filtered := cli.ExportApplyProjectFilter(items, "")
+
+	g.Expect(filtered).To(HaveLen(2))
+}
+
 func TestQuery_EmbeddingFailureSurfacesError(t *testing.T) {
 	t.Parallel()
 
@@ -517,6 +565,40 @@ func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 	g.Expect(parsed.Items[0].Content).NotTo(ContainSubstring("]]"))
 	g.Expect(parsed.Items[0].Content).
 		To(ContainSubstring("See 1a.foo and the bar note for context."))
+}
+
+func TestRunQuery_ProjectFilterRestrictsItems(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.engram-note.md",
+		"---\ntype: fact\nproject: engram\n---\nbody about engram\n")
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/2.opencode-note.md",
+		"---\ntype: fact\nproject: opencode\n---\nbody about opencode\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Query: "body", VaultPath: vault, Project: "engram"},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Items []struct {
+			Path string `yaml:"path"`
+		} `yaml:"items"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Items).NotTo(BeEmpty())
+
+	for _, item := range parsed.Items {
+		g.Expect(item.Path).NotTo(ContainSubstring("opencode-note"))
+	}
 }
 
 type errorEmbedder struct{}

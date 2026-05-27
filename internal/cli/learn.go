@@ -102,11 +102,11 @@ var (
 		"episode: --transcript-range start must be before end",
 	)
 	errEpisodeTranscriptRangeReq = errors.New("episode: --transcript-range is required")
+	errIssueIDInvalid            = errors.New("issue must be non-empty with no whitespace")
 	errLearnUnknownType          = errors.New("learn: type must be feedback, fact, or episode")
+	errProjectSlugInvalid        = errors.New("project slug must match [a-z0-9-]+")
 	errSlugEmpty                 = errors.New("slug is required")
 	errSlugInvalid               = errors.New("slug must match [a-z0-9-]+")
-	errProjectSlugInvalid        = errors.New("project slug must match [a-z0-9-]+")
-	errIssueIDInvalid            = errors.New("issue must be non-empty with no whitespace")
 	slugPattern                  = regexp.MustCompile(`^[a-z0-9-]+$`)
 )
 
@@ -210,6 +210,11 @@ type feedbackFrontmatterDoc struct {
 // "1e1" would mis-parse as the float 10.0 on read-back.
 type quotedString string
 
+// IsZero lets yaml.v3's `omitempty` skip empty quotedString values; without
+// this, custom scalar types always render even when their underlying value
+// is "" because the marshaler is invoked unconditionally.
+func (q quotedString) IsZero() bool { return string(q) == "" }
+
 // MarshalYAML emits the value as a double-quoted scalar node.
 func (q quotedString) MarshalYAML() (any, error) {
 	return &yaml.Node{
@@ -218,11 +223,6 @@ func (q quotedString) MarshalYAML() (any, error) {
 		Value: string(q),
 	}, nil
 }
-
-// IsZero lets yaml.v3's `omitempty` skip empty quotedString values; without
-// this, custom scalar types always render even when their underlying value
-// is "" because the marshaler is invoked unconditionally.
-func (q quotedString) IsZero() bool { return string(q) == "" }
 
 func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
 	related := renderRelatedSection(args.Relations)
@@ -862,14 +862,16 @@ func validateEpisodeSituation(situation string) error {
 	return nil
 }
 
-// validateSlug returns an error if slug is empty or does not match [a-z0-9-]+.
-func validateSlug(slug string) error {
-	if slug == "" {
-		return errSlugEmpty
+// validateIssueID rejects non-empty IDs that contain whitespace. Empty is
+// allowed: issue is optional metadata. Whitespace would corrupt the YAML
+// scalar and is also vanishingly unlikely to be a real issue ID.
+func validateIssueID(id string) error {
+	if id == "" {
+		return nil
 	}
 
-	if !slugPattern.MatchString(slug) {
-		return fmt.Errorf("%w: got %q", errSlugInvalid, slug)
+	if strings.ContainsAny(id, " \t\n\r") {
+		return fmt.Errorf("%w: got %q", errIssueIDInvalid, id)
 	}
 
 	return nil
@@ -890,16 +892,14 @@ func validateProjectSlug(slug string) error {
 	return nil
 }
 
-// validateIssueID rejects non-empty IDs that contain whitespace. Empty is
-// allowed: issue is optional metadata. Whitespace would corrupt the YAML
-// scalar and is also vanishingly unlikely to be a real issue ID.
-func validateIssueID(id string) error {
-	if id == "" {
-		return nil
+// validateSlug returns an error if slug is empty or does not match [a-z0-9-]+.
+func validateSlug(slug string) error {
+	if slug == "" {
+		return errSlugEmpty
 	}
 
-	if strings.ContainsAny(id, " \t\n\r") {
-		return fmt.Errorf("%w: got %q", errIssueIDInvalid, id)
+	if !slugPattern.MatchString(slug) {
+		return fmt.Errorf("%w: got %q", errSlugInvalid, slug)
 	}
 
 	return nil
