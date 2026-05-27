@@ -67,31 +67,32 @@ The plan you just printed is the primary query seed. Re-read it and write down 5
 
 **No pre-filter test.** Don't ask "would a memory about this phrase be worth surfacing" — you can't know what's in the vault before you query. Generate the phrases; the binary ranks every compatible-sidecar note for each, and Step 3a's per-cluster gate handles relevance downstream. The only phrases to drop are obvious dross (a literal single noun like "coding", or a phrase that names a specific line of code in this session).
 
-This list is internal scratch — not part of the user-facing output, but it IS the input to Step 3 (every phrase becomes its own `engram query` invocation).
+This list is internal scratch — not part of the user-facing output, but it IS the input to Step 3 (every phrase becomes a `--phrase` flag in the single `engram query` call).
 
 ### Step 2 — Use Step 1's phrases as-is
 
-**Do not collapse Step 1 into "one or two short phrases."** Each Step 1 phrase becomes its own `engram query` invocation in Step 3. Paraphrasing or merging phrases loses the distinct retrieval angles the original wording carried — a single collapsed phrase risks weak matches that miss the specific details each Step 1 phrase was probing.
+**Do not collapse Step 1 into "one or two short phrases."** Each Step 1 phrase becomes a separate `--phrase` flag in the Step 3 `engram query` call. Paraphrasing or merging phrases loses the distinct retrieval angles the original wording carried — a collapsed phrase risks weak matches that miss the specific details each Step 1 phrase was probing.
 
 **Query by task, not by fear.** What are you trying to do? Not what might go wrong. "implementing Claude Code hooks" — not "common mistakes when writing hooks." Memories are written to match task descriptions, so query the same way.
 
-### Step 3 — Run one `engram query` per Step 1 phrase
+### Step 3 — Run one `engram query` with all Step 1 phrases as `--phrase` flags
 
-Issue one `engram query` invocation per Step 1 phrase. Do them in a single parallel tool-use block — serial queries would cost a roundtrip each and add no signal.
+Issue a single `engram query` call, passing each Step 1 phrase as a separate `--phrase` flag. The binary runs one sub-pipeline per phrase, merges results (max score, union provenances, per-phrase clusters), and returns a single aggregated payload.
 
 ```bash
-engram query "<Step 1 phrase 1>"
-engram query "<Step 1 phrase 2>"
-engram query "<Step 1 phrase 3>"
-# ... one per phrase
+engram query \
+  --phrase "<Step 1 phrase 1>" \
+  --phrase "<Step 1 phrase 2>" \
+  --phrase "<Step 1 phrase 3>"
+  # ... one --phrase per Step 1 phrase
 ```
 
 The binary returns a YAML payload (full schema in `docs/superpowers/research/2026-05-25-f6-f91-spec.md`):
 
 ```yaml
 version: 1
-query: "..."
-items:                              # direct hits ∪ cluster reps ∪ hubs, deduped
+phrases: ["...", "...", "..."]      # all queried phrases
+items:                              # direct hits ∪ cluster reps ∪ hubs, deduped across phrases
   - path: Permanent/...
     kind: fact
     score: 0.85
@@ -100,14 +101,16 @@ items:                              # direct hits ∪ cluster reps ∪ hubs, ded
     in_degree: 9                    # iff hub ∈ provenances
     content: |
       <full text>
-clusters:                           # may be empty []
+clusters:                           # per-phrase clusters; each tagged with originating phrase
   - id: 0
+    phrase: "..."                   # which phrase produced this cluster
     size: 12
     silhouette: 0.43
     members:
       - { path: Permanent/..., score: 0.85, is_representative: true }
       - { path: Permanent/..., score: 0.71, is_representative: false }
 budget:
+  phrases_queried: 3
   total_notes: 480
   with_embeddings: 480
   subgraph_size: 67
@@ -120,19 +123,9 @@ budget:
   limit: 20
 ```
 
-`--limit N` caps direct hits considered for expansion. Cluster reps and hubs can appear in `items` beyond `--limit`. Default limit is 20; raise it (`--limit 50`) only when the topic is genuinely broad — wider limits expand the subgraph more aggressively. Lower it (`--limit 5`) when you want a narrow cone around a precise concept.
+`--limit N` caps direct hits per phrase considered for expansion. Cluster reps and hubs can appear in `items` beyond `--limit`. Default limit is 20; raise it (`--limit 50`) only when the topic is genuinely broad. Lower it (`--limit 5`) when you want a narrow cone around a precise concept.
 
-**No `--follow`, no `--already-read`, no rounds.** The 3-hop expansion, clustering, and hub identification happened inside the binary.
-
-#### Merging results across queries
-
-Each `engram query` returns its own payload. Combine them agent-side before Step 3a:
-
-- **items**: dedup by path. When a path appears in multiple query results, keep the max score and **union the `provenances` lists** (so a note that was a `direct` hit in one query and a `cluster_rep` in another carries both roles in the merged view).
-- **clusters**: list clusters per-query — **do not merge clusters across queries.** A cluster is a binding within one query's subgraph; cross-query merge would conflate different bindings. Step 3a runs per-cluster from each query's `clusters[]` independently.
-- **hubs**: union and dedup by path. When a note shows up as a hub for multiple queries, keep the max `in_degree`.
-
-The merged view feeds Step 4a/4b. Step 3a iterates per-cluster across all query results.
+**No agent-side merging.** The binary deduplicates items by path (max score, union provenances), retains clusters per-phrase, and aggregates the budget. Step 3a iterates per cluster across all clusters[] in the single payload.
 
 ### Step 3a — Per-cluster synthesis gate (dispatch-driven, role-split)
 
@@ -144,7 +137,7 @@ The merged view feeds Step 4a/4b. Step 3a iterates per-cluster across all query 
 
 #### Parent /recall: dispatch decision
 
-For each cluster in the merged per-query `clusters[]` lists:
+For each cluster in the payload's `clusters[]` list:
 
 1. **Read the cluster representative's content** (already in `items[]`, no extra read needed).
 2. **Dispatch decision** — two cheap, parent-side gates:
@@ -238,7 +231,7 @@ If you catch yourself doing any of these in the user-facing reply, rewrite:
 | Writing `### From your query` / `### Clusters` / `### Anchor concepts` headers in 4b | No structured-form headers in 4b — preface + walk-the-plan only                       |
 | Recap is a generic "highlights:" bullet list with no plan reference         | You skipped synthesis. Restart Step 4b: walk the plan from Step 0 and judge each piece |
 | You never printed Step 0                                                    | Back up. The whole skill is a no-op without it                                        |
-| You collapsed Step 1's phrases into one query before invoking the binary    | Each Step 1 phrase becomes its own `engram query`. Go back to Step 3 and re-issue one query per phrase, in parallel. |
+| You ran separate `engram query "<phrase>"` calls instead of `--phrase` flags | One `engram query --phrase "<p1>" --phrase "<p2>" ...` call does the merging server-side. Go back to Step 3 and re-issue as a single call. |
 | You applied path A/B/C or the recall-mirror test to how you wrote 4b        | Those rules are for synthesis subagents, not for the /recall reply. Re-read the 3a callout |
 | You called fact-vs-feedback categorization on a note you were summarizing   | Same mis-routing. Categorization is a /learn-write decision, not a recall surface     |
 | You inline-synthesized a cluster instead of dispatching                     | Dispatch one subagent per cluster that passed the parent gates. Inline-synthesis is forbidden — the parent has only seen the rep, so any inline binding-principle judgement is uninformed. |
