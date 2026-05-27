@@ -73,12 +73,12 @@ engram transcript                      Read session transcripts since last /lear
 engram transcript --mark               Same, then advance per-harness progress markers
 engram transcript --from <date|all>    Override marker; scan from explicit date or epoch ('all')
 engram transcript --max-bytes <n>      Set byte budget (default 200000)
-engram learn feedback --slug ... --source ... --situation ... --behavior ... --impact ... --action ...
-engram learn fact     --slug ... --source ... --situation ... --subject ... --predicate ... --object ...
-engram learn episode  --slug ... --source ... --situation ... --boundary-rationale ... --session ... --transcript-range <start>..<end> (--from-transcript-range <session>:<start>..<end> OR --transcript-text "...")
+engram learn feedback --slug ... --source ... --situation ... --behavior ... --impact ... --action ... [--project <slug>] [--issue <id>]
+engram learn fact     --slug ... --source ... --situation ... --subject ... --predicate ... --object ... [--project <slug>] [--issue <id>]
+engram learn episode  --slug ... --source ... --situation ... --boundary-rationale ... --session ... --transcript-range <start>..<end> (--from-transcript-range <session>:<start>..<end> OR --transcript-text "...") [--project <slug>] [--issue <id>]
 engram embed apply [--all|--missing|--stale|--force|--dry-run]   (Re-)embed notes per selection (default: missing)
 engram embed status                    Report counts per state (total / with-embeddings / without / stale / incompatible / broken)
-engram query --phrase <p> [--phrase <p>...] [--limit N]   Semantic search + 3-hop subgraph + clusters + hubs; YAML output
+engram query --phrase <p> [--phrase <p>...] [--limit N] [--project <slug>]   Semantic search + 3-hop subgraph + clusters + hubs; YAML output. --project restricts items to notes whose frontmatter `project:` matches.
 engram update                          Refresh binary and harness skills/commands ([--dry-run])
 ```
 

@@ -246,6 +246,32 @@ Required provenance field on every `engram learn` invocation. Format:
 `session log <project>, <YYYY-MM-DD HH:MM UTC>, context: <short
 description>` for session-derived notes.
 
+### `--project` (write side)
+Optional kebab-case slug naming the project a note belongs to. Set on
+write via `engram learn {fact,feedback,episode} --project <slug>` and
+rendered as `project: <slug>` in frontmatter below `source:`. Absent on
+notes that capture universal principles. Project name still does not
+belong in `--situation` — `--situation` stays retrieval-shaped per the
+recall-mirror test; `--project` is the metadata home for projectness so
+cross-project queries become answerable without polluting the situation
+phrase.
+
+### `--project` (read side)
+Optional filter on `engram query`. When set, drops items whose
+frontmatter `project:` does not match. The underlying wikilink graph is
+unaffected — cross-project bridges still bridge during the 3-hop BFS,
+the filter only restricts which items are emitted. Items with elided
+content (no body in the payload) are dropped under a non-empty
+`--project` since a match cannot be verified.
+
+### `--issue`
+Optional identifier for the originating GitHub / Jira / etc. issue. Set
+on write via `engram learn {fact,feedback,episode} --issue <id>` and
+rendered as `issue: "<id>"` (quoted to survive YAML's numeric coercion
+on read-back) in frontmatter below `project:`. Free-form non-whitespace
+string — `636`, `#636`, `GH-636`, `PROJ-1234` are all valid. Recorded
+for provenance; no read-side filter.
+
 ---
 
 ## Transcript

@@ -117,20 +117,20 @@ Three outcomes:
 
 - **Yes** → write it. Use the closest matching phrase from this candidate's scratch list as the `--situation`, lightly normalized to "When …" form. If multiple phrases match, pick the one most specific to the lesson.
 - **Not yet, but the lesson is real** → rephrase the `--situation`. Lessons are durable; framings are revisable. You may rephrase as many times as needed; each rephrase re-tests against this candidate's scratch list.
-- **No, even after rephrasing** → drop. Either the lesson is too project-specific, too event-bound, or not a transferable principle. Report the drop with a one-line reason in §7.
+- **No, even after rephrasing** → consider tagging instead of dropping. If the lesson is real but project-bound (the activity + domain only make sense within one project), write it with `--project <slug>` so cross-project queries can filter it in or out. Drop only if even within-project recall wouldn't surface it — i.e. the situation is too event-bound (a one-time incident) or the lesson is not a transferable principle at all. Report any drop with a one-line reason in §7.
 
 Common ways a candidate fails the test (and what to do):
 
 | Failure mode                                                                 | Fix                                                                                              |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Situation names this project, this file, this issue, or today's date         | Rephrase to the activity + domain. If the project name is load-bearing for the lesson, the lesson is project knowledge, not vault knowledge — drop. |
+| Situation names this project, this file, this issue, or today's date         | Rephrase the `--situation` to the activity + domain (no project name in the situation phrase). If the project name is load-bearing for the lesson, keep the lesson and tag it with `--project <slug>` (and optionally `--issue <id>`) — the metadata fields are the queryable home for projectness. Drop only when even within-project recall wouldn't want it. |
 | Situation bakes in hindsight ("When fixing X", "When debugging Y")           | Rephrase as the activity you'd be embarking on **before** the lesson is known.                   |
 | Situation describes one event, not a recurring kind of work                  | Generalize to the kind of work; if you can't, drop.                                              |
 | Situation phrasing wouldn't appear in any plausible recall                   | Look at the candidate's scratch list; pick the closest phrase and rebuild the situation around it. |
 | Measured against the wrong segment's scratch list (e.g., topic-B framing applied to a topic-A candidate, or session-global anchor applied to a `transcript --mark` candidate) | Re-select the scratch list per §2 for *this* candidate — Path A from the recall that bracketed its segment, or Path B reconstructed for its segment if no such recall ran. |
 | Scratch list anchored on the **discovery** situation rather than the **injection** situation (e.g., docs-cleanup phrases used for a CLI-wiring lesson surfaced during the cleanup) | The candidate is retro-locus. Re-select via Path C per §2 — reconstruct the injecting agent's situation from git blame / prior-session transcript / behavioral inference, not from the current-session recall. |
 
-Note: this replaces the older Recurs / Activity-and-Domain / Knowledge gate machinery. The same disciplines (no project names, no hindsight, must be a principle) are still enforced — but as outcomes of the recall-mirror test rather than as standalone gates.
+Note: this replaces the older Recurs / Activity-and-Domain / Knowledge gate machinery. The same disciplines (no project names in `--situation`, no hindsight, must be a principle) are still enforced — but as outcomes of the recall-mirror test rather than as standalone gates. Project name still doesn't belong in `--situation` (it would mis-shape retrieval); it belongs in `--project <slug>` metadata where it makes cross-project filtering possible.
 
 ### 4. Categorize: Feedback or Fact
 
@@ -177,7 +177,8 @@ engram learn feedback \
   --source "session log <project>, <YYYY-MM-DD HH:MM UTC>, context: ..." \
   --situation "..." --behavior "..." --impact "..." --action "..." \
   --relation "<wikilink>|<rationale>" \
-  --relation "<wikilink>|<rationale>"
+  --relation "<wikilink>|<rationale>" \
+  [--project <kebab-case-slug>] [--issue <id>]
 ```
 
 **Fact:**
@@ -189,7 +190,8 @@ engram learn fact \
   --position <top|continuation|sibling> \
   --source "..." \
   --situation "..." --subject "..." --predicate "..." --object "..." \
-  --relation "<wikilink>|<rationale>"
+  --relation "<wikilink>|<rationale>" \
+  [--project <kebab-case-slug>] [--issue <id>]
 ```
 
 #### 6a. Episodes — L1 evidence layer
@@ -227,10 +229,11 @@ engram learn episode \
   --from-transcript-range "<session-id>:<RFC3339-start>..<RFC3339-end>" \
   --session "<session-id>" \
   --transcript-range "<RFC3339-start>..<RFC3339-end>" \
-  --relation "<wikilink>|<rationale>"
+  --relation "<wikilink>|<rationale>" \
+  [--project <kebab-case-slug>] [--issue <id>]
 ```
 
-Required: `--slug`, `--source`, `--situation`, `--boundary-rationale`, `--session`, `--transcript-range`, and exactly one of `--from-transcript-range` (repeatable, the canonical form) or `--transcript-text` (literal content; XOR with `--from-transcript-range`). Optional: `--relation`.
+Required: `--slug`, `--source`, `--situation`, `--boundary-rationale`, `--session`, `--transcript-range`, and exactly one of `--from-transcript-range` (repeatable, the canonical form) or `--transcript-text` (literal content; XOR with `--from-transcript-range`). Optional: `--relation`, `--project`, `--issue`.
 
 **Cross-link facts/feedback to their originating episode.** When a fact or feedback note is extracted from a specific episode's chunk, include `--relation "<episode-luhmann>|extracted from this chunk"` on the fact/feedback write. Backlinks are not synthesized — both directions are explicit `--relation` flags at write time. More-abstracted facts/feedback can still link to the same anchor episodes through intermediate notes.
 
@@ -273,7 +276,7 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 | You started writing without locating each candidate's recall (Path A) or reconstructing it (Path B) | Stop. Write a per-candidate scratch list first. Without it, you're guessing at retrieval framings — and the guess is almost always the most-recent-recall framing, which mis-judges earlier-segment and prior-session candidates. |
 | You produced a single session-global scratch list and applied it to every candidate     | Per §2, scratch lists are per-candidate. Re-select each one for the segment that produced its candidate.           |
 | You picked Path A for a candidate whose mistake originated in a prior session, because a current-session recall happened to bracket the discovery | Classify locus first per §1. A retro-locus candidate takes Path C regardless of what bracketed the discovery — frame against the injecting agent's situation, not the surfacing agent's. |
-| Your `--situation` names this project, this commit, today's date                    | Project-specific knowledge doesn't belong in the vault. Either generalize or drop.                                 |
+| Your `--situation` names this project, this commit, today's date                    | Strip project / commit / date out of the situation phrase — situation stays retrieval-shaped. If the lesson is project-bound, keep it and tag with `--project <slug>` (and `--issue <id>` if relevant). Drop only when within-project recall wouldn't surface it either. |
 | Your `--situation` reads like a diagnosis ("When fixing the X bug")                 | Pre-lesson framing only. Rewrite to the activity an agent would be starting, before the lesson exists.            |
 | You're categorizing a "here's how X works" note as Feedback                         | That's a Fact. Feedback is for "do differently next time" only.                                                   |
 | You're categorizing a user correction or dead-end as Fact                           | That's Feedback. Facts describe how things are; corrections describe how to act differently.                      |
@@ -288,7 +291,7 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 
 | Mistake                                                                                                | Fix                                                                                                                                                       |
 | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Writing a note whose situation names "engram", "Task 8", "promote.go"                                  | Project-specific knowledge — drop or generalize.                                                                                                          |
+| Writing a note whose situation names "engram", "Task 8", "promote.go"                                  | Strip the project / task / file name from `--situation`. If the lesson is genuinely project-bound, write it with `--project <slug>` (and `--issue <id>` if applicable) — situation stays retrieval-shaped, projectness lives in metadata.                                  |
 | Hindsight-baked situation ("When fixing the bug in X")                                                 | Rewrite to pre-lesson query phrasing.                                                                                                                     |
 | Writing "we observed X" without stating it as a principle                                              | Restate as principle or drop.                                                                                                                             |
 | Drafting and asking for human voice rewrite                                                            | You're the writer. Just write.                                                                                                                            |
