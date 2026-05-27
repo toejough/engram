@@ -1321,3 +1321,157 @@ func parseFrontmatter(t *testing.T, rendered string) map[string]string {
 
 	return parsed
 }
+
+func TestRenderFactFrontmatter_EmitsProjectAndIssueBelowSource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFactFields{
+		Situation: "s", Subject: "subj", Predicate: "pred", Object: "obj",
+		Luhmann: "1", Source: "src",
+		Project: "engram", Issue: "636",
+	}
+	got := cli.ExportRenderFactFrontmatter(fields, when)
+	g.Expect(got).To(ContainSubstring("source: src\n"))
+	g.Expect(got).To(ContainSubstring("project: engram\n"))
+	g.Expect(got).To(ContainSubstring("issue: \"636\"\n"))
+
+	srcIdx := strings.Index(got, "source:")
+	projIdx := strings.Index(got, "project:")
+	issueIdx := strings.Index(got, "issue:")
+	g.Expect(srcIdx).To(BeNumerically("<", projIdx))
+	g.Expect(projIdx).To(BeNumerically("<", issueIdx))
+}
+
+func TestRenderFactFrontmatter_OmitsProjectAndIssueWhenEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFactFields{
+		Situation: "s", Subject: "subj", Predicate: "pred", Object: "obj",
+		Luhmann: "1", Source: "src",
+	}
+	got := cli.ExportRenderFactFrontmatter(fields, when)
+	g.Expect(got).NotTo(ContainSubstring("project:"))
+	g.Expect(got).NotTo(ContainSubstring("issue:"))
+}
+
+func TestRenderFeedbackFrontmatter_EmitsProjectAndIssueBelowSource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFeedbackFields{
+		Situation: "s", Behavior: "b", Impact: "i", Action: "a",
+		Luhmann: "1", Source: "src",
+		Project: "engram", Issue: "636",
+	}
+	got := cli.ExportRenderFeedbackFrontmatter(fields, when)
+	g.Expect(got).To(ContainSubstring("project: engram\n"))
+	g.Expect(got).To(ContainSubstring("issue: \"636\"\n"))
+
+	srcIdx := strings.Index(got, "source:")
+	projIdx := strings.Index(got, "project:")
+	g.Expect(srcIdx).To(BeNumerically("<", projIdx))
+}
+
+func TestRenderFeedbackFrontmatter_OmitsProjectAndIssueWhenEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportFeedbackFields{
+		Situation: "s", Behavior: "b", Impact: "i", Action: "a",
+		Luhmann: "1", Source: "src",
+	}
+	got := cli.ExportRenderFeedbackFrontmatter(fields, when)
+	g.Expect(got).NotTo(ContainSubstring("project:"))
+	g.Expect(got).NotTo(ContainSubstring("issue:"))
+}
+
+func TestRenderEpisodeFrontmatter_EmitsProjectAndIssueBelowSource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportEpisodeFields{
+		Situation:         "s",
+		BoundaryRationale: "br",
+		TranscriptText:    "tx",
+		Sessions:          []string{"sess-1"},
+		TranscriptStart:   "2026-05-26T00:00:00Z",
+		TranscriptEnd:     "2026-05-26T01:00:00Z",
+		Luhmann:           "1",
+		Source:            "src",
+		Project:           "engram",
+		Issue:             "636",
+	}
+	got := cli.ExportRenderEpisodeFrontmatter(fields, when)
+	g.Expect(got).To(ContainSubstring("project: engram\n"))
+	g.Expect(got).To(ContainSubstring("issue: \"636\"\n"))
+
+	srcIdx := strings.Index(got, "source:")
+	projIdx := strings.Index(got, "project:")
+	g.Expect(srcIdx).To(BeNumerically("<", projIdx))
+}
+
+func TestRenderEpisodeFrontmatter_OmitsProjectAndIssueWhenEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 26, 0, 0, 0, 0, time.UTC)
+	fields := cli.ExportEpisodeFields{
+		Situation:         "s",
+		BoundaryRationale: "br",
+		TranscriptText:    "tx",
+		Sessions:          []string{"sess-1"},
+		TranscriptStart:   "2026-05-26T00:00:00Z",
+		TranscriptEnd:     "2026-05-26T01:00:00Z",
+		Luhmann:           "1",
+		Source:            "src",
+	}
+	got := cli.ExportRenderEpisodeFrontmatter(fields, when)
+	g.Expect(got).NotTo(ContainSubstring("project:"))
+	g.Expect(got).NotTo(ContainSubstring("issue:"))
+}
+
+func TestValidateProjectSlug_AcceptsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateProjectSlug("")).To(Succeed())
+}
+
+func TestValidateProjectSlug_AcceptsKebabCase(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateProjectSlug("engram")).To(Succeed())
+	g.Expect(cli.ExportValidateProjectSlug("opencode-plugin")).To(Succeed())
+	g.Expect(cli.ExportValidateProjectSlug("proj-123")).To(Succeed())
+}
+
+func TestValidateProjectSlug_RejectsBadShape(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateProjectSlug("Engram")).To(HaveOccurred())
+	g.Expect(cli.ExportValidateProjectSlug("with spaces")).To(HaveOccurred())
+	g.Expect(cli.ExportValidateProjectSlug("punct!")).To(HaveOccurred())
+}
+
+func TestValidateIssueID_AcceptsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateIssueID("")).To(Succeed())
+}
+
+func TestValidateIssueID_AcceptsNonWhitespace(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateIssueID("636")).To(Succeed())
+	g.Expect(cli.ExportValidateIssueID("#636")).To(Succeed())
+	g.Expect(cli.ExportValidateIssueID("PROJ-1234")).To(Succeed())
+	g.Expect(cli.ExportValidateIssueID("gh-636")).To(Succeed())
+}
+
+func TestValidateIssueID_RejectsWhitespace(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateIssueID("636 ")).To(HaveOccurred())
+	g.Expect(cli.ExportValidateIssueID("two words")).To(HaveOccurred())
+	g.Expect(cli.ExportValidateIssueID("with\ttab")).To(HaveOccurred())
+}

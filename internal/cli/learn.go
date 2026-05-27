@@ -28,6 +28,8 @@ type LearnArgs struct {
 	Target   string
 	Position string
 	Source   string
+	Project  string
+	Issue    string
 
 	// feedback / fact / episode all support related-note bullets
 	Relations []string
@@ -103,6 +105,8 @@ var (
 	errLearnUnknownType          = errors.New("learn: type must be feedback, fact, or episode")
 	errSlugEmpty                 = errors.New("slug is required")
 	errSlugInvalid               = errors.New("slug must match [a-z0-9-]+")
+	errProjectSlugInvalid        = errors.New("project slug must match [a-z0-9-]+")
+	errIssueIDInvalid            = errors.New("issue must be non-empty with no whitespace")
 	slugPattern                  = regexp.MustCompile(`^[a-z0-9-]+$`)
 )
 
@@ -115,6 +119,8 @@ type episodeFields struct {
 	TranscriptEnd     string
 	Luhmann           string
 	Source            string
+	Project           string
+	Issue             string
 }
 
 // episodeFrontmatterDoc is the YAML shape of an episode note's frontmatter.
@@ -129,6 +135,8 @@ type episodeFrontmatterDoc struct {
 	Luhmann           quotedString         `yaml:"luhmann"`
 	Created           string               `yaml:"created"`
 	Source            string               `yaml:"source"`
+	Project           string               `yaml:"project,omitempty"`
+	Issue             quotedString         `yaml:"issue,omitempty"`
 }
 
 // episodeProvenanceDoc holds the nested provenance fields for an episode.
@@ -151,6 +159,8 @@ type factFields struct {
 	Object    string
 	Luhmann   string
 	Source    string
+	Project   string
+	Issue     string
 }
 
 // factFrontmatterDoc is the YAML shape of a fact's frontmatter. Field order
@@ -164,6 +174,8 @@ type factFrontmatterDoc struct {
 	Luhmann   quotedString `yaml:"luhmann"`
 	Created   string       `yaml:"created"`
 	Source    string       `yaml:"source"`
+	Project   string       `yaml:"project,omitempty"`
+	Issue     quotedString `yaml:"issue,omitempty"`
 }
 
 type feedbackFields struct {
@@ -173,6 +185,8 @@ type feedbackFields struct {
 	Action    string
 	Luhmann   string
 	Source    string
+	Project   string
+	Issue     string
 }
 
 // feedbackFrontmatterDoc is the YAML shape of a feedback note's frontmatter.
@@ -185,6 +199,8 @@ type feedbackFrontmatterDoc struct {
 	Luhmann   quotedString `yaml:"luhmann"`
 	Created   string       `yaml:"created"`
 	Source    string       `yaml:"source"`
+	Project   string       `yaml:"project,omitempty"`
+	Issue     quotedString `yaml:"issue,omitempty"`
 }
 
 // quotedString is a YAML scalar that always renders double-quoted. Used for
@@ -203,6 +219,11 @@ func (q quotedString) MarshalYAML() (any, error) {
 	}, nil
 }
 
+// IsZero lets yaml.v3's `omitempty` skip empty quotedString values; without
+// this, custom scalar types always render even when their underlying value
+// is "" because the marshaler is invoked unconditionally.
+func (q quotedString) IsZero() bool { return string(q) == "" }
+
 func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
 	related := renderRelatedSection(args.Relations)
 
@@ -211,6 +232,7 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 		f := feedbackFields{
 			Situation: args.Situation, Behavior: args.Behavior, Impact: args.Impact,
 			Action: args.Action, Luhmann: luhmann, Source: args.Source,
+			Project: args.Project, Issue: args.Issue,
 		}
 
 		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f, related), nil
@@ -218,6 +240,7 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 		f := factFields{
 			Situation: args.Situation, Subject: args.Subject, Predicate: args.Predicate,
 			Object: args.Object, Luhmann: luhmann, Source: args.Source,
+			Project: args.Project, Issue: args.Issue,
 		}
 
 		return renderFactFrontmatter(f, when) + renderFactBody(f, related), nil
@@ -305,6 +328,8 @@ func buildEpisodeFields(args LearnArgs, luhmann string) (episodeFields, error) {
 		TranscriptEnd:     end,
 		Luhmann:           luhmann,
 		Source:            args.Source,
+		Project:           args.Project,
+		Issue:             args.Issue,
 	}, nil
 }
 
@@ -486,6 +511,8 @@ func renderEpisodeFrontmatter(f episodeFields, when time.Time) string {
 		Luhmann: quotedString(f.Luhmann),
 		Created: when.Format(dateFormat),
 		Source:  f.Source,
+		Project: f.Project,
+		Issue:   quotedString(f.Issue),
 	})
 }
 
@@ -508,6 +535,8 @@ func renderFactFrontmatter(f factFields, when time.Time) string {
 		Luhmann:   quotedString(f.Luhmann),
 		Created:   when.Format(dateFormat),
 		Source:    f.Source,
+		Project:   f.Project,
+		Issue:     quotedString(f.Issue),
 	})
 }
 
@@ -530,6 +559,8 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 		Luhmann:   quotedString(f.Luhmann),
 		Created:   when.Format(dateFormat),
 		Source:    f.Source,
+		Project:   f.Project,
+		Issue:     quotedString(f.Issue),
 	})
 }
 
@@ -654,6 +685,16 @@ func runLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 		return fmt.Errorf("learn: %w", slugErr)
 	}
 
+	projectErr := validateProjectSlug(args.Project)
+	if projectErr != nil {
+		return fmt.Errorf("learn: %w", projectErr)
+	}
+
+	issueErr := validateIssueID(args.Issue)
+	if issueErr != nil {
+		return fmt.Errorf("learn: %w", issueErr)
+	}
+
 	vault := args.Vault
 
 	dirErr := deps.StatDir(vault)
@@ -717,6 +758,8 @@ func runLearnFromEpisodeArgsWithReader(
 		Target:            a.Target,
 		Position:          a.Position,
 		Source:            a.Source,
+		Project:           a.Project,
+		Issue:             a.Issue,
 		Relations:         a.Relations,
 		Situation:         a.Situation,
 		BoundaryRationale: a.BoundaryRationale,
@@ -736,6 +779,8 @@ func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer
 		Target:    a.Target,
 		Position:  a.Position,
 		Source:    a.Source,
+		Project:   a.Project,
+		Issue:     a.Issue,
 		Relations: a.Relations,
 		Situation: a.Situation,
 		Subject:   a.Subject,
@@ -754,6 +799,8 @@ func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout i
 		Target:    a.Target,
 		Position:  a.Position,
 		Source:    a.Source,
+		Project:   a.Project,
+		Issue:     a.Issue,
 		Relations: a.Relations,
 		Situation: a.Situation,
 		Behavior:  a.Behavior,
@@ -823,6 +870,36 @@ func validateSlug(slug string) error {
 
 	if !slugPattern.MatchString(slug) {
 		return fmt.Errorf("%w: got %q", errSlugInvalid, slug)
+	}
+
+	return nil
+}
+
+// validateProjectSlug rejects non-empty slugs that don't fit the kebab-case
+// shape. Empty is allowed: project is optional metadata, absence is a
+// universal-principle marker.
+func validateProjectSlug(slug string) error {
+	if slug == "" {
+		return nil
+	}
+
+	if !slugPattern.MatchString(slug) {
+		return fmt.Errorf("%w: got %q", errProjectSlugInvalid, slug)
+	}
+
+	return nil
+}
+
+// validateIssueID rejects non-empty IDs that contain whitespace. Empty is
+// allowed: issue is optional metadata. Whitespace would corrupt the YAML
+// scalar and is also vanishingly unlikely to be a real issue ID.
+func validateIssueID(id string) error {
+	if id == "" {
+		return nil
+	}
+
+	if strings.ContainsAny(id, " \t\n\r") {
+		return fmt.Errorf("%w: got %q", errIssueIDInvalid, id)
 	}
 
 	return nil

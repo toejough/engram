@@ -21,6 +21,8 @@ type CommonLearnArgs struct {
 	Position  string   `targ:"flag,name=position,desc=top|continuation|sibling"`
 	Source    string   `targ:"flag,name=source,required,desc=provenance string for the source field (required)"`
 	Relations []string `targ:"flag,name=relation,desc=related note as <wikilink-target>|<rationale> (repeatable)"`
+	Project   string   `targ:"flag,name=project,desc=kebab-case project slug for cross-project filtering (optional)"`
+	Issue     string   `targ:"flag,name=issue,desc=originating issue ID (optional)"`
 }
 
 // LearnEpisodeArgs holds parsed flags for the learn episode subcommand.

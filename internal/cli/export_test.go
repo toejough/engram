@@ -26,6 +26,7 @@ var (
 	ExportNextLuhmannID              = nextLuhmannID
 	ExportPluralFile                 = pluralFile
 	ExportRenderFactBody             = renderFactBody
+	ExportRenderEpisodeFrontmatter   = renderEpisodeFrontmatter
 	ExportRenderFactFrontmatter      = renderFactFrontmatter
 	ExportRenderFeedbackBody         = renderFeedbackBody
 	ExportRenderFeedbackFrontmatter  = renderFeedbackFrontmatter
@@ -37,10 +38,14 @@ var (
 	ExportShouldEmbed                = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
-	ExportTildify           = tildify
-	ExportValidateSlug      = validateSlug
-	ExportWriteUpdateReport = writeUpdateReport
+	ExportTildify             = tildify
+	ExportValidateIssueID     = validateIssueID
+	ExportValidateProjectSlug = validateProjectSlug
+	ExportValidateSlug        = validateSlug
+	ExportWriteUpdateReport   = writeUpdateReport
 )
+
+type ExportEpisodeFields = episodeFields
 
 type ExportFactFields = factFields
 
