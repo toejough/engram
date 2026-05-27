@@ -298,15 +298,26 @@ A per-harness, per-project RFC3339Nano timestamp stored under
 advances independently. Full form: **per-harness progress marker**. Short
 form: **marker**. The Go package is `learnmarker`.
 
+The marker's value is the upper bound of "what has been emitted so far for
+this source." For a fully-scanned session, that's the file's Mtime. For
+a partially-scanned session (byte cap hit mid-file), that's the
+timestamp of the last row included — the next run resumes mid-session
+from rows strictly after the marker. The filter on the marker is strict-
+greater, so the boundary session (whose Mtime or row-timestamp equals
+the marker) is excluded on the next run.
+
 ### byte cap
 The `--max-bytes` budget for one transcript scan (default 200000). When
-the cap halts a scan partway, the unscanned tail is reported on the next
-status line and a re-run is required to catch up.
+the cap halts a scan partway through a session, that session is
+partially emitted and the marker advances to the timestamp of the last
+row included; the next run resumes mid-session.
 
 ### byte-cap continuation
 The condition where a transcript scan stopped at the byte cap with
-sessions still unscanned. The continuation line names the first unscanned
-mtime per source; `/learn` is re-run to advance.
+material still unscanned (either older sessions or the remainder of an
+in-flight session). The continuation line names the first unscanned
+mtime per source; `/learn` is re-run to advance. Subsequent runs make
+forward progress even when a single session is larger than the cap.
 
 ### first-run handling
 The behavior when a source has no marker yet: `engram transcript --mark`

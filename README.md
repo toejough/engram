@@ -126,7 +126,7 @@ Inputs longer than 1500 chars are truncated to fit MiniLM-L6's 512-token positio
 
 **First-run behavior.** When a source has no marker yet and `--from` is unset, `engram transcript --mark` exits non-zero with a message naming each source's earliest detectable session date. Re-run with `--from <YYYY-MM-DD>` (to start at a specific cutoff) or `--from all` (to scan from the Unix epoch). After the first scan establishes the marker, subsequent `--mark` runs advance incrementally as usual. The `learn` skill catches this error and prompts the user before re-running.
 
-**Byte-cap continuation.** Each scan stops at `--max-bytes` (default 200000). When the cap halts a scan partway, a tail line names the first unscanned mtime per source: `[engram transcript: byte cap hit; <source> sessions from <date> onward not yet scanned; run again to continue]`. Run `/learn` again (after `/clear` if context is tight) to catch up.
+**Byte-cap continuation.** Each scan stops at `--max-bytes` (default 200000). When the cap halts a scan partway through a session, the session is partially emitted and the marker advances to the timestamp of the last row included — the next run resumes mid-session from rows strictly newer than the marker. A tail line names the first unscanned mtime per source: `[engram transcript: byte cap hit; <source> sessions from <date> onward not yet scanned; run again to continue]`. Run `/learn` again (after `/clear` if context is tight) to catch up; each subsequent run makes progress even when a single session is much larger than the cap.
 
 ## Project structure
 
