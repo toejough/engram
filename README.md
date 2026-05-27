@@ -78,7 +78,7 @@ engram learn fact     --slug ... --source ... --situation ... --subject ... --pr
 engram learn episode  --slug ... --source ... --situation ... --boundary-rationale ... --session ... --transcript-range <start>..<end> (--from-transcript-range <session>:<start>..<end> OR --transcript-text "...")
 engram embed apply [--all|--missing|--stale|--force|--dry-run]   (Re-)embed notes per selection (default: missing)
 engram embed status                    Report counts per state (total / with-embeddings / without / stale / incompatible / broken)
-engram query <string> [--limit N]      Semantic search + 3-hop subgraph clustering + hub identification; YAML output, default limit 20
+engram query --phrase <p> [--phrase <p>...] [--limit N]   Semantic search + 3-hop subgraph + clusters + hubs; YAML output
 engram update                          Refresh binary and harness skills/commands ([--dry-run])
 ```
 

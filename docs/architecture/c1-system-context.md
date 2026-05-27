@@ -71,13 +71,12 @@ file:line references point at the entry points on `main`.
 
 Operator asks a question that needs prior memory. The harness loads the `recall`
 skill, prints its Step 0 judgement (Ask, Situation, Plan), then phrases 5–15
-query strings from the plan and runs one `engram query` per phrase (no
-collapse/paraphrase). Each call embeds the phrase, expands the wikilink
-subgraph 3 hops from direct hits (cap 200), clusters the subgraph with
-k-means + silhouette, and identifies hubs by in-degree; the YAML payload
-returns items (with provenance roles), clusters, hubs, and budget. The
-harness unions the per-phrase results agent-side (items dedup by path,
-hubs union-and-dedup, clusters listed per-query). Then it applies a
+query strings from the plan and issues a single `engram query` call passing
+each phrase as a separate `--phrase` flag. The binary runs one sub-pipeline
+per phrase (embed, BFS 3-hop subgraph cap 200, k-means + silhouette clusters,
+in-degree top-5 hubs), then merges results server-side (items dedup by path
+with max score and union provenances, clusters tagged per-phrase, aggregated
+budget). The harness receives a single YAML payload and applies a
 per-cluster synthesis gate: dispatches a fire-and-forget subagent for any
 cluster meeting cheap gates (≥3 members, rep hints at coherence); the
 subagent reads all members from disk, decides whether a binding principle is
@@ -97,16 +96,12 @@ sequenceDiagram
 
     Op->>H: prompt that may need memory
     Note over H: print Step 0 (Ask, Situation, Plan), phrase 5-15 query strings
-
-    loop per Step 1 phrase
-        H->>E: engram query <phrase> --limit N
-        E->>V: scan sidecars + bodies for compatible-embed notes
-        V-->>E: notes and vectors
-        Note over E: embed query, top-k cosine, BFS 3 hops (cap 200), k-means k=2..7 silhouette, in-degree top-5
-        E-->>H: YAML payload (items, clusters, hubs, budget)
-    end
-
-    Note over H: union across queries — items dedup by path, hubs union-dedup, clusters listed per-query
+    H->>E: engram query --phrase <p1> --phrase <p2> ... --limit N
+    E->>V: scan sidecars + bodies for compatible-embed notes
+    V-->>E: notes and vectors
+    Note over E: per phrase — embed, top-k cosine, BFS 3 hops (cap 200), k-means, in-degree top-5
+    Note over E: merge server-side — items dedup by path (max score, union provenances), clusters tagged per-phrase
+    E-->>H: single YAML payload (phrases[], items, clusters, hubs, budget)
     Note over H: surface anchor concepts from hubs
 
     loop per cluster
@@ -205,10 +200,8 @@ sequenceDiagram
 
     rect rgb(245,245,255)
         Note over H: Step 2 — orient via /recall
-        loop per phrased query
-            H->>E: engram query <phrase>
-            E-->>H: YAML payload (items, clusters, hubs, budget)
-        end
+        H->>E: engram query --phrase <p1> --phrase <p2> ...
+        E-->>H: single YAML payload (phrases[], items, clusters, hubs, budget)
         Note over H: clarify with the operator via AskUserQuestion if intent is unclear
     end
 
