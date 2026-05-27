@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"math"
+	"testing"
 	"time"
 
 	"github.com/toejough/engram/internal/embed"
@@ -243,4 +244,38 @@ func RunTranscriptForTest(
 	stdout io.Writer,
 ) error {
 	return runTranscript(ctx, args, finder, reader, stdout)
+}
+
+// TestMergeIntoExisting_SetsInDegreeFromSrc covers the branch where existing.inDegree is
+// nil (note not a hub in an earlier phrase) and src.inDegree is set (hub in a later phrase).
+// This branch cannot be exercised via RunQuery black-box tests because undirected BFS always
+// expands to a direct-hit note's linkers at hop 1, making the note a hub in every phrase
+// that contains it as a direct hit.
+func TestMergeIntoExisting_SetsInDegreeFromSrc(t *testing.T) {
+	t.Parallel()
+
+	const expectedDegree = 7
+
+	deg := expectedDegree
+	existing := &resolvedItem{
+		notePath:    "Permanent/X.md",
+		score:       0.8,
+		provenances: []string{provenanceDirect},
+	}
+	src := &resolvedItem{
+		notePath:    "Permanent/X.md",
+		score:       0.6,
+		provenances: []string{provenanceHub},
+		inDegree:    &deg,
+	}
+
+	mergeIntoExisting(existing, src)
+
+	if existing.inDegree == nil {
+		t.Fatal("expected inDegree to be set, got nil")
+	}
+
+	if *existing.inDegree != expectedDegree {
+		t.Fatalf("expected inDegree=%d, got %d", expectedDegree, *existing.inDegree)
+	}
 }

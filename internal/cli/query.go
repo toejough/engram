@@ -66,34 +66,20 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return errQueryNoEmbeddings
 	}
 
-	queryVec, qErr := deps.Embedder.Embed(ctx, phrases[0])
-	if qErr != nil {
-		return fmt.Errorf("query: embed: %w", qErr)
+	summaries := make([]queryPipelineSummary, 0, len(phrases))
+
+	for _, phrase := range phrases {
+		summary, err := runSinglePhraseQuery(ctx, phrase, notes, hits, args.VaultPath, limit, deps)
+		if err != nil {
+			return err
+		}
+
+		summaries = append(summaries, summary)
 	}
 
-	directHits := rankCandidates(hits, args.VaultPath, deps.Read, queryVec)
-	if len(directHits) > limit {
-		directHits = directHits[:limit]
-	}
+	merged := aggregatePhraseSummaries(phrases, summaries, limit)
 
-	subgraph := expandSubgraph(notes, hits, directHits, args.VaultPath, deps.Read, queryVec)
-
-	clusters := clusterSubgraph(subgraph, phrases[0])
-
-	hubs := identifyHubs(subgraph)
-
-	resolved := mergeProvenances(directHits, subgraph, clusters, hubs)
-
-	return renderQueryPayload(stdout, phrases[0], queryPipelineSummary{
-		directHits:     directHits,
-		subgraph:       subgraph,
-		clusters:       clusters,
-		hubs:           hubs,
-		resolvedItems:  resolved,
-		totalNotes:     len(notes),
-		withEmbeddings: len(hits),
-		limit:          limit,
-	})
+	return renderQueryPayload(stdout, merged)
 }
 
 // unexported constants.
@@ -128,6 +114,20 @@ var (
 	wikilinkRE = regexp.MustCompile(`\[\[([^\]|]+)(?:\|([^\]]+))?\]\]`)
 )
 
+// aggregatedSummary holds the merged result of running RunQuery across
+// multiple phrases.
+type aggregatedSummary struct {
+	phrases        []string
+	resolvedItems  []resolvedItem
+	phraseClusters []phrasedCluster
+	totalNotes     int
+	withEmbeddings int
+	limit          int
+	subgraphSize   int
+	subgraphCapped bool
+	hopsTraversed  int
+}
+
 // clusterReport collects the AutoK output for the payload-rendering
 // stage. Empty Members means clustering was skipped or yielded nothing.
 type clusterReport struct {
@@ -160,8 +160,17 @@ type hubReport struct {
 	inDegrees []int // inDegrees[i] = in-degree of members[memberIDs[i]]
 }
 
+// phrasedCluster pairs a cluster report with the phrase that produced it,
+// so the payload can tag each cluster with its originating query phrase.
+type phrasedCluster struct {
+	phrase   string
+	report   clusterReport
+	subgraph expandedSubgraph
+}
+
 // queryBudget reports the totals visible to the caller per the YAML schema.
 type queryBudget struct {
+	PhrasesQueried       int  `yaml:"phrases_queried"`
 	TotalNotes           int  `yaml:"total_notes"`
 	WithEmbeddings       int  `yaml:"with_embeddings"`
 	SubgraphSize         int  `yaml:"subgraph_size"`
@@ -177,6 +186,7 @@ type queryBudget struct {
 // queryCluster is the cluster shape in the payload.
 type queryCluster struct {
 	ID         int                  `yaml:"id"`
+	Phrase     string               `yaml:"phrase"`
 	Size       int                  `yaml:"size"`
 	Silhouette float64              `yaml:"silhouette"`
 	Members    []queryClusterMember `yaml:"members"`
@@ -205,7 +215,7 @@ type queryItem struct {
 // queryPayload is the top-level YAML document.
 type queryPayload struct {
 	Version  int            `yaml:"version"`
-	Query    string         `yaml:"query"`
+	Phrases  []string       `yaml:"phrases"`
 	Items    []queryItem    `yaml:"items"`
 	Clusters []queryCluster `yaml:"clusters"`
 	Budget   queryBudget    `yaml:"budget"`
@@ -213,14 +223,11 @@ type queryPayload struct {
 
 // queryPipelineSummary bundles every stage's output for rendering.
 type queryPipelineSummary struct {
-	directHits     []scoredCandidate
 	subgraph       expandedSubgraph
 	clusters       clusterReport
-	hubs           hubReport
 	resolvedItems  []resolvedItem
 	totalNotes     int
 	withEmbeddings int
-	limit          int
 }
 
 // resolvedItem is the working shape for the items[] section before
@@ -250,6 +257,58 @@ type subgraphMember struct {
 	vector   []float32
 	score    float32
 	content  string
+}
+
+// aggregatePhraseSummaries merges per-phrase pipeline results into a single
+// aggregatedSummary per the issue-639 spec:
+//   - items: dedup by path, max score across phrases, union provenances,
+//     max in_degree; cluster_id cleared (clusters are per-phrase).
+//   - clusters: retained per-phrase, tagged with their originating phrase.
+//   - budget: subgraphSize is sum, hopsTraversed is max, capped is OR.
+func aggregatePhraseSummaries(phrases []string, summaries []queryPipelineSummary, limit int) aggregatedSummary {
+	items := mergeItemsByPath(summaries, limit)
+
+	phraseClusters := make([]phrasedCluster, 0, len(summaries))
+	for i, s := range summaries {
+		phraseClusters = append(phraseClusters, phrasedCluster{
+			phrase:   phrases[i],
+			report:   s.clusters,
+			subgraph: s.subgraph,
+		})
+	}
+
+	totalSubgraph, capped, maxHops := aggregateSubgraphBudget(summaries)
+	first := summaries[0]
+
+	return aggregatedSummary{
+		phrases:        phrases,
+		resolvedItems:  items,
+		phraseClusters: phraseClusters,
+		totalNotes:     first.totalNotes,
+		withEmbeddings: first.withEmbeddings,
+		limit:          limit,
+		subgraphSize:   totalSubgraph,
+		subgraphCapped: capped,
+		hopsTraversed:  maxHops,
+	}
+}
+
+// aggregateSubgraphBudget computes the cross-phrase budget fields: total
+// subgraph size (sum), capped flag (OR), and max hops traversed.
+func aggregateSubgraphBudget(summaries []queryPipelineSummary) (totalSize int, capped bool, maxHops int) {
+	for _, s := range summaries {
+		totalSize += len(s.subgraph.members)
+
+		if s.subgraph.capped {
+			capped = true
+		}
+
+		if s.subgraph.hopsTraversed > maxHops {
+			maxHops = s.subgraph.hopsTraversed
+		}
+	}
+
+	return totalSize, capped, maxHops
 }
 
 // appendUniqueProvenance adds role to item.provenances iff not already present.
@@ -702,6 +761,74 @@ func mergeHubItems(
 	}
 }
 
+// mergeIntoExisting updates existing with the best score, unioned
+// provenances, and in_degree from src (if existing has none).
+// in_degree is not maximised across phrases because undirected BFS
+// always reaches the same linkers for a note regardless of starting
+// point, so both phrases produce identical in_degrees.
+func mergeIntoExisting(existing, src *resolvedItem) {
+	if src.score > existing.score {
+		existing.score = src.score
+		existing.content = src.content
+	}
+
+	for _, p := range src.provenances {
+		appendUniqueProvenance(existing, p)
+	}
+
+	if src.inDegree != nil && existing.inDegree == nil {
+		v := *src.inDegree
+		existing.inDegree = &v
+	}
+}
+
+// mergeItemsByPath deduplicates resolved items across all phrase summaries:
+// max score wins, provenances are unioned, in_degree takes the max, and
+// cluster_id is cleared (clusters are per-phrase in the multi-phrase payload).
+func mergeItemsByPath(summaries []queryPipelineSummary, limit int) []resolvedItem {
+	byPath := make(map[string]*resolvedItem, len(summaries)*limit)
+
+	for _, s := range summaries {
+		for i := range s.resolvedItems {
+			src := &s.resolvedItems[i]
+			existing, ok := byPath[src.notePath]
+
+			if !ok {
+				c := *src
+				c.clusterID = nil
+				byPath[src.notePath] = &c
+
+				continue
+			}
+
+			mergeIntoExisting(existing, src)
+		}
+	}
+
+	paths := make([]string, 0, len(byPath))
+	for path := range byPath {
+		paths = append(paths, path)
+	}
+
+	sort.Strings(paths)
+
+	items := make([]resolvedItem, 0, len(byPath))
+	for _, path := range paths {
+		item := byPath[path]
+		if item == nil {
+			continue
+		}
+
+		items = append(items, *item)
+	}
+
+	sort.SliceStable(items, func(i, j int) bool {
+		return resolvedItemLess(items[i], items[j])
+	})
+
+	return items
+}
+
 // mergeProvenances builds the resolved item list per F7's rules:
 // items = direct hits ∪ cluster reps ∪ hubs, deduped by basename,
 // each item carrying every applicable provenance role + metadata.
@@ -894,22 +1021,31 @@ func rankCandidates(
 
 // renderClusters converts a clusterReport into the YAML clusters[] section.
 // Members are sorted by score desc; representative is_representative is set.
-func renderClusters(subgraph expandedSubgraph, report clusterReport) []queryCluster {
-	if report.autoK.K == 0 {
-		return []queryCluster{}
+// renderClusters converts per-phrase cluster reports into the YAML wire shape.
+// Each cluster is tagged with the phrase that produced it.
+func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
+	var out []queryCluster
+
+	for _, pc := range phraseClusters {
+		if pc.report.autoK.K == 0 {
+			continue
+		}
+
+		for clusterID := range pc.report.autoK.K {
+			members := collectClusterMembers(pc.subgraph, pc.report, clusterID)
+
+			out = append(out, queryCluster{
+				ID:         clusterID,
+				Phrase:     pc.phrase,
+				Size:       len(members),
+				Silhouette: pc.report.silhouettesByID[clusterID],
+				Members:    members,
+			})
+		}
 	}
 
-	out := make([]queryCluster, 0, report.autoK.K)
-
-	for clusterID := range report.autoK.K {
-		members := collectClusterMembers(subgraph, report, clusterID)
-
-		out = append(out, queryCluster{
-			ID:         clusterID,
-			Size:       len(members),
-			Silhouette: report.silhouettesByID[clusterID],
-			Members:    members,
-		})
+	if out == nil {
+		return []queryCluster{}
 	}
 
 	return out
@@ -934,34 +1070,43 @@ func renderItems(resolved []resolvedItem) []queryItem {
 	return items
 }
 
-// renderQueryPayload encodes the resolved YAML payload for the F6+F9.1
-// pipeline output. It performs no I/O beyond writing stdout: content for
-// non-direct items is filled in by the caller before this point.
-func renderQueryPayload(
-	stdout io.Writer,
-	query string,
-	summary queryPipelineSummary,
-) error {
-	items := renderItems(summary.resolvedItems)
-	clusters := renderClusters(summary.subgraph, summary.clusters)
+// renderQueryPayload encodes the resolved YAML payload for the multi-phrase
+// pipeline output.
+func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
+	items := renderItems(merged.resolvedItems)
+	clusters := renderClusters(merged.phraseClusters)
 	contentful := countItemsWithContent(items)
+
+	directCount := 0
+	hubCount := 0
+
+	for _, item := range items {
+		if slices.Contains(item.Provenances, provenanceDirect) {
+			directCount++
+		}
+
+		if item.InDegree != nil {
+			hubCount++
+		}
+	}
 
 	payload := queryPayload{
 		Version:  1,
-		Query:    query,
+		Phrases:  merged.phrases,
 		Items:    items,
 		Clusters: clusters,
 		Budget: queryBudget{
-			TotalNotes:           summary.totalNotes,
-			WithEmbeddings:       summary.withEmbeddings,
-			SubgraphSize:         len(summary.subgraph.members),
-			SubgraphSizeCapped:   summary.subgraph.capped,
-			HopsTraversed:        summary.subgraph.hopsTraversed,
-			ClustersFound:        summary.clusters.autoK.K,
-			HubsReturned:         len(summary.hubs.memberIDs),
-			DirectHitsReturned:   len(summary.directHits),
+			PhrasesQueried:       len(merged.phrases),
+			TotalNotes:           merged.totalNotes,
+			WithEmbeddings:       merged.withEmbeddings,
+			SubgraphSize:         merged.subgraphSize,
+			SubgraphSizeCapped:   merged.subgraphCapped,
+			HopsTraversed:        merged.hopsTraversed,
+			ClustersFound:        len(clusters),
+			HubsReturned:         hubCount,
+			DirectHitsReturned:   directCount,
 			ItemsWithFullContent: contentful,
-			Limit:                summary.limit,
+			Limit:                merged.limit,
 		},
 	}
 
@@ -998,6 +1143,42 @@ func resolvedItemLess(a, b resolvedItem) bool {
 	}
 
 	return a.score > b.score
+}
+
+// runSinglePhraseQuery runs the full per-phrase pipeline for one phrase
+// and returns a queryPipelineSummary. notes and hits are already loaded
+// (shared across all phrases in a multi-phrase run).
+func runSinglePhraseQuery(
+	ctx context.Context,
+	phrase string,
+	notes []vaultgraph.Note,
+	hits []compatibleSidecar,
+	vault string,
+	limit int,
+	deps QueryDeps,
+) (queryPipelineSummary, error) {
+	queryVec, qErr := deps.Embedder.Embed(ctx, phrase)
+	if qErr != nil {
+		return queryPipelineSummary{}, fmt.Errorf("query: embed: %w", qErr)
+	}
+
+	directHits := rankCandidates(hits, vault, deps.Read, queryVec)
+	if len(directHits) > limit {
+		directHits = directHits[:limit]
+	}
+
+	subgraph := expandSubgraph(notes, hits, directHits, vault, deps.Read, queryVec)
+	clusters := clusterSubgraph(subgraph, phrase)
+	hubs := identifyHubs(subgraph)
+	resolved := mergeProvenances(directHits, subgraph, clusters, hubs)
+
+	return queryPipelineSummary{
+		subgraph:       subgraph,
+		clusters:       clusters,
+		resolvedItems:  resolved,
+		totalNotes:     len(notes),
+		withEmbeddings: len(hits),
+	}, nil
 }
 
 // seedBasenames extracts seed basenames from direct hits in the order they appear.

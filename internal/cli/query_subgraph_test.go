@@ -141,8 +141,8 @@ var (
 
 // queryParsed is the YAML parse target for new-payload tests in this file.
 type queryParsed struct {
-	Version int    `yaml:"version"`
-	Query   string `yaml:"query"`
+	Version int      `yaml:"version"`
+	Phrases []string `yaml:"phrases"`
 	Items   []struct {
 		Path        string   `yaml:"path"`
 		Kind        string   `yaml:"kind"`
@@ -154,6 +154,7 @@ type queryParsed struct {
 	} `yaml:"items"`
 	Clusters []struct {
 		ID         int     `yaml:"id"`
+		Phrase     string  `yaml:"phrase"`
 		Size       int     `yaml:"size"`
 		Silhouette float64 `yaml:"silhouette"`
 		Members    []struct {
@@ -163,6 +164,7 @@ type queryParsed struct {
 		} `yaml:"members"`
 	} `yaml:"clusters"`
 	Budget struct {
+		PhrasesQueried       int  `yaml:"phrases_queried"`
 		TotalNotes           int  `yaml:"total_notes"`
 		WithEmbeddings       int  `yaml:"with_embeddings"`
 		SubgraphSize         int  `yaml:"subgraph_size"`

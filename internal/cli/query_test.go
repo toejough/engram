@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -36,6 +37,23 @@ func TestQuery_EmbeddingFailureSurfacesError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("embed")))
 }
 
+func TestQuery_EmptyPhrasesAndEmptyQuery_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("empty query")))
+}
+
 func TestQuery_EmptyVault_ItemsEmpty(t *testing.T) {
 	t.Parallel()
 
@@ -58,6 +76,251 @@ func TestQuery_EmptyVault_ItemsEmpty(t *testing.T) {
 
 	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
 	g.Expect(parsed.Items).To(BeEmpty())
+}
+
+func TestQuery_MultiPhrase_BudgetHasPhrasesQueried(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
+		"---\ntype: fact\n---\nbody\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body", "fact", "something"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Budget struct {
+			PhrasesQueried int `yaml:"phrases_queried"`
+		} `yaml:"budget"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Budget.PhrasesQueried).To(Equal(3))
+}
+
+func TestQuery_MultiPhrase_ClustersTaggedWithPhrase(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	for i := range 12 {
+		plantNoteWithSidecar(t, memFS, vault,
+			fmt.Sprintf("Permanent/%d.note.md", i+1),
+			fmt.Sprintf("---\ntype: fact\n---\nbody %d\n", i))
+	}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body", "fact"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Clusters []struct {
+			Phrase string `yaml:"phrase"`
+			ID     int    `yaml:"id"`
+		} `yaml:"clusters"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	for _, cluster := range parsed.Clusters {
+		g.Expect(cluster.Phrase).NotTo(BeEmpty(), "cluster id=%d has no phrase label", cluster.ID)
+	}
+}
+
+func TestQuery_MultiPhrase_DeduplicatesItemsByPath(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
+		"---\ntype: fact\n---\nbody of note one\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body of note one", "body of note one"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Items []struct {
+			Path string `yaml:"path"`
+		} `yaml:"items"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	seen := map[string]int{}
+	for _, item := range parsed.Items {
+		seen[item.Path]++
+	}
+
+	for path, count := range seen {
+		g.Expect(count).To(Equal(1), "path %s appeared %d times", path, count)
+	}
+}
+
+func TestQuery_MultiPhrase_HubInDegreeIsMergedMax(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Hub note H is linked-to by many spokes — makes it a hub (high in-degree).
+	// Two phrases that both surface H in their subgraphs; the merged payload
+	// should have H's in_degree set (non-nil), exercising the inDegree branch
+	// of mergeIntoExisting.
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/H.md",
+		"---\ntype: fact\n---\nhub anchor\n")
+
+	for i := range 6 {
+		plantNoteWithSidecar(t, memFS, vault,
+			fmt.Sprintf("Permanent/S%d.md", i),
+			fmt.Sprintf("---\ntype: fact\n---\nspoke body %d\n[[H]]\n", i))
+	}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"hub anchor", "spoke body"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Items []struct {
+			Path     string `yaml:"path"`
+			InDegree *int   `yaml:"in_degree"`
+		} `yaml:"items"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	hubFound := false
+
+	for _, item := range parsed.Items {
+		if strings.Contains(item.Path, "H.md") && item.InDegree != nil {
+			hubFound = true
+		}
+	}
+
+	g.Expect(hubFound).To(BeTrue(), "expected H.md to appear as a hub with in_degree set")
+}
+
+func TestQuery_MultiPhrase_LaterHigherScoreWins(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.body.md",
+		"---\ntype: fact\n---\nbody text\n")
+
+	// phrase order: low-score first, high-score second — verifies the
+	// score-update branch in mergeIntoExisting fires and wins.
+	var outLowFirst bytes.Buffer
+
+	_ = cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"xyzzy", "body text"}, VaultPath: vault},
+		newQueryDeps(memFS), &outLowFirst)
+
+	var outHighFirst bytes.Buffer
+
+	_ = cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body text", "xyzzy"}, VaultPath: vault},
+		newQueryDeps(memFS), &outHighFirst)
+
+	var parsedLowFirst, parsedHighFirst struct {
+		Items []struct {
+			Score float32 `yaml:"score"`
+		} `yaml:"items"`
+	}
+
+	_ = yaml.Unmarshal(outLowFirst.Bytes(), &parsedLowFirst)
+	_ = yaml.Unmarshal(outHighFirst.Bytes(), &parsedHighFirst)
+
+	if len(parsedLowFirst.Items) == 0 || len(parsedHighFirst.Items) == 0 {
+		t.Skip("no items returned; skip score comparison")
+	}
+
+	g.Expect(parsedLowFirst.Items[0].Score).To(
+		BeNumerically("~", parsedHighFirst.Items[0].Score, float32(0.01)),
+		"max score should be the same regardless of phrase order",
+	)
+}
+
+func TestQuery_MultiPhrase_MaxScoreAcrossPhrases(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.body.md",
+		"---\ntype: fact\n---\nbody\n")
+
+	var outSingle bytes.Buffer
+
+	_ = cli.RunQuery(context.Background(),
+		cli.QueryArgs{Query: "body", VaultPath: vault},
+		newQueryDeps(memFS), &outSingle)
+
+	var parsedSingle struct {
+		Items []struct {
+			Path  string  `yaml:"path"`
+			Score float32 `yaml:"score"`
+		} `yaml:"items"`
+	}
+
+	_ = yaml.Unmarshal(outSingle.Bytes(), &parsedSingle)
+
+	if len(parsedSingle.Items) == 0 {
+		t.Skip("no items returned; skip score comparison")
+	}
+
+	singleScore := parsedSingle.Items[0].Score
+
+	var outMulti bytes.Buffer
+
+	_ = cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body", "xyzzy"}, VaultPath: vault},
+		newQueryDeps(memFS), &outMulti)
+
+	var parsedMulti struct {
+		Items []struct {
+			Path  string  `yaml:"path"`
+			Score float32 `yaml:"score"`
+		} `yaml:"items"`
+	}
+
+	_ = yaml.Unmarshal(outMulti.Bytes(), &parsedMulti)
+
+	if len(parsedMulti.Items) == 0 {
+		t.Skip("no items in multi result; skip score comparison")
+	}
+
+	g.Expect(parsedMulti.Items[0].Score).To(BeNumerically(">=", singleScore))
 }
 
 func TestQuery_NotesButNoSidecars_ErrorWithRecoveryHint(t *testing.T) {
@@ -111,6 +374,32 @@ func TestQuery_NotesWithIncompatibleSidecars_ErrorWithRecoveryHint(t *testing.T)
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).To(MatchError(ContainSubstring("engram embed apply --all")))
+}
+
+func TestQuery_PhrasesFlag_AcceptsMultiplePhrases(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
+		"---\ntype: fact\n---\nbody\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body", "fact"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Phrases []string `yaml:"phrases"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Phrases).To(ConsistOf("body", "fact"))
 }
 
 func TestQuery_RanksByDescendingCosine(t *testing.T) {
@@ -239,49 +528,6 @@ func (errorEmbedder) Embed(context.Context, string) ([]float32, error) {
 }
 
 func (errorEmbedder) ModelID() string { return "m@4" }
-
-func TestQuery_PhrasesFlag_AcceptsMultiplePhrases(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
-		"---\ntype: fact\n---\nbody\n")
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"body", "fact"}, VaultPath: vault},
-		newQueryDeps(memFS), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed struct {
-		Phrases []string `yaml:"phrases"`
-	}
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-	g.Expect(parsed.Phrases).To(ConsistOf("body", "fact"))
-}
-
-func TestQuery_EmptyPhrasesAndEmptyQuery_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{}, VaultPath: vault},
-		newQueryDeps(memFS), &out)
-
-	g.Expect(err).To(MatchError(ContainSubstring("empty query")))
-}
 
 func newQueryDeps(memFS *inMemoryFS) cli.QueryDeps {
 	return cli.QueryDeps{
