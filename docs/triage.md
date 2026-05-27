@@ -126,17 +126,6 @@ follow-up edits the codebase needs.
   in `commands/` that wraps a skill invocation. Audit README to make
   this distinction explicit.
 
-### 12. `engram recall` "no-arg" behavior overlap with `--recent`
-- The skill says the no-arg recap "Anchors (`engram recall`) seeded with
-  `engram recall --recent`."
-- That's two separate invocations the skill loops together — but the
-  prose reads like there's a single mode named "no-arg recap" that
-  bundles them.
-- **Proposed canonical:** name the two streams explicitly — *anchors
-  stream* (`engram recall` with no flags) and *recent stream*
-  (`engram recall --recent`) — and call their union the *initial
-  frontier*. The glossary uses this framing; the skill should too.
-
 ### 13. `Path A` / `Path B` / `Path C` naming
 - The learn skill uses "Path A" (current-locus, recall bracketed segment),
   "Path B" (current-locus, no recall bracketed segment), and "Path C"
