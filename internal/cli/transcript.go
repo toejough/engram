@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"slices"
 	"strings"
@@ -273,12 +272,63 @@ func emitContinuationWarnings(firstUnincluded map[string]time.Time, stdout io.Wr
 	}
 }
 
-// emitTranscripts emits content chronologically (oldest first), stopping when
-// the next entry's content would push total bytes over maxBytes. The first
-// entry is always included even if it alone exceeds the cap — a single
-// oversized entry must not stall marker progress forever. The returned
-// firstUnincluded map records, per source, the Mtime of the earliest entry
-// the byte cap excluded; callers use it to warn the user that more remains.
+// emitOneEntry reads one transcript entry through the reader, writes its
+// content to stdout, and updates result.lastIncluded / result.hadEntries
+// in place. Returns bytesUsed, whether the read was partial, and any error.
+// The marker rule: LastTimestamp wins when non-zero; a full (non-partial)
+// read additionally advances to the entry's file Mtime to cover trailing
+// untimestamped rows.
+func emitOneEntry(
+	reader transcript.Reader,
+	entry transcript.FileEntry,
+	remaining int,
+	result *emitResult,
+	stdout io.Writer,
+) (int, bool, error) {
+	if remaining < 1 {
+		remaining = 1
+	}
+
+	fromTime := result.lastIncluded[entry.Source]
+
+	readResult, readErr := reader.ReadFrom(entry.Path, fromTime, remaining)
+	if readErr != nil {
+		return 0, false, fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
+	}
+
+	_, writeErr := io.WriteString(stdout, readResult.Content)
+	if writeErr != nil {
+		return 0, false, fmt.Errorf("transcript: writing output: %w", writeErr)
+	}
+
+	if !readResult.LastTimestamp.IsZero() {
+		result.lastIncluded[entry.Source] = readResult.LastTimestamp
+	}
+
+	if !readResult.Partial && !entry.Mtime.IsZero() {
+		result.lastIncluded[entry.Source] = entry.Mtime
+	}
+
+	result.hadEntries[entry.Source] = true
+
+	return readResult.BytesUsed, readResult.Partial, nil
+}
+
+// emitTranscripts emits content chronologically (oldest first), advancing
+// the per-source marker incrementally. For each entry the reader takes
+// the per-source marker as fromTime and a remaining byte budget; the
+// reader returns ReadResult{Content, BytesUsed, LastTimestamp, Partial}.
+// When Partial is true, the scan halts after that entry; the marker
+// advances to LastTimestamp so the next run resumes mid-session. When
+// Partial is false, the marker advances to the entry's file Mtime
+// (covering trailing rows without parseable timestamps).
+//
+// The first entry's read is granted at least 1 byte of budget so a
+// pathological session larger than maxBytes still makes progress.
+//
+// firstUnincluded records, per source, the Mtime of the next entry the
+// byte cap excluded (or the partially-emitted entry's own Mtime), so
+// callers can warn the user that more remains.
 func emitTranscripts(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
@@ -291,31 +341,28 @@ func emitTranscripts(
 		firstUnincluded: make(map[string]time.Time),
 	}
 
-	var total int
+	total := 0
 
 	for index, entry := range entries {
-		content, _, readErr := reader.Read(entry.Path, math.MaxInt32)
-		if readErr != nil {
-			return emitResult{}, fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
-		}
-
-		// First entry is always included (progress guarantee). Subsequent entries
-		// stop the scan when their content would push total over maxBytes. Record
-		// the first such excluded entry per source so the caller can warn.
-		if index > 0 && total+len(content) > maxBytes {
+		remaining := maxBytes - total
+		if remaining <= 0 && index > 0 {
 			recordUnincluded(result.firstUnincluded, entries[index:])
 
 			break
 		}
 
-		_, writeErr := io.WriteString(stdout, content)
-		if writeErr != nil {
-			return emitResult{}, fmt.Errorf("transcript: writing output: %w", writeErr)
+		bytesUsed, partial, emitErr := emitOneEntry(reader, entry, remaining, &result, stdout)
+		if emitErr != nil {
+			return emitResult{}, emitErr
 		}
 
-		total += len(content)
-		result.lastIncluded[entry.Source] = entry.Mtime
-		result.hadEntries[entry.Source] = true
+		total += bytesUsed
+
+		if partial {
+			recordUnincluded(result.firstUnincluded, entries[index:])
+
+			break
+		}
 	}
 
 	return result, nil
@@ -345,7 +392,7 @@ func filterBySourceMarkers(
 			continue
 		}
 
-		if !entry.Mtime.Before(from) && !entry.Mtime.After(now) {
+		if entry.Mtime.After(from) && !entry.Mtime.After(now) {
 			filtered = append(filtered, entry)
 		}
 	}

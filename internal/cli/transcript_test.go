@@ -217,34 +217,6 @@ func TestApplyTranscriptDirDefault(t *testing.T) {
 	})
 }
 
-func TestEmitTranscripts_AlwaysIncludesFirstEntryEvenWhenOversized(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Single entry larger than cap — progress guarantee includes it anyway,
-	// otherwise the marker would never advance past it.
-	mkContent := func(prefix string) string { return prefix + strings.Repeat("x", 999) }
-	reader := &fakeReader{contents: map[string]string{
-		"/a": mkContent("A"),
-	}}
-	may1 := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-	entries := []transcript.FileEntry{{Path: "/a", Mtime: may1, Source: "claude"}}
-
-	var buf bytes.Buffer
-
-	lastIncluded, hadEntries, _, err := cli.EmitTranscriptsForTest(reader, entries, 100, &buf)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(hadEntries["claude"]).To(BeTrue())
-	g.Expect(lastIncluded["claude"].Equal(may1)).To(BeTrue())
-	g.Expect(buf.String()).To(ContainSubstring("A"))
-}
-
 func TestEmitTranscripts_NoEntriesReturnsZeroAndFalse(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -264,6 +236,38 @@ func TestEmitTranscripts_NoEntriesReturnsZeroAndFalse(t *testing.T) {
 	g.Expect(hadEntries).To(BeEmpty())
 	g.Expect(lastIncluded).To(BeEmpty())
 	g.Expect(buf.Len()).To(Equal(0))
+}
+
+func TestEmitTranscripts_OversizedFirstEntrySignalsPartialAndContinuation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Single entry larger than cap — under the new architecture the reader
+	// is responsible for emitting at least one row (progress guarantee) and
+	// returning Partial=true so the next run resumes mid-session. The fake
+	// reader here models the "decline" outcome (content > budget); the real
+	// readers emit at least one row of the file. The behavioral contract
+	// tested at this layer is: hadEntries is set, firstUnincluded records
+	// the partial entry's Mtime so the continuation warning fires.
+	mkContent := func(prefix string) string { return prefix + strings.Repeat("x", 999) }
+	reader := &fakeReader{contents: map[string]string{
+		"/a": mkContent("A"),
+	}}
+	may1 := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	entries := []transcript.FileEntry{{Path: "/a", Mtime: may1, Source: "claude"}}
+
+	var buf bytes.Buffer
+
+	_, hadEntries, firstUnincluded, err := cli.EmitTranscriptsForTest(reader, entries, 100, &buf)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(hadEntries["claude"]).To(BeTrue())
+	g.Expect(firstUnincluded["claude"].Equal(may1)).To(BeTrue())
 }
 
 func TestEmitTranscripts_ReadError(t *testing.T) {
@@ -1297,8 +1301,8 @@ func TestRunTranscript_RespectsMaxBytesFlag(t *testing.T) {
 // failReader is a test-local Reader that always returns an error.
 type failReader struct{}
 
-func (r *failReader) Read(_ string, _ int) (string, int, error) {
-	return "", 0, errors.New("read failed")
+func (r *failReader) ReadFrom(_ string, _ time.Time, _ int) (transcript.ReadResult, error) {
+	return transcript.ReadResult{}, errors.New("read failed")
 }
 
 // failWriter is an io.Writer that always returns an error.
@@ -1321,15 +1325,24 @@ func (f *fakeFinder) Find(dirs ...string) ([]transcript.FileEntry, error) {
 }
 
 // fakeReader is a test-local Reader that returns content from a map.
+// Honors the budget at file-level granularity: if the mapped content
+// is larger than budget, returns empty + Partial=true (declines to
+// emit a partial file because the stub has no per-row knowledge).
+// LastTimestamp is left zero — tests of marker mechanics rely on the
+// emit logic's fallback to entry.Mtime for full reads.
 type fakeReader struct{ contents map[string]string }
 
-func (f *fakeReader) Read(path string, _ int) (string, int, error) {
-	c, ok := f.contents[path]
+func (f *fakeReader) ReadFrom(path string, _ time.Time, budget int) (transcript.ReadResult, error) {
+	content, ok := f.contents[path]
 	if !ok {
-		return "", 0, fmt.Errorf("fakeReader: no content for %s", path)
+		return transcript.ReadResult{}, fmt.Errorf("fakeReader: no content for %s", path)
 	}
 
-	return c, len(c), nil
+	if len(content) > budget {
+		return transcript.ReadResult{Partial: true}, nil
+	}
+
+	return transcript.ReadResult{Content: content, BytesUsed: len(content)}, nil
 }
 
 // writeTranscriptFixture writes a JSONL line to dir/<name> and sets its mtime.

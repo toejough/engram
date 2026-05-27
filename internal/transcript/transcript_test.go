@@ -12,6 +12,118 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
+func TestJSONLReader_ReadFrom_EmitsRowsStrictlyAfterMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lines := []string{
+		`{"type":"user","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"a"}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:01:00Z","message":{"role":"user","content":"b"}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:02:00Z","message":{"role":"user","content":"c"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/x.jsonl": []byte(content)},
+	})
+	from, err := time.Parse(time.RFC3339, "2026-01-01T00:01:00Z")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	result, err := reader.ReadFrom("/x.jsonl", from, 1<<20)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result.Content).To(ContainSubstring("USER: c"))
+	g.Expect(result.Content).NotTo(ContainSubstring("USER: a"))
+	g.Expect(result.Content).NotTo(ContainSubstring("USER: b"))
+
+	expected, _ := time.Parse(time.RFC3339, "2026-01-01T00:02:00Z")
+	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
+	g.Expect(result.Partial).To(BeFalse())
+}
+
+func TestJSONLReader_ReadFrom_HandlesUnparseableTimestampAndNonJSON(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Row 1: non-JSON (should still pass through extractRowTimestamps without
+	// crashing — its timestamp resolves to the carry value, zero).
+	// Row 2: JSON but missing "timestamp" field (resolves to zero).
+	// Row 3: JSON with malformed timestamp (parse error → resolves to zero).
+	// Row 4: well-formed.
+	lines := []string{
+		`not even json`,
+		`{"type":"user","message":{"role":"user","content":"a"}}`,
+		`{"type":"user","timestamp":"not-a-date","message":{"role":"user","content":"b"}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:03:00Z","message":{"role":"user","content":"c"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/x.jsonl": []byte(content)},
+	})
+
+	result, err := reader.ReadFrom("/x.jsonl", time.Time{}, 1<<20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Row 4's timestamp wins (others all carry zero).
+	expected, _ := time.Parse(time.RFC3339, "2026-01-01T00:03:00Z")
+	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
+}
+
+func TestJSONLReader_ReadFrom_NullTimestampRowsInheritPrior(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Row 1 has timestamp null (e.g. file-history-snapshot). Row 2 has a real
+	// timestamp. Marker = zero. Expect both rows pass filter (null inherits
+	// zero, zero <= ... wait actually null inherits the PRIOR row's time;
+	// row 1 is first so it inherits zero; with marker=zero we DON'T filter,
+	// so both rows are emitted). LastTimestamp comes from row 2.
+	lines := []string{
+		`{"type":"snapshot","timestamp":null}`,
+		`{"type":"user","timestamp":"2026-01-01T00:01:00Z","message":{"role":"user","content":"a"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/x.jsonl": []byte(content)},
+	})
+
+	result, err := reader.ReadFrom("/x.jsonl", time.Time{}, 1<<20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	expected, _ := time.Parse(time.RFC3339, "2026-01-01T00:01:00Z")
+	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
+	g.Expect(result.Partial).To(BeFalse())
+}
+
+func TestJSONLReader_ReadFrom_PartialWhenBudgetExceeded(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lines := []string{
+		`{"type":"user","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"aaaaa"}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:01:00Z","message":{"role":"user","content":"bbbbb"}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:02:00Z","message":{"role":"user","content":"ccccc"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/x.jsonl": []byte(content)},
+	})
+
+	// Budget tight enough to fit one stripped line ("USER: aaaaa" = 11 + \n)
+	// but not a second.
+	result, err := reader.ReadFrom("/x.jsonl", time.Time{}, 20)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result.Partial).To(BeTrue())
+	g.Expect(result.Content).To(ContainSubstring("aaaaa"))
+	g.Expect(result.Content).NotTo(ContainSubstring("bbbbb"))
+	g.Expect(result.Content).NotTo(ContainSubstring("ccccc"))
+
+	expected, _ := time.Parse(time.RFC3339, "2026-01-01T00:00:00Z")
+	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
+}
+
 //go:generate impgen transcript.Finder --dependency --import-path github.com/toejough/engram/internal/transcript
 //go:generate impgen transcript.Reader --dependency --import-path github.com/toejough/engram/internal/transcript
 
@@ -156,7 +268,7 @@ func TestTranscriptReader_ReadError(t *testing.T) {
 
 	const budget = 10000
 
-	_, _, err := reader.Read("/missing.jsonl", budget)
+	_, _, err := readAll(reader, "/missing.jsonl", budget)
 	g.Expect(err).To(MatchError(ContainSubstring("file not found")))
 	g.Expect(err).To(MatchError(ContainSubstring("reading transcript")))
 }
@@ -182,7 +294,7 @@ func TestTranscriptReader_RespectsBudget(t *testing.T) {
 
 	const tinyBudget = 50
 
-	result, bytesRead, err := reader.Read("/transcript.jsonl", tinyBudget)
+	result, bytesRead, err := readAll(reader, "/transcript.jsonl", tinyBudget)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -192,11 +304,15 @@ func TestTranscriptReader_RespectsBudget(t *testing.T) {
 	g.Expect(bytesRead).To(BeNumerically(">", 0))
 	g.Expect(len(result)).To(BeNumerically("<", len(content)))
 
-	g.Expect(result).To(ContainSubstring("message 19"), "should contain last message")
-	g.Expect(result).NotTo(ContainSubstring("message 0"), "should not contain first message")
+	// ReadFrom emits chronologically from the oldest rows forward, halting
+	// when the budget would be exceeded. With marker advancing forward,
+	// the early messages are the ones that fit; later messages are picked
+	// up on subsequent runs.
+	g.Expect(result).To(ContainSubstring("message 0"), "should contain earliest message")
+	g.Expect(result).NotTo(ContainSubstring("message 19"), "should not contain latest message")
 }
 
-func TestTranscriptReader_ReturnsTailWhenBudgetLimited(t *testing.T) {
+func TestTranscriptReader_ReturnsLeadingRowsWhenBudgetLimited(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -217,15 +333,15 @@ func TestTranscriptReader_ReturnsTailWhenBudgetLimited(t *testing.T) {
 
 	const limitedBudget = 80
 
-	result, _, err := reader.Read("/transcript.jsonl", limitedBudget)
+	result, _, err := readAll(reader, "/transcript.jsonl", limitedBudget)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	g.Expect(result).To(ContainSubstring("zeta"), "should contain latest content")
-	g.Expect(result).NotTo(ContainSubstring("alpha"), "should not contain earliest content")
+	g.Expect(result).To(ContainSubstring("alpha"), "should contain earliest content")
+	g.Expect(result).NotTo(ContainSubstring("zeta"), "should not contain latest content")
 }
 
 func TestTranscriptReader_StripsToolResults(t *testing.T) {
@@ -246,7 +362,7 @@ func TestTranscriptReader_StripsToolResults(t *testing.T) {
 
 	const largeBudget = 10000
 
-	result, bytesRead, err := reader.Read("/transcript.jsonl", largeBudget)
+	result, bytesRead, err := readAll(reader, "/transcript.jsonl", largeBudget)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -281,7 +397,7 @@ func TestTranscriptReader_ToolSummaryMode(t *testing.T) {
 
 	const largeBudget = 10000
 
-	result, _, err := reader.Read("/transcript.jsonl", largeBudget)
+	result, _, err := readAll(reader, "/transcript.jsonl", largeBudget)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -324,4 +440,16 @@ func (f *fakeFileReader) Read(path string) ([]byte, error) {
 	}
 
 	return content, nil
+}
+
+// readAll wraps Reader.ReadFrom with zero fromTime to match the legacy
+// Read contract for existing tests.
+func readAll(
+	r interface {
+		ReadFrom(path string, fromTime time.Time, budgetBytes int) (transcript.ReadResult, error)
+	},
+	path string, budget int,
+) (string, int, error) {
+	res, err := r.ReadFrom(path, time.Time{}, budget)
+	return res.Content, res.BytesUsed, err
 }

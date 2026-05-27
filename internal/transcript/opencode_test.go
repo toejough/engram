@@ -62,7 +62,7 @@ func TestCompositeTranscriptReader_TriesReaders(t *testing.T) {
 
 	composite := transcript.NewCompositeTranscriptReader(fileReader, opencodeReader)
 
-	content, size, err := composite.Read("opencode://ses_comp1", 1024*50)
+	content, size, err := readAll(composite, "opencode://ses_comp1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(size).To(BeNumerically(">", 0))
 	g.Expect(content).To(ContainSubstring("Composite test content"))
@@ -208,7 +208,7 @@ func TestOpencodeTranscriptReader_EmptySessionID(t *testing.T) {
 
 	reader := transcript.NewOpencodeTranscriptReader("")
 
-	_, _, err := reader.Read("opencode://", 1024)
+	_, _, err := readAll(reader, "opencode://", 1024)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("empty opencode session ID"))
 }
@@ -229,7 +229,7 @@ func TestOpencodeTranscriptReader_IgnoresNonTextParts(t *testing.T) {
 
 	reader := transcript.NewOpencodeTranscriptReader(dbPath)
 
-	content, size, err := reader.Read("opencode://ses_skip1", 1024*50)
+	content, size, err := readAll(reader, "opencode://ses_skip1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(size).To(BeNumerically(">", 0))
 	g.Expect(content).To(ContainSubstring("Actual content"))
@@ -249,7 +249,7 @@ func TestOpencodeTranscriptReader_InvalidToolState(t *testing.T) {
 
 	reader := transcript.NewOpencodeTranscriptReader(dbPath)
 
-	content, _, err := reader.Read("opencode://ses_bad1", 1024*50)
+	content, _, err := readAll(reader, "opencode://ses_bad1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(content).To(BeEmpty())
 }
@@ -261,7 +261,7 @@ func TestOpencodeTranscriptReader_NonexistentSession(t *testing.T) {
 	dbPath := createTestOpencodeDB(t, nil)
 	reader := transcript.NewOpencodeTranscriptReader(dbPath)
 
-	content, size, err := reader.Read("opencode://nonexistent", 1024)
+	content, size, err := readAll(reader, "opencode://nonexistent", 1024)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(content).To(BeEmpty())
 	g.Expect(size).To(Equal(0))
@@ -295,7 +295,7 @@ func TestOpencodeTranscriptReader_NullPartType(t *testing.T) {
 
 	reader := transcript.NewOpencodeTranscriptReader(dbPath)
 
-	content, _, err := reader.Read("opencode://ses_null1", 1024*50)
+	content, _, err := readAll(reader, "opencode://ses_null1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(content).To(BeEmpty())
 }
@@ -315,7 +315,7 @@ func TestOpencodeTranscriptReader_PreservesMessageRole(t *testing.T) {
 
 	reader := transcript.NewOpencodeTranscriptReader(dbPath)
 
-	content, _, err := reader.Read("opencode://ses_role1", 1024*50)
+	content, _, err := readAll(reader, "opencode://ses_role1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(content).To(ContainSubstring("USER: user said this"))
 	g.Expect(content).To(ContainSubstring("ASSISTANT: assistant replied"))
@@ -336,7 +336,7 @@ func TestOpencodeTranscriptReader_ReadsTextParts(t *testing.T) {
 
 	reader := transcript.NewOpencodeTranscriptReader(dbPath)
 
-	content, size, err := reader.Read("opencode://ses_test1", 1024*50)
+	content, size, err := readAll(reader, "opencode://ses_test1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(size).To(BeNumerically(">", 0))
 	g.Expect(content).To(ContainSubstring("Hello from user"))
@@ -361,7 +361,7 @@ func TestOpencodeTranscriptReader_ReadsToolParts(t *testing.T) {
 
 	reader := transcript.NewOpencodeTranscriptReader(dbPath)
 
-	content, size, err := reader.Read("opencode://ses_tool1", 1024*50)
+	content, size, err := readAll(reader, "opencode://ses_tool1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(size).To(BeNumerically(">", 0))
 	g.Expect(content).To(ContainSubstring("bash"))
@@ -380,7 +380,7 @@ func TestOpencodeTranscriptReader_ToolMissingStatus(t *testing.T) {
 
 	reader := transcript.NewOpencodeTranscriptReader(dbPath)
 
-	content, _, err := reader.Read("opencode://ses_nostatus1", 1024*50)
+	content, _, err := readAll(reader, "opencode://ses_nostatus1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(content).To(BeEmpty())
 }
@@ -398,7 +398,7 @@ func TestOpencodeTranscriptReader_UnknownPartType(t *testing.T) {
 
 	reader := transcript.NewOpencodeTranscriptReader(dbPath)
 
-	content, _, err := reader.Read("opencode://ses_unk1", 1024*50)
+	content, _, err := readAll(reader, "opencode://ses_unk1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(content).To(BeEmpty())
 }

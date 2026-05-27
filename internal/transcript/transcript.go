@@ -4,8 +4,8 @@
 package transcript
 
 import (
+	"encoding/json"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -40,56 +40,54 @@ func NewJSONLReader(reader sessionctx.FileReader) *JSONLReader {
 	return &JSONLReader{reader: reader}
 }
 
-// Read reads a transcript file, strips noise (using context.Strip), and returns
-// the stripped content as a single string. Stops accumulating when bytesRead
-// exceeds budgetBytes. Returns the stripped content, bytes consumed, and any error.
-func (r *JSONLReader) Read(path string, budgetBytes int) (string, int, error) {
-	content, err := r.reader.Read(path)
+// ReadFrom reads the JSONL transcript at path, filters to rows whose
+// per-row timestamp is strictly after fromTime, strips noise via
+// context.Strip, and emits chronologically until budgetBytes is hit.
+// The first surviving row is always emitted regardless of size (progress
+// guarantee). Rows with null/missing timestamps inherit the previous
+// row's timestamp; rows preceding any timestamped row inherit zero time
+// (so they pass any zero-time fromTime filter but get excluded under a
+// non-zero fromTime).
+func (r *JSONLReader) ReadFrom(
+	path string,
+	fromTime time.Time,
+	budgetBytes int,
+) (ReadResult, error) {
+	raw, err := r.reader.Read(path)
 	if err != nil {
-		return "", 0, fmt.Errorf("reading transcript: %w", err)
+		return ReadResult{}, fmt.Errorf("reading transcript: %w", err)
 	}
 
-	rawLines := strings.Split(string(content), "\n")
+	lines := splitNonEmptyLines(string(raw))
 
-	// Remove empty trailing line from final newline.
-	nonEmpty := make([]string, 0, len(rawLines))
-	for _, line := range rawLines {
-		if line != "" {
-			nonEmpty = append(nonEmpty, line)
-		}
-	}
+	keptLines, keptTimes := filterRowsAfter(lines, extractRowTimestamps(lines), fromTime)
 
 	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
-	stripped := sessionctx.StripWithConfig(nonEmpty, cfg)
+	stripped, sourceIdx := sessionctx.StripWithConfigIndexed(keptLines, cfg)
+	strippedTimes := mapTimestampsByIndex(sourceIdx, keptTimes)
 
-	// Accumulate lines from the tail (most recent content first),
-	// then reverse to chronological order.
-	bytesRead := 0
-	startIdx := len(stripped)
-
-	for i, v := range slices.Backward(stripped) {
-		lineLen := len(v) + 1 // +1 for newline separator
-		if bytesRead+lineLen > budgetBytes && bytesRead > 0 {
-			break
-		}
-
-		startIdx = i
-		bytesRead += lineLen
-	}
-
-	var builder strings.Builder
-
-	for _, line := range stripped[startIdx:] {
-		builder.WriteString(line)
-		builder.WriteByte('\n')
-	}
-
-	return builder.String(), bytesRead, nil
+	return accumulateWithinBudget(stripped, strippedTimes, budgetBytes), nil
 }
 
-// Reader reads and strips a transcript file.
+// ReadResult bundles a partial-or-full session read's output with the
+// information emitTranscripts needs to advance the per-source marker.
+// LastTimestamp is the per-row timestamp of the last row included in
+// Content (zero when Content is empty or no row had a non-null
+// timestamp). Partial reports whether budgetBytes halted the read
+// before the file was exhausted.
+type ReadResult struct {
+	Content       string
+	BytesUsed     int
+	LastTimestamp time.Time
+	Partial       bool
+}
+
+// Reader reads and strips a transcript file forward from a marker
+// timestamp, with a byte budget. Returns a ReadResult bundling content,
+// bytes consumed, the per-row LastTimestamp of the last row included,
+// and Partial reporting whether the budget halted the read mid-file.
 type Reader interface {
-	Read(path string, budgetBytes int) (string, int, error)
+	ReadFrom(path string, fromTime time.Time, budgetBytes int) (ReadResult, error)
 }
 
 // SessionFinder finds Claude Code session transcript files for a project.
@@ -135,3 +133,144 @@ const (
 	sourceClaude   = "claude"
 	sourceOpencode = "opencode"
 )
+
+// accumulateWithinBudget walks lines chronologically and emits up to
+// budgetBytes, with a first-row progress guarantee. Returns the
+// emitted content plus the last row's timestamp.
+func accumulateWithinBudget(
+	lines []string, times []time.Time, budgetBytes int,
+) ReadResult {
+	var builder strings.Builder
+
+	bytesUsed := 0
+	lastTs := time.Time{}
+	partial := false
+
+	for i, line := range lines {
+		lineLen := len(line) + 1
+		if bytesUsed > 0 && bytesUsed+lineLen > budgetBytes {
+			partial = true
+
+			break
+		}
+
+		builder.WriteString(line)
+		builder.WriteByte('\n')
+
+		bytesUsed += lineLen
+
+		if !times[i].IsZero() {
+			lastTs = times[i]
+		}
+	}
+
+	return ReadResult{
+		Content:       builder.String(),
+		BytesUsed:     bytesUsed,
+		LastTimestamp: lastTs,
+		Partial:       partial,
+	}
+}
+
+// extractRowTimestamps parses each JSONL line for a top-level
+// "timestamp" field. Rows with null/missing/unparseable timestamps
+// inherit the previous row's timestamp; the first row inherits zero.
+func extractRowTimestamps(lines []string) []time.Time {
+	out := make([]time.Time, len(lines))
+
+	carry := time.Time{}
+
+	for i, line := range lines {
+		if ts := parseRowTimestamp(line); !ts.IsZero() {
+			carry = ts
+		}
+
+		out[i] = carry
+	}
+
+	return out
+}
+
+// filterRowsAfter returns the subset of (lines, times) whose timestamp
+// is strictly after fromTime. When fromTime is the zero time, returns
+// all rows (no filtering).
+func filterRowsAfter(
+	lines []string, times []time.Time, fromTime time.Time,
+) ([]string, []time.Time) {
+	if fromTime.IsZero() {
+		return lines, times
+	}
+
+	keptLines := make([]string, 0, len(lines))
+	keptTimes := make([]time.Time, 0, len(lines))
+
+	for i, line := range lines {
+		if !times[i].After(fromTime) {
+			continue
+		}
+
+		keptLines = append(keptLines, line)
+		keptTimes = append(keptTimes, times[i])
+	}
+
+	return keptLines, keptTimes
+}
+
+// mapTimestampsByIndex returns the per-output-line timestamps by indexing
+// inputTimes through the source-index slice that strip returned alongside
+// the stripped lines. Out-of-range indices (shouldn't happen, defensive
+// only) map to the zero time.
+func mapTimestampsByIndex(sourceIdx []int, inputTimes []time.Time) []time.Time {
+	out := make([]time.Time, len(sourceIdx))
+
+	for i, idx := range sourceIdx {
+		if idx < 0 || idx >= len(inputTimes) {
+			continue
+		}
+
+		out[i] = inputTimes[idx]
+	}
+
+	return out
+}
+
+// parseRowTimestamp extracts a top-level "timestamp" field from a JSON
+// line. Returns the zero time when the line is not JSON, has no
+// "timestamp", or the timestamp is null/unparseable.
+func parseRowTimestamp(line string) time.Time {
+	var probe struct {
+		Timestamp string `json:"timestamp"`
+	}
+
+	unmarshalErr := json.Unmarshal([]byte(line), &probe)
+	if unmarshalErr != nil {
+		return time.Time{}
+	}
+
+	if probe.Timestamp == "" {
+		return time.Time{}
+	}
+
+	t, err := time.Parse(time.RFC3339Nano, probe.Timestamp)
+	if err != nil {
+		return time.Time{}
+	}
+
+	return t
+}
+
+// splitNonEmptyLines splits content on newlines, dropping empty entries
+// (notably the trailing empty line from a final newline).
+func splitNonEmptyLines(content string) []string {
+	raw := strings.Split(content, "\n")
+
+	out := make([]string, 0, len(raw))
+
+	for _, line := range raw {
+		if line != "" {
+			out = append(out, line)
+		}
+	}
+
+	return out
+}

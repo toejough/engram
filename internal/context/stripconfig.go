@@ -42,17 +42,28 @@ type StripConfig struct {
 //
 // A single JSONL line may produce multiple output lines (text + tool calls).
 func StripWithConfig(lines []string, cfg StripConfig) []string {
+	stripped, _ := StripWithConfigIndexed(lines, cfg)
+
+	return stripped
+}
+
+// StripWithConfigIndexed mirrors StripWithConfig but additionally returns,
+// for each output line, the index of the input line that produced it. This
+// lets callers thread per-input-line metadata (e.g. timestamps) through to
+// the stripped output even though strip transforms JSONL into prose.
+func StripWithConfigIndexed(lines []string, cfg StripConfig) ([]string, []int) {
 	if cfg.ToolSummaryMode {
-		return stripWithToolSummary(lines)
+		return stripWithToolSummaryIndexed(lines)
 	}
 
 	if !cfg.KeepToolCalls {
-		return Strip(lines)
+		return stripIndexed(lines)
 	}
 
 	result := make([]string, 0, len(lines))
+	srcIdx := make([]int, 0, len(lines))
 
-	for _, line := range lines {
+	for i, line := range lines {
 		if !isKeptType(line) {
 			continue
 		}
@@ -60,10 +71,13 @@ func StripWithConfig(lines []string, cfg StripConfig) []string {
 		cleaned := replaceBase64(line)
 
 		extracted := extractTextWithTools(cleaned, cfg)
-		result = append(result, extracted...)
+		for _, out := range extracted {
+			result = append(result, out)
+			srcIdx = append(srcIdx, i)
+		}
 	}
 
-	return result
+	return result, srcIdx
 }
 
 // rawBlockType is a minimal block used to detect block type before full unmarshaling.

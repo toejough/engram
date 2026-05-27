@@ -211,23 +211,32 @@ func storePendingToolUse(block json.RawMessage, pending map[string]toolSummaryPa
 	}
 }
 
-// stripWithToolSummary processes JSONL lines producing compact tool summaries.
-// Text blocks are emitted as "USER: ..." / "ASSISTANT: ..." lines.
+// stripWithToolSummaryIndexed processes JSONL lines producing compact tool
+// summaries. Text blocks are emitted as "USER: ..." / "ASSISTANT: ..." lines.
 // Each tool_use + tool_result pair becomes a single "[tool]" summary line.
-// Orphaned tool_use blocks (no matching result) are silently dropped.
-func stripWithToolSummary(lines []string) []string {
+// Orphaned tool_use blocks (no matching result) are silently dropped. Also
+// returns the source input index for each output line; when a tool_result
+// line matches a pending tool_use, the resulting summary line is attributed
+// to the tool_result's input index (the more recent of the pair) — that is
+// the timestamp the reader's per-row marker logic cares about.
+func stripWithToolSummaryIndexed(lines []string) ([]string, []int) {
 	result := make([]string, 0, len(lines))
+	srcIdx := make([]int, 0, len(lines))
 	pending := make(map[string]toolSummaryPair)
 
-	for _, line := range lines {
+	for i, line := range lines {
 		if !isKeptType(line) {
 			continue
 		}
 
 		cleaned := replaceBase64(line)
+
 		extracted := extractSummaryBlocks(cleaned, pending)
-		result = append(result, extracted...)
+		for _, out := range extracted {
+			result = append(result, out)
+			srcIdx = append(srcIdx, i)
+		}
 	}
 
-	return result
+	return result, srcIdx
 }

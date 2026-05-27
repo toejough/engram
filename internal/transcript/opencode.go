@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -72,16 +71,20 @@ func NewCompositeTranscriptReader(readers ...Reader) *CompositeTranscriptReader 
 	return &CompositeTranscriptReader{readers: readers}
 }
 
-// Read reads a transcript using the first reader that recognizes the path.
-func (r *CompositeTranscriptReader) Read(path string, budgetBytes int) (string, int, error) {
+// ReadFrom dispatches to the first reader whose ReadFrom call succeeds.
+func (r *CompositeTranscriptReader) ReadFrom(
+	path string,
+	fromTime time.Time,
+	budgetBytes int,
+) (ReadResult, error) {
 	for _, reader := range r.readers {
-		content, size, err := reader.Read(path, budgetBytes)
+		result, err := reader.ReadFrom(path, fromTime, budgetBytes)
 		if err == nil {
-			return content, size, nil
+			return result, nil
 		}
 	}
 
-	return "", 0, fmt.Errorf("%w: %s", ErrNoReader, path)
+	return ReadResult{}, fmt.Errorf("%w: %s", ErrNoReader, path)
 }
 
 // OpencodeSessionFinder finds OpenCode session transcripts from a SQLite database.
@@ -182,25 +185,45 @@ func NewOpencodeTranscriptReader(dbPath string) *OpencodeTranscriptReader {
 	return &OpencodeTranscriptReader{dbPath: dbPath}
 }
 
-// Read reads an OpenCode session transcript, strips noise, and returns the
-// content. The path must be an "opencode://<session_id>" URI.
-func (r *OpencodeTranscriptReader) Read(path string, budgetBytes int) (string, int, error) {
+// ReadFrom reads an OpenCode session transcript, filters to parts whose
+// time_created is strictly after fromTime, strips noise, and returns a
+// chronological ReadResult capped at budgetBytes. The path must be an
+// "opencode://<session_id>" URI. Each emitted line embeds a "timestamp"
+// field so the caller (and shared accumulator) can recover the per-row
+// time of the last-included row.
+func (r *OpencodeTranscriptReader) ReadFrom(
+	path string,
+	fromTime time.Time,
+	budgetBytes int,
+) (ReadResult, error) {
 	sessionID := strings.TrimPrefix(path, "opencode://")
 	if sessionID == "" {
-		return "", 0, ErrEmptySessionID
+		return ReadResult{}, ErrEmptySessionID
 	}
 
-	jsonlLines, queryErr := r.queryParts(sessionID)
+	jsonlLines, queryErr := r.queryPartsAfter(sessionID, fromTime)
 	if queryErr != nil {
-		return "", 0, queryErr
+		return ReadResult{}, queryErr
 	}
 
-	content, bytesUsed := r.stripAndBudget(jsonlLines, budgetBytes)
+	inputTimes := extractRowTimestamps(jsonlLines)
 
-	return content, bytesUsed, nil
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	stripped, sourceIdx := sessionctx.StripWithConfigIndexed(jsonlLines, cfg)
+	strippedTimes := mapTimestampsByIndex(sourceIdx, inputTimes)
+
+	return accumulateWithinBudget(stripped, strippedTimes, budgetBytes), nil
 }
 
-func (r *OpencodeTranscriptReader) queryParts(sessionID string) ([]string, error) {
+// queryPartsAfter runs the parts query filtered to time_created strictly
+// after fromTime (or all parts when fromTime is the zero value). Each
+// emitted JSONL line carries an embedded "timestamp" field encoding the
+// row's time_created so downstream consumers can recover per-row times
+// from the stripped output.
+func (r *OpencodeTranscriptReader) queryPartsAfter(
+	sessionID string,
+	fromTime time.Time,
+) ([]string, error) {
 	db, openErr := sql.Open("sqlite", r.dbPath)
 	if openErr != nil {
 		return nil, fmt.Errorf("opening opencode database: %w", openErr)
@@ -210,15 +233,21 @@ func (r *OpencodeTranscriptReader) queryParts(sessionID string) ([]string, error
 
 	ctx := context.Background()
 
+	fromMillis := int64(0)
+	if !fromTime.IsZero() {
+		fromMillis = fromTime.UnixMilli()
+	}
+
 	rows, queryErr := db.QueryContext(
 		ctx,
-		"SELECT json_extract(p.data, '$.type'), json_extract(p.data, '$.text'), "+
-			"json_extract(p.data, '$.tool'), json_extract(p.data, '$.state'), "+
-			"json_extract(m.data, '$.role') "+
+		"SELECT p.time_created, json_extract(p.data, '$.type'), "+
+			"json_extract(p.data, '$.text'), json_extract(p.data, '$.tool'), "+
+			"json_extract(p.data, '$.state'), json_extract(m.data, '$.role') "+
 			"FROM part p LEFT JOIN message m ON p.message_id = m.id "+
-			"WHERE p.session_id = ? "+
+			"WHERE p.session_id = ? AND p.time_created > ? "+
 			"ORDER BY p.time_created",
 		sessionID,
+		fromMillis,
 	)
 	if queryErr != nil {
 		return nil, fmt.Errorf("querying parts: %w", queryErr)
@@ -229,14 +258,18 @@ func (r *OpencodeTranscriptReader) queryParts(sessionID string) ([]string, error
 	jsonlLines := make([]string, 0)
 
 	for rows.Next() {
+		var timeCreated int64
+
 		var partType, text, toolName, state, role sql.NullString
 
-		scanErr := rows.Scan(&partType, &text, &toolName, &state, &role)
+		scanErr := rows.Scan(&timeCreated, &partType, &text, &toolName, &state, &role)
 		if scanErr != nil {
 			return nil, fmt.Errorf("scanning part row: %w", scanErr)
 		}
 
-		line := buildJSONLLine(partType, text, toolName, state, role)
+		rowTime := time.UnixMilli(timeCreated).UTC()
+
+		line := buildJSONLLine(rowTime, partType, text, toolName, state, role)
 		if line != "" {
 			jsonlLines = append(jsonlLines, line)
 		}
@@ -250,33 +283,6 @@ func (r *OpencodeTranscriptReader) queryParts(sessionID string) ([]string, error
 	return jsonlLines, nil
 }
 
-func (r *OpencodeTranscriptReader) stripAndBudget(lines []string, budgetBytes int) (string, int) {
-	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
-	stripped := sessionctx.StripWithConfig(lines, cfg)
-
-	bytesUsed := 0
-	startIdx := len(stripped)
-
-	for i, v := range slices.Backward(stripped) {
-		lineLen := len(v) + 1
-		if bytesUsed+lineLen > budgetBytes && bytesUsed > 0 {
-			break
-		}
-
-		startIdx = i
-		bytesUsed += lineLen
-	}
-
-	var builder strings.Builder
-
-	for _, line := range stripped[startIdx:] {
-		builder.WriteString(line)
-		builder.WriteByte('\n')
-	}
-
-	return builder.String(), bytesUsed
-}
-
 // DefaultOpencodeDBPath returns the standard path to the OpenCode SQLite database.
 func DefaultOpencodeDBPath() string {
 	return defaultOpencodeDBPath()
@@ -287,26 +293,29 @@ const (
 	userRole = "user"
 )
 
-func buildJSONLLine(partType, text, toolName, state, role sql.NullString) string {
+func buildJSONLLine(
+	rowTime time.Time,
+	partType, text, toolName, state, role sql.NullString,
+) string {
 	if !partType.Valid {
 		return ""
 	}
 
 	switch partType.String {
 	case "text":
-		return buildTextJSONL(text, role)
+		return buildTextJSONL(rowTime, text, role)
 	case "tool":
 		if !toolName.Valid || !state.Valid {
 			return ""
 		}
 
-		return buildToolJSONL(toolName.String, state.String)
+		return buildToolJSONL(rowTime, toolName.String, state.String)
 	default:
 		return ""
 	}
 }
 
-func buildTextJSONL(text, role sql.NullString) string {
+func buildTextJSONL(rowTime time.Time, text, role sql.NullString) string {
 	if !text.Valid || text.String == "" {
 		return ""
 	}
@@ -316,13 +325,12 @@ func buildTextJSONL(text, role sql.NullString) string {
 		msgRole = userRole
 	}
 
-	return `{"type":"` + msgRole + `","message":{"role":"` + msgRole + `","content":[{"type":"text","text":` +
-		mustMarshalJSON(
-			text.String,
-		) + `}]}}`
+	return `{"type":"` + msgRole + `","timestamp":"` + rowTime.UTC().Format(time.RFC3339Nano) +
+		`","message":{"role":"` + msgRole + `","content":[{"type":"text","text":` +
+		mustMarshalJSON(text.String) + `}]}}`
 }
 
-func buildToolJSONL(toolName, stateJSON string) string {
+func buildToolJSONL(rowTime time.Time, toolName, stateJSON string) string {
 	var toolState map[string]any
 
 	unmarshalErr := json.Unmarshal([]byte(stateJSON), &toolState)
@@ -355,7 +363,8 @@ func buildToolJSONL(toolName, stateJSON string) string {
 		mustMarshalJSON(toolName), inputBytes, outputBytes,
 	)
 
-	return `{"type":"` + role + `","message":{"role":"` + role + `","content":` + content + `}}`
+	return `{"type":"` + role + `","timestamp":"` + rowTime.UTC().Format(time.RFC3339Nano) +
+		`","message":{"role":"` + role + `","content":` + content + `}}`
 }
 
 func defaultOpencodeDBPath() string {

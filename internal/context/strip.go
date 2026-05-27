@@ -14,26 +14,9 @@ import (
 //   - base64 strings >100 chars (replaced with placeholder)
 //   - lines >2000 chars (truncated)
 func Strip(lines []string) []string {
-	result := make([]string, 0, len(lines))
+	stripped, _ := stripIndexed(lines)
 
-	for _, line := range lines {
-		if !isKeptType(line) {
-			continue
-		}
-
-		cleaned := replaceBase64(line)
-
-		extracted := extractText(cleaned)
-		if extracted == "" {
-			continue
-		}
-
-		extracted = truncateContent(extracted)
-
-		result = append(result, extracted)
-	}
-
-	return result
+	return stripped
 }
 
 // unexported constants.
@@ -192,6 +175,33 @@ func normalizeRole(entry jsonlLine) string {
 // replaceBase64 replaces long base64-encoded strings with a placeholder.
 func replaceBase64(line string) string {
 	return base64Pattern.ReplaceAllString(line, base64Placeholder)
+}
+
+// stripIndexed mirrors Strip but additionally returns the index of the
+// input line that produced each output line.
+func stripIndexed(lines []string) ([]string, []int) {
+	result := make([]string, 0, len(lines))
+	srcIdx := make([]int, 0, len(lines))
+
+	for i, line := range lines {
+		if !isKeptType(line) {
+			continue
+		}
+
+		cleaned := replaceBase64(line)
+
+		extracted := extractText(cleaned)
+		if extracted == "" {
+			continue
+		}
+
+		extracted = truncateContent(extracted)
+
+		result = append(result, extracted)
+		srcIdx = append(srcIdx, i)
+	}
+
+	return result, srcIdx
 }
 
 // truncateContent truncates lines exceeding maxContentBlockLen.
