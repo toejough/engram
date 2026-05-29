@@ -39,6 +39,24 @@ type BehaviorOutcome struct {
 	Occurred bool
 }
 
+// CellStats aggregates trials for one (arm × scenario) cell.
+type CellStats struct {
+	Arm        string
+	Scenario   string
+	Trials     int
+	MeanTurns  float64
+	MeanCost   float64
+	violations map[string]int // check name → occurrences
+}
+
+// ViolationRate is the fraction of trials in which the named check occurred.
+func (c CellStats) ViolationRate(check string) float64 {
+	if c.Trials == 0 {
+		return 0
+	}
+	return float64(c.violations[check]) / float64(c.Trials)
+}
+
 // Deps is the injected I/O surface (nil-able for pure-logic tests).
 type Deps struct {
 	Cloner  VaultCloner
@@ -78,6 +96,16 @@ type RunConfig struct {
 	OutDir   string // where results JSONL is written
 }
 
+// RunResult is one (arm × scenario × trial) outcome.
+type RunResult struct {
+	Arm       string
+	Scenario  string
+	Trial     int
+	Layer1    Layer1Metrics
+	Behaviors []BehaviorOutcome
+	TaskOK    bool
+}
+
 // Scenario is one build task the agent performs.
 type Scenario struct {
 	Name          string
@@ -85,4 +113,9 @@ type Scenario struct {
 	ExpectedVault []string // documented vault lessons this task should exercise
 	SuccessCmd    []string // command run in the workspace to check task correctness ([] = none)
 	Checks        []BehaviorCheck
+}
+
+// Summary holds all aggregated cells.
+type Summary struct {
+	cells map[string]CellStats // key: arm + "\x00" + scenario
 }

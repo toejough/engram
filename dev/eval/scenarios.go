@@ -8,7 +8,7 @@ import "regexp"
 // so the vault's Go/process conventions are actually exercised.
 func Scenarios() []Scenario {
 	goTestCheck := BehaviorCheck{
-		Name:    "used-go-test-not-targ",
+		Name:    checkGoTest,
 		Kind:    ConventionViolation,
 		Pattern: usedGoTestDirectly,
 	}
@@ -39,6 +39,11 @@ func Scenarios() []Scenario {
 		},
 	}
 }
+
+// unexported constants.
+const (
+	checkGoTest = "used-go-test-not-targ"
+)
 
 // unexported variables.
 var (
