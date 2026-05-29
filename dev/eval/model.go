@@ -5,12 +5,32 @@
 // build tasks under different memory configurations ("arms").
 package eval
 
+import "regexp"
+
+// Exported constants.
+const (
+	ConventionViolation BehaviorKind = "convention_violation" // e.g. used `go test`
+	KnownBadPath        BehaviorKind = "known_bad_path"       // did a thing a memory warns against
+	ReSearchKnown       BehaviorKind = "re_search_known"      // queried a fact already known
+)
+
 // Arm is one memory configuration under test.
 type Arm struct {
 	Name         string   // "nothing", "skills-only", "current-state"
 	Skills       []string // engram skill names to install ([] = none)
 	BinaryOnPATH bool     // whether the engram binary is reachable
 }
+
+// BehaviorCheck matches an agent's Bash command stream. A match means the
+// (undesirable) behavior occurred — lower match-rate is better.
+type BehaviorCheck struct {
+	Name    string
+	Kind    BehaviorKind
+	Pattern *regexp.Regexp
+}
+
+// BehaviorKind labels what a check detects.
+type BehaviorKind string
 
 // Deps is the injected I/O surface (nil-able for pure-logic tests).
 type Deps struct {
@@ -26,4 +46,13 @@ type RunConfig struct {
 	Model    string // claude model for the agent (e.g. "haiku")
 	VaultSrc string // path to the live vault to clone
 	OutDir   string // where results JSONL is written
+}
+
+// Scenario is one build task the agent performs.
+type Scenario struct {
+	Name          string
+	Prompt        string
+	ExpectedVault []string // documented vault lessons this task should exercise
+	SuccessCmd    []string // command run in the workspace to check task correctness ([] = none)
+	Checks        []BehaviorCheck
 }
