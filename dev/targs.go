@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 
 	"github.com/toejough/targ"
 	_ "github.com/toejough/targ/dev"
@@ -33,16 +35,47 @@ func init() {
 		Description("Run the memory eval harness for one arm (nothing|skills-only|current-state)"))
 }
 
-// evalArgs holds the positional arm name for targ eval.
+// evalArgs holds the positional arm name and optional trials count for targ eval.
 type evalArgs struct {
-	Arm string `targ:"positional,placeholder=ARM,desc=arm name: nothing|skills-only|current-state"`
+	Arm    string `targ:"positional,placeholder=ARM,desc=arm name: nothing|skills-only|current-state"`
+	Trials int    `targ:"positional,default=1,placeholder=TRIALS,desc=number of trials per scenario (default 1)"`
 }
 
 func runEval(ctx context.Context, args evalArgs) error {
 	if args.Arm == "" {
-		return fmt.Errorf("usage: targ eval <arm>  (nothing|skills-only|current-state)")
+		return fmt.Errorf("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
 	}
-	return eval.Run(ctx, args.Arm, eval.RunConfig{}, eval.Deps{})
+
+	enginePath, err := exec.LookPath("engram")
+	if err != nil {
+		return fmt.Errorf("engram binary not found on PATH: %w", err)
+	}
+
+	home, _ := os.UserHomeDir()
+
+	cfg := eval.RunConfig{
+		Trials:   1,
+		Model:    "haiku",
+		VaultSrc: filepath.Join(home, ".local", "share", "engram", "vault"),
+		OutDir:   "/tmp/engram-eval",
+	}
+
+	if args.Trials > 0 {
+		cfg.Trials = args.Trials
+	}
+
+	if err := os.MkdirAll(cfg.OutDir, 0o755); err != nil {
+		return fmt.Errorf("creating out dir: %w", err)
+	}
+
+	deps := eval.Deps{
+		Cloner:  eval.NewOSVaultCloner(),
+		Config:  eval.NewOSConfigBuilder(enginePath),
+		Runner:  eval.NewOSAgentRunner(),
+		Results: eval.NewJSONLResultsWriter(filepath.Join(cfg.OutDir, args.Arm+".jsonl")),
+	}
+
+	return eval.Run(ctx, args.Arm, cfg, deps)
 }
 
 func testDev(ctx context.Context) error {
