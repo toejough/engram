@@ -30,3 +30,13 @@ func ParseResult(raw []byte) (ResultSummary, error) {
 
 	return rs, nil
 }
+
+// marshalResult serializes a RunResult to JSON for JSONL storage.
+func marshalResult(r RunResult) ([]byte, error) {
+	data, err := json.Marshal(r)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling run result: %w", err)
+	}
+
+	return data, nil
+}

@@ -34,9 +34,9 @@ type BehaviorKind string
 
 // BehaviorOutcome records whether a check's behavior occurred in a run.
 type BehaviorOutcome struct {
-	Name     string
-	Kind     BehaviorKind
-	Occurred bool
+	Name     string       `json:"name"`
+	Kind     BehaviorKind `json:"kind"`
+	Occurred bool         `json:"occurred"`
 }
 
 // CellStats aggregates trials for one (arm × scenario) cell.
@@ -67,10 +67,10 @@ type Deps struct {
 
 // Layer1Metrics are the cost/efficiency signals.
 type Layer1Metrics struct {
-	DurationMS  int
-	Turns       int
-	TotalTokens int
-	CostUSD     float64
+	DurationMS  int     `json:"duration_ms"`
+	Turns       int     `json:"turns"`
+	TotalTokens int     `json:"total_tokens"`
+	CostUSD     float64 `json:"cost_usd"`
 }
 
 // ResultSummary is the headless `claude -p --output-format json` result.
@@ -98,12 +98,12 @@ type RunConfig struct {
 
 // RunResult is one (arm × scenario × trial) outcome.
 type RunResult struct {
-	Arm       string
-	Scenario  string
-	Trial     int
-	Layer1    Layer1Metrics
-	Behaviors []BehaviorOutcome
-	TaskOK    bool
+	Arm       string            `json:"arm"`
+	Scenario  string            `json:"scenario"`
+	Trial     int               `json:"trial"`
+	Layer1    Layer1Metrics     `json:"layer1"`
+	Behaviors []BehaviorOutcome `json:"behaviors"`
+	TaskOK    bool              `json:"task_ok"`
 }
 
 // Scenario is one build task the agent performs.
