@@ -36,3 +36,29 @@ func TestOSConfigBuilder_NothingArm_NoSkillsDir(t *testing.T) {
 		t.Fatalf("config must contain replicated credentials: %v", statErr)
 	}
 }
+
+func TestOSConfigBuilder_SkillsArm_CopiesSkillsAndSetsPath(t *testing.T) {
+	t.Parallel()
+
+	if !eval.KeychainCredentialAvailable() {
+		t.Skip("no Claude Code keychain credential; skipping config-builder integration test")
+	}
+
+	root := t.TempDir()
+	enginePath := filepath.Join(t.TempDir(), "bin", "engram")
+	b := eval.NewOSConfigBuilder(enginePath)
+
+	arm, _ := eval.LookupArm("current-state")
+	cfgDir, pathPrefix, err := b.Build(context.Background(), arm, root)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if pathPrefix != filepath.Dir(enginePath) {
+		t.Fatalf("current-state PATH prefix: got %q want %q", pathPrefix, filepath.Dir(enginePath))
+	}
+	for _, skill := range arm.Skills {
+		if _, statErr := os.Stat(filepath.Join(cfgDir, "skills", skill)); statErr != nil {
+			t.Fatalf("skill %q not copied into config: %v", skill, statErr)
+		}
+	}
+}

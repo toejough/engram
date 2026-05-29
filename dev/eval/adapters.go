@@ -123,6 +123,13 @@ func (b *osConfigBuilder) Build(ctx context.Context, arm Arm, root string) (stri
 		_ = os.WriteFile(filepath.Join(cfgDir, "settings.json"), data, 0o644) //nolint:gosec // 0644 is intentional for settings
 	}
 
+	if len(arm.Skills) > 0 {
+		// cp -R cannot create the intermediate skills/ dir, so make it first.
+		if err := os.MkdirAll(filepath.Join(cfgDir, "skills"), 0o755); err != nil { //nolint:gosec // 0755 intentional for skills dir
+			return "", "", fmt.Errorf("mkdir skills dir: %w", err)
+		}
+	}
+
 	for _, skill := range arm.Skills {
 		src := filepath.Join(home, ".claude", "skills", skill)
 		dst := filepath.Join(cfgDir, "skills", skill)
