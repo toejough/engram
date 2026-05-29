@@ -4,10 +4,13 @@ package dev
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/toejough/targ"
 	_ "github.com/toejough/targ/dev"
+
+	"github.com/toejough/engram/dev/eval"
 )
 
 func init() {
@@ -24,6 +27,22 @@ func init() {
 	targ.Register(targ.Targ(testDev).
 		Name("test-dev").
 		Description("Run unit tests for the dev package (targ build tag)"))
+
+	targ.Register(targ.Targ(runEval).
+		Name("eval").
+		Description("Run the memory eval harness for one arm (nothing|skills-only|current-state)"))
+}
+
+// evalArgs holds the positional arm name for targ eval.
+type evalArgs struct {
+	Arm string `targ:"positional,placeholder=ARM,desc=arm name: nothing|skills-only|current-state"`
+}
+
+func runEval(ctx context.Context, args evalArgs) error {
+	if args.Arm == "" {
+		return fmt.Errorf("usage: targ eval <arm>  (nothing|skills-only|current-state)")
+	}
+	return eval.Run(ctx, args.Arm, eval.RunConfig{}, eval.Deps{})
 }
 
 func testDev(ctx context.Context) error {
