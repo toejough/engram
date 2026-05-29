@@ -40,6 +40,29 @@ type Deps struct {
 	Results ResultsWriter
 }
 
+// Layer1Metrics are the cost/efficiency signals.
+type Layer1Metrics struct {
+	DurationMS  int
+	Turns       int
+	TotalTokens int
+	CostUSD     float64
+}
+
+// ResultSummary is the headless `claude -p --output-format json` result.
+type ResultSummary struct {
+	Type       string  `json:"type"`
+	IsError    bool    `json:"is_error"`
+	Result     string  `json:"result"`
+	SessionID  string  `json:"session_id"`
+	DurationMS int     `json:"duration_ms"`
+	NumTurns   int     `json:"num_turns"`
+	TotalCost  float64 `json:"total_cost_usd"`
+	Usage      struct {
+		InputTokens  int `json:"input_tokens"`
+		OutputTokens int `json:"output_tokens"`
+	} `json:"usage"`
+}
+
 // RunConfig holds run-level knobs.
 type RunConfig struct {
 	Trials   int    // trials per scenario
