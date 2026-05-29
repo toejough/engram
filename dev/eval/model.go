@@ -32,6 +32,13 @@ type BehaviorCheck struct {
 // BehaviorKind labels what a check detects.
 type BehaviorKind string
 
+// BehaviorOutcome records whether a check's behavior occurred in a run.
+type BehaviorOutcome struct {
+	Name     string
+	Kind     BehaviorKind
+	Occurred bool
+}
+
 // Deps is the injected I/O surface (nil-able for pure-logic tests).
 type Deps struct {
 	Cloner  VaultCloner
