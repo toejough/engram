@@ -29,6 +29,57 @@ func TestContentHash_IsSha256OfBody(t *testing.T) {
 		To(Equal("sha256:" + hex.EncodeToString(want[:])))
 }
 
+func TestEmbedText_EpisodeMissingSituationFallsBackToBody(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: episode\nluhmann: \"5\"\n---\n\nEpisode body without situation.\n")
+	g.Expect(string(embed.Text(in))).To(Equal("Episode body without situation.\n"))
+}
+
+func TestEmbedText_EpisodeReturnsSituationField(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte(
+		"---\ntype: episode\nsituation: evaluating agent memory\nluhmann: \"251\"\n---\n\nLong transcript body...\n",
+	)
+	g.Expect(string(embed.Text(in))).To(Equal("evaluating agent memory"))
+}
+
+func TestEmbedText_EpisodeSituationWithWhitespaceIsTrimmed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: episode\nsituation:  spaced value  \nluhmann: \"7\"\n---\n\nBody.\n")
+	g.Expect(string(embed.Text(in))).To(Equal("spaced value"))
+}
+
+func TestEmbedText_FactReturnsBody(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\nThe fact body.\n")
+	g.Expect(string(embed.Text(in))).To(Equal("The fact body.\n"))
+}
+
+func TestEmbedText_FeedbackReturnsBody(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	// Feedback notes also have a situation: field — must NOT use it; embed the body.
+	in := []byte("---\ntype: feedback\nsituation: When debugging a plugin\n---\n\nFeedback body.\n")
+	g.Expect(string(embed.Text(in))).To(Equal("Feedback body.\n"))
+}
+
+func TestEmbedText_NoFrontmatterReturnsRaw(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("Just a plain note with no frontmatter.\n")
+	g.Expect(string(embed.Text(in))).To(Equal("Just a plain note with no frontmatter.\n"))
+}
+
 func TestExtractBody_NoFrontmatter(t *testing.T) {
 	t.Parallel()
 

@@ -40,7 +40,54 @@ func ExtractBody(raw []byte) []byte {
 	return bytes.TrimPrefix(body, []byte("\n"))
 }
 
+// Text returns the text that should be embedded for a note. For episode
+// notes it returns the trimmed `situation:` frontmatter field, which is
+// designed to match task queries. For all other note types (or when
+// frontmatter is absent / situation is missing), it falls back to
+// ExtractBody.
+func Text(raw []byte) []byte {
+	delim := []byte(frontmatterDelim)
+	if !bytes.HasPrefix(raw, delim) {
+		return ExtractBody(raw)
+	}
+
+	rest := raw[len(delim):]
+
+	frontmatter, _, ok := bytes.Cut(rest, delim)
+	if !ok {
+		return ExtractBody(raw)
+	}
+
+	noteType := extractFrontmatterField(frontmatter, "type")
+	if noteType != "episode" {
+		return ExtractBody(raw)
+	}
+
+	situation := extractFrontmatterField(frontmatter, "situation")
+	if situation == "" {
+		return ExtractBody(raw)
+	}
+
+	return []byte(situation)
+}
+
 // unexported constants.
 const (
 	frontmatterDelim = "---\n"
 )
+
+// extractFrontmatterField scans the frontmatter block (content between
+// the two "---\n" delimiters, excluding the delimiters themselves) for a
+// top-level `key: value` line and returns the trimmed value. Returns ""
+// if no matching key is found.
+func extractFrontmatterField(frontmatter []byte, key string) string {
+	prefix := []byte(key + ": ")
+
+	for line := range bytes.SplitSeq(frontmatter, []byte("\n")) {
+		if bytes.HasPrefix(line, prefix) {
+			return string(bytes.TrimSpace(line[len(prefix):]))
+		}
+	}
+
+	return ""
+}

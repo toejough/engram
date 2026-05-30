@@ -264,9 +264,9 @@ func autoEmbedNote(ctx context.Context, deps LearnDeps, notePath, content string
 		return
 	}
 
-	body := embed.ExtractBody([]byte(content))
+	embedInput := embed.Text([]byte(content))
 
-	vector, embErr := deps.Embedder.Embed(ctx, string(body))
+	vector, embErr := deps.Embedder.Embed(ctx, string(embedInput))
 	if embErr != nil {
 		if deps.LogWarning != nil {
 			deps.LogWarning("learn: embed failed for %s: %v", notePath, embErr)

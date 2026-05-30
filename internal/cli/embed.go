@@ -207,9 +207,9 @@ func applyOne(
 		return
 	}
 
-	body := embed.ExtractBody(noteBytes)
+	embedInput := embed.Text(noteBytes)
 
-	vector, embErr := deps.Embedder.Embed(ctx, string(body))
+	vector, embErr := deps.Embedder.Embed(ctx, string(embedInput))
 	if embErr != nil {
 		_, _ = fmt.Fprintf(stdout, "fail      %s: embed: %v\n", notePath, embErr)
 
