@@ -26,10 +26,16 @@ const (
 	blockTypeText        = "text"
 	blockTypeToolResult  = "tool_result"
 	blockTypeToolUse     = "tool_use"
+	commandArgsClose     = "</command-args>"
+	commandArgsOpen      = "<command-args>"
+	commandNameOpen      = "<command-name>"
+	localCommandCaveat   = "<local-command-caveat>"
+	localCommandStdout   = "<local-command-stdout>"
 	maxContentBlockLen   = 2000
 	minBase64Len         = 100
 	roleAssistant        = "assistant"
 	roleUser             = "user"
+	skillBodyPrefix      = "Base directory for this skill:"
 	systemReminderOpen   = "<system-reminder"
 	truncatedPlaceholder = "[truncated]"
 	userPrefix           = "USER: "
@@ -57,6 +63,84 @@ type jsonlLine struct {
 	Message jsonMessage `json:"message"`
 }
 
+// cleanHarnessInjection detects and cleans harness-injected USER turn text.
+// Returns (cleaned, drop): if drop is true, the turn should be omitted entirely.
+// Three cases are handled:
+//
+//  1. Skill body injection: text starting with "Base directory for this skill:" → drop.
+//  2. Local-command noise: text starting with "<local-command-stdout>" or
+//     "<local-command-caveat>" → drop.
+//  3. Slash-command block: text containing "<command-name>" → extract the inner
+//     text of <command-args> if present; if absent, drop.
+func cleanHarnessInjection(text string) (string, bool) {
+	trimmed := strings.TrimSpace(text)
+
+	if strings.HasPrefix(trimmed, skillBodyPrefix) {
+		return "", true
+	}
+
+	if strings.HasPrefix(trimmed, localCommandStdout) ||
+		strings.HasPrefix(trimmed, localCommandCaveat) {
+		return "", true
+	}
+
+	if strings.Contains(trimmed, commandNameOpen) {
+		start := strings.Index(trimmed, commandArgsOpen)
+		if start == -1 {
+			return "", true
+		}
+
+		start += len(commandArgsOpen)
+
+		end := strings.Index(trimmed[start:], commandArgsClose)
+		if end == -1 {
+			return "", true
+		}
+
+		args := strings.TrimSpace(trimmed[start : start+end])
+		if args == "" {
+			return "", true
+		}
+
+		return args, false
+	}
+
+	return text, false
+}
+
+// cleanText returns the text after applying system-reminder and harness-injection
+// filters. Returns ("", true) if the text should be dropped entirely.
+func cleanText(text string) (string, bool) {
+	if isSystemReminder(text) {
+		return "", true
+	}
+
+	return cleanHarnessInjection(text)
+}
+
+// extractContentBlocks joins non-noise text blocks from a content block array.
+func extractContentBlocks(blocks []contentBlock) string {
+	texts := make([]string, 0, len(blocks))
+
+	for _, block := range blocks {
+		if block.Type != blockTypeText {
+			continue
+		}
+
+		cleaned, drop := cleanText(block.Text)
+		if drop {
+			continue
+		}
+
+		trimmed := strings.TrimSpace(cleaned)
+		if trimmed != "" {
+			texts = append(texts, trimmed)
+		}
+	}
+
+	return strings.Join(texts, " ")
+}
+
 // extractContentText extracts text from a content field.
 // Content can be a plain string or an array of content blocks.
 func extractContentText(raw json.RawMessage) string {
@@ -67,41 +151,23 @@ func extractContentText(raw json.RawMessage) string {
 	// Try string first.
 	var str string
 
-	strErr := json.Unmarshal(raw, &str)
-	if strErr == nil {
-		if isSystemReminder(str) {
+	if json.Unmarshal(raw, &str) == nil {
+		cleaned, drop := cleanText(str)
+		if drop {
 			return ""
 		}
 
-		return str
+		return cleaned
 	}
 
 	// Try array of content blocks.
 	var blocks []contentBlock
 
-	blocksErr := json.Unmarshal(raw, &blocks)
-	if blocksErr != nil {
+	if json.Unmarshal(raw, &blocks) != nil {
 		return ""
 	}
 
-	texts := make([]string, 0, len(blocks))
-
-	for _, block := range blocks {
-		if block.Type != blockTypeText {
-			continue
-		}
-
-		if isSystemReminder(block.Text) {
-			continue
-		}
-
-		trimmed := strings.TrimSpace(block.Text)
-		if trimmed != "" {
-			texts = append(texts, trimmed)
-		}
-	}
-
-	return strings.Join(texts, " ")
+	return extractContentBlocks(blocks)
 }
 
 // extractText parses a JSONL line and returns clean "ROLE: text" output.

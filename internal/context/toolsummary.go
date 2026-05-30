@@ -50,12 +50,16 @@ func extractSummaryBlocks(line string, pending map[string]toolSummaryPair) []str
 
 	strErr := json.Unmarshal(raw, &str)
 	if strErr == nil {
-		trimmed := strings.TrimSpace(str)
-		if trimmed == "" || isSystemReminder(trimmed) {
+		if strings.TrimSpace(str) == "" {
 			return make([]string, 0)
 		}
 
-		return []string{truncateContent(rolePrefix + trimmed)}
+		cleaned, drop := cleanText(str)
+		if drop {
+			return make([]string, 0)
+		}
+
+		return []string{truncateContent(rolePrefix + strings.TrimSpace(cleaned))}
 	}
 
 	// Try array of blocks.

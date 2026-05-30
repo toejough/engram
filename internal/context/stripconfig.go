@@ -136,11 +136,12 @@ func extractTextBlock(raw json.RawMessage, rolePrefix string) []string {
 		return make([]string, 0)
 	}
 
-	if isSystemReminder(block.Text) {
+	cleaned, drop := cleanText(block.Text)
+	if drop {
 		return make([]string, 0)
 	}
 
-	trimmed := strings.TrimSpace(block.Text)
+	trimmed := strings.TrimSpace(cleaned)
 	if trimmed == "" {
 		return make([]string, 0)
 	}
@@ -182,11 +183,12 @@ func extractTextWithTools(line string, cfg StripConfig) []string {
 
 	strErr := json.Unmarshal(raw, &str)
 	if strErr == nil {
-		if isSystemReminder(str) {
+		cleaned, drop := cleanText(str)
+		if drop {
 			return result
 		}
 
-		return []string{truncateContent(rolePrefix + str)}
+		return []string{truncateContent(rolePrefix + strings.TrimSpace(cleaned))}
 	}
 
 	// Try array of blocks.
