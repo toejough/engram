@@ -41,6 +41,7 @@ const (
 	roleUser             = "user"
 	skillBodyPrefix      = "Base directory for this skill:"
 	systemReminderOpen   = "<system-reminder"
+	taskNotificationOpen = "<task-notification>"
 	truncatedPlaceholder = "[truncated]"
 	userPrefix           = UserPrefix
 )
@@ -84,7 +85,8 @@ func cleanHarnessInjection(text string) (string, bool) {
 	}
 
 	if strings.HasPrefix(trimmed, localCommandStdout) ||
-		strings.HasPrefix(trimmed, localCommandCaveat) {
+		strings.HasPrefix(trimmed, localCommandCaveat) ||
+		strings.HasPrefix(trimmed, taskNotificationOpen) {
 		return "", true
 	}
 

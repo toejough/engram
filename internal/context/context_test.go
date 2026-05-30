@@ -158,6 +158,35 @@ func TestStrip_DropsSystemReminderContent(t *testing.T) {
 	g.Expect(result[1]).To(Equal("ASSISTANT: OK, doing it."))
 }
 
+// TestStrip_DropsTaskNotification verifies that USER turns injected as
+// background-task-completion notifications are dropped (they are not real
+// user requests and must not appear as episode/segment arc boundaries).
+func TestStrip_DropsTaskNotification(t *testing.T) {
+	t.Parallel()
+
+	content := "<task-notification> <task-id>bo3apd2s2</task-id> " +
+		"<status>completed</status> </task-notification>"
+	line := jsonlUserLine(content)
+
+	t.Run("Strip", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewGomegaWithT(t)
+		result := sessionctx.Strip([]string{line})
+
+		g.Expect(result).To(BeEmpty())
+	})
+
+	t.Run("ToolSummaryMode", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewGomegaWithT(t)
+		result := sessionctx.StripWithConfig([]string{line}, sessionctx.StripConfig{ToolSummaryMode: true})
+
+		g.Expect(result).To(BeEmpty())
+	})
+}
+
 // TestStrip_ExtractsCommandArgsFromSlashCommand verifies that slash-command
 // USER turns are reduced to just the <command-args> inner text (the real ask),
 // dropping all boilerplate tags.
