@@ -86,3 +86,34 @@ cluster at a time, as a reviewer would:
   than cold.
 - **H_null (overhead):** per note 241, recall overhead may still swamp
   savings — warm could match or underperform. That is a valid result.
+
+---
+
+## Results (2026-05-30)
+
+### Cold/warm convergence (n=1)
+- Cold phase: 5 review rounds drip-feeding 18 requirements. Round-1 spec-match ~11%; reached ~13/18 working by R4; the R5 DI refactor broke the build (undefined Todo). 62 turns, $3.64.
+- End-of-session `learn` to seed the vault **failed: "Prompt is too long"** — a 5-round session can't be resumed for bulk capture. Only 3 incidental notes got written by earlier auto-fires.
+- Warm round-1 ≈ cold round-1 (~11%, 23 vs 24 turns) — recall fired and the executor adopted the ONE captured note (a DI `pathFn` trick), but the 18 requirements were never in the vault.
+- **Finding:** recall works; the binding constraint is **learn-capture** (no reliable per-round fire; bulk end-of-session capture exceeds context). Capture must be incremental + small-context.
+
+### Capture-only eval — 5 learn variants (judged on written notes, not retrieval)
+- baseline ~8/19, requirement-capture ~17/19, chunked ~17/19. baseline collapses features to keywords ("priority", "undo") with no load-bearing detail; it captures architecture/gotchas well but treats stated *requirements* as keyword asides.
+- Two gaps: **set-completeness** (#3, the full command set as a unit — captured as individual items, never as "the complete set"), and #15 (never actually fed → source artifact, not a learn failure).
+
+### Learn × Recall matrix (3 learn-vaults × 2 recall strategies; real warm builds)
+specMatch /18 (all 6 compiled + passed tests):
+
+| LEARN \ RECALL | passive | directed |
+| --- | --- | --- |
+| baseline | 8 (39t/$1.07) | 14 (34t/$1.54) |
+| requirement-capture | 15 (31t/$0.97) | 17 (40t/$1.82) |
+| consolidated | 18 (31t/$1.22) | 18 (33t/$1.47) |
+
+- **Learn dominates** (passive column: 8→15→18, a 10-pt swing). Recall is second-order (0–6 pts, mostly baseline rescue).
+- **Asymmetric interaction:** directed recall rescues a weak vault (+6) but does nothing for a good one (+0). Learn quality and recall effort are **substitutes**.
+- Best $/correctness: requirement-capture × passive. Max correctness cheaply: consolidated × passive. Both winners are **passive** — directed recall adds cost faster than coverage on decent vaults.
+- `surfacing ≠ application`: a recalled requirement (color) was still dropped by the executor.
+
+### Conclusion
+The highest-leverage engram change is to **LEARN-capture**, not recall and not cross-vector linking (#637): capture stated requirements explicitly **with their load-bearing detail**, **consolidated** into dense topic-notes (not atomized past the recall cutoff), **enumerate complete sets**, and always write a **dedicated mistake note** — performed **incrementally per round** (bulk end-of-session capture fails on context length). This **contradicts the current learn SKILL.md "Atomicity — one idea per permanent" bar**; the eval says, for retrievable + applicable capture, dense-and-complete beats atomic. Recall is fine as-is (passive); don't over-invest there.
