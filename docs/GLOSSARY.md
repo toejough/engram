@@ -45,7 +45,10 @@ transcript parsing, file locking); skills handle behavior and prompting.
 ## Vault structure
 
 ### Permanent (note)
-An atomic, principle-stated note in `<vault>/Permanent/`. Filenames follow
+An atomic, principle-stated note in `<vault>/Permanent/`. Atomic here means
+*one coherent topic with its full load-bearing detail and complete sets* —
+not one micro-fact; over-fragmenting a topic across notes harms retrieval
+(see `learn/SKILL.md`). Filenames follow
 `<luhmann-id>.<YYYY-MM-DD>.<slug>.md`. Plural: *Permanents*. The folder
 keeps a capital P. In running prose, prefer *permanent note* (lowercase
 noun) for the concept and *Permanent/* (capital, with slash) for the folder.
