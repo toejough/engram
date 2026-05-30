@@ -342,6 +342,53 @@ agent on a build task + explicit learn — and confirm learn writes
 **replay-relevant mistake-notes** without choking on the first-run
 marker. If it can't, that is the real bug and no orchestration fixes it.
 
+## Foundation probe + preliminary cold-vs-warm (2026-05-30)
+
+Before building cold/warm orchestration, ran the advisor-recommended
+foundation probe, then a single manual cold-vs-warm pair.
+
+**Probe (cold run): foundation HOLDS.** Empty vault + headless `claude
+-p` (sonnet) on a small build task (`sumlines` CLI tolerating a trailing
+empty line) + an explicit `/learn` instruction with a non-interactive
+marker workaround inline. Result:
+- `learn` fired and wrote **5 notes** with `.vec.json` sidecars
+  (embed-on-write works → recall can find them warm).
+- The marker blocker is bypassable inline: the agent ran `engram
+  transcript --mark --from all` (scanned from epoch) and never choked —
+  confirming issue #643's fix is just making that the headless default.
+- At least one note is **replay-relevant and mistake-specific**:
+  `2.go-bufio-scanner-skip-empty-lines` captures the exact task gotcha
+  (`strings.TrimSpace(scanner.Text()) == ""`). (Notes 1/3 were generic Go
+  lessons; 4 was an episode.) So `learn` does capture useful, task-shaped
+  notes when explicitly triggered.
+
+**Preliminary cold-vs-warm (n=1 each): memory was net-NEGATIVE.** Replayed
+the identical `sumlines` task with `ENGRAM_VAULT_PATH` pointed at the
+seeded vault (5 notes):
+
+| arm | turns | cost |
+| --- | --- | --- |
+| cold (empty vault) | 29 | $0.51 |
+| warm (seeded vault) | 57 | $1.30 |
+
+recall fired and surfaced the seeded gotcha (warm transcript references
+`TrimSpace` / "empty line" / `skip-empty`), and both runs built
+correctly — yet warm took ~2× the turns and ~2.5× the cost.
+
+**Interpretation (refines the whole value question):** memory pays off
+only when the **avoided dead-end cost exceeds recall's own overhead**. On
+an easy task with no expensive stumble (the cold agent already nailed it
+in 29 turns), surfacing + processing recalled notes and the closing
+`/learn` is pure overhead → memory is a tax, not a help. This is the
+single most important finding for issue #637's "is it worth it" — and the
+opposite of a naive "memory always helps" assumption.
+
+**Caveats:** n=1 each (high variance); the task was deliberately easy.
+Conclusive evidence requires the real cold-vs-warm harness — multiple
+trials × **dead-end-rich tasks** where a recalled lesson prevents an
+expensive stumble, plus a correctness gate so "fewer turns" can't mean
+"gave up." That is the next milestone (now well-de-risked by this probe).
+
 ## Status of the M1 harness code
 
 The harness *machinery* (arms, scenarios, result/transcript parsing,
