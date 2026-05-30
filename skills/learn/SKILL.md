@@ -60,6 +60,16 @@ If a single observation has both a "should have done X" component and a "here's 
 
 **Episodes are episodic — write as many as the session calls for, never zero.** The session may span multiple discrete arcs of work; write one episode per natural chunk boundary. Boundaries are temporal (a multi-day gap between chunks), subjective (you switched topics), or objective (a discrete piece of work landed). **Every /learn pass produces at least one episode** — even a pure continuation chunk with no topic shift gets an episode (boundary rationale: "continuation of prior arc; <stop-reason>"). The failure mode is *losing the interactions*: replying "we did X" with no details, because you only remembered the narrative. Episodes prevent that.
 
+### Capture stated requirements and decisions — completely, consolidated
+
+The most-missed candidates are not gotchas; they are the **requirements and decisions the work established** — what the user/reviewer asked for, the choices that got settled. The default failure is to hunt mistakes and "how X works" while collapsing the substance of the work into bare keywords ("priority, status, undo") that carry no load-bearing detail and won't help future-you rebuild it. Capture the work itself, with the detail that makes it actionable:
+
+- **Detail, not keywords.** "priority" is not a captured requirement; "priority levels low/med/high, list sorts high-first" is. Write what a future agent needs to *do the thing right*, not a label for it.
+- **Enumerate complete sets.** When the lesson is a set — the full command list, the required fields, the config keys — name every member in one place. A note that samples ("add, list, …") loses the set; the completeness *is* the lesson.
+- **Consolidate over fragment.** Prefer few dense notes — one per coherent topic — over many micro-atomic notes. Over-fragmentation has two concrete costs: it dissolves enumerable/composite lessons across notes, and it pushes notes past recall's retrieval cutoff (a query returns a bounded set; the note beyond the limit never surfaces, so a written note counts as lost). One dense, complete note retrieves and stays whole.
+- **A dedicated note for any mistake/correction**, distinct from the requirement notes — never fold a mistake into a feature note.
+- **Capture incrementally on long work.** A single end-of-session pass over a long, multi-stage session can exceed the context limit and capture nothing. Capture per work-chunk (per round, per landed unit) while context is small, rather than deferring everything to one bulk pass.
+
 ## Workflow
 
 > **Two parallel tracks.** §§1–5 cover **facts/feedback** — retrieval-shaped abstractions scanned per-candidate from session activity. **Episodes** are L1 evidence — one per natural chunk boundary in the session's filtered transcript — and follow a different pipeline (see §6a). Episodes do NOT go through locus classification (§1), path A/B/C selection (§2), the recall-mirror test (§3), or the Feedback-vs-Fact categorization (§4). When in doubt about kind: principles → fact; "do differently next time" → feedback; the chunk of interactions itself → episode. Facts and feedback derived from a specific episode chunk link back to it via `--relation`.
@@ -261,7 +271,7 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 
 ## Quality bars
 
-- **Atomicity** — one idea per permanent.
+- **Atomicity is one coherent topic, not one micro-fact** — one permanent per coherent idea/topic, carrying all its load-bearing detail and complete sets in that single note. Do not fragment one topic across many notes: over-fragmentation dissolves composite/enumerable lessons and pushes notes past recall's retrieval cutoff. Atomic ≠ minimal.
 - **Autonomy** — permanents are understandable without context. Strip "this case", "the incident", "we did X" framing.
 - **Retrieval-shaped** — every `--situation` is phrased so a future recall using a Step 1 phrase (or the equivalent reconstructed phrase) would surface it.
 - **LLM voice** — translate raw material into your own synthesis. Verbatim user quotes get rephrased on writing.
@@ -292,6 +302,9 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 | Mistake                                                                                                | Fix                                                                                                                                                       |
 | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Writing a note whose situation names "engram", "Task 8", "promote.go"                                  | Strip the project / task / file name from `--situation`. If the lesson is genuinely project-bound, write it with `--project <slug>` (and `--issue <id>` if applicable) — situation stays retrieval-shaped, projectness lives in metadata.                                  |
+| Collapsing the work's requirements into a keyword list ("priority, status, undo")                      | Capture each requirement with its load-bearing detail (levels, defaults, exact behavior) — a keyword is not a captured requirement. |
+| Fragmenting one coherent topic across many micro-notes                                                 | Consolidate into one dense note per topic; over-splitting dissolves composite lessons and pushes notes past recall's retrieval cutoff. |
+| Sampling a set ("add, list, …") instead of enumerating it                                              | Name every member of the set in one place — the completeness is the lesson. |
 | Hindsight-baked situation ("When fixing the bug in X")                                                 | Rewrite to pre-lesson query phrasing.                                                                                                                     |
 | Writing "we observed X" without stating it as a principle                                              | Restate as principle or drop.                                                                                                                             |
 | Drafting and asking for human voice rewrite                                                            | You're the writer. Just write.                                                                                                                            |
