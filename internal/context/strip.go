@@ -32,7 +32,6 @@ const (
 	localCommandCaveat   = "<local-command-caveat>"
 	localCommandStdout   = "<local-command-stdout>"
 	maxContentBlockLen   = 2000
-	minBase64Len         = 100
 	roleAssistant        = "assistant"
 	roleUser             = "user"
 	skillBodyPrefix      = "Base directory for this skill:"
