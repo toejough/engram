@@ -124,6 +124,166 @@ func TestJSONLReader_ReadFrom_PartialWhenBudgetExceeded(t *testing.T) {
 	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
 }
 
+func TestJSONLReader_SegmentsFrom_ReadError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		err: errors.New("disk error"),
+	})
+
+	_, err := reader.SegmentsFrom("/missing.jsonl", time.Time{}, 1<<20)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("reading transcript"))
+}
+
+func TestJSONLReader_SegmentsFrom_ReturnsRealUserTurns(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Two real user asks, one assistant turn, one injected skill-body user turn.
+	// The skill body starts with "Base directory for this skill:" and is dropped
+	// by cleanHarnessInjection — so it never produces a USER: line in stripped.
+	lines := []string{
+		`{"type":"user","timestamp":"2026-05-01T10:00:00Z","message":{"content":"help me build this"}}`,
+		`{"type":"user","timestamp":"2026-05-01T10:01:00Z","message":` +
+			`{"content":"Base directory for this skill: /foo\n# Skill body here"}}`,
+		`{"type":"assistant","timestamp":"2026-05-01T10:02:00Z","message":{"content":"sure, here is the plan"}}`,
+		`{"type":"user","timestamp":"2026-05-01T10:03:00Z","message":{"content":"now add the second part"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/x.jsonl": []byte(content)},
+	})
+
+	segs, err := reader.SegmentsFrom("/x.jsonl", time.Time{}, 1<<20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Only the two real user asks; skill body + assistant are absent.
+	g.Expect(segs).To(HaveLen(2))
+	g.Expect(segs[0].Preview).To(ContainSubstring("help me build this"))
+	g.Expect(segs[1].Preview).To(ContainSubstring("now add the second part"))
+
+	// Injected skill body must not appear.
+	for _, seg := range segs {
+		g.Expect(seg.Preview).NotTo(ContainSubstring("Base directory for this skill"))
+		g.Expect(seg.Preview).NotTo(ContainSubstring("sure, here is the plan"))
+	}
+}
+
+func TestSegmentsFromStripped_EmptyStrippedUserLineProducesNoSegment(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// The spec requires: "empty/whitespace cleaned text produces no segment
+	// line." Strip already drops truly-empty turns (extractText returns "" for
+	// empty content). But a defensively-added gate: if a non-USER-prefixed
+	// line or a zero-timestamp USER line arrives, it must be silently skipped.
+	// This test verifies the zero-timestamp guard (covered also by
+	// TestSegmentsFromStripped_ZeroTimestampSkipped) and that assistant lines
+	// never become segments.
+	ts1, _ := time.Parse(time.RFC3339, "2026-05-01T10:00:00Z")
+
+	stripped := []string{
+		"ASSISTANT: some reply", // assistant — not a user turn
+	}
+	times := []time.Time{ts1}
+
+	segs := transcript.SegmentsFromStrippedForTest(stripped, times)
+
+	g.Expect(segs).To(BeEmpty())
+}
+
+func TestSegmentsFromStripped_NewlinesCollapsedToSpaces(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	ts, _ := time.Parse(time.RFC3339, "2026-05-01T10:00:00Z")
+
+	stripped := []string{"USER: first line\nsecond line"}
+	times := []time.Time{ts}
+
+	segs := transcript.SegmentsFromStrippedForTest(stripped, times)
+
+	g.Expect(segs).To(HaveLen(1))
+	g.Expect(segs[0].Preview).NotTo(ContainSubstring("\n"))
+	g.Expect(segs[0].Preview).To(ContainSubstring("first line second line"))
+}
+
+func TestSegmentsFromStripped_OnlyRealUserTurns(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// The task spec scenario:
+	// (a) real user ask
+	// (b) injected skill-body user turn — strip already drops this, so it
+	//     never appears in stripped[] (cleanHarnessInjection drops it)
+	// (c) assistant turn — has ASSISTANT: prefix, not USER:
+	// (d) another real user ask
+	//
+	// We simulate the post-strip, post-mapTimestampsByIndex state that
+	// segmentsFromStripped receives: only user turns that survived cleaning.
+	ts1, _ := time.Parse(time.RFC3339, "2026-05-01T10:00:00Z")
+	ts2, _ := time.Parse(time.RFC3339, "2026-05-01T11:00:00Z")
+	ts3, _ := time.Parse(time.RFC3339, "2026-05-01T12:00:00Z")
+
+	stripped := []string{
+		"USER: help me write a feature",     // (a) real user ask
+		"ASSISTANT: sure, here is the plan", // (c) assistant turn
+		"USER: now add the second part",     // (d) another real user ask
+	}
+	times := []time.Time{ts1, ts2, ts3}
+
+	segs := transcript.SegmentsFromStrippedForTest(stripped, times)
+
+	g.Expect(segs).To(HaveLen(2))
+	g.Expect(segs[0].Timestamp.Equal(ts1)).To(BeTrue())
+	g.Expect(segs[0].Preview).To(ContainSubstring("help me write a feature"))
+	g.Expect(segs[1].Timestamp.Equal(ts3)).To(BeTrue())
+	g.Expect(segs[1].Preview).To(ContainSubstring("now add the second part"))
+}
+
+func TestSegmentsFromStripped_PreviewTruncatedAt100Runes(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	ts, _ := time.Parse(time.RFC3339, "2026-05-01T10:00:00Z")
+
+	// Build a user ask > 100 runes (prefix "USER: " = 6 runes + 200 rune body).
+	longBody := strings.Repeat("x", 200)
+	stripped := []string{"USER: " + longBody}
+	times := []time.Time{ts}
+
+	segs := transcript.SegmentsFromStrippedForTest(stripped, times)
+
+	g.Expect(segs).To(HaveLen(1))
+	g.Expect([]rune(segs[0].Preview)).To(HaveLen(100))
+}
+
+func TestSegmentsFromStripped_ZeroTimestampSkipped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	ts1, _ := time.Parse(time.RFC3339, "2026-05-01T10:00:00Z")
+
+	stripped := []string{
+		"USER: ask with no timestamp", // zero timestamp — should be skipped
+		"USER: ask with timestamp",    // non-zero timestamp — should appear
+	}
+	times := []time.Time{time.Time{}, ts1}
+
+	segs := transcript.SegmentsFromStrippedForTest(stripped, times)
+
+	g.Expect(segs).To(HaveLen(1))
+	g.Expect(segs[0].Timestamp.Equal(ts1)).To(BeTrue())
+	g.Expect(segs[0].Preview).To(ContainSubstring("ask with timestamp"))
+}
+
 //go:generate impgen transcript.Finder --dependency --import-path github.com/toejough/engram/internal/transcript
 //go:generate impgen transcript.Reader --dependency --import-path github.com/toejough/engram/internal/transcript
 

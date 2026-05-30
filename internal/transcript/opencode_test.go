@@ -46,6 +46,47 @@ func TestCompositeSessionFinder_MergesFinders(t *testing.T) {
 	g.Expect(entries[1].Path).To(Equal("/claude/ses_cc1.jsonl"))
 }
 
+func TestCompositeTranscriptReader_SegmentsFrom_DispatchesToSegmentsReader(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_comp_segs", Title: "Test", Updated: time.Now()},
+	})
+	insertParts(t, dbPath, "ses_comp_segs", []testPart{
+		{Type: "text", Text: "composite user ask", Role: "user", TimeCreated: 1000},
+	})
+
+	opencodeReader := transcript.NewOpencodeTranscriptReader(dbPath)
+	fileReader := transcript.NewJSONLReader(&fakeFileReader{})
+
+	composite := transcript.NewCompositeTranscriptReader(fileReader, opencodeReader)
+
+	segs, err := composite.SegmentsFrom("opencode://ses_comp_segs", time.Time{}, 1<<20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(segs).To(HaveLen(1))
+	g.Expect(segs[0].Preview).To(ContainSubstring("composite user ask"))
+}
+
+func TestCompositeTranscriptReader_SegmentsFrom_SkipsNonSegmentsReaders(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Use a plain reader that does NOT implement SegmentsReader.
+	// CompositeTranscriptReader should skip it and return empty segments.
+	plainReader := &fakeReaderNoSegments{}
+	composite := transcript.NewCompositeTranscriptReader(plainReader)
+
+	segs, err := composite.SegmentsFrom("somepath", time.Time{}, 1<<20)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(segs).To(BeEmpty())
+}
+
 func TestCompositeTranscriptReader_TriesReaders(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -367,6 +408,38 @@ func TestOpencodeTranscriptReader_ReadsToolParts(t *testing.T) {
 	g.Expect(content).To(ContainSubstring("bash"))
 }
 
+func TestOpencodeTranscriptReader_SegmentsFrom_ReturnsUserTurns(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_segs1", Title: "Test", Updated: time.Now()},
+	})
+	insertParts(t, dbPath, "ses_segs1", []testPart{
+		{Type: "text", Text: "user question one", Role: "user", TimeCreated: 1000},
+		{Type: "text", Text: "assistant answer", Role: "assistant", TimeCreated: 2000},
+		{Type: "text", Text: "user question two", Role: "user", TimeCreated: 3000},
+	})
+
+	reader := transcript.NewOpencodeTranscriptReader(dbPath)
+
+	segs, err := reader.SegmentsFrom("opencode://ses_segs1", time.Time{}, 1<<20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Only user turns should produce segments.
+	g.Expect(segs).To(HaveLen(2))
+	g.Expect(segs[0].Preview).To(ContainSubstring("user question one"))
+	g.Expect(segs[1].Preview).To(ContainSubstring("user question two"))
+
+	for _, seg := range segs {
+		g.Expect(seg.Preview).NotTo(ContainSubstring("assistant answer"))
+	}
+}
+
 func TestOpencodeTranscriptReader_ToolMissingStatus(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -401,6 +474,14 @@ func TestOpencodeTranscriptReader_UnknownPartType(t *testing.T) {
 	content, _, err := readAll(reader, "opencode://ses_unk1", 1024*50)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(content).To(BeEmpty())
+}
+
+// fakeReaderNoSegments is a Reader that intentionally does NOT implement SegmentsReader.
+// Used to exercise the composite's skip-branch for non-SegmentsReader readers.
+type fakeReaderNoSegments struct{}
+
+func (r *fakeReaderNoSegments) ReadFrom(_ string, _ time.Time, _ int) (transcript.ReadResult, error) {
+	return transcript.ReadResult{}, nil
 }
 
 type testPart struct {

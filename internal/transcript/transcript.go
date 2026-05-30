@@ -69,6 +69,53 @@ func (r *JSONLReader) ReadFrom(
 	return accumulateWithinBudget(stripped, strippedTimes, budgetBytes), nil
 }
 
+// SegmentsFrom reads the JSONL transcript at path over the same resolved
+// window as ReadFrom (fromTime, budgetBytes) and returns one Segment per
+// genuine user turn in chronological order. Injected skill/command turns are
+// absent because the same strip config as ReadFrom is used; the budget cap is
+// respected so the segment list covers exactly the content window that a
+// non-segment read would emit (continuation warnings still apply at the CLI
+// level).
+func (r *JSONLReader) SegmentsFrom(
+	path string,
+	fromTime time.Time,
+	budgetBytes int,
+) ([]Segment, error) {
+	raw, err := r.reader.Read(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading transcript: %w", err)
+	}
+
+	lines := splitNonEmptyLines(string(raw))
+
+	keptLines, keptTimes := filterRowsAfter(lines, extractRowTimestamps(lines), fromTime)
+
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	stripped, sourceIdx := sessionctx.StripWithConfigIndexed(keptLines, cfg)
+	strippedTimes := mapTimestampsByIndex(sourceIdx, keptTimes)
+
+	// Apply the same byte-budget window so segments align with what a full
+	// read would emit. Count bytes by stripped-line length (+ newline) so the
+	// budget is consistent with accumulateWithinBudget.
+	budget := budgetBytes
+	budgetedStripped := make([]string, 0, len(stripped))
+	budgetedTimes := make([]time.Time, 0, len(stripped))
+	total := 0
+
+	for i, line := range stripped {
+		lineLen := len(line) + 1
+		if total > 0 && total+lineLen > budget {
+			break
+		}
+
+		budgetedStripped = append(budgetedStripped, line)
+		budgetedTimes = append(budgetedTimes, strippedTimes[i])
+		total += lineLen
+	}
+
+	return segmentsFromStripped(budgetedStripped, budgetedTimes), nil
+}
+
 // ReadResult bundles a partial-or-full session read's output with the
 // information emitTranscripts needs to advance the per-source marker.
 // LastTimestamp is the per-row timestamp of the last row included in
@@ -88,6 +135,24 @@ type ReadResult struct {
 // and Partial reporting whether the budget halted the read mid-file.
 type Reader interface {
 	ReadFrom(path string, fromTime time.Time, budgetBytes int) (ReadResult, error)
+}
+
+// Segment is a single genuine user turn distilled to a timestamp + preview.
+// It is produced by SegmentsFrom and used by the --segments transcript flag
+// so agents can identify arc boundaries without reading the full transcript.
+type Segment struct {
+	// Timestamp is the per-row RFC3339 timestamp of the user turn.
+	Timestamp time.Time
+	// Preview is the first segmentPreviewLen characters of the cleaned user
+	// text, with internal newlines collapsed to spaces.
+	Preview string
+}
+
+// SegmentsReader returns user-turn segments for a transcript window.
+// SegmentsFrom applies the same strip config and byte budget as ReadFrom so
+// the segment list covers exactly the content window a non-segment read emits.
+type SegmentsReader interface {
+	SegmentsFrom(path string, fromTime time.Time, budgetBytes int) ([]Segment, error)
 }
 
 // SessionFinder finds Claude Code session transcript files for a project.
@@ -130,8 +195,9 @@ func (f *SessionFinder) Find(dirs ...string) ([]FileEntry, error) {
 
 // unexported constants.
 const (
-	sourceClaude   = "claude"
-	sourceOpencode = "opencode"
+	segmentPreviewLen = 100
+	sourceClaude      = "claude"
+	sourceOpencode    = "opencode"
 )
 
 // accumulateWithinBudget walks lines chronologically and emits up to
@@ -257,6 +323,40 @@ func parseRowTimestamp(line string) time.Time {
 	}
 
 	return t
+}
+
+// segmentsFromStripped converts a parallel (stripped-lines, times) slice
+// into Segment values for each genuine user turn. Stripped lines that start
+// with sessionctx.UserPrefix and have a non-zero timestamp yield a segment;
+// all others are skipped. Preview text is truncated to segmentPreviewLen
+// runes and newlines are replaced with spaces so each segment fits one line.
+func segmentsFromStripped(stripped []string, times []time.Time) []Segment {
+	out := make([]Segment, 0)
+
+	for i, line := range stripped {
+		if !strings.HasPrefix(line, sessionctx.UserPrefix) {
+			continue
+		}
+
+		if times[i].IsZero() {
+			continue
+		}
+
+		text := strings.ReplaceAll(line, "\n", " ")
+
+		runes := []rune(text)
+		if len(runes) > segmentPreviewLen {
+			runes = runes[:segmentPreviewLen]
+			text = string(runes)
+		}
+
+		out = append(out, Segment{
+			Timestamp: times[i],
+			Preview:   text,
+		})
+	}
+
+	return out
 }
 
 // splitNonEmptyLines splits content on newlines, dropping empty entries

@@ -217,6 +217,42 @@ func TestApplyTranscriptDirDefault(t *testing.T) {
 	})
 }
 
+func TestEmitSegments_EmitsOneLinePerUserTurn(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	ts1 := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	ts2 := time.Date(2026, 5, 1, 11, 0, 0, 0, time.UTC)
+
+	reader := &fakeSegmentsReader{segments: map[string][]transcript.Segment{
+		"/a.jsonl": {
+			{Timestamp: ts1, Preview: "USER: first ask"},
+			{Timestamp: ts2, Preview: "USER: second ask"},
+		},
+	}}
+
+	entry := transcript.FileEntry{Path: "/a.jsonl", Mtime: ts2.Add(time.Hour), Source: "claude"}
+
+	var buf bytes.Buffer
+
+	lastIncluded, hadEntries, _, err := cli.EmitSegmentsForTest(reader, []transcript.FileEntry{entry}, 1<<20, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	out := buf.String()
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	g.Expect(lines).To(HaveLen(2))
+	g.Expect(lines[0]).To(ContainSubstring(ts1.UTC().Format(time.RFC3339)))
+	g.Expect(lines[0]).To(ContainSubstring("USER: first ask"))
+	g.Expect(lines[1]).To(ContainSubstring(ts2.UTC().Format(time.RFC3339)))
+	g.Expect(lines[1]).To(ContainSubstring("USER: second ask"))
+	g.Expect(hadEntries["claude"]).To(BeTrue())
+	g.Expect(lastIncluded["claude"]).NotTo(BeZero())
+}
+
 func TestEmitTranscripts_NoEntriesReturnsZeroAndFalse(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1298,6 +1334,58 @@ func TestRunTranscript_RespectsMaxBytesFlag(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring("hello"))
 }
 
+func TestRunTranscript_SegmentsFlag_EmitsSegmentLines(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".local", "state", "engram")
+	slug := "Users-joe-repos-test"
+	markerPath := learnmarker.MarkerPathWithSuffix(stateDir, slug, "claude")
+	g.Expect(os.MkdirAll(filepath.Dir(markerPath), 0o755)).To(Succeed())
+
+	markerTime := time.Date(2026, 5, 9, 0, 0, 0, 0, time.UTC)
+	g.Expect(os.WriteFile(markerPath, []byte(markerTime.Format(time.RFC3339Nano)), 0o644)).To(Succeed())
+
+	dir := t.TempDir()
+	// A JSONL with two real user asks and one assistant — segments output should
+	// have exactly two lines.
+	ts1 := "2026-05-10T10:00:00Z"
+	ts2 := "2026-05-10T10:02:00Z"
+	lines := []string{
+		`{"type":"user","timestamp":"` + ts1 + `","message":{"content":"first real ask"}}`,
+		`{"type":"assistant","timestamp":"2026-05-10T10:01:00Z","message":{"content":"reply"}}`,
+		`{"type":"user","timestamp":"` + ts2 + `","message":{"content":"second real ask"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+	mtime := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	writeTranscriptFixture(g, dir, "session.jsonl", content, mtime)
+
+	finder, reader := cli.NewTranscriptDepsForTest("")
+
+	var stdout bytes.Buffer
+
+	err := cli.RunTranscriptForTest(context.Background(), cli.TranscriptArgs{
+		ProjectSlug:   slug,
+		StateDir:      stateDir,
+		TranscriptDir: dir,
+		Segments:      true,
+	}, finder, reader, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	out := stdout.String()
+	outLines := strings.Split(strings.TrimSpace(out), "\n")
+	g.Expect(outLines).To(HaveLen(2))
+	g.Expect(outLines[0]).To(ContainSubstring(ts1))
+	g.Expect(outLines[0]).To(ContainSubstring("first real ask"))
+	g.Expect(outLines[1]).To(ContainSubstring(ts2))
+	g.Expect(outLines[1]).To(ContainSubstring("second real ask"))
+}
+
 // failReader is a test-local Reader that always returns an error.
 type failReader struct{}
 
@@ -1343,6 +1431,24 @@ func (f *fakeReader) ReadFrom(path string, _ time.Time, budget int) (transcript.
 	}
 
 	return transcript.ReadResult{Content: content, BytesUsed: len(content)}, nil
+}
+
+// fakeSegmentsReader is a test-local SegmentsReader that returns pre-configured segments.
+type fakeSegmentsReader struct {
+	segments map[string][]transcript.Segment
+}
+
+func (f *fakeSegmentsReader) SegmentsFrom(
+	path string,
+	_ time.Time,
+	_ int,
+) ([]transcript.Segment, error) {
+	segs, ok := f.segments[path]
+	if !ok {
+		return []transcript.Segment{}, nil
+	}
+
+	return segs, nil
 }
 
 // writeTranscriptFixture writes a JSONL line to dir/<name> and sets its mtime.

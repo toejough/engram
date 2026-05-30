@@ -77,6 +77,18 @@ func DefaultSessionPathResolverForTest(sessionID string) (string, error) {
 	return defaultSessionPathResolver(sessionID)
 }
 
+// EmitSegmentsForTest exposes emitSegments for unit testing.
+func EmitSegmentsForTest(
+	reader transcript.SegmentsReader,
+	entries []transcript.FileEntry,
+	maxBytes int,
+	stdout io.Writer,
+) (map[string]time.Time, map[string]bool, map[string]time.Time, error) {
+	result, err := emitSegments(reader, entries, maxBytes, stdout)
+
+	return result.lastIncluded, result.hadEntries, result.firstUnincluded, err
+}
+
 // EmitTranscriptsForTest is an exported entry point so the cli_test package
 // can exercise emitTranscripts directly without going through the full
 // runTranscript flow. Returns the lastIncluded, hadEntries, and

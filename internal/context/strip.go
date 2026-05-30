@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+// Exported constants.
+const (
+	UserPrefix = "USER: "
+)
+
 // Strip parses JSONL transcript lines and extracts clean conversation text.
 // It returns "USER: ..." and "ASSISTANT: ..." lines, dropping:
 //   - non-user/assistant entries (progress, system, etc.)
@@ -37,7 +42,7 @@ const (
 	skillBodyPrefix      = "Base directory for this skill:"
 	systemReminderOpen   = "<system-reminder"
 	truncatedPlaceholder = "[truncated]"
-	userPrefix           = "USER: "
+	userPrefix           = UserPrefix
 )
 
 // unexported variables.

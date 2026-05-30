@@ -34,6 +34,7 @@ type TranscriptArgs struct {
 	StateDir      string `targ:"flag,name=state-dir,env=ENGRAM_STATE_DIR,desc=state dir (XDG_STATE_HOME/engram default)"`
 	Mark          bool   `targ:"flag,name=mark,desc=advance the last-learn marker to now after reading"`
 	MaxBytes      int    `targ:"flag,name=max-bytes,desc=byte cap for transcript output (default 200000)"`
+	Segments      bool   `targ:"flag,name=segments,desc=emit one segment line per user turn"`
 }
 
 // ResolveTimeWindow returns the effective (from, to) time range for a
@@ -75,13 +76,15 @@ func ResolveTimeWindow(inputs TimeWindowInputs) (time.Time, time.Time, error) {
 
 // unexported constants.
 const (
-	defaultLookback = 24 * time.Hour
-	defaultMaxBytes = 200_000
+	defaultLookback   = 24 * time.Hour
+	defaultMaxBytes   = 200_000
+	segmentLineFormat = time.RFC3339
 )
 
 // unexported variables.
 var (
-	errTranscriptFirstRun = errors.New(
+	errSegmentsNotSupported = errors.New("transcript: --segments not supported by this reader")
+	errTranscriptFirstRun   = errors.New(
 		"transcript: no progress marker (pass --from <YYYY-MM-DD> or --from all)",
 	)
 	errTranscriptInvalidDate = errors.New(
@@ -238,6 +241,26 @@ func checkFirstRun(
 	return fmt.Errorf("%w: %s", errTranscriptFirstRun, strings.Join(offenders, ", "))
 }
 
+// dispatchEmit routes to emitSegments or emitTranscripts based on args.Segments.
+func dispatchEmit(
+	args TranscriptArgs,
+	reader transcript.Reader,
+	filtered []transcript.FileEntry,
+	maxBytes int,
+	stdout io.Writer,
+) (emitResult, error) {
+	if args.Segments {
+		segReader, ok := reader.(transcript.SegmentsReader)
+		if !ok {
+			return emitResult{}, errSegmentsNotSupported
+		}
+
+		return emitSegments(segReader, filtered, maxBytes, stdout)
+	}
+
+	return emitTranscripts(reader, filtered, maxBytes, stdout)
+}
+
 // earliestBySource returns the earliest Mtime per source across entries.
 func earliestBySource(entries []transcript.FileEntry) map[string]time.Time {
 	earliest := make(map[string]time.Time)
@@ -312,6 +335,74 @@ func emitOneEntry(
 	result.hadEntries[entry.Source] = true
 
 	return readResult.BytesUsed, readResult.Partial, nil
+}
+
+// emitSegments emits one line per genuine user turn across all entries, using
+// the same byte-budget and per-source marker logic as emitTranscripts. Output
+// format per line: <RFC3339-timestamp>\tUSER: <first 100 chars of text>.
+// The per-source bookmark (lastIncluded) is updated exactly as in emitTranscripts
+// so --mark and continuation warnings work identically whether --segments is set
+// or not.
+func emitSegments(
+	reader transcript.SegmentsReader,
+	entries []transcript.FileEntry,
+	maxBytes int,
+	stdout io.Writer,
+) (emitResult, error) {
+	result := emitResult{
+		lastIncluded:    make(map[string]time.Time),
+		hadEntries:      make(map[string]bool),
+		firstUnincluded: make(map[string]time.Time),
+	}
+
+	total := 0
+
+	for index, entry := range entries {
+		remaining := maxBytes - total
+		if remaining <= 0 && index > 0 {
+			recordUnincluded(result.firstUnincluded, entries[index:])
+
+			break
+		}
+
+		if remaining < 1 {
+			remaining = 1
+		}
+
+		fromTime := result.lastIncluded[entry.Source]
+
+		segs, readErr := reader.SegmentsFrom(entry.Path, fromTime, remaining)
+		if readErr != nil {
+			return emitResult{}, fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
+		}
+
+		for _, seg := range segs {
+			line := seg.Timestamp.UTC().Format(segmentLineFormat) + "\t" + seg.Preview + "\n"
+
+			_, writeErr := io.WriteString(stdout, line)
+			if writeErr != nil {
+				return emitResult{}, fmt.Errorf("transcript: writing output: %w", writeErr)
+			}
+
+			total += len(line)
+
+			if !seg.Timestamp.IsZero() {
+				result.lastIncluded[entry.Source] = seg.Timestamp
+			}
+		}
+
+		// Mirror emitOneEntry's marker-advance logic: for a full read
+		// additionally advance to entry Mtime to cover trailing rows.
+		// For segments we treat each entry as fully consumed because
+		// SegmentsFrom already applied the budget internally.
+		if !entry.Mtime.IsZero() {
+			result.lastIncluded[entry.Source] = entry.Mtime
+		}
+
+		result.hadEntries[entry.Source] = true
+	}
+
+	return result, nil
 }
 
 // emitTranscripts emits content chronologically (oldest first), advancing
@@ -583,9 +674,7 @@ func runTranscript(
 	filtered := filterBySourceMarkers(entries, state.markers, explicitFrom, now)
 	slices.Reverse(filtered)
 
-	result, emitErr := emitTranscripts(
-		reader, filtered, resolveMaxBytes(args.MaxBytes), stdout,
-	)
+	result, emitErr := dispatchEmit(args, reader, filtered, resolveMaxBytes(args.MaxBytes), stdout)
 	if emitErr != nil {
 		return emitErr
 	}
