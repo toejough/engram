@@ -237,3 +237,116 @@ deliberately kept closed.)
    hard-assertable by scenario design — settle per scenario as written.
 3. Lever mechanism final form (hidden env vars vs flags) — recommended
    env vars; revisit at M2 if discoverability matters.
+
+---
+
+# Run 1 — empirical findings & redesign (2026-05-29/30)
+
+The M1 harness was built (9 task commits + 1 fix on
+`feat/eval-harness-m1`) and a first e2e calibration run executed
+(`nothing` + `current-state`, 1 trial, 3 scenarios = 6 headless Go
+builds). This section records what that run proved, the wall it hit,
+and the redesign it forced.
+
+## What Run 1 proved (validated)
+
+- **Harness plumbing works end-to-end.** Clone vault → spawn real
+  headless `claude` agent → parse result JSON → parse session JSONL →
+  score → write results JSONL. All 6 builds completed; structured
+  Layer-1 + Layer-2 metrics produced.
+- **Arm isolation works.** `current-state` fired recall (20 `engram
+  query` calls, recall's "Anchor concepts" preface present) and had the
+  binary; `nothing` had zero `engram query` and no skills dir. Verified
+  from the surviving `$TMPDIR/engram-eval-*` transcripts.
+- **recall/learn skills load and recall *fires* in headless Claude
+  Code** via per-arm `CLAUDE_CONFIG_DIR` (keychain creds + skills +
+  binary-on-PATH). Non-trivial; this was a real unknown.
+
+## The wall (calibration gate RED)
+
+The calibration gate correctly returned `ErrCalibrationFlat` — **no
+floor-vs-baseline delta**. Root causes, in order of depth:
+
+1. **The `used-go-test-not-targ` check is non-discriminating by
+   construction.** Every Go agent runs `go build`/`test`/`vet`, and in a
+   bare `/tmp` module `go test` is *correct*. The check measures
+   something memory cannot and should not change. (`occurred=true` in
+   every arm × every scenario.)
+2. **No clean greenfield *convention* discriminator exists.** The vault's
+   codified, observable conventions (targ, AI-Used trailer,
+   make-with-capacity, DI layout, t.Parallel, sentinel errors) all live
+   in `~/.claude/CLAUDE.md` / `.claude/rules/` — loaded statically by
+   *all* arms — so they cannot isolate the vault's contribution. The
+   vault proper holds process / meta / engram-domain knowledge.
+3. **The flagship vault gotcha (`229` yaml-v3 custom-scalar omitempty
+   needs IsZero) does not reproduce.** Three reconstructions
+   (string-backed plain, string-backed forced-quote `yaml.Node`,
+   struct-backed forced-quote node) all omit the empty field correctly
+   in yaml.v3 v3.0.1. A recalled memory can be *imprecise* — and a
+   no-memory agent "burning cycles" can be doing the *correct* thing.
+4. **Deeper conclusion:** the vault's discriminating value is
+   **engram-domain-bound** — it was largely created *during the build of
+   engram itself*. Measuring memory's behavioral value on portable
+   greenfield tasks is a category mismatch.
+
+## Redesign — self-seeding cold-vs-warm (agreed with Joe)
+
+The vault must be **task-relevant by construction**. Instead of testing
+a pre-existing vault against out-of-domain tasks, **let the agent
+generate its own memories from its own mistakes**, then measure whether
+replay benefits:
+
+- **Cold arm (K trials):** fresh **empty** vault, recall+learn on. Agent
+  works cold; learn writes its mistake-lessons into that trial's vault.
+  → baseline cost distribution; produces candidate seed vaults.
+- **Seed:** take a populated post-cold vault.
+- **Warm arm (K trials):** vault = copy of the seed, recall+learn on.
+  recall surfaces the prior lessons. → warm cost distribution.
+- **Memory effect = cold − warm** on Layer-1 (turns/cost/failures).
+
+Decisions: **identical replay task first** (a sanity floor — proves the
+loop can regurgitate a just-written note; NOT proof memory is
+*valuable*), **variant tasks later** (tests transfer/generalization).
+Structure: **cold-vs-warm two groups** first; longitudinal accumulation
+later. Most harness primitives transfer; only the orchestration changes
+(variable = vault state, not skills present/absent).
+
+## Blockers the redesign must solve FIRST (verify before building)
+
+1. **learn does not autonomously fire in headless `claude -p`.** Run-1
+   `current-state` clones still had 528 notes (= source); zero `engram
+   learn` calls in any transcript. The cold→warm delta is impossible
+   unless cold runs actually capture notes. Fix: explicitly trigger
+   learn (append a `/learn` step to the task prompt, or run a second
+   headless turn, or invoke `engram learn` directly) — and verify the
+   captured notes are **mistake-specific**, not process-meta (the only
+   notes learn wrote all session — `237`/`238` — were about its own dev
+   process, which would not help a replay).
+2. **learn's empty-vault first-run path is interactive.** On a vault with
+   no progress marker, `engram transcript --mark` exits non-zero and the
+   learn skill stops to ask the user via `AskUserQuestion` — which has no
+   answerer in headless. Fix: pre-initialize the cold vault with a marker
+   (or a minimal bootstrap) so the first-run prompt never fires.
+3. **Correctness, not just turns.** "Fewer turns" can mean "gave up
+   faster." Cold-vs-warm on cost is only interpretable if both completed
+   *correctly*. Add a real per-task success check (the deferred
+   `SuccessCmd`); `task_ok` from `IsError` is too weak.
+4. **Persist evidence into results JSONL.** "Did memory fire / what did
+   it do" required spelunking `$TMPDIR` transcripts. Persist the command
+   list (or a transcript pointer) into the results rows, and don't reap
+   the per-run vault/workspace before inspection.
+
+**Gate for the redesign:** before writing cold/warm orchestration or
+spending another multi-build run, run ONE probe — empty vault + headless
+agent on a build task + explicit learn — and confirm learn writes
+**replay-relevant mistake-notes** without choking on the first-run
+marker. If it can't, that is the real bug and no orchestration fixes it.
+
+## Status of the M1 harness code
+
+The harness *machinery* (arms, scenarios, result/transcript parsing,
+scoring, aggregation, calibration gate, DI adapters, `targ eval`
+wiring) is built, unit-tested (`targ check-full` 8/8), and committed.
+It is the reusable substrate for the redesign. The *scenario / check /
+calibration* layer is superseded by the self-seeding design above and
+will be reworked once the blockers are cleared.
