@@ -58,7 +58,7 @@ Three kinds of notes, distinguished by why a future agent would want them:
 
 If a single observation has both a "should have done X" component and a "here's how Y works" component, write two notes — one Feedback, one Fact.
 
-**Episodes are episodic — write as many as the session calls for, never zero.** The session may span multiple discrete arcs of work; write one episode per natural chunk boundary. Boundaries are temporal (a multi-day gap between chunks), subjective (you switched topics), or objective (a discrete piece of work landed). **Every /learn pass produces at least one episode** — even a pure continuation chunk with no topic shift gets an episode (boundary rationale: "continuation of prior arc; <stop-reason>"). The failure mode is *losing the interactions*: replying "we did X" with no details, because you only remembered the narrative. Episodes prevent that.
+**Episodes are episodic — write as many as the session calls for, never zero.** A session interleaves multiple arcs of work; write **one episode per arc** (see §6a for the procedure), where an arc is a coherent thread that may be non-contiguous and may overlap other arcs in time. **Every /learn pass produces at least one episode.** The failure modes to avoid are (a) one giant session-spanning episode, and (b) *losing the interactions* — replying "we did X" with no details because you only remembered the narrative. Per-arc episodes prevent both.
 
 ### Capture stated requirements and decisions — completely, consolidated
 
@@ -72,7 +72,7 @@ The most-missed candidates are not gotchas; they are the **requirements and deci
 
 ## Workflow
 
-> **Two parallel tracks.** §§1–5 cover **facts/feedback** — retrieval-shaped abstractions scanned per-candidate from session activity. **Episodes** are L1 evidence — one per natural chunk boundary in the session's filtered transcript — and follow a different pipeline (see §6a). Episodes do NOT go through locus classification (§1), path A/B/C selection (§2), the recall-mirror test (§3), or the Feedback-vs-Fact categorization (§4). When in doubt about kind: principles → fact; "do differently next time" → feedback; the chunk of interactions itself → episode. Facts and feedback derived from a specific episode chunk link back to it via `--relation`.
+> **Two parallel tracks.** §§1–5 cover **facts/feedback** — retrieval-shaped abstractions scanned per-candidate from session activity. **Episodes** are L1 evidence — one per work-arc (arcs may be non-contiguous and may overlap; see §6a) — and follow a different pipeline. Episodes do NOT go through locus classification (§1), path A/B/C selection (§2), the recall-mirror test (§3), or the Feedback-vs-Fact categorization (§4). When in doubt about kind: principles → fact; "do differently next time" → feedback; the chunk of interactions itself → episode. Facts and feedback derived from a specific episode chunk link back to it via `--relation`.
 
 ### 1. Identify candidates
 
@@ -206,15 +206,17 @@ engram learn fact \
 
 #### 6a. Episodes — L1 evidence layer
 
-**Write one episode per natural chunk boundary in the session.** A pass typically produces multiple episodes when the session spans multiple arcs of work. Boundaries to chunk on:
+**Write one episode per work-ARC — not one per session, and not one per timeline-slice.** A session interleaves multiple arcs of work. An arc is a coherent thread (one investigation, one feature, one bug) that may be **non-contiguous** (you switched away and came back) and may **overlap** other arcs in time (interleaved work). Do NOT partition the timeline into back-to-back chunks; assign spans to arcs. The failure mode to avoid is one giant session-spanning episode.
 
-- **Topic shift** — you stopped working on X and started working on Y.
-- **Temporal gap** — a multi-hour or multi-day pause (note the gap on both sides).
-- **Arc completion** — a discrete piece of work landed (bug fix shipped, spec written, commit made).
-- **Operator redirect** — the user redirected from cleanup to a new feature, or paused current work.
-- **Session end / start** — the in-flight work crosses a session boundary.
+**Find the arc skeleton first — don't eyeball a long transcript.** Run `engram transcript --segments` over the scanned window (same `--from`/`--to`/marker flags you used). It lists each *genuine* user request with its RFC3339 timestamp (harness noise — skill bodies, slash-command boilerplate, task notifications — is already filtered out). That user-request skeleton is the primary arc-boundary signal. Read it (it's small), then group segments into arcs:
 
-For each chunk, identify the start/end RFC3339 timestamps in the filtered transcript and a one-phrase `--boundary-rationale`. Use `--from-transcript-range <session-id>:<start>..<end>` to have engram read+filter the chunk from the JSONL on disk; the binary inlines the filtered content as the body. Use `--transcript-text "<literal>"` only when the chunk is already in hand (e.g., the agent already has the filtered text and prefers not to re-read).
+- Each genuine user request usually **starts or redirects** an arc; clarification turns **continue** the current arc.
+- One arc may span **several non-adjacent segments** — collect all of them for that arc.
+- Two arcs may be active over the **same span** (interleaving) — their episodes may legitimately **share/overlap** ranges. That is expected, not a problem.
+
+Secondary boundary signals: topic shifts, multi-hour temporal gaps, arc completion (a spec written / commit made), session start/end.
+
+**Write each episode with one or more spans.** `--from-transcript-range` is **repeatable** — pass one `--from-transcript-range <session-id>:<start>..<end>` per span the arc occupies, so a non-contiguous arc becomes a *single* episode assembled from its disjoint spans. Each span's `--boundary-rationale` (and the episode `--situation`) names the arc, not the clock. Use `--transcript-text "<literal>"` only when the chunk is already in hand.
 
 **Voice + vocabulary discipline** (full rules:
 `docs/superpowers/research/2026-05-26-l1-episode-fix-spec.md`):
@@ -292,7 +294,7 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 | You're categorizing a user correction or dead-end as Fact                           | That's Feedback. Facts describe how things are; corrections describe how to act differently.                      |
 | You can't say which Step 1 phrase (or scratch-list phrase) the note retrieves under | The framing is wrong. Lift the closest phrase and rebuild the situation around it.                                |
 | You're invoking "Recurs / Activity-and-Domain / Knowledge" by name                  | Those gates have been replaced by the recall-mirror test. Apply that test instead.                                |
-| Writing only one episode per /learn pass when the session spans multiple arcs        | Episodes are per natural chunk boundary, not per pass. Re-chunk the transcript and write one episode per chunk.   |
+| Writing only one episode per /learn pass when the session spans multiple arcs        | Episodes are per work-arc, not per pass. Run `engram transcript --segments` for the arc skeleton and write one episode per arc (spans may be non-contiguous via repeated `--from-transcript-range`, and may overlap other arcs). |
 | Skipping episodes because "no new narrative arc occurred"                            | The L1 episode is the *chunk of interactions*, not the narrative. Even a continuation chunk is worth preserving.  |
 | Using `--summary` / `--outcome` on `engram learn episode`                            | Those flags were removed. Body is the filtered transcript chunk via `--from-transcript-range` or `--transcript-text`. Use `--boundary-rationale` for the one-phrase explanation of why this chunk's bounds. |
 | Writing a fact/feedback derived from an episode without backlinking                  | Add `--relation "<episode-luhmann>|extracted from this chunk"` on the fact/feedback write so retrieval can trace the abstraction back to its evidence. |
