@@ -9,6 +9,41 @@ import (
 	sessionctx "github.com/toejough/engram/internal/context"
 )
 
+// CompositeRangeReader tries each RangeReader in order and returns the first
+// that succeeds. It lets `engram learn episode --from-transcript-range`
+// dispatch across the Claude Code (.jsonl path) and OpenCode (opencode:// URI)
+// sources: the JSONL reader errors on an opencode:// path, the OpenCode reader
+// errors on a .jsonl path, so the first non-erroring reader wins.
+type CompositeRangeReader struct {
+	readers []RangeReader
+}
+
+// NewCompositeRangeReader creates a RangeReader that tries each reader in order.
+func NewCompositeRangeReader(readers ...RangeReader) *CompositeRangeReader {
+	return &CompositeRangeReader{readers: readers}
+}
+
+// ReadRange returns the first reader's successful result. If every reader
+// errors, the last error is returned; with no readers, ErrNoReader.
+func (r *CompositeRangeReader) ReadRange(path string, start, end time.Time) (string, error) {
+	var lastErr error
+
+	for _, reader := range r.readers {
+		chunk, err := reader.ReadRange(path, start, end)
+		if err == nil {
+			return chunk, nil
+		}
+
+		lastErr = err
+	}
+
+	if lastErr != nil {
+		return "", lastErr
+	}
+
+	return "", fmt.Errorf("%w: %s", ErrNoReader, path)
+}
+
 // JSONLRangeReader reads a Claude Code session JSONL file and returns the
 // noise-stripped transcript lines whose `timestamp` field falls within
 // [start, end] inclusive. Lines without a parseable timestamp are dropped.

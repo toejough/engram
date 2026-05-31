@@ -363,6 +363,60 @@ func TestOpencodeTranscriptReader_PreservesMessageRole(t *testing.T) {
 	g.Expect(content).To(ContainSubstring("USER: user said that"))
 }
 
+func TestOpencodeTranscriptReader_ReadFrom_QueryErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reader := transcript.NewOpencodeTranscriptReader("/nonexistent/dir/opencode.db")
+
+	_, _, err := readAll(reader, "opencode://ses_x", 1024)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("querying parts"))
+}
+
+// TestOpencodeTranscriptReader_ReadRange_BoundsToWindow verifies ReadRange
+// returns only parts whose time_created falls within [start, end] inclusive,
+// keyed off the "opencode://<session-id>" URI — the bounded read episodes need.
+func TestOpencodeTranscriptReader_ReadRange_BoundsToWindow(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dbPath := createTestOpencodeDB(t, []testSession{
+		{ID: "ses_range", Title: "Test", Updated: time.Now()},
+	})
+
+	base := time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)
+	insertParts(t, dbPath, "ses_range", []testPart{
+		{Type: "text", Text: "before window", Role: "user", TimeCreated: base.Add(-time.Hour).UnixMilli()},
+		{Type: "text", Text: "inside window", Role: "user", TimeCreated: base.Add(30 * time.Minute).UnixMilli()},
+		{Type: "text", Text: "after window", Role: "user", TimeCreated: base.Add(2 * time.Hour).UnixMilli()},
+	})
+
+	reader := transcript.NewOpencodeTranscriptReader(dbPath)
+
+	got, err := reader.ReadRange("opencode://ses_range", base, base.Add(time.Hour))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(ContainSubstring("inside window"))
+	g.Expect(got).NotTo(ContainSubstring("before window"))
+	g.Expect(got).NotTo(ContainSubstring("after window"))
+}
+
+func TestOpencodeTranscriptReader_ReadRange_QueryErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reader := transcript.NewOpencodeTranscriptReader("/nonexistent/dir/opencode.db")
+
+	_, err := reader.ReadRange("opencode://ses_x", time.Time{}, time.Now())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("querying parts"))
+}
+
 func TestOpencodeTranscriptReader_ReadsTextParts(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

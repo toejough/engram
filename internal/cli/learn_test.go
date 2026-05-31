@@ -205,7 +205,7 @@ func TestEngramLearn_Episode_ExactlyOneBodySource(t *testing.T) {
 				t.Context(), args,
 				stubRangeReader{},
 				func(string) (string, error) { return "/unused.jsonl", nil },
-				deps, &stdout,
+				"", deps, &stdout,
 			)
 			g.Expect(err).To(MatchError(ContainSubstring(tc.expectMatch)))
 		})
@@ -263,7 +263,7 @@ func TestEngramLearn_Episode_FromTranscriptRange_ReadsChunk(t *testing.T) {
 	}
 
 	err := cli.RunLearnFromEpisodeArgsWithReaderForTest(
-		t.Context(), args, reader, sessionPath, deps, &stdout,
+		t.Context(), args, reader, sessionPath, "", deps, &stdout,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -323,7 +323,7 @@ func TestEngramLearn_Episode_FromTranscriptRange_RecordsTranscriptFile(t *testin
 	}
 
 	err := cli.RunLearnFromEpisodeArgsWithReaderForTest(
-		t.Context(), args, reader, sessionPath, deps, &stdout,
+		t.Context(), args, reader, sessionPath, "", deps, &stdout,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -484,6 +484,74 @@ func TestEngramLearn_Episode_LuhmannPlacement(t *testing.T) {
 	}
 }
 
+// TestEngramLearn_Episode_Opencode_RecordsDBPath verifies an episode sourced
+// from an opencode://<id> session reads via the dispatched reader (the URI as
+// the read handle) and records the OpenCode DB file path — not a .jsonl path —
+// in provenance.transcript_files. The session id stays the pk in sessions.
+func TestEngramLearn_Episode_Opencode_RecordsDBPath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:     func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		ListIDs: func(string) ([]string, error) { return nil, nil },
+		Lock:    func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error {
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	reader := stubRangeReader{
+		chunks: map[string]string{
+			"opencode://ses_oc": "USER: opencode chunk\nASSISTANT: yes\n",
+		},
+	}
+
+	args := cli.LearnEpisodeArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "oc-range",
+			Vault:    "/v",
+			Position: "top",
+			Source:   "src",
+		},
+		Situation:           "opencode range check",
+		BoundaryRationale:   "discrete arc",
+		FromTranscriptRange: []string{"opencode://ses_oc:2026-05-25T22:00:00Z..2026-05-25T23:00:00Z"},
+		Sessions:            []string{"ses_oc"},
+		TranscriptRange:     "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+	}
+
+	var stdout strings.Builder
+
+	// Claude-only resolver — must NOT be used for an opencode:// session.
+	sessionPath := func(id string) (string, error) {
+		return "/claude/" + id + ".jsonl", nil
+	}
+
+	dbPath := "/home/u/.local/share/opencode/opencode.db"
+
+	err := cli.RunLearnFromEpisodeArgsWithReaderForTest(
+		t.Context(), args, reader, sessionPath, dbPath, deps, &stdout,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(writtenContent)
+	g.Expect(body).To(ContainSubstring("opencode chunk"))
+	g.Expect(body).To(ContainSubstring("transcript_files:"))
+	g.Expect(body).To(ContainSubstring(dbPath))
+	g.Expect(body).NotTo(ContainSubstring("/claude/"))
+}
+
 // TestEngramLearn_Episode_RequiredFields covers required-field validation
 // at the runLearn layer (situation, boundary-rationale, session,
 // transcript-range — all enforced before the body source check kicks in,
@@ -639,7 +707,7 @@ func TestEngramLearn_Episode_TranscriptTextInlined(t *testing.T) {
 		t.Context(), args,
 		stubRangeReader{},
 		func(string) (string, error) { return "/unused.jsonl", nil },
-		deps, &stdout,
+		"", deps, &stdout,
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -686,7 +754,7 @@ func TestEpisode_FromTranscriptRange_ParseErrorPropagates(t *testing.T) {
 		t.Context(), args,
 		stubRangeReader{},
 		func(string) (string, error) { return "/unused.jsonl", nil },
-		deps, &stdout,
+		"", deps, &stdout,
 	)
 	g.Expect(err).To(MatchError(ContainSubstring("from-transcript-range")))
 }

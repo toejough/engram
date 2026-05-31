@@ -260,10 +260,11 @@ func RunLearnFromEpisodeArgsWithReaderForTest(
 	a LearnEpisodeArgs,
 	reader transcript.RangeReader,
 	sessionPath func(sessionID string) (string, error),
+	opencodeDBPath string,
 	deps LearnDeps,
 	stdout io.Writer,
 ) error {
-	return runLearnFromEpisodeArgsWithReader(ctx, a, reader, sessionPath, deps, stdout)
+	return runLearnFromEpisodeArgsWithReader(ctx, a, reader, sessionPath, opencodeDBPath, deps, stdout)
 }
 
 // RunTranscriptForTest exposes runTranscript for whitebox testing.

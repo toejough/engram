@@ -71,11 +71,12 @@ type LearnDeps struct {
 
 // unexported constants.
 const (
-	dateFormat   = "2006-01-02"
-	envVaultPath = "ENGRAM_VAULT_PATH"
-	typeEpisode  = "episode"
-	typeFact     = "fact"
-	typeFeedback = "feedback"
+	dateFormat            = "2006-01-02"
+	envVaultPath          = "ENGRAM_VAULT_PATH"
+	opencodeSessionPrefix = "opencode://"
+	typeEpisode           = "episode"
+	typeFact              = "fact"
+	typeFeedback          = "feedback"
 )
 
 // unexported variables.
@@ -337,6 +338,20 @@ func buildEpisodeFields(args LearnArgs, luhmann string) (episodeFields, error) {
 	}, nil
 }
 
+// cutSessionRef splits "<session-ref>:<start>" into the session reference and
+// the start timestamp. An opencode://<id> URI carries a colon in its scheme,
+// so the split happens on the colon AFTER the scheme; a bare Claude session ID
+// (a UUID, no colon) splits on the first colon.
+func cutSessionRef(sessionAndStart string) (string, string, bool) {
+	if rest, found := strings.CutPrefix(sessionAndStart, opencodeSessionPrefix); found {
+		id, startRaw, ok := strings.Cut(rest, ":")
+
+		return opencodeSessionPrefix + id, startRaw, ok
+	}
+
+	return strings.Cut(sessionAndStart, ":")
+}
+
 // defaultSessionPathResolver maps a Claude Code session ID to its JSONL
 // path inside the per-project transcript directory. Resolution follows
 // the same pattern as `engram transcript`: cwd → ProjectSlugFromPath →
@@ -412,8 +427,8 @@ func parseFromTranscriptRange(raw string) (string, time.Time, time.Time, error) 
 			fmt.Errorf("%w: got %q", errEpisodeFromRangeFmt, raw)
 	}
 
-	sessionID, startRaw, ok := strings.Cut(startEndRaw, ":")
-	if !ok || sessionID == "" || startRaw == "" {
+	sessionRef, startRaw, ok := cutSessionRef(startEndRaw)
+	if !ok || sessionRef == "" || startRaw == "" {
 		return "", time.Time{}, time.Time{},
 			fmt.Errorf("%w: got %q", errEpisodeFromRangeFmt, raw)
 	}
@@ -435,7 +450,7 @@ func parseFromTranscriptRange(raw string) (string, time.Time, time.Time, error) 
 			fmt.Errorf("%w: %s..%s", errEpisodeFromRangeOrder, startRaw, endRaw)
 	}
 
-	return sessionID, start, end, nil
+	return sessionRef, start, end, nil
 }
 
 // parseTranscriptRange parses a "<RFC3339-start>..<RFC3339-end>" string into
@@ -602,6 +617,7 @@ func resolveEpisodeBody(
 	a LearnEpisodeArgs,
 	reader transcript.RangeReader,
 	sessionPath func(sessionID string) (string, error),
+	opencodeDBPath string,
 ) (string, []string, error) {
 	hasRange := len(a.FromTranscriptRange) > 0
 	hasText := a.TranscriptText != ""
@@ -620,7 +636,7 @@ func resolveEpisodeBody(
 	seen := make(map[string]bool, len(a.FromTranscriptRange))
 
 	for _, raw := range a.FromTranscriptRange {
-		chunk, path, spanErr := resolveTranscriptSpan(raw, reader, sessionPath)
+		chunk, path, spanErr := resolveTranscriptSpan(raw, reader, sessionPath, opencodeDBPath)
 		if spanErr != nil {
 			return "", nil, spanErr
 		}
@@ -660,6 +676,27 @@ func resolveSessionPath(
 	return filepath.Join(home, ".claude", "projects", slug, sessionID+".jsonl"), nil
 }
 
+// resolveSpanPaths returns the read handle (what the RangeReader reads) and the
+// record path (what provenance.transcript_files stores) for a session ref. An
+// opencode://<id> session reads via the URI and records the OpenCode DB file
+// path; a bare Claude session ID resolves to (and records) its .jsonl path.
+func resolveSpanPaths(
+	sessionRef string,
+	sessionPath func(sessionID string) (string, error),
+	opencodeDBPath string,
+) (string, string, error) {
+	if strings.HasPrefix(sessionRef, opencodeSessionPrefix) {
+		return sessionRef, opencodeDBPath, nil
+	}
+
+	path, pathErr := sessionPath(sessionRef)
+	if pathErr != nil {
+		return "", "", fmt.Errorf("episode: resolving session path for %q: %w", sessionRef, pathErr)
+	}
+
+	return path, path, nil
+}
+
 // resolveTranscriptSpan parses one --from-transcript-range entry, resolves the
 // session's transcript file path, and reads+filters the chunk for that span.
 // Returns the chunk text and the resolved file path — the path is recorded in
@@ -669,23 +706,24 @@ func resolveTranscriptSpan(
 	raw string,
 	reader transcript.RangeReader,
 	sessionPath func(sessionID string) (string, error),
+	opencodeDBPath string,
 ) (string, string, error) {
-	sessionID, start, end, parseErr := parseFromTranscriptRange(raw)
+	sessionRef, start, end, parseErr := parseFromTranscriptRange(raw)
 	if parseErr != nil {
 		return "", "", parseErr
 	}
 
-	path, pathErr := sessionPath(sessionID)
-	if pathErr != nil {
-		return "", "", fmt.Errorf("episode: resolving session path for %q: %w", sessionID, pathErr)
+	readHandle, recordPath, resolveErr := resolveSpanPaths(sessionRef, sessionPath, opencodeDBPath)
+	if resolveErr != nil {
+		return "", "", resolveErr
 	}
 
-	chunk, readErr := reader.ReadRange(path, start, end)
+	chunk, readErr := reader.ReadRange(readHandle, start, end)
 	if readErr != nil {
 		return "", "", fmt.Errorf("episode: reading transcript range %q: %w", raw, readErr)
 	}
 
-	return chunk, path, nil
+	return chunk, recordPath, nil
 }
 
 // resolveVault returns the vault path. Flag wins, then env, then the XDG
@@ -752,13 +790,18 @@ func runLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 
 func runLearnFromEpisodeArgs(ctx context.Context, a LearnEpisodeArgs, stdout io.Writer) error {
 	deps := newOsLearnDeps()
-	reader := transcript.NewJSONLRangeReader(&osFileReader{})
+	dbPath := transcript.DefaultOpencodeDBPath()
+	reader := transcript.NewCompositeRangeReader(
+		transcript.NewJSONLRangeReader(&osFileReader{}),
+		transcript.NewOpencodeTranscriptReader(dbPath),
+	)
 
 	return runLearnFromEpisodeArgsWithReader(
 		ctx,
 		a,
 		reader,
 		defaultSessionPathResolver,
+		dbPath,
 		deps,
 		stdout,
 	)
@@ -774,10 +817,11 @@ func runLearnFromEpisodeArgsWithReader(
 	a LearnEpisodeArgs,
 	reader transcript.RangeReader,
 	sessionPath func(sessionID string) (string, error),
+	opencodeDBPath string,
 	deps LearnDeps,
 	stdout io.Writer,
 ) error {
-	body, files, bodyErr := resolveEpisodeBody(a, reader, sessionPath)
+	body, files, bodyErr := resolveEpisodeBody(a, reader, sessionPath, opencodeDBPath)
 	if bodyErr != nil {
 		return bodyErr
 	}

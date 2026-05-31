@@ -160,7 +160,7 @@ func (f *OpencodeSessionFinder) Find(_ ...string) ([]FileEntry, error) {
 		}
 
 		entries = append(entries, FileEntry{
-			Path:   "opencode://" + id,
+			Path:   opencodeURIPrefix + id,
 			Mtime:  time.UnixMilli(rowUpdatedAt),
 			Source: sourceOpencode,
 		})
@@ -219,7 +219,7 @@ func (r *OpencodeTranscriptReader) ReadFrom(
 	fromTime time.Time,
 	budgetBytes int,
 ) (ReadResult, error) {
-	sessionID := strings.TrimPrefix(path, "opencode://")
+	sessionID := strings.TrimPrefix(path, opencodeURIPrefix)
 	if sessionID == "" {
 		return ReadResult{}, ErrEmptySessionID
 	}
@@ -238,6 +238,35 @@ func (r *OpencodeTranscriptReader) ReadFrom(
 	return accumulateWithinBudget(stripped, strippedTimes, budgetBytes), nil
 }
 
+// ReadRange returns the noise-stripped OpenCode transcript for parts whose
+// time_created falls within [start, end] inclusive. The path must be an
+// "opencode://<session_id>" URI. It satisfies the RangeReader interface,
+// mirroring JSONLRangeReader for the SQLite-backed source so that
+// `engram learn episode --from-transcript-range` can inline an OpenCode window.
+func (r *OpencodeTranscriptReader) ReadRange(path string, start, end time.Time) (string, error) {
+	sessionID := strings.TrimPrefix(path, opencodeURIPrefix)
+	if sessionID == "" || sessionID == path {
+		return "", ErrEmptySessionID
+	}
+
+	jsonlLines, queryErr := r.queryPartsBetween(sessionID, start, end)
+	if queryErr != nil {
+		return "", queryErr
+	}
+
+	cfg := sessionctx.StripConfig{ToolSummaryMode: true}
+	stripped := sessionctx.StripWithConfig(jsonlLines, cfg)
+
+	var builder strings.Builder
+
+	for _, line := range stripped {
+		builder.WriteString(line)
+		builder.WriteByte('\n')
+	}
+
+	return builder.String(), nil
+}
+
 // SegmentsFrom returns user-turn segments for an OpenCode session window.
 // Applies the same strip config and byte budget as ReadFrom so the segment
 // list covers exactly the content window a non-segment read emits.
@@ -246,7 +275,7 @@ func (r *OpencodeTranscriptReader) SegmentsFrom(
 	fromTime time.Time,
 	budgetBytes int,
 ) ([]Segment, error) {
-	sessionID := strings.TrimPrefix(path, "opencode://")
+	sessionID := strings.TrimPrefix(path, opencodeURIPrefix)
 	if sessionID == "" {
 		return nil, ErrEmptySessionID
 	}
@@ -298,21 +327,14 @@ func (r *OpencodeTranscriptReader) queryPartsAfter(
 
 	defer db.Close() //nolint:errcheck
 
-	ctx := context.Background()
-
 	fromMillis := int64(0)
 	if !fromTime.IsZero() {
 		fromMillis = fromTime.UnixMilli()
 	}
 
 	rows, queryErr := db.QueryContext(
-		ctx,
-		"SELECT p.time_created, json_extract(p.data, '$.type'), "+
-			"json_extract(p.data, '$.text'), json_extract(p.data, '$.tool'), "+
-			"json_extract(p.data, '$.state'), json_extract(m.data, '$.role') "+
-			"FROM part p LEFT JOIN message m ON p.message_id = m.id "+
-			"WHERE p.session_id = ? AND p.time_created > ? "+
-			"ORDER BY p.time_created",
+		context.Background(),
+		partSelectSQL+" AND p.time_created > ? ORDER BY p.time_created",
 		sessionID,
 		fromMillis,
 	)
@@ -322,32 +344,37 @@ func (r *OpencodeTranscriptReader) queryPartsAfter(
 
 	defer rows.Close() //nolint:errcheck
 
-	jsonlLines := make([]string, 0)
+	return scanPartRows(rows)
+}
 
-	for rows.Next() {
-		var timeCreated int64
-
-		var partType, text, toolName, state, role sql.NullString
-
-		scanErr := rows.Scan(&timeCreated, &partType, &text, &toolName, &state, &role)
-		if scanErr != nil {
-			return nil, fmt.Errorf("scanning part row: %w", scanErr)
-		}
-
-		rowTime := time.UnixMilli(timeCreated).UTC()
-
-		line := buildJSONLLine(rowTime, partType, text, toolName, state, role)
-		if line != "" {
-			jsonlLines = append(jsonlLines, line)
-		}
+// queryPartsBetween runs the parts query bounded to time_created within
+// [start, end] inclusive — the window a bounded ReadRange inlines into an
+// episode note.
+func (r *OpencodeTranscriptReader) queryPartsBetween(
+	sessionID string,
+	start, end time.Time,
+) ([]string, error) {
+	db, openErr := sql.Open("sqlite", r.dbPath)
+	if openErr != nil {
+		return nil, fmt.Errorf("opening opencode database: %w", openErr)
 	}
 
-	rowErr := rows.Err()
-	if rowErr != nil {
-		return nil, fmt.Errorf("iterating part rows: %w", rowErr)
+	defer db.Close() //nolint:errcheck
+
+	rows, queryErr := db.QueryContext(
+		context.Background(),
+		partSelectSQL+" AND p.time_created >= ? AND p.time_created <= ? ORDER BY p.time_created",
+		sessionID,
+		start.UnixMilli(),
+		end.UnixMilli(),
+	)
+	if queryErr != nil {
+		return nil, fmt.Errorf("querying parts: %w", queryErr)
 	}
 
-	return jsonlLines, nil
+	defer rows.Close() //nolint:errcheck
+
+	return scanPartRows(rows)
 }
 
 // DefaultOpencodeDBPath returns the standard path to the OpenCode SQLite database.
@@ -357,6 +384,15 @@ func DefaultOpencodeDBPath() string {
 
 // unexported constants.
 const (
+	opencodeURIPrefix = "opencode://"
+	// partSelectSQL is the shared column list + join + session filter for the
+	// parts query. queryPartsAfter / queryPartsBetween append their own
+	// time bound and ORDER BY.
+	partSelectSQL = "SELECT p.time_created, json_extract(p.data, '$.type'), " +
+		"json_extract(p.data, '$.text'), json_extract(p.data, '$.tool'), " +
+		"json_extract(p.data, '$.state'), json_extract(m.data, '$.role') " +
+		"FROM part p LEFT JOIN message m ON p.message_id = m.id " +
+		"WHERE p.session_id = ?"
 	userRole = "user"
 )
 
@@ -450,4 +486,35 @@ func mustMarshalJSON(v any) string {
 	}
 
 	return string(b)
+}
+
+// scanPartRows converts part-query rows into JSONL lines via buildJSONLLine,
+// dropping rows that render empty. Shared by queryPartsAfter / queryPartsBetween.
+func scanPartRows(rows *sql.Rows) ([]string, error) {
+	jsonlLines := make([]string, 0)
+
+	for rows.Next() {
+		var timeCreated int64
+
+		var partType, text, toolName, state, role sql.NullString
+
+		scanErr := rows.Scan(&timeCreated, &partType, &text, &toolName, &state, &role)
+		if scanErr != nil {
+			return nil, fmt.Errorf("scanning part row: %w", scanErr)
+		}
+
+		rowTime := time.UnixMilli(timeCreated).UTC()
+
+		line := buildJSONLLine(rowTime, partType, text, toolName, state, role)
+		if line != "" {
+			jsonlLines = append(jsonlLines, line)
+		}
+	}
+
+	rowErr := rows.Err()
+	if rowErr != nil {
+		return nil, fmt.Errorf("iterating part rows: %w", rowErr)
+	}
+
+	return jsonlLines, nil
 }

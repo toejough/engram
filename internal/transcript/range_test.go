@@ -11,6 +11,47 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
+func TestCompositeRangeReader_AllFailReturnsLastError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	last := errors.New("last reader error")
+	composite := transcript.NewCompositeRangeReader(
+		fakeRangeReader{err: errors.New("first reader error")},
+		fakeRangeReader{err: last},
+	)
+
+	_, err := composite.ReadRange("p", time.Time{}, time.Now())
+	g.Expect(err).To(MatchError(last))
+}
+
+func TestCompositeRangeReader_NoReadersReturnsErrNoReader(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	composite := transcript.NewCompositeRangeReader()
+
+	_, err := composite.ReadRange("p", time.Time{}, time.Now())
+	g.Expect(err).To(MatchError(transcript.ErrNoReader))
+}
+
+func TestCompositeRangeReader_ReturnsFirstSuccess(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	composite := transcript.NewCompositeRangeReader(
+		fakeRangeReader{err: errors.New("jsonl miss on opencode path")},
+		fakeRangeReader{chunk: "second wins"},
+	)
+
+	got, err := composite.ReadRange("opencode://x", time.Time{}, time.Now())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal("second wins"))
+}
+
 func TestJSONLRangeReader_AppliesToolSummaryStrip(t *testing.T) {
 	t.Parallel()
 
@@ -181,4 +222,15 @@ func TestJSONLRangeReader_ReadsLinesWithinRange(t *testing.T) {
 	g.Expect(result).To(ContainSubstring("inside-two"))
 	g.Expect(result).NotTo(ContainSubstring("before"))
 	g.Expect(result).NotTo(ContainSubstring("after"))
+}
+
+// fakeRangeReader is a RangeReader returning a fixed chunk or error, used to
+// exercise CompositeRangeReader dispatch without real Claude/OpenCode sources.
+type fakeRangeReader struct {
+	chunk string
+	err   error
+}
+
+func (f fakeRangeReader) ReadRange(string, time.Time, time.Time) (string, error) {
+	return f.chunk, f.err
 }
