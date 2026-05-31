@@ -70,6 +70,17 @@ The most-missed candidates are not gotchas; they are the **requirements and deci
 - **A dedicated note for any mistake/correction**, distinct from the requirement notes — never fold a mistake into a feature note.
 - **Capture incrementally on long work.** A single end-of-session pass over a long, multi-stage session can exceed the context limit and capture nothing. Capture per work-chunk (per round, per landed unit) while context is small, rather than deferring everything to one bulk pass.
 
+### Distill recurring conventions — generic-actionable, one per convention
+
+When a convention or decision **recurs across multiple episodes or sessions** — the same rule keeps applying across different builds or domains — distill it into a **fact** in **generic-actionable** form: state the **general principle** (domain-independent, so it retrieves for *any* matching task, not just the app you happened to build), and attach the **concrete actionable specifics** that make it executable — exact interface shapes, idioms, file/layout names, the enumerated rule — so a future agent can *act* on it without re-deriving them.
+
+**One generic-actionable fact per distinct convention.** This does not contradict "Consolidate over fragment" above; the two cut on different axes:
+
+- **Same-topic dense** (consolidate): all the specifics of *one* convention live in *one* note — enumerate its complete set, don't fragment it across micro-notes.
+- **Cross-topic separate** (this rule): do **not** merge *multiple distinct* conventions (e.g. dependency injection, error wrapping, test parallelism, package layout) into one over-stuffed note. Each is its own coherent topic and retrieves under its own query.
+
+Avoid both failure modes: a **bare abstraction** (principle with no specifics → the next agent re-derives them and gets the form wrong) and an **over-stuffed note** (distinct conventions crammed together, or a rigid full recipe → over-prescribes, crowds out breadth, and surfaces under only one query). On recurrence, **elaborate the existing fact** — a continuation under it (§5) — rather than writing a near-duplicate; redundant weaker copies dilute retrieval and cost more.
+
 ## Workflow
 
 > **Two parallel tracks.** §§1–5 cover **facts/feedback** — retrieval-shaped abstractions scanned per-candidate from session activity. **Episodes** are L1 evidence — one per work-arc (arcs may be non-contiguous and may overlap; see §6a) — and follow a different pipeline. Episodes do NOT go through locus classification (§1), path A/B/C selection (§2), the recall-mirror test (§3), or the Feedback-vs-Fact categorization (§4). When in doubt about kind: principles → fact; "do differently next time" → feedback; the chunk of interactions itself → episode. Facts and feedback derived from a specific episode chunk link back to it via `--relation`.
@@ -320,3 +331,4 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 | Putting an H1 title or `Luhmann-ID · date` line in the body                                            | Filename is the display name; `luhmann` and `created` live in frontmatter.                                                                                |
 | Smoothing over contradictions                                                                          | Write `Related to:` bullets that name the discrepancy.                                                                                                    |
 | Categorizing every survivor as Feedback because the old gates didn't distinguish                       | Feedback = do-differently; Fact = how-it-works. Methodological principles with no mistake or correction are usually Facts.                                |
+| Cramming multiple distinct recurring conventions into one over-stuffed note — or stripping a convention to a bare abstraction with no specifics | One generic-actionable fact per distinct convention: the general principle WITH its concrete actionable specifics. Same-topic dense, cross-topic separate. On recurrence, elaborate the existing fact via continuation, don't near-duplicate it. |

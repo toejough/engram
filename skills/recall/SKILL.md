@@ -213,6 +213,7 @@ The user sees this. Rules:
 - **Open with one short Anchor-concepts preface.** One sentence (or a tight comma list) naming the hubs as orientation: "Anchor concepts in this area: X, Y, Z." Then drop straight into the recap. The preface is the only place hubs surface in 4b. No bulleted hub list, no scores, no path strings. If no hubs returned, omit the preface entirely.
 - **Open the recap with the count.** One sentence: "Query surfaced N items across C clusters, S in subgraph." That is it for recap framing.
 - **Walk the plan from Step 0 in order.** For each numbered action or distinct piece of the plan, say plainly whether the memories **confirmed**, **adjusted** (and how), **contradicted**, or were **silent**. One short bullet per action.
+- **Frame load-bearing conventions as requirements, not background.** When a surfaced note carries a convention or principle relevant to what you're about to build, present it as a **requirement to implement** — lead with "Apply these as requirements:" and list them — not as a memory that merely "confirmed" the plan. Treat each surfaced convention as a must-do **even when the memory states it generally**; a plan step the memory confirms still inherits that convention's concrete specifics as requirements on the step. This is the framing the matrix found wins; passive background framing is the weaker behavior it penalized.
 - **Surface load-bearing contradictions inline as prose**, not as a separate section. If a contradiction matters for the next action, call it out where that action is being discussed.
 - **No wikilinks.** Name notes by what they say, not by filename.
 - **No `(no matches)` / `(matches consolidated above)`** placeholders — those belong in 4a.
@@ -238,6 +239,7 @@ If you catch yourself doing any of these in the user-facing reply, rewrite:
 | You skipped Step 3a because clusters "look organized" or the user "only asked for recall" | The clusters being organized is a precondition for the gate, not an exit from it. Run 3a on every cluster. The only carve-out is a missing dispatch tool — verify empirically. |
 | `(no matches)` or `(matches consolidated above)` appears in 4b              | Those are 4a placeholders; in 4b just say "memories were silent on this action"       |
 | You read all cluster members from the parent /recall agent                  | The parent reads only the representative. Member reads happen inside the dispatched subagent. If you find yourself opening member files in /recall's own context, you're inline-synthesizing — dispatch instead. |
+| You reported surfaced conventions as passive background ("memory confirmed your DI plan") instead of as requirements | Frame load-bearing conventions as requirements to implement — "Apply these as requirements: …". Passive-background framing is the weaker behavior the matrix penalized; the consuming agent should treat each surfaced convention as a must-do. |
 
 ## Failure modes
 
