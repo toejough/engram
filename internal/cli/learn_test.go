@@ -391,6 +391,8 @@ func TestEngramLearn_Episode_FrontmatterShape(t *testing.T) {
 	g.Expect(body).To(ContainSubstring("sessions:"))
 	g.Expect(body).To(ContainSubstring("- 971fc252-8b44-4bd2-b44a-4f44464105eb"))
 	g.Expect(body).To(ContainSubstring("transcript_range:"))
+	// --transcript-text episodes have no source file → transcript_files omitted.
+	g.Expect(body).NotTo(ContainSubstring("transcript_files"))
 	g.Expect(body).To(ContainSubstring(`start: "2026-05-25T22:00:00Z"`))
 	g.Expect(body).To(ContainSubstring(`end: "2026-05-25T23:30:00Z"`))
 	g.Expect(body).To(ContainSubstring(`luhmann: "1"`))
