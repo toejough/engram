@@ -80,12 +80,12 @@ func TestQuery_EmbeddingFailureSurfacesError(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "x", VaultPath: vault}, deps, &out)
+		cli.QueryArgs{Phrases: []string{"x"}, VaultPath: vault}, deps, &out)
 
 	g.Expect(err).To(MatchError(ContainSubstring("embed")))
 }
 
-func TestQuery_EmptyPhrasesAndEmptyQuery_ReturnsError(t *testing.T) {
+func TestQuery_EmptyPhrases_ReturnsError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -113,7 +113,7 @@ func TestQuery_EmptyVault_ItemsEmpty(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "anything", VaultPath: vault},
+		cli.QueryArgs{Phrases: []string{"anything"}, VaultPath: vault},
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -331,7 +331,7 @@ func TestQuery_MultiPhrase_MaxScoreAcrossPhrases(t *testing.T) {
 	var outSingle bytes.Buffer
 
 	_ = cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "body", VaultPath: vault},
+		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault},
 		newQueryDeps(memFS), &outSingle)
 
 	var parsedSingle struct {
@@ -383,7 +383,7 @@ func TestQuery_NotesButNoSidecars_ErrorWithRecoveryHint(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "anything", VaultPath: vault},
+		cli.QueryArgs{Phrases: []string{"anything"}, VaultPath: vault},
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).To(MatchError(ContainSubstring("engram embed apply --all")))
@@ -418,7 +418,7 @@ func TestQuery_NotesWithIncompatibleSidecars_ErrorWithRecoveryHint(t *testing.T)
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "anything", VaultPath: vault},
+		cli.QueryArgs{Phrases: []string{"anything"}, VaultPath: vault},
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).To(MatchError(ContainSubstring("engram embed apply --all")))
@@ -467,7 +467,7 @@ func TestQuery_RanksByDescendingCosine(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "the query string body", VaultPath: vault, Limit: 2},
+		cli.QueryArgs{Phrases: []string{"the query string body"}, VaultPath: vault, Limit: 2},
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -518,7 +518,7 @@ func TestQuery_RespectsLimit(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "body", VaultPath: vault, Limit: 2},
+		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Limit: 2},
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -547,7 +547,7 @@ func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "context", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"context"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -582,7 +582,7 @@ func TestRunQuery_ProjectFilterRestrictsItems(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "body", VaultPath: vault, Project: "engram"},
+		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Project: "engram"},
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())

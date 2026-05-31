@@ -28,7 +28,7 @@ func TestQuery_BudgetReportsAllStages(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "anchor", VaultPath: vault, Limit: 5},
+		cli.QueryArgs{Phrases: []string{"anchor"}, VaultPath: vault, Limit: 5},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -69,7 +69,7 @@ func TestQuery_ClusterRepClosestToCentroid(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "anchor", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"anchor"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -110,7 +110,7 @@ func TestQuery_ClustersDeterministic(t *testing.T) {
 	var first bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "anchor", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"anchor"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &first)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -121,7 +121,7 @@ func TestQuery_ClustersDeterministic(t *testing.T) {
 	var second bytes.Buffer
 
 	err = cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "anchor", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"anchor"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &second)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -148,7 +148,7 @@ func TestQuery_FullContentScope(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "anchor", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"anchor"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -200,7 +200,7 @@ func TestQuery_HubsByInDegree(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "the query string body", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"the query string body"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -263,7 +263,7 @@ func TestQuery_ItemDedupAcrossRoles(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "anchor ", VaultPath: vault, Limit: 9},
+		cli.QueryArgs{Phrases: []string{"anchor "}, VaultPath: vault, Limit: 9},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -320,7 +320,7 @@ func TestQuery_ItemOrderingByProvenanceCount(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "anchor", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"anchor"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -362,7 +362,7 @@ func TestQuery_LowSilhouetteReturnsEmpty(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "identical", VaultPath: vault, Limit: 8},
+		cli.QueryArgs{Phrases: []string{"identical"}, VaultPath: vault, Limit: 8},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -395,7 +395,7 @@ func TestQuery_PreservesLegacyFields(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "the query string body", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"the query string body"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -431,7 +431,7 @@ func TestQuery_TinySubgraphSkipsClustering(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "the query string body", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"the query string body"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 

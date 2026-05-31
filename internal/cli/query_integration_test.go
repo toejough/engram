@@ -73,7 +73,7 @@ func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 		return
 	}
 
-	run := exec.Command(binPath, "query", "hub for cluster 1", "--vault", vault, "--limit", "5")
+	run := exec.Command(binPath, "query", "--phrase", "hub for cluster 1", "--vault", vault, "--limit", "5")
 
 	var stdout bytes.Buffer
 

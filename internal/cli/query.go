@@ -21,8 +21,7 @@ import (
 
 // QueryArgs holds parsed flags for `engram query`.
 type QueryArgs struct {
-	Query     string   `targ:"positional,name=query,desc=natural-language query string"`
-	Phrases   []string `targ:"flag,name=phrase,desc=query phrase (repeatable; use instead of positional for multi-phrase)"`
+	Phrases   []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
 	VaultPath string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
 	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
@@ -35,7 +34,7 @@ type QueryDeps struct {
 	Embedder embed.Embedder
 }
 
-// RunQuery embeds the query string, scores it against every note that
+// RunQuery embeds each query phrase, scores it against every note that
 // has a current-model sidecar, ranks by descending cosine, expands a
 // 3-hop subgraph over authored wikilinks, clusters that subgraph, and
 // identifies hubs by in-degree before emitting the resolved YAML
@@ -43,11 +42,7 @@ type QueryDeps struct {
 func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Writer) error {
 	phrases := args.Phrases
 	if len(phrases) == 0 {
-		if args.Query == "" {
-			return errQueryEmptyString
-		}
-
-		phrases = []string{args.Query}
+		return errQueryEmptyString
 	}
 
 	limit := args.Limit

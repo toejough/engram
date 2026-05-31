@@ -39,7 +39,7 @@ func TestQueryProperty_ClusterCountInRange(t *testing.T) {
 		var out bytes.Buffer
 
 		err := cli.RunQuery(context.Background(),
-			cli.QueryArgs{Query: "body", VaultPath: vault, Limit: 5},
+			cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Limit: 5},
 			newQueryDeps(memFS), &out)
 		gExpect.Expect(err).NotTo(HaveOccurred())
 
@@ -82,7 +82,7 @@ func TestQueryProperty_SubgraphSizeBounded(t *testing.T) {
 		var out bytes.Buffer
 
 		err := cli.RunQuery(context.Background(),
-			cli.QueryArgs{Query: "body", VaultPath: vault, Limit: 5},
+			cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Limit: 5},
 			newQueryDeps(memFS), &out)
 		gExpect.Expect(err).NotTo(HaveOccurred())
 

@@ -366,7 +366,7 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
-	stderr := executeForTest(t, []string{"engram", "query", "anything", "--vault", vault})
+	stderr := executeForTest(t, []string{"engram", "query", "--phrase", "anything", "--vault", vault})
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 

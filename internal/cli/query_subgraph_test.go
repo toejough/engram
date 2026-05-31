@@ -30,7 +30,7 @@ func TestQuery_BacklinksTraversed(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "the query string body", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"the query string body"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -72,7 +72,7 @@ func TestQuery_ExpandsSubgraph_BFS3Hops(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: "the query string body", VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{"the query string body"}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -118,7 +118,7 @@ func TestQuery_SubgraphCap_StopsAtThreshold(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Query: hubMatch, VaultPath: vault, Limit: 1},
+		cli.QueryArgs{Phrases: []string{hubMatch}, VaultPath: vault, Limit: 1},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
