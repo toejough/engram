@@ -258,6 +258,8 @@ engram learn episode \
 
 Required: `--slug`, `--source`, `--situation`, `--boundary-rationale`, `--session`, `--transcript-range`, and exactly one of `--from-transcript-range` (repeatable, the canonical form) or `--transcript-text` (literal content; XOR with `--from-transcript-range`). Optional: `--relation`, `--project`, `--issue`.
 
+**Resolve `<session-id>` to your current session's identifier — its form is harness-specific.** Claude Code → the bare session UUID (e.g. `ee8329d2-9fe4-4ffd-a30b-7fa7d168e36a`). OpenCode → an `opencode://<id>` URI (e.g. `opencode://ses_1dbca7154ffettwvvWkTt7kgk7`). Use the identical value for `--session` and for the `<session-id>` of every `--from-transcript-range`. The binary dispatches on the scheme — a bare path resolves to the Claude `.jsonl`; an `opencode://` URI resolves to the OpenCode database — and stamps the resolved source path into the episode's `transcript_files` provenance. If you cannot tell which harness you are under, infer from your session id's shape: a bare UUID is Claude Code; a `ses_`-prefixed id is OpenCode and must be written as `opencode://ses_…`.
+
 **Cross-link facts/feedback to their originating episode.** When a fact or feedback note is extracted from a specific episode's chunk, include `--relation "<episode-luhmann>|extracted from this chunk"` on the fact/feedback write. Backlinks are not synthesized — both directions are explicit `--relation` flags at write time. More-abstracted facts/feedback can still link to the same anchor episodes through intermediate notes.
 
 ### 7. Contradictions
