@@ -117,3 +117,18 @@ specMatch /18 (all 6 compiled + passed tests):
 
 ### Conclusion
 The highest-leverage engram change is to **LEARN-capture**, not recall and not cross-vector linking (#637): capture stated requirements explicitly **with their load-bearing detail**, **consolidated** into dense topic-notes (not atomized past the recall cutoff), **enumerate complete sets**, and always write a **dedicated mistake note** — performed **incrementally per round** (bulk end-of-session capture fails on context length). This **contradicts the current learn SKILL.md "Atomicity — one idea per permanent" bar**; the eval says, for retrievable + applicable capture, dense-and-complete beats atomic. Recall is fine as-is (passive); don't over-invest there.
+
+---
+
+## Isolated episode-only recall result (2026-05-31) — VALIDATED
+
+After fixing recording (clean per-arc episodes; harness-injection + task-notification stripped) and retrieval (episodes embedded by their `situation`, not whole body), re-ran the test in ISOLATION: a vault containing *only* 3 requirement-bearing episodes of a cold todo build, then a warm build recalling them.
+
+| | spec-match | rounds | turns | cost |
+| --- | --- | --- | --- | --- |
+| COLD (empty vault) | ~2/18 at r1 → ~17/18 after 4 review rounds | 4 | 61 | $4.34 |
+| WARM (3 episodes recalled) | ~17/18 in round 1 (compiles, tests pass) | 1 | 29 | $0.95 |
+
+**Memory delivered faster + cheaper + more correct (~4.5x cheaper).** Honest controls: vault was episodes-only (no fact/feedback confound); episodes were raw transcript evidence, not distilled answers; recall surfaced them at cosine 1.0 via situation-embedding; recall fired and the agent re-applied the requirements. The earlier "warm worse than cold" was a *capture* failure (empty seed), not inherent memory overhead.
+
+Caveat: n=1, and the warm task is the SAME todo build — proves "don't re-pay to rediscover known requirements," not yet generalization to a different task. Transfer test (a different but conventions-sharing app) is next.
