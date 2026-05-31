@@ -132,3 +132,18 @@ After fixing recording (clean per-arc episodes; harness-injection + task-notific
 **Memory delivered faster + cheaper + more correct (~4.5x cheaper).** Honest controls: vault was episodes-only (no fact/feedback confound); episodes were raw transcript evidence, not distilled answers; recall surfaced them at cosine 1.0 via situation-embedding; recall fired and the agent re-applied the requirements. The earlier "warm worse than cold" was a *capture* failure (empty seed), not inherent memory overhead.
 
 Caveat: n=1, and the warm task is the SAME todo build — proves "don't re-pay to rediscover known requirements," not yet generalization to a different task. Transfer test (a different but conventions-sharing app) is next.
+
+## Generalization + accumulation (2026-05-31)
+
+Transfer to a different app, conventions rubric (17 items): the todo episodes carry the opinionated architecture + cross-cutting patterns; status/priority/due are todo-specific.
+
+| build | score | turns | cost |
+| --- | --- | --- | --- |
+| bookmarks COLD | 4/17 (0/6 architecture) | 23 | $0.66 |
+| bookmarks WARM (+todo) | 10/17 (6/6 architecture) | 17 | $0.58 |
+| contacts COLD | 3/17 | 20 | $0.53 |
+| contacts +todo | 14/17 | 17 | $0.57 |
+| contacts +todo+bookmarks | 12/17 | 22 | $0.69 |
+
+- **Architecture transfers cleanly to a different app** (bookmarks 0/6→6/6; contacts cold→+todo strongly). Feature transfer is partial (domain-specific features don't auto-graft).
+- **Accumulation (2nd app's memories) did NOT help and cost more:** contacts +todo = 14/17, +todo+bookmarks = 12/17 at +21% cost. The 2nd (partial) example reinforced the shared architecture but DILUTED features unique to the first (lost exactly stats/color, which bookmarks lacked), and recall injected more (cost up). Memory quality/curation > quantity. Vault note Permanent/253.
