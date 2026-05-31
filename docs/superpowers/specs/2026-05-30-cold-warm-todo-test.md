@@ -147,3 +147,14 @@ Transfer to a different app, conventions rubric (17 items): the todo episodes ca
 
 - **Architecture transfers cleanly to a different app** (bookmarks 0/6→6/6; contacts cold→+todo strongly). Feature transfer is partial (domain-specific features don't auto-graft).
 - **Accumulation (2nd app's memories) did NOT help and cost more:** contacts +todo = 14/17, +todo+bookmarks = 12/17 at +21% cost. The 2nd (partial) example reinforced the shared architecture but DILUTED features unique to the first (lost exactly stats/color, which bookmarks lacked), and recall injected more (cost up). Memory quality/curation > quantity. Vault note Permanent/253.
+
+## Exact memory-vs-no-memory cost to the same bar (2026-05-31)
+
+Apples-to-apples on the contacts build, to ~15-16/17 conventions:
+
+| path | rounds | turns | cost | autonomous |
+| --- | --- | --- | --- | --- |
+| memory (generic-actionable learn + as-reqs recall) | 1 | 27 | $0.82 | yes (one shot) |
+| no memory (review loop) | 4 | 56 | $3.53 | no (human feeds requirements each round) |
+
+Memory is ~4.3x cheaper and ~2x fewer turns, and reaches the bar autonomously vs four human-review rounds. No-memory rounds escalate ($0.53/0.53/0.82/1.65) because each `--resume` re-sends the growing transcript; memory avoids that with a single primed build. (n=1; the 5x5 matrix found generic-actionable+as-reqs = 15/17 @ $0.82.)
