@@ -47,6 +47,7 @@ type LearnArgs struct {
 	// episode only
 	BoundaryRationale string
 	TranscriptText    string
+	TranscriptFiles   []string
 	Sessions          []string
 	TranscriptRange   string
 }
@@ -115,6 +116,7 @@ type episodeFields struct {
 	BoundaryRationale string
 	TranscriptText    string
 	Sessions          []string
+	TranscriptFiles   []string
 	TranscriptStart   string
 	TranscriptEnd     string
 	Luhmann           string
@@ -142,6 +144,7 @@ type episodeFrontmatterDoc struct {
 // episodeProvenanceDoc holds the nested provenance fields for an episode.
 type episodeProvenanceDoc struct {
 	Sessions        []string             `yaml:"sessions"`
+	TranscriptFiles []string             `yaml:"transcript_files,omitempty"`
 	TranscriptRange episodeTranscriptDoc `yaml:"transcript_range"`
 }
 
@@ -324,6 +327,7 @@ func buildEpisodeFields(args LearnArgs, luhmann string) (episodeFields, error) {
 		BoundaryRationale: args.BoundaryRationale,
 		TranscriptText:    args.TranscriptText,
 		Sessions:          sessions,
+		TranscriptFiles:   args.TranscriptFiles,
 		TranscriptStart:   start,
 		TranscriptEnd:     end,
 		Luhmann:           luhmann,
@@ -502,7 +506,8 @@ func renderEpisodeFrontmatter(f episodeFields, when time.Time) string {
 		Situation:         f.Situation,
 		BoundaryRationale: f.BoundaryRationale,
 		Provenance: episodeProvenanceDoc{
-			Sessions: f.Sessions,
+			Sessions:        f.Sessions,
+			TranscriptFiles: f.TranscriptFiles,
 			TranscriptRange: episodeTranscriptDoc{
 				Start: f.TranscriptStart,
 				End:   f.TranscriptEnd,
@@ -597,41 +602,39 @@ func resolveEpisodeBody(
 	a LearnEpisodeArgs,
 	reader transcript.RangeReader,
 	sessionPath func(sessionID string) (string, error),
-) (string, error) {
+) (string, []string, error) {
 	hasRange := len(a.FromTranscriptRange) > 0
 	hasText := a.TranscriptText != ""
 
 	switch {
 	case hasRange && hasText:
-		return "", errEpisodeBodySourceBoth
+		return "", nil, errEpisodeBodySourceBoth
 	case !hasRange && !hasText:
-		return "", errEpisodeBodySourceRequired
+		return "", nil, errEpisodeBodySourceRequired
 	case hasText:
-		return a.TranscriptText, nil
+		return a.TranscriptText, nil, nil
 	}
 
 	chunks := make([]string, 0, len(a.FromTranscriptRange))
+	files := make([]string, 0, len(a.FromTranscriptRange))
+	seen := make(map[string]bool, len(a.FromTranscriptRange))
 
 	for _, raw := range a.FromTranscriptRange {
-		sessionID, start, end, parseErr := parseFromTranscriptRange(raw)
-		if parseErr != nil {
-			return "", parseErr
-		}
-
-		path, pathErr := sessionPath(sessionID)
-		if pathErr != nil {
-			return "", fmt.Errorf("episode: resolving session path for %q: %w", sessionID, pathErr)
-		}
-
-		chunk, readErr := reader.ReadRange(path, start, end)
-		if readErr != nil {
-			return "", fmt.Errorf("episode: reading transcript range %q: %w", raw, readErr)
+		chunk, path, spanErr := resolveTranscriptSpan(raw, reader, sessionPath)
+		if spanErr != nil {
+			return "", nil, spanErr
 		}
 
 		chunks = append(chunks, chunk)
+
+		if !seen[path] {
+			seen[path] = true
+
+			files = append(files, path)
+		}
 	}
 
-	return strings.Join(chunks, "\n"), nil
+	return strings.Join(chunks, "\n"), files, nil
 }
 
 // resolveSessionPath is the injectable computation behind
@@ -655,6 +658,34 @@ func resolveSessionPath(
 	slug := ProjectSlugFromPath(cwd)
 
 	return filepath.Join(home, ".claude", "projects", slug, sessionID+".jsonl"), nil
+}
+
+// resolveTranscriptSpan parses one --from-transcript-range entry, resolves the
+// session's transcript file path, and reads+filters the chunk for that span.
+// Returns the chunk text and the resolved file path — the path is recorded in
+// the episode's provenance.transcript_files so the L1 note links back to its
+// source transcript.
+func resolveTranscriptSpan(
+	raw string,
+	reader transcript.RangeReader,
+	sessionPath func(sessionID string) (string, error),
+) (string, string, error) {
+	sessionID, start, end, parseErr := parseFromTranscriptRange(raw)
+	if parseErr != nil {
+		return "", "", parseErr
+	}
+
+	path, pathErr := sessionPath(sessionID)
+	if pathErr != nil {
+		return "", "", fmt.Errorf("episode: resolving session path for %q: %w", sessionID, pathErr)
+	}
+
+	chunk, readErr := reader.ReadRange(path, start, end)
+	if readErr != nil {
+		return "", "", fmt.Errorf("episode: reading transcript range %q: %w", raw, readErr)
+	}
+
+	return chunk, path, nil
 }
 
 // resolveVault returns the vault path. Flag wins, then env, then the XDG
@@ -746,7 +777,7 @@ func runLearnFromEpisodeArgsWithReader(
 	deps LearnDeps,
 	stdout io.Writer,
 ) error {
-	body, bodyErr := resolveEpisodeBody(a, reader, sessionPath)
+	body, files, bodyErr := resolveEpisodeBody(a, reader, sessionPath)
 	if bodyErr != nil {
 		return bodyErr
 	}
@@ -764,6 +795,7 @@ func runLearnFromEpisodeArgsWithReader(
 		Situation:         a.Situation,
 		BoundaryRationale: a.BoundaryRationale,
 		TranscriptText:    body,
+		TranscriptFiles:   files,
 		Sessions:          a.Sessions,
 		TranscriptRange:   a.TranscriptRange,
 	}, deps, stdout)

@@ -274,6 +274,67 @@ func TestEngramLearn_Episode_FromTranscriptRange_ReadsChunk(t *testing.T) {
 	g.Expect(string(writtenContent)).To(ContainSubstring(fakeChunk))
 }
 
+// TestEngramLearn_Episode_FromTranscriptRange_RecordsTranscriptFile verifies
+// that a --from-transcript-range episode records the resolved transcript file
+// path in provenance.transcript_files, so the L1 note links back to its source.
+func TestEngramLearn_Episode_FromTranscriptRange_RecordsTranscriptFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:     func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return nil },
+		ListIDs: func(string) ([]string, error) { return nil, nil },
+		Lock:    func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error {
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	reader := stubRangeReader{
+		chunks: map[string]string{
+			"/sessions/sess-1.jsonl": "USER: hi\nASSISTANT: yo\n",
+		},
+	}
+
+	args := cli.LearnEpisodeArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "range-file",
+			Vault:    "/v",
+			Position: "top",
+			Source:   "src",
+		},
+		Situation:           "range file check",
+		BoundaryRationale:   "discrete arc",
+		FromTranscriptRange: []string{"sess-1:2026-05-25T22:00:00Z..2026-05-25T23:00:00Z"},
+		Sessions:            []string{"sess-1"},
+		TranscriptRange:     "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+	}
+
+	var stdout strings.Builder
+
+	sessionPath := func(id string) (string, error) {
+		return "/sessions/" + id + ".jsonl", nil
+	}
+
+	err := cli.RunLearnFromEpisodeArgsWithReaderForTest(
+		t.Context(), args, reader, sessionPath, deps, &stdout,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(writtenContent)).To(ContainSubstring("transcript_files:"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("/sessions/sess-1.jsonl"))
+}
+
 // TestEngramLearn_Episode_FrontmatterShape verifies the rendered
 // L1 episode frontmatter contains the spec-mandated keys
 // (type=episode, situation, boundary_rationale, nested
