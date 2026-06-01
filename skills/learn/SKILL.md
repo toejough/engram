@@ -282,6 +282,8 @@ engram learn fact --tier L3 --slug <topic>-adr \
 
 It must read fast when surfaced, so keep it short — a title-length `--subject`, a few lines of `--object`, and the `--relation` links down to its L2s. The exact ADR shape is tunable; the scenario-framed `--situation` and the brevity are not.
 
+**`--tier L3` is mandatory and the easiest thing to drop.** Without it the ADR is written as a plain L2 fact and a tier-capped recall (`--tier L3`) will never surface it — the entire synthesis is wasted. `engram learn fact` also needs `--position` (`top` for a new ADR) and `--target` (empty for top). After writing each ADR, **verify**: run `engram query --tier L3 --phrase "<your scenario seed>"` — your ADR must appear in `items`. If it does not, you dropped `--tier L3`; rewrite it with the flag.
+
 ### 7. Contradictions
 
 If a new permanent contradicts an existing one, write the new permanent with a `Related to:` bullet whose rationale names the discrepancy. Surface in the final report. Don't smooth.
