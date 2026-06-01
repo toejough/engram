@@ -162,6 +162,10 @@ type queryParsed struct {
 			Score            float32 `yaml:"score"`
 			IsRepresentative bool    `yaml:"is_representative"`
 		} `yaml:"members"`
+		NearestL3 *struct {
+			Path   string  `yaml:"path"`
+			Cosine float32 `yaml:"cosine"`
+		} `yaml:"nearest_l3,omitempty"`
 	} `yaml:"clusters"`
 	Budget struct {
 		PhrasesQueried       int  `yaml:"phrases_queried"`

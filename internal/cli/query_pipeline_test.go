@@ -378,6 +378,86 @@ func TestQuery_LowSilhouetteReturnsEmpty(t *testing.T) {
 	g.Expect(parsed.Budget.ClustersFound).To(BeZero())
 }
 
+// TestQuery_NearestL3_AbsentWhenNoL3InVault — a vault with no tier:L3 notes
+// produces clusters with nearest_l3 omitted (nil).
+func TestQuery_NearestL3_AbsentWhenNoL3InVault(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Exactly the clustering fixture — no L3 notes planted.
+	plantDeterministicCluster(t, memFS, vault)
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"anchor"}, VaultPath: vault, Limit: 5},
+		newQueryDeps(memFS), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
+
+	for _, clusterEntry := range parsed.Clusters {
+		g.Expect(clusterEntry.NearestL3).To(BeNil(), "cluster %d should have no nearest_l3", clusterEntry.ID)
+	}
+}
+
+// TestQuery_NearestL3_PresentWhenVaultHasL3 — a vault with a tier:L3 note
+// produces clusters that each carry nearest_l3.path pointing at the L3 note
+// and nearest_l3.cosine > 0.
+func TestQuery_NearestL3_PresentWhenVaultHasL3(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// 9 clusterable notes (plantDeterministicCluster) plus one standalone L3.
+	plantDeterministicCluster(t, memFS, vault)
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/ADR.md",
+		"---\ntype: fact\ntier: L3\n---\narchitectural decision record body\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"anchor"}, VaultPath: vault, Limit: 5},
+		newQueryDeps(memFS), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
+
+	for _, clusterEntry := range parsed.Clusters {
+		g.Expect(clusterEntry.NearestL3).NotTo(BeNil(), "cluster %d missing nearest_l3", clusterEntry.ID)
+
+		if clusterEntry.NearestL3 == nil {
+			continue
+		}
+
+		g.Expect(clusterEntry.NearestL3.Path).To(Equal("Permanent/ADR.md"),
+			"cluster %d nearest_l3.path", clusterEntry.ID)
+		g.Expect(clusterEntry.NearestL3.Cosine).To(BeNumerically(">", float32(0)),
+			"cluster %d nearest_l3.cosine", clusterEntry.ID)
+	}
+}
+
 // TestQuery_NoOldKindKept — sanity check that existing assertions on
 // `kind`, `score`, `provenances`, `content` still hold with the new payload.
 // Guards against regression after schema change.

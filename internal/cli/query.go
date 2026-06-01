@@ -74,7 +74,10 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		summaries = append(summaries, summary)
 	}
 
+	l3 := gatherL3Index(hits, args.VaultPath, deps.Read)
+
 	merged := aggregatePhraseSummaries(phrases, summaries, limit)
+	merged.l3 = l3
 	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
 	merged.resolvedItems = applyTierFilter(merged.resolvedItems, args.Tier)
 
@@ -126,6 +129,7 @@ type aggregatedSummary struct {
 	phrases        []string
 	resolvedItems  []resolvedItem
 	phraseClusters []phrasedCluster
+	l3             l3Index
 	totalNotes     int
 	withEmbeddings int
 	limit          int
@@ -166,6 +170,13 @@ type hubReport struct {
 	inDegrees []int // inDegrees[i] = in-degree of members[memberIDs[i]]
 }
 
+// l3Index holds the vault-wide set of L3 note paths and their sidecar
+// vectors for per-cluster nearest-L3 lookup. Built once per RunQuery call.
+type l3Index struct {
+	paths   []string
+	vectors [][]float32
+}
+
 // phrasedCluster pairs a cluster report with the phrase that produced it,
 // so the payload can tag each cluster with its originating query phrase.
 type phrasedCluster struct {
@@ -196,6 +207,7 @@ type queryCluster struct {
 	Size       int                  `yaml:"size"`
 	Silhouette float64              `yaml:"silhouette"`
 	Members    []queryClusterMember `yaml:"members"`
+	NearestL3  *queryNearestL3      `yaml:"nearest_l3,omitempty"`
 }
 
 // queryClusterMember is the per-member shape in clusters.members.
@@ -216,6 +228,12 @@ type queryItem struct {
 	ClusterID   *int     `yaml:"cluster_id,omitempty"`
 	InDegree    *int     `yaml:"in_degree,omitempty"`
 	Content     string   `yaml:"content,omitempty"`
+}
+
+// queryNearestL3 is the nearest existing L3 note for a cluster centroid.
+type queryNearestL3 struct {
+	Path   string  `yaml:"path"`
+	Cosine float32 `yaml:"cosine"`
 }
 
 // queryPayload is the top-level YAML document.
@@ -580,6 +598,38 @@ func filterToCompatibleMembers(
 	sort.Strings(memberNames)
 
 	return memberNames
+}
+
+// gatherL3Index reads each compatible-sidecar note's content and collects
+// those whose frontmatter carries "tier: L3" into a small index used for
+// nearest-L3 lookup during cluster rendering. Called once per query so the
+// per-cluster BestMatch calls are O(1) in I/O.
+func gatherL3Index(
+	hits []compatibleSidecar,
+	vault string,
+	read func(string) ([]byte, error),
+) l3Index {
+	paths := make([]string, 0)
+	vectors := make([][]float32, 0)
+
+	for _, hit := range hits {
+		notePath := pathOf(hit.note.Basename, hit.note.IsMOC)
+
+		body, readErr := read(filepath.Join(vault, notePath))
+		if readErr != nil {
+			continue
+		}
+
+		item := resolvedItem{content: stripWikilinks(string(body))}
+		if !itemMatchesTier(item, "L3") {
+			continue
+		}
+
+		paths = append(paths, notePath)
+		vectors = append(vectors, hit.sidecar.Vector)
+	}
+
+	return l3Index{paths: paths, vectors: vectors}
 }
 
 // identifyHubs returns the top-N (≤ maxHubs) subgraph notes by
@@ -991,6 +1041,24 @@ func mergeProvenances(
 	return items
 }
 
+// nearestL3For returns the nearest L3 note to centroid from l3Notes, or nil if
+// the index is empty. threshold 0 ensures the best is always reported; the
+// skill applies its own 0.9 cut.
+func nearestL3For(centroid []float32, l3Notes l3Index) *queryNearestL3 {
+	if len(l3Notes.vectors) == 0 {
+		return nil
+	}
+
+	bestIdx, sim := cluster.BestMatch(centroid, l3Notes.vectors, 0)
+
+	result := &queryNearestL3{Cosine: sim}
+	if bestIdx >= 0 {
+		result.Path = l3Notes.paths[bestIdx]
+	}
+
+	return result
+}
+
 // newOsQueryDeps wires the production scan + read for the query command.
 func newOsQueryDeps() QueryDeps {
 	embedDeps := newOsEmbedDeps()
@@ -1119,8 +1187,9 @@ func rankCandidates(
 // renderClusters converts a clusterReport into the YAML clusters[] section.
 // Members are sorted by score desc; representative is_representative is set.
 // renderClusters converts per-phrase cluster reports into the YAML wire shape.
-// Each cluster is tagged with the phrase that produced it.
-func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
+// Each cluster is tagged with the phrase that produced it. l3Notes provides the
+// vault-wide L3 note index for nearest-L3 annotation.
+func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index) []queryCluster {
 	var out []queryCluster
 
 	for _, pc := range phraseClusters {
@@ -1130,6 +1199,7 @@ func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
 
 		for clusterID := range pc.report.autoK.K {
 			members := collectClusterMembers(pc.subgraph, pc.report, clusterID)
+			centroid := pc.report.autoK.Centroids[clusterID]
 
 			out = append(out, queryCluster{
 				ID:         clusterID,
@@ -1137,6 +1207,7 @@ func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
 				Size:       len(members),
 				Silhouette: pc.report.silhouettesByID[clusterID],
 				Members:    members,
+				NearestL3:  nearestL3For(centroid, l3Notes),
 			})
 		}
 	}
@@ -1171,7 +1242,7 @@ func renderItems(resolved []resolvedItem) []queryItem {
 // pipeline output.
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems)
-	clusters := renderClusters(merged.phraseClusters)
+	clusters := renderClusters(merged.phraseClusters, merged.l3)
 	contentful := countItemsWithContent(items)
 
 	directCount := 0
