@@ -1527,6 +1527,206 @@ func TestRunLearn_RejectsUnknownType(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+// TestTierFrontmatter_BadTierRejected verifies that an invalid --tier value
+// returns errLearnBadTier.
+func TestTierFrontmatter_BadTierRejected(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.LearnDeps{
+		Now:      func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:   func(string) string { return "" },
+		StatDir:  func(string) error { return nil },
+		ListIDs:  func(string) ([]string, error) { return nil, nil },
+		Lock:     func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(string, []byte) error { return nil },
+	}
+
+	args := cli.LearnArgs{
+		Type:      "fact",
+		Slug:      "tier-bad",
+		Vault:     "/v",
+		Position:  "top",
+		Source:    "src",
+		Situation: "tier bad check",
+		Subject:   "subj",
+		Predicate: "pred",
+		Object:    "obj",
+		Tier:      "L9",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(cli.ErrLearnBadTierForTest))
+}
+
+// TestTierFrontmatter_EpisodeDefaultsToL1 verifies that a rendered episode
+// note carries tier: L1 derived from its type.
+func TestTierFrontmatter_EpisodeDefaultsToL1(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:      func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:   func(string) string { return "" },
+		StatDir:  func(string) error { return nil },
+		ListIDs:  func(string) ([]string, error) { return nil, nil },
+		Lock:     func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error { writtenContent = data; return nil },
+	}
+
+	args := cli.LearnArgs{
+		Type:              "episode",
+		Slug:              "tier-episode",
+		Vault:             "/v",
+		Position:          "top",
+		Source:            "src",
+		Situation:         "tier check",
+		BoundaryRationale: "discrete arc",
+		TranscriptText:    "USER: hi\nASSISTANT: hello\n",
+		Sessions:          []string{"sess"},
+		TranscriptRange:   "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(writtenContent)).To(ContainSubstring("tier: L1"))
+}
+
+// TestTierFrontmatter_FactDefaultsToL2 verifies that a rendered fact note
+// carries tier: L2 derived from its type.
+func TestTierFrontmatter_FactDefaultsToL2(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:      func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:   func(string) string { return "" },
+		StatDir:  func(string) error { return nil },
+		ListIDs:  func(string) ([]string, error) { return nil, nil },
+		Lock:     func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error { writtenContent = data; return nil },
+	}
+
+	args := cli.LearnArgs{
+		Type:      "fact",
+		Slug:      "tier-fact",
+		Vault:     "/v",
+		Position:  "top",
+		Source:    "src",
+		Situation: "tier check",
+		Subject:   "subj",
+		Predicate: "pred",
+		Object:    "obj",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(writtenContent)).To(ContainSubstring("tier: L2"))
+}
+
+// TestTierFrontmatter_FeedbackDefaultsToL2 verifies that a rendered feedback
+// note carries tier: L2 derived from its type.
+func TestTierFrontmatter_FeedbackDefaultsToL2(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:      func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:   func(string) string { return "" },
+		StatDir:  func(string) error { return nil },
+		ListIDs:  func(string) ([]string, error) { return nil, nil },
+		Lock:     func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error { writtenContent = data; return nil },
+	}
+
+	args := cli.LearnArgs{
+		Type:      "feedback",
+		Slug:      "tier-feedback",
+		Vault:     "/v",
+		Position:  "top",
+		Source:    "src",
+		Situation: "tier check",
+		Behavior:  "beh",
+		Impact:    "imp",
+		Action:    "act",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(writtenContent)).To(ContainSubstring("tier: L2"))
+}
+
+// TestTierFrontmatter_OverrideL3 verifies that --tier L3 on a fact note
+// overrides the default L2 tier.
+func TestTierFrontmatter_OverrideL3(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		Now:      func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
+		Getenv:   func(string) string { return "" },
+		StatDir:  func(string) error { return nil },
+		ListIDs:  func(string) ([]string, error) { return nil, nil },
+		Lock:     func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error { writtenContent = data; return nil },
+	}
+
+	args := cli.LearnArgs{
+		Type:      "fact",
+		Slug:      "tier-override",
+		Vault:     "/v",
+		Position:  "top",
+		Source:    "src",
+		Situation: "tier override check",
+		Subject:   "subj",
+		Predicate: "pred",
+		Object:    "obj",
+		Tier:      "L3",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(writtenContent)).To(ContainSubstring("tier: L3"))
+}
+
 func TestValidateIssueID_AcceptsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

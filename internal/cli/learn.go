@@ -30,6 +30,7 @@ type LearnArgs struct {
 	Source   string
 	Project  string
 	Issue    string
+	Tier     string
 
 	// feedback / fact / episode all support related-note bullets
 	Relations []string
@@ -74,6 +75,9 @@ const (
 	dateFormat            = "2006-01-02"
 	envVaultPath          = "ENGRAM_VAULT_PATH"
 	opencodeSessionPrefix = "opencode://"
+	tierL1                = "L1"
+	tierL2                = "L2"
+	tierL3                = "L3"
 	typeEpisode           = "episode"
 	typeFact              = "fact"
 	typeFeedback          = "feedback"
@@ -105,6 +109,7 @@ var (
 	)
 	errEpisodeTranscriptRangeReq = errors.New("episode: --transcript-range is required")
 	errIssueIDInvalid            = errors.New("issue must be non-empty with no whitespace")
+	errLearnBadTier              = errors.New("tier must be L1, L2, or L3")
 	errLearnUnknownType          = errors.New("learn: type must be feedback, fact, or episode")
 	errProjectSlugInvalid        = errors.New("project slug must match [a-z0-9-]+")
 	errSlugEmpty                 = errors.New("slug is required")
@@ -124,6 +129,7 @@ type episodeFields struct {
 	Source            string
 	Project           string
 	Issue             string
+	Tier              string
 }
 
 // episodeFrontmatterDoc is the YAML shape of an episode note's frontmatter.
@@ -132,6 +138,7 @@ type episodeFields struct {
 // yaml.v3 emits stable nested key order.
 type episodeFrontmatterDoc struct {
 	Type              string               `yaml:"type"`
+	Tier              string               `yaml:"tier,omitempty"`
 	Situation         string               `yaml:"situation"`
 	BoundaryRationale string               `yaml:"boundary_rationale"`
 	Provenance        episodeProvenanceDoc `yaml:"provenance"`
@@ -165,12 +172,14 @@ type factFields struct {
 	Source    string
 	Project   string
 	Issue     string
+	Tier      string
 }
 
 // factFrontmatterDoc is the YAML shape of a fact's frontmatter. Field order
 // here determines key order in the rendered document.
 type factFrontmatterDoc struct {
 	Type      string       `yaml:"type"`
+	Tier      string       `yaml:"tier,omitempty"`
 	Situation string       `yaml:"situation"`
 	Subject   string       `yaml:"subject"`
 	Predicate string       `yaml:"predicate"`
@@ -191,11 +200,13 @@ type feedbackFields struct {
 	Source    string
 	Project   string
 	Issue     string
+	Tier      string
 }
 
 // feedbackFrontmatterDoc is the YAML shape of a feedback note's frontmatter.
 type feedbackFrontmatterDoc struct {
 	Type      string       `yaml:"type"`
+	Tier      string       `yaml:"tier,omitempty"`
 	Situation string       `yaml:"situation"`
 	Behavior  string       `yaml:"behavior"`
 	Impact    string       `yaml:"impact"`
@@ -229,22 +240,37 @@ func (q quotedString) MarshalYAML() (any, error) {
 }
 
 func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
+	tierErr := validateTier(args.Tier)
+	if tierErr != nil {
+		return "", tierErr
+	}
+
 	related := renderRelatedSection(args.Relations)
 
 	switch args.Type {
 	case typeFeedback:
+		tier := args.Tier
+		if tier == "" {
+			tier = tierL2
+		}
+
 		f := feedbackFields{
 			Situation: args.Situation, Behavior: args.Behavior, Impact: args.Impact,
 			Action: args.Action, Luhmann: luhmann, Source: args.Source,
-			Project: args.Project, Issue: args.Issue,
+			Project: args.Project, Issue: args.Issue, Tier: tier,
 		}
 
 		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f, related), nil
 	case typeFact:
+		tier := args.Tier
+		if tier == "" {
+			tier = tierL2
+		}
+
 		f := factFields{
 			Situation: args.Situation, Subject: args.Subject, Predicate: args.Predicate,
 			Object: args.Object, Luhmann: luhmann, Source: args.Source,
-			Project: args.Project, Issue: args.Issue,
+			Project: args.Project, Issue: args.Issue, Tier: tier,
 		}
 
 		return renderFactFrontmatter(f, when) + renderFactBody(f, related), nil
@@ -253,6 +279,8 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 		if parseErr != nil {
 			return "", parseErr
 		}
+
+		f.Tier = tierL1
 
 		return renderEpisodeFrontmatter(f, when) + renderEpisodeBody(f, related), nil
 	default:
@@ -518,6 +546,7 @@ func renderEpisodeBody(f episodeFields, relatedSection string) string {
 func renderEpisodeFrontmatter(f episodeFields, when time.Time) string {
 	return marshalFrontmatter(episodeFrontmatterDoc{
 		Type:              typeEpisode,
+		Tier:              f.Tier,
 		Situation:         f.Situation,
 		BoundaryRationale: f.BoundaryRationale,
 		Provenance: episodeProvenanceDoc{
@@ -547,7 +576,8 @@ func renderFactBody(f factFields, relatedSection string) string {
 
 func renderFactFrontmatter(f factFields, when time.Time) string {
 	return marshalFrontmatter(factFrontmatterDoc{
-		Type:      "fact",
+		Type:      typeFact,
+		Tier:      f.Tier,
 		Situation: f.Situation,
 		Subject:   f.Subject,
 		Predicate: f.Predicate,
@@ -571,7 +601,8 @@ func renderFeedbackBody(f feedbackFields, relatedSection string) string {
 
 func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 	return marshalFrontmatter(feedbackFrontmatterDoc{
-		Type:      "feedback",
+		Type:      typeFeedback,
+		Tier:      f.Tier,
 		Situation: f.Situation,
 		Behavior:  f.Behavior,
 		Impact:    f.Impact,
@@ -835,6 +866,7 @@ func runLearnFromEpisodeArgsWithReader(
 		Source:            a.Source,
 		Project:           a.Project,
 		Issue:             a.Issue,
+		Tier:              a.Tier,
 		Relations:         a.Relations,
 		Situation:         a.Situation,
 		BoundaryRationale: a.BoundaryRationale,
@@ -857,6 +889,7 @@ func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer
 		Source:    a.Source,
 		Project:   a.Project,
 		Issue:     a.Issue,
+		Tier:      a.Tier,
 		Relations: a.Relations,
 		Situation: a.Situation,
 		Subject:   a.Subject,
@@ -877,6 +910,7 @@ func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout i
 		Source:    a.Source,
 		Project:   a.Project,
 		Issue:     a.Issue,
+		Tier:      a.Tier,
 		Relations: a.Relations,
 		Situation: a.Situation,
 		Behavior:  a.Behavior,
@@ -979,6 +1013,21 @@ func validateSlug(slug string) error {
 	}
 
 	return nil
+}
+
+// validateTier returns an error if the tier override is non-empty and not one
+// of the recognised values L1, L2, or L3.
+func validateTier(tier string) error {
+	if tier == "" {
+		return nil
+	}
+
+	switch tier {
+	case tierL1, tierL2, tierL3:
+		return nil
+	default:
+		return fmt.Errorf("%w: got %q", errLearnBadTier, tier)
+	}
 }
 
 // writeLearnUnderLock acquires the vault lock, computes the next Luhmann ID,

@@ -23,6 +23,7 @@ type CommonLearnArgs struct {
 	Relations []string `targ:"flag,name=relation,desc=related note as <wikilink-target>|<rationale> (repeatable)"`
 	Project   string   `targ:"flag,name=project,desc=kebab-case project slug for cross-project filtering (optional)"`
 	Issue     string   `targ:"flag,name=issue,desc=originating issue ID (optional)"`
+	Tier      string   `targ:"flag,name=tier,desc=tier override L1|L2|L3 (optional; default derived from type)"`
 }
 
 // LearnEpisodeArgs holds parsed flags for the learn episode subcommand.

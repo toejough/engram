@@ -13,6 +13,7 @@ import (
 
 // Exported variables.
 var (
+	ErrLearnBadTierForTest           = errLearnBadTier
 	ExportAnyHarnessFailed           = anyHarnessFailed
 	ExportApplyProjectFilter         = applyProjectFilter
 	ExportAutoEmbedNote              = autoEmbedNote
