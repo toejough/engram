@@ -84,3 +84,37 @@ For each new or changed L2 fact:
   and `/learn` through the skills, 3 layers x 3 app-orders x 3 stages — as the
   behavioral test of whether L3 (vs L1/L2) accumulates usefully and survives the
   order permutation.
+
+## Results (2026-06-01)
+
+Feature shipped (commits 83d9f8ec…5c1fe09f): tier tag, `query --tier`,
+`cluster.BestMatch`, per-cluster `nearest_l3`, and `/learn` §6b (scenario-seeded
+ADRs, semantic update-or-create). A smoke run caught the agent dropping `--tier L3`
+(ADRs tagged L2); §6b was hardened with a mandatory-flag + self-verify (d5f5d33b).
+
+Chain: 27 builds (3 layers x 3 cyclic orders x 3 stages), all completed; recall
+fired in 29/30 transcripts; §6b produced 1–2 `tier: L3` ADRs per L3 vault
+(consolidated by semantic match, as designed). Name-agnostic arch score /10:
+
+| layer | cold | +1 prior | +2 prior |
+| --- | --- | --- | --- |
+| L1 (episodes) | 2.3 | 2.7 | 2.7 |
+| L2 (facts)    | 5.0 | 5.0 | 5.3 |
+| L3 (ADRs)     | 3.7 | 3.3 | 3.3 |
+
+**Findings (n=3 per cell, noisy — directional not conclusive):**
+- **Accumulation shows no clear benefit** — every layer's curve is flat-to-
+  slightly-declining, buried in build variance (cold anchors vary 2.3–5.0 though
+  all are zero-prior). Consistent with the earlier +bookmarks null.
+- **L2 (facts) is the strongest single tier** (5.0–5.3) >> L3 (3.3–3.7) > L1.
+- **Tier-isolated recall is much weaker than blended** — all arms score 2–5 vs the
+  8–10 of the earlier curated, kind-agnostic recall. Surfacing only ONE tier, and
+  (via the cyclic orders) memory from *different* apps than the one being built,
+  is thinner and less transferable.
+- **L3 memory is correctly thin** — §6b consolidates to 1–2 dense ADRs via the
+  cosine match (working as specified), but tier-capped L3 recall then surfaces
+  little, so the L3 arm is starved relative to blended recall.
+
+**Caveats:** n=3, heavy variance, heuristic scorer, cross-app (off-domain)
+transfer is inherently lossy. A firmer answer needs higher n and an on-domain
+target where the accumulated lessons actually apply.
