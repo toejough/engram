@@ -16,6 +16,7 @@ var (
 	ErrLearnBadTierForTest           = errLearnBadTier
 	ExportAnyHarnessFailed           = anyHarnessFailed
 	ExportApplyProjectFilter         = applyProjectFilter
+	ExportApplyTierFilter            = applyTierFilter
 	ExportAutoEmbedNote              = autoEmbedNote
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
 	ExportFinishUpdate               = finishUpdate

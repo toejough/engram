@@ -25,6 +25,7 @@ type QueryArgs struct {
 	VaultPath string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
 	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
+	Tier      string   `targ:"flag,name=tier,desc=restrict items to notes with matching tier: field (optional)"`
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -75,6 +76,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 
 	merged := aggregatePhraseSummaries(phrases, summaries, limit)
 	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
+	merged.resolvedItems = applyTierFilter(merged.resolvedItems, args.Tier)
 
 	return renderQueryPayload(stdout, merged)
 }
@@ -108,6 +110,9 @@ var (
 	// anchored to start-of-line so body text can't false-match. Slug shape
 	// mirrors the write-side validation: [a-z0-9-]+.
 	projectLineRE = regexp.MustCompile(`(?m)^project:\s*([a-z0-9-]+)\s*$`)
+	// tierLineRE matches a `tier: L<n>` line in YAML frontmatter,
+	// anchored to start-of-line so body text can't false-match.
+	tierLineRE = regexp.MustCompile(`(?m)^tier:\s*(L[0-9]+)\s*$`)
 	// wikilinkRE matches `[[target]]` and `[[target|display]]`.
 	// Used by stripWikilinks to remove pointer syntax from the
 	// rendered items.content per the spike spec — engram returns
@@ -337,6 +342,26 @@ func applyProjectFilter(items []resolvedItem, project string) []resolvedItem {
 
 	for _, item := range items {
 		if itemMatchesProject(item, project) {
+			out = append(out, item)
+		}
+	}
+
+	return out
+}
+
+// applyTierFilter drops items whose frontmatter tier: field doesn't match
+// the requested tier label. Empty tier is a no-op (returns items unchanged).
+// Items with no loaded content cannot be verified and are dropped when a
+// non-empty tier is specified.
+func applyTierFilter(items []resolvedItem, tier string) []resolvedItem {
+	if tier == "" {
+		return items
+	}
+
+	out := make([]resolvedItem, 0, len(items))
+
+	for _, item := range items {
+		if itemMatchesTier(item, tier) {
 			out = append(out, item)
 		}
 	}
@@ -663,6 +688,30 @@ func itemMatchesProject(item resolvedItem, project string) bool {
 	match := projectLineRE.FindStringSubmatch(front)
 
 	return len(match) == 2 && match[1] == project
+}
+
+// itemMatchesTier scans the item's loaded content's frontmatter for a
+// tier: L<n> line matching the requested tier label. Returns false when
+// content is missing or when the frontmatter block is malformed.
+func itemMatchesTier(item resolvedItem, tier string) bool {
+	if item.content == "" {
+		return false
+	}
+
+	const delim = "---\n"
+
+	body := strings.TrimPrefix(item.content, delim)
+
+	end := strings.Index(body, "\n"+delim)
+	if end < 0 {
+		return false
+	}
+
+	front := body[:end+1]
+
+	match := tierLineRE.FindStringSubmatch(front)
+
+	return len(match) == 2 && match[1] == tier
 }
 
 // kindFromContent reads the frontmatter type field to label the item.

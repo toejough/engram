@@ -64,6 +64,54 @@ func TestApplyProjectFilter_EmptyProjectReturnsAll(t *testing.T) {
 	g.Expect(filtered).To(HaveLen(2))
 }
 
+func TestApplyTierFilter_BodyTierMentionDoesNotMatch(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewResolvedItem("Permanent/a.md",
+			"---\ntype: fact\n---\nthis body mentions tier: L3 in text\n"),
+	}
+
+	filtered := cli.ExportApplyTierFilter(items, "L3")
+	g.Expect(filtered).To(BeEmpty())
+}
+
+func TestApplyTierFilter_DropsNonMatching(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewResolvedItem("Permanent/a.md",
+			"---\ntype: fact\ntier: L3\n---\nbody\n"),
+		cli.ExportNewResolvedItem("Permanent/b.md",
+			"---\ntype: fact\ntier: L2\n---\nbody\n"),
+		cli.ExportNewResolvedItem("Permanent/c.md",
+			"---\ntype: fact\n---\nbody\n"),
+	}
+
+	filtered := cli.ExportApplyTierFilter(items, "L3")
+
+	g.Expect(filtered).To(HaveLen(1))
+	g.Expect(cli.ExportResolvedItemPath(filtered[0])).To(Equal("Permanent/a.md"))
+}
+
+func TestApplyTierFilter_EmptyTierReturnsAll(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewResolvedItem("Permanent/a.md",
+			"---\ntype: fact\ntier: L3\n---\nbody\n"),
+		cli.ExportNewResolvedItem("Permanent/b.md",
+			"---\ntype: fact\n---\nbody\n"),
+	}
+
+	filtered := cli.ExportApplyTierFilter(items, "")
+
+	g.Expect(filtered).To(HaveLen(2))
+}
+
 func TestQuery_EmbeddingFailureSurfacesError(t *testing.T) {
 	t.Parallel()
 
@@ -598,6 +646,40 @@ func TestRunQuery_ProjectFilterRestrictsItems(t *testing.T) {
 
 	for _, item := range parsed.Items {
 		g.Expect(item.Path).NotTo(ContainSubstring("opencode-note"))
+	}
+}
+
+func TestRunQuery_TierFilterRestrictsItems(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.l2-note.md",
+		"---\ntype: fact\ntier: L2\n---\nbody about tier\n")
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/2.l3-note.md",
+		"---\ntype: fact\ntier: L3\n---\nbody about tier\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Tier: "L3"},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Items []struct {
+			Path string `yaml:"path"`
+		} `yaml:"items"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Items).NotTo(BeEmpty())
+
+	for _, item := range parsed.Items {
+		g.Expect(item.Path).NotTo(ContainSubstring("l2-note"))
 	}
 }
 
