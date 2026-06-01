@@ -158,3 +158,81 @@ Apples-to-apples on the contacts build, to ~15-16/17 conventions:
 | no memory (review loop) | 4 | 56 | $3.53 | no (human feeds requirements each round) |
 
 Memory is ~4.3x cheaper and ~2x fewer turns, and reaches the bar autonomously vs four human-review rounds. No-memory rounds escalate ($0.53/0.53/0.82/1.65) because each `--resume` re-sends the growing transcript; memory avoids that with a single primed build. (n=1; the 5x5 matrix found generic-actionable+as-reqs = 15/17 @ $0.82.)
+
+## Layer-isolation experiment — L1 vs L2 vs L3, convergence cost (2026-05-31)
+
+Six arms differing only in vault contents (todo-derived memory; contacts test
+build), measuring rounds / human-review-interactions / turns / cost to reach the
+architecture bar (arch >= 9/10). Vaults: cold(empty), l1(3 episodes),
+l2(7 facts), l3(2 distilled), l1l2, l1l2l3.
+
+**Corrected result (after a scorer fix — see below):** all six arms reach the
+same ~9/10 architecture. Memory's value is *autonomous convergence*, not
+sufficiency:
+
+| arm | round-1 arch | converged | human interactions | cost-to-converge |
+| --- | --- | --- | --- | --- |
+| cold | ~4 | round 2 | 1 | ~$1.91 |
+| l1 (episodes) | 8 | round 2 | 1 | $0.93 |
+| **l2 (facts)** | **9** | **round 1** | **0** | **$0.55** |
+| l3 (distilled) | 8 | round 2 | 1 | $1.39 |
+| l1l2 | 9 | round 1 | 0 | $0.67 |
+| l1l2l3 | 9 | round 1 | 0 | $0.86 |
+
+- **L2 specific-facts is the best single layer** (autonomous, cheapest). L1
+  episodes and L3 distilled each need one polish round (they drop the
+  `--json`/color details L2 carries — *distillation loses specifics*); L3 is the
+  priciest converged-in-2 arm ($1.39). Stacking (l1l2/l1l2l3) is autonomous but
+  costs more than L2 alone — adding layers adds cost, not convergence.
+- **No-memory (cold) reaches the same bar** but at ~3.5x L2's cost + 1 human round.
+
+**METHODOLOGY LESSON (load-bearing): the first scorer was name-biased.** Its DI
+check required the literal word `Store` in the interface name — which is the
+vocabulary the L2/L3 *notes* prescribe. Memory arms copy `Store` and passed;
+cold chose `Repository` (a synonym) and was scored "no DI", producing a false
+"cold never converges (5 rounds, capped)" headline. A heuristic scorer that keys
+on vocabulary drawn from the thing-under-test will systematically favor the
+memory arms. Name-agnostic re-scoring (detect the *pattern*: any persistence
+interface + injection) put cold at 9/10 — it had built clean DI all along.
+
+**Caveats:** n=1 throughout; the 0-vs-1-round splits and layer cost-ordering hinge
+on 1–2 rubric items (json/color); cold's convergence round inferred from rounds
+3–5 being "already done" no-ops; circularity (rubric = the notes' own content, so
+this is memory-vs-review-channel, not emergent transfer). Treat the layer ranking
+as suggestive pending a clean re-run (name-agnostic scorer + n>=2 on anchors).
+
+**Bookmarks/accumulation status:** bookmarks memory exists only as a raw L1
+episode (`bm-vault`/`combo-vault`); no bookmarks-derived L2/L3 was ever distilled.
+The prior "contacts+todo+bookmarks = 12/17 (diluted vs +todo 14)" was L1-episode
+accumulation. An *accumulated L3* (bookmarks lessons distilled into the existing
+L3 notes) has never been built or tested — it is the next experiment.
+
+## Accumulation by layer — +bookmarks (2026-05-31)
+
+Distilled the bookmarks build into the existing todo-derived L2/L3 via a learn
+run. Result: **100% elaboration, 0 new notes** — the architecture recurs; the only
+deltas are *added actionable detail* (chiefly the L3 DI principle generalizing to
+"inject ANY side-effect — browser-open/exec/net — not just Store/Clock/Writer").
+Built accumulated vaults (l1bm/l2bm/l3bm/l1l2l3bm), tested vs todo-only on contacts,
+round-1 autonomous, n=2, name-agnostic scorer:
+
+| layer | todo-only arch | +bookmarks arch | read |
+| --- | --- | --- | --- |
+| L1 | 10.0 | 9.0 | no benefit (noise) |
+| L2 | 10.0 | 10.0 | no benefit |
+| L3 | 9.0 | 8.0 | no benefit — the −1.0 is ONE outlier build (missed test-isolation + NO_COLOR, both unrelated to bookmarks); identical 5-file DI structure |
+| all | 9.0 | 8.5 | no benefit |
+
+**Accumulating a second source gave NO benefit at any layer; nothing improved.**
+The accumulated L3 did not score highest — equal-to-marginally-lower, within n=2
+noise. The earlier "richest L3 won (15/17)" was **todo-only generic-actionable**
+distillation — the win was distillation *quality* (dense on-domain detail), not
+multi-source accumulation. Accumulation didn't help because the bookmarks deltas
+are **off-domain for contacts** (side-effect/browser-open injection contacts never
+needs), so the enriched note is longer, not more useful.
+
+**Caveats:** n=2, differences <=1 pt (mostly noise — robust signal is only
+"memory helps a lot; +2nd-source adds nothing"). By design this cannot show
+accumulation HELPING — the 2nd source is off-domain for the target; a fair test
+needs a target whose needs match the accumulated lessons (e.g. an app that needs
+side-effect injection, where the bookmarks-enriched L3 would be on-domain).
