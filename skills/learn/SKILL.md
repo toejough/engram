@@ -262,6 +262,26 @@ Required: `--slug`, `--source`, `--situation`, `--boundary-rationale`, `--sessio
 
 **Cross-link facts/feedback to their originating episode.** When a fact or feedback note is extracted from a specific episode's chunk, include `--relation "<episode-luhmann>|extracted from this chunk"` on the fact/feedback write. Backlinks are not synthesized — both directions are explicit `--relation` flags at write time. More-abstracted facts/feedback can still link to the same anchor episodes through intermediate notes.
 
+### 6b. L3 synthesis — scenario-discoverable ADRs
+
+When this `/learn` pass wrote L2 facts, distill them into **L3 ADRs** so a future agent discovers the standard from its *situation*, not from knowing the lesson. L2 is a pile of specific facts; an L3 is a short decision-record that synthesizes a *cluster* of them and surfaces whether or not the agent knows it needs it. For the new or changed L2 facts:
+
+1. **Seed by SCENARIO, not by lesson keyword.** Enumerate 3–6 *situations an agent could be in where this fact should surface and be reconsidered **before they act*** — e.g. "about to build a CLI that persists user data", "wiring a Go service's storage layer". NOT phrasings of the lesson ("dependency-injection constructor", "atomic XDG write"): the agent won't know it needs the lesson and can't query for it — it queries by what it is *doing*. (The recall-mirror principle from §2, applied to synthesis.)
+2. **Search, then make the L2 discoverable.** Run `engram query --phrase "<scenario>" …` for each seed. The new L2 must rank high for those scenario queries; if it does not, the L2 is framed wrong — revise its `situation` toward the scenario and re-embed (`engram embed apply --stale`), then re-check. Discoverability is the whole point of L3; an L2 that only surfaces for its own keywords is invisible exactly when it matters.
+3. **Update or create — by SEMANTIC match, not content-compare.** Each cluster the query returns carries `nearest_l3: {path, cosine}` — the closest existing L3 ADR by centroid cosine. If `cosine ≥ 0.9` → **update** that L3: regenerate it folding in the new L2, **preferring the recent L2 where it diverges** from older members. Otherwise → **create** a new L3. Leave every other L3 untouched. (One L2 may land in several clusters and feed several L3s — that is fine, even good.)
+4. **Write it as a short ADR** — a `fact` at `tier: L3`:
+
+```
+engram learn fact --tier L3 --slug <topic>-adr \
+  --situation "<the strongest scenario seed — the situation it governs>" \
+  --subject "<the standard, one crisp line>" \
+  --predicate "applies when" \
+  --object "<2–3 lines: the decision and its concrete specifics, then the derived-from L2 slugs>" \
+  --relation "<each-constituent-L2-luhmann>|synthesized into this standard"
+```
+
+It must read fast when surfaced, so keep it short — a title-length `--subject`, a few lines of `--object`, and the `--relation` links down to its L2s. The exact ADR shape is tunable; the scenario-framed `--situation` and the brevity are not.
+
 ### 7. Contradictions
 
 If a new permanent contradicts an existing one, write the new permanent with a `Related to:` bullet whose rationale names the discrepancy. Surface in the final report. Don't smooth.
