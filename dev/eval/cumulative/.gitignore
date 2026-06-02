@@ -1,0 +1,9 @@
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Stray app-data stores written when builds/tests run in this directory
+feeds.json
+.feeds.json
+.notes-store.json
+*-store.json

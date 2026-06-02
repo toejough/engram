@@ -1,0 +1,27 @@
+{
+  "checks": [
+    {"name": "add_list", "steps": [
+      {"argv": ["add", "buymilkXYZ"], "assert": "exit0"},
+      {"argv": ["list"], "assert": "contains:buymilkXYZ"}
+    ]},
+    {"name": "done", "steps": [
+      {"argv": ["add", "taskA"], "assert": "exit0"},
+      {"argv": ["done", "1"], "assert": "exit0"},
+      {"argv": ["list", "--all"], "assert": "contains:taskA"}
+    ]},
+    {"name": "tag_filter", "steps": [
+      {"argv": ["add", "--label", "work", "tagme"], "assert": "exit0"},
+      {"argv": ["list", "--label", "work"], "assert": "contains:tagme"},
+      {"argv": ["list", "--label", "zzz"], "assert": "absent:tagme"}
+    ]},
+    {"name": "search_filter", "steps": [
+      {"argv": ["add", "searchmeZZ"], "assert": "exit0"},
+      {"argv": ["list", "--search", "searchmeZZ"], "assert": "contains:searchmeZZ"},
+      {"argv": ["list", "--search", "nomatchQQ"], "assert": "absent:searchmeZZ"}
+    ]},
+    {"name": "json_out", "steps": [
+      {"argv": ["add", "jsonitemX"], "assert": "exit0"},
+      {"argv": ["list", "--json"], "assert": "json"}
+    ]}
+  ]
+}

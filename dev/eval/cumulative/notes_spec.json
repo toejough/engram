@@ -1,0 +1,21 @@
+{
+  "app": "notes",
+  "interface": "A command-line notes manager. Subcommands (implement all):\n  add <text> [--tag X ...]            add a note\n  list [--tag X] [--search Q] [--json]   list notes\n  get <id>                            show a note\n  edit <id> <text>                    change a note's text\n  tag <id> <tag>  /  untag <id> <tag>   add or remove a tag\n  rm <id>                             remove a note",
+  "buckets": {"ARCH": "structural", "alpha": "tag + search subsystem", "native": "notes-only"},
+  "checks": [
+    {"name": "add_list", "bucket": "native", "symptom": "Basic add then list doesn't show what I added.",
+     "steps": [{"argv": ["add", "notebodyZ"], "assert": "exit0"}, {"argv": ["list"], "assert": "contains:notebodyZ"}]},
+    {"name": "edit", "bucket": "native", "symptom": "I can't change a note's wording after adding it.",
+     "steps": [{"argv": ["add", "origtext"], "assert": "exit0"}, {"argv": ["edit", "1", "changedZ"], "assert": "exit0"}, {"argv": ["list"], "assert": "contains:changedZ"}]},
+    {"name": "tag_ci", "bucket": "alpha", "symptom": "When I tag a note 'Work' and filter by 'work' I get nothing — case shouldn't matter.",
+     "variants": [
+       [{"argv": ["add", "taggednote", "--tag", "Work"], "assert": "exit0"}, {"argv": ["add", "controlnote"], "assert": "exit0"}, {"argv": ["list", "--tag", "work", "--json"], "assert": "jsonlen:1"}],
+       [{"argv": ["add", "--tag", "Work", "taggednote"], "assert": "exit0"}, {"argv": ["add", "controlnote"], "assert": "exit0"}, {"argv": ["list", "--tag", "work", "--json"], "assert": "jsonlen:1"}]
+     ]},
+    {"name": "search_allfields", "bucket": "alpha", "symptom": "Search only looks at the note text — I want it to match tags too, case-insensitively.",
+     "variants": [
+       [{"argv": ["add", "plaincontrol"], "assert": "exit0"}, {"argv": ["add", "matchnote", "--tag", "tagmatchzz"], "assert": "exit0"}, {"argv": ["list", "--search", "tagmatchzz", "--json"], "assert": "jsonlen:1"}],
+       [{"argv": ["add", "--tag", "tagmatchzz", "matchnote"], "assert": "exit0"}, {"argv": ["add", "plaincontrol"], "assert": "exit0"}, {"argv": ["list", "--search", "tagmatchzz", "--json"], "assert": "jsonlen:1"}]
+     ]}
+  ]
+}

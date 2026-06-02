@@ -1,0 +1,27 @@
+{
+  "app": "links",
+  "interface": "A command-line bookmarks / links manager. Subcommands (implement all):\n  add <url> [--title T] [--tag X ...]   save a link\n  list [--tag X] [--search Q] [--json]   list links\n  get <url>                            show the link with this URL\n  tag <id> <tag>  /  untag <id> <tag>   add or remove a tag\n  rm <id>                              remove a link\n  export <file>  /  import <file>       write / read the link list as JSON",
+  "buckets": {"ARCH": "structural", "alpha": "tag + search subsystem", "beta": "validation + dedup + portability", "native": "links-only"},
+  "checks": [
+    {"name": "add_list", "bucket": "native", "symptom": "Basic add then list doesn't show what I added.",
+     "steps": [{"argv": ["add", "https://h.example.com"], "assert": "exit0"}, {"argv": ["list"], "assert": "contains:h.example.com"}]},
+    {"name": "tag_ci", "bucket": "alpha", "symptom": "When I tag a link 'Work' and filter by 'work' I get nothing — case shouldn't matter.",
+     "variants": [
+       [{"argv": ["add", "https://a.example.com", "--tag", "Work"], "assert": "exit0"}, {"argv": ["add", "https://untagged.example.com"], "assert": "exit0"}, {"argv": ["list", "--tag", "work", "--json"], "assert": "jsonlen:1"}],
+       [{"argv": ["add", "--tag", "Work", "https://a.example.com"], "assert": "exit0"}, {"argv": ["add", "https://untagged.example.com"], "assert": "exit0"}, {"argv": ["list", "--tag", "work", "--json"], "assert": "jsonlen:1"}]
+     ]},
+    {"name": "search_allfields", "bucket": "alpha", "symptom": "Search only looks at the URL — I want it to match the title and tags too, case-insensitively.",
+     "variants": [
+       [{"argv": ["add", "https://controlplain.example.com"], "assert": "exit0"}, {"argv": ["add", "https://plainurl.example.com", "--title", "titlematchzz"], "assert": "exit0"}, {"argv": ["list", "--search", "titlematchzz", "--json"], "assert": "jsonlen:1"}],
+       [{"argv": ["add", "--title", "titlematchzz", "https://plainurl.example.com"], "assert": "exit0"}, {"argv": ["add", "https://controlplain.example.com"], "assert": "exit0"}, {"argv": ["list", "--search", "titlematchzz", "--json"], "assert": "jsonlen:1"}]
+     ]},
+    {"name": "url_validation", "bucket": "beta", "symptom": "I can add garbage that isn't a URL and it just accepts it — reject things that aren't valid URLs.",
+     "steps": [{"argv": ["add", "notaurlzz"], "assert": "exit_nonzero"}]},
+    {"name": "canonical_dedup", "bucket": "beta", "symptom": "I added the same site twice with only a trailing-slash difference and got two copies — treat URLs that normalize to the same thing as one.",
+     "steps": [{"argv": ["add", "https://dup.example.com"], "assert": "exit0"}, {"argv": ["add", "https://dup.example.com/"], "assert": "any"}, {"argv": ["list", "--json"], "assert": "jsonlen:1"}]},
+    {"name": "import_merge", "bucket": "beta", "symptom": "If I import the same file twice I get duplicate entries — importing should merge by URL, not pile up copies.",
+     "steps": [{"argv": ["add", "https://m.example.com"], "assert": "exit0"}, {"argv": ["export", "{TMP}"], "assert": "exit0"}, {"argv": ["import", "{TMP}"], "assert": "any"}, {"argv": ["import", "{TMP}"], "assert": "any"}, {"argv": ["list", "--json"], "assert": "jsonlen:1"}]},
+    {"name": "get_by_key", "bucket": "beta", "symptom": "I can only fetch a link by its number — I want to look it up by its URL.",
+     "steps": [{"argv": ["add", "https://g.example.com"], "assert": "exit0"}, {"argv": ["get", "https://g.example.com"], "assert": "contains:g.example.com"}]}
+  ]
+}
