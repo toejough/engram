@@ -1,0 +1,4 @@
+# Layer-experiment run artifacts: build results, transcripts, and a provisioned
+# cfg containing a Keychain credential. NEVER commit anything in here.
+*
+!.gitignore
