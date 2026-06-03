@@ -226,7 +226,8 @@ func TestEngramTranscript_DateRangeEndToEnd(t *testing.T) {
 
 	transcriptDir := t.TempDir()
 	transcriptPath := filepath.Join(transcriptDir, "session-abc.jsonl")
-	body := `{"type":"user","message":{"content":"hello-smoke-test"}}` + "\n"
+	body := `{"type":"user","timestamp":"2026-06-01T00:00:00Z",` +
+		`"message":{"content":"hello-smoke-test"}}` + "\n"
 	g.Expect(os.WriteFile(transcriptPath, []byte(body), 0o600)).To(Succeed())
 
 	binPath := filepath.Join(t.TempDir(), "engram")

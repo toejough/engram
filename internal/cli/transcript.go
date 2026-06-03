@@ -119,12 +119,20 @@ type transcriptState struct {
 func advanceAndReportMarker(
 	markerPath string,
 	fromTime, lastIncluded time.Time,
-	hadEntries bool,
+	hadEntries, pending bool,
 	now time.Time,
 	stdout io.Writer,
 ) error {
+	// Invariant: never advance the marker past the earliest row not actually
+	// read. When the source has pending (budget-skipped) entries, hold the
+	// marker at lastIncluded — with seeding this equals the marker when nothing
+	// was read, so budget-starved sources stay put instead of jumping to now.
 	effectiveEnd := now
-	if hadEntries && lastIncluded.Before(now) {
+
+	switch {
+	case pending:
+		effectiveEnd = lastIncluded
+	case hadEntries && lastIncluded.Before(now):
 		effectiveEnd = lastIncluded
 	}
 
@@ -158,11 +166,14 @@ func advanceMarkers(
 	stdout io.Writer,
 ) error {
 	for src, marker := range markers {
+		_, pending := result.firstUnincluded[src]
+
 		markErr := advanceAndReportMarker(
 			marker.path,
 			fromForMarkerReport(marker, explicitFrom, now),
 			result.lastIncluded[src],
 			result.hadEntries[src],
+			pending,
 			now,
 			stdout,
 		)
@@ -247,6 +258,7 @@ func dispatchEmit(
 	reader transcript.Reader,
 	filtered []transcript.FileEntry,
 	maxBytes int,
+	seed map[string]time.Time,
 	stdout io.Writer,
 ) (emitResult, error) {
 	if args.Segments {
@@ -255,10 +267,10 @@ func dispatchEmit(
 			return emitResult{}, errSegmentsNotSupported
 		}
 
-		return emitSegments(segReader, filtered, maxBytes, stdout)
+		return emitSegments(segReader, filtered, maxBytes, seed, stdout)
 	}
 
-	return emitTranscripts(reader, filtered, maxBytes, stdout)
+	return emitTranscripts(reader, filtered, maxBytes, seed, stdout)
 }
 
 // earliestBySource returns the earliest Mtime per source across entries.
@@ -347,13 +359,10 @@ func emitSegments(
 	reader transcript.SegmentsReader,
 	entries []transcript.FileEntry,
 	maxBytes int,
+	seed map[string]time.Time,
 	stdout io.Writer,
 ) (emitResult, error) {
-	result := emitResult{
-		lastIncluded:    make(map[string]time.Time),
-		hadEntries:      make(map[string]bool),
-		firstUnincluded: make(map[string]time.Time),
-	}
+	result := newSeededEmitResult(seed)
 
 	total := 0
 
@@ -424,13 +433,10 @@ func emitTranscripts(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
 	maxBytes int,
+	seed map[string]time.Time,
 	stdout io.Writer,
 ) (emitResult, error) {
-	result := emitResult{
-		lastIncluded:    make(map[string]time.Time),
-		hadEntries:      make(map[string]bool),
-		firstUnincluded: make(map[string]time.Time),
-	}
+	result := newSeededEmitResult(seed)
 
 	total := 0
 
@@ -518,6 +524,30 @@ func fromForSource(marker harnessMarker, explicitFrom, _ time.Time) time.Time {
 	}
 
 	return time.Time{}
+}
+
+// newSeededEmitResult builds a fresh emitResult with lastIncluded pre-seeded
+// from each source's effective-from. Seeding makes the first ReadFrom/
+// SegmentsFrom of each source resume from its marker (so an oversized session
+// resumes mid-file instead of restarting), and makes a budget-starved source's
+// lastIncluded equal its marker so the marker never advances past unread rows.
+// Zero-time seeds are skipped (those sources are guarded by the first-run check).
+func newSeededEmitResult(seed map[string]time.Time) emitResult {
+	result := emitResult{
+		lastIncluded:    make(map[string]time.Time, len(seed)),
+		hadEntries:      make(map[string]bool),
+		firstUnincluded: make(map[string]time.Time),
+	}
+
+	for src, from := range seed {
+		if from.IsZero() {
+			continue
+		}
+
+		result.lastIncluded[src] = from
+	}
+
+	return result
 }
 
 // parseDate parses a date string, accepting RFC3339, YYYY-MM-DD, or the
@@ -674,7 +704,9 @@ func runTranscript(
 	filtered := filterBySourceMarkers(entries, state.markers, explicitFrom, now)
 	slices.Reverse(filtered)
 
-	result, emitErr := dispatchEmit(args, reader, filtered, resolveMaxBytes(args.MaxBytes), stdout)
+	seed := seedFromMarkers(state.markers, explicitFrom, now)
+
+	result, emitErr := dispatchEmit(args, reader, filtered, resolveMaxBytes(args.MaxBytes), seed, stdout)
 	if emitErr != nil {
 		return emitErr
 	}
@@ -689,4 +721,29 @@ func runTranscript(
 	emitContinuationWarnings(result.firstUnincluded, stdout)
 
 	return nil
+}
+
+// seedFromMarkers returns each source's effective-from (the same value
+// filterBySourceMarkers uses) so the emit loop can seed lastIncluded per
+// source. Sources whose from is zero (missing marker, no explicit --from)
+// are omitted — they are guarded by the first-run check and have no resume
+// point. The result threads the per-source marker into the reader as the
+// resume fromTime AND keeps a budget-starved source's lastIncluded equal to
+// its marker so the marker never advances past unread rows.
+func seedFromMarkers(
+	markers map[string]harnessMarker,
+	explicitFrom, now time.Time,
+) map[string]time.Time {
+	seed := make(map[string]time.Time, len(markers))
+
+	for src, marker := range markers {
+		from := fromForSource(marker, explicitFrom, now)
+		if from.IsZero() {
+			continue
+		}
+
+		seed[src] = from
+	}
+
+	return seed
 }

@@ -65,11 +65,11 @@ type ExportVaultInitFS = VaultInitFS
 func AdvanceAndReportMarkerForTest(
 	markerPath string,
 	fromTime, lastIncluded time.Time,
-	hadEntries bool,
+	hadEntries, pending bool,
 	now time.Time,
 	stdout io.Writer,
 ) error {
-	return advanceAndReportMarker(markerPath, fromTime, lastIncluded, hadEntries, now, stdout)
+	return advanceAndReportMarker(markerPath, fromTime, lastIncluded, hadEntries, pending, now, stdout)
 }
 
 // DefaultSessionPathResolverForTest exposes defaultSessionPathResolver
@@ -84,9 +84,10 @@ func EmitSegmentsForTest(
 	reader transcript.SegmentsReader,
 	entries []transcript.FileEntry,
 	maxBytes int,
+	seed map[string]time.Time,
 	stdout io.Writer,
 ) (map[string]time.Time, map[string]bool, map[string]time.Time, error) {
-	result, err := emitSegments(reader, entries, maxBytes, stdout)
+	result, err := emitSegments(reader, entries, maxBytes, seed, stdout)
 
 	return result.lastIncluded, result.hadEntries, result.firstUnincluded, err
 }
@@ -99,9 +100,10 @@ func EmitTranscriptsForTest(
 	reader transcript.Reader,
 	entries []transcript.FileEntry,
 	maxBytes int,
+	seed map[string]time.Time,
 	stdout io.Writer,
 ) (map[string]time.Time, map[string]bool, map[string]time.Time, error) {
-	result, err := emitTranscripts(reader, entries, maxBytes, stdout)
+	result, err := emitTranscripts(reader, entries, maxBytes, seed, stdout)
 
 	return result.lastIncluded, result.hadEntries, result.firstUnincluded, err
 }
@@ -147,7 +149,7 @@ func ExportEmitTranscripts(
 	entries []transcript.FileEntry,
 	stdout io.Writer,
 ) error {
-	_, err := emitTranscripts(reader, entries, math.MaxInt32, stdout)
+	_, err := emitTranscripts(reader, entries, math.MaxInt32, nil, stdout)
 
 	return err
 }
