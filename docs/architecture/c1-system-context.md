@@ -3,7 +3,7 @@
 The system in scope is **Engram**, persistent memory for LLM coding agents. This
 diagram shows the people and external systems engram interacts with at runtime.
 Containers, components, technologies, and protocols are hidden — those live at L2
-and below (not yet authored). The [Key flows](#key-flows) section below pairs the
+and below (see [L2](c2-containers.md) and [L3](c3-components.md)). The [Key flows](#key-flows) section below pairs the
 static view with sequence diagrams for the four user-initiated runtime flows.
 
 ```mermaid
@@ -65,7 +65,7 @@ flowchart LR
 Four user-initiated flows span the L1 edges. Each diagram below uses the
 shorthand participant aliases `Op` (S1), `H` (S3), `E` (S2), `V` (S4), `Tr`
 (S5), `Go` (S6) and only declares the participants that flow touches. Source
-file:line references point at the entry points on `main`.
+references cite the entry-point symbol on `main` — grep the symbol, since line numbers drift.
 
 ### Flow: recall
 
@@ -82,7 +82,7 @@ cluster meeting cheap gates (≥3 members, rep hints at coherence); the
 subagent reads all members from disk, decides whether a binding principle is
 worth capturing, and writes a new fact/feedback via `engram learn` with
 `--relation` bullets to each constituent. Source:
-`internal/cli/query.go:36` (`RunQuery`) and the `internal/cluster/` package
+`internal/cli/query.go` (`RunQuery`) and the `internal/cluster/` package
 (`kmeans.go`, `silhouette.go`, `autok.go`).
 
 ```mermaid
@@ -130,8 +130,8 @@ harness first invokes `engram transcript --mark` to read session JSONL or
 SQLite from S5 and advance the per-harness marker forward, then writes any
 captured lessons into the vault via `engram learn {feedback|fact|episode}`. Each
 write acquires a `flock` on the vault root before computing the Luhmann ID and
-emitting the new file. Source: `internal/cli/transcript.go:117`
-(`advanceAndReportMarker`) and `internal/cli/learn.go:338` (`runLearn`).
+emitting the new file. Source: `internal/cli/transcript.go`
+(`advanceAndReportMarker`) and `internal/cli/learn.go` (`runLearn`).
 
 ```mermaid
 sequenceDiagram
@@ -242,7 +242,7 @@ on hit it runs `go install ./cmd/engram/` from the clone; on miss it runs
 `go install ...@latest` followed by `go list -m -json` to resolve the module
 root for the skill source. The CLI then copies each skill file and command
 file into every detected harness install root. Source:
-`internal/cli/update.go:199` (`runUpdate`) and `internal/update/update.go:152`
+`internal/cli/update.go` (`runUpdate`) and `internal/update/update.go`
 (`Updater.Run`).
 
 ```mermaid
@@ -283,6 +283,51 @@ sequenceDiagram
 The copy loop and the Go-toolchain calls are modeled in the static L1 as
 relationships [R6](#r6) and [R5](#r5) respectively.
 
+### L1 decision flowcharts
+
+The sequence diagrams above show *message order*; these flowcharts show the *operator-level decision
+logic* — when the system is engaged at all, and how `/please` sequences it. (L2/L3 carry the
+internal-branch flowcharts: recall's §3a gate, §6b update-or-create, and marker forward-progress.)
+
+#### Flow: engram engagement — the read → work → write → synthesize lifecycle
+
+```mermaid
+flowchart TD
+    A[operator request arrives] --> B{more than a trivial lookup/edit?}
+    B -->|no| Z[handle directly — engram not engaged]
+    B -->|yes| C[recall: read memory]
+    C --> D[print Step-0 plan, query, synthesize impact on the plan]
+    D --> E[do the work]
+    E --> F{produced a lesson / correction / decision?}
+    F -->|no| G[done]
+    F -->|yes| H[learn: write memory]
+    H --> I[transcript --mark, then write episodes + facts/feedback]
+    I --> J{convention recurs across episodes?}
+    J -->|yes| K[§6b: synthesize or update an L3 ADR]
+    J -->|no| G
+    K --> G
+```
+
+#### Flow: `/please` seven-step gated workflow
+
+Steps run **in order** — each starts only after the previous completes. They are **non-waivable**
+(urgency / "no ceremony" do not authorize skipping) and **N/A only when the mechanism is absent**
+(no VCS for the step-6 commit; no transcript source for the closing `/learn`).
+
+```mermaid
+flowchart TD
+    A["/please ASK"] --> B{ASK present?}
+    B -->|no| Q[ask ONE clarifying question, then wait — no other action]
+    B -->|yes| S1[1 · opening /learn — capture pending work]
+    S1 --> S2[2 · orient — /recall + read repo docs, loop until understood]
+    S2 --> S3[3 · plan — write the plan, commit it]
+    S3 --> S4[4 · execute — TDD red→green→refactor per unit]
+    S4 --> S5[5 · document — update every doc the change touched]
+    S5 --> S6[6 · complete — close issue, commit, delete temp artifacts]
+    S6 --> S7[7 · closing /learn — capture lessons]
+    S7 --> Z[terminal report]
+```
+
 ## Out of scope at L1
 
 L1 hides containers, components, technologies, protocols, and internal structure.
@@ -295,12 +340,13 @@ The embedding model is **not** an external at L1. Engram bundles
 [Hugot](https://github.com/knights-analytics/hugot) +
 [GoMLX](https://github.com/gomlx/gomlx)'s `simplego` backend. There is no
 embedding-API external, no daemon, no network dependency. The embedder
-is therefore a container of S2 (visible at L2 once that diagram is
-authored), not a separate L1 element. The legacy
+is therefore a container of S2 (C3 in the [L2](c2-containers.md) container
+view), not a separate L1 element. The legacy
 `docs/superpowers/specs/2026-05-14-tiered-memory-design.md` design that
 proposed an external Voyage API was superseded by the 2026-05-22 research
 log and the v2 implementation.
 
 ## Related
 
-- L2 container diagram: not yet authored.
+- L2 container diagram: [c2-containers.md](c2-containers.md)
+- L3 component diagram: [c3-components.md](c3-components.md)
