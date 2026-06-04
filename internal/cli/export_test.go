@@ -25,8 +25,10 @@ var (
 	ExportLearnPath                  = learnPath
 	ExportLogWarningToStderr         = logWarningToStderrf
 	ExportMarshalFrontmatter         = marshalFrontmatter
+	ExportMigrateRelationLinks       = migrateRelationLinks
 	ExportNewErrHandler              = newErrHandler
 	ExportNewOsCheckDeps             = newOsCheckDeps
+	ExportNewOsMigrateDeps           = newOsMigrateDeps
 	ExportNextLuhmannID              = nextLuhmannID
 	ExportPluralFile                 = pluralFile
 	ExportRenderEpisodeFrontmatter   = renderEpisodeFrontmatter

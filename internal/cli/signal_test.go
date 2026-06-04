@@ -68,6 +68,6 @@ func TestSetupSignalHandling_ReturnsTargets(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 
 	targets := cli.SetupSignalHandling(&stdout, &stderr, func(_ int) {}, nil)
-	// transcript, learn (group), update, embed (group), query, check
-	g.Expect(targets).To(HaveLen(6))
+	// transcript, learn (group), update, embed (group), query, check, migrate-links
+	g.Expect(targets).To(HaveLen(7))
 }

@@ -135,6 +135,10 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
 			errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), stdout))
 		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
+		targ.Targ(func(ctx context.Context, a MigrateArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			errHandler(RunMigrateLinks(withLog(ctx), a, newOsMigrateDeps(), stdout))
+		}).Name("migrate-links").Description("Rewrite bare-id relation links to full basenames (D1/G0)"),
 	}
 }
 

@@ -121,8 +121,8 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		// transcript, learn (group), update, embed (group), query, check
-		g.Expect(targets).To(gomega.HaveLen(6))
+		// transcript, learn (group), update, embed (group), query, check, migrate-links
+		g.Expect(targets).To(gomega.HaveLen(7))
 	})
 
 	t.Run("invokes learn feedback closure", func(t *testing.T) {

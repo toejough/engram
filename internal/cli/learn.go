@@ -625,7 +625,7 @@ func renderRelatedSection(entries []string) string {
 	}
 
 	lines := make([]string, 0, len(entries)+1)
-	lines = append(lines, "Related to:")
+	lines = append(lines, relatedSectionMarker)
 
 	for _, entry := range entries {
 		target, rationale, _ := strings.Cut(entry, "|")

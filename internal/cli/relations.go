@@ -1,12 +1,17 @@
 package cli
 
-import "strings"
+import (
+	"strings"
+)
 
-// resolveRelationTargets rewrites each "<target>|<rationale>" relation's target
-// from a bare Luhmann id to the full note basename (D1, the Obsidian convention)
-// so the wikilink resolves in both Obsidian and engram. A target already in
-// basename form, or a bare id with no matching note, is left unchanged.
-func resolveRelationTargets(relations, basenames []string) []string {
+// unexported constants.
+const (
+	relatedSectionMarker = "Related to:"
+)
+
+// indexBasenamesByID maps each note's leading Luhmann id (the segment before the
+// first dot of its basename) to the full basename.
+func indexBasenamesByID(basenames []string) map[string]string {
 	idToBasename := make(map[string]string, len(basenames))
 
 	for _, basename := range basenames {
@@ -15,6 +20,49 @@ func resolveRelationTargets(relations, basenames []string) []string {
 			idToBasename[id] = basename
 		}
 	}
+
+	return idToBasename
+}
+
+// migrateRelationLinks rewrites bare-id wikilinks ([[105]]) to full basenames
+// ([[105.<date>.<slug>]]) within a note's "Related to:" section ONLY — never in
+// the transcript or formula above it — so verbatim content is left untouched
+// (D2/G5). Returns the rewritten body and the number of links changed.
+func migrateRelationLinks(body string, idToBasename map[string]string) (string, int) {
+	idx := strings.LastIndex(body, relatedSectionMarker)
+	if idx == -1 {
+		return body, 0
+	}
+
+	head, tail := body[:idx], body[idx:]
+	count := 0
+
+	newTail := wikilinkRE.ReplaceAllStringFunc(tail, func(match string) string {
+		sub := wikilinkRE.FindStringSubmatch(match)
+
+		basename, ok := idToBasename[sub[1]]
+		if !ok {
+			return match
+		}
+
+		count++
+
+		if sub[2] != "" {
+			return "[[" + basename + "|" + sub[2] + "]]"
+		}
+
+		return "[[" + basename + "]]"
+	})
+
+	return head + newTail, count
+}
+
+// resolveRelationTargets rewrites each "<target>|<rationale>" relation's target
+// from a bare Luhmann id to the full note basename (D1, the Obsidian convention)
+// so the wikilink resolves in both Obsidian and engram. A target already in
+// basename form, or a bare id with no matching note, is left unchanged.
+func resolveRelationTargets(relations, basenames []string) []string {
+	idToBasename := indexBasenamesByID(basenames)
 
 	resolved := make([]string, len(relations))
 
