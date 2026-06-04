@@ -31,6 +31,7 @@ var (
 	ExportNewOsMigrateDeps           = newOsMigrateDeps
 	ExportNextLuhmannID              = nextLuhmannID
 	ExportPluralFile                 = pluralFile
+	ExportPrintLinkExamples          = printLinkExamples
 	ExportRenderEpisodeFrontmatter   = renderEpisodeFrontmatter
 	ExportRenderFactBody             = renderFactBody
 	ExportRenderFactFrontmatter      = renderFactFrontmatter
