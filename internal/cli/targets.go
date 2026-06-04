@@ -131,6 +131,10 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
 			errHandler(RunQuery(withLog(ctx), a, newOsQueryDeps(), stdout))
 		}).Name("query").Description("Semantic search over the vault (YAML output)"),
+		targ.Targ(func(ctx context.Context, a CheckArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), stdout))
+		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
 	}
 }
 
