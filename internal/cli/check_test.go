@@ -3,6 +3,8 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -10,6 +12,29 @@ import (
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
+
+func TestRunCheck_RealDepsFlagBareIDLinks(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	// Body links a bare id [[2]] — no note "2" exists, so it never resolves (G0).
+	g.Expect(os.WriteFile(
+		filepath.Join(vault, "Permanent", "1.2026-05-30.foo.md"),
+		[]byte("---\ntype: fact\n---\nbody\n\nRelated to:\n- [[2]] — x.\n"),
+		0o600,
+	)).To(Succeed())
+
+	var out bytes.Buffer
+
+	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vault}, cli.ExportNewOsCheckDeps(), &out)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("FAIL"))
+	g.Expect(out.String()).To(ContainSubstring("[[2]]"))
+}
 
 func TestRunCheck_FailsOnUnresolvedG0Links(t *testing.T) {
 	t.Parallel()

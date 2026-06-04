@@ -58,16 +58,17 @@ type LearnArgs struct {
 // drive the auto-embed step. A nil Embedder skips auto-embed entirely
 // (used by tests that don't exercise the embedding pipeline).
 type LearnDeps struct {
-	Now          func() time.Time
-	Getenv       func(string) string
-	StatDir      func(string) error
-	InitVault    func(string) error
-	ListIDs      func(vault string) ([]string, error)
-	Lock         func(vault string) (release func(), err error)
-	WriteNew     func(path string, data []byte) error
-	Embedder     embed.Embedder
-	WriteSidecar func(path string, data []byte) error
-	LogWarning   func(format string, args ...any)
+	Now           func() time.Time
+	Getenv        func(string) string
+	StatDir       func(string) error
+	InitVault     func(string) error
+	ListIDs       func(vault string) ([]string, error)
+	ListBasenames func(vault string) ([]string, error)
+	Lock          func(vault string) (release func(), err error)
+	WriteNew      func(path string, data []byte) error
+	Embedder      embed.Embedder
+	WriteSidecar  func(path string, data []byte) error
+	LogWarning    func(format string, args ...any)
 }
 
 // unexported constants.
@@ -430,16 +431,17 @@ func newOsLearnDeps() LearnDeps {
 	vaultFS := &osLearnFS{}
 
 	return LearnDeps{
-		Now:          time.Now,
-		Getenv:       os.Getenv,
-		StatDir:      vaultFS.StatDir,
-		InitVault:    func(path string) error { return initializeVault(vaultFS, path) },
-		ListIDs:      vaultFS.ListIDs,
-		Lock:         vaultFS.Lock,
-		WriteNew:     vaultFS.WriteNew,
-		Embedder:     sharedEmbedder,
-		WriteSidecar: vaultFS.WriteSidecar,
-		LogWarning:   logWarningToStderrf,
+		Now:           time.Now,
+		Getenv:        os.Getenv,
+		StatDir:       vaultFS.StatDir,
+		InitVault:     func(path string) error { return initializeVault(vaultFS, path) },
+		ListIDs:       vaultFS.ListIDs,
+		ListBasenames: vaultFS.ListBasenames,
+		Lock:          vaultFS.Lock,
+		WriteNew:      vaultFS.WriteNew,
+		Embedder:      sharedEmbedder,
+		WriteSidecar:  vaultFS.WriteSidecar,
+		LogWarning:    logWarningToStderrf,
 	}
 }
 
@@ -1057,6 +1059,15 @@ func writeLearnUnderLock(
 
 	when := deps.Now()
 	path := learnPath(vault, luhmann, args.Slug, when)
+
+	if deps.ListBasenames != nil {
+		basenames, bErr := deps.ListBasenames(vault)
+		if bErr != nil {
+			return "", fmt.Errorf("learn: listing basenames: %w", bErr)
+		}
+
+		args.Relations = resolveRelationTargets(args.Relations, basenames)
+	}
 
 	content, contentErr := assembleLearnContent(args, luhmann, when)
 	if contentErr != nil {

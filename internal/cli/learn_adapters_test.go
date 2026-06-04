@@ -86,6 +86,29 @@ func TestOsLearnFS_ListIDs_MissingSubdirsTolerated(t *testing.T) {
 	g.Expect(got).To(BeEmpty())
 }
 
+func TestOsLearnFS_ListBasenames_ReturnsBasenamesAcrossSubdirs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-09.foo.md"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "MOCs", "5.2026-05-09.moc.md"), nil, 0o600)).To(Succeed())
+	// Non-luhmann filename is skipped by the extractLuhmann filter.
+	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "README.md"), nil, 0o600)).To(Succeed())
+
+	fs := cli.ExportNewOsLearnFS()
+	got, err := fs.ListBasenames(vault)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(ConsistOf("1.2026-05-09.foo", "5.2026-05-09.moc"))
+}
+
 func TestOsLearnFS_Lock_BadVaultReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

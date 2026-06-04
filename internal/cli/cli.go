@@ -74,6 +74,38 @@ func (r *osFileReader) Read(path string) ([]byte, error) {
 // osLearnFS is the production filesystem adapter for the learn subcommand.
 type osLearnFS struct{}
 
+// ListBasenames returns note basenames (filename minus .md) for luhmann-id
+// notes in vault/Permanent and vault/MOCs — used to resolve a relation's bare
+// Luhmann id to its full basename (D1).
+func (*osLearnFS) ListBasenames(vault string) ([]string, error) {
+	out := []string{}
+
+	for _, sub := range []string{vaultgraph.PermanentSubdir, vaultgraph.MOCsSubdir} {
+		entries, err := os.ReadDir(filepath.Join(vault, sub))
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return nil, fmt.Errorf("read %s: %w", sub, err)
+		}
+
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+
+			if _, ok := extractLuhmannFromFilename(e.Name()); !ok {
+				continue
+			}
+
+			out = append(out, strings.TrimSuffix(e.Name(), ".md"))
+		}
+	}
+
+	return out, nil
+}
+
 // ListIDs returns Luhmann IDs from filenames in vault/Permanent and vault/MOCs.
 func (*osLearnFS) ListIDs(vault string) ([]string, error) {
 	out := []string{}

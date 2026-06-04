@@ -26,6 +26,7 @@ var (
 	ExportLogWarningToStderr         = logWarningToStderrf
 	ExportMarshalFrontmatter         = marshalFrontmatter
 	ExportNewErrHandler              = newErrHandler
+	ExportNewOsCheckDeps             = newOsCheckDeps
 	ExportNextLuhmannID              = nextLuhmannID
 	ExportPluralFile                 = pluralFile
 	ExportRenderEpisodeFrontmatter   = renderEpisodeFrontmatter
@@ -34,6 +35,7 @@ var (
 	ExportRenderFeedbackBody         = renderFeedbackBody
 	ExportRenderFeedbackFrontmatter  = renderFeedbackFrontmatter
 	ExportRenderRelatedSection       = renderRelatedSection
+	ExportResolveRelationTargets     = resolveRelationTargets
 	ExportResolveVault               = resolveVault
 	ExportRunLearn                   = runLearn
 	ExportRunUpdate                  = runUpdate
