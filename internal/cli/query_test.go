@@ -615,6 +615,52 @@ func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 		To(ContainSubstring("See 1a.foo and the bar note for context."))
 }
 
+func TestRunQuery_ModelMismatchEmitsWarning(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// One compatible note (active model "m@4") so recall is non-empty, plus
+	// one note whose sidecar is stamped with a stale model id. The stale
+	// sidecar is silently dropped today; the fix must warn instead.
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/good.md",
+		"---\ntype: fact\n---\nbody good\n")
+
+	const staleModelID = "STALE@384"
+
+	staleBody := []byte("---\ntype: fact\n---\nbody stale\n")
+	memFS.files[filepath.Join(vault, "Permanent/stale.md")] = staleBody
+	memFS.files[filepath.Join(vault, embed.SidecarPath("Permanent/stale.md"))] = embed.MarshalSidecar(
+		embed.Sidecar{
+			EmbeddingModelID: staleModelID,
+			Dims:             4,
+			Vector:           []float32{0, 0, 0, 0},
+			ContentHash:      embed.ContentHash(staleBody),
+		},
+	)
+
+	var warnings []string
+
+	deps := newQueryDeps(memFS)
+	deps.LogWarning = func(format string, args ...any) {
+		warnings = append(warnings, fmt.Sprintf(format, args...))
+	}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(warnings).NotTo(BeEmpty(), "model mismatch must emit a warning, not silently drop")
+
+	joined := strings.Join(warnings, "\n")
+	g.Expect(joined).To(ContainSubstring("1"), "warning must report the dropped count")
+	g.Expect(joined).To(ContainSubstring(staleModelID), "warning must name the mismatched model id")
+}
+
 func TestRunQuery_ProjectFilterRestrictsItems(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -683,6 +729,36 @@ func TestRunQuery_TierFilterRestrictsItems(t *testing.T) {
 	}
 }
 
+func TestRunQuery_TierIsolationAcrossAllChannels(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memFS := newInMemoryFS()
+	vault := plantTieredVault(t, memFS)
+
+	// --- Tier L3: every path-bearing channel must be L3-only. ---
+	parsedL3 := runTieredQuery(t, g, memFS, vault, "L3")
+	g.Expect(parsedL3.Items).NotTo(BeEmpty())
+	// Guard against a vacuous pass: clusters must actually form.
+	g.Expect(parsedL3.Clusters).NotTo(BeEmpty(), "expected clusters to form for the L3 subgraph")
+	assertChannelsMatchTier(g, parsedL3, "l3-")
+
+	// --- Tier L2: items + members are L2-only and nearest_l3 is dropped. ---
+	parsedL2 := runTieredQuery(t, g, memFS, vault, "L2")
+	assertChannelsMatchTier(g, parsedL2, "l2-")
+
+	for _, cluster := range parsedL2.Clusters {
+		g.Expect(cluster.NearestL3).To(BeNil(),
+			"nearest_l3 (always L3) must be dropped when --tier is non-L3")
+	}
+
+	// --- Blended (empty tier): both tiers appear; no over-filtering. ---
+	parsedAll := runTieredQuery(t, g, memFS, vault, "")
+	sawL2, sawL3 := tiersPresent(parsedAll)
+	g.Expect(sawL2).To(BeTrue(), "blended recall must include L2 notes")
+	g.Expect(sawL3).To(BeTrue(), "blended recall must include L3 notes")
+}
+
 type errorEmbedder struct{}
 
 func (errorEmbedder) Dims() int { return 4 }
@@ -692,6 +768,30 @@ func (errorEmbedder) Embed(context.Context, string) ([]float32, error) {
 }
 
 func (errorEmbedder) ModelID() string { return "m@4" }
+
+// assertChannelsMatchTier asserts every path-bearing channel (items,
+// cluster members, and any nearest_l3) contains the given tier marker.
+// Hubs have no dedicated payload field — they surface only as items[]
+// entries carrying the "hub" provenance and an in_degree — so the items
+// assertion below also covers the hub channel; a hub cannot leak a note
+// of another tier without that note appearing (and failing) as an item.
+func assertChannelsMatchTier(g *WithT, parsed queryParsed, marker string) {
+	for _, item := range parsed.Items {
+		g.Expect(item.Path).To(ContainSubstring(marker), "items leaked note %q", item.Path)
+	}
+
+	for _, cluster := range parsed.Clusters {
+		for _, member := range cluster.Members {
+			g.Expect(member.Path).To(ContainSubstring(marker),
+				"cluster member leaked note %q", member.Path)
+		}
+
+		if cluster.NearestL3 != nil {
+			g.Expect(cluster.NearestL3.Path).To(ContainSubstring(marker),
+				"nearest_l3 leaked note %q", cluster.NearestL3.Path)
+		}
+	}
+}
 
 func newQueryDeps(memFS *inMemoryFS) cli.QueryDeps {
 	return cli.QueryDeps{
@@ -718,4 +818,66 @@ func plantNoteWithSidecar(t *testing.T, memFS *inMemoryFS, vault, relPath, body 
 	}
 
 	memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(sidecar)
+}
+
+// plantTieredVault seeds a tempdir vault with enough L3 notes to cluster
+// (>= minSubgraphForClustering) plus some L2 notes. All share the body
+// token "body" so they all become direct hits and seed one subgraph.
+func plantTieredVault(t *testing.T, memFS *inMemoryFS) string {
+	t.Helper()
+
+	const (
+		l3Count = 8
+		l2Count = 4
+	)
+
+	vault := t.TempDir()
+
+	for i := range l3Count {
+		plantNoteWithSidecar(t, memFS, vault,
+			fmt.Sprintf("Permanent/l3-%d.md", i),
+			fmt.Sprintf("---\ntype: fact\ntier: L3\n---\nbody l3 note %d\n", i))
+	}
+
+	for i := range l2Count {
+		plantNoteWithSidecar(t, memFS, vault,
+			fmt.Sprintf("Permanent/l2-%d.md", i),
+			fmt.Sprintf("---\ntype: fact\ntier: L2\n---\nbody l2 note %d\n", i))
+	}
+
+	return vault
+}
+
+// runTieredQuery runs a single-phrase query at the given tier and returns
+// the parsed payload, asserting the call itself succeeds.
+func runTieredQuery(t *testing.T, g *WithT, memFS *inMemoryFS, vault, tier string) queryParsed {
+	t.Helper()
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Tier: tier, Limit: 20},
+		newQueryDeps(memFS), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	return parsed
+}
+
+// tiersPresent reports whether L2 and L3 notes both appear in items.
+func tiersPresent(parsed queryParsed) (sawL2, sawL3 bool) {
+	for _, item := range parsed.Items {
+		if strings.Contains(item.Path, "l2-") {
+			sawL2 = true
+		}
+
+		if strings.Contains(item.Path, "l3-") {
+			sawL3 = true
+		}
+	}
+
+	return sawL2, sawL3
 }

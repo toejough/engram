@@ -29,10 +29,15 @@ type QueryArgs struct {
 }
 
 // QueryDeps holds injected dependencies for the query command.
+//
+// LogWarning, when non-nil, receives non-fatal advisories (e.g. sidecars
+// dropped for a stale embedding model). It mirrors LearnDeps.LogWarning so
+// both commands share the production logWarningToStderrf hook.
 type QueryDeps struct {
-	Scan     func(vault string) ([]vaultgraph.Note, error)
-	Read     func(path string) ([]byte, error)
-	Embedder embed.Embedder
+	Scan       func(vault string) ([]vaultgraph.Note, error)
+	Read       func(path string) ([]byte, error)
+	Embedder   embed.Embedder
+	LogWarning func(format string, args ...any)
 }
 
 // RunQuery embeds each query phrase, scores it against every note that
@@ -57,7 +62,10 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 	}
 
 	modelID := deps.Embedder.ModelID()
-	hits := loadCompatibleSidecars(notes, args.VaultPath, deps.Read, modelID)
+	loaded := loadCompatibleSidecars(notes, args.VaultPath, deps.Read, modelID)
+	hits := loaded.hits
+
+	warnModelMismatch(deps.LogWarning, loaded, modelID)
 
 	if len(notes) > 0 && len(hits) == 0 {
 		return errQueryNoEmbeddings
@@ -78,6 +86,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 
 	merged := aggregatePhraseSummaries(phrases, summaries, limit)
 	merged.l3 = l3
+	merged.tier = args.Tier
 	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
 	merged.resolvedItems = applyTierFilter(merged.resolvedItems, args.Tier)
 
@@ -130,6 +139,7 @@ type aggregatedSummary struct {
 	resolvedItems  []resolvedItem
 	phraseClusters []phrasedCluster
 	l3             l3Index
+	tier           string
 	totalNotes     int
 	withEmbeddings int
 	limit          int
@@ -271,6 +281,16 @@ type scoredCandidate struct {
 	basename string
 	score    float32
 	content  string
+}
+
+// sidecarLoadResult bundles the compatible-sidecar hits with a summary of
+// sidecars dropped for a stale embedding model. The mismatch fields let
+// RunQuery emit a single aggregated M4 warning at the command edge instead
+// of doing I/O inside the loader.
+type sidecarLoadResult struct {
+	hits               []compatibleSidecar
+	mismatchedCount    int
+	mismatchedModelIDs []string
 }
 
 // subgraphMember bundles a node's basename, vault-relative path,
@@ -490,11 +510,16 @@ func clusterSubgraph(subgraph expandedSubgraph, query string) clusterReport {
 }
 
 // collectClusterMembers gathers per-cluster member rows in score-desc
-// order, marking the representative.
+// order, marking the representative. When tier is non-empty, members whose
+// frontmatter tier doesn't match are dropped (T1a tier isolation); if the
+// elected representative is among those dropped, the highest-scoring
+// surviving member is promoted so every non-empty cluster still reports
+// exactly one representative.
 func collectClusterMembers(
 	subgraph expandedSubgraph,
 	report clusterReport,
 	clusterID int,
+	tier string,
 ) []queryClusterMember {
 	memberIndices := make([]int, len(report.memberIDs[clusterID]))
 	copy(memberIndices, report.memberIDs[clusterID])
@@ -503,16 +528,32 @@ func collectClusterMembers(
 		return subgraph.members[memberIndices[i]].score > subgraph.members[memberIndices[j]].score
 	})
 
-	members := make([]queryClusterMember, 0, len(memberIndices))
 	repIdx := report.representatives[clusterID]
+	members := make([]queryClusterMember, 0, len(memberIndices))
+	repRetained := false
 
 	for _, idx := range memberIndices {
 		member := subgraph.members[idx]
+		if !memberMatchesTier(member, tier) {
+			continue
+		}
+
+		isRep := idx == repIdx
+		if isRep {
+			repRetained = true
+		}
+
 		members = append(members, queryClusterMember{
 			Path:             member.notePath,
 			Score:            member.score,
-			IsRepresentative: idx == repIdx,
+			IsRepresentative: isRep,
 		})
+	}
+
+	// Members are score-desc, so the first survivor is the best-scoring
+	// one; promote it when the original representative was tier-filtered out.
+	if !repRetained && len(members) > 0 {
+		members[0].IsRepresentative = true
 	}
 
 	return members
@@ -621,7 +662,7 @@ func gatherL3Index(
 		}
 
 		item := resolvedItem{content: stripWikilinks(string(body))}
-		if !itemMatchesTier(item, "L3") {
+		if !itemMatchesTier(item, tierL3) {
 			continue
 		}
 
@@ -798,15 +839,19 @@ func kindFromContent(content string) string {
 
 // loadCompatibleSidecars reads every note's sidecar once, parses it, and
 // returns only those whose EmbeddingModelID matches the active model.
-// Missing, malformed, or incompatible sidecars are silently skipped — the
-// missing-coverage case (none compatible) is surfaced by RunQuery's guard.
+// Missing or malformed sidecars are silently skipped. Sidecars dropped for
+// a stale embedding model are also skipped but recorded in the result's
+// mismatch fields so RunQuery can warn (M4) instead of emptying recall in
+// silence — the all-mismatch case is still surfaced by RunQuery's guard.
 func loadCompatibleSidecars(
 	notes []vaultgraph.Note,
 	vault string,
 	read func(string) ([]byte, error),
 	modelID string,
-) []compatibleSidecar {
+) sidecarLoadResult {
 	hits := make([]compatibleSidecar, 0, len(notes))
+	mismatchedCount := 0
+	mismatchedIDs := map[string]struct{}{}
 
 	for _, note := range notes {
 		notePath := pathOf(note.Basename, note.IsMOC)
@@ -823,13 +868,23 @@ func loadCompatibleSidecars(
 		}
 
 		if sidecar.EmbeddingModelID != modelID {
+			mismatchedCount++
+			mismatchedIDs[sidecar.EmbeddingModelID] = struct{}{}
+
 			continue
 		}
 
 		hits = append(hits, compatibleSidecar{note: note, sidecar: sidecar})
 	}
 
-	return hits
+	ids := make([]string, 0, len(mismatchedIDs))
+	for id := range mismatchedIDs {
+		ids = append(ids, id)
+	}
+
+	sort.Strings(ids)
+
+	return sidecarLoadResult{hits: hits, mismatchedCount: mismatchedCount, mismatchedModelIDs: ids}
 }
 
 // maxProvenanceRank returns the highest priority value among the roles
@@ -844,6 +899,19 @@ func maxProvenanceRank(provenances []string) int {
 	}
 
 	return best
+}
+
+// memberMatchesTier reports whether a subgraph member's loaded content
+// carries the requested tier. An empty tier matches everything (the
+// blended recall path). Members without loaded content cannot be verified
+// and are treated as non-matching when a tier is requested — mirroring
+// applyTierFilter's items[] behavior so all channels stay consistent.
+func memberMatchesTier(member subgraphMember, tier string) bool {
+	if tier == "" {
+		return true
+	}
+
+	return itemMatchesTier(resolvedItem{content: member.content}, tier)
 }
 
 // mergeClusterReps annotates representatives with provenance + cluster_id,
@@ -1059,14 +1127,27 @@ func nearestL3For(centroid []float32, l3Notes l3Index) *queryNearestL3 {
 	return result
 }
 
+// nearestL3ForTier gates nearestL3For on the requested tier for T1a
+// isolation. The l3Index is L3-only by construction, so its sole result
+// is suppressed whenever a non-L3 tier is requested; an empty or L3 tier
+// passes through unchanged.
+func nearestL3ForTier(centroid []float32, l3Notes l3Index, tier string) *queryNearestL3 {
+	if tier != "" && tier != tierL3 {
+		return nil
+	}
+
+	return nearestL3For(centroid, l3Notes)
+}
+
 // newOsQueryDeps wires the production scan + read for the query command.
 func newOsQueryDeps() QueryDeps {
 	embedDeps := newOsEmbedDeps()
 
 	return QueryDeps{
-		Scan:     embedDeps.Scan,
-		Read:     embedDeps.Read,
-		Embedder: embedDeps.Embedder,
+		Scan:       embedDeps.Scan,
+		Read:       embedDeps.Read,
+		Embedder:   embedDeps.Embedder,
+		LogWarning: logWarningToStderrf,
 	}
 }
 
@@ -1184,12 +1265,16 @@ func rankCandidates(
 	return candidates
 }
 
-// renderClusters converts a clusterReport into the YAML clusters[] section.
-// Members are sorted by score desc; representative is_representative is set.
 // renderClusters converts per-phrase cluster reports into the YAML wire shape.
-// Each cluster is tagged with the phrase that produced it. l3Notes provides the
+// Members are sorted by score desc and the representative is flagged. Each
+// cluster is tagged with the phrase that produced it. l3Notes provides the
 // vault-wide L3 note index for nearest-L3 annotation.
-func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index) []queryCluster {
+//
+// tier enforces T1a isolation across the cluster channels: members are
+// constrained to the requested tier, a cluster that empties after filtering
+// is dropped entirely, and nearest_l3 (always an L3 note by construction) is
+// suppressed for any non-L3 tier. An empty tier leaves all channels blended.
+func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index, tier string) []queryCluster {
 	var out []queryCluster
 
 	for _, pc := range phraseClusters {
@@ -1198,7 +1283,11 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index) []queryClu
 		}
 
 		for clusterID := range pc.report.autoK.K {
-			members := collectClusterMembers(pc.subgraph, pc.report, clusterID)
+			members := collectClusterMembers(pc.subgraph, pc.report, clusterID, tier)
+			if len(members) == 0 {
+				continue
+			}
+
 			centroid := pc.report.autoK.Centroids[clusterID]
 
 			out = append(out, queryCluster{
@@ -1207,7 +1296,7 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index) []queryClu
 				Size:       len(members),
 				Silhouette: pc.report.silhouettesByID[clusterID],
 				Members:    members,
-				NearestL3:  nearestL3For(centroid, l3Notes),
+				NearestL3:  nearestL3ForTier(centroid, l3Notes, tier),
 			})
 		}
 	}
@@ -1242,7 +1331,7 @@ func renderItems(resolved []resolvedItem) []queryItem {
 // pipeline output.
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems)
-	clusters := renderClusters(merged.phraseClusters, merged.l3)
+	clusters := renderClusters(merged.phraseClusters, merged.l3, merged.tier)
 	contentful := countItemsWithContent(items)
 
 	directCount := 0
@@ -1379,4 +1468,23 @@ func stripWikilinks(content string) string {
 
 		return groups[1]
 	})
+}
+
+// warnModelMismatch emits a single aggregated advisory (M4) when sidecars
+// were dropped because their embedding model differs from the active one.
+// A no-op when nothing mismatched or no warning hook is wired. The message
+// names the dropped count and the distinct stale model id(s) so a silent
+// model swap that empties recall is surfaced instead of hidden.
+func warnModelMismatch(logWarning func(string, ...any), loaded sidecarLoadResult, activeModelID string) {
+	if logWarning == nil || loaded.mismatchedCount == 0 {
+		return
+	}
+
+	logWarning(
+		"query: dropped %d sidecar(s) with embedding model(s) %s != active %s; "+
+			"run `engram embed apply --all` to re-embed",
+		loaded.mismatchedCount,
+		strings.Join(loaded.mismatchedModelIDs, ", "),
+		activeModelID,
+	)
 }
