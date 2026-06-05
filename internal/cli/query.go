@@ -26,6 +26,7 @@ type QueryArgs struct {
 	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 	Tier      string   `targ:"flag,name=tier,desc=restrict items to notes with matching tier: field (optional)"`
+	Synthesis bool     `targ:"flag,name=synthesis,desc=union all phrase matches and cluster once for L3 synthesis (K=0 means one cluster; no min-size floor)"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -71,6 +72,10 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return errQueryNoEmbeddings
 	}
 
+	if args.Synthesis {
+		return runSynthesisQuery(ctx, args, notes, hits, limit, deps, stdout)
+	}
+
 	summaries := make([]queryPipelineSummary, 0, len(phrases))
 
 	for _, phrase := range phrases {
@@ -107,9 +112,16 @@ const (
 	provenanceRankClusterRep = 2
 	provenanceRankDirect     = 3
 	provenanceRankHub        = 1
-	subgraphCap              = 200
-	subgraphMaxHops          = 3
-	unknownKind              = "unknown"
+	// singletonClusterSilhouette is the silhouette reported for the K=0->one
+	// synthesis fallback cluster. Silhouette is undefined for a single
+	// cluster, so zero stands in.
+	singletonClusterSilhouette = 0.0
+	subgraphCap                = 200
+	subgraphMaxHops            = 3
+	// synthesisClusterPhrase tags synthesis union clusters. They span every
+	// seed phrase rather than one, so the per-phrase phrase tag is left empty.
+	synthesisClusterPhrase = ""
+	unknownKind            = "unknown"
 )
 
 // unexported variables.
@@ -464,6 +476,28 @@ func buildSubgraphMembers(
 	return members
 }
 
+// buildUnionSubgraph turns the deduped union direct hits into an
+// expandedSubgraph whose members ARE those hits (no BFS expansion), joining
+// each hit's sidecar vector by basename. The graph/hops/capped fields stay
+// zero-valued because synthesis clusters the union itself and computes no hubs.
+func buildUnionSubgraph(union []scoredCandidate, hits []compatibleSidecar) expandedSubgraph {
+	hitByName := indexHitsByBasename(hits)
+
+	members := make([]subgraphMember, 0, len(union))
+
+	for _, hit := range union {
+		members = append(members, subgraphMember{
+			basename: hit.basename,
+			notePath: hit.notePath,
+			vector:   hitByName[hit.basename].sidecar.Vector,
+			score:    hit.score,
+			content:  hit.content,
+		})
+	}
+
+	return expandedSubgraph{members: members}
+}
+
 // clusterSubgraph runs auto-k k-means + silhouette over the subgraph's
 // vectors with a query-derived deterministic seed. Subgraphs smaller
 // than minSubgraphForClustering short-circuit to "no clusters".
@@ -506,6 +540,51 @@ func clusterSubgraph(subgraph expandedSubgraph, query string) clusterReport {
 		memberIDs:       memberIDs,
 		representatives: representatives,
 		silhouettesByID: perClusterSilhouettes,
+	}
+}
+
+// clusterUnionForSynthesis clusters the union subgraph exactly once. It mirrors
+// clusterSubgraph but (a) skips the minSubgraphForClustering floor, and (b) on
+// AutoK returning K==0 (no split beats the silhouette floor) or an error, falls
+// back to a SINGLE cluster of all members so a non-empty union always yields
+// >=1 cluster. An empty union yields an empty (K==0) report.
+func clusterUnionForSynthesis(subgraph expandedSubgraph, query string) clusterReport {
+	if len(subgraph.members) == 0 {
+		return clusterReport{}
+	}
+
+	vectors := make([][]float32, len(subgraph.members))
+	for i, member := range subgraph.members {
+		vectors[i] = member.vector
+	}
+
+	seed := seedFromQuery(query)
+
+	autoK, err := cluster.AutoK(vectors, clusterMinK, clusterMaxK, clusterSilhouetteFloor, seed)
+	if err != nil || autoK.K == 0 {
+		return singleClusterReport(subgraph, vectors)
+	}
+
+	memberIDs := make([][]int, autoK.K)
+	for i := range memberIDs {
+		memberIDs[i] = make([]int, 0)
+	}
+
+	for i, c := range autoK.Assignments {
+		memberIDs[c] = append(memberIDs[c], i)
+	}
+
+	representatives := make([]int, autoK.K)
+
+	for c := range autoK.K {
+		representatives[c] = pickRepresentative(subgraph, memberIDs[c], autoK.Centroids[c])
+	}
+
+	return clusterReport{
+		autoK:           autoK,
+		memberIDs:       memberIDs,
+		representatives: representatives,
+		silhouettesByID: perClusterMeanSilhouette(vectors, autoK.Assignments, autoK.K),
 	}
 }
 
@@ -899,6 +978,27 @@ func maxProvenanceRank(provenances []string) int {
 	}
 
 	return best
+}
+
+// meanVector returns the element-wise mean of the given vectors. Callers
+// guarantee a non-empty, uniformly-dimensioned input (the union members all
+// carry same-model sidecar vectors).
+func meanVector(vectors [][]float32) []float32 {
+	dims := len(vectors[0])
+	sums := make([]float64, dims)
+
+	for _, vec := range vectors {
+		for dim := range dims {
+			sums[dim] += float64(vec[dim])
+		}
+	}
+
+	mean := make([]float32, dims)
+	for dim := range dims {
+		mean[dim] = float32(sums[dim] / float64(len(vectors)))
+	}
+
+	return mean
 }
 
 // memberMatchesTier reports whether a subgraph member's loaded content
@@ -1438,6 +1538,50 @@ func runSinglePhraseQuery(
 	}, nil
 }
 
+// runSynthesisQuery implements `engram query --synthesis`: it unions every
+// phrase's DIRECT HITS (semantic matches, truncated to limit — not the
+// graph-expansion neighbors), deduplicates by note path keeping the max score,
+// and clusters that union ONE time. Unlike the per-phrase pipeline it skips the
+// minSubgraphForClustering floor and never returns "no clusters" for a
+// non-empty union: when AutoK finds no split that beats the silhouette floor it
+// emits a single cluster of all union members (the §6b L3-synthesis invariant).
+// items[] is the deduped union direct hits; tier/project filters still apply.
+func runSynthesisQuery(
+	ctx context.Context,
+	args QueryArgs,
+	notes []vaultgraph.Note,
+	hits []compatibleSidecar,
+	limit int,
+	deps QueryDeps,
+	stdout io.Writer,
+) error {
+	union, err := unionDirectHits(ctx, args.Phrases, hits, args.VaultPath, limit, deps)
+	if err != nil {
+		return err
+	}
+
+	subgraph := buildUnionSubgraph(union, hits)
+	report := clusterUnionForSynthesis(subgraph, strings.Join(args.Phrases, "\n"))
+
+	resolved := mergeProvenances(union, expandedSubgraph{}, clusterReport{}, hubReport{})
+	resolved = applyProjectFilter(resolved, args.Project)
+	resolved = applyTierFilter(resolved, args.Tier)
+
+	merged := aggregatedSummary{
+		phrases:        args.Phrases,
+		resolvedItems:  resolved,
+		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, subgraph: subgraph}},
+		l3:             gatherL3Index(hits, args.VaultPath, deps.Read),
+		tier:           args.Tier,
+		totalNotes:     len(notes),
+		withEmbeddings: len(hits),
+		limit:          limit,
+		subgraphSize:   len(subgraph.members),
+	}
+
+	return renderQueryPayload(stdout, merged)
+}
+
 // seedBasenames extracts seed basenames from direct hits in the order they appear.
 func seedBasenames(directHits []scoredCandidate) []string {
 	out := make([]string, 0, len(directHits))
@@ -1457,6 +1601,27 @@ func seedFromQuery(query string) uint64 {
 	return hasher.Sum64()
 }
 
+// singleClusterReport builds the K==0 fallback: one cluster holding every
+// member, with a centroid computed as the mean of all member vectors (AutoK
+// returns nil centroids when K==0) and a representative picked the normal way.
+// Silhouette is undefined for a single cluster, so it is reported as zero.
+func singleClusterReport(subgraph expandedSubgraph, vectors [][]float32) clusterReport {
+	allIndices := make([]int, len(subgraph.members))
+	for i := range allIndices {
+		allIndices[i] = i
+	}
+
+	centroid := meanVector(vectors)
+	rep := pickRepresentative(subgraph, allIndices, centroid)
+
+	return clusterReport{
+		autoK:           cluster.AutoKResult{K: 1, Centroids: [][]float32{centroid}},
+		memberIDs:       [][]int{allIndices},
+		representatives: []int{rep},
+		silhouettesByID: []float64{singletonClusterSilhouette},
+	}
+}
+
 // stripWikilinks removes `[[target]]` and `[[target|display]]` syntax
 // from markdown text.
 func stripWikilinks(content string) string {
@@ -1468,6 +1633,54 @@ func stripWikilinks(content string) string {
 
 		return groups[1]
 	})
+}
+
+// unionDirectHits embeds each phrase, ranks every compatible note against it,
+// truncates to the top `limit` direct hits, then merges all phrases' hits into
+// one deduped set keyed by note path (max score wins). The result is sorted by
+// note path so downstream clustering and tie-breaks are deterministic.
+func unionDirectHits(
+	ctx context.Context,
+	phrases []string,
+	hits []compatibleSidecar,
+	vault string,
+	limit int,
+	deps QueryDeps,
+) ([]scoredCandidate, error) {
+	byPath := make(map[string]scoredCandidate)
+
+	for _, phrase := range phrases {
+		queryVec, embedErr := deps.Embedder.Embed(ctx, phrase)
+		if embedErr != nil {
+			return nil, fmt.Errorf("query: embed: %w", embedErr)
+		}
+
+		directHits := rankCandidates(hits, vault, deps.Read, queryVec)
+		if len(directHits) > limit {
+			directHits = directHits[:limit]
+		}
+
+		for _, hit := range directHits {
+			existing, ok := byPath[hit.notePath]
+			if !ok || hit.score > existing.score {
+				byPath[hit.notePath] = hit
+			}
+		}
+	}
+
+	paths := make([]string, 0, len(byPath))
+	for path := range byPath {
+		paths = append(paths, path)
+	}
+
+	sort.Strings(paths)
+
+	union := make([]scoredCandidate, 0, len(byPath))
+	for _, path := range paths {
+		union = append(union, byPath[path])
+	}
+
+	return union, nil
 }
 
 // warnModelMismatch emits a single aggregated advisory (M4) when sidecars
