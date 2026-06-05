@@ -232,8 +232,9 @@ Secondary boundary signals: topic shifts, multi-hour temporal gaps, arc completi
 **Voice + vocabulary discipline** (full rules:
 `docs/superpowers/research/2026-05-26-l1-episode-fix-spec.md`):
 
-- **Verbatim chunk content** — the body is the filtered transcript chunk itself (USER:/ASSISTANT:/[tool] lines), not a paraphrase or summary. Voice is whatever the chunk is.
+- **Verbatim chunk content** — the `## Transcript` section is the filtered transcript chunk itself (USER:/ASSISTANT:/[tool] lines), which the binary fences in a code block (so the chunk's wikilinks never become graph edges). Voice is whatever the chunk is.
 - **`--situation`** — a short retrieval-shaped topic phrase (project + activity), not a narrative paragraph.
+- **`--summary`** — a few sentences (prose, LLM voice) summarizing WHAT happened in this arc and WHY it starts and stops where it does. This becomes the `## Summary` section — the at-a-glance future-you scans before deciding whether to open the verbatim `## Transcript`. Broader than `--boundary-rationale`: the summary narrates the arc; the rationale labels the bounds in one phrase.
 - **`--boundary-rationale`** — one phrase explaining why this chunk's bounds. Examples: "topic shift from F1 to F6+F9.1 work", "3-day gap before resuming", "completed a discrete UAT case", "user redirected from cleanup to new feature".
 - **No analysis in the body.** Principles → write a fact. "Do X differently next time" → write feedback. Episodes are the evidence; the abstraction lives in the fact/feedback note.
 
@@ -248,6 +249,7 @@ engram learn episode \
   --position <top|continuation|sibling> \
   --source "..." \
   --situation "<short retrieval-shaped topic phrase>" \
+  --summary "<what happened in this arc + why it starts/stops here>" \
   --boundary-rationale "<why this chunk's bounds>" \
   --from-transcript-range "<session-id>:<RFC3339-start>..<RFC3339-end>" \
   --session "<session-id>" \
@@ -256,7 +258,9 @@ engram learn episode \
   [--project <kebab-case-slug>] [--issue <id>]
 ```
 
-Required: `--slug`, `--source`, `--situation`, `--boundary-rationale`, `--session`, `--transcript-range`, and exactly one of `--from-transcript-range` (repeatable, the canonical form) or `--transcript-text` (literal content; XOR with `--from-transcript-range`). Optional: `--relation`, `--project`, `--issue`.
+Required: `--slug`, `--source`, `--situation`, `--summary`, `--boundary-rationale`, `--session`, `--transcript-range`, and exactly one of `--from-transcript-range` (repeatable, the canonical form) or `--transcript-text` (literal content; XOR with `--from-transcript-range`). Optional: `--relation`, `--project`, `--issue`.
+
+**Body shape + auto-linked preceding episodes.** The binary renders the episode body as three sections: `## Summary` (your `--summary`), `## Transcript` (the chunk, fenced), and `## Related`. Under `## Related` it **auto-computes the local chain** — the episodes whose transcript range was active at this episode's start, plus the immediately-preceding episode — by range overlap. Do NOT hand-author those preceding-episode links in `--relation`; the binary owns them. Use `--relation` only for *other* authored links (the facts/feedback extracted from this chunk, or a cross-topic episode).
 
 **Resolve `<session-id>` to your current session's identifier — its form is harness-specific.** Claude Code → the bare session UUID (e.g. `ee8329d2-9fe4-4ffd-a30b-7fa7d168e36a`). OpenCode → an `opencode://<id>` URI (e.g. `opencode://ses_1dbca7154ffettwvvWkTt7kgk7`). Use the identical value for `--session` and for the `<session-id>` of every `--from-transcript-range`. The binary dispatches on the scheme — a bare path resolves to the Claude `.jsonl`; an `opencode://` URI resolves to the OpenCode database — and stamps the resolved source path into the episode's `transcript_files` provenance. If you cannot tell which harness you are under, infer from your session id's shape: a bare UUID is Claude Code; a `ses_`-prefixed id is OpenCode and must be written as `opencode://ses_…`.
 
@@ -331,7 +335,7 @@ If a permanent you just wrote contradicts an existing note, mention it **inline*
 | You're invoking "Recurs / Activity-and-Domain / Knowledge" by name                  | Those gates have been replaced by the recall-mirror test. Apply that test instead.                                |
 | Writing only one episode per /learn pass when the session spans multiple arcs        | Episodes are per work-arc, not per pass. Run `engram transcript --segments` for the arc skeleton and write one episode per arc (spans may be non-contiguous via repeated `--from-transcript-range`, and may overlap other arcs). |
 | Skipping episodes because "no new narrative arc occurred"                            | The L1 episode is the *chunk of interactions*, not the narrative. Even a continuation chunk is worth preserving.  |
-| Using `--summary` / `--outcome` on `engram learn episode`                            | Those flags were removed. Body is the filtered transcript chunk via `--from-transcript-range` or `--transcript-text`. Use `--boundary-rationale` for the one-phrase explanation of why this chunk's bounds. |
+| Hand-authoring preceding-episode links via `--relation`                              | The binary auto-computes the local chain (episodes active at this one's start + the immediate prior) from transcript ranges. Use `--relation` for *other* authored links only (e.g. extracted facts/feedback). |
 | Writing a fact/feedback derived from an episode without backlinking                  | Add `--relation "<episode-luhmann>|extracted from this chunk"` on the fact/feedback write so retrieval can trace the abstraction back to its evidence. |
 
 ## Common mistakes
