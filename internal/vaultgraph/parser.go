@@ -20,30 +20,39 @@ func ParseBasename(filename string) (string, bool) {
 }
 
 // ParseWikilinks returns the deduped list of wikilink targets in body, in first-appearance order.
-// Whitespace-only or empty link bodies are dropped. Self-links and broken-link filtering
-// happen later, in the graph builder, where the full note set is available.
+// Whitespace-only or empty link bodies are dropped. Wikilinks inside fenced code blocks (``` or
+// ~~~) are skipped, matching Obsidian, so verbatim transcript text cannot manufacture graph edges.
+// Self-links and broken-link filtering happen later, in the graph builder, where the full note set
+// is available.
 func ParseWikilinks(body []byte) []string {
-	matches := wikilinkPattern.FindAllSubmatch(body, -1)
-	if len(matches) == 0 {
-		return nil
-	}
+	seen := make(map[string]struct{})
 
-	seen := make(map[string]struct{}, len(matches))
-	out := make([]string, 0, len(matches))
+	var (
+		out   []string
+		fence fenceState
+	)
 
-	for _, m := range matches {
-		target := string(m[1])
-		if target == "" {
+	for line := range strings.SplitSeq(string(body), "\n") {
+		// Fence marker lines (openers and closers) never carry resolvable wikilinks, and
+		// any line inside an open fence is literal content — skip both.
+		if fence.toggle(line) || fence.open {
 			continue
 		}
 
-		if _, dup := seen[target]; dup {
-			continue
+		for _, match := range wikilinkPattern.FindAllStringSubmatch(line, -1) {
+			target := match[1]
+			if target == "" {
+				continue
+			}
+
+			if _, dup := seen[target]; dup {
+				continue
+			}
+
+			seen[target] = struct{}{}
+
+			out = append(out, target)
 		}
-
-		seen[target] = struct{}{}
-
-		out = append(out, target)
 	}
 
 	return out
@@ -51,10 +60,74 @@ func ParseWikilinks(body []byte) []string {
 
 // unexported constants.
 const (
-	mdExt = ".md"
+	backtickFence = '`'
+	mdExt         = ".md"
+	// minFenceLength is the shortest run of fence characters that opens or closes a code block.
+	minFenceLength = 3
+	tildeFence     = '~'
 )
 
 // unexported variables.
 var (
 	wikilinkPattern = regexp.MustCompile(`\[\[([^\]\n]+)\]\]`)
 )
+
+// fenceState tracks whether the parser is currently inside a fenced code block, plus the
+// fence character and run length of the open fence, so a shorter fence cannot close a longer one.
+type fenceState struct {
+	open   bool
+	char   byte
+	length int
+}
+
+// toggle inspects a single line and updates fence state, returning true if the line is a fence
+// marker (an opener or a matching closer) and therefore should not be scanned for wikilinks.
+// A closer matches the open fence's character and runs at least as long, with only trailing
+// whitespace after the run (Obsidian-accurate — an info-string line cannot close a block).
+func (f *fenceState) toggle(line string) bool {
+	char, runLength, rest := leadingFenceRun(line)
+	if runLength < minFenceLength {
+		return false
+	}
+
+	if !f.open {
+		f.open = true
+		f.char = char
+		f.length = runLength
+
+		return true
+	}
+
+	if char == f.char && runLength >= f.length && strings.TrimSpace(rest) == "" {
+		f.open = false
+		f.char = 0
+		f.length = 0
+
+		return true
+	}
+
+	// Inside a block, a non-matching fence line is literal content, not a marker.
+	return false
+}
+
+// leadingFenceRun reports the fence character (backtick or tilde), the length of its run, and the
+// remainder of the line after the run, for a line whose first non-space content is that run.
+// runLength is 0 when the line does not begin (modulo leading spaces) with a fence run.
+func leadingFenceRun(line string) (fenceChar byte, runLength int, rest string) {
+	trimmed := strings.TrimLeft(line, " ")
+	if trimmed == "" {
+		return 0, 0, ""
+	}
+
+	first := trimmed[0]
+	if first != backtickFence && first != tildeFence {
+		return 0, 0, ""
+	}
+
+	count := 0
+	for count < len(trimmed) && trimmed[count] == first {
+		count++
+	}
+
+	return first, count, trimmed[count:]
+}

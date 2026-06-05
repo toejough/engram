@@ -182,3 +182,57 @@ func TestParseWikilinks_SingleLink(t *testing.T) {
 	g.Expect(vaultgraph.ParseWikilinks(body)).
 		To(Equal([]string{"9o.2026-05-09.holistic-final-review"}))
 }
+
+func TestParseWikilinks_SkipsFencedBlock(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	body := []byte(strings.Join([]string{
+		"outside [[y]]",
+		"```",
+		"inside [[x]]",
+		"```",
+		"after [[z]]",
+	}, "\n"))
+
+	// `[[x]]` lives inside a fenced code block — Obsidian does not resolve it, so neither do we.
+	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"y", "z"}))
+}
+
+func TestParseWikilinks_UnclosedFenceRunsToEnd(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// An opened-but-never-closed fence consumes the rest of the note (CommonMark behavior),
+	// so links after the opener are dropped.
+	body := []byte(strings.Join([]string{
+		"outside [[y]]",
+		"```",
+		"inside [[x]]",
+	}, "\n"))
+
+	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"y"}))
+}
+
+func TestParseWikilinks_VariableLengthFence(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// A 4-backtick fence wraps a transcript that itself contains a 3-backtick line.
+	// The inner 3-backtick line must NOT close the 4-backtick fence (3 < 4), so every
+	// wikilink between the outer fences is dropped.
+	body := []byte(strings.Join([]string{
+		"outside [[y]]",
+		"````",
+		"a [[drop1]]",
+		"```",
+		"b [[drop2]]",
+		"````",
+		"after [[z]]",
+	}, "\n"))
+
+	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"y", "z"}))
+}
