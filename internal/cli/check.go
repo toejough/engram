@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
 	"strings"
+
+	"go.yaml.in/yaml/v3"
 
 	"github.com/toejough/engram/internal/vaultgraph"
 )
@@ -17,8 +20,11 @@ type CheckArgs struct {
 }
 
 // CheckDeps holds injected dependencies for RunCheck. The check is read-only.
+// ReadNote is optional: a nil ReadNote skips the content-level checks (e.g.
+// situation-presence) and runs only the graph-level checks.
 type CheckDeps struct {
-	Scan func(vault string) ([]vaultgraph.Note, error)
+	Scan     func(vault string) ([]vaultgraph.Note, error)
+	ReadNote func(path string) ([]byte, error)
 }
 
 // RunCheck runs the vault-invariant checks read-only over the vault, writes a
@@ -34,6 +40,10 @@ func RunCheck(_ context.Context, args CheckArgs, deps CheckDeps, stdout io.Write
 
 	failed = checkGraphResolution(notes, stdout) || failed
 
+	if deps.ReadNote != nil {
+		failed = checkSituationPresence(notes, deps.ReadNote, args.VaultPath, stdout) || failed
+	}
+
 	if failed {
 		return errCheckFailed
 	}
@@ -44,6 +54,7 @@ func RunCheck(_ context.Context, args CheckArgs, deps CheckDeps, stdout io.Write
 // unexported constants.
 const (
 	maxCheckExamples = 10
+	permanentDir     = "Permanent"
 )
 
 // unexported variables.
@@ -89,12 +100,83 @@ func checkGraphResolution(notes []vaultgraph.Note, stdout io.Writer) bool {
 	return len(resolverBroken) > 0
 }
 
+// checkSituationPresence verifies M5/E5: every fact/feedback (M5) and episode
+// (E5) note names a non-empty situation — the field recall matches on and the
+// embedding is shaped around. MOC notes are skipped (not situation-bearing). A
+// note whose file is unreadable or whose frontmatter does not parse is skipped
+// here; those failures surface in other checks. Returns true if violated.
+func checkSituationPresence(
+	notes []vaultgraph.Note,
+	readNote func(path string) ([]byte, error),
+	vault string,
+	stdout io.Writer,
+) bool {
+	missing := make([]string, 0)
+
+	for _, note := range notes {
+		if note.IsMOC {
+			continue
+		}
+
+		raw, err := readNote(filepath.Join(vault, permanentDir, note.Basename+".md"))
+		if err != nil {
+			continue
+		}
+
+		frontmatter, ok := splitFrontmatter(raw)
+		if !ok {
+			continue
+		}
+
+		noteType, situation := frontmatterTypeAndSituation(frontmatter)
+		if isSituationBearing(noteType) && strings.TrimSpace(situation) == "" {
+			missing = append(missing, note.Basename)
+		}
+	}
+
+	if len(missing) > 0 {
+		_, _ = fmt.Fprintf(stdout, "FAIL  M5/E5 situation-presence: %d note(s) missing a situation\n", len(missing))
+		printNoteExamples(stdout, missing)
+
+		return true
+	}
+
+	_, _ = fmt.Fprintln(stdout, "PASS  M5/E5 situation-presence: every fact/feedback/episode names a situation")
+
+	return false
+}
+
+// frontmatterTypeAndSituation extracts the top-level type and situation from a
+// frontmatter YAML block. Returns empty strings when the block does not parse.
+func frontmatterTypeAndSituation(frontmatter []byte) (noteType, situation string) {
+	var probe struct {
+		Type      string `yaml:"type"`
+		Situation string `yaml:"situation"`
+	}
+
+	err := yaml.Unmarshal(frontmatter, &probe)
+	if err != nil {
+		return "", ""
+	}
+
+	return probe.Type, probe.Situation
+}
+
+// isSituationBearing reports whether a note type is required to carry a
+// situation: facts, feedback, and episodes are; MOCs and bare notes are not.
+func isSituationBearing(noteType string) bool {
+	return noteType == typeFact || noteType == typeFeedback || noteType == typeEpisode
+}
+
 // newOsCheckDeps wires RunCheck to the real filesystem vault scanner.
 func newOsCheckDeps() CheckDeps {
+	fsys := &osVaultFS{}
+
 	return CheckDeps{
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
-			return vaultgraph.ScanVault(&osVaultFS{}, vault)
+			return vaultgraph.ScanVault(fsys, vault)
 		},
+		ReadNote: fsys.ReadFile,
 	}
 }
 
@@ -108,5 +190,18 @@ func printLinkExamples(stdout io.Writer, links []vaultgraph.UnresolvedLink) {
 		}
 
 		_, _ = fmt.Fprintf(stdout, "        %s → [[%s]]\n", link.Source, link.Target)
+	}
+}
+
+// printNoteExamples writes up to maxCheckExamples offending note basenames.
+func printNoteExamples(stdout io.Writer, names []string) {
+	for i, name := range names {
+		if i >= maxCheckExamples {
+			_, _ = fmt.Fprintf(stdout, "        … and %d more\n", len(names)-maxCheckExamples)
+
+			break
+		}
+
+		_, _ = fmt.Fprintf(stdout, "        %s\n", name)
 	}
 }

@@ -33,6 +33,7 @@ var (
 	ExportNextLuhmannID              = nextLuhmannID
 	ExportPluralFile                 = pluralFile
 	ExportPrintLinkExamples          = printLinkExamples
+	ExportPrintNoteExamples          = printNoteExamples
 	ExportRenderEpisodeFrontmatter   = renderEpisodeFrontmatter
 	ExportRenderFactBody             = renderFactBody
 	ExportRenderFactFrontmatter      = renderFactFrontmatter
