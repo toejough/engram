@@ -124,6 +124,49 @@ func TestJSONLReader_ReadFrom_PartialWhenBudgetExceeded(t *testing.T) {
 	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
 }
 
+func TestJSONLReader_SegmentsFrom_PartialWhenBudgetTruncates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Two user turns; a byte budget too small for both forces the scan to stop
+	// after the first, so SegmentsResult.Partial must be true and only the first
+	// segment survives. With an ample budget the same input reports Partial=false.
+	lines := []string{
+		`{"type":"user","timestamp":"2026-05-01T10:00:00Z","message":{"content":"first user ask here"}}`,
+		`{"type":"user","timestamp":"2026-05-01T10:05:00Z","message":{"content":"second user ask here"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/x.jsonl": []byte(content)},
+	})
+
+	// Budget large enough for the first stripped line but not both.
+	const tinyBudget = 40
+
+	truncated, err := reader.SegmentsFrom("/x.jsonl", time.Time{}, tinyBudget)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(truncated.Partial).To(BeTrue())
+	g.Expect(truncated.Segments).To(HaveLen(1))
+	g.Expect(truncated.Segments[0].Preview).To(ContainSubstring("first user ask"))
+
+	// Ample budget: the whole file fits, so Partial is false.
+	full, err := reader.SegmentsFrom("/x.jsonl", time.Time{}, 1<<20)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(full.Partial).To(BeFalse())
+	g.Expect(full.Segments).To(HaveLen(2))
+}
+
 func TestJSONLReader_SegmentsFrom_ReadError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -157,12 +200,14 @@ func TestJSONLReader_SegmentsFrom_ReturnsRealUserTurns(t *testing.T) {
 		contents: map[string][]byte{"/x.jsonl": []byte(content)},
 	})
 
-	segs, err := reader.SegmentsFrom("/x.jsonl", time.Time{}, 1<<20)
+	result, err := reader.SegmentsFrom("/x.jsonl", time.Time{}, 1<<20)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
+
+	segs := result.Segments
 
 	// Only the two real user asks; skill body + assistant are absent.
 	g.Expect(segs).To(HaveLen(2))

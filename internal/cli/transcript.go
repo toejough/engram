@@ -349,6 +349,53 @@ func emitOneEntry(
 	return readResult.BytesUsed, readResult.Partial, nil
 }
 
+// emitOneSegmentEntry reads one entry's user-turn segments through the reader,
+// writes each as a line to stdout, and updates result.lastIncluded /
+// result.hadEntries in place. It mirrors emitOneEntry's marker rule: each
+// segment's timestamp advances lastIncluded, and a full (non-partial) read
+// additionally advances to the entry's file Mtime to cover trailing rows.
+// Returns the bytes written, whether the scan was budget-truncated, and any
+// error. The caller halts the outer loop on a truncated (partial) read.
+func emitOneSegmentEntry(
+	reader transcript.SegmentsReader,
+	entry transcript.FileEntry,
+	remaining int,
+	result *emitResult,
+	stdout io.Writer,
+) (int, bool, error) {
+	fromTime := result.lastIncluded[entry.Source]
+
+	segResult, readErr := reader.SegmentsFrom(entry.Path, fromTime, remaining)
+	if readErr != nil {
+		return 0, false, fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
+	}
+
+	bytesWritten := 0
+
+	for _, seg := range segResult.Segments {
+		line := seg.Timestamp.UTC().Format(segmentLineFormat) + "\t" + seg.Preview + "\n"
+
+		_, writeErr := io.WriteString(stdout, line)
+		if writeErr != nil {
+			return 0, false, fmt.Errorf("transcript: writing output: %w", writeErr)
+		}
+
+		bytesWritten += len(line)
+
+		if !seg.Timestamp.IsZero() {
+			result.lastIncluded[entry.Source] = seg.Timestamp
+		}
+	}
+
+	result.hadEntries[entry.Source] = true
+
+	if !segResult.Partial && !entry.Mtime.IsZero() {
+		result.lastIncluded[entry.Source] = entry.Mtime
+	}
+
+	return bytesWritten, segResult.Partial, nil
+}
+
 // emitSegments emits one line per genuine user turn across all entries, using
 // the same byte-budget and per-source marker logic as emitTranscripts. Output
 // format per line: <RFC3339-timestamp>\tUSER: <first 100 chars of text>.
@@ -378,37 +425,24 @@ func emitSegments(
 			remaining = 1
 		}
 
-		fromTime := result.lastIncluded[entry.Source]
-
-		segs, readErr := reader.SegmentsFrom(entry.Path, fromTime, remaining)
-		if readErr != nil {
-			return emitResult{}, fmt.Errorf("transcript: reading %s: %w", entry.Path, readErr)
+		bytesWritten, partial, emitErr := emitOneSegmentEntry(reader, entry, remaining, &result, stdout)
+		if emitErr != nil {
+			return emitResult{}, emitErr
 		}
 
-		for _, seg := range segs {
-			line := seg.Timestamp.UTC().Format(segmentLineFormat) + "\t" + seg.Preview + "\n"
+		total += bytesWritten
 
-			_, writeErr := io.WriteString(stdout, line)
-			if writeErr != nil {
-				return emitResult{}, fmt.Errorf("transcript: writing output: %w", writeErr)
-			}
+		// Mirror emitTranscripts: when the segments scan was truncated by the
+		// byte budget, hold the marker at the last fully-included segment (set
+		// inside emitOneSegmentEntry) rather than advancing past this entry,
+		// then halt — advancing would skip its unread tail and (for same-source
+		// files, oldest-first) step the marker onto a newer file's Mtime,
+		// dropping rows (M2 invariant).
+		if partial {
+			recordUnincluded(result.firstUnincluded, entries[index:])
 
-			total += len(line)
-
-			if !seg.Timestamp.IsZero() {
-				result.lastIncluded[entry.Source] = seg.Timestamp
-			}
+			break
 		}
-
-		// Mirror emitOneEntry's marker-advance logic: for a full read
-		// additionally advance to entry Mtime to cover trailing rows.
-		// For segments we treat each entry as fully consumed because
-		// SegmentsFrom already applied the budget internally.
-		if !entry.Mtime.IsZero() {
-			result.lastIncluded[entry.Source] = entry.Mtime
-		}
-
-		result.hadEntries[entry.Source] = true
 	}
 
 	return result, nil

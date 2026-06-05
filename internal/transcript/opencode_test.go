@@ -62,12 +62,14 @@ func TestCompositeTranscriptReader_SegmentsFrom_DispatchesToSegmentsReader(t *te
 
 	composite := transcript.NewCompositeTranscriptReader(fileReader, opencodeReader)
 
-	segs, err := composite.SegmentsFrom("opencode://ses_comp_segs", time.Time{}, 1<<20)
+	result, err := composite.SegmentsFrom("opencode://ses_comp_segs", time.Time{}, 1<<20)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
+
+	segs := result.Segments
 
 	g.Expect(segs).To(HaveLen(1))
 	g.Expect(segs[0].Preview).To(ContainSubstring("composite user ask"))
@@ -82,9 +84,10 @@ func TestCompositeTranscriptReader_SegmentsFrom_SkipsNonSegmentsReaders(t *testi
 	plainReader := &fakeReaderNoSegments{}
 	composite := transcript.NewCompositeTranscriptReader(plainReader)
 
-	segs, err := composite.SegmentsFrom("somepath", time.Time{}, 1<<20)
+	result, err := composite.SegmentsFrom("somepath", time.Time{}, 1<<20)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(segs).To(BeEmpty())
+	g.Expect(result.Segments).To(BeEmpty())
+	g.Expect(result.Partial).To(BeFalse())
 }
 
 func TestCompositeTranscriptReader_TriesReaders(t *testing.T) {
@@ -477,12 +480,14 @@ func TestOpencodeTranscriptReader_SegmentsFrom_ReturnsUserTurns(t *testing.T) {
 
 	reader := transcript.NewOpencodeTranscriptReader(dbPath)
 
-	segs, err := reader.SegmentsFrom("opencode://ses_segs1", time.Time{}, 1<<20)
+	result, err := reader.SegmentsFrom("opencode://ses_segs1", time.Time{}, 1<<20)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
+
+	segs := result.Segments
 
 	// Only user turns should produce segments.
 	g.Expect(segs).To(HaveLen(2))

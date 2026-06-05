@@ -331,6 +331,106 @@ func TestEmitSegments_ResumesReaderFromSeed(t *testing.T) {
 	g.Expect(reader.fromTimes[0].Equal(markerTime)).To(BeTrue())
 }
 
+func TestEmitSegments_StopsAtOuterByteCap(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// The first entry's emitted segment line exceeds maxBytes, so on the second
+	// (newer, same-source) iteration the outer remaining<=0 guard fires: the
+	// loop records the unread entry and halts without reading it. Mirrors
+	// emitTranscripts' outer-cap behavior for the --segments path.
+	ts1 := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	ts2 := time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC)
+	bigPreview := "USER: " + strings.Repeat("x", 200)
+
+	reader := &fakeSegmentsReader{segments: map[string][]transcript.Segment{
+		"/a": {{Timestamp: ts1, Preview: bigPreview}},
+		"/b": {{Timestamp: ts2, Preview: "USER: should not be read"}},
+	}}
+
+	may1 := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	may2 := time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)
+	entries := []transcript.FileEntry{
+		{Path: "/a", Mtime: may1, Source: "claude"},
+		{Path: "/b", Mtime: may2, Source: "claude"},
+	}
+
+	var buf bytes.Buffer
+
+	const tinyCap = 50
+
+	_, hadEntries, firstUnincluded, err := cli.EmitSegmentsForTest(reader, entries, tinyCap, nil, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(hadEntries["claude"]).To(BeTrue())
+	// /b (2026-05-02) is the earliest excluded entry, recorded for the warning.
+	g.Expect(firstUnincluded["claude"].Equal(may2)).To(BeTrue())
+	g.Expect(buf.String()).NotTo(ContainSubstring("should not be read"))
+}
+
+func TestEmitSegments_TruncatedScanHoldsMarkerAtLastSegment(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// M2-segments: when SegmentsFrom reports Partial (the byte budget truncated
+	// the scan), emitSegments must hold the per-source marker at the last fully-
+	// included segment's timestamp — NOT advance to the partial entry's Mtime,
+	// and NOT continue to a newer same-source entry whose Mtime would then leak
+	// into the marker (over-advancing past the truncated entry's unread tail).
+	//
+	// Two same-source ("claude") entries, oldest-first (the order runTranscript
+	// feeds after reversing): /old truncates (Partial=true); /new is newer. The
+	// marker must equal /old's last segment timestamp. This discriminates the
+	// incomplete fix — gating the Mtime advance alone (without the break) still
+	// reads /new and steps the marker onto /new's Mtime.
+	oldSegTime := time.Date(2026, 5, 10, 9, 0, 0, 0, time.UTC)
+	oldMtime := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	newSegTime := time.Date(2026, 5, 11, 9, 0, 0, 0, time.UTC)
+	newMtime := time.Date(2026, 5, 11, 12, 0, 0, 0, time.UTC)
+
+	reader := &fakeSegmentsReader{
+		segments: map[string][]transcript.Segment{
+			"/old": {{Timestamp: oldSegTime, Preview: "USER: old ask"}},
+			"/new": {{Timestamp: newSegTime, Preview: "USER: new ask"}},
+		},
+		partial: map[string]bool{"/old": true},
+	}
+
+	entries := []transcript.FileEntry{
+		{Path: "/old", Mtime: oldMtime, Source: "claude"},
+		{Path: "/new", Mtime: newMtime, Source: "claude"},
+	}
+
+	var buf bytes.Buffer
+
+	lastIncluded, hadEntries, firstUnincluded, err := cli.EmitSegmentsForTest(
+		reader,
+		entries,
+		1<<20,
+		nil,
+		&buf,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Marker held at the last fully-included segment of the truncated entry.
+	g.Expect(hadEntries["claude"]).To(BeTrue())
+	g.Expect(lastIncluded["claude"].Equal(oldSegTime)).To(BeTrue())
+	// The truncated entry's own Mtime is recorded as the continuation point so
+	// the next run resumes from /old, not past it.
+	g.Expect(firstUnincluded["claude"].Equal(oldMtime)).To(BeTrue())
+
+	// The newer same-source entry must not have been emitted at all.
+	g.Expect(buf.String()).NotTo(ContainSubstring("new ask"))
+}
+
 func TestEmitTranscripts_NoEntriesReturnsZeroAndFalse(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1660,22 +1760,25 @@ func (f *fakeReader) ReadFrom(path string, _ time.Time, budget int) (transcript.
 	return transcript.ReadResult{Content: content, BytesUsed: len(content)}, nil
 }
 
-// fakeSegmentsReader is a test-local SegmentsReader that returns pre-configured segments.
+// fakeSegmentsReader is a test-local SegmentsReader that returns pre-configured
+// segments and an optional per-path Partial truncation signal so tests can
+// exercise the budget-truncation marker gate.
 type fakeSegmentsReader struct {
 	segments map[string][]transcript.Segment
+	partial  map[string]bool
 }
 
 func (f *fakeSegmentsReader) SegmentsFrom(
 	path string,
 	_ time.Time,
 	_ int,
-) ([]transcript.Segment, error) {
+) (transcript.SegmentsResult, error) {
 	segs, ok := f.segments[path]
 	if !ok {
-		return []transcript.Segment{}, nil
+		return transcript.SegmentsResult{Segments: []transcript.Segment{}}, nil
 	}
 
-	return segs, nil
+	return transcript.SegmentsResult{Segments: segs, Partial: f.partial[path]}, nil
 }
 
 // fromTimeRecordingReader is a test-local Reader that records the fromTime it
@@ -1713,15 +1816,15 @@ func (r *fromTimeRecordingSegmentsReader) SegmentsFrom(
 	path string,
 	fromTime time.Time,
 	_ int,
-) ([]transcript.Segment, error) {
+) (transcript.SegmentsResult, error) {
 	r.fromTimes = append(r.fromTimes, fromTime)
 
 	segs, ok := r.segments[path]
 	if !ok {
-		return []transcript.Segment{}, nil
+		return transcript.SegmentsResult{Segments: []transcript.Segment{}}, nil
 	}
 
-	return segs, nil
+	return transcript.SegmentsResult{Segments: segs}, nil
 }
 
 // writeTranscriptFixture writes a JSONL line to dir/<name> and sets its mtime.

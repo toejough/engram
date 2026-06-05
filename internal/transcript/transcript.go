@@ -80,10 +80,10 @@ func (r *JSONLReader) SegmentsFrom(
 	path string,
 	fromTime time.Time,
 	budgetBytes int,
-) ([]Segment, error) {
+) (SegmentsResult, error) {
 	raw, err := r.reader.Read(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading transcript: %w", err)
+		return SegmentsResult{}, fmt.Errorf("reading transcript: %w", err)
 	}
 
 	lines := splitNonEmptyLines(string(raw))
@@ -94,26 +94,12 @@ func (r *JSONLReader) SegmentsFrom(
 	stripped, sourceIdx := sessionctx.StripWithConfigIndexed(keptLines, cfg)
 	strippedTimes := mapTimestampsByIndex(sourceIdx, keptTimes)
 
-	// Apply the same byte-budget window so segments align with what a full
-	// read would emit. Count bytes by stripped-line length (+ newline) so the
-	// budget is consistent with accumulateWithinBudget.
-	budget := budgetBytes
-	budgetedStripped := make([]string, 0, len(stripped))
-	budgetedTimes := make([]time.Time, 0, len(stripped))
-	total := 0
+	budgetedStripped, budgetedTimes, partial := budgetSegmentLines(stripped, strippedTimes, budgetBytes)
 
-	for i, line := range stripped {
-		lineLen := len(line) + 1
-		if total > 0 && total+lineLen > budget {
-			break
-		}
-
-		budgetedStripped = append(budgetedStripped, line)
-		budgetedTimes = append(budgetedTimes, strippedTimes[i])
-		total += lineLen
-	}
-
-	return segmentsFromStripped(budgetedStripped, budgetedTimes), nil
+	return SegmentsResult{
+		Segments: segmentsFromStripped(budgetedStripped, budgetedTimes),
+		Partial:  partial,
+	}, nil
 }
 
 // ReadResult bundles a partial-or-full session read's output with the
@@ -151,8 +137,22 @@ type Segment struct {
 // SegmentsReader returns user-turn segments for a transcript window.
 // SegmentsFrom applies the same strip config and byte budget as ReadFrom so
 // the segment list covers exactly the content window a non-segment read emits.
+// The returned SegmentsResult.Partial reports whether the byte budget truncated
+// the scan, mirroring Reader.ReadFrom's ReadResult.Partial.
 type SegmentsReader interface {
-	SegmentsFrom(path string, fromTime time.Time, budgetBytes int) ([]Segment, error)
+	SegmentsFrom(path string, fromTime time.Time, budgetBytes int) (SegmentsResult, error)
+}
+
+// SegmentsResult bundles a segments read's output with the truncation signal
+// emitSegments needs to gate the per-source marker advance. Segments holds the
+// user-turn segments within the byte window (chronological); Partial reports
+// whether budgetBytes halted the scan before the file was exhausted (mirrors
+// ReadResult.Partial). On Partial the caller must hold the marker at the last
+// fully-included segment rather than advancing to the entry's Mtime, or a
+// budget-truncated scan over-advances past unread rows (M2 data loss).
+type SegmentsResult struct {
+	Segments []Segment
+	Partial  bool
 }
 
 // SessionFinder finds Claude Code session transcript files for a project.
@@ -236,6 +236,37 @@ func accumulateWithinBudget(
 		LastTimestamp: lastTs,
 		Partial:       partial,
 	}
+}
+
+// budgetSegmentLines walks (stripped, times) chronologically and returns the
+// prefix that fits within budgetBytes (counting each line's length + newline,
+// consistent with accumulateWithinBudget), the parallel timestamps, and whether
+// the budget truncated the scan before the input was exhausted. The first line
+// is always included (progress guarantee, mirroring accumulateWithinBudget) so
+// a non-empty input never reports Partial unless a later line was actually
+// dropped. Shared by JSONLReader.SegmentsFrom and OpencodeTranscriptReader.SegmentsFrom.
+func budgetSegmentLines(
+	stripped []string, times []time.Time, budgetBytes int,
+) ([]string, []time.Time, bool) {
+	budgetedStripped := make([]string, 0, len(stripped))
+	budgetedTimes := make([]time.Time, 0, len(stripped))
+	total := 0
+	partial := false
+
+	for i, line := range stripped {
+		lineLen := len(line) + 1
+		if total > 0 && total+lineLen > budgetBytes {
+			partial = true
+
+			break
+		}
+
+		budgetedStripped = append(budgetedStripped, line)
+		budgetedTimes = append(budgetedTimes, times[i])
+		total += lineLen
+	}
+
+	return budgetedStripped, budgetedTimes, partial
 }
 
 // extractRowTimestamps parses each JSONL line for a top-level
@@ -335,6 +366,13 @@ func segmentsFromStripped(stripped []string, times []time.Time) []Segment {
 
 	for i, line := range stripped {
 		if !strings.HasPrefix(line, sessionctx.UserPrefix) {
+			continue
+		}
+
+		// Defensive bounds guard: stripped and times are parallel, but guarding
+		// keeps the index access provably safe (and satisfies nilaway across the
+		// budgetSegmentLines call boundary).
+		if i >= len(times) {
 			continue
 		}
 

@@ -89,25 +89,27 @@ func (r *CompositeTranscriptReader) ReadFrom(
 
 // SegmentsFrom dispatches to the first underlying reader that implements
 // SegmentsReader and succeeds. Readers that do not implement SegmentsReader
-// are skipped. When no reader can handle path, returns an empty slice.
+// are skipped. When no reader can handle path, returns a zero SegmentsResult
+// (empty segments, Partial=false). The chosen reader's Partial flag is
+// propagated so the caller can gate the marker advance on truncation.
 func (r *CompositeTranscriptReader) SegmentsFrom(
 	path string,
 	fromTime time.Time,
 	budgetBytes int,
-) ([]Segment, error) {
+) (SegmentsResult, error) {
 	for _, reader := range r.readers {
 		sr, ok := reader.(SegmentsReader)
 		if !ok {
 			continue
 		}
 
-		segs, err := sr.SegmentsFrom(path, fromTime, budgetBytes)
+		result, err := sr.SegmentsFrom(path, fromTime, budgetBytes)
 		if err == nil {
-			return segs, nil
+			return result, nil
 		}
 	}
 
-	return []Segment{}, nil
+	return SegmentsResult{}, nil
 }
 
 // OpencodeSessionFinder finds OpenCode session transcripts from a SQLite database.
@@ -274,15 +276,15 @@ func (r *OpencodeTranscriptReader) SegmentsFrom(
 	path string,
 	fromTime time.Time,
 	budgetBytes int,
-) ([]Segment, error) {
+) (SegmentsResult, error) {
 	sessionID := strings.TrimPrefix(path, opencodeURIPrefix)
 	if sessionID == "" {
-		return nil, ErrEmptySessionID
+		return SegmentsResult{}, ErrEmptySessionID
 	}
 
 	jsonlLines, queryErr := r.queryPartsAfter(sessionID, fromTime)
 	if queryErr != nil {
-		return nil, queryErr
+		return SegmentsResult{}, queryErr
 	}
 
 	inputTimes := extractRowTimestamps(jsonlLines)
@@ -291,24 +293,12 @@ func (r *OpencodeTranscriptReader) SegmentsFrom(
 	stripped, sourceIdx := sessionctx.StripWithConfigIndexed(jsonlLines, cfg)
 	strippedTimes := mapTimestampsByIndex(sourceIdx, inputTimes)
 
-	// Apply the same byte-budget window as ReadFrom.
-	budget := budgetBytes
-	budgetedStripped := make([]string, 0, len(stripped))
-	budgetedTimes := make([]time.Time, 0, len(stripped))
-	total := 0
+	budgetedStripped, budgetedTimes, partial := budgetSegmentLines(stripped, strippedTimes, budgetBytes)
 
-	for i, line := range stripped {
-		lineLen := len(line) + 1
-		if total > 0 && total+lineLen > budget {
-			break
-		}
-
-		budgetedStripped = append(budgetedStripped, line)
-		budgetedTimes = append(budgetedTimes, strippedTimes[i])
-		total += lineLen
-	}
-
-	return segmentsFromStripped(budgetedStripped, budgetedTimes), nil
+	return SegmentsResult{
+		Segments: segmentsFromStripped(budgetedStripped, budgetedTimes),
+		Partial:  partial,
+	}, nil
 }
 
 // queryPartsAfter runs the parts query filtered to time_created strictly
