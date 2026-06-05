@@ -106,6 +106,53 @@ func (*osLearnFS) ListBasenames(vault string) ([]string, error) {
 	return out, nil
 }
 
+// ListEpisodes scans vault/Permanent for `type: episode` notes and returns
+// each one's basename plus its provenance.transcript_range bounds — the input
+// to preceding-episode link computation on a new episode write. Notes that are
+// unreadable, lack frontmatter, or are not episodes are skipped. A missing
+// Permanent/ directory yields an empty slice (a brand-new vault has no prior
+// episodes).
+func (*osLearnFS) ListEpisodes(vault string) ([]EpisodeRange, error) {
+	dir := filepath.Join(vault, vaultgraph.PermanentSubdir)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("read %s: %w", vaultgraph.PermanentSubdir, err)
+	}
+
+	out := make([]EpisodeRange, 0, len(entries))
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		if _, ok := extractLuhmannFromFilename(entry.Name()); !ok {
+			continue
+		}
+
+		raw, readErr := os.ReadFile(filepath.Join(dir, entry.Name())) //nolint:gosec // vault path from caller
+		if readErr != nil {
+			continue
+		}
+
+		basename := strings.TrimSuffix(entry.Name(), ".md")
+
+		episodeRange, isEpisode := episodeRangeFromNote(basename, raw)
+		if !isEpisode {
+			continue
+		}
+
+		out = append(out, episodeRange)
+	}
+
+	return out, nil
+}
+
 // ListIDs returns Luhmann IDs from filenames in vault/Permanent and vault/MOCs.
 func (*osLearnFS) ListIDs(vault string) ([]string, error) {
 	out := []string{}

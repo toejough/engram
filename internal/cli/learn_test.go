@@ -68,6 +68,7 @@ func TestEngramLearn_Episode_AutoEmbedsSidecar(t *testing.T) {
 		Position:          "top",
 		Source:            "src",
 		Situation:         "embedding check",
+		Summary:           "checked the embedding",
 		BoundaryRationale: "topic shift",
 		TranscriptText:    "USER: hi\nASSISTANT: hello\n",
 		Sessions:          []string{"sess"},
@@ -127,6 +128,7 @@ func TestEngramLearn_Episode_BoundaryRationaleRequired(t *testing.T) {
 				Position:          "top",
 				Source:            "src",
 				Situation:         "s",
+				Summary:           "did the work",
 				BoundaryRationale: tc.raw,
 				TranscriptText:    "USER: hi\n",
 				Sessions:          []string{"sess"},
@@ -250,6 +252,7 @@ func TestEngramLearn_Episode_FromTranscriptRange_ReadsChunk(t *testing.T) {
 			Source:   "src",
 		},
 		Situation:           "range read check",
+		Summary:             "read a chunk",
 		BoundaryRationale:   "discrete arc",
 		FromTranscriptRange: []string{"sess-1:2026-05-25T22:00:00Z..2026-05-25T23:00:00Z"},
 		Sessions:            []string{"sess-1"},
@@ -310,6 +313,7 @@ func TestEngramLearn_Episode_FromTranscriptRange_RecordsTranscriptFile(t *testin
 			Source:   "src",
 		},
 		Situation:           "range file check",
+		Summary:             "recorded the transcript file",
 		BoundaryRationale:   "discrete arc",
 		FromTranscriptRange: []string{"sess-1:2026-05-25T22:00:00Z..2026-05-25T23:00:00Z"},
 		Sessions:            []string{"sess-1"},
@@ -366,6 +370,7 @@ func TestEngramLearn_Episode_FrontmatterShape(t *testing.T) {
 		Position:          "top",
 		Source:            "session log engram, 2026-05-25",
 		Situation:         "Sharpening the F1 episode spec",
+		Summary:           "Sharpened the F1 spec, then dispatched the work.",
 		BoundaryRationale: "Discrete sharpen-then-dispatch arc",
 		TranscriptText:    "USER: please execute the spec\nASSISTANT: I'll set up the task list...\n",
 		Sessions:          []string{"971fc252-8b44-4bd2-b44a-4f44464105eb"},
@@ -398,16 +403,20 @@ func TestEngramLearn_Episode_FrontmatterShape(t *testing.T) {
 	g.Expect(body).To(ContainSubstring(`luhmann: "1"`))
 	g.Expect(body).To(ContainSubstring(`created: "2026-05-25"`))
 	g.Expect(body).To(ContainSubstring("source: session log engram, 2026-05-25"))
-	// L1 episode body: filtered transcript chunk verbatim + related block.
-	// No auto-prefix lines, no Outcomes section, no narrative summary.
+	// D6 L1 episode body: ## Summary / fenced ## Transcript / ## Related.
+	// No fact/feedback formula lines, no Outcomes section.
 	g.Expect(body).NotTo(ContainSubstring("Information learned"))
 	g.Expect(body).NotTo(ContainSubstring("Lesson learned"))
 	g.Expect(body).NotTo(ContainSubstring("## Outcomes"))
 	g.Expect(body).NotTo(ContainSubstring("outcomes:"))
+	g.Expect(body).To(ContainSubstring("## Summary\nSharpened the F1 spec, then dispatched the work."))
+	g.Expect(body).To(ContainSubstring("## Transcript"))
 	g.Expect(body).To(ContainSubstring("USER: please execute the spec"))
 	g.Expect(body).To(ContainSubstring("ASSISTANT: I'll set up the task list..."))
-	g.Expect(body).To(ContainSubstring("Related to:"))
-	g.Expect(body).To(ContainSubstring("- [[157]] — applied subtraction."))
+	g.Expect(body).To(ContainSubstring("## Related"))
+	g.Expect(body).To(ContainSubstring("- [[157]] — applied subtraction"))
+	// Episodes use ## Related, not the fact/feedback "Related to:" marker.
+	g.Expect(body).NotTo(ContainSubstring("Related to:"))
 }
 
 // TestEngramLearn_Episode_LuhmannPlacement exercises the three
@@ -462,6 +471,7 @@ func TestEngramLearn_Episode_LuhmannPlacement(t *testing.T) {
 				Position:          tc.position,
 				Source:            "src",
 				Situation:         "ordering",
+				Summary:           "placed the note",
 				BoundaryRationale: "discrete arc",
 				TranscriptText:    "USER: ping\nASSISTANT: pong\n",
 				Sessions:          []string{"sess"},
@@ -521,6 +531,7 @@ func TestEngramLearn_Episode_Opencode_RecordsDBPath(t *testing.T) {
 			Source:   "src",
 		},
 		Situation:           "opencode range check",
+		Summary:             "read an opencode chunk",
 		BoundaryRationale:   "discrete arc",
 		FromTranscriptRange: []string{"opencode://ses_oc:2026-05-25T22:00:00Z..2026-05-25T23:00:00Z"},
 		Sessions:            []string{"ses_oc"},
@@ -569,6 +580,7 @@ func TestEngramLearn_Episode_RequiredFields(t *testing.T) {
 			Position:          "top",
 			Source:            "src",
 			Situation:         "s",
+			Summary:           "did the work",
 			BoundaryRationale: "discrete arc",
 			TranscriptText:    "USER: hi\nASSISTANT: hello\n",
 			Sessions:          []string{"sess"},
@@ -695,6 +707,7 @@ func TestEngramLearn_Episode_TranscriptTextInlined(t *testing.T) {
 			Source:   "src",
 		},
 		Situation:         "literal body check",
+		Summary:           "inlined the literal body",
 		BoundaryRationale: "verbatim chunk",
 		TranscriptText:    literal,
 		Sessions:          []string{"sess"},
@@ -1586,6 +1599,7 @@ func TestTierFrontmatter_EpisodeDefaultsToL1(t *testing.T) {
 		Position:          "top",
 		Source:            "src",
 		Situation:         "tier check",
+		Summary:           "checked the tier",
 		BoundaryRationale: "discrete arc",
 		TranscriptText:    "USER: hi\nASSISTANT: hello\n",
 		Sessions:          []string{"sess"},

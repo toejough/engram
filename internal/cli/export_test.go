@@ -19,6 +19,7 @@ var (
 	ExportApplyProjectFilter         = applyProjectFilter
 	ExportApplyTierFilter            = applyTierFilter
 	ExportAutoEmbedNote              = autoEmbedNote
+	ExportComputePrecedingLinks      = computePrecedingLinks
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
 	ExportFinishUpdate               = finishUpdate
 	ExportInitializeVault            = initializeVault
@@ -34,6 +35,7 @@ var (
 	ExportPluralFile                 = pluralFile
 	ExportPrintLinkExamples          = printLinkExamples
 	ExportPrintNoteExamples          = printNoteExamples
+	ExportRenderEpisodeBody          = renderEpisodeBody
 	ExportRenderEpisodeFrontmatter   = renderEpisodeFrontmatter
 	ExportRenderFactBody             = renderFactBody
 	ExportRenderFactFrontmatter      = renderFactFrontmatter
@@ -56,6 +58,14 @@ var (
 )
 
 type ExportEpisodeFields = episodeFields
+
+// ExportEpisodeLink aliases the unexported episodeLink so cli_test can assert
+// on computed preceding-episode links.
+type ExportEpisodeLink = episodeLink
+
+// ExportEpisodeRange aliases the exported EpisodeRange for symmetry with the
+// other Export* test handles.
+type ExportEpisodeRange = EpisodeRange
 
 type ExportFactFields = factFields
 
@@ -189,6 +199,16 @@ func ExportNewOsFileReader() interface {
 // ExportNewOsLearnFS returns the production osLearnFS adapter for testing.
 func ExportNewOsLearnFS() *osLearnFS { return &osLearnFS{} }
 
+// ExportNewOsMigrateEpisodesDeps returns production MigrateEpisodesDeps with an
+// injected embedder so integration tests can drive Scan/Read/Write against a
+// temp vault without unpacking the lazy bundled embedder.
+func ExportNewOsMigrateEpisodesDeps(emb embed.Embedder) MigrateEpisodesDeps {
+	deps := newOsMigrateEpisodesDeps()
+	deps.Embedder = emb
+
+	return deps
+}
+
 // ExportNewOsResituateDeps returns production ResituateDeps with an injected
 // embedder so coverage tests can drive Scan/Read/Write without unpacking the
 // lazy bundled embedder.
@@ -217,6 +237,15 @@ func ExportNewOsVaultFS() interface {
 // drive applyProjectFilter without going through the full pipeline.
 func ExportNewResolvedItem(notePath, content string) ExportResolvedItem {
 	return ExportResolvedItem{notePath: notePath, content: content}
+}
+
+// ExportParseEpisodeBody exposes parseEpisodeBody for round-trip testing,
+// returning the summary, transcript, and "basename|rationale" relation
+// entries decomposed from an episode body.
+func ExportParseEpisodeBody(body string) (summary, transcript string, relations []string) {
+	parsed := parseEpisodeBody(body)
+
+	return parsed.summary, parsed.transcript, parsed.relations
 }
 
 // ExportResolvedItemPath exposes the unexported notePath field for assertions.

@@ -43,6 +43,7 @@ func TestEngramLearn_Episode_L1_EndToEnd(t *testing.T) {
 		"--position", "top",
 		"--source", "smoke test",
 		"--situation", "End-to-end L1 smoke",
+		"--summary", "Ran the end-to-end episode smoke test.",
 		"--boundary-rationale", "Discrete sharpen-then-dispatch arc",
 		"--transcript-text", chunkBody,
 		"--session", "971fc252-8b44-4bd2-b44a-4f44464105eb",
@@ -83,11 +84,15 @@ func TestEngramLearn_Episode_L1_EndToEnd(t *testing.T) {
 	g.Expect(bodyStr).To(ContainSubstring("- 971fc252-8b44-4bd2-b44a-4f44464105eb"))
 	g.Expect(bodyStr).To(ContainSubstring(`start: "2026-05-25T22:00:00Z"`))
 	g.Expect(bodyStr).To(ContainSubstring(`end: "2026-05-25T23:30:00Z"`))
-	// L1 body: filtered transcript chunk verbatim + related block.
+	// D6 body: ## Summary / fenced ## Transcript (verbatim chunk) / ## Related.
+	g.Expect(bodyStr).To(ContainSubstring("## Summary\nRan the end-to-end episode smoke test."))
+	g.Expect(bodyStr).To(ContainSubstring("## Transcript"))
 	g.Expect(bodyStr).To(ContainSubstring(chunkBody))
-	g.Expect(bodyStr).To(ContainSubstring("Related to:"))
-	g.Expect(bodyStr).To(ContainSubstring("- [[157]] — adjacent."))
-	// No auto-prefix lines, no Outcomes, no narrative summary.
+	g.Expect(bodyStr).To(ContainSubstring("## Related"))
+	g.Expect(bodyStr).To(ContainSubstring("- [[157]] — adjacent"))
+	// Episodes use ## Related, not the fact/feedback "Related to:" marker.
+	g.Expect(bodyStr).NotTo(ContainSubstring("Related to:"))
+	// No fact/feedback formula lines, no Outcomes section.
 	g.Expect(bodyStr).NotTo(ContainSubstring("Information learned"))
 	g.Expect(bodyStr).NotTo(ContainSubstring("Lesson learned"))
 	g.Expect(bodyStr).NotTo(ContainSubstring("## Outcomes"))

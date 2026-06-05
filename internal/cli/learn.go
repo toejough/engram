@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,6 +20,14 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
+
+// EpisodeRange captures one existing episode's basename and transcript-range
+// bounds (RFC3339), used to compute preceding-episode links for a new episode.
+type EpisodeRange struct {
+	Basename string
+	Start    string
+	End      string
+}
 
 // LearnArgs holds the parsed flags for the learn subcommand.
 type LearnArgs struct {
@@ -46,11 +55,16 @@ type LearnArgs struct {
 	Predicate string
 	Object    string
 	// episode only
+	Summary           string
 	BoundaryRationale string
 	TranscriptText    string
 	TranscriptFiles   []string
 	Sessions          []string
 	TranscriptRange   string
+	// Preceding holds the computed preceding-episode links for an episode
+	// write. Populated by writeLearnUnderLock after the vault scan; nil for
+	// fact/feedback and when no ListEpisodes dep is wired.
+	Preceding []episodeLink
 }
 
 // LearnDeps holds injected dependencies for runLearn. All fields are
@@ -64,6 +78,7 @@ type LearnDeps struct {
 	InitVault     func(string) error
 	ListIDs       func(vault string) ([]string, error)
 	ListBasenames func(vault string) ([]string, error)
+	ListEpisodes  func(vault string) ([]EpisodeRange, error)
 	Lock          func(vault string) (release func(), err error)
 	WriteNew      func(path string, data []byte) error
 	Embedder      embed.Embedder
@@ -73,15 +88,31 @@ type LearnDeps struct {
 
 // unexported constants.
 const (
-	dateFormat            = "2006-01-02"
-	envVaultPath          = "ENGRAM_VAULT_PATH"
-	opencodeSessionPrefix = "opencode://"
-	tierL1                = "L1"
-	tierL2                = "L2"
-	tierL3                = "L3"
-	typeEpisode           = "episode"
-	typeFact              = "fact"
-	typeFeedback          = "feedback"
+	backtickRune = '`'
+	dateFormat   = "2006-01-02"
+	envVaultPath = "ENGRAM_VAULT_PATH"
+	// episodeFenceMin is the shortest backtick fence the ## Transcript block
+	// may use. The actual fence is max(episodeFenceMin, longestBacktickRun+1)
+	// so a transcript containing a ``` run still round-trips (the inner run
+	// cannot close the outer fence) and ParseWikilinks suppresses any [[...]]
+	// inside the fenced transcript (G5).
+	episodeFenceMin       = 3
+	episodeRelatedHeading = "## Related"
+	// episodeSummaryHeading / episodeTranscriptHeading / episodeRelatedHeading
+	// are the D6 episode-body section headings.
+	episodeSummaryHeading    = "## Summary"
+	episodeTranscriptHeading = "## Transcript"
+	opencodeSessionPrefix    = "opencode://"
+	// precedingActiveRationale / precedingPriorRationale are the rationale
+	// strings rendered after a computed preceding-episode link.
+	precedingActiveRationale = "preceding episode (active at this episode's start)"
+	precedingPriorRationale  = "immediately preceding episode"
+	tierL1                   = "L1"
+	tierL2                   = "L2"
+	tierL3                   = "L3"
+	typeEpisode              = "episode"
+	typeFact                 = "fact"
+	typeFeedback             = "feedback"
 )
 
 // unexported variables.
@@ -102,6 +133,7 @@ var (
 	errEpisodeSessionEmpty       = errors.New("episode: --session must not be empty")
 	errEpisodeSessionRequired    = errors.New("episode: at least one --session is required")
 	errEpisodeSituationRequired  = errors.New("episode: --situation is required")
+	errEpisodeSummaryRequired    = errors.New("episode: --summary is required")
 	errEpisodeTranscriptRangeFmt = errors.New(
 		"episode: --transcript-range must be <RFC3339>..<RFC3339>",
 	)
@@ -122,6 +154,7 @@ var (
 
 type episodeFields struct {
 	Situation         string
+	Summary           string
 	BoundaryRationale string
 	TranscriptText    string
 	Sessions          []string
@@ -133,6 +166,13 @@ type episodeFields struct {
 	Project           string
 	Issue             string
 	Tier              string
+	// Relations are the authored "<target>|<rationale>" relation bullets,
+	// already resolved to full basenames; they render under ## Related after
+	// the computed Preceding links.
+	Relations []string
+	// Preceding are the computed preceding-episode links (active-at-start
+	// then immediate-prior), rendered first under ## Related.
+	Preceding []episodeLink
 }
 
 // episodeFrontmatterDoc is the YAML shape of an episode note's frontmatter.
@@ -150,6 +190,13 @@ type episodeFrontmatterDoc struct {
 	Source            string               `yaml:"source"`
 	Project           string               `yaml:"project,omitempty"`
 	Issue             quotedString         `yaml:"issue,omitempty"`
+}
+
+// episodeLink is a resolved preceding-episode (or authored-relation) link: the
+// full note basename plus the rationale rendered after the em-dash.
+type episodeLink struct {
+	Basename  string
+	Rationale string
 }
 
 // episodeProvenanceDoc holds the nested provenance fields for an episode.
@@ -221,6 +268,13 @@ type feedbackFrontmatterDoc struct {
 	Issue     quotedString `yaml:"issue,omitempty"`
 }
 
+// parsedEpisodeRange is an EpisodeRange with its bounds parsed to time.Time.
+type parsedEpisodeRange struct {
+	basename string
+	start    time.Time
+	end      time.Time
+}
+
 // quotedString is a YAML scalar that always renders double-quoted. Used for
 // the Luhmann ID field so the rendered frontmatter matches the vault
 // convention (luhmann: "9aa") regardless of whether yaml.v3 would otherwise
@@ -240,6 +294,29 @@ func (q quotedString) MarshalYAML() (any, error) {
 		Style: yaml.DoubleQuotedStyle,
 		Value: string(q),
 	}, nil
+}
+
+// activeAtStart returns the episodes whose range spans start
+// (f.start <= start <= f.end), sorted by f.start ascending (basename
+// tie-breaks for determinism).
+func activeAtStart(parsed []parsedEpisodeRange, start time.Time) []parsedEpisodeRange {
+	active := make([]parsedEpisodeRange, 0, len(parsed))
+
+	for _, f := range parsed {
+		if !f.start.After(start) && !f.end.Before(start) {
+			active = append(active, f)
+		}
+	}
+
+	sort.Slice(active, func(i, j int) bool {
+		if active[i].start.Equal(active[j].start) {
+			return active[i].basename < active[j].basename
+		}
+
+		return active[i].start.Before(active[j].start)
+	})
+
+	return active
 }
 
 func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
@@ -283,7 +360,9 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 
 		f.Tier = tierL1
 
-		return renderEpisodeFrontmatter(f, when) + renderEpisodeBody(f, related), nil
+		// Episodes build their own ## Related section from preceding links +
+		// authored relations; they do not use the shared "Related to:" block.
+		return renderEpisodeFrontmatter(f, when) + renderEpisodeBody(f), nil
 	default:
 		return "", fmt.Errorf("%w: got %q", errLearnUnknownType, args.Type)
 	}
@@ -337,6 +416,11 @@ func buildEpisodeFields(args LearnArgs, luhmann string) (episodeFields, error) {
 		return episodeFields{}, situationErr
 	}
 
+	summaryErr := validateEpisodeSummary(args.Summary)
+	if summaryErr != nil {
+		return episodeFields{}, summaryErr
+	}
+
 	rationaleErr := validateEpisodeBoundaryRationale(args.BoundaryRationale)
 	if rationaleErr != nil {
 		return episodeFields{}, rationaleErr
@@ -354,6 +438,7 @@ func buildEpisodeFields(args LearnArgs, luhmann string) (episodeFields, error) {
 
 	return episodeFields{
 		Situation:         args.Situation,
+		Summary:           args.Summary,
 		BoundaryRationale: args.BoundaryRationale,
 		TranscriptText:    args.TranscriptText,
 		Sessions:          sessions,
@@ -364,7 +449,74 @@ func buildEpisodeFields(args LearnArgs, luhmann string) (episodeFields, error) {
 		Source:            args.Source,
 		Project:           args.Project,
 		Issue:             args.Issue,
+		Relations:         args.Relations,
+		Preceding:         args.Preceding,
 	}, nil
+}
+
+// computePrecedingLinks derives the preceding-episode links for a new episode
+// whose transcript range starts at newStart (RFC3339), given the existing
+// episodes' ranges. The rule:
+//
+//   - Active-at-start: every existing F whose range spans newStart
+//     (F.start <= newStart <= F.end), rationale precedingActiveRationale,
+//     emitted in F.start-ascending order.
+//   - Immediate-prior: the single F with the greatest F.end among those with
+//     F.end <= newStart, rationale precedingPriorRationale, appended after the
+//     active set — unless that F is already in the active set (the
+//     F.end == newStart boundary), in which case the single active bullet is
+//     kept.
+//
+// Existing episodes with an unparseable/empty range, or with the same basename
+// as a basename already linked, are skipped. Returns nil when nothing links.
+func computePrecedingLinks(existing []EpisodeRange, newStart string) []episodeLink {
+	start, startErr := time.Parse(time.RFC3339, newStart)
+	if startErr != nil {
+		return nil
+	}
+
+	parsed := make([]parsedEpisodeRange, 0, len(existing))
+
+	for _, candidate := range existing {
+		fStart, fStartErr := time.Parse(time.RFC3339, candidate.Start)
+		if fStartErr != nil {
+			continue
+		}
+
+		fEnd, fEndErr := time.Parse(time.RFC3339, candidate.End)
+		if fEndErr != nil {
+			continue
+		}
+
+		parsed = append(parsed, parsedEpisodeRange{basename: candidate.Basename, start: fStart, end: fEnd})
+	}
+
+	active := activeAtStart(parsed, start)
+	links := make([]episodeLink, 0, len(active)+1)
+	linked := make(map[string]struct{}, len(active)+1)
+
+	for _, f := range active {
+		if _, dup := linked[f.basename]; dup {
+			continue
+		}
+
+		linked[f.basename] = struct{}{}
+
+		links = append(links, episodeLink{Basename: f.basename, Rationale: precedingActiveRationale})
+	}
+
+	prior, hasPrior := immediatePrior(parsed, start)
+	if hasPrior {
+		if _, alreadyActive := linked[prior.basename]; !alreadyActive {
+			links = append(links, episodeLink{Basename: prior.basename, Rationale: precedingPriorRationale})
+		}
+	}
+
+	if len(links) == 0 {
+		return nil
+	}
+
+	return links
 }
 
 // cutSessionRef splits "<session-ref>:<start>" into the session reference and
@@ -390,6 +542,98 @@ func defaultSessionPathResolver(sessionID string) (string, error) {
 	return resolveSessionPath(sessionID, os.Getwd, os.UserHomeDir)
 }
 
+// episodePrecedingLinks scans the vault for existing episodes (via
+// deps.ListEpisodes) and computes the new episode's preceding links from its
+// transcript-range start. A nil ListEpisodes (tests that don't wire the scan)
+// safely yields no links. A malformed --transcript-range yields no links here;
+// buildEpisodeFields raises the canonical validation error downstream.
+func episodePrecedingLinks(args LearnArgs, deps LearnDeps, vault string) ([]episodeLink, error) {
+	if deps.ListEpisodes == nil {
+		return nil, nil
+	}
+
+	start, _, rangeErr := parseTranscriptRange(args.TranscriptRange)
+	if rangeErr != nil {
+		// Swallow: a malformed range yields no preceding links here.
+		// buildEpisodeFields raises the canonical validation error downstream,
+		// so surfacing rangeErr now would only duplicate (and worsen) it.
+		return nil, nil //nolint:nilerr // canonical range error is raised in buildEpisodeFields
+	}
+
+	existing, listErr := deps.ListEpisodes(vault)
+	if listErr != nil {
+		return nil, fmt.Errorf("learn: listing episodes: %w", listErr)
+	}
+
+	return computePrecedingLinks(existing, start), nil
+}
+
+// episodeRangeFromNote extracts the (basename, start, end) EpisodeRange from a
+// raw note's frontmatter, reporting whether the note is an episode. Non-episode
+// notes and notes without parseable frontmatter return ok=false.
+func episodeRangeFromNote(basename string, raw []byte) (EpisodeRange, bool) {
+	frontmatter, ok := splitFrontmatter(raw)
+	if !ok {
+		return EpisodeRange{}, false
+	}
+
+	if peekNoteType(frontmatter) != typeEpisode {
+		return EpisodeRange{}, false
+	}
+
+	var doc episodeFrontmatterDoc
+
+	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
+	if unmarshalErr != nil {
+		return EpisodeRange{}, false
+	}
+
+	return EpisodeRange{
+		Basename: basename,
+		Start:    doc.Provenance.TranscriptRange.Start,
+		End:      doc.Provenance.TranscriptRange.End,
+	}, true
+}
+
+// episodeRelatedBullets renders the ## Related bullets: the computed preceding
+// links first (in their given order), then the authored relations. Both are
+// "- [[basename]] — rationale". Duplicates by basename are dropped, keeping the
+// first occurrence (so a preceding link wins over an authored relation to the
+// same note). Returns nil when there is nothing to link.
+func episodeRelatedBullets(preceding []episodeLink, relations []string) []string {
+	bullets := make([]string, 0, len(preceding)+len(relations))
+	seen := make(map[string]struct{}, len(preceding)+len(relations))
+
+	add := func(basename, rationale string) {
+		if basename == "" {
+			return
+		}
+
+		if _, dup := seen[basename]; dup {
+			return
+		}
+
+		seen[basename] = struct{}{}
+
+		bullets = append(bullets, fmt.Sprintf("- [[%s]] — %s", basename, rationale))
+	}
+
+	for _, link := range preceding {
+		add(link.Basename, link.Rationale)
+	}
+
+	for _, relation := range relations {
+		target, rationale, _ := strings.Cut(relation, "|")
+		add(strings.TrimSpace(target), strings.TrimSpace(rationale))
+	}
+
+	if len(bullets) == 0 {
+		return nil
+	}
+
+	return bullets
+}
+
 // extractLuhmannFromFilename strips the `.md` extension and delegates to
 // luhmann.FromBasename — the canonical extractor (see #626). Returns
 // ("", false) for any non-`.md` filename or one without a valid leading ID.
@@ -403,6 +647,33 @@ func extractLuhmannFromFilename(name string) (string, bool) {
 	return luhmann.FromBasename(strings.TrimSuffix(name, mdExt))
 }
 
+// immediatePrior returns the episode with the greatest end among those ending
+// at or before start, and whether any such episode exists. Basename
+// tie-breaks when two share the greatest end, for determinism.
+func immediatePrior(parsed []parsedEpisodeRange, start time.Time) (parsedEpisodeRange, bool) {
+	var (
+		best  parsedEpisodeRange
+		found bool
+	)
+
+	for _, f := range parsed {
+		if f.end.After(start) {
+			continue
+		}
+
+		switch {
+		case !found:
+			best, found = f, true
+		case f.end.After(best.end):
+			best = f
+		case f.end.Equal(best.end) && f.basename < best.basename:
+			best = f
+		}
+	}
+
+	return best, found
+}
+
 func learnPath(vault, luhmann, slug string, when time.Time) string {
 	filename := fmt.Sprintf("%s.%s.%s.md", luhmann, when.Format(dateFormat), slug)
 
@@ -414,6 +685,27 @@ func learnPath(vault, luhmann, slug string, when time.Time) string {
 // anonymous closure inside newOsLearnDeps.
 func logWarningToStderrf(format string, args ...any) {
 	_, _ = fmt.Fprintf(os.Stderr, "warning: "+format+"\n", args...)
+}
+
+// longestBacktickRun returns the length of the longest run of consecutive
+// backtick characters anywhere in text.
+func longestBacktickRun(text string) int {
+	longest, current := 0, 0
+
+	for _, r := range text {
+		if r == backtickRune {
+			current++
+			if current > longest {
+				longest = current
+			}
+
+			continue
+		}
+
+		current = 0
+	}
+
+	return longest
 }
 
 // marshalFrontmatter encodes v as YAML and wraps the result with the "---"
@@ -437,6 +729,7 @@ func newOsLearnDeps() LearnDeps {
 		InitVault:     func(path string) error { return initializeVault(vaultFS, path) },
 		ListIDs:       vaultFS.ListIDs,
 		ListBasenames: vaultFS.ListBasenames,
+		ListEpisodes:  vaultFS.ListEpisodes,
 		Lock:          vaultFS.Lock,
 		WriteNew:      vaultFS.WriteNew,
 		Embedder:      sharedEmbedder,
@@ -520,23 +813,31 @@ func parseTranscriptRange(raw string) (string, string, error) {
 	return startRaw, endRaw, nil
 }
 
-// renderEpisodeBody assembles the body of an L1 episode note: the filtered
-// transcript chunk verbatim, followed by the related-to block. No auto-
-// prefix line, no narrative summary, no Outcomes section — those L2-style
-// abstractions live in fact/feedback notes that link back to this episode.
-func renderEpisodeBody(f episodeFields, relatedSection string) string {
+// renderEpisodeBody assembles the D6 L1 episode body as exactly three
+// sections: ## Summary (the authored "what happened" prose), ## Transcript
+// (the verbatim chunk inside a backtick fence long enough to round-trip any
+// inner fence and to suppress wikilinks per ParseWikilinks/G5), and ##
+// Related (computed preceding-episode links then authored relations). The
+// ## Related section is omitted entirely when there are zero of both.
+func renderEpisodeBody(f episodeFields) string {
 	var builder strings.Builder
 
-	builder.WriteString(f.TranscriptText)
+	builder.WriteString(episodeSummaryHeading)
+	builder.WriteString("\n")
+	builder.WriteString(strings.TrimRight(f.Summary, "\n"))
+	builder.WriteString("\n\n")
 
-	// Ensure the body ends with a newline before the related block (or end).
-	if !strings.HasSuffix(f.TranscriptText, "\n") {
-		builder.WriteString("\n")
-	}
+	builder.WriteString(episodeTranscriptHeading)
+	builder.WriteString("\n")
+	builder.WriteString(renderFencedTranscript(f.TranscriptText))
 
-	if relatedSection != "" {
+	bullets := episodeRelatedBullets(f.Preceding, f.Relations)
+	if len(bullets) > 0 {
 		builder.WriteString("\n")
-		builder.WriteString(relatedSection)
+		builder.WriteString(episodeRelatedHeading)
+		builder.WriteString("\n")
+		builder.WriteString(strings.Join(bullets, "\n"))
+		builder.WriteString("\n")
 	}
 
 	return builder.String()
@@ -615,6 +916,21 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 		Project:   f.Project,
 		Issue:     quotedString(f.Issue),
 	})
+}
+
+// renderFencedTranscript wraps text in a backtick fence whose run length is
+// max(episodeFenceMin, longestBacktickRun(text)+1), so an inner ``` cannot
+// close the block. The opening and closing fences are on their own lines, and
+// the transcript is newline-terminated before the closer.
+func renderFencedTranscript(text string) string {
+	fence := strings.Repeat(string(backtickRune), transcriptFenceLen(text))
+
+	body := text
+	if !strings.HasSuffix(body, "\n") {
+		body += "\n"
+	}
+
+	return fence + "\n" + body + fence + "\n"
 }
 
 // renderRelatedSection turns a list of "wikilink|rationale" entries into the
@@ -871,6 +1187,7 @@ func runLearnFromEpisodeArgsWithReader(
 		Tier:              a.Tier,
 		Relations:         a.Relations,
 		Situation:         a.Situation,
+		Summary:           a.Summary,
 		BoundaryRationale: a.BoundaryRationale,
 		TranscriptText:    body,
 		TranscriptFiles:   files,
@@ -951,6 +1268,18 @@ func tierOrDefault(tier string) string {
 	return tier
 }
 
+// transcriptFenceLen returns the backtick-run length for an episode transcript
+// fence: the larger of episodeFenceMin and one more than the longest backtick
+// run already in the text.
+func transcriptFenceLen(text string) int {
+	longest := longestBacktickRun(text)
+	if longest+1 > episodeFenceMin {
+		return longest + 1
+	}
+
+	return episodeFenceMin
+}
+
 // validateEpisodeBoundaryRationale rejects empty/whitespace rationale strings.
 func validateEpisodeBoundaryRationale(rationale string) error {
 	if strings.TrimSpace(rationale) == "" {
@@ -980,6 +1309,16 @@ func validateEpisodeSessions(sessions []string) ([]string, error) {
 func validateEpisodeSituation(situation string) error {
 	if strings.TrimSpace(situation) == "" {
 		return errEpisodeSituationRequired
+	}
+
+	return nil
+}
+
+// validateEpisodeSummary rejects empty/whitespace summary strings. The summary
+// is the authored "what happened" prose that heads the D6 episode body.
+func validateEpisodeSummary(summary string) error {
+	if strings.TrimSpace(summary) == "" {
+		return errEpisodeSummaryRequired
 	}
 
 	return nil
@@ -1078,6 +1417,15 @@ func writeLearnUnderLock(
 		}
 
 		args.Relations = resolveRelationTargets(args.Relations, basenames)
+	}
+
+	if args.Type == typeEpisode {
+		preceding, precErr := episodePrecedingLinks(args, deps, vault)
+		if precErr != nil {
+			return "", precErr
+		}
+
+		args.Preceding = preceding
 	}
 
 	content, contentErr := assembleLearnContent(args, luhmann, when)

@@ -121,8 +121,9 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		// transcript, learn (group), update, embed (group), query, check, migrate-links, resituate
-		g.Expect(targets).To(gomega.HaveLen(8))
+		// transcript, learn (group), update, embed (group), query, check, migrate-links,
+		// migrate-episodes, resituate
+		g.Expect(targets).To(gomega.HaveLen(9))
 	})
 
 	t.Run("invokes learn feedback closure", func(t *testing.T) {
@@ -175,6 +176,7 @@ func TestTargets(t *testing.T) {
 			"--vault", vault,
 			"--source", "agent",
 			"--situation", "x",
+			"--summary", "did the work",
 			"--boundary-rationale", "discrete arc",
 			"--transcript-text", "USER: hi\n",
 			"--session", "x",
@@ -196,6 +198,7 @@ func TestTargets(t *testing.T) {
 			"--slug", "test-slug",
 			"--vault", vault,
 			"--situation", "x",
+			"--summary", "did the work",
 			"--boundary-rationale", "discrete arc",
 			"--transcript-text", "USER: hi\n",
 			"--session", "x",
@@ -219,6 +222,7 @@ func TestTargets(t *testing.T) {
 			"--vault", vault,
 			"--source", "src",
 			"--situation", "x",
+			"--summary", "did the work",
 			"--boundary-rationale", "discrete arc",
 			"--transcript-text", "USER: hi\n",
 			"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
@@ -241,6 +245,7 @@ func TestTargets(t *testing.T) {
 			"--vault", vault,
 			"--source", "src",
 			"--situation", "x",
+			"--summary", "did the work",
 			"--boundary-rationale", "discrete arc",
 			"--transcript-text", "USER: hi\n",
 			"--session", "x",
@@ -263,6 +268,7 @@ func TestTargets(t *testing.T) {
 			"--vault", vault,
 			"--source", "src",
 			"--situation", "x",
+			"--summary", "did the work",
 			"--transcript-text", "USER: hi\n",
 			"--session", "x",
 			"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
@@ -355,6 +361,22 @@ func TestTargets_EmbedStatus(t *testing.T) {
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
 	stderr := executeForTest(t, []string{"engram", "embed", "status", "--vault", vault})
+	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
+// TestTargets_MigrateEpisodes exercises the migrate-episodes closure end-to-end
+// through Targets() so the newOsMigrateEpisodesDeps wiring is covered. The vault
+// is empty, so the real ScanVault finds no episodes and the command reports zero
+// changes in dry-run mode without unpacking the bundled embedder.
+func TestTargets_MigrateEpisodes(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
+
+	stderr := executeForTest(t, []string{"engram", "migrate-episodes", "--vault", vault})
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 

@@ -34,6 +34,7 @@ type LearnEpisodeArgs struct {
 	CommonLearnArgs
 
 	Situation           string   `targ:"flag,name=situation,required,desc=retrieval-shaped topic phrase (required)"`
+	Summary             string   `targ:"flag,name=summary,required,desc=what-happened prose for ## Summary (required)"`
 	BoundaryRationale   string   `targ:"flag,name=boundary-rationale,required,desc=why this chunk's bounds (required)"`
 	FromTranscriptRange []string `targ:"flag,name=from-transcript-range,desc=<session>:<start>..<end>"`
 	TranscriptText      string   `targ:"flag,name=transcript-text,desc=literal transcript chunk content"`
@@ -133,6 +134,10 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
 			errHandler(RunMigrateLinks(withLog(ctx), a, newOsMigrateDeps(), stdout))
 		}).Name("migrate-links").Description("Rewrite bare-id relation links to full basenames (D1/G0)"),
+		targ.Targ(func(ctx context.Context, a MigrateEpisodesArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			errHandler(RunMigrateEpisodes(withLog(ctx), a, newOsMigrateEpisodesDeps(), stdout))
+		}).Name("migrate-episodes").Description("Rewrite episodes to the Summary/Transcript/Related format (D6)"),
 		targ.Targ(func(ctx context.Context, a ResituateArgs) {
 			a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), stdout))
