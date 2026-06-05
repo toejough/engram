@@ -45,7 +45,7 @@ type LearnEpisodeArgs struct {
 type LearnFactArgs struct {
 	CommonLearnArgs
 
-	Situation string `targ:"flag,name=situation,desc=context when this applies"`
+	Situation string `targ:"flag,name=situation,required,desc=context when this applies (required)"`
 	Subject   string `targ:"flag,name=subject,desc=subject of the fact"`
 	Predicate string `targ:"flag,name=predicate,desc=relationship or verb"`
 	Object    string `targ:"flag,name=object,desc=object of the fact"`
@@ -55,7 +55,7 @@ type LearnFactArgs struct {
 type LearnFeedbackArgs struct {
 	CommonLearnArgs
 
-	Situation string `targ:"flag,name=situation,desc=context when this applies"`
+	Situation string `targ:"flag,name=situation,required,desc=context when this applies (required)"`
 	Behavior  string `targ:"flag,name=behavior,desc=observed behavior"`
 	Impact    string `targ:"flag,name=impact,desc=impact of the behavior"`
 	Action    string `targ:"flag,name=action,desc=recommended action"`

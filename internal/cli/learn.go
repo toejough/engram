@@ -109,6 +109,8 @@ var (
 		"episode: --transcript-range start must be before end",
 	)
 	errEpisodeTranscriptRangeReq = errors.New("episode: --transcript-range is required")
+	errFactSituationRequired     = errors.New("fact: --situation is required")
+	errFeedbackSituationRequired = errors.New("feedback: --situation is required")
 	errIssueIDInvalid            = errors.New("issue must be non-empty with no whitespace")
 	errLearnBadTier              = errors.New("tier must be L1, L2, or L3")
 	errLearnUnknownType          = errors.New("learn: type must be feedback, fact, or episode")
@@ -250,28 +252,26 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 
 	switch args.Type {
 	case typeFeedback:
-		tier := args.Tier
-		if tier == "" {
-			tier = tierL2
+		if strings.TrimSpace(args.Situation) == "" {
+			return "", errFeedbackSituationRequired
 		}
 
 		f := feedbackFields{
 			Situation: args.Situation, Behavior: args.Behavior, Impact: args.Impact,
 			Action: args.Action, Luhmann: luhmann, Source: args.Source,
-			Project: args.Project, Issue: args.Issue, Tier: tier,
+			Project: args.Project, Issue: args.Issue, Tier: tierOrDefault(args.Tier),
 		}
 
 		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f, related), nil
 	case typeFact:
-		tier := args.Tier
-		if tier == "" {
-			tier = tierL2
+		if strings.TrimSpace(args.Situation) == "" {
+			return "", errFactSituationRequired
 		}
 
 		f := factFields{
 			Situation: args.Situation, Subject: args.Subject, Predicate: args.Predicate,
 			Object: args.Object, Luhmann: luhmann, Source: args.Source,
-			Project: args.Project, Issue: args.Issue, Tier: tier,
+			Project: args.Project, Issue: args.Issue, Tier: tierOrDefault(args.Tier),
 		}
 
 		return renderFactFrontmatter(f, when) + renderFactBody(f, related), nil
@@ -938,6 +938,17 @@ func stripLeadingWhen(situation string) string {
 	}
 
 	return situation
+}
+
+// tierOrDefault returns the explicit tier override when set, falling back to
+// L2 — the default tier for fact and feedback notes. Extracted so both the
+// fact and feedback branches of assembleLearnContent share one branch point.
+func tierOrDefault(tier string) string {
+	if tier == "" {
+		return tierL2
+	}
+
+	return tier
 }
 
 // validateEpisodeBoundaryRationale rejects empty/whitespace rationale strings.

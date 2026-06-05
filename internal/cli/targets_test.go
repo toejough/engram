@@ -137,6 +137,7 @@ func TestTargets(t *testing.T) {
 			"--slug", "test-slug",
 			"--vault", vault,
 			"--source", "agent",
+			"--situation", "running tests",
 			"--relation", "top",
 		})
 		// May or may not error; goal is to invoke the closure.
@@ -155,6 +156,7 @@ func TestTargets(t *testing.T) {
 			"--slug", "test-slug",
 			"--vault", vault,
 			"--source", "agent",
+			"--situation", "running tests",
 			"--relation", "top",
 		})
 		_ = stderr

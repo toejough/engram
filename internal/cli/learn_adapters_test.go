@@ -320,6 +320,52 @@ func TestRunLearnFromFactArgs_BootstrapsMissingVault(t *testing.T) {
 	g.Expect(entries).NotTo(BeEmpty())
 }
 
+// TestRunLearnFromFactArgs_RequiresSituation asserts a fact write rejects an
+// empty or whitespace --situation (M5). Situation is rendered into the fact
+// body formula and drives recall-mirror retrieval, so an absent situation
+// must fail loudly rather than silently produce an unretrievable note.
+func TestRunLearnFromFactArgs_RequiresSituation(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		situation string
+	}{
+		{name: "empty", situation: ""},
+		{name: "whitespace", situation: "   "},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+
+			args := cli.LearnFactArgs{
+				CommonLearnArgs: cli.CommonLearnArgs{
+					Slug:     "fact-slug",
+					Vault:    vault,
+					Position: "top",
+					Source:   "test",
+				},
+				Situation: tc.situation,
+				Subject:   "subj",
+				Predicate: "is",
+				Object:    "obj",
+			}
+
+			err := cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)
+			g.Expect(err).To(MatchError(ContainSubstring("situation")))
+
+			entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
+			g.Expect(readErr).NotTo(HaveOccurred())
+			g.Expect(entries).To(BeEmpty())
+		})
+	}
+}
+
 // runLearnFrom*Args use newOsLearnDeps() and call runLearn. Driving these
 // with a real vault dir exercises the full struct-conversion + delegation path
 // (which previously had 0% coverage).
@@ -354,6 +400,51 @@ func TestRunLearnFromFactArgs_WritesFile(t *testing.T) {
 	entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).NotTo(BeEmpty())
+}
+
+// TestRunLearnFromFeedbackArgs_RequiresSituation asserts a feedback write
+// rejects an empty or whitespace --situation (M5), mirroring the fact case:
+// situation feeds the feedback body formula and recall-mirror retrieval.
+func TestRunLearnFromFeedbackArgs_RequiresSituation(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		situation string
+	}{
+		{name: "empty", situation: ""},
+		{name: "whitespace", situation: "   "},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+
+			args := cli.LearnFeedbackArgs{
+				CommonLearnArgs: cli.CommonLearnArgs{
+					Slug:     "feedback-slug",
+					Vault:    vault,
+					Position: "top",
+					Source:   "test",
+				},
+				Situation: tc.situation,
+				Behavior:  "no tests",
+				Impact:    "regressions",
+				Action:    "write tests",
+			}
+
+			err := cli.ExportRunLearnFromFeedbackArgs(context.Background(), args, io.Discard)
+			g.Expect(err).To(MatchError(ContainSubstring("situation")))
+
+			entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
+			g.Expect(readErr).NotTo(HaveOccurred())
+			g.Expect(entries).To(BeEmpty())
+		})
+	}
 }
 
 func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {

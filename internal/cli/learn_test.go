@@ -1306,11 +1306,12 @@ func TestRunLearn_BootstrapsVaultWhenMissing(t *testing.T) {
 		WriteNew:  func(string, []byte) error { return nil },
 	}
 	args := cli.LearnArgs{
-		Type:     "feedback",
-		Slug:     "x",
-		Vault:    "/v",
-		Position: "top",
-		Source:   "test",
+		Type:      "feedback",
+		Slug:      "x",
+		Vault:     "/v",
+		Position:  "top",
+		Source:    "test",
+		Situation: "bootstrapping the vault",
 	}
 
 	var stdout strings.Builder
