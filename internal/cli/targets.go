@@ -88,12 +88,6 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 		return debuglog.WithLogger(ctx, logger)
 	}
 
-	homeOrEmpty := func() string {
-		home, _ := os.UserHomeDir()
-
-		return home
-	}
-
 	return []any{
 		targ.Targ(func(ctx context.Context, a TranscriptArgs) {
 			cwd, _ := os.Getwd()
@@ -139,7 +133,20 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
 			errHandler(RunMigrateLinks(withLog(ctx), a, newOsMigrateDeps(), stdout))
 		}).Name("migrate-links").Description("Rewrite bare-id relation links to full basenames (D1/G0)"),
+		targ.Targ(func(ctx context.Context, a ResituateArgs) {
+			a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
+			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), stdout))
+		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 	}
+}
+
+// homeOrEmpty returns the user's home directory, or "" when it cannot be
+// resolved. resolveVault tolerates an empty home (it falls back to env / XDG),
+// so the error is intentionally discarded.
+func homeOrEmpty() string {
+	home, _ := os.UserHomeDir()
+
+	return home
 }
 
 // newErrHandler returns a function that prints err to stderr and signals

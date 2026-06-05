@@ -121,8 +121,8 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		// transcript, learn (group), update, embed (group), query, check, migrate-links
-		g.Expect(targets).To(gomega.HaveLen(7))
+		// transcript, learn (group), update, embed (group), query, check, migrate-links, resituate
+		g.Expect(targets).To(gomega.HaveLen(8))
 	})
 
 	t.Run("invokes learn feedback closure", func(t *testing.T) {
@@ -370,6 +370,25 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 
 	stderr := executeForTest(t, []string{"engram", "query", "--phrase", "anything", "--vault", vault})
 	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
+// TestTargets_Resituate exercises the resituate closure end-to-end through
+// Targets() so the newOsResituateDeps wiring is covered. The target is a
+// non-existent note in an empty vault: the real ScanVault runs and finds
+// nothing, so the not-found sentinel surfaces on stderr without unpacking
+// the bundled embedder (no matching note to re-embed).
+func TestTargets_Resituate(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
+
+	stderr := executeForTest(t, []string{
+		"engram", "resituate", "--vault", vault, "--note", "9zz", "--situation", "new topic",
+	})
+	g.Expect(stderr).To(gomega.ContainSubstring("not found"))
 }
 
 // executeForTest runs an engram CLI command through targ, returning stderr content.

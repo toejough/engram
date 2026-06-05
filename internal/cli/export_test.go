@@ -14,6 +14,7 @@ import (
 // Exported variables.
 var (
 	ErrLearnBadTierForTest           = errLearnBadTier
+	ErrResituateNoteNotFoundForTest  = errResituateNoteNotFound
 	ExportAnyHarnessFailed           = anyHarnessFailed
 	ExportApplyProjectFilter         = applyProjectFilter
 	ExportApplyTierFilter            = applyTierFilter
@@ -186,6 +187,16 @@ func ExportNewOsFileReader() interface {
 
 // ExportNewOsLearnFS returns the production osLearnFS adapter for testing.
 func ExportNewOsLearnFS() *osLearnFS { return &osLearnFS{} }
+
+// ExportNewOsResituateDeps returns production ResituateDeps with an injected
+// embedder so coverage tests can drive Scan/Read/Write without unpacking the
+// lazy bundled embedder.
+func ExportNewOsResituateDeps(emb embed.Embedder) ResituateDeps {
+	deps := newOsResituateDeps()
+	deps.Embedder = emb
+
+	return deps
+}
 
 // ExportNewOsUpdateEnv returns the production Env adapter for testing.
 func ExportNewOsUpdateEnv() *osUpdateEnv { return &osUpdateEnv{} }
