@@ -10,6 +10,28 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+func TestContentHash_EpisodeSituationChangeChangesHash(t *testing.T) {
+	t.Parallel()
+
+	// Episodes embed their situation:, so a situation edit must change the
+	// staleness hash even when the body is byte-identical. Otherwise an
+	// edited episode reads as fresh against its outdated vector.
+	g := NewWithT(t)
+	a := []byte("---\ntype: episode\nsituation: evaluating agent memory\n---\nshared body.\n")
+	b := []byte("---\ntype: episode\nsituation: debugging a flaky test\n---\nshared body.\n")
+	g.Expect(embed.ContentHash(a)).NotTo(Equal(embed.ContentHash(b)))
+}
+
+func TestContentHash_FactTracksBody(t *testing.T) {
+	t.Parallel()
+
+	// Facts embed their body, so the hash must change when the body changes.
+	g := NewWithT(t)
+	a := []byte("---\ntype: fact\nluhmann: \"1\"\n---\noriginal body.\n")
+	b := []byte("---\ntype: fact\nluhmann: \"1\"\n---\nedited body.\n")
+	g.Expect(embed.ContentHash(a)).NotTo(Equal(embed.ContentHash(b)))
+}
+
 func TestContentHash_FrontmatterChangeDoesNotChangeHash(t *testing.T) {
 	t.Parallel()
 

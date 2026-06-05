@@ -6,11 +6,13 @@ import (
 	"encoding/hex"
 )
 
-// ContentHash returns a sha256: prefixed hex digest of the note's body
-// (frontmatter stripped). Used to detect stale sidecars when a note's
-// body has changed.
+// ContentHash returns a sha256: prefixed hex digest of the note's embedded
+// text (see Text): the situation: field for episodes, the body otherwise. It
+// hashes the same bytes that get embedded so staleness detection tracks the
+// embed source — editing an episode's situation changes the hash even when
+// the body is byte-identical, marking the stored vector stale.
 func ContentHash(raw []byte) string {
-	sum := sha256.Sum256(ExtractBody(raw))
+	sum := sha256.Sum256(Text(raw))
 
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
