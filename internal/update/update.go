@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -390,7 +391,7 @@ func (u *Updater) resolveSource(ctx context.Context, dryRun bool) (SourceInfo, e
 		if !dryRun {
 			_, _, runErr := u.Cmd.Run(ctx, root, "go", "install", "./cmd/engram/")
 			if runErr != nil {
-				return SourceInfo{}, fmt.Errorf("go install (local): %w", runErr)
+				return SourceInfo{}, classifyGoInstallErr("local", runErr)
 			}
 		}
 
@@ -400,7 +401,7 @@ func (u *Updater) resolveSource(ctx context.Context, dryRun bool) (SourceInfo, e
 	if !dryRun {
 		_, _, runErr := u.Cmd.Run(ctx, "", "go", "install", goInstallTarget)
 		if runErr != nil {
-			return SourceInfo{}, fmt.Errorf("go install (remote): %w", runErr)
+			return SourceInfo{}, classifyGoInstallErr("remote", runErr)
 		}
 	}
 
@@ -421,6 +422,17 @@ const (
 	goInstallTarget                   = ModulePath + "/cmd/engram@latest"
 	maxSupportedHarnesses             = 2
 )
+
+// classifyGoInstallErr maps a `go install` failure to ErrGoNotFound when the go
+// binary is absent from PATH (exec.ErrNotFound), otherwise wrapping the raw
+// error with the install mode for context.
+func classifyGoInstallErr(mode string, runErr error) error {
+	if errors.Is(runErr, exec.ErrNotFound) {
+		return fmt.Errorf("go install (%s): %w", mode, ErrGoNotFound)
+	}
+
+	return fmt.Errorf("go install (%s): %w", mode, runErr)
+}
 
 func cmdRootFor(spec HarnessSpec, home string) string {
 	if spec.CommandsTargetRel == "" {

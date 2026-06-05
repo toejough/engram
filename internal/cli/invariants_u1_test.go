@@ -3,8 +3,9 @@ package cli_test
 import (
 	"bytes"
 	"context"
-	"errors"
+	"fmt"
 	"io/fs"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -16,41 +17,34 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-// TestInvariant_U1_MissingGoFailsLoudly locks the half of U1's missing-go
-// failure surface that DOES hold: a missing `go` binary must make update
-// FAIL (never silently succeed). It asserts the true, un-weakened sub-claim
-// — that the failure propagates — and does not assert the spec's sentinel
-// identity, which is unmet.
-//
-// REPORTED GAP (real bug, not forced): U1 requires the sentinel to be
-// update.ErrGoNotFound. That sentinel is declared (update.go:35) but NEVER
-// returned by production — resolveSource wraps the raw command failure as
-// "go install (local): %w". So errors.Is(err, ErrGoNotFound) is false today.
-// This test deliberately does NOT pin that wrong behavior as correct
-// (asserting Is==false would be weakening); it asserts only the failure
-// surface that holds. The sentinel-typing clause is flagged in the report.
-func TestInvariant_U1_MissingGoFailsLoudly(t *testing.T) {
+// TestInvariant_U1_MissingGoSentinel locks U1's missing-go failure surface: a
+// missing `go` binary (surfaced as exec.ErrNotFound from the go install
+// command) must make update FAIL with the update.ErrGoNotFound sentinel, and
+// that sentinel must survive the CLI's finishUpdate wrapping (errors.Is /
+// MatchError) — never a silent success, never a bare un-typed error.
+func TestInvariant_U1_MissingGoSentinel(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	memFS := newU1FS()
 	memFS.seedLocalRepo()
 
-	// Commander fails as if `go` were not on PATH.
+	// Commander fails the way the real osCommander does when `go` is absent:
+	// the exec.ErrNotFound chain is preserved through its %w wrap.
 	updater := &update.Updater{
 		FS:  memFS,
-		Cmd: &u1FailCmd{err: errors.New(`exec: "go": executable file not found in $PATH`)},
+		Cmd: &u1FailCmd{err: fmt.Errorf(`go [install ./cmd/engram/]: %w`, exec.ErrNotFound)},
 		Env: u1LocalEnv(),
 	}
 
 	_, runErr := updater.Run(context.Background(), update.Options{})
-	g.Expect(runErr).To(HaveOccurred(), "U1: a missing go binary must not silently succeed")
-	g.Expect(runErr).To(MatchError(ContainSubstring("go install")))
+	g.Expect(runErr).To(MatchError(update.ErrGoNotFound), "U1: missing go must surface ErrGoNotFound")
 
-	// And the loud failure survives the CLI tail (finishUpdate wraps it).
+	// And the sentinel survives the CLI tail (finishUpdate wraps it).
 	var out bytes.Buffer
 
-	g.Expect(cli.ExportFinishUpdate(&out, update.Report{}, runErr)).To(HaveOccurred())
+	finishErr := cli.ExportFinishUpdate(&out, update.Report{}, runErr)
+	g.Expect(finishErr).To(MatchError(update.ErrGoNotFound))
 }
 
 // TestInvariant_U1_NoHarnessSentinel locks U1's no-harness failure surface:
