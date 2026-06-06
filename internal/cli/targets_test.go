@@ -399,6 +399,22 @@ func TestTargets_MigrateEpisodes(t *testing.T) {
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
+// TestTargets_MigrateLinks exercises the migrate-links closure end-to-end through
+// Targets() so the newOsMigrateDeps wiring is covered. The vault is empty, so the
+// real ScanVault finds no notes and the command reports zero changes in dry-run
+// mode (the default).
+func TestTargets_MigrateLinks(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
+
+	stderr := executeForTest(t, []string{"engram", "migrate-links", "--vault", vault})
+	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
 // TestTargets_QueryEmptyVault exercises the query closure on an empty
 // vault — fast path returns items:[] without invoking the embedder.
 func TestTargets_QueryEmptyVault(t *testing.T) {
