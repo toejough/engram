@@ -112,12 +112,42 @@ def check_stub_pipeline():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def check_prune():
+    """Deterministic test of the write-tier ceiling enforcement: a vault with L1+L2+L3
+    notes must prune to exactly the ceiling (guards the bug where the /learn skill wrote
+    facts during an L1 episode-only capture, making v1[L1] == v1[L2])."""
+    import harness as hh
+
+    def seed():
+        root = tempfile.mkdtemp(prefix="cumprune-")
+        perm = os.path.join(root, "Permanent")
+        os.makedirs(perm)
+        for tier, kind in [("L1", "episode"), ("L2", "fact"), ("L3", "fact")]:
+            with open(os.path.join(perm, f"9{tier[-1]}.2026-06-06.x-{tier.lower()}.md"), "w") as fh:
+                fh.write(f"---\ntype: {kind}\ntier: {tier}\nsituation: x\n---\nbody\n")
+        return root
+
+    r1, r2 = seed(), seed()
+    try:
+        hh.prune_to_ceiling(r1, "L1")
+        hh.prune_to_ceiling(r2, "L2")
+        c1, c2 = hh.count_notes_by_tier(r1), hh.count_notes_by_tier(r2)
+        check("prune: L1 ceiling keeps only the episode (no facts)",
+              c1 == {"L1": 1, "L2": 0, "L3": 0, "other": 0}, str(c1))
+        check("prune: L2 ceiling keeps L1+L2, drops L3", c2 == {"L1": 1, "L2": 1, "L3": 0, "other": 0}, str(c2))
+    finally:
+        shutil.rmtree(r1, ignore_errors=True)
+        shutil.rmtree(r2, ignore_errors=True)
+
+
 def main():
     print("Zero-cost validation (no LLM, no spend):\n")
     print("[cell-gen]")
     check_cellgen()
     print("[scorer]")
     check_scorer()
+    print("[write-tier ceiling]")
+    check_prune()
     print("[pipeline + clean room]")
     check_stub_pipeline()
 

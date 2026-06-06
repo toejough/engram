@@ -182,6 +182,11 @@ STATED_INTRO = (
     "during review:\n{stated}\nPersist each as a durable convention (a fact, or feedback), phrased "
     "generally, so the next app's recall surfaces the instruction without the human restating it.\n")
 
+STATED_L1_INTRO = (
+    "The reviewer stated these architecture conventions during this build:\n{stated}\n"
+    "Record them inside the single episode's narrative (the conventions you applied and why). "
+    "This is an L1 episode-only capture, so do NOT write separate fact or feedback notes for them.\n")
+
 LEARN_BY_TIER = {
     "L1": ("Capture exactly ONE episode of this build (a concrete record of what you built — files, "
            "interfaces, patterns, and the conventions you applied). Write the episode only; no facts, "
@@ -198,7 +203,9 @@ LEARN_BY_TIER = {
 def learn_prompt(write_tier, stated):
     parts = [LEARN_INTRO]
     if stated:
-        parts.append(STATED_INTRO.format(stated="\n".join(f"  - {s}" for s in stated)))
+        bullets = "\n".join(f"  - {s}" for s in stated)
+        # L1 is episode-only: fold the stated conventions INTO the episode, never as facts.
+        parts.append((STATED_L1_INTRO if write_tier == "L1" else STATED_INTRO).format(stated=bullets))
     parts.append(LEARN_BY_TIER[write_tier])
     parts.append("Work autonomously; one-line summary of how many notes of each tier you wrote.")
     return "\n\n".join(parts)
@@ -225,6 +232,42 @@ def count_notes_by_tier(vault):
                 break
         counts[tier if tier in counts else "other"] += 1
     return counts
+
+
+TIER_CEILING = {"L1": 1, "L2": 2, "L3": 3}
+
+
+def note_tier(path):
+    """Read a note's frontmatter tier (L1/L2/L3), or None."""
+    try:
+        head = open(path).read(600)
+    except Exception:
+        return None
+    for line in head.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("tier:"):
+            return stripped.split(":", 1)[1].strip().strip('"').strip("'")
+    return None
+
+
+def prune_to_ceiling(vault, write_tier):
+    """Deterministically enforce the write-tier ceiling: drop any note whose frontmatter
+    tier exceeds write_tier (and its .vec.json sidecar). Higher tiers link DOWN to lower
+    ones (ADR->facts->episode), so removing higher tiers never dangles a lower-tier link.
+    This guards against the /learn skill writing above the requested ceiling — e.g. emitting
+    facts during an L1 episode-only capture — which would make v1[L1] == v1[L2] and confound
+    the write-tier axis."""
+    ceil = TIER_CEILING.get(write_tier, max(TIER_CEILING.values()))
+    removed = 0
+    for path in glob_notes(vault):
+        tier = note_tier(path)
+        if tier in TIER_CEILING and TIER_CEILING[tier] > ceil:
+            os.remove(path)
+            sidecar = path[: -len(".md")] + ".vec.json"
+            if os.path.exists(sidecar):
+                os.remove(sidecar)
+            removed += 1
+    return removed
 
 
 def converged(sc):
@@ -476,6 +519,7 @@ def run_learn(args):
             time.sleep(5)
             lr = claude(args.cfg, args.model, learn_vault, args.workdir, learn_prompt(args.write_tier, stated))
 
+    pruned = prune_to_ceiling(learn_vault, args.write_tier)  # enforce the write-tier ceiling
     shutil.rmtree(args.vault_out, ignore_errors=True)
     shutil.copytree(learn_vault, args.vault_out)
     by_tier = count_notes_by_tier(args.vault_out)
@@ -486,6 +530,7 @@ def run_learn(args):
         "regime": args.regime, "trial": args.trial, "date": args.date,
         "write_tier": args.write_tier, "vault_in": args.vault_in, "vault_out": args.vault_out,
         "stub": args.stub or None, "stated_conventions_input": stated, "learned": True,
+        "pruned_above_ceiling": pruned,
         "notes_total": len(glob_notes(args.vault_out)), "notes_by_tier": by_tier,
         "learn_cost": round(lr.get("total_cost_usd", 0) or 0, 4), "learn_turns": lr.get("num_turns", 0) or 0,
         "result": (lr.get("result") or "")[:300], "wall_min": round((time.time() - t0) / 60.0, 1),
