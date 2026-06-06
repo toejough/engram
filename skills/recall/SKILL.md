@@ -34,7 +34,7 @@ explicitly tells you the vault is elsewhere.**
   MOCs/        bootstrap stub only; no active content (historical MOCs live in <vault>/_legacy/MOCs/, audit only)
 ```
 
-Notes are LLM-voiced. Luhmann IDs (`1`, `1a`, `1a1`) signal lineage; wikilinks inside notes encode authored relations. `engram query` walks the authored-wikilink graph itself — you do not chase links by hand.
+Notes are LLM-voiced. Luhmann IDs (`1`, `1a`, `1a1`) signal lineage; wikilinks inside notes encode authored relations. For a blended (untiered) `engram query`, the binary walks the authored-wikilink graph itself — you do not chase links by hand. **The exception is a tier-capped or distilled read:** when you pass `--tier`, engram returns only those tiers, so each item also carries `outbound_links` (the basenames one hop away) and you fetch any of them on demand with `engram show <basename>` — see [Following a cited note on demand](#following-a-cited-note-on-demand-engram-show).
 
 ## Modes
 
@@ -241,6 +241,18 @@ If you catch yourself doing any of these in the user-facing reply, rewrite:
 | You read all cluster members from the parent /recall agent                  | The parent reads only the representative. Member reads happen inside the dispatched subagent. If you find yourself opening member files in /recall's own context, you're inline-synthesizing — dispatch instead. |
 | You reported surfaced conventions as passive background ("memory confirmed your DI plan") instead of as requirements | Frame load-bearing conventions as requirements to implement — "Apply these as requirements: …". Passive-background framing is the weaker behavior the matrix penalized; the consuming agent should treat each surfaced convention as a must-do. |
 
+## Following a cited note on demand (`engram show`)
+
+A blended (untiered) query already expands a 3-hop subgraph for you — there you do not chase links by hand. But when you deliberately narrow the read with `--tier` (or act on a distilled higher-tier note), engram surfaces **only** those tiers. Each item then carries an `outbound_links` list: the basenames one hop away — typically the lower-tier notes a distilled L3/L2 standard was built from.
+
+When a surfaced note cites a constituent you need and its content was not returned (the tier cap excluded it), fetch it on demand — do **not** drop the cap and re-query, and do not read files from disk:
+
+```bash
+engram show <basename>     # e.g. engram show 14.2026-06-05.headless-agents-do-not-self-fire-skills
+```
+
+`engram show` is read-only. It takes a full basename, a `[[wikilink]]`, a trailing `.md`, or a bare Luhmann id, and prints the note's full content **plus its own `outbound_links`**, so one fetch reveals the next hop. This is the sanctioned follow-on-demand path under a tier-capped or distilled read: it lets you hold a small distilled surface and pull the underlying specifics only when a note actually needs them, without re-surfacing everything. It does not contradict "do not chase links by hand" — that rule forbids re-implementing the blended 3-hop expansion, not fetching a specific cited note.
+
 ## Failure modes
 
 | Situation                                            | Behavior                                                                                                                                       |
@@ -256,7 +268,7 @@ If you catch yourself doing any of these in the user-facing reply, rewrite:
 
 - Reading session transcripts. Use `engram transcript` if you need past-session activity.
 - Writing to the vault from /recall directly. Capture is the `learn` skill. (The synthesis subagent dispatched in 3a writes — but it is a /learn invocation in a separate context, not a /recall write.)
-- Driving a manual link-cascade. The 3-hop subgraph expansion happens inside `engram query`; the agent does not chase wikilinks by hand.
+- Driving a manual link-cascade *in place of* `engram query`'s blended 3-hop expansion — that expansion happens inside the binary; you do not re-implement it by hand. (Fetching a specific cited note under a tier-capped or distilled read is a different, sanctioned move — see [Following a cited note on demand](#following-a-cited-note-on-demand-engram-show).)
 - Computing the Luhmann ID, choosing path A/B/C, or applying the recall-mirror test in the /recall reply. Those are /learn responsibilities; if 3a dispatches a synthesis subagent, that subagent handles them.
 - Inventing memories. If `engram query` returns nothing, surface nothing.
 - Inventing classifications (confidence tiers, freshness scores, priority ranks) the binary does not produce.
