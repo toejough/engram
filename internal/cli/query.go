@@ -25,7 +25,7 @@ type QueryArgs struct {
 	VaultPath string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
 	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
-	Tier      string   `targ:"flag,name=tier,desc=restrict items to notes with matching tier: field (optional)"`
+	Tiers     []string `targ:"flag,name=tier,desc=restrict items to notes matching these tier: values (repeatable)"`
 	Synthesis bool     `targ:"flag,name=synthesis,desc=union all phrase matches and cluster once for L3 synthesis (K=0 means one cluster; no min-size floor)"` //nolint:lll // single unbreakable struct-tag string
 }
 
@@ -91,9 +91,9 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 
 	merged := aggregatePhraseSummaries(phrases, summaries, limit)
 	merged.l3 = l3
-	merged.tier = args.Tier
+	merged.tiers = args.Tiers
 	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
-	merged.resolvedItems = applyTierFilter(merged.resolvedItems, args.Tier)
+	merged.resolvedItems = applyTierFilter(merged.resolvedItems, args.Tiers)
 
 	return renderQueryPayload(stdout, merged)
 }
@@ -151,7 +151,7 @@ type aggregatedSummary struct {
 	resolvedItems  []resolvedItem
 	phraseClusters []phrasedCluster
 	l3             l3Index
-	tier           string
+	tiers          []string
 	totalNotes     int
 	withEmbeddings int
 	limit          int
@@ -399,19 +399,19 @@ func applyProjectFilter(items []resolvedItem, project string) []resolvedItem {
 	return out
 }
 
-// applyTierFilter drops items whose frontmatter tier: field doesn't match
-// the requested tier label. Empty tier is a no-op (returns items unchanged).
-// Items with no loaded content cannot be verified and are dropped when a
-// non-empty tier is specified.
-func applyTierFilter(items []resolvedItem, tier string) []resolvedItem {
-	if tier == "" {
+// applyTierFilter drops items whose frontmatter tier: field matches none of
+// the requested tier labels (the union read of §1.4). An empty tiers slice is
+// a no-op (returns items unchanged). Items with no loaded content cannot be
+// verified and are dropped when any tier is specified.
+func applyTierFilter(items []resolvedItem, tiers []string) []resolvedItem {
+	if len(tiers) == 0 {
 		return items
 	}
 
 	out := make([]resolvedItem, 0, len(items))
 
 	for _, item := range items {
-		if itemMatchesTier(item, tier) {
+		if itemMatchesTier(item, tiers) {
 			out = append(out, item)
 		}
 	}
@@ -589,16 +589,16 @@ func clusterUnionForSynthesis(subgraph expandedSubgraph, query string) clusterRe
 }
 
 // collectClusterMembers gathers per-cluster member rows in score-desc
-// order, marking the representative. When tier is non-empty, members whose
-// frontmatter tier doesn't match are dropped (T1a tier isolation); if the
-// elected representative is among those dropped, the highest-scoring
+// order, marking the representative. When tiers is non-empty, members whose
+// frontmatter tier matches none of them are dropped (T1a tier isolation); if
+// the elected representative is among those dropped, the highest-scoring
 // surviving member is promoted so every non-empty cluster still reports
 // exactly one representative.
 func collectClusterMembers(
 	subgraph expandedSubgraph,
 	report clusterReport,
 	clusterID int,
-	tier string,
+	tiers []string,
 ) []queryClusterMember {
 	memberIndices := make([]int, len(report.memberIDs[clusterID]))
 	copy(memberIndices, report.memberIDs[clusterID])
@@ -613,7 +613,7 @@ func collectClusterMembers(
 
 	for _, idx := range memberIndices {
 		member := subgraph.members[idx]
-		if !memberMatchesTier(member, tier) {
+		if !memberMatchesTier(member, tiers) {
 			continue
 		}
 
@@ -741,7 +741,7 @@ func gatherL3Index(
 		}
 
 		item := resolvedItem{content: stripWikilinks(string(body))}
-		if !itemMatchesTier(item, tierL3) {
+		if !itemMatchesTier(item, []string{tierL3}) {
 			continue
 		}
 
@@ -861,9 +861,11 @@ func itemMatchesProject(item resolvedItem, project string) bool {
 }
 
 // itemMatchesTier scans the item's loaded content's frontmatter for a
-// tier: L<n> line matching the requested tier label. Returns false when
-// content is missing or when the frontmatter block is malformed.
-func itemMatchesTier(item resolvedItem, tier string) bool {
+// tier: L<n> line whose value is one of the requested tier labels. Returns
+// false when content is missing or when the frontmatter block is malformed.
+// Callers guarantee a non-empty tiers slice (the empty-slice no-op is handled
+// upstream in applyTierFilter/memberMatchesTier).
+func itemMatchesTier(item resolvedItem, tiers []string) bool {
 	if item.content == "" {
 		return false
 	}
@@ -881,7 +883,7 @@ func itemMatchesTier(item resolvedItem, tier string) bool {
 
 	match := tierLineRE.FindStringSubmatch(front)
 
-	return len(match) == 2 && match[1] == tier
+	return len(match) == 2 && slices.Contains(tiers, match[1])
 }
 
 // kindFromContent reads the frontmatter type field to label the item.
@@ -1006,12 +1008,12 @@ func meanVector(vectors [][]float32) []float32 {
 // blended recall path). Members without loaded content cannot be verified
 // and are treated as non-matching when a tier is requested — mirroring
 // applyTierFilter's items[] behavior so all channels stay consistent.
-func memberMatchesTier(member subgraphMember, tier string) bool {
-	if tier == "" {
+func memberMatchesTier(member subgraphMember, tiers []string) bool {
+	if len(tiers) == 0 {
 		return true
 	}
 
-	return itemMatchesTier(resolvedItem{content: member.content}, tier)
+	return itemMatchesTier(resolvedItem{content: member.content}, tiers)
 }
 
 // mergeClusterReps annotates representatives with provenance + cluster_id,
@@ -1227,12 +1229,12 @@ func nearestL3For(centroid []float32, l3Notes l3Index) *queryNearestL3 {
 	return result
 }
 
-// nearestL3ForTier gates nearestL3For on the requested tier for T1a
-// isolation. The l3Index is L3-only by construction, so its sole result
-// is suppressed whenever a non-L3 tier is requested; an empty or L3 tier
-// passes through unchanged.
-func nearestL3ForTier(centroid []float32, l3Notes l3Index, tier string) *queryNearestL3 {
-	if tier != "" && tier != tierL3 {
+// nearestL3ForTier gates nearestL3For on the requested tiers for T1a
+// isolation. The l3Index is L3-only by construction, so its sole result is
+// suppressed whenever a non-empty tier set omits L3; an empty set or one that
+// includes L3 passes through unchanged.
+func nearestL3ForTier(centroid []float32, l3Notes l3Index, tiers []string) *queryNearestL3 {
+	if len(tiers) > 0 && !slices.Contains(tiers, tierL3) {
 		return nil
 	}
 
@@ -1370,11 +1372,12 @@ func rankCandidates(
 // cluster is tagged with the phrase that produced it. l3Notes provides the
 // vault-wide L3 note index for nearest-L3 annotation.
 //
-// tier enforces T1a isolation across the cluster channels: members are
-// constrained to the requested tier, a cluster that empties after filtering
-// is dropped entirely, and nearest_l3 (always an L3 note by construction) is
-// suppressed for any non-L3 tier. An empty tier leaves all channels blended.
-func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index, tier string) []queryCluster {
+// tiers enforces T1a isolation across the cluster channels: members are
+// constrained to the requested tier set, a cluster that empties after
+// filtering is dropped entirely, and nearest_l3 (always an L3 note by
+// construction) is suppressed for any tier set that omits L3. An empty tier
+// set leaves all channels blended.
+func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index, tiers []string) []queryCluster {
 	var out []queryCluster
 
 	for _, pc := range phraseClusters {
@@ -1383,7 +1386,7 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index, tier strin
 		}
 
 		for clusterID := range pc.report.autoK.K {
-			members := collectClusterMembers(pc.subgraph, pc.report, clusterID, tier)
+			members := collectClusterMembers(pc.subgraph, pc.report, clusterID, tiers)
 			if len(members) == 0 {
 				continue
 			}
@@ -1396,7 +1399,7 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index, tier strin
 				Size:       len(members),
 				Silhouette: pc.report.silhouettesByID[clusterID],
 				Members:    members,
-				NearestL3:  nearestL3ForTier(centroid, l3Notes, tier),
+				NearestL3:  nearestL3ForTier(centroid, l3Notes, tiers),
 			})
 		}
 	}
@@ -1431,7 +1434,7 @@ func renderItems(resolved []resolvedItem) []queryItem {
 // pipeline output.
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems)
-	clusters := renderClusters(merged.phraseClusters, merged.l3, merged.tier)
+	clusters := renderClusters(merged.phraseClusters, merged.l3, merged.tiers)
 	contentful := countItemsWithContent(items)
 
 	directCount := 0
@@ -1565,14 +1568,14 @@ func runSynthesisQuery(
 
 	resolved := mergeProvenances(union, expandedSubgraph{}, clusterReport{}, hubReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
-	resolved = applyTierFilter(resolved, args.Tier)
+	resolved = applyTierFilter(resolved, args.Tiers)
 
 	merged := aggregatedSummary{
 		phrases:        args.Phrases,
 		resolvedItems:  resolved,
 		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, subgraph: subgraph}},
 		l3:             gatherL3Index(hits, args.VaultPath, deps.Read),
-		tier:           args.Tier,
+		tiers:          args.Tiers,
 		totalNotes:     len(notes),
 		withEmbeddings: len(hits),
 		limit:          limit,

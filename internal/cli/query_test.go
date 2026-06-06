@@ -73,7 +73,7 @@ func TestApplyTierFilter_BodyTierMentionDoesNotMatch(t *testing.T) {
 			"---\ntype: fact\n---\nthis body mentions tier: L3 in text\n"),
 	}
 
-	filtered := cli.ExportApplyTierFilter(items, "L3")
+	filtered := cli.ExportApplyTierFilter(items, []string{"L3"})
 	g.Expect(filtered).To(BeEmpty())
 }
 
@@ -90,7 +90,7 @@ func TestApplyTierFilter_DropsNonMatching(t *testing.T) {
 			"---\ntype: fact\n---\nbody\n"),
 	}
 
-	filtered := cli.ExportApplyTierFilter(items, "L3")
+	filtered := cli.ExportApplyTierFilter(items, []string{"L3"})
 
 	g.Expect(filtered).To(HaveLen(1))
 	g.Expect(cli.ExportResolvedItemPath(filtered[0])).To(Equal("Permanent/a.md"))
@@ -107,7 +107,7 @@ func TestApplyTierFilter_EmptyTierReturnsAll(t *testing.T) {
 			"---\ntype: fact\n---\nbody\n"),
 	}
 
-	filtered := cli.ExportApplyTierFilter(items, "")
+	filtered := cli.ExportApplyTierFilter(items, nil)
 
 	g.Expect(filtered).To(HaveLen(2))
 }
@@ -661,6 +661,58 @@ func TestRunQuery_ModelMismatchEmitsWarning(t *testing.T) {
 	g.Expect(joined).To(ContainSubstring(staleModelID), "warning must name the mismatched model id")
 }
 
+func TestRunQuery_MultipleTiersUnion(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.l1-note.md",
+		"---\ntype: episode\ntier: L1\n---\nbody about tier\n")
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/2.l2-note.md",
+		"---\ntype: fact\ntier: L2\n---\nbody about tier\n")
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/3.l3-note.md",
+		"---\ntype: fact\ntier: L3\n---\nbody about tier\n")
+
+	var out bytes.Buffer
+
+	// R5's read-subset {L2,L3} on a 3-tier vault: repeatable --tier unions the
+	// two requested tiers and excludes L1.
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Tiers: []string{"L2", "L3"}},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Items []struct {
+			Path string `yaml:"path"`
+		} `yaml:"items"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Items).NotTo(BeEmpty())
+
+	var sawL2, sawL3 bool
+
+	for _, item := range parsed.Items {
+		g.Expect(item.Path).NotTo(ContainSubstring("l1-note"),
+			"L1 must not surface under --tier L2 --tier L3")
+
+		if strings.Contains(item.Path, "l2-note") {
+			sawL2 = true
+		}
+
+		if strings.Contains(item.Path, "l3-note") {
+			sawL3 = true
+		}
+	}
+
+	g.Expect(sawL2).To(BeTrue(), "L2 must surface under union read")
+	g.Expect(sawL3).To(BeTrue(), "L3 must surface under union read")
+}
+
 func TestRunQuery_ProjectFilterRestrictsItems(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -710,7 +762,7 @@ func TestRunQuery_TierFilterRestrictsItems(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Tier: "L3"},
+		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Tiers: []string{"L3"}},
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -855,8 +907,13 @@ func runTieredQuery(t *testing.T, g *WithT, memFS *inMemoryFS, vault, tier strin
 
 	var out bytes.Buffer
 
+	var tiers []string
+	if tier != "" {
+		tiers = []string{tier}
+	}
+
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Tier: tier, Limit: 20},
+		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Tiers: tiers, Limit: 20},
 		newQueryDeps(memFS), &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
