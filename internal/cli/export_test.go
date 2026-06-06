@@ -31,6 +31,7 @@ var (
 	ExportNewErrHandler              = newErrHandler
 	ExportNewOsCheckDeps             = newOsCheckDeps
 	ExportNewOsMigrateDeps           = newOsMigrateDeps
+	ExportNewOsShowDeps              = newOsShowDeps
 	ExportNextLuhmannID              = nextLuhmannID
 	ExportPluralFile                 = pluralFile
 	ExportPrintLinkExamples          = printLinkExamples

@@ -89,6 +89,20 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 		return debuglog.WithLogger(ctx, logger)
 	}
 
+	return append(
+		coreTargets(stdout, withLog, errHandler),
+		maintenanceTargets(stdout, withLog, errHandler)...,
+	)
+}
+
+// coreTargets returns the primary subcommands (transcript, learn, update,
+// embed, query, show, check). Split from Targets to stay within the
+// per-function length budget; the wiring mirrors maintenanceTargets exactly.
+func coreTargets(
+	stdout io.Writer,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+) []any {
 	return []any{
 		targ.Targ(func(ctx context.Context, a TranscriptArgs) {
 			cwd, _ := os.Getwd()
@@ -126,10 +140,35 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
 			errHandler(RunQuery(withLog(ctx), a, newOsQueryDeps(), stdout))
 		}).Name("query").Description("Semantic search over the vault (YAML output)"),
+		targ.Targ(func(ctx context.Context, a ShowArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			errHandler(RunShow(withLog(ctx), a, newOsShowDeps(), stdout))
+		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
 		targ.Targ(func(ctx context.Context, a CheckArgs) {
 			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
 			errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), stdout))
 		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
+	}
+}
+
+// homeOrEmpty returns the user's home directory, or "" when it cannot be
+// resolved. resolveVault tolerates an empty home (it falls back to env / XDG),
+// so the error is intentionally discarded.
+func homeOrEmpty() string {
+	home, _ := os.UserHomeDir()
+
+	return home
+}
+
+// maintenanceTargets returns the vault-maintenance subcommands (migrate-links,
+// migrate-episodes, resituate). Split out of Targets to keep each function
+// within the length budget; the wiring mirrors the other targets exactly.
+func maintenanceTargets(
+	stdout io.Writer,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+) []any {
+	return []any{
 		targ.Targ(func(ctx context.Context, a MigrateArgs) {
 			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
 			errHandler(RunMigrateLinks(withLog(ctx), a, newOsMigrateDeps(), stdout))
@@ -143,15 +182,6 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), stdout))
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 	}
-}
-
-// homeOrEmpty returns the user's home directory, or "" when it cannot be
-// resolved. resolveVault tolerates an empty home (it falls back to env / XDG),
-// so the error is intentionally discarded.
-func homeOrEmpty() string {
-	home, _ := os.UserHomeDir()
-
-	return home
 }
 
 // newErrHandler returns a function that prints err to stderr and signals

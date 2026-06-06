@@ -121,9 +121,28 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		// transcript, learn (group), update, embed (group), query, check, migrate-links,
-		// migrate-episodes, resituate
-		g.Expect(targets).To(gomega.HaveLen(9))
+		// transcript, learn (group), update, embed (group), query, show, check,
+		// migrate-links, migrate-episodes, resituate
+		g.Expect(targets).To(gomega.HaveLen(10))
+	})
+
+	t.Run("show parses positional ref through targ", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		vault := t.TempDir()
+		perm := filepath.Join(vault, "Permanent")
+		g.Expect(os.MkdirAll(perm, 0o750)).To(gomega.Succeed())
+		g.Expect(os.WriteFile(filepath.Join(perm, "1.note.md"),
+			[]byte("---\ntype: fact\n---\nbody\n"), 0o600)).To(gomega.Succeed())
+
+		// Exercises targ's struct-tag parsing + positional wiring end-to-end —
+		// a comma in the desc would make targ reject the tag ("invalid tag"),
+		// which unit tests constructing ShowArgs directly cannot catch.
+		stderr := executeForTest(t, []string{"engram", "show", "1.note", "--vault", vault})
+
+		g.Expect(stderr).NotTo(gomega.ContainSubstring("invalid tag"))
+		g.Expect(stderr).To(gomega.BeEmpty())
 	})
 
 	t.Run("invokes learn feedback closure", func(t *testing.T) {
