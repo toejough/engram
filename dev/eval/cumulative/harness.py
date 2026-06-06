@@ -279,7 +279,7 @@ def _stub_build(args):
     """Drop the chosen fixture Go app into the workdir (real, compilable Go the scorer
     builds and runs) and return a canned result. No LLM call."""
     import shutil
-    fix = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", args.stub)
+    fix = os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata", args.stub)
     for path in _glob.glob(os.path.join(fix, "*")):
         dst = os.path.join(args.workdir, os.path.basename(path))
         if os.path.isdir(path):

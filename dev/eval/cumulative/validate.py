@@ -56,16 +56,21 @@ def check_cellgen():
 
 
 def check_scorer():
-    good = scoremod.score(os.path.join(CUM, "fixtures", "good"), os.path.join(CUM, "notes_spec.json"))
-    naive = scoremod.score(os.path.join(CUM, "fixtures", "naive"), os.path.join(CUM, "notes_spec.json"))
-    gp = good.get("arch_pass", 0)
-    npass = naive.get("arch_pass", 0)
+    good = scoremod.score(os.path.join(CUM, "testdata", "good"), os.path.join(CUM, "notes_spec.json"))
+    naive = scoremod.score(os.path.join(CUM, "testdata", "naive"), os.path.join(CUM, "notes_spec.json"))
+    gp, npass = good.get("arch_pass", 0), naive.get("arch_pass", 0)
+    gfail, nfail = set(good.get("arch_fail", [])), set(naive.get("arch_fail", []))
     # GOOD must score full ARCH despite using "Repository" not "Store" (name-agnostic);
-    # NAIVE must score clearly lower; the load-bearing detectors must separate them.
-    di_named_agnostic = "di" not in good.get("arch_fail", []) and "di" in naive.get("arch_fail", [])
-    check("scorer: GOOD passes ARCH with non-vault vocab (name-agnostic)", gp >= 9, f"good arch_pass={gp}")
-    check("scorer: NAIVE scores clearly lower", npass <= gp - 4, f"naive arch_pass={npass} vs good {gp}")
-    check("scorer: DI detected by pattern not name (good Repository=pass, naive=fail)", di_named_agnostic)
+    # NAIVE must fail every load-bearing convention.
+    check("scorer: GOOD passes all 10 ARCH with non-vault vocab (name-agnostic)", gp == 10, f"good arch_pass={gp} fail={sorted(gfail)}")
+    check("scorer: NAIVE scores clearly lower", npass <= 2, f"naive arch_pass={npass}")
+    check("scorer: DI detected by pattern not name (good Repository=pass, naive=fail)",
+          "di" not in gfail and "di" in nfail)
+    # The tightened/hardened detectors must flag these on the naive build (no false-negatives
+    # from comments, nested parens, or grouped `var ( ... )` blocks).
+    must_fail = {"json", "nocolor", "named_perms", "sentinel", "no_global_data"}
+    check("scorer: tightened detectors flag naive (no comment/nested-paren/var-block false-neg)",
+          must_fail <= nfail, f"naive missing-from-fail: {sorted(must_fail - nfail)}")
 
 
 def check_stub_pipeline():

@@ -7,19 +7,6 @@ import (
 	"testing"
 )
 
-// memRepository is an in-memory fake Repository so the core can be exercised
-// without touching a real file. Its presence (a second persistence impl beside
-// fileRepository) is the structural signature of fake-driven, parallel-safe tests.
-type memRepository struct{ notes []Note }
-
-func (m *memRepository) Load() ([]Note, error) { return m.notes, nil }
-
-func (m *memRepository) Save(notes []Note) error {
-	m.notes = append([]Note(nil), notes...)
-
-	return nil
-}
-
 func TestAddThenList(t *testing.T) {
 	t.Parallel()
 
@@ -38,6 +25,17 @@ func TestAddThenList(t *testing.T) {
 
 	if !strings.Contains(buf.String(), "hello") {
 		t.Fatalf("list missing added note: %q", buf.String())
+	}
+}
+
+func TestEditMissingIsSentinel(t *testing.T) {
+	t.Parallel()
+
+	svc := service{repo: &memRepository{}}
+	err := svc.edit(99, "x", &bytes.Buffer{})
+
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("want ErrNotFound, got %v", err)
 	}
 }
 
@@ -60,13 +58,15 @@ func TestTagFilterCaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestEditMissingIsSentinel(t *testing.T) {
-	t.Parallel()
+// memRepository is an in-memory fake Repository so the core can be exercised
+// without touching a real file. Its presence (a second persistence impl beside
+// fileRepository) is the structural signature of fake-driven, parallel-safe tests.
+type memRepository struct{ notes []Note }
 
-	svc := service{repo: &memRepository{}}
-	err := svc.edit(99, "x", &bytes.Buffer{})
+func (m *memRepository) Load() ([]Note, error) { return m.notes, nil }
 
-	if !errors.Is(err, ErrNotFound) {
-		t.Fatalf("want ErrNotFound, got %v", err)
-	}
+func (m *memRepository) Save(notes []Note) error {
+	m.notes = append([]Note(nil), notes...)
+
+	return nil
 }

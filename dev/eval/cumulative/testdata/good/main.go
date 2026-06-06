@@ -16,13 +16,16 @@ import (
 	"strings"
 )
 
-// ErrNotFound is a sentinel so a caller detects a missing note in code, not by
-// matching a message string.
-var ErrNotFound = errors.New("note not found")
+func main() {
+	if err := run(os.Args[1:], fileRepository{path: dataPath()}, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
 
-const (
-	filePerm os.FileMode = 0o600
-	dirPerm  os.FileMode = 0o750
+// Exported variables.
+var (
+	ErrNotFound = errors.New("note not found")
 )
 
 // Note is a single stored note.
@@ -38,6 +41,12 @@ type Repository interface {
 	Load() ([]Note, error)
 	Save(notes []Note) error
 }
+
+// unexported constants.
+const (
+	dirPerm  os.FileMode = 0o750
+	filePerm os.FileMode = 0o600
+)
 
 type fileRepository struct{ path string }
 
@@ -94,6 +103,13 @@ func (r fileRepository) Save(notes []Note) error {
 	return nil
 }
 
+type parsedArgs struct {
+	positional []string
+	tags       []string
+	search     string
+	asJSON     bool
+}
+
 type service struct{ repo Repository }
 
 func (s service) add(text string, tags []string, out io.Writer) error {
@@ -119,6 +135,22 @@ func (s service) add(text string, tags []string, out io.Writer) error {
 	return nil
 }
 
+func (s service) edit(id int, text string, out io.Writer) error {
+	notes, idx, err := s.find(id)
+	if err != nil {
+		return err
+	}
+
+	notes[idx].Text = text
+	if err := s.repo.Save(notes); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(out, "edited %d\n", id)
+
+	return nil
+}
+
 func (s service) find(id int) ([]Note, int, error) {
 	notes, err := s.repo.Load()
 	if err != nil {
@@ -134,18 +166,45 @@ func (s service) find(id int) ([]Note, int, error) {
 	return notes, -1, fmt.Errorf("note %d: %w", id, ErrNotFound)
 }
 
-func (s service) edit(id int, text string, out io.Writer) error {
+func (s service) get(id int, asJSON bool, out io.Writer) error {
 	notes, idx, err := s.find(id)
 	if err != nil {
 		return err
 	}
 
-	notes[idx].Text = text
+	return render(out, []Note{notes[idx]}, asJSON)
+}
+
+func (s service) list(tag, search string, asJSON bool, out io.Writer) error {
+	notes, err := s.repo.Load()
+	if err != nil {
+		return err
+	}
+
+	filtered := make([]Note, 0, len(notes))
+	for _, n := range notes {
+		if matches(n, tag, search) {
+			filtered = append(filtered, n)
+		}
+	}
+
+	sort.Slice(filtered, func(i, j int) bool { return filtered[i].ID < filtered[j].ID })
+
+	return render(out, filtered, asJSON)
+}
+
+func (s service) remove(id int, out io.Writer) error {
+	notes, idx, err := s.find(id)
+	if err != nil {
+		return err
+	}
+
+	notes = append(notes[:idx], notes[idx+1:]...)
 	if err := s.repo.Save(notes); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(out, "edited %d\n", id)
+	fmt.Fprintf(out, "removed %d\n", id)
 
 	return nil
 }
@@ -177,47 +236,46 @@ func (s service) retag(id int, tag string, add bool, out io.Writer) error {
 	return nil
 }
 
-func (s service) remove(id int, out io.Writer) error {
-	notes, idx, err := s.find(id)
+// colorEnabled honors NO_COLOR (any value, even empty) and only colors a TTY.
+func colorEnabled() bool {
+	if _, noColor := os.LookupEnv("NO_COLOR"); noColor {
+		return false
+	}
+
+	info, err := os.Stdout.Stat()
 	if err != nil {
-		return err
+		return false
 	}
 
-	notes = append(notes[:idx], notes[idx+1:]...)
-	if err := s.repo.Save(notes); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(out, "removed %d\n", id)
-
-	return nil
+	return info.Mode()&os.ModeCharDevice != 0
 }
 
-func (s service) get(id int, asJSON bool, out io.Writer) error {
-	notes, idx, err := s.find(id)
-	if err != nil {
-		return err
+func dataPath() string {
+	base := os.Getenv("XDG_DATA_HOME")
+	if base == "" {
+		home, _ := os.UserHomeDir()
+		base = filepath.Join(home, ".local", "share")
 	}
 
-	return render(out, []Note{notes[idx]}, asJSON)
+	return filepath.Join(base, "notes", "notes.json")
 }
 
-func (s service) list(tag, search string, asJSON bool, out io.Writer) error {
-	notes, err := s.repo.Load()
-	if err != nil {
-		return err
+func firstOr(xs []string, fallback string) string {
+	if len(xs) > 0 {
+		return xs[0]
 	}
 
-	filtered := make([]Note, 0, len(notes))
-	for _, n := range notes {
-		if matches(n, tag, search) {
-			filtered = append(filtered, n)
+	return fallback
+}
+
+func hasTag(n Note, tag string) bool {
+	for _, t := range n.Tags {
+		if strings.EqualFold(t, tag) {
+			return true
 		}
 	}
 
-	sort.Slice(filtered, func(i, j int) bool { return filtered[i].ID < filtered[j].ID })
-
-	return render(out, filtered, asJSON)
+	return false
 }
 
 func matches(n Note, tag, search string) bool {
@@ -233,63 +291,6 @@ func matches(n Note, tag, search string) bool {
 	}
 
 	return true
-}
-
-func hasTag(n Note, tag string) bool {
-	for _, t := range n.Tags {
-		if strings.EqualFold(t, tag) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func render(out io.Writer, notes []Note, asJSON bool) error {
-	if asJSON {
-		enc := json.NewEncoder(out)
-		if err := enc.Encode(notes); err != nil {
-			return fmt.Errorf("encoding output: %w", err)
-		}
-
-		return nil
-	}
-
-	for _, n := range notes {
-		line := fmt.Sprintf("%d: %s", n.ID, n.Text)
-		if len(n.Tags) > 0 {
-			line += " [" + strings.Join(n.Tags, ",") + "]"
-		}
-
-		if colorEnabled() {
-			line = "\x1b[36m" + line + "\x1b[0m"
-		}
-
-		fmt.Fprintln(out, line)
-	}
-
-	return nil
-}
-
-// colorEnabled honors NO_COLOR (any value, even empty) and only colors a TTY.
-func colorEnabled() bool {
-	if _, noColor := os.LookupEnv("NO_COLOR"); noColor {
-		return false
-	}
-
-	info, err := os.Stdout.Stat()
-	if err != nil {
-		return false
-	}
-
-	return info.Mode()&os.ModeCharDevice != 0
-}
-
-type parsedArgs struct {
-	positional []string
-	tags       []string
-	search     string
-	asJSON     bool
 }
 
 // parseArgs collects --tag/--search/--json from anywhere in the arg list so
@@ -319,14 +320,30 @@ func parseArgs(args []string) parsedArgs {
 	return out
 }
 
-func dataPath() string {
-	base := os.Getenv("XDG_DATA_HOME")
-	if base == "" {
-		home, _ := os.UserHomeDir()
-		base = filepath.Join(home, ".local", "share")
+func render(out io.Writer, notes []Note, asJSON bool) error {
+	if asJSON {
+		enc := json.NewEncoder(out)
+		if err := enc.Encode(notes); err != nil {
+			return fmt.Errorf("encoding output: %w", err)
+		}
+
+		return nil
 	}
 
-	return filepath.Join(base, "notes", "notes.json")
+	for _, n := range notes {
+		line := fmt.Sprintf("%d: %s", n.ID, n.Text)
+		if len(n.Tags) > 0 {
+			line += " [" + strings.Join(n.Tags, ",") + "]"
+		}
+
+		if colorEnabled() {
+			line = "\x1b[36m" + line + "\x1b[0m"
+		}
+
+		fmt.Fprintln(out, line)
+	}
+
+	return nil
 }
 
 func run(args []string, repo Repository, out io.Writer) error {
@@ -359,14 +376,6 @@ func run(args []string, repo Repository, out io.Writer) error {
 	}
 }
 
-func firstOr(xs []string, fallback string) string {
-	if len(xs) > 0 {
-		return xs[0]
-	}
-
-	return fallback
-}
-
 func withID(pos []string, fn func(int) error) error {
 	if len(pos) == 0 {
 		return errors.New("missing id")
@@ -378,11 +387,4 @@ func withID(pos []string, fn func(int) error) error {
 	}
 
 	return fn(id)
-}
-
-func main() {
-	if err := run(os.Args[1:], fileRepository{path: dataPath()}, os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
 }

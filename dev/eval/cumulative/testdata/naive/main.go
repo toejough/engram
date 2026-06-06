@@ -13,46 +13,6 @@ import (
 	"strings"
 )
 
-// Note is a stored note.
-type Note struct {
-	ID   int
-	Text string
-	Tags []string
-}
-
-// notes is package-level mutable state (an anti-pattern the scorer flags).
-var notes []Note
-
-func dataPath() string {
-	base := os.Getenv("XDG_DATA_HOME")
-	if base == "" {
-		base = filepath.Join(os.Getenv("HOME"), ".local", "share")
-	}
-
-	return filepath.Join(base, "naive-notes.json")
-}
-
-func load() {
-	data, err := os.ReadFile(dataPath())
-	if err != nil {
-		return
-	}
-
-	_ = json.Unmarshal(data, &notes)
-}
-
-func save() error {
-	data, _ := json.Marshal(notes)
-	_ = os.MkdirAll(filepath.Dir(dataPath()), 0o755)
-
-	// In-place write with a bare permission literal — not crash-safe.
-	if err := os.WriteFile(dataPath(), data, 0o644); err != nil {
-		return fmt.Errorf("could not save: %v", err)
-	}
-
-	return nil
-}
-
 func main() {
 	args := os.Args[1:]
 	if len(args) == 0 {
@@ -91,4 +51,46 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", args[0])
 		os.Exit(1)
 	}
+}
+
+// Note is a stored note.
+type Note struct {
+	ID   int
+	Text string
+	Tags []string
+}
+
+// unexported variables.
+var (
+	notes []Note
+)
+
+func dataPath() string {
+	base := os.Getenv("XDG_DATA_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".local", "share")
+	}
+
+	return filepath.Join(base, "naive-notes.json")
+}
+
+func load() {
+	data, err := os.ReadFile(dataPath())
+	if err != nil {
+		return
+	}
+
+	_ = json.Unmarshal(data, &notes)
+}
+
+func save() error {
+	data, _ := json.Marshal(notes)
+	_ = os.MkdirAll(filepath.Dir(dataPath()), 0o755)
+
+	// In-place write with a bare permission literal — not crash-safe.
+	if err := os.WriteFile(dataPath(), data, 0o644); err != nil {
+		return fmt.Errorf("could not save: %v", err)
+	}
+
+	return nil
 }

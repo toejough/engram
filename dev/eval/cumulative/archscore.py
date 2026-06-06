@@ -21,6 +21,16 @@ def load(workdir):
 
 PERSIST_VERBS = r"(?:Save|Load|Get|Put|List|Add|Delete|All|Read|Write|Fetch|Store|Insert|Remove|Find|Persist|Append)"
 
+
+def strip_comments(src):
+    """Drop // line comments and /* */ block comments so keyword detectors key on real
+    CODE, not prose. Without this, a comment like "no JSON / no NO_COLOR handling" makes a
+    convention-free build spuriously pass json/nocolor (a false-negative that undercounts
+    the convention). String literals are kept — a real `--json` flag still counts."""
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    src = re.sub(r"//[^\n]*", "", src)
+    return src
+
 def d_di(src, tst, mod):
     # an interface whose method set includes a persistence verb, used as a field/param (injected)
     for m in re.finditer(r"type\s+(\w+)\s+interface\s*\{([^}]*)\}", src, re.S):
@@ -33,7 +43,9 @@ def d_di(src, tst, mod):
     return False, "no injected persistence interface (concrete storage / no DI)"
 
 def d_sentinel(src, tst, mod):
-    has = re.search(r"var\s+Err\w+\s*=\s*errors\.New", src)
+    # \bErr (not "var Err") so a sentinel declared inside a grouped `var ( ... )` block —
+    # very common Go — is detected, not just the standalone `var Err... = errors.New` form.
+    has = re.search(r"\bErr\w+\s*=\s*errors\.New", src)
     wrap = "%w" in src
     is_ = ("errors.Is" in src) or ("errors.Is" in tst)
     if has and wrap and is_:
@@ -65,12 +77,13 @@ def d_tests_fake_parallel(src, tst, mod):
     return False, f"parallel={par} store_impls={sorted(impls)}"
 
 def d_json(src, tst, mod):
-    if re.search(r"json\.NewEncoder|json\.Marshal", src) and re.search(r'"json"|--json|jsonOut|JSON', src):
+    code = strip_comments(src)
+    if re.search(r"json\.NewEncoder|json\.Marshal", code) and re.search(r'"json"|--json|jsonOut|JSON', code):
         return True, "json encode + json flag"
     return False, "no machine-readable json output mode"
 
 def d_nocolor(src, tst, mod):
-    if "NO_COLOR" in src:
+    if "NO_COLOR" in strip_comments(src):
         return True, "respects NO_COLOR"
     return False, "no NO_COLOR handling"
 
@@ -81,16 +94,22 @@ def d_wrapped(src, tst, mod):
     return False, f"only {n} wrapped errors"
 
 def d_named_perms(src, tst, mod):
-    # bare file-mode octal literal used directly = magic number
-    bare = re.findall(r"(?:WriteFile|MkdirAll|OpenFile|Mkdir|Chmod)\([^)]*?,\s*0o?[0-7]{3,4}\s*[,)]", src)
+    # bare file-mode octal literal used directly = magic number. [^\n] (not [^)]) so a
+    # nested call in the args — os.WriteFile(dataPath(), data, 0o644) — is still detected.
+    bare = re.findall(r"(?:WriteFile|MkdirAll|OpenFile|Mkdir|Chmod)\([^\n]*?,\s*0o?[0-7]{3,4}\s*[,)]", src)
     namedconst = bool(re.search(r"(?:Perm|Mode|dirPerms|filePerms)\w*\s+(?:os\.FileMode\s*)?=\s*0o?[0-7]{3}", src))
     if not bare or namedconst:
         return True, "perms named or none"
     return False, f"{len(bare)} bare file-mode literal(s)"
 
 def d_no_global_data(src, tst, mod):
-    if re.search(r"^var\s+\w+\s+(\[\]\w+|map\[)", src, re.M):
+    # standalone: `var name []T` / `var name map[...`
+    if re.search(r"(?m)^var\s+\w+\s+(\[\]\w+|map\[)", src):
         return False, "package-level mutable data var"
+    # grouped: `var ( ... name []T ... )` — also a package-level mutable global.
+    for block in re.findall(r"(?ms)^var\s*\(\s*(.*?)\n\)", src):
+        if re.search(r"(?m)^\s*\w+\s+(\[\]\w+|map\[)", block):
+            return False, "package-level mutable data var (grouped)"
     return True, "no global mutable data"
 
 DETECTORS = [

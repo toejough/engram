@@ -92,7 +92,7 @@ records the `engram_sha`, so `compare.py` shows the feature's effect on the metr
 | `{notes,links,feeds}_spec.json` | the three app specs (blind command list + hidden rubric). |
 | `aggregate.py` / `compare.py` | §5 tables + `results-v2.md`; cross-run deltas. |
 | `validate.py` | zero-cost validation suite (no LLM). |
-| `fixtures/{good,naive}/` | scorer-validation Go apps (NOT experiment apps). |
+| `testdata/{good,naive}/` | scorer-validation Go apps (NOT experiment apps; under `testdata/` so repo Go tooling ignores them). |
 | `verify_cost2.py` + `token_table.py` | cost audit (reconstruct cost from tokens × price sheet). |
 
 ## Where results land
