@@ -615,6 +615,57 @@ func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 		To(ContainSubstring("See 1a.foo and the bar note for context."))
 }
 
+func TestRunQuery_ExposesOutboundWikilinkTargets(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// hub links to two real notes; the fenced [[9.fenced]] must NOT count
+	// (fence-aware parser), proving outbound links reuse the graph parser.
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.hub.md",
+		"---\ntype: fact\n---\nSee [[2.alpha]] and [[3.beta]].\n```\n[[9.fenced]]\n```\n")
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/2.alpha.md",
+		"---\ntype: fact\n---\nalpha body\n")
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/3.beta.md",
+		"---\ntype: fact\n---\nbeta body\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"See alpha and beta"}, VaultPath: vault, Limit: 5},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Items []struct {
+			Path          string   `yaml:"path"`
+			OutboundLinks []string `yaml:"outbound_links"`
+		} `yaml:"items"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	var hubLinks []string
+
+	found := false
+
+	for _, item := range parsed.Items {
+		if strings.Contains(item.Path, "1.hub") {
+			hubLinks = item.OutboundLinks
+			found = true
+		}
+	}
+
+	g.Expect(found).To(BeTrue(), "hub note must appear in items")
+	g.Expect(hubLinks).To(ConsistOf("2.alpha", "3.beta"),
+		"outbound_links must list the note's resolvable wikilink targets")
+	g.Expect(hubLinks).NotTo(ContainElement("9.fenced"),
+		"a wikilink inside a code fence must not be reported as an outbound target")
+}
+
 func TestRunQuery_ModelMismatchEmitsWarning(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

@@ -91,6 +91,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 
 	merged := aggregatePhraseSummaries(phrases, summaries, limit)
 	merged.l3 = l3
+	merged.outgoing = outgoingByBasename(notes)
 	merged.tiers = args.Tiers
 	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
 	merged.resolvedItems = applyTierFilter(merged.resolvedItems, args.Tiers)
@@ -151,6 +152,7 @@ type aggregatedSummary struct {
 	resolvedItems  []resolvedItem
 	phraseClusters []phrasedCluster
 	l3             l3Index
+	outgoing       map[string][]string
 	tiers          []string
 	totalNotes     int
 	withEmbeddings int
@@ -242,14 +244,20 @@ type queryClusterMember struct {
 // queryItem is the rendered item shape per the resolved-payload spec.
 // ClusterID and InDegree use *int so YAML omits them when nil per
 // the spec contract (set only when the provenance role is present).
+// OutboundLinks lists the note's authored wikilink target basenames (the
+// fence-aware graph parser's output) so a tier-limited recall still shows what
+// is one hop away to fetch with `engram show <basename>`; it is never
+// tier-filtered, which is what keeps the tier-read axis a test of
+// direct-provision-vs-follow-on-demand rather than a blinding.
 type queryItem struct {
-	Path        string   `yaml:"path"`
-	Kind        string   `yaml:"kind"`
-	Score       float32  `yaml:"score"`
-	Provenances []string `yaml:"provenances"`
-	ClusterID   *int     `yaml:"cluster_id,omitempty"`
-	InDegree    *int     `yaml:"in_degree,omitempty"`
-	Content     string   `yaml:"content,omitempty"`
+	Path          string   `yaml:"path"`
+	Kind          string   `yaml:"kind"`
+	Score         float32  `yaml:"score"`
+	Provenances   []string `yaml:"provenances"`
+	ClusterID     *int     `yaml:"cluster_id,omitempty"`
+	InDegree      *int     `yaml:"in_degree,omitempty"`
+	OutboundLinks []string `yaml:"outbound_links,omitempty"`
+	Content       string   `yaml:"content,omitempty"`
 }
 
 // queryNearestL3 is the nearest existing L3 note for a cluster centroid.
@@ -417,6 +425,12 @@ func applyTierFilter(items []resolvedItem, tiers []string) []resolvedItem {
 	}
 
 	return out
+}
+
+// basenameFromNotePath strips the directory and ".md" extension from a
+// vault-relative note path, yielding the graph-node basename key.
+func basenameFromNotePath(notePath string) string {
+	return strings.TrimSuffix(filepath.Base(notePath), ".md")
 }
 
 // breakRepresentativeTie returns whichever of two member indices wins
@@ -1253,6 +1267,17 @@ func newOsQueryDeps() QueryDeps {
 	}
 }
 
+// outgoingByBasename indexes each scanned note's authored wikilink targets by
+// its basename. Used to attach outbound-link basenames to rendered items.
+func outgoingByBasename(notes []vaultgraph.Note) map[string][]string {
+	out := make(map[string][]string, len(notes))
+	for _, note := range notes {
+		out[note.Basename] = note.Outgoing
+	}
+
+	return out
+}
+
 // perClusterMeanSilhouette returns one mean silhouette score per cluster
 // by recomputing the per-point silhouettes and averaging within cluster.
 // Mirrors standard silhouette analysis tooling.
@@ -1412,18 +1437,21 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index, tiers []st
 }
 
 // renderItems converts resolved items into the YAML wire-shape items.
-func renderItems(resolved []resolvedItem) []queryItem {
+// outgoing maps a note basename to its authored wikilink targets so each
+// item carries the basenames one hop away (for follow-on `engram show`).
+func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryItem {
 	items := make([]queryItem, len(resolved))
 
 	for i, item := range resolved {
 		items[i] = queryItem{
-			Path:        item.notePath,
-			Kind:        kindFromContent(item.content),
-			Score:       item.score,
-			Provenances: item.provenances,
-			ClusterID:   item.clusterID,
-			InDegree:    item.inDegree,
-			Content:     item.content,
+			Path:          item.notePath,
+			Kind:          kindFromContent(item.content),
+			Score:         item.score,
+			Provenances:   item.provenances,
+			ClusterID:     item.clusterID,
+			InDegree:      item.inDegree,
+			OutboundLinks: outgoing[basenameFromNotePath(item.notePath)],
+			Content:       item.content,
 		}
 	}
 
@@ -1433,7 +1461,7 @@ func renderItems(resolved []resolvedItem) []queryItem {
 // renderQueryPayload encodes the resolved YAML payload for the multi-phrase
 // pipeline output.
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
-	items := renderItems(merged.resolvedItems)
+	items := renderItems(merged.resolvedItems, merged.outgoing)
 	clusters := renderClusters(merged.phraseClusters, merged.l3, merged.tiers)
 	contentful := countItemsWithContent(items)
 
@@ -1575,6 +1603,7 @@ func runSynthesisQuery(
 		resolvedItems:  resolved,
 		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, subgraph: subgraph}},
 		l3:             gatherL3Index(hits, args.VaultPath, deps.Read),
+		outgoing:       outgoingByBasename(notes),
 		tiers:          args.Tiers,
 		totalNotes:     len(notes),
 		withEmbeddings: len(hits),
