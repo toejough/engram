@@ -99,6 +99,15 @@ Cell = mean convention-coverage (captured/stated) · episode-extraction%. The ag
 | `L3` | 1.00 · ep 100% |
 
 
+### Token I/O + cost audit (per model, over covered cells)  ·  **1/26 cells covered** (the rest lost their transcripts to cfg-pool re-creation across resumes — run-time token capture in the result JSON fixes this going forward)
+
+Reconstructing $ from token counts × the price sheet reproduces the CLI's reported cost (ratio ≈ 1.00× over MATCHED cells — the §6 provenance check). Cost is cache-dominated.
+
+| model | cells | input | output | cache-write | cache-read | reported $ | recomputed $ | ratio |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| sonnet | 1 | 19 | 17,684 | 54,071 | 822,059 | 0.72 | 0.71 | 1.00× |
+
+
 ### Cost calibration (per-operation; grounds the full-run estimate)
 
 | op | model | app | n | mean $ | mean rounds |

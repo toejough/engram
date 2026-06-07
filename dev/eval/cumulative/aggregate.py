@@ -220,6 +220,53 @@ def learn_quality_table(learns, models):
     return "\n".join(lines) + "\n"
 
 
+def token_io_table(builds, learns, models, root):
+    """Token I/O + the reported-vs-recomputed cost audit (§6 / note-17). Prefers the tokens stored
+    in each result; for older results lacking them, backfills from the on-disk transcript via the
+    shared harness helper — so this works on both new runs and the existing pilot."""
+    import harness as hh
+
+    cfgroot = os.path.join(root, "cfgpool")
+    agg = collections.defaultdict(lambda: {"in": 0, "out": 0, "cw": 0, "cr": 0,
+                                           "rep": 0.0, "rec": 0.0, "n": 0})
+    total = covered = 0
+    for rec in builds + learns:
+        total += 1
+        m = rec.get("model")
+        tok = rec.get("tokens")
+        if not tok or sum(tok.values()) == 0:  # backfill from transcript (older results / pre-capture)
+            tok = hh.token_usage_for_session(cfgroot, rec.get("session_id"))
+        if sum(tok.values()) == 0:
+            continue  # no token data for this cell (transcript pruned) — exclude from the ratio,
+            # don't count its reported $ against $0 recomputed (that's the verify_cost2 MATCHED rule)
+        covered += 1
+        rec_cost = rec.get("recomputed_cost")
+        if not rec_cost:
+            rec_cost = hh.recompute_cost(tok, rec.get("model_id")) or 0
+        a = agg[m]
+        a["in"] += tok.get("input", 0); a["out"] += tok.get("output", 0)
+        a["cw"] += tok.get("cache_write", 0); a["cr"] += tok.get("cache_read", 0)
+        a["rep"] += (rec.get("build_cost") or 0) + (rec.get("learn_cost") or 0)
+        a["rec"] += rec_cost or 0; a["n"] += 1
+
+    note = "" if covered == total else (
+        f"  ·  **{covered}/{total} cells covered** (the rest lost their transcripts to cfg-pool "
+        f"re-creation across resumes — run-time token capture in the result JSON fixes this going forward)")
+    lines = [f"### Token I/O + cost audit (per model, over covered cells){note}", "",
+             "Reconstructing $ from token counts × the price sheet reproduces the CLI's reported cost "
+             "(ratio ≈ 1.00× over MATCHED cells — the §6 provenance check). Cost is cache-dominated.", "",
+             "| model | cells | input | output | cache-write | cache-read | reported $ | recomputed $ | ratio |",
+             "|---|--:|--:|--:|--:|--:|--:|--:|--:|"]
+    for m in models:
+        a = agg.get(m)
+        if not a or not a["n"]:
+            continue
+        ratio = f"{a['rec']/a['rep']:.2f}×" if a["rep"] else "—"
+        lines.append(f"| {m} | {a['n']} | {a['in']:,} | {a['out']:,} | {a['cw']:,} | {a['cr']:,} "
+                     f"| {a['rep']:.2f} | {a['rec']:.2f} | {ratio} |")
+    return "\n".join(lines) + "\n"
+
+
 def cost_calibration(builds, learns):
     """Per-operation cost (build vs learn, by app, by model) for grounding the full-run
     spend estimate — builds are multi-round, learns single (advisor §4)."""
@@ -295,7 +342,8 @@ def main():
             c, mn = costtime.get((r, m), (None, None))
             cells.append(f"{fmt(c,2)} / {fmt(mn,0)}")
         doc.append(f"| `{r}` | " + " | ".join(cells) + " |")
-    doc += ["", learn_quality_table(learns, models), "", cost_calibration(builds, learns)]
+    doc += ["", learn_quality_table(learns, models), "", token_io_table(builds, learns, models, args.root),
+            "", cost_calibration(builds, learns)]
 
     # Convergence guard (§5) + honest caveats — never ship an over-claimed number.
     conv_n = sum(1 for b in builds if b.get("converged"))

@@ -52,7 +52,14 @@ def log(msg):
 def build_cfg_template(dst, warm):
     """A self-contained CLAUDE_CONFIG_DIR: onboarding/oauth state from the local Claude
     install (history stripped), the repo's recall+learn skills (warm only), and creds
-    injected at runtime. Carries NOTHING that injects conventions ambiently (clean room §4)."""
+    injected at runtime. Carries NOTHING that injects conventions ambiently (clean room §4).
+
+    Skip if it already exists with skills wired — so a RESUME launch does not rmtree the pool
+    and destroy completed cells' transcripts (cost provenance). Token I/O is captured into each
+    result JSON at run time regardless, but preserving transcripts keeps the independent
+    verify_cost2 cross-check usable across resumes."""
+    if os.path.exists(os.path.join(dst, ".claude.json")) and (not warm or os.path.isdir(os.path.join(dst, "skills"))):
+        return
     shutil.rmtree(dst, ignore_errors=True)
     os.makedirs(dst, exist_ok=True)
 

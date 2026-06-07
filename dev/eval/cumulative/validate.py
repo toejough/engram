@@ -182,6 +182,43 @@ def check_learn_tiers():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def check_token_io():
+    """Token-I/O capture + cost reconstruction, on a synthetic transcript (no LLM). A session's
+    main + subagent messages are summed, deduped by message id; cost = tokens × price sheet."""
+    import harness as hh
+
+    root = tempfile.mkdtemp(prefix="cumtok-")
+    sid = "sess-123"
+    proj = os.path.join(root, "cfgpool", "warm0", "projects", "-x")
+    os.makedirs(os.path.join(proj, sid, "subagents"))
+
+    def msg(mid, i, o, cw, cr):
+        return json.dumps({"message": {"id": mid, "usage": {
+            "input_tokens": i, "output_tokens": o,
+            "cache_creation_input_tokens": cw, "cache_read_input_tokens": cr}}})
+
+    # main transcript: two distinct messages + a DUP of the first (must be deduped)
+    with open(os.path.join(proj, f"{sid}.jsonl"), "w") as fh:
+        fh.write(msg("m1", 100, 10, 1000, 5000) + "\n")
+        fh.write(msg("m2", 50, 20, 0, 2000) + "\n")
+        fh.write(msg("m1", 100, 10, 1000, 5000) + "\n")  # duplicate id → ignored
+    # a subagent transcript (recall/learn dispatch) — its tokens count too
+    with open(os.path.join(proj, sid, "subagents", "agent-a.jsonl"), "w") as fh:
+        fh.write(msg("s1", 200, 30, 500, 1000) + "\n")
+
+    try:
+        tok = hh.token_usage_for_session(os.path.join(root, "cfgpool"), sid)
+        want = {"input": 350, "output": 60, "cache_write": 1500, "cache_read": 8000}
+        check("tokens: main+subagent summed, duplicate message id deduped", tok == want, str(tok))
+
+        cost = hh.recompute_cost(tok, "claude-sonnet-4-6")
+        expect = round(350 * 3e-6 + 60 * 15e-6 + 1500 * 3.75e-6 + 8000 * 0.30e-6, 4)
+        check("tokens: cost reconstructed from price sheet", cost == expect, f"{cost} vs {expect}")
+        check("tokens: unknown model → None (no silent zero)", hh.recompute_cost(tok, "bogus") is None)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def main():
     print("Zero-cost validation (no LLM, no spend):\n")
     print("[cell-gen]")
@@ -192,6 +229,8 @@ def main():
     check_prune()
     print("[deterministic learn tiers]")
     check_learn_tiers()
+    print("[token I/O + cost audit]")
+    check_token_io()
     print("[pipeline + clean room]")
     check_stub_pipeline()
 

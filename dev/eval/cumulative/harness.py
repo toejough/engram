@@ -421,6 +421,75 @@ def _stub_build(args):
             "session_id": "stub-build", "result": "stubbed build"}
 
 
+# ----- token I/O capture + cost audit (§6 / note-17: decompose tokens; reconstruct cost ~1.00x) -----
+
+# Price sheet ($/token), verified 2026-06-02 (carried forward; see results doc). Opus 4.5–4.8 are
+# $5/$25, NOT the $15/$75 of Opus 4/4.1 — a real trap when costing from an old table.
+PRICES = {
+    "claude-opus-4-8":           {"i": 5e-6, "o": 25e-6, "cw": 6.25e-6, "cr": 0.5e-6},
+    "claude-sonnet-4-6":         {"i": 3e-6, "o": 15e-6, "cw": 3.75e-6, "cr": 0.30e-6},
+    "claude-haiku-4-5-20251001": {"i": 1e-6, "o": 5e-6,  "cw": 1.25e-6, "cr": 0.10e-6},
+}
+
+EMPTY_TOKENS = {"input": 0, "output": 0, "cache_write": 0, "cache_read": 0}
+
+
+def token_usage_for_session(search_root, sid):
+    """Sum token I/O for one claude session — its main transcript AND its subagents (recall/learn
+    dispatch Task subagents whose tokens are billed into the parent total) — deduped by message id,
+    from the recorded JSONL. This is authoritative and CUMULATIVE across resume rounds (the result
+    object's `usage` is only the last turn), and it's stored in the result JSON so cost provenance
+    survives even if transcripts are later pruned (the 2026-06-02 run lost some to pool re-creation)."""
+    tot = dict(EMPTY_TOKENS)
+    if not sid or not search_root:
+        return tot
+    paths = (_glob.glob(f"{search_root}/**/{sid}.jsonl", recursive=True)
+             + _glob.glob(f"{search_root}/**/{sid}/subagents/*.jsonl", recursive=True))
+    seen = set()
+    for path in paths:
+        try:
+            lines = open(path).read().splitlines()
+        except Exception:
+            continue
+        for line in lines:
+            try:
+                entry = json.loads(line)
+            except Exception:
+                continue
+            msg = entry.get("message") or {}
+            usage = msg.get("usage")
+            if not usage:
+                continue
+            mid = msg.get("id")
+            if mid:
+                if mid in seen:
+                    continue
+                seen.add(mid)
+            tot["input"] += usage.get("input_tokens", 0) or 0
+            tot["output"] += usage.get("output_tokens", 0) or 0
+            tot["cache_write"] += usage.get("cache_creation_input_tokens", 0) or 0
+            tot["cache_read"] += usage.get("cache_read_input_tokens", 0) or 0
+    return tot
+
+
+def recompute_cost(tokens, model_id):
+    """Reconstruct $ from token counts × the price sheet — the 1.00x cost audit. None if the model
+    isn't in the sheet."""
+    price = PRICES.get(model_id)
+    if not price:
+        return None
+    return round(tokens["input"] * price["i"] + tokens["output"] * price["o"]
+                 + tokens["cache_write"] * price["cw"] + tokens["cache_read"] * price["cr"], 4)
+
+
+def token_audit(search_root, sid, model_id, reported_cost):
+    """Bundle the captured tokens, recomputed cost, and reported/recomputed ratio (the audit)."""
+    tokens = token_usage_for_session(search_root, sid)
+    recomputed = recompute_cost(tokens, model_id)
+    ratio = round(recomputed / reported_cost, 3) if (recomputed and reported_cost) else None
+    return {"tokens": tokens, "recomputed_cost": recomputed, "cost_ratio": ratio}
+
+
 # ----- build mode -----
 
 def _seed_build_vault(workdir, vault_in):
@@ -529,6 +598,10 @@ def run_build(args):
     recall_ok = regime["read_mode"] == "none" or bool(args.stub) or rf > 0
     followed = False if args.stub else (regime["read_mode"] == "tier" and link_followed(args.cfg, sid))
 
+    build_cost = round(sum(r["cost"] for r in rounds), 4)
+    audit = ({"tokens": dict(EMPTY_TOKENS), "recomputed_cost": 0.0, "cost_ratio": None} if args.stub
+             else token_audit(args.cfg, sid, MODELS[args.model], build_cost))
+
     out = {
         "schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "build",
         "app": args.app, "model": args.model, "model_id": MODELS[args.model],
@@ -545,8 +618,10 @@ def run_build(args):
         "feature_statements": round1_feat_fails,
         "recall_fired": rf, "recall_ok": recall_ok, "link_followed": followed,
         "rate_limited": rate_limited, "hit_max_rounds": len(rounds) >= args.max_rounds,
-        "build_cost": round(sum(r["cost"] for r in rounds), 4),
+        "build_cost": build_cost,
         "build_turns": sum(r["turns"] for r in rounds),
+        "tokens": audit["tokens"], "recomputed_cost": audit["recomputed_cost"],
+        "cost_ratio": audit["cost_ratio"],
         "wall_min": round((time.time() - t0) / 60.0, 1),
         "rounds": rounds, "session_id": sid, "workdir": args.workdir,
     }
@@ -590,6 +665,7 @@ def run_learn(args):
             stated = []
 
     date = args.date or "2026-06-06"
+    learn_sid = None
     if args.stub:
         # --stub: deterministic writer for zero-cost pipeline validation (NOT the real learn).
         learn_cost, learn_turns = 0.0, 0
@@ -603,6 +679,7 @@ def run_learn(args):
             lr = claude(args.cfg, args.model, learn_vault, args.workdir, learn_prompt(args.write_tier, stated))
         learn_cost = round(lr.get("total_cost_usd", 0) or 0, 4)
         learn_turns = lr.get("num_turns", 0) or 0
+        learn_sid = lr.get("session_id")
 
     # Enforce the write-tier ceiling (the experimental condition), embed, then SCORE capture
     # quality — did the agent persist the conventions we expect for this tier? A poor or empty
@@ -618,6 +695,9 @@ def run_learn(args):
     shutil.copytree(learn_vault, args.vault_out)
     by_tier = count_notes_by_tier(args.vault_out)
 
+    audit = ({"tokens": dict(EMPTY_TOKENS), "recomputed_cost": 0.0, "cost_ratio": None} if args.stub
+             else token_audit(args.cfg, learn_sid, MODELS[args.model], learn_cost))
+
     out = {
         "schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "learn",
         "app": args.app, "model": args.model, "model_id": MODELS[args.model],
@@ -627,6 +707,8 @@ def run_learn(args):
         "learned": quality["engaged"], "learn_quality": quality, "pruned_above_ceiling": pruned,
         "notes_total": len(glob_notes(args.vault_out)), "notes_by_tier": by_tier,
         "learn_cost": learn_cost, "learn_turns": learn_turns,
+        "tokens": audit["tokens"], "recomputed_cost": audit["recomputed_cost"],
+        "cost_ratio": audit["cost_ratio"],
         "wall_min": round((time.time() - t0) / 60.0, 1),
     }
     json.dump(out, open(args.out, "w"), indent=2)
