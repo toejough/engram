@@ -217,19 +217,25 @@ CONVENTION_KEYWORDS = {
 
 def score_learn_capture(vault, stated, write_tier):
     """Did the agent's learn capture the conventions we expect for this tier? Name-agnostic: for
-    each STATED convention, check whether any vault note's content covers it. Reports the captured
-    set, coverage ratio, and whether the agent engaged engram at all (wrote any notes)."""
+    each STATED convention, check whether any vault note's content covers it. Also tracks whether
+    an L1 EPISODE was extracted — an episode is the foundation of every tier (facts/ADRs link down
+    to it), so a tiered learn that produced no episode is a real failure, not a nuance."""
     blobs = []
+    episodes = 0
     for path in glob_notes(vault):
         try:
             blobs.append(open(path).read().lower())
         except Exception:
             pass
+        if note_tier(path) == "L1":
+            episodes += 1
     corpus = "\n".join(blobs)
     captured = [c for c in stated if any(kw in corpus for kw in CONVENTION_KEYWORDS.get(c, [c]))]
     return {
         "engaged": len(blobs) > 0,
         "write_tier": write_tier,
+        "episodes": episodes,
+        "episode_extracted": episodes >= 1,  # an L1 episode must ALWAYS be extracted
         "captured": captured,
         "missed": [c for c in stated if c not in captured],
         "stated_count": len(stated),
@@ -244,7 +250,10 @@ LEARN_PROMPT_INTRO = (
     "the engram vault (the one `engram learn` manages). Derive the lessons from the code here — skip "
     "`engram transcript --mark`. Frame every note so a future agent building a DIFFERENT Go CLI "
     "surfaces and applies it. Capture via the /learn skill / `engram learn` — do NOT hand-write .md "
-    "files or a MEMORY.md index; this is the engram vault, not a personal-memory store.")
+    "files or a MEMORY.md index; this is the engram vault, not a personal-memory store.\n"
+    "ALWAYS begin by writing exactly ONE L1 episode of this build — it is REQUIRED for every tier "
+    "(the foundation that facts and ADRs link down to), even when the tier's emphasis is facts. "
+    "Skipping the episode is a failure.")
 
 LEARN_STATED = (
     "\nThe reviewer stated these architecture conventions during this build — your capture MUST "

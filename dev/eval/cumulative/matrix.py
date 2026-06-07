@@ -165,7 +165,10 @@ def op_done(op):
     if op["kind"] == "build" and d.get("rate_limited"):
         return False
     if op["kind"] == "learn" and d.get("learned") is False and d.get("write_tier") != "none":
-        return False  # a tiered learn that never engaged engram (empty seed) — re-run
+        return False  # didn't engage engram at all (empty seed) — transient, re-run
+    # NOTE: a missing L1 episode is a real failure, but it's TRACKED (learn_quality.episode_extracted
+    # + aggregate report), not re-run — it's been systematic for L2, so re-running would never
+    # complete. The prompt now requires the episode; persistent misses are a measured finding.
     return True
 
 

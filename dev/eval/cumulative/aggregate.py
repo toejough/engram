@@ -126,25 +126,37 @@ def learn_quality_table(learns, models):
     for that level? mean coverage = captured/stated; engaged = fraction that wrote any vault note.
     A measured output (the agent runs /learn itself; learn-quality is part of the evaluation)."""
     cov = collections.defaultdict(list)
-    eng = collections.defaultdict(list)
+    ep = collections.defaultdict(list)
+    ep_fail = []  # (regime, write_tier, model) where the L1 episode was NOT extracted — a failure
     for le in learns:
         q = le.get("learn_quality") or {}
-        if not le.get("stated_conventions_input") and le.get("write_tier") != "L1":
-            continue  # nothing was stated → coverage is trivially 1.0; skip to avoid inflating
         wt = le.get("write_tier")
-        if wt in ("L1", "L2", "L3"):
+        if wt not in ("L1", "L2", "L3"):
+            continue
+        # Episode extraction is required for EVERY tiered learn (L1 is the foundation) — track it
+        # regardless of whether conventions were stated.
+        extracted = q.get("episode_extracted", True)
+        ep[(wt, le.get("model"))].append(1.0 if extracted else 0.0)
+        if not extracted:
+            ep_fail.append(f"{le.get('regime')}·{wt}·{le.get('model')}")
+        if le.get("stated_conventions_input"):  # coverage only meaningful when something was stated
             cov[(wt, le.get("model"))].append(q.get("coverage"))
-            eng[(wt, le.get("model"))].append(1.0 if q.get("engaged") else 0.0)
-    lines = ["### Learn-capture quality (did the agent persist the stated conventions per tier)", "",
-             "Cell = mean coverage (captured/stated) · engaged% (wrote any note). The agent runs its "
-             "own /learn skill — this measures whether the memory system captured what matters.", "",
+    lines = ["### Learn-capture quality (did the agent persist what matters, per tier)", "",
+             "Cell = mean convention-coverage (captured/stated) · episode-extraction%. The agent runs "
+             "its own /learn skill; an L1 episode must ALWAYS be extracted (the foundation every tier "
+             "links down to), so episode% < 100 is a real learn failure.", "",
              "| write-tier | " + " | ".join(models) + " |", "|---|" + "|".join(["---:"] * len(models)) + "|"]
     for wt in ["L1", "L2", "L3"]:
         cells = []
         for m in models:
-            c, e = mean(cov.get((wt, m), [])), mean(eng.get((wt, m), []))
-            cells.append("—" if c is None else f"{c:.2f} · {0 if e is None else round(e*100)}%")
+            c, e = mean(cov.get((wt, m), [])), mean(ep.get((wt, m), []))
+            cov_s = "—" if c is None else f"{c:.2f}"
+            ep_s = "—" if e is None else f"ep {round(e * 100)}%"
+            cells.append(f"{cov_s} · {ep_s}")
         lines.append(f"| `{wt}` | " + " | ".join(cells) + " |")
+    if ep_fail:
+        lines += ["", f"> ⚠ **Episode-extraction FAILURES (L1 always required): {len(ep_fail)}** — "
+                  + ", ".join(ep_fail) + ". These tiered learns produced no episode; resume re-runs them."]
     return "\n".join(lines) + "\n"
 
 
