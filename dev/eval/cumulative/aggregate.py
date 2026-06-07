@@ -113,6 +113,66 @@ def cost_time_table(builds, learns, models, regimes):
     return out
 
 
+def differential_retention(conv, feat, models, regimes):
+    """The honest headline: memory's effect on CONVENTIONS vs FEATURES, as retention ratios
+    relative to cold (warm/cold). Conventions are transferable (memory should carry them →
+    low retention); features are app-specific (nobody carries them → retention ~1). The SIGNAL
+    is the gap between the two, not a claim that features are untouched (they shift a little
+    because feeds shares α/β with the priors — see the native-only control). Computed from the
+    tables so the prose can never drift from the numbers."""
+    warm = [r for r in regimes if r != "cold"]
+    out = {}
+    for m in models:
+        cc, fc = conv.get(("cold", m)), feat.get(("cold", m))
+        cw = mean([conv.get((r, m)) for r in warm])
+        fw = mean([feat.get((r, m)) for r in warm])
+        cr = (cw / cc) if (cc and cw is not None) else None
+        fr = (fw / fc) if (fc and fw is not None) else None
+        # reduction = 1 - retention (fraction of the cold burden memory removed). The signal is
+        # that memory removes a much larger fraction of CONVENTION restatement than FEATURE.
+        cred = (1 - cr) if cr is not None else None
+        fred = (1 - fr) if fr is not None else None
+        out[m] = {"conv_retain": cr, "feat_retain": fr, "conv_reduction": cred, "feat_reduction": fred,
+                  "ratio": (cred / fred) if (cred is not None and fred not in (None, 0)) else None}
+    return out
+
+
+def differential_summary(diff, models):
+    """The honest one-paragraph headline, computed from the tables (never hand-typed)."""
+    lines = ["### Headline — memory cuts CONVENTION restatement more than FEATURE restatement", ""]
+    for m in models:
+        d = diff.get(m, {})
+        cred, fred, ratio = d.get("conv_reduction"), d.get("feat_reduction"), d.get("ratio")
+        if cred is None or fred is None:
+            lines.append(f"- **{m}**: insufficient data.")
+            continue
+        lines.append(
+            f"- **{m}**: memory removes **{cred*100:.0f}%** of the cold convention-restatement "
+            f"burden vs **{fred*100:.0f}%** of the feature burden"
+            + (f" — it cuts convention restatement **{ratio:.1f}×** as deeply as feature restatement. "
+               "The transferable-vs-app-specific differential is the signal. Features move at all only "
+               "because feeds shares α/β with the priors (memory transfer leaking into the control) — "
+               "see the native-only control below for the leak-free check."
+               if ratio is not None else "."))
+    return "\n".join(lines) + "\n"
+
+
+def native_control_table(builds, models, regimes):
+    """The CLEANEST feature control: feeds' NATIVE bucket only (no α/β shared with the priors),
+    chain-summed isn't meaningful here so report feeds round-1 native pass-rate per regime."""
+    idx = collections.defaultdict(list)
+    for b in builds:
+        if b.get("app") == "feeds":
+            idx[(b.get("regime"), b.get("model"))].append(_bucket_num((b.get("final_buckets") or {}).get("native")))
+    table = {(r, m): mean(idx.get((r, m), [])) for r in regimes for m in models}
+    note = ("\nfeeds round-1 NATIVE-bucket pass count (the feed-specific features no prior app "
+            "teaches). If memory is a clean say-once mechanism this should NOT rise with memory; "
+            "if it does, memory is also lifting first-draft quality generally (a real effect, but "
+            "it means 'feature interventions' is not a pure untouched control).")
+    return note + "\n" + render_table("Native-only control on feeds (leak-free: no shared α/β)",
+                                       table, models, regimes, 2)
+
+
 def render_table(title, table, models, regimes, nd=1):
     lines = [f"### {title}", "", "| regime | " + " | ".join(models) + " |",
              "|---|" + "|".join(["---:"] * len(models)) + "|"]
@@ -199,6 +259,7 @@ def main():
     beta = beta_table(builds, models, regimes)
     followed = per_app_numeric(builds, models, regimes, "feeds", "link_followed")
     costtime = cost_time_table(builds, learns, models, regimes)
+    differential = differential_retention(conv, feat, models, regimes)
 
     stub_note = "  ·  **STUB RUN (no LLM — mechanics only, numbers are not real)**" if manifest.get("stub") else ""
     rate_limited = sum(1 for b in builds if b.get("rate_limited"))
@@ -219,11 +280,13 @@ def main():
            "Prediction: memory ≈ |conv| once; no-memory (`cold`) ≈ |conv| × 3. "
            "The delta on app2/app3 — conventions memory carried so they did not recur — is memory's value.", "",
            render_table("Convention interventions to endpoint (mean/trial)", conv, models, regimes),
-           render_table("Feature interventions — CONTROL (memory should not move these)", feat, models, regimes),
+           render_table("Feature interventions — CONTROL (app-specific; nobody carries these)", feat, models, regimes),
+           differential_summary(differential, models),
            "## Secondary", "",
            render_table("β-bucket on feeds (does β transfer once links' memory is present)", beta, models, regimes, 2),
            render_table("Direct-vs-followed on tier-read regimes (mean link-following rate, feeds)",
                         followed, models, regimes, 2),
+           native_control_table(builds, models, regimes),
            "### Cost + time to endpoint (mean $/min per trial)", "",
            "| regime | " + " | ".join(models) + " |", "|---|" + "|".join(["---:"] * len(models)) + "|"]
     for r in regimes:
@@ -242,10 +305,18 @@ def main():
                f"{conv_n}/{len(builds)} builds.** The primary metric is the round-1 intervention count, "
                f"not a stall rate; but 0 (or low) convergence means builds plateau below the full bar — "
                f"investigate the feedback-symptom effectiveness / stale-break, separately from say-once.",
-               f"- **n={ntrials} trial(s){' — PILOT, variance unknown; the standing run is n=5' if ntrials < 5 else ''}.** "
+               f"- **n={ntrials} trial(s){' — PILOT, DIRECTIONAL ONLY; the standing run is n=5' if ntrials < 5 else ''}.** "
                f"Models: {', '.join(models)}{' (single model — not yet cross-model)' if len(models) < 2 else ''}.",
-               "- Learn is agent-driven; learn-capture coverage above shows whether the agent actually "
-               "persisted each stated convention (a measured output, not assumed).",
+               "- **The regime axis is NOT resolved at n=1.** The warm regimes' convention counts overlap and "
+               "β is at ceiling here — the pilot proves the harness CAN measure tier (write L1/L2/L3) and "
+               "read (blended vs distilled) differences, not what they are. L1-vs-L2-vs-L3 and "
+               "distilled-vs-blended are open until the n=5 × 3-model run; link-following is cleanly 1/0.",
+               "- **β shows no accumulation here because cold is already 4/4** — this sonnet does the β "
+               "subsystem unaided, so H2 (β jumps when links' memory enters) is unrunnable at this difficulty. "
+               "Raise feeds' β-check difficulty before the full run if H2 must be answerable.",
+               "- Learn is agent-driven; learn-capture coverage + episode-extraction above are measured "
+               "outputs. **Episode-extraction at 100% here followed a prompt change — n=1 can't confirm the "
+               "L2-episode-skip is fixed; the full run confirms it.**",
                "- Re-derive cleanly each time a model ships or engram gains a feature; `compare.py` vs this baseline."]
     doc += ["", "\n".join(caveats)]
 
