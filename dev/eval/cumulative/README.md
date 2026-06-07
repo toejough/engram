@@ -46,12 +46,19 @@ swaps in a deterministic `engram learn` writer for zero-cost pipeline validation
 # full pipeline mechanics (stub builder), clean room. Run this from a clean checkout.
 python3 validate.py
 
-# Pilot — 1 model × 1 trial × 7 regimes (~26 ops). Real spend + shares your Claude quota
+# Pilot — 1 model × 1 trial × 7 regimes (~26 ops, ~$40). Real spend + shares your Claude quota
 # (headless claude -p --permission-mode bypassPermissions). Resumable / budget-capped.
 python3 matrix.py --models sonnet --trials 1 --budget 60
 
-# Full run — 3 models × 5 trials = 270 cells. Launch only after the pilot calibrates cost.
+# n=5 intermediate — sonnet × 5 trials (~$200). Resolves the regime axis (write/read tier
+# differences) at variance the n=1 pilot can't, before committing opus spend.
+python3 matrix.py --models sonnet --trials 1,2,3,4,5 --budget 250
+
+# Full run — 3 models × 5 trials = 270 cells (~$600–1500). Launch after the regime axis is read.
 python3 matrix.py --budget 1500
+
+# Rate-limited mid-run? Just re-run the SAME line — it resumes (skips clean cells, re-runs only
+# incomplete/rate-limited ones). Interruption is normal; the harness is resilient to it.
 
 # Aggregate the §5 headline tables into results-v2.md (also prints to stdout).
 python3 aggregate.py
@@ -75,7 +82,14 @@ records the `engram_sha`, so `compare.py` shows the feature's effect on the metr
   Chain-summed: memory ≈ |conv| once; no-memory ≈ |conv| × 3. **App-specific feature
   interventions are the control** — memory should not move them.
 - **Secondary:** round-1 conformance, **β-bucket accumulation** (does β transfer once `links`'s
-  memory is present), **direct-vs-followed** on the tier-read regimes.
+  memory is present), **direct-vs-followed** on the tier-read regimes, and **learn-capture quality**
+  (did the agent's `/learn` persist each stated convention + always extract an L1 episode).
+- **Token I/O + cost provenance:** every result records `tokens` (input / output / cache-write /
+  cache-read, summed over the session's main + subagent transcripts, deduped by message id) plus
+  `recomputed_cost` and `cost_ratio` — cost reconstructed from tokens × the price sheet, target
+  ≈1.00× (§6 / note-17: never assert a cost mechanism without decomposing tokens). Captured at run
+  time into the result JSON, so provenance survives transcript pruning; `aggregate.py` reports the
+  per-model token table over matched cells.
 
 ## Confounds designed out (§4)
 
@@ -88,13 +102,15 @@ records the `engram_sha`, so `compare.py` shows the feature's effect on the metr
   each convention," so teaching cold the conventions is the measurement, not a confound.
 - **Clean room**: every build runs with no `CLAUDE.md`/`AGENTS.md` and a cfg carrying only the
   recall/learn skills (built from the repo + keychain creds — no `/tmp` source dependency).
-- **Cost decomposed** from token counts (`verify_cost2.py`, 1.00×) before any cost claim.
+- **Cost decomposed** from token counts before any cost claim — captured per result at run time
+  (`tokens` + `recomputed_cost` + `cost_ratio`), with `verify_cost2.py` as an independent
+  transcript-based cross-check (target 1.00×).
 
 ## Files
 
 | file | role |
 |---|---|
-| `harness.py` | one operation — `build` (recall→converge loop, uses the LLM) or `learn` (deterministic write-tier capture via `engram learn`, **no LLM**). `MODELS` registry, `REGIMES`, `CONVENTION_FACTS`. |
+| `harness.py` | one operation — `build` (recall→converge loop) or `learn` (the **agent** runs its `/learn` skill — the whole memory system is under test; learn-capture quality is scored). `MODELS`/`REGIMES`/`PRICES`, token capture. `--stub` swaps a deterministic writer for zero-cost validation. |
 | `matrix.py` | orchestrator: 7-regime operation DAG, durable cfg pool, resumable, budget-capped. |
 | `score.py` + `archscore.py` + `behavioral.py` + `dimensions.py` | deterministic name-agnostic scorer (runs the binary). |
 | `{notes,links,feeds}_spec.json` | the three app specs (blind command list + hidden rubric). |
