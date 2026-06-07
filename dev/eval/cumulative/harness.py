@@ -170,12 +170,10 @@ def conv_labels(failed):
     return [lbl[len("ARCH:"):] for lbl, _ in failed if is_convention(lbl)]
 
 
-# Deterministic learn: the harness writes one well-phrased fact per STATED convention via the
-# `engram learn` binary — NO LLM in the learn. The learn is the independent-variable SETUP, not
-# the thing under test; a stochastic skill-driven learn (which freelances ~1/3 of the time
-# headless — note-14) corrupts the seed and the recall effect can't be isolated. Symmetric with
-# recall, which runs `engram query` directly. Identical stated-sets => identical seeds across
-# models, isolating recall from learn-quality variance (§2/§5). Each entry:
+# CONVENTION_FACTS templates drive ONLY the --stub deterministic learn (zero-cost pipeline
+# validation). The REAL learn is agent-driven: the agent runs its /learn skill so the whole
+# memory system (learn AND recall) is exercised, and learn-quality — whether the agent captured
+# what matters per tier — is itself a measured output (score_learn_capture). Each entry:
 # (situation, subject, predicate, object).
 CONVENTION_FACTS = {
     "di": ("When wiring dependencies in a Go CLI", "the storage, clock, and output layers",
@@ -201,9 +199,80 @@ CONVENTION_FACTS = {
 }
 
 
+# Name-agnostic detection of whether a learn CAPTURED each convention: substring match on note
+# content (lowercased). Scores learn quality — did the agent persist what we know matters per tier.
+CONVENTION_KEYWORDS = {
+    "di": ["inject", "dependenc", "interface"],
+    "sentinel": ["sentinel", "errors.is", "%w", "errnotfound", "error var"],
+    "atomic": ["atomic", "rename", "createtemp", "temp file"],
+    "stdlib": ["standard library", "stdlib", "third-party", "no external", "no dependenc"],
+    "tests_fake_parallel": ["parallel", "fake", "in-memory", "tempdir"],
+    "json": ["json", "machine-readable"],
+    "nocolor": ["no_color", "nocolor", "ansi", "color"],
+    "wrapped_errors": ["%w", "wrap", "fmt.errorf"],
+    "named_perms": ["permission", "filemode", "named constant", "perm "],
+    "no_global_data": ["global", "package-level", "mutable"],
+}
+
+
+def score_learn_capture(vault, stated, write_tier):
+    """Did the agent's learn capture the conventions we expect for this tier? Name-agnostic: for
+    each STATED convention, check whether any vault note's content covers it. Reports the captured
+    set, coverage ratio, and whether the agent engaged engram at all (wrote any notes)."""
+    blobs = []
+    for path in glob_notes(vault):
+        try:
+            blobs.append(open(path).read().lower())
+        except Exception:
+            pass
+    corpus = "\n".join(blobs)
+    captured = [c for c in stated if any(kw in corpus for kw in CONVENTION_KEYWORDS.get(c, [c]))]
+    return {
+        "engaged": len(blobs) > 0,
+        "write_tier": write_tier,
+        "captured": captured,
+        "missed": [c for c in stated if c not in captured],
+        "stated_count": len(stated),
+        "captured_count": len(captured),
+        "coverage": round(len(captured) / len(stated), 3) if stated else 1.0,
+    }
+
+
+# Agent-driven learn prompt: the agent runs its /learn skill (testing the whole memory system).
+LEARN_PROMPT_INTRO = (
+    "Use your engram /learn skill to capture durable memory from the build in THIS directory into "
+    "the engram vault (the one `engram learn` manages). Derive the lessons from the code here — skip "
+    "`engram transcript --mark`. Frame every note so a future agent building a DIFFERENT Go CLI "
+    "surfaces and applies it. Capture via the /learn skill / `engram learn` — do NOT hand-write .md "
+    "files or a MEMORY.md index; this is the engram vault, not a personal-memory store.")
+
+LEARN_STATED = (
+    "\nThe reviewer stated these architecture conventions during this build — your capture MUST "
+    "cover each one so a later app's recall surfaces it:\n{stated}\n")
+
+LEARN_TIER_GUIDE = {
+    "L1": "Write exactly ONE episode of this build (recording what you built and the conventions you "
+          "applied). Episode only — no fact notes, no L3 synthesis.",
+    "L2": "Write ONE episode, then one FACT per architecture convention, each relation-linked to the "
+          "episode. Do NOT run L3 synthesis.",
+    "L3": "Write ONE episode, then FACTS (one per convention, relation-linked to the episode), then "
+          "run the §6b L3 synthesis (`engram query --synthesis`) and write the resulting ADR(s) "
+          "(tier L3) linked down to their L2 facts.",
+}
+
+
+def learn_prompt(write_tier, stated):
+    parts = [LEARN_PROMPT_INTRO]
+    if stated:
+        parts.append(LEARN_STATED.format(stated="\n".join(f"  - {s}" for s in stated)))
+    parts.append(LEARN_TIER_GUIDE[write_tier])
+    parts.append("Work autonomously; end with a one-line summary of how many notes of each tier you wrote.")
+    return "\n\n".join(parts)
+
+
 def eg_learn(vault, date, kind, slug, fields, relations):
     """Run one `engram learn <kind>` deterministically; return the created note's basename
-    (parsed from the printed path), or None on failure."""
+    (parsed from the printed path), or None on failure. Used by the --stub learn only."""
     env = dict(os.environ)
     env["ENGRAM_VAULT_PATH"] = vault
     env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
@@ -493,62 +562,30 @@ def run_learn(args):
         except Exception:
             stated = []
 
-    # Deterministic learn — the harness drives `engram learn` directly (no LLM). Always one
-    # episode; L2/L3 add one fact per STATED convention (linked to the episode); L3 adds a
-    # synthesized ADR (tier L3) linked to those facts. Cumulative per the write-tier ceiling.
     date = args.date or "2026-06-06"
-    conv_list = ", ".join(stated) if stated else "the reviewed architecture conventions"
-    episode = eg_learn(learn_vault, date, "episode", f"eval-{args.app}-{args.regime}", {
-        "situation": f"building a command-line {args.app} in Go",
-        "summary": f"Built a command-line {args.app} in Go, applying the reviewer-stated "
-                   f"architecture conventions: {conv_list}.",
-        "boundary-rationale": "single eval build arc for the cumulative-accumulation benchmark",
-        "session": "eval-harness", "transcript-range": f"{date}T00:00:00Z..{date}T00:01:00Z",
-        "transcript-text": f"Eval build of {args.app}. Conventions applied this build: {conv_list}.",
-    }, [])
+    if args.stub:
+        # --stub: deterministic writer for zero-cost pipeline validation (NOT the real learn).
+        learn_cost, learn_turns = 0.0, 0
+        _deterministic_learn(learn_vault, args.app, args.regime, args.write_tier, stated, date)
+    else:
+        # Real learn: the AGENT runs its /learn skill, exercising the whole memory system. One
+        # retry if it wrote nothing to the vault (a fair shot under note-14 skill-self-fire).
+        lr = claude(args.cfg, args.model, learn_vault, args.workdir, learn_prompt(args.write_tier, stated))
+        if len(glob_notes(learn_vault)) == 0:
+            time.sleep(5)
+            lr = claude(args.cfg, args.model, learn_vault, args.workdir, learn_prompt(args.write_tier, stated))
+        learn_cost = round(lr.get("total_cost_usd", 0) or 0, 4)
+        learn_turns = lr.get("num_turns", 0) or 0
 
-    fact_bases = []
-    if args.write_tier in ("L2", "L3"):
-        ep_rel = [f"{episode}|extracted from this build"] if episode else []
-        for conv in stated:
-            tmpl = CONVENTION_FACTS.get(conv)
-            if tmpl is None:
-                continue
-            sit, subj, pred, obj = tmpl
-            fact = eg_learn(learn_vault, date, "fact", f"eval-{args.app}-{args.regime}-{conv}",
-                            {"situation": sit, "subject": subj, "predicate": pred, "object": obj}, ep_rel)
-            if fact:
-                fact_bases.append(fact)
-
-    if args.write_tier == "L3":
-        adr_rel = [f"{fb}|synthesized into this standard" for fb in fact_bases]
-        if not adr_rel and episode:
-            adr_rel = [f"{episode}|distilled from this build"]
-        eg_learn(learn_vault, date, "fact", f"eval-{args.app}-{args.regime}-adr", {
-            "tier": "L3", "situation": f"designing the architecture of a Go CLI such as {args.app}",
-            "subject": "Go CLI architecture", "predicate": "means",
-            "object": "DI + atomic storage + sentinel errors + fake-driven parallel tests + output "
-                      "discipline + no global state — the transferable conventions for a Go CLI",
-        }, adr_rel)
-
+    # Enforce the write-tier ceiling (the experimental condition), embed, then SCORE capture
+    # quality — did the agent persist the conventions we expect for this tier? A poor or empty
+    # capture is RECORDED (a measured output), not engineered away.
+    pruned = prune_to_ceiling(learn_vault, args.write_tier)
     env = dict(os.environ)
     env["ENGRAM_VAULT_PATH"] = learn_vault
     env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
     subprocess.run(["engram", "embed", "apply", "--all"], env=env, capture_output=True, text=True)
-
-    pruned = prune_to_ceiling(learn_vault, args.write_tier)  # belt-and-suspenders ceiling enforcement
-    by_tier = count_notes_by_tier(learn_vault)
-
-    # Verify-floor-or-fail (note-18): never write a success result for a hollow seed — a downstream
-    # cell reading an empty v1/v2 would silently confound the experiment. Fail so a resume re-runs.
-    expect_facts = bool(stated)  # a build that stated 0 conventions legitimately yields no facts
-    floor_ok = (by_tier["L1"] >= 1
-                and (args.write_tier == "L1" or not expect_facts or by_tier["L2"] >= 1)
-                and (args.write_tier != "L3" or by_tier["L3"] >= 1))
-    if not floor_ok:
-        print(f"learn FAILED tier floor for write-tier {args.write_tier}: {by_tier} "
-              f"(stated={stated})", file=sys.stderr)
-        sys.exit(1)
+    quality = score_learn_capture(learn_vault, stated, args.write_tier)
 
     shutil.rmtree(args.vault_out, ignore_errors=True)
     shutil.copytree(learn_vault, args.vault_out)
@@ -559,14 +596,50 @@ def run_learn(args):
         "app": args.app, "model": args.model, "model_id": MODELS[args.model],
         "regime": args.regime, "trial": args.trial, "date": args.date,
         "write_tier": args.write_tier, "vault_in": args.vault_in, "vault_out": args.vault_out,
-        "stub": args.stub or None, "stated_conventions_input": stated, "learned": True,
-        "deterministic": True, "episode": episode, "facts": fact_bases, "pruned_above_ceiling": pruned,
+        "stub": args.stub or None, "stated_conventions_input": stated,
+        "learned": quality["engaged"], "learn_quality": quality, "pruned_above_ceiling": pruned,
         "notes_total": len(glob_notes(args.vault_out)), "notes_by_tier": by_tier,
-        "learn_cost": 0.0, "learn_turns": 0, "wall_min": round((time.time() - t0) / 60.0, 1),
+        "learn_cost": learn_cost, "learn_turns": learn_turns,
+        "wall_min": round((time.time() - t0) / 60.0, 1),
     }
     json.dump(out, open(args.out, "w"), indent=2)
     print(json.dumps({"app": args.app, "regime": args.regime, "write_tier": args.write_tier,
-          "notes_by_tier": by_tier, "learn_cost": out["learn_cost"]}))
+          "notes_by_tier": by_tier, "learn_coverage": quality["coverage"],
+          "captured": f"{quality['captured_count']}/{quality['stated_count']}", "learn_cost": learn_cost}))
+
+
+def _deterministic_learn(learn_vault, app, regime, write_tier, stated, date):
+    """The --stub learn: write tier-correct notes deterministically via `engram learn` (no LLM)
+    for zero-cost pipeline validation. The REAL learn is agent-driven (learn_prompt)."""
+    conv_list = ", ".join(stated) if stated else "the reviewed architecture conventions"
+    episode = eg_learn(learn_vault, date, "episode", f"eval-{app}-{regime}", {
+        "situation": f"building a command-line {app} in Go",
+        "summary": f"Built a command-line {app} in Go, applying: {conv_list}.",
+        "boundary-rationale": "single eval build arc",
+        "session": "eval-harness", "transcript-range": f"{date}T00:00:00Z..{date}T00:01:00Z",
+        "transcript-text": f"Eval build of {app}. Conventions: {conv_list}.",
+    }, [])
+    fact_bases = []
+    if write_tier in ("L2", "L3"):
+        ep_rel = [f"{episode}|extracted from this build"] if episode else []
+        for conv in stated:
+            tmpl = CONVENTION_FACTS.get(conv)
+            if tmpl is None:
+                continue
+            sit, subj, pred, obj = tmpl
+            fact = eg_learn(learn_vault, date, "fact", f"eval-{app}-{regime}-{conv}",
+                            {"situation": sit, "subject": subj, "predicate": pred, "object": obj}, ep_rel)
+            if fact:
+                fact_bases.append(fact)
+    if write_tier == "L3":
+        adr_rel = [f"{fb}|synthesized into this standard" for fb in fact_bases] or \
+                  ([f"{episode}|distilled from this build"] if episode else [])
+        eg_learn(learn_vault, date, "fact", f"eval-{app}-{regime}-adr", {
+            "tier": "L3", "situation": f"designing the architecture of a Go CLI such as {app}",
+            "subject": "Go CLI architecture", "predicate": "means",
+            "object": "DI + atomic storage + sentinel errors + fake-driven parallel tests + output "
+                      "discipline + no global state — the transferable conventions for a Go CLI",
+        }, adr_rel)
 
 
 def main():

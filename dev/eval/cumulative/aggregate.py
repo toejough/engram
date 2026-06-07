@@ -121,6 +121,33 @@ def render_table(title, table, models, regimes, nd=1):
     return "\n".join(lines) + "\n"
 
 
+def learn_quality_table(learns, models):
+    """Per (write-tier, model): did the agent's /learn actually capture the conventions we expect
+    for that level? mean coverage = captured/stated; engaged = fraction that wrote any vault note.
+    A measured output (the agent runs /learn itself; learn-quality is part of the evaluation)."""
+    cov = collections.defaultdict(list)
+    eng = collections.defaultdict(list)
+    for le in learns:
+        q = le.get("learn_quality") or {}
+        if not le.get("stated_conventions_input") and le.get("write_tier") != "L1":
+            continue  # nothing was stated → coverage is trivially 1.0; skip to avoid inflating
+        wt = le.get("write_tier")
+        if wt in ("L1", "L2", "L3"):
+            cov[(wt, le.get("model"))].append(q.get("coverage"))
+            eng[(wt, le.get("model"))].append(1.0 if q.get("engaged") else 0.0)
+    lines = ["### Learn-capture quality (did the agent persist the stated conventions per tier)", "",
+             "Cell = mean coverage (captured/stated) · engaged% (wrote any note). The agent runs its "
+             "own /learn skill — this measures whether the memory system captured what matters.", "",
+             "| write-tier | " + " | ".join(models) + " |", "|---|" + "|".join(["---:"] * len(models)) + "|"]
+    for wt in ["L1", "L2", "L3"]:
+        cells = []
+        for m in models:
+            c, e = mean(cov.get((wt, m), [])), mean(eng.get((wt, m), []))
+            cells.append("—" if c is None else f"{c:.2f} · {0 if e is None else round(e*100)}%")
+        lines.append(f"| `{wt}` | " + " | ".join(cells) + " |")
+    return "\n".join(lines) + "\n"
+
+
 def cost_calibration(builds, learns):
     """Per-operation cost (build vs learn, by app, by model) for grounding the full-run
     spend estimate — builds are multi-round, learns single (advisor §4)."""
@@ -186,7 +213,7 @@ def main():
             c, mn = costtime.get((r, m), (None, None))
             cells.append(f"{fmt(c,2)} / {fmt(mn,0)}")
         doc.append(f"| `{r}` | " + " | ".join(cells) + " |")
-    doc += ["", cost_calibration(builds, learns)]
+    doc += ["", learn_quality_table(learns, models), "", cost_calibration(builds, learns)]
 
     out = "\n".join(doc)
     open(args.out, "w").write(out)

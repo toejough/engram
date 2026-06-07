@@ -31,13 +31,13 @@ Per `(model, trial)`: app1 built **cold once** → 4 write-tier learns → `v1[n
 regimes branch (app2 reads `v1[write]` under its read-subset → builds → learns → `v2[regime]`;
 app3 reads `v2[regime]`, terminal). **18 cells/(model,trial)** × 3 models × 5 trials = **270**.
 
-**Learn is deterministic.** The harness drives `engram learn` directly (one episode; L2/L3 add one
-fact per *stated* convention; L3 adds a synthesized ADR), writing tier-correct, cumulative seeds
-with **no LLM** — symmetric with recall running `engram query` directly. The learn is the
-experiment's *independent-variable setup*, not the thing under test, so a stochastic skill-driven
-learn (which freelances ~⅓ of the time headless) would corrupt the seed; deterministic seeds are
-identical across models for the same stated set, isolating recall from learn-quality variance.
-Every learn verifies its tier floor and fails (no success result) rather than write a hollow seed.
+**Learn is agent-driven, and learn-quality is measured.** The real learn is the agent running its
+own `/learn` skill (one episode at L1; +one fact per *stated* convention at L2; +a synthesized ADR
+at L3) — so the **whole** memory system is exercised, not just recall. The harness then enforces
+the write-tier ceiling (the experimental condition) and **scores capture quality**: for each
+stated convention, did the agent persist a note covering it (name-agnostic)? That coverage is a
+reported metric — a poor or empty capture is *recorded*, not engineered away. The `--stub` flag
+swaps in a deterministic `engram learn` writer for zero-cost pipeline validation only.
 
 ## One-command surfaces
 

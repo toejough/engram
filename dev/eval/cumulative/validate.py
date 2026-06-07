@@ -144,9 +144,9 @@ def check_prune():
 
 
 def check_learn_tiers():
-    """The deterministic learn must produce strictly-nested tier seeds from a stated-convention
-    set: L1 = episode only, L2 = +one fact per convention, L3 = +a synthesized ADR. Zero LLM
-    (the learn is harness-driven), so this is the advisor's per-tier micro-test made free."""
+    """The --stub deterministic learn must produce strictly-nested tier seeds from a stated set:
+    L1 = episode only, L2 = +one fact per convention, L3 = +a synthesized ADR. (Validates the
+    stub pipeline path; the REAL learn is agent-driven and measured live in the pilot.)"""
     import harness as hh
 
     root = tempfile.mkdtemp(prefix="cumlearn-")
@@ -160,7 +160,7 @@ def check_learn_tiers():
             subprocess.run(["python3", os.path.join(CUM, "harness.py"), "learn", "--app", "notes",
                             "--model", "sonnet", "--regime", f"t-{tier}", "--write-tier", tier,
                             "--workdir", os.path.join(root, "ws"), "--vault-in", "none",
-                            "--vault-out", vout, "--build-result", br,
+                            "--vault-out", vout, "--build-result", br, "--stub", "good",
                             "--out", os.path.join(root, f"learn-{tier}.json"), "--date", "2026-06-06"],
                            capture_output=True, text=True, timeout=180)
             counts[tier] = hh.count_notes_by_tier(vout) if os.path.isdir(vout) else {}
