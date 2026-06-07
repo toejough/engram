@@ -222,6 +222,21 @@ def main():
         doc.append(f"| `{r}` | " + " | ".join(cells) + " |")
     doc += ["", learn_quality_table(learns, models), "", cost_calibration(builds, learns)]
 
+    # Convergence guard (§5) + honest caveats — never ship an over-claimed number.
+    conv_n = sum(1 for b in builds if b.get("converged"))
+    ntrials = len(manifest.get("trials", [])) or len({b.get("trial") for b in builds})
+    caveats = ["## Convergence guard + honest caveats", "",
+               f"- **Converged within the {max((b.get('max_rounds') or 6) for b in builds)}-round budget: "
+               f"{conv_n}/{len(builds)} builds.** The primary metric is the round-1 intervention count, "
+               f"not a stall rate; but 0 (or low) convergence means builds plateau below the full bar — "
+               f"investigate the feedback-symptom effectiveness / stale-break, separately from say-once.",
+               f"- **n={ntrials} trial(s){' — PILOT, variance unknown; the standing run is n=5' if ntrials < 5 else ''}.** "
+               f"Models: {', '.join(models)}{' (single model — not yet cross-model)' if len(models) < 2 else ''}.",
+               "- Learn is agent-driven; learn-capture coverage above shows whether the agent actually "
+               "persisted each stated convention (a measured output, not assumed).",
+               "- Re-derive cleanly each time a model ships or engram gains a feature; `compare.py` vs this baseline."]
+    doc += ["", "\n".join(caveats)]
+
     out = "\n".join(doc)
     open(args.out, "w").write(out)
     print(out)
