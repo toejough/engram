@@ -455,13 +455,16 @@ def run_build(args):
         if args.stub:
             return _stub_build(args)
         res = claude(args.cfg, args.model, build_vault, args.workdir, prompt, resume_sid=resume_sid)
-        if resume_sid is None:
-            for backoff in (15, 45, 120):  # transient rate-limit/overload: $0-ish, 1 turn
-                if not (res.get("is_error") and (res.get("total_cost_usd", 0) or 0) < 0.02):
-                    break
-                refresh_creds_path(args.cfg)
-                time.sleep(backoff)
-                res = claude(args.cfg, args.model, build_vault, args.workdir, prompt)
+        # Transient rate-limit/overload retry on BOTH the initial build and resumes (a $0-ish,
+        # 1-turn error is the 429 signature). Sustained quota exhaustion outlasts these backoffs
+        # and is handled downstream (a never-built round writes no success result; a rate-limited
+        # resume is flagged), so a re-run when quota resets fills the gap cleanly.
+        for backoff in (15, 45, 120):
+            if not (res.get("is_error") and (res.get("total_cost_usd", 0) or 0) < 0.02):
+                break
+            refresh_creds_path(args.cfg)
+            time.sleep(backoff)
+            res = claude(args.cfg, args.model, build_vault, args.workdir, prompt, resume_sid=resume_sid)
         return res
 
     res = do_build()
@@ -469,6 +472,17 @@ def run_build(args):
     sc = scoremod.score(args.workdir, args.spec)
     conv, feat = split_failed(sc.get("failed", []))
     rounds = [_round_rec(1, sc, res, conv, feat)]
+
+    # A build that never produced a working build at round 1 (the agent errored out — almost always
+    # a sustained rate-limit / infra failure, not a real attempt) is NOT a result. Exit without
+    # writing one, so a resume re-runs this cell when quota is back (don't poison the dataset with
+    # a final:None cell that op_done() would treat as complete).
+    if sc.get("build") != "ok" and bool(res.get("is_error")):
+        print(f"build FAILED at round 1 ({args.app} {args.regime}) — likely rate_limit; "
+              f"no result written so resume re-runs it.", file=sys.stderr)
+        sys.exit(1)
+
+    rate_limited = bool(res.get("is_error"))
 
     # Round-1 per-detector ARCH snapshot — the say-once discriminator (advisor flag 3).
     arch_fail1 = set(sc.get("arch_fail", []))
@@ -490,6 +504,7 @@ def run_build(args):
             if lbl not in stated:
                 stated.append(lbl)
         if errored:
+            rate_limited = True  # built at round 1 but a resume hit the limit — result kept, flagged
             break
         cur = passed_of(sc)
         if cur <= prev:
@@ -518,6 +533,7 @@ def run_build(args):
         "stated_conventions": stated, "convention_statements": round1_conv_fails,
         "feature_statements": round1_feat_fails,
         "recall_fired": rf, "recall_ok": recall_ok, "link_followed": followed,
+        "rate_limited": rate_limited, "hit_max_rounds": len(rounds) >= args.max_rounds,
         "build_cost": round(sum(r["cost"] for r in rounds), 4),
         "build_turns": sum(r["turns"] for r in rounds),
         "wall_min": round((time.time() - t0) / 60.0, 1),

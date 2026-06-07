@@ -151,13 +151,22 @@ def cells_for(model, trial, date, stub, max_rounds):
 
 
 def op_done(op):
+    """An op counts as done only if it produced a VALID result — so a resume re-runs cells that
+    timed out, rate-limited (incomplete build), or whose learn never engaged engram (empty seed),
+    instead of skipping them with poisoned data."""
     if not os.path.exists(op["out"]):
         return False
     try:
-        json.load(open(op["out"]))
-        return True
+        d = json.load(open(op["out"]))
     except Exception:
         return False
+    if d.get("timeout"):
+        return False
+    if op["kind"] == "build" and d.get("rate_limited"):
+        return False
+    if op["kind"] == "learn" and d.get("learned") is False and d.get("write_tier") != "none":
+        return False  # a tiered learn that never engaged engram (empty seed) — re-run
+    return True
 
 
 def op_cost(out):

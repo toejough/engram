@@ -189,10 +189,17 @@ def main():
     costtime = cost_time_table(builds, learns, models, regimes)
 
     stub_note = "  ·  **STUB RUN (no LLM — mechanics only, numbers are not real)**" if manifest.get("stub") else ""
+    rate_limited = sum(1 for b in builds if b.get("rate_limited"))
+    not_engaged = sum(1 for le in learns if le.get("learned") is False and le.get("write_tier") != "none")
+    completeness = ""
+    if rate_limited or not_engaged:
+        completeness = (f"\n\n> ⚠ **INCOMPLETE:** {rate_limited} build(s) hit a rate limit and "
+                        f"{not_engaged} learn(s) did not engage — these cells are unreliable. "
+                        f"Re-run (resume) when quota is available; resume re-runs exactly these.")
     doc = ["# Cumulative cross-app memory accumulation — results (v2)", "",
            f"Engram SHA: `{manifest.get('engram_sha','?')}` · date: {manifest.get('date','?')} · "
            f"models: {', '.join(models)} · trials: {manifest.get('trials','?')} · "
-           f"price sheet: {manifest.get('price_sheet_date','?')}" + stub_note, "",
+           f"price sheet: {manifest.get('price_sheet_date','?')}" + stub_note + completeness, "",
            "> A NEW clean baseline (re-metric'd say-once + 7 vs 5 regimes); NOT comparable "
            "cell-for-cell to the 2026-06-02 run.", "",
            "## Primary — repeated-convention interventions (say-once vs every-app)", "",
