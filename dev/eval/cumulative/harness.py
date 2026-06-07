@@ -31,7 +31,7 @@ Usage:
       --write-tier L2 --workdir <built-dir> --vault-in <dir|none> --vault-out <dir> \
       --build-result <build.json> --cfg <cfgdir> --out <learn.json> [--stub good|naive]
 """
-import argparse, glob as _glob, json, os, subprocess, sys, time
+import argparse, glob as _glob, json, os, re, subprocess, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import score as scoremod
@@ -170,45 +170,55 @@ def conv_labels(failed):
     return [lbl[len("ARCH:"):] for lbl, _ in failed if is_convention(lbl)]
 
 
-LEARN_INTRO = (
-    "Now use your /learn skill to capture durable memory from the build in this directory. "
-    "The source is the code here — you do not need to scan transcripts; skip `engram transcript "
-    "--mark` and derive lessons from the code. Frame every note so a future agent building a "
-    "DIFFERENT Go CLI surfaces and applies it (transferable conventions, not this app's features).")
-
-STATED_INTRO = (
-    "CRITICAL — capture the conventions the reviewer STATED this build, not only patterns you "
-    "re-derive from the code. The reviewer explicitly asked for these architecture conventions "
-    "during review:\n{stated}\nPersist each as a durable convention (a fact, or feedback), phrased "
-    "generally, so the next app's recall surfaces the instruction without the human restating it.\n")
-
-STATED_L1_INTRO = (
-    "The reviewer stated these architecture conventions during this build:\n{stated}\n"
-    "Record them inside the single episode's narrative (the conventions you applied and why). "
-    "This is an L1 episode-only capture, so do NOT write separate fact or feedback notes for them.\n")
-
-LEARN_BY_TIER = {
-    "L1": ("Capture exactly ONE episode of this build (a concrete record of what you built — files, "
-           "interfaces, patterns, and the conventions you applied). Write the episode only; no facts, "
-           "no L3 synthesis."),
-    "L2": ("Capture ONE episode of this build, then FACTS — one fact per architecture convention "
-           "(both the ones the reviewer stated and the ones you applied). Relation-link each fact to "
-           "the episode it came from. Do NOT run L3 synthesis."),
-    "L3": ("Capture ONE episode of this build, then FACTS (one per convention, each relation-linked "
-           "to the episode), then run the §6b L3 synthesis (`engram query --synthesis` scenario-seeded "
-           "over the L2 clusters, update-or-create by nearest_l3 cosine). Write episode + facts + ADRs."),
+# Deterministic learn: the harness writes one well-phrased fact per STATED convention via the
+# `engram learn` binary — NO LLM in the learn. The learn is the independent-variable SETUP, not
+# the thing under test; a stochastic skill-driven learn (which freelances ~1/3 of the time
+# headless — note-14) corrupts the seed and the recall effect can't be isolated. Symmetric with
+# recall, which runs `engram query` directly. Identical stated-sets => identical seeds across
+# models, isolating recall from learn-quality variance (§2/§5). Each entry:
+# (situation, subject, predicate, object).
+CONVENTION_FACTS = {
+    "di": ("When wiring dependencies in a Go CLI", "the storage, clock, and output layers",
+           "should be", "injected interfaces (any name) so the core runs against in-memory fakes, not real files"),
+    "sentinel": ("When signaling not-found or domain errors in a Go CLI", "error conditions", "should be",
+           "package-level sentinel vars (var ErrX = errors.New(...)) wrapped with %w and matched via errors.Is"),
+    "atomic": ("When persisting data to a file in a Go CLI", "file writes", "should be",
+           "atomic — write a temp file then os.Rename over the target, so a crash mid-write cannot corrupt data"),
+    "stdlib": ("When choosing dependencies for a Go CLI", "the implementation", "should",
+           "use the Go standard library only — no third-party modules"),
+    "tests_fake_parallel": ("When writing tests for a Go CLI package", "tests", "should",
+           "call t.Parallel(), drive the core through an in-memory fake of the storage interface, and isolate state with t.TempDir()"),
+    "json": ("When producing output from a Go CLI", "output", "should offer",
+           "a machine-readable --json mode (encoding/json) alongside the human-readable format"),
+    "nocolor": ("When producing terminal output from a Go CLI", "color output", "should",
+           "honor NO_COLOR and a non-TTY stdout by emitting no ANSI escape codes"),
+    "wrapped_errors": ("When returning errors from a Go CLI", "errors", "should be",
+           "wrapped with context via fmt.Errorf(\"...: %w\", err), never returned bare"),
+    "named_perms": ("When creating files or directories in a Go CLI", "file-mode permissions", "should be",
+           "named constants (e.g. const filePerm os.FileMode = 0o600), not bare octal literals"),
+    "no_global_data": ("When structuring state in a Go CLI", "application data", "should",
+           "live in injected structs, never package-level mutable vars (globals)"),
 }
 
 
-def learn_prompt(write_tier, stated):
-    parts = [LEARN_INTRO]
-    if stated:
-        bullets = "\n".join(f"  - {s}" for s in stated)
-        # L1 is episode-only: fold the stated conventions INTO the episode, never as facts.
-        parts.append((STATED_L1_INTRO if write_tier == "L1" else STATED_INTRO).format(stated=bullets))
-    parts.append(LEARN_BY_TIER[write_tier])
-    parts.append("Work autonomously; one-line summary of how many notes of each tier you wrote.")
-    return "\n\n".join(parts)
+def eg_learn(vault, date, kind, slug, fields, relations):
+    """Run one `engram learn <kind>` deterministically; return the created note's basename
+    (parsed from the printed path), or None on failure."""
+    env = dict(os.environ)
+    env["ENGRAM_VAULT_PATH"] = vault
+    env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
+    slug = re.sub(r"[^a-z0-9-]+", "-", slug.lower()).strip("-") or "eval"  # engram slug: [a-z0-9-]+
+    cmd = ["engram", "learn", kind, "--slug", slug, "--position", "top", "--source", f"eval harness {date}"]
+    for key, val in fields.items():
+        cmd += ["--" + key, val]
+    for rel in relations:
+        cmd += ["--relation", rel]
+    res = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    for line in (res.stdout or "").strip().splitlines():
+        line = line.strip()
+        if line.endswith(".md"):
+            return os.path.basename(line)[: -len(".md")]
+    return None
 
 
 def glob_notes(vault):
@@ -331,34 +341,6 @@ def _stub_build(args):
             shutil.copy(path, dst)
     return {"is_error": False, "total_cost_usd": 0.0, "num_turns": 1,
             "session_id": "stub-build", "result": "stubbed build"}
-
-
-def _stub_learn(args, vault_out):
-    """Write canned tier-appropriate notes (cumulative ceiling) into vault_out and embed
-    them, so vault threading + per-tier population are exercised without an LLM."""
-    perm = os.path.join(vault_out, "Permanent")
-    os.makedirs(perm, exist_ok=True)
-    base = 900 + sum(ord(c) for c in (args.regime + args.app)) % 90
-
-    def note(idx, tier, kind):
-        name = f"{idx}.2026-06-06.stub-{args.app}-{args.regime}-{tier.lower()}"
-        body = (f"---\ntype: {kind}\ntier: {tier}\n"
-                f"situation: building a command-line {args.app} in Go\n"
-                f"luhmann: \"{idx}\"\ncreated: \"2026-06-06\"\nsource: stub eval\n---\n\n"
-                f"stub {tier} note for {args.app} ({args.regime}).\n")
-        open(os.path.join(perm, name + ".md"), "w").write(body)
-
-    note(base, "L1", "episode")
-    if args.write_tier in ("L2", "L3"):
-        note(base + 1, "L2", "fact")
-    if args.write_tier == "L3":
-        note(base + 2, "L3", "fact")
-
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = vault_out
-    env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
-    subprocess.run(["engram", "embed", "apply", "--all"], env=env, capture_output=True, text=True)
-    return {"is_error": False, "total_cost_usd": 0.0, "num_turns": 1, "result": "stubbed learn"}
 
 
 # ----- build mode -----
@@ -511,15 +493,63 @@ def run_learn(args):
         except Exception:
             stated = []
 
-    if args.stub:
-        lr = _stub_learn(args, learn_vault)
-    else:
-        lr = claude(args.cfg, args.model, learn_vault, args.workdir, learn_prompt(args.write_tier, stated))
-        if lr.get("is_error") and (lr.get("total_cost_usd", 0) or 0) == 0:
-            time.sleep(5)
-            lr = claude(args.cfg, args.model, learn_vault, args.workdir, learn_prompt(args.write_tier, stated))
+    # Deterministic learn — the harness drives `engram learn` directly (no LLM). Always one
+    # episode; L2/L3 add one fact per STATED convention (linked to the episode); L3 adds a
+    # synthesized ADR (tier L3) linked to those facts. Cumulative per the write-tier ceiling.
+    date = args.date or "2026-06-06"
+    conv_list = ", ".join(stated) if stated else "the reviewed architecture conventions"
+    episode = eg_learn(learn_vault, date, "episode", f"eval-{args.app}-{args.regime}", {
+        "situation": f"building a command-line {args.app} in Go",
+        "summary": f"Built a command-line {args.app} in Go, applying the reviewer-stated "
+                   f"architecture conventions: {conv_list}.",
+        "boundary-rationale": "single eval build arc for the cumulative-accumulation benchmark",
+        "session": "eval-harness", "transcript-range": f"{date}T00:00:00Z..{date}T00:01:00Z",
+        "transcript-text": f"Eval build of {args.app}. Conventions applied this build: {conv_list}.",
+    }, [])
 
-    pruned = prune_to_ceiling(learn_vault, args.write_tier)  # enforce the write-tier ceiling
+    fact_bases = []
+    if args.write_tier in ("L2", "L3"):
+        ep_rel = [f"{episode}|extracted from this build"] if episode else []
+        for conv in stated:
+            tmpl = CONVENTION_FACTS.get(conv)
+            if tmpl is None:
+                continue
+            sit, subj, pred, obj = tmpl
+            fact = eg_learn(learn_vault, date, "fact", f"eval-{args.app}-{args.regime}-{conv}",
+                            {"situation": sit, "subject": subj, "predicate": pred, "object": obj}, ep_rel)
+            if fact:
+                fact_bases.append(fact)
+
+    if args.write_tier == "L3":
+        adr_rel = [f"{fb}|synthesized into this standard" for fb in fact_bases]
+        if not adr_rel and episode:
+            adr_rel = [f"{episode}|distilled from this build"]
+        eg_learn(learn_vault, date, "fact", f"eval-{args.app}-{args.regime}-adr", {
+            "tier": "L3", "situation": f"designing the architecture of a Go CLI such as {args.app}",
+            "subject": "Go CLI architecture", "predicate": "means",
+            "object": "DI + atomic storage + sentinel errors + fake-driven parallel tests + output "
+                      "discipline + no global state — the transferable conventions for a Go CLI",
+        }, adr_rel)
+
+    env = dict(os.environ)
+    env["ENGRAM_VAULT_PATH"] = learn_vault
+    env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
+    subprocess.run(["engram", "embed", "apply", "--all"], env=env, capture_output=True, text=True)
+
+    pruned = prune_to_ceiling(learn_vault, args.write_tier)  # belt-and-suspenders ceiling enforcement
+    by_tier = count_notes_by_tier(learn_vault)
+
+    # Verify-floor-or-fail (note-18): never write a success result for a hollow seed — a downstream
+    # cell reading an empty v1/v2 would silently confound the experiment. Fail so a resume re-runs.
+    expect_facts = bool(stated)  # a build that stated 0 conventions legitimately yields no facts
+    floor_ok = (by_tier["L1"] >= 1
+                and (args.write_tier == "L1" or not expect_facts or by_tier["L2"] >= 1)
+                and (args.write_tier != "L3" or by_tier["L3"] >= 1))
+    if not floor_ok:
+        print(f"learn FAILED tier floor for write-tier {args.write_tier}: {by_tier} "
+              f"(stated={stated})", file=sys.stderr)
+        sys.exit(1)
+
     shutil.rmtree(args.vault_out, ignore_errors=True)
     shutil.copytree(learn_vault, args.vault_out)
     by_tier = count_notes_by_tier(args.vault_out)
@@ -530,10 +560,9 @@ def run_learn(args):
         "regime": args.regime, "trial": args.trial, "date": args.date,
         "write_tier": args.write_tier, "vault_in": args.vault_in, "vault_out": args.vault_out,
         "stub": args.stub or None, "stated_conventions_input": stated, "learned": True,
-        "pruned_above_ceiling": pruned,
+        "deterministic": True, "episode": episode, "facts": fact_bases, "pruned_above_ceiling": pruned,
         "notes_total": len(glob_notes(args.vault_out)), "notes_by_tier": by_tier,
-        "learn_cost": round(lr.get("total_cost_usd", 0) or 0, 4), "learn_turns": lr.get("num_turns", 0) or 0,
-        "result": (lr.get("result") or "")[:300], "wall_min": round((time.time() - t0) / 60.0, 1),
+        "learn_cost": 0.0, "learn_turns": 0, "wall_min": round((time.time() - t0) / 60.0, 1),
     }
     json.dump(out, open(args.out, "w"), indent=2)
     print(json.dumps({"app": args.app, "regime": args.regime, "write_tier": args.write_tier,

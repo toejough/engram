@@ -88,9 +88,12 @@ def check_stub_pipeline():
             d = os.path.join(root, "vaults", f"v1-sonnet-t1-{tier}", "Permanent")
             return len([f for f in os.listdir(d) if f.endswith(".md")]) if os.path.isdir(d) else 0
 
+        # The good fixture converges with 0 stated conventions, so the deterministic learn
+        # writes episode-only for L1/L2 and episode+ADR for L3 — monotonic, none empty. (The
+        # strict fact-per-convention nesting is exercised by check_learn_tiers below.)
         counts = {t: count(t) for t in ["none", "L1", "L2", "L3"]}
-        check("stub: cumulative write-tier seed vaults (none0/L1=1/L2=2/L3=3)",
-              counts == {"none": 0, "L1": 1, "L2": 2, "L3": 3}, str(counts))
+        check("stub: write-tier seeds monotonic (none=0 ≤ L1 ≤ L2 ≤ L3)",
+              counts["none"] == 0 and 1 <= counts["L1"] <= counts["L2"] <= counts["L3"], str(counts))
 
         # clean room: build workdirs carry no ambient conventions; cfg only recall+learn.
         ws = os.path.join(root, "ws")
@@ -140,6 +143,45 @@ def check_prune():
         shutil.rmtree(r2, ignore_errors=True)
 
 
+def check_learn_tiers():
+    """The deterministic learn must produce strictly-nested tier seeds from a stated-convention
+    set: L1 = episode only, L2 = +one fact per convention, L3 = +a synthesized ADR. Zero LLM
+    (the learn is harness-driven), so this is the advisor's per-tier micro-test made free."""
+    import harness as hh
+
+    root = tempfile.mkdtemp(prefix="cumlearn-")
+    stated = ["di", "atomic", "nocolor"]
+    br = os.path.join(root, "build.json")
+    json.dump({"stated_conventions": stated}, open(br, "w"))
+    counts = {}
+    try:
+        for tier in ["L1", "L2", "L3"]:
+            vout = os.path.join(root, f"v1-{tier}")
+            subprocess.run(["python3", os.path.join(CUM, "harness.py"), "learn", "--app", "notes",
+                            "--model", "sonnet", "--regime", f"t-{tier}", "--write-tier", tier,
+                            "--workdir", os.path.join(root, "ws"), "--vault-in", "none",
+                            "--vault-out", vout, "--build-result", br,
+                            "--out", os.path.join(root, f"learn-{tier}.json"), "--date", "2026-06-06"],
+                           capture_output=True, text=True, timeout=180)
+            counts[tier] = hh.count_notes_by_tier(vout) if os.path.isdir(vout) else {}
+
+        l1, l2, l3 = counts["L1"], counts["L2"], counts["L3"]
+        check("learn: L1 = episode only (no facts)", l1 == {"L1": 1, "L2": 0, "L3": 0, "other": 0}, str(l1))
+        check("learn: L2 = episode + 1 fact per stated convention",
+              l2 == {"L1": 1, "L2": len(stated), "L3": 0, "other": 0}, str(l2))
+        check("learn: L3 = episode + facts + synthesized ADR",
+              l3.get("L1") == 1 and l3.get("L2") == len(stated) and l3.get("L3") == 1, str(l3))
+
+        env = dict(os.environ)
+        env["ENGRAM_VAULT_PATH"] = os.path.join(root, "v1-L3")
+        env["PATH"] = hh.ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
+        chk = subprocess.run(["engram", "check"], env=env, capture_output=True, text=True)
+        check("learn: L3 seed vault passes engram check (links resolve)",
+              chk.returncode == 0 and "FAIL" not in chk.stdout, chk.stdout.strip()[:80])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def main():
     print("Zero-cost validation (no LLM, no spend):\n")
     print("[cell-gen]")
@@ -148,6 +190,8 @@ def main():
     check_scorer()
     print("[write-tier ceiling]")
     check_prune()
+    print("[deterministic learn tiers]")
+    check_learn_tiers()
     print("[pipeline + clean room]")
     check_stub_pipeline()
 

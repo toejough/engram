@@ -31,6 +31,14 @@ Per `(model, trial)`: app1 built **cold once** → 4 write-tier learns → `v1[n
 regimes branch (app2 reads `v1[write]` under its read-subset → builds → learns → `v2[regime]`;
 app3 reads `v2[regime]`, terminal). **18 cells/(model,trial)** × 3 models × 5 trials = **270**.
 
+**Learn is deterministic.** The harness drives `engram learn` directly (one episode; L2/L3 add one
+fact per *stated* convention; L3 adds a synthesized ADR), writing tier-correct, cumulative seeds
+with **no LLM** — symmetric with recall running `engram query` directly. The learn is the
+experiment's *independent-variable setup*, not the thing under test, so a stochastic skill-driven
+learn (which freelances ~⅓ of the time headless) would corrupt the seed; deterministic seeds are
+identical across models for the same stated set, isolating recall from learn-quality variance.
+Every learn verifies its tier floor and fails (no success result) rather than write a hollow seed.
+
 ## One-command surfaces
 
 ```bash
@@ -86,7 +94,7 @@ records the `engram_sha`, so `compare.py` shows the feature's effect on the metr
 
 | file | role |
 |---|---|
-| `harness.py` | one operation — `build` (recall→converge loop) or `learn` (write-tier capture). `MODELS` registry, `REGIMES`. |
+| `harness.py` | one operation — `build` (recall→converge loop, uses the LLM) or `learn` (deterministic write-tier capture via `engram learn`, **no LLM**). `MODELS` registry, `REGIMES`, `CONVENTION_FACTS`. |
 | `matrix.py` | orchestrator: 7-regime operation DAG, durable cfg pool, resumable, budget-capped. |
 | `score.py` + `archscore.py` + `behavioral.py` + `dimensions.py` | deterministic name-agnostic scorer (runs the binary). |
 | `{notes,links,feeds}_spec.json` | the three app specs (blind command list + hidden rubric). |
