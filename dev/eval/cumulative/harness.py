@@ -451,10 +451,10 @@ def run_build(args):
     prompt = build_prompt(args.app, json.load(open(args.spec))["interface"],
                           regime["read_mode"], regime["read_tiers"])
 
-    def do_build(resume_sid=None):
+    def do_build(msg, resume_sid=None):
         if args.stub:
             return _stub_build(args)
-        res = claude(args.cfg, args.model, build_vault, args.workdir, prompt, resume_sid=resume_sid)
+        res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid)
         # Transient rate-limit/overload retry on BOTH the initial build and resumes (a $0-ish,
         # 1-turn error is the 429 signature). Sustained quota exhaustion outlasts these backoffs
         # and is handled downstream (a never-built round writes no success result; a rate-limited
@@ -464,10 +464,10 @@ def run_build(args):
                 break
             refresh_creds_path(args.cfg)
             time.sleep(backoff)
-            res = claude(args.cfg, args.model, build_vault, args.workdir, prompt, resume_sid=resume_sid)
+            res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid)
         return res
 
-    res = do_build()
+    res = do_build(prompt)
     sid = res.get("session_id")
     sc = scoremod.score(args.workdir, args.spec)
     conv, feat = split_failed(sc.get("failed", []))
@@ -495,7 +495,9 @@ def run_build(args):
     rnd, stale, prev = 1, 0, passed_of(sc)
     while not converged(sc) and rnd < args.max_rounds and sc.get("build") == "ok":
         rnd += 1
-        res = do_build(resume_sid=sid) if not args.stub else _stub_build(args)
+        # Deliver the reviewer's feedback (the failed items' user-symptoms) on resume — THIS is
+        # the convergence loop. (The build prompt only goes out at round 1.)
+        res = do_build(feedback_prompt(sc["failed"]), resume_sid=sid) if not args.stub else _stub_build(args)
         errored = bool(res.get("is_error"))
         sc = scoremod.score(args.workdir, args.spec)
         conv, feat = split_failed(sc.get("failed", []))
