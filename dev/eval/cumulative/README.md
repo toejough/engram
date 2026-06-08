@@ -121,7 +121,17 @@ records the `engram_sha`, so `compare.py` shows the feature's effect on the metr
 
 ## Where results land
 
-`$CUMMATRIX_ROOT` (default `/tmp/cummatrix`): `results/*.json` (per-op, versioned schema +
-`engram_sha` provenance + `run-manifest.json`), `vaults/` (seed + accumulated), `ws/` (build
-workdirs). Commit the aggregated `results-vN.md`; archive raw per-cell JSON under a dated dir
-or `.gitignore` it with the doc committed.
+A live run writes to `$CUMMATRIX_ROOT` (default `/tmp/cummatrix`, **ephemeral**): `results/*.json`
+(per-op, versioned schema + `engram_sha` provenance + `run-manifest.json`), `vaults/` (seed +
+accumulated), `ws/` (build workdirs).
+
+**Durable in the repo** (so the benchmark survives a reboot and a fresh checkout can re-aggregate
+and `compare.py`):
+- `results-v2.md` — the aggregated tables + headline (committed).
+- `runs/<date>-<models>-n<trials>/` — the **raw per-cell JSON archived** (the source data behind
+  the tables; ~1.5M for the full 390-cell run, metrics-only, no transcripts). `compare.py` reads a
+  run dir laid out as `<root>/results/*.json`, so to diff against an archived run, point it at a
+  copy with the JSON under `results/` (see `runs/README` if present, or just
+  `mkdir -p /tmp/x/results && cp runs/<run>/*.json /tmp/x/results/ && python3 compare.py /tmp/x <newroot>`).
+
+To archive a fresh run: `cp $CUMMATRIX_ROOT/results/*.json dev/eval/cumulative/runs/<date>-.../` and commit.

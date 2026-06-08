@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "engram_sha": "fd8cc13c1b07",
+  "kind": "build",
+  "app": "links",
+  "model": "opus",
+  "model_id": "claude-opus-4-8",
+  "regime": "cold",
+  "trial": 1,
+  "date": "2026-06-07",
+  "read_mode": "none",
+  "read_tiers": [],
+  "vault_in": "/tmp/cumn5/vaults/v1-opus-t1-none",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 6,
+  "round1_score": "8/17",
+  "round1_arch_detectors": {
+    "di": false,
+    "sentinel": false,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": true,
+    "named_perms": false,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 6,
+  "round1_feature_fails": 3,
+  "final_score": "17/17",
+  "final_buckets": {
+    "native": "1/1",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [
+    "di",
+    "sentinel",
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor",
+    "named_perms"
+  ],
+  "convention_statements": 6,
+  "feature_statements": 3,
+  "recall_fired": 0,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "hit_max_rounds": false,
+  "build_cost": 1.549,
+  "build_turns": 26,
+  "tokens": {
+    "input": 6625,
+    "output": 30168,
+    "cache_write": 41615,
+    "cache_read": 1001675
+  },
+  "recomputed_cost": 1.5483,
+  "cost_ratio": 1.0,
+  "wall_min": 6.2,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "8/17",
+      "feat_buckets": {
+        "native": "1/1",
+        "alpha": "1/2",
+        "beta": "2/4"
+      },
+      "arch": "4/10",
+      "convention_fails": 6,
+      "feature_fails": 3,
+      "cost": 0.6032812500000001,
+      "turns": 12,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "17/17",
+      "feat_buckets": {
+        "native": "1/1",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 0,
+      "cost": 0.9457249999999999,
+      "turns": 14,
+      "is_error": false
+    }
+  ],
+  "session_id": "0a06a637-1ee6-4eff-bea5-f07f8bf5fc1e",
+  "workdir": "/tmp/cumn5/ws/opus-t1-app2-cold"
+}

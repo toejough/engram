@@ -1,0 +1,96 @@
+{
+  "schema_version": 2,
+  "engram_sha": "fd8cc13c1b07",
+  "kind": "build",
+  "app": "feeds",
+  "model": "opus",
+  "model_id": "claude-opus-4-8",
+  "regime": "l1",
+  "trial": 2,
+  "date": "2026-06-07",
+  "read_mode": "tier",
+  "read_tiers": [
+    "L1"
+  ],
+  "vault_in": "/tmp/cumn5/vaults/v2-opus-t2-l1",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 6,
+  "round1_score": "16/18",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": true,
+    "stdlib": true,
+    "tests_fake_parallel": true,
+    "json": true,
+    "nocolor": true,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 0,
+  "round1_feature_fails": 2,
+  "final_score": "18/18",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [],
+  "convention_statements": 0,
+  "feature_statements": 2,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": true,
+  "rate_limited": false,
+  "hit_max_rounds": false,
+  "build_cost": 2.0948,
+  "build_turns": 37,
+  "tokens": {
+    "input": 2893,
+    "output": 31630,
+    "cache_write": 58960,
+    "cache_read": 1840187
+  },
+  "recomputed_cost": 2.0938,
+  "cost_ratio": 1.0,
+  "wall_min": 6.9,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "16/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2",
+        "beta": "2/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 2,
+      "cost": 1.5870587499999997,
+      "turns": 29,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "18/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 0,
+      "cost": 0.50775875,
+      "turns": 8,
+      "is_error": false
+    }
+  ],
+  "session_id": "4fc87637-25d8-466f-9626-35f9857f33a3",
+  "workdir": "/tmp/cumn5/ws/opus-t2-app3-l1"
+}

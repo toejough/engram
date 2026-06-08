@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "engram_sha": "d1e745f3a32e",
+  "kind": "build",
+  "app": "notes",
+  "model": "sonnet",
+  "model_id": "claude-sonnet-4-6",
+  "regime": "cold",
+  "trial": 2,
+  "date": "2026-06-07",
+  "read_mode": "none",
+  "read_tiers": [],
+  "vault_in": "none",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 6,
+  "round1_score": "6/14",
+  "round1_arch_detectors": {
+    "di": false,
+    "sentinel": false,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": true,
+    "named_perms": false,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 6,
+  "round1_feature_fails": 2,
+  "final_score": "12/14",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2"
+  },
+  "final_arch": "8/10",
+  "arch_pass": 8,
+  "stated_conventions": [
+    "di",
+    "sentinel",
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor",
+    "named_perms"
+  ],
+  "convention_statements": 6,
+  "feature_statements": 2,
+  "recall_fired": 0,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "hit_max_rounds": false,
+  "build_cost": 1.5568,
+  "build_turns": 45,
+  "tokens": {
+    "input": 48,
+    "output": 42044,
+    "cache_write": 75333,
+    "cache_read": 2142404
+  },
+  "recomputed_cost": 1.556,
+  "cost_ratio": 0.999,
+  "wall_min": 9.7,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "6/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "0/2"
+      },
+      "arch": "4/10",
+      "convention_fails": 6,
+      "feature_fails": 2,
+      "cost": 0.35190534999999995,
+      "turns": 16,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "12/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2"
+      },
+      "arch": "8/10",
+      "convention_fails": 2,
+      "feature_fails": 0,
+      "cost": 1.2048515999999998,
+      "turns": 29,
+      "is_error": false
+    }
+  ],
+  "session_id": "042eca59-0ac5-43a4-950e-b1f3578892fe",
+  "workdir": "/tmp/cumn5/ws/sonnet-t2-app1"
+}

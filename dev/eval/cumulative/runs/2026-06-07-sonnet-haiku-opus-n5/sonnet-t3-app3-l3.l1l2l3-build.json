@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "engram_sha": "d1e745f3a32e",
+  "kind": "build",
+  "app": "feeds",
+  "model": "sonnet",
+  "model_id": "claude-sonnet-4-6",
+  "regime": "l3.l1l2l3",
+  "trial": 3,
+  "date": "2026-06-07",
+  "read_mode": "blended",
+  "read_tiers": [],
+  "vault_in": "/tmp/cumn5/vaults/v2-sonnet-t3-l3.l1l2l3",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 6,
+  "round1_score": "12/18",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 3,
+  "round1_feature_fails": 3,
+  "final_score": "16/18",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "8/10",
+  "arch_pass": 8,
+  "stated_conventions": [
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor"
+  ],
+  "convention_statements": 3,
+  "feature_statements": 3,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "hit_max_rounds": false,
+  "build_cost": 2.9026,
+  "build_turns": 37,
+  "tokens": {
+    "input": 40,
+    "output": 94564,
+    "cache_write": 135640,
+    "cache_read": 3248188
+  },
+  "recomputed_cost": 2.9017,
+  "cost_ratio": 1.0,
+  "wall_min": 21.1,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "12/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "1/2",
+        "beta": "2/4"
+      },
+      "arch": "7/10",
+      "convention_fails": 3,
+      "feature_fails": 3,
+      "cost": 1.5791271999999998,
+      "turns": 20,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "16/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "8/10",
+      "convention_fails": 2,
+      "feature_fails": 0,
+      "cost": 1.3234242,
+      "turns": 17,
+      "is_error": false
+    }
+  ],
+  "session_id": "84ac96e4-30b4-4ef6-8519-6431386d1df0",
+  "workdir": "/tmp/cumn5/ws/sonnet-t3-app3-l3.l1l2l3"
+}

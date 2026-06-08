@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "engram_sha": "d1e745f3a32e",
+  "kind": "build",
+  "app": "feeds",
+  "model": "sonnet",
+  "model_id": "claude-sonnet-4-6",
+  "regime": "cold",
+  "trial": 5,
+  "date": "2026-06-07",
+  "read_mode": "none",
+  "read_tiers": [],
+  "vault_in": "/tmp/cumn5/vaults/v2-sonnet-t5-cold",
+  "stub": null,
+  "converged": false,
+  "rounds_to_converge": null,
+  "max_rounds": 6,
+  "round1_score": "16/18",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": true,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": true,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 1,
+  "round1_feature_fails": 1,
+  "final_score": "16/18",
+  "final_buckets": {
+    "native": "1/2",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "9/10",
+  "arch_pass": 9,
+  "stated_conventions": [
+    "tests_fake_parallel"
+  ],
+  "convention_statements": 1,
+  "feature_statements": 1,
+  "recall_fired": 0,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "hit_max_rounds": false,
+  "build_cost": 2.2183,
+  "build_turns": 46,
+  "tokens": {
+    "input": 44,
+    "output": 64001,
+    "cache_write": 95578,
+    "cache_read": 2996334
+  },
+  "recomputed_cost": 2.2175,
+  "cost_ratio": 1.0,
+  "wall_min": 17.2,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "16/18",
+      "feat_buckets": {
+        "native": "1/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 1,
+      "cost": 0.35093045,
+      "turns": 11,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "16/18",
+      "feat_buckets": {
+        "native": "1/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 1,
+      "cost": 1.0499919,
+      "turns": 19,
+      "is_error": false
+    },
+    {
+      "round": 3,
+      "score": "16/18",
+      "feat_buckets": {
+        "native": "1/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 1,
+      "cost": 0.81733035,
+      "turns": 16,
+      "is_error": false
+    }
+  ],
+  "session_id": "acccb512-34d0-4d9d-aeab-265fb2382879",
+  "workdir": "/tmp/cumn5/ws/sonnet-t5-app3-cold"
+}

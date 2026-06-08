@@ -1,0 +1,131 @@
+{
+  "schema_version": 2,
+  "engram_sha": "fd8cc13c1b07",
+  "kind": "build",
+  "app": "feeds",
+  "model": "haiku",
+  "model_id": "claude-haiku-4-5-20251001",
+  "regime": "l2.l2",
+  "trial": 2,
+  "date": "2026-06-07",
+  "read_mode": "tier",
+  "read_tiers": [
+    "L2"
+  ],
+  "vault_in": "/tmp/cumn5/vaults/v2-haiku-t2-l2.l2",
+  "stub": null,
+  "converged": false,
+  "rounds_to_converge": null,
+  "max_rounds": 6,
+  "round1_score": "7/18",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": false,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": true,
+    "wrapped_errors": false,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 4,
+  "round1_feature_fails": 7,
+  "final_score": "9/18",
+  "final_buckets": {
+    "native": "0/2",
+    "alpha": "0/2",
+    "beta": "1/4"
+  },
+  "final_arch": "8/10",
+  "arch_pass": 8,
+  "stated_conventions": [
+    "sentinel",
+    "atomic",
+    "tests_fake_parallel",
+    "wrapped_errors"
+  ],
+  "convention_statements": 4,
+  "feature_statements": 7,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": true,
+  "rate_limited": false,
+  "hit_max_rounds": false,
+  "build_cost": 0.8995,
+  "build_turns": 76,
+  "tokens": {
+    "input": 536,
+    "output": 60597,
+    "cache_write": 89460,
+    "cache_read": 4831790
+  },
+  "recomputed_cost": 0.8985,
+  "cost_ratio": 0.999,
+  "wall_min": 9.5,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "7/18",
+      "feat_buckets": {
+        "native": "0/2",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "6/10",
+      "convention_fails": 4,
+      "feature_fails": 7,
+      "cost": 0.23945490000000003,
+      "turns": 28,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "9/18",
+      "feat_buckets": {
+        "native": "0/2",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "8/10",
+      "convention_fails": 2,
+      "feature_fails": 7,
+      "cost": 0.350482,
+      "turns": 33,
+      "is_error": false
+    },
+    {
+      "round": 3,
+      "score": "9/18",
+      "feat_buckets": {
+        "native": "0/2",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "8/10",
+      "convention_fails": 2,
+      "feature_fails": 7,
+      "cost": 0.15923180000000003,
+      "turns": 10,
+      "is_error": false
+    },
+    {
+      "round": 4,
+      "score": "9/18",
+      "feat_buckets": {
+        "native": "0/2",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "8/10",
+      "convention_fails": 2,
+      "feature_fails": 7,
+      "cost": 0.15036529999999998,
+      "turns": 5,
+      "is_error": false
+    }
+  ],
+  "session_id": "e3e7ae10-1fca-457f-b842-1a3ed2be2564",
+  "workdir": "/tmp/cumn5/ws/haiku-t2-app3-l2.l2"
+}

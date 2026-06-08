@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "engram_sha": "fd8cc13c1b07",
+  "date": "2026-06-07",
+  "models": [
+    "sonnet",
+    "haiku",
+    "opus"
+  ],
+  "model_ids": {
+    "sonnet": "claude-sonnet-4-6",
+    "haiku": "claude-haiku-4-5-20251001",
+    "opus": "claude-opus-4-8"
+  },
+  "trials": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "regimes": [
+    "cold",
+    "l1",
+    "l2.l1l2",
+    "l2.l2",
+    "l3.l1l2l3",
+    "l3.l2l3",
+    "l3.l3"
+  ],
+  "stub": null,
+  "price_sheet_date": "2026-06-02"
+}

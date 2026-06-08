@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "engram_sha": "fd8cc13c1b07",
+  "kind": "build",
+  "app": "feeds",
+  "model": "haiku",
+  "model_id": "claude-haiku-4-5-20251001",
+  "regime": "l3.l3",
+  "trial": 1,
+  "date": "2026-06-07",
+  "read_mode": "tier",
+  "read_tiers": [
+    "L3"
+  ],
+  "vault_in": "/tmp/cumn5/vaults/v2-haiku-t1-l3.l3",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 6,
+  "round1_score": "11/18",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": true,
+    "named_perms": false,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 4,
+  "round1_feature_fails": 3,
+  "final_score": "17/18",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "9/10",
+  "arch_pass": 9,
+  "stated_conventions": [
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor",
+    "named_perms"
+  ],
+  "convention_statements": 4,
+  "feature_statements": 3,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": true,
+  "rate_limited": false,
+  "hit_max_rounds": false,
+  "build_cost": 0.6391,
+  "build_turns": 67,
+  "tokens": {
+    "input": 469,
+    "output": 32231,
+    "cache_write": 60437,
+    "cache_read": 4008878
+  },
+  "recomputed_cost": 0.6381,
+  "cost_ratio": 0.998,
+  "wall_min": 8.4,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "11/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "1/2",
+        "beta": "2/4"
+      },
+      "arch": "6/10",
+      "convention_fails": 4,
+      "feature_fails": 3,
+      "cost": 0.38013165,
+      "turns": 40,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "17/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 0,
+      "cost": 0.25894039999999996,
+      "turns": 27,
+      "is_error": false
+    }
+  ],
+  "session_id": "e5459407-f462-41dd-a922-41ba5a21d7b0",
+  "workdir": "/tmp/cumn5/ws/haiku-t1-app3-l3.l3"
+}
