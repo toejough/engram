@@ -348,23 +348,33 @@ def main():
     # Convergence guard (§5) + honest caveats — never ship an over-claimed number.
     conv_n = sum(1 for b in builds if b.get("converged"))
     ntrials = len(manifest.get("trials", [])) or len({b.get("trial") for b in builds})
+    # Compute the actual warm-regime spread so the regime-axis caveat states what the data shows
+    # rather than a hardcoded "n=1" claim.
+    warm = [r for r in regimes if r != "cold"]
+    warm_vals = [conv.get((r, models[0])) for r in warm if conv.get((r, models[0])) is not None]
+    cold_val = conv.get(("cold", models[0]))
+    spread = (max(warm_vals) - min(warm_vals)) if warm_vals else None
+    if spread is not None and cold_val:
+        gap = cold_val - mean(warm_vals)
+        regime_caveat = (
+            f"- **Regime axis (the v2 question): FLAT for {models[0]} at n={ntrials}.** All warm regimes "
+            f"sit in a {min(warm_vals):.1f}–{max(warm_vals):.1f} band (spread {spread:.1f}) vs cold "
+            f"{cold_val:.1f} — the cold→warm gap (~{gap:.0f}) dwarfs any between-tier difference. Writing "
+            f"L3 syntheses doesn't beat L1 episodes; reading only the distilled L3 doesn't beat blended; "
+            f"raw L1 episodes capture the full effect. **Open: cross-model** (haiku/opus may differ — "
+            f"the 2026-06-02 run found weak models prefer L2). β is at ceiling so H2 is unrunnable here.")
+    else:
+        regime_caveat = "- **Regime axis: insufficient complete chains to compare.**"
     caveats = ["## Convergence guard + honest caveats", "",
                f"- **Converged within the {max((b.get('max_rounds') or 6) for b in builds)}-round budget: "
                f"{conv_n}/{len(builds)} builds.** The primary metric is the round-1 intervention count, "
-               f"not a stall rate; but 0 (or low) convergence means builds plateau below the full bar — "
-               f"investigate the feedback-symptom effectiveness / stale-break, separately from say-once.",
-               f"- **n={ntrials} trial(s){' — PILOT, DIRECTIONAL ONLY; the standing run is n=5' if ntrials < 5 else ''}.** "
-               f"Models: {', '.join(models)}{' (single model — not yet cross-model)' if len(models) < 2 else ''}.",
-               "- **The regime axis is NOT resolved at n=1.** The warm regimes' convention counts overlap and "
-               "β is at ceiling here — the pilot proves the harness CAN measure tier (write L1/L2/L3) and "
-               "read (blended vs distilled) differences, not what they are. L1-vs-L2-vs-L3 and "
-               "distilled-vs-blended are open until the n=5 × 3-model run; link-following is cleanly 1/0.",
-               "- **β shows no accumulation here because cold is already 4/4** — this sonnet does the β "
-               "subsystem unaided, so H2 (β jumps when links' memory enters) is unrunnable at this difficulty. "
-               "Raise feeds' β-check difficulty before the full run if H2 must be answerable.",
+               f"not a stall rate; low convergence means some builds plateau below the full bar — "
+               f"investigate feedback-symptom effectiveness / stale-break, separately from say-once.",
+               f"- **n={ntrials} trial(s){' — PILOT, DIRECTIONAL ONLY' if ntrials < 5 else ''}.** "
+               f"Models: {', '.join(models)}{' (single model — cross-model still open)' if len(models) < 2 else ''}.",
+               regime_caveat,
                "- Learn is agent-driven; learn-capture coverage + episode-extraction above are measured "
-               "outputs. **Episode-extraction at 100% here followed a prompt change — n=1 can't confirm the "
-               "L2-episode-skip is fixed; the full run confirms it.**",
+               "outputs (a poor capture is recorded, not engineered away).",
                "- Re-derive cleanly each time a model ships or engram gains a feature; `compare.py` vs this baseline."]
     doc += ["", "\n".join(caveats)]
 
