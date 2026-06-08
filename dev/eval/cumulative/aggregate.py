@@ -95,6 +95,107 @@ def beta_table(builds, models, regimes):
     return {(r, m): mean(idx.get((r, m), [])) for r in regimes for m in models}
 
 
+WRITE_TIER = {"cold": "none", "l1": "L1", "l2.l1l2": "L2", "l2.l2": "L2",
+              "l3.l1l2l3": "L3", "l3.l2l3": "L3", "l3.l3": "L3"}
+
+
+def _index_runs(builds, learns):
+    """Index results by their OWN fields (never by reconstructed filenames — that bug dropped the
+    shared app1-learn). Returns (build[(m,t,app,regime)], a1learn[(m,t,writetier)],
+    a2learn[(m,t,regime)])."""
+    bmap, a1l, a2l = {}, {}, {}
+    for b in builds:
+        bmap[(b.get("model"), b.get("trial"), b.get("app"), b.get("regime"))] = b
+    for le in learns:
+        reg = str(le.get("regime", ""))
+        key = (le.get("model"), le.get("trial"))
+        if reg.startswith("app1-"):
+            a1l[(key[0], key[1], reg.split("-", 1)[1])] = le   # app1-<tier>
+        else:
+            a2l[(key[0], key[1], reg)] = le
+    return bmap, a1l, a2l
+
+
+def _toks(d):
+    return sum(((d or {}).get("tokens") or {}).values())
+
+
+def chain_rows(builds, learns, model, regime):
+    """Per-trial chain stats for one (model, regime): app1(notes,cold) + app2(links,regime) +
+    app3(feeds,regime) builds, plus the write-tier app1-learn and the app2-learn. Skips trials
+    with any missing build."""
+    bmap, a1l, a2l = _index_runs(builds, learns)
+    wt = WRITE_TIER.get(regime, "none")
+    rows = []
+    for t in sorted({k[1] for k in bmap if k[0] == model}):
+        a1 = bmap.get((model, t, "notes", "cold"))
+        a2 = bmap.get((model, t, "links", regime))
+        a3 = bmap.get((model, t, "feeds", regime))
+        if not all([a1, a2, a3]):
+            continue
+        ln = [x for x in (a1l.get((model, t, wt)), a2l.get((model, t, regime))) if x]
+        builds3 = [a1, a2, a3]
+        rows.append({
+            "conv_restate": sum(x.get("convention_statements", 0) or 0 for x in builds3),
+            "feat_restate": sum(x.get("feature_statements", 0) or 0 for x in builds3),
+            "review_turns": sum(max(0, len(x.get("rounds", [])) - 1) for x in builds3),
+            "converged": all(x.get("converged") for x in builds3),
+            "learn_cost": sum(x.get("learn_cost", 0) or 0 for x in ln),
+            "build_cost": sum(x.get("build_cost", 0) or 0 for x in builds3),
+            "wall": sum((x.get("wall_min", 0) or 0) for x in builds3 + ln),
+            "tokens": sum(_toks(x) for x in builds3 + ln),
+        })
+    return rows
+
+
+def headline_stats_table(builds, learns, models, regimes):
+    """The consolidated cold-vs-warm headline the brief asks for (§5): interventions, time, tokens,
+    $ to the endpoint, per model. 'warm' = mean over the 6 memory regimes."""
+    warm = [r for r in regimes if r != "cold"]
+    lines = ["### Headline stats — to the endpoint (notes→links→feeds chain, mean per trial)", "",
+             "`conv-restate` = convention restatements the human made (the say-once metric, lower=better). "
+             "`review` = feedback rounds. **Memory's win is conv-restate; it does NOT reduce time/tokens/$ "
+             "— recall + richer learn cost more.**", "",
+             "| model | arm | conv-restate | review | converged | wall min | tokens | $ |",
+             "|---|---|--:|--:|--:|--:|--:|--:|"]
+    for m in models:
+        for arm, regs in [("cold", ["cold"]), ("warm", warm)]:
+            rows = [r for reg in regs for r in chain_rows(builds, learns, m, reg)]
+            if not rows:
+                continue
+            cv = 100 * sum(1 for r in rows if r["converged"]) / len(rows)
+            tot = lambda k: mean([r[k] for r in rows])
+            lines.append(f"| {m} | {arm} | {tot('conv_restate'):.1f} | {tot('review_turns'):.1f} | "
+                         f"{cv:.0f}% | {tot('wall'):.0f} | {tot('tokens')/1e6:.1f}M | "
+                         f"{tot('learn_cost')+tot('build_cost'):.2f} |")
+    return "\n".join(lines) + "\n"
+
+
+def per_regime_cost_table(builds, learns, models, regimes):
+    """Per-regime cost/token/convergence breakdown — splits learn$ (write-tier work: L1 episode →
+    L3 +synthesis) from build$ (dominated by convergence round-count). Shows why simpler tiers are
+    only marginally cheaper: the tier payload is real but small; build round-count swamps it."""
+    lines = ["### Cost & convergence by regime (mean per trial) — learn$ vs build$ split",
+             "",
+             "`learn$` rises with write-tier (L1 episode < L2 +facts < L3 +synthesis); `build$` is "
+             "dominated by feedback round-count (convergence), which is tier-insensitive — so total $ "
+             "does not cleanly follow tier simplicity.", ""]
+    for m in models:
+        lines += [f"**{m}**", "",
+                  "| regime | write | learn$ | build$ | total$ | wall | tokens | conv% |",
+                  "|---|---|--:|--:|--:|--:|--:|--:|"]
+        for reg in regimes:
+            rows = chain_rows(builds, learns, m, reg)
+            if not rows:
+                continue
+            ln, bd = mean([r["learn_cost"] for r in rows]), mean([r["build_cost"] for r in rows])
+            cv = 100 * sum(1 for r in rows if r["converged"]) / len(rows)
+            lines.append(f"| `{reg}` | {WRITE_TIER[reg]} | {ln:.2f} | {bd:.2f} | {ln+bd:.2f} | "
+                         f"{mean([r['wall'] for r in rows]):.0f} | {mean([r['tokens'] for r in rows])/1e6:.1f}M | {cv:.0f}% |")
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 def cost_time_table(builds, learns, models, regimes):
     """Total $ and wall-min to the endpoint per (regime, model), mean over trials.
     app1's single cold build + its tier learn are amortized into each chain."""
@@ -323,7 +424,6 @@ def main():
     feat = chain_intervention_table(builds, models, regimes, "feature_statements")
     beta = beta_table(builds, models, regimes)
     followed = per_app_numeric(builds, models, regimes, "feeds", "link_followed")
-    costtime = cost_time_table(builds, learns, models, regimes)
     differential = differential_retention(conv, feat, models, regimes)
 
     stub_note = "  ·  **STUB RUN (no LLM — mechanics only, numbers are not real)**" if manifest.get("stub") else ""
@@ -347,6 +447,7 @@ def main():
            render_table("Convention interventions to endpoint (mean/trial)", conv, models, regimes),
            render_table("Feature interventions — CONTROL (app-specific; nobody carries these)", feat, models, regimes),
            differential_summary(differential, models),
+           headline_stats_table(builds, learns, models, regimes),
            "## Secondary", "",
            render_table("β-bucket on feeds, ROUND 1 /4 (front-loading: does links' memory lift β in the "
                         "first draft? — measured at round 1; β saturates to 4/4 at convergence)",
@@ -354,14 +455,7 @@ def main():
            render_table("Direct-vs-followed on tier-read regimes (mean link-following rate, feeds)",
                         followed, models, regimes, 2),
            native_control_table(builds, models, regimes),
-           "### Cost + time to endpoint (mean $/min per trial)", "",
-           "| regime | " + " | ".join(models) + " |", "|---|" + "|".join(["---:"] * len(models)) + "|"]
-    for r in regimes:
-        cells = []
-        for m in models:
-            c, mn = costtime.get((r, m), (None, None))
-            cells.append(f"{fmt(c,2)} / {fmt(mn,0)}")
-        doc.append(f"| `{r}` | " + " | ".join(cells) + " |")
+           per_regime_cost_table(builds, learns, models, regimes)]
     doc += ["", learn_quality_table(learns, models), "", token_io_table(builds, learns, models, args.root),
             "", cost_calibration(builds, learns)]
 

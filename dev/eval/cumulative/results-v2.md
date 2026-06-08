@@ -42,6 +42,19 @@ The transferable-vs-app-specific GAP is the signal. The feature side is not a pu
 
 **Cross-model: memory is a capability AMPLIFIER, not an equalizer.** The convention reduction grows with model strength (see per-model % above) — memory helps the stronger model more, widening the capability gap, reproducing the 2026-06-02 finding.
 
+### Headline stats — to the endpoint (notes→links→feeds chain, mean per trial)
+
+`conv-restate` = convention restatements the human made (the say-once metric, lower=better). `review` = feedback rounds. **Memory's win is conv-restate; it does NOT reduce time/tokens/$ — recall + richer learn cost more.**
+
+| model | arm | conv-restate | review | converged | wall min | tokens | $ |
+|---|---|--:|--:|--:|--:|--:|--:|
+| sonnet | cold | 18.8 | 3.2 | 80% | 33 | 3.8M | 4.05 |
+| sonnet | warm | 9.7 | 3.3 | 77% | 57 | 15.1M | 9.13 |
+| haiku | cold | 18.2 | 7.4 | 0% | 20 | 13.4M | 2.24 |
+| haiku | warm | 12.9 | 7.6 | 7% | 24 | 17.8M | 2.79 |
+| opus | cold | 19.8 | 3.8 | 60% | 19 | 2.9M | 4.71 |
+| opus | warm | 9.2 | 3.1 | 97% | 24 | 6.2M | 7.44 |
+
 ## Secondary
 
 ### β-bucket on feeds, ROUND 1 /4 (front-loading: does links' memory lift β in the first draft? — measured at round 1; β saturates to 4/4 at convergence)
@@ -82,17 +95,47 @@ feeds round-1 NATIVE-bucket pass count (the feed-specific features no prior app 
 | `l3.l2l3` | 2.00 | 0.60 | 1.60 |
 | `l3.l3` | 1.60 | 1.00 | 2.00 |
 
-### Cost + time to endpoint (mean $/min per trial)
+### Cost & convergence by regime (mean per trial) — learn$ vs build$ split
 
-| regime | sonnet | haiku | opus |
-|---|---:|---:|---:|
-| `cold` | 6.77 / 33 | 2.70 / 20 | 7.69 / 19 |
-| `l1` | 11.33 / 46 | 2.87 / 20 | 9.27 / 22 |
-| `l2.l1l2` | 10.27 / 38 | 3.15 / 22 | 9.07 / 20 |
-| `l2.l2` | 10.88 / 44 | 3.39 / 23 | 8.70 / 19 |
-| `l3.l1l2l3` | 10.03 / 38 | 3.02 / 21 | 10.91 / 22 |
-| `l3.l2l3` | 10.38 / 38 | 3.01 / 24 | 9.02 / 19 |
-| `l3.l3` | 12.51 / 53 | 3.01 / 22 | 8.93 / 19 |
+`learn$` rises with write-tier (L1 episode < L2 +facts < L3 +synthesis); `build$` is dominated by feedback round-count (convergence), which is tier-insensitive — so total $ does not cleanly follow tier simplicity.
+
+**sonnet**
+
+| regime | write | learn$ | build$ | total$ | wall | tokens | conv% |
+|---|---|--:|--:|--:|--:|--:|--:|
+| `cold` | none | 0.00 | 4.05 | 4.05 | 33 | 3.8M | 80% |
+| `l1` | L1 | 2.16 | 7.23 | 9.39 | 58 | 16.5M | 60% |
+| `l2.l1l2` | L2 | 2.24 | 6.19 | 8.44 | 52 | 13.8M | 80% |
+| `l2.l2` | L2 | 1.74 | 7.31 | 9.05 | 56 | 15.0M | 80% |
+| `l3.l1l2l3` | L3 | 2.64 | 5.71 | 8.35 | 54 | 13.0M | 100% |
+| `l3.l2l3` | L3 | 2.61 | 6.08 | 8.69 | 53 | 14.3M | 100% |
+| `l3.l3` | L3 | 2.31 | 8.52 | 10.83 | 68 | 17.9M | 40% |
+
+**haiku**
+
+| regime | write | learn$ | build$ | total$ | wall | tokens | conv% |
+|---|---|--:|--:|--:|--:|--:|--:|
+| `cold` | none | 0.00 | 2.24 | 2.24 | 20 | 13.4M | 0% |
+| `l1` | L1 | 0.11 | 2.41 | 2.52 | 21 | 15.9M | 20% |
+| `l2.l1l2` | L2 | 0.16 | 2.70 | 2.85 | 24 | 18.4M | 0% |
+| `l2.l2` | L2 | 0.16 | 2.94 | 3.09 | 25 | 20.2M | 0% |
+| `l3.l1l2l3` | L3 | 0.19 | 2.57 | 2.76 | 23 | 17.5M | 20% |
+| `l3.l2l3` | L3 | 0.19 | 2.55 | 2.74 | 26 | 17.3M | 0% |
+| `l3.l3` | L3 | 0.19 | 2.55 | 2.74 | 24 | 17.2M | 0% |
+
+**opus**
+
+| regime | write | learn$ | build$ | total$ | wall | tokens | conv% |
+|---|---|--:|--:|--:|--:|--:|--:|
+| `cold` | none | 0.00 | 4.71 | 4.71 | 19 | 2.9M | 60% |
+| `l1` | L1 | 0.73 | 6.29 | 7.02 | 24 | 5.7M | 100% |
+| `l2.l1l2` | L2 | 0.86 | 6.09 | 6.94 | 22 | 5.6M | 100% |
+| `l2.l2` | L2 | 0.86 | 5.72 | 6.58 | 22 | 5.3M | 100% |
+| `l3.l1l2l3` | L3 | 1.76 | 7.56 | 9.32 | 28 | 8.5M | 100% |
+| `l3.l2l3` | L3 | 1.79 | 5.64 | 7.43 | 26 | 5.9M | 80% |
+| `l3.l3` | L3 | 1.84 | 5.50 | 7.34 | 25 | 5.9M | 100% |
+
+
 
 ### Learn-capture quality (did the agent persist what matters, per tier)
 
