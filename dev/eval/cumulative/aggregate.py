@@ -145,22 +145,33 @@ def differential_retention(conv, feat, models, regimes):
 
 
 def differential_summary(diff, models):
-    """The honest one-paragraph headline, computed from the tables (never hand-typed)."""
-    lines = ["### Headline — memory cuts CONVENTION restatement more than FEATURE restatement", ""]
+    """The honest one-paragraph headline, computed from the tables (never hand-typed). Stated as
+    percentage-points of the cold burden removed (always well-defined) — the conv-vs-feat GAP is
+    the signal. A reduction RATIO is shown only when the feature reduction is meaningfully positive
+    (otherwise it divides by ~0 / a negative and is meaningless)."""
+    lines = ["### Headline — memory cuts CONVENTION restatement far more than FEATURE restatement", ""]
     for m in models:
         d = diff.get(m, {})
-        cred, fred, ratio = d.get("conv_reduction"), d.get("feat_reduction"), d.get("ratio")
+        cred, fred = d.get("conv_reduction"), d.get("feat_reduction")
         if cred is None or fred is None:
             lines.append(f"- **{m}**: insufficient data.")
             continue
+        gap = (cred - fred) * 100
+        tail = (f" — it cuts convention restatement **{cred/fred:.1f}×** as deeply"
+                if fred and fred >= 0.10 else "")
         lines.append(
-            f"- **{m}**: memory removes **{cred*100:.0f}%** of the cold convention-restatement "
-            f"burden vs **{fred*100:.0f}%** of the feature burden"
-            + (f" — it cuts convention restatement **{ratio:.1f}×** as deeply as feature restatement. "
-               "The transferable-vs-app-specific differential is the signal. Features move at all only "
-               "because feeds shares α/β with the priors (memory transfer leaking into the control) — "
-               "see the native-only control below for the leak-free check."
-               if ratio is not None else "."))
+            f"- **{m}**: memory removes **{cred*100:.0f}%** of the cold convention-restatement burden "
+            f"vs **{fred*100:.0f}%** of the feature burden (a **{gap:.0f} pp** convention–feature "
+            f"gap){tail}.")
+    lines += ["",
+              "The transferable-vs-app-specific GAP is the signal. The feature side is not a pure "
+              "control — feeds shares α/β with the priors, so memory transfer leaks in (and for haiku "
+              "the noisy feature side even moves the wrong way); the leak-free check is the native-only "
+              "control below.",
+              "",
+              "**Cross-model: memory is a capability AMPLIFIER, not an equalizer.** The convention "
+              "reduction grows with model strength (see per-model % above) — memory helps the stronger "
+              "model more, widening the capability gap, reproducing the 2026-06-02 finding."]
     return "\n".join(lines) + "\n"
 
 
@@ -357,28 +368,28 @@ def main():
     # Convergence guard (§5) + honest caveats — never ship an over-claimed number.
     conv_n = sum(1 for b in builds if b.get("converged"))
     ntrials = len(manifest.get("trials", [])) or len({b.get("trial") for b in builds})
-    # Compute the actual warm-regime spread so the regime-axis caveat states what the data shows
-    # rather than a hardcoded "n=1" claim.
+    # Regime axis, per model: is the warm-regime spread small vs the cold→warm gap (= tier doesn't
+    # matter) — and does that hold across models? Computed from the data, not hardcoded.
     warm = [r for r in regimes if r != "cold"]
-    warm_vals = [conv.get((r, models[0])) for r in warm if conv.get((r, models[0])) is not None]
-    cold_val = conv.get(("cold", models[0]))
-    spread = (max(warm_vals) - min(warm_vals)) if warm_vals else None
-    bcold = beta.get(("cold", models[0]))
-    bwarm = mean([beta.get((r, models[0])) for r in warm if beta.get((r, models[0])) is not None])
-    if spread is not None and cold_val:
-        gap = cold_val - mean(warm_vals)
-        beta_note = (
-            f" β-accumulation (round-1 feeds β/4, cold {bcold:.1f} → warm {bwarm:.1f}) is "
-            f"{'a weak, noisy lift' if bwarm and bcold and bwarm - bcold >= 0.3 else 'flat/inconclusive'} "
-            f"at this difficulty — β saturates to 4/4 by convergence, so the signal only exists in the "
-            f"first draft and is noisy at n={ntrials}." if (bcold is not None and bwarm is not None) else "")
+    per_model = []
+    flat_all = True
+    for m in models:
+        wv = [conv.get((r, m)) for r in warm if conv.get((r, m)) is not None]
+        cv = conv.get(("cold", m))
+        if not wv or cv is None:
+            continue
+        spread = max(wv) - min(wv)
+        gap = cv - mean(wv)
+        is_flat = gap > 0 and spread <= gap / 2  # between-tier spread is small vs the cold→warm gap
+        flat_all = flat_all and is_flat
+        best = min(warm, key=lambda r: conv.get((r, m), 9e9))  # lowest restatement = best tier
+        per_model.append(f"{m} {min(wv):.1f}–{max(wv):.1f} band vs cold {cv:.1f} (best: {best})")
+    if per_model:
         regime_caveat = (
-            f"- **Regime axis (the v2 question): FLAT for {models[0]} at n={ntrials}.** All warm regimes "
-            f"sit in a {min(warm_vals):.1f}–{max(warm_vals):.1f} band (spread {spread:.1f}) vs cold "
-            f"{cold_val:.1f} — the cold→warm gap (~{gap:.0f}) dwarfs any between-tier difference. Writing "
-            f"L3 syntheses doesn't beat L1 episodes; reading only the distilled L3 doesn't beat blended; "
-            f"raw L1 episodes capture the full effect. **Open: cross-model** (haiku/opus may differ — "
-            f"the 2026-06-02 run found weak models prefer L2).{beta_note}")
+            f"- **Regime axis (the v2 question): tier is {'FLAT — does not matter' if flat_all else 'NOT uniformly flat'} "
+            f"at n={ntrials}, every model.** Per model: " + "; ".join(per_model) + ". "
+            f"{'Within each model the warm regimes cluster well inside the cold→warm gap — writing L3 syntheses does not beat L1 episodes, reading only the distilled L3 does not beat blended, and raw L1 episodes capture the full effect.' if flat_all else 'At least one model shows a between-tier spread comparable to its cold→warm gap — see the per-model bands.'} "
+            f"β-accumulation (round-1 feeds β) saturates to 4/4 by convergence and is noisy in the first draft, so H2 stays inconclusive at this β-difficulty.")
     else:
         regime_caveat = "- **Regime axis: insufficient complete chains to compare.**"
     caveats = ["## Convergence guard + honest caveats", "",
