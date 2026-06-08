@@ -247,7 +247,7 @@ def main():
     ap.add_argument("--budget", type=float, default=1500.0)
     ap.add_argument("--timeout-min", type=int, default=45)
     ap.add_argument("--date", default=datetime.date.today().isoformat())
-    ap.add_argument("--max-rounds", type=int, default=6)
+    ap.add_argument("--max-rounds", type=int, default=15)  # high safety cap; escalation drives completion
     ap.add_argument("--stub", default="", choices=["", "good", "naive"])
     args = ap.parse_args()
 

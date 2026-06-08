@@ -144,12 +144,71 @@ def build_prompt(app, interface, read_mode, read_tiers):
             "When done give a one-line summary.")
 
 
-def feedback_prompt(failed):
-    """States ALL gaps — convention and feature alike (it is fair to tell the model what you
-    want; §4). The harness LABELS and counts them separately; it never strips convention gaps."""
-    lines = "\n".join(f"- {sym}" for _, sym in failed)
+# Prescriptive, code-level fix per ARCH detector — used to ESCALATE feedback on a convention that
+# a (usually weak) model keeps failing. It is fair to tell the model exactly what to write (§4);
+# the say-once metric is round-1-based, so escalation in later rounds never changes it — it only
+# drives the app to completion so the chain (learn → transfer) is valid.
+ARCH_PRESCRIPTIONS = {
+    "di": "Define a storage interface (e.g. `type Store interface { Load() ([]T, error); Save([]T) error }`) "
+          "and pass it INTO your command logic as a parameter. Command handlers must call the interface, "
+          "never os.ReadFile/os.WriteFile directly — so a test can pass an in-memory fake.",
+    "sentinel": "Declare a package-level sentinel: `var ErrNotFound = errors.New(\"not found\")`. Return it "
+                "wrapped (`fmt.Errorf(\"...: %w\", ErrNotFound)`) when an item isn't found, and detect it "
+                "with `errors.Is(err, ErrNotFound)`.",
+    "atomic": "Make saves crash-safe: write to a temp file (`os.CreateTemp(dir, ...)`), then `os.Rename` it "
+              "over the real file. Never write the target file in place.",
+    "stdlib": "Use only the Go standard library — remove every third-party `require` from go.mod and the imports.",
+    "tests_fake_parallel": "Add `t.Parallel()` to every test, and write an in-memory implementation of your "
+                           "storage interface (a struct holding a slice) to drive the tests — tests must not "
+                           "touch real files.",
+    "json": "Add a `--json` flag to list/get and encode the output with `json.NewEncoder(os.Stdout).Encode(v)`.",
+    "nocolor": "Before emitting any ANSI color, check `os.Getenv(\"NO_COLOR\")` and whether stdout is a TTY; "
+               "when NO_COLOR is set or stdout isn't a terminal, print with zero escape codes.",
+    "wrapped_errors": "Wrap every returned error with context: `return fmt.Errorf(\"doing X: %w\", err)` — never "
+                      "`return err` bare.",
+    "named_perms": "Replace bare octal file-mode literals with named constants: "
+                   "`const filePerm os.FileMode = 0o600` (and `dirPerm = 0o750`), and pass those.",
+    "no_global_data": "Remove package-level mutable vars (e.g. `var items []T`). Hold that state in a struct you "
+                      "construct and pass; no global mutable state.",
+}
+
+
+def _spec_check_detail(spec, name):
+    """For a failed behavioral check, return a concrete 'run X, expect Y' instruction from the spec's
+    own steps — the escalation for a feature gap (tell it the exact command + expected result)."""
+    for c in spec.get("checks", []):
+        if c["name"] != name:
+            continue
+        steps = c.get("steps") or (c.get("variants") or [[]])[0]
+        seq = " ; ".join(f"`{c.get('app','app')} " + " ".join(s["argv"]) + "`" for s in steps if s.get("argv"))
+        want = next((s["assert"] for s in steps if s.get("assert")), "")
+        return f"Concretely: run {seq} and it must satisfy `{want}`."
+    return ""
+
+
+def feedback_prompt(failed, stated_counts=None, spec=None):
+    """States ALL gaps (convention + feature; fair to tell the model what you want, §4), and
+    ESCALATES granularity for any item that has already been stated before (stuck): first as a
+    user-symptom, then with the literal code-level fix. stated_counts maps label -> #times already
+    fed back; spec supplies the behavioral 'run X expect Y' detail. The harness counts conventions
+    at round 1 only, so escalation never inflates the say-once metric — it just forces completion."""
+    stated_counts = stated_counts or {}
+    spec = spec or {}
+    lines = []
+    for label, sym in failed:
+        stuck = stated_counts.get(label, 0)
+        line = f"- {sym}"
+        if stuck >= 1:  # already told once and still failing — escalate to the concrete fix
+            if label.startswith("ARCH:"):
+                presc = ARCH_PRESCRIPTIONS.get(label[len("ARCH:"):])
+            else:
+                presc = _spec_check_detail(spec, label.split(":", 1)[-1])
+            if presc:
+                line += f"\n  → STILL NOT DONE (told you {stuck}× already). Do exactly this: {presc}"
+        lines.append(line)
+    body = "\n".join(lines)
     return ("Thanks — it builds, but a few things aren't right yet. Here's what I'm seeing as a user:\n"
-            f"{lines}\n\nPlease address these. Keep `go test ./...` and `go vet ./...` passing. Edit the "
+            f"{body}\n\nAddress every item. Keep `go test ./...` and `go vet ./...` passing. Edit the "
             "files directly; short summary when done.")
 
 
@@ -569,13 +628,25 @@ def run_build(args):
     round1_feat_fails = len(feat)
 
     stated = list(conv_labels(sc.get("failed", [])))  # cumulative, for the learn prompt
+    spec = json.load(open(args.spec))
 
-    rnd, stale, prev = 1, 0, passed_of(sc)
-    while not converged(sc) and rnd < args.max_rounds and sc.get("build") == "ok":
+    # DRIVE TO COMPLETION. No stale-break / round-cap give-up — the chain's premise is that each
+    # app is built to completion before its memory is learned and the next app recalls it (a
+    # half-built prior teaches half a lesson). When an item stays stuck, ESCALATE the feedback's
+    # granularity (symptom → literal code-level fix); a real reviewer does this, and it is fair to
+    # tell the model exactly what to write. stated_counts drives the escalation; it does NOT touch
+    # the say-once metric (round-1 based). args.max_rounds is now a high safety cap, not a target.
+    from collections import defaultdict
+    stated_counts = defaultdict(int)
+    rnd = 1
+    # stub builds are deterministic (re-copy the same fixture), so the feedback loop is a no-op —
+    # one round suffices to validate wiring/threading/schema without burning the time budget.
+    while not args.stub and not converged(sc) and rnd < args.max_rounds and sc.get("build") == "ok":
         rnd += 1
-        # Deliver the reviewer's feedback (the failed items' user-symptoms) on resume — THIS is
-        # the convergence loop. (The build prompt only goes out at round 1.)
-        res = do_build(feedback_prompt(sc["failed"]), resume_sid=sid) if not args.stub else _stub_build(args)
+        fb = feedback_prompt(sc["failed"], stated_counts, spec)
+        for lbl, _ in sc["failed"]:
+            stated_counts[lbl] += 1   # this convention/feature has now been stated once more
+        res = do_build(fb, resume_sid=sid) if not args.stub else _stub_build(args)
         errored = bool(res.get("is_error"))
         sc = scoremod.score(args.workdir, args.spec)
         conv, feat = split_failed(sc.get("failed", []))
@@ -586,13 +657,11 @@ def run_build(args):
         if errored:
             rate_limited = True  # built at round 1 but a resume hit the limit — result kept, flagged
             break
-        cur = passed_of(sc)
-        if cur <= prev:
-            stale += 1
-        else:
-            stale, prev = 0, cur
-        if stale >= 2:  # plateau — feedback isn't moving the needle
-            break
+
+    completed = converged(sc)
+    if not completed and not rate_limited and sc.get("build") == "ok":
+        print(f"WARN: {args.app} {args.regime} did NOT converge in {rnd} rounds "
+              f"(escalated feedback exhausted the safety cap) — flagged did_not_complete.", file=sys.stderr)
 
     rf = 0 if (regime["read_mode"] == "none" or args.stub) else recall_fired(args.cfg, sid)
     recall_ok = regime["read_mode"] == "none" or bool(args.stub) or rf > 0
@@ -617,7 +686,9 @@ def run_build(args):
         "stated_conventions": stated, "convention_statements": round1_conv_fails,
         "feature_statements": round1_feat_fails,
         "recall_fired": rf, "recall_ok": recall_ok, "link_followed": followed,
-        "rate_limited": rate_limited, "hit_max_rounds": len(rounds) >= args.max_rounds,
+        "rate_limited": rate_limited, "completed": completed,
+        "did_not_complete": (not completed and not rate_limited and sc.get("build") == "ok"),
+        "hit_max_rounds": len(rounds) >= args.max_rounds, "total_rounds": len(rounds),
         "build_cost": build_cost,
         "build_turns": sum(r["turns"] for r in rounds),
         "tokens": audit["tokens"], "recomputed_cost": audit["recomputed_cost"],
@@ -760,7 +831,7 @@ def main():
         b.add_argument("--" + a, required=True)
     b.add_argument("--trial", type=int, default=1)
     b.add_argument("--date", default="")
-    b.add_argument("--max-rounds", type=int, default=6)
+    b.add_argument("--max-rounds", type=int, default=15)  # high safety cap; escalation drives completion
     b.add_argument("--stub", default="", choices=["", "good", "naive"])
 
     le = sub.add_parser("learn")
