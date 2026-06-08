@@ -663,6 +663,23 @@ def run_build(args):
         print(f"WARN: {args.app} {args.regime} did NOT converge in {rnd} rounds "
               f"(escalated feedback exhausted the safety cap) — flagged did_not_complete.", file=sys.stderr)
 
+    # Escalation depth — how granular the human feedback had to get before convergence (§5 signal).
+    # stated_counts[label] = #rounds an item was fed back; feedback escalates to the literal
+    # code-level fix once an item has been stated >=1 time already (so depth>=2 = needed
+    # prescriptive hand-holding; depth 1 = fixed on the symptom alone; depth 0 = right in round 1).
+    # Split convention vs feature, since "how hard to teach the conventions" is the load-bearing one.
+    esc = dict(stated_counts)
+    conv_esc = {k[len("ARCH:"):]: v for k, v in esc.items() if k.startswith("ARCH:")}
+    feat_esc = {k: v for k, v in esc.items() if not k.startswith("ARCH:")}
+    escalation = {
+        "by_label": esc,                                        # full per-item statement counts
+        "max_depth": max(esc.values(), default=0),              # deepest hand-holding any item needed
+        "max_convention_depth": max(conv_esc.values(), default=0),
+        "items_escalated": sum(1 for v in esc.values() if v >= 2),       # needed the prescriptive fix
+        "conventions_escalated": sum(1 for v in conv_esc.values() if v >= 2),
+        "features_escalated": sum(1 for v in feat_esc.values() if v >= 2),
+    }
+
     rf = 0 if (regime["read_mode"] == "none" or args.stub) else recall_fired(args.cfg, sid)
     recall_ok = regime["read_mode"] == "none" or bool(args.stub) or rf > 0
     followed = False if args.stub else (regime["read_mode"] == "tier" and link_followed(args.cfg, sid))
@@ -689,6 +706,7 @@ def run_build(args):
         "rate_limited": rate_limited, "completed": completed,
         "did_not_complete": (not completed and not rate_limited and sc.get("build") == "ok"),
         "hit_max_rounds": len(rounds) >= args.max_rounds, "total_rounds": len(rounds),
+        "escalation": escalation,
         "build_cost": build_cost,
         "build_turns": sum(r["turns"] for r in rounds),
         "tokens": audit["tokens"], "recomputed_cost": audit["recomputed_cost"],

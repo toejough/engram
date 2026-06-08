@@ -386,6 +386,35 @@ def token_io_table(builds, learns, models, root):
     return "\n".join(lines) + "\n"
 
 
+def escalation_table(builds, models):
+    """How granular the human feedback had to get before the build converged (§5 signal).
+    depth = #times an item was restated; escalation kicks in at depth≥2 (the literal code-level
+    fix). A strong model converges on the symptom (low depth); a weak one needs the prescription.
+    Reported per (model, app): median max-convention-depth + mean #conventions that needed the
+    prescriptive fix — over builds that completed (escalation on a stalled build is censored)."""
+    by = collections.defaultdict(lambda: {"depth": [], "nesc": []})
+    for b in builds:
+        if not b.get("completed"):
+            continue
+        e = b.get("escalation") or {}
+        by[(b.get("model"), b.get("app"))]["depth"].append(e.get("max_convention_depth", 0))
+        by[(b.get("model"), b.get("app"))]["nesc"].append(e.get("conventions_escalated", 0))
+    lines = ["### Feedback escalation depth — how granular before convergence (completed builds)", "",
+             "`conv-depth` = median max times a *convention* was restated before it stuck "
+             "(1 = fixed on the symptom; ≥2 = needed the literal code-level prescription). "
+             "`#presc` = mean conventions per build that needed the prescriptive fix. "
+             "Higher = more hand-holding — expected to fall as model strength rises.", "",
+             "| model | app | conv-depth (median) | #presc (mean) |",
+             "|---|---|--:|--:|"]
+    for m in models:
+        for app in ["notes", "links", "feeds"]:
+            d = by.get((m, app))
+            if not d or not d["depth"]:
+                continue
+            lines.append(f"| {m} | {app} | {fmt(mean(d['depth']),1)} | {fmt(mean(d['nesc']),1)} |")
+    return "\n".join(lines) + "\n"
+
+
 def cost_calibration(builds, learns):
     """Per-operation cost (build vs learn, by app, by model) for grounding the full-run
     spend estimate — builds are multi-round, learns single (advisor §4)."""
@@ -456,8 +485,8 @@ def main():
                         followed, models, regimes, 2),
            native_control_table(builds, models, regimes),
            per_regime_cost_table(builds, learns, models, regimes)]
-    doc += ["", learn_quality_table(learns, models), "", token_io_table(builds, learns, models, args.root),
-            "", cost_calibration(builds, learns)]
+    doc += ["", learn_quality_table(learns, models), "", escalation_table(builds, models),
+            "", token_io_table(builds, learns, models, args.root), "", cost_calibration(builds, learns)]
 
     # Convergence guard (§5) + honest caveats — never ship an over-claimed number.
     conv_n = sum(1 for b in builds if b.get("converged"))
