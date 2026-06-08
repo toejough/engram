@@ -38,17 +38,17 @@ Chain-summed conventions the human had to STATE (app1+app2+app3). Prediction: me
 
 ## Secondary
 
-### β-bucket on feeds (does β transfer once links' memory is present)
+### β-bucket on feeds, ROUND 1 /4 (front-loading: does links' memory lift β in the first draft? — measured at round 1; β saturates to 4/4 at convergence)
 
 | regime | sonnet |
 |---|---:|
-| `cold` | 4.00 |
-| `l1` | 4.00 |
-| `l2.l1l2` | 4.00 |
-| `l2.l2` | 4.00 |
-| `l3.l1l2l3` | 4.00 |
-| `l3.l2l3` | 4.00 |
-| `l3.l3` | 4.00 |
+| `cold` | 2.40 |
+| `l1` | 3.40 |
+| `l2.l1l2` | 2.40 |
+| `l2.l2` | 1.80 |
+| `l3.l1l2l3` | 2.80 |
+| `l3.l2l3` | 2.60 |
+| `l3.l3` | 2.40 |
 
 ### Direct-vs-followed on tier-read regimes (mean link-following rate, feeds)
 
@@ -123,6 +123,6 @@ Reconstructing $ from token counts × the price sheet reproduces the CLI's repor
 
 - **Converged within the 6-round budget: 66/75 builds.** The primary metric is the round-1 intervention count, not a stall rate; low convergence means some builds plateau below the full bar — investigate feedback-symptom effectiveness / stale-break, separately from say-once.
 - **n=5 trial(s).** Models: sonnet (single model — cross-model still open).
-- **Regime axis (the v2 question): FLAT for sonnet at n=5.** All warm regimes sit in a 9.4–10.0 band (spread 0.6) vs cold 18.8 — the cold→warm gap (~9) dwarfs any between-tier difference. Writing L3 syntheses doesn't beat L1 episodes; reading only the distilled L3 doesn't beat blended; raw L1 episodes capture the full effect. **Open: cross-model** (haiku/opus may differ — the 2026-06-02 run found weak models prefer L2). β is at ceiling so H2 is unrunnable here.
+- **Regime axis (the v2 question): FLAT for sonnet at n=5.** All warm regimes sit in a 9.4–10.0 band (spread 0.6) vs cold 18.8 — the cold→warm gap (~9) dwarfs any between-tier difference. Writing L3 syntheses doesn't beat L1 episodes; reading only the distilled L3 doesn't beat blended; raw L1 episodes capture the full effect. **Open: cross-model** (haiku/opus may differ — the 2026-06-02 run found weak models prefer L2). β-accumulation (round-1 feeds β/4, cold 2.4 → warm 2.6) is flat/inconclusive at this difficulty — β saturates to 4/4 by convergence, so the signal only exists in the first draft and is noisy at n=5.
 - Learn is agent-driven; learn-capture coverage + episode-extraction above are measured outputs (a poor capture is recorded, not engineered away).
 - Re-derive cleanly each time a model ships or engram gains a feature; `compare.py` vs this baseline.

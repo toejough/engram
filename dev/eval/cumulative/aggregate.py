@@ -81,10 +81,17 @@ def per_app_numeric(builds, models, regimes, app, key):
 
 
 def beta_table(builds, models, regimes):
+    """β-bucket accumulation is the localized FRONT-LOADING test (§5): does links' memory lift
+    feeds' β in the FIRST draft? It must be read at ROUND 1 — at convergence every arm saturates
+    to 4/4 (feedback drives β up regardless of memory), which would falsely show 'no accumulation'.
+    Round-1 buckets live in rounds[0].feat_buckets."""
     idx = collections.defaultdict(list)
     for b in builds:
-        if b.get("app") == "feeds":
-            idx[(b.get("regime"), b.get("model"))].append(_bucket_num((b.get("final_buckets") or {}).get("beta")))
+        if b.get("app") != "feeds":
+            continue
+        rounds = b.get("rounds") or []
+        r1 = (rounds[0].get("feat_buckets") if rounds else None) or {}
+        idx[(b.get("regime"), b.get("model"))].append(_bucket_num(r1.get("beta")))
     return {(r, m): mean(idx.get((r, m), [])) for r in regimes for m in models}
 
 
@@ -330,7 +337,9 @@ def main():
            render_table("Feature interventions — CONTROL (app-specific; nobody carries these)", feat, models, regimes),
            differential_summary(differential, models),
            "## Secondary", "",
-           render_table("β-bucket on feeds (does β transfer once links' memory is present)", beta, models, regimes, 2),
+           render_table("β-bucket on feeds, ROUND 1 /4 (front-loading: does links' memory lift β in the "
+                        "first draft? — measured at round 1; β saturates to 4/4 at convergence)",
+                        beta, models, regimes, 2),
            render_table("Direct-vs-followed on tier-read regimes (mean link-following rate, feeds)",
                         followed, models, regimes, 2),
            native_control_table(builds, models, regimes),
@@ -354,15 +363,22 @@ def main():
     warm_vals = [conv.get((r, models[0])) for r in warm if conv.get((r, models[0])) is not None]
     cold_val = conv.get(("cold", models[0]))
     spread = (max(warm_vals) - min(warm_vals)) if warm_vals else None
+    bcold = beta.get(("cold", models[0]))
+    bwarm = mean([beta.get((r, models[0])) for r in warm if beta.get((r, models[0])) is not None])
     if spread is not None and cold_val:
         gap = cold_val - mean(warm_vals)
+        beta_note = (
+            f" β-accumulation (round-1 feeds β/4, cold {bcold:.1f} → warm {bwarm:.1f}) is "
+            f"{'a weak, noisy lift' if bwarm and bcold and bwarm - bcold >= 0.3 else 'flat/inconclusive'} "
+            f"at this difficulty — β saturates to 4/4 by convergence, so the signal only exists in the "
+            f"first draft and is noisy at n={ntrials}." if (bcold is not None and bwarm is not None) else "")
         regime_caveat = (
             f"- **Regime axis (the v2 question): FLAT for {models[0]} at n={ntrials}.** All warm regimes "
             f"sit in a {min(warm_vals):.1f}–{max(warm_vals):.1f} band (spread {spread:.1f}) vs cold "
             f"{cold_val:.1f} — the cold→warm gap (~{gap:.0f}) dwarfs any between-tier difference. Writing "
             f"L3 syntheses doesn't beat L1 episodes; reading only the distilled L3 doesn't beat blended; "
             f"raw L1 episodes capture the full effect. **Open: cross-model** (haiku/opus may differ — "
-            f"the 2026-06-02 run found weak models prefer L2). β is at ceiling so H2 is unrunnable here.")
+            f"the 2026-06-02 run found weak models prefer L2).{beta_note}")
     else:
         regime_caveat = "- **Regime axis: insufficient complete chains to compare.**"
     caveats = ["## Convergence guard + honest caveats", "",
