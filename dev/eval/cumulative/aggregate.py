@@ -393,6 +393,95 @@ def token_io_table(builds, learns, models, root):
     return "\n".join(lines) + "\n"
 
 
+def full_matrix_tables(builds, learns, models, regimes):
+    """The full matrix: per app, a (model × regime) × 6-metric grid of MEDIANS, best-per-
+    (model,metric) bolded. app1 (notes) is built cold ONCE per (model,trial) and shared across
+    regimes — it varies only by the write-tier its memory is learned at — so app1 is shown by
+    write-tier (none/L1/L2/L3), not by all 7 regimes. app2/app3 use the full regime set.
+    Metrics: human turns (feedback rounds), prescriptiveness (max convention escalation depth),
+    turns-to-converge (median rounds among COMPLETED builds; — if none), cost$, tokens, time(min).
+    Cost/tokens/time include that app-position's learn (app1→write-tier learn, app2→regime learn,
+    app3 terminal). Resource metrics are over ALL builds (incl. capped non-converged), so a † marks
+    a cell where <60% of builds completed — its turns/cost run high because they didn't finish."""
+    bmap, a1l, a2l = _index_runs(builds, learns)
+    write_of = {"cold": "none", "l1": "L1", "l2.l1l2": "L2", "l2.l2": "L2",
+                "l3.l1l2l3": "L3", "l3.l2l3": "L3", "l3.l3": "L3"}
+
+    def cell(model, app, reg):
+        fb, presc, conv, cost, tok, wall, ncomp, n = [], [], [], [], [], [], 0, 0
+        for t in range(1, 6):
+            b = bmap.get((model, t, app, "cold" if app == "notes" else reg))
+            if not b:
+                continue
+            n += 1
+            nr = len(b.get("rounds", []))
+            fb.append(nr - 1)
+            presc.append((b.get("escalation") or {}).get("max_convention_depth", 0))
+            if b.get("completed"):
+                conv.append(nr); ncomp += 1
+            ln = a1l.get((model, t, write_of[reg])) if app == "notes" else (
+                a2l.get((model, t, reg)) if app == "links" else None)
+            cost.append((b.get("build_cost", 0) or 0) + ((ln or {}).get("learn_cost", 0) or 0))
+            tok.append(_toks(b) + _toks(ln))
+            wall.append((b.get("wall_min", 0) or 0) + ((ln or {}).get("wall_min", 0) or 0))
+        return {"fb": mean_med(fb), "presc": mean_med(presc), "conv": mean_med(conv),
+                "cost": mean_med(cost), "tok": mean_med(tok), "wall": mean_med(wall),
+                "low_complete": n > 0 and ncomp / n < 0.6}
+
+    metrics = [("fb", "human turns", 0), ("presc", "prescript", 0), ("conv", "→converge", 0),
+               ("cost", "cost $", 2), ("tok", "tokens", None), ("wall", "time min", 0)]
+
+    def fmt_val(key, v, nd):
+        if v is None:
+            return "—"
+        if key == "tok":
+            return f"{v/1e6:.1f}M"
+        return f"{v:.{nd}f}"
+
+    out = []
+    for app, label, rset in [
+            ("notes", "app1 · notes (cold build shared per model; row = write-tier of its learn)",
+             ["none", "L1", "L2", "L3"]),
+            ("links", "app2 · links (recall under regime)", regimes),
+            ("feeds", "app3 · feeds (recall under regime; terminal, no learn)", regimes)]:
+        out += [f"### Full matrix — {label}", "",
+                "Medians. **Bold** = best (lowest) per model per metric. "
+                + ("† = <60% of this cell's builds completed (resource figures include capped runs)."
+                   if app != "notes" else
+                   "app1 build is identical across rows; only learn cost/tokens/time differ by tier."),
+                "", "| model | " + ("write-tier" if app == "notes" else "regime") + " | "
+                + " | ".join(m for _, m, _ in metrics) + " |",
+                "|---|---|" + "|".join(["--:"] * len(metrics)) + "|"]
+        for m in models:
+            cells = {}
+            for r in rset:
+                reg_for = ({"none": "cold", "L1": "l1", "L2": "l2.l2", "L3": "l3.l3"}.get(r, r)
+                           if app == "notes" else r)
+                cells[r] = cell(m, app, reg_for)
+            best = {}
+            for key, _, _ in metrics:
+                vals = [(r, cells[r][key]) for r in rset if cells[r][key] is not None]
+                if vals:
+                    best[key] = min(vals, key=lambda x: x[1])[0]
+            for r in rset:
+                c = cells[r]
+                dag = "†" if c.get("low_complete") else ""
+                cellstrs = []
+                for key, _, nd in metrics:
+                    s = fmt_val(key, c[key], nd)
+                    if best.get(key) == r and c[key] is not None:
+                        s = f"**{s}**"
+                    cellstrs.append(s)
+                out.append(f"| {m} | `{r}`{dag} | " + " | ".join(cellstrs) + " |")
+        out.append("")
+    return "\n".join(out) + "\n"
+
+
+def mean_med(v):
+    import statistics
+    return statistics.median(v) if v else None
+
+
 def escalation_table(builds, models):
     """How granular the human feedback had to get before the build converged (§5 signal).
     depth = #times an item was restated; escalation kicks in at depth≥2 (the literal code-level
@@ -497,6 +586,8 @@ def main():
            native_control_table(builds, models, regimes),
            per_regime_cost_table(builds, learns, models, regimes)]
     doc += ["", learn_quality_table(learns, models), "", escalation_table(builds, models),
+            "", "## Full matrix (model × regime × app, medians)", "",
+            full_matrix_tables(builds, learns, models, regimes),
             "", token_io_table(builds, learns, models, args.root), "", cost_calibration(builds, learns)]
 
     # Convergence guard (§5) + honest caveats — never ship an over-claimed number.

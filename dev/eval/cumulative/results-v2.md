@@ -165,6 +165,85 @@ Cell = mean convention-coverage (captured/stated) · episode-extraction%. The ag
 | opus | feeds | 0.3 | 0.0 |
 
 
+## Full matrix (model × regime × app, medians)
+
+### Full matrix — app1 · notes (cold build shared per model; row = write-tier of its learn)
+
+Medians. **Bold** = best (lowest) per model per metric. app1 build is identical across rows; only learn cost/tokens/time differ by tier.
+
+| model | write-tier | human turns | prescript | →converge | cost $ | tokens | time min |
+|---|---|--:|--:|--:|--:|--:|--:|
+| haiku | `none` | **3** | **2** | **4** | **0.88** | **5.9M** | **8** |
+| haiku | `L1` | 3 | 2 | 4 | 1.05 | 6.5M | 9 |
+| haiku | `L2` | 3 | 2 | 4 | 1.10 | 6.6M | 10 |
+| haiku | `L3` | 3 | 2 | 4 | 1.09 | 6.7M | 10 |
+| sonnet | `none` | **1** | **1** | **2** | **0.91** | **0.7M** | **7** |
+| sonnet | `L1` | 1 | 1 | 2 | 1.55 | 2.0M | 11 |
+| sonnet | `L2` | 1 | 1 | 2 | 2.03 | 3.4M | 14 |
+| sonnet | `L3` | 1 | 1 | 2 | 1.95 | 3.0M | 12 |
+| opus | `none` | **1** | **1** | **2** | **1.38** | **1.1M** | **6** |
+| opus | `L1` | 1 | 1 | 2 | 2.22 | 1.4M | 8 |
+| opus | `L2` | 1 | 1 | 2 | 2.18 | 1.6M | 8 |
+| opus | `L3` | 1 | 1 | 2 | 3.21 | 2.5M | 10 |
+
+### Full matrix — app2 · links (recall under regime)
+
+Medians. **Bold** = best (lowest) per model per metric. † = <60% of this cell's builds completed (resource figures include capped runs).
+
+| model | regime | human turns | prescript | →converge | cost $ | tokens | time min |
+|---|---|--:|--:|--:|--:|--:|--:|
+| haiku | `cold`† | 14 | 2 | 3 | 1.94 | 14.1M | 15 |
+| haiku | `l1`† | 14 | 2 | 2 | 4.37 | 31.3M | 17 |
+| haiku | `l2.l1l2` | **1** | **1** | **2** | 1.37 | **8.1M** | **6** |
+| haiku | `l2.l2` | 2 | 1 | 2 | 1.49 | 9.9M | 6 |
+| haiku | `l3.l1l2l3`† | 14 | 1 | 2 | 3.48 | 24.6M | 14 |
+| haiku | `l3.l2l3` | 2 | 2 | 2 | **1.36** | 9.4M | 10 |
+| haiku | `l3.l3` | 2 | 2 | 2 | 1.48 | 9.3M | 7 |
+| sonnet | `cold` | **1** | **1** | **2** | **1.14** | **0.8M** | **9** |
+| sonnet | `l1` | 1 | 1 | 2 | 3.27 | 5.5M | 14 |
+| sonnet | `l2.l1l2` | 1 | 1 | 2 | 4.27 | 7.5M | 12 |
+| sonnet | `l2.l2` | 1 | 1 | 2 | 6.63 | 11.7M | 19 |
+| sonnet | `l3.l1l2l3` | 1 | 1 | 2 | 5.17 | 8.5M | 15 |
+| sonnet | `l3.l2l3` | 1 | 1 | 2 | 3.35 | 3.4M | 13 |
+| sonnet | `l3.l3` | 1 | 1 | 2 | 4.77 | 8.1M | 14 |
+| opus | `cold` | **1** | 1 | **2** | **2.04** | **1.5M** | 7 |
+| opus | `l1` | 1 | **0** | 2 | 4.93 | 4.8M | 9 |
+| opus | `l2.l1l2` | 1 | 0 | 2 | 4.76 | 4.7M | 7 |
+| opus | `l2.l2` | 1 | 0 | 2 | 4.58 | 4.1M | 7 |
+| opus | `l3.l1l2l3` | 1 | 0 | 2 | 5.44 | 5.3M | 8 |
+| opus | `l3.l2l3` | 1 | 0 | 2 | 3.84 | 3.4M | **7** |
+| opus | `l3.l3` | 1 | 0 | 2 | 4.10 | 3.7M | 7 |
+
+### Full matrix — app3 · feeds (recall under regime; terminal, no learn)
+
+Medians. **Bold** = best (lowest) per model per metric. † = <60% of this cell's builds completed (resource figures include capped runs).
+
+| model | regime | human turns | prescript | →converge | cost $ | tokens | time min |
+|---|---|--:|--:|--:|--:|--:|--:|
+| haiku | `cold`† | 14 | 2 | 4 | 1.83 | 11.7M | 18 |
+| haiku | `l1` | 3 | 2 | 3 | 1.10 | 7.4M | 9 |
+| haiku | `l2.l1l2` | 3 | **0** | **2** | 1.00 | 6.6M | 7 |
+| haiku | `l2.l2` | **2** | 1 | 3 | **0.58** | **3.4M** | **6** |
+| haiku | `l3.l1l2l3` | 3 | 2 | 4 | 1.12 | 7.7M | 8 |
+| haiku | `l3.l2l3` | 3 | 2 | 4 | 0.88 | 5.5M | 8 |
+| haiku | `l3.l3` | 3 | 2 | 4 | 1.41 | 10.2M | 11 |
+| sonnet | `cold` | **1** | **1** | **2** | **1.28** | **1.3M** | **10** |
+| sonnet | `l1` | 1 | 1 | 2 | 3.58 | 6.2M | 22 |
+| sonnet | `l2.l1l2` | 1 | 1 | 2 | 3.02 | 5.3M | 17 |
+| sonnet | `l2.l2` | 1 | 1 | 2 | 3.57 | 5.6M | 20 |
+| sonnet | `l3.l1l2l3` | 1 | 1 | 2 | 2.21 | 3.1M | 16 |
+| sonnet | `l3.l2l3` | 1 | 1 | 2 | 2.91 | 5.2M | 18 |
+| sonnet | `l3.l3` | 2 | 1 | 3 | 2.61 | 3.5M | 19 |
+| opus | `cold` | **1** | 1 | **2** | **1.43** | **0.7M** | **6** |
+| opus | `l1` | 1 | **0** | 2 | 2.24 | 2.0M | 7 |
+| opus | `l2.l1l2` | 1 | 0 | 2 | 2.50 | 2.2M | 7 |
+| opus | `l2.l2` | 1 | 0 | 2 | 2.24 | 2.3M | 6 |
+| opus | `l3.l1l2l3` | 1 | 0 | 2 | 2.76 | 2.7M | 8 |
+| opus | `l3.l2l3` | 1 | 0 | 2 | 2.18 | 2.0M | 8 |
+| opus | `l3.l3` | 1 | 0 | 2 | 2.02 | 1.8M | 6 |
+
+
+
 ### Token I/O + cost audit (per model, over covered cells)  ·  360/360 LLM-using cells captured (30 cold no-op learns excluded)
 
 Reconstructing $ from token counts × the price sheet reproduces the CLI's reported cost (ratio ≈ 1.00× over MATCHED cells — the §6 provenance check). Cost is cache-dominated.
