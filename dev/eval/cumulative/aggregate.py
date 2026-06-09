@@ -482,6 +482,51 @@ def mean_med(v):
     return statistics.median(v) if v else None
 
 
+def recommendation_section(manifest):
+    """The standing recommendation derived from this baseline. Provenance (SHA/date/models/trials)
+    is interpolated so it's always accurate to the run; the prose conclusion is a point-in-time
+    judgement scoped to THIS data — re-examine it if re-deriving on a new run."""
+    prov = (f"engram `{manifest.get('engram_sha','?')}` · {manifest.get('date','?')} · "
+            f"{', '.join(manifest.get('models', []))} · n={manifest.get('trials','?')}")
+    return f"""## Recommendation — if you could pick one model + regime
+
+_Derived from the baseline below ({prov}). A point-in-time judgement on this data; revisit when re-deriving._
+
+**Pick: `opus` + `l2.l2`** (write L2 facts, read L2 tier-capped) **— when you're building many
+apps that share conventions over time.** Otherwise **`sonnet`/`opus` + `cold`** is the cheaper
+reliable floor for a short horizon. Reasoning, strictly from the tables above:
+
+**Model — opus (sonnet a close second; haiku is out).**
+- Cost is NOT the differentiator people assume: warm chains cost about the same on both
+  (sonnet ≈ \\$8.4–11.2, opus ≈ \\$8.8–11.3) — opus's higher per-token rate is offset by its
+  token-efficiency (≈7–10M vs sonnet ≈10–18M) and ~2-round convergence. At cost parity opus is
+  faster (≈6–8 min/app vs ≈16–22), edges say-once (7 vs 9 conventions), and needs **zero**
+  prescriptive hand-holding (sonnet ~1).
+- **haiku is excluded:** even with escalation it completes ≤80% of chains per regime (≈42%
+  overall) and only by being handed the literal code (depth-2 prescriptions). Not shippable as a
+  default.
+
+**Regime — warm, `l2.l2` specifically, on a stated principle (not a measured tier win).**
+- The decision that matters is **cold vs warm**, not which tier: among the 6 warm regimes the
+  spread is n=5 noise. For strong models tier is *flat* (the regime-axis finding above).
+- **Warm vs cold is a horizon call.** Cold completes 100% for strong models at ~half the cost
+  (≈\\$4–5 vs ≈\\$9) but carries ~2× the convention burden (18–19 vs 7–9 restatements). Warm's
+  say-once benefit is paid once and **recovered on every later app that shares conventions**,
+  while its extra cost is per-build — so a 3-app chain *understates* warm. Many convention-sharing
+  apps → warm wins; a one-off or two → cold is the reliable floor.
+- **Why `l2.l2` among the warm regimes:** it's the *never-worst-across-capability* config — the one
+  that rescued haiku (80% complete vs ≤40% for blended/L1 reads) and ties for best on the strong
+  models. That makes it the safe choice if the model is ever swapped or downgraded. A robustness
+  tiebreak, not a measured victory over the other warm tiers.
+
+**What warm does NOT buy for strong models (honest caveat):** it does **not** reduce review
+round-trips — human turns are ~3 whether cold or warm for sonnet/opus; they fold recalled
+conventions into the same rounds. Memory **front-loads correctness** (fewer distinct things to
+teach, compounding across apps), it does not cut iterations here. The dramatic round-trip saving
+(20→6) is real only for haiku, which we don't ship — so the pitch for opus+warm is "teach each
+convention once, ever," not "fewer review cycles.\""""
+
+
 def escalation_table(builds, models):
     """How granular the human feedback had to get before the build converged (§5 signal).
     depth = #times an item was restated; escalation kicks in at depth≥2 (the literal code-level
@@ -629,6 +674,7 @@ def main():
                "outputs (a poor capture is recorded, not engineered away).",
                "- Re-derive cleanly each time a model ships or engram gains a feature; `compare.py` vs this baseline."]
     doc += ["", "\n".join(caveats)]
+    doc += ["", recommendation_section(manifest)]
 
     out = "\n".join(doc)
     open(args.out, "w").write(out)

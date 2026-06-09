@@ -283,3 +283,41 @@ Reconstructing $ from token counts × the price sheet reproduces the CLI's repor
 - **Regime axis (the v2 question): tier is NOT uniformly flat at n=5, every model.** Per model: haiku 11.0–14.0 band vs cold 18.0 (best: l3.l1l2l3); sonnet 7.4–10.6 band vs cold 18.8 (best: l3.l1l2l3); opus 7.0–7.4 band vs cold 17.0 (best: l1). At least one model shows a between-tier spread comparable to its cold→warm gap — see the per-model bands. β-accumulation (round-1 feeds β) saturates to 4/4 by convergence and is noisy in the first draft, so H2 stays inconclusive at this β-difficulty.
 - Learn is agent-driven; learn-capture coverage + episode-extraction above are measured outputs (a poor capture is recorded, not engineered away).
 - Re-derive cleanly each time a model ships or engram gains a feature; `compare.py` vs this baseline.
+
+## Recommendation — if you could pick one model + regime
+
+_Derived from the baseline below (engram `b57bb0c82da2` · 2026-06-08 · sonnet, haiku, opus · n=[1, 2, 3, 4, 5]). A point-in-time judgement on this data; revisit when re-deriving._
+
+**Pick: `opus` + `l2.l2`** (write L2 facts, read L2 tier-capped) **— when you're building many
+apps that share conventions over time.** Otherwise **`sonnet`/`opus` + `cold`** is the cheaper
+reliable floor for a short horizon. Reasoning, strictly from the tables above:
+
+**Model — opus (sonnet a close second; haiku is out).**
+- Cost is NOT the differentiator people assume: warm chains cost about the same on both
+  (sonnet ≈ \$8.4–11.2, opus ≈ \$8.8–11.3) — opus's higher per-token rate is offset by its
+  token-efficiency (≈7–10M vs sonnet ≈10–18M) and ~2-round convergence. At cost parity opus is
+  faster (≈6–8 min/app vs ≈16–22), edges say-once (7 vs 9 conventions), and needs **zero**
+  prescriptive hand-holding (sonnet ~1).
+- **haiku is excluded:** even with escalation it completes ≤80% of chains per regime (≈42%
+  overall) and only by being handed the literal code (depth-2 prescriptions). Not shippable as a
+  default.
+
+**Regime — warm, `l2.l2` specifically, on a stated principle (not a measured tier win).**
+- The decision that matters is **cold vs warm**, not which tier: among the 6 warm regimes the
+  spread is n=5 noise. For strong models tier is *flat* (the regime-axis finding above).
+- **Warm vs cold is a horizon call.** Cold completes 100% for strong models at ~half the cost
+  (≈\$4–5 vs ≈\$9) but carries ~2× the convention burden (18–19 vs 7–9 restatements). Warm's
+  say-once benefit is paid once and **recovered on every later app that shares conventions**,
+  while its extra cost is per-build — so a 3-app chain *understates* warm. Many convention-sharing
+  apps → warm wins; a one-off or two → cold is the reliable floor.
+- **Why `l2.l2` among the warm regimes:** it's the *never-worst-across-capability* config — the one
+  that rescued haiku (80% complete vs ≤40% for blended/L1 reads) and ties for best on the strong
+  models. That makes it the safe choice if the model is ever swapped or downgraded. A robustness
+  tiebreak, not a measured victory over the other warm tiers.
+
+**What warm does NOT buy for strong models (honest caveat):** it does **not** reduce review
+round-trips — human turns are ~3 whether cold or warm for sonnet/opus; they fold recalled
+conventions into the same rounds. Memory **front-loads correctness** (fewer distinct things to
+teach, compounding across apps), it does not cut iterations here. The dramatic round-trip saving
+(20→6) is real only for haiku, which we don't ship — so the pitch for opus+warm is "teach each
+convention once, ever," not "fewer review cycles."
