@@ -447,6 +447,10 @@ def main():
         return
 
     models = manifest.get("models") or sorted({b.get("model") for b in builds})
+    # Order tables by capability (weak → strong), not by run order, so the model progression reads
+    # haiku → sonnet → opus across every table. Unknown models sort last, alphabetically.
+    cap_rank = {"haiku": 0, "sonnet": 1, "opus": 2}
+    models = sorted(models, key=lambda m: (cap_rank.get(m, 99), m))
     regimes = manifest.get("regimes") or sorted({b.get("regime") for b in builds if b.get("app") != "notes"})
 
     conv = chain_intervention_table(builds, models, regimes, "convention_statements")
