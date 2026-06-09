@@ -1,0 +1,140 @@
+{
+  "schema_version": 2,
+  "engram_sha": "b57bb0c82da2",
+  "kind": "build",
+  "app": "feeds",
+  "model": "sonnet",
+  "model_id": "claude-sonnet-4-6",
+  "regime": "cold",
+  "trial": 2,
+  "date": "2026-06-08",
+  "read_mode": "none",
+  "read_tiers": [],
+  "vault_in": "/tmp/cumv2final/vaults/v2-sonnet-t2-cold",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 3,
+  "max_rounds": 15,
+  "round1_score": "7/18",
+  "round1_arch_detectors": {
+    "di": false,
+    "sentinel": false,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": false,
+    "named_perms": false,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 7,
+  "round1_feature_fails": 4,
+  "final_score": "18/18",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [
+    "di",
+    "sentinel",
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor",
+    "wrapped_errors",
+    "named_perms"
+  ],
+  "convention_statements": 7,
+  "feature_statements": 4,
+  "recall_fired": 0,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 3,
+  "escalation": {
+    "by_label": {
+      "ARCH:di": 1,
+      "ARCH:sentinel": 2,
+      "ARCH:atomic": 1,
+      "ARCH:tests_fake_parallel": 1,
+      "ARCH:nocolor": 1,
+      "ARCH:wrapped_errors": 1,
+      "ARCH:named_perms": 1,
+      "native:read_unread": 2,
+      "alpha:tag_ci": 1,
+      "beta:url_validation": 1,
+      "beta:canonical_dedup": 2
+    },
+    "max_depth": 2,
+    "max_convention_depth": 2,
+    "items_escalated": 3,
+    "conventions_escalated": 1,
+    "features_escalated": 2
+  },
+  "build_cost": 2.5281,
+  "build_turns": 31,
+  "tokens": {
+    "input": 32,
+    "output": 93945,
+    "cache_write": 120629,
+    "cache_read": 2218915
+  },
+  "recomputed_cost": 2.5273,
+  "cost_ratio": 1.0,
+  "wall_min": 20.3,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "7/18",
+      "feat_buckets": {
+        "native": "1/2",
+        "alpha": "1/2",
+        "beta": "2/4"
+      },
+      "arch": "3/10",
+      "convention_fails": 7,
+      "feature_fails": 4,
+      "cost": 0.5919251000000001,
+      "turns": 8,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "15/18",
+      "feat_buckets": {
+        "native": "1/2",
+        "alpha": "2/2",
+        "beta": "3/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 2,
+      "cost": 1.1100621,
+      "turns": 12,
+      "is_error": false
+    },
+    {
+      "round": 3,
+      "score": "18/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 0,
+      "cost": 0.8261050500000001,
+      "turns": 11,
+      "is_error": false
+    }
+  ],
+  "session_id": "5cdd76ed-7dc0-4ff9-9cac-4e80644e4d0e",
+  "workdir": "/tmp/cumv2final/ws/sonnet-t2-app3-cold"
+}

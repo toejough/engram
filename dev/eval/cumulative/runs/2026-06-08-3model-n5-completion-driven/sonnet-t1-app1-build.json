@@ -1,0 +1,120 @@
+{
+  "schema_version": 2,
+  "engram_sha": "b57bb0c82da2",
+  "kind": "build",
+  "app": "notes",
+  "model": "sonnet",
+  "model_id": "claude-sonnet-4-6",
+  "regime": "cold",
+  "trial": 1,
+  "date": "2026-06-08",
+  "read_mode": "none",
+  "read_tiers": [],
+  "vault_in": "none",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 15,
+  "round1_score": "5/14",
+  "round1_arch_detectors": {
+    "di": false,
+    "sentinel": false,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": false,
+    "named_perms": false,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 7,
+  "round1_feature_fails": 2,
+  "final_score": "12/14",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2"
+  },
+  "final_arch": "8/10",
+  "arch_pass": 8,
+  "stated_conventions": [
+    "di",
+    "sentinel",
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor",
+    "wrapped_errors",
+    "named_perms"
+  ],
+  "convention_statements": 7,
+  "feature_statements": 2,
+  "recall_fired": 0,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 2,
+  "escalation": {
+    "by_label": {
+      "ARCH:di": 1,
+      "ARCH:sentinel": 1,
+      "ARCH:atomic": 1,
+      "ARCH:tests_fake_parallel": 1,
+      "ARCH:nocolor": 1,
+      "ARCH:wrapped_errors": 1,
+      "ARCH:named_perms": 1,
+      "alpha:tag_ci": 1,
+      "alpha:search_allfields": 1
+    },
+    "max_depth": 1,
+    "max_convention_depth": 1,
+    "items_escalated": 0,
+    "conventions_escalated": 0,
+    "features_escalated": 0
+  },
+  "build_cost": 1.1112,
+  "build_turns": 16,
+  "tokens": {
+    "input": 17,
+    "output": 42686,
+    "cache_write": 78210,
+    "cache_read": 589475
+  },
+  "recomputed_cost": 1.1105,
+  "cost_ratio": 0.999,
+  "wall_min": 9.6,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "5/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "0/2"
+      },
+      "arch": "3/10",
+      "convention_fails": 7,
+      "feature_fails": 2,
+      "cost": 0.34503195,
+      "turns": 6,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "12/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2"
+      },
+      "arch": "8/10",
+      "convention_fails": 2,
+      "feature_fails": 0,
+      "cost": 0.76617705,
+      "turns": 10,
+      "is_error": false
+    }
+  ],
+  "session_id": "c8a6ecec-8a9c-479f-b8f3-47a5adcdb25d",
+  "workdir": "/tmp/cumv2final/ws/sonnet-t1-app1"
+}

@@ -1,0 +1,118 @@
+{
+  "schema_version": 2,
+  "engram_sha": "b57bb0c82da2",
+  "kind": "build",
+  "app": "notes",
+  "model": "opus",
+  "model_id": "claude-opus-4-8",
+  "regime": "cold",
+  "trial": 4,
+  "date": "2026-06-08",
+  "read_mode": "none",
+  "read_tiers": [],
+  "vault_in": "none",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 15,
+  "round1_score": "6/14",
+  "round1_arch_detectors": {
+    "di": false,
+    "sentinel": false,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": true,
+    "named_perms": false,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 6,
+  "round1_feature_fails": 2,
+  "final_score": "14/14",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [
+    "di",
+    "sentinel",
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor",
+    "named_perms"
+  ],
+  "convention_statements": 6,
+  "feature_statements": 2,
+  "recall_fired": 0,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 2,
+  "escalation": {
+    "by_label": {
+      "ARCH:di": 1,
+      "ARCH:sentinel": 1,
+      "ARCH:atomic": 1,
+      "ARCH:tests_fake_parallel": 1,
+      "ARCH:nocolor": 1,
+      "ARCH:named_perms": 1,
+      "alpha:tag_ci": 1,
+      "alpha:search_allfields": 1
+    },
+    "max_depth": 1,
+    "max_convention_depth": 1,
+    "items_escalated": 0,
+    "conventions_escalated": 0,
+    "features_escalated": 0
+  },
+  "build_cost": 1.3811,
+  "build_turns": 27,
+  "tokens": {
+    "input": 2399,
+    "output": 26055,
+    "cache_write": 33266,
+    "cache_read": 1018190
+  },
+  "recomputed_cost": 1.3804,
+  "cost_ratio": 0.999,
+  "wall_min": 5.4,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "6/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "0/2"
+      },
+      "arch": "4/10",
+      "convention_fails": 6,
+      "feature_fails": 2,
+      "cost": 0.5697377499999999,
+      "turns": 11,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "14/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 0,
+      "cost": 0.8113727500000001,
+      "turns": 16,
+      "is_error": false
+    }
+  ],
+  "session_id": "0c1d39bc-ebb5-435d-aeb5-937cb856c763",
+  "workdir": "/tmp/cumv2final/ws/opus-t4-app1"
+}

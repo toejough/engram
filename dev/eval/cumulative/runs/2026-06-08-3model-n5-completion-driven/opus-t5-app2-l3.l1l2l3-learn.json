@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "engram_sha": "b57bb0c82da2",
+  "kind": "learn",
+  "app": "links",
+  "model": "opus",
+  "model_id": "claude-opus-4-8",
+  "regime": "l3.l1l2l3",
+  "trial": 5,
+  "date": "2026-06-08",
+  "write_tier": "L3",
+  "vault_in": "/tmp/cumv2final/vaults/v1-opus-t5-L3",
+  "vault_out": "/tmp/cumv2final/vaults/v2-opus-t5-l3.l1l2l3",
+  "stub": null,
+  "stated_conventions_input": [],
+  "learned": true,
+  "learn_quality": {
+    "engaged": true,
+    "write_tier": "L3",
+    "episodes": 1,
+    "episode_extracted": true,
+    "captured": [],
+    "missed": [],
+    "stated_count": 0,
+    "captured_count": 0,
+    "coverage": 1.0
+  },
+  "pruned_above_ceiling": 0,
+  "notes_total": 10,
+  "notes_by_tier": {
+    "L1": 1,
+    "L2": 7,
+    "L3": 2,
+    "other": 0
+  },
+  "learn_cost": 0,
+  "learn_turns": 1,
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "cache_write": 0,
+    "cache_read": 0
+  },
+  "recomputed_cost": 0.0,
+  "cost_ratio": null,
+  "wall_min": 0.2
+}

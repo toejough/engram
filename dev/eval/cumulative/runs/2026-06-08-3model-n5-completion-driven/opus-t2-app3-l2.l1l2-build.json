@@ -1,0 +1,109 @@
+{
+  "schema_version": 2,
+  "engram_sha": "b57bb0c82da2",
+  "kind": "build",
+  "app": "feeds",
+  "model": "opus",
+  "model_id": "claude-opus-4-8",
+  "regime": "l2.l1l2",
+  "trial": 2,
+  "date": "2026-06-08",
+  "read_mode": "blended",
+  "read_tiers": [],
+  "vault_in": "/tmp/cumv2final/vaults/v2-opus-t2-l2.l1l2",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 15,
+  "round1_score": "15/18",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": true,
+    "stdlib": true,
+    "tests_fake_parallel": true,
+    "json": true,
+    "nocolor": true,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 0,
+  "round1_feature_fails": 3,
+  "final_score": "18/18",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [],
+  "convention_statements": 0,
+  "feature_statements": 3,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 2,
+  "escalation": {
+    "by_label": {
+      "alpha:tag_ci": 1,
+      "beta:url_validation": 1,
+      "beta:canonical_dedup": 1
+    },
+    "max_depth": 1,
+    "max_convention_depth": 0,
+    "items_escalated": 0,
+    "conventions_escalated": 0,
+    "features_escalated": 0
+  },
+  "build_cost": 2.5314,
+  "build_turns": 35,
+  "tokens": {
+    "input": 2888,
+    "output": 37455,
+    "cache_write": 84544,
+    "cache_read": 2102711
+  },
+  "recomputed_cost": 2.5306,
+  "cost_ratio": 1.0,
+  "wall_min": 8.0,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "15/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "1/2",
+        "beta": "2/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 3,
+      "cost": 1.3736684999999997,
+      "turns": 20,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "18/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 0,
+      "cost": 1.157767,
+      "turns": 15,
+      "is_error": false
+    }
+  ],
+  "session_id": "388b0cdd-21fe-41bc-a5ed-a5380a4b68d8",
+  "workdir": "/tmp/cumv2final/ws/opus-t2-app3-l2.l1l2"
+}

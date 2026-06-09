@@ -1,0 +1,53 @@
+{
+  "schema_version": 2,
+  "engram_sha": "b57bb0c82da2",
+  "kind": "learn",
+  "app": "links",
+  "model": "sonnet",
+  "model_id": "claude-sonnet-4-6",
+  "regime": "l3.l3",
+  "trial": 1,
+  "date": "2026-06-08",
+  "write_tier": "L3",
+  "vault_in": "/tmp/cumv2final/vaults/v1-sonnet-t1-L3",
+  "vault_out": "/tmp/cumv2final/vaults/v2-sonnet-t1-l3.l3",
+  "stub": null,
+  "stated_conventions_input": [
+    "atomic",
+    "nocolor"
+  ],
+  "learned": true,
+  "learn_quality": {
+    "engaged": true,
+    "write_tier": "L3",
+    "episodes": 1,
+    "episode_extracted": true,
+    "captured": [
+      "atomic",
+      "nocolor"
+    ],
+    "missed": [],
+    "stated_count": 2,
+    "captured_count": 2,
+    "coverage": 1.0
+  },
+  "pruned_above_ceiling": 0,
+  "notes_total": 11,
+  "notes_by_tier": {
+    "L1": 1,
+    "L2": 7,
+    "L3": 3,
+    "other": 0
+  },
+  "learn_cost": 0,
+  "learn_turns": 1,
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "cache_write": 0,
+    "cache_read": 0
+  },
+  "recomputed_cost": 0.0,
+  "cost_ratio": null,
+  "wall_min": 0.2
+}

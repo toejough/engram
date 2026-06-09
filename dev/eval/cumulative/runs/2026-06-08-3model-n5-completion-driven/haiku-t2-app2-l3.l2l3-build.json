@@ -1,0 +1,117 @@
+{
+  "schema_version": 2,
+  "engram_sha": "b57bb0c82da2",
+  "kind": "build",
+  "app": "links",
+  "model": "haiku",
+  "model_id": "claude-haiku-4-5-20251001",
+  "regime": "l3.l2l3",
+  "trial": 2,
+  "date": "2026-06-08",
+  "read_mode": "tier",
+  "read_tiers": [
+    "L2",
+    "L3"
+  ],
+  "vault_in": "/tmp/cumv2final/vaults/v1-haiku-t2-L3",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 15,
+  "round1_score": "12/17",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": true,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 2,
+  "round1_feature_fails": 3,
+  "final_score": "16/17",
+  "final_buckets": {
+    "native": "1/1",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "9/10",
+  "arch_pass": 9,
+  "stated_conventions": [
+    "atomic",
+    "nocolor"
+  ],
+  "convention_statements": 2,
+  "feature_statements": 3,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": true,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 2,
+  "escalation": {
+    "by_label": {
+      "ARCH:atomic": 1,
+      "ARCH:nocolor": 1,
+      "alpha:tag_ci": 1,
+      "beta:url_validation": 1,
+      "beta:canonical_dedup": 1
+    },
+    "max_depth": 1,
+    "max_convention_depth": 1,
+    "items_escalated": 0,
+    "conventions_escalated": 0,
+    "features_escalated": 0
+  },
+  "build_cost": 0.4941,
+  "build_turns": 57,
+  "tokens": {
+    "input": 424,
+    "output": 14739,
+    "cache_write": 65764,
+    "cache_read": 3368067
+  },
+  "recomputed_cost": 0.4931,
+  "cost_ratio": 0.998,
+  "wall_min": 4.2,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "12/17",
+      "feat_buckets": {
+        "native": "1/1",
+        "alpha": "1/2",
+        "beta": "2/4"
+      },
+      "arch": "8/10",
+      "convention_fails": 2,
+      "feature_fails": 3,
+      "cost": 0.24500710000000006,
+      "turns": 33,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "16/17",
+      "feat_buckets": {
+        "native": "1/1",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 0,
+      "cost": 0.2490996,
+      "turns": 24,
+      "is_error": false
+    }
+  ],
+  "session_id": "6530a3a8-6337-4b42-8087-4dc7c9f77477",
+  "workdir": "/tmp/cumv2final/ws/haiku-t2-app2-l3.l2l3"
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "engram_sha": "b57bb0c82da2",
+  "kind": "learn",
+  "app": "notes",
+  "model": "sonnet",
+  "model_id": "claude-sonnet-4-6",
+  "regime": "app1-L1",
+  "trial": 5,
+  "date": "2026-06-08",
+  "write_tier": "L1",
+  "vault_in": "none",
+  "vault_out": "/tmp/cumv2final/vaults/v1-sonnet-t5-L1",
+  "stub": null,
+  "stated_conventions_input": [],
+  "learned": true,
+  "learn_quality": {
+    "engaged": true,
+    "write_tier": "L1",
+    "episodes": 1,
+    "episode_extracted": true,
+    "captured": [],
+    "missed": [],
+    "stated_count": 0,
+    "captured_count": 0,
+    "coverage": 1.0
+  },
+  "pruned_above_ceiling": 0,
+  "notes_total": 1,
+  "notes_by_tier": {
+    "L1": 1,
+    "L2": 0,
+    "L3": 0,
+    "other": 0
+  },
+  "learn_cost": 0.8069,
+  "learn_turns": 36,
+  "tokens": {
+    "input": 35,
+    "output": 12551,
+    "cache_write": 44538,
+    "cache_read": 1502721
+  },
+  "recomputed_cost": 0.8062,
+  "cost_ratio": 0.999,
+  "wall_min": 4.4
+}

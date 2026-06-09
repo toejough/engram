@@ -1,0 +1,59 @@
+{
+  "schema_version": 2,
+  "engram_sha": "b57bb0c82da2",
+  "kind": "learn",
+  "app": "notes",
+  "model": "opus",
+  "model_id": "claude-opus-4-8",
+  "regime": "app1-L1",
+  "trial": 1,
+  "date": "2026-06-08",
+  "write_tier": "L1",
+  "vault_in": "none",
+  "vault_out": "/tmp/cumv2final/vaults/v1-opus-t1-L1",
+  "stub": null,
+  "stated_conventions_input": [
+    "di",
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor",
+    "named_perms"
+  ],
+  "learned": true,
+  "learn_quality": {
+    "engaged": true,
+    "write_tier": "L1",
+    "episodes": 1,
+    "episode_extracted": true,
+    "captured": [
+      "di",
+      "atomic",
+      "tests_fake_parallel",
+      "nocolor",
+      "named_perms"
+    ],
+    "missed": [],
+    "stated_count": 5,
+    "captured_count": 5,
+    "coverage": 1.0
+  },
+  "pruned_above_ceiling": 0,
+  "notes_total": 1,
+  "notes_by_tier": {
+    "L1": 1,
+    "L2": 0,
+    "L3": 0,
+    "other": 0
+  },
+  "learn_cost": 0.6475,
+  "learn_turns": 16,
+  "tokens": {
+    "input": 2327,
+    "output": 6385,
+    "cache_write": 40301,
+    "cache_read": 447067
+  },
+  "recomputed_cost": 0.6467,
+  "cost_ratio": 0.999,
+  "wall_min": 1.7
+}
