@@ -348,8 +348,13 @@ def token_io_table(builds, learns, models, root):
     cfgroot = os.path.join(root, "cfgpool")
     agg = collections.defaultdict(lambda: {"in": 0, "out": 0, "cw": 0, "cr": 0,
                                            "rep": 0.0, "rec": 0.0, "n": 0})
-    total = covered = 0
+    total = covered = noop = 0
     for rec in builds + learns:
+        # none-tier learns make NO LLM call (cold arm) — genuinely $0/0 tokens, not data loss.
+        # Exclude them from the coverage denominator so it reflects only LLM-using cells.
+        if rec.get("kind") == "learn" and rec.get("write_tier") == "none":
+            noop += 1
+            continue
         total += 1
         m = rec.get("model")
         tok = rec.get("tokens")
@@ -368,9 +373,11 @@ def token_io_table(builds, learns, models, root):
         a["rep"] += (rec.get("build_cost") or 0) + (rec.get("learn_cost") or 0)
         a["rec"] += rec_cost or 0; a["n"] += 1
 
-    note = "" if covered == total else (
-        f"  ·  **{covered}/{total} cells covered** (the rest lost their transcripts to cfg-pool "
-        f"re-creation across resumes — run-time token capture in the result JSON fixes this going forward)")
+    note = (f"  ·  {covered}/{total} LLM-using cells captured ({noop} cold no-op learns excluded)"
+            if covered == total else
+            f"  ·  **{covered}/{total} LLM-using cells captured** ({noop} cold no-op learns excluded; "
+            f"{total - covered} lost their transcripts to cfg-pool re-creation — run-time capture "
+            f"prevents this going forward)")
     lines = [f"### Token I/O + cost audit (per model, over covered cells){note}", "",
              "Reconstructing $ from token counts × the price sheet reproduces the CLI's reported cost "
              "(ratio ≈ 1.00× over MATCHED cells — the §6 provenance check). Cost is cache-dominated.", "",

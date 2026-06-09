@@ -33,15 +33,17 @@
     "L3": 0,
     "other": 0
   },
-  "learn_cost": 0,
+  "learn_cost": 1.6842,
   "learn_turns": 1,
   "tokens": {
-    "input": 0,
-    "output": 0,
-    "cache_write": 0,
-    "cache_read": 0
+    "input": 2622,
+    "output": 23411,
+    "cache_write": 52802,
+    "cache_read": 1511653
   },
-  "recomputed_cost": 0.0,
-  "cost_ratio": null,
-  "wall_min": 0.1
+  "recomputed_cost": 1.6842,
+  "cost_ratio": 1.0,
+  "wall_min": 0.1,
+  "workdir": "/tmp/cumv2final/ws/opus-t4-app2-l2.l2",
+  "token_backfilled": true
 }

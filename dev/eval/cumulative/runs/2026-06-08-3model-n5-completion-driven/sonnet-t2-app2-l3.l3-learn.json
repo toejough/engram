@@ -37,15 +37,17 @@
     "L3": 1,
     "other": 0
   },
-  "learn_cost": 0,
+  "learn_cost": 5.2608,
   "learn_turns": 1,
   "tokens": {
-    "input": 0,
-    "output": 0,
-    "cache_write": 0,
-    "cache_read": 0
+    "input": 104,
+    "output": 95495,
+    "cache_write": 303367,
+    "cache_read": 8968159
   },
-  "recomputed_cost": 0.0,
-  "cost_ratio": null,
-  "wall_min": 0.2
+  "recomputed_cost": 5.2608,
+  "cost_ratio": 1.0,
+  "wall_min": 0.2,
+  "workdir": "/tmp/cumv2final/ws/sonnet-t2-app2-l3.l3",
+  "token_backfilled": true
 }

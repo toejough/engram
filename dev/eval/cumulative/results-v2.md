@@ -49,11 +49,11 @@ The transferable-vs-app-specific GAP is the signal. The feature side is not a pu
 | model | arm | conv-restate | review | converged | wall min | tokens | $ |
 |---|---|--:|--:|--:|--:|--:|--:|
 | haiku | cold | 18.0 | 23.6 | 0% | 44 | 32.0M | 4.61 |
-| haiku | warm | 12.7 | 13.3 | 50% | 36 | 23.5M | 3.52 |
+| haiku | warm | 12.7 | 13.3 | 50% | 36 | 32.4M | 4.79 |
 | sonnet | cold | 18.8 | 3.2 | 100% | 31 | 3.2M | 3.67 |
-| sonnet | warm | 8.5 | 3.0 | 100% | 48 | 12.6M | 7.70 |
+| sonnet | warm | 8.5 | 3.0 | 100% | 48 | 16.6M | 10.12 |
 | opus | cold | 17.0 | 4.4 | 100% | 21 | 4.0M | 5.89 |
-| opus | warm | 7.1 | 3.2 | 100% | 24 | 6.3M | 7.38 |
+| opus | warm | 7.1 | 3.2 | 100% | 24 | 8.4M | 9.63 |
 
 ## Secondary
 
@@ -104,36 +104,36 @@ feeds round-1 NATIVE-bucket pass count (the feed-specific features no prior app 
 | regime | write | learn$ | build$ | total$ | wall | tokens | conv% |
 |---|---|--:|--:|--:|--:|--:|--:|
 | `cold` | none | 0.00 | 4.61 | 4.61 | 44 | 32.0M | 0% |
-| `l1` | L1 | 0.14 | 3.88 | 4.01 | 39 | 27.3M | 20% |
-| `l2.l1l2` | L2 | 0.18 | 3.00 | 3.18 | 33 | 20.2M | 60% |
-| `l2.l2` | L2 | 0.18 | 2.67 | 2.85 | 31 | 18.6M | 80% |
-| `l3.l1l2l3` | L3 | 0.20 | 3.78 | 3.98 | 40 | 27.5M | 20% |
-| `l3.l2l3` | L3 | 0.24 | 3.01 | 3.25 | 37 | 21.3M | 80% |
-| `l3.l3` | L3 | 0.20 | 3.65 | 3.85 | 37 | 26.2M | 40% |
+| `l1` | L1 | 1.86 | 3.88 | 5.74 | 39 | 39.7M | 20% |
+| `l2.l1l2` | L2 | 0.97 | 3.00 | 3.98 | 33 | 25.4M | 60% |
+| `l2.l2` | L2 | 1.49 | 2.67 | 4.16 | 31 | 27.7M | 80% |
+| `l3.l1l2l3` | L3 | 1.71 | 3.78 | 5.49 | 40 | 38.4M | 20% |
+| `l3.l2l3` | L3 | 1.16 | 3.01 | 4.17 | 37 | 27.5M | 80% |
+| `l3.l3` | L3 | 1.54 | 3.65 | 5.19 | 37 | 35.4M | 40% |
 
 **sonnet**
 
 | regime | write | learn$ | build$ | total$ | wall | tokens | conv% |
 |---|---|--:|--:|--:|--:|--:|--:|
 | `cold` | none | 0.00 | 3.67 | 3.67 | 31 | 3.2M | 100% |
-| `l1` | L1 | 0.89 | 6.34 | 7.23 | 46 | 11.8M | 100% |
-| `l2.l1l2` | L2 | 1.23 | 6.09 | 7.31 | 44 | 12.9M | 100% |
-| `l2.l2` | L2 | 1.23 | 7.52 | 8.74 | 51 | 15.1M | 100% |
-| `l3.l1l2l3` | L3 | 1.24 | 5.98 | 7.22 | 46 | 11.6M | 100% |
-| `l3.l2l3` | L3 | 1.24 | 6.24 | 7.48 | 49 | 11.5M | 100% |
-| `l3.l3` | L3 | 1.24 | 6.96 | 8.20 | 52 | 12.8M | 100% |
+| `l1` | L1 | 2.58 | 6.34 | 8.92 | 46 | 14.5M | 100% |
+| `l2.l1l2` | L2 | 3.46 | 6.09 | 9.55 | 44 | 16.7M | 100% |
+| `l2.l2` | L2 | 4.41 | 7.52 | 11.93 | 51 | 20.6M | 100% |
+| `l3.l1l2l3` | L3 | 3.90 | 5.98 | 9.87 | 46 | 16.1M | 100% |
+| `l3.l2l3` | L3 | 3.29 | 6.24 | 9.53 | 49 | 14.3M | 100% |
+| `l3.l3` | L3 | 3.97 | 6.96 | 10.93 | 52 | 17.5M | 100% |
 
 **opus**
 
 | regime | write | learn$ | build$ | total$ | wall | tokens | conv% |
 |---|---|--:|--:|--:|--:|--:|--:|
 | `cold` | none | 0.00 | 5.89 | 5.89 | 21 | 4.0M | 100% |
-| `l1` | L1 | 0.74 | 6.39 | 7.12 | 24 | 6.0M | 100% |
-| `l2.l1l2` | L2 | 0.80 | 6.12 | 6.92 | 21 | 5.9M | 100% |
-| `l2.l2` | L2 | 0.80 | 6.20 | 7.00 | 23 | 5.9M | 100% |
-| `l3.l1l2l3` | L3 | 1.39 | 7.28 | 8.67 | 26 | 7.8M | 100% |
-| `l3.l2l3` | L3 | 1.39 | 5.97 | 7.36 | 25 | 6.2M | 100% |
-| `l3.l3` | L3 | 1.39 | 5.80 | 7.19 | 24 | 5.9M | 100% |
+| `l1` | L1 | 3.25 | 6.39 | 9.64 | 24 | 8.4M | 100% |
+| `l2.l1l2` | L2 | 2.95 | 6.12 | 9.08 | 21 | 7.9M | 100% |
+| `l2.l2` | L2 | 3.00 | 6.20 | 9.20 | 23 | 7.9M | 100% |
+| `l3.l1l2l3` | L3 | 4.03 | 7.28 | 11.31 | 26 | 10.3M | 100% |
+| `l3.l2l3` | L3 | 3.34 | 5.97 | 9.31 | 25 | 8.0M | 100% |
+| `l3.l3` | L3 | 3.42 | 5.80 | 9.22 | 24 | 7.6M | 100% |
 
 
 
@@ -165,15 +165,15 @@ Cell = mean convention-coverage (captured/stated) · episode-extraction%. The ag
 | opus | feeds | 0.3 | 0.0 |
 
 
-### Token I/O + cost audit (per model, over covered cells)  ·  **272/390 cells covered** (the rest lost their transcripts to cfg-pool re-creation across resumes — run-time token capture in the result JSON fixes this going forward)
+### Token I/O + cost audit (per model, over covered cells)  ·  360/360 LLM-using cells captured (30 cold no-op learns excluded)
 
 Reconstructing $ from token counts × the price sheet reproduces the CLI's reported cost (ratio ≈ 1.00× over MATCHED cells — the §6 provenance check). Cost is cache-dominated.
 
 | model | cells | input | output | cache-write | cache-read | reported $ | recomputed $ | ratio |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
-| haiku | 91 | 63,686 | 4,373,111 | 8,094,607 | 662,360,590 | 98.60 | 98.28 | 1.00× |
-| sonnet | 91 | 6,269 | 5,023,000 | 9,318,455 | 323,958,279 | 206.96 | 207.50 | 1.00× |
-| opus | 90 | 368,918 | 2,718,654 | 5,912,369 | 151,975,358 | 182.83 | 182.75 | 1.00× |
+| haiku | 120 | 87,475 | 5,994,205 | 11,188,069 | 922,557,895 | 136.62 | 136.30 | 1.00× |
+| sonnet | 120 | 9,010 | 6,750,231 | 12,562,658 | 439,218,905 | 279.62 | 280.16 | 1.00× |
+| opus | 120 | 497,608 | 3,700,185 | 7,959,062 | 210,975,434 | 250.30 | 250.22 | 1.00× |
 
 
 ### Cost calibration (per-operation; grounds the full-run estimate)
@@ -189,11 +189,11 @@ Reconstructing $ from token counts × the price sheet reproduces the CLI's repor
 | build | sonnet | feeds | 35 | 3.01 | 2.3 |
 | build | sonnet | links | 35 | 2.31 | 2.0 |
 | build | sonnet | notes | 5 | 0.79 | 1.8 |
-| learn | haiku | links | 30 | 0.01 | — |
+| learn | haiku | links | 30 | 1.27 | — |
 | learn | haiku | notes | 15 | 0.17 | — |
-| learn | opus | links | 30 | 0.00 | — |
+| learn | opus | links | 30 | 2.25 | — |
 | learn | opus | notes | 15 | 0.97 | — |
-| learn | sonnet | links | 30 | 0.03 | — |
+| learn | sonnet | links | 30 | 2.45 | — |
 | learn | sonnet | notes | 15 | 1.06 | — |
 
 

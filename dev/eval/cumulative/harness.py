@@ -499,13 +499,19 @@ def token_usage_for_session(search_root, sid):
     from the recorded JSONL. This is authoritative and CUMULATIVE across resume rounds (the result
     object's `usage` is only the last turn), and it's stored in the result JSON so cost provenance
     survives even if transcripts are later pruned (the 2026-06-02 run lost some to pool re-creation)."""
-    tot = dict(EMPTY_TOKENS)
     if not sid or not search_root:
-        return tot
+        return dict(EMPTY_TOKENS)
     paths = (_glob.glob(f"{search_root}/**/{sid}.jsonl", recursive=True)
              + _glob.glob(f"{search_root}/**/{sid}/subagents/*.jsonl", recursive=True))
+    return _sum_usage(paths)
+
+
+def _sum_usage(paths):
+    """Sum input/output/cache token usage across jsonl transcripts, deduped by message id
+    (duplicate-id messages carry identical usage). Shared by the sid- and workdir-keyed lookups."""
+    tot = dict(EMPTY_TOKENS)
     seen = set()
-    for path in paths:
+    for path in set(paths):
         try:
             lines = open(path).read().splitlines()
         except Exception:
@@ -529,6 +535,20 @@ def token_usage_for_session(search_root, sid):
             tot["cache_write"] += usage.get("cache_creation_input_tokens", 0) or 0
             tot["cache_read"] += usage.get("cache_read_input_tokens", 0) or 0
     return tot
+
+
+def tokens_for_workdir(cfgpool_root, workdir):
+    """Sum a session's tokens by its WORKDIR's claude project dir, when the session id is unknown
+    (a headless `/learn` whose top-level result JSON came back malformed — no sid/cost — even
+    though the agent ran and wrote notes). Claude encodes the cwd as a project-dir name: `/private`
+    prefix (macOS /tmp symlink) then every '/' and '.' → '-'. Sums across all cfgpool copies (the
+    pool reuses cfgs) and subagents; dedup-by-id makes the union safe."""
+    if not (cfgpool_root and workdir):
+        return dict(EMPTY_TOKENS)
+    slug = re.sub(r"[/.]", "-", "/private" + workdir if workdir.startswith("/tmp") else workdir)
+    paths = (_glob.glob(f"{cfgpool_root}/*/projects/{slug}/*.jsonl")
+             + _glob.glob(f"{cfgpool_root}/*/projects/{slug}/**/*.jsonl", recursive=True))
+    return _sum_usage(paths)
 
 
 def recompute_cost(tokens, model_id):
@@ -784,15 +804,27 @@ def run_learn(args):
     shutil.copytree(learn_vault, args.vault_out)
     by_tier = count_notes_by_tier(args.vault_out)
 
-    audit = ({"tokens": dict(EMPTY_TOKENS), "recomputed_cost": 0.0, "cost_ratio": None} if args.stub
-             else token_audit(args.cfg, learn_sid, MODELS[args.model], learn_cost))
+    # Token capture. Prefer the sid-keyed lookup; but a headless /learn sometimes returns a
+    # malformed top-level result (no sid, no total_cost_usd) even though the agent ran and wrote
+    # notes — fall back to the WORKDIR's project dir so we never lose a real learn's tokens.
+    if args.stub:
+        audit = {"tokens": dict(EMPTY_TOKENS), "recomputed_cost": 0.0, "cost_ratio": None}
+    else:
+        audit = token_audit(args.cfg, learn_sid, MODELS[args.model], learn_cost)
+        if sum(audit["tokens"].values()) == 0 and quality["engaged"]:
+            tok = tokens_for_workdir(os.path.dirname(args.cfg), args.workdir)
+            rec = recompute_cost(tok, MODELS[args.model])
+            audit = {"tokens": tok, "recomputed_cost": rec,
+                     "cost_ratio": (round(rec / learn_cost, 3) if (rec and learn_cost) else None)}
+            if not learn_cost and rec:
+                learn_cost = rec   # the result JSON dropped the cost too — use the recomputed one
 
     out = {
         "schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "learn",
         "app": args.app, "model": args.model, "model_id": MODELS[args.model],
         "regime": args.regime, "trial": args.trial, "date": args.date,
         "write_tier": args.write_tier, "vault_in": args.vault_in, "vault_out": args.vault_out,
-        "stub": args.stub or None, "stated_conventions_input": stated,
+        "stub": args.stub or None, "stated_conventions_input": stated, "workdir": args.workdir,
         "learned": quality["engaged"], "learn_quality": quality, "pruned_above_ceiling": pruned,
         "notes_total": len(glob_notes(args.vault_out)), "notes_by_tier": by_tier,
         "learn_cost": learn_cost, "learn_turns": learn_turns,

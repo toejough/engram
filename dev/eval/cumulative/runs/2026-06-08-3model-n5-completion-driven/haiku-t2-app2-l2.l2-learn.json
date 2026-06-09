@@ -33,15 +33,17 @@
     "L3": 0,
     "other": 0
   },
-  "learn_cost": 0,
+  "learn_cost": 0.6278,
   "learn_turns": 1,
   "tokens": {
-    "input": 0,
-    "output": 0,
-    "cache_write": 0,
-    "cache_read": 0
+    "input": 531,
+    "output": 31924,
+    "cache_write": 86334,
+    "cache_read": 3596819
   },
-  "recomputed_cost": 0.0,
-  "cost_ratio": null,
-  "wall_min": 0.1
+  "recomputed_cost": 0.6278,
+  "cost_ratio": 1.0,
+  "wall_min": 0.1,
+  "workdir": "/tmp/cumv2final/ws/haiku-t2-app2-l2.l2",
+  "token_backfilled": true
 }
