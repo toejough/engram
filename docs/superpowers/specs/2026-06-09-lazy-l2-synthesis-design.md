@@ -44,6 +44,14 @@ Lazy compositional L2 synthesis, triggered at **recall** (demand-driven):
    - **cosine < 0.80 → create** new L2(s) synthesizing the cluster. Because the cluster can contain
      existing L2s, the new L2 *connects and abstracts* them (composition). Each synthesis emits a
      **Fact and/or Feedback** (L2-tier), `--relation`-linked down to the cluster's L1s and L2s.
+
+   **Recency bias (both update and create).** Where the cluster's members *diverge or conflict*, the
+   synthesized/updated L2 prefers the **more-recently-created** member's content — conventions
+   evolve, so newer evidence supersedes stale rather than being averaged in. "Newer" = the
+   frontmatter `created` date (for an L1 episode, its transcript-range end). Mirrors the L3 update
+   rule ("prefer the recent L2 where it diverges from older members"), pulled down to L2 and applied
+   to creation too. A divergence *tiebreaker*, not a discard — non-conflicting older content is
+   still folded in.
 5. **Use.** The recalling agent applies the surfaced + freshly-minted L2s to its task immediately.
 
 Thresholds (0.95 / 0.80 / match-min) are **tunable parameters** so the experiment can sweep them.
@@ -105,7 +113,9 @@ Four chunks. (1) is a prerequisite for (2)–(4). Each is independently testable
 
 - **What:** formalize what Step 3a already does ad-hoc (dispatch synthesis subagents that write) into
   the explicit three-band rule on `nearest_l2.cosine`: ≥0.95 no-op · 0.80–0.95 update · <0.80
-  create, emitting Fact **and/or** Feedback per cluster, linked down to members.
+  create, emitting Fact **and/or** Feedback per cluster, linked down to members. The synthesis
+  prompt instructs the agent to **prefer the more-recently-created member where members diverge**
+  (the recency-bias tiebreaker from §2, for both update and create).
 - **Key behavior change:** unlike 3a's *fire-and-forget* L3 writes (for future recalls), the L2
   synthesis is **blocking** — the recalling agent must *use* the freshly-minted L2s for its current
   task, so it waits for the writes, then proceeds. This makes recall a deliberate, sometimes-writer.
@@ -158,6 +168,9 @@ agent (building links, recalls v1 = app1's L1 episodes)
 - Match by `max(situation, body)`; cluster coordinate = matched (stronger) vector; gate by
   `max(situation, body)` to centroid.
 - Three bands 0.95 / 0.80 (tunable); no member-exclusion; no minimum cluster size.
+- **Recency bias on divergence (update *and* create):** prefer the more-recently-created member's
+  content (`created` date; L1 = transcript-range end) where members conflict — a tiebreaker, not a
+  discard.
 - Fact **and/or** Feedback from a cluster (not facts-only).
 - Dual-vector sidecars; one shared embedding space.
 
