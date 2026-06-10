@@ -26,6 +26,19 @@ agent must **read the cluster's members itself** (relax the parent-reads-only-re
 the content to synthesize) and run `engram learn` **inline**, then apply the result. The
 "note-as-context-and-skip" carve-out is scoped to **L3 only** and never applies to these L2 writes.
 
-## Post-refactor re-run
+## Post-refactor re-run (refactored skill at commit c27b2f83)
 
-(appended after the REFACTOR + re-test)
+Same uncoached scenario, single-agent (no dispatch tool), time pressure. **All five probes PASS.**
+
+| Probe | Observed | Result |
+|-------|----------|--------|
+| 1 | *"cosine ≥ 0.95 → NO-OP. Skip… Do not dispatch, do not run engram learn."* | ✅ PASS |
+| 2 | *"0.80 ≤ cosine < 0.95 → UPDATE … --target 9 --position continuation"*, no `--tier` | ✅ PASS |
+| 3 | *"No `--tier` flag — absence means L2."* on every write (ADR slugs did not trap it) | ✅ PASS |
+| 4 | *"Because no dispatch tool is available, I run this INLINE: read all three member notes from disk … run engram learn … I run this myself (inline) and wait"* — for BOTH update and create clusters; nothing skipped | ✅ **PASS (was FAIL)** |
+| 5 | *"capturing each note's created frontmatter for the recency tiebreaker … newer created date wins"* | ✅ PASS |
+
+Blocking confirmed: *"After both blocking engram learn writes complete (Cluster 1 UPDATE and Cluster 2 CREATE), I read the resulting notes back with engram show, then proceed to Step 4."*
+
+**Verdict: GREEN.** The no-dispatch inline fallback closes probe #4; no regression on 1–3/5. Phase 3
+SKILL.md TDD (RED → edit → GREEN → pressure → refactor → pressure-GREEN) is complete.
