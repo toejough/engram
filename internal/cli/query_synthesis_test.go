@@ -380,6 +380,12 @@ func TestQuery_SynthesizeL2_ExcludesL3FromClusters(t *testing.T) {
 			g.Expect(m.Path).NotTo(ContainSubstring("3.adr"), "L3 must not be clustered in synthesize-l2")
 		}
 	}
+
+	// The L3 note must also be absent from the top-level items[] channel: items
+	// derive from the same L1+L2-only union, so L3 is excluded there too.
+	for _, item := range parsed.Items {
+		g.Expect(item.Path).NotTo(ContainSubstring("3.adr"), "L3 must not surface in items[] in synthesize-l2")
+	}
 }
 
 // TestQuery_SynthesizeL2_FlagAndSynthesisAreMutuallyExclusive verifies that

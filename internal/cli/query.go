@@ -48,10 +48,14 @@ type QueryDeps struct {
 // identifies hubs by in-degree before emitting the resolved YAML
 // payload per the F6+F9.1 spec.
 func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Writer) error {
-	phrases := args.Phrases
-	if len(phrases) == 0 {
-		return errQueryEmptyString
+	// Argument validation precedes data-state checks so the notes-but-no-
+	// embeddings guard below can't mask an invalid invocation.
+	validationErr := validateQueryArgs(args)
+	if validationErr != nil {
+		return validationErr
 	}
+
+	phrases := args.Phrases
 
 	limit := args.Limit
 	if limit == 0 {
@@ -705,7 +709,8 @@ func countItemsWithContent(items []queryItem) int {
 // dispatchSynthesisMode routes to the single-cluster synthesis modes. It
 // returns handled=true (with the mode's error) when --synthesis or
 // --synthesize-l2 is set, and handled=false to fall through to the default
-// per-phrase pipeline. The two modes are mutually exclusive.
+// per-phrase pipeline. The two modes are mutually exclusive; that conflict is
+// validated up front in RunQuery, so this router never sees both flags set.
 func dispatchSynthesisMode(
 	ctx context.Context,
 	args QueryArgs,
@@ -716,8 +721,6 @@ func dispatchSynthesisMode(
 	stdout io.Writer,
 ) (bool, error) {
 	switch {
-	case args.Synthesis && args.SynthesizeL2:
-		return true, errQueryModeConflict
 	case args.SynthesizeL2:
 		return true, runSynthesizeL2Query(ctx, args, notes, hits, limit, deps, stdout)
 	case args.Synthesis:
@@ -1717,6 +1720,14 @@ func runSinglePhraseQuery(
 	}, nil
 }
 
+// runSynthesisQuery implements `engram query --synthesis`: it unions every
+// phrase's DIRECT HITS (semantic matches, truncated to limit — not the
+// graph-expansion neighbors), deduplicates by note path keeping the max score,
+// and clusters that union ONE time. Unlike the per-phrase pipeline it skips the
+// minSubgraphForClustering floor and never returns "no clusters" for a
+// non-empty union: when AutoK finds no split that beats the silhouette floor it
+// emits a single cluster of all union members (the §6b L3-synthesis invariant).
+// items[] is the deduped union direct hits; tier/project filters still apply.
 func runSynthesisQuery(
 	ctx context.Context,
 	args QueryArgs,
@@ -1754,14 +1765,6 @@ func runSynthesisQuery(
 	return renderQueryPayload(stdout, merged)
 }
 
-// runSynthesisQuery implements `engram query --synthesis`: it unions every
-// phrase's DIRECT HITS (semantic matches, truncated to limit — not the
-// graph-expansion neighbors), deduplicates by note path keeping the max score,
-// and clusters that union ONE time. Unlike the per-phrase pipeline it skips the
-// minSubgraphForClustering floor and never returns "no clusters" for a
-// non-empty union: when AutoK finds no split that beats the silhouette floor it
-// emits a single cluster of all union members (the §6b L3-synthesis invariant).
-// items[] is the deduped union direct hits; tier/project filters still apply.
 // runSynthesizeL2Query mirrors runSynthesisQuery for the lazy-L2 path. It
 // constrains the CLUSTERED set to matched L1+L2 notes (L3 excluded from
 // clusters), then emits a raw nearest_l2 {path, cosine} per cluster — the
@@ -1907,6 +1910,22 @@ func unionDirectHits(
 	}
 
 	return union, nil
+}
+
+// validateQueryArgs rejects invalid invocations before any vault I/O runs, so
+// argument errors take precedence over data-state guards (e.g. notes-but-no-
+// embeddings). It enforces a non-empty phrase set and the --synthesis /
+// --synthesize-l2 mutual exclusion.
+func validateQueryArgs(args QueryArgs) error {
+	if len(args.Phrases) == 0 {
+		return errQueryEmptyString
+	}
+
+	if args.Synthesis && args.SynthesizeL2 {
+		return errQueryModeConflict
+	}
+
+	return nil
 }
 
 // warnModelMismatch emits a single aggregated advisory (M4) when sidecars
