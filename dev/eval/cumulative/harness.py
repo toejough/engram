@@ -49,6 +49,10 @@ REGIMES = {
     "l1":        {"write": "L1",   "read_mode": "tier",    "read_tiers": ["L1"]},
     "l2.l1l2":   {"write": "L2",   "read_mode": "blended", "read_tiers": []},
     "l2.l2":     {"write": "L2",   "read_mode": "tier",    "read_tiers": ["L2"]},
+    # Lazy arm (B): write L1 at learn; crystallize L2s on demand at recall (synthesize_l2),
+    # then persist them forward (see run_learn). Both arms end with L1+L2 readable — A writes
+    # L2 eagerly at learn, B crystallizes lazily at recall.
+    "l2.lazy":   {"write": "L1",   "read_mode": "synthesize_l2", "read_tiers": []},
     "l3.l1l2l3": {"write": "L3",   "read_mode": "blended", "read_tiers": []},
     "l3.l2l3":   {"write": "L3",   "read_mode": "tier",    "read_tiers": ["L2", "L3"]},
     "l3.l3":     {"write": "L3",   "read_mode": "tier",    "read_tiers": ["L3"]},
@@ -122,6 +126,21 @@ def build_prompt(app, interface, read_mode, read_tiers):
         recall = ("\nBefore writing any code, consult your memory — run exactly this, read every "
                   "surfaced note, and APPLY every convention and decision it surfaces:\n"
                   f"  engram query {phrases}\n")
+    elif read_mode == "synthesize_l2":
+        recall = (
+            "\nBefore writing any code, consult your memory. Run exactly this, read every surfaced "
+            "note, and APPLY every convention and decision it surfaces:\n"
+            f"  engram query --synthesize-l2 {phrases}\n"
+            "This is LAZY L2 synthesis. Each cluster in the payload carries `nearest_l2: {path, cosine}` "
+            "— the closest existing L2 to that cluster. For each cluster (size >= 3), apply the three "
+            "bands and WAIT for any writes before continuing (the new L2s are for THIS build):\n"
+            "  - cosine >= 0.95 -> do nothing (an L2 already covers it).\n"
+            "  - 0.80 <= cosine < 0.95 -> `engram learn fact|feedback` updating the nearest L2 "
+            "(--target <luhmann-id from nearest_l2.path> --position continuation; NO --tier).\n"
+            "  - cosine < 0.80 -> `engram learn fact|feedback` creating a new L2 synthesizing the "
+            "cluster (--position top, --relation to each member; NO --tier).\n"
+            "Prefer the more-recently-created member where members diverge. Then APPLY the surfaced "
+            "and freshly-written L2 conventions to your build.\n")
     else:  # tier
         tier_flags = " ".join(f"--tier {t}" for t in read_tiers)
         recall = (
@@ -397,6 +416,27 @@ def note_tier(path):
     return None
 
 
+def _links_to_l2(note_path, vault):
+    """Whether a note's wikilinks ([[basename]], e.g. in its `Related to:` block) point at
+    ANOTHER note whose tier is L2 — the composition signal for lazy L2 synthesis (a crystallized
+    L2 that builds on an existing L2). Resolves each target basename to its note file under the
+    build vault and reads that target's tier."""
+    try:
+        body = open(note_path).read()
+    except Exception:
+        return False
+    by_base = {os.path.basename(p)[: -len(".md")]: p for p in glob_notes(vault)}
+    self_base = os.path.basename(note_path)[: -len(".md")]
+    for target in re.findall(r"\[\[([^\]]+)\]\]", body):
+        target = target.strip()
+        if target == self_base:
+            continue
+        tgt_path = by_base.get(target)
+        if tgt_path and note_tier(tgt_path) == "L2":
+            return True
+    return False
+
+
 def prune_to_ceiling(vault, write_tier):
     """Deterministically enforce the write-tier ceiling: drop any note whose frontmatter
     tier exceeds write_tier (and its .vec.json sidecar). Higher tiers link DOWN to lower
@@ -467,7 +507,9 @@ def link_followed(cfg, sid):
 
 def _stub_build(args):
     """Drop the chosen fixture Go app into the workdir (real, compilable Go the scorer
-    builds and runs) and return a canned result. No LLM call."""
+    builds and runs) and return a canned result. No LLM call. For the lazy arm, also fakes
+    a synthesize-l2 recall that crystallizes L2(s) into the build vault — so persist-forward
+    and the vault-metrics path are validated without an LLM."""
     import shutil
     fix = os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata", args.stub)
     for path in _glob.glob(os.path.join(fix, "*")):
@@ -476,8 +518,30 @@ def _stub_build(args):
             shutil.copytree(path, dst, dirs_exist_ok=True)
         else:
             shutil.copy(path, dst)
+    if args.regime == "l2.lazy":
+        _stub_crystallize_l2(args)
     return {"is_error": False, "total_cost_usd": 0.0, "num_turns": 1,
             "session_id": "stub-build", "result": "stubbed build"}
+
+
+def _stub_crystallize_l2(args):
+    """Fake the l2.lazy recall's crystallize-on-demand: write two L2 facts into the build vault
+    (one composing on the other via a relation) so persist-forward (run_learn) and the build
+    vault metrics (l2_generated/l2_composed) are exercised with no LLM. The deterministic learn
+    for l2.lazy writes L1 only; this is the recall-side write the real run gets from /recall."""
+    build_vault = args.workdir + ".buildvault"
+    if not os.path.isdir(build_vault):
+        return
+    date = args.date or "2026-06-06"
+    base1 = eg_learn(build_vault, date, "fact", f"stub-lazy-{args.app}-di",
+                     {"situation": f"building a command-line {args.app} in Go",
+                      "subject": "dependencies", "predicate": "should be",
+                      "object": "injected interfaces so the core runs against in-memory fakes"}, [])
+    rel = [f"{base1}|builds on"] if base1 else []
+    eg_learn(build_vault, date, "fact", f"stub-lazy-{args.app}-errors",
+             {"situation": f"signaling errors in a command-line {args.app} in Go",
+              "subject": "error conditions", "predicate": "should be",
+              "object": "package-level sentinel vars wrapped with %w and matched via errors.Is"}, rel)
 
 
 # ----- token I/O capture + cost audit (§6 / note-17: decompose tokens; reconstruct cost ~1.00x) -----
@@ -708,6 +772,16 @@ def run_build(args):
     audit = ({"tokens": dict(EMPTY_TOKENS), "recomputed_cost": 0.0, "cost_ratio": None} if args.stub
              else token_audit(args.cfg, sid, MODELS[args.model], build_cost))
 
+    # Post-op vault metrics: for the lazy arm, recall crystallizes L2s INTO the build vault during
+    # the build session. Count those newly-crystallized L2s (vs. the seeded vault_in note set) and
+    # how many compose on an existing L2. Arm A reports 0 here (it does not write during build);
+    # the aggregate sources arm A's L2 count from learn notes_by_tier instead (see Task 4.4 note).
+    seeded = (set(os.path.basename(p) for p in glob_notes(args.vault_in))
+              if args.vault_in != "none" and os.path.isdir(args.vault_in) else set())
+    new_l2 = [p for p in glob_notes(build_vault)
+              if note_tier(p) == "L2" and os.path.basename(p) not in seeded]
+    l2_composed = sum(1 for p in new_l2 if _links_to_l2(p, build_vault))
+
     out = {
         "schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "build",
         "app": args.app, "model": args.model, "model_id": MODELS[args.model],
@@ -732,6 +806,8 @@ def run_build(args):
         "tokens": audit["tokens"], "recomputed_cost": audit["recomputed_cost"],
         "cost_ratio": audit["cost_ratio"],
         "wall_min": round((time.time() - t0) / 60.0, 1),
+        "l2_generated": len(new_l2), "l2_composed": l2_composed,
+        "vault_notes_total": len(glob_notes(build_vault)),
         "rounds": rounds, "session_id": sid, "workdir": args.workdir,
     }
     json.dump(out, open(args.out, "w"), indent=2)
@@ -761,8 +837,24 @@ def run_learn(args):
     # cross-contaminate the seed vaults.
     learn_vault = args.vault_out + ".staging"
     shutil.rmtree(learn_vault, ignore_errors=True)
-    if args.vault_in != "none" and os.path.isdir(args.vault_in):
-        shutil.copytree(args.vault_in, learn_vault)
+
+    # Lazy arm (l2.lazy): recall crystallized L2s INTO the build vault during
+    # the build session. Seed the learn stage from THAT (it holds vault_in +
+    # the new L2s) so crystallized L2s persist forward across the app chain.
+    # A missing build vault here is a hard failure — NEVER fall back to
+    # vault_in silently (that would measure the strawman, invisibly).
+    build_vault = args.workdir + ".buildvault"
+    if args.regime == "l2.lazy":
+        if not os.path.isdir(build_vault):
+            raise RuntimeError(
+                f"l2.lazy: build vault {build_vault} missing — cannot persist "
+                f"crystallized L2s forward; refusing to silently seed from vault_in")
+        seed_src = build_vault
+    else:
+        seed_src = args.vault_in
+
+    if seed_src != "none" and os.path.isdir(seed_src):
+        shutil.copytree(seed_src, learn_vault)
     else:
         os.makedirs(os.path.join(learn_vault, "Permanent"), exist_ok=True)
 
@@ -793,7 +885,10 @@ def run_learn(args):
     # Enforce the write-tier ceiling (the experimental condition), embed, then SCORE capture
     # quality — did the agent persist the conventions we expect for this tier? A poor or empty
     # capture is RECORDED (a measured output), not engineered away.
-    pruned = prune_to_ceiling(learn_vault, args.write_tier)
+    # For l2.lazy the crystallized L2s are the experiment's OUTPUT and must survive the
+    # ceiling prune (write_tier is L1 for this regime, which would otherwise drop them).
+    prune_tier = "L2" if args.regime == "l2.lazy" else args.write_tier
+    pruned = prune_to_ceiling(learn_vault, prune_tier)
     env = dict(os.environ)
     env["ENGRAM_VAULT_PATH"] = learn_vault
     env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")

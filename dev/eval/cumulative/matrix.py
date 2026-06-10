@@ -105,12 +105,20 @@ def _op(kind, oid, dep, cfg_kind, out, cmd_tail):
     return {"kind": kind, "id": oid, "dep": dep, "cfg_kind": cfg_kind, "out": out, "cmd_tail": cmd_tail}
 
 
-def cells_for(model, trial, date, stub, max_rounds):
-    """All operations for one (model, trial) chain, with dependencies."""
+def cells_for(model, trial, date, stub, max_rounds, regimes=None):
+    """All operations for one (model, trial) chain, with dependencies.
+
+    `regimes` (a set of regime keys) restricts the app2/app3 cells to those regimes and prunes
+    the app1 learns to only the write-tiers those regimes need (plus the shared cold app1 build,
+    which every chain depends on). None => all regimes (unchanged behavior)."""
     pfx = f"{model}-t{trial}"
     ws1 = f"{WS}/{pfx}-app1"
     stub_args = ["--stub", stub] if stub else []
     ops = []
+
+    selected = list(harness.REGIMES.items()) if regimes is None else \
+        [(r, rc) for r, rc in harness.REGIMES.items() if r in regimes]
+    needed_tiers = {rc["write"] for _, rc in selected}  # only learn the write-tiers these regimes seed from
 
     app1_build_out = f"{RESULTS}/{pfx}-app1-build.json"
     ops.append(_op("build", f"{pfx}-app1-build", [], "cold", app1_build_out, [
@@ -119,6 +127,8 @@ def cells_for(model, trial, date, stub, max_rounds):
         "--out", app1_build_out, "--max-rounds", str(max_rounds)] + stub_args))
 
     for tier in WRITE_TIERS:
+        if regimes is not None and tier not in needed_tiers:
+            continue
         v1 = f"{VAULTS}/v1-{pfx}-{tier}"
         out = f"{RESULTS}/{pfx}-app1-learn-{tier}.json"
         ops.append(_op("learn", f"{pfx}-app1-learn-{tier}", [f"{pfx}-app1-build"],
@@ -127,7 +137,7 @@ def cells_for(model, trial, date, stub, max_rounds):
             "--date", date, "--write-tier", tier, "--workdir", ws1, "--vault-in", "none",
             "--vault-out", v1, "--build-result", app1_build_out, "--out", out] + stub_args))
 
-    for regime, rc in harness.REGIMES.items():
+    for regime, rc in selected:
         write = rc["write"]
         v1 = f"{VAULTS}/v1-{pfx}-{write}"
         v2 = f"{VAULTS}/v2-{pfx}-{regime}"
@@ -229,12 +239,12 @@ def run_op(op, pools, timeout_s):
             pools[op["cfg_kind"]].put(cfg)
 
 
-def write_manifest(models, trials, date, stub):
+def write_manifest(models, trials, date, stub, regimes):
     os.makedirs(RESULTS, exist_ok=True)
     json.dump({
         "schema_version": harness.SCHEMA_VERSION, "engram_sha": harness.engram_sha(),
         "date": date, "models": models, "model_ids": {m: harness.MODELS[m] for m in models},
-        "trials": trials, "regimes": list(harness.REGIMES.keys()), "stub": stub or None,
+        "trials": trials, "regimes": regimes, "stub": stub or None,
         "price_sheet_date": PRICE_SHEET_DATE,
     }, open(f"{RESULTS}/run-manifest.json", "w"), indent=2)
 
@@ -249,18 +259,33 @@ def main():
     ap.add_argument("--date", default=datetime.date.today().isoformat())
     ap.add_argument("--max-rounds", type=int, default=15)  # high safety cap; escalation drives completion
     ap.add_argument("--stub", default="", choices=["", "good", "naive"])
+    ap.add_argument("--regimes", default="",
+                    help="comma-separated regime keys to restrict the run to (e.g. l2.l1l2,l2.lazy); "
+                         "default empty = all regimes")
     args = ap.parse_args()
 
     models = [m for m in args.models.split(",") if m in ALL_MODELS]
     trials = [int(t) for t in args.trials.split(",")]
+    regimes = None
+    if args.regimes:
+        regimes = [r for r in args.regimes.split(",") if r in harness.REGIMES]
+        unknown = [r for r in args.regimes.split(",") if r not in harness.REGIMES]
+        if unknown:
+            log(f"!! unknown regime(s) ignored: {unknown}")
+        if not regimes:
+            log(f"!! no valid regimes in --regimes={args.regimes!r}; nothing to run.")
+            return
+    manifest_regimes = regimes if regimes is not None else list(harness.REGIMES.keys())
     for d in (VAULTS, RESULTS, WS):
         os.makedirs(d, exist_ok=True)
-    write_manifest(models, trials, args.date, args.stub)
+    write_manifest(models, trials, args.date, args.stub, manifest_regimes)
 
+    regime_set = set(regimes) if regimes is not None else None
     pools = make_pools(nwarm=args.workers, ncold=args.workers)
-    all_ops = [op for m in models for t in trials for op in cells_for(m, t, args.date, args.stub, args.max_rounds)]
+    all_ops = [op for m in models for t in trials
+               for op in cells_for(m, t, args.date, args.stub, args.max_rounds, regime_set)]
     by_id = {op["id"]: op for op in all_ops}
-    log(f"matrix: {len(all_ops)} ops | models={models} trials={trials} regimes={len(harness.REGIMES)} "
+    log(f"matrix: {len(all_ops)} ops | models={models} trials={trials} regimes={manifest_regimes} "
         f"workers={args.workers} budget=${args.budget} stub={args.stub or 'no'}")
     log(f"already done: {sum(1 for op in all_ops if op_done(op))}/{len(all_ops)} | spent ${spent_so_far():.2f}")
 

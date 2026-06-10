@@ -95,7 +95,7 @@ def beta_table(builds, models, regimes):
     return {(r, m): mean(idx.get((r, m), [])) for r in regimes for m in models}
 
 
-WRITE_TIER = {"cold": "none", "l1": "L1", "l2.l1l2": "L2", "l2.l2": "L2",
+WRITE_TIER = {"cold": "none", "l1": "L1", "l2.l1l2": "L2", "l2.l2": "L2", "l2.lazy": "L1",
               "l3.l1l2l3": "L3", "l3.l2l3": "L3", "l3.l3": "L3"}
 
 
@@ -404,7 +404,7 @@ def full_matrix_tables(builds, learns, models, regimes):
     app3 terminal). Resource metrics are over ALL builds (incl. capped non-converged), so a † marks
     a cell where <60% of builds completed — its turns/cost run high because they didn't finish."""
     bmap, a1l, a2l = _index_runs(builds, learns)
-    write_of = {"cold": "none", "l1": "L1", "l2.l1l2": "L2", "l2.l2": "L2",
+    write_of = {"cold": "none", "l1": "L1", "l2.l1l2": "L2", "l2.l2": "L2", "l2.lazy": "L1",
                 "l3.l1l2l3": "L3", "l3.l2l3": "L3", "l3.l3": "L3"}
 
     def cell(model, app, reg):
