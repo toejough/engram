@@ -4,6 +4,44 @@ Engram SHA: `933353a87591` · date: 2026-06-10 · models: opus · trials: [1, 2,
 
 > A NEW clean baseline (re-metric'd say-once + 7 vs 5 regimes); NOT comparable cell-for-cell to the 2026-06-02 run.
 
+---
+
+## VERDICT — lazy (`l2.lazy`) vs eager/proactive (`l2.l1l2`), opus, n=5 (2026-06-10)
+
+**Lazy is ~25–32% cheaper and not worse on any measured axis** — same completion (100% both), same
+say-once (lazy 6.8 vs eager 7.0 = a tie at n=5). Mean/trial: total **$5.83 vs $7.80** (−25%); tokens
+**4.4M vs 5.8M**; wall **19 vs 24 min**; app2+app3 chain **$3.70 vs $5.45** (−32%). Learn-capture
+coverage 1.00 / episode 100% for both. Validity confirmed: arm B crystallized **1 L2/app on demand**
+and persisted it forward (`l2.lazy` vaults carry L2=1).
+
+**But this run does NOT show lazy's on-demand L2 is as *valuable* as eager's** — only that
+deferring/skipping L2 costs less and loses nothing the say-once metric can see. **The confound:**
+say-once was ~6.8–7.0 whether the vault held **0 L2s** (the first, invalid L1-only run), **1 L2**
+(lazy here), or **~10 L2s** (eager, ~one fact per convention). For opus on this thin chain **the L2
+layer is near-optional** — L1 episodes alone already carry the conventions. So the arms aren't matched
+on output (eager wrote ~10 L2s; lazy crystallized 1), and "lazy cheaper" largely means "lazy made far
+fewer L2s and the metric couldn't tell." Two readings the data can't separate: **(a)** lazy smartly
+avoids L2s nothing ever recalls (waste eager pays); **(b)** L2 was optional anyway here. The
+L1-only=6.8 datapoint leans toward (b).
+
+**Opus-first cuts against this question.** Opus is the model most able to re-derive conventions from
+raw episodes — i.e. the one where L2 looks *most* optional (the 2026-06-08 round's "opus thrives on
+less memory"). The discriminating follow-up, when wanted: a setting where **L1-only measurably FAILS**
+— a longer/broader chain hitting many distinct conventions, or a weaker model — because only there can
+lazy demonstrate it *recovers* L2's value on demand rather than just skipping it cheaply.
+
+**Scope:** n=5, single model (opus), thin 3-app chain (lazy crystallized 1 L2/app; `l2_composed`=0 —
+the compositional/recursion behavior was not exercised, deliberately deferred). The cost margin partly
+reflects lazy reading leaner memory (1 L2 vs ~10); at vault scale it would narrow. Directional, not
+definitive.
+
+> ⚠️ The generic "Recommendation" / "Convergence guard" prose lower in this file is boilerplate
+> emitted by the full-matrix aggregator (it references `l2.l2`/`cold`/sonnet/haiku/7 regimes and
+> "25/25 builds" from the 2026-06-08 run); it is **NOT** specific to this 2-regime opus A/B. Trust the
+> VERDICT above and the data tables; ignore that boilerplate.
+
+---
+
 ## Primary — repeated-convention interventions (say-once vs every-app)
 
 Chain-summed conventions the human had to STATE (app1+app2+app3). Prediction: memory ≈ |conv| once; no-memory (`cold`) ≈ |conv| × 3. The delta on app2/app3 — conventions memory carried so they did not recur — is memory's value.
