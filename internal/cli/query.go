@@ -67,6 +67,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 	hits := loaded.hits
 
 	warnModelMismatch(deps.LogWarning, loaded, modelID)
+	warnOldSchema(deps.LogWarning, loaded)
 
 	if len(notes) > 0 && len(hits) == 0 {
 		return errQueryNoEmbeddings
@@ -300,14 +301,16 @@ type scoredCandidate struct {
 	content  string
 }
 
-// sidecarLoadResult bundles the compatible-sidecar hits with a summary of
-// sidecars dropped for a stale embedding model. The mismatch fields let
-// RunQuery emit a single aggregated M4 warning at the command edge instead
-// of doing I/O inside the loader.
+// sidecarLoadResult bundles the compatible-sidecar hits with summaries of
+// sidecars dropped for a stale embedding model (mismatch fields) and for an
+// old sidecar schema (oldSchemaCount). Tracking the two reasons separately
+// lets RunQuery emit a distinct, non-contradictory advisory for each at the
+// command edge instead of doing I/O inside the loader.
 type sidecarLoadResult struct {
 	hits               []compatibleSidecar
 	mismatchedCount    int
 	mismatchedModelIDs []string
+	oldSchemaCount     int
 }
 
 // subgraphMember bundles a node's basename, vault-relative path,
@@ -979,6 +982,7 @@ func loadCompatibleSidecars(
 	hits := make([]compatibleSidecar, 0, len(notes))
 	mismatchedCount := 0
 	mismatchedIDs := map[string]struct{}{}
+	oldSchemaCount := 0
 
 	for _, note := range notes {
 		notePath := pathOf(note.Basename, note.IsMOC)
@@ -992,8 +996,7 @@ func loadCompatibleSidecars(
 		sidecar, parseErr := embed.UnmarshalSidecar(scBytes)
 		if parseErr != nil {
 			if errors.Is(parseErr, embed.ErrSchemaVersion) {
-				mismatchedCount++
-				mismatchedIDs["(old sidecar schema; run `engram embed apply --force`)"] = struct{}{}
+				oldSchemaCount++
 			}
 
 			continue
@@ -1016,7 +1019,12 @@ func loadCompatibleSidecars(
 
 	sort.Strings(ids)
 
-	return sidecarLoadResult{hits: hits, mismatchedCount: mismatchedCount, mismatchedModelIDs: ids}
+	return sidecarLoadResult{
+		hits:               hits,
+		mismatchedCount:    mismatchedCount,
+		mismatchedModelIDs: ids,
+		oldSchemaCount:     oldSchemaCount,
+	}
 }
 
 // maxProvenanceRank returns the highest priority value among the roles
@@ -1789,5 +1797,22 @@ func warnModelMismatch(logWarning func(string, ...any), loaded sidecarLoadResult
 		loaded.mismatchedCount,
 		strings.Join(loaded.mismatchedModelIDs, ", "),
 		activeModelID,
+	)
+}
+
+// warnOldSchema emits a single advisory when sidecars were skipped for an
+// old (unsupported) schema version. It is kept separate from the model
+// mismatch advisory so the two reasons never contradict each other — this
+// one names `--force` (re-embed in place) and the model advisory names
+// `--all`. A no-op when nothing was old-schema or no warning hook is wired.
+func warnOldSchema(logWarning func(string, ...any), loaded sidecarLoadResult) {
+	if logWarning == nil || loaded.oldSchemaCount == 0 {
+		return
+	}
+
+	logWarning(
+		"query: %d sidecar(s) on an old schema were skipped; "+
+			"run `engram embed apply --force` to re-embed",
+		loaded.oldSchemaCount,
 	)
 }
