@@ -72,8 +72,14 @@ Four chunks. (1) is a prerequisite for (2)–(4). Each is independently testable
   **body vector** — instead of one.
 - **Schema:** `embed.Sidecar` gains `SituationVector []float32` and `BodyVector []float32`
   (replacing the single `Vector`), plus a sidecar `schema_version` so old single-vector sidecars
-  are detected as incompatible (same mechanism as the model-id stamp). `Dims`/`EmbeddingModelID`/
-  `ContentHash` unchanged.
+  are detected as incompatible (the schema-version check must run *before* the vector-length
+  validation — else an old single-vector sidecar decodes to empty new-vector fields and is
+  misclassified `Broken` rather than `Incompatible`, and `query`'s loader silently drops it instead
+  of surfacing the "run `engram embed apply`" guidance). `Dims`/`EmbeddingModelID` unchanged.
+  **`ContentHash` now hashes `situation + body`** (was situation-for-episodes / body-for-others):
+  with two embedded sources, staleness must fire when *either* changes — hashing only one leaves the
+  other vector silently stale (`StateOK` over a wrong vector). This supersedes the earlier
+  "ContentHash unchanged" note, written before the embed source was split.
 - **Embed pipeline:** `embed.Text()` currently returns *situation for episodes, body for others* —
   a single string. Split into `embed.SituationText()` (the `situation:` frontmatter field) and
   `embed.BodyText()` (`ExtractBody`); `autoEmbedNote` (and the migrate/resituate paths) embed
@@ -131,17 +137,38 @@ Four chunks. (1) is a prerequisite for (2)–(4). Each is independently testable
   with L1+L2 available at recall — the difference is *when* the L2s are made:
   - **A · eager (today):** an L2-writing regime (e.g. `l2.l1l2` — write L2 facts at learn, read
     {L1,L2}); recall reads, no writes.
-  - **B · lazy (new):** `/learn` writes **L1 episodes only**; recall runs the L2-synthesis mode and
-    the three-band writes, crystallizing L2s on demand.
+  - **B · lazy (new — regime `l2.lazy`, write-tier L1):** `/learn` writes **L1 episodes only**;
+    recall runs the L2-synthesis mode and the three-band writes, crystallizing L2s on demand, which
+    **persist forward** into the next app's vault (see Harness change).
   - **L3 is not generated in either arm for v1** (out of scope, §6); the comparison is purely about
     eager-vs-lazy *L2*.
-- **Harness change:** a `--learn-mode eager|lazy` switch that (a) swaps the learn prompt to
-  episode-only for B, and (b) points the build's recall step at the `--synthesize-l2` mode + the new
-  `/recall` write path. Per-cell build-vault isolation already absorbs in-loop recall writes.
+- **Harness change:** add arm B as a **distinct regime string** (`l2.lazy`, write-tier L1) rather
+  than a `--learn-mode` flag on a shared regime — the matrix keys every op id / result path / vault
+  on `(model, trial, regime)`, so a shared string would make the resumer skip arm B as "already
+  done" and collide its vaults. The `l2.lazy` regime (a) uses the L1-only learn prompt and (b)
+  points the build's recall step at `--synthesize-l2` + the new **blocking** `/recall` write path.
+  New `l2.lazy` aliases must be added to `aggregate.py` (`WRITE_TIER`, `write_of`) or the tables
+  `KeyError`.
+- **Arm-B recall persists forward (the amortization mechanism).** The harness today seeds each
+  app's *learn* from `vault_in` and discards the throwaway build vault — fine when recall is
+  read-only, but fatal for lazy: arm B crystallizes L2s *in the build vault*, so if learn re-stages
+  from `vault_in` those L2s evaporate and every app re-crystallizes from scratch (arm B then loses
+  on cost for a reason unrelated to the hypothesis, and §2's "compose from existing L2s" never
+  happens). Fix: for `l2.lazy`, **`vault_out = build-vault-after-recall ∪ the L1 episode`** — seed
+  the learn stage from the post-recall build vault (which already holds `vault_in` + the
+  crystallized L2s), add the L1 episode, promote to `vault_out`. This is what lets the ≥0.95 no-op
+  band amortize across app1→app2→app3 and lets L2s compose over time. (The prior eager baseline was
+  unaffected: it accumulates via the `learn → vault_out` chain, which already carries forward.)
 - **Metrics** (the hypothesis): **#L2 notes generated** (B fewer), **learn cost/tokens** (B lower —
   L1 only), **recall cost/tokens/time** (B higher — on-demand synthesis), **net chain cost** (the
   bet), **say-once convention restatements** (must be preserved in B), **completion**, **vault
   growth**, and **L2 composition** (do B's L2s link to *other L2s*, i.e. is the recursion real).
+- **Measurement paths.** **Net chain cost** is the headline metric and is directly measurable.
+  Isolated **recall** cost/tokens are *not* cleanly separable in v1 — arm-B's `--synthesize-l2`
+  recall and three-band writes run inside the same headless build session, so their spend folds into
+  `build_cost`; per-turn attribution is deferred (note it, don't build it). **#L2 generated**,
+  **vault growth**, and **L2 composition** need new post-op vault inspection in `run_build` (reading
+  the build vault) — `run_build` currently scores Go source only.
 - **Scope:** start focused — sonnet, n=5, the full notes→links→feeds chain, A vs B. Extend to
   opus/haiku only if the focused result warrants. Token I/O + cost audit (§6) as in the current
   baseline.
@@ -173,6 +200,12 @@ agent (building links, recalls v1 = app1's L1 episodes)
   discard.
 - Fact **and/or** Feedback from a cluster (not facts-only).
 - Dual-vector sidecars; one shared embedding space.
+- **`ContentHash` covers `situation + body`** so staleness fires when either embedded source changes
+  (supersedes the original "unchanged" intent; planning-recon finding, 2026-06-10).
+- **Arm-B recall persists forward** — `vault_out = build-vault-after-recall ∪ the L1 episode` — so
+  crystallized L2s amortize across the app chain. Resolves the §3.4-vs-§1/§2 build-vault-throwaway
+  contradiction surfaced in planning recon (2026-06-10); verified the prior eager baseline was
+  unaffected (it accumulates L2/L3 via the `learn → vault_out` chain).
 
 **Open / to validate:**
 - **Does mixed L1/L2 clustering actually group same-topic notes in practice?** Resolved *in theory*
