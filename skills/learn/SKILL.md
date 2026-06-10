@@ -268,6 +268,8 @@ Required: `--slug`, `--source`, `--situation`, `--summary`, `--boundary-rational
 
 ### 6b. L3 synthesis — scenario-discoverable ADRs
 
+> **DEFAULT: SKIP §6b. The locked write-tier is L2** — capture episodes (§6a) and facts/feedback (§§1–5) and **stop**. Do **not** run L3 synthesis. The 2026-06-08 cumulative-accumulation eval found writing L3 ADRs added learn cost without improving outcomes over an L2 ceiling, so the default `/learn` writes L1 + L2 only. The rest of §6b is retained for reference / when L3 synthesis is explicitly re-enabled.
+
 When this `/learn` pass wrote L2 facts, distill them into **L3 ADRs** so a future agent discovers the standard from its *situation*, not from knowing the lesson. L2 is a pile of specific facts; an L3 is a short decision-record that synthesizes a *cluster* of them and surfaces whether or not the agent knows it needs it. For the new or changed L2 facts:
 
 1. **Seed by SCENARIO, not by lesson keyword.** Enumerate 3–6 *situations an agent could be in where this fact should surface and be reconsidered **before they act*** — e.g. "about to build a CLI that persists user data", "wiring a Go service's storage layer". NOT phrasings of the lesson ("dependency-injection constructor", "atomic XDG write"): the agent won't know it needs the lesson and can't query for it — it queries by what it is *doing*. (The recall-mirror principle from §2, applied to synthesis.)

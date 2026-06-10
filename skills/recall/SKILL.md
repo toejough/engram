@@ -75,17 +75,19 @@ This list is internal scratch — not part of the user-facing output, but it IS 
 
 **Query by task, not by fear.** What are you trying to do? Not what might go wrong. "implementing Claude Code hooks" — not "common mistakes when writing hooks." Memories are written to match task descriptions, so query the same way.
 
-### Step 3 — Run one `engram query` with all Step 1 phrases as `--phrase` flags
+### Step 3 — Run one `engram query --tier L2` with all Step 1 phrases as `--phrase` flags
 
-Issue a single `engram query` call, passing each Step 1 phrase as a separate `--phrase` flag. The binary runs one sub-pipeline per phrase, merges results (max score, union provenances, per-phrase clusters), and returns a single aggregated payload.
+Issue a single `engram query` call **tier-capped to L2** (`--tier L2`), passing each Step 1 phrase as a separate `--phrase` flag. The binary runs one sub-pipeline per phrase, merges results (max score, union provenances, per-phrase clusters), and returns a single aggregated payload.
 
 ```bash
-engram query \
+engram query --tier L2 \
   --phrase "<Step 1 phrase 1>" \
   --phrase "<Step 1 phrase 2>" \
   --phrase "<Step 1 phrase 3>"
   # ... one --phrase per Step 1 phrase
 ```
+
+**`--tier L2` is the locked default read.** The 2026-06-08 cumulative-accumulation eval found L2 (the distilled facts/feedback) is the highest-value tier to surface for build/convention work and that surfacing L1 episodes or L3 ADRs by default did not help (often hurt weak models). So recall reads L2 only. You may still reach a specific cited lower/other-tier note on demand with `engram show <basename>` (see [Following a cited note on demand](#following-a-cited-note-on-demand-engram-show)); only what engram *proactively returns* is L2-capped.
 
 The binary returns a YAML payload (full schema in `docs/superpowers/research/2026-05-25-f6-f91-spec.md`):
 
