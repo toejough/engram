@@ -1417,7 +1417,7 @@ This is the **amortization fix**: for `l2.lazy`, seed the learn stage from the p
 
 ### Task 4.7: focused A/B run + aggregate (USER-AUTHORIZED, paid)
 
-- [ ] **Step 1:** **Confirm with the user before launching** — this spends real tokens. Scope: `--models sonnet --trials 1,2,3,4,5`, regimes restricted to arm A (`l2.l1l2`) and arm B (`l2.lazy`), the full notes→links→feeds chain.
+- [ ] **Step 1:** **Confirm with the user before launching** — this spends real tokens. Scope: **`--models opus --trials 1,2,3,4,5 --regimes l2.l1l2,l2.lazy`** (opus-first per Joe, 2026-06-10 — opus converged fastest in the prior run, cleanest early signal), the full notes→links→feeds chain. Run isolated: `ENGRAM_BIN_DIR=/tmp/engram-lazy-bin` (the Phase-2 build, never `~/go/bin`) and a dedicated `CUMMATRIX_ROOT` (fresh, so the cfg pool picks up the edited `/recall`; keep it intact across resumes — never clear `WS` separately from `results/`).
 - [ ] **Step 2:** Launch with the standard resilience/resume wrapper (interruptions are normal — just resume; the matrix is resumable via `op_done`).
 - [ ] **Step 3:** `python3 aggregate.py` over the run dir → A-vs-B table on: net chain cost, learn cost/tokens, #L2 generated, say-once convention restatements, completion, vault growth, L2 composition. `python3 compare.py <this-run> <eager-baseline>` for the differential.
 - [ ] **Step 4:** Write `dev/eval/cumulative/results-lazy-l2.md` recording the result and the recommendation. Commit. **Phase 4 complete.**

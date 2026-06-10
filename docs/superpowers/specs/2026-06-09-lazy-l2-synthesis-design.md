@@ -169,9 +169,12 @@ Four chunks. (1) is a prerequisite for (2)–(4). Each is independently testable
   `build_cost`; per-turn attribution is deferred (note it, don't build it). **#L2 generated**,
   **vault growth**, and **L2 composition** need new post-op vault inspection in `run_build` (reading
   the build vault) — `run_build` currently scores Go source only.
-- **Scope:** start focused — sonnet, n=5, the full notes→links→feeds chain, A vs B. Extend to
-  opus/haiku only if the focused result warrants. Token I/O + cost audit (§6) as in the current
-  baseline.
+- **Scope:** start focused — **opus, n=5**, the full notes→links→feeds chain, A vs B. (Opus first,
+  inverting the original sonnet-first plan: the 2026-06-08 baseline showed opus converges in the
+  fewest human-feedback rounds / lowest turns-to-converge, so it gives the least-noisy *early* read
+  on viability — if lazy can't win on opus, cheaper models won't save it. Extend *down* to
+  sonnet/haiku only if the opus result warrants. Joe's call, 2026-06-10.) Token I/O + cost audit
+  (§6) as in the current baseline.
 
 ## 4. Data flow — one recall (lazy arm)
 
