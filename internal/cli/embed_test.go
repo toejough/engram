@@ -61,9 +61,11 @@ func TestEmbedApply_MissingOnly_WritesSidecar(t *testing.T) {
 
 	var sidecar embed.Sidecar
 	g.Expect(json.Unmarshal(memFS.files[sidecarPath], &sidecar)).NotTo(HaveOccurred())
+	g.Expect(sidecar.SchemaVersion).To(Equal(embed.SidecarSchemaVersion))
 	g.Expect(sidecar.EmbeddingModelID).To(Equal("m@4"))
 	g.Expect(sidecar.Dims).To(Equal(4))
-	g.Expect(sidecar.Vector).To(HaveLen(4))
+	g.Expect(sidecar.SituationVector).To(HaveLen(4))
+	g.Expect(sidecar.BodyVector).To(HaveLen(4))
 	g.Expect(sidecar.ContentHash).To(HavePrefix("sha256:"))
 }
 
@@ -81,9 +83,11 @@ func TestEmbedApply_StaleVsIncompatibleDistinction(t *testing.T) {
 
 	// Plant an incompatible sidecar (different model_id).
 	incompatSidecar := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
 		EmbeddingModelID: "OLD@384",
 		Dims:             4,
-		Vector:           []float32{1, 1, 1, 1},
+		SituationVector:  []float32{1, 1, 1, 1},
+		BodyVector:       []float32{1, 1, 1, 1},
 		ContentHash:      embed.ContentHash(noteBody),
 	}
 	incompatBytes := embed.MarshalSidecar(incompatSidecar)

@@ -151,7 +151,7 @@ type aggregatedSummary struct {
 	phrases        []string
 	resolvedItems  []resolvedItem
 	phraseClusters []phrasedCluster
-	l3             l3Index
+	l3             tierIndex
 	outgoing       map[string][]string
 	tiers          []string
 	totalNotes     int
@@ -192,13 +192,6 @@ type expandedSubgraph struct {
 type hubReport struct {
 	memberIDs []int // member index per hub, sorted by spec rules
 	inDegrees []int // inDegrees[i] = in-degree of members[memberIDs[i]]
-}
-
-// l3Index holds the vault-wide set of L3 note paths and their sidecar
-// vectors for per-cluster nearest-L3 lookup. Built once per RunQuery call.
-type l3Index struct {
-	paths   []string
-	vectors [][]float32
 }
 
 // phrasedCluster pairs a cluster report with the phrase that produced it,
@@ -296,10 +289,14 @@ type resolvedItem struct {
 }
 
 // scoredCandidate aggregates one note's match against the query vector.
+// coord is the WINNING vector — the one of the note's two axes that scored
+// highest — used as the note's clustering coordinate (a note is clustered by
+// the vector that matched it).
 type scoredCandidate struct {
 	notePath string
 	basename string
 	score    float32
+	coord    []float32
 	content  string
 }
 
@@ -321,6 +318,15 @@ type subgraphMember struct {
 	vector   []float32
 	score    float32
 	content  string
+}
+
+// tierIndex holds the vault-wide set of one tier's note paths and BOTH
+// sidecar vectors for per-cluster nearest-tier lookup by max(situation,body).
+// Built once per RunQuery call.
+type tierIndex struct {
+	paths []string
+	sit   [][]float32
+	body  [][]float32
 }
 
 // aggregatePhraseSummaries merges per-phrase pipeline results into a single
@@ -433,6 +439,21 @@ func basenameFromNotePath(notePath string) string {
 	return strings.TrimSuffix(filepath.Base(notePath), ".md")
 }
 
+// bestVector scores a sidecar against the query by the stronger of its two
+// axes and returns that score with the WINNING vector — the coordinate the
+// note is positioned by for clustering (per the lazy-L2 design: a note is
+// clustered by the vector that matched it).
+func bestVector(queryVec []float32, sidecar embed.Sidecar) (float32, []float32) {
+	situationScore := embed.Cosine(queryVec, sidecar.SituationVector)
+	bodyScore := embed.Cosine(queryVec, sidecar.BodyVector)
+
+	if situationScore >= bodyScore {
+		return situationScore, sidecar.SituationVector
+	}
+
+	return bodyScore, sidecar.BodyVector
+}
+
 // breakRepresentativeTie returns whichever of two member indices wins
 // the secondary tiebreakers: higher direct-hit score, then lexicographic
 // notePath ascending.
@@ -468,11 +489,12 @@ func buildSubgraphMembers(
 		hit := hitByName[name]
 		notePath := pathOf(name, hit.note.IsMOC)
 
+		score, coord := bestVector(queryVec, hit.sidecar)
 		member := subgraphMember{
 			basename: name,
 			notePath: notePath,
-			vector:   hit.sidecar.Vector,
-			score:    embed.Cosine(queryVec, hit.sidecar.Vector),
+			vector:   coord,
+			score:    score,
 		}
 
 		if content, ok := directContentByBasename[name]; ok {
@@ -491,19 +513,18 @@ func buildSubgraphMembers(
 }
 
 // buildUnionSubgraph turns the deduped union direct hits into an
-// expandedSubgraph whose members ARE those hits (no BFS expansion), joining
-// each hit's sidecar vector by basename. The graph/hops/capped fields stay
-// zero-valued because synthesis clusters the union itself and computes no hubs.
-func buildUnionSubgraph(union []scoredCandidate, hits []compatibleSidecar) expandedSubgraph {
-	hitByName := indexHitsByBasename(hits)
-
+// expandedSubgraph whose members ARE those hits (no BFS expansion), carrying
+// each hit's winning-vector coordinate forward. The graph/hops/capped fields
+// stay zero-valued because synthesis clusters the union itself and computes
+// no hubs.
+func buildUnionSubgraph(union []scoredCandidate) expandedSubgraph {
 	members := make([]subgraphMember, 0, len(union))
 
 	for _, hit := range union {
 		members = append(members, subgraphMember{
 			basename: hit.basename,
 			notePath: hit.notePath,
-			vector:   hitByName[hit.basename].sidecar.Vector,
+			vector:   hit.coord,
 			score:    hit.score,
 			content:  hit.content,
 		})
@@ -734,17 +755,27 @@ func filterToCompatibleMembers(
 	return memberNames
 }
 
-// gatherL3Index reads each compatible-sidecar note's content and collects
-// those whose frontmatter carries "tier: L3" into a small index used for
-// nearest-L3 lookup during cluster rendering. Called once per query so the
-// per-cluster BestMatch calls are O(1) in I/O.
+// gatherL3Index collects the L3 notes into a tierIndex for nearest-L3 lookup.
 func gatherL3Index(
 	hits []compatibleSidecar,
 	vault string,
 	read func(string) ([]byte, error),
-) l3Index {
-	paths := make([]string, 0)
-	vectors := make([][]float32, 0)
+) tierIndex {
+	return gatherTierIndex(hits, vault, read, tierL3)
+}
+
+// gatherTierIndex reads each compatible-sidecar note's content and collects
+// those whose frontmatter carries the requested tier into a small index used
+// for nearest-tier lookup during cluster rendering. Both sidecar vectors are
+// carried so the per-cluster lookup can gate by max(situation,body). Called
+// once per query so the per-cluster lookups are O(1) in I/O.
+func gatherTierIndex(
+	hits []compatibleSidecar,
+	vault string,
+	read func(string) ([]byte, error),
+	tier string,
+) tierIndex {
+	idx := tierIndex{}
 
 	for _, hit := range hits {
 		notePath := pathOf(hit.note.Basename, hit.note.IsMOC)
@@ -755,15 +786,16 @@ func gatherL3Index(
 		}
 
 		item := resolvedItem{content: stripWikilinks(string(body))}
-		if !itemMatchesTier(item, []string{tierL3}) {
+		if !itemMatchesTier(item, []string{tier}) {
 			continue
 		}
 
-		paths = append(paths, notePath)
-		vectors = append(vectors, hit.sidecar.Vector)
+		idx.paths = append(idx.paths, notePath)
+		idx.sit = append(idx.sit, hit.sidecar.SituationVector)
+		idx.body = append(idx.body, hit.sidecar.BodyVector)
 	}
 
-	return l3Index{paths: paths, vectors: vectors}
+	return idx
 }
 
 // identifyHubs returns the top-N (≤ maxHubs) subgraph notes by
@@ -959,6 +991,11 @@ func loadCompatibleSidecars(
 
 		sidecar, parseErr := embed.UnmarshalSidecar(scBytes)
 		if parseErr != nil {
+			if errors.Is(parseErr, embed.ErrSchemaVersion) {
+				mismatchedCount++
+				mismatchedIDs["(old sidecar schema; run `engram embed apply --force`)"] = struct{}{}
+			}
+
 			continue
 		}
 
@@ -1225,29 +1262,48 @@ func mergeProvenances(
 	return items
 }
 
-// nearestL3For returns the nearest L3 note to centroid from l3Notes, or nil if
-// the index is empty. threshold 0 ensures the best is always reported; the
-// skill applies its own 0.9 cut.
-func nearestL3For(centroid []float32, l3Notes l3Index) *queryNearestL3 {
-	if len(l3Notes.vectors) == 0 {
+// nearestInTierIndex returns the index note nearest the centroid by the
+// stronger of its two axes (the "either axis" gate). found is false for an
+// empty index.
+func nearestInTierIndex(centroid []float32, idx tierIndex) (string, float32, bool) {
+	best, bestSim := -1, float32(-1)
+
+	for i := range idx.paths {
+		sim := embed.Cosine(centroid, idx.sit[i])
+		if bodySim := embed.Cosine(centroid, idx.body[i]); bodySim > sim {
+			sim = bodySim
+		}
+
+		if sim > bestSim {
+			bestSim = sim
+			best = i
+		}
+	}
+
+	if best < 0 {
+		return "", 0, false
+	}
+
+	return idx.paths[best], bestSim, true
+}
+
+// nearestL3For returns the nearest L3 note to centroid from l3Notes by
+// max(situation,body), or nil if the index is empty. No threshold is applied;
+// the skill applies its own 0.9 cut.
+func nearestL3For(centroid []float32, l3Notes tierIndex) *queryNearestL3 {
+	path, cosine, found := nearestInTierIndex(centroid, l3Notes)
+	if !found {
 		return nil
 	}
 
-	bestIdx, sim := cluster.BestMatch(centroid, l3Notes.vectors, 0)
-
-	result := &queryNearestL3{Cosine: sim}
-	if bestIdx >= 0 {
-		result.Path = l3Notes.paths[bestIdx]
-	}
-
-	return result
+	return &queryNearestL3{Path: path, Cosine: cosine}
 }
 
 // nearestL3ForTier gates nearestL3For on the requested tiers for T1a
-// isolation. The l3Index is L3-only by construction, so its sole result is
+// isolation. The tierIndex is L3-only by construction, so its sole result is
 // suppressed whenever a non-empty tier set omits L3; an empty set or one that
 // includes L3 passes through unchanged.
-func nearestL3ForTier(centroid []float32, l3Notes l3Index, tiers []string) *queryNearestL3 {
+func nearestL3ForTier(centroid []float32, l3Notes tierIndex, tiers []string) *queryNearestL3 {
 	if len(tiers) > 0 && !slices.Contains(tiers, tierL3) {
 		return nil
 	}
@@ -1377,10 +1433,12 @@ func rankCandidates(
 			continue
 		}
 
+		score, coord := bestVector(queryVec, hit.sidecar)
 		candidates = append(candidates, scoredCandidate{
 			notePath: notePath,
 			basename: hit.note.Basename,
-			score:    embed.Cosine(queryVec, hit.sidecar.Vector),
+			score:    score,
+			coord:    coord,
 			content:  stripWikilinks(string(noteBytes)),
 		})
 	}
@@ -1402,7 +1460,7 @@ func rankCandidates(
 // filtering is dropped entirely, and nearest_l3 (always an L3 note by
 // construction) is suppressed for any tier set that omits L3. An empty tier
 // set leaves all channels blended.
-func renderClusters(phraseClusters []phrasedCluster, l3Notes l3Index, tiers []string) []queryCluster {
+func renderClusters(phraseClusters []phrasedCluster, l3Notes tierIndex, tiers []string) []queryCluster {
 	var out []queryCluster
 
 	for _, pc := range phraseClusters {
@@ -1591,7 +1649,7 @@ func runSynthesisQuery(
 		return err
 	}
 
-	subgraph := buildUnionSubgraph(union, hits)
+	subgraph := buildUnionSubgraph(union)
 	report := clusterUnionForSynthesis(subgraph, strings.Join(args.Phrases, "\n"))
 
 	resolved := mergeProvenances(union, expandedSubgraph{}, clusterReport{}, hubReport{})

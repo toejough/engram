@@ -6,15 +6,24 @@ import (
 	"encoding/hex"
 )
 
-// ContentHash returns a sha256: prefixed hex digest of the note's embedded
-// text (see Text): the situation: field for episodes, the body otherwise. It
-// hashes the same bytes that get embedded so staleness detection tracks the
-// embed source — editing an episode's situation changes the hash even when
-// the body is byte-identical, marking the stored vector stale.
-func ContentHash(raw []byte) string {
-	sum := sha256.Sum256(Text(raw))
+// BodyText returns the note body (frontmatter stripped). It is the
+// body-vector source for every note type.
+func BodyText(raw []byte) []byte {
+	return ExtractBody(raw)
+}
 
-	return "sha256:" + hex.EncodeToString(sum[:])
+// ContentHash returns a sha256: prefixed hex digest covering BOTH embed
+// sources — the situation: field and the body — joined by a 0x00 separator.
+// Hashing both means staleness detection tracks either source: editing a
+// note's situation OR its body changes the hash, marking the stored dual
+// vectors stale.
+func ContentHash(raw []byte) string {
+	hasher := sha256.New()
+	hasher.Write(SituationText(raw))
+	hasher.Write([]byte{0})
+	hasher.Write(BodyText(raw))
+
+	return "sha256:" + hex.EncodeToString(hasher.Sum(nil))
 }
 
 // ExtractBody returns the markdown body of a note with the leading YAML
@@ -42,32 +51,24 @@ func ExtractBody(raw []byte) []byte {
 	return bytes.TrimPrefix(body, []byte("\n"))
 }
 
-// Text returns the text that should be embedded for a note. For episode
-// notes it returns the trimmed `situation:` frontmatter field, which is
-// designed to match task queries. For all other note types (or when
-// frontmatter is absent / situation is missing), it falls back to
-// ExtractBody.
-func Text(raw []byte) []byte {
+// SituationText returns the `situation:` frontmatter field for any note
+// type ("" when absent or unparseable). It is the situation-vector source.
+func SituationText(raw []byte) []byte {
 	delim := []byte(frontmatterDelim)
 	if !bytes.HasPrefix(raw, delim) {
-		return ExtractBody(raw)
+		return nil
 	}
 
 	rest := raw[len(delim):]
 
 	frontmatter, _, ok := bytes.Cut(rest, delim)
 	if !ok {
-		return ExtractBody(raw)
-	}
-
-	noteType := extractFrontmatterField(frontmatter, "type")
-	if noteType != "episode" {
-		return ExtractBody(raw)
+		return nil
 	}
 
 	situation := extractFrontmatterField(frontmatter, "situation")
 	if situation == "" {
-		return ExtractBody(raw)
+		return nil
 	}
 
 	return []byte(situation)

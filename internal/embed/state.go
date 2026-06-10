@@ -39,6 +39,10 @@ func ComputeState(filesystem FS, notePath, currentModelID string) State {
 
 	sidecar, parseErr := UnmarshalSidecar(scBytes)
 	if parseErr != nil {
+		if errors.Is(parseErr, ErrSchemaVersion) {
+			return StateIncompatible
+		}
+
 		return StateBroken
 	}
 

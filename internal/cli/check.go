@@ -11,6 +11,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
@@ -21,10 +22,12 @@ type CheckArgs struct {
 
 // CheckDeps holds injected dependencies for RunCheck. The check is read-only.
 // ReadNote is optional: a nil ReadNote skips the content-level checks (e.g.
-// situation-presence) and runs only the graph-level checks.
+// situation-presence) and runs only the graph-level checks. ReadSidecar is
+// likewise optional: a nil ReadSidecar skips the S1 sidecar-schema invariant.
 type CheckDeps struct {
-	Scan     func(vault string) ([]vaultgraph.Note, error)
-	ReadNote func(path string) ([]byte, error)
+	Scan        func(vault string) ([]vaultgraph.Note, error)
+	ReadNote    func(path string) ([]byte, error)
+	ReadSidecar func(path string) ([]byte, error)
 }
 
 // RunCheck runs the vault-invariant checks read-only over the vault, writes a
@@ -42,6 +45,10 @@ func RunCheck(_ context.Context, args CheckArgs, deps CheckDeps, stdout io.Write
 
 	if deps.ReadNote != nil {
 		failed = checkSituationPresence(notes, deps.ReadNote, args.VaultPath, stdout) || failed
+	}
+
+	if deps.ReadSidecar != nil {
+		failed = checkSidecars(notes, deps.ReadSidecar, args.VaultPath, stdout) || failed
 	}
 
 	if failed {
@@ -98,6 +105,58 @@ func checkGraphResolution(notes []vaultgraph.Note, stdout io.Writer) bool {
 	}
 
 	return len(resolverBroken) > 0
+}
+
+// checkSidecars verifies S1: every situation-bearing note's sidecar parses
+// under the current schema. An old-schema or malformed sidecar FAILs (a
+// re-embed is required); a missing sidecar WARNs (embed status covers it).
+// Returns true if the FAIL-class invariant is violated.
+func checkSidecars(
+	notes []vaultgraph.Note,
+	readSidecar func(path string) ([]byte, error),
+	vault string,
+	stdout io.Writer,
+) bool {
+	stale := make([]string, 0)
+	missing := 0
+
+	for _, note := range notes {
+		if note.IsMOC {
+			continue
+		}
+
+		notePath := filepath.Join(permanentDir, note.Basename+".md")
+
+		scBytes, err := readSidecar(filepath.Join(vault, embed.SidecarPath(notePath)))
+		if err != nil {
+			missing++
+
+			continue
+		}
+
+		_, parseErr := embed.UnmarshalSidecar(scBytes)
+		if parseErr != nil {
+			stale = append(stale, note.Basename)
+		}
+	}
+
+	if missing > 0 {
+		_, _ = fmt.Fprintf(stdout,
+			"WARN  S1 sidecar-schema: %d note(s) missing a sidecar (run `engram embed apply`)\n", missing)
+	}
+
+	if len(stale) > 0 {
+		_, _ = fmt.Fprintf(stdout,
+			"FAIL  S1 sidecar-schema: %d sidecar(s) on an old/invalid schema (run `engram embed apply --force`)\n",
+			len(stale))
+		printNoteExamples(stdout, stale)
+
+		return true
+	}
+
+	_, _ = fmt.Fprintln(stdout, "PASS  S1 sidecar-schema: every sidecar parses under the current schema")
+
+	return false
 }
 
 // checkSituationPresence verifies M5/E5: every fact/feedback (M5) and episode
@@ -176,7 +235,8 @@ func newOsCheckDeps() CheckDeps {
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
 			return vaultgraph.ScanVault(fsys, vault)
 		},
-		ReadNote: fsys.ReadFile,
+		ReadNote:    fsys.ReadFile,
+		ReadSidecar: fsys.ReadFile,
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
@@ -90,6 +91,26 @@ func TestRunCheck_FailsOnMissingSituation(t *testing.T) {
 	g.Expect(out.String()).To(ContainSubstring("1.2026-05-30.foo"))
 }
 
+func TestRunCheck_FailsOnOldSchemaSidecar(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.CheckDeps{
+		Scan:     func(string) ([]vaultgraph.Note, error) { return []vaultgraph.Note{{Basename: "1.fact"}}, nil },
+		ReadNote: func(string) ([]byte, error) { return []byte("---\ntype: fact\nsituation: x\n---\n\nb\n"), nil },
+		ReadSidecar: func(string) ([]byte, error) {
+			return []byte(`{"embedding_model_id":"m@4","dims":4,"vector":[1,0,0,0],"content_hash":"sha256:x"}`), nil
+		},
+	}
+
+	var out bytes.Buffer
+
+	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: "v"}, deps, &out)
+	g.Expect(err).To(MatchError(cli.ErrCheckFailedForTest))
+	g.Expect(out.String()).To(ContainSubstring("FAIL  S1"))
+}
+
 func TestRunCheck_FailsOnUnresolvedG0Links(t *testing.T) {
 	t.Parallel()
 
@@ -112,6 +133,31 @@ func TestRunCheck_FailsOnUnresolvedG0Links(t *testing.T) {
 	g.Expect(out.String()).To(ContainSubstring("FAIL"))
 	g.Expect(out.String()).To(ContainSubstring("G0"))
 	g.Expect(out.String()).To(ContainSubstring("105"))
+}
+
+func TestRunCheck_PassesOnCurrentSidecar(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	good := embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@4",
+		Dims:             4,
+		SituationVector:  []float32{1, 0, 0, 0},
+		BodyVector:       []float32{1, 0, 0, 0},
+		ContentHash:      "sha256:x",
+	})
+	deps := cli.CheckDeps{
+		Scan:        func(string) ([]vaultgraph.Note, error) { return []vaultgraph.Note{{Basename: "1.fact"}}, nil },
+		ReadNote:    func(string) ([]byte, error) { return []byte("---\ntype: fact\nsituation: x\n---\n\nb\n"), nil },
+		ReadSidecar: func(string) ([]byte, error) { return good, nil },
+	}
+
+	var out bytes.Buffer
+
+	g.Expect(cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: "v"}, deps, &out)).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("PASS  S1"))
 }
 
 func TestRunCheck_PassesWhenAllLinksResolve(t *testing.T) {

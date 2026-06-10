@@ -8,19 +8,20 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func TestMarshalUnmarshal_RoundTrip(t *testing.T) {
+func TestMarshalUnmarshal_DualVector_RoundTrip(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 	original := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
 		EmbeddingModelID: "minilm-l6-v2@384",
 		Dims:             3,
-		Vector:           []float32{0.1, 0.2, 0.3},
+		SituationVector:  []float32{0.1, 0.2, 0.3},
+		BodyVector:       []float32{0.4, 0.5, 0.6},
 		ContentHash:      "sha256:deadbeef",
 	}
-	encoded := embed.MarshalSidecar(original)
 
-	out, parseErr := embed.UnmarshalSidecar(encoded)
+	out, parseErr := embed.UnmarshalSidecar(embed.MarshalSidecar(original))
 	g.Expect(parseErr).NotTo(HaveOccurred())
 
 	if parseErr != nil {
@@ -45,14 +46,21 @@ func TestSidecarPath_NonMdReturnsAppended(t *testing.T) {
 	g.Expect(embed.SidecarPath("README")).To(Equal("README.vec.json"))
 }
 
-func TestUnmarshalSidecar_DimsMismatch(t *testing.T) {
+func TestUnmarshalSidecar_DimsMismatch_OnEitherVector(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	_, err := embed.UnmarshalSidecar([]byte(
-		`{"embedding_model_id":"x@2","dims":2,"vector":[0.1,0.2,0.3],"content_hash":"sha256:abc"}`,
-	))
-	g.Expect(err).To(MatchError(embed.ErrDimsMismatch))
+	bad := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@3",
+		Dims:             3,
+		SituationVector:  []float32{0.1, 0.2, 0.3},
+		BodyVector:       []float32{0.4, 0.5}, // body short
+		ContentHash:      "sha256:x",
+	}
+
+	_, parseErr := embed.UnmarshalSidecar(embed.MarshalSidecar(bad))
+	g.Expect(parseErr).To(MatchError(embed.ErrDimsMismatch))
 }
 
 func TestUnmarshalSidecar_Malformed(t *testing.T) {
@@ -61,4 +69,17 @@ func TestUnmarshalSidecar_Malformed(t *testing.T) {
 	g := NewWithT(t)
 	_, err := embed.UnmarshalSidecar([]byte("{not json"))
 	g.Expect(err).To(MatchError(embed.ErrSidecarMalformed))
+}
+
+func TestUnmarshalSidecar_OldSingleVector_IsSchemaError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	// An old-format sidecar: no schema_version, single "vector" key.
+	old := []byte(
+		`{"embedding_model_id":"minilm-l6-v2@384","dims":3,"vector":[0.1,0.2,0.3],"content_hash":"sha256:x"}`,
+	)
+
+	_, parseErr := embed.UnmarshalSidecar(old)
+	g.Expect(parseErr).To(MatchError(embed.ErrSchemaVersion))
 }

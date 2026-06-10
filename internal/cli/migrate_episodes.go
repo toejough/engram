@@ -164,16 +164,9 @@ func migrateEpisodeSidecar(ctx context.Context, deps MigrateEpisodesDeps, notePa
 		return nil
 	}
 
-	vector, embErr := deps.Embedder.Embed(ctx, string(embed.Text([]byte(content))))
+	sidecar, embErr := embed.BuildSidecar(ctx, deps.Embedder, []byte(content))
 	if embErr != nil {
 		return fmt.Errorf("migrate-episodes: embedding %s: %w", notePath, embErr)
-	}
-
-	sidecar := embed.Sidecar{
-		EmbeddingModelID: deps.Embedder.ModelID(),
-		Dims:             deps.Embedder.Dims(),
-		Vector:           vector,
-		ContentHash:      embed.ContentHash([]byte(content)),
 	}
 
 	writeErr := deps.Write(embed.SidecarPath(notePath), embed.MarshalSidecar(sidecar))

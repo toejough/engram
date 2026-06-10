@@ -262,7 +262,8 @@ func TestEngramTranscript_DateRangeEndToEnd(t *testing.T) {
 }
 
 // expectSidecarValid asserts the sidecar file parses as a Sidecar with
-// non-zero dims and a vector of the declared length.
+// the current schema version, non-zero dims, and two vectors of the
+// declared length.
 func expectSidecarValid(g Gomega, path string) {
 	data, err := os.ReadFile(path)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -273,16 +274,20 @@ func expectSidecarValid(g Gomega, path string) {
 
 	//nolint:tagliatelle // mirrors the spec-contract JSON keys from internal/embed.Sidecar
 	var parsed struct {
+		SchemaVersion    int       `json:"schema_version"`
 		EmbeddingModelID string    `json:"embedding_model_id"`
 		Dims             int       `json:"dims"`
-		Vector           []float32 `json:"vector"`
+		SituationVector  []float32 `json:"situation_vector"`
+		BodyVector       []float32 `json:"body_vector"`
 		ContentHash      string    `json:"content_hash"`
 	}
 
 	g.Expect(json.Unmarshal(data, &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.SchemaVersion).To(Equal(1))
 	g.Expect(parsed.EmbeddingModelID).NotTo(BeEmpty())
 	g.Expect(parsed.Dims).To(BeNumerically(">", 0))
-	g.Expect(parsed.Vector).To(HaveLen(parsed.Dims))
+	g.Expect(parsed.SituationVector).To(HaveLen(parsed.Dims))
+	g.Expect(parsed.BodyVector).To(HaveLen(parsed.Dims))
 	g.Expect(parsed.ContentHash).To(HavePrefix("sha256:"))
 }
 

@@ -10,6 +10,34 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+func TestBodyText_NoFrontmatterReturnsRaw(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("Just a plain note with no frontmatter.\n")
+	g.Expect(string(embed.BodyText(in))).To(Equal("Just a plain note with no frontmatter.\n"))
+}
+
+func TestBodyText_StripsFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	raw := []byte("---\ntype: fact\nsituation: x\n---\n\nthe body\n")
+	g.Expect(string(embed.BodyText(raw))).To(Equal("the body\n"))
+}
+
+func TestContentHash_ChangesWhenEitherSourceChanges(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	base := []byte("---\ntype: fact\nsituation: A\n---\n\nbody B\n")
+	sitChanged := []byte("---\ntype: fact\nsituation: A2\n---\n\nbody B\n")
+	bodyChanged := []byte("---\ntype: fact\nsituation: A\n---\n\nbody B2\n")
+
+	g.Expect(embed.ContentHash(base)).NotTo(Equal(embed.ContentHash(sitChanged)))
+	g.Expect(embed.ContentHash(base)).NotTo(Equal(embed.ContentHash(bodyChanged)))
+}
+
 func TestContentHash_EpisodeSituationChangeChangesHash(t *testing.T) {
 	t.Parallel()
 
@@ -41,65 +69,19 @@ func TestContentHash_FrontmatterChangeDoesNotChangeHash(t *testing.T) {
 	g.Expect(embed.ContentHash(a)).To(Equal(embed.ContentHash(b)))
 }
 
-func TestContentHash_IsSha256OfBody(t *testing.T) {
+func TestContentHash_IsSha256OfSituationAndBody(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	body := []byte("the body.\n")
-	want := sha256.Sum256(body)
-	g.Expect(embed.ContentHash([]byte("---\ntype: x\n---\nthe body.\n"))).
-		To(Equal("sha256:" + hex.EncodeToString(want[:])))
-}
+	raw := []byte("---\ntype: fact\nsituation: when X\n---\n\nthe body.\n")
 
-func TestEmbedText_EpisodeMissingSituationFallsBackToBody(t *testing.T) {
-	t.Parallel()
+	hasher := sha256.New()
+	hasher.Write([]byte("when X"))
+	hasher.Write([]byte{0})
+	hasher.Write([]byte("the body.\n"))
 
-	g := NewWithT(t)
-	in := []byte("---\ntype: episode\nluhmann: \"5\"\n---\n\nEpisode body without situation.\n")
-	g.Expect(string(embed.Text(in))).To(Equal("Episode body without situation.\n"))
-}
-
-func TestEmbedText_EpisodeReturnsSituationField(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte(
-		"---\ntype: episode\nsituation: evaluating agent memory\nluhmann: \"251\"\n---\n\nLong transcript body...\n",
-	)
-	g.Expect(string(embed.Text(in))).To(Equal("evaluating agent memory"))
-}
-
-func TestEmbedText_EpisodeSituationWithWhitespaceIsTrimmed(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("---\ntype: episode\nsituation:  spaced value  \nluhmann: \"7\"\n---\n\nBody.\n")
-	g.Expect(string(embed.Text(in))).To(Equal("spaced value"))
-}
-
-func TestEmbedText_FactReturnsBody(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\nThe fact body.\n")
-	g.Expect(string(embed.Text(in))).To(Equal("The fact body.\n"))
-}
-
-func TestEmbedText_FeedbackReturnsBody(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	// Feedback notes also have a situation: field — must NOT use it; embed the body.
-	in := []byte("---\ntype: feedback\nsituation: When debugging a plugin\n---\n\nFeedback body.\n")
-	g.Expect(string(embed.Text(in))).To(Equal("Feedback body.\n"))
-}
-
-func TestEmbedText_NoFrontmatterReturnsRaw(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	in := []byte("Just a plain note with no frontmatter.\n")
-	g.Expect(string(embed.Text(in))).To(Equal("Just a plain note with no frontmatter.\n"))
+	g.Expect(embed.ContentHash(raw)).
+		To(Equal("sha256:" + hex.EncodeToString(hasher.Sum(nil))))
 }
 
 func TestExtractBody_NoFrontmatter(t *testing.T) {
@@ -124,4 +106,23 @@ func TestExtractBody_UnterminatedFrontmatterReturnedUnchanged(t *testing.T) {
 	g := NewWithT(t)
 	in := []byte("---\ntype: fact\n(no closing delimiter)\n")
 	g.Expect(string(embed.ExtractBody(in))).To(Equal(string(in)))
+}
+
+func TestSituationText_ExtractsFieldForAnyType(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	fact := []byte("---\ntype: fact\nsituation: when wiring a Go CLI\n---\n\nbody here\n")
+	g.Expect(string(embed.SituationText(fact))).To(Equal("when wiring a Go CLI"))
+
+	noFM := []byte("just a body, no frontmatter\n")
+	g.Expect(embed.SituationText(noFM)).To(BeEmpty())
+}
+
+func TestSituationText_WhitespaceIsTrimmed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: episode\nsituation:  spaced value  \nluhmann: \"7\"\n---\n\nBody.\n")
+	g.Expect(string(embed.SituationText(in))).To(Equal("spaced value"))
 }

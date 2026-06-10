@@ -31,7 +31,11 @@ func SidecarPath(notePath string) string {
 }
 
 // UnmarshalSidecar decodes a sidecar from JSON, returning ErrSidecarMalformed
-// on parse failure or ErrDimsMismatch when len(Vector) != Dims.
+// on parse failure, ErrSchemaVersion when the on-disk schema is not the
+// current one (e.g. an old single-vector sidecar), or ErrDimsMismatch when
+// either vector's length disagrees with Dims. The schema check precedes the
+// vector-length check so an old sidecar (whose new vector fields decode empty)
+// classifies as a schema mismatch rather than a dims mismatch.
 func UnmarshalSidecar(data []byte) (Sidecar, error) {
 	var sidecar Sidecar
 
@@ -40,12 +44,22 @@ func UnmarshalSidecar(data []byte) (Sidecar, error) {
 		return Sidecar{}, fmt.Errorf("%w: %w", ErrSidecarMalformed, err)
 	}
 
-	if len(sidecar.Vector) != sidecar.Dims {
+	if sidecar.SchemaVersion != SidecarSchemaVersion {
 		return Sidecar{}, fmt.Errorf(
-			"%w: dims=%d len=%d",
+			"%w: got=%d want=%d",
+			ErrSchemaVersion,
+			sidecar.SchemaVersion,
+			SidecarSchemaVersion,
+		)
+	}
+
+	if len(sidecar.SituationVector) != sidecar.Dims || len(sidecar.BodyVector) != sidecar.Dims {
+		return Sidecar{}, fmt.Errorf(
+			"%w: dims=%d situation=%d body=%d",
 			ErrDimsMismatch,
 			sidecar.Dims,
-			len(sidecar.Vector),
+			len(sidecar.SituationVector),
+			len(sidecar.BodyVector),
 		)
 	}
 

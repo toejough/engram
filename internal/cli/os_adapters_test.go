@@ -30,9 +30,11 @@ func TestApplyOneErrorPaths(t *testing.T) {
 	g.Expect(os.WriteFile(note1, []byte("---\ntype: fact\n---\nbody1"), 0o600)).To(Succeed())
 
 	sc1 := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
 		EmbeddingModelID: "stub@4",
 		Dims:             4,
-		Vector:           []float32{1, 0, 0, 0},
+		SituationVector:  []float32{1, 0, 0, 0},
+		BodyVector:       []float32{1, 0, 0, 0},
 		ContentHash:      "sha256:WRONG",
 	}
 	sc1Bytes := embed.MarshalSidecar(sc1)
@@ -54,9 +56,11 @@ func TestApplyOneErrorPaths(t *testing.T) {
 	note3 := filepath.Join(vault, "Permanent/3.2026-05-24.okay.md")
 	g.Expect(os.WriteFile(note3, body3, 0o600)).To(Succeed())
 	sc3 := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
 		EmbeddingModelID: "stub@4",
 		Dims:             4,
-		Vector:           []float32{1, 1, 1, 1},
+		SituationVector:  []float32{1, 1, 1, 1},
+		BodyVector:       []float32{1, 1, 1, 1},
 		ContentHash:      embed.ContentHash(body3),
 	}
 	g.Expect(os.WriteFile(
@@ -69,9 +73,11 @@ func TestApplyOneErrorPaths(t *testing.T) {
 	note4 := filepath.Join(vault, "Permanent/4.2026-05-24.incompat.md")
 	g.Expect(os.WriteFile(note4, body4, 0o600)).To(Succeed())
 	sc4 := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
 		EmbeddingModelID: "OLD-model@128",
 		Dims:             4,
-		Vector:           []float32{1, 1, 1, 1},
+		SituationVector:  []float32{1, 1, 1, 1},
+		BodyVector:       []float32{1, 1, 1, 1},
 		ContentHash:      embed.ContentHash(body4),
 	}
 	g.Expect(os.WriteFile(

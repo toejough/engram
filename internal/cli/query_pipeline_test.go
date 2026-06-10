@@ -580,6 +580,30 @@ func plantDeterministicCluster(t *testing.T, memFS *inMemoryFS, vault string) {
 	}
 }
 
+// plantDualVector writes a note with distinct situation and body vectors so
+// tests can exercise the max(situation,body) scoring axis selection.
+func plantDualVector(
+	t *testing.T,
+	memFS *inMemoryFS,
+	vault, relPath, content string,
+	sit, body []float32,
+) {
+	t.Helper()
+
+	memFS.files[filepath.Join(vault, relPath)] = []byte(content)
+
+	sidecar := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@4",
+		Dims:             len(sit),
+		SituationVector:  sit,
+		BodyVector:       body,
+		ContentHash:      embed.ContentHash([]byte(content)),
+	}
+
+	memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(sidecar)
+}
+
 // plantWithFixedVector overrides the stub-embedder behavior by writing
 // a sidecar with an exact vector, bypassing text-hash variation.
 func plantWithFixedVector(
@@ -594,9 +618,11 @@ func plantWithFixedVector(
 	memFS.files[notePath] = []byte(body)
 
 	sidecar := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
 		EmbeddingModelID: "m@4",
 		Dims:             len(vec),
-		Vector:           vec,
+		SituationVector:  vec,
+		BodyVector:       vec,
 		ContentHash:      embed.ContentHash([]byte(body)),
 	}
 

@@ -456,9 +456,11 @@ func TestQuery_NotesWithIncompatibleSidecars_ErrorWithRecoveryHint(t *testing.T)
 	memFS.files[filepath.Join(vault, relPath)] = body
 
 	incompat := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
 		EmbeddingModelID: "OLD@384",
 		Dims:             4,
-		Vector:           []float32{0, 0, 0, 0},
+		SituationVector:  []float32{0, 0, 0, 0},
+		BodyVector:       []float32{0, 0, 0, 0},
 		ContentHash:      embed.ContentHash(body),
 	}
 	memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(incompat)
@@ -470,6 +472,43 @@ func TestQuery_NotesWithIncompatibleSidecars_ErrorWithRecoveryHint(t *testing.T)
 		newQueryDeps(memFS), &out)
 
 	g.Expect(err).To(MatchError(ContainSubstring("engram embed apply --all")))
+}
+
+func TestQuery_OldSchemaSidecars_EmitSchemaAdvisory(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	// Current sidecar → hits != 0 (avoids the errQueryNoEmbeddings guard).
+	plantDualVector(t, memFS, vault, "Permanent/1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nb\n",
+		[]float32{1, 0, 0, 0}, []float32{1, 0, 0, 0})
+	// Old single-vector sidecar → must be counted + surfaced, not dropped silently.
+	memFS.files[filepath.Join(vault, "Permanent/2.fact.md")] = []byte("---\ntype: fact\nsituation: y\n---\n\nb\n")
+	memFS.files[filepath.Join(vault, "Permanent/2.fact.vec.json")] = []byte(
+		`{"embedding_model_id":"m@4","dims":4,"vector":[1,0,0,0],"content_hash":"sha256:y"}`)
+
+	var advisories []string
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+	deps.LogWarning = func(format string, args ...any) {
+		advisories = append(advisories, fmt.Sprintf(format, args...))
+	}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"x"}, VaultPath: vault}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(strings.Join(advisories, "\n")).To(ContainSubstring("schema"),
+		"old-schema sidecars must be counted and surfaced via the mismatch advisory, not silently dropped")
 }
 
 func TestQuery_PhrasesFlag_AcceptsMultiplePhrases(t *testing.T) {
@@ -579,6 +618,76 @@ func TestQuery_RespectsLimit(t *testing.T) {
 	g.Expect(parsed.Items).To(HaveLen(2))
 }
 
+func TestQuery_ScoresByMaxOfSituationAndBody(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Note whose BODY vector is orthogonal to the query but whose SITUATION
+	// vector matches it — must still surface.
+	plantDualVector(t, memFS, vault, "Permanent/1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nbody\n",
+		[]float32{1, 0, 0, 0}, []float32{0, 0, 0, 1})
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, Limit: 20}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed queryParsed
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Items).NotTo(BeEmpty(),
+		"situation-axis match must surface even when body is orthogonal")
+	g.Expect(parsed.Items[0].Score).To(BeNumerically("~", 1.0, 1e-6),
+		"max() must report the winning (situation) axis score, not the orthogonal body axis (0)")
+}
+
+func TestQuery_ScoresByMaxWhenBodyWins(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Mirror image: the SITUATION vector is orthogonal to the query but the
+	// BODY vector matches it — the max() must pick the body axis. The
+	// reported score must equal the body-axis cosine (1), not the situation
+	// axis (0).
+	plantDualVector(t, memFS, vault, "Permanent/1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nbody\n",
+		[]float32{0, 0, 0, 1}, []float32{1, 0, 0, 0})
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, Limit: 20}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed queryParsed
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Items).NotTo(BeEmpty(),
+		"body-axis match must surface even when situation is orthogonal")
+	g.Expect(parsed.Items[0].Score).To(BeNumerically("~", 1.0, 1e-6),
+		"max() must report the winning (body) axis score")
+}
+
 func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 	t.Parallel()
 
@@ -685,9 +794,11 @@ func TestRunQuery_ModelMismatchEmitsWarning(t *testing.T) {
 	memFS.files[filepath.Join(vault, "Permanent/stale.md")] = staleBody
 	memFS.files[filepath.Join(vault, embed.SidecarPath("Permanent/stale.md"))] = embed.MarshalSidecar(
 		embed.Sidecar{
+			SchemaVersion:    embed.SidecarSchemaVersion,
 			EmbeddingModelID: staleModelID,
 			Dims:             4,
-			Vector:           []float32{0, 0, 0, 0},
+			SituationVector:  []float32{0, 0, 0, 0},
+			BodyVector:       []float32{0, 0, 0, 0},
 			ContentHash:      embed.ContentHash(staleBody),
 		},
 	)
@@ -912,12 +1023,10 @@ func plantNoteWithSidecar(t *testing.T, memFS *inMemoryFS, vault, relPath, body 
 	memFS.files[notePath] = []byte(body)
 
 	emb := stubEmbedder{modelID: "m@4", dims: 4}
-	vec, _ := emb.Embed(context.Background(), string(embed.ExtractBody([]byte(body))))
-	sidecar := embed.Sidecar{
-		EmbeddingModelID: emb.ModelID(),
-		Dims:             emb.Dims(),
-		Vector:           vec,
-		ContentHash:      embed.ContentHash([]byte(body)),
+
+	sidecar, err := embed.BuildSidecar(context.Background(), emb, []byte(body))
+	if err != nil {
+		t.Fatalf("build sidecar: %v", err)
 	}
 
 	memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(sidecar)

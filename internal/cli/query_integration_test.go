@@ -185,9 +185,11 @@ func writeSyntheticNote(g Gomega, permDir, basename, body string, vector []float
 	g.Expect(os.WriteFile(notePath, []byte(body), 0o600)).To(Succeed())
 
 	sidecar := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
 		EmbeddingModelID: embed.BundledModelID,
 		Dims:             len(vector),
-		Vector:           vector,
+		SituationVector:  vector,
+		BodyVector:       vector,
 		ContentHash:      embed.ContentHash([]byte(body)),
 	}
 

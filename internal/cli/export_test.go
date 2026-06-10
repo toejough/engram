@@ -13,6 +13,7 @@ import (
 
 // Exported variables.
 var (
+	ErrCheckFailedForTest            = errCheckFailed
 	ErrLearnBadTierForTest           = errLearnBadTier
 	ErrResituateNoteNotFoundForTest  = errResituateNoteNotFound
 	ExportAnyHarnessFailed           = anyHarnessFailed

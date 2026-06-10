@@ -486,9 +486,11 @@ func writeResituateFixture(t *testing.T, notePath, content string) {
 	g.Expect(os.WriteFile(notePath, []byte(content), 0o600)).To(Succeed())
 
 	stale := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
 		EmbeddingModelID: "m@4",
 		Dims:             4,
-		Vector:           []float32{0, 0, 0, 0},
+		SituationVector:  []float32{0, 0, 0, 0},
+		BodyVector:       []float32{0, 0, 0, 0},
 		ContentHash:      "sha256:stale",
 	}
 	sidecarPath := embed.SidecarPath(notePath)

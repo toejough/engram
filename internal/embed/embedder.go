@@ -3,6 +3,12 @@ package embed
 import (
 	"context"
 	"errors"
+	"fmt"
+)
+
+// Exported constants.
+const (
+	SidecarSchemaVersion = 1
 )
 
 // State is the relationship between a note and its sidecar relative to
@@ -39,6 +45,7 @@ func (s State) String() string {
 // Exported variables.
 var (
 	ErrDimsMismatch     = errors.New("sidecar dims mismatch len(vector)")
+	ErrSchemaVersion    = errors.New("sidecar schema version unsupported")
 	ErrSidecarMalformed = errors.New("sidecar malformed")
 )
 
@@ -53,12 +60,47 @@ type Embedder interface {
 // Sidecar is the on-disk shape of a per-note .vec.json file. Field order
 // here is the JSON key order. Snake-case keys match the spike spec's
 // sidecar contract verbatim and are part of the on-disk file format
-// (see docs/superpowers/research/2026-05-24-engram-query-spike.md).
+// (see docs/superpowers/research/2026-05-24-engram-query-spike.md). Each
+// note carries two vectors — one for its situation: frontmatter field and
+// one for its body — so retrieval can match by max(situation, body).
 //
 //nolint:tagliatelle // sidecar JSON keys are spec contract
 type Sidecar struct {
+	SchemaVersion    int       `json:"schema_version"`
 	EmbeddingModelID string    `json:"embedding_model_id"`
 	Dims             int       `json:"dims"`
-	Vector           []float32 `json:"vector"`
+	SituationVector  []float32 `json:"situation_vector"`
+	BodyVector       []float32 `json:"body_vector"`
 	ContentHash      string    `json:"content_hash"`
+}
+
+// BuildSidecar embeds a note's situation and body and returns a fully
+// stamped dual-vector sidecar. When the note has no situation field, the
+// body text stands in for the situation embedding so every note still
+// carries a meaningful situation vector. Either embed failure is returned
+// to the caller, which applies its own warn-or-fail policy.
+func BuildSidecar(ctx context.Context, embedder Embedder, raw []byte) (Sidecar, error) {
+	situationInput := SituationText(raw)
+	if len(situationInput) == 0 {
+		situationInput = BodyText(raw)
+	}
+
+	situationVector, err := embedder.Embed(ctx, string(situationInput))
+	if err != nil {
+		return Sidecar{}, fmt.Errorf("embed: situation vector: %w", err)
+	}
+
+	bodyVector, err := embedder.Embed(ctx, string(BodyText(raw)))
+	if err != nil {
+		return Sidecar{}, fmt.Errorf("embed: body vector: %w", err)
+	}
+
+	return Sidecar{
+		SchemaVersion:    SidecarSchemaVersion,
+		EmbeddingModelID: embedder.ModelID(),
+		Dims:             embedder.Dims(),
+		SituationVector:  situationVector,
+		BodyVector:       bodyVector,
+		ContentHash:      ContentHash(raw),
+	}, nil
 }

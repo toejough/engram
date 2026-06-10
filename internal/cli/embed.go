@@ -58,7 +58,6 @@ func RunEmbedApply(
 
 	selection := selectStates(args)
 	modelID := deps.Embedder.ModelID()
-	dims := deps.Embedder.Dims()
 	filesystem := readerFS{read: deps.Read}
 
 	for _, note := range notes {
@@ -77,7 +76,7 @@ func RunEmbedApply(
 			continue
 		}
 
-		applyOne(ctx, args.VaultPath, notePath, deps, modelID, dims, state, stdout)
+		applyOne(ctx, args.VaultPath, notePath, deps, state, stdout)
 	}
 
 	return nil
@@ -193,8 +192,6 @@ func applyOne(
 	ctx context.Context,
 	vault, notePath string,
 	deps EmbedDeps,
-	modelID string,
-	dims int,
 	state embed.State,
 	stdout io.Writer,
 ) {
@@ -207,20 +204,11 @@ func applyOne(
 		return
 	}
 
-	embedInput := embed.Text(noteBytes)
-
-	vector, embErr := deps.Embedder.Embed(ctx, string(embedInput))
+	sidecar, embErr := embed.BuildSidecar(ctx, deps.Embedder, noteBytes)
 	if embErr != nil {
 		_, _ = fmt.Fprintf(stdout, "fail      %s: embed: %v\n", notePath, embErr)
 
 		return
-	}
-
-	sidecar := embed.Sidecar{
-		EmbeddingModelID: modelID,
-		Dims:             dims,
-		Vector:           vector,
-		ContentHash:      embed.ContentHash(noteBytes),
 	}
 
 	scBytes := embed.MarshalSidecar(sidecar)

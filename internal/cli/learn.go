@@ -376,9 +376,7 @@ func autoEmbedNote(ctx context.Context, deps LearnDeps, notePath, content string
 		return
 	}
 
-	embedInput := embed.Text([]byte(content))
-
-	vector, embErr := deps.Embedder.Embed(ctx, string(embedInput))
+	sidecar, embErr := embed.BuildSidecar(ctx, deps.Embedder, []byte(content))
 	if embErr != nil {
 		if deps.LogWarning != nil {
 			deps.LogWarning("learn: embed failed for %s: %v", notePath, embErr)
@@ -387,16 +385,7 @@ func autoEmbedNote(ctx context.Context, deps LearnDeps, notePath, content string
 		return
 	}
 
-	sidecar := embed.Sidecar{
-		EmbeddingModelID: deps.Embedder.ModelID(),
-		Dims:             deps.Embedder.Dims(),
-		Vector:           vector,
-		ContentHash:      embed.ContentHash([]byte(content)),
-	}
-
-	scBytes := embed.MarshalSidecar(sidecar)
-
-	writeErr := deps.WriteSidecar(embed.SidecarPath(notePath), scBytes)
+	writeErr := deps.WriteSidecar(embed.SidecarPath(notePath), embed.MarshalSidecar(sidecar))
 	if writeErr != nil && deps.LogWarning != nil {
 		deps.LogWarning("learn: sidecar write failed for %s: %v", notePath, writeErr)
 	}

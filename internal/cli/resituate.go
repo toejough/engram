@@ -298,21 +298,14 @@ func splitFrontmatter(raw []byte) ([]byte, bool) {
 }
 
 // writeResituatedSidecar re-embeds the rewritten note and writes its sidecar.
-// The embed source is embed.Text(content) — the situation for episodes, the
-// body otherwise — so the content_hash tracks exactly what changed. Unlike the
-// learn-time auto-embed, a resituate is an explicit rewrite, so embed and write
-// failures are surfaced rather than warned-and-ignored.
+// BuildSidecar embeds both the situation: field and the body, so the
+// content_hash tracks exactly what changed. Unlike the learn-time auto-embed,
+// a resituate is an explicit rewrite, so embed and write failures are surfaced
+// rather than warned-and-ignored.
 func writeResituatedSidecar(ctx context.Context, deps ResituateDeps, notePath, content string) error {
-	vector, embErr := deps.Embedder.Embed(ctx, string(embed.Text([]byte(content))))
+	sidecar, embErr := embed.BuildSidecar(ctx, deps.Embedder, []byte(content))
 	if embErr != nil {
 		return fmt.Errorf("resituate: embedding %s: %w", notePath, embErr)
-	}
-
-	sidecar := embed.Sidecar{
-		EmbeddingModelID: deps.Embedder.ModelID(),
-		Dims:             deps.Embedder.Dims(),
-		Vector:           vector,
-		ContentHash:      embed.ContentHash([]byte(content)),
 	}
 
 	writeErr := deps.Write(embed.SidecarPath(notePath), embed.MarshalSidecar(sidecar))

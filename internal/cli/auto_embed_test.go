@@ -70,9 +70,11 @@ func TestAutoEmbedNote_HappyPathWritesValidSidecar(t *testing.T) {
 
 	var parsed embed.Sidecar
 	g.Expect(json.Unmarshal(capturedBytes, &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.SchemaVersion).To(Equal(embed.SidecarSchemaVersion))
 	g.Expect(parsed.EmbeddingModelID).To(Equal("m@4"))
 	g.Expect(parsed.Dims).To(Equal(4))
-	g.Expect(parsed.Vector).To(HaveLen(4))
+	g.Expect(parsed.SituationVector).To(HaveLen(4))
+	g.Expect(parsed.BodyVector).To(HaveLen(4))
 	g.Expect(parsed.ContentHash).To(HavePrefix("sha256:"))
 }
 
