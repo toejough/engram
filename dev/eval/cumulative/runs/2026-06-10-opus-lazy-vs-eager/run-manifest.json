@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "engram_sha": "933353a87591",
+  "date": "2026-06-10",
+  "models": [
+    "opus"
+  ],
+  "model_ids": {
+    "opus": "claude-opus-4-8"
+  },
+  "trials": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "regimes": [
+    "l2.l1l2",
+    "l2.lazy"
+  ],
+  "stub": null,
+  "price_sheet_date": "2026-06-02"
+}
