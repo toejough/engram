@@ -15,6 +15,7 @@ import (
 var (
 	ErrCheckFailedForTest            = errCheckFailed
 	ErrLearnBadTierForTest           = errLearnBadTier
+	ErrQueryModeConflict             = errQueryModeConflict
 	ErrResituateNoteNotFoundForTest  = errResituateNoteNotFound
 	ExportAnyHarnessFailed           = anyHarnessFailed
 	ExportApplyProjectFilter         = applyProjectFilter

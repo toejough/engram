@@ -166,6 +166,10 @@ type queryParsed struct {
 			Path   string  `yaml:"path"`
 			Cosine float32 `yaml:"cosine"`
 		} `yaml:"nearest_l3,omitempty"`
+		NearestL2 *struct {
+			Path   string  `yaml:"path"`
+			Cosine float32 `yaml:"cosine"`
+		} `yaml:"nearest_l2"`
 	} `yaml:"clusters"`
 	Budget struct {
 		PhrasesQueried       int  `yaml:"phrases_queried"`

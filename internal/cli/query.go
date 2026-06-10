@@ -21,12 +21,13 @@ import (
 
 // QueryArgs holds parsed flags for `engram query`.
 type QueryArgs struct {
-	Phrases   []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
-	VaultPath string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
-	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
-	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
-	Tiers     []string `targ:"flag,name=tier,desc=restrict items to notes matching these tier: values (repeatable)"`
-	Synthesis bool     `targ:"flag,name=synthesis,desc=union all phrase matches and cluster once for L3 synthesis (K=0 means one cluster; no min-size floor)"` //nolint:lll // single unbreakable struct-tag string
+	Phrases      []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
+	VaultPath    string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
+	Limit        int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
+	Project      string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
+	Tiers        []string `targ:"flag,name=tier,desc=restrict items to notes matching these tier: values (repeatable)"`
+	Synthesis    bool     `targ:"flag,name=synthesis,desc=union all phrase matches and cluster once for L3 synthesis (K=0 means one cluster; no min-size floor)"` //nolint:lll // single unbreakable struct-tag string
+	SynthesizeL2 bool     `targ:"flag,name=synthesize-l2,desc=union matched L1+L2 notes then cluster once and emit nearest_l2 per cluster for lazy L2 synthesis"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -73,8 +74,8 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return errQueryNoEmbeddings
 	}
 
-	if args.Synthesis {
-		return runSynthesisQuery(ctx, args, notes, hits, limit, deps, stdout)
+	if handled, err := dispatchSynthesisMode(ctx, args, notes, hits, limit, deps, stdout); handled {
+		return err
 	}
 
 	summaries := make([]queryPipelineSummary, 0, len(phrases))
@@ -129,6 +130,7 @@ const (
 // unexported variables.
 var (
 	errQueryEmptyString  = errors.New("query: empty query string")
+	errQueryModeConflict = errors.New("query: --synthesis and --synthesize-l2 are mutually exclusive")
 	errQueryNoEmbeddings = errors.New(
 		"query: vault has notes but no current-model embeddings; run `engram embed apply --all`",
 	)
@@ -153,6 +155,7 @@ type aggregatedSummary struct {
 	resolvedItems  []resolvedItem
 	phraseClusters []phrasedCluster
 	l3             tierIndex
+	l2             tierIndex
 	outgoing       map[string][]string
 	tiers          []string
 	totalNotes     int
@@ -226,6 +229,7 @@ type queryCluster struct {
 	Silhouette float64              `yaml:"silhouette"`
 	Members    []queryClusterMember `yaml:"members"`
 	NearestL3  *queryNearestL3      `yaml:"nearest_l3,omitempty"`
+	NearestL2  *queryNearestL2      `yaml:"nearest_l2,omitempty"`
 }
 
 // queryClusterMember is the per-member shape in clusters.members.
@@ -252,6 +256,14 @@ type queryItem struct {
 	InDegree      *int     `yaml:"in_degree,omitempty"`
 	OutboundLinks []string `yaml:"outbound_links,omitempty"`
 	Content       string   `yaml:"content,omitempty"`
+}
+
+// queryNearestL2 is the nearest existing L2 note for a cluster centroid. It
+// carries the RAW max(situation,body) cosine; the recall skill applies its own
+// three-band decision (no band cutoff happens in the binary).
+type queryNearestL2 struct {
+	Path   string  `yaml:"path"`
+	Cosine float32 `yaml:"cosine"`
 }
 
 // queryNearestL3 is the nearest existing L3 note for a cluster centroid.
@@ -690,6 +702,31 @@ func countItemsWithContent(items []queryItem) int {
 	return count
 }
 
+// dispatchSynthesisMode routes to the single-cluster synthesis modes. It
+// returns handled=true (with the mode's error) when --synthesis or
+// --synthesize-l2 is set, and handled=false to fall through to the default
+// per-phrase pipeline. The two modes are mutually exclusive.
+func dispatchSynthesisMode(
+	ctx context.Context,
+	args QueryArgs,
+	notes []vaultgraph.Note,
+	hits []compatibleSidecar,
+	limit int,
+	deps QueryDeps,
+	stdout io.Writer,
+) (bool, error) {
+	switch {
+	case args.Synthesis && args.SynthesizeL2:
+		return true, errQueryModeConflict
+	case args.SynthesizeL2:
+		return true, runSynthesizeL2Query(ctx, args, notes, hits, limit, deps, stdout)
+	case args.Synthesis:
+		return true, runSynthesisQuery(ctx, args, notes, hits, limit, deps, stdout)
+	default:
+		return false, nil
+	}
+}
+
 // expandSubgraph runs a 3-hop BFS over the authored wikilink graph,
 // starting from direct hits, undirected for expansion, capped at 200
 // notes. Subgraph membership requires a compatible sidecar — notes
@@ -735,6 +772,32 @@ func expandSubgraph(
 		hopsTraversed: bfs.HopsReached,
 		capped:        bfs.Capped,
 	}
+}
+
+// filterHitsToTiers keeps only the hits whose note frontmatter tier is in the
+// given tier set, by reading each note's body. Used by --synthesize-l2 to
+// constrain the CLUSTERED set to L1+L2 (distinct from --tier, which filters
+// emitted items post-clustering).
+func filterHitsToTiers(
+	hits []compatibleSidecar,
+	vault string,
+	read func(string) ([]byte, error),
+	tiers []string,
+) []compatibleSidecar {
+	kept := make([]compatibleSidecar, 0, len(hits))
+
+	for _, hit := range hits {
+		body, readErr := read(filepath.Join(vault, pathOf(hit.note.Basename, hit.note.IsMOC)))
+		if readErr != nil {
+			continue
+		}
+
+		if itemMatchesTier(resolvedItem{content: stripWikilinks(string(body))}, tiers) {
+			kept = append(kept, hit)
+		}
+	}
+
+	return kept
 }
 
 // filterToCompatibleMembers returns the sorted basenames from visited
@@ -1295,6 +1358,24 @@ func nearestInTierIndex(centroid []float32, idx tierIndex) (string, float32, boo
 	return idx.paths[best], bestSim, true
 }
 
+// nearestL2ForTier mirrors nearestL3ForTier for the lazy-L2 synthesis path. It
+// returns the nearest existing L2 note to the centroid by max(situation,body),
+// emitting the RAW cosine with no band decision (the recall skill bands it).
+// The result is suppressed only when a non-empty tier set explicitly omits L2;
+// --synthesize-l2 always passes tiers: nil, so it never suppresses.
+func nearestL2ForTier(centroid []float32, l2Notes tierIndex, tiers []string) *queryNearestL2 {
+	if len(tiers) > 0 && !slices.Contains(tiers, tierL2) {
+		return nil
+	}
+
+	path, cosine, found := nearestInTierIndex(centroid, l2Notes)
+	if !found {
+		return nil
+	}
+
+	return &queryNearestL2{Path: path, Cosine: cosine}
+}
+
 // nearestL3For returns the nearest L3 note to centroid from l3Notes by
 // max(situation,body), or nil if the index is empty. No threshold is applied;
 // the skill applies its own 0.9 cut.
@@ -1468,7 +1549,7 @@ func rankCandidates(
 // filtering is dropped entirely, and nearest_l3 (always an L3 note by
 // construction) is suppressed for any tier set that omits L3. An empty tier
 // set leaves all channels blended.
-func renderClusters(phraseClusters []phrasedCluster, l3Notes tierIndex, tiers []string) []queryCluster {
+func renderClusters(phraseClusters []phrasedCluster, l3Notes, l2Notes tierIndex, tiers []string) []queryCluster {
 	var out []queryCluster
 
 	for _, pc := range phraseClusters {
@@ -1491,6 +1572,7 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes tierIndex, tiers []
 				Silhouette: pc.report.silhouettesByID[clusterID],
 				Members:    members,
 				NearestL3:  nearestL3ForTier(centroid, l3Notes, tiers),
+				NearestL2:  nearestL2ForTier(centroid, l2Notes, tiers),
 			})
 		}
 	}
@@ -1528,7 +1610,7 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 // pipeline output.
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems, merged.outgoing)
-	clusters := renderClusters(merged.phraseClusters, merged.l3, merged.tiers)
+	clusters := renderClusters(merged.phraseClusters, merged.l3, merged.l2, merged.tiers)
 	contentful := countItemsWithContent(items)
 
 	directCount := 0
@@ -1635,14 +1717,6 @@ func runSinglePhraseQuery(
 	}, nil
 }
 
-// runSynthesisQuery implements `engram query --synthesis`: it unions every
-// phrase's DIRECT HITS (semantic matches, truncated to limit — not the
-// graph-expansion neighbors), deduplicates by note path keeping the max score,
-// and clusters that union ONE time. Unlike the per-phrase pipeline it skips the
-// minSubgraphForClustering floor and never returns "no clusters" for a
-// non-empty union: when AutoK finds no split that beats the silhouette floor it
-// emits a single cluster of all union members (the §6b L3-synthesis invariant).
-// items[] is the deduped union direct hits; tier/project filters still apply.
 func runSynthesisQuery(
 	ctx context.Context,
 	args QueryArgs,
@@ -1671,6 +1745,60 @@ func runSynthesisQuery(
 		l3:             gatherL3Index(hits, args.VaultPath, deps.Read),
 		outgoing:       outgoingByBasename(notes),
 		tiers:          args.Tiers,
+		totalNotes:     len(notes),
+		withEmbeddings: len(hits),
+		limit:          limit,
+		subgraphSize:   len(subgraph.members),
+	}
+
+	return renderQueryPayload(stdout, merged)
+}
+
+// runSynthesisQuery implements `engram query --synthesis`: it unions every
+// phrase's DIRECT HITS (semantic matches, truncated to limit — not the
+// graph-expansion neighbors), deduplicates by note path keeping the max score,
+// and clusters that union ONE time. Unlike the per-phrase pipeline it skips the
+// minSubgraphForClustering floor and never returns "no clusters" for a
+// non-empty union: when AutoK finds no split that beats the silhouette floor it
+// emits a single cluster of all union members (the §6b L3-synthesis invariant).
+// items[] is the deduped union direct hits; tier/project filters still apply.
+// runSynthesizeL2Query mirrors runSynthesisQuery for the lazy-L2 path. It
+// constrains the CLUSTERED set to matched L1+L2 notes (L3 excluded from
+// clusters), then emits a raw nearest_l2 {path, cosine} per cluster — the
+// max(situation,body) cosine from the cluster centroid to the nearest existing
+// L2 in the vault. No band decision happens here; the recall skill bands it.
+// The L2 index is gathered from the FULL hits (every L2 in the vault is a
+// candidate nearest), while the clustered set is only the matched L1+L2.
+func runSynthesizeL2Query(
+	ctx context.Context,
+	args QueryArgs,
+	notes []vaultgraph.Note,
+	hits []compatibleSidecar,
+	limit int,
+	deps QueryDeps,
+	stdout io.Writer,
+) error {
+	l1l2Hits := filterHitsToTiers(hits, args.VaultPath, deps.Read, []string{tierL1, tierL2})
+
+	union, err := unionDirectHits(ctx, args.Phrases, l1l2Hits, args.VaultPath, limit, deps)
+	if err != nil {
+		return err
+	}
+
+	subgraph := buildUnionSubgraph(union)
+	report := clusterUnionForSynthesis(subgraph, strings.Join(args.Phrases, "\n"))
+
+	resolved := mergeProvenances(union, expandedSubgraph{}, clusterReport{}, hubReport{})
+	resolved = applyProjectFilter(resolved, args.Project)
+
+	merged := aggregatedSummary{
+		phrases:        args.Phrases,
+		resolvedItems:  resolved,
+		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, subgraph: subgraph}},
+		l3:             tierIndex{}, // L3 not emitted in this mode
+		l2:             gatherTierIndex(hits, args.VaultPath, deps.Read, tierL2),
+		outgoing:       outgoingByBasename(notes),
+		tiers:          nil,
 		totalNotes:     len(notes),
 		withEmbeddings: len(hits),
 		limit:          limit,

@@ -308,3 +308,268 @@ func TestQuery_Synthesis_SingleMemberUnionYieldsOneCluster(t *testing.T) {
 	g.Expect(parsed.Clusters[0].Members[0].Path).To(Equal("Permanent/only.md"))
 	g.Expect(parsed.Clusters[0].Members[0].IsRepresentative).To(BeTrue())
 }
+
+// TestQuery_SynthesizeL2_EmitsRawCosineNoBand verifies that a cluster whose
+// centroid is FAR from the only L2 still emits nearest_l2 with that raw low
+// cosine — the binary applies no <0.80 cutoff (the skill bands later).
+func TestQuery_SynthesizeL2_EmitsRawCosineNoBand(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Many L1 notes at synthVec keep the cluster centroid near synthVec even
+	// after the single far L2 joins the clustered set, so the centroid stays
+	// far from that L2 (cos well below the skill's 0.80 create-band).
+	const l1Count = 10
+	for i := range l1Count {
+		plantDualVector(t, memFS, vault, fmt.Sprintf("Permanent/%d.ep.md", i+1),
+			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
+	}
+
+	// The only L2 is far from the centroid: cos(synthVec, far) ~ 0.30.
+	far := []float32{0.3, 0.954, 0, 0}
+	plantDualVector(t, memFS, vault, "Permanent/dup.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", far, far)
+
+	parsed := runSynthesizeL2(t, memFS, vault)
+
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
+
+	// Every cluster surfaces the L2 (it exists in the vault), and at least one
+	// reports a raw cosine below 0.80 — proof the binary applies no band cutoff.
+	sawSubBandRawCosine := false
+
+	for _, cluster := range parsed.Clusters {
+		g.Expect(cluster.NearestL2).NotTo(BeNil(), "a far L2 is still emitted; the binary applies no band cutoff")
+		g.Expect(cluster.NearestL2.Cosine).To(BeNumerically(">", float32(0.0)))
+
+		if cluster.NearestL2.Cosine < 0.8 {
+			sawSubBandRawCosine = true
+		}
+	}
+
+	g.Expect(sawSubBandRawCosine).To(BeTrue(),
+		"a raw cosine below the skill's 0.80 create-band must still be emitted (no cutoff in the binary)")
+}
+
+// TestQuery_SynthesizeL2_ExcludesL3FromClusters verifies the pre-clustering
+// L1+L2 constraint: an L3 note that matches the query must never appear as a
+// cluster member in synthesize-l2 mode.
+func TestQuery_SynthesizeL2_ExcludesL3FromClusters(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantDualVector(t, memFS, vault, "Permanent/1.ep.md",
+		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
+	plantDualVector(t, memFS, vault, "Permanent/2.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
+	plantDualVector(t, memFS, vault, "Permanent/3.adr.md",
+		"---\ntype: fact\ntier: L3\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
+
+	parsed := runSynthesizeL2(t, memFS, vault)
+
+	for _, c := range parsed.Clusters {
+		for _, m := range c.Members {
+			g.Expect(m.Path).NotTo(ContainSubstring("3.adr"), "L3 must not be clustered in synthesize-l2")
+		}
+	}
+}
+
+// TestQuery_SynthesizeL2_FlagAndSynthesisAreMutuallyExclusive verifies that
+// requesting both modes in one invocation is rejected with the sentinel.
+func TestQuery_SynthesizeL2_FlagAndSynthesisAreMutuallyExclusive(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := newQueryDeps(newInMemoryFS())
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: synthVec()}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"x"}, VaultPath: t.TempDir(), Synthesis: true, SynthesizeL2: true},
+		deps, &out)
+	g.Expect(err).To(MatchError(cli.ErrQueryModeConflict))
+}
+
+// TestQuery_SynthesizeL2_NearDuplicateL2_CosineAtLeast095 verifies the raw
+// nearest_l2.cosine is >= 0.95 when an existing L2 is a near-duplicate of the
+// cluster centroid. The binary applies no band; the high cosine is reported raw.
+func TestQuery_SynthesizeL2_NearDuplicateL2_CosineAtLeast095(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Clustered L1 notes sit exactly at synthVec, so the centroid is synthVec.
+	plantDualVector(t, memFS, vault, "Permanent/1.ep.md",
+		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
+	// An L2 near-duplicate of the centroid: cos(synthVec, nearDup) ~ 0.995.
+	nearDup := []float32{1, 0.1, 0, 0}
+	plantDualVector(t, memFS, vault, "Permanent/2.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", nearDup, nearDup)
+
+	parsed := runSynthesizeL2(t, memFS, vault)
+
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
+	g.Expect(parsed.Clusters[0].NearestL2).NotTo(BeNil())
+	g.Expect(parsed.Clusters[0].NearestL2.Cosine).To(BeNumerically(">=", float32(0.95)))
+}
+
+// TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered locks the
+// design property that the L2 nearest-index is gathered from the FULL hit set,
+// not just the clustered (union) members. With Limit:2 the two top-scored L1
+// notes fill the union and the lower-scored L2 is truncated out — so the L2 is
+// NOT a cluster member. It must still surface as nearest_l2 because the index
+// comes from every vault L2, not the clustered set. If the gather source were
+// ever narrowed to the union, this test would fail.
+func TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	queryVec := []float32{1, 0, 0, 0}
+
+	// Two L1 notes at the query vector (score 1.0) fill the Limit:2 union.
+	plantDualVector(t, memFS, vault, "Permanent/1.ep.md",
+		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
+	plantDualVector(t, memFS, vault, "Permanent/2.ep.md",
+		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
+
+	// A lower-scored L2 (cos ~0.30 to the query) ranks third, so Limit:2
+	// truncates it out of the union — it is never clustered, but stays in hits.
+	lowMatch := []float32{0.3, 0.954, 0, 0}
+	plantDualVector(t, memFS, vault, "Permanent/3.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", lowMatch, lowMatch)
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: queryVec}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, Limit: 2, SynthesizeL2: true},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
+
+	// The L2 is not a cluster member (truncated out of the Limit:2 union)...
+	for _, cluster := range parsed.Clusters {
+		for _, member := range cluster.Members {
+			g.Expect(member.Path).NotTo(ContainSubstring("3.fact"),
+				"the lower-scored L2 must be truncated out of the clustered union")
+		}
+	}
+
+	// ...yet it still surfaces as nearest_l2 (index gathered from FULL hits).
+	for _, cluster := range parsed.Clusters {
+		g.Expect(cluster.NearestL2).NotTo(BeNil(),
+			"nearest_l2 is gathered from every vault L2, not just clustered members")
+		g.Expect(cluster.NearestL2.Path).To(Equal("Permanent/3.fact.md"))
+	}
+}
+
+// TestQuery_SynthesizeL2_NearestL2PresentWhenL2Exists verifies that when a
+// matching L2 exists in the vault, each cluster carries a non-nil nearest_l2.
+func TestQuery_SynthesizeL2_NearestL2PresentWhenL2Exists(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantDualVector(t, memFS, vault, "Permanent/1.ep.md",
+		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
+	plantDualVector(t, memFS, vault, "Permanent/2.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
+
+	parsed := runSynthesizeL2(t, memFS, vault)
+
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
+
+	for _, c := range parsed.Clusters {
+		g.Expect(c.NearestL2).NotTo(BeNil(), "an existing matching L2 must surface as nearest_l2")
+		g.Expect(c.NearestL2.Path).To(Equal("Permanent/2.fact.md"))
+	}
+}
+
+// TestQuery_SynthesizeL2_NoL2_NearestL2Nil verifies that with only L1 notes in
+// the vault, no cluster carries a nearest_l2 (nothing to crystallize against).
+func TestQuery_SynthesizeL2_NoL2_NearestL2Nil(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantDualVector(t, memFS, vault, "Permanent/1.ep.md",
+		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
+	plantDualVector(t, memFS, vault, "Permanent/2.ep.md",
+		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
+
+	parsed := runSynthesizeL2(t, memFS, vault)
+
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
+
+	for _, c := range parsed.Clusters {
+		g.Expect(c.NearestL2).To(BeNil(), "no L2 in vault means no nearest_l2")
+	}
+}
+
+// runSynthesizeL2 plants nothing; it embeds synthVec() and runs the mode
+// against the given memFS/vault, returning the parsed payload.
+func runSynthesizeL2(t *testing.T, memFS *inMemoryFS, vault string) queryParsed {
+	t.Helper()
+
+	g := NewWithT(t)
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: synthVec()}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, SynthesizeL2: true}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return queryParsed{}
+	}
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	return parsed
+}
+
+// --- Phase 2: --synthesize-l2 mode ---
+
+// synthVec returns a fresh query/plant vector for the synthesize-l2 tests so
+// the fixed-vector embedder, the planted notes, and the cluster centroid all
+// align. A function (not a shared global) keeps parallel tests free of shared
+// mutable state.
+func synthVec() []float32 { return []float32{1, 0, 0, 0} }
