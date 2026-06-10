@@ -753,31 +753,40 @@ Change `aggregatedSummary.l3` and any `l3Index` typed locals/params to `tierInde
 
 **Files:** Modify `internal/cli/query.go:960-963`; Test `internal/cli/query_test.go`
 
-- [ ] **Step 1: Write the failing test** — a vault of only old-schema sidecars returns `errQueryNoEmbeddings` (not a silent empty), proving they were counted/surfaced:
+- [ ] **Step 1: Write the failing test** — the test MUST capture `deps.LogWarning` and assert a schema advisory was emitted. Do NOT assert `errQueryNoEmbeddings`: that fires from `len(hits)==0` whether or not schema mismatches are counted, so it would pass without the fix (no RED). Mix one *current* sidecar (so `hits != 0`) with one *old-schema* sidecar that must be counted + surfaced:
 
 ```go
-func TestQuery_AllOldSchemaSidecars_SurfacesGuidance(t *testing.T) {
+func TestQuery_OldSchemaSidecars_EmitSchemaAdvisory(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	writeFile(t, memFS, filepath.Join(vault, "Permanent/1.fact.md"), "---\ntype: fact\nsituation: x\n---\n\nb\n")
-	writeFile(t, memFS, filepath.Join(vault, "Permanent/1.fact.vec.json"),
-		`{"embedding_model_id":"m@4","dims":4,"vector":[1,0,0,0],"content_hash":"sha256:x"}`)
+	// Current sidecar → hits != 0 (avoids the errQueryNoEmbeddings guard).
+	plantDualVector(t, memFS, vault, "Permanent/1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nb\n", []float32{1, 0, 0, 0}, []float32{1, 0, 0, 0})
+	// Old single-vector sidecar → must be counted + surfaced, not dropped silently.
+	writeFile(t, memFS, filepath.Join(vault, "Permanent/2.fact.md"), "---\ntype: fact\nsituation: y\n---\n\nb\n")
+	writeFile(t, memFS, filepath.Join(vault, "Permanent/2.fact.vec.json"),
+		`{"embedding_model_id":"m@4","dims":4,"vector":[1,0,0,0],"content_hash":"sha256:y"}`)
 
+	var advisories []string
 	deps := newQueryDeps(memFS)
 	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+	deps.LogWarning = func(format string, args ...any) { advisories = append(advisories, fmt.Sprintf(format, args...)) }
 
 	var out bytes.Buffer
 	err := cli.RunQuery(context.Background(), cli.QueryArgs{Phrases: []string{"x"}, VaultPath: vault}, deps, &out)
-	g.Expect(err).To(MatchError(cli.ErrQueryNoEmbeddings)) // export the sentinel via export_test.go if not already
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(strings.Join(advisories, "\n")).To(ContainSubstring("schema"),
+		"old-schema sidecars must be counted and surfaced via the mismatch advisory, not silently dropped")
 }
 ```
 
-(If `errQueryNoEmbeddings` is unexported and untestable from `cli_test`, add `var ErrQueryNoEmbeddings = errQueryNoEmbeddings` to `export_test.go`.)
-
-- [ ] **Step 2: RED.** Today old-schema sidecars are silently dropped → `hits==0` but the test can't distinguish; once counted, the `len(notes)>0 && len(hits)==0` guard fires `errQueryNoEmbeddings`. (Actually the guard already fires; the *value* of this task is the WARN path — assert via a captured `LogWarning` instead if the guard already passes. Adjust the test to capture `deps.LogWarning` calls and assert a "schema" advisory was emitted.)
+- [ ] **Step 2: RED.** `targ test` — today the old-schema sidecar is silently `continue`d, never counted in `mismatchedCount`, so `warnModelMismatch` emits nothing and `advisories` is empty → assertion fails. (`warnModelMismatch` already emits the distinct mismatched-id strings; the fix below adds the schema id to that set, so the advisory will contain "schema".)
 
 - [ ] **Step 3: Implement.** In `loadCompatibleSidecars`, replace the silent `continue`:
 
@@ -925,7 +934,7 @@ Grep finds every remaining single-`Vector` literal that won't compile. **Find th
 - [ ] **Step 1:** `targ build`.
 - [ ] **Step 2:** On a **copy** of a real vault (never the live one), run `engram embed apply --force` and confirm every note re-embeds (no errors). `engram embed status` shows 0 incompatible/stale.
 - [ ] **Step 3:** `engram check` on the re-embedded copy → all PASS including `S1`. On a *pre-migration* copy (old sidecars) → `S1` FAILs (proves the gate is real, not vacuous).
-- [ ] **Step 4:** Retrieval spot-check: run 3–5 representative `engram query --phrase "..."` calls against the re-embedded vault and against a single-vector baseline (git-stash the change, re-embed, query, compare). Confirm the dual-vector `max(situation,body)` ranking surfaces a superset (no dropped expected hits). Record the comparison in the commit message.
+- [ ] **Step 4:** Retrieval spot-check (no `git stash` — Phase 1 is 12 committed tasks deep, nothing to stash). Build a *baseline* binary from the pre-Phase-1 commit: `git worktree add /tmp/engram-pre <sha-before-Task-1.1>` (or `main`), `targ build` there; re-embed a vault *copy* with it. Run 3–5 representative `engram query --phrase "..."` calls against that baseline, and the same phrases against the dual-vector binary + its re-embedded copy. Confirm `max(situation,body)` surfaces a superset (no dropped expected hits). Record the comparison in the commit message; `git worktree remove /tmp/engram-pre` after.
 - [ ] **Step 5:** Commit: `git commit -am "chore: Phase 1 gate — dual-vector re-embed passes check + no retrieval regression"`. **Phase 1 complete.**
 
 ---
@@ -1259,8 +1268,11 @@ Add a rapid property test: for any vault containing a near-duplicate L2 of the c
 
 ### Task 3.5: sync to live harness (Phase 3 checkpoint)
 
-- [ ] **Step 1:** `engram update` (clears + re-copies `skills/` to `~/.claude/skills/` and `~/.config/opencode/skills/`). Confirm the edited `recall/SKILL.md` landed in `~/.claude/skills/recall/SKILL.md`.
-- [ ] **Step 2:** Commit any remaining test artifacts. **Phase 3 complete.**
+> **Blast-radius heads-up — tell Joe before running this.** `engram update` makes the new `/recall` skill live in EVERY session, not just the eval. From here on, recall calls `engram query --synthesize-l2` and becomes a **blocking writer** in all work. This is the intended ship path (spec §6: "the behavior change ships through `/recall` + the eval"), but it is a user-visible behavior change — confirm before syncing.
+
+- [ ] **Step 1: Binary BEFORE skill (one `engram update` does this correctly).** Run `engram update` **from the repo root** on the clean Phase-2 checkout. It `go install ./cmd/engram/` (rebuilding the binary *with* `--synthesize-l2`, `update.go:392`) and *then* copies skills (`planSkillCopies` at `:185`, applied after). So the new binary is installed before the skill goes live. **Do NOT hand-copy the skill** — that makes `--synthesize-l2` live against a stale PATH binary, and recall breaks everywhere with an unknown-flag error.
+- [ ] **Step 2: Verify the flag exists post-update.** `engram query --synthesize-l2 --phrase "smoke" --vault <a re-embedded test vault>` returns a payload (not "unknown flag"). If it errors, the installed binary is stale: confirm `which engram` resolves to the `go install` target (`~/go/bin/engram`) and re-run `engram update` from the repo.
+- [ ] **Step 3:** Confirm `~/.claude/skills/recall/SKILL.md` is the edited version. Commit any remaining test artifacts. **Phase 3 complete.**
 
 ---
 
@@ -1327,18 +1339,28 @@ This is the **amortization fix**: for `l2.lazy`, seed the learn stage from the p
 
 - [ ] **Step 2: RED.** `run_learn` seeds from `args.vault_in` (line 764), discarding the build vault's L2s.
 
-- [ ] **Step 3: Implement.** Replace the seed-source selection (lines 762-767) to prefer the build vault for the lazy regime:
+> **Verified prerequisite (the persist-forward mechanism depends on this):** `.buildvault` is rmtree'd ONLY at build *start* (`_seed_build_vault:579`); `run_learn` rmtrees only `learn_vault` (:763) and `vault_out` (:803). Nothing tears the build vault down at build *end*, and build+learn share the regime-specific `workdir` (`ws2`/`ws3`). So the post-recall build vault persists on disk between the build op and the learn op. **Re-grep `run_build` before implementing to confirm no end-of-build cleanup was added.**
+
+- [ ] **Step 3: Implement.** Replace the seed-source selection (lines 762-767). For `l2.lazy`, seed from the build vault — and a **missing build vault is a HARD ERROR, never a silent fall-back to `vault_in`**. The silent fall-back is the dangerous bug: it would revert arm B to the re-crystallize-every-time strawman this regime exists to avoid, and the experiment would measure the wrong thing without crashing.
 
 ```python
     learn_vault = args.vault_out + ".staging"
     shutil.rmtree(learn_vault, ignore_errors=True)
 
-    # Lazy arm: recall crystallized L2s into the build vault during the build
-    # session. Seed the learn stage from THAT (it already contains vault_in +
+    # Lazy arm (l2.lazy): recall crystallized L2s INTO the build vault during
+    # the build session. Seed the learn stage from THAT (it holds vault_in +
     # the new L2s) so crystallized L2s persist forward across the app chain.
+    # A missing build vault here is a hard failure — NEVER fall back to
+    # vault_in silently (that would measure the strawman, invisibly).
     build_vault = args.workdir + ".buildvault"
-    lazy_seed = args.regime == "l2.lazy" and os.path.isdir(build_vault)
-    seed_src = build_vault if lazy_seed else args.vault_in
+    if args.regime == "l2.lazy":
+        if not os.path.isdir(build_vault):
+            raise RuntimeError(
+                f"l2.lazy: build vault {build_vault} missing — cannot persist "
+                f"crystallized L2s forward; refusing to silently seed from vault_in")
+        seed_src = build_vault
+    else:
+        seed_src = args.vault_in
 
     if seed_src != "none" and os.path.isdir(seed_src):
         shutil.copytree(seed_src, learn_vault)
@@ -1346,7 +1368,7 @@ This is the **amortization fix**: for `l2.lazy`, seed the learn stage from the p
         os.makedirs(os.path.join(learn_vault, "Permanent"), exist_ok=True)
 ```
 
-(`prune_to_ceiling(learn_vault, "L1")` still runs — but it drops notes *above* the L1 ceiling, which would delete the crystallized L2s! **Guard it:** for `l2.lazy`, the crystallized L2s are the experiment's *output* and must survive. Change the prune call for this regime to a no-op or a ceiling of L2.) Add near line 796:
+(`prune_to_ceiling(learn_vault, "L1")` still runs — but it drops notes *above* the L1 ceiling, which would delete the crystallized L2s! **Guard it:** for `l2.lazy`, the crystallized L2s are the experiment's *output* and must survive. Change the prune call for this regime to a ceiling of L2.) Add near line 796:
 
 ```python
     prune_tier = "L2" if args.regime == "l2.lazy" else args.write_tier
@@ -1375,7 +1397,9 @@ This is the **amortization fix**: for `l2.lazy`, seed the learn stage from the p
     out["vault_notes_total"] = len(glob_notes(bv))
 ```
 
-(Add a small `_links_to_l2` helper reading the note's wikilink targets and checking each target note's tier. Only meaningful for `l2.lazy`; arm A reports 0 here since it does not write during build — that's the correct contrast.)
+(Add a small `_links_to_l2` helper reading the note's wikilink targets and checking each target note's tier. Only meaningful for `l2.lazy`; arm A reports 0 here since it does not write during build.)
+
+**Cross-arm comparability (load-bearing for the headline metric).** Arm A writes L2 at *learn* (counted in learn `notes_by_tier["L2"]`); arm B at *build* (`l2_generated`). The aggregate's "#L2 generated" column MUST source **A from learn `notes_by_tier`** and **B from build `l2_generated`** — comparing build-time counts alone reads A as 0 and fabricates a "B fewer" result. Encode this split in the aggregate table (Task 4.7 Step 3), not a single field read.
 
 - [ ] **Step 4:** Test passes. Commit: `git commit -am "feat(eval): run_build reports #L2-generated, composition, vault growth"`
 
