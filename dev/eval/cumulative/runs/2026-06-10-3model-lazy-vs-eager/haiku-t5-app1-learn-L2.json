@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "engram_sha": "a11cfeb369c8",
+  "kind": "learn",
+  "app": "notes",
+  "model": "haiku",
+  "model_id": "claude-haiku-4-5-20251001",
+  "regime": "app1-L2",
+  "trial": 5,
+  "date": "2026-06-10",
+  "write_tier": "L2",
+  "vault_in": "none",
+  "vault_out": "/tmp/cummatrix-lazy-opus2/vaults/v1-haiku-t5-L2",
+  "stub": null,
+  "stated_conventions_input": [],
+  "workdir": "/tmp/cummatrix-lazy-opus2/ws/haiku-t5-app1",
+  "learned": true,
+  "learn_quality": {
+    "engaged": true,
+    "write_tier": "L2",
+    "episodes": 2,
+    "episode_extracted": true,
+    "captured": [],
+    "missed": [],
+    "stated_count": 0,
+    "captured_count": 0,
+    "coverage": 1.0
+  },
+  "pruned_above_ceiling": 0,
+  "notes_total": 25,
+  "notes_by_tier": {
+    "L1": 2,
+    "L2": 23,
+    "L3": 0,
+    "other": 0
+  },
+  "learn_cost": 0.1725,
+  "learn_turns": 21,
+  "tokens": {
+    "input": 124,
+    "output": 9046,
+    "cache_write": 33390,
+    "cache_read": 596063
+  },
+  "recomputed_cost": 0.1467,
+  "cost_ratio": 0.85,
+  "wall_min": 1.8
+}

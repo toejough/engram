@@ -1,0 +1,147 @@
+{
+  "schema_version": 2,
+  "engram_sha": "a11cfeb369c8",
+  "kind": "build",
+  "app": "feeds",
+  "model": "haiku",
+  "model_id": "claude-haiku-4-5-20251001",
+  "regime": "l2.l1l2",
+  "trial": 1,
+  "date": "2026-06-10",
+  "read_mode": "blended",
+  "read_tiers": [],
+  "vault_in": "/tmp/cummatrix-lazy-opus2/vaults/v2-haiku-t1-l2.l1l2",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 4,
+  "max_rounds": 15,
+  "round1_score": "12/18",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": true,
+    "stdlib": true,
+    "tests_fake_parallel": true,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 1,
+  "round1_feature_fails": 5,
+  "final_score": "18/18",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [
+    "nocolor"
+  ],
+  "convention_statements": 1,
+  "feature_statements": 5,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 4,
+  "escalation": {
+    "by_label": {
+      "ARCH:nocolor": 1,
+      "native:add_list": 2,
+      "native:read_unread": 3,
+      "alpha:tag_ci": 1,
+      "beta:url_validation": 2,
+      "beta:canonical_dedup": 1
+    },
+    "max_depth": 3,
+    "max_convention_depth": 1,
+    "items_escalated": 3,
+    "conventions_escalated": 0,
+    "features_escalated": 3
+  },
+  "build_cost": 1.287,
+  "build_turns": 91,
+  "tokens": {
+    "input": 724,
+    "output": 48044,
+    "cache_write": 110409,
+    "cache_read": 8244067
+  },
+  "recomputed_cost": 1.2034,
+  "cost_ratio": 0.935,
+  "wall_min": 9.6,
+  "l2_generated": 0,
+  "l2_composed": 0,
+  "vault_notes_total": 26,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "12/18",
+      "feat_buckets": {
+        "native": "0/2",
+        "alpha": "1/2",
+        "beta": "2/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 5,
+      "cost": 0.3931710000000001,
+      "turns": 31,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "15/18",
+      "feat_buckets": {
+        "native": "0/2",
+        "alpha": "2/2",
+        "beta": "3/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 3,
+      "cost": 0.29233079999999995,
+      "turns": 21,
+      "is_error": false
+    },
+    {
+      "round": 3,
+      "score": "17/18",
+      "feat_buckets": {
+        "native": "1/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 1,
+      "cost": 0.15086460000000002,
+      "turns": 10,
+      "is_error": false
+    },
+    {
+      "round": 4,
+      "score": "18/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 0,
+      "cost": 0.45066230000000007,
+      "turns": 29,
+      "is_error": false
+    }
+  ],
+  "session_id": "32cf3ee0-1b12-48f3-b810-ee722276ee5d",
+  "workdir": "/tmp/cummatrix-lazy-opus2/ws/haiku-t1-app3-l2.l1l2"
+}

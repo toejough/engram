@@ -1,0 +1,110 @@
+{
+  "schema_version": 2,
+  "engram_sha": "a11cfeb369c8",
+  "kind": "build",
+  "app": "feeds",
+  "model": "sonnet",
+  "model_id": "claude-sonnet-4-6",
+  "regime": "l2.lazy",
+  "trial": 2,
+  "date": "2026-06-10",
+  "read_mode": "synthesize_l2",
+  "read_tiers": [],
+  "vault_in": "/tmp/cummatrix-lazy-opus2/vaults/v2-sonnet-t2-l2.lazy",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 15,
+  "round1_score": "17/18",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": true,
+    "stdlib": true,
+    "tests_fake_parallel": true,
+    "json": true,
+    "nocolor": true,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 0,
+  "round1_feature_fails": 1,
+  "final_score": "18/18",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [],
+  "convention_statements": 0,
+  "feature_statements": 1,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 2,
+  "escalation": {
+    "by_label": {
+      "native:read_unread": 1
+    },
+    "max_depth": 1,
+    "max_convention_depth": 0,
+    "items_escalated": 0,
+    "conventions_escalated": 0,
+    "features_escalated": 0
+  },
+  "build_cost": 4.642,
+  "build_turns": 59,
+  "tokens": {
+    "input": 86,
+    "output": 85113,
+    "cache_write": 257996,
+    "cache_read": 6054210
+  },
+  "recomputed_cost": 4.0607,
+  "cost_ratio": 0.875,
+  "wall_min": 24.6,
+  "l2_generated": 4,
+  "l2_composed": 0,
+  "vault_notes_total": 6,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "17/18",
+      "feat_buckets": {
+        "native": "1/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 1,
+      "cost": 2.3679292000000003,
+      "turns": 36,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "18/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 0,
+      "cost": 2.2740843,
+      "turns": 23,
+      "is_error": false
+    }
+  ],
+  "session_id": "a2aa75b0-8e7c-4d85-820a-e4198c4438ca",
+  "workdir": "/tmp/cummatrix-lazy-opus2/ws/sonnet-t2-app3-l2.lazy"
+}

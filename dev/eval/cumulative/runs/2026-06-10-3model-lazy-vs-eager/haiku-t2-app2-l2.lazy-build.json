@@ -1,0 +1,122 @@
+{
+  "schema_version": 2,
+  "engram_sha": "a11cfeb369c8",
+  "kind": "build",
+  "app": "links",
+  "model": "haiku",
+  "model_id": "claude-haiku-4-5-20251001",
+  "regime": "l2.lazy",
+  "trial": 2,
+  "date": "2026-06-10",
+  "read_mode": "synthesize_l2",
+  "read_tiers": [],
+  "vault_in": "/tmp/cummatrix-lazy-opus2/vaults/v1-haiku-t2-L1",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 15,
+  "round1_score": "10/17",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": false,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": true,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": false,
+    "named_perms": false,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 5,
+  "round1_feature_fails": 2,
+  "final_score": "16/17",
+  "final_buckets": {
+    "native": "1/1",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "9/10",
+  "arch_pass": 9,
+  "stated_conventions": [
+    "sentinel",
+    "atomic",
+    "nocolor",
+    "wrapped_errors",
+    "named_perms"
+  ],
+  "convention_statements": 5,
+  "feature_statements": 2,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 2,
+  "escalation": {
+    "by_label": {
+      "ARCH:sentinel": 1,
+      "ARCH:atomic": 1,
+      "ARCH:nocolor": 1,
+      "ARCH:wrapped_errors": 1,
+      "ARCH:named_perms": 1,
+      "beta:url_validation": 1,
+      "beta:canonical_dedup": 1
+    },
+    "max_depth": 1,
+    "max_convention_depth": 1,
+    "items_escalated": 0,
+    "conventions_escalated": 0,
+    "features_escalated": 0
+  },
+  "build_cost": 0.8855,
+  "build_turns": 76,
+  "tokens": {
+    "input": 511,
+    "output": 33834,
+    "cache_write": 88037,
+    "cache_read": 5386310
+  },
+  "recomputed_cost": 0.8184,
+  "cost_ratio": 0.924,
+  "wall_min": 6.3,
+  "l2_generated": 0,
+  "l2_composed": 0,
+  "vault_notes_total": 2,
+  "rounds": [
+    {
+      "round": 1,
+      "score": "10/17",
+      "feat_buckets": {
+        "native": "1/1",
+        "alpha": "2/2",
+        "beta": "2/4"
+      },
+      "arch": "5/10",
+      "convention_fails": 5,
+      "feature_fails": 2,
+      "cost": 0.35053229999999996,
+      "turns": 33,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "16/17",
+      "feat_buckets": {
+        "native": "1/1",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 0,
+      "cost": 0.5349926999999999,
+      "turns": 43,
+      "is_error": false
+    }
+  ],
+  "session_id": "742732f8-7e08-42a7-b9e6-acbb131e69d9",
+  "workdir": "/tmp/cummatrix-lazy-opus2/ws/haiku-t2-app2-l2.lazy"
+}

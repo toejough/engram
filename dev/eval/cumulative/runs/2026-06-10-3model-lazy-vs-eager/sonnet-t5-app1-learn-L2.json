@@ -1,0 +1,64 @@
+{
+  "schema_version": 2,
+  "engram_sha": "a11cfeb369c8",
+  "kind": "learn",
+  "app": "notes",
+  "model": "sonnet",
+  "model_id": "claude-sonnet-4-6",
+  "regime": "app1-L2",
+  "trial": 5,
+  "date": "2026-06-10",
+  "write_tier": "L2",
+  "vault_in": "none",
+  "vault_out": "/tmp/cummatrix-lazy-opus2/vaults/v1-sonnet-t5-L2",
+  "stub": null,
+  "stated_conventions_input": [
+    "di",
+    "sentinel",
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor",
+    "wrapped_errors",
+    "named_perms"
+  ],
+  "workdir": "/tmp/cummatrix-lazy-opus2/ws/sonnet-t5-app1",
+  "learned": true,
+  "learn_quality": {
+    "engaged": true,
+    "write_tier": "L2",
+    "episodes": 1,
+    "episode_extracted": true,
+    "captured": [
+      "di",
+      "sentinel",
+      "atomic",
+      "tests_fake_parallel",
+      "nocolor",
+      "wrapped_errors",
+      "named_perms"
+    ],
+    "missed": [],
+    "stated_count": 7,
+    "captured_count": 7,
+    "coverage": 1.0
+  },
+  "pruned_above_ceiling": 0,
+  "notes_total": 8,
+  "notes_by_tier": {
+    "L1": 1,
+    "L2": 7,
+    "L3": 0,
+    "other": 0
+  },
+  "learn_cost": 0.7015,
+  "learn_turns": 30,
+  "tokens": {
+    "input": 19,
+    "output": 11942,
+    "cache_write": 48199,
+    "cache_read": 774384
+  },
+  "recomputed_cost": 0.5922,
+  "cost_ratio": 0.844,
+  "wall_min": 3.9
+}
