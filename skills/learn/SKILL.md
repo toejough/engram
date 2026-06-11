@@ -14,6 +14,10 @@ Preserve lessons from completed work as **permanent notes**. One stage — no fl
 
 This vault is your (the LLM's) persistent memory. You write everything; the human curates by directing what gets worked on. **Don't draft and ask for review** — you decide what becomes permanent and write it.
 
+> **DEFAULT MODE — episode-only (lazy L2).** A default `/learn` pass writes **L1 episodes** (§6a) — one per work-arc, never zero — and **stops**. It does **NOT** write facts/feedback (L2) or ADRs (L3) at learn time. **L2 is crystallized lazily at `/recall`**: recall clusters the episodes and writes the covering fact/feedback on demand (its three-band synthesis). The fact/feedback discipline in this skill (the core-principle / paths A–C / recall-mirror sections and §§1–5) is **retained** — it is exactly what `/recall`'s crystallization reuses to frame those L2 notes, and what you follow if eager learn-time L2 is ever explicitly requested. As you read on: **§6a is the default write; §§1–5 and §6b describe the L2/L3 discipline, not a default learn-time action.**
+>
+> *Why:* the 2026-06-10 lazy-vs-eager direction (deferring L2 to recall was cheaper across models). **Caveat:** that result was measured with a harness that did **not** run the real `/recall` skill, so it is a **hunch adopted pending re-validation** with a skill-faithful harness — not a proven win.
+
 ## The core principle: write what recall would have wanted to find
 
 Recall and learn are paired. Recall reads the vault by phrasing queries from your stated plan and situational features. Learn writes to the vault in the same shape — so the next agent in a similar situation, querying the same way, will surface what you learned.
@@ -83,6 +87,8 @@ Avoid both failure modes: a **bare abstraction** (principle with no specifics �
 
 ## Workflow
 
+> **By default `/learn` executes only the episode track (§6a)** — see the DEFAULT MODE banner up top. §§1–5 below are the L2-writing discipline that `/recall`'s lazy crystallization reuses, not a default learn-time step; run them at learn only when eager learn-time L2 is explicitly requested.
+>
 > **Two parallel tracks.** §§1–5 cover **facts/feedback** — retrieval-shaped abstractions scanned per-candidate from session activity. **Episodes** are L1 evidence — one per work-arc (arcs may be non-contiguous and may overlap; see §6a) — and follow a different pipeline. Episodes do NOT go through locus classification (§1), path A/B/C selection (§2), the recall-mirror test (§3), or the Feedback-vs-Fact categorization (§4). When in doubt about kind: principles → fact; "do differently next time" → feedback; the chunk of interactions itself → episode. Facts and feedback derived from a specific episode chunk link back to it via `--relation`.
 
 ### 1. Identify candidates
@@ -268,7 +274,7 @@ Required: `--slug`, `--source`, `--situation`, `--summary`, `--boundary-rational
 
 ### 6b. L3 synthesis — scenario-discoverable ADRs
 
-> **DEFAULT: SKIP §6b. The locked write-tier is L2** — capture episodes (§6a) and facts/feedback (§§1–5) and **stop**. Do **not** run L3 synthesis. The 2026-06-08 cumulative-accumulation eval found writing L3 ADRs added learn cost without improving outcomes over an L2 ceiling, so the default `/learn` writes L1 + L2 only. The rest of §6b is retained for reference / when L3 synthesis is explicitly re-enabled.
+> **DEFAULT: SKIP §6b AND §§1–5. The locked write-tier is L1** — capture episodes (§6a) and **stop**. Do **not** write facts/feedback (§§1–5) or run L3 synthesis (§6b) at learn time. **L2 is crystallized lazily at `/recall`** (its three-band synthesis over episode clusters); L3 stays off. The 2026-06-08 eval found L3 added learn cost without improving outcomes over an L2 ceiling; the 2026-06-10 lazy-vs-eager direction then pointed to deferring L2 to recall being cheaper across models (a **hunch pending re-validation** with a skill-faithful harness — see the DEFAULT MODE banner up top). §§1–5 and the rest of §6b are retained as the L2/L3 discipline `/recall` reuses and for when eager learn-time L2/L3 is explicitly requested.
 
 When this `/learn` pass wrote L2 facts, distill them into **L3 ADRs** so a future agent discovers the standard from its *situation*, not from knowing the lesson. L2 is a pile of specific facts; an L3 is a short decision-record that synthesizes a *cluster* of them and surfaces whether or not the agent knows it needs it. For the new or changed L2 facts:
 
