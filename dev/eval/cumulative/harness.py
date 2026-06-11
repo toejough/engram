@@ -96,6 +96,13 @@ def claude(cfg, model, vault, cwd, prompt, resume_sid=None):
     env["CLAUDE_CONFIG_DIR"] = cfg
     env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "64000"
     env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
+    # `engram transcript` defaults to ~/.claude/projects/<slug> and IGNORES CLAUDE_CONFIG_DIR, so in a
+    # headless cell it never finds the session and /learn falls back to hand-written --transcript-text
+    # episodes (not real chunks). Point it at THIS cfg's session dir. Claude's project-dir name is the
+    # realpath of cwd with '/' -> '-' (e.g. /private/tmp/ws -> -private-tmp-ws).
+    if cwd:
+        _slug = os.path.realpath(cwd).replace("/", "-")
+        env["ENGRAM_TRANSCRIPT_DIR"] = os.path.join(cfg, "projects", _slug)
     if vault and vault != "none":
         env["ENGRAM_VAULT_PATH"] = vault
     args = ["claude", "-p", prompt, "--output-format", "json",
@@ -327,7 +334,7 @@ def score_learn_capture(vault, stated, write_tier):
     episodes = 0
     for path in glob_notes(vault):
         try:
-            blobs.append(open(path).read().lower())
+            blobs.append(open(path, errors="replace").read().lower())
         except Exception:
             pass
         if note_tier(path) == "L1":
@@ -383,6 +390,10 @@ def skill_learn_prompt(write_tier):
         "Actually run the skill (it scans this session's transcript and writes episodes per work-arc). "
         "Do NOT hand-run `engram learn` in place of the skill, and do NOT cap the episode count — let "
         "the skill write one episode per arc as it sees fit.",
+        "HEADLESS first-run: if `engram transcript --mark` reports no progress marker, do NOT stop to "
+        "ask — run `engram transcript --mark --from all` to scan from the start, then proceed. Write "
+        "episode bodies from the REAL transcript via `--from-transcript-range <session-id>:<start>.."
+        "<end>` (the session-id is your current session); do NOT hand-write them with --transcript-text.",
     ]
     if eager:
         parts.append(
@@ -438,7 +449,7 @@ def count_notes_by_tier(vault):
     counts = {"L1": 0, "L2": 0, "L3": 0, "other": 0}
     for path in glob_notes(vault):
         try:
-            head = open(path).read(600)
+            head = open(path, errors="replace").read(600)
         except Exception:
             continue
         tier = "other"
@@ -457,7 +468,7 @@ TIER_CEILING = {"L1": 1, "L2": 2, "L3": 3}
 def note_tier(path):
     """Read a note's frontmatter tier (L1/L2/L3), or None."""
     try:
-        head = open(path).read(600)
+        head = open(path, errors="replace").read(600)
     except Exception:
         return None
     for line in head.splitlines():
@@ -473,7 +484,7 @@ def _links_to_l2(note_path, vault):
     L2 that builds on an existing L2). Resolves each target basename to its note file under the
     build vault and reads that target's tier."""
     try:
-        body = open(note_path).read()
+        body = open(note_path, errors="replace").read()
     except Exception:
         return False
     by_base = {os.path.basename(p)[: -len(".md")]: p for p in glob_notes(vault)}
@@ -531,7 +542,7 @@ def _skill_and_query_hits(cfg, sid, skill, need_query):
         for fn in files:
             if sid and sid in fn:
                 try:
-                    txt = open(os.path.join(root, fn)).read()
+                    txt = open(os.path.join(root, fn), errors="replace").read()
                 except Exception:
                     continue
                 fired = f'"skill":"{skill}"' in txt
@@ -561,7 +572,7 @@ def link_followed(cfg, sid):
         for fn in files:
             if sid and sid in fn:
                 try:
-                    txt = open(os.path.join(root, fn)).read()
+                    txt = open(os.path.join(root, fn), errors="replace").read()
                 except Exception:
                     continue
                 if "engram show" in txt or "Permanent/" in txt:
@@ -643,7 +654,7 @@ def _sum_usage(paths):
     seen = set()
     for path in set(paths):
         try:
-            lines = open(path).read().splitlines()
+            lines = open(path, errors="replace").read().splitlines()
         except Exception:
             continue
         for line in lines:
