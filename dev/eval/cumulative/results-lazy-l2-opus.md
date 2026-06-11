@@ -8,37 +8,52 @@ Engram SHA: `a11cfeb369c8` · date: 2026-06-10 · models: haiku, sonnet, opus ·
 
 ## VERDICT — lazy (`l2.lazy`) vs eager/proactive (`l2.l1l2`), 3 models × n=5 (2026-06-10)
 
-**Lazy beats or ties eager on every measured axis, for every model — and for the weakest model it
-wins decisively on completion.** Validity confirmed: lazy crystallized L2s on demand and persisted
-them forward for all three models (l2_generated: haiku 14, sonnet 38, opus 8; with L2-on-L2
-**composition** for haiku 4, sonnet 7).
+**Defer-L2-to-recall is at least as good as eager everywhere, and plausibly better for the weakest
+model.** Lazy was cheaper for all three models, regressed nothing measured, and the weakest model
+(haiku) completed 2× as many builds at lower cost. Validity confirmed: lazy crystallized L2s on
+demand and persisted them forward for all three models (l2_generated: haiku 14, sonnet 38, opus 8;
+with L2-on-L2 composition for haiku 4, sonnet 7).
 
 | metric (mean/trial) | haiku eager→lazy | sonnet eager→lazy | opus eager→lazy |
 |---|---|---|---|
-| **say-once** (conv-restate, ↓) | 10.6 → **9.0** | 12.0 → **11.2** | 7.0 → **6.8** |
 | **total $** | 4.18 → **3.51** (−16%) | 9.94 → **7.19** (−28%) | 7.80 → **5.83** (−25%) |
-| **tokens** | 27.4M → **22.2M** | 14.1M → **8.7M** | 5.8M → **4.4M** |
 | **completion (conv%)** | **40% → 80%** | 100% = 100% | 100% = 100% |
+| **say-once** (conv-restate, ↓) | 10.6 → 9.0 ⚠ | 12.0 → **11.2** | 7.0 → **6.8** |
+| **tokens** | 27.4M → **22.2M** | 14.1M → **8.7M** | 5.8M → **4.4M** |
 
-**This run answers the question opus alone couldn't.** For opus the two arms *tied* (the earlier
-finding: L2 was near-optional, L1 episodes already carried the conventions). For **haiku — the
-weakest model — the arms diverge sharply: lazy completes 80% of builds vs eager's 40%**, at lower
-cost and fewer restatements. That divergence is the signal: when L2 actually matters (weaker model,
-where episodes alone don't suffice), **the *way* L2 is created matters — and lazy's on-demand,
-recall-crystallized L2 is the better way.** This is evidence for the "lazy is genuinely better"
-reading over "lazy is just cheaper because it does less": for haiku, lazy did *more useful* work
-(2× completion) at *lower* cost. Plausible mechanism — lazy makes the agent *synthesize* the
-conventions itself at recall (the three-band write), which engages a weak model with them more than
-handing it pre-written eager L2 facts to read.
+**The robust finding: lazy is cheaper across all three models (−16/−28/−25%), and nothing regressed.**
+That is the claim the data fully supports — defer-L2-to-recall costs less everywhere and gave up
+nothing measurable on either of the two clean (100%-completion) arms.
 
-**Net:** defer-L2-to-recall is the better policy across the board — cheaper for all, say-once-neutral
-or better for all, and a large completion win for the weakest model. The cost edge is largest for
-the stronger models; the *quality* edge (completion) is largest for the weakest.
+**Haiku — lead with the joint cost+completion fact, NOT say-once.** Eager cost *more* ($4.18 vs
+$3.51) while completing *less* (40% vs 80%): the worst of both. ⚠ Haiku's say-once (10.6→9.0) is
+**entangled with completion** and should not be read as an independent win — a non-converged eager
+build keeps restating conventions up to the round cap, so eager's higher count is partly just its
+unfinished builds talking. The trustworthy haiku signal is the cost+completion pair, where the two
+arms diverge sharply in lazy's favor.
+
+**What the haiku divergence does and does NOT prove.** It proves the **L2-creation policy matters
+for weak models** — eager vs lazy is not a wash for haiku the way it is for opus. It does **not**
+prove "L2 is load-bearing": with no L1-only arm in this run, we cannot separate *"lazy delivers
+L2's value better"* from *"eager L2 actively harms haiku"* (e.g. a heavier recall payload the weak
+model churns on). Both fit the data. The supportable claim is the narrower one: **lazy is the
+better of the two L2 policies for the weakest model.**
+
+**Mechanism (hypothesis, not a finding).** One post-hoc reading: lazy makes the agent *synthesize*
+the conventions itself at recall (the three-band write), engaging a weak model more than handing it
+pre-written eager L2 to read. An equally-consistent reading: lazy's leaner recall payload simply
+gives haiku less to churn on. This run cannot adjudicate between them.
+
+**Net:** defer-L2-to-recall is cheaper for all three models and regressed nothing — adopt-worthy on
+cost alone. For the weakest model it also completed 2× as often, so it's plausibly *better*, not
+just cheaper — but proving *why* (and whether eager L2 is actively harmful to weak models) needs an
+L1-only arm we did not run.
 
 **Caveats (honest):** n=5 — haiku's 40%→80% is 4/10 vs 8/10 converged builds: a real gap but small
-sample. This compares two *L2 approaches*, not L2-vs-no-L2 (no `cold`/`l1` arm in this run) — but the
-arm *divergence* for haiku is itself evidence the L2 layer is load-bearing there (if it were
-optional, the arms would tie as they do for opus). Thin 3-app chain (composition only lightly
+sample. This compares two *L2 approaches*, not L2-vs-no-L2 (no `cold`/`l1` arm in this run), so the
+"is L2 worth creating at all for haiku" question is out of scope here. (The prior 3-model baseline —
+old single-vector binary, not cell-comparable — did show haiku improving cold 18.0/0% → l1 14.0/20%
+→ l2 60–80%, weak evidence haiku benefits from *some* L2.) Thin 3-app chain (composition only lightly
 exercised). 4/135 cells lost their token transcripts to mid-run cfg-pool rebuilds (cost-audit
 cross-check only; the say-once/cost figures derive from the build results, which are intact).
 
