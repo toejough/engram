@@ -153,7 +153,7 @@ For each cluster in the payload's `clusters[]` list:
        --source "synthesized from cluster, <YYYY-MM-DD>, context: <query>"
      ```
 
-     The `<luhmann-id>` is the **filename prefix of `nearest_l2.path`** — e.g. `Permanent/12.2026-04-02.storage-atomicity.md` → `--target 12`; `Permanent/12a.2026-05-01.filestore-interface.md` → `--target 12a`. **NO `--tier` flag** — absence means L2. Adding `--tier L3` is the easy mistake; it is **forbidden** (this skill never writes L3). (Where the members disagree, the dispatched subagent folds in the **more-recently-`created`** member's stance on the conflict — see the recency-bias step below.)
+     The `<luhmann-id>` is the **filename prefix of `nearest_l2.path`** — e.g. `Permanent/12.2026-04-02.storage-atomicity.md` → `--target 12`; `Permanent/12a.2026-05-01.filestore-interface.md` → `--target 12a`. **NO `--tier` flag** — absence means L2. Adding `--tier L3` is the easy mistake; it is **forbidden** (this skill never writes L3). (Where the members disagree, the dispatched subagent folds in the **more-recent** member's stance on the conflict — by work-time; see the recency-bias step below.)
 
    - **cosine < 0.80 → CREATE** (and **absent `nearest_l2` → CREATE** — both mean "no covering L2 exists"). Dispatch a synthesis subagent to **write a NEW L2** synthesizing the cluster — a Fact **and/or** a Feedback per the fact-vs-feedback split in `/learn` §4. The subagent issues, for each new note:
 
@@ -179,11 +179,11 @@ For each cluster in the payload's `clusters[]` list:
 
 The subagent receives the cluster's member list (paths), the band's assigned action (UPDATE `--target <id>`, or CREATE), the query string, and the rep's content. It then:
 
-1. **Reads all member notes from disk.** This is non-negotiable. Without the full member content the synthesis is impossible — and the read is also where it captures each member's **`created` frontmatter** for the recency tiebreaker below.
+1. **Reads all member notes from disk.** This is non-negotiable. Without the full member content the synthesis is impossible — and the read is also where it captures each member's **recency key** for the tiebreaker below: **`provenance.transcript_range.end`** for an L1 episode (its work-time), or **`created`** for a fact/feedback (which has no transcript range).
 2. **Executes the band's action** — it does NOT re-decide whether to write (the parent's band already decided that):
    - **UPDATE** → fold the members' substance into the nearest L2 via `engram learn fact|feedback --target <id> --position continuation …` (no `--tier`).
    - **CREATE** → write a new L2 (Fact and/or Feedback) synthesizing the members via `engram learn fact|feedback --position top --relation … --source …` (no `--tier`), `--relation`-linked to **every** member.
-3. **Recency-bias on divergence.** Where members **diverge or conflict**, prefer the **more-recently-`created` member** (compare the `created` frontmatter read in step 1) as the binding stance. This is a **tiebreaker on conflict**, not a discard of non-conflicting older content — fold in everything the members agree on; only on a genuine contradiction does the newer member win.
+3. **Recency-bias on divergence.** Where members **diverge or conflict**, prefer the member with the later **work-time** as the binding stance. The work-time key is **`provenance.transcript_range.end` for an L1 episode** — NOT `created`, which is write-time and date-only (two same-day episodes tie, and write-order can invert work-order) — and **`created` for a fact/feedback** (no transcript range). Compare the key captured in step 1. This is a **tiebreaker on conflict**, not a discard of non-conflicting older content — fold in everything the members agree on; only on a genuine contradiction does the newer member win.
 
 **Subagent criteria for synthesis writes:**
 
