@@ -235,7 +235,10 @@ def op_done(op):
 def op_cost(out):
     try:
         d = json.load(open(out))
-        return (d.get("build_cost") or 0) + (d.get("learn_cost") or 0) + (d.get("total_cost") or 0)
+        # real.* cells store the in-session learn cost nested under d["learn"]["cost"]; legacy learn
+        # ops use the flat learn_cost key. Count both so the live "spent" tally is honest.
+        learn_nested = (d.get("learn") or {}).get("cost") or 0
+        return (d.get("build_cost") or 0) + (d.get("learn_cost") or 0) + (d.get("total_cost") or 0) + learn_nested
     except Exception:
         return 0.0
 
@@ -297,7 +300,7 @@ def main():
     ap.add_argument("--models", default=",".join(ALL_MODELS))
     ap.add_argument("--trials", default="1,2,3,4,5")
     ap.add_argument("--workers", type=int, default=4)
-    ap.add_argument("--budget", type=float, default=1500.0)
+    ap.add_argument("--budget", type=float, default=0.0)  # 0 = NO spend cap (Joe's preference); >0 caps
     ap.add_argument("--timeout-min", type=int, default=45)
     ap.add_argument("--date", default=datetime.date.today().isoformat())
     ap.add_argument("--max-rounds", type=int, default=15)  # high safety cap; escalation drives completion
@@ -329,7 +332,7 @@ def main():
                for op in ops_for(m, t, args.date, args.stub, args.max_rounds, regime_set)]
     by_id = {op["id"]: op for op in all_ops}
     log(f"matrix: {len(all_ops)} ops | models={models} trials={trials} regimes={manifest_regimes} "
-        f"workers={args.workers} budget=${args.budget} stub={args.stub or 'no'}")
+        f"workers={args.workers} budget={'none' if not args.budget else '$'+str(args.budget)} stub={args.stub or 'no'}")
     log(f"already done: {sum(1 for op in all_ops if op_done(op))}/{len(all_ops)} | spent ${spent_so_far():.2f}")
 
     done = set(oid for oid in by_id if op_done(by_id[oid]))
@@ -342,7 +345,7 @@ def main():
     with cf.ThreadPoolExecutor(max_workers=args.workers) as ex:
         futs = {}
         while len(done) < len(all_ops):
-            if spent_so_far() >= args.budget:
+            if args.budget and spent_so_far() >= args.budget:
                 log(f"!! BUDGET ${args.budget} reached (spent ${spent_so_far():.2f}); stopping launches.")
                 break
             for op in all_ops:
