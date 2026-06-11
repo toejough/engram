@@ -56,6 +56,14 @@ REGIMES = {
     "l3.l1l2l3": {"write": "L3",   "read_mode": "blended", "read_tiers": []},
     "l3.l2l3":   {"write": "L3",   "read_mode": "tier",    "read_tiers": ["L2", "L3"]},
     "l3.l3":     {"write": "L3",   "read_mode": "tier",    "read_tiers": ["L3"]},
+    # Real-skill rebuild (2026-06-11; eval-validity audit). The agent INVOKES the actual
+    # /recall and /learn skills — no inlined proxy logic, no "exactly one episode" / tier
+    # overrides. These are the only regimes that exercise the SHIPPED skills end to end.
+    # read_mode "skill"  => prompt the agent to invoke /recall (assert the Skill tool fired).
+    # write "skill"       => invoke /learn at its lazy default (episodes per-arc; defers L2 to recall).
+    # write "skill-eager" => invoke /learn and explicitly request eager learn-time L2 (documented mode).
+    "real.lazy":  {"write": "skill",       "read_mode": "skill", "read_tiers": []},
+    "real.eager": {"write": "skill-eager", "read_mode": "skill", "read_tiers": []},
 }
 
 
@@ -145,6 +153,14 @@ def build_prompt(app, interface, read_mode, read_tiers):
             "cluster (--position top, --relation to each member; NO --tier).\n"
             "Prefer the more-recently-created member where members diverge. Then APPLY the surfaced "
             "and freshly-written L2 conventions to your build.\n")
+    elif read_mode == "skill":
+        recall = (
+            "\nBefore writing ANY code, consult your memory by INVOKING YOUR /recall SKILL — actually "
+            "run the skill (it prints its Step 0 plan, queries the vault, and synthesizes impact). Do "
+            "NOT hand-run `engram query` yourself in place of the skill. Frame the recall around "
+            f"building a command-line {app} in Go and its architecture/conventions. Read every note the "
+            "skill surfaces and APPLY every convention and decision — including any L2 the skill "
+            "crystallizes on demand — as requirements for your build.\n")
     else:  # tier
         tier_flags = " ".join(f"--tier {t}" for t in read_tiers)
         recall = (
@@ -297,6 +313,11 @@ CONVENTION_KEYWORDS = {
 }
 
 
+# CAVEAT (2026-06-11 eval-validity audit): this is a COARSE coverage proxy — substring keyword
+# matching (CONVENTION_KEYWORDS), NOT the semantic/name-agnostic judgement the wording implies. It
+# is NOT the lazy-vs-eager discriminator (that is build outcomes + whether L2 was actually created).
+# For real.* regimes the learn prompt no longer feeds the agent the labels (closed-loop half fixed);
+# a semantic rescore of this metric is a deferred follow-up (plan Task 7 Step 2). Do not over-trust it.
 def score_learn_capture(vault, stated, write_tier):
     """Did the agent's learn capture the conventions we expect for this tier? Name-agnostic: for
     each STATED convention, check whether any vault note's content covers it. Also tracks whether
@@ -352,7 +373,33 @@ LEARN_TIER_GUIDE = {
 }
 
 
+def skill_learn_prompt(write_tier):
+    """Real-skill learn for the one-session cell: the BUILD agent (which has the real build
+    transcript) invokes its /learn skill. No 'exactly one episode' cap, no convention label-feed
+    (the agent derives lessons from its own session — dropping the closed-loop-scorer confound)."""
+    eager = (write_tier == "skill-eager")
+    parts = [
+        "Now capture durable memory from the work you just did, by INVOKING YOUR /learn skill. "
+        "Actually run the skill (it scans this session's transcript and writes episodes per work-arc). "
+        "Do NOT hand-run `engram learn` in place of the skill, and do NOT cap the episode count — let "
+        "the skill write one episode per arc as it sees fit.",
+    ]
+    if eager:
+        parts.append(
+            "EAGER L2: in addition to episodes, explicitly request the skill's eager learn-time L2 — "
+            "distill the recurring conventions you applied into fact/feedback notes NOW, rather than "
+            "deferring them to a future recall. (This is the skill's documented eager mode.)")
+    else:
+        parts.append(
+            "Run /learn at its DEFAULT (lazy): episodes only; do NOT distill facts/feedback at learn "
+            "time — those are crystallized later at recall. Just capture the episodes.")
+    parts.append("Work autonomously; end with a one-line summary of what you wrote.")
+    return "\n\n".join(parts)
+
+
 def learn_prompt(write_tier, stated):
+    if write_tier in ("skill", "skill-eager"):
+        return skill_learn_prompt(write_tier)
     parts = [LEARN_PROMPT_INTRO]
     if stated:
         parts.append(LEARN_STATED.format(stated="\n".join(f"  - {s}" for s in stated)))
@@ -474,21 +521,36 @@ def passed_of(sc):
         return 0
 
 
-def recall_fired(cfg, sid):
-    """Count cell-transcript turns that ran `engram query` — the forced-memory-path assertion
-    (M1): a headless agent does not self-fire recall, so a warm cell that fired zero used no
-    memory and must be flagged/discarded (§4)."""
+def _skill_and_query_hits(cfg, sid, skill, need_query):
+    """Count cell-transcript files for `sid` showing the named Skill tool firing (`"skill":"<skill>"`
+    — SKILL.md actually loaded). For recall, also require an `engram query`: the old proxy ran
+    queries WITHOUT the skill, so the skill marker is the faithful signal the real skill ran."""
     hits = 0
     proj = os.path.join(cfg, "projects")
     for root, _, files in os.walk(proj):
         for fn in files:
             if sid and sid in fn:
                 try:
-                    if "engram query" in open(os.path.join(root, fn)).read():
-                        hits += 1
+                    txt = open(os.path.join(root, fn)).read()
                 except Exception:
-                    pass
+                    continue
+                fired = f'"skill":"{skill}"' in txt
+                queried = ("engram query" in txt) if need_query else True
+                if fired and queried:
+                    hits += 1
     return hits
+
+
+def recall_fired(cfg, sid):
+    """Count turns that INVOKED the /recall skill (Skill tool fired AND a query ran). Grepping
+    `engram query` alone is insufficient — the old proxy ran queries without the skill; the
+    `"skill":"recall"` marker is the faithful signal a warm cell actually used memory (§4)."""
+    return _skill_and_query_hits(cfg, sid, skill="recall", need_query=True)
+
+
+def learn_fired(cfg, sid):
+    """Whether the /learn skill was invoked in this session (Skill tool fired with skill=learn)."""
+    return _skill_and_query_hits(cfg, sid, skill="learn", need_query=False) > 0
 
 
 def link_followed(cfg, sid):
@@ -751,6 +813,31 @@ def run_build(args):
         print(f"WARN: {args.app} {args.regime} did NOT converge in {rnd} rounds "
               f"(escalated feedback exhausted the safety cap) — flagged did_not_complete.", file=sys.stderr)
 
+    # Recall-skill assertion (real.* / warm): the faithful signal is the Skill tool firing, not a
+    # bare `engram query`. A warm cell where /recall did not fire never had the memory condition —
+    # discard it (exit without a result so a resume re-runs it), BEFORE spending a learn on it.
+    rf = 0 if (regime["read_mode"] == "none" or args.stub) else recall_fired(args.cfg, sid)
+    if regime["read_mode"] == "skill" and not args.stub and rf == 0:
+        print(f"recall SKILL did not fire ({args.app} {args.regime}) — invalid warm cell; "
+              f"no result written so resume re-runs it.", file=sys.stderr)
+        sys.exit(1)
+
+    # One-session learn: for real-skill regimes the BUILD agent runs /learn on its OWN transcript
+    # (episodes are genuine chunks, not summaries). resume_sid=sid keeps it the same session. cold
+    # and legacy regimes skip this (cold has no learn; legacy regimes learn via a separate run_learn).
+    learn_meta = {"ran": False, "cost": 0.0, "turns": 0, "fired": None, "notes_by_tier": {}}
+    if not args.stub and regime["write"] in ("skill", "skill-eager") and sc.get("build") == "ok" and completed:
+        lr = do_build(skill_learn_prompt(regime["write"]), resume_sid=sid)  # same session
+        learn_meta["ran"] = True
+        learn_meta["cost"] = round(lr.get("total_cost_usd", 0) or 0, 4)
+        learn_meta["turns"] = lr.get("num_turns", 0) or 0
+        learn_meta["fired"] = learn_fired(args.cfg, sid)
+        subprocess.run(["engram", "embed", "apply", "--all"],
+                       env={**os.environ, "ENGRAM_VAULT_PATH": build_vault,
+                            "PATH": ENGRAM_BIN_DIR + ":" + os.environ.get("PATH", "")},
+                       capture_output=True, text=True)
+        learn_meta["notes_by_tier"] = count_notes_by_tier(build_vault)
+
     # Escalation depth — how granular the human feedback had to get before convergence (§5 signal).
     # stated_counts[label] = #rounds an item was fed back; feedback escalates to the literal
     # code-level fix once an item has been stated >=1 time already (so depth>=2 = needed
@@ -768,7 +855,6 @@ def run_build(args):
         "features_escalated": sum(1 for v in feat_esc.values() if v >= 2),
     }
 
-    rf = 0 if (regime["read_mode"] == "none" or args.stub) else recall_fired(args.cfg, sid)
     recall_ok = regime["read_mode"] == "none" or bool(args.stub) or rf > 0
     followed = False if args.stub else (regime["read_mode"] == "tier" and link_followed(args.cfg, sid))
 
@@ -812,8 +898,18 @@ def run_build(args):
         "wall_min": round((time.time() - t0) / 60.0, 1),
         "l2_generated": len(new_l2), "l2_composed": l2_composed,
         "vault_notes_total": len(glob_notes(build_vault)),
+        "learn": learn_meta,
         "rounds": rounds, "session_id": sid, "workdir": args.workdir,
     }
+
+    # Promote the accumulated build vault to vault_out for real regimes so the next app recalls it
+    # (build vault = seeded vault_in + recall-crystallized L2 + /learn episodes). This IS the
+    # persist-forward for the one-session model — no separate learn-stage vault.
+    if regime["write"] in ("skill", "skill-eager") and getattr(args, "vault_out", ""):
+        import shutil as _shutil
+        _shutil.rmtree(args.vault_out, ignore_errors=True)
+        _shutil.copytree(build_vault, args.vault_out)
+
     json.dump(out, open(args.out, "w"), indent=2)
     print(json.dumps({k: out[k] for k in ["app", "model", "regime", "converged",
           "rounds_to_converge", "round1_score", "convention_statements", "feature_statements",
@@ -825,6 +921,8 @@ def run_build(args):
 def run_learn(args):
     import shutil
     t0 = time.time()
+    if REGIMES[args.regime]["write"] in ("skill", "skill-eager"):
+        raise SystemExit("real.* regimes learn in-session (run_build); run_learn is not used for them")
     if args.write_tier == "none":
         out = {"schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "learn",
                "app": args.app, "model": args.model, "regime": args.regime, "trial": args.trial,
@@ -978,6 +1076,9 @@ def main():
     b = sub.add_parser("build")
     for a in ["app", "model", "regime", "vault-in", "cfg", "workdir", "spec", "out"]:
         b.add_argument("--" + a, required=True)
+    # real.* regimes learn in-session; --vault-out is where the build agent's accumulated vault
+    # (seeded vault_in + recall-crystallized L2 + /learn episodes) is promoted for the next app.
+    b.add_argument("--vault-out", default="")
     b.add_argument("--trial", type=int, default=1)
     b.add_argument("--date", default="")
     b.add_argument("--max-rounds", type=int, default=15)  # high safety cap; escalation drives completion
@@ -996,6 +1097,7 @@ def main():
     # argparse stores hyphenated flags with underscores; normalize the few we read by attr.
     args.vault_in = getattr(args, "vault_in")
     if args.mode == "build":
+        args.vault_out = getattr(args, "vault_out", "")
         run_build(args)
     else:
         args.vault_out = getattr(args, "vault_out")

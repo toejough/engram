@@ -167,6 +167,49 @@ def cells_for(model, trial, date, stub, max_rounds, regimes=None):
     return ops
 
 
+REAL_REGIMES = ("cold", "real.lazy", "real.eager")
+
+
+def real_cells_for(model, trial, date, stub, max_rounds, regimes):
+    """Real-skill chains (cold / real.lazy / real.eager). Each app is ONE one-session cell — the
+    build op runs recall -> build -> /learn IN-SESSION for real.* regimes, so there is NO separate
+    learn op. Each real regime runs its OWN 3-app chain from app1 (lazy and eager learn differently,
+    so app1 cannot be shared — it is built once per regime). cold = build only, no recall, no learn,
+    across all 3 apps. app1 recalls an empty seed vault (a no-op that still fires the skill)."""
+    pfx = f"{model}-t{trial}"
+    stub_args = ["--stub", stub] if stub else []
+    apps = [("notes", "app1"), ("links", "app2"), ("feeds", "app3")]
+    sel = [r for r in REAL_REGIMES if (regimes is None or r in regimes)]
+    ops = []
+    for regime in sel:
+        rc = harness.REGIMES[regime]
+        read_cfg = "cold" if rc["read_mode"] == "none" else "warm"
+        prev_vault, prev_dep = "none", []
+        for i, (app, tag) in enumerate(apps):
+            terminal = (i == len(apps) - 1)
+            ws = f"{WS}/{pfx}-{tag}-{regime}"
+            out = f"{RESULTS}/{pfx}-{tag}-{regime}-build.json"
+            # persist forward only for warm regimes on non-terminal apps (cold never accumulates)
+            vault_out = "" if (terminal or regime == "cold") else f"{VAULTS}/v-{pfx}-{tag}-{regime}"
+            cmd = ["build", "--app", app, "--model", model, "--regime", regime, "--trial", str(trial),
+                   "--date", date, "--vault-in", prev_vault, "--workdir", ws,
+                   "--spec", f"{CUM}/{app}_spec.json", "--out", out, "--max-rounds", str(max_rounds)]
+            if vault_out:
+                cmd += ["--vault-out", vault_out]
+            ops.append(_op("build", f"{pfx}-{tag}-{regime}-build", prev_dep, read_cfg, out, cmd + stub_args))
+            prev_dep = [f"{pfx}-{tag}-{regime}-build"]
+            prev_vault = vault_out or prev_vault
+    return ops
+
+
+def ops_for(model, trial, date, stub, max_rounds, regimes):
+    """Dispatch: an all-real-regime run uses the one-session real_cells_for DAG; anything else
+    falls back to the legacy proxy cells_for (kept intact for historical comparison)."""
+    if regimes is not None and set(regimes) <= set(REAL_REGIMES):
+        return real_cells_for(model, trial, date, stub, max_rounds, regimes)
+    return cells_for(model, trial, date, stub, max_rounds, regimes)
+
+
 def op_done(op):
     """An op counts as done only if it produced a VALID result — so a resume re-runs cells that
     timed out, rate-limited (incomplete build), or whose learn never engaged engram (empty seed),
@@ -283,7 +326,7 @@ def main():
     regime_set = set(regimes) if regimes is not None else None
     pools = make_pools(nwarm=args.workers, ncold=args.workers)
     all_ops = [op for m in models for t in trials
-               for op in cells_for(m, t, args.date, args.stub, args.max_rounds, regime_set)]
+               for op in ops_for(m, t, args.date, args.stub, args.max_rounds, regime_set)]
     by_id = {op["id"]: op for op in all_ops}
     log(f"matrix: {len(all_ops)} ops | models={models} trials={trials} regimes={manifest_regimes} "
         f"workers={args.workers} budget=${args.budget} stub={args.stub or 'no'}")
