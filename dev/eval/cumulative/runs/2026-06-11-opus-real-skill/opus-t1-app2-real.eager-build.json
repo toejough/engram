@@ -1,0 +1,126 @@
+{
+  "schema_version": 2,
+  "engram_sha": "f075d3043068",
+  "kind": "build",
+  "app": "links",
+  "model": "opus",
+  "model_id": "claude-opus-4-8",
+  "regime": "real.eager",
+  "trial": 1,
+  "date": "2026-06-11",
+  "read_mode": "skill",
+  "read_tiers": [],
+  "vault_in": "/tmp/cummatrix-real/vaults/v-opus-t1-app1-real.eager",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 15,
+  "round1_score": "14/17",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": true,
+    "stdlib": true,
+    "tests_fake_parallel": true,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 1,
+  "round1_feature_fails": 2,
+  "final_score": "17/17",
+  "final_buckets": {
+    "native": "1/1",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [
+    "nocolor"
+  ],
+  "convention_statements": 1,
+  "feature_statements": 2,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 2,
+  "escalation": {
+    "by_label": {
+      "ARCH:nocolor": 1,
+      "beta:url_validation": 1,
+      "beta:canonical_dedup": 1
+    },
+    "max_depth": 1,
+    "max_convention_depth": 1,
+    "items_escalated": 0,
+    "conventions_escalated": 0,
+    "features_escalated": 0
+  },
+  "build_cost": 5.1664,
+  "build_turns": 45,
+  "tokens": {
+    "input": 8449,
+    "output": 63225,
+    "cache_write": 271286,
+    "cache_read": 5790535
+  },
+  "recomputed_cost": 6.2137,
+  "cost_ratio": 1.203,
+  "wall_min": 15.1,
+  "l2_generated": 4,
+  "l2_composed": 2,
+  "vault_notes_total": 14,
+  "learn": {
+    "ran": true,
+    "cost": 1.9431,
+    "turns": 20,
+    "fired": true,
+    "notes_by_tier": {
+      "L1": 4,
+      "L2": 10,
+      "L3": 0,
+      "other": 0
+    }
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "score": "14/17",
+      "feat_buckets": {
+        "native": "1/1",
+        "alpha": "2/2",
+        "beta": "2/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 2,
+      "cost": 2.9570440000000007,
+      "turns": 28,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "17/17",
+      "feat_buckets": {
+        "native": "1/1",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 0,
+      "cost": 2.2093754999999997,
+      "turns": 17,
+      "is_error": false
+    }
+  ],
+  "session_id": "bb0408ac-766b-4ffb-a47f-7addea2d40dd",
+  "workdir": "/tmp/cummatrix-real/ws/opus-t1-app2-real.eager"
+}

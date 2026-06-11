@@ -53,3 +53,8 @@ node_modules/
 /.feeds.json
 /.links/
 /.links.json
+# same strays when a build cell runs with cwd = dev/eval/cumulative/
+/dev/eval/cumulative/notes.json
+/dev/eval/cumulative/links.json
+/dev/eval/cumulative/feeds.json
+/dev/eval/cumulative/subscriptions.json

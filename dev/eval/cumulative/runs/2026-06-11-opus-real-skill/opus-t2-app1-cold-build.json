@@ -1,0 +1,170 @@
+{
+  "schema_version": 2,
+  "engram_sha": "f075d3043068",
+  "kind": "build",
+  "app": "notes",
+  "model": "opus",
+  "model_id": "claude-opus-4-8",
+  "regime": "cold",
+  "trial": 2,
+  "date": "2026-06-11",
+  "read_mode": "none",
+  "read_tiers": [],
+  "vault_in": "none",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 5,
+  "max_rounds": 15,
+  "round1_score": "6/14",
+  "round1_arch_detectors": {
+    "di": false,
+    "sentinel": true,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": false,
+    "named_perms": false,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 6,
+  "round1_feature_fails": 2,
+  "final_score": "14/14",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [
+    "di",
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor",
+    "wrapped_errors",
+    "named_perms"
+  ],
+  "convention_statements": 6,
+  "feature_statements": 2,
+  "recall_fired": 0,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 5,
+  "escalation": {
+    "by_label": {
+      "ARCH:di": 1,
+      "ARCH:atomic": 1,
+      "ARCH:tests_fake_parallel": 1,
+      "ARCH:nocolor": 1,
+      "ARCH:wrapped_errors": 1,
+      "ARCH:named_perms": 1,
+      "alpha:tag_ci": 4,
+      "alpha:search_allfields": 4
+    },
+    "max_depth": 4,
+    "max_convention_depth": 1,
+    "items_escalated": 2,
+    "conventions_escalated": 0,
+    "features_escalated": 2
+  },
+  "build_cost": 3.6251,
+  "build_turns": 45,
+  "tokens": {
+    "input": 4178,
+    "output": 53877,
+    "cache_write": 118990,
+    "cache_read": 2133406
+  },
+  "recomputed_cost": 3.1782,
+  "cost_ratio": 0.877,
+  "wall_min": 11.9,
+  "l2_generated": 0,
+  "l2_composed": 0,
+  "vault_notes_total": 0,
+  "learn": {
+    "ran": false,
+    "cost": 0.0,
+    "turns": 0,
+    "fired": null,
+    "notes_by_tier": {}
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "score": "6/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "0/2"
+      },
+      "arch": "4/10",
+      "convention_fails": 6,
+      "feature_fails": 2,
+      "cost": 0.573699,
+      "turns": 11,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "12/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "0/2"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 2,
+      "cost": 1.2482700000000002,
+      "turns": 17,
+      "is_error": false
+    },
+    {
+      "round": 3,
+      "score": "12/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "0/2"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 2,
+      "cost": 0.7686704999999999,
+      "turns": 6,
+      "is_error": false
+    },
+    {
+      "round": 4,
+      "score": "12/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "0/2"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 2,
+      "cost": 0.38094800000000006,
+      "turns": 3,
+      "is_error": false
+    },
+    {
+      "round": 5,
+      "score": "14/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 0,
+      "cost": 0.6535535,
+      "turns": 8,
+      "is_error": false
+    }
+  ],
+  "session_id": "e34d0f50-1b92-4a6c-aa23-29c408ed0e84",
+  "workdir": "/tmp/cummatrix-real/ws/opus-t2-app1-cold"
+}

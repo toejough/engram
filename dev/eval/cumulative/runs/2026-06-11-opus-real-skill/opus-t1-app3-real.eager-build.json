@@ -1,0 +1,107 @@
+{
+  "schema_version": 2,
+  "engram_sha": "f075d3043068",
+  "kind": "build",
+  "app": "feeds",
+  "model": "opus",
+  "model_id": "claude-opus-4-8",
+  "regime": "real.eager",
+  "trial": 1,
+  "date": "2026-06-11",
+  "read_mode": "skill",
+  "read_tiers": [],
+  "vault_in": "/tmp/cummatrix-real/vaults/v-opus-t1-app2-real.eager",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 1,
+  "max_rounds": 15,
+  "round1_score": "17/18",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": true,
+    "stdlib": true,
+    "tests_fake_parallel": true,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 1,
+  "round1_feature_fails": 0,
+  "final_score": "17/18",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "9/10",
+  "arch_pass": 9,
+  "stated_conventions": [
+    "nocolor"
+  ],
+  "convention_statements": 1,
+  "feature_statements": 0,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 1,
+  "escalation": {
+    "by_label": {},
+    "max_depth": 0,
+    "max_convention_depth": 0,
+    "items_escalated": 0,
+    "conventions_escalated": 0,
+    "features_escalated": 0
+  },
+  "build_cost": 2.8173,
+  "build_turns": 18,
+  "tokens": {
+    "input": 12651,
+    "output": 50758,
+    "cache_write": 225524,
+    "cache_read": 3950034
+  },
+  "recomputed_cost": 4.7167,
+  "cost_ratio": 1.674,
+  "wall_min": 10.9,
+  "l2_generated": 5,
+  "l2_composed": 5,
+  "vault_notes_total": 20,
+  "learn": {
+    "ran": true,
+    "cost": 2.5543,
+    "turns": 26,
+    "fired": true,
+    "notes_by_tier": {
+      "L1": 5,
+      "L2": 15,
+      "L3": 0,
+      "other": 0
+    }
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "score": "17/18",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 0,
+      "cost": 2.8173335000000006,
+      "turns": 18,
+      "is_error": false
+    }
+  ],
+  "session_id": "fa73608f-f384-4108-ab58-4657a02c7915",
+  "workdir": "/tmp/cummatrix-real/ws/opus-t1-app3-real.eager"
+}
