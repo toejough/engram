@@ -23,7 +23,7 @@ import (
 type QueryArgs struct {
 	Phrases      []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
 	VaultPath    string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
-	ChunksDir    string   `targ:"flag,name=chunks-dir,env=ENGRAM_CHUNKS_DIR,desc=chunk index dir; when set chunks compete in the same ranking as notes"` //nolint:lll // single unbreakable struct-tag string
+	ChunksDir    string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks); chunks compete in the same ranking as notes"` //nolint:lll // single unbreakable struct-tag string
 	Limit        int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project      string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 	Tiers        []string `targ:"flag,name=tier,desc=restrict items to notes matching these tier: values (repeatable)"`

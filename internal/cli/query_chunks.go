@@ -19,7 +19,7 @@ import (
 // (surfaced as the `query-chunks` target during the experiment).
 type ChunkQueryArgs struct {
 	Phrases   []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
-	ChunksDir string   `targ:"flag,name=chunks-dir,required,desc=directory of chunk index (.jsonl) files"`
+	ChunksDir string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
 	Limit     int      `targ:"flag,name=limit,desc=max chunks to return (default 20)"`
 }
 

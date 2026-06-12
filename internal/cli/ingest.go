@@ -23,7 +23,7 @@ type IngestArgs struct {
 	Markdowns   []string `targ:"flag,name=markdown,desc=markdown file to chunk+embed (repeatable)"`
 	Sweep       []string `targ:"flag,name=sweep,desc=directory to scan for new/changed sources (.md + .jsonl; repeatable)"`
 	Auto        bool     `targ:"flag,name=auto,desc=sweep the declarative default roots: repo markdown + ancestor .claude dirs + session logs (see .engram/sweep.json)"` //nolint:lll // single unbreakable struct-tag string
-	ChunksDir   string   `targ:"flag,name=chunks-dir,required,desc=directory for per-source chunk index (.jsonl) files"`
+	ChunksDir   string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
 }
 
 // IngestDeps holds injected dependencies for RunIngest. ReadTranscript
@@ -47,6 +47,21 @@ type IngestDeps struct {
 type SourceStat struct {
 	MtimeUnixNano int64 `json:"mtime_unix_nano"` //nolint:tagliatelle // manifest schema uses snake_case like .vec.json
 	Size          int64 `json:"size"`
+}
+
+// ResolveChunksDir resolves the chunk index location with the same precedence
+// as the vault: explicit flag, then ENGRAM_CHUNKS_DIR, then the XDG data dir
+// default ($XDG_DATA_HOME/engram/chunks).
+func ResolveChunksDir(flagValue, home string, getenv func(string) string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+
+	if env := getenv("ENGRAM_CHUNKS_DIR"); env != "" {
+		return env
+	}
+
+	return filepath.Join(DataDirFromHome(home, getenv), "chunks")
 }
 
 // RunIngest trues the chunk index up against the given sources. ONE mechanism

@@ -138,12 +138,15 @@ func coreTargets(
 		),
 		targ.Targ(func(ctx context.Context, a QueryArgs) {
 			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
 			errHandler(RunQuery(withLog(ctx), a, newOsQueryDeps(), stdout))
-		}).Name("query").Description("Semantic search over the vault (YAML output)"),
+		}).Name("query").Description("Semantic search over vault + chunk index (YAML output)"),
 		targ.Targ(func(ctx context.Context, a IngestArgs) {
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
 			errHandler(RunIngest(withLog(ctx), a, newOsIngestDeps(), stdout))
 		}).Name("ingest").Description("Chunk+embed transcripts/markdown into a chunk index (zero-LLM)"),
 		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
 			errHandler(RunChunkQuery(withLog(ctx), a, newOsChunkQueryDeps(), stdout))
 		}).Name("query-chunks").Description("Semantic search over the chunk index (YAML output)"),
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
