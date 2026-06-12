@@ -22,9 +22,9 @@ func TestQuery_BacklinksTraversed(t *testing.T) {
 	memFS := newInMemoryFS()
 
 	// B is the direct hit; A links to B but B does not link to A. Backlink expansion should pull A in.
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/A.md",
+	plantNoteWithSidecar(t, memFS, vault, "A.md",
 		"---\ntype: fact\n---\nunrelated\n[[B]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/B.md",
+	plantNoteWithSidecar(t, memFS, vault, "B.md",
 		"---\ntype: fact\n---\nthe query string body\n")
 
 	var out bytes.Buffer
@@ -58,15 +58,15 @@ func TestQuery_ExpandsSubgraph_BFS3Hops(t *testing.T) {
 	memFS := newInMemoryFS()
 
 	// Direct hit will be A; it's the only note whose body matches the query.
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/A.md",
+	plantNoteWithSidecar(t, memFS, vault, "A.md",
 		"---\ntype: fact\n---\nthe query string body\n[[B]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/B.md",
+	plantNoteWithSidecar(t, memFS, vault, "B.md",
 		"---\ntype: fact\n---\nzzz\n[[C]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/C.md",
+	plantNoteWithSidecar(t, memFS, vault, "C.md",
 		"---\ntype: fact\n---\nyyy\n[[D]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/D.md",
+	plantNoteWithSidecar(t, memFS, vault, "D.md",
 		"---\ntype: fact\n---\nxxx\n[[E]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/E.md",
+	plantNoteWithSidecar(t, memFS, vault, "E.md",
 		"---\ntype: fact\n---\nwww\n")
 
 	var out bytes.Buffer
@@ -106,12 +106,12 @@ func TestQuery_SubgraphCap_StopsAtThreshold(t *testing.T) {
 
 	const hubMatch = "the query string body"
 
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/H.md",
+	plantNoteWithSidecar(t, memFS, vault, "H.md",
 		"---\ntype: fact\n---\n"+hubMatch+"\n"+buildLinkBlock(total))
 
 	for i := range total {
 		plantNoteWithSidecar(t, memFS, vault,
-			"Permanent/"+nodeBase(i)+".md",
+			""+nodeBase(i)+".md",
 			"---\ntype: fact\n---\nleaf body\n[[H]]\n")
 	}
 

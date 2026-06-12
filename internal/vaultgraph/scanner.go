@@ -7,12 +7,6 @@ import (
 	"github.com/toejough/engram/internal/luhmann"
 )
 
-// Exported constants.
-const (
-	MOCsSubdir      = "MOCs"
-	PermanentSubdir = "Permanent"
-)
-
 // Note is a vault node: a single markdown file with its parsed metadata and outgoing wikilinks.
 // LuhmannID is empty for files whose filename does not begin with a valid Luhmann ID.
 type Note struct {
@@ -32,41 +26,29 @@ type VaultFS interface {
 	ReadFile(path string) ([]byte, error)
 }
 
-// ScanVault reads MOCs/ and Permanent/ under vaultPath and returns one Note per .md file.
-// Missing subdirs are silently skipped. The returned slice has stable order: MOCs first by
-// Basename, then Permanent — but downstream consumers should not rely on this and instead
-// look up by Basename.
+// ScanVault reads the .md notes at the ROOT of vaultPath and returns one Note
+// per file. The vault is flat: no Permanent/ or MOCs/ tiers (the chunk index
+// replaced raw-event episodes; MOCs were retired earlier). Subdirectories —
+// including the historical _legacy/ — are ignored.
 func ScanVault(fs VaultFS, vaultPath string) ([]Note, error) {
-	subdirs := []struct {
-		name  string
-		isMOC bool
-	}{
-		{MOCsSubdir, true},
-		{PermanentSubdir, false},
-	}
-
 	var notes []Note
 
-	for _, sub := range subdirs {
-		dirPath := filepath.Join(vaultPath, sub.name)
+	filenames, err := fs.ListMD(vaultPath)
+	if err != nil {
+		return nil, fmt.Errorf("listing %s: %w", vaultPath, err)
+	}
 
-		filenames, err := fs.ListMD(dirPath)
-		if err != nil {
-			return nil, fmt.Errorf("listing %s: %w", dirPath, err)
+	for _, filename := range filenames {
+		note, ok, scanErr := scanNote(fs, vaultPath, filename, false)
+		if scanErr != nil {
+			return nil, scanErr
 		}
 
-		for _, filename := range filenames {
-			note, ok, scanErr := scanNote(fs, dirPath, filename, sub.isMOC)
-			if scanErr != nil {
-				return nil, scanErr
-			}
-
-			if !ok {
-				continue
-			}
-
-			notes = append(notes, note)
+		if !ok {
+			continue
 		}
+
+		notes = append(notes, note)
 	}
 
 	return notes, nil

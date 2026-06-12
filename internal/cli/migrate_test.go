@@ -62,10 +62,10 @@ func TestRunMigrateLinks_RealDepsRoundTrip(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-30.foo.md"),
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-30.foo.md"),
 		[]byte("---\ntype: fact\n---\nbody\n"), 0o600)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "2.2026-05-30.bar.md"),
+	g.Expect(os.WriteFile(filepath.Join(vault, "2.2026-05-30.bar.md"),
 		[]byte("---\ntype: fact\n---\nbody\n\nRelated to:\n- [[1]] — x.\n"), 0o600)).To(Succeed())
 
 	var out bytes.Buffer
@@ -78,7 +78,7 @@ func TestRunMigrateLinks_RealDepsRoundTrip(t *testing.T) {
 	)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	got, rErr := os.ReadFile(filepath.Join(vault, "Permanent", "2.2026-05-30.bar.md"))
+	got, rErr := os.ReadFile(filepath.Join(vault, "2.2026-05-30.bar.md"))
 	g.Expect(rErr).NotTo(HaveOccurred())
 	g.Expect(string(got)).To(ContainSubstring("[[1.2026-05-30.foo]]"))
 }

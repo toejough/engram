@@ -25,7 +25,7 @@ func TestEmbedApply_DryRunDoesNotWrite(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	memFS.files[filepath.Join(vault, "Permanent/1.foo.md")] = []byte("body")
+	memFS.files[filepath.Join(vault, "1.foo.md")] = []byte("body")
 
 	var out bytes.Buffer
 
@@ -34,8 +34,8 @@ func TestEmbedApply_DryRunDoesNotWrite(t *testing.T) {
 		newEmbedDeps(memFS), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("would-embed Permanent/1.foo.md (missing)"))
-	g.Expect(memFS.files).NotTo(HaveKey(filepath.Join(vault, "Permanent/1.foo.vec.json")))
+	g.Expect(out.String()).To(ContainSubstring("would-embed 1.foo.md (missing)"))
+	g.Expect(memFS.files).NotTo(HaveKey(filepath.Join(vault, "1.foo.vec.json")))
 }
 
 func TestEmbedApply_MissingOnly_WritesSidecar(t *testing.T) {
@@ -45,7 +45,7 @@ func TestEmbedApply_MissingOnly_WritesSidecar(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	memFS.files[filepath.Join(vault, "Permanent/1.foo.md")] = []byte("---\ntype: fact\n---\nbody\n")
+	memFS.files[filepath.Join(vault, "1.foo.md")] = []byte("---\ntype: fact\n---\nbody\n")
 
 	var out bytes.Buffer
 
@@ -54,9 +54,9 @@ func TestEmbedApply_MissingOnly_WritesSidecar(t *testing.T) {
 		newEmbedDeps(memFS), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("embedded  Permanent/1.foo.md (missing)"))
+	g.Expect(out.String()).To(ContainSubstring("embedded  1.foo.md (missing)"))
 
-	sidecarPath := filepath.Join(vault, "Permanent/1.foo.vec.json")
+	sidecarPath := filepath.Join(vault, "1.foo.vec.json")
 	g.Expect(memFS.files).To(HaveKey(sidecarPath))
 
 	var sidecar embed.Sidecar
@@ -75,8 +75,8 @@ func TestEmbedApply_StaleVsIncompatibleDistinction(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	notePath := filepath.Join(vault, "Permanent/1.foo.md")
-	scPath := filepath.Join(vault, "Permanent/1.foo.vec.json")
+	notePath := filepath.Join(vault, "1.foo.md")
+	scPath := filepath.Join(vault, "1.foo.vec.json")
 	noteBody := []byte("---\ntype: fact\n---\nbody\n")
 	memFS := newInMemoryFS()
 	memFS.files[notePath] = noteBody
@@ -122,7 +122,7 @@ func TestEmbedApply_WriteFailureReported(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	memFS.files[filepath.Join(vault, "Permanent/1.foo.md")] = []byte("body")
+	memFS.files[filepath.Join(vault, "1.foo.md")] = []byte("body")
 
 	deps := newEmbedDeps(memFS)
 	deps.Write = func(string, []byte) error { return errors.New("disk full") }
@@ -132,7 +132,7 @@ func TestEmbedApply_WriteFailureReported(t *testing.T) {
 	err := cli.RunEmbedApply(context.Background(), cli.EmbedApplyArgs{VaultPath: vault}, deps, &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("fail      Permanent/1.foo.md"))
+	g.Expect(out.String()).To(ContainSubstring("fail      1.foo.md"))
 	g.Expect(out.String()).To(ContainSubstring("disk full"))
 }
 
@@ -143,8 +143,8 @@ func TestEmbedStatus_AllMissing(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	memFS.files[filepath.Join(vault, "Permanent/1.foo.md")] = []byte("body")
-	memFS.files[filepath.Join(vault, "MOCs/2.bar.md")] = []byte("body")
+	memFS.files[filepath.Join(vault, "1.foo.md")] = []byte("body")
+	memFS.files[filepath.Join(vault, "2.bar.md")] = []byte("body")
 
 	var out bytes.Buffer
 

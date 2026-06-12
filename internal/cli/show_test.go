@@ -75,7 +75,7 @@ func TestRunShow_OsDepsReadRealVault(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	perm := filepath.Join(vault, "Permanent")
+	perm := vault
 	g.Expect(os.MkdirAll(perm, 0o755)).To(Succeed())
 
 	body := "---\ntype: fact\ntier: L2\n---\nreal note body, see [[2.other]].\n"
@@ -159,10 +159,10 @@ func newShowDeps(memFS *inMemoryFS) cli.ShowDeps {
 func plantHub(t *testing.T, memFS *inMemoryFS, vault string) {
 	t.Helper()
 
-	memFS.files[filepath.Join(vault, "Permanent/1.hub.md")] =
+	memFS.files[filepath.Join(vault, "1.hub.md")] =
 		[]byte("---\ntype: fact\ntier: L3\n---\nhub body links to [[2.alpha]] and [[3.beta]].\n```\n[[9.fenced]]\n```\n")
-	memFS.files[filepath.Join(vault, "Permanent/2.alpha.md")] =
+	memFS.files[filepath.Join(vault, "2.alpha.md")] =
 		[]byte("---\ntype: fact\ntier: L2\n---\nalpha body\n")
-	memFS.files[filepath.Join(vault, "Permanent/3.beta.md")] =
+	memFS.files[filepath.Join(vault, "3.beta.md")] =
 		[]byte("---\ntype: fact\ntier: L2\n---\nbeta body\n")
 }

@@ -39,7 +39,7 @@ func TestInvariant_K1_ConcurrentLearnNeverCollides(t *testing.T) {
 
 			// Each subtest gets its own temp vault — no shared mutable state.
 			vault := t.TempDir()
-			g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o755)).To(Succeed())
+			g.Expect(os.MkdirAll(vault, 0o755)).To(Succeed())
 
 			deps := k1RealLockDeps(vault)
 
@@ -98,14 +98,23 @@ func TestInvariant_K1_ConcurrentLearnNeverCollides(t *testing.T) {
 			g.Expect(files).To(HaveLen(workers), "expected %d distinct files, got %v", workers, files)
 
 			// Backstop: the files actually exist on disk (no lost write).
-			entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
+			entries, readErr := os.ReadDir(vault)
 			g.Expect(readErr).NotTo(HaveOccurred())
 
 			if readErr != nil {
 				return
 			}
 
-			g.Expect(entries).To(HaveLen(workers), "expected %d note files on disk", workers)
+			notes := 0
+
+			for _, entry := range entries {
+				// vault root also holds the luhmann lock + .obsidian; count notes only
+				if strings.HasSuffix(entry.Name(), ".md") {
+					notes++
+				}
+			}
+
+			g.Expect(notes).To(Equal(workers), "expected %d note files on disk", workers)
 		})
 	}
 }

@@ -28,7 +28,7 @@ func TestQueryProperty_ClusterCountInRange(t *testing.T) {
 		memFS := newInMemoryFS()
 
 		for i := range noteCount {
-			relPath := "Permanent/" + propertyNodeName(i) + ".md"
+			relPath := "" + propertyNodeName(i) + ".md"
 
 			outgoing := propertyOutgoing(rt, i, noteCount)
 			body := "---\ntype: fact\n---\nbody " + propertyNodeName(i) + "\n" + outgoing
@@ -71,7 +71,7 @@ func TestQueryProperty_SubgraphSizeBounded(t *testing.T) {
 		memFS := newInMemoryFS()
 
 		for i := range noteCount {
-			relPath := "Permanent/" + propertyNodeName(i) + ".md"
+			relPath := "" + propertyNodeName(i) + ".md"
 
 			outgoing := propertyOutgoing(rt, i, noteCount)
 			body := "---\ntype: fact\n---\nbody content\n" + outgoing

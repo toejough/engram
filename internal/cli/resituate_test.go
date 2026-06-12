@@ -73,7 +73,7 @@ func TestRunResituate_Episode(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	notePath := filepath.Join(vault, "Permanent", "9ab.2026-05-25.nilaway-arc.md")
+	notePath := filepath.Join(vault, "9ab.2026-05-25.nilaway-arc.md")
 	writeResituateFixture(t, notePath, resituateEpisodeNote)
 
 	originalBody := embed.ExtractBody([]byte(resituateEpisodeNote))
@@ -123,7 +123,7 @@ func TestRunResituate_Fact(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	notePath := filepath.Join(vault, "Permanent", "9aa.2026-05-10.nilaway-guard.md")
+	notePath := filepath.Join(vault, "9aa.2026-05-10.nilaway-guard.md")
 	writeResituateFixture(t, notePath, resituateFactNote)
 
 	originalHash := embed.ContentHash([]byte(resituateFactNote))
@@ -167,7 +167,7 @@ func TestRunResituate_Feedback(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	notePath := filepath.Join(vault, "Permanent", "9ac.2026-05-12.nilaway-guard.md")
+	notePath := filepath.Join(vault, "9ac.2026-05-12.nilaway-guard.md")
 	writeResituateFixture(t, notePath, resituateFeedbackNote)
 
 	originalHash := embed.ContentHash([]byte(resituateFeedbackNote))
@@ -279,7 +279,7 @@ func TestRunResituate_LocatesByFullBasename(t *testing.T) {
 	const basename = "9aa.2026-05-10.nilaway-guard"
 
 	vault := t.TempDir()
-	notePath := filepath.Join(vault, "Permanent", basename+".md")
+	notePath := filepath.Join(vault, basename+".md")
 	writeResituateFixture(t, notePath, resituateFactNote)
 
 	deps := cli.ExportNewOsResituateDeps(successEmbedder{})
@@ -314,7 +314,7 @@ func TestRunResituate_NotFound(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 
 	deps := cli.ExportNewOsResituateDeps(successEmbedder{})
 

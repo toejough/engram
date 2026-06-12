@@ -82,19 +82,19 @@ func TestOsFileReader_ReadError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestOsLearnFS_ListIDs_ReturnsBothPermanentAndMOC(t *testing.T) {
+func TestOsLearnFS_ListIDs_ReturnsRootNotesOnly(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-09.foo.md"), nil, 0o600)).
+	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-09.foo.md"), nil, 0o600)).
 		To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1a.2026-05-09.bar.md"), nil, 0o600)).
+	g.Expect(os.WriteFile(filepath.Join(vault, "1a.2026-05-09.bar.md"), nil, 0o600)).
 		To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(vault, "MOCs", "5.2026-05-09.moc.md"), nil, 0o600)).
 		To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "README.md"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "README.md"), nil, 0o600)).To(Succeed())
 
 	fs := cli.ExportNewOsLearnFS()
 	got, err := fs.ListIDs(vault)
@@ -104,7 +104,8 @@ func TestOsLearnFS_ListIDs_ReturnsBothPermanentAndMOC(t *testing.T) {
 		return
 	}
 
-	g.Expect(got).To(ConsistOf("1", "1a", "5"))
+	// flat vault: subdirectories (including legacy MOCs/) are ignored
+	g.Expect(got).To(ConsistOf("1", "1a"))
 }
 
 func TestOsLearnFS_Lock_ExclusiveAcrossSecondAcquisition(t *testing.T) {

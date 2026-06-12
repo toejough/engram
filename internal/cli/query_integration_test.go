@@ -27,7 +27,7 @@ func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	permDir := filepath.Join(vault, "Permanent")
+	permDir := vault
 	g.Expect(os.MkdirAll(permDir, 0o700)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
 

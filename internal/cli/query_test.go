@@ -21,7 +21,7 @@ func TestApplyProjectFilter_BodyProjectMentionDoesNotMatch(t *testing.T) {
 	g := NewWithT(t)
 
 	items := []cli.ExportResolvedItem{
-		cli.ExportNewResolvedItem("Permanent/a.md",
+		cli.ExportNewResolvedItem("a.md",
 			"---\ntype: fact\n---\nthis body mentions project: engram in text\n"),
 	}
 
@@ -34,18 +34,18 @@ func TestApplyProjectFilter_DropsNonMatching(t *testing.T) {
 	g := NewWithT(t)
 
 	items := []cli.ExportResolvedItem{
-		cli.ExportNewResolvedItem("Permanent/a.md",
+		cli.ExportNewResolvedItem("a.md",
 			"---\ntype: fact\nproject: engram\n---\nbody\n"),
-		cli.ExportNewResolvedItem("Permanent/b.md",
+		cli.ExportNewResolvedItem("b.md",
 			"---\ntype: fact\nproject: other\n---\nbody\n"),
-		cli.ExportNewResolvedItem("Permanent/c.md",
+		cli.ExportNewResolvedItem("c.md",
 			"---\ntype: fact\n---\nbody\n"),
 	}
 
 	filtered := cli.ExportApplyProjectFilter(items, "engram")
 
 	g.Expect(filtered).To(HaveLen(1))
-	g.Expect(cli.ExportResolvedItemPath(filtered[0])).To(Equal("Permanent/a.md"))
+	g.Expect(cli.ExportResolvedItemPath(filtered[0])).To(Equal("a.md"))
 }
 
 func TestApplyProjectFilter_EmptyProjectReturnsAll(t *testing.T) {
@@ -53,9 +53,9 @@ func TestApplyProjectFilter_EmptyProjectReturnsAll(t *testing.T) {
 	g := NewWithT(t)
 
 	items := []cli.ExportResolvedItem{
-		cli.ExportNewResolvedItem("Permanent/a.md",
+		cli.ExportNewResolvedItem("a.md",
 			"---\ntype: fact\nproject: engram\n---\nbody\n"),
-		cli.ExportNewResolvedItem("Permanent/b.md",
+		cli.ExportNewResolvedItem("b.md",
 			"---\ntype: fact\n---\nbody\n"),
 	}
 
@@ -69,7 +69,7 @@ func TestApplyTierFilter_BodyTierMentionDoesNotMatch(t *testing.T) {
 	g := NewWithT(t)
 
 	items := []cli.ExportResolvedItem{
-		cli.ExportNewResolvedItem("Permanent/a.md",
+		cli.ExportNewResolvedItem("a.md",
 			"---\ntype: fact\n---\nthis body mentions tier: L3 in text\n"),
 	}
 
@@ -82,18 +82,18 @@ func TestApplyTierFilter_DropsNonMatching(t *testing.T) {
 	g := NewWithT(t)
 
 	items := []cli.ExportResolvedItem{
-		cli.ExportNewResolvedItem("Permanent/a.md",
+		cli.ExportNewResolvedItem("a.md",
 			"---\ntype: fact\ntier: L3\n---\nbody\n"),
-		cli.ExportNewResolvedItem("Permanent/b.md",
+		cli.ExportNewResolvedItem("b.md",
 			"---\ntype: fact\ntier: L2\n---\nbody\n"),
-		cli.ExportNewResolvedItem("Permanent/c.md",
+		cli.ExportNewResolvedItem("c.md",
 			"---\ntype: fact\n---\nbody\n"),
 	}
 
 	filtered := cli.ExportApplyTierFilter(items, []string{"L3"})
 
 	g.Expect(filtered).To(HaveLen(1))
-	g.Expect(cli.ExportResolvedItemPath(filtered[0])).To(Equal("Permanent/a.md"))
+	g.Expect(cli.ExportResolvedItemPath(filtered[0])).To(Equal("a.md"))
 }
 
 func TestApplyTierFilter_EmptyTierReturnsAll(t *testing.T) {
@@ -101,9 +101,9 @@ func TestApplyTierFilter_EmptyTierReturnsAll(t *testing.T) {
 	g := NewWithT(t)
 
 	items := []cli.ExportResolvedItem{
-		cli.ExportNewResolvedItem("Permanent/a.md",
+		cli.ExportNewResolvedItem("a.md",
 			"---\ntype: fact\ntier: L3\n---\nbody\n"),
-		cli.ExportNewResolvedItem("Permanent/b.md",
+		cli.ExportNewResolvedItem("b.md",
 			"---\ntype: fact\n---\nbody\n"),
 	}
 
@@ -119,7 +119,7 @@ func TestQuery_EmbeddingFailureSurfacesError(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.foo.md",
 		"---\ntype: fact\n---\nbody\n")
 
 	deps := newQueryDeps(memFS)
@@ -181,7 +181,7 @@ func TestQuery_MultiPhrase_BudgetHasPhrasesQueried(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.foo.md",
 		"---\ntype: fact\n---\nbody\n")
 
 	var out bytes.Buffer
@@ -212,7 +212,7 @@ func TestQuery_MultiPhrase_ClustersTaggedWithPhrase(t *testing.T) {
 
 	for i := range 12 {
 		plantNoteWithSidecar(t, memFS, vault,
-			fmt.Sprintf("Permanent/%d.note.md", i+1),
+			fmt.Sprintf("%d.note.md", i+1),
 			fmt.Sprintf("---\ntype: fact\n---\nbody %d\n", i))
 	}
 
@@ -245,7 +245,7 @@ func TestQuery_MultiPhrase_DeduplicatesItemsByPath(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.foo.md",
 		"---\ntype: fact\n---\nbody of note one\n")
 
 	var out bytes.Buffer
@@ -286,12 +286,12 @@ func TestQuery_MultiPhrase_HubInDegreeIsMergedMax(t *testing.T) {
 	// Two phrases that both surface H in their subgraphs; the merged payload
 	// should have H's in_degree set (non-nil), exercising the inDegree branch
 	// of mergeIntoExisting.
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/H.md",
+	plantNoteWithSidecar(t, memFS, vault, "H.md",
 		"---\ntype: fact\n---\nhub anchor\n")
 
 	for i := range 6 {
 		plantNoteWithSidecar(t, memFS, vault,
-			fmt.Sprintf("Permanent/S%d.md", i),
+			fmt.Sprintf("S%d.md", i),
 			fmt.Sprintf("---\ntype: fact\n---\nspoke body %d\n[[H]]\n", i))
 	}
 
@@ -330,7 +330,7 @@ func TestQuery_MultiPhrase_LaterHigherScoreWins(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.body.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.body.md",
 		"---\ntype: fact\n---\nbody text\n")
 
 	// phrase order: low-score first, high-score second — verifies the
@@ -373,7 +373,7 @@ func TestQuery_MultiPhrase_MaxScoreAcrossPhrases(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.body.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.body.md",
 		"---\ntype: fact\n---\nbody\n")
 
 	var outSingle bytes.Buffer
@@ -426,7 +426,7 @@ func TestQuery_NotesButNoSidecars_ErrorWithRecoveryHint(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	memFS.files[filepath.Join(vault, "Permanent/1.foo.md")] = []byte("body")
+	memFS.files[filepath.Join(vault, "1.foo.md")] = []byte("body")
 
 	var out bytes.Buffer
 
@@ -450,7 +450,7 @@ func TestQuery_NotesWithIncompatibleSidecars_ErrorWithRecoveryHint(t *testing.T)
 	// Before the bug fix, countWithSidecars would count this sidecar as
 	// satisfying the guard, then rankCandidates would silently drop it,
 	// producing empty results with exit 0. The guard must trigger.
-	const relPath = "Permanent/1.foo.md"
+	const relPath = "1.foo.md"
 
 	body := []byte("---\ntype: fact\n---\nbody\n")
 	memFS.files[filepath.Join(vault, relPath)] = body
@@ -481,12 +481,12 @@ func TestQuery_OldSchemaSidecars_EmitSchemaAdvisory(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 	// Current sidecar → hits != 0 (avoids the errQueryNoEmbeddings guard).
-	plantDualVector(t, memFS, vault, "Permanent/1.fact.md",
+	plantDualVector(t, memFS, vault, "1.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nb\n",
 		[]float32{1, 0, 0, 0}, []float32{1, 0, 0, 0})
 	// Old single-vector sidecar → must be counted + surfaced, not dropped silently.
-	memFS.files[filepath.Join(vault, "Permanent/2.fact.md")] = []byte("---\ntype: fact\nsituation: y\n---\n\nb\n")
-	memFS.files[filepath.Join(vault, "Permanent/2.fact.vec.json")] = []byte(
+	memFS.files[filepath.Join(vault, "2.fact.md")] = []byte("---\ntype: fact\nsituation: y\n---\n\nb\n")
+	memFS.files[filepath.Join(vault, "2.fact.vec.json")] = []byte(
 		`{"embedding_model_id":"m@4","dims":4,"vector":[1,0,0,0],"content_hash":"sha256:y"}`)
 
 	var advisories []string
@@ -518,7 +518,7 @@ func TestQuery_PhrasesFlag_AcceptsMultiplePhrases(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.foo.md",
 		"---\ntype: fact\n---\nbody\n")
 
 	var out bytes.Buffer
@@ -546,9 +546,9 @@ func TestQuery_RanksByDescendingCosine(t *testing.T) {
 	memFS := newInMemoryFS()
 
 	// Two notes; one mirrors the query string, one differs entirely.
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.match.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.match.md",
 		"---\ntype: fact\n---\nthe query string body\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/2.differ.md",
+	plantNoteWithSidecar(t, memFS, vault, "2.differ.md",
 		"---\ntype: fact\n---\nzzz\n")
 
 	var out bytes.Buffer
@@ -577,7 +577,7 @@ func TestQuery_RanksByDescendingCosine(t *testing.T) {
 
 	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
 	g.Expect(parsed.Items).To(HaveLen(2))
-	g.Expect(parsed.Items[0].Path).To(Equal("Permanent/1.match.md"))
+	g.Expect(parsed.Items[0].Path).To(Equal("1.match.md"))
 	g.Expect(parsed.Items[0].Score).To(BeNumerically(">", parsed.Items[1].Score))
 	g.Expect(parsed.Items[0].Provenances).To(Equal([]string{"direct"}))
 	g.Expect(parsed.Items[0].Kind).To(Equal("fact"))
@@ -598,7 +598,7 @@ func TestQuery_RespectsLimit(t *testing.T) {
 
 	for i := range 5 {
 		plantNoteWithSidecar(t, memFS, vault,
-			"Permanent/"+strings.Repeat("a", i+1)+".md",
+			""+strings.Repeat("a", i+1)+".md",
 			"---\ntype: fact\n---\nbody\n")
 	}
 
@@ -627,7 +627,7 @@ func TestQuery_ScoresByMaxOfSituationAndBody(t *testing.T) {
 
 	// Note whose BODY vector is orthogonal to the query but whose SITUATION
 	// vector matches it — must still surface.
-	plantDualVector(t, memFS, vault, "Permanent/1.fact.md",
+	plantDualVector(t, memFS, vault, "1.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nbody\n",
 		[]float32{1, 0, 0, 0}, []float32{0, 0, 0, 1})
 
@@ -663,7 +663,7 @@ func TestQuery_ScoresByMaxWhenBodyWins(t *testing.T) {
 	// BODY vector matches it — the max() must pick the body axis. The
 	// reported score must equal the body-axis cosine (1), not the situation
 	// axis (0).
-	plantDualVector(t, memFS, vault, "Permanent/1.fact.md",
+	plantDualVector(t, memFS, vault, "1.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nbody\n",
 		[]float32{0, 0, 0, 1}, []float32{1, 0, 0, 0})
 
@@ -699,7 +699,7 @@ func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 	body := "---\ntype: fact\n---\n" +
 		"See [[1a.foo]] and [[2b.bar|the bar note]] for context.\n"
 
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md", body)
+	plantNoteWithSidecar(t, memFS, vault, "1.foo.md", body)
 
 	var out bytes.Buffer
 
@@ -733,11 +733,11 @@ func TestRunQuery_ExposesOutboundWikilinkTargets(t *testing.T) {
 
 	// hub links to two real notes; the fenced [[9.fenced]] must NOT count
 	// (fence-aware parser), proving outbound links reuse the graph parser.
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.hub.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.hub.md",
 		"---\ntype: fact\n---\nSee [[2.alpha]] and [[3.beta]].\n```\n[[9.fenced]]\n```\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/2.alpha.md",
+	plantNoteWithSidecar(t, memFS, vault, "2.alpha.md",
 		"---\ntype: fact\n---\nalpha body\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/3.beta.md",
+	plantNoteWithSidecar(t, memFS, vault, "3.beta.md",
 		"---\ntype: fact\n---\nbeta body\n")
 
 	var out bytes.Buffer
@@ -785,14 +785,14 @@ func TestRunQuery_ModelMismatchEmitsWarning(t *testing.T) {
 	// One compatible note (active model "m@4") so recall is non-empty, plus
 	// one note whose sidecar is stamped with a stale model id. The stale
 	// sidecar is silently dropped today; the fix must warn instead.
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/good.md",
+	plantNoteWithSidecar(t, memFS, vault, "good.md",
 		"---\ntype: fact\n---\nbody good\n")
 
 	const staleModelID = "STALE@384"
 
 	staleBody := []byte("---\ntype: fact\n---\nbody stale\n")
-	memFS.files[filepath.Join(vault, "Permanent/stale.md")] = staleBody
-	memFS.files[filepath.Join(vault, embed.SidecarPath("Permanent/stale.md"))] = embed.MarshalSidecar(
+	memFS.files[filepath.Join(vault, "stale.md")] = staleBody
+	memFS.files[filepath.Join(vault, embed.SidecarPath("stale.md"))] = embed.MarshalSidecar(
 		embed.Sidecar{
 			SchemaVersion:    embed.SidecarSchemaVersion,
 			EmbeddingModelID: staleModelID,
@@ -830,11 +830,11 @@ func TestRunQuery_MultipleTiersUnion(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.l1-note.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.l1-note.md",
 		"---\ntype: episode\ntier: L1\n---\nbody about tier\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/2.l2-note.md",
+	plantNoteWithSidecar(t, memFS, vault, "2.l2-note.md",
 		"---\ntype: fact\ntier: L2\n---\nbody about tier\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/3.l3-note.md",
+	plantNoteWithSidecar(t, memFS, vault, "3.l3-note.md",
 		"---\ntype: fact\ntier: L3\n---\nbody about tier\n")
 
 	var out bytes.Buffer
@@ -882,9 +882,9 @@ func TestRunQuery_ProjectFilterRestrictsItems(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.engram-note.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.engram-note.md",
 		"---\ntype: fact\nproject: engram\n---\nbody about engram\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/2.opencode-note.md",
+	plantNoteWithSidecar(t, memFS, vault, "2.opencode-note.md",
 		"---\ntype: fact\nproject: opencode\n---\nbody about opencode\n")
 
 	var out bytes.Buffer
@@ -916,9 +916,9 @@ func TestRunQuery_TierFilterRestrictsItems(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.l2-note.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.l2-note.md",
 		"---\ntype: fact\ntier: L2\n---\nbody about tier\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/2.l3-note.md",
+	plantNoteWithSidecar(t, memFS, vault, "2.l3-note.md",
 		"---\ntype: fact\ntier: L3\n---\nbody about tier\n")
 
 	var out bytes.Buffer
@@ -1047,13 +1047,13 @@ func plantTieredVault(t *testing.T, memFS *inMemoryFS) string {
 
 	for i := range l3Count {
 		plantNoteWithSidecar(t, memFS, vault,
-			fmt.Sprintf("Permanent/l3-%d.md", i),
+			fmt.Sprintf("l3-%d.md", i),
 			fmt.Sprintf("---\ntype: fact\ntier: L3\n---\nbody l3 note %d\n", i))
 	}
 
 	for i := range l2Count {
 		plantNoteWithSidecar(t, memFS, vault,
-			fmt.Sprintf("Permanent/l2-%d.md", i),
+			fmt.Sprintf("l2-%d.md", i),
 			fmt.Sprintf("---\ntype: fact\ntier: L2\n---\nbody l2 note %d\n", i))
 	}
 

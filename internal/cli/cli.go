@@ -11,7 +11,6 @@ import (
 	"syscall"
 
 	"github.com/toejough/engram/internal/transcript"
-	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 // unexported constants.
@@ -75,19 +74,19 @@ func (r *osFileReader) Read(path string) ([]byte, error) {
 type osLearnFS struct{}
 
 // ListBasenames returns note basenames (filename minus .md) for luhmann-id
-// notes in vault/Permanent and vault/MOCs — used to resolve a relation's bare
+// notes at the vault root (flat layout) — used to resolve a relation's bare
 // Luhmann id to its full basename (D1).
 func (*osLearnFS) ListBasenames(vault string) ([]string, error) {
 	out := []string{}
 
-	for _, sub := range []string{vaultgraph.PermanentSubdir, vaultgraph.MOCsSubdir} {
-		entries, err := os.ReadDir(filepath.Join(vault, sub))
+	{
+		entries, err := os.ReadDir(vault)
 		if err != nil {
 			if os.IsNotExist(err) {
-				continue
+				return out, nil
 			}
 
-			return nil, fmt.Errorf("read %s: %w", sub, err)
+			return nil, fmt.Errorf("read vault root: %w", err)
 		}
 
 		for _, e := range entries {
@@ -113,7 +112,7 @@ func (*osLearnFS) ListBasenames(vault string) ([]string, error) {
 // Permanent/ directory yields an empty slice (a brand-new vault has no prior
 // episodes).
 func (*osLearnFS) ListEpisodes(vault string) ([]EpisodeRange, error) {
-	dir := filepath.Join(vault, vaultgraph.PermanentSubdir)
+	dir := vault
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -121,7 +120,7 @@ func (*osLearnFS) ListEpisodes(vault string) ([]EpisodeRange, error) {
 			return nil, nil
 		}
 
-		return nil, fmt.Errorf("read %s: %w", vaultgraph.PermanentSubdir, err)
+		return nil, fmt.Errorf("read vault root: %w", err)
 	}
 
 	out := make([]EpisodeRange, 0, len(entries))
@@ -157,7 +156,7 @@ func (*osLearnFS) ListEpisodes(vault string) ([]EpisodeRange, error) {
 func (*osLearnFS) ListIDs(vault string) ([]string, error) {
 	out := []string{}
 
-	for _, sub := range []string{vaultgraph.PermanentSubdir, vaultgraph.MOCsSubdir} {
+	for _, sub := range []string{"."} {
 		entries, err := os.ReadDir(filepath.Join(vault, sub))
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -323,13 +322,9 @@ func newTranscriptDeps(cwd string) (transcript.Finder, transcript.Reader) {
 	return finder, reader
 }
 
-// pathOf returns the vault-relative path for a note, e.g. "Permanent/foo.md"
-// or "MOCs/bar.md". Callers can pass the result directly to Read tools.
-func pathOf(basename string, isMOC bool) string {
-	subdir := vaultgraph.PermanentSubdir
-	if isMOC {
-		subdir = vaultgraph.MOCsSubdir
-	}
-
-	return subdir + "/" + basename + ".md"
+// pathOf returns the vault-relative path for a note, e.g. "foo.md". The vault
+// is flat — notes live at the root (Permanent/ and MOCs/ are retired); the
+// isMOC parameter is vestigial and ignored.
+func pathOf(basename string, _ bool) string {
+	return basename + ".md"
 }

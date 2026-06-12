@@ -22,7 +22,7 @@ func TestEngramLearn_Episode_L1_EndToEnd(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
 
 	binPath := filepath.Join(t.TempDir(), "engram")
@@ -57,7 +57,7 @@ func TestEngramLearn_Episode_L1_EndToEnd(t *testing.T) {
 		return
 	}
 
-	expectedPath := filepath.Join(vault, "Permanent")
+	expectedPath := vault
 	entries, err := os.ReadDir(expectedPath)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -105,7 +105,7 @@ func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
 
 	binPath := filepath.Join(t.TempDir(), "engram")
@@ -135,7 +135,7 @@ func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 		return
 	}
 
-	expectedPath := filepath.Join(vault, "Permanent")
+	expectedPath := vault
 	entries, err := os.ReadDir(expectedPath)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -167,7 +167,7 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
 
 	binPath := filepath.Join(t.TempDir(), "engram")
@@ -198,7 +198,7 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 		return
 	}
 
-	expectedPath := filepath.Join(vault, "Permanent")
+	expectedPath := vault
 	entries, err := os.ReadDir(expectedPath)
 	g.Expect(err).NotTo(HaveOccurred())
 

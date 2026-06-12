@@ -15,11 +15,11 @@ func TestComputeState_Broken_BadJSON(t *testing.T) {
 
 	g := NewWithT(t)
 	filesystem := fakeFS{
-		"Permanent/x.md":       []byte("body\n"),
-		"Permanent/x.vec.json": []byte("{not json"),
+		"x.md":       []byte("body\n"),
+		"x.vec.json": []byte("{not json"),
 	}
 
-	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
+	state := embed.ComputeState(filesystem, "x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateBroken))
 }
 
@@ -31,14 +31,14 @@ func TestComputeState_Broken_DimsMismatch(t *testing.T) {
 	// shorter than Dims) must classify Broken, not Incompatible — the schema
 	// check passes, the vector-length check fails.
 	filesystem := fakeFS{
-		"Permanent/x.md": []byte("body\n"),
-		"Permanent/x.vec.json": []byte(
+		"x.md": []byte("body\n"),
+		"x.vec.json": []byte(
 			`{"schema_version":1,"embedding_model_id":"model@384","dims":3,` +
 				`"situation_vector":[0.1,0.2,0.3],"body_vector":[0.1,0.2],"content_hash":"sha256:abc"}`,
 		),
 	}
 
-	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
+	state := embed.ComputeState(filesystem, "x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateBroken))
 }
 
@@ -56,11 +56,11 @@ func TestComputeState_Incompatible(t *testing.T) {
 		ContentHash:      embed.ContentHash(noteBytes),
 	}
 	filesystem := fakeFS{
-		"Permanent/x.md":       noteBytes,
-		"Permanent/x.vec.json": mustSidecar(t, sidecar),
+		"x.md":       noteBytes,
+		"x.vec.json": mustSidecar(t, sidecar),
 	}
 
-	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
+	state := embed.ComputeState(filesystem, "x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateIncompatible))
 }
 
@@ -68,9 +68,9 @@ func TestComputeState_Missing(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	filesystem := fakeFS{"Permanent/x.md": []byte("---\nx: 1\n---\nbody\n")}
+	filesystem := fakeFS{"x.md": []byte("---\nx: 1\n---\nbody\n")}
 
-	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
+	state := embed.ComputeState(filesystem, "x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateMissing))
 }
 
@@ -88,11 +88,11 @@ func TestComputeState_OK(t *testing.T) {
 		ContentHash:      embed.ContentHash(noteBytes),
 	}
 	filesystem := fakeFS{
-		"Permanent/x.md":       noteBytes,
-		"Permanent/x.vec.json": mustSidecar(t, sidecar),
+		"x.md":       noteBytes,
+		"x.vec.json": mustSidecar(t, sidecar),
 	}
 
-	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
+	state := embed.ComputeState(filesystem, "x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateOK))
 }
 
@@ -105,11 +105,11 @@ func TestComputeState_OldSchemaSidecar_IsIncompatible(t *testing.T) {
 		`{"embedding_model_id":"minilm-l6-v2@384","dims":3,"vector":[0.1,0.2,0.3],"content_hash":"sha256:x"}`,
 	)
 	filesystem := fakeFS{
-		"Permanent/n.md":       note,
-		"Permanent/n.vec.json": oldSidecar,
+		"n.md":       note,
+		"n.vec.json": oldSidecar,
 	}
 
-	state := embed.ComputeState(filesystem, "Permanent/n.md", "minilm-l6-v2@384")
+	state := embed.ComputeState(filesystem, "n.md", "minilm-l6-v2@384")
 	g.Expect(state).To(Equal(embed.StateIncompatible))
 }
 
@@ -126,11 +126,11 @@ func TestComputeState_Stale(t *testing.T) {
 		ContentHash:      "sha256:stalehash",
 	}
 	filesystem := fakeFS{
-		"Permanent/x.md":       []byte("---\nx: 1\n---\nbody\n"),
-		"Permanent/x.vec.json": mustSidecar(t, sidecar),
+		"x.md":       []byte("---\nx: 1\n---\nbody\n"),
+		"x.vec.json": mustSidecar(t, sidecar),
 	}
 
-	state := embed.ComputeState(filesystem, "Permanent/x.md", "model@384")
+	state := embed.ComputeState(filesystem, "x.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateStale))
 }
 

@@ -113,15 +113,15 @@ func coreTargets(
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
 				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, stdout))
-			}).Name("feedback").Description("Write a feedback note to Permanent/"),
+			}).Name("feedback").Description("Write a feedback note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
 				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, stdout))
-			}).Name("fact").Description("Write a fact note to Permanent/"),
+			}).Name("fact").Description("Write a fact note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnEpisodeArgs) {
 				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 				errHandler(runLearnFromEpisodeArgs(withLog(ctx), a, stdout))
-			}).Name("episode").Description("Write an episode note to Permanent/"),
+			}).Name("episode").Description("Write an episode note to the vault"),
 		),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
 			errHandler(runUpdate(withLog(ctx), a, stdout))

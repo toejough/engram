@@ -17,7 +17,7 @@ func TestLearnFactArgs_AcceptsProjectAndIssueFlags(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 
 	args := cli.LearnFactArgs{
 		CommonLearnArgs: cli.CommonLearnArgs{
@@ -41,7 +41,7 @@ func TestLearnFactArgs_AcceptsProjectAndIssueFlags(t *testing.T) {
 		return
 	}
 
-	matches, globErr := filepath.Glob(filepath.Join(vault, "Permanent", "*.md"))
+	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
 	g.Expect(globErr).NotTo(HaveOccurred())
 	g.Expect(matches).To(HaveLen(1))
 
@@ -55,17 +55,28 @@ func TestLearnFactArgs_AcceptsProjectAndIssueFlags(t *testing.T) {
 	g.Expect(string(body)).To(ContainSubstring("issue: \"636\"\n"))
 }
 
-func TestOsLearnFS_ListBasenames_ReturnsBasenamesAcrossSubdirs(t *testing.T) {
+func TestOsLearnFS_ListBasenames_MissingVaultIsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := cli.ExportNewOsLearnFS()
+	got, err := fs.ListBasenames(filepath.Join(t.TempDir(), "absent"))
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(BeEmpty())
+}
+
+func TestOsLearnFS_ListBasenames_ReturnsRootBasenames(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-09.foo.md"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-09.foo.md"), nil, 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(vault, "MOCs", "5.2026-05-09.moc.md"), nil, 0o600)).To(Succeed())
 	// Non-luhmann filename is skipped by the extractLuhmann filter.
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "README.md"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "README.md"), nil, 0o600)).To(Succeed())
 
 	fs := cli.ExportNewOsLearnFS()
 	got, err := fs.ListBasenames(vault)
@@ -75,7 +86,8 @@ func TestOsLearnFS_ListBasenames_ReturnsBasenamesAcrossSubdirs(t *testing.T) {
 		return
 	}
 
-	g.Expect(got).To(ConsistOf("1.2026-05-09.foo", "5.2026-05-09.moc"))
+	// flat vault: subdirectories (including legacy MOCs/) are ignored
+	g.Expect(got).To(ConsistOf("1.2026-05-09.foo"))
 }
 
 func TestOsLearnFS_ListEpisodes_BadVaultReturnsError(t *testing.T) {
@@ -106,18 +118,18 @@ func TestOsLearnFS_ListEpisodes_ReturnsOnlyEpisodeRanges(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	g.Expect(os.WriteFile(
-		filepath.Join(vault, "Permanent", "5.2026-05-25.work.md"),
+		filepath.Join(vault, "5.2026-05-25.work.md"),
 		[]byte(episodeNoteForListing), 0o600,
 	)).To(Succeed())
 	// A fact note (not an episode) must be excluded.
 	g.Expect(os.WriteFile(
-		filepath.Join(vault, "Permanent", "2.2026-05-25.fact.md"),
+		filepath.Join(vault, "2.2026-05-25.fact.md"),
 		[]byte("---\ntype: fact\nsituation: x\n---\nbody\n"), 0o600,
 	)).To(Succeed())
 	// A non-luhmann file is skipped by the extractLuhmann filter.
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "README.md"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, "README.md"), nil, 0o600)).To(Succeed())
 
 	fs := cli.ExportNewOsLearnFS()
 	got, err := fs.ListEpisodes(vault)
@@ -358,8 +370,8 @@ func TestRunLearnFromFactArgs_BootstrapsMissingVault(t *testing.T) {
 		return
 	}
 
-	// Bootstrap created Permanent/ and .obsidian/.
-	for _, sub := range []string{"Permanent", ".obsidian"} {
+	// Bootstrap created  and .obsidian/.
+	for _, sub := range []string{".obsidian"} {
 		info, statErr := os.Stat(filepath.Join(vault, sub))
 		g.Expect(statErr).NotTo(HaveOccurred())
 
@@ -371,7 +383,7 @@ func TestRunLearnFromFactArgs_BootstrapsMissingVault(t *testing.T) {
 	}
 
 	// And the actual fact note landed.
-	entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
+	entries, readErr := os.ReadDir(vault)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).NotTo(BeEmpty())
 }
@@ -397,7 +409,7 @@ func TestRunLearnFromFactArgs_RequiresSituation(t *testing.T) {
 			g := NewWithT(t)
 
 			vault := t.TempDir()
-			g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+			g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 
 			args := cli.LearnFactArgs{
 				CommonLearnArgs: cli.CommonLearnArgs{
@@ -415,9 +427,13 @@ func TestRunLearnFromFactArgs_RequiresSituation(t *testing.T) {
 			err := cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)
 			g.Expect(err).To(MatchError(ContainSubstring("situation")))
 
-			entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
+			entries, readErr := os.ReadDir(vault)
 			g.Expect(readErr).NotTo(HaveOccurred())
-			g.Expect(entries).To(BeEmpty())
+
+			for _, entry := range entries {
+				// the luhmann lock lives at the vault root; only NOTE files count
+				g.Expect(entry.Name()).NotTo(HaveSuffix(".md"), "no note may be written")
+			}
 		})
 	}
 }
@@ -431,7 +447,7 @@ func TestRunLearnFromFactArgs_WritesFile(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 
 	args := cli.LearnFactArgs{
 		CommonLearnArgs: cli.CommonLearnArgs{
@@ -452,8 +468,8 @@ func TestRunLearnFromFactArgs_WritesFile(t *testing.T) {
 		return
 	}
 
-	// One file landed in Permanent/.
-	entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
+	// One file landed in .
+	entries, readErr := os.ReadDir(vault)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).NotTo(BeEmpty())
 }
@@ -478,7 +494,7 @@ func TestRunLearnFromFeedbackArgs_RequiresSituation(t *testing.T) {
 			g := NewWithT(t)
 
 			vault := t.TempDir()
-			g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+			g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 
 			args := cli.LearnFeedbackArgs{
 				CommonLearnArgs: cli.CommonLearnArgs{
@@ -496,9 +512,13 @@ func TestRunLearnFromFeedbackArgs_RequiresSituation(t *testing.T) {
 			err := cli.ExportRunLearnFromFeedbackArgs(context.Background(), args, io.Discard)
 			g.Expect(err).To(MatchError(ContainSubstring("situation")))
 
-			entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
+			entries, readErr := os.ReadDir(vault)
 			g.Expect(readErr).NotTo(HaveOccurred())
-			g.Expect(entries).To(BeEmpty())
+
+			for _, entry := range entries {
+				// the luhmann lock lives at the vault root; only NOTE files count
+				g.Expect(entry.Name()).NotTo(HaveSuffix(".md"), "no note may be written")
+			}
 		})
 	}
 }
@@ -508,7 +528,7 @@ func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 
 	args := cli.LearnFeedbackArgs{
 		CommonLearnArgs: cli.CommonLearnArgs{
@@ -529,7 +549,7 @@ func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 		return
 	}
 
-	entries, readErr := os.ReadDir(filepath.Join(vault, "Permanent"))
+	entries, readErr := os.ReadDir(vault)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).NotTo(BeEmpty())
 }

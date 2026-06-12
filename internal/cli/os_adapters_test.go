@@ -22,11 +22,11 @@ func TestApplyOneErrorPaths(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(Succeed())
 
 	// Note 1: stale (sidecar present with wrong hash).
-	note1 := filepath.Join(vault, "Permanent/1.2026-05-24.stale.md")
+	note1 := filepath.Join(vault, "1.2026-05-24.stale.md")
 	g.Expect(os.WriteFile(note1, []byte("---\ntype: fact\n---\nbody1"), 0o600)).To(Succeed())
 
 	sc1 := embed.Sidecar{
@@ -39,21 +39,21 @@ func TestApplyOneErrorPaths(t *testing.T) {
 	}
 	sc1Bytes := embed.MarshalSidecar(sc1)
 	g.Expect(os.WriteFile(
-		filepath.Join(vault, "Permanent/1.2026-05-24.stale.vec.json"),
+		filepath.Join(vault, "1.2026-05-24.stale.vec.json"),
 		sc1Bytes, 0o600,
 	)).To(Succeed())
 
 	// Note 2: broken sidecar (malformed JSON).
-	note2 := filepath.Join(vault, "Permanent/2.2026-05-24.broken.md")
+	note2 := filepath.Join(vault, "2.2026-05-24.broken.md")
 	g.Expect(os.WriteFile(note2, []byte("body2"), 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(
-		filepath.Join(vault, "Permanent/2.2026-05-24.broken.vec.json"),
+		filepath.Join(vault, "2.2026-05-24.broken.vec.json"),
 		[]byte("{not json"), 0o600,
 	)).To(Succeed())
 
 	// Note 3: OK (sidecar matches body).
 	body3 := []byte("body3")
-	note3 := filepath.Join(vault, "Permanent/3.2026-05-24.okay.md")
+	note3 := filepath.Join(vault, "3.2026-05-24.okay.md")
 	g.Expect(os.WriteFile(note3, body3, 0o600)).To(Succeed())
 	sc3 := embed.Sidecar{
 		SchemaVersion:    embed.SidecarSchemaVersion,
@@ -64,13 +64,13 @@ func TestApplyOneErrorPaths(t *testing.T) {
 		ContentHash:      embed.ContentHash(body3),
 	}
 	g.Expect(os.WriteFile(
-		filepath.Join(vault, "Permanent/3.2026-05-24.okay.vec.json"),
+		filepath.Join(vault, "3.2026-05-24.okay.vec.json"),
 		embed.MarshalSidecar(sc3), 0o600,
 	)).To(Succeed())
 
 	// Note 4: incompatible sidecar (different model_id).
 	body4 := []byte("body4")
-	note4 := filepath.Join(vault, "Permanent/4.2026-05-24.incompat.md")
+	note4 := filepath.Join(vault, "4.2026-05-24.incompat.md")
 	g.Expect(os.WriteFile(note4, body4, 0o600)).To(Succeed())
 	sc4 := embed.Sidecar{
 		SchemaVersion:    embed.SidecarSchemaVersion,
@@ -81,7 +81,7 @@ func TestApplyOneErrorPaths(t *testing.T) {
 		ContentHash:      embed.ContentHash(body4),
 	}
 	g.Expect(os.WriteFile(
-		filepath.Join(vault, "Permanent/4.2026-05-24.incompat.vec.json"),
+		filepath.Join(vault, "4.2026-05-24.incompat.vec.json"),
 		embed.MarshalSidecar(sc4), 0o600,
 	)).To(Succeed())
 
@@ -94,9 +94,9 @@ func TestApplyOneErrorPaths(t *testing.T) {
 		cli.EmbedApplyArgs{VaultPath: vault, Stale: true},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("embedded  Permanent/1.2026-05-24.stale.md (stale)"))
+	g.Expect(out.String()).To(ContainSubstring("embedded  1.2026-05-24.stale.md (stale)"))
 	g.Expect(out.String()).
-		To(ContainSubstring("embedded  Permanent/2.2026-05-24.broken.md (broken)"))
+		To(ContainSubstring("embedded  2.2026-05-24.broken.md (broken)"))
 
 	// Also run status to exercise every tallyStates branch (ok / stale /
 	// incompatible / broken / missing — though missing requires a 5th
@@ -116,10 +116,10 @@ func TestApplyOne_EmbedFailureSurfaces(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(Succeed())
 
-	notePath := filepath.Join(vault, "Permanent/1.2026-05-24.probe.md")
+	notePath := filepath.Join(vault, "1.2026-05-24.probe.md")
 	g.Expect(os.WriteFile(notePath, []byte("body"), 0o600)).To(Succeed())
 
 	deps := cli.ExportNewOsEmbedDeps(failingEmbedder{})
@@ -130,7 +130,7 @@ func TestApplyOne_EmbedFailureSurfaces(t *testing.T) {
 		cli.EmbedApplyArgs{VaultPath: vault, Missing: true},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("fail      Permanent/1.2026-05-24.probe.md"))
+	g.Expect(out.String()).To(ContainSubstring("fail      1.2026-05-24.probe.md"))
 
 	// Stale flow when read fails for the body (delete the note after planting sidecar).
 	g.Expect(os.Remove(notePath)).To(Succeed())
@@ -179,10 +179,10 @@ func TestOsEmbedFS_ReadWriteScanRoundTrip(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(Succeed())
 
-	notePath := filepath.Join(vault, "Permanent/1.2026-05-24.probe.md")
+	notePath := filepath.Join(vault, "1.2026-05-24.probe.md")
 	g.Expect(os.WriteFile(notePath, []byte("body"), 0o600)).To(Succeed())
 
 	// Build deps via the production constructor; embedder slot is a
@@ -195,7 +195,7 @@ func TestOsEmbedFS_ReadWriteScanRoundTrip(t *testing.T) {
 	g.Expect(notes).To(HaveLen(1))
 
 	// Write places a sidecar.
-	scPath := filepath.Join(vault, "Permanent/1.2026-05-24.probe.vec.json")
+	scPath := filepath.Join(vault, "1.2026-05-24.probe.vec.json")
 	g.Expect(deps.Write(scPath, []byte(`{"x":1}`))).To(Succeed())
 
 	// Read recovers the bytes.

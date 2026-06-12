@@ -25,7 +25,7 @@ func TestQuery_NonSynthesis_StillPerPhraseClusters(t *testing.T) {
 
 	for i := range 12 {
 		plantNoteWithSidecar(t, memFS, vault,
-			fmt.Sprintf("Permanent/%d.note.md", i+1),
+			fmt.Sprintf("%d.note.md", i+1),
 			fmt.Sprintf("---\ntype: fact\n---\nbody %d\n", i))
 	}
 
@@ -69,13 +69,13 @@ func TestQuery_Synthesis_BelowFloorStillClusters(t *testing.T) {
 	groupA := []float32{1, 0, 0, 0}
 	groupB := []float32{0, 1, 0, 0}
 
-	plantWithFixedVector(t, memFS, vault, "Permanent/a1.md",
+	plantWithFixedVector(t, memFS, vault, "a1.md",
 		"---\ntype: fact\n---\nunion seed a1\n", groupA)
-	plantWithFixedVector(t, memFS, vault, "Permanent/a2.md",
+	plantWithFixedVector(t, memFS, vault, "a2.md",
 		"---\ntype: fact\n---\nunion seed a2\n", groupA)
-	plantWithFixedVector(t, memFS, vault, "Permanent/b1.md",
+	plantWithFixedVector(t, memFS, vault, "b1.md",
 		"---\ntype: fact\n---\nunion seed b1\n", groupB)
-	plantWithFixedVector(t, memFS, vault, "Permanent/b2.md",
+	plantWithFixedVector(t, memFS, vault, "b2.md",
 		"---\ntype: fact\n---\nunion seed b2\n", groupB)
 
 	deps := newQueryDeps(memFS)
@@ -152,9 +152,9 @@ func TestQuery_Synthesis_ItemsAreUnionDirectHits(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 
-	plantWithFixedVector(t, memFS, vault, "Permanent/x.md",
+	plantWithFixedVector(t, memFS, vault, "x.md",
 		"---\ntype: fact\n---\nunion content x\n", []float32{1, 0, 0, 0})
-	plantWithFixedVector(t, memFS, vault, "Permanent/y.md",
+	plantWithFixedVector(t, memFS, vault, "y.md",
 		"---\ntype: fact\n---\nunion content y\n", []float32{0, 1, 0, 0})
 
 	deps := newQueryDeps(memFS)
@@ -189,8 +189,8 @@ func TestQuery_Synthesis_ItemsAreUnionDirectHits(t *testing.T) {
 	}
 
 	g.Expect(seen).To(HaveLen(2), "items must be the two deduped union direct hits")
-	g.Expect(seen["Permanent/x.md"]).To(Equal(1))
-	g.Expect(seen["Permanent/y.md"]).To(Equal(1))
+	g.Expect(seen["x.md"]).To(Equal(1))
+	g.Expect(seen["y.md"]).To(Equal(1))
 }
 
 // TestQuery_Synthesis_NoGoodSplitReturnsOneCluster proves the K=0 invariant:
@@ -211,13 +211,13 @@ func TestQuery_Synthesis_NoGoodSplitReturnsOneCluster(t *testing.T) {
 
 	for i := range memberCount {
 		plantWithFixedVector(t, memFS, vault,
-			fmt.Sprintf("Permanent/u%d.md", i),
+			fmt.Sprintf("u%d.md", i),
 			fmt.Sprintf("---\ntype: fact\n---\nidentical union seed %d\n", i),
 			identical)
 	}
 
 	// A standalone L3 ADR so nearest_l3 has a target for the single cluster.
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/ADR.md",
+	plantNoteWithSidecar(t, memFS, vault, "ADR.md",
 		"---\ntype: fact\ntier: L3\n---\narchitectural decision record body\n")
 
 	deps := newQueryDeps(memFS)
@@ -269,7 +269,7 @@ func TestQuery_Synthesis_NoGoodSplitReturnsOneCluster(t *testing.T) {
 		return
 	}
 
-	g.Expect(single.NearestL3.Path).To(Equal("Permanent/ADR.md"))
+	g.Expect(single.NearestL3.Path).To(Equal("ADR.md"))
 }
 
 // TestQuery_Synthesis_SingleMemberUnionYieldsOneCluster proves the smallest
@@ -282,7 +282,7 @@ func TestQuery_Synthesis_SingleMemberUnionYieldsOneCluster(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 
-	plantWithFixedVector(t, memFS, vault, "Permanent/only.md",
+	plantWithFixedVector(t, memFS, vault, "only.md",
 		"---\ntype: fact\n---\nthe one and only seed\n", []float32{1, 0, 0, 0})
 
 	deps := newQueryDeps(memFS)
@@ -305,7 +305,7 @@ func TestQuery_Synthesis_SingleMemberUnionYieldsOneCluster(t *testing.T) {
 
 	g.Expect(parsed.Clusters).To(HaveLen(1), "a one-member union must still yield one cluster")
 	g.Expect(parsed.Clusters[0].Members).To(HaveLen(1))
-	g.Expect(parsed.Clusters[0].Members[0].Path).To(Equal("Permanent/only.md"))
+	g.Expect(parsed.Clusters[0].Members[0].Path).To(Equal("only.md"))
 	g.Expect(parsed.Clusters[0].Members[0].IsRepresentative).To(BeTrue())
 }
 
@@ -325,13 +325,13 @@ func TestQuery_SynthesizeL2_EmitsRawCosineNoBand(t *testing.T) {
 	// far from that L2 (cos well below the skill's 0.80 create-band).
 	const l1Count = 10
 	for i := range l1Count {
-		plantDualVector(t, memFS, vault, fmt.Sprintf("Permanent/%d.ep.md", i+1),
+		plantDualVector(t, memFS, vault, fmt.Sprintf("%d.ep.md", i+1),
 			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
 	}
 
 	// The only L2 is far from the centroid: cos(synthVec, far) ~ 0.30.
 	far := []float32{0.3, 0.954, 0, 0}
-	plantDualVector(t, memFS, vault, "Permanent/dup.fact.md",
+	plantDualVector(t, memFS, vault, "dup.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", far, far)
 
 	parsed := runSynthesizeL2(t, memFS, vault)
@@ -366,11 +366,11 @@ func TestQuery_SynthesizeL2_ExcludesL3FromClusters(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 
-	plantDualVector(t, memFS, vault, "Permanent/1.ep.md",
+	plantDualVector(t, memFS, vault, "1.ep.md",
 		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
-	plantDualVector(t, memFS, vault, "Permanent/2.fact.md",
+	plantDualVector(t, memFS, vault, "2.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
-	plantDualVector(t, memFS, vault, "Permanent/3.adr.md",
+	plantDualVector(t, memFS, vault, "3.adr.md",
 		"---\ntype: fact\ntier: L3\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
 
 	parsed := runSynthesizeL2(t, memFS, vault)
@@ -418,11 +418,11 @@ func TestQuery_SynthesizeL2_NearDuplicateL2_CosineAtLeast095(t *testing.T) {
 	memFS := newInMemoryFS()
 
 	// Clustered L1 notes sit exactly at synthVec, so the centroid is synthVec.
-	plantDualVector(t, memFS, vault, "Permanent/1.ep.md",
+	plantDualVector(t, memFS, vault, "1.ep.md",
 		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
 	// An L2 near-duplicate of the centroid: cos(synthVec, nearDup) ~ 0.995.
 	nearDup := []float32{1, 0.1, 0, 0}
-	plantDualVector(t, memFS, vault, "Permanent/2.fact.md",
+	plantDualVector(t, memFS, vault, "2.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", nearDup, nearDup)
 
 	parsed := runSynthesizeL2(t, memFS, vault)
@@ -450,15 +450,15 @@ func TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered(t *testing.T)
 	queryVec := []float32{1, 0, 0, 0}
 
 	// Two L1 notes at the query vector (score 1.0) fill the Limit:2 union.
-	plantDualVector(t, memFS, vault, "Permanent/1.ep.md",
+	plantDualVector(t, memFS, vault, "1.ep.md",
 		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
-	plantDualVector(t, memFS, vault, "Permanent/2.ep.md",
+	plantDualVector(t, memFS, vault, "2.ep.md",
 		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
 
 	// A lower-scored L2 (cos ~0.30 to the query) ranks third, so Limit:2
 	// truncates it out of the union — it is never clustered, but stays in hits.
 	lowMatch := []float32{0.3, 0.954, 0, 0}
-	plantDualVector(t, memFS, vault, "Permanent/3.fact.md",
+	plantDualVector(t, memFS, vault, "3.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", lowMatch, lowMatch)
 
 	deps := newQueryDeps(memFS)
@@ -492,7 +492,7 @@ func TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered(t *testing.T)
 	for _, cluster := range parsed.Clusters {
 		g.Expect(cluster.NearestL2).NotTo(BeNil(),
 			"nearest_l2 is gathered from every vault L2, not just clustered members")
-		g.Expect(cluster.NearestL2.Path).To(Equal("Permanent/3.fact.md"))
+		g.Expect(cluster.NearestL2.Path).To(Equal("3.fact.md"))
 	}
 }
 
@@ -506,9 +506,9 @@ func TestQuery_SynthesizeL2_NearestL2PresentWhenL2Exists(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 
-	plantDualVector(t, memFS, vault, "Permanent/1.ep.md",
+	plantDualVector(t, memFS, vault, "1.ep.md",
 		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
-	plantDualVector(t, memFS, vault, "Permanent/2.fact.md",
+	plantDualVector(t, memFS, vault, "2.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
 
 	parsed := runSynthesizeL2(t, memFS, vault)
@@ -517,7 +517,7 @@ func TestQuery_SynthesizeL2_NearestL2PresentWhenL2Exists(t *testing.T) {
 
 	for _, c := range parsed.Clusters {
 		g.Expect(c.NearestL2).NotTo(BeNil(), "an existing matching L2 must surface as nearest_l2")
-		g.Expect(c.NearestL2.Path).To(Equal("Permanent/2.fact.md"))
+		g.Expect(c.NearestL2.Path).To(Equal("2.fact.md"))
 	}
 }
 
@@ -531,9 +531,9 @@ func TestQuery_SynthesizeL2_NoL2_NearestL2Nil(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 
-	plantDualVector(t, memFS, vault, "Permanent/1.ep.md",
+	plantDualVector(t, memFS, vault, "1.ep.md",
 		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
-	plantDualVector(t, memFS, vault, "Permanent/2.ep.md",
+	plantDualVector(t, memFS, vault, "2.ep.md",
 		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
 
 	parsed := runSynthesizeL2(t, memFS, vault)

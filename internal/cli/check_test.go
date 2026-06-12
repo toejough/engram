@@ -54,9 +54,9 @@ func TestRunCheck_DanglingLinkIsWarnNotFail(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	// [[999]] targets no note → dangling (G3/WARN), not a FAIL.
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-30.foo.md"),
+	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-30.foo.md"),
 		[]byte("---\ntype: fact\nsituation: testing the checker\n---\nbody\n\nRelated to:\n- [[999]] — x.\n"),
 		0o600)).To(Succeed())
 
@@ -75,10 +75,10 @@ func TestRunCheck_FailsOnMissingSituation(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	// A fact note with no situation field → S1 FAIL (catches a pre-M5 note that
 	// slipped in without one — no write-path test can find that).
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-30.foo.md"),
+	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-30.foo.md"),
 		[]byte("---\ntype: fact\nsubject: x\n---\nbody\n"), 0o600)).To(Succeed())
 
 	var out bytes.Buffer
@@ -189,13 +189,13 @@ func TestRunCheck_RealDepsFlagBareIDLinks(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	// Note 2 exists, so the bare-id link [[2]] *should* resolve but doesn't by
 	// form — a G0 resolver failure (FAIL).
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "2.2026-05-30.bar.md"),
+	g.Expect(os.WriteFile(filepath.Join(vault, "2.2026-05-30.bar.md"),
 		[]byte("---\ntype: fact\nsituation: x\n---\nbody\n"), 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(
-		filepath.Join(vault, "Permanent", "1.2026-05-30.foo.md"),
+		filepath.Join(vault, "1.2026-05-30.foo.md"),
 		[]byte("---\ntype: fact\nsituation: x\n---\nbody\n\nRelated to:\n- [[2]] — x.\n"),
 		0o600,
 	)).To(Succeed())
@@ -215,16 +215,16 @@ func TestRunCheck_SituationPresenceSkipsNonBearingNotes(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
 	// Situation-bearing note WITH a situation → not flagged.
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "1.2026-05-30.foo.md"),
+	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-30.foo.md"),
 		[]byte("---\ntype: fact\nsituation: writing the checker\n---\nbody\n"), 0o600)).To(Succeed())
 	// Malformed frontmatter YAML → skipped (frontmatter does not parse).
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "2.2026-05-30.bad.md"),
+	g.Expect(os.WriteFile(filepath.Join(vault, "2.2026-05-30.bad.md"),
 		[]byte("---\ntype: fact\nsituation: [unterminated\n---\nbody\n"), 0o600)).To(Succeed())
 	// No frontmatter block at all → skipped.
-	g.Expect(os.WriteFile(filepath.Join(vault, "Permanent", "3.2026-05-30.raw.md"),
+	g.Expect(os.WriteFile(filepath.Join(vault, "3.2026-05-30.raw.md"),
 		[]byte("just prose, no frontmatter\n"), 0o600)).To(Succeed())
 	// MOC note → not situation-bearing, skipped.
 	g.Expect(os.WriteFile(filepath.Join(vault, "MOCs", "index.md"),

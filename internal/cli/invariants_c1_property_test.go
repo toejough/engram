@@ -41,7 +41,7 @@ func TestInvariant_C1_ClusteringDeterminism(t *testing.T) {
 		memFS := newInMemoryFS()
 
 		for i := range noteCount {
-			relPath := "Permanent/" + propertyNodeName(i) + ".md"
+			relPath := "" + propertyNodeName(i) + ".md"
 			// Distinct per-note body content (beyond the shared "body" hit
 			// token) so the vectors spread out and k-means has real structure
 			// to partition — making any seed instability observable.

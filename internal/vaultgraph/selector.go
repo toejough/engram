@@ -6,23 +6,16 @@ import (
 	"github.com/toejough/engram/internal/luhmann"
 )
 
-// SelectStartingPoints picks the starting points for one component:
-//   - If the component contains one or more MOCs, returns every MOC (sorted).
-//   - Otherwise returns the node(s) with the highest in-degree, tie-broken by
-//     earliest Luhmann ID (luhmann.Less). If two or more tied nodes lack
-//     Luhmann IDs (or the tie cannot be broken otherwise), returns all of them.
+// SelectStartingPoints picks the starting points for one component: the
+// node(s) with the highest in-degree, tie-broken by earliest Luhmann ID
+// (luhmann.Less). If two or more tied nodes lack Luhmann IDs (or the tie
+// cannot be broken otherwise), returns all of them. (The old MOC preference
+// is gone with the flat vault — there are no MOCs.)
 //
 // Empty input yields nil. Result order is deterministic and stable for testing.
 func SelectStartingPoints(component []string, g Graph) []string {
 	if len(component) == 0 {
 		return nil
-	}
-
-	mocs := mocsIn(component, g)
-	if len(mocs) > 0 {
-		sortBasenames(mocs)
-
-		return mocs
 	}
 
 	return highestInDegreeWinners(component, g)
@@ -94,18 +87,6 @@ func luhmannTieBreak(tied []string, g Graph) []string {
 	sortBasenames(winners)
 
 	return winners
-}
-
-func mocsIn(component []string, g Graph) []string {
-	out := make([]string, 0)
-
-	for _, name := range component {
-		if g.Notes[name].IsMOC {
-			out = append(out, name)
-		}
-	}
-
-	return out
 }
 
 func sortBasenames(names []string) {

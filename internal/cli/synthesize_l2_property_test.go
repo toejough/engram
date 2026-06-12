@@ -42,13 +42,13 @@ func TestProperty_SynthesizeL2_NearDuplicateL2CosineAtLeast095(t *testing.T) {
 		memFS := newInMemoryFS()
 
 		for i := range l1Count {
-			plantDualVector(t, memFS, vault, fmt.Sprintf("Permanent/%d.ep.md", i+1),
+			plantDualVector(t, memFS, vault, fmt.Sprintf("%d.ep.md", i+1),
 				"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
 		}
 
 		// The sole L2: a near-duplicate of the centroid on one orthogonal axis.
 		nearDup := []float32{1, epsilon, 0, 0}
-		plantDualVector(t, memFS, vault, "Permanent/dup.fact.md",
+		plantDualVector(t, memFS, vault, "dup.fact.md",
 			"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", nearDup, nearDup)
 
 		deps := newQueryDeps(memFS)

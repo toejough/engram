@@ -35,8 +35,8 @@ func TestSidecarPath_FromNotePath(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	g.Expect(embed.SidecarPath("Permanent/132.2026-05-23.foo.md")).
-		To(Equal("Permanent/132.2026-05-23.foo.vec.json"))
+	g.Expect(embed.SidecarPath("132.2026-05-23.foo.md")).
+		To(Equal("132.2026-05-23.foo.vec.json"))
 }
 
 func TestSidecarPath_NonMdReturnsAppended(t *testing.T) {

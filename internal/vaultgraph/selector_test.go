@@ -17,38 +17,6 @@ func TestSelectStartingPoints_EmptyComponent(t *testing.T) {
 	g.Expect(got).To(BeEmpty())
 }
 
-func TestSelectStartingPoints_MOCWinsOverHighInDegreeNonMOC(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// B and C link to A (non-MOC), giving A in-degree 2. But MOC M is in the component too.
-	notes := []vaultgraph.Note{
-		{Basename: "M", LuhmannID: "1", IsMOC: true, Outgoing: []string{"A"}},
-		{Basename: "A", LuhmannID: "2", Outgoing: []string{"M"}},
-		{Basename: "B", LuhmannID: "3", Outgoing: []string{"A"}},
-		{Basename: "C", LuhmannID: "4", Outgoing: []string{"A"}},
-	}
-	graph := vaultgraph.BuildGraph(notes)
-	got := vaultgraph.SelectStartingPoints([]string{"M", "A", "B", "C"}, graph)
-	g.Expect(got).To(Equal([]string{"M"}))
-}
-
-func TestSelectStartingPoints_MultipleMOCsSortedAlphabetically(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	notes := []vaultgraph.Note{
-		{Basename: "12.zk-craft", LuhmannID: "12", IsMOC: true, Outgoing: []string{"7.zk-mem"}},
-		{Basename: "7.zk-mem", LuhmannID: "7", IsMOC: true},
-	}
-	graph := vaultgraph.BuildGraph(notes)
-
-	got := vaultgraph.SelectStartingPoints([]string{"12.zk-craft", "7.zk-mem"}, graph)
-	g.Expect(got).To(Equal([]string{"12.zk-craft", "7.zk-mem"}))
-}
-
 func TestSelectStartingPoints_NoMOC_ClearInDegreeWinner(t *testing.T) {
 	t.Parallel()
 
@@ -109,21 +77,6 @@ func TestSelectStartingPoints_NoMOC_UnbreakableTieAllIDLess(t *testing.T) {
 	graph := vaultgraph.BuildGraph(notes)
 	got := vaultgraph.SelectStartingPoints([]string{"fleeting-a", "fleeting-b", "linker"}, graph)
 	g.Expect(got).To(Equal([]string{"fleeting-a", "fleeting-b"}))
-}
-
-func TestSelectStartingPoints_SingleMOC(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	notes := []vaultgraph.Note{
-		{Basename: "7.2026-05-09.zk", LuhmannID: "7", IsMOC: true, Outgoing: []string{"4.x.y"}},
-		{Basename: "4.x.y", LuhmannID: "4"},
-	}
-	graph := vaultgraph.BuildGraph(notes)
-
-	got := vaultgraph.SelectStartingPoints([]string{"7.2026-05-09.zk", "4.x.y"}, graph)
-	g.Expect(got).To(Equal([]string{"7.2026-05-09.zk"}))
 }
 
 func TestSelectStartingPoints_SingletonIsolatedNode(t *testing.T) {

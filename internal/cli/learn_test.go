@@ -84,7 +84,7 @@ func TestEngramLearn_Episode_AutoEmbedsSidecar(t *testing.T) {
 		return
 	}
 
-	g.Expect(sidecarPath).To(Equal("/v/Permanent/1.2026-05-25.embed-shape.vec.json"))
+	g.Expect(sidecarPath).To(Equal("/v/1.2026-05-25.embed-shape.vec.json"))
 
 	var parsed embed.Sidecar
 	g.Expect(json.Unmarshal(sidecarBytes, &parsed)).NotTo(HaveOccurred())
@@ -489,7 +489,7 @@ func TestEngramLearn_Episode_LuhmannPlacement(t *testing.T) {
 				return
 			}
 
-			expectedPath := "/v/Permanent/" + tc.wantID + ".2026-05-25.placement.md"
+			expectedPath := "/v/" + tc.wantID + ".2026-05-25.placement.md"
 			g.Expect(writtenPath).To(Equal(expectedPath))
 			g.Expect(string(writtenContent)).To(ContainSubstring(`luhmann: "` + tc.wantID + `"`))
 		})
@@ -801,7 +801,7 @@ func TestLearnPath_Permanent(t *testing.T) {
 	g := NewWithT(t)
 	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
 	got := cli.ExportLearnPath("/vault", "1a3", "subagent-driven-recovery", when)
-	g.Expect(got).To(Equal("/vault/Permanent/1a3.2026-05-09.subagent-driven-recovery.md"))
+	g.Expect(got).To(Equal("/vault/1a3.2026-05-09.subagent-driven-recovery.md"))
 }
 
 // TestMarshalFrontmatter_WrapsValidValue verifies the helper produces the
@@ -1378,7 +1378,7 @@ func TestRunLearn_Fact_WritesExpectedFile(t *testing.T) {
 		return
 	}
 
-	g.Expect(writtenPath).To(Equal("/vault/Permanent/1.2026-05-09.fact-slug.md"))
+	g.Expect(writtenPath).To(Equal("/vault/1.2026-05-09.fact-slug.md"))
 	g.Expect(string(writtenContent)).To(ContainSubstring("type: fact"))
 	g.Expect(string(writtenContent)).To(ContainSubstring("Information learned"))
 }
@@ -1437,7 +1437,7 @@ func TestRunLearn_Feedback_WritesExpectedFile(t *testing.T) {
 
 	g.Expect(lockAcquired).To(BeTrue())
 	g.Expect(lockReleased).To(BeTrue())
-	g.Expect(writtenPath).To(Equal("/vault/Permanent/3.2026-05-09.ctx-cancellation-rule.md"))
+	g.Expect(writtenPath).To(Equal("/vault/3.2026-05-09.ctx-cancellation-rule.md"))
 	g.Expect(string(writtenContent)).To(ContainSubstring("type: feedback"))
 	g.Expect(string(writtenContent)).
 		To(ContainSubstring("Lesson learned: when writing concurrent Go code"))

@@ -173,7 +173,7 @@ func TestRunMigrateEpisodes_ApplyRewritesToThreeSections(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 
-	got := string(wrote["v/Permanent/5.2026-05-25.work.md"])
+	got := string(wrote["v/5.2026-05-25.work.md"])
 	g.Expect(got).NotTo(BeEmpty())
 
 	// Frontmatter (incl. boundary_rationale) preserved.
@@ -245,13 +245,13 @@ func TestRunMigrateEpisodes_Idempotent(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 
-	episodePath := filepath.Join(vault, "Permanent", "5.2026-05-25.work.md")
+	episodePath := filepath.Join(vault, "5.2026-05-25.work.md")
 	g.Expect(os.WriteFile(episodePath, []byte(legacyEpisodeNote), 0o600)).To(Succeed())
 
 	// A second episode so the relation target ("3") resolves to a real basename.
-	earlierPath := filepath.Join(vault, "Permanent", "3.2026-05-20.earlier.md")
+	earlierPath := filepath.Join(vault, "3.2026-05-20.earlier.md")
 	g.Expect(os.WriteFile(earlierPath, []byte(legacyEpisodeNote), 0o600)).To(Succeed())
 
 	deps := cli.ExportNewOsMigrateEpisodesDeps(successEmbedder{})
@@ -306,9 +306,9 @@ func TestRunMigrateEpisodes_IdempotentWithHeadingAndRelatedProse(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 
-	notePath := filepath.Join(vault, "Permanent", "8.2026-05-25.meta.md")
+	notePath := filepath.Join(vault, "8.2026-05-25.meta.md")
 	g.Expect(os.WriteFile(notePath, []byte(legacyEpisodeWithHeadingAndRelatedProse), 0o600)).To(Succeed())
 
 	deps := cli.ExportNewOsMigrateEpisodesDeps(successEmbedder{})
@@ -375,9 +375,9 @@ func TestRunMigrateEpisodes_IdempotentWithTrickyTranscript(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 
-	notePath := filepath.Join(vault, "Permanent", "7.2026-05-25.tricky.md")
+	notePath := filepath.Join(vault, "7.2026-05-25.tricky.md")
 	g.Expect(os.WriteFile(notePath, []byte(legacyEpisodeWithTrickyTranscript), 0o600)).To(Succeed())
 
 	deps := cli.ExportNewOsMigrateEpisodesDeps(successEmbedder{})
@@ -459,7 +459,7 @@ func TestRunMigrateEpisodes_NilEmbedderSkipsSidecar(t *testing.T) {
 		return
 	}
 
-	g.Expect(wrote).To(HaveKey("v/Permanent/5.2026-05-25.work.md"))
+	g.Expect(wrote).To(HaveKey("v/5.2026-05-25.work.md"))
 
 	for path := range wrote {
 		g.Expect(path).NotTo(HaveSuffix(".vec.json"))

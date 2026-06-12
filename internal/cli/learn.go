@@ -18,7 +18,6 @@ import (
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/luhmann"
 	"github.com/toejough/engram/internal/transcript"
-	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 // EpisodeRange captures one existing episode's basename and transcript-range
@@ -666,7 +665,7 @@ func immediatePrior(parsed []parsedEpisodeRange, start time.Time) (parsedEpisode
 func learnPath(vault, luhmann, slug string, when time.Time) string {
 	filename := fmt.Sprintf("%s.%s.%s.md", luhmann, when.Format(dateFormat), slug)
 
-	return filepath.Join(vault, vaultgraph.PermanentSubdir, filename)
+	return filepath.Join(vault, filename)
 }
 
 // logWarningToStderrf is the production LogWarning hook. Method-named so

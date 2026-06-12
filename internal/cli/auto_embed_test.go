@@ -34,7 +34,7 @@ func TestAutoEmbedNote_EmbedFailureWarnsButReturns(t *testing.T) {
 		LogWarning: func(string, ...any) { warned = true },
 	}
 
-	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
+	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
 
 	g.Expect(warned).To(BeTrue())
 	g.Expect(wroteSidecar).To(BeFalse())
@@ -64,9 +64,9 @@ func TestAutoEmbedNote_HappyPathWritesValidSidecar(t *testing.T) {
 		},
 	}
 
-	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
+	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
 
-	g.Expect(capturedPath).To(Equal("Permanent/1.foo.vec.json"))
+	g.Expect(capturedPath).To(Equal("1.foo.vec.json"))
 
 	var parsed embed.Sidecar
 	g.Expect(json.Unmarshal(capturedBytes, &parsed)).NotTo(HaveOccurred())
@@ -92,7 +92,7 @@ func TestAutoEmbedNote_NilEmbedderIsNoOp(t *testing.T) {
 		},
 	}
 
-	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
+	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
 }
 
 // TestAutoEmbedNote_NilWriterIsNoOp asserts the helper returns early
@@ -104,7 +104,7 @@ func TestAutoEmbedNote_NilWriterIsNoOp(t *testing.T) {
 		Embedder: failingEmbedder{},
 	}
 
-	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
+	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
 }
 
 // TestAutoEmbedNote_WriteFailureLoggedButSwallowed asserts that even a
@@ -122,7 +122,7 @@ func TestAutoEmbedNote_WriteFailureLoggedButSwallowed(t *testing.T) {
 		LogWarning:   func(string, ...any) { warned = true },
 	}
 
-	cli.ExportAutoEmbedNote(t.Context(), deps, "Permanent/1.foo.md", "body")
+	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
 	g.Expect(warned).To(BeTrue())
 }
 

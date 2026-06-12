@@ -29,14 +29,13 @@ func TestScanVault_EmptyVault(t *testing.T) {
 		g.Expect(notes).To(BeEmpty())
 	}()
 
-	// Both subdirs queried; both return empty.
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).Return([]string{}, nil)
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{}, nil)
+	// Flat vault: one list of the root.
+	imp.ListMD.ArgsEqual("/vault").Return([]string{}, nil)
 
 	<-done
 }
 
-func TestScanVault_PermanentWithoutLuhmannID(t *testing.T) {
+func TestScanVault_NoteWithoutLuhmannID(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -56,10 +55,38 @@ func TestScanVault_PermanentWithoutLuhmannID(t *testing.T) {
 		g.Expect(notes[0].IsMOC).To(BeFalse())
 	}()
 
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).Return([]string{}, nil)
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{"scratch.md"}, nil)
-	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "Permanent", "scratch.md")).
+	imp.ListMD.ArgsEqual("/vault").Return([]string{"scratch.md"}, nil)
+	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "scratch.md")).
 		Return([]byte("no links"), nil)
+
+	<-done
+}
+
+func TestScanVault_ParsesLuhmannAndWikilinks(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	mock, imp := MockVaultFS(t)
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		notes, err := vaultgraph.ScanVault(mock, "/vault")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(notes).To(HaveLen(1))
+		g.Expect(notes[0].Basename).To(Equal("7.2026-05-09.zk"))
+		g.Expect(notes[0].LuhmannID).To(Equal("7"))
+		g.Expect(notes[0].IsMOC).To(BeFalse(), "flat vault: nothing is a MOC")
+		g.Expect(notes[0].Outgoing).To(Equal([]string{"4.2026-05-09.anti-index"}))
+	}()
+
+	imp.ListMD.ArgsEqual("/vault").
+		Return([]string{"7.2026-05-09.zk.md"}, nil)
+	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "7.2026-05-09.zk.md")).Return(
+		[]byte("body with [[4.2026-05-09.anti-index]] reference"), nil)
 
 	<-done
 }
@@ -82,7 +109,7 @@ func TestScanVault_PropagatesListError(t *testing.T) {
 		g.Expect(err).To(MatchError(wantErr))
 	}()
 
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).Return([]string(nil), wantErr)
+	imp.ListMD.ArgsEqual("/vault").Return([]string(nil), wantErr)
 
 	<-done
 }
@@ -105,40 +132,10 @@ func TestScanVault_PropagatesReadError(t *testing.T) {
 		g.Expect(err).To(MatchError(wantErr))
 	}()
 
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).
+	imp.ListMD.ArgsEqual("/vault").
 		Return([]string{"7.2026-05-09.zk.md"}, nil)
-	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "MOCs", "7.2026-05-09.zk.md")).Return(
+	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "7.2026-05-09.zk.md")).Return(
 		[]byte(nil), wantErr)
-
-	<-done
-}
-
-func TestScanVault_SingleMOC(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	mock, imp := MockVaultFS(t)
-
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-
-		notes, err := vaultgraph.ScanVault(mock, "/vault")
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(notes).To(HaveLen(1))
-		g.Expect(notes[0].Basename).To(Equal("7.2026-05-09.zk"))
-		g.Expect(notes[0].LuhmannID).To(Equal("7"))
-		g.Expect(notes[0].IsMOC).To(BeTrue())
-		g.Expect(notes[0].Outgoing).To(Equal([]string{"4.2026-05-09.anti-index"}))
-	}()
-
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).
-		Return([]string{"7.2026-05-09.zk.md"}, nil)
-	imp.ReadFile.ArgsEqual(filepath.Join("/vault", "MOCs", "7.2026-05-09.zk.md")).Return(
-		[]byte("body with [[4.2026-05-09.anti-index]] reference"), nil)
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{}, nil)
 
 	<-done
 }
@@ -161,8 +158,7 @@ func TestScanVault_SkipsNonMD(t *testing.T) {
 	}()
 
 	// `notes.txt` returned by ListMD but ParseBasename rejects it → no ReadFile call.
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "MOCs")).Return([]string{"notes.txt"}, nil)
-	imp.ListMD.ArgsEqual(filepath.Join("/vault", "Permanent")).Return([]string{}, nil)
+	imp.ListMD.ArgsEqual("/vault").Return([]string{"notes.txt"}, nil)
 
 	<-done
 }

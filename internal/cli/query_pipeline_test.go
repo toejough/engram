@@ -184,17 +184,17 @@ func TestQuery_HubsByInDegree(t *testing.T) {
 	//        C → B, D → B, E → B (B in-degree 3)
 	//        D → C, E → C (C in-degree 2)
 	//        E → D (D in-degree 1)
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/A.md",
+	plantNoteWithSidecar(t, memFS, vault, "A.md",
 		"---\ntype: fact\n---\nthe query string body\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/B.md",
+	plantNoteWithSidecar(t, memFS, vault, "B.md",
 		"---\ntype: fact\n---\nfiller\n[[A]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/C.md",
+	plantNoteWithSidecar(t, memFS, vault, "C.md",
 		"---\ntype: fact\n---\nfiller\n[[A]]\n[[B]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/D.md",
+	plantNoteWithSidecar(t, memFS, vault, "D.md",
 		"---\ntype: fact\n---\nfiller\n[[A]]\n[[B]]\n[[C]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/E.md",
+	plantNoteWithSidecar(t, memFS, vault, "E.md",
 		"---\ntype: fact\n---\nfiller\n[[A]]\n[[B]]\n[[C]]\n[[D]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/F.md",
+	plantNoteWithSidecar(t, memFS, vault, "F.md",
 		"---\ntype: fact\n---\nfiller\n[[A]]\n")
 
 	var out bytes.Buffer
@@ -226,10 +226,10 @@ func TestQuery_HubsByInDegree(t *testing.T) {
 		}
 	}
 
-	g.Expect(inDegrees["Permanent/A.md"]).To(Equal(5))
-	g.Expect(inDegrees["Permanent/B.md"]).To(Equal(3))
-	g.Expect(inDegrees["Permanent/C.md"]).To(Equal(2))
-	g.Expect(inDegrees["Permanent/D.md"]).To(Equal(1))
+	g.Expect(inDegrees["A.md"]).To(Equal(5))
+	g.Expect(inDegrees["B.md"]).To(Equal(3))
+	g.Expect(inDegrees["C.md"]).To(Equal(2))
+	g.Expect(inDegrees["D.md"]).To(Equal(1))
 }
 
 // TestQuery_ItemDedupAcrossRoles — a note that is direct + rep + hub
@@ -245,13 +245,13 @@ func TestQuery_ItemDedupAcrossRoles(t *testing.T) {
 	// Plant A with a fixed vector that matches the query exactly so A is
 	// the top direct hit; A has in-degree 8 (hub); and A sits in its own
 	// cluster region. Other notes link to A and form a separate cluster.
-	plantWithFixedVector(t, memFS, vault, "Permanent/A.md",
+	plantWithFixedVector(t, memFS, vault, "A.md",
 		"---\ntype: fact\n---\nanchor [[B]]\n[[C]]\n[[D]]"+
 			"[[F]]\n[[G]]\n[[H]]\n[[I]]\n",
 		[]float32{1, 0, 0, 0})
 
 	for _, name := range []string{"B", "C", "D", "E", "F", "G", "H", "I"} {
-		plantWithFixedVector(t, memFS, vault, "Permanent/"+name+".md",
+		plantWithFixedVector(t, memFS, vault, ""+name+".md",
 			"---\ntype: fact\n---\nfiller\n[[A]]\n",
 			[]float32{0, 1, 0, 0})
 	}
@@ -292,7 +292,7 @@ func TestQuery_ItemDedupAcrossRoles(t *testing.T) {
 	found := false
 
 	for i := range parsed.Items {
-		if parsed.Items[i].Path == "Permanent/A.md" {
+		if parsed.Items[i].Path == "A.md" {
 			aProvenances = parsed.Items[i].Provenances
 			found = true
 
@@ -354,7 +354,7 @@ func TestQuery_LowSilhouetteReturnsEmpty(t *testing.T) {
 	for i := range 8 {
 		name := string([]byte{byte('A' + i)})
 		plantWithFixedVector(t, memFS, vault,
-			"Permanent/"+name+".md",
+			""+name+".md",
 			"---\ntype: fact\n---\nidentical body for all\n[["+nextName(i)+"]]\n",
 			[]float32{1, 0, 0, 0})
 	}
@@ -425,7 +425,7 @@ func TestQuery_NearestL3_PresentWhenVaultHasL3(t *testing.T) {
 
 	// 9 clusterable notes (plantDeterministicCluster) plus one standalone L3.
 	plantDeterministicCluster(t, memFS, vault)
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/ADR.md",
+	plantNoteWithSidecar(t, memFS, vault, "ADR.md",
 		"---\ntype: fact\ntier: L3\n---\narchitectural decision record body\n")
 
 	var out bytes.Buffer
@@ -451,7 +451,7 @@ func TestQuery_NearestL3_PresentWhenVaultHasL3(t *testing.T) {
 			continue
 		}
 
-		g.Expect(clusterEntry.NearestL3.Path).To(Equal("Permanent/ADR.md"),
+		g.Expect(clusterEntry.NearestL3.Path).To(Equal("ADR.md"),
 			"cluster %d nearest_l3.path", clusterEntry.ID)
 		g.Expect(clusterEntry.NearestL3.Cosine).To(BeNumerically(">", float32(0)),
 			"cluster %d nearest_l3.cosine", clusterEntry.ID)
@@ -469,7 +469,7 @@ func TestQuery_PreservesLegacyFields(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.foo.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.foo.md",
 		"---\ntype: fact\n---\nthe query string body\n")
 
 	var out bytes.Buffer
@@ -501,11 +501,11 @@ func TestQuery_TinySubgraphSkipsClustering(t *testing.T) {
 	memFS := newInMemoryFS()
 
 	// 3 notes in a tiny chain; clustering must short-circuit.
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/A.md",
+	plantNoteWithSidecar(t, memFS, vault, "A.md",
 		"---\ntype: fact\n---\nthe query string body\n[[B]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/B.md",
+	plantNoteWithSidecar(t, memFS, vault, "B.md",
 		"---\ntype: fact\n---\nzzz\n[[C]]\n")
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/C.md",
+	plantNoteWithSidecar(t, memFS, vault, "C.md",
 		"---\ntype: fact\n---\nyyy\n")
 
 	var out bytes.Buffer
@@ -565,17 +565,17 @@ func plantDeterministicCluster(t *testing.T, memFS *inMemoryFS, vault string) {
 		t,
 		memFS,
 		vault,
-		"Permanent/A.md",
+		"A.md",
 		"---\ntype: fact\n---\nanchor body matches anchor query\n[[B]]\n[[C]]\n[[D]]\n[[E]]\n[[F]]\n[[G]]\n[[H]]\n[[I]]\n",
 	)
 
 	for _, name := range []string{"B", "C", "D", "E"} {
-		plantNoteWithSidecar(t, memFS, vault, "Permanent/"+name+".md",
+		plantNoteWithSidecar(t, memFS, vault, ""+name+".md",
 			"---\ntype: fact\n---\nalpha ")
 	}
 
 	for _, name := range []string{"F", "G", "H", "I"} {
-		plantNoteWithSidecar(t, memFS, vault, "Permanent/"+name+".md",
+		plantNoteWithSidecar(t, memFS, vault, ""+name+".md",
 			"---\ntype: fact\n---\nbeta ")
 	}
 }

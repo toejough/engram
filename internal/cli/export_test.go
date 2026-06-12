@@ -366,12 +366,12 @@ func TestMergeIntoExisting_SetsInDegreeFromSrc(t *testing.T) {
 
 	deg := expectedDegree
 	existing := &resolvedItem{
-		notePath:    "Permanent/X.md",
+		notePath:    "X.md",
 		score:       0.8,
 		provenances: []string{provenanceDirect},
 	}
 	src := &resolvedItem{
-		notePath:    "Permanent/X.md",
+		notePath:    "X.md",
 		score:       0.6,
 		provenances: []string{provenanceHub},
 		inDegree:    &deg,

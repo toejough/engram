@@ -131,7 +131,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		vault := t.TempDir()
-		perm := filepath.Join(vault, "Permanent")
+		perm := vault
 		g.Expect(os.MkdirAll(perm, 0o750)).To(gomega.Succeed())
 		g.Expect(os.WriteFile(filepath.Join(perm, "1.note.md"),
 			[]byte("---\ntype: fact\n---\nbody\n"), 0o600)).To(gomega.Succeed())
@@ -150,7 +150,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
 		stderr := executeForTest(t, []string{
 			"engram", "learn", "feedback",
@@ -169,7 +169,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
 		stderr := executeForTest(t, []string{
 			"engram", "learn", "fact",
@@ -187,7 +187,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
 		stderr := executeForTest(t, []string{
 			"engram", "learn", "episode",
@@ -209,7 +209,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
 		result, err := targ.Execute([]string{
@@ -232,7 +232,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
 		result, err := targ.Execute([]string{
@@ -255,7 +255,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
 		result, err := targ.Execute([]string{
@@ -278,7 +278,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
 		result, err := targ.Execute([]string{
@@ -301,7 +301,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
 		result, err := targ.Execute([]string{
@@ -320,7 +320,7 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		vault := t.TempDir()
-		g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
 		result, err := targ.Execute([]string{
@@ -361,7 +361,7 @@ func TestTargets_EmbedApplyDryRun(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
 	stderr := executeForTest(t, []string{"engram", "embed", "apply", "--dry-run", "--vault", vault})
@@ -376,7 +376,7 @@ func TestTargets_EmbedStatus(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
 	stderr := executeForTest(t, []string{"engram", "embed", "status", "--vault", vault})
@@ -410,7 +410,7 @@ func TestTargets_MigrateEpisodes(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
 	stderr := executeForTest(t, []string{"engram", "migrate-episodes", "--vault", vault})
@@ -426,7 +426,7 @@ func TestTargets_MigrateLinks(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
 	stderr := executeForTest(t, []string{"engram", "migrate-links", "--vault", vault})
@@ -440,7 +440,7 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
 	stderr := executeForTest(t, []string{"engram", "query", "--phrase", "anything", "--vault", vault})
@@ -457,7 +457,7 @@ func TestTargets_Resituate(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	vault := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(vault, "Permanent"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
 	stderr := executeForTest(t, []string{

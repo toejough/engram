@@ -61,7 +61,6 @@ func RunCheck(_ context.Context, args CheckArgs, deps CheckDeps, stdout io.Write
 // unexported constants.
 const (
 	maxCheckExamples = 10
-	permanentDir     = "Permanent"
 )
 
 // unexported variables.
@@ -125,7 +124,7 @@ func checkSidecars(
 			continue
 		}
 
-		notePath := filepath.Join(permanentDir, note.Basename+".md")
+		notePath := note.Basename + ".md"
 
 		scBytes, err := readSidecar(filepath.Join(vault, embed.SidecarPath(notePath)))
 		if err != nil {
@@ -177,7 +176,7 @@ func checkSituationPresence(
 			continue
 		}
 
-		raw, err := readNote(filepath.Join(vault, permanentDir, note.Basename+".md"))
+		raw, err := readNote(filepath.Join(vault, note.Basename+".md"))
 		if err != nil {
 			continue
 		}

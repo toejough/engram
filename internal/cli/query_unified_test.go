@@ -20,7 +20,7 @@ func TestRunQuery_ChunkClustersCarryNearestL2(t *testing.T) {
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
 	// An existing L2 fact so nearest_l2 has something to measure against.
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.linting.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.linting.md",
 		"---\ntype: fact\ntier: L2\n---\nAlways run the linter before committing changes.\n")
 
 	// Two clear vector neighborhoods of chunks (hand-set 4-dim vectors), big
@@ -88,7 +88,7 @@ func TestRunQuery_MergesChunkAndVaultSpace(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.linting.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.linting.md",
 		"---\ntype: fact\n---\nAlways run the linter before committing changes.\n")
 	plantChunkIndex(t, memFS, "/chunks/s1.jsonl",
 		"USER: please wire the linter into the build\nASSISTANT: wired into targ check")
@@ -119,7 +119,7 @@ func TestRunQuery_NoChunksDirKeepsVaultOnlyBehavior(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.linting.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.linting.md",
 		"---\ntype: fact\n---\nAlways run the linter before committing changes.\n")
 
 	var out bytes.Buffer
@@ -138,7 +138,7 @@ func TestRunQuery_UnifiedRankingHonorsLimit(t *testing.T) {
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.linting.md",
+	plantNoteWithSidecar(t, memFS, vault, "1.linting.md",
 		"---\ntype: fact\n---\nAlways run the linter before committing changes.\n")
 
 	texts := make([]string, 0, 12)

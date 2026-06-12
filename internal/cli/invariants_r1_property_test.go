@@ -69,7 +69,7 @@ func TestInvariant_R1_RecallMirror(t *testing.T) {
 
 		for i, situation := range chosen {
 			base := "r1-" + strconv.Itoa(i) + ".md"
-			relPath := "Permanent/" + base
+			relPath := "" + base
 			body := "---\ntype: fact\n---\n" + situation + "\n"
 
 			plantNoteWithSidecar(t, memFS, filepath.Clean(vault), relPath, body)
