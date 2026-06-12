@@ -103,11 +103,9 @@ def claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None):
     env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
     # `engram transcript` defaults to ~/.claude/projects/<slug> and IGNORES CLAUDE_CONFIG_DIR, so in a
     # headless cell it never finds the session and /learn falls back to hand-written --transcript-text
-    # episodes (not real chunks). Point it at THIS cfg's session dir. Claude's project-dir name is the
-    # realpath of cwd with '/' -> '-' (e.g. /private/tmp/ws -> -private-tmp-ws).
+    # episodes (not real chunks). Point it at THIS cfg's session dir.
     if cwd:
-        _slug = os.path.realpath(cwd).replace("/", "-")
-        env["ENGRAM_TRANSCRIPT_DIR"] = os.path.join(cfg, "projects", _slug)
+        env["ENGRAM_TRANSCRIPT_DIR"] = os.path.join(cfg, "projects", _project_slug(cwd))
     if vault and vault != "none":
         env["ENGRAM_VAULT_PATH"] = vault
     if chunks:
@@ -121,6 +119,24 @@ def claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None):
         return json.loads(r.stdout)
     except Exception:
         return loadj_str(r.stdout)
+
+
+def _project_slug(cwd):
+    """Claude Code's project-dir name for a cwd: the realpath with every non-alphanumeric
+    character mapped to '-' (verified empirically: '.' becomes '-' too, so a workdir named
+    real.auto lands in ...-real-auto — a bare '/'-only replace MISSES the session dir)."""
+    import re
+    return re.sub(r"[^A-Za-z0-9-]", "-", os.path.realpath(cwd))
+
+
+def _find_session_transcript(cfg, sid):
+    """Locate <sid>.jsonl under cfg/projects regardless of slug scheme — robust against any
+    future change in Claude's path sanitization."""
+    proj = os.path.join(cfg, "projects")
+    for root, _, files in os.walk(proj):
+        if f"{sid}.jsonl" in files:
+            return os.path.join(root, f"{sid}.jsonl")
+    return ""
 
 
 def refresh_creds_path(cfg):
@@ -898,8 +914,11 @@ def run_build(args):
         # runs /learn — that absence IS the experimental condition.
         learn_meta["ran"] = True
         learn_meta["cost"] = 0.0
-        _slug = os.path.realpath(args.workdir).replace("/", "-")
-        _tpath = os.path.join(args.cfg, "projects", _slug, f"{sid}.jsonl")
+        _tpath = _find_session_transcript(args.cfg, sid)
+        if not _tpath:
+            print(f"session transcript {sid}.jsonl not found under {args.cfg}/projects "
+                  f"({args.app} {args.regime}) — no result written so resume re-runs it.", file=sys.stderr)
+            sys.exit(1)
         ir = subprocess.run(["engram", "ingest", "--transcript", _tpath, "--chunks-dir", build_chunks],
                             env={**os.environ, "PATH": ENGRAM_BIN_DIR + ":" + os.environ.get("PATH", "")},
                             capture_output=True, text=True)
