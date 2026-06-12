@@ -14,17 +14,6 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
-// Chunking parameters for the auto-ingested vector space. Target merges
-// small turns into meaningful units; max keeps every chunk inside the
-// embedder's input window (MiniLM truncates ~1500 chars).
-const (
-	chunkTargetChars = 500
-	chunkMaxChars    = 1500
-	// ingestBudgetBytes bounds a single transcript read; generous because
-	// ingestion is offline (no agent context at stake).
-	ingestBudgetBytes = 10 * 1024 * 1024
-)
-
 // IngestArgs holds parsed flags for `engram ingest`.
 type IngestArgs struct {
 	Transcripts []string `targ:"flag,name=transcript,desc=session transcript (JSONL) to chunk+embed (repeatable)"`
@@ -54,7 +43,9 @@ func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.
 		}
 
 		chunks := chunk.Transcript(result.Content, chunkTargetChars, chunkMaxChars)
-		if err := indexChunks(ctx, path, chunks, args.ChunksDir, deps, stdout); err != nil {
+
+		err = indexChunks(ctx, path, chunks, args.ChunksDir, deps, stdout)
+		if err != nil {
 			return err
 		}
 	}
@@ -66,13 +57,24 @@ func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.
 		}
 
 		chunks := chunk.Markdown(string(raw), chunkMaxChars)
-		if err := indexChunks(ctx, path, chunks, args.ChunksDir, deps, stdout); err != nil {
+
+		err = indexChunks(ctx, path, chunks, args.ChunksDir, deps, stdout)
+		if err != nil {
 			return err
 		}
 	}
 
 	return nil
 }
+
+// unexported constants.
+const (
+	chunkMaxChars    = 1500
+	chunkTargetChars = 500
+	// ingestBudgetBytes bounds a single transcript read; generous because
+	// ingestion is offline (no agent context at stake).
+	ingestBudgetBytes = 10 * 1024 * 1024
+)
 
 // indexChunks merges new chunks into the source's index file, embedding only
 // chunks whose hash is not already present.
@@ -93,19 +95,19 @@ func indexChunks(
 
 	added := 0
 
-	for _, c := range chunks {
-		hash := chunk.HashText(c.Text)
+	for _, piece := range chunks {
+		hash := chunk.HashText(piece.Text)
 		if _, ok := seen[hash]; ok {
 			continue
 		}
 
-		vector, err := deps.Embedder.Embed(ctx, c.Text)
+		vector, err := deps.Embedder.Embed(ctx, piece.Text)
 		if err != nil {
-			return fmt.Errorf("ingest: embedding chunk %s/%s: %w", source, c.Anchor, err)
+			return fmt.Errorf("ingest: embedding chunk %s/%s: %w", source, piece.Anchor, err)
 		}
 
 		existing = append(existing, chunk.Record{
-			Source: source, Anchor: c.Anchor, ContentHash: hash, Text: c.Text, Vector: vector,
+			Source: source, Anchor: piece.Anchor, ContentHash: hash, Text: piece.Text, Vector: vector,
 		})
 		seen[hash] = struct{}{}
 		added++
@@ -122,13 +124,38 @@ func indexChunks(
 		return fmt.Errorf("ingest: encoding index %s: %w", indexPath, err)
 	}
 
-	if err := deps.WriteFile(indexPath, data); err != nil {
+	err = deps.WriteFile(indexPath, data)
+	if err != nil {
 		return fmt.Errorf("ingest: writing index %s: %w", indexPath, err)
 	}
 
 	_, _ = fmt.Fprintf(stdout, "ingest %s: +%d chunks (%d total)\n", source, added, len(existing))
 
 	return nil
+}
+
+// newOsIngestDeps wires the production filesystem, JSONL transcript reader,
+// and bundled embedder for `engram ingest`. WriteFile creates the chunks
+// directory on demand so first ingest into a fresh dir succeeds.
+func newOsIngestDeps() IngestDeps {
+	fs := &osEmbedFS{}
+	reader := transcript.NewJSONLReader(&osFileReader{})
+
+	return IngestDeps{
+		ReadFile: fs.Read,
+		WriteFile: func(path string, data []byte) error {
+			const dirPerm = 0o700
+
+			err := os.MkdirAll(filepath.Dir(path), dirPerm)
+			if err != nil {
+				return fmt.Errorf("ingest: creating chunks dir: %w", err)
+			}
+
+			return fs.Write(path, data)
+		},
+		ReadTranscript: reader.ReadFrom,
+		Embedder:       sharedEmbedder,
+	}
 }
 
 // readIndex loads an existing index file, tolerating absence (first ingest).
@@ -159,26 +186,4 @@ func sourceSlug(source string) string {
 	base := filepath.Base(source)
 
 	return strings.TrimSuffix(base, filepath.Ext(base))
-}
-
-// newOsIngestDeps wires the production filesystem, JSONL transcript reader,
-// and bundled embedder for `engram ingest`. WriteFile creates the chunks
-// directory on demand so first ingest into a fresh dir succeeds.
-func newOsIngestDeps() IngestDeps {
-	fs := &osEmbedFS{}
-	reader := transcript.NewJSONLReader(&osFileReader{})
-
-	return IngestDeps{
-		ReadFile: fs.Read,
-		WriteFile: func(path string, data []byte) error {
-			const dirPerm = 0o700
-			if err := os.MkdirAll(filepath.Dir(path), dirPerm); err != nil {
-				return fmt.Errorf("ingest: creating chunks dir: %w", err)
-			}
-
-			return fs.Write(path, data)
-		},
-		ReadTranscript: reader.ReadFrom,
-		Embedder:       sharedEmbedder,
-	}
 }

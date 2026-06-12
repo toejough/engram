@@ -121,9 +121,9 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		// transcript, learn (group), update, embed (group), query, show, check,
-		// migrate-links, migrate-episodes, resituate
-		g.Expect(targets).To(gomega.HaveLen(10))
+		// transcript, learn (group), update, embed (group), query, ingest,
+		// query-chunks, show, check, migrate-links, migrate-episodes, resituate
+		g.Expect(targets).To(gomega.HaveLen(12))
 	})
 
 	t.Run("show parses positional ref through targ", func(t *testing.T) {

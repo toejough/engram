@@ -8,10 +8,6 @@ import (
 	"strings"
 )
 
-// minChunkChars filters semantically-empty fragments ("USER: ok") that would
-// pollute cosine scoring with meaningless points.
-const minChunkChars = 40
-
 // Chunk is one embeddable unit of a source document.
 type Chunk struct {
 	// Text is the chunk content handed to the embedder.
@@ -19,98 +15,6 @@ type Chunk struct {
 	// Anchor locates the chunk in its source: "turn-N" for transcripts,
 	// the heading text for markdown sections.
 	Anchor string
-}
-
-// Transcript splits stripped USER:/ASSISTANT: text into chunks of roughly
-// target chars (merging consecutive turns) and at most maxLen chars
-// (splitting oversized turns on line boundaries). Chunks under the noise
-// threshold are dropped.
-func Transcript(stripped string, target, maxLen int) []Chunk {
-	turns := splitTurns(stripped)
-
-	var chunks []Chunk
-
-	var buf strings.Builder
-
-	anchor := ""
-
-	flush := func() {
-		text := strings.TrimSpace(buf.String())
-		if len(text) >= minChunkChars {
-			chunks = append(chunks, splitOversized(text, anchor, maxLen)...)
-		}
-
-		buf.Reset()
-	}
-
-	for _, turn := range turns {
-		if buf.Len() == 0 {
-			anchor = turn.anchor
-		}
-
-		buf.WriteString(turn.text)
-		buf.WriteString("\n")
-
-		if buf.Len() >= target {
-			flush()
-		}
-	}
-
-	flush()
-
-	return chunks
-}
-
-// turn is one user turn plus its following assistant lines.
-type turn struct {
-	text   string
-	anchor string
-}
-
-// splitTurns groups stripped lines into user-turn units. Lines before the
-// first USER: line form their own leading unit.
-func splitTurns(stripped string) []turn {
-	var turns []turn
-
-	var buf strings.Builder
-
-	userTurns := 0
-
-	flush := func() {
-		if buf.Len() == 0 {
-			return
-		}
-
-		turns = append(turns, turn{text: strings.TrimRight(buf.String(), "\n"), anchor: anchorFor(userTurns)})
-		buf.Reset()
-	}
-
-	for line := range strings.Lines(stripped) {
-		if strings.HasPrefix(line, "USER: ") {
-			flush()
-
-			userTurns++
-		}
-
-		buf.WriteString(line)
-
-		if !strings.HasSuffix(line, "\n") {
-			buf.WriteString("\n")
-		}
-	}
-
-	flush()
-
-	return turns
-}
-
-// anchorFor names a turn unit; turn 0 is content before any USER: line.
-func anchorFor(userTurn int) string {
-	if userTurn == 0 {
-		return "preamble"
-	}
-
-	return "turn-" + strconv.Itoa(userTurn)
 }
 
 // Markdown splits raw markdown into one chunk per heading section
@@ -154,6 +58,66 @@ func Markdown(raw string, maxLen int) []Chunk {
 	return chunks
 }
 
+// Transcript splits stripped USER:/ASSISTANT: text into chunks of roughly
+// target chars (merging consecutive turns) and at most maxLen chars
+// (splitting oversized turns on line boundaries). Chunks under the noise
+// threshold are dropped.
+func Transcript(stripped string, target, maxLen int) []Chunk {
+	turns := splitTurns(stripped)
+
+	var chunks []Chunk
+
+	var buf strings.Builder
+
+	anchor := ""
+
+	flush := func() {
+		text := strings.TrimSpace(buf.String())
+		if len(text) >= minChunkChars {
+			chunks = append(chunks, splitOversized(text, anchor, maxLen)...)
+		}
+
+		buf.Reset()
+	}
+
+	for _, turn := range turns {
+		if buf.Len() == 0 {
+			anchor = turn.anchor
+		}
+
+		buf.WriteString(turn.text)
+		buf.WriteString("\n")
+
+		if buf.Len() >= target {
+			flush()
+		}
+	}
+
+	flush()
+
+	return chunks
+}
+
+// unexported constants.
+const (
+	minChunkChars = 40
+)
+
+// turn is one user turn plus its following assistant lines.
+type turn struct {
+	text   string
+	anchor string
+}
+
+// anchorFor names a turn unit; turn 0 is content before any USER: line.
+func anchorFor(userTurn int) string {
+	if userTurn == 0 {
+		return "preamble"
+	}
+
+	return "turn-" + strconv.Itoa(userTurn)
+}
+
 // isHeading reports whether a line is an ATX heading (#..###### + space).
 func isHeading(line string) bool {
 	rest := strings.TrimLeft(line, "#")
@@ -194,6 +158,43 @@ func splitOversized(text, anchor string, maxLen int) []Chunk {
 	emit()
 
 	return pieces
+}
+
+// splitTurns groups stripped lines into user-turn units. Lines before the
+// first USER: line form their own leading unit.
+func splitTurns(stripped string) []turn {
+	var turns []turn
+
+	var buf strings.Builder
+
+	userTurns := 0
+
+	flush := func() {
+		if buf.Len() == 0 {
+			return
+		}
+
+		turns = append(turns, turn{text: strings.TrimRight(buf.String(), "\n"), anchor: anchorFor(userTurns)})
+		buf.Reset()
+	}
+
+	for line := range strings.Lines(stripped) {
+		if strings.HasPrefix(line, "USER: ") {
+			flush()
+
+			userTurns++
+		}
+
+		buf.WriteString(line)
+
+		if !strings.HasSuffix(line, "\n") {
+			buf.WriteString("\n")
+		}
+	}
+
+	flush()
+
+	return turns
 }
 
 // splitUnits yields paragraph-or-line units no longer than needed for

@@ -174,6 +174,15 @@ func ExportEmitTranscripts(
 	return err
 }
 
+// ExportNewOsChunkQueryDeps returns production ChunkQueryDeps with an
+// injected embedder, mirroring ExportNewOsIngestDeps.
+func ExportNewOsChunkQueryDeps(emb embed.Embedder) ChunkQueryDeps {
+	deps := newOsChunkQueryDeps()
+	deps.Embedder = emb
+
+	return deps
+}
+
 // ExportNewOsCommander returns the production Commander adapter for testing.
 func ExportNewOsCommander() *osCommander { return &osCommander{} }
 
@@ -197,6 +206,16 @@ func ExportNewOsFileReader() interface {
 	Read(path string) ([]byte, error)
 } {
 	return &osFileReader{}
+}
+
+// ExportNewOsIngestDeps returns production IngestDeps with an injected
+// embedder so coverage tests can drive the wiring without unpacking the
+// lazy bundled embedder.
+func ExportNewOsIngestDeps(emb embed.Embedder) IngestDeps {
+	deps := newOsIngestDeps()
+	deps.Embedder = emb
+
+	return deps
 }
 
 // ExportNewOsLearnFS returns the production osLearnFS adapter for testing.

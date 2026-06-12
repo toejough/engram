@@ -17,18 +17,48 @@ type Record struct {
 	Anchor string `json:"anchor"`
 	// ContentHash is "sha256:<hex>" over Text; ingestion skips chunks whose
 	// hash is already indexed, making re-runs idempotent.
-	ContentHash string `json:"content_hash"`
+	ContentHash string `json:"content_hash"` //nolint:tagliatelle // index schema uses snake_case like .vec.json
 	// Text is the chunk content (also what was embedded).
 	Text string `json:"text"`
 	// Vector is the body embedding of Text.
 	Vector []float32 `json:"vector"`
 }
 
-// HashText returns the content hash for a chunk text.
-func HashText(text string) string {
-	sum := sha256.Sum256([]byte(text))
+// DecodeRecords parses a JSONL index file. Blank lines are skipped;
+// a malformed line is an error (the index is binary-owned, never hand-edited).
+func DecodeRecords(data []byte) ([]Record, error) {
+	var records []Record
 
-	return "sha256:" + hex.EncodeToString(sum[:])
+	const (
+		scanInitialBuf = 64 * 1024
+		scanMaxBuf     = 4 * 1024 * 1024
+	)
+
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	scanner.Buffer(make([]byte, 0, scanInitialBuf), scanMaxBuf)
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		var record Record
+
+		err := json.Unmarshal([]byte(line), &record)
+		if err != nil {
+			return nil, fmt.Errorf("decoding chunk record: %w", err)
+		}
+
+		records = append(records, record)
+	}
+
+	err := scanner.Err()
+	if err != nil {
+		return nil, fmt.Errorf("scanning chunk index: %w", err)
+	}
+
+	return records, nil
 }
 
 // EncodeRecords renders records as JSONL (one compact JSON object per line).
@@ -48,31 +78,9 @@ func EncodeRecords(records []Record) ([]byte, error) {
 	return []byte(buf.String()), nil
 }
 
-// DecodeRecords parses a JSONL index file. Blank lines are skipped;
-// a malformed line is an error (the index is binary-owned, never hand-edited).
-func DecodeRecords(data []byte) ([]Record, error) {
-	var records []Record
+// HashText returns the content hash for a chunk text.
+func HashText(text string) string {
+	sum := sha256.Sum256([]byte(text))
 
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-
-		var record Record
-		if err := json.Unmarshal([]byte(line), &record); err != nil {
-			return nil, fmt.Errorf("decoding chunk record: %w", err)
-		}
-
-		records = append(records, record)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scanning chunk index: %w", err)
-	}
-
-	return records, nil
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
