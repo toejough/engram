@@ -40,7 +40,7 @@ Requires Go 1.25+ on `PATH`.
 |-------|--------------|
 | `recall` | Surfaces relevant notes from an agent-memory vault via a single `engram query` call (semantic search + 3-hop subgraph + clusters + hubs), applies a per-cluster synthesis gate that may dispatch `/learn` to capture binding principles, and reports back whether the surfaced memory changed the agent's plan. |
 | `learn` | Captures lessons from completed work as permanent vault notes. Each candidate passes a recall-mirror test — "would a future recall, querying the same situation, surface this note?" — before writing. |
-| `please` | Drives an ask end-to-end through a fixed seven-step workflow — capture, orient, plan, execute (TDD), document, complete, capture. Sequences `recall`, `learn`, and other available skills; tracks each step on the task list. Triggers on `/please <ask>` and natural-language phrasings of the same intent. |
+| `please` | Drives an ask end-to-end through a fixed seven-step workflow — capture, orient, plan, execute (TDD), document, complete, capture. Sequences `recall`, `learn`, and other available skills; tracks each step on the task list. Four adversarial review gates dispatch fresh per-angle reviewer subagents over the plan, each refactor, touched docs, and outward prose, blocking step completion until findings are resolved. Triggers on `/please <ask>` and natural-language phrasings of the same intent. |
 
 See `skills/recall/SKILL.md`, `skills/learn/SKILL.md`, and `skills/please/SKILL.md` for the full skill definitions.
 

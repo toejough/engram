@@ -1,6 +1,6 @@
 # Engram
 
-Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand. A third skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other available skills around a user's `<ask>`.
+Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand. A third skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other available skills around a user's `<ask>`, with adversarial review gates over the plan, refactors, docs, and outward prose.
 
 ## Core Principles
 

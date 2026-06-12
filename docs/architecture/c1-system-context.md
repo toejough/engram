@@ -194,8 +194,8 @@ sequenceDiagram
 
     rect rgb(245,245,255)
         Note over H: Step 1 — opening /learn
-        H->>E: engram transcript --mark (and zero-or-more engram learn writes)
-        E-->>H: marker status plus any written paths
+        H->>E: engram ingest --auto (and zero-or-more engram learn writes)
+        E-->>H: per-source chunk tally plus any written paths
     end
 
     rect rgb(245,245,255)
@@ -207,26 +207,30 @@ sequenceDiagram
 
     rect rgb(245,245,255)
         Note over H: Step 3 — plan, then git commit the plan
+        Note over H: gate A — 4 fresh per-angle reviewer subagents (ask/code/docs/clarity), argue to ACK before execution
     end
 
     rect rgb(245,245,255)
         Note over H: Step 4 — execute under TDD discipline, repeated FS and build calls
+        Note over H: gate B — design-fit reviewer after every refactor phase
     end
 
     rect rgb(245,245,255)
         Note over H: Step 5 — update docs touched by the change
+        Note over H: gate C — relevance + clarity/cohesion reviewers over every touched doc
     end
 
     rect rgb(245,245,255)
         Note over H: Step 6 — commit via /commit and delete planning artifacts
+        Note over H: gate D — clarity/standards reviewer over commit messages and outward prose
     end
 
     rect rgb(245,245,255)
         Note over H: Step 7 — closing /learn
-        H->>E: engram transcript --mark
-        E-->>H: marker status
-        loop per lesson
-            H->>E: engram learn feedback|fact|episode ...
+        H->>E: engram ingest --auto
+        E-->>H: per-source chunk tally
+        loop per explicit lesson
+            H->>E: engram learn feedback|fact ...
             E-->>H: written path
         end
     end
@@ -312,7 +316,9 @@ flowchart TD
 
 Steps run **in order** — each starts only after the previous completes. They are **non-waivable**
 (urgency / "no ceremony" do not authorize skipping) and **N/A only when the mechanism is absent**
-(no VCS for the step-6 commit; no transcript source for the closing `/learn`).
+(no VCS for the step-6 commit; no transcript source for the closing `/learn`). Adversarial review
+gates A–D are integral stops, not optional: each fans out fresh per-angle reviewer subagents and
+blocks its step's completion until every finding is resolved (see `skills/please/SKILL.md`).
 
 ```mermaid
 flowchart TD
@@ -321,10 +327,14 @@ flowchart TD
     B -->|yes| S1[1 · opening /learn — capture pending work]
     S1 --> S2[2 · orient — /recall + read repo docs, loop until understood]
     S2 --> S3[3 · plan — write the plan, commit it]
-    S3 --> S4[4 · execute — TDD red→green→refactor per unit]
-    S4 --> S5[5 · document — update every doc the change touched]
-    S5 --> S6[6 · complete — close issue, commit, delete temp artifacts]
-    S6 --> S7[7 · closing /learn — capture lessons]
+    S3 --> GA{gate A — plan review: ask/code/docs/clarity angles}
+    GA -->|findings resolved| S4[4 · execute — TDD red→green→refactor per unit]
+    S4 --> GB{gate B — design-fit review per refactor}
+    GB -->|findings resolved| S5[5 · document — update every doc the change touched]
+    S5 --> GC{gate C — relevance + clarity/cohesion review per touched doc}
+    GC -->|findings resolved| S6[6 · complete — close issue, commit, delete temp artifacts]
+    S6 --> GD{gate D — clarity/standards review of outward prose}
+    GD -->|findings resolved| S7[7 · closing /learn — capture lessons]
     S7 --> Z[terminal report]
 ```
 
