@@ -26,7 +26,7 @@ func TestAutoSweepUsesSpecRootsAndRepoOverride(t *testing.T) {
 		"/repo": {"/repo/README.md", "/repo/.engram/sweep.json"},
 	}
 	deps := sweepDeps(fs, &countingEmbedder{})
-	deps.ListSources = func(root string, _ []string) ([]string, error) { return listed[root], nil }
+	deps.ListSources = func(root cli.SweepRoot) ([]string, error) { return listed[root.Path], nil }
 	deps.IsDir = func(path string) bool {
 		return map[string]bool{"/repo/.git": true, "/sessions/proj": true}[path]
 	}
@@ -85,13 +85,21 @@ func TestOsListSourcesSkipsExcludedDirs(t *testing.T) {
 	g.Expect(os.WriteFile(filepath.Join(dir, "docs", "real.md"), []byte("# real"), 0o600)).
 		To(gomega.Succeed())
 
+	// Hidden dirs (.layer-run-style eval state, .obsidian, ...) are pruned by
+	// the SkipHidden rule — caught live: a stale eval cfg dir held a full
+	// plugin-marketplace copy that a name list would never have anticipated.
+	g.Expect(os.MkdirAll(filepath.Join(dir, ".layer-run", "cfg"), 0o700)).To(gomega.Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, ".layer-run", "cfg", "junk.md"), []byte("# junk"), 0o600)).
+		To(gomega.Succeed())
+
 	deps := cli.ExportNewOsIngestDeps(fakeIngestEmbedder{})
-	paths, err := deps.ListSources(dir, []string{"node_modules"})
+	paths, err := deps.ListSources(cli.SweepRoot{Path: dir, ExcludeDirs: []string{"node_modules"}, SkipHidden: true})
 
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(paths).To(gomega.ContainElement(filepath.Join(dir, "docs", "real.md")))
 
 	for _, p := range paths {
 		g.Expect(p).NotTo(gomega.ContainSubstring("node_modules"), "dependency markdown excluded")
+		g.Expect(p).NotTo(gomega.ContainSubstring(".layer-run"), "hidden dirs pruned")
 	}
 }

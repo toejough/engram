@@ -14,11 +14,15 @@ type SweepEnv struct {
 	IsDir      func(path string) bool
 }
 
-// SweepRoot pairs a resolved sweep root with the exclude list that applies to
+// SweepRoot pairs a resolved sweep root with the exclude rules that apply to
 // walks under it (general excludes everywhere; .claude roots add their own).
 type SweepRoot struct {
 	Path        string
 	ExcludeDirs []string
+	// SkipHidden prunes every dot-directory during the walk — one
+	// deterministic rule covering .git, .claude, .layer-run, .obsidian, and
+	// whatever appears next, instead of an ever-growing name list.
+	SkipHidden bool
 }
 
 // SweepSpec declares what `engram ingest --auto` sweeps. It is deliberately
@@ -45,6 +49,9 @@ type SweepSpec struct {
 	// holds EVERY project's transcripts — this project's sessions come in via
 	// session_logs instead.
 	ClaudeExcludeDirs []string `json:"claude_exclude_dirs"` //nolint:tagliatelle // developer-facing config uses snake_case
+	// IncludeHiddenDirs disables the default pruning of dot-directories
+	// (.git, .layer-run, .obsidian, ...) during sweep walks.
+	IncludeHiddenDirs bool `json:"include_hidden_dirs"` //nolint:tagliatelle // developer-facing config uses snake_case
 }
 
 // DefaultSweepSpec is the compiled-in declaration: repo markdown + ancestor
@@ -86,27 +93,27 @@ func LoadSweepSpec(raw []byte) (SweepSpec, error) {
 func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 	var roots []SweepRoot
 
+	skipHidden := !spec.IncludeHiddenDirs
+
 	if spec.RepoMarkdown {
-		// The repo walk skips .claude wholesale: ancestor_claude_dirs covers it
-		// with the claude-specific excludes (a bare repo walk would descend into
-		// worktrees/ and re-embed every agent worktree's duplicate docs).
-		repoExcludes := append(append([]string{}, spec.ExcludeDirs...), ".claude")
-		roots = append(roots, SweepRoot{Path: repoRootFor(env), ExcludeDirs: repoExcludes})
+		// Hidden dirs (.claude, .layer-run, ...) are pruned by SkipHidden;
+		// .claude content comes in via ancestor_claude_dirs with its own rules.
+		roots = append(roots, SweepRoot{Path: repoRootFor(env), ExcludeDirs: spec.ExcludeDirs, SkipHidden: skipHidden})
 	}
 
 	if spec.AncestorClaudeDirs {
 		claudeExcludes := append(append([]string{}, spec.ExcludeDirs...), spec.ClaudeExcludeDirs...)
 		for _, dir := range ancestorClaudeDirs(env) {
-			roots = append(roots, SweepRoot{Path: dir, ExcludeDirs: claudeExcludes})
+			roots = append(roots, SweepRoot{Path: dir, ExcludeDirs: claudeExcludes, SkipHidden: skipHidden})
 		}
 	}
 
 	if spec.SessionLogs && env.SessionDir != "" && env.IsDir(env.SessionDir) {
-		roots = append(roots, SweepRoot{Path: env.SessionDir, ExcludeDirs: spec.ExcludeDirs})
+		roots = append(roots, SweepRoot{Path: env.SessionDir, ExcludeDirs: spec.ExcludeDirs, SkipHidden: skipHidden})
 	}
 
 	for _, extra := range spec.ExtraRoots {
-		roots = append(roots, SweepRoot{Path: extra, ExcludeDirs: spec.ExcludeDirs})
+		roots = append(roots, SweepRoot{Path: extra, ExcludeDirs: spec.ExcludeDirs, SkipHidden: skipHidden})
 	}
 
 	return roots

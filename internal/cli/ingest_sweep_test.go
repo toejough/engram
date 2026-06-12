@@ -214,7 +214,7 @@ func sweepDeps(fs *sweepFS, emb *countingEmbedder, sources ...string) cli.Ingest
 		ReadFile:  fs.read,
 		WriteFile: fs.write,
 		Stat:      fs.stat,
-		ListSources: func(string, []string) ([]string, error) {
+		ListSources: func(cli.SweepRoot) ([]string, error) {
 			return sources, nil
 		},
 		ReadTranscript: func(path string, _ time.Time, _ int) (transcript.ReadResult, error) {

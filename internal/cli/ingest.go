@@ -33,7 +33,7 @@ type IngestDeps struct {
 	ReadFile       func(path string) ([]byte, error)
 	WriteFile      func(path string, data []byte) error
 	Stat           func(path string) (SourceStat, error)
-	ListSources    func(root string, excludeDirs []string) ([]string, error)
+	ListSources    func(root SweepRoot) ([]string, error)
 	ReadTranscript func(path string, from time.Time, budget int) (transcript.ReadResult, error)
 	Embedder       embed.Embedder
 	// IsDir, Getwd, and SessionDir feed --auto's declarative root resolution.
@@ -146,7 +146,7 @@ func gatherSources(args IngestArgs, deps IngestDeps) ([]string, error) {
 	roots := make([]SweepRoot, 0, len(args.Sweep))
 
 	for _, manual := range args.Sweep {
-		roots = append(roots, SweepRoot{Path: manual, ExcludeDirs: defaultExcludes})
+		roots = append(roots, SweepRoot{Path: manual, ExcludeDirs: defaultExcludes, SkipHidden: true})
 	}
 
 	if args.Auto {
@@ -159,7 +159,7 @@ func gatherSources(args IngestArgs, deps IngestDeps) ([]string, error) {
 	}
 
 	for _, root := range roots {
-		found, err := deps.ListSources(root.Path, root.ExcludeDirs)
+		found, err := deps.ListSources(root)
 		if err != nil {
 			return nil, fmt.Errorf("ingest: sweeping %s: %w", root.Path, err)
 		}
@@ -416,22 +416,29 @@ func statOrZero(deps IngestDeps, path string) SourceStat {
 }
 
 // walkSourcesExcluding lists files under root, pruning excluded directory
-// names (build/dependency trees) during the walk.
-func walkSourcesExcluding(root string, excludeDirs []string) ([]string, error) {
-	excluded := make(map[string]struct{}, len(excludeDirs))
-	for _, name := range excludeDirs {
+// names (build/dependency trees) and, when SkipHidden, every dot-directory.
+func walkSourcesExcluding(root SweepRoot) ([]string, error) {
+	excluded := make(map[string]struct{}, len(root.ExcludeDirs))
+	for _, name := range root.ExcludeDirs {
 		excluded[name] = struct{}{}
 	}
 
 	var paths []string
 
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+	err := filepath.WalkDir(root.Path, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if entry.IsDir() {
-			if _, skip := excluded[entry.Name()]; skip && path != root {
+			if path == root.Path {
+				return nil
+			}
+
+			_, named := excluded[entry.Name()]
+			hidden := root.SkipHidden && strings.HasPrefix(entry.Name(), ".")
+
+			if named || hidden {
 				return filepath.SkipDir
 			}
 
@@ -443,7 +450,7 @@ func walkSourcesExcluding(root string, excludeDirs []string) ([]string, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ingest: walking %s: %w", root, err)
+		return nil, fmt.Errorf("ingest: walking %s: %w", root.Path, err)
 	}
 
 	return paths, nil
