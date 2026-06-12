@@ -101,6 +101,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 
 	merged := aggregatePhraseSummaries(phrases, summaries, limit)
 	merged.l3 = l3
+	merged.l2 = gatherTierIndex(hits, args.VaultPath, deps.Read, tierL2)
 	merged.outgoing = outgoingByBasename(notes)
 	merged.tiers = args.Tiers
 	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
@@ -118,6 +119,9 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 
 // unexported constants.
 const (
+	// chunkClusterPhrase tags deterministic chunk-space clusters in the
+	// unified payload (they span all phrases, like synthesis clusters).
+	chunkClusterPhrase = "chunks"
 	// chunkItemKind tags unified-ranking items sourced from the chunk index
 	// (vs notes, whose kind derives from frontmatter).
 	chunkItemKind            = "chunk"
@@ -172,6 +176,7 @@ type aggregatedSummary struct {
 	phrases        []string
 	resolvedItems  []resolvedItem
 	phraseClusters []phrasedCluster
+	chunkClusters  []queryCluster
 	l3             tierIndex
 	l2             tierIndex
 	outgoing       map[string][]string
@@ -566,6 +571,60 @@ func buildUnionSubgraph(union []scoredCandidate) expandedSubgraph {
 	}
 
 	return expandedSubgraph{members: members}
+}
+
+// clusterChunkItems runs the SAME deterministic clustering machinery the note
+// pipeline uses (auto-k k-means + silhouette floor) over the scored chunks,
+// annotating each cluster with the nearest existing L2 note so the recall
+// skill can apply its 95/80/<80 crystallization bands mechanically instead of
+// judging novelty by eye.
+func clusterChunkItems(scored []scoredChunk, l2Notes tierIndex, tiers, phrases []string) []queryCluster {
+	if len(scored) < minSubgraphForClustering {
+		return nil
+	}
+
+	vectors := make([][]float32, 0, len(scored))
+	for _, s := range scored {
+		vectors = append(vectors, s.record.Vector)
+	}
+
+	seed := seedFromQuery(strings.Join(phrases, "|"))
+
+	autoK, err := cluster.AutoK(vectors, clusterMinK, clusterMaxK, clusterSilhouetteFloor, seed)
+	if err != nil || autoK.K == 0 {
+		return nil
+	}
+
+	silhouettes := perClusterMeanSilhouette(vectors, autoK.Assignments, autoK.K)
+	clusters := make([]queryCluster, 0, autoK.K)
+
+	for clusterID := range autoK.K {
+		var members []queryClusterMember
+
+		for memberIdx, assigned := range autoK.Assignments {
+			if assigned == clusterID {
+				members = append(members, queryClusterMember{
+					Path:  scored[memberIdx].record.Source + "#" + scored[memberIdx].record.Anchor,
+					Score: scored[memberIdx].score,
+				})
+			}
+		}
+
+		if len(members) == 0 {
+			continue
+		}
+
+		clusters = append(clusters, queryCluster{
+			ID:         clusterID,
+			Phrase:     chunkClusterPhrase,
+			Size:       len(members),
+			Silhouette: silhouettes[clusterID],
+			Members:    members,
+			NearestL2:  nearestL2ForTier(autoK.Centroids[clusterID], l2Notes, tiers),
+		})
+	}
+
+	return clusters
 }
 
 // clusterSubgraph runs auto-k k-means + silhouette over the subgraph's
@@ -1201,6 +1260,8 @@ func mergeChunkSpace(
 		merged.resolvedItems = merged.resolvedItems[:limit]
 	}
 
+	merged.chunkClusters = clusterChunkItems(scored, merged.l2, merged.tiers, merged.phrases)
+
 	return nil
 }
 
@@ -1683,6 +1744,7 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems, merged.outgoing)
 	clusters := renderClusters(merged.phraseClusters, merged.l3, merged.l2, merged.tiers)
+	clusters = append(clusters, merged.chunkClusters...)
 	contentful := countItemsWithContent(items)
 
 	directCount := 0
