@@ -1,9 +1,11 @@
 package update_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io/fs"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -88,34 +90,6 @@ func TestFirstModuleLine_TrailingComment(t *testing.T) {
 	g.Expect(root).To(Equal("/repo"))
 }
 
-func TestParseGoListJSON_EmptyDir(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.claude"] = true
-
-	cmd := &fakeCmd{
-		responses: map[string][]byte{
-			"go install github.com/toejough/engram/cmd/engram@latest": []byte("ok"),
-			"go list -m -json github.com/toejough/engram@latest": []byte(
-				`{"Dir":"","Version":"v1"}`,
-			),
-		},
-	}
-
-	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/tmp"},
-	}
-
-	_, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, update.ErrSkillsSrcMissing)).To(BeTrue())
-}
-
 func TestUpdater_Run_DryRun_NoWritesNoCommands(t *testing.T) {
 	t.Parallel()
 
@@ -170,32 +144,6 @@ func TestUpdater_Run_GoInstallFails(t *testing.T) {
 	_, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, cmdErr)).To(BeTrue())
-}
-
-func TestUpdater_Run_GoListBadJSON(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.claude"] = true
-
-	cmd := &fakeCmd{
-		responses: map[string][]byte{
-			"go install github.com/toejough/engram/cmd/engram@latest": []byte("ok"),
-			"go list -m -json github.com/toejough/engram@latest":      []byte("not json"),
-		},
-	}
-
-	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/tmp"},
-	}
-
-	_, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("parsing go list"))
 }
 
 func TestUpdater_Run_Local_BothHarnesses_CommandsOnlyOpencode(t *testing.T) {
@@ -518,35 +466,6 @@ func TestUpdater_Run_Local_RemoveAllFailureIsHarnessError(t *testing.T) {
 	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("remove boom"))
 }
 
-func TestUpdater_Run_ModuleCacheMiss(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.claude"] = true
-	// No /go/pkg/mod/... directory exists.
-
-	cmd := &fakeCmd{
-		responses: map[string][]byte{
-			"go install github.com/toejough/engram/cmd/engram@latest": []byte("ok"),
-			"go list -m -json github.com/toejough/engram@latest": []byte(
-				`{"Dir":"/nope","Version":"v1"}`,
-			),
-		},
-	}
-
-	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/tmp"},
-	}
-
-	_, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("module cache miss"))
-}
-
 func TestUpdater_Run_NoCwdReturnsError(t *testing.T) {
 	t.Parallel()
 
@@ -625,6 +544,142 @@ func TestUpdater_Run_PartialFailure_AllFail(t *testing.T) {
 	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
 }
 
+func TestUpdater_Run_RemoteCloneFailures(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// git missing entirely → ErrGitNotFound with the clear sentinel.
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+
+	cmd := &fakeCmd{err: exec.ErrNotFound}
+	updater := &update.Updater{FS: fileSystem, Cmd: cmd, Env: &fakeEnv{home: "/home/joe", cwd: "/x"}}
+
+	_, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).To(MatchError(update.ErrGitNotFound))
+
+	// clone fails for another reason → raw error surfaces.
+	fileSystem2 := newMemFS()
+	fileSystem2.dirs["/home/joe/.claude"] = true
+
+	cloneBoom := errors.New("network down")
+	cmd2 := &fakeCmd{err: cloneBoom}
+	updater2 := &update.Updater{FS: fileSystem2, Cmd: cmd2, Env: &fakeEnv{home: "/home/joe", cwd: "/x"}}
+
+	_, err = updater2.Run(context.Background(), update.Options{})
+	g.Expect(err).To(MatchError(cloneBoom))
+
+	// model file unreadable post-clone (clone hook seeds nothing) → read error.
+	fileSystem3 := newMemFS()
+	fileSystem3.dirs["/home/joe/.claude"] = true
+
+	cmd3 := &fakeCmd{responses: map[string][]byte{}}
+	updater3 := &update.Updater{FS: fileSystem3, Cmd: cmd3, Env: &fakeEnv{home: "/home/joe", cwd: "/x"}}
+
+	_, err = updater3.Run(context.Background(), update.Options{})
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("reading cloned model"))
+}
+
+func TestUpdater_Run_RemoteClonesForLFSAndBuildsFromClone(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+
+	const cloneDir = "/tmp/engram-update-clone"
+
+	realModel := bytes.Repeat([]byte{0x08, 0x01}, 1<<20) // binary + >1MB: not an LFS pointer
+
+	cmd := &fakeCmd{
+		responses: map[string][]byte{
+			"git rev-parse --short HEAD": []byte("abc1234\n"),
+		},
+	}
+	cmd.hook = func(call []string) {
+		if call[0] == "git" && call[1] == "clone" {
+			seedCloneFixture(fileSystem, cloneDir, realModel)
+		}
+	}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: cmd,
+		Env: &fakeEnv{home: "/home/joe", cwd: "/elsewhere"},
+	}
+
+	rep, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(rep.Source.Mode).To(Equal(update.SourceRemote))
+	g.Expect(rep.Source.Root).To(Equal(cloneDir))
+	g.Expect(rep.Source.Version).To(Equal("abc1234"))
+
+	var sawClone, sawInstallFromClone bool
+
+	for i, call := range cmd.calls {
+		if call[0] == "git" && call[1] == "clone" {
+			sawClone = true
+
+			g.Expect(call).To(ContainElement("https://github.com/toejough/engram.git"),
+				"clone runs the LFS smudge filter — the whole point of #645")
+		}
+
+		if call[0] == "go" && call[1] == "install" {
+			sawInstallFromClone = true
+
+			g.Expect(call).To(ContainElement("./cmd/engram/"))
+			g.Expect(cmd.dirs[i]).To(Equal(cloneDir), "build FROM the clone, not the module cache")
+		}
+	}
+
+	g.Expect(sawClone).To(BeTrue())
+	g.Expect(sawInstallFromClone).To(BeTrue())
+
+	for _, call := range cmd.calls {
+		g.Expect(strings.Join(call, " ")).NotTo(ContainSubstring("@latest"),
+			"the GOPROXY path ships the 133-byte LFS pointer stub — must be gone")
+	}
+}
+
+func TestUpdater_Run_RemoteModelStubFailsWithGuidance(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+
+	const cloneDir = "/tmp/engram-update-clone"
+
+	stub := []byte("version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 90405214\n")
+
+	cmd := &fakeCmd{responses: map[string][]byte{}}
+	cmd.hook = func(call []string) {
+		if call[0] == "git" && call[1] == "clone" {
+			seedCloneFixture(fileSystem, cloneDir, stub)
+		}
+	}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: cmd,
+		Env: &fakeEnv{home: "/home/joe", cwd: "/elsewhere"},
+	}
+
+	_, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).To(MatchError(update.ErrModelLFSStub))
+	g.Expect(err.Error()).To(ContainSubstring("git-lfs"), "actionable guidance required")
+
+	for _, call := range cmd.calls {
+		g.Expect(call[0]+" "+call[1]).NotTo(Equal("go install"),
+			"never build a binary that embeds the pointer stub")
+	}
+}
+
 func TestUpdater_Run_Remote_HappyPath(t *testing.T) {
 	t.Parallel()
 
@@ -634,21 +689,21 @@ func TestUpdater_Run_Remote_HappyPath(t *testing.T) {
 	fileSystem.dirs["/home/joe/.claude"] = true
 	fileSystem.dirs["/home/joe/.config/opencode"] = true
 
-	// No go.mod under cwd → remote mode.
-	modCache := "/go/pkg/mod/github.com/toejough/engram@v0.2.0"
-	fileSystem.dirs[modCache] = true
-	fileSystem.dirs[modCache+"/skills"] = true
-	fileSystem.dirs[modCache+"/skills/learn"] = true
-	fileSystem.files[modCache+"/skills/learn/SKILL.md"] = []byte("learn from cache")
-	fileSystem.dirs[modCache+"/commands"] = true
-	fileSystem.files[modCache+"/commands/learn.md"] = []byte("learn cmd")
+	// No go.mod under cwd → remote mode → clone-based build (#645).
+	const cloneDir = "/tmp/engram-update-clone"
 
-	goListOut := []byte(`{"Dir":"` + modCache + `","Version":"v0.2.0"}`)
 	cmd := &fakeCmd{
 		responses: map[string][]byte{
-			"go install github.com/toejough/engram/cmd/engram@latest": []byte("ok"),
-			"go list -m -json github.com/toejough/engram@latest":      goListOut,
+			"git rev-parse --short HEAD": []byte("v0abc12\n"),
 		},
+	}
+	cmd.hook = func(call []string) {
+		if call[0] == "git" && call[1] == "clone" {
+			seedCloneFixture(fileSystem, cloneDir, bytes.Repeat([]byte{1}, 1<<20))
+			fileSystem.files[cloneDir+"/skills/learn/SKILL.md"] = []byte("learn from clone")
+			fileSystem.dirs[cloneDir+"/commands"] = true
+			fileSystem.files[cloneDir+"/commands/learn.md"] = []byte("learn cmd")
+		}
 	}
 
 	updater := &update.Updater{
@@ -660,8 +715,8 @@ func TestUpdater_Run_Remote_HappyPath(t *testing.T) {
 	report, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(report.Source.Mode).To(Equal(update.SourceRemote))
-	g.Expect(report.Source.Root).To(Equal(modCache))
-	g.Expect(report.Source.Version).To(Equal("v0.2.0"))
+	g.Expect(report.Source.Root).To(Equal(cloneDir))
+	g.Expect(report.Source.Version).To(Equal("v0abc12"))
 	g.Expect(report.Harnesses).To(HaveLen(2))
 
 	// Both harnesses got the skill.
@@ -735,12 +790,19 @@ type fakeCmd struct {
 	err       error
 	calls     [][]string
 	dirs      []string
+	// hook runs before each command resolves — lets a test materialize
+	// filesystem state as a side effect (e.g. `git clone` producing files).
+	hook func(call []string)
 }
 
 func (f *fakeCmd) Run(_ context.Context, dir, name string, args ...string) ([]byte, []byte, error) {
 	call := append([]string{name}, args...)
 	f.calls = append(f.calls, call)
 	f.dirs = append(f.dirs, dir)
+
+	if f.hook != nil {
+		f.hook(call)
+	}
 
 	if f.err != nil {
 		return nil, nil, f.err
@@ -819,6 +881,17 @@ func equalStringByteMap(a, b map[string]string) bool {
 
 func rapidCtx() context.Context {
 	return context.Background()
+}
+
+// seedCloneFixture populates the memFS with what a successful LFS-enabled
+// clone of the repo would materialize at dir.
+func seedCloneFixture(fileSystem *memFS, dir string, model []byte) {
+	fileSystem.dirs[dir] = true
+	fileSystem.files[dir+"/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs[dir+"/skills"] = true
+	fileSystem.dirs[dir+"/skills/learn"] = true
+	fileSystem.files[dir+"/skills/learn/SKILL.md"] = []byte("skill body")
+	fileSystem.files[dir+"/internal/embed/assets/model/model.onnx"] = model
 }
 
 func skillFileCount(h update.HarnessReport) int {

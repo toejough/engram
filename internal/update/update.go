@@ -4,8 +4,8 @@
 package update
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -33,7 +33,12 @@ const (
 
 // Exported variables.
 var (
-	ErrGoNotFound       = errors.New("go binary not found on PATH")
+	ErrGitNotFound = errors.New("git binary not found on PATH")
+	ErrGoNotFound  = errors.New("go binary not found on PATH")
+	// ErrModelLFSStub means the cloned model.onnx is a Git-LFS pointer file,
+	// not the real model — building from it would embed a 133-byte stub and
+	// every embedding call would fail (issue #645).
+	ErrModelLFSStub     = errors.New("model.onnx is a git-lfs pointer stub")
 	ErrNoHarness        = errors.New("no supported harness found")
 	ErrSkillsSrcMissing = errors.New("skills source dir missing")
 )
@@ -352,25 +357,52 @@ func (u *Updater) clearSkillDirOnce(
 	return nil
 }
 
-// resolveRemoteModuleRoot calls `go list -m -json` to find the module
-// cache directory where the @latest version is unpacked.
-func (u *Updater) resolveRemoteModuleRoot(ctx context.Context) (string, string, error) {
-	stdout, _, runErr := u.Cmd.Run(ctx, "", "go", "list", "-m", "-json", ModulePath+"@latest")
-	if runErr != nil {
-		return "", "", fmt.Errorf("go list module: %w", runErr)
+// resolveRemoteByClone implements remote mode by CLONING the repo and
+// building from the clone — never `go install …@latest`. The Go module proxy
+// serves raw repository blobs, so the LFS-tracked model.onnx arrives as a
+// 133-byte pointer stub and //go:embed bakes a broken embedder into the
+// binary (issue #645). A git clone runs the LFS smudge filter and
+// materializes the real model; the stub check below catches machines where
+// git-lfs is not installed (smudge never ran).
+func (u *Updater) resolveRemoteByClone(ctx context.Context, dryRun bool) (SourceInfo, error) {
+	cloneDir := u.tempCloneDir()
+
+	rmErr := u.FS.RemoveAll(cloneDir)
+	if rmErr != nil {
+		return SourceInfo{}, fmt.Errorf("clearing previous clone %s: %w", cloneDir, rmErr)
 	}
 
-	dir, version, parseErr := parseGoListJSON(stdout)
-	if parseErr != nil {
-		return "", "", fmt.Errorf("parsing go list output: %w", parseErr)
+	_, _, cloneErr := u.Cmd.Run(ctx, "", "git", "clone", "--depth", "1", repoCloneURL, cloneDir)
+	if cloneErr != nil {
+		if errors.Is(cloneErr, exec.ErrNotFound) {
+			return SourceInfo{}, fmt.Errorf("git clone: %w", ErrGitNotFound)
+		}
+
+		return SourceInfo{}, fmt.Errorf("git clone: %w", cloneErr)
 	}
 
-	_, statErr := u.FS.Stat(dir)
-	if statErr != nil {
-		return "", "", fmt.Errorf("module cache miss at %s: %w", dir, statErr)
+	stubErr := u.verifyModelNotLFSStub(cloneDir)
+	if stubErr != nil {
+		return SourceInfo{}, stubErr
 	}
 
-	return dir, version, nil
+	if !dryRun {
+		_, _, runErr := u.Cmd.Run(ctx, cloneDir, "go", "install", "./cmd/engram/")
+		if runErr != nil {
+			return SourceInfo{}, classifyGoInstallErr("remote", runErr)
+		}
+	}
+
+	version := "unknown"
+
+	out, _, revErr := u.Cmd.Run(ctx, cloneDir, "git", "rev-parse", "--short", "HEAD")
+	if revErr == nil {
+		if v := strings.TrimSpace(string(out)); v != "" {
+			version = v
+		}
+	}
+
+	return SourceInfo{Mode: SourceRemote, Root: cloneDir, Version: version}, nil
 }
 
 // resolveSource picks between local clone and remote module by walking up
@@ -398,19 +430,37 @@ func (u *Updater) resolveSource(ctx context.Context, dryRun bool) (SourceInfo, e
 		return SourceInfo{Mode: SourceLocal, Root: root}, nil
 	}
 
-	if !dryRun {
-		_, _, runErr := u.Cmd.Run(ctx, "", "go", "install", goInstallTarget)
-		if runErr != nil {
-			return SourceInfo{}, classifyGoInstallErr("remote", runErr)
-		}
+	return u.resolveRemoteByClone(ctx, dryRun)
+}
+
+// tempCloneDir is a deterministic scratch location for the remote-mode clone.
+func (u *Updater) tempCloneDir() string {
+	tmp := u.Env.Getenv("TMPDIR")
+	if tmp == "" {
+		tmp = "/tmp"
 	}
 
-	modRoot, version, modErr := u.resolveRemoteModuleRoot(ctx)
-	if modErr != nil {
-		return SourceInfo{}, modErr
+	return filepath.Join(tmp, "engram-update-clone")
+}
+
+// verifyModelNotLFSStub fails loudly when the cloned model file is a Git-LFS
+// pointer (git-lfs absent → smudge never ran) instead of shipping a binary
+// that only breaks at first embed.
+func (u *Updater) verifyModelNotLFSStub(cloneDir string) error {
+	modelPath := filepath.Join(cloneDir, "internal", "embed", "assets", "model", "model.onnx")
+
+	data, readErr := u.FS.ReadFile(modelPath)
+	if readErr != nil {
+		return fmt.Errorf("reading cloned model %s: %w", modelPath, readErr)
 	}
 
-	return SourceInfo{Mode: SourceRemote, Root: modRoot, Version: version}, nil
+	if bytes.HasPrefix(data, []byte(lfsPointerPrefix)) || len(data) < modelMinBytes {
+		return fmt.Errorf(
+			"%s holds %d bytes — %w; install git-lfs (`brew install git-lfs && git lfs install`) and rerun `engram update`",
+			modelPath, len(data), ErrModelLFSStub)
+	}
+
+	return nil
 }
 
 // unexported constants.
@@ -418,9 +468,14 @@ const (
 	// dirPerm is the mode used when creating any harness target dir.
 	dirPerm fs.FileMode = 0o755
 	// filePerm is the mode used when writing any copied file.
-	filePerm              fs.FileMode = 0o644
-	goInstallTarget                   = ModulePath + "/cmd/engram@latest"
-	maxSupportedHarnesses             = 2
+	filePerm fs.FileMode = 0o644
+	// lfsPointerPrefix is the first line of every Git-LFS pointer file.
+	lfsPointerPrefix      = "version https://git-lfs"
+	maxSupportedHarnesses = 2
+	// modelMinBytes: the real MiniLM ONNX is ~90 MB; anything under a
+	// megabyte is certainly not it.
+	modelMinBytes = 1 << 20
+	repoCloneURL  = "https://" + ModulePath + ".git"
 )
 
 // classifyGoInstallErr maps a `go install` failure to ErrGoNotFound when the go
@@ -457,7 +512,7 @@ func describeGoInstall(source SourceInfo) string {
 		return "go install ./cmd/engram/"
 	}
 
-	return "go install " + goInstallTarget
+	return "git clone " + repoCloneURL + " && go install ./cmd/engram/ (LFS-safe; #645)"
 }
 
 // detectHarnesses returns the supported harnesses whose probe path exists
@@ -547,26 +602,8 @@ func mdFilesIn(entries []DirEntry) []string {
 	return out
 }
 
-// parseGoListJSON extracts Dir and Version from `go list -m -json` output.
 // The field names are PascalCase because that's the literal JSON `go list`
 // emits — not the Go-conventional camelCase a linter would prefer.
-func parseGoListJSON(data []byte) (dir, version string, err error) {
-	var payload struct {
-		Dir     string `json:"Dir"`     //nolint:tagliatelle // `go list -m -json` emits PascalCase
-		Version string `json:"Version"` //nolint:tagliatelle // `go list -m -json` emits PascalCase
-	}
-
-	jsonErr := json.Unmarshal(data, &payload)
-	if jsonErr != nil {
-		return "", "", fmt.Errorf("unmarshal: %w", jsonErr)
-	}
-
-	if payload.Dir == "" {
-		return "", "", fmt.Errorf("%w: empty Dir field", ErrSkillsSrcMissing)
-	}
-
-	return payload.Dir, payload.Version, nil
-}
 
 // planCommandCopies enumerates .md files at the top level of srcCommands
 // and produces one CopyOp per harness that has a CommandsTargetRel.
