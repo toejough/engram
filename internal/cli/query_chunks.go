@@ -50,6 +50,11 @@ func RunChunkQuery(ctx context.Context, args ChunkQueryArgs, deps ChunkQueryDeps
 		return err
 	}
 
+	if len(records) == 0 {
+		// Empty index: emit the empty payload without waking the embedder.
+		return writeChunkPayload(stdout, args.Phrases, []scoredChunk{}, nil, 0)
+	}
+
 	scored, err := scoreChunks(ctx, args.Phrases, records, deps.Embedder)
 	if err != nil {
 		return err

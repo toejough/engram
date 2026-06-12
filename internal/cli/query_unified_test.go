@@ -43,6 +43,7 @@ func TestRunQuery_ChunkClustersCarryNearestL2(t *testing.T) {
 
 	data, err := chunk.EncodeRecords(records)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	memFS.files["/chunks/s1.jsonl"] = data
 
 	var out bytes.Buffer

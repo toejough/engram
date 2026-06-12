@@ -1260,7 +1260,8 @@ func mergeChunkSpace(
 		merged.resolvedItems = merged.resolvedItems[:limit]
 	}
 
-	merged.chunkClusters = clusterChunkItems(scored, merged.l2, merged.tiers, merged.phrases)
+	merged.chunkClusters = clusterChunkItems(
+		survivingChunks(scored, merged.resolvedItems), merged.l2, merged.tiers, merged.phrases)
 
 	return nil
 }
@@ -1993,6 +1994,30 @@ func stripWikilinks(content string) string {
 
 		return groups[1]
 	})
+}
+
+// survivingChunks filters the scored chunks down to those that made the final
+// ranking. Clustering ONLY the returned set matters: k-means over the whole
+// index produces meaninglessly huge clusters (and a payload to match) — the
+// returned set is what recall reasons over.
+func survivingChunks(scored []scoredChunk, items []resolvedItem) []scoredChunk {
+	returned := make(map[string]struct{}, len(items))
+
+	for _, item := range items {
+		if item.kind == chunkItemKind {
+			returned[item.notePath] = struct{}{}
+		}
+	}
+
+	top := make([]scoredChunk, 0, len(returned))
+
+	for _, s := range scored {
+		if _, ok := returned[s.record.Source+"#"+s.record.Anchor]; ok {
+			top = append(top, s)
+		}
+	}
+
+	return top
 }
 
 // unionDirectHits embeds each phrase, ranks every compatible note against it,

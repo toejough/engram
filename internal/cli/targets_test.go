@@ -383,6 +383,24 @@ func TestTargets_EmbedStatus(t *testing.T) {
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
+// TestTargets_IngestAndQueryChunksEmpty exercises the ingest and query-chunks
+// target closures (ResolveChunksDir wiring) on empty inputs — both fast paths
+// that never wake the bundled embedder.
+func TestTargets_IngestAndQueryChunksEmpty(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	chunks := t.TempDir()
+
+	stderr := executeForTest(t, []string{"engram", "ingest", "--chunks-dir", chunks})
+	g.Expect(stderr).To(gomega.BeEmpty())
+
+	stderr = executeForTest(t, []string{
+		"engram", "query-chunks", "--chunks-dir", chunks, "--phrase", "anything",
+	})
+	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
 // TestTargets_MigrateEpisodes exercises the migrate-episodes closure end-to-end
 // through Targets() so the newOsMigrateEpisodesDeps wiring is covered. The vault
 // is empty, so the real ScanVault finds no episodes and the command reports zero

@@ -136,6 +136,28 @@ type sourceRef struct {
 	explicit bool
 }
 
+// assembleSweepRoots combines manual --sweep roots (default excludes, hidden
+// pruned) with --auto's declaratively-resolved roots.
+func assembleSweepRoots(args IngestArgs, deps IngestDeps) ([]SweepRoot, error) {
+	defaultExcludes := DefaultSweepSpec().ExcludeDirs
+	roots := make([]SweepRoot, 0, len(args.Sweep))
+
+	for _, manual := range args.Sweep {
+		roots = append(roots, SweepRoot{Path: manual, ExcludeDirs: defaultExcludes, SkipHidden: true})
+	}
+
+	if args.Auto {
+		spec, env, err := resolveAutoSpec(deps)
+		if err != nil {
+			return nil, err
+		}
+
+		roots = append(roots, ResolveSweepRoots(spec, env)...)
+	}
+
+	return roots, nil
+}
+
 // chunkSource dispatches by extension: transcripts strip+turn-chunk, markdown
 // heading-chunks. Same mechanism either way; only the chunker differs.
 func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, error) {
@@ -187,20 +209,9 @@ func gatherSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
 		sources = append(sources, sourceRef{path: path, explicit: true})
 	}
 
-	defaultExcludes := DefaultSweepSpec().ExcludeDirs
-	roots := make([]SweepRoot, 0, len(args.Sweep))
-
-	for _, manual := range args.Sweep {
-		roots = append(roots, SweepRoot{Path: manual, ExcludeDirs: defaultExcludes, SkipHidden: true})
-	}
-
-	if args.Auto {
-		spec, env, err := resolveAutoSpec(deps)
-		if err != nil {
-			return nil, err
-		}
-
-		roots = append(roots, ResolveSweepRoots(spec, env)...)
+	roots, err := assembleSweepRoots(args, deps)
+	if err != nil {
+		return nil, err
 	}
 
 	for _, root := range roots {

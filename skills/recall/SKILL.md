@@ -74,32 +74,38 @@ The payload's `items` mix:
 
 If nothing surfaces, say so in one sentence, skip Step 2.5, and proceed with your plan.
 
-### Step 2.5 — Crystallize lessons from near-match chunk groups
+### Step 2.5 — Crystallize lessons from the payload's chunk clusters (band-driven)
 
-Scan the surfaced items for groups of **3+ chunks that evidence the SAME underlying principle**
-(the same convention corrected across sessions, the same decision restated). For each such group:
+The payload's `clusters` list includes entries with `phrase: "chunks"` — the binary's
+deterministic grouping of the returned chunks (auto-k k-means, silhouette-validated). Each
+carries `nearest_l2: {path, cosine}` — the closest existing vault lesson to that cluster.
+**Process every chunk cluster; the bands decide, not your judgment:**
 
-- **A surfaced note already states the principle** → do nothing; it's crystallized.
-- **Otherwise** → write ONE vault note, now, before building:
+| `nearest_l2.cosine` | Action |
+| --- | --- |
+| `>= 0.95` | Do nothing — an existing note already covers it |
+| `0.80 – 0.95` | UPDATE the nearest note: `engram learn fact\|feedback --target <luhmann-id from nearest_l2.path> --position continuation ...` |
+| `< 0.80`, or no `nearest_l2` | CREATE a new note (`--position top`) |
+
+Before an UPDATE/CREATE write, read the cluster's member chunks (already in `items`) and state
+the principle they evidence:
 
 ```bash
 # Durable convention/standard:
 engram learn fact --slug <kebab-slug> --position top \
-  --source "synthesized from chunks at recall, <YYYY-MM-DD>" \
+  --source "synthesized from chunk cluster at recall, <YYYY-MM-DD>" \
   --situation "<when this applies>" \
   --subject "<the thing>" --predicate "<requires / must use / is>" \
   --object "<the standard, stated generally enough to transfer>"
 
-# Correction about how to work:
-engram learn feedback --slug <kebab-slug> --position top \
-  --source "synthesized from chunks at recall, <YYYY-MM-DD>" \
-  --situation "<when this applies>" \
-  --behavior "<what was done>" --impact "<why wrong>" --action "<what to do instead>"
+# Correction about how to work: engram learn feedback with
+# --behavior/--impact/--action instead of subject/predicate/object.
 ```
 
-Rules: general principle, not the instance; one note per principle; a vocabulary coincidence is
-not a lesson — "no bindable group" is a valid outcome, but CHECKING is not optional. Cap ~5 new
-notes per recall. WAIT for writes to finish — the lessons apply to THIS task too.
+Rules: general principle, not the instance; one write per cluster; a cluster whose members are
+a vocabulary coincidence rather than a shared principle gets NO write (the bands gate novelty,
+you still gate meaning — that is the one judgment left to you). WAIT for writes to finish —
+the lessons apply to THIS task too.
 
 ### Step 3 — Closing synthesis: did the memories change the plan?
 
@@ -121,6 +127,7 @@ The user sees this. Rules:
 | `--tier`, `--synthesize-l2`, `--vault`, or `--chunks-dir` on the query | Plain unified `engram query --phrase ...` only |
 | Separate query calls per phrase | One call, repeatable `--phrase` flags |
 | You quoted chunks wholesale into the reply | Extract the principle a chunk evidences; paraphrase |
-| You dispatched cluster-synthesis subagents | Gone — Step 2.5 crystallizes inline from surfaced items |
-| You skipped Step 2.5 because "the chunks are enough" | Checking for bindable groups IS the step; skipping the check is not an outcome |
+| You dispatched cluster-synthesis subagents | Gone — Step 2.5 crystallizes inline from the payload's chunk clusters |
+| You grouped chunks by eye instead of using the payload's `phrase: "chunks"` clusters | The binary's k-means grouping and `nearest_l2` cosine are the ground truth; apply the bands |
+| You skipped Step 2.5 because "the chunks are enough" | Banding every chunk cluster IS the step; skipping it is not an outcome |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
