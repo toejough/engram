@@ -62,6 +62,7 @@ func DefaultSweepSpec() SweepSpec {
 		ClaudeExcludeDirs: []string{
 			"projects", "plugins", "cache", "todos", "shell-snapshots",
 			"file-history", "history", "ide", "statsig", "session-env", "debug",
+			"worktrees",
 		},
 	}
 }
@@ -86,7 +87,11 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 	var roots []SweepRoot
 
 	if spec.RepoMarkdown {
-		roots = append(roots, SweepRoot{Path: repoRootFor(env), ExcludeDirs: spec.ExcludeDirs})
+		// The repo walk skips .claude wholesale: ancestor_claude_dirs covers it
+		// with the claude-specific excludes (a bare repo walk would descend into
+		// worktrees/ and re-embed every agent worktree's duplicate docs).
+		repoExcludes := append(append([]string{}, spec.ExcludeDirs...), ".claude")
+		roots = append(roots, SweepRoot{Path: repoRootFor(env), ExcludeDirs: repoExcludes})
 	}
 
 	if spec.AncestorClaudeDirs {
