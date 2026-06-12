@@ -22,6 +22,7 @@ type IngestArgs struct {
 	Transcripts []string `targ:"flag,name=transcript,desc=session transcript (JSONL) to chunk+embed (repeatable)"`
 	Markdowns   []string `targ:"flag,name=markdown,desc=markdown file to chunk+embed (repeatable)"`
 	Sweep       []string `targ:"flag,name=sweep,desc=directory to scan for new/changed sources (.md + .jsonl; repeatable)"`
+	Auto        bool     `targ:"flag,name=auto,desc=sweep the declarative default roots: repo markdown + ancestor .claude dirs + session logs (see .engram/sweep.json)"` //nolint:lll // single unbreakable struct-tag string
 	ChunksDir   string   `targ:"flag,name=chunks-dir,required,desc=directory for per-source chunk index (.jsonl) files"`
 }
 
@@ -32,9 +33,13 @@ type IngestDeps struct {
 	ReadFile       func(path string) ([]byte, error)
 	WriteFile      func(path string, data []byte) error
 	Stat           func(path string) (SourceStat, error)
-	ListSources    func(root string) ([]string, error)
+	ListSources    func(root string, excludeDirs []string) ([]string, error)
 	ReadTranscript func(path string, from time.Time, budget int) (transcript.ReadResult, error)
 	Embedder       embed.Embedder
+	// IsDir, Getwd, and SessionDir feed --auto's declarative root resolution.
+	IsDir      func(path string) bool
+	Getwd      func() (string, error)
+	SessionDir func(cwd string) string
 }
 
 // SourceStat is the cheap staleness signature of a source file. A sweep
@@ -114,14 +119,67 @@ func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, err
 	return chunk.Markdown(string(raw), chunkMaxChars), nil
 }
 
-// gatherSources merges explicit flags with sweep results into one list.
+// claudeProjectSlug maps a path to Claude's project-dir name: every
+// non-alphanumeric byte becomes '-'.
+func claudeProjectSlug(path string) string {
+	slug := make([]byte, 0, len(path))
+
+	for _, b := range []byte(path) {
+		isAlnum := (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+		if isAlnum {
+			slug = append(slug, b)
+		} else {
+			slug = append(slug, '-')
+		}
+	}
+
+	return string(slug)
+}
+
+// defaultSessionDir is the Claude Code transcript directory for a project:
+// ENGRAM_TRANSCRIPT_DIR when set (headless/eval), else
+// ~/.claude/projects/<sanitized-cwd> — the same sanitization Claude applies
+// (every non-alphanumeric character becomes '-').
+func defaultSessionDir(cwd string) string {
+	if dir := os.Getenv("ENGRAM_TRANSCRIPT_DIR"); dir != "" {
+		return dir
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+
+	resolved, err := filepath.EvalSymlinks(cwd)
+	if err != nil {
+		resolved = cwd
+	}
+
+	return filepath.Join(home, ".claude", "projects", claudeProjectSlug(resolved))
+}
+
+// gatherSources merges explicit flags, --auto's declarative roots, and manual
+// sweep roots into one source list.
 func gatherSources(args IngestArgs, deps IngestDeps) ([]string, error) {
 	sources := make([]string, 0, len(args.Transcripts)+len(args.Markdowns))
 	sources = append(sources, args.Transcripts...)
 	sources = append(sources, args.Markdowns...)
 
-	for _, root := range args.Sweep {
-		found, err := deps.ListSources(root)
+	roots := args.Sweep
+	excludes := DefaultSweepSpec().ExcludeDirs
+
+	if args.Auto {
+		spec, env, err := resolveAutoSpec(deps)
+		if err != nil {
+			return nil, err
+		}
+
+		roots = append(roots, ResolveSweepRoots(spec, env)...)
+		excludes = spec.ExcludeDirs
+	}
+
+	for _, root := range roots {
+		found, err := deps.ListSources(root, excludes)
 		if err != nil {
 			return nil, fmt.Errorf("ingest: sweeping %s: %w", root, err)
 		}
@@ -249,26 +307,16 @@ func newOsIngestDeps() IngestDeps {
 
 			return SourceStat{MtimeUnixNano: info.ModTime().UnixNano(), Size: info.Size()}, nil
 		},
-		ListSources: func(root string) ([]string, error) {
-			var paths []string
-
-			err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-				if err != nil || d.IsDir() {
-					return err
-				}
-
-				paths = append(paths, path)
-
-				return nil
-			})
-			if err != nil {
-				return nil, fmt.Errorf("ingest: walking %s: %w", root, err)
-			}
-
-			return paths, nil
-		},
+		ListSources:    walkSourcesExcluding,
 		ReadTranscript: reader.ReadFrom,
 		Embedder:       sharedEmbedder,
+		IsDir: func(path string) bool {
+			info, err := os.Stat(path)
+
+			return err == nil && info.IsDir()
+		},
+		Getwd:      os.Getwd,
+		SessionDir: defaultSessionDir,
 	}
 }
 
@@ -337,6 +385,30 @@ func rebuildIndex(
 	return len(records), reused, embedded, nil
 }
 
+// resolveAutoSpec assembles the sweep environment and loads the repo's
+// .engram/sweep.json override (defaults when absent).
+func resolveAutoSpec(deps IngestDeps) (SweepSpec, SweepEnv, error) {
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return SweepSpec{}, SweepEnv{}, fmt.Errorf("ingest: getwd: %w", err)
+	}
+
+	env := SweepEnv{Cwd: cwd, SessionDir: deps.SessionDir(cwd), IsDir: deps.IsDir}
+	spec := DefaultSweepSpec()
+
+	override := filepath.Join(repoRootFor(env), ".engram", "sweep.json")
+
+	raw, readErr := deps.ReadFile(override)
+	if readErr == nil {
+		spec, err = LoadSweepSpec(raw)
+		if err != nil {
+			return SweepSpec{}, SweepEnv{}, fmt.Errorf("ingest: %s: %w", override, err)
+		}
+	}
+
+	return spec, env, nil
+}
+
 // sourceSlug derives the index filename from the source path basename.
 func sourceSlug(source string) string {
 	base := filepath.Base(source)
@@ -356,6 +428,40 @@ func statOrZero(deps IngestDeps, path string) SourceStat {
 	}
 
 	return stat
+}
+
+// walkSourcesExcluding lists files under root, pruning excluded directory
+// names (build/dependency trees) during the walk.
+func walkSourcesExcluding(root string, excludeDirs []string) ([]string, error) {
+	excluded := make(map[string]struct{}, len(excludeDirs))
+	for _, name := range excludeDirs {
+		excluded[name] = struct{}{}
+	}
+
+	var paths []string
+
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if entry.IsDir() {
+			if _, skip := excluded[entry.Name()]; skip && path != root {
+				return filepath.SkipDir
+			}
+
+			return nil
+		}
+
+		paths = append(paths, path)
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ingest: walking %s: %w", root, err)
+	}
+
+	return paths, nil
 }
 
 // writeManifestFile persists the manifest next to the index files it covers.
