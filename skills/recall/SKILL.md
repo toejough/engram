@@ -87,6 +87,16 @@ carries `nearest_l2: {path, cosine}` — the closest existing vault lesson to th
 | `0.80 – 0.95` | UPDATE the nearest note: `engram learn fact\|feedback --target <luhmann-id from nearest_l2.path> --position continuation ...` |
 | `< 0.80`, or no `nearest_l2` | CREATE a new note (`--position top`) |
 
+**Empty/L2-less vault = CREATE band, always.** Every vault starts with zero L2 notes. When the
+vault has no L2s — `nearest_l2` missing, null, or low on every cluster — that is not "Step 2.5
+doesn't apply"; it is the strongest possible CREATE signal. The first L2s a vault ever gets are
+created exactly here, by this step; skip it and no vault ever grows an L2. "Zero items in the
+<0.80 band came through" cannot mean skip: a cluster with no `nearest_l2`, or one below 0.80,
+*is* the `< 0.80` band — and item retrieval `score`s are NOT cosine bands; only the clusters'
+`nearest_l2.cosine` drives the table. If you band N chunk clusters and write 0 notes on an
+L2-less vault, you have executed the step wrong — the only exemption is the
+vocabulary-coincidence gate, stated per cluster, out loud.
+
 Before an UPDATE/CREATE write, read the cluster's member chunks (already in `items`) and state
 the principle they evidence:
 
@@ -130,4 +140,7 @@ The user sees this. Rules:
 | You dispatched cluster-synthesis subagents | Gone — Step 2.5 crystallizes inline from the payload's chunk clusters |
 | You grouped chunks by eye instead of using the payload's `phrase: "chunks"` clusters | The binary's k-means grouping and `nearest_l2` cosine are the ground truth; apply the bands |
 | You skipped Step 2.5 because "the chunks are enough" | Banding every chunk cluster IS the step; skipping it is not an outcome |
+| You skipped Step 2.5 because the vault has no L2 notes yet, or no `nearest_l2` came back | That IS the CREATE band — bootstrap L2s are born here; absent `nearest_l2` never means "not applicable" |
+| You read chunk-only results as Step 2's "nothing surfaces" and skipped 2.5 | "Nothing surfaces" means an EMPTY payload; chunks surfacing without notes is the bootstrap case 2.5 exists for |
+| You banded N clusters and wrote 0 notes on an L2-less vault | Wrong unless you stated a vocabulary-coincidence call per cluster, out loud |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
