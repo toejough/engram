@@ -73,7 +73,13 @@ def build_cfg_template(dst, warm):
     base["projects"] = {}  # drop per-project history; keep auth/onboarding flags
     json.dump(base, open(os.path.join(dst, ".claude.json"), "w"))
 
-    if warm:
+    if warm == "auto":
+        # Auto-chunk arm: ONLY the eval-local /recall chunk-variant (queries engram query-chunks).
+        # No /learn skill — the auto regime's write path is the harness running `engram ingest`.
+        src = os.path.join(CUM, "skills_auto", "recall")
+        if os.path.isdir(src):
+            shutil.copytree(src, os.path.join(dst, "skills", "recall"))
+    elif warm:
         for skill in ("recall", "learn"):
             src = os.path.join(REPO, "skills", skill)
             if os.path.isdir(src):
@@ -87,7 +93,7 @@ def refresh_creds(cfg):
 
 def make_pools(nwarm, ncold):
     os.makedirs(CFGPOOL, exist_ok=True)
-    warm_q, cold_q = queue.Queue(), queue.Queue()
+    warm_q, cold_q, auto_q = queue.Queue(), queue.Queue(), queue.Queue()
     for i in range(nwarm):
         d = f"{CFGPOOL}/warm{i}"
         build_cfg_template(d, warm=True)
@@ -96,7 +102,11 @@ def make_pools(nwarm, ncold):
         d = f"{CFGPOOL}/cold{i}"
         build_cfg_template(d, warm=False)
         cold_q.put(d)
-    return {"warm": warm_q, "cold": cold_q}
+    for i in range(nwarm):
+        d = f"{CFGPOOL}/auto{i}"
+        build_cfg_template(d, warm="auto")
+        auto_q.put(d)
+    return {"warm": warm_q, "cold": cold_q, "auto": auto_q}
 
 
 # ---- operation DAG ----
@@ -167,7 +177,7 @@ def cells_for(model, trial, date, stub, max_rounds, regimes=None):
     return ops
 
 
-REAL_REGIMES = ("cold", "real.lazy", "real.eager")
+REAL_REGIMES = ("cold", "real.lazy", "real.eager", "real.auto")
 
 
 def real_cells_for(model, trial, date, stub, max_rounds, regimes):
@@ -183,22 +193,30 @@ def real_cells_for(model, trial, date, stub, max_rounds, regimes):
     ops = []
     for regime in sel:
         rc = harness.REGIMES[regime]
-        read_cfg = "cold" if rc["read_mode"] == "none" else "warm"
-        prev_vault, prev_dep = "none", []
+        is_auto = rc["write"] == "auto"
+        read_cfg = "cold" if rc["read_mode"] == "none" else ("auto" if is_auto else "warm")
+        prev_vault, prev_chunks, prev_dep = "none", "none", []
         for i, (app, tag) in enumerate(apps):
             terminal = (i == len(apps) - 1)
             ws = f"{WS}/{pfx}-{tag}-{regime}"
             out = f"{RESULTS}/{pfx}-{tag}-{regime}-build.json"
-            # persist forward only for warm regimes on non-terminal apps (cold never accumulates)
-            vault_out = "" if (terminal or regime == "cold") else f"{VAULTS}/v-{pfx}-{tag}-{regime}"
+            # persist forward only for warm regimes on non-terminal apps (cold never accumulates).
+            # auto persists a CHUNK INDEX forward instead of a vault.
+            vault_out = "" if (terminal or regime == "cold" or is_auto) else f"{VAULTS}/v-{pfx}-{tag}-{regime}"
+            chunks_out = f"{VAULTS}/c-{pfx}-{tag}-{regime}" if (is_auto and not terminal) else ""
             cmd = ["build", "--app", app, "--model", model, "--regime", regime, "--trial", str(trial),
                    "--date", date, "--vault-in", prev_vault, "--workdir", ws,
                    "--spec", f"{CUM}/{app}_spec.json", "--out", out, "--max-rounds", str(max_rounds)]
             if vault_out:
                 cmd += ["--vault-out", vault_out]
+            if is_auto:
+                cmd += ["--chunks-in", prev_chunks]
+                if chunks_out:
+                    cmd += ["--chunks-out", chunks_out]
             ops.append(_op("build", f"{pfx}-{tag}-{regime}-build", prev_dep, read_cfg, out, cmd + stub_args))
             prev_dep = [f"{pfx}-{tag}-{regime}-build"]
             prev_vault = vault_out or prev_vault
+            prev_chunks = chunks_out or prev_chunks
     return ops
 
 

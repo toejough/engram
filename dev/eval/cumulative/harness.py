@@ -64,6 +64,11 @@ REGIMES = {
     # write "skill-eager" => invoke /learn and explicitly request eager learn-time L2 (documented mode).
     "real.lazy":  {"write": "skill",       "read_mode": "skill", "read_tiers": []},
     "real.eager": {"write": "skill-eager", "read_mode": "skill", "read_tiers": []},
+    # Auto-chunk experiment (2026-06-11): NO agent /learn at all. After the build session the
+    # HARNESS runs `engram ingest` over the cell's own transcript (binary chunks+embeds, zero
+    # LLM); recall is the /recall chunk-variant skill querying `engram query-chunks`. Memory
+    # persists forward as the chunk index, not a vault.
+    "real.auto":  {"write": "auto",        "read_mode": "skill-chunks", "read_tiers": []},
 }
 
 
@@ -91,7 +96,7 @@ def loadj_str(txt):
     return best
 
 
-def claude(cfg, model, vault, cwd, prompt, resume_sid=None):
+def claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None):
     env = dict(os.environ)
     env["CLAUDE_CONFIG_DIR"] = cfg
     env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "64000"
@@ -105,6 +110,8 @@ def claude(cfg, model, vault, cwd, prompt, resume_sid=None):
         env["ENGRAM_TRANSCRIPT_DIR"] = os.path.join(cfg, "projects", _slug)
     if vault and vault != "none":
         env["ENGRAM_VAULT_PATH"] = vault
+    if chunks:
+        env["ENGRAM_CHUNKS_DIR"] = chunks  # the /recall chunk-variant skill reads this
     args = ["claude", "-p", prompt, "--output-format", "json",
             "--model", MODELS[model], "--permission-mode", "bypassPermissions"]
     if resume_sid:
@@ -168,6 +175,14 @@ def build_prompt(app, interface, read_mode, read_tiers):
             f"building a command-line {app} in Go and its architecture/conventions. Read every note the "
             "skill surfaces and APPLY every convention and decision — including any L2 the skill "
             "crystallizes on demand — as requirements for your build.\n")
+    elif read_mode == "skill-chunks":
+        recall = (
+            "\nBefore writing ANY code, consult your memory by INVOKING YOUR /recall SKILL — actually "
+            "run the skill (it prints its plan, queries the chunk index, and synthesizes impact). Do "
+            "NOT hand-run engram commands yourself in place of the skill. Frame the recall around "
+            f"building a command-line {app} in Go and its architecture/conventions. Read every chunk "
+            "the skill surfaces and APPLY every convention and decision they reveal as requirements "
+            "for your build.\n")
     else:  # tier
         tier_flags = " ".join(f"--tier {t}" for t in read_tiers)
         recall = (
@@ -728,6 +743,32 @@ def _seed_build_vault(workdir, vault_in):
     return build_vault, vault_in
 
 
+def _seed_build_chunks(workdir, chunks_in):
+    """Per-cell isolated copy of the accumulated chunk index (auto regime's memory). Mirrors
+    _seed_build_vault: the cell reads/writes a throwaway, never the shared snapshot."""
+    import shutil
+    build_chunks = workdir + ".buildchunks"
+    shutil.rmtree(build_chunks, ignore_errors=True)
+    if chunks_in and chunks_in != "none" and os.path.isdir(chunks_in):
+        shutil.copytree(chunks_in, build_chunks)
+    else:
+        os.makedirs(build_chunks, exist_ok=True)
+    return build_chunks
+
+
+def _count_chunks(chunks_dir):
+    """Total chunk records across the index .jsonl files (the auto arm's notes_by_tier analog)."""
+    total = 0
+    try:
+        for name in os.listdir(chunks_dir):
+            if name.endswith(".jsonl"):
+                with open(os.path.join(chunks_dir, name), errors="replace") as f:
+                    total += sum(1 for line in f if line.strip())
+    except OSError:
+        pass
+    return total
+
+
 def _round_rec(rnd, sc, res, conv, feat):
     return {"round": rnd, "score": sc.get("total"), "feat_buckets": sc.get("feat_buckets"),
             "arch": sc.get("arch"), "convention_fails": len(conv), "feature_fails": len(feat),
@@ -745,6 +786,7 @@ def run_build(args):
     os.makedirs(args.workdir, exist_ok=True)
     t0 = time.time()
     build_vault, vault_in = _seed_build_vault(args.workdir, args.vault_in)
+    build_chunks = _seed_build_chunks(args.workdir, getattr(args, "chunks_in", "none"))
 
     prompt = build_prompt(args.app, json.load(open(args.spec))["interface"],
                           regime["read_mode"], regime["read_tiers"])
@@ -752,7 +794,8 @@ def run_build(args):
     def do_build(msg, resume_sid=None):
         if args.stub:
             return _stub_build(args)
-        res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid)
+        res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid,
+                     chunks=build_chunks if regime["read_mode"] == "skill-chunks" else None)
         # Transient rate-limit/overload retry on BOTH the initial build and resumes (a $0-ish,
         # 1-turn error is the 429 signature). Sustained quota exhaustion outlasts these backoffs
         # and is handled downstream (a never-built round writes no success result; a rate-limited
@@ -762,7 +805,8 @@ def run_build(args):
                 break
             refresh_creds_path(args.cfg)
             time.sleep(backoff)
-            res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid)
+            res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid,
+                         chunks=build_chunks if regime["read_mode"] == "skill-chunks" else None)
         return res
 
     res = do_build(prompt)
@@ -828,7 +872,7 @@ def run_build(args):
     # bare `engram query`. A warm cell where /recall did not fire never had the memory condition —
     # discard it (exit without a result so a resume re-runs it), BEFORE spending a learn on it.
     rf = 0 if (regime["read_mode"] == "none" or args.stub) else recall_fired(args.cfg, sid)
-    if regime["read_mode"] == "skill" and not args.stub and rf == 0:
+    if regime["read_mode"] in ("skill", "skill-chunks") and not args.stub and rf == 0:
         print(f"recall SKILL did not fire ({args.app} {args.regime}) — invalid warm cell; "
               f"no result written so resume re-runs it.", file=sys.stderr)
         sys.exit(1)
@@ -848,6 +892,24 @@ def run_build(args):
                             "PATH": ENGRAM_BIN_DIR + ":" + os.environ.get("PATH", "")},
                        capture_output=True, text=True)
         learn_meta["notes_by_tier"] = count_notes_by_tier(build_vault)
+    elif not args.stub and regime["write"] == "auto" and sc.get("build") == "ok" and completed:
+        # Auto-chunk write path: ZERO-LLM. The harness ingests the cell's own session transcript
+        # into the chunk staging dir; the next app in the chain recalls from it. The agent never
+        # runs /learn — that absence IS the experimental condition.
+        learn_meta["ran"] = True
+        learn_meta["cost"] = 0.0
+        _slug = os.path.realpath(args.workdir).replace("/", "-")
+        _tpath = os.path.join(args.cfg, "projects", _slug, f"{sid}.jsonl")
+        ir = subprocess.run(["engram", "ingest", "--transcript", _tpath, "--chunks-dir", build_chunks],
+                            env={**os.environ, "PATH": ENGRAM_BIN_DIR + ":" + os.environ.get("PATH", "")},
+                            capture_output=True, text=True)
+        learn_meta["ingest_ok"] = ir.returncode == 0
+        learn_meta["ingest_out"] = (ir.stdout or ir.stderr or "").strip()[-300:]
+        learn_meta["chunks_total"] = _count_chunks(build_chunks)
+        if ir.returncode != 0:
+            print(f"engram ingest FAILED ({args.app} {args.regime}): {ir.stderr.strip()[:400]} — "
+                  f"no result written so resume re-runs it.", file=sys.stderr)
+            sys.exit(1)
 
     # Escalation depth — how granular the human feedback had to get before convergence (§5 signal).
     # stated_counts[label] = #rounds an item was fed back; feedback escalates to the literal
@@ -888,7 +950,8 @@ def run_build(args):
         "app": args.app, "model": args.model, "model_id": MODELS[args.model],
         "regime": args.regime, "trial": args.trial, "date": args.date,
         "read_mode": regime["read_mode"], "read_tiers": regime["read_tiers"],
-        "vault_in": args.vault_in, "stub": args.stub or None,
+        "vault_in": args.vault_in, "chunks_in": getattr(args, "chunks_in", "none"),
+        "stub": args.stub or None,
         "converged": converged(sc), "rounds_to_converge": rnd if converged(sc) else None,
         "max_rounds": args.max_rounds,
         "round1_score": rounds[0]["score"], "round1_arch_detectors": round1_arch,
@@ -920,6 +983,16 @@ def run_build(args):
         import shutil as _shutil
         _shutil.rmtree(args.vault_out, ignore_errors=True)
         _shutil.copytree(build_vault, args.vault_out)
+
+    # Auto-chunk persist-forward: the chunk index (seeded chunks_in + this cell's ingested
+    # transcript) is the accumulated memory the next app recalls.
+    if regime["write"] == "auto" and getattr(args, "chunks_out", ""):
+        import shutil as _shutil
+        _shutil.rmtree(args.chunks_out, ignore_errors=True)
+        if os.path.isdir(build_chunks):
+            _shutil.copytree(build_chunks, args.chunks_out)
+        else:
+            os.makedirs(args.chunks_out, exist_ok=True)
 
     json.dump(out, open(args.out, "w"), indent=2)
     print(json.dumps({k: out[k] for k in ["app", "model", "regime", "converged",
@@ -1090,6 +1163,8 @@ def main():
     # real.* regimes learn in-session; --vault-out is where the build agent's accumulated vault
     # (seeded vault_in + recall-crystallized L2 + /learn episodes) is promoted for the next app.
     b.add_argument("--vault-out", default="")
+    b.add_argument("--chunks-in", default="none")
+    b.add_argument("--chunks-out", default="")
     b.add_argument("--trial", type=int, default=1)
     b.add_argument("--date", default="")
     b.add_argument("--max-rounds", type=int, default=15)  # high safety cap; escalation drives completion
