@@ -58,3 +58,9 @@ node_modules/
 /dev/eval/cumulative/links.json
 /dev/eval/cumulative/feeds.json
 /dev/eval/cumulative/subscriptions.json
+/dev/eval/cumulative/.notes.json
+/dev/eval/cumulative/.links.json
+/dev/eval/cumulative/.feeds.json
+/dev/eval/cumulative/.notes/
+/dev/eval/cumulative/.links/
+/dev/eval/cumulative/notes.db
