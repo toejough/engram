@@ -51,18 +51,25 @@ decision, or correction** (e.g. a reviewer flagging the same standard across pro
 such group:
 
 - **If a surfaced vault note already states the principle** → do nothing (it's crystallized).
-- **Otherwise** → write ONE vault note stating the general principle:
+- **Otherwise** → write ONE vault note stating the general principle. Facts are structured
+  subject/predicate/object; feedback is behavior/impact/action. There is NO positional body
+  argument — everything goes through flags:
 
 ```bash
+# A durable convention/standard (most lessons):
 engram learn fact --slug <kebab-slug> --position top \
-  --source "synthesized from chunks at recall, <date>" \
+  --source "synthesized from chunks at recall, <YYYY-MM-DD>" \
   --situation "<retrieval-shaped phrase: when does this apply>" \
-  "<the principle, 2-4 sentences, stated generally enough to transfer to the next project>"
-```
+  --subject "<the thing the principle is about>" \
+  --predicate "<requires / must use / is structured as>" \
+  --object "<the standard, stated generally enough to transfer>"
 
-Use `engram learn feedback` instead when the principle is a correction about how to work (a
-reviewer correcting an approach) rather than a fact about the domain. Run `engram learn fact --help`
-if flags are unclear.
+# A correction about how to work (reviewer corrected an approach):
+engram learn feedback --slug <kebab-slug> --position top \
+  --source "synthesized from chunks at recall, <YYYY-MM-DD>" \
+  --situation "<when this applies>" \
+  --behavior "<what was done>" --impact "<why it was wrong>" --action "<what to do instead>"
+```
 
 Rules: state the GENERAL principle, not the app-specific instance. One note per principle. A
 vocabulary coincidence is not a lesson — if no group binds a principle, write nothing. Cap at ~5
