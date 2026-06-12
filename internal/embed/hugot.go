@@ -108,21 +108,36 @@ func (h *HugotEmbedder) Dims() int { return h.dims }
 
 // Embed runs the pipeline on text (truncated to fit the model's context
 // window) and returns the resulting vector.
+//
+// The char guard assumes prose density; code-dense text can still exceed the
+// model's 512-token positional limit within the char limit (observed: 1500
+// chars of transcript tokenizing to 538 tokens, panicking graph compilation).
+// On failure the input is halved and retried until it succeeds or bottoms out,
+// so a single dense chunk degrades to a shorter prefix instead of failing the
+// whole ingest.
 func (h *HugotEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
 	if len(text) > hugotInputCharLimit {
 		text = text[:hugotInputCharLimit]
 	}
 
-	out, err := h.pipeline.RunPipeline(ctx, []string{text})
-	if err != nil {
-		return nil, err
-	}
+	for {
+		out, err := h.pipeline.RunPipeline(ctx, []string{text})
+		if err != nil {
+			if len(text) >= hugotRetryFloorChars {
+				text = text[:len(text)/2]
 
-	if len(out.Embeddings) == 0 {
-		return nil, ErrHugotEmbedEmpty
-	}
+				continue
+			}
 
-	return out.Embeddings[0], nil
+			return nil, err
+		}
+
+		if len(out.Embeddings) == 0 {
+			return nil, ErrHugotEmbedEmpty
+		}
+
+		return out.Embeddings[0], nil
+	}
 }
 
 // ModelID reports the configured model identifier.
@@ -205,6 +220,9 @@ func (l *LazyEmbedder) init() {
 // unexported constants.
 const (
 	hugotInputCharLimit = 1500
+	// hugotRetryFloorChars stops the over-length halving retry: below this
+	// the failure is not a token-budget problem and must surface.
+	hugotRetryFloorChars = 100
 )
 
 //go:embed assets/model/*
