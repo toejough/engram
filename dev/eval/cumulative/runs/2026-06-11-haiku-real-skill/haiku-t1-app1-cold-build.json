@@ -1,0 +1,159 @@
+{
+  "schema_version": 2,
+  "engram_sha": "3206bcb2305f",
+  "kind": "build",
+  "app": "notes",
+  "model": "haiku",
+  "model_id": "claude-haiku-4-5-20251001",
+  "regime": "cold",
+  "trial": 1,
+  "date": "2026-06-11",
+  "read_mode": "none",
+  "read_tiers": [],
+  "vault_in": "none",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 4,
+  "max_rounds": 15,
+  "round1_score": "4/14",
+  "round1_arch_detectors": {
+    "di": false,
+    "sentinel": false,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": false,
+    "named_perms": false,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 7,
+  "round1_feature_fails": 3,
+  "final_score": "14/14",
+  "final_buckets": {
+    "native": "2/2",
+    "alpha": "2/2"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [
+    "di",
+    "sentinel",
+    "atomic",
+    "tests_fake_parallel",
+    "nocolor",
+    "wrapped_errors",
+    "named_perms"
+  ],
+  "convention_statements": 7,
+  "feature_statements": 3,
+  "recall_fired": 0,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 4,
+  "escalation": {
+    "by_label": {
+      "ARCH:di": 1,
+      "ARCH:sentinel": 2,
+      "ARCH:atomic": 2,
+      "ARCH:tests_fake_parallel": 1,
+      "ARCH:nocolor": 1,
+      "ARCH:wrapped_errors": 1,
+      "ARCH:named_perms": 1,
+      "native:edit": 3,
+      "alpha:tag_ci": 1,
+      "alpha:search_allfields": 1
+    },
+    "max_depth": 3,
+    "max_convention_depth": 2,
+    "items_escalated": 3,
+    "conventions_escalated": 2,
+    "features_escalated": 1
+  },
+  "build_cost": 0.7254,
+  "build_turns": 64,
+  "tokens": {
+    "input": 520,
+    "output": 49453,
+    "cache_write": 66825,
+    "cache_read": 3432529
+  },
+  "recomputed_cost": 0.6746,
+  "cost_ratio": 0.93,
+  "wall_min": 7.3,
+  "l2_generated": 0,
+  "l2_composed": 0,
+  "vault_notes_total": 0,
+  "learn": {
+    "ran": false,
+    "cost": 0.0,
+    "turns": 0,
+    "fired": null,
+    "notes_by_tier": {}
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "score": "4/14",
+      "feat_buckets": {
+        "native": "1/2",
+        "alpha": "0/2"
+      },
+      "arch": "3/10",
+      "convention_fails": 7,
+      "feature_fails": 3,
+      "cost": 0.13265149999999998,
+      "turns": 17,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "11/14",
+      "feat_buckets": {
+        "native": "1/2",
+        "alpha": "2/2"
+      },
+      "arch": "8/10",
+      "convention_fails": 2,
+      "feature_fails": 1,
+      "cost": 0.24037160000000002,
+      "turns": 19,
+      "is_error": false
+    },
+    {
+      "round": 3,
+      "score": "13/14",
+      "feat_buckets": {
+        "native": "1/2",
+        "alpha": "2/2"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 1,
+      "cost": 0.17765970000000003,
+      "turns": 18,
+      "is_error": false
+    },
+    {
+      "round": 4,
+      "score": "14/14",
+      "feat_buckets": {
+        "native": "2/2",
+        "alpha": "2/2"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 0,
+      "cost": 0.17473809999999995,
+      "turns": 10,
+      "is_error": false
+    }
+  ],
+  "session_id": "a9249144-fa44-4025-938d-f7621bc87dd3",
+  "workdir": "/tmp/cummatrix-real/ws/haiku-t1-app1-cold"
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "engram_sha": "3206bcb2305f",
+  "date": "2026-06-11",
+  "models": [
+    "haiku"
+  ],
+  "model_ids": {
+    "haiku": "claude-haiku-4-5-20251001"
+  },
+  "trials": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "regimes": [
+    "cold",
+    "real.lazy",
+    "real.eager"
+  ],
+  "stub": null,
+  "price_sheet_date": "2026-06-02"
+}

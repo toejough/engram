@@ -1,0 +1,322 @@
+{
+  "schema_version": 2,
+  "engram_sha": "3206bcb2305f",
+  "kind": "build",
+  "app": "links",
+  "model": "haiku",
+  "model_id": "claude-haiku-4-5-20251001",
+  "regime": "real.eager",
+  "trial": 4,
+  "date": "2026-06-11",
+  "read_mode": "skill",
+  "read_tiers": [],
+  "vault_in": "/tmp/cummatrix-real/vaults/v-haiku-t4-app1-real.eager",
+  "stub": null,
+  "converged": false,
+  "rounds_to_converge": null,
+  "max_rounds": 15,
+  "round1_score": "9/17",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": false,
+    "atomic": true,
+    "stdlib": true,
+    "tests_fake_parallel": false,
+    "json": true,
+    "nocolor": true,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 2,
+  "round1_feature_fails": 6,
+  "final_score": "11/17",
+  "final_buckets": {
+    "native": "0/1",
+    "alpha": "0/2",
+    "beta": "1/4"
+  },
+  "final_arch": "10/10",
+  "arch_pass": 10,
+  "stated_conventions": [
+    "sentinel",
+    "tests_fake_parallel"
+  ],
+  "convention_statements": 2,
+  "feature_statements": 6,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": false,
+  "did_not_complete": true,
+  "hit_max_rounds": true,
+  "total_rounds": 15,
+  "escalation": {
+    "by_label": {
+      "ARCH:sentinel": 2,
+      "ARCH:tests_fake_parallel": 1,
+      "native:add_list": 14,
+      "alpha:tag_ci": 14,
+      "alpha:search_allfields": 14,
+      "beta:canonical_dedup": 14,
+      "beta:import_merge": 14,
+      "beta:get_by_key": 14
+    },
+    "max_depth": 14,
+    "max_convention_depth": 2,
+    "items_escalated": 7,
+    "conventions_escalated": 1,
+    "features_escalated": 6
+  },
+  "build_cost": 1.8337,
+  "build_turns": 128,
+  "tokens": {
+    "input": 1048,
+    "output": 71189,
+    "cache_write": 152079,
+    "cache_read": 11717064
+  },
+  "recomputed_cost": 1.7188,
+  "cost_ratio": 0.937,
+  "wall_min": 14.1,
+  "l2_generated": 0,
+  "l2_composed": 0,
+  "vault_notes_total": 0,
+  "learn": {
+    "ran": false,
+    "cost": 0.0,
+    "turns": 0,
+    "fired": null,
+    "notes_by_tier": {}
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "score": "9/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "8/10",
+      "convention_fails": 2,
+      "feature_fails": 6,
+      "cost": 0.24473810000000004,
+      "turns": 30,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "10/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 6,
+      "cost": 0.3062614,
+      "turns": 20,
+      "is_error": false
+    },
+    {
+      "round": 3,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.43012809999999996,
+      "turns": 36,
+      "is_error": false
+    },
+    {
+      "round": 4,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.048241799999999994,
+      "turns": 3,
+      "is_error": false
+    },
+    {
+      "round": 5,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.0874593,
+      "turns": 5,
+      "is_error": false
+    },
+    {
+      "round": 6,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.1135219,
+      "turns": 6,
+      "is_error": false
+    },
+    {
+      "round": 7,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.08310000000000001,
+      "turns": 4,
+      "is_error": false
+    },
+    {
+      "round": 8,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.1048088,
+      "turns": 6,
+      "is_error": false
+    },
+    {
+      "round": 9,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.0542404,
+      "turns": 3,
+      "is_error": false
+    },
+    {
+      "round": 10,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.0648704,
+      "turns": 3,
+      "is_error": false
+    },
+    {
+      "round": 11,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.0679669,
+      "turns": 3,
+      "is_error": false
+    },
+    {
+      "round": 12,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.06381200000000001,
+      "turns": 3,
+      "is_error": false
+    },
+    {
+      "round": 13,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.055032,
+      "turns": 2,
+      "is_error": false
+    },
+    {
+      "round": 14,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.047203300000000004,
+      "turns": 2,
+      "is_error": false
+    },
+    {
+      "round": 15,
+      "score": "11/17",
+      "feat_buckets": {
+        "native": "0/1",
+        "alpha": "0/2",
+        "beta": "1/4"
+      },
+      "arch": "10/10",
+      "convention_fails": 0,
+      "feature_fails": 6,
+      "cost": 0.062333,
+      "turns": 2,
+      "is_error": false
+    }
+  ],
+  "session_id": "bd558d12-0eff-496e-9e64-3d962f7cbfff",
+  "workdir": "/tmp/cummatrix-real/ws/haiku-t4-app2-real.eager"
+}

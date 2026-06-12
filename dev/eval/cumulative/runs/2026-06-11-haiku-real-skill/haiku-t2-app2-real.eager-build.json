@@ -1,0 +1,128 @@
+{
+  "schema_version": 2,
+  "engram_sha": "3206bcb2305f",
+  "kind": "build",
+  "app": "links",
+  "model": "haiku",
+  "model_id": "claude-haiku-4-5-20251001",
+  "regime": "real.eager",
+  "trial": 2,
+  "date": "2026-06-11",
+  "read_mode": "skill",
+  "read_tiers": [],
+  "vault_in": "/tmp/cummatrix-real/vaults/v-haiku-t2-app1-real.eager",
+  "stub": null,
+  "converged": true,
+  "rounds_to_converge": 2,
+  "max_rounds": 15,
+  "round1_score": "13/17",
+  "round1_arch_detectors": {
+    "di": true,
+    "sentinel": true,
+    "atomic": false,
+    "stdlib": true,
+    "tests_fake_parallel": true,
+    "json": true,
+    "nocolor": false,
+    "wrapped_errors": true,
+    "named_perms": true,
+    "no_global_data": true
+  },
+  "round1_convention_fails": 2,
+  "round1_feature_fails": 2,
+  "final_score": "16/17",
+  "final_buckets": {
+    "native": "1/1",
+    "alpha": "2/2",
+    "beta": "4/4"
+  },
+  "final_arch": "9/10",
+  "arch_pass": 9,
+  "stated_conventions": [
+    "atomic",
+    "nocolor"
+  ],
+  "convention_statements": 2,
+  "feature_statements": 2,
+  "recall_fired": 1,
+  "recall_ok": true,
+  "link_followed": false,
+  "rate_limited": false,
+  "completed": true,
+  "did_not_complete": false,
+  "hit_max_rounds": false,
+  "total_rounds": 2,
+  "escalation": {
+    "by_label": {
+      "ARCH:atomic": 1,
+      "ARCH:nocolor": 1,
+      "beta:url_validation": 1,
+      "beta:canonical_dedup": 1
+    },
+    "max_depth": 1,
+    "max_convention_depth": 1,
+    "items_escalated": 0,
+    "conventions_escalated": 0,
+    "features_escalated": 0
+  },
+  "build_cost": 0.6963,
+  "build_turns": 58,
+  "tokens": {
+    "input": 554,
+    "output": 41020,
+    "cache_write": 87147,
+    "cache_read": 4915391
+  },
+  "recomputed_cost": 0.8061,
+  "cost_ratio": 1.158,
+  "wall_min": 7.5,
+  "l2_generated": 7,
+  "l2_composed": 0,
+  "vault_notes_total": 18,
+  "learn": {
+    "ran": true,
+    "cost": 0.176,
+    "turns": 12,
+    "fired": true,
+    "notes_by_tier": {
+      "L1": 4,
+      "L2": 14,
+      "L3": 0,
+      "other": 0
+    }
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "score": "13/17",
+      "feat_buckets": {
+        "native": "1/1",
+        "alpha": "2/2",
+        "beta": "2/4"
+      },
+      "arch": "8/10",
+      "convention_fails": 2,
+      "feature_fails": 2,
+      "cost": 0.4239729,
+      "turns": 34,
+      "is_error": false
+    },
+    {
+      "round": 2,
+      "score": "16/17",
+      "feat_buckets": {
+        "native": "1/1",
+        "alpha": "2/2",
+        "beta": "4/4"
+      },
+      "arch": "9/10",
+      "convention_fails": 1,
+      "feature_fails": 0,
+      "cost": 0.27233090000000004,
+      "turns": 24,
+      "is_error": false
+    }
+  ],
+  "session_id": "0536cf34-472d-4078-8264-c547ef7bdbbf",
+  "workdir": "/tmp/cummatrix-real/ws/haiku-t2-app2-real.eager"
+}
