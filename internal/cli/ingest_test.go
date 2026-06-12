@@ -19,7 +19,7 @@ func TestIngestIsIdempotentByHash(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	stripped := "USER: same content as before, long enough to clear the noise floor easily"
-	fs := &memFS{files: map[string][]byte{}}
+	fs := &memFS{files: map[string][]byte{"/sessions/s1.jsonl": []byte("{raw jsonl}")}}
 	deps := cli.IngestDeps{
 		ReadFile:       fs.read,
 		WriteFile:      fs.write,
@@ -82,7 +82,7 @@ func TestIngestTranscriptWritesChunkIndex(t *testing.T) {
 		"USER: please add the linter config and wire it into the build system",
 		"ASSISTANT: added golangci config and wired into targ check, all green",
 	}, "\n")
-	fs := &memFS{files: map[string][]byte{}}
+	fs := &memFS{files: map[string][]byte{"/sessions/abc.jsonl": []byte("{raw jsonl}")}}
 	deps := cli.IngestDeps{
 		ReadFile:       fs.read,
 		WriteFile:      fs.write,

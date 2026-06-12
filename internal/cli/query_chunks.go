@@ -138,7 +138,7 @@ func listJSONLIndexes(dir string) ([]string, error) {
 	var paths []string
 
 	for _, entry := range entries {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".jsonl" {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == jsonlExt {
 			paths = append(paths, filepath.Join(dir, entry.Name()))
 		}
 	}

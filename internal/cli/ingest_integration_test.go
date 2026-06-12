@@ -138,7 +138,7 @@ func TestIngestTranscriptReadErrorPropagates(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	deps := cli.IngestDeps{
-		ReadFile:  (&memFS{files: map[string][]byte{}}).read,
+		ReadFile:  (&memFS{files: map[string][]byte{"/sessions/x.jsonl": []byte("{raw}")}}).read,
 		WriteFile: func(string, []byte) error { return nil },
 		ReadTranscript: func(string, time.Time, int) (transcript.ReadResult, error) {
 			return transcript.ReadResult{}, errBoom
@@ -168,8 +168,15 @@ func TestOsIngestThenChunkQuery(t *testing.T) {
 	chunksDir := filepath.Join(dir, "chunks")
 	ingestDeps := cli.ExportNewOsIngestDeps(fakeIngestEmbedder{})
 
+	// Sweep mode drives the production Stat + ListSources wiring too.
 	err := cli.RunIngest(context.Background(), cli.IngestArgs{
-		Markdowns: []string{mdPath}, ChunksDir: chunksDir,
+		Sweep: []string{dir}, ChunksDir: chunksDir,
+	}, ingestDeps, io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	// Second sweep: unchanged file short-circuits on the manifest stat check.
+	err = cli.RunIngest(context.Background(), cli.IngestArgs{
+		Sweep: []string{dir}, ChunksDir: chunksDir,
 	}, ingestDeps, io.Discard)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 

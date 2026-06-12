@@ -116,53 +116,6 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 	return renderQueryPayload(stdout, merged)
 }
 
-// mergeChunkSpace scores every indexed chunk against the query phrases and
-// merges the results into the resolved items, re-ranking by score and
-// re-capping at limit. No-op when no chunks dir is configured.
-func mergeChunkSpace(
-	ctx context.Context,
-	args QueryArgs,
-	deps QueryDeps,
-	merged *aggregatedSummary,
-	limit int,
-) error {
-	if args.ChunksDir == "" || deps.ListChunkIndexes == nil {
-		return nil
-	}
-
-	records, err := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
-		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
-	})
-	if err != nil {
-		return err
-	}
-
-	scored, err := scoreChunks(ctx, args.Phrases, records, deps.Embedder)
-	if err != nil {
-		return err
-	}
-
-	for _, s := range scored {
-		merged.resolvedItems = append(merged.resolvedItems, resolvedItem{
-			notePath:    s.record.Source + "#" + s.record.Anchor,
-			content:     s.record.Text,
-			score:       s.score,
-			provenances: []string{provenanceDirect},
-			kind:        chunkItemKind,
-		})
-	}
-
-	sort.SliceStable(merged.resolvedItems, func(i, j int) bool {
-		return merged.resolvedItems[i].score > merged.resolvedItems[j].score
-	})
-
-	if len(merged.resolvedItems) > limit {
-		merged.resolvedItems = merged.resolvedItems[:limit]
-	}
-
-	return nil
-}
-
 // unexported constants.
 const (
 	// chunkItemKind tags unified-ranking items sourced from the chunk index
@@ -1202,6 +1155,53 @@ func memberMatchesTier(member subgraphMember, tiers []string) bool {
 	}
 
 	return itemMatchesTier(resolvedItem{content: member.content}, tiers)
+}
+
+// mergeChunkSpace scores every indexed chunk against the query phrases and
+// merges the results into the resolved items, re-ranking by score and
+// re-capping at limit. No-op when no chunks dir is configured.
+func mergeChunkSpace(
+	ctx context.Context,
+	args QueryArgs,
+	deps QueryDeps,
+	merged *aggregatedSummary,
+	limit int,
+) error {
+	if args.ChunksDir == "" || deps.ListChunkIndexes == nil {
+		return nil
+	}
+
+	records, err := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
+		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
+	})
+	if err != nil {
+		return err
+	}
+
+	scored, err := scoreChunks(ctx, args.Phrases, records, deps.Embedder)
+	if err != nil {
+		return err
+	}
+
+	for _, s := range scored {
+		merged.resolvedItems = append(merged.resolvedItems, resolvedItem{
+			notePath:    s.record.Source + "#" + s.record.Anchor,
+			content:     s.record.Text,
+			score:       s.score,
+			provenances: []string{provenanceDirect},
+			kind:        chunkItemKind,
+		})
+	}
+
+	sort.SliceStable(merged.resolvedItems, func(i, j int) bool {
+		return merged.resolvedItems[i].score > merged.resolvedItems[j].score
+	})
+
+	if len(merged.resolvedItems) > limit {
+		merged.resolvedItems = merged.resolvedItems[:limit]
+	}
+
+	return nil
 }
 
 // mergeClusterReps annotates representatives with provenance + cluster_id,

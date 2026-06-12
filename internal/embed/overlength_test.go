@@ -11,37 +11,6 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// lengthCappedHandle fails RunPipeline whenever the input exceeds capChars,
-// mimicking MiniLM's 512-token positional limit blowing up on code-dense text
-// that fits the char guard but not the token budget.
-type lengthCappedHandle struct {
-	capChars int
-	calls    int
-}
-
-func (h *lengthCappedHandle) Destroy() error { return nil }
-
-func (h *lengthCappedHandle) RunPipeline(
-	_ context.Context, inputs []string,
-) (embed.ExportFeatureOutput, error) {
-	h.calls++
-	if len(inputs) > 0 && len(inputs[0]) > h.capChars {
-		return embed.ExportFeatureOutput{}, errOverLength
-	}
-
-	return embed.ExportFeatureOutput{Embeddings: [][]float32{{1, 2}}}, nil
-}
-
-type cappedBackend struct{ handle *lengthCappedHandle }
-
-func (cappedBackend) Close() error { return nil }
-
-func (b cappedBackend) OpenPipeline(
-	_ context.Context, _ string,
-) (embed.ExportHugotPipelineHandle, error) {
-	return b.handle, nil
-}
-
 func TestEmbedRetriesShorterOnOverLengthFailure(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -87,3 +56,34 @@ func TestEmbedStillFailsOnPersistentError(t *testing.T) {
 var (
 	errOverLength = errors.New("dimension of axis #1 doesn't match and cannot be broadcast")
 )
+
+type cappedBackend struct{ handle *lengthCappedHandle }
+
+func (cappedBackend) Close() error { return nil }
+
+func (b cappedBackend) OpenPipeline(
+	_ context.Context, _ string,
+) (embed.ExportHugotPipelineHandle, error) {
+	return b.handle, nil
+}
+
+// lengthCappedHandle fails RunPipeline whenever the input exceeds capChars,
+// mimicking MiniLM's 512-token positional limit blowing up on code-dense text
+// that fits the char guard but not the token budget.
+type lengthCappedHandle struct {
+	capChars int
+	calls    int
+}
+
+func (h *lengthCappedHandle) Destroy() error { return nil }
+
+func (h *lengthCappedHandle) RunPipeline(
+	_ context.Context, inputs []string,
+) (embed.ExportFeatureOutput, error) {
+	h.calls++
+	if len(inputs) > 0 && len(inputs[0]) > h.capChars {
+		return embed.ExportFeatureOutput{}, errOverLength
+	}
+
+	return embed.ExportFeatureOutput{Embeddings: [][]float32{{1, 2}}}, nil
+}

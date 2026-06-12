@@ -13,6 +13,85 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func TestRunQuery_MergesChunkAndVaultSpace(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.linting.md",
+		"---\ntype: fact\n---\nAlways run the linter before committing changes.\n")
+	plantChunkIndex(t, memFS, "/chunks/s1.jsonl",
+		"USER: please wire the linter into the build\nASSISTANT: wired into targ check")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"linter conventions"}, VaultPath: vault, Limit: 10, ChunksDir: "/chunks"},
+		unifiedQueryDeps(memFS, "/chunks/s1.jsonl"), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed unifiedParsed
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	kinds := map[string]bool{}
+	for _, item := range parsed.Items {
+		kinds[item.Kind] = true
+	}
+
+	g.Expect(kinds["chunk"]).To(BeTrue(), "a chunk item must appear in the unified ranking")
+	g.Expect(kinds["fact"]).To(BeTrue(), "the vault note must appear too")
+}
+
+func TestRunQuery_NoChunksDirKeepsVaultOnlyBehavior(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.linting.md",
+		"---\ntype: fact\n---\nAlways run the linter before committing changes.\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"linter conventions"}, VaultPath: vault, Limit: 10},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).NotTo(ContainSubstring("kind: chunk"))
+}
+
+func TestRunQuery_UnifiedRankingHonorsLimit(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.linting.md",
+		"---\ntype: fact\n---\nAlways run the linter before committing changes.\n")
+
+	texts := make([]string, 0, 12)
+	for i := range 12 {
+		texts = append(texts, "USER: linter chatter variant "+strings.Repeat(string(rune('a'+i)), 3))
+	}
+
+	plantChunkIndex(t, memFS, "/chunks/s1.jsonl", texts...)
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"linter conventions"}, VaultPath: vault, Limit: 10, ChunksDir: "/chunks"},
+		unifiedQueryDeps(memFS, "/chunks/s1.jsonl"), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed unifiedParsed
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(len(parsed.Items)).To(BeNumerically("<=", 10))
+}
+
 // unifiedParsed is the payload subset the unified-query tests assert on.
 type unifiedParsed struct {
 	Items []struct {
@@ -56,83 +135,4 @@ func unifiedQueryDeps(memFS *inMemoryFS, indexPaths ...string) cli.QueryDeps {
 	deps.ListChunkIndexes = func(string) ([]string, error) { return indexPaths, nil }
 
 	return deps
-}
-
-func TestRunQuery_MergesChunkAndVaultSpace(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.linting.md",
-		"---\ntype: fact\n---\nAlways run the linter before committing changes.\n")
-	plantChunkIndex(t, memFS, "/chunks/s1.jsonl",
-		"USER: please wire the linter into the build\nASSISTANT: wired into targ check")
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"linter conventions"}, VaultPath: vault, Limit: 10, ChunksDir: "/chunks"},
-		unifiedQueryDeps(memFS, "/chunks/s1.jsonl"), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed unifiedParsed
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-
-	kinds := map[string]bool{}
-	for _, item := range parsed.Items {
-		kinds[item.Kind] = true
-	}
-
-	g.Expect(kinds["chunk"]).To(BeTrue(), "a chunk item must appear in the unified ranking")
-	g.Expect(kinds["fact"]).To(BeTrue(), "the vault note must appear too")
-}
-
-func TestRunQuery_UnifiedRankingHonorsLimit(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.linting.md",
-		"---\ntype: fact\n---\nAlways run the linter before committing changes.\n")
-
-	texts := make([]string, 0, 12)
-	for i := range 12 {
-		texts = append(texts, "USER: linter chatter variant "+strings.Repeat(string(rune('a'+i)), 3))
-	}
-
-	plantChunkIndex(t, memFS, "/chunks/s1.jsonl", texts...)
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"linter conventions"}, VaultPath: vault, Limit: 10, ChunksDir: "/chunks"},
-		unifiedQueryDeps(memFS, "/chunks/s1.jsonl"), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed unifiedParsed
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-	g.Expect(len(parsed.Items)).To(BeNumerically("<=", 10))
-}
-
-func TestRunQuery_NoChunksDirKeepsVaultOnlyBehavior(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "Permanent/1.linting.md",
-		"---\ntype: fact\n---\nAlways run the linter before committing changes.\n")
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"linter conventions"}, VaultPath: vault, Limit: 10},
-		newQueryDeps(memFS), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).NotTo(ContainSubstring("kind: chunk"))
 }
