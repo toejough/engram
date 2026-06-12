@@ -165,6 +165,34 @@ func TestSweepSkipsUnchangedWithoutEmbedding(t *testing.T) {
 	g.Expect(emb.calls).To(gomega.Equal(before), "unchanged file must not re-embed")
 }
 
+func TestSweepSkipsVanishedSourceButExplicitErrors(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// /docs/gone.md is listed by the sweep but unreadable (vanished between
+	// walk and read). The sweep must skip it and still ingest the live file
+	// AND write the manifest. An explicitly-named missing source still errors.
+	fs := newSweepFS()
+	fs.put("/docs/conv.md", sweepDoc, 100)
+
+	emb := &countingEmbedder{}
+	deps := sweepDeps(fs, emb, "/docs/conv.md", "/docs/gone.md")
+	args := cli.IngestArgs{Sweep: []string{"/docs"}, ChunksDir: "/chunks"}
+
+	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
+
+	_, manifestWritten := fs.files["/chunks/manifest.json"]
+	g.Expect(manifestWritten).To(gomega.BeTrue(), "manifest lands despite the vanished source")
+
+	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conv.md")])
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(records).NotTo(gomega.BeEmpty(), "live file still ingested")
+
+	explicit := cli.IngestArgs{Markdowns: []string{"/docs/gone.md"}, ChunksDir: "/chunks"}
+	g.Expect(cli.RunIngest(context.Background(), explicit, deps, io.Discard)).NotTo(gomega.Succeed(),
+		"explicitly-named missing sources still error loudly")
+}
+
 // unexported constants.
 const (
 	sweepDoc = "## Section A\nAlways name constants instead of magic numbers in this codebase.\n\n" +

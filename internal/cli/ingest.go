@@ -68,8 +68,18 @@ func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.
 	changed := false
 
 	for _, source := range sources {
-		didChange, err := ingestSource(ctx, source, args.ChunksDir, deps, manifest, stdout)
+		didChange, err := ingestSource(ctx, source.path, args.ChunksDir, deps, manifest, stdout)
 		if err != nil {
+			// A swept source vanishing between walk and read is normal life
+			// (cleanup races, deleted sessions) — skip it and keep going so
+			// one ghost file can't abort the run or lose the manifest.
+			// Explicitly-named sources still error loudly.
+			if !source.explicit && errorsIsReadFailure(err) {
+				_, _ = fmt.Fprintf(stdout, "skip %s: %v\n", source.path, err)
+
+				continue
+			}
+
 			return err
 		}
 
@@ -104,6 +114,13 @@ type manifestEntry struct {
 	FileHash string `json:"file_hash"` //nolint:tagliatelle // manifest schema uses snake_case like .vec.json
 }
 
+// sourceRef tags a source path with how it was selected: explicit flags must
+// fail loudly when unreadable; swept files may vanish benignly.
+type sourceRef struct {
+	path     string
+	explicit bool
+}
+
 // chunkSource dispatches by extension: transcripts strip+turn-chunk, markdown
 // heading-chunks. Same mechanism either way; only the chunker differs.
 func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, error) {
@@ -135,12 +152,25 @@ func defaultSessionDir(_ string) string {
 	return filepath.Join(home, ".claude", "projects")
 }
 
+// errorsIsReadFailure reports whether ingesting failed at the source-read
+// stage (the only stage where a vanished swept file is expected and safe to
+// skip — embed/write failures must still surface).
+func errorsIsReadFailure(err error) bool {
+	return strings.Contains(err.Error(), "ingest: reading ") ||
+		strings.Contains(err.Error(), "ingest: stripping transcript ")
+}
+
 // gatherSources merges explicit flags, --auto's declarative roots, and manual
 // sweep roots into one source list.
-func gatherSources(args IngestArgs, deps IngestDeps) ([]string, error) {
-	sources := make([]string, 0, len(args.Transcripts)+len(args.Markdowns))
-	sources = append(sources, args.Transcripts...)
-	sources = append(sources, args.Markdowns...)
+func gatherSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
+	sources := make([]sourceRef, 0, len(args.Transcripts)+len(args.Markdowns))
+	for _, path := range args.Transcripts {
+		sources = append(sources, sourceRef{path: path, explicit: true})
+	}
+
+	for _, path := range args.Markdowns {
+		sources = append(sources, sourceRef{path: path, explicit: true})
+	}
 
 	defaultExcludes := DefaultSweepSpec().ExcludeDirs
 	roots := make([]SweepRoot, 0, len(args.Sweep))
@@ -175,7 +205,7 @@ func gatherSources(args IngestArgs, deps IngestDeps) ([]string, error) {
 
 			ext := filepath.Ext(path)
 			if ext == ".md" || ext == jsonlExt {
-				sources = append(sources, path)
+				sources = append(sources, sourceRef{path: path})
 			}
 		}
 	}
