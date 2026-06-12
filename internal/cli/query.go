@@ -23,6 +23,7 @@ import (
 type QueryArgs struct {
 	Phrases      []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
 	VaultPath    string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
+	ChunksDir    string   `targ:"flag,name=chunks-dir,env=ENGRAM_CHUNKS_DIR,desc=chunk index dir; when set chunks compete in the same ranking as notes"` //nolint:lll // single unbreakable struct-tag string
 	Limit        int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project      string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 	Tiers        []string `targ:"flag,name=tier,desc=restrict items to notes matching these tier: values (repeatable)"`
@@ -40,6 +41,9 @@ type QueryDeps struct {
 	Read       func(path string) ([]byte, error)
 	Embedder   embed.Embedder
 	LogWarning func(format string, args ...any)
+	// ListChunkIndexes returns the .jsonl chunk index files under a chunks
+	// dir. Nil (or an empty ChunksDir) disables chunk-space merging.
+	ListChunkIndexes func(dir string) ([]string, error)
 }
 
 // RunQuery embeds each query phrase, scores it against every note that
@@ -102,11 +106,68 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
 	merged.resolvedItems = applyTierFilter(merged.resolvedItems, args.Tiers)
 
+	// Unified ranking: chunk-space hits compete with notes in ONE top-limit
+	// list (one query call covers both raw event memory and the vault).
+	chunkErr := mergeChunkSpace(ctx, args, deps, &merged, limit)
+	if chunkErr != nil {
+		return chunkErr
+	}
+
 	return renderQueryPayload(stdout, merged)
+}
+
+// mergeChunkSpace scores every indexed chunk against the query phrases and
+// merges the results into the resolved items, re-ranking by score and
+// re-capping at limit. No-op when no chunks dir is configured.
+func mergeChunkSpace(
+	ctx context.Context,
+	args QueryArgs,
+	deps QueryDeps,
+	merged *aggregatedSummary,
+	limit int,
+) error {
+	if args.ChunksDir == "" || deps.ListChunkIndexes == nil {
+		return nil
+	}
+
+	records, err := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
+		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
+	})
+	if err != nil {
+		return err
+	}
+
+	scored, err := scoreChunks(ctx, args.Phrases, records, deps.Embedder)
+	if err != nil {
+		return err
+	}
+
+	for _, s := range scored {
+		merged.resolvedItems = append(merged.resolvedItems, resolvedItem{
+			notePath:    s.record.Source + "#" + s.record.Anchor,
+			content:     s.record.Text,
+			score:       s.score,
+			provenances: []string{provenanceDirect},
+			kind:        chunkItemKind,
+		})
+	}
+
+	sort.SliceStable(merged.resolvedItems, func(i, j int) bool {
+		return merged.resolvedItems[i].score > merged.resolvedItems[j].score
+	})
+
+	if len(merged.resolvedItems) > limit {
+		merged.resolvedItems = merged.resolvedItems[:limit]
+	}
+
+	return nil
 }
 
 // unexported constants.
 const (
+	// chunkItemKind tags unified-ranking items sourced from the chunk index
+	// (vs notes, whose kind derives from frontmatter).
+	chunkItemKind            = "chunk"
 	clusterMaxK              = 7
 	clusterMinK              = 2
 	clusterSilhouetteFloor   = 0.10
@@ -303,6 +364,8 @@ type resolvedItem struct {
 	provenances []string
 	clusterID   *int
 	inDegree    *int
+	// kind overrides content-derived kind detection when set (chunk items).
+	kind string
 }
 
 // scoredCandidate aggregates one note's match against the query vector.
@@ -1408,10 +1471,11 @@ func newOsQueryDeps() QueryDeps {
 	embedDeps := newOsEmbedDeps()
 
 	return QueryDeps{
-		Scan:       embedDeps.Scan,
-		Read:       embedDeps.Read,
-		Embedder:   embedDeps.Embedder,
-		LogWarning: logWarningToStderrf,
+		Scan:             embedDeps.Scan,
+		Read:             embedDeps.Read,
+		Embedder:         embedDeps.Embedder,
+		LogWarning:       logWarningToStderrf,
+		ListChunkIndexes: listJSONLIndexes,
 	}
 }
 
@@ -1594,9 +1658,14 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 	items := make([]queryItem, len(resolved))
 
 	for i, item := range resolved {
+		kind := item.kind
+		if kind == "" {
+			kind = kindFromContent(item.content)
+		}
+
 		items[i] = queryItem{
 			Path:          item.notePath,
-			Kind:          kindFromContent(item.content),
+			Kind:          kind,
 			Score:         item.score,
 			Provenances:   item.provenances,
 			ClusterID:     item.clusterID,

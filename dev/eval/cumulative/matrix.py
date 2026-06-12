@@ -73,10 +73,12 @@ def build_cfg_template(dst, warm):
     base["projects"] = {}  # drop per-project history; keep auth/onboarding flags
     json.dump(base, open(os.path.join(dst, ".claude.json"), "w"))
 
-    if warm == "auto":
-        # Auto-chunk arm: ONLY the eval-local /recall chunk-variant (queries engram query-chunks).
-        # No /learn skill — the auto regime's write path is the harness running `engram ingest`.
-        src = os.path.join(CUM, "skills_auto", "recall")
+    if warm in ("auto", "autol2"):
+        # Auto-chunk arms: ONLY an eval-local /recall variant. No /learn skill — the write path
+        # is the harness running `engram ingest`. The autol2 variant runs the UNIFIED query and
+        # crystallizes L2 vault notes at recall via `engram learn`.
+        variant_dir = "skills_auto" if warm == "auto" else "skills_auto_l2"
+        src = os.path.join(CUM, variant_dir, "recall")
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(dst, "skills", "recall"))
     elif warm:
@@ -102,11 +104,15 @@ def make_pools(nwarm, ncold):
         d = f"{CFGPOOL}/cold{i}"
         build_cfg_template(d, warm=False)
         cold_q.put(d)
+    auto_q2 = queue.Queue()
     for i in range(nwarm):
         d = f"{CFGPOOL}/auto{i}"
         build_cfg_template(d, warm="auto")
         auto_q.put(d)
-    return {"warm": warm_q, "cold": cold_q, "auto": auto_q}
+        d2 = f"{CFGPOOL}/autol2-{i}"
+        build_cfg_template(d2, warm="autol2")
+        auto_q2.put(d2)
+    return {"warm": warm_q, "cold": cold_q, "auto": auto_q, "autol2": auto_q2}
 
 
 # ---- operation DAG ----
@@ -177,7 +183,7 @@ def cells_for(model, trial, date, stub, max_rounds, regimes=None):
     return ops
 
 
-REAL_REGIMES = ("cold", "real.lazy", "real.eager", "real.auto")
+REAL_REGIMES = ("cold", "real.lazy", "real.eager", "real.auto", "real.autol2")
 
 
 def real_cells_for(model, trial, date, stub, max_rounds, regimes):
@@ -193,16 +199,19 @@ def real_cells_for(model, trial, date, stub, max_rounds, regimes):
     ops = []
     for regime in sel:
         rc = harness.REGIMES[regime]
-        is_auto = rc["write"] == "auto"
-        read_cfg = "cold" if rc["read_mode"] == "none" else ("auto" if is_auto else "warm")
+        is_auto = rc["write"] in ("auto", "auto-l2")
+        pool = {"auto": "auto", "auto-l2": "autol2"}.get(rc["write"], "warm")
+        read_cfg = "cold" if rc["read_mode"] == "none" else pool
+        # vault chains for vault-writing regimes (skill learns + autol2's recall-time L2s);
+        # chunks chain for the auto arms. autol2 chains BOTH.
+        needs_vault = rc["write"] in ("skill", "skill-eager", "auto-l2")
         prev_vault, prev_chunks, prev_dep = "none", "none", []
         for i, (app, tag) in enumerate(apps):
             terminal = (i == len(apps) - 1)
             ws = f"{WS}/{pfx}-{tag}-{regime}"
             out = f"{RESULTS}/{pfx}-{tag}-{regime}-build.json"
-            # persist forward only for warm regimes on non-terminal apps (cold never accumulates).
-            # auto persists a CHUNK INDEX forward instead of a vault.
-            vault_out = "" if (terminal or regime == "cold" or is_auto) else f"{VAULTS}/v-{pfx}-{tag}-{regime}"
+            # persist forward only on non-terminal apps (cold never accumulates).
+            vault_out = f"{VAULTS}/v-{pfx}-{tag}-{regime}" if (needs_vault and not terminal) else ""
             chunks_out = f"{VAULTS}/c-{pfx}-{tag}-{regime}" if (is_auto and not terminal) else ""
             cmd = ["build", "--app", app, "--model", model, "--regime", regime, "--trial", str(trial),
                    "--date", date, "--vault-in", prev_vault, "--workdir", ws,

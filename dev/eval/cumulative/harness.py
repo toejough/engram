@@ -69,6 +69,12 @@ REGIMES = {
     # LLM); recall is the /recall chunk-variant skill querying `engram query-chunks`. Memory
     # persists forward as the chunk index, not a vault.
     "real.auto":  {"write": "auto",        "read_mode": "skill-chunks", "read_tiers": []},
+    # Chunks + vault-backed L2: same zero-LLM transcript ingest, but recall runs the UNIFIED
+    # `engram query` (chunks + vault in one top-N ranking) and crystallizes lessons as REAL
+    # vault notes via `engram learn fact|feedback` when near-match chunk groups bind a principle.
+    # Both the chunk index AND the vault persist forward. Tests whether recall-time L2 stays
+    # cheap and helps (or harms) vs pure chunks.
+    "real.autol2": {"write": "auto-l2",    "read_mode": "skill-chunks", "read_tiers": []},
 }
 
 
@@ -908,7 +914,7 @@ def run_build(args):
                             "PATH": ENGRAM_BIN_DIR + ":" + os.environ.get("PATH", "")},
                        capture_output=True, text=True)
         learn_meta["notes_by_tier"] = count_notes_by_tier(build_vault)
-    elif not args.stub and regime["write"] == "auto" and sc.get("build") == "ok" and completed:
+    elif not args.stub and regime["write"] in ("auto", "auto-l2") and sc.get("build") == "ok" and completed:
         # Auto-chunk write path: ZERO-LLM. The harness ingests the cell's own session transcript
         # into the chunk staging dir; the next app in the chain recalls from it. The agent never
         # runs /learn — that absence IS the experimental condition.
@@ -929,6 +935,10 @@ def run_build(args):
             print(f"engram ingest FAILED ({args.app} {args.regime}): {ir.stderr.strip()[:400]} — "
                   f"no result written so resume re-runs it.", file=sys.stderr)
             sys.exit(1)
+        if regime["write"] == "auto-l2":
+            # Recall-time L2s were written into build_vault by `engram learn` during the build
+            # session (auto_embed gives sidecars); count them so the L2 volume is a measured output.
+            learn_meta["notes_by_tier"] = count_notes_by_tier(build_vault)
 
     # Escalation depth — how granular the human feedback had to get before convergence (§5 signal).
     # stated_counts[label] = #rounds an item was fed back; feedback escalates to the literal
@@ -998,14 +1008,14 @@ def run_build(args):
     # Promote the accumulated build vault to vault_out for real regimes so the next app recalls it
     # (build vault = seeded vault_in + recall-crystallized L2 + /learn episodes). This IS the
     # persist-forward for the one-session model — no separate learn-stage vault.
-    if regime["write"] in ("skill", "skill-eager") and getattr(args, "vault_out", ""):
+    if regime["write"] in ("skill", "skill-eager", "auto-l2") and getattr(args, "vault_out", ""):
         import shutil as _shutil
         _shutil.rmtree(args.vault_out, ignore_errors=True)
         _shutil.copytree(build_vault, args.vault_out)
 
     # Auto-chunk persist-forward: the chunk index (seeded chunks_in + this cell's ingested
     # transcript) is the accumulated memory the next app recalls.
-    if regime["write"] == "auto" and getattr(args, "chunks_out", ""):
+    if regime["write"] in ("auto", "auto-l2") and getattr(args, "chunks_out", ""):
         import shutil as _shutil
         _shutil.rmtree(args.chunks_out, ignore_errors=True)
         if os.path.isdir(build_chunks):
