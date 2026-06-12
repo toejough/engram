@@ -30,11 +30,11 @@ func TestIngestIsIdempotentByHash(t *testing.T) {
 
 	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
 
-	first := fs.files["/chunks/s1.jsonl"]
+	first := fs.files["/chunks/"+cli.ExportIndexFileName("/sessions/s1.jsonl")]
 
 	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
 
-	second := fs.files["/chunks/s1.jsonl"]
+	second := fs.files["/chunks/"+cli.ExportIndexFileName("/sessions/s1.jsonl")]
 
 	g.Expect(second).To(gomega.Equal(first), "second ingest adds nothing")
 
@@ -63,7 +63,7 @@ func TestIngestMarkdownFile(t *testing.T) {
 
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	records, err := chunk.DecodeRecords(fs.files["/chunks/conventions.jsonl"])
+	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conventions.md")])
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(records).To(gomega.HaveLen(1))
 
@@ -97,7 +97,7 @@ func TestIngestTranscriptWritesChunkIndex(t *testing.T) {
 
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	data, ok := fs.files["/chunks/abc.jsonl"]
+	data, ok := fs.files["/chunks/"+cli.ExportIndexFileName("/sessions/abc.jsonl")]
 	g.Expect(ok).To(gomega.BeTrue(), "index file written")
 
 	records, err := chunk.DecodeRecords(data)

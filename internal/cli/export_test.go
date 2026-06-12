@@ -174,6 +174,10 @@ func ExportEmitTranscripts(
 	return err
 }
 
+// ExportIndexFileName exposes sourceSlug-based index naming so tests can
+// locate a source's chunk index file.
+func ExportIndexFileName(source string) string { return sourceSlug(source) + ".jsonl" }
+
 // ExportNewOsChunkQueryDeps returns production ChunkQueryDeps with an
 // injected embedder, mirroring ExportNewOsIngestDeps.
 func ExportNewOsChunkQueryDeps(emb embed.Embedder) ChunkQueryDeps {

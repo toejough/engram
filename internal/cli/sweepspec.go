@@ -32,7 +32,8 @@ type SweepSpec struct {
 	// AncestorClaudeDirs sweeps every .claude directory on the ancestor chain
 	// from cwd up to the filesystem root (project + user-level config/skills).
 	AncestorClaudeDirs bool `json:"ancestor_claude_dirs"` //nolint:tagliatelle // developer-facing config uses snake_case
-	// SessionLogs sweeps the current project's session transcript directory.
+	// SessionLogs sweeps ALL recorded session transcripts (every project,
+	// every conversation) — memory learns from the full conversation history.
 	SessionLogs bool `json:"session_logs"` //nolint:tagliatelle // developer-facing config uses snake_case
 	// ExtraRoots are swept verbatim, in addition to everything above.
 	ExtraRoots []string `json:"extra_roots"` //nolint:tagliatelle // developer-facing config uses snake_case

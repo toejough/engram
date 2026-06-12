@@ -37,7 +37,7 @@ func TestAutoSweepUsesSpecRootsAndRepoOverride(t *testing.T) {
 		cli.IngestArgs{Auto: true, ChunksDir: "/chunks"}, deps, io.Discard)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	records, err := chunk.DecodeRecords(fs.files["/chunks/README.jsonl"])
+	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/repo/README.md")])
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(records).NotTo(gomega.BeEmpty(), "repo markdown swept")
 
@@ -56,15 +56,15 @@ func TestDefaultSessionDirHonorsTranscriptDirEnv(t *testing.T) {
 	g.Expect(deps.SessionDir("/anywhere")).To(gomega.Equal("/custom/sessions"))
 }
 
-func TestDefaultSessionDirMatchesClaudeSlug(t *testing.T) {
+func TestDefaultSessionDirIsAllProjects(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	deps := cli.ExportNewOsIngestDeps(fakeIngestEmbedder{})
-	dir := deps.SessionDir("/tmp/some.project/ws")
+	dir := deps.SessionDir("/anywhere/at/all")
 
-	g.Expect(dir).To(gomega.HaveSuffix(filepath.Join(".claude", "projects", "-tmp-some-project-ws")),
-		"dots and slashes both sanitize to dashes, matching Claude's project dirs")
+	g.Expect(dir).To(gomega.HaveSuffix(filepath.Join(".claude", "projects")),
+		"ALL recorded sessions, not just the current project's")
 	g.Expect(deps.IsDir(t.TempDir())).To(gomega.BeTrue())
 	g.Expect(deps.IsDir("/definitely/not/a/dir")).To(gomega.BeFalse())
 

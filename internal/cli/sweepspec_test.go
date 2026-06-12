@@ -86,6 +86,11 @@ func TestResolveSweepRootsHonorsSpecToggles(t *testing.T) {
 	})
 
 	g.Expect(roots).To(gomega.HaveLen(1), "only extra_roots when toggles are off")
+
+	if len(roots) != 1 {
+		return
+	}
+
 	g.Expect(roots[0].Path).To(gomega.Equal("/opt/notes"))
 }
 

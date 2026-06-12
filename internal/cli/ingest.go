@@ -119,28 +119,10 @@ func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, err
 	return chunk.Markdown(string(raw), chunkMaxChars), nil
 }
 
-// claudeProjectSlug maps a path to Claude's project-dir name: every
-// non-alphanumeric byte becomes '-'.
-func claudeProjectSlug(path string) string {
-	slug := make([]byte, 0, len(path))
-
-	for _, b := range []byte(path) {
-		isAlnum := (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
-		if isAlnum {
-			slug = append(slug, b)
-		} else {
-			slug = append(slug, '-')
-		}
-	}
-
-	return string(slug)
-}
-
-// defaultSessionDir is the Claude Code transcript directory for a project:
-// ENGRAM_TRANSCRIPT_DIR when set (headless/eval), else
-// ~/.claude/projects/<sanitized-cwd> — the same sanitization Claude applies
-// (every non-alphanumeric character becomes '-').
-func defaultSessionDir(cwd string) string {
+// defaultSessionDir is the root of ALL recorded session transcripts:
+// ENGRAM_TRANSCRIPT_DIR when set (headless/eval cells get only their own
+// sessions), else ~/.claude/projects — every project, every conversation.
+func defaultSessionDir(_ string) string {
 	if dir := os.Getenv("ENGRAM_TRANSCRIPT_DIR"); dir != "" {
 		return dir
 	}
@@ -150,12 +132,7 @@ func defaultSessionDir(cwd string) string {
 		return ""
 	}
 
-	resolved, err := filepath.EvalSymlinks(cwd)
-	if err != nil {
-		resolved = cwd
-	}
-
-	return filepath.Join(home, ".claude", "projects", claudeProjectSlug(resolved))
+	return filepath.Join(home, ".claude", "projects")
 }
 
 // gatherSources merges explicit flags, --auto's declarative roots, and manual
@@ -412,11 +389,16 @@ func resolveAutoSpec(deps IngestDeps) (SweepSpec, SweepEnv, error) {
 	return spec, env, nil
 }
 
-// sourceSlug derives the index filename from the source path basename.
+// sourceSlug derives a unique index filename for a source: the basename for
+// readability plus a short path hash for uniqueness (two README.md files in
+// different directories must not share an index file).
 func sourceSlug(source string) string {
-	base := filepath.Base(source)
+	base := strings.TrimSuffix(filepath.Base(source), filepath.Ext(source))
+	sum := sha256.Sum256([]byte(source))
 
-	return strings.TrimSuffix(base, filepath.Ext(base))
+	const hashLen = 8
+
+	return base + "-" + hex.EncodeToString(sum[:])[:hashLen]
 }
 
 // statOrZero fetches the current stat signature, tolerating a nil Stat dep.

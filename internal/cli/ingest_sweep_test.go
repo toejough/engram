@@ -29,7 +29,7 @@ func TestSweepHandlesTranscriptsViaSameMechanism(t *testing.T) {
 
 	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
 
-	records, err := chunk.DecodeRecords(fs.files["/chunks/s1.jsonl"])
+	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/sessions/s1.jsonl")])
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(records).To(gomega.HaveLen(1))
 
@@ -49,7 +49,7 @@ func TestSweepHandlesTranscriptsViaSameMechanism(t *testing.T) {
 
 	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
 
-	records, err = chunk.DecodeRecords(fs.files["/chunks/s1.jsonl"])
+	records, err = chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/sessions/s1.jsonl")])
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	var joined strings.Builder
@@ -78,7 +78,7 @@ func TestSweepIngestsNewMarkdown(t *testing.T) {
 
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	records, err := chunk.DecodeRecords(fs.files["/chunks/conv.jsonl"])
+	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conv.md")])
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(records).To(gomega.HaveLen(2))
 	g.Expect(emb.calls).To(gomega.Equal(2))
@@ -130,7 +130,7 @@ func TestSweepRebuildRemovesStaleChunksAndReusesEmbeddings(t *testing.T) {
 
 	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
 
-	records, err := chunk.DecodeRecords(fs.files["/chunks/conv.jsonl"])
+	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conv.md")])
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(records).To(gomega.HaveLen(2), "rebuild replaces, never appends")
 
