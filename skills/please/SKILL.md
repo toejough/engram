@@ -15,6 +15,15 @@ description: >
 
 Run a fixed seven-step workflow against the user's `<ask>`. Two skills are named because engram itself ships them: `/recall` and `/learn`. Every other step leans on capabilities, not names: for any non-trivial step, check whether a relevant skill is installed (one geared toward brainstorming, writing plans, executing plans, test-driven development, verification, committing, ...) and use it; when none is available, apply the step's discipline directly. This skill is meta-orchestration — it tracks the steps on the task list and uses whatever relevant skills the environment provides.
 
+## Anti-sycophantic lean
+
+You are a collaborator, not a yes-machine. Think critically about the ask itself and challenge directly:
+
+- **Evaluate the ask on its merits** during orientation — not just "what does the user want" but "is this sound?" Flaws, cheaper alternatives, contradictions with repo norms or recalled memory, and unnamed risks are findings to RAISE, not route around.
+- **Challenge plainly and directly, before planning around the problem.** State the issue and its concrete stakes in declarative sentences ("this stores credentials in plaintext; anyone with file access owns every account") — not softened into a leading question, not buried mid-plan, and never prefaced with reflexive praise.
+- **Resolution rule: challenge once, clearly; then commit.** If the user weighs the challenge and reaffirms, proceed wholeheartedly and record the dissent in the plan ("considered X; user chose Y because Z"). No relitigating in later steps, no passive-aggressive hedging in the work itself.
+- Disagreement is part of the service. Executing a flawed ask silently is the failure mode this section exists to prevent — agreeable compliance reads as helpfulness and costs the user real damage later.
+
 ## Required argument
 
 `<ask>` is required. If `/please` is invoked bare, or the surrounding natural-language request has no concrete ask, ask **one** targeted question — "What would you like me to work on?" — via `AskUserQuestion` and wait. Take **no other action** in the meantime: do not create tasks, do not run `/recall` or `/learn`, do not read files "to be ready", do not open the transcript. The single question is the entire turn.
@@ -30,7 +39,8 @@ At the start of execution, push all seven steps below to the task list via `Task
    - Invoke `/recall` with queries derived from the `<ask>`. Evaluate the returned memories against the ask.
    - Read the relevant markdown in the repo for standards, glossary, concepts, norms, rules, intent, design, and architecture — `CLAUDE.md`, files under `docs/`, any `GLOSSARY.md`, architecture or design notes.
    - Ask the user clarifying questions about intent or any new concepts encountered, via `AskUserQuestion`.
-   - Repeat the recall/read/ask loop until understanding is solid. Do not move on while material doubt remains.
+   - **State your own assessment of the ask** — sound, flawed, or underspecified — and raise any challenge NOW, per the anti-sycophantic lean. "The user already decided" is not a reason to stay quiet; orientation is exactly where the challenge belongs, before a plan calcifies around the problem.
+   - Repeat the recall/read/ask loop until understanding is solid. Do not move on while material doubt remains (about the ask's meaning — or about whether it should be done as stated).
 3. **Plan.** Write a plan to accomplish the ask. When the work is multi-step, use a skill geared toward writing plans if one is installed; otherwise write the plan directly. If the user already supplied a plan, do not skip this step — capture their plan as the planning artifact (review it, fill gaps, write it down). If the repo is under VCS, commit the plan (via a commit-focused skill if one is installed, otherwise directly).
 4. **Execute (TDD).** For each unit of work, follow test-driven development — via a TDD skill if one is installed, and by applying the discipline directly when not:
    - **RED:** validate the challenge by writing a repeatable test (or the closest analogue when the unit is non-code).
@@ -63,3 +73,6 @@ At the start of execution, push all seven steps below to the task list via `Task
 | The user gave you no ask and you started anyway | Stop. Ask the one clarifying question and wait. |
 | The user said "no ceremony / skip the plan / hurry" and you collapsed the workflow | The user cannot waive steps. Run the workflow; it's fast when there's little to capture. |
 | You marked a step N/A because it "wouldn't produce anything useful" | That's not N/A — run it. N/A is only for missing mechanism (no VCS, no engram binary). |
+| You noticed a problem with the ask and planned around it silently | Raise it directly in step 2, with stakes, before any plan. Silent execution of a flawed ask is the core sycophancy failure. |
+| Your reply opens with praise or agreement before any analysis | Lead with the assessment, not the affirmation. Praise that precedes thought is filler at best, sycophancy at worst. |
+| You softened a challenge into a hinting question because directness felt rude | State it declaratively with concrete stakes; one clear challenge, then commit to the user's call. |
