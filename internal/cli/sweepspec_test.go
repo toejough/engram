@@ -50,10 +50,22 @@ func TestResolveSweepRootsCoversRepoAncestorsAndSessions(t *testing.T) {
 		Cwd: "/home/dev/proj/sub", SessionDir: "/sessions/-home-dev-proj-sub", IsDir: fs.isDir,
 	})
 
-	g.Expect(roots).To(gomega.ContainElement("/home/dev/proj"), "repo root (dir holding .git)")
-	g.Expect(roots).To(gomega.ContainElement("/home/dev/proj/.claude"), "project .claude")
-	g.Expect(roots).To(gomega.ContainElement("/home/dev/.claude"), "ancestor .claude")
-	g.Expect(roots).To(gomega.ContainElement("/sessions/-home-dev-proj-sub"), "session log dir")
+	paths := make([]string, 0, len(roots))
+	excludesByPath := map[string][]string{}
+
+	for _, root := range roots {
+		paths = append(paths, root.Path)
+		excludesByPath[root.Path] = root.ExcludeDirs
+	}
+
+	g.Expect(paths).To(gomega.ContainElement("/home/dev/proj"), "repo root (dir holding .git)")
+	g.Expect(paths).To(gomega.ContainElement("/home/dev/proj/.claude"), "project .claude")
+	g.Expect(paths).To(gomega.ContainElement("/home/dev/.claude"), "ancestor .claude")
+	g.Expect(paths).To(gomega.ContainElement("/sessions/-home-dev-proj-sub"), "session log dir")
+	g.Expect(excludesByPath["/home/dev/.claude"]).To(gomega.ContainElements("projects", "plugins", "cache"),
+		".claude roots add harness-state excludes")
+	g.Expect(excludesByPath["/home/dev/proj"]).NotTo(gomega.ContainElement("projects"),
+		"repo sweeps keep only the general excludes")
 }
 
 func TestResolveSweepRootsHonorsSpecToggles(t *testing.T) {
@@ -73,7 +85,8 @@ func TestResolveSweepRootsHonorsSpecToggles(t *testing.T) {
 		Cwd: "/home/dev/proj", SessionDir: "/sessions/x", IsDir: fs.isDir,
 	})
 
-	g.Expect(roots).To(gomega.ConsistOf("/opt/notes"), "only extra_roots when toggles are off")
+	g.Expect(roots).To(gomega.HaveLen(1), "only extra_roots when toggles are off")
+	g.Expect(roots[0].Path).To(gomega.Equal("/opt/notes"))
 }
 
 func TestResolveSweepRootsNoRepoFallsBackToCwd(t *testing.T) {
@@ -86,7 +99,12 @@ func TestResolveSweepRootsNoRepoFallsBackToCwd(t *testing.T) {
 		Cwd: "/tmp/scratch", SessionDir: "", IsDir: fs.isDir,
 	})
 
-	g.Expect(roots).To(gomega.ContainElement("/tmp/scratch"), "no VCS marker: sweep cwd itself")
+	paths := make([]string, 0, len(roots))
+	for _, root := range roots {
+		paths = append(paths, root.Path)
+	}
+
+	g.Expect(paths).To(gomega.ContainElement("/tmp/scratch"), "no VCS marker: sweep cwd itself")
 }
 
 // specFS fakes the directory-existence checks spec resolution makes.

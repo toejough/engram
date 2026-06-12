@@ -165,8 +165,12 @@ func gatherSources(args IngestArgs, deps IngestDeps) ([]string, error) {
 	sources = append(sources, args.Transcripts...)
 	sources = append(sources, args.Markdowns...)
 
-	roots := args.Sweep
-	excludes := DefaultSweepSpec().ExcludeDirs
+	defaultExcludes := DefaultSweepSpec().ExcludeDirs
+	roots := make([]SweepRoot, 0, len(args.Sweep))
+
+	for _, manual := range args.Sweep {
+		roots = append(roots, SweepRoot{Path: manual, ExcludeDirs: defaultExcludes})
+	}
 
 	if args.Auto {
 		spec, env, err := resolveAutoSpec(deps)
@@ -175,13 +179,12 @@ func gatherSources(args IngestArgs, deps IngestDeps) ([]string, error) {
 		}
 
 		roots = append(roots, ResolveSweepRoots(spec, env)...)
-		excludes = spec.ExcludeDirs
 	}
 
 	for _, root := range roots {
-		found, err := deps.ListSources(root, excludes)
+		found, err := deps.ListSources(root.Path, root.ExcludeDirs)
 		if err != nil {
-			return nil, fmt.Errorf("ingest: sweeping %s: %w", root, err)
+			return nil, fmt.Errorf("ingest: sweeping %s: %w", root.Path, err)
 		}
 
 		chunksPrefix := filepath.Clean(args.ChunksDir) + string(filepath.Separator)

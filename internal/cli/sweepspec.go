@@ -14,6 +14,13 @@ type SweepEnv struct {
 	IsDir      func(path string) bool
 }
 
+// SweepRoot pairs a resolved sweep root with the exclude list that applies to
+// walks under it (general excludes everywhere; .claude roots add their own).
+type SweepRoot struct {
+	Path        string
+	ExcludeDirs []string
+}
+
 // SweepSpec declares what `engram ingest --auto` sweeps. It is deliberately
 // declarative and inspectable: defaults are compiled in (DefaultSweepSpec),
 // and a repo can override them with .engram/sweep.json at its root. Every
@@ -32,6 +39,11 @@ type SweepSpec struct {
 	// ExcludeDirs are directory NAMES skipped during any sweep walk —
 	// build/dependency trees whose markdown is not project memory.
 	ExcludeDirs []string `json:"exclude_dirs"` //nolint:tagliatelle // developer-facing config uses snake_case
+	// ClaudeExcludeDirs are ADDITIONALLY skipped inside ancestor .claude dirs:
+	// harness state and third-party plugin content, not user memory. projects/
+	// holds EVERY project's transcripts — this project's sessions come in via
+	// session_logs instead.
+	ClaudeExcludeDirs []string `json:"claude_exclude_dirs"` //nolint:tagliatelle // developer-facing config uses snake_case
 }
 
 // DefaultSweepSpec is the compiled-in declaration: repo markdown + ancestor
@@ -45,6 +57,10 @@ func DefaultSweepSpec() SweepSpec {
 		ExcludeDirs: []string{
 			"node_modules", "vendor", ".git", ".hg", ".jj", "dist", "build",
 			"target", ".venv", "venv", "__pycache__", ".next", ".cache", ".idea",
+		},
+		ClaudeExcludeDirs: []string{
+			"projects", "plugins", "cache", "todos", "shell-snapshots",
+			"file-history", "history", "ide", "statsig", "session-env", "debug",
 		},
 	}
 }
@@ -63,23 +79,29 @@ func LoadSweepSpec(raw []byte) (SweepSpec, error) {
 }
 
 // ResolveSweepRoots computes the sweep root list from a spec and environment.
-// Pure given env.IsDir — same inputs, same roots, in a stable order.
-func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []string {
-	var roots []string
+// Pure given env.IsDir — same inputs, same roots, in a stable order. Each root
+// carries the exclude list for walks under it.
+func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
+	var roots []SweepRoot
 
 	if spec.RepoMarkdown {
-		roots = append(roots, repoRootFor(env))
+		roots = append(roots, SweepRoot{Path: repoRootFor(env), ExcludeDirs: spec.ExcludeDirs})
 	}
 
 	if spec.AncestorClaudeDirs {
-		roots = append(roots, ancestorClaudeDirs(env)...)
+		claudeExcludes := append(append([]string{}, spec.ExcludeDirs...), spec.ClaudeExcludeDirs...)
+		for _, dir := range ancestorClaudeDirs(env) {
+			roots = append(roots, SweepRoot{Path: dir, ExcludeDirs: claudeExcludes})
+		}
 	}
 
 	if spec.SessionLogs && env.SessionDir != "" && env.IsDir(env.SessionDir) {
-		roots = append(roots, env.SessionDir)
+		roots = append(roots, SweepRoot{Path: env.SessionDir, ExcludeDirs: spec.ExcludeDirs})
 	}
 
-	roots = append(roots, spec.ExtraRoots...)
+	for _, extra := range spec.ExtraRoots {
+		roots = append(roots, SweepRoot{Path: extra, ExcludeDirs: spec.ExcludeDirs})
+	}
 
 	return roots
 }
