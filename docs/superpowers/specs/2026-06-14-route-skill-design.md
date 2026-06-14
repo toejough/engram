@@ -33,6 +33,29 @@ frontmatter or the per-invocation `model` parameter). So the router's output is 
 orchestrator then encodes into its `Agent(...)` call. This is the only viable form; the skill
 says so plainly to forestall "why doesn't it just switch the model" confusion.
 
+**What "dynamically" means here (explicit scope-down).** Joe asked the gates to consult the
+router "dynamically." What is achievable is *advisory, not enforced*: the orchestrator must
+choose to consult the route skill before each dispatch; no hook forces it. "Dynamic" therefore
+means "the model/effort is selected per-artifact at dispatch time from the rubric" — not "the
+running session reconfigures itself." This reduction is inherent to the platform (confirmed
+prior turn), not a shortcut.
+
+### Orchestration work vs object-level work (the boundary)
+
+"Delegate everything" needs a crisp line, or it collapses into either "delegate nothing" or
+"delegate the act of delegating." The boundary:
+
+- **Orchestration work the top agent does itself:** routing/decomposition decisions, dispatching
+  subagents, sequencing workflow steps, updating the task list, running the meta-skills that ARE
+  the workflow (`/recall`, `/learn`, planning), and synthesizing subagents' returned results
+  into the next decision or the user-facing report.
+- **Object-level work the top agent delegates:** writing code or prose, running tests/builds,
+  making creative or judgment calls on the artifact, reviewing an artifact (the gates) — anything
+  that produces or evaluates the deliverable itself.
+
+So please still *dispatches* its gate reviewers itself (orchestration); what changes is that it
+*consults the router for each reviewer's model/effort* instead of reading a fixed pin.
+
 The rubric deliberately aligns with the existing `~/.claude/commands/audit.md#Model Level
 Selection` doctrine (Haiku = predictable/mechanical; Sonnet = moderate reasoning; Opus =
 complex/nuanced; default cheap, upgrade on failure, reserve Opus) so the repo has one routing
@@ -81,8 +104,12 @@ files/concerns or needs more than one clear deliverable.
 - **Modify** docs: `CLAUDE.md` (skills list), `README.md` (skills table), and the C4 L1
   `c1-system-context.md` if the please flow description references gate model pins.
 - **No Go change** — `engram update` discovers skills/commands by directory scan
-  (`planSkillCopies` / the commands equivalent), so `skills/route/` and `commands/route.md`
-  deploy automatically.
+  (`planSkillCopies` / `planCommandCopies`), so `skills/route/` and `commands/route.md`
+  deploy automatically. Note the harness asymmetry (update.go `supportedHarnesses`): the Claude
+  Code harness has `SkillsTargetRel` but no `CommandsTargetRel`, so `commands/route.md` deploys
+  to OpenCode only. In Claude Code the `/route` slash command is provided by the skill `name:
+  route` itself — exactly how `/please` works today (there is no `~/.claude/commands/please.md`).
+  So the command file is the OpenCode pointer, not dead weight.
 
 ## Testing (writing-skills TDD)
 

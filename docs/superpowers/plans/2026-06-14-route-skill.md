@@ -46,7 +46,10 @@ starting "Use when..." describing triggering conditions only, no workflow summar
 ```markdown
 ---
 name: route
-description: Use when about to perform or staff a unit of object-level work as an orchestrator — deciding whether and how to delegate it to a subagent. Triggers when picking an agent type, model, or effort level for delegated work, or when a task is large enough to need decomposition before delegation.
+description: >
+  Use when you are about to dispatch a subagent and must decide its agent type, model, and
+  effort level. Triggers on any delegation decision, and when you recognize a unit is too large
+  for one focused agent and needs decomposition before dispatch.
 ---
 
 # Route — delegate every unit of work to the right-sized agent
@@ -54,6 +57,17 @@ description: Use when about to perform or staff a unit of object-level work as a
 You are an orchestrator. You route, decompose, and synthesize; you do not do object-level
 work yourself. There is no inline escape — easy work is delegated to a cheap model, not skipped.
 The cost lever is the model axis.
+
+## Orchestration work vs object-level work
+
+The line that keeps "delegate everything" from collapsing:
+
+- **You do (orchestration):** routing/decomposition decisions, dispatching subagents, sequencing
+  steps, updating the task list, running the meta-skills that ARE the workflow (`/recall`,
+  `/learn`, planning), and synthesizing subagents' returned results into the next decision or
+  the user-facing report.
+- **You delegate (object-level):** writing code or prose, running tests/builds, judgment calls
+  on the artifact, reviewing the artifact — anything that produces or evaluates the deliverable.
 
 ## Not an enforcement mechanism
 
@@ -66,12 +80,12 @@ dispatch call.
 
 Classify each unit and dispatch accordingly. Aligns with `audit.md`'s Model Level Selection.
 
-| Task character | agentType | model | effort |
-| --- | --- | --- | --- |
-| Mechanical / predictable (formatting, status checks, template-fill, single-file lookup) | Explore (read-only) or general-purpose | haiku | low |
-| Moderate reasoning (code review with context, a TDD unit, triage, structured edit) | general-purpose or a domain agent | sonnet | medium |
-| Complex / nuanced judgment (architecture, cross-cutting refactor, hard debugging) | decompose first → delegate the pieces; if irreducible, one focused agent | opus (or sonnet at high effort) | high |
-| Deep thinking (open-ended analysis, design exploration) | general-purpose, fresh context | opus | high |
+| Task character | agentType | model | effort | Note |
+| --- | --- | --- | --- | --- |
+| Mechanical / predictable (formatting, status checks, template-fill, single-file lookup) | `Explore` (read-only) or `general-purpose` | haiku | low | The default. Cheap, not skipped. |
+| Moderate reasoning (code review with context, a TDD unit, triage, structured edit) | `general-purpose` or a domain agent | sonnet | medium | |
+| Complex / nuanced judgment (architecture, cross-cutting refactor, hard debugging) | decompose first → delegate the pieces; if irreducible, one focused agent | opus (or sonnet at high effort) | high | Decomposition is your job, before dispatch. |
+| Deep thinking (open-ended analysis, design exploration) | `general-purpose`, fresh context | opus | high | Delegated so it is not diluted by orchestrator context. |
 
 **Resolution:** default to the cheapest tier that can plausibly do the unit; upgrade a tier if
 the cheaper one fails; reserve opus for units that genuinely need it.
@@ -102,6 +116,15 @@ decomposed then delegated, unit 4 → opus/high fresh context; each dispatch say
 - [ ] **Step 3:** If any unit is done inline or unit 3 isn't decomposed, tighten wording and
 re-run. Do not proceed on a failing GREEN.
 
+- [ ] **Step 4: Combined please+route GREEN.** Fresh subagent given BOTH the route skill and a
+gate-A scenario from please (a committed plan to review). Expected: it consults the router to set
+each gate angle's model/effort (not a blind fixed pin) and instructs each reviewer to recall
+first. Confirms the integration is behaviorally live, not just textually present.
+
+- [ ] **Step 5: Decomposition-inside-please GREEN.** Fresh subagent given the route skill and a
+deliberately complex single ask ("refactor auth across 6 files") framed as a please step-4 unit.
+Expected: it decomposes before delegating, rather than dispatching one giant agent.
+
 ### Task 3: Pressure tests (fresh subagent each, route skill + one probe)
 
 - [ ] "Unit is one trivial rename — just do it." Expected: delegate to haiku.
@@ -123,6 +146,11 @@ description: Route a unit of work to an appropriately-scoped subagent (agent typ
 
 Invoke the `route` skill for the unit of work at hand.
 ```
+
+Note: this file deploys to OpenCode only (the Claude Code harness has no `CommandsTargetRel`);
+in Claude Code `/route` is provided by the skill `name: route`. This mirrors how `/please`
+already works — there is no `~/.claude/commands/please.md`. Task 6's diff check must therefore
+target the OpenCode commands dir, not `~/.claude/commands/`.
 
 ### Task 5: Update `skills/please/SKILL.md` to consult the router
 
@@ -156,11 +184,16 @@ copied, and the refreshed `skills/please/`.
 
 ### Task 7: Docs
 
-- [ ] **Step 1:** `CLAUDE.md` — add `route` to the skills overview line (currently names recall,
-learn, please) and to the directory-structure `skills/` note.
+- [ ] **Step 1:** `CLAUDE.md` — add `route` in THREE places: the skills overview line (line 3,
+names recall/learn/please), the Directory Structure `skills/` comment (line 24), and the Key
+Files list (`skills/{learn,recall,please}/SKILL.md`, line 34).
 - [ ] **Step 2:** `README.md` — add a `route` row to the skills table.
-- [ ] **Step 3:** `docs/architecture/c1-system-context.md` — if the please-flow text references
-gate model pins, note they are now router-selected; otherwise N/A (state which).
+- [ ] **Step 3:** `docs/architecture/c1-system-context.md` — the please-flow sequence diagram
+does NOT hardcode gate-review models (they are prose, "4 fresh per-angle reviewer subagents"),
+so no model-pin text goes stale → N/A on that count. The L1 element catalog needs no `route`
+entry either: `route` adds no new system boundary or R-edge — it is skill-level dispatch
+guidance over the existing Agent tool, not a new external system. State this reasoning in the
+gate-C review rather than silently skipping.
 
 ### Task 8: Commit
 
