@@ -14,7 +14,7 @@ flowchart TB
     classDef store     fill:#23a,   stroke:#127,   color:#fff
 
     agent([Agent · in the harness])
-    skills["C1 · Skills (learn / recall / please)<br/>markdown behavior specs"]
+    skills["C1 · Skills (learn / recall / please / route)<br/>markdown behavior specs"]
     cli["C2 · engram CLI<br/>Go binary — transcript/learn/query/embed/update"]
     model["C3 · Embedded model<br/>MiniLM-L6 384d, go:embed in C2"]
     vault[("C4 · Vault<br/>Permanent/*.md + *.vec.json + .luhmann.lock")]
@@ -39,7 +39,7 @@ flowchart TB
 ## Container catalog
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
-| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (transcript→episode→fact/feedback→§6b L3), `/recall` (query→synthesis-gate→link-to-bind), `/please` (7-step bracket). Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
+| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (transcript→episode→fact/feedback→§6b L3), `/recall` (query→synthesis-gate→link-to-bind), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow. Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
 | C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: transcript scan+marker, note write (tier defaults, embed-on-write, Luhmann id under lock), query (cosine→subgraph→cluster→tier-filter), embed apply/status, update. | houses E4, G0, M2-segments, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: swap silently empties recall (no guard) |
 | C4 | Vault | filesystem | `Permanent/<luhmann>.<date>.<slug>.md` + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |

@@ -13,7 +13,7 @@ description: >
 
 # Please — drive an ask end-to-end
 
-Run a fixed seven-step workflow against the user's `<ask>`. Two skills are named because engram itself ships them: `/recall` and `/learn`. Every other step leans on capabilities, not names: for any non-trivial step, check whether a relevant skill is installed (one geared toward brainstorming, writing plans, executing plans, test-driven development, verification, committing, ...) and use it; when none is available, apply the step's discipline directly. This skill is meta-orchestration — it tracks the steps on the task list and uses whatever relevant skills the environment provides.
+Run a fixed seven-step workflow against the user's `<ask>`. Two skills are named because engram itself ships them: `/recall` and `/learn`. Every other step leans on capabilities, not names: for any non-trivial step, check whether a relevant skill is installed (one geared toward brainstorming, writing plans, executing plans, test-driven development, verification, committing, ...) and use it; when none is available, apply the step's discipline directly. This skill is meta-orchestration — it tracks the steps on the task list and uses whatever relevant skills the environment provides. Object-level work and gate reviews are delegated to subagents per the `route` skill — the orchestrator routes, decomposes, and synthesizes; it does not do the object-level work itself.
 
 ## Anti-sycophantic lean
 
@@ -26,9 +26,11 @@ You are a collaborator, not a yes-machine. Think critically about the ask itself
 
 ## Adversarial review gates
 
-LLM-generated artifacts do not self-certify. Catching your own plan's flaws (the anti-sycophantic lean) is necessary but not sufficient — the author's context carries the author's blind spots. Four gates punctuate the workflow. Each gate fans out ONE fresh-context reviewer subagent PER ANGLE (Task tool; no author context shared), pinned to the listed model, and the gated step is not `completed` until every finding is resolved.
+LLM-generated artifacts do not self-certify. Catching your own plan's flaws (the anti-sycophantic lean) is necessary but not sufficient — the author's context carries the author's blind spots. Four gates punctuate the workflow. Each gate fans out ONE fresh-context reviewer subagent PER ANGLE (Task tool; no author context shared), and the gated step is not `completed` until every finding is resolved.
 
-| Gate | Fires | Artifact | Angles (model) |
+**Running the gate is non-waivable; the model for each reviewer is not pinned — it is routed.** Apply the `route` rubric to each reviewer to choose its model and effort for the specific artifact (a cheap reasoning step, not a separate dispatch). The models in the table below are the rubric's *defaults* for each angle's task character, not fixed pins: route confirms the default or adjusts it (e.g. a trivial doc diff may drop clarity review to haiku/low; a sprawling architectural plan may lift ask-alignment to opus/high). What is fixed is that the gate runs, per-angle, with fresh context — never the model number.
+
+| Gate | Fires | Artifact | Angles (routed; default model) |
 | --- | --- | --- | --- |
 | A | end of step 3, before any execution | the committed plan/spec | ask-alignment (sonnet); code-alignment (sonnet); docs/diagrams-alignment (haiku); clarity/standards (haiku) |
 | B | step 4, after EVERY refactor phase | the refactored unit's diff | design-fit (sonnet) |
@@ -47,7 +49,7 @@ Angle charges — each reviewer is prompted to REFUTE the artifact, not to bless
 
 Reviewer protocol:
 
-1. The reviewer's FIRST action is `/recall`, with phrases drawn from the artifact and its angle — vault lessons and chunk evidence inform the review.
+1. The reviewer recalls first (the `route` skill's recall-first rule), with phrases drawn from the artifact and its angle — vault lessons and chunk evidence inform the review.
 2. Findings are refutations with concrete stakes: quote or file:line, why it fails the angle, what better looks like. A clean pass must state what was checked.
 3. The author addresses every finding: fix it, or rebut with reasons. The reviewer ACKs or counters. Keep the reviewer alive until its gate closes.
 4. After ~2 unresolved rounds, stop: summarize both positions and escalate via `AskUserQuestion`.

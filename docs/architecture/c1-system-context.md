@@ -180,7 +180,9 @@ has no dedicated subcommand. The diagram below shows the seven-step bracket;
 each step that crosses an L1 edge appears as a call into Engram (with the
 implementation of `recall`, `learn`, etc. shown in their own diagrams above).
 The diagram is intentionally workflow-shaped, not call-surface-shaped — at L1
-all engram subprocess calls collapse onto the same R2 edge.
+all engram subprocess calls collapse onto the same R2 edge. The orchestrator
+consults the `route` skill when staffing each gate reviewer (agent/model/effort);
+that is in-context guidance, not an L1 edge, so it does not appear as a message.
 
 ```mermaid
 sequenceDiagram
@@ -355,6 +357,13 @@ view), not a separate L1 element. The legacy
 `docs/superpowers/specs/2026-05-14-tiered-memory-design.md` design that
 proposed an external Voyage API was superseded by the 2026-05-22 research
 log and the v2 implementation.
+
+The `route` skill is **not** a new L1 element. It adds no system boundary, no
+external, and no R-edge: it is skill-level guidance the orchestrator applies
+when choosing `Agent`-tool parameters for delegated work (agent type, model,
+effort), operating over the existing harness↔engram relationship rather than a
+new interaction. It is a sibling of `recall`/`learn`/`please` under S2's skills
+container at L2, not a participant at L1.
 
 ## Related
 

@@ -1,6 +1,6 @@
 # Engram
 
-Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand. A third skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other available skills around a user's `<ask>`, with adversarial review gates over the plan, refactors, docs, and outward prose.
+Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand. A third skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other available skills around a user's `<ask>`, with adversarial review gates over the plan, refactors, docs, and outward prose. A fourth skill, `route`, encodes the delegate-everything doctrine: it guides subagent selection (agent type, model, effort) rather than doing object-level work itself. `please` consults it when assigning gate reviewers.
 
 ## Core Principles
 
@@ -21,7 +21,7 @@ engram/
 │   ├── transcript/    # Claude Code session transcript reading
 │   ├── update/        # `engram update` subcommand
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
-├── skills/            # Source for the recall, learn, and please skills
+├── skills/            # Source for the recall, learn, please, and route skills
 ├── commands/          # Source for OpenCode slash commands
 ├── dev/               # Build tooling (targ definitions, linter configs)
 └── docs/              # Active design docs, research prompts, and C4 architecture diagrams
@@ -31,7 +31,7 @@ engram/
 
 - `cmd/engram/main.go` — CLI entry point
 - `internal/cli/targets.go` — Subcommand wiring
-- `skills/{learn,recall,please}/SKILL.md` — Skill definitions
+- `skills/{learn,recall,please,route}/SKILL.md` — Skill definitions
 - `dev/targs.go` — Build targets (targ definitions)
 - `docs/architecture/c1-system-context.md` — L1 C4 system context diagram + sequence diagrams for the four key flows (recall, learn, please, update)
 

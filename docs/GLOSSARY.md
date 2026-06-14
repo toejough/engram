@@ -27,8 +27,9 @@ Luhmann-ID lineage and Maps of Content for synthesis. Used as both noun
 
 ### skill
 A markdown file (`SKILL.md`) that defines an agent behavior, installed into
-each harness's skills directory by `engram update`. Engram ships two:
-[`recall`](#recall-skill) and [`learn`](#learn-skill).
+each harness's skills directory by `engram update`. Engram ships four:
+[`recall`](#recall-skill), [`learn`](#learn-skill), `please` (end-to-end
+orchestration), and `route` (delegation doctrine — agent/model/effort selection).
 
 ### harness
 A coding-agent host that runs skills. Engram supports two: **Claude Code**
