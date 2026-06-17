@@ -271,6 +271,31 @@ func sourceAgeDays(mtimeBySource map[string]int64, now time.Time) map[string]flo
 	return ages
 }
 
+// noteDateFormat is the YYYY-MM-DD layout used for LastUsed and created dates.
+const noteDateFormat = "2006-01-02"
+
+// noteAgeDays returns a note's age in days for recency decay, preferring
+// LastUsed (when it last proved useful) over created. Empty/unparseable
+// stamps return 0 — treat as fresh so a malformed date never penalises.
+func noteAgeDays(lastUsed, created string, now time.Time) float64 {
+	stamp := lastUsed
+	if stamp == "" {
+		stamp = created
+	}
+
+	parsed, err := time.Parse(noteDateFormat, stamp)
+	if err != nil {
+		return 0
+	}
+
+	age := now.Sub(parsed).Hours() / hoursPerDay
+	if age < 0 {
+		age = 0
+	}
+
+	return age
+}
+
 // spliceRecent prepends the missing recent items, then refills from the original
 // items dropping the lowest-ranked NON-recent ones first, capped at limit.
 // Two-pass fill: recent items (by recentKey) are kept ahead of non-recent ones

@@ -282,3 +282,19 @@ func TestSourceAgeDays(t *testing.T) {
 	g.Expect(got["old.jsonl"]).To(BeNumerically("~", 3.0, 1e-6))
 	g.Expect(got["future.jsonl"]).To(BeNumerically("~", 0.0, 1e-6))
 }
+
+func TestNoteAgeDaysPrefersLastUsedThenCreated(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// noon UTC; date-only stamps parse to midnight, so age = days + fraction.
+	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+
+	// LastUsed=June 15 midnight → 2.5 days to noon June 17.
+	g.Expect(cli.ExportNoteAgeDays("2026-06-15", "2026-01-01", now)).To(BeNumerically("~", 2.5, 0.01))
+	// No LastUsed → falls back to created=June 10 midnight → 7.5 days.
+	g.Expect(cli.ExportNoteAgeDays("", "2026-06-10", now)).To(BeNumerically("~", 7.5, 0.01))
+	// Empty both → 0 (treat as fresh).
+	g.Expect(cli.ExportNoteAgeDays("", "", now)).To(BeNumerically("~", 0.0, 0.01))
+}
