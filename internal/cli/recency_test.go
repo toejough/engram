@@ -10,6 +10,23 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func TestApplyChunkRecencyLiftsRecentOverStaleHighCosine(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scored := []cli.ExportScoredChunk{
+		cli.ExportNewScoredChunk(chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.80),
+		cli.ExportNewScoredChunk(chunk.Record{Source: "recent.jsonl", Anchor: "turn-9"}, 0.45),
+	}
+	ages := map[string]float64{"old.jsonl": 90, "recent.jsonl": 0.01}
+	maxTurn := map[string]int{"old.jsonl": 3, "recent.jsonl": 9}
+	p := cli.ExportNewRecencyParams(3, 0.2, 0, 1)
+
+	out := cli.ExportApplyChunkRecency(scored, ages, maxTurn, p)
+
+	g.Expect(cli.ExportScoredChunkScore(out[1])).To(BeNumerically(">", cli.ExportScoredChunkScore(out[0])))
+}
+
 func TestSourceAgeDays(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

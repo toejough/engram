@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/transcript"
 )
@@ -35,9 +36,11 @@ var (
 	ExportNewOsMigrateDeps           = newOsMigrateDeps
 	ExportNewOsShowDeps              = newOsShowDeps
 	ExportNextLuhmannID              = nextLuhmannID
+	ExportApplyChunkRecency          = applyChunkRecency
 	ExportMaxTurnBySource            = maxTurnBySource
 	ExportParseTurnN                 = parseTurnN
 	ExportRecencyMultiplier          = recencyMultiplier
+	ExportSortScoredDesc             = sortScoredDesc
 	ExportSourceAgeDays              = sourceAgeDays
 	ExportPluralFile                 = pluralFile
 	ExportPrintLinkExamples          = printLinkExamples
@@ -70,6 +73,17 @@ type ExportRecencyParams = recencyParams
 func ExportNewRecencyParams(halfLifeDays, tailWeight float64, floor int, windowDays float64) recencyParams {
 	return recencyParams{halfLifeDays: halfLifeDays, tailWeight: tailWeight, floor: floor, windowDays: windowDays}
 }
+
+type ExportScoredChunk = scoredChunk
+
+// ExportNewScoredChunk builds a scoredChunk for tests.
+func ExportNewScoredChunk(rec chunk.Record, score float32) scoredChunk {
+	return scoredChunk{record: rec, score: score}
+}
+
+// ExportScoredChunkScore / Record expose the unexported fields for assertions.
+func ExportScoredChunkScore(s scoredChunk) float32       { return s.score }
+func ExportScoredChunkRecord(s scoredChunk) chunk.Record { return s.record }
 
 type ExportEpisodeFields = episodeFields
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -79,4 +80,41 @@ func sourceAgeDays(mtimeBySource map[string]int64, now time.Time) map[string]flo
 	}
 
 	return ages
+}
+
+// applyChunkRecency returns a copy of scored with each score multiplied by its
+// recency factor. turnFrac = turnN / maxTurn(source); 0 when the source has no
+// turn anchors. Sources absent from ages (e.g. never-swept) are treated as age 0
+// (maximally recent) so a freshly written but not-yet-manifested source is not
+// penalised.
+func applyChunkRecency(
+	scored []scoredChunk,
+	ageDaysBySource map[string]float64,
+	maxTurnBySrc map[string]int,
+	p recencyParams,
+) []scoredChunk {
+	out := make([]scoredChunk, len(scored))
+
+	for i, s := range scored {
+		age := ageDaysBySource[s.record.Source] // missing → 0.0
+
+		turnFrac := 0.0
+		if n, ok := parseTurnN(s.record.Anchor); ok {
+			if maxN := maxTurnBySrc[s.record.Source]; maxN > 0 {
+				turnFrac = float64(n) / float64(maxN)
+			}
+		}
+
+		out[i] = scoredChunk{
+			record: s.record,
+			score:  s.score * float32(recencyMultiplier(age, turnFrac, p)),
+		}
+	}
+
+	return out
+}
+
+// sortScoredDesc sorts in place by descending score (stable).
+func sortScoredDesc(scored []scoredChunk) {
+	sort.SliceStable(scored, func(i, j int) bool { return scored[i].score > scored[j].score })
 }
