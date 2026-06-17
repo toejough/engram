@@ -223,10 +223,22 @@ cosine-cluster, then pull that cluster with a recency-flavored phrase.
 
 ## Cross-cutting findings
 
-- **Live-session trap.** "Newest source by mtime" is usually the *current*
-  post-clear session (its `.jsonl` is being appended now), not the prior one we
-  want. Every mtime/session selector (#1's session-boost variant, #2, #4) must
-  exclude the live session — else it surfaces the agent's own just-started turns.
+- **"Lost from context" is the boundary, not "the session file"** *(corrected
+  2026-06-17 against the transcripts + Claude Code docs).* `/clear`, `/compact`,
+  and auto-compaction **all keep the same session ID and the same `.jsonl`** —
+  only a new CLI launch / `/branch` / `--fork-session` makes a new file. So the
+  content the agent lost lives *inside the current file* (before the clear/compact
+  point), and a blunt "exclude the current session" rule would discard exactly the
+  memories we want to resurface. Key recency on **context-loss**, not on the
+  session file, and **bias toward inclusion**: surfacing a turn the agent still has
+  is benign (it dedups), but omitting a lost turn is the bug. Concretely: the
+  resurface-eligible set is prior-session files **plus** the current file's content
+  *before its last `isCompactSummary: true` entry* (a real, machine-readable
+  compaction boundary — verified on disk; auto-compactions appear only mid-file
+  under one session ID). `/clear` leaves no boundary marker, so there rely on the
+  recency window + the agent's own awareness of its visible context, not on a
+  structural cut. Skip only the small most-recent tail that is certainly still in
+  context.
 - **Recency is the only gap.** Capture self-heals (Step 0.5) and provenance falls
   out of recency — so the work is squarely "make recent events rank/appear,"
   nothing more.
