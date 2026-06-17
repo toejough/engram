@@ -62,6 +62,11 @@ func applyChunkRecency(
 }
 
 // defaultRecencyParams returns the eval-tuned recency knobs.
+// Chosen cell (recorded after running TestRecencyEvalSweepAndValidateDefaults):
+// halfLife=   3 floor=3 -> plantedRank=0
+// All halfLife values place the planted chunk at rank 0 (90-day-old chunks
+// collapse to ~0 via exp2(-90/hl)); halfLife=3 is the fastest meaningful decay
+// while floor=3 guarantees recent activity even after the cap.
 func defaultRecencyParams() recencyParams {
 	return recencyParams{
 		halfLifeDays: defaultHalfLifeDays,
