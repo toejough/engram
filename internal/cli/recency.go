@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -42,4 +43,20 @@ func maxTurnBySource(records []chunk.Record) map[string]int {
 	}
 
 	return maxBySource
+}
+
+// recencyParams are the tunable knobs (defaults chosen by the eval in recency_eval_test.go).
+type recencyParams struct {
+	halfLifeDays float64 // age at which the decay factor is 0.5
+	tailWeight   float64 // extra lift for the last turn of a session (turnFrac=1)
+	floor        int     // min recent chunk items the band guarantees
+	windowDays   float64 // age below which a chunk counts "recent"
+}
+
+// recencyMultiplier returns exp2(-ageDays/halfLife) * (1 + tailWeight*turnFrac).
+// ageDays>=0; turnFrac in [0,1]. At age 0, turnFrac 0 it is exactly 1.0.
+func recencyMultiplier(ageDays, turnFrac float64, p recencyParams) float64 {
+	decay := math.Exp2(-ageDays / p.halfLifeDays)
+
+	return decay * (1 + p.tailWeight*turnFrac)
 }

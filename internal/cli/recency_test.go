@@ -9,6 +9,18 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func TestRecencyMultiplier(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	p := cli.ExportNewRecencyParams(3, 0.2, 0, 0) // halfLife=3, tail=0.2
+
+	g.Expect(cli.ExportRecencyMultiplier(0, 0, p)).To(BeNumerically("~", 1.0, 1e-6))
+	g.Expect(cli.ExportRecencyMultiplier(3, 0, p)).To(BeNumerically("~", 0.5, 1e-6))
+	g.Expect(cli.ExportRecencyMultiplier(0, 1, p)).To(BeNumerically("~", 1.2, 1e-6))
+	g.Expect(cli.ExportRecencyMultiplier(6, 0, p)).To(BeNumerically("<", cli.ExportRecencyMultiplier(3, 0, p)))
+}
+
 func TestMaxTurnBySource(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

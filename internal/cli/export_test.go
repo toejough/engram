@@ -37,6 +37,7 @@ var (
 	ExportNextLuhmannID              = nextLuhmannID
 	ExportMaxTurnBySource            = maxTurnBySource
 	ExportParseTurnN                 = parseTurnN
+	ExportRecencyMultiplier          = recencyMultiplier
 	ExportPluralFile                 = pluralFile
 	ExportPrintLinkExamples          = printLinkExamples
 	ExportPrintNoteExamples          = printNoteExamples
@@ -61,6 +62,13 @@ var (
 	ExportValidateSlug        = validateSlug
 	ExportWriteUpdateReport   = writeUpdateReport
 )
+
+type ExportRecencyParams = recencyParams
+
+// ExportNewRecencyParams builds a recencyParams for tests.
+func ExportNewRecencyParams(halfLifeDays, tailWeight float64, floor int, windowDays float64) recencyParams {
+	return recencyParams{halfLifeDays: halfLifeDays, tailWeight: tailWeight, floor: floor, windowDays: windowDays}
+}
 
 type ExportEpisodeFields = episodeFields
 
