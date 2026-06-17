@@ -66,6 +66,25 @@ func TestFillRecencyBandBackfillsDeficit(t *testing.T) {
 	g.Expect(paths["old.jsonl#turn-1"]).To(BeTrue()) // highest-ranked stale retained
 }
 
+func TestFillRecencyBandClampsToLimit(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewChunkResolvedItem("old.jsonl#turn-1", 0.9),
+	}
+	recentPool := []cli.ExportResolvedItem{
+		cli.ExportNewChunkResolvedItem("recent.jsonl#turn-9", 0.3),
+		cli.ExportNewChunkResolvedItem("recent.jsonl#turn-8", 0.2),
+		cli.ExportNewChunkResolvedItem("recent.jsonl#turn-7", 0.1),
+	}
+
+	// floor (3) > limit (2): the band must never grow the payload past limit.
+	out := cli.ExportFillRecencyBand(items, recentPool, 3, 2)
+
+	g.Expect(len(out)).To(BeNumerically("<=", 2))
+}
+
 func TestFillRecencyBandNoDeficitNoChange(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

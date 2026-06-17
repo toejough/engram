@@ -303,10 +303,10 @@ func ExportParseEpisodeBody(body string) (summary, transcript string, relations 
 	return parsed.summary, parsed.transcript, parsed.relations
 }
 
+// ExportRecencyFloor and ExportRecencyWindowDays expose recencyParams fields
+// for the eval test (Task 8) and any other blackbox accessor that needs them.
 func ExportRecencyFloor(p recencyParams) int { return p.floor }
 
-// ExportRecencyWindowDays and ExportRecencyFloor expose recencyParams fields
-// for the eval test (Task 8) and any other blackbox accessor that needs them.
 func ExportRecencyWindowDays(p recencyParams) float64 { return p.windowDays }
 
 // ExportResolvedItemPath exposes the unexported notePath field for assertions.

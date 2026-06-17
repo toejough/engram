@@ -98,6 +98,12 @@ func fillRecencyBand(items, recentPool []resolvedItem, floor, limit int) []resol
 		return items
 	}
 
+	// Never inject more than the whole budget — guards floor > limit, where the
+	// band would otherwise prepend more recent items than limit allows.
+	if deficit > limit {
+		deficit = limit
+	}
+
 	missing := make([]resolvedItem, 0, deficit)
 
 	for _, r := range recentPool {
