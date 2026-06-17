@@ -70,6 +70,10 @@ The payload's `items` mix:
 - `kind: chunk` — raw transcript/doc fragments with source + anchor. These are EVIDENCE:
   extract the convention, decision, or correction they show (a reviewer correcting code, a
   stated standard); never quote them wholesale.
+  - **Recent items are your own recent activity.** Chunk items with `turn-N` anchors from a
+    recent source are first-person `ASSISTANT:` narration you produced in a just-prior or
+    pre-context-clear session. Treat them as your own past actions — do not re-derive them,
+    do not express surprise at them, and dedup against what is already in your context.
 - `kind: fact` / `feedback` — crystallized lessons; apply directly.
 
 If nothing surfaces, say so in one sentence, skip Step 2.5, and proceed with your plan.
