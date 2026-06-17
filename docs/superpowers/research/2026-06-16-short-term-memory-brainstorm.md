@@ -1,8 +1,10 @@
 # Short-term memory for engram — ten approaches
 
 Date: 2026-06-16. Brainstormed via `/please`, then expanded and adversarially
-evaluated via a multi-agent workflow (8 idea lenses → distill → diversity critic
-→ per-approach evaluation + feasibility verification against the code).
+evaluated via multi-agent workflows: 8 idea lenses → distill → diversity critic →
+per-approach evaluation + feasibility verification against the code, then a second
+verification pass on the approaches added during review. Every approach below
+carries a verdict checked against file:line.
 
 ## The trigger
 
@@ -17,42 +19,43 @@ Provenance is **not** to be solved by a separate identity mechanism. It should
 **fall out of recency**: if recall surfaces the *recent raw transcript events* —
 where the agent's own first-person narration lives ("I'll file issue #644 for
 X") — then re-reading that narration *is* the agent remembering it did the work.
-[P] (authorship) becomes a side effect of [R] (recency) done over the transcript.
+[P] (authorship) becomes a side effect of [R] (recency) over the transcript.
 
 So every approach below serves one goal: **get recent transcript-event content
-into the recall payload.** Approaches that bolt provenance on as separate
-machinery are off-target by construction.
+into the recall payload.**
 
 ## Diagnosis (verified against the code)
 
+The symptom is **purely a ranking problem**, and the verification pass narrowed
+it to exactly that — two things people *assume* are also broken are not:
+
 - **`engram query` has zero recency.** Chunk scoring is pure cosine
   (`scoreChunks`, `internal/cli/query_chunks.go:194-226`); notes use
-  `max(situation, body)` cosine (`query.go`). Nothing decays or orders by time.
-- **Chunks carry no time/session field.** `chunk.Record` is exactly
-  `{Source, Anchor, ContentHash, Text, Vector}` (`internal/chunk/index.go:13-25`).
-  Time is *latent*: the transcript `Source` path is the session `.jsonl` (filename
-  = session UUID), the `Anchor` is `turn-N`, and the ingest `manifest.json` holds a
-  **per-source** `MtimeUnixNano` (`internal/cli/ingest.go:48`). None of it is
-  extracted into a rankable signal, and the chunk-query path does **not** read the
-  manifest today.
-- **The learn workflow no longer writes episodes.** `engram learn episode` still
-  exists in the binary, but the active path is `engram ingest --auto`, which
-  chunks the **raw transcript verbatim** (stripped `USER:`/`ASSISTANT:` turns).
-  That is *better* for this goal than episodes — episodes summarize the narration
-  away; raw chunks keep it word-for-word.
-- **Two latent traps the evaluation surfaced** (they recur across approaches):
-  1. *"Newest source by mtime" is usually the **live** post-clear session* (its
-     `.jsonl` is being appended right now), not the immediately-prior session we
-     want. Any mtime-keyed selector needs to exclude the current session.
-  2. *Capture-freshness:* `ingest --auto` runs lazily at the **next** recall and
-     the manifest skips unchanged sources by mtime/size — so the prior session's
-     **closing** turns (the most recall-critical ones) may not be in the index at
-     all when the fresh agent retrieves. See "Precondition" below.
+  `max(situation, body)` cosine (`query.go:486-495`). Nothing decays or orders by
+  time. This is the whole gap.
+- **Capture is NOT the gap** *(corrected during review)*. An earlier critic
+  called capture-freshness the dominant omission — that the prior session's
+  closing turns might not be indexed yet. A deeper check refuted it: the `recall`
+  skill runs `engram ingest --auto` as its **Step 0.5, before the query**, which
+  re-reads the prior session's `.jsonl` (newer mtime) and indexes the closing
+  turns first. So "I'll file #644" **is** in the index when the fresh agent
+  retrieves — it just doesn't rank. The only genuine capture loss is a hard-kill
+  before the `.jsonl` flushes, which no hook fixes either.
+- **Provenance is NOT a separate gap.** The narration is captured verbatim (raw
+  chunks, no episode summarization in the active path). Once recency surfaces it,
+  authorship is recovered for free — exactly the operator's framing.
+- **Time is latent, not stored.** `chunk.Record` is `{Source, Anchor,
+  ContentHash, Text, Vector}` (`internal/chunk/index.go:13-25`) — no time/session
+  field. But the transcript `Source` path is the session `.jsonl` (filename =
+  session UUID), the `Anchor` is `turn-N`, and the ingest manifest
+  (`map[string]manifestEntry`, `internal/cli/ingest.go:123`; keyed per source at
+  `:258`) holds a **per-source** `MtimeUnixNano`. The chunk-query path does **not**
+  read the manifest today.
 
-The two problems each approach is tagged against (a lens, **not** a filter):
-
-- **[R] Recency / continuity** — the just-prior session foregrounded over the corpus.
-- **[P] Authorship / provenance** — the agent knows *it* produced these artifacts.
+Two traps recur across the approaches (see "Cross-cutting" below): the
+**live-session trap** ("newest source by mtime" is usually the *current* post-clear
+session, not the prior one) and **untuned constants** (the eval harness that would
+tune any weight is mid-rework, issue #642).
 
 Prior research already named the underlying miss: engram has **no working-memory
 analog** (`docs/superpowers/research/2026-05-22-human-memory-literature-summary.md`)
@@ -60,215 +63,217 @@ analog** (`docs/superpowers/research/2026-05-22-human-memory-literature-summary.
 alone (Generative Agents, Park 2023; ACT-R activation, Anderson), and a bounded,
 ordered, decaying working-memory window is the missing container (Baddeley).
 
+[R] = recency/continuity; [P] = authorship/provenance (a lens, not a filter).
+
 ---
 
 ## The ten approaches
 
-Grouped by **where recency lives**. Each entry carries the adversarial
-feasibility verdict (verified against file:line).
+Grouped by **where recency lives** — ten distinct axes. Each is tagged
+**CONTENDER** (worth building) or **PARK** (genuinely distinct but weak/redundant/
+expensive on the verified read — kept so the contenders have something to be
+evaluated against).
 
-### Query-scoring (re-rank an existing cosine pool)
+### Query-scoring — re-rank an existing cosine pool
 
-**1. Recency-decay re-rank · [R] · cost: low · durable-core · feasible-with-caveat**
-Widen the cosine pass to a candidate pool, then re-score
-`final = cosine × exp(−λ·age) × (1 + β·turnFrac)` and re-sort. `age` comes from
-`manifest.json` `MtimeUnixNano` keyed by `record.Source`; `turnFrac` from the
-`turn-N` anchor (newest turns → ~1.0). One half-life const, one tail const, no
-schema change, no re-ingest. *The single continuous score-blend* — a strongly
-on-topic old chunk can still win.
-- *Caveats:* `turnFrac` needs a per-source max-`N` pass (no field carries it);
-  the chunker merges consecutive turns and stamps the *first* turn's anchor, so
-  position is approximate; the consts are untuned and the eval harness that would
-  tune them is mid-rework (#642). A multiplicative blend can still leave
-  mediocre-cosine narration below the truncation cut.
+**1. Recency-decay re-rank · [R] · CONTENDER · cost low · feasible-with-caveat**
+Widen the cosine pass to a pool, then re-score `final = cosine × exp(−λ·age)
+[× (1 + β·turnFrac)]` and re-sort. `age` from manifest `MtimeUnixNano` keyed by
+`record.Source`; `turnFrac` from the `turn-N` anchor. No schema change, no
+re-ingest. *Subsumes a discrete session-membership boost* (add a flat bonus to
+all chunks of the newest session) as a tuning variant — same lever, different
+curve.
+- *Caveats:* the manifest read is **new wiring** on the chunk-query path (it
+  reads only index files today); `turnFrac` needs a per-source max-`N` pass (no
+  field carries it) and merged-turn chunks stamp the *first* turn's anchor, so
+  position is approximate; `λ`/`β` are untuned (#642). Must exclude the live
+  session (see Cross-cutting).
 
-**2. Recency-quota lane · [R][P] · cost: low-med · durable-core · feasible-with-caveat**
-Don't blend — *partition the budget*: reserve `⌈limit·0.25⌉` slots for the newest
-chunks (by mtime, then descending `turn-N`), fill the rest from pure cosine,
-dedup. *Cannot be tuned into irrelevance* — guarantees the prior tail even on a
-cold-topic query.
-- *Caveats:* the chunk-query path reads only index files today, so the manifest
-  read is **genuinely new wiring** (not "free" as first sketched); it **evicts** a
-  cosine slot rather than adding capacity (a hard floor that hurts genuinely
-  on-topic queries); and "newest by mtime" can be the live session — needs a
-  current-session exclusion.
+### Retrieval-structure — change the shape, not the score
 
-### Retrieval-structure (change the shape, not the score)
+**2. Guaranteed recent inclusion (quota or band) · [R][P] · CONTENDER · cost low-med · feasible-with-caveat**
+Put the newest session's tail into the payload *unconditionally*, by either a
+reserved **quota** (⌈limit·0.25⌉ slots inside the budget — evicts cosine results)
+or a separate additive **band** (out of budget — evicts nothing). The
+quota-vs-band choice is the one real sub-decision; both select by mtime + `turn-N`
+regardless of cosine, so the tail lands even on a cold-topic query.
+- *Caveats:* same new manifest wiring; the quota form trades away a cosine slot
+  (a hard floor that hurts genuinely on-topic recalls); must exclude the live
+  session or it surfaces the agent's own just-started empty turns.
 
-**3. Working-memory channel · [R][P] · cost: med · durable-core · feasible-with-caveat**
-A *second, query-independent* channel selects the newest session's last-N turns
-and appends them as their own additive band (`recency:true`) that **never evicts
-a cosine result** (the structural difference from #2's in-budget quota). Highest
-fidelity of the score/index family.
-- *Caveats:* same "newest-by-mtime = live session" mis-targeting (must skip the
-  live transcript to reach the prior one); promotes `manifest.json` from an
-  ingest-only staleness cache to a query-time input.
-
-**4. Since-last-marker cursor replay · [R][P] · cost: low-med · durable-core · feasible-with-caveat**
+**3. Cursor replay from the learn marker · [R][P] · CONTENDER · cost low-med · feasible-with-caveat**
 Use the per-project learn marker (`last-learn-at`, RFC3339Nano) as a *semantic
-cursor* and replay the stripped transcript slice `[marker, now]` as a leading
-"since last session" block — **bypassing cosine and the chunk index entirely**
-(`transcript.ReadFrom` already strips + orders chronologically). Can surface a
-session that was never even ingested. **Immune to the capture-freshness trap.**
-- *Caveats:* *marker-freshness defeats it* — if the prior session ended with
-  `/learn` (this very workflow's close step), the marker ≈ now and the window is
-  empty; it's silent exactly when learn was diligent. The byte budget truncates
-  the **oldest** rows first, which can drop the recent tail unless the read is
-  reversed. Couples a learn-side `$XDG_STATE_HOME` artifact into the query path.
+cursor* and replay the transcript slice `[marker, now]` as a leading "since last
+session" block — **bypassing cosine and the chunk index entirely** (`transcript.
+ReadFrom` reduces each turn to `USER:`/`ASSISTANT:` plaintext, noise lines
+removed, chronological). Can surface a session even if it was never swept.
+- *Caveats:* **marker-freshness defeats it** — if the prior session ended with
+  `/learn` (this workflow's own close step), the marker ≈ now and the window is
+  empty; it's silent exactly when learn was diligent. The byte budget keeps the
+  **oldest** rows and drops the recent tail (walks chronologically forward,
+  `transcript.go:203-239`) — so the read must be reversed to keep the tail.
+  Couples a learn-side `$XDG_STATE_HOME` artifact into the query path.
 
-**5. Session-id additive boost · [R][P] · cost: low · durable-core · feasibility NOT independently verified**
-Add a bounded additive bonus to every chunk whose `Source` UUID matches the
-newest session, floating that whole session up in one pass. Discrete
-session-membership (vs #1's continuous curve, #2's hard quota).
-- *Caveats:* **off-by-one is fatal as written** — "newest session UUID" is the
-  *current* post-clear session, not the prior one; must target second-newest /
-  exclude the live session. The bonus is an untuned magic number. *(The
-  adversarial verifier for this one died on an API overload; the targeting flaw
-  is from the evaluator and is corroborated by the identical bug flagged in #2/#3.)*
+### Data-model — add the missing primitive
 
-### Index / data-model (add the missing primitive)
+**4. Index time/session field + recency filter · [R][P] · CONTENDER (heavier) · cost low-med · feasible-with-caveat**
+Add one coarse `bucket`/timestamp field to `chunk.Record` at ingest and a
+`--since` filter; recall runs a recency-scoped pass (filter to the newest window,
+then cosine) beside the topical pass. Recency as a **filter**, keeping pure-cosine
+ranking intact — the cleanest "make recency first-class" option.
+- *Caveats:* schema change + re-ingest (vectors reused by content hash, so I/O not
+  GPU). Threading is harder than "one facet": `ReadResult` exposes only a single
+  `LastTimestamp` (per-row times exist but are unexported); merged-turn chunks
+  need a per-chunk timestamp-reduction policy. A coarse bucket usually spans
+  several same-period sessions; the `Source` UUID is a sharper key it trades away.
 
-**6. Coarse time-bucket facet + filter · [R][P] · cost: low-med · durable-core · feasible-with-caveat**
-Add one low-cardinality `bucket` field (e.g. `YYYY-MM-DDTHH`) to `chunk.Record`
-at ingest and a `--since` filter; recall runs a recency-scoped pass (filter to the
-newest bucket, then cosine) alongside the topical pass. Recency as a **filter**,
-not a weight/slot/band — keeps pure cosine ranking intact.
-- *Caveats:* schema change + re-ingest (vectors reused by hash, so I/O not GPU).
-  Threading is harder than "one facet": `ReadResult` exposes only a single
-  `LastTimestamp`, and merged-turn chunks span turns with different times — needs
-  a per-chunk reduction policy. A coarse bucket usually spans several
-  same-period sessions (incl. the live one); the `Source` UUID is a sharper key
-  the bucket trades away.
+### Content-shape — select by what the turn *is*
 
-**7. Embed a temporal/session token into the vector · [R] · cost: high · situational · feasible, LOW fidelity**
-Prepend a recency/session token to chunk text before embedding so recent chunks
-*cosine-cluster*; a recency-flavored recall phrase pulls that cluster. Recency in
-**geometry**, not a field.
-- *Caveats (severe):* a time-varying prefix **breaks the hash-keyed vector
-  reuse** (`ingest.go:392-404`) — every sweep becomes a full re-embed. A short
-  token is semantically swamped by ~500 chars of topical text in MiniLM-L6;
-  surfacing is probabilistic, unverifiable, and still only per-session granular.
-  Weakest mechanism in the set.
+**5. Speech-act selection · [P] (no [R] of its own) · PARK · cost low · feasible, weak signal**
+Up-weight chunks whose text is an assistant-authored commitment/completion
+declarative ("I'll…", "I filed…", "done") — the turns that literally carry
+authorship. ~10 lines: a lexical boost in `scoreChunks`, since `strip.go` keeps
+the `ASSISTANT: ` prefix in chunk `Text`.
+- *Why PARK:* turn-merging (`chunk.go:83-94`) puts both roles in most chunks, so
+  "contains `ASSISTANT:`" fires on nearly everything — a weak selector. Verb
+  regexes are fragile (miss paraphrases); the property is semantic, which vector
+  search already handles; and it has **no recency** of its own, so a months-old
+  "I'll fix X" ranks equal to a fresh one. Only useful bolted onto #1.
+
+### Write-artifact — persist a recent-events note
+
+**6. Rolling first-person recap note at close · [R][P] · PARK · cost low-med · feasible, redundant**
+At close, write a compact first-person "what I just did" note via `engram learn
+fact`/`feedback` (no mandatory `## Summary`, unlike the dead episode path — so
+this is the *feasible* cousin of reviving episodes).
+- *Why PARK:* surfaced by phrase-overlap, **not recency** (same limit as
+  episodes); **high redundancy** — `ingest --auto` already chunks the same
+  transcript, so it duplicates the index; diary-shaped phrasing is retrieval-
+  hostile (future queries are task-shaped); and authoring it costs an LLM turn at
+  close — exactly the cost the learn skill deleted episodes to avoid.
+
+### Capture-timing — guarantee the tail is indexed
+
+**7. Close-side capture flush · [R] · PARK · cost low · feasible, marginal**
+A `SessionEnd`/`Stop` hook runs `engram ingest --auto` at close so the tail is
+indexed before the next session.
+- *Why PARK:* the gap it targets **self-heals** — recall's Step 0.5 already
+  re-indexes the prior session before every query (see Diagnosis). It buys only
+  *earlier* availability, not correctness; on `Stop` it fires every turn (model-
+  load latency + the 15s hook timeout risks a silent skip); and it does **not**
+  fix the one real loss (hard-kill before flush). `ingest --auto` is idempotent
+  (separate manifest, no marker contention), so it's safe — just low-value.
+
+### Harness-boot — inject before the query
+
+**8. SessionStart boot-hook re-injection · [R][P] · CONTENDER · cost low · feasible-with-caveat**
+A Claude Code `SessionStart` hook calls `engram transcript` for the project with a
+recent window and returns the stripped tail as `additionalContext` — the clear
+wipes the in-context conversation, the hook reconstitutes the tail from the
+on-disk `.jsonl` **before the user speaks**. **Zero Go change**; bypasses ranking
+entirely.
+- *Highest fidelity for surfacing the agent's own narration* (in a Claude Code
+  deployment) — `strip.go:194-204` emits `ASSISTANT: <text>` verbatim, so the
+  agent boots already holding "I'll file #644".
+- *Caveats:* harness-coupled to Claude Code (no OpenCode / non-hook harness);
+  the hook must be **read-only** (`--from`/marker, never `--mark`, which hard-fails
+  on a fresh project) with a one-shot/dedupe guard — all in untested shell. *(The
+  feared marker contention with `ingest --auto` is a non-issue — `ingest` uses a
+  separate `manifest.json` and never touches the learn marker.)*
 
 ### Graph-topology
 
-**8. Session-spine + `continues`-edges · [R][P] · cost: high · situational · feasible-with-caveat**
-Add a synthetic per-session "spine" node linking all its chunks, chain spines
-with mtime-ordered `continues` edges, force-seed + hub-boost the latest spine so
-the existing 3-hop BFS walks back into the prior session.
-- *Caveats:* the headline selling point is **false** — the BFS/hub machinery
-  operates on `vaultgraph.Note`, **never on chunks**; there is no chunk graph to
-  reuse, so it must be built from scratch (new node type, new edge type,
-  manifest-on-query). Highest cost/blast-radius way to get recent turns in; a
-  plain mtime sort achieves the same surfacing for a fraction of the change.
+**9. Session-spine + `continues`-edges · [R][P] · PARK · cost high · feasible, over-built**
+A synthetic per-session spine node links all its chunks; spines chain by
+mtime-ordered `continues` edges; force-seed + hub-boost the latest spine so the
+3-hop BFS walks back into the prior session.
+- *Why PARK:* the headline reuse claim is **false** — the BFS/hub machinery
+  operates on `vaultgraph.Note`, **never chunks** (`vaultgraph/graph.go`,
+  `bfs.go`); there is no chunk graph to reuse, so it's built from scratch (new
+  node type, edge type, manifest-on-query). Highest cost/blast-radius for an
+  outcome a plain mtime sort achieves far cheaper.
 
-### Write-synthesis
+### Vector-geometry
 
-**9. Revive the dormant `learn episode` as a verbatim handoff · [R][P] · cost: low-med · situational · INFEASIBLE (as a recency mechanism)**
-Re-enable `engram learn episode` at close, body sourced verbatim from the recent
-transcript window; episodes are notes, so recall ranks them.
-- *Why it fails:* (a) recall has **no recency** — an episode is surfaced by
-  *phrase overlap* like any note, so the one thing required (recent foregrounded)
-  is exactly what it does **not** deliver without also touching the ranker; (b) the
-  whole-session body collapses into **one** 384-dim vector that
-  `HugotEmbedder.Embed` **truncates** — the "#644" turn can fall past the char cap
-  and never reach the vector, while `ingest --auto` already vectors that turn
-  individually; (c) a `## Summary` is **mandatory** (an LLM turn at every close),
-  reintroducing exactly the cost the learn skill deleted episodes to avoid, and
-  overturning documented doctrine. Dominated by the free per-turn chunks.
-
-### Skill / harness layer
-
-**10. SessionStart hook re-injects the prior tail · [R][P] · cost: low · ship-now · feasible-with-caveat**
-A Claude Code `SessionStart` hook resolves the project slug from cwd, calls
-`engram transcript` with a recent (`--from`/marker-bounded) window, and returns
-the stripped turn dump as `additionalContext`. The clear wipes the in-context
-conversation; the hook reconstitutes the tail from the on-disk `.jsonl` **before
-the user speaks**. **Zero Go change.** **Immune to capture-freshness** (reads the
-raw transcript, not the index).
-- *Highest fidelity of any approach* for surfacing the agent's own narration —
-  `strip.go` emits `ASSISTANT: <text>` verbatim; the agent boots already holding
-  "I'll file #644".
-- *Caveats:* harness-coupled to Claude Code's hook contract (no OpenCode / non-hook
-  harness); the hook **must be read-only** (`--from`/marker, never `--mark`, which
-  hard-fails on a fresh project) and needs a one-shot/dedupe guard — all in
-  untested shell outside `targ test`. *(Note: the feared marker contention with
-  `ingest --auto` is a non-issue — `ingest` uses a separate `manifest.json` and
-  never touches the learn marker.)*
+**10. Embedding-geometry recency token · [R] · PARK · cost high · feasible, low fidelity**
+Prepend a recency/session token to chunk text before embedding so recent chunks
+cosine-cluster, then pull that cluster with a recency-flavored phrase.
+- *Why PARK:* a time-varying prefix **breaks the hash-keyed vector reuse**
+  (`ingest.go:392-404`) — every sweep becomes a full re-embed. The token is
+  semantically swamped by ~500 chars of topical text; surfacing is probabilistic
+  and unverifiable; and the agent reads ranker output, not the turn itself, so it
+  only *biases* selection rather than guaranteeing the narration appears.
 
 ---
 
 ## Comparison
 
-| # | Approach | Where recency lives | Cost | Fidelity | Feasibility |
-|---|----------|---------------------|------|----------|-------------|
-| 1 | Recency-decay re-rank | query score | low | med-high | with caveat |
-| 2 | Recency-quota lane | query budget | low-med | high (evicts cosine) | with caveat |
-| 3 | Working-memory channel | separate band | med | high | with caveat |
-| 4 | Since-marker cursor replay | raw transcript @ query | low-med | highest (in-engram) | with caveat |
-| 5 | Session-id boost | query score | low | med | targeting bug; unverified |
-| 6 | Time-bucket filter | new chunk field | low-med | high-med | with caveat |
-| 7 | Embed temporal token | vector geometry | high | low | low payoff |
-| 8 | Session-spine graph | graph topology | high | med-high *if* built | reuse claim false |
-| 9 | Revive episode | write artifact | low-med | low | infeasible (no recency) |
-| 10 | SessionStart hook | harness boot | low | highest overall | with caveat |
+| # | Approach | Where recency lives | Verdict | Cost | Fidelity |
+|---|----------|---------------------|---------|------|----------|
+| 1 | Recency-decay re-rank (+session-boost variant) | query score | CONTENDER | low | med-high |
+| 2 | Guaranteed inclusion (quota or band) | retrieval shape | CONTENDER | low-med | high |
+| 3 | Cursor replay from marker | raw transcript @ query | CONTENDER | low-med | highest (in-engram) |
+| 4 | Time field + recency filter | new chunk field | CONTENDER (heavier) | low-med | high |
+| 5 | Speech-act selection | content shape | PARK | low | low (turn-merge) |
+| 6 | Rolling recap note | write artifact | PARK | low-med | low (redundant) |
+| 7 | Close-side capture flush | capture timing | PARK | low | n/a (self-heals) |
+| 8 | SessionStart boot-hook | harness boot | CONTENDER | low | highest (Claude Code) |
+| 9 | Session-spine graph | graph topology | PARK | high | med *if* built |
+| 10 | Embedding-geometry token | vector geometry | PARK | high | low |
 
-## Precondition that sits above all ten (completeness critic)
+## Cross-cutting findings
 
-**Capture-freshness / freshness-at-close.** Approaches #1, #2, #3, #5, #6, #7, #8
-all re-rank/filter/graph over the **chunk index** — but `ingest --auto` runs
-lazily at the *next* recall and skips unchanged sources, so the prior session's
-**closing** turns may not be indexed when the fresh agent retrieves. If the
-narration isn't captured, no retrieval lever can surface it. The clean fix is a
-**close-side flush** (a `Stop`/`SessionEnd`/`PreCompact` hook that ingests the
-just-ended session's tail before context is lost). Notably, **#4 and #10 dodge
-this entirely** by replaying the raw transcript instead of the index — a strong
-point in their favor.
+- **Live-session trap.** "Newest source by mtime" is usually the *current*
+  post-clear session (its `.jsonl` is being appended now), not the prior one we
+  want. Every mtime/session selector (#1's session-boost variant, #2, #4) must
+  exclude the live session — else it surfaces the agent's own just-started turns.
+- **Recency is the only gap.** Capture self-heals (Step 0.5) and provenance falls
+  out of recency — so the work is squarely "make recent events rank/appear,"
+  nothing more.
 
-## Axes the ten do not cover (for the operator to consider swapping in)
+## Weaker levers considered, not numbered
 
-The completeness critic flagged these distinct levers, none represented above:
-- **Phrase-side:** have the `recall` skill seed a recency-anchored query phrase
-  from the agent's own first sentence — pull the prior tail via ordinary cosine,
-  zero binary change.
-- **Speech-act selection:** up-weight first-person *commitment/completion* turns
-  ("I'll…", "I filed…", "done") — the exact carriers of authorship — rather than
-  selecting by time/source alone. Most directly serves "P falls out of R".
-- **Within-session injection decay:** surface recent events strongly at the first
-  post-clear turn, fade as the new session accrues its own context (avoid
-  re-injecting the same tail every recall).
-- **Open-vs-completed:** the motivating case ("I'll file #644") is a *commitment*
-  that may be undone by the clear; distinguish open commitments from finished work.
-- **Multi-session threading:** reason about a work-thread spanning several short
-  post-clear sessions, not just the single newest `.jsonl`.
+- **Phrase-side recency-seed** (recall seeds a recency-anchored query phrase):
+  verified **not genuinely distinct** — when concrete anchors are in context it's
+  ordinary topical retrieval with a recency label; when they aren't, the generic
+  phrase is cosine-useless. A real recency capability needs binary changes (i.e.
+  it collapses into #1/#4).
+- **Within-session injection decay** (fade the recent injection as the new session
+  grows): a modifier on #2/#3/#8, not a standalone lever.
+- **Open-vs-completed commitment selection** (surface unfinished commitments): a
+  refinement on #5.
+- **Multi-session work-thread** (the contiguous thread across several clears, not
+  just the newest `.jsonl`): an extension, mostly of #3/#9.
 
 ## Recommendation (a position to react to, not a final pick)
 
-The adversarial pass reshaped my earlier read. All ten stand for evaluation; this
-is where I'd put weight:
+The verification pass sharpened the problem to **recency in ranking** — capture
+and provenance are already handled. So:
 
-- **Ship-now / highest fidelity: #10 (SessionStart hook).** Zero Go, immune to
-  capture-freshness, verbatim first-person narration at boot. The cost is
-  harness-coupling (Claude Code only) and untested shell guards. Best
-  single bet to *validate the hypothesis* that re-reading recent narration fixes
-  the symptom — before committing to any schema or ranker change.
-- **Best in-engram, harness-agnostic: #4 (cursor replay)**, paired with a
-  **close-side flush** to neutralize its marker-freshness blind spot. Together
-  they make "replay what just happened" reliable inside engram.
-- **Durable retrieval core: #1 or #2.** Once the hypothesis holds, fold recency
-  into ranking so it helps *every* recall, not just the boot. Both need the
-  manifest plumbing and a current-session exclusion; #2 guarantees inclusion but
-  evicts cosine, #1 is gentler but can be tuned into irrelevance.
-- **Park / drop: #7, #8, #9.** High cost or dominated; #9 is infeasible as a
-  recency mechanism without also changing the ranker.
+- **Ship-now / validate the hypothesis: #8 (SessionStart hook).** Zero Go, highest
+  fidelity, reconstitutes the recent narration verbatim at boot *regardless of
+  ranking*. Best first probe that "re-reading recent narration fixes the symptom."
+  Cost: Claude-Code-coupled, untested shell.
+- **Best in-engram, harness-agnostic: #3 (cursor replay).** Same "verbatim, bypass
+  ranking" idea inside engram; reverse the read to keep the tail and accept the
+  marker-freshness blind spot.
+- **Durable retrieval core: #1 or #2.** Once validated, fold recency into ranking
+  so *every* recall benefits, not just the boot. #1 is gentler (tunable, can be
+  drowned); #2 guarantees inclusion (but evicts cosine). Both need live-session
+  exclusion; #1 subsumes the session-boost variant.
+- **Heavier bet: #4** if a filterable time field proves worth the schema change.
+- **Park: #5, #6, #7, #9, #10** — genuinely distinct axes, but weak / redundant /
+  self-healing / over-built on the verified read. Keep them as the set you
+  evaluate the contenders against; don't build them first.
 
 Whatever is chosen should be **measured, not asserted** — via the memory eval
 harness (`docs/superpowers/specs/2026-05-29-memory-eval-harness-design.md`),
-which is itself mid-rework (issue #642); clearing those blockers is a prerequisite
-to gating any of these empirically.
+itself mid-rework (issue #642); clearing those blockers is a prerequisite to
+gating any of these empirically.
 
-> Per the operator's working style, this artifact keeps a diagnosis and a
-> recommendation rather than presenting a neutral survey — engram's "verify, don't
-> guess" first principle requires grounding the pitches in the real code, and a
-> position is more useful than a menu. The ten options remain independently
-> evaluable; the recommendation is a starting argument, not a foreclosure.
+> Per the operator's working style, this keeps a diagnosis and a recommendation
+> rather than a neutral menu — engram's "verify, don't guess" first principle
+> requires grounding the pitches in the real code, and the verification pass
+> changed the answer (capture is not the gap; phrase-side and the two write/graph
+> options are weaker than they first looked). The ten remain independently
+> evaluable; the CONTENDER/PARK split is an argument, not a foreclosure.
