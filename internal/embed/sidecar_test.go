@@ -1,6 +1,7 @@
 package embed_test
 
 import (
+	"strconv"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -29,6 +30,47 @@ func TestMarshalUnmarshal_DualVector_RoundTrip(t *testing.T) {
 	}
 
 	g.Expect(out).To(Equal(original))
+}
+
+func TestSidecarLastUsedRoundTripsAndIsOptional(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	s := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "minilm-l6-v2@384",
+		Dims:             1,
+		SituationVector:  []float32{0.1},
+		BodyVector:       []float32{0.2},
+		ContentHash:      "sha256:x",
+		LastUsed:         "2026-06-17",
+	}
+
+	got, err := embed.UnmarshalSidecar(embed.MarshalSidecar(s))
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got.LastUsed).To(Equal("2026-06-17"))
+
+	// A sidecar WITHOUT last_used (the pre-feature shape) still decodes; LastUsed empty.
+	noKey := []byte(`{"schema_version":` + strconv.Itoa(embed.SidecarSchemaVersion) +
+		`,"embedding_model_id":"minilm-l6-v2@384","dims":1,` +
+		`"situation_vector":[0.1],"body_vector":[0.2],"content_hash":"sha256:x"}`)
+
+	got2, err2 := embed.UnmarshalSidecar(noKey)
+
+	g.Expect(err2).NotTo(HaveOccurred())
+
+	if err2 != nil {
+		return
+	}
+
+	g.Expect(got2.LastUsed).To(Equal(""))
 }
 
 func TestSidecarPath_FromNotePath(t *testing.T) {

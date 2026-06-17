@@ -72,6 +72,13 @@ type Sidecar struct {
 	SituationVector  []float32 `json:"situation_vector"`
 	BodyVector       []float32 `json:"body_vector"`
 	ContentHash      string    `json:"content_hash"`
+	// LastUsed is the date (YYYY-MM-DD) this note last surfaced as a useful
+	// (above-cutoff) recall hit. Additive metadata: omitempty, EXCLUDED from
+	// ContentHash (hash.go hashes situation+body of the raw note, not this), and
+	// it does NOT bump SidecarSchemaVersion — old sidecars decode LastUsed=""
+	// ("never used"). Never feed LastUsed into any hash: bumping it must not
+	// mark a note stale.
+	LastUsed string `json:"last_used,omitempty"` //nolint:tagliatelle // sidecar JSON keys are spec contract
 }
 
 // BuildSidecar embeds a note's situation and body and returns a fully
