@@ -37,6 +37,7 @@ var (
 	ExportNewOsShowDeps              = newOsShowDeps
 	ExportNextLuhmannID              = nextLuhmannID
 	ExportApplyChunkRecency          = applyChunkRecency
+	ExportFillRecencyBand            = fillRecencyBand
 	ExportMaxTurnBySource            = maxTurnBySource
 	ExportParseTurnN                 = parseTurnN
 	ExportRecencyMultiplier          = recencyMultiplier
@@ -299,8 +300,17 @@ func ExportParseEpisodeBody(body string) (summary, transcript string, relations 
 	return parsed.summary, parsed.transcript, parsed.relations
 }
 
+// ExportNewChunkResolvedItem builds a chunk-kind resolvedItem for band tests.
+// notePath mirrors mergeChunkSpace's "source#anchor" form.
+func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
+	return resolvedItem{notePath: notePath, score: score, kind: chunkItemKind}
+}
+
 // ExportResolvedItemPath exposes the unexported notePath field for assertions.
 func ExportResolvedItemPath(item ExportResolvedItem) string { return item.notePath }
+
+// ExportResolvedItemScore exposes the unexported score field for assertions.
+func ExportResolvedItemScore(item ExportResolvedItem) float32 { return item.score }
 
 // ExportRunLearnFromFactArgs invokes the unexported runLearnFromFactArgs for testing.
 func ExportRunLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer) error {

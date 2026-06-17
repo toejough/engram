@@ -10,6 +10,47 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func TestFillRecencyBandBackfillsDeficit(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// capped items: all stale notes/chunks; recentPool has 2 recent chunk items not present.
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewChunkResolvedItem("old.jsonl#turn-1", 0.9),
+		cli.ExportNewChunkResolvedItem("old.jsonl#turn-2", 0.8),
+		cli.ExportNewChunkResolvedItem("old.jsonl#turn-3", 0.7),
+	}
+	recentPool := []cli.ExportResolvedItem{
+		cli.ExportNewChunkResolvedItem("recent.jsonl#turn-9", 0.30),
+		cli.ExportNewChunkResolvedItem("recent.jsonl#turn-8", 0.20),
+	}
+
+	out := cli.ExportFillRecencyBand(items, recentPool, 2, len(items))
+
+	g.Expect(out).To(HaveLen(len(items))) // budget preserved
+	paths := map[string]bool{}
+	for _, it := range out {
+		paths[cli.ExportResolvedItemPath(it)] = true
+	}
+	g.Expect(paths["recent.jsonl#turn-9"]).To(BeTrue())
+	g.Expect(paths["recent.jsonl#turn-8"]).To(BeTrue())
+	g.Expect(paths["old.jsonl#turn-1"]).To(BeTrue()) // highest-ranked stale retained
+}
+
+func TestFillRecencyBandNoDeficitNoChange(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewChunkResolvedItem("recent.jsonl#turn-9", 0.9),
+		cli.ExportNewChunkResolvedItem("recent.jsonl#turn-8", 0.8),
+	}
+	recentPool := items // both already present and recent
+
+	out := cli.ExportFillRecencyBand(items, recentPool, 2, len(items))
+	g.Expect(out).To(Equal(items))
+}
+
 func TestApplyChunkRecencyLiftsRecentOverStaleHighCosine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

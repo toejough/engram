@@ -118,3 +118,79 @@ func applyChunkRecency(
 func sortScoredDesc(scored []scoredChunk) {
 	sort.SliceStable(scored, func(i, j int) bool { return scored[i].score > scored[j].score })
 }
+
+// fillRecencyBand guarantees at least floor of recentPool's items appear in the
+// returned slice of length <= limit. recentPool is the recency-ordered (newest
+// first) chunk items the caller deemed "recent". Items already present count
+// toward the floor; the deficit is filled from recentPool (skipping those
+// already present), displacing the lowest-ranked items NOT in recentPool. No-op
+// when the floor is already met or recentPool is empty.
+func fillRecencyBand(items, recentPool []resolvedItem, floor, limit int) []resolvedItem {
+	recentKey := make(map[string]bool, len(recentPool))
+	for _, r := range recentPool {
+		recentKey[r.notePath] = true
+	}
+
+	present := make(map[string]bool, len(items))
+	have := 0
+
+	for _, it := range items {
+		present[it.notePath] = true
+		if recentKey[it.notePath] {
+			have++
+		}
+	}
+
+	deficit := floor - have
+	if deficit <= 0 {
+		return items
+	}
+
+	missing := make([]resolvedItem, 0, deficit)
+
+	for _, r := range recentPool {
+		if len(missing) >= deficit {
+			break
+		}
+
+		if !present[r.notePath] {
+			missing = append(missing, r)
+		}
+	}
+
+	if len(missing) == 0 {
+		return items
+	}
+
+	return spliceRecent(items, missing, recentKey, limit)
+}
+
+// spliceRecent prepends the missing recent items, then refills from the original
+// items dropping the lowest-ranked NON-recent ones first, capped at limit.
+func spliceRecent(items, missing []resolvedItem, recentKey map[string]bool, limit int) []resolvedItem {
+	out := make([]resolvedItem, 0, limit)
+	out = append(out, missing...)
+
+	// keep recent items from the original first, then non-recent, in original order.
+	for _, it := range items {
+		if len(out) >= limit {
+			break
+		}
+
+		if recentKey[it.notePath] {
+			out = append(out, it)
+		}
+	}
+
+	for _, it := range items {
+		if len(out) >= limit {
+			break
+		}
+
+		if !recentKey[it.notePath] {
+			out = append(out, it)
+		}
+	}
+
+	return out
+}
