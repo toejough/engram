@@ -1,223 +1,274 @@
 # Short-term memory for engram — ten approaches
 
-Date: 2026-06-16. Brainstormed via `/please`.
+Date: 2026-06-16. Brainstormed via `/please`, then expanded and adversarially
+evaluated via a multi-agent workflow (8 idea lenses → distill → diversity critic
+→ per-approach evaluation + feasibility verification against the code).
 
 ## The trigger
 
-On another machine: the operator created several GitHub issues, cleared
-context, then ran `/please` to resolve them. The fresh agent ran `/learn` and
-`/recall`, looked the issues up, and *remarked with surprise at how well
-written they were* — having entirely forgotten it was the author, minutes
-earlier. The ask: build short-term memory good enough that this can't happen.
+On another machine: the operator created several GitHub issues, cleared context,
+then ran `/please` to resolve them. The fresh agent ran `/learn` and `/recall`,
+looked the issues up, and *remarked with surprise at how well written they were*
+— having entirely forgotten it was the author, minutes earlier.
 
-## Diagnosis (verified against the code, not guessed)
+## The refined target (operator's framing)
 
-The symptom is not one gap but three, and they compound:
+Provenance is **not** to be solved by a separate identity mechanism. It should
+**fall out of recency**: if recall surfaces the *recent raw transcript events* —
+where the agent's own first-person narration lives ("I'll file issue #644 for
+X") — then re-reading that narration *is* the agent remembering it did the work.
+[P] (authorship) becomes a side effect of [R] (recency) done over the transcript.
 
-1. **No recency anywhere in retrieval.** `engram query` scores by pure cosine
-   (`internal/cli/query_chunks.go` `scoreChunks`; `query.go` `bestVector` =
-   `max(situation, body)`). Nothing decays, boosts, or orders by time. "What
-   happened five minutes ago" and "what happened in May" compete on topic
-   similarity alone.
-2. **Chunks carry no temporal or session identity.** A `chunk.Record` is
-   `{Source, Anchor, ContentHash, Text, Vector}` — no timestamp, no session id
-   (`internal/chunk/index.go`). The info is *latently* present (the transcript
-   source filename is the session UUID; the anchor is `turn-N`; the manifest
-   holds source mtime) but it is never extracted into a rankable signal.
-3. **The issues were never engram memory at all.** `engram ingest` indexes only
-   transcripts and markdown (`internal/cli/ingest.go`). GitHub issues are not a
-   source. The agent "remembered" the issues via `gh`, with zero linkage to its
-   own prior session — so engram could not have supplied authorship continuity
-   even in principle.
+So every approach below serves one goal: **get recent transcript-event content
+into the recall payload.** Approaches that bolt provenance on as separate
+machinery are off-target by construction.
 
-Notes (unlike chunks) *do* carry a `created` stamp — but date-only
-(`YYYY-MM-DD`, no sub-day resolution) — and a `source` string
-(`internal/cli/learn.go`). `source` is unconstrained free text (the
-`"claude"`/`"opencode"` values are a *transcript-harness* label elsewhere, not a
-constraint on this field), so authorship *could* be stamped there with no schema
-change. Nothing records per-agent/session identity today, and recall surfaces
-neither field.
+## Diagnosis (verified against the code)
 
-So the symptom leans on two problems the ten approaches are tagged against. The
-tags are a comparison lens, **not a filter** — an approach that solves the
-symptom some other way is just as welcome; the tags only show which problem each
-leans toward:
+- **`engram query` has zero recency.** Chunk scoring is pure cosine
+  (`scoreChunks`, `internal/cli/query_chunks.go:194-226`); notes use
+  `max(situation, body)` cosine (`query.go`). Nothing decays or orders by time.
+- **Chunks carry no time/session field.** `chunk.Record` is exactly
+  `{Source, Anchor, ContentHash, Text, Vector}` (`internal/chunk/index.go:13-25`).
+  Time is *latent*: the transcript `Source` path is the session `.jsonl` (filename
+  = session UUID), the `Anchor` is `turn-N`, and the ingest `manifest.json` holds a
+  **per-source** `MtimeUnixNano` (`internal/cli/ingest.go:48`). None of it is
+  extracted into a rankable signal, and the chunk-query path does **not** read the
+  manifest today.
+- **The learn workflow no longer writes episodes.** `engram learn episode` still
+  exists in the binary, but the active path is `engram ingest --auto`, which
+  chunks the **raw transcript verbatim** (stripped `USER:`/`ASSISTANT:` turns).
+  That is *better* for this goal than episodes — episodes summarize the narration
+  away; raw chunks keep it word-for-word.
+- **Two latent traps the evaluation surfaced** (they recur across approaches):
+  1. *"Newest source by mtime" is usually the **live** post-clear session* (its
+     `.jsonl` is being appended right now), not the immediately-prior session we
+     want. Any mtime-keyed selector needs to exclude the current session.
+  2. *Capture-freshness:* `ingest --auto` runs lazily at the **next** recall and
+     the manifest skips unchanged sources by mtime/size — so the prior session's
+     **closing** turns (the most recall-critical ones) may not be in the index at
+     all when the fresh agent retrieves. See "Precondition" below.
 
-- **[R] Recency / continuity** — the just-prior session should be foregrounded
-  over the whole corpus.
-- **[P] Authorship / provenance** — the agent should *know it* produced these
-  artifacts, this session or last, rather than meet them as a stranger's work.
+The two problems each approach is tagged against (a lens, **not** a filter):
 
-Prior research already named the underlying miss: engram has **no
-working-memory analog** (`docs/superpowers/research/2026-05-22-human-memory-literature-summary.md`)
+- **[R] Recency / continuity** — the just-prior session foregrounded over the corpus.
+- **[P] Authorship / provenance** — the agent knows *it* produced these artifacts.
+
+Prior research already named the underlying miss: engram has **no working-memory
+analog** (`docs/superpowers/research/2026-05-22-human-memory-literature-summary.md`)
 — effective retrieval combines recency + importance + relevance, not relevance
-alone (the Generative Agents memory stream, Park 2023, does exactly this; the
-literature summary makes the parallel point via ACT-R activation, Anderson), and
-a bounded, ordered, decaying working-memory window is the missing container
-(Baddeley).
+alone (Generative Agents, Park 2023; ACT-R activation, Anderson), and a bounded,
+ordered, decaying working-memory window is the missing container (Baddeley).
 
 ---
 
 ## The ten approaches
 
-### 1. Recency-weighted query scoring  · [R]
-Add a time signal to every indexed item and fold it into the score:
-`final = cosine × decay(age)` (exponential, Generative-Agents style). Requires
-stamping chunks with a timestamp — derivable cheaply at ingest from the
-transcript row time / source mtime, no LLM. Notes have a date-only `created`.
-The time signal has two flavors worth A/B-ing under one direction: **write-age
-decay** (how long ago it was created) or **access-activation** (ACT-R: boost
-recently-*used* items by last-access + frequency). Age-decay is stateless and
-fits the immutable, content-hash-keyed index; activation is more adaptive but
-needs a mutable per-item access log — friction against the current rebuild-whole
-index.
-- **Fit:** small, surgical change in `scoreChunks` + the chunk schema (age-decay
-  flavor). Pure computation — squarely "binary for computation."
-- **Risk:** a global decay constant is a blunt instrument; tuning needs the eval
-  harness, and over-weighting recency hurts genuine topic matches.
+Grouped by **where recency lives**. Each entry carries the adversarial
+feasibility verdict (verified against file:line).
 
-### 2. Explicit working-memory window (new container)  · [R][P]
-A bounded, ordered, recency-decaying scratchpad *separate* from the vault: the
-last N events of the current + prior session, **always injected verbatim** at
-recall, never queried or similarity-filtered. This is the Baddeley working-memory
-analog the research flagged as missing. (Contrast #6, which *queries* a recent
-store and merges by score; here the recent window bypasses ranking entirely.)
-"What just happened" is in every payload by construction, regardless of cosine.
-- **Fit:** the most theoretically complete answer; matches the literature
-  directly.
-- **Risk:** largest new surface — a new store, its lifecycle, its eviction, and
-  a recall-payload redesign. Highest blast radius.
+### Query-scoring (re-rank an existing cosine pool)
 
-### 3. Rolling session-recap note at learn time  · [R][P]
-Every `/learn` writes/updates a single first-person "what I just did" note
-(rich provenance: issues created, files touched, decisions, open threads).
-Recall always surfaces the most recent K recaps. Reuses existing note infra
-entirely.
-- **Fit:** cheap, no schema change, no binary change beyond a learn convention;
-  the first-person voice ("I filed #644, #642…") directly dissolves the
-  authorship surprise.
-- **Risk:** depends on the agent writing the recap honestly each time; quality
-  is only as good as the closing `/learn`.
+**1. Recency-decay re-rank · [R] · cost: low · durable-core · feasible-with-caveat**
+Widen the cosine pass to a candidate pool, then re-score
+`final = cosine × exp(−λ·age) × (1 + β·turnFrac)` and re-sort. `age` comes from
+`manifest.json` `MtimeUnixNano` keyed by `record.Source`; `turnFrac` from the
+`turn-N` anchor (newest turns → ~1.0). One half-life const, one tail const, no
+schema change, no re-ingest. *The single continuous score-blend* — a strongly
+on-topic old chunk can still win.
+- *Caveats:* `turnFrac` needs a per-source max-`N` pass (no field carries it);
+  the chunker merges consecutive turns and stamps the *first* turn's anchor, so
+  position is approximate; the consts are untuned and the eval harness that would
+  tune them is mid-rework (#642). A multiplicative blend can still leave
+  mediocre-cosine narration below the truncation cut.
 
-### 4. Authorship / provenance stamping + recall labeling  · [P]
-Stamp every note (and chunk) with agent + session identity, and have recall
-explicitly tag items: "← you wrote this, this session." Surgical fix for the
-exact symptom ("forgot it authored them"). For notes this needs **no schema
-change** — the free-form `source` field already accepts an identity string; the
-work is a `learn`/`recall` convention plus chunk-side identity.
-- **Fit:** directly targets [P]; minimal-to-no schema change for notes.
-- **Risk:** identity is fuzzy across machines/harnesses; "you" is ill-defined
-  when the prior session was a different model on a different host. Solves the
-  surprise without solving continuity of *content*.
+**2. Recency-quota lane · [R][P] · cost: low-med · durable-core · feasible-with-caveat**
+Don't blend — *partition the budget*: reserve `⌈limit·0.25⌉` slots for the newest
+chunks (by mtime, then descending `turn-N`), fill the rest from pure cosine,
+dedup. *Cannot be tuned into irrelevance* — guarantees the prior tail even on a
+cold-topic query.
+- *Caveats:* the chunk-query path reads only index files today, so the manifest
+  read is **genuinely new wiring** (not "free" as first sketched); it **evicts** a
+  cosine slot rather than adding capacity (a hard floor that hurts genuinely
+  on-topic queries); and "newest by mtime" can be the live session — needs a
+  current-session exclusion.
 
-### 5. Ingest GitHub issues (and PRs) as a source  · [R][P]
-Teach `engram ingest` to pull `gh issue`/`gh pr` activity into the chunk index
-with author + timestamp. Targets the literal root cause: the issues were
-invisible to engram.
-- **Fit:** closes gap #3 precisely; the artifact the operator actually created
-  becomes memory.
-- **Risk:** narrow — fixes issues but not the general recency gap; adds a `gh`
-  dependency and network I/O to ingest (currently pure-FS, zero-LLM). Couples
-  engram to GitHub.
+### Retrieval-structure (change the shape, not the score)
 
-### 6. Two-store CLS model: fast recent + slow semantic  · [R]
-Split memory into a fast episodic "recent" store (last session/day,
-recency-ranked, aggressively archived) and the slow semantic vault
-(similarity-ranked). Recall queries both and merges. Mirrors Complementary
-Learning Systems (the research's "exactly two stores, not four").
-- **Fit:** principled, scales, matches biology cited in the research.
-- **Risk:** a larger architectural commitment than #1/#2. Distinct from #2 (that
-  one *injects* a recent window unconditionally; this one keeps recent memory in
-  the retrieval path and merges by score), but it may be over-engineering
-  relative to the immediate symptom (YAGNI flag).
+**3. Working-memory channel · [R][P] · cost: med · durable-core · feasible-with-caveat**
+A *second, query-independent* channel selects the newest session's last-N turns
+and appends them as their own additive band (`recency:true`) that **never evicts
+a cosine result** (the structural difference from #2's in-budget quota). Highest
+fidelity of the score/index family.
+- *Caveats:* same "newest-by-mtime = live session" mis-targeting (must skip the
+  live transcript to reach the prior one); promotes `manifest.json` from an
+  ingest-only staleness cache to a query-time input.
 
-### 7. Recall surfaces a "since last session" block (skill-only)  · [R]
-No binary change: the `recall` skill runs a second, *time-ordered* pass — list
-the most-recently-created notes and the most-recent transcript turns — and
-injects them as a distinct "here's what you just did" block, beside the cosine
-results. Could be a thin `engram recent` flag if listing needs the binary.
-- **Fit:** cheapest possible; ships today; reversible; tests the hypothesis that
-  *foregrounding* recent work (not better ranking) is what's missing.
-- **Risk:** a bolt-on, not a model; doesn't help non-`/recall` paths; "recent"
-  by note `created` ignores chunk recency.
+**4. Since-last-marker cursor replay · [R][P] · cost: low-med · durable-core · feasible-with-caveat**
+Use the per-project learn marker (`last-learn-at`, RFC3339Nano) as a *semantic
+cursor* and replay the stripped transcript slice `[marker, now]` as a leading
+"since last session" block — **bypassing cosine and the chunk index entirely**
+(`transcript.ReadFrom` already strips + orders chronologically). Can surface a
+session that was never even ingested. **Immune to the capture-freshness trap.**
+- *Caveats:* *marker-freshness defeats it* — if the prior session ended with
+  `/learn` (this very workflow's close step), the marker ≈ now and the window is
+  empty; it's silent exactly when learn was diligent. The byte budget truncates
+  the **oldest** rows first, which can drop the recent tail unless the read is
+  reversed. Couples a learn-side `$XDG_STATE_HOME` artifact into the query path.
 
-### 8. Temporal-edge continuity via the graph walk  · [R][P]
-Continuity as *links*, not scores. At `/learn`, link each new note to the
-immediately-prior session's notes with an explicit `continues`/`temporal`
-relation. Recall already does a 3-hop BFS over wikilinks (`internal/cluster/`,
-the recall flow's subgraph walk), so from any current-topic seed the walk
-naturally pulls in the recent chain — and the chain is self-evidently *this
-agent's* trail, addressing [P] too. Engram-native: reuses machinery that exists.
-- **Fit:** orthogonal to ranking entirely; leverages the existing graph walk;
-  no new store and no scoring change.
-- **Risk:** only surfaces recent work when a topic seed connects to it; a
-  cold-open with no on-topic seed won't reach the chain. Needs a reliable
-  "previous session's notes" handle at learn time.
+**5. Session-id additive boost · [R][P] · cost: low · durable-core · feasibility NOT independently verified**
+Add a bounded additive bonus to every chunk whose `Source` UUID matches the
+newest session, floating that whole session up in one pass. Discrete
+session-membership (vs #1's continuous curve, #2's hard quota).
+- *Caveats:* **off-by-one is fatal as written** — "newest session UUID" is the
+  *current* post-clear session, not the prior one; must target second-newest /
+  exclude the live session. The bonus is an untuned magic number. *(The
+  adversarial verifier for this one died on an API overload; the targeting flaw
+  is from the evaluator and is corroborated by the identical bug flagged in #2/#3.)*
 
-### 9. Context-clear handoff artifact  · [R][P]
-At session end / before a context clear, the agent writes a structured handoff
-(open threads, what I created, next steps); the next session's first recall
-loads it. Fixes the problem exactly at the seam where it breaks — the clear
-itself — like a human leaving themselves a note.
-- **Fit:** precise to the failure mode; first-person handoff also addresses [P].
-- **Risk:** depends on a reliable "before clear" hook; context clears are often
-  abrupt/unhooked, so capture may not fire when it matters most.
+### Index / data-model (add the missing primitive)
 
-### 10. Reflection / consolidation pass  · [R]
-Periodically (or at closing `/learn`) synthesize recent raw events into a
-higher-level "what I've been working on lately" note that recall surfaces.
-Generative-Agents reflection; reuses the existing cluster-synthesis machinery.
-- **Fit:** produces durable, queryable continuity narrative; leverages
-  machinery that already exists.
-- **Risk:** costs LLM calls; synthesis lag means the *most recent* events (the
-  ones in the symptom) may not be consolidated yet — weakest exactly where the
-  symptom bites.
+**6. Coarse time-bucket facet + filter · [R][P] · cost: low-med · durable-core · feasible-with-caveat**
+Add one low-cardinality `bucket` field (e.g. `YYYY-MM-DDTHH`) to `chunk.Record`
+at ingest and a `--since` filter; recall runs a recency-scoped pass (filter to the
+newest bucket, then cosine) alongside the topical pass. Recency as a **filter**,
+not a weight/slot/band — keeps pure cosine ranking intact.
+- *Caveats:* schema change + re-ingest (vectors reused by hash, so I/O not GPU).
+  Threading is harder than "one facet": `ReadResult` exposes only a single
+  `LastTimestamp`, and merged-turn chunks span turns with different times — needs
+  a per-chunk reduction policy. A coarse bucket usually spans several
+  same-period sessions (incl. the live one); the `Source` UUID is a sharper key
+  the bucket trades away.
+
+**7. Embed a temporal/session token into the vector · [R] · cost: high · situational · feasible, LOW fidelity**
+Prepend a recency/session token to chunk text before embedding so recent chunks
+*cosine-cluster*; a recency-flavored recall phrase pulls that cluster. Recency in
+**geometry**, not a field.
+- *Caveats (severe):* a time-varying prefix **breaks the hash-keyed vector
+  reuse** (`ingest.go:392-404`) — every sweep becomes a full re-embed. A short
+  token is semantically swamped by ~500 chars of topical text in MiniLM-L6;
+  surfacing is probabilistic, unverifiable, and still only per-session granular.
+  Weakest mechanism in the set.
+
+### Graph-topology
+
+**8. Session-spine + `continues`-edges · [R][P] · cost: high · situational · feasible-with-caveat**
+Add a synthetic per-session "spine" node linking all its chunks, chain spines
+with mtime-ordered `continues` edges, force-seed + hub-boost the latest spine so
+the existing 3-hop BFS walks back into the prior session.
+- *Caveats:* the headline selling point is **false** — the BFS/hub machinery
+  operates on `vaultgraph.Note`, **never on chunks**; there is no chunk graph to
+  reuse, so it must be built from scratch (new node type, new edge type,
+  manifest-on-query). Highest cost/blast-radius way to get recent turns in; a
+  plain mtime sort achieves the same surfacing for a fraction of the change.
+
+### Write-synthesis
+
+**9. Revive the dormant `learn episode` as a verbatim handoff · [R][P] · cost: low-med · situational · INFEASIBLE (as a recency mechanism)**
+Re-enable `engram learn episode` at close, body sourced verbatim from the recent
+transcript window; episodes are notes, so recall ranks them.
+- *Why it fails:* (a) recall has **no recency** — an episode is surfaced by
+  *phrase overlap* like any note, so the one thing required (recent foregrounded)
+  is exactly what it does **not** deliver without also touching the ranker; (b) the
+  whole-session body collapses into **one** 384-dim vector that
+  `HugotEmbedder.Embed` **truncates** — the "#644" turn can fall past the char cap
+  and never reach the vector, while `ingest --auto` already vectors that turn
+  individually; (c) a `## Summary` is **mandatory** (an LLM turn at every close),
+  reintroducing exactly the cost the learn skill deleted episodes to avoid, and
+  overturning documented doctrine. Dominated by the free per-turn chunks.
+
+### Skill / harness layer
+
+**10. SessionStart hook re-injects the prior tail · [R][P] · cost: low · ship-now · feasible-with-caveat**
+A Claude Code `SessionStart` hook resolves the project slug from cwd, calls
+`engram transcript` with a recent (`--from`/marker-bounded) window, and returns
+the stripped turn dump as `additionalContext`. The clear wipes the in-context
+conversation; the hook reconstitutes the tail from the on-disk `.jsonl` **before
+the user speaks**. **Zero Go change.** **Immune to capture-freshness** (reads the
+raw transcript, not the index).
+- *Highest fidelity of any approach* for surfacing the agent's own narration —
+  `strip.go` emits `ASSISTANT: <text>` verbatim; the agent boots already holding
+  "I'll file #644".
+- *Caveats:* harness-coupled to Claude Code's hook contract (no OpenCode / non-hook
+  harness); the hook **must be read-only** (`--from`/marker, never `--mark`, which
+  hard-fails on a fresh project) and needs a one-shot/dedupe guard — all in
+  untested shell outside `targ test`. *(Note: the feared marker contention with
+  `ingest --auto` is a non-issue — `ingest` uses a separate `manifest.json` and
+  never touches the learn marker.)*
 
 ---
 
 ## Comparison
 
-| # | Approach | Problem | Cost / blast radius | Engram-fit | Fidelity to symptom |
-|---|----------|---------|---------------------|------------|---------------------|
-| 1 | Recency-weighted scoring (age-decay / activation) | R | Low–med (schema + scorer) | High | Med–high |
-| 2 | Working-memory window | R P | High (new container) | High (theory) | High |
-| 3 | Rolling session-recap note | R P | Low (learn convention) | High | High |
-| 4 | Authorship stamping + labels | P | Low–med (schema) | Med | High for P, low for R |
-| 5 | Ingest GitHub issues | R P | Med (gh dep, network) | Med (breaks zero-dep ingest) | High for the literal case |
-| 6 | Two-store CLS | R | High (architecture) | High (theory) | High |
-| 7 | "Since last session" block | R | Very low (skill-only) | High | Med |
-| 8 | Temporal-edge continuity (graph walk) | R P | Low–med (link convention) | High (reuses BFS) | Med (needs on-topic seed) |
-| 9 | Context-clear handoff | R P | Med (needs hook) | Med | High at the seam |
-| 10 | Reflection pass | R | Med (LLM cost) | Med | Low–med (lag) |
+| # | Approach | Where recency lives | Cost | Fidelity | Feasibility |
+|---|----------|---------------------|------|----------|-------------|
+| 1 | Recency-decay re-rank | query score | low | med-high | with caveat |
+| 2 | Recency-quota lane | query budget | low-med | high (evicts cosine) | with caveat |
+| 3 | Working-memory channel | separate band | med | high | with caveat |
+| 4 | Since-marker cursor replay | raw transcript @ query | low-med | highest (in-engram) | with caveat |
+| 5 | Session-id boost | query score | low | med | targeting bug; unverified |
+| 6 | Time-bucket filter | new chunk field | low-med | high-med | with caveat |
+| 7 | Embed temporal token | vector geometry | high | low | low payoff |
+| 8 | Session-spine graph | graph topology | high | med-high *if* built | reuse claim false |
+| 9 | Revive episode | write artifact | low-med | low | infeasible (no recency) |
+| 10 | SessionStart hook | harness boot | low | highest overall | with caveat |
+
+## Precondition that sits above all ten (completeness critic)
+
+**Capture-freshness / freshness-at-close.** Approaches #1, #2, #3, #5, #6, #7, #8
+all re-rank/filter/graph over the **chunk index** — but `ingest --auto` runs
+lazily at the *next* recall and skips unchanged sources, so the prior session's
+**closing** turns may not be indexed when the fresh agent retrieves. If the
+narration isn't captured, no retrieval lever can surface it. The clean fix is a
+**close-side flush** (a `Stop`/`SessionEnd`/`PreCompact` hook that ingests the
+just-ended session's tail before context is lost). Notably, **#4 and #10 dodge
+this entirely** by replaying the raw transcript instead of the index — a strong
+point in their favor.
+
+## Axes the ten do not cover (for the operator to consider swapping in)
+
+The completeness critic flagged these distinct levers, none represented above:
+- **Phrase-side:** have the `recall` skill seed a recency-anchored query phrase
+  from the agent's own first sentence — pull the prior tail via ordinary cosine,
+  zero binary change.
+- **Speech-act selection:** up-weight first-person *commitment/completion* turns
+  ("I'll…", "I filed…", "done") — the exact carriers of authorship — rather than
+  selecting by time/source alone. Most directly serves "P falls out of R".
+- **Within-session injection decay:** surface recent events strongly at the first
+  post-clear turn, fade as the new session accrues its own context (avoid
+  re-injecting the same tail every recall).
+- **Open-vs-completed:** the motivating case ("I'll file #644") is a *commitment*
+  that may be undone by the clear; distinguish open commitments from finished work.
+- **Multi-session threading:** reason about a work-thread spanning several short
+  post-clear sessions, not just the single newest `.jsonl`.
 
 ## Recommendation (a position to react to, not a final pick)
 
-All ten stand on their own for evaluation; this is my read on value-per-cost, to
-push against — three tiers, run in sequence:
+The adversarial pass reshaped my earlier read. All ten stand for evaluation; this
+is where I'd put weight:
 
-- **Ship-now probe (do first, in order):** start with **#7** (skill-only "since
-  last session" block) — it ships today and *tests the core hypothesis*, that
-  foregrounding recent work is what's missing, before any schema commitment. If
-  the probe holds, add **#3** (rolling first-person recap) to also nail [P]. Run
-  #7 first to validate cheaply; layer #3 once the hypothesis survives.
-- **Durable core:** **#1** (recency-weighted scoring) is the smallest change
-  that makes recency a first-class retrieval signal everywhere, and **#2** (the
-  working-memory window) is the theoretically complete version if #1 proves
-  recency matters but ranking-only isn't enough.
-- **Root-cause patch:** **#5** (ingest issues) only if "the artifact was
-  invisible to engram" recurs beyond this one anecdote — otherwise it's a
-  narrow coupling that #3's recap covers in spirit.
+- **Ship-now / highest fidelity: #10 (SessionStart hook).** Zero Go, immune to
+  capture-freshness, verbatim first-person narration at boot. The cost is
+  harness-coupling (Claude Code only) and untested shell guards. Best
+  single bet to *validate the hypothesis* that re-reading recent narration fixes
+  the symptom — before committing to any schema or ranker change.
+- **Best in-engram, harness-agnostic: #4 (cursor replay)**, paired with a
+  **close-side flush** to neutralize its marker-freshness blind spot. Together
+  they make "replay what just happened" reliable inside engram.
+- **Durable retrieval core: #1 or #2.** Once the hypothesis holds, fold recency
+  into ranking so it helps *every* recall, not just the boot. Both need the
+  manifest plumbing and a current-session exclusion; #2 guarantees inclusion but
+  evicts cosine, #1 is gentler but can be tuned into irrelevance.
+- **Park / drop: #7, #8, #9.** High cost or dominated; #9 is infeasible as a
+  recency mechanism without also changing the ranker.
 
-Whatever is chosen should be measured, not asserted — "did short-term memory
-improve" wants the memory eval harness
-(`docs/superpowers/specs/2026-05-29-memory-eval-harness-design.md`). Note that
-harness is mid-rework (the scenario/calibration layer is being redone for the
-self-seeding cold-vs-warm design, issue #642); clearing those blockers is a
-prerequisite to gating any of these empirically, not a step to assume done.
+Whatever is chosen should be **measured, not asserted** — via the memory eval
+harness (`docs/superpowers/specs/2026-05-29-memory-eval-harness-design.md`),
+which is itself mid-rework (issue #642); clearing those blockers is a prerequisite
+to gating any of these empirically.
 
-## Open question for the operator
-
-Which problem is the real target — **[R]** continuity of *content* (don't
-re-explore, don't lose the thread) or **[P]** continuity of *identity* (know I
-authored this)? The symptom showed both; the cheapest strong answers differ by
-which one you weight.
+> Per the operator's working style, this artifact keeps a diagnosis and a
+> recommendation rather than presenting a neutral survey — engram's "verify, don't
+> guess" first principle requires grounding the pitches in the real code, and a
+> position is more useful than a menu. The ten options remain independently
+> evaluable; the recommendation is a starting argument, not a foreclosure.
