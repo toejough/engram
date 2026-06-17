@@ -76,13 +76,20 @@ each phrase as a separate `--phrase` flag. The binary runs one sub-pipeline
 per phrase (embed, BFS 3-hop subgraph cap 200, k-means + silhouette clusters,
 in-degree top-5 hubs), then merges results server-side (items dedup by path
 with max score and union provenances, clusters tagged per-phrase, aggregated
-budget). The harness receives a single YAML payload and applies a
+budget). Chunk-space hits are additionally **recency-weighted** — each chunk's
+cosine is scaled by a time-decay from the ingest manifest's per-source mtime
+plus a small turn-position factor — and an **adaptive recency band** guarantees
+a floor of recent transcript chunks survives the cap, so a post-context-loss
+agent re-encounters its own recent first-person narration — recovering
+authorship from recency itself, with no separate provenance mechanism. The
+harness receives a single YAML payload and applies a
 per-cluster synthesis gate: dispatches a fire-and-forget subagent for any
 cluster meeting cheap gates (≥3 members, rep hints at coherence); the
 subagent reads all members from disk, decides whether a binding principle is
 worth capturing, and writes a new fact/feedback via `engram learn` with
 `--relation` bullets to each constituent. Source:
-`internal/cli/query.go` (`RunQuery`) and the `internal/cluster/` package
+`internal/cli/query.go` (`RunQuery`, `mergeChunkSpace`), the recency re-rank +
+band in `internal/cli/recency.go`, and the `internal/cluster/` package
 (`kmeans.go`, `silhouette.go`, `autok.go`).
 
 ```mermaid
@@ -100,7 +107,7 @@ sequenceDiagram
     E->>V: scan sidecars + bodies for compatible-embed notes
     V-->>E: notes and vectors
     Note over E: per phrase — embed, top-k cosine, BFS 3 hops (cap 200), k-means, in-degree top-5
-    Note over E: merge server-side — items dedup by path (max score, union provenances), clusters tagged per-phrase
+    Note over E: merge server-side — items dedup by path (max score, union provenances); reweight chunk hits by recency and guarantee a floor of recent chunks; clusters tagged per-phrase
     E-->>H: single YAML payload (phrases[], items, clusters, hubs, budget)
     Note over H: surface anchor concepts from hubs
 
