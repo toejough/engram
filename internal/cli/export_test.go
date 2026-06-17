@@ -35,6 +35,7 @@ var (
 	ExportNewOsMigrateDeps           = newOsMigrateDeps
 	ExportNewOsShowDeps              = newOsShowDeps
 	ExportNextLuhmannID              = nextLuhmannID
+	ExportParseTurnN                 = parseTurnN
 	ExportPluralFile                 = pluralFile
 	ExportPrintLinkExamples          = printLinkExamples
 	ExportPrintNoteExamples          = printNoteExamples
