@@ -87,11 +87,15 @@ func chunkSourceAges(chunksDir string, deps QueryDeps) map[string]float64 {
 }
 
 // defaultRecencyParams returns the eval-tuned recency knobs.
-// Chosen cell (recorded after running TestRecencyEvalSweepAndValidateDefaults):
-// halfLife=   3 floor=3 -> plantedRank=0
-// All halfLife values place the planted chunk at rank 0 (90-day-old chunks
-// collapse to ~0 via exp2(-90/hl)); halfLife=3 is the fastest meaningful decay
-// while floor=3 guarantees recent activity even after the cap.
+// Chosen cell (recorded after running TestRecencyEvalDiscriminatingHalfLife):
+// halfLife=3, floor=3.
+// Rationale: with a realistic distractor spread (0.5d/2d/5d/15d/60d tiers),
+// halfLife=3 is the fastest meaningful decay at which a 4-day-old relevant chunk
+// (mid-age probe) still surfaces within the cap=20 limit (rank≈18), because its
+// recency score (≈0.199) just exceeds the 5d distractors (≈0.189). At halfLife=7
+// the 5d distractors outrank the probe (0.364 vs 0.335) and push it out of the
+// cap entirely (rank=-1). floor=3 guarantees at least 3 recent items survive the
+// cap even when very-recent chunks score below the cutoff.
 func defaultRecencyParams() recencyParams {
 	return recencyParams{
 		halfLifeDays: defaultHalfLifeDays,
@@ -240,6 +244,10 @@ func sourceAgeDays(mtimeBySource map[string]int64, now time.Time) map[string]flo
 
 // spliceRecent prepends the missing recent items, then refills from the original
 // items dropping the lowest-ranked NON-recent ones first, capped at limit.
+// Two-pass fill: recent items (by recentKey) are kept ahead of non-recent ones
+// even if a non-recent item had a higher pre-band score. This is the intended
+// guarantee — recency-membership, not raw score, determines priority within
+// the limit.
 func spliceRecent(items, missing []resolvedItem, recentKey map[string]bool, limit int) []resolvedItem {
 	out := make([]resolvedItem, 0, limit)
 	out = append(out, missing...)

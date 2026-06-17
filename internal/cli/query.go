@@ -608,7 +608,7 @@ func clusterChunkItems(scored []scoredChunk, l2Notes tierIndex, tiers, phrases [
 		for memberIdx, assigned := range autoK.Assignments {
 			if assigned == clusterID {
 				members = append(members, queryClusterMember{
-					Path:  scored[memberIdx].record.Source + "#" + scored[memberIdx].record.Anchor,
+					Path:  chunkNotePath(scored[memberIdx].record),
 					Score: scored[memberIdx].score,
 				})
 			}
@@ -1279,7 +1279,7 @@ func mergeChunkSpace(
 
 	// Adaptive band: guarantee a floor of recent chunk items survived the cap.
 	if recentPool != nil {
-		merged.resolvedItems = fillRecencyBand(merged.resolvedItems, recentPool, defaultRecencyFloor, limit)
+		merged.resolvedItems = fillRecencyBand(merged.resolvedItems, recentPool, defaultRecencyParams().floor, limit)
 	}
 
 	merged.chunkClusters = clusterChunkItems(
@@ -2035,7 +2035,7 @@ func survivingChunks(scored []scoredChunk, items []resolvedItem) []scoredChunk {
 	top := make([]scoredChunk, 0, len(returned))
 
 	for _, s := range scored {
-		if _, ok := returned[s.record.Source+"#"+s.record.Anchor]; ok {
+		if _, ok := returned[chunkNotePath(s.record)]; ok {
 			top = append(top, s)
 		}
 	}
