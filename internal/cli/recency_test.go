@@ -5,8 +5,29 @@ import (
 
 	. "github.com/onsi/gomega"
 
+	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 )
+
+func TestMaxTurnBySource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	recs := []chunk.Record{
+		{Source: "a.jsonl", Anchor: "turn-0"},
+		{Source: "a.jsonl", Anchor: "turn-5"},
+		{Source: "a.jsonl", Anchor: "preamble"},
+		{Source: "b.jsonl", Anchor: "turn-2"},
+		{Source: "c.md", Anchor: "Heading"},
+	}
+
+	got := cli.ExportMaxTurnBySource(recs)
+
+	g.Expect(got["a.jsonl"]).To(Equal(5))
+	g.Expect(got["b.jsonl"]).To(Equal(2))
+	_, hasC := got["c.md"]
+	g.Expect(hasC).To(BeFalse())
+}
 
 func TestParseTurnN(t *testing.T) {
 	t.Parallel()

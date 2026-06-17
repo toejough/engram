@@ -3,6 +3,8 @@ package cli
 import (
 	"strconv"
 	"strings"
+
+	"github.com/toejough/engram/internal/chunk"
 )
 
 const turnAnchorPrefix = "turn-"
@@ -21,4 +23,23 @@ func parseTurnN(anchor string) (int, bool) {
 	}
 
 	return n, true
+}
+
+// maxTurnBySource returns the highest turn ordinal seen per source.
+// Sources with no turn anchors are absent from the map.
+func maxTurnBySource(records []chunk.Record) map[string]int {
+	maxBySource := make(map[string]int, len(records))
+
+	for _, r := range records {
+		n, ok := parseTurnN(r.Anchor)
+		if !ok {
+			continue
+		}
+
+		if cur, seen := maxBySource[r.Source]; !seen || n > cur {
+			maxBySource[r.Source] = n
+		}
+	}
+
+	return maxBySource
 }
