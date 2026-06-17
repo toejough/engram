@@ -16,6 +16,7 @@ const (
 	defaultRecencyFloor = 3
 	defaultTailWeight   = 0.2
 	hoursPerDay         = 24
+	noteDateFormat      = "2006-01-02"
 	turnAnchorPrefix    = "turn-"
 )
 
@@ -225,6 +226,40 @@ func newestChunkItems(scored []scoredChunk, ages map[string]float64, n int) []re
 	return out
 }
 
+// noteAgeDays returns a note's age in days for recency decay, preferring
+// LastUsed (when it last proved useful) over created. Empty/unparseable
+// stamps return 0 — treat as fresh so a malformed date never penalises.
+func noteAgeDays(lastUsed, created string, now time.Time) float64 {
+	stamp := lastUsed
+	if stamp == "" {
+		stamp = created
+	}
+
+	parsed, err := time.Parse(noteDateFormat, stamp)
+	if err != nil {
+		return 0
+	}
+
+	age := now.Sub(parsed).Hours() / hoursPerDay
+	if age < 0 {
+		age = 0
+	}
+
+	return age
+}
+
+// parseCreatedFromNote extracts the `created:` frontmatter date (YYYY-MM-DD)
+// from a note's raw bytes, or "" when absent.
+func parseCreatedFromNote(note []byte) string {
+	for line := range strings.SplitSeq(string(note), "\n") {
+		if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "created:"); ok {
+			return strings.TrimSpace(rest)
+		}
+	}
+
+	return ""
+}
+
 // parseTurnN extracts the turn ordinal from a "turn-N" anchor.
 // Returns (0, false) for preamble/heading anchors that carry no ordinal.
 func parseTurnN(anchor string) (int, bool) {
@@ -269,43 +304,6 @@ func sourceAgeDays(mtimeBySource map[string]int64, now time.Time) map[string]flo
 	}
 
 	return ages
-}
-
-// noteDateFormat is the YYYY-MM-DD layout used for LastUsed and created dates.
-const noteDateFormat = "2006-01-02"
-
-// noteAgeDays returns a note's age in days for recency decay, preferring
-// LastUsed (when it last proved useful) over created. Empty/unparseable
-// stamps return 0 — treat as fresh so a malformed date never penalises.
-func noteAgeDays(lastUsed, created string, now time.Time) float64 {
-	stamp := lastUsed
-	if stamp == "" {
-		stamp = created
-	}
-
-	parsed, err := time.Parse(noteDateFormat, stamp)
-	if err != nil {
-		return 0
-	}
-
-	age := now.Sub(parsed).Hours() / hoursPerDay
-	if age < 0 {
-		age = 0
-	}
-
-	return age
-}
-
-// parseCreatedFromNote extracts the `created:` frontmatter date (YYYY-MM-DD)
-// from a note's raw bytes, or "" when absent.
-func parseCreatedFromNote(note []byte) string {
-	for _, line := range strings.Split(string(note), "\n") {
-		if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "created:"); ok {
-			return strings.TrimSpace(rest)
-		}
-	}
-
-	return ""
 }
 
 // spliceRecent prepends the missing recent items, then refills from the original

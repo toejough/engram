@@ -40,6 +40,8 @@ var (
 	ExportNewOsMigrateDeps           = newOsMigrateDeps
 	ExportNewOsShowDeps              = newOsShowDeps
 	ExportNextLuhmannID              = nextLuhmannID
+	ExportNoteAgeDays                = noteAgeDays
+	ExportParseCreatedFromNote       = parseCreatedFromNote
 	ExportParseTurnN                 = parseTurnN
 	ExportPluralFile                 = pluralFile
 	ExportPrintLinkExamples          = printLinkExamples
@@ -60,9 +62,7 @@ var (
 	ExportShouldEmbed                = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
-	ExportNoteAgeDays            = noteAgeDays
-	ExportParseCreatedFromNote   = parseCreatedFromNote
-	ExportSortScoredDesc         = sortScoredDesc
+	ExportSortScoredDesc      = sortScoredDesc
 	ExportSourceAgeDays       = sourceAgeDays
 	ExportTildify             = tildify
 	ExportValidateIssueID     = validateIssueID
@@ -312,6 +312,16 @@ func ExportParseEpisodeBody(body string) (summary, transcript string, relations 
 
 // ExportRecencyFloor exposes the floor field of recencyParams for tests.
 func ExportRecencyFloor(p recencyParams) int { return p.floor }
+
+// ExportResolvedItemBaseScore exposes the pre-decay baseScore field for
+// activation-cutoff and band assertions (populated by Task 2.3).
+func ExportResolvedItemBaseScore(item ExportResolvedItem) float32 { return item.baseScore }
+
+// ExportResolvedItemCreated exposes the created frontmatter date field.
+func ExportResolvedItemCreated(item ExportResolvedItem) string { return item.created }
+
+// ExportResolvedItemLastUsed exposes the LastUsed sidecar date field.
+func ExportResolvedItemLastUsed(item ExportResolvedItem) string { return item.lastUsed }
 
 // ExportResolvedItemPath exposes the unexported notePath field for assertions.
 func ExportResolvedItemPath(item ExportResolvedItem) string { return item.notePath }

@@ -323,6 +323,9 @@ type resolvedItem struct {
 	notePath    string
 	content     string
 	score       float32
+	baseScore   float32 // pre-decay cosine; for activation cutoff + Phase 4 band
+	lastUsed    string  // YYYY-MM-DD from Sidecar.LastUsed (notes only)
+	created     string  // YYYY-MM-DD from note frontmatter (notes only)
 	provenances []string
 	clusterID   *int
 	inDegree    *int
@@ -335,11 +338,14 @@ type resolvedItem struct {
 // highest — used as the note's clustering coordinate (a note is clustered by
 // the vector that matched it).
 type scoredCandidate struct {
-	notePath string
-	basename string
-	score    float32
-	coord    []float32
-	content  string
+	notePath  string
+	basename  string
+	score     float32
+	baseScore float32 // pre-decay cosine; preserved through the pipeline
+	lastUsed  string  // YYYY-MM-DD from Sidecar.LastUsed
+	created   string  // YYYY-MM-DD from note frontmatter
+	coord     []float32
+	content   string
 }
 
 // sidecarLoadResult bundles the compatible-sidecar hits with summaries of
@@ -1441,9 +1447,12 @@ func mergeProvenances(
 		resolved := byBasename[hit.basename]
 		if resolved == nil {
 			resolved = &resolvedItem{
-				notePath: hit.notePath,
-				content:  hit.content,
-				score:    hit.score,
+				notePath:  hit.notePath,
+				content:   hit.content,
+				score:     hit.score,
+				baseScore: hit.baseScore,
+				lastUsed:  hit.lastUsed,
+				created:   hit.created,
 			}
 			byBasename[hit.basename] = resolved
 		}
@@ -1657,11 +1666,17 @@ func provenanceRankFor(role string) int {
 // note body for inclusion in the payload, and returns candidates sorted by
 // descending cosine. Sidecars have already been validated and parsed by
 // loadCompatibleSidecars, so no sidecar I/O happens here.
+//
+// When now is non-zero, each note's score is multiplied by a recency factor
+// keyed on the sidecar's LastUsed date (falling back to the frontmatter
+// created date). baseScore retains the pre-decay cosine for the activation
+// cutoff and band logic. When now is zero, score == baseScore (pure cosine).
 func rankCandidates(
 	hits []compatibleSidecar,
 	vault string,
 	read func(string) ([]byte, error),
 	queryVec []float32,
+	now time.Time,
 ) []scoredCandidate {
 	candidates := make([]scoredCandidate, 0, len(hits))
 
@@ -1674,13 +1689,24 @@ func rankCandidates(
 			continue
 		}
 
-		score, coord := bestVector(queryVec, hit.sidecar)
+		base, coord := bestVector(queryVec, hit.sidecar)
+		created := parseCreatedFromNote(noteBytes)
+		recencyScore := base
+
+		if !now.IsZero() {
+			ageDays := noteAgeDays(hit.sidecar.LastUsed, created, now)
+			recencyScore = base * float32(recencyMultiplier(ageDays, 0, defaultRecencyParams()))
+		}
+
 		candidates = append(candidates, scoredCandidate{
-			notePath: notePath,
-			basename: hit.note.Basename,
-			score:    score,
-			coord:    coord,
-			content:  stripWikilinks(string(noteBytes)),
+			notePath:  notePath,
+			basename:  hit.note.Basename,
+			score:     recencyScore,
+			baseScore: base,
+			lastUsed:  hit.sidecar.LastUsed,
+			created:   created,
+			coord:     coord,
+			content:   stripWikilinks(string(noteBytes)),
 		})
 	}
 
@@ -1856,7 +1882,12 @@ func runSinglePhraseQuery(
 		return queryPipelineSummary{}, fmt.Errorf("query: embed: %w", qErr)
 	}
 
-	directHits := rankCandidates(hits, vault, deps.Read, queryVec)
+	var now time.Time
+	if deps.Now != nil {
+		now = deps.Now()
+	}
+
+	directHits := rankCandidates(hits, vault, deps.Read, queryVec, now)
 	if len(directHits) > limit {
 		directHits = directHits[:limit]
 	}
@@ -1892,7 +1923,12 @@ func runSynthesisQuery(
 	deps QueryDeps,
 	stdout io.Writer,
 ) error {
-	union, err := unionDirectHits(ctx, args.Phrases, hits, args.VaultPath, limit, deps)
+	var nowSynthesis time.Time
+	if deps.Now != nil {
+		nowSynthesis = deps.Now()
+	}
+
+	union, err := unionDirectHits(ctx, args.Phrases, hits, args.VaultPath, limit, nowSynthesis, deps)
 	if err != nil {
 		return err
 	}
@@ -1938,7 +1974,12 @@ func runSynthesizeL2Query(
 ) error {
 	l1l2Hits := filterHitsToTiers(hits, args.VaultPath, deps.Read, []string{tierL1, tierL2})
 
-	union, err := unionDirectHits(ctx, args.Phrases, l1l2Hits, args.VaultPath, limit, deps)
+	var nowL2 time.Time
+	if deps.Now != nil {
+		nowL2 = deps.Now()
+	}
+
+	union, err := unionDirectHits(ctx, args.Phrases, l1l2Hits, args.VaultPath, limit, nowL2, deps)
 	if err != nil {
 		return err
 	}
@@ -2047,12 +2088,16 @@ func survivingChunks(scored []scoredChunk, items []resolvedItem) []scoredChunk {
 // truncates to the top `limit` direct hits, then merges all phrases' hits into
 // one deduped set keyed by note path (max score wins). The result is sorted by
 // note path so downstream clustering and tie-breaks are deterministic.
+//
+// now is forwarded to rankCandidates for note recency decay; a zero value
+// disables decay (pure cosine).
 func unionDirectHits(
 	ctx context.Context,
 	phrases []string,
 	hits []compatibleSidecar,
 	vault string,
 	limit int,
+	now time.Time,
 	deps QueryDeps,
 ) ([]scoredCandidate, error) {
 	byPath := make(map[string]scoredCandidate)
@@ -2063,7 +2108,7 @@ func unionDirectHits(
 			return nil, fmt.Errorf("query: embed: %w", embedErr)
 		}
 
-		directHits := rankCandidates(hits, vault, deps.Read, queryVec)
+		directHits := rankCandidates(hits, vault, deps.Read, queryVec, now)
 		if len(directHits) > limit {
 			directHits = directHits[:limit]
 		}

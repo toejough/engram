@@ -879,6 +879,98 @@ func TestRunQuery_MultipleTiersUnion(t *testing.T) {
 	g.Expect(sawL3).To(BeTrue(), "L3 must surface under union read")
 }
 
+// TestRunQuery_NoteRecencyDecayRanksFreshLastUsedFirst verifies that rankCandidates
+// applies a recency multiplier when deps.Now is set: two notes with identical base
+// cosine scores are re-ranked so the one with a recent LastUsed appears first (higher
+// decayed score). With deps.Now==nil both should appear in pure-cosine order (equal
+// scores → stable sort → path-lexicographic).
+func TestRunQuery_NoteRecencyDecayRanksFreshLastUsedFirst(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Both notes share the same situation and body vectors → equal base cosine.
+	sharedVec := []float32{1, 0, 0, 0}
+
+	// "fresh" was last-used 2 days ago; "stale" was last-used 120 days ago.
+	fixedNow := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+
+	freshBody := "---\ntype: fact\ncreated: 2026-01-01\n---\nfresh note body\n"
+	staleBody := "---\ntype: fact\ncreated: 2026-01-01\n---\nstale note body\n"
+
+	freshPath := "1.fresh.md"
+	stalePath := "2.stale.md"
+
+	// Plant note files.
+	memFS.files[filepath.Join(vault, freshPath)] = []byte(freshBody)
+	memFS.files[filepath.Join(vault, stalePath)] = []byte(staleBody)
+
+	// Plant sidecars with identical vectors but different LastUsed.
+	freshSidecar := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@4",
+		Dims:             4,
+		SituationVector:  sharedVec,
+		BodyVector:       sharedVec,
+		ContentHash:      embed.ContentHash([]byte(freshBody)),
+		LastUsed:         "2026-06-15", // 2 days before fixedNow
+	}
+	staleSidecar := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@4",
+		Dims:             4,
+		SituationVector:  sharedVec,
+		BodyVector:       sharedVec,
+		ContentHash:      embed.ContentHash([]byte(staleBody)),
+		LastUsed:         "2026-01-18", // ~150 days before fixedNow
+	}
+
+	memFS.files[filepath.Join(vault, embed.SidecarPath(freshPath))] = embed.MarshalSidecar(freshSidecar)
+	memFS.files[filepath.Join(vault, embed.SidecarPath(stalePath))] = embed.MarshalSidecar(staleSidecar)
+
+	// Query with fixed now → recency decay applied.
+	deps := cli.QueryDeps{
+		Scan:     memFS.Scan,
+		Read:     memFS.Read,
+		Embedder: fixedVectorEmbedder{modelID: "m@4", vector: sharedVec},
+		Now:      func() time.Time { return fixedNow },
+	}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"fact"}, VaultPath: vault, Limit: 2},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed struct {
+		Items []struct {
+			Path  string  `yaml:"path"`
+			Score float32 `yaml:"score"`
+		} `yaml:"items"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Items).To(HaveLen(2))
+
+	if len(parsed.Items) < 2 {
+		return
+	}
+
+	// Fresh note (lower age → higher recency multiplier → higher score) must rank first.
+	g.Expect(parsed.Items[0].Path).To(Equal(freshPath),
+		"fresh LastUsed note must rank before stale (decay penalises the stale one)")
+	g.Expect(parsed.Items[0].Score).To(BeNumerically(">", parsed.Items[1].Score),
+		"decayed score of fresh note must exceed stale note's decayed score")
+}
+
 func TestRunQuery_ProjectFilterRestrictsItems(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
