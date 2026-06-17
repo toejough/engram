@@ -4,6 +4,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/toejough/engram/internal/chunk"
 )
@@ -59,4 +60,23 @@ func recencyMultiplier(ageDays, turnFrac float64, p recencyParams) float64 {
 	decay := math.Exp2(-ageDays / p.halfLifeDays)
 
 	return decay * (1 + p.tailWeight*turnFrac)
+}
+
+const hoursPerDay = 24
+
+// sourceAgeDays converts per-source mtime (unix nanos) into age in days relative
+// to now. Negative ages (clock skew / future mtime) clamp to 0.
+func sourceAgeDays(mtimeBySource map[string]int64, now time.Time) map[string]float64 {
+	ages := make(map[string]float64, len(mtimeBySource))
+
+	for source, mtime := range mtimeBySource {
+		age := now.Sub(time.Unix(0, mtime)).Hours() / hoursPerDay
+		if age < 0 {
+			age = 0
+		}
+
+		ages[source] = age
+	}
+
+	return ages
 }

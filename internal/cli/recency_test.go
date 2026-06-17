@@ -2,12 +2,31 @@ package cli_test
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 )
+
+func TestSourceAgeDays(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+	mtimes := map[string]int64{
+		"recent.jsonl": now.Add(-12 * time.Hour).UnixNano(),
+		"old.jsonl":    now.Add(-72 * time.Hour).UnixNano(),
+		"future.jsonl": now.Add(24 * time.Hour).UnixNano(), // clamp to 0
+	}
+
+	got := cli.ExportSourceAgeDays(mtimes, now)
+
+	g.Expect(got["recent.jsonl"]).To(BeNumerically("~", 0.5, 1e-6))
+	g.Expect(got["old.jsonl"]).To(BeNumerically("~", 3.0, 1e-6))
+	g.Expect(got["future.jsonl"]).To(BeNumerically("~", 0.0, 1e-6))
+}
 
 func TestRecencyMultiplier(t *testing.T) {
 	t.Parallel()

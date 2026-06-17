@@ -38,6 +38,7 @@ var (
 	ExportMaxTurnBySource            = maxTurnBySource
 	ExportParseTurnN                 = parseTurnN
 	ExportRecencyMultiplier          = recencyMultiplier
+	ExportSourceAgeDays              = sourceAgeDays
 	ExportPluralFile                 = pluralFile
 	ExportPrintLinkExamples          = printLinkExamples
 	ExportPrintNoteExamples          = printNoteExamples
