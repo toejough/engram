@@ -298,3 +298,14 @@ func TestNoteAgeDaysPrefersLastUsedThenCreated(t *testing.T) {
 	// Empty both → 0 (treat as fresh).
 	g.Expect(cli.ExportNoteAgeDays("", "", now)).To(BeNumerically("~", 0.0, 0.01))
 }
+
+func TestParseCreatedFromNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	note := []byte("---\ntype: fact\ncreated: 2026-06-10\nsituation: x\n---\nbody")
+
+	g.Expect(cli.ExportParseCreatedFromNote(note)).To(Equal("2026-06-10"))
+	g.Expect(cli.ExportParseCreatedFromNote([]byte("no frontmatter"))).To(Equal(""))
+}

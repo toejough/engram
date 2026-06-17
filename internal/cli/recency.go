@@ -296,6 +296,18 @@ func noteAgeDays(lastUsed, created string, now time.Time) float64 {
 	return age
 }
 
+// parseCreatedFromNote extracts the `created:` frontmatter date (YYYY-MM-DD)
+// from a note's raw bytes, or "" when absent.
+func parseCreatedFromNote(note []byte) string {
+	for _, line := range strings.Split(string(note), "\n") {
+		if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "created:"); ok {
+			return strings.TrimSpace(rest)
+		}
+	}
+
+	return ""
+}
+
 // spliceRecent prepends the missing recent items, then refills from the original
 // items dropping the lowest-ranked NON-recent ones first, capped at limit.
 // Two-pass fill: recent items (by recentKey) are kept ahead of non-recent ones

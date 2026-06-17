@@ -60,8 +60,9 @@ var (
 	ExportShouldEmbed                = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
-	ExportNoteAgeDays         = noteAgeDays
-	ExportSortScoredDesc      = sortScoredDesc
+	ExportNoteAgeDays            = noteAgeDays
+	ExportParseCreatedFromNote   = parseCreatedFromNote
+	ExportSortScoredDesc         = sortScoredDesc
 	ExportSourceAgeDays       = sourceAgeDays
 	ExportTildify             = tildify
 	ExportValidateIssueID     = validateIssueID
