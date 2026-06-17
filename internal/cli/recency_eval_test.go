@@ -10,7 +10,30 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-const evalPlantedHash = "sha256:planted"
+func TestRecencyEvalSweepAndValidateDefaults(t *testing.T) {
+	t.Parallel()
+
+	pool, ages, maxTurn := buildSyntheticPool(40)
+
+	const limit = 20
+
+	for _, hl := range []float64{1, 3, 7, 14} {
+		for _, fl := range []int{0, 1, 3} {
+			p := cli.ExportNewRecencyParams(hl, 0.2, fl, 1)
+			t.Logf("halfLife=%4.0f floor=%d -> plantedRank=%d", hl, fl, plantedRank(pool, ages, maxTurn, p, limit))
+		}
+	}
+
+	g := NewWithT(t)
+	rank := plantedRank(pool, ages, maxTurn, cli.ExportDefaultRecencyParams(), limit)
+	g.Expect(rank).To(BeNumerically(">=", 0), "planted chunk must surface")
+	g.Expect(rank).To(BeNumerically("<=", 5), "tuned defaults must put planted narration in the top 6 (got rank %d)", rank)
+}
+
+// unexported constants.
+const (
+	evalPlantedHash = "sha256:planted"
+)
 
 func buildSyntheticPool(n int) ([]cli.ExportScoredChunk, map[string]float64, map[string]int) {
 	planted := chunk.Record{
@@ -18,7 +41,8 @@ func buildSyntheticPool(n int) ([]cli.ExportScoredChunk, map[string]float64, map
 		Text:        "ASSISTANT: I'll file issue #644 for the recall flakiness",
 		ContentHash: evalPlantedHash,
 	}
-	pool := []cli.ExportScoredChunk{cli.ExportNewScoredChunk(planted, 0.42)}
+	pool := make([]cli.ExportScoredChunk, 0, 1+n)
+	pool = append(pool, cli.ExportNewScoredChunk(planted, 0.42))
 	ages := map[string]float64{"recent.jsonl": 0.01}
 	maxTurn := map[string]int{"recent.jsonl": 40}
 
@@ -76,24 +100,4 @@ func plantedRank(
 	}
 
 	return -1
-}
-
-func TestRecencyEvalSweepAndValidateDefaults(t *testing.T) {
-	t.Parallel()
-
-	pool, ages, maxTurn := buildSyntheticPool(40)
-
-	const limit = 20
-
-	for _, hl := range []float64{1, 3, 7, 14} {
-		for _, fl := range []int{0, 1, 3} {
-			p := cli.ExportNewRecencyParams(hl, 0.2, fl, 1)
-			t.Logf("halfLife=%4.0f floor=%d -> plantedRank=%d", hl, fl, plantedRank(pool, ages, maxTurn, p, limit))
-		}
-	}
-
-	g := NewWithT(t)
-	rank := plantedRank(pool, ages, maxTurn, cli.ExportDefaultRecencyParams(), limit)
-	g.Expect(rank).To(BeNumerically(">=", 0), "planted chunk must surface")
-	g.Expect(rank).To(BeNumerically("<=", 5), "tuned defaults must put planted narration in the top 6 (got rank %d)", rank)
 }

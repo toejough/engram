@@ -3,17 +3,21 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 	"go.yaml.in/yaml/v3"
 
+	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/embed"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 func TestApplyProjectFilter_BodyProjectMentionDoesNotMatch(t *testing.T) {
@@ -907,6 +911,137 @@ func TestRunQuery_ProjectFilterRestrictsItems(t *testing.T) {
 	for _, item := range parsed.Items {
 		g.Expect(item.Path).NotTo(ContainSubstring("opencode-note"))
 	}
+}
+
+// TestRunQuery_RecencyLiftsRecentChunkOverStaleHighCosine verifies that a
+// recent low-cosine chunk surfaces in RunQuery output even when several stale
+// higher-cosine chunks would normally bury it under pure cosine ranking.
+//
+// Setup:
+//   - No vault notes (Scan returns empty) so the query is purely chunk-driven.
+//   - One planted recent chunk ("recent.jsonl#turn-40", cosine≈0.316) with
+//     mtime=now in the manifest.
+//   - Several stale chunks ("old.jsonl#turn-N", cosine≈0.707) with mtime 120
+//     days ago — each beats the planted chunk on raw cosine.
+//   - Now is a fixed time so the test is deterministic.
+//
+// With pure cosine (deps.Now==nil), the planted chunk would be buried.
+// With recency re-rank + band, its score is lifted and it must appear.
+func TestRunQuery_RecencyLiftsRecentChunkOverStaleHighCosine(t *testing.T) {
+	t.Parallel()
+
+	// Setup constants: sources, anchor, paths.
+	const (
+		chunksDir       = "/chunks"
+		recentSource    = "recent.jsonl"
+		oldSource       = "old.jsonl"
+		plantedAnchor   = "turn-40"
+		recentIndexPath = "/chunks/recent-idx.jsonl"
+		oldIndexPath    = "/chunks/old-idx.jsonl"
+		manifestPath    = "/chunks/manifest.json"
+		staleCount      = 5
+	)
+
+	g := NewWithT(t)
+
+	fixedNow := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+	recentMtime := fixedNow.Add(-1 * time.Hour).UnixNano()     // ~0.04 days old
+	oldMtime := fixedNow.Add(-120 * 24 * time.Hour).UnixNano() // 120 days old
+
+	// Build chunk records: one recent low-cosine, several stale high-cosine.
+	//
+	// axisEmbedder maps "my-recent-activity" → {1,0,0}. Cosine of stored vector
+	// v against {1,0,0} is v[0]/|v|.
+	//   recent: {1, 3, 0} → cosine = 1/√10 ≈ 0.316  (low — buried by pure cosine)
+	//   stale:  {1, 1, 0} → cosine = 1/√2  ≈ 0.707  (high — beats recent on cosine)
+	recentRecord := chunk.Record{
+		Source:      recentSource,
+		Anchor:      plantedAnchor,
+		Text:        "ASSISTANT: I'll file issue #644 for the recall flakiness",
+		ContentHash: "sha256:planted-recent",
+		Vector:      []float32{1, 3, 0},
+	}
+
+	staleRecords := make([]chunk.Record, staleCount)
+
+	for i := range staleCount {
+		staleRecords[i] = chunk.Record{
+			Source:      oldSource,
+			Anchor:      "turn-" + string(rune('0'+i)),
+			Text:        "stale chunk " + string(rune('a'+i)),
+			ContentHash: "sha256:stale" + string(rune('0'+i)),
+			Vector:      []float32{1, 1, 0},
+		}
+	}
+
+	// Encode chunk index files.
+	recentData, err := chunk.EncodeRecords([]chunk.Record{recentRecord})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	staleData, err := chunk.EncodeRecords(staleRecords)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Build manifest.json using map[string]any so keys use the production
+	// snake_case format (mtime_unix_nano, file_hash) without local struct tags.
+	manifestData, err := json.Marshal(map[string]any{
+		recentSource: map[string]any{
+			"mtime_unix_nano": recentMtime,
+			"size":            int64(len(recentData)),
+			"file_hash":       "hash-recent",
+		},
+		oldSource: map[string]any{
+			"mtime_unix_nano": oldMtime,
+			"size":            int64(len(staleData)),
+			"file_hash":       "hash-old",
+		},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	files := map[string][]byte{
+		recentIndexPath: recentData,
+		oldIndexPath:    staleData,
+		manifestPath:    manifestData,
+	}
+
+	readFn := func(path string) ([]byte, error) {
+		data, ok := files[path]
+		if !ok {
+			return nil, fmt.Errorf("recency test: file not found: %s", path)
+		}
+
+		return data, nil
+	}
+
+	deps := cli.QueryDeps{
+		Scan:     func(string) ([]vaultgraph.Note, error) { return nil, nil },
+		Read:     readFn,
+		Embedder: axisEmbedder{axes: map[string][]float32{"my-recent-activity": {1, 0, 0}}},
+		ListChunkIndexes: func(string) ([]string, error) {
+			return []string{recentIndexPath, oldIndexPath}, nil
+		},
+		Now: func() time.Time { return fixedNow },
+	}
+
+	var out bytes.Buffer
+
+	err = cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"my-recent-activity"}, ChunksDir: chunksDir, Limit: 10},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring(recentSource+"#"+plantedAnchor),
+		"planted recent chunk must surface in output (pure cosine would bury it)")
 }
 
 func TestRunQuery_TierFilterRestrictsItems(t *testing.T) {

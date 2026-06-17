@@ -61,6 +61,31 @@ func applyChunkRecency(
 	return out
 }
 
+// chunkNotePath returns the note-path key for a chunk record in the form
+// "source#anchor", matching the key used in resolvedItem.notePath for chunk
+// items. Centralising this avoids inline string concatenation scattered across
+// mergeChunkSpace and recentChunkItems.
+func chunkNotePath(r chunk.Record) string {
+	return r.Source + "#" + r.Anchor
+}
+
+// chunkSourceAges reads the chunks-dir manifest and returns source→ageDays,
+// or nil when the manifest is unreadable (→ recency skipped, pure cosine).
+func chunkSourceAges(chunksDir string, deps QueryDeps) map[string]float64 {
+	manifest, err := readManifest(chunksDir, IngestDeps{ReadFile: deps.Read})
+	if err != nil {
+		return nil
+	}
+
+	mtimes := make(map[string]int64, len(manifest))
+
+	for src, entry := range manifest {
+		mtimes[src] = entry.MtimeUnixNano
+	}
+
+	return sourceAgeDays(mtimes, deps.Now())
+}
+
 // defaultRecencyParams returns the eval-tuned recency knobs.
 // Chosen cell (recorded after running TestRecencyEvalSweepAndValidateDefaults):
 // halfLife=   3 floor=3 -> plantedRank=0
@@ -169,6 +194,26 @@ func recencyMultiplier(ageDays, turnFrac float64, p recencyParams) float64 {
 	decay := math.Exp2(-ageDays / p.halfLifeDays)
 
 	return decay * (1 + p.tailWeight*turnFrac)
+}
+
+// recentChunkItems builds the recency-ordered (newest first) chunk resolvedItems
+// whose source age is within windowDays — the band's backfill pool.
+func recentChunkItems(scored []scoredChunk, ages map[string]float64, windowDays float64) []resolvedItem {
+	var pool []resolvedItem
+
+	for _, s := range scored {
+		if age, ok := ages[s.record.Source]; ok && age <= windowDays {
+			pool = append(pool, resolvedItem{
+				notePath:    chunkNotePath(s.record),
+				content:     s.record.Text,
+				score:       s.score,
+				provenances: []string{provenanceDirect},
+				kind:        chunkItemKind,
+			})
+		}
+	}
+
+	return pool
 }
 
 // sortScoredDesc sorts in place by descending score (stable).

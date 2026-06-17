@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 
@@ -44,6 +45,9 @@ type QueryDeps struct {
 	// ListChunkIndexes returns the .jsonl chunk index files under a chunks
 	// dir. Nil (or an empty ChunksDir) disables chunk-space merging.
 	ListChunkIndexes func(dir string) ([]string, error)
+	// Now supplies the query-time clock for recency (DI; production = time.Now).
+	// When nil, recency re-rank is skipped and pure cosine ranking applies.
+	Now func() time.Time
 }
 
 // RunQuery embeds each query phrase, scores it against every note that
@@ -1242,9 +1246,22 @@ func mergeChunkSpace(
 		return err
 	}
 
+	// Recency re-rank (chunk-only): lift recent chunks before they compete with notes.
+	var recentPool []resolvedItem
+
+	if deps.Now != nil {
+		ages := chunkSourceAges(args.ChunksDir, deps)
+		if ages != nil {
+			params := defaultRecencyParams()
+			scored = applyChunkRecency(scored, ages, maxTurnBySource(records), params)
+			sortScoredDesc(scored)
+			recentPool = recentChunkItems(scored, ages, params.windowDays)
+		}
+	}
+
 	for _, s := range scored {
 		merged.resolvedItems = append(merged.resolvedItems, resolvedItem{
-			notePath:    s.record.Source + "#" + s.record.Anchor,
+			notePath:    chunkNotePath(s.record),
 			content:     s.record.Text,
 			score:       s.score,
 			provenances: []string{provenanceDirect},
@@ -1258,6 +1275,11 @@ func mergeChunkSpace(
 
 	if len(merged.resolvedItems) > limit {
 		merged.resolvedItems = merged.resolvedItems[:limit]
+	}
+
+	// Adaptive band: guarantee a floor of recent chunk items survived the cap.
+	if recentPool != nil {
+		merged.resolvedItems = fillRecencyBand(merged.resolvedItems, recentPool, defaultRecencyFloor, limit)
 	}
 
 	merged.chunkClusters = clusterChunkItems(
@@ -1538,6 +1560,7 @@ func newOsQueryDeps() QueryDeps {
 		Embedder:         embedDeps.Embedder,
 		LogWarning:       logWarningToStderrf,
 		ListChunkIndexes: listJSONLIndexes,
+		Now:              time.Now,
 	}
 }
 
