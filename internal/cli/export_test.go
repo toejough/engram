@@ -279,8 +279,8 @@ func ExportNewOsVaultFS() interface {
 }
 
 // ExportNewRecencyParams builds a recencyParams for tests.
-func ExportNewRecencyParams(halfLifeDays, tailWeight float64, floor int, windowDays float64) recencyParams {
-	return recencyParams{halfLifeDays: halfLifeDays, tailWeight: tailWeight, floor: floor, windowDays: windowDays}
+func ExportNewRecencyParams(halfLifeDays, tailWeight float64, floor int) recencyParams {
+	return recencyParams{halfLifeDays: halfLifeDays, tailWeight: tailWeight, floor: floor}
 }
 
 // ExportNewResolvedItem builds a resolvedItem for tests that need to
@@ -294,6 +294,11 @@ func ExportNewScoredChunk(rec chunk.Record, score float32) scoredChunk {
 	return scoredChunk{record: rec, score: score}
 }
 
+// ExportNewestChunkItems exposes newestChunkItems for band tests.
+func ExportNewestChunkItems(scored []scoredChunk, ages map[string]float64, n int) []resolvedItem {
+	return newestChunkItems(scored, ages, n)
+}
+
 // ExportParseEpisodeBody exposes parseEpisodeBody for round-trip testing,
 // returning the summary, transcript, and "basename|rationale" relation
 // entries decomposed from an episode body.
@@ -303,11 +308,8 @@ func ExportParseEpisodeBody(body string) (summary, transcript string, relations 
 	return parsed.summary, parsed.transcript, parsed.relations
 }
 
-// ExportRecencyFloor and ExportRecencyWindowDays expose recencyParams fields
-// for the eval test (Task 8) and any other blackbox accessor that needs them.
+// ExportRecencyFloor exposes the floor field of recencyParams for tests.
 func ExportRecencyFloor(p recencyParams) int { return p.floor }
-
-func ExportRecencyWindowDays(p recencyParams) float64 { return p.windowDays }
 
 // ExportResolvedItemPath exposes the unexported notePath field for assertions.
 func ExportResolvedItemPath(item ExportResolvedItem) string { return item.notePath }

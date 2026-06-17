@@ -10,27 +10,39 @@ import (
 )
 
 // TestRecencyEvalDiscriminatingHalfLife sweeps half-life and floor values over a
-// synthetic pool that covers a realistic age distribution.  The pool contains:
+// synthetic pool that covers a realistic monthly-cadence age distribution. The pool
+// contains:
 //
-//   - One very-recent planted chunk (age=0.01d) — validates band surfacing.
-//   - One mid-age probe (age=4d) — discriminates half-life: at short hl (≤3d) the
-//     mid-age probe's decay is large enough that it still ranks within the top-20
-//     ahead of the 5-day distractors; at long hl (≥14d) the 5-day distractors
-//     overtake it and push it outside the cap entirely.
-//   - Distractors spread across 0.5, 2, 5, 15, and 60 days (8 per tier) with
-//     cosines in a range that makes recency matter for ordering.
+//   - Three "weeks-old" chunks from a single source (age=21d) — the load-bearing
+//     scenario: the absolute-newest available content is 3 weeks old; the band must
+//     still guarantee these appear in the result.
+//   - Distractors spread across 1mo / 2mo / 3mo / 4mo / 6mo (8 per tier) with higher
+//     cosines than the weeks-old chunks, so they dominate the cap without the band.
 //
-// Chosen cell after running the sweep: halfLife=3, floor=3.
+// Chosen cell after running the sweep: halfLife=60, floor=3.
 // Rationale:
-//   - halfLife=3 is the fastest meaningful decay at which the mid-age probe
-//     (4d, cosine=0.50) still surfaces within the limit=20 cap (rank ≤ 19),
-//     because at hl=3 its recency score (≈0.199) exceeds the 5d distractors
-//     (≈0.189). At halfLife=14 the 5d distractors (≈0.469) outrank the probe
-//     (≈0.411) and push it out of the cap entirely (rank -1).
-//   - floor=3 guarantees a minimum of 3 recent items even after the cap.
+//   - With a monthly cadence, short half-lives (1–7d) suppress content within weeks,
+//     making recency undesirably aggressive. halfLife=60 gives a gentle tilt:
+//     2wk→0.85, 1mo→0.71, 2mo→0.50, 4mo→0.25. The re-rank is a soft bias, not a gate.
+//   - The band carries the freshness guarantee: newestChunkItems selects the
+//     floor-newest chunks by age regardless of absolute date. When the newest
+//     available source is 3 weeks old, the band still force-includes its chunks.
+//   - floor=3 ensures the 3 absolute-newest chunks always survive the cap.
 //
-// Discrimination assertion: the chosen hl=3 surfaces the mid-age probe within
-// the cap; hl=14 does not. This assertion fails if the decay mechanism breaks.
+// Discrimination assertion (honest at hl=60):
+//   - (a) Band guarantee: with floor=3 and all distractors older than the weeks-old
+//     source, newestChunkItems picks the weeks-old chunks as the floor-newest;
+//     fillRecencyBand forces them into the result even when their score ranks them
+//     below the distractor cap.
+//   - (b) Re-rank monotonicity at hl=60: a 2mo chunk outranks a 4mo chunk of equal
+//     cosine (decay ratio ≈2x). This is intentionally soft — the band, not the
+//     re-rank, carries the freshness guarantee.
+//
+// Scope: this eval exercises the chunk-only space (re-rank + band over scored
+// chunks). It does NOT cover the mixed chunk+note merged cap in mergeChunkSpace,
+// where the band's displacement competes against vault-note items — that
+// cross-space behavior is a known boundary, exercised by the query_test.go
+// integration test, not here.
 func TestRecencyEvalDiscriminatingHalfLife(t *testing.T) {
 	t.Parallel()
 
@@ -38,95 +50,103 @@ func TestRecencyEvalDiscriminatingHalfLife(t *testing.T) {
 
 	const limit = 20
 
-	t.Log("--- half-life sweep (planted rank / mid-age probe rank) ---")
+	t.Log("--- half-life sweep (weeks-old probe ranks) ---")
 
-	for _, hl := range []float64{1, 3, 7, 14} {
+	for _, hl := range []float64{1, 7, 30, 60} {
 		for _, fl := range []int{0, 1, 3} {
-			params := cli.ExportNewRecencyParams(hl, 0.2, fl, 1)
-			pRank := plantedRank(pool, ages, maxTurn, params, limit)
-			mRank := midAgeProbeRank(pool, ages, maxTurn, params, limit)
-			t.Logf("halfLife=%4.0f floor=%d -> plantedRank=%d midAgeRank=%d", hl, fl, pRank, mRank)
+			params := cli.ExportNewRecencyParams(hl, 0.2, fl)
+			r0 := weeksOldRankOf(pool, ages, maxTurn, params, limit, "weeksold.jsonl#turn-10")
+			r1 := weeksOldRankOf(pool, ages, maxTurn, params, limit, "weeksold.jsonl#turn-5")
+			t.Logf("halfLife=%4.0f floor=%d -> turn-10 rank=%d turn-5 rank=%d", hl, fl, r0, r1)
 		}
 	}
 
 	g := NewWithT(t)
 
-	// Planted chunk must surface under tuned defaults.
-	// At hl=3 with a realistic age spread, the planted chunk (age=0.01d, cosine=0.42)
-	// ranks at ~8: behind the 0.5d distractors (higher cosine) but well within the
-	// limit=20 cap. The band is not needed here because the raw score is sufficient.
-	plantedParams := cli.ExportDefaultRecencyParams()
-	pRank := plantedRank(pool, ages, maxTurn, plantedParams, limit)
-	g.Expect(pRank).To(BeNumerically(">=", 0), "planted chunk must surface under tuned defaults")
-	g.Expect(pRank).To(BeNumerically("<=", 12), "tuned defaults must put planted narration in the top 13")
+	// (a) Band guarantee: the 3 weeks-old chunks must appear even though they are
+	// outscored by 8 tiers of higher-cosine distractors. At floor=3 and with
+	// weeksold.jsonl as the absolute-newest source, newestChunkItems returns all 3
+	// weeksold chunks and fillRecencyBand forces them into the cap=20 result.
+	defaultParams := cli.ExportDefaultRecencyParams()
+	g.Expect(cli.ExportRecencyFloor(defaultParams)).To(BeNumerically(">=", 3),
+		"default floor must guarantee at least 3 of the newest chunks")
 
-	// Mid-age probe surfaces at hl=3 (chosen half-life) but NOT at hl=7.
-	// This discriminates half-life: at hl=3 the mid-age probe (4d, cosine=0.50)
-	// decays to ≈0.199 which exceeds the 5d distractors (≈0.189), so it lands
-	// within the cap. At hl=7 the 5d distractors (≈0.364) far outrank the probe
-	// (≈0.335) and all 8 push it outside the limit=20 cap.
+	r10 := weeksOldRankOf(pool, ages, maxTurn, defaultParams, limit, "weeksold.jsonl#turn-10")
+	g.Expect(r10).To(BeNumerically(">=", 0),
+		"band must force-include weeks-old newest chunk turn-10 (3-week-old source, floor guarantee)")
+
+	r5 := weeksOldRankOf(pool, ages, maxTurn, defaultParams, limit, "weeksold.jsonl#turn-5")
+	g.Expect(r5).To(BeNumerically(">=", 0),
+		"band must force-include weeks-old newest chunk turn-5 (3-week-old source, floor guarantee)")
+
+	r1 := weeksOldRankOf(pool, ages, maxTurn, defaultParams, limit, "weeksold.jsonl#turn-1")
+	g.Expect(r1).To(BeNumerically(">=", 0),
+		"band must force-include weeks-old newest chunk turn-1 (3-week-old source, floor guarantee)")
+
+	// Without the band (floor=0) and a tight cap, the weeks-old chunks are
+	// displaced by higher-scoring distractors. This confirms the band is doing
+	// real work, not a trivial pass-through.
+	const tightLimit = 5 // only the top 5 — all 5 slots go to 1mo distractors at hl=60
+
+	noFloorParams := cli.ExportNewRecencyParams(60.0, 0.2, 0)
+	rNoFloor := weeksOldRankOf(pool, ages, maxTurn, noFloorParams, tightLimit, "weeksold.jsonl#turn-10")
+	g.Expect(rNoFloor).To(Equal(-1),
+		"without the band (floor=0) the weeks-old chunk must not appear in top-%d (non-trivial)", tightLimit)
+
+	// With the band (floor=3) and the same tight cap, the weeks-old chunks are
+	// force-included — this is the load-bearing guarantee for Change 2.
+	floorParams := cli.ExportNewRecencyParams(60.0, 0.2, 3)
+	r10tight := weeksOldRankOf(pool, ages, maxTurn, floorParams, tightLimit, "weeksold.jsonl#turn-10")
+	g.Expect(r10tight).To(BeNumerically(">=", 0),
+		"with floor=3 the weeks-old newest chunk must be force-included in cap=%d", tightLimit)
+
+	// (b) Re-rank monotonicity at hl=60: a 2mo chunk outranks a 4mo chunk of
+	// equal cosine. The gap is modest but real (decay 0.50 vs 0.25).
 	const (
-		chosenHL      = 3.0
-		tooLongHL     = 7.0
-		upperRankBand = 19 // must be < limit
+		twoMonthAge  = 60.0
+		fourMonthAge = 120.0
+		equalCosine  = float32(0.5)
+		halfLife60   = 60.0
+		tailWeight   = 0.2
+		zeroFloor    = 0
+		zeroTurn     = 0
 	)
 
-	shortParams := cli.ExportNewRecencyParams(chosenHL, 0.2, defaultFloor, defaultWindowDays)
-	mRankShort := midAgeProbeRank(pool, ages, maxTurn, shortParams, limit)
-	g.Expect(mRankShort).To(BeNumerically(">=", 0),
-		"mid-age probe must surface within cap at halfLife=3 (rank %d)", mRankShort)
-	g.Expect(mRankShort).To(BeNumerically("<=", upperRankBand),
-		"mid-age probe must be within limit=%d at halfLife=3 (rank %d)", limit, mRankShort)
+	tuned := cli.ExportNewRecencyParams(halfLife60, tailWeight, zeroFloor)
+	score2mo := float64(equalCosine) * cli.ExportRecencyMultiplier(twoMonthAge, zeroTurn, tuned)
+	score4mo := float64(equalCosine) * cli.ExportRecencyMultiplier(fourMonthAge, zeroTurn, tuned)
 
-	longParams := cli.ExportNewRecencyParams(tooLongHL, 0.2, defaultFloor, defaultWindowDays)
-	mRankLong := midAgeProbeRank(pool, ages, maxTurn, longParams, limit)
-	g.Expect(mRankLong).To(Equal(-1),
-		"mid-age probe must be displaced outside cap at halfLife=7 (rank %d) — confirms discrimination", mRankLong)
+	g.Expect(score2mo).To(BeNumerically(">", score4mo),
+		"2mo chunk must outscore 4mo chunk at hl=60 (monotonic re-rank)")
+
+	// Honest: at hl=60 the discrimination between 2mo and 4mo is intentionally
+	// gentle (ratio ≈2x). The band, not the re-rank, carries the freshness
+	// guarantee for the absolute-newest content.
 }
 
 // unexported constants.
 const (
+	cosineFourMonth = float32(0.64)
 	// cosine* are the raw cosine scores assigned to each distractor tier.
-	// Chosen so that, after recency decay, the tiers interleave realistically:
-	// high-cosine-but-old chunks are suppressed by decay, while
-	// low-cosine-but-recent chunks surface via the band.
-	cosineFifteen      = float32(0.65)
-	cosineFiveDay      = float32(0.60)
-	cosineHalfDay      = float32(0.62)
-	cosineSixty        = float32(0.68)
-	cosineTwoDay       = float32(0.58)
+	// All higher than weeksOldCosine so that, without the band, distractors
+	// fill the entire cap and the weeks-old chunks are absent.
+	cosineOneMonth     = float32(0.70)
+	cosineSixMonth     = float32(0.62)
+	cosineThreeMonth   = float32(0.66)
+	cosineTwoMonth     = float32(0.68)
 	defaultFloor       = 3
-	defaultWindowDays  = 1.0
 	distractorsPerTier = 8
-	evalMidAgeHash     = "sha256:midage"
-	evalPlantedHash    = "sha256:planted"
 )
 
 // buildSyntheticPool returns a pool with:
-//   - 1 planted chunk (recent, age≈0)
-//   - 1 mid-age probe (age=4d, relevant but not top cosine)
-//   - 8 distractors each at 0.5d, 2d, 5d, 15d, 60d
+//   - 3 weeks-old chunks from weeksold.jsonl (age=21d, cosine=0.45) — the
+//     absolute-newest source; all distractors are older.
+//   - 8 distractors each at 1mo, 2mo, 3mo, 4mo, 6mo — all with higher cosines.
+//
+// Key invariant: without the band, all 20 cap slots go to distractors. With
+// floor=3 the band force-includes the 3 weeks-old chunks.
 func buildSyntheticPool() ([]cli.ExportScoredChunk, map[string]float64, map[string]int) {
-	const (
-		plantedCosine  = float32(0.42)
-		midAgeCosine   = float32(0.50)
-		plantedMaxTurn = 40
-		midAgeMaxTurn  = 10
-		midAgeTurn     = 5
-	)
-
-	planted := chunk.Record{
-		Source:      "recent.jsonl",
-		Anchor:      "turn-40",
-		Text:        "ASSISTANT: I'll file issue #644 for the recall flakiness",
-		ContentHash: evalPlantedHash,
-	}
-	midAge := chunk.Record{
-		Source:      "midage.jsonl",
-		Anchor:      "turn-5",
-		Text:        "ASSISTANT: Updated the recency scoring design doc",
-		ContentHash: evalMidAgeHash,
-	}
+	const weeksOldCosine = float32(0.45)
 
 	type tier struct {
 		source  string
@@ -135,25 +155,31 @@ func buildSyntheticPool() ([]cli.ExportScoredChunk, map[string]float64, map[stri
 	}
 
 	tiers := []tier{
-		{source: "src-half.jsonl", ageDays: 0.5, cosine: cosineHalfDay},
-		{source: "src-2d.jsonl", ageDays: 2.0, cosine: cosineTwoDay},
-		{source: "src-5d.jsonl", ageDays: 5.0, cosine: cosineFiveDay},
-		{source: "src-15d.jsonl", ageDays: 15.0, cosine: cosineFifteen},
-		{source: "src-60d.jsonl", ageDays: 60.0, cosine: cosineSixty},
+		{source: "src-1mo.jsonl", ageDays: 30.0, cosine: cosineOneMonth},
+		{source: "src-2mo.jsonl", ageDays: 60.0, cosine: cosineTwoMonth},
+		{source: "src-3mo.jsonl", ageDays: 90.0, cosine: cosineThreeMonth},
+		{source: "src-4mo.jsonl", ageDays: 120.0, cosine: cosineFourMonth},
+		{source: "src-6mo.jsonl", ageDays: 180.0, cosine: cosineSixMonth},
 	}
 
-	totalSize := 2 + len(tiers)*distractorsPerTier
+	totalSize := 3 + len(tiers)*distractorsPerTier
 	pool := make([]cli.ExportScoredChunk, 0, totalSize)
-	ages := make(map[string]float64, 2+len(tiers))
-	maxTurn := make(map[string]int, 2+len(tiers))
+	ages := make(map[string]float64, 1+len(tiers))
+	maxTurn := make(map[string]int, 1+len(tiers))
 
-	pool = append(pool, cli.ExportNewScoredChunk(planted, plantedCosine))
-	ages["recent.jsonl"] = 0.01
-	maxTurn["recent.jsonl"] = plantedMaxTurn
+	// The 3 weeks-old chunks: turn-10 (latest), turn-5 (mid), turn-1 (earliest).
+	for _, turn := range []string{"turn-10", "turn-5", "turn-1"} {
+		rec := chunk.Record{
+			Source:      "weeksold.jsonl",
+			Anchor:      turn,
+			Text:        "ASSISTANT: session narration at " + turn,
+			ContentHash: "sha256:weeksold-" + turn,
+		}
+		pool = append(pool, cli.ExportNewScoredChunk(rec, weeksOldCosine))
+	}
 
-	pool = append(pool, cli.ExportNewScoredChunk(midAge, midAgeCosine))
-	ages["midage.jsonl"] = 4.0
-	maxTurn["midage.jsonl"] = midAgeMaxTurn
+	ages["weeksold.jsonl"] = 21.0
+	maxTurn["weeksold.jsonl"] = 10
 
 	for _, tier := range tiers {
 		ages[tier.source] = tier.ageDays
@@ -182,31 +208,6 @@ func itoa(n int) string {
 	return string([]byte{digits[n/10], digits[n%10]})
 }
 
-// midAgeProbeRank returns the 0-based rank of the mid-age probe after recency
-// re-rank + cap + band, or -1 if it does not appear.
-func midAgeProbeRank(
-	pool []cli.ExportScoredChunk,
-	ages map[string]float64,
-	maxTurn map[string]int,
-	p cli.ExportRecencyParams,
-	limit int,
-) int {
-	return rankOf("midage.jsonl#turn-5", pool, ages, maxTurn, p, limit)
-}
-
-// plantedRank returns the 0-based rank of the planted chunk after recency re-rank
-// + cap + band, or -1 if it does not appear. Mirrors the mergeChunkSpace ordering
-// at the chunk level.
-func plantedRank(
-	pool []cli.ExportScoredChunk,
-	ages map[string]float64,
-	maxTurn map[string]int,
-	p cli.ExportRecencyParams,
-	limit int,
-) int {
-	return rankOf("recent.jsonl#turn-40", pool, ages, maxTurn, p, limit)
-}
-
 // rankOf returns the 0-based rank of targetPath after recency re-rank + cap +
 // band, or -1 if absent. Mirrors the mergeChunkSpace ordering at chunk level.
 func rankOf(
@@ -222,24 +223,20 @@ func rankOf(
 
 	items := make([]cli.ExportResolvedItem, 0, len(scored))
 
-	var recentPool []cli.ExportResolvedItem
-
 	for _, s := range scored {
 		rec := cli.ExportScoredChunkRecord(s)
 		path := rec.Source + "#" + rec.Anchor
 		it := cli.ExportNewChunkResolvedItem(path, cli.ExportScoredChunkScore(s))
 		items = append(items, it)
-
-		if ages[rec.Source] <= cli.ExportRecencyWindowDays(p) {
-			recentPool = append(recentPool, it)
-		}
 	}
 
 	if len(items) > limit {
 		items = items[:limit]
 	}
 
-	items = cli.ExportFillRecencyBand(items, recentPool, cli.ExportRecencyFloor(p), limit)
+	floor := cli.ExportRecencyFloor(p)
+	mustInclude := cli.ExportNewestChunkItems(scored, ages, floor)
+	items = cli.ExportFillRecencyBand(items, mustInclude, limit)
 
 	for i, it := range items {
 		if cli.ExportResolvedItemPath(it) == targetPath {
@@ -248,4 +245,17 @@ func rankOf(
 	}
 
 	return -1
+}
+
+// weeksOldRankOf returns the 0-based rank of targetPath after recency re-rank
+// + cap + band, or -1 if absent.
+func weeksOldRankOf(
+	pool []cli.ExportScoredChunk,
+	ages map[string]float64,
+	maxTurn map[string]int,
+	p cli.ExportRecencyParams,
+	limit int,
+	targetPath string,
+) int {
+	return rankOf(targetPath, pool, ages, maxTurn, p, limit)
 }

@@ -20,7 +20,7 @@ func TestApplyChunkRecencyLiftsRecentOverStaleHighCosine(t *testing.T) {
 	}
 	ages := map[string]float64{"old.jsonl": 90, "recent.jsonl": 0.01}
 	maxTurn := map[string]int{"old.jsonl": 3, "recent.jsonl": 9}
-	p := cli.ExportNewRecencyParams(3, 0.2, 0, 1)
+	p := cli.ExportNewRecencyParams(3, 0.2, 0)
 
 	out := cli.ExportApplyChunkRecency(scored, ages, maxTurn, p)
 
@@ -34,7 +34,6 @@ func TestDefaultRecencyParamsSaneDefaults(t *testing.T) {
 	p := cli.ExportDefaultRecencyParams()
 
 	g.Expect(cli.ExportRecencyFloor(p)).To(BeNumerically(">", 0))
-	g.Expect(cli.ExportRecencyWindowDays(p)).To(BeNumerically(">", 0.0))
 }
 
 func TestFillRecencyBandBackfillsDeficit(t *testing.T) {
@@ -52,7 +51,7 @@ func TestFillRecencyBandBackfillsDeficit(t *testing.T) {
 		cli.ExportNewChunkResolvedItem("recent.jsonl#turn-8", 0.20),
 	}
 
-	out := cli.ExportFillRecencyBand(items, recentPool, 2, len(items))
+	out := cli.ExportFillRecencyBand(items, recentPool, len(items))
 
 	g.Expect(out).To(HaveLen(len(items))) // budget preserved
 
@@ -79,10 +78,40 @@ func TestFillRecencyBandClampsToLimit(t *testing.T) {
 		cli.ExportNewChunkResolvedItem("recent.jsonl#turn-7", 0.1),
 	}
 
-	// floor (3) > limit (2): the band must never grow the payload past limit.
-	out := cli.ExportFillRecencyBand(items, recentPool, 3, 2)
+	// mustInclude (3) > limit (2): the band must never grow the payload past limit.
+	out := cli.ExportFillRecencyBand(items, recentPool, 2)
 
 	g.Expect(len(out)).To(BeNumerically("<=", 2))
+}
+
+func TestFillRecencyBandGuaranteesWeeksOldNewest(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Scenario: newest content is 21 days old (3 weeks). Without the window gate
+	// it should still be force-included by the band.
+	newest := []cli.ExportResolvedItem{
+		cli.ExportNewChunkResolvedItem("session-3wk.jsonl#turn-10", 0.30),
+	}
+	// items capped before band fires — does not contain the newest chunk.
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewChunkResolvedItem("old.jsonl#turn-1", 0.99),
+		cli.ExportNewChunkResolvedItem("old.jsonl#turn-2", 0.95),
+		cli.ExportNewChunkResolvedItem("old.jsonl#turn-3", 0.90),
+	}
+
+	out := cli.ExportFillRecencyBand(items, newest, len(items))
+
+	g.Expect(out).To(HaveLen(len(items)))
+
+	paths := make(map[string]bool, len(out))
+
+	for _, it := range out {
+		paths[cli.ExportResolvedItemPath(it)] = true
+	}
+
+	g.Expect(paths["session-3wk.jsonl#turn-10"]).To(BeTrue(),
+		"band must force-include weeks-old newest chunk even when it did not score into the cap")
 }
 
 func TestFillRecencyBandNoDeficitNoChange(t *testing.T) {
@@ -95,7 +124,7 @@ func TestFillRecencyBandNoDeficitNoChange(t *testing.T) {
 	}
 	recentPool := items // both already present and recent
 
-	out := cli.ExportFillRecencyBand(items, recentPool, 2, len(items))
+	out := cli.ExportFillRecencyBand(items, recentPool, len(items))
 	g.Expect(out).To(Equal(items))
 }
 
@@ -117,6 +146,70 @@ func TestMaxTurnBySource(t *testing.T) {
 	g.Expect(got["b.jsonl"]).To(Equal(2))
 	_, hasC := got["c.md"]
 	g.Expect(hasC).To(BeFalse())
+}
+
+func TestNewestChunkItemsNZeroReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	scored := []cli.ExportScoredChunk{
+		cli.ExportNewScoredChunk(chunk.Record{Source: "a.jsonl", Anchor: "turn-1"}, 0.5),
+	}
+	ages := map[string]float64{"a.jsonl": 1.0}
+
+	out := cli.ExportNewestChunkItems(scored, ages, 0)
+
+	if out != nil {
+		panic("expected nil for n=0")
+	}
+}
+
+func TestNewestChunkItemsOrdersByAgeAscending(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Three sources: recent (0.5d), mid (14d), old (60d). newestChunkItems
+	// should return the floor-newest by age, ignoring cosine score.
+	scored := []cli.ExportScoredChunk{
+		cli.ExportNewScoredChunk(chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.90),
+		cli.ExportNewScoredChunk(chunk.Record{Source: "recent.jsonl", Anchor: "turn-7"}, 0.20),
+		cli.ExportNewScoredChunk(chunk.Record{Source: "mid.jsonl", Anchor: "turn-5"}, 0.50),
+	}
+	ages := map[string]float64{"old.jsonl": 60.0, "recent.jsonl": 0.5, "mid.jsonl": 14.0}
+
+	out := cli.ExportNewestChunkItems(scored, ages, 2)
+
+	g.Expect(out).To(HaveLen(2))
+
+	if len(out) < 2 {
+		return
+	}
+
+	g.Expect(cli.ExportResolvedItemPath(out[0])).To(Equal("recent.jsonl#turn-7"), "slot 0 must be newest source")
+	g.Expect(cli.ExportResolvedItemPath(out[1])).To(Equal("mid.jsonl#turn-5"), "slot 1 must be second-newest source")
+}
+
+func TestNewestChunkItemsTieBreaksByTurnDesc(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Same source age → descending turn-N wins.
+	scored := []cli.ExportScoredChunk{
+		cli.ExportNewScoredChunk(chunk.Record{Source: "a.jsonl", Anchor: "turn-2"}, 0.5),
+		cli.ExportNewScoredChunk(chunk.Record{Source: "a.jsonl", Anchor: "turn-9"}, 0.5),
+		cli.ExportNewScoredChunk(chunk.Record{Source: "a.jsonl", Anchor: "turn-5"}, 0.5),
+	}
+	ages := map[string]float64{"a.jsonl": 3.0}
+
+	out := cli.ExportNewestChunkItems(scored, ages, 2)
+
+	g.Expect(out).To(HaveLen(2))
+
+	if len(out) < 2 {
+		return
+	}
+
+	g.Expect(cli.ExportResolvedItemPath(out[0])).To(Equal("a.jsonl#turn-9"), "highest turn first on tie")
+	g.Expect(cli.ExportResolvedItemPath(out[1])).To(Equal("a.jsonl#turn-5"), "second-highest turn second")
 }
 
 func TestParseTurnN(t *testing.T) {
@@ -147,7 +240,7 @@ func TestRecencyMultiplier(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	p := cli.ExportNewRecencyParams(3, 0.2, 0, 0) // halfLife=3, tail=0.2
+	p := cli.ExportNewRecencyParams(3, 0.2, 0) // halfLife=3, tail=0.2
 
 	g.Expect(cli.ExportRecencyMultiplier(0, 0, p)).To(BeNumerically("~", 1.0, 1e-6))
 	g.Expect(cli.ExportRecencyMultiplier(3, 0, p)).To(BeNumerically("~", 0.5, 1e-6))

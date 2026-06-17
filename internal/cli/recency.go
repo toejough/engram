@@ -12,20 +12,18 @@ import (
 
 // unexported constants.
 const (
-	defaultHalfLifeDays     = 3.0
-	defaultRecencyFloor     = 3
-	defaultRecentWindowDays = 1.0
-	defaultTailWeight       = 0.2
-	hoursPerDay             = 24
-	turnAnchorPrefix        = "turn-"
+	defaultHalfLifeDays = 60.0
+	defaultRecencyFloor = 3
+	defaultTailWeight   = 0.2
+	hoursPerDay         = 24
+	turnAnchorPrefix    = "turn-"
 )
 
 // recencyParams are the tunable knobs (defaults chosen by the eval in recency_eval_test.go).
 type recencyParams struct {
 	halfLifeDays float64 // age at which the decay factor is 0.5
 	tailWeight   float64 // extra lift for the last turn of a session (turnFrac=1)
-	floor        int     // min recent chunk items the band guarantees
-	windowDays   float64 // age below which a chunk counts "recent"
+	floor        int     // how many of the absolute-newest chunks the band guarantees
 }
 
 // applyChunkRecency returns a copy of scored with each score multiplied by its
@@ -64,7 +62,7 @@ func applyChunkRecency(
 // chunkNotePath returns the note-path key for a chunk record in the form
 // "source#anchor", matching the key used in resolvedItem.notePath for chunk
 // items. Centralising this avoids inline string concatenation scattered across
-// mergeChunkSpace and recentChunkItems.
+// mergeChunkSpace and newestChunkItems.
 func chunkNotePath(r chunk.Record) string {
 	return r.Source + "#" + r.Anchor
 }
@@ -88,33 +86,33 @@ func chunkSourceAges(chunksDir string, deps QueryDeps) map[string]float64 {
 
 // defaultRecencyParams returns the eval-tuned recency knobs.
 // Chosen cell (recorded after running TestRecencyEvalDiscriminatingHalfLife):
-// halfLife=3, floor=3.
-// Rationale: with a realistic distractor spread (0.5d/2d/5d/15d/60d tiers),
-// halfLife=3 is the fastest meaningful decay at which a 4-day-old relevant chunk
-// (mid-age probe) still surfaces within the cap=20 limit (rank≈18), because its
-// recency score (≈0.199) just exceeds the 5d distractors (≈0.189). At halfLife=7
-// the 5d distractors outrank the probe (0.364 vs 0.335) and push it out of the
-// cap entirely (rank=-1). floor=3 guarantees at least 3 recent items survive the
-// cap even when very-recent chunks score below the cutoff.
+// halfLife=60, floor=3.
+// Rationale: operators work in monthly cycles, so a short half-life would
+// suppress legitimate older content. At halfLife=60d the decay is intentionally
+// gentle (2wk→0.85, 1mo→0.71, 2mo→0.50), providing a soft tilt that slightly
+// favours recency without drowning relevance. The band (not the re-rank) carries
+// the freshness guarantee: newestChunkItems selects the floor-newest chunks by
+// age regardless of absolute date, and fillRecencyBand force-inserts them even
+// when the newest available content is weeks old. floor=3 ensures at least 3
+// of the absolute-newest chunks always survive the cap.
 func defaultRecencyParams() recencyParams {
 	return recencyParams{
 		halfLifeDays: defaultHalfLifeDays,
 		tailWeight:   defaultTailWeight,
 		floor:        defaultRecencyFloor,
-		windowDays:   defaultRecentWindowDays,
 	}
 }
 
-// fillRecencyBand guarantees at least floor of recentPool's items appear in the
-// returned slice of length <= limit. recentPool is the recency-ordered (newest
-// first) chunk items the caller deemed "recent". Items already present count
-// toward the floor; the deficit is filled from recentPool (skipping those
-// already present), displacing the lowest-ranked items NOT in recentPool. No-op
-// when the floor is already met or recentPool is empty.
-func fillRecencyBand(items, recentPool []resolvedItem, floor, limit int) []resolvedItem {
-	recentKey := make(map[string]bool, len(recentPool))
-	for _, r := range recentPool {
-		recentKey[r.notePath] = true
+// fillRecencyBand guarantees every item in mustInclude appears in the returned
+// slice (length <= limit). mustInclude is the ordered set of the floor-newest
+// chunks, built by newestChunkItems. Items already present in items count as
+// satisfied; missing ones are prepended, displacing the lowest-ranked items NOT
+// in mustInclude, capped at limit. No-op when all mustInclude are already
+// present or mustInclude is empty. Membership is by notePath.
+func fillRecencyBand(items, mustInclude []resolvedItem, limit int) []resolvedItem {
+	mustKey := make(map[string]bool, len(mustInclude))
+	for _, r := range mustInclude {
+		mustKey[r.notePath] = true
 	}
 
 	present := make(map[string]bool, len(items))
@@ -122,25 +120,25 @@ func fillRecencyBand(items, recentPool []resolvedItem, floor, limit int) []resol
 
 	for _, it := range items {
 		present[it.notePath] = true
-		if recentKey[it.notePath] {
+		if mustKey[it.notePath] {
 			have++
 		}
 	}
 
-	deficit := floor - have
+	deficit := len(mustInclude) - have
 	if deficit <= 0 {
 		return items
 	}
 
-	// Never inject more than the whole budget — guards floor > limit, where the
-	// band would otherwise prepend more recent items than limit allows.
+	// Never inject more than the whole budget — guards len(mustInclude) > limit,
+	// where the band would otherwise prepend more items than limit allows.
 	if deficit > limit {
 		deficit = limit
 	}
 
 	missing := make([]resolvedItem, 0, deficit)
 
-	for _, r := range recentPool {
+	for _, r := range mustInclude {
 		if len(missing) >= deficit {
 			break
 		}
@@ -154,7 +152,7 @@ func fillRecencyBand(items, recentPool []resolvedItem, floor, limit int) []resol
 		return items
 	}
 
-	return spliceRecent(items, missing, recentKey, limit)
+	return spliceRecent(items, missing, mustKey, limit)
 }
 
 // maxTurnBySource returns the highest turn ordinal seen per source.
@@ -174,6 +172,57 @@ func maxTurnBySource(records []chunk.Record) map[string]int {
 	}
 
 	return maxBySource
+}
+
+// newestChunkItems returns the n chunk items with the lowest source age (newest
+// source first). Tie-breaking on source age uses descending turn-N (latest turn
+// first). The result contains at most n items. n <= 0 returns nil.
+func newestChunkItems(scored []scoredChunk, ages map[string]float64, n int) []resolvedItem {
+	if n <= 0 {
+		return nil
+	}
+
+	// Build a sortable copy with age pre-looked-up.
+	type candidate struct {
+		s   scoredChunk
+		age float64
+	}
+
+	candidates := make([]candidate, 0, len(scored))
+
+	for _, s := range scored {
+		age := ages[s.record.Source] // missing → 0.0 (treat as maximally recent)
+		candidates = append(candidates, candidate{s: s, age: age})
+	}
+
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].age != candidates[j].age {
+			return candidates[i].age < candidates[j].age // ascending age = newest first
+		}
+		// tie-break: descending turn-N
+		ni, _ := parseTurnN(candidates[i].s.record.Anchor)
+		nj, _ := parseTurnN(candidates[j].s.record.Anchor)
+
+		return ni > nj
+	})
+
+	if n > len(candidates) {
+		n = len(candidates)
+	}
+
+	out := make([]resolvedItem, 0, n)
+
+	for _, c := range candidates[:n] {
+		out = append(out, resolvedItem{
+			notePath:    chunkNotePath(c.s.record),
+			content:     c.s.record.Text,
+			score:       c.s.score,
+			provenances: []string{provenanceDirect},
+			kind:        chunkItemKind,
+		})
+	}
+
+	return out
 }
 
 // parseTurnN extracts the turn ordinal from a "turn-N" anchor.
@@ -198,26 +247,6 @@ func recencyMultiplier(ageDays, turnFrac float64, p recencyParams) float64 {
 	decay := math.Exp2(-ageDays / p.halfLifeDays)
 
 	return decay * (1 + p.tailWeight*turnFrac)
-}
-
-// recentChunkItems builds the recency-ordered (newest first) chunk resolvedItems
-// whose source age is within windowDays — the band's backfill pool.
-func recentChunkItems(scored []scoredChunk, ages map[string]float64, windowDays float64) []resolvedItem {
-	var pool []resolvedItem
-
-	for _, s := range scored {
-		if age, ok := ages[s.record.Source]; ok && age <= windowDays {
-			pool = append(pool, resolvedItem{
-				notePath:    chunkNotePath(s.record),
-				content:     s.record.Text,
-				score:       s.score,
-				provenances: []string{provenanceDirect},
-				kind:        chunkItemKind,
-			})
-		}
-	}
-
-	return pool
 }
 
 // sortScoredDesc sorts in place by descending score (stable).

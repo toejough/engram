@@ -1247,7 +1247,7 @@ func mergeChunkSpace(
 	}
 
 	// Recency re-rank (chunk-only): lift recent chunks before they compete with notes.
-	var recentPool []resolvedItem
+	var mustInclude []resolvedItem
 
 	if deps.Now != nil {
 		ages := chunkSourceAges(args.ChunksDir, deps)
@@ -1255,7 +1255,7 @@ func mergeChunkSpace(
 			params := defaultRecencyParams()
 			scored = applyChunkRecency(scored, ages, maxTurnBySource(records), params)
 			sortScoredDesc(scored)
-			recentPool = recentChunkItems(scored, ages, params.windowDays)
+			mustInclude = newestChunkItems(scored, ages, params.floor)
 		}
 	}
 
@@ -1277,9 +1277,9 @@ func mergeChunkSpace(
 		merged.resolvedItems = merged.resolvedItems[:limit]
 	}
 
-	// Adaptive band: guarantee a floor of recent chunk items survived the cap.
-	if recentPool != nil {
-		merged.resolvedItems = fillRecencyBand(merged.resolvedItems, recentPool, defaultRecencyParams().floor, limit)
+	// Adaptive band: guarantee the floor-newest chunks survived the cap.
+	if mustInclude != nil {
+		merged.resolvedItems = fillRecencyBand(merged.resolvedItems, mustInclude, limit)
 	}
 
 	merged.chunkClusters = clusterChunkItems(
