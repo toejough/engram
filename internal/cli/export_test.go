@@ -19,33 +19,32 @@ var (
 	ErrQueryModeConflict             = errQueryModeConflict
 	ErrResituateNoteNotFoundForTest  = errResituateNoteNotFound
 	ExportAnyHarnessFailed           = anyHarnessFailed
+	ExportApplyChunkRecency          = applyChunkRecency
 	ExportApplyProjectFilter         = applyProjectFilter
 	ExportApplyTierFilter            = applyTierFilter
 	ExportAutoEmbedNote              = autoEmbedNote
 	ExportComputePrecedingLinks      = computePrecedingLinks
+	ExportDefaultRecencyParams       = defaultRecencyParams
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
+	ExportFillRecencyBand            = fillRecencyBand
 	ExportFinishUpdate               = finishUpdate
 	ExportInitializeVault            = initializeVault
 	ExportKindFromContent            = kindFromContent
 	ExportLearnPath                  = learnPath
 	ExportLogWarningToStderr         = logWarningToStderrf
 	ExportMarshalFrontmatter         = marshalFrontmatter
+	ExportMaxTurnBySource            = maxTurnBySource
 	ExportMigrateRelationLinks       = migrateRelationLinks
 	ExportNewErrHandler              = newErrHandler
 	ExportNewOsCheckDeps             = newOsCheckDeps
 	ExportNewOsMigrateDeps           = newOsMigrateDeps
 	ExportNewOsShowDeps              = newOsShowDeps
 	ExportNextLuhmannID              = nextLuhmannID
-	ExportApplyChunkRecency          = applyChunkRecency
-	ExportFillRecencyBand            = fillRecencyBand
-	ExportMaxTurnBySource            = maxTurnBySource
 	ExportParseTurnN                 = parseTurnN
-	ExportRecencyMultiplier          = recencyMultiplier
-	ExportSortScoredDesc             = sortScoredDesc
-	ExportSourceAgeDays              = sourceAgeDays
 	ExportPluralFile                 = pluralFile
 	ExportPrintLinkExamples          = printLinkExamples
 	ExportPrintNoteExamples          = printNoteExamples
+	ExportRecencyMultiplier          = recencyMultiplier
 	ExportRenderEpisodeBody          = renderEpisodeBody
 	ExportRenderEpisodeFrontmatter   = renderEpisodeFrontmatter
 	ExportRenderFactBody             = renderFactBody
@@ -61,30 +60,14 @@ var (
 	ExportShouldEmbed                = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
+	ExportSortScoredDesc      = sortScoredDesc
+	ExportSourceAgeDays       = sourceAgeDays
 	ExportTildify             = tildify
 	ExportValidateIssueID     = validateIssueID
 	ExportValidateProjectSlug = validateProjectSlug
 	ExportValidateSlug        = validateSlug
 	ExportWriteUpdateReport   = writeUpdateReport
 )
-
-type ExportRecencyParams = recencyParams
-
-// ExportNewRecencyParams builds a recencyParams for tests.
-func ExportNewRecencyParams(halfLifeDays, tailWeight float64, floor int, windowDays float64) recencyParams {
-	return recencyParams{halfLifeDays: halfLifeDays, tailWeight: tailWeight, floor: floor, windowDays: windowDays}
-}
-
-type ExportScoredChunk = scoredChunk
-
-// ExportNewScoredChunk builds a scoredChunk for tests.
-func ExportNewScoredChunk(rec chunk.Record, score float32) scoredChunk {
-	return scoredChunk{record: rec, score: score}
-}
-
-// ExportScoredChunkScore / Record expose the unexported fields for assertions.
-func ExportScoredChunkScore(s scoredChunk) float32       { return s.score }
-func ExportScoredChunkRecord(s scoredChunk) chunk.Record { return s.record }
 
 type ExportEpisodeFields = episodeFields
 
@@ -100,9 +83,13 @@ type ExportFactFields = factFields
 
 type ExportFeedbackFields = feedbackFields
 
+type ExportRecencyParams = recencyParams
+
 // ExportResolvedItem aliases the unexported resolvedItem so cli_test can
 // construct test fixtures via ExportNewResolvedItem.
 type ExportResolvedItem = resolvedItem
+
+type ExportScoredChunk = scoredChunk
 
 // Exported types.
 type ExportVaultInitFS = VaultInitFS
@@ -204,6 +191,12 @@ func ExportEmitTranscripts(
 // locate a source's chunk index file.
 func ExportIndexFileName(source string) string { return sourceSlug(source) + ".jsonl" }
 
+// ExportNewChunkResolvedItem builds a chunk-kind resolvedItem for band tests.
+// notePath mirrors mergeChunkSpace's "source#anchor" form.
+func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
+	return resolvedItem{notePath: notePath, score: score, kind: chunkItemKind}
+}
+
 // ExportNewOsChunkQueryDeps returns production ChunkQueryDeps with an
 // injected embedder, mirroring ExportNewOsIngestDeps.
 func ExportNewOsChunkQueryDeps(emb embed.Embedder) ChunkQueryDeps {
@@ -285,10 +278,20 @@ func ExportNewOsVaultFS() interface {
 	return &osVaultFS{}
 }
 
+// ExportNewRecencyParams builds a recencyParams for tests.
+func ExportNewRecencyParams(halfLifeDays, tailWeight float64, floor int, windowDays float64) recencyParams {
+	return recencyParams{halfLifeDays: halfLifeDays, tailWeight: tailWeight, floor: floor, windowDays: windowDays}
+}
+
 // ExportNewResolvedItem builds a resolvedItem for tests that need to
 // drive applyProjectFilter without going through the full pipeline.
 func ExportNewResolvedItem(notePath, content string) ExportResolvedItem {
 	return ExportResolvedItem{notePath: notePath, content: content}
+}
+
+// ExportNewScoredChunk builds a scoredChunk for tests.
+func ExportNewScoredChunk(rec chunk.Record, score float32) scoredChunk {
+	return scoredChunk{record: rec, score: score}
 }
 
 // ExportParseEpisodeBody exposes parseEpisodeBody for round-trip testing,
@@ -300,11 +303,11 @@ func ExportParseEpisodeBody(body string) (summary, transcript string, relations 
 	return parsed.summary, parsed.transcript, parsed.relations
 }
 
-// ExportNewChunkResolvedItem builds a chunk-kind resolvedItem for band tests.
-// notePath mirrors mergeChunkSpace's "source#anchor" form.
-func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
-	return resolvedItem{notePath: notePath, score: score, kind: chunkItemKind}
-}
+func ExportRecencyFloor(p recencyParams) int { return p.floor }
+
+// ExportRecencyWindowDays and ExportRecencyFloor expose recencyParams fields
+// for the eval test (Task 8) and any other blackbox accessor that needs them.
+func ExportRecencyWindowDays(p recencyParams) float64 { return p.windowDays }
 
 // ExportResolvedItemPath exposes the unexported notePath field for assertions.
 func ExportResolvedItemPath(item ExportResolvedItem) string { return item.notePath }
@@ -325,6 +328,11 @@ func ExportRunLearnFromFeedbackArgs(
 ) error {
 	return runLearnFromFeedbackArgs(ctx, a, stdout)
 }
+
+func ExportScoredChunkRecord(s scoredChunk) chunk.Record { return s.record }
+
+// ExportScoredChunkScore / Record expose the unexported fields for assertions.
+func ExportScoredChunkScore(s scoredChunk) float32 { return s.score }
 
 // NewTranscriptDepsForTest exposes newTranscriptDeps for whitebox testing.
 func NewTranscriptDepsForTest(cwd string) (transcript.Finder, transcript.Reader) {
