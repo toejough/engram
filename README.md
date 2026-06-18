@@ -82,7 +82,7 @@ engram learn episode  --slug ... --source ... --situation ... --boundary-rationa
 engram embed apply [--all|--missing|--stale|--force|--dry-run]   (Re-)embed notes per selection (default: missing)
 engram embed status                    Report counts per state (total / with-embeddings / without / stale / incompatible / broken)
 engram query --phrase <p> [--phrase <p>...] [--limit N] [--project <slug>]   Semantic search + 3-hop subgraph + clusters + hubs; YAML output. Recency-weights chunks AND notes, emits a read-only `activated` flag on above-cutoff note hits. --project restricts items to notes whose frontmatter `project:` matches.
-engram activate --note <path> [--note <path>...]   Mark note(s) as recently used — bumps `LastUsed` in the sidecar so usefulness keeps useful notes fresh (called by /recall for activated hits)
+engram activate --note <path> [--note <path>...]   Mark note(s) as recently used — bumps `LastUsed` in the sidecar so usefulness keeps useful notes fresh (called by /recall for activated hits). `--note` paths are vault-relative (resolved against the vault root / `ENGRAM_VAULT_PATH`); absolute paths are used as-is.
 engram update                          Refresh binary and harness skills/commands ([--dry-run])
 ```
 

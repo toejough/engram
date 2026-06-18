@@ -141,6 +141,7 @@ func ingestQueryTargets(
 			errHandler(RunChunkQuery(withLog(ctx), a, newOsChunkQueryDeps(), stdout))
 		}).Name("query-chunks").Description("Semantic search over the chunk index (YAML output)"),
 		targ.Targ(func(_ context.Context, a ActivateArgs) {
+			a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 			errHandler(RunActivate(a, newOsActivateDeps()))
 		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
