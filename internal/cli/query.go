@@ -472,9 +472,21 @@ func applyCombinedRecencyBand(
 	// Collect note-must PRE-CAP so low-cosine but recently-used notes that
 	// rank below the cap boundary are still eligible for the floor band.
 	noteMust := mostRecentlyUsedNoteItems(items, nowFn(), defaultRecencyFloor)
+
+	// Interleave chunkMust and noteMust (chunk0, note0, chunk1, note1, …)
+	// so that when the total exceeds the limit, fillRecencyBand injects a
+	// fair mix of both rather than exhausting the budget with chunks-first.
 	combined := make([]resolvedItem, 0, len(chunkMust)+len(noteMust))
-	combined = append(combined, chunkMust...)
-	combined = append(combined, noteMust...)
+
+	for i := 0; i < len(chunkMust) || i < len(noteMust); i++ {
+		if i < len(chunkMust) {
+			combined = append(combined, chunkMust[i])
+		}
+
+		if i < len(noteMust) {
+			combined = append(combined, noteMust[i])
+		}
+	}
 
 	// Cap first, then let fillRecencyBand re-insert any evicted must-includes.
 	if len(items) > limit {

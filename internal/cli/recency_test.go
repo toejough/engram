@@ -44,6 +44,69 @@ func TestMergeIntoExistingCopiesLastUsedWhenExistingEmpty(t *testing.T) {
 		"created should be copied from src when existing is empty")
 }
 
+// TestApplyCombinedRecencyBandInterleavesFairMix verifies that when both
+// chunkMust (3 items) and the derived noteMust (3 items from items) exceed the
+// limit of 4, the result contains at least 1 chunk AND at least 1 note
+// must-item. With the old chunks-first combined slice, fillRecencyBand fills
+// the 4-item deficit with the first 4 entries — all chunks — silently dropping
+// every note. With interleaving (chunk0, note0, chunk1, note1, ...) the first
+// 4 are 2 chunks + 2 notes.
+func TestApplyCombinedRecencyBandInterleavesFairMix(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// limit=3; chunkMust has 3 items, noteMust will have 3 items (derived from
+	// the 3 notes in items). All 6 are absent from the capped set (the 3 stale
+	// chunks fill the cap). With chunks-first combined=[c0,c1,c2,n0,n1,n2],
+	// fillRecencyBand clamps deficit to limit=3 and injects [c0,c1,c2] only —
+	// 0 notes survive. With interleaving [c0,n0,c1,n1,c2,n2], the first 3 are
+	// [c0,n0,c1] — at least 1 chunk and 1 note.
+	const limit = 3
+
+	// chunkMust — 3 chunk items that are NOT present in items.
+	chunkMust := []cli.ExportResolvedItem{
+		cli.ExportNewChunkResolvedItem("chunks.jsonl#turn-3", 0.20),
+		cli.ExportNewChunkResolvedItem("chunks.jsonl#turn-2", 0.19),
+		cli.ExportNewChunkResolvedItem("chunks.jsonl#turn-1", 0.18),
+	}
+
+	// Stale high-score chunks that fill the cap, evicting the notes below.
+	stale1 := cli.ExportNewChunkResolvedItem("stale.jsonl#turn-10", 0.99)
+	stale2 := cli.ExportNewChunkResolvedItem("stale.jsonl#turn-9", 0.98)
+	stale3 := cli.ExportNewChunkResolvedItem("stale.jsonl#turn-8", 0.97)
+
+	// Recently-used notes (will become noteMust via mostRecentlyUsedNoteItems).
+	noteA := cli.ExportNewNoteResolvedItem("note-a.md", "2026-06-16", "")
+	noteB := cli.ExportNewNoteResolvedItem("note-b.md", "2026-06-15", "")
+	noteC := cli.ExportNewNoteResolvedItem("note-c.md", "2026-06-14", "")
+
+	// items sorted descending by score: 3 stale chunks first, then 3 notes.
+	// The internal cap (items[:limit=3]) keeps only the 3 stale chunks,
+	// evicting all 3 notes. Both chunkMust and noteMust are absent from capped set.
+	items := []cli.ExportResolvedItem{stale1, stale2, stale3, noteA, noteB, noteC}
+
+	nowFn := func() time.Time { return time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC) }
+
+	out := cli.ExportApplyCombinedRecencyBand(items, chunkMust, nowFn, limit, true)
+
+	g.Expect(len(out)).To(BeNumerically("<=", limit), "must not exceed limit")
+
+	hasChunk := false
+	hasNote := false
+
+	for _, it := range out {
+		path := cli.ExportResolvedItemPath(it)
+		if len(path) >= 6 && path[:6] == "chunks" {
+			hasChunk = true
+		} else if len(path) >= 4 && path[:4] == "note" {
+			hasNote = true
+		}
+	}
+
+	g.Expect(hasChunk).To(BeTrue(), "result must contain at least one chunk must-item")
+	g.Expect(hasNote).To(BeTrue(), "result must contain at least one note must-item")
+}
+
 func TestApplyChunkRecencyLiftsRecentOverStaleHighCosine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
