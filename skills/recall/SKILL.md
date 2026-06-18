@@ -89,9 +89,8 @@ engram activate \
   # ... one --note per activated item
 ```
 
-The binary computed the flag mechanically (surfaced AND base-cosine ≥ cutoff). You just forward
-those paths. This refreshes a useful L2's recency (`LastUsed`) so it stays warm. Skip this call
-when no items carry `activated: true`.
+Forward every flagged path to `engram activate` to refresh that L2's recency (`LastUsed`) so it
+stays warm. Skip this call when no items carry `activated: true`.
 
 ### Step 2.5 — Crystallize lessons from the payload's chunk clusters (band-driven)
 
@@ -106,8 +105,8 @@ surfaces in a recall is a useful signal worth preserving in a durable form.
 
 | `nearest_l2.cosine` | Action |
 | --- | --- |
-| `>= 0.95` | ACTIVATE the covering L2 — it was useful, refresh its recency: `engram activate --note <nearest_l2.path>`. Do NOT create a duplicate. |
-| `0.80 – 0.95` | UPDATE the nearest note: `engram learn fact\|feedback --target <luhmann-id from nearest_l2.path> --position continuation ...` (the write also refreshes it) |
+| `>= 0.95` | ACTIVATE the covering L2 — it was useful, refresh its recency: `engram activate --note <nearest_l2.path>`. Do NOT create a duplicate (the covering L2 already exists and just surfaced — high cosine = useful; a duplicate would splinter the idea across two notes). |
+| `0.80 – 0.95` | UPDATE the nearest note: `engram learn fact\|feedback --target <luhmann-id from nearest_l2.path> --position continuation ...` (the update write also refreshes it; CREATE is reserved for `<0.80`, where no L2 covers the cluster) |
 | `< 0.80`, or no `nearest_l2` | CREATE a new note (`--position top`) |
 
 **Empty/L2-less vault = CREATE band, always.** Every vault starts with zero L2 notes. When the
@@ -166,7 +165,6 @@ The user sees this. Rules:
 | You skipped Step 2.5 because the vault has no L2 notes yet, or no `nearest_l2` came back | That IS the CREATE band — bootstrap L2s are born here; absent `nearest_l2` never means "not applicable" |
 | You read chunk-only results as Step 2's "nothing surfaces" and skipped 2.5 | "Nothing surfaces" means an EMPTY payload; chunks surfacing without notes is the bootstrap case 2.5 exists for |
 | You banded N clusters and wrote 0 notes on an L2-less vault | Wrong unless you stated a vocabulary-coincidence call per cluster, out loud |
-| You saw `activated: true` items but skipped `engram activate` | One batched call per recall — forward all flagged paths; skipping means useful L2s never get refreshed |
-| A `≥0.95` cluster → you did nothing (old no-op) | Call `engram activate --note <nearest_l2.path>` — the covering L2 was useful; refresh it, don't duplicate it |
+| You saw `activated: true` items but skipped `engram activate` — including `≥0.95` clusters where the covering L2 was useful | One batched call per recall — forward all flagged paths (and `nearest_l2.path` for `≥0.95` clusters); skipping means useful L2s never get refreshed |
 | A `≥0.95` cluster → you created a new L2 | The covering L2 already exists; activate it (don't duplicate); CREATE band is `<0.80` only |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
