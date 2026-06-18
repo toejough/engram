@@ -158,6 +158,17 @@ func ExportAppendUniqueProvenance(initial []string, roles ...string) []string {
 	return item.provenances
 }
 
+// ExportApplyCombinedRecencyBand exposes applyCombinedRecencyBand for band interleave tests.
+func ExportApplyCombinedRecencyBand(
+	items []resolvedItem,
+	chunkMust []resolvedItem,
+	nowFn func() time.Time,
+	limit int,
+	chunksActive bool,
+) []resolvedItem {
+	return applyCombinedRecencyBand(items, chunkMust, nowFn, limit, chunksActive)
+}
+
 // ExportBreakRepresentativeTie is a whitebox handle on the tiebreak helper
 // used by cluster representative selection.
 func ExportBreakRepresentativeTie(
@@ -197,6 +208,11 @@ func ExportEmitTranscripts(
 // locate a source's chunk index file.
 func ExportIndexFileName(source string) string { return sourceSlug(source) + ".jsonl" }
 
+// ExportMergeIntoExisting exposes mergeIntoExisting for whitebox testing.
+func ExportMergeIntoExisting(existing, src *resolvedItem) {
+	mergeIntoExisting(existing, src)
+}
+
 // ExportNewChunkResolvedItem builds a chunk-kind resolvedItem for band tests.
 // notePath mirrors mergeChunkSpace's "source#anchor" form.
 func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
@@ -215,22 +231,6 @@ func ExportNewNoteResolvedItem(notePath, lastUsed, created string) resolvedItem 
 // an explicit baseScore, for testing mergeIntoExisting activation logic.
 func ExportNewNoteResolvedItemWithBaseScore(notePath string, baseScore float32, lastUsed, created string) resolvedItem {
 	return resolvedItem{notePath: notePath, baseScore: baseScore, lastUsed: lastUsed, created: created}
-}
-
-// ExportMergeIntoExisting exposes mergeIntoExisting for whitebox testing.
-func ExportMergeIntoExisting(existing, src *resolvedItem) {
-	mergeIntoExisting(existing, src)
-}
-
-// ExportApplyCombinedRecencyBand exposes applyCombinedRecencyBand for band interleave tests.
-func ExportApplyCombinedRecencyBand(
-	items []resolvedItem,
-	chunkMust []resolvedItem,
-	nowFn func() time.Time,
-	limit int,
-	chunksActive bool,
-) []resolvedItem {
-	return applyCombinedRecencyBand(items, chunkMust, nowFn, limit, chunksActive)
 }
 
 // ExportNewOsChunkQueryDeps returns production ChunkQueryDeps with an

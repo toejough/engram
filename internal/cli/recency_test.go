@@ -10,38 +10,21 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestMergeIntoExistingTakesMaxBaseScore verifies that when the same note is
-// matched by two phrases with different baseScores, mergeIntoExisting stores
-// the higher one so the activated flag is not phrase-order-dependent.
-func TestMergeIntoExistingTakesMaxBaseScore(t *testing.T) {
+func TestApplyChunkRecencyLiftsRecentOverStaleHighCosine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// First phrase gave a below-cutoff score; second phrase gave an above-cutoff score.
-	existing := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.48, "", "")
-	src := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.55, "", "")
+	scored := []cli.ExportScoredChunk{
+		cli.ExportNewScoredChunk(chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.80),
+		cli.ExportNewScoredChunk(chunk.Record{Source: "recent.jsonl", Anchor: "turn-9"}, 0.45),
+	}
+	ages := map[string]float64{"old.jsonl": 90, "recent.jsonl": 0.01}
+	maxTurn := map[string]int{"old.jsonl": 3, "recent.jsonl": 9}
+	p := cli.ExportNewRecencyParams(3, 0.2, 0)
 
-	cli.ExportMergeIntoExisting(&existing, &src)
+	out := cli.ExportApplyChunkRecency(scored, ages, maxTurn, p)
 
-	g.Expect(cli.ExportResolvedItemBaseScore(existing)).To(BeNumerically("~", float32(0.55), 1e-6),
-		"baseScore must be max of both phrases, not first-phrase value")
-}
-
-// TestMergeIntoExistingCopiesLastUsedWhenExistingEmpty verifies that when
-// existing.lastUsed is empty and src has a value, the value is copied.
-func TestMergeIntoExistingCopiesLastUsedWhenExistingEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	existing := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.6, "", "")
-	src := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.5, "2026-06-10", "2026-01-01")
-
-	cli.ExportMergeIntoExisting(&existing, &src)
-
-	g.Expect(cli.ExportResolvedItemLastUsed(existing)).To(Equal("2026-06-10"),
-		"lastUsed should be copied from src when existing is empty")
-	g.Expect(cli.ExportResolvedItemCreated(existing)).To(Equal("2026-01-01"),
-		"created should be copied from src when existing is empty")
+	g.Expect(cli.ExportScoredChunkScore(out[1])).To(BeNumerically(">", cli.ExportScoredChunkScore(out[0])))
 }
 
 // TestApplyCombinedRecencyBandInterleavesFairMix verifies that when both
@@ -105,23 +88,6 @@ func TestApplyCombinedRecencyBandInterleavesFairMix(t *testing.T) {
 
 	g.Expect(hasChunk).To(BeTrue(), "result must contain at least one chunk must-item")
 	g.Expect(hasNote).To(BeTrue(), "result must contain at least one note must-item")
-}
-
-func TestApplyChunkRecencyLiftsRecentOverStaleHighCosine(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	scored := []cli.ExportScoredChunk{
-		cli.ExportNewScoredChunk(chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.80),
-		cli.ExportNewScoredChunk(chunk.Record{Source: "recent.jsonl", Anchor: "turn-9"}, 0.45),
-	}
-	ages := map[string]float64{"old.jsonl": 90, "recent.jsonl": 0.01}
-	maxTurn := map[string]int{"old.jsonl": 3, "recent.jsonl": 9}
-	p := cli.ExportNewRecencyParams(3, 0.2, 0)
-
-	out := cli.ExportApplyChunkRecency(scored, ages, maxTurn, p)
-
-	g.Expect(cli.ExportScoredChunkScore(out[1])).To(BeNumerically(">", cli.ExportScoredChunkScore(out[0])))
 }
 
 func TestDefaultRecencyParamsSaneDefaults(t *testing.T) {
@@ -243,6 +209,40 @@ func TestMaxTurnBySource(t *testing.T) {
 	g.Expect(got["b.jsonl"]).To(Equal(2))
 	_, hasC := got["c.md"]
 	g.Expect(hasC).To(BeFalse())
+}
+
+// TestMergeIntoExistingCopiesLastUsedWhenExistingEmpty verifies that when
+// existing.lastUsed is empty and src has a value, the value is copied.
+func TestMergeIntoExistingCopiesLastUsedWhenExistingEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	existing := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.6, "", "")
+	src := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.5, "2026-06-10", "2026-01-01")
+
+	cli.ExportMergeIntoExisting(&existing, &src)
+
+	g.Expect(cli.ExportResolvedItemLastUsed(existing)).To(Equal("2026-06-10"),
+		"lastUsed should be copied from src when existing is empty")
+	g.Expect(cli.ExportResolvedItemCreated(existing)).To(Equal("2026-01-01"),
+		"created should be copied from src when existing is empty")
+}
+
+// TestMergeIntoExistingTakesMaxBaseScore verifies that when the same note is
+// matched by two phrases with different baseScores, mergeIntoExisting stores
+// the higher one so the activated flag is not phrase-order-dependent.
+func TestMergeIntoExistingTakesMaxBaseScore(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// First phrase gave a below-cutoff score; second phrase gave an above-cutoff score.
+	existing := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.48, "", "")
+	src := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.55, "", "")
+
+	cli.ExportMergeIntoExisting(&existing, &src)
+
+	g.Expect(cli.ExportResolvedItemBaseScore(existing)).To(BeNumerically("~", float32(0.55), 1e-6),
+		"baseScore must be max of both phrases, not first-phrase value")
 }
 
 func TestMostRecentlyUsedNoteItemsFallsBackToCreated(t *testing.T) {
@@ -415,6 +415,31 @@ func TestParseCreatedFromNote(t *testing.T) {
 
 	g.Expect(cli.ExportParseCreatedFromNote(note)).To(Equal("2026-06-10"))
 	g.Expect(cli.ExportParseCreatedFromNote([]byte("no frontmatter"))).To(Equal(""))
+}
+
+// TestParseCreatedFromNoteFrontmatterBoundary verifies that a body line
+// matching `created:` after the closing `---` fence is NOT misread as the
+// frontmatter date.
+func TestParseCreatedFromNoteFrontmatterBoundary(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Frontmatter has the real date; body contains a misleading created: line.
+	noteWithBothFrontmatterAndBody := []byte(
+		"---\ntype: fact\ncreated: 2026-06-10\n---\nSome body text\ncreated: 2020-01-01\n",
+	)
+
+	g.Expect(cli.ExportParseCreatedFromNote(noteWithBothFrontmatterAndBody)).
+		To(Equal("2026-06-10"),
+			"must use frontmatter created:, not body-line created:")
+
+	// No frontmatter at all: body-only created: should return "".
+	bodyOnlyCreated := []byte("Some note text\ncreated: 2020-01-01\n")
+
+	g.Expect(cli.ExportParseCreatedFromNote(bodyOnlyCreated)).
+		To(Equal(""),
+			"body-only created: with no frontmatter must return empty string")
 }
 
 func TestParseTurnN(t *testing.T) {

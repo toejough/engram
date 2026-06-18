@@ -12,12 +12,14 @@ import (
 
 // unexported constants.
 const (
-	defaultHalfLifeDays = 60.0
-	defaultRecencyFloor = 3
-	defaultTailWeight   = 0.2
-	hoursPerDay         = 24
-	noteDateFormat      = "2006-01-02"
-	turnAnchorPrefix    = "turn-"
+	closingFrontmatterFence = 2 // fencesSeen value when the closing --- has been reached
+	defaultHalfLifeDays     = 60.0
+	defaultRecencyFloor     = 3
+	defaultTailWeight       = 0.2
+	hoursPerDay             = 24
+	noteDateFormat          = "2006-01-02"
+	openFrontmatterFence    = 1 // fencesSeen value while inside the frontmatter block
+	turnAnchorPrefix        = "turn-"
 )
 
 // recencyParams are the tunable knobs (defaults chosen by the eval in recency_eval_test.go).
@@ -278,11 +280,33 @@ func noteAgeDays(lastUsed, created string, now time.Time) float64 {
 }
 
 // parseCreatedFromNote extracts the `created:` frontmatter date (YYYY-MM-DD)
-// from a note's raw bytes, or "" when absent.
+// from a note's raw bytes, or "" when absent. Only the frontmatter block
+// (between the opening and closing `---` fences) is scanned; body lines that
+// happen to contain `created:` are ignored.
 func parseCreatedFromNote(note []byte) string {
+	const fence = "---"
+
+	fencesSeen := 0
+
 	for line := range strings.SplitSeq(string(note), "\n") {
-		if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "created:"); ok {
-			return strings.TrimSpace(rest)
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == fence {
+			fencesSeen++
+
+			// Stop after the closing fence — everything below is body text.
+			if fencesSeen == closingFrontmatterFence {
+				return ""
+			}
+
+			continue
+		}
+
+		// Only match inside the frontmatter block (between the two fences).
+		if fencesSeen == openFrontmatterFence {
+			if rest, ok := strings.CutPrefix(trimmed, "created:"); ok {
+				return strings.TrimSpace(rest)
+			}
 		}
 	}
 
