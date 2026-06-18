@@ -56,14 +56,10 @@ type QueryDeps struct {
 // identifies hubs by in-degree before emitting the resolved YAML
 // payload per the F6+F9.1 spec.
 func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Writer) error {
-	// Argument validation precedes data-state checks so the notes-but-no-
-	// embeddings guard below can't mask an invalid invocation.
 	validationErr := validateQueryArgs(args)
 	if validationErr != nil {
 		return validationErr
 	}
-
-	phrases := args.Phrases
 
 	limit := args.Limit
 	if limit == 0 {
@@ -90,9 +86,9 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return err
 	}
 
-	summaries := make([]queryPipelineSummary, 0, len(phrases))
+	summaries := make([]queryPipelineSummary, 0, len(args.Phrases))
 
-	for _, phrase := range phrases {
+	for _, phrase := range args.Phrases {
 		summary, err := runSinglePhraseQuery(ctx, phrase, notes, hits, args.VaultPath, limit, deps)
 		if err != nil {
 			return err
@@ -101,22 +97,22 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		summaries = append(summaries, summary)
 	}
 
-	l3 := gatherL3Index(hits, args.VaultPath, deps.Read)
-
-	merged := aggregatePhraseSummaries(phrases, summaries, limit)
-	merged.l3 = l3
+	merged := aggregatePhraseSummaries(args.Phrases, summaries, limit)
+	merged.l3 = gatherL3Index(hits, args.VaultPath, deps.Read)
 	merged.l2 = gatherTierIndex(hits, args.VaultPath, deps.Read, tierL2)
 	merged.outgoing = outgoingByBasename(notes)
 	merged.tiers = args.Tiers
 	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
 	merged.resolvedItems = applyTierFilter(merged.resolvedItems, args.Tiers)
 
-	// Unified ranking: chunk-space hits compete with notes in ONE top-limit
-	// list (one query call covers both raw event memory and the vault).
-	chunkErr := mergeChunkSpace(ctx, args, deps, &merged, limit)
+	chunkMust, chunkErr := mergeChunkSpace(ctx, args, deps, &merged, limit)
 	if chunkErr != nil {
 		return chunkErr
 	}
+
+	merged.resolvedItems = applyCombinedRecencyBand(
+		merged.resolvedItems, chunkMust, deps.Now, limit,
+		chunksConfigured(args, deps))
 
 	return renderQueryPayload(stdout, merged)
 }
@@ -446,6 +442,48 @@ func appendUniqueProvenance(item *resolvedItem, role string) {
 	item.provenances = append(item.provenances, role)
 }
 
+// applyCombinedRecencyBand applies the single combined floor band that
+// guarantees both the floor-newest chunks (chunkMust) and the most-recently-
+// used notes survive the limit cap without mutual eviction.
+//
+// chunksActive must be true when a chunks dir is configured; without chunks
+// the cap is handled by renderQueryPayload (pre-Phase-4 note-only path).
+// When nowFn is nil, only a plain cap is applied (no recency band).
+// items must already be sorted descending by score.
+func applyCombinedRecencyBand(
+	items []resolvedItem,
+	chunkMust []resolvedItem,
+	nowFn func() time.Time,
+	limit int,
+	chunksActive bool,
+) []resolvedItem {
+	if !chunksActive {
+		return items
+	}
+
+	if nowFn == nil {
+		if len(items) > limit {
+			return items[:limit]
+		}
+
+		return items
+	}
+
+	// Collect note-must PRE-CAP so low-cosine but recently-used notes that
+	// rank below the cap boundary are still eligible for the floor band.
+	noteMust := mostRecentlyUsedNoteItems(items, nowFn(), defaultRecencyFloor)
+	combined := make([]resolvedItem, 0, len(chunkMust)+len(noteMust))
+	combined = append(combined, chunkMust...)
+	combined = append(combined, noteMust...)
+
+	// Cap first, then let fillRecencyBand re-insert any evicted must-includes.
+	if len(items) > limit {
+		items = items[:limit]
+	}
+
+	return fillRecencyBand(items, combined, limit)
+}
+
 // applyProjectFilter drops items whose frontmatter project: field doesn't
 // match the requested slug. Empty project is a no-op (returns items
 // unchanged). Items with no loaded content cannot be verified and are
@@ -587,6 +625,12 @@ func buildUnionSubgraph(union []scoredCandidate) expandedSubgraph {
 	}
 
 	return expandedSubgraph{members: members}
+}
+
+// chunksConfigured reports whether a chunk index is wired into this run
+// (non-empty chunks dir and a list function available).
+func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
+	return args.ChunksDir != "" && deps.ListChunkIndexes != nil
 }
 
 // clusterChunkItems runs the SAME deterministic clustering machinery the note
@@ -1233,33 +1277,37 @@ func memberMatchesTier(member subgraphMember, tiers []string) bool {
 }
 
 // mergeChunkSpace scores every indexed chunk against the query phrases and
-// merges the results into the resolved items, re-ranking by score and
-// re-capping at limit. No-op when no chunks dir is configured.
+// merges the results into the resolved items, re-ranking by score. The cap
+// is deferred to the caller (RunQuery) so the caller can collect
+// mostRecentlyUsedNoteItems from the full sorted list before eviction.
+// Clustering is done on the top-limit slice to keep O(n²) silhouette bounded.
+// Returns the newest-chunk must-include set so RunQuery can build the combined
+// band. No-op (nil, nil) when no chunks dir is configured.
 func mergeChunkSpace(
 	ctx context.Context,
 	args QueryArgs,
 	deps QueryDeps,
 	merged *aggregatedSummary,
 	limit int,
-) error {
+) ([]resolvedItem, error) {
 	if args.ChunksDir == "" || deps.ListChunkIndexes == nil {
-		return nil
+		return nil, nil
 	}
 
 	records, err := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
 		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	scored, err := scoreChunks(ctx, args.Phrases, records, deps.Embedder)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Recency re-rank (chunk-only): lift recent chunks before they compete with notes.
-	var mustInclude []resolvedItem
+	var chunkMust []resolvedItem
 
 	if deps.Now != nil {
 		ages := chunkSourceAges(args.ChunksDir, deps)
@@ -1267,7 +1315,7 @@ func mergeChunkSpace(
 			params := defaultRecencyParams()
 			scored = applyChunkRecency(scored, ages, maxTurnBySource(records), params)
 			sortScoredDesc(scored)
-			mustInclude = newestChunkItems(scored, ages, params.floor)
+			chunkMust = newestChunkItems(scored, ages, params.floor)
 		}
 	}
 
@@ -1285,19 +1333,18 @@ func mergeChunkSpace(
 		return merged.resolvedItems[i].score > merged.resolvedItems[j].score
 	})
 
-	if len(merged.resolvedItems) > limit {
-		merged.resolvedItems = merged.resolvedItems[:limit]
-	}
-
-	// Adaptive band: guarantee the floor-newest chunks survived the cap.
-	if mustInclude != nil {
-		merged.resolvedItems = fillRecencyBand(merged.resolvedItems, mustInclude, limit)
+	// Cluster the top-limit slice so the O(n²) silhouette stays bounded.
+	// The cap to limit is applied after return (in RunQuery), but clustering
+	// over all chunks would be prohibitively slow on large indices.
+	clusterView := merged.resolvedItems
+	if len(clusterView) > limit {
+		clusterView = clusterView[:limit]
 	}
 
 	merged.chunkClusters = clusterChunkItems(
-		survivingChunks(scored, merged.resolvedItems), merged.l2, merged.tiers, merged.phrases)
+		survivingChunks(scored, clusterView), merged.l2, merged.tiers, merged.phrases)
 
-	return nil
+	return chunkMust, nil
 }
 
 // mergeClusterReps annotates representatives with provenance + cluster_id,

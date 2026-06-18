@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -848,6 +849,207 @@ func TestRunQuery_ActivatedFlagEmittedForAboveCutoffNotes(t *testing.T) {
 	}
 }
 
+// TestRunQuery_CombinedRecencyBandPreservesNewestChunksAndMRUNotes verifies
+// that the single combined floor band (Task 4.2) guarantees both the
+// defaultRecencyFloor newest chunks AND the defaultRecencyFloor
+// most-recently-used notes survive the limit cap, without either group
+// evicting the other.
+//
+// Setup:
+//   - Limit = 6 (= defaultRecencyFloor chunks + defaultRecencyFloor notes).
+//   - 3 stale notes (cosine=0.2 → decayed ≈ 0.0006; low enough that the 5
+//     stale chunks outrank them after chunk merge).
+//   - 3 MRU notes (cosine=0.2, LastUsed=today → decayed score=0.2; they
+//     rank just above stale notes but below stale chunks in the combined list).
+//   - 5 stale chunks (cosine=1.0 → recency-reranked ≈ 0.25 after 120d).
+//     They outrank MRU notes and fill the top-5 after cap.
+//   - 3 newest chunks (cosine=0, newest source).
+//
+// Without the combined band (chunk-only): 3 newest chunks force-inserted,
+// displacing the 3 non-must non-chunk items; MRU notes evicted because they
+// rank last in the capped set (below stale chunks).
+// With the combined band: 3 MRU notes collected PRE-CAP from the full sorted
+// list (where they appear), then band re-inserts all 6 (3 chunks + 3 notes);
+// stale chunks displaced; budget = 6 preserved.
+func TestRunQuery_CombinedRecencyBandPreservesNewestChunksAndMRUNotes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const (
+		chunksDir         = "/chunks"
+		newestSource      = "newest.jsonl"
+		staleChunkSource  = "old-chunks.jsonl"
+		newestIndexPath   = "/chunks/newest-idx.jsonl"
+		staleChunkIdxPath = "/chunks/old-chunks-idx.jsonl"
+		manifestPath      = "/chunks/manifest.json"
+		staleNoteCount    = 3
+		mruNoteCount      = 3 // == defaultRecencyFloor
+		staleChunkCount   = 5 // > defaultRecencyFloor to fill the cap
+		newestChunkCount  = 3 // == defaultRecencyFloor
+		limit             = 6 // = mruNoteCount + newestChunkCount
+	)
+
+	fixedNow := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+	newestMtime := fixedNow.Add(-1 * time.Hour).UnixNano()                    // ~0.04 days old
+	staleMtime := fixedNow.Add(-120 * 24 * time.Hour).UnixNano()              // 120 days old → recency≈0.25
+	mruLastUsed := "2026-06-17"                                               // today (age≈0)
+	staleLastUsed := fixedNow.Add(-500 * 24 * time.Hour).Format("2006-01-02") // 500d ago
+
+	// Query embeds to highVec (1,0,0,0).
+	// MRU and stale notes store lowVec: cosine(lowVec, highVec) = 0.2 / |lowVec|.
+	// |lowVec| = sqrt(0.04 + 0.96) = 1, so cosine = 0.2.
+	highVec := []float32{1, 0, 0, 0}
+	lowVec := []float32{0.2, 0.98, 0, 0} // cosine=0.2 with highVec; note notes
+	perpVec := []float32{0, 1, 0, 0}     // cosine=0 with highVec; for newest chunks
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Plant stale notes: cosine=0.2, LastUsed=500d → decayed score≈0.0006.
+	for i := range staleNoteCount {
+		relPath := fmt.Sprintf("stale%d.md", i)
+		body := fmt.Appendf(nil, "---\ntype: fact\ncreated: 2026-01-01\n---\nstale note %d\n", i)
+		memFS.files[filepath.Join(vault, relPath)] = body
+		memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(embed.Sidecar{
+			SchemaVersion:    embed.SidecarSchemaVersion,
+			EmbeddingModelID: "m@4",
+			Dims:             4,
+			SituationVector:  lowVec,
+			BodyVector:       lowVec,
+			ContentHash:      embed.ContentHash(body),
+			LastUsed:         staleLastUsed,
+		})
+	}
+
+	// Plant MRU notes: same cosine=0.2 but LastUsed=today → decayed score=0.2.
+	// They outrank stale notes but are below the stale chunks (score≈0.25-0.30)
+	// after the chunk merge, so they would be displaced by the cap.
+	mruNotePaths := make([]string, mruNoteCount)
+
+	for i := range mruNoteCount {
+		relPath := fmt.Sprintf("mru%d.md", i)
+		mruNotePaths[i] = relPath
+		body := fmt.Appendf(nil, "---\ntype: fact\ncreated: 2026-06-17\n---\nmru note %d\n", i)
+		memFS.files[filepath.Join(vault, relPath)] = body
+		memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(embed.Sidecar{
+			SchemaVersion:    embed.SidecarSchemaVersion,
+			EmbeddingModelID: "m@4",
+			Dims:             4,
+			SituationVector:  lowVec,
+			BodyVector:       lowVec,
+			ContentHash:      embed.ContentHash(body),
+			LastUsed:         mruLastUsed,
+		})
+	}
+
+	// Build stale chunk records: cosine=1.0 → recency-reranked score≈0.25-0.30.
+	// With 120d age and default halfLife=60d: score = 1.0 × exp2(-2) × (1 + tail)
+	// ≈ 0.25 to 0.30. These outrank MRU notes (0.2) and fill the cap.
+	staleChunkRecords := makeChunkRecordsForBandTest(
+		staleChunkSource, "stale chunk", "sha256:stale", 0, staleChunkCount, highVec)
+
+	// Build newest chunk records: cosine=0 (perpendicular to query) so they
+	// rank at the bottom on cosine alone, but the chunk band force-includes them.
+	newestChunkRecords := makeChunkRecordsForBandTest(
+		newestSource, "newest chunk", "sha256:newest", 40, newestChunkCount, perpVec)
+
+	staleChunkData, err := chunk.EncodeRecords(staleChunkRecords)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	newestChunkData, err := chunk.EncodeRecords(newestChunkRecords)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	manifestData, err := json.Marshal(map[string]any{
+		newestSource: map[string]any{
+			"mtime_unix_nano": newestMtime,
+			"size":            int64(len(newestChunkData)),
+			"file_hash":       "hash-newest",
+		},
+		staleChunkSource: map[string]any{
+			"mtime_unix_nano": staleMtime,
+			"size":            int64(len(staleChunkData)),
+			"file_hash":       "hash-stale",
+		},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	allFiles := map[string][]byte{
+		newestIndexPath:   newestChunkData,
+		staleChunkIdxPath: staleChunkData,
+		manifestPath:      manifestData,
+	}
+
+	maps.Copy(allFiles, memFS.files)
+
+	deps := cli.QueryDeps{
+		Scan: func(dir string) ([]vaultgraph.Note, error) {
+			return memFS.Scan(dir)
+		},
+		Read:     mapReadFn("combined band test", allFiles),
+		Embedder: fixedVectorEmbedder{modelID: "m@4", vector: highVec},
+		ListChunkIndexes: func(string) ([]string, error) {
+			return []string{newestIndexPath, staleChunkIdxPath}, nil
+		},
+		Now: func() time.Time { return fixedNow },
+	}
+
+	var out bytes.Buffer
+
+	err = cli.RunQuery(context.Background(),
+		cli.QueryArgs{
+			Phrases:   []string{"fact"},
+			VaultPath: vault,
+			ChunksDir: chunksDir,
+			Limit:     limit,
+		},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	payload := out.String()
+
+	// All 3 MRU notes must appear (note-side of the combined band force-inserts
+	// them even though the 5 stale chunks outrank them in the cap).
+	for i, path := range mruNotePaths {
+		g.Expect(payload).To(ContainSubstring(filepath.Base(path)),
+			"MRU note %d must surface via the combined note band", i)
+	}
+
+	// All 3 newest chunks must appear (chunk-side of the combined band).
+	for i := range newestChunkCount {
+		anchor := fmt.Sprintf("turn-%d", i+40)
+		g.Expect(payload).To(ContainSubstring(newestSource+"#"+anchor),
+			"newest chunk %d must surface via the combined chunk band", i)
+	}
+
+	// Budget preserved: total output items ≤ limit.
+	var parsed struct {
+		Items []struct {
+			Path string `yaml:"path"`
+		} `yaml:"items"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(len(parsed.Items)).To(BeNumerically("<=", limit),
+		"combined band must not exceed limit=%d", limit)
+}
+
 func TestRunQuery_ExposesOutboundWikilinkTargets(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1351,6 +1553,39 @@ func assertChannelsMatchTier(g *WithT, parsed queryParsed, marker string) {
 			g.Expect(cluster.NearestL3.Path).To(ContainSubstring(marker),
 				"nearest_l3 leaked note %q", cluster.NearestL3.Path)
 		}
+	}
+}
+
+// makeChunkRecordsForBandTest builds count chunk records with a sequential
+// anchor (anchor = "turn-<anchorOffset+i>"), a text of "<textPrefix> <i>",
+// a content hash of "<hashPrefix><i>", and the given vector.
+func makeChunkRecordsForBandTest(
+	source, textPrefix, hashPrefix string, anchorOffset, count int, vec []float32,
+) []chunk.Record {
+	records := make([]chunk.Record, count)
+
+	for i := range count {
+		records[i] = chunk.Record{
+			Source:      source,
+			Anchor:      fmt.Sprintf("turn-%d", anchorOffset+i),
+			Text:        fmt.Sprintf("%s %d", textPrefix, i),
+			ContentHash: fmt.Sprintf("%s%d", hashPrefix, i),
+			Vector:      vec,
+		}
+	}
+
+	return records
+}
+
+// mapReadFn returns a read function that looks up paths in the given map.
+func mapReadFn(label string, files map[string][]byte) func(string) ([]byte, error) {
+	return func(path string) ([]byte, error) {
+		data, ok := files[path]
+		if !ok {
+			return nil, fmt.Errorf("%s: file not found: %s", label, path)
+		}
+
+		return data, nil
 	}
 }
 
