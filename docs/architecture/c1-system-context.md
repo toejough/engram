@@ -76,21 +76,34 @@ each phrase as a separate `--phrase` flag. The binary runs one sub-pipeline
 per phrase (embed, BFS 3-hop subgraph cap 200, k-means + silhouette clusters,
 in-degree top-5 hubs), then merges results server-side (items dedup by path
 with max score and union provenances, clusters tagged per-phrase, aggregated
-budget). Chunk-space hits are additionally **recency-weighted** — each chunk's
-cosine is scaled by a time-decay from the ingest manifest's per-source mtime
-plus a small turn-position factor — and an **adaptive recency band** guarantees
-a floor of recent transcript chunks survives the cap, so a post-context-loss
-agent re-encounters its own recent first-person narration — recovering
-authorship from recency itself, with no separate provenance mechanism. The
-harness receives a single YAML payload and applies a
-per-cluster synthesis gate: dispatches a fire-and-forget subagent for any
-cluster meeting cheap gates (≥3 members, rep hints at coherence); the
-subagent reads all members from disk, decides whether a binding principle is
-worth capturing, and writes a new fact/feedback via `engram learn` with
-`--relation` bullets to each constituent. Source:
-`internal/cli/query.go` (`RunQuery`, `mergeChunkSpace`), the recency re-rank +
-band in `internal/cli/recency.go`, and the `internal/cluster/` package
+budget). Both chunks AND notes are **recency-weighted**: a chunk's cosine is
+scaled by a time-decay from the ingest manifest's per-source mtime plus a
+turn-position factor; a note's cosine is scaled by a time-decay keyed on its
+`LastUsed` date (falling back to `created`). A single **combined floor band**
+then guarantees the newest chunks and the most-recently-used notes survive the
+cap, so a post-context-loss agent re-encounters its own recent narration —
+recovering authorship from recency itself, with no separate provenance
+mechanism. The payload also carries a read-only **`activated`** flag on each
+note item that *surfaced AND* cleared a base-cosine relevance cutoff; the
+harness forwards those paths to **`engram activate`**, which bumps the note's
+`LastUsed` (atomic per-file sidecar write — usefulness keeps useful notes
+fresh). The harness then applies a per-cluster synthesis gate: for an
+above-cutoff chunk cluster it crystallizes per three bands on `nearest_l2`
+cosine — `<0.80` create, `0.80–0.95` update, **`≥0.95` `engram activate` the
+covering L2** (it was useful; refresh, don't duplicate) — writing fact/feedback
+via `engram learn` with `--relation` bullets to each constituent. Source:
+`internal/cli/query.go` (`RunQuery`, `mergeChunkSpace`, `applyCombinedRecencyBand`),
+the recency/decay/band in `internal/cli/recency.go`, the `engram activate`
+command in `internal/cli/activate.go`, and the `internal/cluster/` package
 (`kmeans.go`, `silhouette.go`, `autok.go`).
+
+> Two deliberate evolutions of earlier decisions, both driven by recency decay:
+> (1) recency now applies to **notes**, not chunks only (the v1 chunks-only
+> scope); (2) usefulness is an **activation signal** — the lazy-L2 `≥0.95`
+> dedup-*silence* band becomes a *refresh*, and a clearly-stated-in-a-chunk idea
+> is still crystallized (chunks decay; a refreshable L2 survives). Consequence
+> (intended, ACT-R): regularly-useful memory stays fresh; never-retrieved memory
+> decays and loses rank.
 
 ```mermaid
 sequenceDiagram
