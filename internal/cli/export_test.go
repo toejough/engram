@@ -23,6 +23,7 @@ var (
 	ExportApplyProjectFilter         = applyProjectFilter
 	ExportApplyTierFilter            = applyTierFilter
 	ExportAutoEmbedNote              = autoEmbedNote
+	ExportBumpLastUsed               = bumpLastUsed
 	ExportComputePrecedingLinks      = computePrecedingLinks
 	ExportDefaultRecencyParams       = defaultRecencyParams
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
@@ -36,6 +37,7 @@ var (
 	ExportMaxTurnBySource            = maxTurnBySource
 	ExportMigrateRelationLinks       = migrateRelationLinks
 	ExportNewErrHandler              = newErrHandler
+	ExportNewOsActivateDeps          = newOsActivateDeps
 	ExportNewOsCheckDeps             = newOsCheckDeps
 	ExportNewOsMigrateDeps           = newOsMigrateDeps
 	ExportNewOsShowDeps              = newOsShowDeps
@@ -56,6 +58,7 @@ var (
 	ExportRenderRelatedSection       = renderRelatedSection
 	ExportResolveRelationTargets     = resolveRelationTargets
 	ExportResolveVault               = resolveVault
+	ExportRunActivate                = RunActivate
 	ExportRunLearn                   = runLearn
 	ExportRunUpdate                  = runUpdate
 	ExportSelectStates               = selectStates

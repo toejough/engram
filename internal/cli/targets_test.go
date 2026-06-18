@@ -122,8 +122,8 @@ func TestTargets(t *testing.T) {
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
 		// transcript, learn (group), update, embed (group), query, ingest,
-		// query-chunks, show, check, migrate-links, migrate-episodes, resituate
-		g.Expect(targets).To(gomega.HaveLen(12))
+		// query-chunks, activate, show, check, migrate-links, migrate-episodes, resituate
+		g.Expect(targets).To(gomega.HaveLen(13))
 	})
 
 	t.Run("show parses positional ref through targ", func(t *testing.T) {
@@ -352,6 +352,17 @@ func TestTargets(t *testing.T) {
 			"engram", "update", "--dry-run",
 		})
 	})
+}
+
+// TestTargets_ActivateNoNotes exercises the activate closure end-to-end
+// through Targets() with no --note flags so newOsActivateDeps wiring is
+// covered. The empty-notes fast path returns nil (0 failures, 0 notes).
+func TestTargets_ActivateNoNotes(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	stderr := executeForTest(t, []string{"engram", "activate"})
+	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
 // TestTargets_EmbedApplyDryRun exercises embed apply closure with --dry-run

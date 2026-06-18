@@ -103,6 +103,65 @@ func coreTargets(
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 ) []any {
+	return append(
+		ingestQueryTargets(stdout, withLog, errHandler),
+		learnUpdateTargets(stdout, withLog, errHandler)...,
+	)
+}
+
+// homeOrEmpty returns the user's home directory, or "" when it cannot be
+// resolved. resolveVault tolerates an empty home (it falls back to env / XDG),
+// so the error is intentionally discarded.
+func homeOrEmpty() string {
+	home, _ := os.UserHomeDir()
+
+	return home
+}
+
+// ingestQueryTargets returns the read/write-vault subcommands (query, ingest,
+// query-chunks, activate, show, check). Split from coreTargets to stay within
+// the per-function length budget.
+func ingestQueryTargets(
+	stdout io.Writer,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+) []any {
+	return []any{
+		targ.Targ(func(ctx context.Context, a QueryArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+			errHandler(RunQuery(withLog(ctx), a, newOsQueryDeps(), stdout))
+		}).Name("query").Description("Semantic search over vault + chunk index (YAML output)"),
+		targ.Targ(func(ctx context.Context, a IngestArgs) {
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+			errHandler(RunIngest(withLog(ctx), a, newOsIngestDeps(), stdout))
+		}).Name("ingest").Description("Chunk+embed transcripts/markdown into a chunk index (zero-LLM)"),
+		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+			errHandler(RunChunkQuery(withLog(ctx), a, newOsChunkQueryDeps(), stdout))
+		}).Name("query-chunks").Description("Semantic search over the chunk index (YAML output)"),
+		targ.Targ(func(_ context.Context, a ActivateArgs) {
+			errHandler(RunActivate(a, newOsActivateDeps()))
+		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
+		targ.Targ(func(ctx context.Context, a ShowArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			errHandler(RunShow(withLog(ctx), a, newOsShowDeps(), stdout))
+		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
+		targ.Targ(func(ctx context.Context, a CheckArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), stdout))
+		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
+	}
+}
+
+// learnUpdateTargets returns the learn and update subcommands (transcript,
+// learn group, update, embed group). Split from coreTargets to stay within
+// the per-function length budget.
+func learnUpdateTargets(
+	stdout io.Writer,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+) []any {
 	return []any{
 		targ.Targ(func(ctx context.Context, a TranscriptArgs) {
 			cwd, _ := os.Getwd()
@@ -136,37 +195,7 @@ func coreTargets(
 				errHandler(RunEmbedStatus(withLog(ctx), a, newOsEmbedDeps(), stdout))
 			}).Name("status").Description("Report embedding state counts"),
 		),
-		targ.Targ(func(ctx context.Context, a QueryArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
-			errHandler(RunQuery(withLog(ctx), a, newOsQueryDeps(), stdout))
-		}).Name("query").Description("Semantic search over vault + chunk index (YAML output)"),
-		targ.Targ(func(ctx context.Context, a IngestArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
-			errHandler(RunIngest(withLog(ctx), a, newOsIngestDeps(), stdout))
-		}).Name("ingest").Description("Chunk+embed transcripts/markdown into a chunk index (zero-LLM)"),
-		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
-			errHandler(RunChunkQuery(withLog(ctx), a, newOsChunkQueryDeps(), stdout))
-		}).Name("query-chunks").Description("Semantic search over the chunk index (YAML output)"),
-		targ.Targ(func(ctx context.Context, a ShowArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
-			errHandler(RunShow(withLog(ctx), a, newOsShowDeps(), stdout))
-		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
-		targ.Targ(func(ctx context.Context, a CheckArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
-			errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), stdout))
-		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
 	}
-}
-
-// homeOrEmpty returns the user's home directory, or "" when it cannot be
-// resolved. resolveVault tolerates an empty home (it falls back to env / XDG),
-// so the error is intentionally discarded.
-func homeOrEmpty() string {
-	home, _ := os.UserHomeDir()
-
-	return home
 }
 
 // maintenanceTargets returns the vault-maintenance subcommands (migrate-links,
