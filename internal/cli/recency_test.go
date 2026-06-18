@@ -148,6 +148,87 @@ func TestMaxTurnBySource(t *testing.T) {
 	g.Expect(hasC).To(BeFalse())
 }
 
+func TestMostRecentlyUsedNoteItemsFallsBackToCreated(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+
+	// lastUsed empty → falls back to created field.
+	noteA := cli.ExportNewNoteResolvedItem("a.md", "", "2026-06-15") // 2.5d via created
+	noteB := cli.ExportNewNoteResolvedItem("b.md", "", "2026-06-10") // 7.5d via created
+
+	out := cli.ExportMostRecentlyUsedNoteItems([]cli.ExportResolvedItem{noteB, noteA}, now, 2)
+
+	g.Expect(out).To(HaveLen(2))
+
+	if len(out) < 2 {
+		return
+	}
+
+	g.Expect(cli.ExportResolvedItemPath(out[0])).To(Equal("a.md"), "fresher (created fallback) must be first")
+}
+
+func TestMostRecentlyUsedNoteItemsNZeroReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewNoteResolvedItem("a.md", "2026-06-16", ""),
+	}
+
+	out := cli.ExportMostRecentlyUsedNoteItems(items, now, 0)
+	if out != nil {
+		panic("expected nil for n=0")
+	}
+}
+
+func TestMostRecentlyUsedNoteItemsSelectsNoteKindSortedByAge(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+
+	// Three note items with different lastUsed ages plus one chunk item.
+	// Ages (from lastUsed→created): fresh=1d, mid=10d, stale=60d.
+	notesFresh := cli.ExportNewNoteResolvedItem("fresh.md", "2026-06-16", "")
+	notesMid := cli.ExportNewNoteResolvedItem("mid.md", "2026-06-07", "")
+	notesStale := cli.ExportNewNoteResolvedItem("stale.md", "2026-04-18", "")
+	chunk1 := cli.ExportNewChunkResolvedItem("recent.jsonl#turn-1", 0.9)
+
+	items := []cli.ExportResolvedItem{notesStale, notesMid, chunk1, notesFresh}
+
+	out := cli.ExportMostRecentlyUsedNoteItems(items, now, 2)
+
+	// Must return exactly 2 freshest notes, chunk excluded.
+	g.Expect(out).To(HaveLen(2))
+
+	if len(out) < 2 {
+		return
+	}
+
+	paths := []string{
+		cli.ExportResolvedItemPath(out[0]),
+		cli.ExportResolvedItemPath(out[1]),
+	}
+
+	g.Expect(paths[0]).To(Equal("fresh.md"), "freshest note must be first")
+	g.Expect(paths[1]).To(Equal("mid.md"), "second-freshest note must be second")
+}
+
+func TestMostRecentlyUsedNoteItemsZeroTimeReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewNoteResolvedItem("a.md", "2026-06-16", ""),
+	}
+
+	out := cli.ExportMostRecentlyUsedNoteItems(items, time.Time{}, 3)
+	if out != nil {
+		panic("expected nil for zero time")
+	}
+}
+
 func TestNewestChunkItemsNZeroReturnsNil(t *testing.T) {
 	t.Parallel()
 

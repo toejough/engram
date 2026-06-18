@@ -175,6 +175,35 @@ func maxTurnBySource(records []chunk.Record) map[string]int {
 	return maxBySource
 }
 
+// mostRecentlyUsedNoteItems returns the n note items (kind != chunkItemKind)
+// with the smallest noteAgeDays (freshest LastUsed→created), newest first — the
+// note side of the combined floor band. Operates on the merged resolvedItems,
+// which carry lastUsed/created (Task 2.3). Returns nil when n<=0 or now is zero.
+func mostRecentlyUsedNoteItems(items []resolvedItem, now time.Time, n int) []resolvedItem {
+	if n <= 0 || now.IsZero() {
+		return nil
+	}
+
+	notes := make([]resolvedItem, 0, len(items))
+
+	for _, it := range items {
+		if it.kind != chunkItemKind {
+			notes = append(notes, it)
+		}
+	}
+
+	sort.SliceStable(notes, func(i, j int) bool {
+		return noteAgeDays(notes[i].lastUsed, notes[i].created, now) <
+			noteAgeDays(notes[j].lastUsed, notes[j].created, now)
+	})
+
+	if n > len(notes) {
+		n = len(notes)
+	}
+
+	return notes[:n]
+}
+
 // newestChunkItems returns the n chunk items with the lowest source age (newest
 // source first). Tie-breaking on source age uses descending turn-N (latest turn
 // first). The result contains at most n items. n <= 0 returns nil.

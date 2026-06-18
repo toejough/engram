@@ -36,6 +36,7 @@ var (
 	ExportMarshalFrontmatter         = marshalFrontmatter
 	ExportMaxTurnBySource            = maxTurnBySource
 	ExportMigrateRelationLinks       = migrateRelationLinks
+	ExportMostRecentlyUsedNoteItems  = mostRecentlyUsedNoteItems
 	ExportNewErrHandler              = newErrHandler
 	ExportNewOsActivateDeps          = newOsActivateDeps
 	ExportNewOsCheckDeps             = newOsCheckDeps
@@ -200,6 +201,14 @@ func ExportIndexFileName(source string) string { return sourceSlug(source) + ".j
 // notePath mirrors mergeChunkSpace's "source#anchor" form.
 func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
 	return resolvedItem{notePath: notePath, score: score, kind: chunkItemKind}
+}
+
+// ExportNewNoteResolvedItem builds a note-kind resolvedItem for recency band
+// tests. lastUsed and created are YYYY-MM-DD strings (empty = not set).
+// kind is intentionally left blank — the zero value means "note" in the
+// resolvedItem model (only chunkItemKind overrides content-derived detection).
+func ExportNewNoteResolvedItem(notePath, lastUsed, created string) resolvedItem {
+	return resolvedItem{notePath: notePath, lastUsed: lastUsed, created: created}
 }
 
 // ExportNewOsChunkQueryDeps returns production ChunkQueryDeps with an
