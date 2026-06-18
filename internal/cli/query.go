@@ -1409,8 +1409,11 @@ func mergeHubItems(
 	}
 }
 
-// mergeIntoExisting updates existing with the best score, unioned
-// provenances, and in_degree from src (if existing has none).
+// mergeIntoExisting updates existing with the best score and baseScore,
+// unioned provenances, in_degree from src (if existing has none), and
+// lastUsed/created from src when existing fields are empty.
+// baseScore is maximised so the activated flag (baseScore >=
+// activationCosineCutoff) is not phrase-order-dependent.
 // in_degree is not maximised across phrases because undirected BFS
 // always reaches the same linkers for a note regardless of starting
 // point, so both phrases produce identical in_degrees.
@@ -1418,6 +1421,18 @@ func mergeIntoExisting(existing, src *resolvedItem) {
 	if src.score > existing.score {
 		existing.score = src.score
 		existing.content = src.content
+	}
+
+	if src.baseScore > existing.baseScore {
+		existing.baseScore = src.baseScore
+	}
+
+	if existing.lastUsed == "" && src.lastUsed != "" {
+		existing.lastUsed = src.lastUsed
+	}
+
+	if existing.created == "" && src.created != "" {
+		existing.created = src.created
 	}
 
 	for _, p := range src.provenances {

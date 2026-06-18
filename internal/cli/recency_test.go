@@ -10,6 +10,40 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// TestMergeIntoExistingTakesMaxBaseScore verifies that when the same note is
+// matched by two phrases with different baseScores, mergeIntoExisting stores
+// the higher one so the activated flag is not phrase-order-dependent.
+func TestMergeIntoExistingTakesMaxBaseScore(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// First phrase gave a below-cutoff score; second phrase gave an above-cutoff score.
+	existing := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.48, "", "")
+	src := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.55, "", "")
+
+	cli.ExportMergeIntoExisting(&existing, &src)
+
+	g.Expect(cli.ExportResolvedItemBaseScore(existing)).To(BeNumerically("~", float32(0.55), 1e-6),
+		"baseScore must be max of both phrases, not first-phrase value")
+}
+
+// TestMergeIntoExistingCopiesLastUsedWhenExistingEmpty verifies that when
+// existing.lastUsed is empty and src has a value, the value is copied.
+func TestMergeIntoExistingCopiesLastUsedWhenExistingEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	existing := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.6, "", "")
+	src := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.5, "2026-06-10", "2026-01-01")
+
+	cli.ExportMergeIntoExisting(&existing, &src)
+
+	g.Expect(cli.ExportResolvedItemLastUsed(existing)).To(Equal("2026-06-10"),
+		"lastUsed should be copied from src when existing is empty")
+	g.Expect(cli.ExportResolvedItemCreated(existing)).To(Equal("2026-01-01"),
+		"created should be copied from src when existing is empty")
+}
+
 func TestApplyChunkRecencyLiftsRecentOverStaleHighCosine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

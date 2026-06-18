@@ -211,6 +211,28 @@ func ExportNewNoteResolvedItem(notePath, lastUsed, created string) resolvedItem 
 	return resolvedItem{notePath: notePath, lastUsed: lastUsed, created: created}
 }
 
+// ExportNewNoteResolvedItemWithBaseScore builds a note-kind resolvedItem with
+// an explicit baseScore, for testing mergeIntoExisting activation logic.
+func ExportNewNoteResolvedItemWithBaseScore(notePath string, baseScore float32, lastUsed, created string) resolvedItem {
+	return resolvedItem{notePath: notePath, baseScore: baseScore, lastUsed: lastUsed, created: created}
+}
+
+// ExportMergeIntoExisting exposes mergeIntoExisting for whitebox testing.
+func ExportMergeIntoExisting(existing, src *resolvedItem) {
+	mergeIntoExisting(existing, src)
+}
+
+// ExportApplyCombinedRecencyBand exposes applyCombinedRecencyBand for band interleave tests.
+func ExportApplyCombinedRecencyBand(
+	items []resolvedItem,
+	chunkMust []resolvedItem,
+	nowFn func() time.Time,
+	limit int,
+	chunksActive bool,
+) []resolvedItem {
+	return applyCombinedRecencyBand(items, chunkMust, nowFn, limit, chunksActive)
+}
+
 // ExportNewOsChunkQueryDeps returns production ChunkQueryDeps with an
 // injected embedder, mirroring ExportNewOsIngestDeps.
 func ExportNewOsChunkQueryDeps(emb embed.Embedder) ChunkQueryDeps {
