@@ -76,14 +76,14 @@ each phrase as a separate `--phrase` flag. The binary runs one sub-pipeline
 per phrase (embed, BFS 3-hop subgraph cap 200, k-means + silhouette clusters,
 in-degree top-5 hubs), then merges results server-side (items dedup by path
 with max score and union provenances, clusters tagged per-phrase, aggregated
-budget). Both chunks AND notes are **recency-weighted**: a chunk's cosine is
-scaled by a time-decay from the ingest manifest's per-source mtime plus a
-turn-position factor; a note's cosine is scaled by a time-decay keyed on its
-`LastUsed` date (falling back to `created`). A single **combined floor band**
-then guarantees the newest chunks and the most-recently-used notes survive the
-cap, so a post-context-loss agent re-encounters its own recent narration —
-recovering authorship from recency itself, with no separate provenance
-mechanism. The payload also carries a read-only **`activated`** flag on each
+budget). A **combined floor band** then guarantees the newest chunks and the
+most-recently-used notes survive the cap, so a post-context-loss agent
+re-encounters its own recent narration — recovering authorship from recency
+itself, with no separate provenance mechanism. Ranking under it is
+**recency-weighted** for both kinds: a chunk's cosine is scaled by a
+per-source-mtime time-decay plus a turn-position factor; a note's by a
+time-decay keyed on its `LastUsed` date (falling back to `created`). The
+payload also carries a read-only **`activated`** flag on each
 note item that *surfaced AND* cleared a base-cosine relevance cutoff; the
 harness forwards those paths to **`engram activate`**, which bumps the note's
 `LastUsed` (atomic per-file sidecar write — usefulness keeps useful notes
