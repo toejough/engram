@@ -728,6 +728,126 @@ func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 		To(ContainSubstring("See 1a.foo and the bar note for context."))
 }
 
+// TestRunQuery_ActivatedFlagEmittedForAboveCutoffNotes verifies Task 3.3:
+// notes with baseScore >= activationCosineCutoff get activated:true in the
+// payload; notes below the cutoff and chunk items never get it.
+// Plain query writes nothing (sidecar files are unmodified).
+func TestRunQuery_ActivatedFlagEmittedForAboveCutoffNotes(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Use two note bodies that share the same token so they both surface as
+	// direct hits. Their base cosine with the stubEmbedder depends on the
+	// phrase match — since stubEmbedder returns a zero vector for everything,
+	// we need to plant sidecars with a high cosine vector manually to control
+	// the baseScore. We use a fixedVectorEmbedder so both the query phrase and
+	// one note vector are aligned, giving baseScore=1.0 > 0.5; the other note
+	// uses a perpendicular vector giving baseScore=0.0 < 0.5.
+	//
+	// fixedVectorEmbedder returns the same vector for all inputs, so both the
+	// query phrase and the "high" note sidecar are aligned → cosine=1.0.
+	// The "low" note has a zero BodyVector and SituationVector that won't match.
+
+	queryVec := []float32{1, 0, 0, 0}
+	zeroVec := []float32{0, 0, 0, 0}
+	fixedNow := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+
+	highBody := "---\ntype: fact\ncreated: 2026-06-01\n---\nhigh cosine note\n"
+	lowBody := "---\ntype: fact\ncreated: 2026-06-01\n---\nlow cosine note\n"
+
+	highPath := "high.md"
+	lowPath := "low.md"
+
+	memFS.files[filepath.Join(vault, highPath)] = []byte(highBody)
+	memFS.files[filepath.Join(vault, lowPath)] = []byte(lowBody)
+
+	// high: vectors aligned with query → baseScore=1.0 (> 0.5 cutoff)
+	memFS.files[filepath.Join(vault, embed.SidecarPath(highPath))] = embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@4",
+		Dims:             4,
+		SituationVector:  queryVec,
+		BodyVector:       queryVec,
+		ContentHash:      embed.ContentHash([]byte(highBody)),
+	})
+	// low: zero vectors → cosine=0.0 with query (< 0.5 cutoff)
+	memFS.files[filepath.Join(vault, embed.SidecarPath(lowPath))] = embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@4",
+		Dims:             4,
+		SituationVector:  zeroVec,
+		BodyVector:       zeroVec,
+		ContentHash:      embed.ContentHash([]byte(lowBody)),
+	})
+
+	deps := cli.QueryDeps{
+		Scan:     memFS.Scan,
+		Read:     memFS.Read,
+		Embedder: fixedVectorEmbedder{modelID: "m@4", vector: queryVec},
+		Now:      func() time.Time { return fixedNow },
+	}
+
+	var out bytes.Buffer
+
+	sidecarBefore := make([]byte, len(memFS.files[filepath.Join(vault, embed.SidecarPath(highPath))]))
+	copy(sidecarBefore, memFS.files[filepath.Join(vault, embed.SidecarPath(highPath))])
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"high"}, VaultPath: vault, Limit: 10},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Query must NOT write to the sidecar (read-only invariant).
+	g.Expect(memFS.files[filepath.Join(vault, embed.SidecarPath(highPath))]).
+		To(Equal(sidecarBefore), "query must not modify sidecar files")
+
+	// Parse the YAML payload with an activated field.
+	var parsed struct {
+		Items []struct {
+			Path      string  `yaml:"path"`
+			Kind      string  `yaml:"kind"`
+			Score     float32 `yaml:"score"`
+			Activated bool    `yaml:"activated"`
+		} `yaml:"items"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Items).NotTo(BeEmpty(), "at least one item must surface")
+
+	// Find high and low items in the payload.
+	highActivated, lowActivated, sawHigh, sawLow := false, false, false, false
+
+	for _, item := range parsed.Items {
+		if item.Kind == "chunk" {
+			g.Expect(item.Activated).To(BeFalse(), "chunk items must never be activated")
+		}
+
+		if item.Path == highPath {
+			sawHigh = true
+			highActivated = item.Activated
+		}
+
+		if item.Path == lowPath {
+			sawLow = true
+			lowActivated = item.Activated
+		}
+	}
+
+	g.Expect(sawHigh).To(BeTrue(), "high-cosine note must appear in payload")
+	g.Expect(highActivated).To(BeTrue(), "note with baseScore >= cutoff must be activated")
+
+	if sawLow {
+		g.Expect(lowActivated).To(BeFalse(), "note with baseScore < cutoff must NOT be activated")
+	}
+}
+
 func TestRunQuery_ExposesOutboundWikilinkTargets(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

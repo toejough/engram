@@ -123,6 +123,11 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 
 // unexported constants.
 const (
+	// activationCosineCutoff is the minimum pre-decay baseScore a note must
+	// have to be flagged activated: true in the payload. Provisional default
+	// (a sanity floor for "genuine hit", NOT an empirically-tuned optimum;
+	// true calibration requires end-to-end recall evals — see GitHub #646).
+	activationCosineCutoff = 0.5
 	// chunkClusterPhrase tags deterministic chunk-space clusters in the
 	// unified payload (they span all phrases, like synthesis clusters).
 	chunkClusterPhrase = "chunks"
@@ -283,6 +288,7 @@ type queryItem struct {
 	InDegree      *int     `yaml:"in_degree,omitempty"`
 	OutboundLinks []string `yaml:"outbound_links,omitempty"`
 	Content       string   `yaml:"content,omitempty"`
+	Activated     bool     `yaml:"activated,omitempty"`
 }
 
 // queryNearestL2 is the nearest existing L2 note for a cluster centroid. It
@@ -1774,6 +1780,12 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 			kind = kindFromContent(item.content)
 		}
 
+		// activated: true iff this is a note (not a chunk) with a pre-decay
+		// baseScore at or above the activation cutoff. Chunks are crystallized
+		// by the recall skill (not by the binary), so they are never marked.
+		// Query stays read-only — no sidecar writes here.
+		activated := kind != chunkItemKind && item.baseScore >= activationCosineCutoff
+
 		items[i] = queryItem{
 			Path:          item.notePath,
 			Kind:          kind,
@@ -1783,6 +1795,7 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 			InDegree:      item.inDegree,
 			OutboundLinks: outgoing[basenameFromNotePath(item.notePath)],
 			Content:       item.content,
+			Activated:     activated,
 		}
 	}
 
