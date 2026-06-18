@@ -214,6 +214,64 @@ func TestRunActivateBumpsAllNotes(t *testing.T) {
 	}
 }
 
+func TestRunActivateResolvesRelativeNoteAgainstVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := "/vault"
+	noteBase := "24.2026-06-12.foo.md"
+	sidecar := embed.Sidecar{
+		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "m@1", Dims: 1,
+		SituationVector: []float32{0.1}, BodyVector: []float32{0.2}, ContentHash: "sha256:x",
+	}
+	joined := "/vault/24.2026-06-12.foo.vec.json"
+	store := map[string][]byte{joined: embed.MarshalSidecar(sidecar)}
+
+	deps := cli.ActivateDeps{
+		Now:        func() time.Time { return time.Date(2026, 6, 17, 0, 0, 0, 0, time.UTC) },
+		Read:       func(p string) ([]byte, error) { b, ok := store[p]; if !ok { return nil, os.ErrNotExist }; return b, nil },
+		Write:      func(p string, b []byte) error { store[p] = b; return nil },
+		LogWarning: func(string, ...any) {},
+	}
+
+	err := cli.ExportRunActivate(cli.ActivateArgs{Vault: vault, Notes: []string{noteBase}}, deps)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got, derr := embed.UnmarshalSidecar(store[joined])
+	g.Expect(derr).NotTo(HaveOccurred())
+
+	if derr != nil {
+		return
+	}
+
+	g.Expect(got.LastUsed).To(Equal("2026-06-17"))
+}
+
+func TestRunActivateAcceptsAbsoluteNotePath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	abs := "/elsewhere/n.md"
+	sc := embed.Sidecar{
+		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "m@1", Dims: 1,
+		SituationVector: []float32{0.1}, BodyVector: []float32{0.2}, ContentHash: "sha256:x",
+	}
+	store := map[string][]byte{"/elsewhere/n.vec.json": embed.MarshalSidecar(sc)}
+	deps := cli.ActivateDeps{
+		Now:        func() time.Time { return time.Date(2026, 6, 17, 0, 0, 0, 0, time.UTC) },
+		Read:       func(p string) ([]byte, error) { b, ok := store[p]; if !ok { return nil, os.ErrNotExist }; return b, nil },
+		Write:      func(p string, b []byte) error { store[p] = b; return nil },
+		LogWarning: func(string, ...any) {},
+	}
+	// Vault set, but an ABSOLUTE note must NOT be joined to it.
+	err := cli.ExportRunActivate(cli.ActivateArgs{Vault: "/vault", Notes: []string{abs}}, deps)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 func TestRunActivateLogsContinuesOnBadPath(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

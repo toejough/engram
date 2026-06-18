@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/toejough/engram/internal/embed"
@@ -11,6 +12,7 @@ import (
 
 // ActivateArgs holds parsed flags for `engram activate`.
 type ActivateArgs struct {
+	Vault string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	Notes []string `targ:"flag,name=note,desc=note path to mark used (repeatable)"`
 }
 
@@ -31,7 +33,12 @@ func RunActivate(args ActivateArgs, deps ActivateDeps) error {
 	failures := 0
 
 	for _, notePath := range args.Notes {
-		sidecarPath := embed.SidecarPath(notePath)
+		full := notePath
+		if !filepath.IsAbs(full) {
+			full = filepath.Join(args.Vault, notePath)
+		}
+
+		sidecarPath := embed.SidecarPath(full)
 
 		bumpErr := bumpLastUsed(sidecarPath, date, deps.Read, deps.Write)
 		if bumpErr != nil {
