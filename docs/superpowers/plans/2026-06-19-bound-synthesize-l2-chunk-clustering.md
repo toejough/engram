@@ -43,15 +43,30 @@
 ### Task 1: Bound the synthesis chunk set to top-`limit`
 
 **Files:**
-- Modify: `internal/cli/query.go` — `appendSynthesisChunks` (≈ 448) and its single caller `runSynthesizeL2Query` (≈ 2130).
-- Test: `internal/cli/query_synthesis_test.go` (add one property test).
+- Modify: `internal/cli/query.go` — `appendSynthesisChunks` (≈ 448) and its single caller `runSynthesizeL2Query` (≈ 2130). (`scoreChunks` returns `[]scoredChunk`, see `query_chunks.go:194,211`, so `sortScoredDesc(scored []scoredChunk)` applies directly.)
+- Create: `internal/cli/query_synthesis_chunk_bound_property_test.go` (`package cli_test`) — the repo's established per-property-file pattern (cf. `synthesize_l2_property_test.go`), so the `pgregory.net/rapid` import lands cleanly without disturbing `query_synthesis_test.go`.
 - Reuse: `sortScoredDesc` (`internal/cli/recency.go:341`).
 
 - [ ] **Step 1: Write the failing property test**
 
-Use the `property-rigor` skill to confirm the property before writing. The invariant: for any matched-chunk count `C > limit`, `--synthesize-l2` returns exactly `limit` chunk-kind items (and never more than `limit`). Add to `internal/cli/query_synthesis_test.go`:
+Use the `property-rigor` skill to confirm the property before writing. The invariant: for any matched-chunk count `C > limit`, `--synthesize-l2` returns no more than `limit` chunk-kind items. Create `internal/cli/query_synthesis_chunk_bound_property_test.go` with this content (note the `pgregory.net/rapid` import — the reason for a new file):
 
 ```go
+package cli_test
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"testing"
+
+	"go.yaml.in/yaml/v3"
+	"pgregory.net/rapid"
+
+	"github.com/toejough/engram/internal/chunk"
+	"github.com/toejough/engram/internal/cli"
+)
+
 // TestProperty_SynthesizeL2_ChunkItemsBoundedByLimit locks the perf-critical
 // bound: matched chunks fed to the unified clustering (and emitted in items[])
 // are capped at limit, so silhouette stays O(limit^2) regardless of corpus
@@ -119,7 +134,10 @@ func TestProperty_SynthesizeL2_ChunkItemsBoundedByLimit(t *testing.T) {
 			rt.Fatalf("unmarshal: %v", err)
 		}
 
-		items, _ := raw["items"].([]any)
+		items, ok := raw["items"].([]any)
+		if !ok {
+			rt.Fatalf("payload has no items[] list (got %T)", raw["items"])
+		}
 
 		chunkItems := 0
 		for _, item := range items {
@@ -238,12 +256,12 @@ Run:
 targ build
 time engram query --synthesize-l2 --phrase "k-means silhouette clustering performance" --phrase "engram cli vault traversal" --limit 20 >/tmp/recall-after.yaml
 ```
-Expected: completes in seconds (not minutes); `/tmp/recall-after.yaml` is non-empty, contains `kind: chunk` items capped at ~20, and `clusters:` are present. Confirm CPU does not pin a core for minutes.
+Expected: completes in seconds (not minutes); `/tmp/recall-after.yaml` is non-empty, contains `kind: chunk` items capped at ≤ limit (20), and `clusters:` are present. Confirm CPU does not pin a core for minutes.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add internal/cli/query.go internal/cli/query_synthesis_test.go
+git add internal/cli/query.go internal/cli/query_synthesis_chunk_bound_property_test.go
 git commit -m "fix(query): bound --synthesize-l2 chunk clustering to top-limit
 
 appendSynthesisChunks clustered and emitted the entire chunk corpus; at
@@ -254,11 +272,23 @@ mergeChunkSpace bound already used by the non-synthesis path.
 AI-Used: [claude]"
 ```
 
+- [ ] **Step 9: File the deferred index-hygiene issue (do not let the deferral get lost)**
+
+```bash
+gh issue create \
+  --title "engram ingest/recall: prune dead eval-run chunk sources to curb index bloat" \
+  --body "Split from the recall-perf fix (bound --synthesize-l2 chunk clustering). ~1,130 of the ~1,130 .jsonl chunk index files are dead /private/tmp/cummatrix-* and gate-* eval-run transcripts (13,804 records total). They cause the 'skip … no such file' noise on every \`engram ingest --auto\` and pollute recall with eval-run narration. The algorithmic bound already shipped keeps recall fast regardless, so this is hygiene, not a perf cure. Decide: (a) should \`engram ingest --auto\` skip non-persistent workspaces (e.g. /private/tmp)? (b) is an \`engram\` subcommand warranted to prune chunks whose source file no longer exists?"
+```
+
+- [ ] **Step 10: Doc confirmation (defer to please Step 5 / Gate C)**
+
+After the fix lands, confirm `docs/architecture/c3-components.md` (K6/K8 rows + the synthesis flow) still describes clustering accurately — the synthesis path now matches the non-synthesis bounding discipline, so no contradiction is introduced; update only if a doc statement implies the synthesis path clusters an unbounded set.
+
 ---
 
-## Out of scope (file as a separate issue in Step 6)
+## Out of scope (tracked by Step 9's issue)
 
-- **Chunk-index hygiene:** ~1,130 source files are dead `/private/tmp/cummatrix-*` / `gate-*` eval-run transcripts (cause of the `skip … no such file` noise on every `engram ingest --auto` and of eval-flavored chunks polluting recall). Pruning them lowers `n` today but is **not** the cure — only the algorithmic bound keeps recall fast as legitimate memory grows. Track separately: should `engram ingest --auto` skip non-persistent workspaces, and should there be an `engram` command to prune dead-source chunks?
+- **Chunk-index hygiene:** ~1,130 source files are dead `/private/tmp/cummatrix-*` / `gate-*` eval-run transcripts (cause of the `skip … no such file` noise on every `engram ingest --auto` and of eval-flavored chunks polluting recall). Pruning them lowers `n` today but is **not** the cure — only the algorithmic bound keeps recall fast as legitimate memory grows. Filed via Step 9.
 
 ## Self-Review
 
