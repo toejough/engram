@@ -72,13 +72,8 @@ by the scanner):
 ## Binary commands
 
 ```
-engram transcript                      Read session transcripts since last /learn (Claude Code + OpenCode)
-engram transcript --mark               Same, then advance per-harness progress markers
-engram transcript --from <date|all>    Override marker; scan from explicit date or epoch ('all')
-engram transcript --max-bytes <n>      Set byte budget (default 200000)
 engram learn feedback --slug ... --source ... --situation ... --behavior ... --impact ... --action ... [--project <slug>] [--issue <id>]
 engram learn fact     --slug ... --source ... --situation ... --subject ... --predicate ... --object ... [--project <slug>] [--issue <id>]
-engram learn episode  --slug ... --source ... --situation ... --boundary-rationale ... --session ... --transcript-range <start>..<end> (--from-transcript-range <session>:<start>..<end> OR --transcript-text "...") [--project <slug>] [--issue <id>]
 engram embed apply [--all|--missing|--stale|--force|--dry-run]   (Re-)embed notes per selection (default: missing)
 engram embed status                    Report counts per state (total / with-embeddings / without / stale / incompatible / broken)
 engram query --phrase <p> [--phrase <p>...] [--synthesize-l2] [--limit N] [--project <slug>]   Semantic search + 3-hop subgraph + clusters + hubs; YAML output. Recency-weights chunks AND notes, emits a read-only `activated` flag on above-cutoff note hits. `--synthesize-l2` (used by /recall) clusters matched chunks+notes in one pass and emits `candidate_l2s: [{path, cosine}]` (top-K by centroid cosine) per cluster. --project restricts items to notes whose frontmatter `project:` matches.
@@ -127,14 +122,6 @@ Pipeline behavior:
 
 Inputs longer than 1500 chars are truncated to fit MiniLM-L6's 512-token positional limit. For engram's 200–500-word notes this is a non-issue; long MOCs and feedback notes lose tail context but still embed cleanly.
 
-## Transcript progress tracking
-
-`engram transcript` tracks a separate progress marker per harness (`last-learn-at-claude`, `last-learn-at-opencode`) under `${XDG_STATE_HOME:-$HOME/.local/state}/engram/projects/<slug>/`. Each marker is advanced independently by `--mark` so that sessions from one harness don't skip unprocessed sessions from the other.
-
-**First-run behavior.** When a source has no marker yet and `--from` is unset, `engram transcript --mark` exits non-zero with a message naming each source's earliest detectable session date. Re-run with `--from <YYYY-MM-DD>` (to start at a specific cutoff) or `--from all` (to scan from the Unix epoch). After the first scan establishes the marker, subsequent `--mark` runs advance incrementally as usual. The `learn` skill catches this error and prompts the user before re-running.
-
-**Byte-cap continuation.** Each scan stops at `--max-bytes` (default 200000). When the cap halts a scan partway through a session, the session is partially emitted and the marker advances to the timestamp of the last row included — the next run resumes mid-session from rows strictly newer than the marker. A tail line names the first unscanned mtime per source: `[engram transcript: byte cap hit; <source> sessions from <date> onward not yet scanned; run again to continue]`. Run `/learn` again (after `/clear` if context is tight) to catch up; each subsequent run makes progress even when a single session is much larger than the cap.
-
 ## Project structure
 
 ```
@@ -144,9 +131,8 @@ internal/            Business logic (DI boundaries)
   context/           Transcript processing
   debuglog/          Structured debug logging
   embed/             Embedder interface + Hugot/GoMLX backend, sidecar I/O, state classification
-  learnmarker/       Per-harness progress marker (read/write/FS interface)
   luhmann/           Luhmann-ID allocation under file lock
-  transcript/        Session transcript reading (Claude Code JSONL + OpenCode SQLite)
+  transcript/        Session transcript reading (Claude Code JSONL + OpenCode SQLite), read by engram ingest
   update/            Self-refresh subcommand
   vaultgraph/        Vault traversal (MOCs/Permanent, anchors, follow)
 skills/              Source for the recall, learn, please, and route skills

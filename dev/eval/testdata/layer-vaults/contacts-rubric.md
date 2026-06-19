@@ -42,6 +42,6 @@ arms differ in agent effort, not memory.
 - Report Bucket B /7 alongside as the control.
 - Also record: did recall fire + what it surfaced; turns; cost.
 
-(Derived from the todo 18-item rubric in
-`docs/superpowers/specs/2026-05-30-cold-warm-todo-test.md` and the L2/L3 notes
+(Derived from the todo 18-item rubric in the 2026-05-30 cold-warm-todo-test
+spec — see `docs/DESIGN-HISTORY.md` §5 — and the L2/L3 notes
 in `dev/eval/testdata/layer-vaults/{l2,l3}/`.)

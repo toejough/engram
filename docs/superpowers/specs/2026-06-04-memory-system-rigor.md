@@ -88,7 +88,8 @@ Every documented defect was re-confirmed by **running checks against the REAL va
 - **Code-verified (not vault-census-able):** M2-segments, INV-S1, INV-S2, K1, M6/M7/M8.
 
 **Finding: the documents faithfully describe the built system.** No doc claim was contradicted by
-the live vault — the gap is real defects, not doc drift. Fix plan: `docs/superpowers/plans/2026-06-04-memory-fixes.md`.
+the live vault — the gap is real defects, not doc drift. Fix plan: the 2026-06-04 memory-fixes plan
+(see `docs/DESIGN-HISTORY.md` §6).
 
 ## 1. Property-based invariants (the contract the system MUST satisfy)
 

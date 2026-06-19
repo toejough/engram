@@ -8,28 +8,6 @@ follow-up edits the codebase needs.
 
 ## Needs Review
 
-### 1. "harness" (docs) vs "source" (code)
-- **Docs/skills:** README, CLAUDE.md, and both SKILL.md files call Claude
-  Code and OpenCode *harnesses* ("per-harness progress marker", "every
-  detected harness's user directory").
-- **Code:** `internal/cli/transcript.go:488` literally `sources :=
-  []string{"claude", "opencode"}`; the map key for marker bookkeeping is
-  `source`; the SessionFinder fan-out treats them as sources.
-- **Marker filenames** split the difference: `last-learn-at-claude`,
-  `last-learn-at-opencode` (neither word appears).
-- **Proposed canonical:** *harness* in user-facing prose; rename the
-  code-internal `sources` map/variable to `harnesses` to match.
-
-### 2. `Package transcript` doc comment is stale on OpenCode
-- `internal/transcript/transcript.go:1` says "Package transcript finds and
-  reads **Claude Code** session transcripts." `SessionFinder` doc at
-  line 95 says the same.
-- The package now also reads OpenCode (`opencode.go` defines
-  `OpencodeSessionFinder`, `OpencodeTranscriptReader`, etc.) and the
-  README correctly describes both.
-- **Proposed canonical:** update both doc comments to "Claude Code JSONL +
-  OpenCode SQLite", matching the README.
-
 ### 3. `anchors` (docs/skill) vs `StartingPoints` (code)
 - `skills/recall/SKILL.md` and README both call the cascade entry set
   *anchors*.
@@ -70,40 +48,20 @@ follow-up edits the codebase needs.
   folder `MOCs/`. Avoid "Maps of Content" — the acronym pluralizes with
   a lowercase "s", not by re-pluralizing the expansion.
 
-### 7. `--source` is overloaded
-- In `engram learn`, `--source` is a **provenance string** ("session log
-  engram, 2026-05-15, context: …").
-- In `engram transcript`, the same word names a **harness** ("claude",
-  "opencode").
-- **Proposed canonical:** keep `--source` for provenance (it's a known
-  zettelkasten term); rename the code-level transcript "source" concept
-  to "harness" per item 1 above. No flag conflict, but the dual use
-  confuses prose.
-
-### 8. "marker" naming sprawl
-- Package: `learnmarker`.
-- Files on disk: `last-learn-at-<harness>`.
-- README prose: "progress marker", "per-harness progress marker".
-- Skill prose: "marker".
-- CLAUDE.md: "Per-harness progress marker (read/write/FS interface)".
-- **Proposed canonical:** **per-harness progress marker** on first use;
-  **marker** thereafter. Keep `learnmarker` as the package name — it's
-  already shipped — but document the connection in the package doc
-  comment.
-
 ### 9. "transcript" vs "session" used interchangeably
-- README uses both: "Read session transcripts since last /learn"
-  (transcript ⊇ session content) and "sessions from one harness don't
-  skip" (sessions = unit of work).
+- Docs/skills use both "transcript" and "session", sometimes
+  interchangeably (transcript ⊇ session content; session = unit of work).
 - The skill uses "session" most of the time.
 - **Proposed canonical:** *session* = the time-bound interaction; *
-  transcript* = its serialized record. The binary subcommand is
-  `engram transcript` because the binary reads serialized records, not
-  live sessions. Update prose to keep the distinction sharp wherever it
-  matters (mostly skill text and CLAUDE.md tree comment).
+  transcript* = its serialized record. `engram ingest` reads serialized
+  records through the `internal/transcript` package, not live sessions —
+  so "transcript" is correct where the serialized record is meant.
+  (The retired `engram transcript` subcommand previously anchored this
+  distinction; ingest now does.) Update prose to keep the distinction
+  sharp wherever it matters (mostly skill text and CLAUDE.md tree comment).
 
 ### 10. "tier" / L0–L3 vocabulary present in design doc but unimplemented
-- `docs/superpowers/specs/2026-05-14-tiered-memory-design.md` and
+- The legacy tiered-memory design (now in `docs/DESIGN-HISTORY.md` §1) and
   `MOCs/65.memory-system-design` use "L0/L1/L2/L3 tiers".
 - The current vault has only Permanent + MOCs (effectively L2 + L3 in the
   design doc's terms, with no L0 or L1).
@@ -155,4 +113,24 @@ follow-up edits the codebase needs.
 
 ## Decided
 
-*(empty — pending your review of the items above)*
+### Retired (issue 649 — transcript/episode/marker surface removed)
+
+The lazy-L2 retirement removed the `engram transcript` / `engram learn episode`
+binary surface and the `internal/learnmarker` package (chunks are now the
+episodic layer; `engram ingest` advances chunk provenance). The following items
+named that surface and are no longer live inconsistencies:
+
+- **1. "harness" (docs) vs "source" (code)** — the `transcript.go` `sources`
+  fan-out is gone. The harness/source split now lives only in
+  `internal/transcript` (kept for `engram ingest`); revisit there if it still
+  matters, but the transcript-subcommand framing it described is retired.
+- **2. `Package transcript` doc comment stale on OpenCode** — `internal/transcript`
+  is retained for `engram ingest` and still reads both Claude Code JSONL +
+  OpenCode SQLite; the doc-comment freshen is a minor follow-up, not a
+  glossary inconsistency anymore.
+- **7. `--source` overloaded** — the `engram transcript` "source = harness"
+  use is gone; `--source` is now unambiguously the `engram learn` provenance
+  string.
+- **8. "marker" naming sprawl** — the `learnmarker` package and the
+  `last-learn-at-<harness>` progress markers are retired with the transcript
+  subcommand. No marker vocabulary remains to canonicalize.

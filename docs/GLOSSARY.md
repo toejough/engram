@@ -37,9 +37,10 @@ and **OpenCode**. The plural is *harnesses*. When the same concept appears
 in code, it is sometimes called a *source* (see triage).
 
 ### binary
-The compiled `engram` Go program. Subcommands: `transcript`, `learn`,
-`query`, `embed`, `update`. The binary handles all I/O (vault read/write,
-transcript parsing, file locking); skills handle behavior and prompting.
+The compiled `engram` Go program. Subcommands: `learn`, `query`, `embed`,
+`ingest`, `show`, `amend`, `activate`, `update`. The binary handles all I/O
+(vault read/write, chunk indexing, file locking); skills handle behavior
+and prompting.
 
 ---
 
@@ -163,12 +164,12 @@ The skill at `skills/learn/SKILL.md`, invoked as `/learn` or fired after
 recall-flow work. Writes new notes to the vault.
 
 ### `engram learn` (subcommand)
-The binary subcommand. Three forms: `engram learn feedback`,
-`engram learn fact`, and `engram learn episode`. All require
-`--source` and take body content via flags (stdin is ignored). The
-`moc` subcommand was retired after the F4 migration; the 25
-historical MOCs are archived for audit in `<vault>/_legacy/MOCs/`
-and are not part of the active recall graph.
+The binary subcommand. Two forms: `engram learn feedback` and
+`engram learn fact`. Both require `--source` and take body content via
+flags (stdin is ignored). The `moc` subcommand was retired after the F4
+migration (the 25 historical MOCs are archived for audit in
+`<vault>/_legacy/MOCs/`); the `episode` form was retired with the lazy-L2
+work (issue 649) — chunks in the chunk index are the episodic layer now.
 
 ### Feedback (note type)
 A note recording something to do differently next time — user corrections,
@@ -177,20 +178,6 @@ dead-ends, failed approaches. Auto-generated opener: `Lesson learned: …`.
 ### Fact (note type)
 A note recording how something actually works — tool behaviors, idioms,
 conventions, gotchas. Auto-generated opener: `Information learned: …`.
-
-### Episode (note type)
-An **L1 filtered-transcript chunk** — the slice of session activity that a
-fact or feedback note was extracted from. Frontmatter carries `situation`
-(retrieval-shaped topic phrase), `boundary_rationale` (why this chunk's
-bounds), and nested `provenance.sessions` + `provenance.transcript_range`
-(RFC3339 UTC start/end). Body is the filtered transcript content itself —
-either inlined verbatim (`--transcript-text`) or read by engram from a
-session × time range (`--from-transcript-range <session>:<start>..<end>`).
-Multiple episodes per `/learn` pass is the norm — one per natural chunk
-boundary in the filtered transcript. Facts and feedback derived from a
-chunk link back via `--relation "<episode-id>|extracted from this chunk"`.
-Path A/B/C and the recall-mirror test do NOT apply to episodes — those
-govern L2 (facts/feedback); L1 episodes are the evidence layer.
 
 ### recall-mirror test
 The gate every candidate note must pass before being written: *"Would a
@@ -205,7 +192,7 @@ The work that *caused* a lesson, distinct from the work that *surfaced*
 it. **Current-locus** = the mistake or discovery originated in this
 session. **Retro-locus** = the cause is in a prior session, even though
 the candidate may have surfaced through current-session work (or come
-from `engram transcript --mark` history). Discriminated cheaply by `git
+from prior-session chunk history surfaced by recall). Discriminated cheaply by `git
 blame` / `git log` on the offending line, prior-session transcript
 content, or behavioral inference for purely conceptual mistakes. Locus
 classification determines which framing path applies in §2.
@@ -252,7 +239,7 @@ description>` for session-derived notes.
 
 ### `--project` (write side)
 Optional kebab-case slug naming the project a note belongs to. Set on
-write via `engram learn {fact,feedback,episode} --project <slug>` and
+write via `engram learn {fact,feedback} --project <slug>` and
 rendered as `project: <slug>` in frontmatter below `source:`. Absent on
 notes that capture universal principles. Project name still does not
 belong in `--situation` — `--situation` stays retrieval-shaped per the
@@ -270,7 +257,7 @@ content (no body in the payload) are dropped under a non-empty
 
 ### `--issue`
 Optional identifier for the originating GitHub / Jira / etc. issue. Set
-on write via `engram learn {fact,feedback,episode} --issue <id>` and
+on write via `engram learn {fact,feedback} --issue <id>` and
 rendered as `issue: "<id>"` (quoted to survive YAML's numeric coercion
 on read-back) in frontmatter below `project:`. Free-form non-whitespace
 string — `636`, `#636`, `GH-636`, `PROJ-1234` are all valid. Recorded
@@ -281,52 +268,25 @@ for provenance; no read-side filter.
 ## Transcript
 
 ### transcript
-The recorded content of one session, read by the binary from a harness's
-on-disk store. Claude Code transcripts are JSONL files; OpenCode
-transcripts come from a SQLite database. A *session* is the time-bound
-interaction; a *transcript* is its serialized record.
+The recorded content of one session, read by the binary (via `engram
+ingest`) from a harness's on-disk store. Claude Code transcripts are JSONL
+files; OpenCode transcripts come from a SQLite database. A *session* is the
+time-bound interaction; a *transcript* is its serialized record. (The
+standalone `engram transcript` subcommand and its per-harness progress
+marker were retired with the lazy-L2 work — issue 649; `internal/transcript`
+is retained as the reader for `engram ingest`.)
 
 ### session
 One conversation between a user and an agent in a harness. Plural:
 *sessions*. Sessions produce transcripts; the binary reads transcripts.
 
-### `engram transcript` (subcommand)
-Reads session transcripts since the last `/learn` for this project.
-`--mark` advances the per-harness progress markers; `--from <date|all>`
-overrides marker initialization; `--max-bytes <n>` sets the byte budget.
-
-### marker (progress marker)
-A per-harness, per-project RFC3339Nano timestamp stored under
-`${XDG_STATE_HOME:-$HOME/.local/state}/engram/projects/<slug>/`. Names:
-`last-learn-at-claude`, `last-learn-at-opencode`. Each harness's marker
-advances independently. Full form: **per-harness progress marker**. Short
-form: **marker**. The Go package is `learnmarker`.
-
-The marker's value is the upper bound of "what has been emitted so far for
-this source." For a fully-scanned session, that's the file's Mtime. For
-a partially-scanned session (byte cap hit mid-file), that's the
-timestamp of the last row included — the next run resumes mid-session
-from rows strictly after the marker. The filter on the marker is strict-
-greater, so the boundary session (whose Mtime or row-timestamp equals
-the marker) is excluded on the next run.
-
-### byte cap
-The `--max-bytes` budget for one transcript scan (default 200000). When
-the cap halts a scan partway through a session, that session is
-partially emitted and the marker advances to the timestamp of the last
-row included; the next run resumes mid-session.
-
-### byte-cap continuation
-The condition where a transcript scan stopped at the byte cap with
-material still unscanned (either older sessions or the remainder of an
-in-flight session). The continuation line names the first unscanned
-mtime per source; `/learn` is re-run to advance. Subsequent runs make
-forward progress even when a single session is larger than the cap.
-
-### first-run handling
-The behavior when a source has no marker yet: `engram transcript --mark`
-exits non-zero, names each source's earliest detectable session date, and
-the learn skill prompts the user to pick `--from <date>` or `--from all`.
+### `engram ingest` (subcommand)
+Merge-appends session transcripts + markdown into the per-source chunk
+index — re-chunks/re-embeds only changed content, never deletes
+(append-only chunk history). `--auto` sweeps all known sources; called by
+`/learn` and `/recall`. Chunks are the episodic layer (raw event memory)
+and are matched/clustered alongside L2 notes at recall; chunk-grounding is
+recorded as frontmatter provenance, not as wikilinks.
 
 ### `--from <date|all>`
 Overrides the marker by scanning from an explicit date (`YYYY-MM-DD`) or
@@ -337,8 +297,8 @@ from the Unix epoch (`all`). The latter scans everything.
 ## CLI conventions
 
 ### subcommand
-A named operation on the binary: `recall`, `transcript`, `learn`, `update`.
-The whole CLI is a single binary with subcommands, never a sprawl of
+A named operation on the binary: `learn`, `query`, `ingest`, `update`,
+etc. The whole CLI is a single binary with subcommands, never a sprawl of
 separate executables.
 
 ### `engram update`
@@ -367,7 +327,8 @@ commands.
 ## Authoring & process vocabulary
 
 ### candidate (note)
-A potential note identified from a transcript scan, before passing the
+A potential note identified from completed work (transcript content
+surfaced by recall, or the current session's activity), before passing the
 recall-mirror test. Becomes a written note or is dropped with a reason.
 
 ### subagent
@@ -394,5 +355,4 @@ smoothed.
 | `top` | Luhmann position for a brand-new top-level note |
 | `continuation` | Luhmann position extending an existing note (e.g., `1` → `1a`) |
 | `sibling` | Luhmann position at the same level (e.g., `1a` → `1b`) |
-| `--mark` | Flag on `engram transcript` that advances the per-harness marker |
 | `--dry-run` | Flag on `engram update` that previews without writing |
