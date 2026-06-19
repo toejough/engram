@@ -55,7 +55,7 @@ No guard except the all-empty error path.
 
 ## ADR-0003 — Embed-on-write with per-note `.vec.json` sidecars
 
-**Status:** Accepted (known defect: E4)
+**Status:** Accepted (known defect: K1)
 
 **Context.** Semantic search needs vectors, but a vector DB or a separate rebuild step adds a
 moving part that can drift from the notes.
@@ -65,10 +65,7 @@ moving part that can drift from the notes.
 `flock(.luhmann.lock)` spanning id-compute→write, with `O_EXCL` to prevent clobber.
 
 **Consequences.** No index to maintain or invalidate; sidecars travel with notes (a vault copy is
-self-contained, no re-embed). `content_hash` is meant to detect staleness. ⚠ KNOWN (E4):
-`ContentHash` hashes the **body**, but episodes embed the **`situation`** frontmatter field — the
-two are disjoint, so a `situation` edit leaves the hash unchanged and the stale vector reports
-fresh (all L1 notes). ⚠ KNOWN (K1): concurrency correctness rests on the flock spanning the entire
+self-contained, no re-embed). `content_hash` is meant to detect staleness. E4 (episodes embed `situation` but `ContentHash` hashes the body) was resolved by the episode retirement (2026-06-19, alongside ADR-0006/0008). ⚠ KNOWN (K1): concurrency correctness rests on the flock spanning the entire
 id→write critical section — enforced in code, untested as a property.
 
 ---
@@ -130,9 +127,7 @@ facts/feedback are retrieved by their content.
 **Decision.** `embed.Text` routes `type:episode` → the `situation` frontmatter field; every other
 kind → the body (`hash.go:48-72`).
 
-**Consequences.** Episodes match task-shaped queries the way recall phrases them. ⚠ KNOWN (E4):
-the staleness hash covers the body, not the embedded `situation`, for episodes (see ADR-0003).
-⚠ KNOWN (E5): an empty `situation` silently falls back to the body, self-violating the routing.
+**Consequences (historical — this ADR is superseded).** Episodes matched task-shaped queries the way recall phrases them. ✅ RESOLVED (E4, E5) by the 2026-06-19 episode retirement: `embed.Text` now embeds the body for every note type, so neither the staleness-hash-vs-`situation` mismatch (E4) nor the empty-`situation` body fallback (E5) can occur.
 ⚠ KNOWN (M5, FAIL): fact/feedback retrieval also leans on `situation` (it is rendered into the body
 formula and feeds recall-mirror), yet the CLI marks `situation` `required` only for episodes — an
 empty fact/feedback situation is unguarded (census-clean 107/107). This is the FAIL-class
@@ -155,8 +150,8 @@ targets are silently dropped at build.
 **Consequences.** The graph is derived and always fresh. ⚠ KNOWN (G0): `learn` writes relations as
 **bare Luhmann ids** (`[[105]]`) but `BuildGraph` resolves by **basename** — 155/183 link-instances
 unresolved (151 of them bare-id), 138/171 notes orphaned, mean out-degree 0.16, so recall's graph expansion runs on a
-near-empty graph. ⚠ KNOWN (G5): verbatim `[[x]]` strings inside episode transcript bodies become
-false edges (no episode special-casing at scan).
+near-empty graph. ⚠ KNOWN (G5): verbatim `[[x]]` strings inside chunk bodies (raw transcript content) become
+false edges (no special-casing of raw transcript content at scan).
 
 ---
 
@@ -209,12 +204,7 @@ carries no `Partial` flag — so it over-advances on truncation. Latent today (t
 them as per-session `.jsonl` files; OpenCode stores them in a SQLite database. The marker,
 byte-budget, noise-strip, and emit logic must not care which backend a session came from.
 
-**Decision.** Define `Finder` (locate sessions) and `Reader` / `SegmentsReader` (read rows / arc
-segments) interfaces. Provide two backends — `JSONLReader` + `SessionFinder` (Claude) and
-`OpencodeTranscriptReader` + `OpencodeSessionFinder` (OpenCode SQLite) — plus a
-`CompositeSessionFinder` / `CompositeTranscriptReader` that wrap a list and dispatch to the **first
-backend that succeeds** (`opencode.go`, first-success dispatch). The CLI wires the composite over both backends in
-`newTranscriptDeps` (`internal/cli/cli.go`); `SegmentsFrom` dispatches only to readers that implement `SegmentsReader`.
+**Decision.** Define `Finder` (locate sessions) and `Reader` (read rows) interfaces. Provide two backends — `JSONLReader` + `SessionFinder` (Claude) and `OpencodeTranscriptReader` + `OpencodeSessionFinder` (OpenCode SQLite) — plus a `CompositeSessionFinder` / `CompositeTranscriptReader` that wrap a list and dispatch to the **first backend that succeeds** (`opencode.go`, first-success dispatch). `engram ingest` wires the composite over both backends; the `SegmentsFrom`/`SegmentsReader` path and the `--segments` flag retired with the episode surface (ADR-0008/ADR-0009).
 
 **Consequences.** Marker forward-progress (ADR-0009), stripping, and emit are backend-agnostic —
 they run on the composite, never on a concrete backend. Session-id **scheme** dispatch (bare UUID →

@@ -192,8 +192,7 @@ The work that *caused* a lesson, distinct from the work that *surfaced*
 it. **Current-locus** = the mistake or discovery originated in this
 session. **Retro-locus** = the cause is in a prior session, even though
 the candidate may have surfaced through current-session work (or come
-from prior-session chunk history surfaced by recall). Discriminated cheaply by `git
-blame` / `git log` on the offending line, prior-session transcript
+from prior-session chunk history surfaced by recall). Discriminated cheaply by `git blame` / `git log` on the offending line, prior-session transcript
 content, or behavioral inference for purely conceptual mistakes. Locus
 classification determines which framing path applies in §2.
 
@@ -288,10 +287,6 @@ index — re-chunks/re-embeds only changed content, never deletes
 and are matched/clustered alongside L2 notes at recall; chunk-grounding is
 recorded as frontmatter provenance, not as wikilinks.
 
-### `--from <date|all>`
-Overrides the marker by scanning from an explicit date (`YYYY-MM-DD`) or
-from the Unix epoch (`all`). The latter scans everything.
-
 ---
 
 ## CLI conventions
@@ -308,9 +303,8 @@ without writing.
 
 ### XDG paths
 Engram follows XDG basedir conventions:
-- Data: `$XDG_DATA_HOME/engram/` (vault).
-- State: `$XDG_STATE_HOME/engram/projects/<slug>/` (markers).
-Fallbacks: `~/.local/share/...` and `~/.local/state/...`.
+- Data: `$XDG_DATA_HOME/engram/` (vault at `vault/`, chunk index at `chunks/`).
+Fallback: `~/.local/share/...`.
 
 ### DI (dependency injection)
 Architectural rule: no function in `internal/` calls `os.*`, `http.*`, or

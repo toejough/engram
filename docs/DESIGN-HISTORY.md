@@ -160,7 +160,7 @@ single most important correction to "memory always helps."
 - Cumulative-accumulation eval + results: `docs/superpowers/specs/2026-06-01-{cumulative-accumulation-eval,final-memory-eval}.md`,
   `2026-06-02-cumulative-accumulation-results.md`, `2026-06-06-cumulative-accumulation-v2-brief.md`
 - Eval result tables (deleted in Unit F; conclusions folded in above):
-  `dev/eval/cumulative/results-{table,v2,lazy-l2-opus,real-skill-haiku,real-skill-opus}.md`
+  `dev/eval/cumulative/results-table.md`, `results-v2.md`, `results-lazy-l2-opus.md`, `results-real-skill-haiku.md`, `results-real-skill-opus.md`
 
 ## 6. Memory-system rigor + invariants (2026-06-04)
 
@@ -188,7 +188,7 @@ for haiku the eval couldn't separate the two under convergence/capture noise, bu
 lazy was no worse and far leaner. Eager's extra L2 volume bought nothing
 measurable and is a retrieval-precision + vault-bloat liability.
 
-Two lessons drove the converged v2 model (after five adversarial review gates):
+Two lessons drove the converged v2 model (after five design-session review cycles, distinct from the /please Gates A–D):
 - **Chunks do not belong in the vault *note* model.** Every attempt to make them
   vault files collided with Obsidian-parity, the scanner, embed/check, and
   Luhmann IDs. So chunks stay in the **chunk index** (append-only history);

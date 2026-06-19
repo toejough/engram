@@ -46,7 +46,6 @@ flowchart TB
     dbg["K11 · debuglog (cross-cutting, all targets)"]
 
     vault[("C4 · Vault")]
-    markers[("C5 · Markers")]
     model[["C3 · MiniLM"]]
     sessions(["S5 · Session stores"])
     gotool(["S6 · Go toolchain"])
@@ -58,7 +57,6 @@ flowchart TB
     skills -->|"shell engram embed apply (rare)"| eb
 
     ing --- sessions
-    ing --- markers
     ing -->|stdout chunk identifiers| skills
 
     learn --> embed
@@ -79,7 +77,7 @@ flowchart TB
 
     class ing,learn,query,vg,cl,eb,embed,upd,lz comp
     class dbg xcut
-    class vault,markers store
+    class vault store
     class skills,sessions,gotool ext
 
     g0[["⚠ G0: BuildGraph resolves basename; learn writes bare ids → most edges dropped (census in memory-invariants.md)"]]:::defect
@@ -89,11 +87,11 @@ flowchart TB
 ## Component catalog
 | ID | Component | Key functions | Responsibility | ⚠ |
 |---|---|---|---|---|
-| K1 | `internal/transcript` + `internal/context` (via `engram ingest`) | `Finder.Find`, `JSONLReader.ReadFrom`, `context.Strip`, marker advance | Find sessions; read rows `> marker` chronologically within a byte budget; strip harness noise; emit chunk identifiers + advance the per-source marker (strict-greater, intra-session split, multi-source independent). | — |
+| K1 | `internal/transcript` + `internal/context` (via `engram ingest`) | `Finder.Find`, `JSONLReader.ReadFrom`, `context.Strip`, manifest write | Find sessions; check mtime/size/hash vs `manifest.json`; re-chunk and re-embed only changed sources within a byte budget; strip harness noise; emit chunk identifiers + write/update the per-source `manifest.json` entry (mtime/size/hash staleness). | — |
 | K4 | `cli/learn.go` | `writeLearnUnderLock`, tier-default logic, `autoEmbedNote`; calls `nextLuhmannID` (in `cli/luhmann.go`) | Assign tier (fact/feedback→L2 default, `--tier` override; no `adr` kind), compute next Luhmann id and write the note + sidecar atomically under `flock(.luhmann.lock)` + `O_EXCL`. | **K1-lock invariant** untested |
 | K5 | `internal/embed` | `Text`, `ContentHash`, `Sidecar`, embedder (Hugot/GoMLX simplego) | Embed body text; write/read `.vec.json` (vector + `embedding_model_id` + `content_hash`). | **M4** (model homogeneity) |
 | K6 | `cli/query.go` | `RunQuery`, `rankCandidates`, `applyTierFilter`, `identifyHubs`, payload assembly | Per-phrase: embed → cosine top-k → subgraph (K7) → cluster (K8) → `nearest_l3` → **filter by `--tier`** (T1a: items today; **clusters/`nearest_l3` leak → fix to all channels**) → hubs → merge. | items-only today; T1a fix → all channels |
-| K7 | `internal/vaultgraph` | `ParseWikilinks`, `ParseBasename`, `BuildGraph`, `BFSWithCap` | Build the directed wikilink graph (node=basename), 3-hop BFS subgraph cap 200, in-degree hubs. | **G0** (basename-only resolution), **G5** (verbatim `[[x]]` strings in chunk bodies become false edges) |
+| K7 | `internal/vaultgraph` | `ParseWikilinks`, `ParseBasename`, `BuildGraph`, `BFSWithCap` | Build the directed wikilink graph (node=basename), 3-hop BFS subgraph cap 200, in-degree hubs. | **G0** (basename-only resolution), **G5** (verbatim `[[x]]` strings in chunk bodies (raw transcript content) become false edges) |
 | K8 | `internal/cluster` | `KMeans`, `Silhouette`, `AutoK`, `CosineDistance`, `BestMatch` | Pick k by silhouette; cluster the subgraph; `BestMatch` = centroid→L3 cosine for `nearest_l3` (≥0.9 update boundary). | C1/L3-1 determinism untested |
 | K9 | `internal/update` | `Run`, `SourceLocal/Remote` | `go install` the binary; copy refreshed skills/commands per harness; sentinels `ErrGoNotFound`/`ErrNoHarness`/`ErrSkillsSrcMissing`. | **U1** idempotence uncaptured |
 | K10 | `internal/luhmann` | `ParseID`, `LetterLess`, sort/tie-break | Parse and order Luhmann ids; **shared kernel** consumed by K4 (`cli/learn.go`, `cli/luhmann.go`) AND K7 (`vaultgraph/{selector,scanner}.go`). | — |
@@ -135,7 +133,7 @@ confirm + propose deletion.
   the binary — consumes it and may shell `engram amend` (covered/near) or `engram learn` (absent)
   for recall-time lazy-L2 synthesis.
 - **K5 sidecar:** `{vector[384], embedding_model_id, content_hash}` — `content_hash` covers the
-  embedded body text. Marker-advance lives in `engram ingest` (K1), not a separate learnmarker package.
+  embedded body text. Staleness tracking (mtime/size/hash `manifest.json`) lives in `engram ingest` (K1); there is no separate learnmarker package.
 
 ## Key flows (L3 — component-internal sequences)
 

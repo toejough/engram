@@ -88,11 +88,11 @@ engram update                          Refresh binary and harness skills/command
 
 Engram bundles an embedding model (`sentence-transformers/all-MiniLM-L6-v2`, 384 dims) inside the binary via `go:embed`. Inference runs in pure Go through [Hugot](https://github.com/knights-analytics/hugot) + [GoMLX](https://github.com/gomlx/gomlx)'s `simplego` backend — no CGO, no daemon, no API key.
 
-Each note (`Permanent/<id>.<date>.<slug>.md`, `MOCs/<id>.<date>.<slug>.md`) has a sibling `.vec.json` sidecar:
+Each note (`<id>.<date>.<slug>.md`) has a sibling `.vec.json` sidecar at the vault root (flat layout):
 
 ```
-Permanent/132.2026-05-23.foo.md
-Permanent/132.2026-05-23.foo.vec.json
+132.2026-05-23.foo.md
+132.2026-05-23.foo.vec.json
 ```
 
 Sidecar shape:
@@ -134,7 +134,7 @@ internal/            Business logic (DI boundaries)
   luhmann/           Luhmann-ID allocation under file lock
   transcript/        Session transcript reading (Claude Code JSONL + OpenCode SQLite), read by engram ingest
   update/            Self-refresh subcommand
-  vaultgraph/        Vault traversal (MOCs/Permanent, anchors, follow)
+  vaultgraph/        Vault traversal (wikilink graph, BFS, hubs)
 skills/              Source for the recall, learn, please, and route skills
 commands/            Source for OpenCode slash commands
 ```

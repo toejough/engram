@@ -12,11 +12,12 @@ Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. 
 engram/
 ├── cmd/engram/        # CLI binary entry point
 ├── internal/          # Non-public implementation
+│   ├── chunk/         # Splits memory sources (stripped transcripts, markdown) into embedding-sized chunks for the auto-ingested vector space (pure string logic, no I/O)
 │   ├── cli/           # CLI command wiring (targ targets)
+│   ├── cluster/       # k-means clustering with silhouette-based auto-K, for `--synthesize-l2` recall clustering
 │   ├── context/       # Transcript processing for LLM agents
 │   ├── debuglog/      # Tail-friendly debug logger
 │   ├── embed/         # Embedder interface + Hugot/GoMLX backend, sidecar I/O, state classification
-│   ├── learnmarker/   # Per-harness progress marker (read/write/FS interface)
 │   ├── luhmann/       # Luhmann zettelkasten ID parsing/sorting
 │   ├── transcript/    # Claude Code session transcript reading
 │   ├── update/        # `engram update` subcommand
