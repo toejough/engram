@@ -24,6 +24,8 @@ type CommonLearnArgs struct {
 	Project   string   `targ:"flag,name=project,desc=kebab-case project slug for cross-project filtering (optional)"`
 	Issue     string   `targ:"flag,name=issue,desc=originating issue ID (optional)"`
 	Tier      string   `targ:"flag,name=tier,desc=tier override L1|L2|L3 (optional; default derived from type)"`
+
+	ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk id (source#anchor) recorded as provenance (repeatable)"`
 }
 
 // LearnEpisodeArgs holds parsed flags for the learn episode subcommand.
@@ -220,6 +222,11 @@ func maintenanceTargets(
 			a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), stdout))
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
+		targ.Targ(func(ctx context.Context, a AmendArgs) {
+			a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+			errHandler(RunAmend(withLog(ctx), a, newOsAmendDeps(), stdout))
+		}).Name("amend").Description("Amend a note in place: relation-merge, provenance-merge, field-replacement, activate"),
 	}
 }
 

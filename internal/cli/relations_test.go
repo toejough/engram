@@ -51,6 +51,67 @@ func TestMigrateRelationLinks_RewritesBareIDInRelatedSection(t *testing.T) {
 	g.Expect(got).NotTo(ContainSubstring("[[105]] —"))
 }
 
+func TestResolveRelationTargetsStrict_AlreadyBasename_Passthrough(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "105.2026-01-01.thing.md"
+
+	got, err := cli.ExportResolveRelationTargetsStrict([]string{basename + "|why"}, []string{basename})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(Equal([]string{basename + "|why"}))
+}
+
+func TestResolveRelationTargetsStrict_RationalePreserved(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "105.2026-01-01.thing.md"
+
+	got, err := cli.ExportResolveRelationTargetsStrict([]string{"105|because it matters"}, []string{basename})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(Equal([]string{basename + "|because it matters"}))
+}
+
+func TestResolveRelationTargetsStrict_ResolvedID_OK(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "105.2026-01-01.thing.md"
+
+	got, err := cli.ExportResolveRelationTargetsStrict([]string{"105|why"}, []string{basename})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(Equal([]string{basename + "|why"}))
+}
+
+func TestResolveRelationTargetsStrict_UnresolvedID_Errors(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := cli.ExportResolveRelationTargetsStrict([]string{"105|why"}, []string{"999.2026-01-01.other.md"})
+	g.Expect(err).To(MatchError(ContainSubstring("unresolved relation target")))
+	g.Expect(err).To(MatchError(ContainSubstring("105")))
+}
+
 func TestResolveRelationTargets_BareIDBecomesBasename(t *testing.T) {
 	t.Parallel()
 

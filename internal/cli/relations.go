@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/toejough/engram/internal/embed"
@@ -12,6 +14,11 @@ const (
 	// rendering convention (here) and the body-hash strip (in embed) share one
 	// source of truth and cannot drift.
 	relatedSectionMarker = embed.RelatedSectionMarker
+)
+
+// unexported variables.
+var (
+	errUnresolvedRelationTarget = errors.New("unresolved relation target")
 )
 
 // indexBasenamesByID maps each note's leading Luhmann id (the segment before the
@@ -86,4 +93,40 @@ func resolveRelationTargets(relations, basenames []string) []string {
 	}
 
 	return resolved
+}
+
+// resolveRelationTargetsStrict is the strict variant of resolveRelationTargets:
+// it errors when a bare Luhmann id has no matching note basename, so callers
+// can fail loud on typos or stale ids. Targets already in full-basename form
+// are left unchanged (no error). Rationale suffixes are preserved.
+func resolveRelationTargetsStrict(relations, basenames []string) ([]string, error) {
+	idToBasename := indexBasenamesByID(basenames)
+
+	basenameSet := make(map[string]struct{}, len(basenames))
+	for _, b := range basenames {
+		basenameSet[b] = struct{}{}
+	}
+
+	resolved := make([]string, len(relations))
+
+	for i, relation := range relations {
+		target, rationale, hasRationale := strings.Cut(relation, "|")
+		target = strings.TrimSpace(target)
+
+		if _, isBasename := basenameSet[target]; !isBasename {
+			if basename, ok := idToBasename[target]; ok {
+				target = basename
+			} else {
+				return nil, fmt.Errorf("%w: %q", errUnresolvedRelationTarget, target)
+			}
+		}
+
+		if hasRationale {
+			resolved[i] = target + "|" + rationale
+		} else {
+			resolved[i] = target
+		}
+	}
+
+	return resolved, nil
 }

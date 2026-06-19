@@ -43,6 +43,13 @@ type LearnArgs struct {
 	// feedback / fact / episode all support related-note bullets
 	Relations []string
 
+	// ChunkSources carries chunk-index ids (source#anchor) to record as frontmatter
+	// provenance. Written to `sources:` when non-empty. Passed via --chunk-source.
+	// learn records these unvalidated by design — at create time the just-written
+	// chunks may not yet be in the index. (engram amend, by contrast, validates
+	// --chunk-source ids against the index because it runs after ingestion.)
+	ChunkSources []string
+
 	// feedback / fact / episode share these
 	Situation string
 	// feedback only
@@ -213,15 +220,16 @@ type episodeTranscriptDoc struct {
 }
 
 type factFields struct {
-	Situation string
-	Subject   string
-	Predicate string
-	Object    string
-	Luhmann   string
-	Source    string
-	Project   string
-	Issue     string
-	Tier      string
+	Situation    string
+	Subject      string
+	Predicate    string
+	Object       string
+	Luhmann      string
+	Source       string
+	Project      string
+	Issue        string
+	Tier         string
+	ChunkSources []string
 }
 
 // factFrontmatterDoc is the YAML shape of a fact's frontmatter. Field order
@@ -238,18 +246,20 @@ type factFrontmatterDoc struct {
 	Source    string       `yaml:"source"`
 	Project   string       `yaml:"project,omitempty"`
 	Issue     quotedString `yaml:"issue,omitempty"`
+	Sources   []string     `yaml:"sources,omitempty"`
 }
 
 type feedbackFields struct {
-	Situation string
-	Behavior  string
-	Impact    string
-	Action    string
-	Luhmann   string
-	Source    string
-	Project   string
-	Issue     string
-	Tier      string
+	Situation    string
+	Behavior     string
+	Impact       string
+	Action       string
+	Luhmann      string
+	Source       string
+	Project      string
+	Issue        string
+	Tier         string
+	ChunkSources []string
 }
 
 // feedbackFrontmatterDoc is the YAML shape of a feedback note's frontmatter.
@@ -265,6 +275,7 @@ type feedbackFrontmatterDoc struct {
 	Source    string       `yaml:"source"`
 	Project   string       `yaml:"project,omitempty"`
 	Issue     quotedString `yaml:"issue,omitempty"`
+	Sources   []string     `yaml:"sources,omitempty"`
 }
 
 // parsedEpisodeRange is an EpisodeRange with its bounds parsed to time.Time.
@@ -336,6 +347,7 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 			Situation: args.Situation, Behavior: args.Behavior, Impact: args.Impact,
 			Action: args.Action, Luhmann: luhmann, Source: args.Source,
 			Project: args.Project, Issue: args.Issue, Tier: tierOrDefault(args.Tier),
+			ChunkSources: args.ChunkSources,
 		}
 
 		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f, related), nil
@@ -348,6 +360,7 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 			Situation: args.Situation, Subject: args.Subject, Predicate: args.Predicate,
 			Object: args.Object, Luhmann: luhmann, Source: args.Source,
 			Project: args.Project, Issue: args.Issue, Tier: tierOrDefault(args.Tier),
+			ChunkSources: args.ChunkSources,
 		}
 
 		return renderFactFrontmatter(f, when) + renderFactBody(f, related), nil
@@ -878,6 +891,7 @@ func renderFactFrontmatter(f factFields, when time.Time) string {
 		Source:    f.Source,
 		Project:   f.Project,
 		Issue:     quotedString(f.Issue),
+		Sources:   f.ChunkSources,
 	})
 }
 
@@ -903,6 +917,7 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 		Source:    f.Source,
 		Project:   f.Project,
 		Issue:     quotedString(f.Issue),
+		Sources:   f.ChunkSources,
 	})
 }
 
@@ -1188,20 +1203,21 @@ func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer
 	deps := newOsLearnDeps()
 
 	return runLearn(ctx, LearnArgs{
-		Type:      typeFact,
-		Slug:      a.Slug,
-		Vault:     a.Vault,
-		Target:    a.Target,
-		Position:  a.Position,
-		Source:    a.Source,
-		Project:   a.Project,
-		Issue:     a.Issue,
-		Tier:      a.Tier,
-		Relations: a.Relations,
-		Situation: a.Situation,
-		Subject:   a.Subject,
-		Predicate: a.Predicate,
-		Object:    a.Object,
+		Type:         typeFact,
+		Slug:         a.Slug,
+		Vault:        a.Vault,
+		Target:       a.Target,
+		Position:     a.Position,
+		Source:       a.Source,
+		Project:      a.Project,
+		Issue:        a.Issue,
+		Tier:         a.Tier,
+		Relations:    a.Relations,
+		ChunkSources: a.ChunkSources,
+		Situation:    a.Situation,
+		Subject:      a.Subject,
+		Predicate:    a.Predicate,
+		Object:       a.Object,
 	}, deps, stdout)
 }
 
@@ -1209,20 +1225,21 @@ func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout i
 	deps := newOsLearnDeps()
 
 	return runLearn(ctx, LearnArgs{
-		Type:      typeFeedback,
-		Slug:      a.Slug,
-		Vault:     a.Vault,
-		Target:    a.Target,
-		Position:  a.Position,
-		Source:    a.Source,
-		Project:   a.Project,
-		Issue:     a.Issue,
-		Tier:      a.Tier,
-		Relations: a.Relations,
-		Situation: a.Situation,
-		Behavior:  a.Behavior,
-		Impact:    a.Impact,
-		Action:    a.Action,
+		Type:         typeFeedback,
+		Slug:         a.Slug,
+		Vault:        a.Vault,
+		Target:       a.Target,
+		Position:     a.Position,
+		Source:       a.Source,
+		Project:      a.Project,
+		Issue:        a.Issue,
+		Tier:         a.Tier,
+		Relations:    a.Relations,
+		ChunkSources: a.ChunkSources,
+		Situation:    a.Situation,
+		Behavior:     a.Behavior,
+		Impact:       a.Impact,
+		Action:       a.Action,
 	}, deps, stdout)
 }
 

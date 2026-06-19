@@ -796,6 +796,79 @@ func TestExtractLuhmannFromFilename_RejectsNonMd(t *testing.T) {
 	g.Expect(ok).To(BeFalse())
 }
 
+func TestLearnFact_ChunkSources_WrittenToFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "test-slug", Vault: t.TempDir(), Position: "top",
+		Source: "test", Situation: "testing chunk sources",
+		Subject: "A", Predicate: "has", Object: "B",
+		ChunkSources: []string{"/sessions/s.jsonl#turn-1", "/sessions/s.jsonl#turn-2"},
+	}
+	deps := cli.LearnDeps{
+		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		StatDir:       func(string) error { return nil },
+		InitVault:     func(string) error { return nil },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).To(ContainSubstring("sources:"))
+	g.Expect(string(written)).To(ContainSubstring("/sessions/s.jsonl#turn-1"))
+	g.Expect(string(written)).To(ContainSubstring("/sessions/s.jsonl#turn-2"))
+}
+
+func TestLearnFact_EmptyChunkSources_NoSourcesKey(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "test-slug", Vault: t.TempDir(), Position: "top",
+		Source: "test", Situation: "no chunk sources",
+		Subject: "A", Predicate: "has", Object: "B",
+	}
+	deps := cli.LearnDeps{
+		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		StatDir:       func(string) error { return nil },
+		InitVault:     func(string) error { return nil },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).NotTo(ContainSubstring("sources:"))
+}
+
 func TestLearnPath_Permanent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
