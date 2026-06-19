@@ -135,7 +135,6 @@ const (
 	cosineSixMonth     = float32(0.62)
 	cosineThreeMonth   = float32(0.66)
 	cosineTwoMonth     = float32(0.68)
-	defaultFloor       = 3
 	distractorsPerTier = 8
 )
 
