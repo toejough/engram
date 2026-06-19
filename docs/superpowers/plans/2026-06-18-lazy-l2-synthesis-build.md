@@ -8,9 +8,20 @@
 
 **Tech Stack:** Go 1.26; `internal/cli` + `internal/chunk` + `internal/embed`; build/test via `targ test` / `targ check-full` only; tests imptest + rapid + gomega, `package cli_test` blackbox via `export_test.go` `Export*` aliases; DI everywhere; SKILL.md edits via `superpowers:writing-skills`.
 
-**Scope decision (recorded dissent).** Considered building the minimal value-slice first (`amend` + recall-skill note-linking over the existing note clustering); the user chose the **full §7 build** for the complete designed system. The value-proof experiment (eager-vs-lazy A/B, spec §3.6) remains **blocked on #642/#643** and is sequenced last — so this build is **not value-validatable** until those clear. Recorded per the anti-sycophantic resolution rule; the experiment is out of this plan's scope.
+**Scope decision (recorded dissent).** Considered building the minimal value-slice first (`amend` + recall-skill note-linking over the existing note clustering); the user chose the **full §7 build** for the complete designed system. The value-proof experiment (eager-vs-lazy A/B, spec §3.6 / §7 step 8) remains **blocked on #642/#643** and is **excluded from this plan** (not deferred to a later task here — it is a separate tracked effort) — so this build is **not value-validatable** until those clear. Recorded per the anti-sycophantic resolution rule.
 
 **Build order (dependency-sequenced).** Component 2 (append-only chunks + per-chunk recency) → 3 (unified clustering + top-K nomination) → 4 (exclude `Related to:` from embed) → 5 (`amend` + `learn --chunk-source`; depends on 4) → 6 (recall-skill rewrite; depends on 2, 3, 5) → 7 (reconcile docs). Each component's tasks are independently TDD'd and committed; Gate B (design-fit) runs after each refactor during execution.
+
+**Task-dependency index.** Before starting a dependent component, verify its deps merged (e.g. `grep IngestedAt internal/chunk/index.go`; `targ check-full` green).
+
+| Component | Local task IDs | Depends on |
+| --- | --- | --- |
+| 2 — append-only chunks + per-chunk recency (D5) | 2.1–2.11 | — |
+| 3 — unified clustering + top-K centroid nomination (D1/D7) | 3.1–3.4 | sequence after 2 |
+| 4 — exclude `Related to:` from embed (D3) | 4.1–4.8 | — |
+| 5 — `engram amend` + `learn --chunk-source` (D2) | 5.1–5.10 | 4; reuses 2's `buildChunkIDSet` (`source#anchor`) |
+| 6 — recall-skill agent-judged coverage (D6/D7) | 6.1–6.8 (6.1a/b/c) | 2, 3, 5 |
+| 7 — reconcile c1 + learn SKILL.md | 7.1–7.9 | 6 |
 
 ---
 
@@ -209,21 +220,21 @@ func TestLoadPriorRecordsPreservesIngestedAt(t *testing.T) {
   // The full Record is returned so IngestedAt survives the merge (D5).
   func loadPriorRecords(indexPath string, deps IngestDeps) map[string]chunk.Record {
   	records := map[string]chunk.Record{}
-  
+
   	data, err := deps.ReadFile(indexPath)
   	if err != nil {
   		return records
   	}
-  
+
   	decoded, err := chunk.DecodeRecords(data)
   	if err != nil {
   		return records
   	}
-  
+
   	for _, r := range decoded {
   		records[r.ContentHash] = r
   	}
-  
+
   	return records
   }
   ```
@@ -271,6 +282,8 @@ func TestLoadPriorRecordsPreservesIngestedAt(t *testing.T) {
 ---
 
 #### Task 2.3 — Merge-append: keep existing records, add only new-hash chunks, never delete
+
+> **CA-01 fix:** `IngestDeps.Now` must be added to the struct BEFORE the new `rebuildIndex` body references `deps.Now()`. The steps below enforce this ordering explicitly.
 
 - [ ] **Write the failing tests.** Add to `ingest_test.go`:
 
@@ -395,7 +408,18 @@ func TestMergeAppendNeverDeletesOnContentChange(t *testing.T) {
   ```
   Expected: failures — current `rebuildIndex` replaces from scratch.
 
-- [ ] **Replace `rebuildIndex` with `mergeAppendIndex`.** In `/Users/joe/repos/personal/engram/internal/cli/ingest.go`, replace the body of `rebuildIndex` so it:
+- [ ] **Step 1: Add `Now func() time.Time` to `IngestDeps`** (must happen BEFORE rewriting `rebuildIndex`). In `/Users/joe/repos/personal/engram/internal/cli/ingest.go`, add to the `IngestDeps` struct (after `Embedder embed.Embedder`):
+
+  ```go
+  // Now returns the current wall-clock time for IngestedAt stamping. Nil-safe:
+  // callers guard with "if deps.Now != nil" before calling. Wire time.Now in
+  // newOsIngestDeps.
+  Now func() time.Time
+  ```
+
+  Also add `Now: time.Now,` to `newOsIngestDeps()`.
+
+- [ ] **Step 2: Replace `rebuildIndex` with merge-append implementation.** In `/Users/joe/repos/personal/engram/internal/cli/ingest.go`, replace the body of `rebuildIndex` so it:
   1. Loads `priorRecords = loadPriorRecords(indexPath, deps)`
   2. Builds a `merged []chunk.Record` starting with all prior records (order preserved).
   3. Builds `existingHashes` set from prior records.
@@ -403,18 +427,20 @@ func TestMergeAppendNeverDeletesOnContentChange(t *testing.T) {
   5. `total = len(merged)` (prior + new).
   6. Encodes and writes `merged`.
 
-  The function signature and name stay the same (`rebuildIndex`) — the rename is internal behavior, not the exported API.
-
-  New implementation of `rebuildIndex`:
+  The function signature gains a `now time.Time` param and a `backfillTime func(source string) time.Time` param (Task 2.5 adds this — add it now to avoid a second intermediate broken build per CA-04):
 
 ```go
+// rebuildIndex merge-appends: prior records are preserved (never deleted), new
+// hashes are embedded and stamped with ingestTime, and zero-IngestedAt legacy
+// records are backfilled via backfillTime (nil = no backfill).
 func rebuildIndex(
 	ctx context.Context,
 	source string,
 	chunks []chunk.Chunk,
 	chunksDir string,
 	deps IngestDeps,
-	now time.Time,
+	ingestTime time.Time,
+	backfillTime func(source string) time.Time,
 ) (total, reused, embedded int, err error) {
 	indexPath := filepath.Join(chunksDir, sourceSlug(source)+jsonlExt)
 	priorRecords := loadPriorRecords(indexPath, deps)
@@ -425,6 +451,9 @@ func rebuildIndex(
 
 	for _, r := range priorRecords {
 		existingHashes[r.ContentHash] = true
+		if r.IngestedAt.IsZero() && backfillTime != nil {
+			r.IngestedAt = backfillTime(r.Source)
+		}
 		merged = append(merged, r)
 	}
 
@@ -451,7 +480,7 @@ func rebuildIndex(
 			ContentHash: hash,
 			Text:        piece.Text,
 			Vector:      vector,
-			IngestedAt:  now,
+			IngestedAt:  ingestTime,
 		})
 	}
 
@@ -469,16 +498,19 @@ func rebuildIndex(
 }
 ```
 
-  The `now time.Time` param is supplied by the caller. Update `ingestSource` to pass `deps.Now()`. Add `Now func() time.Time` to `IngestDeps` (wire `time.Now` in `newOsIngestDeps`).
+  Note: `ingestTime` and `backfillTime` are both threaded from `ingestSource`. The full wiring appears in Task 2.4 (where `chunkSource` grows its return value) and Task 2.5 (where `backfillTime` is built from the manifest). For now, update the `ingestSource` call site temporarily:
 
-  `ingestSource` change at the call site:
   ```go
-  rebuilt, reused, embedded, err := rebuildIndex(ctx, source, chunks, chunksDir, deps, deps.Now())
+  rebuilt, reused, embedded, err := rebuildIndex(ctx, source, chunks, chunksDir, deps, deps.Now(), nil)
   ```
 
-  Wire in `newOsIngestDeps`:
+  Guard `deps.Now()` at the call site:
   ```go
-  Now: time.Now,
+  var ingestTime time.Time
+  if deps.Now != nil {
+      ingestTime = deps.Now()
+  }
+  rebuilt, reused, embedded, err := rebuildIndex(ctx, source, chunks, chunksDir, deps, ingestTime, nil)
   ```
 
 - [ ] **Run GREEN.**
@@ -491,7 +523,9 @@ func rebuildIndex(
 
 ---
 
-#### Task 2.4 — Thread transcript per-row timestamp as `IngestedAt` for transcript chunks
+#### Task 2.4 — Thread transcript per-session timestamp as `IngestedAt` for transcript chunks
+
+> **docs-F2 / contract item 4:** Threading `ReadResult.LastTimestamp` as `IngestedAt` for all chunks produced from one transcript call is a **per-session approximation**, not a per-row timestamp. A single transcript produces multiple chunks (turn-1 through turn-N), and all receive the same `IngestedAt` (the last turn's timestamp from `ReadResult.LastTimestamp`). This is an accepted approximation per spec §3.2 caveat: "intra-session time spread is negligible for recency; cross-session ordering is already distinguished since each session is its own source." The migration backfill similarly accepts per-source (not per-row) granularity. Future work to thread per-row timestamps would require `chunk.Chunk` to carry a source timestamp field — deferred as YAGNI.
 
 - [ ] **Write the failing test.** Add to `ingest_test.go`:
 
@@ -529,9 +563,11 @@ func TestIngestTranscriptSetsIngestedAtFromPerRowTimestamp(t *testing.T) {
 		return
 	}
 
-	// Transcript chunks use the per-row LastTimestamp, not the ingest wall-clock.
+	// Transcript chunks use the per-session LastTimestamp (a per-session approximation
+	// — all chunks of one transcript share IngestedAt; intra-session spread is negligible
+	// for recency; cross-session ordering is distinguished since each session is its own source).
 	g.Expect(records[0].IngestedAt).To(gomega.Equal(ts),
-		"transcript chunk IngestedAt must be the per-row LastTimestamp from ReadResult")
+		"transcript chunk IngestedAt must be the LastTimestamp from ReadResult (per-session approximation)")
 }
 
 func TestIngestMarkdownSetsIngestedAtFromNow(t *testing.T) {
@@ -573,11 +609,16 @@ func TestIngestMarkdownSetsIngestedAtFromNow(t *testing.T) {
   ```
   targ test
   ```
-  Expected: `TestIngestTranscriptSetsIngestedAtFromPerRowTimestamp` fails (IngestedAt will be `Now()`, not the per-row timestamp). `TestIngestMarkdownSetsIngestedAtFromNow` may also fail if `Now` is nil in the existing test helper (it's not wired yet in `fakeIngestEmbedder` tests — ensure existing tests pass `Now` or tolerate nil).
+  Expected: `TestIngestTranscriptSetsIngestedAtFromPerRowTimestamp` fails (IngestedAt will be `Now()`, not the per-session timestamp). `TestIngestMarkdownSetsIngestedAtFromNow` may also fail if `Now` nil-guard is missing.
 
-- [ ] **Thread the per-row timestamp.** The source of truth is `transcript.ReadResult.LastTimestamp`. `chunkSource` returns `[]chunk.Chunk` — it cannot carry a timestamp today. Change approach: `chunkSource` returns `([]chunk.Chunk, time.Time, error)` where the `time.Time` is the per-row `LastTimestamp` for transcripts, zero for markdown. Update the signature:
+- [ ] **Thread the per-session timestamp.** Change `chunkSource` to return `([]chunk.Chunk, time.Time, error)` where the `time.Time` is `ReadResult.LastTimestamp` for transcripts, zero for markdown. In `/Users/joe/repos/personal/engram/internal/cli/ingest.go`, update `chunkSource` (currently at line 163):
 
 ```go
+// chunkSource dispatches by extension: transcripts strip+turn-chunk, markdown
+// heading-chunks. Returns (chunks, sourceTimestamp, err). For transcripts,
+// sourceTimestamp is ReadResult.LastTimestamp (used as IngestedAt for all chunks
+// from this call — a per-session approximation; see Task 2.4 comment). For
+// markdown, sourceTimestamp is zero (caller uses deps.Now()).
 func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, time.Time, error) {
 	if filepath.Ext(source) == jsonlExt {
 		result, err := deps.ReadTranscript(source, time.Time{}, ingestBudgetBytes)
@@ -592,43 +633,36 @@ func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, tim
 }
 ```
 
-- [ ] **Pass the source timestamp into `ingestSource` → `rebuildIndex`.** In `ingestSource`, change:
+- [ ] **Pass the source timestamp into `ingestSource` → `rebuildIndex`.** In `ingestSource`, replace the current (Task 2.3) call:
   ```go
   chunks, err := chunkSource(source, raw, deps)
   if err != nil {
       return false, err
   }
 
-  rebuilt, reused, embedded, err := rebuildIndex(ctx, source, chunks, chunksDir, deps, deps.Now())
+  var ingestTime time.Time
+  if deps.Now != nil {
+      ingestTime = deps.Now()
+  }
+  rebuilt, reused, embedded, err := rebuildIndex(ctx, source, chunks, chunksDir, deps, ingestTime, nil)
   ```
-  to:
+  with:
   ```go
   chunks, sourceTS, err := chunkSource(source, raw, deps)
   if err != nil {
       return false, err
   }
 
-  // For transcripts, use the per-row timestamp; for markdown, fall back to Now().
+  // For transcripts, use the per-session LastTimestamp (per-session approximation,
+  // see Task 2.4 doc comment); for markdown, fall back to Now().
+  // Guard deps.Now for test fixtures that omit it.
   ingestTime := sourceTS
-  if ingestTime.IsZero() {
+  if ingestTime.IsZero() && deps.Now != nil {
       ingestTime = deps.Now()
   }
 
-  rebuilt, reused, embedded, err := rebuildIndex(ctx, source, chunks, chunksDir, deps, ingestTime)
+  rebuilt, reused, embedded, err := rebuildIndex(ctx, source, chunks, chunksDir, deps, ingestTime, nil)
   ```
-
-- [ ] **Handle nil `Now` gracefully.** In `ingestSource`, if `deps.Now == nil`, `deps.Now()` panics. Guard:
-  ```go
-  now := time.Time{}
-  if deps.Now != nil {
-      now = deps.Now()
-  }
-  ingestTime := sourceTS
-  if ingestTime.IsZero() {
-      ingestTime = now
-  }
-  ```
-  (Existing tests that don't wire `Now` will get `IngestedAt` = zero, which is fine — they don't assert on it.)
 
 - [ ] **Run GREEN.**
   ```
@@ -641,6 +675,12 @@ func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, tim
 ---
 
 #### Task 2.5 — Migration backfill: populate `IngestedAt` from manifest mtime on first merge
+
+> **CA-04 / CA-10 verification:** `ingestSource` (at line 251 in `ingest.go`) has the signature `func ingestSource(ctx context.Context, source, chunksDir string, deps IngestDeps, manifest ingestManifest, stdout io.Writer)` — `manifest ingestManifest` IS in scope. The backfill closure is built inside `ingestSource` from the already-present `manifest` parameter before calling `rebuildIndex`. No threading change to `ingestSource`'s signature is needed.
+
+> **CLR-005 design decision (explicit):** The backfill-time lookup is injected as a closure (`backfillTime func(source string) time.Time`) from `ingestSource`. This keeps `rebuildIndex` testable via DI (no manifest I/O inside the index-builder). Alternatives considered and rejected: (a) read the manifest inside `rebuildIndex` — couples the index-builder to manifest I/O, less testable; (b) pass the manifest as a map param — less type-safe than a closure. Chosen: (c) closure injection from the higher-level caller where the manifest is already in scope.
+
+> **Note:** `rebuildIndex` already has the `backfillTime` parameter from Task 2.3 (added there to avoid a second broken-build cycle per CA-04). This task only wires the closure from `ingestSource`.
 
 - [ ] **Write the failing test.** Add to `ingest_test.go`:
 
@@ -684,8 +724,8 @@ func TestMergeAppendBackfillsIngestedAtFromManifestMtime(t *testing.T) {
 	// New source content is identical (same hash) so no new chunks are added.
 	// The merge-append will load prior records and must backfill zero IngestedAt.
 	fs := &memFS{files: map[string][]byte{
-		"/sessions/old.jsonl":  []byte(`{"type":"same"}`),
-		indexFile:              encoded,
+		"/sessions/old.jsonl":   []byte(`{"type":"same"}`),
+		indexFile:               encoded,
 		"/chunks/manifest.json": manifestBytes,
 	}}
 
@@ -722,35 +762,16 @@ func TestMergeAppendBackfillsIngestedAtFromManifestMtime(t *testing.T) {
   ```
   targ test
   ```
-  Expected: `TestMergeAppendBackfillsIngestedAtFromManifestMtime` fails — backfill not yet implemented.
+  Expected: `TestMergeAppendBackfillsIngestedAtFromManifestMtime` fails — backfill not yet wired.
 
-- [ ] **Implement backfill in `rebuildIndex`.** The backfill reads the manifest to find the mtime for each prior record's source. Add a `backfillMtime` helper param to `rebuildIndex`, or do it within the function by reading `priorRecords` and checking for zero `IngestedAt`. The cleanest approach is: `ingestSource` already has the manifest in scope; pass a `backfillFn func(source string) time.Time` to `rebuildIndex` that returns the manifest mtime for a source path (zero if absent).
+- [ ] **Wire the `backfillTime` closure in `ingestSource`.** In `/Users/joe/repos/personal/engram/internal/cli/ingest.go`, inside `ingestSource`, replace the call to `rebuildIndex` (added in Task 2.4):
 
-  Update `rebuildIndex` signature:
   ```go
-  func rebuildIndex(
-      ctx context.Context,
-      source string,
-      chunks []chunk.Chunk,
-      chunksDir string,
-      deps IngestDeps,
-      ingestTime time.Time,
-      backfillTime func(source string) time.Time,
-  ) (total, reused, embedded int, err error) {
+  rebuilt, reused, embedded, err := rebuildIndex(ctx, source, chunks, chunksDir, deps, ingestTime, nil)
   ```
 
-  In the "preserve prior records" loop, add:
-  ```go
-  for _, r := range priorRecords {
-      existingHashes[r.ContentHash] = true
-      if r.IngestedAt.IsZero() && backfillTime != nil {
-          r.IngestedAt = backfillTime(r.Source)
-      }
-      merged = append(merged, r)
-  }
-  ```
+  with:
 
-  In `ingestSource`, build the `backfillTime` closure from the manifest before calling `rebuildIndex`:
   ```go
   backfill := func(src string) time.Time {
       entry, ok := manifest[src]
@@ -763,6 +784,8 @@ func TestMergeAppendBackfillsIngestedAtFromManifestMtime(t *testing.T) {
 
   rebuilt, reused, embedded, err := rebuildIndex(ctx, source, chunks, chunksDir, deps, ingestTime, backfill)
   ```
+
+  `manifest` is the `ingestManifest` parameter already in scope in `ingestSource`. `entry.MtimeUnixNano` is the `MtimeUnixNano int64` field on the embedded `SourceStat` struct (confirmed: `manifestEntry` embeds `SourceStat` which has `MtimeUnixNano int64`).
 
 - [ ] **Run GREEN.**
   ```
@@ -857,6 +880,19 @@ func TestMergeAppendPreservesIngestedAtOnReIngest(t *testing.T) {
 
 #### Task 2.7 — Re-key `applyChunkRecency`: drop `ageDaysBySource` param, read `r.record.IngestedAt`
 
+> **F10 / pre-task grep:** Before modifying `applyChunkRecency`, run the following to identify ALL callers (including `recency_eval_test.go`) that use the old 4-arg form with `ageDaysBySource`:
+>
+> ```
+> grep -rn "ExportApplyChunkRecency\|applyChunkRecency" /Users/joe/repos/personal/engram/internal/cli/
+> ```
+>
+> Known callers requiring migration:
+> - `recency_test.go:25` — `TestApplyChunkRecencyLiftsRecentOverStaleHighCosine` (passes `ages map[string]float64` as second arg)
+> - `recency_eval_test.go:221` — `rankOf` helper (passes `ages map[string]float64` as second arg)
+> - `query.go` — the production caller (passes `ages` from `chunkSourceAges`)
+>
+> All four must be updated in the GREEN step. The `ExportApplyChunkRecency` var alias auto-updates its type when `applyChunkRecency` changes, but every call site that passes the old `ages map[string]float64` argument will break at compile time.
+
 - [ ] **Write the failing test.** Add to `recency_test.go` (package `cli_test`):
 
 ```go
@@ -887,15 +923,13 @@ func TestApplyChunkRecencyUsesIngestedAt(t *testing.T) {
 }
 ```
 
-  This uses a new export `ExportApplyChunkRecencyByTime` (the new signature) and `ExportNewScoredChunkWithIngestedAt`.
-
 - [ ] **Run RED.**
   ```
   targ test
   ```
-  Expected: compile error — new export functions don't exist.
+  Expected: compile error — `ExportApplyChunkRecencyByTime` and `ExportNewScoredChunkWithIngestedAt` do not exist.
 
-- [ ] **Change `applyChunkRecency` signature.** In `/Users/joe/repos/personal/engram/internal/cli/recency.go`, replace the function:
+- [ ] **Change `applyChunkRecency` signature.** In `/Users/joe/repos/personal/engram/internal/cli/recency.go`, replace the function (currently at lines 37–63):
 
 ```go
 // applyChunkRecency returns a copy of scored with each score multiplied by its
@@ -937,66 +971,124 @@ func applyChunkRecency(
 }
 ```
 
-- [ ] **Update the caller in `query.go`.** In `/Users/joe/repos/personal/engram/internal/cli/query.go` at line 1328:
+- [ ] **Update the production caller in `query.go`.** Find the call to `applyChunkRecency` in `/Users/joe/repos/personal/engram/internal/cli/query.go` (which currently passes `ages` from `chunkSourceAges`) and replace:
   ```go
   // Old:
   scored = applyChunkRecency(scored, ages, maxTurnBySource(records), params)
   // New:
   scored = applyChunkRecency(scored, deps.Now(), maxTurnBySource(records), params)
   ```
-  Remove the `ages` variable that was set by `chunkSourceAges`. The `chunkSourceAges` call is now unused by `applyChunkRecency`.
+  Remove the `ages` variable and the `chunkSourceAges` call that sets it.
 
-- [ ] **Add new exports to `export_test.go`:**
+- [ ] **Add new exports to `export_test.go`.** In `/Users/joe/repos/personal/engram/internal/cli/export_test.go`:
+
+  Remove the existing `ExportApplyChunkRecency = applyChunkRecency` line from the `var (...)` block (it will be replaced by the function form below to avoid confusion — the var alias auto-updates its type but callers still need updating, and the explicit function form prevents silent breakage):
+
+  Add:
   ```go
   // ExportApplyChunkRecencyByTime exposes the new per-IngestedAt applyChunkRecency for recency tests.
   func ExportApplyChunkRecencyByTime(
-      scored []scoredChunk, now time.Time, maxTurnBySrc map[string]int, p recencyParams,
+  	scored []scoredChunk, now time.Time, maxTurnBySrc map[string]int, p recencyParams,
   ) []scoredChunk {
-      return applyChunkRecency(scored, now, maxTurnBySrc, p)
+  	return applyChunkRecency(scored, now, maxTurnBySrc, p)
   }
 
   // ExportNewScoredChunkWithIngestedAt builds a scoredChunk with IngestedAt set for recency tests.
   func ExportNewScoredChunkWithIngestedAt(rec chunk.Record, score float32, ingestedAt time.Time) scoredChunk {
-      rec.IngestedAt = ingestedAt
-      return scoredChunk{record: rec, score: score}
+  	rec.IngestedAt = ingestedAt
+  	return scoredChunk{record: rec, score: score}
   }
   ```
 
-  Update the existing `ExportApplyChunkRecency` alias in `export_test.go` to match the new signature (it currently includes `ageDaysBySource map[string]float64` — remove that param):
-  ```go
-  ExportApplyChunkRecency = applyChunkRecency
-  ```
-  This alias will now have the new type automatically — no explicit update needed (it's a var holding a func value). But the existing test `TestApplyChunkRecencyLiftsRecentOverStaleHighCosine` calls the old 4-param form. Update that test to use the new `ExportApplyChunkRecencyByTime` with `now` and `IngestedAt`-carrying records.
+- [ ] **REQUIRED GREEN step: Update `TestApplyChunkRecencyLiftsRecentOverStaleHighCosine` in `recency_test.go`.** This test currently passes `ages map[string]float64` as the second arg — it MUST be rewritten before `targ test` can pass. Replace the full test body:
 
-- [ ] **Update `TestApplyChunkRecencyLiftsRecentOverStaleHighCosine`** to use the new API:
   ```go
   func TestApplyChunkRecencyLiftsRecentOverStaleHighCosine(t *testing.T) {
-      t.Parallel()
-      g := NewWithT(t)
+  	t.Parallel()
+  	g := NewWithT(t)
 
-      now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
-      oldTime := now.Add(-90 * 24 * time.Hour)
-      recentTime := now.Add(-6 * time.Minute)
+  	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+  	oldTime := now.Add(-90 * 24 * time.Hour)
+  	recentTime := now.Add(-6 * time.Minute)
 
-      scored := []cli.ExportScoredChunk{
-          cli.ExportNewScoredChunkWithIngestedAt(
-              chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.80, oldTime),
-          cli.ExportNewScoredChunkWithIngestedAt(
-              chunk.Record{Source: "recent.jsonl", Anchor: "turn-9"}, 0.45, recentTime),
-      }
-      maxTurn := map[string]int{"old.jsonl": 3, "recent.jsonl": 9}
-      p := cli.ExportNewRecencyParams(3, 0.2, 0)
+  	scored := []cli.ExportScoredChunk{
+  		cli.ExportNewScoredChunkWithIngestedAt(
+  			chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.80, oldTime),
+  		cli.ExportNewScoredChunkWithIngestedAt(
+  			chunk.Record{Source: "recent.jsonl", Anchor: "turn-9"}, 0.45, recentTime),
+  	}
+  	maxTurn := map[string]int{"old.jsonl": 3, "recent.jsonl": 9}
+  	p := cli.ExportNewRecencyParams(3, 0.2, 0)
 
-      out := cli.ExportApplyChunkRecencyByTime(scored, now, maxTurn, p)
+  	out := cli.ExportApplyChunkRecencyByTime(scored, now, maxTurn, p)
 
-      g.Expect(cli.ExportScoredChunkScore(out[1])).To(BeNumerically(">", cli.ExportScoredChunkScore(out[0])))
+  	g.Expect(cli.ExportScoredChunkScore(out[1])).To(BeNumerically(">", cli.ExportScoredChunkScore(out[0])))
   }
   ```
+
+- [ ] **REQUIRED GREEN step: Update `recency_eval_test.go`.** The `rankOf` helper at line 221 calls `cli.ExportApplyChunkRecency(pool, ages, maxTurn, p)` with the old 4-arg signature. This file also calls `cli.ExportNewestChunkItems(scored, ages, floor)` at line 238 with the old 3-arg form. Both must be updated.
+
+  In `recency_eval_test.go`, update `buildSyntheticPool` to set `IngestedAt` on each record using `time.Unix(0, 0).Add(-ageDays * 24 * time.Hour)` relative to a fixed `now`, and update `rankOf` to:
+  - Replace `cli.ExportApplyChunkRecency(pool, ages, maxTurn, p)` with `cli.ExportApplyChunkRecencyByTime(pool, now, maxTurn, p)` where `now` is a fixed reference time (e.g. `time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)`).
+  - Replace `cli.ExportNewestChunkItems(scored, ages, floor)` with `cli.ExportNewestChunkItemsByTime(scored, floor)` (new 2-arg form, added in Task 2.8).
+
+  Since Task 2.8 adds `ExportNewestChunkItemsByTime`, the eval test update for `ExportNewestChunkItems` must be done in Task 2.8's GREEN step. For Task 2.7's GREEN step, focus on the `ExportApplyChunkRecency` → `ExportApplyChunkRecencyByTime` migration in `recency_eval_test.go`.
+
+  Specifically in `buildSyntheticPool`, add `IngestedAt` to each record. Change the record construction for weeksold chunks:
+  ```go
+  evalNow := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+  // weeksold chunks: IngestedAt = now - 21 days
+  weeksOldTime := evalNow.Add(-21 * 24 * time.Hour)
+  for _, turn := range []string{"turn-10", "turn-5", "turn-1"} {
+      rec := chunk.Record{
+          Source:      "weeksold.jsonl",
+          Anchor:      turn,
+          Text:        "ASSISTANT: session narration at " + turn,
+          ContentHash: "sha256:weeksold-" + turn,
+          IngestedAt:  weeksOldTime,
+      }
+      pool = append(pool, cli.ExportNewScoredChunk(rec, weeksOldCosine))
+  }
+  ```
+
+  And for distractor tiers:
+  ```go
+  for _, tier := range tiers {
+      tierTime := evalNow.Add(time.Duration(-tier.ageDays * float64(24 * time.Hour)))
+      // ... existing maxTurn setup ...
+      for i := range distractorsPerTier {
+          rec := chunk.Record{
+              Source:      tier.source,
+              Anchor:      "turn-" + itoa(i),
+              ContentHash: "sha256:" + tier.source + itoa(i),
+              IngestedAt:  tierTime,
+          }
+          pool = append(pool, cli.ExportNewScoredChunk(rec, tier.cosine))
+      }
+  }
+  ```
+
+  Update `rankOf` signature to drop `ages` and `maxTurn` params (they are now derived from records' `IngestedAt` and anchors), passing `evalNow` instead:
+  ```go
+  func rankOf(
+  	targetPath string,
+  	pool []cli.ExportScoredChunk,
+  	maxTurn map[string]int,
+  	p cli.ExportRecencyParams,
+  	limit int,
+  ) int {
+  	evalNow := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+  	scored := cli.ExportApplyChunkRecencyByTime(pool, evalNow, maxTurn, p)
+  	// ... rest of function unchanged ...
+  ```
+
+  Update all callers of `rankOf` / `weeksOldRankOf` to remove the `ages` argument.
 
 - [ ] **Run GREEN.**
   ```
   targ test
   ```
+  Expected: all tests pass including the new `TestApplyChunkRecencyUsesIngestedAt`.
 
 - [ ] **`targ check-full`** — clean.
 
@@ -1004,7 +1096,16 @@ func applyChunkRecency(
 
 #### Task 2.8 — Re-key `newestChunkItems`: sort key = `IngestedAt`, drop `ages` param
 
-- [ ] **Write the failing test.** Add to `recency_test.go`:
+> **CA-03 fix:** Three existing tests call `ExportNewestChunkItems` with the old 3-arg form (`scored, ages, n`). Their rewrite is a REQUIRED step in the GREEN phase — the build cannot pass without it. The three tests are:
+> - `TestNewestChunkItemsOrdersByAgeAscending` (recency_test.go:344)
+> - `TestNewestChunkItemsTieBreaksByTurnDesc` (recency_test.go:369)
+> - `TestNewestChunkItemsNZeroReturnsNil` (recency_test.go:329)
+>
+> Additionally, `recency_eval_test.go:238` calls `ExportNewestChunkItems(scored, ages, floor)` with the old form — it must also be updated.
+>
+> `ExportNewestChunkItemsByTime` and `ExportNewestChunkItems` are identical wrappers for the same 2-arg function. Having two names is intentional: `ExportNewestChunkItems` keeps the existing name stable for external test references; `ExportNewestChunkItemsByTime` is the semantically-named form for new tests. This is not dead code — both are exported test helpers with distinct call-site uses.
+
+- [ ] **Write the failing tests.** Add to `recency_test.go`:
 
 ```go
 func TestNewestChunkItemsSortsByIngestedAt(t *testing.T) {
@@ -1064,73 +1165,75 @@ func TestNewestChunkItemsTieBreaksByTurnDescIngestedAt(t *testing.T) {
 
 - [ ] **Run RED.** `ExportNewestChunkItemsByTime` does not exist.
 
-- [ ] **Change `newestChunkItems` signature** in `recency.go`: drop the `ages map[string]float64` param; sort by `s.record.IngestedAt` descending (newest first); zero `IngestedAt` sorts last (treat as maximally old, not maximally recent — inverse of the `applyChunkRecency` convention since the floor band is about identifying the most recent for guaranteed inclusion, not penalizing the unknown).
+- [ ] **Change `newestChunkItems` signature** in `/Users/joe/repos/personal/engram/internal/cli/recency.go`: drop the `ages map[string]float64` param; sort by `s.record.IngestedAt` descending (newest first); zero `IngestedAt` sorts last (maximally old — these are unknown-age legacy records, not maximally recent; the floor band's job is to surface the actually newest chunks):
 
-  New implementation:
+  Replace the entire `newestChunkItems` function (currently lines 212–258):
+
   ```go
   // newestChunkItems returns the n chunk items with the largest IngestedAt
   // (most recently ingested first). Chunks with zero IngestedAt (legacy, not
-  // yet backfilled) sort last. Tie-breaking on equal IngestedAt uses descending
-  // turn-N (latest turn first). Returns nil when n<=0.
+  // yet backfilled) sort last — treated as maximally old since their recency is
+  // unknown. Tie-breaking on equal IngestedAt uses descending turn-N (latest
+  // turn first). Returns nil when n<=0.
   func newestChunkItems(scored []scoredChunk, n int) []resolvedItem {
-      if n <= 0 {
-          return nil
-      }
+  	if n <= 0 {
+  		return nil
+  	}
 
-      type candidate struct {
-          s scoredChunk
-      }
+  	type candidate struct {
+  		s scoredChunk
+  	}
 
-      candidates := make([]candidate, 0, len(scored))
-      for _, s := range scored {
-          candidates = append(candidates, candidate{s: s})
-      }
+  	candidates := make([]candidate, 0, len(scored))
+  	for _, s := range scored {
+  		candidates = append(candidates, candidate{s: s})
+  	}
 
-      sort.SliceStable(candidates, func(i, j int) bool {
-          ti := candidates[i].s.record.IngestedAt
-          tj := candidates[j].s.record.IngestedAt
-          // Zero times sort last.
-          if ti.IsZero() && tj.IsZero() {
-              // tie-break by turn-N descending
-              ni, _ := parseTurnN(candidates[i].s.record.Anchor)
-              nj, _ := parseTurnN(candidates[j].s.record.Anchor)
-              return ni > nj
-          }
-          if ti.IsZero() {
-              return false
-          }
-          if tj.IsZero() {
-              return true
-          }
-          if !ti.Equal(tj) {
-              return ti.After(tj) // newer IngestedAt first
-          }
-          // tie-break: descending turn-N
-          ni, _ := parseTurnN(candidates[i].s.record.Anchor)
-          nj, _ := parseTurnN(candidates[j].s.record.Anchor)
-          return ni > nj
-      })
+  	sort.SliceStable(candidates, func(i, j int) bool {
+  		ti := candidates[i].s.record.IngestedAt
+  		tj := candidates[j].s.record.IngestedAt
+  		// Zero times sort last.
+  		if ti.IsZero() && tj.IsZero() {
+  			// tie-break by turn-N descending
+  			ni, _ := parseTurnN(candidates[i].s.record.Anchor)
+  			nj, _ := parseTurnN(candidates[j].s.record.Anchor)
+  			return ni > nj
+  		}
+  		if ti.IsZero() {
+  			return false
+  		}
+  		if tj.IsZero() {
+  			return true
+  		}
+  		if !ti.Equal(tj) {
+  			return ti.After(tj) // newer IngestedAt first
+  		}
+  		// tie-break: descending turn-N
+  		ni, _ := parseTurnN(candidates[i].s.record.Anchor)
+  		nj, _ := parseTurnN(candidates[j].s.record.Anchor)
+  		return ni > nj
+  	})
 
-      if n > len(candidates) {
-          n = len(candidates)
-      }
+  	if n > len(candidates) {
+  		n = len(candidates)
+  	}
 
-      out := make([]resolvedItem, 0, n)
-      for _, c := range candidates[:n] {
-          out = append(out, resolvedItem{
-              notePath:    chunkNotePath(c.s.record),
-              content:     c.s.record.Text,
-              score:       c.s.score,
-              provenances: []string{provenanceDirect},
-              kind:        chunkItemKind,
-          })
-      }
+  	out := make([]resolvedItem, 0, n)
+  	for _, c := range candidates[:n] {
+  		out = append(out, resolvedItem{
+  			notePath:    chunkNotePath(c.s.record),
+  			content:     c.s.record.Text,
+  			score:       c.s.score,
+  			provenances: []string{provenanceDirect},
+  			kind:        chunkItemKind,
+  		})
+  	}
 
-      return out
+  	return out
   }
   ```
 
-- [ ] **Update the caller in `query.go`** (line ~1330):
+- [ ] **Update the caller in `query.go`** (wherever `newestChunkItems` is called with `ages` as the second arg):
   ```go
   // Old:
   chunkMust = newestChunkItems(scored, ages, params.floor)
@@ -1138,25 +1241,114 @@ func TestNewestChunkItemsTieBreaksByTurnDescIngestedAt(t *testing.T) {
   chunkMust = newestChunkItems(scored, params.floor)
   ```
 
-- [ ] **Update `ExportNewestChunkItems` in `export_test.go`** to match new signature, and add `ExportNewestChunkItemsByTime` as an alias:
+- [ ] **Update `ExportNewestChunkItems` and add `ExportNewestChunkItemsByTime` in `export_test.go`.** Replace the existing `ExportNewestChunkItems` function (currently 3-arg at line 334):
+
   ```go
-  // ExportNewestChunkItems exposes newestChunkItems (new signature: no ages map).
+  // ExportNewestChunkItems exposes newestChunkItems (new 2-arg signature: no ages map).
   func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
-      return newestChunkItems(scored, n)
+  	return newestChunkItems(scored, n)
   }
 
   // ExportNewestChunkItemsByTime is an alias for tests that use the IngestedAt-keyed sort.
+  // Both names wrap the same 2-arg newestChunkItems; ExportNewestChunkItems keeps the
+  // existing test-helper name stable, ExportNewestChunkItemsByTime is the semantic form.
   func ExportNewestChunkItemsByTime(scored []scoredChunk, n int) []resolvedItem {
-      return newestChunkItems(scored, n)
+  	return newestChunkItems(scored, n)
   }
   ```
 
-- [ ] **Update existing tests** that call `ExportNewestChunkItems` with the old 3-arg form (`scored, ages, n`) — they must change to 2-arg (`scored, n`). The existing tests `TestNewestChunkItemsOrdersByAgeAscending`, `TestNewestChunkItemsTieBreaksByTurnDesc`, `TestNewestChunkItemsNZeroReturnsNil` use the old form with `ages map[string]float64`. Update each to use `ExportNewScoredChunkWithIngestedAt` and the 2-arg call.
+- [ ] **REQUIRED GREEN step: Rewrite the three existing tests** that call `ExportNewestChunkItems` with the old 3-arg form. All three are in `recency_test.go`:
+
+  **`TestNewestChunkItemsNZeroReturnsNil`** (line 329) — replace:
+  ```go
+  func TestNewestChunkItemsNZeroReturnsNil(t *testing.T) {
+  	t.Parallel()
+
+  	scored := []cli.ExportScoredChunk{
+  		cli.ExportNewScoredChunkWithIngestedAt(
+  			chunk.Record{Source: "a.jsonl", Anchor: "turn-1"}, 0.5,
+  			time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)),
+  	}
+
+  	out := cli.ExportNewestChunkItems(scored, 0)
+
+  	if out != nil {
+  		panic("expected nil for n=0")
+  	}
+  }
+  ```
+
+  **`TestNewestChunkItemsOrdersByAgeAscending`** (line 344) — replace with IngestedAt-based version:
+  ```go
+  func TestNewestChunkItemsOrdersByAgeAscending(t *testing.T) {
+  	t.Parallel()
+  	g := NewWithT(t)
+
+  	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+  	// Three sources: recent (0.5d), mid (14d), old (60d). newestChunkItems
+  	// should return the floor-newest by IngestedAt, ignoring cosine score.
+  	scored := []cli.ExportScoredChunk{
+  		cli.ExportNewScoredChunkWithIngestedAt(
+  			chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.90,
+  			now.Add(-60*24*time.Hour)),
+  		cli.ExportNewScoredChunkWithIngestedAt(
+  			chunk.Record{Source: "recent.jsonl", Anchor: "turn-7"}, 0.20,
+  			now.Add(-12*time.Hour)),
+  		cli.ExportNewScoredChunkWithIngestedAt(
+  			chunk.Record{Source: "mid.jsonl", Anchor: "turn-5"}, 0.50,
+  			now.Add(-14*24*time.Hour)),
+  	}
+
+  	out := cli.ExportNewestChunkItems(scored, 2)
+
+  	g.Expect(out).To(HaveLen(2))
+
+  	if len(out) < 2 {
+  		return
+  	}
+
+  	g.Expect(cli.ExportResolvedItemPath(out[0])).To(Equal("recent.jsonl#turn-7"), "slot 0 must be newest source")
+  	g.Expect(cli.ExportResolvedItemPath(out[1])).To(Equal("mid.jsonl#turn-5"), "slot 1 must be second-newest source")
+  }
+  ```
+
+  **`TestNewestChunkItemsTieBreaksByTurnDesc`** (line 369) — replace with IngestedAt-based version:
+  ```go
+  func TestNewestChunkItemsTieBreaksByTurnDesc(t *testing.T) {
+  	t.Parallel()
+  	g := NewWithT(t)
+
+  	// Same IngestedAt → descending turn-N wins.
+  	sameTime := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+  	scored := []cli.ExportScoredChunk{
+  		cli.ExportNewScoredChunkWithIngestedAt(
+  			chunk.Record{Source: "a.jsonl", Anchor: "turn-2"}, 0.5, sameTime),
+  		cli.ExportNewScoredChunkWithIngestedAt(
+  			chunk.Record{Source: "a.jsonl", Anchor: "turn-9"}, 0.5, sameTime),
+  		cli.ExportNewScoredChunkWithIngestedAt(
+  			chunk.Record{Source: "a.jsonl", Anchor: "turn-5"}, 0.5, sameTime),
+  	}
+
+  	out := cli.ExportNewestChunkItems(scored, 2)
+
+  	g.Expect(out).To(HaveLen(2))
+
+  	if len(out) < 2 {
+  		return
+  	}
+
+  	g.Expect(cli.ExportResolvedItemPath(out[0])).To(Equal("a.jsonl#turn-9"), "highest turn first on tie")
+  	g.Expect(cli.ExportResolvedItemPath(out[1])).To(Equal("a.jsonl#turn-5"), "second-highest turn second")
+  }
+  ```
+
+- [ ] **REQUIRED GREEN step: Update `recency_eval_test.go:238`** — replace `cli.ExportNewestChunkItems(scored, ages, floor)` (3-arg) with `cli.ExportNewestChunkItemsByTime(scored, floor)` (2-arg). Also remove the `ages` parameter from `rankOf` / `weeksOldRankOf` signatures and all callers if not already done in Task 2.7.
 
 - [ ] **Run GREEN.**
   ```
   targ test
   ```
+  Expected: all new and rewritten tests pass.
 
 - [ ] **`targ check-full`** — clean.
 
@@ -1164,17 +1356,31 @@ func TestNewestChunkItemsTieBreaksByTurnDescIngestedAt(t *testing.T) {
 
 #### Task 2.9 — Remove `chunkSourceAges` and tidy the `ages` variable in `query.go`
 
+> **F9 fix:** After removing `chunkSourceAges`, `readManifest` loses its only caller in `recency.go` (it was called only inside `chunkSourceAges` at recency.go:76). `readManifest` is defined in `ingest.go` (not `recency.go`) and is also called by `RunIngest` (line 78 in `ingest.go`). Removing `chunkSourceAges` does NOT create a dead `readManifest` — the function lives in `ingest.go` and keeps its callers there. `sourceAgeDays` is defined in `recency.go` and is ONLY called from `chunkSourceAges`. After removing `chunkSourceAges`, `sourceAgeDays` becomes dead code and must also be removed (or moved if still needed elsewhere). Verify with grep before deleting.
+
 - [ ] **Write the failing test.** (None needed — this is dead-code removal; the compile will fail if any caller remains.)
 
-  Verify `chunkSourceAges` has no callers left after Task 2.7:
+  Before deleting, run:
   ```
   grep -n "chunkSourceAges" /Users/joe/repos/personal/engram/internal/cli/*.go
   ```
-  Expected: only the definition in `recency.go`.
+  Expected: only the definition in `recency.go` (all callers removed in Tasks 2.7–2.8).
 
-- [ ] **Delete `chunkSourceAges`** from `/Users/joe/repos/personal/engram/internal/cli/recency.go`. Remove the full function body (lines 73–88 in the current file).
+  Also verify `sourceAgeDays` callers:
+  ```
+  grep -n "sourceAgeDays" /Users/joe/repos/personal/engram/internal/cli/*.go
+  ```
+  Expected: definition in `recency.go` + the `ExportSourceAgeDays` alias in `export_test.go` + the test in `recency_test.go:498`. If `ExportSourceAgeDays` and `TestSourceAgeDays` are the only remaining references, keep `sourceAgeDays` (it is still exercised by the existing test and exported for test coverage). If it has NO non-test callers and the test is no longer meaningful post-migration, remove both. Default: retain `sourceAgeDays` since it is independently useful (converts mtimes to age-days) and is tested.
 
-- [ ] **Remove the `ages` variable in `query.go`**: the call to `chunkSourceAges` that used to populate `ages` (line ~1325) is already gone from Task 2.7. Confirm the `ages` local variable and the block `if ages != nil { ... }` are removed and the code reads simply:
+- [ ] **Delete `chunkSourceAges`** from `/Users/joe/repos/personal/engram/internal/cli/recency.go`. Remove the full function body (currently lines 73–88).
+
+- [ ] **Confirm `readManifest` placement.** Run:
+  ```
+  grep -n "func readManifest" /Users/joe/repos/personal/engram/internal/cli/*.go
+  ```
+  Expected: `ingest.go` only (already there; no move needed). The call at `recency.go:76` inside `chunkSourceAges` is being deleted with the function itself — `readManifest` remains in `ingest.go` with its existing callers (`RunIngest`).
+
+- [ ] **Remove the `ages` local variable in `query.go`**: confirm the `chunkSourceAges` call that used to populate `ages` is already gone from Task 2.7. Verify the recency block now reads:
   ```go
   if deps.Now != nil {
       params := defaultRecencyParams()
@@ -1188,11 +1394,13 @@ func TestNewestChunkItemsTieBreaksByTurnDescIngestedAt(t *testing.T) {
   ```
   targ check-full
   ```
-  Expected: clean. The `readManifest`/`sourceAgeDays` helpers remain (used by migration backfill in `ingestSource`).
+  Expected: clean. No dead-code lint from `readManifest` (it stays in `ingest.go` with callers). `sourceAgeDays` retained (tested via `ExportSourceAgeDays`/`TestSourceAgeDays`).
 
 ---
 
-#### Task 2.10 — Stable chunk-id helper + in-memory id-set (`loadChunkRecords` returns `[]chunk.Record`)
+#### Task 2.10 — Stable chunk-id helper + in-memory id-set (`buildChunkIDSet` returns `map[string]bool`)
+
+> **Contract item 1+2 verification:** Chunk-id = `source#anchor` per spec §3.2. `buildChunkIDSet` keys by `r.Source+"#"+r.Anchor` (NOT `ContentHash`). The function is DI-compliant: injected `listIndexes` and `readFile` funcs, no direct `os.*` calls. Returns `map[string]bool` (not `map[string]struct{}`). Component 5 reuses this function via `AmendDeps` — it does NOT implement a second os.*-based loader.
 
 The spec calls for: a stable chunk-id (already `source#anchor` via `chunkNotePath`); `loadChunkRecords` is O(total) — build an in-memory id-set after load rather than reach for a non-existent O(1) lookup. This task exposes that id-set builder for the `engram amend --chunk-source` validation in Component 5.
 
@@ -1261,6 +1469,8 @@ func TestChunkIDSetContainsLoadedRecords(t *testing.T) {
 // buildChunkIDSet loads all chunk records from chunksDir and returns a
 // set of "source#anchor" id strings. This is an O(total chunks) scan;
 // callers should build it once and reuse the map for O(1) validation.
+// DI-compliant: accepts injected listIndexes and readFile funcs (no os.* calls).
+// Returns map[string]bool for consistent membership testing (Component 5 reuses this).
 func buildChunkIDSet(
 	chunksDir string,
 	listIndexes func(dir string) ([]string, error),
@@ -1293,15 +1503,16 @@ func buildChunkIDSet(
 }
 ```
 
-- [ ] **Add the export** to `export_test.go`:
+- [ ] **Add the export** to `/Users/joe/repos/personal/engram/internal/cli/export_test.go`:
   ```go
   // ExportBuildChunkIDSet exposes buildChunkIDSet for validation tests.
+  // Component 5 reuses buildChunkIDSet (not a second implementation) via AmendDeps injection.
   func ExportBuildChunkIDSet(
-      chunksDir string,
-      listIndexes func(dir string) ([]string, error),
-      readFile func(path string) ([]byte, error),
+  	chunksDir string,
+  	listIndexes func(dir string) ([]string, error),
+  	readFile func(path string) ([]byte, error),
   ) (map[string]bool, error) {
-      return buildChunkIDSet(chunksDir, listIndexes, readFile)
+  	return buildChunkIDSet(chunksDir, listIndexes, readFile)
   }
   ```
 
@@ -1327,24 +1538,30 @@ func buildChunkIDSet(
   targ check-nils
   ```
 
-- [ ] **Commit.**
+- [ ] **Commit.** Stage ALL changed files from Tasks 2.1–2.10 together in one commit (do not commit incrementally after each task):
   ```
   git add internal/chunk/index.go internal/chunk/ingestedat_test.go \
           internal/cli/ingest.go internal/cli/ingest_test.go \
           internal/cli/recency.go internal/cli/recency_test.go \
+          internal/cli/recency_eval_test.go \
           internal/cli/export_test.go internal/cli/query.go
   git commit -m "$(cat <<'EOF'
   feat(chunk): append-only index + per-chunk IngestedAt recency (D5)
 
   - chunk.Record gains IngestedAt time.Time (json omitempty; zero = legacy)
+  - IngestDeps gains Now func() time.Time (nil-safe; wired to time.Now in prod)
   - loadPriorVectors → loadPriorRecords (returns full Record, preserves IngestedAt)
   - rebuildIndex → merge-append: keep prior records, add only new-hash chunks, never delete
-  - Thread transcript per-row LastTimestamp as IngestedAt; markdown uses deps.Now()
-  - Migration backfill: zero-IngestedAt records get manifest mtime on first merge
+  - Thread transcript per-session LastTimestamp as IngestedAt (per-session approximation:
+    intra-session spread negligible; cross-session distinguished by source; YAGNI for per-row)
+  - Markdown chunks use deps.Now() as IngestedAt
+  - Migration backfill: zero-IngestedAt records get manifest mtime on first merge (closure-injected)
   - applyChunkRecency drops ageDaysBySource param; reads r.record.IngestedAt directly
   - newestChunkItems drops ages param; sorts by IngestedAt descending (zero sorts last)
-  - chunkSourceAges removed (no callers)
-  - buildChunkIDSet: O(total) load + in-memory id-set for amend validation (Component 5)
+  - chunkSourceAges removed (no callers); sourceAgeDays retained (tested)
+  - buildChunkIDSet: O(total) load + source#anchor id-set; DI-compliant; map[string]bool
+  - recency_eval_test.go migrated to IngestedAt-based pool + ExportApplyChunkRecencyByTime
+  - ExportApplyChunkRecencyByTime, ExportNewestChunkItemsByTime, ExportNewScoredChunkWithIngestedAt added
 
   AI-Used: [claude]
   EOF
@@ -1355,28 +1572,33 @@ func buildChunkIDSet(
 
 ### Risks/notes
 
-1. **`ExportApplyChunkRecency` alias breakage:** The existing alias `ExportApplyChunkRecency = applyChunkRecency` in `export_test.go` is a bare function-value assignment. After Task 2.7 changes the signature, any call site referencing the old 4-param form will fail to compile. The plan covers updating `TestApplyChunkRecencyLiftsRecentOverStaleHighCosine`, but the synthesizer should grep for any other callers of `ExportApplyChunkRecency` across the eval tests (`recency_eval_test.go`) before executing Task 2.7 — that file uses the source-age map form and will need its own migration.
+1. **`ExportApplyChunkRecency` alias removed:** The `ExportApplyChunkRecency = applyChunkRecency` var alias in `export_test.go` is replaced by the explicit `ExportApplyChunkRecencyByTime` function form. The synthesizer must also grep `recency_eval_test.go` for `ExportApplyChunkRecency` before executing Task 2.7 — that file uses the old 4-arg form at line 221 and must be migrated as part of Task 2.7's GREEN step.
 
-2. **`readManifest` dependency in both ingest and recency:** After removing `chunkSourceAges`, `readManifest` is still used in `ingestSource` (backfill, Task 2.5). The synthesizer must verify `readManifest`'s `deps` parameter type is `IngestDeps` (not `QueryDeps`) — the current recency.go calls it with `IngestDeps{ReadFile: deps.Read}` inside `chunkSourceAges`; that call site is being deleted, so `readManifest` should only be called from `ingest.go` after this component lands.
+2. **`readManifest` stays in `ingest.go`:** After removing `chunkSourceAges` (Task 2.9), the only call to `readManifest` in `recency.go` is gone. `readManifest` is defined in `ingest.go` (not `recency.go`) where it keeps its other callers (`RunIngest` at line 78). No dead-code issue. `sourceAgeDays` (defined in `recency.go`) is retained because `TestSourceAgeDays` + `ExportSourceAgeDays` still exercise it — confirm with `targ check-full`.
 
-3. **`IngestDeps.Now` nil-safety across existing tests:** Adding `Now func() time.Time` to `IngestDeps` means all existing test fixtures that construct `IngestDeps` literals without `Now` will have `nil` for that field. The plan guards `deps.Now()` with a nil check in `ingestSource`; the synthesizer should verify all other call sites of `deps.Now()` (if any are added) also nil-guard.
+3. **`IngestDeps.Now` nil-safety across existing tests:** Adding `Now func() time.Time` to `IngestDeps` means all existing test fixtures that construct `IngestDeps` literals without `Now` will have `nil` for that field. The plan guards with `if ingestTime.IsZero() && deps.Now != nil` in `ingestSource` — no panic risk. Synthesizer should verify no other added call site omits this guard.
 
-### Component 3: One clustering over matched chunks+notes + top-K centroid nomination (D1/D7)
+4. **`rebuildIndex` signature includes `backfillTime` from Task 2.3:** Both params (`ingestTime` and `backfillTime`) are added in Task 2.3's GREEN step to avoid two intermediate broken builds (CA-04). Task 2.5 only wires the closure from `ingestSource` — `rebuildIndex` signature is already correct.
 
-**Files:** `internal/cli/query.go`, `internal/cli/query_synthesis_test.go`, `internal/cli/synthesize_l2_property_test.go`, `internal/cli/query_unified_test.go`, `internal/cli/query_subgraph_test.go`
+5. **`buildChunkIDSet` is the SINGLE id-set implementation:** Component 5 (`AmendDeps.LoadChunkIDs`) must wire this function (not implement a second `os.ReadDir`-based loader). Component 5's `AmendDeps` should inject `listIndexes func(dir string)([]string,error)` and `readFile func(path string)([]byte,error)` and call `buildChunkIDSet`. Production wiring supplies `os.ReadDir`/`os.ReadFile` in `newOsAmendDeps`. The `map[string]bool` return type (not `map[string]struct{}`) applies consistently across Components 2 and 5.
+
+### Component 3: Unified clustering + top-K candidate nomination (D1 + D7)
+
+**Files:** `internal/cli/query.go`, `internal/cli/query_synthesis_test.go`, `internal/cli/query_subgraph_test.go`, `internal/cli/synthesize_l2_property_test.go`, `internal/cli/query_unified_test.go`
+
+**Dependency gate:** Before starting, confirm Component 2 landed:
+- [ ] `grep IngestedAt internal/chunk/index.go` — shows `time.Time` field.
+- [ ] `targ check-full` — all checks pass (Component 2 is clean).
 
 ---
 
-#### Task 3.1 — Replace singular `NearestL2` with `CandidateL2s []queryCandidateL2` in struct + adapt all call sites
+#### Task 3.1 — Rename `nearest_l2` → `candidate_l2s` (struct + payload field)
 
-**Scope:** Pure rename/reshape with no logic change. The existing tests become the RED baseline once we update `queryParsed` in tests to expect the new field and confirm the old `nearest_l2` YAML key is gone.
+**Scope:** Rename the singular `queryNearestL2` type and the `NearestL2` field on `queryCluster` to the plural `queryCandidateL2` / `CandidateL2s []queryCandidateL2`. Wire a temporary stub that returns a 1-element slice so existing behavior is preserved. RED-then-GREEN: the new test asserts the payload emits `candidate_l2s` (a sequence) and has no `nearest_l2` key.
 
-- [ ] **Write a failing test** in `/Users/joe/repos/personal/engram/internal/cli/query_synthesis_test.go` that asserts the wire field is `candidate_l2s` (slice) and `nearest_l2` is absent:
+- [ ] **Write the failing test.** Add to `internal/cli/query_synthesis_test.go`:
 
 ```go
-// TestQuery_SynthesizeL2_EmitsCandidateL2sSlice is the RED baseline for the
-// D7 struct rename: it asserts candidate_l2s (not nearest_l2) appears in the
-// YAML payload, and that it is a sequence (not a scalar).
 func TestQuery_SynthesizeL2_EmitsCandidateL2sSlice(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1430,7 +1652,7 @@ Expected:
 
 - [ ] **In `internal/cli/query.go`, rename `queryNearestL2` → `queryCandidateL2` and reshape `queryCluster`:**
 
-Replace (lines ~290–296):
+In `internal/cli/query.go`, locate lines ~290–296 containing the `queryNearestL2` struct definition. Replace:
 ```go
 // queryNearestL2 is the nearest existing L2 note for a cluster centroid. It
 // carries the RAW max(situation,body) cosine; the recall skill applies its own
@@ -1451,7 +1673,7 @@ type queryCandidateL2 struct {
 }
 ```
 
-Replace in `queryCluster` (line ~260):
+In `queryCluster` (line ~260), locate the `NearestL2` field. Replace:
 ```go
 	NearestL2  *queryNearestL2      `yaml:"nearest_l2,omitempty"`
 ```
@@ -1460,83 +1682,82 @@ With:
 	CandidateL2s []queryCandidateL2 `yaml:"candidate_l2s,omitempty"`
 ```
 
-- [ ] **Fix all compile errors caused by the rename in one pass** (do NOT run `targ test` after each — collect them all first):
+- [ ] **Fix all compile errors caused by the rename in one pass.** Do NOT run `targ test` after each change — collect all sites first, then fix together.
 
-In `renderClusters` (~line 1833), replace:
-```go
-				NearestL2:  nearestL2ForTier(centroid, l2Notes, tiers),
-```
-With (temporarily — the real function comes in Task 3.2):
-```go
-				CandidateL2s: candidateL2sStub(centroid, l2Notes, tiers),
-```
-Add a stub function below:
-```go
-// candidateL2sStub is a placeholder replaced by topKCandidateL2sForTier in Task 3.2.
-func candidateL2sStub(centroid []float32, l2Notes tierIndex, tiers []string) []queryCandidateL2 {
-	if len(tiers) > 0 && !slices.Contains(tiers, tierL2) {
-		return nil
-	}
-	path, cosine, found := nearestInTierIndex(centroid, l2Notes)
-	if !found {
-		return nil
-	}
-	return []queryCandidateL2{{Path: path, Cosine: cosine}}
-}
-```
+  **CA-12 note:** `nearestL2ForTier` is called from exactly two places: `renderClusters` (~line 1833) and `clusterChunkItems` (~line 695). It MUST NOT be deleted until BOTH call sites are replaced with `candidateL2sStub` below. Replace both call sites first, then remove `nearestL2ForTier`.
 
-In `clusterChunkItems` (~line 695), replace:
-```go
-			NearestL2:  nearestL2ForTier(autoK.Centroids[clusterID], l2Notes, tiers),
-```
-With:
-```go
-			CandidateL2s: candidateL2sStub(autoK.Centroids[clusterID], l2Notes, tiers),
-```
+  In `renderClusters` (~line 1833), replace:
+  ```go
+  				NearestL2:  nearestL2ForTier(centroid, l2Notes, tiers),
+  ```
+  With (temporarily — the real function comes in Task 3.2):
+  ```go
+  				CandidateL2s: candidateL2sStub(centroid, l2Notes, tiers),
+  ```
 
-Remove `nearestL2ForTier` (now dead; `nearestInTierIndex` remains — it is still called by `nearestL3For`).
+  In `clusterChunkItems` (~line 695), replace:
+  ```go
+  			NearestL2:  nearestL2ForTier(autoK.Centroids[clusterID], l2Notes, tiers),
+  ```
+  With:
+  ```go
+  			CandidateL2s: candidateL2sStub(autoK.Centroids[clusterID], l2Notes, tiers),
+  ```
 
-- [ ] **Update `queryParsed` in `internal/cli/query_subgraph_test.go`** (lines ~169–173):
+  Add the stub function below `clusterChunkItems` (or below `renderClusters`):
+  ```go
+  // candidateL2sStub is a placeholder replaced by topKCandidateL2sForTier in Task 3.2.
+  func candidateL2sStub(centroid []float32, l2Notes tierIndex, tiers []string) []queryCandidateL2 {
+  	if len(tiers) > 0 && !slices.Contains(tiers, tierL2) {
+  		return nil
+  	}
+  	path, cosine, found := nearestInTierIndex(centroid, l2Notes)
+  	if !found {
+  		return nil
+  	}
+  	return []queryCandidateL2{{Path: path, Cosine: cosine}}
+  }
+  ```
 
-Replace:
-```go
-		NearestL2 *struct {
-			Path   string  `yaml:"path"`
-			Cosine float32 `yaml:"cosine"`
-		} `yaml:"nearest_l2"`
-```
-With:
-```go
-		CandidateL2s []struct {
-			Path   string  `yaml:"path"`
-			Cosine float32 `yaml:"cosine"`
-		} `yaml:"candidate_l2s"`
-```
+  Now that both call sites are replaced, remove `nearestL2ForTier` (now dead; `nearestInTierIndex` remains — it is still called by `nearestL3For` and by the stub above).
 
-- [ ] **Update `synthesize_l2_property_test.go`** (references `cluster.NearestL2` at lines ~74–77):
+- [ ] **Update `queryParsed` in `internal/cli/query_subgraph_test.go`** (lines ~169–173). Locate the `NearestL2` field definition in the `queryParsed` struct. Replace:
+  ```go
+  		NearestL2 *struct {
+  			Path   string  `yaml:"path"`
+  			Cosine float32 `yaml:"cosine"`
+  		} `yaml:"nearest_l2"`
+  ```
+  With:
+  ```go
+  		CandidateL2s []struct {
+  			Path   string  `yaml:"path"`
+  			Cosine float32 `yaml:"cosine"`
+  		} `yaml:"candidate_l2s"`
+  ```
 
-Replace:
-```go
-		for _, cluster := range parsed.Clusters {
-			g.Expect(cluster.NearestL2).NotTo(BeNil(),
-				"a near-duplicate L2 must always surface as nearest_l2")
-			g.Expect(cluster.NearestL2.Cosine).To(BeNumerically(">=", noOpFloor),
-				"a near-duplicate L2 must report raw cosine >= 0.95 (the no-op band precondition)")
-		}
-```
-With:
-```go
-		for _, cluster := range parsed.Clusters {
-			g.Expect(cluster.CandidateL2s).NotTo(BeEmpty(),
-				"a near-duplicate L2 must always surface in candidate_l2s")
-			g.Expect(cluster.CandidateL2s[0].Cosine).To(BeNumerically(">=", noOpFloor),
-				"the nearest L2 (first candidate) must report raw cosine >= 0.95")
-		}
-```
+- [ ] **Update `synthesize_l2_property_test.go`** (references `cluster.NearestL2` at lines ~74–77). Locate the assertion block. Replace:
+  ```go
+  		for _, cluster := range parsed.Clusters {
+  			g.Expect(cluster.NearestL2).NotTo(BeNil(),
+  				"a near-duplicate L2 must always surface as nearest_l2")
+  			g.Expect(cluster.NearestL2.Cosine).To(BeNumerically(">=", noOpFloor),
+  				"a near-duplicate L2 must report raw cosine >= 0.95 (the no-op band precondition)")
+  		}
+  ```
+  With:
+  ```go
+  		for _, cluster := range parsed.Clusters {
+  			g.Expect(cluster.CandidateL2s).NotTo(BeEmpty(),
+  				"a near-duplicate L2 must always surface in candidate_l2s")
+  			g.Expect(cluster.CandidateL2s[0].Cosine).To(BeNumerically(">=", noOpFloor),
+  				"the nearest L2 (first candidate) must report raw centroid cosine >= 0.95")
+  		}
+  ```
 
-- [ ] **Update `query_unified_test.go`** (lines ~60–77): replace `NearestL2 *struct{...}` → `CandidateL2s []struct{...}` and update the assertion `c.NearestL2 != nil && c.NearestL2.Path != ""` → `len(c.CandidateL2s) > 0 && c.CandidateL2s[0].Path != ""`.
+- [ ] **Update `query_unified_test.go`** (lines ~60–77). Locate `NearestL2 *struct{...}` in the local parsed struct. Replace `NearestL2 *struct{...} \`yaml:"nearest_l2"\`` → `CandidateL2s []struct{...} \`yaml:"candidate_l2s"\`` and update the assertion `c.NearestL2 != nil && c.NearestL2.Path != ""` → `len(c.CandidateL2s) > 0 && c.CandidateL2s[0].Path != ""`.
 
-- [ ] **Update all `cluster.NearestL2` references in `query_synthesis_test.go`** (there are ~10 references):
+- [ ] **Update all `cluster.NearestL2` references in `query_synthesis_test.go`** (~10 references). Apply these substitutions throughout the file:
   - `g.Expect(cluster.NearestL2).NotTo(BeNil(), ...)` → `g.Expect(cluster.CandidateL2s).NotTo(BeEmpty(), ...)`
   - `cluster.NearestL2.Cosine` → `cluster.CandidateL2s[0].Cosine`
   - `cluster.NearestL2.Path` → `cluster.CandidateL2s[0].Path`
@@ -1554,7 +1775,7 @@ With:
 
 #### Task 3.2 — Implement `topKCandidateL2s` + replace stub
 
-**Scope:** Add the real top-K logic. Write the critical "covering L2 is not #1 but appears in top-K" test BEFORE wiring the function.
+**Scope:** Add the real top-K logic. Write the critical "covering L2 is not #1 but appears in top-K" test BEFORE wiring the function. The spec confirms: top-K by **centroid cosine** (not max-member cosine — rejected because it overfits to a cluster fragment and masks multi-theme clusters). The sort key is `max(situation-cosine, body-cosine)` to the centroid, consistent with `nearestInTierIndex`.
 
 - [ ] **Write the covering-L2-not-centroid-#1 test** in `internal/cli/query_synthesis_test.go`. This test fails with the stub (which returns only 1 entry and may miss the covering L2 when it isn't nearest):
 
@@ -1631,19 +1852,19 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 	g.Expect(paths).To(ContainElement("l2b.fact.md"), "l2b must appear in candidate_l2s")
 	g.Expect(paths).To(ContainElement("l2c.fact.md"), "l2c must appear in candidate_l2s")
 
-	// Cosines must be descending.
+	// Cosines must be descending (centroid cosine sort order).
 	for i := 1; i < len(candidates); i++ {
 		prev := candidates[i-1].(map[string]any)
 		curr := candidates[i].(map[string]any)
 		prevCos, _ := prev["cosine"].(float64)
 		currCos, _ := curr["cosine"].(float64)
 		g.Expect(prevCos).To(BeNumerically(">=", currCos),
-			"candidate_l2s must be sorted cosine desc")
+			"candidate_l2s must be sorted centroid-cosine desc")
 	}
 }
 ```
 
-Also add the K≥3 test (this one fails with stub since stub returns only 1):
+Also add the K≥3 test (this one fails with the stub since stub returns only 1):
 ```go
 // TestQuery_SynthesizeL2_CandidateL2sTopKAtLeastThree verifies that when >=3
 // L2 notes exist, candidate_l2s carries at least 3 entries sorted cosine desc.
@@ -1701,14 +1922,14 @@ func TestQuery_SynthesizeL2_CandidateL2sTopKAtLeastThree(t *testing.T) {
 		prevCos, _ := prev["cosine"].(float64)
 		currCos, _ := curr["cosine"].(float64)
 		g.Expect(prevCos).To(BeNumerically(">=", currCos),
-			"candidate_l2s must be sorted cosine desc (index %d >= %d)", i-1, i)
+			"candidate_l2s must be sorted centroid-cosine desc (index %d >= %d)", i-1, i)
 	}
 }
 ```
 
 - [ ] Run `targ test 2>&1 | grep -E "FAIL|PASS"` — both new tests fail (stub returns only 1 entry).
 
-- [ ] **Implement `topKCandidateL2s` and `topKCandidateL2sForTier`** in `internal/cli/query.go`. Add the constant and both functions:
+- [ ] **Implement `topKCandidateL2s` and `topKCandidateL2sForTier`** in `internal/cli/query.go`. Add after `nearestInTierIndex` (~line 1578) and before `nearestL3ForTier`:
 
 ```go
 // candidateL2K is the minimum number of candidate L2s to nominate per cluster.
@@ -1717,10 +1938,12 @@ func TestQuery_SynthesizeL2_CandidateL2sTopKAtLeastThree(t *testing.T) {
 const candidateL2K = 3
 
 // topKCandidateL2s returns the top-K L2 notes nearest the centroid by
-// max(situation,body) cosine, sorted descending by cosine (ties broken by
-// lexicographic path for stability). K is at least candidateL2K; when fewer
+// max(situation,body) cosine, sorted descending by centroid cosine (ties broken
+// by lexicographic path for stability). K is at least candidateL2K; when fewer
 // than candidateL2K L2 notes exist, all are returned. An empty index returns nil.
 // No cosine threshold is applied — nomination is generous (D7).
+// Sort key is CENTROID cosine (per spec §3.3: "top-K by centroid cosine");
+// max-member cosine was rejected because it overfits to a cluster fragment.
 func topKCandidateL2s(centroid []float32, idx tierIndex) []queryCandidateL2 {
 	if len(idx.paths) == 0 {
 		return nil
@@ -1776,23 +1999,23 @@ func topKCandidateL2sForTier(centroid []float32, l2Notes tierIndex, tiers []stri
 }
 ```
 
-- [ ] **Replace the stub** everywhere it is called. In `renderClusters`:
-```go
-			CandidateL2s: candidateL2sStub(centroid, l2Notes, tiers),
-```
-→
-```go
-			CandidateL2s: topKCandidateL2sForTier(centroid, l2Notes, tiers),
-```
+- [ ] **Replace the stub** everywhere it is called. In `renderClusters` (~line 1833):
+  ```go
+  			CandidateL2s: candidateL2sStub(centroid, l2Notes, tiers),
+  ```
+  →
+  ```go
+  			CandidateL2s: topKCandidateL2sForTier(centroid, l2Notes, tiers),
+  ```
 
-In `clusterChunkItems`:
-```go
-			CandidateL2s: candidateL2sStub(autoK.Centroids[clusterID], l2Notes, tiers),
-```
-→
-```go
-			CandidateL2s: topKCandidateL2sForTier(autoK.Centroids[clusterID], l2Notes, tiers),
-```
+  In `clusterChunkItems` (~line 695):
+  ```go
+  			CandidateL2s: candidateL2sStub(autoK.Centroids[clusterID], l2Notes, tiers),
+  ```
+  →
+  ```go
+  			CandidateL2s: topKCandidateL2sForTier(autoK.Centroids[clusterID], l2Notes, tiers),
+  ```
 
 - [ ] Remove `candidateL2sStub` (now dead code).
 
@@ -1806,7 +2029,9 @@ In `clusterChunkItems`:
 
 #### Task 3.3 — Extend `runSynthesizeL2Query` to include matched chunks in the unified clustering (D1)
 
-**Scope:** Add chunk loading + scoring inside `runSynthesizeL2Query` and extend the subgraph members for D1's "one clustering over the matched set."
+**Scope:** Add chunk loading + scoring inside `runSynthesizeL2Query` and extend the subgraph members for D1's "one clustering over the matched set." Diff context: in `internal/cli/query.go`, the current `runSynthesizeL2Query` body (lines ~2062–2094) is a complete replacement. Preserve the function signature `func runSynthesizeL2Query(ctx, args, notes, hits, limit, deps, stdout)` and the opening `l1l2Hits := filterHitsToTiers(...)` + `nowL2` block unchanged. Replace from the `union, err := unionDirectHits(...)` line (line ~2069) through `return renderQueryPayload(stdout, merged)` (line ~2094) with the new body below.
+
+**docs-F3 justification:** The plan keeps `mergeProvenances(union, expandedSubgraph{}, ...)` (empty subgraph). This is deliberate and correct per spec §2 step 2: items below the match threshold are context for the agent, not synthesis inputs; the resolved items for `--synthesize-l2` come from the direct hits union (returned by `unionDirectHits`) plus chunk items appended separately. Cluster representatives are not promoted into `items[]` in this mode because the L2 representative is agent-decided, not binary-computed — passing the real subgraph to `mergeProvenances` would incorrectly promote cluster reps as items, bypassing the agent's coverage judgment. The `phrasedCluster` carries `subgraph` (with chunk members) for `renderClusters` → `collectClusterMembers`, so cluster member paths (including chunks) are correctly reported in the YAML output. The empty `expandedSubgraph{}` passed to `mergeProvenances` means only `mergeClusterReps` and `mergeHubItems` are no-ops — the direct-hit items path (`for _, hit := range directHits`) is unaffected.
 
 - [ ] **Write a failing test** in `internal/cli/query_synthesis_test.go` that runs `--synthesize-l2` with a `ChunksDir` configured, and asserts that chunk paths (containing `#`) appear as cluster members:
 
@@ -1918,8 +2143,20 @@ Add imports `"github.com/toejough/engram/internal/chunk"` and `"strings"` to `qu
 
 - [ ] Run `targ test 2>&1 | grep -E "FAIL|pass"` — fails: no chunk members in clusters; chunk kind may or may not appear in items.
 
-- [ ] **Add `kind` field to `subgraphMember`** in `internal/cli/query.go` (lines ~367–373):
+- [ ] **Add `kind` field to `subgraphMember`** in `internal/cli/query.go`. Locate the struct at lines ~365–373. Replace:
 
+```go
+// subgraphMember bundles a node's basename, vault-relative path,
+// sidecar vector, query-similarity score, and (optionally) cached body.
+type subgraphMember struct {
+	basename string
+	notePath string
+	vector   []float32
+	score    float32
+	content  string
+}
+```
+With:
 ```go
 // subgraphMember bundles a node's basename, vault-relative path,
 // sidecar vector, query-similarity score, and (optionally) cached body.
@@ -1934,29 +2171,17 @@ type subgraphMember struct {
 }
 ```
 
-- [ ] **Update `collectClusterMembers`** to propagate the member's kind to `queryClusterMember` path. Wait — `queryClusterMember` only has `Path`, `Score`, `IsRepresentative`. Chunk paths are already in `source#anchor` form (from `member.notePath`), so no changes needed to `queryClusterMember`. The `kind` field on `subgraphMember` is used only to tag resolved items. Check if `collectClusterMembers` / `renderClusters` needs changes — it doesn't for the Path field, since the path is already set correctly.
+- [ ] **CA-09 fix — `collectClusterMembers` works correctly for chunk members.** Verify the analysis:
 
-- [ ] **Extend `runSynthesizeL2Query`** to load chunks and include them in the subgraph:
+  `collectClusterMembers` (lines ~798–840) uses `member.notePath` directly for `queryClusterMember.Path` — no `basename` lookup. `memberMatchesTier` (line ~1283) calls `itemMatchesTier(resolvedItem{content: member.content}, tiers)`. In `runSynthesizeL2Query`, `tiers=nil` flows through `aggregatedSummary.tiers=nil` to `renderClusters`, so `memberMatchesTier` returns `true` unconditionally for chunk members (the `len(tiers)==0` early-return at line 1284 fires). Chunk `notePath` is already `source#anchor` (from `chunkNotePath()`), so `Path` in the YAML output is correct.
 
-Replace the body of `runSynthesizeL2Query` (starting at the `union, err := unionDirectHits` line) with:
+  The `basename` field on chunk `subgraphMember` will be `""` (empty string). This is safe because `mergeProvenances` receives `expandedSubgraph{}` (empty) in this function — `mergeClusterReps` and `mergeHubItems` never iterate the chunk members. However, set `basename` on chunk members to the chunk notePath to prevent `byBasename[""]` key collisions if any future refactor passes the real subgraph to `mergeProvenances`:
+
+  In the chunk-append loop in the new `runSynthesizeL2Query` body below, set `basename: path` on the chunk `subgraphMember`.
+
+- [ ] **Replace `runSynthesizeL2Query` body.** In `internal/cli/query.go`, locate `runSynthesizeL2Query` starting at line ~2053. Keep the function signature and the opening block (lines ~2062–2067: `l1l2Hits`, `nowL2`) unchanged. Replace from the `union, err := unionDirectHits(...)` line (~2069) through `return renderQueryPayload(stdout, merged)` (~2094) with:
 
 ```go
-func runSynthesizeL2Query(
-	ctx context.Context,
-	args QueryArgs,
-	notes []vaultgraph.Note,
-	hits []compatibleSidecar,
-	limit int,
-	deps QueryDeps,
-	stdout io.Writer,
-) error {
-	l1l2Hits := filterHitsToTiers(hits, args.VaultPath, deps.Read, []string{tierL1, tierL2})
-
-	var nowL2 time.Time
-	if deps.Now != nil {
-		nowL2 = deps.Now()
-	}
-
 	union, err := unionDirectHits(ctx, args.Phrases, l1l2Hits, args.VaultPath, limit, nowL2, deps)
 	if err != nil {
 		return err
@@ -1984,6 +2209,7 @@ func runSynthesizeL2Query(
 		for _, s := range scored {
 			path := chunkNotePath(s.record)
 			subgraph.members = append(subgraph.members, subgraphMember{
+				basename: path, // set to avoid byBasename[""] collisions if subgraph is ever passed to mergeProvenances
 				notePath: path,
 				content:  s.record.Text,
 				vector:   s.record.Vector,
@@ -2002,6 +2228,10 @@ func runSynthesizeL2Query(
 
 	report := clusterUnionForSynthesis(subgraph, strings.Join(args.Phrases, "\n"))
 
+	// mergeProvenances receives an empty expandedSubgraph{} deliberately:
+	// mergeClusterReps/mergeHubItems must not promote cluster reps into items[]
+	// because the L2 representative is agent-decided, not binary-computed (spec §2 step 4).
+	// Direct-hit items come from the union; chunk items are appended separately below.
 	resolved := mergeProvenances(union, expandedSubgraph{}, clusterReport{}, hubReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
 	resolved = append(resolved, chunkItems...)
@@ -2021,7 +2251,6 @@ func runSynthesizeL2Query(
 	}
 
 	return renderQueryPayload(stdout, merged)
-}
 ```
 
 - [ ] Run `targ test` — new test passes; all existing tests pass.
@@ -2061,17 +2290,21 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 
 **Risks/notes for the synthesizer:**
 
-1. **D5 recency dependency:** `runSynthesizeL2Query` calls `scoreChunks` directly (raw cosine, no recency). The D5 component changes `applyChunkRecency` to read `r.record.IngestedAt` instead of the `ageDaysBySource` map. My component deliberately bypasses recency (matching the spec's sequencing — D5 must land before the recall skill can use recency-weighted distillation, but the binary's clustering coordinate is raw cosine). No conflict as long as D5 doesn't change `scoreChunks`'s signature.
+1. **D5 recency dependency:** `runSynthesizeL2Query` calls `scoreChunks` directly (raw cosine, no recency). This is correct per spec §3.3: clustering coordinates are raw cosine per-item matched vectors (D1). D5 recency weighting applies at distillation time inside the recall skill (D6), not at clustering time in the binary. No conflict as long as D5 doesn't change `scoreChunks`'s signature.
 
-2. **`subgraphMember.kind` field:** The new `kind` field on `subgraphMember` is consumed immediately (in `runSynthesizeL2Query` → resolvedItem building). However, `collectClusterMembers` and `memberMatchesTier` do not use it — chunk members pass `memberMatchesTier` with `tiers=nil` because the empty-tiers path returns true unconditionally. If a future change adds tier filtering to `collectClusterMembers` for the synthesize-l2 path, chunk members (no frontmatter tier) will be dropped unless `memberMatchesTier` is updated to recognize `kind=chunkItemKind`.
+2. **`subgraphMember.kind` field:** The new `kind` field on `subgraphMember` is consumed immediately (in `runSynthesizeL2Query` → resolvedItem building). `collectClusterMembers` and `memberMatchesTier` do not use it — chunk members pass `memberMatchesTier` with `tiers=nil` because the empty-tiers path returns true unconditionally (line 1284). If a future change adds tier filtering to `collectClusterMembers` for the synthesize-l2 path, chunk members (no frontmatter tier) will be dropped unless `memberMatchesTier` is updated to recognize `kind=chunkItemKind`.
 
-3. **`mergeClusterReps` and chunk basenames:** `runSynthesizeL2Query` calls `mergeProvenances(union, expandedSubgraph{}, ...)` — the empty subgraph means `mergeClusterReps` is a no-op. Chunk subgraph members are NOT fed through `mergeClusterReps`, so the empty `basename` field on chunk members is safe. If a future refactor passes the real subgraph to `mergeProvenances` in `runSynthesizeL2Query`, chunk members with `basename=""` would all map to the same key — that would need fixing.
+3. **`mergeProvenances` with empty subgraph — justified:** The empty `expandedSubgraph{}` passed to `mergeProvenances` in `runSynthesizeL2Query` is correct per spec §2 step 4: the representative L2 is agent-decided, so the binary must not auto-promote cluster reps into items[]. The real subgraph (with chunk members, `basename` set to the chunk notePath) is carried in `phrasedCluster.subgraph` and IS used by `renderClusters` → `collectClusterMembers` to populate cluster member paths in the YAML output. If a future refactor mistakenly passes the real subgraph to `mergeProvenances` here, chunk members have `basename` set (not empty) so they won't collide at `byBasename[""]` — but their presence in items[] would violate the agent-judged coverage model.
+
+4. **CA-12 — `nearestL2ForTier` removal sequence:** `nearestL2ForTier` has exactly two call sites: `renderClusters` (~line 1833) and `clusterChunkItems` (~line 695). Task 3.1 replaces both with `candidateL2sStub` before deleting `nearestL2ForTier`. Task 3.2 then replaces `candidateL2sStub` with `topKCandidateL2sForTier` at both sites before deleting `candidateL2sStub`. Each deletion happens only after ALL call sites of the target function are replaced — never eagerly.
 
 ### Component 4: Exclude `Related to:` from the embed source (D3)
 
 **Goal:** `BodyText`/`ContentHash` must ignore a trailing `Related to:` section so a link-only edit (adding or changing `[[wikilinks]]` in that block) does not change the ContentHash or perturb the body vector. Recognition is conservative: the `Related to:` marker line followed only by relation bullets (`- [[…`) and blank lines. Inline prose mentioning "Related to:" is left intact.
 
 **Files:** `internal/embed/hash.go`, `internal/embed/hash_test.go`, `internal/embed/hash_property_test.go`
+
+---
 
 #### Task 4.1 — Strip a trailing `Related to:` block in `BodyText`
 
@@ -2098,7 +2331,13 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 
   Expected: `TestBodyText_ExcludesRelatedToSection` fails — actual still contains the `Related to:` lines.
 
-- [ ] Implement the minimal change in `internal/embed/hash.go`. Wire `stripRelatedToSection` into `BodyText`, and add `isRelatedToBlock` plus the two constants. Replace the existing `BodyText` and the `const (...)` block:
+- [ ] **Verify that `"bytes"` is already present in the import block.** In `/Users/joe/repos/personal/engram/internal/embed/hash.go`, the existing import block (lines 3–7) already imports `"bytes"` as the first entry — no change needed. (CA-13 false alarm: `bytes` was already imported before this task was planned.)
+
+- [ ] Implement the minimal change in `/Users/joe/repos/personal/engram/internal/embed/hash.go`. The edits are in two places:
+
+  **Where:** The `BodyText` function body (currently lines 9–13) and the `const (...)` block (currently lines 77–80). Replace both as follows:
+
+  In `hash.go`, locate `BodyText` (line 9–13) and replace its body so it calls `stripRelatedToSection`:
 
   ```go
   // BodyText returns the note body (frontmatter stripped) with any trailing
@@ -2110,6 +2349,8 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
   	return stripRelatedToSection(ExtractBody(raw))
   }
   ```
+
+  In `hash.go`, locate the `const (...)` block (currently lines 77–80, containing only `frontmatterDelim`) and replace it with the extended block that adds `relatedSectionMarker` and `relatedSectionBulletPfx`:
 
   ```go
   // unexported constants.
@@ -2125,20 +2366,31 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
   	// block only when every following non-blank line starts with this prefix.
   	relatedSectionBulletPfx = "- [["
   )
+  ```
 
+  Then, after the `extractFrontmatterField` function (currently ending at line 96), append the two new unexported functions. **Where:** end of file, after line 96.
+
+  ```go
   // stripRelatedToSection removes a trailing "Related to:" relation block from
   // body, returning body unchanged when no such block is present. The block is
   // recognised conservatively (see isRelatedToBlock): a "Related to:" marker
   // line whose following non-blank lines are all relation bullets. Recognising
   // only the LAST marker, and only when the lines after it qualify, leaves prose
   // that mentions "Related to:" inline untouched.
+  //
+  // Implementation note: bytes.Split(body, "\n") on a newline-terminated body
+  // produces a trailing empty element. Lines[:i] for i pointing at the marker
+  // therefore ends with the blank line(s) before the marker — joining with "\n"
+  // faithfully restores the body up to and including its final trailing newline.
+  // Do NOT bytes.TrimRight the result: that would remove the single trailing
+  // newline that is part of the body (CA-15 fix).
   func stripRelatedToSection(body []byte) []byte {
   	lines := bytes.Split(body, []byte("\n"))
 
   	for i := len(lines) - 1; i >= 0; i-- {
   		if bytes.Equal(bytes.TrimRight(lines[i], "\r"), []byte(relatedSectionMarker)) {
   			if isRelatedToBlock(lines[i+1:]) {
-  				return bytes.TrimRight(bytes.Join(lines[:i], []byte("\n")), "\n")
+  				return bytes.Join(lines[:i], []byte("\n"))
   			}
   		}
   	}
@@ -2171,6 +2423,8 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
   }
   ```
 
+  **Trailing-newline invariant (CA-15 fix):** `bytes.Split("...\nRelated to:\n- bullet.\n", "\n")` produces a trailing empty-string element. When the marker is at index `i`, `lines[:i]` ends with the blank-line elements between the body prose and the marker. `bytes.Join(lines[:i], "\n")` reconstructs the body including its final `"\n"` — the expected `want` value `"Information learned: when in X, S P O.\n"` matches exactly. The removed `bytes.TrimRight(..., "\n")` call from the original plan would have stripped that trailing newline and failed the test.
+
 - [ ] Run the test, confirm it PASSES:
 
   ```
@@ -2185,7 +2439,9 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
   targ check-full
   ```
 
-  Expected: clean. (`stripRelatedToSection`, `isRelatedToBlock`, and both constants are all referenced — no unused-symbol lint.)
+  Expected: clean. (`stripRelatedToSection`, `isRelatedToBlock`, and both new constants are all referenced — no unused-symbol lint.)
+
+---
 
 #### Task 4.2 — `ContentHash` is insensitive to link-only edits
 
@@ -2225,6 +2481,8 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
   ```
 
   Expected: clean.
+
+---
 
 #### Task 4.3 — Property: the `Related to:` block is hash-invisible (and real body changes still register)
 
@@ -2281,6 +2539,8 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 
   Expected: clean.
 
+---
+
 #### Task 4.4 — Conservative recognition edge cases
 
 - [ ] Add these RED unit tests to `internal/embed/hash_test.go`:
@@ -2327,9 +2587,13 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 
   Expected: clean.
 
+---
+
 #### Task 4.5 — Verify `ComputeState` correctly treats link-only changes as OK (not stale)
 
 - [ ] Add to `/Users/joe/repos/personal/engram/internal/embed/state_test.go` after `TestComputeState_Stale` (before the `fakeFS` type):
+
+  **Where:** `internal/embed/state_test.go` — append two new test functions after the existing `TestComputeState_Stale` function.
 
 ```go
 func TestComputeState_OK_AfterLinkOnlyEdit(t *testing.T) {
@@ -2414,7 +2678,7 @@ func TestComputeState_Stale_AfterBodyChange_BeyondLinks(t *testing.T) {
 
 After D3 ships, all existing sidecars whose notes have a "Related to:" section will be marked **stale** (their stored `ContentHash` was computed with the section included; the new code computes without it). The operator must run `engram embed apply --stale` (or `--force`) once to re-baseline. No code change is needed — `--stale` and `--force` already cover this. Add a one-sentence doc note on `EmbedApplyArgs.Force` so the intent is clear in the CLI struct.
 
-- [ ] Edit `/Users/joe/repos/personal/engram/internal/cli/embed.go` — update the `Force` field comment in `EmbedApplyArgs`:
+- [ ] **Where:** In `/Users/joe/repos/personal/engram/internal/cli/embed.go`, locate the `Force` field in the `EmbedApplyArgs` struct and replace the bare struct tag line with an explicit doc comment + tag pair:
 
 Old:
 ```go
@@ -2461,7 +2725,39 @@ once to re-baseline.
 
 ### Component 5: `engram amend` + `learn --chunk-source` (D2)
 
-**Files:** `internal/cli/amend.go` (new), `internal/cli/amend_test.go` (new), `internal/cli/learn.go` (add `ChunkSources` to `CommonLearnArgs`/`LearnArgs`/frontmatter docs), `internal/cli/relations.go` (add `resolveRelationTargetsStrict`), `internal/cli/targets.go` (wire `amend`; thread `--chunk-source` through learn lambdas), `internal/cli/export_test.go` (Export aliases)
+**Files:** `internal/cli/amend.go` (new), `internal/cli/amend_test.go` (new), `internal/cli/learn.go` (add `ChunkSources` to `LearnArgs`/frontmatter docs), `internal/cli/relations.go` (add `resolveRelationTargetsStrict`), `internal/cli/targets.go` (wire `amend`; thread `--chunk-source` through learn lambdas), `internal/cli/export_test.go` (Export aliases)
+
+**Chunk-id scheme (spec §3.2, locked):** The stable chunk id throughout this component is `source#anchor` — the string `r.Source + "#" + r.Anchor`. Frontmatter `sources:` values are `source#anchor` strings; `--chunk-source` arguments are `source#anchor` strings; validation checks membership in a `map[string]bool` keyed by `source#anchor`. `ContentHash` is NOT used as a chunk-id here.
+
+**Strand dependency order (CLR-004):**
+
+```
+Strand A (pure logic, no prereq):
+  5.1 — resolveRelationTargetsStrict
+
+Strand B (scaffold + relation, depends on A):
+  5.2 — ChunkSources field on LearnArgs + frontmatter sources:  (prereq: 5.1)
+  5.3 — AmendArgs + AmendDeps scaffold                          (prereq: 5.2)
+  5.4 — Relation-merge (idempotent Related to:)                 (prereq: 5.3)
+
+Strand C (chunk-id loader, no prereq / parallel with A):
+  5.8 — DI-compliant chunk-id set via buildChunkIDSet           (no prereq)
+
+Strand B+C merge:
+  5.5 — Provenance-merge (sources: frontmatter)                  (prereq: 5.3 + 5.8)
+
+Strand D (content + activate, depends on B+C):
+  5.6 — Field-replacement (situation/subject/predicate/object)   (prereq: 5.5)
+  5.7 — --activate sidecar bump                                  (prereq: 5.6)
+
+Wire:
+  5.9 — Wire amend in targets.go; thread --chunk-source in learn (prereq: 5.6)
+
+Integration:
+  5.10 — Round-trip integration test                             (prereq: 5.9)
+```
+
+Strands A and C can run in parallel. Strand B waits for A. B and C merge at 5.5. D depends on B+C. Wiring (5.9) depends on D. Integration (5.10) is last.
 
 ---
 
@@ -2512,7 +2808,7 @@ func TestResolveRelationTargetsStrict_ResolvedID_OK(t *testing.T) {
 
 - [ ] Run `targ test` — expect compile error (function not defined yet); confirm the test file compiles otherwise.
 
-- [ ] **Implement** in `internal/cli/relations.go`:
+- [ ] **Implement** in `internal/cli/relations.go`. `relatedSectionMarker` and `indexBasenamesByID` already live in `relations.go` — add after the existing helpers:
 
 ```go
 // unexported errors.
@@ -2552,10 +2848,13 @@ func resolveRelationTargetsStrict(relations, basenames []string) ([]string, erro
 }
 ```
 
-- [ ] Add export alias to `export_test.go`:
+Add `"errors"` to the import block of `internal/cli/relations.go` if not present.
+
+- [ ] Add export alias to `export_test.go` (inside `package cli`, not `package cli_test`):
 
 ```go
-ExportResolveRelationTargetsStrict = resolveRelationTargetsStrict
+// ExportResolveRelationTargetsStrict exposes resolveRelationTargetsStrict for relation tests.
+var ExportResolveRelationTargetsStrict = resolveRelationTargetsStrict
 ```
 
 - [ ] Run `targ test` — expect all four subtests pass.
@@ -2563,14 +2862,15 @@ ExportResolveRelationTargetsStrict = resolveRelationTargetsStrict
 
 ---
 
-#### Task 5.2 — `ChunkSources` field on `CommonLearnArgs` / `LearnArgs` + frontmatter `sources:` key
+#### Task 5.2 — `ChunkSources` field on `LearnArgs` + frontmatter `sources:` key
 
 **Prerequisite:** 5.1
 
+**Dependency note (CA-06):** `applyFactAmend` in Task 5.5 calls `yaml.Unmarshal` into `factFrontmatterDoc` and accesses `doc.Sources`. That field does NOT exist today. This task adds it. If Task 5.2 is skipped or the `Sources` field is missing from `factFrontmatterDoc`, `yaml.Unmarshal` will silently zero `doc.Sources` (Go zero-initializes absent YAML fields into struct fields), and the provenance merge in Task 5.5 will silently drop existing sources. Task 5.5 must not execute until Task 5.2 is complete and `targ check-full` passes.
+
+The chunk-ids passed via `--chunk-source` are `source#anchor` strings (spec §3.2), e.g. `/sessions/s.jsonl#turn-1`. Tests assert the written frontmatter contains the `source#anchor` form, not `sha256:...` content hashes.
+
 - [ ] **Write failing test** in `internal/cli/learn_test.go` (new subtests `TestLearnFact_ChunkSources_*`):
-  - `WrittenToFrontmatter`: a `LearnArgs{Type:"fact", ChunkSources:["sha256:abc", "sha256:def"], ...}` produces YAML with `sources: [sha256:abc, sha256:def]` in the frontmatter.
-  - `EmptyChunkSources_NoSources`: `ChunkSources: nil` produces no `sources:` key.
-  - `FeedbackChunkSources_Written`: same contract for feedback.
 
 ```go
 // internal/cli/learn_test.go (appended)
@@ -2579,58 +2879,52 @@ func TestLearnFact_ChunkSources_WrittenToFrontmatter(t *testing.T) {
     t.Parallel()
     g := gomega.NewWithT(t)
 
+    var written []byte
     args := cli.LearnArgs{
         Type: "fact", Slug: "test-slug", Vault: t.TempDir(),
         Source: "test", Situation: "testing chunk sources",
         Subject: "A", Predicate: "has", Object: "B",
-        ChunkSources: []string{"sha256:abc", "sha256:def"},
+        ChunkSources: []string{"/sessions/s.jsonl#turn-1", "/sessions/s.jsonl#turn-2"},
     }
-    // wire minimal deps
     deps := cli.LearnDeps{
-        Now:        func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-        Getenv:     func(string) string { return "" },
-        StatDir:    func(string) error { return nil },
-        InitVault:  func(string) error { return nil },
-        ListIDs:    func(string) ([]string, error) { return nil, nil },
+        Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+        Getenv:        func(string) string { return "" },
+        StatDir:       func(string) error { return nil },
+        InitVault:     func(string) error { return nil },
+        ListIDs:       func(string) ([]string, error) { return nil, nil },
         ListBasenames: func(string) ([]string, error) { return nil, nil },
-        Lock:       func(string) (func(), error) { var written []byte; return func(){}, nil },
-        WriteNew:   func(path string, data []byte) error { written = data; return nil },
+        Lock:          func(string) (func(), error) { return func() {}, nil },
+        WriteNew:      func(_ string, data []byte) error { written = data; return nil },
     }
-    // … need to capture written content
-    var written []byte
-    deps.WriteNew = func(_ string, data []byte) error { written = data; return nil }
-    deps.Lock = func(string) (func(), error) { return func() {}, nil }
-    deps.ListIDs = func(string) ([]string, error) { return nil, nil }
-    deps.ListBasenames = func(string) ([]string, error) { return nil, nil }
 
     var buf strings.Builder
     err := cli.ExportRunLearn(context.Background(), args, deps, &buf)
     g.Expect(err).NotTo(gomega.HaveOccurred())
     if err != nil { return }
     g.Expect(string(written)).To(gomega.ContainSubstring("sources:"))
-    g.Expect(string(written)).To(gomega.ContainSubstring("sha256:abc"))
-    g.Expect(string(written)).To(gomega.ContainSubstring("sha256:def"))
+    g.Expect(string(written)).To(gomega.ContainSubstring("/sessions/s.jsonl#turn-1"))
+    g.Expect(string(written)).To(gomega.ContainSubstring("/sessions/s.jsonl#turn-2"))
 }
 
 func TestLearnFact_EmptyChunkSources_NoSourcesKey(t *testing.T) {
     t.Parallel()
     g := gomega.NewWithT(t)
 
+    var written []byte
     args := cli.LearnArgs{
         Type: "fact", Slug: "test-slug", Vault: t.TempDir(),
         Source: "test", Situation: "no chunk sources",
         Subject: "A", Predicate: "has", Object: "B",
     }
-    var written []byte
     deps := cli.LearnDeps{
-        Now:       func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-        Getenv:    func(string) string { return "" },
-        StatDir:   func(string) error { return nil },
-        InitVault: func(string) error { return nil },
-        ListIDs:   func(string) ([]string, error) { return nil, nil },
+        Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+        Getenv:        func(string) string { return "" },
+        StatDir:       func(string) error { return nil },
+        InitVault:     func(string) error { return nil },
+        ListIDs:       func(string) ([]string, error) { return nil, nil },
         ListBasenames: func(string) ([]string, error) { return nil, nil },
-        Lock:      func(string) (func(), error) { return func() {}, nil },
-        WriteNew:  func(_ string, data []byte) error { written = data; return nil },
+        Lock:          func(string) (func(), error) { return func() {}, nil },
+        WriteNew:      func(_ string, data []byte) error { written = data; return nil },
     }
 
     var buf strings.Builder
@@ -2643,44 +2937,40 @@ func TestLearnFact_EmptyChunkSources_NoSourcesKey(t *testing.T) {
 
 - [ ] Run `targ test` — expect compile failure (no `ChunkSources` on `LearnArgs` yet).
 
-- [ ] **Implement** — add `ChunkSources []string` to `CommonLearnArgs` (in targets.go) and `LearnArgs` (in learn.go), add `Sources []string` field (yaml `"sources,omitempty"`) to `factFrontmatterDoc` and `feedbackFrontmatterDoc` in `learn.go`, thread `ChunkSources` through the `factFields`/`feedbackFields` structs and into `renderFactFrontmatter`/`renderFeedbackFrontmatter`:
+- [ ] **Implement** — add `ChunkSources []string` to `LearnArgs` in `internal/cli/learn.go`:
 
-In `internal/cli/targets.go`, `CommonLearnArgs`:
+In `LearnArgs` (after the existing `Relations []string` field):
 ```go
-ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk-index id to record as provenance (repeatable)"`
+// ChunkSources carries chunk-index ids (source#anchor) to record as frontmatter
+// provenance. Written to `sources:` when non-empty. Passed via --chunk-source.
+ChunkSources []string
 ```
 
-In `internal/cli/learn.go`, `LearnArgs`:
+Add `ChunkSources []string` to `factFields` (in `internal/cli/learn.go`, after `Tier string`):
 ```go
 ChunkSources []string
 ```
 
-In `factFields`:
-```go
-ChunkSources []string
-```
-
-In `factFrontmatterDoc` (add field after `Source`):
+Add `Sources []string` field to `factFrontmatterDoc` (after the `Issue` field):
 ```go
 Sources []string `yaml:"sources,omitempty"`
 ```
 
-In `renderFactFrontmatter`:
+In `renderFactFrontmatter`, add `Sources: f.ChunkSources` to the `marshalFrontmatter(factFrontmatterDoc{...})` call.
+
+In the `factFields` literal inside `assembleLearnContent` (fact branch), add:
 ```go
-// in the marshalFrontmatter call, add:
-Sources: f.ChunkSources,
+ChunkSources: args.ChunkSources,
 ```
 
-Same pattern for `feedbackFields` / `feedbackFrontmatterDoc` / `renderFeedbackFrontmatter`.
+Add `ChunkSources []string` to `feedbackFields` and `Sources []string yaml:"sources,omitempty"` to `feedbackFrontmatterDoc`, and wire identically through `renderFeedbackFrontmatter` and the feedback branch of `assembleLearnContent`.
 
-Thread through `assembleLearnContent` (fact and feedback branches):
+Add `ChunkSources []string` to `CommonLearnArgs` in `internal/cli/targets.go`:
 ```go
-f := factFields{
-    ..., ChunkSources: args.ChunkSources,
-}
+ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk-index id (source#anchor) to record as provenance (repeatable)"`
 ```
 
-Thread through the `runLearnFromFactArgs` and `runLearnFromFeedbackArgs` bridges in the `LearnArgs` literal (copy from `a.ChunkSources`). Add `ChunkSources` to `CommonLearnArgs` and propagate through `LearnFactArgs`/`LearnFeedbackArgs` (embedded via `CommonLearnArgs`).
+Thread `ChunkSources` from `CommonLearnArgs` through `runLearnFromFactArgs` and `runLearnFromFeedbackArgs` bridge functions (copy `a.ChunkSources` into the `LearnArgs` literal).
 
 - [ ] Run `targ test` — subtests pass.
 - [ ] Run `targ check-full` — clean.
@@ -2690,6 +2980,11 @@ Thread through the `runLearnFromFactArgs` and `runLearnFromFeedbackArgs` bridges
 #### Task 5.3 — `AmendArgs` + `AmendDeps` structs + `findNote` reuse
 
 **Prerequisite:** 5.2
+
+**Key design notes:**
+- `ChunksDir` lives on `AmendArgs` (not `AmendDeps`) — consistent with `IngestArgs.ChunksDir` and `QueryArgs.ChunksDir`. Deps hold I/O functions, not path configuration (F7).
+- `LoadChunkIDs` on `AmendDeps` uses the DI-compliant signature from Component 2 Task 2.10's `buildChunkIDSet`: it takes injected `listIndexes` and `readFile` functions, returns `map[string]bool`. The production wiring in `newOsAmendDeps` supplies `os.ReadDir`-based helpers (F4, CA-14).
+- The `"time"` import is required in `amend.go` because `AmendDeps.Now` is `func() time.Time` (CA-07).
 
 - [ ] **Write failing test** `internal/cli/amend_test.go` — `TestRunAmend_NoteNotFound`:
 
@@ -2732,27 +3027,34 @@ func TestRunAmend_NoteNotFound(t *testing.T) {
 
 - [ ] Run `targ test` — compile error (AmendArgs/AmendDeps/ExportRunAmend not defined).
 
-- [ ] **Implement** scaffolding in new file `internal/cli/amend.go`:
+- [ ] **Implement** scaffolding in new file `internal/cli/amend.go`. Note: `relatedSectionMarker` is already defined in `relations.go` (same `cli` package) — do NOT redefine it. The `"time"` import is required (CA-07):
 
 ```go
 package cli
 
 import (
     "context"
+    "errors"
     "fmt"
     "io"
     "os"
+    "path/filepath"
+    "strings"
+    "time"
 
     "github.com/toejough/engram/internal/embed"
     "github.com/toejough/engram/internal/vaultgraph"
 )
 
-// AmendArgs holds parsed flags for `engram amend`.
+// AmendArgs holds parsed flags for `engram amend`. ChunksDir configures where
+// chunk indexes live (like IngestArgs.ChunksDir — path config belongs on Args,
+// not Deps).
 type AmendArgs struct {
     Vault        string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
     Target       string   `targ:"flag,name=target,required,desc=Luhmann id or full basename of the note to amend (required)"`
     Relations    []string `targ:"flag,name=relation,desc=note relation as <wikilink-target>|<rationale> to merge into Related to: (repeatable)"`
-    ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk-index id to merge into frontmatter sources: (repeatable)"`
+    ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk-index id (source#anchor) to merge into frontmatter sources: (repeatable)"`
+    ChunksDir    string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
     // Content flags — only supplied fields are overwritten.
     Situation string `targ:"flag,name=situation,desc=replace situation (optional)"`
     Subject   string `targ:"flag,name=subject,desc=replace subject (fact; optional)"`
@@ -2764,17 +3066,27 @@ type AmendArgs struct {
     Activate  bool   `targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
 }
 
-// AmendDeps holds injected dependencies for RunAmend.
+// AmendDeps holds injected I/O dependencies for RunAmend. Path configuration
+// (ChunksDir) lives on AmendArgs, not here.
+//
+// LoadChunkIDs is DI-compliant: it takes injected listIndexes and readFile
+// functions (matching buildChunkIDSet from Component 2) and returns a
+// map[string]bool keyed by "source#anchor". The production wiring in
+// newOsAmendDeps supplies os.ReadDir/os.ReadFile via closures.
 type AmendDeps struct {
-    Scan     func(vault string) ([]vaultgraph.Note, error)
-    Read     func(path string) ([]byte, error)
-    Write    func(path string, data []byte) error
-    Embedder embed.Embedder
-    Now      func() time.Time
+    Scan          func(vault string) ([]vaultgraph.Note, error)
+    Read          func(path string) ([]byte, error)
+    Write         func(path string, data []byte) error
+    Embedder      embed.Embedder
+    Now           func() time.Time
     ListBasenames func(vault string) ([]string, error)
-    LoadChunkIDs  func(chunksDir string) (map[string]struct{}, error)
-    ChunksDir     string
-    LogWarning    func(string, ...any)
+    LoadChunkIDs  func(
+        chunksDir string,
+        listIndexes func(dir string) ([]string, error),
+        readFile func(path string) ([]byte, error),
+    ) (map[string]bool, error)
+    ListIndexes func(dir string) ([]string, error)
+    LogWarning  func(string, ...any)
 }
 
 // unexported errors.
@@ -2797,16 +3109,16 @@ func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Wri
 
     relPath, findErr := findNote(notes, args.Target)
     if findErr != nil {
-        // wrap as amend-specific error for tests
         return fmt.Errorf("%w: %q", errAmendNoteNotFound, args.Target)
     }
-    _ = relPath  // used in full implementation (Task 5.4+)
+    _ = relPath // used in full implementation (Task 5.4+)
 
-    return nil  // stub — replaced in Task 5.4
+    return nil // stub — replaced in Task 5.4
 }
 
 // newOsAmendDeps wires RunAmend to the real filesystem + bundled embedder.
-func newOsAmendDeps(chunksDir string) AmendDeps {
+// ChunksDir flows through AmendArgs, not here.
+func newOsAmendDeps() AmendDeps {
     const perm = 0o600
     return AmendDeps{
         Scan: func(vault string) ([]vaultgraph.Note, error) {
@@ -2820,26 +3132,39 @@ func newOsAmendDeps(chunksDir string) AmendDeps {
             }
             return nil
         },
-        Embedder:  sharedEmbedder,
-        Now:       time.Now,
-        ChunksDir: chunksDir,
+        Embedder: sharedEmbedder,
+        Now:      time.Now,
         ListBasenames: func(vault string) ([]string, error) {
             return (&osLearnFS{}).ListBasenames(vault)
         },
-        LoadChunkIDs: loadChunkIDsFromDir,
-        LogWarning:   logWarningToStderrf,
+        LoadChunkIDs: buildChunkIDSet,
+        ListIndexes: func(dir string) ([]string, error) {
+            entries, err := os.ReadDir(dir)
+            if err != nil {
+                return nil, nil // absent dir = empty, not an error
+            }
+            paths := make([]string, 0, len(entries))
+            for _, e := range entries {
+                if !e.IsDir() && strings.HasSuffix(e.Name(), ".jsonl") && e.Name() != manifestName {
+                    paths = append(paths, filepath.Join(dir, e.Name()))
+                }
+            }
+            return paths, nil
+        },
+        LogWarning: logWarningToStderrf,
     }
 }
 ```
 
-- [ ] Add export alias to `export_test.go`:
+- [ ] Add export alias to `export_test.go` (inside `package cli`):
 
 ```go
-ExportRunAmend = RunAmend
-```
+// ExportRunAmend exposes RunAmend for amend unit tests.
+var ExportRunAmend = RunAmend
 
-Add type alias:
-```go
+// ExportNewOsAmendDeps exposes newOsAmendDeps for integration tests.
+var ExportNewOsAmendDeps = newOsAmendDeps
+
 type ExportAmendArgs = AmendArgs
 type ExportAmendDeps = AmendDeps
 ```
@@ -2884,8 +3209,10 @@ func TestRunAmend_RelationMerge_NewRelation_Appended(t *testing.T) {
         ListBasenames: func(string) ([]string, error) {
             return []string{basename, relBasename}, nil
         },
-        LoadChunkIDs: func(string) (map[string]struct{}, error) { return map[string]struct{}{}, nil },
-        Now:  func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+        LoadChunkIDs: func(string, func(string)([]string,error), func(string)([]byte,error)) (map[string]bool, error) {
+            return map[string]bool{}, nil
+        },
+        Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
     }
     args := cli.AmendArgs{
         Vault:     "/vault",
@@ -2920,8 +3247,10 @@ func TestRunAmend_RelationMerge_Idempotent(t *testing.T) {
         ListBasenames: func(string) ([]string, error) {
             return []string{basename, relBasename}, nil
         },
-        LoadChunkIDs: func(string) (map[string]struct{}, error) { return map[string]struct{}{}, nil },
-        Now:  func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+        LoadChunkIDs: func(string, func(string)([]string,error), func(string)([]byte,error)) (map[string]bool, error) {
+            return map[string]bool{}, nil
+        },
+        Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
     }
     args := cli.AmendArgs{
         Vault:     "/vault",
@@ -2933,7 +3262,7 @@ func TestRunAmend_RelationMerge_Idempotent(t *testing.T) {
     err := cli.ExportRunAmend(context.Background(), args, deps, &buf)
     g.Expect(err).NotTo(gomega.HaveOccurred())
     if err != nil { return }
-    // Should contain the relation exactly once
+    // Should contain the relation exactly once.
     body := string(written)
     count := strings.Count(body, "[["+relBasename+"]]")
     g.Expect(count).To(gomega.Equal(1))
@@ -2942,7 +3271,7 @@ func TestRunAmend_RelationMerge_Idempotent(t *testing.T) {
 
 - [ ] Run `targ test` — tests fail (stub returns nil with no write).
 
-- [ ] **Implement** relation-merge logic in `RunAmend`. Add helper `mergeRelatedSection`:
+- [ ] **Implement** relation-merge logic in `RunAmend`. Add helper `mergeRelatedSection` in `amend.go`. Note: `relatedSectionMarker` and `wikilinkRE` are already defined in the `cli` package (`relations.go` and `query.go` respectively) — reuse them, do not redeclare:
 
 ```go
 // mergeRelatedSection parses the existing "Related to:" block from body,
@@ -2951,7 +3280,6 @@ func TestRunAmend_RelationMerge_Idempotent(t *testing.T) {
 // "basename|rationale" resolved form. Existing bullets "- [[basename]] — ..."
 // are parsed for their basename to detect duplicates.
 func mergeRelatedSection(body string, incoming []string) string {
-    // find existing section
     idx := strings.LastIndex(body, relatedSectionMarker)
     var head, existingSection string
     if idx == -1 {
@@ -2989,20 +3317,17 @@ func mergeRelatedSection(body string, incoming []string) string {
         return body // no change
     }
 
-    // rebuild: if no existing section, start one
     if idx == -1 {
         tail := relatedSectionMarker + "\n" + strings.Join(newBullets, "\n") + "\n"
-        // body ends with \n (formula line + blank), append after
         return strings.TrimRight(body, "\n") + "\n\n" + tail
     }
 
-    // append new bullets into existing section
     trimmed := strings.TrimRight(existingSection, "\n")
     return head + trimmed + "\n" + strings.Join(newBullets, "\n") + "\n"
 }
 ```
 
-Implement strict-resolve + merge + write skeleton in `RunAmend` (replacing the stub):
+Replace the `RunAmend` stub with the full implementation that validates chunk sources, resolves relations, merges content, writes, optionally re-embeds, and optionally activates:
 
 ```go
 func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Writer) error {
@@ -3025,12 +3350,12 @@ func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Wri
 
     // --- validate chunk sources ---
     if len(args.ChunkSources) > 0 && deps.LoadChunkIDs != nil {
-        chunkIDs, loadErr := deps.LoadChunkIDs(deps.ChunksDir)
+        chunkIDs, loadErr := deps.LoadChunkIDs(args.ChunksDir, deps.ListIndexes, deps.Read)
         if loadErr != nil {
             return fmt.Errorf("amend: loading chunk ids: %w", loadErr)
         }
         for _, id := range args.ChunkSources {
-            if _, ok := chunkIDs[id]; !ok {
+            if !chunkIDs[id] {
                 return fmt.Errorf("%w: %q", errAmendUnresolvedChunk, id)
             }
         }
@@ -3084,11 +3409,7 @@ func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Wri
     _, _ = fmt.Fprintln(stdout, full)
     return nil
 }
-```
 
-Add `amendContent` helper (next task fills in field-replacement; for now only does relation-merge + provenance-merge):
-
-```go
 // amendContent applies all amendments to raw note bytes. Returns the
 // updated content, whether the semantic content changed (triggers re-embed),
 // and any error. Link/provenance-only changes do NOT set contentChanged.
@@ -3107,13 +3428,30 @@ func amendContent(raw []byte, args AmendArgs, resolvedRelations []string) (strin
         bodyStr = mergeRelatedSection(bodyStr, resolvedRelations)
     }
 
-    // merge chunk sources into frontmatter
+    // merge chunk sources into frontmatter + apply field overrides
     updated, contentChanged, fieldErr := applyFieldReplacement(raw, args, bodyStr, noteType)
     if fieldErr != nil {
         return "", false, fieldErr
     }
 
     return updated, contentChanged, nil
+}
+
+// writeAmendedSidecar re-embeds the amended note and writes its sidecar.
+// Modeled on writeResituatedSidecar in resituate.go. Embed and write failures
+// are returned to the caller (which may choose to warn-and-continue for amend).
+func writeAmendedSidecar(ctx context.Context, deps AmendDeps, notePath, content string) error {
+    sidecar, embErr := embed.BuildSidecar(ctx, deps.Embedder, []byte(content))
+    if embErr != nil {
+        return fmt.Errorf("amend: embedding %s: %w", notePath, embErr)
+    }
+
+    writeErr := deps.Write(embed.SidecarPath(notePath), embed.MarshalSidecar(sidecar))
+    if writeErr != nil {
+        return fmt.Errorf("amend: writing sidecar for %s: %w", notePath, writeErr)
+    }
+
+    return nil
 }
 ```
 
@@ -3124,12 +3462,13 @@ func amendContent(raw []byte, args AmendArgs, resolvedRelations []string) (strin
 
 #### Task 5.5 — Provenance-merge (idempotent `sources:` frontmatter)
 
-**Prerequisite:** 5.4
+**Prerequisite:** 5.3 + 5.8
+
+**Dependency note (CA-06, explicit):** `applyFactAmend` below calls `yaml.Unmarshal` into `factFrontmatterDoc` and reads `doc.Sources`. That field is added in Task 5.2. Do NOT execute this task until Task 5.2 is merged and `targ check-full` passes — if `Sources []string` is absent from `factFrontmatterDoc`, `yaml.Unmarshal` will silently zero `doc.Sources` and the merge will silently drop existing provenance.
+
+The `--chunk-source` arguments and the written `sources:` values are `source#anchor` strings (e.g. `/sessions/s.jsonl#turn-1`), validated against the `buildChunkIDSet` id-set. The tests below use `source#anchor` form, not `sha256:...`.
 
 - [ ] **Write failing tests** `TestRunAmend_ProvMerge_*`:
-  - `ChunkSources_Written`: note has no `sources:`, after amend with `--chunk-source sha256:abc` the written bytes contain `sources:\n- sha256:abc` (or inline YAML list).
-  - `ChunkSources_Idempotent`: note already has `sources: [sha256:abc]`, amending with the same id produces `sources:` containing `sha256:abc` exactly once.
-  - `UnresolvedChunkSource_Errors`: `LoadChunkIDs` returns a set not containing `sha256:abc`, amend errors with `unresolved chunk-source id`.
 
 ```go
 func TestRunAmend_ProvMerge_ChunkSources_Written(t *testing.T) {
@@ -3137,6 +3476,7 @@ func TestRunAmend_ProvMerge_ChunkSources_Written(t *testing.T) {
     g := gomega.NewWithT(t)
 
     const basename = "1aa.2026-01-01.test.md"
+    const chunkID = "/sessions/s.jsonl#turn-1"
     noteContent := makeFactNote("ctx", "A", "has", "B", "")
 
     var written []byte
@@ -3147,15 +3487,15 @@ func TestRunAmend_ProvMerge_ChunkSources_Written(t *testing.T) {
         Read:  func(string) ([]byte, error) { return noteContent, nil },
         Write: func(_ string, data []byte) error { written = data; return nil },
         ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
-        LoadChunkIDs: func(string) (map[string]struct{}, error) {
-            return map[string]struct{}{"sha256:abc": {}}, nil
+        LoadChunkIDs: func(string, func(string)([]string,error), func(string)([]byte,error)) (map[string]bool, error) {
+            return map[string]bool{chunkID: true}, nil
         },
-        Now:  func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+        Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
     }
     args := cli.AmendArgs{
         Vault:        "/vault",
         Target:       "1aa",
-        ChunkSources: []string{"sha256:abc"},
+        ChunkSources: []string{chunkID},
     }
 
     var buf bytes.Buffer
@@ -3163,7 +3503,7 @@ func TestRunAmend_ProvMerge_ChunkSources_Written(t *testing.T) {
     g.Expect(err).NotTo(gomega.HaveOccurred())
     if err != nil { return }
     g.Expect(string(written)).To(gomega.ContainSubstring("sources:"))
-    g.Expect(string(written)).To(gomega.ContainSubstring("sha256:abc"))
+    g.Expect(string(written)).To(gomega.ContainSubstring(chunkID))
 }
 
 func TestRunAmend_ProvMerge_UnresolvedChunkSource_Errors(t *testing.T) {
@@ -3178,15 +3518,15 @@ func TestRunAmend_ProvMerge_UnresolvedChunkSource_Errors(t *testing.T) {
         Read:  func(string) ([]byte, error) { return makeFactNote("ctx","A","has","B",""), nil },
         Write: func(string, []byte) error { return nil },
         ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
-        LoadChunkIDs: func(string) (map[string]struct{}, error) {
-            return map[string]struct{}{}, nil // empty — id won't resolve
+        LoadChunkIDs: func(string, func(string)([]string,error), func(string)([]byte,error)) (map[string]bool, error) {
+            return map[string]bool{}, nil // empty — id won't resolve
         },
-        ChunksDir: "/chunks",
     }
     args := cli.AmendArgs{
         Vault:        "/vault",
         Target:       "1aa",
-        ChunkSources: []string{"sha256:abc"},
+        ChunkSources: []string{"/sessions/s.jsonl#turn-1"},
+        ChunksDir:    "/chunks",
     }
 
     var buf bytes.Buffer
@@ -3197,7 +3537,7 @@ func TestRunAmend_ProvMerge_UnresolvedChunkSource_Errors(t *testing.T) {
 
 - [ ] Run `targ test` — fail (chunk-sources not merged into frontmatter yet).
 
-- [ ] **Implement** provenance merge in `applyFieldReplacement` (partially — the frontmatter `sources:` merge only; field-replacement logic comes in 5.6). Add helper `mergeChunkSources`:
+- [ ] **Implement** provenance merge. Add helper `mergeChunkSources` and implement `applyFieldReplacement` + `applyFactAmend` in `amend.go`:
 
 ```go
 // mergeChunkSources returns a deduped union of existing and incoming chunk ids.
@@ -3218,18 +3558,13 @@ func mergeChunkSources(existing, incoming []string) []string {
     }
     return out
 }
-```
 
-Implement `applyFieldReplacement` for fact notes (provenance path + full frontmatter rebuild):
-
-```go
 // applyFieldReplacement parses the note frontmatter, applies field overrides and
 // provenance merge, rebuilds the frontmatter, and reassembles with the (already
 // relation-merged) body. contentChanged is true only when a semantic field
 // (situation/subject/predicate/object/behavior/impact/action) changed.
 func applyFieldReplacement(raw []byte, args AmendArgs, body, noteType string) (string, bool, error) {
     frontmatter, _ := splitFrontmatter(raw) // already validated upstream
-
     switch noteType {
     case typeFact:
         return applyFactAmend(frontmatter, args, body)
@@ -3238,69 +3573,6 @@ func applyFieldReplacement(raw []byte, args AmendArgs, body, noteType string) (s
     default:
         return "", false, fmt.Errorf("%w: %q", errAmendUnknownType, noteType)
     }
-}
-
-func applyFactAmend(frontmatter []byte, args AmendArgs, body string) (string, bool, error) {
-    var doc factFrontmatterDoc
-    if err := yaml.Unmarshal(frontmatter, &doc); err != nil {
-        return "", false, fmt.Errorf("amend: parsing fact frontmatter: %w", err)
-    }
-
-    when, createdErr := parseCreated(doc.Created)
-    if createdErr != nil {
-        return "", false, createdErr
-    }
-
-    contentChanged := false
-    if args.Situation != "" && args.Situation != doc.Situation {
-        doc.Situation = args.Situation
-        contentChanged = true
-    }
-    if args.Subject != "" && args.Subject != string(doc.Subject) {
-        // doc.Subject is string, not quotedString, safe cast
-        doc.Subject = args.Subject
-        contentChanged = true
-    }
-    if args.Predicate != "" && args.Predicate != doc.Predicate {
-        doc.Predicate = args.Predicate
-        contentChanged = true
-    }
-    if args.Object != "" && args.Object != doc.Object {
-        doc.Object = args.Object
-        contentChanged = true
-    }
-
-    // provenance merge
-    doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
-
-    f := factFields{
-        Situation: doc.Situation, Subject: doc.Subject,
-        Predicate: doc.Predicate, Object: doc.Object,
-        Luhmann: string(doc.Luhmann), Source: doc.Source,
-        Project: doc.Project, Issue: string(doc.Issue),
-        Tier: doc.Tier, ChunkSources: doc.Sources,
-    }
-
-    // If content changed, rebuild body formula with new field values
-    if contentChanged {
-        body = renderFactBody(f, relatedTailFromBody(body))
-    }
-
-    return renderFactFrontmatter(f, when) + body, contentChanged, nil
-}
-```
-
-Similar `applyFeedbackAmend`. Add `relatedTailFromBody` helper (extracts the `Related to:` section from the amended body string, for use when re-rendering the formula):
-
-```go
-// relatedTailFromBody extracts the "Related to:\n..." suffix from an
-// already-relation-merged body string. Returns "" when absent.
-func relatedTailFromBody(body string) string {
-    idx := strings.LastIndex(body, relatedSectionMarker)
-    if idx == -1 {
-        return ""
-    }
-    return body[idx:]
 }
 ```
 
@@ -3313,12 +3585,9 @@ func relatedTailFromBody(body string) string {
 
 **Prerequisite:** 5.5
 
+**CA-11 (Issue round-trip):** `factFrontmatterDoc.Issue` is `quotedString` (learn.go:240). When `applyFactAmend` reads `doc.Issue` and populates `factFields.Issue` (which is plain `string`), it must cast `string(doc.Issue)`. When rebuilding via `renderFactFrontmatter`, `factFields.Issue` is passed to `quotedString(f.Issue)`. This round-trip is safe. However, when `factFrontmatterDoc` is populated inside `applyFactAmend` to call `marshalFrontmatter` directly, `Issue` must be set as `quotedString(string(doc.Issue))` to preserve the double-quoted YAML style. The `factFields`-based path through `renderFactFrontmatter` handles this automatically — do not bypass it.
+
 - [ ] **Write failing tests** `TestRunAmend_FieldReplacement_*`:
-  - `Fact_SubjectOnly`: amend with only `--subject "NewSubject"`, predicate/object/situation preserved.
-  - `Fact_PreservesLuhmannAndCreated`: Luhmann id and `created` date unchanged after amend.
-  - `Fact_PreservesRelationsAndSources`: existing `Related to:` and `sources:` preserved when no new ones supplied.
-  - `Feedback_ActionOnly`: amend with only `--action "Do X"`, behavior/impact/situation unchanged.
-  - `Fact_ContentChange_True`: amend with `--subject` sets `contentChanged=true` (verify via re-embed being triggered — use a sentinel Embedder that records calls).
 
 ```go
 func TestRunAmend_FieldReplacement_Fact_SubjectOnly(t *testing.T) {
@@ -3336,8 +3605,10 @@ func TestRunAmend_FieldReplacement_Fact_SubjectOnly(t *testing.T) {
         Read:          func(string) ([]byte, error) { return noteContent, nil },
         Write:         func(_ string, data []byte) error { written = data; return nil },
         ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
-        LoadChunkIDs:  func(string) (map[string]struct{}, error) { return nil, nil },
-        Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+        LoadChunkIDs: func(string, func(string)([]string,error), func(string)([]byte,error)) (map[string]bool, error) {
+            return nil, nil
+        },
+        Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
     }
     args := cli.AmendArgs{
         Vault:   "/vault",
@@ -3375,9 +3646,11 @@ func TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
         Read:          func(string) ([]byte, error) { return noteContent, nil },
         Write:         func(string, []byte) error { return nil },
         ListBasenames: func(string) ([]string, error) { return []string{basename, relBasename}, nil },
-        LoadChunkIDs:  func(string) (map[string]struct{}, error) { return nil, nil },
-        Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-        Embedder:      &cli.SpyEmbedder{Called: &embedCalled},
+        LoadChunkIDs: func(string, func(string)([]string,error), func(string)([]byte,error)) (map[string]bool, error) {
+            return nil, nil
+        },
+        Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+        Embedder: &spyEmbedder{called: &embedCalled},
     }
     args := cli.AmendArgs{
         Vault:     "/vault",
@@ -3393,28 +3666,97 @@ func TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
 }
 ```
 
-Note: `SpyEmbedder` is a test-only struct implementing `embed.Embedder`; add it to `amend_test.go` or a test helper:
+Add `spyEmbedder` to `amend_test.go` (in `package cli_test`):
 
 ```go
-// SpyEmbedder is an embed.Embedder that records whether Embed was called.
-// ExportSpyEmbedder exposes it via export_test.go for cross-package use.
-type SpyEmbedder struct {
-    Called *bool
+// spyEmbedder is an embed.Embedder that records whether Embed was called.
+type spyEmbedder struct {
+    called *bool
 }
 
-func (s *SpyEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
-    if s.Called != nil {
-        *s.Called = true
+func (s *spyEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
+    if s.called != nil {
+        *s.called = true
     }
     return []float32{0.1}, nil
 }
 ```
 
-Add `ExportSpyEmbedder = SpyEmbedder` type alias to `export_test.go`. (Actually since `SpyEmbedder` is only needed in tests, define it in `amend_test.go` — it lives in `package cli_test` and can directly implement `embed.Embedder`.)
+- [ ] Run `targ test` — new field-replacement tests fail (no full implementation of `applyFactAmend` yet).
 
-- [ ] Run `targ test` — new field-replacement tests fail (no re-embed guard yet, subject mismatch).
+- [ ] **Complete** `applyFactAmend` in `amend.go`. The `Issue` field round-trips via `factFields.Issue = string(doc.Issue)` into `renderFactFrontmatter` which wraps it as `quotedString(f.Issue)` — no field loss (CA-11):
 
-- [ ] **Complete** `applyFactAmend` — field replacement is already partly in from Task 5.5. Complete the `doc.Subject` fix (it's a plain `string` in `factFrontmatterDoc`, not `quotedString`, so the comparison is correct). Confirm `applyFeedbackAmend` implements `Behavior`/`Impact`/`Action` field replacement with the same pattern. Make the `contentChanged` gate in `RunAmend` correctly skip `writeAmendedSidecar` when false.
+```go
+func applyFactAmend(frontmatter []byte, args AmendArgs, body string) (string, bool, error) {
+    var doc factFrontmatterDoc
+    if err := yaml.Unmarshal(frontmatter, &doc); err != nil {
+        return "", false, fmt.Errorf("amend: parsing fact frontmatter: %w", err)
+    }
+
+    when, createdErr := parseCreated(doc.Created)
+    if createdErr != nil {
+        return "", false, createdErr
+    }
+
+    contentChanged := false
+    if args.Situation != "" && args.Situation != doc.Situation {
+        doc.Situation = args.Situation
+        contentChanged = true
+    }
+    if args.Subject != "" && args.Subject != doc.Subject {
+        doc.Subject = args.Subject
+        contentChanged = true
+    }
+    if args.Predicate != "" && args.Predicate != doc.Predicate {
+        doc.Predicate = args.Predicate
+        contentChanged = true
+    }
+    if args.Object != "" && args.Object != doc.Object {
+        doc.Object = args.Object
+        contentChanged = true
+    }
+
+    // provenance merge — source#anchor ids, deduped
+    doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
+
+    // Round-trip Issue through string(doc.Issue) → factFields.Issue → quotedString(f.Issue)
+    // in renderFactFrontmatter. This preserves the double-quoted YAML style (CA-11).
+    f := factFields{
+        Situation:    doc.Situation,
+        Subject:      doc.Subject,
+        Predicate:    doc.Predicate,
+        Object:       doc.Object,
+        Luhmann:      string(doc.Luhmann),
+        Source:       doc.Source,
+        Project:      doc.Project,
+        Issue:        string(doc.Issue),
+        Tier:         doc.Tier,
+        ChunkSources: doc.Sources,
+    }
+
+    // If content changed, rebuild body formula with new field values.
+    relatedSection := relatedTailFromBody(body)
+    if contentChanged {
+        body = renderFactBody(f, relatedSection)
+    }
+
+    return renderFactFrontmatter(f, when) + body, contentChanged, nil
+}
+
+// relatedTailFromBody extracts the "Related to:\n..." suffix from an
+// already-relation-merged body string. Returns "" when absent.
+func relatedTailFromBody(body string) string {
+    idx := strings.LastIndex(body, relatedSectionMarker)
+    if idx == -1 {
+        return ""
+    }
+    return body[idx:]
+}
+```
+
+Add `applyFeedbackAmend` with the same pattern (using `feedbackFields.Behavior`/`Impact`/`Action` and `renderFeedbackFrontmatter`).
+
+Add `"go.yaml.in/yaml/v3"` import to `amend.go` import block.
 
 - [ ] Run `targ test` — all field-replacement tests pass.
 - [ ] Run `targ check-full` — clean.
@@ -3429,7 +3771,7 @@ The spec says `--activate` bumps `LastUsed` in the sidecar. Two sub-cases:
 - Content changed → re-embed already wrote a fresh sidecar → `bumpLastUsed` reads the freshly-written sidecar.
 - No content change → sidecar exists unchanged → `bumpLastUsed` reads the existing sidecar.
 
-Both are already handled by the `bumpLastUsed` call in `RunAmend` after the optional re-embed. The ordering guarantee is that `Write` is called first (note file), then re-embed writes the sidecar, then `bumpLastUsed` reads and re-writes the sidecar. This is one logical amend in three sequential writes; the spec's "one write" means a single invocation of `amend` (not a single filesystem write), so this is correct.
+Both are handled by the `bumpLastUsed` call in `RunAmend` after the optional re-embed. The ordering guarantee is that `Write` is called first (note file), then re-embed writes the sidecar, then `bumpLastUsed` reads and re-writes the sidecar. This is one logical amend in three sequential writes; the spec's "one write" means a single invocation of `amend` (not a single filesystem write), so this is correct.
 
 - [ ] **Write failing test** `TestRunAmend_Activate_BumpsLastUsed`:
 
@@ -3458,8 +3800,10 @@ func TestRunAmend_Activate_BumpsLastUsed(t *testing.T) {
             return nil
         },
         ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
-        LoadChunkIDs:  func(string) (map[string]struct{}, error) { return nil, nil },
-        Now:           func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+        LoadChunkIDs: func(string, func(string)([]string,error), func(string)([]byte,error)) (map[string]bool, error) {
+            return nil, nil
+        },
+        Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
     }
     args := cli.AmendArgs{
         Vault:    "/vault",
@@ -3487,110 +3831,86 @@ func TestRunAmend_Activate_BumpsLastUsed(t *testing.T) {
 
 ---
 
-#### Task 5.8 — `loadChunkIDsFromDir` helper (validate chunk-source ids)
+#### Task 5.8 — DI-compliant chunk-id set via `buildChunkIDSet` (Component 2 reuse)
 
-**Prerequisite:** 5.3 (needed by 5.5 validation path)
+**Prerequisite:** none (parallel with Strand A)
 
-The spec says: "Validating an id requires loading the index (`loadChunkRecords` is O(total chunks)); build should construct an in-memory id-set after load rather than reach for a non-existent O(1) lookup." The id here is the chunk's `ContentHash` (since that is what `chunk.Record` uses as the stable per-chunk key: `source#anchor` is the implicit composite key, but the spec says "content hash, or `source#anchor`" — the simplest stable id is `ContentHash` which is already used by `ingest` as the dedup key).
+**Key design (F4, CA-14, docs-F1):** This task does NOT implement a new `loadChunkIDsFromDir` function with direct `os.ReadDir`/`os.ReadFile` calls — that would violate DI-everywhere. Instead, it reuses `buildChunkIDSet` from Component 2 Task 2.10 (`internal/cli/ingest.go`), which accepts injected `listIndexes` and `readFile` functions and returns `map[string]bool` keyed by `source#anchor`. `AmendDeps.LoadChunkIDs` is typed to match that signature. The production wiring in `newOsAmendDeps` supplies `os.ReadDir`-based closures — all `os.*` calls stay at the wire edge, outside `internal/` business logic.
 
-- [ ] **Write failing test** `TestLoadChunkIDsFromDir_*`:
-  - `ReadsAllContentHashes`: given a `chunksDir` containing a single `.jsonl` file with two records, returns both `ContentHash` values in the set.
-  - `EmptyDir_EmptySet`: an empty (but existing) dir returns an empty set with no error.
-  - `MissingDir_EmptySet`: a non-existent dir returns empty set (not an error — first ingest case).
+The chunk-ids in the set are `source#anchor` strings (spec §3.2 locked contract). Test fixtures must use `source#anchor` ids, not `sha256:...` content hashes.
+
+- [ ] **Write failing test** in `internal/cli/amend_test.go` — `TestBuildChunkIDSet_ViaAmendDeps_*`:
+
+  (Note: `buildChunkIDSet` is already tested in Component 2 Task 2.10 via `ExportBuildChunkIDSet`. The test here validates that the `AmendDeps.LoadChunkIDs` wire path correctly routes to it with DI-injected functions and produces `source#anchor` keys.)
 
 ```go
-// internal/cli/amend_test.go (appended)
-
-func TestLoadChunkIDsFromDir_ReadsAllContentHashes(t *testing.T) {
+func TestBuildChunkIDSet_ReturnsSourceAnchorKeys(t *testing.T) {
     t.Parallel()
     g := gomega.NewWithT(t)
 
-    dir := t.TempDir()
-    records := []chunk.Record{
-        {Source: "a", Anchor: "turn-1", ContentHash: "sha256:aaa", Text: "hi", Vector: []float32{0.1}},
-        {Source: "b", Anchor: "turn-2", ContentHash: "sha256:bbb", Text: "bye", Vector: []float32{0.2}},
+    r1 := chunk.Record{
+        Source: "/sessions/a.jsonl", Anchor: "turn-1",
+        ContentHash: "sha256:aaa", Text: "hi", Vector: []float32{0.1},
     }
-    data, err := chunk.EncodeRecords(records)
+    r2 := chunk.Record{
+        Source: "/docs/b.md", Anchor: "Heading",
+        ContentHash: "sha256:bbb", Text: "bye", Vector: []float32{0.2},
+    }
+
+    encoded1, err := chunk.EncodeRecords([]chunk.Record{r1})
     g.Expect(err).NotTo(gomega.HaveOccurred())
     if err != nil { return }
-    err = os.WriteFile(filepath.Join(dir, "test.jsonl"), data, 0o600)
+    encoded2, err := chunk.EncodeRecords([]chunk.Record{r2})
     g.Expect(err).NotTo(gomega.HaveOccurred())
     if err != nil { return }
 
-    ids, loadErr := cli.ExportLoadChunkIDsFromDir(dir)
+    files := map[string][]byte{
+        "/chunks/a.jsonl": encoded1,
+        "/chunks/b.jsonl": encoded2,
+    }
+    readFile := func(path string) ([]byte, error) {
+        data, ok := files[path]
+        if !ok {
+            return nil, fmt.Errorf("not found: %s", path)
+        }
+        return data, nil
+    }
+    listIndexes := func(string) ([]string, error) {
+        return []string{"/chunks/a.jsonl", "/chunks/b.jsonl"}, nil
+    }
+
+    // Simulate the AmendDeps.LoadChunkIDs call pattern.
+    ids, loadErr := cli.ExportBuildChunkIDSet("/chunks", listIndexes, readFile)
     g.Expect(loadErr).NotTo(gomega.HaveOccurred())
     if loadErr != nil { return }
-    g.Expect(ids).To(gomega.HaveKey("sha256:aaa"))
-    g.Expect(ids).To(gomega.HaveKey("sha256:bbb"))
+
+    // Ids are source#anchor, NOT content hashes.
+    g.Expect(ids["/sessions/a.jsonl#turn-1"]).To(gomega.BeTrue(), "r1 source#anchor must be in set")
+    g.Expect(ids["/docs/b.md#Heading"]).To(gomega.BeTrue(), "r2 source#anchor must be in set")
+    g.Expect(ids["sha256:aaa"]).To(gomega.BeFalse(), "content hash must NOT be in set")
+    g.Expect(ids["nonexistent#anchor"]).To(gomega.BeFalse(), "absent id must not be in set")
 }
 ```
 
-- [ ] Run `targ test` — compile error (function not exported).
+- [ ] Run `targ test` — this test will pass once Component 2 Task 2.10 is merged (which defines `ExportBuildChunkIDSet` and `buildChunkIDSet`). If Component 2 has not landed yet, this test will show a compile error on `ExportBuildChunkIDSet` — that is the expected RED state for this strand.
 
-- [ ] **Implement** in `internal/cli/amend.go`:
-
-```go
-// loadChunkIDsFromDir scans chunksDir for all .jsonl index files, decodes
-// them, and returns a set of all ContentHash values present. An absent or
-// unreadable chunksDir is treated as an empty set (first-ingest case, not an
-// error). Individual malformed records are silently skipped (index is binary-
-// owned; partial corruption should not block amend).
-func loadChunkIDsFromDir(chunksDir string) (map[string]struct{}, error) {
-    entries, err := os.ReadDir(chunksDir)
-    if err != nil {
-        return map[string]struct{}{}, nil //nolint:nilerr // absent dir = empty set
-    }
-
-    ids := make(map[string]struct{})
-
-    for _, entry := range entries {
-        if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") {
-            continue
-        }
-        if entry.Name() == manifestName { // skip manifest
-            continue
-        }
-        path := filepath.Join(chunksDir, entry.Name())
-        data, readErr := os.ReadFile(path)
-        if readErr != nil {
-            continue // skip unreadable
-        }
-        records, decodeErr := chunk.DecodeRecords(data)
-        if decodeErr != nil {
-            continue
-        }
-        for _, r := range records {
-            ids[r.ContentHash] = struct{}{}
-        }
-    }
-
-    return ids, nil
-}
-```
-
-Add export alias:
-```go
-ExportLoadChunkIDsFromDir = loadChunkIDsFromDir
-```
+- [ ] **Wire `buildChunkIDSet` as `AmendDeps.LoadChunkIDs` in `newOsAmendDeps`.** The implementation is already done in Task 5.3's `newOsAmendDeps` body where `LoadChunkIDs: buildChunkIDSet` is set. Verify that `buildChunkIDSet` (from Component 2 Task 2.10, in `internal/cli/ingest.go`) is accessible here — it is in the same `cli` package, so no import needed. Confirm the function signature matches `AmendDeps.LoadChunkIDs`:
+  - `buildChunkIDSet(chunksDir string, listIndexes func(string)([]string,error), readFile func(string)([]byte,error)) (map[string]bool, error)` — matches.
 
 - [ ] Run `targ test` — passes.
 - [ ] Run `targ check-full` — clean.
 
 ---
 
-#### Task 5.9 — Wire `amend` in `targets.go` + add `ExportRunAmend` alias
+#### Task 5.9 — Wire `amend` in `targets.go` + thread `--chunk-source` in learn
 
 **Prerequisite:** 5.6
 
-- [ ] **Write failing test** `TestTargets_AmendRegistered` in `targets_test.go` (or a new `amend_targets_test.go`) — call `cli.Targets(...)` and assert the returned slice contains a target named `"amend"`:
+- [ ] **Write failing test** `TestTargets_AmendRegistered` in `targets_test.go` (or a new `amend_targets_test.go`):
 
 ```go
 func TestTargets_AmendRegistered(t *testing.T) {
     t.Parallel()
-    // Targets returns []any; the targ API does not expose a Name() method
-    // on the returned interface. Verify indirectly: the production binary
-    // must accept `amend` — covered by integration. For unit coverage,
-    // verify that Targets does not panic and returns >0 items.
     g := gomega.NewWithT(t)
     var buf bytes.Buffer
     targets := cli.Targets(&buf, &buf, func(int) {}, nil)
@@ -3598,19 +3918,17 @@ func TestTargets_AmendRegistered(t *testing.T) {
 }
 ```
 
-(A deeper name-check would require inspecting targ internals; the integration test is the real gate.)
-
-- [ ] **Wire** in `targets.go` — add to `maintenanceTargets`:
+- [ ] **Wire** in `targets.go` — add to `maintenanceTargets`. Note: `newOsAmendDeps` no longer takes `chunksDir` as argument (that moved to `AmendArgs`); `chunksDir` is resolved and placed in `a.ChunksDir`:
 
 ```go
 targ.Targ(func(ctx context.Context, a AmendArgs) {
     a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
-    chunksDir := ResolveChunksDir("", homeOrEmpty(), os.Getenv)
-    errHandler(RunAmend(withLog(ctx), a, newOsAmendDeps(chunksDir), stdout))
+    a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+    errHandler(RunAmend(withLog(ctx), a, newOsAmendDeps(), stdout))
 }).Name("amend").Description("Amend a note in place: relation-merge, provenance-merge, field-replacement, activate"),
 ```
 
-- [ ] Also wire `--chunk-source` through the `learn` closures — propagate `a.ChunkSources` in the `LearnArgs` literal inside `runLearnFromFactArgs` and `runLearnFromFeedbackArgs` bridges (edit the functions in `learn.go` to include `ChunkSources: a.ChunkSources`). The `LearnFactArgs`/`LearnFeedbackArgs` embed `CommonLearnArgs` which gains `ChunkSources` — so `a.ChunkSources` is accessible.
+- [ ] Also wire `--chunk-source` through the `learn` closures — propagate `a.ChunkSources` in the `LearnArgs` literal inside `runLearnFromFactArgs` and `runLearnFromFeedbackArgs` bridges (add `ChunkSources: a.ChunkSources`). The `LearnFactArgs`/`LearnFeedbackArgs` embed `CommonLearnArgs` which gained `ChunkSources` in Task 5.2 — so `a.ChunkSources` is accessible.
 
 - [ ] Run `targ build` — builds clean.
 - [ ] Run `targ test` — new test passes.
@@ -3622,7 +3940,9 @@ targ.Targ(func(ctx context.Context, a AmendArgs) {
 
 **Prerequisite:** 5.9
 
-- [ ] **Write integration test** `TestRunAmend_RoundTrip_FactNote` in `amend_test.go` — writes a real fact note to a temp dir, amends it with `--relation`, `--chunk-source`, `--subject`, verifies the output bytes contain all expected mutations and that `Luhmann`, `created`, and unchanged fields are identical to the original:
+The integration test uses only `args.ChunksDir` (not `deps.ChunksDir` — that field no longer exists after F7). There is exactly one source of truth for the chunks directory.
+
+- [ ] **Write integration test** `TestRunAmend_RoundTrip_FactNote` in `amend_test.go`:
 
 ```go
 func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
@@ -3633,6 +3953,7 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
     chunksDir := t.TempDir()
     const basename = "1aa.2026-01-01.test.md"
     const relBasename = "105.2026-01-01.foo.md"
+    const chunkID = "/sessions/s.jsonl#turn-1"
     notePath := filepath.Join(dir, basename)
 
     // write initial note
@@ -3643,7 +3964,8 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
 
     // write a chunk index with one record
     records := []chunk.Record{{
-        Source: "s", Anchor: "turn-1", ContentHash: "sha256:abc",
+        Source: "/sessions/s.jsonl", Anchor: "turn-1",
+        ContentHash: chunk.HashText("t"),
         Text: "t", Vector: []float32{0.1},
     }}
     data, _ := chunk.EncodeRecords(records)
@@ -3651,12 +3973,12 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
     g.Expect(err).NotTo(gomega.HaveOccurred())
     if err != nil { return }
 
-    // also write a "note" for relBasename (just a file, Scan reads real FS)
+    // write a "note" for relBasename
     err = os.WriteFile(filepath.Join(dir, relBasename), makeFactNote("r ctx","X","is","Y",""), 0o600)
     g.Expect(err).NotTo(gomega.HaveOccurred())
     if err != nil { return }
 
-    deps := cli.ExportNewOsAmendDeps(chunksDir)
+    deps := cli.ExportNewOsAmendDeps()
     deps.Scan = func(vault string) ([]vaultgraph.Note, error) {
         return []vaultgraph.Note{
             {Basename: basename, LuhmannID: "1aa"},
@@ -3673,13 +3995,26 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
         return []string{basename, relBasename}, nil
     }
     deps.Now = func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) }
+    deps.ListIndexes = func(dir string) ([]string, error) {
+        entries, err := os.ReadDir(dir)
+        if err != nil {
+            return nil, nil
+        }
+        paths := make([]string, 0, len(entries))
+        for _, e := range entries {
+            if !e.IsDir() && strings.HasSuffix(e.Name(), ".jsonl") {
+                paths = append(paths, filepath.Join(dir, e.Name()))
+            }
+        }
+        return paths, nil
+    }
 
     args := cli.AmendArgs{
         Vault:        dir,
         Target:       "1aa",
         Subject:      "NewSubject",
         Relations:    []string{relBasename + "|because"},
-        ChunkSources: []string{"sha256:abc"},
+        ChunkSources: []string{chunkID},
         ChunksDir:    chunksDir,
     }
 
@@ -3693,15 +4028,10 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
     g.Expect(body).To(gomega.ContainSubstring("luhmann: \"1aa\""))
     g.Expect(body).To(gomega.ContainSubstring("created: 2026-01-01"))
     g.Expect(body).To(gomega.ContainSubstring("sources:"))
-    g.Expect(body).To(gomega.ContainSubstring("sha256:abc"))
+    g.Expect(body).To(gomega.ContainSubstring(chunkID))
     g.Expect(body).To(gomega.ContainSubstring("Related to:"))
     g.Expect(body).To(gomega.ContainSubstring("[[" + relBasename + "]]"))
 }
-```
-
-Add to `export_test.go`:
-```go
-ExportNewOsAmendDeps = newOsAmendDeps
 ```
 
 - [ ] Run `targ test` — passes.
@@ -3712,9 +4042,17 @@ ExportNewOsAmendDeps = newOsAmendDeps
 
 **Risks/notes for the synthesizer:**
 
-1. **D3 dependency (exclude `Related to:` from embed source):** Task 5.6's "content changed" gate is critical — if `Related to:` is still in the body hash when the spec says it should be excluded (D3), a link-only amend will incorrectly trigger re-embed. This component depends on the D3 component (step 4 in §7) being landed first; the plan above gates `contentChanged=false` for relation-only amends at the Go level, but `BuildSidecar`/`ContentHash` will still hash the `Related to:` block until D3 lands. The plan is self-consistent only when sequenced after D3.
-2. **`manifestName` constant:** used in `loadChunkIDsFromDir` to skip the manifest file — this is already defined in `internal/cli/ingest.go`. Confirm it is package-accessible (unexported but same package) before implementing Task 5.8.
-3. **`applyFactAmend` — `doc.Subject` type:** `factFrontmatterDoc.Subject` is a plain `string`, but `Object` is also `string`. The comparison `args.Subject != string(doc.Subject)` is fine; confirm there is no `quotedString` wrapping on `Subject`/`Predicate`/`Object` (current code shows they are plain `string` fields — verified).
+1. **D3 dependency (exclude `Related to:` from embed source):** Task 5.6's `contentChanged` gate is critical — if `Related to:` is still in the body hash, a link-only amend will incorrectly trigger re-embed. This component depends on the D3 component (Component 4) being landed first so that `embed.BuildSidecar`/`ContentHash` excludes the `Related to:` block. The plan is self-consistent only when sequenced after Component 4.
+
+2. **`manifestName` constant:** used in `newOsAmendDeps`'s `ListIndexes` closure to skip the manifest file. This constant is defined as `manifestName = "manifest.json"` in `internal/cli/ingest.go:119`. It is unexported but accessible within the same `cli` package — no redeclaration needed.
+
+3. **`wikilinkRE` is in `query.go`:** `mergeRelatedSection` uses `wikilinkRE` (defined in `internal/cli/query.go:175`). Since `amend.go` is in the same `cli` package, this is a valid reference. No redeclaration needed.
+
+4. **`relatedSectionMarker` is in `relations.go`:** Already package-accessible. Do not redeclare in `amend.go`.
+
+5. **`buildChunkIDSet` must be landed (Component 2 Task 2.10):** Task 5.8 reuses it. If Component 2 is not merged when Component 5 executes, there will be a compile error on `buildChunkIDSet` — this is the correct RED state. Component 5 cannot wire `AmendDeps.LoadChunkIDs: buildChunkIDSet` until Component 2 is done.
+
+6. **`applyFeedbackAmend` mirrors `applyFactAmend`:** Not shown in full above to avoid duplication, but it must implement the same pattern: parse `feedbackFrontmatterDoc`, check `Behavior`/`Impact`/`Action` fields against `args`, merge `Sources` via `mergeChunkSources`, populate `feedbackFields`, call `renderFeedbackFrontmatter`. The `Issue` field round-trip is identical: `Issue: string(doc.Issue)` → `quotedString(f.Issue)` in `renderFeedbackFrontmatter`.
 
 ### Component 6: `/recall` skill — agent-judged coverage + recency-weighted distillation (D6/D7)
 
@@ -3726,13 +4064,19 @@ ExportNewOsAmendDeps = newOsAmendDeps
 - `engram show <ref>` to read candidates before judging (already ships)
 - `engram activate` for the covered path (already ships)
 
+**Component-entry verification:** Before starting, confirm Components 2, 3, and 5 are merged:
+- `grep IngestedAt internal/chunk/index.go` — must show `time.Time` field
+- `grep candidate_l2s internal/cli/query.go` — must show the top-K field
+- `grep RunAmend internal/cli/amend.go` — must exist
+- `targ check-full` — all checks pass
+
 ---
 
-#### Task 6.1 — RED: capture baseline behavior of current Step 2.5
+#### Task 6.1a — Write the baseline-capture scenario
 
-- [ ] Read the current `skills/recall/SKILL.md` lines 95–170 (the current cosine-band Step 2.5) and write down exactly what the table-driven band gate says so the baseline prompt can reproduce the behavior an agent shows today.
+- [ ] Read the current `skills/recall/SKILL.md` lines 95–170 (the current cosine-band Step 2.5). Note exactly what the table-driven band gate says so the baseline prompt can reproduce the behavior an agent shows today.
 
-- [ ] Create a scratch file `dev/skill-tdd/recall-step2.5-baseline-prompt.md` (do **not** commit) containing a pressure scenario that gives a subagent: (a) the current full `SKILL.md` text verbatim, (b) a fabricated `engram query` payload containing three clusters — one with `nearest_l2.cosine: 0.96`, one with `nearest_l2.cosine: 0.87`, and one with `nearest_l2.cosine: 0.72` — and (c) the instruction "Execute Step 2.5 exactly as written." The scenario adds a time-pressure rider: "The user is waiting; do not spend time re-reading — just follow the bands." Expected baseline failure: the agent applies the three cosine bands from the table and writes or skips notes based purely on the numeric threshold, with no candidate-reading, no recency reasoning, and no `engram amend`.
+- [ ] Create the scratch file `dev/skill-tdd/recall-step2.5-baseline-prompt.md` (do **not** commit). The scenario gives a subagent: (a) the current full `SKILL.md` text verbatim, (b) a fabricated `engram query` payload using the **post-Component-3 schema** (`candidate_l2s`, not `nearest_l2` — the binary will emit `candidate_l2s` once Component 3 is merged, so the baseline must use the schema the binary actually emits), and (c) the instruction "Execute Step 2.5 exactly as written."
 
   The prompt content (put in the file verbatim):
 
@@ -3767,7 +4111,10 @@ ExportNewOsAmendDeps = newOsAmendDeps
         - {path: "chunks/t1.md", score: 0.81, is_representative: true}
         - {path: "chunks/t2.md", score: 0.78, is_representative: false}
         - {path: "chunks/t3.md", score: 0.75, is_representative: false}
-      nearest_l2: {path: "1a.tdd-must-come-first.md", cosine: 0.96}
+      candidate_l2s:
+        - {path: "1a.tdd-must-come-first.md", cosine: 0.96}
+        - {path: "1b.test-doubles-patterns.md", cosine: 0.84}
+        - {path: "1c.integration-test-scope.md", cosine: 0.79}
     - phrase: "chunks"
       size: 4
       silhouette: 0.38
@@ -3776,14 +4123,20 @@ ExportNewOsAmendDeps = newOsAmendDeps
         - {path: "chunks/t5.md", score: 0.80, is_representative: false}
         - {path: "chunks/t6.md", score: 0.77, is_representative: false}
         - {path: "chunks/t7.md", score: 0.74, is_representative: false}
-      nearest_l2: {path: "1b.test-doubles-patterns.md", cosine: 0.87}
+      candidate_l2s:
+        - {path: "1b.test-doubles-patterns.md", cosine: 0.87}
+        - {path: "1a.tdd-must-come-first.md", cosine: 0.80}
+        - {path: "1d.mock-boundaries.md", cosine: 0.74}
     - phrase: "chunks"
       size: 2
       silhouette: 0.31
       members:
         - {path: "chunks/t8.md", score: 0.79, is_representative: true}
         - {path: "chunks/t9.md", score: 0.72, is_representative: false}
-      nearest_l2: {path: "1c.integration-test-scope.md", cosine: 0.72}
+      candidate_l2s:
+        - {path: "1c.integration-test-scope.md", cosine: 0.72}
+        - {path: "1e.scope-boundaries.md", cosine: 0.65}
+        - {path: "1f.test-granularity.md", cosine: 0.60}
   budget:
     items_returned: 0
     notes_scanned: 12
@@ -3792,19 +4145,63 @@ ExportNewOsAmendDeps = newOsAmendDeps
   Execute Step 2.5 now.
   ```
 
-- [ ] Run the baseline scenario as a subagent (spawn via `TaskCreate` with a short-lived subagent model). Record verbatim what the agent does. Expected to observe:
-  - Cluster 1 (0.96): agent calls `engram activate --note 1a.tdd-must-come-first.md` and does NOT create.
-  - Cluster 2 (0.87): agent calls `engram learn fact|feedback --target <luhmann-id> --position continuation ...` (UPDATE band).
-  - Cluster 3 (0.72): agent calls `engram learn fact|feedback --position top ...` (CREATE band).
-  - The agent reads no chunk content before deciding, uses no `engram amend`, consults no candidate list, applies no recency reasoning.
+  **Why `candidate_l2s` in the baseline, not `nearest_l2`?** The pre-v2 skill text references `nearest_l2`; however, the binary (post-Component-3) now emits `candidate_l2s`. The baseline payload must use the schema the binary actually emits so the RED state captures real agent behavior with real output — not behavior against a phantom field. The pre-v2 skill's band table (`nearest_l2.cosine >= 0.95`, etc.) will cause the agent to look for `nearest_l2` in a payload that has `candidate_l2s`, surfacing the schema mismatch as part of the documented RED failure.
 
-  **This is the RED state — document it. The baseline violates the v2 design in every dimension.**
+---
+
+#### Task 6.1b — Run baseline scenario + capture transcript
+
+- [ ] Spawn a subagent via `TaskCreate` with the scenario file content from Task 6.1a. Spec for the subagent invocation:
+  - **Input:** the full content of `dev/skill-tdd/recall-step2.5-baseline-prompt.md` (expand `[PASTE CURRENT SKILL.MD HERE]` with the literal content of `skills/recall/SKILL.md` at this moment)
+  - **Instruction to subagent:** "Execute Step 2.5 of the /recall skill EXACTLY as written in the pasted skill text, using the fabricated payload below. Stop after Step 2.5."
+  - **Expected runtime:** ~2 minutes
+  - **Cost bound:** $0.50 (three clusters, no real tool calls — the subagent is describing what it would do, not executing live `engram` commands)
+  - **Output:** save the full subagent transcript verbatim to `dev/skill-tdd/baseline-transcript.md` (do not commit)
+
+- [ ] Record verbatim what the agent does for each cluster. Expected RED behaviors to observe:
+  - Cluster 1 (top cosine 0.96): agent looks for `nearest_l2` field — may get confused or fall back to `candidate_l2s[0]`; applies the `>= 0.95` band and calls `engram activate --note 1a.tdd-must-come-first.md`. Does NOT read candidates first.
+  - Cluster 2 (top cosine 0.87): agent applies the `0.80–0.95` band and calls `engram learn fact|feedback --target <luhmann-id> --position continuation ...` (UPDATE band). Does NOT call `engram amend`.
+  - Cluster 3 (top cosine 0.72): agent applies the `< 0.80` band and calls `engram learn fact|feedback --position top ...` (CREATE band).
+  - In all cases: the agent reads no candidate content before deciding, uses no `engram amend`, consults no recency reasoning.
+
+---
+
+#### Task 6.1c — Extract RED baseline checklist
+
+- [ ] From the transcript in `dev/skill-tdd/baseline-transcript.md`, create `dev/skill-tdd/baseline-red-checklist.md` (do not commit) listing the observed violations. The checklist must have one entry per violation with a transcript line reference. Minimum expected violations (these define what GREEN must fix):
+
+  ```markdown
+  # RED baseline violations — recall Step 2.5 (pre-v2)
+
+  ## Violation 1: No candidate reading before coverage judgment
+  - **Expected (v2):** Agent calls `engram show <candidate>` before deciding covered/near/absent.
+  - **Observed (pre-v2):** Agent applied cosine threshold directly from `candidate_l2s[0].cosine`
+    (or `nearest_l2.cosine`) without reading candidate content.
+  - **Transcript reference:** [line X]
+
+  ## Violation 2: Cosine threshold as sole gate
+  - **Expected (v2):** Coverage is agent-judged from content; cosine only nominates.
+  - **Observed (pre-v2):** Agent used `>= 0.95` / `0.80–0.95` / `< 0.80` table directly.
+  - **Transcript reference:** [line Y]
+
+  ## Violation 3: `engram learn --target` used for updates (not `engram amend`)
+  - **Expected (v2):** Updates use `engram amend <path> ...`.
+  - **Observed (pre-v2):** Agent called `engram learn feedback|fact --target <id> --position continuation`.
+  - **Transcript reference:** [line Z]
+
+  ## Violation 4: No recency reasoning applied
+  - **Expected (v2):** Agent identifies conflicts between older/newer members and applies recency weight.
+  - **Observed (pre-v2):** Agent treated all member evidence as equally weighted; no recency step.
+  - **Transcript reference:** [line W]
+  ```
+
+  **This checklist is the RED state — it defines exactly what GREEN (Task 6.2 + Task 6.3) must change.**
 
 ---
 
 #### Task 6.2 — GREEN: rewrite Step 2.5 in `skills/recall/SKILL.md`
 
-This is a targeted rewrite of lines 95–170 only. All other steps (0, 0.5, 1, 2, 3, the Red flags table) remain unchanged except two Red flags rows that must be updated.
+This is a targeted rewrite of lines 95–170 only. All other steps (0, 0.5, 1, 2, 3, the Red flags table) remain unchanged except the Red flags rows that are updated below.
 
 - [ ] Open `skills/recall/SKILL.md`. Identify the exact text block for Step 2.5 (currently lines 95–169, from `### Step 2.5` through the last Red flags row that references the cosine band logic). Do **not** touch any other section.
 
@@ -3819,9 +4216,11 @@ This is a targeted rewrite of lines 95–170 only. All other steps (0, 0.5, 1, 2
 
   **A. Read candidates and members**
 
-  Run `engram show <path>` on every entry in `candidate_l2s` (up to K calls, blocking). Also read
-  any note-kind members that are already in the payload's `items` list (their `content` field). Do
-  not judge coverage before you have read the content.
+  Run `engram show <path>` on every entry in `candidate_l2s` (up to K calls, blocking). For
+  note-kind cluster members already in the payload's `items[]` list, use their `content` field
+  directly — no additional `engram show` call needed on already-surfaced members. For chunk
+  members not in `items[]`, use the chunk content from the cluster's `members` list. Do not
+  judge coverage before you have read the candidate content.
 
   **B. Apply the recency weight to resolve conflicts**
 
@@ -3866,19 +4265,20 @@ This is a targeted rewrite of lines 95–170 only. All other steps (0, 0.5, 1, 2
   | You used `nearest_l2` instead of `candidate_l2s` | The v2 field is `candidate_l2s: [{path, cosine}]` — a list, not a singleton |
   | You called `engram learn --target` to update a note in place | Updates use `engram amend`; `engram learn` is create-only |
   | A `≥0.95` cluster → you activated without reading the candidates | Read first; high cosine nominates, it does not decide |
+  | You called `engram show` on a note already in `items[]` | Members already in `items[]` carry a `content` field — use it directly; `engram show` is only for candidates not in `items[]` |
   ```
 
 - [ ] Also update the existing Red flags row:
   - OLD: `| You grouped chunks by eye instead of using the payload's 'phrase: "chunks"' clusters | The binary's k-means grouping and 'nearest_l2' cosine are the ground truth; apply the bands |`
   - NEW: `| You grouped chunks by eye instead of using the payload's clusters | The binary's k-means grouping is the ground truth; read every cluster |`
 
-  And remove the rows that reference "banded N clusters and wrote 0 notes" and "≥0.95 cluster → you created a new L2" since those rows are band-specific logic that no longer applies. Also remove "`≥0.95` clusters where the covering L2 was useful" from the `activated: true` red flag row.
+  And remove the rows that reference "banded N clusters and wrote 0 notes" and "≥0.95 cluster → you created a new L2" since those rows are band-specific logic that no longer applies. Also remove `` `≥0.95` clusters where the covering L2 was useful`` from the `activated: true` red flag row.
 
 ---
 
 #### Task 6.3 — GREEN verify: run the same scenario WITH the new skill
 
-- [ ] Rerun the pressure scenario from Task 6.1 as a subagent, this time with the **new** SKILL.md text injected. Update the payload to use `candidate_l2s` instead of `nearest_l2`:
+- [ ] Rerun the pressure scenario from Task 6.1a as a subagent, this time with the **new** SKILL.md text injected. The payload already uses `candidate_l2s` (from Task 6.1a's baseline scenario):
 
   ```yaml
   clusters:
@@ -3917,11 +4317,13 @@ This is a targeted rewrite of lines 95–170 only. All other steps (0, 0.5, 1, 2
         - {path: "1f.test-granularity.md", cosine: 0.60}
   ```
 
+  Note: `1a.tdd-must-come-first.md` appears in both `members` (as a note-kind item with `is_representative: true`) and in `candidate_l2s`. The agent must use the `content` field from `items[]` for the note-kind member (it is already surfaced), and run `engram show` only on candidates NOT already in `items[]` (i.e., `1b.test-doubles-patterns.md` and `1c.integration-test-scope.md` for cluster 1).
+
   Pass the scenario to a subagent with the instruction: "Execute Step 2.5 of the /recall skill exactly as written."
 
 - [ ] **Pass criteria (check each):**
-  - [ ] Agent calls `engram show` on each `candidate_l2s` entry before deciding.
-  - [ ] Agent reads member content from `items` (or calls `engram show` on note-kind members).
+  - [ ] Agent calls `engram show` on each `candidate_l2s` entry that is NOT already in `items[]` before deciding.
+  - [ ] Agent uses the `content` field from `items[]` for note-kind members already surfaced — does NOT call `engram show` redundantly on them.
   - [ ] Agent applies recency reasoning before deciding covered/near/absent.
   - [ ] Agent uses `engram amend --activate` (not `engram activate`) for covered clusters.
   - [ ] Agent uses `engram amend` with content flags for near clusters.
@@ -3929,6 +4331,7 @@ This is a targeted rewrite of lines 95–170 only. All other steps (0, 0.5, 1, 2
   - [ ] Agent passes `--relation` for note sources and `--chunk-source` for chunk sources.
   - [ ] Agent writes exactly one note per cluster, never two.
   - [ ] Agent does NOT use the cosine value as a threshold gate.
+  - [ ] Check against the RED baseline checklist in `dev/skill-tdd/baseline-red-checklist.md` — every violation listed there must be absent from the GREEN transcript.
 
 ---
 
@@ -4016,6 +4419,8 @@ This is a targeted rewrite of lines 95–170 only. All other steps (0, 0.5, 1, 2
 
   Expected: all 8 checks pass, zero errors.
 
+- [ ] **Transient window note:** After this task completes, the installed recall skill references `candidate_l2s` and `engram amend` — both of which exist (Components 3 and 5 are merged). However, `docs/architecture/c1-system-context.md` and `skills/learn/SKILL.md` still contain the stale cosine-band and "prunes stale chunks" text until Component 7 runs. This is a transient inconsistency window: the docs are descriptive artifacts, not executable, so the installed skill works correctly. Component 7 closes the window. Do not skip Component 7 assuming this `engram update` completed the job — the executor needs Component 7 to reconcile the descriptive layer.
+
 ---
 
 **Risks / notes for the synthesizer:**
@@ -4024,11 +4429,13 @@ This is a targeted rewrite of lines 95–170 only. All other steps (0, 0.5, 1, 2
 
 2. **The Red flags table surgery is load-bearing.** Several existing rows mix band-gate language (`≥0.95`, `0.80–0.95`, `<0.80`) with currently-correct behavior. The plan above identifies the rows to remove, but the executor must diff carefully: removing a row that guards a still-valid behavior (e.g., the `engram activate` batch-call row at the end of Step 2) would be a regression. Only Step 2.5-specific band rows should be deleted; the Step 2 `activated: true` batch-call row is unaffected.
 
-3. **The `engram show` calls in Step 2.5 are blocking and per-cluster.** The spec records recall latency as a headline experiment metric (§3.6). The skill plan does not cap this — per §3.5 the documented fallback (cap at top-N clusters, default remainder to create) is an accepted v2 limit to surface only if the experiment shows it dominates. Do not silently add a cap to the skill text.
+3. **The `engram show` calls in Step 2.5 are bounded by K candidates, not by K candidates plus all note-kind members.** The spec §3.5 records recall latency as a headline experiment metric. Step 2.5 as written caps `engram show` at K calls per cluster (candidates only). Members already in `items[]` use their `content` field directly. Do not silently add a cap to the skill text beyond what is already specified; do not add redundant `engram show` calls for already-surfaced members.
 
 ### Component 7: Reconcile c1 + learn SKILL.md
 
 **Files:** `docs/architecture/c1-system-context.md`, `skills/learn/SKILL.md`
+
+> **Scope note:** `skills/recall/SKILL.md` (Step 2.5 rewrite) is handled in Component 6, per spec §7 step 7's parenthetical: "this is gate 6's skill work" — Component 7 covers only `c1-system-context.md` and `skills/learn/SKILL.md`. The split is intentional. After Component 6's `engram update` (Task 6.8), the installed recall skill is ahead of the c1 doc and learn SKILL.md; Component 7 closes this window. The inconsistency is transient and harmless (the docs are descriptive artifacts, not executable), but is called out here so the executor does not skip Component 7 thinking the update completed the job.
 
 ---
 
@@ -4342,20 +4749,17 @@ sequenceDiagram
 
 The existing "engram engagement" flowchart (lines 319–335) references `§6b: synthesize or update an L3 ADR` in the learn branch. Per the spec §7 step 7, L3 ADR synthesis at learn time is retired (table in learn SKILL.md: "ADR / L3 synthesis at learn time → Deferred entirely; crystallization happens at recall"). Update node `K` and its label.
 
-Edit `docs/architecture/c1-system-context.md`:
+**REQUIRED pre-edit step:** Run the grep below to find all `§6b` or `L3 ADR` references across the entire `docs/` tree. This must complete before making any edits. If matches appear outside `c1-system-context.md`, read those files and add companion edit tasks (or block this component until a decision is made) — do not proceed with only the c1 edit while leaving dangling cross-references.
 
-```python
-old_string = """\
-    I --> J{convention recurs across episodes?}
-    J -->|yes| K[§6b: synthesize or update an L3 ADR]
-    J -->|no| G
-    K --> G"""
-
-new_string = """\
-    I --> G"""
+```bash
+grep -rn "§6b\|L3 ADR" /Users/joe/repos/personal/engram/docs/
 ```
 
-Also remove the now-unreachable `J` node line that branches to `K` and the stale `I --> J` — but since the node labels reference `transcript --mark` and `episodes`, update node `H` and `I` text too to match the new ingest model:
+Expected ideal: matches only in `c1-system-context.md`. If matches appear in `c2-containers.md`, `c3-components.md`, `adr.md`, or other docs files, those files require companion edits. Create a follow-up task (or inline the edits here) for each file with matches outside c1, covering: (a) sequence diagrams referencing the §6b loop; (b) the §6b update-or-create decision flowchart; (c) prose referencing L3 ADR synthesis at learn time. Do not skip or defer these — a grep match that is not addressed leaves a dangling cross-reference that contradicts the updated c1.
+
+After confirming (or addressing) all matches, apply the c1 edit:
+
+Edit `docs/architecture/c1-system-context.md` — in the file, locate the engagement flowchart (around lines 319–335). Replace the `F → H → I → J → K` learn branch:
 
 ```python
 old_string = """\
@@ -4393,15 +4797,18 @@ After edit, confirm line 27 (approximately) reads the new text. No other changes
 
 #### Task 7.8 — Verify no remaining stale text
 
-Check that all stale phrases are gone:
+Check that all stale phrases are gone across all three files that Component 7 touches (c1, learn SKILL.md) plus the recall SKILL.md that Component 6 edits (guarding against any missed residual from Task 6.x):
 
 ```bash
 grep -n "nearest_l2\|prunes stale chunks\|fire-and-forget\|Synthesis subagent\|transcript --mark\|learn episode\|L3 ADR\|three bands" \
   /Users/joe/repos/personal/engram/docs/architecture/c1-system-context.md \
-  /Users/joe/repos/personal/engram/skills/learn/SKILL.md
+  /Users/joe/repos/personal/engram/skills/learn/SKILL.md \
+  /Users/joe/repos/personal/engram/skills/recall/SKILL.md
 ```
 
 Expected output: empty (no matches). If any match appears, read the surrounding context and apply a follow-up Edit before declaring done.
+
+> **Note:** `skills/recall/SKILL.md` is included here as a cross-check only — its content was rewritten by Component 6. Component 7 does not edit it; this grep is a residual-validation guard, not a Component 7 responsibility.
 
 ---
 
@@ -4434,4 +4841,5 @@ Expected: `2` (engagement flowchart + please flowchart).
 
 1. **Ordering dependency on step 6 (recall SKILL.md):** Task 7.7 here edits `skills/learn/SKILL.md` directly (a single-line prose change, not a SKILL.md behavioral rewrite), so it does NOT require `superpowers:writing-skills`. Step 6 edits `skills/recall/SKILL.md` and DOES require that TDD gate — keep steps 6 and 7 ordered to avoid concurrent edits to the skills/ directory.
 2. **`internal/cli/amend.go` referenced before it exists:** Task 7.2 adds a source reference to `amend.go` in the c1 prose. This file is created in step 5 (§3.4 `engram amend`). Write the c1 prose edit after step 5 lands, or leave a `(forthcoming)` note and update it in this task — do not reference a non-existent file as if it ships in this step alone.
-3. **L1 decision flowchart node removal (Task 7.6):** the `J{convention recurs across episodes?}` branch and `K[§6b: synthesize or update an L3 ADR]` node may have click-anchor IDs or other downstream references in c2/c3 diagrams. Verify with `grep -r "§6b\|L3 ADR" docs/` before the edit — if found in c2/c3, those files need companion edits not covered here.
+3. **L1 decision flowchart node removal (Task 7.6):** the `J{convention recurs across episodes?}` branch and `K[§6b: synthesize or update an L3 ADR]` node have cross-references in `docs/architecture/c2-containers.md` (§6b sequence diagram at line 138, flowchart at line 195), `docs/architecture/c3-components.md` (line 147), and `docs/architecture/adr.md` (lines 32, 86, 99, 106, 113). The required grep in Task 7.6 will surface these; companion edits are required for any match outside c1.
+
