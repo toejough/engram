@@ -87,23 +87,32 @@ payload also carries a read-only **`activated`** flag on each
 note item that *surfaced AND* cleared a base-cosine relevance cutoff; the
 harness forwards those paths to **`engram activate`**, which bumps the note's
 `LastUsed` (atomic per-file sidecar write — usefulness keeps useful notes
-fresh). The harness then applies a per-cluster synthesis gate: for an
-above-cutoff chunk cluster it crystallizes per three bands on `nearest_l2`
-cosine — `<0.80` create, `0.80–0.95` update, **`≥0.95` `engram activate` the
-covering L2** (it was useful; refresh, don't duplicate) — writing fact/feedback
-via `engram learn` with `--relation` bullets to each constituent. Source:
+fresh). The binary clusters the **matched chunks + notes together** in one AutoK pass
+(D1); each cluster carries `candidate_l2s: [{path, cosine}]` — the top-K
+(K≥3) existing L2s ranked by centroid cosine — rather than a single
+`nearest_l2`. The harness then, **inline and blocking**, reads the cluster's
+members and candidates and applies an **agent-judged coverage decision** (D7):
+**covered** (candidate already states the principle with no material omission,
+judged against the recency-weighted view) → `engram amend --activate
+--relation <note sources> --chunk-source <chunk ids>` (refresh recency + enrich
+links/provenance, no content rewrite); **near** (same situation, ≥1 substantive
+claim omitted) → `engram amend --relation … --chunk-source … <re-synthesized
+content>` (update in place, recency-weighted, D6); **absent** (no candidate
+addresses the situation) → `engram learn fact|feedback --relation … --chunk-source
+… --source "<descriptive>"` (create the single representative L2). Source:
 `internal/cli/query.go` (`RunQuery`, `mergeChunkSpace`, `applyCombinedRecencyBand`),
-the recency/decay/band in `internal/cli/recency.go`, the `engram activate`
-command in `internal/cli/activate.go`, and the `internal/cluster/` package
-(`kmeans.go`, `silhouette.go`, `autok.go`).
+the recency/decay/band in `internal/cli/recency.go`, `engram activate` in
+`internal/cli/activate.go`, `engram amend` in `internal/cli/amend.go`, and the
+`internal/cluster/` package (`kmeans.go`, `silhouette.go`, `autok.go`).
 
-> Two deliberate evolutions of earlier decisions, both driven by recency decay:
-> (1) recency now applies to **notes**, not chunks only (the v1 chunks-only
-> scope); (2) usefulness is an **activation signal** — the lazy-L2 `≥0.95`
-> dedup-*silence* band becomes a *refresh*, and a clearly-stated-in-a-chunk idea
-> is still crystallized (chunks decay; a refreshable L2 survives). Consequence
-> (intended, ACT-R): regularly-useful memory stays fresh; never-retrieved memory
-> decays and loses rank.
+> Two deliberate evolutions of earlier decisions, both driven by recency:
+> (1) recency now applies to **both notes and chunks** — per-chunk `IngestedAt`
+> (D5) replaces the per-source-mtime approximation; (2) coverage is **agent-judged**
+> (D7) — cosine only nominates top-K candidates; the agent reads members +
+> candidates and decides. Writes are **blocking and inline** (not fire-and-forget)
+> so the synthesized L2 is available to the agent within the same recall turn.
+> Consequence (intended, ACT-R): regularly-useful memory stays fresh;
+> never-retrieved memory decays and loses rank.
 
 ```mermaid
 sequenceDiagram
@@ -112,30 +121,36 @@ sequenceDiagram
     participant H as S3 Harness
     participant E as S2 Engram CLI
     participant V as S4 Vault
-    participant Sub as S3 Synthesis subagent
 
     Op->>H: prompt that may need memory
     Note over H: print Step 0 (Ask, Situation, Plan), phrase 5-15 query strings
-    H->>E: engram query --phrase <p1> --phrase <p2> ... --limit N
-    E->>V: scan sidecars + bodies for compatible-embed notes
-    V-->>E: notes and vectors
+    H->>E: engram query --synthesize-l2 --phrase <p1> --phrase <p2> ... --limit N
+    E->>V: scan sidecars + bodies for compatible-embed notes + chunk index
+    V-->>E: notes, chunks, and vectors
     Note over E: per phrase — embed, top-k cosine, BFS 3 hops (cap 200), k-means, in-degree top-5
-    Note over E: merge server-side — items dedup by path (max score, union provenances); reweight chunk hits by recency and guarantee a floor of recent chunks; clusters tagged per-phrase
-    E-->>H: single YAML payload (phrases[], items, clusters, hubs, budget)
+    Note over E: merge server-side — items dedup by path (max score, union provenances); reweight by per-chunk IngestedAt recency; guarantee floor of recent items; clusters tagged per-phrase
+    Note over E: one AutoK cluster over matched chunks + notes; per cluster emit candidate_l2s (top-K by centroid cosine)
+    E-->>H: single YAML payload (phrases[], items, clusters[candidate_l2s], hubs, budget)
     Note over H: surface anchor concepts from hubs
 
-    loop per cluster
-        Note over H: read the cluster representative — gate on ≥3 members and rep-coherence hint
-        alt cluster passes the cheap gate
-            H-)Sub: dispatch synthesis subagent (fire-and-forget)
-            Sub->>V: read all cluster members
-            V-->>Sub: member contents
-            Note over Sub: decide whether a binding principle is worth capturing
-            Sub-)E: engram learn fact or feedback (--relation per constituent)
-            E->>V: acquire flock, compute Luhmann, write note
+    loop per cluster (blocking inline)
+        H->>E: engram show <candidate L2s> (only those not already in items[])
+        E->>V: read candidate frontmatter + body + members
+        V-->>E: contents
+        E-->>H: candidate + member contents
+        Note over H: apply recency weight; judge coverage (covered / near / absent)
+        alt covered — candidate already states the principle
+            H->>E: engram amend --target <l2> --activate --relation <note srcs> --chunk-source <ids>
+            E->>V: acquire flock, merge relations + provenance, bump LastUsed
             V-->>E: written path
-        else cluster fails the cheap gate
-            Note over H: skip — cluster members remain as context
+        else near — same situation, substantive claim omitted
+            H->>E: engram amend --target <l2> --relation <note srcs> --chunk-source <ids> <re-synth content>
+            E->>V: acquire flock, replace content fields, merge relations + provenance, re-embed
+            V-->>E: written path
+        else absent — no candidate addresses the situation
+            H->>E: engram learn fact|feedback --relation <note srcs> --chunk-source <ids> --source "<desc>"
+            E->>V: acquire flock, compute Luhmann ID, write note
+            V-->>E: written path
         end
     end
 
@@ -146,12 +161,16 @@ sequenceDiagram
 ### Flow: learn
 
 Operator runs `/learn` (or the harness self-fires after substantive work). The
-harness first invokes `engram transcript --mark` to read session JSONL or
-SQLite from S5 and advance the per-harness marker forward, then writes any
-captured lessons into the vault via `engram learn {feedback|fact|episode}`. Each
-write acquires a `flock` on the vault root before computing the Luhmann ID and
-emitting the new file. Source: `internal/cli/transcript.go`
-(`advanceAndReportMarker`) and `internal/cli/learn.go` (`runLearn`).
+harness first invokes `engram ingest --auto` to merge-append any new chunks from
+session transcripts (S5) and markdown sources into the chunk index — re-chunking
+and re-embedding only changed content, never deleting existing records (append-only,
+D5). It then writes any EXPLICIT lessons (corrections or explicit save-requests)
+into the vault via `engram learn {feedback|fact}`. Each write acquires a `flock`
+on the vault root before computing the Luhmann ID and emitting the new file.
+Source: `internal/cli/ingest.go` (`runIngest`) and `internal/cli/learn.go`
+(`runLearn`). The `engram learn episode` subcommand and `engram transcript --mark`
+are retired: episodes are superseded by the chunk layer (D4); transcript reading
+is subsumed by `engram ingest --auto`.
 
 ```mermaid
 sequenceDiagram
@@ -159,29 +178,20 @@ sequenceDiagram
     actor Op as S1 Operator
     participant H as S3 Harness
     participant E as S2 Engram CLI
-    participant Tr as S5 Session stores
     participant V as S4 Vault
 
     Op->>H: invoke /learn (or self-fire after substantive work)
 
-    H->>E: engram transcript --mark
-    E->>Tr: read JSONL or SQLite from per-harness marker forward
-    Tr-->>E: session entries up to byte cap
-    Note over E: write marker forward (XDG_STATE_HOME)
-    E-->>H: status line, scanned range, advanced marker
+    H->>E: engram ingest --auto
+    E->>V: stat known sources (session transcripts, markdown); re-chunk + re-embed changed content only
+    Note over E: merge-append new chunks by ContentHash; never delete existing records (D5)
+    V-->>E: written chunk count
+    E-->>H: per-source chunk tally (or "memory index up to date")
 
-    alt no marker yet (first run)
-        E-->>H: exit non-zero, earliest session date
-        H->>Op: ask scan start date via AskUserQuestion
-        Op-->>H: chosen start date
-        H->>E: engram transcript --mark --from CHOSEN
-        E-->>H: status line
-    end
+    Note over H: scan THIS session for corrections and explicit save-requests only
 
-    Note over H: read transcript output plus in-context turns, identify candidates, apply recall-mirror test
-
-    loop per candidate (one parallel tool-use block)
-        H->>E: engram learn feedback|fact|episode --slug ... --source ... --situation ...
+    loop per explicit lesson (one parallel tool-use block)
+        H->>E: engram learn feedback|fact --slug ... --source ... --situation ...
         alt vault dir missing
             E->>V: bootstrap .obsidian, README, .gitignore
         end
@@ -190,7 +200,7 @@ sequenceDiagram
         E-->>H: emit written path on stdout
     end
 
-    H-->>Op: report scanned status line plus written permanent paths
+    H-->>Op: report chunk tally plus written permanent paths
 ```
 
 ### Flow: please
@@ -312,8 +322,9 @@ relationships [R6](#r6) and [R5](#r5) respectively.
 ### L1 decision flowcharts
 
 The sequence diagrams above show *message order*; these flowcharts show the *operator-level decision
-logic* — when the system is engaged at all, and how `/please` sequences it. (L2/L3 carry the
-internal-branch flowcharts: recall's §3a gate, §6b update-or-create, and marker forward-progress.)
+logic* — when the system is engaged at all, and how `/please` sequences it. (L2 carries the
+internal-branch flowcharts: recall's lazy-L2 coverage decision (covered/near/absent) and the
+recall-time lazy-L2 synthesis loop; plus marker forward-progress.)
 
 #### Flow: engram engagement — the read → work → write → synthesize lifecycle
 
@@ -327,11 +338,8 @@ flowchart TD
     E --> F{produced a lesson / correction / decision?}
     F -->|no| G[done]
     F -->|yes| H[learn: write memory]
-    H --> I[transcript --mark, then write episodes + facts/feedback]
-    I --> J{convention recurs across episodes?}
-    J -->|yes| K[§6b: synthesize or update an L3 ADR]
-    J -->|no| G
-    K --> G
+    H --> I[engram ingest --auto, then write facts/feedback for explicit lessons]
+    I --> G
 ```
 
 #### Flow: `/please` seven-step gated workflow

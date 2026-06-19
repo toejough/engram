@@ -143,8 +143,10 @@ confirm + propose deletion.
 - **transcript → skill → learn (NOT in-process):** `engram transcript` emits the stripped chunk +
   `(session-id, range)` to **stdout**; the skill reads it and shells `engram learn` as a *new process*.
 - **K6 payload (to stdout → skill):** `items[]` (tier-filtered, with content) ∪ `clusters[].members`
-  (paths) ∪ `hubs` ∪ `budget`. Today only `items` is tier-constrained; the **T1a fix** extends `--tier` to clusters/`nearest_l3`/`hubs` (operator decision). The skill — not
-  the binary — consumes it and may shell `engram learn` for §3a link-to-bind / §6b ADRs.
+  (paths) ∪ `clusters[].candidate_l2s` (`[{path, cosine}]`, top-K by centroid cosine, emitted under
+  `--synthesize-l2`) ∪ `hubs` ∪ `budget`. Today only `items` is tier-constrained; the **T1a fix** extends `--tier` to clusters/`nearest_l3`/`hubs` (operator decision). The skill — not
+  the binary — consumes it and may shell `engram amend` (covered/near) or `engram learn` (absent)
+  for recall-time lazy-L2 synthesis.
 - **K5 sidecar:** `{vector[384], embedding_model_id, content_hash}` — `content_hash` MUST cover the
   embedded text (E4: currently doesn't, for episodes). Marker-advance (the M2 site) lives in **K1b
   `cli/transcript.go`** orchestration, not the K1 reader package.

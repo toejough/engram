@@ -121,18 +121,19 @@ because it lacks a recent instance.
 
 | Outcome | Criterion | Action |
 | --- | --- | --- |
-| **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend <candidate-path> --activate --relation <new-note-sources> --chunk-source <new-chunk-ids>` — link-enrich only; **do not rewrite content** |
-| **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend <candidate-path> --relation <note-sources> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted |
+| **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend --target <candidate-path> --activate --relation <new-note-sources> --chunk-source <new-chunk-ids>` — link-enrich only; **do not rewrite content** |
+| **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --relation <note-sources> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted |
 | **Absent** | No candidate addresses the situation | `engram learn fact\|feedback --position top --relation <note-sources> --chunk-source <chunk-ids> --source "<descriptive>" --situation "..." --subject/--predicate/--object (or --behavior/--impact/--action)` |
 
 **One write per cluster; one representative L2 per cluster.** The representative is always an L2
 (never an L1 note or a chunk). For `absent`, write exactly one note (fact *or* feedback) covering
 the cluster's principle. Do not write one fact and one feedback note for the same cluster.
 
-For `amend` (covered or near), pass `--relation` for every **note** source in the cluster (the
-wikilink graph) and `--chunk-source` for every **chunk** source (provenance, not wikilinks). For
-`learn`, pass the same flags. The `--source` flag on `learn` is the human-readable provenance
-string (unchanged); `--chunk-source` is the chunk-id list (new).
+For `amend` (covered or near), pass one `--relation "<wikilink-target>|<one-line rationale>"`
+(repeatable) for every **note** source in the cluster (the wikilink graph) and one
+`--chunk-source <source#anchor>` (repeatable) for every **chunk** source (provenance, not
+wikilinks). For `learn`, pass the same flags. The `--source` flag on `learn` is the human-readable
+provenance string (unchanged); `--chunk-source` is the chunk-id list (new).
 
 **WAIT for each write before moving to the next cluster.** Writes are blocking and inline — the
 L2 created or updated by one cluster may be a candidate for another.

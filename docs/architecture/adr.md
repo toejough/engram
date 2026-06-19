@@ -14,7 +14,7 @@ Status legend: **Accepted** · **Accepted (known defect)** — sound decision, b
 
 ## ADR-0001 — Skills + slim binary split
 
-**Status:** Accepted (known seam: INV-S1)
+**Status:** Accepted (INV-S1 seam resolved 2026-06 via `engram amend`, `internal/cli/amend.go`)
 
 **Context.** The work divides into LLM judgment (which lessons to capture, how to frame a
 `situation`, whether a cluster shares a binding principle) and deterministic compute (cosine,
@@ -27,10 +27,10 @@ CLI surface (args in, stdout out) and the vault on disk. Each `engram <subcomman
 OS process; subcommands never call one another in-process.
 
 **Consequences.** The invariant checker gates C2 (everything in C2 is deterministic and testable);
-skills are gated only by RT acceptance tests. ⚠ KNOWN (INV-S1): the claim "the skill never touches
-the vault directly" is aspirational — the skill layer reads vault files directly in recall §3a
-(cluster members arrive as paths) and edits them in learn §6b (no `engram` edit subcommand). Either
-add `engram` read/edit paths or keep the softened c2 wording.
+skills are gated only by RT acceptance tests. INV-S1 (resolved): the skill no longer touches the
+vault directly — recall reads via `engram show` / the query payload, and `engram amend`
+(`internal/cli/amend.go`) now provides the sync-preserving in-place edit path (rewrites both copies
++ re-embeds), closing the INV-S1 write-half ("no `engram` edit subcommand").
 
 ---
 
@@ -83,8 +83,9 @@ the top tier only; empirically, **blended** retrieval scored better (note 160).
 
 **Decision.** Default retrieval is **blended / kind-agnostic**. `--tier X` is an **optional cap**
 that constrains **all exposed channels** (`items`, `clusters[].members`, `nearest_l3`, `hubs`) to
-tier X — **operator decision 2026-06-04**, superseding the original items-only design; §6b issues
-**un-tiered** queries, so it still sees cross-tier clusters/`nearest_l3`. Tier is a **frontmatter field** with
+tier X — **operator decision 2026-06-04**, superseding the original items-only design; recall-time
+lazy-L2 synthesis runs `engram query --synthesize-l2` **un-tiered**, so it still sees cross-tier
+clusters and their `candidate_l2s`. Tier is a **frontmatter field** with
 type-derived defaults: episode → L1 (rigid); fact/feedback → L2 (default, overridable to L3).
 There is **no `adr` kind** — an ADR is `type:fact tier:L3`.
 
@@ -98,7 +99,7 @@ is a feature, so tier↔kind is asymmetric (T2).
 
 ## ADR-0005 — L3 ADRs are scenario-discoverable, synthesized from L2 clusters by centroid cosine
 
-**Status:** Accepted (known defect: sparse synthesis; INV-S2)
+**Status:** Superseded by the 2026-06-09 lazy-L2 synthesis design (docs/superpowers/specs/2026-06-09-lazy-l2-synthesis-design.md) — L3-ADR-synthesis-at-learn-time is retired; crystallization is now recall-time, agent-judged lazy-L2 (covered/near/absent) via engram amend/learn.
 
 **Context.** An L2 fact only surfaces if you query its keywords — but the agent who needs it does
 not know it exists. Standards must be discoverable from the **situation** the agent is in.
@@ -113,7 +114,9 @@ write-sparsity starves `AutoK` (silhouette threshold), so clusters rarely form a
 the rebuilt vault has only 1 L3 from 106 L2. ⚠ KNOWN (INV-S2): §6b "revise its `situation`" assumes
 tuning the situation changes retrieval, but a **fact** stores the situation twice (frontmatter +
 the body "formula") and only the body is embedded/hashed — a frontmatter-only edit is a retrieval
-no-op and invisible to `embed apply --stale`.
+no-op and invisible to `embed apply --stale`. Superseded: per-pass write-time synthesis is replaced
+by recall-time lazy-L2 — the write-sparsity that starved AutoK no longer applies, and INV-S2's
+frontmatter/body desync is resolved by `engram amend` (which rewrites both copies + re-embeds).
 
 ---
 

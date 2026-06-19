@@ -24,7 +24,7 @@ engram ingest --auto
 ```
 
 That's it. The binary stats every known source (repo markdown, `.claude` dirs, all session
-transcripts), re-chunks and re-embeds only what changed, and prunes stale chunks. Unchanged
+transcripts), re-chunks and re-embeds only what changed — existing chunks are never deleted (append-only history). Unchanged
 corpus → returns in seconds. Report the one-line tally it prints (or "memory index up to date").
 
 If the command fails, surface the error and continue to Step 2 — explicit lessons must not be
