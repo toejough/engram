@@ -32,7 +32,6 @@ func TestRunResituate_ContentErrors(t *testing.T) {
 		{name: "malformed frontmatter yaml", note: "---\n\ttype: fact\n---\n\nbody\n"},
 		{name: "fact unparseable created", note: factNoteWithCreated("not-a-date")},
 		{name: "feedback unparseable created", note: feedbackNoteWithCreated("not-a-date")},
-		{name: "episode unparseable created", note: episodeNoteWithCreated("not-a-date")},
 		{name: "body without newline", note: factNoteBody("single line no newline")},
 	}
 
@@ -62,54 +61,6 @@ func TestRunResituate_ContentErrors(t *testing.T) {
 			g.Expect(err).To(HaveOccurred())
 		})
 	}
-}
-
-// TestRunResituate_Episode rewrites an episode's situation. The
-// frontmatter situation changes; the verbatim transcript body stays
-// byte-identical; the sidecar is re-embedded over the new situation
-// (episode embed source is the situation, not the body).
-func TestRunResituate_Episode(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	notePath := filepath.Join(vault, "9ab.2026-05-25.nilaway-arc.md")
-	writeResituateFixture(t, notePath, resituateEpisodeNote)
-
-	originalBody := embed.ExtractBody([]byte(resituateEpisodeNote))
-	originalHash := embed.ContentHash([]byte(resituateEpisodeNote))
-
-	deps := cli.ExportNewOsResituateDeps(successEmbedder{})
-
-	var stdout strings.Builder
-
-	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
-		Vault:     vault,
-		Note:      "9ab",
-		Situation: resituateNewSituation,
-	}, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got, readErr := os.ReadFile(notePath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	want := strings.ReplaceAll(resituateEpisodeNote, resituateOldSituation, resituateNewSituation)
-	g.Expect(string(got)).To(Equal(want))
-
-	// Transcript body must be untouched.
-	g.Expect(string(embed.ExtractBody(got))).To(Equal(string(originalBody)))
-
-	newHash := readSidecarHash(t, notePath)
-	g.Expect(newHash).NotTo(Equal(originalHash))
-	g.Expect(newHash).To(Equal(embed.ContentHash([]byte(want))))
 }
 
 // TestRunResituate_Fact rewrites a fact note's situation and asserts the
@@ -330,28 +281,7 @@ func TestRunResituate_NotFound(t *testing.T) {
 
 // unexported constants.
 const (
-	injectedNoteID       = "9zz.2026-05-10.injected"
-	resituateEpisodeNote = `---
-type: episode
-tier: L1
-situation: debugging a flaky nilaway guard
-boundary_rationale: discrete debugging arc
-provenance:
-    sessions:
-        - sess-abc
-    transcript_files:
-        - /home/u/.claude/projects/p/sess-abc.jsonl
-    transcript_range:
-        start: "2026-05-25T22:00:00Z"
-        end: "2026-05-25T23:00:00Z"
-luhmann: "9ab"
-created: "2026-05-25"
-source: agent
----
-
-USER: why does nilaway flag this?
-ASSISTANT: gomega assertions are not recognized as nil guards.
-`
+	injectedNoteID    = "9zz.2026-05-10.injected"
 	resituateFactNote = `---
 type: fact
 tier: L2
@@ -395,16 +325,6 @@ Related to:
 var (
 	errInjectedIO = errors.New("injected io failure")
 )
-
-// episodeNoteWithCreated builds a minimal episode note with the given
-// created value, driving the episode created-date parse-error branch.
-func episodeNoteWithCreated(created string) string {
-	return fmt.Sprintf(
-		"---\ntype: episode\nsituation: s\nboundary_rationale: r\n"+
-			"luhmann: \"9zz\"\ncreated: %q\nsource: agent\n---\n\nbody\n",
-		created,
-	)
-}
 
 // factNoteBody builds a fact note whose body is a single line with no
 // trailing newline, exercising relatedTail's no-newline branch.

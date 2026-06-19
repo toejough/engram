@@ -87,7 +87,7 @@ func TestRunCheck_FailsOnMissingSituation(t *testing.T) {
 
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("FAIL"))
-	g.Expect(out.String()).To(ContainSubstring("M5/E5 situation-presence"))
+	g.Expect(out.String()).To(ContainSubstring("M5 situation-presence"))
 	g.Expect(out.String()).To(ContainSubstring("1.2026-05-30.foo"))
 }
 
@@ -235,5 +235,5 @@ func TestRunCheck_SituationPresenceSkipsNonBearingNotes(t *testing.T) {
 	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vault}, cli.ExportNewOsCheckDeps(), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("PASS  M5/E5 situation-presence"))
+	g.Expect(out.String()).To(ContainSubstring("PASS  M5 situation-presence"))
 }

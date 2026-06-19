@@ -36,9 +36,7 @@ type ResituateDeps struct {
 // feedback notes) — then re-embeds the note so its sidecar vector and
 // content_hash track the new situation. This closes the INV-S2 divergence:
 // `engram learn` is create-only, so before this command the two situation
-// copies could only be kept in sync by hand. Episode bodies are verbatim
-// transcript chunks and are left byte-identical; only the frontmatter
-// situation (the episode's embed source) is rewritten.
+// copies could only be kept in sync by hand.
 //
 // args.Vault must already be resolved by the caller via resolveVault.
 func RunResituate(ctx context.Context, args ResituateArgs, deps ResituateDeps, stdout io.Writer) error {
@@ -161,38 +159,6 @@ func relatedTail(body []byte) string {
 	return string(bytes.TrimPrefix(after, []byte("\n")))
 }
 
-// rerenderEpisode rebuilds an episode note with its frontmatter situation
-// replaced. The transcript body is reattached byte-for-byte.
-func rerenderEpisode(frontmatter, body []byte, situation string) (string, error) {
-	var doc episodeFrontmatterDoc
-
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil {
-		return "", fmt.Errorf("resituate: parsing episode frontmatter: %w", unmarshalErr)
-	}
-
-	when, createdErr := parseCreated(doc.Created)
-	if createdErr != nil {
-		return "", createdErr
-	}
-
-	fields := episodeFields{
-		Situation:         situation,
-		BoundaryRationale: doc.BoundaryRationale,
-		Sessions:          doc.Provenance.Sessions,
-		TranscriptFiles:   doc.Provenance.TranscriptFiles,
-		TranscriptStart:   doc.Provenance.TranscriptRange.Start,
-		TranscriptEnd:     doc.Provenance.TranscriptRange.End,
-		Luhmann:           string(doc.Luhmann),
-		Source:            doc.Source,
-		Project:           doc.Project,
-		Issue:             string(doc.Issue),
-		Tier:              doc.Tier,
-	}
-
-	return renderEpisodeFrontmatter(fields, when) + string(body), nil
-}
-
 // rerenderFact rebuilds a fact note with the new situation in both the
 // frontmatter and the body formula, preserving the existing related-to tail.
 func rerenderFact(frontmatter, body []byte, situation string) (string, error) {
@@ -255,10 +221,9 @@ func rerenderFeedback(frontmatter, body []byte, situation string) (string, error
 
 // resituateContent re-renders raw with situation replaced. For fact and
 // feedback notes both the frontmatter and the body formula carry the new
-// situation; the existing related-to tail is preserved. For episode notes the
-// body is a verbatim transcript and is reattached unchanged — only the
-// frontmatter situation is rewritten. The original `created` date is parsed
-// from the note and preserved so the rewrite touches only the situation.
+// situation; the existing related-to tail is preserved. The original `created`
+// date is parsed from the note and preserved so the rewrite touches only the
+// situation.
 func resituateContent(raw []byte, situation string) (string, error) {
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
@@ -273,8 +238,6 @@ func resituateContent(raw []byte, situation string) (string, error) {
 		return rerenderFact(frontmatter, body, situation)
 	case typeFeedback:
 		return rerenderFeedback(frontmatter, body, situation)
-	case typeEpisode:
-		return rerenderEpisode(frontmatter, body, situation)
 	default:
 		return "", fmt.Errorf("%w: %q", errResituateUnknownType, noteType)
 	}

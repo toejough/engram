@@ -158,11 +158,11 @@ func checkSidecars(
 	return false
 }
 
-// checkSituationPresence verifies M5/E5: every fact/feedback (M5) and episode
-// (E5) note names a non-empty situation — the field recall matches on and the
-// embedding is shaped around. MOC notes are skipped (not situation-bearing). A
-// note whose file is unreadable or whose frontmatter does not parse is skipped
-// here; those failures surface in other checks. Returns true if violated.
+// checkSituationPresence verifies M5: every fact/feedback note names a
+// non-empty situation — the field recall matches on and the embedding is
+// shaped around. MOC notes are skipped (not situation-bearing). A note whose
+// file is unreadable or whose frontmatter does not parse is skipped here;
+// those failures surface in other checks. Returns true if violated.
 func checkSituationPresence(
 	notes []vaultgraph.Note,
 	readNote func(path string) ([]byte, error),
@@ -193,13 +193,13 @@ func checkSituationPresence(
 	}
 
 	if len(missing) > 0 {
-		_, _ = fmt.Fprintf(stdout, "FAIL  M5/E5 situation-presence: %d note(s) missing a situation\n", len(missing))
+		_, _ = fmt.Fprintf(stdout, "FAIL  M5 situation-presence: %d note(s) missing a situation\n", len(missing))
 		printNoteExamples(stdout, missing)
 
 		return true
 	}
 
-	_, _ = fmt.Fprintln(stdout, "PASS  M5/E5 situation-presence: every fact/feedback/episode names a situation")
+	_, _ = fmt.Fprintln(stdout, "PASS  M5 situation-presence: every fact/feedback names a situation")
 
 	return false
 }
@@ -221,9 +221,9 @@ func frontmatterTypeAndSituation(frontmatter []byte) (noteType, situation string
 }
 
 // isSituationBearing reports whether a note type is required to carry a
-// situation: facts, feedback, and episodes are; MOCs and bare notes are not.
+// situation: facts and feedback are; MOCs and bare notes are not.
 func isSituationBearing(noteType string) bool {
-	return noteType == typeFact || noteType == typeFeedback || noteType == typeEpisode
+	return noteType == typeFact || noteType == typeFeedback
 }
 
 // newOsCheckDeps wires RunCheck to the real filesystem vault scanner.

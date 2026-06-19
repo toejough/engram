@@ -90,62 +90,6 @@ func TestOsLearnFS_ListBasenames_ReturnsRootBasenames(t *testing.T) {
 	g.Expect(got).To(ConsistOf("1.2026-05-09.foo"))
 }
 
-func TestOsLearnFS_ListEpisodes_BadVaultReturnsError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// vault is a file, not a dir; ReadDir on vault/Permanent → ENOTDIR.
-	vault := filepath.Join(t.TempDir(), "file")
-	g.Expect(os.WriteFile(vault, []byte("x"), 0o600)).To(Succeed())
-
-	fs := cli.ExportNewOsLearnFS()
-	_, err := fs.ListEpisodes(vault)
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestOsLearnFS_ListEpisodes_MissingPermanentIsEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := cli.ExportNewOsLearnFS()
-	got, err := fs.ListEpisodes(t.TempDir())
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(got).To(BeEmpty())
-}
-
-func TestOsLearnFS_ListEpisodes_ReturnsOnlyEpisodeRanges(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
-	g.Expect(os.WriteFile(
-		filepath.Join(vault, "5.2026-05-25.work.md"),
-		[]byte(episodeNoteForListing), 0o600,
-	)).To(Succeed())
-	// A fact note (not an episode) must be excluded.
-	g.Expect(os.WriteFile(
-		filepath.Join(vault, "2.2026-05-25.fact.md"),
-		[]byte("---\ntype: fact\nsituation: x\n---\nbody\n"), 0o600,
-	)).To(Succeed())
-	// A non-luhmann file is skipped by the extractLuhmann filter.
-	g.Expect(os.WriteFile(filepath.Join(vault, "README.md"), nil, 0o600)).To(Succeed())
-
-	fs := cli.ExportNewOsLearnFS()
-	got, err := fs.ListEpisodes(vault)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(got).To(ConsistOf(cli.EpisodeRange{
-		Basename: "5.2026-05-25.work",
-		Start:    "2026-05-25T22:00:00Z",
-		End:      "2026-05-25T23:00:00Z",
-	}))
-}
-
 func TestOsLearnFS_ListIDs_BadVaultReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -553,31 +497,3 @@ func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).NotTo(BeEmpty())
 }
-
-// unexported constants.
-const (
-	episodeNoteForListing = `---
-type: episode
-tier: L1
-situation: doing the work
-boundary_rationale: a discrete arc
-provenance:
-  sessions:
-    - sess-1
-  transcript_range:
-    start: "2026-05-25T22:00:00Z"
-    end: "2026-05-25T23:00:00Z"
-luhmann: "5"
-created: "2026-05-25"
-source: agent
----
-
-## Summary
-did the work
-
-## Transcript
-` + "```" + `
-USER: hi
-` + "```" + `
-`
-)

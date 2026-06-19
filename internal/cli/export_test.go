@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"io"
-	"math"
 	"testing"
 	"time"
 
@@ -23,7 +22,6 @@ var (
 	ExportApplyTierFilter              = applyTierFilter
 	ExportAutoEmbedNote                = autoEmbedNote
 	ExportBumpLastUsed                 = bumpLastUsed
-	ExportComputePrecedingLinks        = computePrecedingLinks
 	ExportDefaultRecencyParams         = defaultRecencyParams
 	ExportExtractLuhmannFromFilename   = extractLuhmannFromFilename
 	ExportFillRecencyBand              = fillRecencyBand
@@ -50,8 +48,6 @@ var (
 	ExportPrintLinkExamples            = printLinkExamples
 	ExportPrintNoteExamples            = printNoteExamples
 	ExportRecencyMultiplier            = recencyMultiplier
-	ExportRenderEpisodeBody            = renderEpisodeBody
-	ExportRenderEpisodeFrontmatter     = renderEpisodeFrontmatter
 	ExportRenderFactBody               = renderFactBody
 	ExportRenderFactFrontmatter        = renderFactFrontmatter
 	ExportRenderFeedbackBody           = renderFeedbackBody
@@ -76,16 +72,6 @@ var (
 	ExportWriteUpdateReport   = writeUpdateReport
 )
 
-type ExportEpisodeFields = episodeFields
-
-// ExportEpisodeLink aliases the unexported episodeLink so cli_test can assert
-// on computed preceding-episode links.
-type ExportEpisodeLink = episodeLink
-
-// ExportEpisodeRange aliases the exported EpisodeRange for symmetry with the
-// other Export* test handles.
-type ExportEpisodeRange = EpisodeRange
-
 type ExportFactFields = factFields
 
 type ExportFeedbackFields = feedbackFields
@@ -100,53 +86,6 @@ type ExportScoredChunk = scoredChunk
 
 // Exported types.
 type ExportVaultInitFS = VaultInitFS
-
-// AdvanceAndReportMarkerForTest exposes advanceAndReportMarker for unit testing.
-func AdvanceAndReportMarkerForTest(
-	markerPath string,
-	fromTime, lastIncluded time.Time,
-	hadEntries, pending bool,
-	now time.Time,
-	stdout io.Writer,
-) error {
-	return advanceAndReportMarker(markerPath, fromTime, lastIncluded, hadEntries, pending, now, stdout)
-}
-
-// DefaultSessionPathResolverForTest exposes defaultSessionPathResolver
-// for coverage. The resolver maps a Claude Code session ID to its
-// per-project JSONL path.
-func DefaultSessionPathResolverForTest(sessionID string) (string, error) {
-	return defaultSessionPathResolver(sessionID)
-}
-
-// EmitSegmentsForTest exposes emitSegments for unit testing.
-func EmitSegmentsForTest(
-	reader transcript.SegmentsReader,
-	entries []transcript.FileEntry,
-	maxBytes int,
-	seed map[string]time.Time,
-	stdout io.Writer,
-) (map[string]time.Time, map[string]bool, map[string]time.Time, error) {
-	result, err := emitSegments(reader, entries, maxBytes, seed, stdout)
-
-	return result.lastIncluded, result.hadEntries, result.firstUnincluded, err
-}
-
-// EmitTranscriptsForTest is an exported entry point so the cli_test package
-// can exercise emitTranscripts directly without going through the full
-// runTranscript flow. Returns the lastIncluded, hadEntries, and
-// firstUnincluded per-source maps. Production code does not call this.
-func EmitTranscriptsForTest(
-	reader transcript.Reader,
-	entries []transcript.FileEntry,
-	maxBytes int,
-	seed map[string]time.Time,
-	stdout io.Writer,
-) (map[string]time.Time, map[string]bool, map[string]time.Time, error) {
-	result, err := emitTranscripts(reader, entries, maxBytes, seed, stdout)
-
-	return result.lastIncluded, result.hadEntries, result.firstUnincluded, err
-}
 
 // ExportAppendUniqueProvenance returns the provenances slice after adding
 // role twice via the helper; verifies idempotency in tests.
@@ -208,19 +147,6 @@ func ExportBuildChunkIDSet(
 }
 
 // Exported functions.
-
-// ExportEmitTranscripts exposes emitTranscripts for whitebox testing with an
-// unlimited byte budget. Discards per-source bookkeeping because the legacy
-// tests using this wrapper only care about error paths.
-func ExportEmitTranscripts(
-	reader transcript.Reader,
-	entries []transcript.FileEntry,
-	stdout io.Writer,
-) error {
-	_, err := emitTranscripts(reader, entries, math.MaxInt32, nil, stdout)
-
-	return err
-}
 
 // ExportIndexFileName exposes sourceSlug-based index naming so tests can
 // locate a source's chunk index file.
@@ -303,16 +229,6 @@ func ExportNewOsIngestDeps(emb embed.Embedder) IngestDeps {
 // ExportNewOsLearnFS returns the production osLearnFS adapter for testing.
 func ExportNewOsLearnFS() *osLearnFS { return &osLearnFS{} }
 
-// ExportNewOsMigrateEpisodesDeps returns production MigrateEpisodesDeps with an
-// injected embedder so integration tests can drive Scan/Read/Write against a
-// temp vault without unpacking the lazy bundled embedder.
-func ExportNewOsMigrateEpisodesDeps(emb embed.Embedder) MigrateEpisodesDeps {
-	deps := newOsMigrateEpisodesDeps()
-	deps.Embedder = emb
-
-	return deps
-}
-
 // ExportNewOsResituateDeps returns production ResituateDeps with an injected
 // embedder so coverage tests can drive Scan/Read/Write without unpacking the
 // lazy bundled embedder.
@@ -365,15 +281,6 @@ func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 	return newestChunkItems(scored, n)
 }
 
-// ExportParseEpisodeBody exposes parseEpisodeBody for round-trip testing,
-// returning the summary, transcript, and "basename|rationale" relation
-// entries decomposed from an episode body.
-func ExportParseEpisodeBody(body string) (summary, transcript string, relations []string) {
-	parsed := parseEpisodeBody(body)
-
-	return parsed.summary, parsed.transcript, parsed.relations
-}
-
 // ExportRecencyFloor exposes the floor field of recencyParams for tests.
 func ExportRecencyFloor(p recencyParams) int { return p.floor }
 
@@ -411,69 +318,6 @@ func ExportScoredChunkRecord(s scoredChunk) chunk.Record { return s.record }
 
 // ExportScoredChunkScore / Record expose the unexported fields for assertions.
 func ExportScoredChunkScore(s scoredChunk) float32 { return s.score }
-
-// NewTranscriptDepsForTest exposes newTranscriptDeps for whitebox testing.
-func NewTranscriptDepsForTest(cwd string) (transcript.Finder, transcript.Reader) {
-	return newTranscriptDeps(cwd)
-}
-
-// ParseFromTranscriptRangeForTest exposes parseFromTranscriptRange so
-// tests can drive every error branch (malformed input, unparseable
-// timestamps, out-of-order range) without going through the full
-// runLearnFromEpisodeArgsWithReader path.
-func ParseFromTranscriptRangeForTest(raw string) (string, time.Time, time.Time, error) {
-	return parseFromTranscriptRange(raw)
-}
-
-// ResolveMaxBytesForTest exposes resolveMaxBytes for unit testing.
-func ResolveMaxBytesForTest(maxBytes int) int { return resolveMaxBytes(maxBytes) }
-
-// ResolveProjectSlugForTest exposes resolveProjectSlug for unit testing.
-func ResolveProjectSlugForTest(args TranscriptArgs) (string, error) {
-	return resolveProjectSlug(args)
-}
-
-// ResolveSessionPathForTest exposes resolveSessionPath so the cwd/home
-// error branches are unit-testable via injected fakes.
-func ResolveSessionPathForTest(
-	sessionID string,
-	getwd func() (string, error),
-	homeDir func() (string, error),
-) (string, error) {
-	return resolveSessionPath(sessionID, getwd, homeDir)
-}
-
-// ResolveStateDirForTest exposes resolveStateDir for unit testing.
-func ResolveStateDirForTest(args TranscriptArgs) (string, error) {
-	return resolveStateDir(args)
-}
-
-// RunLearnFromEpisodeArgsWithReaderForTest exposes
-// runLearnFromEpisodeArgsWithReader so tests can drive the
-// --from-transcript-range / --transcript-text body-source XOR with an
-// injected RangeReader and session-path resolver.
-func RunLearnFromEpisodeArgsWithReaderForTest(
-	ctx context.Context,
-	a LearnEpisodeArgs,
-	reader transcript.RangeReader,
-	sessionPath func(sessionID string) (string, error),
-	opencodeDBPath string,
-	deps LearnDeps,
-	stdout io.Writer,
-) error {
-	return runLearnFromEpisodeArgsWithReader(ctx, a, reader, sessionPath, opencodeDBPath, deps, stdout)
-}
-
-// RunTranscriptForTest exposes runTranscript for whitebox testing.
-func RunTranscriptForTest(
-	ctx context.Context,
-	args TranscriptArgs,
-	finder transcript.Finder,
-	reader transcript.Reader,
-	stdout io.Writer,
-) error {
-	return runTranscript(ctx, args, finder, reader, stdout)
-}
 
 // TestMergeIntoExisting_SetsInDegreeFromSrc covers the branch where existing.inDegree is
 // nil (note not a hub in an earlier phrase) and src.inDegree is set (hub in a later phrase).

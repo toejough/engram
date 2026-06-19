@@ -121,10 +121,9 @@ func TestTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		// transcript, learn (group), update, embed (group), query, ingest,
-		// query-chunks, activate, show, check, migrate-links, migrate-episodes,
-		// resituate, amend
-		g.Expect(targets).To(gomega.HaveLen(14))
+		// learn (group), update, embed (group), query, ingest, query-chunks,
+		// activate, show, check, migrate-links, resituate, amend
+		g.Expect(targets).To(gomega.HaveLen(12))
 	})
 
 	t.Run("show parses positional ref through targ", func(t *testing.T) {
@@ -183,120 +182,6 @@ func TestTargets(t *testing.T) {
 		_ = stderr
 	})
 
-	t.Run("invokes learn episode closure", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		vault := t.TempDir()
-		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
-
-		stderr := executeForTest(t, []string{
-			"engram", "learn", "episode",
-			"--slug", "test-slug",
-			"--vault", vault,
-			"--source", "agent",
-			"--situation", "x",
-			"--summary", "did the work",
-			"--boundary-rationale", "discrete arc",
-			"--transcript-text", "USER: hi\n",
-			"--session", "x",
-			"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
-		})
-		_ = stderr
-	})
-
-	t.Run("learn episode errors when --source is missing", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		vault := t.TempDir()
-		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
-
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		result, err := targ.Execute([]string{
-			"engram", "learn", "episode",
-			"--slug", "test-slug",
-			"--vault", vault,
-			"--situation", "x",
-			"--summary", "did the work",
-			"--boundary-rationale", "discrete arc",
-			"--transcript-text", "USER: hi\n",
-			"--session", "x",
-			"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
-		}, targets...)
-		g.Expect(err).To(gomega.HaveOccurred())
-		g.Expect(result.Output).To(gomega.ContainSubstring("source"))
-	})
-
-	t.Run("learn episode errors when --session is missing", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		vault := t.TempDir()
-		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
-
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		result, err := targ.Execute([]string{
-			"engram", "learn", "episode",
-			"--slug", "test-slug",
-			"--vault", vault,
-			"--source", "src",
-			"--situation", "x",
-			"--summary", "did the work",
-			"--boundary-rationale", "discrete arc",
-			"--transcript-text", "USER: hi\n",
-			"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
-		}, targets...)
-		g.Expect(err).To(gomega.HaveOccurred())
-		g.Expect(result.Output).To(gomega.ContainSubstring("session"))
-	})
-
-	t.Run("learn episode errors when --transcript-range is missing", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		vault := t.TempDir()
-		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
-
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		result, err := targ.Execute([]string{
-			"engram", "learn", "episode",
-			"--slug", "test-slug",
-			"--vault", vault,
-			"--source", "src",
-			"--situation", "x",
-			"--summary", "did the work",
-			"--boundary-rationale", "discrete arc",
-			"--transcript-text", "USER: hi\n",
-			"--session", "x",
-		}, targets...)
-		g.Expect(err).To(gomega.HaveOccurred())
-		g.Expect(result.Output).To(gomega.ContainSubstring("transcript-range"))
-	})
-
-	t.Run("learn episode errors when --boundary-rationale is missing", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		vault := t.TempDir()
-		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
-
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
-		result, err := targ.Execute([]string{
-			"engram", "learn", "episode",
-			"--slug", "test-slug",
-			"--vault", vault,
-			"--source", "src",
-			"--situation", "x",
-			"--summary", "did the work",
-			"--transcript-text", "USER: hi\n",
-			"--session", "x",
-			"--transcript-range", "2026-05-25T22:00:00Z..2026-05-25T23:00:00Z",
-		}, targets...)
-		g.Expect(err).To(gomega.HaveOccurred())
-		g.Expect(result.Output).To(gomega.ContainSubstring("boundary-rationale"))
-	})
-
 	t.Run("learn feedback errors when --source is missing", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
@@ -333,17 +218,6 @@ func TestTargets(t *testing.T) {
 		}, targets...)
 		g.Expect(err).To(gomega.HaveOccurred())
 		g.Expect(result.Output).To(gomega.ContainSubstring("source"))
-	})
-
-	t.Run("invokes transcript closure", func(t *testing.T) {
-		t.Parallel()
-
-		_ = executeForTest(t, []string{
-			"engram", "transcript",
-			"--from", "2026-01-01",
-			"--to", "2026-12-31",
-			"--transcript-dir", t.TempDir(),
-		})
 	})
 
 	t.Run("invokes update closure in dry-run mode", func(t *testing.T) {
@@ -410,22 +284,6 @@ func TestTargets_IngestAndQueryChunksEmpty(t *testing.T) {
 	stderr = executeForTest(t, []string{
 		"engram", "query-chunks", "--chunks-dir", chunks, "--phrase", "anything",
 	})
-	g.Expect(stderr).To(gomega.BeEmpty())
-}
-
-// TestTargets_MigrateEpisodes exercises the migrate-episodes closure end-to-end
-// through Targets() so the newOsMigrateEpisodesDeps wiring is covered. The vault
-// is empty, so the real ScanVault finds no episodes and the command reports zero
-// changes in dry-run mode without unpacking the bundled embedder.
-func TestTargets_MigrateEpisodes(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
-	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
-
-	stderr := executeForTest(t, []string{"engram", "migrate-episodes", "--vault", vault})
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 

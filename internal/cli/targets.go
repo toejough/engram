@@ -28,22 +28,6 @@ type CommonLearnArgs struct {
 	ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk id (source#anchor) recorded as provenance (repeatable)"`
 }
 
-// LearnEpisodeArgs holds parsed flags for the learn episode subcommand.
-// Episodes are L1 evidence — the noise-filtered transcript chunk that
-// captures what happened during a discrete segment of work. See
-// docs/superpowers/research/2026-05-26-l1-episode-fix-spec.md.
-type LearnEpisodeArgs struct {
-	CommonLearnArgs
-
-	Situation           string   `targ:"flag,name=situation,required,desc=retrieval-shaped topic phrase (required)"`
-	Summary             string   `targ:"flag,name=summary,required,desc=what-happened prose for ## Summary (required)"`
-	BoundaryRationale   string   `targ:"flag,name=boundary-rationale,required,desc=why this chunk's bounds (required)"`
-	FromTranscriptRange []string `targ:"flag,name=from-transcript-range,desc=<session>:<start>..<end>"`
-	TranscriptText      string   `targ:"flag,name=transcript-text,desc=literal transcript chunk content"`
-	Sessions            []string `targ:"flag,name=session,required,desc=provenance.sessions entry (required)"`
-	TranscriptRange     string   `targ:"flag,name=transcript-range,required,desc=<start>..<end> RFC3339 (required)"`
-}
-
 // LearnFactArgs holds parsed flags for the learn fact subcommand.
 type LearnFactArgs struct {
 	CommonLearnArgs
@@ -97,9 +81,9 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 	)
 }
 
-// coreTargets returns the primary subcommands (transcript, learn, update,
-// embed, query, show, check). Split from Targets to stay within the
-// per-function length budget; the wiring mirrors maintenanceTargets exactly.
+// coreTargets returns the primary subcommands (learn, update, embed, query,
+// show, check). Split from Targets to stay within the per-function length
+// budget; the wiring mirrors maintenanceTargets exactly.
 func coreTargets(
 	stdout io.Writer,
 	withLog func(context.Context) context.Context,
@@ -157,20 +141,15 @@ func ingestQueryTargets(
 	}
 }
 
-// learnUpdateTargets returns the learn and update subcommands (transcript,
-// learn group, update, embed group). Split from coreTargets to stay within
-// the per-function length budget.
+// learnUpdateTargets returns the learn and update subcommands (learn group,
+// update, embed group). Split from coreTargets to stay within the
+// per-function length budget.
 func learnUpdateTargets(
 	stdout io.Writer,
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 ) []any {
 	return []any{
-		targ.Targ(func(ctx context.Context, a TranscriptArgs) {
-			cwd, _ := os.Getwd()
-			finder, reader := newTranscriptDeps(cwd)
-			errHandler(runTranscript(withLog(ctx), a, finder, reader, stdout))
-		}).Name("transcript").Description("Read session transcripts in a date range"),
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
 				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
@@ -180,10 +159,6 @@ func learnUpdateTargets(
 				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, stdout))
 			}).Name("fact").Description("Write a fact note to the vault"),
-			targ.Targ(func(ctx context.Context, a LearnEpisodeArgs) {
-				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
-				errHandler(runLearnFromEpisodeArgs(withLog(ctx), a, stdout))
-			}).Name("episode").Description("Write an episode note to the vault"),
 		),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
 			errHandler(runUpdate(withLog(ctx), a, stdout))
@@ -202,8 +177,8 @@ func learnUpdateTargets(
 }
 
 // maintenanceTargets returns the vault-maintenance subcommands (migrate-links,
-// migrate-episodes, resituate). Split out of Targets to keep each function
-// within the length budget; the wiring mirrors the other targets exactly.
+// resituate, amend). Split out of Targets to keep each function within the
+// length budget; the wiring mirrors the other targets exactly.
 func maintenanceTargets(
 	stdout io.Writer,
 	withLog func(context.Context) context.Context,
@@ -214,10 +189,6 @@ func maintenanceTargets(
 			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
 			errHandler(RunMigrateLinks(withLog(ctx), a, newOsMigrateDeps(), stdout))
 		}).Name("migrate-links").Description("Rewrite bare-id relation links to full basenames (D1/G0)"),
-		targ.Targ(func(ctx context.Context, a MigrateEpisodesArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
-			errHandler(RunMigrateEpisodes(withLog(ctx), a, newOsMigrateEpisodesDeps(), stdout))
-		}).Name("migrate-episodes").Description("Rewrite episodes to the Summary/Transcript/Related format (D6)"),
 		targ.Targ(func(ctx context.Context, a ResituateArgs) {
 			a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
 			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), stdout))
