@@ -373,12 +373,77 @@ func TestQuery_SynthesizeL2_CandidateL2sTopKAtLeastThree(t *testing.T) {
 	expectCandidatesSortedDesc(g, candidates)
 }
 
+// TestQuery_SynthesizeL2_CandidateUsesStrongerAxis verifies the candidate_l2s
+// cosine is the max of the situation- and body-axis cosines to the centroid (the
+// "either axis" gate). The L2's situation vector is orthogonal to the centroid
+// (cosine 0) while its body vector is on-axis (cosine 1); the emitted cosine must
+// follow the stronger body axis, not the weaker situation axis.
+func TestQuery_SynthesizeL2_CandidateUsesStrongerAxis(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Four L1 notes anchor the cluster centroid at {1,0,0,0}.
+	centroidVec := []float32{1, 0, 0, 0}
+	for i := range 4 {
+		plantDualVector(t, memFS, vault, fmt.Sprintf("%d.ep.md", i+1),
+			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", centroidVec, centroidVec)
+	}
+
+	// One L2 whose situation axis is orthogonal to the centroid (cosine 0) but
+	// whose body axis is on-axis (cosine 1). bestVector clusters it by the
+	// query-winning body axis, so it joins the centroid cluster; eitherAxisCosine
+	// must then report the stronger body-axis cosine (~1.0).
+	orthogonalSit := []float32{0, 1, 0, 0}
+	onAxisBody := []float32{1, 0, 0, 0}
+	plantDualVector(t, memFS, vault, "l2-bodywins.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", orthogonalSit, onAxisBody)
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: centroidVec}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, SynthesizeL2: true},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var raw map[string]any
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &raw)).NotTo(HaveOccurred())
+
+	clusters, ok := raw["clusters"].([]any)
+	g.Expect(ok).To(BeTrue(), "clusters must be a sequence")
+	g.Expect(clusters).NotTo(BeEmpty())
+
+	first, ok := clusters[0].(map[string]any)
+	g.Expect(ok).To(BeTrue(), "a cluster must be a mapping")
+
+	candidates, ok := first["candidate_l2s"].([]any)
+	g.Expect(ok).To(BeTrue(), "candidate_l2s must be a sequence")
+	g.Expect(candidates).NotTo(BeEmpty())
+
+	bodywins, ok := candidates[0].(map[string]any)
+	g.Expect(ok).To(BeTrue(), "a candidate must be a mapping")
+	g.Expect(bodywins["path"]).To(Equal("l2-bodywins.fact.md"))
+	g.Expect(yamlCosine(g, bodywins["cosine"])).To(BeNumerically(">", 0.99),
+		"either-axis gate must report the stronger body-axis cosine, not the orthogonal situation axis")
+}
+
 // TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK verifies the
 // D7 invariant: when a chunk-heavy centroid depresses absolute cosines, the
 // covering L2 may not be the nearest to the centroid but still appears within
 // top-K. The fixture plants three L2s where the true cover (l2a) is not
-// necessarily the centroid-nearest; with K>=3 and 3 L2s planted, all three
-// appear in candidate_l2s.
+// necessarily the centroid-nearest: a distractor on the centroid axis ranks #1,
+// yet the cover survives the K=3 cutoff while a far L2 is excluded.
 func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) {
 	t.Parallel()
 
@@ -394,20 +459,26 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", noteVec, noteVec)
 	}
 
-	// L2-a: the covering L2, close to the note centroid.
-	l2a := []float32{1, 0, 0, 0}
-	plantDualVector(t, memFS, vault, "l2a.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", l2a, l2a)
+	// Four L2s with K=3, so the cutoff must drop exactly one. The DISTRACTOR sits
+	// on the centroid axis (cosine 1.0 → ranks #1), so the COVER (cosine ~0.9) is
+	// NOT the centroid-nearest; cover + MID (~0.7) round out the top-3; the FAR L2
+	// (cosine 0) is excluded by the cutoff. This pits "cover survives top-K despite
+	// not being #1" against a real cutoff — the D7 nomination invariant.
+	distractor := []float32{1, 0, 0, 0}
+	plantDualVector(t, memFS, vault, "l2-distractor.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", distractor, distractor)
 
-	// L2-b: a second L2 on a blended axis.
-	l2b := []float32{0.8, 0.6, 0, 0}
-	plantDualVector(t, memFS, vault, "l2b.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", l2b, l2b)
+	cover := []float32{0.9, 0.436, 0, 0}
+	plantDualVector(t, memFS, vault, "l2-cover.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", cover, cover)
 
-	// L2-c: a third L2 so K=3 is reachable.
-	l2c := []float32{0, 1, 0, 0}
-	plantDualVector(t, memFS, vault, "l2c.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", l2c, l2c)
+	mid := []float32{0.7, 0.714, 0, 0}
+	plantDualVector(t, memFS, vault, "l2-mid.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", mid, mid)
+
+	far := []float32{0, 0, 1, 0}
+	plantDualVector(t, memFS, vault, "l2-far.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", far, far)
 
 	deps := newQueryDeps(memFS)
 	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: noteVec}
@@ -436,8 +507,7 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 
 	candidates, ok := first["candidate_l2s"].([]any)
 	g.Expect(ok).To(BeTrue(), "candidate_l2s must be a sequence")
-	g.Expect(len(candidates)).To(BeNumerically(">=", 3),
-		"top-K (K=3) must surface all three L2 candidates")
+	g.Expect(candidates).To(HaveLen(3), "K=3 cutoff: exactly three of the four L2s are nominated")
 
 	paths := make([]string, 0, len(candidates))
 
@@ -451,9 +521,12 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 		paths = append(paths, path)
 	}
 
-	g.Expect(paths).To(ContainElement("l2a.fact.md"), "the covering L2 must appear in candidate_l2s")
-	g.Expect(paths).To(ContainElement("l2b.fact.md"), "l2b must appear in candidate_l2s")
-	g.Expect(paths).To(ContainElement("l2c.fact.md"), "l2c must appear in candidate_l2s")
+	g.Expect(paths).To(ContainElement("l2-cover.fact.md"),
+		"the covering L2 survives the top-K cutoff though it is not the centroid-nearest")
+	g.Expect(paths).NotTo(ContainElement("l2-far.fact.md"),
+		"the worst L2 (cosine 0) is excluded by the K=3 cutoff")
+	g.Expect(paths[0]).To(Equal("l2-distractor.fact.md"),
+		"the centroid-nearest distractor ranks first, so the cover is not #1")
 
 	expectCandidatesSortedDesc(g, candidates)
 }
@@ -876,8 +949,8 @@ func expectCandidatesSortedDesc(g *WithT, candidates []any) {
 		curr, currOK := candidates[i].(map[string]any)
 		g.Expect(currOK).To(BeTrue())
 
-		prevCos, _ := prev["cosine"].(float64)
-		currCos, _ := curr["cosine"].(float64)
+		prevCos := yamlCosine(g, prev["cosine"])
+		currCos := yamlCosine(g, curr["cosine"])
 		g.Expect(prevCos).To(BeNumerically(">=", currCos),
 			"candidate_l2s must be sorted centroid-cosine desc (index %d >= %d)", i-1, i)
 	}
@@ -917,3 +990,21 @@ func runSynthesizeL2(t *testing.T, memFS *inMemoryFS, vault string) queryParsed 
 // align. A function (not a shared global) keeps parallel tests free of shared
 // mutable state.
 func synthVec() []float32 { return []float32{1, 0, 0, 0} }
+
+// yamlCosine coerces a YAML-decoded cosine to float64. go.yaml.in/yaml/v3
+// decodes an integral value (e.g. a perfect cosine of 1) as int, not float64,
+// so a bare `.(float64)` assertion would silently read it as zero.
+func yamlCosine(g *WithT, v any) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	default:
+		g.Expect(v).To(BeNumerically(">=", 0), "cosine must decode to a number, got %T", v)
+
+		return 0
+	}
+}

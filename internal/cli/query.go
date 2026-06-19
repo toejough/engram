@@ -28,8 +28,8 @@ type QueryArgs struct {
 	Limit        int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project      string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 	Tiers        []string `targ:"flag,name=tier,desc=restrict items to notes matching these tier: values (repeatable)"`
-	Synthesis    bool     `targ:"flag,name=synthesis,desc=union all phrase matches and cluster once for L3 synthesis (K=0 means one cluster; no min-size floor)"` //nolint:lll // single unbreakable struct-tag string
-	SynthesizeL2 bool     `targ:"flag,name=synthesize-l2,desc=union matched L1+L2 notes then cluster once and emit nearest_l2 per cluster for lazy L2 synthesis"` //nolint:lll // single unbreakable struct-tag string
+	Synthesis    bool     `targ:"flag,name=synthesis,desc=union all phrase matches and cluster once for L3 synthesis (K=0 means one cluster; no min-size floor)"`    //nolint:lll // single unbreakable struct-tag string
+	SynthesizeL2 bool     `targ:"flag,name=synthesize-l2,desc=union matched L1+L2 notes then cluster once and emit candidate_l2s per cluster for lazy L2 synthesis"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -931,6 +931,17 @@ func dispatchSynthesisMode(
 	}
 }
 
+// eitherAxisCosine returns the stronger of the situation- and body-axis cosines
+// between centroid and a note's two vectors (the "either axis" gate).
+func eitherAxisCosine(centroid, sit, body []float32) float32 {
+	sim := embed.Cosine(centroid, sit)
+	if bodySim := embed.Cosine(centroid, body); bodySim > sim {
+		sim = bodySim
+	}
+
+	return sim
+}
+
 // expandSubgraph runs a 3-hop BFS over the authored wikilink graph,
 // starting from direct hits, undirected for expansion, capped at 200
 // notes. Subgraph membership requires a compatible sidecar — notes
@@ -1638,10 +1649,7 @@ func nearestInTierIndex(centroid []float32, idx tierIndex) (string, float32, boo
 	best, bestSim := -1, float32(-1)
 
 	for i := range idx.paths {
-		sim := embed.Cosine(centroid, idx.sit[i])
-		if bodySim := embed.Cosine(centroid, idx.body[i]); bodySim > sim {
-			sim = bodySim
-		}
+		sim := eitherAxisCosine(centroid, idx.sit[i], idx.body[i])
 
 		if sim > bestSim {
 			bestSim = sim
@@ -2086,7 +2094,7 @@ func runSynthesisQuery(
 
 // runSynthesizeL2Query mirrors runSynthesisQuery for the lazy-L2 path. It
 // constrains the CLUSTERED set to matched L1+L2 notes (L3 excluded from
-// clusters), then emits a raw nearest_l2 {path, cosine} per cluster — the
+// clusters), then emits raw candidate_l2s [{path, cosine}] per cluster — the
 // max(situation,body) cosine from the cluster centroid to the nearest existing
 // L2 in the vault. No band decision happens here; the recall skill bands it.
 // The L2 index is gathered from the FULL hits (every L2 in the vault is a
@@ -2249,11 +2257,7 @@ func topKCandidateL2s(centroid []float32, idx tierIndex) []queryCandidateL2 {
 	all := make([]ranked, 0, len(idx.paths))
 
 	for i := range idx.paths {
-		sim := embed.Cosine(centroid, idx.sit[i])
-		if bodySim := embed.Cosine(centroid, idx.body[i]); bodySim > sim {
-			sim = bodySim
-		}
-
+		sim := eitherAxisCosine(centroid, idx.sit[i], idx.body[i])
 		all = append(all, ranked{path: idx.paths[i], cosine: sim})
 	}
 
