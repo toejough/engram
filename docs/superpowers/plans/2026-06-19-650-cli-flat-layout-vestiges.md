@@ -15,7 +15,7 @@
 - `ListIDs` doc (`cli.go:108`): "from filenames in vault/Permanent and vault/MOCs" — STALE.
 - `ListIDs` body (`cli.go:110-136`): `out := []string{}` then `for _, sub := range []string{"."}` reading `filepath.Join(vault, sub)` with `continue` on IsNotExist and `fmt.Errorf("read %s: %w", sub, err)`.
 - Sibling `ListBasenames` (`cli.go:79-106`): `out := []string{}` then a bare `{ … }` block reading `os.ReadDir(vault)` directly, `return out, nil` on IsNotExist, `fmt.Errorf("read vault root: %w", err)`. **This is the idiom to mirror.**
-- `pathOf` (`cli.go:261-264`): `func pathOf(basename string, _ bool) string { return basename + ".md" }`; doc says the `isMOC` param is vestigial.
+- `pathOf` (`cli.go:260-265`, doc starts at 260, signature at 263): `func pathOf(basename string, _ bool) string { return basename + ".md" }`; doc says the `isMOC` param is vestigial.
 - **9** `pathOf` call-sites (issue says 8): `embed.go:67,268`, `migrate.go:46`, `query.go:661,1016,1073,1277,1824`, `resituate.go:93`, `show.go:49`. All pass `note.IsMOC`/`hit.note.IsMOC`.
 - `IsMOC` field (`vaultgraph/scanner.go:15`) stays CONSUMED by `check.go:123,175` — dropping `pathOf`'s param does NOT orphan it. No cascade. (The deeper question of whether the whole `IsMOC` field is post-flat-layout vestigial is OUT OF SCOPE for #650.)
 - Existing `ListIDs` tests fully guard the flatten: `TestOsLearnFS_ListIDs_ReturnsRootNotesOnly` (adapters_test.go:85, creates a MOCs/ subdir to prove root-only), `_BadVaultReturnsError` (learn_adapters_test.go:93, file-as-vault → error; asserts only `HaveOccurred`, not the message), `_MissingSubdirsTolerated` (learn_adapters_test.go:106, empty vault → empty+nil). None assert the error string, so the message change is safe.
@@ -130,10 +130,20 @@ Run: `targ check-full` → PASS:8 (lint-full, deadcode, nilaway, coverage, check
 
 - [ ] **Step 8: Real-binary verification (note 54 — verify with the real installed binary)**
 
-`pathOf` resolves note paths; exercise it via the real binary, not just tests:
-Run: `go install ./cmd/engram` then from a non-vault cwd: `engram query --phrase "memory" --limit 3` (a path-resolving read) and confirm it returns note items with resolvable `path:` values (i.e. pathOf still maps basename→`.md`). No panic, exit 0.
+`pathOf` resolves note paths; exercise it via the real binary, not just tests, across MORE than one call-site file:
+Run: `go install ./cmd/engram` then from a non-vault cwd:
+- `engram query --phrase "memory" --limit 3` (exercises query.go pathOf call-sites) → returns items with resolvable `path:` values.
+- `engram show <a real note basename from the vault>` (exercises show.go:49 pathOf) → prints the note body. (List a basename via `engram query` output first.)
+Both: no panic, exit 0, paths map basename→`.md` correctly.
 
-- [ ] **Step 9: Commit** (message drafted in Step 6/Gate D of the please workflow; trailer `AI-Used: [claude]`).
+- [ ] **Step 9: Commit the code cleanup** (message drafted in Step 6/Gate D of the please workflow; trailer `AI-Used: [claude]`).
+
+### Task 2: Fix the stale GLOSSARY flat-layout vestige (separate commit — surfaced by Gate A docs-alignment)
+
+Not a #650 code item, but the SAME flat-layout-vestige class and a verified pre-existing inconsistency: `docs/GLOSSARY.md` defines **Permanent (note)** (`:49-56`) and **MOC** (`:58-62`) in present tense as current `<vault>/Permanent/` and `<vault>/MOCs/` folders, while the same file (`:169-171`) and `c1-system-context.md:48` state both tiers were **retired** in the 2026-06-12 flat-vault migration (notes now at the vault root; historical notes archived under `<vault>/_legacy/`, ignored by the scanner — `vaultgraph/scanner.go:32`).
+
+- [ ] **Step 10:** Update the `Permanent (note)` and `MOC` glossary entries to lead with the retirement (matching `:169-171` framing): keep the terminology/atomicity guidance, but state the folder tier is retired (2026-06-12), notes live flat at the vault root, and historical notes are archived under `<vault>/_legacy/`. Do NOT invent paths beyond what `:171` / `c1:48` establish.
+- [ ] **Step 11:** `targ check-full` (docs don't affect Go checks, but confirms tree still green); commit as a **separate** `chore(docs)` commit (reviewed by Gate C since it touches a doc).
 
 ## Self-Review
 
