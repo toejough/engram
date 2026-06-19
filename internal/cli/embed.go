@@ -20,8 +20,11 @@ type EmbedApplyArgs struct {
 	All       bool   `targ:"flag,name=all,desc=re-embed every note regardless of state"`
 	Missing   bool   `targ:"flag,name=missing,desc=embed only notes without sidecars (default if no mode flag)"`
 	Stale     bool   `targ:"flag,name=stale,desc=re-embed notes whose body hash changed"`
-	Force     bool   `targ:"flag,name=force,desc=also re-embed sidecars whose model_id differs from the binary"`
-	DryRun    bool   `targ:"flag,name=dry-run,desc=report what would change without writing"`
+	// Force also re-embeds sidecars whose model_id differs from the binary.
+	// Run once with --stale after deploying D3 (Related-to exclusion from
+	// ContentHash) so all existing sidecars are re-baselined.
+	Force  bool `targ:"flag,name=force,desc=also re-embed sidecars whose model_id differs from the binary"`
+	DryRun bool `targ:"flag,name=dry-run,desc=report what would change without writing"`
 }
 
 // EmbedDeps holds injected dependencies for the embed commands. All

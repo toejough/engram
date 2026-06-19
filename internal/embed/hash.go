@@ -4,12 +4,21 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"slices"
 )
 
-// BodyText returns the note body (frontmatter stripped). It is the
-// body-vector source for every note type.
+// Exported constants.
+const (
+	RelatedSectionMarker = "Related to:"
+)
+
+// BodyText returns the note body (frontmatter stripped) with any trailing
+// "Related to:" section removed. It is the body-vector source for every
+// note type. Dropping the relation block means a link-only edit (adding or
+// changing [[wikilinks]] under "Related to:") leaves the body vector and
+// ContentHash unchanged (D3).
 func BodyText(raw []byte) []byte {
-	return ExtractBody(raw)
+	return stripRelatedToSection(ExtractBody(raw))
 }
 
 // ContentHash returns a sha256: prefixed hex digest covering BOTH embed
@@ -77,6 +86,10 @@ func SituationText(raw []byte) []byte {
 // unexported constants.
 const (
 	frontmatterDelim = "---\n"
+	// relatedSectionBulletPfx is the prefix of every rendered relation bullet
+	// ("- [[target]] — rationale."). A "Related to:" marker line counts as a
+	// block only when every following non-blank line starts with this prefix.
+	relatedSectionBulletPfx = "- [["
 )
 
 // extractFrontmatterField scans the frontmatter block (content between
@@ -93,4 +106,69 @@ func extractFrontmatterField(frontmatter []byte, key string) string {
 	}
 
 	return ""
+}
+
+// isRelatedToBlock reports whether the lines that follow a "Related to:"
+// marker form a relation block: every non-blank line must start with
+// relatedSectionBulletPfx, and at least one bullet must be present. A line
+// that is neither blank nor a bullet (prose) disqualifies the block, so an
+// inline "Related to:" mention is not stripped.
+func isRelatedToBlock(after [][]byte) bool {
+	sawBullet := false
+
+	for _, line := range after {
+		trimmed := bytes.TrimRight(line, "\r")
+		if len(bytes.TrimSpace(trimmed)) == 0 {
+			continue
+		}
+
+		if !bytes.HasPrefix(trimmed, []byte(relatedSectionBulletPfx)) {
+			return false
+		}
+
+		sawBullet = true
+	}
+
+	return sawBullet
+}
+
+// stripRelatedToSection removes a trailing "Related to:" relation block from
+// body, returning body unchanged when no such block is present. The block is
+// recognised conservatively (see isRelatedToBlock): a "Related to:" marker
+// line whose following non-blank lines are all relation bullets. Recognising
+// only the LAST marker, and only when the lines after it qualify, leaves prose
+// that mentions "Related to:" inline untouched.
+//
+// Implementation note: bytes.Split(body, "\n") on a newline-terminated body
+// produces a trailing empty element. Lines[:i] for i pointing at the marker
+// therefore ends with the blank line(s) before the marker — joining with "\n"
+// faithfully restores the body up to and including its final trailing newline.
+// Do NOT bytes.TrimRight the result: that would remove the single trailing
+// newline that is part of the body (CA-15 fix).
+func stripRelatedToSection(body []byte) []byte {
+	lines := bytes.Split(body, []byte("\n"))
+	// bytes.Split never returns nil in practice, but nilaway cannot prove that
+	// and flags the lines[i+1:] / lines[:i] indexing below; the guard satisfies
+	// it without a //nolint suppression (project rule: fix, don't suppress).
+	if lines == nil {
+		return body
+	}
+
+	for i, line := range slices.Backward(lines) {
+		if bytes.Equal(bytes.TrimRight(line, "\r"), []byte(RelatedSectionMarker)) {
+			if isRelatedToBlock(lines[i+1:]) {
+				result := bytes.Join(lines[:i], []byte("\n"))
+				// Restore the trailing newline when no blank line preceded the
+				// marker (lines[:i] joined without a trailing empty element
+				// would otherwise drop the newline that ended the last body line).
+				if len(result) > 0 && result[len(result)-1] != '\n' {
+					result = append(result, '\n')
+				}
+
+				return result
+			}
+		}
+	}
+
+	return body
 }

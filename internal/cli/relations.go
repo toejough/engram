@@ -2,11 +2,16 @@ package cli
 
 import (
 	"strings"
+
+	"github.com/toejough/engram/internal/embed"
 )
 
 // unexported constants.
 const (
-	relatedSectionMarker = "Related to:"
+	// relatedSectionMarker is derived from embed.RelatedSectionMarker so the
+	// rendering convention (here) and the body-hash strip (in embed) share one
+	// source of truth and cannot drift.
+	relatedSectionMarker = embed.RelatedSectionMarker
 )
 
 // indexBasenamesByID maps each note's leading Luhmann id (the segment before the

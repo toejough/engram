@@ -82,6 +82,39 @@ func TestContentHash_IdempotentProperty(t *testing.T) {
 	})
 }
 
+// TestContentHash_RelatedToInsensitivityProperty asserts that appending a
+// "Related to:" relation block to any note shape (or changing the links
+// inside it) is invisible to ContentHash — a link-only edit must not mark a
+// note stale (D3). A guard inside the same property confirms the strip is
+// not over-broad: a genuine body change (a different prose line BEFORE the
+// block) still changes the hash.
+func TestContentHash_RelatedToInsensitivityProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
+
+		base := genRawNote(rt)
+		blockA := "\nRelated to:\n- [[" + genFieldValue(rt, "linkA") + "]] — a.\n"
+		blockB := "\nRelated to:\n- [[" + genFieldValue(rt, "linkB") + "]] — b.\n" +
+			"- [[" + genFieldValue(rt, "linkB2") + "]] — c.\n"
+
+		withA := append(append([]byte{}, base...), []byte(blockA)...)
+		withB := append(append([]byte{}, base...), []byte(blockB)...)
+
+		// Appending a relation block, and varying its links, is hash-invisible.
+		g.Expect(embed.ContentHash(withA)).To(Equal(embed.ContentHash(base)))
+		g.Expect(embed.ContentHash(withB)).To(Equal(embed.ContentHash(base)))
+
+		// Guard: a real body change (extra prose line before the block) is NOT
+		// hidden by the strip — the hash must differ.
+		extra := genFieldValue(rt, "extraLine")
+		changedBody := append(append([]byte{}, base...), []byte(extra+"\n")...)
+		changedWithA := append(append([]byte{}, changedBody...), []byte(blockA)...)
+		g.Expect(embed.ContentHash(changedWithA)).NotTo(Equal(embed.ContentHash(withA)))
+	})
+}
+
 // genFieldValue draws a non-empty, space-free, newline-free token suitable for
 // either a frontmatter field value or a body. Avoiding spaces sidesteps the
 // trim in Text; avoiding newlines keeps frontmatter and body shapes intact.

@@ -10,6 +10,41 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+func TestBodyText_ExcludesRelatedToSection(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	raw := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n\n" +
+		"Related to:\n- [[2.note]] — because.\n- [[3.note]] — also.\n")
+	want := "Information learned: when in X, S P O.\n"
+	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
+}
+
+func TestBodyText_InlineRelatedToProseIsNotStripped(t *testing.T) {
+	t.Parallel()
+
+	// "Related to:" appears as inline prose with no bullet block beneath it,
+	// so the whole body — including that line — must survive.
+	g := NewWithT(t)
+	raw := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"The bug was Related to: a missing nil guard in the parser.\n")
+	want := "The bug was Related to: a missing nil guard in the parser.\n"
+	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
+}
+
+func TestBodyText_MarkerFollowedByProseIsNotStripped(t *testing.T) {
+	t.Parallel()
+
+	// A "Related to:" marker line whose following non-blank line is prose (not
+	// a "- [[" bullet) is not a relation block; nothing is stripped.
+	g := NewWithT(t)
+	raw := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Body line.\n\nRelated to:\nsee the design doc for context.\n")
+	want := "Body line.\n\nRelated to:\nsee the design doc for context.\n"
+	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
+}
+
 func TestBodyText_NoFrontmatterReturnsRaw(t *testing.T) {
 	t.Parallel()
 
@@ -67,6 +102,23 @@ func TestContentHash_FrontmatterChangeDoesNotChangeHash(t *testing.T) {
 	a := []byte("---\ntype: fact\nluhmann: \"1\"\n---\nshared body.\n")
 	b := []byte("---\ntype: fact\nluhmann: \"1\"\nextra: added\n---\nshared body.\n")
 	g.Expect(embed.ContentHash(a)).To(Equal(embed.ContentHash(b)))
+}
+
+func TestContentHash_IgnoresRelatedToLinkEdits(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	noBlock := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n")
+	withBlock := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n\n" +
+		"Related to:\n- [[2.note]] — because.\n")
+	diffLinks := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n\n" +
+		"Related to:\n- [[2.note]] — because.\n- [[9.other]] — added later.\n")
+
+	g.Expect(embed.ContentHash(noBlock)).To(Equal(embed.ContentHash(withBlock)))
+	g.Expect(embed.ContentHash(withBlock)).To(Equal(embed.ContentHash(diffLinks)))
 }
 
 func TestContentHash_IsSha256OfSituationAndBody(t *testing.T) {
