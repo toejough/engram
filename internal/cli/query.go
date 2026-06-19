@@ -450,6 +450,7 @@ func appendSynthesisChunks(
 	args QueryArgs,
 	deps QueryDeps,
 	subgraph *expandedSubgraph,
+	limit int,
 ) ([]resolvedItem, error) {
 	records, loadErr := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
 		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
@@ -461,6 +462,16 @@ func appendSynthesisChunks(
 	scored, scoreErr := scoreChunks(ctx, args.Phrases, records, deps.Embedder)
 	if scoreErr != nil {
 		return nil, scoreErr
+	}
+
+	// Bound the clustered + returned chunk set to the top-limit by score.
+	// cluster.Silhouette is O(n^2) per K, so clustering the whole corpus is
+	// prohibitively slow on large indices — the same bound mergeChunkSpace
+	// already applies for the non-synthesis path.
+	sortScoredDesc(scored)
+
+	if len(scored) > limit {
+		scored = scored[:limit]
 	}
 
 	chunkItems := make([]resolvedItem, 0, len(scored))
@@ -2127,7 +2138,7 @@ func runSynthesizeL2Query(
 	var chunkItems []resolvedItem // collected for items[] only
 
 	if chunksConfigured(args, deps) {
-		chunkItems, err = appendSynthesisChunks(ctx, args, deps, &subgraph)
+		chunkItems, err = appendSynthesisChunks(ctx, args, deps, &subgraph, limit)
 		if err != nil {
 			return err
 		}
