@@ -369,12 +369,14 @@ type sidecarLoadResult struct {
 
 // subgraphMember bundles a node's basename, vault-relative path,
 // sidecar vector, query-similarity score, and (optionally) cached body.
+// kind overrides content-derived kind detection for chunk members.
 type subgraphMember struct {
 	basename string
 	notePath string
 	vector   []float32
 	score    float32
 	content  string
+	kind     string // empty = note; chunkItemKind for chunks
 }
 
 // tierIndex holds the vault-wide set of one tier's note paths and BOTH
@@ -436,6 +438,53 @@ func aggregateSubgraphBudget(summaries []queryPipelineSummary) (totalSize int, c
 	}
 
 	return totalSize, capped, maxHops
+}
+
+// appendSynthesisChunks loads the matched chunks, appends them as subgraph
+// members (so they cluster together with the notes — D1), and returns the
+// parallel resolvedItem slice for items[]. Each chunk member's basename is set
+// to its source#anchor notePath to avoid byBasename[""] collisions if the
+// subgraph is ever passed to mergeProvenances (CA-09).
+func appendSynthesisChunks(
+	ctx context.Context,
+	args QueryArgs,
+	deps QueryDeps,
+	subgraph *expandedSubgraph,
+) ([]resolvedItem, error) {
+	records, loadErr := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
+		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
+	})
+	if loadErr != nil {
+		return nil, loadErr
+	}
+
+	scored, scoreErr := scoreChunks(ctx, args.Phrases, records, deps.Embedder)
+	if scoreErr != nil {
+		return nil, scoreErr
+	}
+
+	chunkItems := make([]resolvedItem, 0, len(scored))
+
+	for _, s := range scored {
+		path := chunkNotePath(s.record)
+		subgraph.members = append(subgraph.members, subgraphMember{
+			basename: path, // set to avoid byBasename[""] collisions if passed to mergeProvenances
+			notePath: path,
+			content:  s.record.Text,
+			vector:   s.record.Vector,
+			score:    s.score,
+			kind:     chunkItemKind,
+		})
+		chunkItems = append(chunkItems, resolvedItem{
+			notePath:    path,
+			content:     s.record.Text,
+			score:       s.score,
+			provenances: []string{provenanceDirect},
+			kind:        chunkItemKind,
+		})
+	}
+
+	return chunkItems, nil
 }
 
 // appendUniqueProvenance adds role to item.provenances iff not already present.
@@ -1282,12 +1331,20 @@ func meanVector(vectors [][]float32) []float32 {
 
 // memberMatchesTier reports whether a subgraph member's loaded content
 // carries the requested tier. An empty tier matches everything (the
-// blended recall path). Members without loaded content cannot be verified
-// and are treated as non-matching when a tier is requested — mirroring
-// applyTierFilter's items[] behavior so all channels stay consistent.
+// blended recall path). Chunk members carry no frontmatter tier (kind ==
+// chunkItemKind); they are excluded only when an explicit tier set is
+// requested, and always pass the blended (empty-tier) path so D1's unified
+// synthesize-l2 clustering retains them. Note members without loaded content
+// cannot be verified and are treated as non-matching when a tier is requested
+// — mirroring applyTierFilter's items[] behavior so all channels stay
+// consistent.
 func memberMatchesTier(member subgraphMember, tiers []string) bool {
 	if len(tiers) == 0 {
 		return true
+	}
+
+	if member.kind == chunkItemKind {
+		return false
 	}
 
 	return itemMatchesTier(resolvedItem{content: member.content}, tiers)
@@ -2055,11 +2112,28 @@ func runSynthesizeL2Query(
 		return err
 	}
 
+	// D1: build the subgraph from the note union, then extend with matched chunks
+	// so one AutoK pass clusters notes and chunks together.
 	subgraph := buildUnionSubgraph(union)
+
+	var chunkItems []resolvedItem // collected for items[] only
+
+	if chunksConfigured(args, deps) {
+		chunkItems, err = appendSynthesisChunks(ctx, args, deps, &subgraph)
+		if err != nil {
+			return err
+		}
+	}
+
 	report := clusterUnionForSynthesis(subgraph, strings.Join(args.Phrases, "\n"))
 
+	// mergeProvenances receives an empty expandedSubgraph{} deliberately:
+	// mergeClusterReps/mergeHubItems must not promote cluster reps into items[]
+	// because the L2 representative is agent-decided, not binary-computed (spec §2
+	// step 4). Direct-hit items come from the union; chunk items are appended below.
 	resolved := mergeProvenances(union, expandedSubgraph{}, clusterReport{}, hubReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
+	resolved = append(resolved, chunkItems...)
 
 	merged := aggregatedSummary{
 		phrases:        args.Phrases,

@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
 	"go.yaml.in/yaml/v3"
 
+	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 )
 
@@ -607,6 +609,122 @@ func TestQuery_SynthesizeL2_FlagAndSynthesisAreMutuallyExclusive(t *testing.T) {
 		cli.QueryArgs{Phrases: []string{"x"}, VaultPath: t.TempDir(), Synthesis: true, SynthesizeL2: true},
 		deps, &out)
 	g.Expect(err).To(MatchError(cli.ErrQueryModeConflict))
+}
+
+// TestQuery_SynthesizeL2_IncludesMatchedChunksInClustering verifies D1: when
+// ChunksDir is set, matched chunks appear as cluster members in the unified
+// --synthesize-l2 clustering (not in a separate chunk-clusters channel).
+func TestQuery_SynthesizeL2_IncludesMatchedChunksInClustering(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	queryVec := []float32{1, 0, 0, 0}
+
+	// Three L1 notes.
+	for i := range 3 {
+		plantDualVector(t, memFS, vault, fmt.Sprintf("%d.ep.md", i+1),
+			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
+	}
+
+	// Two chunk records at the same vector.
+	records := []chunk.Record{
+		{
+			Source:      "/sessions/s.jsonl",
+			Anchor:      "turn-1",
+			ContentHash: chunk.HashText("chunk alpha one"),
+			Text:        "chunk alpha one",
+			Vector:      queryVec,
+		},
+		{
+			Source:      "/sessions/s.jsonl",
+			Anchor:      "turn-2",
+			ContentHash: chunk.HashText("chunk alpha two"),
+			Text:        "chunk alpha two",
+			Vector:      queryVec,
+		},
+	}
+
+	data, encErr := chunk.EncodeRecords(records)
+	g.Expect(encErr).NotTo(HaveOccurred())
+
+	if encErr != nil {
+		return
+	}
+
+	memFS.files["/chunks/s.jsonl"] = data
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: queryVec}
+	deps.ListChunkIndexes = func(string) ([]string, error) {
+		return []string{"/chunks/s.jsonl"}, nil
+	}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{
+			Phrases:      []string{"alpha"},
+			VaultPath:    vault,
+			SynthesizeL2: true,
+			ChunksDir:    "/chunks",
+		},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var raw map[string]any
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &raw)).NotTo(HaveOccurred())
+
+	// items[] must include chunk-kind items.
+	items, _ := raw["items"].([]any)
+	kinds := map[string]bool{}
+
+	for _, item := range items {
+		mapped, isMap := item.(map[string]any)
+		g.Expect(isMap).To(BeTrue(), "each item must be a mapping")
+
+		kind, _ := mapped["kind"].(string)
+		kinds[kind] = true
+	}
+
+	g.Expect(kinds["chunk"]).To(BeTrue(), "chunk items must appear in synthesize-l2 items[]")
+
+	// clusters must have NO phrase="chunks" channel (D1: one unified pass only).
+	clusters, _ := raw["clusters"].([]any)
+	g.Expect(clusters).NotTo(BeEmpty())
+
+	sawChunkMember := false
+
+	for _, cl := range clusters {
+		clusterMap, isMap := cl.(map[string]any)
+		g.Expect(isMap).To(BeTrue(), "each cluster must be a mapping")
+
+		phrase, _ := clusterMap["phrase"].(string)
+		g.Expect(phrase).NotTo(Equal("chunks"),
+			"D1: synthesize-l2 must not emit a separate chunks cluster channel")
+
+		members, _ := clusterMap["members"].([]any)
+		for _, member := range members {
+			memberMap, isMemberMap := member.(map[string]any)
+			g.Expect(isMemberMap).To(BeTrue(), "each member must be a mapping")
+
+			path, _ := memberMap["path"].(string)
+			if strings.Contains(path, "#") {
+				sawChunkMember = true
+			}
+		}
+	}
+
+	g.Expect(sawChunkMember).To(BeTrue(),
+		"at least one cluster member must be a chunk (source#anchor) in synthesize-l2")
 }
 
 // TestQuery_SynthesizeL2_NearDuplicateL2_CosineAtLeast095 verifies the raw
