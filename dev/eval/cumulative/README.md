@@ -60,7 +60,7 @@ python3 matrix.py --budget 1500
 # Rate-limited mid-run? Just re-run the SAME line — it resumes (skips clean cells, re-runs only
 # incomplete/rate-limited ones). Interruption is normal; the harness is resilient to it.
 
-# Aggregate the §5 headline tables into results-v2.md (also prints to stdout).
+# Aggregate the §5 headline tables (prints to stdout; redirect to a local file if desired).
 python3 aggregate.py
 
 # Compare a new run against a baseline (standing-benchmark diff, primary metric).
@@ -114,7 +114,7 @@ records the `engram_sha`, so `compare.py` shows the feature's effect on the metr
 | `matrix.py` | orchestrator: 7-regime operation DAG, durable cfg pool, resumable, budget-capped. |
 | `score.py` + `archscore.py` + `behavioral.py` + `dimensions.py` | deterministic name-agnostic scorer (runs the binary). |
 | `{notes,links,feeds}_spec.json` | the three app specs (blind command list + hidden rubric). |
-| `aggregate.py` / `compare.py` | §5 tables + `results-v2.md`; cross-run deltas. |
+| `aggregate.py` / `compare.py` | §5 tables (stdout); cross-run deltas. |
 | `validate.py` | zero-cost validation suite (no LLM). |
 | `testdata/{good,naive}/` | scorer-validation Go apps (NOT experiment apps; under `testdata/` so repo Go tooling ignores them). |
 | `verify_cost2.py` + `token_table.py` | cost audit (reconstruct cost from tokens × price sheet). |
@@ -125,13 +125,10 @@ A live run writes to `$CUMMATRIX_ROOT` (default `/tmp/cummatrix`, **ephemeral**)
 (per-op, versioned schema + `engram_sha` provenance + `run-manifest.json`), `vaults/` (seed +
 accumulated), `ws/` (build workdirs).
 
-**Durable in the repo** (so the benchmark survives a reboot and a fresh checkout can re-aggregate
-and `compare.py`):
-- `results-v2.md` — the aggregated tables + headline (committed).
-- `runs/<date>-<models>-n<trials>/` — the **raw per-cell JSON archived** (the source data behind
-  the tables; ~1.5M for the full 390-cell run, metrics-only, no transcripts). `compare.py` reads a
-  run dir laid out as `<root>/results/*.json`, so to diff against an archived run, point it at a
-  copy with the JSON under `results/` (see `runs/README` if present, or just
-  `mkdir -p /tmp/x/results && cp runs/<run>/*.json /tmp/x/results/ && python3 compare.py /tmp/x <newroot>`).
+**Results are ephemeral by design** — the raw per-cell JSONs and aggregated tables are not
+committed to the repo. Conclusions from the 2026-06-08 experiment are distilled in
+`docs/DESIGN-HISTORY.md §5`. To retain a future run's data, archive the JSON files locally before
+they are lost across reboots.
 
-To archive a fresh run: `cp $CUMMATRIX_ROOT/results/*.json dev/eval/cumulative/runs/<date>-.../` and commit.
+`compare.py` reads a run dir laid out as `<root>/results/*.json`. To diff two runs:
+`python3 compare.py /tmp/run-baseline /tmp/run-new`
