@@ -47,19 +47,22 @@ and prompting.
 ## Vault structure
 
 ### Permanent (note)
-An atomic, principle-stated note in `<vault>/Permanent/`. Atomic here means
-*one coherent topic with its full load-bearing detail and complete sets* —
-not one micro-fact; over-fragmenting a topic across notes harms retrieval
-(see `learn/SKILL.md`). Filenames follow
-`<luhmann-id>.<YYYY-MM-DD>.<slug>.md`. Plural: *Permanents*. The folder
-keeps a capital P. In running prose, prefer *permanent note* (lowercase
-noun) for the concept and *Permanent/* (capital, with slash) for the folder.
+An atomic, principle-stated note — *one coherent topic with its full
+load-bearing detail and complete sets*, not one micro-fact (over-fragmenting a
+topic across notes harms retrieval; see `learn/SKILL.md`). Notes originally
+lived in `<vault>/Permanent/`, retired 2026-06-12 in the flat-vault migration:
+they now live flat at the vault root, and the old folder's notes are archived
+under `<vault>/_legacy/` (ignored by the scanner). Filenames follow
+`<luhmann-id>.<YYYY-MM-DD>.<slug>.md`. Plural: *Permanents*. In running
+prose, prefer *permanent note* (lowercase noun) for the concept.
 
 ### MOC (Map of Content)
-A note in `<vault>/MOCs/` whose body is framing prose synthesizing related
-permanent notes. Plural: **MOCs**. The full form **Map of Content** (capital
-M, capital C, no plural "s") is the canonical expansion. Folder name keeps
-the trailing "s": `MOCs/`.
+A note whose body is framing prose synthesizing related permanent notes. MOCs
+originally lived in `<vault>/MOCs/`, retired 2026-06-12 in the flat-vault
+migration: notes now live flat at the vault root, and historical MOCs are
+archived under `<vault>/_legacy/MOCs/` (ignored by the scanner). Plural:
+**MOCs**. The full form **Map of Content** (capital M, capital C, no plural
+"s") is the canonical expansion.
 
 ### Luhmann ID
 The position string in a note's filename (e.g. `87`, `4a`, `4g1a`). Encodes

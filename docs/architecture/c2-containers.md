@@ -17,7 +17,7 @@ flowchart TB
     skills["C1 · Skills (learn / recall / please / route)<br/>markdown behavior specs"]
     cli["C2 · engram CLI<br/>Go binary — ingest/learn/query/embed/update"]
     model["C3 · Embedded model<br/>MiniLM-L6 384d, go:embed in C2"]
-    vault[("C4 · Vault<br/>Permanent/*.md + *.vec.json + .luhmann.lock")]
+    vault[("C4 · Vault<br/>flat root: *.md + *.vec.json + .luhmann.lock")]
     sessions(["S5 · Session stores (Claude .jsonl / OpenCode db)"])
     gotool(["S6 · Go toolchain"])
 
@@ -40,7 +40,7 @@ flowchart TB
 | C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query --synthesize-l2` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow. Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
 | C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`), note write (tier defaults, embed-on-write, Luhmann id under lock), query (cosine→subgraph→cluster→tier-filter), embed apply/status, update. | houses G0, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: swap silently empties recall (no guard) |
-| C4 | Vault | filesystem | `Permanent/<luhmann>.<date>.<slug>.md` + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
+| C4 | Vault | filesystem | `<luhmann>.<date>.<slug>.md` at the flat vault root + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
 
 ## Relationships
 | From → To | Description |
