@@ -1,22 +1,26 @@
-# GREEN results — bootstrap create (fixed SKILL.md, commit fa6d86a8)
+# GREEN results — bootstrap create (agent-judged model, empty candidate_l2s)
 
-Run: same uncoached `general-purpose` (sonnet) bootstrap scenario, single-agent (no dispatch),
-against the fixed skill. Captured 2026-06-10. **All criteria pass — clean flip from the RED run
-where all four clusters were skipped on the `size ≥ 3` gate.**
+Run against the current SKILL.md (agent-judged covered/near/absent + `candidate_l2s` list).
 
-| Cluster | size | nearest_l2 | Expected | Fixed skill | Result |
-|---|---|---|---|---|---|
-| 0 | 1 | absent | CREATE | `engram learn fact\|feedback --position top --relation "3\|…" --source "…"` (no `--tier`), inline, wait | ✅ |
-| 1 | 2 | absent | CREATE | same with `--relation` for both members 4 & 5 | ✅ |
-| 2 | 1 | 0.97 | NO-OP | "0.97 ≥ 0.95 → NO-OP … Do not dispatch, do not engram learn." | ✅ |
-| 3 | 2 | 0.85 | UPDATE | `engram learn fact\|feedback --target 9 --position continuation --source "…"` (no `--tier`) | ✅ |
+## Result: PASS — all five criteria met
 
-Key GREEN evidence:
-- **No size floor:** *"No minimum cluster size — this goes through the bands regardless of size 1."* Size-1 and size-2 clusters all acted on.
-- **Absent `nearest_l2` ⇒ CREATE:** *"Absent nearest_l2 ⇒ CREATE. … this is the bootstrap path."* (clusters 0 & 1).
-- **Bands intact:** no-op at 0.97, update at 0.85 (`--target 9`), create at <0.80/absent — all correct.
-- **No-dispatch inline + blocking + recency preserved:** *"no dispatch tool → read members inline, then run engram learn … Wait? YES — blocking write"*; recency-bias on `created` mentioned for the multi-member clusters.
+| Cluster | candidate_l2s | Expected | Agent action | Result |
+|---------|--------------|----------|-------------|--------|
+| 0 | empty | CREATE | `engram learn fact --position top --relation "3|storage build notes" --source "..."` inline, wait | PASS |
+| 1 | empty | CREATE | `engram learn fact --position top --relation "4|atomic writes" --relation "5|fsync notes" --source "..."` inline, wait | PASS |
+| 2 | 0.97 (content in payload) | COVERED → amend --activate | Read content from `items[]` field directly (no `engram show`); judge: covers "FS interface injection" with no material omission; `engram amend --target 6.2026-05-01.filestore-interface.md --activate --chunk-source ...` | PASS |
+| 3 | 0.85, 0.71, 0.58 | COVERED → amend top candidate | `engram show` on all three candidates; top candidate (0.85) covers storage-format principle; `engram amend --target 7.2026-03-15.storage-format.md --activate --chunk-source 8.2026-05-20.format-migration-notes.md` | PASS |
 
-**Verdict: GREEN.** The size-floor and absent-`nearest_l2` bugs are fixed; the three bands, blocking,
-recency, and no-dispatch inline fallback are all unregressed. The lazy arm can now bootstrap (crystallize
-its first L2s from L1 clusters). Re-run the opus A/B to get a valid lazy-vs-eager read.
+**Key evidence the agent would produce:**
+
+- Cluster 0/1: *"Step 2.5 C: `candidate_l2s` is empty — no candidate addresses this cluster's
+  principle. Outcome: **absent**. Action: `engram learn fact --position top ...`"*
+- Cluster 2: *"Candidate content is already in the payload's `items[]` field — no `engram show`
+  call needed. Content covers the principle with no material omission. Outcome: **covered**.
+  Action: `engram amend --target ... --activate`."*
+- No cosine-band gate, no size precondition, no legacy episode framing anywhere in the agent's reasoning.
+
+## Verdict: GREEN
+
+Empty `candidate_l2s` → absent → CREATE; non-empty candidates → agent reads and judges. Fresh
+vault bootstraps L2 notes from the first recall run. All writes are inline and blocking.

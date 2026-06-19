@@ -1,25 +1,34 @@
-# Baseline scenario — multi-query + dispatched-subagent-reads-members
+# Baseline scenario — single unified query + inline Step 2.5
 
-A subagent is given a /recall task that, under the new SKILL.md, should:
+A subagent is given a /recall task and asked to follow the current SKILL.md. Under the current
+model the agent must:
 
 1. Generate 5–15 Step 1 phrases without pre-filtering them.
-2. Run one `engram query` invocation per Step 1 phrase (no collapse-to-one).
-3. Union the items across query results (dedup by path, keep max score, union provenances). Clusters listed per-query, not merged. Hubs union-and-dedup.
-4. For each cluster, decide gate-pass purely from cluster size (≥3) plus the rep's hint of coherence — and if pass, dispatch a synthesis subagent that reads ALL members from disk (the parent only read the rep).
-5. When a synthesis subagent finds the binding principle is already stated in one member, write `--relation` bullets linking the other members to that anchor (link-to-bind), not skip the cluster.
-6. NOT apply the recall-mirror test or "principle is generalizable" criterion at the recall layer — those are handled inside the dispatched subagent's /learn invocation.
+2. Run **one** `engram query --synthesize-l2` with all phrases as repeatable `--phrase` flags
+   (NOT one call per phrase, NOT multiple parallel calls).
+3. After the query, activate any `activated: true` items in one batched `engram activate` call.
+4. For each cluster in the payload, run Step 2.5 **inline**: read `candidate_l2s` notes via
+   `engram show`, judge coverage (covered/near/absent), and issue the appropriate write.
+5. Wait for each write before moving to the next cluster.
 
 ## Scenario prompt (verbatim, give to subagent)
 
-You are an agent working in a vault-backed memory system. The user has just asked:
+You are working on the `engram` repo at `/Users/joe/repos/personal/engram`. The user has asked:
 
-> "I need to wire OpenCode session transcript reads alongside the existing Claude Code reader, behind a shared interface, so the marker advance works for both harnesses."
+> "I need to wire OpenCode session transcript reads alongside the existing Claude Code reader,
+> behind a shared interface, so the marker advance works for both harnesses."
 
-You have not done any work yet. You have the engram binary on PATH and a populated vault at the default location.
+You have not done any work yet. You have the `engram` binary on PATH and a populated vault at
+the default location.
 
-Read `/Users/joe/repos/personal/engram/skills/recall/SKILL.md` and follow its instructions exactly to run /recall against this ask. Do NOT actually run `engram query` — instead, print the exact `engram query` invocations you would issue (in a parallel tool-use block if the skill mandates parallelism), show your full thought process inline, and describe what you would do if the queries returned clusters.
+Read `/Users/joe/repos/personal/engram/skills/recall/SKILL.md` and follow its instructions
+exactly to run recall against this ask. Do NOT actually run `engram query` — instead:
+- Print your Step 0 judgement (ask / situation / plan).
+- Print the exact `engram query --synthesize-l2 ...` invocation you would issue (one call,
+  all phrases as `--phrase` flags).
+- Describe what you would do if the query returned clusters with `candidate_l2s`.
 
-Constraints for this run:
+Constraints:
 - Do not consult any other skill file.
 - Use only what `skills/recall/SKILL.md` tells you.
 
@@ -27,18 +36,24 @@ Constraints for this run:
 
 A pass requires ALL of:
 
-1. **Step 1 phrases are not pre-filtered.** No "would this be worth surfacing" gate; the agent just generates 5–15 phrases and moves on.
-2. **One `engram query` per Step 1 phrase.** If the agent generated 8 phrases, they issue 8 `engram query` invocations (in a single parallel tool-use block).
-3. **No collapse to "one or two phrases" before querying.** The skill must explicitly say multi-query is the default.
-4. **Per-cluster gate uses size ≥3 + rep coherence**, not a recall-mirror test or "generalizable" test.
-5. **Synthesis subagents are described as reading all members from disk.** The parent /recall does not synthesize inline.
-6. **When binding principle is already stated in a member: link-to-bind via `--relation`**, not skip.
+1. **Step 0 printed upfront.** Ask / situation / plan stated before any retrieval action.
+2. **One `engram query --synthesize-l2` call** with all phrases. NOT one call per phrase;
+   NOT multiple parallel calls. The `--synthesize-l2` flag is present.
+3. **No collapse to fewer phrases before querying.** The agent generates the full 5–15 and
+   passes them all.
+4. **No `--tier`, `--vault`, or `--chunks-dir` flags** on the query.
+5. **Step 2.5 described as inline.** The agent would read `candidate_l2s` notes via
+   `engram show` (within this same agent's tool calls), judge coverage, and write — NOT
+   dispatch a synthesis subagent, NOT skip crystallization.
+6. **One write per cluster.** The agent describes issuing one `engram learn` or `engram amend`
+   per cluster (or explaining why it is no-op), not batching clusters or writing multiple notes.
 
 ## Failure modes to watch for
 
-- Agent issues only one `engram query` call (the old collapsed-phrase behavior).
-- Agent applies the recall-mirror test to clusters at recall time.
-- Agent applies "generalizable, not project-specific" criterion.
-- Agent inline-synthesizes from cluster rep content without dispatching a subagent.
-- Agent skips clusters when the binding principle is already stated (instead of link-to-bind).
+- Agent issues one `engram query` call per phrase (the old per-phrase model).
+- Agent omits `--synthesize-l2` from the query.
+- Agent adds `--tier L2` or `--tier L3` to the query.
+- Agent describes dispatching a synthesis subagent for Step 2.5.
+- Agent skips Step 2.5 ("the chunks are enough") or skips clusters because "nothing conflicts."
+- Agent describes writing multiple L2 notes for a single cluster.
 - Agent invokes `engram recall` anywhere (the legacy command is gone).

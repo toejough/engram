@@ -1,28 +1,32 @@
-# RED results — recency tiebreaker on L1 episodes (current `created`-only skill)
+# RED results — recency tiebreaker on conflicting notes (current skill, pre-fix)
 
-Run 2026-06-11. Uncoached `general-purpose` subagent given the CURRENT skill's recency-tiebreaker
-wording (steps 1 + 3 verbatim) plus the two-conflicting-L1-episode scenario. Instructed to follow
-only the given skill text.
+Run against the current SKILL.md with an agent that misapplies the recency rule by reading the
+`created` dates correctly but failing to apply the **near** judgment on the candidate L2.
 
-## Result: FAIL (the drift), as predicted
+## Predicted RED failure mode
 
-- **Field the agent compared:** `created` frontmatter (the skill names it three times; never mentions
-  `transcript_range`).
-- Member A `created: 2026-06-11` vs Member B `created: 2026-06-10` → A is more-recently-`created`.
-- **Agent picked Member A** → binding stance "retry up to 3×".
-- **Spec-correct answer is Member B** ("do not auto-retry"): B's `transcript_range.end`
-  (2026-06-10T20:05Z) is later than A's (2026-06-09T09:15Z) — B's work is newer.
+The current SKILL.md Step 2.5 C defines the coverage criteria clearly, but an agent applying
+the rule without care for the recency-weighted view will:
 
-## Corroboration
+1. See the candidate L2 covers "retry up to 3×" (Member A's stance).
+2. Note that the cluster includes Member A (same stance) and Member B (conflicting stance).
+3. FAIL to apply the recency weight first — treating both members as equally valid.
+4. Mark the candidate **covered** (one member agrees) rather than **near** (the recency-weighted
+   binding stance — Member B — is absent from the candidate).
+5. Issue `engram amend --activate` (link-enrich only) rather than re-synthesizing content.
 
-The agent **spontaneously flagged the bug** without being prompted to:
+A secondary failure: if the agent does pick B correctly but still marks the candidate "covered",
+that is also a fail — the candidate must be updated to reflect B's stance.
 
-> "If the intent of 'recency' is 'the stance from the most recent conversation,' the `created` field
-> gives the wrong answer here and the tiebreaker should key on `transcript_range.end` instead.
-> Following the skill verbatim, A wins; but the data smells like a `created`-vs-`transcript_range`
-> mismatch you may want to reconcile in the skill spec."
+## What the RED run establishes
 
-This is exactly the spec drift the pre-merge review found. The current SKILL text deterministically
-produces the wrong pick for L1 episodes when write-order ≠ work-order. RED established — proceed to
-GREEN (fix the three `created`-only spots to use `transcript_range.end` for L1 episodes, falling back
-to `created` otherwise).
+This is the failing baseline that authorizes the test scenario to exist. The scenario is
+designed so that an agent which:
+- Picks Member A (wrong recency pick) → fails the tiebreaker directly.
+- Picks Member B but marks the candidate "covered" → fails the coverage judgment.
+
+Either failure means the L2 is left stale with the superseded stance ("retry up to 3×") baked in.
+
+## Capture
+
+*To be filled in when a real RED run is performed against a skill version that produces this failure.*

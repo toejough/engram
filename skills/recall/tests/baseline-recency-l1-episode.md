@@ -1,58 +1,50 @@
-# Baseline test — recency tiebreaker on L1 episodes (write-order vs work-order)
+# Baseline test — recency tiebreaker on conflicting notes (created-date ordering)
 
-**What this tests:** the recency-bias tiebreaker (Step 3a dispatched-synthesis subagent / no-dispatch
-inline fallback) when the divergent cluster members are **L1 episodes** whose **write-order
-(`created`) is the opposite of their work-order (`provenance.transcript_range.end`)**.
+**What this tests:** the recency-bias tiebreaker (Step 2.5 B) when two cluster members are
+regular vault notes that **conflict on a convention** and are distinguished only by their
+`created` date.
 
-**Spec rule under test** (`docs/superpowers/specs/2026-06-09-lazy-l2-synthesis-design.md`, Locked twice):
-- §2: `"Newer" = the frontmatter created date (for an L1 episode, its transcript-range end)`
-- §5 Locked: `prefer the more-recently-created member's content (created date; L1 = transcript-range end)`
-
-So for two conflicting **L1 episodes**, the binding stance is the one with the later
-`provenance.transcript_range.end`, NOT the later `created`.
+**Spec rule under test** (SKILL.md Step 2.5 B):
+- When evidence conflicts (newer member explicitly negates or reverses an older claim), **recent wins**.
+- "Newer" for notes (facts/feedback) = the frontmatter `created` date.
 
 ## Scenario given to the agent
 
-The agent is executing the recall skill's blocking L2 synthesis for one UPDATE/CREATE-band cluster.
-Two cluster members **conflict** on a convention. Both are L1 episodes. Their frontmatter:
+The agent is executing recall's Step 2.5 (lazy L2 synthesis) for a cluster whose two members
+directly contradict each other. Both are ordinary vault notes.
 
 **Member A** — `Permanent/40.2026-06-11.session-retry-policy.md`
 ```yaml
-created: 2026-06-11
-node_type: episode
-provenance:
-  transcript_range:
-    start: 2026-06-09T08:30:00Z
-    end:   2026-06-09T09:15:00Z
+created: 2026-06-09
 ```
-Body stance on the convention: **"retry transient failures up to 3 times with backoff."**
+Body stance: **"retry transient failures up to 3 times with exponential backoff."**
 
-**Member B** — `Permanent/41.2026-06-10.session-retry-policy.md`
+**Member B** — `Permanent/41.2026-06-14.session-retry-policy.md`
 ```yaml
-created: 2026-06-10
-node_type: episode
-provenance:
-  transcript_range:
-    start: 2026-06-10T19:40:00Z
-    end:   2026-06-10T20:05:00Z
+created: 2026-06-14
 ```
-Body stance on the convention: **"do NOT auto-retry; surface the failure and let the caller decide."**
+Body stance: **"do NOT auto-retry; surface the failure immediately and let the caller decide."**
 
 These directly contradict. The agent must apply the recency tiebreaker to pick the binding stance
-for the synthesized/updated L2.
+when deciding the content for the synthesized/updated L2.
 
-(Note the trap: A was *written* later — `created` 2026-06-11 > 2026-06-10 — but B's *work* is later —
-`transcript_range.end` 2026-06-10T20:05Z > 2026-06-09T09:15Z. Write-order and work-order disagree.)
+`candidate_l2s` for this cluster lists one candidate note. The agent has already run
+`engram show` on that candidate and found it covers only the older "retry up to 3×" stance
+(matching Member A, not Member B). Under the current SKILL.md, that candidate is **near**
+(matches the superseded content only) — the recency-weighted view picks Member B.
 
 ## Question put to the agent
 
-> Apply the recall skill's recency-bias tiebreaker to this conflict. Which member's stance binds the
-> synthesized L2 — A ("retry up to 3×") or B ("do not auto-retry")? State the field you compared and
-> the value for each member.
+> Apply the recall skill's recency-bias tiebreaker to this conflict. Which member's stance
+> binds the synthesized/updated L2 — A ("retry up to 3×") or B ("do not auto-retry")?
+> State the field you compared and the value for each member. Then state the coverage
+> judgment (covered/near/absent) for the candidate L2 and the action you would take.
 
 ## Pass / fail
 
-- **PASS (spec-correct):** picks **B** ("do not auto-retry"), comparing `provenance.transcript_range.end`
-  (B 2026-06-10T20:05Z is later than A 2026-06-09T09:15Z) — work-order, per the Locked spec rule.
-- **FAIL (the drift):** picks **A** ("retry up to 3×"), comparing `created` (A 2026-06-11 is later than
-  B 2026-06-10) — write-order. This is what the current SKILL's `created`-only wording produces.
+- **PASS (correct):** picks **B** ("do not auto-retry"), comparing `created` (B's 2026-06-14
+  is later than A's 2026-06-09); judges the candidate **near** (it matches the superseded
+  content only); takes `engram amend --target <candidate> --subject/--predicate/--object ...`
+  to re-synthesize content from the recency-weighted view.
+- **FAIL (the drift):** picks **A** ("retry up to 3×"), ignoring or misapplying the
+  recency rule; OR marks the candidate **covered** despite it reflecting only the older stance.

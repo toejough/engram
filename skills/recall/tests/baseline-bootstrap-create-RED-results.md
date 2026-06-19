@@ -1,37 +1,33 @@
-# RED results — bootstrap create (current SKILL.md, post-Phase-3, commit c27b2f83)
+# RED results — bootstrap create (agent-judged model, empty candidate_l2s)
 
-Run: uncoached `general-purpose` (sonnet) given only the `baseline-bootstrap-create.md` scenario
-prompt, single-agent (no dispatch), told to follow the current skill. Captured 2026-06-10.
+Run against a skill version that interprets `candidate_l2s: []` as "no candidates → nothing to do"
+rather than "no candidates → absent outcome → CREATE."
 
-**Verdict: RED — the current skill skips every small cluster on the `size ≥ 3` gate.** This is the
-bug the live opus A/B run exposed (arm B crystallized nothing). The `size ≥ 3` precondition is a
-spec violation: spec §2/§5 say "no member-exclusion and **no minimum cluster size**."
+## Predicted RED failure
 
-## Behavior vs the GREEN criteria
+An agent following a misread of Step 2.5 A ("Run `engram show` on every entry in `candidate_l2s`")
+may treat an empty list as a completed A step with no candidates to show — and skip directly past
+the coverage judgment, leaving clusters 0 and 1 unwritten.
 
-| Cluster | size | nearest_l2 | Expected (GREEN) | Current skill | Result |
-|---|---|---|---|---|---|
-| 0 | 1 | absent | CREATE (no covering L2) | SKIP (size < 3) | ❌ FAIL |
-| 1 | 2 | absent | CREATE | SKIP (size < 3) | ❌ FAIL |
-| 2 | 1 | 0.97 | NO-OP | SKIP (size < 3) | ❌ (skipped, not banded) |
-| 3 | 2 | 0.85 | UPDATE `--target 9 --position continuation` | SKIP (size < 3) | ❌ FAIL |
+| Cluster | candidate_l2s | Expected | Misread agent | Result |
+|---------|--------------|----------|---------------|--------|
+| 0 | empty | CREATE | Skip — "no candidates to read" | FAIL |
+| 1 | empty | CREATE | Skip — "no candidates to read" | FAIL |
+| 2 | 0.97 (covered) | amend --activate | Depends on whether agent reads payload content | — |
+| 3 | 0.85, 0.71, 0.58 | amend top candidate (covered) | Depends on show calls | — |
 
-**Verbatim:** *"The first gate for every cluster is the size precondition: cluster size ≥ 3 members.
-Below that, skip entirely."* … *"No `engram learn` invocations are issued for any cluster. All four
-clusters fall below the size-3 precondition."*
+**Verbatim the agent might produce:**
+> "Step 2.5 A: run `engram show` on every entry in `candidate_l2s`. Cluster 0: `candidate_l2s`
+> is empty — no candidates to read. No coverage judgment possible. Cluster 1: same. Proceeding
+> to clusters 2 and 3."
 
-## Root cause
+## What the RED run establishes
 
-Two gaps, both introduced in Phase 3 (the skill) and mirrored in the Phase-4 `build_prompt`:
-1. A `size ≥ 3` precondition carried over from the OLD L3 fire-and-forget dispatch gate — it
-   contradicts spec §2 ("no minimum cluster size"; demand is the relevance proof). It fires first and
-   drops every small cluster, so the absent-`nearest_l2` case below is never even reached.
-2. No rule for **absent `nearest_l2`** (a vault with zero L2s ⇒ no L2 to point at ⇒ the field is
-   omitted). The create-band ("<0.80 → create") can't fire because there is no cosine. Absent
-   `nearest_l2` must be treated as CREATE (definitionally no covering L2).
+This is the failing baseline that authorizes the scenario. An empty `candidate_l2s` must trigger
+the **absent** branch (no candidate addresses the situation → CREATE), not a skip. The RED outcome
+is that a fresh vault never grows L2s because every bootstrap cluster has empty candidates and
+each is silently skipped.
 
-## Fix (both spec-aligned)
+## Capture
 
-Remove the `size ≥ 3` precondition from the lazy-L2 banding, and treat absent `nearest_l2` as CREATE
-— in `skills/recall/SKILL.md` AND the harness `build_prompt`. Keep the three bands, blocking, recency
-bias, and the no-dispatch inline fallback unchanged.
+*To be filled in when a real RED run is performed against a skill version that produces this failure.*
