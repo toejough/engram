@@ -13,13 +13,13 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestRunQuery_ChunkClustersCarryNearestL2(t *testing.T) {
+func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := t.TempDir()
 	memFS := newInMemoryFS()
-	// An existing L2 fact so nearest_l2 has something to measure against.
+	// An existing L2 fact so candidate_l2s has something to measure against.
 	plantNoteWithSidecar(t, memFS, vault, "1.linting.md",
 		"---\ntype: fact\ntier: L2\n---\nAlways run the linter before committing changes.\n")
 
@@ -79,7 +79,7 @@ func TestRunQuery_ChunkClustersCarryNearestL2(t *testing.T) {
 	}
 
 	g.Expect(chunkClusters).To(BeNumerically(">=", 1), "chunk items must be clustered deterministically")
-	g.Expect(withNearest).To(Equal(chunkClusters), "every chunk cluster carries nearest_l2 for the bands")
+	g.Expect(withNearest).To(Equal(chunkClusters), "every chunk cluster carries candidate_l2s for the bands")
 }
 
 func TestRunQuery_MergesChunkAndVaultSpace(t *testing.T) {
