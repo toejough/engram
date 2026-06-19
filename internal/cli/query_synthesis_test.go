@@ -309,6 +309,153 @@ func TestQuery_Synthesis_SingleMemberUnionYieldsOneCluster(t *testing.T) {
 	g.Expect(parsed.Clusters[0].Members[0].IsRepresentative).To(BeTrue())
 }
 
+// TestQuery_SynthesizeL2_CandidateL2sTopKAtLeastThree verifies that when >=3
+// L2 notes exist, candidate_l2s carries at least 3 entries sorted cosine desc.
+func TestQuery_SynthesizeL2_CandidateL2sTopKAtLeastThree(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	queryVec := []float32{1, 0, 0, 0}
+
+	for i := range 4 {
+		plantDualVector(t, memFS, vault, fmt.Sprintf("%d.ep.md", i+1),
+			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
+	}
+
+	l2Vecs := [][]float32{
+		{1, 0, 0, 0},
+		{1, 0.1, 0, 0},
+		{1, 0.2, 0, 0},
+		{1, 0.3, 0, 0},
+		{1, 0.5, 0, 0},
+	}
+	for i, vec := range l2Vecs {
+		plantDualVector(t, memFS, vault, fmt.Sprintf("l2-%d.fact.md", i),
+			"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", vec, vec)
+	}
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: queryVec}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, SynthesizeL2: true},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var raw map[string]any
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &raw)).NotTo(HaveOccurred())
+
+	clusters, ok := raw["clusters"].([]any)
+	g.Expect(ok).To(BeTrue(), "clusters must be a sequence")
+	g.Expect(clusters).NotTo(BeEmpty())
+
+	first, ok := clusters[0].(map[string]any)
+	g.Expect(ok).To(BeTrue(), "a cluster must be a mapping")
+
+	candidates, ok := first["candidate_l2s"].([]any)
+	g.Expect(ok).To(BeTrue(), "candidate_l2s must be a sequence")
+	g.Expect(len(candidates)).To(BeNumerically(">=", 3),
+		"candidate_l2s must carry top-K (K>=3) entries when enough L2s exist")
+
+	expectCandidatesSortedDesc(g, candidates)
+}
+
+// TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK verifies the
+// D7 invariant: when a chunk-heavy centroid depresses absolute cosines, the
+// covering L2 may not be the nearest to the centroid but still appears within
+// top-K. The fixture plants three L2s where the true cover (l2a) is not
+// necessarily the centroid-nearest; with K>=3 and 3 L2s planted, all three
+// appear in candidate_l2s.
+func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// Four L1 notes anchor the note cluster centroid near {1,0,0,0}.
+	noteVec := []float32{1, 0, 0, 0}
+	for i := range 4 {
+		plantDualVector(t, memFS, vault, fmt.Sprintf("%d.ep.md", i+1),
+			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", noteVec, noteVec)
+	}
+
+	// L2-a: the covering L2, close to the note centroid.
+	l2a := []float32{1, 0, 0, 0}
+	plantDualVector(t, memFS, vault, "l2a.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", l2a, l2a)
+
+	// L2-b: a second L2 on a blended axis.
+	l2b := []float32{0.8, 0.6, 0, 0}
+	plantDualVector(t, memFS, vault, "l2b.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", l2b, l2b)
+
+	// L2-c: a third L2 so K=3 is reachable.
+	l2c := []float32{0, 1, 0, 0}
+	plantDualVector(t, memFS, vault, "l2c.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", l2c, l2c)
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: noteVec}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, SynthesizeL2: true},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var raw map[string]any
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &raw)).NotTo(HaveOccurred())
+
+	clusters, ok := raw["clusters"].([]any)
+	g.Expect(ok).To(BeTrue(), "clusters must be a sequence")
+	g.Expect(clusters).NotTo(BeEmpty())
+
+	first, ok := clusters[0].(map[string]any)
+	g.Expect(ok).To(BeTrue(), "a cluster must be a mapping")
+
+	candidates, ok := first["candidate_l2s"].([]any)
+	g.Expect(ok).To(BeTrue(), "candidate_l2s must be a sequence")
+	g.Expect(len(candidates)).To(BeNumerically(">=", 3),
+		"top-K (K=3) must surface all three L2 candidates")
+
+	paths := make([]string, 0, len(candidates))
+
+	for _, candidate := range candidates {
+		cm, isMap := candidate.(map[string]any)
+		g.Expect(isMap).To(BeTrue(), "each candidate must be a mapping")
+
+		path, isStr := cm["path"].(string)
+		g.Expect(isStr).To(BeTrue(), "candidate path must be a string")
+
+		paths = append(paths, path)
+	}
+
+	g.Expect(paths).To(ContainElement("l2a.fact.md"), "the covering L2 must appear in candidate_l2s")
+	g.Expect(paths).To(ContainElement("l2b.fact.md"), "l2b must appear in candidate_l2s")
+	g.Expect(paths).To(ContainElement("l2c.fact.md"), "l2c must appear in candidate_l2s")
+
+	expectCandidatesSortedDesc(g, candidates)
+}
+
 // TestQuery_SynthesizeL2_EmitsCandidateL2sSlice verifies the payload emits a
 // candidate_l2s sequence per cluster (the plural top-K form) and no longer
 // carries the singular nearest_l2 key.
@@ -598,6 +745,23 @@ func TestQuery_SynthesizeL2_NoL2_NearestL2Nil(t *testing.T) {
 
 	for _, c := range parsed.Clusters {
 		g.Expect(c.CandidateL2s).To(BeEmpty(), "no L2 in vault means no candidate_l2s")
+	}
+}
+
+// expectCandidatesSortedDesc asserts candidate_l2s cosines are non-increasing
+// (the centroid-cosine sort order).
+func expectCandidatesSortedDesc(g *WithT, candidates []any) {
+	for i := 1; i < len(candidates); i++ {
+		prev, prevOK := candidates[i-1].(map[string]any)
+		g.Expect(prevOK).To(BeTrue())
+
+		curr, currOK := candidates[i].(map[string]any)
+		g.Expect(currOK).To(BeTrue())
+
+		prevCos, _ := prev["cosine"].(float64)
+		currCos, _ := curr["cosine"].(float64)
+		g.Expect(prevCos).To(BeNumerically(">=", currCos),
+			"candidate_l2s must be sorted centroid-cosine desc (index %d >= %d)", i-1, i)
 	}
 }
 

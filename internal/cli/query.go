@@ -124,6 +124,11 @@ const (
 	// (a sanity floor for "genuine hit", NOT an empirically-tuned optimum;
 	// true calibration requires end-to-end recall evals — see GitHub #646).
 	activationCosineCutoff = 0.5
+	// candidateL2K is the minimum number of candidate L2s to nominate per
+	// cluster. The recall skill reads all K candidates to judge coverage;
+	// generous nomination costs nothing (recall is the binary's job,
+	// precision is the agent's).
+	candidateL2K = 3
 	// chunkClusterPhrase tags deterministic chunk-space clusters in the
 	// unified payload (they span all phrases, like synthesis clusters).
 	chunkClusterPhrase = "chunks"
@@ -639,24 +644,6 @@ func buildUnionSubgraph(union []scoredCandidate) expandedSubgraph {
 	return expandedSubgraph{members: members}
 }
 
-// candidateL2sStub is a placeholder replaced by topKCandidateL2sForTier in
-// Task 3.2. It returns the single nearest L2 (a 1-element slice) so the
-// candidate_l2s field is wired and populated while the real top-K logic lands.
-// The result is suppressed only when a non-empty tier set explicitly omits L2;
-// --synthesize-l2 always passes tiers: nil, so it never suppresses.
-func candidateL2sStub(centroid []float32, l2Notes tierIndex, tiers []string) []queryCandidateL2 {
-	if len(tiers) > 0 && !slices.Contains(tiers, tierL2) {
-		return nil
-	}
-
-	path, cosine, found := nearestInTierIndex(centroid, l2Notes)
-	if !found {
-		return nil
-	}
-
-	return []queryCandidateL2{{Path: path, Cosine: cosine}}
-}
-
 // chunksConfigured reports whether a chunk index is wired into this run
 // (non-empty chunks dir and a list function available).
 func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
@@ -710,7 +697,7 @@ func clusterChunkItems(scored []scoredChunk, l2Notes tierIndex, tiers, phrases [
 			Size:         len(members),
 			Silhouette:   silhouettes[clusterID],
 			Members:      members,
-			CandidateL2s: candidateL2sStub(autoK.Centroids[clusterID], l2Notes, tiers),
+			CandidateL2s: topKCandidateL2sForTier(autoK.Centroids[clusterID], l2Notes, tiers),
 		})
 	}
 
@@ -1827,7 +1814,7 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes, l2Notes tierIndex,
 				Silhouette:   pc.report.silhouettesByID[clusterID],
 				Members:      members,
 				NearestL3:    nearestL3ForTier(centroid, l3Notes, tiers),
-				CandidateL2s: candidateL2sStub(centroid, l2Notes, tiers),
+				CandidateL2s: topKCandidateL2sForTier(centroid, l2Notes, tiers),
 			})
 		}
 	}
@@ -2166,6 +2153,63 @@ func survivingChunks(scored []scoredChunk, items []resolvedItem) []scoredChunk {
 	}
 
 	return top
+}
+
+// topKCandidateL2s returns the top-K L2 notes nearest the centroid by
+// max(situation,body) cosine, sorted descending by centroid cosine (ties broken
+// by lexicographic path for stability). K is at least candidateL2K; when fewer
+// than candidateL2K L2 notes exist, all are returned. An empty index returns
+// nil. No cosine threshold is applied — nomination is generous (D7). The sort
+// key is CENTROID cosine (per spec §3.3: "top-K by centroid cosine");
+// max-member cosine was rejected because it overfits to a cluster fragment.
+func topKCandidateL2s(centroid []float32, idx tierIndex) []queryCandidateL2 {
+	if len(idx.paths) == 0 {
+		return nil
+	}
+
+	type ranked struct {
+		path   string
+		cosine float32
+	}
+
+	all := make([]ranked, 0, len(idx.paths))
+
+	for i := range idx.paths {
+		sim := embed.Cosine(centroid, idx.sit[i])
+		if bodySim := embed.Cosine(centroid, idx.body[i]); bodySim > sim {
+			sim = bodySim
+		}
+
+		all = append(all, ranked{path: idx.paths[i], cosine: sim})
+	}
+
+	sort.SliceStable(all, func(i, j int) bool {
+		if all[i].cosine != all[j].cosine {
+			return all[i].cosine > all[j].cosine
+		}
+
+		return all[i].path < all[j].path
+	})
+
+	count := min(candidateL2K, len(all))
+
+	out := make([]queryCandidateL2, count)
+	for i := range count {
+		out[i] = queryCandidateL2{Path: all[i].path, Cosine: all[i].cosine}
+	}
+
+	return out
+}
+
+// topKCandidateL2sForTier gates topKCandidateL2s on the requested tiers for
+// T1a isolation. Suppressed when a non-empty tier set omits L2; nil/empty
+// tiers always passes through (--synthesize-l2 passes nil).
+func topKCandidateL2sForTier(centroid []float32, l2Notes tierIndex, tiers []string) []queryCandidateL2 {
+	if len(tiers) > 0 && !slices.Contains(tiers, tierL2) {
+		return nil
+	}
+
+	return topKCandidateL2s(centroid, l2Notes)
 }
 
 // unionDirectHits embeds each phrase, ranks every compatible note against it,
