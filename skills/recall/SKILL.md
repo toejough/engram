@@ -57,14 +57,17 @@ not "common mistakes when writing hooks".
 ### Step 2 — Run ONE unified `engram query` with all phrases
 
 ```bash
-engram query \
+engram query --synthesize-l2 \
   --phrase "<phrase 1>" \
   --phrase "<phrase 2>"
   # ... one --phrase per Step 1 phrase
 ```
 
-One call; the binary merges ranking server-side. Do NOT collapse phrases, do NOT run per-phrase
-calls, do NOT add `--tier` or `--synthesize-l2` (`--synthesize-l2` bypasses the chunk space).
+One call; the binary merges ranking server-side. `--synthesize-l2` is REQUIRED: it runs the
+unified D1 clustering of the matched chunks **and** notes in one pass and emits
+`candidate_l2s: [{path, cosine}]` per cluster (it no longer bypasses the chunk space — matched
+chunks are clustered alongside notes, and Step 2.5 reasons over those unified clusters). Do NOT
+collapse phrases, do NOT run per-phrase calls, do NOT add `--tier`, `--vault`, or `--chunks-dir`.
 The payload's `items` mix:
 
 - `kind: chunk` — raw transcript/doc fragments with source + anchor. These are EVIDENCE:
@@ -92,52 +95,51 @@ engram activate \
 Forward every flagged path to `engram activate` to refresh that L2's recency (`LastUsed`) so it
 stays warm. Skip this call when no items carry `activated: true`.
 
-### Step 2.5 — Crystallize lessons from the payload's chunk clusters (band-driven)
+### Step 2.5 — Lazy L2 synthesis from the clustering (agent-judged)
 
-The payload's `clusters` list includes entries with `phrase: "chunks"` — the binary's
-deterministic grouping of the returned chunks (auto-k k-means, silhouette-validated). Each
-carries `nearest_l2: {path, cosine}` — the closest existing vault lesson to that cluster.
-**Process every chunk cluster; the bands decide, not your judgment.**
+The `--synthesize-l2` output's `clusters` list contains the unified clustering of matched chunks
+and notes. Each cluster carries `candidate_l2s: [{path, cosine}]` — the top-K existing L2s
+nearest the cluster centroid (K ≥ 3, centroid cosine). **Process every cluster.** For each:
 
-Crystallize **whenever the cluster cleared the relevance cutoff** — even if a chunk already
-states the idea clearly. Chunks decay; an L2 survives and is refreshable. A cluster that
-surfaces in a recall is a useful signal worth preserving in a durable form.
+**A. Read candidates and members**
 
-| `nearest_l2.cosine` | Action |
-| --- | --- |
-| `>= 0.95` | ACTIVATE the covering L2 — it was useful, refresh its recency: `engram activate --note <nearest_l2.path>`. Do NOT create a duplicate (the covering L2 already exists and just surfaced — high cosine = useful; a duplicate would splinter the idea across two notes). |
-| `0.80 – 0.95` | UPDATE the nearest note: `engram learn fact\|feedback --target <luhmann-id from nearest_l2.path> --position continuation ...` (the update write also refreshes it; CREATE is reserved for `<0.80`, where no L2 covers the cluster) |
-| `< 0.80`, or no `nearest_l2` | CREATE a new note (`--position top`) |
+Run `engram show <path>` on every entry in `candidate_l2s` (up to K calls, blocking). For
+note-kind cluster members already in the payload's `items[]` list, use their `content` field
+directly — no additional `engram show` call needed on already-surfaced members. For chunk
+members not in `items[]`, use the chunk content from the cluster's `members` list. Do not
+judge coverage before you have read the candidate content.
 
-**Empty/L2-less vault = CREATE band, always.** Every vault starts with zero L2 notes. When the
-vault has no L2s — `nearest_l2` missing, null, or low on every cluster — that is not "Step 2.5
-doesn't apply"; it is the strongest possible CREATE signal. The first L2s a vault ever gets are
-created exactly here, by this step; skip it and no vault ever grows an L2. "Zero items in the
-<0.80 band came through" cannot mean skip: a cluster with no `nearest_l2`, or one below 0.80,
-*is* the `< 0.80` band — and item retrieval `score`s are NOT cosine bands; only the clusters'
-`nearest_l2.cosine` drives the table. If you band N chunk clusters and write 0 notes on an
-L2-less vault, you have executed the step wrong — the only exemption is the
-vocabulary-coincidence gate, stated per cluster, out loud.
+**B. Apply the recency weight to resolve conflicts**
 
-Before an UPDATE/CREATE write, read the cluster's member chunks (already in `items`) and state
-the principle they evidence:
+Evidence **conflicts** when a newer member explicitly negates or reverses an older claim. Reversal
+cues: "no longer", "replaced by", "use X not Y", or the same subject+predicate appearing with a
+different object in a newer item. When conflict is present: **recent wins**. When no conflict:
+treat older and newer evidence as independently valid — do not demote a stable convention merely
+because it lacks a recent instance.
 
-```bash
-# Durable convention/standard:
-engram learn fact --slug <kebab-slug> --position top \
-  --source "synthesized from chunk cluster at recall, <YYYY-MM-DD>" \
-  --situation "<when this applies>" \
-  --subject "<the thing>" --predicate "<requires / must use / is>" \
-  --object "<the standard, stated generally enough to transfer>"
+**C. Judge coverage against the recency-weighted view — in this order**
 
-# Correction about how to work: engram learn feedback with
-# --behavior/--impact/--action instead of subject/predicate/object.
-```
+| Outcome | Criterion | Action |
+| --- | --- | --- |
+| **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend <candidate-path> --activate --relation <new-note-sources> --chunk-source <new-chunk-ids>` — link-enrich only; **do not rewrite content** |
+| **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend <candidate-path> --relation <note-sources> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted |
+| **Absent** | No candidate addresses the situation | `engram learn fact\|feedback --position top --relation <note-sources> --chunk-source <chunk-ids> --source "<descriptive>" --situation "..." --subject/--predicate/--object (or --behavior/--impact/--action)` |
 
-Rules: general principle, not the instance; one write per cluster; a cluster whose members are
-a vocabulary coincidence rather than a shared principle gets NO write (the bands gate novelty,
-you still gate meaning — that is the one judgment left to you). WAIT for writes to finish —
-the lessons apply to THIS task too.
+**One write per cluster; one representative L2 per cluster.** The representative is always an L2
+(never an L1 note or a chunk). For `absent`, write exactly one note (fact *or* feedback) covering
+the cluster's principle. Do not write one fact and one feedback note for the same cluster.
+
+For `amend` (covered or near), pass `--relation` for every **note** source in the cluster (the
+wikilink graph) and `--chunk-source` for every **chunk** source (provenance, not wikilinks). For
+`learn`, pass the same flags. The `--source` flag on `learn` is the human-readable provenance
+string (unchanged); `--chunk-source` is the chunk-id list (new).
+
+**WAIT for each write before moving to the next cluster.** Writes are blocking and inline — the
+L2 created or updated by one cluster may be a candidate for another.
+
+**Known gap:** cross-cluster supersession — where the superseding evidence did not cosine-cluster
+with the old — is not handled. Note the conflict in the synthesized content when you see it, but
+do not attempt to resolve it across clusters.
 
 ### Step 3 — Closing synthesis: did the memories change the plan?
 
@@ -156,15 +158,20 @@ The user sees this. Rules:
 | --- | --- |
 | You never printed Step 0 | Back up — the skill is a no-op without it |
 | You skipped the Step 0.5 sweep | It costs seconds and keeps memory current |
-| `--tier`, `--synthesize-l2`, `--vault`, or `--chunks-dir` on the query | Plain unified `engram query --phrase ...` only |
+| `--tier`, `--vault`, or `--chunks-dir` on the query | `engram query --synthesize-l2 --phrase ...` only — `--synthesize-l2` IS required (it runs the unified D1 clustering and emits `candidate_l2s`) |
 | Separate query calls per phrase | One call, repeatable `--phrase` flags |
 | You quoted chunks wholesale into the reply | Extract the principle a chunk evidences; paraphrase |
-| You dispatched cluster-synthesis subagents | Gone — Step 2.5 crystallizes inline from the payload's chunk clusters |
-| You grouped chunks by eye instead of using the payload's `phrase: "chunks"` clusters | The binary's k-means grouping and `nearest_l2` cosine are the ground truth; apply the bands |
-| You skipped Step 2.5 because "the chunks are enough" | Banding every chunk cluster IS the step; skipping it is not an outcome |
-| You skipped Step 2.5 because the vault has no L2 notes yet, or no `nearest_l2` came back | That IS the CREATE band — bootstrap L2s are born here; absent `nearest_l2` never means "not applicable" |
-| You read chunk-only results as Step 2's "nothing surfaces" and skipped 2.5 | "Nothing surfaces" means an EMPTY payload; chunks surfacing without notes is the bootstrap case 2.5 exists for |
-| You banded N clusters and wrote 0 notes on an L2-less vault | Wrong unless you stated a vocabulary-coincidence call per cluster, out loud |
-| You saw `activated: true` items but skipped `engram activate` — including `≥0.95` clusters where the covering L2 was useful | One batched call per recall — forward all flagged paths (and `nearest_l2.path` for `≥0.95` clusters); skipping means useful L2s never get refreshed |
-| A `≥0.95` cluster → you created a new L2 | The covering L2 already exists; activate it (don't duplicate); CREATE band is `<0.80` only |
+| You dispatched cluster-synthesis subagents | Gone — Step 2.5 crystallizes inline from the payload's clusters |
+| You judged coverage before reading the candidate content with `engram show` | Read first — cosine alone cannot decide coverage |
+| You applied a cosine threshold to decide covered/near/absent | Coverage is agent-judged from content; cosine only nominates candidates |
+| A candidate matching only the superseded content → you marked it "covered" | Apply the recency weight first; a candidate that misses the conflict is "near" |
+| You wrote two notes (a fact AND a feedback) for one cluster | One representative L2 per cluster — pick the right kind |
+| You used `nearest_l2` instead of `candidate_l2s` | The v2 field is `candidate_l2s: [{path, cosine}]` — a list, not a singleton |
+| You called `engram learn --target` to update a note in place | Updates use `engram amend`; `engram learn` is create-only |
+| A `≥0.95` cluster → you activated without reading the candidates | Read first; high cosine nominates, it does not decide |
+| You called `engram show` on a note already in `items[]` | Members already in `items[]` carry a `content` field — use it directly; `engram show` is only for candidates not in `items[]` |
+| You grouped chunks by eye instead of using the payload's clusters | The binary's k-means grouping is the ground truth; read every cluster |
+| You skipped Step 2.5 because "the chunks are enough" | Processing every cluster IS the step; skipping it is not an outcome |
+| You read chunk-only results as Step 2's "nothing surfaces" and skipped 2.5 | "Nothing surfaces" means an EMPTY payload; clusters present means Step 2.5 runs |
+| You saw `activated: true` items but skipped `engram activate` | One batched call per recall — forward all flagged paths; skipping means useful L2s never get refreshed |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
