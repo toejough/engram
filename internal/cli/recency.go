@@ -342,23 +342,6 @@ func sortScoredDesc(scored []scoredChunk) {
 	sort.SliceStable(scored, func(i, j int) bool { return scored[i].score > scored[j].score })
 }
 
-// sourceAgeDays converts per-source mtime (unix nanos) into age in days relative
-// to now. Negative ages (clock skew / future mtime) clamp to 0.
-func sourceAgeDays(mtimeBySource map[string]int64, now time.Time) map[string]float64 {
-	ages := make(map[string]float64, len(mtimeBySource))
-
-	for source, mtime := range mtimeBySource {
-		age := now.Sub(time.Unix(0, mtime)).Hours() / hoursPerDay
-		if age < 0 {
-			age = 0
-		}
-
-		ages[source] = age
-	}
-
-	return ages
-}
-
 // spliceRecent prepends the missing recent items, then refills from the original
 // items dropping the lowest-ranked NON-recent ones first, capped at limit.
 // Two-pass fill: recent items (by recentKey) are kept ahead of non-recent ones

@@ -66,7 +66,6 @@ var (
 		return selectStates(args).shouldEmbed(state)
 	}
 	ExportSortScoredDesc      = sortScoredDesc
-	ExportSourceAgeDays       = sourceAgeDays
 	ExportTildify             = tildify
 	ExportValidateIssueID     = validateIssueID
 	ExportValidateProjectSlug = validateProjectSlug
@@ -360,13 +359,6 @@ func ExportNewScoredChunkWithIngestedAt(rec chunk.Record, score float32, ingeste
 
 // ExportNewestChunkItems exposes newestChunkItems (new 2-arg signature: no ages map).
 func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
-	return newestChunkItems(scored, n)
-}
-
-// ExportNewestChunkItemsByTime is an alias for tests that use the IngestedAt-keyed sort.
-// Both names wrap the same 2-arg newestChunkItems; ExportNewestChunkItems keeps the
-// existing test-helper name stable, ExportNewestChunkItemsByTime is the semantic form.
-func ExportNewestChunkItemsByTime(scored []scoredChunk, n int) []resolvedItem {
 	return newestChunkItems(scored, n)
 }
 

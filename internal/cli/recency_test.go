@@ -422,7 +422,7 @@ func TestNewestChunkItemsSortsByIngestedAt(t *testing.T) {
 			chunk.Record{Source: "mid.jsonl", Anchor: "turn-5"}, 0.50, midTime),
 	}
 
-	out := cli.ExportNewestChunkItemsByTime(scored, 2)
+	out := cli.ExportNewestChunkItems(scored, 2)
 
 	g.Expect(out).To(HaveLen(2))
 
@@ -475,7 +475,7 @@ func TestNewestChunkItemsTieBreaksByTurnDescIngestedAt(t *testing.T) {
 			chunk.Record{Source: "a.jsonl", Anchor: "turn-5"}, 0.5, sameTime),
 	}
 
-	out := cli.ExportNewestChunkItemsByTime(scored, 2)
+	out := cli.ExportNewestChunkItems(scored, 2)
 
 	g.Expect(out).To(HaveLen(2))
 
@@ -590,22 +590,4 @@ func TestSortScoredDescOrdersDescending(t *testing.T) {
 	g.Expect(cli.ExportScoredChunkScore(scored[0])).To(BeNumerically("~", 0.9, 1e-6))
 	g.Expect(cli.ExportScoredChunkScore(scored[1])).To(BeNumerically("~", 0.6, 1e-6))
 	g.Expect(cli.ExportScoredChunkScore(scored[2])).To(BeNumerically("~", 0.3, 1e-6))
-}
-
-func TestSourceAgeDays(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
-	mtimes := map[string]int64{
-		"recent.jsonl": now.Add(-12 * time.Hour).UnixNano(),
-		"old.jsonl":    now.Add(-72 * time.Hour).UnixNano(),
-		"future.jsonl": now.Add(24 * time.Hour).UnixNano(), // clamp to 0
-	}
-
-	got := cli.ExportSourceAgeDays(mtimes, now)
-
-	g.Expect(got["recent.jsonl"]).To(BeNumerically("~", 0.5, 1e-6))
-	g.Expect(got["old.jsonl"]).To(BeNumerically("~", 3.0, 1e-6))
-	g.Expect(got["future.jsonl"]).To(BeNumerically("~", 0.0, 1e-6))
 }

@@ -238,7 +238,7 @@ func rankOf(
 	}
 
 	floor := cli.ExportRecencyFloor(p)
-	mustInclude := cli.ExportNewestChunkItemsByTime(scored, floor)
+	mustInclude := cli.ExportNewestChunkItems(scored, floor)
 	items = cli.ExportFillRecencyBand(items, mustInclude, limit)
 
 	for i, it := range items {

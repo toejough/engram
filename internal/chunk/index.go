@@ -25,6 +25,9 @@ type Record struct {
 	Vector []float32 `json:"vector"`
 	// IngestedAt is the wall-clock time this chunk was first written to the
 	// index. Zero for legacy records (pre-D5); backfilled on first merge.
+	// Tag is omitzero, not omitempty: omitempty has no effect on a struct like
+	// time.Time, so a zero value would serialize; omitzero (Go 1.24+) omits it,
+	// letting legacy records decode IngestedAt=zero (the migration sentinel).
 	IngestedAt time.Time `json:"ingested_at,omitzero"` //nolint:tagliatelle // index schema uses snake_case like .vec.json
 }
 
