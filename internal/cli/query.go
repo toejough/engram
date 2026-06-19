@@ -658,7 +658,7 @@ func buildSubgraphMembers(
 
 	for _, name := range memberNames {
 		hit := hitByName[name]
-		notePath := pathOf(name, hit.note.IsMOC)
+		notePath := pathOf(name)
 
 		score, coord := bestVector(queryVec, hit.sidecar)
 		member := subgraphMember{
@@ -1013,7 +1013,7 @@ func filterHitsToTiers(
 	kept := make([]compatibleSidecar, 0, len(hits))
 
 	for _, hit := range hits {
-		body, readErr := read(filepath.Join(vault, pathOf(hit.note.Basename, hit.note.IsMOC)))
+		body, readErr := read(filepath.Join(vault, pathOf(hit.note.Basename)))
 		if readErr != nil {
 			continue
 		}
@@ -1070,7 +1070,7 @@ func gatherTierIndex(
 	idx := tierIndex{}
 
 	for _, hit := range hits {
-		notePath := pathOf(hit.note.Basename, hit.note.IsMOC)
+		notePath := pathOf(hit.note.Basename)
 
 		body, readErr := read(filepath.Join(vault, notePath))
 		if readErr != nil {
@@ -1274,7 +1274,7 @@ func loadCompatibleSidecars(
 	oldSchemaCount := 0
 
 	for _, note := range notes {
-		notePath := pathOf(note.Basename, note.IsMOC)
+		notePath := pathOf(note.Basename)
 		scFull := filepath.Join(vault, embed.SidecarPath(notePath))
 
 		scBytes, readErr := read(scFull)
@@ -1821,7 +1821,7 @@ func rankCandidates(
 	candidates := make([]scoredCandidate, 0, len(hits))
 
 	for _, hit := range hits {
-		notePath := pathOf(hit.note.Basename, hit.note.IsMOC)
+		notePath := pathOf(hit.note.Basename)
 		full := filepath.Join(vault, notePath)
 
 		noteBytes, noteErr := read(full)

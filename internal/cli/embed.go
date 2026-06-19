@@ -64,7 +64,7 @@ func RunEmbedApply(
 	filesystem := readerFS{read: deps.Read}
 
 	for _, note := range notes {
-		notePath := pathOf(note.Basename, note.IsMOC)
+		notePath := pathOf(note.Basename)
 		full := filepath.Join(args.VaultPath, notePath)
 
 		state := embed.ComputeState(filesystem, full, modelID)
@@ -265,7 +265,7 @@ func tallyStates(notes []vaultgraph.Note, vault string, deps EmbedDeps) stateCou
 	filesystem := readerFS{read: deps.Read}
 
 	for _, note := range notes {
-		notePath := pathOf(note.Basename, note.IsMOC)
+		notePath := pathOf(note.Basename)
 		full := filepath.Join(vault, notePath)
 
 		state := embed.ComputeState(filesystem, full, modelID)

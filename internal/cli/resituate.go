@@ -90,7 +90,7 @@ var (
 func findNote(notes []vaultgraph.Note, target string) (string, error) {
 	for _, note := range notes {
 		if note.LuhmannID == target || note.Basename == target {
-			return pathOf(note.Basename, note.IsMOC), nil
+			return pathOf(note.Basename), nil
 		}
 	}
 

@@ -77,63 +77,18 @@ type osLearnFS struct{}
 // notes at the vault root (flat layout) — used to resolve a relation's bare
 // Luhmann id to its full basename (D1).
 func (*osLearnFS) ListBasenames(vault string) ([]string, error) {
-	out := []string{}
-
-	{
-		entries, err := os.ReadDir(vault)
-		if err != nil {
-			if os.IsNotExist(err) {
-				return out, nil
-			}
-
-			return nil, fmt.Errorf("read vault root: %w", err)
+	return listRootNotes(vault, func(name string) (string, bool) {
+		if _, ok := extractLuhmannFromFilename(name); !ok {
+			return "", false
 		}
 
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
-			}
-
-			if _, ok := extractLuhmannFromFilename(e.Name()); !ok {
-				continue
-			}
-
-			out = append(out, strings.TrimSuffix(e.Name(), ".md"))
-		}
-	}
-
-	return out, nil
+		return strings.TrimSuffix(name, ".md"), true
+	})
 }
 
-// ListIDs returns Luhmann IDs from filenames in vault/Permanent and vault/MOCs.
+// ListIDs returns Luhmann IDs from .md filenames at the vault root (flat layout).
 func (*osLearnFS) ListIDs(vault string) ([]string, error) {
-	out := []string{}
-
-	for _, sub := range []string{"."} {
-		entries, err := os.ReadDir(filepath.Join(vault, sub))
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-
-			return nil, fmt.Errorf("read %s: %w", sub, err)
-		}
-
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
-			}
-
-			id, ok := extractLuhmannFromFilename(e.Name())
-			if !ok {
-				continue
-			}
-
-			out = append(out, id)
-		}
-	}
-
-	return out, nil
+	return listRootNotes(vault, extractLuhmannFromFilename)
 }
 
 // Lock acquires an exclusive flock on vault/.luhmann.lock; returns a release func.
@@ -257,9 +212,37 @@ func (*osLearnFS) WriteSidecar(path string, data []byte) error {
 	return nil
 }
 
+// listRootNotes reads the flat vault root and collects one string per non-dir
+// entry for which extract returns ok; a ("", false) result skips the entry. A
+// missing vault is treated as empty. Shared by ListBasenames and ListIDs so the
+// flat-root traversal lives in exactly one place.
+func listRootNotes(vault string, extract func(name string) (string, bool)) ([]string, error) {
+	out := []string{}
+
+	entries, err := os.ReadDir(vault)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return out, nil
+		}
+
+		return nil, fmt.Errorf("read vault root: %w", err)
+	}
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+
+		if s, ok := extract(e.Name()); ok {
+			out = append(out, s)
+		}
+	}
+
+	return out, nil
+}
+
 // pathOf returns the vault-relative path for a note, e.g. "foo.md". The vault
-// is flat — notes live at the root (Permanent/ and MOCs/ are retired); the
-// isMOC parameter is vestigial and ignored.
-func pathOf(basename string, _ bool) string {
+// is flat — notes live at the root (Permanent/ and MOCs/ are retired).
+func pathOf(basename string) string {
 	return basename + ".md"
 }

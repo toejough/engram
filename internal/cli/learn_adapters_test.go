@@ -94,7 +94,7 @@ func TestOsLearnFS_ListIDs_BadVaultReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// vault is a file, not a dir; ReadDir on vault/Permanent → ENOTDIR (not IsNotExist).
+	// vault is a file, not a dir; ReadDir on the vault root → ENOTDIR (not IsNotExist).
 	vault := filepath.Join(t.TempDir(), "file")
 	g.Expect(os.WriteFile(vault, []byte("x"), 0o600)).To(Succeed())
 
@@ -103,11 +103,11 @@ func TestOsLearnFS_ListIDs_BadVaultReturnsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestOsLearnFS_ListIDs_MissingSubdirsTolerated(t *testing.T) {
+func TestOsLearnFS_ListIDs_EmptyVaultReturnsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// vault exists but neither Permanent nor MOCs subdirs.
+	// vault exists but is empty (flat layout — no notes).
 	vault := t.TempDir()
 
 	fs := cli.ExportNewOsLearnFS()

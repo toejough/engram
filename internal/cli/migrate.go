@@ -43,7 +43,7 @@ func RunMigrateLinks(_ context.Context, args MigrateArgs, deps MigrateDeps, stdo
 	notesChanged, linksChanged := 0, 0
 
 	for _, note := range notes {
-		relPath := pathOf(note.Basename, note.IsMOC)
+		relPath := pathOf(note.Basename)
 		full := filepath.Join(args.VaultPath, relPath)
 
 		body, readErr := deps.Read(full)

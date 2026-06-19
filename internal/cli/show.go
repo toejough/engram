@@ -46,7 +46,7 @@ func RunShow(_ context.Context, args ShowArgs, deps ShowDeps, stdout io.Writer) 
 		return fmt.Errorf("%w: %q", errShowNoteNotFound, args.Ref)
 	}
 
-	notePath := pathOf(note.Basename, note.IsMOC)
+	notePath := pathOf(note.Basename)
 
 	body, readErr := deps.Read(filepath.Join(args.VaultPath, notePath))
 	if readErr != nil {
