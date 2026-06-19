@@ -86,7 +86,7 @@ that constrains **all exposed channels** (`items`, `clusters[].members`, `neares
 tier X — **operator decision 2026-06-04**, superseding the original items-only design; recall-time
 lazy-L2 synthesis runs `engram query --synthesize-l2` **un-tiered**, so it still sees cross-tier
 clusters and their `candidate_l2s`. Tier is a **frontmatter field** with
-type-derived defaults: episode → L1 (rigid); fact/feedback → L2 (default, overridable to L3).
+type-derived defaults: fact/feedback → L2 (default, overridable to L3).
 There is **no `adr` kind** — an ADR is `type:fact tier:L3`.
 
 **Consequences.** Items-isolation holds today (verified: L1 29/29, L2 11/11, L3 0). ⚠ KNOWN (T1a,
@@ -99,7 +99,7 @@ is a feature, so tier↔kind is asymmetric (T2).
 
 ## ADR-0005 — L3 ADRs are scenario-discoverable, synthesized from L2 clusters by centroid cosine
 
-**Status:** Superseded by the 2026-06-09 lazy-L2 synthesis design (docs/superpowers/specs/2026-06-09-lazy-l2-synthesis-design.md) — L3-ADR-synthesis-at-learn-time is retired; crystallization is now recall-time, agent-judged lazy-L2 (covered/near/absent) via engram amend/learn.
+**Status:** Superseded by the 2026-06-09 lazy-L2 synthesis design ([docs/DESIGN-HISTORY.md](../DESIGN-HISTORY.md)) — L3-ADR-synthesis-at-learn-time is retired; crystallization is now recall-time, agent-judged lazy-L2 (covered/near/absent) via engram amend/learn.
 
 **Context.** An L2 fact only surfaces if you query its keywords — but the agent who needs it does
 not know it exists. Standards must be discoverable from the **situation** the agent is in.
@@ -122,7 +122,7 @@ frontmatter/body desync is resolved by `engram amend` (which rewrites both copie
 
 ## ADR-0006 — Embed source by kind: episodes embed `situation`, others embed body
 
-**Status:** Accepted (known defect: E4/E5) · commit a9c3bce6
+**Status:** Superseded — episode type retired (`engram learn episode` removed in 2026-06-19 cleanup); `embed.Text` now embeds body for all note types. E4/E5 defects are resolved by retirement. The `situation` field is still authored in fact/feedback bodies but is no longer a routing key for embedding.
 
 **Context.** Episodes are retrieved by **situation** (the task you were doing — the recall-mirror);
 facts/feedback are retrieved by their content.
@@ -162,7 +162,7 @@ false edges (no episode special-casing at scan).
 
 ## ADR-0008 — Per-arc episodes as the L1 evidence layer
 
-**Status:** Accepted · commits 98c962ea, b4e24f76, 4901bf78
+**Status:** Superseded — episode type retired; `engram learn episode` and `engram transcript` removed in 2026-06-19 cleanup. Chunks ingested via `engram ingest --auto` are now the L1 evidence layer, referenced from facts/feedback via `--chunk-source`. · commits 98c962ea, b4e24f76, 4901bf78
 
 **Context.** "What did we do yesterday" needs the literal interactions — tool calls, file paths,
 the back-and-forth — not a narrative summary. A session interleaves multiple arcs of work.
@@ -182,7 +182,7 @@ stream, not phrase-matching.
 
 ## ADR-0009 — Marker forward-progress: strict-greater, intra-session split, multi-source independent
 
-**Status:** Accepted (known defect: M2-segments) · commits 4901bf78, 5c16c784
+**Status:** Superseded — `engram transcript --mark` and the `learnmarker` package retired in 2026-06-19 cleanup; marker logic subsumed into `engram ingest --auto`. M2-segments defect retired with the `--segments` path. · commits 4901bf78, 5c16c784
 
 **Context.** `engram transcript --mark` must visit every learnable row **exactly once** across
 runs — never skip, never re-emit forever — across multiple harness sources (Claude `.jsonl`,
@@ -203,7 +203,7 @@ carries no `Partial` flag — so it over-advances on truncation. Latent today (t
 
 ## ADR-0010 — Sessions are read behind reader/finder interfaces; a composite dispatches across backends
 
-**Status:** Accepted · `internal/transcript/opencode.go`, wired in `newTranscriptDeps` (`internal/cli/cli.go`)
+**Status:** Accepted · `internal/transcript/opencode.go`; previously wired via `newTranscriptDeps` (removed in 2026-06-19 cleanup; wiring now lives in `engram ingest`)
 
 **Context.** Engram must read session transcripts from more than one harness — Claude Code stores
 them as per-session `.jsonl` files; OpenCode stores them in a SQLite database. The marker,
@@ -218,9 +218,8 @@ backend that succeeds** (`opencode.go`, first-success dispatch). The CLI wires t
 
 **Consequences.** Marker forward-progress (ADR-0009), stripping, and emit are backend-agnostic —
 they run on the composite, never on a concrete backend. Session-id **scheme** dispatch (bare UUID →
-Claude `.jsonl`; `opencode://…` → SQLite) is part of the same seam (episode provenance resolves the
-scheme to a source path). Adding a third harness is an interface implementation, not a change to the
-read pipeline.
+Claude `.jsonl`; `opencode://…` → SQLite) is part of the same seam. Adding a third harness is an
+interface implementation, not a change to the read pipeline.
 
 ## Decisions deliberately NOT made into ADRs
 

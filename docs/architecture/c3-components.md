@@ -22,10 +22,8 @@ flowchart TB
 
     skills(["C1 · Skills orchestrator (off-binary)<br/>reads stdout, shells next subcommand"])
 
-    subgraph PT[engram transcript — process]
-      tr["K1 · transcript reader<br/>internal/transcript: Finder · JSONLReader"]
-      strip["K2 · context.Strip"]
-      clitr["K1b · cli/transcript wiring<br/>byte-budget + marker advance"]
+    subgraph PI[engram ingest — process]
+      ing["K1 · ingest<br/>internal/transcript: Finder · JSONLReader<br/>internal/context: Strip · byte-budget · marker advance"]
     end
     subgraph PL[engram learn — process]
       learn["K4 · learn<br/>tier defaults · write-under-flock · O_EXCL"]
@@ -43,9 +41,8 @@ flowchart TB
     end
 
     %% shared kernels: compiled into multiple subcommand processes; never call across them
-    embed["K5 · embed (shared kernel)<br/>Text(situation|body) · ContentHash · Sidecar · embedder"]
+    embed["K5 · embed (shared kernel)<br/>Text(body) · ContentHash · Sidecar · embedder"]
     lz["K10 · luhmann (shared kernel)<br/>ParseID · LetterLess"]
-    lm["K3 · learnmarker<br/>Read · Write marker"]
     dbg["K11 · debuglog (cross-cutting, all targets)"]
 
     vault[("C4 · Vault")]
@@ -54,18 +51,15 @@ flowchart TB
     sessions(["S5 · Session stores"])
     gotool(["S6 · Go toolchain"])
 
-    skills -->|"shell engram transcript --mark"| tr
+    skills -->|"shell engram ingest --auto"| ing
     skills -->|"shell engram learn (args)"| learn
     skills -->|"shell engram query --phrase"| query
     skills -->|"shell engram update"| upd
     skills -->|"shell engram embed apply (rare)"| eb
 
-    tr --> strip
-    tr -->|stdout| clitr
-    clitr -->|stdout chunk| skills
-    clitr --> lm
-    lm --- markers
-    tr --- sessions
+    ing --- sessions
+    ing --- markers
+    ing -->|stdout chunk identifiers| skills
 
     learn --> embed
     learn --> lz
@@ -83,42 +77,34 @@ flowchart TB
     embed --- model
     upd -->|go install| gotool
 
-    class tr,strip,clitr,learn,query,vg,cl,eb,embed,upd,lz,lm comp
+    class ing,learn,query,vg,cl,eb,embed,upd,lz comp
     class dbg xcut
     class vault,markers store
     class skills,sessions,gotool ext
 
-    e4[["⚠ E4: ContentHash=body vs episode embed=situation (disjoint, always silent)"]]:::defect
     g0[["⚠ G0: BuildGraph resolves basename; learn writes bare ids → most edges dropped (census in memory-invariants.md)"]]:::defect
-    m2[["⚠ M2-segments: SegmentsFrom lacks Partial flag → cli marker over-advances"]]:::defect
-    embed -.-> e4
     vg -.-> g0
-    clitr -.-> m2
 ```
 
 ## Component catalog
 | ID | Component | Key functions | Responsibility | ⚠ |
 |---|---|---|---|---|
-| K1 | `internal/transcript` + `cli/transcript.go` | `Finder.Find`, `JSONLReader.ReadFrom/SegmentsFrom`, `emitTranscripts/emitSegments`, `advanceAndReportMarker` | Find sessions; read rows `> marker` chronologically within a byte budget; emit stripped content + advance the per-source marker (strict-greater, intra-session split, multi-source independent). | **M2-segments**; (M1/M2/M3 fixed on the non-segments path, 5c16c784) |
-| K2 | `internal/context` | `Strip`, `StripWithConfigIndexed` | Drop harness-injected USER turns (skill bodies, slash blocks, task-notifications), keep tool-summary + assistant decisions. | — |
-| K3 | `internal/learnmarker` | `Read`, `Write`, `MarkerPathWithSuffix`, `StateDirFromHome` | Persist/advance the `(project,source)` forward-progress cursor. | — |
-| K4 | `cli/learn.go` | `writeLearnUnderLock`, tier-default logic, `autoEmbedNote`; calls `nextLuhmannID` (in `cli/luhmann.go`) | Assign tier (episode→L1 rigid; fact/feedback→L2 default, `--tier` override; no `adr` kind), compute next Luhmann id and write the note + sidecar atomically under `flock(.luhmann.lock)` + `O_EXCL`. | **K1-lock invariant** untested |
-| K5 | `internal/embed` | `Text`, `ContentHash`, `Sidecar`, embedder (Hugot/GoMLX simplego) | Route embed source (episode→`situation`, else body); embed; write/read `.vec.json` (vector + `embedding_model_id` + `content_hash`). | **E4** (hash⟂source), **E5** (empty-situation fallback), **M4** (model homogeneity) |
+| K1 | `internal/transcript` + `internal/context` (via `engram ingest`) | `Finder.Find`, `JSONLReader.ReadFrom`, `context.Strip`, marker advance | Find sessions; read rows `> marker` chronologically within a byte budget; strip harness noise; emit chunk identifiers + advance the per-source marker (strict-greater, intra-session split, multi-source independent). | — |
+| K4 | `cli/learn.go` | `writeLearnUnderLock`, tier-default logic, `autoEmbedNote`; calls `nextLuhmannID` (in `cli/luhmann.go`) | Assign tier (fact/feedback→L2 default, `--tier` override; no `adr` kind), compute next Luhmann id and write the note + sidecar atomically under `flock(.luhmann.lock)` + `O_EXCL`. | **K1-lock invariant** untested |
+| K5 | `internal/embed` | `Text`, `ContentHash`, `Sidecar`, embedder (Hugot/GoMLX simplego) | Embed body text; write/read `.vec.json` (vector + `embedding_model_id` + `content_hash`). | **M4** (model homogeneity) |
 | K6 | `cli/query.go` | `RunQuery`, `rankCandidates`, `applyTierFilter`, `identifyHubs`, payload assembly | Per-phrase: embed → cosine top-k → subgraph (K7) → cluster (K8) → `nearest_l3` → **filter by `--tier`** (T1a: items today; **clusters/`nearest_l3` leak → fix to all channels**) → hubs → merge. | items-only today; T1a fix → all channels |
-| K7 | `internal/vaultgraph` | `ParseWikilinks`, `ParseBasename`, `BuildGraph`, `BFSWithCap` | Build the directed wikilink graph (node=basename), 3-hop BFS subgraph cap 200, in-degree hubs. | **G0** (basename-only resolution), **G5** (parses episode-body `[[x]]` as edges) |
+| K7 | `internal/vaultgraph` | `ParseWikilinks`, `ParseBasename`, `BuildGraph`, `BFSWithCap` | Build the directed wikilink graph (node=basename), 3-hop BFS subgraph cap 200, in-degree hubs. | **G0** (basename-only resolution), **G5** (verbatim `[[x]]` strings in chunk bodies become false edges) |
 | K8 | `internal/cluster` | `KMeans`, `Silhouette`, `AutoK`, `CosineDistance`, `BestMatch` | Pick k by silhouette; cluster the subgraph; `BestMatch` = centroid→L3 cosine for `nearest_l3` (≥0.9 update boundary). | C1/L3-1 determinism untested |
 | K9 | `internal/update` | `Run`, `SourceLocal/Remote` | `go install` the binary; copy refreshed skills/commands per harness; sentinels `ErrGoNotFound`/`ErrNoHarness`/`ErrSkillsSrcMissing`. | **U1** idempotence uncaptured |
 | K10 | `internal/luhmann` | `ParseID`, `LetterLess`, sort/tie-break | Parse and order Luhmann ids; **shared kernel** consumed by K4 (`cli/learn.go`, `cli/luhmann.go`) AND K7 (`vaultgraph/{selector,scanner}.go`). | — |
 | K11 | `internal/debuglog` | tail-friendly sink | Cross-cutting debug log threaded through every CLI target (`targets.go`, `cli/signal.go`); L1 deferred it to here. | — |
-| K5b | `cli/embed.go` | `RunEmbedApply`, `RunEmbedStatus`, `selectStates` | The `engram embed apply/status` subcommand (separate process, operator-run for model migration): re-embeds notes whose sidecar is missing/stale/incompatible via the shared K5 package; `apply` writes sidecars, `status` reports counts. Wired at `targets.go:120-129`. | drives **E4/M4** remediation |
+| K5b | `cli/embed.go` | `RunEmbedApply`, `RunEmbedStatus`, `selectStates` | The `engram embed apply/status` subcommand (separate process, operator-run for model migration): re-embeds notes whose sidecar is missing/stale/incompatible via the shared K5 package; `apply` writes sidecars, `status` reports counts. Wired at `targets.go:120-129`. | drives **M4** remediation |
 
 ## The recurring defect shape (feeds the Phase-4 ADR) — corrected per Phase-2 antagonist
-**TWO of the ⚠ are the same bug** (not three): the write side and the read side key on **different
-representations of the same datum**, and the mismatch fails *silently and always*:
-- **E4** — write a vector from `situation`; detect staleness from `body`. (disjoint domains)
+The canonical example of the silent-mismatch bug class:
 - **G0** — write an edge as `[[id]]`; resolve an edge as `[[basename]]`. (disjoint keys)
 
-The unifying invariant for those two: **for every write/read pair over the same datum, the read key
+The unifying invariant: **for every write/read pair over the same datum, the read key
 must be a function of (or equal to) the write key, and a mismatch must be loud, not silent.**
 
 **M4 is a DIFFERENT mechanism — do not fold it in.** It compares the *same* key (`model@v`) for
@@ -140,16 +126,16 @@ the all-empty case," a separate finding.
 confirm + propose deletion.
 
 ## Data contracts (what crosses component edges) — corrected
-- **transcript → skill → learn (NOT in-process):** `engram transcript` emits the stripped chunk +
-  `(session-id, range)` to **stdout**; the skill reads it and shells `engram learn` as a *new process*.
+- **ingest → skill → learn (NOT in-process):** `engram ingest --auto` scans chunk sources, re-chunks
+  changed content, emits chunk identifiers + status line to **stdout**; the skill reads them and
+  shells `engram learn fact|feedback` as a *new process* per candidate.
 - **K6 payload (to stdout → skill):** `items[]` (tier-filtered, with content) ∪ `clusters[].members`
   (paths) ∪ `clusters[].candidate_l2s` (`[{path, cosine}]`, top-K by centroid cosine, emitted under
   `--synthesize-l2`) ∪ `hubs` ∪ `budget`. Today only `items` is tier-constrained; the **T1a fix** extends `--tier` to clusters/`nearest_l3`/`hubs` (operator decision). The skill — not
   the binary — consumes it and may shell `engram amend` (covered/near) or `engram learn` (absent)
   for recall-time lazy-L2 synthesis.
-- **K5 sidecar:** `{vector[384], embedding_model_id, content_hash}` — `content_hash` MUST cover the
-  embedded text (E4: currently doesn't, for episodes). Marker-advance (the M2 site) lives in **K1b
-  `cli/transcript.go`** orchestration, not the K1 reader package.
+- **K5 sidecar:** `{vector[384], embedding_model_id, content_hash}` — `content_hash` covers the
+  embedded body text. Marker-advance lives in `engram ingest` (K1), not a separate learnmarker package.
 
 ## Key flows (L3 — component-internal sequences)
 
@@ -218,35 +204,10 @@ sequenceDiagram
     Note over L: assembleLearnContent — frontmatter + body
     L->>V: WriteNew note (O_EXCL — create-only, errors if exists)
     L->>Em: autoEmbedNote(path, content)
-    Note over Em: Text — episode→situation else body [E3]; ContentHash hashes body [E4]
+    Note over Em: Text — body; ContentHash hashes body
     Em->>Md: encode
     Md-->>Em: vector
     Em->>V: write .vec.json sidecar (vector + model_id + content_hash)
     Note over L: release lock; emit written path → stdout
 ```
 
-### Flowchart: marker forward-progress (K1 reader · K1b wiring · K3 learnmarker)
-
-The `--mark`/`emitTranscripts` path honours strict-greater + Partial + per-source independence
-(fixed 5c16c784). The `--segments`/`emitSegments` path lacks the `Partial` guard — the M2-segments defect.
-
-```mermaid
-flowchart TD
-    A[engram transcript] --> P{mode?}
-    P -->|mark / emitTranscripts| B[Finder.Find sessions per source]
-    B --> C{next session entry?}
-    C -->|none| Z[report scanned range + new marker]
-    C -->|yes| D[ReadFrom from that source's marker, byte-budgeted]
-    D --> E[context.Strip harness noise]
-    E --> F{budget exceeded mid-session?}
-    F -->|yes, Partial| G[advance marker to last INCLUDED row — never past earliest unread]
-    G --> Y[stop — byte cap hit; rerun to continue]
-    F -->|no, full| H[advance marker to session Mtime] --> C
-    P -->|segments / emitSegments| M[SegmentsFrom — arc skeleton]
-    M --> N[advances marker to Mtime, NO Partial guard]
-    N --> O[over-advances on truncation — M2-segments defect]:::defect
-    classDef defect fill:#fdd,stroke:#a55,color:#000
-```
-
-Per-source independence (`learnmarker` keys markers by `(project, source)`) means one source
-filling the byte budget never advances another's marker — INV-M3, fixed in 5c16c784.

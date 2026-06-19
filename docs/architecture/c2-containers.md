@@ -15,7 +15,7 @@ flowchart TB
 
     agent([Agent · in the harness])
     skills["C1 · Skills (learn / recall / please / route)<br/>markdown behavior specs"]
-    cli["C2 · engram CLI<br/>Go binary — transcript/learn/query/embed/update"]
+    cli["C2 · engram CLI<br/>Go binary — ingest/learn/query/embed/update"]
     model["C3 · Embedded model<br/>MiniLM-L6 384d, go:embed in C2"]
     vault[("C4 · Vault<br/>Permanent/*.md + *.vec.json + .luhmann.lock")]
     markers[("C5 · Markers<br/>last-learn-at-<src>, XDG state")]
@@ -23,7 +23,7 @@ flowchart TB
     gotool(["S6 · Go toolchain"])
 
     agent -->|"runs the 7-step /please, /learn, /recall"| skills
-    skills -->|"C1→C2: subprocess engram transcript/learn/query"| cli
+    skills -->|"C1→C2: subprocess engram ingest/learn/query"| cli
     cli -->|"embeds note/query text"| model
     cli -->|"C2→C4: read/write notes+sidecars under flock"| vault
     cli -->|"C2→C5: read & advance per-source marker"| markers
@@ -40,19 +40,19 @@ flowchart TB
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
 | C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query --synthesize-l2` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow. Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
-| C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: transcript scan+marker, note write (tier defaults, embed-on-write, Luhmann id under lock), query (cosine→subgraph→cluster→tier-filter), embed apply/status, update. | houses E4, G0, M2-segments, M4 |
+| C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (scan+marker advance via `engram ingest --auto`), note write (tier defaults, embed-on-write, Luhmann id under lock), query (cosine→subgraph→cluster→tier-filter), embed apply/status, update. | houses E4, G0, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: swap silently empties recall (no guard) |
 | C4 | Vault | filesystem | `Permanent/<luhmann>.<date>.<slug>.md` + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
-| C5 | Markers | filesystem (XDG state) | Per-`(project,source)` `last-learn-at-claude/opencode` RFC3339 timestamps; the forward-progress cursor. | M2-segments over-advance |
+| C5 | Markers | filesystem (XDG state) | Per-`(project,source)` `last-learn-at-claude/opencode` RFC3339 timestamps; the forward-progress cursor. | — |
 
 ## Relationships
 | From → To | Description |
 |---|---|
 | Agent → C1 | The agent executes the skills' steps (LLM judgment); the skills are the only entry to the system from the agent's side. |
 | C1 → C2 | Each skill step subprocess-invokes `engram <subcommand>` (a fresh process per call). The **binary's** vault/marker I/O is entirely through C2; the **skill layer** no longer pokes vault files directly. Recall reads candidate/member content via `engram show` and the payload's `items[]` (no direct file reads); writes go through `engram amend` (covered/near) and `engram learn` (absent). `engram amend` (`internal/cli/amend.go`) is the sync-preserving in-place edit subcommand, so the old "no `engram` edit subcommand" direct-write gap (INV-S1 write-half) is **resolved**. |
-| C2 → C3 | C2 embeds note text (on write) and query text (on read) via the bundled model. The per-kind embed-source routing (episode `situation` vs body) is a C2 internal — see [L3](c3-components.md) K5. |
+| C2 → C3 | C2 embeds note text (on write) and query text (on read) via the bundled model. All notes embed the body — see [L3](c3-components.md) K5. |
 | C2 → C4 | Reads notes+sidecars at query time; writes new notes+sidecars atomically under a vault write-lock spanning id-compute→write. The wikilink graph is built from note bodies at query time. |
-| C2 → C5 | `transcript --mark` reads the marker, scans `> marker`, advances it (per source, independently). |
+| C2 → C5 | `engram ingest --auto` reads the per-source marker, scans session entries strictly after it, and advances the marker on completion (per source, independently). |
 | C2 → S5 | Reads Claude `.jsonl` / OpenCode SQLite from the marker; strips harness noise; byte-capped with continuation signalling (non-segments path). |
 | C2 → S6 | `engram update` runs `go install`, then copies refreshed skills/commands into each harness root. |
 
@@ -123,18 +123,18 @@ sequenceDiagram
     participant Md as C3 model
     participant V as C4 vault
 
-    Sk->>E: shell engram transcript --mark (fresh process)
+    Sk->>E: shell engram ingest --auto (fresh process)
     E->>Mk: read per-source marker
     E->>Tr: scan rows strictly after marker, within byte budget
     Tr-->>E: session entries
     Note over E: strip harness noise (context.Strip)
     E->>Mk: advance marker (strict-greater; never past earliest unread row)
-    E-->>Sk: stdout stripped chunk + status line (scanned range, new marker)
+    E-->>Sk: stdout chunk identifiers + status line (scanned range, new marker)
     Note over Sk: identify candidates; classify locus; recall-mirror test
     loop per candidate (one parallel tool-use block)
-        Sk->>E: shell engram learn episode|fact|feedback … (fresh process)
+        Sk->>E: shell engram learn fact|feedback … (fresh process)
         E->>V: flock, next Luhmann id, write note (O_EXCL)
-        E->>Md: embed (episode→situation, else body)
+        E->>Md: embed body
         Md-->>E: vector
         E->>V: write .vec.json sidecar
         E-->>Sk: stdout written path
