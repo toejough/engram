@@ -31,19 +31,25 @@ type recencyParams struct {
 
 // applyChunkRecency returns a copy of scored with each score multiplied by its
 // recency factor. turnFrac = turnN / maxTurn(source); 0 when the source has no
-// turn anchors. Sources absent from ages (e.g. never-swept) are treated as age 0
-// (maximally recent) so a freshly written but not-yet-manifested source is not
-// penalised.
+// turn anchors. Chunks with zero IngestedAt (legacy, not yet backfilled) are
+// treated as age 0 (maximally recent) so they are not penalised.
 func applyChunkRecency(
 	scored []scoredChunk,
-	ageDaysBySource map[string]float64,
+	now time.Time,
 	maxTurnBySrc map[string]int,
 	p recencyParams,
 ) []scoredChunk {
 	out := make([]scoredChunk, len(scored))
 
 	for i, s := range scored {
-		age := ageDaysBySource[s.record.Source] // missing → 0.0
+		ageDays := 0.0
+
+		if !s.record.IngestedAt.IsZero() && !now.IsZero() {
+			age := now.Sub(s.record.IngestedAt).Hours() / hoursPerDay
+			if age > 0 {
+				ageDays = age
+			}
+		}
 
 		turnFrac := 0.0
 
@@ -55,7 +61,7 @@ func applyChunkRecency(
 
 		out[i] = scoredChunk{
 			record: s.record,
-			score:  s.score * float32(recencyMultiplier(age, turnFrac, p)),
+			score:  s.score * float32(recencyMultiplier(ageDays, turnFrac, p)),
 		}
 	}
 
@@ -68,23 +74,6 @@ func applyChunkRecency(
 // mergeChunkSpace and newestChunkItems.
 func chunkNotePath(r chunk.Record) string {
 	return r.Source + "#" + r.Anchor
-}
-
-// chunkSourceAges reads the chunks-dir manifest and returns source→ageDays,
-// or nil when the manifest is unreadable (→ recency skipped, pure cosine).
-func chunkSourceAges(chunksDir string, deps QueryDeps) map[string]float64 {
-	manifest, err := readManifest(chunksDir, IngestDeps{ReadFile: deps.Read})
-	if err != nil {
-		return nil
-	}
-
-	mtimes := make(map[string]int64, len(manifest))
-
-	for src, entry := range manifest {
-		mtimes[src] = entry.MtimeUnixNano
-	}
-
-	return sourceAgeDays(mtimes, deps.Now())
 }
 
 // defaultRecencyParams returns the eval-tuned recency knobs.
@@ -158,6 +147,32 @@ func fillRecencyBand(items, mustInclude []resolvedItem, limit int) []resolvedIte
 	return spliceRecent(items, missing, mustKey, limit)
 }
 
+// lessByIngestedAtDesc orders two scored chunks newest-IngestedAt first. Zero
+// IngestedAt (legacy, unknown recency) sorts last. Equal IngestedAt ties break
+// on descending turn-N (latest turn first).
+func lessByIngestedAtDesc(a, b scoredChunk) bool {
+	timeA := a.record.IngestedAt
+	timeB := b.record.IngestedAt
+
+	if timeA.IsZero() && timeB.IsZero() {
+		return turnNOf(a.record.Anchor) > turnNOf(b.record.Anchor)
+	}
+
+	if timeA.IsZero() {
+		return false
+	}
+
+	if timeB.IsZero() {
+		return true
+	}
+
+	if !timeA.Equal(timeB) {
+		return timeA.After(timeB) // newer IngestedAt first
+	}
+
+	return turnNOf(a.record.Anchor) > turnNOf(b.record.Anchor)
+}
+
 // maxTurnBySource returns the highest turn ordinal seen per source.
 // Sources with no turn anchors are absent from the map.
 func maxTurnBySource(records []chunk.Record) map[string]int {
@@ -206,36 +221,21 @@ func mostRecentlyUsedNoteItems(items []resolvedItem, now time.Time, n int) []res
 	return notes[:n]
 }
 
-// newestChunkItems returns the n chunk items with the lowest source age (newest
-// source first). Tie-breaking on source age uses descending turn-N (latest turn
-// first). The result contains at most n items. n <= 0 returns nil.
-func newestChunkItems(scored []scoredChunk, ages map[string]float64, n int) []resolvedItem {
+// newestChunkItems returns the n chunk items with the largest IngestedAt
+// (most recently ingested first). Chunks with zero IngestedAt (legacy, not
+// yet backfilled) sort last — treated as maximally old since their recency is
+// unknown. Tie-breaking on equal IngestedAt uses descending turn-N (latest
+// turn first). Returns nil when n<=0.
+func newestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 	if n <= 0 {
 		return nil
 	}
 
-	// Build a sortable copy with age pre-looked-up.
-	type candidate struct {
-		s   scoredChunk
-		age float64
-	}
-
-	candidates := make([]candidate, 0, len(scored))
-
-	for _, s := range scored {
-		age := ages[s.record.Source] // missing → 0.0 (treat as maximally recent)
-		candidates = append(candidates, candidate{s: s, age: age})
-	}
+	candidates := make([]scoredChunk, 0, len(scored))
+	candidates = append(candidates, scored...)
 
 	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].age != candidates[j].age {
-			return candidates[i].age < candidates[j].age // ascending age = newest first
-		}
-		// tie-break: descending turn-N
-		ni, _ := parseTurnN(candidates[i].s.record.Anchor)
-		nj, _ := parseTurnN(candidates[j].s.record.Anchor)
-
-		return ni > nj
+		return lessByIngestedAtDesc(candidates[i], candidates[j])
 	})
 
 	if n > len(candidates) {
@@ -246,9 +246,9 @@ func newestChunkItems(scored []scoredChunk, ages map[string]float64, n int) []re
 
 	for _, c := range candidates[:n] {
 		out = append(out, resolvedItem{
-			notePath:    chunkNotePath(c.s.record),
-			content:     c.s.record.Text,
-			score:       c.s.score,
+			notePath:    chunkNotePath(c.record),
+			content:     c.record.Text,
+			score:       c.score,
 			provenances: []string{provenanceDirect},
 			kind:        chunkItemKind,
 		})
@@ -391,4 +391,12 @@ func spliceRecent(items, missing []resolvedItem, recentKey map[string]bool, limi
 	}
 
 	return out
+}
+
+// turnNOf returns the turn ordinal for an anchor, or 0 when the anchor carries
+// no ordinal (preamble/heading). A bare-int helper for tie-break comparisons.
+func turnNOf(anchor string) int {
+	n, _ := parseTurnN(anchor)
+
+	return n
 }

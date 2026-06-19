@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -46,7 +47,7 @@ import (
 func TestRecencyEvalDiscriminatingHalfLife(t *testing.T) {
 	t.Parallel()
 
-	pool, ages, maxTurn := buildSyntheticPool()
+	pool, maxTurn := buildSyntheticPool()
 
 	const limit = 20
 
@@ -55,8 +56,8 @@ func TestRecencyEvalDiscriminatingHalfLife(t *testing.T) {
 	for _, hl := range []float64{1, 7, 30, 60} {
 		for _, fl := range []int{0, 1, 3} {
 			params := cli.ExportNewRecencyParams(hl, 0.2, fl)
-			r0 := weeksOldRankOf(pool, ages, maxTurn, params, limit, "weeksold.jsonl#turn-10")
-			r1 := weeksOldRankOf(pool, ages, maxTurn, params, limit, "weeksold.jsonl#turn-5")
+			r0 := weeksOldRankOf(pool, maxTurn, params, limit, "weeksold.jsonl#turn-10")
+			r1 := weeksOldRankOf(pool, maxTurn, params, limit, "weeksold.jsonl#turn-5")
 			t.Logf("halfLife=%4.0f floor=%d -> turn-10 rank=%d turn-5 rank=%d", hl, fl, r0, r1)
 		}
 	}
@@ -71,15 +72,15 @@ func TestRecencyEvalDiscriminatingHalfLife(t *testing.T) {
 	g.Expect(cli.ExportRecencyFloor(defaultParams)).To(BeNumerically(">=", 3),
 		"default floor must guarantee at least 3 of the newest chunks")
 
-	r10 := weeksOldRankOf(pool, ages, maxTurn, defaultParams, limit, "weeksold.jsonl#turn-10")
+	r10 := weeksOldRankOf(pool, maxTurn, defaultParams, limit, "weeksold.jsonl#turn-10")
 	g.Expect(r10).To(BeNumerically(">=", 0),
 		"band must force-include weeks-old newest chunk turn-10 (3-week-old source, floor guarantee)")
 
-	r5 := weeksOldRankOf(pool, ages, maxTurn, defaultParams, limit, "weeksold.jsonl#turn-5")
+	r5 := weeksOldRankOf(pool, maxTurn, defaultParams, limit, "weeksold.jsonl#turn-5")
 	g.Expect(r5).To(BeNumerically(">=", 0),
 		"band must force-include weeks-old newest chunk turn-5 (3-week-old source, floor guarantee)")
 
-	r1 := weeksOldRankOf(pool, ages, maxTurn, defaultParams, limit, "weeksold.jsonl#turn-1")
+	r1 := weeksOldRankOf(pool, maxTurn, defaultParams, limit, "weeksold.jsonl#turn-1")
 	g.Expect(r1).To(BeNumerically(">=", 0),
 		"band must force-include weeks-old newest chunk turn-1 (3-week-old source, floor guarantee)")
 
@@ -89,14 +90,14 @@ func TestRecencyEvalDiscriminatingHalfLife(t *testing.T) {
 	const tightLimit = 5 // only the top 5 — all 5 slots go to 1mo distractors at hl=60
 
 	noFloorParams := cli.ExportNewRecencyParams(60.0, 0.2, 0)
-	rNoFloor := weeksOldRankOf(pool, ages, maxTurn, noFloorParams, tightLimit, "weeksold.jsonl#turn-10")
+	rNoFloor := weeksOldRankOf(pool, maxTurn, noFloorParams, tightLimit, "weeksold.jsonl#turn-10")
 	g.Expect(rNoFloor).To(Equal(-1),
 		"without the band (floor=0) the weeks-old chunk must not appear in top-%d (non-trivial)", tightLimit)
 
 	// With the band (floor=3) and the same tight cap, the weeks-old chunks are
 	// force-included — this is the load-bearing guarantee for Change 2.
 	floorParams := cli.ExportNewRecencyParams(60.0, 0.2, 3)
-	r10tight := weeksOldRankOf(pool, ages, maxTurn, floorParams, tightLimit, "weeksold.jsonl#turn-10")
+	r10tight := weeksOldRankOf(pool, maxTurn, floorParams, tightLimit, "weeksold.jsonl#turn-10")
 	g.Expect(r10tight).To(BeNumerically(">=", 0),
 		"with floor=3 the weeks-old newest chunk must be force-included in cap=%d", tightLimit)
 
@@ -145,7 +146,7 @@ const (
 //
 // Key invariant: without the band, all 20 cap slots go to distractors. With
 // floor=3 the band force-includes the 3 weeks-old chunks.
-func buildSyntheticPool() ([]cli.ExportScoredChunk, map[string]float64, map[string]int) {
+func buildSyntheticPool() ([]cli.ExportScoredChunk, map[string]int) {
 	const weeksOldCosine = float32(0.45)
 
 	type tier struct {
@@ -164,38 +165,41 @@ func buildSyntheticPool() ([]cli.ExportScoredChunk, map[string]float64, map[stri
 
 	totalSize := 3 + len(tiers)*distractorsPerTier
 	pool := make([]cli.ExportScoredChunk, 0, totalSize)
-	ages := make(map[string]float64, 1+len(tiers))
 	maxTurn := make(map[string]int, 1+len(tiers))
+	evalNow := recencyEvalNow()
 
 	// The 3 weeks-old chunks: turn-10 (latest), turn-5 (mid), turn-1 (earliest).
+	weeksOldTime := evalNow.Add(-21 * 24 * time.Hour)
+
 	for _, turn := range []string{"turn-10", "turn-5", "turn-1"} {
 		rec := chunk.Record{
 			Source:      "weeksold.jsonl",
 			Anchor:      turn,
 			Text:        "ASSISTANT: session narration at " + turn,
 			ContentHash: "sha256:weeksold-" + turn,
+			IngestedAt:  weeksOldTime,
 		}
 		pool = append(pool, cli.ExportNewScoredChunk(rec, weeksOldCosine))
 	}
 
-	ages["weeksold.jsonl"] = 21.0
 	maxTurn["weeksold.jsonl"] = 10
 
 	for _, tier := range tiers {
-		ages[tier.source] = tier.ageDays
 		maxTurn[tier.source] = distractorsPerTier
+		tierTime := evalNow.Add(-time.Duration(tier.ageDays) * 24 * time.Hour)
 
 		for i := range distractorsPerTier {
 			rec := chunk.Record{
 				Source:      tier.source,
 				Anchor:      "turn-" + itoa(i),
 				ContentHash: "sha256:" + tier.source + itoa(i),
+				IngestedAt:  tierTime,
 			}
 			pool = append(pool, cli.ExportNewScoredChunk(rec, tier.cosine))
 		}
 	}
 
-	return pool, ages, maxTurn
+	return pool, maxTurn
 }
 
 // itoa converts an int to its decimal string representation.
@@ -213,12 +217,11 @@ func itoa(n int) string {
 func rankOf(
 	targetPath string,
 	pool []cli.ExportScoredChunk,
-	ages map[string]float64,
 	maxTurn map[string]int,
 	p cli.ExportRecencyParams,
 	limit int,
 ) int {
-	scored := cli.ExportApplyChunkRecency(pool, ages, maxTurn, p)
+	scored := cli.ExportApplyChunkRecencyByTime(pool, recencyEvalNow(), maxTurn, p)
 	cli.ExportSortScoredDesc(scored)
 
 	items := make([]cli.ExportResolvedItem, 0, len(scored))
@@ -235,7 +238,7 @@ func rankOf(
 	}
 
 	floor := cli.ExportRecencyFloor(p)
-	mustInclude := cli.ExportNewestChunkItems(scored, ages, floor)
+	mustInclude := cli.ExportNewestChunkItemsByTime(scored, floor)
 	items = cli.ExportFillRecencyBand(items, mustInclude, limit)
 
 	for i, it := range items {
@@ -247,15 +250,21 @@ func rankOf(
 	return -1
 }
 
+// recencyEvalNow is the fixed reference time the synthetic pool ages chunks
+// against (IngestedAt = recencyEvalNow - ageDays). Keeping it a single helper
+// keeps buildSyntheticPool and rankOf consistent.
+func recencyEvalNow() time.Time {
+	return time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+}
+
 // weeksOldRankOf returns the 0-based rank of targetPath after recency re-rank
 // + cap + band, or -1 if absent.
 func weeksOldRankOf(
 	pool []cli.ExportScoredChunk,
-	ages map[string]float64,
 	maxTurn map[string]int,
 	p cli.ExportRecencyParams,
 	limit int,
 	targetPath string,
 ) int {
-	return rankOf(targetPath, pool, ages, maxTurn, p, limit)
+	return rankOf(targetPath, pool, maxTurn, p, limit)
 }

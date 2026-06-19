@@ -36,6 +36,10 @@ type IngestDeps struct {
 	ListSources    func(root SweepRoot) ([]string, error)
 	ReadTranscript func(path string, from time.Time, budget int) (transcript.ReadResult, error)
 	Embedder       embed.Embedder
+	// Now returns the current wall-clock time for IngestedAt stamping. Nil-safe:
+	// callers guard with "if deps.Now != nil" before calling. Wire time.Now in
+	// newOsIngestDeps.
+	Now func() time.Time
 	// IsDir, Getwd, and SessionDir feed --auto's declarative root resolution.
 	IsDir      func(path string) bool
 	Getwd      func() (string, error)
@@ -158,19 +162,58 @@ func assembleSweepRoots(args IngestArgs, deps IngestDeps) ([]SweepRoot, error) {
 	return roots, nil
 }
 
+// buildChunkIDSet loads all chunk records from chunksDir and returns a
+// set of "source#anchor" id strings. This is an O(total chunks) scan;
+// callers should build it once and reuse the map for O(1) validation.
+// DI-compliant: accepts injected listIndexes and readFile funcs (no os.* calls).
+// Returns map[string]bool for consistent membership testing (Component 5 reuses this).
+func buildChunkIDSet(
+	chunksDir string,
+	listIndexes func(dir string) ([]string, error),
+	readFile func(path string) ([]byte, error),
+) (map[string]bool, error) {
+	paths, err := listIndexes(chunksDir)
+	if err != nil {
+		return nil, fmt.Errorf("ingest: listing chunk indexes for id-set: %w", err)
+	}
+
+	idSet := make(map[string]bool)
+
+	for _, path := range paths {
+		data, readErr := readFile(path)
+		if readErr != nil {
+			return nil, fmt.Errorf("ingest: reading chunk index %s for id-set: %w", path, readErr)
+		}
+
+		records, decodeErr := chunk.DecodeRecords(data)
+		if decodeErr != nil {
+			return nil, fmt.Errorf("ingest: decoding chunk index %s for id-set: %w", path, decodeErr)
+		}
+
+		for _, r := range records {
+			idSet[r.Source+"#"+r.Anchor] = true
+		}
+	}
+
+	return idSet, nil
+}
+
 // chunkSource dispatches by extension: transcripts strip+turn-chunk, markdown
-// heading-chunks. Same mechanism either way; only the chunker differs.
-func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, error) {
+// heading-chunks. Returns (chunks, sourceTimestamp, err). For transcripts,
+// sourceTimestamp is ReadResult.LastTimestamp (used as IngestedAt for all chunks
+// from this call — a per-session approximation; see Task 2.4 comment). For
+// markdown, sourceTimestamp is zero (caller uses deps.Now()).
+func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, time.Time, error) {
 	if filepath.Ext(source) == jsonlExt {
 		result, err := deps.ReadTranscript(source, time.Time{}, ingestBudgetBytes)
 		if err != nil {
-			return nil, fmt.Errorf("ingest: stripping transcript %s: %w", source, err)
+			return nil, time.Time{}, fmt.Errorf("ingest: stripping transcript %s: %w", source, err)
 		}
 
-		return chunk.Transcript(result.Content, chunkTargetChars, chunkMaxChars), nil
+		return chunk.Transcript(result.Content, chunkTargetChars, chunkMaxChars), result.LastTimestamp, nil
 	}
 
-	return chunk.Markdown(string(raw), chunkMaxChars), nil
+	return chunk.Markdown(string(raw), chunkMaxChars), time.Time{}, nil
 }
 
 // defaultSessionDir is the root of ALL recorded session transcripts:
@@ -276,12 +319,13 @@ func ingestSource(
 		return true, nil // touched but identical: refresh stat, keep index
 	}
 
-	chunks, err := chunkSource(source, raw, deps)
+	chunks, sourceTS, err := chunkSource(source, raw, deps)
 	if err != nil {
 		return false, err
 	}
 
-	rebuilt, reused, embedded, err := rebuildIndex(ctx, source, chunks, chunksDir, deps)
+	rebuilt, reused, embedded, err := rebuildIndex(
+		ctx, source, chunks, chunksDir, deps, ingestTimeFor(sourceTS, deps), manifestBackfill(manifest))
 	if err != nil {
 		return false, err
 	}
@@ -294,26 +338,109 @@ func ingestSource(
 	return true, nil
 }
 
-// loadPriorVectors maps chunk hash -> vector from the existing index file.
-// An absent or unreadable index is an empty map (first ingest).
-func loadPriorVectors(indexPath string, deps IngestDeps) map[string][]float32 {
-	vectors := map[string][]float32{}
+// ingestTimeFor resolves the IngestedAt stamp for a source: the per-session
+// sourceTS for transcripts (LastTimestamp), else deps.Now() for markdown. Zero
+// when both are absent (test fixtures that omit the clock) — nil-safe.
+func ingestTimeFor(sourceTS time.Time, deps IngestDeps) time.Time {
+	if !sourceTS.IsZero() {
+		return sourceTS
+	}
+
+	if deps.Now == nil {
+		return time.Time{}
+	}
+
+	return deps.Now()
+}
+
+// loadPriorRecords maps chunk ContentHash -> full Record from the existing
+// index file. An absent or unreadable index returns an empty map (first ingest).
+// The full Record is returned so IngestedAt survives the merge (D5).
+func loadPriorRecords(indexPath string, deps IngestDeps) map[string]chunk.Record {
+	records := map[string]chunk.Record{}
 
 	data, err := deps.ReadFile(indexPath)
 	if err != nil {
-		return vectors
+		return records
 	}
 
-	records, err := chunk.DecodeRecords(data)
+	decoded, err := chunk.DecodeRecords(data)
 	if err != nil {
-		return vectors
+		return records
 	}
 
-	for _, r := range records {
-		vectors[r.ContentHash] = r.Vector
+	for _, r := range decoded {
+		records[r.ContentHash] = r
 	}
 
-	return vectors
+	return records
+}
+
+// manifestBackfill returns a closure mapping a source path to its manifest
+// mtime, used to backfill IngestedAt on legacy (zero-IngestedAt) records during
+// merge. Sources absent from the manifest yield the zero time (no backfill).
+func manifestBackfill(manifest ingestManifest) func(source string) time.Time {
+	return func(src string) time.Time {
+		entry, ok := manifest[src]
+		if !ok {
+			return time.Time{}
+		}
+
+		return time.Unix(0, entry.MtimeUnixNano)
+	}
+}
+
+// mergeChunkRecords builds the append-only merged record set: prior records are
+// preserved (never deleted, zero-IngestedAt legacy records backfilled via
+// backfillTime), and new-hash chunks are embedded and stamped with ingestTime.
+func mergeChunkRecords(
+	ctx context.Context,
+	source string,
+	chunks []chunk.Chunk,
+	priorRecords map[string]chunk.Record,
+	deps IngestDeps,
+	ingestTime time.Time,
+	backfillTime func(source string) time.Time,
+) (merged []chunk.Record, reused, embedded int, err error) {
+	// Preserve prior records first (append-only: never delete).
+	existingHashes := make(map[string]bool, len(priorRecords))
+	merged = make([]chunk.Record, 0, len(priorRecords)+len(chunks))
+
+	for _, r := range priorRecords {
+		existingHashes[r.ContentHash] = true
+		if r.IngestedAt.IsZero() && backfillTime != nil {
+			r.IngestedAt = backfillTime(r.Source)
+		}
+
+		merged = append(merged, r)
+	}
+
+	for _, piece := range chunks {
+		hash := chunk.HashText(piece.Text)
+		if existingHashes[hash] {
+			reused++
+
+			continue
+		}
+
+		vector, embedErr := deps.Embedder.Embed(ctx, piece.Text)
+		if embedErr != nil {
+			return nil, 0, 0, fmt.Errorf("ingest: embedding chunk %s/%s: %w", source, piece.Anchor, embedErr)
+		}
+
+		embedded++
+
+		merged = append(merged, chunk.Record{
+			Source:      source,
+			Anchor:      piece.Anchor,
+			ContentHash: hash,
+			Text:        piece.Text,
+			Vector:      vector,
+			IngestedAt:  ingestTime,
+		})
+	}
+
+	return merged, reused, embedded, nil
 }
 
 // newOsIngestDeps wires the production filesystem, JSONL transcript reader,
@@ -346,6 +473,7 @@ func newOsIngestDeps() IngestDeps {
 		ListSources:    walkSourcesExcluding,
 		ReadTranscript: reader.ReadFrom,
 		Embedder:       sharedEmbedder,
+		Now:            time.Now,
 		IsDir: func(path string) bool {
 			info, err := os.Stat(path)
 
@@ -373,42 +501,28 @@ func readManifest(chunksDir string, deps IngestDeps) (ingestManifest, error) {
 	return manifest, nil
 }
 
-// rebuildIndex writes the source's index file from scratch, reusing vectors
-// from the previous index by chunk hash so unchanged content never re-embeds.
-// Stale chunks vanish because the file is replaced, not appended to.
+// rebuildIndex merge-appends: prior records are preserved (never deleted), new
+// hashes are embedded and stamped with ingestTime, and zero-IngestedAt legacy
+// records are backfilled via backfillTime (nil = no backfill).
 func rebuildIndex(
 	ctx context.Context,
 	source string,
 	chunks []chunk.Chunk,
 	chunksDir string,
 	deps IngestDeps,
+	ingestTime time.Time,
+	backfillTime func(source string) time.Time,
 ) (total, reused, embedded int, err error) {
 	indexPath := filepath.Join(chunksDir, sourceSlug(source)+jsonlExt)
-	priorVectors := loadPriorVectors(indexPath, deps)
+	priorRecords := loadPriorRecords(indexPath, deps)
 
-	records := make([]chunk.Record, 0, len(chunks))
-
-	for _, piece := range chunks {
-		hash := chunk.HashText(piece.Text)
-
-		vector, ok := priorVectors[hash]
-		if ok {
-			reused++
-		} else {
-			vector, err = deps.Embedder.Embed(ctx, piece.Text)
-			if err != nil {
-				return 0, 0, 0, fmt.Errorf("ingest: embedding chunk %s/%s: %w", source, piece.Anchor, err)
-			}
-
-			embedded++
-		}
-
-		records = append(records, chunk.Record{
-			Source: source, Anchor: piece.Anchor, ContentHash: hash, Text: piece.Text, Vector: vector,
-		})
+	merged, reused, embedded, err := mergeChunkRecords(
+		ctx, source, chunks, priorRecords, deps, ingestTime, backfillTime)
+	if err != nil {
+		return 0, 0, 0, err
 	}
 
-	data, err := chunk.EncodeRecords(records)
+	data, err := chunk.EncodeRecords(merged)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("ingest: encoding index %s: %w", indexPath, err)
 	}
@@ -418,7 +532,7 @@ func rebuildIndex(
 		return 0, 0, 0, fmt.Errorf("ingest: writing index %s: %w", indexPath, err)
 	}
 
-	return len(records), reused, embedded, nil
+	return len(merged), reused, embedded, nil
 }
 
 // resolveAutoSpec assembles the sweep environment and loads the repo's

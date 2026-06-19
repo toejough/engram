@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Record is one embedded chunk in a source's .jsonl index file.
@@ -22,6 +23,9 @@ type Record struct {
 	Text string `json:"text"`
 	// Vector is the body embedding of Text.
 	Vector []float32 `json:"vector"`
+	// IngestedAt is the wall-clock time this chunk was first written to the
+	// index. Zero for legacy records (pre-D5); backfilled on first merge.
+	IngestedAt time.Time `json:"ingested_at,omitzero"` //nolint:tagliatelle // index schema uses snake_case like .vec.json
 }
 
 // DecodeRecords parses a JSONL index file. Blank lines are skipped;

@@ -39,9 +39,9 @@ func TestSweepHandlesTranscriptsViaSameMechanism(t *testing.T) {
 
 	g.Expect(records[0].Anchor).To(gomega.HavePrefix("turn-"))
 
-	// Appending a turn re-chunks the file; the unchanged-boundary case here
-	// merges into one bigger chunk, so the old vector is NOT reusable — but
-	// the index must reflect ONLY the new chunking (no stale duplicates).
+	// Appending a turn re-chunks the file. Append-only (D5): the prior chunk is
+	// retained and the new chunking is added, so the index reflects the new
+	// content while keeping history.
 	fs.put("/sessions/s1.jsonl",
 		"USER: please wire the linter into the build system for this project\nASSISTANT: wired into targ check\n"+
 			"USER: also add coverage thresholds to the check pipeline\nASSISTANT: added with 80 percent floor",
@@ -59,8 +59,8 @@ func TestSweepHandlesTranscriptsViaSameMechanism(t *testing.T) {
 		joined.WriteString("\n")
 	}
 
-	g.Expect(joined.String()).To(gomega.ContainSubstring("coverage thresholds"))
-	g.Expect(strings.Count(joined.String(), "wire the linter")).To(gomega.Equal(1), "no stale duplicate chunks")
+	g.Expect(joined.String()).To(gomega.ContainSubstring("coverage thresholds"), "new content ingested")
+	g.Expect(joined.String()).To(gomega.ContainSubstring("wire the linter"), "prior chunk retained (append-only)")
 }
 
 func TestSweepIngestsNewMarkdown(t *testing.T) {
@@ -106,7 +106,7 @@ func TestSweepManifestWriteErrorPropagates(t *testing.T) {
 	g.Expect(err).To(gomega.MatchError(errBoom))
 }
 
-func TestSweepRebuildRemovesStaleChunksAndReusesEmbeddings(t *testing.T) {
+func TestSweepMergeAppendKeepsStaleAndReusesEmbeddings(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -119,9 +119,9 @@ func TestSweepRebuildRemovesStaleChunksAndReusesEmbeddings(t *testing.T) {
 
 	g.Expect(cli.RunIngest(context.Background(), args, deps, io.Discard)).To(gomega.Succeed())
 
-	// Section B is rewritten; Section A is untouched. The rebuild must drop the
-	// old Section B chunk, keep Section A WITHOUT re-embedding it, and embed
-	// only the new text.
+	// Section B is rewritten; Section A is untouched. Append-only (D5): the old
+	// Section B chunk is RETAINED, Section A is reused WITHOUT re-embedding, and
+	// only the new Section B text embeds.
 	edited := "## Section A\nAlways name constants instead of magic numbers in this codebase.\n\n" +
 		"## Section B\nUse sentinel errors and errors.Is for all not-found conditions.\n"
 	fs.put("/docs/conv.md", edited, 200)
@@ -132,7 +132,7 @@ func TestSweepRebuildRemovesStaleChunksAndReusesEmbeddings(t *testing.T) {
 
 	records, err := chunk.DecodeRecords(fs.files["/chunks/"+cli.ExportIndexFileName("/docs/conv.md")])
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(records).To(gomega.HaveLen(2), "rebuild replaces, never appends")
+	g.Expect(records).To(gomega.HaveLen(3), "merge-append: prior 2 chunks retained + 1 new chunk added")
 
 	var all strings.Builder
 
@@ -142,7 +142,7 @@ func TestSweepRebuildRemovesStaleChunksAndReusesEmbeddings(t *testing.T) {
 	}
 
 	g.Expect(all.String()).To(gomega.ContainSubstring("sentinel errors"))
-	g.Expect(all.String()).NotTo(gomega.ContainSubstring("Wrap errors with context"), "stale chunk must be gone")
+	g.Expect(all.String()).To(gomega.ContainSubstring("Wrap errors with context"), "prior chunk retained (append-only)")
 	g.Expect(emb.calls-before).To(gomega.Equal(1), "only the edited section re-embeds")
 }
 

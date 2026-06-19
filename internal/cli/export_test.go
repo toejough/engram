@@ -19,7 +19,6 @@ var (
 	ErrQueryModeConflict             = errQueryModeConflict
 	ErrResituateNoteNotFoundForTest  = errResituateNoteNotFound
 	ExportAnyHarnessFailed           = anyHarnessFailed
-	ExportApplyChunkRecency          = applyChunkRecency
 	ExportApplyProjectFilter         = applyProjectFilter
 	ExportApplyTierFilter            = applyTierFilter
 	ExportAutoEmbedNote              = autoEmbedNote
@@ -158,6 +157,13 @@ func ExportAppendUniqueProvenance(initial []string, roles ...string) []string {
 	return item.provenances
 }
 
+// ExportApplyChunkRecencyByTime exposes the new per-IngestedAt applyChunkRecency for recency tests.
+func ExportApplyChunkRecencyByTime(
+	scored []scoredChunk, now time.Time, maxTurnBySrc map[string]int, p recencyParams,
+) []scoredChunk {
+	return applyChunkRecency(scored, now, maxTurnBySrc, p)
+}
+
 // ExportApplyCombinedRecencyBand exposes applyCombinedRecencyBand for band interleave tests.
 func ExportApplyCombinedRecencyBand(
 	items []resolvedItem,
@@ -189,6 +195,16 @@ func ExportBreakRepresentativeTie(
 	return subgraph.members[winnerIdx].notePath
 }
 
+// ExportBuildChunkIDSet exposes buildChunkIDSet for validation tests.
+// Component 5 reuses buildChunkIDSet (not a second implementation) via AmendDeps injection.
+func ExportBuildChunkIDSet(
+	chunksDir string,
+	listIndexes func(dir string) ([]string, error),
+	readFile func(path string) ([]byte, error),
+) (map[string]bool, error) {
+	return buildChunkIDSet(chunksDir, listIndexes, readFile)
+}
+
 // Exported functions.
 
 // ExportEmitTranscripts exposes emitTranscripts for whitebox testing with an
@@ -207,6 +223,11 @@ func ExportEmitTranscripts(
 // ExportIndexFileName exposes sourceSlug-based index naming so tests can
 // locate a source's chunk index file.
 func ExportIndexFileName(source string) string { return sourceSlug(source) + ".jsonl" }
+
+// ExportLoadPriorRecords exposes loadPriorRecords for ingest unit tests.
+func ExportLoadPriorRecords(indexPath string, deps IngestDeps) map[string]chunk.Record {
+	return loadPriorRecords(indexPath, deps)
+}
 
 // ExportMergeIntoExisting exposes mergeIntoExisting for whitebox testing.
 func ExportMergeIntoExisting(existing, src *resolvedItem) {
@@ -330,9 +351,23 @@ func ExportNewScoredChunk(rec chunk.Record, score float32) scoredChunk {
 	return scoredChunk{record: rec, score: score}
 }
 
-// ExportNewestChunkItems exposes newestChunkItems for band tests.
-func ExportNewestChunkItems(scored []scoredChunk, ages map[string]float64, n int) []resolvedItem {
-	return newestChunkItems(scored, ages, n)
+// ExportNewScoredChunkWithIngestedAt builds a scoredChunk with IngestedAt set for recency tests.
+func ExportNewScoredChunkWithIngestedAt(rec chunk.Record, score float32, ingestedAt time.Time) scoredChunk {
+	rec.IngestedAt = ingestedAt
+
+	return scoredChunk{record: rec, score: score}
+}
+
+// ExportNewestChunkItems exposes newestChunkItems (new 2-arg signature: no ages map).
+func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
+	return newestChunkItems(scored, n)
+}
+
+// ExportNewestChunkItemsByTime is an alias for tests that use the IngestedAt-keyed sort.
+// Both names wrap the same 2-arg newestChunkItems; ExportNewestChunkItems keeps the
+// existing test-helper name stable, ExportNewestChunkItemsByTime is the semantic form.
+func ExportNewestChunkItemsByTime(scored []scoredChunk, n int) []resolvedItem {
+	return newestChunkItems(scored, n)
 }
 
 // ExportParseEpisodeBody exposes parseEpisodeBody for round-trip testing,

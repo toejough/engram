@@ -1322,13 +1322,10 @@ func mergeChunkSpace(
 	var chunkMust []resolvedItem
 
 	if deps.Now != nil {
-		ages := chunkSourceAges(args.ChunksDir, deps)
-		if ages != nil {
-			params := defaultRecencyParams()
-			scored = applyChunkRecency(scored, ages, maxTurnBySource(records), params)
-			sortScoredDesc(scored)
-			chunkMust = newestChunkItems(scored, ages, params.floor)
-		}
+		params := defaultRecencyParams()
+		scored = applyChunkRecency(scored, deps.Now(), maxTurnBySource(records), params)
+		sortScoredDesc(scored)
+		chunkMust = newestChunkItems(scored, params.floor)
 	}
 
 	for _, s := range scored {

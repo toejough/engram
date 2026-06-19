@@ -153,6 +153,25 @@ func TestIngestTranscriptReadErrorPropagates(t *testing.T) {
 	g.Expect(err).To(gomega.MatchError(errBoom))
 }
 
+func TestIngestWriteIndexErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	md := "## Conventions\nAlways name constants instead of magic numbers in this codebase.\n"
+	deps := cli.IngestDeps{
+		ReadFile:       (&memFS{files: map[string][]byte{"/docs/conv.md": []byte(md)}}).read,
+		WriteFile:      func(string, []byte) error { return errBoom },
+		ReadTranscript: transcriptReader(""),
+		Embedder:       fakeIngestEmbedder{},
+	}
+
+	err := cli.RunIngest(context.Background(), cli.IngestArgs{
+		Markdowns: []string{"/docs/conv.md"}, ChunksDir: "/chunks",
+	}, deps, io.Discard)
+
+	g.Expect(err).To(gomega.MatchError(errBoom), "rebuildIndex write-error must propagate")
+}
+
 // TestOsIngestThenChunkQuery drives the production wiring (with a fake
 // embedder) end-to-end through a temp dir: markdown ingest -> index on disk
 // -> chunk query payload. Integration test for the thin os adapters.

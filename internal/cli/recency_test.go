@@ -14,17 +14,48 @@ func TestApplyChunkRecencyLiftsRecentOverStaleHighCosine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+	oldTime := now.Add(-90 * 24 * time.Hour)
+	recentTime := now.Add(-6 * time.Minute)
+
 	scored := []cli.ExportScoredChunk{
-		cli.ExportNewScoredChunk(chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.80),
-		cli.ExportNewScoredChunk(chunk.Record{Source: "recent.jsonl", Anchor: "turn-9"}, 0.45),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.80, oldTime),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "recent.jsonl", Anchor: "turn-9"}, 0.45, recentTime),
 	}
-	ages := map[string]float64{"old.jsonl": 90, "recent.jsonl": 0.01}
 	maxTurn := map[string]int{"old.jsonl": 3, "recent.jsonl": 9}
 	p := cli.ExportNewRecencyParams(3, 0.2, 0)
 
-	out := cli.ExportApplyChunkRecency(scored, ages, maxTurn, p)
+	out := cli.ExportApplyChunkRecencyByTime(scored, now, maxTurn, p)
 
 	g.Expect(cli.ExportScoredChunkScore(out[1])).To(BeNumerically(">", cli.ExportScoredChunkScore(out[0])))
+}
+
+func TestApplyChunkRecencyUsesIngestedAt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+	oldTime := now.Add(-90 * 24 * time.Hour) // 90 days ago
+	recentTime := now.Add(-1 * time.Hour)    // 1 hour ago
+
+	scored := []cli.ExportScoredChunk{
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.80, oldTime),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "recent.jsonl", Anchor: "turn-9"}, 0.45, recentTime),
+	}
+
+	maxTurn := map[string]int{"old.jsonl": 3, "recent.jsonl": 9}
+	p := cli.ExportNewRecencyParams(60, 0.2, 0)
+
+	out := cli.ExportApplyChunkRecencyByTime(scored, now, maxTurn, p)
+
+	// Recent chunk (0.45 base) should outscore old chunk (0.80 base) after recency.
+	g.Expect(cli.ExportScoredChunkScore(out[1])).To(
+		BeNumerically(">", cli.ExportScoredChunkScore(out[0])),
+		"recent chunk must outscore old chunk after per-IngestedAt recency")
 }
 
 // TestApplyCombinedRecencyBandInterleavesFairMix verifies that when both
@@ -330,11 +361,12 @@ func TestNewestChunkItemsNZeroReturnsNil(t *testing.T) {
 	t.Parallel()
 
 	scored := []cli.ExportScoredChunk{
-		cli.ExportNewScoredChunk(chunk.Record{Source: "a.jsonl", Anchor: "turn-1"}, 0.5),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "a.jsonl", Anchor: "turn-1"}, 0.5,
+			time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}
-	ages := map[string]float64{"a.jsonl": 1.0}
 
-	out := cli.ExportNewestChunkItems(scored, ages, 0)
+	out := cli.ExportNewestChunkItems(scored, 0)
 
 	if out != nil {
 		panic("expected nil for n=0")
@@ -345,16 +377,22 @@ func TestNewestChunkItemsOrdersByAgeAscending(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
 	// Three sources: recent (0.5d), mid (14d), old (60d). newestChunkItems
-	// should return the floor-newest by age, ignoring cosine score.
+	// should return the floor-newest by IngestedAt, ignoring cosine score.
 	scored := []cli.ExportScoredChunk{
-		cli.ExportNewScoredChunk(chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.90),
-		cli.ExportNewScoredChunk(chunk.Record{Source: "recent.jsonl", Anchor: "turn-7"}, 0.20),
-		cli.ExportNewScoredChunk(chunk.Record{Source: "mid.jsonl", Anchor: "turn-5"}, 0.50),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.90,
+			now.Add(-60*24*time.Hour)),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "recent.jsonl", Anchor: "turn-7"}, 0.20,
+			now.Add(-12*time.Hour)),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "mid.jsonl", Anchor: "turn-5"}, 0.50,
+			now.Add(-14*24*time.Hour)),
 	}
-	ages := map[string]float64{"old.jsonl": 60.0, "recent.jsonl": 0.5, "mid.jsonl": 14.0}
 
-	out := cli.ExportNewestChunkItems(scored, ages, 2)
+	out := cli.ExportNewestChunkItems(scored, 2)
 
 	g.Expect(out).To(HaveLen(2))
 
@@ -366,19 +404,52 @@ func TestNewestChunkItemsOrdersByAgeAscending(t *testing.T) {
 	g.Expect(cli.ExportResolvedItemPath(out[1])).To(Equal("mid.jsonl#turn-5"), "slot 1 must be second-newest source")
 }
 
+func TestNewestChunkItemsSortsByIngestedAt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+	oldTime := now.Add(-60 * 24 * time.Hour)
+	midTime := now.Add(-14 * 24 * time.Hour)
+	recentTime := now.Add(-12 * time.Hour)
+
+	scored := []cli.ExportScoredChunk{
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.90, oldTime),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "recent.jsonl", Anchor: "turn-7"}, 0.20, recentTime),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "mid.jsonl", Anchor: "turn-5"}, 0.50, midTime),
+	}
+
+	out := cli.ExportNewestChunkItemsByTime(scored, 2)
+
+	g.Expect(out).To(HaveLen(2))
+
+	if len(out) < 2 {
+		return
+	}
+
+	g.Expect(cli.ExportResolvedItemPath(out[0])).To(Equal("recent.jsonl#turn-7"), "newest IngestedAt first")
+	g.Expect(cli.ExportResolvedItemPath(out[1])).To(Equal("mid.jsonl#turn-5"), "second-newest IngestedAt second")
+}
+
 func TestNewestChunkItemsTieBreaksByTurnDesc(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// Same source age → descending turn-N wins.
+	// Same IngestedAt → descending turn-N wins.
+	sameTime := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
 	scored := []cli.ExportScoredChunk{
-		cli.ExportNewScoredChunk(chunk.Record{Source: "a.jsonl", Anchor: "turn-2"}, 0.5),
-		cli.ExportNewScoredChunk(chunk.Record{Source: "a.jsonl", Anchor: "turn-9"}, 0.5),
-		cli.ExportNewScoredChunk(chunk.Record{Source: "a.jsonl", Anchor: "turn-5"}, 0.5),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "a.jsonl", Anchor: "turn-2"}, 0.5, sameTime),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "a.jsonl", Anchor: "turn-9"}, 0.5, sameTime),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "a.jsonl", Anchor: "turn-5"}, 0.5, sameTime),
 	}
-	ages := map[string]float64{"a.jsonl": 3.0}
 
-	out := cli.ExportNewestChunkItems(scored, ages, 2)
+	out := cli.ExportNewestChunkItems(scored, 2)
 
 	g.Expect(out).To(HaveLen(2))
 
@@ -388,6 +459,32 @@ func TestNewestChunkItemsTieBreaksByTurnDesc(t *testing.T) {
 
 	g.Expect(cli.ExportResolvedItemPath(out[0])).To(Equal("a.jsonl#turn-9"), "highest turn first on tie")
 	g.Expect(cli.ExportResolvedItemPath(out[1])).To(Equal("a.jsonl#turn-5"), "second-highest turn second")
+}
+
+func TestNewestChunkItemsTieBreaksByTurnDescIngestedAt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sameTime := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	scored := []cli.ExportScoredChunk{
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "a.jsonl", Anchor: "turn-2"}, 0.5, sameTime),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "a.jsonl", Anchor: "turn-9"}, 0.5, sameTime),
+		cli.ExportNewScoredChunkWithIngestedAt(
+			chunk.Record{Source: "a.jsonl", Anchor: "turn-5"}, 0.5, sameTime),
+	}
+
+	out := cli.ExportNewestChunkItemsByTime(scored, 2)
+
+	g.Expect(out).To(HaveLen(2))
+
+	if len(out) < 2 {
+		return
+	}
+
+	g.Expect(cli.ExportResolvedItemPath(out[0])).To(Equal("a.jsonl#turn-9"), "highest turn on tie")
+	g.Expect(cli.ExportResolvedItemPath(out[1])).To(Equal("a.jsonl#turn-5"), "second-highest turn on tie")
 }
 
 func TestNoteAgeDaysPrefersLastUsedThenCreated(t *testing.T) {
