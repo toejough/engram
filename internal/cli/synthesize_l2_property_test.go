@@ -71,10 +71,10 @@ func TestProperty_SynthesizeL2_NearDuplicateL2CosineAtLeast095(t *testing.T) {
 		g.Expect(parsed.Clusters).NotTo(BeEmpty())
 
 		for _, cluster := range parsed.Clusters {
-			g.Expect(cluster.NearestL2).NotTo(BeNil(),
-				"a near-duplicate L2 must always surface as nearest_l2")
-			g.Expect(cluster.NearestL2.Cosine).To(BeNumerically(">=", noOpFloor),
-				"a near-duplicate L2 must report raw cosine >= 0.95 (the no-op band precondition)")
+			g.Expect(cluster.CandidateL2s).NotTo(BeEmpty(),
+				"a near-duplicate L2 must always surface in candidate_l2s")
+			g.Expect(cluster.CandidateL2s[0].Cosine).To(BeNumerically(">=", noOpFloor),
+				"the nearest L2 (first candidate) must report raw centroid cosine >= 0.95")
 		}
 	})
 }

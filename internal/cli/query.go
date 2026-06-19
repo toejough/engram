@@ -249,15 +249,23 @@ type queryBudget struct {
 	Limit                int  `yaml:"limit"`
 }
 
+// queryCandidateL2 is one candidate L2 note for a cluster. The binary emits
+// top-K by centroid cosine (K >= candidateL2K); the recall skill judges
+// coverage — no cosine-band decision happens in the binary.
+type queryCandidateL2 struct {
+	Path   string  `yaml:"path"`
+	Cosine float32 `yaml:"cosine"`
+}
+
 // queryCluster is the cluster shape in the payload.
 type queryCluster struct {
-	ID         int                  `yaml:"id"`
-	Phrase     string               `yaml:"phrase"`
-	Size       int                  `yaml:"size"`
-	Silhouette float64              `yaml:"silhouette"`
-	Members    []queryClusterMember `yaml:"members"`
-	NearestL3  *queryNearestL3      `yaml:"nearest_l3,omitempty"`
-	NearestL2  *queryNearestL2      `yaml:"nearest_l2,omitempty"`
+	ID           int                  `yaml:"id"`
+	Phrase       string               `yaml:"phrase"`
+	Size         int                  `yaml:"size"`
+	Silhouette   float64              `yaml:"silhouette"`
+	Members      []queryClusterMember `yaml:"members"`
+	NearestL3    *queryNearestL3      `yaml:"nearest_l3,omitempty"`
+	CandidateL2s []queryCandidateL2   `yaml:"candidate_l2s,omitempty"`
 }
 
 // queryClusterMember is the per-member shape in clusters.members.
@@ -285,14 +293,6 @@ type queryItem struct {
 	OutboundLinks []string `yaml:"outbound_links,omitempty"`
 	Content       string   `yaml:"content,omitempty"`
 	Activated     bool     `yaml:"activated,omitempty"`
-}
-
-// queryNearestL2 is the nearest existing L2 note for a cluster centroid. It
-// carries the RAW max(situation,body) cosine; the recall skill applies its own
-// three-band decision (no band cutoff happens in the binary).
-type queryNearestL2 struct {
-	Path   string  `yaml:"path"`
-	Cosine float32 `yaml:"cosine"`
 }
 
 // queryNearestL3 is the nearest existing L3 note for a cluster centroid.
@@ -639,6 +639,24 @@ func buildUnionSubgraph(union []scoredCandidate) expandedSubgraph {
 	return expandedSubgraph{members: members}
 }
 
+// candidateL2sStub is a placeholder replaced by topKCandidateL2sForTier in
+// Task 3.2. It returns the single nearest L2 (a 1-element slice) so the
+// candidate_l2s field is wired and populated while the real top-K logic lands.
+// The result is suppressed only when a non-empty tier set explicitly omits L2;
+// --synthesize-l2 always passes tiers: nil, so it never suppresses.
+func candidateL2sStub(centroid []float32, l2Notes tierIndex, tiers []string) []queryCandidateL2 {
+	if len(tiers) > 0 && !slices.Contains(tiers, tierL2) {
+		return nil
+	}
+
+	path, cosine, found := nearestInTierIndex(centroid, l2Notes)
+	if !found {
+		return nil
+	}
+
+	return []queryCandidateL2{{Path: path, Cosine: cosine}}
+}
+
 // chunksConfigured reports whether a chunk index is wired into this run
 // (non-empty chunks dir and a list function available).
 func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
@@ -687,12 +705,12 @@ func clusterChunkItems(scored []scoredChunk, l2Notes tierIndex, tiers, phrases [
 		}
 
 		clusters = append(clusters, queryCluster{
-			ID:         clusterID,
-			Phrase:     chunkClusterPhrase,
-			Size:       len(members),
-			Silhouette: silhouettes[clusterID],
-			Members:    members,
-			NearestL2:  nearestL2ForTier(autoK.Centroids[clusterID], l2Notes, tiers),
+			ID:           clusterID,
+			Phrase:       chunkClusterPhrase,
+			Size:         len(members),
+			Silhouette:   silhouettes[clusterID],
+			Members:      members,
+			CandidateL2s: candidateL2sStub(autoK.Centroids[clusterID], l2Notes, tiers),
 		})
 	}
 
@@ -1594,24 +1612,6 @@ func nearestInTierIndex(centroid []float32, idx tierIndex) (string, float32, boo
 	return idx.paths[best], bestSim, true
 }
 
-// nearestL2ForTier mirrors nearestL3ForTier for the lazy-L2 synthesis path. It
-// returns the nearest existing L2 note to the centroid by max(situation,body),
-// emitting the RAW cosine with no band decision (the recall skill bands it).
-// The result is suppressed only when a non-empty tier set explicitly omits L2;
-// --synthesize-l2 always passes tiers: nil, so it never suppresses.
-func nearestL2ForTier(centroid []float32, l2Notes tierIndex, tiers []string) *queryNearestL2 {
-	if len(tiers) > 0 && !slices.Contains(tiers, tierL2) {
-		return nil
-	}
-
-	path, cosine, found := nearestInTierIndex(centroid, l2Notes)
-	if !found {
-		return nil
-	}
-
-	return &queryNearestL2{Path: path, Cosine: cosine}
-}
-
 // nearestL3For returns the nearest L3 note to centroid from l3Notes by
 // max(situation,body), or nil if the index is empty. No threshold is applied;
 // the skill applies its own 0.9 cut.
@@ -1821,13 +1821,13 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes, l2Notes tierIndex,
 			centroid := pc.report.autoK.Centroids[clusterID]
 
 			out = append(out, queryCluster{
-				ID:         clusterID,
-				Phrase:     pc.phrase,
-				Size:       len(members),
-				Silhouette: pc.report.silhouettesByID[clusterID],
-				Members:    members,
-				NearestL3:  nearestL3ForTier(centroid, l3Notes, tiers),
-				NearestL2:  nearestL2ForTier(centroid, l2Notes, tiers),
+				ID:           clusterID,
+				Phrase:       pc.phrase,
+				Size:         len(members),
+				Silhouette:   pc.report.silhouettesByID[clusterID],
+				Members:      members,
+				NearestL3:    nearestL3ForTier(centroid, l3Notes, tiers),
+				CandidateL2s: candidateL2sStub(centroid, l2Notes, tiers),
 			})
 		}
 	}

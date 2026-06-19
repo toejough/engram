@@ -55,12 +55,12 @@ func TestRunQuery_ChunkClustersCarryNearestL2(t *testing.T) {
 
 	var parsed struct {
 		Clusters []struct {
-			Phrase    string `yaml:"phrase"`
-			Size      int    `yaml:"size"`
-			NearestL2 *struct {
+			Phrase       string `yaml:"phrase"`
+			Size         int    `yaml:"size"`
+			CandidateL2s []struct {
 				Path   string  `yaml:"path"`
 				Cosine float32 `yaml:"cosine"`
-			} `yaml:"nearest_l2"`
+			} `yaml:"candidate_l2s"`
 		} `yaml:"clusters"`
 	}
 	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
@@ -72,7 +72,7 @@ func TestRunQuery_ChunkClustersCarryNearestL2(t *testing.T) {
 		if c.Phrase == "chunks" {
 			chunkClusters++
 
-			if c.NearestL2 != nil && c.NearestL2.Path != "" {
+			if len(c.CandidateL2s) > 0 && c.CandidateL2s[0].Path != "" {
 				withNearest++
 			}
 		}

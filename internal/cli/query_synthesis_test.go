@@ -309,6 +309,62 @@ func TestQuery_Synthesis_SingleMemberUnionYieldsOneCluster(t *testing.T) {
 	g.Expect(parsed.Clusters[0].Members[0].IsRepresentative).To(BeTrue())
 }
 
+// TestQuery_SynthesizeL2_EmitsCandidateL2sSlice verifies the payload emits a
+// candidate_l2s sequence per cluster (the plural top-K form) and no longer
+// carries the singular nearest_l2 key.
+func TestQuery_SynthesizeL2_EmitsCandidateL2sSlice(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	queryVec := []float32{1, 0, 0, 0}
+
+	for i := range 4 {
+		plantDualVector(t, memFS, vault, fmt.Sprintf("%d.ep.md", i+1),
+			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
+	}
+
+	plantDualVector(t, memFS, vault, "near.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: queryVec}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, SynthesizeL2: true},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var raw map[string]any
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &raw)).NotTo(HaveOccurred())
+
+	clusters, ok := raw["clusters"].([]any)
+	g.Expect(ok).To(BeTrue(), "clusters must be a sequence")
+	g.Expect(clusters).NotTo(BeEmpty())
+
+	first, ok := clusters[0].(map[string]any)
+	g.Expect(ok).To(BeTrue(), "a cluster must be a mapping")
+
+	_, hasOld := first["nearest_l2"]
+	g.Expect(hasOld).To(BeFalse(), "nearest_l2 must be removed; use candidate_l2s")
+
+	candidates, hasCandidates := first["candidate_l2s"]
+	g.Expect(hasCandidates).To(BeTrue(), "candidate_l2s must appear in synthesize-l2 cluster output")
+
+	_, isSlice := candidates.([]any)
+	g.Expect(isSlice).To(BeTrue(), "candidate_l2s must be a sequence, not a scalar")
+}
+
 // TestQuery_SynthesizeL2_EmitsRawCosineNoBand verifies that a cluster whose
 // centroid is FAR from the only L2 still emits nearest_l2 with that raw low
 // cosine — the binary applies no <0.80 cutoff (the skill bands later).
@@ -343,10 +399,10 @@ func TestQuery_SynthesizeL2_EmitsRawCosineNoBand(t *testing.T) {
 	sawSubBandRawCosine := false
 
 	for _, cluster := range parsed.Clusters {
-		g.Expect(cluster.NearestL2).NotTo(BeNil(), "a far L2 is still emitted; the binary applies no band cutoff")
-		g.Expect(cluster.NearestL2.Cosine).To(BeNumerically(">", float32(0.0)))
+		g.Expect(cluster.CandidateL2s).NotTo(BeEmpty(), "a far L2 is still emitted; the binary applies no band cutoff")
+		g.Expect(cluster.CandidateL2s[0].Cosine).To(BeNumerically(">", float32(0.0)))
 
-		if cluster.NearestL2.Cosine < 0.8 {
+		if cluster.CandidateL2s[0].Cosine < 0.8 {
 			sawSubBandRawCosine = true
 		}
 	}
@@ -428,8 +484,8 @@ func TestQuery_SynthesizeL2_NearDuplicateL2_CosineAtLeast095(t *testing.T) {
 	parsed := runSynthesizeL2(t, memFS, vault)
 
 	g.Expect(parsed.Clusters).NotTo(BeEmpty())
-	g.Expect(parsed.Clusters[0].NearestL2).NotTo(BeNil())
-	g.Expect(parsed.Clusters[0].NearestL2.Cosine).To(BeNumerically(">=", float32(0.95)))
+	g.Expect(parsed.Clusters[0].CandidateL2s).NotTo(BeEmpty())
+	g.Expect(parsed.Clusters[0].CandidateL2s[0].Cosine).To(BeNumerically(">=", float32(0.95)))
 }
 
 // TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered locks the
@@ -488,11 +544,11 @@ func TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered(t *testing.T)
 		}
 	}
 
-	// ...yet it still surfaces as nearest_l2 (index gathered from FULL hits).
+	// ...yet it still surfaces in candidate_l2s (index gathered from FULL hits).
 	for _, cluster := range parsed.Clusters {
-		g.Expect(cluster.NearestL2).NotTo(BeNil(),
-			"nearest_l2 is gathered from every vault L2, not just clustered members")
-		g.Expect(cluster.NearestL2.Path).To(Equal("3.fact.md"))
+		g.Expect(cluster.CandidateL2s).NotTo(BeEmpty(),
+			"candidate_l2s is gathered from every vault L2, not just clustered members")
+		g.Expect(cluster.CandidateL2s[0].Path).To(Equal("3.fact.md"))
 	}
 }
 
@@ -516,8 +572,8 @@ func TestQuery_SynthesizeL2_NearestL2PresentWhenL2Exists(t *testing.T) {
 	g.Expect(parsed.Clusters).NotTo(BeEmpty())
 
 	for _, c := range parsed.Clusters {
-		g.Expect(c.NearestL2).NotTo(BeNil(), "an existing matching L2 must surface as nearest_l2")
-		g.Expect(c.NearestL2.Path).To(Equal("2.fact.md"))
+		g.Expect(c.CandidateL2s).NotTo(BeEmpty(), "an existing matching L2 must surface in candidate_l2s")
+		g.Expect(c.CandidateL2s[0].Path).To(Equal("2.fact.md"))
 	}
 }
 
@@ -541,7 +597,7 @@ func TestQuery_SynthesizeL2_NoL2_NearestL2Nil(t *testing.T) {
 	g.Expect(parsed.Clusters).NotTo(BeEmpty())
 
 	for _, c := range parsed.Clusters {
-		g.Expect(c.NearestL2).To(BeNil(), "no L2 in vault means no nearest_l2")
+		g.Expect(c.CandidateL2s).To(BeEmpty(), "no L2 in vault means no candidate_l2s")
 	}
 }
 
