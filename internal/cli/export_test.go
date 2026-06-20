@@ -133,16 +133,16 @@ func ExportBreakRepresentativeTie(
 	scoreB float32,
 	pathB string,
 ) string {
-	subgraph := matchedSet{
+	matchSet := matchedSet{
 		members: []matchedMember{
 			{notePath: pathA, score: scoreA, vector: []float32{1, 0}},
 			{notePath: pathB, score: scoreB, vector: []float32{1, 0}},
 		},
 	}
 
-	winnerIdx := breakRepresentativeTie(subgraph, 0, 1)
+	winnerIdx := breakRepresentativeTie(matchSet, 0, 1)
 
-	return subgraph.members[winnerIdx].notePath
+	return matchSet.members[winnerIdx].notePath
 }
 
 // ExportBuildChunkIDSet exposes buildChunkIDSet for validation tests.
@@ -184,7 +184,7 @@ func ExportMergeClusterReps(
 		}
 	}
 
-	subgraph := matchedSet{members: members}
+	matchSet := matchedSet{members: members}
 
 	clusters := clusterReport{
 		representatives: make([]int, 0),
@@ -201,7 +201,7 @@ func ExportMergeClusterReps(
 	}
 
 	byBasename := make(map[string]*resolvedItem)
-	mergeClusterReps(subgraph, clusters, byBasename)
+	mergeClusterReps(matchSet, clusters, byBasename)
 
 	result := make([]ExportMergeClusterRepsEntry, 0, len(byBasename))
 	for _, item := range byBasename {

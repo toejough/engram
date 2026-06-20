@@ -77,7 +77,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return errQueryNoEmbeddings
 	}
 
-	return runSynthesizeL2Query(ctx, args, notes, hits, limit, deps, stdout)
+	return runQuery(ctx, args, notes, hits, limit, deps, stdout)
 }
 
 // unexported constants.
@@ -117,14 +117,14 @@ const (
 	// to the recency channel (Channel 2, Phase 2). Defined here in Phase 0
 	// so it is available as a named constant before Phase 2 lands.
 	recentFillChunks = 200
+	// singleClusterPhrase is the empty phrase tag on the single synthesis
+	// cluster, which spans all seed phrases rather than any one of them.
+	singleClusterPhrase = ""
 	// singletonClusterSilhouette is the silhouette reported for the K=0->one
 	// synthesis fallback cluster. Silhouette is undefined for a single
 	// cluster, so zero stands in.
 	singletonClusterSilhouette = 0.0
-	// synthesisClusterPhrase tags synthesis union clusters. They span every
-	// seed phrase rather than one, so the per-phrase phrase tag is left empty.
-	synthesisClusterPhrase = ""
-	unknownKind            = "unknown"
+	unknownKind                = "unknown"
 )
 
 // unexported variables.
@@ -206,7 +206,7 @@ type matchedSet struct {
 }
 
 // matchedSetItem is the unified per-phrase ranking element used by
-// buildSynthesisMatchedSet. It holds the common fields needed for
+// buildMatchedSetFromPhrases. It holds the common fields needed for
 // dedup/floor/cap and carries either a note or a chunk.
 type matchedSetItem struct {
 	key       string  // notePath for notes; source#anchor for chunks
@@ -339,7 +339,7 @@ type sidecarLoadResult struct {
 // (so they cluster with notes — D1) and returns the parallel resolvedItem
 // slice for items[]. Chunks are sorted by score desc so items[] presents them
 // newest-most-relevant first within the chunk block.
-func addMatchedChunksToMatchedSet(chunkUnion []scoredChunk, subgraph *matchedSet) []resolvedItem {
+func addMatchedChunksToMatchedSet(chunkUnion []scoredChunk, matchSet *matchedSet) []resolvedItem {
 	sort.SliceStable(chunkUnion, func(i, j int) bool {
 		return chunkUnion[i].score > chunkUnion[j].score
 	})
@@ -348,7 +348,7 @@ func addMatchedChunksToMatchedSet(chunkUnion []scoredChunk, subgraph *matchedSet
 
 	for _, scored := range chunkUnion {
 		path := chunkNotePath(scored.record)
-		subgraph.members = append(subgraph.members, matchedMember{
+		matchSet.members = append(matchSet.members, matchedMember{
 			basename: path,
 			notePath: path,
 			content:  scored.record.Text,
@@ -509,9 +509,9 @@ func bestVector(queryVec []float32, sidecar embed.Sidecar) (float32, []float32) 
 // breakRepresentativeTie returns whichever of two member indices wins
 // the secondary tiebreakers: higher direct-hit score, then lexicographic
 // notePath ascending.
-func breakRepresentativeTie(subgraph matchedSet, a, b int) int {
-	memberA := subgraph.members[a]
-	memberB := subgraph.members[b]
+func breakRepresentativeTie(matchSet matchedSet, a, b int) int {
+	memberA := matchSet.members[a]
+	memberB := matchSet.members[b]
 
 	switch {
 	case memberA.score > memberB.score:
@@ -543,6 +543,43 @@ func buildMatchedSet(union []scoredCandidate) matchedSet {
 	}
 
 	return matchedSet{members: members}
+}
+
+// buildMatchedSetFromPhrases performs per-phrase unified note+chunk matching for
+// the --synthesize-l2 path. For each phrase it embeds once, scores notes and
+// chunks with recency bias, merges into one list (top-matchPhraseLimit=30 per
+// phrase), then unions across phrases with dedup, relevance floor, and cap.
+// Returns matched notes and chunks as separate slices sorted by key.
+func buildMatchedSetFromPhrases(
+	ctx context.Context,
+	phrases []string,
+	hits []compatibleSidecar,
+	records []chunk.Record,
+	vault string,
+	now time.Time,
+	maxTurnBySrc map[string]int,
+	deps QueryDeps,
+) ([]scoredCandidate, []scoredChunk, error) {
+	recency := defaultRecencyParams()
+	byKey := make(map[string]matchedSetItem)
+
+	for _, phrase := range phrases {
+		queryVec, embedErr := deps.Embedder.Embed(ctx, phrase)
+		if embedErr != nil {
+			return nil, nil, fmt.Errorf("query: embed: %w", embedErr)
+		}
+
+		noteHits := rankCandidates(hits, vault, deps.Read, queryVec, now)
+		chunkHits := scoreChunkForPhrase(queryVec, records, now, maxTurnBySrc, recency)
+
+		mergePhraseIntoUnion(noteHits, chunkHits, byKey)
+	}
+
+	matched := applyFloorAndCap(byKey)
+
+	notes, chunks := splitMatchedSet(matched)
+
+	return notes, chunks, nil
 }
 
 // buildRecentFillItems returns the un-clustered recency-channel items for
@@ -591,43 +628,6 @@ func buildRecentFillItems(allRecords []chunk.Record, matchedChunks []scoredChunk
 	return out
 }
 
-// buildSynthesisMatchedSet performs per-phrase unified note+chunk matching for
-// the --synthesize-l2 path. For each phrase it embeds once, scores notes and
-// chunks with recency bias, merges into one list (top-matchPhraseLimit=30 per
-// phrase), then unions across phrases with dedup, relevance floor, and cap.
-// Returns matched notes and chunks as separate slices sorted by key.
-func buildSynthesisMatchedSet(
-	ctx context.Context,
-	phrases []string,
-	hits []compatibleSidecar,
-	records []chunk.Record,
-	vault string,
-	now time.Time,
-	maxTurnBySrc map[string]int,
-	deps QueryDeps,
-) ([]scoredCandidate, []scoredChunk, error) {
-	recency := defaultRecencyParams()
-	byKey := make(map[string]matchedSetItem)
-
-	for _, phrase := range phrases {
-		queryVec, embedErr := deps.Embedder.Embed(ctx, phrase)
-		if embedErr != nil {
-			return nil, nil, fmt.Errorf("query: embed: %w", embedErr)
-		}
-
-		noteHits := rankCandidates(hits, vault, deps.Read, queryVec, now)
-		chunkHits := scoreChunkForPhrase(queryVec, records, now, maxTurnBySrc, recency)
-
-		mergePhraseIntoUnion(noteHits, chunkHits, byKey)
-	}
-
-	matched := applyFloorAndCap(byKey)
-
-	notes, chunks := splitMatchedSet(matched)
-
-	return notes, chunks, nil
-}
-
 // chunksConfigured reports whether a chunk index is wired into this run
 // (non-empty chunks dir and a list function available).
 func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
@@ -638,11 +638,11 @@ func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
 // single cluster (Phase 3, within-cluster nomination). Only matched members
 // whose kind is NOT chunkItemKind are included; chunk members are skipped.
 // An empty index (no note members) yields an empty candidateNoteIndex{}.
-func clusterNoteIndexFromMembers(subgraph matchedSet, memberIndices []int) candidateNoteIndex {
+func clusterNoteIndexFromMembers(matchSet matchedSet, memberIndices []int) candidateNoteIndex {
 	idx := candidateNoteIndex{}
 
 	for _, i := range memberIndices {
-		member := subgraph.members[i]
+		member := matchSet.members[i]
 		if member.kind == chunkItemKind {
 			continue
 		}
@@ -659,13 +659,13 @@ func clusterNoteIndexFromMembers(subgraph matchedSet, memberIndices []int) candi
 // AutoK returning K==0 (no split beats the silhouette floor) or an error, falls
 // back to a SINGLE cluster of all members so a non-empty matched set always yields
 // >=1 cluster. An empty matched set yields an empty (K==0) report.
-func clusterUnionForSynthesis(subgraph matchedSet, query string) clusterReport {
-	if len(subgraph.members) == 0 {
+func clusterUnionForSynthesis(matchSet matchedSet, query string) clusterReport {
+	if len(matchSet.members) == 0 {
 		return clusterReport{}
 	}
 
-	vectors := make([][]float32, len(subgraph.members))
-	for i, member := range subgraph.members {
+	vectors := make([][]float32, len(matchSet.members))
+	for i, member := range matchSet.members {
 		vectors[i] = member.vector
 	}
 
@@ -673,7 +673,7 @@ func clusterUnionForSynthesis(subgraph matchedSet, query string) clusterReport {
 
 	autoK, err := cluster.AutoK(vectors, clusterMinK, clusterMaxK, clusterSilhouetteFloor, seed)
 	if err != nil || autoK.K == 0 {
-		return singleClusterReport(subgraph, vectors)
+		return singleClusterReport(matchSet, vectors)
 	}
 
 	memberIDs := make([][]int, autoK.K)
@@ -688,7 +688,7 @@ func clusterUnionForSynthesis(subgraph matchedSet, query string) clusterReport {
 	representatives := make([]int, autoK.K)
 
 	for c := range autoK.K {
-		representatives[c] = pickRepresentative(subgraph, memberIDs[c], autoK.Centroids[c])
+		representatives[c] = pickRepresentative(matchSet, memberIDs[c], autoK.Centroids[c])
 	}
 
 	return clusterReport{
@@ -700,13 +700,11 @@ func clusterUnionForSynthesis(subgraph matchedSet, query string) clusterReport {
 }
 
 // collectClusterMembers gathers per-cluster member rows in score-desc
-// order, marking the representative. When tiers is non-empty, members whose
-// frontmatter tier matches none of them are dropped (T1a tier isolation); if
-// the elected representative is among those dropped, the highest-scoring
-// surviving member is promoted so every non-empty cluster still reports
-// exactly one representative.
+// order, marking the representative. If the elected representative is somehow
+// absent from the member list, the highest-scoring member is promoted so
+// every non-empty cluster still reports exactly one representative.
 func collectClusterMembers(
-	subgraph matchedSet,
+	matchSet matchedSet,
 	report clusterReport,
 	clusterID int,
 ) []queryClusterMember {
@@ -714,7 +712,7 @@ func collectClusterMembers(
 	copy(memberIndices, report.memberIDs[clusterID])
 
 	sort.SliceStable(memberIndices, func(i, j int) bool {
-		return subgraph.members[memberIndices[i]].score > subgraph.members[memberIndices[j]].score
+		return matchSet.members[memberIndices[i]].score > matchSet.members[memberIndices[j]].score
 	})
 
 	repIdx := report.representatives[clusterID]
@@ -722,7 +720,7 @@ func collectClusterMembers(
 	repRetained := false
 
 	for _, idx := range memberIndices {
-		member := subgraph.members[idx]
+		member := matchSet.members[idx]
 		isRep := idx == repIdx
 
 		if isRep {
@@ -939,16 +937,16 @@ func meanVector(vectors [][]float32) []float32 {
 // mergeClusterReps annotates representatives with provenance + cluster_id,
 // adding new entries when a rep is not already a direct hit.
 func mergeClusterReps(
-	subgraph matchedSet,
+	matchSet matchedSet,
 	clusters clusterReport,
 	byBasename map[string]*resolvedItem,
 ) {
 	for clusterID, memberIdx := range clusters.representatives {
-		if memberIdx < 0 || memberIdx >= len(subgraph.members) {
+		if memberIdx < 0 || memberIdx >= len(matchSet.members) {
 			continue
 		}
 
-		member := subgraph.members[memberIdx]
+		member := matchSet.members[memberIdx]
 
 		resolved := byBasename[member.basename]
 		if resolved == nil {
@@ -1056,7 +1054,7 @@ func mergePhraseIntoUnion(
 // renderer to keep this stage pure.
 func mergeProvenances(
 	directHits []scoredCandidate,
-	subgraph matchedSet,
+	matchSet matchedSet,
 	clusters clusterReport,
 ) []resolvedItem {
 	byBasename := make(map[string]*resolvedItem)
@@ -1078,7 +1076,7 @@ func mergeProvenances(
 		appendUniqueProvenance(resolved, provenanceDirect)
 	}
 
-	mergeClusterReps(subgraph, clusters, byBasename)
+	mergeClusterReps(matchSet, clusters, byBasename)
 
 	// Drain the map in basename-sorted order so the pre-sort slice
 	// shape is deterministic. The final sort below is stable, so any
@@ -1178,18 +1176,18 @@ func perClusterMeanSilhouette(vectors [][]float32, assignments []int, clusterCou
 // pickRepresentative returns the matched-member index closest to the
 // centroid by cosine distance. Ties broken by direct-hit score desc,
 // then by lexicographic path.
-func pickRepresentative(subgraph matchedSet, memberIndices []int, centroid []float32) int {
+func pickRepresentative(matchSet matchedSet, memberIndices []int, centroid []float32) int {
 	best := memberIndices[0]
-	bestDist := cluster.CosineDistance(subgraph.members[best].vector, centroid)
+	bestDist := cluster.CosineDistance(matchSet.members[best].vector, centroid)
 
 	for _, idx := range memberIndices[1:] {
-		dist := cluster.CosineDistance(subgraph.members[idx].vector, centroid)
+		dist := cluster.CosineDistance(matchSet.members[idx].vector, centroid)
 		switch {
 		case dist < bestDist:
 			best = idx
 			bestDist = dist
 		case dist == bestDist:
-			best = breakRepresentativeTie(subgraph, best, idx)
+			best = breakRepresentativeTie(matchSet, best, idx)
 		}
 	}
 
@@ -1310,7 +1308,7 @@ func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
 
 // renderItems converts resolved items into the YAML wire-shape items.
 // outgoing maps a note basename to its authored wikilink targets so each
-// item carries the basenames one hop away (for follow-on `engram show`).
+// item carries the basenames of its authored wikilink targets (for follow-on `engram show`).
 func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryItem {
 	items := make([]queryItem, len(resolved))
 
@@ -1401,13 +1399,13 @@ func resolvedItemLess(a, b resolvedItem) bool {
 	return a.score > b.score
 }
 
-// runSynthesizeL2Query is the sole query path. For each phrase it embeds once,
+// runQuery is the sole query path. For each phrase it embeds once,
 // scores notes and chunks with recency bias, merges into one ranked list
 // (top-matchPhraseLimit=30 per phrase), then unions across phrases with dedup,
 // relevance floor on baseScore, and a hard cap at matchSetCap=300. The
 // resulting matched set is clustered exactly once (D1) and emits per-cluster
 // candidate_l2s [{path, cosine}] so the recall skill can judge coverage.
-func runSynthesizeL2Query(
+func runQuery(
 	ctx context.Context,
 	args QueryArgs,
 	notes []vaultgraph.Note,
@@ -1426,7 +1424,7 @@ func runSynthesizeL2Query(
 		return loadErr
 	}
 
-	noteUnion, chunkUnion, matchErr := buildSynthesisMatchedSet(
+	noteUnion, chunkUnion, matchErr := buildMatchedSetFromPhrases(
 		ctx, args.Phrases, hits, chunkRecords,
 		args.VaultPath, nowL2, maxTurnBySource(chunkRecords), deps,
 	)
@@ -1436,10 +1434,10 @@ func runSynthesizeL2Query(
 
 	// D1: build the matched set from the note union, then extend with matched chunks
 	// so one AutoK pass clusters notes and chunks together.
-	subgraph := buildMatchedSet(noteUnion)
-	chunkItems := addMatchedChunksToMatchedSet(chunkUnion, &subgraph)
+	matchSet := buildMatchedSet(noteUnion)
+	chunkItems := addMatchedChunksToMatchedSet(chunkUnion, &matchSet)
 
-	report := clusterUnionForSynthesis(subgraph, strings.Join(args.Phrases, "\n"))
+	report := clusterUnionForSynthesis(matchSet, strings.Join(args.Phrases, "\n"))
 
 	// mergeProvenances receives an empty matchedSet{} deliberately:
 	// mergeClusterReps must not promote cluster reps into items[] because
@@ -1459,7 +1457,7 @@ func runSynthesizeL2Query(
 	merged := aggregatedSummary{
 		phrases:        args.Phrases,
 		resolvedItems:  resolved,
-		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, matched: subgraph}},
+		phraseClusters: []phrasedCluster{{phrase: singleClusterPhrase, report: report, matched: matchSet}},
 		// candidate_l2s are nominated from each cluster's own note members
 		// (Phase 3, within-cluster nomination), not the full-vault index.
 		outgoing:       outgoingByBasename(notes),
@@ -1484,14 +1482,14 @@ func seedFromQuery(query string) uint64 {
 // member, with a centroid computed as the mean of all member vectors (AutoK
 // returns nil centroids when K==0) and a representative picked the normal way.
 // Silhouette is undefined for a single cluster, so it is reported as zero.
-func singleClusterReport(subgraph matchedSet, vectors [][]float32) clusterReport {
-	allIndices := make([]int, len(subgraph.members))
+func singleClusterReport(matchSet matchedSet, vectors [][]float32) clusterReport {
+	allIndices := make([]int, len(matchSet.members))
 	for i := range allIndices {
 		allIndices[i] = i
 	}
 
 	centroid := meanVector(vectors)
-	rep := pickRepresentative(subgraph, allIndices, centroid)
+	rep := pickRepresentative(matchSet, allIndices, centroid)
 
 	return clusterReport{
 		autoK:           cluster.AutoKResult{K: 1, Centroids: [][]float32{centroid}},
