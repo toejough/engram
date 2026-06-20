@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"context"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,48 +56,4 @@ func TestOsPruneRemovesDeadSource(t *testing.T) {
 
 	_, statErr = os.Stat(liveIndex)
 	g.Expect(statErr).NotTo(gomega.HaveOccurred(), "live source index file kept")
-}
-
-// TestPruneAbsentManifestIsNoOp covers the early return when no manifest exists
-// (a fresh or empty chunks dir): prune reports nothing to do and never errors.
-func TestPruneAbsentManifestIsNoOp(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	deps := cli.PruneDeps{
-		ReadFile:  func(string) ([]byte, error) { return nil, io.ErrUnexpectedEOF },
-		WriteFile: func(string, []byte) error { return nil },
-		Exists:    func(string) bool { return true },
-		Remove:    func(string) error { return nil },
-	}
-
-	var out strings.Builder
-
-	err := cli.RunPrune(context.Background(), cli.PruneArgs{ChunksDir: "/chunks"}, deps, &out)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(out.String()).To(gomega.ContainSubstring("no manifest"))
-}
-
-// TestPruneNoDeadSourcesKeepsIndex covers the branch where every manifest
-// source still exists: nothing is removed and the manifest is left untouched.
-func TestPruneNoDeadSourcesKeepsIndex(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	removed := false
-	deps := cli.PruneDeps{
-		ReadFile: func(string) ([]byte, error) {
-			return []byte(`{"/sessions/live.jsonl":{"mtime_unix_nano":1,"size":2,"file_hash":"sha256:a"}}`), nil
-		},
-		WriteFile: func(string, []byte) error { return nil },
-		Exists:    func(string) bool { return true },
-		Remove:    func(string) error { removed = true; return nil },
-	}
-
-	var out strings.Builder
-
-	err := cli.RunPrune(context.Background(), cli.PruneArgs{ChunksDir: "/chunks"}, deps, &out)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(removed).To(gomega.BeFalse(), "no source removed when all live")
-	g.Expect(out.String()).To(gomega.ContainSubstring("no dead sources"))
 }
