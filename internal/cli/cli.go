@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-
-	"github.com/toejough/engram/internal/transcript"
 )
 
 // unexported constants.
@@ -22,45 +20,6 @@ const (
 var (
 	errNotADirectory = errors.New("not a directory")
 )
-
-// osDirLister lists .jsonl files in a directory using os.ReadDir.
-type osDirLister struct{}
-
-func (l *osDirLister) ListJSONL(dir string) ([]transcript.FileEntry, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-
-		return nil, fmt.Errorf("listing directory: %w", err)
-	}
-
-	results := make([]transcript.FileEntry, 0, len(entries))
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-		if !strings.HasSuffix(name, ".jsonl") {
-			continue
-		}
-
-		info, infoErr := entry.Info()
-		if infoErr != nil {
-			continue
-		}
-
-		results = append(results, transcript.FileEntry{
-			Path:  filepath.Join(dir, name),
-			Mtime: info.ModTime(),
-		})
-	}
-
-	return results, nil
-}
 
 // I/O adapters for context package DI interfaces.
 

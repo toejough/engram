@@ -8,7 +8,6 @@ import (
 
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/embed"
-	"github.com/toejough/engram/internal/transcript"
 )
 
 // Exported variables.
@@ -195,11 +194,6 @@ func ExportNewOsChunkQueryDeps(emb embed.Embedder) ChunkQueryDeps {
 
 // ExportNewOsCommander returns the production Commander adapter for testing.
 func ExportNewOsCommander() *osCommander { return &osCommander{} }
-
-// ExportNewOsDirLister creates an osDirLister for testing.
-func ExportNewOsDirLister() transcript.DirLister {
-	return &osDirLister{}
-}
 
 // ExportNewOsEmbedDeps returns production EmbedDeps with an injected
 // embedder so coverage tests can drive Read/Write/Scan without going

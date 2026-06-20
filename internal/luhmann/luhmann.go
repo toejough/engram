@@ -4,8 +4,6 @@ package luhmann
 import (
 	"errors"
 	"fmt"
-	"sort"
-	"strconv"
 	"strings"
 	"unicode"
 )
@@ -41,31 +39,6 @@ func FromBasename(basename string) (string, bool) {
 	}
 
 	return candidate, true
-}
-
-// Less reports whether ID a sorts before ID b in tree order: parent before
-// children, numeric segments compared numerically, alphabetic segments via
-// LetterLess.
-func Less(a, b string) bool {
-	aSegs, _ := ParseID(a)
-	bSegs, _ := ParseID(b)
-
-	for idx := 0; idx < len(aSegs) && idx < len(bSegs); idx++ {
-		if aSegs[idx] == bSegs[idx] {
-			continue
-		}
-
-		if unicode.IsDigit(rune(aSegs[idx][0])) {
-			aNum, _ := strconv.Atoi(aSegs[idx])
-			bNum, _ := strconv.Atoi(bSegs[idx])
-
-			return aNum < bNum
-		}
-
-		return LetterLess(aSegs[idx], bSegs[idx])
-	}
-
-	return len(aSegs) < len(bSegs)
 }
 
 // LetterLess reports whether letter segment a sorts before b in Luhmann
@@ -115,11 +88,4 @@ func ParseID(id string) ([]string, error) {
 	segments = append(segments, string(current))
 
 	return segments, nil
-}
-
-// SortIDs sorts ids in tree order (mutates input).
-func SortIDs(ids []string) {
-	sort.Slice(ids, func(i, j int) bool {
-		return Less(ids[i], ids[j])
-	})
 }

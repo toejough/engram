@@ -1,34 +1,15 @@
-// Package transcript finds and reads Claude Code session transcripts.
-// It provides SessionFinder (locates transcript files sorted by recency)
-// and JSONLReader (reads and strips transcript noise with a byte budget).
+// Package transcript reads Claude Code session transcripts.
+// JSONLReader reads and strips transcript noise with a byte budget.
 package transcript
 
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
 	sessionctx "github.com/toejough/engram/internal/context"
 )
-
-// DirLister lists .jsonl files in a directory with their modification times.
-type DirLister interface {
-	ListJSONL(dir string) ([]FileEntry, error)
-}
-
-// FileEntry represents a transcript file with its path and modification time.
-type FileEntry struct {
-	Path   string
-	Mtime  time.Time
-	Source string
-}
-
-// Finder finds session transcript files.
-type Finder interface {
-	Find(dirs ...string) ([]FileEntry, error)
-}
 
 // JSONLReader reads session transcripts and strips noise.
 type JSONLReader struct {
@@ -155,48 +136,9 @@ type SegmentsResult struct {
 	Partial  bool
 }
 
-// SessionFinder finds Claude Code session transcript files for a project.
-type SessionFinder struct {
-	lister DirLister
-}
-
-// NewSessionFinder creates a SessionFinder with the given directory lister.
-func NewSessionFinder(lister DirLister) *SessionFinder {
-	return &SessionFinder{lister: lister}
-}
-
-// Find returns transcript entries from all directories, merged and sorted by
-// mtime descending (newest first). Missing directories are silently skipped.
-func (f *SessionFinder) Find(dirs ...string) ([]FileEntry, error) {
-	seen := make(map[string]struct{})
-	all := make([]FileEntry, 0)
-
-	for _, dir := range dirs {
-		entries, err := f.lister.ListJSONL(dir)
-		if err != nil {
-			return nil, fmt.Errorf("listing sessions in %s: %w", dir, err)
-		}
-
-		for _, e := range entries {
-			if _, ok := seen[e.Path]; !ok {
-				seen[e.Path] = struct{}{}
-				e.Source = sourceClaude
-				all = append(all, e)
-			}
-		}
-	}
-
-	sort.Slice(all, func(i, j int) bool {
-		return all[i].Mtime.After(all[j].Mtime)
-	})
-
-	return all, nil
-}
-
 // unexported constants.
 const (
 	segmentPreviewLen = 100
-	sourceClaude      = "claude"
 )
 
 // accumulateWithinBudget walks lines chronologically and emits up to
