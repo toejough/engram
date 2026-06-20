@@ -18,7 +18,7 @@ flowchart TB
     cli["C2 · engram CLI<br/>Go binary — ingest/learn/query/embed/update"]
     model["C3 · Embedded model<br/>MiniLM-L6 384d, go:embed in C2"]
     vault[("C4 · Vault<br/>flat root: *.md + *.vec.json + .luhmann.lock")]
-    sessions(["S5 · Session stores (Claude .jsonl / OpenCode db)"])
+    sessions(["S5 · Session stores (Claude .jsonl)"])
     gotool(["S6 · Go toolchain"])
 
     agent -->|"runs the 7-step /please, /learn, /recall"| skills

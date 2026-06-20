@@ -1,5 +1,7 @@
 # Memory-System Rigor & Recovery Plan
 
+> **Reconciled 2026-06-20:** retired invariants marked inline below; survivors restated as-is. The L1/L2/L3 tier surface, episode kind, `--tier` flag, `nearest_l3`/`hubs` fields, and OpenCode transcript backend were removed in the recall-v2 / 2026-06-20 deep clean.
+
 Date: 2026-06-04. Owner: this effort exists because the memory system shipped
 structural breaks that went uncaught for a long time, and the testing cycle
 never validated the system's own internals — only downstream build conformance.
@@ -8,14 +10,9 @@ This document is the durable plan + the trust mechanism. Do not drop a phase.
 ## 0. The trust break (what went wrong, honestly)
 
 Confirmed broken (survived the Phase-0 antagonist round):
-- **L1↔L2 linking** (binary-real graph, per the G0 finding): **87/106** L2 facts/feedback cite no
-  *resolved* L1 episode; **138/171** notes are fully isolated (0 in + 0 out). My first count (28
-  orphaned, 23 isolated) was ID-aware like Obsidian and overstated the binary's real graph ~6×;
-  the G0 link-form bug is why. Canonical census: [memory-invariants](2026-06-04-memory-invariants.md) KEYSTONE.
-- **L2→L3 synthesis**: 1 real `tier: L3` ADR from 106 L2 facts; per-pass
-  write-sparsity starves AutoK so clusters rarely form at write time.
-- **INV-E4 episode freshness hash** (code-verified): situation edits invisible to the
-  staleness check across all 64 L1 notes.
+- **L1↔L2 linking** **[RETIRED — L1 episode kind removed; `--chunk-source` frontmatter provenance is now the L1 evidence link, not wikilinks to episode notes.]** ~~87/106 L2 facts/feedback cite no resolved L1 episode.~~ The G0 link-form bug (bare-id vs basename) still affects `BuildGraph` and is relevant to `check`/`amend`. Canonical census: [memory-invariants](2026-06-04-memory-invariants.md) KEYSTONE.
+- **L2→L3 synthesis** **[RETIRED — L3 note kind and `tier: L3` removed in recall-v2.]** ~~1 real `tier: L3` ADR from 106 L2 facts.~~
+- **INV-E4 episode freshness hash** **[RETIRED — episode kind removed; no disjoint situation-vs-body hash issue for fact/feedback (both embed and hash body).]** ~~situation edits invisible to staleness check across all 64 L1 notes.~~
 - **M2-segments path marker over-advance** (NEW, antagonist-found, code-verified):
   `emitSegments` advances the marker to file Mtime even when `SegmentsFrom` truncated at
   the byte budget (no `Partial` on the segments path) — violates 5c16c784's own invariant
@@ -27,14 +24,9 @@ L2 + 29 L1; not tier-isolating" was a **channel-misread**: I counted `clusters[]
 (intentionally tier-agnostic) as `items`. Verified three ways (arithmetic, live binary
 `items: []`, frontmatter: L1 29/29, L2 11/11, L3 0): `items[]` is cleanly tier-isolated.
 This was exactly the failure mode this effort exists to prevent, and the per-phase
-adversary caught it — which is the process working. See INV-T1a/b/c.
+adversary caught it — which is the process working. **[RETIRED — `--tier` flag removed in recall-v2; INV-T1a/b/c are all retired. This historical finding remains for audit purposes.]**
 
-**Eval validity — OPEN, not settled (antagonist O-2):** since `items` IS isolated, the
-eval's tier-regime cells were not contaminated via items. They could still be contaminated
-via the **cluster-members channel** IF recall fed the whole query payload (all tiers) to
-the building agent instead of items-only. So "tier-regime results are suspect" is an **open
-question pending a check of what recall actually consumes** — neither invalidated (my wrong
-mechanism) nor rescued. Phase 6 resolves it.
+**Eval validity — OPEN, not settled (antagonist O-2):** **[RETIRED — the tier-regime eval and the `--tier L3` query it relied on were removed in recall-v2. The open question is moot.]** ~~tier-regime cells contamination via cluster-members channel — neither invalidated nor rescued. Phase 6 resolves it.~~
 
 ### Added by the Phase-0 antagonist (missed contracts → new invariants)
 - **INV-K1 (vault write-lock):** concurrent `engram learn` never computes the same next
@@ -47,8 +39,8 @@ mechanism) nor rescued. Phase 6 resolves it.
 
 Needs-check (status unknown — Phase 6 will resolve):
 - dangling wikilinks; stale embeddings (body changed, sidecar didn't);
-  episode-provenance validity; near-duplicate notes; whether recall's
-  graph-expansion actually traverses links; whether rebuilt facts are *good*.
+  near-duplicate notes; whether rebuilt facts are *good*.
+- **[RETIRED from needs-check: episode-provenance validity (episode kind removed); whether recall's graph-expansion actually traverses links (subgraph/hub path removed).]**
 
 **Discovered during Phase 3 (sequence-diagram grounding) — verify in Phase 6:**
 - **INV-S1 — the skill layer touches the vault DIRECTLY in two spots**, contradicting c2's
@@ -76,15 +68,11 @@ checks, an adversary reviews the design, and the user gates the build.
 Every documented defect was re-confirmed by **running checks against the REAL vault**, not asserted:
 - **G0:** 183 wikilink-instances → 151 bare-id + 28 basename-form + 4 dangling; **28 resolve,
   138/171 orphaned (80%), mean out-degree 0.16.** Matches the canonical census exactly.
-- **T1a leak (live):** `engram query --tier L3` → `items[]` = {} (items isolation holds) but
-  `clusters[].members` = **37 L2 + 7 L1 + 5 L3** — 44 non-L3 leaked. This is the eval-contamination
-  the operator decision closes, and the source of the original channel-misread.
-- **M4:** all 171 sidecars `minilm-l6-v2@384` (homogeneous; swap-empties-recall risk latent + unguarded).
-- **M5:** 0 of 107 fact/feedback missing `situation` (clean, unguarded).
-- **E4/E5:** 64/64 episodes carry a non-empty `situation` (the embed source) while `ContentHash`
-  covers the body — disjoint, as documented.
-- **G5:** 22 episodes carry 34 `[[…]]` instances in their bodies, all parsed as edges with no
-  authored-vs-verbatim isolation.
+- **T1a leak (live):** **[RETIRED — `--tier` flag and `nearest_l3`/`hubs` removed in recall-v2; the tier-isolation issue is moot.]** ~~`engram query --tier L3` → `items[]` = {} but `clusters[].members` = 37 L2 + 7 L1 + 5 L3 — 44 non-L3 leaked.~~
+- **M4:** all 171 sidecars `minilm-l6-v2@384` (homogeneous; swap-empties-recall risk latent + unguarded). — **SURVIVOR**
+- **M5:** 0 of 107 fact/feedback missing `situation` (clean, unguarded). — **SURVIVOR**
+- **E4/E5:** **[RETIRED — episode kind removed; no disjoint situation/body issue for fact/feedback.]** ~~64/64 episodes carry a non-empty `situation` while `ContentHash` covers the body — disjoint.~~
+- **G5:** **[RETIRED — episode kind removed; `[[x]]` in chunk bodies are no longer parsed as vault edges.]** ~~22 episodes carry 34 `[[…]]` instances in their bodies, all parsed as edges.~~
 - **Code-verified (not vault-census-able):** M2-segments, INV-S1, INV-S2, K1, M6/M7/M8.
 
 **Finding: the documents faithfully describe the built system.** No doc claim was contradicted by
@@ -98,50 +86,28 @@ Each is phrased to be **testable** — it becomes either a vault-invariant check
 is the current best understanding; Phase 6 confirms each with evidence.
 
 ### Graph / structural integrity
-- **INV-G1 (tier ladder, downward):** every L3 ADR links to ≥1 L2; every L2
-  fact/feedback links to ≥1 L1 episode OR is explicitly flagged a pure synthesis
-  with no single source chunk. `[BROKEN: 87/106 cite no resolved L1; 0/106 under an ADR — binary-real per G0]`
-- **INV-G2 (no orphans):** no note has 0 in-links AND 0 out-links. `[BROKEN: 138/171 — binary-real per G0; earlier "23" was ID-aware]`
+- **INV-G1 (tier ladder, downward):** **[RETIRED — L1/L2/L3 tier structure and episode kind removed in recall-v2.]** ~~every L3 ADR links to ≥1 L2; every L2 links to ≥1 L1 episode.~~
+- **INV-G2 (no orphans):** no note has 0 in-links AND 0 out-links. `[BROKEN: 138/171 — binary-real per G0; earlier "23" was ID-aware]` — **SURVIVOR**
 - **INV-G3 (link validity):** every wikilink target resolves to an existing note;
-  no dangling references. `[~OK: 1 real dangling target (15a); rest were regex artifacts]`
-- **INV-G4 (provenance link):** an L2 extracted from an episode chunk links to that
-  episode; an L3 links to every constituent L2. `[partially broken]`
+  no dangling references. `[~OK: 1 real dangling target (15a); rest were regex artifacts]` — **SURVIVOR**
+- **INV-G4 (provenance link):** **[RETIRED — L2/episode wikilink provenance removed; chunk-source is now frontmatter, not wikilinks.]** ~~an L2 extracted from an episode chunk links to that episode; an L3 links to every constituent L2.~~
 
 ### Tier / retrieval correctness
-- **INV-T1a (items isolation):** `query --tier X` returns only tier-X notes in `items[]`.
-  `[VERIFIED OK — antagonist F-1: --tier L1 → 29/29 L1, --tier L2 → 11/11 L2, --tier L3 → 0
-  items. My earlier "BROKEN" was a CHANNEL-MISREAD — I counted clusters[].members (38 L1 + 37
-  L2 + 1 L3) and called them items. The filter is sound; the skill's own §6b self-verify
-  ("ADR must appear in items") depends on it working.]`
-- **INV-T1b (cluster channel is intentionally tier-agnostic):** `clusters[].members` and
-  `nearest_l3` are NOT tier-filtered — by design they drive synthesis (§6b cosine match), not
-  retrieval. Correct behavior, but the spec never named the **three channels** (items /
-  cluster-members / down-links), which is *why* it was misread. `[design gap, not a bug — must
-  be documented; **SUPERSEDED 2026-06-04** — `--tier` now constrains ALL channels (T1a), and the
-  old items-only behavior is the cross-tier leak to fix]`
-- **INV-T1c (nearest_l3 survives the filter):** `--tier` must NOT suppress `nearest_l3` (§6b
-  update-or-create depends on it under `--tier L3`). `[RETIRED 2026-06-04 — superseded by all-channel
-  T1a; §6b relies on its un-tiered query for cross-tier synthesis, not on nearest_l3 surviving --tier]`
-- **INV-T2 (tier↔kind agreement, ASYMMETRIC — re-phrased per Phase 0):** episodes must
-  be L1 (rigid); fact/feedback may be L2 **or** L3 (the `--tier` override is a feature);
-  **no note is L1 unless it is an episode.** `[OK: 0 untagged, 0 violations over 171;
-  64 L1 / 106 L2 / 1 L3]`
-- ~~INV-T3 (top-tier default)~~ **DROPPED** — it encoded the *abandoned* "top-tier-only"
-  design prose; the shipped + intended contract is **blended/kind-agnostic default**
-  (L3 design Decision 3). The real invariant is folded into INV-T1 (tier-isolation only
-  when `--tier` is passed).
+**[RETIRED — entire tier/retrieval-correctness section removed. `--tier` flag, `nearest_l3`, `hubs`, L1/L2/L3 kinds, and episode kind were all removed in recall-v2. The historical findings below are preserved for audit only.]**
+
+- **INV-T1a** **[RETIRED]** ~~`query --tier X` returns only tier-X notes in `items[]`.~~ (Was VERIFIED OK before removal.)
+- **INV-T1b** **[RETIRED]** ~~cluster channel is intentionally tier-agnostic.~~
+- **INV-T1c** **[RETIRED]** ~~`nearest_l3` survives the tier filter.~~
+- **INV-T2** **[RETIRED]** ~~tier↔kind asymmetric: episodes must be L1; fact/feedback may be L2 or L3.~~
+- **INV-T3** **[DROPPED/RETIRED]** ~~top-tier default.~~
 
 ### Embedding integrity
 - **INV-E1 (presence):** every note has a sibling `.vec.json` sidecar. `[OK: 171/171, 0 missing]`
 - **INV-E2 (freshness):** each sidecar's stored hash matches the note's current
   embed-source; no stale vectors. `[unchecked]`
-- **INV-E3 (embed source by kind):** episodes embed `situation`; facts/feedback/ADRs
-  embed body. `[verified in code: routes correctly in embed.Text]`
-- **INV-E4 (freshness-hash ⊇ embed-source):** the staleness hash must cover whatever is
-  actually embedded. `[BROKEN, verified hash.go: ContentHash hashes body, episodes embed
-  situation (frontmatter) — disjoint; situation edits invisible to staleness for all 64 L1]`
-- **INV-E5 (episode situation non-empty):** an episode's `situation` must be non-empty
-  (else embed.Text silently falls back to body, self-violating INV-E3). `[verified gap hash.go:67-69]`
+- **INV-E3** **[RETIRED — episode kind removed; all notes embed body. `embed.Text` still exists but the episode-specific `situation` branch is dead code.]** ~~episodes embed `situation`; facts/feedback/ADRs embed body.~~
+- **INV-E4** **[RETIRED — episode kind and the situation/body disjoint hash problem removed with it. For fact/feedback, body is both embedded and hashed.]** ~~freshness hash ⊇ embed source.~~
+- **INV-E5** **[RETIRED — episode kind removed; no episode `situation` field.]** ~~episode situation non-empty.~~
 
 ### Provenance / evidence
 - **INV-P1 (episode provenance valid):** every episode names ≥1 real session id whose
@@ -157,16 +123,13 @@ is the current best understanding; Phase 6 confirms each with evidence.
 
 ### Recall ↔ learn duality
 - **INV-R1 (recall-mirror):** a note written with `situation` S is retrievable by a
-  query phrased as S (learn and recall are inverse over the situation field). `[untested as a property]`
-- **INV-R2 (graph expansion really traverses links):** recall's subgraph/cluster/hub
-  computation actually uses the wikilink graph, and degrades gracefully on a sparse
-  graph. `[unchecked]`
+  query phrased as S (learn and recall are inverse over the situation field). `[untested as a property]` — **SURVIVOR**
+- **INV-R2 (graph expansion really traverses links):** **[RETIRED — recall no longer does subgraph/hub expansion; `vaultgraph` is used only by `check`/`amend`, not in the query path.]** ~~recall's subgraph/cluster/hub computation actually uses the wikilink graph.~~
 
 ### Clustering / synthesis determinism (added Phase 0)
 - **INV-C1 (clustering determinism):** k-means + silhouette + AutoK return the same
-  result given a fixed vault + phrase (recall reproducibility). `[unchecked]`
-- **INV-L3-1 (L3 match stability):** a cluster whose centroid cosine ≥0.9 to an existing
-  L3 must *update* that L3, never spawn a near-duplicate; the boundary is stable. `[unchecked]`
+  result given a fixed vault + phrase (recall reproducibility). `[unchecked]` — **SURVIVOR**
+- **INV-L3-1** **[RETIRED — L3 note kind removed; `candidate_l2s` within-cluster nomination replaced the centroid-cosine L3 match-stability gate.]** ~~a cluster whose centroid cosine ≥0.9 to an existing L3 must update that L3, never spawn a near-duplicate.~~
 
 ## 2. Deliverables & phases (do not reorder past a STOP)
 
@@ -216,7 +179,7 @@ C4 set authored and agreed: [L1](../../architecture/c1-system-context.md) /
 sequence diagrams (e.g. wikilink reads drawn inside vaultgraph that actually happen at scan time;
 `nextLuhmannID` drawn as the K10 kernel when it lives in `cli/luhmann.go`) — all fixed, then a
 round-2 antagonist agreed. Sequence + flow diagrams now exist at L1 (c1), L2 (c2 skills↔binary
-boundary), and L3 (c3 component internals), for recall / learn / §6b L3-synthesis / marker. Two
+boundary), and L3 (c3 component internals), for recall / learn / **[RETIRED: §6b L3-synthesis — L3 kind removed]** / marker. Two
 new findings surfaced and recorded for Phase 6 (INV-S1 skill→vault direct access; INV-S2 duplicated
 fact `situation`). **Phase 4 (ADRs) COMPLETE** — [10 ADRs](../../architecture/adr.md); the antagonist
 added the dual-source-reader ADR (ADR-0010) and got INV-S1/S2 promoted into the canonical invariants.
@@ -225,7 +188,4 @@ added the dual-source-reader ADR (ADR-0010) and got INV-S1/S2 promoted into the 
 additions, making the checker's severity list ambiguous) + 2 Major (stale ID-aware census in §0/§1;
 an orphaned FAIL invariant) + 2 minor; all reconciled (renumbered the Phase-1 additions to a
 contiguous M4–M8, segments bug standardized as M2-segments, census made binary-real) and a round-2
-antagonist verified internal consistency. Per the checkpoint-1 decisions, `--tier` was then tightened
-to expose only the asked-for level across ALL channels (T1a; the eval-contamination fix). Recall `--tier L3` edit remains PAUSED —
-superseded by this effort. The `--tier` filter works; what's missing is a *populated* L3 layer,
-which Phase 8 addresses via the G0 link-form + §6b synthesis fixes.
+antagonist verified internal consistency. **[RETIRED from current-status: `--tier` tightening (T1a) and `--tier L3` edit — both moot; `--tier` flag removed in recall-v2. Phase 8 G0/link-form fixes remain relevant for `engram check`/`amend`.]**

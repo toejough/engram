@@ -93,7 +93,7 @@ flowchart TB
 | ID | Component | Key functions | Responsibility | ⚠ |
 |---|---|---|---|---|
 | K1 | `internal/transcript` + `internal/context` (via `engram ingest`) | `Finder.Find`, `JSONLReader.ReadFrom`, `context.Strip`, manifest write | Find sessions; check mtime/size/hash vs `manifest.json`; re-chunk and re-embed only changed sources within a byte budget; strip harness noise; emit chunk identifiers + write/update the per-source `manifest.json` entry (mtime/size/hash staleness). | — |
-| K4 | `cli/learn.go` | `writeLearnUnderLock`, tier-default logic, `autoEmbedNote`; calls `nextLuhmannID` (in `cli/luhmann.go`) | Assign tier (fact/feedback→L2 default, `--tier` override; no `adr` kind; legacy L1/L3 still validate but are not written by default), compute next Luhmann id and write the note + sidecar atomically under `flock(.luhmann.lock)` + `O_EXCL`. | **K1-lock invariant** untested |
+| K4 | `cli/learn.go` | `writeLearnUnderLock`, `autoEmbedNote`; calls `nextLuhmannID` (in `cli/luhmann.go`) | Write fact or feedback — no tier assignment (tier/L1/L2/L3 removed in recall-v2; `--tier` flag removed); compute next Luhmann id and write the note + sidecar atomically under `flock(.luhmann.lock)` + `O_EXCL`. | **K1-lock invariant** untested |
 | K5 | `internal/embed` | `Text`, `ContentHash`, `Sidecar`, embedder (Hugot/GoMLX simplego) | Embed situation and body text; write/read dual-vector `.vec.json` (`situation_vector` + `body_vector` + `embedding_model_id` + `content_hash` + `last_used`). `bestVector` selects the axis with the higher query cosine at recall time. | **M4** (model homogeneity) |
 | K6 | `cli/query.go` | `RunQuery`, `runQuery`, `buildMatchedSetFromPhrases`, `buildRecentFillItems`, payload assembly | Single query path: per phrase embed → top-30 (notes+chunks, recency-biased cosine); union across 10 phrases, dedup max score, relevance floor (baseScore < 0.25), cap matched set at ~300 (`matchSetCap`); ONE AutoK cluster over matched set (D1 preserved); `candidate_l2s` = top-5 from within-cluster notes; Channel 2 appends 200 newest chunks by IngestedAt (`recentFillChunks`), deduped, tagged `recent`, not in any cluster. All notes cluster as normal notes; no hub computation. | — |
 | K7 | `internal/vaultgraph` | `ParseWikilinks`, `ParseBasename`, `BuildGraph`, `ScanVault`, `UnresolvedTargets` | Build the directed wikilink graph (node=basename); scan vault notes for query; identify unresolved links for `engram check`. | **G0** (basename-only resolution), **G5** (verbatim `[[x]]` strings in chunk bodies (raw transcript content) become false edges) |
@@ -173,7 +173,7 @@ sequenceDiagram
     Vg->>V: read note files; ParseWikilinks → Outgoing at scan time [G5]
     Vg-->>Q: notes (+ parsed wikilinks)
     Q->>V: loadCompatibleSidecars — read sidecars, drop off-model [M4]
-    Q->>V: loadSynthesisChunkRecords — read chunk index
+    Q->>V: loadClusterChunkRecords — read chunk index
     loop per phrase (10 phrases)
         Q->>Em: Embed(phrase)
         Em->>Md: encode

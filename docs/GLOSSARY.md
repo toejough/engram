@@ -110,18 +110,6 @@ self-fired by the agent. Issues `engram query` with exactly 10
 phrases and runs the inline coverage-synthesis loop over the returned clusters.
 
 
-### explicit query
-**Retired from recall skill.** The skill no longer distinguishes "explicit" vs
-"situational baseline" query streams; it always generates exactly 10 phrases
-from fixed angles (situation, intent, action, blocker, approach, tooling, prior
-work, adjacent technique, failure mode, domain) and submits them together.
-
-### situational baseline
-**Retired from recall skill.** Formerly the stream of phrases derived from
-ambient context (repo, language, operation underway). Now one of the 10 fixed
-angles the skill always generates — indistinguishable at the binary level from
-the "explicit" stream.
-
 ### Step 0 / Step 1 / …
 Numbered pipeline stages in the recall skill. Step 0 = print Ask/Situation/Plan;
 Step 1 = generate 10 phrases (one per fixed angle); Step 2 = run `engram query`;

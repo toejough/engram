@@ -128,7 +128,7 @@ Pipeline behavior:
   - `--dry-run`: report what would change without writing
 - `engram query` embeds each `--phrase`, takes the top-30 hits (notes + chunks, recency-biased cosine) per phrase, unions across all phrases (dedup keeping max score), drops items below a relevance floor (baseScore < 0.25), and caps the matched set at ~300. AutoK k-means (k=2..7, silhouette-selected) clusters the matched set once; each cluster carries `candidate_l2s: [{path, cosine}]` — the top-5 notes from within that cluster for the agent's covered/near/absent coverage decision. The 200 newest chunks by ingest time are appended un-clustered (tagged `recent`). Empty vault → `items: []` exit 0. Vault with notes but no sidecars → error with the `engram embed apply --all` recovery hint.
 
-Inputs longer than 1500 chars are truncated to fit MiniLM-L6's 512-token positional limit. For engram's 200–500-word notes this is a non-issue; long MOCs and feedback notes lose tail context but still embed cleanly.
+Inputs longer than 1500 chars are truncated to fit MiniLM-L6's 512-token positional limit. For engram's 200–500-word notes this is a non-issue; long notes lose tail context but still embed cleanly.
 
 ## Project structure
 
