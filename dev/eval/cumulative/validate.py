@@ -223,6 +223,47 @@ def check_token_io():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def check_cli_surface():
+    """Smoke-check every distinct engram subcommand+flag the harness invokes against the live binary.
+    A future CLI flag removal fails this zero-cost check rather than a paid eval run."""
+    import shutil as _shutil
+    engram_bin = _shutil.which("engram") or os.path.join(harness.ENGRAM_BIN_DIR, "engram")
+    if not os.path.exists(engram_bin):
+        check("cli-surface: engram binary reachable", False, f"not found at {engram_bin}")
+        return
+
+    def help_text(*sub):
+        r = subprocess.run([engram_bin] + list(sub) + ["--help"], capture_output=True, text=True, timeout=15)
+        return r.stdout + r.stderr
+
+    # Each entry: (description, subcommand path, required string in help output).
+    # These are the DISTINCT engram invocations the harness makes (harness.py eg_learn, embed apply,
+    # ingest, plus engram check in validate.py). The common-learn-args flags (--slug, --position,
+    # --source, --relation, --tier) appear under --common-learn-args and are not listed individually
+    # in --help, so we probe the subcommand existence + the flags that ARE shown.
+    # Update this list whenever harness.py adds or changes an engram invocation.
+    probes = [
+        ("engram learn fact subcommand exists", ["learn", "fact"], "--situation"),
+        ("engram learn fact --subject flag", ["learn", "fact"], "--subject"),
+        ("engram learn feedback subcommand exists", ["learn", "feedback"], "--situation"),
+        ("engram embed apply subcommand exists", ["embed", "apply"], "apply"),
+        ("engram embed apply --all flag", ["embed", "apply"], "--all"),
+        ("engram ingest subcommand exists", ["ingest"], "--transcript"),
+        ("engram ingest --chunks-dir flag", ["ingest"], "--chunks-dir"),
+        ("engram check subcommand exists", ["check"], "check"),
+    ]
+    all_ok = True
+    missing = []
+    for desc, sub, flag in probes:
+        txt = help_text(*sub)
+        ok = (not flag) or (flag in txt)
+        if not ok:
+            missing.append(desc)
+            all_ok = False
+    check("cli-surface: harness engram invocations exist in the live binary",
+          all_ok, f"missing: {missing}" if missing else "all present")
+
+
 def main():
     print("Zero-cost validation (no LLM, no spend):\n")
     print("[cell-gen]")
@@ -237,6 +278,8 @@ def main():
     check_token_io()
     print("[pipeline + clean room]")
     check_stub_pipeline()
+    print("[cli-surface smoke]")
+    check_cli_surface()
 
     npass = sum(1 for _, ok, _ in results if ok)
     total = len(results)
