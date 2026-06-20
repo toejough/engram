@@ -193,6 +193,29 @@ func TestSweepSkipsVanishedSourceButExplicitErrors(t *testing.T) {
 		"explicitly-named missing sources still error loudly")
 }
 
+func TestExplicitSweepIngestsNonPersistentWorkspace(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	src := "/private/tmp/eval-ws/s.jsonl"
+	fs := newSweepFS()
+	fs.put(src, "USER: run the eval harness here\nASSISTANT: ingested into the isolated index", 100)
+
+	emb := &countingEmbedder{}
+	deps := sweepDeps(fs, emb, src) // ListSources returns src verbatim for a manual --sweep root
+
+	err := cli.RunIngest(context.Background(),
+		cli.IngestArgs{Sweep: []string{"/private/tmp/eval-ws"}, ChunksDir: "/chunks"}, deps, io.Discard)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	_, present := fs.files["/chunks/"+cli.ExportIndexFileName(src)]
+	g.Expect(present).To(gomega.BeTrue(), "explicit --sweep bypasses non-persistent prevention")
+}
+
 func TestShouldPruneDir(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
