@@ -1034,7 +1034,7 @@ def run_build(args):
 def run_learn(args):
     import shutil
     t0 = time.time()
-    if REGIMES[args.regime]["write"] in ("skill", "skill-eager"):
+    if REGIMES.get(args.regime, {}).get("write") in ("skill", "skill-eager"):
         raise SystemExit("real.* regimes learn in-session (run_build); run_learn is not used for them")
     if args.write_tier == "none":
         out = {"schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "learn",
@@ -1152,12 +1152,12 @@ def _deterministic_learn(learn_vault, app, regime, write_tier, stated, date):
     """The --stub learn: write tier-correct notes deterministically via `engram learn` (no LLM)
     for zero-cost pipeline validation. The REAL learn is agent-driven (learn_prompt)."""
     conv_list = ", ".join(stated) if stated else "the reviewed architecture conventions"
-    episode = eg_learn(learn_vault, date, "episode", f"eval-{app}-{regime}", {
+    episode = eg_learn(learn_vault, date, "fact", f"eval-{app}-{regime}", {
+        "tier": "L1",
         "situation": f"building a command-line {app} in Go",
-        "summary": f"Built a command-line {app} in Go, applying: {conv_list}.",
-        "boundary-rationale": "single eval build arc",
-        "session": "eval-harness", "transcript-range": f"{date}T00:00:00Z..{date}T00:01:00Z",
-        "transcript-text": f"Eval build of {app}. Conventions: {conv_list}.",
+        "subject": f"command-line {app} in Go",
+        "predicate": "was built applying",
+        "object": conv_list,
     }, [])
     fact_bases = []
     if write_tier in ("L2", "L3"):
