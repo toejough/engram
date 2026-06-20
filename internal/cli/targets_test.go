@@ -123,7 +123,7 @@ func TestTargets(t *testing.T) {
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
 		// learn (group), update, embed (group), query, ingest, query-chunks,
 		// activate, show, check, migrate-links, resituate, amend
-		g.Expect(targets).To(gomega.HaveLen(12))
+		g.Expect(targets).To(gomega.HaveLen(13))
 	})
 
 	t.Run("show parses positional ref through targ", func(t *testing.T) {

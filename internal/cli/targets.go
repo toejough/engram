@@ -122,6 +122,10 @@ func ingestQueryTargets(
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
 			errHandler(RunIngest(withLog(ctx), a, newOsIngestDeps(), stdout))
 		}).Name("ingest").Description("Chunk+embed transcripts/markdown into a chunk index (zero-LLM)"),
+		targ.Targ(func(ctx context.Context, a PruneArgs) {
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+			errHandler(RunPrune(withLog(ctx), a, newOsPruneDeps(), stdout))
+		}).Name("prune").Description("Remove chunk index entries whose source file no longer exists (GC)"),
 		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
 			errHandler(RunChunkQuery(withLog(ctx), a, newOsChunkQueryDeps(), stdout))
