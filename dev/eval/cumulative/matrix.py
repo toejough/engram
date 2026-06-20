@@ -183,7 +183,7 @@ def cells_for(model, trial, date, stub, max_rounds, regimes=None):
     return ops
 
 
-REAL_REGIMES = ("cold", "real.lazy", "real.eager", "real.auto", "real.autol2")
+REAL_REGIMES = ("cold", "real.lazy", "real.auto", "real.autol2")
 
 
 def real_cells_for(model, trial, date, stub, max_rounds, regimes):
@@ -230,11 +230,8 @@ def real_cells_for(model, trial, date, stub, max_rounds, regimes):
 
 
 def ops_for(model, trial, date, stub, max_rounds, regimes):
-    """Dispatch: an all-real-regime run uses the one-session real_cells_for DAG; anything else
-    falls back to the legacy proxy cells_for (kept intact for historical comparison)."""
-    if regimes is not None and set(regimes) <= set(REAL_REGIMES):
-        return real_cells_for(model, trial, date, stub, max_rounds, regimes)
-    return cells_for(model, trial, date, stub, max_rounds, regimes)
+    """All operations for one (model, trial) chain: real-skill regimes only (recall-v2)."""
+    return real_cells_for(model, trial, date, stub, max_rounds, regimes)
 
 
 def op_done(op):

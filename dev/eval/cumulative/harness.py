@@ -42,39 +42,19 @@ ENGRAM_BIN_DIR = os.environ.get("ENGRAM_BIN_DIR", os.path.expanduser("~/go/bin")
 SCHEMA_VERSION = 2
 CONVERGE_ARCH_BAR = 8  # arch_pass >= 8 (matches converged())
 
-# The 7 regimes: write-tier (learn ceiling) x read-subset (recall surface). §1.2.
-# read_mode: none | blended | tier ; read_tiers used only when read_mode == tier.
+# Active regimes — real-skill only (recall-v2). Pre-recall-v2 tiered regimes (l1, l2.*, l3.*)
+# retired 2026-06-20: they called removed CLI flags and exercised proxy logic instead of the
+# shipped skills. Only these four regimes produce valid, trustworthy eval results.
+# read_mode: none | skill | skill-chunks
 REGIMES = {
-    "cold":      {"write": "none", "read_mode": "none",    "read_tiers": []},
-    "l1":        {"write": "L1",   "read_mode": "tier",    "read_tiers": ["L1"]},
-    "l2.l1l2":   {"write": "L2",   "read_mode": "blended", "read_tiers": []},
-    "l2.l2":     {"write": "L2",   "read_mode": "tier",    "read_tiers": ["L2"]},
-    # Lazy arm (B): write L1 at learn; crystallize L2s on demand at recall (synthesize_l2),
-    # then persist them forward (see run_learn). Both arms end with L1+L2 readable — A writes
-    # L2 eagerly at learn, B crystallizes lazily at recall.
-    "l2.lazy":   {"write": "L1",   "read_mode": "synthesize_l2", "read_tiers": []},
-    "l3.l1l2l3": {"write": "L3",   "read_mode": "blended", "read_tiers": []},
-    "l3.l2l3":   {"write": "L3",   "read_mode": "tier",    "read_tiers": ["L2", "L3"]},
-    "l3.l3":     {"write": "L3",   "read_mode": "tier",    "read_tiers": ["L3"]},
-    # Real-skill rebuild (2026-06-11; eval-validity audit). The agent INVOKES the actual
-    # /recall and /learn skills — no inlined proxy logic, no "exactly one episode" / tier
-    # overrides. These are the only regimes that exercise the SHIPPED skills end to end.
-    # read_mode "skill"  => prompt the agent to invoke /recall (assert the Skill tool fired).
-    # write "skill"       => invoke /learn at its lazy default (episodes per-arc; defers L2 to recall).
-    # write "skill-eager" => invoke /learn and explicitly request eager learn-time L2 (documented mode).
-    "real.lazy":  {"write": "skill",       "read_mode": "skill", "read_tiers": []},
-    "real.eager": {"write": "skill-eager", "read_mode": "skill", "read_tiers": []},
-    # Auto-chunk experiment (2026-06-11): NO agent /learn at all. After the build session the
-    # HARNESS runs `engram ingest` over the cell's own transcript (binary chunks+embeds, zero
-    # LLM); recall is the /recall chunk-variant skill querying `engram query-chunks`. Memory
-    # persists forward as the chunk index, not a vault.
-    "real.auto":  {"write": "auto",        "read_mode": "skill-chunks", "read_tiers": []},
-    # Chunks + vault-backed L2: same zero-LLM transcript ingest, but recall runs the UNIFIED
-    # `engram query` (chunks + vault in one top-N ranking) and crystallizes lessons as REAL
-    # vault notes via `engram learn fact|feedback` when near-match chunk groups bind a principle.
-    # Both the chunk index AND the vault persist forward. Tests whether recall-time L2 stays
-    # cheap and helps (or harms) vs pure chunks.
-    "real.autol2": {"write": "auto-l2",    "read_mode": "skill-chunks", "read_tiers": []},
+    "cold":       {"write": "none",    "read_mode": "none",         "read_tiers": []},
+    # Agent invokes the real /recall and /learn skills; lazy default (episodes only at learn-time).
+    "real.lazy":  {"write": "skill",   "read_mode": "skill",        "read_tiers": []},
+    # Zero-LLM transcript ingest; recall queries the chunk index via /recall chunk-variant skill.
+    "real.auto":  {"write": "auto",    "read_mode": "skill-chunks", "read_tiers": []},
+    # Chunks + vault-backed L2: unified engram query (chunks + vault); recall crystallizes
+    # lessons as vault notes when near-match chunk groups evidence a principle.
+    "real.autol2": {"write": "auto-l2", "read_mode": "skill-chunks", "read_tiers": []},
 }
 
 
@@ -157,38 +137,9 @@ def refresh_creds_path(cfg):
 
 
 def build_prompt(app, interface, read_mode, read_tiers):
-    """Build prompt with read-subset-appropriate recall. Tier-capped reads are told
-    EXPLICITLY they can follow each surfaced note's outbound_links with `engram show
-    <basename>` — this is what makes a tier-read regime a test of
-    direct-provision-vs-follow-on-demand rather than a blinding (§1.4)."""
-    phrases = (f'--phrase "building a command-line {app} in Go" '
-               f'--phrase "architecture and conventions for a Go CLI tool" '
-               f'--phrase "{app} storage, data handling, and features"')
+    """Build prompt with read-subset-appropriate recall. Real-skill regimes only (recall-v2)."""
     if read_mode == "none":
         recall = ""
-    elif read_mode == "blended":
-        recall = ("\nBefore writing any code, consult your memory — run exactly this, read every "
-                  "surfaced note, and APPLY every convention and decision it surfaces:\n"
-                  f"  engram query {phrases}\n")
-    elif read_mode == "synthesize_l2":
-        recall = (
-            "\nBefore writing any code, consult your memory. Run exactly this, read every surfaced "
-            "note, and APPLY every convention and decision it surfaces:\n"
-            f"  engram query {phrases}\n"
-            "This is LAZY L2 synthesis. Each cluster in the payload may carry `nearest_l2: {path, cosine}` "
-            "— the closest existing L2 to that cluster. For each cluster (any size — there is no minimum "
-            "cluster size), apply the bands and WAIT for any writes before continuing (the new L2s are "
-            "for THIS build):\n"
-            "  - no `nearest_l2` field (no existing L2 to compare against) -> `engram learn fact|feedback` "
-            "creating a new L2 synthesizing the cluster (--position top, --relation to each member; NO "
-            "--tier). This is the bootstrap path that crystallizes the first L2s.\n"
-            "  - cosine >= 0.95 -> do nothing (an L2 already covers it).\n"
-            "  - 0.80 <= cosine < 0.95 -> `engram learn fact|feedback` updating the nearest L2 "
-            "(--target <luhmann-id from nearest_l2.path> --position continuation; NO --tier).\n"
-            "  - cosine < 0.80 -> `engram learn fact|feedback` creating a new L2 synthesizing the "
-            "cluster (--position top, --relation to each member; NO --tier).\n"
-            "Prefer the more-recently-created member where members diverge. Then APPLY the surfaced "
-            "and freshly-written L2 conventions to your build.\n")
     elif read_mode == "skill":
         recall = (
             "\nBefore writing ANY code, consult your memory by INVOKING YOUR /recall SKILL — actually "
@@ -205,20 +156,8 @@ def build_prompt(app, interface, read_mode, read_tiers):
             f"building a command-line {app} in Go and its architecture/conventions. Read every chunk "
             "the skill surfaces and APPLY every convention and decision they reveal as requirements "
             "for your build.\n")
-    else:  # tier
-        tier_flags = " ".join(f"--tier {t}" for t in read_tiers)
-        recall = (
-            "\nBefore writing any code, consult your memory. Run exactly this, read every surfaced "
-            "note, and APPLY every convention and decision it surfaces:\n"
-            f"  engram query {tier_flags} {phrases}\n"
-            "This recall is TIER-CAPPED: engram returns only the listed tier(s). Each surfaced item's "
-            "YAML carries `outbound_links` — the basenames of related notes one hop away (often the "
-            "lower-tier notes a distilled standard was built from). When a surfaced note cites a "
-            "constituent whose content you need, FETCH IT on demand with:\n"
-            "  engram show <basename>\n"
-            "(`engram show` prints the note's full content plus its own outbound_links, so one fetch "
-            "reveals the next hop.) Follow whatever links you need to apply the conventions fully — the "
-            "tier cap limits only what engram volunteers, never what you can open.\n")
+    else:
+        raise ValueError(f"Unknown read_mode {read_mode!r}; real-skill regimes use none|skill|skill-chunks")
     return (f"Build a command-line {app} manager in Go, from scratch, in the current directory "
             f"(run `go mod init {app}` first).\n\nImplement these subcommands:\n{interface}\n{recall}\n"
             "Make `go test ./...` pass before you finish. Work fully autonomously: never stop to ask "
@@ -382,7 +321,6 @@ def score_learn_capture(vault, stated, write_tier):
         "engaged": len(blobs) > 0,
         "write_tier": write_tier,
         "episodes": episodes,
-        "episode_extracted": episodes >= 1,  # an L1 episode must ALWAYS be extracted
         "captured": captured,
         "missed": [c for c in stated if c not in captured],
         "stated_count": len(stated),
@@ -394,10 +332,10 @@ def score_learn_capture(vault, stated, write_tier):
 # Agent-driven learn prompt: the agent runs its /learn skill (testing the whole memory system).
 LEARN_PROMPT_INTRO = (
     "Use your engram /learn skill to capture durable memory from the build in THIS directory into "
-    "the engram vault (the one `engram learn` manages). Derive the lessons from the code here — skip "
-    "`engram transcript --mark`. Frame every note so a future agent building a DIFFERENT Go CLI "
-    "surfaces and applies it. Capture via the /learn skill / `engram learn` — do NOT hand-write .md "
-    "files or a MEMORY.md index; this is the engram vault, not a personal-memory store.\n"
+    "the engram vault (the one `engram learn` manages). Derive the lessons from the code here. "
+    "Frame every note so a future agent building a DIFFERENT Go CLI surfaces and applies it. "
+    "Capture via the /learn skill / `engram learn` — do NOT hand-write .md files or a MEMORY.md "
+    "index; this is the engram vault, not a personal-memory store.\n"
     "ALWAYS begin by writing exactly ONE L1 episode of this build — it is REQUIRED for every tier "
     "(the foundation that facts and ADRs link down to), even when the tier's emphasis is facts. "
     "Skipping the episode is a failure.")
@@ -412,42 +350,29 @@ LEARN_TIER_GUIDE = {
     "L2": "Write ONE episode, then one FACT per architecture convention, each relation-linked to the "
           "episode. Do NOT run L3 synthesis.",
     "L3": "Write ONE episode, then FACTS (one per convention, relation-linked to the episode), then "
-          "run the §6b L3 synthesis (`engram query --synthesis`) and write the resulting ADR(s) "
-          "(tier L3) linked down to their L2 facts.",
+          "write an ADR (tier L3) synthesizing the facts, linked down to their L2 facts.",
 }
 
 
-def skill_learn_prompt(write_tier):
+def skill_learn_prompt():
     """Real-skill learn for the one-session cell: the BUILD agent (which has the real build
     transcript) invokes its /learn skill. No 'exactly one episode' cap, no convention label-feed
     (the agent derives lessons from its own session — dropping the closed-loop-scorer confound)."""
-    eager = (write_tier == "skill-eager")
     parts = [
         "Now capture durable memory from the work you just did, by INVOKING YOUR /learn skill. "
         "Actually run the skill (it scans this session's transcript and writes episodes per work-arc). "
         "Do NOT hand-run `engram learn` in place of the skill, and do NOT cap the episode count — let "
         "the skill write one episode per arc as it sees fit.",
-        "HEADLESS first-run: if `engram transcript --mark` reports no progress marker, do NOT stop to "
-        "ask — run `engram transcript --mark --from all` to scan from the start, then proceed. Write "
-        "episode bodies from the REAL transcript via `--from-transcript-range <session-id>:<start>.."
-        "<end>` (the session-id is your current session); do NOT hand-write them with --transcript-text.",
+        "Run /learn at its DEFAULT (lazy): episodes only; do NOT distill facts/feedback at learn "
+        "time — those are crystallized later at recall. Just capture the episodes.",
     ]
-    if eager:
-        parts.append(
-            "EAGER L2: in addition to episodes, explicitly request the skill's eager learn-time L2 — "
-            "distill the recurring conventions you applied into fact/feedback notes NOW, rather than "
-            "deferring them to a future recall. (This is the skill's documented eager mode.)")
-    else:
-        parts.append(
-            "Run /learn at its DEFAULT (lazy): episodes only; do NOT distill facts/feedback at learn "
-            "time — those are crystallized later at recall. Just capture the episodes.")
     parts.append("Work autonomously; end with a one-line summary of what you wrote.")
     return "\n\n".join(parts)
 
 
 def learn_prompt(write_tier, stated):
     if write_tier in ("skill", "skill-eager"):
-        return skill_learn_prompt(write_tier)
+        return skill_learn_prompt()
     parts = [LEARN_PROMPT_INTRO]
     if stated:
         parts.append(LEARN_STATED.format(stated="\n".join(f"  - {s}" for s in stated)))
@@ -904,7 +829,7 @@ def run_build(args):
     # and legacy regimes skip this (cold has no learn; legacy regimes learn via a separate run_learn).
     learn_meta = {"ran": False, "cost": 0.0, "turns": 0, "fired": None, "notes_by_tier": {}}
     if not args.stub and regime["write"] in ("skill", "skill-eager") and sc.get("build") == "ok" and completed:
-        lr = do_build(skill_learn_prompt(regime["write"]), resume_sid=sid)  # same session
+        lr = do_build(skill_learn_prompt(), resume_sid=sid)  # same session
         learn_meta["ran"] = True
         learn_meta["cost"] = round(lr.get("total_cost_usd", 0) or 0, 4)
         learn_meta["turns"] = lr.get("num_turns", 0) or 0

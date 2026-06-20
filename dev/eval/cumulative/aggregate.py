@@ -95,8 +95,10 @@ def beta_table(builds, models, regimes):
     return {(r, m): mean(idx.get((r, m), [])) for r in regimes for m in models}
 
 
-WRITE_TIER = {"cold": "none", "l1": "L1", "l2.l1l2": "L2", "l2.l2": "L2", "l2.lazy": "L1",
-              "l3.l1l2l3": "L3", "l3.l2l3": "L3", "l3.l3": "L3"}
+WRITE_TIER = {
+    "cold": "none",
+    "real.lazy": "skill", "real.auto": "auto", "real.autol2": "auto-l2",
+}
 
 
 def _index_runs(builds, learns):
@@ -190,7 +192,7 @@ def per_regime_cost_table(builds, learns, models, regimes):
                 continue
             ln, bd = mean([r["learn_cost"] for r in rows]), mean([r["build_cost"] for r in rows])
             cv = 100 * sum(1 for r in rows if r["converged"]) / len(rows)
-            lines.append(f"| `{reg}` | {WRITE_TIER[reg]} | {ln:.2f} | {bd:.2f} | {ln+bd:.2f} | "
+            lines.append(f"| `{reg}` | {WRITE_TIER.get(reg, 'none')} | {ln:.2f} | {bd:.2f} | {ln+bd:.2f} | "
                          f"{mean([r['wall'] for r in rows]):.0f} | {mean([r['tokens'] for r in rows])/1e6:.1f}M | {cv:.0f}% |")
         lines.append("")
     return "\n".join(lines) + "\n"
@@ -404,8 +406,11 @@ def full_matrix_tables(builds, learns, models, regimes):
     app3 terminal). Resource metrics are over ALL builds (incl. capped non-converged), so a † marks
     a cell where <60% of builds completed — its turns/cost run high because they didn't finish."""
     bmap, a1l, a2l = _index_runs(builds, learns)
-    write_of = {"cold": "none", "l1": "L1", "l2.l1l2": "L2", "l2.l2": "L2", "l2.lazy": "L1",
-                "l3.l1l2l3": "L3", "l3.l2l3": "L3", "l3.l3": "L3"}
+    write_of = {
+        "cold": "none",
+        "real.lazy": "skill", "real.auto": "auto", "real.autol2": "auto-l2",
+        "none": "none", "L1": "L1", "L2": "L2", "L3": "L3",
+    }
 
     def cell(model, app, reg):
         fb, presc, conv, cost, tok, wall, ncomp, n = [], [], [], [], [], [], 0, 0
@@ -419,7 +424,7 @@ def full_matrix_tables(builds, learns, models, regimes):
             presc.append((b.get("escalation") or {}).get("max_convention_depth", 0))
             if b.get("completed"):
                 conv.append(nr); ncomp += 1
-            ln = a1l.get((model, t, write_of[reg])) if app == "notes" else (
+            ln = a1l.get((model, t, write_of.get(reg, reg))) if app == "notes" else (
                 a2l.get((model, t, reg)) if app == "links" else None)
             cost.append((b.get("build_cost", 0) or 0) + ((ln or {}).get("learn_cost", 0) or 0))
             tok.append(_toks(b) + _toks(ln))
@@ -455,8 +460,7 @@ def full_matrix_tables(builds, learns, models, regimes):
         for m in models:
             cells = {}
             for r in rset:
-                reg_for = ({"none": "cold", "L1": "l1", "L2": "l2.l2", "L3": "l3.l3"}.get(r, r)
-                           if app == "notes" else r)
+                reg_for = r  # real-skill regimes: app1 uses same regime key (no separate learn op)
                 cells[r] = cell(m, app, reg_for)
             best = {}
             for key, _, _ in metrics:

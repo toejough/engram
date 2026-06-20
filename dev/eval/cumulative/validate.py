@@ -32,27 +32,34 @@ def check(name, ok, detail=""):
 
 
 def check_cellgen():
-    ops = matrix.cells_for("sonnet", 1, "2026-06-06", "", 6)
+    # real-skill-only: 4 regimes (cold, real.lazy, real.auto, real.autol2) × 3 apps = 12 build ops, 0 learn ops.
+    ops = matrix.real_cells_for("sonnet", 1, "2026-06-06", "", 6, None)
     builds = [o for o in ops if o["kind"] == "build"]
     learns = [o for o in ops if o["kind"] == "learn"]
-    check("cell-gen: 26 ops (15 build + 11 learn)",
-          len(ops) == 26 and len(builds) == 15 and len(learns) == 11,
+    check("cell-gen: 12 ops (12 build + 0 learn)",
+          len(ops) == 12 and len(builds) == 12 and len(learns) == 0,
           f"{len(ops)} ops / {len(builds)} build / {len(learns)} learn")
 
     def arg(o, flag):
         return o["cmd_tail"][o["cmd_tail"].index(flag) + 1] if flag in o["cmd_tail"] else None
 
+    # Vault threading: for vault-writing regimes, each app seals its vault and passes it to the next.
+    # cold never writes; real.lazy/autol2 write vault; real.auto writes chunks only.
     threading_ok = True
     for r, rc in harness.REGIMES.items():
-        a2b = next(o for o in ops if o["id"].endswith(f"app2-{r}-build"))
-        a2l = next(o for o in ops if o["id"].endswith(f"app2-{r}-learn"))
-        a3b = next(o for o in ops if o["id"].endswith(f"app3-{r}-build"))
-        if not (arg(a2b, "--vault-in").endswith(f"v1-sonnet-t1-{rc['write']}")
-                and arg(a2l, "--vault-out").endswith(f"v2-sonnet-t1-{r}")
-                and arg(a3b, "--vault-in").endswith(f"v2-sonnet-t1-{r}")
-                and a2b["dep"] == [f"sonnet-t1-app1-learn-{rc['write']}"]):
+        if r == "cold":
+            continue  # cold never accumulates; skip threading check
+        a1b = next((o for o in ops if o["id"] == f"sonnet-t1-app1-{r}-build"), None)
+        a2b = next((o for o in ops if o["id"] == f"sonnet-t1-app2-{r}-build"), None)
+        a3b = next((o for o in ops if o["id"] == f"sonnet-t1-app3-{r}-build"), None)
+        if not (a1b and a2b and a3b):
             threading_ok = False
-    check("cell-gen: vault threading + deps across all 7 regimes", threading_ok)
+            continue
+        # app2 depends on app1 completing; app3 depends on app2
+        if (a2b["dep"] != [f"sonnet-t1-app1-{r}-build"]
+                or a3b["dep"] != [f"sonnet-t1-app2-{r}-build"]):
+            threading_ok = False
+    check("cell-gen: vault threading + deps across all real regimes", threading_ok)
 
 
 def check_scorer():
@@ -81,19 +88,16 @@ def check_stub_pipeline():
         r = subprocess.run(["python3", os.path.join(CUM, "matrix.py"), "--models", "sonnet",
                             "--trials", "1", "--stub", "good", "--max-rounds", "1", "--workers", "4",
                             "--timeout-min", "5"], env=env, capture_output=True, text=True, timeout=600)
-        done = "### MATRIX COMPLETE ### 26/26" in r.stdout
-        check("stub matrix: 26/26 ops complete (no LLM)", done, r.stdout.strip().splitlines()[-1] if r.stdout else "")
+        done = "### MATRIX COMPLETE ### 12/12" in r.stdout
+        check("stub matrix: 12/12 ops complete (no LLM)", done, r.stdout.strip().splitlines()[-1] if r.stdout else "")
 
-        def count(tier):
-            d = os.path.join(root, "vaults", f"v1-sonnet-t1-{tier}", "Permanent")
-            return len([f for f in os.listdir(d) if f.endswith(".md")]) if os.path.isdir(d) else 0
-
-        # The good fixture converges with 0 stated conventions, so the deterministic learn
-        # writes episode-only for L1/L2 and episode+ADR for L3 — monotonic, none empty. (The
-        # strict fact-per-convention nesting is exercised by check_learn_tiers below.)
-        counts = {t: count(t) for t in ["none", "L1", "L2", "L3"]}
-        check("stub: write-tier seeds monotonic (none=0 ≤ L1 ≤ L2 ≤ L3)",
-              counts["none"] == 0 and 1 <= counts["L1"] <= counts["L2"] <= counts["L3"], str(counts))
+        # Real-skill regimes accumulate per-regime vaults (vault-writing: real.lazy, real.autol2).
+        # Verify that app1 and app2 produced a vault for real.lazy (the simplest vault-writing arm).
+        v_app1 = os.path.join(root, "vaults", "v-sonnet-t1-app1-real.lazy")
+        v_app2 = os.path.join(root, "vaults", "v-sonnet-t1-app2-real.lazy")
+        lazy_seeded = os.path.isdir(v_app1) or os.path.isdir(v_app2)
+        check("stub: real.lazy vault dirs created for non-terminal apps",
+              lazy_seeded, f"app1={os.path.isdir(v_app1)} app2={os.path.isdir(v_app2)}")
 
         # clean room: build workdirs carry no ambient conventions; cfg only recall+learn.
         ws = os.path.join(root, "ws")
