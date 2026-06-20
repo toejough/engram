@@ -1,0 +1,14 @@
+version: 1
+items:
+  - path: unrelated-lesson.md
+    kind: fact
+    score: 0.91
+    provenances:
+      - direct
+    content: "A lesson surfaced by direct similarity, not recency."
+  - path: another-lesson.md
+    kind: fact
+    score: 0.68
+    provenances:
+      - direct
+    content: "Another directly matched lesson."

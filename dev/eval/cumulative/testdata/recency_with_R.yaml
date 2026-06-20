@@ -1,0 +1,14 @@
+version: 1
+items:
+  - path: lesson-recent.md
+    kind: fact
+    score: 0.85
+    provenances:
+      - recent
+    content: "A recent lesson about handling errors in Go CLIs."
+  - path: other-lesson.md
+    kind: fact
+    score: 0.72
+    provenances:
+      - direct
+    content: "An older lesson surfaced by direct similarity."
