@@ -22,13 +22,12 @@ You are a collaborator, not a yes-machine. Think critically about the ask itself
 - **Evaluate the ask on its merits** during orientation — not just "what does the user want" but "is this sound?" Flaws, cheaper alternatives, contradictions with repo norms or recalled memory, and unnamed risks are findings to RAISE, not route around.
 - **Challenge plainly and directly, before planning around the problem.** State the issue and its concrete stakes in declarative sentences ("this stores credentials in plaintext; anyone with file access owns every account") — not softened into a leading question, not buried mid-plan, and never prefaced with reflexive praise.
 - **Resolution rule: challenge once, clearly; then commit.** If the user weighs the challenge and reaffirms, proceed wholeheartedly and record the dissent in the plan ("considered X; user chose Y because Z"). No relitigating in later steps, no passive-aggressive hedging in the work itself.
-- Disagreement is part of the service. Executing a flawed ask silently is the failure mode this section exists to prevent — agreeable compliance reads as helpfulness and costs the user real damage later.
 
 ## Adversarial review gates
 
 LLM-generated artifacts do not self-certify. Catching your own plan's flaws (the anti-sycophantic lean) is necessary but not sufficient — the author's context carries the author's blind spots. Four gates punctuate the workflow. Each gate fans out ONE fresh-context reviewer subagent PER ANGLE (Task tool; no author context shared), and the gated step is not `completed` until every finding is resolved.
 
-**Running the gate is non-waivable; the model for each reviewer is not pinned — it is routed.** Apply the `route` rubric to each reviewer to choose its model and effort for the specific artifact (a cheap reasoning step, not a separate dispatch). The models in the table below are the rubric's *defaults* for each angle's task character, not fixed pins: route confirms the default or adjusts it (e.g. a trivial doc diff may drop clarity review to haiku/low; a sprawling architectural plan may lift ask-alignment to opus/high). What is fixed is that the gate runs, per-angle, with fresh context — never the model number.
+**Running the gate is non-waivable; the model for each reviewer is not pinned — it is routed.** The models in the table below are the rubric's *defaults*, not fixed pins; apply the `route` rubric per angle to confirm or adjust the default. What is fixed: the gate runs per-angle with a fresh-context reviewer — never a shared reviewer or a skipped angle.
 
 | Gate | Fires | Artifact | Angles (routed; default model) |
 | --- | --- | --- | --- |
@@ -85,9 +84,6 @@ At the start of execution, push all seven steps below to the task list via `Task
 
 ## Stop conditions
 
-- **Do not skip steps.** The workflow is fixed; agents will be tempted to elide steps that feel redundant. Resist.
-- **Gates are steps.** The review gates are part of the workflow; the user-cannot-waive rule and the N/A bar apply to them exactly as to the seven numbered steps.
-- **The user cannot waive steps.** Phrasings like "no ceremony", "just get it done", "skip the plan", "we're in a hurry" do **not** authorize collapsing the workflow. They are exactly the pressure this skill exists to resist. Acknowledge the urgency in your reply, then run the workflow anyway — it is fast when there is little to capture, recall, plan, or document.
 - **"Genuinely not applicable" is a high bar, not a convenience.** A step is N/A only when the *mechanism* doesn't exist in this environment — e.g. step 6's commit when the repo is not under VCS, or step 7's closing `/learn` when the engram binary itself is absent. "Too small to bother", "nothing to document", "no memories will be relevant" are **not** N/A — run the step; if it produces nothing, that's fine, and the closing `/learn` will record it. When marking N/A, write the one-line rationale into the task description naming the missing mechanism (e.g. "no VCS — `git` not present"). Do not silently drop a step.
 - **Sequence is part of the workflow.** Each step starts only after the previous step is `completed`. Do not begin reading repo docs (step 2) while step 1's `/learn` is still `in_progress`. Do not begin coding (step 4) while the plan (step 3) is still being drafted.
 - **"Multi-step" test for ambiguous natural-language triggers.** If the ask plausibly resolves to a single file edit or a single tool call with no follow-up, the skill should not fire — handle it directly. If the ask plausibly entails any of {planning, more than one file, testing, documentation, a commit, closing an issue}, the skill fires. When the boundary is genuinely unclear, fire — the workflow tolerates small asks; the reverse is more expensive.

@@ -24,23 +24,16 @@ The line that keeps "delegate everything" from collapsing into either "delegate 
 - **You delegate (object-level):** writing code or prose, running tests/builds, judgment calls on
   the artifact, reviewing the artifact — anything that produces or evaluates the deliverable.
 
-## Not an enforcement mechanism
-
-This skill is guidance you apply when you choose `Agent`-tool parameters. A skill cannot change
-the main-loop model, and a subagent's model/effort are fixed only at dispatch time (agent
-frontmatter or the per-invocation `model` parameter). The router's output is a *decision you
-encode* into the dispatch call — not a runtime switch the session performs on itself.
-
 ## The rubric
 
 Classify each unit and dispatch accordingly. Aligns with `audit.md`'s Model Level Selection.
 
-| Task character | agentType | model | effort | Note |
-| --- | --- | --- | --- | --- |
-| Mechanical / predictable (formatting, status checks, template-fill, single-file lookup) | `Explore` (read-only) or `general-purpose` | haiku | low | The default. Cheap, not skipped. |
-| Moderate reasoning (code review with context, a TDD unit, triage, structured edit) | `general-purpose` or a domain agent | sonnet | medium | |
-| Complex / nuanced judgment (architecture, cross-cutting refactor, hard debugging) | decompose first → delegate the pieces; if irreducible, one focused agent | opus (or sonnet at high effort) | high | Decomposition is your job, before dispatch. |
-| Deep thinking (open-ended analysis, design exploration) | `general-purpose`, fresh context | opus | high | Delegated so it is not diluted by orchestrator context. |
+| Task character | agentType | model | effort |
+| --- | --- | --- | --- |
+| Mechanical / predictable (formatting, status checks, template-fill, single-file lookup) — **the default; cheap, not skipped** | `Explore` (read-only) or `general-purpose` | haiku | low |
+| Moderate reasoning (code review with context, a TDD unit, triage, structured edit) | `general-purpose` or a domain agent | sonnet | medium |
+| Complex / nuanced judgment (architecture, cross-cutting refactor, hard debugging) — decompose first, then delegate the pieces | decompose first → delegate the pieces; if irreducible, one focused agent | opus (or sonnet at high effort) | high |
+| Deep thinking (open-ended analysis, design exploration) — delegated so it is not diluted by orchestrator context | `general-purpose`, fresh context | opus | high |
 
 **Resolution:** default to the cheapest tier that can plausibly do the unit; upgrade a tier if the
 cheaper one fails; reserve opus for units that genuinely need it.

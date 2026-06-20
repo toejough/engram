@@ -74,8 +74,7 @@ engram query \
 
 One call; the binary merges ranking server-side. `engram query` always runs the unified D1
 clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path, cosine}]`
-per cluster. Do NOT collapse phrases, do NOT run per-phrase calls, do NOT add `--vault` or
-`--chunks-dir`.
+per cluster. Do NOT collapse phrases, do NOT run per-phrase calls.
 
 The payload has **two channels**:
 
@@ -138,7 +137,7 @@ because it lacks a recent instance.
 | **Absent** | No candidate addresses the situation | `engram learn fact\|feedback --position top --relation <note-sources> --chunk-source <chunk-ids> --source "<descriptive>" --situation "..." --subject/--predicate/--object (or --behavior/--impact/--action)` |
 
 **One write per cluster; one representative note per cluster.** The representative is always a note
-(never an L1 note or a chunk). For `absent`, write exactly one note (fact *or* feedback) covering
+(never a chunk). For `absent`, write exactly one note (fact *or* feedback) covering
 the cluster's principle. Do not write one fact and one feedback note for the same cluster.
 
 For `amend` (covered or near), pass one `--relation "<wikilink-target>|<one-line rationale>"`
@@ -195,13 +194,11 @@ The user sees this. Rules:
 | You applied a cosine threshold to decide covered/near/absent | Coverage is agent-judged from content; cosine only nominates candidates |
 | A candidate matching only the superseded content → you marked it "covered" | Apply the recency weight first; a candidate that misses the conflict is "near" |
 | You wrote two notes (a fact AND a feedback) for one cluster | One representative note per cluster — pick the right kind |
-| You used `nearest_l2` instead of `candidate_l2s` | The v2 field is `candidate_l2s: [{path, cosine}]` — a list, not a singleton |
 | You called `engram learn --target` to update a note in place | Updates use `engram amend`; `engram learn` is create-only |
 | A `≥0.95` cluster → you activated without reading the candidates | Read first; high cosine nominates, it does not decide |
 | You called `engram show` on a note already in `items[]` | Members already in `items[]` carry a `content` field — use it directly; `engram show` is only for candidates not in `items[]` |
 | You grouped chunks by eye instead of using the payload's clusters | The binary's k-means grouping is the ground truth; read every cluster |
-| You skipped Step 2.5 because "the chunks are enough" | Processing every cluster IS the step; skipping it is not an outcome |
-| You read chunk-only results as Step 2's "nothing surfaces" and skipped 2.5 | "Nothing surfaces" means an EMPTY payload; clusters present means Step 2.5 runs |
+| You skipped Step 2.5 or read chunk-only results as "nothing surfaces" | Processing every cluster IS the step; "nothing surfaces" means an EMPTY payload — clusters present means Step 2.5 runs |
 | You activated every returned note | Activate only the notes you actually USED — judged Covered/Near or cited in Step 3 |
 | You activated recent-channel items | Chunks are never activated; recent-block items are not activation targets |
 | You skipped `engram activate` after drawing on notes | Call it after synthesis — used notes must stay warm or the recency-competition mechanism breaks |

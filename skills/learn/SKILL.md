@@ -64,15 +64,6 @@ Rules:
 - **No moments of either kind → write nothing.** Routine work is already captured by Step 1;
   a session with no corrections and no save-requests is a two-command learn (sweep + report).
 
-## What learn does NOT do anymore
-
-| Old behavior | Why it's gone |
-| --- | --- |
-| `engram transcript --mark` / `--segments`, arc detection | The sweep ingests raw transcripts whole; chunking is mechanical |
-| `engram learn episode` (L1 episodes, boundary rationales) | Chunks ARE the raw event memory — summarized episodes are redundant and cost LLM turns |
-| ADR / L3 synthesis at learn time | Deferred entirely; crystallization happens at recall, from evidence |
-| Eager L2 sweeps ("what facts did this session teach?") | Only EXPLICIT corrections and save-requests crystallize at learn; everything else stays raw until recall surfaces a pattern |
-
 ## Red flags — STOP and re-read
 
 | Sign you're off-script | What you should be doing |
