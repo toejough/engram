@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -138,6 +139,29 @@ const (
 	distractorsPerTier = 8
 )
 
+// biasedScore applies recency multiplier to a scored chunk.
+func biasedScore(s cli.ExportScoredChunk, now time.Time, maxTurn map[string]int, p cli.ExportRecencyParams) float32 {
+	rec := cli.ExportScoredChunkRecord(s)
+	ageDays := 0.0
+
+	if !rec.IngestedAt.IsZero() && !now.IsZero() {
+		age := now.Sub(rec.IngestedAt).Hours() / 24
+		if age > 0 {
+			ageDays = age
+		}
+	}
+
+	turnFrac := 0.0
+
+	if n, ok := cli.ExportParseTurnN(rec.Anchor); ok {
+		if maxN := maxTurn[rec.Source]; maxN > 0 {
+			turnFrac = float64(n) / float64(maxN)
+		}
+	}
+
+	return cli.ExportScoredChunkScore(s) * float32(cli.ExportRecencyMultiplier(ageDays, turnFrac, p))
+}
+
 // buildSyntheticPool returns a pool with:
 //   - 3 weeks-old chunks from weeksold.jsonl (age=21d, cosine=0.45) — the
 //     absolute-newest source; all distractors are older.
@@ -220,8 +244,17 @@ func rankOf(
 	p cli.ExportRecencyParams,
 	limit int,
 ) int {
-	scored := cli.ExportApplyChunkRecencyByTime(pool, recencyEvalNow(), maxTurn, p)
-	cli.ExportSortScoredDesc(scored)
+	now := recencyEvalNow()
+	scored := make([]cli.ExportScoredChunk, len(pool))
+
+	for i, s := range pool {
+		rec := cli.ExportScoredChunkRecord(s)
+		scored[i] = cli.ExportNewScoredChunkWithIngestedAt(rec, biasedScore(s, now, maxTurn, p), rec.IngestedAt)
+	}
+
+	sort.SliceStable(scored, func(i, j int) bool {
+		return cli.ExportScoredChunkScore(scored[i]) > cli.ExportScoredChunkScore(scored[j])
+	})
 
 	items := make([]cli.ExportResolvedItem, 0, len(scored))
 

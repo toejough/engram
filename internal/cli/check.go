@@ -120,10 +120,6 @@ func checkSidecars(
 	missing := 0
 
 	for _, note := range notes {
-		if note.IsMOC {
-			continue
-		}
-
 		notePath := note.Basename + ".md"
 
 		scBytes, err := readSidecar(filepath.Join(vault, embed.SidecarPath(notePath)))
@@ -172,10 +168,6 @@ func checkSituationPresence(
 	missing := make([]string, 0)
 
 	for _, note := range notes {
-		if note.IsMOC {
-			continue
-		}
-
 		raw, err := readNote(filepath.Join(vault, note.Basename+".md"))
 		if err != nil {
 			continue

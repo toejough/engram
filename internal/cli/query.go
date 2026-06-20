@@ -378,60 +378,6 @@ func appendUniqueProvenance(item *resolvedItem, role string) {
 	item.provenances = append(item.provenances, role)
 }
 
-// applyCombinedRecencyBand applies the single combined floor band that
-// guarantees both the floor-newest chunks (chunkMust) and the most-recently-
-// used notes survive the limit cap without mutual eviction.
-//
-// chunksActive must be true when a chunks dir is configured; without chunks
-// the cap is handled by renderQueryPayload (pre-Phase-4 note-only path).
-// When nowFn is nil, only a plain cap is applied (no recency band).
-// items must already be sorted descending by score.
-func applyCombinedRecencyBand(
-	items []resolvedItem,
-	chunkMust []resolvedItem,
-	nowFn func() time.Time,
-	limit int,
-	chunksActive bool,
-) []resolvedItem {
-	if !chunksActive {
-		return items
-	}
-
-	if nowFn == nil {
-		if len(items) > limit {
-			return items[:limit]
-		}
-
-		return items
-	}
-
-	// Collect note-must PRE-CAP so low-cosine but recently-used notes that
-	// rank below the cap boundary are still eligible for the floor band.
-	noteMust := mostRecentlyUsedNoteItems(items, nowFn(), defaultRecencyFloor)
-
-	// Interleave chunkMust and noteMust (chunk0, note0, chunk1, note1, …)
-	// so that when the total exceeds the limit, fillRecencyBand injects a
-	// fair mix of both rather than exhausting the budget with chunks-first.
-	combined := make([]resolvedItem, 0, len(chunkMust)+len(noteMust))
-
-	for i := 0; i < len(chunkMust) || i < len(noteMust); i++ {
-		if i < len(chunkMust) {
-			combined = append(combined, chunkMust[i])
-		}
-
-		if i < len(noteMust) {
-			combined = append(combined, noteMust[i])
-		}
-	}
-
-	// Cap first, then let fillRecencyBand re-insert any evicted must-includes.
-	if len(items) > limit {
-		items = items[:limit]
-	}
-
-	return fillRecencyBand(items, combined, limit)
-}
-
 // applyFloorAndCap filters matched set items by the relevance floor on
 // baseScore, sorts by score desc (highest-scoring survive the cap), then caps
 // at matchSetCap. Returns items sorted by key for deterministic clustering.
@@ -962,36 +908,6 @@ func mergeClusterReps(
 
 		clusterIDCopy := clusterID
 		resolved.clusterID = &clusterIDCopy
-	}
-}
-
-// mergeIntoExisting updates existing with the best score/baseScore, unioned
-// provenances, and copies in_degree/lastUsed/created from src when missing.
-func mergeIntoExisting(existing, src *resolvedItem) {
-	if src.score > existing.score {
-		existing.score = src.score
-		existing.content = src.content
-	}
-
-	if src.baseScore > existing.baseScore {
-		existing.baseScore = src.baseScore
-	}
-
-	if existing.lastUsed == "" && src.lastUsed != "" {
-		existing.lastUsed = src.lastUsed
-	}
-
-	if existing.created == "" && src.created != "" {
-		existing.created = src.created
-	}
-
-	for _, p := range src.provenances {
-		appendUniqueProvenance(existing, p)
-	}
-
-	if src.inDegree != nil && existing.inDegree == nil {
-		v := *src.inDegree
-		existing.inDegree = &v
 	}
 }
 

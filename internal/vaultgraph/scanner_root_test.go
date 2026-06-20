@@ -26,7 +26,6 @@ func TestScanVaultReadsRootLevelNotes(t *testing.T) {
 	}
 
 	g.Expect(notes[0].Basename).To(gomega.Equal("1.2026-06-12.flat-note"))
-	g.Expect(notes[0].IsMOC).To(gomega.BeFalse())
 	g.Expect(notes[0].Outgoing).To(gomega.ConsistOf("2.other"))
 }
 

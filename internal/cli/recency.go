@@ -29,45 +29,6 @@ type recencyParams struct {
 	floor        int     // how many of the absolute-newest chunks the band guarantees
 }
 
-// applyChunkRecency returns a copy of scored with each score multiplied by its
-// recency factor. turnFrac = turnN / maxTurn(source); 0 when the source has no
-// turn anchors. Chunks with zero IngestedAt (legacy, not yet backfilled) are
-// treated as age 0 (maximally recent) so they are not penalised.
-func applyChunkRecency(
-	scored []scoredChunk,
-	now time.Time,
-	maxTurnBySrc map[string]int,
-	p recencyParams,
-) []scoredChunk {
-	out := make([]scoredChunk, len(scored))
-
-	for i, s := range scored {
-		ageDays := 0.0
-
-		if !s.record.IngestedAt.IsZero() && !now.IsZero() {
-			age := now.Sub(s.record.IngestedAt).Hours() / hoursPerDay
-			if age > 0 {
-				ageDays = age
-			}
-		}
-
-		turnFrac := 0.0
-
-		if n, ok := parseTurnN(s.record.Anchor); ok {
-			if maxN := maxTurnBySrc[s.record.Source]; maxN > 0 {
-				turnFrac = float64(n) / float64(maxN)
-			}
-		}
-
-		out[i] = scoredChunk{
-			record: s.record,
-			score:  s.score * float32(recencyMultiplier(ageDays, turnFrac, p)),
-		}
-	}
-
-	return out
-}
-
 // chunkNotePath returns the note-path key for a chunk record in the form
 // "source#anchor", matching the key used in resolvedItem.notePath for chunk
 // items. Centralising this avoids inline string concatenation scattered across
@@ -335,11 +296,6 @@ func recencyMultiplier(ageDays, turnFrac float64, p recencyParams) float64 {
 	decay := math.Exp2(-ageDays / p.halfLifeDays)
 
 	return decay * (1 + p.tailWeight*turnFrac)
-}
-
-// sortScoredDesc sorts in place by descending score (stable).
-func sortScoredDesc(scored []scoredChunk) {
-	sort.SliceStable(scored, func(i, j int) bool { return scored[i].score > scored[j].score })
 }
 
 // spliceRecent prepends the missing recent items, then refills from the original

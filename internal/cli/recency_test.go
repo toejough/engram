@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -9,117 +10,6 @@ import (
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 )
-
-func TestApplyChunkRecencyLiftsRecentOverStaleHighCosine(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
-	oldTime := now.Add(-90 * 24 * time.Hour)
-	recentTime := now.Add(-6 * time.Minute)
-
-	scored := []cli.ExportScoredChunk{
-		cli.ExportNewScoredChunkWithIngestedAt(
-			chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.80, oldTime),
-		cli.ExportNewScoredChunkWithIngestedAt(
-			chunk.Record{Source: "recent.jsonl", Anchor: "turn-9"}, 0.45, recentTime),
-	}
-	maxTurn := map[string]int{"old.jsonl": 3, "recent.jsonl": 9}
-	p := cli.ExportNewRecencyParams(3, 0.2, 0)
-
-	out := cli.ExportApplyChunkRecencyByTime(scored, now, maxTurn, p)
-
-	g.Expect(cli.ExportScoredChunkScore(out[1])).To(BeNumerically(">", cli.ExportScoredChunkScore(out[0])))
-}
-
-func TestApplyChunkRecencyUsesIngestedAt(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
-	oldTime := now.Add(-90 * 24 * time.Hour) // 90 days ago
-	recentTime := now.Add(-1 * time.Hour)    // 1 hour ago
-
-	scored := []cli.ExportScoredChunk{
-		cli.ExportNewScoredChunkWithIngestedAt(
-			chunk.Record{Source: "old.jsonl", Anchor: "turn-3"}, 0.80, oldTime),
-		cli.ExportNewScoredChunkWithIngestedAt(
-			chunk.Record{Source: "recent.jsonl", Anchor: "turn-9"}, 0.45, recentTime),
-	}
-
-	maxTurn := map[string]int{"old.jsonl": 3, "recent.jsonl": 9}
-	p := cli.ExportNewRecencyParams(60, 0.2, 0)
-
-	out := cli.ExportApplyChunkRecencyByTime(scored, now, maxTurn, p)
-
-	// Recent chunk (0.45 base) should outscore old chunk (0.80 base) after recency.
-	g.Expect(cli.ExportScoredChunkScore(out[1])).To(
-		BeNumerically(">", cli.ExportScoredChunkScore(out[0])),
-		"recent chunk must outscore old chunk after per-IngestedAt recency")
-}
-
-// TestApplyCombinedRecencyBandInterleavesFairMix verifies that when both
-// chunkMust (3 items) and the derived noteMust (3 items from items) exceed the
-// limit of 4, the result contains at least 1 chunk AND at least 1 note
-// must-item. With the old chunks-first combined slice, fillRecencyBand fills
-// the 4-item deficit with the first 4 entries — all chunks — silently dropping
-// every note. With interleaving (chunk0, note0, chunk1, note1, ...) the first
-// 4 are 2 chunks + 2 notes.
-func TestApplyCombinedRecencyBandInterleavesFairMix(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// limit=3; chunkMust has 3 items, noteMust will have 3 items (derived from
-	// the 3 notes in items). All 6 are absent from the capped set (the 3 stale
-	// chunks fill the cap). With chunks-first combined=[c0,c1,c2,n0,n1,n2],
-	// fillRecencyBand clamps deficit to limit=3 and injects [c0,c1,c2] only —
-	// 0 notes survive. With interleaving [c0,n0,c1,n1,c2,n2], the first 3 are
-	// [c0,n0,c1] — at least 1 chunk and 1 note.
-	const limit = 3
-
-	// chunkMust — 3 chunk items that are NOT present in items.
-	chunkMust := []cli.ExportResolvedItem{
-		cli.ExportNewChunkResolvedItem("chunks.jsonl#turn-3", 0.20),
-		cli.ExportNewChunkResolvedItem("chunks.jsonl#turn-2", 0.19),
-		cli.ExportNewChunkResolvedItem("chunks.jsonl#turn-1", 0.18),
-	}
-
-	// Stale high-score chunks that fill the cap, evicting the notes below.
-	stale1 := cli.ExportNewChunkResolvedItem("stale.jsonl#turn-10", 0.99)
-	stale2 := cli.ExportNewChunkResolvedItem("stale.jsonl#turn-9", 0.98)
-	stale3 := cli.ExportNewChunkResolvedItem("stale.jsonl#turn-8", 0.97)
-
-	// Recently-used notes (will become noteMust via mostRecentlyUsedNoteItems).
-	noteA := cli.ExportNewNoteResolvedItem("note-a.md", "2026-06-16", "")
-	noteB := cli.ExportNewNoteResolvedItem("note-b.md", "2026-06-15", "")
-	noteC := cli.ExportNewNoteResolvedItem("note-c.md", "2026-06-14", "")
-
-	// items sorted descending by score: 3 stale chunks first, then 3 notes.
-	// The internal cap (items[:limit=3]) keeps only the 3 stale chunks,
-	// evicting all 3 notes. Both chunkMust and noteMust are absent from capped set.
-	items := []cli.ExportResolvedItem{stale1, stale2, stale3, noteA, noteB, noteC}
-
-	nowFn := func() time.Time { return time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC) }
-
-	out := cli.ExportApplyCombinedRecencyBand(items, chunkMust, nowFn, limit, true)
-
-	g.Expect(len(out)).To(BeNumerically("<=", limit), "must not exceed limit")
-
-	hasChunk := false
-	hasNote := false
-
-	for _, it := range out {
-		path := cli.ExportResolvedItemPath(it)
-		if len(path) >= 6 && path[:6] == "chunks" {
-			hasChunk = true
-		} else if len(path) >= 4 && path[:4] == "note" {
-			hasNote = true
-		}
-	}
-
-	g.Expect(hasChunk).To(BeTrue(), "result must contain at least one chunk must-item")
-	g.Expect(hasNote).To(BeTrue(), "result must contain at least one note must-item")
-}
 
 func TestDefaultRecencyParamsSaneDefaults(t *testing.T) {
 	t.Parallel()
@@ -240,41 +130,6 @@ func TestMaxTurnBySource(t *testing.T) {
 	g.Expect(got["b.jsonl"]).To(Equal(2))
 	_, hasC := got["c.md"]
 	g.Expect(hasC).To(BeFalse())
-}
-
-// TestMergeIntoExistingCopiesLastUsedWhenExistingEmpty verifies that when
-// existing.lastUsed is empty and src has a value, the value is copied.
-func TestMergeIntoExistingCopiesLastUsedWhenExistingEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	existing := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.6, "", "")
-	src := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.5, "2026-06-10", "2026-01-01")
-
-	cli.ExportMergeIntoExisting(&existing, &src)
-
-	g.Expect(cli.ExportResolvedItemLastUsed(existing)).To(Equal("2026-06-10"),
-		"lastUsed should be copied from src when existing is empty")
-	g.Expect(cli.ExportResolvedItemCreated(existing)).To(Equal("2026-01-01"),
-		"created should be copied from src when existing is empty")
-}
-
-// TestMergeIntoExistingTakesMaxBaseScore verifies that when the same note is
-// matched by two phrases with different baseScores, mergeIntoExisting stores
-// the higher one so recency-decay and relevance-floor comparisons are not
-// phrase-order-dependent.
-func TestMergeIntoExistingTakesMaxBaseScore(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Two phrases gave different baseScores; the max must be retained.
-	existing := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.48, "", "")
-	src := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.55, "", "")
-
-	cli.ExportMergeIntoExisting(&existing, &src)
-
-	g.Expect(cli.ExportResolvedItemBaseScore(existing)).To(BeNumerically("~", float32(0.55), 1e-6),
-		"baseScore must be max of both phrases, not first-phrase value")
 }
 
 func TestMostRecentlyUsedNoteItemsFallsBackToCreated(t *testing.T) {
@@ -586,7 +441,9 @@ func TestSortScoredDescOrdersDescending(t *testing.T) {
 		cli.ExportNewScoredChunk(chunk.Record{Source: "c.jsonl", Anchor: "turn-2"}, 0.6),
 	}
 
-	cli.ExportSortScoredDesc(scored)
+	sort.SliceStable(scored, func(i, j int) bool {
+		return cli.ExportScoredChunkScore(scored[i]) > cli.ExportScoredChunkScore(scored[j])
+	})
 
 	g.Expect(cli.ExportScoredChunkScore(scored[0])).To(BeNumerically("~", 0.9, 1e-6))
 	g.Expect(cli.ExportScoredChunkScore(scored[1])).To(BeNumerically("~", 0.6, 1e-6))

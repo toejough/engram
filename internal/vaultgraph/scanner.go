@@ -12,7 +12,6 @@ import (
 type Note struct {
 	Basename  string   // graph-node key, e.g. "9o1.2026-05-10.cross-cutting"
 	LuhmannID string   // "9o1", or "" if the basename has no leading Luhmann ID
-	IsMOC     bool     // true if the file lives in MOCs/
 	Outgoing  []string // wikilink targets parsed from the body (deduped, in first-appearance order)
 }
 
@@ -39,7 +38,7 @@ func ScanVault(fs VaultFS, vaultPath string) ([]Note, error) {
 	}
 
 	for _, filename := range filenames {
-		note, ok, scanErr := scanNote(fs, vaultPath, filename, false)
+		note, ok, scanErr := scanNote(fs, vaultPath, filename)
 		if scanErr != nil {
 			return nil, scanErr
 		}
@@ -54,7 +53,7 @@ func ScanVault(fs VaultFS, vaultPath string) ([]Note, error) {
 	return notes, nil
 }
 
-func scanNote(fs VaultFS, dirPath, filename string, isMOC bool) (Note, bool, error) {
+func scanNote(fs VaultFS, dirPath, filename string) (Note, bool, error) {
 	basename, ok := ParseBasename(filename)
 	if !ok {
 		return Note{}, false, nil
@@ -72,7 +71,6 @@ func scanNote(fs VaultFS, dirPath, filename string, isMOC bool) (Note, bool, err
 	return Note{
 		Basename:  basename,
 		LuhmannID: luhmannID,
-		IsMOC:     isMOC,
 		Outgoing:  ParseWikilinks(body),
 	}, true, nil
 }

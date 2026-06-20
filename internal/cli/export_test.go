@@ -62,7 +62,6 @@ var (
 		return selectStates(args).shouldEmbed(state)
 	}
 	ExportShouldSkipDir       = shouldSkipDir
-	ExportSortScoredDesc      = sortScoredDesc
 	ExportTildify             = tildify
 	ExportValidateIssueID     = validateIssueID
 	ExportValidateProjectSlug = validateProjectSlug
@@ -105,24 +104,6 @@ func ExportAppendUniqueProvenance(initial []string, roles ...string) []string {
 	}
 
 	return item.provenances
-}
-
-// ExportApplyChunkRecencyByTime exposes the new per-IngestedAt applyChunkRecency for recency tests.
-func ExportApplyChunkRecencyByTime(
-	scored []scoredChunk, now time.Time, maxTurnBySrc map[string]int, p recencyParams,
-) []scoredChunk {
-	return applyChunkRecency(scored, now, maxTurnBySrc, p)
-}
-
-// ExportApplyCombinedRecencyBand exposes applyCombinedRecencyBand for band interleave tests.
-func ExportApplyCombinedRecencyBand(
-	items []resolvedItem,
-	chunkMust []resolvedItem,
-	nowFn func() time.Time,
-	limit int,
-	chunksActive bool,
-) []resolvedItem {
-	return applyCombinedRecencyBand(items, chunkMust, nowFn, limit, chunksActive)
 }
 
 // ExportBreakRepresentativeTie is a whitebox handle on the tiebreak helper
@@ -221,11 +202,6 @@ func ExportMergeClusterReps(
 	return result
 }
 
-// ExportMergeIntoExisting exposes mergeIntoExisting for whitebox testing.
-func ExportMergeIntoExisting(existing, src *resolvedItem) {
-	mergeIntoExisting(existing, src)
-}
-
 // ExportNewChunkResolvedItem builds a chunk-kind resolvedItem for band tests.
 // notePath mirrors chunkNotePath's "source#anchor" form.
 func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
@@ -238,20 +214,6 @@ func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
 // resolvedItem model (only chunkItemKind overrides content-derived detection).
 func ExportNewNoteResolvedItem(notePath, lastUsed, created string) resolvedItem {
 	return resolvedItem{notePath: notePath, lastUsed: lastUsed, created: created}
-}
-
-// ExportNewNoteResolvedItemWithBaseScore builds a note-kind resolvedItem with
-// an explicit baseScore, for testing mergeIntoExisting activation logic.
-func ExportNewNoteResolvedItemWithBaseScore(notePath string, baseScore float32, lastUsed, created string) resolvedItem {
-	return resolvedItem{notePath: notePath, baseScore: baseScore, lastUsed: lastUsed, created: created}
-}
-
-// ExportNewNoteResolvedItemWithInDegree builds a note-kind resolvedItem with
-// inDegree set for testing mergeIntoExisting inDegree propagation.
-func ExportNewNoteResolvedItemWithInDegree(notePath string, inDegree int) resolvedItem {
-	v := inDegree
-
-	return resolvedItem{notePath: notePath, inDegree: &v}
 }
 
 // ExportNewNoteResolvedItemWithProvenances builds a note-kind resolvedItem
@@ -374,9 +336,6 @@ func ExportResolvedItemBaseScore(item ExportResolvedItem) float32 { return item.
 
 // ExportResolvedItemCreated exposes the created frontmatter date field.
 func ExportResolvedItemCreated(item ExportResolvedItem) string { return item.created }
-
-// ExportResolvedItemInDegree exposes the inDegree field for assertions.
-func ExportResolvedItemInDegree(item resolvedItem) *int { return item.inDegree }
 
 // ExportResolvedItemLastUsed exposes the LastUsed sidecar date field.
 func ExportResolvedItemLastUsed(item ExportResolvedItem) string { return item.lastUsed }

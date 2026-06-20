@@ -186,7 +186,6 @@ func (m *inMemoryFS) Scan(_ string) ([]vaultgraph.Note, error) {
 		}
 
 		base := filepath.Base(strings.TrimSuffix(path, ".md"))
-		isMOC := strings.Contains(path, "/MOCs/")
 
 		if seen[base] {
 			continue
@@ -195,7 +194,6 @@ func (m *inMemoryFS) Scan(_ string) ([]vaultgraph.Note, error) {
 		seen[base] = true
 		notes = append(notes, vaultgraph.Note{
 			Basename: base,
-			IsMOC:    isMOC,
 			Outgoing: vaultgraph.ParseWikilinks(body),
 		})
 	}

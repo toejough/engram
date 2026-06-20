@@ -112,34 +112,36 @@ func ingestQueryTargets(
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 ) []any {
+	home := homeOrEmpty()
+
 	return []any{
 		targ.Targ(func(ctx context.Context, a QueryArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+			a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
 			errHandler(RunQuery(withLog(ctx), a, newOsQueryDeps(), stdout))
 		}).Name("query").Description("Semantic search over vault + chunk index (YAML output)"),
 		targ.Targ(func(ctx context.Context, a IngestArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
 			errHandler(RunIngest(withLog(ctx), a, newOsIngestDeps(), stdout))
 		}).Name("ingest").Description("Chunk+embed transcripts/markdown into a chunk index (zero-LLM)"),
 		targ.Targ(func(ctx context.Context, a PruneArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
 			errHandler(RunPrune(withLog(ctx), a, newOsPruneDeps(), stdout))
 		}).Name("prune").Description("Remove chunk index entries whose source file no longer exists (GC)"),
 		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
 			errHandler(RunChunkQuery(withLog(ctx), a, newOsChunkQueryDeps(), stdout))
 		}).Name("query-chunks").Description("Semantic search over the chunk index (YAML output)"),
 		targ.Targ(func(_ context.Context, a ActivateArgs) {
-			a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
+			a.Vault = resolveVault(a.Vault, home, os.Getenv)
 			errHandler(RunActivate(a, newOsActivateDeps()))
 		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
 			errHandler(RunShow(withLog(ctx), a, newOsShowDeps(), stdout))
 		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
 		targ.Targ(func(ctx context.Context, a CheckArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
 			errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), stdout))
 		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
 	}
@@ -153,14 +155,16 @@ func learnUpdateTargets(
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 ) []any {
+	home := homeOrEmpty()
+
 	return []any{
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
-				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
+				a.Vault = resolveVault(a.Vault, home, os.Getenv)
 				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, stdout))
 			}).Name("feedback").Description("Write a feedback note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
-				a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
+				a.Vault = resolveVault(a.Vault, home, os.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, stdout))
 			}).Name("fact").Description("Write a fact note to the vault"),
 		),
@@ -169,11 +173,11 @@ func learnUpdateTargets(
 		}).Name("update").Description("Refresh engram binary and harness skills"),
 		targ.Group("embed",
 			targ.Targ(func(ctx context.Context, a EmbedApplyArgs) {
-				a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+				a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
 				errHandler(RunEmbedApply(withLog(ctx), a, newOsEmbedDeps(), stdout))
 			}).Name("apply").Description("Embed notes (default: missing only)"),
 			targ.Targ(func(ctx context.Context, a EmbedStatusArgs) {
-				a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+				a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
 				errHandler(RunEmbedStatus(withLog(ctx), a, newOsEmbedDeps(), stdout))
 			}).Name("status").Description("Report embedding state counts"),
 		),
@@ -188,18 +192,20 @@ func maintenanceTargets(
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 ) []any {
+	home := homeOrEmpty()
+
 	return []any{
 		targ.Targ(func(ctx context.Context, a MigrateArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, homeOrEmpty(), os.Getenv)
+			a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
 			errHandler(RunMigrateLinks(withLog(ctx), a, newOsMigrateDeps(), stdout))
 		}).Name("migrate-links").Description("Rewrite bare-id relation links to full basenames (D1/G0)"),
 		targ.Targ(func(ctx context.Context, a ResituateArgs) {
-			a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
+			a.Vault = resolveVault(a.Vault, home, os.Getenv)
 			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), stdout))
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 		targ.Targ(func(ctx context.Context, a AmendArgs) {
-			a.Vault = resolveVault(a.Vault, homeOrEmpty(), os.Getenv)
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, homeOrEmpty(), os.Getenv)
+			a.Vault = resolveVault(a.Vault, home, os.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
 			errHandler(RunAmend(withLog(ctx), a, newOsAmendDeps(), stdout))
 		}).Name("amend").Description("Amend a note in place: relation-merge, provenance-merge, field-replacement, activate"),
 	}
