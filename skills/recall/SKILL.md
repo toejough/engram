@@ -104,7 +104,7 @@ If the matched items (Channel 1) are empty, say so in one sentence, skip Step 2.
 with your plan. (A non-empty recent-activity block alone does not count as "something surfaced"
 for coverage purposes.)
 
-### Step 2.5 — Lazy L2 synthesis from the clustering (agent-judged)
+### Step 2.5 — Lazy note synthesis from the clustering (agent-judged)
 
 The `--synthesize-l2` output's `clusters` list contains the unified clustering of matched chunks
 and notes. Each cluster carries `candidate_l2s: [{path, cosine}]` — the top-5 existing notes
@@ -137,7 +137,7 @@ because it lacks a recent instance.
 | **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --relation <note-sources> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted |
 | **Absent** | No candidate addresses the situation | `engram learn fact\|feedback --position top --relation <note-sources> --chunk-source <chunk-ids> --source "<descriptive>" --situation "..." --subject/--predicate/--object (or --behavior/--impact/--action)` |
 
-**One write per cluster; one representative L2 per cluster.** The representative is always an L2
+**One write per cluster; one representative note per cluster.** The representative is always a note
 (never an L1 note or a chunk). For `absent`, write exactly one note (fact *or* feedback) covering
 the cluster's principle. Do not write one fact and one feedback note for the same cluster.
 
@@ -148,7 +148,7 @@ wikilinks). For `learn`, pass the same flags. The `--source` flag on `learn` is 
 provenance string (unchanged); `--chunk-source` is the chunk-id list (new).
 
 **WAIT for each write before moving to the next cluster.** Writes are blocking and inline — the
-L2 created or updated by one cluster may be a candidate for another.
+note created or updated by one cluster may be a candidate for another.
 
 **Known gap:** cross-cluster supersession — where the superseding evidence did not cosine-cluster
 with the old — is not handled. Note the conflict in the synthesized content when you see it, but
@@ -194,7 +194,7 @@ The user sees this. Rules:
 | You judged coverage before reading the candidate content with `engram show` | Read first — cosine alone cannot decide coverage |
 | You applied a cosine threshold to decide covered/near/absent | Coverage is agent-judged from content; cosine only nominates candidates |
 | A candidate matching only the superseded content → you marked it "covered" | Apply the recency weight first; a candidate that misses the conflict is "near" |
-| You wrote two notes (a fact AND a feedback) for one cluster | One representative L2 per cluster — pick the right kind |
+| You wrote two notes (a fact AND a feedback) for one cluster | One representative note per cluster — pick the right kind |
 | You used `nearest_l2` instead of `candidate_l2s` | The v2 field is `candidate_l2s: [{path, cosine}]` — a list, not a singleton |
 | You called `engram learn --target` to update a note in place | Updates use `engram amend`; `engram learn` is create-only |
 | A `≥0.95` cluster → you activated without reading the candidates | Read first; high cosine nominates, it does not decide |

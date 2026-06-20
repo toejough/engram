@@ -250,7 +250,74 @@ A related fix corrected the `engram activate` vault-path resolution.
   `2026-06-17-fix-activate-vault-path.md`
 - Vault connectivity analysis: `docs/superpowers/research/2026-06-17-vault-connectivity-analysis.md`
 
-## 9. `please` adversarial review gates + the `route` skill (2026-06-12/14)
+## 9. Recall v2: two-channel recall + L1/L3 retirement (2026-06-19)
+
+**Decision: restructure `--synthesize-l2` into two explicit channels (bounded
+clustered relevance + un-clustered recency); collapse the tier vocabulary to
+"notes"; retire L1 episodes and L3 ADRs from the binary surface.**
+
+Three concrete decisions made (see `docs/superpowers/plans/2026-06-19-recall-v2.md`;
+the plan's labels DECISION-1/2/4 are retained verbatim below — there is no
+DECISION-3, the numbering skips it):
+
+**DECISION-1 (relevance floor on baseScore):** The relevance floor (0.25) gates on
+raw cosine, not the recency-biased score. A recency-biased floor would drop
+topically-correct-but-old notes. Superseded memories still fade — via recency-biased
+*ranking* (they rank below fresher competition and fall out of the `matchSetCap` when
+fresher matches exist) and via the agent's Step-2.5 supersede-on-conflict — NOT via
+the floor. Floor = relevance gate; recency = ranking + competition.
+
+**DECISION-2 / D7 reversal (within-cluster `candidate_l2s`):** D7 ("nominate
+generously from the whole vault; the agent decides coverage") is reversed. Under D7,
+full-vault nomination surfaced notes that were irrelevant to the query — they hadn't
+matched any phrase. Recall-v2 nominates `candidate_l2s` from **within each cluster's
+own note members** (top-5 by centroid cosine). A note not in the matched set gets zero
+nominations. A note-less cluster yields an empty `candidate_l2s`. This is a precision
+trade: nominees are now always relevant, at the cost of never surfacing a vault note
+that was absent from the matched set. The original D7 design (ADR-0009 equivalent) is
+preserved here for history; the code implements within-cluster nomination from this
+point forward.
+
+**D1 PRESERVED:** recall-v2 still does ONE clustering over the matched notes+chunks.
+The recency channel surfaces *un-matched* recent chunks as additive situational context;
+D1 governs how the *matched* set clusters, not whether to also surface recent context.
+No D1 reversal occurred — a Gate-A docs-review flagged one and it was rebutted.
+
+**DECISION-4 (legacy tier backward-compat):** `validateTier` continues to accept legacy
+`tier: L1` and `tier: L3` frontmatter values so manually-edited old notes still parse
+correctly. The binary no longer *writes* L1 or L3 defaults; the write paths and the
+read-branches for L3 (`gatherL3Index`, `nearestL3For`, `nearest_l3` cluster field) are
+removed. The vocabulary collapses: "notes" replaces "L2 notes" in identifiers and docs;
+the `tier: L2` frontmatter string and schema remain unchanged.
+
+**Two-channel recall (the current model):**
+- **Channel 1 — Relevance (clustered):** 10 phrases × top-30 per phrase (notes+chunks,
+  recency-biased cosine) → union with dedup, relevance floor (baseScore < 0.25), cap at
+  `matchSetCap`=300 → ONE AutoK cluster (D1 preserved) → within-cluster top-5
+  `candidate_l2s`. The agent runs the blocking coverage loop against matched clusters.
+- **Channel 2 — Recency (un-clustered):** 200 newest chunks by `IngestedAt`
+  (`recentFillChunks`), deduped against the matched set, appended to `items[]` with
+  provenance `recent`. These are NOT added to any cluster — they are raw situational
+  context, not coverage nominees.
+
+**Agent-driven activation (activation tracks USE not return):** the binary no longer
+emits a read-only `activated` flag. The skill calls `engram activate` on only the notes
+it actually drew on (the `candidate_l2s` it judged Covered/Near at Step 2.5, and any
+notes cited in the Step 3 synthesis). A returned-but-unused note's `LastUsed` goes
+stale and fades by recency rank — bumping every returned note would defeat the
+supersede-by-competition mechanism of DECISION-1.
+
+**L1/L3 retirement:** The `engram learn episode` subcommand (L1) was retired in the
+lazy-L2 work (§7). Recall-v2 completes the cleanup: the L3 binary surface (`tier: L3`
+write-default, `gatherL3Index`, `nearestL3For`, `nearestL3ForTier`, the `NearestL3`
+cluster-YAML field, the `nearest_l3` plumbing) is removed from `query.go`. Legacy notes
+with `tier: L3` frontmatter remain valid and cluster as normal notes. Notes are
+now simply "notes" — the L2/note duality is collapsed to one term in identifiers and
+docs, with `tier: L2` remaining the frontmatter string for backward compatibility.
+
+- Implementation plan: `docs/superpowers/plans/2026-06-19-recall-v2.md`
+
+## 10. `please` adversarial review gates + the `route` skill (2026-06-12/14)
 
 **Decision: the `please` workflow stops trusting its own LLM-generated
 artifacts — specs/plans, refactors, doc updates, and outward prose each pass an

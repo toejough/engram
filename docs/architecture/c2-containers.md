@@ -38,7 +38,7 @@ flowchart TB
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
 | C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query --synthesize-l2` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow. Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
-| C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`), note write (tier defaults, embed-on-write, Luhmann id under lock), query (cosine→subgraph→cluster→tier-filter), embed apply/status, update. | houses G0, M4 |
+| C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`), note write (tier defaults, embed-on-write, Luhmann id under lock), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster; recency channel = 200 newest chunks un-clustered), embed apply/status, update. | houses G0, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: swap silently empties recall (no guard) |
 | C4 | Vault | filesystem | `<luhmann>.<date>.<slug>.md` at the flat vault root + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
 
@@ -56,7 +56,9 @@ flowchart TB
 
 ## The skills↔binary split (the load-bearing boundary)
 - **C2 (binary) is deterministic and the thing the invariants gate:** marker math, noise-strip,
-  embed-on-write, Luhmann-id-under-lock, cosine, graph build/BFS, k-means+silhouette, tier filter.
+  embed-on-write, Luhmann-id-under-lock, cosine, graph build/BFS, k-means+silhouette, matched-set
+  bounding (per-phrase top-30 union, dedup, relevance floor, cap at `matchSetCap`), recency-channel
+  fill + dedup. The skill (C1) supplies the 10 phrases; the binary applies the floor, cap, and clustering.
 - **C1 (skills) is LLM judgment, gated only by RT acceptance tests:** which candidates to capture,
   recall-mirror framing, and the recall-time lazy-L2 coverage decision (covered/near/absent).
 - The two communicate **only** through C2's CLI surface + the vault on disk. This boundary is why
@@ -83,28 +85,31 @@ sequenceDiagram
     participant Md as C3 model
     participant V as C4 vault
 
-    Note over Sk: Step 0 — print Ask/Situation/Plan; Step 1 — phrase 5–15 queries
-    Sk->>E: shell engram query --synthesize-l2 --phrase p1 … --phrase pN (fresh process)
-    E->>V: Scan notes + load model-compatible sidecars
-    V-->>E: notes + vectors
+    Note over Sk: Step 0 — print Ask/Situation/Plan; Step 1 — phrase exactly 10 queries (one per fixed angle)
+    Sk->>E: shell engram query --synthesize-l2 --phrase p1 … --phrase p10 (fresh process)
+    E->>V: Scan notes + load model-compatible sidecars + chunk index
+    V-->>E: notes, chunks, and vectors
     E->>Md: embed each phrase
     Md-->>E: query vectors
-    Note over E: cosine rank, BFS subgraph, ONE AutoK cluster over matched chunks+notes; tier-filter (items-only today; T1a fix → all channels)
-    E-->>Sk: stdout YAML — items, clusters[].candidate_l2s {path, cosine} (top-K by centroid cosine), hubs, budget
-    loop per cluster (BLOCKING — inline, not fire-and-forget)
-        Sk->>E: shell engram show <candidate L2s> (only those not already in items[])
+    Note over E: per phrase: top-30 (notes+chunks, recency-biased cosine); union, dedup max score, drop baseScore < 0.25, cap matched set ~300
+    Note over E: Channel 1 (Relevance): ONE AutoK cluster over matched notes+chunks (D1 preserved); candidate_l2s = top-5 from within-cluster notes
+    Note over E: Channel 2 (Recency): append 200 newest chunks by IngestedAt, deduped vs matched set, tagged recent — NOT in any cluster
+    E-->>Sk: stdout YAML — items[matched+recent], clusters[].candidate_l2s {path, cosine} (top-5 within-cluster), hubs, budget
+    loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only
+        Sk->>E: shell engram show <candidate notes> (only those not already in items[])
         E-->>Sk: candidate frontmatter + body + members
         Note over Sk: apply recency weight; judge coverage (covered/near/absent)
         alt covered
-            Sk->>E: shell engram amend --target <l2> --activate --relation --chunk-source (link-enrich)
+            Sk->>E: shell engram amend --target <note> --activate --relation --chunk-source (link-enrich)
         else near
-            Sk->>E: shell engram amend --target <l2> --relation --chunk-source <content flags> (re-synthesize)
+            Sk->>E: shell engram amend --target <note> --relation --chunk-source <content flags> (re-synthesize)
         else absent
             Sk->>E: shell engram learn fact|feedback --relation --chunk-source (create)
         end
         E->>V: write under flock (amend rewrites both copies + re-embeds; learn O_EXCL)
     end
-    Note over Sk: Step 4 — synthesize impact on the Step 0 plan
+    Note over Sk: agent calls engram activate on notes actually USED (covered/near + cited); binary emits no activated flag
+    Note over Sk: Step 3 — synthesize impact on the Step 0 plan
 ```
 
 ### Flow: learn
@@ -139,7 +144,7 @@ sequenceDiagram
 Synthesis now happens at **recall**, **inline and blocking** — not at learn time and not via
 fire-and-forget subagents. There is **no `engram synthesize`**. The recall skill drives the loop,
 calling `engram query` / `engram show` / `engram amend` / `engram learn` as **separate processes**
-and making every coverage decision itself. Cosine only *nominates* candidate L2s; the agent decides
+and making every coverage decision itself. Cosine only *nominates* candidate notes; the agent decides
 covered/near/absent. The binary never sees "the synthesis loop."
 
 ```mermaid
@@ -150,31 +155,32 @@ sequenceDiagram
     participant V as C4 vault
 
     Sk->>E: shell engram query --synthesize-l2 (fresh process)
-    E->>V: scan + cluster matched chunks+notes
-    E-->>Sk: payload incl. clusters[].candidate_l2s {path, cosine} (top-K by centroid cosine)
-    loop per cluster (BLOCKING — inline, not fire-and-forget)
-        Sk->>E: shell engram show <candidate L2s> (only those not already in items[])
+    E->>V: scan + build matched set (recency-biased cosine per phrase, bounded ~300) + cluster (D1) + recency channel
+    E-->>Sk: payload incl. items[matched+recent], clusters[].candidate_l2s {path, cosine} (top-5 within-cluster notes)
+    loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only
+        Sk->>E: shell engram show <candidate notes> (only those not already in items[])
         E-->>Sk: candidate frontmatter + body + members
         Note over Sk: apply recency weight (recent wins on conflict; old-uncontradicted retained); judge coverage
-        alt covered (one representative L2 already says it)
-            Sk->>E: shell engram amend --target <l2> --activate --relation <note-srcs> --chunk-source <chunk-ids> (link-enrich, no content rewrite)
+        alt covered (one representative note already says it)
+            Sk->>E: shell engram amend --target <note> --activate --relation <note-srcs> --chunk-source <chunk-ids> (link-enrich, no content rewrite)
         else near (close, needs re-synthesis)
-            Sk->>E: shell engram amend --target <l2> --relation … --chunk-source … <content flags> (re-synthesize content)
+            Sk->>E: shell engram amend --target <note> --relation … --chunk-source … <content flags> (re-synthesize content)
         else absent (no representative)
             Sk->>E: shell engram learn fact|feedback --relation … --chunk-source … (create)
         end
         E->>V: write under flock (amend rewrites both copies + re-embeds; learn O_EXCL)
     end
+    Note over Sk: agent calls engram activate on notes actually USED — binary emits no activated flag
 ```
 
 ### Flowchart: lazy-L2 coverage decision (C1)
 
 ```mermaid
 flowchart TD
-    A["cluster with candidate_l2s"] --> B["engram show candidates not in items[] — read frontmatter + body + members"]
+    A["cluster with candidate_l2s (top-5 within-cluster notes)"] --> B["engram show candidates not in items[] — read frontmatter + body + members"]
     B --> C["apply recency weight: recent wins on conflict; old-uncontradicted retained"]
     C --> D{coverage?}
-    D -->|covered| E["engram amend --target l2 --activate --relation --chunk-source — link-enrich, no content rewrite"]
-    D -->|near| F["engram amend --target l2 --relation --chunk-source content-flags — re-synthesize content"]
+    D -->|covered| E["engram amend --target note --activate --relation --chunk-source — link-enrich, no content rewrite"]
+    D -->|near| F["engram amend --target note --relation --chunk-source content-flags — re-synthesize content"]
     D -->|absent| G["engram learn fact / feedback --relation --chunk-source — create"]
 ```

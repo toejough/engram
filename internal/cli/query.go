@@ -2407,7 +2407,8 @@ func survivingChunks(scored []scoredChunk, items []resolvedItem) []scoredChunk {
 // max(situation,body) cosine, sorted descending by centroid cosine (ties broken
 // by lexicographic path for stability). K is at least candidateNoteK; when fewer
 // than candidateNoteK notes exist, all are returned. An empty index returns
-// nil. No cosine threshold is applied — nomination is generous (D7). The sort
+// nil. No cosine threshold is applied — all within-cluster note members are
+// eligible (D7's full-vault nomination was reversed; see DESIGN-HISTORY §9). The sort
 // key is CENTROID cosine (per spec §3.3: "top-K by centroid cosine");
 // max-member cosine was rejected because it overfits to a cluster fragment.
 func topKCandidateNotes(centroid []float32, idx tierIndex) []queryCandidateNote {

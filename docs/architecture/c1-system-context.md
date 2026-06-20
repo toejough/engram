@@ -70,49 +70,62 @@ references cite the entry-point symbol on `main` — grep the symbol, since line
 ### Flow: recall
 
 Operator asks a question that needs prior memory. The harness loads the `recall`
-skill, prints its Step 0 judgement (Ask, Situation, Plan), then phrases 5–15
-query strings from the plan and issues a single `engram query` call passing
-each phrase as a separate `--phrase` flag. The binary runs one sub-pipeline
-per phrase (embed, BFS 3-hop subgraph cap 200, k-means + silhouette clusters,
-in-degree top-5 hubs), then merges results server-side (items dedup by path
-with max score and union provenances, clusters tagged per-phrase, aggregated
-budget). A **combined floor band** then guarantees the newest chunks and the
-most-recently-used notes survive the cap, so a post-context-loss agent
-re-encounters its own recent narration — recovering authorship from recency
-itself, with no separate provenance mechanism. Ranking under it is
-**recency-weighted** for both kinds: a chunk's cosine is scaled by a
-per-source-mtime time-decay plus a turn-position factor; a note's by a
-time-decay keyed on its `LastUsed` date (falling back to `created`). The
-payload also carries a read-only **`activated`** flag on each
-note item that *surfaced AND* cleared a base-cosine relevance cutoff; the
-harness forwards those paths to **`engram activate`**, which bumps the note's
-`LastUsed` (atomic per-file sidecar write — usefulness keeps useful notes
-fresh). The binary clusters the **matched chunks + notes together** in one AutoK pass
-(D1); each cluster carries `candidate_l2s: [{path, cosine}]` — the top-K
-(K≥3) existing L2s ranked by centroid cosine — rather than a single
-`nearest_l2`. The harness then, **inline and blocking**, reads the cluster's
-members and candidates and applies an **agent-judged coverage decision** (D7):
-**covered** (candidate already states the principle with no material omission,
-judged against the recency-weighted view) → `engram amend --activate
+skill, prints its Step 0 judgement (Ask, Situation, Plan), then phrases exactly
+**10** query strings (one per fixed angle) and issues a single `engram query
+--synthesize-l2` call passing each phrase as a separate `--phrase` flag.
+
+**Channel 1 — Relevance (clustered):** the binary scores both notes and chunks
+against each phrase vector with recency bias (chunk cosine scaled by
+`IngestedAt` time-decay + turn-position; note cosine scaled by `LastUsed` decay),
+takes the top-30 per phrase, unions across all 10 phrases with dedup keeping
+max score, drops items below a **relevance floor** (`matchRelevanceFloor`,
+baseScore < 0.25), and caps the matched set at **~300** (`matchSetCap`, 10×30 per phrase).
+This bounded matched set is the **only clustering input**: one AutoK pass over
+matched notes+chunks (D1 preserved).
+Each cluster carries `candidate_l2s: [{path, cosine}]` — the top-5 notes from
+**within that cluster** ranked by centroid cosine (reversed from the earlier
+full-vault nomination of D7). The harness then, **inline and blocking**, reads
+the cluster's members and candidates and applies an **agent-judged coverage
+decision**: **covered** (candidate already states the principle with no material
+omission, judged against the recency-weighted view) → `engram amend --activate
 --relation <note sources> --chunk-source <chunk ids>` (refresh recency + enrich
 links/provenance, no content rewrite); **near** (same situation, ≥1 substantive
 claim omitted) → `engram amend --relation … --chunk-source … <re-synthesized
 content>` (update in place, recency-weighted, D6); **absent** (no candidate
 addresses the situation) → `engram learn fact|feedback --relation … --chunk-source
-… --source "<descriptive>"` (create the single representative L2). Source:
-`internal/cli/query.go` (`RunQuery`, `mergeChunkSpace`, `applyCombinedRecencyBand`),
-the recency/decay/band in `internal/cli/recency.go`, `engram activate` in
-`internal/cli/activate.go`, `engram amend` in `internal/cli/amend.go`, and the
-`internal/cluster/` package (`kmeans.go`, `silhouette.go`, `autok.go`).
+… --source "<descriptive>"` (create the single representative note).
 
-> Two deliberate evolutions of earlier decisions, both driven by recency:
-> (1) recency now applies to **both notes and chunks** — per-chunk `IngestedAt`
-> (D5) replaces the per-source-mtime approximation; (2) coverage is **agent-judged**
-> (D7) — cosine only nominates top-K candidates; the agent reads members +
-> candidates and decides. Writes are **blocking and inline** (not fire-and-forget)
-> so the synthesized L2 is available to the agent within the same recall turn.
-> Consequence (intended, ACT-R): regularly-useful memory stays fresh;
-> never-retrieved memory decays and loses rank.
+**Channel 2 — Recency (un-clustered):** after the matched+clustered set, the
+binary appends the **200 newest chunks** (`recentFillChunks`) by `IngestedAt`,
+deduped against the matched set and tagged `recent`. These are not added to any cluster — they are
+raw situational context so a post-context-loss agent re-encounters its own recent
+narration and recovers authorship from recency, with no separate provenance
+mechanism. Recency now applies to chunk cosine ranking too (per-chunk `IngestedAt`,
+replacing the older per-source-mtime approximation).
+
+**Activation is agent-driven:** the binary no longer emits an `activated` flag.
+After synthesis, the agent calls `engram activate` only on the notes it actually
+used (the `candidate_l2s` judged Covered/Near and any notes cited in the
+Step 3 synthesis). A returned-but-unused note's `LastUsed` goes stale and fades
+by recency rank — bumping every returned note would defeat the supersede-by-competition
+mechanism. Chunks are never activated.
+
+Source: `internal/cli/query.go` (`RunQuery`, `runSynthesizeL2Query`,
+`buildSynthesisMatchedSet`, `buildRecentFillItems`), the recency/decay in
+`internal/cli/recency.go` (`applyChunkRecency`, `newestChunkItems`), `engram
+activate` in `internal/cli/activate.go`, `engram amend` in
+`internal/cli/amend.go`, and the `internal/cluster/` package (`kmeans.go`,
+`silhouette.go`, `autok.go`).
+
+> Three deliberate evolutions of earlier decisions, all driven by recency and
+> retrieval precision: (1) recency applies to **both notes and chunks** — per-chunk
+> `IngestedAt` (D5) replaces the per-source-mtime approximation; (2) coverage is
+> **agent-judged** from within-cluster nominees (D7 reversed by recall-v2
+> DECISION-2) — cosine only nominates top-5 candidates **within each cluster**;
+> the agent reads members + candidates and decides; (3) **activation is agent-driven**
+> (recall-v2) — the binary no longer pre-judges use; the agent activates only
+> notes it actually drew on. Consequence (intended, ACT-R): regularly-useful
+> memory stays fresh; never-retrieved memory decays and loses rank.
 
 ```mermaid
 sequenceDiagram
@@ -123,28 +136,29 @@ sequenceDiagram
     participant V as S4 Vault
 
     Op->>H: prompt that may need memory
-    Note over H: print Step 0 (Ask, Situation, Plan), phrase 5-15 query strings
-    H->>E: engram query --synthesize-l2 --phrase <p1> --phrase <p2> ... --limit N
+    Note over H: print Step 0 (Ask, Situation, Plan), phrase exactly 10 query strings (one per fixed angle)
+    H->>E: engram query --synthesize-l2 --phrase <p1> ... --phrase <p10>
     E->>V: scan sidecars + bodies for compatible-embed notes + chunk index
     V-->>E: notes, chunks, and vectors
-    Note over E: per phrase — embed, top-k cosine, BFS 3 hops (cap 200), k-means, in-degree top-5
-    Note over E: merge server-side — items dedup by path (max score, union provenances); reweight by per-chunk IngestedAt recency; guarantee floor of recent items; clusters tagged per-phrase
-    Note over E: one AutoK cluster over matched chunks + notes; per cluster emit candidate_l2s (top-K by centroid cosine)
-    E-->>H: single YAML payload (phrases[], items, clusters[candidate_l2s], hubs, budget)
+    Note over E: per phrase — embed; top-30 per phrase (notes+chunks, recency-biased cosine); union across 10 phrases, dedup max score, drop baseScore < 0.25, cap matched set at ~300
+    Note over E: Channel 1 (Relevance): one AutoK cluster over matched notes+chunks (D1 preserved); per cluster emit candidate_l2s top-5 from within-cluster notes
+    Note over E: Channel 2 (Recency): append 200 newest chunks by IngestedAt, deduped vs matched set, tagged recent — NOT in any cluster
+    E-->>H: single YAML payload (phrases[], items[matched+recent], clusters[candidate_l2s], hubs, budget)
     Note over H: surface anchor concepts from hubs
 
-    loop per cluster (blocking inline)
-        H->>E: engram show <candidate L2s> (only those not already in items[])
+    Note over H: Step 2.5 — per-cluster coverage synthesis (loop below)
+    loop per cluster (blocking inline) — coverage judged from matched clusters only
+        H->>E: engram show <candidate notes> (only those not already in items[])
         E->>V: read candidate frontmatter + body + members
         V-->>E: contents
         E-->>H: candidate + member contents
         Note over H: apply recency weight; judge coverage (covered / near / absent)
         alt covered — candidate already states the principle
-            H->>E: engram amend --target <l2> --activate --relation <note srcs> --chunk-source <ids>
+            H->>E: engram amend --target <note> --activate --relation <note srcs> --chunk-source <ids>
             E->>V: acquire flock, merge relations + provenance, bump LastUsed
             V-->>E: written path
         else near — same situation, substantive claim omitted
-            H->>E: engram amend --target <l2> --relation <note srcs> --chunk-source <ids> <re-synth content>
+            H->>E: engram amend --target <note> --relation <note srcs> --chunk-source <ids> <re-synth content>
             E->>V: acquire flock, replace content fields, merge relations + provenance, re-embed
             V-->>E: written path
         else absent — no candidate addresses the situation
@@ -154,8 +168,11 @@ sequenceDiagram
         end
     end
 
-    Note over H: Step 4b synthesis against the Step 0 plan
-    H-->>Op: reply opening with anchor concepts, then plan walk (confirmed / adjusted / contradicted / silent)
+    Note over H: agent calls engram activate on notes actually USED (covered/near candidates and cited notes only)
+    H->>E: engram activate --note <path> ... (agent-driven; unused returned notes are NOT activated)
+    E->>V: bump LastUsed on each activated note
+    Note over H: Step 3 synthesis against the Step 0 plan
+    H-->>Op: reply with plan walk (confirmed / adjusted / contradicted / silent)
 ```
 
 ### Flow: learn

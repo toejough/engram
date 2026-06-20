@@ -93,43 +93,80 @@ bootstrap — they error out so the user notices.
 
 ### recall (skill)
 The skill at `skills/recall/SKILL.md`, invoked as `/recall` in a harness or
-self-fired by the agent. Walks the vault and surfaces relevant notes.
+self-fired by the agent. Issues `engram query --synthesize-l2` with exactly 10
+phrases and runs the inline coverage-synthesis loop over the returned clusters.
 
 ### cascade
-The recall loop that expands the frontier round by round, following
-wikilinks from notes scored relevant in the previous round, until ≥100
-notes are surfaced or the frontier empties.
+**Retired.** The old pre-`engram query` round-by-round wikilink expansion loop.
+Replaced by `engram query --synthesize-l2`'s two-channel recall (relevance +
+recency) since the v2 rewrite. Preserved here for historical recognition.
 
 ### frontier
-The set of notes to read this round. The **initial frontier** is anchors ∪
-recent; **expanded frontiers** are the wikilink targets of relevant notes
-from the prior round.
+**Retired.** The set of notes the cascade would read in one round. No longer used
+— `engram query --synthesize-l2` retrieves via embedding similarity, not round-by-round
+wikilink traversal.
 
 ### anchors
 Legacy term from the pre-`engram query` recall cascade — every MOC plus
 the in-degree winner of each MOC-less connected component. **In code** the
-same concept is named `StartingPoints` (see triage); still computed inside
-the vault graph package but no longer exposed via a binary subcommand.
+same concept is named `StartingPoints`; still computed inside the vault graph
+package but no longer exposed via a binary subcommand.
 Hubs from `engram query` (top-5 in-degree within the query subgraph) are
 the live successor concept.
 
 ### explicit query
-The user-named topic (or the agent-formed topic from context). One of the
-two retrieval streams; the other is the **situational baseline**.
+**Retired from recall skill.** The skill no longer distinguishes "explicit" vs
+"situational baseline" query streams; it always generates exactly 10 phrases
+from fixed angles (situation, intent, action, blocker, approach, tooling, prior
+work, adjacent technique, failure mode, domain) and submits them together.
 
 ### situational baseline
-Step-1 phrases derived from ambient features of the current situation
-(repo, language, what's loaded into context, the operation underway).
-Surfaces what the user didn't know to ask about.
+**Retired from recall skill.** Formerly the stream of phrases derived from
+ambient context (repo, language, operation underway). Now one of the 10 fixed
+angles the skill always generates — indistinguishable at the binary level from
+the "explicit" stream.
 
 ### Step 0 / Step 1 / …
-Numbered pipeline stages in the recall skill. Step 0 = print Ask/Situation
-/Plan; Step 1 = phrase queries; Step 2 = form explicit query; Step 3 =
-cascade; Step 4 = synthesis.
+Numbered pipeline stages in the recall skill. Step 0 = print Ask/Situation/Plan;
+Step 1 = generate 10 phrases (one per fixed angle); Step 2 = run `engram query
+--synthesize-l2`; Step 2.5 = per-cluster coverage synthesis (inline, blocking);
+Step 3 = closing synthesis (how memories changed the plan).
 
 ### surfaced notes
-Notes that scored relevant during the cascade. Distinct from *read* (every
-frontier note is read; only some are surfaced).
+Notes returned in the `items[]` payload from `engram query`. Includes both
+matched notes (Channel 1, relevance) and recent chunks (Channel 2, recency,
+tagged `recent`). Coverage synthesis is judged from matched clusters only (Channel
+1); the recency channel is situational context the agent reads, not clustered.
+
+### matched set
+The bounded set of notes and chunks fed to clustering in `--synthesize-l2` mode.
+Built by: per-phrase top-30 (notes+chunks combined, recency-biased cosine) → union
+across 10 phrases with dedup keeping max score → drop items below the relevance
+floor (baseScore < 0.25) → hard cap at `matchSetCap`=300. Only the matched set
+enters clustering (D1 preserved). Recency-channel chunks are appended after
+clustering, deduped against the matched set, and never appear in any cluster's
+`members[]`.
+
+### relevance floor
+The minimum raw cosine (baseScore, pre-recency-decay) required for an item to
+enter the matched set: 0.25. Dropping below the floor removes topically-irrelevant
+items before clustering. Recency-biased ranking — not the floor — handles
+superseded notes (they rank below fresh competition and fall out of the cap).
+
+### recency channel
+The second retrieval channel in `--synthesize-l2`: the 200 newest chunks by
+`IngestedAt`, deduped against the matched set, appended to `items[]` with
+provenance `recent`, and not added to any cluster. Surfaces recent raw session
+context so a post-context-loss agent re-encounters its own narration. Coverage
+synthesis is not run against recency-channel items.
+
+### candidate_l2s
+The `[{path, cosine}]` field on each cluster in the `--synthesize-l2` payload.
+Nominates up to 5 notes from **within that cluster's own note members** for the
+agent's covered/near/absent coverage decision (top-5 by centroid cosine from
+within-cluster notes only — any matched vault note, regardless of legacy `tier:`
+value). A cluster with no note members has an empty `candidate_l2s`. Full-vault nomination was dropped in recall-v2 (DECISION-2,
+reversing D7) because it surfaced unrelated notes that the agent had not matched.
 
 ### subgraph (query-time)
 The set of notes `engram query` operates on after expanding 3 hops via
@@ -286,9 +323,11 @@ One conversation between a user and an agent in a harness. Plural:
 Merge-appends session transcripts + markdown into the per-source chunk
 index — re-chunks/re-embeds only changed content, never deletes
 (append-only chunk history). `--auto` sweeps all known sources; called by
-`/learn` and `/recall`. Chunks are the episodic layer (raw event memory)
-and are matched/clustered alongside L2 notes at recall; chunk-grounding is
-recorded as frontmatter provenance, not as wikilinks.
+`/learn` and `/recall`. Chunks are the episodic layer (raw event memory);
+at recall they compete with notes in the per-phrase ranking (matched set,
+Channel 1) and the 200 newest also appear un-clustered in the recency channel
+(Channel 2). Chunk-grounding is recorded as frontmatter provenance on written
+notes, not as wikilinks.
 
 ---
 
