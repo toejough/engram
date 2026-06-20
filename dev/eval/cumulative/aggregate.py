@@ -12,7 +12,7 @@ Reads the per-op result JSONs written by harness.py (build/learn) under <root>/r
 
 Usage: python3 aggregate.py [--root /tmp/cummatrix] [--out results-v2.md]
 """
-import argparse, collections, glob, json, os, statistics
+import argparse, collections, glob, json, os, random as _random, statistics
 
 
 def load(root):
@@ -37,6 +37,86 @@ def load(root):
 def mean(xs):
     xs = [x for x in xs if x is not None]
     return statistics.mean(xs) if xs else None
+
+
+def bootstrap_ci(xs, alpha=0.05, n_boot=2000):
+    """Bootstrap (mean, lo, hi) for a 1-alpha CI. Returns (mean, lo, hi)."""
+    xs = [x for x in xs if x is not None]
+    if not xs:
+        return (None, None, None)
+    rng = _random.Random(0)
+    n = len(xs)
+    boot_means = []
+    for _ in range(n_boot):
+        sample = [xs[rng.randrange(n)] for _ in range(n)]
+        boot_means.append(statistics.mean(sample))
+    boot_means.sort()
+    lo_idx = int((alpha / 2) * n_boot)
+    hi_idx = int((1 - alpha / 2) * n_boot) - 1
+    return (statistics.mean(xs), boot_means[lo_idx], boot_means[hi_idx])
+
+
+def noise_floor(xs):
+    """95% CI half-width of within-group variance (warm-vs-warm contrast)."""
+    _, lo, hi = bootstrap_ci(xs, alpha=0.05, n_boot=2000)
+    if lo is None or hi is None:
+        return 0.0
+    return (hi - lo) / 2.0
+
+
+def gap_label(gap, floor):
+    """Label a cold-vs-warm gap relative to the noise floor."""
+    if abs(gap) < floor:
+        return "underpowered"
+    return "significant"
+
+
+def axis_ci_table(builds, learns, models, regimes):
+    """Per (regime, model): bootstrap mean ± 95% CI for each C-axis metric."""
+    metrics = [
+        ("recall_s", "recall_s"),
+        ("build_s", "build_s"),
+        ("learn_s", "learn_s"),
+        ("build_cost", "axis_c2_cost_usd"),
+        ("convention_statements", "axis_c3_interventions"),
+        ("feature_statements", "feature_statements"),
+    ]
+    lines = ["### Axis CI table (bootstrap 95% CI per regime × model)", ""]
+    header = "| regime | model | " + " | ".join(label for _, label in metrics) + " |"
+    sep = "|---|---|" + "|".join(["---:"] * len(metrics)) + "|"
+    lines += [header, sep]
+
+    for r in regimes:
+        for m in models:
+            row_vals = []
+            xs_warm = None
+            for field, label in metrics:
+                xs = [b.get(field) for b in builds
+                      if b.get("regime") == r and b.get("model") == m and b.get(field) is not None]
+                if not xs:
+                    row_vals.append("—")
+                    continue
+                mn, lo, hi = bootstrap_ci(xs)
+                if mn is None:
+                    row_vals.append("—")
+                    continue
+                hw = (hi - lo) / 2.0 if (lo is not None and hi is not None) else 0
+                # Label cold-vs-warm gap relative to floor (compare to cold same model)
+                cold_xs = [b.get(field) for b in builds
+                           if b.get("regime") == "cold" and b.get("model") == m and b.get(field) is not None]
+                tag = ""
+                if r != "cold" and cold_xs:
+                    cold_mean = mean(cold_xs)
+                    warm_mean = mn
+                    if cold_mean is not None and warm_mean is not None:
+                        gap = abs(cold_mean - warm_mean)
+                        floor = noise_floor(xs)
+                        if floor > 0 and gap < floor:
+                            tag = " ⚠underpowered"
+                row_vals.append(f"{mn:.2f}±{hw:.2f}{tag}")
+            lines.append(f"| `{r}` | {m} | " + " | ".join(row_vals) + " |")
+    lines.append("")
+    return "\n".join(lines) + "\n"
 
 
 def fmt(x, nd=1):
@@ -637,7 +717,9 @@ def main():
     doc += ["", learn_quality_table(learns, models), "", escalation_table(builds, models),
             "", "## Full matrix (model × regime × app, medians)", "",
             full_matrix_tables(builds, learns, models, regimes),
-            "", token_io_table(builds, learns, models, args.root), "", cost_calibration(builds, learns)]
+            "", token_io_table(builds, learns, models, args.root), "",
+            axis_ci_table(builds, learns, models, regimes),
+            "", cost_calibration(builds, learns)]
 
     # Convergence guard (§5) + honest caveats — never ship an over-claimed number.
     conv_n = sum(1 for b in builds if b.get("converged"))

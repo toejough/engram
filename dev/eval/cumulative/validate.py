@@ -110,11 +110,30 @@ def check_stub_pipeline():
         check("clean room: warm cfg carries ONLY recall+learn; cold none",
               warm_skills == ["learn", "recall"] and not cold_has_skills, f"warm={warm_skills} cold_skills={cold_has_skills}")
 
+        # schema v3: verify a result JSON has schema_version 3
+        result_jsons = [f for f in os.listdir(os.path.join(root, "results"))
+                        if f.endswith(".json") and f != "run-manifest.json"]
+        if result_jsons:
+            sample = json.load(open(os.path.join(root, "results", result_jsons[0])))
+            check("schema v3: stub result has schema_version 3",
+                  sample.get("schema_version") == 3,
+                  f"schema_version={sample.get('schema_version')}")
+        else:
+            check("schema v3: stub result has schema_version 3", False, "no result JSONs found")
+
         agg = subprocess.run(["python3", os.path.join(CUM, "aggregate.py"), "--root", root,
                              "--out", os.path.join(root, "results-stub.md")],
                             env=env, capture_output=True, text=True, timeout=120)
         check("aggregate.py emits tables without error",
               agg.returncode == 0 and "Convention interventions to endpoint" in agg.stdout)
+
+        # axis fields: verify aggregate output mentions all six axis fields
+        agg_out = agg.stdout if agg.returncode == 0 else ""
+        axis_fields = ["recall_s", "build_s", "learn_s", "axis_c2_cost_usd",
+                       "axis_c3_interventions", "Axis CI table"]
+        missing_axes = [f for f in axis_fields if f not in agg_out]
+        check("axis fields: --stub dry pass emits all six axis fields",
+              len(missing_axes) == 0, f"missing: {missing_axes}" if missing_axes else "all present")
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -264,6 +283,80 @@ def check_cli_surface():
           all_ok, f"missing: {missing}" if missing else "all present")
 
 
+def check_ci_and_floor():
+    import aggregate
+    import random
+    rng = random.Random(42)
+    # Known distribution: mean=10, std=2, N=100
+    true_mean = 10.0
+    xs = [rng.gauss(true_mean, 2.0) for _ in range(100)]
+    m, lo, hi = aggregate.bootstrap_ci(xs, alpha=0.05, n_boot=500)
+    check("ci: bootstrap CI contains true mean", lo <= true_mean <= hi,
+          f"CI=({lo:.2f},{hi:.2f}) mean={m:.2f} true={true_mean}")
+
+    # noise_floor on two equal distributions (warm vs warm): floor should be positive but small
+    xs_warm = [rng.gauss(5.0, 1.0) for _ in range(20)]
+    floor = aggregate.noise_floor(xs_warm)
+    check("ci: noise floor labeled underpowered when gap < floor",
+          aggregate.gap_label(0.01, floor) == "underpowered",
+          f"floor={floor:.3f} gap=0.01")
+
+
+def check_recency_probe():
+    import recency_probe
+    here = os.path.join(CUM, "testdata")
+    with_r = open(os.path.join(here, "recency_with_R.yaml")).read()
+    without_r = open(os.path.join(here, "recency_without_R.yaml")).read()
+
+    items = recency_probe.parse_recent_channel(with_r)
+    check("recency: parse_recent_channel finds provenance:recent items",
+          len(items) >= 1, f"found {len(items)} recent items")
+
+    surfaced = recency_probe.recent_channel_surfaced(with_r, "lesson-recent")
+    check("recency: target_surfaced=True when R in recent channel", surfaced,
+          f"surfaced={surfaced}")
+
+    not_surfaced = recency_probe.recent_channel_surfaced(without_r, "lesson-recent")
+    check("recency: target_surfaced=False when R absent", not not_surfaced,
+          f"surfaced={not_surfaced}")
+
+
+def check_reversal_scorer():
+    import reversal_scorer, json as _json
+    spec_path = os.path.join(CUM, "reversal_spec.json")
+    spec = _json.load(open(spec_path))
+    here = os.path.join(CUM, "testdata")
+
+    code_x = open(os.path.join(here, "reversal_follows_x.go")).read()
+    code_xp = open(os.path.join(here, "reversal_follows_x_prime.go")).read()
+
+    r_x = reversal_scorer.score_supersession(code_x, spec)
+    check("reversal: X fixture scored as follows_x",
+          r_x["follows_x"] and not r_x["follows_x_prime"], str(r_x))
+
+    r_xp = reversal_scorer.score_supersession(code_xp, spec)
+    check("reversal: X' fixture scored as follows_x_prime + supersession_correct",
+          r_xp["follows_x_prime"] and r_xp["supersession_correct"] and not r_xp["follows_x"],
+          str(r_xp))
+
+
+def check_synthesis_probe():
+    import synthesis_judge
+    fix = os.path.join(CUM, "synthesis_fixtures")
+    task_txt = open(os.path.join(fix, "task.txt")).read()
+    expected_z = open(os.path.join(fix, "expected_synthesis_z.txt")).read()
+
+    r_cluster = synthesis_judge.judge_crystallization(
+        os.path.join(fix, "vault_with_cluster"), task_txt, expected_z, stub=True)
+    check("synthesis: stub judge SIGNAL for absent cluster",
+          r_cluster["verdict"] == "SIGNAL", str(r_cluster))
+
+    r_covered = synthesis_judge.judge_crystallization(
+        os.path.join(fix, "vault_covered"), task_txt, expected_z, stub=True)
+    check("synthesis: stub judge MUST_NOT_FIRE for covered cluster",
+          r_covered["verdict"] == "MUST_NOT_FIRE", str(r_covered))
+
+
 def main():
     print("Zero-cost validation (no LLM, no spend):\n")
     print("[cell-gen]")
@@ -280,6 +373,14 @@ def main():
     check_stub_pipeline()
     print("[cli-surface smoke]")
     check_cli_surface()
+    print("[CI + noise floor]")
+    check_ci_and_floor()
+    print("[recency probe]")
+    check_recency_probe()
+    print("[reversal scorer]")
+    check_reversal_scorer()
+    print("[synthesis probe]")
+    check_synthesis_probe()
 
     npass = sum(1 for _, ok, _ in results if ok)
     total = len(results)

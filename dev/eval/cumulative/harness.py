@@ -39,7 +39,7 @@ import score as scoremod
 # Single editable source of truth for the model registry — a new model is a one-line add (§1.5).
 MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "opus": "claude-opus-4-8"}
 ENGRAM_BIN_DIR = os.environ.get("ENGRAM_BIN_DIR", os.path.expanduser("~/go/bin"))
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 CONVERGE_ARCH_BAR = 8  # arch_pass >= 8 (matches converged())
 
 # Active regimes — real-skill only (recall-v2). Pre-recall-v2 tiered regimes (l1, l2.*, l3.*)
@@ -756,7 +756,9 @@ def run_build(args):
                          chunks=build_chunks if regime["read_mode"] == "skill-chunks" else None)
         return res
 
+    t_recall_start = time.time()
     res = do_build(prompt)
+    t_recall_end = time.time()
     sid = res.get("session_id")
     sc = scoremod.score(args.workdir, args.spec)
     conv, feat = split_failed(sc.get("failed", []))
@@ -793,6 +795,7 @@ def run_build(args):
     rnd = 1
     # stub builds are deterministic (re-copy the same fixture), so the feedback loop is a no-op —
     # one round suffices to validate wiring/threading/schema without burning the time budget.
+    t_build_start = time.time()
     while not args.stub and not converged(sc) and rnd < args.max_rounds and sc.get("build") == "ok":
         rnd += 1
         fb = feedback_prompt(sc["failed"], stated_counts, spec)
@@ -809,6 +812,7 @@ def run_build(args):
         if errored:
             rate_limited = True  # built at round 1 but a resume hit the limit — result kept, flagged
             break
+    t_build_end = time.time()
 
     completed = converged(sc)
     if not completed and not rate_limited and sc.get("build") == "ok":
@@ -828,6 +832,7 @@ def run_build(args):
     # (episodes are genuine chunks, not summaries). resume_sid=sid keeps it the same session. cold
     # and legacy regimes skip this (cold has no learn; legacy regimes learn via a separate run_learn).
     learn_meta = {"ran": False, "cost": 0.0, "turns": 0, "fired": None, "notes_by_tier": {}}
+    t_learn_start = time.time()
     if not args.stub and regime["write"] in ("skill", "skill-eager") and sc.get("build") == "ok" and completed:
         lr = do_build(skill_learn_prompt(), resume_sid=sid)  # same session
         learn_meta["ran"] = True
@@ -864,6 +869,7 @@ def run_build(args):
             # Recall-time L2s were written into build_vault by `engram learn` during the build
             # session (auto_embed gives sidecars); count them so the L2 volume is a measured output.
             learn_meta["notes_by_tier"] = count_notes_by_tier(build_vault)
+    t_learn_end = time.time()
 
     # Escalation depth — how granular the human feedback had to get before convergence (§5 signal).
     # stated_counts[label] = #rounds an item was fed back; feedback escalates to the literal
@@ -924,6 +930,14 @@ def run_build(args):
         "tokens": audit["tokens"], "recomputed_cost": audit["recomputed_cost"],
         "cost_ratio": audit["cost_ratio"],
         "wall_min": round((time.time() - t0) / 60.0, 1),
+        "recall_s": round(t_recall_end - t_recall_start, 3),
+        "build_s": round(t_build_end - t_build_start, 3),
+        "learn_s": round(t_learn_end - t_learn_start, 3),
+        "axis_c1_recall_s": round(t_recall_end - t_recall_start, 3),
+        "axis_c1_build_s": round(t_build_end - t_build_start, 3),
+        "axis_c1_learn_s": round(t_learn_end - t_learn_start, 3),
+        "axis_c2_cost_usd": round(sum(r["cost"] for r in rounds), 4),
+        "axis_c3_interventions": round1_conv_fails,
         "l2_generated": len(new_l2), "l2_composed": l2_composed,
         "vault_notes_total": len(glob_notes(build_vault)),
         "learn": learn_meta,
