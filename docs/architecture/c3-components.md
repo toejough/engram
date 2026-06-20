@@ -182,7 +182,7 @@ sequenceDiagram
         Note over Q: score notes (rankCandidates, recency-biased) + chunks (per-phrase scorer, applyChunkRecency); merge into one list; take top-30
     end
     Note over Q: union across phrases, dedup keeping max score; drop baseScore < 0.25; cap at matchSetCap=300 → matched set
-    Note over Q: buildUnionSubgraph (note members) + addMatchedChunksToSubgraph (chunk members)
+    Note over Q: matched set holds both note and chunk members (unified ranking)
     Q->>Cl: clusterUnionForSynthesis — ONE AutoK k-means + silhouette over matched set (D1)
     Cl-->>Q: clusters with candidate_l2s (top-5 within-cluster notes by centroid cosine)
     Note over Q: mergeProvenances; applyProjectFilter
