@@ -159,10 +159,14 @@ const (
 	provenanceRankClusterRep = 2
 	provenanceRankDirect     = 3
 	provenanceRankHub        = 1
+	// provenanceRecent tags un-clustered recency-channel chunks (Channel 2,
+	// Phase 2). Items carrying this role appear in items[] but in NO cluster's
+	// members[], so the skill can render a separate "recent activity" block.
+	provenanceRecent = "recent"
 	// recentFillChunks is the number of newest-by-IngestedAt chunks appended
 	// to the recency channel (Channel 2, Phase 2). Defined here in Phase 0
 	// so it is available as a named constant before Phase 2 lands.
-	recentFillChunks = 200 //nolint:unused // Phase 2 uses this constant; defined here in Phase 0
+	recentFillChunks = 200
 	// singletonClusterSilhouette is the silhouette reported for the K=0->one
 	// synthesis fallback cluster. Silhouette is undefined for a single
 	// cluster, so zero stands in.
@@ -678,6 +682,52 @@ func breakRepresentativeTie(subgraph expandedSubgraph, a, b int) int {
 	default:
 		return b
 	}
+}
+
+// buildRecentFillItems returns the un-clustered recency-channel items for
+// the --synthesize-l2 path (Channel 2, Phase 2). It selects the N newest
+// chunks by IngestedAt (using newestChunkItems for ordering), deduplicates
+// them against the already-matched chunk paths, and tags the survivors with
+// provenanceRecent. These items appear in items[] only — NOT in subgraph.members
+// and therefore NOT in any cluster's members[].
+func buildRecentFillItems(allRecords []chunk.Record, matchedChunks []scoredChunk, n int) []resolvedItem {
+	if n <= 0 {
+		return nil
+	}
+
+	// Build a set of paths already in the matched set so we can dedup.
+	matchedPaths := make(map[string]bool, len(matchedChunks))
+	for _, scored := range matchedChunks {
+		matchedPaths[chunkNotePath(scored.record)] = true
+	}
+
+	// Convert all records to scoredChunk (score=0; ordering is by IngestedAt,
+	// not by cosine, so the score field is unused here).
+	all := make([]scoredChunk, 0, len(allRecords))
+	for _, rec := range allRecords {
+		all = append(all, scoredChunk{record: rec, score: 0})
+	}
+
+	// Use newestChunkItems to get the N newest in IngestedAt order, tagged
+	// with the recent provenance. We may need more than n to account for
+	// dedup, so fetch all and slice.
+	newest := newestChunkItems(all, len(all), provenanceRecent)
+
+	// Filter out chunks already in the matched set and take the top n.
+	out := make([]resolvedItem, 0, n)
+	for _, item := range newest {
+		if len(out) >= n {
+			break
+		}
+
+		if matchedPaths[item.notePath] {
+			continue
+		}
+
+		out = append(out, item)
+	}
+
+	return out
 }
 
 // buildSubgraphMembers assembles the final subgraphMember list, reading
@@ -1499,7 +1549,7 @@ func mergeChunkSpace(
 		params := defaultRecencyParams()
 		scored = applyChunkRecency(scored, deps.Now(), maxTurnBySource(records), params)
 		sortScoredDesc(scored)
-		chunkMust = newestChunkItems(scored, params.floor)
+		chunkMust = newestChunkItems(scored, params.floor, provenanceDirect)
 	}
 
 	for _, s := range scored {
@@ -2296,6 +2346,13 @@ func runSynthesizeL2Query(
 	resolved := mergeProvenances(noteUnion, expandedSubgraph{}, clusterReport{}, hubReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
 	resolved = append(resolved, chunkItems...)
+
+	// Channel 2 — Recency (Phase 2): append the recentFillChunks newest chunks
+	// by IngestedAt, deduped against the matched set, tagged provenanceRecent.
+	// These are NOT added to subgraph.members and therefore do NOT appear in any
+	// cluster's members[].
+	recentItems := buildRecentFillItems(chunkRecords, chunkUnion, recentFillChunks)
+	resolved = append(resolved, recentItems...)
 
 	merged := aggregatedSummary{
 		phrases:        args.Phrases,

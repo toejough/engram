@@ -226,7 +226,7 @@ func mostRecentlyUsedNoteItems(items []resolvedItem, now time.Time, n int) []res
 // yet backfilled) sort last — treated as maximally old since their recency is
 // unknown. Tie-breaking on equal IngestedAt uses descending turn-N (latest
 // turn first). Returns nil when n<=0.
-func newestChunkItems(scored []scoredChunk, n int) []resolvedItem {
+func newestChunkItems(scored []scoredChunk, n int, provenance string) []resolvedItem {
 	if n <= 0 {
 		return nil
 	}
@@ -249,7 +249,7 @@ func newestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 			notePath:    chunkNotePath(c.record),
 			content:     c.record.Text,
 			score:       c.score,
-			provenances: []string{provenanceDirect},
+			provenances: []string{provenance},
 			kind:        chunkItemKind,
 		})
 	}

@@ -15,11 +15,14 @@ import (
 
 // TestProperty_SynthesizeL2_ChunkItemsBoundedByMatchSetCap locks the
 // perf-critical bound for the --synthesize-l2 path: matched chunks (and notes)
-// fed to clustering and emitted in items[] are capped at matchSetCap (300),
-// so silhouette stays O(matchSetCap^2) regardless of corpus size. The cap
-// comes from the per-phrase matchPhraseLimit (top-30 per phrase) × phrase count.
-// With a single phrase and more than matchPhraseLimit chunks, the matched set
-// is capped at matchPhraseLimit (30).
+// fed to clustering and emitted in items[] with provenance "direct" are capped
+// at matchSetCap (300), so silhouette stays O(matchSetCap^2) regardless of
+// corpus size. The cap comes from the per-phrase matchPhraseLimit (top-30 per
+// phrase) × phrase count. With a single phrase and more than matchPhraseLimit
+// chunks, the matched set is capped at matchPhraseLimit (30).
+// Note: Phase 2's recency channel may add additional "recent"-provenanced chunk
+// items beyond this cap — those do NOT participate in clustering and are NOT
+// subject to matchSetCap. This test counts only matched ("direct") chunks.
 func TestProperty_SynthesizeL2_ChunkItemsBoundedByMatchSetCap(t *testing.T) {
 	t.Parallel()
 
@@ -74,7 +77,7 @@ func TestProperty_SynthesizeL2_ChunkItemsBoundedByMatchSetCap(t *testing.T) {
 				VaultPath:    vault,
 				SynthesizeL2: true,
 				ChunksDir:    "/chunks",
-				Limit:        1000, // large so limit flag doesn't confound the matchSetCap test
+				Limit:        matchSetCap * 2, // large so limit flag doesn't confound the matchSetCap test
 			},
 			deps, &out)
 		if err != nil {
@@ -91,24 +94,38 @@ func TestProperty_SynthesizeL2_ChunkItemsBoundedByMatchSetCap(t *testing.T) {
 			rt.Fatalf("payload has no items[] list (got %T)", raw["items"])
 		}
 
-		chunkItems := 0
-
-		for _, item := range items {
-			mapped, _ := item.(map[string]any)
-			if kind, _ := mapped["kind"].(string); kind == "chunk" {
-				chunkItems++
-			}
-		}
+		// Count only matched ("direct") chunk items; Phase 2 recency items are additive.
+		matchedChunkItems := countDirectChunkItems(items)
 
 		// Single phrase: matched chunks ≤ matchPhraseLimit (30).
-		if chunkItems > matchPhraseLimit {
-			rt.Fatalf("chunk items = %d, must be <= matchPhraseLimit %d (chunkCount=%d)",
-				chunkItems, matchPhraseLimit, chunkCount)
-		}
-
-		// Total items (notes+chunks) ≤ matchSetCap (300).
-		if len(items) > matchSetCap {
-			rt.Fatalf("total items = %d, must be <= matchSetCap %d", len(items), matchSetCap)
+		if matchedChunkItems > matchPhraseLimit {
+			rt.Fatalf("matched chunk items = %d, must be <= matchPhraseLimit %d (chunkCount=%d)",
+				matchedChunkItems, matchPhraseLimit, chunkCount)
 		}
 	})
+}
+
+// countDirectChunkItems counts items in the raw YAML items list that are of
+// kind "chunk" AND carry provenance "direct" (i.e., matched-set chunks, not
+// Phase-2 recency-channel chunks which carry "recent").
+func countDirectChunkItems(items []any) int {
+	count := 0
+
+	for _, item := range items {
+		mapped, _ := item.(map[string]any)
+		if kind, _ := mapped["kind"].(string); kind != "chunk" {
+			continue
+		}
+
+		provenances, _ := mapped["provenances"].([]any)
+		for _, prov := range provenances {
+			if prov == "direct" {
+				count++
+
+				break
+			}
+		}
+	}
+
+	return count
 }

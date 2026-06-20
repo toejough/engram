@@ -28,7 +28,9 @@ import (
 // items whose baseScore (raw cosine, pre-decay) is below matchRelevanceFloor
 // (0.25) are dropped from the matched set. We plant two chunks: one
 // near-orthogonal (low cosine) and one on-axis (high cosine). The
-// near-orthogonal chunk must not appear in items[].
+// near-orthogonal chunk must not appear in items[] with provenance "direct"
+// (i.e., it must not be in the matched set). Phase 2 may still include it
+// via the recency channel with provenance "recent" — that is correct behavior.
 func TestSynthesizeL2_ItemsBelowRelevanceFloorDropped(t *testing.T) {
 	t.Parallel()
 
@@ -99,8 +101,8 @@ func TestSynthesizeL2_ItemsBelowRelevanceFloorDropped(t *testing.T) {
 
 	items, _ := raw["items"].([]any)
 
-	seenHigh := false
-	seenLow := false
+	seenHighDirect := false
+	seenLowDirect := false
 
 	for _, item := range items {
 		mapped, _ := item.(map[string]any)
@@ -109,17 +111,33 @@ func TestSynthesizeL2_ItemsBelowRelevanceFloorDropped(t *testing.T) {
 		}
 
 		path, _ := mapped["path"].(string)
+
+		provenances, _ := mapped["provenances"].([]any)
+		isDirect := false
+
+		for _, prov := range provenances {
+			if prov == "direct" {
+				isDirect = true
+
+				break
+			}
+		}
+
 		switch path {
 		case "/s/a.jsonl#turn-1":
-			seenHigh = true
+			if isDirect {
+				seenHighDirect = true
+			}
 		case "/s/a.jsonl#turn-2":
-			seenLow = true
+			if isDirect {
+				seenLowDirect = true
+			}
 		}
 	}
 
-	g.Expect(seenHigh).To(BeTrue(), "high-cosine chunk must appear in items[]")
-	g.Expect(seenLow).To(BeFalse(),
-		"low-cosine chunk (cosine=0 < matchRelevanceFloor=0.25) must be dropped from items[]")
+	g.Expect(seenHighDirect).To(BeTrue(), "high-cosine chunk must appear in items[] with provenance 'direct'")
+	g.Expect(seenLowDirect).To(BeFalse(),
+		"low-cosine chunk (cosine=0 < matchRelevanceFloor=0.25) must NOT be in the matched set (provenance 'direct')")
 }
 
 // TestSynthesizeL2_MatchedSetCappedAtMatchSetCap verifies invariant (d):

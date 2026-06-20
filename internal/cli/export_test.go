@@ -276,9 +276,9 @@ func ExportNewScoredChunkWithIngestedAt(rec chunk.Record, score float32, ingeste
 	return scoredChunk{record: rec, score: score}
 }
 
-// ExportNewestChunkItems exposes newestChunkItems (new 2-arg signature: no ages map).
+// ExportNewestChunkItems exposes newestChunkItems with the direct provenance.
 func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
-	return newestChunkItems(scored, n)
+	return newestChunkItems(scored, n, provenanceDirect)
 }
 
 // ExportRecencyFloor exposes the floor field of recencyParams for tests.
