@@ -45,14 +45,23 @@ If it errors, say so and continue — retrieval over a slightly-stale index beat
 
 ### Step 1 — Phrase queries from your plan and situation
 
-Write down 5 to 15 short queryable phrases, two kinds:
+Always generate exactly **10** short queryable phrases, one from each of these angles:
 
-- **Plan-grounded** — drawn directly from the actions you said you would take.
-- **Situational** — features continuously true around the action (tooling, language, kind of operation, what's loaded).
+1. **Situation/setting** — the concrete environment you are operating in.
+2. **User's intent/goal** — what the user ultimately wants to achieve.
+3. **Current concrete action** — the specific thing you are about to do next.
+4. **Problem/blocker** — the obstacle or constraint you are addressing.
+5. **Candidate solution/approach** — the technique or strategy you plan to apply.
+6. **Tooling/tech in play** — the specific tools, libraries, or languages involved.
+7. **Prior related work** — previous work in this area you may be building on.
+8. **Adjacent technique** — a related approach worth comparing or cross-checking.
+9. **Failure mode to avoid** — a known pitfall or anti-pattern relevant to this work.
+10. **Domain/concept** — the broader conceptual area the task lives in.
 
-No pre-filtering: you can't know what's in memory before you query. Drop only obvious dross
-(a bare noun like "coding"). **Query by task, not by fear** — "implementing Claude Code hooks",
-not "common mistakes when writing hooks".
+Each phrase is short and specific. No pre-filtering: you can't know what's in memory before you
+query. Drop only obvious dross (a bare noun like "coding"). **Query by task, not by fear** —
+"implementing Claude Code hooks", not "common mistakes when writing hooks". The binary caps
+results to the top-30 matches per phrase.
 
 ### Step 2 — Run ONE unified `engram query` with all phrases
 
@@ -60,46 +69,49 @@ not "common mistakes when writing hooks".
 engram query --synthesize-l2 \
   --phrase "<phrase 1>" \
   --phrase "<phrase 2>"
-  # ... one --phrase per Step 1 phrase
+  # ... one --phrase per Step 1 phrase (always 10)
 ```
 
 One call; the binary merges ranking server-side. `--synthesize-l2` is REQUIRED: it runs the
-unified D1 clustering of the matched chunks **and** notes in one pass and emits
-`candidate_l2s: [{path, cosine}]` per cluster (it no longer bypasses the chunk space — matched
-chunks are clustered alongside notes, and Step 2.5 reasons over those unified clusters). Do NOT
-collapse phrases, do NOT run per-phrase calls, do NOT add `--tier`, `--vault`, or `--chunks-dir`.
-The payload's `items` mix:
+unified D1 clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path,
+cosine}]` per cluster. Do NOT collapse phrases, do NOT run per-phrase calls, do NOT add `--tier`,
+`--vault`, or `--chunks-dir`.
+
+The payload has **two channels**:
+
+**Channel 1 — Relevance (clustered matched items):** Items matched by your 10 phrases, bounded
+to ~300 (top-30 per phrase, unioned, relevance-floor applied). These are clustered and carry
+`candidate_l2s` per cluster (see Step 2.5). Read this channel to surface applicable lessons and
+judge coverage. The payload's `items` mix:
 
 - `kind: chunk` — raw transcript/doc fragments with source + anchor. These are EVIDENCE:
   extract the convention, decision, or correction they show (a reviewer correcting code, a
   stated standard); never quote them wholesale.
-  - **Recent items are your own recent activity.** Chunk items with `turn-N` anchors from a
-    recent source are first-person `ASSISTANT:` narration you produced in a just-prior or
-    pre-context-clear session. Treat them as your own past actions — do not re-derive them,
-    do not express surprise at them, and dedup against what is already in your context.
 - `kind: fact` / `feedback` — crystallized lessons; apply directly.
-  - Items of this kind may carry `activated: true` — the binary flagged them as surfaced AND
-    above the relevance cutoff.
 
-If nothing surfaces, say so in one sentence, skip Step 2.5, and proceed with your plan.
+**Channel 2 — Recent activity (un-clustered):** Items tagged `provenance: recent` — the newest
+chunks by ingest time, appended after the matched set, NOT cluster members. Read this block
+first for situational continuity — re-immerse in recent work before diving into the clustered
+results. These items are NOT used for coverage or synthesis judgment. Do not treat them as
+matched results; they have no cluster membership and no `candidate_l2s`.
 
-**After the query**, collect every item where `activated: true` and issue ONE batched call:
+- **Recent items are your own recent activity.** Chunks from a recent source with `turn-N`
+  anchors are first-person `ASSISTANT:` narration you produced in a just-prior or
+  pre-context-clear session. Treat them as your own past actions — do not re-derive them,
+  do not express surprise at them, and dedup against what is already in your context.
 
-```bash
-engram activate \
-  --note "<path of first activated note>" \
-  --note "<path of second activated note>"
-  # ... one --note per activated item
-```
-
-Forward every flagged path to `engram activate` to refresh that L2's recency (`LastUsed`) so it
-stays warm. Skip this call when no items carry `activated: true`.
+If the matched items (Channel 1) are empty, say so in one sentence, skip Step 2.5, and proceed
+with your plan. (A non-empty recent-activity block alone does not count as "something surfaced"
+for coverage purposes.)
 
 ### Step 2.5 — Lazy L2 synthesis from the clustering (agent-judged)
 
 The `--synthesize-l2` output's `clusters` list contains the unified clustering of matched chunks
-and notes. Each cluster carries `candidate_l2s: [{path, cosine}]` — the top-K existing L2s
-nearest the cluster centroid (K ≥ 3, centroid cosine). **Process every cluster.** For each:
+and notes. Each cluster carries `candidate_l2s: [{path, cosine}]` — the top-5 existing notes
+ranked from within that cluster's own matched members (NOT the full vault). A note that did not
+match any phrase will never appear as a candidate. A cluster with no note members yields an empty
+`candidate_l2s` list; skip to the next cluster when that happens. **Process every cluster.** For
+each:
 
 **A. Read candidates and members**
 
@@ -142,6 +154,22 @@ L2 created or updated by one cluster may be a candidate for another.
 with the old — is not handled. Note the conflict in the synthesized content when you see it, but
 do not attempt to resolve it across clusters.
 
+**Activation — use-driven, after synthesis.** After processing all clusters, call `engram activate`
+on the notes you actually drew on — the `candidate_l2s` you judged Covered or Near at the
+coverage table, and any notes you cited in the Step 3 synthesis:
+
+```bash
+engram activate \
+  --note "<path of note you judged Covered or Near>" \
+  --note "<path of note you cited in Step 3>"
+  # ... one --note per used note only
+```
+
+Do NOT activate every returned note. Do NOT activate recent-channel items (chunks are never
+activated). Activating only what you used lets superseded-but-surfaced notes fade via recency
+rank — bumping every returned note would defeat the recency-competition mechanism. Skip this
+call when you drew on no notes (e.g., payload was empty or Step 2.5 was skipped).
+
 ### Step 3 — Closing synthesis: did the memories change the plan?
 
 The user sees this. Rules:
@@ -174,5 +202,7 @@ The user sees this. Rules:
 | You grouped chunks by eye instead of using the payload's clusters | The binary's k-means grouping is the ground truth; read every cluster |
 | You skipped Step 2.5 because "the chunks are enough" | Processing every cluster IS the step; skipping it is not an outcome |
 | You read chunk-only results as Step 2's "nothing surfaces" and skipped 2.5 | "Nothing surfaces" means an EMPTY payload; clusters present means Step 2.5 runs |
-| You saw `activated: true` items but skipped `engram activate` | One batched call per recall — forward all flagged paths; skipping means useful L2s never get refreshed |
+| You activated every returned note | Activate only the notes you actually USED — judged Covered/Near or cited in Step 3 |
+| You activated recent-channel items | Chunks are never activated; recent-block items are not activation targets |
+| You skipped `engram activate` after drawing on notes | Call it after synthesis — used notes must stay warm or the recency-competition mechanism breaks |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
