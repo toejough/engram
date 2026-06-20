@@ -61,7 +61,7 @@ type SweepSpec struct {
 	// session logs whose slugified cwd lives under a throwaway root
 	// (`/private/tmp`, `/tmp`, macOS `$TMPDIR` at `/var/folders`). Eval/test
 	// runs never bloat the main index; explicit --sweep/--transcript bypass it.
-	NonPersistentPrefixes []string `json:"non_persistent_prefixes"` //nolint:tagliatelle // developer-facing config uses snake_case
+	NonPersistentPrefixes []string `json:"non_persistent_prefixes"` //nolint:tagliatelle,lll // developer-facing config uses snake_case
 }
 
 // DefaultSweepSpec is the compiled-in declaration: repo markdown + ancestor

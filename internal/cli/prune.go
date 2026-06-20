@@ -35,7 +35,8 @@ func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Write
 		return nil //nolint:nilerr // absent manifest = empty index, not an error
 	}
 
-	if err := json.Unmarshal(data, &manifest); err != nil {
+	err = json.Unmarshal(data, &manifest)
+	if err != nil {
 		return fmt.Errorf("prune: reading manifest: %w", err)
 	}
 
@@ -47,11 +48,14 @@ func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Write
 		}
 
 		indexPath := filepath.Join(args.ChunksDir, sourceSlug(source)+jsonlExt)
-		if err := deps.Remove(indexPath); err != nil {
+
+		err = deps.Remove(indexPath)
+		if err != nil {
 			return fmt.Errorf("prune: removing index %s: %w", indexPath, err)
 		}
 
 		delete(manifest, source)
+
 		pruned++
 	}
 
@@ -66,7 +70,8 @@ func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Write
 		return fmt.Errorf("prune: encoding manifest: %w", err)
 	}
 
-	if err := deps.WriteFile(filepath.Join(args.ChunksDir, manifestName), out); err != nil {
+	err = deps.WriteFile(filepath.Join(args.ChunksDir, manifestName), out)
+	if err != nil {
 		return fmt.Errorf("prune: writing manifest: %w", err)
 	}
 
@@ -83,9 +88,9 @@ func newOsPruneDeps() PruneDeps {
 		ReadFile:  fs.Read,
 		WriteFile: fs.Write,
 		Exists: func(path string) bool {
-			_, err := os.Stat(path)
+			_, statErr := os.Stat(path)
 
-			return err == nil
+			return statErr == nil
 		},
 		Remove: os.Remove,
 	}

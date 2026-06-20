@@ -559,6 +559,23 @@ func resolveAutoSpec(deps IngestDeps) (SweepSpec, SweepEnv, error) {
 	return spec, env, nil
 }
 
+// shouldPruneDir reports whether a swept subdirectory should be skipped: its
+// name is an excluded build/dependency name, or it starts with a
+// non-persistent-workspace prefix (a slugified throwaway cwd).
+func shouldPruneDir(name string, excludeNames map[string]struct{}, excludePrefixes []string) bool {
+	if _, named := excludeNames[name]; named {
+		return true
+	}
+
+	for _, prefix := range excludePrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // sourceSlug derives a unique index filename for a source: the basename for
 // readability plus a short path hash for uniqueness (two README.md files in
 // different directories must not share an index file).
@@ -583,23 +600,6 @@ func statOrZero(deps IngestDeps, path string) SourceStat {
 	}
 
 	return stat
-}
-
-// shouldPruneDir reports whether a swept subdirectory should be skipped: its
-// name is an excluded build/dependency name, or it starts with a
-// non-persistent-workspace prefix (a slugified throwaway cwd).
-func shouldPruneDir(name string, excludeNames map[string]struct{}, excludePrefixes []string) bool {
-	if _, named := excludeNames[name]; named {
-		return true
-	}
-
-	for _, prefix := range excludePrefixes {
-		if strings.HasPrefix(name, prefix) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // walkSourcesExcluding lists files under root, pruning excluded directory

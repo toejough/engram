@@ -39,6 +39,7 @@ var (
 	ExportNewOsAmendDeps               = newOsAmendDeps
 	ExportNewOsCheckDeps               = newOsCheckDeps
 	ExportNewOsMigrateDeps             = newOsMigrateDeps
+	ExportNewOsPruneDeps               = newOsPruneDeps
 	ExportNewOsShowDeps                = newOsShowDeps
 	ExportNextLuhmannID                = nextLuhmannID
 	ExportNoteAgeDays                  = noteAgeDays

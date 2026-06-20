@@ -303,6 +303,19 @@ func TestTargets_MigrateLinks(t *testing.T) {
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
+// TestTargets_PruneEmpty exercises the prune target closure end-to-end on an
+// empty chunks dir — the "no manifest" fast path, which verifies the wiring
+// without creating real files.
+func TestTargets_PruneEmpty(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	chunks := t.TempDir()
+
+	stderr := executeForTest(t, []string{"engram", "prune", "--chunks-dir", chunks})
+	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
 // TestTargets_QueryEmptyVault exercises the query closure on an empty
 // vault — fast path returns items:[] without invoking the embedder.
 func TestTargets_QueryEmptyVault(t *testing.T) {

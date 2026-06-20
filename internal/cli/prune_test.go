@@ -11,6 +11,91 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func TestNewOsPruneDeps_NoManifestIsNoOp(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// Exercise newOsPruneDeps with a nonexistent chunks dir so it hits the
+	// "no manifest" path — purely a wiring smoke-test (no files created).
+	deps := cli.ExportNewOsPruneDeps()
+
+	err := cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: t.TempDir() + "/nonexistent"}, deps, io.Discard)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+}
+
+func TestPruneNoDeadSources(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	live := "/sessions/live.jsonl"
+	manifest := map[string]map[string]any{
+		live: {"mtime_unix_nano": 1, "size": 10, "file_hash": "sha256:a"},
+	}
+
+	manBytes, err := json.Marshal(manifest)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	fs := newPruneFS()
+	fs.files["/chunks/manifest.json"] = manBytes
+	fs.exists[live] = true // live source exists
+
+	err = cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks"}, fs.pruneDeps(), io.Discard)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	// Manifest should be unchanged (not rewritten since nothing pruned)
+	var rewritten map[string]any
+	g.Expect(json.Unmarshal(fs.files["/chunks/manifest.json"], &rewritten)).To(gomega.Succeed())
+	g.Expect(rewritten).To(gomega.HaveKey(live))
+}
+
+func TestPruneNoManifestIsNoOp(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fs := newPruneFS() // empty — no manifest file
+
+	err := cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks"}, fs.pruneDeps(), io.Discard)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+}
+
+func TestPruneRemoveErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dead := "/sessions/dead.jsonl"
+	manifest := map[string]map[string]any{
+		dead: {"mtime_unix_nano": 1, "size": 5, "file_hash": "sha256:c"},
+	}
+
+	manBytes, err := json.Marshal(manifest)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	fs := newPruneFS()
+	fs.files["/chunks/manifest.json"] = manBytes
+
+	deps := fs.pruneDeps()
+	deps.Remove = func(_ string) error { return io.ErrClosedPipe }
+
+	err = cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks"}, deps, io.Discard)
+
+	g.Expect(err).To(gomega.MatchError(io.ErrClosedPipe))
+}
+
 func TestPruneRemovesDeadSources(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -21,7 +106,12 @@ func TestPruneRemovesDeadSources(t *testing.T) {
 		live: {"mtime_unix_nano": 1, "size": 10, "file_hash": "sha256:a"},
 		dead: {"mtime_unix_nano": 2, "size": 20, "file_hash": "sha256:b"},
 	}
-	manBytes, _ := json.Marshal(manifest)
+	manBytes, err := json.Marshal(manifest)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
 
 	fs := newPruneFS()
 	fs.files["/chunks/manifest.json"] = manBytes
@@ -29,10 +119,11 @@ func TestPruneRemovesDeadSources(t *testing.T) {
 	fs.files["/chunks/"+cli.ExportIndexFileName(dead)] = []byte("[]")
 	fs.exists[live] = true // dead source file is absent
 
-	err := cli.RunPrune(context.Background(),
+	err = cli.RunPrune(context.Background(),
 		cli.PruneArgs{ChunksDir: "/chunks"}, fs.pruneDeps(), io.Discard)
 
 	g.Expect(err).NotTo(gomega.HaveOccurred())
+
 	if err != nil {
 		return
 	}
@@ -54,10 +145,6 @@ type pruneFS struct {
 	exists map[string]bool
 }
 
-func newPruneFS() *pruneFS {
-	return &pruneFS{files: map[string][]byte{}, exists: map[string]bool{}}
-}
-
 func (p *pruneFS) pruneDeps() cli.PruneDeps {
 	return cli.PruneDeps{
 		ReadFile:  func(path string) ([]byte, error) { return p.read(path) },
@@ -74,4 +161,8 @@ func (p *pruneFS) read(path string) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+func newPruneFS() *pruneFS {
+	return &pruneFS{files: map[string][]byte{}, exists: map[string]bool{}}
 }

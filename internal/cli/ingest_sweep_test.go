@@ -14,6 +14,45 @@ import (
 	"github.com/toejough/engram/internal/transcript"
 )
 
+func TestExplicitSweepIngestsNonPersistentWorkspace(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	src := "/private/tmp/eval-ws/s.jsonl"
+	fs := newSweepFS()
+	fs.put(src, "USER: run the eval harness here\nASSISTANT: ingested into the isolated index", 100)
+
+	emb := &countingEmbedder{}
+	deps := sweepDeps(fs, emb, src) // ListSources returns src verbatim for a manual --sweep root
+
+	err := cli.RunIngest(context.Background(),
+		cli.IngestArgs{Sweep: []string{"/private/tmp/eval-ws"}, ChunksDir: "/chunks"}, deps, io.Discard)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	_, present := fs.files["/chunks/"+cli.ExportIndexFileName(src)]
+	g.Expect(present).To(gomega.BeTrue(), "explicit --sweep bypasses non-persistent prevention")
+}
+
+func TestShouldPruneDir(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	excludeNames := map[string]struct{}{"node_modules": {}}
+	prefixes := []string{"-private-tmp-", "-tmp-"}
+
+	g.Expect(cli.ExportShouldPruneDir("node_modules", excludeNames, prefixes)).
+		To(gomega.BeTrue(), "name match")
+	g.Expect(cli.ExportShouldPruneDir("-private-tmp-cummatrix-x", excludeNames, prefixes)).
+		To(gomega.BeTrue(), "prefix match")
+	g.Expect(cli.ExportShouldPruneDir("-Users-joe-repos-engram", excludeNames, prefixes)).
+		To(gomega.BeFalse(), "persistent dir kept")
+}
+
 func TestSweepHandlesTranscriptsViaSameMechanism(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -191,41 +230,6 @@ func TestSweepSkipsVanishedSourceButExplicitErrors(t *testing.T) {
 	explicit := cli.IngestArgs{Markdowns: []string{"/docs/gone.md"}, ChunksDir: "/chunks"}
 	g.Expect(cli.RunIngest(context.Background(), explicit, deps, io.Discard)).NotTo(gomega.Succeed(),
 		"explicitly-named missing sources still error loudly")
-}
-
-func TestExplicitSweepIngestsNonPersistentWorkspace(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	src := "/private/tmp/eval-ws/s.jsonl"
-	fs := newSweepFS()
-	fs.put(src, "USER: run the eval harness here\nASSISTANT: ingested into the isolated index", 100)
-
-	emb := &countingEmbedder{}
-	deps := sweepDeps(fs, emb, src) // ListSources returns src verbatim for a manual --sweep root
-
-	err := cli.RunIngest(context.Background(),
-		cli.IngestArgs{Sweep: []string{"/private/tmp/eval-ws"}, ChunksDir: "/chunks"}, deps, io.Discard)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	if err != nil {
-		return
-	}
-
-	_, present := fs.files["/chunks/"+cli.ExportIndexFileName(src)]
-	g.Expect(present).To(gomega.BeTrue(), "explicit --sweep bypasses non-persistent prevention")
-}
-
-func TestShouldPruneDir(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	excludeNames := map[string]struct{}{"node_modules": {}}
-	prefixes := []string{"-private-tmp-", "-tmp-"}
-
-	g.Expect(cli.ExportShouldPruneDir("node_modules", excludeNames, prefixes)).To(gomega.BeTrue(), "name match")
-	g.Expect(cli.ExportShouldPruneDir("-private-tmp-cummatrix-x", excludeNames, prefixes)).To(gomega.BeTrue(), "prefix match")
-	g.Expect(cli.ExportShouldPruneDir("-Users-joe-repos-engram", excludeNames, prefixes)).To(gomega.BeFalse(), "persistent dir kept")
 }
 
 // unexported constants.
