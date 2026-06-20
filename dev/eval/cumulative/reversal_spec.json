@@ -1,0 +1,15 @@
+{
+  "description": "Standards-change-over-time reversal probe",
+  "standard_x": {
+    "name": "error_wrapping",
+    "description": "wrap errors with %w",
+    "pattern": "fmt.Errorf.*%w"
+  },
+  "standard_x_prime": {
+    "name": "sentinel_errors",
+    "description": "return bare sentinel errors, do NOT wrap",
+    "pattern": "errors\\.New|var Err"
+  },
+  "reversal_instruction": "Convention changed: return bare sentinel errors (var ErrX = errors.New(...)), do NOT wrap errors with fmt.Errorf. The old wrapping convention is superseded.",
+  "metric": "supersession_rate"
+}
