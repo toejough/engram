@@ -38,18 +38,18 @@ func TestExplicitSweepIngestsNonPersistentWorkspace(t *testing.T) {
 	g.Expect(present).To(gomega.BeTrue(), "explicit --sweep bypasses non-persistent prevention")
 }
 
-func TestShouldPruneDir(t *testing.T) {
+func TestShouldSkipDir(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	excludeNames := map[string]struct{}{"node_modules": {}}
 	prefixes := []string{"-private-tmp-", "-tmp-"}
 
-	g.Expect(cli.ExportShouldPruneDir("node_modules", excludeNames, prefixes)).
+	g.Expect(cli.ExportShouldSkipDir("node_modules", excludeNames, prefixes)).
 		To(gomega.BeTrue(), "name match")
-	g.Expect(cli.ExportShouldPruneDir("-private-tmp-cummatrix-x", excludeNames, prefixes)).
+	g.Expect(cli.ExportShouldSkipDir("-private-tmp-cummatrix-x", excludeNames, prefixes)).
 		To(gomega.BeTrue(), "prefix match")
-	g.Expect(cli.ExportShouldPruneDir("-Users-joe-repos-engram", excludeNames, prefixes)).
+	g.Expect(cli.ExportShouldSkipDir("-Users-joe-repos-engram", excludeNames, prefixes)).
 		To(gomega.BeFalse(), "persistent dir kept")
 }
 

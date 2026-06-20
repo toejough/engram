@@ -81,7 +81,7 @@ func DefaultSweepSpec() SweepSpec {
 			"file-history", "history", "ide", "statsig", "session-env", "debug",
 			"worktrees",
 		},
-		NonPersistentPrefixes: []string{"-private-tmp-", "-tmp-", "-var-folders-"},
+		NonPersistentPrefixes: []string{"-private-tmp-", "-tmp-", "-var-folders-", "-private-var-folders-"},
 	}
 }
 

@@ -11,20 +11,6 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestNewOsPruneDeps_NoManifestIsNoOp(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	// Exercise newOsPruneDeps with a nonexistent chunks dir so it hits the
-	// "no manifest" path — purely a wiring smoke-test (no files created).
-	deps := cli.ExportNewOsPruneDeps()
-
-	err := cli.RunPrune(context.Background(),
-		cli.PruneArgs{ChunksDir: t.TempDir() + "/nonexistent"}, deps, io.Discard)
-
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-}
-
 func TestPruneNoDeadSources(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)

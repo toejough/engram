@@ -559,10 +559,10 @@ func resolveAutoSpec(deps IngestDeps) (SweepSpec, SweepEnv, error) {
 	return spec, env, nil
 }
 
-// shouldPruneDir reports whether a swept subdirectory should be skipped: its
+// shouldSkipDir reports whether a swept subdirectory should be skipped: its
 // name is an excluded build/dependency name, or it starts with a
 // non-persistent-workspace prefix (a slugified throwaway cwd).
-func shouldPruneDir(name string, excludeNames map[string]struct{}, excludePrefixes []string) bool {
+func shouldSkipDir(name string, excludeNames map[string]struct{}, excludePrefixes []string) bool {
 	if _, named := excludeNames[name]; named {
 		return true
 	}
@@ -623,7 +623,7 @@ func walkSourcesExcluding(root SweepRoot) ([]string, error) {
 			}
 
 			hidden := root.SkipHidden && strings.HasPrefix(entry.Name(), ".")
-			if hidden || shouldPruneDir(entry.Name(), excluded, root.ExcludePrefixes) {
+			if hidden || shouldSkipDir(entry.Name(), excluded, root.ExcludePrefixes) {
 				return filepath.SkipDir
 			}
 

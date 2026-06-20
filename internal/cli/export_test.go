@@ -65,7 +65,7 @@ var (
 	ExportShouldEmbed                  = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
-	ExportShouldPruneDir      = shouldPruneDir
+	ExportShouldSkipDir       = shouldSkipDir
 	ExportSortScoredDesc      = sortScoredDesc
 	ExportTildify             = tildify
 	ExportValidateIssueID     = validateIssueID
