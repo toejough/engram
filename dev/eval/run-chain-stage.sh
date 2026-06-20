@@ -38,7 +38,7 @@ esac
 
 PROMPT="You are a fresh Go developer. Build ${SPEC} from scratch in the current directory (run: go mod init ${APP}).
 
-STEP 1 — consult memory: use your recall skill, but query engram TIER-CAPPED with \`engram query --tier ${LAYER} --phrase \"...\"\`. The vault may hold learnings from earlier app builds (or be empty = cold). Read every surfaced note and APPLY every architecture convention you find.
+STEP 1 — consult memory: use your recall skill, querying engram with \`engram query --phrase \"...\"\`. The vault may hold learnings from earlier app builds (or be empty = cold). Read every surfaced note and APPLY every architecture convention you find.
 
 STEP 2 — build the app in this directory and make \`go test ./...\` pass. Keep going until it builds and tests pass.
 
