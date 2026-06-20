@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"io"
-	"testing"
 	"time"
 
 	"github.com/toejough/engram/internal/chunk"
@@ -14,11 +13,9 @@ import (
 var (
 	ErrCheckFailedForTest              = errCheckFailed
 	ErrLearnBadTierForTest             = errLearnBadTier
-	ErrQueryModeConflict               = errQueryModeConflict
 	ErrResituateNoteNotFoundForTest    = errResituateNoteNotFound
 	ExportAnyHarnessFailed             = anyHarnessFailed
 	ExportApplyProjectFilter           = applyProjectFilter
-	ExportApplyTierFilter              = applyTierFilter
 	ExportAutoEmbedNote                = autoEmbedNote
 	ExportBumpLastUsed                 = bumpLastUsed
 	ExportDefaultRecencyParams         = defaultRecencyParams
@@ -76,6 +73,17 @@ var (
 type ExportFactFields = factFields
 
 type ExportFeedbackFields = feedbackFields
+
+// ExportMergeClusterRepsCall is a simplified wrapper around mergeClusterReps
+// that takes plain slices instead of unexported types, for whitebox testing.
+// members is a list of (notePath, score, content) tuples.
+// representatives maps clusterID → memberIndex.
+// Returns the updated byBasename map as a slice of (path, provenances, clusterID) tuples.
+type ExportMergeClusterRepsEntry struct {
+	NotePath    string
+	Provenances []string
+	ClusterID   *int
+}
 
 type ExportRecencyParams = recencyParams
 
@@ -158,13 +166,68 @@ func ExportLoadPriorRecords(indexPath string, deps IngestDeps) map[string]chunk.
 	return loadPriorRecords(indexPath, deps)
 }
 
+// ExportMergeClusterReps drives mergeClusterReps with plain-data inputs.
+func ExportMergeClusterReps(
+	memberPaths []string,
+	memberScores []float32,
+	memberContents []string,
+	representatives map[int]int,
+) []ExportMergeClusterRepsEntry {
+	members := make([]subgraphMember, len(memberPaths))
+	for i, path := range memberPaths {
+		basename := path
+		members[i] = subgraphMember{
+			basename: basename,
+			notePath: path,
+			score:    memberScores[i],
+			content:  memberContents[i],
+		}
+	}
+
+	subgraph := expandedSubgraph{members: members}
+
+	clusters := clusterReport{
+		representatives: make([]int, 0),
+	}
+
+	for clusterID := range representatives {
+		for clusterID >= len(clusters.representatives) {
+			clusters.representatives = append(clusters.representatives, -1)
+		}
+	}
+
+	for clusterID, memberIdx := range representatives {
+		clusters.representatives[clusterID] = memberIdx
+	}
+
+	byBasename := make(map[string]*resolvedItem)
+	mergeClusterReps(subgraph, clusters, byBasename)
+
+	result := make([]ExportMergeClusterRepsEntry, 0, len(byBasename))
+	for _, item := range byBasename {
+		var clusterID *int
+		if item.clusterID != nil {
+			v := *item.clusterID
+			clusterID = &v
+		}
+
+		result = append(result, ExportMergeClusterRepsEntry{
+			NotePath:    item.notePath,
+			Provenances: item.provenances,
+			ClusterID:   clusterID,
+		})
+	}
+
+	return result
+}
+
 // ExportMergeIntoExisting exposes mergeIntoExisting for whitebox testing.
 func ExportMergeIntoExisting(existing, src *resolvedItem) {
 	mergeIntoExisting(existing, src)
 }
 
 // ExportNewChunkResolvedItem builds a chunk-kind resolvedItem for band tests.
-// notePath mirrors mergeChunkSpace's "source#anchor" form.
+// notePath mirrors chunkNotePath's "source#anchor" form.
 func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
 	return resolvedItem{notePath: notePath, score: score, kind: chunkItemKind}
 }
@@ -181,6 +244,28 @@ func ExportNewNoteResolvedItem(notePath, lastUsed, created string) resolvedItem 
 // an explicit baseScore, for testing mergeIntoExisting activation logic.
 func ExportNewNoteResolvedItemWithBaseScore(notePath string, baseScore float32, lastUsed, created string) resolvedItem {
 	return resolvedItem{notePath: notePath, baseScore: baseScore, lastUsed: lastUsed, created: created}
+}
+
+// ExportNewNoteResolvedItemWithInDegree builds a note-kind resolvedItem with
+// inDegree set for testing mergeIntoExisting inDegree propagation.
+func ExportNewNoteResolvedItemWithInDegree(notePath string, inDegree int) resolvedItem {
+	v := inDegree
+
+	return resolvedItem{notePath: notePath, inDegree: &v}
+}
+
+// ExportNewNoteResolvedItemWithProvenances builds a note-kind resolvedItem
+// with explicit provenances and score, for testing resolvedItemLess ordering.
+func ExportNewNoteResolvedItemWithProvenances(
+	notePath string, score float32, provenances []string,
+) resolvedItem {
+	return resolvedItem{notePath: notePath, score: score, provenances: provenances}
+}
+
+// ExportNewNoteResolvedItemWithScore builds a note-kind resolvedItem with
+// both score and baseScore set, for testing mergeIntoExisting score logic.
+func ExportNewNoteResolvedItemWithScore(notePath string, score, baseScore float32) resolvedItem {
+	return resolvedItem{notePath: notePath, score: score, baseScore: baseScore}
 }
 
 // ExportNewOsChunkQueryDeps returns production ChunkQueryDeps with an
@@ -277,6 +362,9 @@ func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 	return newestChunkItems(scored, n, provenanceDirect)
 }
 
+// ExportProvenanceRankFor exposes provenanceRankFor for whitebox testing.
+func ExportProvenanceRankFor(role string) int { return provenanceRankFor(role) }
+
 // ExportRecencyFloor exposes the floor field of recencyParams for tests.
 func ExportRecencyFloor(p recencyParams) int { return p.floor }
 
@@ -287,8 +375,14 @@ func ExportResolvedItemBaseScore(item ExportResolvedItem) float32 { return item.
 // ExportResolvedItemCreated exposes the created frontmatter date field.
 func ExportResolvedItemCreated(item ExportResolvedItem) string { return item.created }
 
+// ExportResolvedItemInDegree exposes the inDegree field for assertions.
+func ExportResolvedItemInDegree(item resolvedItem) *int { return item.inDegree }
+
 // ExportResolvedItemLastUsed exposes the LastUsed sidecar date field.
 func ExportResolvedItemLastUsed(item ExportResolvedItem) string { return item.lastUsed }
+
+// ExportResolvedItemLess exposes resolvedItemLess for whitebox testing.
+func ExportResolvedItemLess(a, b resolvedItem) bool { return resolvedItemLess(a, b) }
 
 // ExportResolvedItemPath exposes the unexported notePath field for assertions.
 func ExportResolvedItemPath(item ExportResolvedItem) string { return item.notePath }
@@ -314,37 +408,3 @@ func ExportScoredChunkRecord(s scoredChunk) chunk.Record { return s.record }
 
 // ExportScoredChunkScore / Record expose the unexported fields for assertions.
 func ExportScoredChunkScore(s scoredChunk) float32 { return s.score }
-
-// TestMergeIntoExisting_SetsInDegreeFromSrc covers the branch where existing.inDegree is
-// nil (note not a hub in an earlier phrase) and src.inDegree is set (hub in a later phrase).
-// This branch cannot be exercised via RunQuery black-box tests because undirected BFS always
-// expands to a direct-hit note's linkers at hop 1, making the note a hub in every phrase
-// that contains it as a direct hit.
-func TestMergeIntoExisting_SetsInDegreeFromSrc(t *testing.T) {
-	t.Parallel()
-
-	const expectedDegree = 7
-
-	deg := expectedDegree
-	existing := &resolvedItem{
-		notePath:    "X.md",
-		score:       0.8,
-		provenances: []string{provenanceDirect},
-	}
-	src := &resolvedItem{
-		notePath:    "X.md",
-		score:       0.6,
-		provenances: []string{provenanceHub},
-		inDegree:    &deg,
-	}
-
-	mergeIntoExisting(existing, src)
-
-	if existing.inDegree == nil {
-		t.Fatal("expected inDegree to be set, got nil")
-	}
-
-	if *existing.inDegree != expectedDegree {
-		t.Fatalf("expected inDegree=%d, got %d", expectedDegree, *existing.inDegree)
-	}
-}

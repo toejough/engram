@@ -57,7 +57,7 @@ func TestProperty_SynthesizeL2_NearDuplicateL2CosineAtLeast095(t *testing.T) {
 		var out bytes.Buffer
 
 		err := cli.RunQuery(context.Background(),
-			cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, SynthesizeL2: true}, deps, &out)
+			cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault}, deps, &out)
 		if err != nil {
 			rt.Fatalf("RunQuery: %v", err)
 		}

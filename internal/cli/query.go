@@ -23,14 +23,11 @@ import (
 
 // QueryArgs holds parsed flags for `engram query`.
 type QueryArgs struct {
-	Phrases      []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
-	VaultPath    string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
-	ChunksDir    string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks); chunks compete in the same ranking as notes"` //nolint:lll // single unbreakable struct-tag string
-	Limit        int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
-	Project      string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
-	Tiers        []string `targ:"flag,name=tier,desc=restrict items to notes matching these tier: values (repeatable)"`
-	Synthesis    bool     `targ:"flag,name=synthesis,desc=union all phrase matches and cluster once into a single pass (K=0 yields one cluster; no min-size floor)"`                        //nolint:lll // single unbreakable struct-tag string
-	SynthesizeL2 bool     `targ:"flag,name=synthesize-l2,desc=union matched notes and chunks then cluster once and emit candidate_l2s per cluster for covered/near/absent crystallization"` //nolint:lll // single unbreakable struct-tag string
+	Phrases   []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
+	VaultPath string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
+	ChunksDir string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks); chunks compete in the same ranking as notes"` //nolint:lll // single unbreakable struct-tag string
+	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
+	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -51,11 +48,8 @@ type QueryDeps struct {
 	Now func() time.Time
 }
 
-// RunQuery embeds each query phrase, scores it against every note that
-// has a current-model sidecar, ranks by descending cosine, expands a
-// 3-hop subgraph over authored wikilinks, clusters that subgraph, and
-// identifies hubs by in-degree before emitting the resolved YAML
-// payload per the F6+F9.1 spec.
+// RunQuery embeds each query phrase, unions the matched notes and chunks, clusters
+// once, and emits per-cluster candidate_l2s per the synthesize-l2 spec.
 func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Writer) error {
 	validationErr := validateQueryArgs(args)
 	if validationErr != nil {
@@ -83,38 +77,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return errQueryNoEmbeddings
 	}
 
-	if handled, err := dispatchSynthesisMode(ctx, args, notes, hits, limit, deps, stdout); handled {
-		return err
-	}
-
-	summaries := make([]queryPipelineSummary, 0, len(args.Phrases))
-
-	for _, phrase := range args.Phrases {
-		summary, err := runSinglePhraseQuery(ctx, phrase, notes, hits, args.VaultPath, limit, deps)
-		if err != nil {
-			return err
-		}
-
-		summaries = append(summaries, summary)
-	}
-
-	merged := aggregatePhraseSummaries(args.Phrases, summaries, limit)
-	merged.noteIdx = gatherTierIndex(hits, args.VaultPath, deps.Read, tierL2)
-	merged.outgoing = outgoingByBasename(notes)
-	merged.tiers = args.Tiers
-	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
-	merged.resolvedItems = applyTierFilter(merged.resolvedItems, args.Tiers)
-
-	chunkMust, chunkErr := mergeChunkSpace(ctx, args, deps, &merged, limit)
-	if chunkErr != nil {
-		return chunkErr
-	}
-
-	merged.resolvedItems = applyCombinedRecencyBand(
-		merged.resolvedItems, chunkMust, deps.Now, limit,
-		chunksConfigured(args, deps))
-
-	return renderQueryPayload(stdout, merged)
+	return runSynthesizeL2Query(ctx, args, notes, hits, limit, deps, stdout)
 }
 
 // unexported constants.
@@ -124,9 +87,6 @@ const (
 	// generous nomination costs nothing (recall is the binary's job,
 	// precision is the agent's). Raised from 3→5 in recall-v2 Phase 0.
 	candidateNoteK = 5
-	// chunkClusterPhrase tags deterministic chunk-space clusters in the
-	// unified payload (they span all phrases, like synthesis clusters).
-	chunkClusterPhrase = "chunks"
 	// chunkItemKind tags unified-ranking items sourced from the chunk index
 	// (vs notes, whose kind derives from frontmatter).
 	chunkItemKind          = "chunk"
@@ -145,14 +105,10 @@ const (
 	// matchSetCap is the hard cap on the union of all per-phrase matched
 	// sets fed to clustering. 10 phrases × matchPhraseLimit = 300 worst-case.
 	matchSetCap              = 300
-	maxHubs                  = 5
-	minSubgraphForClustering = 6
 	provenanceClusterRep     = "cluster_rep"
 	provenanceDirect         = "direct"
-	provenanceHub            = "hub"
 	provenanceRankClusterRep = 2
 	provenanceRankDirect     = 3
-	provenanceRankHub        = 1
 	// provenanceRecent tags un-clustered recency-channel chunks (Channel 2,
 	// Phase 2). Items carrying this role appear in items[] but in NO cluster's
 	// members[], so the skill can render a separate "recent activity" block.
@@ -165,8 +121,6 @@ const (
 	// synthesis fallback cluster. Silhouette is undefined for a single
 	// cluster, so zero stands in.
 	singletonClusterSilhouette = 0.0
-	subgraphCap                = 200
-	subgraphMaxHops            = 3
 	// synthesisClusterPhrase tags synthesis union clusters. They span every
 	// seed phrase rather than one, so the per-phrase phrase tag is left empty.
 	synthesisClusterPhrase = ""
@@ -176,7 +130,6 @@ const (
 // unexported variables.
 var (
 	errQueryEmptyString  = errors.New("query: empty query string")
-	errQueryModeConflict = errors.New("query: --synthesis and --synthesize-l2 are mutually exclusive")
 	errQueryNoEmbeddings = errors.New(
 		"query: vault has notes but no current-model embeddings; run `engram embed apply --all`",
 	)
@@ -184,9 +137,6 @@ var (
 	// anchored to start-of-line so body text can't false-match. Slug shape
 	// mirrors the write-side validation: [a-z0-9-]+.
 	projectLineRE = regexp.MustCompile(`(?m)^project:\s*([a-z0-9-]+)\s*$`)
-	// tierLineRE matches a `tier: L<n>` line in YAML frontmatter,
-	// anchored to start-of-line so body text can't false-match.
-	tierLineRE = regexp.MustCompile(`(?m)^tier:\s*(L[0-9]+)\s*$`)
 	// wikilinkRE matches `[[target]]` and `[[target|display]]`.
 	// Used by stripWikilinks to remove pointer syntax from the
 	// rendered items.content per the spike spec — engram returns
@@ -200,16 +150,10 @@ type aggregatedSummary struct {
 	phrases        []string
 	resolvedItems  []resolvedItem
 	phraseClusters []phrasedCluster
-	chunkClusters  []queryCluster
-	noteIdx        tierIndex
 	outgoing       map[string][]string
-	tiers          []string
 	totalNotes     int
 	withEmbeddings int
 	limit          int
-	subgraphSize   int
-	subgraphCapped bool
-	hopsTraversed  int
 }
 
 // clusterReport collects the AutoK output for the payload-rendering
@@ -232,16 +176,7 @@ type compatibleSidecar struct {
 // expandedSubgraph is the post-BFS, post-sidecar-filtering subgraph the
 // later stages operate on.
 type expandedSubgraph struct {
-	members       []subgraphMember
-	graph         vaultgraph.Graph
-	hopsTraversed int
-	capped        bool
-}
-
-// hubReport identifies the top-N hubs by subgraph in-degree.
-type hubReport struct {
-	memberIDs []int // member index per hub, sorted by spec rules
-	inDegrees []int // inDegrees[i] = in-degree of members[memberIDs[i]]
+	members []subgraphMember
 }
 
 // matchedSetItem is the unified per-phrase ranking element used by
@@ -266,17 +201,13 @@ type phrasedCluster struct {
 
 // queryBudget reports the totals visible to the caller per the YAML schema.
 type queryBudget struct {
-	PhrasesQueried       int  `yaml:"phrases_queried"`
-	TotalNotes           int  `yaml:"total_notes"`
-	WithEmbeddings       int  `yaml:"with_embeddings"`
-	SubgraphSize         int  `yaml:"subgraph_size"`
-	SubgraphSizeCapped   bool `yaml:"subgraph_size_capped"`
-	HopsTraversed        int  `yaml:"hops_traversed"`
-	ClustersFound        int  `yaml:"clusters_found"`
-	HubsReturned         int  `yaml:"hubs_returned"`
-	DirectHitsReturned   int  `yaml:"direct_hits_returned"`
-	ItemsWithFullContent int  `yaml:"items_with_full_content"`
-	Limit                int  `yaml:"limit"`
+	PhrasesQueried       int `yaml:"phrases_queried"`
+	TotalNotes           int `yaml:"total_notes"`
+	WithEmbeddings       int `yaml:"with_embeddings"`
+	ClustersFound        int `yaml:"clusters_found"`
+	DirectHitsReturned   int `yaml:"direct_hits_returned"`
+	ItemsWithFullContent int `yaml:"items_with_full_content"`
+	Limit                int `yaml:"limit"`
 }
 
 // queryCandidateNote is one candidate note for a cluster. The binary emits
@@ -330,15 +261,6 @@ type queryPayload struct {
 	Items    []queryItem    `yaml:"items"`
 	Clusters []queryCluster `yaml:"clusters"`
 	Budget   queryBudget    `yaml:"budget"`
-}
-
-// queryPipelineSummary bundles every stage's output for rendering.
-type queryPipelineSummary struct {
-	subgraph       expandedSubgraph
-	clusters       clusterReport
-	resolvedItems  []resolvedItem
-	totalNotes     int
-	withEmbeddings int
 }
 
 // resolvedItem is the working shape for the items[] section before
@@ -447,58 +369,6 @@ func addMatchedChunksToSubgraph(chunkUnion []scoredChunk, subgraph *expandedSubg
 	}
 
 	return chunkItems
-}
-
-// aggregatePhraseSummaries merges per-phrase pipeline results into a single
-// aggregatedSummary per the issue-639 spec:
-//   - items: dedup by path, max score across phrases, union provenances,
-//     max in_degree; cluster_id cleared (clusters are per-phrase).
-//   - clusters: retained per-phrase, tagged with their originating phrase.
-//   - budget: subgraphSize is sum, hopsTraversed is max, capped is OR.
-func aggregatePhraseSummaries(phrases []string, summaries []queryPipelineSummary, limit int) aggregatedSummary {
-	items := mergeItemsByPath(summaries, limit)
-
-	phraseClusters := make([]phrasedCluster, 0, len(summaries))
-	for i, s := range summaries {
-		phraseClusters = append(phraseClusters, phrasedCluster{
-			phrase:   phrases[i],
-			report:   s.clusters,
-			subgraph: s.subgraph,
-		})
-	}
-
-	totalSubgraph, capped, maxHops := aggregateSubgraphBudget(summaries)
-	first := summaries[0]
-
-	return aggregatedSummary{
-		phrases:        phrases,
-		resolvedItems:  items,
-		phraseClusters: phraseClusters,
-		totalNotes:     first.totalNotes,
-		withEmbeddings: first.withEmbeddings,
-		limit:          limit,
-		subgraphSize:   totalSubgraph,
-		subgraphCapped: capped,
-		hopsTraversed:  maxHops,
-	}
-}
-
-// aggregateSubgraphBudget computes the cross-phrase budget fields: total
-// subgraph size (sum), capped flag (OR), and max hops traversed.
-func aggregateSubgraphBudget(summaries []queryPipelineSummary) (totalSize int, capped bool, maxHops int) {
-	for _, s := range summaries {
-		totalSize += len(s.subgraph.members)
-
-		if s.subgraph.capped {
-			capped = true
-		}
-
-		if s.subgraph.hopsTraversed > maxHops {
-			maxHops = s.subgraph.hopsTraversed
-		}
-	}
-
-	return totalSize, capped, maxHops
 }
 
 // appendUniqueProvenance adds role to item.provenances iff not already present.
@@ -619,26 +489,6 @@ func applyProjectFilter(items []resolvedItem, project string) []resolvedItem {
 	return out
 }
 
-// applyTierFilter drops items whose frontmatter tier: field matches none of
-// the requested tier labels (the union read of §1.4). An empty tiers slice is
-// a no-op (returns items unchanged). Items with no loaded content cannot be
-// verified and are dropped when any tier is specified.
-func applyTierFilter(items []resolvedItem, tiers []string) []resolvedItem {
-	if len(tiers) == 0 {
-		return items
-	}
-
-	out := make([]resolvedItem, 0, len(items))
-
-	for _, item := range items {
-		if itemMatchesTier(item, tiers) {
-			out = append(out, item)
-		}
-	}
-
-	return out
-}
-
 // basenameFromNotePath strips the directory and ".md" extension from a
 // vault-relative note path, yielding the graph-node basename key.
 func basenameFromNotePath(notePath string) string {
@@ -725,47 +575,6 @@ func buildRecentFillItems(allRecords []chunk.Record, matchedChunks []scoredChunk
 	return out
 }
 
-// buildSubgraphMembers assembles the final subgraphMember list, reading
-// non-direct bodies on demand and scoring each member against queryVec.
-func buildSubgraphMembers(
-	memberNames []string,
-	hitByName map[string]compatibleSidecar,
-	directContentByBasename map[string]string,
-	vault string,
-	read func(string) ([]byte, error),
-	queryVec []float32,
-) []subgraphMember {
-	members := make([]subgraphMember, 0, len(memberNames))
-
-	for _, name := range memberNames {
-		hit := hitByName[name]
-		notePath := pathOf(name)
-
-		score, coord := bestVector(queryVec, hit.sidecar)
-		member := subgraphMember{
-			basename: name,
-			notePath: notePath,
-			vector:   coord,
-			score:    score,
-			sitVec:   hit.sidecar.SituationVector,
-			bodyVec:  hit.sidecar.BodyVector,
-		}
-
-		if content, ok := directContentByBasename[name]; ok {
-			member.content = content
-		} else {
-			body, err := read(filepath.Join(vault, notePath))
-			if err == nil {
-				member.content = stripWikilinks(string(body))
-			}
-		}
-
-		members = append(members, member)
-	}
-
-	return members
-}
-
 // buildSynthesisMatchedSet performs per-phrase unified note+chunk matching for
 // the --synthesize-l2 path. For each phrase it embeds once, scores notes and
 // chunks with recency bias, merges into one list (top-matchPhraseLimit=30 per
@@ -832,65 +641,10 @@ func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
 	return args.ChunksDir != "" && deps.ListChunkIndexes != nil
 }
 
-// clusterChunkItems runs the SAME deterministic clustering machinery the note
-// pipeline uses (auto-k k-means + silhouette floor) over the scored chunks,
-// annotating each cluster with the nearest existing note so the recall
-// skill can apply its covered/near/absent crystallization bands instead of
-// judging novelty by eye.
-func clusterChunkItems(scored []scoredChunk, noteIdx tierIndex, tiers, phrases []string) []queryCluster {
-	if len(scored) < minSubgraphForClustering {
-		return nil
-	}
-
-	vectors := make([][]float32, 0, len(scored))
-	for _, s := range scored {
-		vectors = append(vectors, s.record.Vector)
-	}
-
-	seed := seedFromQuery(strings.Join(phrases, "|"))
-
-	autoK, err := cluster.AutoK(vectors, clusterMinK, clusterMaxK, clusterSilhouetteFloor, seed)
-	if err != nil || autoK.K == 0 {
-		return nil
-	}
-
-	silhouettes := perClusterMeanSilhouette(vectors, autoK.Assignments, autoK.K)
-	clusters := make([]queryCluster, 0, autoK.K)
-
-	for clusterID := range autoK.K {
-		var members []queryClusterMember
-
-		for memberIdx, assigned := range autoK.Assignments {
-			if assigned == clusterID {
-				members = append(members, queryClusterMember{
-					Path:  chunkNotePath(scored[memberIdx].record),
-					Score: scored[memberIdx].score,
-				})
-			}
-		}
-
-		if len(members) == 0 {
-			continue
-		}
-
-		clusters = append(clusters, queryCluster{
-			ID:           clusterID,
-			Phrase:       chunkClusterPhrase,
-			Size:         len(members),
-			Silhouette:   silhouettes[clusterID],
-			Members:      members,
-			CandidateL2s: topKCandidateNotesForTier(autoK.Centroids[clusterID], noteIdx, tiers),
-		})
-	}
-
-	return clusters
-}
-
 // clusterNoteIndexFromMembers builds a tierIndex from the note members of a
 // single cluster (Phase 3, within-cluster nomination). Only subgraphMembers
-// whose kind is NOT chunkItemKind and whose content carries tier: L2 in
-// frontmatter are included; chunks and non-note members are skipped. An empty
-// index (no note members) yields an empty tierIndex{}.
+// whose kind is NOT chunkItemKind are included; chunk members are skipped.
+// An empty index (no note members) yields an empty tierIndex{}.
 func clusterNoteIndexFromMembers(subgraph expandedSubgraph, memberIndices []int) tierIndex {
 	idx := tierIndex{}
 
@@ -900,61 +654,12 @@ func clusterNoteIndexFromMembers(subgraph expandedSubgraph, memberIndices []int)
 			continue
 		}
 
-		if !itemMatchesTier(resolvedItem{content: member.content}, []string{tierL2}) {
-			continue
-		}
-
 		idx.paths = append(idx.paths, member.notePath)
 		idx.sit = append(idx.sit, member.sitVec)
 		idx.body = append(idx.body, member.bodyVec)
 	}
 
 	return idx
-}
-
-// clusterSubgraph runs auto-k k-means + silhouette over the subgraph's
-// vectors with a query-derived deterministic seed. Subgraphs smaller
-// than minSubgraphForClustering short-circuit to "no clusters".
-func clusterSubgraph(subgraph expandedSubgraph, query string) clusterReport {
-	if len(subgraph.members) < minSubgraphForClustering {
-		return clusterReport{}
-	}
-
-	vectors := make([][]float32, len(subgraph.members))
-	for i, member := range subgraph.members {
-		vectors[i] = member.vector
-	}
-
-	seed := seedFromQuery(query)
-
-	autoK, err := cluster.AutoK(vectors, clusterMinK, clusterMaxK, clusterSilhouetteFloor, seed)
-	if err != nil || autoK.K == 0 {
-		return clusterReport{}
-	}
-
-	memberIDs := make([][]int, autoK.K)
-	for i := range memberIDs {
-		memberIDs[i] = make([]int, 0)
-	}
-
-	for i, c := range autoK.Assignments {
-		memberIDs[c] = append(memberIDs[c], i)
-	}
-
-	representatives := make([]int, autoK.K)
-
-	for c := range autoK.K {
-		representatives[c] = pickRepresentative(subgraph, memberIDs[c], autoK.Centroids[c])
-	}
-
-	perClusterSilhouettes := perClusterMeanSilhouette(vectors, autoK.Assignments, autoK.K)
-
-	return clusterReport{
-		autoK:           autoK,
-		memberIDs:       memberIDs,
-		representatives: representatives,
-		silhouettesByID: perClusterSilhouettes,
-	}
 }
 
 // clusterUnionForSynthesis clusters the union subgraph exactly once. It mirrors
@@ -1012,7 +717,6 @@ func collectClusterMembers(
 	subgraph expandedSubgraph,
 	report clusterReport,
 	clusterID int,
-	tiers []string,
 ) []queryClusterMember {
 	memberIndices := make([]int, len(report.memberIDs[clusterID]))
 	copy(memberIndices, report.memberIDs[clusterID])
@@ -1027,11 +731,8 @@ func collectClusterMembers(
 
 	for _, idx := range memberIndices {
 		member := subgraph.members[idx]
-		if !memberMatchesTier(member, tiers) {
-			continue
-		}
-
 		isRep := idx == repIdx
+
 		if isRep {
 			repRetained = true
 		}
@@ -1043,8 +744,6 @@ func collectClusterMembers(
 		})
 	}
 
-	// Members are score-desc, so the first survivor is the best-scoring
-	// one; promote it when the original representative was tier-filtered out.
 	if !repRetained && len(members) > 0 {
 		members[0].IsRepresentative = true
 	}
@@ -1066,30 +765,6 @@ func countItemsWithContent(items []queryItem) int {
 	return count
 }
 
-// dispatchSynthesisMode routes to the single-cluster synthesis modes. It
-// returns handled=true (with the mode's error) when --synthesis or
-// --synthesize-l2 is set, and handled=false to fall through to the default
-// per-phrase pipeline. The two modes are mutually exclusive; that conflict is
-// validated up front in RunQuery, so this router never sees both flags set.
-func dispatchSynthesisMode(
-	ctx context.Context,
-	args QueryArgs,
-	notes []vaultgraph.Note,
-	hits []compatibleSidecar,
-	limit int,
-	deps QueryDeps,
-	stdout io.Writer,
-) (bool, error) {
-	switch {
-	case args.SynthesizeL2:
-		return true, runSynthesizeL2Query(ctx, args, notes, hits, limit, deps, stdout)
-	case args.Synthesis:
-		return true, runSynthesisQuery(ctx, args, notes, hits, limit, deps, stdout)
-	default:
-		return false, nil
-	}
-}
-
 // eitherAxisCosine returns the stronger of the situation- and body-axis cosines
 // between centroid and a note's two vectors (the "either axis" gate).
 func eitherAxisCosine(centroid, sit, body []float32) float32 {
@@ -1099,192 +774,6 @@ func eitherAxisCosine(centroid, sit, body []float32) float32 {
 	}
 
 	return sim
-}
-
-// expandSubgraph runs a 3-hop BFS over the authored wikilink graph,
-// starting from direct hits, undirected for expansion, capped at 200
-// notes. Subgraph membership requires a compatible sidecar — notes
-// without one are filtered out silently after BFS completes.
-//
-// All notes (regardless of sidecar status) participate in the graph
-// itself, since a non-embedded intermediate node can still bridge two
-// embedded notes. After BFS, drop non-compatible-sidecar notes from the
-// visited set: their presence as bridges is preserved by the graph
-// edges, not by their inclusion in the subgraph member list.
-//
-// Each member's body is read once and its similarity to queryVec is
-// computed once. Direct-hit candidates carry their pre-loaded content
-// and score forward instead of being re-read.
-func expandSubgraph(
-	notes []vaultgraph.Note,
-	hits []compatibleSidecar,
-	directHits []scoredCandidate,
-	vault string,
-	read func(string) ([]byte, error),
-	queryVec []float32,
-) expandedSubgraph {
-	graph := vaultgraph.BuildGraph(notes)
-	seeds := seedBasenames(directHits)
-	bfs := vaultgraph.BFSWithCap(graph, seeds, subgraphMaxHops, subgraphCap)
-
-	hitByName := indexHitsByBasename(hits)
-	memberNames := filterToCompatibleMembers(bfs.Visited, hitByName)
-	directContentByBasename := indexDirectContent(directHits)
-
-	members := buildSubgraphMembers(
-		memberNames,
-		hitByName,
-		directContentByBasename,
-		vault,
-		read,
-		queryVec,
-	)
-
-	return expandedSubgraph{
-		members:       members,
-		graph:         graph,
-		hopsTraversed: bfs.HopsReached,
-		capped:        bfs.Capped,
-	}
-}
-
-// filterToCompatibleMembers returns the sorted basenames from visited
-// that also appear in hitByName (compatible-sidecar set). Sorting fixes
-// the visit-order non-determinism inherent to map iteration.
-func filterToCompatibleMembers(
-	visited map[string]struct{}, hitByName map[string]compatibleSidecar,
-) []string {
-	memberNames := make([]string, 0, len(visited))
-
-	for name := range visited {
-		if _, ok := hitByName[name]; !ok {
-			continue
-		}
-
-		memberNames = append(memberNames, name)
-	}
-
-	sort.Strings(memberNames)
-
-	return memberNames
-}
-
-// gatherTierIndex reads each compatible-sidecar note's content and collects
-// those whose frontmatter carries the requested tier into a small index used
-// for nearest-tier lookup during cluster rendering. Both sidecar vectors are
-// carried so the per-cluster lookup can gate by max(situation,body). Called
-// once per query so the per-cluster lookups are O(1) in I/O.
-func gatherTierIndex(
-	hits []compatibleSidecar,
-	vault string,
-	read func(string) ([]byte, error),
-	tier string,
-) tierIndex {
-	idx := tierIndex{}
-
-	for _, hit := range hits {
-		notePath := pathOf(hit.note.Basename)
-
-		body, readErr := read(filepath.Join(vault, notePath))
-		if readErr != nil {
-			continue
-		}
-
-		item := resolvedItem{content: stripWikilinks(string(body))}
-		if !itemMatchesTier(item, []string{tier}) {
-			continue
-		}
-
-		idx.paths = append(idx.paths, notePath)
-		idx.sit = append(idx.sit, hit.sidecar.SituationVector)
-		idx.body = append(idx.body, hit.sidecar.BodyVector)
-	}
-
-	return idx
-}
-
-// identifyHubs returns the top-N (≤ maxHubs) subgraph notes by
-// subgraph-internal in-degree, ties broken by direct-hit score desc
-// then by lexicographic notePath asc. Notes with zero in-degree are
-// excluded.
-func identifyHubs(subgraph expandedSubgraph) hubReport {
-	if len(subgraph.members) == 0 {
-		return hubReport{}
-	}
-
-	subset := make(map[string]struct{}, len(subgraph.members))
-	for _, member := range subgraph.members {
-		subset[member.basename] = struct{}{}
-	}
-
-	type indexedDegree struct {
-		memberIdx int
-		inDegree  int
-	}
-
-	candidates := make([]indexedDegree, 0, len(subgraph.members))
-
-	for idx, member := range subgraph.members {
-		degree := subgraph.graph.InDegreeIn(member.basename, subset)
-		if degree == 0 {
-			continue
-		}
-
-		candidates = append(candidates, indexedDegree{memberIdx: idx, inDegree: degree})
-	}
-
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].inDegree != candidates[j].inDegree {
-			return candidates[i].inDegree > candidates[j].inDegree
-		}
-
-		memberI := subgraph.members[candidates[i].memberIdx]
-		memberJ := subgraph.members[candidates[j].memberIdx]
-
-		if memberI.score != memberJ.score {
-			return memberI.score > memberJ.score
-		}
-
-		return memberI.notePath < memberJ.notePath
-	})
-
-	if len(candidates) > maxHubs {
-		candidates = candidates[:maxHubs]
-	}
-
-	report := hubReport{
-		memberIDs: make([]int, len(candidates)),
-		inDegrees: make([]int, len(candidates)),
-	}
-
-	for i, c := range candidates {
-		report.memberIDs[i] = c.memberIdx
-		report.inDegrees[i] = c.inDegree
-	}
-
-	return report
-}
-
-// indexDirectContent maps each direct hit's basename to its already-loaded
-// (wikilink-stripped) content so we don't re-read those files.
-func indexDirectContent(directHits []scoredCandidate) map[string]string {
-	out := make(map[string]string, len(directHits))
-	for _, candidate := range directHits {
-		out[candidate.basename] = candidate.content
-	}
-
-	return out
-}
-
-// indexHitsByBasename keys the compatible-sidecar set by note basename
-// for O(1) lookup during member assembly.
-func indexHitsByBasename(hits []compatibleSidecar) map[string]compatibleSidecar {
-	out := make(map[string]compatibleSidecar, len(hits))
-	for _, hit := range hits {
-		out[hit.note.Basename] = hit
-	}
-
-	return out
 }
 
 // itemMatchesProject scans the item's loaded content's frontmatter for a
@@ -1309,32 +798,6 @@ func itemMatchesProject(item resolvedItem, project string) bool {
 	match := projectLineRE.FindStringSubmatch(front)
 
 	return len(match) == 2 && match[1] == project
-}
-
-// itemMatchesTier scans the item's loaded content's frontmatter for a
-// tier: L<n> line whose value is one of the requested tier labels. Returns
-// false when content is missing or when the frontmatter block is malformed.
-// Callers guarantee a non-empty tiers slice (the empty-slice no-op is handled
-// upstream in applyTierFilter/memberMatchesTier).
-func itemMatchesTier(item resolvedItem, tiers []string) bool {
-	if item.content == "" {
-		return false
-	}
-
-	const delim = "---\n"
-
-	body := strings.TrimPrefix(item.content, delim)
-
-	end := strings.Index(body, "\n"+delim)
-	if end < 0 {
-		return false
-	}
-
-	front := body[:end+1]
-
-	match := tierLineRE.FindStringSubmatch(front)
-
-	return len(match) == 2 && slices.Contains(tiers, match[1])
 }
 
 // kindFromContent reads the frontmatter type field to label the item.
@@ -1481,95 +944,6 @@ func meanVector(vectors [][]float32) []float32 {
 	return mean
 }
 
-// memberMatchesTier reports whether a subgraph member's loaded content
-// carries the requested tier. An empty tier matches everything (the
-// blended recall path). Chunk members carry no frontmatter tier (kind ==
-// chunkItemKind); they are excluded only when an explicit tier set is
-// requested, and always pass the blended (empty-tier) path so D1's unified
-// synthesize-l2 clustering retains them. Note members without loaded content
-// cannot be verified and are treated as non-matching when a tier is requested
-// — mirroring applyTierFilter's items[] behavior so all channels stay
-// consistent.
-func memberMatchesTier(member subgraphMember, tiers []string) bool {
-	if len(tiers) == 0 {
-		return true
-	}
-
-	if member.kind == chunkItemKind {
-		return false
-	}
-
-	return itemMatchesTier(resolvedItem{content: member.content}, tiers)
-}
-
-// mergeChunkSpace scores every indexed chunk against the query phrases and
-// merges the results into the resolved items, re-ranking by score. The cap
-// is deferred to the caller (RunQuery) so the caller can collect
-// mostRecentlyUsedNoteItems from the full sorted list before eviction.
-// Clustering is done on the top-limit slice to keep O(n²) silhouette bounded.
-// Returns the newest-chunk must-include set so RunQuery can build the combined
-// band. No-op (nil, nil) when no chunks dir is configured.
-func mergeChunkSpace(
-	ctx context.Context,
-	args QueryArgs,
-	deps QueryDeps,
-	merged *aggregatedSummary,
-	limit int,
-) ([]resolvedItem, error) {
-	if args.ChunksDir == "" || deps.ListChunkIndexes == nil {
-		return nil, nil
-	}
-
-	records, err := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
-		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	scored, err := scoreChunks(ctx, args.Phrases, records, deps.Embedder)
-	if err != nil {
-		return nil, err
-	}
-
-	// Recency re-rank (chunk-only): lift recent chunks before they compete with notes.
-	var chunkMust []resolvedItem
-
-	if deps.Now != nil {
-		params := defaultRecencyParams()
-		scored = applyChunkRecency(scored, deps.Now(), maxTurnBySource(records), params)
-		sortScoredDesc(scored)
-		chunkMust = newestChunkItems(scored, params.floor, provenanceDirect)
-	}
-
-	for _, s := range scored {
-		merged.resolvedItems = append(merged.resolvedItems, resolvedItem{
-			notePath:    chunkNotePath(s.record),
-			content:     s.record.Text,
-			score:       s.score,
-			provenances: []string{provenanceDirect},
-			kind:        chunkItemKind,
-		})
-	}
-
-	sort.SliceStable(merged.resolvedItems, func(i, j int) bool {
-		return merged.resolvedItems[i].score > merged.resolvedItems[j].score
-	})
-
-	// Cluster the top-limit slice so the O(n²) silhouette stays bounded.
-	// The cap to limit is applied after return (in RunQuery), but clustering
-	// over all chunks would be prohibitively slow on large indices.
-	clusterView := merged.resolvedItems
-	if len(clusterView) > limit {
-		clusterView = clusterView[:limit]
-	}
-
-	merged.chunkClusters = clusterChunkItems(
-		survivingChunks(scored, clusterView), merged.noteIdx, merged.tiers, merged.phrases)
-
-	return chunkMust, nil
-}
-
 // mergeClusterReps annotates representatives with provenance + cluster_id,
 // adding new entries when a rep is not already a direct hit.
 func mergeClusterReps(
@@ -1601,45 +975,8 @@ func mergeClusterReps(
 	}
 }
 
-// mergeHubItems annotates hubs with provenance + in_degree, adding new
-// entries when a hub is not already a direct hit or rep.
-func mergeHubItems(
-	subgraph expandedSubgraph,
-	hubs hubReport,
-	byBasename map[string]*resolvedItem,
-) {
-	for i, memberIdx := range hubs.memberIDs {
-		if memberIdx < 0 || memberIdx >= len(subgraph.members) {
-			continue
-		}
-
-		member := subgraph.members[memberIdx]
-
-		resolved := byBasename[member.basename]
-		if resolved == nil {
-			resolved = &resolvedItem{
-				notePath: member.notePath,
-				content:  member.content,
-				score:    member.score,
-			}
-			byBasename[member.basename] = resolved
-		}
-
-		appendUniqueProvenance(resolved, provenanceHub)
-
-		inDegreeCopy := hubs.inDegrees[i]
-		resolved.inDegree = &inDegreeCopy
-	}
-}
-
-// mergeIntoExisting updates existing with the best score and baseScore,
-// unioned provenances, in_degree from src (if existing has none), and
-// lastUsed/created from src when existing fields are empty.
-// baseScore is maximised so recency-decay and relevance-floor comparisons
-// are not phrase-order-dependent.
-// in_degree is not maximised across phrases because undirected BFS
-// always reaches the same linkers for a note regardless of starting
-// point, so both phrases produce identical in_degrees.
+// mergeIntoExisting updates existing with the best score/baseScore, unioned
+// provenances, and copies in_degree/lastUsed/created from src when missing.
 func mergeIntoExisting(existing, src *resolvedItem) {
 	if src.score > existing.score {
 		existing.score = src.score
@@ -1666,53 +1003,6 @@ func mergeIntoExisting(existing, src *resolvedItem) {
 		v := *src.inDegree
 		existing.inDegree = &v
 	}
-}
-
-// mergeItemsByPath deduplicates resolved items across all phrase summaries:
-// max score wins, provenances are unioned, in_degree takes the max, and
-// cluster_id is cleared (clusters are per-phrase in the multi-phrase payload).
-func mergeItemsByPath(summaries []queryPipelineSummary, limit int) []resolvedItem {
-	byPath := make(map[string]*resolvedItem, len(summaries)*limit)
-
-	for _, s := range summaries {
-		for i := range s.resolvedItems {
-			src := &s.resolvedItems[i]
-			existing, ok := byPath[src.notePath]
-
-			if !ok {
-				c := *src
-				c.clusterID = nil
-				byPath[src.notePath] = &c
-
-				continue
-			}
-
-			mergeIntoExisting(existing, src)
-		}
-	}
-
-	paths := make([]string, 0, len(byPath))
-	for path := range byPath {
-		paths = append(paths, path)
-	}
-
-	sort.Strings(paths)
-
-	items := make([]resolvedItem, 0, len(byPath))
-	for _, path := range paths {
-		item := byPath[path]
-		if item == nil {
-			continue
-		}
-
-		items = append(items, *item)
-	}
-
-	sort.SliceStable(items, func(i, j int) bool {
-		return resolvedItemLess(items[i], items[j])
-	})
-
-	return items
 }
 
 // mergePhraseIntoUnion builds a unified per-phrase ranked list from noteHits
@@ -1762,7 +1052,7 @@ func mergePhraseIntoUnion(
 }
 
 // mergeProvenances builds the resolved item list per F7's rules:
-// items = direct hits ∪ cluster reps ∪ hubs, deduped by basename,
+// items = direct hits ∪ cluster reps, deduped by basename,
 // each item carrying every applicable provenance role + metadata.
 //
 // Ordering: provenance count desc → highest-priority provenance desc →
@@ -1776,7 +1066,6 @@ func mergeProvenances(
 	directHits []scoredCandidate,
 	subgraph expandedSubgraph,
 	clusters clusterReport,
-	hubs hubReport,
 ) []resolvedItem {
 	byBasename := make(map[string]*resolvedItem)
 
@@ -1798,8 +1087,6 @@ func mergeProvenances(
 	}
 
 	mergeClusterReps(subgraph, clusters, byBasename)
-
-	mergeHubItems(subgraph, hubs, byBasename)
 
 	// Drain the map in basename-sorted order so the pre-sort slice
 	// shape is deterministic. The final sort below is stable, so any
@@ -1925,8 +1212,6 @@ func provenanceRankFor(role string) int {
 		return provenanceRankDirect
 	case provenanceClusterRep:
 		return provenanceRankClusterRep
-	case provenanceHub:
-		return provenanceRankHub
 	default:
 		return 0
 	}
@@ -1996,11 +1281,7 @@ func rankCandidates(
 // candidate_l2s is nominated from each cluster's OWN note members (Phase 3,
 // within-cluster nomination — reversal of D7). A cluster with no note members
 // yields an empty candidate_l2s (explicitly allowed; chunk-only clusters exist).
-//
-// tiers enforces T1a isolation across the cluster channels: members are
-// constrained to the requested tier set; a cluster that empties after
-// filtering is dropped entirely. An empty tier set leaves all channels blended.
-func renderClusters(phraseClusters []phrasedCluster, tiers []string) []queryCluster {
+func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
 	var out []queryCluster
 
 	for _, pc := range phraseClusters {
@@ -2009,7 +1290,7 @@ func renderClusters(phraseClusters []phrasedCluster, tiers []string) []queryClus
 		}
 
 		for clusterID := range pc.report.autoK.K {
-			members := collectClusterMembers(pc.subgraph, pc.report, clusterID, tiers)
+			members := collectClusterMembers(pc.subgraph, pc.report, clusterID)
 			if len(members) == 0 {
 				continue
 			}
@@ -2023,7 +1304,7 @@ func renderClusters(phraseClusters []phrasedCluster, tiers []string) []queryClus
 				Size:         len(members),
 				Silhouette:   pc.report.silhouettesByID[clusterID],
 				Members:      members,
-				CandidateL2s: topKCandidateNotesForTier(centroid, clusterNotes, tiers),
+				CandidateL2s: topKCandidateNotes(centroid, clusterNotes),
 			})
 		}
 	}
@@ -2066,20 +1347,14 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 // pipeline output.
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems, merged.outgoing)
-	clusters := renderClusters(merged.phraseClusters, merged.tiers)
-	clusters = append(clusters, merged.chunkClusters...)
+	clusters := renderClusters(merged.phraseClusters)
 	contentful := countItemsWithContent(items)
 
 	directCount := 0
-	hubCount := 0
 
 	for _, item := range items {
 		if slices.Contains(item.Provenances, provenanceDirect) {
 			directCount++
-		}
-
-		if item.InDegree != nil {
-			hubCount++
 		}
 	}
 
@@ -2092,11 +1367,7 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 			PhrasesQueried:       len(merged.phrases),
 			TotalNotes:           merged.totalNotes,
 			WithEmbeddings:       merged.withEmbeddings,
-			SubgraphSize:         merged.subgraphSize,
-			SubgraphSizeCapped:   merged.subgraphCapped,
-			HopsTraversed:        merged.hopsTraversed,
 			ClustersFound:        len(clusters),
-			HubsReturned:         hubCount,
 			DirectHitsReturned:   directCount,
 			ItemsWithFullContent: contentful,
 			Limit:                merged.limit,
@@ -2138,98 +1409,7 @@ func resolvedItemLess(a, b resolvedItem) bool {
 	return a.score > b.score
 }
 
-// runSinglePhraseQuery runs the full per-phrase pipeline for one phrase
-// and returns a queryPipelineSummary. notes and hits are already loaded
-// (shared across all phrases in a multi-phrase run).
-func runSinglePhraseQuery(
-	ctx context.Context,
-	phrase string,
-	notes []vaultgraph.Note,
-	hits []compatibleSidecar,
-	vault string,
-	limit int,
-	deps QueryDeps,
-) (queryPipelineSummary, error) {
-	queryVec, qErr := deps.Embedder.Embed(ctx, phrase)
-	if qErr != nil {
-		return queryPipelineSummary{}, fmt.Errorf("query: embed: %w", qErr)
-	}
-
-	var now time.Time
-	if deps.Now != nil {
-		now = deps.Now()
-	}
-
-	directHits := rankCandidates(hits, vault, deps.Read, queryVec, now)
-	if len(directHits) > limit {
-		directHits = directHits[:limit]
-	}
-
-	subgraph := expandSubgraph(notes, hits, directHits, vault, deps.Read, queryVec)
-	clusters := clusterSubgraph(subgraph, phrase)
-	hubs := identifyHubs(subgraph)
-	resolved := mergeProvenances(directHits, subgraph, clusters, hubs)
-
-	return queryPipelineSummary{
-		subgraph:       subgraph,
-		clusters:       clusters,
-		resolvedItems:  resolved,
-		totalNotes:     len(notes),
-		withEmbeddings: len(hits),
-	}, nil
-}
-
-// runSynthesisQuery implements `engram query --synthesis`: it unions every
-// phrase's DIRECT HITS (semantic matches, truncated to limit — not the
-// graph-expansion neighbors), deduplicates by note path keeping the max score,
-// and clusters that union ONE time. Unlike the per-phrase pipeline it skips the
-// minSubgraphForClustering floor and never returns "no clusters" for a
-// non-empty union: when AutoK finds no split that beats the silhouette floor it
-// emits a single cluster of all union members (the always-cluster invariant:
-// at least one cluster for a non-empty union).
-// items[] is the deduped union direct hits; tier/project filters still apply.
-func runSynthesisQuery(
-	ctx context.Context,
-	args QueryArgs,
-	notes []vaultgraph.Note,
-	hits []compatibleSidecar,
-	limit int,
-	deps QueryDeps,
-	stdout io.Writer,
-) error {
-	var nowSynthesis time.Time
-	if deps.Now != nil {
-		nowSynthesis = deps.Now()
-	}
-
-	union, err := unionDirectHits(ctx, args.Phrases, hits, args.VaultPath, limit, nowSynthesis, deps)
-	if err != nil {
-		return err
-	}
-
-	subgraph := buildUnionSubgraph(union)
-	report := clusterUnionForSynthesis(subgraph, strings.Join(args.Phrases, "\n"))
-
-	resolved := mergeProvenances(union, expandedSubgraph{}, clusterReport{}, hubReport{})
-	resolved = applyProjectFilter(resolved, args.Project)
-	resolved = applyTierFilter(resolved, args.Tiers)
-
-	merged := aggregatedSummary{
-		phrases:        args.Phrases,
-		resolvedItems:  resolved,
-		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, subgraph: subgraph}},
-		outgoing:       outgoingByBasename(notes),
-		tiers:          args.Tiers,
-		totalNotes:     len(notes),
-		withEmbeddings: len(hits),
-		limit:          limit,
-		subgraphSize:   len(subgraph.members),
-	}
-
-	return renderQueryPayload(stdout, merged)
-}
-
-// runSynthesizeL2Query runs the --synthesize-l2 (notes recall) path. It
+// runSynthesizeL2Query runs the sole query path. It
 // builds the matched set from all notes (ranked per-phrase with recency bias),
 // clusters the matched set (D1), and emits per-cluster candidate_l2s
 // [{path, cosine}] so the recall skill can judge coverage. No L3 filtering
@@ -2281,7 +1461,7 @@ func runSynthesizeL2Query(
 	// mergeClusterReps/mergeHubItems must not promote cluster reps into items[]
 	// because the L2 representative is agent-decided, not binary-computed (spec §2
 	// step 4). Direct-hit items come from the union; chunk items are appended below.
-	resolved := mergeProvenances(noteUnion, expandedSubgraph{}, clusterReport{}, hubReport{})
+	resolved := mergeProvenances(noteUnion, expandedSubgraph{}, clusterReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
 	resolved = append(resolved, chunkItems...)
 
@@ -2296,27 +1476,15 @@ func runSynthesizeL2Query(
 		phrases:        args.Phrases,
 		resolvedItems:  resolved,
 		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, subgraph: subgraph}},
-		// l2 not set: candidate_l2s are nominated from each cluster's own note
-		// members (Phase 3, within-cluster nomination), not the full-vault index.
+		// candidate_l2s are nominated from each cluster's own note members
+		// (Phase 3, within-cluster nomination), not the full-vault index.
 		outgoing:       outgoingByBasename(notes),
-		tiers:          nil,
 		totalNotes:     len(notes),
 		withEmbeddings: len(hits),
 		limit:          limit,
-		subgraphSize:   len(subgraph.members),
 	}
 
 	return renderQueryPayload(stdout, merged)
-}
-
-// seedBasenames extracts seed basenames from direct hits in the order they appear.
-func seedBasenames(directHits []scoredCandidate) []string {
-	out := make([]string, 0, len(directHits))
-	for _, hit := range directHits {
-		out = append(out, hit.basename)
-	}
-
-	return out
 }
 
 // seedFromQuery returns a deterministic uint64 seed for k-means
@@ -2379,30 +1547,6 @@ func stripWikilinks(content string) string {
 	})
 }
 
-// survivingChunks filters the scored chunks down to those that made the final
-// ranking. Clustering ONLY the returned set matters: k-means over the whole
-// index produces meaninglessly huge clusters (and a payload to match) — the
-// returned set is what recall reasons over.
-func survivingChunks(scored []scoredChunk, items []resolvedItem) []scoredChunk {
-	returned := make(map[string]struct{}, len(items))
-
-	for _, item := range items {
-		if item.kind == chunkItemKind {
-			returned[item.notePath] = struct{}{}
-		}
-	}
-
-	top := make([]scoredChunk, 0, len(returned))
-
-	for _, s := range scored {
-		if _, ok := returned[chunkNotePath(s.record)]; ok {
-			top = append(top, s)
-		}
-	}
-
-	return top
-}
-
 // topKCandidateNotes returns the top-K notes nearest the centroid by
 // max(situation,body) cosine, sorted descending by centroid cosine (ties broken
 // by lexicographic path for stability). K is at least candidateNoteK; when fewer
@@ -2446,80 +1590,10 @@ func topKCandidateNotes(centroid []float32, idx tierIndex) []queryCandidateNote 
 	return out
 }
 
-// topKCandidateNotesForTier gates topKCandidateNotes on the requested tiers for
-// T1a isolation. Suppressed when a non-empty tier set omits the note tier (L2);
-// nil/empty tiers always passes through (--synthesize-l2 passes nil).
-func topKCandidateNotesForTier(centroid []float32, noteIdx tierIndex, tiers []string) []queryCandidateNote {
-	if len(tiers) > 0 && !slices.Contains(tiers, tierL2) {
-		return nil
-	}
-
-	return topKCandidateNotes(centroid, noteIdx)
-}
-
-// unionDirectHits embeds each phrase, ranks every compatible note against it,
-// truncates to the top `limit` direct hits, then merges all phrases' hits into
-// one deduped set keyed by note path (max score wins). The result is sorted by
-// note path so downstream clustering and tie-breaks are deterministic.
-//
-// now is forwarded to rankCandidates for note recency decay; a zero value
-// disables decay (pure cosine).
-func unionDirectHits(
-	ctx context.Context,
-	phrases []string,
-	hits []compatibleSidecar,
-	vault string,
-	limit int,
-	now time.Time,
-	deps QueryDeps,
-) ([]scoredCandidate, error) {
-	byPath := make(map[string]scoredCandidate)
-
-	for _, phrase := range phrases {
-		queryVec, embedErr := deps.Embedder.Embed(ctx, phrase)
-		if embedErr != nil {
-			return nil, fmt.Errorf("query: embed: %w", embedErr)
-		}
-
-		directHits := rankCandidates(hits, vault, deps.Read, queryVec, now)
-		if len(directHits) > limit {
-			directHits = directHits[:limit]
-		}
-
-		for _, hit := range directHits {
-			existing, ok := byPath[hit.notePath]
-			if !ok || hit.score > existing.score {
-				byPath[hit.notePath] = hit
-			}
-		}
-	}
-
-	paths := make([]string, 0, len(byPath))
-	for path := range byPath {
-		paths = append(paths, path)
-	}
-
-	sort.Strings(paths)
-
-	union := make([]scoredCandidate, 0, len(byPath))
-	for _, path := range paths {
-		union = append(union, byPath[path])
-	}
-
-	return union, nil
-}
-
-// validateQueryArgs rejects invalid invocations before any vault I/O runs, so
-// argument errors take precedence over data-state guards (e.g. notes-but-no-
-// embeddings). It enforces a non-empty phrase set and the --synthesis /
-// --synthesize-l2 mutual exclusion.
+// validateQueryArgs rejects invalid invocations before any vault I/O runs.
 func validateQueryArgs(args QueryArgs) error {
 	if len(args.Phrases) == 0 {
 		return errQueryEmptyString
-	}
-
-	if args.Synthesis && args.SynthesizeL2 {
-		return errQueryModeConflict
 	}
 
 	return nil

@@ -93,12 +93,9 @@ func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 
 	g.Expect(parsed.Budget.TotalNotes).To(Equal(33))
 	g.Expect(parsed.Budget.WithEmbeddings).To(Equal(33))
-	g.Expect(parsed.Budget.SubgraphSize).To(BeNumerically(">=", 1))
 	g.Expect(parsed.Items).NotTo(BeEmpty())
 	// The new payload sections always render (clusters may be empty).
 	g.Expect(strings.Contains(stdout.String(), "clusters:")).To(BeTrue())
-	g.Expect(strings.Contains(stdout.String(), "subgraph_size:")).To(BeTrue())
-	g.Expect(strings.Contains(stdout.String(), "hops_traversed:")).To(BeTrue())
 }
 
 // unexported constants.

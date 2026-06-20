@@ -80,10 +80,9 @@ func TestSynthesizeL2_FewerThanRecentFillChunks(t *testing.T) {
 	// Must not panic or return an error when chunk count < recentFillChunks.
 	err = cli.RunQuery(context.Background(),
 		cli.QueryArgs{
-			Phrases:      []string{"alpha"},
-			VaultPath:    vault,
-			SynthesizeL2: true,
-			ChunksDir:    "/chunks",
+			Phrases:   []string{"alpha"},
+			VaultPath: vault,
+			ChunksDir: "/chunks",
 		},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -160,10 +159,9 @@ func TestSynthesizeL2_RecentChunksAppendedWithRecentProvenance(t *testing.T) {
 
 	err = cli.RunQuery(context.Background(),
 		cli.QueryArgs{
-			Phrases:      []string{"alpha"},
-			VaultPath:    vault,
-			SynthesizeL2: true,
-			ChunksDir:    "/chunks",
+			Phrases:   []string{"alpha"},
+			VaultPath: vault,
+			ChunksDir: "/chunks",
 		},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -250,10 +248,9 @@ func TestSynthesizeL2_RecentChunksNotInClusterMembers(t *testing.T) {
 
 	err = cli.RunQuery(context.Background(),
 		cli.QueryArgs{
-			Phrases:      []string{"alpha"},
-			VaultPath:    vault,
-			SynthesizeL2: true,
-			ChunksDir:    "/chunks",
+			Phrases:   []string{"alpha"},
+			VaultPath: vault,
+			ChunksDir: "/chunks",
 		},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -336,10 +333,9 @@ func TestSynthesizeL2_RecentDeduplicatesAgainstMatchedSet(t *testing.T) {
 
 	err = cli.RunQuery(context.Background(),
 		cli.QueryArgs{
-			Phrases:      []string{"alpha"},
-			VaultPath:    vault,
-			SynthesizeL2: true,
-			ChunksDir:    "/chunks",
+			Phrases:   []string{"alpha"},
+			VaultPath: vault,
+			ChunksDir: "/chunks",
 		},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())

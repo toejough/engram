@@ -55,49 +55,6 @@ func TestQueryProperty_ClusterCountInRange(t *testing.T) {
 	})
 }
 
-// TestQueryProperty_SubgraphSizeBounded — random graphs, verify
-// subgraph_size <= 200 and <= total_notes always.
-func TestQueryProperty_SubgraphSizeBounded(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		gExpect := NewWithT(rt)
-
-		const maxNotes = 30
-
-		noteCount := rapid.IntRange(1, maxNotes).Draw(rt, "noteCount")
-
-		vault := t.TempDir()
-		memFS := newInMemoryFS()
-
-		for i := range noteCount {
-			relPath := "" + propertyNodeName(i) + ".md"
-
-			outgoing := propertyOutgoing(rt, i, noteCount)
-			body := "---\ntype: fact\n---\nbody content\n" + outgoing
-
-			plantNoteWithSidecar(t, memFS, filepath.Clean(vault), relPath, body)
-		}
-
-		var out bytes.Buffer
-
-		err := cli.RunQuery(context.Background(),
-			cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Limit: 5},
-			newQueryDeps(memFS), &out)
-		gExpect.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		var parsed queryParsed
-
-		gExpect.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-		gExpect.Expect(parsed.Budget.SubgraphSize).To(BeNumerically("<=", 200))
-		gExpect.Expect(parsed.Budget.SubgraphSize).To(BeNumerically("<=", parsed.Budget.TotalNotes))
-	})
-}
-
 // propertyNodeName returns a unique short basename for property notes.
 func propertyNodeName(idx int) string {
 	const wrap = 26

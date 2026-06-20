@@ -73,11 +73,10 @@ func TestProperty_SynthesizeL2_ChunkItemsBoundedByMatchSetCap(t *testing.T) {
 
 		err := cli.RunQuery(context.Background(),
 			cli.QueryArgs{
-				Phrases:      []string{"alpha"},
-				VaultPath:    vault,
-				SynthesizeL2: true,
-				ChunksDir:    "/chunks",
-				Limit:        matchSetCap * 2, // large so limit flag doesn't confound the matchSetCap test
+				Phrases:   []string{"alpha"},
+				VaultPath: vault,
+				ChunksDir: "/chunks",
+				Limit:     matchSetCap * 2, // large so limit flag doesn't confound the matchSetCap test
 			},
 			deps, &out)
 		if err != nil {

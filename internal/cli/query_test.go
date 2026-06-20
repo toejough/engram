@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -65,54 +64,6 @@ func TestApplyProjectFilter_EmptyProjectReturnsAll(t *testing.T) {
 	}
 
 	filtered := cli.ExportApplyProjectFilter(items, "")
-
-	g.Expect(filtered).To(HaveLen(2))
-}
-
-func TestApplyTierFilter_BodyTierMentionDoesNotMatch(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	items := []cli.ExportResolvedItem{
-		cli.ExportNewResolvedItem("a.md",
-			"---\ntype: fact\n---\nthis body mentions tier: L3 in text\n"),
-	}
-
-	filtered := cli.ExportApplyTierFilter(items, []string{"L3"})
-	g.Expect(filtered).To(BeEmpty())
-}
-
-func TestApplyTierFilter_DropsNonMatching(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	items := []cli.ExportResolvedItem{
-		cli.ExportNewResolvedItem("a.md",
-			"---\ntype: fact\ntier: L3\n---\nbody\n"),
-		cli.ExportNewResolvedItem("b.md",
-			"---\ntype: fact\ntier: L2\n---\nbody\n"),
-		cli.ExportNewResolvedItem("c.md",
-			"---\ntype: fact\n---\nbody\n"),
-	}
-
-	filtered := cli.ExportApplyTierFilter(items, []string{"L3"})
-
-	g.Expect(filtered).To(HaveLen(1))
-	g.Expect(cli.ExportResolvedItemPath(filtered[0])).To(Equal("a.md"))
-}
-
-func TestApplyTierFilter_EmptyTierReturnsAll(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	items := []cli.ExportResolvedItem{
-		cli.ExportNewResolvedItem("a.md",
-			"---\ntype: fact\ntier: L3\n---\nbody\n"),
-		cli.ExportNewResolvedItem("b.md",
-			"---\ntype: fact\n---\nbody\n"),
-	}
-
-	filtered := cli.ExportApplyTierFilter(items, nil)
 
 	g.Expect(filtered).To(HaveLen(2))
 }
@@ -207,42 +158,6 @@ func TestQuery_MultiPhrase_BudgetHasPhrasesQueried(t *testing.T) {
 	g.Expect(parsed.Budget.PhrasesQueried).To(Equal(3))
 }
 
-func TestQuery_MultiPhrase_ClustersTaggedWithPhrase(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	for i := range 12 {
-		plantNoteWithSidecar(t, memFS, vault,
-			fmt.Sprintf("%d.note.md", i+1),
-			fmt.Sprintf("---\ntype: fact\n---\nbody %d\n", i))
-	}
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"body", "fact"}, VaultPath: vault},
-		newQueryDeps(memFS), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed struct {
-		Clusters []struct {
-			Phrase string `yaml:"phrase"`
-			ID     int    `yaml:"id"`
-		} `yaml:"clusters"`
-	}
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-
-	for _, cluster := range parsed.Clusters {
-		g.Expect(cluster.Phrase).NotTo(BeEmpty(), "cluster id=%d has no phrase label", cluster.ID)
-	}
-}
-
 func TestQuery_MultiPhrase_DeduplicatesItemsByPath(t *testing.T) {
 	t.Parallel()
 
@@ -277,55 +192,6 @@ func TestQuery_MultiPhrase_DeduplicatesItemsByPath(t *testing.T) {
 	for path, count := range seen {
 		g.Expect(count).To(Equal(1), "path %s appeared %d times", path, count)
 	}
-}
-
-func TestQuery_MultiPhrase_HubInDegreeIsMergedMax(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	// Hub note H is linked-to by many spokes — makes it a hub (high in-degree).
-	// Two phrases that both surface H in their subgraphs; the merged payload
-	// should have H's in_degree set (non-nil), exercising the inDegree branch
-	// of mergeIntoExisting.
-	plantNoteWithSidecar(t, memFS, vault, "H.md",
-		"---\ntype: fact\n---\nhub anchor\n")
-
-	for i := range 6 {
-		plantNoteWithSidecar(t, memFS, vault,
-			fmt.Sprintf("S%d.md", i),
-			fmt.Sprintf("---\ntype: fact\n---\nspoke body %d\n[[H]]\n", i))
-	}
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"hub anchor", "spoke body"}, VaultPath: vault},
-		newQueryDeps(memFS), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed struct {
-		Items []struct {
-			Path     string `yaml:"path"`
-			InDegree *int   `yaml:"in_degree"`
-		} `yaml:"items"`
-	}
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-
-	hubFound := false
-
-	for _, item := range parsed.Items {
-		if strings.Contains(item.Path, "H.md") && item.InDegree != nil {
-			hubFound = true
-		}
-	}
-
-	g.Expect(hubFound).To(BeTrue(), "expected H.md to appear as a hub with in_degree set")
 }
 
 func TestQuery_MultiPhrase_LaterHigherScoreWins(t *testing.T) {
@@ -593,36 +459,6 @@ func TestQuery_RanksByDescendingCosine(t *testing.T) {
 	g.Expect(parsed.Budget.Limit).To(Equal(2))
 }
 
-func TestQuery_RespectsLimit(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	for i := range 5 {
-		plantNoteWithSidecar(t, memFS, vault,
-			""+strings.Repeat("a", i+1)+".md",
-			"---\ntype: fact\n---\nbody\n")
-	}
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Limit: 2},
-		newQueryDeps(memFS), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed struct {
-		Items []any `yaml:"items"`
-	}
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-	g.Expect(parsed.Items).To(HaveLen(2))
-}
-
 func TestQuery_ScoresByMaxOfSituationAndBody(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -729,207 +565,6 @@ func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 		To(ContainSubstring("See 1a.foo and the bar note for context."))
 }
 
-// TestRunQuery_CombinedRecencyBandPreservesNewestChunksAndMRUNotes verifies
-// that the single combined floor band (Task 4.2) guarantees both the
-// defaultRecencyFloor newest chunks AND the defaultRecencyFloor
-// most-recently-used notes survive the limit cap, without either group
-// evicting the other.
-//
-// Setup:
-//   - Limit = 6 (= defaultRecencyFloor chunks + defaultRecencyFloor notes).
-//   - 3 stale notes (cosine=0.2 → decayed ≈ 0.0006; low enough that the 5
-//     stale chunks outrank them after chunk merge).
-//   - 3 MRU notes (cosine=0.2, LastUsed=today → decayed score=0.2; they
-//     rank just above stale notes but below stale chunks in the combined list).
-//   - 5 stale chunks (cosine=1.0 → recency-reranked ≈ 0.25 after 120d).
-//     They outrank MRU notes and fill the top-5 after cap.
-//   - 3 newest chunks (cosine=0, newest source).
-//
-// Without the combined band (chunk-only): 3 newest chunks force-inserted,
-// displacing the 3 non-must non-chunk items; MRU notes evicted because they
-// rank last in the capped set (below stale chunks).
-// With the combined band: 3 MRU notes collected PRE-CAP from the full sorted
-// list (where they appear), then band re-inserts all 6 (3 chunks + 3 notes);
-// stale chunks displaced; budget = 6 preserved.
-func TestRunQuery_CombinedRecencyBandPreservesNewestChunksAndMRUNotes(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const (
-		chunksDir         = "/chunks"
-		newestSource      = "newest.jsonl"
-		staleChunkSource  = "old-chunks.jsonl"
-		newestIndexPath   = "/chunks/newest-idx.jsonl"
-		staleChunkIdxPath = "/chunks/old-chunks-idx.jsonl"
-		manifestPath      = "/chunks/manifest.json"
-		staleNoteCount    = 3
-		mruNoteCount      = 3 // == defaultRecencyFloor
-		staleChunkCount   = 5 // > defaultRecencyFloor to fill the cap
-		newestChunkCount  = 3 // == defaultRecencyFloor
-		limit             = 6 // = mruNoteCount + newestChunkCount
-	)
-
-	fixedNow := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
-	newestMtime := fixedNow.Add(-1 * time.Hour).UnixNano()                    // ~0.04 days old
-	staleMtime := fixedNow.Add(-120 * 24 * time.Hour).UnixNano()              // 120 days old → recency≈0.25
-	mruLastUsed := "2026-06-17"                                               // today (age≈0)
-	staleLastUsed := fixedNow.Add(-500 * 24 * time.Hour).Format("2006-01-02") // 500d ago
-
-	// Query embeds to highVec (1,0,0,0).
-	// MRU and stale notes store lowVec: cosine(lowVec, highVec) = 0.2 / |lowVec|.
-	// |lowVec| = sqrt(0.04 + 0.96) = 1, so cosine = 0.2.
-	highVec := []float32{1, 0, 0, 0}
-	lowVec := []float32{0.2, 0.98, 0, 0} // cosine=0.2 with highVec; note notes
-	perpVec := []float32{0, 1, 0, 0}     // cosine=0 with highVec; for newest chunks
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	// Plant stale notes: cosine=0.2, LastUsed=500d → decayed score≈0.0006.
-	for i := range staleNoteCount {
-		relPath := fmt.Sprintf("stale%d.md", i)
-		body := fmt.Appendf(nil, "---\ntype: fact\ncreated: 2026-01-01\n---\nstale note %d\n", i)
-		memFS.files[filepath.Join(vault, relPath)] = body
-		memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(embed.Sidecar{
-			SchemaVersion:    embed.SidecarSchemaVersion,
-			EmbeddingModelID: "m@4",
-			Dims:             4,
-			SituationVector:  lowVec,
-			BodyVector:       lowVec,
-			ContentHash:      embed.ContentHash(body),
-			LastUsed:         staleLastUsed,
-		})
-	}
-
-	// Plant MRU notes: same cosine=0.2 but LastUsed=today → decayed score=0.2.
-	// They outrank stale notes but are below the stale chunks (score≈0.25-0.30)
-	// after the chunk merge, so they would be displaced by the cap.
-	mruNotePaths := make([]string, mruNoteCount)
-
-	for i := range mruNoteCount {
-		relPath := fmt.Sprintf("mru%d.md", i)
-		mruNotePaths[i] = relPath
-		body := fmt.Appendf(nil, "---\ntype: fact\ncreated: 2026-06-17\n---\nmru note %d\n", i)
-		memFS.files[filepath.Join(vault, relPath)] = body
-		memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(embed.Sidecar{
-			SchemaVersion:    embed.SidecarSchemaVersion,
-			EmbeddingModelID: "m@4",
-			Dims:             4,
-			SituationVector:  lowVec,
-			BodyVector:       lowVec,
-			ContentHash:      embed.ContentHash(body),
-			LastUsed:         mruLastUsed,
-		})
-	}
-
-	// Build stale chunk records: cosine=1.0 → recency-reranked score≈0.25-0.30.
-	// With 120d age and default halfLife=60d: score = 1.0 × exp2(-2) × (1 + tail)
-	// ≈ 0.25 to 0.30. These outrank MRU notes (0.2) and fill the cap.
-	staleChunkRecords := makeChunkRecordsForBandTest(
-		staleChunkSource, "stale chunk", "sha256:stale", 0, staleChunkCount, highVec)
-
-	// Build newest chunk records: cosine=0 (perpendicular to query) so they
-	// rank at the bottom on cosine alone, but the chunk band force-includes them.
-	newestChunkRecords := makeChunkRecordsForBandTest(
-		newestSource, "newest chunk", "sha256:newest", 40, newestChunkCount, perpVec)
-
-	staleChunkData, err := chunk.EncodeRecords(staleChunkRecords)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	newestChunkData, err := chunk.EncodeRecords(newestChunkRecords)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	manifestData, err := json.Marshal(map[string]any{
-		newestSource: map[string]any{
-			"mtime_unix_nano": newestMtime,
-			"size":            int64(len(newestChunkData)),
-			"file_hash":       "hash-newest",
-		},
-		staleChunkSource: map[string]any{
-			"mtime_unix_nano": staleMtime,
-			"size":            int64(len(staleChunkData)),
-			"file_hash":       "hash-stale",
-		},
-	})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	allFiles := map[string][]byte{
-		newestIndexPath:   newestChunkData,
-		staleChunkIdxPath: staleChunkData,
-		manifestPath:      manifestData,
-	}
-
-	maps.Copy(allFiles, memFS.files)
-
-	deps := cli.QueryDeps{
-		Scan: func(dir string) ([]vaultgraph.Note, error) {
-			return memFS.Scan(dir)
-		},
-		Read:     mapReadFn("combined band test", allFiles),
-		Embedder: fixedVectorEmbedder{modelID: "m@4", vector: highVec},
-		ListChunkIndexes: func(string) ([]string, error) {
-			return []string{newestIndexPath, staleChunkIdxPath}, nil
-		},
-		Now: func() time.Time { return fixedNow },
-	}
-
-	var out bytes.Buffer
-
-	err = cli.RunQuery(context.Background(),
-		cli.QueryArgs{
-			Phrases:   []string{"fact"},
-			VaultPath: vault,
-			ChunksDir: chunksDir,
-			Limit:     limit,
-		},
-		deps, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	payload := out.String()
-
-	// All 3 MRU notes must appear (note-side of the combined band force-inserts
-	// them even though the 5 stale chunks outrank them in the cap).
-	for i, path := range mruNotePaths {
-		g.Expect(payload).To(ContainSubstring(filepath.Base(path)),
-			"MRU note %d must surface via the combined note band", i)
-	}
-
-	// All 3 newest chunks must appear (chunk-side of the combined band).
-	for i := range newestChunkCount {
-		anchor := fmt.Sprintf("turn-%d", i+40)
-		g.Expect(payload).To(ContainSubstring(newestSource+"#"+anchor),
-			"newest chunk %d must surface via the combined chunk band", i)
-	}
-
-	// Budget preserved: total output items ≤ limit.
-	var parsed struct {
-		Items []struct {
-			Path string `yaml:"path"`
-		} `yaml:"items"`
-	}
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-	g.Expect(len(parsed.Items)).To(BeNumerically("<=", limit),
-		"combined band must not exceed limit=%d", limit)
-}
-
 func TestRunQuery_ExposesOutboundWikilinkTargets(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1027,58 +662,6 @@ func TestRunQuery_ModelMismatchEmitsWarning(t *testing.T) {
 	joined := strings.Join(warnings, "\n")
 	g.Expect(joined).To(ContainSubstring("1"), "warning must report the dropped count")
 	g.Expect(joined).To(ContainSubstring(staleModelID), "warning must name the mismatched model id")
-}
-
-func TestRunQuery_MultipleTiersUnion(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	plantNoteWithSidecar(t, memFS, vault, "1.l1-note.md",
-		"---\ntype: episode\ntier: L1\n---\nbody about tier\n")
-	plantNoteWithSidecar(t, memFS, vault, "2.l2-note.md",
-		"---\ntype: fact\ntier: L2\n---\nbody about tier\n")
-	plantNoteWithSidecar(t, memFS, vault, "3.l3-note.md",
-		"---\ntype: fact\ntier: L3\n---\nbody about tier\n")
-
-	var out bytes.Buffer
-
-	// R5's read-subset {L2,L3} on a 3-tier vault: repeatable --tier unions the
-	// two requested tiers and excludes L1.
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Tiers: []string{"L2", "L3"}},
-		newQueryDeps(memFS), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed struct {
-		Items []struct {
-			Path string `yaml:"path"`
-		} `yaml:"items"`
-	}
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-	g.Expect(parsed.Items).NotTo(BeEmpty())
-
-	var sawL2, sawL3 bool
-
-	for _, item := range parsed.Items {
-		g.Expect(item.Path).NotTo(ContainSubstring("l1-note"),
-			"L1 must not surface under --tier L2 --tier L3")
-
-		if strings.Contains(item.Path, "l2-note") {
-			sawL2 = true
-		}
-
-		if strings.Contains(item.Path, "l3-note") {
-			sawL3 = true
-		}
-	}
-
-	g.Expect(sawL2).To(BeTrue(), "L2 must surface under union read")
-	g.Expect(sawL3).To(BeTrue(), "L3 must surface under union read")
 }
 
 // TestRunQuery_NoActivatedFlagInPayload verifies Phase 4 of recall-v2:
@@ -1435,65 +1018,6 @@ func TestRunQuery_RecencyLiftsRecentChunkOverStaleHighCosine(t *testing.T) {
 		"planted recent chunk must surface in output (pure cosine would bury it)")
 }
 
-func TestRunQuery_TierFilterRestrictsItems(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	plantNoteWithSidecar(t, memFS, vault, "1.l2-note.md",
-		"---\ntype: fact\ntier: L2\n---\nbody about tier\n")
-	plantNoteWithSidecar(t, memFS, vault, "2.l3-note.md",
-		"---\ntype: fact\ntier: L3\n---\nbody about tier\n")
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Tiers: []string{"L3"}},
-		newQueryDeps(memFS), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed struct {
-		Items []struct {
-			Path string `yaml:"path"`
-		} `yaml:"items"`
-	}
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-	g.Expect(parsed.Items).NotTo(BeEmpty())
-
-	for _, item := range parsed.Items {
-		g.Expect(item.Path).NotTo(ContainSubstring("l2-note"))
-	}
-}
-
-func TestRunQuery_TierIsolationAcrossAllChannels(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memFS := newInMemoryFS()
-	vault := plantTieredVault(t, memFS)
-
-	// --- Tier L3: every path-bearing channel must be L3-only. ---
-	parsedL3 := runTieredQuery(t, g, memFS, vault, "L3")
-	g.Expect(parsedL3.Items).NotTo(BeEmpty())
-	// Guard against a vacuous pass: clusters must actually form.
-	g.Expect(parsedL3.Clusters).NotTo(BeEmpty(), "expected clusters to form for the L3 subgraph")
-	assertChannelsMatchTier(g, parsedL3, "l3-")
-
-	// --- Tier L2: items + members are L2-only. ---
-	parsedL2 := runTieredQuery(t, g, memFS, vault, "L2")
-	assertChannelsMatchTier(g, parsedL2, "l2-")
-
-	// --- Blended (empty tier): both tiers appear; no over-filtering. ---
-	parsedAll := runTieredQuery(t, g, memFS, vault, "")
-	sawL2, sawL3 := tiersPresent(parsedAll)
-	g.Expect(sawL2).To(BeTrue(), "blended recall must include L2 notes")
-	g.Expect(sawL3).To(BeTrue(), "blended recall must include L3 notes")
-}
-
 type errorEmbedder struct{}
 
 func (errorEmbedder) Dims() int { return 4 }
@@ -1503,58 +1027,6 @@ func (errorEmbedder) Embed(context.Context, string) ([]float32, error) {
 }
 
 func (errorEmbedder) ModelID() string { return "m@4" }
-
-// assertChannelsMatchTier asserts every path-bearing channel (items and
-// cluster members) contains the given tier marker.
-// Hubs have no dedicated payload field — they surface only as items[]
-// entries carrying the "hub" provenance and an in_degree — so the items
-// assertion below also covers the hub channel; a hub cannot leak a note
-// of another tier without that note appearing (and failing) as an item.
-func assertChannelsMatchTier(g *WithT, parsed queryParsed, marker string) {
-	for _, item := range parsed.Items {
-		g.Expect(item.Path).To(ContainSubstring(marker), "items leaked note %q", item.Path)
-	}
-
-	for _, cluster := range parsed.Clusters {
-		for _, member := range cluster.Members {
-			g.Expect(member.Path).To(ContainSubstring(marker),
-				"cluster member leaked note %q", member.Path)
-		}
-	}
-}
-
-// makeChunkRecordsForBandTest builds count chunk records with a sequential
-// anchor (anchor = "turn-<anchorOffset+i>"), a text of "<textPrefix> <i>",
-// a content hash of "<hashPrefix><i>", and the given vector.
-func makeChunkRecordsForBandTest(
-	source, textPrefix, hashPrefix string, anchorOffset, count int, vec []float32,
-) []chunk.Record {
-	records := make([]chunk.Record, count)
-
-	for i := range count {
-		records[i] = chunk.Record{
-			Source:      source,
-			Anchor:      fmt.Sprintf("turn-%d", anchorOffset+i),
-			Text:        fmt.Sprintf("%s %d", textPrefix, i),
-			ContentHash: fmt.Sprintf("%s%d", hashPrefix, i),
-			Vector:      vec,
-		}
-	}
-
-	return records
-}
-
-// mapReadFn returns a read function that looks up paths in the given map.
-func mapReadFn(label string, files map[string][]byte) func(string) ([]byte, error) {
-	return func(path string) ([]byte, error) {
-		data, ok := files[path]
-		if !ok {
-			return nil, fmt.Errorf("%s: file not found: %s", label, path)
-		}
-
-		return data, nil
-	}
-}
 
 func newQueryDeps(memFS *inMemoryFS) cli.QueryDeps {
 	return cli.QueryDeps{
@@ -1579,71 +1051,4 @@ func plantNoteWithSidecar(t *testing.T, memFS *inMemoryFS, vault, relPath, body 
 	}
 
 	memFS.files[filepath.Join(vault, embed.SidecarPath(relPath))] = embed.MarshalSidecar(sidecar)
-}
-
-// plantTieredVault seeds a tempdir vault with enough L3 notes to cluster
-// (>= minSubgraphForClustering) plus some L2 notes. All share the body
-// token "body" so they all become direct hits and seed one subgraph.
-func plantTieredVault(t *testing.T, memFS *inMemoryFS) string {
-	t.Helper()
-
-	const (
-		l3Count = 8
-		l2Count = 4
-	)
-
-	vault := t.TempDir()
-
-	for i := range l3Count {
-		plantNoteWithSidecar(t, memFS, vault,
-			fmt.Sprintf("l3-%d.md", i),
-			fmt.Sprintf("---\ntype: fact\ntier: L3\n---\nbody l3 note %d\n", i))
-	}
-
-	for i := range l2Count {
-		plantNoteWithSidecar(t, memFS, vault,
-			fmt.Sprintf("l2-%d.md", i),
-			fmt.Sprintf("---\ntype: fact\ntier: L2\n---\nbody l2 note %d\n", i))
-	}
-
-	return vault
-}
-
-// runTieredQuery runs a single-phrase query at the given tier and returns
-// the parsed payload, asserting the call itself succeeds.
-func runTieredQuery(t *testing.T, g *WithT, memFS *inMemoryFS, vault, tier string) queryParsed {
-	t.Helper()
-
-	var out bytes.Buffer
-
-	var tiers []string
-	if tier != "" {
-		tiers = []string{tier}
-	}
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault, Tiers: tiers, Limit: 20},
-		newQueryDeps(memFS), &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed queryParsed
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-
-	return parsed
-}
-
-// tiersPresent reports whether L2 and L3 notes both appear in items.
-func tiersPresent(parsed queryParsed) (sawL2, sawL3 bool) {
-	for _, item := range parsed.Items {
-		if strings.Contains(item.Path, "l2-") {
-			sawL2 = true
-		}
-
-		if strings.Contains(item.Path, "l3-") {
-			sawL3 = true
-		}
-	}
-
-	return sawL2, sawL3
 }

@@ -83,10 +83,9 @@ func TestSynthesizeL2_ItemsBelowRelevanceFloorDropped(t *testing.T) {
 
 	err = cli.RunQuery(context.Background(),
 		cli.QueryArgs{
-			Phrases:      []string{"alpha"},
-			VaultPath:    vault,
-			SynthesizeL2: true,
-			ChunksDir:    "/chunks",
+			Phrases:   []string{"alpha"},
+			VaultPath: vault,
+			ChunksDir: "/chunks",
 		},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -207,11 +206,10 @@ func TestSynthesizeL2_MatchedSetCappedAtMatchSetCap(t *testing.T) {
 
 	err = cli.RunQuery(context.Background(),
 		cli.QueryArgs{
-			Phrases:      phrases,
-			VaultPath:    vault,
-			SynthesizeL2: true,
-			ChunksDir:    "/chunks",
-			Limit:        1000, // large so limit flag doesn't cap before matchSetCap
+			Phrases:   phrases,
+			VaultPath: vault,
+			ChunksDir: "/chunks",
+			Limit:     1000, // large so limit flag doesn't cap before matchSetCap
 		},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -288,10 +286,9 @@ func TestSynthesizeL2_NewerChunkRanksAboveOlderWithSameVector(t *testing.T) {
 
 	err = cli.RunQuery(context.Background(),
 		cli.QueryArgs{
-			Phrases:      []string{"alpha"},
-			VaultPath:    vault,
-			SynthesizeL2: true,
-			ChunksDir:    "/chunks",
+			Phrases:   []string{"alpha"},
+			VaultPath: vault,
+			ChunksDir: "/chunks",
 		},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -375,11 +372,10 @@ func TestSynthesizeL2_OnlyTopMatchPhraseLimitPerPhraseEnterUnion(t *testing.T) {
 	// Limit is set large enough so the L-flag alone wouldn't cap the union.
 	err := cli.RunQuery(context.Background(),
 		cli.QueryArgs{
-			Phrases:      []string{"alpha"},
-			VaultPath:    vault,
-			SynthesizeL2: true,
-			ChunksDir:    "/chunks",
-			Limit:        100, // large — matchPhraseLimit (30) must still cap
+			Phrases:   []string{"alpha"},
+			VaultPath: vault,
+			ChunksDir: "/chunks",
+			Limit:     100, // large — matchPhraseLimit (30) must still cap
 		},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
