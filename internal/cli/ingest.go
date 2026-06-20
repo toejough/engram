@@ -585,6 +585,23 @@ func statOrZero(deps IngestDeps, path string) SourceStat {
 	return stat
 }
 
+// shouldPruneDir reports whether a swept subdirectory should be skipped: its
+// name is an excluded build/dependency name, or it starts with a
+// non-persistent-workspace prefix (a slugified throwaway cwd).
+func shouldPruneDir(name string, excludeNames map[string]struct{}, excludePrefixes []string) bool {
+	if _, named := excludeNames[name]; named {
+		return true
+	}
+
+	for _, prefix := range excludePrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // walkSourcesExcluding lists files under root, pruning excluded directory
 // names (build/dependency trees) and, when SkipHidden, every dot-directory.
 func walkSourcesExcluding(root SweepRoot) ([]string, error) {
@@ -605,10 +622,8 @@ func walkSourcesExcluding(root SweepRoot) ([]string, error) {
 				return nil
 			}
 
-			_, named := excluded[entry.Name()]
 			hidden := root.SkipHidden && strings.HasPrefix(entry.Name(), ".")
-
-			if named || hidden {
+			if hidden || shouldPruneDir(entry.Name(), excluded, root.ExcludePrefixes) {
 				return filepath.SkipDir
 			}
 

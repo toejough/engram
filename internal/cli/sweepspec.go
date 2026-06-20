@@ -19,6 +19,11 @@ type SweepEnv struct {
 type SweepRoot struct {
 	Path        string
 	ExcludeDirs []string
+	// ExcludePrefixes prunes any directory whose NAME starts with one of these
+	// slugified-cwd prefixes — used to keep non-persistent workspaces (e.g.
+	// session logs under `-private-tmp-…`) out of the main index. Empty for
+	// manual --sweep roots, so deliberate test ingestion still works.
+	ExcludePrefixes []string
 	// SkipHidden prunes every dot-directory during the walk — one
 	// deterministic rule covering .git, .claude, .layer-run, .obsidian, and
 	// whatever appears next, instead of an ever-growing name list.
@@ -52,6 +57,11 @@ type SweepSpec struct {
 	// IncludeHiddenDirs disables the default pruning of dot-directories
 	// (.git, .layer-run, .obsidian, ...) during sweep walks.
 	IncludeHiddenDirs bool `json:"include_hidden_dirs"` //nolint:tagliatelle // developer-facing config uses snake_case
+	// NonPersistentPrefixes name project-dir prefixes that `--auto` skips:
+	// session logs whose slugified cwd lives under a throwaway root
+	// (`/private/tmp`, `/tmp`, macOS `$TMPDIR` at `/var/folders`). Eval/test
+	// runs never bloat the main index; explicit --sweep/--transcript bypass it.
+	NonPersistentPrefixes []string `json:"non_persistent_prefixes"` //nolint:tagliatelle // developer-facing config uses snake_case
 }
 
 // DefaultSweepSpec is the compiled-in declaration: repo markdown + ancestor
@@ -71,6 +81,7 @@ func DefaultSweepSpec() SweepSpec {
 			"file-history", "history", "ide", "statsig", "session-env", "debug",
 			"worktrees",
 		},
+		NonPersistentPrefixes: []string{"-private-tmp-", "-tmp-", "-var-folders-"},
 	}
 }
 
@@ -109,7 +120,12 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 	}
 
 	if spec.SessionLogs && env.SessionDir != "" && env.IsDir(env.SessionDir) {
-		roots = append(roots, SweepRoot{Path: env.SessionDir, ExcludeDirs: spec.ExcludeDirs, SkipHidden: skipHidden})
+		roots = append(roots, SweepRoot{
+			Path:            env.SessionDir,
+			ExcludeDirs:     spec.ExcludeDirs,
+			ExcludePrefixes: spec.NonPersistentPrefixes,
+			SkipHidden:      skipHidden,
+		})
 	}
 
 	for _, extra := range spec.ExtraRoots {

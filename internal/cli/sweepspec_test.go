@@ -112,6 +112,39 @@ func TestResolveSweepRootsNoRepoFallsBackToCwd(t *testing.T) {
 	g.Expect(paths).To(gomega.ContainElement("/tmp/scratch"), "no VCS marker: sweep cwd itself")
 }
 
+func TestDefaultSweepSpecSkipsNonPersistentWorkspaces(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	spec := cli.DefaultSweepSpec()
+
+	g.Expect(spec.NonPersistentPrefixes).To(gomega.ContainElements("-private-tmp-", "-tmp-", "-var-folders-"))
+}
+
+func TestResolveSweepRootsAttachesPrefixesToSessionRootOnly(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fs := specFS{dirs: map[string]bool{
+		"/home/dev/proj/.git":      true,
+		"/sessions/-home-dev-proj": true,
+	}}
+
+	roots := cli.ResolveSweepRoots(cli.DefaultSweepSpec(), cli.SweepEnv{
+		Cwd: "/home/dev/proj", SessionDir: "/sessions/-home-dev-proj", IsDir: fs.isDir,
+	})
+
+	prefixesByPath := map[string][]string{}
+	for _, root := range roots {
+		prefixesByPath[root.Path] = root.ExcludePrefixes
+	}
+
+	g.Expect(prefixesByPath["/sessions/-home-dev-proj"]).To(gomega.ContainElement("-private-tmp-"),
+		"session-logs root prunes non-persistent project dirs")
+	g.Expect(prefixesByPath["/home/dev/proj"]).To(gomega.BeEmpty(),
+		"repo-markdown root carries no non-persistent prefixes")
+}
+
 // specFS fakes the directory-existence checks spec resolution makes.
 type specFS struct {
 	dirs map[string]bool

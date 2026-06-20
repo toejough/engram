@@ -193,6 +193,18 @@ func TestSweepSkipsVanishedSourceButExplicitErrors(t *testing.T) {
 		"explicitly-named missing sources still error loudly")
 }
 
+func TestShouldPruneDir(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	excludeNames := map[string]struct{}{"node_modules": {}}
+	prefixes := []string{"-private-tmp-", "-tmp-"}
+
+	g.Expect(cli.ExportShouldPruneDir("node_modules", excludeNames, prefixes)).To(gomega.BeTrue(), "name match")
+	g.Expect(cli.ExportShouldPruneDir("-private-tmp-cummatrix-x", excludeNames, prefixes)).To(gomega.BeTrue(), "prefix match")
+	g.Expect(cli.ExportShouldPruneDir("-Users-joe-repos-engram", excludeNames, prefixes)).To(gomega.BeFalse(), "persistent dir kept")
+}
+
 // unexported constants.
 const (
 	sweepDoc = "## Section A\nAlways name constants instead of magic numbers in this codebase.\n\n" +
