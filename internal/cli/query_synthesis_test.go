@@ -199,8 +199,7 @@ func TestQuery_Synthesis_ItemsAreUnionDirectHits(t *testing.T) {
 // TestQuery_Synthesis_NoGoodSplitReturnsOneCluster proves the K=0 invariant:
 // when AutoK finds no split that beats the silhouette floor (here, identical
 // vectors → silhouette 0), synthesis returns a SINGLE cluster containing ALL
-// union members with one representative — never "no clusters". An L3 note in
-// the vault also exercises the nearest_l3 annotation on the single cluster.
+// union members with one representative — never "no clusters".
 func TestQuery_Synthesis_NoGoodSplitReturnsOneCluster(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -219,20 +218,14 @@ func TestQuery_Synthesis_NoGoodSplitReturnsOneCluster(t *testing.T) {
 			identical)
 	}
 
-	// A standalone L3 ADR so nearest_l3 has a target for the single cluster.
-	plantNoteWithSidecar(t, memFS, vault, "ADR.md",
-		"---\ntype: fact\ntier: L3\n---\narchitectural decision record body\n")
-
 	deps := newQueryDeps(memFS)
 	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: identical}
 
 	var out bytes.Buffer
 
 	// Limit == memberCount keeps the union to just the four identical-vector
-	// notes (the ADR scores lower and falls outside the top-N direct hits), so
-	// the ADR stays out of the cluster but remains in the L3 index for
-	// nearest_l3. This also exercises the advisor's pitfall: direct hits are
-	// the top-`limit` by cosine, not a thresholded set.
+	// notes. This exercises the advisor's pitfall: direct hits are the
+	// top-`limit` by cosine, not a thresholded set.
 	err := cli.RunQuery(context.Background(),
 		cli.QueryArgs{Phrases: []string{"identical union"}, VaultPath: vault, Limit: memberCount, Synthesis: true},
 		deps, &out)
@@ -251,9 +244,6 @@ func TestQuery_Synthesis_NoGoodSplitReturnsOneCluster(t *testing.T) {
 	g.Expect(parsed.Budget.ClustersFound).To(Equal(1))
 
 	single := parsed.Clusters[0]
-	// The four identical-vector union members all land in the one cluster
-	// (the ADR is L3-distinct vectorwise and is not a synthesis seed here —
-	// it shares no body token, so it is not a direct hit).
 	g.Expect(single.Members).To(HaveLen(memberCount), "single cluster must hold every union member")
 
 	reps := 0
@@ -265,14 +255,6 @@ func TestQuery_Synthesis_NoGoodSplitReturnsOneCluster(t *testing.T) {
 	}
 
 	g.Expect(reps).To(Equal(1), "single cluster must have exactly one representative")
-
-	g.Expect(single.NearestL3).NotTo(BeNil(), "single cluster must carry nearest_l3 when an L3 note exists")
-
-	if single.NearestL3 == nil {
-		return
-	}
-
-	g.Expect(single.NearestL3.Path).To(Equal("ADR.md"))
 }
 
 // TestQuery_Synthesis_SingleMemberUnionYieldsOneCluster proves the smallest
@@ -465,7 +447,7 @@ func TestQuery_SynthesizeL2_CandidateL2sIncludesL2ClusterMembers(t *testing.T) {
 
 // TestQuery_SynthesizeL2_CandidateL2sTopK verifies the within-cluster top-K
 // invariant (Phase 3):
-//   - candidate_l2s for each cluster is bounded by candidateL2K (5) and by the
+//   - candidate_l2s for each cluster is bounded by candidateNoteK (5) and by the
 //     number of L2 note members in that cluster;
 //   - candidates are drawn from WITHIN the cluster (no L2 from another cluster
 //     or from the full vault appears in a cluster it didn't join);
@@ -473,7 +455,7 @@ func TestQuery_SynthesizeL2_CandidateL2sIncludesL2ClusterMembers(t *testing.T) {
 //
 // To isolate the "fewer members → fewer candidates" property, the test plants
 // exactly 3 L2 notes so that all 3 land in the matched set and one cluster,
-// and expects exactly 3 candidates (fewer than candidateL2K=5). Notes are tight
+// and expects exactly 3 candidates (fewer than candidateNoteK=5). Notes are tight
 // around {1,0,0,0} so AutoK collapses to a single cluster via singleClusterReport.
 func TestQuery_SynthesizeL2_CandidateL2sTopK(t *testing.T) {
 	t.Parallel()
@@ -536,7 +518,7 @@ func TestQuery_SynthesizeL2_CandidateL2sTopK(t *testing.T) {
 	assertWithinClusterL2Bounds(g, parsed, l2Paths, rawClusters)
 
 	// Total L2 candidates across all clusters must cover every L2 in the matched
-	// set (3 in this fixture — fewer than candidateL2K=5).
+	// set (3 in this fixture — fewer than candidateNoteK=5).
 	totalL2CandidatesByPath := make(map[string]bool)
 
 	for _, parsedCluster := range parsed.Clusters {
@@ -620,7 +602,7 @@ func TestQuery_SynthesizeL2_CandidateUsesStrongerAxis(t *testing.T) {
 // within a cluster, an L2 that is NOT the centroid-nearest still appears in
 // candidate_l2s when it is a cluster member — the ranking is by centroid cosine
 // desc, so any L2 member with a lower cosine than another still surfaces so long
-// as there are fewer than candidateL2K L2 members ahead of it. The fixture
+// as there are fewer than candidateNoteK L2 members ahead of it. The fixture
 // plants an L2 DISTRACTOR at the cluster centroid (cosine 1.0) and a COVER L2
 // at cosine ~0.9: both are cluster members, distractor ranks first, cover
 // still appears. The FAR L2 (cosine 0 to the query) is excluded by
@@ -646,7 +628,7 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", distractor, distractor)
 
 	// COVER: cosine ~0.9 to centroid — lower than distractor but still a cluster
-	// member; must appear in candidate_l2s because there are <candidateL2K L2
+	// member; must appear in candidate_l2s because there are <candidateNoteK L2
 	// members ahead of it.
 	cover := []float32{0.9, 0.436, 0, 0}
 	plantDualVector(t, memFS, vault, "l2-cover.fact.md",
@@ -710,7 +692,7 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 
 // TestQuery_SynthesizeL2_EmitsCandidateL2sSlice verifies the payload emits a
 // candidate_l2s sequence per cluster (the plural top-K form) and no longer
-// carries the singular nearest_l2 key.
+// carries the old singular nearest_l2 key.
 func TestQuery_SynthesizeL2_EmitsCandidateL2sSlice(t *testing.T) {
 	t.Parallel()
 
@@ -765,7 +747,7 @@ func TestQuery_SynthesizeL2_EmitsCandidateL2sSlice(t *testing.T) {
 }
 
 // TestQuery_SynthesizeL2_EmitsRawCosineNoBand verifies that a cluster whose
-// centroid is FAR from the only L2 still emits nearest_l2 with that raw low
+// centroid is FAR from the only L2 still emits candidate_l2s[0].cosine with that raw low
 // cosine — the binary applies no <0.80 cutoff (the skill bands later).
 func TestQuery_SynthesizeL2_EmitsRawCosineNoBand(t *testing.T) {
 	t.Parallel()
@@ -808,39 +790,6 @@ func TestQuery_SynthesizeL2_EmitsRawCosineNoBand(t *testing.T) {
 
 	g.Expect(sawSubBandRawCosine).To(BeTrue(),
 		"a raw cosine below the skill's 0.80 create-band must still be emitted (no cutoff in the binary)")
-}
-
-// TestQuery_SynthesizeL2_ExcludesL3FromClusters verifies the pre-clustering
-// L1+L2 constraint: an L3 note that matches the query must never appear as a
-// cluster member in synthesize-l2 mode.
-func TestQuery_SynthesizeL2_ExcludesL3FromClusters(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	plantDualVector(t, memFS, vault, "1.ep.md",
-		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
-	plantDualVector(t, memFS, vault, "2.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
-	plantDualVector(t, memFS, vault, "3.adr.md",
-		"---\ntype: fact\ntier: L3\nsituation: alpha\n---\n\nb\n", synthVec(), synthVec())
-
-	parsed := runSynthesizeL2(t, memFS, vault)
-
-	for _, c := range parsed.Clusters {
-		for _, m := range c.Members {
-			g.Expect(m.Path).NotTo(ContainSubstring("3.adr"), "L3 must not be clustered in synthesize-l2")
-		}
-	}
-
-	// The L3 note must also be absent from the top-level items[] channel: items
-	// derive from the same L1+L2-only union, so L3 is excluded there too.
-	for _, item := range parsed.Items {
-		g.Expect(item.Path).NotTo(ContainSubstring("3.adr"), "L3 must not surface in items[] in synthesize-l2")
-	}
 }
 
 // TestQuery_SynthesizeL2_FlagAndSynthesisAreMutuallyExclusive verifies that
@@ -978,7 +927,7 @@ func TestQuery_SynthesizeL2_IncludesMatchedChunksInClustering(t *testing.T) {
 }
 
 // TestQuery_SynthesizeL2_NearDuplicateL2_CosineAtLeast095 verifies the raw
-// nearest_l2.cosine is >= 0.95 when an existing L2 is a near-duplicate of the
+// candidate_l2s[0].cosine is >= 0.95 when an existing L2 is a near-duplicate of the
 // cluster centroid. The binary applies no band; the high cosine is reported raw.
 func TestQuery_SynthesizeL2_NearDuplicateL2_CosineAtLeast095(t *testing.T) {
 	t.Parallel()
@@ -1004,7 +953,7 @@ func TestQuery_SynthesizeL2_NearDuplicateL2_CosineAtLeast095(t *testing.T) {
 }
 
 // TestQuery_SynthesizeL2_NearestL2PresentWhenL2Exists verifies that when a
-// matching L2 exists in the vault, each cluster carries a non-nil nearest_l2.
+// matching L2 exists in the vault, each cluster's candidate_l2s is non-empty.
 func TestQuery_SynthesizeL2_NearestL2PresentWhenL2Exists(t *testing.T) {
 	t.Parallel()
 
@@ -1029,7 +978,7 @@ func TestQuery_SynthesizeL2_NearestL2PresentWhenL2Exists(t *testing.T) {
 }
 
 // TestQuery_SynthesizeL2_NoL2_NearestL2Nil verifies that with only L1 notes in
-// the vault, no cluster carries a nearest_l2 (nothing to crystallize against).
+// the vault, each cluster's candidate_l2s is empty (nothing to crystallize against).
 func TestQuery_SynthesizeL2_NoL2_NearestL2Nil(t *testing.T) {
 	t.Parallel()
 
@@ -1066,7 +1015,7 @@ func assertWithinClusterL2Bounds(g *WithT, parsed queryParsed, l2Paths []string,
 		}
 
 		g.Expect(len(parsedCluster.CandidateL2s)).To(BeNumerically("<=", 5),
-			"cluster %d: candidate_l2s must not exceed candidateL2K=5", idx)
+			"cluster %d: candidate_l2s must not exceed candidateNoteK=5", idx)
 		g.Expect(len(parsedCluster.CandidateL2s)).To(BeNumerically("<=", len(l2MemberPaths)),
 			"cluster %d: candidate count cannot exceed the number of L2 note members", idx)
 
@@ -1095,10 +1044,6 @@ func candidatePaths(parsedCluster struct {
 		Score            float32 `yaml:"score"`
 		IsRepresentative bool    `yaml:"is_representative"`
 	} `yaml:"members"`
-	NearestL3 *struct {
-		Path   string  `yaml:"path"`
-		Cosine float32 `yaml:"cosine"`
-	} `yaml:"nearest_l3,omitempty"`
 	CandidateL2s []struct {
 		Path   string  `yaml:"path"`
 		Cosine float32 `yaml:"cosine"`
@@ -1124,10 +1069,6 @@ func clusterMemberPaths(parsedCluster struct {
 		Score            float32 `yaml:"score"`
 		IsRepresentative bool    `yaml:"is_representative"`
 	} `yaml:"members"`
-	NearestL3 *struct {
-		Path   string  `yaml:"path"`
-		Cosine float32 `yaml:"cosine"`
-	} `yaml:"nearest_l3,omitempty"`
 	CandidateL2s []struct {
 		Path   string  `yaml:"path"`
 		Cosine float32 `yaml:"cosine"`

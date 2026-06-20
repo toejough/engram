@@ -83,7 +83,7 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 }
 
 // TestRunQuery_ChunkClustersOmitCandidateL2sWhenTierExcludesL2 covers the
-// topKCandidateL2sForTier early-exit branch: when the caller passes a tier
+// topKCandidateNotesForTier early-exit branch: when the caller passes a tier
 // filter that does not include L2, chunk clusters must carry empty
 // candidate_l2s even when L2 notes exist in the vault.
 func TestRunQuery_ChunkClustersOmitCandidateL2sWhenTierExcludesL2(t *testing.T) {
@@ -97,7 +97,7 @@ func TestRunQuery_ChunkClustersOmitCandidateL2sWhenTierExcludesL2(t *testing.T) 
 		"---\ntype: fact\ntier: L2\n---\nAlways run the linter before committing changes.\n")
 
 	// Two distinct vector neighborhoods (8 records total) so at least one
-	// cluster clears the silhouette floor and reaches topKCandidateL2sForTier.
+	// cluster clears the silhouette floor and reaches topKCandidateNotesForTier.
 	records := make([]chunk.Record, 0, 8)
 	for i := range 4 {
 		records = append(records, chunk.Record{
@@ -127,7 +127,7 @@ func TestRunQuery_ChunkClustersOmitCandidateL2sWhenTierExcludesL2(t *testing.T) 
 			VaultPath: vault,
 			Limit:     20,
 			ChunksDir: "/chunks",
-			Tiers:     []string{"L1"}, // excludes L2 → topKCandidateL2sForTier must return nil
+			Tiers:     []string{"L1"}, // excludes L2 → topKCandidateNotesForTier must return nil
 		},
 		unifiedQueryDeps(memFS, "/chunks/s1.jsonl"), &out)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -154,7 +154,7 @@ func TestRunQuery_ChunkClustersOmitCandidateL2sWhenTierExcludesL2(t *testing.T) 
 	}
 
 	g.Expect(chunkClustersFound).To(BeNumerically(">=", 1),
-		"at least one chunk cluster must form to validate topKCandidateL2sForTier suppression")
+		"at least one chunk cluster must form to validate topKCandidateNotesForTier suppression")
 }
 
 func TestRunQuery_MergesChunkAndVaultSpace(t *testing.T) {

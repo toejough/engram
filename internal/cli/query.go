@@ -29,8 +29,8 @@ type QueryArgs struct {
 	Limit        int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project      string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 	Tiers        []string `targ:"flag,name=tier,desc=restrict items to notes matching these tier: values (repeatable)"`
-	Synthesis    bool     `targ:"flag,name=synthesis,desc=union all phrase matches and cluster once for L3 synthesis (K=0 means one cluster; no min-size floor)"`    //nolint:lll // single unbreakable struct-tag string
-	SynthesizeL2 bool     `targ:"flag,name=synthesize-l2,desc=union matched L1+L2 notes then cluster once and emit candidate_l2s per cluster for lazy L2 synthesis"` //nolint:lll // single unbreakable struct-tag string
+	Synthesis    bool     `targ:"flag,name=synthesis,desc=union all phrase matches and cluster once into a single pass (K=0 yields one cluster; no min-size floor)"`                        //nolint:lll // single unbreakable struct-tag string
+	SynthesizeL2 bool     `targ:"flag,name=synthesize-l2,desc=union matched notes and chunks then cluster once and emit candidate_l2s per cluster for covered/near/absent crystallization"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -99,8 +99,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 	}
 
 	merged := aggregatePhraseSummaries(args.Phrases, summaries, limit)
-	merged.l3 = gatherL3Index(hits, args.VaultPath, deps.Read)
-	merged.l2 = gatherTierIndex(hits, args.VaultPath, deps.Read, tierL2)
+	merged.noteIdx = gatherTierIndex(hits, args.VaultPath, deps.Read, tierL2)
 	merged.outgoing = outgoingByBasename(notes)
 	merged.tiers = args.Tiers
 	merged.resolvedItems = applyProjectFilter(merged.resolvedItems, args.Project)
@@ -120,11 +119,11 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 
 // unexported constants.
 const (
-	// candidateL2K is the minimum number of candidate L2s to nominate per
+	// candidateNoteK is the minimum number of candidate notes to nominate per
 	// cluster. The recall skill reads all K candidates to judge coverage;
 	// generous nomination costs nothing (recall is the binary's job,
 	// precision is the agent's). Raised from 3→5 in recall-v2 Phase 0.
-	candidateL2K = 5
+	candidateNoteK = 5
 	// chunkClusterPhrase tags deterministic chunk-space clusters in the
 	// unified payload (they span all phrases, like synthesis clusters).
 	chunkClusterPhrase = "chunks"
@@ -202,8 +201,7 @@ type aggregatedSummary struct {
 	resolvedItems  []resolvedItem
 	phraseClusters []phrasedCluster
 	chunkClusters  []queryCluster
-	l3             tierIndex
-	l2             tierIndex
+	noteIdx        tierIndex
 	outgoing       map[string][]string
 	tiers          []string
 	totalNotes     int
@@ -281,10 +279,10 @@ type queryBudget struct {
 	Limit                int  `yaml:"limit"`
 }
 
-// queryCandidateL2 is one candidate L2 note for a cluster. The binary emits
-// top-K by centroid cosine (K >= candidateL2K); the recall skill judges
+// queryCandidateNote is one candidate note for a cluster. The binary emits
+// top-K by centroid cosine (K >= candidateNoteK); the recall skill judges
 // coverage — no cosine-band decision happens in the binary.
-type queryCandidateL2 struct {
+type queryCandidateNote struct {
 	Path   string  `yaml:"path"`
 	Cosine float32 `yaml:"cosine"`
 }
@@ -296,8 +294,7 @@ type queryCluster struct {
 	Size         int                  `yaml:"size"`
 	Silhouette   float64              `yaml:"silhouette"`
 	Members      []queryClusterMember `yaml:"members"`
-	NearestL3    *queryNearestL3      `yaml:"nearest_l3,omitempty"`
-	CandidateL2s []queryCandidateL2   `yaml:"candidate_l2s,omitempty"`
+	CandidateL2s []queryCandidateNote `yaml:"candidate_l2s,omitempty"`
 }
 
 // queryClusterMember is the per-member shape in clusters.members.
@@ -324,12 +321,6 @@ type queryItem struct {
 	InDegree      *int     `yaml:"in_degree,omitempty"`
 	OutboundLinks []string `yaml:"outbound_links,omitempty"`
 	Content       string   `yaml:"content,omitempty"`
-}
-
-// queryNearestL3 is the nearest existing L3 note for a cluster centroid.
-type queryNearestL3 struct {
-	Path   string  `yaml:"path"`
-	Cosine float32 `yaml:"cosine"`
 }
 
 // queryPayload is the top-level YAML document.
@@ -401,8 +392,8 @@ type sidecarLoadResult struct {
 // subgraphMember bundles a node's basename, vault-relative path,
 // sidecar vector, query-similarity score, and (optionally) cached body.
 // kind overrides content-derived kind detection for chunk members.
-// sitVec and bodyVec carry both sidecar axes for within-cluster L2
-// nomination (clusterL2IndexFromMembers), so eitherAxisCosine can pick
+// sitVec and bodyVec carry both sidecar axes for within-cluster note
+// nomination (clusterNoteIndexFromMembers), so eitherAxisCosine can pick
 // the stronger axis against the centroid rather than the query.
 type subgraphMember struct {
 	basename string
@@ -843,10 +834,10 @@ func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
 
 // clusterChunkItems runs the SAME deterministic clustering machinery the note
 // pipeline uses (auto-k k-means + silhouette floor) over the scored chunks,
-// annotating each cluster with the nearest existing L2 note so the recall
-// skill can apply its 95/80/<80 crystallization bands mechanically instead of
+// annotating each cluster with the nearest existing note so the recall
+// skill can apply its covered/near/absent crystallization bands instead of
 // judging novelty by eye.
-func clusterChunkItems(scored []scoredChunk, l2Notes tierIndex, tiers, phrases []string) []queryCluster {
+func clusterChunkItems(scored []scoredChunk, noteIdx tierIndex, tiers, phrases []string) []queryCluster {
 	if len(scored) < minSubgraphForClustering {
 		return nil
 	}
@@ -888,19 +879,19 @@ func clusterChunkItems(scored []scoredChunk, l2Notes tierIndex, tiers, phrases [
 			Size:         len(members),
 			Silhouette:   silhouettes[clusterID],
 			Members:      members,
-			CandidateL2s: topKCandidateL2sForTier(autoK.Centroids[clusterID], l2Notes, tiers),
+			CandidateL2s: topKCandidateNotesForTier(autoK.Centroids[clusterID], noteIdx, tiers),
 		})
 	}
 
 	return clusters
 }
 
-// clusterL2IndexFromMembers builds a tierIndex from the L2 note members of a
+// clusterNoteIndexFromMembers builds a tierIndex from the note members of a
 // single cluster (Phase 3, within-cluster nomination). Only subgraphMembers
 // whose kind is NOT chunkItemKind and whose content carries tier: L2 in
-// frontmatter are included; chunks and non-L2 notes are skipped. An empty
-// index (no L2 note members) yields an empty tierIndex{}.
-func clusterL2IndexFromMembers(subgraph expandedSubgraph, memberIndices []int) tierIndex {
+// frontmatter are included; chunks and non-note members are skipped. An empty
+// index (no note members) yields an empty tierIndex{}.
+func clusterNoteIndexFromMembers(subgraph expandedSubgraph, memberIndices []int) tierIndex {
 	idx := tierIndex{}
 
 	for _, i := range memberIndices {
@@ -1157,32 +1148,6 @@ func expandSubgraph(
 	}
 }
 
-// filterHitsToTiers keeps only the hits whose note frontmatter tier is in the
-// given tier set, by reading each note's body. Used by --synthesize-l2 to
-// constrain the CLUSTERED set to L1+L2 (distinct from --tier, which filters
-// emitted items post-clustering).
-func filterHitsToTiers(
-	hits []compatibleSidecar,
-	vault string,
-	read func(string) ([]byte, error),
-	tiers []string,
-) []compatibleSidecar {
-	kept := make([]compatibleSidecar, 0, len(hits))
-
-	for _, hit := range hits {
-		body, readErr := read(filepath.Join(vault, pathOf(hit.note.Basename)))
-		if readErr != nil {
-			continue
-		}
-
-		if itemMatchesTier(resolvedItem{content: stripWikilinks(string(body))}, tiers) {
-			kept = append(kept, hit)
-		}
-	}
-
-	return kept
-}
-
 // filterToCompatibleMembers returns the sorted basenames from visited
 // that also appear in hitByName (compatible-sidecar set). Sorting fixes
 // the visit-order non-determinism inherent to map iteration.
@@ -1202,15 +1167,6 @@ func filterToCompatibleMembers(
 	sort.Strings(memberNames)
 
 	return memberNames
-}
-
-// gatherL3Index collects the L3 notes into a tierIndex for nearest-L3 lookup.
-func gatherL3Index(
-	hits []compatibleSidecar,
-	vault string,
-	read func(string) ([]byte, error),
-) tierIndex {
-	return gatherTierIndex(hits, vault, read, tierL3)
 }
 
 // gatherTierIndex reads each compatible-sidecar note's content and collects
@@ -1609,7 +1565,7 @@ func mergeChunkSpace(
 	}
 
 	merged.chunkClusters = clusterChunkItems(
-		survivingChunks(scored, clusterView), merged.l2, merged.tiers, merged.phrases)
+		survivingChunks(scored, clusterView), merged.noteIdx, merged.tiers, merged.phrases)
 
 	return chunkMust, nil
 }
@@ -1873,52 +1829,6 @@ func mergeProvenances(
 	return items
 }
 
-// nearestInTierIndex returns the index note nearest the centroid by the
-// stronger of its two axes (the "either axis" gate). found is false for an
-// empty index.
-func nearestInTierIndex(centroid []float32, idx tierIndex) (string, float32, bool) {
-	best, bestSim := -1, float32(-1)
-
-	for i := range idx.paths {
-		sim := eitherAxisCosine(centroid, idx.sit[i], idx.body[i])
-
-		if sim > bestSim {
-			bestSim = sim
-			best = i
-		}
-	}
-
-	if best < 0 {
-		return "", 0, false
-	}
-
-	return idx.paths[best], bestSim, true
-}
-
-// nearestL3For returns the nearest L3 note to centroid from l3Notes by
-// max(situation,body), or nil if the index is empty. No threshold is applied;
-// the skill applies its own 0.9 cut.
-func nearestL3For(centroid []float32, l3Notes tierIndex) *queryNearestL3 {
-	path, cosine, found := nearestInTierIndex(centroid, l3Notes)
-	if !found {
-		return nil
-	}
-
-	return &queryNearestL3{Path: path, Cosine: cosine}
-}
-
-// nearestL3ForTier gates nearestL3For on the requested tiers for T1a
-// isolation. The tierIndex is L3-only by construction, so its sole result is
-// suppressed whenever a non-empty tier set omits L3; an empty set or one that
-// includes L3 passes through unchanged.
-func nearestL3ForTier(centroid []float32, l3Notes tierIndex, tiers []string) *queryNearestL3 {
-	if len(tiers) > 0 && !slices.Contains(tiers, tierL3) {
-		return nil
-	}
-
-	return nearestL3For(centroid, l3Notes)
-}
-
 // newOsQueryDeps wires the production scan + read for the query command.
 func newOsQueryDeps() QueryDeps {
 	embedDeps := newOsEmbedDeps()
@@ -2081,19 +1991,16 @@ func rankCandidates(
 
 // renderClusters converts per-phrase cluster reports into the YAML wire shape.
 // Members are sorted by score desc and the representative is flagged. Each
-// cluster is tagged with the phrase that produced it. l3Notes provides the
-// vault-wide L3 note index for nearest-L3 annotation.
+// cluster is tagged with the phrase that produced it.
 //
-// candidate_l2s is nominated from each cluster's OWN L2 note members (Phase 3,
-// within-cluster nomination — reversal of D7). A cluster with no L2 note members
+// candidate_l2s is nominated from each cluster's OWN note members (Phase 3,
+// within-cluster nomination — reversal of D7). A cluster with no note members
 // yields an empty candidate_l2s (explicitly allowed; chunk-only clusters exist).
 //
 // tiers enforces T1a isolation across the cluster channels: members are
-// constrained to the requested tier set, a cluster that empties after
-// filtering is dropped entirely, and nearest_l3 (always an L3 note by
-// construction) is suppressed for any tier set that omits L3. An empty tier
-// set leaves all channels blended.
-func renderClusters(phraseClusters []phrasedCluster, l3Notes tierIndex, tiers []string) []queryCluster {
+// constrained to the requested tier set; a cluster that empties after
+// filtering is dropped entirely. An empty tier set leaves all channels blended.
+func renderClusters(phraseClusters []phrasedCluster, tiers []string) []queryCluster {
 	var out []queryCluster
 
 	for _, pc := range phraseClusters {
@@ -2108,7 +2015,7 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes tierIndex, tiers []
 			}
 
 			centroid := pc.report.autoK.Centroids[clusterID]
-			clusterL2s := clusterL2IndexFromMembers(pc.subgraph, pc.report.memberIDs[clusterID])
+			clusterNotes := clusterNoteIndexFromMembers(pc.subgraph, pc.report.memberIDs[clusterID])
 
 			out = append(out, queryCluster{
 				ID:           clusterID,
@@ -2116,8 +2023,7 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes tierIndex, tiers []
 				Size:         len(members),
 				Silhouette:   pc.report.silhouettesByID[clusterID],
 				Members:      members,
-				NearestL3:    nearestL3ForTier(centroid, l3Notes, tiers),
-				CandidateL2s: topKCandidateL2sForTier(centroid, clusterL2s, tiers),
+				CandidateL2s: topKCandidateNotesForTier(centroid, clusterNotes, tiers),
 			})
 		}
 	}
@@ -2160,7 +2066,7 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 // pipeline output.
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems, merged.outgoing)
-	clusters := renderClusters(merged.phraseClusters, merged.l3, merged.tiers)
+	clusters := renderClusters(merged.phraseClusters, merged.tiers)
 	clusters = append(clusters, merged.chunkClusters...)
 	contentful := countItemsWithContent(items)
 
@@ -2279,7 +2185,8 @@ func runSinglePhraseQuery(
 // and clusters that union ONE time. Unlike the per-phrase pipeline it skips the
 // minSubgraphForClustering floor and never returns "no clusters" for a
 // non-empty union: when AutoK finds no split that beats the silhouette floor it
-// emits a single cluster of all union members (the §6b L3-synthesis invariant).
+// emits a single cluster of all union members (the always-cluster invariant:
+// at least one cluster for a non-empty union).
 // items[] is the deduped union direct hits; tier/project filters still apply.
 func runSynthesisQuery(
 	ctx context.Context,
@@ -2311,7 +2218,6 @@ func runSynthesisQuery(
 		phrases:        args.Phrases,
 		resolvedItems:  resolved,
 		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, subgraph: subgraph}},
-		l3:             gatherL3Index(hits, args.VaultPath, deps.Read),
 		outgoing:       outgoingByBasename(notes),
 		tiers:          args.Tiers,
 		totalNotes:     len(notes),
@@ -2323,13 +2229,13 @@ func runSynthesisQuery(
 	return renderQueryPayload(stdout, merged)
 }
 
-// runSynthesizeL2Query mirrors runSynthesisQuery for the lazy-L2 path. It
-// constrains the CLUSTERED set to matched L1+L2 notes (L3 excluded from
-// clusters), then emits raw candidate_l2s [{path, cosine}] per cluster — the
-// max(situation,body) cosine from the cluster centroid to the nearest existing
-// L2 in the vault. No band decision happens here; the recall skill bands it.
-// The L2 index is gathered from the FULL hits (every L2 in the vault is a
-// candidate nearest), while the clustered set is only the matched L1+L2.
+// runSynthesizeL2Query runs the --synthesize-l2 (notes recall) path. It
+// builds the matched set from all notes (ranked per-phrase with recency bias),
+// clusters the matched set (D1), and emits per-cluster candidate_l2s
+// [{path, cosine}] so the recall skill can judge coverage. No L3 filtering
+// or nearest_l3 annotation — only notes (L2 tier by default) appear. Any
+// legacy hand-edited tier: L3 notes cluster as normal notes (no L3 filtering);
+// the active vault has none.
 //
 // Phase 1 (recall-v2): the matched set is built by per-phrase unified note+chunk
 // ranking (Design step 1–2): for each phrase, both notes and chunks are scored
@@ -2346,8 +2252,6 @@ func runSynthesizeL2Query(
 	deps QueryDeps,
 	stdout io.Writer,
 ) error {
-	l1l2Hits := filterHitsToTiers(hits, args.VaultPath, deps.Read, []string{tierL1, tierL2})
-
 	var nowL2 time.Time
 	if deps.Now != nil {
 		nowL2 = deps.Now()
@@ -2359,7 +2263,7 @@ func runSynthesizeL2Query(
 	}
 
 	noteUnion, chunkUnion, matchErr := buildSynthesisMatchedSet(
-		ctx, args.Phrases, l1l2Hits, chunkRecords,
+		ctx, args.Phrases, hits, chunkRecords,
 		args.VaultPath, nowL2, maxTurnBySource(chunkRecords), deps,
 	)
 	if matchErr != nil {
@@ -2392,7 +2296,6 @@ func runSynthesizeL2Query(
 		phrases:        args.Phrases,
 		resolvedItems:  resolved,
 		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, subgraph: subgraph}},
-		l3:             tierIndex{}, // L3 not emitted in this mode
 		// l2 not set: candidate_l2s are nominated from each cluster's own note
 		// members (Phase 3, within-cluster nomination), not the full-vault index.
 		outgoing:       outgoingByBasename(notes),
@@ -2500,14 +2403,14 @@ func survivingChunks(scored []scoredChunk, items []resolvedItem) []scoredChunk {
 	return top
 }
 
-// topKCandidateL2s returns the top-K L2 notes nearest the centroid by
+// topKCandidateNotes returns the top-K notes nearest the centroid by
 // max(situation,body) cosine, sorted descending by centroid cosine (ties broken
-// by lexicographic path for stability). K is at least candidateL2K; when fewer
-// than candidateL2K L2 notes exist, all are returned. An empty index returns
+// by lexicographic path for stability). K is at least candidateNoteK; when fewer
+// than candidateNoteK notes exist, all are returned. An empty index returns
 // nil. No cosine threshold is applied — nomination is generous (D7). The sort
 // key is CENTROID cosine (per spec §3.3: "top-K by centroid cosine");
 // max-member cosine was rejected because it overfits to a cluster fragment.
-func topKCandidateL2s(centroid []float32, idx tierIndex) []queryCandidateL2 {
+func topKCandidateNotes(centroid []float32, idx tierIndex) []queryCandidateNote {
 	if len(idx.paths) == 0 {
 		return nil
 	}
@@ -2532,25 +2435,25 @@ func topKCandidateL2s(centroid []float32, idx tierIndex) []queryCandidateL2 {
 		return all[i].path < all[j].path
 	})
 
-	count := min(candidateL2K, len(all))
+	count := min(candidateNoteK, len(all))
 
-	out := make([]queryCandidateL2, count)
+	out := make([]queryCandidateNote, count)
 	for i := range count {
-		out[i] = queryCandidateL2{Path: all[i].path, Cosine: all[i].cosine}
+		out[i] = queryCandidateNote{Path: all[i].path, Cosine: all[i].cosine}
 	}
 
 	return out
 }
 
-// topKCandidateL2sForTier gates topKCandidateL2s on the requested tiers for
-// T1a isolation. Suppressed when a non-empty tier set omits L2; nil/empty
-// tiers always passes through (--synthesize-l2 passes nil).
-func topKCandidateL2sForTier(centroid []float32, l2Notes tierIndex, tiers []string) []queryCandidateL2 {
+// topKCandidateNotesForTier gates topKCandidateNotes on the requested tiers for
+// T1a isolation. Suppressed when a non-empty tier set omits the note tier (L2);
+// nil/empty tiers always passes through (--synthesize-l2 passes nil).
+func topKCandidateNotesForTier(centroid []float32, noteIdx tierIndex, tiers []string) []queryCandidateNote {
 	if len(tiers) > 0 && !slices.Contains(tiers, tierL2) {
 		return nil
 	}
 
-	return topKCandidateL2s(centroid, l2Notes)
+	return topKCandidateNotes(centroid, noteIdx)
 }
 
 // unionDirectHits embeds each phrase, ranks every compatible note against it,

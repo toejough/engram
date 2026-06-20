@@ -74,9 +74,7 @@ type LearnDeps struct {
 const (
 	dateFormat   = "2006-01-02"
 	envVaultPath = "ENGRAM_VAULT_PATH"
-	tierL1       = "L1"
 	tierL2       = "L2"
-	tierL3       = "L3"
 	typeFact     = "fact"
 	typeFeedback = "feedback"
 )
@@ -86,7 +84,7 @@ var (
 	errFactSituationRequired     = errors.New("fact: --situation is required")
 	errFeedbackSituationRequired = errors.New("feedback: --situation is required")
 	errIssueIDInvalid            = errors.New("issue must be non-empty with no whitespace")
-	errLearnBadTier              = errors.New("tier must be L1, L2, or L3")
+	errLearnBadTier              = errors.New("tier must be L2 (active) or L1/L3 (legacy backward-compat)")
 	errLearnUnknownType          = errors.New("learn: type must be feedback or fact")
 	errProjectSlugInvalid        = errors.New("project slug must match [a-z0-9-]+")
 	errSlugEmpty                 = errors.New("slug is required")
@@ -491,8 +489,8 @@ func stripLeadingWhen(situation string) string {
 }
 
 // tierOrDefault returns the explicit tier override when set, falling back to
-// L2 — the default tier for fact and feedback notes. Extracted so both the
-// fact and feedback branches of assembleLearnContent share one branch point.
+// L2 — the active write tier for notes. Extracted so both the fact and
+// feedback branches of assembleLearnContent share one branch point.
 func tierOrDefault(tier string) string {
 	if tier == "" {
 		return tierL2
@@ -545,14 +543,16 @@ func validateSlug(slug string) error {
 }
 
 // validateTier returns an error if the tier override is non-empty and not one
-// of the recognised values L1, L2, or L3.
+// of the recognised values. L2 is the active write tier; L1 and L3 are
+// accepted as legacy values for backward-compat with manually-edited notes
+// (DECISION-4: keep acceptance, remove write defaults).
 func validateTier(tier string) error {
 	if tier == "" {
 		return nil
 	}
 
 	switch tier {
-	case tierL1, tierL2, tierL3:
+	case "L1", tierL2, "L3":
 		return nil
 	default:
 		return fmt.Errorf("%w: got %q", errLearnBadTier, tier)

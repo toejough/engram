@@ -1483,14 +1483,9 @@ func TestRunQuery_TierIsolationAcrossAllChannels(t *testing.T) {
 	g.Expect(parsedL3.Clusters).NotTo(BeEmpty(), "expected clusters to form for the L3 subgraph")
 	assertChannelsMatchTier(g, parsedL3, "l3-")
 
-	// --- Tier L2: items + members are L2-only and nearest_l3 is dropped. ---
+	// --- Tier L2: items + members are L2-only. ---
 	parsedL2 := runTieredQuery(t, g, memFS, vault, "L2")
 	assertChannelsMatchTier(g, parsedL2, "l2-")
-
-	for _, cluster := range parsedL2.Clusters {
-		g.Expect(cluster.NearestL3).To(BeNil(),
-			"nearest_l3 (always L3) must be dropped when --tier is non-L3")
-	}
 
 	// --- Blended (empty tier): both tiers appear; no over-filtering. ---
 	parsedAll := runTieredQuery(t, g, memFS, vault, "")
@@ -1509,8 +1504,8 @@ func (errorEmbedder) Embed(context.Context, string) ([]float32, error) {
 
 func (errorEmbedder) ModelID() string { return "m@4" }
 
-// assertChannelsMatchTier asserts every path-bearing channel (items,
-// cluster members, and any nearest_l3) contains the given tier marker.
+// assertChannelsMatchTier asserts every path-bearing channel (items and
+// cluster members) contains the given tier marker.
 // Hubs have no dedicated payload field — they surface only as items[]
 // entries carrying the "hub" provenance and an in_degree — so the items
 // assertion below also covers the hub channel; a hub cannot leak a note
@@ -1524,11 +1519,6 @@ func assertChannelsMatchTier(g *WithT, parsed queryParsed, marker string) {
 		for _, member := range cluster.Members {
 			g.Expect(member.Path).To(ContainSubstring(marker),
 				"cluster member leaked note %q", member.Path)
-		}
-
-		if cluster.NearestL3 != nil {
-			g.Expect(cluster.NearestL3.Path).To(ContainSubstring(marker),
-				"nearest_l3 leaked note %q", cluster.NearestL3.Path)
 		}
 	}
 }

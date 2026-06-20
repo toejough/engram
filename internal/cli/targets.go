@@ -23,7 +23,7 @@ type CommonLearnArgs struct {
 	Relations []string `targ:"flag,name=relation,desc=related note as <wikilink-target>|<rationale> (repeatable)"`
 	Project   string   `targ:"flag,name=project,desc=kebab-case project slug for cross-project filtering (optional)"`
 	Issue     string   `targ:"flag,name=issue,desc=originating issue ID (optional)"`
-	Tier      string   `targ:"flag,name=tier,desc=tier override L1|L2|L3 (optional; default derived from type)"`
+	Tier      string   `targ:"flag,name=tier,desc=tier: L2 (active/default) or L1|L3 (legacy); default derived from type"`
 
 	ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk id (source#anchor) recorded as provenance (repeatable)"`
 }
