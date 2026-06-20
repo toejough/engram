@@ -197,7 +197,6 @@ func (f *SessionFinder) Find(dirs ...string) ([]FileEntry, error) {
 const (
 	segmentPreviewLen = 100
 	sourceClaude      = "claude"
-	sourceOpencode    = "opencode"
 )
 
 // accumulateWithinBudget walks lines chronologically and emits up to
@@ -244,7 +243,7 @@ func accumulateWithinBudget(
 // the budget truncated the scan before the input was exhausted. The first line
 // is always included (progress guarantee, mirroring accumulateWithinBudget) so
 // a non-empty input never reports Partial unless a later line was actually
-// dropped. Shared by JSONLReader.SegmentsFrom and OpencodeTranscriptReader.SegmentsFrom.
+// dropped.
 func budgetSegmentLines(
 	stripped []string, times []time.Time, budgetBytes int,
 ) ([]string, []time.Time, bool) {
