@@ -8,15 +8,6 @@ follow-up edits the codebase needs.
 
 ## Needs Review
 
-### 3. `anchors` (docs/skill) vs `StartingPoints` (code)
-- `skills/recall/SKILL.md` and README both call the cascade entry set
-  *anchors*.
-- `internal/vaultgraph/parser.go:1` says "Public entry point:
-  **StartingPoints** — emits one canonical wikilink per starting point".
-- **Proposed canonical:** *anchors* in prose and code. Either rename the
-  Go function to `Anchors`, or update the doc comment to "Anchors (aka
-  starting points)" if the function name has to stay for compat.
-
 ### 4. Note-type names vs auto-opener labels are non-parallel
 - Type names are **Feedback** and **Fact**.
 - The auto-generated body opener says `Lesson learned: …` for Feedback and
@@ -27,26 +18,6 @@ follow-up edits the codebase needs.
 - **Proposed canonical:** rename the openers to match the types — `Feedback
   noted: …` and `Fact noted: …` — or rename the types (less disruptive
   to keep the openers and rename types `Lesson` / `Information`).
-
-### 5. "Permanent" vs "Permanents" vs "permanent note"
-- Folder: `Permanent/` (singular, capital).
-- README §"Vault layout": `Permanent/   atomic principle-stated notes`.
-- Skills mostly say "permanent note(s)" lowercase.
-- Some prose uses bare "Permanent" as a noun ("write a Permanent for
-  …").
-- **Proposed canonical:** *permanent note* (lowercase) for the concept;
-  *Permanents* (capital, plural) when referring to the collection;
-  *Permanent/* (with slash) only for the folder. Bare capital "Permanent"
-  as a noun should be retired.
-
-### 6. "MOC" / "MOCs" / "Map of Content" / "Maps of Content"
-- Folder: `MOCs/`.
-- README: "Maps of Content" and "MOCs".
-- Skills: mostly "MOC" / "MOCs".
-- **Proposed canonical:** **MOC** (singular) and **MOCs** (plural) in
-  running prose; spell out **Map of Content** on first use in a doc;
-  folder `MOCs/`. Avoid "Maps of Content" — the acronym pluralizes with
-  a lowercase "s", not by re-pluralizing the expansion.
 
 ### 9. "transcript" vs "session" used interchangeably
 - Docs/skills use both "transcript" and "session", sometimes
@@ -60,17 +31,12 @@ follow-up edits the codebase needs.
   distinction; ingest now does.) Update prose to keep the distinction
   sharp wherever it matters (mostly skill text and CLAUDE.md tree comment).
 
-### 10. "tier" / L0–L3 vocabulary present in design doc but unimplemented
-- The legacy tiered-memory design (now in `docs/DESIGN-HISTORY.md` §1) and
-  `MOCs/65.memory-system-design` use "L0/L1/L2/L3 tiers".
-- The current vault has only Permanent + MOCs (effectively L2 + L3 in the
-  design doc's terms, with no L0 or L1).
-- The user-facing README and skills don't mention tiers at all.
-- **Proposed canonical:** keep tier vocabulary scoped to the design doc
-  until implementation lands; do **not** introduce L0/L1/L2/L3 into the
-  glossary, skills, or README until they're real. Flag this here so
-  future readers of the design doc don't think the project ships with
-  tiers.
+### 10. "tier" / L0–L3 vocabulary — Decided/Retired
+- **Decided 2026-06-20 (deep clean):** L1/L3 tiers and the `--tier` flag
+  are removed. The binary writes only L2 notes (fact/feedback); the tier
+  frontmatter field is kept for backward compatibility with existing vault
+  notes but is no longer a filter on `engram query`. Tier vocabulary is
+  retired from user-facing docs; it appears only in ADR history.
 
 ### 11. "skill" vs "command" vs "slash command"
 - `skills/` holds SKILL.md files. `commands/` holds OpenCode slash
@@ -125,12 +91,26 @@ named that surface and are no longer live inconsistencies:
   `internal/transcript` (kept for `engram ingest`); revisit there if it still
   matters, but the transcript-subcommand framing it described is retired.
 - **2. `Package transcript` doc comment stale on OpenCode** — `internal/transcript`
-  is retained for `engram ingest` and still reads both Claude Code JSONL +
-  OpenCode SQLite; the doc-comment freshen is a minor follow-up, not a
-  glossary inconsistency anymore.
+  was retained for `engram ingest`; the OpenCode SQLite backend (`opencode.go`)
+  was removed in the 2026-06-20 deep clean. Engram reads JSONL only. The package
+  doc comment now correctly reflects this.
 - **7. `--source` overloaded** — the `engram transcript` "source = harness"
   use is gone; `--source` is now unambiguously the `engram learn` provenance
   string.
 - **8. "marker" naming sprawl** — the `learnmarker` package and the
   `last-learn-at-<harness>` progress markers are retired with the transcript
   subcommand. No marker vocabulary remains to canonicalize.
+
+### Retired (2026-06-20 deep clean — flat vault + subgraph/hubs removal)
+
+- **3. `anchors`/`StartingPoints`** — `StartingPoints` (`internal/vaultgraph`) was removed
+  in the 2026-06-20 deep clean (A.1). The cascade/anchors concept is gone; neither
+  term is live. The GLOSSARY `anchors` entry is deleted.
+- **5. `Permanent/` folder naming** — the `Permanent/` folder was retired in the
+  2026-06-12 flat-vault migration; notes now live at the vault root. The vault
+  bootstrap no longer creates `Permanent/`. Naming inconsistency is moot.
+- **6. `MOCs/` folder naming** — the `MOCs/` folder was retired in the same migration.
+  No live folder means no canonical folder-name question. MOC/MOCs vocabulary is
+  retained in the GLOSSARY for historical context only.
+- **StartingPoints resolved** — deleted in Phase A.1 of the deep clean; the dead-code
+  entry is removed from c3-components.md.

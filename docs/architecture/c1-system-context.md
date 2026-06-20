@@ -46,7 +46,7 @@ flowchart LR
 | <a id="s2-engram"></a>S2 | Engram | System in scope | Persistent memory for LLM coding agents: reads & writes a Luhmann zettelkasten vault, reads per-harness session transcripts via markers, self-updates, and provides `engram prune` (operator-run GC: removes chunk-index entries whose source file no longer exists — outside the recall/learn/please/update flows) | This repo (`cmd/engram/`, `internal/`, `skills/`) |
 | <a id="s3-llm-coding-harness"></a>S3 | LLM coding harness | External system | Hosts engram's slash commands and subprocess-invokes the engram CLI. Engram skills are loaded by the harness's skill mechanism. | Claude Code (`~/.claude/`), OpenCode (`~/.config/opencode/`) |
 | <a id="s4-agent-memory-vault"></a>S4 | Agent-memory vault | External system | Luhmann zettelkasten on the local filesystem — a FLAT layout: notes live at the vault root (each with a sibling `.vec.json` embedding sidecar). The `Permanent/` and `MOCs/` tiers are retired (2026-06-12 flat-vault migration); subdirectories are ignored by the scanner | `$ENGRAM_VAULT_PATH` or `$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`) |
-| <a id="s5-harness-session-stores"></a>S5 | Harness session stores | External system | The LLM harness's per-session transcript storage; engram reads them at the filesystem level, not via a harness API | Claude Code: `~/.claude/projects/<slug>/*.jsonl` · OpenCode: `~/.local/share/opencode/opencode.db` (SQLite) |
+| <a id="s5-harness-session-stores"></a>S5 | Harness session stores | External system | The LLM harness's per-session transcript storage; engram reads them at the filesystem level, not via a harness API | Claude Code: `~/.claude/projects/<slug>/*.jsonl` (JSONL only; the OpenCode SQLite backend was never wired into production ingest and was removed in the 2026-06-20 deep clean) |
 | <a id="s6-go-toolchain"></a>S6 | Go toolchain | External system | Resolves module versions and installs the engram binary during `engram update` | `go` binary on `$PATH` |
 
 ## Relationships
@@ -56,7 +56,7 @@ flowchart LR
 | <a id="r1"></a>R1 | S1 Engram operator | S3 LLM coding harness | Directs work via prompts in the harness; configures engram via environment variables |
 | <a id="r2"></a>R2 | S3 LLM coding harness | S2 Engram | Invokes `/recall`, `/learn`, `/please` slash commands; subprocess-executes the engram CLI for each invocation |
 | <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes plus their `.vec.json` embedding sidecars under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
-| <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code) and SQLite rows (OpenCode) for changed sources only |
+| <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code `~/.claude/projects/<slug>/*.jsonl`) for changed sources only |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go list -m -json` and `go install` to self-update |
 | <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, copies refreshed `skills/` and `commands/` files into each detected harness's install root (`~/.claude/`, `~/.config/opencode/`) |
 
@@ -143,8 +143,7 @@ sequenceDiagram
     Note over E: per phrase — embed; top-30 per phrase (notes+chunks, recency-biased cosine); union across 10 phrases, dedup max score, drop baseScore < 0.25, cap matched set at ~300
     Note over E: Channel 1 (Relevance): one AutoK cluster over matched notes+chunks (D1 preserved); per cluster emit candidate_l2s top-5 from within-cluster notes
     Note over E: Channel 2 (Recency): append 200 newest chunks by IngestedAt, deduped vs matched set, tagged recent — NOT in any cluster
-    E-->>H: single YAML payload (phrases[], items[matched+recent], clusters[candidate_l2s], hubs, budget)
-    Note over H: surface anchor concepts from hubs
+    E-->>H: single YAML payload (phrases[], items[matched+recent], clusters[candidate_l2s], budget)
 
     Note over H: Step 2.5 — per-cluster coverage synthesis (loop below)
     loop per cluster (blocking inline) — coverage judged from matched clusters only
@@ -250,7 +249,7 @@ sequenceDiagram
     rect rgb(245,245,255)
         Note over H: Step 2 — orient via /recall
         H->>E: engram query --phrase <p1> --phrase <p2> ...
-        E-->>H: single YAML payload (phrases[], items, clusters, hubs, budget)
+        E-->>H: single YAML payload (phrases[], items, clusters[candidate_l2s], budget)
         Note over H: clarify with the operator via AskUserQuestion if intent is unclear
     end
 

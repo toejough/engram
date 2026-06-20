@@ -47,7 +47,7 @@ system is the LLM that runs the agent itself — never embeddings.
 
 **Consequences.** Deterministic, offline, zero per-embed cost; the embedder is a *container of S2*,
 not an L1 external. A single `embedding_model_id` is stamped into every sidecar. ⚠ KNOWN (M8):
-`loadCompatibleSidecars` (`query.go:803`) silently drops sidecars whose `model_id ≠` the active
+`loadCompatibleSidecars` (`query.go`) silently drops sidecars whose `model_id ≠` the active
 model — a model swap silently empties recall unless `engram embed apply --force` re-embeds first.
 No guard except the all-empty error path.
 
@@ -78,18 +78,15 @@ id→write critical section — enforced in code, untested as a property.
 distilled standards (L3). Retrieval must pick the right grain. Early prose proposed defaulting to
 the top tier only; empirically, **blended** retrieval scored better (note 160).
 
-**Decision.** Default retrieval is **blended / kind-agnostic**. `--tier X` is an **optional cap**
-that constrains **all exposed channels** (`items`, `clusters[].members`, `nearest_l3`, `hubs`) to
-tier X — **operator decision 2026-06-04**, superseding the original items-only design; recall-time
-lazy-L2 synthesis runs `engram query --synthesize-l2` **un-tiered**, so it still sees cross-tier
-clusters and their `candidate_l2s`. Tier is a **frontmatter field** with
+**Decision.** Default retrieval is **blended / kind-agnostic**. `--tier X` was an **optional cap** —
+this flag was removed in the 2026-06-20 deep clean; `--synthesize-l2` clustering is now the sole
+query path and operates un-tiered (cross-tier clusters). Tier is a **frontmatter field** with
 type-derived defaults: fact/feedback → L2 (default, overridable to L3).
 There is **no `adr` kind** — an ADR is `type:fact tier:L3`.
+Recall-time lazy-L2 synthesis via `candidate_l2s` + covered/near/absent supersedes the
+`nearest_l3` annotation (ADR-0005). The `nearest_l3` and `hubs` payload channels are removed.
 
-**Consequences.** Items-isolation holds today (verified: L1 29/29, L2 11/11, L3 0). ⚠ KNOWN (T1a,
-FAIL): until the all-channel fix lands, `--tier` constrains only `items` — `clusters`/`nearest_l3`
-still leak other tiers (the channel-misread early in this effort traced to exactly this unnamed-channel
-gap; it is also the eval-contamination risk the operator closed by tightening `--tier`). The override
+**Consequences.** Items-isolation holds (verified: L1 29/29, L2 11/11, L3 0). The override
 is a feature, so tier↔kind is asymmetric (T2).
 
 ---
@@ -199,6 +196,8 @@ carries no `Partial` flag — so it over-advances on truncation. Latent today (t
 ## ADR-0010 — Sessions are read behind reader/finder interfaces; a composite dispatches across backends
 
 **Status:** Accepted · `internal/transcript/opencode.go`; previously wired via `newTranscriptDeps` (removed in 2026-06-19 cleanup; wiring now lives in `engram ingest`)
+
+**Superseded (partial):** The OpenCode SQLite backend (`OpencodeTranscriptReader`, `OpencodeSessionFinder`, `CompositeSessionFinder`, `CompositeTranscriptReader`) was never wired into production ingest and was removed in the 2026-06-20 deep clean. Engram reads JSONL only (`~/.claude/projects/<slug>/*.jsonl`). The `JSONLReader`/`Finder` interfaces remain as the sole production path.
 
 **Context.** Engram must read session transcripts from more than one harness — Claude Code stores
 them as per-session `.jsonl` files; OpenCode stores them in a SQLite database. The marker,

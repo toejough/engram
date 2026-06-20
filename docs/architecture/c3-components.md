@@ -94,10 +94,10 @@ flowchart TB
 |---|---|---|---|---|
 | K1 | `internal/transcript` + `internal/context` (via `engram ingest`) | `Finder.Find`, `JSONLReader.ReadFrom`, `context.Strip`, manifest write | Find sessions; check mtime/size/hash vs `manifest.json`; re-chunk and re-embed only changed sources within a byte budget; strip harness noise; emit chunk identifiers + write/update the per-source `manifest.json` entry (mtime/size/hash staleness). | — |
 | K4 | `cli/learn.go` | `writeLearnUnderLock`, tier-default logic, `autoEmbedNote`; calls `nextLuhmannID` (in `cli/luhmann.go`) | Assign tier (fact/feedback→L2 default, `--tier` override; no `adr` kind; legacy L1/L3 still validate but are not written by default), compute next Luhmann id and write the note + sidecar atomically under `flock(.luhmann.lock)` + `O_EXCL`. | **K1-lock invariant** untested |
-| K5 | `internal/embed` | `Text`, `ContentHash`, `Sidecar`, embedder (Hugot/GoMLX simplego) | Embed body text; write/read `.vec.json` (vector + `embedding_model_id` + `content_hash`). | **M4** (model homogeneity) |
-| K6 | `cli/query.go` | `RunQuery`, `runSynthesizeL2Query`, `buildSynthesisMatchedSet`, `buildRecentFillItems`, `identifyHubs`, payload assembly | `--synthesize-l2` path: per phrase embed → top-30 (notes+chunks, recency-biased cosine); union across 10 phrases, dedup max score, relevance floor (baseScore < 0.25), cap matched set at ~300 (`matchSetCap`); ONE AutoK cluster over matched set (D1 preserved); `candidate_l2s` = top-5 from within-cluster notes; Channel 2 appends 200 newest chunks by IngestedAt (`recentFillChunks`), deduped, tagged `recent`, not in any cluster. No `nearest_l3` annotation; legacy tier:L3 notes cluster as normal notes. | — |
-| K7 | `internal/vaultgraph` | `ParseWikilinks`, `ParseBasename`, `BuildGraph`, `BFSWithCap` | Build the directed wikilink graph (node=basename), 3-hop BFS subgraph cap 200, in-degree hubs. | **G0** (basename-only resolution), **G5** (verbatim `[[x]]` strings in chunk bodies (raw transcript content) become false edges) |
-| K8 | `internal/cluster` | `KMeans`, `Silhouette`, `AutoK`, `CosineDistance`, `BestMatch` | Pick k by silhouette; cluster the input set (the BFS subgraph for `--synthesis`; the matched set for `--synthesize-l2`). Silhouette is O(n²) per k swept, so clustering inputs are bounded: under `--synthesize-l2`, the matched set is hard-capped at `matchSetCap`=300 (10 phrases × top-30 per phrase) before clustering; recency-channel chunks (`recentFillChunks`=200) are appended un-clustered and never enter K8. The `BestMatch`/`nearest_l3` path used for L3 annotation is removed. | C1/L3-1 determinism untested |
+| K5 | `internal/embed` | `Text`, `ContentHash`, `Sidecar`, embedder (Hugot/GoMLX simplego) | Embed situation and body text; write/read dual-vector `.vec.json` (`situation_vector` + `body_vector` + `embedding_model_id` + `content_hash` + `last_used`). `bestVector` selects the axis with the higher query cosine at recall time. | **M4** (model homogeneity) |
+| K6 | `cli/query.go` | `RunQuery`, `runSynthesizeL2Query`, `buildSynthesisMatchedSet`, `buildRecentFillItems`, payload assembly | Single query path: per phrase embed → top-30 (notes+chunks, recency-biased cosine); union across 10 phrases, dedup max score, relevance floor (baseScore < 0.25), cap matched set at ~300 (`matchSetCap`); ONE AutoK cluster over matched set (D1 preserved); `candidate_l2s` = top-5 from within-cluster notes; Channel 2 appends 200 newest chunks by IngestedAt (`recentFillChunks`), deduped, tagged `recent`, not in any cluster. All notes cluster as normal notes; no hub computation. | — |
+| K7 | `internal/vaultgraph` | `ParseWikilinks`, `ParseBasename`, `BuildGraph`, `ScanVault`, `UnresolvedTargets` | Build the directed wikilink graph (node=basename); scan vault notes for query; identify unresolved links for `engram check`. | **G0** (basename-only resolution), **G5** (verbatim `[[x]]` strings in chunk bodies (raw transcript content) become false edges) |
+| K8 | `internal/cluster` | `KMeans`, `Silhouette`, `AutoK`, `CosineDistance` | Pick k by silhouette; cluster the matched set for `--synthesize-l2`. Silhouette is O(n²) per k swept, so clustering inputs are bounded: the matched set is hard-capped at `matchSetCap`=300 (10 phrases × top-30 per phrase) before clustering; recency-channel chunks (`recentFillChunks`=200) are appended un-clustered and never enter K8. | C1/L3-1 determinism untested |
 | K9 | `internal/update` | `Run`, `SourceLocal/Remote` | `go install` the binary; copy refreshed skills/commands per harness; sentinels `ErrGoNotFound`/`ErrNoHarness`/`ErrSkillsSrcMissing`. | **U1** idempotence uncaptured |
 | K10 | `internal/luhmann` | `ParseID`, `LetterLess`, sort/tie-break | Parse and order Luhmann ids; **shared kernel** consumed by K4 (`cli/learn.go`, `cli/luhmann.go`) AND K7 (`vaultgraph/{selector,scanner}.go`). | — |
 | K11 | `internal/debuglog` | tail-friendly sink | Cross-cutting debug log threaded through every CLI target (`targets.go`, `cli/signal.go`); L1 deferred it to here. | — |
@@ -135,14 +135,13 @@ confirm + propose deletion.
   shells `engram learn fact|feedback` as a *new process* per candidate.
 - **K6 payload (to stdout → skill):** `items[]` (matched notes+chunks + recency-channel chunks
   tagged `recent`, with content) ∪ `clusters[].members` (paths, from matched set only) ∪
-  `clusters[].candidate_l2s` (`[{path, cosine}]`, top-5 from within-cluster notes, emitted under
-  `--synthesize-l2`) ∪ `hubs` ∪ `budget`. No `nearest_l3` field; recency-channel items appear in
-  `items[]` but never in any cluster's `members[]`. The skill — not the binary — consumes it and
-  may shell `engram amend` (covered/near) or `engram learn` (absent) for recall-time lazy synthesis.
-  Activation is agent-driven: the binary emits no `activated` flag; the skill calls `engram activate`
-  on only the notes it actually used.
-- **K5 sidecar:** `{vector[384], embedding_model_id, content_hash}` — `content_hash` covers the
-  embedded body text. Staleness tracking (mtime/size/hash `manifest.json`) lives in `engram ingest` (K1); there is no separate learnmarker package. GC of manifest entries whose source file no longer exists is handled by K12 (`engram prune`, operator-run).
+  `clusters[].candidate_l2s` (`[{path, cosine}]`, top-5 from within-cluster notes) ∪ `budget`.
+  No `nearest_l3` field; no `hubs` field; recency-channel items appear in `items[]` but never in
+  any cluster's `members[]`. The skill — not the binary — consumes it and may shell `engram amend`
+  (covered/near) or `engram learn` (absent) for recall-time lazy synthesis. Activation is
+  agent-driven: the binary emits no `activated` flag; the skill calls `engram activate` on only
+  the notes it actually used.
+- **K5 sidecar:** `{situation_vector[384], body_vector[384], embedding_model_id, dims, content_hash, last_used}` — dual-vector; `bestVector` selects the axis with the higher query cosine. `content_hash` covers the note's situation + body text. `last_used` is bumped by `engram activate`; it is excluded from `content_hash` so activation never marks a note stale. Staleness tracking (mtime/size/hash `manifest.json`) lives in `engram ingest` (K1); there is no separate learnmarker package. GC of manifest entries whose source file no longer exists is handled by K12 (`engram prune`, operator-run).
 
 ## Key flows (L3 — component-internal sequences)
 
@@ -152,12 +151,11 @@ against the code. Each subcommand is its OWN process; nothing here crosses to an
 
 ### Flow: `engram query --synthesize-l2` internals (RunQuery → runSynthesizeL2Query)
 
-This flow covers the `--synthesize-l2` (recall) path. The `--synthesis` path uses
-a simpler per-phrase subgraph+cluster pipeline and is not shown here.
+This is the sole query path (the `--synthesis`/BFS-subgraph path was removed in the 2026-06-20 deep clean; `--synthesize-l2` clustering is now the only mode).
 
-Verified order (synthesize-l2): `Scan` → `loadCompatibleSidecars` → `loadSynthesisChunkRecords`
+Verified order: `Scan` → `loadCompatibleSidecars` → `loadSynthesisChunkRecords`
 → `buildSynthesisMatchedSet` (per-phrase unified ranking) → `applyFloorAndCap` →
-`buildUnionSubgraph` + `addMatchedChunksToSubgraph` → `clusterUnionForSynthesis` (K8) →
+`clusterUnionForSynthesis` (K8) →
 `mergeProvenances` → `buildRecentFillItems` → `renderQueryPayload`.
 
 ```mermaid
@@ -189,7 +187,7 @@ sequenceDiagram
     Cl-->>Q: clusters with candidate_l2s (top-5 within-cluster notes by centroid cosine)
     Note over Q: mergeProvenances; applyProjectFilter
     Note over Q: buildRecentFillItems — 200 newest chunks by IngestedAt, deduped vs matched set, tagged recent; NOT in any cluster
-    Note over Q: renderQueryPayload → stdout (items[matched+recent], clusters[candidate_l2s], hubs, budget)
+    Note over Q: renderQueryPayload → stdout (items[matched+recent], clusters[candidate_l2s], budget)
 ```
 
 ### Flow: `engram learn` write internals (writeLearnUnderLock)

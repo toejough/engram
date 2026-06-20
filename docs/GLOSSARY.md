@@ -84,8 +84,21 @@ slug.**
 
 ### bootstrap
 The first-time creation of a missing vault (or its child directories and
-metadata files) on first `engram learn`. Other subcommands do **not**
-bootstrap — they error out so the user notices.
+metadata files) on first `engram learn`. Creates `.obsidian/` (so
+Obsidian recognizes the directory), `.gitignore`, and a `README.md`.
+Other subcommands do **not** bootstrap — they error out so the user notices.
+
+### sidecar (embedding sidecar)
+The `.vec.json` file written alongside each note (e.g.
+`87.2026-06-01.foo.vec.json`). Holds a **dual-vector** representation:
+`situation_vector` (embedding of the note's `situation:` frontmatter
+field, falling back to body if absent) and `body_vector` (embedding of
+the markdown body). At query time, `bestVector` picks the axis with the
+higher cosine against the query phrase. Also stores `embedding_model_id`,
+`dims`, `content_hash` (sha256 over situation + body text), and
+`last_used` (YYYY-MM-DD date last activated — drives ACT-R-style recency
+decay). Sidecars are written atomically on `engram learn`; `engram embed
+apply` fills or updates them in bulk.
 
 ---
 
@@ -96,23 +109,6 @@ The skill at `skills/recall/SKILL.md`, invoked as `/recall` in a harness or
 self-fired by the agent. Issues `engram query --synthesize-l2` with exactly 10
 phrases and runs the inline coverage-synthesis loop over the returned clusters.
 
-### cascade
-**Retired.** The old pre-`engram query` round-by-round wikilink expansion loop.
-Replaced by `engram query --synthesize-l2`'s two-channel recall (relevance +
-recency) since the v2 rewrite. Preserved here for historical recognition.
-
-### frontier
-**Retired.** The set of notes the cascade would read in one round. No longer used
-— `engram query --synthesize-l2` retrieves via embedding similarity, not round-by-round
-wikilink traversal.
-
-### anchors
-Legacy term from the pre-`engram query` recall cascade — every MOC plus
-the in-degree winner of each MOC-less connected component. **In code** the
-same concept is named `StartingPoints`; still computed inside the vault graph
-package but no longer exposed via a binary subcommand.
-Hubs from `engram query` (top-5 in-degree within the query subgraph) are
-the live successor concept.
 
 ### explicit query
 **Retired from recall skill.** The skill no longer distinguishes "explicit" vs
@@ -168,32 +164,19 @@ within-cluster notes only — any matched vault note, regardless of legacy `tier
 value). A cluster with no note members has an empty `candidate_l2s`. Full-vault nomination was dropped in recall-v2 (DECISION-2,
 reversing D7) because it surfaced unrelated notes that the agent had not matched.
 
-### subgraph (query-time)
-The set of notes `engram query` operates on after expanding 3 hops via
-authored wikilinks (both outgoing and inbound) from each direct hit. Hard
-cap of 200 notes. Notes without compatible `.vec.json` sidecars are
-excluded. Reported in the query payload as `budget.subgraph_size` /
-`subgraph_size_capped`.
-
 ### cluster (query-time)
-A subgraph partition produced by k-means with k=2..7 chosen by max
-silhouette score. Deterministic per query against an unchanged vault.
-Each cluster has a `representative` (member closest to centroid) and
-`members` (path + score + is_representative). Tiny subgraphs
-(`subgraph_size < 6`) skip clustering entirely; subgraphs with
-max-silhouette < 0.10 return `clusters: []`.
-
-### hub (query-time)
-A subgraph note with high in-degree (counted only within the subgraph).
-Top 5 returned. Hubs appear in `items.provenances` as the `hub` role with
-the `in_degree` field populated.
+A partition of the matched set produced by AutoK k-means (k=2..7 chosen
+by max silhouette score). Deterministic per query against an unchanged
+vault. Each cluster has a `representative` (member closest to centroid),
+`members` (path + score + is_representative), and `candidate_l2s`
+(top-5 vault notes from within-cluster note members, by centroid cosine).
+Matched sets smaller than 6 items skip clustering and return `clusters: []`.
 
 ### provenances (item roles)
 A query item's `provenances` list names every role it fills: `direct`
-(top-k cosine hit), `cluster_rep` (cluster representative), `hub` (top-5
-by in-degree). Items dedup across roles; a path appears once regardless
-of how many roles it fills. Item ordering: provenance count desc → role
-priority (direct > cluster_rep > hub) → score desc.
+(top-k cosine hit), `cluster_rep` (cluster representative), `recent`
+(recency-channel chunk, un-clustered). Items dedup across roles; a path
+appears once regardless of how many roles it fills.
 
 ---
 
@@ -222,7 +205,7 @@ conventions, gotchas. Auto-generated opener: `Information learned: …`.
 ### recall-mirror test
 The gate every candidate note must pass before being written: *"Would a
 future agent, querying for the same kind of work this candidate's scratch
-list targets, see this note in their cascade?"* Per-candidate, not
+list targets, surface this note?"* Per-candidate, not
 session-global — current-locus candidates target this session's work,
 retro-locus candidates target the injecting agent's work. If no, rephrase.
 If still no, drop.
@@ -288,11 +271,9 @@ phrase.
 
 ### `--project` (read side)
 Optional filter on `engram query`. When set, drops items whose
-frontmatter `project:` does not match. The underlying wikilink graph is
-unaffected — cross-project bridges still bridge during the 3-hop BFS,
-the filter only restricts which items are emitted. Items with elided
-content (no body in the payload) are dropped under a non-empty
-`--project` since a match cannot be verified.
+frontmatter `project:` does not match on the bounded matched set.
+Items with elided content (no body in the payload) are dropped under a
+non-empty `--project` since a match cannot be verified.
 
 ### `--issue`
 Optional identifier for the originating GitHub / Jira / etc. issue. Set
@@ -308,12 +289,13 @@ for provenance; no read-side filter.
 
 ### transcript
 The recorded content of one session, read by the binary (via `engram
-ingest`) from a harness's on-disk store. Claude Code transcripts are JSONL
-files; OpenCode transcripts come from a SQLite database. A *session* is the
-time-bound interaction; a *transcript* is its serialized record. (The
-standalone `engram transcript` subcommand and its per-harness progress
-marker were retired with the lazy-L2 work — issue 649; `internal/transcript`
-is retained as the reader for `engram ingest`.)
+ingest`) from a harness's on-disk store. Engram reads Claude Code
+transcripts — JSONL files at `~/.claude/projects/<slug>/*.jsonl`. A
+*session* is the time-bound interaction; a *transcript* is its serialized
+record. (The standalone `engram transcript` subcommand and its per-harness
+progress marker were retired with the lazy-L2 work — issue 649;
+`internal/transcript` is retained as the JSONL reader for `engram
+ingest`.)
 
 ### session
 One conversation between a user and an agent in a harness. Plural:
@@ -393,8 +375,7 @@ recall-mirror test. Becomes a written note or is dropped with a reason.
 
 ### subagent
 A parallel worker spawned by a skill to read or score notes without
-polluting parent context. Used during cascade rounds with ≥10 frontier
-notes.
+polluting parent context.
 
 ### coordinator
 A serial pass after parallel writer subagents finish, whose job is
