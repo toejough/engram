@@ -36,6 +36,9 @@ flowchart TB
     subgraph PE[engram embed — process]
       eb["K5b · cli/embed (operator-run migration)<br/>RunEmbedApply · RunEmbedStatus"]
     end
+    subgraph PP[engram prune — process]
+      prune["K12 · prune (operator-run GC)<br/>RunPrune · read manifest · delete stale per-source index files"]
+    end
     subgraph PU[engram update — process]
       upd["K9 · update<br/>go install + copy skills/commands"]
     end
@@ -56,6 +59,8 @@ flowchart TB
     skills -->|"shell engram update"| upd
     skills -->|"shell engram embed apply (rare)"| eb
 
+    prune -->|"delete stale per-source index files"| sessions
+
     ing --- sessions
     ing -->|stdout chunk identifiers| skills
 
@@ -75,7 +80,7 @@ flowchart TB
     embed --- model
     upd -->|go install| gotool
 
-    class ing,learn,query,vg,cl,eb,embed,upd,lz comp
+    class ing,learn,query,vg,cl,eb,embed,upd,lz,prune comp
     class dbg xcut
     class vault store
     class skills,sessions,gotool ext
@@ -96,7 +101,8 @@ flowchart TB
 | K9 | `internal/update` | `Run`, `SourceLocal/Remote` | `go install` the binary; copy refreshed skills/commands per harness; sentinels `ErrGoNotFound`/`ErrNoHarness`/`ErrSkillsSrcMissing`. | **U1** idempotence uncaptured |
 | K10 | `internal/luhmann` | `ParseID`, `LetterLess`, sort/tie-break | Parse and order Luhmann ids; **shared kernel** consumed by K4 (`cli/learn.go`, `cli/luhmann.go`) AND K7 (`vaultgraph/{selector,scanner}.go`). | — |
 | K11 | `internal/debuglog` | tail-friendly sink | Cross-cutting debug log threaded through every CLI target (`targets.go`, `cli/signal.go`); L1 deferred it to here. | — |
-| K5b | `cli/embed.go` | `RunEmbedApply`, `RunEmbedStatus`, `selectStates` | The `engram embed apply/status` subcommand (separate process, operator-run for model migration): re-embeds notes whose sidecar is missing/stale/incompatible via the shared K5 package; `apply` writes sidecars, `status` reports counts. Wired at `targets.go:120-129`. | drives **M4** remediation |
+| K5b | `cli/embed.go` | `RunEmbedApply`, `RunEmbedStatus`, `selectStates` | The `engram embed apply/status` subcommand (separate process, operator-run for model migration): re-embeds notes whose sidecar is missing/stale/incompatible via the shared K5 package; `apply` writes sidecars, `status` reports counts. Wired in `targets.go` (grep `Name("embed")`). | drives **M4** remediation |
+| K12 | `cli/prune.go` | `RunPrune` | The `engram prune` subcommand (operator-run GC): reads the chunk-index manifest and, for every source whose file no longer exists, deletes that source's per-source index file and drops its manifest entry. Not part of the recall/learn/please flows — manual cleanup only. Wired in `targets.go` (grep `Name("prune")`) alongside ingest/query. | — |
 
 ## The recurring defect shape (feeds the Phase-4 ADR) — corrected per Phase-2 antagonist
 The canonical example of the silent-mismatch bug class:
@@ -136,7 +142,7 @@ confirm + propose deletion.
   Activation is agent-driven: the binary emits no `activated` flag; the skill calls `engram activate`
   on only the notes it actually used.
 - **K5 sidecar:** `{vector[384], embedding_model_id, content_hash}` — `content_hash` covers the
-  embedded body text. Staleness tracking (mtime/size/hash `manifest.json`) lives in `engram ingest` (K1); there is no separate learnmarker package.
+  embedded body text. Staleness tracking (mtime/size/hash `manifest.json`) lives in `engram ingest` (K1); there is no separate learnmarker package. GC of manifest entries whose source file no longer exists is handled by K12 (`engram prune`, operator-run).
 
 ## Key flows (L3 — component-internal sequences)
 

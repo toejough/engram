@@ -38,7 +38,7 @@ in code, it is sometimes called a *source* (see triage).
 
 ### binary
 The compiled `engram` Go program. Subcommands: `learn`, `query`, `embed`,
-`ingest`, `show`, `amend`, `activate`, `update`. The binary handles all I/O
+`ingest`, `prune`, `show`, `amend`, `activate`, `update`. The binary handles all I/O
 (vault read/write, chunk indexing, file locking); skills handle behavior
 and prompting.
 
@@ -322,12 +322,36 @@ One conversation between a user and an agent in a harness. Plural:
 ### `engram ingest` (subcommand)
 Merge-appends session transcripts + markdown into the per-source chunk
 index — re-chunks/re-embeds only changed content, never deletes
-(append-only chunk history). `--auto` sweeps all known sources; called by
-`/learn` and `/recall`. Chunks are the episodic layer (raw event memory);
-at recall they compete with notes in the per-phrase ranking (matched set,
-Channel 1) and the 200 newest also appear un-clustered in the recency channel
-(Channel 2). Chunk-grounding is recorded as frontmatter provenance on written
-notes, not as wikilinks.
+(append-only chunk history). `--auto` sweeps all known sources, skips
+session-log directories whose slugified project path starts with a
+**non-persistent-workspace prefix** (`-private-tmp-`, `-tmp-`,
+`-var-folders-`, `-private-var-folders-`), and is called by `/learn` and
+`/recall`. The skip keeps eval/test runs from bloating the main chunk index;
+configure it via `.engram/sweep.json` (`non_persistent_prefixes` key), or
+bypass it with explicit `--sweep`/`--transcript`/`--markdown` or an isolated
+index via `ENGRAM_CHUNKS_DIR`.
+Chunks are the episodic layer (raw event memory); at recall they compete with
+notes in the per-phrase ranking (matched set, Channel 1) and the 200 newest
+also appear un-clustered in the recency channel (Channel 2). Chunk-grounding
+is recorded as frontmatter provenance on written notes, not as wikilinks.
+
+### `engram prune` (subcommand)
+Operator-run GC subcommand. Reads the chunk-index manifest and, for every
+source whose file no longer exists, deletes that source's per-source index
+file and drops its manifest entry. Not part of the recall/learn/please flows —
+run manually to reclaim space after removing or moving ingested source files.
+
+### non-persistent workspace
+A project directory located under a throwaway filesystem root
+(`/private/tmp`, `/tmp`, or macOS `$TMPDIR` at `/var/folders` and its
+`/private/var/folders` canonical form). `engram ingest --auto` identifies
+and skips these by checking whether the slugified project-directory name
+starts with one of the configured `non_persistent_prefixes`
+(`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-`),
+preventing eval/test sessions from bloating the main chunk index.
+Explicit sweep roots (`--sweep`, `--transcript`, `--markdown`) and an
+isolated index (`ENGRAM_CHUNKS_DIR`) bypass the exclusion for deliberate
+test ingestion.
 
 ---
 
