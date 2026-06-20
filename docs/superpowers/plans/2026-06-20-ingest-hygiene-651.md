@@ -313,6 +313,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 )
 
@@ -490,7 +491,14 @@ git commit -m "test(ingest): guard deliberate --sweep of non-persistent workspac
 **Spec coverage:**
 - Req 1 (Prevention) → Task 1 (`NonPersistentPrefixes` skip on `--auto` session sweep). ✓
 - Req 2 (Cleanup/GC) → Task 2 (`engram prune` removes index + manifest entry for missing sources). ✓
-- Req 3 (Still usable for testing) → Task 3 regression test + Task 1 scoping (manual `--sweep`/`--transcript` bypass) + existing `ENGRAM_CHUNKS_DIR` isolation (documented in please Step 5). ✓
+- Req 3 (Still usable for testing) → two opt-in levers, both delivered:
+  - **Explicit-override lever** → Task 1 scoping + Task 3 regression test: manual `--sweep`/`--transcript`/`--markdown` carry empty `ExcludePrefixes`, so deliberate ingestion of a throwaway workspace works. ✓
+  - **Isolated-index lever** → `ENGRAM_CHUNKS_DIR`/`ENGRAM_VAULT_PATH` is a **pre-existing, already-tested** mechanism (`ResolveChunksDir` in `ingest.go:59`, covered by `TestResolveChunksDirPrecedence`) — no new code needed; it is surfaced in the Document step (see below). ✓
+
+**Documentation deliverables (workflow Document step — Gate A docs review flagged these):**
+- `docs/architecture/c3-components.md` — add `engram prune` to the L3 process subgraph + component catalog; note the live/dead-source GC decision in the manifest-staleness section.
+- `docs/architecture/c1-system-context.md` — note `engram prune` as operator-run cleanup (outside the recall/learn/please flows).
+- `docs/architecture/c2-containers.md` (and/or `CLAUDE.md`) — surface that the `--auto` sweep skips non-persistent workspaces by default via `SweepSpec.NonPersistentPrefixes`, overridable in `.engram/sweep.json`, and document the two opt-in levers above for deliberate eval/test ingestion.
 
 **Open design questions (from the issue), resolved:**
 - "What counts as non-persistent?" → slugified-cwd prefix match (`-private-tmp-`, `-tmp-`, `-var-folders-`), overridable via `.engram/sweep.json` `non_persistent_prefixes`.
