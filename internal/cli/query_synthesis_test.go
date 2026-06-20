@@ -441,9 +441,12 @@ func TestQuery_SynthesizeL2_CandidateUsesStrongerAxis(t *testing.T) {
 // TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK verifies the
 // D7 invariant: when a chunk-heavy centroid depresses absolute cosines, the
 // covering L2 may not be the nearest to the centroid but still appears within
-// top-K. The fixture plants three L2s where the true cover (l2a) is not
-// necessarily the centroid-nearest: a distractor on the centroid axis ranks #1,
-// yet the cover survives the K=3 cutoff while a far L2 is excluded.
+// top-K. The fixture plants six L2s with K=5 (candidateL2K=5), so the cutoff
+// must drop exactly one. The DISTRACTOR sits on the centroid axis (cosine 1.0 →
+// ranks #1), so the COVER (cosine ~0.9) is NOT the centroid-nearest; cover +
+// MID1 (~0.7) + MID2 (~0.5) + MID3 (~0.3) round out top-5; the FAR L2
+// (cosine 0) is excluded by the K=5 cutoff. This pits "cover survives top-K
+// despite not being #1" against a real cutoff — the D7 nomination invariant.
 func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) {
 	t.Parallel()
 
@@ -459,11 +462,9 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", noteVec, noteVec)
 	}
 
-	// Four L2s with K=3, so the cutoff must drop exactly one. The DISTRACTOR sits
-	// on the centroid axis (cosine 1.0 → ranks #1), so the COVER (cosine ~0.9) is
-	// NOT the centroid-nearest; cover + MID (~0.7) round out the top-3; the FAR L2
-	// (cosine 0) is excluded by the cutoff. This pits "cover survives top-K despite
-	// not being #1" against a real cutoff — the D7 nomination invariant.
+	// Six L2s with candidateL2K=5, so the cutoff drops exactly one (the FAR L2).
+	// The DISTRACTOR sits on the centroid axis (cosine 1.0 → ranks #1), so the
+	// COVER (cosine ~0.9) is NOT the centroid-nearest.
 	distractor := []float32{1, 0, 0, 0}
 	plantDualVector(t, memFS, vault, "l2-distractor.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", distractor, distractor)
@@ -472,9 +473,17 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 	plantDualVector(t, memFS, vault, "l2-cover.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", cover, cover)
 
-	mid := []float32{0.7, 0.714, 0, 0}
-	plantDualVector(t, memFS, vault, "l2-mid.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", mid, mid)
+	mid1 := []float32{0.7, 0.714, 0, 0}
+	plantDualVector(t, memFS, vault, "l2-mid1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", mid1, mid1)
+
+	mid2 := []float32{0.5, 0.866, 0, 0}
+	plantDualVector(t, memFS, vault, "l2-mid2.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", mid2, mid2)
+
+	mid3 := []float32{0.3, 0.954, 0, 0}
+	plantDualVector(t, memFS, vault, "l2-mid3.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", mid3, mid3)
 
 	far := []float32{0, 0, 1, 0}
 	plantDualVector(t, memFS, vault, "l2-far.fact.md",
@@ -507,7 +516,7 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 
 	candidates, ok := first["candidate_l2s"].([]any)
 	g.Expect(ok).To(BeTrue(), "candidate_l2s must be a sequence")
-	g.Expect(candidates).To(HaveLen(3), "K=3 cutoff: exactly three of the four L2s are nominated")
+	g.Expect(candidates).To(HaveLen(5), "K=5 cutoff: exactly five of the six L2s are nominated")
 
 	paths := make([]string, 0, len(candidates))
 
@@ -524,7 +533,7 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 	g.Expect(paths).To(ContainElement("l2-cover.fact.md"),
 		"the covering L2 survives the top-K cutoff though it is not the centroid-nearest")
 	g.Expect(paths).NotTo(ContainElement("l2-far.fact.md"),
-		"the worst L2 (cosine 0) is excluded by the K=3 cutoff")
+		"the worst L2 (cosine 0) is excluded by the K=5 cutoff")
 	g.Expect(paths[0]).To(Equal("l2-distractor.fact.md"),
 		"the centroid-nearest distractor ranks first, so the cover is not #1")
 
@@ -828,11 +837,11 @@ func TestQuery_SynthesizeL2_NearDuplicateL2_CosineAtLeast095(t *testing.T) {
 
 // TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered locks the
 // design property that the L2 nearest-index is gathered from the FULL hit set,
-// not just the clustered (union) members. With Limit:2 the two top-scored L1
-// notes fill the union and the lower-scored L2 is truncated out — so the L2 is
-// NOT a cluster member. It must still surface as nearest_l2 because the index
-// comes from every vault L2, not the clustered set. If the gather source were
-// ever narrowed to the union, this test would fail.
+// not just the matched-set cluster members. The L2's raw cosine to the query is
+// below matchRelevanceFloor (0.25), so it is excluded from the matched set and
+// is never a cluster member. It must still surface as candidate_l2s because the
+// index is gathered from every vault L2 note, not just matched-set members.
+// If the gather source were ever narrowed to the matched set, this test would fail.
 func TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered(t *testing.T) {
 	t.Parallel()
 
@@ -843,17 +852,18 @@ func TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered(t *testing.T)
 
 	queryVec := []float32{1, 0, 0, 0}
 
-	// Two L1 notes at the query vector (score 1.0) fill the Limit:2 union.
+	// Two L1 notes at the query vector (cosine 1.0) enter the matched set.
 	plantDualVector(t, memFS, vault, "1.ep.md",
 		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
 	plantDualVector(t, memFS, vault, "2.ep.md",
 		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
 
-	// A lower-scored L2 (cos ~0.30 to the query) ranks third, so Limit:2
-	// truncates it out of the union — it is never clustered, but stays in hits.
-	lowMatch := []float32{0.3, 0.954, 0, 0}
+	// An L2 with cosine ~0.20 to the query — below matchRelevanceFloor (0.25),
+	// so it is dropped from the matched set by the floor filter. It stays in the
+	// full-vault L2 index used to build candidate_l2s.
+	belowFloor := []float32{0.2, 0.98, 0, 0} // cosine to {1,0,0,0} ≈ 0.20
 	plantDualVector(t, memFS, vault, "3.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", lowMatch, lowMatch)
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", belowFloor, belowFloor)
 
 	deps := newQueryDeps(memFS)
 	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: queryVec}
@@ -861,7 +871,7 @@ func TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered(t *testing.T)
 	var out bytes.Buffer
 
 	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, Limit: 2, SynthesizeL2: true},
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, SynthesizeL2: true},
 		deps, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -874,18 +884,18 @@ func TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered(t *testing.T)
 	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
 	g.Expect(parsed.Clusters).NotTo(BeEmpty())
 
-	// The L2 is not a cluster member (truncated out of the Limit:2 union)...
+	// The L2 is not a cluster member (below relevance floor, excluded from matched set).
 	for _, cluster := range parsed.Clusters {
 		for _, member := range cluster.Members {
 			g.Expect(member.Path).NotTo(ContainSubstring("3.fact"),
-				"the lower-scored L2 must be truncated out of the clustered union")
+				"the below-floor L2 must be excluded from the matched set and clustered union")
 		}
 	}
 
-	// ...yet it still surfaces in candidate_l2s (index gathered from FULL hits).
+	// ...yet it still surfaces in candidate_l2s (index gathered from FULL vault hits).
 	for _, cluster := range parsed.Clusters {
 		g.Expect(cluster.CandidateL2s).NotTo(BeEmpty(),
-			"candidate_l2s is gathered from every vault L2, not just clustered members")
+			"candidate_l2s is gathered from every vault L2, not just matched-set members")
 		g.Expect(cluster.CandidateL2s[0].Path).To(Equal("3.fact.md"))
 	}
 }

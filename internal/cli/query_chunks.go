@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cluster"
@@ -91,9 +92,13 @@ type chunkCluster struct {
 }
 
 // scoredChunk pairs a record with its best per-phrase cosine score.
+// baseScore is the pre-decay raw cosine; zero in the global scoreChunks path
+// (which only computes max-across-phrases and does not apply recency).
+// It is populated by scoreChunkForPhrase for the per-phrase recency path.
 type scoredChunk struct {
-	record chunk.Record
-	score  float32
+	record    chunk.Record
+	score     float32
+	baseScore float32 // pre-decay raw cosine; 0 when not set (global path)
 }
 
 // clusterChunks runs auto-k k-means over the returned chunks' vectors.
@@ -189,6 +194,53 @@ func newOsChunkQueryDeps() ChunkQueryDeps {
 	}
 }
 
+// scoreChunkForPhrase scores every record against a single pre-embedded phrase
+// vector, applying recency bias exactly once. baseScore is the raw cosine
+// (pre-decay); score is the recency-biased result used for ranking. The
+// caller is responsible for not calling this again on the same phrase
+// (no double-apply). Used by the --synthesize-l2 per-phrase unified ranking
+// path; the global scoreChunks is used by all other paths.
+func scoreChunkForPhrase(
+	phraseVec []float32,
+	records []chunk.Record,
+	now time.Time,
+	maxTurnBySrc map[string]int,
+	p recencyParams,
+) []scoredChunk {
+	scored := make([]scoredChunk, 0, len(records))
+
+	for _, record := range records {
+		base := embed.Cosine(phraseVec, record.Vector)
+
+		ageDays := 0.0
+
+		if !record.IngestedAt.IsZero() && !now.IsZero() {
+			age := now.Sub(record.IngestedAt).Hours() / hoursPerDay
+			if age > 0 {
+				ageDays = age
+			}
+		}
+
+		turnFrac := 0.0
+
+		if n, ok := parseTurnN(record.Anchor); ok {
+			if maxN := maxTurnBySrc[record.Source]; maxN > 0 {
+				turnFrac = float64(n) / float64(maxN)
+			}
+		}
+
+		biasedScore := base * float32(recencyMultiplier(ageDays, turnFrac, p))
+
+		scored = append(scored, scoredChunk{
+			record:    record,
+			score:     biasedScore,
+			baseScore: base,
+		})
+	}
+
+	return scored
+}
+
 // scoreChunks embeds the phrases and scores each record by its best cosine
 // across all phrase vectors.
 func scoreChunks(
@@ -219,7 +271,7 @@ func scoreChunks(
 			}
 		}
 
-		scored = append(scored, scoredChunk{record: record, score: best})
+		scored = append(scored, scoredChunk{record: record, score: best, baseScore: best})
 	}
 
 	return scored, nil

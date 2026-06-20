@@ -15,6 +15,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cluster"
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
@@ -127,18 +128,29 @@ const (
 	// candidateL2K is the minimum number of candidate L2s to nominate per
 	// cluster. The recall skill reads all K candidates to judge coverage;
 	// generous nomination costs nothing (recall is the binary's job,
-	// precision is the agent's).
-	candidateL2K = 3
+	// precision is the agent's). Raised from 3→5 in recall-v2 Phase 0.
+	candidateL2K = 5
 	// chunkClusterPhrase tags deterministic chunk-space clusters in the
 	// unified payload (they span all phrases, like synthesis clusters).
 	chunkClusterPhrase = "chunks"
 	// chunkItemKind tags unified-ranking items sourced from the chunk index
 	// (vs notes, whose kind derives from frontmatter).
-	chunkItemKind            = "chunk"
-	clusterMaxK              = 7
-	clusterMinK              = 2
-	clusterSilhouetteFloor   = 0.10
-	defaultQueryLimit        = 20
+	chunkItemKind          = "chunk"
+	clusterMaxK            = 7
+	clusterMinK            = 2
+	clusterSilhouetteFloor = 0.10
+	defaultQueryLimit      = 20
+	// matchPhraseLimit is the maximum number of candidates (notes + chunks
+	// combined) taken per phrase before union across phrases. Bounds
+	// clustering at O(matchSetCap^2) regardless of corpus size.
+	matchPhraseLimit = 30
+	// matchRelevanceFloor is the minimum raw cosine (baseScore, pre-decay)
+	// an item must have to enter the matched set. Applied BEFORE recency
+	// bias so topically-perfect-but-old items still activate (vault note 53).
+	matchRelevanceFloor = float32(0.25)
+	// matchSetCap is the hard cap on the union of all per-phrase matched
+	// sets fed to clustering. 10 phrases × matchPhraseLimit = 300 worst-case.
+	matchSetCap              = 300
 	maxHubs                  = 5
 	minSubgraphForClustering = 6
 	provenanceClusterRep     = "cluster_rep"
@@ -147,6 +159,10 @@ const (
 	provenanceRankClusterRep = 2
 	provenanceRankDirect     = 3
 	provenanceRankHub        = 1
+	// recentFillChunks is the number of newest-by-IngestedAt chunks appended
+	// to the recency channel (Channel 2, Phase 2). Defined here in Phase 0
+	// so it is available as a named constant before Phase 2 lands.
+	recentFillChunks = 200 //nolint:unused // Phase 2 uses this constant; defined here in Phase 0
 	// singletonClusterSilhouette is the silhouette reported for the K=0->one
 	// synthesis fallback cluster. Silhouette is undefined for a single
 	// cluster, so zero stands in.
@@ -229,6 +245,18 @@ type expandedSubgraph struct {
 type hubReport struct {
 	memberIDs []int // member index per hub, sorted by spec rules
 	inDegrees []int // inDegrees[i] = in-degree of members[memberIDs[i]]
+}
+
+// matchedSetItem is the unified per-phrase ranking element used by
+// buildSynthesisMatchedSet. It holds the common fields needed for
+// dedup/floor/cap and carries either a note or a chunk.
+type matchedSetItem struct {
+	key       string  // notePath for notes; source#anchor for chunks
+	score     float32 // recency-biased ranking score
+	baseScore float32 // pre-decay raw cosine; used for the relevance floor
+	isChunk   bool
+	note      scoredCandidate
+	chunk     scoredChunk
 }
 
 // phrasedCluster pairs a cluster report with the phrase that produced it,
@@ -388,6 +416,40 @@ type tierIndex struct {
 	body  [][]float32
 }
 
+// addMatchedChunksToSubgraph adds matched chunks to the subgraph as members
+// (so they cluster with notes — D1) and returns the parallel resolvedItem
+// slice for items[]. Chunks are sorted by score desc so items[] presents them
+// newest-most-relevant first within the chunk block.
+func addMatchedChunksToSubgraph(chunkUnion []scoredChunk, subgraph *expandedSubgraph) []resolvedItem {
+	sort.SliceStable(chunkUnion, func(i, j int) bool {
+		return chunkUnion[i].score > chunkUnion[j].score
+	})
+
+	chunkItems := make([]resolvedItem, 0, len(chunkUnion))
+
+	for _, scored := range chunkUnion {
+		path := chunkNotePath(scored.record)
+		subgraph.members = append(subgraph.members, subgraphMember{
+			basename: path,
+			notePath: path,
+			content:  scored.record.Text,
+			vector:   scored.record.Vector,
+			score:    scored.score,
+			kind:     chunkItemKind,
+		})
+		chunkItems = append(chunkItems, resolvedItem{
+			notePath:    path,
+			content:     scored.record.Text,
+			score:       scored.score,
+			baseScore:   scored.baseScore,
+			provenances: []string{provenanceDirect},
+			kind:        chunkItemKind,
+		})
+	}
+
+	return chunkItems
+}
+
 // aggregatePhraseSummaries merges per-phrase pipeline results into a single
 // aggregatedSummary per the issue-639 spec:
 //   - items: dedup by path, max score across phrases, union provenances,
@@ -438,64 +500,6 @@ func aggregateSubgraphBudget(summaries []queryPipelineSummary) (totalSize int, c
 	}
 
 	return totalSize, capped, maxHops
-}
-
-// appendSynthesisChunks loads the matched chunks, appends them as subgraph
-// members (so they cluster together with the notes — D1), and returns the
-// parallel resolvedItem slice for items[]. Each chunk member's basename is set
-// to its source#anchor notePath to avoid byBasename[""] collisions if the
-// subgraph is ever passed to mergeProvenances (CA-09).
-func appendSynthesisChunks(
-	ctx context.Context,
-	args QueryArgs,
-	deps QueryDeps,
-	subgraph *expandedSubgraph,
-	limit int,
-) ([]resolvedItem, error) {
-	records, loadErr := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
-		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
-	})
-	if loadErr != nil {
-		return nil, loadErr
-	}
-
-	scored, scoreErr := scoreChunks(ctx, args.Phrases, records, deps.Embedder)
-	if scoreErr != nil {
-		return nil, scoreErr
-	}
-
-	// Bound the clustered + returned chunk set to the top-limit by score.
-	// cluster.Silhouette is O(n^2) per K, so clustering the whole corpus is
-	// prohibitively slow on large indices — the same bound mergeChunkSpace
-	// already applies for the non-synthesis path.
-	sortScoredDesc(scored)
-
-	if len(scored) > limit {
-		scored = scored[:limit]
-	}
-
-	chunkItems := make([]resolvedItem, 0, len(scored))
-
-	for _, s := range scored {
-		path := chunkNotePath(s.record)
-		subgraph.members = append(subgraph.members, subgraphMember{
-			basename: path, // set to avoid byBasename[""] collisions if passed to mergeProvenances
-			notePath: path,
-			content:  s.record.Text,
-			vector:   s.record.Vector,
-			score:    s.score,
-			kind:     chunkItemKind,
-		})
-		chunkItems = append(chunkItems, resolvedItem{
-			notePath:    path,
-			content:     s.record.Text,
-			score:       s.score,
-			provenances: []string{provenanceDirect},
-			kind:        chunkItemKind,
-		})
-	}
-
-	return chunkItems, nil
 }
 
 // appendUniqueProvenance adds role to item.provenances iff not already present.
@@ -559,6 +563,38 @@ func applyCombinedRecencyBand(
 	}
 
 	return fillRecencyBand(items, combined, limit)
+}
+
+// applyFloorAndCap filters matched set items by the relevance floor on
+// baseScore, sorts by score desc (highest-scoring survive the cap), then caps
+// at matchSetCap. Returns items sorted by key for deterministic clustering.
+func applyFloorAndCap(byKey map[string]matchedSetItem) []matchedSetItem {
+	matched := make([]matchedSetItem, 0, len(byKey))
+
+	for _, item := range byKey {
+		if item.baseScore >= matchRelevanceFloor {
+			matched = append(matched, item)
+		}
+	}
+
+	sort.SliceStable(matched, func(i, j int) bool {
+		if matched[i].score != matched[j].score {
+			return matched[i].score > matched[j].score
+		}
+
+		return matched[i].key < matched[j].key
+	})
+
+	if len(matched) > matchSetCap {
+		matched = matched[:matchSetCap]
+	}
+
+	// Final sort by key for deterministic clustering order.
+	sort.SliceStable(matched, func(i, j int) bool {
+		return matched[i].key < matched[j].key
+	})
+
+	return matched
 }
 
 // applyProjectFilter drops items whose frontmatter project: field doesn't
@@ -681,6 +717,43 @@ func buildSubgraphMembers(
 	}
 
 	return members
+}
+
+// buildSynthesisMatchedSet performs per-phrase unified note+chunk matching for
+// the --synthesize-l2 path. For each phrase it embeds once, scores notes and
+// chunks with recency bias, merges into one list (top-matchPhraseLimit=30 per
+// phrase), then unions across phrases with dedup, relevance floor, and cap.
+// Returns matched notes and chunks as separate slices sorted by key.
+func buildSynthesisMatchedSet(
+	ctx context.Context,
+	phrases []string,
+	hits []compatibleSidecar,
+	records []chunk.Record,
+	vault string,
+	now time.Time,
+	maxTurnBySrc map[string]int,
+	deps QueryDeps,
+) ([]scoredCandidate, []scoredChunk, error) {
+	recency := defaultRecencyParams()
+	byKey := make(map[string]matchedSetItem)
+
+	for _, phrase := range phrases {
+		queryVec, embedErr := deps.Embedder.Embed(ctx, phrase)
+		if embedErr != nil {
+			return nil, nil, fmt.Errorf("query: embed: %w", embedErr)
+		}
+
+		noteHits := rankCandidates(hits, vault, deps.Read, queryVec, now)
+		chunkHits := scoreChunkForPhrase(queryVec, records, now, maxTurnBySrc, recency)
+
+		mergePhraseIntoUnion(noteHits, chunkHits, byKey)
+	}
+
+	matched := applyFloorAndCap(byKey)
+
+	notes, chunks := splitMatchedSet(matched)
+
+	return notes, chunks, nil
 }
 
 // buildUnionSubgraph turns the deduped union direct hits into an
@@ -1316,6 +1389,23 @@ func loadCompatibleSidecars(
 	}
 }
 
+// loadSynthesisChunkRecords loads chunk records for the --synthesize-l2 path.
+// Returns an empty slice (not an error) when chunks are not configured.
+func loadSynthesisChunkRecords(args QueryArgs, deps QueryDeps) ([]chunk.Record, error) {
+	if !chunksConfigured(args, deps) {
+		return nil, nil
+	}
+
+	records, err := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
+		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
 // maxProvenanceRank returns the highest priority value among the roles
 // listed in provenances.
 func maxProvenanceRank(provenances []string) int {
@@ -1583,6 +1673,52 @@ func mergeItemsByPath(summaries []queryPipelineSummary, limit int) []resolvedIte
 	})
 
 	return items
+}
+
+// mergePhraseIntoUnion builds a unified per-phrase ranked list from noteHits
+// and chunkHits, takes the top-matchPhraseLimit (30), then merges into byKey
+// (dedup by key, keeping the max-score item).
+func mergePhraseIntoUnion(
+	noteHits []scoredCandidate,
+	chunkHits []scoredChunk,
+	byKey map[string]matchedSetItem,
+) {
+	perPhrase := make([]matchedSetItem, 0, len(noteHits)+len(chunkHits))
+
+	for _, note := range noteHits {
+		perPhrase = append(perPhrase, matchedSetItem{
+			key:       note.notePath,
+			score:     note.score,
+			baseScore: note.baseScore,
+			isChunk:   false,
+			note:      note,
+		})
+	}
+
+	for _, chunkHit := range chunkHits {
+		perPhrase = append(perPhrase, matchedSetItem{
+			key:       chunkNotePath(chunkHit.record),
+			score:     chunkHit.score,
+			baseScore: chunkHit.baseScore,
+			isChunk:   true,
+			chunk:     chunkHit,
+		})
+	}
+
+	sort.SliceStable(perPhrase, func(i, j int) bool {
+		return perPhrase[i].score > perPhrase[j].score
+	})
+
+	if len(perPhrase) > matchPhraseLimit {
+		perPhrase = perPhrase[:matchPhraseLimit]
+	}
+
+	for _, item := range perPhrase {
+		existing, ok := byKey[item.key]
+		if !ok || item.score > existing.score {
+			byKey[item.key] = item
+		}
+	}
 }
 
 // mergeProvenances builds the resolved item list per F7's rules:
@@ -2110,6 +2246,13 @@ func runSynthesisQuery(
 // L2 in the vault. No band decision happens here; the recall skill bands it.
 // The L2 index is gathered from the FULL hits (every L2 in the vault is a
 // candidate nearest), while the clustered set is only the matched L1+L2.
+//
+// Phase 1 (recall-v2): the matched set is built by per-phrase unified note+chunk
+// ranking (Design step 1–2): for each phrase, both notes and chunks are scored
+// against the phrase vector with recency bias, merged into one ranked list
+// (top-matchPhraseLimit=30 per phrase), then unioned across phrases with dedup,
+// relevance floor on baseScore, and a hard cap at matchSetCap=300.
+// The matched set is the ONLY clustering input (D1 preserved).
 func runSynthesizeL2Query(
 	ctx context.Context,
 	args QueryArgs,
@@ -2126,23 +2269,23 @@ func runSynthesizeL2Query(
 		nowL2 = deps.Now()
 	}
 
-	union, err := unionDirectHits(ctx, args.Phrases, l1l2Hits, args.VaultPath, limit, nowL2, deps)
-	if err != nil {
-		return err
+	chunkRecords, loadErr := loadSynthesisChunkRecords(args, deps)
+	if loadErr != nil {
+		return loadErr
+	}
+
+	noteUnion, chunkUnion, matchErr := buildSynthesisMatchedSet(
+		ctx, args.Phrases, l1l2Hits, chunkRecords,
+		args.VaultPath, nowL2, maxTurnBySource(chunkRecords), deps,
+	)
+	if matchErr != nil {
+		return matchErr
 	}
 
 	// D1: build the subgraph from the note union, then extend with matched chunks
 	// so one AutoK pass clusters notes and chunks together.
-	subgraph := buildUnionSubgraph(union)
-
-	var chunkItems []resolvedItem // collected for items[] only
-
-	if chunksConfigured(args, deps) {
-		chunkItems, err = appendSynthesisChunks(ctx, args, deps, &subgraph, limit)
-		if err != nil {
-			return err
-		}
-	}
+	subgraph := buildUnionSubgraph(noteUnion)
+	chunkItems := addMatchedChunksToSubgraph(chunkUnion, &subgraph)
 
 	report := clusterUnionForSynthesis(subgraph, strings.Join(args.Phrases, "\n"))
 
@@ -2150,7 +2293,7 @@ func runSynthesizeL2Query(
 	// mergeClusterReps/mergeHubItems must not promote cluster reps into items[]
 	// because the L2 representative is agent-decided, not binary-computed (spec §2
 	// step 4). Direct-hit items come from the union; chunk items are appended below.
-	resolved := mergeProvenances(union, expandedSubgraph{}, clusterReport{}, hubReport{})
+	resolved := mergeProvenances(noteUnion, expandedSubgraph{}, clusterReport{}, hubReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
 	resolved = append(resolved, chunkItems...)
 
@@ -2209,6 +2352,23 @@ func singleClusterReport(subgraph expandedSubgraph, vectors [][]float32) cluster
 		representatives: []int{rep},
 		silhouettesByID: []float64{singletonClusterSilhouette},
 	}
+}
+
+// splitMatchedSet splits the matched set into separate note and chunk slices
+// (order preserved from the input, which is key-sorted).
+func splitMatchedSet(matched []matchedSetItem) ([]scoredCandidate, []scoredChunk) {
+	notes := make([]scoredCandidate, 0, len(matched))
+	chunks := make([]scoredChunk, 0, len(matched))
+
+	for _, item := range matched {
+		if item.isChunk {
+			chunks = append(chunks, item.chunk)
+		} else {
+			notes = append(notes, item.note)
+		}
+	}
+
+	return notes, chunks
 }
 
 // stripWikilinks removes `[[target]]` and `[[target|display]]` syntax

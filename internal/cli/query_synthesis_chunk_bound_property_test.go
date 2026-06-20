@@ -13,20 +13,26 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestProperty_SynthesizeL2_ChunkItemsBoundedByLimit locks the perf-critical
-// bound: matched chunks fed to the unified clustering (and emitted in items[])
-// are capped at limit, so silhouette stays O(limit^2) regardless of corpus
-// size. Without the cap, appendSynthesisChunks clusters and emits the entire
-// corpus, making recall O(corpus^2).
-func TestProperty_SynthesizeL2_ChunkItemsBoundedByLimit(t *testing.T) {
+// TestProperty_SynthesizeL2_ChunkItemsBoundedByMatchSetCap locks the
+// perf-critical bound for the --synthesize-l2 path: matched chunks (and notes)
+// fed to clustering and emitted in items[] are capped at matchSetCap (300),
+// so silhouette stays O(matchSetCap^2) regardless of corpus size. The cap
+// comes from the per-phrase matchPhraseLimit (top-30 per phrase) × phrase count.
+// With a single phrase and more than matchPhraseLimit chunks, the matched set
+// is capped at matchPhraseLimit (30).
+func TestProperty_SynthesizeL2_ChunkItemsBoundedByMatchSetCap(t *testing.T) {
 	t.Parallel()
 
 	queryVec := []float32{1, 0, 0, 0}
 
+	const (
+		matchPhraseLimit = 30
+		matchSetCap      = 300
+	)
+
 	rapid.Check(t, func(rt *rapid.T) {
-		limit := rapid.IntRange(1, 8).Draw(rt, "limit")
-		// Strictly more matched chunks than the limit.
-		chunkCount := limit + rapid.IntRange(1, 25).Draw(rt, "extraChunks")
+		// Strictly more matched chunks than matchPhraseLimit.
+		chunkCount := matchPhraseLimit + rapid.IntRange(1, 25).Draw(rt, "extraChunks")
 
 		vault := t.TempDir()
 		memFS := newInMemoryFS()
@@ -68,7 +74,7 @@ func TestProperty_SynthesizeL2_ChunkItemsBoundedByLimit(t *testing.T) {
 				VaultPath:    vault,
 				SynthesizeL2: true,
 				ChunksDir:    "/chunks",
-				Limit:        limit,
+				Limit:        1000, // large so limit flag doesn't confound the matchSetCap test
 			},
 			deps, &out)
 		if err != nil {
@@ -94,9 +100,15 @@ func TestProperty_SynthesizeL2_ChunkItemsBoundedByLimit(t *testing.T) {
 			}
 		}
 
-		if chunkItems > limit {
-			rt.Fatalf("chunk items = %d, must be <= limit %d (chunkCount=%d)",
-				chunkItems, limit, chunkCount)
+		// Single phrase: matched chunks ≤ matchPhraseLimit (30).
+		if chunkItems > matchPhraseLimit {
+			rt.Fatalf("chunk items = %d, must be <= matchPhraseLimit %d (chunkCount=%d)",
+				chunkItems, matchPhraseLimit, chunkCount)
+		}
+
+		// Total items (notes+chunks) ≤ matchSetCap (300).
+		if len(items) > matchSetCap {
+			rt.Fatalf("total items = %d, must be <= matchSetCap %d", len(items), matchSetCap)
 		}
 	})
 }
