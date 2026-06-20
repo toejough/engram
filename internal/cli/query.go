@@ -156,12 +156,21 @@ type aggregatedSummary struct {
 	limit          int
 }
 
+// candidateNoteIndex holds the note paths and BOTH sidecar vectors for the
+// note members of a single cluster — used for per-cluster nearest-note
+// nomination by max(situation,body) cosine against the cluster centroid.
+type candidateNoteIndex struct {
+	paths []string
+	sit   [][]float32
+	body  [][]float32
+}
+
 // clusterReport collects the AutoK output for the payload-rendering
 // stage. Empty Members means clustering was skipped or yielded nothing.
 type clusterReport struct {
 	autoK           cluster.AutoKResult
-	memberIDs       [][]int // memberIDs[c] = subgraphMember indices in cluster c
-	representatives []int   // representatives[c] = subgraphMember index for cluster c
+	memberIDs       [][]int // memberIDs[c] = matchedMember indices in cluster c
+	representatives []int   // representatives[c] = matchedMember index for cluster c
 	silhouettesByID []float64
 }
 
@@ -173,10 +182,27 @@ type compatibleSidecar struct {
 	sidecar embed.Sidecar
 }
 
-// expandedSubgraph is the post-BFS, post-sidecar-filtering subgraph the
-// later stages operate on.
-type expandedSubgraph struct {
-	members []subgraphMember
+// matchedMember bundles a node's basename, vault-relative path,
+// sidecar vector, query-similarity score, and (optionally) cached body.
+// kind overrides content-derived kind detection for chunk members.
+// sitVec and bodyVec carry both sidecar axes for within-cluster note
+// nomination (clusterNoteIndexFromMembers), so eitherAxisCosine can pick
+// the stronger axis against the centroid rather than the query.
+type matchedMember struct {
+	basename string
+	notePath string
+	vector   []float32 // winning coord (best-of sit/body vs queryVec)
+	sitVec   []float32 // situation-axis vector from sidecar
+	bodyVec  []float32 // body-axis vector from sidecar
+	score    float32
+	content  string
+	kind     string // empty = note; chunkItemKind for chunks
+}
+
+// matchedSet holds the unified set of notes and chunks that matched the query
+// phrases. Members are the inputs to the single AutoK clustering pass.
+type matchedSet struct {
+	members []matchedMember
 }
 
 // matchedSetItem is the unified per-phrase ranking element used by
@@ -194,9 +220,9 @@ type matchedSetItem struct {
 // phrasedCluster pairs a cluster report with the phrase that produced it,
 // so the payload can tag each cluster with its originating query phrase.
 type phrasedCluster struct {
-	phrase   string
-	report   clusterReport
-	subgraph expandedSubgraph
+	phrase  string
+	report  clusterReport
+	matched matchedSet
 }
 
 // queryBudget reports the totals visible to the caller per the YAML schema.
@@ -239,10 +265,8 @@ type queryClusterMember struct {
 // ClusterID and InDegree use *int so YAML omits them when nil per
 // the spec contract (set only when the provenance role is present).
 // OutboundLinks lists the note's authored wikilink target basenames (the
-// fence-aware graph parser's output) so a tier-limited recall still shows what
-// is one hop away to fetch with `engram show <basename>`; it is never
-// tier-filtered, which is what keeps the tier-read axis a test of
-// direct-provision-vs-follow-on-demand rather than a blinding.
+// fence-aware graph parser's output) so the recall skill can follow links
+// to adjacent notes via `engram show <basename>` without a separate query.
 type queryItem struct {
 	Path          string   `yaml:"path"`
 	Kind          string   `yaml:"kind"`
@@ -311,37 +335,11 @@ type sidecarLoadResult struct {
 	oldSchemaCount     int
 }
 
-// subgraphMember bundles a node's basename, vault-relative path,
-// sidecar vector, query-similarity score, and (optionally) cached body.
-// kind overrides content-derived kind detection for chunk members.
-// sitVec and bodyVec carry both sidecar axes for within-cluster note
-// nomination (clusterNoteIndexFromMembers), so eitherAxisCosine can pick
-// the stronger axis against the centroid rather than the query.
-type subgraphMember struct {
-	basename string
-	notePath string
-	vector   []float32 // winning coord (best-of sit/body vs queryVec)
-	sitVec   []float32 // situation-axis vector from sidecar
-	bodyVec  []float32 // body-axis vector from sidecar
-	score    float32
-	content  string
-	kind     string // empty = note; chunkItemKind for chunks
-}
-
-// tierIndex holds the vault-wide set of one tier's note paths and BOTH
-// sidecar vectors for per-cluster nearest-tier lookup by max(situation,body).
-// Built once per RunQuery call.
-type tierIndex struct {
-	paths []string
-	sit   [][]float32
-	body  [][]float32
-}
-
-// addMatchedChunksToSubgraph adds matched chunks to the subgraph as members
+// addMatchedChunksToMatchedSet adds matched chunks to the matched set as members
 // (so they cluster with notes — D1) and returns the parallel resolvedItem
 // slice for items[]. Chunks are sorted by score desc so items[] presents them
 // newest-most-relevant first within the chunk block.
-func addMatchedChunksToSubgraph(chunkUnion []scoredChunk, subgraph *expandedSubgraph) []resolvedItem {
+func addMatchedChunksToMatchedSet(chunkUnion []scoredChunk, subgraph *matchedSet) []resolvedItem {
 	sort.SliceStable(chunkUnion, func(i, j int) bool {
 		return chunkUnion[i].score > chunkUnion[j].score
 	})
@@ -350,7 +348,7 @@ func addMatchedChunksToSubgraph(chunkUnion []scoredChunk, subgraph *expandedSubg
 
 	for _, scored := range chunkUnion {
 		path := chunkNotePath(scored.record)
-		subgraph.members = append(subgraph.members, subgraphMember{
+		subgraph.members = append(subgraph.members, matchedMember{
 			basename: path,
 			notePath: path,
 			content:  scored.record.Text,
@@ -469,10 +467,8 @@ func applyFloorAndCap(byKey map[string]matchedSetItem) []matchedSetItem {
 // applyProjectFilter drops items whose frontmatter project: field doesn't
 // match the requested slug. Empty project is a no-op (returns items
 // unchanged). Items with no loaded content cannot be verified and are
-// dropped when a non-empty project is specified — the wikilink graph
-// stayed intact during BFS, so a project-A note still reaches its
-// project-A neighbors through a project-B bridge; the filter only
-// affects which items are emitted, not which ones were considered.
+// dropped when a non-empty project is specified. The filter only
+// affects which matched items are emitted, not which ones were scored.
 func applyProjectFilter(items []resolvedItem, project string) []resolvedItem {
 	if project == "" {
 		return items
@@ -513,7 +509,7 @@ func bestVector(queryVec []float32, sidecar embed.Sidecar) (float32, []float32) 
 // breakRepresentativeTie returns whichever of two member indices wins
 // the secondary tiebreakers: higher direct-hit score, then lexicographic
 // notePath ascending.
-func breakRepresentativeTie(subgraph expandedSubgraph, a, b int) int {
+func breakRepresentativeTie(subgraph matchedSet, a, b int) int {
 	memberA := subgraph.members[a]
 	memberB := subgraph.members[b]
 
@@ -529,11 +525,31 @@ func breakRepresentativeTie(subgraph expandedSubgraph, a, b int) int {
 	}
 }
 
+// buildMatchedSet converts the matched note candidates into a matchedSet,
+// carrying each hit's winning-vector coordinate forward for clustering.
+func buildMatchedSet(union []scoredCandidate) matchedSet {
+	members := make([]matchedMember, 0, len(union))
+
+	for _, hit := range union {
+		members = append(members, matchedMember{
+			basename: hit.basename,
+			notePath: hit.notePath,
+			vector:   hit.coord,
+			sitVec:   hit.sitVec,
+			bodyVec:  hit.bodyVec,
+			score:    hit.score,
+			content:  hit.content,
+		})
+	}
+
+	return matchedSet{members: members}
+}
+
 // buildRecentFillItems returns the un-clustered recency-channel items for
 // the --synthesize-l2 path (Channel 2, Phase 2). It selects the N newest
 // chunks by IngestedAt (using newestChunkItems for ordering), deduplicates
 // them against the already-matched chunk paths, and tags the survivors with
-// provenanceRecent. These items appear in items[] only — NOT in subgraph.members
+// provenanceRecent. These items appear in items[] only — NOT in matched.members
 // and therefore NOT in any cluster's members[].
 func buildRecentFillItems(allRecords []chunk.Record, matchedChunks []scoredChunk, n int) []resolvedItem {
 	if n <= 0 {
@@ -612,41 +628,18 @@ func buildSynthesisMatchedSet(
 	return notes, chunks, nil
 }
 
-// buildUnionSubgraph turns the deduped union direct hits into an
-// expandedSubgraph whose members ARE those hits (no BFS expansion), carrying
-// each hit's winning-vector coordinate forward. The graph/hops/capped fields
-// stay zero-valued because synthesis clusters the union itself and computes
-// no hubs.
-func buildUnionSubgraph(union []scoredCandidate) expandedSubgraph {
-	members := make([]subgraphMember, 0, len(union))
-
-	for _, hit := range union {
-		members = append(members, subgraphMember{
-			basename: hit.basename,
-			notePath: hit.notePath,
-			vector:   hit.coord,
-			sitVec:   hit.sitVec,
-			bodyVec:  hit.bodyVec,
-			score:    hit.score,
-			content:  hit.content,
-		})
-	}
-
-	return expandedSubgraph{members: members}
-}
-
 // chunksConfigured reports whether a chunk index is wired into this run
 // (non-empty chunks dir and a list function available).
 func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
 	return args.ChunksDir != "" && deps.ListChunkIndexes != nil
 }
 
-// clusterNoteIndexFromMembers builds a tierIndex from the note members of a
-// single cluster (Phase 3, within-cluster nomination). Only subgraphMembers
+// clusterNoteIndexFromMembers builds a candidateNoteIndex from the note members of a
+// single cluster (Phase 3, within-cluster nomination). Only matched members
 // whose kind is NOT chunkItemKind are included; chunk members are skipped.
-// An empty index (no note members) yields an empty tierIndex{}.
-func clusterNoteIndexFromMembers(subgraph expandedSubgraph, memberIndices []int) tierIndex {
-	idx := tierIndex{}
+// An empty index (no note members) yields an empty candidateNoteIndex{}.
+func clusterNoteIndexFromMembers(subgraph matchedSet, memberIndices []int) candidateNoteIndex {
+	idx := candidateNoteIndex{}
 
 	for _, i := range memberIndices {
 		member := subgraph.members[i]
@@ -662,12 +655,11 @@ func clusterNoteIndexFromMembers(subgraph expandedSubgraph, memberIndices []int)
 	return idx
 }
 
-// clusterUnionForSynthesis clusters the union subgraph exactly once. It mirrors
-// clusterSubgraph but (a) skips the minSubgraphForClustering floor, and (b) on
+// clusterUnionForSynthesis clusters the matched set exactly once. On
 // AutoK returning K==0 (no split beats the silhouette floor) or an error, falls
-// back to a SINGLE cluster of all members so a non-empty union always yields
-// >=1 cluster. An empty union yields an empty (K==0) report.
-func clusterUnionForSynthesis(subgraph expandedSubgraph, query string) clusterReport {
+// back to a SINGLE cluster of all members so a non-empty matched set always yields
+// >=1 cluster. An empty matched set yields an empty (K==0) report.
+func clusterUnionForSynthesis(subgraph matchedSet, query string) clusterReport {
 	if len(subgraph.members) == 0 {
 		return clusterReport{}
 	}
@@ -714,7 +706,7 @@ func clusterUnionForSynthesis(subgraph expandedSubgraph, query string) clusterRe
 // surviving member is promoted so every non-empty cluster still reports
 // exactly one representative.
 func collectClusterMembers(
-	subgraph expandedSubgraph,
+	subgraph matchedSet,
 	report clusterReport,
 	clusterID int,
 ) []queryClusterMember {
@@ -947,7 +939,7 @@ func meanVector(vectors [][]float32) []float32 {
 // mergeClusterReps annotates representatives with provenance + cluster_id,
 // adding new entries when a rep is not already a direct hit.
 func mergeClusterReps(
-	subgraph expandedSubgraph,
+	subgraph matchedSet,
 	clusters clusterReport,
 	byBasename map[string]*resolvedItem,
 ) {
@@ -1058,13 +1050,13 @@ func mergePhraseIntoUnion(
 // Ordering: provenance count desc → highest-priority provenance desc →
 // score desc.
 //
-// Bodies for non-direct entries are looked up from the subgraph
-// member's `content` field (loaded if it was a direct hit) — non-direct
-// reps/hubs need a separate fill pass via a deps.Read callback; that
-// happens in the renderer to keep this stage pure.
+// Bodies for non-direct entries are looked up from the matched member's
+// `content` field (loaded if it was a direct hit); non-direct cluster reps
+// need a separate fill pass via a deps.Read callback that happens in the
+// renderer to keep this stage pure.
 func mergeProvenances(
 	directHits []scoredCandidate,
-	subgraph expandedSubgraph,
+	subgraph matchedSet,
 	clusters clusterReport,
 ) []resolvedItem {
 	byBasename := make(map[string]*resolvedItem)
@@ -1183,10 +1175,10 @@ func perClusterMeanSilhouette(vectors [][]float32, assignments []int, clusterCou
 	return means
 }
 
-// pickRepresentative returns the subgraph-member index closest to the
+// pickRepresentative returns the matched-member index closest to the
 // centroid by cosine distance. Ties broken by direct-hit score desc,
 // then by lexicographic path.
-func pickRepresentative(subgraph expandedSubgraph, memberIndices []int, centroid []float32) int {
+func pickRepresentative(subgraph matchedSet, memberIndices []int, centroid []float32) int {
 	best := memberIndices[0]
 	bestDist := cluster.CosineDistance(subgraph.members[best].vector, centroid)
 
@@ -1290,13 +1282,13 @@ func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
 		}
 
 		for clusterID := range pc.report.autoK.K {
-			members := collectClusterMembers(pc.subgraph, pc.report, clusterID)
+			members := collectClusterMembers(pc.matched, pc.report, clusterID)
 			if len(members) == 0 {
 				continue
 			}
 
 			centroid := pc.report.autoK.Centroids[clusterID]
-			clusterNotes := clusterNoteIndexFromMembers(pc.subgraph, pc.report.memberIDs[clusterID])
+			clusterNotes := clusterNoteIndexFromMembers(pc.matched, pc.report.memberIDs[clusterID])
 
 			out = append(out, queryCluster{
 				ID:           clusterID,
@@ -1409,20 +1401,12 @@ func resolvedItemLess(a, b resolvedItem) bool {
 	return a.score > b.score
 }
 
-// runSynthesizeL2Query runs the sole query path. It
-// builds the matched set from all notes (ranked per-phrase with recency bias),
-// clusters the matched set (D1), and emits per-cluster candidate_l2s
-// [{path, cosine}] so the recall skill can judge coverage. No L3 filtering
-// or nearest_l3 annotation — only notes (L2 tier by default) appear. Any
-// legacy hand-edited tier: L3 notes cluster as normal notes (no L3 filtering);
-// the active vault has none.
-//
-// Phase 1 (recall-v2): the matched set is built by per-phrase unified note+chunk
-// ranking (Design step 1–2): for each phrase, both notes and chunks are scored
-// against the phrase vector with recency bias, merged into one ranked list
-// (top-matchPhraseLimit=30 per phrase), then unioned across phrases with dedup,
-// relevance floor on baseScore, and a hard cap at matchSetCap=300.
-// The matched set is the ONLY clustering input (D1 preserved).
+// runSynthesizeL2Query is the sole query path. For each phrase it embeds once,
+// scores notes and chunks with recency bias, merges into one ranked list
+// (top-matchPhraseLimit=30 per phrase), then unions across phrases with dedup,
+// relevance floor on baseScore, and a hard cap at matchSetCap=300. The
+// resulting matched set is clustered exactly once (D1) and emits per-cluster
+// candidate_l2s [{path, cosine}] so the recall skill can judge coverage.
 func runSynthesizeL2Query(
 	ctx context.Context,
 	args QueryArgs,
@@ -1450,24 +1434,24 @@ func runSynthesizeL2Query(
 		return matchErr
 	}
 
-	// D1: build the subgraph from the note union, then extend with matched chunks
+	// D1: build the matched set from the note union, then extend with matched chunks
 	// so one AutoK pass clusters notes and chunks together.
-	subgraph := buildUnionSubgraph(noteUnion)
-	chunkItems := addMatchedChunksToSubgraph(chunkUnion, &subgraph)
+	subgraph := buildMatchedSet(noteUnion)
+	chunkItems := addMatchedChunksToMatchedSet(chunkUnion, &subgraph)
 
 	report := clusterUnionForSynthesis(subgraph, strings.Join(args.Phrases, "\n"))
 
-	// mergeProvenances receives an empty expandedSubgraph{} deliberately:
-	// mergeClusterReps/mergeHubItems must not promote cluster reps into items[]
-	// because the L2 representative is agent-decided, not binary-computed (spec §2
-	// step 4). Direct-hit items come from the union; chunk items are appended below.
-	resolved := mergeProvenances(noteUnion, expandedSubgraph{}, clusterReport{})
+	// mergeProvenances receives an empty matchedSet{} deliberately:
+	// mergeClusterReps must not promote cluster reps into items[] because
+	// the representative is agent-decided, not binary-computed (spec §2 step 4).
+	// Direct-hit items come from the note union; chunk items are appended below.
+	resolved := mergeProvenances(noteUnion, matchedSet{}, clusterReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
 	resolved = append(resolved, chunkItems...)
 
 	// Channel 2 — Recency (Phase 2): append the recentFillChunks newest chunks
 	// by IngestedAt, deduped against the matched set, tagged provenanceRecent.
-	// These are NOT added to subgraph.members and therefore do NOT appear in any
+	// These are NOT added to the matched set and therefore do NOT appear in any
 	// cluster's members[].
 	recentItems := buildRecentFillItems(chunkRecords, chunkUnion, recentFillChunks)
 	resolved = append(resolved, recentItems...)
@@ -1475,7 +1459,7 @@ func runSynthesizeL2Query(
 	merged := aggregatedSummary{
 		phrases:        args.Phrases,
 		resolvedItems:  resolved,
-		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, subgraph: subgraph}},
+		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, matched: subgraph}},
 		// candidate_l2s are nominated from each cluster's own note members
 		// (Phase 3, within-cluster nomination), not the full-vault index.
 		outgoing:       outgoingByBasename(notes),
@@ -1500,7 +1484,7 @@ func seedFromQuery(query string) uint64 {
 // member, with a centroid computed as the mean of all member vectors (AutoK
 // returns nil centroids when K==0) and a representative picked the normal way.
 // Silhouette is undefined for a single cluster, so it is reported as zero.
-func singleClusterReport(subgraph expandedSubgraph, vectors [][]float32) clusterReport {
+func singleClusterReport(subgraph matchedSet, vectors [][]float32) clusterReport {
 	allIndices := make([]int, len(subgraph.members))
 	for i := range allIndices {
 		allIndices[i] = i
@@ -1555,7 +1539,7 @@ func stripWikilinks(content string) string {
 // eligible (D7's full-vault nomination was reversed; see DESIGN-HISTORY §9). The sort
 // key is CENTROID cosine (per spec §3.3: "top-K by centroid cosine");
 // max-member cosine was rejected because it overfits to a cluster fragment.
-func topKCandidateNotes(centroid []float32, idx tierIndex) []queryCandidateNote {
+func topKCandidateNotes(centroid []float32, idx candidateNoteIndex) []queryCandidateNote {
 	if len(idx.paths) == 0 {
 		return nil
 	}

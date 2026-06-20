@@ -133,8 +133,8 @@ func ExportBreakRepresentativeTie(
 	scoreB float32,
 	pathB string,
 ) string {
-	subgraph := expandedSubgraph{
-		members: []subgraphMember{
+	subgraph := matchedSet{
+		members: []matchedMember{
 			{notePath: pathA, score: scoreA, vector: []float32{1, 0}},
 			{notePath: pathB, score: scoreB, vector: []float32{1, 0}},
 		},
@@ -173,10 +173,10 @@ func ExportMergeClusterReps(
 	memberContents []string,
 	representatives map[int]int,
 ) []ExportMergeClusterRepsEntry {
-	members := make([]subgraphMember, len(memberPaths))
+	members := make([]matchedMember, len(memberPaths))
 	for i, path := range memberPaths {
 		basename := path
-		members[i] = subgraphMember{
+		members[i] = matchedMember{
 			basename: basename,
 			notePath: path,
 			score:    memberScores[i],
@@ -184,7 +184,7 @@ func ExportMergeClusterReps(
 		}
 	}
 
-	subgraph := expandedSubgraph{members: members}
+	subgraph := matchedSet{members: members}
 
 	clusters := clusterReport{
 		representatives: make([]int, 0),
