@@ -82,6 +82,81 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 	g.Expect(withNearest).To(Equal(chunkClusters), "every chunk cluster carries candidate_l2s for the bands")
 }
 
+// TestRunQuery_ChunkClustersOmitCandidateL2sWhenTierExcludesL2 covers the
+// topKCandidateL2sForTier early-exit branch: when the caller passes a tier
+// filter that does not include L2, chunk clusters must carry empty
+// candidate_l2s even when L2 notes exist in the vault.
+func TestRunQuery_ChunkClustersOmitCandidateL2sWhenTierExcludesL2(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	// L2 note present — would populate candidate_l2s if tiers allowed it.
+	plantNoteWithSidecar(t, memFS, vault, "1.linting.md",
+		"---\ntype: fact\ntier: L2\n---\nAlways run the linter before committing changes.\n")
+
+	// Two distinct vector neighborhoods (8 records total) so at least one
+	// cluster clears the silhouette floor and reaches topKCandidateL2sForTier.
+	records := make([]chunk.Record, 0, 8)
+	for i := range 4 {
+		records = append(records, chunk.Record{
+			Source: "/s/a.jsonl", Anchor: "lint-" + string(rune('a'+i)),
+			ContentHash: chunk.HashText("lint" + string(rune('a'+i))),
+			Text:        "reviewer flagged linter convention variant " + string(rune('a'+i)),
+			Vector:      []float32{1, 0.01 * float32(i), 0, 0},
+		})
+		records = append(records, chunk.Record{
+			Source: "/s/a.jsonl", Anchor: "feed-" + string(rune('a'+i)),
+			ContentHash: chunk.HashText("feed" + string(rune('a'+i))),
+			Text:        "feed parsing discussion variant " + string(rune('a'+i)),
+			Vector:      []float32{0, 1, 0.01 * float32(i), 0},
+		})
+	}
+
+	data, err := chunk.EncodeRecords(records)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	memFS.files["/chunks/s1.jsonl"] = data
+
+	var out bytes.Buffer
+
+	err = cli.RunQuery(context.Background(),
+		cli.QueryArgs{
+			Phrases:   []string{"linter conventions"},
+			VaultPath: vault,
+			Limit:     20,
+			ChunksDir: "/chunks",
+			Tiers:     []string{"L1"}, // excludes L2 → topKCandidateL2sForTier must return nil
+		},
+		unifiedQueryDeps(memFS, "/chunks/s1.jsonl"), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		Clusters []struct {
+			Phrase       string `yaml:"phrase"`
+			CandidateL2s []struct {
+				Path string `yaml:"path"`
+			} `yaml:"candidate_l2s"`
+		} `yaml:"clusters"`
+	}
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	chunkClustersFound := 0
+
+	for _, parsedCluster := range parsed.Clusters {
+		if parsedCluster.Phrase == "chunks" {
+			chunkClustersFound++
+
+			g.Expect(parsedCluster.CandidateL2s).To(BeEmpty(),
+				"chunk cluster must have empty candidate_l2s when tier filter excludes L2")
+		}
+	}
+
+	g.Expect(chunkClustersFound).To(BeNumerically(">=", 1),
+		"at least one chunk cluster must form to validate topKCandidateL2sForTier suppression")
+}
+
 func TestRunQuery_MergesChunkAndVaultSpace(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

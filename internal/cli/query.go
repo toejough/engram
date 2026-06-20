@@ -375,7 +375,10 @@ type resolvedItem struct {
 // scoredCandidate aggregates one note's match against the query vector.
 // coord is the WINNING vector — the one of the note's two axes that scored
 // highest — used as the note's clustering coordinate (a note is clustered by
-// the vector that matched it).
+// the vector that matched it). sitVec and bodyVec carry both sidecar axes so
+// within-cluster L2 nomination can apply eitherAxisCosine against the
+// cluster centroid (the winning coord vs queryVec is not the same as the
+// better axis vs the centroid — Phase 3 nominal fix).
 type scoredCandidate struct {
 	notePath  string
 	basename  string
@@ -384,6 +387,8 @@ type scoredCandidate struct {
 	lastUsed  string  // YYYY-MM-DD from Sidecar.LastUsed
 	created   string  // YYYY-MM-DD from note frontmatter
 	coord     []float32
+	sitVec    []float32 // SituationVector from sidecar
+	bodyVec   []float32 // BodyVector from sidecar
 	content   string
 }
 
@@ -402,10 +407,15 @@ type sidecarLoadResult struct {
 // subgraphMember bundles a node's basename, vault-relative path,
 // sidecar vector, query-similarity score, and (optionally) cached body.
 // kind overrides content-derived kind detection for chunk members.
+// sitVec and bodyVec carry both sidecar axes for within-cluster L2
+// nomination (clusterL2IndexFromMembers), so eitherAxisCosine can pick
+// the stronger axis against the centroid rather than the query.
 type subgraphMember struct {
 	basename string
 	notePath string
-	vector   []float32
+	vector   []float32 // winning coord (best-of sit/body vs queryVec)
+	sitVec   []float32 // situation-axis vector from sidecar
+	bodyVec  []float32 // body-axis vector from sidecar
 	score    float32
 	content  string
 	kind     string // empty = note; chunkItemKind for chunks
@@ -752,6 +762,8 @@ func buildSubgraphMembers(
 			notePath: notePath,
 			vector:   coord,
 			score:    score,
+			sitVec:   hit.sidecar.SituationVector,
+			bodyVec:  hit.sidecar.BodyVector,
 		}
 
 		if content, ok := directContentByBasename[name]; ok {
@@ -819,6 +831,8 @@ func buildUnionSubgraph(union []scoredCandidate) expandedSubgraph {
 			basename: hit.basename,
 			notePath: hit.notePath,
 			vector:   hit.coord,
+			sitVec:   hit.sitVec,
+			bodyVec:  hit.bodyVec,
 			score:    hit.score,
 			content:  hit.content,
 		})
@@ -885,6 +899,32 @@ func clusterChunkItems(scored []scoredChunk, l2Notes tierIndex, tiers, phrases [
 	}
 
 	return clusters
+}
+
+// clusterL2IndexFromMembers builds a tierIndex from the L2 note members of a
+// single cluster (Phase 3, within-cluster nomination). Only subgraphMembers
+// whose kind is NOT chunkItemKind and whose content carries tier: L2 in
+// frontmatter are included; chunks and non-L2 notes are skipped. An empty
+// index (no L2 note members) yields an empty tierIndex{}.
+func clusterL2IndexFromMembers(subgraph expandedSubgraph, memberIndices []int) tierIndex {
+	idx := tierIndex{}
+
+	for _, i := range memberIndices {
+		member := subgraph.members[i]
+		if member.kind == chunkItemKind {
+			continue
+		}
+
+		if !itemMatchesTier(resolvedItem{content: member.content}, []string{tierL2}) {
+			continue
+		}
+
+		idx.paths = append(idx.paths, member.notePath)
+		idx.sit = append(idx.sit, member.sitVec)
+		idx.body = append(idx.body, member.bodyVec)
+	}
+
+	return idx
 }
 
 // clusterSubgraph runs auto-k k-means + silhouette over the subgraph's
@@ -2032,6 +2072,8 @@ func rankCandidates(
 			lastUsed:  hit.sidecar.LastUsed,
 			created:   created,
 			coord:     coord,
+			sitVec:    hit.sidecar.SituationVector,
+			bodyVec:   hit.sidecar.BodyVector,
 			content:   stripWikilinks(string(noteBytes)),
 		})
 	}
@@ -2048,12 +2090,16 @@ func rankCandidates(
 // cluster is tagged with the phrase that produced it. l3Notes provides the
 // vault-wide L3 note index for nearest-L3 annotation.
 //
+// candidate_l2s is nominated from each cluster's OWN L2 note members (Phase 3,
+// within-cluster nomination — reversal of D7). A cluster with no L2 note members
+// yields an empty candidate_l2s (explicitly allowed; chunk-only clusters exist).
+//
 // tiers enforces T1a isolation across the cluster channels: members are
 // constrained to the requested tier set, a cluster that empties after
 // filtering is dropped entirely, and nearest_l3 (always an L3 note by
 // construction) is suppressed for any tier set that omits L3. An empty tier
 // set leaves all channels blended.
-func renderClusters(phraseClusters []phrasedCluster, l3Notes, l2Notes tierIndex, tiers []string) []queryCluster {
+func renderClusters(phraseClusters []phrasedCluster, l3Notes tierIndex, tiers []string) []queryCluster {
 	var out []queryCluster
 
 	for _, pc := range phraseClusters {
@@ -2068,6 +2114,7 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes, l2Notes tierIndex,
 			}
 
 			centroid := pc.report.autoK.Centroids[clusterID]
+			clusterL2s := clusterL2IndexFromMembers(pc.subgraph, pc.report.memberIDs[clusterID])
 
 			out = append(out, queryCluster{
 				ID:           clusterID,
@@ -2076,7 +2123,7 @@ func renderClusters(phraseClusters []phrasedCluster, l3Notes, l2Notes tierIndex,
 				Silhouette:   pc.report.silhouettesByID[clusterID],
 				Members:      members,
 				NearestL3:    nearestL3ForTier(centroid, l3Notes, tiers),
-				CandidateL2s: topKCandidateL2sForTier(centroid, l2Notes, tiers),
+				CandidateL2s: topKCandidateL2sForTier(centroid, clusterL2s, tiers),
 			})
 		}
 	}
@@ -2126,7 +2173,7 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 // pipeline output.
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems, merged.outgoing)
-	clusters := renderClusters(merged.phraseClusters, merged.l3, merged.l2, merged.tiers)
+	clusters := renderClusters(merged.phraseClusters, merged.l3, merged.tiers)
 	clusters = append(clusters, merged.chunkClusters...)
 	contentful := countItemsWithContent(items)
 
@@ -2359,7 +2406,8 @@ func runSynthesizeL2Query(
 		resolvedItems:  resolved,
 		phraseClusters: []phrasedCluster{{phrase: synthesisClusterPhrase, report: report, subgraph: subgraph}},
 		l3:             tierIndex{}, // L3 not emitted in this mode
-		l2:             gatherTierIndex(hits, args.VaultPath, deps.Read, tierL2),
+		// l2 not set: candidate_l2s are nominated from each cluster's own note
+		// members (Phase 3, within-cluster nomination), not the full-vault index.
 		outgoing:       outgoingByBasename(notes),
 		tiers:          nil,
 		totalNotes:     len(notes),

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -311,9 +312,17 @@ func TestQuery_Synthesis_SingleMemberUnionYieldsOneCluster(t *testing.T) {
 	g.Expect(parsed.Clusters[0].Members[0].IsRepresentative).To(BeTrue())
 }
 
-// TestQuery_SynthesizeL2_CandidateL2sTopKAtLeastThree verifies that when >=3
-// L2 notes exist, candidate_l2s carries at least 3 entries sorted cosine desc.
-func TestQuery_SynthesizeL2_CandidateL2sTopKAtLeastThree(t *testing.T) {
+// TestQuery_SynthesizeL2_CandidateL2sFromWithinClusterMembersOnly locks the
+// within-cluster nomination property (Phase 3, reversal of D7): a cluster's
+// candidate_l2s must contain ONLY notes that are members of that cluster.
+//
+// Three sub-properties verified:
+//  1. A below-floor L2 (excluded from the matched set, never a cluster member)
+//     is NEVER nominated — even though it lives in the vault.
+//  2. A note-less cluster (one whose members are all L1, no L2) yields an EMPTY
+//     candidate_l2s (explicitly allowed per Phase-3 spec).
+//  3. When an L2 IS a cluster member, it IS nominated.
+func TestQuery_SynthesizeL2_CandidateL2sFromWithinClusterMembersOnly(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -323,20 +332,177 @@ func TestQuery_SynthesizeL2_CandidateL2sTopKAtLeastThree(t *testing.T) {
 
 	queryVec := []float32{1, 0, 0, 0}
 
+	// Four L1 notes at the query vector — these enter the matched set and cluster.
+	// They are NOT L2 notes, so a cluster containing only them has no L2 members.
 	for i := range 4 {
 		plantDualVector(t, memFS, vault, fmt.Sprintf("%d.ep.md", i+1),
 			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
 	}
 
-	l2Vecs := [][]float32{
-		{1, 0, 0, 0},
-		{1, 0.1, 0, 0},
-		{1, 0.2, 0, 0},
-		{1, 0.3, 0, 0},
-		{1, 0.5, 0, 0},
+	// An L2 with cosine ~0.20 to the query — below matchRelevanceFloor (0.25),
+	// so it is dropped from the matched set by the floor filter and is never a
+	// cluster member. Under within-cluster nomination it must NOT appear in
+	// candidate_l2s for any cluster.
+	belowFloor := []float32{0.2, 0.98, 0, 0} // cosine to {1,0,0,0} ≈ 0.20
+	plantDualVector(t, memFS, vault, "below-floor.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", belowFloor, belowFloor)
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: queryVec}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, SynthesizeL2: true},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
 	}
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
+
+	// The below-floor L2 must not appear as a cluster member.
+	for _, parsedCluster := range parsed.Clusters {
+		for _, member := range parsedCluster.Members {
+			g.Expect(member.Path).NotTo(ContainSubstring("below-floor"),
+				"the below-floor L2 must be excluded from the matched set and cluster membership")
+		}
+	}
+
+	// Every cluster has only L1 members (no L2 members) — candidate_l2s must be
+	// empty (nil/absent in YAML). The below-floor L2 must NOT be nominated.
+	for _, parsedCluster := range parsed.Clusters {
+		for _, cand := range parsedCluster.CandidateL2s {
+			g.Expect(cand.Path).NotTo(ContainSubstring("below-floor"),
+				"a note absent from the cluster's membership must never appear in candidate_l2s")
+		}
+
+		// No L2 note is a member of any cluster, so candidate_l2s must be empty.
+		g.Expect(parsedCluster.CandidateL2s).To(BeEmpty(),
+			"a cluster with no L2 note members must yield an empty candidate_l2s")
+	}
+}
+
+// TestQuery_SynthesizeL2_CandidateL2sIncludesL2ClusterMembers verifies the
+// positive case: when an L2 note IS a cluster member (above the relevance floor
+// and clustered with the other matches), it IS nominated in candidate_l2s.
+func TestQuery_SynthesizeL2_CandidateL2sIncludesL2ClusterMembers(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	queryVec := []float32{1, 0, 0, 0}
+
+	// L1 notes at the query vector — seed the matched set.
+	for i := range 4 {
+		plantDualVector(t, memFS, vault, fmt.Sprintf("%d.ep.md", i+1),
+			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
+	}
+
+	// An L2 well above the relevance floor — it enters the matched set and clusters
+	// with the L1 notes. Under within-cluster nomination it MUST appear in candidate_l2s.
+	aboveFloor := []float32{1, 0.1, 0, 0} // cosine to {1,0,0,0} ≈ 0.995
+	plantDualVector(t, memFS, vault, "in-cluster.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", aboveFloor, aboveFloor)
+
+	deps := newQueryDeps(memFS)
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: queryVec}
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, SynthesizeL2: true},
+		deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
+
+	// Find the cluster that contains in-cluster.fact.md as a member.
+	foundNominated := false
+
+	for _, parsedCluster := range parsed.Clusters {
+		memberPaths := make(map[string]bool)
+
+		for _, member := range parsedCluster.Members {
+			memberPaths[member.Path] = true
+		}
+
+		if !memberPaths["in-cluster.fact.md"] {
+			continue
+		}
+
+		// This cluster has the L2 as a member; it must appear in candidate_l2s.
+		candPaths := make([]string, 0, len(parsedCluster.CandidateL2s))
+
+		for _, cand := range parsedCluster.CandidateL2s {
+			candPaths = append(candPaths, cand.Path)
+		}
+
+		g.Expect(candPaths).To(ContainElement("in-cluster.fact.md"),
+			"an L2 that is a cluster member must be nominated in candidate_l2s")
+
+		foundNominated = true
+	}
+
+	g.Expect(foundNominated).To(BeTrue(),
+		"in-cluster.fact.md must be a cluster member and appear in candidate_l2s")
+}
+
+// TestQuery_SynthesizeL2_CandidateL2sTopK verifies the within-cluster top-K
+// invariant (Phase 3):
+//   - candidate_l2s for each cluster is bounded by candidateL2K (5) and by the
+//     number of L2 note members in that cluster;
+//   - candidates are drawn from WITHIN the cluster (no L2 from another cluster
+//     or from the full vault appears in a cluster it didn't join);
+//   - candidates are sorted cosine-desc.
+//
+// To isolate the "fewer members → fewer candidates" property, the test plants
+// exactly 3 L2 notes so that all 3 land in the matched set and one cluster,
+// and expects exactly 3 candidates (fewer than candidateL2K=5). Notes are tight
+// around {1,0,0,0} so AutoK collapses to a single cluster via singleClusterReport.
+func TestQuery_SynthesizeL2_CandidateL2sTopK(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	queryVec := []float32{1, 0, 0, 0}
+
+	// Four L1 notes at the query vector — seed the cluster.
+	for i := range 4 {
+		plantDualVector(t, memFS, vault, fmt.Sprintf("%d.ep.md", i+1),
+			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
+	}
+
+	// Three L2 notes, all well above the relevance floor and tight enough to
+	// the query that AutoK won't split them away from the L1 cluster.
+	l2Vecs := [][]float32{
+		{1, 0, 0, 0},    // cosine 1.0
+		{1, 0.05, 0, 0}, // cosine ~0.999
+		{1, 0.10, 0, 0}, // cosine ~0.995
+	}
+	l2Paths := make([]string, len(l2Vecs))
+
 	for i, vec := range l2Vecs {
-		plantDualVector(t, memFS, vault, fmt.Sprintf("l2-%d.fact.md", i),
+		l2Paths[i] = fmt.Sprintf("l2-%d.fact.md", i)
+		plantDualVector(t, memFS, vault, l2Paths[i],
 			"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", vec, vec)
 	}
 
@@ -354,23 +520,35 @@ func TestQuery_SynthesizeL2_CandidateL2sTopKAtLeastThree(t *testing.T) {
 		return
 	}
 
-	var raw map[string]any
+	var parsed queryParsed
 
-	g.Expect(yaml.Unmarshal(out.Bytes(), &raw)).NotTo(HaveOccurred())
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
 
-	clusters, ok := raw["clusters"].([]any)
-	g.Expect(ok).To(BeTrue(), "clusters must be a sequence")
-	g.Expect(clusters).NotTo(BeEmpty())
+	// Per-cluster invariants: candidate count ≤ min(5, L2-member-count); all
+	// candidates are L2 members of that cluster; sorted cosine desc.
+	var rawMap map[string]any
 
-	first, ok := clusters[0].(map[string]any)
-	g.Expect(ok).To(BeTrue(), "a cluster must be a mapping")
+	g.Expect(yaml.Unmarshal(out.Bytes(), &rawMap)).NotTo(HaveOccurred())
 
-	candidates, ok := first["candidate_l2s"].([]any)
-	g.Expect(ok).To(BeTrue(), "candidate_l2s must be a sequence")
-	g.Expect(len(candidates)).To(BeNumerically(">=", 3),
-		"candidate_l2s must carry top-K (K>=3) entries when enough L2s exist")
+	rawClusters, _ := rawMap["clusters"].([]any)
 
-	expectCandidatesSortedDesc(g, candidates)
+	assertWithinClusterL2Bounds(g, parsed, l2Paths, rawClusters)
+
+	// Total L2 candidates across all clusters must cover every L2 in the matched
+	// set (3 in this fixture — fewer than candidateL2K=5).
+	totalL2CandidatesByPath := make(map[string]bool)
+
+	for _, parsedCluster := range parsed.Clusters {
+		for _, cand := range parsedCluster.CandidateL2s {
+			totalL2CandidatesByPath[cand.Path] = true
+		}
+	}
+
+	for _, l2Path := range l2Paths {
+		g.Expect(totalL2CandidatesByPath).To(HaveKey(l2Path),
+			"L2 note %q is in the matched set and must appear in candidate_l2s of its cluster", l2Path)
+	}
 }
 
 // TestQuery_SynthesizeL2_CandidateUsesStrongerAxis verifies the candidate_l2s
@@ -438,15 +616,15 @@ func TestQuery_SynthesizeL2_CandidateUsesStrongerAxis(t *testing.T) {
 		"either-axis gate must report the stronger body-axis cosine, not the orthogonal situation axis")
 }
 
-// TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK verifies the
-// D7 invariant: when a chunk-heavy centroid depresses absolute cosines, the
-// covering L2 may not be the nearest to the centroid but still appears within
-// top-K. The fixture plants six L2s with K=5 (candidateL2K=5), so the cutoff
-// must drop exactly one. The DISTRACTOR sits on the centroid axis (cosine 1.0 →
-// ranks #1), so the COVER (cosine ~0.9) is NOT the centroid-nearest; cover +
-// MID1 (~0.7) + MID2 (~0.5) + MID3 (~0.3) round out top-5; the FAR L2
-// (cosine 0) is excluded by the K=5 cutoff. This pits "cover survives top-K
-// despite not being #1" against a real cutoff — the D7 nomination invariant.
+// TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK verifies that
+// within a cluster, an L2 that is NOT the centroid-nearest still appears in
+// candidate_l2s when it is a cluster member — the ranking is by centroid cosine
+// desc, so any L2 member with a lower cosine than another still surfaces so long
+// as there are fewer than candidateL2K L2 members ahead of it. The fixture
+// plants an L2 DISTRACTOR at the cluster centroid (cosine 1.0) and a COVER L2
+// at cosine ~0.9: both are cluster members, distractor ranks first, cover
+// still appears. The FAR L2 (cosine 0 to the query) is excluded by
+// matchRelevanceFloor and is never a cluster member, so it is never nominated.
 func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) {
 	t.Parallel()
 
@@ -462,29 +640,20 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 			"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", noteVec, noteVec)
 	}
 
-	// Six L2s with candidateL2K=5, so the cutoff drops exactly one (the FAR L2).
-	// The DISTRACTOR sits on the centroid axis (cosine 1.0 → ranks #1), so the
-	// COVER (cosine ~0.9) is NOT the centroid-nearest.
+	// DISTRACTOR: sits on the centroid axis (cosine 1.0 → ranks #1 in candidates).
 	distractor := []float32{1, 0, 0, 0}
 	plantDualVector(t, memFS, vault, "l2-distractor.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", distractor, distractor)
 
+	// COVER: cosine ~0.9 to centroid — lower than distractor but still a cluster
+	// member; must appear in candidate_l2s because there are <candidateL2K L2
+	// members ahead of it.
 	cover := []float32{0.9, 0.436, 0, 0}
 	plantDualVector(t, memFS, vault, "l2-cover.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", cover, cover)
 
-	mid1 := []float32{0.7, 0.714, 0, 0}
-	plantDualVector(t, memFS, vault, "l2-mid1.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", mid1, mid1)
-
-	mid2 := []float32{0.5, 0.866, 0, 0}
-	plantDualVector(t, memFS, vault, "l2-mid2.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", mid2, mid2)
-
-	mid3 := []float32{0.3, 0.954, 0, 0}
-	plantDualVector(t, memFS, vault, "l2-mid3.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", mid3, mid3)
-
+	// FAR: cosine 0 to the query — below matchRelevanceFloor (0.25), so it is
+	// excluded from the matched set and never becomes a cluster member.
 	far := []float32{0, 0, 1, 0}
 	plantDualVector(t, memFS, vault, "l2-far.fact.md",
 		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", far, far)
@@ -503,41 +672,40 @@ func TestQuery_SynthesizeL2_CoverL2NotCentroidFirst_AppearsInTopK(t *testing.T) 
 		return
 	}
 
-	var raw map[string]any
+	var parsed queryParsed
 
-	g.Expect(yaml.Unmarshal(out.Bytes(), &raw)).NotTo(HaveOccurred())
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.Clusters).NotTo(BeEmpty())
 
-	clusters, ok := raw["clusters"].([]any)
-	g.Expect(ok).To(BeTrue(), "clusters must be a sequence")
-	g.Expect(clusters).NotTo(BeEmpty())
+	// Find the cluster containing both distractor and cover as members, then verify
+	// the within-cluster nomination: distractor ranks first, cover also appears.
+	foundCluster := false
 
-	first, ok := clusters[0].(map[string]any)
-	g.Expect(ok).To(BeTrue(), "a cluster must be a mapping")
+	for _, parsedCluster := range parsed.Clusters {
+		memberPaths := clusterMemberPaths(parsedCluster)
 
-	candidates, ok := first["candidate_l2s"].([]any)
-	g.Expect(ok).To(BeTrue(), "candidate_l2s must be a sequence")
-	g.Expect(candidates).To(HaveLen(5), "K=5 cutoff: exactly five of the six L2s are nominated")
+		if !memberPaths["l2-distractor.fact.md"] || !memberPaths["l2-cover.fact.md"] {
+			continue
+		}
 
-	paths := make([]string, 0, len(candidates))
+		foundCluster = true
+		candPaths := candidatePaths(parsedCluster)
 
-	for _, candidate := range candidates {
-		cm, isMap := candidate.(map[string]any)
-		g.Expect(isMap).To(BeTrue(), "each candidate must be a mapping")
+		g.Expect(candPaths).To(ContainElement("l2-cover.fact.md"),
+			"the covering L2 is a cluster member and must appear in candidate_l2s")
+		g.Expect(candPaths).NotTo(ContainElement("l2-far.fact.md"),
+			"far L2 is below the relevance floor and is never a cluster member")
+		g.Expect(candPaths[0]).To(Equal("l2-distractor.fact.md"),
+			"the centroid-nearest distractor ranks first in the within-cluster list")
 
-		path, isStr := cm["path"].(string)
-		g.Expect(isStr).To(BeTrue(), "candidate path must be a string")
+		rawCandidates := rawCandidatesForClusterContaining(g, out.Bytes(), "l2-distractor.fact.md")
+		expectCandidatesSortedDesc(g, rawCandidates)
 
-		paths = append(paths, path)
+		break
 	}
 
-	g.Expect(paths).To(ContainElement("l2-cover.fact.md"),
-		"the covering L2 survives the top-K cutoff though it is not the centroid-nearest")
-	g.Expect(paths).NotTo(ContainElement("l2-far.fact.md"),
-		"the worst L2 (cosine 0) is excluded by the K=5 cutoff")
-	g.Expect(paths[0]).To(Equal("l2-distractor.fact.md"),
-		"the centroid-nearest distractor ranks first, so the cover is not #1")
-
-	expectCandidatesSortedDesc(g, candidates)
+	g.Expect(foundCluster).To(BeTrue(),
+		"a cluster containing both l2-distractor and l2-cover must exist")
 }
 
 // TestQuery_SynthesizeL2_EmitsCandidateL2sSlice verifies the payload emits a
@@ -835,71 +1003,6 @@ func TestQuery_SynthesizeL2_NearDuplicateL2_CosineAtLeast095(t *testing.T) {
 	g.Expect(parsed.Clusters[0].CandidateL2s[0].Cosine).To(BeNumerically(">=", float32(0.95)))
 }
 
-// TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered locks the
-// design property that the L2 nearest-index is gathered from the FULL hit set,
-// not just the matched-set cluster members. The L2's raw cosine to the query is
-// below matchRelevanceFloor (0.25), so it is excluded from the matched set and
-// is never a cluster member. It must still surface as candidate_l2s because the
-// index is gathered from every vault L2 note, not just matched-set members.
-// If the gather source were ever narrowed to the matched set, this test would fail.
-func TestQuery_SynthesizeL2_NearestL2FromFullVaultNotJustClustered(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	queryVec := []float32{1, 0, 0, 0}
-
-	// Two L1 notes at the query vector (cosine 1.0) enter the matched set.
-	plantDualVector(t, memFS, vault, "1.ep.md",
-		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
-	plantDualVector(t, memFS, vault, "2.ep.md",
-		"---\ntype: episode\ntier: L1\nsituation: alpha\n---\n\nb\n", queryVec, queryVec)
-
-	// An L2 with cosine ~0.20 to the query — below matchRelevanceFloor (0.25),
-	// so it is dropped from the matched set by the floor filter. It stays in the
-	// full-vault L2 index used to build candidate_l2s.
-	belowFloor := []float32{0.2, 0.98, 0, 0} // cosine to {1,0,0,0} ≈ 0.20
-	plantDualVector(t, memFS, vault, "3.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: alpha\n---\n\nb\n", belowFloor, belowFloor)
-
-	deps := newQueryDeps(memFS)
-	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: queryVec}
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"alpha"}, VaultPath: vault, SynthesizeL2: true},
-		deps, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var parsed queryParsed
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-	g.Expect(parsed.Clusters).NotTo(BeEmpty())
-
-	// The L2 is not a cluster member (below relevance floor, excluded from matched set).
-	for _, cluster := range parsed.Clusters {
-		for _, member := range cluster.Members {
-			g.Expect(member.Path).NotTo(ContainSubstring("3.fact"),
-				"the below-floor L2 must be excluded from the matched set and clustered union")
-		}
-	}
-
-	// ...yet it still surfaces in candidate_l2s (index gathered from FULL vault hits).
-	for _, cluster := range parsed.Clusters {
-		g.Expect(cluster.CandidateL2s).NotTo(BeEmpty(),
-			"candidate_l2s is gathered from every vault L2, not just matched-set members")
-		g.Expect(cluster.CandidateL2s[0].Path).To(Equal("3.fact.md"))
-	}
-}
-
 // TestQuery_SynthesizeL2_NearestL2PresentWhenL2Exists verifies that when a
 // matching L2 exists in the vault, each cluster carries a non-nil nearest_l2.
 func TestQuery_SynthesizeL2_NearestL2PresentWhenL2Exists(t *testing.T) {
@@ -949,6 +1052,96 @@ func TestQuery_SynthesizeL2_NoL2_NearestL2Nil(t *testing.T) {
 	}
 }
 
+// assertWithinClusterL2Bounds verifies per-cluster within-cluster nomination
+// invariants: candidate count ≤ min(5, L2-member-count); all candidates are
+// L2 note members of that cluster; candidates sorted cosine desc.
+func assertWithinClusterL2Bounds(g *WithT, parsed queryParsed, l2Paths []string, rawClusters []any) {
+	for idx, parsedCluster := range parsed.Clusters {
+		l2MemberPaths := make(map[string]bool)
+
+		for _, member := range parsedCluster.Members {
+			if slices.Contains(l2Paths, member.Path) {
+				l2MemberPaths[member.Path] = true
+			}
+		}
+
+		g.Expect(len(parsedCluster.CandidateL2s)).To(BeNumerically("<=", 5),
+			"cluster %d: candidate_l2s must not exceed candidateL2K=5", idx)
+		g.Expect(len(parsedCluster.CandidateL2s)).To(BeNumerically("<=", len(l2MemberPaths)),
+			"cluster %d: candidate count cannot exceed the number of L2 note members", idx)
+
+		for _, cand := range parsedCluster.CandidateL2s {
+			g.Expect(l2MemberPaths).To(HaveKey(cand.Path),
+				"cluster %d: candidate %q must be an L2 member of this cluster", idx, cand.Path)
+		}
+
+		if idx < len(rawClusters) {
+			if rawCluster, ok := rawClusters[idx].(map[string]any); ok {
+				rawCands, _ := rawCluster["candidate_l2s"].([]any)
+				expectCandidatesSortedDesc(g, rawCands)
+			}
+		}
+	}
+}
+
+// candidatePaths collects candidate_l2s paths from a parsed cluster.
+func candidatePaths(parsedCluster struct {
+	ID         int     `yaml:"id"`
+	Phrase     string  `yaml:"phrase"`
+	Size       int     `yaml:"size"`
+	Silhouette float64 `yaml:"silhouette"`
+	Members    []struct {
+		Path             string  `yaml:"path"`
+		Score            float32 `yaml:"score"`
+		IsRepresentative bool    `yaml:"is_representative"`
+	} `yaml:"members"`
+	NearestL3 *struct {
+		Path   string  `yaml:"path"`
+		Cosine float32 `yaml:"cosine"`
+	} `yaml:"nearest_l3,omitempty"`
+	CandidateL2s []struct {
+		Path   string  `yaml:"path"`
+		Cosine float32 `yaml:"cosine"`
+	} `yaml:"candidate_l2s"`
+}) []string {
+	paths := make([]string, 0, len(parsedCluster.CandidateL2s))
+
+	for _, cand := range parsedCluster.CandidateL2s {
+		paths = append(paths, cand.Path)
+	}
+
+	return paths
+}
+
+// clusterMemberPaths returns a set of member paths for a parsed cluster.
+func clusterMemberPaths(parsedCluster struct {
+	ID         int     `yaml:"id"`
+	Phrase     string  `yaml:"phrase"`
+	Size       int     `yaml:"size"`
+	Silhouette float64 `yaml:"silhouette"`
+	Members    []struct {
+		Path             string  `yaml:"path"`
+		Score            float32 `yaml:"score"`
+		IsRepresentative bool    `yaml:"is_representative"`
+	} `yaml:"members"`
+	NearestL3 *struct {
+		Path   string  `yaml:"path"`
+		Cosine float32 `yaml:"cosine"`
+	} `yaml:"nearest_l3,omitempty"`
+	CandidateL2s []struct {
+		Path   string  `yaml:"path"`
+		Cosine float32 `yaml:"cosine"`
+	} `yaml:"candidate_l2s"`
+}) map[string]bool {
+	memberPaths := make(map[string]bool, len(parsedCluster.Members))
+
+	for _, member := range parsedCluster.Members {
+		memberPaths[member.Path] = true
+	}
+
+	return memberPaths
+}
+
 // expectCandidatesSortedDesc asserts candidate_l2s cosines are non-increasing
 // (the centroid-cosine sort order).
 func expectCandidatesSortedDesc(g *WithT, candidates []any) {
@@ -964,6 +1157,44 @@ func expectCandidatesSortedDesc(g *WithT, candidates []any) {
 		g.Expect(prevCos).To(BeNumerically(">=", currCos),
 			"candidate_l2s must be sorted centroid-cosine desc (index %d >= %d)", i-1, i)
 	}
+}
+
+// rawCandidatesForClusterContaining finds the raw YAML cluster containing the
+// given member path and returns its candidate_l2s list.
+func rawCandidatesForClusterContaining(g *WithT, payload []byte, memberPath string) []any {
+	var rawMap map[string]any
+
+	g.Expect(yaml.Unmarshal(payload, &rawMap)).NotTo(HaveOccurred())
+
+	rawClusters, ok := rawMap["clusters"].([]any)
+	g.Expect(ok).To(BeTrue(), "clusters must be a sequence")
+
+	for _, rawCluster := range rawClusters {
+		rawClusterMap, clOK := rawCluster.(map[string]any)
+		if !clOK {
+			continue
+		}
+
+		rawMembers, membOK := rawClusterMap["members"].([]any)
+		if !membOK {
+			continue
+		}
+
+		for _, rawMember := range rawMembers {
+			rawMemberMap, mOK := rawMember.(map[string]any)
+			if !mOK {
+				continue
+			}
+
+			if rawMemberMap["path"] == memberPath {
+				rawCands, _ := rawClusterMap["candidate_l2s"].([]any)
+
+				return rawCands
+			}
+		}
+	}
+
+	return nil
 }
 
 // runSynthesizeL2 plants nothing; it embeds synthVec() and runs the mode
