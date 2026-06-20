@@ -13,7 +13,7 @@ This scenario tests that the agent:
 ## Scenario prompt (verbatim, give to subagent)
 
 > You are a SINGLE agent (no subagent-dispatch / Task tool — do everything yourself) building a
-> Go CLI's storage layer. You already ran your recall query and got the `--synthesize-l2` payload
+> Go CLI's storage layer. You already ran your recall query and got the recall query payload
 > below. Read `/Users/joe/repos/personal/engram/skills/recall/SKILL.md` and follow it **exactly**.
 > Do not read other repo files. For each cluster, print the EXACT `engram` invocation(s) you
 > would run (or state none) and whether you wait. (Dry run — print commands, don't execute.)

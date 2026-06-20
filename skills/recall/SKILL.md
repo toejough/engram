@@ -66,16 +66,16 @@ results to the top-30 matches per phrase.
 ### Step 2 — Run ONE unified `engram query` with all phrases
 
 ```bash
-engram query --synthesize-l2 \
+engram query \
   --phrase "<phrase 1>" \
   --phrase "<phrase 2>"
   # ... one --phrase per Step 1 phrase (always 10)
 ```
 
-One call; the binary merges ranking server-side. `--synthesize-l2` is REQUIRED: it runs the
-unified D1 clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path,
-cosine}]` per cluster. Do NOT collapse phrases, do NOT run per-phrase calls, do NOT add `--tier`,
-`--vault`, or `--chunks-dir`.
+One call; the binary merges ranking server-side. `engram query` always runs the unified D1
+clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path, cosine}]`
+per cluster. Do NOT collapse phrases, do NOT run per-phrase calls, do NOT add `--vault` or
+`--chunks-dir`.
 
 The payload has **two channels**:
 
@@ -106,7 +106,7 @@ for coverage purposes.)
 
 ### Step 2.5 — Lazy note synthesis from the clustering (agent-judged)
 
-The `--synthesize-l2` output's `clusters` list contains the unified clustering of matched chunks
+The query output's `clusters` list contains the unified clustering of matched chunks
 and notes. Each cluster carries `candidate_l2s: [{path, cosine}]` — the top-5 existing notes
 ranked from within that cluster's own matched members (NOT the full vault). A note that did not
 match any phrase will never appear as a candidate. A cluster with no note members yields an empty
@@ -187,7 +187,7 @@ The user sees this. Rules:
 | --- | --- |
 | You never printed Step 0 | Back up — the skill is a no-op without it |
 | You skipped the Step 0.5 sweep | It costs seconds and keeps memory current |
-| `--tier`, `--vault`, or `--chunks-dir` on the query | `engram query --synthesize-l2 --phrase ...` only — `--synthesize-l2` IS required (it runs the unified D1 clustering and emits `candidate_l2s`) |
+| `--vault` or `--chunks-dir` on the query | `engram query --phrase ...` only — the binary always runs the unified D1 clustering and emits `candidate_l2s` |
 | Separate query calls per phrase | One call, repeatable `--phrase` flags |
 | You quoted chunks wholesale into the reply | Extract the principle a chunk evidences; paraphrase |
 | You dispatched cluster-synthesis subagents | Gone — Step 2.5 crystallizes inline from the payload's clusters |
