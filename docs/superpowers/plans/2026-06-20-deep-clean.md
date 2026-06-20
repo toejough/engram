@@ -16,6 +16,9 @@
 - Deletions are driven by the compiler + `targ deadcode` + tests: after each removal, anything left unreferenced is also removed; nothing referenced is touched.
 - Name-agnostic, DI-everywhere, `make([]T,0,n)`, wrapped errors, `t.Parallel()`, lines <120 — the repo's standing rules.
 - **Verify, don't guess:** read the symbol and its callers before deleting; if a "dead" symbol turns out to have a live caller, stop and surface it.
+- **Every commit ends with the trailer `AI-Used: [claude]`** (NOT Co-Authored-By). Commit-message examples below omit it for brevity; the executor MUST append it.
+- **Phase ordering is binding:** A.1 → A.2 → A.3 → A.4 → B.1 → B.2 → C → D → E → F. A.4 deletes `luhmann.Less`, whose only live callers (`vaultgraph/selector.go:78`, `vaultgraph.go:68` `basenameLess`) are removed in A.1 — running A.4 first will not compile.
+- **Phase D is the actual fix**, not an optional epilogue: the C6 miss was caused by stale docs/memory, so Phases C–D are co-equal with the deletions, not lower priority.
 
 ---
 
@@ -113,3 +116,39 @@ Collapse three query modes to one. `--synthesize-l2` behavior becomes the sole q
 - **Memory lessons:** Phase C (scrub) + Step 7 closing `/learn` crystallizes the doc/code-freshness lessons. ✓
 - **Guardrail honored:** the two load-bearing-not-dead paths were surfaced and decided by the user before inclusion. ✓
 - **No skill broken:** `--synthesize-l2` stays valid; SKILL.md edits go through writing-skills. ✓
+
+---
+
+## Gate A resolutions (binding refinements)
+
+Four adversarial reviewers (ask/code/docs/clarity) passed both user decisions and found no scope creep or unsafe deletion. Their refinements, all binding on the executor:
+
+**Code-alignment (deletion cascade / orphans — `targ deadcode`+`check-full` enforce, but named so the executor isn't surprised):**
+- A.4: `SessionFinder`/`NewSessionFinder`/`DirLister`/`Find` and the `sourceOpencode` const live in `internal/transcript/transcript.go` (NOT only `cli/cli.go`, which has just `osDirLister`). Delete the orphans there too once `osDirLister` and `opencode.go` are gone.
+- B.1: removing `--synthesis` orphans `runSynthesisQuery` (delete the body) AND `errQueryModeConflict` + the mode-conflict check in `validateQueryArgs` (delete them). Removing `--tier`/`Tiers` requires updating `collectClusterMembers(... tiers []string)` — drop the param (or pass nil) or GREEN won't compile.
+- B.2 commits WITH or immediately after B.1 (same PR/sequence): `dev/eval/run-chain-stage.sh:41` uses `--tier` and breaks the moment B.1 lands.
+- A.1 before A.4 (see Global Constraints ordering).
+
+**Docs-alignment (Phase D additions — these were missed):**
+- C1 mermaid diagrams: drop `hubs` from the payload line in BOTH the recall flow (`c1:146`, and the `:147` "surface anchor concepts from hubs" step) AND the please flow (`c1:253`).
+- C3 component catalog: K6 drop `identifyHubs`; K8 drop the `--synthesis`/BFS-subgraph clause and the `:155` "The `--synthesis` path uses…" paragraph.
+- GLOSSARY: DELETE the now-defunct entries `cascade`, `frontier`, `anchors`, `hub`, and the 3-hop-BFS sense of `subgraph`; KEEP `cluster` (the live `--synthesize-l2` concept).
+- ADRs describing the OpenCode/composite backend (ADR-0007/0010): mark **Superseded** with a one-line note ("backend was never wired; removed in the deep clean; engram reads JSONL only") — do NOT rewrite the historical decision text.
+- Bootstrap: vault-init code already creates `.obsidian/.gitignore/README.md` — this is **docs-only**, no code change.
+- Phase E/D: fix the stale doc comment on `transcript.budgetSegmentLines` ("Shared by … OpencodeTranscriptReader").
+
+**Ask-alignment (under-specified non-deletion phases):**
+- Phase E concrete targets: `query.go` reads as a single synthesis-only file (no `dispatchSynthesisMode` indirection, no vestigial mode branches), comments referencing removed paths gone, naming/error-wrapping consistent. **Gate B charge:** "does `query.go` read as written single-mode from the start?"
+- New **Phase F (closing `/learn`)** is a real task (below), not just a self-review mention.
+- Phase C gets an exit checklist (below).
+- D.2 begins with a survey: diff the README command table against `engram --help` output; the enumerated list (dual-vector sidecar, resituate/migrate-links/check, recency decay) is a FLOOR — add any other gaps found.
+
+**Clarity (executor-specificity):**
+- SKILL.md (D.1): the row to fix is `skills/recall/SKILL.md` red-flags table — the line reading "You used `nearest_l2` instead of `candidate_l2s`". `candidate_l2s` is the real shipped field, but the "never shipped" phrasing about `nearest_l2`/`nearest_l3` is the stale bit; reconcile the row to current field names (writing-skills TDD).
+- Memory edits (C): grep these exact strings to locate the edit — `"exactly one episode"`, `"L1-only"` / `"~10 L2"`, `"L2/L3 notes"`, `"L3 tier"` — strip the tier/episode framing, keep each lesson's core.
+- B.3 payload-parity (operational): before B.1, capture a golden — `engram query --synthesize-l2 --phrase "url validation" --phrase "dedup" > /tmp/golden-before.yaml` against a seeded isolated vault (`ENGRAM_VAULT_PATH`/`ENGRAM_CHUNKS_DIR` in a tempdir); after B.1, re-run and `diff` — the matched/recent/clusters/candidate_l2s content must be identical (only the removed `hubs`/`subgraph_size` fields may differ).
+- README command table: it's the fenced command block at `README.md:~70-90` (the `engram <sub> …  description` lines); add `prune`-style rows for `resituate`/`migrate-links`/`check` in that same format.
+
+## Phase F — Capture (closing /learn)
+
+- [ ] Run the `/learn` sweep; crystallize, at minimum, these distilled lessons (feedback notes): (1) **stale docs/memory describing removed functionality cause real design misses** — verify the shipping mechanism against code before designing against it; (2) **doc/memory scrub is first-class after any architectural removal** — a removal isn't done until docs+memory+glossary+diagrams that named the old path are updated; (3) **this project's actual recall mechanism is `engram query --synthesize-l2` clustering + covered/near/absent crystallization** — there is no 3-hop subgraph / hubs / tiers / episodes on the recall path. Verify each lands.
