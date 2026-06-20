@@ -79,7 +79,7 @@ distilled standards (L3). Retrieval must pick the right grain. Early prose propo
 the top tier only; empirically, **blended** retrieval scored better (note 160).
 
 **Decision.** Default retrieval is **blended / kind-agnostic**. `--tier X` was an **optional cap** —
-this flag was removed in the 2026-06-20 deep clean; `--synthesize-l2` clustering is now the sole
+this flag was removed in the 2026-06-20 deep clean; unified clustering is now the sole
 query path and operates un-tiered (cross-tier clusters). Tier is a **frontmatter field** with
 type-derived defaults: fact/feedback → L2 (default, overridable to L3).
 There is **no `adr` kind** — an ADR is `type:fact tier:L3`.

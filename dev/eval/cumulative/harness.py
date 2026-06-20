@@ -174,7 +174,7 @@ def build_prompt(app, interface, read_mode, read_tiers):
         recall = (
             "\nBefore writing any code, consult your memory. Run exactly this, read every surfaced "
             "note, and APPLY every convention and decision it surfaces:\n"
-            f"  engram query --synthesize-l2 {phrases}\n"
+            f"  engram query {phrases}\n"
             "This is LAZY L2 synthesis. Each cluster in the payload may carry `nearest_l2: {path, cosine}` "
             "— the closest existing L2 to that cluster. For each cluster (any size — there is no minimum "
             "cluster size), apply the bands and WAIT for any writes before continuing (the new L2s are "
@@ -622,7 +622,7 @@ def link_followed(cfg, sid):
 def _stub_build(args):
     """Drop the chosen fixture Go app into the workdir (real, compilable Go the scorer
     builds and runs) and return a canned result. No LLM call. For the lazy arm, also fakes
-    a synthesize-l2 recall that crystallizes L2(s) into the build vault — so persist-forward
+    a lazy-L2 recall that crystallizes L2(s) into the build vault — so persist-forward
     and the vault-metrics path are validated without an LLM."""
     import shutil
     fix = os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata", args.stub)

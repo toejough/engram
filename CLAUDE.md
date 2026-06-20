@@ -14,7 +14,7 @@ engram/
 ├── internal/          # Non-public implementation
 │   ├── chunk/         # Splits memory sources (stripped transcripts, markdown) into embedding-sized chunks for the auto-ingested vector space (pure string logic, no I/O)
 │   ├── cli/           # CLI command wiring (targ targets)
-│   ├── cluster/       # k-means clustering with silhouette-based auto-K, for `--synthesize-l2` recall clustering
+│   ├── cluster/       # k-means clustering with silhouette-based auto-K, for recall clustering
 │   ├── context/       # Transcript processing for LLM agents
 │   ├── debuglog/      # Tail-friendly debug logger
 │   ├── embed/         # Embedder interface + Hugot/GoMLX backend, sidecar I/O, state classification

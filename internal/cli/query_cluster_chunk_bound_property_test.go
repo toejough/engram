@@ -13,17 +13,17 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestProperty_SynthesizeL2_ChunkItemsBoundedByMatchSetCap locks the
-// perf-critical bound for the --synthesize-l2 path: matched chunks (and notes)
+// TestProperty_Cluster_ChunkItemsBoundedByMatchSetCap locks the
+// perf-critical bound for the query path: matched chunks (and notes)
 // fed to clustering and emitted in items[] with provenance "direct" are capped
 // at matchSetCap (300), so silhouette stays O(matchSetCap^2) regardless of
 // corpus size. The cap comes from the per-phrase matchPhraseLimit (top-30 per
 // phrase) × phrase count. With a single phrase and more than matchPhraseLimit
 // chunks, the matched set is capped at matchPhraseLimit (30).
-// Note: Phase 2's recency channel may add additional "recent"-provenanced chunk
+// Note: the recency channel may add additional "recent"-provenanced chunk
 // items beyond this cap — those do NOT participate in clustering and are NOT
 // subject to matchSetCap. This test counts only matched ("direct") chunks.
-func TestProperty_SynthesizeL2_ChunkItemsBoundedByMatchSetCap(t *testing.T) {
+func TestProperty_Cluster_ChunkItemsBoundedByMatchSetCap(t *testing.T) {
 	t.Parallel()
 
 	queryVec := []float32{1, 0, 0, 0}

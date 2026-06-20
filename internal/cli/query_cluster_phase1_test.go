@@ -8,7 +8,7 @@ package cli_test
 //	(c) items with baseScore < matchRelevanceFloor (0.25) are dropped
 //	(d) the matched set never exceeds matchSetCap (300)
 //
-// All four tests exercise the --synthesize-l2 path (runSynthesizeL2Query).
+// All four tests exercise the unified query path (RunQuery).
 
 import (
 	"bytes"
@@ -24,14 +24,14 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestSynthesizeL2_ItemsBelowRelevanceFloorDropped verifies invariant (c):
+// TestCluster_ItemsBelowRelevanceFloorDropped verifies invariant (c):
 // items whose baseScore (raw cosine, pre-decay) is below matchRelevanceFloor
 // (0.25) are dropped from the matched set. We plant two chunks: one
 // near-orthogonal (low cosine) and one on-axis (high cosine). The
 // near-orthogonal chunk must not appear in items[] with provenance "direct"
 // (i.e., it must not be in the matched set). Phase 2 may still include it
 // via the recency channel with provenance "recent" — that is correct behavior.
-func TestSynthesizeL2_ItemsBelowRelevanceFloorDropped(t *testing.T) {
+func TestCluster_ItemsBelowRelevanceFloorDropped(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -139,11 +139,11 @@ func TestSynthesizeL2_ItemsBelowRelevanceFloorDropped(t *testing.T) {
 		"low-cosine chunk (cosine=0 < matchRelevanceFloor=0.25) must NOT be in the matched set (provenance 'direct')")
 }
 
-// TestSynthesizeL2_MatchedSetCappedAtMatchSetCap verifies invariant (d):
+// TestCluster_MatchedSetCappedAtMatchSetCap verifies invariant (d):
 // the total matched set (notes + chunks combined) never exceeds matchSetCap
 // (300), even when more candidates exist across phrases. We use multiple
 // phrases and enough candidates to exceed 300 if uncapped.
-func TestSynthesizeL2_MatchedSetCappedAtMatchSetCap(t *testing.T) {
+func TestCluster_MatchedSetCappedAtMatchSetCap(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -228,12 +228,12 @@ func TestSynthesizeL2_MatchedSetCappedAtMatchSetCap(t *testing.T) {
 		"matched set must be capped at matchSetCap=%d, got %d", matchSetCap, len(items))
 }
 
-// TestSynthesizeL2_NewerChunkRanksAboveOlderWithSameVector verifies invariant
+// TestCluster_NewerChunkRanksAboveOlderWithSameVector verifies invariant
 // (a): two chunks with identical vectors against the phrase — the one with a
 // more recent IngestedAt must appear earlier in items[] than the older one.
 // Today the code uses global scoreChunks (max-across-phrases) with no per-phrase
 // recency, so the two chunks tie and the test fails.
-func TestSynthesizeL2_NewerChunkRanksAboveOlderWithSameVector(t *testing.T) {
+func TestCluster_NewerChunkRanksAboveOlderWithSameVector(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -330,12 +330,12 @@ func TestSynthesizeL2_NewerChunkRanksAboveOlderWithSameVector(t *testing.T) {
 		newerIdx, olderIdx)
 }
 
-// TestSynthesizeL2_OnlyTopMatchPhraseLimitPerPhraseEnterUnion verifies
+// TestCluster_OnlyTopMatchPhraseLimitPerPhraseEnterUnion verifies
 // invariant (b): when a phrase has more than matchPhraseLimit (30) candidate
 // matches, only the top 30 enter the union from that phrase. Today
 // unionDirectHits uses the query's `limit` flag (not matchPhraseLimit=30) so
 // passing Limit:100 allows >30 candidates — the test must fail today.
-func TestSynthesizeL2_OnlyTopMatchPhraseLimitPerPhraseEnterUnion(t *testing.T) {
+func TestCluster_OnlyTopMatchPhraseLimitPerPhraseEnterUnion(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

@@ -37,7 +37,7 @@ flowchart TB
 ## Container catalog
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
-| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query --synthesize-l2` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow. Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
+| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow. Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
 | C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`), note write (tier defaults, embed-on-write, Luhmann id under lock), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster; recency channel = 200 newest chunks un-clustered), embed apply/status, update. | houses G0, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: swap silently empties recall (no guard) |
 | C4 | Vault | filesystem | `<luhmann>.<date>.<slug>.md` at the flat vault root + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
@@ -86,7 +86,7 @@ sequenceDiagram
     participant V as C4 vault
 
     Note over Sk: Step 0 — print Ask/Situation/Plan; Step 1 — phrase exactly 10 queries (one per fixed angle)
-    Sk->>E: shell engram query --synthesize-l2 --phrase p1 … --phrase p10 (fresh process)
+    Sk->>E: shell engram query --phrase p1 … --phrase p10 (fresh process)
     E->>V: Scan notes + load model-compatible sidecars + chunk index
     V-->>E: notes, chunks, and vectors
     E->>Md: embed each phrase
@@ -154,7 +154,7 @@ sequenceDiagram
     participant E as C2 engram CLI
     participant V as C4 vault
 
-    Sk->>E: shell engram query --synthesize-l2 (fresh process)
+    Sk->>E: shell engram query (fresh process)
     E->>V: scan + build matched set (recency-biased cosine per phrase, bounded ~300) + cluster (D1) + recency channel
     E-->>Sk: payload incl. items[matched+recent], clusters[].candidate_l2s {path, cosine} (top-5 within-cluster notes)
     loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only

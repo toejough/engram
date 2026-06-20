@@ -64,7 +64,7 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 	}
 	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
 
-	// Under the unified synthesize-l2 path matched chunks join the note union
+	// Under the unified query path matched chunks join the note union
 	// and cluster once; clusters carry candidate_l2s nominated from members.
 	clustersWithCandidates := 0
 

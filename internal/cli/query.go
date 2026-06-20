@@ -49,7 +49,7 @@ type QueryDeps struct {
 }
 
 // RunQuery embeds each query phrase, unions the matched notes and chunks, clusters
-// once, and emits per-cluster candidate_l2s per the synthesize-l2 spec.
+// once, and emits per-cluster candidate_l2s.
 func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Writer) error {
 	validationErr := validateQueryArgs(args)
 	if validationErr != nil {
@@ -546,7 +546,7 @@ func buildMatchedSet(union []scoredCandidate) matchedSet {
 }
 
 // buildMatchedSetFromPhrases performs per-phrase unified note+chunk matching for
-// the --synthesize-l2 path. For each phrase it embeds once, scores notes and
+// the query path. For each phrase it embeds once, scores notes and
 // chunks with recency bias, merges into one list (top-matchPhraseLimit=30 per
 // phrase), then unions across phrases with dedup, relevance floor, and cap.
 // Returns matched notes and chunks as separate slices sorted by key.
@@ -583,7 +583,7 @@ func buildMatchedSetFromPhrases(
 }
 
 // buildRecentFillItems returns the un-clustered recency-channel items for
-// the --synthesize-l2 path (Channel 2, Phase 2). It selects the N newest
+// the query path (Channel 2). It selects the N newest
 // chunks by IngestedAt (using newestChunkItems for ordering), deduplicates
 // them against the already-matched chunk paths, and tags the survivors with
 // provenanceRecent. These items appear in items[] only — NOT in matched.members
@@ -634,32 +634,11 @@ func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
 	return args.ChunksDir != "" && deps.ListChunkIndexes != nil
 }
 
-// clusterNoteIndexFromMembers builds a candidateNoteIndex from the note members of a
-// single cluster (Phase 3, within-cluster nomination). Only matched members
-// whose kind is NOT chunkItemKind are included; chunk members are skipped.
-// An empty index (no note members) yields an empty candidateNoteIndex{}.
-func clusterNoteIndexFromMembers(matchSet matchedSet, memberIndices []int) candidateNoteIndex {
-	idx := candidateNoteIndex{}
-
-	for _, i := range memberIndices {
-		member := matchSet.members[i]
-		if member.kind == chunkItemKind {
-			continue
-		}
-
-		idx.paths = append(idx.paths, member.notePath)
-		idx.sit = append(idx.sit, member.sitVec)
-		idx.body = append(idx.body, member.bodyVec)
-	}
-
-	return idx
-}
-
-// clusterUnionForSynthesis clusters the matched set exactly once. On
+// clusterMatchedSet clusters the matched set exactly once. On
 // AutoK returning K==0 (no split beats the silhouette floor) or an error, falls
 // back to a SINGLE cluster of all members so a non-empty matched set always yields
 // >=1 cluster. An empty matched set yields an empty (K==0) report.
-func clusterUnionForSynthesis(matchSet matchedSet, query string) clusterReport {
+func clusterMatchedSet(matchSet matchedSet, query string) clusterReport {
 	if len(matchSet.members) == 0 {
 		return clusterReport{}
 	}
@@ -697,6 +676,27 @@ func clusterUnionForSynthesis(matchSet matchedSet, query string) clusterReport {
 		representatives: representatives,
 		silhouettesByID: perClusterMeanSilhouette(vectors, autoK.Assignments, autoK.K),
 	}
+}
+
+// clusterNoteIndexFromMembers builds a candidateNoteIndex from the note members of a
+// single cluster (Phase 3, within-cluster nomination). Only matched members
+// whose kind is NOT chunkItemKind are included; chunk members are skipped.
+// An empty index (no note members) yields an empty candidateNoteIndex{}.
+func clusterNoteIndexFromMembers(matchSet matchedSet, memberIndices []int) candidateNoteIndex {
+	idx := candidateNoteIndex{}
+
+	for _, i := range memberIndices {
+		member := matchSet.members[i]
+		if member.kind == chunkItemKind {
+			continue
+		}
+
+		idx.paths = append(idx.paths, member.notePath)
+		idx.sit = append(idx.sit, member.sitVec)
+		idx.body = append(idx.body, member.bodyVec)
+	}
+
+	return idx
 }
 
 // collectClusterMembers gathers per-cluster member rows in score-desc
@@ -822,6 +822,23 @@ func kindFromContent(content string) string {
 	return kind
 }
 
+// loadClusterChunkRecords loads chunk records for the query path.
+// Returns an empty slice (not an error) when chunks are not configured.
+func loadClusterChunkRecords(args QueryArgs, deps QueryDeps) ([]chunk.Record, error) {
+	if !chunksConfigured(args, deps) {
+		return nil, nil
+	}
+
+	records, err := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
+		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
 // loadCompatibleSidecars reads every note's sidecar once, parses it, and
 // returns only those whose EmbeddingModelID matches the active model.
 // Missing or malformed sidecars are silently skipped. Sidecars dropped for
@@ -880,23 +897,6 @@ func loadCompatibleSidecars(
 		mismatchedModelIDs: ids,
 		oldSchemaCount:     oldSchemaCount,
 	}
-}
-
-// loadSynthesisChunkRecords loads chunk records for the --synthesize-l2 path.
-// Returns an empty slice (not an error) when chunks are not configured.
-func loadSynthesisChunkRecords(args QueryArgs, deps QueryDeps) ([]chunk.Record, error) {
-	if !chunksConfigured(args, deps) {
-		return nil, nil
-	}
-
-	records, err := loadChunkRecords(args.ChunksDir, ChunkQueryDeps{
-		ListIndexes: deps.ListChunkIndexes, ReadFile: deps.Read, Embedder: deps.Embedder,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return records, nil
 }
 
 // maxProvenanceRank returns the highest priority value among the roles
@@ -1419,7 +1419,7 @@ func runQuery(
 		nowL2 = deps.Now()
 	}
 
-	chunkRecords, loadErr := loadSynthesisChunkRecords(args, deps)
+	chunkRecords, loadErr := loadClusterChunkRecords(args, deps)
 	if loadErr != nil {
 		return loadErr
 	}
@@ -1437,7 +1437,7 @@ func runQuery(
 	matchSet := buildMatchedSet(noteUnion)
 	chunkItems := addMatchedChunksToMatchedSet(chunkUnion, &matchSet)
 
-	report := clusterUnionForSynthesis(matchSet, strings.Join(args.Phrases, "\n"))
+	report := clusterMatchedSet(matchSet, strings.Join(args.Phrases, "\n"))
 
 	// mergeProvenances receives an empty matchedSet{} deliberately:
 	// mergeClusterReps must not promote cluster reps into items[] because

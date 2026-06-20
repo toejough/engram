@@ -198,7 +198,7 @@ func newOsChunkQueryDeps() ChunkQueryDeps {
 // vector, applying recency bias exactly once. baseScore is the raw cosine
 // (pre-decay); score is the recency-biased result used for ranking. The
 // caller is responsible for not calling this again on the same phrase
-// (no double-apply). Used by the --synthesize-l2 per-phrase unified ranking
+// (no double-apply). Used by the per-phrase unified ranking
 // path; the global scoreChunks is used by all other paths.
 func scoreChunkForPhrase(
 	phraseVec []float32,

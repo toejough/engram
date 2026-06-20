@@ -106,7 +106,7 @@ apply` fills or updates them in bulk.
 
 ### recall (skill)
 The skill at `skills/recall/SKILL.md`, invoked as `/recall` in a harness or
-self-fired by the agent. Issues `engram query --synthesize-l2` with exactly 10
+self-fired by the agent. Issues `engram query` with exactly 10
 phrases and runs the inline coverage-synthesis loop over the returned clusters.
 
 
@@ -124,8 +124,8 @@ the "explicit" stream.
 
 ### Step 0 / Step 1 / …
 Numbered pipeline stages in the recall skill. Step 0 = print Ask/Situation/Plan;
-Step 1 = generate 10 phrases (one per fixed angle); Step 2 = run `engram query
---synthesize-l2`; Step 2.5 = per-cluster coverage synthesis (inline, blocking);
+Step 1 = generate 10 phrases (one per fixed angle); Step 2 = run `engram query`;
+Step 2.5 = per-cluster coverage synthesis (inline, blocking);
 Step 3 = closing synthesis (how memories changed the plan).
 
 ### surfaced notes
@@ -135,7 +135,7 @@ tagged `recent`). Coverage synthesis is judged from matched clusters only (Chann
 1); the recency channel is situational context the agent reads, not clustered.
 
 ### matched set
-The bounded set of notes and chunks fed to clustering in `--synthesize-l2` mode.
+The bounded set of notes and chunks fed to clustering in the query path.
 Built by: per-phrase top-30 (notes+chunks combined, recency-biased cosine) → union
 across 10 phrases with dedup keeping max score → drop items below the relevance
 floor (baseScore < 0.25) → hard cap at `matchSetCap`=300. Only the matched set
@@ -150,14 +150,14 @@ items before clustering. Recency-biased ranking — not the floor — handles
 superseded notes (they rank below fresh competition and fall out of the cap).
 
 ### recency channel
-The second retrieval channel in `--synthesize-l2`: the 200 newest chunks by
+The second retrieval channel in `engram query`: the 200 newest chunks by
 `IngestedAt`, deduped against the matched set, appended to `items[]` with
 provenance `recent`, and not added to any cluster. Surfaces recent raw session
 context so a post-context-loss agent re-encounters its own narration. Coverage
 synthesis is not run against recency-channel items.
 
 ### candidate_l2s
-The `[{path, cosine}]` field on each cluster in the `--synthesize-l2` payload.
+The `[{path, cosine}]` field on each cluster in the query payload.
 Nominates up to 5 notes from **within that cluster's own note members** for the
 agent's covered/near/absent coverage decision (top-5 by centroid cosine from
 within-cluster notes only — any matched vault note, regardless of legacy `tier:`

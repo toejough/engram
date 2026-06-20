@@ -3,13 +3,13 @@ package cli_test
 // Phase 2 RED tests for recall-v2: recency channel (un-clustered recent fill).
 // These verify the three invariants from the plan:
 //
-//	(a) --synthesize-l2 items[] include up to recentFillChunks (200) newest
+//	(a) items[] include up to recentFillChunks (200) newest
 //	    chunks NOT already in the matched set, tagged with provenance "recent".
 //	(b) those recent-tagged items appear in NO cluster's members[].
 //	(c) when fewer than recentFillChunks chunks exist, all are included without
 //	    error (no panic, no missing items).
 //
-// All three tests exercise the --synthesize-l2 path (runSynthesizeL2Query).
+// All three tests exercise the unified query path (RunQuery).
 
 import (
 	"bytes"
@@ -26,11 +26,11 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestSynthesizeL2_FewerThanRecentFillChunks verifies invariant (c):
+// TestCluster_FewerThanRecentFillChunks verifies invariant (c):
 // when the chunk store has fewer than recentFillChunks (200) chunks, ALL are
 // included in items[] without error (no panic, no "fewer than N" error).
 // This exercises the boundary: n > len(candidates) path in newestChunkItems.
-func TestSynthesizeL2_FewerThanRecentFillChunks(t *testing.T) {
+func TestCluster_FewerThanRecentFillChunks(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -102,12 +102,12 @@ func TestSynthesizeL2_FewerThanRecentFillChunks(t *testing.T) {
 		smallCount, smallCount, recentCount)
 }
 
-// TestSynthesizeL2_RecentChunksAppendedWithRecentProvenance verifies invariant
+// TestCluster_RecentChunksAppendedWithRecentProvenance verifies invariant
 // (a): chunks NOT in the matched set (orthogonal vector — zero cosine against
 // all query phrases) still appear in items[] with provenance "recent" when they
 // are among the newest by IngestedAt. Up to recentFillChunks (200) newest
 // un-matched chunks must be included.
-func TestSynthesizeL2_RecentChunksAppendedWithRecentProvenance(t *testing.T) {
+func TestCluster_RecentChunksAppendedWithRecentProvenance(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -188,10 +188,10 @@ func TestSynthesizeL2_RecentChunksAppendedWithRecentProvenance(t *testing.T) {
 	}
 }
 
-// TestSynthesizeL2_RecentChunksNotInClusterMembers verifies invariant (b):
+// TestCluster_RecentChunksNotInClusterMembers verifies invariant (b):
 // items tagged with provenance "recent" must NOT appear in any cluster's
 // members[]. The recent channel is additive and un-clustered by design.
-func TestSynthesizeL2_RecentChunksNotInClusterMembers(t *testing.T) {
+func TestCluster_RecentChunksNotInClusterMembers(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -277,11 +277,11 @@ func TestSynthesizeL2_RecentChunksNotInClusterMembers(t *testing.T) {
 	}
 }
 
-// TestSynthesizeL2_RecentDeduplicatesAgainstMatchedSet verifies that chunks
+// TestCluster_RecentDeduplicatesAgainstMatchedSet verifies that chunks
 // already in the matched set (high cosine → above matchRelevanceFloor) are NOT
 // duplicated in the recent block. A chunk that appears in the matched items[]
 // must NOT also appear as a "recent"-provenanced item.
-func TestSynthesizeL2_RecentDeduplicatesAgainstMatchedSet(t *testing.T) {
+func TestCluster_RecentDeduplicatesAgainstMatchedSet(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

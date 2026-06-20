@@ -71,8 +71,8 @@ references cite the entry-point symbol on `main` — grep the symbol, since line
 
 Operator asks a question that needs prior memory. The harness loads the `recall`
 skill, prints its Step 0 judgement (Ask, Situation, Plan), then phrases exactly
-**10** query strings (one per fixed angle) and issues a single `engram query
---synthesize-l2` call passing each phrase as a separate `--phrase` flag.
+**10** query strings (one per fixed angle) and issues a single `engram query`
+call passing each phrase as a separate `--phrase` flag.
 
 **Channel 1 — Relevance (clustered):** the binary scores both notes and chunks
 against each phrase vector with recency bias (chunk cosine scaled by
@@ -110,8 +110,8 @@ Step 3 synthesis). A returned-but-unused note's `LastUsed` goes stale and fades
 by recency rank — bumping every returned note would defeat the supersede-by-competition
 mechanism. Chunks are never activated.
 
-Source: `internal/cli/query.go` (`RunQuery`, `runSynthesizeL2Query`,
-`buildSynthesisMatchedSet`, `buildRecentFillItems`), the recency/decay in
+Source: `internal/cli/query.go` (`RunQuery`, `runQuery`,
+`buildMatchedSetFromPhrases`, `buildRecentFillItems`), the recency/decay in
 `internal/cli/recency.go` (`applyChunkRecency`, `newestChunkItems`), `engram
 activate` in `internal/cli/activate.go`, `engram amend` in
 `internal/cli/amend.go`, and the `internal/cluster/` package (`kmeans.go`,
@@ -137,7 +137,7 @@ sequenceDiagram
 
     Op->>H: prompt that may need memory
     Note over H: print Step 0 (Ask, Situation, Plan), phrase exactly 10 query strings (one per fixed angle)
-    H->>E: engram query --synthesize-l2 --phrase <p1> ... --phrase <p10>
+    H->>E: engram query --phrase <p1> ... --phrase <p10>
     E->>V: scan sidecars + bodies for compatible-embed notes + chunk index
     V-->>E: notes, chunks, and vectors
     Note over E: per phrase — embed; top-30 per phrase (notes+chunks, recency-biased cosine); union across 10 phrases, dedup max score, drop baseScore < 0.25, cap matched set at ~300
