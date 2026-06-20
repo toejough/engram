@@ -120,11 +120,6 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 
 // unexported constants.
 const (
-	// activationCosineCutoff is the minimum pre-decay baseScore a note must
-	// have to be flagged activated: true in the payload. Provisional default
-	// (a sanity floor for "genuine hit", NOT an empirically-tuned optimum;
-	// true calibration requires end-to-end recall evals — see GitHub #646).
-	activationCosineCutoff = 0.5
 	// candidateL2K is the minimum number of candidate L2s to nominate per
 	// cluster. The recall skill reads all K candidates to judge coverage;
 	// generous nomination costs nothing (recall is the binary's job,
@@ -329,7 +324,6 @@ type queryItem struct {
 	InDegree      *int     `yaml:"in_degree,omitempty"`
 	OutboundLinks []string `yaml:"outbound_links,omitempty"`
 	Content       string   `yaml:"content,omitempty"`
-	Activated     bool     `yaml:"activated,omitempty"`
 }
 
 // queryNearestL3 is the nearest existing L3 note for a cluster centroid.
@@ -1685,8 +1679,8 @@ func mergeHubItems(
 // mergeIntoExisting updates existing with the best score and baseScore,
 // unioned provenances, in_degree from src (if existing has none), and
 // lastUsed/created from src when existing fields are empty.
-// baseScore is maximised so the activated flag (baseScore >=
-// activationCosineCutoff) is not phrase-order-dependent.
+// baseScore is maximised so recency-decay and relevance-floor comparisons
+// are not phrase-order-dependent.
 // in_degree is not maximised across phrases because undirected BFS
 // always reaches the same linkers for a note regardless of starting
 // point, so both phrases produce identical in_degrees.
@@ -2147,12 +2141,6 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 			kind = kindFromContent(item.content)
 		}
 
-		// activated: true iff this is a note (not a chunk) with a pre-decay
-		// baseScore at or above the activation cutoff. Chunks are crystallized
-		// by the recall skill (not by the binary), so they are never marked.
-		// Query stays read-only — no sidecar writes here.
-		activated := kind != chunkItemKind && item.baseScore >= activationCosineCutoff
-
 		items[i] = queryItem{
 			Path:          item.notePath,
 			Kind:          kind,
@@ -2162,7 +2150,6 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 			InDegree:      item.inDegree,
 			OutboundLinks: outgoing[basenameFromNotePath(item.notePath)],
 			Content:       item.content,
-			Activated:     activated,
 		}
 	}
 

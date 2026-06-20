@@ -261,12 +261,13 @@ func TestMergeIntoExistingCopiesLastUsedWhenExistingEmpty(t *testing.T) {
 
 // TestMergeIntoExistingTakesMaxBaseScore verifies that when the same note is
 // matched by two phrases with different baseScores, mergeIntoExisting stores
-// the higher one so the activated flag is not phrase-order-dependent.
+// the higher one so recency-decay and relevance-floor comparisons are not
+// phrase-order-dependent.
 func TestMergeIntoExistingTakesMaxBaseScore(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// First phrase gave a below-cutoff score; second phrase gave an above-cutoff score.
+	// Two phrases gave different baseScores; the max must be retained.
 	existing := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.48, "", "")
 	src := cli.ExportNewNoteResolvedItemWithBaseScore("note.md", 0.55, "", "")
 
