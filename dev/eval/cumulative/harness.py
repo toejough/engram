@@ -30,6 +30,7 @@ MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "
 ENGRAM_BIN_DIR = os.environ.get("ENGRAM_BIN_DIR", os.path.expanduser("~/go/bin"))
 SCHEMA_VERSION = 4
 CONVERGE_ARCH_BAR = 8  # arch_pass >= 8 (matches converged())
+STALL_PATIENCE = 2  # halt the build loop if convergence score is flat this many consecutive rounds
 
 # Two regimes — modern engram (v3, no tiers/episodes/eager-L2):
 #   cold      = no memory at all; baseline
@@ -302,6 +303,33 @@ def converged(sc):
     return len(beh_fail) == 0 and sc.get("arch_pass", 0) >= CONVERGE_ARCH_BAR
 
 
+def convergence_score(sc):
+    """Build-loop convergence score (Bug 4): arch progress + feature progress = arch_pass minus the
+    count of failing FEATURE buckets. Rises monotonically as the build improves (more arch detectors
+    pass, fewer feature fails). Drives the convergence-stall early-stop."""
+    feat_fails = len([f for f in sc.get("failed", []) if not f[0].startswith("ARCH:")])
+    return sc.get("arch_pass", 0) - feat_fails
+
+
+def run_stall_loop(scores, patience=None):
+    """Pure simulation of the build loop's stall accounting over a sequence of per-round scores
+    (already computed via convergence_score). Returns (stalled, halt_round): halt_round is 1-based
+    (round 1 = initial build) and stalled is True iff the score failed to improve for `patience`
+    consecutive rounds. Guards the early-stop without an LLM (Bug 4)."""
+    if patience is None:
+        patience = STALL_PATIENCE
+    best = scores[0]
+    no_improve = 0
+    for i, s in enumerate(scores[1:], start=2):
+        if s > best:
+            best, no_improve = s, 0
+        else:
+            no_improve += 1
+        if no_improve >= patience:
+            return True, i
+    return False, len(scores)
+
+
 def passed_of(sc):
     try:
         return int(sc.get("total", "0/18").split("/")[0])
@@ -341,15 +369,28 @@ def learn_fired(cfg, sid):
     return _skill_and_query_hits(cfg, sid, skill="learn", need_query=False) > 0
 
 
-def count_notes_written(vault):
-    """Total markdown notes in the vault after learn."""
-    return len(glob_notes(vault))
+def snapshot_notes(vault):
+    """Set of markdown note paths present in the vault — a START-of-op snapshot so notes_written
+    can be reported as a SESSION DELTA (notes added by THIS op), not the cumulative vault total.
+    A warm cell seeds the vault with prior apps' carry-forward notes; counting all of them would
+    credit this op with notes it never wrote (retro Bug 1)."""
+    return set(glob_notes(vault))
 
 
-def count_learn_kind_breakdown(vault):
-    """Count notes by frontmatter type (fact vs feedback) — replaces tier breakdown."""
+def count_notes_written(vault, baseline=None):
+    """Markdown notes THIS op added to the vault. With a baseline (start-of-op snapshot) this is a
+    session delta: notes present at end minus notes present at start. Without one, the vault total."""
+    if baseline is None:
+        return len(glob_notes(vault))
+    return len(set(glob_notes(vault)) - baseline)
+
+
+def count_learn_kind_breakdown(vault, baseline=None):
+    """Count notes by frontmatter type (fact vs feedback) — replaces tier breakdown.
+    With a baseline snapshot, count only notes THIS op added (session delta), not the vault total."""
     counts = {"fact": 0, "feedback": 0, "other": 0}
-    for path in glob_notes(vault):
+    paths = glob_notes(vault) if baseline is None else (set(glob_notes(vault)) - baseline)
+    for path in paths:
         try:
             head = open(path, errors="replace").read(400)
         except Exception:
@@ -587,6 +628,9 @@ def run_build(args):
     build_vault, vault_in = _seed_build_vault(args.workdir, args.vault_in)
     build_chunks = os.path.join(args.workdir + ".buildchunks")
     os.makedirs(build_chunks, exist_ok=True)
+    # START-of-op snapshot of the seeded vault — warm cells carry prior apps' notes forward, so
+    # notes_written/learn_kind_breakdown must be reported as a delta against this, not the total.
+    notes_baseline = snapshot_notes(build_vault)
 
     prompt = build_prompt(args.app, json.load(open(args.spec))["interface"],
                           regime["read_mode"])
@@ -647,6 +691,15 @@ def run_build(args):
     # stub builds are deterministic (re-copy the same fixture), so the feedback loop is a no-op —
     # one round suffices to validate wiring/threading/schema without burning the time budget.
     t_build_start = time.time()
+    # Convergence-stall early-stop (retro Bug 4): the convergence score is arch progress + feature
+    # progress = arch_pass minus the count of failing feature buckets. It rises monotonically as the
+    # build improves (more arch detectors pass, fewer feature fails). If it does NOT improve for
+    # STALL_PATIENCE consecutive rounds, HALT — escalated feedback is no longer making progress and
+    # the tail rounds just burn spend (feeds-real.full sat at 9/18 rounds 3–8 for ~$0.78 of zero
+    # progress). Escalation still runs every round up to the stall; this only caps wasted tail spend.
+    stalled = False
+    conv_score = convergence_score(sc)
+    no_improve = 0
     while not args.stub and not converged(sc) and rnd < args.max_rounds and sc.get("build") == "ok":
         rnd += 1
         fb = feedback_prompt(sc["failed"], stated_counts, spec)
@@ -660,8 +713,20 @@ def run_build(args):
         for lbl in conv_labels(sc.get("failed", [])):
             if lbl not in stated:
                 stated.append(lbl)
+        new_score = convergence_score(sc)
+        if new_score > conv_score:
+            conv_score = new_score
+            no_improve = 0
+        else:
+            no_improve += 1
         if errored:
             rate_limited = True  # built at round 1 but a resume hit the limit — result kept, flagged
+            break
+        if no_improve >= STALL_PATIENCE and not converged(sc):
+            stalled = True
+            print(f"STALL: {args.app} {args.regime} convergence score flat for {STALL_PATIENCE} "
+                  f"rounds (score={conv_score}) — halting at round {rnd} to save tail spend.",
+                  file=sys.stderr)
             break
     t_build_end = time.time()
 
@@ -722,8 +787,9 @@ def run_build(args):
 
     # Modern vault metrics: count notes written by /learn + lazy crystallizations fired by /recall.
     # No tier breakdown — notes are flat (fact | feedback).
-    notes_written = count_notes_written(build_vault) if not args.stub else 0
-    learn_kind = count_learn_kind_breakdown(build_vault) if not args.stub else {"fact": 0, "feedback": 0, "other": 0}
+    notes_written = count_notes_written(build_vault, notes_baseline) if not args.stub else 0
+    learn_kind = (count_learn_kind_breakdown(build_vault, notes_baseline) if not args.stub
+                  else {"fact": 0, "feedback": 0, "other": 0})
     crystallizations = (0 if args.stub or regime["read_mode"] == "none"
                         else count_crystallizations_at_recall(args.cfg, sid))
     chunks_ingested = _count_chunks(build_chunks) if not args.stub else 0
@@ -747,6 +813,7 @@ def run_build(args):
         "rate_limited": rate_limited, "completed": completed,
         "did_not_complete": (not completed and not rate_limited and sc.get("build") == "ok"),
         "hit_max_rounds": len(rounds) >= args.max_rounds, "total_rounds": len(rounds),
+        "stalled": stalled,
         "escalation": escalation,
         "build_cost": build_cost,
         "build_turns": sum(r["turns"] for r in rounds),

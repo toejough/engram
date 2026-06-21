@@ -175,8 +175,106 @@ def check_modern_metrics():
               total == 2, f"count={total}")
         check("modern metrics: count_learn_kind_breakdown splits by type",
               breakdown == {"fact": 1, "feedback": 1, "other": 0}, str(breakdown))
+
+        # Bug 1: notes_written is a SESSION DELTA, not the cumulative vault total. Snapshot the
+        # vault (2 carry-forward notes already present), add ONE new note, and confirm the delta is
+        # 1 — not 3 (the total). Same for the kind breakdown (the new note only).
+        baseline = hh.snapshot_notes(root)
+        with open(os.path.join(perm, "3.2026-06-07.new-fact.md"), "w") as fh:
+            fh.write("---\ntype: fact\nsituation: z\nsubject: c\npredicate: is\nobject: d\n---\nbody\n")
+        delta = hh.count_notes_written(root, baseline)
+        delta_kind = hh.count_learn_kind_breakdown(root, baseline)
+        check("Bug 1: notes_written delta counts only THIS op's new note (1, not vault total 3)",
+              delta == 1, f"delta={delta}, total={hh.count_notes_written(root)}")
+        check("Bug 1: learn_kind_breakdown delta counts only the new note",
+              delta_kind == {"fact": 1, "feedback": 0, "other": 0}, str(delta_kind))
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+def check_convention_tables_agree():
+    """Bug 2: chain_intervention_table must anchor BOTH chains to cold-app1 — the same anchoring
+    headline_stats/chain_rows uses — so the PRIMARY convention table and the headline path agree.
+    Synthetic fixture: a cold and a warm chain (notes→links→feeds) per (model, trial), plus a
+    stray WARM-app1 notes build that the old code blended into the cold baseline. After the fix the
+    cold total = sum of the three cold per-app restatements, warm total = sum of the three warm."""
+    import aggregate
+
+    def b(app, regime, conv):
+        return {"model": "haiku", "trial": 1, "app": app, "regime": regime,
+                "convention_statements": conv, "converged": True, "build_cost": 0.0,
+                "rounds": [], "learn": {}}
+
+    builds = [
+        b("notes", "cold", 7), b("links", "cold", 7), b("feeds", "cold", 7),    # cold chain = 21
+        b("notes", "real.full", 99),                                            # STRAY warm-app1 trap
+        b("links", "real.full", 4), b("feeds", "real.full", 3),                 # warm app2+app3
+    ]
+    # warm chain must anchor app1 to the COLD notes build (7), giving 7+4+3 = 14, NOT 99+4+3.
+    table = aggregate.chain_intervention_table(builds, ["haiku"], ["cold", "real.full"],
+                                               "convention_statements")
+    cold = table[("cold", "haiku")]
+    warm = table[("real.full", "haiku")]
+
+    # headline path: chain_rows anchors app1 to bmap[(m,t,"notes","cold")] — derive the same totals.
+    rows_cold = aggregate.chain_rows(builds, [], "haiku", "cold")
+    rows_warm = aggregate.chain_rows(builds, [], "haiku", "real.full")
+    head_cold = rows_cold[0]["conv_restate"]
+    head_warm = rows_warm[0]["conv_restate"]
+
+    check("Bug 2: chain_intervention warm anchors to cold-app1 (14, not 99+ from the stray)",
+          warm == 14, f"warm={warm}")
+    check("Bug 2: convention table cold == headline cold AND warm == headline warm",
+          cold == head_cold == 21 and warm == head_warm == 14,
+          f"table=({cold},{warm}) headline=({head_cold},{head_warm})")
+
+
+def check_in_session_learn_cost():
+    """Bug 3: warm cost must INCLUDE in-session /learn cost. For real.full the separate-op learn
+    list is empty and the learn cost lives in build['learn']['cost'] — chain_rows must fold it in."""
+    import aggregate
+
+    def b(app, conv, build_cost, learn_cost):
+        return {"model": "haiku", "trial": 1, "app": app, "regime": "real.full",
+                "convention_statements": conv, "converged": True,
+                "build_cost": build_cost, "rounds": [], "learn": {"cost": learn_cost}}
+
+    # cold-app1 anchor + warm app2/app3, each with an in-session learn cost.
+    builds = [
+        {"model": "haiku", "trial": 1, "app": "notes", "regime": "cold",
+         "convention_statements": 0, "converged": True, "build_cost": 1.0, "rounds": [],
+         "learn": {"cost": 0.10}},
+        b("links", 0, 1.0, 0.10), b("feeds", 0, 1.0, 0.10),
+    ]
+    rows = aggregate.chain_rows(builds, [], "haiku", "real.full")
+    learn_cost = rows[0]["learn_cost"]
+    check("Bug 3: chain_rows folds in-session /learn cost into warm cost (3×0.10=0.30, not 0)",
+          abs(learn_cost - 0.30) < 1e-9, f"learn_cost={learn_cost}")
+
+
+def check_stall_early_stop():
+    """Bug 4: the build loop halts when the convergence score is flat for STALL_PATIENCE consecutive
+    rounds, instead of running to max_rounds. Exercises the SAME helpers the loop uses
+    (convergence_score + run_stall_loop) on a flat-score fixture mirroring feeds-real.full (9/18
+    rounds 3–8). convergence_score = arch_pass minus feature-bucket fails."""
+    import harness as hh
+
+    # convergence_score: arch_pass minus the count of failing FEATURE buckets (ARCH:* excluded).
+    sc = {"arch_pass": 9, "failed": [["ARCH:di", 0], ["alpha", 0], ["beta", 0]]}
+    score = hh.convergence_score(sc)
+    check("Bug 4: convergence_score = arch_pass − feature_fails (9 − 2 = 7)", score == 7, str(score))
+
+    # Flat score for >= STALL_PATIENCE consecutive rounds → halt early (not at max_rounds=8).
+    flat = [4, 5, 5, 5, 5, 5, 5, 5]  # improves once (rnd2), then flat from rnd2 onward
+    stalled, halt = hh.run_stall_loop(flat, patience=hh.STALL_PATIENCE)
+    check("Bug 4: flat convergence score triggers stall early-stop before max_rounds",
+          stalled and halt < len(flat), f"stalled={stalled}, halt_round={halt}/{len(flat)}")
+
+    # A steadily improving chain must NOT stall — runs to the end.
+    improving = [1, 2, 3, 4, 5, 6, 7, 8]
+    stalled2, halt2 = hh.run_stall_loop(improving, patience=hh.STALL_PATIENCE)
+    check("Bug 4: steadily improving score does NOT stall",
+          (not stalled2) and halt2 == len(improving), f"stalled={stalled2}, halt={halt2}")
 
 
 def check_token_io():
@@ -387,6 +485,10 @@ def main():
     check_scorer()
     print("[modern metrics]")
     check_modern_metrics()
+    print("[retro bug fixes]")
+    check_convention_tables_agree()
+    check_in_session_learn_cost()
+    check_stall_early_stop()
     print("[token I/O + cost audit]")
     check_token_io()
     print("[pipeline + clean room]")

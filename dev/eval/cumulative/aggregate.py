@@ -129,12 +129,18 @@ def chain_intervention_table(builds, models, regimes, key):
     (convention_statements or feature_statements) across app1+app2+app3. app1 (notes)
     is the shared cold build per (model, trial)."""
     idx = collections.defaultdict(dict)
-    app1_by_mt = collections.defaultdict(list)
+    # app1 (notes) is the shared COLD build per (model, trial). Anchor BOTH the cold and warm chains
+    # to the cold-app1 value — the SAME anchoring headline_stats/chain_rows uses (bmap[..,"cold"]).
+    # The old code appended every `notes` build (any regime) into app1_by_mt and averaged, which
+    # blended a warm-app1 restatement into the cold baseline and made the two tables disagree
+    # (cold 20.5/warm 13.5 here vs cold 21/warm 14 in headline) — retro Bug 2.
+    app1_cold_by_mt = collections.defaultdict(list)
     for b in builds:
         m, r, t, a = b.get("model"), b.get("regime"), b.get("trial"), b.get("app")
         v = b.get(key, 0) or 0
         if a == "notes":
-            app1_by_mt[(m, t)].append(v)
+            if r == "cold":
+                app1_cold_by_mt[(m, t)].append(v)
         else:
             idx[(m, r, t)][a] = v
 
@@ -142,10 +148,10 @@ def chain_intervention_table(builds, models, regimes, key):
     for r in regimes:
         for m in models:
             trials = sorted({t for (mm, rr, t) in idx if mm == m and rr == r}) or \
-                     sorted({t for (mm, t) in app1_by_mt if mm == m})
+                     sorted({t for (mm, t) in app1_cold_by_mt if mm == m})
             totals = []
             for t in trials:
-                app1 = mean(app1_by_mt.get((m, t), [])) or 0
+                app1 = mean(app1_cold_by_mt.get((m, t), [])) or 0
                 app2 = idx.get((m, r, t), {}).get("links", 0)
                 app3 = idx.get((m, r, t), {}).get("feeds", 0)
                 totals.append(app1 + app2 + app3)
@@ -223,7 +229,12 @@ def chain_rows(builds, learns, model, regime):
             "feat_restate": sum(x.get("feature_statements", 0) or 0 for x in builds3),
             "review_turns": sum(max(0, len(x.get("rounds", [])) - 1) for x in builds3),
             "converged": all(x.get("converged") for x in builds3),
-            "learn_cost": sum(x.get("learn_cost", 0) or 0 for x in ln),
+            # learn_cost = separate-op learns (cold-tier learns) PLUS each build's IN-SESSION /learn
+            # cost. real.full runs /learn inside the build session, so `ln` is empty and the
+            # in-session cost lives in build["learn"]["cost"] — omitting it understated warm cost
+            # ~6% (retro Bug 3). build_cost is the feedback rounds only and does NOT include it.
+            "learn_cost": (sum(x.get("learn_cost", 0) or 0 for x in ln)
+                           + sum((x.get("learn") or {}).get("cost", 0) or 0 for x in builds3)),
             "build_cost": sum(x.get("build_cost", 0) or 0 for x in builds3),
             "wall": sum((x.get("wall_min", 0) or 0) for x in builds3 + ln),
             "tokens": sum(_toks(x) for x in builds3 + ln),
@@ -290,6 +301,7 @@ def cost_time_table(builds, learns, models, regimes):
                     if b.get("model") == m and b.get("trial") == t and \
                        (b.get("app") == "notes" or b.get("regime") == r):
                         cost += b.get("build_cost", 0) or 0
+                        cost += (b.get("learn") or {}).get("cost", 0) or 0  # in-session /learn (Bug 3)
                         wall += b.get("wall_min", 0) or 0
                 for le in learns:
                     if le.get("model") == m and le.get("trial") == t and \
