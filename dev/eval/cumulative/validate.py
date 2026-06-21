@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Zero-cost validation of the cumulative-accumulation harness — NO LLM calls, no spend.
 
-Runs the §7 pilot checks that don't need an LLM, so they're reproducible from a clean
-checkout before anyone authorizes the live pilot:
-  (i)   cell-gen: the §1.3 26-op / 18-cell chain, vault threading, dependency wiring
+Runs validation checks for the v3 2-regime design (cold + real.full, no tiers/episodes):
+  (i)   cell-gen: 2 regimes × 3 apps = 6 build ops, 0 learn ops; vault threading + deps
   (iv)  scorer is name-agnostic: GOOD fixture (Repository vocab) passes ARCH, NAIVE fails
   (ii)  clean room: no CLAUDE.md/AGENTS.md reaches a build; cfg carries only recall+learn
-  +     full pipeline mechanics via the --stub matrix (build->score->loop->learn->thread->schema)
+  +     full pipeline mechanics via the --stub matrix (build→score→loop→learn→thread→schema)
   +     aggregate.py runs and emits the tables
+  +     new metrics present: notes_written, crystallizations_at_recall, chunks_ingested,
+        learn_kind_breakdown (NO tier/episode fields)
 
-The remaining §7 check — (iii) recall fires AND is applied — inherently needs the LLM and
+The remaining check — (iii) recall fires AND is applied — inherently needs the LLM and
 is verified in the live pilot.
 
 Usage: python3 validate.py
@@ -32,19 +33,15 @@ def check(name, ok, detail=""):
 
 
 def check_cellgen():
-    # real-skill-only: 4 regimes (cold, real.lazy, real.auto, real.autol2) × 3 apps = 12 build ops, 0 learn ops.
+    # v3: 2 regimes (cold, real.full) × 3 apps = 6 build ops, 0 separate learn ops.
     ops = matrix.real_cells_for("sonnet", 1, "2026-06-06", "", 6, None)
     builds = [o for o in ops if o["kind"] == "build"]
     learns = [o for o in ops if o["kind"] == "learn"]
-    check("cell-gen: 12 ops (12 build + 0 learn)",
-          len(ops) == 12 and len(builds) == 12 and len(learns) == 0,
+    check("cell-gen: 6 ops (6 build + 0 learn)",
+          len(ops) == 6 and len(builds) == 6 and len(learns) == 0,
           f"{len(ops)} ops / {len(builds)} build / {len(learns)} learn")
 
-    def arg(o, flag):
-        return o["cmd_tail"][o["cmd_tail"].index(flag) + 1] if flag in o["cmd_tail"] else None
-
-    # Vault threading: for vault-writing regimes, each app seals its vault and passes it to the next.
-    # cold never writes; real.lazy/autol2 write vault; real.auto writes chunks only.
+    # Vault threading: real.full writes vault; cold never accumulates.
     threading_ok = True
     for r, rc in harness.REGIMES.items():
         if r == "cold":
@@ -59,7 +56,7 @@ def check_cellgen():
         if (a2b["dep"] != [f"sonnet-t1-app1-{r}-build"]
                 or a3b["dep"] != [f"sonnet-t1-app2-{r}-build"]):
             threading_ok = False
-    check("cell-gen: vault threading + deps across all real regimes", threading_ok)
+    check("cell-gen: vault threading + deps for real.full", threading_ok)
 
 
 def check_scorer():
@@ -88,16 +85,15 @@ def check_stub_pipeline():
         r = subprocess.run(["python3", os.path.join(CUM, "matrix.py"), "--models", "sonnet",
                             "--trials", "1", "--stub", "good", "--max-rounds", "1", "--workers", "4",
                             "--timeout-min", "5"], env=env, capture_output=True, text=True, timeout=600)
-        done = "### MATRIX COMPLETE ### 12/12" in r.stdout
-        check("stub matrix: 12/12 ops complete (no LLM)", done, r.stdout.strip().splitlines()[-1] if r.stdout else "")
+        done = "### MATRIX COMPLETE ### 6/6" in r.stdout
+        check("stub matrix: 6/6 ops complete (no LLM)", done, r.stdout.strip().splitlines()[-1] if r.stdout else "")
 
-        # Real-skill regimes accumulate per-regime vaults (vault-writing: real.lazy, real.autol2).
-        # Verify that app1 and app2 produced a vault for real.lazy (the simplest vault-writing arm).
-        v_app1 = os.path.join(root, "vaults", "v-sonnet-t1-app1-real.lazy")
-        v_app2 = os.path.join(root, "vaults", "v-sonnet-t1-app2-real.lazy")
-        lazy_seeded = os.path.isdir(v_app1) or os.path.isdir(v_app2)
-        check("stub: real.lazy vault dirs created for non-terminal apps",
-              lazy_seeded, f"app1={os.path.isdir(v_app1)} app2={os.path.isdir(v_app2)}")
+        # real.full accumulates a vault; verify app1 and app2 produced vault dirs.
+        v_app1 = os.path.join(root, "vaults", "v-sonnet-t1-app1-real.full")
+        v_app2 = os.path.join(root, "vaults", "v-sonnet-t1-app2-real.full")
+        full_seeded = os.path.isdir(v_app1) or os.path.isdir(v_app2)
+        check("stub: real.full vault dirs created for non-terminal apps",
+              full_seeded, f"app1={os.path.isdir(v_app1)} app2={os.path.isdir(v_app2)}")
 
         # clean room: build workdirs carry no ambient conventions; cfg only recall+learn.
         ws = os.path.join(root, "ws")
@@ -110,16 +106,29 @@ def check_stub_pipeline():
         check("clean room: warm cfg carries ONLY recall+learn; cold none",
               warm_skills == ["learn", "recall"] and not cold_has_skills, f"warm={warm_skills} cold_skills={cold_has_skills}")
 
-        # schema v3: verify a result JSON has schema_version 3
+        # schema v4: verify a result JSON has schema_version 4
         result_jsons = [f for f in os.listdir(os.path.join(root, "results"))
                         if f.endswith(".json") and f != "run-manifest.json"]
         if result_jsons:
             sample = json.load(open(os.path.join(root, "results", result_jsons[0])))
-            check("schema v3: stub result has schema_version 3",
-                  sample.get("schema_version") == 3,
+            check("schema v4: stub result has schema_version 4",
+                  sample.get("schema_version") == 4,
                   f"schema_version={sample.get('schema_version')}")
         else:
-            check("schema v3: stub result has schema_version 3", False, "no result JSONs found")
+            check("schema v4: stub result has schema_version 4", False, "no result JSONs found")
+
+        # new metrics: verify result JSON has v3 metrics and NOT tier/episode fields
+        if result_jsons:
+            sample = json.load(open(os.path.join(root, "results", result_jsons[0])))
+            new_metrics = ["notes_written", "crystallizations_at_recall",
+                           "chunks_ingested", "learn_kind_breakdown"]
+            stale_fields = ["l2_generated", "l2_composed", "notes_by_tier"]
+            missing_new = [f for f in new_metrics if f not in sample]
+            present_stale = [f for f in stale_fields if f in sample]
+            check("new metrics: notes_written/crystallizations_at_recall/chunks_ingested/learn_kind_breakdown present",
+                  len(missing_new) == 0, f"missing: {missing_new}" if missing_new else "all present")
+            check("stale tier metrics absent: no l2_generated/l2_composed/notes_by_tier in result",
+                  len(present_stale) == 0, f"still present: {present_stale}" if present_stale else "none found")
 
         agg = subprocess.run(["python3", os.path.join(CUM, "aggregate.py"), "--root", root,
                              "--out", os.path.join(root, "results-stub.md")],
@@ -134,73 +143,38 @@ def check_stub_pipeline():
         missing_axes = [f for f in axis_fields if f not in agg_out]
         check("axis fields: --stub dry pass emits all six axis fields",
               len(missing_axes) == 0, f"missing: {missing_axes}" if missing_axes else "all present")
+
+        # no stale tier metric fields in aggregate output (allow "episode" in explanatory prose)
+        tier_field_phrases = ["l2_generated", "l2_composed", "learn_quality_table",
+                              "write-tier of its learn", "L1 episode"]
+        found_tier = [p for p in tier_field_phrases if p in agg_out]
+        check("aggregate: no stale tier metric fields in output",
+              len(found_tier) == 0, f"found stale: {found_tier}" if found_tier else "none found")
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
 
-def check_prune():
-    """Deterministic test of the write-tier ceiling enforcement: a vault with L1+L2+L3
-    notes must prune to exactly the ceiling (guards the bug where the /learn skill wrote
-    facts during an L1 episode-only capture, making v1[L1] == v1[L2])."""
+def check_modern_metrics():
+    """Verify that the modern metric helpers (count_notes_written, count_learn_kind_breakdown)
+    work on a synthetic vault with known fact+feedback notes — no LLM, no tier fields."""
     import harness as hh
 
-    def seed():
-        root = tempfile.mkdtemp(prefix="cumprune-")
-        perm = os.path.join(root, "Permanent")
-        os.makedirs(perm)
-        for tier, kind in [("L1", "episode"), ("L2", "fact"), ("L3", "fact")]:
-            with open(os.path.join(perm, f"9{tier[-1]}.2026-06-06.x-{tier.lower()}.md"), "w") as fh:
-                fh.write(f"---\ntype: {kind}\ntier: {tier}\nsituation: x\n---\nbody\n")
-        return root
-
-    r1, r2 = seed(), seed()
+    root = tempfile.mkdtemp(prefix="cummetrics-")
+    perm = os.path.join(root, "Permanent")
+    os.makedirs(perm)
     try:
-        hh.prune_to_ceiling(r1, "L1")
-        hh.prune_to_ceiling(r2, "L2")
-        c1, c2 = hh.count_notes_by_tier(r1), hh.count_notes_by_tier(r2)
-        check("prune: L1 ceiling keeps only the episode (no facts)",
-              c1 == {"L1": 1, "L2": 0, "L3": 0, "other": 0}, str(c1))
-        check("prune: L2 ceiling keeps L1+L2, drops L3", c2 == {"L1": 1, "L2": 1, "L3": 0, "other": 0}, str(c2))
-    finally:
-        shutil.rmtree(r1, ignore_errors=True)
-        shutil.rmtree(r2, ignore_errors=True)
+        # Write one fact and one feedback note directly
+        with open(os.path.join(perm, "1.2026-06-06.test-fact.md"), "w") as fh:
+            fh.write("---\ntype: fact\nsituation: x\nsubject: a\npredicate: is\nobject: b\n---\nbody\n")
+        with open(os.path.join(perm, "2.2026-06-06.test-feedback.md"), "w") as fh:
+            fh.write("---\ntype: feedback\nsituation: y\nbehavior: bad\nimpact: costly\naction: good\n---\nbody\n")
 
-
-def check_learn_tiers():
-    """The --stub deterministic learn must produce strictly-nested tier seeds from a stated set:
-    L1 = episode only, L2 = +one fact per convention, L3 = +a synthesized ADR. (Validates the
-    stub pipeline path; the REAL learn is agent-driven and measured live in the pilot.)"""
-    import harness as hh
-
-    root = tempfile.mkdtemp(prefix="cumlearn-")
-    stated = ["di", "atomic", "nocolor"]
-    br = os.path.join(root, "build.json")
-    json.dump({"stated_conventions": stated}, open(br, "w"))
-    counts = {}
-    try:
-        for tier in ["L1", "L2", "L3"]:
-            vout = os.path.join(root, f"v1-{tier}")
-            subprocess.run(["python3", os.path.join(CUM, "harness.py"), "learn", "--app", "notes",
-                            "--model", "sonnet", "--regime", f"t-{tier}", "--write-tier", tier,
-                            "--workdir", os.path.join(root, "ws"), "--vault-in", "none",
-                            "--vault-out", vout, "--build-result", br, "--stub", "good",
-                            "--out", os.path.join(root, f"learn-{tier}.json"), "--date", "2026-06-06"],
-                           capture_output=True, text=True, timeout=180)
-            counts[tier] = hh.count_notes_by_tier(vout) if os.path.isdir(vout) else {}
-
-        l1, l2, l3 = counts["L1"], counts["L2"], counts["L3"]
-        check("learn: L1 = episode only (no facts)", l1 == {"L1": 1, "L2": 0, "L3": 0, "other": 0}, str(l1))
-        check("learn: L2 = episode + 1 fact per stated convention",
-              l2 == {"L1": 1, "L2": len(stated), "L3": 0, "other": 0}, str(l2))
-        check("learn: L3 = episode + facts + synthesized ADR",
-              l3.get("L1") == 1 and l3.get("L2") == len(stated) and l3.get("L3") == 1, str(l3))
-
-        env = dict(os.environ)
-        env["ENGRAM_VAULT_PATH"] = os.path.join(root, "v1-L3")
-        env["PATH"] = hh.ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
-        chk = subprocess.run(["engram", "check"], env=env, capture_output=True, text=True)
-        check("learn: L3 seed vault passes engram check (links resolve)",
-              chk.returncode == 0 and "FAIL" not in chk.stdout, chk.stdout.strip()[:80])
+        total = hh.count_notes_written(root)
+        breakdown = hh.count_learn_kind_breakdown(root)
+        check("modern metrics: count_notes_written counts fact+feedback notes",
+              total == 2, f"count={total}")
+        check("modern metrics: count_learn_kind_breakdown splits by type",
+              breakdown == {"fact": 1, "feedback": 1, "other": 0}, str(breakdown))
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -411,10 +385,8 @@ def main():
     check_cellgen()
     print("[scorer]")
     check_scorer()
-    print("[write-tier ceiling]")
-    check_prune()
-    print("[deterministic learn tiers]")
-    check_learn_tiers()
+    print("[modern metrics]")
+    check_modern_metrics()
     print("[token I/O + cost audit]")
     check_token_io()
     print("[pipeline + clean room]")
