@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Aggregate v2 cumulative-accumulation results into the §5 headline tables and a
-results-vN.md in the 2026-06-02 doc's shape.
+"""Aggregate cumulative-accumulation results into the §5 headline tables.
 
 PRIMARY metric — repeated-convention interventions (the say-once signal): per build we
 record how many transferable conventions had to be STATED (round-1 ARCH fails, since §4
@@ -9,8 +8,10 @@ feeds back all gaps). Summed across the app1->app2->app3 chain, memory should ap
 interventions are the control — memory should not move them.
 
 Reads the per-op result JSONs written by harness.py (build/learn) under <root>/results/.
+Output goes to --out (default: <root>/results-agg.md in the run workspace) and stdout.
+No files are written into the source tree.
 
-Usage: python3 aggregate.py [--root /tmp/cummatrix] [--out results-v2.md]
+Usage: python3 aggregate.py [--root /tmp/cummatrix] [--out /tmp/cummatrix/results-agg.md]
 """
 import argparse, collections, glob, json, os, random as _random, statistics
 
@@ -427,7 +428,7 @@ def token_io_table(builds, learns, models, root):
     for rec in builds + learns:
         # none-tier learns make NO LLM call (cold arm) — genuinely $0/0 tokens, not data loss.
         # Exclude them from the coverage denominator so it reflects only LLM-using cells.
-        if rec.get("kind") == "learn" and rec.get("write_tier") == "none":
+        if rec.get("kind") == "learn" and rec.get("write_mode") == "none":
             noop += 1
             continue
         total += 1
@@ -628,8 +629,10 @@ def cost_calibration(builds, learns):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=os.environ.get("CUMMATRIX_ROOT", "/tmp/cummatrix"))
-    ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "results-v2.md"))
+    ap.add_argument("--out", default=None)  # default is set after --root is parsed (see below)
     args = ap.parse_args()
+    if args.out is None:
+        args.out = os.path.join(args.root, "results-agg.md")
 
     builds, learns, manifest = load(args.root)
     if not builds:
@@ -651,7 +654,7 @@ def main():
 
     stub_note = "  ·  **STUB RUN (no LLM — mechanics only, numbers are not real)**" if manifest.get("stub") else ""
     rate_limited = sum(1 for b in builds if b.get("rate_limited"))
-    not_engaged = sum(1 for le in learns if le.get("learned") is False and le.get("write_tier") != "none")
+    not_engaged = sum(1 for le in learns if le.get("learned") is False and le.get("write_mode") != "none")
     completeness = ""
     if rate_limited or not_engaged:
         completeness = (f"\n\n> ⚠ **INCOMPLETE:** {rate_limited} build(s) hit a rate limit and "

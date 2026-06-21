@@ -786,18 +786,18 @@ def run_build(args):
 # ----- learn mode -----
 
 def run_learn(args):
-    """Legacy learn mode — only used for cold (write_tier=none). real.full learns in-session."""
+    """Legacy learn mode — only used for cold (write_mode=none). real.full learns in-session."""
     t0 = time.time()
     if REGIMES.get(args.regime, {}).get("write") in ("skill",):
         raise SystemExit("real.full learns in-session (run_build); run_learn is not used for it")
     # cold regime: write nothing
     out = {"schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "learn",
            "app": args.app, "model": args.model, "regime": args.regime, "trial": args.trial,
-           "date": args.date, "write_tier": "none", "vault_in": args.vault_in,
+           "date": args.date, "write_mode": "none", "vault_in": args.vault_in,
            "vault_out": args.vault_out, "learned": False,
            "learn_cost": 0.0, "learn_turns": 0, "wall_min": 0.0}
     json.dump(out, open(args.out, "w"), indent=2)
-    print(json.dumps({"app": args.app, "regime": args.regime, "write_tier": "none", "learned": False}))
+    print(json.dumps({"app": args.app, "regime": args.regime, "write_mode": "none", "learned": False}))
 
 
 def main():
@@ -815,7 +815,7 @@ def main():
     b.add_argument("--stub", default="", choices=["", "good", "naive"])
 
     le = sub.add_parser("learn")
-    for a in ["app", "model", "regime", "write-tier", "workdir", "vault-in", "vault-out", "out"]:
+    for a in ["app", "model", "regime", "write-mode", "workdir", "vault-in", "vault-out", "out"]:
         le.add_argument("--" + a, required=True)
     le.add_argument("--trial", type=int, default=1)
     le.add_argument("--date", default="")
@@ -831,7 +831,7 @@ def main():
         run_build(args)
     else:
         args.vault_out = getattr(args, "vault_out")
-        args.write_tier = getattr(args, "write_tier")
+        args.write_mode = getattr(args, "write_mode")
         run_build_result = getattr(args, "build_result", "")
         args.build_result = run_build_result
         run_learn(args)
