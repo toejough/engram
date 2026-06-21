@@ -1,35 +1,24 @@
 #!/usr/bin/env python3
-"""One operation of the cumulative-accumulation eval (v2).
+"""One operation of the cumulative-accumulation eval (v3 — 2-regime modern design).
 
-Two modes, so build and learn decouple (app1 is built cold ONCE, then fanned out
-to 4 write-tier learns — §1.3):
+Two regimes only: `cold` (no memory) and `real.full` (complete modern memory system).
+Modern engram has NO tiers/episodes/eager-L2. Memory = raw chunks (engram ingest) +
+crystallized notes (engram learn fact|feedback). Recall = engram query → unified
+clustering → /recall skill judges covered/near/ABSENT and crystallizes NEW notes lazily.
 
-  build  recall (read-subset) -> build -> score -> feed back ALL gaps -> resume ->
-         loop to the bar.  Records per-round convention/feature intervention counts
-         (split on the scorer's ARCH: prefix), the round-1 per-detector ARCH
-         snapshot (the say-once discriminator), stated_conventions (for the learn
-         prompt), rounds_to_converge, recall_fired (+ recall_ok flag), link-following,
-         per-round cost/turns, wall_min.  NO learn.
-
-  learn  over an already-built workdir, write at the regime's write-tier
-         (cold=nothing; L1=episode; L2=episode+facts; L3=episode+facts+§6b synthesis),
-         capturing the STATED conventions the build fed back (so "say it once"
-         persists), per the tiered-capture-discipline ADR.  Verifies output populated.
-
-Recall encoding (read-subset, §1.4):
-  none           -> no recall (cold)
-  blended        -> engram query (no --tier): full vault returned
-  tier [T ...]   -> engram query --tier T [--tier T2 ...]; surfaced notes carry
-                    outbound_links and the build is told to follow them with
-                    `engram show <basename>` (direct-vs-follow-on-demand, not a blinding)
+Each app is ONE one-session cell:
+  build  [real.full: invoke /recall] -> build -> score -> feed back gaps -> loop ->
+         [real.full: invoke /learn after convergence]
+         Records: stated_conventions, convention_statements, arch_pass, recall_fired,
+         escalation, timing (recall_s/build_s/learn_s), cost, notes_written,
+         crystallizations_at_recall, chunks_ingested, learn_kind_breakdown.
 
 Usage:
-  harness.py build --app feeds --model sonnet --regime l2.l2 --trial 1 \
+  harness.py build --app feeds --model sonnet --regime real.full --trial 1 \
       --vault-in <dir|none> --cfg <cfgdir> --workdir <dir> --spec <spec.json> \
-      --out <build.json> [--max-rounds 6] [--stub good|naive]
-  harness.py learn --app notes --model sonnet --regime l2.l2 --trial 1 \
-      --write-tier L2 --workdir <built-dir> --vault-in <dir|none> --vault-out <dir> \
-      --build-result <build.json> --cfg <cfgdir> --out <learn.json> [--stub good|naive]
+      --out <build.json> [--max-rounds 8] [--stub good|naive]
+  harness.py learn  (legacy only; real.full learns in-session — this mode remains for
+      the cold/stub path which writes nothing)
 """
 import argparse, glob as _glob, json, os, re, subprocess, sys, time
 
@@ -39,22 +28,19 @@ import score as scoremod
 # Single editable source of truth for the model registry — a new model is a one-line add (§1.5).
 MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "opus": "claude-opus-4-8"}
 ENGRAM_BIN_DIR = os.environ.get("ENGRAM_BIN_DIR", os.path.expanduser("~/go/bin"))
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 CONVERGE_ARCH_BAR = 8  # arch_pass >= 8 (matches converged())
 
-# Active regimes — real-skill only (recall-v2). Pre-recall-v2 tiered regimes (l1, l2.*, l3.*)
-# retired 2026-06-20: they called removed CLI flags and exercised proxy logic instead of the
-# shipped skills. Only these four regimes produce valid, trustworthy eval results.
-# read_mode: none | skill | skill-chunks
+# Two regimes — modern engram (v3, no tiers/episodes/eager-L2):
+#   cold      = no memory at all; baseline
+#   real.full = complete modern system: between apps the harness runs `engram ingest` on the
+#               build transcript (chunks), and the agent invokes the real /learn skill
+#               (writes fact/feedback notes); on each new app the agent invokes the real /recall
+#               skill (unified clustering + lazy crystallization at recall time).
+# read_mode: none | skill
 REGIMES = {
-    "cold":       {"write": "none",    "read_mode": "none",         "read_tiers": []},
-    # Agent invokes the real /recall and /learn skills; lazy default (episodes only at learn-time).
-    "real.lazy":  {"write": "skill",   "read_mode": "skill",        "read_tiers": []},
-    # Zero-LLM transcript ingest; recall queries the chunk index via /recall chunk-variant skill.
-    "real.auto":  {"write": "auto",    "read_mode": "skill-chunks", "read_tiers": []},
-    # Chunks + vault-backed L2: unified engram query (chunks + vault); recall crystallizes
-    # lessons as vault notes when near-match chunk groups evidence a principle.
-    "real.autol2": {"write": "auto-l2", "read_mode": "skill-chunks", "read_tiers": []},
+    "cold":      {"write": "none",  "read_mode": "none",  "read_tiers": []},
+    "real.full": {"write": "skill", "read_mode": "skill", "read_tiers": []},
 }
 
 
@@ -148,16 +134,8 @@ def build_prompt(app, interface, read_mode, read_tiers):
             f"building a command-line {app} in Go and its architecture/conventions. Read every note the "
             "skill surfaces and APPLY every convention and decision — including any L2 the skill "
             "crystallizes on demand — as requirements for your build.\n")
-    elif read_mode == "skill-chunks":
-        recall = (
-            "\nBefore writing ANY code, consult your memory by INVOKING YOUR /recall SKILL — actually "
-            "run the skill (it prints its plan, queries the chunk index, and synthesizes impact). Do "
-            "NOT hand-run engram commands yourself in place of the skill. Frame the recall around "
-            f"building a command-line {app} in Go and its architecture/conventions. Read every chunk "
-            "the skill surfaces and APPLY every convention and decision they reveal as requirements "
-            "for your build.\n")
     else:
-        raise ValueError(f"Unknown read_mode {read_mode!r}; real-skill regimes use none|skill|skill-chunks")
+        raise ValueError(f"Unknown read_mode {read_mode!r}; regimes use none|skill")
     return (f"Build a command-line {app} manager in Go, from scratch, in the current directory "
             f"(run `go mod init {app}` first).\n\nImplement these subcommands:\n{interface}\n{recall}\n"
             "Make `go test ./...` pass before you finish. Work fully autonomously: never stop to ask "
@@ -329,56 +307,27 @@ def score_learn_capture(vault, stated, write_tier):
     }
 
 
-# Agent-driven learn prompt: the agent runs its /learn skill (testing the whole memory system).
-LEARN_PROMPT_INTRO = (
-    "Use your engram /learn skill to capture durable memory from the build in THIS directory into "
-    "the engram vault (the one `engram learn` manages). Derive the lessons from the code here. "
-    "Frame every note so a future agent building a DIFFERENT Go CLI surfaces and applies it. "
-    "Capture via the /learn skill / `engram learn` — do NOT hand-write .md files or a MEMORY.md "
-    "index; this is the engram vault, not a personal-memory store.\n"
-    "ALWAYS begin by writing exactly ONE L1 episode of this build — it is REQUIRED for every tier "
-    "(the foundation that facts and ADRs link down to), even when the tier's emphasis is facts. "
-    "Skipping the episode is a failure.")
-
-LEARN_STATED = (
-    "\nThe reviewer stated these architecture conventions during this build — your capture MUST "
-    "cover each one so a later app's recall surfaces it:\n{stated}\n")
-
-LEARN_TIER_GUIDE = {
-    "L1": "Write exactly ONE episode of this build (recording what you built and the conventions you "
-          "applied). Episode only — no fact notes, no L3 synthesis.",
-    "L2": "Write ONE episode, then one FACT per architecture convention, each relation-linked to the "
-          "episode. Do NOT run L3 synthesis.",
-    "L3": "Write ONE episode, then FACTS (one per convention, relation-linked to the episode), then "
-          "write an ADR (tier L3) synthesizing the facts, linked down to their L2 facts.",
-}
-
-
 def skill_learn_prompt():
-    """Real-skill learn for the one-session cell: the BUILD agent (which has the real build
-    transcript) invokes its /learn skill. No 'exactly one episode' cap, no convention label-feed
-    (the agent derives lessons from its own session — dropping the closed-loop-scorer confound)."""
-    parts = [
-        "Now capture durable memory from the work you just did, by INVOKING YOUR /learn skill. "
-        "Actually run the skill (it scans this session's transcript and writes episodes per work-arc). "
-        "Do NOT hand-run `engram learn` in place of the skill, and do NOT cap the episode count — let "
-        "the skill write one episode per arc as it sees fit.",
-        "Run /learn at its DEFAULT (lazy): episodes only; do NOT distill facts/feedback at learn "
-        "time — those are crystallized later at recall. Just capture the episodes.",
-    ]
-    parts.append("Work autonomously; end with a one-line summary of what you wrote.")
-    return "\n\n".join(parts)
+    """Real-skill learn for the one-session cell: the BUILD agent invokes its /learn skill.
+    The skill decides what to crystallize — facts for explicit conventions, feedback for
+    corrections. NO episode/tier mandates: those are a proxy artifact from pre-v3 eval design
+    that contradicted the shipped /learn SKILL.md (which writes fact|feedback, not episodes)."""
+    return (
+        "Now capture durable memory from the work you just did, by INVOKING YOUR /learn skill.\n\n"
+        "Actually run the /learn skill — do NOT hand-run `engram learn` directly in place of the "
+        "skill. Let the skill decide what to crystallize (fact notes for reusable conventions, "
+        "feedback notes for corrections). Do NOT impose any episode, tier, or count constraints — "
+        "the skill knows what to write.\n\n"
+        "Work autonomously; end with a one-line summary of what was written to the vault."
+    )
 
 
 def learn_prompt(write_tier, stated):
-    if write_tier in ("skill", "skill-eager"):
+    """Returns the appropriate learn prompt. real.full always uses skill_learn_prompt."""
+    if write_tier in ("skill",):
         return skill_learn_prompt()
-    parts = [LEARN_PROMPT_INTRO]
-    if stated:
-        parts.append(LEARN_STATED.format(stated="\n".join(f"  - {s}" for s in stated)))
-    parts.append(LEARN_TIER_GUIDE[write_tier])
-    parts.append("Work autonomously; end with a one-line summary of how many notes of each tier you wrote.")
-    return "\n\n".join(parts)
+    # Legacy/cold path: write nothing (cold regime)
+    return ""
 
 
 def eg_learn(vault, date, kind, slug, fields, relations):
@@ -526,6 +475,46 @@ def learn_fired(cfg, sid):
     return _skill_and_query_hits(cfg, sid, skill="learn", need_query=False) > 0
 
 
+def count_notes_written(vault):
+    """Total markdown notes in the vault after learn — the modern replacement for notes_by_tier."""
+    return len(glob_notes(vault))
+
+
+def count_learn_kind_breakdown(vault):
+    """Count notes by frontmatter type (fact vs feedback) — replaces tier breakdown."""
+    counts = {"fact": 0, "feedback": 0, "other": 0}
+    for path in glob_notes(vault):
+        try:
+            head = open(path, errors="replace").read(400)
+        except Exception:
+            continue
+        kind = "other"
+        for line in head.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("type:"):
+                kind = stripped.split(":", 1)[1].strip().strip('"').strip("'")
+                break
+        counts[kind if kind in counts else "other"] += 1
+    return counts
+
+
+def count_crystallizations_at_recall(cfg, sid):
+    """Count engram learn / engram amend invocations the agent fired DURING a build session
+    (i.e., at recall time, not at learn time). These are the lazy crystallizations the /recall
+    skill writes when it finds cluster members evidence an absent or near-miss note."""
+    hits = 0
+    proj = os.path.join(cfg, "projects")
+    for root, _, files in os.walk(proj):
+        for fn in files:
+            if sid and sid in fn:
+                try:
+                    txt = open(os.path.join(root, fn), errors="replace").read()
+                except Exception:
+                    continue
+                hits += txt.count("engram learn ") + txt.count("engram amend ")
+    return hits
+
+
 def link_followed(cfg, sid):
     """Whether the agent actually followed surfaced links — `engram show` calls or reads of
     Permanent/*.md beyond the surfaced set. Makes direct-vs-followed visible, not assumed (§1.4)."""
@@ -546,9 +535,8 @@ def link_followed(cfg, sid):
 
 def _stub_build(args):
     """Drop the chosen fixture Go app into the workdir (real, compilable Go the scorer
-    builds and runs) and return a canned result. No LLM call. For the lazy arm, also fakes
-    a lazy-L2 recall that crystallizes L2(s) into the build vault — so persist-forward
-    and the vault-metrics path are validated without an LLM."""
+    builds and runs) and return a canned result. No LLM call. For real.full stub, also writes
+    a couple of fact notes into the build vault so the persist-forward path is exercised."""
     import shutil
     fix = os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata", args.stub)
     for path in _glob.glob(os.path.join(fix, "*")):
@@ -557,30 +545,28 @@ def _stub_build(args):
             shutil.copytree(path, dst, dirs_exist_ok=True)
         else:
             shutil.copy(path, dst)
-    if args.regime == "l2.lazy":
-        _stub_crystallize_l2(args)
+    if args.regime == "real.full":
+        _stub_learn_facts(args)
     return {"is_error": False, "total_cost_usd": 0.0, "num_turns": 1,
             "session_id": "stub-build", "result": "stubbed build"}
 
 
-def _stub_crystallize_l2(args):
-    """Fake the l2.lazy recall's crystallize-on-demand: write two L2 facts into the build vault
-    (one composing on the other via a relation) so persist-forward (run_learn) and the build
-    vault metrics (l2_generated/l2_composed) are exercised with no LLM. The deterministic learn
-    for l2.lazy writes L1 only; this is the recall-side write the real run gets from /recall."""
+def _stub_learn_facts(args):
+    """Fake the real.full learn: write two fact notes into the build vault so
+    persist-forward and the notes_written metric path are exercised without an LLM."""
     build_vault = args.workdir + ".buildvault"
     if not os.path.isdir(build_vault):
         return
     date = args.date or "2026-06-06"
-    base1 = eg_learn(build_vault, date, "fact", f"stub-lazy-{args.app}-di",
-                     {"situation": f"building a command-line {args.app} in Go",
-                      "subject": "dependencies", "predicate": "should be",
-                      "object": "injected interfaces so the core runs against in-memory fakes"}, [])
-    rel = [f"{base1}|builds on"] if base1 else []
-    eg_learn(build_vault, date, "fact", f"stub-lazy-{args.app}-errors",
+    eg_learn(build_vault, date, "fact", f"stub-{args.app}-di",
+             {"situation": f"building a command-line {args.app} in Go",
+              "subject": "dependencies", "predicate": "should be",
+              "object": "injected interfaces so the core runs against in-memory fakes"}, [])
+    eg_learn(build_vault, date, "feedback", f"stub-{args.app}-errors",
              {"situation": f"signaling errors in a command-line {args.app} in Go",
-              "subject": "error conditions", "predicate": "should be",
-              "object": "package-level sentinel vars wrapped with %w and matched via errors.Is"}, rel)
+              "behavior": "returning bare errors",
+              "impact": "loses context and is uncheckable with errors.Is",
+              "action": "use package-level sentinel vars wrapped with %w"}, [])
 
 
 # ----- token I/O capture + cost audit (§6 / note-17: decompose tokens; reconstruct cost ~1.00x) -----
@@ -733,7 +719,8 @@ def run_build(args):
     os.makedirs(args.workdir, exist_ok=True)
     t0 = time.time()
     build_vault, vault_in = _seed_build_vault(args.workdir, args.vault_in)
-    build_chunks = _seed_build_chunks(args.workdir, getattr(args, "chunks_in", "none"))
+    build_chunks = os.path.join(args.workdir + ".buildchunks")
+    os.makedirs(build_chunks, exist_ok=True)
 
     prompt = build_prompt(args.app, json.load(open(args.spec))["interface"],
                           regime["read_mode"], regime["read_tiers"])
@@ -741,8 +728,7 @@ def run_build(args):
     def do_build(msg, resume_sid=None):
         if args.stub:
             return _stub_build(args)
-        res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid,
-                     chunks=build_chunks if regime["read_mode"] == "skill-chunks" else None)
+        res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid)
         # Transient rate-limit/overload retry on BOTH the initial build and resumes (a $0-ish,
         # 1-turn error is the 429 signature). Sustained quota exhaustion outlasts these backoffs
         # and is handled downstream (a never-built round writes no success result; a rate-limited
@@ -752,8 +738,7 @@ def run_build(args):
                 break
             refresh_creds_path(args.cfg)
             time.sleep(backoff)
-            res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid,
-                         chunks=build_chunks if regime["read_mode"] == "skill-chunks" else None)
+            res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid)
         return res
 
     t_recall_start = time.time()
@@ -819,21 +804,21 @@ def run_build(args):
         print(f"WARN: {args.app} {args.regime} did NOT converge in {rnd} rounds "
               f"(escalated feedback exhausted the safety cap) — flagged did_not_complete.", file=sys.stderr)
 
-    # Recall-skill assertion (real.* / warm): the faithful signal is the Skill tool firing, not a
-    # bare `engram query`. A warm cell where /recall did not fire never had the memory condition —
+    # Recall-skill assertion (real.full / warm): the faithful signal is the Skill tool firing, not
+    # a bare `engram query`. A warm cell where /recall did not fire never had the memory condition —
     # discard it (exit without a result so a resume re-runs it), BEFORE spending a learn on it.
     rf = 0 if (regime["read_mode"] == "none" or args.stub) else recall_fired(args.cfg, sid)
-    if regime["read_mode"] in ("skill", "skill-chunks") and not args.stub and rf == 0:
+    if regime["read_mode"] == "skill" and not args.stub and rf == 0:
         print(f"recall SKILL did not fire ({args.app} {args.regime}) — invalid warm cell; "
               f"no result written so resume re-runs it.", file=sys.stderr)
         sys.exit(1)
 
-    # One-session learn: for real-skill regimes the BUILD agent runs /learn on its OWN transcript
-    # (episodes are genuine chunks, not summaries). resume_sid=sid keeps it the same session. cold
-    # and legacy regimes skip this (cold has no learn; legacy regimes learn via a separate run_learn).
-    learn_meta = {"ran": False, "cost": 0.0, "turns": 0, "fired": None, "notes_by_tier": {}}
+    # One-session learn: real.full — the BUILD agent runs /learn on its OWN transcript at the end.
+    # The /learn skill ingests the session as chunks AND crystallizes explicit fact/feedback notes.
+    # resume_sid=sid keeps it the same session. cold skips this entirely.
+    learn_meta = {"ran": False, "cost": 0.0, "turns": 0, "fired": None}
     t_learn_start = time.time()
-    if not args.stub and regime["write"] in ("skill", "skill-eager") and sc.get("build") == "ok" and completed:
+    if not args.stub and regime["write"] == "skill" and sc.get("build") == "ok" and completed:
         lr = do_build(skill_learn_prompt(), resume_sid=sid)  # same session
         learn_meta["ran"] = True
         learn_meta["cost"] = round(lr.get("total_cost_usd", 0) or 0, 4)
@@ -843,32 +828,6 @@ def run_build(args):
                        env={**os.environ, "ENGRAM_VAULT_PATH": build_vault,
                             "PATH": ENGRAM_BIN_DIR + ":" + os.environ.get("PATH", "")},
                        capture_output=True, text=True)
-        learn_meta["notes_by_tier"] = count_notes_by_tier(build_vault)
-    elif not args.stub and regime["write"] in ("auto", "auto-l2") and sc.get("build") == "ok" and completed:
-        # Auto-chunk write path: ZERO-LLM. The harness ingests the cell's own session transcript
-        # into the chunk staging dir; the next app in the chain recalls from it. The agent never
-        # runs /learn — that absence IS the experimental condition.
-        learn_meta["ran"] = True
-        learn_meta["cost"] = 0.0
-        _tpath = _find_session_transcript(args.cfg, sid)
-        if not _tpath:
-            print(f"session transcript {sid}.jsonl not found under {args.cfg}/projects "
-                  f"({args.app} {args.regime}) — no result written so resume re-runs it.", file=sys.stderr)
-            sys.exit(1)
-        ir = subprocess.run(["engram", "ingest", "--transcript", _tpath, "--chunks-dir", build_chunks],
-                            env={**os.environ, "PATH": ENGRAM_BIN_DIR + ":" + os.environ.get("PATH", "")},
-                            capture_output=True, text=True)
-        learn_meta["ingest_ok"] = ir.returncode == 0
-        learn_meta["ingest_out"] = (ir.stdout or ir.stderr or "").strip()[-300:]
-        learn_meta["chunks_total"] = _count_chunks(build_chunks)
-        if ir.returncode != 0:
-            print(f"engram ingest FAILED ({args.app} {args.regime}): {ir.stderr.strip()[:400]} — "
-                  f"no result written so resume re-runs it.", file=sys.stderr)
-            sys.exit(1)
-        if regime["write"] == "auto-l2":
-            # Recall-time L2s were written into build_vault by `engram learn` during the build
-            # session (auto_embed gives sidecars); count them so the L2 volume is a measured output.
-            learn_meta["notes_by_tier"] = count_notes_by_tier(build_vault)
     t_learn_end = time.time()
 
     # Escalation depth — how granular the human feedback had to get before convergence (§5 signal).
@@ -889,28 +848,26 @@ def run_build(args):
     }
 
     recall_ok = regime["read_mode"] == "none" or bool(args.stub) or rf > 0
-    followed = False if args.stub else (regime["read_mode"] == "tier" and link_followed(args.cfg, sid))
+    followed = False if args.stub else link_followed(args.cfg, sid)
 
     build_cost = round(sum(r["cost"] for r in rounds), 4)
     audit = ({"tokens": dict(EMPTY_TOKENS), "recomputed_cost": 0.0, "cost_ratio": None} if args.stub
              else token_audit(args.cfg, sid, MODELS[args.model], build_cost))
 
-    # Post-op vault metrics: for the lazy arm, recall crystallizes L2s INTO the build vault during
-    # the build session. Count those newly-crystallized L2s (vs. the seeded vault_in note set) and
-    # how many compose on an existing L2. Arm A reports 0 here (it does not write during build);
-    # the aggregate sources arm A's L2 count from learn notes_by_tier instead (see Task 4.4 note).
-    seeded = (set(os.path.basename(p) for p in glob_notes(args.vault_in))
-              if args.vault_in != "none" and os.path.isdir(args.vault_in) else set())
-    new_l2 = [p for p in glob_notes(build_vault)
-              if note_tier(p) == "L2" and os.path.basename(p) not in seeded]
-    l2_composed = sum(1 for p in new_l2 if _links_to_l2(p, build_vault))
+    # Modern vault metrics: count notes written by /learn + lazy crystallizations fired by /recall.
+    # No tier breakdown — notes are flat (fact | feedback).
+    notes_written = count_notes_written(build_vault) if not args.stub else 0
+    learn_kind = count_learn_kind_breakdown(build_vault) if not args.stub else {"fact": 0, "feedback": 0, "other": 0}
+    crystallizations = (0 if args.stub or regime["read_mode"] == "none"
+                        else count_crystallizations_at_recall(args.cfg, sid))
+    chunks_ingested = _count_chunks(build_chunks) if not args.stub else 0
 
     out = {
         "schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "build",
         "app": args.app, "model": args.model, "model_id": MODELS[args.model],
         "regime": args.regime, "trial": args.trial, "date": args.date,
         "read_mode": regime["read_mode"], "read_tiers": regime["read_tiers"],
-        "vault_in": args.vault_in, "chunks_in": getattr(args, "chunks_in", "none"),
+        "vault_in": args.vault_in,
         "stub": args.stub or None,
         "converged": converged(sc), "rounds_to_converge": rnd if converged(sc) else None,
         "max_rounds": args.max_rounds,
@@ -938,187 +895,43 @@ def run_build(args):
         "axis_c1_learn_s": round(t_learn_end - t_learn_start, 3),
         "axis_c2_cost_usd": round(sum(r["cost"] for r in rounds), 4),
         "axis_c3_interventions": round1_conv_fails,
-        "l2_generated": len(new_l2), "l2_composed": l2_composed,
-        "vault_notes_total": len(glob_notes(build_vault)),
+        # Modern memory metrics (v3 — no tiers/episodes)
+        "notes_written": notes_written,
+        "learn_kind_breakdown": learn_kind,
+        "crystallizations_at_recall": crystallizations,
+        "chunks_ingested": chunks_ingested,
         "learn": learn_meta,
         "rounds": rounds, "session_id": sid, "workdir": args.workdir,
     }
 
-    # Promote the accumulated build vault to vault_out for real regimes so the next app recalls it
-    # (build vault = seeded vault_in + recall-crystallized L2 + /learn episodes). This IS the
-    # persist-forward for the one-session model — no separate learn-stage vault.
-    if regime["write"] in ("skill", "skill-eager", "auto-l2") and getattr(args, "vault_out", ""):
+    # Promote the accumulated build vault to vault_out for real.full so the next app recalls it.
+    if regime["write"] in ("skill",) and getattr(args, "vault_out", ""):
         import shutil as _shutil
         _shutil.rmtree(args.vault_out, ignore_errors=True)
         _shutil.copytree(build_vault, args.vault_out)
 
-    # Auto-chunk persist-forward: the chunk index (seeded chunks_in + this cell's ingested
-    # transcript) is the accumulated memory the next app recalls.
-    if regime["write"] in ("auto", "auto-l2") and getattr(args, "chunks_out", ""):
-        import shutil as _shutil
-        _shutil.rmtree(args.chunks_out, ignore_errors=True)
-        if os.path.isdir(build_chunks):
-            _shutil.copytree(build_chunks, args.chunks_out)
-        else:
-            os.makedirs(args.chunks_out, exist_ok=True)
-
     json.dump(out, open(args.out, "w"), indent=2)
     print(json.dumps({k: out[k] for k in ["app", "model", "regime", "converged",
           "rounds_to_converge", "round1_score", "convention_statements", "feature_statements",
-          "recall_fired", "recall_ok", "link_followed", "build_cost", "wall_min"]}, indent=2))
+          "recall_fired", "recall_ok", "notes_written", "crystallizations_at_recall",
+          "chunks_ingested", "build_cost", "wall_min"]}, indent=2))
 
 
 # ----- learn mode -----
 
 def run_learn(args):
-    import shutil
+    """Legacy learn mode — only used for cold (write_tier=none). real.full learns in-session."""
     t0 = time.time()
-    if REGIMES.get(args.regime, {}).get("write") in ("skill", "skill-eager"):
-        raise SystemExit("real.* regimes learn in-session (run_build); run_learn is not used for them")
-    if args.write_tier == "none":
-        out = {"schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "learn",
-               "app": args.app, "model": args.model, "regime": args.regime, "trial": args.trial,
-               "date": args.date, "write_tier": "none", "vault_in": args.vault_in,
-               "vault_out": args.vault_out, "learned": False, "notes_by_tier": {},
-               "learn_cost": 0.0, "learn_turns": 0, "wall_min": 0.0}
-        json.dump(out, open(args.out, "w"), indent=2)
-        print(json.dumps({"app": args.app, "regime": args.regime, "write_tier": "none", "learned": False}))
-        return
-
-    # Learn into a fresh copy of vault_in (accumulate on prior memory), then promote to vault_out.
-    # Stage off vault_out (unique per op), NOT workdir: app1's 4 write-tier learns share one
-    # build workdir and run in parallel, so a workdir-derived stage path would race and
-    # cross-contaminate the seed vaults.
-    learn_vault = args.vault_out + ".staging"
-    shutil.rmtree(learn_vault, ignore_errors=True)
-
-    # Lazy arm (l2.lazy): recall crystallized L2s INTO the build vault during
-    # the build session. Seed the learn stage from THAT (it holds vault_in +
-    # the new L2s) so crystallized L2s persist forward across the app chain.
-    # A missing build vault here is a hard failure — NEVER fall back to
-    # vault_in silently (that would measure the strawman, invisibly).
-    build_vault = args.workdir + ".buildvault"
-    if args.regime == "l2.lazy":
-        if not os.path.isdir(build_vault):
-            raise RuntimeError(
-                f"l2.lazy: build vault {build_vault} missing — cannot persist "
-                f"crystallized L2s forward; refusing to silently seed from vault_in")
-        seed_src = build_vault
-    else:
-        seed_src = args.vault_in
-
-    if seed_src != "none" and os.path.isdir(seed_src):
-        shutil.copytree(seed_src, learn_vault)
-    else:
-        os.makedirs(os.path.join(learn_vault, "Permanent"), exist_ok=True)
-
-    stated = []
-    if args.build_result and os.path.exists(args.build_result):
-        try:
-            stated = json.load(open(args.build_result)).get("stated_conventions", [])
-        except Exception:
-            stated = []
-
-    date = args.date or "2026-06-06"
-    learn_sid = None
-    if args.stub:
-        # --stub: deterministic writer for zero-cost pipeline validation (NOT the real learn).
-        learn_cost, learn_turns = 0.0, 0
-        _deterministic_learn(learn_vault, args.app, args.regime, args.write_tier, stated, date)
-    else:
-        # Real learn: the AGENT runs its /learn skill, exercising the whole memory system. One
-        # retry if it wrote nothing to the vault (a fair shot under note-14 skill-self-fire).
-        lr = claude(args.cfg, args.model, learn_vault, args.workdir, learn_prompt(args.write_tier, stated))
-        if len(glob_notes(learn_vault)) == 0:
-            time.sleep(5)
-            lr = claude(args.cfg, args.model, learn_vault, args.workdir, learn_prompt(args.write_tier, stated))
-        learn_cost = round(lr.get("total_cost_usd", 0) or 0, 4)
-        learn_turns = lr.get("num_turns", 0) or 0
-        learn_sid = lr.get("session_id")
-
-    # Enforce the write-tier ceiling (the experimental condition), embed, then SCORE capture
-    # quality — did the agent persist the conventions we expect for this tier? A poor or empty
-    # capture is RECORDED (a measured output), not engineered away.
-    # For l2.lazy the crystallized L2s are the experiment's OUTPUT and must survive the
-    # ceiling prune (write_tier is L1 for this regime, which would otherwise drop them).
-    prune_tier = "L2" if args.regime == "l2.lazy" else args.write_tier
-    pruned = prune_to_ceiling(learn_vault, prune_tier)
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = learn_vault
-    env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
-    subprocess.run(["engram", "embed", "apply", "--all"], env=env, capture_output=True, text=True)
-    quality = score_learn_capture(learn_vault, stated, args.write_tier)
-
-    shutil.rmtree(args.vault_out, ignore_errors=True)
-    shutil.copytree(learn_vault, args.vault_out)
-    by_tier = count_notes_by_tier(args.vault_out)
-
-    # Token capture. Prefer the sid-keyed lookup; but a headless /learn sometimes returns a
-    # malformed top-level result (no sid, no total_cost_usd) even though the agent ran and wrote
-    # notes — fall back to the WORKDIR's project dir so we never lose a real learn's tokens.
-    if args.stub:
-        audit = {"tokens": dict(EMPTY_TOKENS), "recomputed_cost": 0.0, "cost_ratio": None}
-    else:
-        audit = token_audit(args.cfg, learn_sid, MODELS[args.model], learn_cost)
-        if sum(audit["tokens"].values()) == 0 and quality["engaged"]:
-            tok = tokens_for_workdir(os.path.dirname(args.cfg), args.workdir)
-            rec = recompute_cost(tok, MODELS[args.model])
-            audit = {"tokens": tok, "recomputed_cost": rec,
-                     "cost_ratio": (round(rec / learn_cost, 3) if (rec and learn_cost) else None)}
-            if not learn_cost and rec:
-                learn_cost = rec   # the result JSON dropped the cost too — use the recomputed one
-
-    out = {
-        "schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "learn",
-        "app": args.app, "model": args.model, "model_id": MODELS[args.model],
-        "regime": args.regime, "trial": args.trial, "date": args.date,
-        "write_tier": args.write_tier, "vault_in": args.vault_in, "vault_out": args.vault_out,
-        "stub": args.stub or None, "stated_conventions_input": stated, "workdir": args.workdir,
-        "learned": quality["engaged"], "learn_quality": quality, "pruned_above_ceiling": pruned,
-        "notes_total": len(glob_notes(args.vault_out)), "notes_by_tier": by_tier,
-        "learn_cost": learn_cost, "learn_turns": learn_turns,
-        "tokens": audit["tokens"], "recomputed_cost": audit["recomputed_cost"],
-        "cost_ratio": audit["cost_ratio"],
-        "wall_min": round((time.time() - t0) / 60.0, 1),
-    }
+    if REGIMES.get(args.regime, {}).get("write") in ("skill",):
+        raise SystemExit("real.full learns in-session (run_build); run_learn is not used for it")
+    # cold regime: write nothing
+    out = {"schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "learn",
+           "app": args.app, "model": args.model, "regime": args.regime, "trial": args.trial,
+           "date": args.date, "write_tier": "none", "vault_in": args.vault_in,
+           "vault_out": args.vault_out, "learned": False,
+           "learn_cost": 0.0, "learn_turns": 0, "wall_min": 0.0}
     json.dump(out, open(args.out, "w"), indent=2)
-    print(json.dumps({"app": args.app, "regime": args.regime, "write_tier": args.write_tier,
-          "notes_by_tier": by_tier, "learn_coverage": quality["coverage"],
-          "captured": f"{quality['captured_count']}/{quality['stated_count']}", "learn_cost": learn_cost}))
-
-
-def _deterministic_learn(learn_vault, app, regime, write_tier, stated, date):
-    """The --stub learn: write tier-correct notes deterministically via `engram learn` (no LLM)
-    for zero-cost pipeline validation. The REAL learn is agent-driven (learn_prompt)."""
-    conv_list = ", ".join(stated) if stated else "the reviewed architecture conventions"
-    episode = eg_learn(learn_vault, date, "fact", f"eval-{app}-{regime}", {
-        "tier": "L1",
-        "situation": f"building a command-line {app} in Go",
-        "subject": f"command-line {app} in Go",
-        "predicate": "was built applying",
-        "object": conv_list,
-    }, [])
-    fact_bases = []
-    if write_tier in ("L2", "L3"):
-        ep_rel = [f"{episode}|extracted from this build"] if episode else []
-        for conv in stated:
-            tmpl = CONVENTION_FACTS.get(conv)
-            if tmpl is None:
-                continue
-            sit, subj, pred, obj = tmpl
-            fact = eg_learn(learn_vault, date, "fact", f"eval-{app}-{regime}-{conv}",
-                            {"situation": sit, "subject": subj, "predicate": pred, "object": obj}, ep_rel)
-            if fact:
-                fact_bases.append(fact)
-    if write_tier == "L3":
-        adr_rel = [f"{fb}|synthesized into this standard" for fb in fact_bases] or \
-                  ([f"{episode}|distilled from this build"] if episode else [])
-        eg_learn(learn_vault, date, "fact", f"eval-{app}-{regime}-adr", {
-            "tier": "L3", "situation": f"designing the architecture of a Go CLI such as {app}",
-            "subject": "Go CLI architecture", "predicate": "means",
-            "object": "DI + atomic storage + sentinel errors + fake-driven parallel tests + output "
-                      "discipline + no global state — the transferable conventions for a Go CLI",
-        }, adr_rel)
+    print(json.dumps({"app": args.app, "regime": args.regime, "write_tier": "none", "learned": False}))
 
 
 def main():
@@ -1128,14 +941,11 @@ def main():
     b = sub.add_parser("build")
     for a in ["app", "model", "regime", "vault-in", "cfg", "workdir", "spec", "out"]:
         b.add_argument("--" + a, required=True)
-    # real.* regimes learn in-session; --vault-out is where the build agent's accumulated vault
-    # (seeded vault_in + recall-crystallized L2 + /learn episodes) is promoted for the next app.
+    # real.full learns in-session; --vault-out is where the accumulated vault is promoted for the next app.
     b.add_argument("--vault-out", default="")
-    b.add_argument("--chunks-in", default="none")
-    b.add_argument("--chunks-out", default="")
     b.add_argument("--trial", type=int, default=1)
     b.add_argument("--date", default="")
-    b.add_argument("--max-rounds", type=int, default=15)  # high safety cap; escalation drives completion
+    b.add_argument("--max-rounds", type=int, default=8)  # lowered from 15; escalation drives completion
     b.add_argument("--stub", default="", choices=["", "good", "naive"])
 
     le = sub.add_parser("learn")

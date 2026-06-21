@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""Cumulative-accumulation matrix orchestrator (v2 — 7 regimes, write x read decoupled).
+"""Cumulative-accumulation matrix orchestrator (v3 — 2 regimes: cold, real.full).
 
-Per (model, trial) chain (§1.3):
-  app1 = notes built COLD ONCE, then 4 write-tier learns -> v1[none|L1|L2|L3]
-  then 7 regimes branch: each app2 = links recalls v1[write] under its read-subset,
-  builds, learns -> v2[regime]; each app3 = feeds recalls v2[regime] (terminal, no learn).
-  => 1 app1 build + 4 app1 learns + 7x(app2 build+learn) + 7x app3 build = 26 ops; 18 "cells".
-Matrix = that x (models x trials). Pilot: 1 model x 1 trial. Full: 3 x 5 = 270 cells.
+Per (model, trial) chain — TWO regimes, each running its own 3-app chain:
+  cold:      app1(notes) → app2(links) → app3(feeds), no memory, no learn
+  real.full: app1 → app2 → app3, each app builds with /recall, then /learn in-session.
+             Between apps the vault accumulates (seeded vault_in + /learn fact+feedback notes).
 
-Operations form a DAG (a learn waits on its build; an app2 build waits on the app1
-learn that seeds its vault). Resumable (skips ops whose result JSON exists), budget-
-capped, parallel across a pool of ISOLATED cfg dirs (real headless builds, not Workflow
-subagents — cold-isolation is the point). Durable: cfgs are built from the repo's own
-skills + keychain creds, so the benchmark stands up from a clean checkout (no /tmp source).
+  => 2 regimes × 3 apps = 6 build ops, 0 separate learn ops (learn is in-session for real.full).
+Matrix = that × (models × trials). Pilot: 1 model × 1 trial. Full: 3 × 5 = 90 cells.
+
+Operations form a DAG (app2 build waits on app1; app3 waits on app2). Resumable (skips
+ops whose result JSON exists), budget-capped, parallel across a pool of ISOLATED cfg dirs.
 
 Usage:
   python3 matrix.py [--models haiku,sonnet,opus] [--trials 1,2,3,4,5] [--workers N]
@@ -33,7 +31,6 @@ CFGPOOL = ROOT + "/cfgpool"
 KEYCHAIN = 'security find-generic-password -s "Claude Code-credentials" -w'
 
 ALL_MODELS = list(harness.MODELS.keys())
-WRITE_TIERS = ["none", "L1", "L2", "L3"]
 APP_SPEC = {"notes": "notes_spec.json", "links": "links_spec.json", "feeds": "feeds_spec.json"}
 
 # Price sheet ($/Mtok), verified 2026-06-02 (carried forward for provenance; see results doc).
@@ -52,7 +49,7 @@ def log(msg):
 def build_cfg_template(dst, warm):
     """A self-contained CLAUDE_CONFIG_DIR: onboarding/oauth state from the local Claude
     install (history stripped), the repo's recall+learn skills (warm only), and creds
-    injected at runtime. Carries NOTHING that injects conventions ambiently (clean room §4).
+    injected at runtime. Carries NOTHING that injects conventions ambiently (clean room).
 
     Skip if it already exists with skills wired — so a RESUME launch does not rmtree the pool
     and destroy completed cells' transcripts (cost provenance). Token I/O is captured into each
@@ -73,15 +70,8 @@ def build_cfg_template(dst, warm):
     base["projects"] = {}  # drop per-project history; keep auth/onboarding flags
     json.dump(base, open(os.path.join(dst, ".claude.json"), "w"))
 
-    if warm in ("auto", "autol2"):
-        # Auto-chunk arms: ONLY an eval-local /recall variant. No /learn skill — the write path
-        # is the harness running `engram ingest`. The autol2 variant runs the UNIFIED query and
-        # crystallizes L2 vault notes at recall via `engram learn`.
-        variant_dir = "skills_auto" if warm == "auto" else "skills_auto_l2"
-        src = os.path.join(CUM, variant_dir, "recall")
-        if os.path.isdir(src):
-            shutil.copytree(src, os.path.join(dst, "skills", "recall"))
-    elif warm:
+    if warm:
+        # real.full: both /recall and /learn skills from the repo (the shipped skills).
         for skill in ("recall", "learn"):
             src = os.path.join(REPO, "skills", skill)
             if os.path.isdir(src):
@@ -95,7 +85,7 @@ def refresh_creds(cfg):
 
 def make_pools(nwarm, ncold):
     os.makedirs(CFGPOOL, exist_ok=True)
-    warm_q, cold_q, auto_q = queue.Queue(), queue.Queue(), queue.Queue()
+    warm_q, cold_q = queue.Queue(), queue.Queue()
     for i in range(nwarm):
         d = f"{CFGPOOL}/warm{i}"
         build_cfg_template(d, warm=True)
@@ -104,15 +94,7 @@ def make_pools(nwarm, ncold):
         d = f"{CFGPOOL}/cold{i}"
         build_cfg_template(d, warm=False)
         cold_q.put(d)
-    auto_q2 = queue.Queue()
-    for i in range(nwarm):
-        d = f"{CFGPOOL}/auto{i}"
-        build_cfg_template(d, warm="auto")
-        auto_q.put(d)
-        d2 = f"{CFGPOOL}/autol2-{i}"
-        build_cfg_template(d2, warm="autol2")
-        auto_q2.put(d2)
-    return {"warm": warm_q, "cold": cold_q, "auto": auto_q, "autol2": auto_q2}
+    return {"warm": warm_q, "cold": cold_q}
 
 
 # ---- operation DAG ----
@@ -121,77 +103,15 @@ def _op(kind, oid, dep, cfg_kind, out, cmd_tail):
     return {"kind": kind, "id": oid, "dep": dep, "cfg_kind": cfg_kind, "out": out, "cmd_tail": cmd_tail}
 
 
-def cells_for(model, trial, date, stub, max_rounds, regimes=None):
-    """All operations for one (model, trial) chain, with dependencies.
 
-    `regimes` (a set of regime keys) restricts the app2/app3 cells to those regimes and prunes
-    the app1 learns to only the write-tiers those regimes need (plus the shared cold app1 build,
-    which every chain depends on). None => all regimes (unchanged behavior)."""
-    pfx = f"{model}-t{trial}"
-    ws1 = f"{WS}/{pfx}-app1"
-    stub_args = ["--stub", stub] if stub else []
-    ops = []
-
-    selected = list(harness.REGIMES.items()) if regimes is None else \
-        [(r, rc) for r, rc in harness.REGIMES.items() if r in regimes]
-    needed_tiers = {rc["write"] for _, rc in selected}  # only learn the write-tiers these regimes seed from
-
-    app1_build_out = f"{RESULTS}/{pfx}-app1-build.json"
-    ops.append(_op("build", f"{pfx}-app1-build", [], "cold", app1_build_out, [
-        "build", "--app", "notes", "--model", model, "--regime", "cold", "--trial", str(trial),
-        "--date", date, "--vault-in", "none", "--workdir", ws1, "--spec", f"{CUM}/notes_spec.json",
-        "--out", app1_build_out, "--max-rounds", str(max_rounds)] + stub_args))
-
-    for tier in WRITE_TIERS:
-        if regimes is not None and tier not in needed_tiers:
-            continue
-        v1 = f"{VAULTS}/v1-{pfx}-{tier}"
-        out = f"{RESULTS}/{pfx}-app1-learn-{tier}.json"
-        ops.append(_op("learn", f"{pfx}-app1-learn-{tier}", [f"{pfx}-app1-build"],
-                       "none" if tier == "none" else "warm", out, [
-            "learn", "--app", "notes", "--model", model, "--regime", f"app1-{tier}", "--trial", str(trial),
-            "--date", date, "--write-tier", tier, "--workdir", ws1, "--vault-in", "none",
-            "--vault-out", v1, "--build-result", app1_build_out, "--out", out] + stub_args))
-
-    for regime, rc in selected:
-        write = rc["write"]
-        v1 = f"{VAULTS}/v1-{pfx}-{write}"
-        v2 = f"{VAULTS}/v2-{pfx}-{regime}"
-        ws2 = f"{WS}/{pfx}-app2-{regime}"
-        ws3 = f"{WS}/{pfx}-app3-{regime}"
-        read_cfg = "cold" if rc["read_mode"] == "none" else "warm"
-
-        a2b = f"{RESULTS}/{pfx}-app2-{regime}-build.json"
-        ops.append(_op("build", f"{pfx}-app2-{regime}-build", [f"{pfx}-app1-learn-{write}"], read_cfg, a2b, [
-            "build", "--app", "links", "--model", model, "--regime", regime, "--trial", str(trial),
-            "--date", date, "--vault-in", v1, "--workdir", ws2, "--spec", f"{CUM}/links_spec.json",
-            "--out", a2b, "--max-rounds", str(max_rounds)] + stub_args))
-
-        a2l = f"{RESULTS}/{pfx}-app2-{regime}-learn.json"
-        ops.append(_op("learn", f"{pfx}-app2-{regime}-learn", [f"{pfx}-app2-{regime}-build"],
-                       "none" if write == "none" else "warm", a2l, [
-            "learn", "--app", "links", "--model", model, "--regime", regime, "--trial", str(trial),
-            "--date", date, "--write-tier", write, "--workdir", ws2, "--vault-in", v1,
-            "--vault-out", v2, "--build-result", a2b, "--out", a2l] + stub_args))
-
-        a3b = f"{RESULTS}/{pfx}-app3-{regime}-build.json"
-        ops.append(_op("build", f"{pfx}-app3-{regime}-build", [f"{pfx}-app2-{regime}-learn"], read_cfg, a3b, [
-            "build", "--app", "feeds", "--model", model, "--regime", regime, "--trial", str(trial),
-            "--date", date, "--vault-in", v2, "--workdir", ws3, "--spec", f"{CUM}/feeds_spec.json",
-            "--out", a3b, "--max-rounds", str(max_rounds)] + stub_args))
-
-    return ops
-
-
-REAL_REGIMES = ("cold", "real.lazy", "real.auto", "real.autol2")
+REAL_REGIMES = ("cold", "real.full")
 
 
 def real_cells_for(model, trial, date, stub, max_rounds, regimes):
-    """Real-skill chains (cold / real.lazy / real.eager). Each app is ONE one-session cell — the
-    build op runs recall -> build -> /learn IN-SESSION for real.* regimes, so there is NO separate
-    learn op. Each real regime runs its OWN 3-app chain from app1 (lazy and eager learn differently,
-    so app1 cannot be shared — it is built once per regime). cold = build only, no recall, no learn,
-    across all 3 apps. app1 recalls an empty seed vault (a no-op that still fires the skill)."""
+    """Two-regime chains (cold, real.full). Each app is ONE one-session cell — the build op runs
+    recall → build → /learn IN-SESSION for real.full; cold = build only, no recall, no learn.
+    Each regime runs its OWN 3-app chain from app1. app1 for real.full recalls an empty seed vault
+    (a no-op that still fires the skill, seeding recall behavior from the start)."""
     pfx = f"{model}-t{trial}"
     stub_args = ["--stub", stub] if stub else []
     apps = [("notes", "app1"), ("links", "app2"), ("feeds", "app3")]
@@ -199,33 +119,22 @@ def real_cells_for(model, trial, date, stub, max_rounds, regimes):
     ops = []
     for regime in sel:
         rc = harness.REGIMES[regime]
-        is_auto = rc["write"] in ("auto", "auto-l2")
-        pool = {"auto": "auto", "auto-l2": "autol2"}.get(rc["write"], "warm")
-        read_cfg = "cold" if rc["read_mode"] == "none" else pool
-        # vault chains for vault-writing regimes (skill learns + autol2's recall-time L2s);
-        # chunks chain for the auto arms. autol2 chains BOTH.
-        needs_vault = rc["write"] in ("skill", "skill-eager", "auto-l2")
-        prev_vault, prev_chunks, prev_dep = "none", "none", []
+        needs_vault = rc["write"] == "skill"
+        read_cfg = "cold" if rc["read_mode"] == "none" else "warm"
+        prev_vault, prev_dep = "none", []
         for i, (app, tag) in enumerate(apps):
             terminal = (i == len(apps) - 1)
             ws = f"{WS}/{pfx}-{tag}-{regime}"
             out = f"{RESULTS}/{pfx}-{tag}-{regime}-build.json"
-            # persist forward only on non-terminal apps (cold never accumulates).
             vault_out = f"{VAULTS}/v-{pfx}-{tag}-{regime}" if (needs_vault and not terminal) else ""
-            chunks_out = f"{VAULTS}/c-{pfx}-{tag}-{regime}" if (is_auto and not terminal) else ""
             cmd = ["build", "--app", app, "--model", model, "--regime", regime, "--trial", str(trial),
                    "--date", date, "--vault-in", prev_vault, "--workdir", ws,
                    "--spec", f"{CUM}/{app}_spec.json", "--out", out, "--max-rounds", str(max_rounds)]
             if vault_out:
                 cmd += ["--vault-out", vault_out]
-            if is_auto:
-                cmd += ["--chunks-in", prev_chunks]
-                if chunks_out:
-                    cmd += ["--chunks-out", chunks_out]
             ops.append(_op("build", f"{pfx}-{tag}-{regime}-build", prev_dep, read_cfg, out, cmd + stub_args))
             prev_dep = [f"{pfx}-{tag}-{regime}-build"]
             prev_vault = vault_out or prev_vault
-            prev_chunks = chunks_out or prev_chunks
     return ops
 
 
@@ -327,7 +236,7 @@ def main():
     ap.add_argument("--budget", type=float, default=0.0)  # 0 = NO spend cap (Joe's preference); >0 caps
     ap.add_argument("--timeout-min", type=int, default=45)
     ap.add_argument("--date", default=datetime.date.today().isoformat())
-    ap.add_argument("--max-rounds", type=int, default=15)  # high safety cap; escalation drives completion
+    ap.add_argument("--max-rounds", type=int, default=8)  # lowered from 15; escalation drives completion
     ap.add_argument("--stub", default="", choices=["", "good", "naive"])
     ap.add_argument("--regimes", default="",
                     help="comma-separated regime keys to restrict the run to (e.g. l2.l1l2,l2.lazy); "
