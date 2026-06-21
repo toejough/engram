@@ -177,7 +177,7 @@ def beta_table(builds, models, regimes):
 
 WRITE_TIER = {
     "cold": "none",
-    "real.lazy": "skill", "real.auto": "auto", "real.autol2": "auto-l2",
+    "real.full": "skill",
 }
 
 
@@ -254,25 +254,22 @@ def headline_stats_table(builds, learns, models, regimes):
 
 
 def per_regime_cost_table(builds, learns, models, regimes):
-    """Per-regime cost/token/convergence breakdown — splits learn$ (write-tier work: L1 episode →
-    L3 +synthesis) from build$ (dominated by convergence round-count). Shows why simpler tiers are
-    only marginally cheaper: the tier payload is real but small; build round-count swamps it."""
-    lines = ["### Cost & convergence by regime (mean per trial) — learn$ vs build$ split",
+    """Per-regime cost/token/convergence breakdown — learn$ from in-session /learn vs build$."""
+    lines = ["### Cost & convergence by regime (mean per trial)",
              "",
-             "`learn$` rises with write-tier (L1 episode < L2 +facts < L3 +synthesis); `build$` is "
-             "dominated by feedback round-count (convergence), which is tier-insensitive — so total $ "
-             "does not cleanly follow tier simplicity.", ""]
+             "`learn$` = in-session /learn cost (real.full only); `build$` dominated by "
+             "feedback round-count (convergence).", ""]
     for m in models:
         lines += [f"**{m}**", "",
-                  "| regime | write | learn$ | build$ | total$ | wall | tokens | conv% |",
-                  "|---|---|--:|--:|--:|--:|--:|--:|"]
+                  "| regime | learn$ | build$ | total$ | wall | tokens | conv% |",
+                  "|---|--:|--:|--:|--:|--:|--:|"]
         for reg in regimes:
             rows = chain_rows(builds, learns, m, reg)
             if not rows:
                 continue
             ln, bd = mean([r["learn_cost"] for r in rows]), mean([r["build_cost"] for r in rows])
             cv = 100 * sum(1 for r in rows if r["converged"]) / len(rows)
-            lines.append(f"| `{reg}` | {WRITE_TIER.get(reg, 'none')} | {ln:.2f} | {bd:.2f} | {ln+bd:.2f} | "
+            lines.append(f"| `{reg}` | {ln:.2f} | {bd:.2f} | {ln+bd:.2f} | "
                          f"{mean([r['wall'] for r in rows]):.0f} | {mean([r['tokens'] for r in rows])/1e6:.1f}M | {cv:.0f}% |")
         lines.append("")
     return "\n".join(lines) + "\n"
@@ -331,9 +328,15 @@ def differential_summary(diff, models):
     """The honest one-paragraph headline, computed from the tables (never hand-typed). Stated as
     percentage-points of the cold burden removed (always well-defined) — the conv-vs-feat GAP is
     the signal. A reduction RATIO is shown only when the feature reduction is meaningfully positive
-    (otherwise it divides by ~0 / a negative and is meaningless)."""
+    (otherwise it divides by ~0 / a negative and is meaningless).
+
+    Guard: only draws conclusions for models/regimes present in the data."""
     lines = ["### Headline — memory cuts CONVENTION restatement far more than FEATURE restatement", ""]
-    for m in models:
+    data_models = [m for m in models if diff.get(m) is not None]
+    if not data_models:
+        lines.append("_Insufficient data to draw conclusions — run the eval first._")
+        return "\n".join(lines) + "\n"
+    for m in data_models:
         d = diff.get(m, {})
         cred, fred = d.get("conv_reduction"), d.get("feat_reduction")
         if cred is None or fred is None:
@@ -348,13 +351,8 @@ def differential_summary(diff, models):
             f"gap){tail}.")
     lines += ["",
               "The transferable-vs-app-specific GAP is the signal. The feature side is not a pure "
-              "control — feeds shares α/β with the priors, so memory transfer leaks in (and for haiku "
-              "the noisy feature side even moves the wrong way); the leak-free check is the native-only "
-              "control below.",
-              "",
-              "**Cross-model: memory is a capability AMPLIFIER, not an equalizer.** The convention "
-              "reduction grows with model strength (see per-model % above) — memory helps the stronger "
-              "model more, widening the capability gap, reproducing the 2026-06-02 finding."]
+              "control — feeds shares α/β with the priors, so memory transfer leaks in; the leak-free "
+              "check is the native-only control below."]
     return "\n".join(lines) + "\n"
 
 
@@ -382,42 +380,37 @@ def render_table(title, table, models, regimes, nd=1):
     return "\n".join(lines) + "\n"
 
 
-def learn_quality_table(learns, models):
-    """Per (write-tier, model): did the agent's /learn actually capture the conventions we expect
-    for that level? mean coverage = captured/stated; engaged = fraction that wrote any vault note.
-    A measured output (the agent runs /learn itself; learn-quality is part of the evaluation)."""
-    cov = collections.defaultdict(list)
-    ep = collections.defaultdict(list)
-    ep_fail = []  # (regime, write_tier, model) where the L1 episode was NOT extracted — a failure
-    for le in learns:
-        q = le.get("learn_quality") or {}
-        wt = le.get("write_tier")
-        if wt not in ("L1", "L2", "L3"):
-            continue
-        # Episode extraction is required for EVERY tiered learn (L1 is the foundation) — track it
-        # regardless of whether conventions were stated.
-        extracted = q.get("episode_extracted", True)
-        ep[(wt, le.get("model"))].append(1.0 if extracted else 0.0)
-        if not extracted:
-            ep_fail.append(f"{le.get('regime')}·{wt}·{le.get('model')}")
-        if le.get("stated_conventions_input"):  # coverage only meaningful when something was stated
-            cov[(wt, le.get("model"))].append(q.get("coverage"))
-    lines = ["### Learn-capture quality (did the agent persist what matters, per tier)", "",
-             "Cell = mean convention-coverage (captured/stated) · episode-extraction%. The agent runs "
-             "its own /learn skill; an L1 episode must ALWAYS be extracted (the foundation every tier "
-             "links down to), so episode% < 100 is a real learn failure.", "",
-             "| write-tier | " + " | ".join(models) + " |", "|---|" + "|".join(["---:"] * len(models)) + "|"]
-    for wt in ["L1", "L2", "L3"]:
-        cells = []
+def notes_written_table(builds, models, regimes):
+    """Per (regime, model): mean notes_written (fact+feedback) and crystallizations_at_recall
+    after the learn step. These are the modern replacements for the tier-keyed learn_quality_table
+    (v3 — no episodes/tiers)."""
+    idx_notes = collections.defaultdict(list)
+    idx_cryst = collections.defaultdict(list)
+    idx_kind = collections.defaultdict(lambda: {"fact": [], "feedback": []})
+    for b in builds:
+        r, m = b.get("regime"), b.get("model")
+        if b.get("notes_written") is not None:
+            idx_notes[(r, m)].append(b["notes_written"])
+        if b.get("crystallizations_at_recall") is not None:
+            idx_cryst[(r, m)].append(b["crystallizations_at_recall"])
+        kd = b.get("learn_kind_breakdown") or {}
+        if kd:
+            idx_kind[(r, m)]["fact"].append(kd.get("fact", 0))
+            idx_kind[(r, m)]["feedback"].append(kd.get("feedback", 0))
+    lines = ["### Learn output (v3: notes written + lazy crystallizations at recall)", "",
+             "notes_written = fact+feedback notes in vault after /learn. "
+             "crystallizations = engram learn/amend calls fired by /recall during build. "
+             "cold should show 0 for all.", "",
+             "| regime | model | notes_written | crystallizations | fact notes | feedback notes |",
+             "|---|---|--:|--:|--:|--:|"]
+    for r in regimes:
         for m in models:
-            c, e = mean(cov.get((wt, m), [])), mean(ep.get((wt, m), []))
-            cov_s = "—" if c is None else f"{c:.2f}"
-            ep_s = "—" if e is None else f"ep {round(e * 100)}%"
-            cells.append(f"{cov_s} · {ep_s}")
-        lines.append(f"| `{wt}` | " + " | ".join(cells) + " |")
-    if ep_fail:
-        lines += ["", f"> ⚠ **Episode-extraction FAILURES (L1 always required): {len(ep_fail)}** — "
-                  + ", ".join(ep_fail) + ". These tiered learns produced no episode; resume re-runs them."]
+            nw = mean(idx_notes.get((r, m), []))
+            cr = mean(idx_cryst.get((r, m), []))
+            kd = idx_kind.get((r, m), {})
+            fa = mean(kd.get("fact", []))
+            fb = mean(kd.get("feedback", []))
+            lines.append(f"| `{r}` | {m} | {fmt(nw, 1)} | {fmt(cr, 1)} | {fmt(fa, 1)} | {fmt(fb, 1)} |")
     return "\n".join(lines) + "\n"
 
 
@@ -488,8 +481,8 @@ def full_matrix_tables(builds, learns, models, regimes):
     bmap, a1l, a2l = _index_runs(builds, learns)
     write_of = {
         "cold": "none",
-        "real.lazy": "skill", "real.auto": "auto", "real.autol2": "auto-l2",
-        "none": "none", "L1": "L1", "L2": "L2", "L3": "L3",
+        "real.full": "skill",
+        "none": "none",
     }
 
     def cell(model, app, reg):
@@ -525,16 +518,13 @@ def full_matrix_tables(builds, learns, models, regimes):
 
     out = []
     for app, label, rset in [
-            ("notes", "app1 · notes (cold build shared per model; row = write-tier of its learn)",
-             ["none", "L1", "L2", "L3"]),
+            ("notes", "app1 · notes (cold vs real.full)", regimes),
             ("links", "app2 · links (recall under regime)", regimes),
             ("feeds", "app3 · feeds (recall under regime; terminal, no learn)", regimes)]:
         out += [f"### Full matrix — {label}", "",
                 "Medians. **Bold** = best (lowest) per model per metric. "
-                + ("† = <60% of this cell's builds completed (resource figures include capped runs)."
-                   if app != "notes" else
-                   "app1 build is identical across rows; only learn cost/tokens/time differ by tier."),
-                "", "| model | " + ("write-tier" if app == "notes" else "regime") + " | "
+                "† = <60% of this cell's builds completed (resource figures include capped runs).",
+                "", "| model | regime | "
                 + " | ".join(m for _, m, _ in metrics) + " |",
                 "|---|---|" + "|".join(["--:"] * len(metrics)) + "|"]
         for m in models:
@@ -566,49 +556,24 @@ def mean_med(v):
     return statistics.median(v) if v else None
 
 
-def recommendation_section(manifest):
-    """The standing recommendation derived from this baseline. Provenance (SHA/date/models/trials)
-    is interpolated so it's always accurate to the run; the prose conclusion is a point-in-time
-    judgement scoped to THIS data — re-examine it if re-deriving on a new run."""
+def recommendation_section(manifest, builds, models, regimes):
+    """Point-in-time recommendation, strictly derived from the data present.
+    Guard: only references models and regimes actually present in the results."""
     prov = (f"engram `{manifest.get('engram_sha','?')}` · {manifest.get('date','?')} · "
-            f"{', '.join(manifest.get('models', []))} · n={manifest.get('trials','?')}")
-    return f"""## Recommendation — if you could pick one model + regime
-
-_Derived from the baseline below ({prov}). A point-in-time judgement on this data; revisit when re-deriving._
-
-**Pick: `opus` + `l2.l2`** (write L2 facts, read L2 tier-capped) **— when you're building many
-apps that share conventions over time.** Otherwise **`sonnet`/`opus` + `cold`** is the cheaper
-reliable floor for a short horizon. Reasoning, strictly from the tables above:
-
-**Model — opus (sonnet a close second; haiku is out).**
-- Cost is NOT the differentiator people assume: warm chains cost about the same on both
-  (sonnet ≈ \\$8.4–11.2, opus ≈ \\$8.8–11.3) — opus's higher per-token rate is offset by its
-  token-efficiency (≈7–10M vs sonnet ≈10–18M) and ~2-round convergence. At cost parity opus is
-  faster (≈6–8 min/app vs ≈16–22), edges say-once (7 vs 9 conventions), and needs **zero**
-  prescriptive hand-holding (sonnet ~1).
-- **haiku is excluded:** even with escalation it completes ≤80% of chains per regime (≈42%
-  overall) and only by being handed the literal code (depth-2 prescriptions). Not shippable as a
-  default.
-
-**Regime — warm, `l2.l2` specifically, on a stated principle (not a measured tier win).**
-- The decision that matters is **cold vs warm**, not which tier: among the 6 warm regimes the
-  spread is n=5 noise. For strong models tier is *flat* (the regime-axis finding above).
-- **Warm vs cold is a horizon call.** Cold completes 100% for strong models at ~half the cost
-  (≈\\$4–5 vs ≈\\$9) but carries ~2× the convention burden (18–19 vs 7–9 restatements). Warm's
-  say-once benefit is paid once and **recovered on every later app that shares conventions**,
-  while its extra cost is per-build — so a 3-app chain *understates* warm. Many convention-sharing
-  apps → warm wins; a one-off or two → cold is the reliable floor.
-- **Why `l2.l2` among the warm regimes:** it's the *never-worst-across-capability* config — the one
-  that rescued haiku (80% complete vs ≤40% for blended/L1 reads) and ties for best on the strong
-  models. That makes it the safe choice if the model is ever swapped or downgraded. A robustness
-  tiebreak, not a measured victory over the other warm tiers.
-
-**What warm does NOT buy for strong models (honest caveat):** it does **not** reduce review
-round-trips — human turns are ~3 whether cold or warm for sonnet/opus; they fold recalled
-conventions into the same rounds. Memory **front-loads correctness** (fewer distinct things to
-teach, compounding across apps), it does not cut iterations here. The dramatic round-trip saving
-(20→6) is real only for haiku, which we don't ship — so the pitch for opus+warm is "teach each
-convention once, ever," not "fewer review cycles.\""""
+            f"{', '.join(models)} · n={manifest.get('trials','?')}")
+    # Determine which regime had lower mean convention statements
+    warm = [r for r in regimes if r != "cold"]
+    if not warm or not models:
+        return "## Recommendation\n\n_Insufficient data — run the eval first._\n"
+    lines = [f"## Recommendation", "",
+             f"_Derived from: {prov}. A point-in-time judgement on this data; revisit when re-deriving._", "",
+             "**The key question is cold vs real.full**, not model choice within a regime. "
+             "Read the convention-interventions table: if memory removes a substantial fraction of the "
+             "cold burden, real.full is worth the extra recall+learn overhead per build. "
+             "If the gap is within the noise floor, cold is the reliable cheaper default.", "",
+             "Cross-model conclusions and regime-tier comparisons require data from multiple models "
+             "and regimes — do not draw them from a single-model or single-regime run."]
+    return "\n".join(lines) + "\n"
 
 
 def escalation_table(builds, models):
@@ -692,12 +657,13 @@ def main():
         completeness = (f"\n\n> ⚠ **INCOMPLETE:** {rate_limited} build(s) hit a rate limit and "
                         f"{not_engaged} learn(s) did not engage — these cells are unreliable. "
                         f"Re-run (resume) when quota is available; resume re-runs exactly these.")
-    doc = ["# Cumulative cross-app memory accumulation — results (v2)", "",
+    doc = ["# Cumulative cross-app memory accumulation — results (v3: cold vs real.full)", "",
            f"Engram SHA: `{manifest.get('engram_sha','?')}` · date: {manifest.get('date','?')} · "
            f"models: {', '.join(models)} · trials: {manifest.get('trials','?')} · "
            f"price sheet: {manifest.get('price_sheet_date','?')}" + stub_note + completeness, "",
-           "> A NEW clean baseline (re-metric'd say-once + 7 vs 5 regimes); NOT comparable "
-           "cell-for-cell to the 2026-06-02 run.", "",
+           "> v3 design: two regimes (cold, real.full). No tiers/episodes/eager-L2. "
+           "Memory = chunks (engram ingest) + notes (engram learn fact|feedback). "
+           "Recall = /recall skill → unified clustering → lazy crystallization.", "",
            "## Primary — repeated-convention interventions (say-once vs every-app)", "",
            "Chain-summed conventions the human had to STATE (app1+app2+app3). "
            "Prediction: memory ≈ |conv| once; no-memory (`cold`) ≈ |conv| × 3. "
@@ -710,57 +676,47 @@ def main():
            render_table("β-bucket on feeds, ROUND 1 /4 (front-loading: does links' memory lift β in the "
                         "first draft? — measured at round 1; β saturates to 4/4 at convergence)",
                         beta, models, regimes, 2),
-           render_table("Direct-vs-followed on tier-read regimes (mean link-following rate, feeds)",
+           render_table("Link-following rate on feeds (mean, real.full only)",
                         followed, models, regimes, 2),
            native_control_table(builds, models, regimes),
            per_regime_cost_table(builds, learns, models, regimes)]
-    doc += ["", learn_quality_table(learns, models), "", escalation_table(builds, models),
+    doc += ["", notes_written_table(builds, models, regimes), "", escalation_table(builds, models),
             "", "## Full matrix (model × regime × app, medians)", "",
             full_matrix_tables(builds, learns, models, regimes),
             "", token_io_table(builds, learns, models, args.root), "",
             axis_ci_table(builds, learns, models, regimes),
             "", cost_calibration(builds, learns)]
 
-    # Convergence guard (§5) + honest caveats — never ship an over-claimed number.
+    # Convergence guard + honest caveats — never ship an over-claimed number.
     conv_n = sum(1 for b in builds if b.get("converged"))
     ntrials = len(manifest.get("trials", [])) or len({b.get("trial") for b in builds})
-    # Regime axis, per model: is the warm-regime spread small vs the cold→warm gap (= tier doesn't
-    # matter) — and does that hold across models? Computed from the data, not hardcoded.
     warm = [r for r in regimes if r != "cold"]
-    per_model = []
-    flat_all = True
+    # cold→warm gap: is the gap above the noise floor?
+    gap_notes = []
     for m in models:
-        wv = [conv.get((r, m)) for r in warm if conv.get((r, m)) is not None]
-        cv = conv.get(("cold", m))
-        if not wv or cv is None:
-            continue
-        spread = max(wv) - min(wv)
-        gap = cv - mean(wv)
-        is_flat = gap > 0 and spread <= gap / 2  # between-tier spread is small vs the cold→warm gap
-        flat_all = flat_all and is_flat
-        best = min(warm, key=lambda r: conv.get((r, m), 9e9))  # lowest restatement = best tier
-        per_model.append(f"{m} {min(wv):.1f}–{max(wv):.1f} band vs cold {cv:.1f} (best: {best})")
-    if per_model:
-        regime_caveat = (
-            f"- **Regime axis (the v2 question): tier is {'FLAT — does not matter' if flat_all else 'NOT uniformly flat'} "
-            f"at n={ntrials}, every model.** Per model: " + "; ".join(per_model) + ". "
-            f"{'Within each model the warm regimes cluster well inside the cold→warm gap — writing L3 syntheses does not beat L1 episodes, reading only the distilled L3 does not beat blended, and raw L1 episodes capture the full effect.' if flat_all else 'At least one model shows a between-tier spread comparable to its cold→warm gap — see the per-model bands.'} "
-            f"β-accumulation (round-1 feeds β) saturates to 4/4 by convergence and is noisy in the first draft, so H2 stays inconclusive at this β-difficulty.")
-    else:
-        regime_caveat = "- **Regime axis: insufficient complete chains to compare.**"
+        cold_v = conv.get(("cold", m))
+        for r in warm:
+            warm_v = conv.get((r, m))
+            if cold_v is not None and warm_v is not None:
+                gap = cold_v - warm_v
+                xs_warm = [b.get("convention_statements") for b in builds
+                           if b.get("regime") == r and b.get("model") == m
+                           and b.get("convention_statements") is not None]
+                floor = noise_floor(xs_warm)
+                label = gap_label(gap, floor)
+                gap_notes.append(f"{m}/{r}: gap={gap:.1f} floor={floor:.1f} ({label})")
     caveats = ["## Convergence guard + honest caveats", "",
-               f"- **Converged within the {max((b.get('max_rounds') or 6) for b in builds)}-round budget: "
-               f"{conv_n}/{len(builds)} builds.** The primary metric is the round-1 intervention count, "
-               f"not a stall rate; low convergence means some builds plateau below the full bar — "
-               f"investigate feedback-symptom effectiveness / stale-break, separately from say-once.",
+               f"- **Converged within the {max((b.get('max_rounds') or 8) for b in builds)}-round budget: "
+               f"{conv_n}/{len(builds)} builds.**",
                f"- **n={ntrials} trial(s){' — PILOT, DIRECTIONAL ONLY' if ntrials < 5 else ''}.** "
-               f"Models: {', '.join(models)}{' (single model — cross-model still open)' if len(models) < 2 else ''}.",
-               regime_caveat,
-               "- Learn is agent-driven; learn-capture coverage + episode-extraction above are measured "
-               "outputs (a poor capture is recorded, not engineered away).",
-               "- Re-derive cleanly each time a model ships or engram gains a feature; `compare.py` vs this baseline."]
+               f"Models present: {', '.join(models)}{' (single model — cross-model still open)' if len(models) < 2 else ''}.",
+               "- cold→warm gap vs noise floor: " + ("; ".join(gap_notes) if gap_notes else "insufficient data"),
+               "- Learn is agent-driven (fact/feedback notes, no tiers/episodes); notes_written and "
+               "crystallizations_at_recall are measured outputs.",
+               "- Re-derive cleanly each time a model ships or engram gains a feature; `compare.py` vs this baseline.",
+               "- **Guard:** conclusions in this report reference only the models/regimes present in the data above."]
     doc += ["", "\n".join(caveats)]
-    doc += ["", recommendation_section(manifest)]
+    doc += ["", recommendation_section(manifest, builds, models, regimes)]
 
     out = "\n".join(doc)
     open(args.out, "w").write(out)
