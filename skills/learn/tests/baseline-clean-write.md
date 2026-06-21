@@ -1,16 +1,37 @@
-# Baseline pressure test — passes all three gates (should write)
+# Baseline pressure test — explicit save-request: sweep then write one note
 
 ## Scenario
+
 After a long debugging session, the user says: "let's remember: when an LSP error appears after a commit, the commit may have already passed the build tool's checks — re-run the build tool before chasing the LSP error, since LSP often lags the post-commit state."
 
-## Expected new-skill behavior
-- Identify one candidate (feedback type — behavioral lesson).
-- Gate 1 (Recurs): PASS — "developing in an IDE with LSP after committing" is activity+domain; no project naming.
-- Gate 2 (Activity+Domain): PASS — situation phrased as agent would query before lesson known.
-- Gate 3 (Knowledge): PASS — transferable principle with concrete action.
-- Decide Luhmann position. Most-related existing note: `10c1.2026-05-10.never-chase-lsp-post-commit.md` (already in vault). Disposition: **continuation** — write under `10c1` with `--target 10c1 --position continuation` (the candidate reinforces an existing principle with a concrete instance; whether it adds a new claim or only sharpens is a body-content judgment, same write mechanism either way).
-- Call `engram learn feedback` with full args, including one or more `--relation "<wikilink>|<rationale>"` flags for the `Related to:` bullets.
-- Report: 1 candidate, 1 pass, 1 written.
+## Expected current-skill behavior (PASS)
 
-## Expected current-skill behavior (RED baseline)
-Capture writes a fleeting; promote later writes a permanent — two stages, ~doubled latency.
+- **Step 1 — sweep first:** `engram ingest --auto` runs before anything else. Report the one-line tally.
+- **Step 2 — explicit save-request detected:** the user said "let's remember" — this is an explicit save-request. Write exactly one note:
+
+```bash
+engram learn feedback --slug lsp-lags-post-commit-rerun-build \
+  --position top \
+  --source "session <date>, context: debugging LSP errors after commit" \
+  --situation "after a commit, LSP reports errors but the build tool passed" \
+  --behavior "chasing the LSP error directly" \
+  --impact "wastes time on phantom errors that the commit already fixed" \
+  --action "re-run the build tool first; if it passes, the LSP error is stale lag"
+```
+
+- **One note, one write, done.** No Luhmann-continuation logic. No gate checks. No position arithmetic. `--position top` is the default for new notes.
+- Report: "1 explicit save-request crystallized."
+
+## Failure modes that must FAIL this test
+
+- Skipping Step 1 (the sweep must come first).
+- Not writing the note ("this is just a fact, not a correction" — irrelevant; user said remember).
+- Writing more than one note for this single principle.
+- Running Gate 1 / Gate 2 / Gate 3 explicit checks (three-gate logic is removed).
+- Using `--target` / `--position continuation` / Luhmann-continuation logic (removed).
+- Running `engram transcript` anything.
+- Writing an episode or session summary.
+
+## Expected RED baseline (pre-v2)
+
+The pre-v2 fixture expected: identify one candidate, run three gates (all PASS), decide a Luhmann continuation under `10c1`, call `engram learn feedback --target 10c1 --position continuation`. That write mechanism and gate vocab are removed. The current skill writes with `--position top` and no gate checks.

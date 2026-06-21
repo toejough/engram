@@ -1,20 +1,20 @@
-# Baseline GREEN — updated `skills/recall/SKILL.md`
+# Baseline GREEN — current `skills/recall/SKILL.md` (recall-v2)
 
-One general-purpose subagent ran the scenario in `baseline-judgement-and-cascade.md` with the rewritten SKILL.md loaded. Same scenario, same constraints (no other skills consulted).
+One general-purpose subagent ran the scenario in `baseline-judgement-and-synthesis.md` with the rewritten SKILL.md loaded. Same scenario, same constraints (no other skills consulted).
 
-| Behavior we want                                   | Status  | Evidence from subagent's output                                                                                          |
-| -------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
-| 1. Upfront judgement (ask / situation / plan)      | PRESENT | "**Ask:** wire OpenCode session transcripts ... **Situation:** engram repo at the `opencode-plugin` worktree ... **Plan (absent memory):** 1. Locate ... 2. Verify ... 3. Sketch ... 4. Add ... 5. Wire ... 6. TDD ... 7. Commit." |
-| 2. Initial frontier query                          | PRESENT | Implied by round-1 numbers (16 relevant / 14 irrelevant) and the subagent's tool calls. |
-| 3. Cascade with follow-up `--follow` calls         | PRESENT | Round 1 followed all relevant; round 2 returned empty frontier ("0 new relevant / frontier empty / stop"). Terminated on the correct condition, not on "I have enough." |
-| 4. Per-round progress line                         | PRESENT | "round 1: 16 relevant / 14 irrelevant / ~84 budget left / 16 links to follow" and "round 2: 0 new relevant / frontier empty / stop". |
-| 5. Closing synthesis (did memories change plan?)   | PRESENT | Walks Action 1–7 from Step 0 in order; for each, names confirmed / adjusted / silent, with concrete reasons drawn from the surfaced notes. Plus a cross-cutting bullet for items silent in the plan but raised by memory. |
+| Behavior we want                                          | Status  | Evidence from subagent's output                                                                                                                                              |
+| --------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Step 0 printed upfront (Ask / Situation / Plan)        | PRESENT | "**Ask:** wire OpenCode session transcripts into the engram ingest pipeline ... **Situation:** engram repo ... **Plan (absent memory):** 1. Locate existing ingest sources ... 2. Verify harness detection ... 3. Add OpenCode reader ..." |
+| 2. Step 0.5 sweep (`engram ingest --auto`)                | PRESENT | First tool call is `engram ingest --auto`; agent notes "0 new chunks, index up to date" and continues.                                                                       |
+| 3. ONE `engram query` with all ~10 `--phrase` flags       | PRESENT | Single `engram query --phrase "..." --phrase "..." ...` call with 10 phrases. No `--vault`, no `--chunks-dir`, no `--synthesize-l2`, no `--tier`.                            |
+| 4. No cascade / no `--follow` calls                       | PRESENT | No `engram recall` invocations. No `--follow` calls. No per-round progress lines. One query, then Step 2.5.                                                                  |
+| 5. Step 2.5 described as inline                           | PRESENT | Agent describes reading `candidate_l2s` via `engram show`, judging covered/near/absent, and issuing one write per cluster inline, waiting before moving to the next.         |
+| 6. Step 3 closing synthesis (walk Step 0 plan per action) | PRESENT | Opens with "Query surfaced N items (K chunks, M notes); crystallized J lessons." Then walks each of the Step 0 plan actions: "Action 1 — confirmed ... Action 2 — adjusted ..." |
 
-**Notable wins beyond the five targets:**
+**Notable behaviors:**
 
-- The synthesis cited specific surfaced principles (byte-cap vs marker, first-run lookback, curated-vs-raw retrieval order, generated mocks at I/O boundaries) and pinned each to the action it adjusted. The RED run's bulleted recap mentioned similar notes but never said _what to do differently_ — this run does.
-- "No contradictions between surfaced notes on this plan." replaced the prior skill's separate Contradictions section, exactly as the inline-contradictions rule prescribes.
+- Agent explicitly states "no `--vault` or `--chunks-dir` — the binary resolves these automatically."
+- Step 2.5 writes are blocking and inline — agent would not dispatch a subagent for synthesis.
+- Step 3 synthesis names concrete plan impacts drawn from surfaced notes, not a generic recap.
 
-**Residual gap (minor).** The subagent did not print a structural-form header like "Cascade surfaced N notes across M rounds" before launching into the per-action walk — it opened with the cascade lines and went straight to synthesis. The skill says "Open with the count. One sentence: ...". Worth tightening if we want the count up top, but not a correctness failure.
-
-GREEN passes. Updated skill is fit to commit.
+GREEN passes. Current skill is fit to test against.

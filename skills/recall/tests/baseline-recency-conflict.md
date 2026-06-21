@@ -11,15 +11,16 @@ regular vault notes that **conflict on a convention** and are distinguished only
 ## Scenario given to the agent
 
 The agent is executing recall's Step 2.5 (lazy L2 synthesis) for a cluster whose two members
-directly contradict each other. Both are ordinary vault notes.
+directly contradict each other. Both are ordinary vault notes. The vault is flat — no
+`Permanent/` subdirectory; all notes live at the vault root.
 
-**Member A** — `Permanent/40.2026-06-11.session-retry-policy.md`
+**Member A** — `40.2026-06-11.session-retry-policy.md`
 ```yaml
 created: 2026-06-09
 ```
 Body stance: **"retry transient failures up to 3 times with exponential backoff."**
 
-**Member B** — `Permanent/41.2026-06-14.session-retry-policy.md`
+**Member B** — `41.2026-06-14.session-retry-policy.md`
 ```yaml
 created: 2026-06-14
 ```

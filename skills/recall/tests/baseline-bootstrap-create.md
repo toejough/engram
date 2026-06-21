@@ -26,37 +26,37 @@ This scenario tests that the agent:
 >   - id: 0
 >     size: 1
 >     members:
->       - { path: Permanent/3.2026-06-01.storage-build-notes.md, score: 0.88, kind: chunk,
+>       - { path: 3.2026-06-01.storage-build-notes.md, score: 0.88, kind: chunk,
 >           is_representative: true }
 >     candidate_l2s: []
 >   - id: 1
 >     size: 2
 >     members:
->       - { path: Permanent/4.2026-06-02.atomic-writes-notes.md, score: 0.85, kind: chunk,
+>       - { path: 4.2026-06-02.atomic-writes-notes.md, score: 0.85, kind: chunk,
 >           is_representative: true }
->       - { path: Permanent/5.2026-06-03.fsync-notes.md, score: 0.80, kind: chunk,
+>       - { path: 5.2026-06-03.fsync-notes.md, score: 0.80, kind: chunk,
 >           is_representative: false }
 >     candidate_l2s: []
 >   - id: 2
 >     size: 1
 >     members:
->       - { path: Permanent/6.2026-05-01.filestore-interface.md, score: 0.90, kind: fact,
+>       - { path: 6.2026-05-01.filestore-interface.md, score: 0.90, kind: fact,
 >           is_representative: true,
 >           content: "filestore interface: use an injected FS interface, never os.Open directly" }
 >     candidate_l2s:
->       - { path: Permanent/6.2026-05-01.filestore-interface.md, cosine: 0.97 }
+>       - { path: 6.2026-05-01.filestore-interface.md, cosine: 0.97 }
 >   - id: 3
 >     size: 2
 >     members:
->       - { path: Permanent/7.2026-03-15.storage-format.md, score: 0.86, kind: fact,
+>       - { path: 7.2026-03-15.storage-format.md, score: 0.86, kind: fact,
 >           is_representative: true,
 >           content: "on-disk format: use newline-delimited JSON for append efficiency" }
->       - { path: Permanent/8.2026-05-20.format-migration-notes.md, score: 0.81, kind: chunk,
+>       - { path: 8.2026-05-20.format-migration-notes.md, score: 0.81, kind: chunk,
 >           is_representative: false }
 >     candidate_l2s:
->       - { path: Permanent/7.2026-03-15.storage-format.md, cosine: 0.85 }
->       - { path: Permanent/9.2026-04-01.storage-overview.md, cosine: 0.71 }
->       - { path: Permanent/10.2026-02-10.storage-adr.md, cosine: 0.58 }
+>       - { path: 7.2026-03-15.storage-format.md, cosine: 0.85 }
+>       - { path: 9.2026-04-01.storage-overview.md, cosine: 0.71 }
+>       - { path: 10.2026-02-10.storage-adr.md, cosine: 0.58 }
 > budget: { phrases_queried: 1, total_notes: 10, with_embeddings: 10, clusters_found: 4 }
 > ```
 >
