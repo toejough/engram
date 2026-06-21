@@ -1,0 +1,1 @@
+database migration safety requires: backup first, verify schema compatibility, test in staging, then apply to production

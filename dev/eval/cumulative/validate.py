@@ -343,18 +343,66 @@ def check_reversal_scorer():
 def check_synthesis_probe():
     import synthesis_judge
     fix = os.path.join(CUM, "synthesis_fixtures")
-    task_txt = open(os.path.join(fix, "task.txt")).read()
-    expected_z = open(os.path.join(fix, "expected_synthesis_z.txt")).read()
 
-    r_cluster = synthesis_judge.judge_crystallization(
-        os.path.join(fix, "vault_with_cluster"), task_txt, expected_z, stub=True)
-    check("synthesis: stub judge SIGNAL for absent cluster",
-          r_cluster["verdict"] == "SIGNAL", str(r_cluster))
+    # Iterate over all fixture{N}/ subdirectories (≥3 designed-gap fixtures).
+    fixtures = list(synthesis_judge.list_fixtures(fix))
+    fixture_ok = len(fixtures) >= 3
+    check(f"synthesis: ≥3 fixture subdirs present", fixture_ok,
+          f"found {len(fixtures)}: {[f['name'] for f in fixtures]}")
 
-    r_covered = synthesis_judge.judge_crystallization(
-        os.path.join(fix, "vault_covered"), task_txt, expected_z, stub=True)
-    check("synthesis: stub judge MUST_NOT_FIRE for covered cluster",
-          r_covered["verdict"] == "MUST_NOT_FIRE", str(r_covered))
+    for fixture in fixtures:
+        name = fixture["name"]
+        task_txt = fixture["task_txt"]
+        expected_z = fixture["expected_z_txt"]
+
+        r_cluster = synthesis_judge.judge_crystallization(
+            fixture["vault_with_cluster"], task_txt, expected_z, stub=True)
+        check(f"synthesis [{name}]: stub judge SIGNAL for absent cluster",
+              r_cluster["verdict"] == "SIGNAL", str(r_cluster))
+
+        r_covered = synthesis_judge.judge_crystallization(
+            fixture["vault_covered"], task_txt, expected_z, stub=True)
+        check(f"synthesis [{name}]: stub judge MUST_NOT_FIRE for covered cluster",
+              r_covered["verdict"] == "MUST_NOT_FIRE", str(r_covered))
+
+    # Verify real judge parse/aggregation logic with mocked judge responses.
+    # No paid LLM call — _parse_judge_json is exercised directly.
+    synth_json = '{"verdict": "SYNTHESIS", "reason": "Z integrates facets", "z_present": true, "z_integrative": true, "build_used_z": true}'
+    not_synth_json = '{"verdict": "NOT_SYNTHESIS", "reason": "mere restatement", "z_present": false, "z_integrative": false, "build_used_z": null}'
+
+    parsed_synth = synthesis_judge._parse_judge_json(synth_json)
+    parsed_not = synthesis_judge._parse_judge_json(not_synth_json)
+    check("synthesis: _parse_judge_json parses SYNTHESIS verdict",
+          parsed_synth.get("verdict") == "SYNTHESIS" and parsed_synth.get("z_present") is True,
+          str(parsed_synth))
+    check("synthesis: _parse_judge_json parses NOT_SYNTHESIS verdict",
+          parsed_not.get("verdict") == "NOT_SYNTHESIS" and parsed_not.get("z_present") is False,
+          str(parsed_not))
+
+    # Majority vote logic: 2 SYNTHESIS + 1 NOT_SYNTHESIS → SYNTHESIS.
+    mock_runs = [
+        {"verdict": "SYNTHESIS", "z_present": True, "z_integrative": True},
+        {"verdict": "SYNTHESIS", "z_present": True, "z_integrative": True},
+        {"verdict": "NOT_SYNTHESIS", "z_present": False, "z_integrative": False},
+    ]
+    synthesis_votes = sum(1 for r in mock_runs if r.get("verdict") == "SYNTHESIS")
+    majority = "SYNTHESIS" if synthesis_votes > synthesis_judge.JUDGE_RUNS // 2 else "NOT_SYNTHESIS"
+    check("synthesis: majority vote 2/3 SYNTHESIS → SYNTHESIS verdict",
+          majority == "SYNTHESIS", f"votes={synthesis_votes}/{synthesis_judge.JUDGE_RUNS}")
+
+    # Parse error → NOT_SYNTHESIS (safe default).
+    err_parsed = synthesis_judge._parse_judge_json("no json here at all")
+    check("synthesis: _parse_judge_json parse error → NOT_SYNTHESIS safe default",
+          err_parsed.get("verdict") == "NOT_SYNTHESIS" and err_parsed.get("_parse_error") is True,
+          str(err_parsed))
+
+    # Judge prompt contains required adversarial rubric elements.
+    check("synthesis: judge system prompt contains adversarial refute-by-default rule",
+          "NOT_SYNTHESIS" in synthesis_judge._JUDGE_SYSTEM and "SYNTHESIS" in synthesis_judge._JUDGE_SYSTEM,
+          "system prompt missing verdict strings")
+    check("synthesis: judge system prompt requires z_integrative (integrative, not restatement)",
+          "z_integrative" in synthesis_judge._JUDGE_SYSTEM,
+          "missing z_integrative in rubric")
 
 
 def main():

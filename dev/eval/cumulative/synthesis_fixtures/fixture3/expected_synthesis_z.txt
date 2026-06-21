@@ -1,0 +1,1 @@
+rate limit handling requires retry with exponential backoff plus jitter on 429 to prevent thundering-herd
