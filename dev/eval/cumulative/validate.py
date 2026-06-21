@@ -154,6 +154,60 @@ def check_stub_pipeline():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def check_behavioral_build_layout():
+    """Guard for the cmd/-layout build bug: behavioral.build() must locate and build the
+    real `package main` regardless of layout, producing a RUNNABLE binary — not a library
+    archive. A flat `package main` app and a cmd/-layout app (library root + cmd/<app>/main.go)
+    must both build to a runnable binary that passes a basic feature check; a no-main workdir
+    must fail LOUDLY (build error), never silently score 0."""
+    import behavioral
+
+    root = tempfile.mkdtemp(prefix="cumbuild-")
+    feat = [{"name": "echo", "steps": [{"argv": ["ping"], "assert": "contains:pong"}]}]
+    try:
+        # (a) flat: package main at root.
+        flat = os.path.join(root, "flatapp")
+        os.makedirs(flat)
+        with open(os.path.join(flat, "go.mod"), "w") as fh:
+            fh.write("module flatapp\ngo 1.23\n")
+        with open(os.path.join(flat, "main.go"), "w") as fh:
+            fh.write('package main\nimport "fmt"\nfunc main(){ fmt.Println("pong") }\n')
+
+        # (c) cmd-layout: library root + cmd/<app>/main.go importing the library.
+        cmdapp = os.path.join(root, "feeds")
+        os.makedirs(os.path.join(cmdapp, "cmd", "feeds"))
+        with open(os.path.join(cmdapp, "go.mod"), "w") as fh:
+            fh.write("module feeds\ngo 1.23\n")
+        with open(os.path.join(cmdapp, "lib.go"), "w") as fh:
+            fh.write('package feeds\nfunc Pong() string { return "pong" }\n')
+        with open(os.path.join(cmdapp, "cmd", "feeds", "main.go"), "w") as fh:
+            fh.write('package main\nimport ("fmt"; "feeds")\nfunc main(){ fmt.Println(feeds.Pong()) }\n')
+
+        # (d) no-main: pure library → must fail loudly.
+        nomain = os.path.join(root, "lib")
+        os.makedirs(nomain)
+        with open(os.path.join(nomain, "go.mod"), "w") as fh:
+            fh.write("module lib\ngo 1.23\n")
+        with open(os.path.join(nomain, "lib.go"), "w") as fh:
+            fh.write("package lib\nfunc X() {}\n")
+
+        flat_bin, flat_err = behavioral.build(flat)
+        flat_ok = bool(flat_bin) and behavioral.check(flat_bin, feat[0])[0]
+        check("build-layout: flat package-main app builds to a runnable binary that passes a feature check",
+              flat_ok, flat_err[:160] if not flat_bin else "")
+
+        cmd_bin, cmd_err = behavioral.build(cmdapp)
+        cmd_ok = bool(cmd_bin) and behavioral.check(cmd_bin, feat[0])[0]
+        check("build-layout: cmd/-layout app builds to a runnable binary that passes a feature check",
+              cmd_ok, cmd_err[:160] if not cmd_bin else "")
+
+        nm_bin, nm_err = behavioral.build(nomain)
+        check("build-layout: no-main workdir fails LOUDLY (build error, not silent 0)",
+              nm_bin is None and bool(nm_err), f"bin={nm_bin} err={nm_err[:80]!r}")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def check_modern_metrics():
     """Verify that the modern metric helpers (count_notes_written, count_learn_kind_breakdown)
     work on a synthetic vault with known fact+feedback notes — no LLM, no tier fields."""
@@ -483,6 +537,8 @@ def main():
     check_cellgen()
     print("[scorer]")
     check_scorer()
+    print("[behavioral build layout]")
+    check_behavioral_build_layout()
     print("[modern metrics]")
     check_modern_metrics()
     print("[retro bug fixes]")

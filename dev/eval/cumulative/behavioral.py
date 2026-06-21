@@ -12,9 +12,44 @@ Usage: python3 behavioral.py <workdir> <spec.json>
 """
 import sys, os, re, json, subprocess, tempfile, shutil
 
+def find_main_pkg(workdir):
+    """Locate the buildable `package main` regardless of layout (flat root or cmd/).
+
+    Returns (target, "") where `target` is a `go build` target (import path) for the
+    main package, or (None, err) if none can be found / `go list` fails. Handles:
+      (a) exactly one main package → that one
+      (b) flat root is `package main` → the root main (same as the legacy behavior)
+      (c) multiple mains → prefer one under cmd/ matching the workdir's app name,
+          else the first
+      (d) no main package → a clear error (so the caller fails loudly, not silent 0)
+    """
+    r = subprocess.run(
+        ["go", "list", "-f", '{{if eq .Name "main"}}{{.ImportPath}}{{end}}', "./..."],
+        cwd=workdir, capture_output=True, text=True)
+    if r.returncode != 0:
+        return None, "go list failed:\n" + r.stderr
+    mains = [line.strip() for line in r.stdout.splitlines() if line.strip()]
+    if not mains:
+        return None, "no `package main` found in workdir (no runnable binary to build)"
+    if len(mains) == 1:
+        return mains[0], ""
+    # Multiple mains: prefer one under cmd/<app> matching the workdir's app name.
+    app = os.path.basename(os.path.abspath(workdir))
+    cmd_match = [m for m in mains if "/cmd/" + app in m or m.endswith("/cmd/" + app)]
+    if cmd_match:
+        return cmd_match[0], ""
+    cmd_any = [m for m in mains if "/cmd/" in m]
+    if cmd_any:
+        return cmd_any[0], ""
+    return mains[0], ""
+
+
 def build(workdir):
+    target, err = find_main_pkg(workdir)
+    if not target:
+        return None, err
     binp = os.path.join(tempfile.mkdtemp(), "app")
-    r = subprocess.run(["go", "build", "-o", binp, "."], cwd=workdir,
+    r = subprocess.run(["go", "build", "-o", binp, target], cwd=workdir,
                        capture_output=True, text=True)
     if r.returncode != 0:
         return None, r.stderr
