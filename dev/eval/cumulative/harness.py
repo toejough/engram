@@ -39,8 +39,8 @@ CONVERGE_ARCH_BAR = 8  # arch_pass >= 8 (matches converged())
 #               skill (unified clustering + lazy crystallization at recall time).
 # read_mode: none | skill
 REGIMES = {
-    "cold":      {"write": "none",  "read_mode": "none",  "read_tiers": []},
-    "real.full": {"write": "skill", "read_mode": "skill", "read_tiers": []},
+    "cold":      {"write": "none",  "read_mode": "none"},
+    "real.full": {"write": "skill", "read_mode": "skill"},
 }
 
 
@@ -122,8 +122,8 @@ def refresh_creds_path(cfg):
         pass
 
 
-def build_prompt(app, interface, read_mode, read_tiers):
-    """Build prompt with read-subset-appropriate recall. Real-skill regimes only (recall-v2)."""
+def build_prompt(app, interface, read_mode):
+    """Build prompt with read-mode-appropriate recall. Real-skill regimes only (recall-v2)."""
     if read_mode == "none":
         recall = ""
     elif read_mode == "skill":
@@ -231,8 +231,7 @@ def conv_labels(failed):
 
 # CONVENTION_FACTS templates drive ONLY the --stub deterministic learn (zero-cost pipeline
 # validation). The REAL learn is agent-driven: the agent runs its /learn skill so the whole
-# memory system (learn AND recall) is exercised, and learn-quality — whether the agent captured
-# what matters per tier — is itself a measured output (score_learn_capture). Each entry:
+# memory system (learn AND recall) is exercised. Each entry:
 # (situation, subject, predicate, object).
 CONVENTION_FACTS = {
     "di": ("When wiring dependencies in a Go CLI", "the storage, clock, and output layers",
@@ -258,55 +257,6 @@ CONVENTION_FACTS = {
 }
 
 
-# Name-agnostic detection of whether a learn CAPTURED each convention: substring match on note
-# content (lowercased). Scores learn quality — did the agent persist what we know matters per tier.
-CONVENTION_KEYWORDS = {
-    "di": ["inject", "dependenc", "interface"],
-    "sentinel": ["sentinel", "errors.is", "%w", "errnotfound", "error var"],
-    "atomic": ["atomic", "rename", "createtemp", "temp file"],
-    "stdlib": ["standard library", "stdlib", "third-party", "no external", "no dependenc"],
-    "tests_fake_parallel": ["parallel", "fake", "in-memory", "tempdir"],
-    "json": ["json", "machine-readable"],
-    "nocolor": ["no_color", "nocolor", "ansi", "color"],
-    "wrapped_errors": ["%w", "wrap", "fmt.errorf"],
-    "named_perms": ["permission", "filemode", "named constant", "perm "],
-    "no_global_data": ["global", "package-level", "mutable"],
-}
-
-
-# CAVEAT (2026-06-11 eval-validity audit): this is a COARSE coverage proxy — substring keyword
-# matching (CONVENTION_KEYWORDS), NOT the semantic/name-agnostic judgement the wording implies. It
-# is NOT the lazy-vs-eager discriminator (that is build outcomes + whether L2 was actually created).
-# For real.* regimes the learn prompt no longer feeds the agent the labels (closed-loop half fixed);
-# a semantic rescore of this metric is a deferred follow-up (plan Task 7 Step 2). Do not over-trust it.
-def score_learn_capture(vault, stated, write_tier):
-    """Did the agent's learn capture the conventions we expect for this tier? Name-agnostic: for
-    each STATED convention, check whether any vault note's content covers it. Also tracks whether
-    an L1 EPISODE was extracted — an episode is the foundation of every tier (facts/ADRs link down
-    to it), so a tiered learn that produced no episode is a real failure, not a nuance."""
-    blobs = []
-    episodes = 0
-    for path in glob_notes(vault):
-        try:
-            blobs.append(open(path, errors="replace").read().lower())
-        except Exception:
-            pass
-        if note_tier(path) == "L1":
-            episodes += 1
-    corpus = "\n".join(blobs)
-    captured = [c for c in stated if any(kw in corpus for kw in CONVENTION_KEYWORDS.get(c, [c]))]
-    return {
-        "engaged": len(blobs) > 0,
-        "write_tier": write_tier,
-        "episodes": episodes,
-        "captured": captured,
-        "missed": [c for c in stated if c not in captured],
-        "stated_count": len(stated),
-        "captured_count": len(captured),
-        "coverage": round(len(captured) / len(stated), 3) if stated else 1.0,
-    }
-
-
 def skill_learn_prompt():
     """Real-skill learn for the one-session cell: the BUILD agent invokes its /learn skill.
     The skill decides what to crystallize — facts for explicit conventions, feedback for
@@ -320,14 +270,6 @@ def skill_learn_prompt():
         "the skill knows what to write.\n\n"
         "Work autonomously; end with a one-line summary of what was written to the vault."
     )
-
-
-def learn_prompt(write_tier, stated):
-    """Returns the appropriate learn prompt. real.full always uses skill_learn_prompt."""
-    if write_tier in ("skill",):
-        return skill_learn_prompt()
-    # Legacy/cold path: write nothing (cold regime)
-    return ""
 
 
 def eg_learn(vault, date, kind, slug, fields, relations):
@@ -352,82 +294,6 @@ def eg_learn(vault, date, kind, slug, fields, relations):
 
 def glob_notes(vault):
     return _glob.glob(os.path.join(vault, "**", "*.md"), recursive=True)
-
-
-def count_notes_by_tier(vault):
-    """Verify the learn actually populated each tier — a tested mechanism produces nothing until
-    run on real data (note-18). Reads the frontmatter tier: of every note."""
-    counts = {"L1": 0, "L2": 0, "L3": 0, "other": 0}
-    for path in glob_notes(vault):
-        try:
-            head = open(path, errors="replace").read(600)
-        except Exception:
-            continue
-        tier = "other"
-        for line in head.splitlines():
-            s = line.strip()
-            if s.startswith("tier:"):
-                tier = s.split(":", 1)[1].strip().strip('"').strip("'")
-                break
-        counts[tier if tier in counts else "other"] += 1
-    return counts
-
-
-TIER_CEILING = {"L1": 1, "L2": 2, "L3": 3}
-
-
-def note_tier(path):
-    """Read a note's frontmatter tier (L1/L2/L3), or None."""
-    try:
-        head = open(path, errors="replace").read(600)
-    except Exception:
-        return None
-    for line in head.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("tier:"):
-            return stripped.split(":", 1)[1].strip().strip('"').strip("'")
-    return None
-
-
-def _links_to_l2(note_path, vault):
-    """Whether a note's wikilinks ([[basename]], e.g. in its `Related to:` block) point at
-    ANOTHER note whose tier is L2 — the composition signal for lazy L2 synthesis (a crystallized
-    L2 that builds on an existing L2). Resolves each target basename to its note file under the
-    build vault and reads that target's tier."""
-    try:
-        body = open(note_path, errors="replace").read()
-    except Exception:
-        return False
-    by_base = {os.path.basename(p)[: -len(".md")]: p for p in glob_notes(vault)}
-    self_base = os.path.basename(note_path)[: -len(".md")]
-    for target in re.findall(r"\[\[([^\]]+)\]\]", body):
-        target = target.strip()
-        if target == self_base:
-            continue
-        tgt_path = by_base.get(target)
-        if tgt_path and note_tier(tgt_path) == "L2":
-            return True
-    return False
-
-
-def prune_to_ceiling(vault, write_tier):
-    """Deterministically enforce the write-tier ceiling: drop any note whose frontmatter
-    tier exceeds write_tier (and its .vec.json sidecar). Higher tiers link DOWN to lower
-    ones (ADR->facts->episode), so removing higher tiers never dangles a lower-tier link.
-    This guards against the /learn skill writing above the requested ceiling — e.g. emitting
-    facts during an L1 episode-only capture — which would make v1[L1] == v1[L2] and confound
-    the write-tier axis."""
-    ceil = TIER_CEILING.get(write_tier, max(TIER_CEILING.values()))
-    removed = 0
-    for path in glob_notes(vault):
-        tier = note_tier(path)
-        if tier in TIER_CEILING and TIER_CEILING[tier] > ceil:
-            os.remove(path)
-            sidecar = path[: -len(".md")] + ".vec.json"
-            if os.path.exists(sidecar):
-                os.remove(sidecar)
-            removed += 1
-    return removed
 
 
 def converged(sc):
@@ -476,7 +342,7 @@ def learn_fired(cfg, sid):
 
 
 def count_notes_written(vault):
-    """Total markdown notes in the vault after learn — the modern replacement for notes_by_tier."""
+    """Total markdown notes in the vault after learn."""
     return len(glob_notes(vault))
 
 
@@ -690,7 +556,7 @@ def _seed_build_chunks(workdir, chunks_in):
 
 
 def _count_chunks(chunks_dir):
-    """Total chunk records across the index .jsonl files (the auto arm's notes_by_tier analog)."""
+    """Total chunk records across the index .jsonl files."""
     total = 0
     try:
         for name in os.listdir(chunks_dir):
@@ -723,7 +589,7 @@ def run_build(args):
     os.makedirs(build_chunks, exist_ok=True)
 
     prompt = build_prompt(args.app, json.load(open(args.spec))["interface"],
-                          regime["read_mode"], regime["read_tiers"])
+                          regime["read_mode"])
 
     def do_build(msg, resume_sid=None):
         if args.stub:
@@ -866,7 +732,7 @@ def run_build(args):
         "schema_version": SCHEMA_VERSION, "engram_sha": engram_sha(), "kind": "build",
         "app": args.app, "model": args.model, "model_id": MODELS[args.model],
         "regime": args.regime, "trial": args.trial, "date": args.date,
-        "read_mode": regime["read_mode"], "read_tiers": regime["read_tiers"],
+        "read_mode": regime["read_mode"],
         "vault_in": args.vault_in,
         "stub": args.stub or None,
         "converged": converged(sc), "rounds_to_converge": rnd if converged(sc) else None,
