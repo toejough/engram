@@ -13,6 +13,34 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func TestCacheDirFromHome(t *testing.T) {
+	t.Parallel()
+
+	const modelID = "minilm-l6-v2@384"
+
+	t.Run("returns XDG cache path when no env override", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := cli.CacheDirFromHome("/Users/joe", modelID, func(string) string { return "" })
+		g.Expect(dir).To(gomega.Equal("/Users/joe/.cache/engram/models/minilm-l6-v2@384"))
+	})
+
+	t.Run("respects XDG_CACHE_HOME when set", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := cli.CacheDirFromHome("/Users/joe", modelID, func(key string) string {
+			if key == "XDG_CACHE_HOME" {
+				return "/custom/cache"
+			}
+
+			return ""
+		})
+		g.Expect(dir).To(gomega.Equal("/custom/cache/engram/models/minilm-l6-v2@384"))
+	})
+}
+
 func TestDataDirFromHome(t *testing.T) {
 	t.Parallel()
 

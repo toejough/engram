@@ -28,27 +28,26 @@ var (
 	ErrHugotProbeEmpty = errors.New("hugot probe returned no embedding")
 )
 
-// HugotEmbedder wraps a Hugot pipeline + the temp-dir lifecycle for
-// unpacked model files. Safe for concurrent use — Hugot's pipeline runs
-// the model under its own lock.
+// HugotEmbedder wraps a Hugot pipeline. Safe for concurrent use — Hugot's
+// pipeline runs the model under its own lock.
 type HugotEmbedder struct {
 	pipeline interface {
 		RunPipeline(ctx context.Context, inputs []string) (out featureOutput, err error)
 	}
-	tmpDir  string
 	modelID string
 	dims    int
 
-	// Capture the close logic at construction time so the destroy +
-	// temp-dir cleanup chain stays encapsulated even if Hugot's Session
-	// type changes across versions.
+	// Capture the close logic at construction time so the destroy chain
+	// stays encapsulated even if Hugot's Session type changes across versions.
 	close func() error
 }
 
 // NewBundledHugotEmbedder is the production constructor: bundled assets
-// FS, fixed model directory, fixed model ID.
-func NewBundledHugotEmbedder(ctx context.Context) (*HugotEmbedder, error) {
-	return NewHugotEmbedderFromFS(ctx, bundledModel, "assets/model", BundledModelID)
+// FS, fixed model directory, fixed model ID, and a caller-supplied cache dir.
+// The cache dir is the XDG-keyed path where the model is extracted once and
+// reused across all subsequent invocations.
+func NewBundledHugotEmbedder(ctx context.Context, cacheDir string) (*HugotEmbedder, error) {
+	return NewHugotEmbedderFromFS(ctx, bundledModel, "assets/model", BundledModelID, cacheDir)
 }
 
 // NewHugotEmbedderFromDir constructs an embedder reading the model from
@@ -63,44 +62,32 @@ func NewHugotEmbedderFromDir(
 }
 
 // NewHugotEmbedderFromFS constructs an embedder from any stdembed.FS
-// rooted at modelDir. Tests pass an empty FS to verify UAT 10's
-// clear-error path; production wraps the bundled assets.
+// rooted at modelDir. cacheDir is the stable directory where the model is
+// extracted once and reused across invocations (XDG-keyed). Tests pass an
+// empty FS to verify UAT 10's clear-error path; production wraps bundled assets.
 func NewHugotEmbedderFromFS(
-	ctx context.Context, modelFS stdembed.FS, modelDir, modelID string,
+	ctx context.Context, modelFS stdembed.FS, modelDir, modelID, cacheDir string,
 ) (*HugotEmbedder, error) {
-	tmp, unpackErr := unpackModelToTemp(productionTempFS{}, modelFS, modelDir)
-	if unpackErr != nil {
-		return nil, unpackErr
+	dir, extractErr := extractToCache(productionCacheFS{}, modelFS, modelDir, cacheDir)
+	if extractErr != nil {
+		return nil, extractErr
 	}
 
-	embedder, embErr := NewHugotEmbedderFromDir(ctx, tmp, modelID)
-	if embErr != nil {
-		_ = os.RemoveAll(tmp)
-
-		return nil, embErr
-	}
-
-	embedder.tmpDir = tmp
-
-	return embedder, nil
+	return NewHugotEmbedderFromDir(ctx, dir, modelID)
 }
 
-// Close releases the Hugot session and removes the unpacked model temp
-// directory (if any). Safe to call multiple times.
+// Close releases the Hugot session. Safe to call multiple times. The model
+// cache dir is NOT removed — it is a shared, persistent cache reused across
+// all engram invocations.
 func (h *HugotEmbedder) Close() error {
-	var firstErr error
-
 	if h.close != nil {
-		firstErr = h.close()
+		err := h.close()
 		h.close = nil
+
+		return err
 	}
 
-	if h.tmpDir != "" {
-		_ = os.RemoveAll(h.tmpDir)
-		h.tmpDir = ""
-	}
-
-	return firstErr
+	return nil
 }
 
 // Dims reports the embedding dimensionality.
@@ -155,17 +142,17 @@ type LazyEmbedder struct {
 	initErr error
 }
 
-// NewLazyEmbedder returns a wrapper around NewBundledHugotEmbedder. Each
-// LazyEmbedder unpacks the model at most once, on first call to Embed /
-// ModelID / Dims.
-func NewLazyEmbedder() *LazyEmbedder {
+// NewLazyEmbedder returns a wrapper around NewBundledHugotEmbedder that
+// extracts the bundled model to cacheDir at most once (on first Embed /
+// ModelID / Dims call). cacheDir should be the XDG-keyed stable cache path
+// for the model, e.g. $XDG_CACHE_HOME/engram/models/<model_id>/.
+func NewLazyEmbedder(cacheDir string) *LazyEmbedder {
 	return &LazyEmbedder{
-		// Background context: the lazy init runs at most once per
-		// process and unpacks the bundled model to a temp directory; a
-		// request-scoped context could cancel construction partway and
-		// strand temp files.
+		// Background context: the lazy init runs at most once per process;
+		// a request-scoped context could cancel construction partway through
+		// model extraction and leave a partial temp dir.
 		factory: func() (*HugotEmbedder, error) {
-			return NewBundledHugotEmbedder(context.Background())
+			return NewBundledHugotEmbedder(context.Background(), cacheDir)
 		},
 	}
 }

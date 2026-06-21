@@ -10,6 +10,9 @@ var (
 	ExportNotExist = notExist
 )
 
+// ExportCacheFS aliases the unexported cacheFS so tests can implement it.
+type ExportCacheFS = cacheFS
+
 // ExportFeatureOutput is the test alias for the unexported
 // featureOutput shape used by hugotPipelineHandle.RunPipeline.
 type ExportFeatureOutput = featureOutput
@@ -63,6 +66,35 @@ func BuildProductionHugotPipelineForTest(
 ) hugotPipelineHandle {
 	return &productionHugotPipeline{session: session, pipeline: pipeline}
 }
+
+// ExportExtractToCache exposes the unexported extractToCache helper with an
+// injectable cacheFS so tests can exercise the sentinel / race / error branches
+// without touching the real disk.
+func ExportExtractToCache(
+	cfs ExportCacheFS,
+	modelFS stdembed.FS,
+	modelDir string,
+	cacheDir string,
+) (string, error) {
+	return extractToCache(cfs, modelFS, modelDir, cacheDir)
+}
+
+// ExportExtractToCacheProduction exposes the production wiring so an
+// integration test can exercise productionCacheFS end-to-end on real disk.
+func ExportExtractToCacheProduction(
+	modelFS stdembed.FS,
+	modelDir string,
+	cacheDir string,
+) (string, error) {
+	return extractToCache(productionCacheFS{}, modelFS, modelDir, cacheDir)
+}
+
+// ExportIsExistErr exposes the unexported isExistErr helper for error-path testing.
+func ExportIsExistErr(err error) bool { return isExistErr(err) }
+
+// ExportProductionCacheFS returns the production cacheFS adapter for direct
+// method coverage (exercised via integration tests in the cache package).
+func ExportProductionCacheFS() ExportCacheFS { return productionCacheFS{} }
 
 // ExportProductionTempFS returns the production temp-FS adapter so its
 // individual methods can be exercised under coverage without going
@@ -121,3 +153,9 @@ func NewHugotEmbedderWithPipelineForTest(
 func NewLazyEmbedderWithFactoryForTest(factory func() (*HugotEmbedder, error)) *LazyEmbedder {
 	return &LazyEmbedder{factory: factory}
 }
+
+// SetCacheDirForTest is a no-op test helper for the Close-does-not-delete
+// test. HugotEmbedder no longer holds a tmpDir field — Close only closes the
+// Hugot session and never removes any directory. The function is kept for
+// test readability; the test creates its own dir and verifies it survives.
+func SetCacheDirForTest(_ *HugotEmbedder, _ string) {}

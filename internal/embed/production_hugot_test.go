@@ -3,6 +3,7 @@ package embed_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 
 	"github.com/knights-analytics/hugot/pipelines"
@@ -20,7 +21,8 @@ func TestNewHugotEmbedderFromFS_InvalidModelFails(t *testing.T) {
 
 	// nonEmptyTestFS has real files but they are not Hugot model files, so
 	// unpackModelToTemp will succeed and NewHugotEmbedderFromDir will fail.
-	_, err := embed.NewHugotEmbedderFromFS(t.Context(), nonEmptyTestFS, "testdata", "fake@1")
+	cacheDir := filepath.Join(t.TempDir(), "model-cache")
+	_, err := embed.NewHugotEmbedderFromFS(t.Context(), nonEmptyTestFS, "testdata", "fake@1", cacheDir)
 	g.Expect(err).To(HaveOccurred())
 }
 

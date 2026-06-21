@@ -5,8 +5,11 @@ import (
 	"os"
 )
 
-var ErrNotFound = errors.New("not found")
-var ErrInvalid = errors.New("invalid input")
+// Exported variables.
+var (
+	ErrInvalid  = errors.New("invalid input")
+	ErrNotFound = errors.New("not found")
+)
 
 func findItem(id string) (*Item, error) {
 	item, ok := store[id]

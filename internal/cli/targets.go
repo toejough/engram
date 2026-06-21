@@ -48,6 +48,18 @@ type LearnFeedbackArgs struct {
 	Action    string `targ:"flag,name=action,desc=recommended action"`
 }
 
+// CacheDirFromHome returns the engram model cache directory for a given home path
+// and model ID. It respects $XDG_CACHE_HOME if set, otherwise defaults to
+// $HOME/.cache/engram/models/<modelID>. getenv is injected so callers control
+// environment access (pass os.Getenv in production).
+func CacheDirFromHome(home, modelID string, getenv func(string) string) string {
+	if xdg := getenv("XDG_CACHE_HOME"); xdg != "" {
+		return filepath.Join(xdg, "engram", "models", modelID)
+	}
+
+	return filepath.Join(home, ".cache", "engram", "models", modelID)
+}
+
 // DataDirFromHome returns the standard engram data directory for a given home path.
 // It respects $XDG_DATA_HOME if set, otherwise defaults to $HOME/.local/share/engram.
 // getenv is injected so callers control environment access (pass os.Getenv in production).

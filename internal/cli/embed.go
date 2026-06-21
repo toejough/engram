@@ -106,7 +106,8 @@ func RunEmbedStatus(
 
 // unexported variables.
 var (
-	sharedEmbedder = embed.NewLazyEmbedder() //nolint:gochecknoglobals // shared lazy singleton across CLI commands
+	//nolint:gochecknoglobals // shared lazy singleton across CLI commands
+	sharedEmbedder = embed.NewLazyEmbedder(modelCacheDir())
 )
 
 // applySelection captures which states the user asked to re-embed,
@@ -225,6 +226,15 @@ func applyOne(
 	}
 
 	_, _ = fmt.Fprintf(stdout, "embedded  %s (%s)\n", notePath, state)
+}
+
+// modelCacheDir resolves the XDG-keyed model cache directory at package init
+// time. The home dir and env vars are read here at the CLI edge; the embed
+// package itself has no direct os.* calls.
+func modelCacheDir() string {
+	home, _ := os.UserHomeDir()
+
+	return CacheDirFromHome(home, embed.BundledModelID, os.Getenv)
 }
 
 // newOsEmbedDeps wires the production filesystem + bundled embedder for

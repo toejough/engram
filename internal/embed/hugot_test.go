@@ -3,6 +3,7 @@ package embed_test
 import (
 	"context"
 	stdembed "embed"
+	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -21,7 +22,7 @@ func TestBundledHugotEmbedder_Smoke(t *testing.T) {
 
 	g := NewWithT(t)
 
-	embedder, err := embed.NewBundledHugotEmbedder(t.Context())
+	embedder, err := embed.NewBundledHugotEmbedder(t.Context(), filepath.Join(t.TempDir(), "model-cache"))
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -60,7 +61,8 @@ func TestT10_MissingBundledModel_ClearError(t *testing.T) {
 
 	g := NewWithT(t)
 
-	_, err := embed.NewHugotEmbedderFromFS(context.Background(), emptyFS, "assets/model", "x@1")
+	cacheDir := filepath.Join(t.TempDir(), "model-cache")
+	_, err := embed.NewHugotEmbedderFromFS(context.Background(), emptyFS, "assets/model", "x@1", cacheDir)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("ENGRAM_MODEL_PATH"))
 }
