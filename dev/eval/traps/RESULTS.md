@@ -64,3 +64,35 @@ what the saturation-breaking eval can measure at opus strength, not a harness de
 
 Behavioral cold-confirm spend: 20 opus trials + judge calls, $2.34 (all would early-stop at trial 1
 under the 5/5 policy).
+
+---
+
+# WARM side — memory flips all 5 tactical traps (the payoff)
+
+Seeded a vault with one note per convention, wired the real `/recall` + `/learn` skills into a warm
+cfg, prefixed each trap prompt with a recall-first instruction, and re-ran opus n=5 with the SAME
+deterministic checks. Precondition verified first (free): `engram query` surfaces the correct note
+as the top hit for every trap's task phrasing.
+
+| trap | COLD (no memory) | WARM (memory) | recall fired |
+|---|---|---|---|
+| req-with-context | trap 5/5 (`http.Get`) | **applied 5/5** (`http.NewRequestWithContext`) | 5/5 |
+| nocolor | trap 5/5 (raw `\033[`) | **applied 5/5** (`NO_COLOR` gate) | 5/5 |
+| t-parallel | trap 5/5 (no Parallel) | **applied 5/5** (`t.Parallel()` ×2) | 5/5 |
+| nil-guard-split | trap 5/5 (unguarded index) | **applied 5/5** (`if len(parts)==0`) | 5/5 |
+| wrapped-error | trap 5/5 (bare `return err`) | **applied 5/5** (`fmt.Errorf("…: %w")`) | 5/5 |
+
+**Result: a clean 5/5 → 5/5 cold→warm flip on every trap**, all flips verified in the generated
+code, recall fired on every trial. This is the opus-strength memory payoff the saturated CRUD
+oracle could not measure: on conventions opus does NOT one-shot cold, memory carries the correction
+so it never has to be given again.
+
+Cost: warm $9.62 (25 trials; recall overhead ~$0.30-0.50/trial vs ~$0.13 cold). The convention is
+stated once (seeded as a note); every subsequent task applies it — the say-once value, made
+measurable at opus strength.
+
+## Caveat
+This is a controlled, single-convention-per-task isolation — the cleanest possible recall
+condition (the right note is unambiguous and top-ranked). It proves the mechanism end-to-end
+(note → recall → apply → flip). It does NOT test recall under a crowded vault where many notes
+compete, or where the relevant note is not top-ranked; that is the harder, more realistic question.
