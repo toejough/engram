@@ -133,7 +133,12 @@ def real_cells_for(model, trial, date, stub, max_rounds, regimes):
             if vault_out:
                 cmd += ["--vault-out", vault_out]
             ops.append(_op("build", f"{pfx}-{tag}-{regime}-build", prev_dep, read_cfg, out, cmd + stub_args))
-            prev_dep = [f"{pfx}-{tag}-{regime}-build"]
+            # Sequential dependency ONLY for regimes that carry memory forward (warm): app2 recalls
+            # the notes app1 LEARNED, so it must wait. Cold writes no vault (--vault-in none for every
+            # app), so its 3 apps share nothing and are independent — chaining them was artificial and
+            # serialized 15 independent cold ops behind 5 lanes. Dropping it lifts peak parallelism
+            # from 10 (chains) to ~20 (15 cold + 5 warm frontier).
+            prev_dep = [f"{pfx}-{tag}-{regime}-build"] if needs_vault else []
             prev_vault = vault_out or prev_vault
     return ops
 

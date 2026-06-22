@@ -229,6 +229,11 @@ def chain_rows(builds, learns, model, regime):
             "feat_restate": sum(x.get("feature_statements", 0) or 0 for x in builds3),
             "review_turns": sum(max(0, len(x.get("rounds", [])) - 1) for x in builds3),
             "converged": all(x.get("converged") for x in builds3),
+            # per-build convergence (retro: the all-3-product `converged` above collapses to ~0% under
+            # a ~50% per-build stall rate and reads as "model can't converge" when individual builds
+            # converge fine — report build-level fraction instead).
+            "conv_builds": sum(1 for x in builds3 if x.get("converged")),
+            "n_builds": len(builds3),
             # learn_cost = separate-op learns (cold-tier learns) PLUS each build's IN-SESSION /learn
             # cost. real.full runs /learn inside the build session, so `ln` is empty and the
             # in-session cost lives in build["learn"]["cost"] — omitting it understated warm cost
@@ -250,18 +255,73 @@ def headline_stats_table(builds, learns, models, regimes):
              "`conv-restate` = convention restatements the human made (the say-once metric, lower=better). "
              "`review` = feedback rounds. **Memory's win is conv-restate; it does NOT reduce time/tokens/$ "
              "— recall + richer learn cost more.**", "",
-             "| model | arm | conv-restate | review | converged | wall min | tokens | $ |",
+             "| model | arm | conv-restate | review | build-conv% | wall min | tokens | $ |",
              "|---|---|--:|--:|--:|--:|--:|--:|"]
     for m in models:
         for arm, regs in [("cold", ["cold"]), ("warm", warm)]:
             rows = [r for reg in regs for r in chain_rows(builds, learns, m, reg)]
             if not rows:
                 continue
-            cv = 100 * sum(1 for r in rows if r["converged"]) / len(rows)
+            cv = 100 * sum(r["conv_builds"] for r in rows) / sum(r["n_builds"] for r in rows)
             tot = lambda k: mean([r[k] for r in rows])
             lines.append(f"| {m} | {arm} | {tot('conv_restate'):.1f} | {tot('review_turns'):.1f} | "
                          f"{cv:.0f}% | {tot('wall'):.0f} | {tot('tokens')/1e6:.1f}M | "
                          f"{tot('learn_cost')+tot('build_cost'):.2f} |")
+    return "\n".join(lines) + "\n"
+
+
+SEED_APPS = ["notes"]            # app1 — seeds memory at full cost, no prior memory to recall
+PAYBACK_APPS = ["links", "feeds"]  # apps 2..N — where memory pays back
+
+
+def amortized_economics_table(builds, models, regimes):
+    """Seed (app1) vs payback (apps 2..N) economics, per axis.
+
+    app1 SEEDS memory at full recall+learn cost with NO prior memory to recall — a one-time
+    investment. Apps 2..N are where memory PAYS BACK. Chain totals/per-trial averages blend the
+    seed's one-time cost into every app and misread it as a per-app penalty (this is the cost/time
+    analogue of the convention metric's app1 cold-anchoring). This table separates the two so the
+    amortized economics are legible. Δ% = warm vs cold; negative = memory cheaper/faster/fewer."""
+    import statistics
+    warm = [r for r in regimes if r != "cold"]
+
+    axes = [("convention restatements", "count", "convention_statements", False),
+            ("feedback rounds", "rounds", "total_rounds", False),
+            ("build time", "s", "build_s", False),
+            ("recall time", "s", "recall_s", False),
+            ("learn time", "s", "learn_s", False),
+            ("cost", "USD", "axis_c2_cost_usd", False),
+            ("tokens", "Mtok", "tokens", True)]
+    lines = ["### Amortized economics — seed (app1·notes) vs payback (apps 2–3·links+feeds)", "",
+             "app1 seeds memory at full recall+learn cost with no prior memory to recall — a one-time "
+             "investment. Apps 2–3 are where memory pays back. Chain totals blend the seed cost into "
+             "every app and misread it as a per-app penalty; this table separates them so the "
+             "amortized economics are legible. Δ% = warm vs cold; negative = memory better. The seed "
+             "cost is paid once per chain — the longer the chain, the more the payback dominates.", ""]
+    for m in models:
+        mb = [b for b in builds if b.get("model") == m]
+        if not mb:
+            continue
+        lines += [f"**{m}**", "",
+                  "| segment | axis | unit | cold | warm | Δ | Δ% |",
+                  "|---|---|---|--:|--:|--:|--:|"]
+        for segname, appset in [("seed (app1)", SEED_APPS), ("payback (2–3)", PAYBACK_APPS)]:
+            def g(regset, key, tok=False):
+                return sum(
+                    (statistics.mean(v) if (v := [(_toks(b) if tok else (b.get(key, 0) or 0))
+                     for b in mb if b.get("app") == a and b.get("regime") in regset]) else 0.0)
+                    for a in appset)
+            for lab, unit, key, tok in axes:
+                c = g(["cold"], key, tok); w = g(warm, key, tok)
+                if tok:
+                    c /= 1e6; w /= 1e6
+                d = w - c; pct = 100 * d / c if c else 0
+                lines.append(f"| {segname} | {lab} | {unit} | {c:.2f} | {w:.2f} | {d:+.2f} | {pct:+.0f}% |")
+            ct = g(["cold"], "recall_s") + g(["cold"], "build_s") + g(["cold"], "learn_s")
+            wt = g(warm, "recall_s") + g(warm, "build_s") + g(warm, "learn_s")
+            d = wt - ct; pct = 100 * d / ct if ct else 0
+            lines.append(f"| {segname} | **total active time** | s | {ct:.0f} | {wt:.0f} | {d:+.0f} | {pct:+.0f}% |")
+        lines.append("")
     return "\n".join(lines) + "\n"
 
 
@@ -273,14 +333,14 @@ def per_regime_cost_table(builds, learns, models, regimes):
              "feedback round-count (convergence).", ""]
     for m in models:
         lines += [f"**{m}**", "",
-                  "| regime | learn$ | build$ | total$ | wall | tokens | conv% |",
+                  "| regime | learn$ | build$ | total$ | wall | tokens | build-conv% |",
                   "|---|--:|--:|--:|--:|--:|--:|"]
         for reg in regimes:
             rows = chain_rows(builds, learns, m, reg)
             if not rows:
                 continue
             ln, bd = mean([r["learn_cost"] for r in rows]), mean([r["build_cost"] for r in rows])
-            cv = 100 * sum(1 for r in rows if r["converged"]) / len(rows)
+            cv = 100 * sum(r["conv_builds"] for r in rows) / sum(r["n_builds"] for r in rows)
             lines.append(f"| `{reg}` | {ln:.2f} | {bd:.2f} | {ln+bd:.2f} | "
                          f"{mean([r['wall'] for r in rows]):.0f} | {mean([r['tokens'] for r in rows])/1e6:.1f}M | {cv:.0f}% |")
         lines.append("")
@@ -687,6 +747,7 @@ def main():
            render_table("Feature interventions — CONTROL (app-specific; nobody carries these)", feat, models, regimes),
            differential_summary(differential, models),
            headline_stats_table(builds, learns, models, regimes),
+           amortized_economics_table(builds, models, regimes),
            "## Secondary", "",
            render_table("β-bucket on feeds, ROUND 1 /4 (front-loading: does links' memory lift β in the "
                         "first draft? — measured at round 1; β saturates to 4/4 at convergence)",

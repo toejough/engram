@@ -30,7 +30,11 @@ MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "
 ENGRAM_BIN_DIR = os.environ.get("ENGRAM_BIN_DIR", os.path.expanduser("~/go/bin"))
 SCHEMA_VERSION = 4
 CONVERGE_ARCH_BAR = 8  # arch_pass >= 8 (matches converged())
-STALL_PATIENCE = 2  # halt the build loop if convergence score is flat this many consecutive rounds
+STALL_PATIENCE = 3  # halt the build loop if convergence score is flat this many consecutive rounds.
+# Loosened 2→3 after haiku n=5: patience=2 cut 14/30 builds with round-budget to spare (only 1 genuine
+# max-rounds hit), firing on builds still making slow monotone progress. Its original motivation —
+# feeds-real.full plateauing at 9/18 rounds 3–8 — was the cmd/-layout build bug, since fixed; with that
+# gone, 2 flat rounds is too aggressive a plateau call. 3 still caps truly-stuck tail spend.
 
 # Two regimes — modern engram (v3, no tiers/episodes/eager-L2):
 #   cold      = no memory at all; baseline

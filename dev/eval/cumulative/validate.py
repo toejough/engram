@@ -283,6 +283,32 @@ def check_convention_tables_agree():
           f"table=({cold},{warm}) headline=({head_cold},{head_warm})")
 
 
+def check_amortized_economics():
+    """The amortized table must separate the SEED app (app1·notes) from the PAYBACK apps
+    (links+feeds) per axis — so app1's one-time memory-seeding cost is not smeared across the
+    chain and misread as a per-app penalty. Synthetic: seed warm costs MORE (investment), payback
+    warm costs LESS (the win). The table must show both segments with their own cold/warm totals."""
+    import aggregate
+
+    def b(app, regime, cost):
+        return {"model": "haiku", "trial": 1, "app": app, "regime": regime,
+                "axis_c2_cost_usd": cost, "convention_statements": 0, "total_rounds": 0,
+                "build_s": 0, "recall_s": 0, "learn_s": 0, "tokens": {}}
+
+    builds = [
+        b("notes", "cold", 1.0), b("notes", "real.full", 3.0),    # seed: cold 1.00, warm 3.00 (invest)
+        b("links", "cold", 2.0), b("links", "real.full", 1.0),    # payback halves
+        b("feeds", "cold", 2.0), b("feeds", "real.full", 1.0),    # payback: cold 4.00, warm 2.00
+    ]
+    tbl = aggregate.amortized_economics_table(builds, ["haiku"], ["cold", "real.full"])
+    seed_ok = "| seed (app1) | cost | USD | 1.00 | 3.00 |" in tbl
+    pay_ok = "| payback (2–3) | cost | USD | 4.00 | 2.00 |" in tbl
+    check("Amortized: seed segment isolates app1 cost (1.00→3.00, the one-time investment)",
+          seed_ok, "seed cost row missing/incorrect")
+    check("Amortized: payback segment = links+feeds only (4.00→2.00, the per-item win)",
+          pay_ok, "payback cost row missing/incorrect")
+
+
 def check_in_session_learn_cost():
     """Bug 3: warm cost must INCLUDE in-session /learn cost. For real.full the separate-op learn
     list is empty and the learn cost lives in build['learn']['cost'] — chain_rows must fold it in."""
@@ -329,6 +355,17 @@ def check_stall_early_stop():
     stalled2, halt2 = hh.run_stall_loop(improving, patience=hh.STALL_PATIENCE)
     check("Bug 4: steadily improving score does NOT stall",
           (not stalled2) and halt2 == len(improving), f"stalled={stalled2}, halt={halt2}")
+
+    # Recalibration (haiku n=5): patience was 2; loosened to 3 because a SLOW-but-improving build —
+    # two flat rounds then progress — was being cut short. This fixture pins that rationale: the same
+    # sequence stalls under patience=2 (the old value) but survives under patience=3 (the new value).
+    slow = [4, 5, 5, 5, 6, 7, 8, 9]  # improves rnd2, flat rnds3-4, then resumes climbing
+    st_p2, _ = hh.run_stall_loop(slow, patience=2)
+    st_p3, halt3 = hh.run_stall_loop(slow, patience=3)
+    check("Recalibration: slow-improver stalls at patience=2 but NOT patience=3",
+          st_p2 and (not st_p3) and halt3 == len(slow), f"p2={st_p2}, p3={st_p3}, halt3={halt3}")
+    check("Recalibration: STALL_PATIENCE is the loosened value 3", hh.STALL_PATIENCE == 3,
+          str(hh.STALL_PATIENCE))
 
 
 def check_token_io():
@@ -543,6 +580,7 @@ def main():
     check_modern_metrics()
     print("[retro bug fixes]")
     check_convention_tables_agree()
+    check_amortized_economics()
     check_in_session_learn_cost()
     check_stall_early_stop()
     print("[token I/O + cost audit]")
