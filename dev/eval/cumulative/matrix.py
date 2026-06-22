@@ -164,9 +164,8 @@ def op_done(op):
         return False
     if op["kind"] == "learn" and d.get("learned") is False and d.get("write_mode") != "none":
         return False  # didn't engage engram at all (empty seed) — transient, re-run
-    # NOTE: a missing L1 episode is a real failure, but it's TRACKED (learn_quality.episode_extracted
-    # + aggregate report), not re-run — it's been systematic for L2, so re-running would never
-    # complete. The prompt now requires the episode; persistent misses are a measured finding.
+    # NOTE: learn output quality (notes_written / crystallizations) is TRACKED and reported, not a
+    # re-run trigger — a thin capture is a measured finding, not a failure to retry.
     return True
 
 
@@ -244,7 +243,7 @@ def main():
     ap.add_argument("--max-rounds", type=int, default=8)  # lowered from 15; escalation drives completion
     ap.add_argument("--stub", default="", choices=["", "good", "naive"])
     ap.add_argument("--regimes", default="",
-                    help="comma-separated regime keys to restrict the run to (e.g. l2.l1l2,l2.lazy); "
+                    help="comma-separated regime keys to restrict the run to (e.g. cold,real.full); "
                          "default empty = all regimes")
     args = ap.parse_args()
 

@@ -543,13 +543,12 @@ def token_io_table(builds, learns, models, root):
 
 def full_matrix_tables(builds, learns, models, regimes):
     """The full matrix: per app, a (model × regime) × 6-metric grid of MEDIANS, best-per-
-    (model,metric) bolded. app1 (notes) is built cold ONCE per (model,trial) and shared across
-    regimes — it varies only by the write-tier its memory is learned at — so app1 is shown by
-    write-tier (none/L1/L2/L3), not by all 7 regimes. app2/app3 use the full regime set.
+    (model,metric) bolded. Each regime (cold, real.full) runs its own 3-app chain; app1/app2/app3
+    are shown per regime.
     Metrics: human turns (feedback rounds), prescriptiveness (max convention escalation depth),
     turns-to-converge (median rounds among COMPLETED builds; — if none), cost$, tokens, time(min).
-    Cost/tokens/time include that app-position's learn (app1→write-tier learn, app2→regime learn,
-    app3 terminal). Resource metrics are over ALL builds (incl. capped non-converged), so a † marks
+    Cost/tokens/time include that app-position's in-session learn (real.full only).
+    Resource metrics are over ALL builds (incl. capped non-converged), so a † marks
     a cell where <60% of builds completed — its turns/cost run high because they didn't finish."""
     bmap, a1l, a2l = _index_runs(builds, learns)
     write_of = {

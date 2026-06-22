@@ -67,6 +67,73 @@ noise-dominated at n=20 — not a defensible finding. C4/C5/C6 not exercised.**
 
 \* n=1 magnitude was a high-variance draw; n=5 settled C3 at ~−17% per-app (−12% cold-anchored chain).
 
+### Run 6 — V0 · sonnet · n=1 (`/tmp/cummatrix-sonnet-n1`) — DIRECTIONAL ONLY
+
+Clean (6/6, 0 rate_limited, 0 degenerate, $13.36). Convention payback (links+feeds): cold 12 →
+warm **1** (gap −11, ~92%). Warm round-1 arch climbs 9→9→**10/10** across the chain (cold 3→4→4) —
+genuine memory front-loading, not phantom builds (all warm ≥$1.69, recall fired, real scored apps).
+**NOT a finding:** −92% is pinned to the metric floor (warm payback = {1,0}); the "grows with model
+strength" read illegitimately compares sonnet n=1 vs haiku n=20. Retro verdict: DIRECTIONAL-NEEDS-N.
+**Next:** sonnet n≥5 (target 10), then permutation-test sonnet warm-payback distribution vs haiku
+n=20 — only then can model-strength scaling be promoted to a finding.
+
+| # | Variant | Model | n | patience | data path | status | headline (C3 payback) | retro |
+|---|---|---|--:|--:|---|---|---|---|
+| 6 | V0 | sonnet | 1 | 3 | (folded into n5) | superseded | conv payback 12→1 (~92%, FLOOR-PINNED) | directional only; needs n≥5 |
+| 7 | V0 | sonnet | 5 | 3 | `/tmp/cummatrix-sonnet-n5` | done (clean) | conv payback 12.60→4.80 (−62%, p=0.008) | n=1's −92% regressed to −62% as predicted; reportable |
+
+**CROSS-MODEL FINDING (haiku n=20 vs sonnet n=5):** cold payback ~identical (13.55 vs 12.60 — same
+burden without memory); warm payback 10.40 vs 4.80. Memory cut: **haiku −23% vs sonnet −62%**,
+permutation test on warm-payback distributions **p=0.0020**. → *Memory's value grows with model
+strength* — a stronger model applies recalled conventions more reliably on the first draft (sonnet
+warm round-1 arch front-loads to 10/10). Caveat: sonnet n=5, high warm variance (±2.93); n=10 would
+tighten the −62% point. Direction is significant.
+
+### Run 8 — V0 · opus · n=5 (`/tmp/cummatrix-opus-n5`) — SURPRISING: oracle saturation
+
+Clean (30/30, 0 true no-ops; note: 2 builds tripped the cost<$0.40 degenerate filter but were
+FALSE POSITIVES — real arch-10/10 one-shot builds. Correct no-op discriminator = score=None OR
+turns≤3, NOT cost). Convention payback: opus cold **3.80±5.19** / warm 6.00±2.68 — memory shows NO
+benefit (within noise; the +58% is the t1=14 outlier, not real).
+
+| # | Variant | Model | n | data path | status | conv payback | note |
+|---|---|---|--:|---|---|---|---|
+| 8 | V0 | opus | 5 | `/tmp/cummatrix-opus-n5` | done (clean) | cold 3.80 / warm 6.00 (+58%, NOISE) | opus one-shots clean cold → oracle floors |
+
+**KEY FINDING — memory benefit is NON-MONOTONIC / oracle-saturation:** opus cold per-trial conv
+[14,3,0,1,1] — trials 3-5 opus produces fully convention-compliant apps UNAIDED (arch 10/10,
+conv=0). The n=1 (trial 1) was an unlucky hard draw (arch 3-4/10), which falsely made memory look
+huge. Cross-model: haiku cold 13.6 (−23%), sonnet cold 12.6 (−62%), opus cold 3.8 (no effect).
+**RETRO VERDICT (confirmed): "non-monotonic, peaks at sonnet" REFUTED — it's ORACLE SATURATION.**
+Cold-flooring rate (conv≤1): opus **70%** (7/10), sonnet 0%, haiku 2%. When opus one-shots conv=0
+cold, the metric physically can't register memory value. The +58% rides on the t1=14 outlier;
+strip it → opus cold median 1 (floored). Paired: the only opus trial with real cold burden (t1=14)
+had warm crush it (−9, memory-helps signature). **Measured benefit tracks COLD CONVENTION-BURDEN,
+not model strength** — opus has ~0 cold burden on these easy CRUD apps, so its benefit is
+UNMEASURED, not zero.
+
+**CAN report:** sonnet −62%, haiku −24% (where cold burden exists). **CANNOT report:** any opus
+memory claim, or a model-strength curve. C2 cost: opus warm +160-260%, no measurable payback (but
+payback is unmeasurable here anyway).
+
+**REQUIRED before any opus/strong-model claim — harder test cases (see issue):**
+1. Idiosyncratic NON-DEFAULT conventions (bespoke error format, mandated internal helper over
+   stdlib, forbidden-but-tempting stdlib call) — not LLM house-style (DI/wrapped-errors) opus
+   applies unprompted. Memory carries ARBITRARY LOCAL convention, not universal good taste.
+2. Conventions that CONFLICT with the model's prior ("do X the unusual way") — cold fails, warm
+   recalls the local rule.
+3. Longer accumulating chains (app4/app5) stacking conventions beyond one-shot range.
+4. Pre-flight SATURATION GATE in harness: require cold median conv ≥ threshold per model; if a
+   model floors cold (>10% builds at conv≤1) declare benefit UNMEASURABLE, don't report a number.
+
+**Follow-up (2026-06-22): [OPUS-TRAP-CATALOG.md](OPUS-TRAP-CATALOG.md)** — instead of inventing
+synthetic hard conventions, mined the user's session history (38 opus transcripts + vault feedback
+notes + CLAUDE.md/go.md rules) for real opus correction-traps. Yields buildable, deterministically-
+checkable, high-cold-falls-in exercises (idiosyncratic local code conventions: `slices.Backward`,
+nilaway guards, `crypto/rand`, `AI-Used` trailer, `targ` not `go test`) that opus re-commits cold.
+Each exercise = one tiny Go task + a one-line grep/lint check, with a cheap cold-confirm-first
+protocol that doubles as the per-case saturation gate. Spec only; no runs yet.
+
 ### Planned next
 - [ ] V0 sonnet n=5 (after run #3 retro passes) — ~$110
 - [ ] V0 opus n=5 — ~$400

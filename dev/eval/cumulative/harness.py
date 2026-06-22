@@ -137,7 +137,7 @@ def build_prompt(app, interface, read_mode):
             "run the skill (it prints its Step 0 plan, queries the vault, and synthesizes impact). Do "
             "NOT hand-run `engram query` yourself in place of the skill. Frame the recall around "
             f"building a command-line {app} in Go and its architecture/conventions. Read every note the "
-            "skill surfaces and APPLY every convention and decision — including any L2 the skill "
+            "skill surfaces and APPLY every convention and decision — including any note the skill "
             "crystallizes on demand — as requirements for your build.\n")
     else:
         raise ValueError(f"Unknown read_mode {read_mode!r}; regimes use none|skill")
