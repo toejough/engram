@@ -64,3 +64,4 @@ node_modules/
 /dev/eval/cumulative/.notes/
 /dev/eval/cumulative/.links/
 /dev/eval/cumulative/notes.db
+__pycache__/
