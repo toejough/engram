@@ -295,3 +295,52 @@ IRCoT (2212.10509, ACL'23) · feature-weighting k-means survey (1601.03483) · s
 (1409.5616) · Dhillon kernel-kmeans≡spectral (KDD'04) · Gentner structure-mapping (1983) ·
 Fauconnier & Turner conceptual blending · Krakauer/Mitchell emergence (2025) · SA-RAG spreading
 activation.
+
+---
+
+## 7. Multi-axis (flexible) similarity — cheap on-demand grouping along a chosen dimension (2026-06-23)
+
+**Problem (Joe):** one item relates along many axes (a mug → cups, white things, hot things,
+morning-routine things, things that rhyme with "fee"). A single embedding gives ONE fixed notion of
+"near" — so the analogy generator (§4b) can only surface *topical* neighbors, not structural ones.
+
+**This is the known-correct model, not a hunch (cognitive foundations, 4 independent disciplines):**
+- **Goodman 1972** — "X is similar to Y" is incomplete until you name the *respects*.
+- **Tversky 1977 (Features of Similarity)** — similarity is feature-based, asymmetric,
+  context-dependent, and *mathematically violates the metric axioms* (symmetry, triangle inequality)
+  a fixed cosine must obey. A single cosine provably cannot model human similarity.
+- **Gärdenfors, Conceptual Spaces** — quality *dimensions* grouped into *domains*; per-domain
+  distance. "Group along a chosen axis" = restrict the computation to one dimension/domain.
+- **Barsalou 1983, ad hoc categories** — goal-derived, on-the-fly categories ("things to take from a
+  burning house"); members are taxonomically unrelated until a goal makes the axis salient. Licenses
+  *cheap, query-time, on-demand* grouping rather than precomputed clusters.
+These are canonical and convergent — the single-embedding default is the known-WRONG model.
+
+**The cheap path = a hybrid (the only feasible options on a frozen MiniLM, one vector/note):**
+| for | technique | cost |
+|---|---|---|
+| arbitrary / novel / goal-derived axes (the long tail) | **LLM-as-axis-selector** (self-query: LLM names the axis at query time, buckets candidates) | ~free (agent already in loop), no new substrate; the ONLY method for never-enumerated axes (= Barsalou made operational) |
+| a few stable recurring axes (topic/function/situation) | **multi-lens embedding** (precompute N vectors/note under named framings) | N× storage+embed at write; no training; verify lenses diverge (collapse risk) |
+
+**What NOT to build (the user's "combinatoric vector" reach, honestly assessed):**
+- **VSA / hyperdimensional computing** is *literally* the bind-a-role / unbind-by-role axis algebra —
+  but it requires random quasi-orthogonal atoms; learned embeddings are correlated by design, so
+  unbinding crosstalk explodes. "VSA over learned text embeddings" is an OPEN research problem, not a
+  shipping capability. Right idea, wrong substrate — do not build.
+- **Disentangled representations / Conditional Similarity Networks** — real, deliver per-axis
+  similarity, but need training + a disentangled substrate (re-architecture). Not cheap.
+
+**This CLOSES the §4b analogy-generator caveat.** Multi-axis grouping (LLM-as-axis-selector) IS how
+the generation layer finds *non-topical* candidates — "what else shares this function/situation/
+structure?" — instead of raw cosine. So it is the engine of the generation layer:
+`GENERATE (pick axis → group → propose) → JUSTIFY (validate via a rigorous mode → persist)`.
+The cheap option's weakness (generative, no correctness guarantee, degrades with many candidates) is
+exactly tolerable here: it's the *generation* layer, where loose recall is the goal and the
+justification gate enforces precision.
+
+**Source flags:** Tversky/Gärdenfors/Barsalou/Goodman/Medin canonical (bedrock). VSA random-atom
+requirement multi-source (Kanerva/Plate + 2 surveys). Self-query technique multi-vendor-attested
+(latency numbers vendor-partisan). 2026 preprints on multi-axis/factor-partitioned embeddings flagged
+single-source/illustrative — NOT leaned on. "multi-lens = prompt-induced multi-view" is a sound
+composition of established pieces (multi-view embeddings + CLIP attribute alignment), not a named
+benchmark.
