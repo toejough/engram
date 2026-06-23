@@ -15,17 +15,25 @@ foreclosed. Joe's instinct was right.
 
 ## The three answers up front
 
-1. **Is "synthesize-across-groups" the missing step?** **Yes** — it's a named, implemented step in
-   the literature (RAPTOR / GraphRAG / classic extractive merge) that engram lacks. Add it (**Stage
-   0**) — but its benefit is *contested* under honest metrics, so gate it behind a reference-based
-   eval, never LLM-as-judge.
-2. **Weighted/relational grouping — different architecture or adapt k-means?** Part-weighting
-   **adapts k-means** (cheap), **but it will NOT fix compositional join** — that's a representation
-   problem. Bridging complementarity needs a **relational graph**, which engram already has and
-   ignores (the `internal/vaultgraph` wikilink graph) — **Stage 1**.
-3. **What synthesis to build toward?** The genuinely emergent types (**T3 compositional join, T6
-   transitive chain**) — reached by **graph expansion of the retrieval seed, not better vectors**.
-   Staged sequence in §4.
+1. **Is "synthesize-across-groups" the missing step?** It is a named step in the literature
+   (RAPTOR / GraphRAG global search / classic extractive merge) that engram lacks — **but the
+   evidence says do NOT build it.** It is GraphRAG *global search*, which independent reference-based
+   evaluation found *underperforms* naive RAG on detail-centric retrieval (Han et al.). It also only
+   reshapes the OUTPUT (one answer vs N cluster blobs) — it cannot surface a bridge note that was
+   never retrieved, which is the actual gap. And engram's LLM-agent consumer re-synthesizes across
+   cluster summaries at use-time anyway. **Conclusion: across-groups reduce is the named step, but
+   not the beneficial one — skip it (or restrict to explicit global/summary queries behind an
+   eval).**
+2. **What IS the beneficial change?** **Graph-expanded retrieval** (GraphRAG *local* search /
+   spreading activation): seed from the query, traverse `internal/vaultgraph` wikilinks before
+   clustering, so bridge notes that cosine missed enter the set. This is a *different* mechanism from
+   global search — it changes *what gets retrieved*, not the output format — and it is NOT the thing
+   that underperformed. It is the only change that can fix the cake (T3) / transitive (T6) gap,
+   because the gap is a RETRIEVAL miss.
+3. **Weighted/relational grouping — different architecture or adapt k-means?** Part-weighting
+   **adapts k-means** (cheap) but will NOT fix compositional join (a representation problem — the
+   relation is gone at encode time). Bridging complementarity needs the **relational graph**, which
+   is the same `internal/vaultgraph` graph the answer to (2) uses. So (2) and (3) are one change.
 
 Below is the literature behind each.
 
@@ -81,10 +89,12 @@ query.
 | **Cross-cluster extractive merge** (classic QFS/MDS) | rank sentences across clusters + redundancy cutoff (MMR) | no LLM call | SIGIR/AAAI (peer-reviewed) |
 
 **Engram maps onto RAPTOR as one layer with the recursion turned off** (our analysis, not a cited
-result). Its k-means clusters map most naturally onto GraphRAG's "communities" — so the concrete
-missing step is a **reduce**: take the per-cluster summaries, optionally self-score relevance,
-**filter out the low-relevance clusters**, run **one LLM pass that synthesizes a single cross-cluster
-answer** instead of returning N independent cluster blobs.
+result). Its k-means clusters map most naturally onto GraphRAG's "communities," so the *named* next
+step would be a **reduce** (one LLM pass synthesizing the per-cluster summaries into a single
+answer). **But this is the path the evidence says NOT to take** (see the contested finding below and
+§4): it only reshapes the output and can't surface an un-retrieved bridge note. The beneficial use
+of the same GraphRAG lineage is its *local* search — graph-expanded retrieval (§4 Stage 1) — not its
+global reduce.
 
 **⚠ The contested part (independently verified, matters):** GraphRAG's positive global-QA result
 rests *solely* on its own LLM-as-judge eval with no ground truth. Independent work (Han et al.,
@@ -93,8 +103,9 @@ arXiv 2502.11371, distinct authors) using **reference-based** metrics (ROUGE/BER
 attributes the original positive result to the reference-free LLM-judge protocol. This **directly
 matches engram's own recorded eval lesson** (LLM-judge win-rates flatter the structure/memory arm).
 Nuance: it's *task-dependent* — global synthesis helps comparison/temporal multi-hop queries, hurts
-detail-centric/single-hop QA. **Verdict: the across-groups reduce is a known template worth adding
-*behind a reference-based eval*, NOT a settled win.**
+detail-centric/single-hop QA. **Verdict: the across-groups reduce is a known template but NOT a win
+for engram's detail-centric recall — do not build it (see §4); the beneficial GraphRAG mechanism is
+*local* search / graph-expanded retrieval, not the global reduce.**
 
 ### A3 — part-weighting adapts k-means cheaply, but it will NOT bridge complementarity
 
@@ -132,28 +143,28 @@ precedents are over entity/KG graphs; engram's wikilinks are note-level, so the 
 
 ## 4. The staged build-sequence (what to build, in order)
 
-**Stage 0 — now, no architecture change (cheap, eval-gated):** add the **across-groups reduce** to
-recall — one LLM pass over the per-cluster summaries producing a single integrated answer (start
-with the **extractive merge**, the peer-reviewed cheap option; the generative reduce is the
-higher-ceiling, higher-risk variant). This closes the "N blobs instead of one answer" gap (T1/T2→
-better T2). **Gate it behind a reference-based eval, not LLM-judge** — the literature *and* our own
-lessons say LLM-judge would falsely bless it.
-
-**Stage 1 — bolt-on, reuse the existing wikilink graph (the real unlock for T3/T6):** before
+**Stage 1 — the lead change: graph-expanded retrieval (reuse the existing wikilink graph).** Before
 clustering, **expand the cosine-matched seed set by traversing `internal/vaultgraph` wikilinks 1–2
-hops**, then cluster/summarize the expanded set. The smallest change that surfaces bridge notes
-cosine misses — enabling compositional join (T3) and transitive chain (T6) *where the links exist*.
-Lives entirely in recall's retrieval stage; no embedding-store change. Precedent: spreading
-activation / GraphRAG local search. **Stage-1 success criterion (gate to Stage 2):** on a cake-style
-(T3) eval, graph-expanded retrieval must surface the bridge notes and lift the cross-domain-join
-score materially over cosine-only — measured on a reference-based check, not LLM-judge. If link
-density is too low to surface bridges, Stage 1 fails and the answer is Stage 2 (or denser linking),
-not more graph tuning.
+hops**, then cluster/summarize the expanded set. This is GraphRAG *local* search / spreading
+activation — it surfaces bridge notes cosine misses, enabling compositional join (T3) and transitive
+chain (T6) *where the links exist*. It lives in recall's retrieval stage; no embedding-store change.
+This is the only change that touches the actual gap (a retrieval miss). **Success criterion (gate to
+Stage 2):** on a cake-style (T3) eval, graph-expanded retrieval must surface the bridge notes and
+lift the cross-domain-join score materially over cosine-only — reference-based check, not LLM-judge.
+If link density is too low to surface bridges, Stage 1 fails and the answer is Stage 2 (or denser
+linking), not more graph tuning.
 
 **Stage 2 — higher-ceiling, genuinely new mechanism (only if Stage 1 proves the value):** an
 **iterative retrieve→reason→retrieve loop** (IRCoT-style) — let the synthesis step name the bridge
 entity it now needs and re-query on it. This catches transitive hops with **no pre-existing link**
 (what Stage 1 can't). It's a real architectural addition (a loop + intermediate query generation).
+
+**NOT a stage — the across-groups reduce (GraphRAG global search):** initially considered as a cheap
+"Stage 0," but **dropped**. It only reshapes the output (one answer vs N cluster blobs), cannot
+surface an un-retrieved bridge note, underperforms naive RAG on detail-centric retrieval under
+reference-based metrics (Han et al.), and duplicates synthesis the LLM-agent consumer already does at
+use-time. Revisit ONLY for explicit global/summary recall queries ("what's my overall stance on X"),
+and only behind a reference-based eval.
 
 ## 5. What NOT to attempt
 
