@@ -141,7 +141,13 @@ activation** (SA-RAG), **GraphRAG local search**, graph-expanded seed retrieval.
 precedents are over entity/KG graphs; engram's wikilinks are note-level, so the payoff depends on
 **link density/quality** (sparse links → few bridges surfaced).
 
-## 4. The staged build-sequence (what to build, in order)
+## 4. The staged build-sequence (research hypothesis — NOT the as-built order)
+
+> **Update (2026-06-23):** this section is the *research-time* hypothesis. The as-built order differs:
+> cross-cluster linking (slice 1, Step 2.6) shipped first as the foundational write step; Stage 1 below
+> (graph-expanded retrieval) was then built and **reverted** (0 marginal value through the real skill);
+> and the real lever turned out to be the **synthesis reasoning layer** (`docs/design/2026-06-23-synthesis-layer.md`),
+> not a retrieval stage. Read the stages below as the original hypotheses, annotated with outcomes.
 
 **Stage 1 — BUILT then REVERTED (2026-06-23): graph-expanded retrieval.** Built in `engram query` via
 `vaultgraph.BFSWithCap`, then reverted. The binary-level proof held (a single narrow query misses the

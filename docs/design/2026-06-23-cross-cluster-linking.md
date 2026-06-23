@@ -63,6 +63,13 @@ what *writes* them. You literally cannot build a later slice first.
 | — | synthesis-note Z | persist a new integrative *note*, not just an edge | richer artifacts | decide after slice 1 | deferred |
 | — | across-groups output reduce | GraphRAG global reduce | — | — | **killed** (evidence: worse), NOT deferred |
 
+**Separate track — the synthesis (reasoning) layer.** The slices above are all *retrieval/link-graph*
+plumbing; slice 2's negative (multi-phrase recall already retrieves) shifted focus to **reasoning over
+what recall surfaces** — composing A+B→C and asserting the emergent conclusion. That is a new track,
+not a slice in this sequence (it depends on none of slices 2–4; it is the upstream reasoning the
+deferred "synthesis-note Z" would persist). Spec: `docs/design/2026-06-23-synthesis-layer.md` —
+**spec'd, gated on a 3-arm eval** that can kill it if the agent already composes spontaneously.
+
 **The honest gap:** slice 1 alone solves the **cake** but NOT the **sugar** case. The cake is a
 *write* problem (bridge retrieved, never linked); the sugar case is a *retrieval* problem (bridge
 never retrieved), and slice 1 operates on what's already retrieved. Slice 1 fixes the sugar case only
