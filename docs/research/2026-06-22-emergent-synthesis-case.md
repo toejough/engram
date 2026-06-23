@@ -192,21 +192,48 @@ relationship; default to none). Getting precision right is the whole game.
 confirm it forms ZERO cross-cluster links today (predicted), then test whether a cross-cluster
 instruction creates the right links *without flooding the graph*.
 
-## 4c. Open question (flag for a research pass): which relationships should the LLM scan for?
+## 4c. Which relationships should the LLM scan for? (researched 2026-06-23, cross-source)
 
-The cross-cluster pass needs a catalog of relationship/inference types to look for. Composition /
-complement / transitive were named ad hoc; they should be grounded in formal frameworks, and the set
-is almost certainly larger. Candidate backbone (to verify, not yet sourced like §3):
-- **Reasoning-mode axis — Peirce's trichotomy:** deduction (forward/transitive chain), induction
-  (generalize instances → schema), abduction (infer a cause/mechanism that satisfies a need — the
-  cake's "what *provides* the sweetness this needs" is abductive).
-- **Relation-type catalog (lexical semantics / ontology / planning):** part-whole/meronymy
-  (composition), is-a/hypernymy (abstraction), cause-effect, **requires-provides / means-ends** (the
-  cake join; cf. STRIPS preconditions-effects), contradiction/supersession, analogy (same relation,
-  different domain — Gentner).
-- **Beyond the original three:** abstraction/generalization, abductive/causal inference, analogical
-  transfer, contradiction-detection are all plausible cross-cluster link types worth encouraging.
-Research this (short multi-source pass, same rigor as §3) before fixing the prompt's relationship menu.
+**Empirical premise confirmed (cake check):** real `/recall` over a 6-note two-domain vault formed
+**only within-cluster links** (req→req, mech→mech) and **zero cross-domain links / zero new notes** —
+proving today's write path cannot grow the cross-domain graph. The links the read side needs are
+never written.
+
+The cross-cluster linker's menu is the product of **two canonical axes**:
+
+**Axis 1 — inference mode (Peirce's trichotomy; canonical, multi-source: SEP + AI surveys):**
+- **Deduction** → forward/transitive chain (the "we need sugar" case).
+- **Induction** → generalize instances into a schema (abstraction).
+- **Abduction** → reason from a need to what satisfies it (**the cake case**).
+- **Analogy** → debated 4th: canonical in cognitive science (Gentner/Hofstadter), excluded from the
+  logical taxonomy. Include but flag as structural/non-truth-preserving. (Modern orthogonal axes —
+  defeasible/ampliative — describe link *strength*, not new modes.)
+
+**Axis 2 — relation type (canonical inventories: WordNet, SemEval-2010 Task 8, RST):**
+part-whole/composition, is-a/abstraction, cause-effect, requires-provides/means-ends, contradiction.
+
+**The cake case, formally:** means-ends / requires-provides is a *recognized pattern modeled
+identically across 4–5 fields* (means-ends analysis/GPS; **STRIPS precondition-effect matching** —
+the tightest: `goal ∩ add-effects ≠ ∅`; function-means/FBS design theory; planning-as-abduction).
+All reduce to **a relational JOIN on a shared property/effect key** — need-side and provide-side
+share a join column; reasoning selects pairs where the provision *satisfies* the need. NOT similarity,
+NOT transitivity — satisfaction-matching. ("The cake join" is an internal coinage, not a literature
+term; the pattern is established.)
+
+**The menu = (mode × relation), tiered by grounding:**
+| link type | mode | relation | formal model | grounding |
+|---|---|---|---|---|
+| compositional | (n/a — structural) | part-whole | mereology | **strongest** (3 independent traditions) |
+| transitive/causal chain | deduction | cause/dependency | transitive closure | strong |
+| means-ends / cake | abduction | requires-provides | STRIPS precond-effect join on shared key | well-defined (planning + RST) |
+| abstraction | induction | is-a | subsumption | strong |
+| contradiction | (n/a) | antonymy/supersession | conflict | moderate |
+| analogical transfer | analogy* | same-relation-diff-domain | structure-mapping | **deliberate extension — flag** |
+
+**Source flags:** part-whole + Peirce triad + deductive chains are multiply-canonical. Means-ends is
+well-defined but rests mainly on planning + RST (one strong tradition each). Analogy has no canonical
+home — a deliberate design extension, not received consensus. abduction=IBE is mainstream but
+disputed by Peirce purists. (Recent arXiv surveys used only as corroboration, flagged.)
 
 ## 5. What NOT to attempt
 
