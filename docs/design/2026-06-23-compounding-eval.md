@@ -1,9 +1,15 @@
 # Design — the compounding eval (does PERSISTING synthesis pay off?)
 
-> **Status: spec + RED.** Grounded in note 74 (persisting synthesis ≠ in-session reasoning), note 73
-> (engram value is memory, not reasoning scaffolds), and the synthesis RED (`EXPERIMENT-LOG` 2026-06-23:
-> warm composes 18/18 in-session but stores nothing). This eval tests the ONE synthesis capability not
-> yet ruled out: **persisting the validated conclusion so the web of lessons compounds.**
+> **Status: RED RUN 2026-06-23 (2-level, all synthesis types) → 0 headroom.** Across compositional
+> join, transitive composition, and analogical transfer, no-persist re-derives the 2-level emergent
+> conclusion from raw facts at 6/6 = persist 6/6 (Δ=0). Persisting the emergent C buys nothing for task
+> accuracy at depth 2 (oracle-best-case → decisive at this depth). **Open frontier: DEPTH** (3–4 level
+> ladders) and the **web-as-artifact** value (§1, separate eval). Grounded in notes 73/74 and the
+> synthesis RED (warm composes 18/18 in-session, stores nothing).
+>
+> **Design note:** §2's ladder below is the *corrected* emergent-synthesis design. The first
+> implementation was a degenerate `zx1 triggers zx2…` chain — a stored-literal terminal that tested
+> linked-list lookup, not synthesis; replaced after that was caught.
 
 ## 1. The question
 
@@ -28,18 +34,22 @@ until no-persist breaks** — find the depth/scatter where re-deriving from raw 
   is explicitly **out of scope here** and named as a follow-on (a multi-session vault-coverage eval). If
   this RED is a negative, that does NOT settle the web-as-artifact value — only the task-accuracy value.
 
-## 2. The laddering A/B
+## 2. The laddering A/B (emergent-synthesis ladder)
 
-A **chain ladder** of idiosyncratic facts (so cold opus can't shortcut; recall must supply them):
-`f1: flag-A enables flow-B` → `f2: flow-B writes table-C` → `f3: table-C triggers job-D` →
-`f4: job-D pages team-E` → … (extend to depth k). The **depth-k question** asks the end-to-end
-consequence ("if flag-A is enabled, who ultimately gets paged?" → team-E), which requires chaining all k
-rungs.
+A **2-level emergent-synthesis ladder** of idiosyncratic facts (cold opus can't shortcut; recall must
+supply them), built per synthesis type (`compound_fixtures.py` TYPES = join / transitive / analogical):
+- **Level 1:** A + B → **C** (emergent; C is stated in NO note — e.g. "vault-7 is the only prod-secrets
+  reader" + "the Tuesday drill suspends -7 accounts" ⟹ *"prod secrets are unreadable during the drill"*).
+- **Level 2:** C + D → **E** (the task's answer; needs the emergent C *and* a new fact D — e.g. + "the
+  Tuesday 02:00 backup must read prod secrets" ⟹ *"the backup fails during the drill window"*).
+
+The terminal E is a *conclusion* (judged), not a stored token — this is what makes it synthesis, not the
+earlier degenerate chain's lookup. (Depth axis = number of levels; this RED ran depth 2.)
 
 | arm | vault contents | what the agent must do |
 |---|---|---|
-| **no-persist** (current behavior) | the k raw rungs only | recall all k rungs, chain them in one pass |
-| **persist** (the candidate) | the k raw rungs **plus** the stored intermediate syntheses (e.g. "enabling flag-A ultimately triggers job-D") — simulating prior sessions that persisted each rung | recall the near-complete stored chain + the last hop → one step |
+| **no-persist** (current behavior) | raw facts {A, B, D} | re-derive the emergent C from A,B, then compose with D to reach E |
+| **persist** (the candidate) | {A, B, D} **plus** the oracle stored emergent C (the level-1 conclusion) | recall C + D → E in one step |
 
 Both arms are **warm** (same skill, same `build_warm_cfg`); they differ ONLY in **per-trial vault
 contents** (built fresh per trial in a tempdir, as `synth_eval.py` does — not two global vaults). No
@@ -62,7 +72,7 @@ decompose retrieval-relief from reasoning-relief before committing to a mechanis
 
 **RED entry point:** `python3 dev/eval/traps/compound_eval.py` builds per-trial chain vaults and runs the
 warm `/recall` arms; an independent sonnet judge rules each answer HIT/MISS on the **terminal
-consequence** (does it state team-E, having traversed the chain — not guessed).
+conclusion E** (does the answer reach E, having composed C from A,B and then C+D — not guessed).
 
 **Noise floor first (hard gate):** before judging any Δ, run **no-persist twice** (two independent n=5
 batches per depth) and take the floor = the |spread| between the two replicates (expected ~10–20pp at

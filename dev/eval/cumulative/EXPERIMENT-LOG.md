@@ -237,3 +237,21 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   surfaces A and B → per the spec's RED rule, Step 2.8 is NOT built. Third "the agent already does it"
   negative (after slice-2 retrieval). **Capstone: engram's value is the MEMORY (surfacing idiosyncratic
   notes cold opus lacks); the reasoning is opus's job, and opus is already excellent at it.**
+- **2026-06-23** — **Compounding eval (does persisting synthesis pay off?) — RED across ALL synthesis
+  types, 2-level: 0 headroom.** Corrected design (the first chain version was a degenerate linked-list
+  traversal — a stored-literal terminal, not synthesis; user caught it). Genuine 2-level emergent
+  ladders: level-1 C = emergent A+B (in no note), level-2 E needs C+D. no-persist {A,B,D} re-derives C
+  then E; persist {A,B,D,C*} has the oracle emergent C stored. Independent sonnet judge on reaching E:
+
+  | 2-level emergent synthesis (n=6) | no-persist | persist | Δ | noise |
+  |---|---|---|---|---|
+  | compositional join | 6/6 | 6/6 | +0 | 0 |
+  | transitive composition | 6/6 | 6/6 | +0 | 0 |
+  | analogical transfer | 6/6 | 6/6 | +0 | 0 |
+
+  Opus re-derives 2-level emergent synthesis from raw at 100% across every type → persisting the
+  emergent C buys nothing for task accuracy at this depth (oracle-best-case, so decisive at 2-level).
+  **Open frontier:** DEPTH — a 3–4 level ladder (re-derive a deep stack from raw) may break no-persist
+  where stored intermediates hold; 2-level is plausibly within one-pass reach. The web-as-artifact value
+  (inspectable, directly recallable knowledge) remains a separate, unmeasured question. Harness:
+  `dev/eval/traps/compound_eval.py` + `compound_fixtures.py`.
