@@ -4,7 +4,7 @@
 
 **Goal:** Teach the `recall` skill to write typed, precision-gated `[[wikilink]]` edges between notes that live in *different* clusters — the foundational graph-growth primitive the cake compositional-join case needs.
 
-**Architecture:** Add a new **Step 2.6 — cross-cluster linking** to `skills/recall/SKILL.md`, after the Step 2.5 per-cluster loop and before activation. It is one LLM reasoning pass (generate → justify → persist) over the cluster *representatives*, persisting an edge via the existing `engram amend --target <A> --relation "<B>|<typed rationale>"` primitive only when a candidate passes a reasoning-menu relation type + a named shared key (default DROP). No binary change. The proof is an end-to-end **isolated-agent harness** (`dev/eval/traps/cake.py`) that builds fixture vaults, runs the real warm `/recall` against each, and inspects the vault's wikilinks across domains.
+**Architecture:** Add a new **Step 2.6 — cross-cluster linking** to `skills/recall/SKILL.md`, inserted **after the Step 2.5 per-cluster coverage loop and before the activation paragraph** (which is relabeled Step 2.7 so activation runs last, matching design §2). It is one LLM reasoning pass (generate → justify → persist) over the cluster *representatives* — the note each cluster *settled on* during the 2.5 loop (Covered/Near note, or the note written for an Absent cluster), accumulated explicitly as the loop runs (NOT `candidate_l2s`, which are pre-judgment synthesis candidates). It persists an edge via the existing `engram amend --target <A> --relation "<B>|<typed rationale>"` primitive only when a candidate passes a reasoning-menu relation type + a named shared key (default DROP). No binary change. The proof is an end-to-end **isolated-agent harness** (`dev/eval/traps/cake.py`) that builds fixture vaults, runs the real warm `/recall` against each, and inspects the vault's wikilinks across domains.
 
 **Tech Stack:** Python 3 harness (reuses `wrun.build_warm_cfg`, `run.MODELS`, `_slug`); `claude -p` subprocess with warm config + seeded vault; `engram learn fact` to build fixtures with correct `.vec.json` sidecars; markdown SKILL.md edit.
 
@@ -94,8 +94,21 @@ def build(kind, dst):
         raise ValueError(kind)
     for slug, subj, pred, obj in notes:
         _learn(dst, slug, subj, pred, obj)
-    return [f"{slug}.md" for slug, *_ in notes]
+    # Embed-on-write can silently warn-and-skip the sidecar (learn.go autoEmbedNote). Without a
+    # .vec.json, `engram query` cannot cluster the note and the RED/GREEN check passes vacuously
+    # (0 clusters → 0 edges). Verify every note got a sidecar; fail loud if not.
+    missing = [n for n in os.listdir(dst)
+               if n.endswith(".md") and not os.path.exists(os.path.join(dst, n[:-3] + ".vec.json"))]
+    if missing:
+        raise RuntimeError(f"fixture {kind}: missing .vec.json sidecars for {missing} — "
+                           f"run `engram embed apply --missing` or check the embedder")
+    return sorted(n for n in os.listdir(dst) if n.endswith(".md"))
 ```
+
+The returned basenames carry the Luhmann prefix (e.g. `7.2026-06-23.sugar-provides-sweetness.md`).
+Step 2.6 must amend using **the basename exactly as it appears in the query payload** — `engram amend`
+resolves `--relation` targets strictly against existing vault basenames (`relations.go`
+`resolveRelationTargetsStrict`) and errors on an unresolved bare slug.
 
 - [ ] **Step 2: Write the edge inspector + warm runner (`cake.py`)**
 
@@ -234,17 +247,27 @@ git commit -m "test(recall): cake cross-cluster harness + RED baseline (0 cross-
 - Consumes: the cake harness from Task 1.
 - Produces: the Step 2.6 procedure text matching design §3 (generate→justify→persist) + §4 (reasoning menu).
 
-- [ ] **Step 1: Insert Step 2.6 into SKILL.md**
+- [ ] **Step 1: Insert Step 2.6 into SKILL.md (and relabel activation as Step 2.7)**
 
-Place a new `### Step 2.6 — Cross-cluster linking (graph growth)` block immediately after the Step 2.5 Activation block and before `### Step 3`. Content (verbatim mechanism from design §3/§4):
+Two structural edits, faithful to design §2's ordering (loop → cross-cluster link → activate):
+1. In the Step 2.5 per-cluster loop's closing instructions, add the representative-tracking sentence:
+   *"As you finish each cluster, record its **representative** — the basename you amended (Covered/Near)
+   or created (Absent). Step 2.6 ranges over this one-note-per-cluster list, not over `candidate_l2s`
+   (those are pre-judgment candidates)."*
+2. Insert a new `### Step 2.6` block **after the per-cluster loop and before the activation paragraph**,
+   and relabel the activation paragraph `### Step 2.7 — Activation` (so activation runs last). Step 2.6
+   content (verbatim mechanism from design §3/§4):
 
 ```markdown
 ### Step 2.6 — Cross-cluster linking (graph growth, agent-judged)
 
 Step 2.5 links *within* each cluster; the complementary edges that join clusters are never written
-(cosine split the domains). After the per-cluster loop — and **before** activation — run ONE reasoning
-pass over the **cluster representatives** (the note each cluster settled on: the Covered/Near note, or
-the one written for an Absent cluster) to grow the graph across clusters.
+(cosine split the domains). After the per-cluster loop — and **before** Step 2.7 activation — run ONE
+reasoning pass over the **cluster representatives** (the one-note-per-cluster list you recorded during
+the 2.5 loop: each cluster's Covered/Near note, or the note written for an Absent cluster) to grow the
+graph across clusters. Use the representative's **basename exactly as it appears in the payload**
+(Luhmann-prefixed) as the `--target`/`<B>` — `engram amend` resolves relation targets strictly against
+existing vault basenames and errors on a bare slug.
 
 **A. GENERATE (loose, persists nothing).** Scan all representatives for *candidate* cross-cluster
 relationships — use analogy and "what here relates to what" freely. This proposes; it never writes.
@@ -277,9 +300,9 @@ edge, it does not mark coverage). Write both directions for symmetric relations;
 Replace the current line 152 (`**Known gap:** cross-cluster supersession …`) with:
 
 ```markdown
-**Cross-cluster supersession** — reconciling a conflict whose evidence did not cosine-cluster — remains
-deferred. Step 2.6 *links* across clusters and flags a contradiction (the contradiction row) but does
-not *resolve* the supersession.
+**Cross-cluster linking is handled by Step 2.6.** Cross-cluster *supersession* — reconciling a conflict
+whose evidence did not cosine-cluster — remains deferred. Step 2.6 *links* across clusters and flags a
+contradiction (the contradiction row) but does not *resolve* the supersession.
 ```
 
 - [ ] **Step 3: Add a red-flag row** to the Step-table guarding against the analogy loophole and `--activate` cargo-culting:
@@ -358,10 +381,10 @@ Expected: with `joe-wants-cake`, `cake-needs-sweetness`, `sugar-provides-sweetne
 
 **Files:**
 - Modify: `docs/design/2026-06-23-cross-cluster-linking.md` (flip Status to "built", point §6 at the harness)
-- Modify: `CLAUDE.md` (note the cake harness under the eval/skills description if warranted)
-- Modify: `docs/superpowers/plans/2026-06-23-c4-c6-test-plan.md` (link slice-1 build as the C6 foundation, if it references the deferral)
+- Modify: `docs/architecture/c1-system-context.md` (the recall-flow sequence diagram — add a Step 2.6 cross-cluster-linking box after the per-cluster loop and before activation, so the diagram is not stale)
+- Modify: `docs/superpowers/plans/2026-06-22-c4-c6-test-plan.md` (if its C6 section references the cross-cluster deferral, point it at the built slice-1 foundation)
 
-- [ ] **Step 1: Update the design doc status + §6** to reflect the built skill and the committed harness path (`dev/eval/traps/cake.py`). Gate C over the doc.
+- [ ] **Step 1: Update the design doc status + §6 + the c1 sequence diagram** to reflect the built skill and the committed harness path (`dev/eval/traps/cake.py`). The recall sequence in `docs/architecture/c1-system-context.md` currently ends Step 2.5 at the activation step; add the Step 2.6 cross-cluster-linking step (after the per-cluster loop, before activation) so the diagram matches the new flow. Gate C over every touched doc. (CLAUDE.md's Directory Structure does not enumerate `dev/eval/` harnesses, so no CLAUDE.md change is needed unless the structure list is extended.)
 
 - [ ] **Step 2: Final commit** (gate D over commit prose):
 
