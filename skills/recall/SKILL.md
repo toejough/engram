@@ -17,7 +17,8 @@ Memory has two layers retrieved in ONE call: raw chunks (every past conversation
 1. **Make your plan visible** before retrieving anything — an unstated plan cannot be tested against memory.
 2. **Sweep, then run ONE unified `engram query`.** Items tagged `kind: chunk` are raw fragments; `kind: fact`/`feedback` are crystallized lessons. They compete in the same top-N.
 3. **Crystallize** — when several near-match chunks evidence the same principle and no note states it yet, write the vault note now.
-4. **Synthesize impact on the plan** — confirm / adjust / contradict / silent, per planned action.
+4. **Link** — gate and persist precision-checked edges across clusters (default DROP; no topical floods).
+5. **Synthesize impact on the plan** — confirm / adjust / contradict / silent, per planned action.
 
 The binary resolves the vault and chunk index automatically (`$XDG_DATA_HOME/engram/...`;
 `ENGRAM_VAULT_PATH` / `ENGRAM_CHUNKS_DIR` override). **Do not pass `--vault` or `--chunks-dir`.**
@@ -141,19 +142,69 @@ because it lacks a recent instance.
 the cluster's principle. Do not write one fact and one feedback note for the same cluster.
 
 For `amend` (covered or near), pass one `--relation "<wikilink-target>|<one-line rationale>"`
-(repeatable) for every **note** source in the cluster (the wikilink graph) and one
-`--chunk-source <source#anchor>` (repeatable) for every **chunk** source (provenance, not
-wikilinks). For `learn`, pass the same flags. The `--source` flag on `learn` is the human-readable
-provenance string (unchanged); `--chunk-source` is the chunk-id list (new).
+(repeatable) for every **note** source in the cluster that passes the Step 2.6 precision gate (below)
+— not for every co-occurring member. Pass one `--chunk-source <source#anchor>` (repeatable) for every
+**chunk** source (provenance, not wikilinks). For `learn`, pass the same flags. The `--source` flag on
+`learn` is the human-readable provenance string (unchanged); `--chunk-source` is the chunk-id list (new).
 
 **WAIT for each write before moving to the next cluster.** Writes are blocking and inline — the
 note created or updated by one cluster may be a candidate for another.
 
-**Known gap:** cross-cluster supersession — where the superseding evidence did not cosine-cluster
-with the old — is not handled. Note the conflict in the synthesized content when you see it, but
-do not attempt to resolve it across clusters.
+**As you finish each cluster, record its representative** — the basename you amended (Covered/Near)
+or created (Absent). Step 2.6 needs the post-2.5 vault state these writes produce.
 
-**Activation — use-driven, after synthesis.** After processing all clusters, call `engram activate`
+### Step 2.6 — Cross-cluster linking (the precision gate, agent-judged)
+
+Gate and persist edges *across* clusters. Recall will form cross-cluster edges whether or not you gate
+them — **ungated, it floods** (links a note to property-*mismatched* notes: "needs sweetness" →
+"provides texture"). Step 2.6 is the **precision gate**: after the per-cluster loop — and **before**
+Step 2.7 activation — run ONE reasoning pass over
+**all surfaced note members across clusters** (use their `content` in `items[]`, or the cluster
+`members`) and persist a cross-cluster edge ONLY when it passes the gate. Use each note's **basename
+exactly as in the payload** (Luhmann-prefixed) as the `--target`/`<B>` — `engram amend` resolves
+relation targets strictly against existing basenames and errors on a bare slug.
+
+**A. GENERATE (loose, persists nothing).** Scan members across clusters for *candidate* relationships
+— use analogy and "what here relates to what" freely. Proposes only; never writes. (Analogy
+generates, it does not justify.)
+
+**B. JUSTIFY (strict — default DROP). Emit one audit line per candidate** so the drop is observable:
+`<A> ~ <B> | relation=<…> shared_key=<…> | PERSIST|DROP`. PERSIST only if ALL hold: (1) a
+relation TYPE from the menu, (2) the SHARED KEY that passes that relation's test, (3) the key is a
+*specific property/entity/effect* — NOT a domain/topic word or generic adjective ("both baking",
+"both Go"). Any missing → **DROP. Default is DROP.**
+
+**The hub test (the flood-killer).** A valid shared key pairs notes ~**1:1** — it joins a specific A to
+a specific B. If a candidate key would license linking ONE note to MANY others (a **hub** like "the
+cake", "properties of a cake", "errors", "Go"), it is topical, not structural → **DROP every edge it
+licenses.** Concretely: "cake-needs-sweetness" and "cake-needs-texture" both name the whole "cake," but
+"cake" is a hub (it would mesh all six notes) → no edge between them. Their only valid links are
+means-ends to their *distinct* providers ("sweetness"→sugar, "texture"→flour) — keys that pair 1:1. If
+you find yourself linking three or more notes through one key, that key is a hub: stop and DROP.
+
+| relation (persist if…) | shared-key TEST | direction |
+|---|---|---|
+| **means-ends / requires-provides** — A needs X, B provides X | the need term in A is the provided effect in B (**same X** — "sweetness"≠"texture") | directed need→provider A→B |
+| **causal / transitive** — A causes/depends-on B | A names a cause/dependency whose effect term is B's subject (bridge term in both) | directed cause→effect A→B (chains compose only if each hop passes) |
+| **contradiction** — A asserts X, B asserts ¬X | same subject+predicate, opposite/negated object | symmetric A↔B (flag conflict; resolution out of scope) |
+
+**Only these three relations are enabled.** Do NOT link two notes because they share a common whole
+("both parts of the cake" — part-whole) or a common schema ("both instances of X" — abstraction):
+those keys are always hubs, and they are the flood vector. No edge from them this pass.
+
+**C. PERSIST.** For each surviving link: `engram amend --target <A> --relation "<B>|<TYPE>: <shared
+key> — <one-line>"`. The rationale encodes the relation TYPE so the edge is typed. **No `--activate`**
+(2.6 writes an edge, it does not mark coverage). Both directions for symmetric relations; one for
+directed. **Bound:** the matched set is small per query; propose only the property-sharing candidates
+the GENERATE step surfaces — not all pairs.
+
+**Cross-cluster linking is handled by Step 2.6.** Cross-cluster *supersession* — reconciling a
+conflict whose evidence did not cosine-cluster — remains deferred: 2.6 *flags* a contradiction (the
+contradiction row) but does not *resolve* the supersession.
+
+### Step 2.7 — Activation (use-driven, after synthesis)
+
+After processing all clusters, call `engram activate`
 on the notes you actually drew on — the `candidate_l2s` you judged Covered or Near at the
 coverage table, and any notes you cited in the Step 3 synthesis:
 
@@ -202,4 +253,7 @@ The user sees this. Rules:
 | You activated every returned note | Activate only the notes you actually USED — judged Covered/Near or cited in Step 3 |
 | You activated recent-channel items | Chunks are never activated; recent-block items are not activation targets |
 | You skipped `engram activate` after drawing on notes | Call it after synthesis — used notes must stay warm or the recency-competition mechanism breaks |
+| You persisted a cross-cluster edge from an analogy with no named shared key | DROP it — analogy generates candidates; only a menu relation type + a passing shared key persists (Step 2.6) |
+| You linked "needs X" to a property-mismatched "provides Y" (X≠Y) | The means-ends shared-key test requires the **same** key — DROP the mismatch (this is the flood Step 2.6 exists to stop) |
+| You passed `--activate` on a Step 2.6 amend | 2.6 writes an edge, not a coverage mark — `--activate` is Step 2.5's |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
