@@ -60,7 +60,7 @@ what *writes* them. You literally cannot build a later slice first.
 | 2 | graph-expanded retrieval | traverses those edges to surface bridge notes cosine missed | **transitive** (the "we need sugar" case, where a link exists) | slice 1 (edges must exist to traverse) | **evaluated & REVERTED** (2026-06-23): built, but the real-skill A/B showed **0 marginal value** — recall's 10-phrase strategy already surfaces the bridge (`dev/eval/traps/graphexpand_warm.py`) |
 | 3 | multi-axis generation (LLM-as-axis-selector) | finds *non-topical* candidate pairs for slice 1 to judge | raises *recall* of cross-cluster links | slice 1 (improves its generator) | deferred |
 | 4 | iterative retrieve→reason→retrieve | names the bridge entity and re-queries for it | transitive hops with **no** pre-existing link | slices 1–2 (residual) | deferred |
-| — | synthesis-note Z | persist a new integrative *note*, not just an edge | richer artifacts | decide after slice 1 | deferred |
+| — | synthesis-note Z | persist a new integrative *note*, not just an edge | richer artifacts / compounding web | — | **gated on the compounding eval** (`docs/design/2026-06-23-compounding-eval.md`); deferred pending its RED/GREEN |
 | — | across-groups output reduce | GraphRAG global reduce | — | — | **killed** (evidence: worse), NOT deferred |
 
 **Separate track — the synthesis (reasoning) layer.** The slices above are all *retrieval/link-graph*
