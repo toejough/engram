@@ -220,3 +220,20 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   change; kept the A/B harness `dev/eval/traps/graphexpand_warm.py` + fixtures as the evidence.
   (Validation lesson: a binary-level proof bypassing the skill is not validation —
   `don't-let-the-harness-bypass-the-component-under-test`.)
+- **2026-06-23** — **Synthesis layer: RED run → step REDUNDANT, but the C6 PROOF lands.** 3-arm eval
+  (`dev/eval/traps/synth_eval.py` + `synth_fixtures.py`) over emergent A+B→C fixtures (compositional
+  join / transitive chain / analogical transfer), idiosyncratic facts cold opus can't know, C in no
+  note (independent sonnet judge):
+
+  | C6 emergent-synthesis hit rate | cold opus | warm /recall (memory) | Δ (memory value) |
+  |---|---|---|---|
+  | synth-join (compositional) | 0/3 | 6/6 | +100pp |
+  | synth-chain (transitive) | 1/3 | 6/6 | +67pp |
+  | synth-transfer (analogical) | 0/3 | 6/6 | +100pp |
+  | **TOTAL** | **1/9 (11%)** | **18/18 (100%)** | **+89pp** |
+
+  **The C6 proof:** warm memory beats cold opus 18/18 vs 1/9 on emergent synthesis. **The synthesis
+  STEP is redundant:** warm-only is at the 100% ceiling — opus composes C spontaneously once recall
+  surfaces A and B → per the spec's RED rule, Step 2.8 is NOT built. Third "the agent already does it"
+  negative (after slice-2 retrieval). **Capstone: engram's value is the MEMORY (surfacing idiosyncratic
+  notes cold opus lacks); the reasoning is opus's job, and opus is already excellent at it.**

@@ -1,9 +1,12 @@
 # Design — the synthesis layer (emergent composition over recalled notes)
 
-> **Status: design spec (spec-only).** The build edits `skills/recall/SKILL.md` (a synthesis reasoning
-> step) and is gated on an eval that may KILL it before any skill change — see §5. Grounded in vault
-> notes 68 (aggregation ≠ synthesis), 69 (analogy generates, doesn't prove), 72 (multi-phrase recall
-> subsumes graph expansion), and the slice-2 negative (`EXPERIMENT-LOG` 2026-06-23).
+> **Status: RED RUN 2026-06-23 → synthesis STEP NOT BUILT (redundant). But the eval IS the C6 proof.**
+> The 3-arm RED (`dev/eval/traps/synth_eval.py` + `synth_fixtures.py`) measured, across join/chain/
+> transfer fixtures: **cold opus 1/9, warm `/recall` 18/18.** Memory beats cold opus decisively (the C6
+> result). But warm-only is at the **100% ceiling** — no headroom for a synthesis step — so per the §5
+> RED rule the explicit Step 2.8 is **redundant and NOT built**: opus composes A+B→C spontaneously once
+> recall surfaces A and B. Third straight "the agent already does it" negative (after slice 2). The spec
+> below is retained as the design + the eval rationale; the harness is the C6 proof artifact.
 
 ## 1. Problem & the corrected premise
 
