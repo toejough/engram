@@ -23,6 +23,16 @@ single note states — and does so better than cold opus (which lacks A and B en
 notes are already co-surfaced; the gap (if any) is getting the agent to *compose them into the
 emergent conclusion and assert it*, rather than aggregate or stop at coverage.
 
+**Relationship to the built Step 2.6 (cross-cluster linking).** Step 2.6 already runs agent-judged
+composition over surfaced notes — but its *output is a typed EDGE* (graph structure: "A relates to B
+via means-ends"), precision-gated, and it deliberately *excludes analogy* and persists nothing but
+links. The synthesis layer's *output is an emergent CONCLUSION C* (new knowledge the user acts on,
+optionally crystallized as a synthesis note Z) — what those related notes *imply together*. 2.6 grows
+the graph; the synthesis layer reasons over it to produce conclusions. They share the generate→justify
+discipline but differ in output and in what GENERATE may use (2.6 forbids analogy for edges; synthesis
+allows analogy in GENERATE because it asserts conclusions, not persists links — note 69 still bars
+analogy from JUSTIFY). The synthesis step does NOT re-do 2.6's linking.
+
 ## 1b. The central challenge (read before building anything)
 
 **The synthesis step may be redundant.** Opus is strong; given A and B co-surfaced it may produce C
@@ -34,11 +44,12 @@ negative, as with slice 2.
 
 ## 2. The synthesis layer (the mechanism, if the eval justifies it)
 
-A new reasoning step in `recall` — call it **Step 3.5 — Synthesize across the surfaced set** — that
-runs after the clustered notes are in context (after Step 2.5 coverage, before/with Step 3
-plan-impact). It is cross-note composition, distinct from Step 2.5 (within-cluster coverage =
-aggregation) and Step 3 (plan-impact framing). Three sub-steps, reusing note 69's generate→justify
-discipline:
+A new reasoning step in `recall` — **Step 2.8 — Synthesize across the surfaced set** — inserted
+**after Step 2.7 (activation) and before Step 3 (closing synthesis)**. (The skill's steps today are
+0, 0.5, 1, 2, 2.5, 2.6, 2.7, 3; there is no room at "3.5" — that would fall after the final step.) It
+is cross-note composition, distinct from Step 2.5 (within-cluster coverage = aggregation), Step 2.6
+(cross-cluster *edges*), and Step 3 (plan-impact framing). Three sub-steps, reusing note 69's
+generate→justify discipline:
 
 **A. GENERATE (loose, high recall, asserts nothing).** Scan notes from *different* clusters/domains for
 candidate emergent conclusions of three relational kinds (the types engram's architecture can't do but
@@ -48,11 +59,21 @@ the agent can):
 - **analogical transfer** — A's structure in domain 1 maps onto domain 2 → "the same move applies to B."
 Use analogy and "what here combines with what" freely. Proposes only.
 
+*Generation-recall caveat (multi-axis is deferred):* GENERATE works over the cosine-surfaced set, so
+the *non-topical* structural pairs that compositional/analogical synthesis most needs may not be
+present — multi-axis grouping / LLM-as-axis-selector (research §7, roadmap slice 3, deferred) is the
+lever that raises candidate recall. The eval must therefore distinguish "the agent can't *generate* the
+right pair" (a generation/recall gap, slice 3) from "the agent generates but doesn't *compose/assert*"
+(the gap this layer targets) — don't read a generation miss as a synthesis-step failure.
+
 **B. JUSTIFY (strict — default: do not assert).** For each candidate C, validate via a truth-preserving
 or satisfaction mode — **deduction** (does C actually follow from A∧B?), **abduction** (is C the best
 means-end / explanation linking them?), **composition** (do the parts genuinely compose — same shared
 key, no equivocation?). **Analogy alone never asserts** (note 69). Emit an audit line per candidate so
-the drop is observable. Default is to NOT assert.
+the drop is observable. Default is to NOT assert. (These are validation *modes* — orthogonal to Step
+2.6's relation-*type* menu. Note 2.6's `contradiction` is intentionally absent here: a contradiction
+between A and B composes into no emergent C — it is a conflict to flag, which is 2.6's job, not a
+synthesis.)
 
 **C. ASSERT (and optionally persist).** State each surviving C as an explicit conclusion the user can
 act on — flagged as *emergent* (no single note says it; it comes from A∧B). Optionally crystallize C as
@@ -89,43 +110,66 @@ A fixture seeds a vault with notes A and B such that:
   blocking → re-add the label or disable the webhook." Requires A∧B; neither note states it; cold opus
   cannot know A or B. Shared key = `canary` label (the join).
 
-(Build ≥3 such fixtures spanning compositional-join, transitive-chain, analogical-transfer.)
+**One fixture per relational kind** (≥3 total), each labeled with its kind so the eval reports
+per-kind, not just aggregate: **fixture-join** (compositional, the `canary` example above),
+**fixture-chain** (transitive: A⇒B, B⇒C, ask for the A⇒C consequence), **fixture-transfer**
+(analogical: a fix/structure in domain 1, ask whether it applies to an analogous domain-2 problem).
+The metric is computed and reported per fixture.
 
-## 5. The C6 eval — 3 arms (the value isolation) and the build's RED
+## 5. The C6 eval — 3 arms (the value isolation)
 
-Reusing the warm-harness pattern (`dev/eval/traps/graphexpand_warm.py`):
+Reusing the warm-harness pattern (`dev/eval/traps/graphexpand_warm.py`). **Note (framing):** the cold
+arm cannot produce C *by fixture construction* (idiosyncratic facts), so warm−cold is rigged-large and
+only validates the memory premise — it is NOT the result. **The deciding result is the SYNTHESIS Δ
+(warm+synthesis − warm-only).** Run **n≥5 per arm per fixture**; report **per fixture** (heterogeneous
+relational kinds can mask each other in an aggregate).
 
-| arm | setup | measures |
-|---|---|---|
-| **cold** | opus, no memory, no skills | baseline: cannot produce C (lacks A, B) → expect 0 |
-| **warm recall-only** | warm `/recall` (current skill), seeded vault | does the agent compose C *spontaneously*? |
-| **warm recall+synthesis** | warm `/recall` + the Step-3.5 synthesis step | does the explicit step produce C reliably? |
+**Metric:** C6 emergent-synthesis hit rate — reference-based: does the final answer state the fixture's
+specific emergent C (the exact join/chain/transfer conclusion), judged against the fixture's stated C,
+not keywords.
 
-**Metric:** reference-based — does the final answer state the specific emergent C (the join/chain
-conclusion), checked against the fixture's C, not keywords. Run n≥5 per arm per fixture.
+**Results table (labeled, per fixture; this is the artifact the eval emits):**
 
-- **Value of MEMORY** = warm − cold (expected large; cold lacks the facts).
-- **Value of the SYNTHESIS STEP** = (warm+synthesis) − (warm recall-only). **This is the number that
-  decides the slice.**
+| Metric (units) | cold | warm-only | warm+synth | Δ = warm+synth − warm-only |
+|---|---|---|---|---|
+| **C6 synthesis hit rate (% of n)** | ~0 (lacks A,B) | _measured_ | _measured_ | _the deciding number_ |
+| **memory premise check** = warm-only − cold (pp) | — | — | — | (large by design; sanity only) |
+| **noise floor (pp)** = warm-only vs warm-only spread | — | _measured first_ | — | Δ must exceed this |
 
-**Build discipline (writing-skills TDD, gated on the eval):**
-- **RED (must hold to proceed):** warm recall-only **fails to compose C** (low rate). If warm-only
-  already produces C, **STOP — the step is redundant**; record the negative (as slice 2) and do not
-  edit the skill.
-- **GREEN:** add Step 3.5 → warm+synthesis produces C reliably AND beats warm-only by a margin above
-  the noise floor (size the noise from warm-only-vs-warm-only, per the gap-below-noise memory).
-- **REFACTOR / pressure tests:** an aggregation control (all-one-cluster vault → the step must NOT
-  manufacture a false "emergent" C); a recitation control (C present in a note → not a synthesis win);
-  the cross-domain clustering check (A, B really separate).
+**Decision rule (self-contained — same noise discipline on BOTH gates):** first run **warm-only twice**
+(or split n) to size the **noise floor** = the spread between identical warm-only replicates.
+- **RED to proceed:** warm-only hit rate must be **below (100% − noise floor)** — i.e. there is real
+  headroom for a step to add. If warm-only already composes C at-or-above (100% − noise), **STOP — the
+  step is redundant** (record the negative, as slice 2; do not edit the skill). "Low rate" alone is not
+  enough — gate against the measured noise, not a guessed threshold.
+- **GREEN to ship:** Δ (warm+synth − warm-only) must **exceed the noise floor**. A Δ below noise = "can't
+  distinguish," not a win (the gap-below-noise lesson) → do not ship.
+
+**Pressure tests (REFACTOR):** aggregation control (all-one-cluster vault → the step must NOT
+manufacture a false "emergent" C); recitation control (C present verbatim in a note → not a synthesis
+win, it's recall); cross-domain clustering check (A, B land in *separate* clusters — reuse
+`cake.py`'s `classify_cross`/cluster inspection functions, not a CLI).
 
 ## 6. Deliverables of the build (separate effort)
 
-1. `dev/eval/traps/synth_fixtures.py` — the cross-domain compositional fixtures (+ clustering check).
-2. `dev/eval/traps/synth_eval.py` — the 3-arm warm harness + reference-based C-detection.
-3. Run the eval RED first (cold / warm-only). Decision gate: only if warm-only fails to compose.
-4. If justified: `skills/recall/SKILL.md` Step 3.5 via `superpowers:writing-skills` TDD; GREEN re-run.
-5. Update note 68 (its prescribed fix — graph-expanded retrieval — is superseded; the lever is agent
-   reasoning) and the roadmap.
+1. `dev/eval/traps/synth_fixtures.py` — the per-kind cross-domain fixtures (join/chain/transfer) +
+   the cross-domain clustering check (reuse `cake.py`'s `classify_cross` / cluster inspection
+   functions — internal Python, not a CLI; add new fixture kinds `synth-join`/`synth-chain`/`synth-transfer`).
+2. `dev/eval/traps/synth_eval.py` — the 3-arm warm harness + reference-based C-detection. **Harness gap
+   to close:** `build_warm_cfg` copies the repo's *current* `skills/recall` wholesale, so warm-only vs
+   warm+synthesis can't be A/B'd as-is (slice 2's A/B swapped *binaries* via `ENGRAM_BIN`, not skills).
+   Add a `build_warm_cfg(dst, recall_skill_path=...)` parameter (or build two cfg dirs) so one arm gets
+   the edited `SKILL.md` and the other the current one.
+3. **Run the eval RED first (cold / warm-only, with the noise floor sized per §5).** Decision gate:
+   proceed only if warm-only leaves real headroom (§5 RED rule) — else STOP and record the negative.
+4. **If and only if RED holds:** add Step 2.8 to `skills/recall/SKILL.md` via `superpowers:writing-skills`
+   TDD; GREEN re-run; ship only if Δ exceeds the noise floor (§5 GREEN rule).
+5. **If the eval ships the step:** update vault note 68 — its body prescribes the fix "via
+   graph-expanded retrieval (spreading activation / GraphRAG local search)," which slice 2 reverted (0
+   value); the corrected prescription is *agent reasoning over already-surfaced notes* (this layer),
+   and the diagnosis (aggregation ≠ synthesis) stands. Also add a **synthesis-layer row to the
+   `cross-cluster-linking.md` §1b roadmap** (a new *reasoning* track, dependency: none on slices 2-4;
+   it is the upstream reasoning that the deferred "synthesis-note Z" would persist).
 
 ## Self-review checklist
 - Synthesis defined as emergent composition (A+B→C cross-domain), explicitly NOT aggregation (note 68)?
