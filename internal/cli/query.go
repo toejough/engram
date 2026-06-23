@@ -1363,7 +1363,14 @@ func runQuery(
 	// D1: build the matched set from the note union, then extend with matched chunks
 	// so one AutoK pass clusters notes and chunks together.
 	matchSet := buildMatchedSet(noteUnion)
-	appendGraphBridges(&matchSet, notes, hits, noteUnion, args.GraphExpandHops)
+
+	graphHops := args.GraphExpandHops
+	if graphHops == 0 {
+		graphHops = defaultGraphExpandHops // 0 = unset; negative stays negative (disabled)
+	}
+
+	appendGraphBridges(&matchSet, notes, hits, noteUnion, graphHops)
+
 	chunkItems := addMatchedChunksToMatchedSet(chunkUnion, &matchSet)
 
 	report := clusterMatchedSet(matchSet, strings.Join(args.Phrases, "\n"))

@@ -7,9 +7,11 @@ import (
 )
 
 // appendGraphBridges expands the matched set in place with wikilink-reachable
-// bridge notes (GraphRAG local search). hops==0 uses the default depth; a
-// negative value disables expansion. Bridges are bounded so the matched set
-// stays under matchSetCap, keeping clustering O(n^2)-bounded.
+// bridge notes (GraphRAG local search). hops is the already-resolved BFS depth
+// (the caller applies the default); a value <= 0 disables expansion. Bridges
+// are bounded so the matched set stays under matchSetCap, keeping clustering
+// O(n^2)-bounded. BuildGraph is rebuilt per query (CPU only — notes are already
+// scanned); acceptable at current vault sizes, a caching target if it ever bites.
 func appendGraphBridges(
 	matchSet *matchedSet,
 	notes []vaultgraph.Note,
@@ -17,11 +19,7 @@ func appendGraphBridges(
 	noteUnion []scoredCandidate,
 	hops int,
 ) {
-	if hops == 0 {
-		hops = defaultGraphExpandHops
-	}
-
-	if hops < 0 || len(matchSet.members) >= matchSetCap {
+	if hops <= 0 || len(matchSet.members) >= matchSetCap {
 		return
 	}
 
@@ -35,7 +33,10 @@ func appendGraphBridges(
 		hitByBasename[hit.note.Basename] = hit
 	}
 
-	// capacity counts seeds in BFS Visited; leave room under matchSetCap.
+	// Invariant: seeds are exactly the note members already in matchSet (both
+	// derive from noteUnion), and BFS counts seeds in its Visited cap. Budgeting
+	// matchSetCap total nodes therefore leaves matchSetCap-len(members) bridges,
+	// so the post-append set stays <= matchSetCap.
 	capacity := matchSetCap - len(matchSet.members) + len(seeds)
 	bridges := graphBridgeBasenames(notes, seeds, hops, capacity)
 	matchSet.members = append(matchSet.members, buildBridgeMembers(bridges, hitByBasename)...)
@@ -59,8 +60,11 @@ func buildBridgeMembers(
 		}
 
 		members = append(members, matchedMember{
-			basename:      basename,
-			notePath:      pathOf(basename),
+			basename: basename,
+			notePath: pathOf(basename),
+			// No query cosine for a bridge, so the "winning coord" invariant on
+			// matchedMember.vector doesn't apply; use the situation axis as the
+			// clustering coordinate (same axis notes embed on).
 			vector:        hit.sidecar.SituationVector,
 			sitVec:        hit.sidecar.SituationVector,
 			bodyVec:       hit.sidecar.BodyVector,
