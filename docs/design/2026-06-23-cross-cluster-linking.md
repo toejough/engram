@@ -33,6 +33,32 @@ one dimension the current write path can't.
 - **Iterative retrieve→reason→retrieve loop** — transitive hops with no retrieved bridge.
 - **Across-groups output reduce** — dropped per research (underperforms).
 
+## 1b. The roadmap — why the deferrals are a sequence, not a punt
+
+The deferrals above are **dependency-ordered slices**, not optional extras. Build order is forced:
+slice 2 reads cross-cluster edges, but none exist today (the cake check formed zero) — slice 1 is
+what *writes* them. You literally cannot build a later slice first.
+
+| # | slice | what it does | solves | depends on | status |
+|---|---|---|---|---|---|
+| **1** | **cross-cluster linking** (this doc) | writes typed cross-cluster *edges*, precision-gated | **compositional join** (the cake — bridge already retrieved) | — | spec'd |
+| 2 | graph-expanded retrieval | traverses those edges to surface bridge notes cosine missed | **transitive** (the "we need sugar" case, where a link exists) | slice 1 (edges must exist to traverse) | deferred |
+| 3 | multi-axis generation (LLM-as-axis-selector) | finds *non-topical* candidate pairs for slice 1 to judge | raises *recall* of cross-cluster links | slice 1 (improves its generator) | deferred |
+| 4 | iterative retrieve→reason→retrieve | names the bridge entity and re-queries for it | transitive hops with **no** pre-existing link | slices 1–2 (residual) | deferred |
+| — | synthesis-note Z | persist a new integrative *note*, not just an edge | richer artifacts | decide after slice 1 | deferred |
+| — | across-groups output reduce | GraphRAG global reduce | — | — | **killed** (evidence: worse), NOT deferred |
+
+**The honest gap:** slice 1 alone solves the **cake** but NOT the **sugar** case. The cake is a
+*write* problem (bridge retrieved, never linked); the sugar case is a *retrieval* problem (bridge
+never retrieved), and slice 1 operates on what's already retrieved. Slice 1 fixes the sugar case only
+*indirectly* — it writes the edges slice 2 then traverses. So the two motivating cases need **slice 1
+(cake) + slice 2 (sugar)**, and slice 2 is impossible until slice 1 exists.
+
+**Why deferring is safe:** slice 1 stands alone — it grows the graph and fixes compositional joins;
+if we built only it and stopped, we'd have gained something real and broken nothing (it adds
+cross-cluster linking on top of today's within-cluster linking). Each later slice *adds* capability;
+none is required for the prior to deliver value.
+
 ## 2. Where it grafts
 
 A new **Step 2.6 — cross-cluster linking**, after the Step 2.5 per-cluster loop completes and
