@@ -220,7 +220,30 @@ share a join column; reasoning selects pairs where the provision *satisfies* the
 NOT transitivity — satisfaction-matching. ("The cake join" is an internal coinage, not a literature
 term; the pattern is established.)
 
-**The menu = (mode × relation), tiered by grounding:**
+**Analogy is a GENERATOR, not a link-creation mode (correction, 2026-06-23).** Analogy was
+over-promoted to a peer of deduction/abduction; it doesn't belong there (no canonical logical home;
+"not truth-preserving"). Structure-mapping's own output is **"candidate inferences"** — hypotheses,
+not conclusions. So the mechanism is **two layers**:
+- **Generation / path-finding (analogy):** "what else is shaped like this? what would that imply
+  about our case?" — *proposes* candidate connections; high recall, low precision; **persists
+  nothing.**
+- **Justification / link-creation (deduction, abduction/means-ends, induction, composition,
+  contradiction):** validate a candidate; persist the typed edge **only** if a truth-preserving or
+  satisfaction-matching mode confirms it. "Does the implied learning hold up under rigorous reasoning
+  now that we've identified it?"
+
+This separation also **contains the central precision risk**: the noisy generator can be as loose as
+we like because the justification layer is the gate — generation affords high recall *because*
+justification enforces precision; nothing reaches the graph un-validated.
+
+**Caveat on the generator:** "what else is like this" over our embeddings is cosine similarity, which
+surfaces *topical* neighbors, not *structural* analogs (true analogy needs relational structure the
+384-d sentence vectors flatten — same limit as the cake clustering). So analogy-as-pathfinding may be
+weak in practice until relations are representable; but validate-before-persist is sound and free
+regardless of generator quality.
+
+**The link-creation menu = (mode × relation), tiered by grounding** (analogy excluded — it's a
+generator, above):
 | link type | mode | relation | formal model | grounding |
 |---|---|---|---|---|
 | compositional | (n/a — structural) | part-whole | mereology | **strongest** (3 independent traditions) |
@@ -228,7 +251,9 @@ term; the pattern is established.)
 | means-ends / cake | abduction | requires-provides | STRIPS precond-effect join on shared key | well-defined (planning + RST) |
 | abstraction | induction | is-a | subsumption | strong |
 | contradiction | (n/a) | antonymy/supersession | conflict | moderate |
-| analogical transfer | analogy* | same-relation-diff-domain | structure-mapping | **deliberate extension — flag** |
+
+(analogical transfer is NOT in this table — it is a generator, per above; its candidates must be
+validated by one of these modes before any edge is written.)
 
 **Source flags:** part-whole + Peirce triad + deductive chains are multiply-canonical. Means-ends is
 well-defined but rests mainly on planning + RST (one strong tradition each). Analogy has no canonical
