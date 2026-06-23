@@ -190,7 +190,12 @@ relationship; default to none). Getting precision right is the whole game.
 
 **Empirical check to run first (Joe's prompt):** run real `/recall` against the cake vault and
 confirm it forms ZERO cross-cluster links today (predicted), then test whether a cross-cluster
-instruction creates the right links *without flooding the graph*.
+instruction creates the right links *without flooding the graph*. **Confirmed 2026-06-23:** the cake
+check formed 0 cross-domain links / 0 new notes (only within-cluster req→req, mech→mech).
+
+**→ Design:** the minimal first slice (this cross-cluster linking primitive) is specced in
+[docs/design/2026-06-23-cross-cluster-linking.md](../design/2026-06-23-cross-cluster-linking.md) —
+a Step 2.6 generate→justify→persist pass, precision-gated, cake-validated.
 
 ## 4c. Which relationships should the LLM scan for? (researched 2026-06-23, cross-source)
 
