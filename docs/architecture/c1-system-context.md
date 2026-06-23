@@ -167,6 +167,13 @@ sequenceDiagram
         end
     end
 
+    Note over H: Step 2.6 — cross-cluster linking (precision gate): generate→justify→persist over members
+    loop per surviving cross-cluster candidate (directed relation + 1:1 shared key; default DROP)
+        H->>E: engram amend --target <A> --relation "<B>|<TYPE>: <shared key>" (no --activate)
+        E->>V: acquire flock, merge typed cross-cluster edge
+        V-->>E: written path
+    end
+
     Note over H: agent calls engram activate on notes actually USED (covered/near candidates and cited notes only)
     H->>E: engram activate --note <path> ... (agent-driven; unused returned notes are NOT activated)
     E->>V: bump LastUsed on each activated note

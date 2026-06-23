@@ -193,3 +193,11 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
 - **2026-06-21** — Op flow confirmed: per app, **instruct(+recall-first) → build/iterate → learn**;
   across the chain `learn(N)+ingest(N) → recall(N+1)`. `recall_s` is round-1 wall (recall + first
   draft), not isolated recall latency.
+- **2026-06-23** — **Slice 1: cross-cluster linking (recall Step 2.6) — BUILT, end-to-end proven.**
+  Harness `dev/eval/traps/cake.py`. The cake RED baseline **falsified the design premise**: k-means
+  groups by shared *property*, not req-vs-mech domain, and the current skill already forms cross-note
+  links — but imprecisely (**4/9 correct means-ends, 5 spurious flood**). Reframed slice 1 around
+  **precision** (user-approved). Added Step 2.6 precision gate (directed relations + 1:1 shared key +
+  hub test, default DROP) governing within- and cross-cluster linking. Final (opus, n=3–4):
+  **8–9/9 correct means-ends, 0 flood; control cake+git 0 cross-links; analogy 0.** Precision is the
+  whole game — symmetric part-whole/abstraction relations disabled as the flood vector.

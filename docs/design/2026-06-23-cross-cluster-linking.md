@@ -1,22 +1,33 @@
 # Design — cross-cluster linking pass for recall (minimal first slice)
 
-> **Status: design spec (spec-only).** Building this edits `skills/recall/SKILL.md`, which the repo
-> rule says MUST go through `superpowers:writing-skills` TDD (RED→GREEN→pressure-test). That build is
-> a separate effort; §6 specs its RED/GREEN/pressure cases. Grounded in
-> `docs/research/2026-06-22-emergent-synthesis-case.md`.
+> **Status: BUILT (2026-06-23).** Step 2.6 is live in `skills/recall/SKILL.md`; the end-to-end
+> isolated-agent proof is `dev/eval/traps/cake.py` (+ `cake_fixtures.py`). Built via
+> `superpowers:writing-skills` TDD. Grounded in `docs/research/2026-06-22-emergent-synthesis-case.md`.
+> **The build corrected this spec's original premise — see §1.**
 
 ## 1. Problem & scope
 
-**Proven failure (cake check, 2026-06-23):** real `/recall` over a 6-note two-domain vault formed
-**only within-cluster links** (req→req, mech→mech) and **zero cross-domain links** — even though
-retrieval surfaced all 6 notes. Recall's Step 2.5 processes **"one write per cluster"** and never
-looks across clusters, so the complementary edges (`cake-needs-sweetness` ↔ `sugar-provides-
-sweetness`) that synthesis/graph-traversal need are never written.
+**Original premise (FALSIFIED by the build).** The spec assumed real `/recall` over the 6-note cake
+vault formed **only within-cluster links and zero cross-domain links** — that k-means cleanly split a
+"requirements" domain from a "mechanisms" domain, structurally foreclosing the means-ends joins.
 
-**This slice:** add a **cross-cluster pass** to recall that, after the per-cluster loop, examines the
-clusters *together*, proposes candidate cross-cluster relationships, validates each against a
-reasoning menu, and **persists only precision-gated links — default no-link.** Grows the graph in the
-one dimension the current write path can't.
+**What the cake harness actually measured (2026-06-23, real MiniLM embedder):**
+- k-means does **not** split req vs mech. It groups by **shared property** — e.g. cluster 0 =
+  {cake-needs-sweetness, cake-needs-texture, sugar-provides-sweetness}; cluster 1 = the rest. Means-ends
+  pairs land in the same cluster as often as not.
+- The current skill (no Step 2.6) **already forms cross-note links ad hoc** — but **imprecisely**:
+  baseline **4/9 correct means-ends edges with 5 spurious "flood" edges** (e.g.
+  `cake-needs-sweetness → flour-provides-texture` — a need linked to a property-*mismatched* provider).
+
+So the real gap is **not absence of links — it is absence of a precision gate.** This matches the C6
+lesson already in memory ("precision is the whole game; a loose gate makes the graph worse").
+
+**This slice (as built):** add a **precision gate** (Step 2.6) governing which cross-note edges
+persist — generate candidates loosely, then persist only on a directed relation type + a specific
+shared key that pairs ~1:1 (default DROP). The gate governs Step 2.5's within-cluster linking too (its
+old rule "link every cluster member" was itself a flood source). **The win is precision, not presence:
+the flood went 5 → 0 while correct means-ends rose 4/9 → 8–9/9 — and unrelated clusters (cake+git) and
+a tempting analogy both yield 0 links.**
 
 **Explicitly deferred (NOT this slice):**
 - **Multi-axis grouping / LLM-as-axis-selector / multi-lens embedding** — these are the *generation*
@@ -80,11 +91,14 @@ wrote — relevant to the transitive case).
 
 ## 3. The pass: generate → justify → persist (one LLM reasoning pass, not O(n²) calls)
 
-The agent has all cluster members from the query payload plus the representatives it saw/wrote during
-Step 2.5 — all in context. Step 2.6 is a single reasoning pass over the cluster representatives (one
-prompt that sees all of them; not per-pair calls):
+The agent has all cluster members from the query payload in context. Step 2.6 is a single reasoning
+pass over the surfaced **note members across clusters** (one prompt that sees all of them; not per-pair
+calls). **Correction from the build:** the spec originally said "over cluster *representatives* (one
+per cluster)", but the precise means-ends pairs are between *member* notes — with one representative
+per cluster you could form at most one edge, never the three the cake needs. The gate ranges over
+members; the GENERATE step proposes only the property-sharing candidates, keeping the pass bounded.
 
-**A. GENERATE (loose, high recall — persists nothing).** Scan all cluster representatives for
+**A. GENERATE (loose, high recall — persists nothing).** Scan all note members across clusters for
 *candidate* cross-cluster relationships. Use analogy / "what here relates to what" freely. This layer
 proposes; it never writes. (Per note 69: analogy generates, it does not justify.)
 
@@ -124,8 +138,16 @@ edge(s) to write:
 effect that the test above pins to *both* notes. A key that is a domain/topic word ("baking", "Go",
 "errors") or a generic adjective shared by many notes FAILS — DROP.
 
-Tier for the build: enable **compositional + means-ends + causal/transitive** first (best grounded;
-they cover the cake + transitive cases). Abstraction/contradiction second.
+**Tier as BUILT (corrected during the build):** enable **means-ends + causal/transitive +
+contradiction** — the **directed** relations plus contradiction. The **symmetric similarity** relations
+(**compositional/part-whole** and **abstraction**) are **disabled**: the build proved they are the
+flood vector — their shared key ("the cake", a schema) is almost always a **hub** that meshes many
+notes at once. They are gated behind a future tier, not enabled in slice 1. This is the
+"directed-only menu" the pressure tests required to reach 0 flood.
+
+**The non-topical guard, as built, includes the hub test:** a valid shared key pairs notes ~**1:1**;
+a key that would link one note to 3+ others is a hub → DROP. This is what stops the within-topic flood
+that pure "specific vs generic word" framing missed.
 
 ## 5. Acceptance test — the cake vault (the spec's pass/fail)
 
@@ -144,12 +166,21 @@ domain (req / mech), exactly as the cake check already does. With Step 2.6 activ
 - **Control (precision, the core risk):** a vault of genuinely *unrelated* clusters (cake notes + git
   notes) MUST form **zero** cross-cluster links — the default-DROP gate holds with no real relationship.
 
-## 6. Build plan (separate effort — `superpowers:writing-skills` TDD)
+## 6. Build plan — COMPLETED (`superpowers:writing-skills` TDD, 2026-06-23)
 
-The build edits `skills/recall/SKILL.md` Step 2.5/2.6. Per the repo rule, it runs writing-skills TDD:
-- **RED (baseline):** run the cake check on the *current* skill → confirm 0 cross-domain links
-  (already observed — this is the documented baseline).
-- **GREEN:** add the Step 2.6 text (§3 + §4) → re-run → the 3 means-ends edges form.
+Built. Harness: `dev/eval/traps/cake.py` + `cake_fixtures.py` (4 fixtures: cake/control/analogy/
+transitive). The precision metric splits cross-note edges into property-matched means-ends links vs
+spurious flood. Result across the cycle:
+- **RED (current skill):** 4/9 correct means-ends, **5 spurious flood** edges (the gap was imprecision,
+  not absence — see §1).
+- **GREEN + 3 refactors** (gate Step 2.5's "link every member"; the hub test; directed-only menu):
+  **8–9/9 correct means-ends, 0 flood.**
+- **Control** (cake+git, unrelated clusters): **0** cross-links, all runs (n=4).
+- **Analogy** (tempting bread/stock "rises" pair): **0** links, all runs — analogy DROPped.
+
+(The spec's *original* RED/GREEN plan — "confirm 0 cross-domain links, then make 3 form" — was
+discarded at the first baseline check, which revealed the premise was wrong: links already formed, just
+imprecisely. See §1.)
 - **PRESSURE TESTS (close loopholes); each is a fresh-vault fixture + a vault-inspection assertion:**
   (a) **control** — cake+git vault → 0 cross-cluster links (gate holds under no relationship);
   (b) **analogy-drop** — a vault with a tempting-but-invalid analogy pair → its audit line reads DROP
