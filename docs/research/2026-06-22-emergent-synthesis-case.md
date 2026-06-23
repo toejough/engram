@@ -166,6 +166,48 @@ reference-based metrics (Han et al.), and duplicates synthesis the LLM-agent con
 use-time. Revisit ONLY for explicit global/summary recall queries ("what's my overall stance on X"),
 and only behind a reference-based eval.
 
+## 4b. Recorded decision (2026-06-23): the foundational primitive is LLM-judged cross-cluster LINKING
+
+A circular dependency in §4 surfaced under challenge and must be recorded. Graph-expanded retrieval
+(Stage 1) *reads* edges — but engram's **write path today is search → cluster → link WITHIN cluster
+only**. No mechanism ever creates cross-cluster edges. The links the read side needs are exactly the
+ones the write side never makes: complementary/bridge notes are cross-cluster *by construction*
+(cosine split them). So graph traversal over today's vault surfaces more of the same cluster, never
+the join — the read-side fix presupposes a graph the system cannot grow.
+
+**Therefore the foundational primitive is a cross-cluster link-creation step at recall/learn time:**
+the LLM — which already receives ALL clusters in the recall payload — **judiciously reasons across
+clusters and PERSISTS connecting links/notes, defaulting to no link.** This is the actual content of
+"synthesis": not an output reduce (dropped, §4), but the **write step that grows the graph**.
+Graph-expanded retrieval (Stage 1) only becomes useful *after* this exists. The current Step 2.5
+processes each cluster *independently* ("one write per cluster") — it is never asked to look across
+clusters; that instruction is the change.
+
+**Central risk = precision, not possibility.** A cross-cluster pass weighs O(clusters²) candidate
+relationships; an eager LLM links everything to everything and pollutes the graph into uselessness.
+The mechanism needs the same adversarial gate as C6 (persist a cross-cluster edge only on a genuine
+relationship; default to none). Getting precision right is the whole game.
+
+**Empirical check to run first (Joe's prompt):** run real `/recall` against the cake vault and
+confirm it forms ZERO cross-cluster links today (predicted), then test whether a cross-cluster
+instruction creates the right links *without flooding the graph*.
+
+## 4c. Open question (flag for a research pass): which relationships should the LLM scan for?
+
+The cross-cluster pass needs a catalog of relationship/inference types to look for. Composition /
+complement / transitive were named ad hoc; they should be grounded in formal frameworks, and the set
+is almost certainly larger. Candidate backbone (to verify, not yet sourced like §3):
+- **Reasoning-mode axis — Peirce's trichotomy:** deduction (forward/transitive chain), induction
+  (generalize instances → schema), abduction (infer a cause/mechanism that satisfies a need — the
+  cake's "what *provides* the sweetness this needs" is abductive).
+- **Relation-type catalog (lexical semantics / ontology / planning):** part-whole/meronymy
+  (composition), is-a/hypernymy (abstraction), cause-effect, **requires-provides / means-ends** (the
+  cake join; cf. STRIPS preconditions-effects), contradiction/supersession, analogy (same relation,
+  different domain — Gentner).
+- **Beyond the original three:** abstraction/generalization, abductive/causal inference, analogical
+  transfer, contradiction-detection are all plausible cross-cluster link types worth encouraging.
+Research this (short multi-source pass, same rigor as §3) before fixing the prompt's relationship menu.
+
 ## 5. What NOT to attempt
 
 - **Don't try to fix complementarity by reweighting/biclustering MiniLM dimensions** — it's a
