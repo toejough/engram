@@ -6,6 +6,73 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// appendGraphBridges expands the matched set in place with wikilink-reachable
+// bridge notes (GraphRAG local search). hops==0 uses the default depth; a
+// negative value disables expansion. Bridges are bounded so the matched set
+// stays under matchSetCap, keeping clustering O(n^2)-bounded.
+func appendGraphBridges(
+	matchSet *matchedSet,
+	notes []vaultgraph.Note,
+	hits []compatibleSidecar,
+	noteUnion []scoredCandidate,
+	hops int,
+) {
+	if hops == 0 {
+		hops = defaultGraphExpandHops
+	}
+
+	if hops < 0 || len(matchSet.members) >= matchSetCap {
+		return
+	}
+
+	seeds := make([]string, 0, len(noteUnion))
+	for _, candidate := range noteUnion {
+		seeds = append(seeds, candidate.basename)
+	}
+
+	hitByBasename := make(map[string]compatibleSidecar, len(hits))
+	for _, hit := range hits {
+		hitByBasename[hit.note.Basename] = hit
+	}
+
+	// capacity counts seeds in BFS Visited; leave room under matchSetCap.
+	capacity := matchSetCap - len(matchSet.members) + len(seeds)
+	bridges := graphBridgeBasenames(notes, seeds, hops, capacity)
+	matchSet.members = append(matchSet.members, buildBridgeMembers(bridges, hitByBasename)...)
+}
+
+// buildBridgeMembers turns graph-bridge basenames into matchedMembers using
+// already-loaded sidecars. Bridges have no query cosine: the cluster coordinate
+// is the situation axis, score is 0, and content is empty (the recall skill
+// fetches it via `engram show`). Only bridges with a compatible sidecar are
+// included, since clustering needs a vector.
+func buildBridgeMembers(
+	bridges []string,
+	hitByBasename map[string]compatibleSidecar,
+) []matchedMember {
+	members := make([]matchedMember, 0, len(bridges))
+
+	for _, basename := range bridges {
+		hit, ok := hitByBasename[basename]
+		if !ok {
+			continue
+		}
+
+		members = append(members, matchedMember{
+			basename:      basename,
+			notePath:      pathOf(basename),
+			vector:        hit.sidecar.SituationVector,
+			sitVec:        hit.sidecar.SituationVector,
+			bodyVec:       hit.sidecar.BodyVector,
+			score:         0,
+			content:       "",
+			graphExpanded: true,
+		})
+	}
+
+	return members
+}
+
 // graphBridgeBasenames performs GraphRAG-local-search seed expansion: it
 // traverses the vault wikilink graph from the cosine-matched note seeds
 // (undirected, hops-bounded, capacity-bounded) and returns the BRIDGE

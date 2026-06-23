@@ -35,6 +35,31 @@ def _learn(vault, slug, subj, pred, obj):
         env=env, check=True, capture_output=True, text=True)
 
 
+def _basename(vault, slug):
+    for n in os.listdir(vault):
+        if n.endswith(f".{slug}.md"):
+            return n[:-3]   # drop .md
+    raise RuntimeError(f"no note for slug {slug} in {vault}")
+
+
+def _amend(vault, target_id, rel_basename, typed):
+    # `engram amend --relation` renders a body "Related to:" wikilink, which
+    # ParseWikilinks parses into Note.Outgoing (the graph BFS traverses these).
+    env = dict(os.environ)
+    env["ENGRAM_VAULT_PATH"] = vault
+    subprocess.run(["engram", "amend", "--target", target_id,
+                    "--relation", f"{rel_basename}|{typed}"],
+                   env=env, check=True, capture_output=True, text=True)
+
+
+def _link_transitive_chain(vault):
+    # joe-wants-cake --(causal: cake)--> cake-needs-sweetness --(means-ends: sweetness)--> sugar-provides-sweetness
+    cake = _basename(vault, "cake-needs-sweetness")
+    sugar = _basename(vault, "sugar-provides-sweetness")
+    _amend(vault, "1", cake, "causal: cake")
+    _amend(vault, "2", sugar, "means-ends: sweetness")
+
+
 def build(kind, dst):
     if os.path.exists(dst):
         shutil.rmtree(dst)
@@ -59,6 +84,8 @@ def build(kind, dst):
         raise ValueError(kind)
     for slug, subj, pred, obj in notes:
         _learn(dst, slug, subj, pred, obj)
+    if kind == "transitive":
+        _link_transitive_chain(dst)
     # Embed-on-write can silently warn-and-skip the sidecar (learn.go autoEmbedNote). Without a
     # .vec.json, `engram query` cannot cluster the note and the RED/GREEN check passes vacuously
     # (0 clusters → 0 edges). Verify every note got a sidecar; fail loud if not.

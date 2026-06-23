@@ -23,11 +23,12 @@ import (
 
 // QueryArgs holds parsed flags for `engram query`.
 type QueryArgs struct {
-	Phrases   []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
-	VaultPath string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
-	ChunksDir string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks); chunks compete in the same ranking as notes"` //nolint:lll // single unbreakable struct-tag string
-	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
-	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
+	Phrases         []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
+	VaultPath       string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
+	ChunksDir       string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks); chunks compete in the same ranking as notes"` //nolint:lll // single unbreakable struct-tag string
+	Limit           int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
+	Project         string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field"`
+	GraphExpandHops int      `targ:"flag,name=graph-expand-hops,desc=wikilink hops to expand the cosine seed set before clustering (0 uses default 2; negative disables)"` //nolint:lll // single struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -93,6 +94,10 @@ const (
 	clusterMaxK            = 7
 	clusterMinK            = 2
 	clusterSilhouetteFloor = 0.10
+	// defaultGraphExpandHops is the BFS depth used when --graph-expand-hops
+	// is unset (0). A negative value disables expansion (cosine-only).
+	// Research §4 Stage 1: 1-2 hops surfaces transitive/compositional bridges.
+	defaultGraphExpandHops = 2
 	defaultQueryLimit      = 20
 	// matchPhraseLimit is the maximum number of candidates (notes + chunks
 	// combined) taken per phrase before union across phrases. Bounds
@@ -189,14 +194,15 @@ type compatibleSidecar struct {
 // nomination (clusterNoteIndexFromMembers), so eitherAxisCosine can pick
 // the stronger axis against the centroid rather than the query.
 type matchedMember struct {
-	basename string
-	notePath string
-	vector   []float32 // winning coord (best-of sit/body vs queryVec)
-	sitVec   []float32 // situation-axis vector from sidecar
-	bodyVec  []float32 // body-axis vector from sidecar
-	score    float32
-	content  string
-	kind     string // empty = note; chunkItemKind for chunks
+	basename      string
+	notePath      string
+	vector        []float32 // winning coord (best-of sit/body vs queryVec)
+	sitVec        []float32 // situation-axis vector from sidecar
+	bodyVec       []float32 // body-axis vector from sidecar
+	score         float32
+	content       string
+	kind          string // empty = note; chunkItemKind for chunks
+	graphExpanded bool   // true = surfaced by Step-2 wikilink expansion, not cosine
 }
 
 // matchedSet holds the unified set of notes and chunks that matched the query
@@ -259,6 +265,7 @@ type queryClusterMember struct {
 	Path             string  `yaml:"path"`
 	Score            float32 `yaml:"score"`
 	IsRepresentative bool    `yaml:"is_representative"`
+	GraphExpanded    bool    `yaml:"graph_expanded,omitempty"`
 }
 
 // queryItem is the rendered item shape per the resolved-payload spec.
@@ -534,7 +541,11 @@ func buildMatchedSetFromPhrases(
 // them against the already-matched chunk paths, and tags the survivors with
 // provenanceRecent. These items appear in items[] only — NOT in matched.members
 // and therefore NOT in any cluster's members[].
-func buildRecentFillItems(allRecords []chunk.Record, matchedChunks []scoredChunk, n int) []resolvedItem {
+func buildRecentFillItems(
+	allRecords []chunk.Record,
+	matchedChunks []scoredChunk,
+	n int,
+) []resolvedItem {
 	if n <= 0 {
 		return nil
 	}
@@ -677,6 +688,7 @@ func collectClusterMembers(
 			Path:             member.notePath,
 			Score:            member.score,
 			IsRepresentative: isRep,
+			GraphExpanded:    member.graphExpanded,
 		})
 	}
 
@@ -1351,6 +1363,7 @@ func runQuery(
 	// D1: build the matched set from the note union, then extend with matched chunks
 	// so one AutoK pass clusters notes and chunks together.
 	matchSet := buildMatchedSet(noteUnion)
+	appendGraphBridges(&matchSet, notes, hits, noteUnion, args.GraphExpandHops)
 	chunkItems := addMatchedChunksToMatchedSet(chunkUnion, &matchSet)
 
 	report := clusterMatchedSet(matchSet, strings.Join(args.Phrases, "\n"))
@@ -1371,9 +1384,11 @@ func runQuery(
 	resolved = append(resolved, recentItems...)
 
 	merged := aggregatedSummary{
-		phrases:        args.Phrases,
-		resolvedItems:  resolved,
-		phraseClusters: []phrasedCluster{{phrase: singleClusterPhrase, report: report, matched: matchSet}},
+		phrases:       args.Phrases,
+		resolvedItems: resolved,
+		phraseClusters: []phrasedCluster{
+			{phrase: singleClusterPhrase, report: report, matched: matchSet},
+		},
 		// candidate_l2s are nominated from each cluster's own note members
 		// (Phase 3, within-cluster nomination), not the full-vault index.
 		outgoing:       outgoingByBasename(notes),
@@ -1502,7 +1517,11 @@ func validateQueryArgs(args QueryArgs) error {
 // A no-op when nothing mismatched or no warning hook is wired. The message
 // names the dropped count and the distinct stale model id(s) so a silent
 // model swap that empties recall is surfaced instead of hidden.
-func warnModelMismatch(logWarning func(string, ...any), loaded sidecarLoadResult, activeModelID string) {
+func warnModelMismatch(
+	logWarning func(string, ...any),
+	loaded sidecarLoadResult,
+	activeModelID string,
+) {
 	if logWarning == nil || loaded.mismatchedCount == 0 {
 		return
 	}
