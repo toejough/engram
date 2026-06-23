@@ -143,7 +143,14 @@ precedents are over entity/KG graphs; engram's wikilinks are note-level, so the 
 
 ## 4. The staged build-sequence (what to build, in order)
 
-**Stage 1 — the lead change: graph-expanded retrieval (reuse the existing wikilink graph).** Before
+**Stage 1 — BUILT (2026-06-23): graph-expanded retrieval (reuse the existing wikilink graph).** Shipped
+in `engram query` via `vaultgraph.BFSWithCap` (`--graph-expand-hops`, default 2). Success criterion met
+(reference-based, not LLM-judge): on the transitive fixture the bridge `sugar-provides-sweetness` is
+absent from `clusters[].members` with cosine-only (`--graph-expand-hops -1`) and present with expansion
+(`dev/eval/traps/graphexpand.py`). The link-density caveat holds: bridges surface only where slice-1
+edges exist.
+
+**Original spec (now built):** Before
 clustering, **expand the cosine-matched seed set by traversing `internal/vaultgraph` wikilinks 1–2
 hops**, then cluster/summarize the expanded set. This is GraphRAG *local* search / spreading
 activation — it surfaces bridge notes cosine misses, enabling compositional join (T3) and transitive

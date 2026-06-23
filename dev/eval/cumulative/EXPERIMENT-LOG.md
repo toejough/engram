@@ -201,3 +201,12 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   hub test, default DROP) governing within- and cross-cluster linking. Final (opus, n=3–4):
   **8–9/9 correct means-ends, 0 flood; control cake+git 0 cross-links; analogy 0.** Precision is the
   whole game — symmetric part-whole/abstraction relations disabled as the flood vector.
+- **2026-06-23** — **Slice 2: graph-expanded retrieval (`query.go` BFS) — BUILT, end-to-end proven.**
+  Slice 1 fixed the *write* gap (precise edges); slice 2 fixes the *retrieval* gap — the bridge note
+  cosine never sees because it is embedding-distant from the query. **Graph expansion surfaces bridges
+  cosine missed:** the transitive bridge `sugar-provides-sweetness` is **absent** from
+  `clusters[].members` cosine-only but **present** with BFS expansion (proof
+  `dev/eval/traps/graphexpand.py`, reference-based, deterministic). Wired `vaultgraph.BFSWithCap` into
+  `engram query`: expand the cosine-matched seeds 1–2 wikilink hops (`--graph-expand-hops`, default 2;
+  negative disables) before clustering, reusing slice-1's body `Related to:` edges (verified
+  `ParseWikilinks`-traversable). Link-density caveat: bridges surface only where a slice-1 edge exists.

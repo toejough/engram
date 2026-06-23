@@ -1,5 +1,9 @@
 # Slice 2 — Graph-Expanded Retrieval Implementation Plan
 
+> **Status: COMPLETED (2026-06-23).** Built and proven end-to-end — see `dev/eval/traps/graphexpand.py`,
+> `docs/research/2026-06-22-emergent-synthesis-case.md` §4 Stage 1, and the EXPERIMENT-LOG slice-2 entry.
+> Retained for reference.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development per task (RED→GREEN→REFACTOR). Steps use checkbox (`- [ ]`). Use `targ test` / `targ check-full` — never raw `go test`/`go build`.
 
 **Goal:** At query time, expand the cosine-matched seed set by traversing the vault's wikilink graph 1–2 hops *before* clustering, so bridge notes that cosine retrieval structurally misses (the transitive "Joe wants cake → … → we need sugar" case) enter the result set.
