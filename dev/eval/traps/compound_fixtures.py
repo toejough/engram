@@ -82,6 +82,80 @@ TYPES = {
 }
 
 
+# --- Depth-parameterized JOIN ladder (genuine emergent compositions, levels 1..4) ---
+# Each level's conclusion is emergent (stated in NO raw note). The depth-k question asks for the
+# level-k conclusion. no-persist vault = the raw seed/fact notes; persist vault also stores the
+# level-1..(k-1) emergent conclusions (oracle), so the agent only does the last composition.
+LADDER_SEEDS = [   # the two level-1 inputs
+    ("vault7-reader", "the vault-7 service account",
+     "is the only identity allowed to read", "the production secrets store"),
+    ("drill-suspends", "the Tuesday failover drill",
+     "suspends", "every service account whose name ends in -7"),
+]
+LADDER_LEVELS = [
+    {  # L1: seeds -> C1
+        "fact": None,
+        "stored": ("c1-no-secrets", "during the Tuesday failover drill",
+                   "the production secrets store is unreadable",
+                   "because vault-7, its only reader, is suspended"),
+        "conclusion": "during the Tuesday drill the production secrets store is unreadable (vault-7 suspended)",
+    },
+    {  # L2: + D2 -> C2
+        "fact": ("backup-needs-secrets", "the nightly compliance backup runs every Tuesday at 02:00 and",
+                 "must read", "the production secrets store"),
+        "stored": ("c2-backup-fails", "the Tuesday 02:00 compliance backup",
+                   "fails", "during the failover-drill window because the secrets are unreadable then"),
+        "conclusion": "the Tuesday 02:00 compliance backup fails during the drill window",
+    },
+    {  # L3: + D3 -> C3
+        "fact": ("backup-fail-pages", "a failed compliance backup",
+                 "automatically pages", "the on-call engineer"),
+        "stored": ("c3-oncall-paged", "the on-call engineer",
+                   "is paged every Tuesday at 02:00", "on any week the failover drill runs"),
+        "conclusion": "the on-call engineer gets paged every Tuesday 02:00 a drill runs",
+    },
+    {  # L4: + D4 -> C4
+        "fact": ("policy-sev2", "the on-call policy",
+                 "auto-opens a Sev2 incident", "the second consecutive week the same page fires"),
+        "stored": ("c4-weekly-sev2", "running the failover drill on consecutive Tuesdays",
+                   "auto-opens a recurring Sev2 incident", "for the repeated compliance-backup pages"),
+        "conclusion": ("running the drill on consecutive Tuesdays auto-opens a recurring Sev2 incident "
+                       "(the repeated backup-failure pages trip the 2nd-week policy)"),
+    },
+]
+LADDER_TASKS = {
+    1: "During the Tuesday failover drill, is the production secrets store readable? Using ONLY recalled memory, explain.",
+    2: "Is the Tuesday 02:00 nightly compliance backup at risk? Using ONLY recalled memory, explain precisely why.",
+    3: "On a week the Tuesday failover drill runs, what will the on-call engineer experience at 02:00, and why? Use ONLY recalled memory.",
+    4: "If we keep running the failover drill every Tuesday, what recurring incident will it end up causing, and why? Use ONLY recalled memory.",
+}
+
+
+def build_ladder(depth, persist, dst, scatter=0):
+    """Build the depth-k JOIN emergent ladder. Returns {task, E} for the judge."""
+    if not 1 <= depth <= len(LADDER_LEVELS):
+        raise ValueError(f"depth {depth} out of range 1..{len(LADDER_LEVELS)}")
+    if os.path.exists(dst):
+        shutil.rmtree(dst)
+    os.makedirs(dst)
+    for slug, subj, pred, obj in LADDER_SEEDS:                       # A, B
+        _learn(dst, slug, subj, pred, obj)
+    for lvl in range(depth):                                        # raw facts D2..Dk
+        fact = LADDER_LEVELS[lvl]["fact"]
+        if fact:
+            _learn(dst, *fact)
+    if persist:                                                     # oracle stored conclusions C1..C{k-1}
+        for lvl in range(depth - 1):
+            _learn(dst, *LADDER_LEVELS[lvl]["stored"])
+    for j in range(scatter):
+        _learn(dst, f"distract-{j:03d}", f"qd{j}", "is unrelated to", f"qe{j}")
+    missing = [n for n in os.listdir(dst)
+               if n.endswith(".md") and not os.path.exists(os.path.join(dst, n[:-3] + ".vec.json"))]
+    if missing:
+        raise RuntimeError(f"ladder depth {depth}: missing sidecars for {missing}")
+    return {"task": LADDER_TASKS[depth], "E": LADDER_LEVELS[depth - 1]["conclusion"]}
+
+
 def _learn(vault, slug, subj, pred, obj):
     env = dict(os.environ)
     env["ENGRAM_VAULT_PATH"] = vault

@@ -255,3 +255,18 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   where stored intermediates hold; 2-level is plausibly within one-pass reach. The web-as-artifact value
   (inspectable, directly recallable knowledge) remains a separate, unmeasured question. Harness:
   `dev/eval/traps/compound_eval.py` + `compound_fixtures.py`.
+- **2026-06-23** — **Compounding eval, DEPTH escalation (join ladder, 3–4 levels): still 0 headroom.**
+  Genuine emergent ladder L1:A+B→C1, L2:C1+D2→C2, L3:C2+D3→C3, L4:C3+D4→C4 (each Ck emergent, in no
+  note). no-persist re-derives C1..Ck from raw; persist stores C1..C{k-1} (oracle).
+
+  | join ladder hit rate (n=6) | no-persist | persist | Δ | noise |
+  |---|---|---|---|---|
+  | depth 3 | 6/6 | 6/6 | +0 | 0 |
+  | depth 4 | 6/6 | 6/6 | +0 | 0 |
+
+  **Even at depth 4** (FOUR sequential emergent compositions from raw, verified — the agent surfaced all
+  5 raw facts and built the chain), opus re-derives at 100%; persisting intermediates buys nothing.
+  **Verdict: persisting synthesis has NO task-accuracy value at any tested depth (2,3,4) or type (join,
+  transitive, analogical).** The only remaining candidate value of persistence is the *web-as-artifact*
+  (inspectable, durable, growing knowledge) — a non-accuracy/product value, separate eval. Harness:
+  `compound_depth_eval.py`.
