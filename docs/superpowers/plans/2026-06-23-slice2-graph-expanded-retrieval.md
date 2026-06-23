@@ -1,8 +1,10 @@
 # Slice 2 — Graph-Expanded Retrieval Implementation Plan
 
-> **Status: COMPLETED (2026-06-23).** Built and proven end-to-end — see `dev/eval/traps/graphexpand.py`,
-> `docs/research/2026-06-22-emergent-synthesis-case.md` §4 Stage 1, and the EXPERIMENT-LOG slice-2 entry.
-> Retained for reference.
+> **Status: BUILT then REVERTED (2026-06-23).** The implementation worked at the binary level but the
+> real-skill A/B (warm `/recall`, expansion on vs off) showed **0 marginal value** across 3 fixtures —
+> recall's 10-phrase strategy already surfaces every bridge. Reverted. See the EXPERIMENT-LOG slice-2
+> entry and `dev/eval/traps/graphexpand_warm.py`. Plan retained for the record; the design is sound,
+> the *value* was the problem. Do not rebuild without a vault where multi-phrase recall provably misses.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development per task (RED→GREEN→REFACTOR). Steps use checkbox (`- [ ]`). Use `targ test` / `targ check-full` — never raw `go test`/`go build`.
 

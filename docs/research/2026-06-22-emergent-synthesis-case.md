@@ -143,14 +143,16 @@ precedents are over entity/KG graphs; engram's wikilinks are note-level, so the 
 
 ## 4. The staged build-sequence (what to build, in order)
 
-**Stage 1 — BUILT (2026-06-23): graph-expanded retrieval (reuse the existing wikilink graph).** Shipped
-in `engram query` via `vaultgraph.BFSWithCap` (`--graph-expand-hops`, default 2). Success criterion met
-(reference-based, not LLM-judge): on the transitive fixture the bridge `sugar-provides-sweetness` is
-absent from `clusters[].members` with cosine-only (`--graph-expand-hops -1`) and present with expansion
-(`dev/eval/traps/graphexpand.py`). The link-density caveat holds: bridges surface only where slice-1
-edges exist.
+**Stage 1 — BUILT then REVERTED (2026-06-23): graph-expanded retrieval.** Built in `engram query` via
+`vaultgraph.BFSWithCap`, then reverted. The binary-level proof held (a single narrow query misses the
+bridge; expansion surfaces it), but the **real-skill A/B across 3 fixtures (transitive, content-blind,
+alien cross-domain) showed 0 marginal value**: the recall skill issues 10 broad phrases and the agent
+reaches the bridge via cosine without any graph hop (`dev/eval/traps/graphexpand_warm.py`). The
+posited retrieval-miss gap does not occur for engram's multi-phrase recall — which is itself a form of
+query expansion that subsumes graph traversal. **Lesson: the C6 bottleneck is synthesis/reasoning over
+what recall already surfaces, not retrieval.** Original spec below (kept for the record).
 
-**Original spec (now built):** Before
+**Original spec (built then reverted):** Before
 clustering, **expand the cosine-matched seed set by traversing `internal/vaultgraph` wikilinks 1–2
 hops**, then cluster/summarize the expanded set. This is GraphRAG *local* search / spreading
 activation — it surfaces bridge notes cosine misses, enabling compositional join (T3) and transitive

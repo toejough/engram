@@ -141,7 +141,6 @@ sequenceDiagram
     E->>V: scan sidecars + bodies for compatible-embed notes + chunk index
     V-->>E: notes, chunks, and vectors
     Note over E: per phrase — embed; top-30 per phrase (notes+chunks, recency-biased cosine); union across 10 phrases, dedup max score, drop baseScore < 0.25, cap matched set at ~300
-    Note over E: Graph expansion (local search): BFS 1–2 wikilink hops from the matched note seeds (vaultgraph.BFSWithCap); append bridge notes with compatible sidecars (score 0, tagged graph_expanded) before clustering
     Note over E: Channel 1 (Relevance): one AutoK cluster over matched notes+chunks (D1 preserved); per cluster emit candidate_l2s top-5 from within-cluster notes
     Note over E: Channel 2 (Recency): append 200 newest chunks by IngestedAt, deduped vs matched set, tagged recent — NOT in any cluster
     E-->>H: single YAML payload (phrases[], items[matched+recent], clusters[candidate_l2s], budget)

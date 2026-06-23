@@ -202,11 +202,21 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   **8–9/9 correct means-ends, 0 flood; control cake+git 0 cross-links; analogy 0.** Precision is the
   whole game — symmetric part-whole/abstraction relations disabled as the flood vector.
 - **2026-06-23** — **Slice 2: graph-expanded retrieval (`query.go` BFS) — BUILT, end-to-end proven.**
-  Slice 1 fixed the *write* gap (precise edges); slice 2 fixes the *retrieval* gap — the bridge note
-  cosine never sees because it is embedding-distant from the query. **Graph expansion surfaces bridges
-  cosine missed:** the transitive bridge `sugar-provides-sweetness` is **absent** from
-  `clusters[].members` cosine-only but **present** with BFS expansion (proof
-  `dev/eval/traps/graphexpand.py`, reference-based, deterministic). Wired `vaultgraph.BFSWithCap` into
-  `engram query`: expand the cosine-matched seeds 1–2 wikilink hops (`--graph-expand-hops`, default 2;
-  negative disables) before clustering, reusing slice-1's body `Related to:` edges (verified
-  `ParseWikilinks`-traversable). Link-density caveat: bridges surface only where a slice-1 edge exists.
+  Built `vaultgraph.BFSWithCap` into `engram query`, then **REVERTED** — the real-skill A/B killed it.
+  Binary level it worked (a single narrow query misses the bridge; expansion surfaces it,
+  cosine-only=0 vs expanded=1 cluster member). But the **real warm `/recall` A/B (expansion on vs off,
+  n=3 each) was identical across 3 fixtures** — transitive, content-blind, and an alien cross-domain
+  bridge (flood/road vocab vs a birthday-party query, verified cosine-unreachable by narrow probes):
+
+  | bridge USED by the agent | transitive | blind | cross-domain |
+  |---|---|---|---|
+  | expansion ON  | 3/3 | 3/3 | 3/3 |
+  | expansion OFF | 3/3 | 3/3 | 3/3 |
+
+  **Marginal value = 0.** The recall skill issues **10 broad phrases**; for a "warn me about X" task the
+  agent proactively queries failure modes and reaches the bridge via cosine without any graph hop. The
+  multi-phrase recall *is* query expansion and subsumes graph traversal. **Conclusion: retrieval is not
+  the C6 bottleneck — synthesis/reasoning over what recall already surfaces is.** Reverted the binary
+  change; kept the A/B harness `dev/eval/traps/graphexpand_warm.py` + fixtures as the evidence.
+  (Validation lesson: a binary-level proof bypassing the skill is not validation —
+  `don't-let-the-harness-bypass-the-component-under-test`.)

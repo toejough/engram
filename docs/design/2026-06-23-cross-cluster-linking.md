@@ -37,9 +37,12 @@ a tempting analogy both yield 0 links.**
   complete without it (a weak generator + sound gate still yields only-valid links). Deferred to
   raise recall later, not to make this slice work.
 - **Graph-expanded retrieval** (traverse wikilinks to surface bridge notes cosine missed) was a
-  *different* deferral here (it fixes *retrieval misses*; the cake's bridge is already retrieved) —
-  now **built as slice 2** (2026-06-23): `engram query` BFS-expands the cosine seed set over the
-  `Related to:` wikilinks slice 1 writes, before clustering.
+  *different* deferral here (it fixes *retrieval misses*; the cake's bridge is already retrieved). It
+  was **built then reverted as slice 2** (2026-06-23): the binary-level proof worked (a single narrow
+  query misses the bridge; expansion surfaces it), but the **real-skill A/B across 3 fixtures showed 0
+  marginal value** — recall issues 10 broad phrases and reaches the bridge via cosine without any hop.
+  Retrieval is not the bottleneck; the multi-phrase recall is itself query expansion. See the
+  EXPERIMENT-LOG 2026-06-23 slice-2 entry.
 - **Synthesis-note Z creation** — this slice persists *edges* (the graph-growth primitive), not new
   notes.
 - **Iterative retrieve→reason→retrieve loop** — transitive hops with no retrieved bridge.
@@ -54,7 +57,7 @@ what *writes* them. You literally cannot build a later slice first.
 | # | slice | what it does | solves | depends on | status |
 |---|---|---|---|---|---|
 | **1** | **cross-cluster linking** (this doc) | writes typed cross-cluster *edges*, precision-gated | **compositional join** (the cake — bridge already retrieved) | — | spec'd |
-| 2 | graph-expanded retrieval | traverses those edges to surface bridge notes cosine missed | **transitive** (the "we need sugar" case, where a link exists) | slice 1 (edges must exist to traverse) | **built** (2026-06-23; `query.go` BFS, `dev/eval/traps/graphexpand.py`) |
+| 2 | graph-expanded retrieval | traverses those edges to surface bridge notes cosine missed | **transitive** (the "we need sugar" case, where a link exists) | slice 1 (edges must exist to traverse) | **evaluated & REVERTED** (2026-06-23): built, but the real-skill A/B showed **0 marginal value** — recall's 10-phrase strategy already surfaces the bridge (`dev/eval/traps/graphexpand_warm.py`) |
 | 3 | multi-axis generation (LLM-as-axis-selector) | finds *non-topical* candidate pairs for slice 1 to judge | raises *recall* of cross-cluster links | slice 1 (improves its generator) | deferred |
 | 4 | iterative retrieve→reason→retrieve | names the bridge entity and re-queries for it | transitive hops with **no** pre-existing link | slices 1–2 (residual) | deferred |
 | — | synthesis-note Z | persist a new integrative *note*, not just an edge | richer artifacts | decide after slice 1 | deferred |

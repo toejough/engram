@@ -52,12 +52,12 @@ def _amend(vault, target_id, rel_basename, typed):
                    env=env, check=True, capture_output=True, text=True)
 
 
-def _link_transitive_chain(vault):
-    # joe-wants-cake --(causal: cake)--> cake-needs-sweetness --(means-ends: sweetness)--> sugar-provides-sweetness
-    cake = _basename(vault, "cake-needs-sweetness")
-    sugar = _basename(vault, "sugar-provides-sweetness")
-    _amend(vault, "1", cake, "causal: cake")
-    _amend(vault, "2", sugar, "means-ends: sweetness")
+def _link_transitive_chain(vault, mid_slug, end_slug):
+    # joe-wants-cake --(causal: cake)--> <mid> --(means-ends: sweetness)--> <end>
+    mid = _basename(vault, mid_slug)
+    end = _basename(vault, end_slug)
+    _amend(vault, "1", mid, "causal: cake")
+    _amend(vault, "2", end, "means-ends: sweetness")
 
 
 def build(kind, dst):
@@ -80,12 +80,37 @@ def build(kind, dst):
             ("cake-needs-sweetness", "a cake", "needs", "sweetness"),
             ("sugar-provides-sweetness", "sugar", "provides", "sweetness"),
         ]
+    elif kind == "transitive_blind":
+        # Neutral slugs: the answer ("sugar") lives ONLY in the bridge note's
+        # subject/body, never in its basename — so using it REQUIRES reading the note.
+        notes = [
+            ("joe-wants-cake", "Joe", "wants", "cake"),
+            ("requirement-one", "a cake", "needs", "sweetness"),
+            ("supplier-two", "sugar", "provides", "sweetness"),
+        ]
+    elif kind == "crossdomain":
+        # The bridge B (flood/road vocabulary) shares only the DATE "March 16th" with note A
+        # — never the query's "birthday party" vocabulary. So no phrase an agent generates
+        # about the party cosine-reaches B; only the A->B wikilink (shared date) does.
+        notes = [
+            ("joe-party-date", "Joe's birthday party", "happens on", "March 16th at the community center"),
+            ("flood-advisory", "March 16th", "coincides with",
+             "the seasonal river flood that closes Bridge Road all day"),
+            # topical distractors so cosine has party-relevant alternatives to surface
+            ("party-catering", "a birthday party", "usually includes", "catering and a cake"),
+            ("party-guests", "a birthday party", "needs", "a guest list and invitations"),
+        ]
     else:
         raise ValueError(kind)
     for slug, subj, pred, obj in notes:
         _learn(dst, slug, subj, pred, obj)
     if kind == "transitive":
-        _link_transitive_chain(dst)
+        _link_transitive_chain(dst, "cake-needs-sweetness", "sugar-provides-sweetness")
+    elif kind == "transitive_blind":
+        _link_transitive_chain(dst, "requirement-one", "supplier-two")
+    elif kind == "crossdomain":
+        # A (joe-party-date, luhmann 1) --[shared date]--> B (flood-advisory)
+        _amend(dst, "1", _basename(dst, "flood-advisory"), "causal: March 16th date")
     # Embed-on-write can silently warn-and-skip the sidecar (learn.go autoEmbedNote). Without a
     # .vec.json, `engram query` cannot cluster the note and the RED/GREEN check passes vacuously
     # (0 clusters → 0 edges). Verify every note got a sidecar; fail loud if not.
