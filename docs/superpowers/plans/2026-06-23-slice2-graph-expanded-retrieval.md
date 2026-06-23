@@ -1,125 +1,100 @@
 # Slice 2 — Graph-Expanded Retrieval Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development for each task (RED→GREEN→REFACTOR). Steps use checkbox (`- [ ]`) syntax. Use `targ test` / `targ check-full` — never raw `go test`/`go build`.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development per task (RED→GREEN→REFACTOR). Steps use checkbox (`- [ ]`). Use `targ test` / `targ check-full` — never raw `go test`/`go build`.
 
 **Goal:** At query time, expand the cosine-matched seed set by traversing the vault's wikilink graph 1–2 hops *before* clustering, so bridge notes that cosine retrieval structurally misses (the transitive "Joe wants cake → … → we need sugar" case) enter the result set.
 
-**Architecture:** A binary change in `engram query`'s retrieval stage that reuses the existing `internal/vaultgraph.BFSWithCap` (undirected, depth+capacity bounded) and `BuildGraph` primitives. After `buildMatchedSet(noteUnion)` builds the cosine seed set and before `clusterMatchedSet`, BFS-expand from the matched note basenames over the wikilink graph, construct `matchedMember`s for the surfaced bridge notes from their already-loaded sidecars, append them to the matched set (tagged `graph_expanded` for transparency), then cluster the expanded set. No embedding-store change; GraphRAG *local* search / spreading activation (research §4 Stage 1), NOT the killed global reduce.
+**Architecture:** A binary change in `engram query`'s retrieval stage reusing the existing `internal/vaultgraph.BFSWithCap` (undirected, depth+capacity bounded) and `BuildGraph`. A **pure** function returns the bridge *basenames* reachable from the matched note seeds; the `runQuery` wiring then builds `matchedMember`s for the bridges that have a compatible sidecar (path via the existing `pathOf`, vectors from the sidecar), appends them to the matched set, and clusters the expanded set. Bridges surface in `clusters[].members` tagged `graph_expanded`. GraphRAG *local* search / spreading activation (research §4 Stage 1) — NOT the killed global reduce.
 
-**Tech Stack:** Go; `internal/vaultgraph` (BFSWithCap/BuildGraph/Note); `internal/cli/query.go` (RunQuery pipeline); imptest + rapid + gomega for tests; `targ` build system; Python eval harness (`dev/eval/traps/`) for the end-to-end value proof.
+**Tech Stack:** Go; `internal/vaultgraph` (BFSWithCap/BuildGraph/Note); `internal/cli/query.go`; rapid + gomega for tests (the pure function has no I/O to mock — no imptest needed; the wiring is covered by the real-binary integration test); `targ`; Python eval harness for the end-to-end proof.
+
+## Verified code facts (traced 2026-06-23 — do not re-guess these)
+
+- `vaultgraph.Note` = `{Basename string; LuhmannID string; Outgoing []string}`. **No `.Body`, no `.Path`.** `Outgoing = ParseWikilinks(body)`.
+- `BuildGraph([]Note) Graph`; `BFSWithCap(Graph, seeds []string, maxDepth, capacity int) BFSResult{Visited map[string]struct{}, …}` — undirected (out ∪ in).
+- **Slice-1 edges ARE traversable:** `engram amend --relation` renders a body `Related to:` section with `[[basename]]` wikilinks; `ParseWikilinks` parses them into `Outgoing`. (Verified by writing a real edge and reading the note + `migrateRelationLinks` operating on that section via `wikilinkRE`.) So the BFS sees slice-1's edges. The ask-reviewer's "amend writes frontmatter" claim was wrong (untested).
+- `compatibleSidecar` = `{note vaultgraph.Note; sidecar embed.Sidecar}`. `embed.Sidecar` has `SituationVector []float32`, `BodyVector []float32`.
+- `matchedMember` = `{basename, notePath string; vector, sitVec, bodyVec []float32; score float32; content string}`.
+- `pathOf(basename string) string` builds a note path (used at `loadCompatibleSidecars`); `basenameFromNotePath(notePath) string` reverses it.
+- `runQuery(ctx, args, notes []vaultgraph.Note, hits []compatibleSidecar, limit, deps, stdout)` — `notes` and `hits` are in scope. Injection point: between `matchSet := buildMatchedSet(noteUnion)` and `addMatchedChunksToMatchedSet`.
+- `queryClusterMember` = `{Path string; Score float32; IsRepresentative bool}` — cluster members render **path + score only** (no content). The recall skill fetches content via `engram show` for members not in `items[]`. So a bridge needs a valid `notePath`, vectors, and score; `content: ""` is acceptable.
+- `collectClusterMembers` builds `queryClusterMember` rows from `matchSet.members` — the clean site to surface a `graph_expanded` flag.
+- `QueryArgs` flags are pure struct tags (targ auto-wires; no targets.go change). `--limit` uses the `0 → default` pattern.
 
 ## Global Constraints
 
-- DI everywhere: no `os.*`/`http.*` in `internal/` business logic; the expansion function is pure over data structures (notes, seeds, sidecars), wired at the `RunQuery` edge.
-- Reuse existing primitives — `vaultgraph.BFSWithCap`, `BuildGraph`, `UndirectedNeighbors`. No new traversal engine.
-- Bound expansion: total matched set stays ≤ `matchSetCap` (300) so clustering stays O(n²)-bounded.
-- Only surface bridges that have a **compatible sidecar** (a current-model embedding) — clustering needs a vector; a bridge without one is skipped.
-- Local search only. The across-groups reduce (GraphRAG global) is killed (research §4) — do not build it.
-- `targ test`, `targ check-full`, `targ build` only. Line length < 120. Sentinel errors, wrapped errors, named constants per `.claude/rules/go.md`.
-- Commit trailer `AI-Used: [claude]`.
-- **Honest-caveat requirement (carry into the eval):** the payoff depends on **link density** — slice 1 writes only precise means-ends/causal edges, so a bridge surfaces only where a real chain was linked. The end-to-end harness MUST pre-write the chain edges and report cosine-only vs expanded honestly; do not claim a lift the link density can't deliver.
+- DI everywhere: the BFS/bridge-selection logic is pure over data structures; member construction (path, vectors) happens at the `runQuery` edge using already-loaded `notes`/`hits`. No new I/O in `internal/` business logic.
+- Reuse `vaultgraph.BFSWithCap`/`BuildGraph`/`UndirectedNeighbors` — no new traversal engine.
+- Total matched set stays ≤ `matchSetCap` (300) so clustering stays O(n²)-bounded.
+- Only surface bridges with a **compatible sidecar** (current-model embedding) — clustering needs a vector.
+- Local search only. The across-groups global reduce is killed (research §4) — no reduce task.
+- `targ test`/`targ check-full`/`targ build` only. Named constants, wrapped/sentinel errors, `t.Parallel()`, line length < 120 (struct tags that can't break keep `//nolint:lll` as the existing `ChunksDir` tag does). Commit trailer `AI-Used: [claude]`.
+- **Honest-caveat (carry into the eval):** payoff depends on **link density** — slice 1 writes only precise means-ends/causal edges, so a bridge surfaces only where a real chain was linked. The proof MUST pre-write the chain edges (via `engram amend`, verified traversable) and report cosine-only vs expanded honestly.
 
 ---
 
-### Task 1: Pure graph-expansion function
+### Task 1: Pure bridge-basename BFS
 
 **Files:**
 - Create: `internal/cli/query_graph_expand.go`
 - Test: `internal/cli/query_graph_expand_test.go`
 
 **Interfaces:**
-- Consumes: `vaultgraph.BuildGraph([]vaultgraph.Note) Graph`, `vaultgraph.BFSWithCap(Graph, []string, int, int) BFSResult`, the `matchedMember` and `compatibleSidecar` types in `query.go`.
-- Produces: `expandSeedsViaGraph(notes []vaultgraph.Note, seeds []string, hitByBasename map[string]compatibleSidecar, hops, capacity int) []matchedMember` — returns the **bridge** members (BFS-visited basenames that are NOT seeds AND have a compatible sidecar), each built from its sidecar with `vector = sitVec`, `score = 0`.
+- Consumes: `vaultgraph.BuildGraph`, `vaultgraph.BFSWithCap`, `vaultgraph.Note`.
+- Produces: `graphBridgeBasenames(notes []vaultgraph.Note, seeds []string, hops, capacity int) []string` — sorted bridge basenames = BFS-visited minus seeds. Pure; nil when `hops <= 0` or `seeds` empty.
 
-- [ ] **Step 1: Write the failing test (RED)**
+- [ ] **Step 1: Write the failing test (RED)** — `internal/cli/query_graph_expand_test.go`
 
 ```go
-package cli //nolint:testpackage // exercises unexported expandSeedsViaGraph
+package cli //nolint:testpackage // exercises unexported graphBridgeBasenames
 
 import (
+	"strconv"
 	"testing"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
-	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-func TestExpandSeedsViaGraph_SurfacesUnmatchedBridge(t *testing.T) {
+func TestGraphBridgeBasenames_SurfacesUnmatchedBridge(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
-
-	// Chain: query matches A and C; B is the bridge (linked A->B->C) that
-	// did NOT match a phrase. One hop from A must surface B.
+	// Chain A -> B -> C via body wikilinks (Outgoing). Seed = A; one hop must surface B.
 	notes := []vaultgraph.Note{
-		{Basename: "a-wants-cake", Body: []byte("Joe wants cake [[b-cake-needs-sweetness]]")},
-		{Basename: "b-cake-needs-sweetness", Body: []byte("cake needs sweetness [[c-sugar-provides-sweetness]]")},
-		{Basename: "c-sugar-provides-sweetness", Body: []byte("sugar provides sweetness")},
+		{Basename: "a-wants-cake", Outgoing: []string{"b-cake-needs-sweetness"}},
+		{Basename: "b-cake-needs-sweetness", Outgoing: []string{"c-sugar-provides-sweetness"}},
+		{Basename: "c-sugar-provides-sweetness"},
 	}
-	hitByBasename := map[string]compatibleSidecar{
-		"a-wants-cake":               {note: notes[0], sidecar: embed.Sidecar{SituationVector: []float32{1, 0}, BodyVector: []float32{1, 0}}},
-		"b-cake-needs-sweetness":     {note: notes[1], sidecar: embed.Sidecar{SituationVector: []float32{0, 1}, BodyVector: []float32{0, 1}}},
-		"c-sugar-provides-sweetness": {note: notes[2], sidecar: embed.Sidecar{SituationVector: []float32{0, 1}, BodyVector: []float32{0, 1}}},
-	}
-
-	bridges := expandSeedsViaGraph(notes, []string{"a-wants-cake"}, hitByBasename, 1, 300)
-
-	names := make([]string, 0, len(bridges))
-	for _, b := range bridges {
-		names = append(names, b.basename)
-	}
-	g.Expect(names).To(ConsistOf("b-cake-needs-sweetness"))            // bridge surfaced
-	g.Expect(bridges[0].sitVec).To(Equal([]float32{0, 1}))            // carries its sidecar vector
-	g.Expect(bridges[0].vector).To(Equal([]float32{0, 1}))           // cluster coord = situation axis
-}
-
-func TestExpandSeedsViaGraph_SkipsSeedsAndSidecarlessNotes(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	notes := []vaultgraph.Note{
-		{Basename: "seed", Body: []byte("[[bridge-no-vec]] [[bridge-vec]]")},
-		{Basename: "bridge-no-vec", Body: []byte("no sidecar")},
-		{Basename: "bridge-vec", Body: []byte("has sidecar")},
-	}
-	hitByBasename := map[string]compatibleSidecar{
-		"seed":       {note: notes[0], sidecar: embed.Sidecar{SituationVector: []float32{1, 0}, BodyVector: []float32{1, 0}}},
-		"bridge-vec": {note: notes[2], sidecar: embed.Sidecar{SituationVector: []float32{0, 1}, BodyVector: []float32{0, 1}}},
-	}
-	bridges := expandSeedsViaGraph(notes, []string{"seed"}, hitByBasename, 1, 300)
-	names := make([]string, 0, len(bridges))
-	for _, b := range bridges {
-		names = append(names, b.basename)
-	}
-	g.Expect(names).To(ConsistOf("bridge-vec"))   // seed excluded; sidecar-less bridge skipped
+	g.Expect(graphBridgeBasenames(notes, []string{"a-wants-cake"}, 1, 300)).
+		To(ConsistOf("b-cake-needs-sweetness"))                 // 1 hop: B only
+	g.Expect(graphBridgeBasenames(notes, []string{"a-wants-cake"}, 2, 300)).
+		To(ConsistOf("b-cake-needs-sweetness", "c-sugar-provides-sweetness")) // 2 hops: B and C
+	g.Expect(graphBridgeBasenames(notes, []string{"a-wants-cake"}, 0, 300)).
+		To(BeEmpty())                                            // disabled
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [ ] **Step 2: Run to verify it fails** — `targ test`; FAIL: `graphBridgeBasenames` undefined.
 
-Run: `targ test` (or narrow to the package). Expected: FAIL — `expandSeedsViaGraph` undefined.
-
-- [ ] **Step 3: Implement (GREEN)**
+- [ ] **Step 3: Implement (GREEN)** — `internal/cli/query_graph_expand.go`
 
 ```go
 package cli
 
-import "github.com/toejough/engram/internal/vaultgraph"
+import (
+	"sort"
 
-// expandSeedsViaGraph performs GraphRAG-local-search seed expansion: it
+	"github.com/toejough/engram/internal/vaultgraph"
+)
+
+// graphBridgeBasenames performs GraphRAG-local-search seed expansion: it
 // traverses the vault wikilink graph from the cosine-matched note seeds
-// (undirected, hops-bounded, capacity-bounded) and returns matchedMembers
-// for the surfaced BRIDGE notes — visited basenames that are not themselves
-// seeds and that carry a compatible sidecar (clustering needs a vector).
-//
-// Bridges have no query cosine: their cluster coordinate is the situation
-// axis (consistent with how notes embed) and their score is 0. Returns nil
-// when hops <= 0, seeds is empty, or nothing new is reachable.
-func expandSeedsViaGraph(
-	notes []vaultgraph.Note,
-	seeds []string,
-	hitByBasename map[string]compatibleSidecar,
-	hops, capacity int,
-) []matchedMember {
+// (undirected, hops-bounded, capacity-bounded) and returns the BRIDGE
+// basenames — visited nodes that are not themselves seeds. Pure. Returns
+// nil when hops <= 0 or seeds is empty.
+func graphBridgeBasenames(notes []vaultgraph.Note, seeds []string, hops, capacity int) []string {
 	if hops <= 0 || len(seeds) == 0 {
 		return nil
 	}
@@ -132,212 +107,205 @@ func expandSeedsViaGraph(
 		seedSet[s] = struct{}{}
 	}
 
-	bridges := make([]matchedMember, 0, len(result.Visited))
+	bridges := make([]string, 0, len(result.Visited))
 	for basename := range result.Visited {
-		if _, isSeed := seedSet[basename]; isSeed {
-			continue
+		if _, isSeed := seedSet[basename]; !isSeed {
+			bridges = append(bridges, basename)
 		}
-
-		hit, ok := hitByBasename[basename]
-		if !ok {
-			continue // no compatible sidecar -> cannot cluster -> skip
-		}
-
-		bridges = append(bridges, matchedMember{
-			basename: basename,
-			notePath: hit.note.Path,
-			vector:   hit.sidecar.SituationVector,
-			sitVec:   hit.sidecar.SituationVector,
-			bodyVec:  hit.sidecar.BodyVector,
-			score:    0,
-			content:  string(hit.note.Body),
-		})
 	}
+
+	sort.Strings(bridges)
 
 	return bridges
 }
 ```
 
-(During execution, verify the exact field names: `vaultgraph.Note.Path`/`.Body`/`.Basename`, `embed.Sidecar.SituationVector`/`.BodyVector`, and the `matchedMember` fields — read the structs; adjust if a name differs. Use the stripped-content helper `stripWikilinks` on `content` if the rendered items elsewhere strip pointers — match the existing note-member construction.)
+- [ ] **Step 4: Run to verify it passes** — `targ test`; PASS.
 
-- [ ] **Step 4: Run to verify it passes**
-
-Run: `targ test`. Expected: PASS (both tests).
-
-- [ ] **Step 5: Add a rapid property test (determinism + bound)**
+- [ ] **Step 5: Add a rapid property test (capacity bound)**
 
 ```go
-func TestExpandSeedsViaGraph_RespectsCapacity(t *testing.T) {
+func TestGraphBridgeBasenames_RespectsCapacity(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		n := rapid.IntRange(2, 30).Draw(rt, "n")
-		cap := rapid.IntRange(1, 10).Draw(rt, "cap")
-		notes := make([]vaultgraph.Note, n)
-		hits := map[string]compatibleSidecar{}
-		body := ""
+		capacity := rapid.IntRange(1, 10).Draw(rt, "cap")
+		outgoing := make([]string, 0, n-1)
 		for i := 1; i < n; i++ {
-			body += "[[note" + strconv.Itoa(i) + "]] "
+			outgoing = append(outgoing, "note"+strconv.Itoa(i))
 		}
-		notes[0] = vaultgraph.Note{Basename: "note0", Body: []byte(body)}
-		hits["note0"] = compatibleSidecar{note: notes[0], sidecar: embed.Sidecar{SituationVector: []float32{1}, BodyVector: []float32{1}}}
+		notes := []vaultgraph.Note{{Basename: "note0", Outgoing: outgoing}}
 		for i := 1; i < n; i++ {
-			bn := "note" + strconv.Itoa(i)
-			notes[i] = vaultgraph.Note{Basename: bn, Body: []byte("leaf")}
-			hits[bn] = compatibleSidecar{note: notes[i], sidecar: embed.Sidecar{SituationVector: []float32{0}, BodyVector: []float32{0}}}
+			notes = append(notes, vaultgraph.Note{Basename: "note" + strconv.Itoa(i)})
 		}
-		bridges := expandSeedsViaGraph(notes, []string{"note0"}, hits, 2, cap)
-		// visited (seed + bridges) never exceeds capacity
-		if got := len(bridges) + 1; got > cap {
-			rt.Fatalf("visited %d exceeds cap %d", got, cap)
+		bridges := graphBridgeBasenames(notes, []string{"note0"}, 2, capacity)
+		if got := len(bridges) + 1; got > capacity { // visited = seed + bridges
+			rt.Fatalf("visited %d exceeds cap %d", got, capacity)
 		}
 	})
 }
 ```
 
-Run: `targ test`. Expected: PASS.
+Run: `targ test`; PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add internal/cli/query_graph_expand.go internal/cli/query_graph_expand_test.go
-git commit -m "feat(query): pure graph-expansion seed function (BFS over wikilinks)
-
-AI-Used: [claude]"
+git commit -m "$(printf 'feat(query): pure graph-bridge BFS over wikilinks\n\nAI-Used: [claude]')"
 ```
 
 ---
 
-### Task 2: Wire expansion into RunQuery + the `--graph-expand-hops` flag
+### Task 2: Wire expansion into runQuery + `--graph-expand-hops`
 
 **Files:**
-- Modify: `internal/cli/query.go` (the `QueryArgs` struct ~line; the `runQuery` body between `buildMatchedSet` and `clusterMatchedSet`; add constants)
-- Modify: `internal/cli/targets.go` (if the flag needs wiring there — verify)
-- Test: `internal/cli/query_integration_test.go` (add a transitive-bridge case)
+- Modify: `internal/cli/query.go` (`QueryArgs`; `matchedMember` gains `graphExpanded bool`; constants; the `runQuery` injection; a `buildBridgeMembers` helper)
+- Test: `internal/cli/query_integration_test.go`
 
 **Interfaces:**
-- Consumes: `expandSeedsViaGraph` (Task 1).
-- Produces: `QueryArgs.GraphExpandHops int`; bridges appended to `matchSet` before clustering.
+- Consumes: `graphBridgeBasenames` (Task 1); `pathOf`; `compatibleSidecar`; `matchedMember`.
+- Produces: `QueryArgs.GraphExpandHops int`; bridges appended to `matchSet` before clustering, each `{basename, notePath: pathOf(basename), vector/sitVec/bodyVec from sidecar, score: 0, content: "", graphExpanded: true}`.
 
 - [ ] **Step 1: Write the failing integration test (RED)**
 
-Add to `query_integration_test.go` a test that builds the real binary, plants a 3-note transitive vault with synthetic sidecars where the bridge note's vector is **orthogonal to the query** (so cosine misses it) but it is wikilink-reachable from a matched note. Assert: with default hops the bridge appears in some `clusters[].members`; with `--graph-expand-hops -1` it does NOT.
+Add to `query_integration_test.go`. Reuse the file's existing synthetic-sidecar planting style (the 30-note block) — factor a local `writeNoteWithSidecar(t, vault, basename, vec, body)` helper if one isn't already present, writing the `.md` (with the body, including any `[[wikilink]]`) and a prestamped `minilm-l6-v2@384` sidecar with `SituationVector=BodyVector=vec`.
 
 ```go
 func TestEngramQuery_GraphExpand_SurfacesBridge(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	vault := t.TempDir()
-	// note A: vector aligns with the query phrase; links to bridge B.
-	// note B (bridge): vector orthogonal to the query; links to C.
-	// Plant sidecars so cosine(query, B) < matchRelevanceFloor.
-	writeNoteWithSidecar(t, vault, "a-buy-list", alignedVec, "what to buy [[b-cake-needs-sweetness]]")
-	writeNoteWithSidecar(t, vault, "b-cake-needs-sweetness", orthogonalVec, "cake needs sweetness [[c-sugar-provides-sweetness]]")
-	writeNoteWithSidecar(t, vault, "c-sugar-provides-sweetness", orthogonalVec, "sugar provides sweetness")
+	aligned := unitVec(0)      // aligns with the query phrase
+	orthogonal := unitVec(1)   // orthogonal -> cosine(query, bridge) < matchRelevanceFloor
+	writeNoteWithSidecar(t, vault, "1.2026-06-23.a-buy-list", aligned, "what to buy [[2.2026-06-23.b-cake-needs-sweetness]]")
+	writeNoteWithSidecar(t, vault, "2.2026-06-23.b-cake-needs-sweetness", orthogonal, "cake needs sweetness [[3.2026-06-23.c-sugar-provides-sweetness]]")
+	writeNoteWithSidecar(t, vault, "3.2026-06-23.c-sugar-provides-sweetness", orthogonal, "sugar provides sweetness")
 
-	expanded := runEngramQueryYAML(t, vault, []string{"--phrase", "what should I buy"})           // default hops
-	cosineOnly := runEngramQueryYAML(t, vault, []string{"--phrase", "what should I buy", "--graph-expand-hops", "-1"})
+	expanded := clusterMemberBasenames(runEngramQueryYAML(t, vault, "what should I buy"))                       // default hops=2
+	cosineOnly := clusterMemberBasenames(runEngramQueryYAML(t, vault, "what should I buy", "--graph-expand-hops", "-1"))
 
-	g.Expect(clusterMemberBasenames(expanded)).To(ContainElement("b-cake-needs-sweetness"))     // bridge surfaced
-	g.Expect(clusterMemberBasenames(cosineOnly)).NotTo(ContainElement("b-cake-needs-sweetness")) // cosine misses it
+	g.Expect(expanded).To(ContainElement("2.2026-06-23.b-cake-needs-sweetness"))      // bridge surfaced by expansion
+	g.Expect(cosineOnly).NotTo(ContainElement("2.2026-06-23.b-cake-needs-sweetness")) // cosine alone misses it
 }
 ```
 
-(Reuse the existing synthetic-sidecar planting helpers in the integration test file; if none is factored out, add a small `writeNoteWithSidecar` helper mirroring the existing 30-note planting block. `clusterMemberBasenames` parses the YAML payload's `clusters[].members[].path` to basenames.)
+(`runEngramQueryYAML(t, vault, phrase, extraArgs...)` runs the built binary with `--phrase phrase` + extras and unmarshals the YAML. `clusterMemberBasenames(payload)` flattens `clusters[].members[].path` → basenames via `filepath.Base` minus `.md`. `unitVec(i)` returns a 384-dim one-hot. Mirror the existing integration helpers; add the small missing ones in the test file.)
 
-- [ ] **Step 2: Run to verify it fails**
+- [ ] **Step 2: Run to verify it fails** — `targ test`; FAIL: bridge absent in both arms (no expansion wired).
 
-Run: `targ test`. Expected: FAIL — the bridge is absent in both arms (no expansion wired yet), so the `expanded` assertion fails.
+- [ ] **Step 3: Add the flag, the constant, and the `graphExpanded` field**
 
-- [ ] **Step 3: Add the flag + constant + default**
-
-In `QueryArgs` (after `Project`):
+In `QueryArgs` after `Project`:
 
 ```go
-	GraphExpandHops int `targ:"flag,name=graph-expand-hops,desc=wikilink hops to expand the cosine seed set before clustering (default 2; negative disables)"` //nolint:lll
+	GraphExpandHops int `targ:"flag,name=graph-expand-hops,desc=wikilink hops to expand the cosine seed set before clustering; 0=default 2, negative disables"` //nolint:lll // single struct-tag string
 ```
 
-Add constants near the other query constants:
+Near the query constants:
 
 ```go
-	// defaultGraphExpandHops is the BFS depth used when --graph-expand-hops
-	// is unset (0). Negative disables expansion (cosine-only). Research §4
-	// Stage 1: 1-2 hops surfaces transitive/compositional bridges.
+	// defaultGraphExpandHops is the BFS depth when --graph-expand-hops is
+	// unset (0). A negative value disables expansion. Research §4 Stage 1:
+	// 1-2 hops surfaces transitive/compositional bridges.
 	defaultGraphExpandHops = 2
 ```
 
-- [ ] **Step 4: Wire expansion into `runQuery`**
+Add `graphExpanded bool` to the `matchedMember` struct (zero value false; existing constructions are unaffected).
 
-Between `matchSet := buildMatchedSet(noteUnion)` and `addMatchedChunksToMatchedSet`, insert:
+- [ ] **Step 4: Add the bridge-member builder + wire it into `runQuery`**
+
+```go
+// buildBridgeMembers turns graph-bridge basenames into matchedMembers using
+// already-loaded sidecars. Bridges have no query cosine: cluster coordinate is
+// the situation axis, score is 0, content is empty (the recall skill fetches it
+// via `engram show`). Only bridges with a compatible sidecar are included.
+func buildBridgeMembers(bridges []string, hitByBasename map[string]compatibleSidecar) []matchedMember {
+	members := make([]matchedMember, 0, len(bridges))
+	for _, basename := range bridges {
+		hit, ok := hitByBasename[basename]
+		if !ok {
+			continue
+		}
+		members = append(members, matchedMember{
+			basename:      basename,
+			notePath:      pathOf(basename),
+			vector:        hit.sidecar.SituationVector,
+			sitVec:        hit.sidecar.SituationVector,
+			bodyVec:       hit.sidecar.BodyVector,
+			score:         0,
+			content:       "",
+			graphExpanded: true,
+		})
+	}
+	return members
+}
+```
+
+In `runQuery`, immediately after `matchSet := buildMatchedSet(noteUnion)`:
 
 ```go
 	hops := args.GraphExpandHops
 	if hops == 0 {
 		hops = defaultGraphExpandHops
 	}
-	if hops > 0 {
-		hitByBasename := make(map[string]compatibleSidecar, len(hits))
-		for _, h := range hits {
-			hitByBasename[h.note.Basename] = h
-		}
+	if hops > 0 && len(matchSet.members) < matchSetCap {
 		seeds := make([]string, 0, len(noteUnion))
 		for _, c := range noteUnion {
 			seeds = append(seeds, c.basename)
 		}
-		room := matchSetCap - len(matchSet.members)
-		if room > 0 {
-			bridges := expandSeedsViaGraph(notes, seeds, hitByBasename, hops, room+len(seeds))
-			matchSet.members = append(matchSet.members, bridges...)
+		hitByBasename := make(map[string]compatibleSidecar, len(hits))
+		for _, h := range hits {
+			hitByBasename[h.note.Basename] = h
 		}
+		// capacity counts seeds in BFS Visited; leave room under matchSetCap.
+		capacity := matchSetCap - len(matchSet.members) + len(seeds)
+		bridges := graphBridgeBasenames(notes, seeds, hops, capacity)
+		matchSet.members = append(matchSet.members, buildBridgeMembers(bridges, hitByBasename)...)
 	}
 ```
 
-(`hits` and `notes` are already in scope in `runQuery` — verify; `runQuery`'s signature includes `notes []vaultgraph.Note, hits []compatibleSidecar`. The capacity passed to BFS counts seeds in its visited set, hence `room+len(seeds)`.)
+- [ ] **Step 5: Run to verify it passes** — `targ test`; PASS (bridge present at default hops, absent at `-1`).
 
-- [ ] **Step 5: Run to verify it passes**
-
-Run: `targ test`. Expected: PASS — bridge present with default hops, absent with `-1`.
-
-- [ ] **Step 6: REFACTOR + gate B**
-
-Extract the seed/hit-map/append block into a helper `appendGraphBridges(matchSet *matchedSet, notes []vaultgraph.Note, hits []compatibleSidecar, noteUnion []scoredCandidate, hops int)` if `runQuery` grows unwieldy, keeping `runQuery` linear. Run `targ check-full` (all lints + coverage). Then gate B (design-fit) on the diff.
+- [ ] **Step 6: REFACTOR + gate B** — if `runQuery` grows unwieldy, extract the block above into `appendGraphBridges(matchSet *matchedSet, notes []vaultgraph.Note, hits []compatibleSidecar, noteUnion []scoredCandidate, hops int)`. Run `targ check-full`. Gate B (design-fit) on the diff.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add internal/cli/query.go internal/cli/query_integration_test.go
-git commit -m "feat(query): graph-expanded retrieval — traverse wikilinks before clustering
-
-AI-Used: [claude]"
+git commit -m "$(printf 'feat(query): graph-expanded retrieval before clustering\n\nAI-Used: [claude]')"
 ```
 
 ---
 
-### Task 3: Tag bridges `graph_expanded` in the payload (transparency)
+### Task 3: Surface `graph_expanded` on cluster members (transparency)
 
 **Files:**
-- Modify: `internal/cli/query.go` (provenance constant + tag bridge items via `appendUniqueProvenance`)
-- Test: `internal/cli/query_integration_test.go` (assert the bridge item carries `provenances: [graph_expanded]`)
+- Modify: `internal/cli/query.go` (`queryClusterMember` gains a field; `collectClusterMembers` copies it)
+- Test: `internal/cli/query_integration_test.go`
 
 **Interfaces:**
-- Consumes: the bridge members from Task 2; the existing `appendUniqueProvenance(item, role)` and `Provenances` payload field.
-- Produces: `provenanceGraphExpanded = "graph_expanded"`; bridge items[] carry it so the recall skill can tell a note was surfaced by traversal, not similarity.
+- Consumes: `matchedMember.graphExpanded` (Task 2).
+- Produces: `queryClusterMember.GraphExpanded bool` (`yaml:"graph_expanded,omitempty"`) so the recall skill can tell a member was surfaced by traversal, not similarity.
 
 - [ ] **Step 1: Write the failing test (RED)**
 
 ```go
-func TestEngramQuery_GraphExpand_TagsBridgeProvenance(t *testing.T) {
+func TestEngramQuery_GraphExpand_TagsBridgeMember(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	// ... same transitive vault as Task 2 ...
-	payload := runEngramQueryYAML(t, vault, []string{"--phrase", "what should I buy"})
-	bridge := findItemByBasename(payload, "b-cake-needs-sweetness")
-	g.Expect(bridge.Provenances).To(ContainElement("graph_expanded"))
+	payload := runEngramQueryYAML(t, vault, "what should I buy")
+	row := findClusterMember(payload, "2.2026-06-23.b-cake-needs-sweetness")
+	g.Expect(row.GraphExpanded).To(BeTrue())
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails** — `targ test`; FAIL (no such provenance).
+(`findClusterMember` scans `clusters[].members` for the basename and returns the row; add the `GraphExpanded bool` field to the test's payload-decode struct.)
 
-- [ ] **Step 3: Implement** — add `provenanceGraphExpanded = "graph_expanded"` constant; carry a marker from `expandSeedsViaGraph` (e.g. a `graphExpanded bool` field on `matchedMember`, default false, true for bridges) and, where members become `resolvedItem`s, call `appendUniqueProvenance(item, provenanceGraphExpanded)` for graph-expanded members. (Verify the member→resolvedItem mapping site; reuse `appendUniqueProvenance`.)
+- [ ] **Step 2: Run to verify it fails** — `targ test`; FAIL (field absent/false).
+
+- [ ] **Step 3: Implement** — add `GraphExpanded bool yaml:"graph_expanded,omitempty"` to `queryClusterMember`; in `collectClusterMembers`, set `GraphExpanded: member.graphExpanded` in the row literal.
 
 - [ ] **Step 4: Run to verify it passes** — `targ test`; PASS.
 
@@ -345,9 +313,7 @@ func TestEngramQuery_GraphExpand_TagsBridgeProvenance(t *testing.T) {
 
 ```bash
 git add internal/cli/query.go internal/cli/query_integration_test.go
-git commit -m "feat(query): tag graph-expanded bridges in the payload provenance
-
-AI-Used: [claude]"
+git commit -m "$(printf 'feat(query): tag graph-expanded bridges on cluster members\n\nAI-Used: [claude]')"
 ```
 
 ---
@@ -355,46 +321,62 @@ AI-Used: [claude]"
 ### Task 4: End-to-end value proof (transitive bridge-surfaced rate)
 
 **Files:**
-- Modify: `dev/eval/traps/cake_fixtures.py` (the `transitive` fixture: write the chain notes WITH `[[wikilink]]` edges so the graph exists)
-- Create: `dev/eval/traps/graphexpand.py` (deterministic query-level proof: cosine-only vs expanded bridge-surfaced rate)
+- Modify: `dev/eval/traps/cake_fixtures.py` (the `transitive` fixture writes the chain EDGES via `engram amend --relation`, verified traversable)
+- Create: `dev/eval/traps/graphexpand.py`
 
 **Interfaces:**
 - Consumes: the built binary (`engram query --graph-expand-hops`), the transitive fixture.
-- Produces: a table — for a query whose cosine misses the bridge, the bridge-surfaced rate at hops=-1 (cosine-only) vs default (expanded).
+- Produces: a table — for a query whose cosine misses the bridge, the bridge present in `clusters[].members` at hops=-1 (cosine-only) vs default (expanded).
 
 - [ ] **Step 1: Make the transitive fixture write real edges**
 
-Update `cake_fixtures.build("transitive", …)` so the three notes carry the chain wikilinks in their bodies (or amend them post-`learn`): `joe-wants-cake` → `[[…cake-needs-sweetness]]` → `[[…sugar-provides-sweetness]]`. (The slice-1 fixture wrote notes without edges; slice 2 needs the edges present to traverse. Use `engram amend --target <A> --relation "<B>|causal: cake"` to write them exactly as slice-1 recall would, so the proof uses real persisted edges.)
+After `build("transitive", …)` writes the three notes, persist the chain with `engram amend` (renders body `Related to:` wikilinks → `Outgoing` → traversable, verified):
 
-- [ ] **Step 2: Write `graphexpand.py`**
+```python
+def _amend(vault, target, rel_basename, typed):
+    env = dict(os.environ); env["ENGRAM_VAULT_PATH"] = vault
+    subprocess.run(["engram", "amend", "--target", target,
+                    "--relation", f"{rel_basename}|{typed}"], env=env, check=True, capture_output=True, text=True)
+# in build() for kind == "transitive", after _learn() of the 3 notes:
+#   joe-wants-cake --(causal: cake)--> cake-needs-sweetness --(means-ends: sweetness)--> sugar-provides-sweetness
+```
+
+(Resolve targets by Luhmann id or full basename — `engram amend --target 1 --relation "2.<date>.cake-needs-sweetness|causal: cake"`. Confirm the written note shows a `Related to:` `[[…]]` line.)
+
+- [ ] **Step 2: Write `graphexpand.py`** — parse the YAML payload's `clusters[].members[].path` (NOT a raw substring), check whether the bridge is a cluster member:
 
 ```python
 """Slice-2 proof: does graph expansion surface the transitive bridge cosine misses?
-Builds the transitive fixture (chain edges present), runs `engram query` twice —
-cosine-only (--graph-expand-hops -1) and expanded (default) — and reports whether the
-bridge note `sugar-provides-sweetness` appears in clusters[].members.
+Builds the transitive fixture (chain edges present), runs `engram query` cosine-only
+(--graph-expand-hops -1) vs expanded (default), and checks clusters[].members[].path.
 
-Usage: python3 graphexpand.py [--n 3]
+Usage: python3 graphexpand.py
 """
-import json, os, subprocess, sys, glob
+import os, subprocess, sys
+import yaml  # PyYAML; if unavailable, parse the `path:` lines under `members:` manually
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cake_fixtures
 
-QUERY = ["--phrase", "what ingredient should I buy for the recipe"]   # cosine-distant from "provides sweetness"
+QUERY = ["--phrase", "what ingredient should I buy for the recipe"]  # cosine-distant from the bridge
 BRIDGE = "sugar-provides-sweetness"
 
-def _members(vault, extra):
+def _bridge_in_members(vault, extra):
     env = dict(os.environ); env["ENGRAM_VAULT_PATH"] = vault
     env["ENGRAM_CHUNKS_DIR"] = os.path.join(vault, "_chunks")
     out = subprocess.run(["engram", "query", *QUERY, *extra], env=env, capture_output=True, text=True).stdout
-    return BRIDGE in out   # bridge basename present anywhere in the clustered payload
+    doc = yaml.safe_load(out) or {}
+    for cl in doc.get("clusters", []):
+        for m in cl.get("members", []):
+            if BRIDGE in os.path.basename(m.get("path", "")):
+                return True
+    return False
 
 def main():
     vault = "/tmp/graphexpand/vault"
-    cake_fixtures.build("transitive", vault)   # writes chain notes + edges
-    cosine = _members(vault, ["--graph-expand-hops", "-1"])
-    expand = _members(vault, [])               # default hops=2
-    print(f"bridge '{BRIDGE}' surfaced:  cosine-only={cosine}  graph-expanded={expand}")
+    cake_fixtures.build("transitive", vault)
+    cosine = _bridge_in_members(vault, ["--graph-expand-hops", "-1"])
+    expand = _bridge_in_members(vault, [])
+    print(f"bridge '{BRIDGE}' in clusters[].members:  cosine-only={cosine}  graph-expanded={expand}")
     assert not cosine and expand, "expected bridge MISSED by cosine, SURFACED by expansion"
     print("PASS: graph expansion surfaces the transitive bridge cosine missed")
 
@@ -404,49 +386,43 @@ if __name__ == "__main__":
 
 - [ ] **Step 3: Run the proof**
 
-Run: `cd dev/eval/traps && targ build && python3 graphexpand.py`
-Expected: `cosine-only=False  graph-expanded=True` → PASS. (If the bridge is cosine-close enough to surface even cosine-only, tighten the QUERY phrase / fixture wording so the bridge is genuinely embedding-distant — the RED of this proof is "cosine alone misses it". If link density is the blocker, report it per the honest-caveat constraint.)
+Run: `targ build && cd dev/eval/traps && python3 graphexpand.py`
+Expected: `cosine-only=False  graph-expanded=True` → PASS. If the bridge surfaces even cosine-only, the bridge is not actually embedding-distant from the QUERY — adjust the QUERY wording so cosine genuinely misses it (the RED of this proof). If expansion still fails to surface it, confirm the fixture's `Related to:` edges exist (link-density caveat) before concluding.
 
-- [ ] **Step 4: Optional warm /recall confirmation (isolated agent)**
-
-If time/budget allows, run one warm `/recall` over the transitive fixture (reuse `cake.py`'s warm harness pattern) and confirm the agent's payload now contains the bridge note — the value realized end-to-end. Not a gate; a confirmation.
+- [ ] **Step 4: Optional warm /recall confirmation (isolated agent)** — if budget allows, run one warm `/recall` over the transitive fixture (reuse `cake.py`'s warm harness) and confirm the agent's payload contains the bridge and it reasons over it. Confirmation, not a gate.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add dev/eval/traps/cake_fixtures.py dev/eval/traps/graphexpand.py
-git commit -m "test(query): end-to-end proof graph expansion surfaces the transitive bridge
-
-AI-Used: [claude]"
+git commit -m "$(printf 'test(query): e2e proof graph expansion surfaces the transitive bridge\n\nAI-Used: [claude]')"
 ```
 
 ---
 
 ### Task 5: Document + close
 
-**Files:**
-- Modify: `docs/design/2026-06-23-cross-cluster-linking.md` (§1b roadmap row 2 → built; note the BFS reuse)
-- Modify: `docs/research/2026-06-22-emergent-synthesis-case.md` (§4 Stage 1 → built, with the success-criterion result)
-- Modify: `docs/architecture/c1-system-context.md` (recall sequence: add the graph-expansion step before clustering)
-- Modify: `CLAUDE.md` (the `internal/cli` / query description, if it characterizes retrieval) and `dev/eval/cumulative/EXPERIMENT-LOG.md` (slice-2 entry)
+**Files & exact edits:**
+- `docs/research/2026-06-22-emergent-synthesis-case.md` §4 Stage 1 → mark BUILT, record the success-criterion result (bridge surfaced cosine-only vs expanded; reference-based).
+- `docs/design/2026-06-23-cross-cluster-linking.md` §1b roadmap row 2 → status `built`; note the `BFSWithCap` reuse and that slice-1 `Related to:` edges are traversable.
+- `docs/architecture/c1-system-context.md` — in the **recall sequence diagram**, insert a `Note over E:` between the cosine-match step ("top-30 per phrase, unioned") and the clustering step ("one AutoK cluster"): *"Graph expansion (local search): BFS 1–2 hops over wikilinks from the matched note seeds; append bridge notes with compatible sidecars (tagged graph_expanded); then cluster."*
+- `CLAUDE.md` — in the `internal/cli` / query description, add: *"`query.go` graph-expands the cosine-matched note seeds via 1–2 wikilink hops (`vaultgraph.BFSWithCap`) before clustering, surfacing bridge notes for transitive/compositional synthesis."*
+- `dev/eval/cumulative/EXPERIMENT-LOG.md` — append a 2026-06-23 slice-2 entry: bridge-surfaced rate (cosine-only vs graph-expanded) + the link-density caveat.
 
-- [ ] **Step 1: Update each doc** to reflect graph-expanded retrieval as built, with the measured bridge-surfaced result (cosine-only vs expanded) and the link-density caveat. Gate C over every touched doc.
-
-- [ ] **Step 2: Final commit** (gate D over prose):
+- [ ] **Step 1: Apply each edit above.** Gate C over every touched doc.
+- [ ] **Step 2: Final commit (gate D over prose):**
 
 ```bash
 git add -A
-git commit -m "docs: mark slice-2 graph-expanded retrieval built; record results
-
-AI-Used: [claude]"
+git commit -m "$(printf 'docs: mark slice-2 graph-expanded retrieval built; record results\n\nAI-Used: [claude]')"
 ```
 
 ## Self-Review
 
-**1. Spec coverage:** research §4 Stage 1 (expand seed by traversing vaultgraph 1–2 hops before clustering) → Tasks 1–2; success criterion (surface bridge, lift over cosine-only, reference-based not LLM-judge) → Task 4; design §1b row 2 (traverse slice-1 edges, transitive case) → Tasks 2/4; local-not-global (killed reduce) → honored (no reduce task); link-density caveat → Global Constraints + Task 4 Step 3. Covered.
+**1. Spec coverage:** research §4 Stage 1 (expand seed by BFS 1–2 hops before cluster) → Tasks 1–2; success criterion (surface bridge, reference-based, not LLM-judge) → Task 4 (parses `clusters[].members[].path`); design §1b row 2 (traverse slice-1 edges, transitive) → Tasks 2/4 (edges verified body-traversable); local-not-global → honored; link-density caveat → Constraints + Task 4 Step 3; provenance transparency → Task 3. Covered.
 
-**2. Placeholder scan:** every code step has real Go/Python; every run step has exact command + expected output. Field-name verification is flagged as an execution check, not a placeholder (the structs exist; names confirmed for `compatibleSidecar{note,sidecar}`, `scoredCandidate{basename,...}`, `matchedMember{basename,notePath,vector,sitVec,bodyVec,score,content}`).
+**2. Placeholder scan:** every code step has real Go/Python against **verified** struct fields (see "Verified code facts"); every run step has exact command + expected output. No deferred "verify field names" placeholder remains.
 
-**3. Type consistency:** `expandSeedsViaGraph(notes, seeds, hitByBasename, hops, capacity) []matchedMember` consistent across Tasks 1–2; `QueryArgs.GraphExpandHops`, `defaultGraphExpandHops`, `provenanceGraphExpanded` consistent; `BFSWithCap`/`BuildGraph` signatures match `internal/vaultgraph`.
+**3. Type consistency:** `graphBridgeBasenames(notes, seeds, hops, capacity) []string` (Task 1) → consumed in Task 2; `buildBridgeMembers(bridges, hitByBasename) []matchedMember`; `matchedMember.graphExpanded` (Task 2) → `queryClusterMember.GraphExpanded` (Task 3); `QueryArgs.GraphExpandHops` + `defaultGraphExpandHops`; `pathOf`/`matchSetCap` reused as defined.
 
-**Known accepted risk:** the end-to-end proof depends on (a) the bridge being genuinely cosine-distant from the query and (b) the chain edges existing — both controlled by the fixture. If real-vault link density is low, the value is bounded (honest-caveat constraint); the deterministic query-level test still proves the *mechanism* works where edges exist.
+**Known accepted risk:** the proof depends on the bridge being genuinely cosine-distant from the query and the chain edges existing — both controlled by the fixture. Low real-vault link density bounds the value honestly (caveat constraint); the deterministic integration test still proves the mechanism where edges exist.
