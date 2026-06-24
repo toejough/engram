@@ -18,18 +18,23 @@ trivial, running them on haiku isolates haiku's **recall+apply** quality. The pr
 
 ## Method
 
-Run each value-criterion warm harness on **haiku**, n=5, and compare to this session's opus baseline
-(all clean: C3 25/25, C4 warm-XXp 5/5, C5 5/5, C6 5/5+5/5):
+Run each value-criterion warm harness on **haiku**, n=5, and compare to this session's opus baseline.
+**Baseline (same capped binary, 2026-06-24, EXPERIMENT-LOG "Capped engram C1–C6"):** C3 25/25
+(`/tmp/cap-c3-warm.log`), C4 warm-XXp 5/5 (`/tmp/cap-c4-full.log`), C5 honored 5/5
+(`/tmp/cap-c5-full.log`), C6 warm 3/3+3/3 = 6/6 hits at n=3 (`/tmp/cap-c6-warm.log`). The opus
+baseline is the *same binary* (cap on), so the contrast is same-build. (Gold standard if results are
+marginal: co-run opus n=5 in the same batch — do that only if haiku lands within ~1 of the floor.)
 
 | criterion | harness | what it tests in recall |
 |-----------|---------|--------------------------|
 | C4 | `c4_idio.py --model haiku` (cold, warm-X, warm-XXp) | Step 2.5-B recency-weighting (pick the superseding standard) |
 | C5 | `c5.py --model haiku` (cold, warm) | recency-channel surfacing + apply |
 | C3 | `wrun.py --model haiku` (warm, seeded vault `/tmp/cap-c3/vault`) | convention surfacing + apply |
-| C6 | `c6_clean.py --arm warm --model? ` — note: c6_clean is opus-pinned; run via c6_clean if it accepts a model, else skip C6 (synthesis is the least judge-sensitive) | reason over recalled facts |
+| C6 | `c6_clean.py` is opus-pinned: add a ~4-line `--model` patch (thread `a.model` into the two `rr._run(..., "opus")` calls; **judge stays sonnet**, independent of the model under test), then `--arm warm --model haiku`. If the patch is non-trivial, skip C6 and record N/A (synthesis is the least judge-sensitive). | reason over recalled facts |
 
-Record per criterion: pass count, total $, mean turns/time. Cap is live (default 15), so recall runs
-capped on haiku too.
+Record per criterion: pass count, total $, mean turns/time. **The cap is binary-side** (`engram query`
+applies `content-budget=15` regardless of which model the agent is), so haiku recalls run capped by
+construction — verified: a query reports `content_budget: 15` independent of caller.
 
 ## Verdict rule (locked, noise-aware)
 
@@ -39,6 +44,11 @@ capped on haiku too.
   on haiku** (escalate to sonnet).
 - Report **both axes**: quality table + cost/time delta vs opus. Do not crown haiku on cost alone if
   C4/C5 slip (metric-sensitivity).
+- **A VIABLE call at n=5 is DIRECTIONAL, not decisive** — at n=5 a clean pass can be a lucky draw
+  (haiku has flipped −38%→−23% from n=1→n=20 historically). If haiku lands VIABLE, label it
+  directional and **confirm at n=10** on C4+C5 before committing L1 to production.
+- **The per-phase $ split remains unmetered** (round-2 finding): the cost delta here is whole-op;
+  this gate decides feasibility, not L1's $ ranking.
 
 ## Steps
 
