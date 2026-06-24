@@ -25,10 +25,13 @@ A single `/recall` on a normal ask produced:
 
 - **A 5 965-line query payload — 383 items carried with full content** (`--limit 20`, but cluster
   *members* carry full chunk text regardless of the limit). The agent reads all of it.
-- **`engram show` fan-out** — Step 2.5 issues one blocking `engram show` per `candidate_l2` across
-  every cluster (0 here because the clusters were chunk-only; K per note-rich recall).
-- **A fixed 10-phrase query** → top-30 per phrase, unioned to ~300 matched items.
-- **The recall `SKILL.md` (~250 lines) reloaded on every invocation.**
+- **A second full-content source: the recency channel** appends up to **200 newest chunks** with full
+  text (`recentFillChunks = 200`), in `items[]` but NOT cluster members — a large slice of those 383.
+- **`engram show` fan-out** — Step 2.5 issues one blocking `engram show` per candidate note *not
+  already surfaced in `items[]`* (0 on this recall — chunk-only clusters). The skill already skips
+  `show` for surfaced members, so the residual fan-out is modest, but non-zero on note-rich recalls.
+- **A fixed 10-phrase query** → top-30 matches per phrase, unioned to ~300 matched items.
+- **The recall `SKILL.md` (285 lines) reloaded on every invocation.**
 - **The full cycle runs even when memory is silent** — this very recall surfaced 0 note-clusters
   and crystallized 0 lessons, yet ran the entire 7-step procedure.
 
@@ -42,12 +45,13 @@ Each: the mechanism, the driver it attacks, expected savings on **both** axes, r
 ### Option 1 — Cap full-content in the query payload (content budget)  · **CONTENDER**
 
 **Mechanism.** `engram query` returns full content only for each cluster's *representative* + the
-top-`--limit` direct hits; all other members return path + score + a one-line snippet. Add a
-`--content-budget` (chars/items) the agent can dial.
+top-`--limit` direct hits; all other members **and the ~200 recency-channel chunks** return path +
+score + a one-line snippet. Add a `--content-budget` (chars/items) the agent can dial.
 
-- **Driver:** the 383-full-item / 5 965-line payload — the largest single sink.
+- **Driver:** the 383-full-item / 5 965-line payload (cluster members **+ the 200-chunk recency
+  channel**) — the largest single sink. The mechanism must trim both, not just cluster members.
 - **Tokens:** large win — a recall payload could drop from ~40–60 K tokens to ~5–10 K (~75–85%).
-- **$ / time:** proportional; this is the highest-leverage lever because it hits *every* recall.
+- **$ / time:** proportional; highest-leverage because it hits *every* recall.
 - **Risk:** low–medium. The agent loses the ability to read every member inline; it must
   `engram show` a member it wants in full (rare — representatives usually suffice). Validate that
   coverage/synthesis quality (C3/C6) holds with snippet-only members.
@@ -87,8 +91,9 @@ Recall is mechanical curation; spending opus tokens to read 383 items is the was
 union and everything downstream.
 
 - **Driver:** the 10-phrase fan → ~300-item union.
-- **Tokens / $ / time:** linear-ish in matched-set size, but **dominated by Option 1** — capping
-  content makes payload size far less sensitive to phrase count. Marginal once O1 lands.
+- **Tokens / $ / time:** rough ~30–50% fewer matched items (3–5 vs 10 phrases) *before* O1, but
+  **dominated by Option 1** — capping content makes payload size far less sensitive to phrase count,
+  shrinking this to a marginal few-K tokens once O1 lands.
 - **Risk:** medium — fewer phrases = lower recall; C5 recency depends on a topically-distant phrase
   catching R. Could silently drop the very hits memory exists to surface.
 - **Effort:** low (skill edit) — but **only test after O1**, since O1 removes most of its upside.
@@ -100,8 +105,8 @@ matches) decides whether to run the full clustering+show+synthesis procedure. Be
 trivially-scoped ask, skip to a one-line "memory silent" and proceed.
 
 - **Driver:** the full 7-step cycle running when memory is silent (e.g. this session's recall).
-- **Tokens / $ / time:** win concentrated on *silent* recalls (skip the whole payload read); zero
-  benefit when memory is rich.
+- **Tokens / $ / time:** on a *silent* recall, near-total (skip the whole ~40–60 K payload read);
+  zero benefit when memory is rich. Net savings scale with how often recalls come back silent.
 - **Risk:** higher — a mis-tuned gate skips recall *exactly* when a subtle-but-present memory would
   have helped (the failure mode the recall skill's red-flags table was built to prevent). Cuts
   against the "always recall" discipline; needs a conservative floor + measurement of false skips.
@@ -119,12 +124,14 @@ trivially-scoped ask, skip to a one-line "memory silent" and proceed.
 | 4 | Fewer phrases | ↓ | ↓ | med | low | PARK (after O1) |
 | 5 | Conditional recall gate | ↓ | ↓ | higher | med | PARK |
 
-**Recommendation within the set:** start with **O1 + O2** (one coherent payload change — biggest
-token lever, lowest risk), then **O3** for the **$** axis (orthogonal — moves the same work to a
+*Arrows = expected magnitude, unvalidated: ↓ small · ↓↓ medium · ↓↓↓ large. `~` = no change on that axis.*
+
+**Recommendation (next step, not part of the brainstorm):** start with **O1 + O2** (one coherent payload change — biggest
+token win, lowest risk), then **O3** for the **$** axis (orthogonal — moves the same work to a
 cheaper model). O4/O5 are parked: O4 is largely subsumed by O1; O5 trades the most cost-cutting
 potential on silent recalls against the highest risk of skipping useful memory.
 
-## How to validate (non-negotiable)
+## How to validate (next step, not part of the brainstorm — non-negotiable when building any option)
 
 - Report **both axes** every time ($ and tokens, plus wall time) — never collapse to one number.
   Setup/seed cost is separated from per-recall payback.
