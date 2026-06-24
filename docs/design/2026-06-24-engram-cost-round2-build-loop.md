@@ -2,6 +2,9 @@
 
 **Date:** 2026-06-24 · **Status:** brainstorm (5 levers to evaluate, not decisions)
 **Builds on:** `2026-06-24-engram-cost-reduction-options.md` (round 1 — Option 1 content cap, shipped).
+Round-1 **O3** (cheaper model for recall/learn) is re-motivated here as **L1**. Round-1 **O2** (inline
+candidate notes to drop `engram show`) is a *distinct* time lever — related to **L2** (it also cuts
+recall round-trips) but not the same change; it remains available and is not superseded.
 
 ## What round 1 taught us
 
@@ -91,8 +94,9 @@ trims rounds (warm build < cold); push further by feeding recalled conventions i
 **hard requirements / a checklist** the first draft must satisfy, not advisory prose — fewer feedback
 rounds = fewer code-gen turns = less $.
 
-- **$:** **medium–large** — each saved round is a whole generation turn (the bulk of op cost). This is
-  the lever aimed squarely at the measured cost driver.
+- **$:** **medium–large, but inferred** — each saved round is a whole generation turn, and the build
+  is where the tokens concentrate; this is aimed at the *likely* cost driver, but "build = the $ sink"
+  is itself an inference until the per-phase $ split is metered (validation).
 - **time:** medium — fewer build rounds.
 - **Risk:** medium — over-constraining can cause churn. **Trigger:** measure rounds-to-converge AND
   pass-rate; if rounds drop but pass-rate falls, the handoff is too rigid.
@@ -117,13 +121,14 @@ easy turns to a cheap model.
 | # | Lever | axis | $ | time | risk | effort | rating |
 |---|-------|------|---|------|------|--------|--------|
 | 1 | Cheaper model for recall+learn | time | ? | ↓↓ | med | med | **CONTENDER** |
-| 2 | Trim recall procedure steps | time | ↓ | ↓↓ | med | low–med | **CONTENDER** |
-| 3 | Async/batched learn (variant a) | time | ↓ | ↓↓ | low | med | **CONTENDER** |
-| 4 | Hard-requirement handoff (fewer build rounds) | **$** | ↓↓ | ↓↓ | med | med | **CONTENDER** |
-| 5 | Tier the build model | **$** | ↓↓↓? | ↓↓ | higher | high | PARK |
+| 2 | Trim recall procedure steps | time | ? | ↓↓ | med | low–med | **CONTENDER** |
+| 3 | Async/batched learn (variant a) | time | ? | ↓↓ | low | med | **CONTENDER** |
+| 4 | Hard-requirement handoff (fewer build rounds) | **$** | ↓↓? | ↓↓ | med | med | **CONTENDER** |
+| 5 | Tier the build model | **$** | ↓↓↓? | ↓↓ | higher | high | DEFER (pending L4 + the $ meter) |
 
-*↓ small · ↓↓ medium · ↓↓↓ large (expected, unvalidated). `?` = effect depends on an unmeasured
-per-phase $ split.*
+*↓ small · ↓↓ medium · ↓↓↓ large (expected, unvalidated). `?` = effect depends on the unmeasured
+per-phase $ split — every $ cell here is an inference from token distribution, not metered. DEFER =
+high-potential but blocked on prior work, not ruled out.*
 
 **Recommendation (next step, not part of the brainstorm):** **instrument the per-phase $ split first**
 (cheap, deterministic — meters recall vs build vs learn cost) so the $ levers can be aimed with data,
@@ -133,10 +138,10 @@ split exists; L5 is parked on effort + attribution risk.
 
 ## How to validate (non-negotiable)
 
-- **First, meter the per-phase $ split** — this whole doc's $ claims are inferences until then. It is
-  the cheapest, highest-value next step.
-- Report **both axes** ($ and wall-time) end-to-end per lever; round 1's lesson is that a proxy win
-  (payload tokens) need not be an end-to-end win.
+- **First, meter the per-phase $ split** (recall vs build vs learn) — every $ claim in this doc is an
+  inference until then, and it's the cheapest, highest-value next step. Then report **both axes** ($
+  and wall-time) end-to-end per lever; round 1's lesson is that a proxy win (payload tokens) need not
+  be an end-to-end win.
 - For any "cheaper variant is as good" claim (L1, L5), **test where it bites** — C4 supersession + C5
   recency — not a quality-blind metric; honor each lever's operational trigger above.
 - A/B against the current capped recall on C3–C6 (quality holds) AND the cumulative chain (cost drops).

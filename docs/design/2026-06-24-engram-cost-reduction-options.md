@@ -199,4 +199,4 @@ keeps the top-15 chunks full as headroom.
 **→ Round 2:** the capped C1–C6 re-run showed the −61% payload cut did NOT move end-to-end C1/C2 —
 recall payload is not the bottleneck. The follow-up levers (procedure overhead for time, the build
 loop for $) live in `2026-06-24-engram-cost-round2-build-loop.md`. O2/O3 from this doc are folded
-there as L2/L1.
+there: O3→L1 (cheaper model). O2 (inline notes) is related to L2 but distinct, and still available.
