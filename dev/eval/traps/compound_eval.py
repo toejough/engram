@@ -19,19 +19,26 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import compound_fixtures as cfix
-from run import MODELS
-from wrun import build_warm_cfg, _slug, RECALL_PREFIX
+from run import MODELS, build_cold_cfg
+from wrun import build_warm_cfg, _slug
 
 ROOT = os.environ.get("TRAPS_ROOT", "/tmp/compound-eval")
 
 JUDGE_TMPL = (
-    "You are grading whether an answer reaches a specific EMERGENT two-step conclusion.\n\n"
+    "You are grading whether an answer reaches a specific EMERGENT conclusion that depends on "
+    "IDIOSYNCRATIC remembered facts — not on general knowledge.\n\n"
     "QUESTION:\n{task}\n\n"
-    "REQUIRED EMERGENT CONCLUSION (the answer must reach this by combining the underlying facts, not "
-    "recite one of them):\n{E}\n\n"
+    "REQUIRED EMERGENT CONCLUSION:\n{E}\n\n"
     "CANDIDATE ANSWER:\n{answer}\n\n"
-    "Does the candidate answer clearly reach the required emergent conclusion (the full causal/transfer "
-    "link, not just one half)? Reply 'HIT' or 'MISS' on the first line, then one sentence.")
+    "Grade strictly:\n"
+    "- HIT only if the answer NAMES the specific idiosyncratic entities/values in the conclusion (the "
+    "exact account names, suffix rules, table names, timings, pattern names — not paraphrases of the "
+    "general shape) AND states the full causal/transfer chain linking them.\n"
+    "- A GENERIC answer that describes the right SHAPE (e.g. 'a suspended account could break the backup', "
+    "'add idempotency', 'watch for capacity limits') WITHOUT the specific remembered tokens is a MISS — "
+    "that's guessable from general knowledge, not synthesis from memory.\n"
+    "- Extra correct reasoning beyond the conclusion is NOT a penalty.\n"
+    "Reply 'HIT' or 'MISS' on the first line, then one sentence naming which specific tokens were/weren't present.")
 
 
 def _run(prompt, cfg, model, vault=None, wd=None):
@@ -60,17 +67,23 @@ def _run(prompt, cfg, model, vault=None, wd=None):
     return out
 
 
-def run_one(stype, arm, scatter, warm_cfg, judge_cfg, idx, tag):
+def run_one(stype, arm, scatter, warm_cfg, cold_cfg, judge_cfg, idx, tag):
     wd = tempfile.mkdtemp(prefix=f"{stype}-{tag}-{idx}-", dir=os.path.join(ROOT, "ws"))
-    vault = os.path.join(wd, "vault")
-    spec = cfix.build(stype, persist=(arm == "persist"), dst=vault, scatter=scatter)
-    out = _run(RECALL_PREFIX + spec["task"], warm_cfg, "opus", vault=vault, wd=wd)
+    spec = cfix.TYPES[stype]
+    if arm == "cold":
+        # no memory, no vault, no recall prefix — same open-ended question. Leakage control:
+        # if cold reaches E, the fixture is guessable, not memory-required.
+        out = _run(spec["task"], cold_cfg, "opus", wd=wd)
+    else:
+        vault = os.path.join(wd, "vault")
+        cfix.build(stype, persist=(arm == "persist"), dst=vault, scatter=scatter)
+        out = _run(cfix.NEUTRAL_PREFIX + spec["task"], warm_cfg, "opus", vault=vault, wd=wd)
     answer = out.get("result") or ""
     j = _run(JUDGE_TMPL.format(task=spec["task"], E=spec["E"], answer=answer or "(none)"), judge_cfg, "sonnet")
     hit = (j.get("result") or "").strip().upper().startswith("HIT")
     return {"stype": stype, "arm": arm, "tag": tag, "idx": idx, "hit": hit,
             "cost": (out.get("total_cost_usd", 0) or 0) + (j.get("total_cost_usd", 0) or 0),
-            "answer": answer[:200]}
+            "answer": answer, "wd": wd}
 
 
 def _rate(results, stype, tag):
@@ -89,35 +102,37 @@ def main():
 
     os.makedirs(os.path.join(ROOT, "ws"), exist_ok=True)
     warm_cfg = os.path.join(ROOT, "warm-cfg"); build_warm_cfg(warm_cfg)
+    cold_cfg = os.path.join(ROOT, "cold-cfg"); build_cold_cfg(cold_cfg)
     judge_cfg = os.path.join(ROOT, "judge-cfg"); build_warm_cfg(judge_cfg)  # clean cfg for the judge
 
     jobs = []
     for t in types:
+        jobs += [(t, "cold", i, "cold") for i in range(a.n)]               # leakage control
         jobs += [(t, "no-persist", i, "nopersist") for i in range(a.n)]
         jobs += [(t, "persist", i, "persist") for i in range(a.n)]
-        jobs += [(t, "no-persist", i, "nopersist2") for i in range(a.n)]   # noise floor
-    print(f"compound RED (2-level emergent): types={types} scatter={a.scatter} n={a.n} = {len(jobs)} trials")
+    print(f"compound (non-leading, 3-arm): types={types} scatter={a.scatter} n={a.n} = {len(jobs)} trials")
 
     results = []
     with cf.ThreadPoolExecutor(max_workers=a.workers) as ex:
-        futs = {ex.submit(run_one, t, arm, a.scatter, warm_cfg, judge_cfg, i, tag): (t, tag, i)
+        futs = {ex.submit(run_one, t, arm, a.scatter, warm_cfg, cold_cfg, judge_cfg, i, tag): (t, tag, i)
                 for t, arm, i, tag in jobs}
         for fut in cf.as_completed(futs):
             r = fut.result(); results.append(r)
             print(f"  [{r['stype']:11} {r['tag']:11} #{r['idx']}] hit={r['hit']} ${r['cost']:.2f}")
 
-    print(f"\n=== COMPOUND RED — 2-level emergent-synthesis hit rate (scatter={a.scatter}) ===")
-    print(f"{'type':12} {'no-persist':>12} {'persist':>12} {'Δ(pp)':>7} {'noise(pp)':>10}")
+    print(f"\n=== COMPOUND (non-leading) — emergent-synthesis hit rate (scatter={a.scatter}) ===")
+    print(f"{'type':12} {'cold':>10} {'no-persist':>12} {'persist':>12} {'Δ persist-nopersist':>20}")
     for t in types:
+        ch, cn = _rate(results, t, "cold")
         nh, nn = _rate(results, t, "nopersist"); ph, pn = _rate(results, t, "persist")
-        b2h, b2n = _rate(results, t, "nopersist2")
+        cpr = 100 * ch / cn if cn else 0
         npr = 100 * nh / nn if nn else 0
         ppr = 100 * ph / pn if pn else 0
-        floor = abs(npr - (100 * b2h / b2n if b2n else 0))
-        print(f"{t:12} {f'{nh}/{nn} ({npr:.0f}%)':>12} {f'{ph}/{pn} ({ppr:.0f}%)':>12} "
-              f"{ppr - npr:>+6.0f} {floor:>9.0f}")
+        print(f"{t:12} {f'{ch}/{cn} ({cpr:.0f}%)':>10} {f'{nh}/{nn} ({npr:.0f}%)':>12} "
+              f"{f'{ph}/{pn} ({ppr:.0f}%)':>12} {ppr - npr:>+18.0f}")
+    print("(cold must be ~0 or the fixture LEAKS — E is guessable, not memory-required)")
     print(f"\ntotal spend: ${sum(r['cost'] for r in results):.2f}")
-    json.dump(results, open(os.path.join(ROOT, f"compound-red-{'-'.join(types)}.json"), "w"), indent=1)
+    json.dump(results, open(os.path.join(ROOT, f"compound-nl-{'-'.join(types)}.json"), "w"), indent=1)
 
 
 if __name__ == "__main__":

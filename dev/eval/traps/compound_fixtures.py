@@ -20,6 +20,13 @@ import os
 import shutil
 import subprocess
 
+# Neutral recall trigger — invokes /recall and answers, but does NOT instruct the agent to
+# compose/synthesize (the recall skill itself never does). Used instead of wrun.RECALL_PREFIX
+# (which is code/convention-flavored) so the tasks fairly test unprompted reasoning.
+NEUTRAL_PREFIX = (
+    "Before answering, INVOKE your /recall skill and read every note it surfaces. Then answer the "
+    "question using what you recall. Question:\n\n")
+
 # Each type: raw notes A,B,D (for no-persist); stored_C (added for persist, the emergent level-1
 # conclusion); the level-2 task; and E (the emergent level-2 conclusion, for the judge).
 TYPES = {
@@ -36,8 +43,9 @@ TYPES = {
         "stored_C": ("during-drill-no-secrets", "during the Tuesday failover drill",
                      "the production secrets store becomes unreadable",
                      "because vault-7, its only reader, is suspended"),
-        "task": ("Is the Tuesday 02:00 nightly compliance backup at risk of failing? Using ONLY your "
-                 "recalled memory, explain precisely why or why not."),
+        "task": ("We rely on the nightly compliance backup as our audit safety net. Is there any "
+                 "situation where it would silently fail to capture the data? Be specific about when "
+                 "and why."),
         "E": ("YES — the Tuesday 02:00 compliance backup is at risk: the Tuesday failover drill suspends "
               "vault-7 (the only account that can read the production secrets store), so prod secrets are "
               "unreadable during the drill window, and the backup must read them at 02:00 — so it fails if "
@@ -55,8 +63,8 @@ TYPES = {
         ],
         "stored_C": ("qm-writes-shard-d", "enabling the qm-rollout flag",
                      "causes transaction writes to", "the ledger-shard-D table"),
-        "task": ("We are about to enable the qm-rollout flag during peak checkout traffic. Using ONLY your "
-                 "recalled memory, what specific failure should we watch for?"),
+        "task": ("We're about to turn on the qm-rollout flag to ship the checkout improvement. Is there "
+                 "any way this could backfire under heavy load?"),
         "E": ("Enabling qm-rollout routes checkout through v2, which writes every transaction to "
               "ledger-shard-D; at peak traffic those writes can exceed ledger-shard-D's 500/sec cap, so "
               "ledger-shard-D will shed load — watch for dropped/shed transaction writes."),
@@ -73,8 +81,8 @@ TYPES = {
         ],
         "stored_C": ("bloom-is-standard", "the trace-id seen-traces bloom-filter dedupe",
                      "is our standard idempotency pattern", "for stopping duplicate sends across services"),
-        "task": ("The billing-export service is double-sending on retries and we need a fix. Using ONLY "
-                 "your recalled memory of how we solved this elsewhere, propose the fix."),
+        "task": ("The billing-export service has started double-sending on retries. How should we "
+                 "approach fixing this?"),
         "E": ("Apply our standard trace-id seen-traces bloom-filter dedupe (the same pattern used for "
               "payments and webhooks) to billing-export: check each export's trace-id against the bloom "
               "filter and skip any retry already present."),
@@ -124,10 +132,10 @@ LADDER_LEVELS = [
     },
 ]
 LADDER_TASKS = {
-    1: "During the Tuesday failover drill, is the production secrets store readable? Using ONLY recalled memory, explain.",
-    2: "Is the Tuesday 02:00 nightly compliance backup at risk? Using ONLY recalled memory, explain precisely why.",
-    3: "On a week the Tuesday failover drill runs, what will the on-call engineer experience at 02:00, and why? Use ONLY recalled memory.",
-    4: "If we keep running the failover drill every Tuesday, what recurring incident will it end up causing, and why? Use ONLY recalled memory.",
+    1: "Are there any times when our production secrets store can't be read? If so, when and why?",
+    2: "We rely on the nightly compliance backup as our audit safety net. Is there any situation where it would silently fail?",
+    3: "Our on-call engineers have been complaining about recurring mystery pages. Is there a systematic cause tied to our operations?",
+    4: "We run the failover drill every Tuesday as standard practice. Is there a long-term incident-management consequence building up that we may not be tracking?",
 }
 
 

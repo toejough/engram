@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import compound_fixtures as cfix
 from compound_eval import _run, JUDGE_TMPL
 from run import MODELS
-from wrun import build_warm_cfg, _slug, RECALL_PREFIX
+from wrun import build_warm_cfg, _slug
 
 ROOT = os.environ.get("TRAPS_ROOT", "/tmp/compound-depth")
 
@@ -30,7 +30,7 @@ def run_one(depth, arm, scatter, warm_cfg, judge_cfg, idx, tag):
     wd = tempfile.mkdtemp(prefix=f"d{depth}-{tag}-{idx}-", dir=os.path.join(ROOT, "ws"))
     vault = os.path.join(wd, "vault")
     spec = cfix.build_ladder(depth, persist=(arm == "persist"), dst=vault, scatter=scatter)
-    out = _run(RECALL_PREFIX + spec["task"], warm_cfg, "opus", vault=vault, wd=wd)
+    out = _run(cfix.NEUTRAL_PREFIX + spec["task"], warm_cfg, "opus", vault=vault, wd=wd)
     answer = out.get("result") or ""
     j = _run(JUDGE_TMPL.format(task=spec["task"], E=spec["E"], answer=answer or "(none)"), judge_cfg, "sonnet")
     hit = (j.get("result") or "").strip().upper().startswith("HIT")

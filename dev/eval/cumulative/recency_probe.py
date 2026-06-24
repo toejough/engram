@@ -78,13 +78,18 @@ def parse_recent_channel(payload_yaml_str):
 
 
 def recent_channel_surfaced(payload_yaml_str, target_note_basename):
-    """True if target_note_basename appears in the recent channel."""
+    """True if target_note_basename appears in the recent channel.
+
+    Chunk paths carry a '#anchor' suffix (e.g. 'R-decision.md#Section title'); notes do not.
+    Strip the anchor before matching so a chunk source matches on its filename, not the whole
+    path-with-anchor."""
     items = parse_recent_channel(payload_yaml_str)
     for item in items:
         path = item.get("path", "")
         base = path.split("/")[-1]
-        base_no_ext = base[:-3] if base.endswith(".md") else base
-        if target_note_basename in (path, base, base_no_ext):
+        base_no_anchor = base.split("#", 1)[0]          # drop chunk #anchor
+        base_no_ext = base_no_anchor[:-3] if base_no_anchor.endswith(".md") else base_no_anchor
+        if target_note_basename in (path, base, base_no_anchor, base_no_ext):
             return True
     return False
 
