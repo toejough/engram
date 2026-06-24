@@ -352,3 +352,14 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   op ~14%. **Verdict (user): not worth two skills + dispatch + contract + crystallization-quality risk
   — rolled back.** Lesson: only split a skill across models when the delegated part is a LARGE share of
   op cost. The cost lever remains the BUILD (round-2 L4), not recall.
+- **2026-06-24** — **Lever 4 (checklist handoff) A/B — DIRECTIONAL, not a confirmed win.** Added the
+  `real.checklist` regime (recalled conventions as a gating self-verification checklist before finish)
+  and A/B'd vs `real.full` (soft handoff) on sonnet n=5 (`/tmp/l4-sonnet`). Per-cell rounds-to-converge:
+  soft **2.5 ± 1.59 SD** (n=14, 1 DNF), checklist **2.0 ± 0.37 SD** (n=15). Pass-rate (arch/10) held
+  9.86→9.60; cost flat ($38 vs $42). **Verdict:** the mean-rounds reduction (−0.5) is INSIDE soft's
+  1-SD noise floor → can't-distinguish at n=5, not the >1-SD win the rule required. The ONE notable
+  signal is **variance collapse (SD 1.59→0.37)**: the checklist makes convergence much more *consistent*
+  (kills the ragged 4-5-round tail) even though the mean barely moves. **Opus payoff stays formally
+  OPEN** — sonnet has 2-3 rounds to cut; opus one-shots (saturated), so even less headroom; a sonnet
+  directional result doesn't transfer. Cost overrun: ~$80 (est. $25-35) — sonnet ≈ opus cost on these
+  builds (warm build cost is model-insensitive; the cost-parity flag from gate-A was right).
