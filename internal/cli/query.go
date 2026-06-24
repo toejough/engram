@@ -29,9 +29,10 @@ type QueryArgs struct {
 	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 	// ContentBudget caps how many chunk items (in rank order) render with full
-	// content; later chunks get a one-line snippet. 0 = unlimited. Notes are
-	// never capped. env= lets the recall sweep inject the cap without a skill edit.
-	ContentBudget int `targ:"flag,name=content-budget,env=ENGRAM_CONTENT_BUDGET,desc=max chunk items with full content (0=unlimited); later chunks get a snippet"` //nolint:lll // single unbreakable struct-tag string
+	// content; later chunks get a one-line snippet. 0 = baked default (15);
+	// negative = unlimited. Notes are never capped. env= lets the recall sweep
+	// inject the cap without a skill edit.
+	ContentBudget int `targ:"flag,name=content-budget,env=ENGRAM_CONTENT_BUDGET,desc=max chunk items with full content (0=default 15; negative=unlimited); later chunks get a snippet"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -97,7 +98,11 @@ const (
 	clusterMaxK            = 7
 	clusterMinK            = 2
 	clusterSilhouetteFloor = 0.10
-	defaultQueryLimit      = 20
+	// defaultContentBudget is the baked default chunk content cap (top-N by
+	// rank kept full). At the cost/quality knee with headroom for long-chunk
+	// recalls the eval harnesses don't probe (Option 1 results, 2026-06-24).
+	defaultContentBudget = 15
+	defaultQueryLimit    = 20
 	// matchPhraseLimit is the maximum number of candidates (notes + chunks
 	// combined) taken per phrase before union across phrases. Bounds
 	// clustering at O(matchSetCap^2) regardless of corpus size.
@@ -586,10 +591,6 @@ func buildRecentFillItems(
 	return out
 }
 
-// capChunkContent keeps the first `budget` chunk items (in rank order) at full
-// content and replaces later chunks' content with a snippet. Note items are
-// never capped. budget <= 0 disables capping. Returns the (mutated) items and
-// the number of chunks snippeted.
 func capChunkContent(items []queryItem, budget int) ([]queryItem, int) {
 	if budget <= 0 {
 		return items, 0
@@ -1295,7 +1296,7 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems, merged.outgoing)
 	clusters := renderClusters(merged.phraseClusters)
 
-	items, snipped := capChunkContent(items, merged.contentBudget)
+	items, snipped := capChunkContent(items, resolveContentBudget(merged.contentBudget))
 	// Full content = items still carrying their complete text — snippeted
 	// chunks retain (truncated) content, so exclude them from the count.
 	contentful := countItemsWithContent(items) - snipped
@@ -1321,7 +1322,7 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 			DirectHitsReturned:   directCount,
 			ItemsWithFullContent: contentful,
 			Limit:                merged.limit,
-			ContentBudget:        merged.contentBudget,
+			ContentBudget:        resolveContentBudget(merged.contentBudget),
 			ChunksSnippeted:      snipped,
 		},
 	}
@@ -1342,6 +1343,21 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	}
 
 	return nil
+}
+
+// capChunkContent keeps the first `budget` chunk items (in rank order) at full
+// content and replaces later chunks' content with a snippet. Note items are
+// never capped. budget <= 0 disables capping. Returns the (mutated) items and
+// the number of chunks snippeted.
+// resolveContentBudget maps the raw flag/env value to the effective cap:
+// 0 (unset) → the baked default; negative → unlimited (no-op in capChunkContent);
+// positive → that explicit cap.
+func resolveContentBudget(raw int) int {
+	if raw == 0 {
+		return defaultContentBudget
+	}
+
+	return raw
 }
 
 // resolvedItemLess compares two items by F7 rules: provenance count

@@ -49,6 +49,18 @@ func TestCapChunkContent_ZeroBudgetIsNoOp(t *testing.T) {
 	g.Expect(snipped).To(Equal(0))
 }
 
+// TestResolveContentBudget_DefaultsAndOverrides verifies the default-bake logic:
+// unset (0) → the baked default; negative → unlimited (0 = no-op); positive → itself.
+func TestResolveContentBudget_DefaultsAndOverrides(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportResolveContentBudget(0)).To(Equal(cli.ExportDefaultContentBudget), "unset → default")
+	g.Expect(cli.ExportResolveContentBudget(8)).To(Equal(8), "positive → itself")
+	g.Expect(cli.ExportResolveContentBudget(-1)).To(BeNumerically("<=", 0), "negative → unlimited (no-op)")
+}
+
 // TestSnippet_CollapsesAndTruncates verifies the snippet algorithm.
 func TestSnippet_CollapsesAndTruncates(t *testing.T) {
 	t.Parallel()

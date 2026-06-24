@@ -9,6 +9,11 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+// Exported constants.
+const (
+	ExportDefaultContentBudget = defaultContentBudget
+)
+
 // Exported variables.
 var (
 	ErrCheckFailedForTest              = errCheckFailed
@@ -347,6 +352,11 @@ func ExportProvenanceRankFor(role string) int { return provenanceRankFor(role) }
 
 // ExportRecencyFloor exposes the floor field of recencyParams for tests.
 func ExportRecencyFloor(p recencyParams) int { return p.floor }
+
+// ExportResolveContentBudget exposes resolveContentBudget for tests.
+func ExportResolveContentBudget(raw int) int {
+	return resolveContentBudget(raw)
+}
 
 // ExportResolvedItemBaseScore exposes the pre-decay baseScore field for
 // activation-cutoff and band assertions (populated by Task 2.3).

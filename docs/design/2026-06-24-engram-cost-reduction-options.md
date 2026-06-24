@@ -190,3 +190,8 @@ more aggressive than the blind spot warrants — **and that caveat applies at de
 lean on long, lower-ranked chunks (chunk #9+), these tests would not have caught the degradation.
 **Baking a default is gated on user sign-off:** confirm acceptance of the blind-spot risk at
 production scale before changing the shipped default (the ask was find + report, not ship).
+
+**BAKED (2026-06-24, user-approved):** the shipped default is now **`content-budget = 15`** (≈−61%
+on every recall; `0` resolves to 15, negative = unlimited). A no-budget recall reports
+`content_budget: 15` and snippets the long tail of chunks. The blind-spot caveat above stands — 15
+keeps the top-15 chunks full as headroom.
