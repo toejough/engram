@@ -34,8 +34,8 @@ def main():
     argv, root, rx = CRIT[a.crit]
     env = dict(os.environ)
     env["TRAPS_ROOT"] = root
-    if a.budget > 0:
-        env["ENGRAM_CONTENT_BUDGET"] = str(a.budget)
+    # Pass the cap through unconditionally: -1 = unlimited baseline (0 now resolves to the default 15).
+    env["ENGRAM_CONTENT_BUDGET"] = str(a.budget)
     cmd = argv + ["--n", str(a.n)]
     print(f"[{a.crit} budget={a.budget} n={a.n}] {' '.join(cmd)}")
     r = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=os.path.dirname(__file__) or ".")

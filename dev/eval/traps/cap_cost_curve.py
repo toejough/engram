@@ -25,7 +25,7 @@ PHRASES = [
     "noise floor underpowered eval gap below noise",
     "engram cost reduction option 1 cap payload content",
 ]
-BUDGETS = [0, 60, 30, 15, 8, 4, 2]
+BUDGETS = [-1, 60, 30, 15, 8, 4, 2]  # -1 = unlimited (0 now resolves to the baked default 15)
 CHARS_PER_TOKEN = 4  # stated proxy, not a real tokenizer
 
 
@@ -34,7 +34,7 @@ def run(budget):
     for p in PHRASES:
         args += ["--phrase", p]
     env = dict(os.environ)
-    env["ENGRAM_CONTENT_BUDGET"] = str(budget)
+    env["ENGRAM_CONTENT_BUDGET"] = str(budget)  # -1 = unlimited; 0 would resolve to the default
     out = subprocess.run(args, capture_output=True, text=True, env=env).stdout
     nbytes = len(out.encode())
     full = _budget_field(out, "items_with_full_content")
