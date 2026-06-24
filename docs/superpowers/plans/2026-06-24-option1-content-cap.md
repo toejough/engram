@@ -94,7 +94,9 @@ injecting `ENGRAM_CONTENT_BUDGET` into the agent subprocess env).
   high budget (snippet drops R's marker), the knee is high / savings modest — report that as the
   finding (the "sensible lower bound" escape), not a failure to hide.
 
-### Task 4: Report (bake is a separate, user-gated step)
+### Task 4: Report (bake is a separate, user-gated step) — DONE
+
+> Results in `docs/design/2026-06-24-engram-cost-reduction-options.md` (Option 1 — BUILT & measured) and the EXPERIMENT-LOG. Knee = budget 8 (−63%); recommend 15–30 default; bake pending user sign-off.
 
 - [ ] Produce the **labeled result table** (template below). Do NOT change the shipped default.
 - [ ] Recommend the knee as the default; ask the user to approve baking it (then a one-line change of

@@ -1,6 +1,6 @@
 # Reducing the token & $ cost of using engram — 5 options
 
-**Date:** 2026-06-24 · **Status:** brainstorm (options to evaluate, not decisions)
+**Date:** 2026-06-24 · **Status:** Option 1 **built + measured** (see end); Options 2–5 brainstorm
 
 ## Why this exists
 
@@ -171,6 +171,9 @@ non-cappable paths/scores/cluster structure/phrases + the never-capped note cont
 | C4 supersession (warm-XXp) | (5/5 prior) | 3/3 | HOLD |
 | C6 abduction (diag+badge) | (8/8 prior) | 3/3 + 3/3 | HOLD |
 
+*Baseline n-values (5/5, 8/8) are from prior sessions; budget-8 rows (3/3) are this session, same
+arms. C5's budget-0 baseline was re-run this session at n=3 (3/3) — apples-to-apples for the canary.*
+
 **Knee:** all four warm arms hold at **budget 8 (−63% tokens)** — = baseline.
 
 **Honest caveat (metric sensitivity).** These harnesses are largely **cap-insensitive by construction**:
@@ -180,7 +183,10 @@ break note-driven or short-chunk-recency recall — they **cannot** detect harm 
 evidence is a *long, lower-ranked chunk*. A budget of 8 keeps only the top-8 chunks full; a general
 recall depending on chunk #9+ would lose that content, and these tests would not catch it.
 
-**Recommendation:** a default of **15–30** (−58 to −61%) captures nearly all the savings while keeping
-15–30 top chunks full as headroom for long-chunk recalls the harnesses don't probe. `8` is
-validated-safe for the current tests but more aggressive than the blind spot warrants. **Baking a
-default is gated on user sign-off** (the ask was find + report, not ship).
+**Recommendation:** a default of **15–30** captures nearly all the savings (−61% at budget 15 vs −63%
+at budget 8 — only ~2% marginal) while keeping 15–30 top chunks full as headroom for long-chunk
+recalls the harnesses don't probe. `8` is validated for the current note-heavy/short-chunk tests but
+more aggressive than the blind spot warrants — **and that caveat applies at deploy:** if real recalls
+lean on long, lower-ranked chunks (chunk #9+), these tests would not have caught the degradation.
+**Baking a default is gated on user sign-off:** confirm acceptance of the blind-spot risk at
+production scale before changing the shipped default (the ask was find + report, not ship).

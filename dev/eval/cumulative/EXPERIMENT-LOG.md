@@ -302,3 +302,11 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   DECISIVE clean wins on idiosyncratic content; C1/C2 remain NEGATIVE (memory adds recall+learn overhead:
   10→21 min, $3.30→$7.89). Every "memory fails" cell turned out to be a non-idiosyncratic fixture, not a
   real loss — confirming the meta-finding.
+- **2026-06-24** — **Option 1 content-cap built + knee sweep.** Shipped `--content-budget N` /
+  `ENGRAM_CONTENT_BUDGET` (caps full-content chunks to top-N by rank; notes never capped; recency
+  trims first; 0=unlimited default). Free cost curve (`cap_cost_curve.py`, payload bytes/4): first cap
+  (60) −53%, budget 8 −63%, floor ~46K (<15 buys ~2-3% more). Quality (`cap_quality.py`, opus warm,
+  n=3): C5 honored 3/3 at budget 8 (=baseline 3/3), C4 supersession 3/3, C6 abduction 3/3+3/3 — all
+  HOLD. Caveat: harnesses are cap-insensitive by construction (notes never capped; C5's R is short) so
+  they can't detect long-chunk-truncation harm — recommend 15–30 default for headroom; bake gated on
+  user sign-off. Data: /tmp/cap_cost_curve.json, /tmp/cap_quality.jsonl.
