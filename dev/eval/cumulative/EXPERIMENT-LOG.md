@@ -310,3 +310,17 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   HOLD. Caveat: harnesses are cap-insensitive by construction (notes never capped; C5's R is short) so
   they can't detect long-chunk-truncation harm — recommend 15–30 default for headroom; bake gated on
   user sign-off. Data: /tmp/cap_cost_curve.json, /tmp/cap_quality.jsonl.
+- **2026-06-24** — **Capped engram C1–C6 (opus n=5, default content-budget=15).** Re-ran the full
+  sweep on the rebuilt binary (warm recalls run capped). Data: `/tmp/cummatrix-opus-cap` (C1/C2),
+  `/tmp/cap-c{3,4,5,6}*` (value criteria). Run cost ~$100 (opus builds dominate; far over the
+  recall-only estimate).
+  - **Value axes hold IDENTICALLY under the cap (quality-neutral):** C3 25/25 warm (cold 0/25, all 5
+    traps flipped, recall fired 5/5); C4 cold-neither 5/5 → warm-X 5/5 → warm-XXp 5/5; C5 cold 0/5 →
+    warm 5/5 surfaced+honored; C6 cold 0/5+0/5 → warm 5/5+5/5. As predicted: load-bearing evidence is
+    in NOTES (never capped), so the chunk cap can't degrade them.
+  - **C1/C2 unchanged within noise.** Per-app warm−cold premium (the memory tax): pre-cap app3
+    +$1.53 → capped app3 +$1.07 (~30% smaller, but inside n=5 opus build-cost noise — NOT a finding).
+    Absolute app3 warm $2.45→$3.40 is confounded (this run drew costlier builds; cold app3 $0.92→$2.33).
+  - **KEY LESSON: recall is NOT the cost bottleneck — the BUILD is.** The cap cuts recall payload −61%
+    (real), but recall is a small slice of each $2–4 build, so end-to-end time/$ barely move. Future
+    cost work must target the build loop (rounds, turns, tokens-per-build), not recall.
