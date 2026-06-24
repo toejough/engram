@@ -56,6 +56,28 @@ does deduction/induction/abduction well given the facts; the lever is delivering
 (memory). This is the clean, contamination-free instrument the messier synthesis/compounding evals
 lacked; build future memory tests on these vetted forms.
 
+## Does RECALL need a reasoning step? (clean A/B, 2026-06-23)
+
+The reasoning tests above prompt for reasoning explicitly and paste premises in-prompt — so they show
+*capability*, not whether the agent reasons **unprompted over recalled memory**. To answer that, a clean
+A/B (`dev/eval/traps/reasoning_recall_eval.py`): premises live in engram notes, the task is open-ended
+(no "reason/compose" instruction), and the only difference is the recall skill — **asis** (current) vs
+**reason** (+ an appended "Step 2.8 — reason over what you recalled"). Isolated warm-vs-warm trials;
+transcripts read by hand.
+
+| abduction case (n=4) | asis | reason |
+|---|---|---|
+| easy / near-deductive (reactor coolant-leak signature) | 4/4 | 4/4 |
+| non-obvious cross-domain (RX-9 readers reject pre-2021 badges → tenured staff locked out) | 4/4 | 4/4 |
+
+**The current recall skill already reasons over recalled memory unprompted** — even the non-obvious
+cross-domain abduction (the agent bridged "RX-9 installed" + "RX-9 rejects pre-2021 badges" via
+badge-age↔tenure, and rejected its own prior guesses). The explicit reasoning step adds nothing.
+Verified by reading transcripts (genuine composition, not judge leniency). **Conclusion: recall is right
+to surface-and-curate without dictating reasoning; the lever is delivering the facts (memory), not
+scaffolding the reasoning.** This is the clean version of the finding the leading-prompt synthesis evals
+only gestured at. Limits: n=4, 2 abduction cases (both ceiling at 100%, easy and hard).
+
 ## How the tests use these
 
 For each mode we instantiate the *logical form* with invented tokens (e.g. "all glorbs in crate-Q are fuzzy") so the answer can't be recalled from the famous example, then check: (a) the agent reaches the **correct conclusion** for that form, and (b) it does **not over/under-claim** the mode's certainty (deduction = necessary; induction/abduction = probable, defeasible). A deductive item has exactly one correct answer; an inductive/abductive item's conclusion must be hedged as probable, and a *distractor* alternative must be correctly rejected or ranked lower.
