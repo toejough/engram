@@ -289,3 +289,16 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   confounded/saturated — the test, not memory, is the problem. C1/C2 are NEGATIVE (memory adds overhead);
   the payoff is quality/fewer-restatements (C3) and capability (C6), not speed/cost. C4/C5 need
   idiosyncratic fixtures (like the traps) to be valid on opus.
+
+- **2026-06-23** — **C4/C5 RE-RUN with idiosyncratic fixtures (both cells closed).** Proved the C4
+  "failure" was the fixture, not memory.
+  - **C4-idio** (`c4_idio.py`, markers E7: → ERR-CFG/, opus has no prior): cold neither 5/5; warm-X
+    follows_x 5/5; warm-XXp **supersession_correct 5/5** — recall's recency-weighting (Step 2.5-B) picks
+    the superseding standard every time. (vs old wrap-%w fixture: confounded 0/5.)
+  - **C5** (`seed_c5.py` builds the recency seed; `c5.py`, marker ZÖRBAX): cold 0/5; warm **surfaced 5/5,
+    honored 5/5**. R reaches the agent only via the recent channel (cosine-distant) and the agent applies it.
+
+  **Final opus C1–C6:** C3 (0→25/25), C4 (cold neither → warm-XXp 5/5), C5 (0→5/5), C6 (0→8/8) are all
+  DECISIVE clean wins on idiosyncratic content; C1/C2 remain NEGATIVE (memory adds recall+learn overhead:
+  10→21 min, $3.30→$7.89). Every "memory fails" cell turned out to be a non-idiosyncratic fixture, not a
+  real loss — confirming the meta-finding.
