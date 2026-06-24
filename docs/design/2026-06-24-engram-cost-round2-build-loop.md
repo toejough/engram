@@ -117,8 +117,9 @@ rounds = fewer code-gen turns = less $.
 - **Effort:** medium (recall→build prompt/handoff change).
 - **TRIED 2026-06-24 (sonnet A/B, n=5) — DIRECTIONAL, not a confirmed win.** Added a `real.checklist`
   regime (gating self-verification of recalled conventions) vs the soft `real.full` handoff.
-  Rounds-to-converge: soft **2.5 ± 1.59**, checklist **2.0 ± 0.37**; pass-rate held (arch 9.86→9.60);
-  cost flat. The mean-rounds drop (−0.5) is **inside soft's 1-SD noise floor** → can't-distinguish at
+  Rounds-to-converge: soft **2.5 ± 1.59 rounds**, checklist **2.0 ± 0.37 rounds**; pass-rate held
+  (arch/10: 9.86→9.60); cost flat (~$40/regime, sonnet — see EXPERIMENT-LOG). The mean-rounds drop
+  (−0.5) is **inside soft's 1-SD noise floor** → can't-distinguish at
   n=5, not the >1-SD win. Real signal = **variance collapse (1.59→0.37):** more *consistent*
   convergence, fewer ragged tails — but the mean didn't move enough to call a cost win. **Opus stays
   OPEN** (saturated → even less headroom). To promote: n≥15-20 (the variance hint suggests a real but
