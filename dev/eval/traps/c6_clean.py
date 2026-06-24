@@ -22,20 +22,20 @@ ROOT = os.environ.get("TRAPS_ROOT", "/tmp/c6-clean")
 CASES = ["abduction-diag", "abduction-badge"]
 
 
-def warm_one(case, cfg, judge_cfg, idx):
+def warm_one(case, cfg, judge_cfg, idx, model="opus"):
     spec = rr.CASES[case]
     wd = tempfile.mkdtemp(prefix=f"{case}-warm-{idx}-", dir=os.path.join(ROOT, "ws"))
     vault = os.path.join(wd, "vault"); os.makedirs(vault)
     for n in spec["notes"]:
         rr._learn(vault, *n)
-    out = rr._run(rr.NEUTRAL_PREFIX + spec["task"], cfg, "opus", vault=vault, wd=wd)
+    out = rr._run(rr.NEUTRAL_PREFIX + spec["task"], cfg, model, vault=vault, wd=wd)
     return _judge(case, out, judge_cfg, "warm", idx)
 
 
-def cold_one(case, cfg, judge_cfg, idx):
+def cold_one(case, cfg, judge_cfg, idx, model="opus"):
     spec = rr.CASES[case]
     wd = tempfile.mkdtemp(prefix=f"{case}-cold-{idx}-", dir=os.path.join(ROOT, "ws"))  # ROOT has NO vaults
-    out = rr._run(spec["task"], cfg, "opus", wd=wd)   # no vault, no recall prefix
+    out = rr._run(spec["task"], cfg, model, wd=wd)   # no vault, no recall prefix
     return _judge(case, out, judge_cfg, "cold", idx)
 
 
@@ -50,6 +50,7 @@ def _judge(case, out, judge_cfg, arm, idx):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--arm", required=True, choices=["warm", "cold"])
     ap.add_argument("--n", type=int, default=4); ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--model", default="opus")  # model under test; judge stays sonnet (see _judge)
     a = ap.parse_args()
     os.makedirs(os.path.join(ROOT, "ws"), exist_ok=True)
     judge_cfg = os.path.join(ROOT, "judge-cfg"); build_warm_cfg(judge_cfg)
@@ -61,7 +62,7 @@ def main():
     print(f"C6-clean {a.arm}: cases={CASES} n={a.n} = {len(jobs)} trials")
     results = []
     with cf.ThreadPoolExecutor(max_workers=a.workers) as ex:
-        futs = {ex.submit(fn, c, cfg, judge_cfg, i): (c, i) for c, i in jobs}
+        futs = {ex.submit(fn, c, cfg, judge_cfg, i, a.model): (c, i) for c, i in jobs}
         for fut in cf.as_completed(futs):
             r = fut.result(); results.append(r)
             print(f"  [{r['case']:16} {r['arm']} #{r['idx']}] hit={r['hit']} ${r['cost']:.2f}")

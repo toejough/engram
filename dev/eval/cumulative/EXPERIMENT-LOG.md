@@ -324,3 +324,16 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   - **KEY LESSON: recall is NOT the cost bottleneck — the BUILD is.** The cap cuts recall payload −61%
     (real), but recall is a small slice of each $2–4 build, so end-to-end time/$ barely move. Future
     cost work must target the build loop (rounds, turns, tokens-per-build), not recall.
+- **2026-06-24** — **Lever 1 try: cheaper-model (haiku) recall quality gate.** Ran value-criteria warm
+  arms on haiku vs the same-build opus baseline (all 5/5). Data: `/tmp/l1-c{3,4,5,6}-haiku.log`.
+  - C3: recall_fired **25/25** (haiku surfaces conventions perfectly) but applied **18/25** (opus 25/25);
+    $2.12 vs $10.63. C4 warm-XXp supersession **4/5** — **0 mis-rankings** (4 correct, 1 no-apply, 0
+    wrong-direction); $0.90 vs $4.69. C5 surfaced **5/5**, honored **4/5**; $0.63 vs $3.13. C6 emergent
+    abduction **3/10** (opus 10/10).
+  - **Verdict: L1's NAMED risk passes; the probe's failures are in opus's half.** The doc's L1 trigger
+    is "cheaper model MIS-RANKS recency/supersession" — haiku had **zero** mis-rankings; recall
+    surfacing + recency judgment (haiku's job in L1) are SOUND. The misses cluster in APPLYING
+    conventions (C3 18/25) and emergent reasoning (C6 3/10) — the BUILD, which L1 keeps on opus. So the
+    whole-op-on-haiku probe conflates the two halves; haiku is ~5× cheaper on recall and its recall
+    curation holds. **Next: build the real split (haiku recall → opus build) and measure end-to-end +
+    n=10 on C4/C5** (the 4/5s are at the noise threshold — directional, not decisive).
