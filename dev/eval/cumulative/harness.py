@@ -46,6 +46,7 @@ STALL_PATIENCE = 3  # halt the build loop if convergence score is flat this many
 REGIMES = {
     "cold":      {"write": "none",  "read_mode": "none"},
     "real.full": {"write": "skill", "read_mode": "skill"},
+    "real.checklist": {"write": "skill", "read_mode": "skill", "checklist": True},  # Lever 4
 }
 
 
@@ -127,8 +128,14 @@ def refresh_creds_path(cfg):
         pass
 
 
-def build_prompt(app, interface, read_mode):
-    """Build prompt with read-mode-appropriate recall. Real-skill regimes only (recall-v2)."""
+def build_prompt(app, interface, read_mode, checklist=False):
+    """Build prompt with read-mode-appropriate recall. Real-skill regimes only (recall-v2).
+
+    checklist (Lever 4): when True, append a gating self-verification block so the build treats every
+    recalled convention as a hard acceptance criterion to check BEFORE finishing — vs the soft
+    "apply as requirements" handoff. It is a flag (not a read_mode) so recall-fired enforcement, which
+    keys on read_mode == "skill", still applies to the checklist arm.
+    """
     if read_mode == "none":
         recall = ""
     elif read_mode == "skill":
@@ -141,8 +148,14 @@ def build_prompt(app, interface, read_mode):
             "crystallizes on demand — as requirements for your build.\n")
     else:
         raise ValueError(f"Unknown read_mode {read_mode!r}; regimes use none|skill")
+    gating = ""
+    if checklist and read_mode == "skill":
+        gating = (
+            "\nBefore you declare done: write out every convention and decision the recall surfaced as "
+            "an explicit checklist, and verify your code satisfies EACH item. Fix any miss in THIS pass. "
+            "Do not finish until every checklist item passes AND `go test ./...` passes.\n")
     return (f"Build a command-line {app} manager in Go, from scratch, in the current directory "
-            f"(run `go mod init {app}` first).\n\nImplement these subcommands:\n{interface}\n{recall}\n"
+            f"(run `go mod init {app}` first).\n\nImplement these subcommands:\n{interface}\n{recall}{gating}\n"
             "Make `go test ./...` pass before you finish. Work fully autonomously: never stop to ask "
             "questions; keep going until it compiles and tests pass. Make changes by editing files "
             "directly with your tools; work across several steps; no need to reprint whole files. "
@@ -637,7 +650,7 @@ def run_build(args):
     notes_baseline = snapshot_notes(build_vault)
 
     prompt = build_prompt(args.app, json.load(open(args.spec))["interface"],
-                          regime["read_mode"])
+                          regime["read_mode"], checklist=regime.get("checklist", False))
 
     def do_build(msg, resume_sid=None):
         if args.stub:

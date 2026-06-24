@@ -104,7 +104,7 @@ def _op(kind, oid, dep, cfg_kind, out, cmd_tail):
 
 
 
-REAL_REGIMES = ("cold", "real.full")
+REAL_REGIMES = ("cold", "real.full", "real.checklist")  # real.checklist = Lever 4 (gating handoff)
 
 
 def real_cells_for(model, trial, date, stub, max_rounds, regimes):
