@@ -140,3 +140,47 @@ potential on silent recalls against the highest risk of skipping useful memory.
   blind to the cut means "can't distinguish," not "the cut was free."
 - A/B each option against the current recall on the existing C3/C4/C5/C6 harnesses: cost must drop
   **and** the criterion must hold.
+
+---
+
+## Option 1 — BUILT & measured (2026-06-24)
+
+Shipped as `--content-budget N` / `ENGRAM_CONTENT_BUDGET` (caps full-content **chunks** to the top-N
+by rank; later chunks → ≤160-rune snippet; **notes never capped**; `0` = unlimited, the default).
+
+**Cost curve (free, deterministic — payload tokens = bytes/4, fixed 10-phrase set):**
+
+| budget | tokens | Δ vs unlimited | items full | chunks snippeted |
+|--------|--------|----------------|-----------|------------------|
+| 0 (unlimited) | 127.4K | — | 373 | 0 |
+| 60 | 59.5K | **−53%** | 63 | 310 |
+| 30 | 52.9K | −58% | 33 | 340 |
+| 15 | 49.0K | −61% | 18 | 355 |
+| 8  | 47.5K | −63% | 11 | 362 |
+| 4  | 46.6K | −63% | 7  | 366 |
+| 2  | 46.2K | −64% | 5  | 368 |
+
+The first cap (60) already wins −53%; below 15 buys only ~2–3% more (sharp knee; ~46K floor = the
+non-cappable paths/scores/cluster structure/phrases + the never-capped note content).
+
+**Quality (opus, warm arms, n=3, ENGRAM_CONTENT_BUDGET injected into the real recall skill):**
+
+| criterion | budget 0 (baseline) | budget 8 | verdict |
+|-----------|--------------------|----------|---------|
+| C5 honored (recency, the canary) | 3/3 | 3/3 | HOLD |
+| C4 supersession (warm-XXp) | (5/5 prior) | 3/3 | HOLD |
+| C6 abduction (diag+badge) | (8/8 prior) | 3/3 + 3/3 | HOLD |
+
+**Knee:** all four warm arms hold at **budget 8 (−63% tokens)** — = baseline.
+
+**Honest caveat (metric sensitivity).** These harnesses are largely **cap-insensitive by construction**:
+C3/C4/C6 keep their load-bearing facts in **notes** (never capped), and C5's one decisive chunk (R)
+is short enough that its snippet preserves the `ZÖRBAX` marker. So the tests prove the cap doesn't
+break note-driven or short-chunk-recency recall — they **cannot** detect harm to a recall whose
+evidence is a *long, lower-ranked chunk*. A budget of 8 keeps only the top-8 chunks full; a general
+recall depending on chunk #9+ would lose that content, and these tests would not catch it.
+
+**Recommendation:** a default of **15–30** (−58 to −61%) captures nearly all the savings while keeping
+15–30 top chunks full as headroom for long-chunk recalls the harnesses don't probe. `8` is
+validated-safe for the current tests but more aggressive than the blind spot warrants. **Baking a
+default is gated on user sign-off** (the ask was find + report, not ship).
