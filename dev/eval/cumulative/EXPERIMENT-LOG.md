@@ -340,3 +340,15 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
     named L1 risk did not materialize), ~5× cheaper. So: **not a pass (don't crown), not a kill** — the
     real test is the actual split (haiku recall → opus build, keeping application on opus). **Next:
     build that split harness; run n=10 on C3/C4/C5** (the 4/5s sit at the noise threshold anyway).
+- **2026-06-24** — **Recall host/haiku split: BUILT, MEASURED, ROLLED BACK.** Split `recall` into a host
+  (opus: plan, relation-gating, synthesis) + a `recall-retrieve` haiku sub-skill (sweep/query/read
+  payload/coverage/content-writes), via writing-skills TDD (RED: sub-skill editorializes, host pulls to
+  re-read payload; both fixed). GREEN-verified end-to-end (host dispatched haiku, did NOT re-read,
+  reasoned over the returned YAML). Measured on opus-host (auto-delegates): **quality HELD** — C4
+  warm-XXp supersession 5/5, C5 surfaced+honored 5/5 (= whole-opus baseline) — and **strictly better
+  than the whole-op-on-haiku probe** (reasoning stayed on opus, so no C3/C6 degradation). BUT the cost
+  cut was only **−14%/op** (C4 $0.459→$0.395/trial; C5 baseline clobbered by root reuse). That confirms
+  the recall-not-bottleneck finding: recall is ~a sixth of the op, so even ~5× cheaper recall moves the
+  op ~14%. **Verdict (user): not worth two skills + dispatch + contract + crystallization-quality risk
+  — rolled back.** Lesson: only split a skill across models when the delegated part is a LARGE share of
+  op cost. The cost lever remains the BUILD (round-2 L4), not recall.

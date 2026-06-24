@@ -64,9 +64,13 @@ the new wall-clock data re-motivates it as primarily a **time** play on the 411 
   **But the failure is diagnostically located in the build half:** haiku's recall *curation* held —
   recall-surfaced 25/25 (C3), surfaced 5/5 (C5), and **0 recency mis-rankings** (C4 warm-XXp 4/5, the
   doc's named L1 risk did not materialize) — while *applying* conventions and *reasoning* (the build,
-  which L1 keeps on opus) are where haiku dropped. Haiku recall is ~5× cheaper. **Verdict: not a pass,
-  not a kill — the real test is the actual split (haiku recall → opus build), which keeps application
-  on opus. Build that harness and run it at n=10 on C3/C4/C5.** See EXPERIMENT-LOG 2026-06-24.
+  which L1 keeps on opus) are where haiku dropped. Haiku recall is ~5× cheaper.
+- **BUILT THE SPLIT, MEASURED, ROLLED BACK (2026-06-24).** Implemented the host(opus)/recall-retrieve(haiku)
+  split via writing-skills TDD; quality HELD (C4 5/5, C5 5/5 = whole-opus) and it beat the whole-op probe
+  (reasoning stayed on opus). **But the op-cost cut was only −14%** — recall is a sub-share of the op
+  (the recall-not-bottleneck finding), so even ~5× cheaper recall barely moves the op. **Rolled back:
+  not worth two skills + dispatch + contract + crystallization-quality risk.** L1 is **closed-negative**;
+  the cost lever is the BUILD (Lever 4), not recall. See EXPERIMENT-LOG 2026-06-24.
 
 ### Lever 2 — Trim the recall *procedure* steps (round-1 Option 4, now time-motivated) · **CONTENDER**
 
@@ -145,8 +149,8 @@ high-potential but blocked on prior work, not ruled out.*
 not inference. Then: **L4** for the $ axis (the build is the measured cost driver) and **L2 + L3a** for
 the time axis (lowest-risk procedure trims). L1 is a contender but its $ payoff is unknown until the
 split exists; **L1 update (2026-06-24 probe):** haiku's recall curation passed its named risk (0
-mis-rankings) but the whole-op probe can't isolate L1 — next step is to build the real
-haiku-recall→opus-build split harness and run n=10, not to ship on this probe. L5 is parked on effort
+mis-rankings); the split was then BUILT + measured and **rolled back** — quality held but only −14%
+op cost (recall is a sub-share), not worth the complexity. **L1 closed-negative.** L5 is parked on effort
 + attribution risk.
 
 ## How to validate (non-negotiable)
