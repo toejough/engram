@@ -1,123 +1,143 @@
-# Engram cost — round 2: the real bottleneck is the recall+learn *procedure*
+# Engram cost — round 2: time sink ≠ dollar sink
 
 **Date:** 2026-06-24 · **Status:** brainstorm (5 levers to evaluate, not decisions)
+**Builds on:** `2026-06-24-engram-cost-reduction-options.md` (round 1 — Option 1 content cap, shipped).
 
 ## What round 1 taught us
 
-Option 1 (content cap, shipped default 15) cut the recall **payload −61%** — and end-to-end
-C1/C2 (time/$) **did not move** within noise. The C1–C6 re-run on the capped binary confirmed the
-value axes (C3–C6) are untouched, but the cost axes stayed negative. So **recall payload is not the
-bottleneck.** This doc finds where the cost actually is.
+Option 1 (content cap, shipped default 15) cut the recall **payload −61%** and end-to-end C1/C2
+(time/$) **did not move** within noise; C3–C6 held. So **recall payload is not the bottleneck.** This
+doc asks: then where *is* the cost — and splits the question by axis, because **the time sink and the
+dollar sink turn out to be different things.**
 
-## Where the time/$ actually goes (capped opus, n=5, per warm op)
+## Where time and dollars actually go (capped opus, n=5)
 
-| phase | warm (real.full) | cold | note |
-|-------|------------------|------|------|
-| recall | **350 s** | — | the overhead — runs ingest + 10-phrase query + read + Step 2.5 show calls + writes |
-| build | **204 s** | 288 s | **memory makes the build FASTER** (front-loaded conventions → fewer rounds) |
-| learn | **61 s** | — | crystallize + ingest, on the critical path |
-| **total** | **615 s / $3.78** | 288 s / $2.06 | warm is slower/costlier *despite a faster build* |
+**Time — measured per phase** (warm op, recomputed from the per-op JSON):
 
-**The reframe:** the build itself is *helped* by memory (204s < 288s; ~−29% build time). The memory
-tax is the **recall + learn procedure overhead (411 s ≈ 67% of the warm op)** stacked on top. Every
-lever below attacks that procedure — NOT payload (round 1, done) and NOT the build (memory already
-wins there).
+| phase | warm | cold | note |
+|-------|------|------|------|
+| recall | **350 s** | — | blocking round-trips: ingest + 10-phrase query + read + Step 2.5 `show` loop + writes |
+| build | **204 s** | 288 s | memory makes the build FASTER (pooled −29%; but app1 gap −8% is within noise) |
+| learn | **61 s** | — | synchronous crystallize + ingest, on the critical path |
+| **total** | **615 s / $3.78** | 288 s / $2.06 | warm slower despite a faster build |
 
-> Each lever: mechanism, the phase it attacks, expected savings on **both axes** ($ and time), risk,
-> effort, rating. Savings are estimates to validate.
+**Dollars — NOT split per phase.** The harness logs the *entire* warm-op cost as one number
+($3.78); `recall_cost`/`learn_cost` are not separately metered. So:
+
+- **Time bottleneck (measured):** the recall+learn *procedure* — **411 s ≈ 67% of the warm op** —
+  stacked on top of a build that memory already speeds up. This is wall-clock from many blocking
+  round-trips, not big token counts.
+- **Dollar bottleneck (inferred, not yet metered):** the **build** — it's where the code-gen tokens
+  are, and it's logged as `build_cost`. A capped recall is ~49K tokens; the build runs 2–3 rounds of
+  generation. **We do not have a per-phase $ split — instrumenting one is itself a prerequisite
+  finding** (see validation).
+
+**So the levers split by axis:** L1–L3 attack the **time** sink (recall+learn procedure); L4–L5 attack
+the **dollar** sink (the build loop) — the cost driver note 77 named. None re-attacks payload (round 1).
+
+> Each lever: mechanism, the axis/phase it attacks, expected effect on **both** axes (honestly marking
+> what is unmeasured), risk + an operational trigger, effort, rating. Effects are estimates to validate.
 
 ---
 
-### Lever 1 — Run recall + learn on a cheaper/faster model than the build · **CONTENDER**
+### Lever 1 — Run recall + learn on a cheaper/faster model (round-1 Option 3, now time-motivated) · **CONTENDER**
 
-**Mechanism.** Execute the recall (read payload, judge coverage, write notes) and learn steps via a
-haiku/sonnet subagent; return only the Step-3 synthesis + the build to opus. The 411 s of overhead is
-mechanical curation, not the reasoning the opus build needs.
+**Mechanism.** Execute recall (read payload, judge coverage, write notes) + learn on a haiku/sonnet
+subagent; return only the Step-3 synthesis + build to opus. Round 1 sketched this as a $ play (O3);
+the new wall-clock data re-motivates it as primarily a **time** play on the 411 s overhead.
 
-- **Phase:** recall (350 s) + learn (61 s) — the whole tax.
-- **$:** large — the bulk of overhead tokens move to a ~10× cheaper model.
-- **time:** medium — haiku is faster per token, but the step count is unchanged; latency drops less
-  than $.
-- **Risk:** medium — weak coverage/recency judgment (C4/C5) could degrade note quality. Validate on
-  C4 supersession + C5 recency, where a weak judge mis-ranks.
-- **Effort:** medium (orchestrate recall/learn as a model-overridden subagent).
+- **time:** medium — haiku is faster per token, but the *step count* (query → show loop → writes) is
+  unchanged, so latency from round-trips remains; the win is per-step token speed, not fewer steps.
+- **$:** **unknown** — depends on recall's unmeasured $ share. If recall is a small-$/large-time slice
+  (likely — few tokens, many blocking calls), the $ win is small even though the time slice is large.
+  Do not claim a large $ win until the per-phase $ split exists.
+- **Risk:** medium. **Trigger:** if the cheaper model mis-ranks > 1 recency/supersession conflict per
+  5-note sample (C4/C5), revert — a weak judge corrupts notes.
+- **Effort:** medium (recall/learn as a model-overridden subagent).
 
-### Lever 2 — Trim the recall *procedure* (steps, not payload) · **CONTENDER**
+### Lever 2 — Trim the recall *procedure* steps (round-1 Option 4, now time-motivated) · **CONTENDER**
 
-**Mechanism.** The 350 s is dominated by step count, not bytes: 10-phrase query, Step 2.5 per-cluster
-`engram show` loop, per-cluster writes. Cut it: fewer phrases (round-1 O4, now better-motivated by
-time not tokens), and **skip Step 2.5 synthesis entirely when the payload is chunk-only** (no note
-clusters — the common case; it produced 0 writes in 3 of this session's recalls).
+**Mechanism.** The 350 s is step-bound, not byte-bound. Cut steps: fewer phrases (round-1 O4, parked
+then as token-dominated-by-O1; now justified by **wall-clock**), and **skip Step 2.5 synthesis when the
+payload has no note-kind members** (the chunk-only case — Step 2.5 already writes nothing there, so the
+skip is provably safe; it is NOT a heuristic guess).
 
-- **Phase:** recall (350 s) — attacks wall-clock directly.
-- **$ / time:** medium on both — fewer query/show/write round-trips per recall.
-- **Risk:** medium — fewer phrases lowers recall coverage (C5 recency is phrase-sensitive); the
-  chunk-only skip is safe (it already writes nothing).
+- **time:** medium — fewer query/show/write round-trips directly cut the 350 s.
+- **$:** small — slightly fewer tokens; the gain is time.
+- **Risk:** medium for fewer phrases (C5 recency is phrase-sensitive); **none** for the chunk-only skip
+  (it changes nothing on payloads that have notes). **Trigger:** if dropping to 5 phrases lowers C5
+  surfaced below the n≥3 warm baseline beyond noise, keep 10.
 - **Effort:** low–medium (recall SKILL.md edit; writing-skills TDD).
 
-### Lever 3 — Move learn off the critical path (async / batched) · **CONTENDER**
+### Lever 3 — Move learn off the critical path (async / batched) · **CONTENDER (with a correctness gate)**
 
-**Mechanism.** Learn (61 s) crystallizes + ingests *synchronously* after each build. Make it
-fire-and-forget (the agent proceeds; ingest runs detached) and/or **batch crystallization to once per
-session** instead of per-build. Raw chunks are already captured by the automatic sweep, so per-build
-learn is mostly redundant within a session.
+**Mechanism.** Learn (61 s) crystallizes + ingests synchronously after each build. Two variants:
+**(a) batch to once per session** (raw chunks are already auto-swept, so per-build crystallization is
+mostly redundant within a session) — removes 61 s from every build, **no race**; or **(b) detached
+per-build ingest** — faster but introduces a **vault-staleness race**: the next build's recall could
+query before the prior lesson is indexed.
 
-- **Phase:** learn (61 s × every build).
-- **$ / time:** small–medium $ (fewer learn-LLM calls if batched); time win is removing 61 s from
-  each build's critical path.
-- **Risk:** low–medium — a later build in the same session won't recall a lesson not yet crystallized;
-  acceptable if conventions are seeded once up front.
-- **Effort:** medium (skill + harness change; detached ingest).
+- **time:** medium — removes 61 s/build from the critical path.
+- **$:** small (batching = fewer learn-LLM calls).
+- **Risk:** **(a) low** (session-end batch — the recommended variant); **(b) high** — breaks the
+  synchronous-write guarantee. **Gate:** variant (b) needs a completion signal before the next recall,
+  or explicit eventual-consistency semantics. Default to (a).
+- **Effort:** medium.
 
-### Lever 4 — Memoize recall across a session/chain (compiled convention digest) · **PARK**
+### Lever 4 — Cut build rounds via a hard-requirement handoff (the $ lever) · **CONTENDER**
 
-**Mechanism.** The 3-app chain re-runs full recall (350 s) every app for largely the same conventions.
-Cache a small "active conventions" digest after app 1 and have apps 2–N read it cheaply instead of a
-full recall — amortize the 350 s across the chain (seed-vs-payback, applied to *recall itself*).
+**Mechanism.** The build is the **dollar** sink (2–3 rounds of generation = the $3.78). Memory already
+trims rounds (warm build < cold); push further by feeding recalled conventions into the build as
+**hard requirements / a checklist** the first draft must satisfy, not advisory prose — fewer feedback
+rounds = fewer code-gen turns = less $.
 
-- **Phase:** recall (350 s on apps 2..N).
-- **$ / time:** large on a chain (apps 2–N skip most of recall); zero on a one-shot task.
-- **Risk:** higher — a stale digest misses a newly-learned lesson; needs an invalidation rule. Cuts
-  against "always recall fresh."
-- **Effort:** medium–high (new caching layer + invalidation).
+- **$:** **medium–large** — each saved round is a whole generation turn (the bulk of op cost). This is
+  the lever aimed squarely at the measured cost driver.
+- **time:** medium — fewer build rounds.
+- **Risk:** medium — over-constraining can cause churn. **Trigger:** measure rounds-to-converge AND
+  pass-rate; if rounds drop but pass-rate falls, the handoff is too rigid.
+- **Effort:** medium (recall→build prompt/handoff change).
 
-### Lever 5 — Tighter recall→build handoff to one-shot more builds · **PARK**
+### Lever 5 — Tier the build itself (cheap scaffolding, opus for convergence) · **PARK**
 
-**Mechanism.** Builds still take 2–3 rounds. Memory already cuts build time; push further by feeding
-recalled conventions into the build as **hard requirements** (not advisory prose) so the first draft
-passes more often — fewer feedback rounds = less build time/$.
+**Mechanism.** Run the build's early scaffolding rounds on a cheaper model, escalating to opus only for
+the rounds that fail to converge. Directly attacks the dominant $ (build generation) by moving the
+easy turns to a cheap model.
 
-- **Phase:** build rounds (the part memory already helps).
-- **$ / time:** medium — each saved round is ~one build-LLM turn.
-- **Risk:** medium — over-constraining the first draft can cause churn; measure rounds-to-converge,
-  not just pass-rate.
-- **Effort:** medium (prompt/handoff change; harder to attribute).
+- **$:** large *if* early rounds are cheap-model-sufficient; **time:** medium.
+- **Risk:** higher — a weak scaffold can produce churn opus must then untangle, erasing the saving;
+  hard to attribute against build variance. **Trigger:** net $ must beat single-model opus at equal
+  pass-rate, or park.
+- **Effort:** high (multi-model build loop + escalation policy).
 
 ---
 
 ## Ratings & sequence
 
-| # | Lever | $ | time | risk | effort | rating |
-|---|-------|---|------|------|--------|--------|
-| 1 | Cheaper model for recall+learn | ↓↓↓ | ↓↓ | med | med | **CONTENDER** |
-| 2 | Trim recall procedure (steps) | ↓↓ | ↓↓ | med | low–med | **CONTENDER** |
-| 3 | Async/batched learn | ↓ | ↓↓ | low–med | med | **CONTENDER** |
-| 4 | Memoize recall across chain | ↓↓ | ↓↓ | higher | med–high | PARK |
-| 5 | Tighter handoff, fewer rounds | ↓ | ↓ | med | med | PARK |
+| # | Lever | axis | $ | time | risk | effort | rating |
+|---|-------|------|---|------|------|--------|--------|
+| 1 | Cheaper model for recall+learn | time | ? | ↓↓ | med | med | **CONTENDER** |
+| 2 | Trim recall procedure steps | time | ↓ | ↓↓ | med | low–med | **CONTENDER** |
+| 3 | Async/batched learn (variant a) | time | ↓ | ↓↓ | low | med | **CONTENDER** |
+| 4 | Hard-requirement handoff (fewer build rounds) | **$** | ↓↓ | ↓↓ | med | med | **CONTENDER** |
+| 5 | Tier the build model | **$** | ↓↓↓? | ↓↓ | higher | high | PARK |
 
-*↓ small · ↓↓ medium · ↓↓↓ large (expected, unvalidated). `~` = no change.*
+*↓ small · ↓↓ medium · ↓↓↓ large (expected, unvalidated). `?` = effect depends on an unmeasured
+per-phase $ split.*
 
-**Recommendation (next step, not part of the brainstorm):** **L1 + L2 together** — they attack the
-same 411 s overhead from two angles (cheaper tokens × fewer steps) and are the lowest-risk. L3
-(async learn) is orthogonal and stacks. L4/L5 are parked: L4 needs an invalidation story; L5's saving
-is hard to attribute against build variance.
+**Recommendation (next step, not part of the brainstorm):** **instrument the per-phase $ split first**
+(cheap, deterministic — meters recall vs build vs learn cost) so the $ levers can be aimed with data,
+not inference. Then: **L4** for the $ axis (the build is the measured cost driver) and **L2 + L3a** for
+the time axis (lowest-risk procedure trims). L1 is a contender but its $ payoff is unknown until the
+split exists; L5 is parked on effort + attribution risk.
 
 ## How to validate (non-negotiable)
 
-- Report **both axes** ($ and wall-time) per lever; the round-1 lesson is that a payload/token win need
-  not be a time/$ win — measure end-to-end, not the proxy.
-- For any "cheaper variant is as good" claim (L1, L2, L4), **test where it bites** — C4 supersession +
-  C5 recency (a weak judge or thin phrasing fails there) — not a quality-blind metric.
-- A/B each lever against the current capped recall on C3–C6 (quality must hold) AND the cumulative
-  chain (cost must actually drop end-to-end) — but note the cumulative chain is ~$100/run on opus, so
-  gate that spend or use a cheaper model for the cost-delta measurement.
+- **First, meter the per-phase $ split** — this whole doc's $ claims are inferences until then. It is
+  the cheapest, highest-value next step.
+- Report **both axes** ($ and wall-time) end-to-end per lever; round 1's lesson is that a proxy win
+  (payload tokens) need not be an end-to-end win.
+- For any "cheaper variant is as good" claim (L1, L5), **test where it bites** — C4 supersession + C5
+  recency — not a quality-blind metric; honor each lever's operational trigger above.
+- A/B against the current capped recall on C3–C6 (quality holds) AND the cumulative chain (cost drops).
+  The chain is ~$100/run on opus — gate that spend or measure the cost-delta on a cheaper model.

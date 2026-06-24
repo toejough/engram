@@ -195,3 +195,8 @@ production scale before changing the shipped default (the ask was find + report,
 on every recall; `0` resolves to 15, negative = unlimited). A no-budget recall reports
 `content_budget: 15` and snippets the long tail of chunks. The blind-spot caveat above stands — 15
 keeps the top-15 chunks full as headroom.
+
+**→ Round 2:** the capped C1–C6 re-run showed the −61% payload cut did NOT move end-to-end C1/C2 —
+recall payload is not the bottleneck. The follow-up levers (procedure overhead for time, the build
+loop for $) live in `2026-06-24-engram-cost-round2-build-loop.md`. O2/O3 from this doc are folded
+there as L2/L1.
