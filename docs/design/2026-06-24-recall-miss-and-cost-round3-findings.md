@@ -18,10 +18,15 @@ re-proposed. Caveats are folded in below.
    Compounding it: crystallized notes are **outranked by raw chunks** (and the chunk index keeps
    growing), and there is **no recency safety-net for notes** (the recent-activity channel is chunks
    only — verified in `internal/cli/query.go` `buildRecentFillItems`).
-2. **Expensive parts:** within the 350 s recall, the cost is the **Step 2.5 per-cluster loop** (blocking
-   `engram show` round-trips + coverage-judge reasoning + blocking writes). Safe time cuts exist (O2,
-   L2, L3a). But recall is a **sub-share** of the op — a −61% payload cap already moved end-to-end
-   time/$ by nothing — so recall cuts are not the warm-build $ lever; the **build loop** is.
+2. **Expensive parts — and keep the axes separate.** On **time**, recall+learn is the *majority* of the
+   warm op (411 s of 615 s); the dominant slice is recall's **Step 2.5 per-cluster loop** (blocking
+   `engram show` round-trips + coverage-judge reasoning + blocking writes), and safe time cuts exist
+   (O2, L2, L3a). On **dollars**, recall is a *sub-share* — a −61% payload cap moved end-to-end $ by
+   nothing — **but** recall's $ is *bundled into* `build_cost` (recall runs inside the build session),
+   so "the build is the dollar sink" is partly an accounting artifact. Two distinct goals: the
+   **recall+learn procedure** is what makes warm cost *more than cold* (the premium you'd cut to make
+   memory pay for itself); the **build loop** is the largest *absolute* spend (the lever for total $,
+   warm or cold) — they are not the same lever, and conflating them is the trap.
 3. **Do-both? Partial yes, honestly.** The performance fixes (note-negation override, reconcile-
    proposals, recall-before-recommend) are **cost-neutral**, and the safe cuts (O2/L2/L3a) are real
    time savings — so you can *ship both*. But **no single change is a measured win on both axes**, and
@@ -48,9 +53,17 @@ of session chunks at 0.78–0.87. Recall Step 3 has **no priority rule for a not
 
 ## 2 · Expensive parts + safe cuts
 
-Per-phase **wall time** (capped opus n=5): recall **350 s** + build **204 s** + learn **61 s** = warm
-**615 s / $3.78** vs cold build **288 s / $2.06**. Per-phase **dollars are unmeasured** (the harness
-logs one op-level number) — metering the split is a prerequisite for any $-axis lever.
+Per-phase **wall time** is cleanly segmented (capped opus n=5): recall **350 s** + build **204 s** +
+learn **61 s** = warm **615 s / $3.78** vs cold build **288 s / $2.06**. The build is *faster* warm
+(204 s < 288 s); recall+learn (411 s) is the time premium.
+
+Per-phase **dollars are only partly separable.** `/recall` runs **inside** the build session (the build
+agent invokes it before writing code — `harness.py`), so its dollars are **bundled into `build_cost`**;
+there is no `recall_cost` field. Only `learn_cost` (a separate session) is separable. So `build_cost`
+*contains* recall — "the build is the dollar sink" is partly an accounting artifact, and recall's true
+$ share is an **inference** (its ~49 K input tokens vs the build's generation output), not a
+measurement. **Prerequisite for any $-axis lever:** *unbundle* recall's $ from the build session
+(per-turn token segmentation or a separately-metered recall call) — not merely "log a per-phase field."
 
 | Cut | Where | Axis | Effect | Quality risk | Status |
 |---|---|---|---|---|---|
@@ -59,16 +72,19 @@ logs one op-level number) — metering the split is a prerequisite for any $-axi
 | **L3a** batch learn **ingest sweep** once/session | learn Step 1 | time | trims part of 61 s/cycle | low *(see caveat)* | open |
 | O1 content-budget toward notes (shipped, default 15) | query render | tokens | trims chunk bytes, nudges note salience | low–med | shipped |
 
-*Axis = which cost axis the cut moves: time (seconds saved) / tokens (LLM tokens) / $ (USD). Per-phase
-$ is unmeasured, so no $ figures are claimed here. Quality risk: low / med / high.*
+*Axis = which cost axis the cut moves: time (seconds saved) / tokens (LLM tokens) / $ (USD). Recall's
+per-phase $ is bundled into `build_cost` (not separable today), so no recall-$ figures are claimed
+here. Quality risk: low / med / high.*
 
 **Caveat (verifier):** L3a's "−61 s/cycle" overstates. Only the **ingest sweep** is safely batchable;
 deferring **crystallization** is risky — it writes the very closure notes (80/81) a later recall depends
 on. Batch the sweep; do **not** defer the note-write.
 
-**Bounding truth:** recall is a sub-share of the op; the −61% payload cap moved end-to-end time/$ by
-~nothing. Recall cuts trim a sub-share. The warm-build **dollar** sink is the **build loop** (L4/L5),
-gated on metering the per-phase $ split first, and L4 needs n≥15–20 on opus (the sonnet n=5 A/B was
+**Bounding truth:** recall is a sub-share of op *dollars* (the −61% payload cap moved end-to-end $ by
+~nothing) — though it is the *majority* of op *time*. The largest *absolute* dollar bucket is the
+**build loop** (L4/L5), but cutting it lowers warm *and* cold and does not shrink the warm-over-cold
+**premium** (that premium is the recall+learn procedure). Aiming any build-loop $ lever is gated on
+first **unbundling** recall's $ from `build_cost`, and L4 needs n≥15–20 on opus (the sonnet n=5 A/B was
 variance-collapse-only, mean inside noise).
 
 ## 3 · The do-both answer (honest)
@@ -139,7 +155,7 @@ part).
 | 5 | please Step 2 / Gate A: make a recommendation a **gated artifact**; reviewer recalls on the *recommendation* + outcome terms | quality | cost-neutral | yes (/please variant) | M | low–med |
 | 6 | tighter **O1 chunk content-budget**, spend budget on note content + chunk snippets | tokens + salience | sub-share | no (render, not rank) | S | low–med |
 | 7 | ship **safe cuts** O2 / L2 / L3a-sweep, each re-run through C7 | time | cost-only | yes (must hold 1.0) | M | low |
-| 8 | **PREREQ-$METER**: instrument per-phase $ split before any build-loop $ lever (L4/L5) | dollar enabler | — | n/a | M | low |
+| 8 | **PREREQ-$METER**: *unbundle* recall's $ from `build_cost` (recall runs inside the build session) before any build-loop $ lever (L4/L5) | dollar enabler | — | n/a | M | low |
 
 *Class: do-both / cost-neutral / cost-only / trade-off / sub-share / quality-infra. Effort: S = small
 (skill-instruction edit), M = medium (code + skill), L = large. Risk: low / med / high. "Gated by C7" =
