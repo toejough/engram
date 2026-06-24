@@ -93,7 +93,7 @@ union and everything downstream.
 - **Driver:** the 10-phrase fan → ~300-item union.
 - **Tokens / $ / time:** rough ~30–50% fewer matched items (3–5 vs 10 phrases) *before* O1, but
   **dominated by Option 1** — capping content makes payload size far less sensitive to phrase count,
-  shrinking this to a marginal few-K tokens once O1 lands.
+  shrinking this to a marginal few-K tokens once O1 is deployed (so O4 is re-evaluated *after* O1).
 - **Risk:** medium — fewer phrases = lower recall; C5 recency depends on a topically-distant phrase
   catching R. Could silently drop the very hits memory exists to surface.
 - **Effort:** low (skill edit) — but **only test after O1**, since O1 removes most of its upside.
