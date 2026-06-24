@@ -469,7 +469,7 @@ def _stub_build(args):
             shutil.copytree(path, dst, dirs_exist_ok=True)
         else:
             shutil.copy(path, dst)
-    if args.regime == "real.full":
+    if args.regime in ("real.full", "real.checklist"):
         _stub_learn_facts(args)
     return {"is_error": False, "total_cost_usd": 0.0, "num_turns": 1,
             "session_id": "stub-build", "result": "stubbed build"}
