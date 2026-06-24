@@ -57,12 +57,16 @@ the new wall-clock data re-motivates it as primarily a **time** play on the 411 
 - **Risk:** medium. **Trigger:** if the cheaper model mis-ranks > 1 recency/supersession conflict per
   5-note sample (C4/C5), revert — a weak judge corrupts notes.
 - **Effort:** medium (recall/learn as a model-overridden subagent).
-- **TRIED 2026-06-24 (haiku quality probe, n=5):** the doc's named risk — cheaper model *mis-ranks*
-  recency/supersession — **did not materialize**: haiku had 0 mis-rankings (C4 warm-XXp 4/5, all 4
-  correct + 1 no-apply), recall_fired 25/25 (C3), C5 surfaced 5/5. Recall *curation* holds on haiku at
-  ~5× lower cost. The misses cluster in *applying* conventions (C3 18/25) and *reasoning* (C6 3/10) —
-  the build half L1 keeps on opus. So the whole-op probe conflates the halves; **L1 is GREEN to build
-  as the real split (haiku recall → opus build)** + confirm n=10 on C4/C5. See EXPERIMENT-LOG 2026-06-24.
+- **TRIED 2026-06-24 (haiku whole-op probe, n=5) — INCONCLUSIVE for L1 (wrong instrument), but
+  encouraging.** The probe ran whole criterion ops on haiku, which **conflates recall (L1's haiku job)
+  with build (L1's opus job)**, so it cannot cleanly judge L1. Against the plan's *whole-op* verdict
+  rule it **FAILED**: C3 build-applied 18/25 (rule wanted ≥23/25), C6 reasoning 3/10 (wanted ≥4/5).
+  **But the failure is diagnostically located in the build half:** haiku's recall *curation* held —
+  recall-surfaced 25/25 (C3), surfaced 5/5 (C5), and **0 recency mis-rankings** (C4 warm-XXp 4/5, the
+  doc's named L1 risk did not materialize) — while *applying* conventions and *reasoning* (the build,
+  which L1 keeps on opus) are where haiku dropped. Haiku recall is ~5× cheaper. **Verdict: not a pass,
+  not a kill — the real test is the actual split (haiku recall → opus build), which keeps application
+  on opus. Build that harness and run it at n=10 on C3/C4/C5.** See EXPERIMENT-LOG 2026-06-24.
 
 ### Lever 2 — Trim the recall *procedure* steps (round-1 Option 4, now time-motivated) · **CONTENDER**
 
@@ -140,7 +144,10 @@ high-potential but blocked on prior work, not ruled out.*
 (cheap, deterministic — meters recall vs build vs learn cost) so the $ levers can be aimed with data,
 not inference. Then: **L4** for the $ axis (the build is the measured cost driver) and **L2 + L3a** for
 the time axis (lowest-risk procedure trims). L1 is a contender but its $ payoff is unknown until the
-split exists; L5 is parked on effort + attribution risk.
+split exists; **L1 update (2026-06-24 probe):** haiku's recall curation passed its named risk (0
+mis-rankings) but the whole-op probe can't isolate L1 — next step is to build the real
+haiku-recall→opus-build split harness and run n=10, not to ship on this probe. L5 is parked on effort
++ attribution risk.
 
 ## How to validate (non-negotiable)
 

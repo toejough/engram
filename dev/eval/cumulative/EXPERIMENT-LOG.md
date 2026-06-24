@@ -326,14 +326,17 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
     cost work must target the build loop (rounds, turns, tokens-per-build), not recall.
 - **2026-06-24** — **Lever 1 try: cheaper-model (haiku) recall quality gate.** Ran value-criteria warm
   arms on haiku vs the same-build opus baseline (all 5/5). Data: `/tmp/l1-c{3,4,5,6}-haiku.log`.
-  - C3: recall_fired **25/25** (haiku surfaces conventions perfectly) but applied **18/25** (opus 25/25);
-    $2.12 vs $10.63. C4 warm-XXp supersession **4/5** — **0 mis-rankings** (4 correct, 1 no-apply, 0
-    wrong-direction); $0.90 vs $4.69. C5 surfaced **5/5**, honored **4/5**; $0.63 vs $3.13. C6 emergent
-    abduction **3/10** (opus 10/10).
-  - **Verdict: L1's NAMED risk passes; the probe's failures are in opus's half.** The doc's L1 trigger
-    is "cheaper model MIS-RANKS recency/supersession" — haiku had **zero** mis-rankings; recall
-    surfacing + recency judgment (haiku's job in L1) are SOUND. The misses cluster in APPLYING
-    conventions (C3 18/25) and emergent reasoning (C6 3/10) — the BUILD, which L1 keeps on opus. So the
-    whole-op-on-haiku probe conflates the two halves; haiku is ~5× cheaper on recall and its recall
-    curation holds. **Next: build the real split (haiku recall → opus build) and measure end-to-end +
-    n=10 on C4/C5** (the 4/5s are at the noise threshold — directional, not decisive).
+  | metric (haiku vs opus) | haiku | opus | haiku $ / opus $ |
+  |---|---|---|---|
+  | C3 recall-**surfaced** (recall_fired) | 25/25 | 25/25 | — |
+  | C3 build-**applied** | 18/25 | 25/25 | $2.12 / $10.63 |
+  | C4 warm-XXp supersession-**correct** | 4/5 (0 mis-rankings) | 5/5 | $0.90 / $4.69 |
+  | C5 recall-**surfaced** / build-**honored** | 5/5 / 4/5 | 5/5 / 5/5 | $0.63 / $3.13 |
+  | C6 emergent-reasoning **hit** | 3/10 | 10/10 | (cheap) |
+  - **Verdict: the whole-op probe FAILED its literal rule (C3 applied 18/25<23, C6 3/10<4/5) — and it
+    is the WRONG instrument:** running whole ops on haiku conflates recall (L1's haiku job) with build
+    (L1's opus job). The failures are diagnostically located in the BUILD half (applying conventions,
+    reasoning), while haiku's recall *curation* held — surfaced 25/25, 0 recency mis-rankings (the doc's
+    named L1 risk did not materialize), ~5× cheaper. So: **not a pass (don't crown), not a kill** — the
+    real test is the actual split (haiku recall → opus build, keeping application on opus). **Next:
+    build that split harness; run n=10 on C3/C4/C5** (the 4/5s sit at the noise threshold anyway).
