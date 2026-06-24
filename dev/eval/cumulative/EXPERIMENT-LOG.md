@@ -270,3 +270,22 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   transitive, analogical).** The only remaining candidate value of persistence is the *web-as-artifact*
   (inspectable, durable, growing knowledge) — a non-accuracy/product value, separate eval. Harness:
   `compound_depth_eval.py`.
+- **2026-06-23** — **OPUS C1–C6 SWEEP (labeled table).** Fresh runs: C4 (`c4.py`), C6-clean (`c6_clean.py`,
+  cold vs warm, isolated). Sourced: C1/C2/C3′ from opus cumulative run 8 (`/tmp/cummatrix-opus-n5`); C3
+  from this session's tactical traps. C5 not re-run (seed rebuild needed).
+
+  | Criterion | cold | warm | verdict (opus) |
+  |---|---|---|---|
+  | C1 faster (wall min) | 10 | 21 | memory COSTS time (recall+learn overhead) |
+  | C2 cheaper ($/tok) | 3.30 / 2.2M | 7.89 / 6.8M | memory COSTS tokens |
+  | C3 idiosyncratic conventions (/25, traps) | 0/25 | 25/25 | DECISIVE (clean) |
+  | C3′ conventions via CRUD oracle | 5.6 | 7.8 (amort −39%, noisy) | confounded (opus saturates) |
+  | C4 supersession (/5) | — | 0/5 | CONFOUNDED — wrap-%w is opus's default; needs idiosyncratic X/X' |
+  | C5 recency (/5) | — | not run (seed) | instrument exists |
+  | C6 emergent synthesis (/8, idiosyncratic abduction) | 0/8 | 8/8 | DECISIVE (clean) |
+
+  **Meta-finding:** opus memory-value is clean & large ONLY where content is IDIOSYNCRATIC (C3 traps,
+  C6 abduction — cold can't know it). Where opus has strong priors (CRUD oracle, wrap-%w), the signal is
+  confounded/saturated — the test, not memory, is the problem. C1/C2 are NEGATIVE (memory adds overhead);
+  the payoff is quality/fewer-restatements (C3) and capability (C6), not speed/cost. C4/C5 need
+  idiosyncratic fixtures (like the traps) to be valid on opus.
