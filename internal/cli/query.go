@@ -1347,8 +1347,9 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 
 // capChunkContent keeps the first `budget` chunk items (in rank order) at full
 // content and replaces later chunks' content with a snippet. Note items are
-// never capped. budget <= 0 disables capping. Returns the (mutated) items and
-// the number of chunks snippeted.
+// never capped. The caller passes an already-resolved budget (see
+// resolveContentBudget); budget <= 0 disables capping. Returns the (mutated)
+// items and the number of chunks snippeted.
 // resolveContentBudget maps the raw flag/env value to the effective cap:
 // 0 (unset) → the baked default; negative → unlimited (no-op in capChunkContent);
 // positive → that explicit cap.
