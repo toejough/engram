@@ -78,6 +78,16 @@ CASES = {
 }
 
 
+CASES["control-unrelated"] = {  # no sound emergent conclusion -> the gate must persist NOTHING
+    "notes": [
+        ("offsite-lisbon", "the marketing team offsite", "will be held in", "Lisbon in May"),
+        ("staging-pg14", "the staging database", "runs on", "PostgreSQL 14"),
+    ],
+    "task": "I'm doing some general planning. Anything in memory I should keep in mind?",
+    "E": "(there is no sound emergent conclusion combining these two unrelated facts)",
+}
+
+
 def _build_reason_cfg(dst):
     build_warm_cfg(dst)
     skill = os.path.join(dst, "skills", "recall", "SKILL.md")

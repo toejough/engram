@@ -231,6 +231,32 @@ The user sees this. Rules:
 - **No payload dumps** — never re-emit YAML, paste whole chunks, or list raw scores/paths.
 - **Length:** as long as honesty about the plan requires; if memory was silent on everything, one sentence.
 
+### Step 4 — Persist the reasoned conclusion (linked to the inputs that produced it)
+
+When your closing synthesis reaches a **sound, non-trivial conclusion that no existing note states** —
+something a future session (or a *less capable model* that can't re-derive it) would want, and that you
+or a human may later **inspect or correct** — crystallize it. Reasoning that is never written down
+evaporates; this records the *outcome* and grows the web.
+
+Write ONE synthesis note for the conclusion with `engram learn fact|feedback`:
+
+- **The note IS the conclusion** (the reasoned lesson), phrased as such — not a restatement of an input.
+- **Certainty by inference mode:** deduction → state it as following necessarily; **abduction / induction
+  → mark it _probable / best-explanation / defeasible_**, never as certain. (Note 69: a non-truth-
+  preserving inference is a hypothesis, not a fact.)
+- **Mark it as derived** in `--source`, e.g. `--source "synthesis (abduction) from recalled memory"`, so
+  a human or a weaker model can tell it is a reasoned conclusion to review — not a primitive fact.
+- **Link every input that contributed, with a _good relationship note_:** one
+  `--relation "<input-basename>|<the role that input played in the inference>"` per contributing note —
+  the rationale states HOW it fed the conclusion (e.g. `--relation "<…rx9-rejects-old>|rule: RX-9
+  silently rejects pre-2021 badges"` and `--relation "<…badge-reader-swap>|condition: RX-9 readers are
+  now the installed lobby hardware"`). These typed edges connect the conclusion to its evidence so the
+  derivation is auditable and traversable.
+
+**Gate — do not rot the vault (notes 68/69):** persist ONLY conclusions you judge sound. If it is a
+hunch, you'd hedge below "probable", or it merely re-aggregates one note, do NOT persist. One synthesis
+note per conclusion; link all of its inputs.
+
 ## Red flags — STOP and re-read
 
 | Sign you're off-script | What you should be doing |
