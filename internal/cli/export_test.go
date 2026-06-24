@@ -136,6 +136,24 @@ func ExportBuildChunkIDSet(
 	return buildChunkIDSet(chunksDir, listIndexes, readFile)
 }
 
+// ExportCapChunkContent builds queryItems from parallel kind/content slices,
+// applies capChunkContent, and returns the resulting contents + snipped count.
+func ExportCapChunkContent(kinds, contents []string, budget int) ([]string, int) {
+	items := make([]queryItem, len(kinds))
+	for i := range kinds {
+		items[i] = queryItem{Kind: kinds[i], Content: contents[i]}
+	}
+
+	capped, snipped := capChunkContent(items, budget)
+
+	out := make([]string, len(capped))
+	for i := range capped {
+		out[i] = capped[i].Content
+	}
+
+	return out, snipped
+}
+
 // Exported functions.
 
 // ExportIndexFileName exposes sourceSlug-based index naming so tests can
@@ -367,3 +385,8 @@ func ExportScoredChunkRecord(s scoredChunk) chunk.Record { return s.record }
 
 // ExportScoredChunkScore / Record expose the unexported fields for assertions.
 func ExportScoredChunkScore(s scoredChunk) float32 { return s.score }
+
+// ExportSnippet exposes the snippet helper for the content-cap tests.
+func ExportSnippet(content string) string {
+	return snippet(content)
+}

@@ -28,6 +28,10 @@ type QueryArgs struct {
 	ChunksDir string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks); chunks compete in the same ranking as notes"` //nolint:lll // single unbreakable struct-tag string
 	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
+	// ContentBudget caps how many chunk items (in rank order) render with full
+	// content; later chunks get a one-line snippet. 0 = unlimited. Notes are
+	// never capped. env= lets the recall sweep inject the cap without a skill edit.
+	ContentBudget int `targ:"flag,name=content-budget,env=ENGRAM_CONTENT_BUDGET,desc=max chunk items with full content (0=unlimited); later chunks get a snippet"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -124,6 +128,7 @@ const (
 	// synthesis fallback cluster. Silhouette is undefined for a single
 	// cluster, so zero stands in.
 	singletonClusterSilhouette = 0.0
+	snippetMaxRunes            = 160
 	unknownKind                = "unknown"
 )
 
@@ -154,6 +159,7 @@ type aggregatedSummary struct {
 	totalNotes     int
 	withEmbeddings int
 	limit          int
+	contentBudget  int
 }
 
 // candidateNoteIndex holds the note paths and BOTH sidecar vectors for the
@@ -234,6 +240,8 @@ type queryBudget struct {
 	DirectHitsReturned   int `yaml:"direct_hits_returned"`
 	ItemsWithFullContent int `yaml:"items_with_full_content"`
 	Limit                int `yaml:"limit"`
+	ContentBudget        int `yaml:"content_budget"`
+	ChunksSnippeted      int `yaml:"chunks_snippeted"`
 }
 
 // queryCandidateNote is one candidate note for a cluster. The binary emits
@@ -576,6 +584,34 @@ func buildRecentFillItems(
 	}
 
 	return out
+}
+
+// capChunkContent keeps the first `budget` chunk items (in rank order) at full
+// content and replaces later chunks' content with a snippet. Note items are
+// never capped. budget <= 0 disables capping. Returns the (mutated) items and
+// the number of chunks snippeted.
+func capChunkContent(items []queryItem, budget int) ([]queryItem, int) {
+	if budget <= 0 {
+		return items, 0
+	}
+
+	chunksSeen := 0
+	snipped := 0
+
+	for i := range items {
+		if items[i].Kind != chunkItemKind {
+			continue
+		}
+
+		chunksSeen++
+
+		if chunksSeen > budget && items[i].Content != "" {
+			items[i].Content = snippet(items[i].Content)
+			snipped++
+		}
+	}
+
+	return items, snipped
 }
 
 // chunksConfigured reports whether a chunk index is wired into this run
@@ -1258,7 +1294,11 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems, merged.outgoing)
 	clusters := renderClusters(merged.phraseClusters)
-	contentful := countItemsWithContent(items)
+
+	items, snipped := capChunkContent(items, merged.contentBudget)
+	// Full content = items still carrying their complete text — snippeted
+	// chunks retain (truncated) content, so exclude them from the count.
+	contentful := countItemsWithContent(items) - snipped
 
 	directCount := 0
 
@@ -1281,6 +1321,8 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 			DirectHitsReturned:   directCount,
 			ItemsWithFullContent: contentful,
 			Limit:                merged.limit,
+			ContentBudget:        merged.contentBudget,
+			ChunksSnippeted:      snipped,
 		},
 	}
 
@@ -1386,6 +1428,7 @@ func runQuery(
 		totalNotes:     len(notes),
 		withEmbeddings: len(hits),
 		limit:          limit,
+		contentBudget:  args.ContentBudget,
 	}
 
 	return renderQueryPayload(stdout, merged)
@@ -1419,6 +1462,19 @@ func singleClusterReport(matchSet matchedSet, vectors [][]float32) clusterReport
 		representatives: []int{rep},
 		silhouettesByID: []float64{singletonClusterSilhouette},
 	}
+}
+
+// snippet collapses all whitespace to single spaces, trims, and truncates to
+// snippetMaxRunes runes — appending an ellipsis only when truncation occurs.
+func snippet(content string) string {
+	collapsed := strings.Join(strings.Fields(content), " ")
+
+	runes := []rune(collapsed)
+	if len(runes) <= snippetMaxRunes {
+		return collapsed
+	}
+
+	return string(runes[:snippetMaxRunes-1]) + "…"
 }
 
 // splitMatchedSet splits the matched set into separate note and chunk slices
