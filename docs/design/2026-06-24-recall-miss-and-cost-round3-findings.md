@@ -1,6 +1,10 @@
 # Findings — the recall miss + do-both cost reduction (round 3)
 
 **Date:** 2026-06-24 · **Status:** findings (investigation complete; implementation deferred to issues)
+**Re-anchored 2026-06-25:** `2026-06-25-memory-cost-reanchor.md` re-states the cost goal from this data and
+finds the safe cuts (O2/L2) too small to close the warm-over-cold gap — framing the real choice as a fork
+(trim recall reasoning vs. reframe memory as better/cheaper *builds*, not faster *ops*). Findings below
+remain valid; the re-anchor prioritizes among them.
 **Plan:** `2026-06-24-recall-miss-and-cost-round3-plan.md` · **Method:** Gate-A-reviewed plan → 5-angle
 fan-out (miss RCA, cost audit, do-both, TDD design, ledger) → synthesis → 3 adversarial verifiers. All
 verifiers returned *holds / holds-with-caveats*; the anti-amnesia verifier confirmed no closed lever is
