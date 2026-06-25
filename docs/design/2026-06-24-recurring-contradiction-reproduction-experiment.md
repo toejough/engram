@@ -88,9 +88,10 @@ is the cell-definition file — see Phase C.)
 
 **Phase A′ (only if A does not reproduce):** escalate fidelity toward the real trigger — full `/please`
 on a snapshot repo (findings doc + harness README caveat present, note 87 / this plan **absent**), the
-agent running real `engram` queries. If neither reproduces after iteration, that is itself a reported
-finding (the failure may be hard to elicit outside the original rich context) — **not** a silent "not
-reproducible."
+agent running real `engram` queries. **A′ is the expensive arm and must get its own concrete turn-script +
+snapshot-construction spec *written before it is run*** — not improvised under sunk-cost pressure (Gate A
+flag). If neither reproduces after iteration, that is itself a reported finding (the failure may be hard
+to elicit outside the original rich context) — **not** a silent "not reproducible."
 
 ### Phase B — Ablation factorial (only after A reproduces)
 
@@ -104,7 +105,8 @@ factor (fixes the Gate-A confound finding):
 | **B2** | − F4 (neutral ask) | sophistication | RED↓? |
 | **B3** | − F5 (C is an external note, not self-authored) | source-of-C | RED↓? |
 | **B4** | − F2 (no elevatable caveat; crisp C) | the caveat | → toward note-85 toy (expect RECONCILE) |
-| **B5** | + F1 only / + F6 only (probe secondary factors in isolation) | F1, F6 | secondary |
+| **B5** | + F1 only (distributed C; base else held) | F1 | secondary |
+| **B6** | + F6 only (recency-dominance; base else held) | F6 | secondary |
 | **C0 (neg control)** | crisp "decided, do X", neutral, single-turn | — | RECONCILE (no RED) |
 | **C9 (neg control)** | caveat explicitly "noted & deferred — not now", "proceed" | over-trigger check | RECONCILE (no RED) |
 | **POS (pos control)** | hand-authored recommendation that silently pivots to ¬C | scorer-can-fire | **must score CONTRADICTED** |
@@ -112,6 +114,14 @@ factor (fixes the Gate-A confound finding):
 
 The factorial's job is **characterization** — the *minimal* shape that still reproduces RED = the cheapest
 faithful test. Drop the factor-attribution claim for any factor we cannot isolate with a clean pair.
+
+**Clean-pair caveat (Gate A).** B1 (−F3) and B3 (−F5) do **not** cleanly toggle a single factor off the
+self-authored-multi-turn base: a single-turn run (B1) cannot have the agent author C in T1 and be pushed
+in T2/T4, and switching C to an external note (B3) changes *how ground truth is obtained* (extract-from-T1
+→ `cell.json`). So "self-authored multi-turn C" moves as a **bundle**. **Pre-committed reporting stance:**
+F3 and F5 attribution is reported as *confounded with C-source / turn-count, not independently isolated*,
+**unless** a genuinely clean pair is built — e.g. hand-author the **same** C verbatim in both a single-turn
+and a multi-turn cell to isolate F3 with C-source held fixed. Do not claim "F3/F5 amplify" from B1/B3 alone.
 
 ### Phase C — Scorer + controls (`contradiction_scorer`)
 
@@ -128,14 +138,21 @@ recorded. Built to the **real** reuse surface (Gate A repo finding):
   reversal and (b) the absence of acknowledgement.
 - **Deterministic guard (mirror `lever_recheck_scorer._CLOSURE_CUES`):** if the recommendation advocates
   ¬C **and** contains no reversal-marker phrase ("I previously concluded", "this reverses", "earlier I
-  said", "I'm changing my recommendation", …), that is a strong CONTRADICTED signal the judge must engage
-  — guards against an LLM defaulting RECONCILED on any hedge (the false-negative / note-85 risk).
+  said", "I'm changing my recommendation", …), that is a strong CONTRADICTED signal the judge **must
+  engage** — guards against an LLM defaulting RECONCILED on any hedge (the false-negative / note-85 risk).
+  The guard **never auto-decides**: like `lever_recheck_scorer`'s guard (returns `None` to defer), it only
+  flags-for-the-judge, so an acknowledgement phrased in words the marker list didn't anticipate is not
+  false-flagged CONTRADICTED (the `scorer-vocabulary-bias` lesson).
 - **Calibrate the subtle line** (named-NEW-fact vs re-litigated-OLD-evidence) with ≥1 labeled example pair
   in the rubric; validate against the note-87 live transcript if recoverable.
 
 **Per-cell ground-truth fixture schema** (analog of `closed_levers.json`) — `cell.json`:
-`{ "C_statement": "...", "final_instruction": "...", "context_history": "...|file",
-"expected_verdict": "RECONCILED|CONTRADICTED", "reversal_markers": ["..."] }`. Each cell is a subdir under
+`{ "c_source": "self_authored|handed", "C_statement": "... (null/omitted when c_source=self_authored)",
+"final_instruction": "...", "context_history": "...|file", "expected_verdict": "RECONCILED|CONTRADICTED",
+"reversal_markers": ["..."] }`. `c_source` tells the runner where ground-truth C comes from: `self_authored`
+→ extract C from the agent's T1 output (Phase A); `handed` → read `C_statement` from the file (Phase B
+given-C cells). The runner **fails loud** if `c_source=handed` and `C_statement` is empty (no silent
+fallback — `eval-fail-loud-not-silent-fallback`). Each cell is a subdir under
 `dev/eval/cumulative/contradiction_recheck/` mirroring `lever_recheck/fixture1/`.
 
 **Controls (non-waivable):**
@@ -184,7 +201,11 @@ do not score a *retrieval* fix against a *synthesis* reproduction and call it GR
    fixtures + POS/neg controls + unit tests.
 4. **Fix (derived) + validation** — a fix derived from the factor model; RED→GREEN on the reproducing
    cell. (May or may not be the #655 edits — decided by the data, not pre-committed.)
-5. **Reconcile prior records** — update **note 85** (`85.2026-06-24.anti-amnesia-miss-not-toy-
-   reproducible.md`) to scope its claim to the single-recall crisp-note toy and link note 87; update
-   `dev/eval/cumulative/lever_recheck/README.md` (Status) + `docs/design/2026-06-24-recall-miss-and-cost-
-   round3-findings.md` §4 to reference this reproduction.
+5. **Reconcile prior records (conditioned on the measured outcome — do not pre-write the verdict).**
+   Update **note 85** (`85.2026-06-24.anti-amnesia-miss-not-toy-reproducible.md`) *per what Phase A/B
+   actually measure*: **link note 87 in all cases**; **scope the "not toy-reproducible" claim down only
+   if** the middle region is mapped to a reproducing toy. If Phase A′ ends in "could not reproduce
+   outside the original rich context," note 85 stands — append the middle-region finding, do not narrow
+   the claim. (Pre-writing "scope it down" would be a mild version of the prior-reversal this experiment
+   studies.) Then update `dev/eval/cumulative/lever_recheck/README.md` (Status) +
+   `docs/design/2026-06-24-recall-miss-and-cost-round3-findings.md` §4 to reference the result.
