@@ -33,9 +33,24 @@ anti-amnesia, no task-displacement) are secondary unless they move that needle.
 - **But recall+learn add ~411 s of overhead** (350 s of it recall), so the **warm op is ~2.1× slower and
   ~$1.72 costlier** end-to-end.
 
-**Net today (the uncomfortable truth):** `build_saving(~84 s) − overhead(~411 s) ≈ −327 s.`
-**Memory makes the build better/faster, but the recall+learn overhead swamps that gain — so end-to-end,
-memory does NOT yet make builds cheaper or faster. It makes them *better, slower, and costlier.***
+**Net today — but the two axes diverge sharply (note 84), and conflating them was an earlier error:**
+
+- **TIME:** `build_saving(~84 s) − overhead(~411 s) ≈ −327 s.` Warm is slower, and *structurally* so:
+  recall's ~350 s wall-time alone **exceeds the entire cold build (288 s)**, so even a perfect (instant)
+  build leaves the warm op slower (411 s vs 288 s). Net-*faster* requires cutting recall **wall-time**
+  drastically (~80%) — not the build.
+- **DOLLARS:** warm is ~$1.72 costlier *today*, but this is **not** structural. Recall is
+  **time-expensive but dollar-cheap** (~49 K *input* tokens; the build's *generation output* is the $
+  sink). If memory's upfront pointers cut enough build **rounds** (fewer mistakes/reviews/rebuilds — the
+  $ sink), the build-$ saving can exceed recall's small $ and the op gets **cheaper.** That is memory's
+  real value prop and it is **not blocked.** *Caveat:* recall's $ is bundled/inferred, never measured — so
+  net-cheaper is **well-founded but unproven** until recall's $ is unbundled (PREREQ-$METER, findings §5).
+
+**Corrected bottom line (supersedes the earlier "memory does NOT make builds cheaper or faster" — that
+conflated the axes and was wrong on dollars):** a memory-assisted build **can be cheaper end-to-end** by
+making the *same* app with fewer rounds — that's the goal, and nothing fundamental blocks it. **Faster**
+end-to-end is the genuinely hard axis, because recall spends reasoning wall-time the cold path never
+spends.
 
 ## The honest magnitude: the safe cuts cannot close the gap
 
@@ -72,35 +87,39 @@ There is **no single change that moves both axes** — round-3 already found thi
 
 *These are sub-problems or prerequisite moves, not levers; naming them keeps us from re-walking them.*
 
-## The real choice (a fork, not a single safe lever)
+## Two goals, two levers (not one safe lever, and not a give-up fork)
 
-Because the overhead is mostly inherent recall reasoning and the safe cuts can't dent it, the honest
-re-anchor is a strategic fork:
+The axes split, so treat cheaper and faster as separate questions with different answers:
 
-- **(A) Chase net-faster ops:** deeply trim the recall procedure's reasoning (~350 s) — the only thing big
-  enough. Higher variance; **must gate on recall quality** (the C-sweep quality is a measured output).
-- **(B) Reframe memory's value as *better/cheaper builds, not faster ops* (recommended):** accept that
-  recall reasoning is inherent overhead the op can't beat cold on wall-time, and put the eye on memory's
-  real leverage — **reducing build rounds in the $-sink build loop** (note 77). Judge memory on
-  build-cost/quality per task, not op-speed-vs-cold.
+- **CHEAPER — the achievable aim.** Lever = **maximize memory's build-round reduction**: push recall
+  *quality* so the build makes the *same* app with fewer mistakes/reviews/tests/rebuilds, cutting the
+  $-sink build loop (note 77). Recall's $ is small, so the build-round $ saving can net out positive — this
+  is the "fewer rebuilds" mechanism, and it is **not blocked.** Prerequisite: **unbundle recall's $**
+  (PREREQ-$METER, findings §5) to confirm the asymmetry and get a real net-$ figure rather than the
+  current inference.
+- **FASTER — the hard axis.** Lever = deeply cut recall **wall-time** (~350 s of reasoning) — the only
+  thing big enough, since even a perfect build can't beat cold while recall runs longer than the entire
+  cold build. Higher variance; **must gate on recall quality.** The safe cuts (O2 ~15–40 s) don't touch it.
 
-**Recommendation: (B).** Memory's leverage is the expensive build loop, not making a reasoning-heavy
-recall faster than *no* recall. **Be explicit about the trade: (B) gives up "faster ops" as a target** —
-it accepts the warm op stays slower than cold (recall reasoning is inherent) and wins instead on build
-**cost + quality**; the "faster" half of the stated goal is judged not achievable via a reasoning-heavy
-recall. (A) is the path only if op-speed-vs-cold is a hard requirement, and only at quality risk. Do
-**O2** as free housekeeping regardless; don't pretend it closes the gap.
+**Recommendation: pursue CHEAPER.** It is the goal, it is not blocked, and it is exactly the
+fewer-mistakes/rebuilds mechanism. Concretely: (1) **unbundle recall's $** to confirm net-cheaper is real,
+then (2) drive recall *quality* → fewer build rounds, measuring the build-round $ delta. Treat **FASTER**
+as a separate, harder problem — take it on only if op-wall-time-vs-cold is a hard requirement, since it
+needs a risky recall-time trim. Do **O2** as free housekeeping regardless; don't mistake it for either
+lever.
 
 ## Next step
 
-This is a **decision**, not an implementation: pick the fork. Under **(B)**, the next real lever to attack
-is **build-round reduction** — measure whether (and how much) warm reduces build rounds vs cold, then push
-recall *quality* (not speed) to widen that gap. Under **(A)**, scope a recall-procedure-reasoning trim with
-a quality gate. Either way, **measure only the chosen lever's delta** — do not bundle.
+Pursue **cheaper**, in order: (1) **unbundle recall's $** from `build_cost` (PREREQ-$METER) — this is the
+one measurement that turns "cheaper is well-founded" into "cheaper is proven (or not)"; (2) measure how
+much warm reduces **build rounds** vs cold, and push recall *quality* to widen that gap. Measure each
+delta in isolation — don't bundle. (Faster, if ever required, is a separate recall-wall-time trim.)
 
 ## Honest caveats
 
 - Source numbers are n=5 capped opus — directional, **not** high-power.
-- The deepest open question, now explicit: **if recall reasoning is inherent, the warm op cannot beat cold
-  on wall-time** — so "faster ops via memory" may be the wrong target, and the honest win is *better,
-  cheaper builds*. Re-anchor here again if the chosen lever doesn't move `net` toward positive.
+- Recall's $ is **bundled/inferred, never measured** — so "memory can be net-cheaper" is well-founded
+  (recall is dollar-cheap; the build is the $ sink) but **unproven** until unbundled. That measurement is
+  the next step, not an assumption.
+- **Faster** end-to-end is the genuinely hard axis (recall spends reasoning wall-time the cold path never
+  spends); it is not "impossible," but it needs a large recall-wall-time cut, not a build improvement.
