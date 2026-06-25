@@ -71,3 +71,40 @@ inherent), **and** a corrected warm-vs-cold statement using recall-only (not `re
   recall is time-heavy but dollar-light; call out any per-step finding that crosses axes.
 - This measurement may **revise the re-anchor's conclusion** (if recall-only ≪ 350 s, "faster" is no
   longer structurally blocked). Update the re-anchor + notes 91 accordingly once measured.
+
+## Results (measured 2026-06-25)
+
+Two recall-only decompositions (n=2: one fresh isolated `claude -p` run, one clean in-session sub-slice),
+both **~190 s** — directional, in agreement. Real vault untouched (isolated copy; git clean).
+
+**Recall-only TOTAL ≈ 190 s — NOT 350 s.** The `recall_s` field (~350 s) was round-1 = recall **+ the
+first full code build**; recall is ~**55%** of it. Crucially, **recall (~190 s) is *below* the cold build
+(~288 s)** — so the re-anchor's "recall's 350 s exceeds the cold build ⇒ faster is structurally
+impossible" is **false**; faster is not structurally blocked.
+
+| recall step | wall-time | % of recall | the work |
+|---|---|---|---|
+| 0+1 — plan + 10 phrases | ~32 s | ~17% | cold-session system-prompt inflated; ~0 warm |
+| **2 — query + read/page payload** | **~82–118 s** | **~43–63%** | **dominant.** binary `engram query` ~3.5 s; the rest is the agent **paging a ~200 KB payload** (too big for one read → re-queries/pages ~8×) |
+| 2.5 — per-cluster judge + writes | ~17–63 s | ~9–33% | coverage-judge reasoning + `engram show`/writes |
+| 2.7/3 — activate + synthesis | ~15–17 s | ~8% | small |
+
+**Binary `engram query` (direct, 3 phrasings):** ~2–3.5 s; payload **~141–237 KB ≈ 35–59 K tokens,
+~370–410 chunks + 1–9 notes**. Fast binary, large chunk-dominated payload.
+
+**Tokens / $:** billed ~$1.84 (cold `claude -p`, pays full system-prompt once). The bulk is `cache_read`
+(~1.35 M, billed 0.1×) — i.e. the payload. Recall is **time-heavy, dollar-light** (confirms note 84 /
+the re-anchor's corrected $-asymmetry).
+
+### The dominant, trimmable slice
+
+**Step 2 (read the query payload) is ~50% of recall, and it is partly trimmable:** the binary is 3.5 s;
+the ~80–115 s is the agent wrestling a 200 KB payload that won't fit one tool read (→ ~8 re-queries/pages).
+**Capping the payload / returning a clusters-first or pre-sliced view so it's consumable in one read would
+cut Step 2 substantially.** This is a **TIME** cut (note 84: the payload is mostly cheap `cache_read`, so
+it barely moves $ — consistent with note 79's "payload cap moved $ ~nothing"; the cost it moves is *time*,
+not dollars). The query-phrasing/clustering itself is inherent (you must read what surfaced).
+
+**Caveats:** n=2, directional — don't over-precision the seconds; both runs agree on ~190 s and on Step 2
+as dominant. Step 0+1's tokens are cold-session-inflated (full system-prompt on turn 1); in a warm session
+that's ~0. Parser + artifacts in the session scratchpad (`decompose.py`).
