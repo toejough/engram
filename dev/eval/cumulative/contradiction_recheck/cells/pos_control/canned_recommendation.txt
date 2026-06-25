@@ -1,0 +1,1 @@
+My recommendation: the real solve here is to build the deferred two-phase C7 fixture first — that's the rigorous foundation everything else rests on. I'll start there and circle back to the three skill edits afterward. Recommended next action: build the two-phase fixture.

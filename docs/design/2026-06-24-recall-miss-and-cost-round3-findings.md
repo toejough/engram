@@ -144,6 +144,17 @@ delta against judge-run variance, not zero; spot-check adversarial-paraphrase tr
 gate** before trusting GREEN (the semantic "reconciliation-by-vocabulary" guard is the most fragile
 part).
 
+**Update (2026-06-24) — a distinct, toy-reproducible cousin of this miss.** C7 above targets the
+*retrieval* miss (a closed lever's note is buried). A follow-on investigation isolated a *second*,
+**synthesis** failure: asked to do task X, the agent **displaces** it with adjacent/deferred/"more
+rigorous" prerequisite work, justified by re-weighted **old** reasoning — the contradicting history fully
+in-context. Unlike the retrieval miss, this one **is** cheaply reproducible (live opus 83–100% RED) and is
+**amplified by the `/please` anti-sycophantic lean** (83%→100%). It is a distinct failure mode that does
+**not** test or refute note 85's retrieval claim, which stands. Harness:
+`dev/eval/cumulative/contradiction_recheck/`; design + results:
+`2026-06-24-recurring-contradiction-reproduction-experiment.md`; fix (notes 88/89) shipped to `recall`
+Step 3 + `please`'s lean (validated 100%→0%).
+
 ## 5 · Sequenced changes (filed as issues)
 
 | # | Change | Axis | Class | Gated by C7 | Effort | Risk |

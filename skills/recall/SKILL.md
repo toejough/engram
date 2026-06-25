@@ -227,6 +227,7 @@ The user sees this. Rules:
 - **Open with the count.** One sentence: "Query surfaced N items (K chunks, M notes); crystallized J lessons."
 - **Walk the plan from Step 0 in order.** Per numbered action: **confirmed**, **adjusted** (and how), **contradicted**, or **silent**. One short bullet each.
 - **Frame load-bearing conventions as requirements.** Lead with "Apply these as requirements:" and list them — drawn from lessons and chunk evidence alike. A plan step memory confirms still inherits the convention's concrete specifics as requirements.
+- **Reconcile every recommendation you produce — not just the Step-0 plan (anti-displacement).** Before stating any option, lever, or recommendation the work generated, reconcile it against the ASKED TASK and decisions already in context. Substituting a prerequisite, a better test, or a "more rigorous foundation" as the thing to do *first* FEELS like diligence but IS relitigating the settled task. Reasoning already in context is not new evidence — reconcile against prior OUTCOMES, not mere mentions. Default to the asked task; deviate only by (a) naming a genuinely NEW fact and (b) stating you are reversing direction.
 - **Surface contradictions inline** where they affect the action, as prose.
 - **No payload dumps** — never re-emit YAML, paste whole chunks, or list raw scores/paths.
 - **Length:** as long as honesty about the plan requires; if memory was silent on everything, one sentence.
@@ -283,3 +284,4 @@ note per conclusion; link all of its inputs.
 | You linked "needs X" to a property-mismatched "provides Y" (X≠Y) | The means-ends shared-key test requires the **same** key — DROP the mismatch (this is the flood Step 2.6 exists to stop) |
 | You passed `--activate` on a Step 2.6 amend | 2.6 writes an edge, not a coverage mark — `--activate` is Step 2.5's |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
+| You're recommending a prerequisite or better test as the first step, not the asked task | That displacement IS relitigating the settled task — old reasoning isn't new evidence. Do the asked task; displace only on a NEW fact, stated as a reversal |

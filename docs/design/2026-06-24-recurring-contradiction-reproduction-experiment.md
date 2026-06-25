@@ -209,3 +209,52 @@ do not score a *retrieval* fix against a *synthesis* reproduction and call it GR
    the claim. (Pre-writing "scope it down" would be a mild version of the prior-reversal this experiment
    studies.) Then update `dev/eval/cumulative/lever_recheck/README.md` (Status) +
    `docs/design/2026-06-24-recall-miss-and-cost-round3-findings.md` §4 to reference the result.
+
+## Results (measured 2026-06-24)
+
+Run via the `dev/eval/cumulative/contradiction_recheck` harness (live opus; judge = default-RECONCILED,
+adversarial, calibrated by the probe-1/probe-2 labeled pair). Single-turn distilled cells reproduced the
+failure, so Phase A′ (full multi-turn `/please`) was not needed.
+
+**Reproduction (the failure is real and stochastic):**
+
+| Cell (what's varied) | RED (CONTRADICTED / N) | Reading |
+|---|---|---|
+| base — critical-collaborator framing | 5 / 6 (83%) | reproduces robustly |
+| strong_lean — + the `/please` anti-sycophantic "challenge the ask" lean | 6 / 6 (100%) | the lean **amplifies** it |
+| neg_control — deferred work explicitly "decided out of scope" | 0 / 4 (0%) | scorer does **not** over-fire |
+| pos_control — hand-authored silent pivot | 3 / 3 (100%) | scorer **can** fire (0-RED is interpretable) |
+
+Every CONTRADICTED verdict had `new_evidence = false` → a **synthesis** failure (the contradicting
+history is in-context), **distinct** from note 85's **retrieval** miss (note 85 stands; not refuted). The
+`/please` "challenge the ask" lean is a **causal amplifier** (83% → 100%).
+
+**Fix validation (RED→GREEN A/B on the strong_lean cell):**
+
+| Arm | RED (CONTRADICTED / N) |
+|---|---|
+| baseline — no fix | 8 / 8 (100%) |
+| fix v1 — vague "reconcile / don't displace" | 4 / 8 (50%) |
+| fix v2 — names the prerequisite-rationalization + "settled task" framing | **0 / 8 (0%)** |
+
+**Finding:** instruction-level fixes work, **but only when specific** — naming the exact self-deception
+("substituting prerequisite/verification/foundation work FEELS like diligence but IS relitigating the
+settled task") and framing the asked task as a settled decision. A vague reconcile-instruction only halves
+it (note 89). The v2 wording shipped to `recall` Step 3 (reconcile-proposals, #655 criterion 3) + the
+`please` anti-sycophantic-lean counter-balance. Crystallized as notes 88 (result) and 89 (fix recipe).
+
+**Caveats (honest):** single-turn distilled cells, not the full multi-turn treadmill; N = 6–8/cell
+(screen-level — CIs are wide, but the 0/8-vs-8/8 separation is unambiguous and the controls are clean).
+The fix is validated on the strong_lean cell; broader-cell + treadmill validation, and #655 criteria
+1–2 (retrieval variant, validated by `lever_recheck` not this harness), remain follow-up.
+
+**Deliverables status (vs the plan above).** D1 reproduction — **done** (base/strong_lean). D3 durable
+harness — **done** (`contradiction_recheck/`, 10 offline tests). D4 fix derived + validated RED→GREEN —
+**done** (0/8). D5 reconcile prior records — **done** (note 85 amended with the distinction link — *not*
+scoped down, since the synthesis miss is distinct from its retrieval claim; findings §4 updated; notes
+88/89 written). D2 characterization — **partial, by design**: the full B1–B6 ablation ladder was **not
+run** because the distilled cell reproduced *and* the fix already validated, so the minimal-reproduction
+ablation is non-essential follow-up. The factor isolation that *was* run is load-bearing and sufficient:
+base-vs-strong_lean isolates F4 (the `/please` lean amplifies, 83%→100%) and neg_control isolates the
+settled-decision factor (0/4). Phase A′ (full multi-turn `/please`) was **not needed** — single-turn cells
+reproduced.
