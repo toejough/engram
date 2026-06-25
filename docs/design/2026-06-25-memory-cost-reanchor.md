@@ -4,6 +4,16 @@
 **Source data:** `2026-06-24-recall-miss-and-cost-round3-findings.md` §2 (capped opus n=5); vault notes
 77, 84, 80, 90. Gate-A reviewed (4 angles).
 
+> **Answered (2026-06-25, measured + verified — see `2026-06-25-warm-vs-cold-clean-measurement.md`).**
+> The clean warm-vs-cold run settles this doc's open "plausibly achievable, to be measured": on these
+> 3 small CRUD builds (opus, n=8/arm), memory makes the op **slower (+182 s) and costlier (+$3.08)** —
+> both beyond noise. The build phase is *not* accelerated (time indistinguishable; build **$ ~$1.00
+> higher** warm — recalled context re-read each turn), and the amortization "consuming apps build faster"
+> hope was an **artifact**. BUT the apps are **too easy** (6/8 cold builds converge in 2 rounds — no
+> rebuild waste for memory to remove), so this is **"underpowered → re-test on harder, multi-round
+> builds,"** not "memory can't pay off." The fork/levers below stand; the cheaper/faster *aspiration* is
+> now bounded by measured reality.
+>
 > **Correction (2026-06-25, measured — see `2026-06-25-recall-cost-isolation.md`).** The "~350 s recall"
 > used throughout this doc is a **mislabel**: the harness `recall_s` timed round-1 = recall **+ the first
 > full code build**. **Recall-only is ~190 s** — *below* the cold build (~288 s). So this doc's "recall's
