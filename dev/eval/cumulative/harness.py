@@ -74,7 +74,7 @@ def loadj_str(txt):
     return best
 
 
-def claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None):
+def claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None, extra_env=None):
     env = dict(os.environ)
     env["CLAUDE_CONFIG_DIR"] = cfg
     env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "64000"
@@ -88,6 +88,8 @@ def claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None):
         env["ENGRAM_VAULT_PATH"] = vault
     if chunks:
         env["ENGRAM_CHUNKS_DIR"] = chunks  # the /recall chunk-variant skill reads this
+    if extra_env:
+        env.update(extra_env)  # caller overrides last (e.g. the C7 recheck stub PATH + stub env vars)
     args = ["claude", "-p", prompt, "--output-format", "json",
             "--model", MODELS[model], "--permission-mode", "bypassPermissions"]
     if resume_sid:

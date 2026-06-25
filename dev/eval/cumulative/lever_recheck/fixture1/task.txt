@@ -1,0 +1,1 @@
+We need to cut the per-document cost of the Orchestra document-processing pipeline (it runs a retrieval / context-fetch step, then a generation step, for every document). Recommend the single highest-leverage change to reduce per-document cost, and explain why it is the best lever. Consult your memory first.
