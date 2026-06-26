@@ -133,6 +133,9 @@ def refresh_creds_path(cfg):
 def build_prompt(app, interface, read_mode, checklist=False, include_recall=True):
     """Build prompt with read-mode-appropriate recall. Real-skill regimes only (recall-v2).
 
+    include_recall: pass False when recall already ran on its own call (the $METER session split)
+    and the build resumes that session — leaving it True would inject a second /recall.
+
     checklist (Lever 4): when True, append a gating self-verification block so the build treats every
     recalled convention as a hard acceptance criterion to check BEFORE finishing — vs the soft
     "apply as requirements" handoff. It is a flag (not a read_mode) so recall-fired enforcement, which
@@ -654,7 +657,7 @@ def _round_rec(rnd, sc, res, conv, feat):
 def split_costs(recall_res, rounds):
     """Separate the billed recall cost from the build cost. recall_res is the recall-only call's
     result (None for cold). build_cost is the sum of build rounds and never includes recall."""
-    recall_cost = round((recall_res or {}).get("total_cost_usd", 0) or 0, 4) if recall_res else 0.0
+    recall_cost = round((recall_res or {}).get("total_cost_usd", 0) or 0, 4)  # 0.0 for cold (None)
     build_cost = round(sum(r["cost"] for r in rounds), 4)
     return recall_cost, build_cost
 

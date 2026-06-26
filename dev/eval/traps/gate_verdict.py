@@ -59,7 +59,10 @@ _ADAPTERS = {"C3": _norm_c3, "C4i": _norm_c4i, "C5": _norm_c5, "C6": _norm_c6}
 
 
 def normalize(axis, rows):
-    """Normalize a harness's result rows to the common [{"pass","contaminated"}] trial shape."""
+    """Normalize a harness's result rows to the common [{"pass","contaminated"}] trial shape.
+
+    Note: C4i selects the warm-XXp arm only (cold/warm-X rows are dropped); C6 treats an empty
+    answer as contaminated (it has no `built` flag)."""
     if axis not in _ADAPTERS:
         raise ValueError(f"unknown axis {axis!r}")
     return _ADAPTERS[axis](rows)
