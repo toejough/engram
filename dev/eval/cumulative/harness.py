@@ -130,15 +130,19 @@ def refresh_creds_path(cfg):
         pass
 
 
-def build_prompt(app, interface, read_mode, checklist=False):
+def build_prompt(app, interface, read_mode, checklist=False, include_recall=True):
     """Build prompt with read-mode-appropriate recall. Real-skill regimes only (recall-v2).
 
     checklist (Lever 4): when True, append a gating self-verification block so the build treats every
     recalled convention as a hard acceptance criterion to check BEFORE finishing — vs the soft
     "apply as requirements" handoff. It is a flag (not a read_mode) so recall-fired enforcement, which
     keys on read_mode == "skill", still applies to the checklist arm.
+
+    include_recall ($METER split): when False, omit the /recall directive (the recall ran as its own
+    billed call) while keeping the rest of the build prompt — including the checklist gating block —
+    intact, so the resumed build round does not re-invoke recall.
     """
-    if read_mode == "none":
+    if read_mode == "none" or not include_recall:
         recall = ""
     elif read_mode == "skill":
         recall = (
@@ -162,6 +166,18 @@ def build_prompt(app, interface, read_mode, checklist=False):
             "questions; keep going until it compiles and tests pass. Make changes by editing files "
             "directly with your tools; work across several steps; no need to reprint whole files. "
             "When done give a one-line summary.")
+
+
+def recall_only_prompt(app):
+    """Recall-only message for the split round-1: run /recall, print impact, then STOP — no build.
+    Used so recall_cost/recall_s can be measured on their own billed claude call."""
+    return (
+        "Consult your memory by INVOKING YOUR /recall SKILL — actually run the skill (it prints its "
+        "Step 0 plan, queries the vault, and synthesizes impact). Do NOT hand-run `engram query` "
+        f"yourself. Frame the recall around building a command-line {app} in Go and its "
+        "architecture/conventions. Read every note the skill surfaces. Then STOP: do not write any "
+        "code, do not initialize a Go module, do not create files — only complete the recall and print "
+        "its one-line impact summary.")
 
 
 # Prescriptive, code-level fix per ARCH detector — used to ESCALATE feedback on a convention that
