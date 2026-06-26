@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Zero-cost validation of the cumulative-accumulation harness — NO LLM calls, no spend.
 
-Runs validation checks for the v3 2-regime design (cold + real.full, no tiers/episodes):
-  (i)   cell-gen: 2 regimes × 3 apps = 6 build ops, 0 learn ops; vault threading + deps
+Runs validation checks for the v3 design (cold + real.full + real.checklist, no tiers/episodes):
+  (i)   cell-gen: 3 regimes × 3 apps = 9 build ops, 0 learn ops; vault threading + deps
   (iv)  scorer is name-agnostic: GOOD fixture (Repository vocab) passes ARCH, NAIVE fails
   (ii)  clean room: no CLAUDE.md/AGENTS.md reaches a build; cfg carries only recall+learn
   +     full pipeline mechanics via the --stub matrix (build→score→loop→learn→thread→schema)
@@ -33,12 +33,12 @@ def check(name, ok, detail=""):
 
 
 def check_cellgen():
-    # v3: 2 regimes (cold, real.full) × 3 apps = 6 build ops, 0 separate learn ops.
+    # v3: 3 regimes (cold, real.full, real.checklist) × 3 apps = 9 build ops, 0 separate learn ops.
     ops = matrix.real_cells_for("sonnet", 1, "2026-06-06", "", 6, None)
     builds = [o for o in ops if o["kind"] == "build"]
     learns = [o for o in ops if o["kind"] == "learn"]
-    check("cell-gen: 6 ops (6 build + 0 learn)",
-          len(ops) == 6 and len(builds) == 6 and len(learns) == 0,
+    check("cell-gen: 9 ops (9 build + 0 learn)",
+          len(ops) == 9 and len(builds) == 9 and len(learns) == 0,
           f"{len(ops)} ops / {len(builds)} build / {len(learns)} learn")
 
     # Vault threading: real.full writes vault; cold never accumulates.
@@ -85,8 +85,8 @@ def check_stub_pipeline():
         r = subprocess.run(["python3", os.path.join(CUM, "matrix.py"), "--models", "sonnet",
                             "--trials", "1", "--stub", "good", "--max-rounds", "1", "--workers", "4",
                             "--timeout-min", "5"], env=env, capture_output=True, text=True, timeout=600)
-        done = "### MATRIX COMPLETE ### 6/6" in r.stdout
-        check("stub matrix: 6/6 ops complete (no LLM)", done, r.stdout.strip().splitlines()[-1] if r.stdout else "")
+        done = "### MATRIX COMPLETE ### 9/9" in r.stdout
+        check("stub matrix: 9/9 ops complete (no LLM)", done, r.stdout.strip().splitlines()[-1] if r.stdout else "")
 
         # real.full accumulates a vault; verify app1 and app2 produced vault dirs.
         v_app1 = os.path.join(root, "vaults", "v-sonnet-t1-app1-real.full")
