@@ -25,3 +25,41 @@ def gate_verdict(axes):
     else:
         verdict = "GREEN"
     return {"verdict": verdict, "axes": axes}
+
+
+def _norm_c3(rows):
+    # wrun.py warm-results.json: verdict is "applied"|"trap"|"nobuild" (nobuild = degenerate trial).
+    return [{"pass": r["verdict"] == "applied", "contaminated": r["verdict"] == "nobuild"}
+            for r in rows]
+
+
+def _norm_c4i(rows):
+    # c4-idio-results.json: only the warm-XXp arm exercises the gate; score is None when unbuilt.
+    out = []
+    for r in rows:
+        if r.get("arm") != "warm-XXp":
+            continue
+        out.append({"pass": bool((r.get("score") or {}).get("supersession_correct")),
+                    "contaminated": not r["built"]})
+    return out
+
+
+def _norm_c5(rows):
+    # c5-results.json warm arm: an unbuilt trial is degenerate; honored is the pass signal.
+    return [{"pass": bool(r.get("honored")), "contaminated": not r["built"]} for r in rows]
+
+
+def _norm_c6(rows):
+    # c6-warm.json: no "built" field — an empty answer marks the degraded (contaminated) build.
+    return [{"pass": bool(r.get("hit")), "contaminated": not (r.get("answer") or "").strip()}
+            for r in rows]
+
+
+_ADAPTERS = {"C3": _norm_c3, "C4i": _norm_c4i, "C5": _norm_c5, "C6": _norm_c6}
+
+
+def normalize(axis, rows):
+    """Normalize a harness's result rows to the common [{"pass","contaminated"}] trial shape."""
+    if axis not in _ADAPTERS:
+        raise ValueError(f"unknown axis {axis!r}")
+    return _ADAPTERS[axis](rows)

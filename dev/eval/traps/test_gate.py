@@ -42,3 +42,44 @@ def test_gate_red_if_any_axis_red():
 def test_gate_inconclusive_if_any_inconclusive_and_none_red():
     axes = {"C3": {"status": "GREEN"}, "C5": {"status": "INCONCLUSIVE"}}
     assert gv.gate_verdict(axes)["verdict"] == "INCONCLUSIVE"
+
+
+def test_normalize_c3_applied_pass_nobuild_contaminated():
+    rows = [{"verdict": "applied"}, {"verdict": "trap"}, {"verdict": "nobuild"}]
+    out = gv.normalize("C3", rows)
+    assert out[0] == {"pass": True, "contaminated": False}
+    assert out[1] == {"pass": False, "contaminated": False}
+    assert out[2]["contaminated"] is True
+
+
+def test_normalize_c4i_warmxxp_built_supersession_passes():
+    rows = [{"arm": "cold", "built": True, "score": {"supersession_correct": False}},
+            {"arm": "warm-XXp", "built": True, "score": {"supersession_correct": True}}]
+    out = gv.normalize("C4i", rows)               # cold filtered out
+    assert out == [{"pass": True, "contaminated": False}]
+
+
+def test_normalize_c4i_unbuilt_is_contaminated_no_crash():
+    rows = [{"arm": "warm-XXp", "built": False, "score": None}]
+    out = gv.normalize("C4i", rows)
+    assert out[0]["contaminated"] is True and out[0]["pass"] is False
+
+
+def test_normalize_c5_unbuilt_contaminated():
+    rows = [{"built": True, "honored": True}, {"built": False, "honored": None}]
+    out = gv.normalize("C5", rows)
+    assert out[0] == {"pass": True, "contaminated": False}
+    assert out[1]["contaminated"] is True
+
+
+def test_normalize_c6_empty_answer_is_contaminated():
+    rows = [{"hit": True, "answer": "HIT because..."}, {"hit": False, "answer": ""}]
+    out = gv.normalize("C6", rows)
+    assert out[0] == {"pass": True, "contaminated": False}
+    assert out[1]["contaminated"] is True
+
+
+def test_normalize_unknown_axis_raises():
+    import pytest
+    with pytest.raises(ValueError):
+        gv.normalize("C9", [])
