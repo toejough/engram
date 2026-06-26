@@ -79,6 +79,7 @@ def axis_ci_table(builds, learns, models, regimes):
         ("build_s", "build_s"),
         ("learn_s", "learn_s"),
         ("build_cost", "axis_c2_cost_usd"),
+        ("recall_cost", "axis_c2_recall_cost"),
         ("convention_statements", "axis_c3_interventions"),
         ("feature_statements", "feature_statements"),
     ]
@@ -241,6 +242,9 @@ def chain_rows(builds, learns, model, regime):
             "learn_cost": (sum(x.get("learn_cost", 0) or 0 for x in ln)
                            + sum((x.get("learn") or {}).get("cost", 0) or 0 for x in builds3)),
             "build_cost": sum(x.get("build_cost", 0) or 0 for x in builds3),
+            # $METER: recall_cost is billed separately from build_cost; keep it as its own row field so
+            # every chain total (headline, per-regime) can fold it back in and stay whole (note 66).
+            "recall_cost": sum(x.get("recall_cost", 0) or 0 for x in builds3),
             "wall": sum((x.get("wall_min", 0) or 0) for x in builds3 + ln),
             "tokens": sum(_toks(x) for x in builds3 + ln),
         })
@@ -266,7 +270,7 @@ def headline_stats_table(builds, learns, models, regimes):
             tot = lambda k: mean([r[k] for r in rows])
             lines.append(f"| {m} | {arm} | {tot('conv_restate'):.1f} | {tot('review_turns'):.1f} | "
                          f"{cv:.0f}% | {tot('wall'):.0f} | {tot('tokens')/1e6:.1f}M | "
-                         f"{tot('learn_cost')+tot('build_cost'):.2f} |")
+                         f"{tot('learn_cost')+tot('build_cost')+tot('recall_cost'):.2f} |")
     return "\n".join(lines) + "\n"
 
 
@@ -291,6 +295,7 @@ def amortized_economics_table(builds, models, regimes):
             ("recall time", "s", "recall_s", False),
             ("learn time", "s", "learn_s", False),
             ("cost", "USD", "axis_c2_cost_usd", False),
+            ("recall cost", "USD", "axis_c2_recall_cost", False),
             ("tokens", "Mtok", "tokens", True)]
     lines = ["### Amortized economics — seed (app1·notes) vs payback (apps 2–3·links+feeds)", "",
              "app1 seeds memory at full recall+learn cost with no prior memory to recall — a one-time "
@@ -340,8 +345,9 @@ def per_regime_cost_table(builds, learns, models, regimes):
             if not rows:
                 continue
             ln, bd = mean([r["learn_cost"] for r in rows]), mean([r["build_cost"] for r in rows])
+            rc = mean([r.get("recall_cost", 0) or 0 for r in rows])  # $METER: fold billed recall into total$
             cv = 100 * sum(r["conv_builds"] for r in rows) / sum(r["n_builds"] for r in rows)
-            lines.append(f"| `{reg}` | {ln:.2f} | {bd:.2f} | {ln+bd:.2f} | "
+            lines.append(f"| `{reg}` | {ln:.2f} | {bd:.2f} | {ln+bd+rc:.2f} | "
                          f"{mean([r['wall'] for r in rows]):.0f} | {mean([r['tokens'] for r in rows])/1e6:.1f}M | {cv:.0f}% |")
         lines.append("")
     return "\n".join(lines) + "\n"
@@ -361,6 +367,7 @@ def cost_time_table(builds, learns, models, regimes):
                     if b.get("model") == m and b.get("trial") == t and \
                        (b.get("app") == "notes" or b.get("regime") == r):
                         cost += b.get("build_cost", 0) or 0
+                        cost += b.get("recall_cost", 0) or 0  # $METER: billed recall is part of op cost
                         cost += (b.get("learn") or {}).get("cost", 0) or 0  # in-session /learn (Bug 3)
                         wall += b.get("wall_min", 0) or 0
                 for le in learns:
@@ -518,7 +525,7 @@ def token_io_table(builds, learns, models, root):
         a = agg[m]
         a["in"] += tok.get("input", 0); a["out"] += tok.get("output", 0)
         a["cw"] += tok.get("cache_write", 0); a["cr"] += tok.get("cache_read", 0)
-        a["rep"] += (rec.get("build_cost") or 0) + (rec.get("learn_cost") or 0)
+        a["rep"] += (rec.get("build_cost") or 0) + (rec.get("learn_cost") or 0) + (rec.get("recall_cost") or 0)
         a["rec"] += rec_cost or 0; a["n"] += 1
 
     note = (f"  ·  {covered}/{total} LLM-using cells captured ({noop} cold no-op learns excluded)"
@@ -571,7 +578,8 @@ def full_matrix_tables(builds, learns, models, regimes):
                 conv.append(nr); ncomp += 1
             ln = a1l.get((model, t, write_of.get(reg, reg))) if app == "notes" else (
                 a2l.get((model, t, reg)) if app == "links" else None)
-            cost.append((b.get("build_cost", 0) or 0) + ((ln or {}).get("learn_cost", 0) or 0))
+            cost.append((b.get("build_cost", 0) or 0) + (b.get("recall_cost", 0) or 0)
+                        + ((ln or {}).get("learn_cost", 0) or 0))
             tok.append(_toks(b) + _toks(ln))
             wall.append((b.get("wall_min", 0) or 0) + ((ln or {}).get("wall_min", 0) or 0))
         return {"fb": mean_med(fb), "presc": mean_med(presc), "conv": mean_med(conv),
@@ -682,7 +690,8 @@ def cost_calibration(builds, learns):
     spend estimate — builds are multi-round, learns single (advisor §4)."""
     bcost, brounds, lcost = collections.defaultdict(list), collections.defaultdict(list), collections.defaultdict(list)
     for b in builds:
-        bcost[(b.get("model"), b.get("app"))].append(b.get("build_cost", 0) or 0)
+        bcost[(b.get("model"), b.get("app"))].append((b.get("build_cost", 0) or 0)
+                                                      + (b.get("recall_cost", 0) or 0))
         brounds[(b.get("model"), b.get("app"))].append(len(b.get("rounds", [])))
     for le in learns:
         if le.get("learned"):

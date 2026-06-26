@@ -28,7 +28,7 @@ import score as scoremod
 # Single editable source of truth for the model registry — a new model is a one-line add (§1.5).
 MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "opus": "claude-opus-4-8"}
 ENGRAM_BIN_DIR = os.environ.get("ENGRAM_BIN_DIR", os.path.expanduser("~/go/bin"))
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 CONVERGE_ARCH_BAR = 8  # arch_pass >= 8 (matches converged())
 STALL_PATIENCE = 3  # halt the build loop if convergence score is flat this many consecutive rounds.
 # Loosened 2→3 after haiku n=5: patience=2 cut 14/30 builds with round-budget to spare (only 1 genuine

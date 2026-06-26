@@ -175,7 +175,8 @@ def op_cost(out):
         # real.* cells store the in-session learn cost nested under d["learn"]["cost"]; legacy learn
         # ops use the flat learn_cost key. Count both so the live "spent" tally is honest.
         learn_nested = (d.get("learn") or {}).get("cost") or 0
-        return (d.get("build_cost") or 0) + (d.get("learn_cost") or 0) + (d.get("total_cost") or 0) + learn_nested
+        return ((d.get("build_cost") or 0) + (d.get("learn_cost") or 0)
+                + (d.get("total_cost") or 0) + learn_nested + (d.get("recall_cost") or 0))
     except Exception:
         return 0.0
 

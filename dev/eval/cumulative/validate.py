@@ -106,16 +106,16 @@ def check_stub_pipeline():
         check("clean room: warm cfg carries ONLY recall+learn; cold none",
               warm_skills == ["learn", "recall"] and not cold_has_skills, f"warm={warm_skills} cold_skills={cold_has_skills}")
 
-        # schema v4: verify a result JSON has schema_version 4
+        # schema v5: verify a result JSON has schema_version 5 ($METER: recall_cost added)
         result_jsons = [f for f in os.listdir(os.path.join(root, "results"))
                         if f.endswith(".json") and f != "run-manifest.json"]
         if result_jsons:
             sample = json.load(open(os.path.join(root, "results", result_jsons[0])))
-            check("schema v4: stub result has schema_version 4",
-                  sample.get("schema_version") == 4,
+            check("schema v5: stub result has schema_version 5",
+                  sample.get("schema_version") == 5,
                   f"schema_version={sample.get('schema_version')}")
         else:
-            check("schema v4: stub result has schema_version 4", False, "no result JSONs found")
+            check("schema v5: stub result has schema_version 5", False, "no result JSONs found")
 
         # new metrics: verify result JSON has v3 metrics and NOT tier/episode fields
         if result_jsons:
@@ -139,9 +139,9 @@ def check_stub_pipeline():
         # axis fields: verify aggregate output mentions all six axis fields
         agg_out = agg.stdout if agg.returncode == 0 else ""
         axis_fields = ["recall_s", "build_s", "learn_s", "axis_c2_cost_usd",
-                       "axis_c3_interventions", "Axis CI table"]
+                       "axis_c2_recall_cost", "axis_c3_interventions", "Axis CI table"]
         missing_axes = [f for f in axis_fields if f not in agg_out]
-        check("axis fields: --stub dry pass emits all six axis fields",
+        check("axis fields: --stub dry pass emits all axis fields (incl. axis_c2_recall_cost)",
               len(missing_axes) == 0, f"missing: {missing_axes}" if missing_axes else "all present")
 
         # no stale tier metric fields in aggregate output (allow "episode" in explanatory prose)
