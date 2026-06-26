@@ -675,8 +675,8 @@ def run_build(args):
     # notes_written/learn_kind_breakdown must be reported as a delta against this, not the total.
     notes_baseline = snapshot_notes(build_vault)
 
-    prompt = build_prompt(args.app, json.load(open(args.spec))["interface"],
-                          regime["read_mode"], checklist=regime.get("checklist", False))
+    interface = json.load(open(args.spec))["interface"]
+    warm = regime["read_mode"] == "skill" and not args.stub
 
     def do_build(msg, resume_sid=None):
         if args.stub:
@@ -694,10 +694,24 @@ def run_build(args):
             res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid)
         return res
 
+    # Phase 1 — recall only (warm). Billed on its own claude call so recall_cost/recall_s are clean.
+    recall_res, sid = None, None
     t_recall_start = time.time()
-    res = do_build(prompt)
+    if warm:
+        recall_res = do_build(recall_only_prompt(args.app))
+        sid = recall_res.get("session_id")
+        if recall_res.get("is_error") and (recall_res.get("total_cost_usd", 0) or 0) < 0.02:
+            print(f"recall call FAILED ({args.app} {args.regime}) — likely rate_limit; no result "
+                  f"written so resume re-runs it.", file=sys.stderr)
+            sys.exit(1)
     t_recall_end = time.time()
-    sid = res.get("session_id")
+
+    # Phase 2 — build (round-1 + feedback rounds), resumed in the same session for warm.
+    build_msg = build_prompt(args.app, interface, regime["read_mode"],
+                             checklist=regime.get("checklist", False), include_recall=False)
+    t_build_start = time.time()
+    res = do_build(build_msg, resume_sid=sid)
+    sid = sid or res.get("session_id")  # warm keeps the recall session (build resumed it); cold = build sid
     sc = scoremod.score(args.workdir, args.spec)
     conv, feat = split_failed(sc.get("failed", []))
     rounds = [_round_rec(1, sc, res, conv, feat)]
@@ -733,7 +747,7 @@ def run_build(args):
     rnd = 1
     # stub builds are deterministic (re-copy the same fixture), so the feedback loop is a no-op —
     # one round suffices to validate wiring/threading/schema without burning the time budget.
-    t_build_start = time.time()
+    # ($METER split: t_build_start was opened in Phase 2 above so it brackets round-1 AND the loop.)
     # Convergence-stall early-stop (retro Bug 4): the convergence score is arch progress + feature
     # progress = arch_pass minus the count of failing feature buckets. It rises monotonically as the
     # build improves (more arch detectors pass, fewer feature fails). If it does NOT improve for
@@ -824,9 +838,10 @@ def run_build(args):
     recall_ok = regime["read_mode"] == "none" or bool(args.stub) or rf > 0
     followed = False if args.stub else link_followed(args.cfg, sid)
 
-    build_cost = round(sum(r["cost"] for r in rounds), 4)
+    recall_cost, build_cost = split_costs(recall_res, rounds)
+    op_cost_total = round(recall_cost + build_cost, 4)   # full billed op cost (recall + all build rounds)
     audit = ({"tokens": dict(EMPTY_TOKENS), "recomputed_cost": 0.0, "cost_ratio": None} if args.stub
-             else token_audit(args.cfg, sid, MODELS[args.model], build_cost))
+             else token_audit(args.cfg, sid, MODELS[args.model], op_cost_total))
 
     # Modern vault metrics: count notes written by /learn + lazy crystallizations fired by /recall.
     # No tier breakdown — notes are flat (fact | feedback).
@@ -859,6 +874,7 @@ def run_build(args):
         "stalled": stalled,
         "escalation": escalation,
         "build_cost": build_cost,
+        "recall_cost": recall_cost,
         "build_turns": sum(r["turns"] for r in rounds),
         "tokens": audit["tokens"], "recomputed_cost": audit["recomputed_cost"],
         "cost_ratio": audit["cost_ratio"],
@@ -870,6 +886,7 @@ def run_build(args):
         "axis_c1_build_s": round(t_build_end - t_build_start, 3),
         "axis_c1_learn_s": round(t_learn_end - t_learn_start, 3),
         "axis_c2_cost_usd": round(sum(r["cost"] for r in rounds), 4),
+        "axis_c2_recall_cost": recall_cost,
         "axis_c3_interventions": round1_conv_fails,
         # Modern memory metrics (v3 — no tiers/episodes)
         "notes_written": notes_written,
