@@ -192,7 +192,8 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   `--workers 20`; >20 buys nothing (only ~20 ops ever ready at once).
 - **2026-06-21** — Op flow confirmed: per app, **instruct(+recall-first) → build/iterate → learn**;
   across the chain `learn(N)+ingest(N) → recall(N+1)`. `recall_s` is round-1 wall (recall + first
-  draft), not isolated recall latency.
+  draft), not isolated recall latency. [Superseded 2026-06-26: the $METER split makes `recall_s`
+  recall-only and adds a billed `recall_cost` — see that entry.]
 - **2026-06-23** — **Slice 1: cross-cluster linking (recall Step 2.6) — BUILT, end-to-end proven.**
   Harness `dev/eval/traps/cake.py`. The cake RED baseline **falsified the design premise**: k-means
   groups by shared *property*, not req-vs-mech domain, and the current skill already forms cross-note
@@ -363,3 +364,17 @@ recalibrated stall. Fill in from `aggregate.py --root /tmp/cummatrix-n5p3` when 
   OPEN** — sonnet has 2-3 rounds to cut; opus one-shots (saturated), so even less headroom; a sonnet
   directional result doesn't transfer. Cost overrun: ~$80 (est. $25-35) — sonnet ≈ opus cost on these
   builds (warm build cost is model-insensitive; the cost-parity flag from gate-A was right).
+- **2026-06-26** — **$METER + trap regression gate landed (two prereqs for cost/usage work).**
+  Built the prerequisites that make engram cost/usage optimization safe + measurable (vault notes
+  99/100). **(1) $METER (schema v4→v5):** round-1 is split into a recall-only `claude` call then a
+  `--resume`'d build, so `recall_cost` is now BILLED-and-separate and `recall_s` is recall-only.
+  Verified on a real warm chain (`/tmp/cummatrix`, opus n=1): recall = **$1.15 / $1.60 / $1.18** and
+  **117 / 169 / 162 s** for app1/2/3 — recall is ~**20% of op dollars, ~25% of op time** (was invisible
+  inside `build_cost`). `cost_ratio` 0.88–0.93 (token_audit reconciled against full op cost). Consumer
+  sweep: `aggregate.py` / `matrix.py op_cost` (5-term, keeps `learn_nested`) / `validate.py` all add
+  `recall_cost`; `validate.py` 57/57. **(2) Trap regression gate** (`traps/gate.py`, `seed_c3.py`,
+  `gate_verdict.py`): tiered smoke/full over C3/C4i/C5/C6, exact bars over valid trials,
+  contamination→INCONCLUSIVE. Baseline `--tier smoke` on current skills = **GREEN** (C3 5/5, C4i 1/1,
+  C5 1/1, C6 2/2, ~$2). Bug caught by the real run: score only the **warm** arm (`c5.py`/`c4_idio.py`
+  emit cold baselines that correctly fail) — fixed + regression-tested. Run it before+after any
+  recall/learn/please body edit (see `traps/README.md`).

@@ -87,6 +87,11 @@ Everything else keys off it. Table order is weak→strong (haiku → sonnet → 
   cache-read, summed over main + subagent transcripts, deduped by message id) plus
   `recomputed_cost` and `cost_ratio` — cost reconstructed from tokens × the price sheet, target
   ≈1.00×. Captured at run time into the result JSON, so provenance survives transcript pruning.
+- **Recall cost meter (schema v5):** the warm op runs recall on its OWN `claude` call (a recall-only
+  prompt, then `--resume` for the build), so `recall_cost` is the **billed** recall dollars and
+  `recall_s` is recall-only (no longer the old round-1 = recall+build mislabel). `build_cost`/`build_s`
+  cover all build rounds and EXCLUDE recall; full op cost = `recall_cost + build_cost (+ learn)`, and
+  `token_audit` reconciles against that full op cost so `cost_ratio` stays ≈1.0.
   **Cost/time are noise-dominated at small n** (build cost is round-count-driven); the convention
   metric is the reliable signal.
 
