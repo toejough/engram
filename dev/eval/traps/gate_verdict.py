@@ -45,8 +45,10 @@ def _norm_c4i(rows):
 
 
 def _norm_c5(rows):
-    # c5-results.json warm arm: an unbuilt trial is degenerate; honored is the pass signal.
-    return [{"pass": bool(r.get("honored")), "contaminated": not r["built"]} for r in rows]
+    # c5-results.json: score ONLY the warm arm (cold is the baseline that should fail); an unbuilt
+    # trial is degenerate; honored is the pass signal.
+    return [{"pass": bool(r.get("honored")), "contaminated": not r["built"]}
+            for r in rows if r.get("arm") == "warm"]
 
 
 def _norm_c6(rows):

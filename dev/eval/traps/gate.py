@@ -26,11 +26,13 @@ def run_axis(axis, reps, workers):
         cmd = ["python3", "wrun.py", "--vault", vault, "--n", str(reps), "--workers", str(workers)]
         out_file = "warm-results.json"
     elif axis == "C4i":
-        cmd = ["python3", "c4_idio.py", "--n", str(reps), "--workers", str(workers)]
+        # Only warm-XXp is scored (the supersession win); skip the cold/warm-X baseline arms.
+        cmd = ["python3", "c4_idio.py", "--arms", "warm-XXp", "--n", str(reps), "--workers", str(workers)]
         out_file = "c4-idio-results.json"
     elif axis == "C5":
         subprocess.run(["python3", "seed_c5.py"], cwd=TRAPS, env=env, check=True)
-        cmd = ["python3", "c5.py", "--n", str(reps), "--workers", str(workers)]
+        # Only the warm arm is scored (cold is the baseline that should fail); skip running it.
+        cmd = ["python3", "c5.py", "--arms", "warm", "--n", str(reps), "--workers", str(workers)]
         out_file = "c5-results.json"
     elif axis == "C6":
         cmd = ["python3", "c6_clean.py", "--arm", "warm", "--n", str(reps), "--workers", str(workers)]

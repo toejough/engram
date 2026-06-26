@@ -66,10 +66,20 @@ def test_normalize_c4i_unbuilt_is_contaminated_no_crash():
 
 
 def test_normalize_c5_unbuilt_contaminated():
-    rows = [{"built": True, "honored": True}, {"built": False, "honored": None}]
+    rows = [{"arm": "warm", "built": True, "honored": True},
+            {"arm": "warm", "built": False, "honored": None}]
     out = gv.normalize("C5", rows)
     assert out[0] == {"pass": True, "contaminated": False}
     assert out[1]["contaminated"] is True
+
+
+def test_normalize_c5_drops_cold_arm():
+    # c5.py emits cold + warm arms; the gate scores ONLY the warm arm (cold is the baseline
+    # that is SUPPOSED to fail — counting it would falsely flip the gate RED).
+    rows = [{"arm": "cold", "built": True, "honored": False},
+            {"arm": "warm", "built": True, "honored": True}]
+    out = gv.normalize("C5", rows)
+    assert out == [{"pass": True, "contaminated": False}]
 
 
 def test_normalize_c6_empty_answer_is_contaminated():
