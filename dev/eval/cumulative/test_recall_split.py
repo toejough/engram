@@ -22,3 +22,18 @@ def test_recall_only_prompt_invokes_recall_and_stops_without_building():
     assert "/recall" in p
     assert "go mod init" not in p             # must NOT build
     assert "STOP" in p.upper() or "do not write" in p.lower()
+
+
+def test_split_costs_warm_separates_recall_from_build():
+    recall_res = {"total_cost_usd": 0.5}
+    rounds = [{"cost": 1.0}, {"cost": 0.5}]
+    rc, bc = harness.split_costs(recall_res, rounds)
+    assert rc == 0.5
+    assert bc == 1.5          # build = sum(rounds), recall excluded
+
+
+def test_split_costs_cold_recall_is_zero():
+    rounds = [{"cost": 2.0}]
+    rc, bc = harness.split_costs(None, rounds)
+    assert rc == 0.0
+    assert bc == 2.0

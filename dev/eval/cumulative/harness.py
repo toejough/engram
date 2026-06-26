@@ -651,6 +651,14 @@ def _round_rec(rnd, sc, res, conv, feat):
             "is_error": bool(res.get("is_error"))}
 
 
+def split_costs(recall_res, rounds):
+    """Separate the billed recall cost from the build cost. recall_res is the recall-only call's
+    result (None for cold). build_cost is the sum of build rounds and never includes recall."""
+    recall_cost = round((recall_res or {}).get("total_cost_usd", 0) or 0, 4) if recall_res else 0.0
+    build_cost = round(sum(r["cost"] for r in rounds), 4)
+    return recall_cost, build_cost
+
+
 def _arch_detector_names():
     import archscore
     return [n for n, _ in archscore.DETECTORS]
