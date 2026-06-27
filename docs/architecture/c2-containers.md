@@ -38,7 +38,7 @@ flowchart TB
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
 | C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow. Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
-| C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`), note write (tier defaults, embed-on-write, Luhmann id under lock), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster; recency channel = 200 newest chunks un-clustered), embed apply/status, update. | houses G0, M4 |
+| C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`), note write (tier defaults, embed-on-write, Luhmann id under lock), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster; recency channel = newest chunks un-clustered (`recentFillChunks`, default 25, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`)), embed apply/status, update. | houses G0, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: swap silently empties recall (no guard) |
 | C4 | Vault | filesystem | `<luhmann>.<date>.<slug>.md` at the flat vault root + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
 
@@ -93,7 +93,7 @@ sequenceDiagram
     Md-->>E: query vectors
     Note over E: per phrase: top-30 (notes+chunks, recency-biased cosine); union, dedup max score, drop baseScore < 0.25, cap matched set ~300
     Note over E: Channel 1 (Relevance): ONE AutoK cluster over matched notes+chunks (D1 preserved); candidate_l2s = top-5 from within-cluster notes
-    Note over E: Channel 2 (Recency): append 200 newest chunks by IngestedAt, deduped vs matched set, tagged recent — NOT in any cluster
+    Note over E: Channel 2 (Recency): append newest chunks by IngestedAt (recentFillChunks, default 25, configurable via --recent-fill / ENGRAM_RECENT_FILL), deduped vs matched set, tagged recent — NOT in any cluster
     E-->>Sk: stdout YAML — items[matched+recent], clusters[].candidate_l2s {path, cosine} (top-5 within-cluster), budget
     loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only
         Sk->>E: shell engram show <candidate notes> (only those not already in items[])

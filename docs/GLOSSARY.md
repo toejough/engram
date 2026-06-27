@@ -138,8 +138,8 @@ items before clustering. Recency-biased ranking — not the floor — handles
 superseded notes (they rank below fresh competition and fall out of the cap).
 
 ### recency channel
-The second retrieval channel in `engram query`: the 200 newest chunks by
-`IngestedAt`, deduped against the matched set, appended to `items[]` with
+The second retrieval channel in `engram query`: the newest chunks by
+`IngestedAt` (`recentFillChunks`, default 25, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`), deduped against the matched set, appended to `items[]` with
 provenance `recent`, and not added to any cluster. Surfaces recent raw session
 context so a post-context-loss agent re-encounters its own narration. Coverage
 synthesis is not run against recency-channel items.
@@ -301,8 +301,8 @@ configure it via `.engram/sweep.json` (`non_persistent_prefixes` key), or
 bypass it with explicit `--sweep`/`--transcript`/`--markdown` or an isolated
 index via `ENGRAM_CHUNKS_DIR`.
 Chunks are the episodic layer (raw event memory); at recall they compete with
-notes in the per-phrase ranking (matched set, Channel 1) and the 200 newest
-also appear un-clustered in the recency channel (Channel 2). Chunk-grounding
+notes in the per-phrase ranking (matched set, Channel 1) and the newest
+(default 25, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`) also appear un-clustered in the recency channel (Channel 2). Chunk-grounding
 is recorded as frontmatter provenance on written notes, not as wikilinks.
 
 ### `engram prune` (subcommand)

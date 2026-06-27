@@ -96,7 +96,7 @@ addresses the situation) → `engram learn fact|feedback --relation … --chunk-
 … --source "<descriptive>"` (create the single representative note).
 
 **Channel 2 — Recency (un-clustered):** after the matched+clustered set, the
-binary appends the **200 newest chunks** (`recentFillChunks`) by `IngestedAt`,
+binary appends the **newest chunks by `IngestedAt`** (`recentFillChunks`, default **25**, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`),
 deduped against the matched set and tagged `recent`. These are not added to any cluster — they are
 raw situational context so a post-context-loss agent re-encounters its own recent
 narration and recovers authorship from recency, with no separate provenance
@@ -142,7 +142,7 @@ sequenceDiagram
     V-->>E: notes, chunks, and vectors
     Note over E: per phrase — embed; top-30 per phrase (notes+chunks, recency-biased cosine); union across 10 phrases, dedup max score, drop baseScore < 0.25, cap matched set at ~300
     Note over E: Channel 1 (Relevance): one AutoK cluster over matched notes+chunks (D1 preserved); per cluster emit candidate_l2s top-5 from within-cluster notes
-    Note over E: Channel 2 (Recency): append 200 newest chunks by IngestedAt, deduped vs matched set, tagged recent — NOT in any cluster
+    Note over E: Channel 2 (Recency): append newest chunks by IngestedAt (recentFillChunks, default 25, configurable via --recent-fill / ENGRAM_RECENT_FILL), deduped vs matched set, tagged recent — NOT in any cluster
     E-->>H: single YAML payload (phrases[], items[matched+recent], clusters[candidate_l2s], budget)
 
     Note over H: Step 2.5 — per-cluster coverage synthesis (loop below)
