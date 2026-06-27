@@ -1,9 +1,11 @@
 # Engram roadmap — recall efficiency
 
-Driving recall efficiency for three coupled goals: **experience** (recall feels heavy/slow),
-**cost** ($), and **frequency** (let the agent call recall more often and organically). All three
-converge on one target — shrink the post-fire recall procedure tax. Levers are ordered by likely
-biggest win; **do one at a time**, ship each gated, measure, then take the next.
+Driving recall efficiency for **real resource reduction** — actual tokens, dollars, and wall-time. A
+lever counts only if it moves one of those axes. Relocating work off the *perceived* critical path (e.g.
+async `learn`) hides cost without reducing it — **explicitly out of scope**. "Call recall more often" is
+description-gated, not body-gated (note 100), so a lighter body is not a usage lever either. Each lever
+below is tagged with the axis it actually moves; **do one at a time**, ship each gated, measure, then
+take the next.
 
 ## Where we are
 
@@ -11,9 +13,10 @@ biggest win; **do one at a time**, ship each gated, measure, then take the next.
   recency-supersession, honor-standard, abduction) hold with zero degradation under a realistic
   200-note crowded vault (2026-06-26). Value is real on idiosyncratic content; cost/speed is the tax.
 - **Recall is the tax** (measured): ~150–190s/op, of which **~half (~80–120s at the original ~200 KB) is the agent paging the
-  `engram query` payload** (~8 reads; trimmed to ~97 KB by #1+#5, so paging cost scales down); the binary itself is only ~3s. Recall is ~20% of op $
-  and ~25% of op time. The bottleneck is the **shape and size of what the binary hands the agent**,
-  not the computation.
+  `engram query` payload** (~8 reads; trimmed to ~97 KB by the shipped payload cuts, so paging cost scales down); the binary itself is only ~3s. Recall is ~20% of op $
+  and ~25% of op time. **Decompose by axis (notes 100/92):** the TIME tax is the procedure + paging; the
+  DOLLAR tax is *carrying* the payload in build context across turns (not its size — bytes are cheap
+  cache_read), so the only verified $ lever is pruning it after Step 3.
 
 ## Standing constraint (non-negotiable)
 
@@ -22,46 +25,48 @@ Every recall/learn skill change ships **gated by the trap regression harness**
 harness, schema v5). **Never touch the win-nucleus:** Step-3 conventions-as-requirements directive,
 Step-2.5B recency-weight, Step-2 matched-note retrieval, the frontmatter `description` field.
 
-## Efficiency levers (ranked; one at a time)
+## Efficiency levers (ranked by the real axis they move; one at a time)
 
-### #1 — ✅ Compact, lazy-content payload — DONE 2026-06-27
-Shipped `--lazy-chunks` (recall's default invocation): matched + recency **chunk** items render
-path/source-only; **notes (fact/feedback) keep full content inline** — the win-nucleus is untouched.
-The agent fetches a chunk's text on demand via the new `engram show-chunk <source#anchor>`. Measured:
-query payload **−33.7%** (146→97 KB, ~36.5K→24.2K tokens) on the 10-phrase baseline; trap gate
-**GREEN** (matched notes/clusters untouched); `targ check-full` clean (8/8).
-**Net-economics validation (the on-demand-vs-dump risk Joe raised):** across 13 realistic uninstructed
-recalls the agent fetched **0** chunks (notes are load-bearing — note 72), so there is no iterative-fetch
-tax to trade for; and in 2/2 sole-source fixtures it reached for `show-chunk` on its own and surfaced the
-exact fact — no evidence drop. Selection is reliable both ways (sparing when notes suffice, on-target when
-a chunk is the only source). Explicit clusters-block reorder assessed marginal (notes already lead by
-score) and skipped. Stacks on #5: cumulative payload ~230→97 KB (**~−58%**).
+Each lever is tagged with the axis it **actually** moves. Per note 100: payload **size** is cache_read-cheap
+(it moves TIME/paging, not dollars); the only verified **dollar** lever is pruning the payload out of build
+context after Step 3; the **token+time** lever is shrinking the procedure itself.
 
-### #2 — Async / non-blocking `learn`  ← NEXT
-The closing `/learn` (~61s) runs on the critical path before the result is delivered. Detach it so it
-ingests + crystallizes in the background. **Win:** ~61s off perceived latency; low risk (same notes
-written, just later — guard a same-session re-recall against the async write).
+### ← NEXT — payload-prune-after-Step-3  [DOLLARS — the only verified $ lever, ~$1/op]
+Drop the raw ~97 KB query payload out of the build's *ongoing* context once Step 3 has synthesized the
+requirements list. The real warm-over-cold dollar premium is *carrying* the payload across every
+subsequent build turn — not its size (the bytes are cheap to cache-read once — note 100). The synthesized
+requirements survive in context; only the raw payload is dropped. Measure with the `recall_cost` USD-meter
+(unbundles recall $ from build $). Lowest-risk real-dollar win.
 
-### #3 — Two-speed recall (the frequency keystone)
-Today recall is one heavy 287-line procedure invoked in full every time. Split into a **fast/cheap
-"quick recall"** (the binary query + the compact #1 view, minimal procedure) the agent can fire
-liberally and organically, reserving the **full** synthesis/linking machinery for moments that
-warrant it. **Win:** directly enables "called more often" via affordability, not exhortation.
-Composes #1; more architectural — brainstorm the split before building.
+### Shrink the recall procedure  [TOKENS + WALL-TIME, ~186s tax]
+Recall is one heavy ~287-line procedure run in full every time. Cut steps and/or route the mechanical
+sub-steps (per-cluster reads, linking) to a cheaper tier to reduce the agent's actual token-spend AND the
+~186s procedure tax. A "two-speed" split — a minimal quick-recall vs the full synthesis/linking machinery —
+is one form. **Honest caveats:** does NOT increase usage (firing is decided from the frontmatter
+*description*, not the body — note 100); and recall wall-time structurally exceeds a cold build (note 92),
+so the win is shaving the tax, not beating baseline. Architectural — brainstorm the split first. Gate hard:
+the body holds the win-nucleus.
 
-### #4 — Inline `candidate_l2` content; kill the blocking round-trips
-Step 2.5 currently makes serial blocking `engram show` calls per candidate. Ship that content inline
-in the query payload. **Win:** ~15–40s/op, ~3–8 fewer blocking round-trips; low risk (same bytes,
-delivered earlier).
+### dedupe the double ingest sweep  [small compute/time]
+Recall and learn each run `engram ingest --auto`; collapse the redundant pass. Mechanical.
 
-### #5 — Cost-cleanup bundle
-The smaller, mostly-mechanical trims:
-- ✅ **Recent-fill cut — DONE 2026-06-27** (`--recent-fill`, default 200→25). Measured: query payload
-  **−28%** (230→165 KB, 426→252 items, recent 205→25), trap gate **GREEN** (matched set untouched, no
-  capability regression), `targ check-full` clean. The recency channel is now configurable.
-- **payload-prune-after-Step-3** (drop the raw payload from build context after the requirements list
-  is synthesized — the ~$1/op $ lever) — open.
-- **dedupe the double ingest sweep** — open.
+### Parked — inline `candidate_l2` content  [NOT a cost lever]
+Shipping candidate content inline would cut ~3–8 blocking `engram show` round-trips — a *latency* nicety
+only. The bytes are cache_read-cheap and it ships content the agent may not read, so it is
+~token-neutral-or-worse with **no dollar win** (note 100: payload size ≠ dollars). Pursue only if
+round-trip latency itself becomes the complaint.
+
+### Removed — async / non-blocking `learn`  [relocation, not a reduction]
+Detaching the closing `/learn` (~61s) would move it off the *perceived* path but spends the same tokens,
+dollars, and total wall-time — it hides cost, it does not cut it. Does not move any real axis. Dropped
+2026-06-27 (Joe).
+
+## Shipped — payload-size cuts  [TIME/paging wins; cache_read-cheap, so NOT dollar wins]
+- ✅ **Lazy-chunk content — 2026-06-27** (`--lazy-chunks` + `show-chunk`): payload **−33.7%** (146→97 KB),
+  trap gate GREEN; validated **0** chunk fetches across 13 realistic uninstructed recalls + **2/2**
+  sole-source capability (no evidence drop). Agent fetches deferred chunk text on demand via `show-chunk`.
+- ✅ **Recent-fill cut — 2026-06-27** (`--recent-fill`, 200→25): payload **−28%** (230→165 KB), trap gate
+  GREEN, `targ check-full` clean. Cumulative with lazy-chunks: ~230→97 KB (**~−58%**).
 
 > **Note:** the recent-fill cut was the *safe biggest single* payload reducer, done first. It does
 > NOT close **#1** (the matched-set clusters-first/lazy-content restructure) — that remains the next
