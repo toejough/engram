@@ -4,6 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 import crowd
+import crowded_gate as cg
 import retrieval_probe as rp
 
 SRC = [{"slug": "77.x", "luhmann": "77", "type": "fact", "situation": "s",
@@ -49,3 +50,28 @@ def test_rank_in_payload_found_and_absent():
     p = {"items": [{"path": "v/other.md"}, {"path": "v/target.md"}]}
     assert rp.rank_in_payload(p, "target") == {"surfaced": True, "rank": 2}
     assert rp.rank_in_payload({"items": [{"path": "v/x.md"}]}, "target") == {"surfaced": False, "rank": None}
+
+
+def test_break_point_first_buried():
+    s = [{"n": 0, "all_surfaced": True, "worst_rank": 1},
+         {"n": 50, "all_surfaced": True, "worst_rank": 4},
+         {"n": 200, "all_surfaced": False, "worst_rank": None}]
+    assert cg.break_point(s) == 200
+
+
+def test_break_point_rank_threshold():
+    s = [{"n": 0, "all_surfaced": True, "worst_rank": 2},
+         {"n": 100, "all_surfaced": True, "worst_rank": 14}]
+    assert cg.break_point(s) == 100               # worst_rank 14 > 10
+
+
+def test_break_point_none_when_robust():
+    assert cg.break_point([{"n": 0, "all_surfaced": True, "worst_rank": 1},
+                           {"n": 400, "all_surfaced": True, "worst_rank": 3}]) is None
+
+
+def test_degradation_within_noise_flagged():
+    d = cg.degradation({"passed": 5, "valid": 5}, {"passed": 5, "valid": 5})
+    assert d["delta"] == 0
+    d2 = cg.degradation({"passed": 4, "valid": 5}, {"passed": 5, "valid": 5})
+    assert "noise" in d2["note"]
