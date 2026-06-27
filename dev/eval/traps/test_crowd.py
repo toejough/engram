@@ -4,6 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 import crowd
+import retrieval_probe as rp
 
 SRC = [{"slug": "77.x", "luhmann": "77", "type": "fact", "situation": "s",
         "fields": {"subject": "http requests in Go", "predicate": "use", "object": "NewRequestWithContext"},
@@ -42,3 +43,9 @@ def test_seed_into_refuses_real_vault(tmp_path):
     import pytest
     with pytest.raises(RuntimeError):
         crowd.seed_into(crowd.real_vault(), [])
+
+
+def test_rank_in_payload_found_and_absent():
+    p = {"items": [{"path": "v/other.md"}, {"path": "v/target.md"}]}
+    assert rp.rank_in_payload(p, "target") == {"surfaced": True, "rank": 2}
+    assert rp.rank_in_payload({"items": [{"path": "v/x.md"}]}, "target") == {"surfaced": False, "rank": None}
