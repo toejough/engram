@@ -38,7 +38,7 @@ flowchart TB
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
 | C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow. Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
-| C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`), note write (tier defaults, embed-on-write, Luhmann id under lock), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster; recency channel = newest chunks un-clustered (`recentFillChunks`, default 25)), embed apply/status, update. | houses G0, M4 |
+| C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`), note write (tier defaults, embed-on-write, Luhmann id under lock), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster; recency channel = newest chunks un-clustered (`recentFillChunks`, default 25); optional `--lazy-chunks` renders matched+recent **chunk** items path/source-only (notes keep full content) for on-demand fetch via `show-chunk`), embed apply/status, update. | houses G0, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: swap silently empties recall (no guard) |
 | C4 | Vault | filesystem | `<luhmann>.<date>.<slug>.md` at the flat vault root + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
 
@@ -46,7 +46,7 @@ flowchart TB
 | From → To | Description |
 |---|---|
 | Agent → C1 | The agent executes the skills' steps (LLM judgment); the skills are the only entry to the system from the agent's side. |
-| C1 → C2 | Each skill step subprocess-invokes `engram <subcommand>` (a fresh process per call). The **binary's** vault/marker I/O is entirely through C2; the **skill layer** no longer pokes vault files directly. Recall reads candidate/member content via `engram show` and the payload's `items[]` (no direct file reads); writes go through `engram amend` (covered/near) and `engram learn` (absent). `engram amend` (`internal/cli/amend.go`) is the sync-preserving in-place edit subcommand, so the old "no `engram` edit subcommand" direct-write gap (INV-S1 write-half) is **resolved**. |
+| C1 → C2 | Each skill step subprocess-invokes `engram <subcommand>` (a fresh process per call). The **binary's** vault/marker I/O is entirely through C2; the **skill layer** no longer pokes vault files directly. Recall reads candidate/member content via `engram show` (notes), `engram show-chunk` (deferred chunk text under `--lazy-chunks`), and the payload's `items[]` (no direct file reads); writes go through `engram amend` (covered/near) and `engram learn` (absent). `engram amend` (`internal/cli/amend.go`) is the sync-preserving in-place edit subcommand, so the old "no `engram` edit subcommand" direct-write gap (INV-S1 write-half) is **resolved**. |
 | C2 → C3 | C2 embeds note text (on write) and query text (on read) via the bundled model. All notes embed the body — see [L3](c3-components.md) K5. |
 | C2 → C4 | Reads notes+sidecars at query time; writes new notes+sidecars atomically under a vault write-lock spanning id-compute→write. The wikilink graph is built from note bodies at query time. |
 | C2 → S5 | `engram ingest --auto` reads Claude `.jsonl`; re-chunks and re-embeds only sources whose mtime/size/hash changed vs the `manifest.json` written to `$XDG_DATA_HOME/engram/chunks`; strips harness noise; byte-capped with continuation signalling. `--auto` additionally skips session-log directories whose slugified project path starts with a non-persistent-workspace prefix (`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-` — slugified forms of `/private/tmp`, `/tmp`, and macOS `$TMPDIR`), preventing eval/test runs from bloating the main chunk index (configurable via the `non_persistent_prefixes` key in `.engram/sweep.json`). Two opt-in levers bypass the skip for deliberate test ingestion: explicit `--sweep <dir>` / `--transcript <file>` / `--markdown <file>` — manual sweep roots carry no prefix exclusion — or an isolated index + vault via `ENGRAM_CHUNKS_DIR` / `ENGRAM_VAULT_PATH`. |
@@ -72,7 +72,7 @@ skill shells (C1→C2); all judgment stays in C1; C2 only touches C3 (model), C4
 S5 (sessions). Every arrow is one of: (a) skill shells a subcommand, (b) a
 subcommand touches a store/model/stdout — **never** one subcommand calling another in-process.
 The skill layer no longer reads or edits the vault directly: recall reads candidate/member
-content via `engram show` and the query payload, and all writes go through `engram amend` /
+content via `engram show` (notes) and `engram show-chunk` (deferred chunk text under `--lazy-chunks`) plus the query payload, and all writes go through `engram amend` /
 `engram learn` (INV-S1 resolved — see the C1→C2 row above).
 
 ### Flow: recall
@@ -86,7 +86,7 @@ sequenceDiagram
     participant V as C4 vault
 
     Note over Sk: Step 0 — print Ask/Situation/Plan; Step 1 — phrase exactly 10 queries (one per fixed angle)
-    Sk->>E: shell engram query --phrase p1 … --phrase p10 (fresh process)
+    Sk->>E: shell engram query --lazy-chunks --phrase p1 … --phrase p10 (fresh process)
     E->>V: Scan notes + load model-compatible sidecars + chunk index
     V-->>E: notes, chunks, and vectors
     E->>Md: embed each phrase
@@ -94,10 +94,14 @@ sequenceDiagram
     Note over E: per phrase: top-30 (notes+chunks, recency-biased cosine); union, dedup max score, drop baseScore < 0.25, cap matched set ~300
     Note over E: Channel 1 (Relevance): ONE AutoK cluster over matched notes+chunks (D1 preserved); candidate_l2s = top-5 from within-cluster notes
     Note over E: Channel 2 (Recency): append newest chunks by IngestedAt (recentFillChunks, default 25), deduped vs matched set, tagged recent — NOT in any cluster
-    E-->>Sk: stdout YAML — items[matched+recent], clusters[].candidate_l2s {path, cosine} (top-5 within-cluster), budget
+    E-->>Sk: stdout YAML — items[matched+recent], clusters[].candidate_l2s {path, cosine} (top-5 within-cluster), budget (lazy_chunks: true → chunk items path/source-only; notes keep full content)
     loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only
         Sk->>E: shell engram show <candidate notes> (only those not already in items[])
         E-->>Sk: candidate frontmatter + body + members
+        opt a chunk is the sole carrier of a needed fact (rare — notes are load-bearing; measured 0 fetches in 13/13 realistic recalls, on-target fetch when sole-source)
+            Sk->>E: shell engram show-chunk <source#anchor> (fetch deferred chunk text under --lazy-chunks)
+            E-->>Sk: chunk text
+        end
         Note over Sk: apply recency weight; judge coverage (covered/near/absent)
         alt covered
             Sk->>E: shell engram amend --target <note> --activate --relation --chunk-source (link-enrich)
@@ -143,7 +147,7 @@ sequenceDiagram
 
 Synthesis now happens at **recall**, **inline and blocking** — not at learn time and not via
 fire-and-forget subagents. There is **no `engram synthesize`**. The recall skill drives the loop,
-calling `engram query` / `engram show` / `engram amend` / `engram learn` as **separate processes**
+calling `engram query` / `engram show` / `engram show-chunk` / `engram amend` / `engram learn` as **separate processes**
 and making every coverage decision itself. Cosine only *nominates* candidate notes; the agent decides
 covered/near/absent. The binary never sees "the synthesis loop."
 
@@ -154,7 +158,7 @@ sequenceDiagram
     participant E as C2 engram CLI
     participant V as C4 vault
 
-    Sk->>E: shell engram query (fresh process)
+    Sk->>E: shell engram query --lazy-chunks (fresh process)
     E->>V: scan + build matched set (recency-biased cosine per phrase, bounded ~300) + cluster (D1) + recency channel
     E-->>Sk: payload incl. items[matched+recent], clusters[].candidate_l2s {path, cosine} (top-5 within-cluster notes)
     loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only

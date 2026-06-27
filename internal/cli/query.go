@@ -38,10 +38,10 @@ type QueryArgs struct {
 	// recall sweep shrink the payload without a skill edit.
 	RecentFill int `targ:"flag,name=recent-fill,env=ENGRAM_RECENT_FILL,desc=newest-by-ingest chunks in the recency channel (0=default 25; negative=off); reduces recall payload"` //nolint:lll // single unbreakable struct-tag string
 	// LazyChunks renders matched chunk items path/score only (no content);
-	// the agent fetches a chunk's evidence on-demand via `engram show`. Notes
+	// the agent fetches a chunk's evidence on-demand via `engram show-chunk`. Notes
 	// (fact/feedback) always keep full content. Opt-in (recall sets it); env=
 	// lets the recall sweep enable it without a skill edit.
-	LazyChunks bool `targ:"flag,name=lazy-chunks,env=ENGRAM_LAZY_CHUNKS,desc=render matched chunk items path/score only (no content); the agent fetches a chunk's evidence on-demand via engram show — shrinks the recall payload"` //nolint:lll // single unbreakable struct-tag string
+	LazyChunks bool `targ:"flag,name=lazy-chunks,env=ENGRAM_LAZY_CHUNKS,desc=render matched chunk items path/score only (no content); the agent fetches a chunk's evidence on-demand via engram show-chunk — shrinks the recall payload"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -636,7 +636,7 @@ func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
 
 // clearChunkContent zeroes the Content of chunk items (Kind == chunkItemKind)
 // for lazy-chunk mode, leaving note items untouched. The agent fetches a
-// cleared chunk's evidence on-demand via `engram show`. Returns the (mutated)
+// cleared chunk's evidence on-demand via `engram show-chunk`. Returns the (mutated)
 // items.
 func clearChunkContent(items []queryItem) []queryItem {
 	for i := range items {
@@ -1324,7 +1324,7 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	clusters := renderClusters(merged.phraseClusters)
 
 	// Lazy-chunk mode (opt-in): empty chunk content so the agent pages a
-	// chunk's evidence on-demand via `engram show`. Notes are untouched.
+	// chunk's evidence on-demand via `engram show-chunk`. Notes are untouched.
 	// When lazy, capChunkContent is skipped entirely (ChunksSnippeted reports 0)
 	// rather than run on the already-cleared chunks.
 	var snipped int

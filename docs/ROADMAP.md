@@ -10,8 +10,8 @@ biggest win; **do one at a time**, ship each gated, measure, then take the next.
 - Memory's value is **validated and generalizes**: the 4 capability wins (apply-conventions,
   recency-supersession, honor-standard, abduction) hold with zero degradation under a realistic
   200-note crowded vault (2026-06-26). Value is real on idiosyncratic content; cost/speed is the tax.
-- **Recall is the tax** (measured): ~150–190s/op, of which **~half (~80–120s) is the agent paging a
-  ~200KB `engram query` payload** (~8 reads); the binary itself is only ~3s. Recall is ~20% of op $
+- **Recall is the tax** (measured): ~150–190s/op, of which **~half (~80–120s at the original ~200 KB) is the agent paging the
+  `engram query` payload** (~8 reads; trimmed to ~97 KB by #1+#5, so paging cost scales down); the binary itself is only ~3s. Recall is ~20% of op $
   and ~25% of op time. The bottleneck is the **shape and size of what the binary hands the agent**,
   not the computation.
 
@@ -24,15 +24,20 @@ Step-2.5B recency-weight, Step-2 matched-note retrieval, the frontmatter `descri
 
 ## Efficiency levers (ranked; one at a time)
 
-### #1 — Restructure the query output to a compact, one-read payload  ← NEXT
-The single highest-leverage lever. Today `engram query` emits a ~200KB blob the agent pages ~8×.
-Emit a compact, clusters-first / lazy-content view so the load-bearing content arrives in **one
-read**, deferring bulk chunk text to on-demand. **Win:** ~40–80s/op (time + experience), kills the
-~$1 per-build-turn re-read premium, and a lighter payload is what makes frequent calls affordable.
-**Risk (med):** must not drop the matched-note content the wins depend on — gate hard. Binary change
-(query output) + recall-skill change (how it consumes the payload).
+### #1 — ✅ Compact, lazy-content payload — DONE 2026-06-27
+Shipped `--lazy-chunks` (recall's default invocation): matched + recency **chunk** items render
+path/source-only; **notes (fact/feedback) keep full content inline** — the win-nucleus is untouched.
+The agent fetches a chunk's text on demand via the new `engram show-chunk <source#anchor>`. Measured:
+query payload **−33.7%** (146→97 KB, ~36.5K→24.2K tokens) on the 10-phrase baseline; trap gate
+**GREEN** (matched notes/clusters untouched); `targ check-full` clean (8/8).
+**Net-economics validation (the on-demand-vs-dump risk Joe raised):** across 13 realistic uninstructed
+recalls the agent fetched **0** chunks (notes are load-bearing — note 72), so there is no iterative-fetch
+tax to trade for; and in 2/2 sole-source fixtures it reached for `show-chunk` on its own and surfaced the
+exact fact — no evidence drop. Selection is reliable both ways (sparing when notes suffice, on-target when
+a chunk is the only source). Explicit clusters-block reorder assessed marginal (notes already lead by
+score) and skipped. Stacks on #5: cumulative payload ~230→97 KB (**~−58%**).
 
-### #2 — Async / non-blocking `learn`
+### #2 — Async / non-blocking `learn`  ← NEXT
 The closing `/learn` (~61s) runs on the critical path before the result is delivered. Detach it so it
 ingests + crystallizes in the background. **Win:** ~61s off perceived latency; low risk (same notes
 written, just later — guard a same-session re-recall against the async write).

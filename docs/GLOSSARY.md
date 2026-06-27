@@ -38,7 +38,7 @@ in code, it is sometimes called a *source* (see triage).
 
 ### binary
 The compiled `engram` Go program. Subcommands: `learn`, `query`, `embed`,
-`ingest`, `prune`, `show`, `amend`, `activate`, `update`. The binary handles all I/O
+`ingest`, `prune`, `show`, `show-chunk`, `amend`, `activate`, `update`. The binary handles all I/O
 (vault read/write, chunk indexing, file locking); skills handle behavior
 and prompting.
 
@@ -143,6 +143,15 @@ The second retrieval channel in `engram query`: the newest chunks by
 provenance `recent`, and not added to any cluster. Surfaces recent raw session
 context so a post-context-loss agent re-encounters its own narration. Coverage
 synthesis is not run against recency-channel items.
+
+### lazy-chunks (query mode)
+The `--lazy-chunks` flag (recall's default invocation) on `engram query` renders
+matched **and** recency-channel **chunk** items path/source-only — no `content`
+field — while notes (`fact`/`feedback`) keep full content inline. Surfaced as
+`budget.lazy_chunks: true`. The agent fetches a specific chunk's text on demand via
+`engram show-chunk <source#anchor>`. Shrinks the query payload ~−34% (chunks are
+supplementary, notes load-bearing — measured 0 chunk fetches in 13/13 realistic
+recalls, with on-target fetch when a chunk is the sole carrier of a needed fact).
 
 ### candidate_l2s
 The `[{path, cosine}]` field on each cluster in the query payload.
@@ -304,6 +313,14 @@ Chunks are the episodic layer (raw event memory); at recall they compete with
 notes in the per-phrase ranking (matched set, Channel 1) and the newest
 (default 25, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`) also appear un-clustered in the recency channel (Channel 2). Chunk-grounding
 is recorded as frontmatter provenance on written notes, not as wikilinks.
+
+### `engram show-chunk` (subcommand)
+Read-only lookup that prints a single chunk's text by its `source#anchor` id (the
+id format carried by chunk items in the query payload). Mirrors `engram show`
+(which resolves vault **notes** only) for the chunk index, enabling on-demand fetch
+of deferred chunk content under `--lazy-chunks`. Matches by full-id equality, so
+heading anchors containing spaces/punctuation resolve. Errors `chunk not found:
+<ref>` (exit 1) on a miss. Never writes.
 
 ### `engram prune` (subcommand)
 Operator-run GC subcommand. Reads the chunk-index manifest and, for every

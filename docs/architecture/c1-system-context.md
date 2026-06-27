@@ -151,6 +151,10 @@ sequenceDiagram
         E->>V: read candidate frontmatter + body + members
         V-->>E: contents
         E-->>H: candidate + member contents
+        opt a needed fact lives only in a chunk (rare — notes are load-bearing)
+            H->>E: engram show-chunk <source#anchor> (fetch deferred chunk text under --lazy-chunks)
+            E-->>H: chunk text
+        end
         Note over H: apply recency weight; judge coverage (covered / near / absent)
         alt covered — candidate already states the principle
             H->>E: engram amend --target <note> --activate --relation <note srcs> --chunk-source <ids>
