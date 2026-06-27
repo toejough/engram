@@ -47,10 +47,10 @@ engram/
 
 ## Code Quality
 
-- **Use `targ` for all build/test/check operations** — NEVER run `go test`, `go vet`, `go build` directly
+- **Use `targ` for all test/lint/check operations** — NEVER run `go test`, `go vet` directly
   - Tests: `targ test`
   - Lint + coverage: `targ check-full`
-  - Build: `targ build`
+  - Install the binary: `go install ./cmd/engram` (there is no `targ build` target — targ covers test/lint/check, not binary install)
   - Don't reverse-engineer targ's behavior — treat it as a black box
 - Use `targ check-full` to get ALL errors at once — `targ check` stops early and you'll play whack-a-mole
 - Minimal code that solves the problem — don't over-engineer
