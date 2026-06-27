@@ -166,13 +166,13 @@ def run_tier1(cosine_axes):
     return sweeps, chosen
 
 
-def run_tier2(chosen, workers):
+def run_tier2(chosen, workers, no_heavier=False):
     """Run the Tier-2 applied check at chosen + heavier crowd and score vs the toy baseline."""
     rows = []
     for axis in ["C3", "C4i", "C5", "C6"]:
         base = chosen[axis]
         heavier = min(2 * base, 400)
-        crowd_levels = [base] if axis == "C5" else sorted({base, heavier})
+        crowd_levels = [base] if (axis == "C5" or no_heavier) else sorted({base, heavier})
         toy = _run_harness(axis, REPS[axis], 0, workers)
         for crowd_n in crowd_levels:
             crowded = _run_harness(axis, REPS[axis], crowd_n, workers)
@@ -191,6 +191,8 @@ def main():
     ap.add_argument("--tier1-only", action="store_true",
                     help="run the free retrieval sweep + chosen crowd, then exit before any LLM spend")
     ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--no-heavier", action="store_true",
+                    help="Tier-2: run only the chosen crowd level (skip the 2x heavier stress level)")
     a = ap.parse_args()
 
     cosine_axes = ["C3", "C4i", "C6"]
@@ -202,7 +204,7 @@ def main():
         return
 
     print(f"\n=== Tier-2 applied check (LLM spend ~$0.45/trial) — chosen crowd {chosen} ===")
-    rows = run_tier2(chosen, a.workers)
+    rows = run_tier2(chosen, a.workers, a.no_heavier)
 
     print("\n=== CROWDED CAPABILITY TABLE ===")
     print(f"  {'axis':5} {'break_n':>7} {'crowd':>6} {'crowded_pass':>12} {'toy_pass':>8} "
