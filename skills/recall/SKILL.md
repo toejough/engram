@@ -67,7 +67,7 @@ results to the top-30 matches per phrase.
 ### Step 2 — Run ONE unified `engram query` with all phrases
 
 ```bash
-engram query \
+engram query --lazy-chunks \
   --phrase "<phrase 1>" \
   --phrase "<phrase 2>"
   # ... one --phrase per Step 1 phrase (always 10)
@@ -86,14 +86,18 @@ judge coverage. The payload's `items` mix:
 
 - `kind: chunk` — raw transcript/doc fragments with source + anchor. These are EVIDENCE:
   extract the convention, decision, or correction they show (a reviewer correcting code, a
-  stated standard); never quote them wholesale.
-- `kind: fact` / `feedback` — crystallized lessons; apply directly.
+  stated standard); never quote them wholesale. **Under `--lazy-chunks` (recall's default
+  invocation — confirm via `budget.lazy_chunks: true`) chunk items carry path + source/anchor
+  but NO `content` field: `engram show <source#anchor>` to read a chunk's evidence on-demand.**
+- `kind: fact` / `feedback` — crystallized lessons; apply directly (notes always carry full content inline).
 
 **Channel 2 — Recent activity (un-clustered):** Items tagged `provenance: recent` — the newest
 chunks by ingest time, appended after the matched set, NOT cluster members. Read this block
 first for situational continuity — re-immerse in recent work before diving into the clustered
 results. These items are NOT used for coverage or synthesis judgment. Do not treat them as
-matched results; they have no cluster membership and no `candidate_l2s`.
+matched results; they have no cluster membership and no `candidate_l2s`. Under `--lazy-chunks`
+recent items also carry path/source only (no content) — the paths show where your recent activity
+was; `engram show <source#anchor>` for detail if a specific one matters.
 
 - **Recent items are your own recent activity.** Chunks from a recent source with `turn-N`
   anchors are first-person `ASSISTANT:` narration you produced in a just-prior or
@@ -118,8 +122,9 @@ each:
 Run `engram show <path>` on every entry in `candidate_l2s` (up to K calls, blocking). For
 note-kind cluster members already in the payload's `items[]` list, use their `content` field
 directly — no additional `engram show` call needed on already-surfaced members. For chunk
-members not in `items[]`, use the chunk content from the cluster's `members` list. Do not
-judge coverage before you have read the candidate content.
+members, the content is NOT in the payload (chunks carry path/source only under `--lazy-chunks`;
+the cluster's `members` list never carries content) — `engram show <source#anchor>` to read the
+evidence on-demand. Do not judge coverage before you have read the candidate content.
 
 **B. Apply the recency weight to resolve conflicts**
 
@@ -274,7 +279,8 @@ note per conclusion; link all of its inputs.
 | You wrote two notes (a fact AND a feedback) for one cluster | One representative note per cluster — pick the right kind |
 | You called `engram learn --target` to update a note in place | Updates use `engram amend`; `engram learn` is create-only |
 | A `≥0.95` cluster → you activated without reading the candidates | Read first; high cosine nominates, it does not decide |
-| You called `engram show` on a note already in `items[]` | Members already in `items[]` carry a `content` field — use it directly; `engram show` is only for candidates not in `items[]` |
+| You called `engram show` on a note already in `items[]` | NOTE members in `items[]` carry `content` — use it directly. CHUNK items carry no content under `--lazy-chunks` (`budget.lazy_chunks: true`) — `engram show <source#anchor>` to read their evidence. |
+| You assumed a chunk's content is inline and skipped its evidence | Under `--lazy-chunks` chunks carry path/source only — `engram show <source#anchor>` on-demand before judging coverage |
 | You grouped chunks by eye instead of using the payload's clusters | The binary's k-means grouping is the ground truth; read every cluster |
 | You skipped Step 2.5 or read chunk-only results as "nothing surfaces" | Processing every cluster IS the step; "nothing surfaces" means an EMPTY payload — clusters present means Step 2.5 runs |
 | You activated every returned note | Activate only the notes you actually USED — judged Covered/Near or cited in Step 3 |
