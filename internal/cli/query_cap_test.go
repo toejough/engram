@@ -66,6 +66,50 @@ func TestClearChunkContent_ClearsChunksKeepsNotes(t *testing.T) {
 	g.Expect(out[2]).To(Equal(""), "chunk #2 content must be cleared")
 }
 
+// TestRenderQueryPayload_LazyChunksSurfacedAndNotSnippeted verifies lazy mode
+// surfaces lazy_chunks in the budget and skips capChunkContent (snipped stays 0).
+func TestRenderQueryPayload_LazyChunksSurfacedAndNotSnippeted(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	long := "line one\nline two " + strings.Repeat("x", 300)
+	kinds := []string{"fact", "chunk", "chunk"}
+	contents := []string{"NOTE", long, long}
+
+	out, err := cli.ExportRenderQueryPayloadBudget(kinds, contents, true, 1)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("lazy_chunks: true"), "lazy mode must surface in budget")
+	g.Expect(out).To(ContainSubstring("chunks_snippeted: 0"), "lazy mode skips capChunkContent")
+}
+
+// TestRenderQueryPayload_NonLazyOmitsLazyAndStillCaps verifies non-lazy mode
+// omits lazy_chunks (omitempty) and still snippets chunks beyond the budget.
+func TestRenderQueryPayload_NonLazyOmitsLazyAndStillCaps(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	long := "line one\nline two " + strings.Repeat("x", 300)
+	kinds := []string{"fact", "chunk", "chunk"}
+	contents := []string{"NOTE", long, long}
+
+	out, err := cli.ExportRenderQueryPayloadBudget(kinds, contents, false, 1)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).NotTo(ContainSubstring("lazy_chunks"), "non-lazy omits the field (omitempty)")
+	g.Expect(out).To(ContainSubstring("chunks_snippeted: 1"), "non-lazy still caps the over-budget chunk")
+}
+
 // TestResolveContentBudget_DefaultsAndOverrides verifies the default-bake logic:
 // unset (0) → the baked default; negative → unlimited (0 = no-op); positive → itself.
 func TestResolveContentBudget_DefaultsAndOverrides(t *testing.T) {

@@ -250,15 +250,16 @@ type phrasedCluster struct {
 
 // queryBudget reports the totals visible to the caller per the YAML schema.
 type queryBudget struct {
-	PhrasesQueried       int `yaml:"phrases_queried"`
-	TotalNotes           int `yaml:"total_notes"`
-	WithEmbeddings       int `yaml:"with_embeddings"`
-	ClustersFound        int `yaml:"clusters_found"`
-	DirectHitsReturned   int `yaml:"direct_hits_returned"`
-	ItemsWithFullContent int `yaml:"items_with_full_content"`
-	Limit                int `yaml:"limit"`
-	ContentBudget        int `yaml:"content_budget"`
-	ChunksSnippeted      int `yaml:"chunks_snippeted"`
+	PhrasesQueried       int  `yaml:"phrases_queried"`
+	TotalNotes           int  `yaml:"total_notes"`
+	WithEmbeddings       int  `yaml:"with_embeddings"`
+	ClustersFound        int  `yaml:"clusters_found"`
+	DirectHitsReturned   int  `yaml:"direct_hits_returned"`
+	ItemsWithFullContent int  `yaml:"items_with_full_content"`
+	Limit                int  `yaml:"limit"`
+	ContentBudget        int  `yaml:"content_budget"`
+	ChunksSnippeted      int  `yaml:"chunks_snippeted"`
+	LazyChunks           bool `yaml:"lazy_chunks,omitempty"`
 }
 
 // queryCandidateNote is one candidate note for a cluster. The binary emits
@@ -1323,14 +1324,16 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	clusters := renderClusters(merged.phraseClusters)
 
 	// Lazy-chunk mode (opt-in): empty chunk content so the agent pages a
-	// chunk's evidence on-demand via `engram show`. Runs BEFORE capChunkContent,
-	// which then no-ops on the emptied chunks (ChunksSnippeted reports 0). Notes
-	// are untouched.
+	// chunk's evidence on-demand via `engram show`. Notes are untouched.
+	// When lazy, capChunkContent is skipped entirely (ChunksSnippeted reports 0)
+	// rather than run on the already-cleared chunks.
+	var snipped int
+
 	if merged.lazyChunks {
 		items = clearChunkContent(items)
+	} else {
+		items, snipped = capChunkContent(items, resolveContentBudget(merged.contentBudget))
 	}
-
-	items, snipped := capChunkContent(items, resolveContentBudget(merged.contentBudget))
 	// Full content = items still carrying their complete text — snippeted
 	// chunks retain (truncated) content, so exclude them from the count.
 	contentful := countItemsWithContent(items) - snipped
@@ -1358,6 +1361,7 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 			Limit:                merged.limit,
 			ContentBudget:        resolveContentBudget(merged.contentBudget),
 			ChunksSnippeted:      snipped,
+			LazyChunks:           merged.lazyChunks,
 		},
 	}
 

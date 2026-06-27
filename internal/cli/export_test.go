@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"time"
@@ -372,6 +373,30 @@ func ExportProvenanceRankFor(role string) int { return provenanceRankFor(role) }
 
 // ExportRecencyFloor exposes the floor field of recencyParams for tests.
 func ExportRecencyFloor(p recencyParams) int { return p.floor }
+
+// ExportRenderQueryPayloadBudget builds an aggregatedSummary from parallel
+// kind/content slices, renders the YAML payload, and returns the encoded text.
+// It exists so tests can assert the budget block (lazy_chunks, chunks_snippeted).
+func ExportRenderQueryPayloadBudget(
+	kinds, contents []string,
+	lazyChunks bool,
+	contentBudget int,
+) (string, error) {
+	resolved := make([]resolvedItem, len(kinds))
+	for i := range kinds {
+		resolved[i] = resolvedItem{kind: kinds[i], content: contents[i]}
+	}
+
+	var buf bytes.Buffer
+
+	err := renderQueryPayload(&buf, aggregatedSummary{
+		resolvedItems: resolved,
+		lazyChunks:    lazyChunks,
+		contentBudget: contentBudget,
+	})
+
+	return buf.String(), err
+}
 
 // ExportResolveContentBudget exposes resolveContentBudget for tests.
 func ExportResolveContentBudget(raw int) int {
