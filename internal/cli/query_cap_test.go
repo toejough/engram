@@ -49,6 +49,23 @@ func TestCapChunkContent_ZeroBudgetIsNoOp(t *testing.T) {
 	g.Expect(snipped).To(Equal(0))
 }
 
+// TestClearChunkContent_ClearsChunksKeepsNotes verifies lazy mode zeroes
+// chunk-item content while leaving note content intact.
+func TestClearChunkContent_ClearsChunksKeepsNotes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	kinds := []string{"fact", "chunk", "chunk"}
+	contents := []string{"noteC", "c1", "c2"}
+
+	out := cli.ExportClearChunkContent(kinds, contents)
+
+	g.Expect(out[0]).To(Equal("noteC"), "note content must be preserved")
+	g.Expect(out[1]).To(Equal(""), "chunk #1 content must be cleared")
+	g.Expect(out[2]).To(Equal(""), "chunk #2 content must be cleared")
+}
+
 // TestResolveContentBudget_DefaultsAndOverrides verifies the default-bake logic:
 // unset (0) → the baked default; negative → unlimited (0 = no-op); positive → itself.
 func TestResolveContentBudget_DefaultsAndOverrides(t *testing.T) {

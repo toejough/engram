@@ -160,6 +160,25 @@ func ExportCapChunkContent(kinds, contents []string, budget int) ([]string, int)
 	return out, snipped
 }
 
+// ExportClearChunkContent builds queryItems from parallel kind/content slices,
+// applies clearChunkContent (lazy-chunk mode), and returns the resulting
+// contents — chunk contents zeroed, note contents preserved.
+func ExportClearChunkContent(kinds, contents []string) []string {
+	items := make([]queryItem, len(kinds))
+	for i := range kinds {
+		items[i] = queryItem{Kind: kinds[i], Content: contents[i]}
+	}
+
+	cleared := clearChunkContent(items)
+
+	out := make([]string, len(cleared))
+	for i := range cleared {
+		out[i] = cleared[i].Content
+	}
+
+	return out
+}
+
 // Exported functions.
 
 // ExportIndexFileName exposes sourceSlug-based index naming so tests can

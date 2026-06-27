@@ -37,6 +37,11 @@ type QueryArgs struct {
 	// (Channel 2). 0 = baked default (25); negative = channel off. env= lets the
 	// recall sweep shrink the payload without a skill edit.
 	RecentFill int `targ:"flag,name=recent-fill,env=ENGRAM_RECENT_FILL,desc=newest-by-ingest chunks in the recency channel (0=default 25; negative=off); reduces recall payload"` //nolint:lll // single unbreakable struct-tag string
+	// LazyChunks renders matched chunk items path/score only (no content);
+	// the agent fetches a chunk's evidence on-demand via `engram show`. Notes
+	// (fact/feedback) always keep full content. Opt-in (recall sets it); env=
+	// lets the recall sweep enable it without a skill edit.
+	LazyChunks bool `targ:"flag,name=lazy-chunks,env=ENGRAM_LAZY_CHUNKS,desc=render matched chunk items path/score only (no content); the agent fetches a chunk's evidence on-demand via engram show — shrinks the recall payload"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -171,6 +176,7 @@ type aggregatedSummary struct {
 	withEmbeddings int
 	limit          int
 	contentBudget  int
+	lazyChunks     bool
 }
 
 // candidateNoteIndex holds the note paths and BOTH sidecar vectors for the
@@ -625,6 +631,20 @@ func capChunkContent(items []queryItem, budget int) ([]queryItem, int) {
 // (non-empty chunks dir and a list function available).
 func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
 	return args.ChunksDir != "" && deps.ListChunkIndexes != nil
+}
+
+// clearChunkContent zeroes the Content of chunk items (Kind == chunkItemKind)
+// for lazy-chunk mode, leaving note items untouched. The agent fetches a
+// cleared chunk's evidence on-demand via `engram show`. Returns the (mutated)
+// items.
+func clearChunkContent(items []queryItem) []queryItem {
+	for i := range items {
+		if items[i].Kind == chunkItemKind {
+			items[i].Content = ""
+		}
+	}
+
+	return items
 }
 
 // clusterMatchedSet clusters the matched set exactly once. On
@@ -1302,6 +1322,14 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems, merged.outgoing)
 	clusters := renderClusters(merged.phraseClusters)
 
+	// Lazy-chunk mode (opt-in): empty chunk content so the agent pages a
+	// chunk's evidence on-demand via `engram show`. Runs BEFORE capChunkContent,
+	// which then no-ops on the emptied chunks (ChunksSnippeted reports 0). Notes
+	// are untouched.
+	if merged.lazyChunks {
+		items = clearChunkContent(items)
+	}
+
 	items, snipped := capChunkContent(items, resolveContentBudget(merged.contentBudget))
 	// Full content = items still carrying their complete text — snippeted
 	// chunks retain (truncated) content, so exclude them from the count.
@@ -1467,6 +1495,7 @@ func runQuery(
 		withEmbeddings: len(hits),
 		limit:          limit,
 		contentBudget:  args.ContentBudget,
+		lazyChunks:     args.LazyChunks,
 	}
 
 	return renderQueryPayload(stdout, merged)
