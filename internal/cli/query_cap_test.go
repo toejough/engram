@@ -61,6 +61,17 @@ func TestResolveContentBudget_DefaultsAndOverrides(t *testing.T) {
 	g.Expect(cli.ExportResolveContentBudget(-1)).To(BeNumerically("<=", 0), "negative → unlimited (no-op)")
 }
 
+// TestResolveRecentFill_DefaultsAndOverrides verifies the recency-channel
+// fill-count resolution: unset (0) → the baked default (25); positive → itself;
+// negative → 0 (channel off).
+func TestResolveRecentFill_DefaultsAndOverrides(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportResolveRecentFill(0)).To(Equal(25)) // 0 -> baked default
+	g.Expect(cli.ExportResolveRecentFill(5)).To(Equal(5))  // explicit honored
+	g.Expect(cli.ExportResolveRecentFill(-1)).To(Equal(0)) // negative -> channel off
+}
+
 // TestSnippet_CollapsesAndTruncates verifies the snippet algorithm.
 func TestSnippet_CollapsesAndTruncates(t *testing.T) {
 	t.Parallel()

@@ -3,10 +3,10 @@ package cli_test
 // Phase 2 RED tests for recall-v2: recency channel (un-clustered recent fill).
 // These verify the three invariants from the plan:
 //
-//	(a) items[] include up to recentFillChunks (200) newest
+//	(a) items[] include up to defaultRecentFill (25) newest
 //	    chunks NOT already in the matched set, tagged with provenance "recent".
 //	(b) those recent-tagged items appear in NO cluster's members[].
-//	(c) when fewer than recentFillChunks chunks exist, all are included without
+//	(c) when fewer than defaultRecentFill chunks exist, all are included without
 //	    error (no panic, no missing items).
 //
 // All three tests exercise the unified query path (RunQuery).
@@ -27,7 +27,7 @@ import (
 )
 
 // TestCluster_FewerThanRecentFillChunks verifies invariant (c):
-// when the chunk store has fewer than recentFillChunks (200) chunks, ALL are
+// when the chunk store has fewer than defaultRecentFill (25) chunks, ALL are
 // included in items[] without error (no panic, no "fewer than N" error).
 // This exercises the boundary: n > len(candidates) path in newestChunkItems.
 func TestCluster_FewerThanRecentFillChunks(t *testing.T) {
@@ -46,7 +46,7 @@ func TestCluster_FewerThanRecentFillChunks(t *testing.T) {
 
 	baseTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	// Plant only 3 chunks (far fewer than recentFillChunks=200).
+	// Plant only 3 chunks (far fewer than defaultRecentFill=25).
 	// Use orthogonal vector so they are NOT in the matched set.
 	const smallCount = 3
 
@@ -77,7 +77,7 @@ func TestCluster_FewerThanRecentFillChunks(t *testing.T) {
 
 	var out bytes.Buffer
 
-	// Must not panic or return an error when chunk count < recentFillChunks.
+	// Must not panic or return an error when chunk count < defaultRecentFill.
 	err = cli.RunQuery(context.Background(),
 		cli.QueryArgs{
 			Phrases:   []string{"alpha"},
@@ -98,14 +98,14 @@ func TestCluster_FewerThanRecentFillChunks(t *testing.T) {
 	recentCount := countRecentItems(parsed.Items)
 
 	g.Expect(recentCount).To(Equal(smallCount),
-		"with only %d chunks (< recentFillChunks=200), all %d must appear as recent items, got %d",
+		"with only %d chunks (< defaultRecentFill=25), all %d must appear as recent items, got %d",
 		smallCount, smallCount, recentCount)
 }
 
 // TestCluster_RecentChunksAppendedWithRecentProvenance verifies invariant
 // (a): chunks NOT in the matched set (orthogonal vector — zero cosine against
 // all query phrases) still appear in items[] with provenance "recent" when they
-// are among the newest by IngestedAt. Up to recentFillChunks (200) newest
+// are among the newest by IngestedAt. Up to defaultRecentFill (25) newest
 // un-matched chunks must be included.
 func TestCluster_RecentChunksAppendedWithRecentProvenance(t *testing.T) {
 	t.Parallel()

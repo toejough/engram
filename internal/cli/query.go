@@ -33,6 +33,10 @@ type QueryArgs struct {
 	// negative = unlimited. Notes are never capped. env= lets the recall sweep
 	// inject the cap without a skill edit.
 	ContentBudget int `targ:"flag,name=content-budget,env=ENGRAM_CONTENT_BUDGET,desc=max chunk items with full content (0=default 15; negative=unlimited); later chunks get a snippet"` //nolint:lll // single unbreakable struct-tag string
+	// RecentFill caps how many newest-by-ingest chunks fill the recency channel
+	// (Channel 2). 0 = baked default (25); negative = channel off. env= lets the
+	// recall sweep shrink the payload without a skill edit.
+	RecentFill int `targ:"flag,name=recent-fill,env=ENGRAM_RECENT_FILL,desc=newest-by-ingest chunks in the recency channel (0=default 25); a smaller payload the agent pages faster"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -103,6 +107,12 @@ const (
 	// recalls the eval harnesses don't probe (Option 1 results, 2026-06-24).
 	defaultContentBudget = 15
 	defaultQueryLimit    = 20
+	// defaultRecentFill is the baked default number of newest-by-IngestedAt
+	// chunks appended to the recency channel (Channel 2, Phase 2). 25 keeps the
+	// situational-continuity block small; the --recent-fill flag overrides it
+	// (see resolveRecentFill). The recall skill marks this channel
+	// non-load-bearing, so a smaller default shrinks the payload the agent pages.
+	defaultRecentFill = 25
 	// matchPhraseLimit is the maximum number of candidates (notes + chunks
 	// combined) taken per phrase before union across phrases. Bounds
 	// clustering at O(matchSetCap^2) regardless of corpus size.
@@ -122,10 +132,6 @@ const (
 	// Phase 2). Items carrying this role appear in items[] but in NO cluster's
 	// members[], so the skill can render a separate "recent activity" block.
 	provenanceRecent = "recent"
-	// recentFillChunks is the number of newest-by-IngestedAt chunks appended
-	// to the recency channel (Channel 2, Phase 2). Defined here in Phase 0
-	// so it is available as a named constant before Phase 2 lands.
-	recentFillChunks = 200
 	// singleClusterPhrase is the empty phrase tag on the single synthesis
 	// cluster, which spans all seed phrases rather than any one of them.
 	singleClusterPhrase = ""
@@ -1361,6 +1367,21 @@ func resolveContentBudget(raw int) int {
 	return raw
 }
 
+// resolveRecentFill maps the raw --recent-fill flag/env value to the effective
+// recency-channel fill count: 0 (unset) → the baked default; positive → that
+// explicit count; negative → 0 (channel off — buildRecentFillItems takes none).
+func resolveRecentFill(raw int) int {
+	if raw == 0 {
+		return defaultRecentFill
+	}
+
+	if raw < 0 {
+		return 0
+	}
+
+	return raw
+}
+
 // resolvedItemLess compares two items by F7 rules: provenance count
 // desc → highest-rank provenance desc → score desc.
 func resolvedItemLess(a, b resolvedItem) bool {
@@ -1426,11 +1447,11 @@ func runQuery(
 	resolved = applyProjectFilter(resolved, args.Project)
 	resolved = append(resolved, chunkItems...)
 
-	// Channel 2 — Recency (Phase 2): append the recentFillChunks newest chunks
-	// by IngestedAt, deduped against the matched set, tagged provenanceRecent.
-	// These are NOT added to the matched set and therefore do NOT appear in any
-	// cluster's members[].
-	recentItems := buildRecentFillItems(chunkRecords, chunkUnion, recentFillChunks)
+	// Channel 2 — Recency (Phase 2): append the newest chunks by IngestedAt
+	// (count resolved from --recent-fill, default 25), deduped against the
+	// matched set, tagged provenanceRecent. These are NOT added to the matched
+	// set and therefore do NOT appear in any cluster's members[].
+	recentItems := buildRecentFillItems(chunkRecords, chunkUnion, resolveRecentFill(args.RecentFill))
 	resolved = append(resolved, recentItems...)
 
 	merged := aggregatedSummary{

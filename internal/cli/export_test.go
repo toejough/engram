@@ -358,6 +358,11 @@ func ExportResolveContentBudget(raw int) int {
 	return resolveContentBudget(raw)
 }
 
+// ExportResolveRecentFill exposes resolveRecentFill for tests.
+func ExportResolveRecentFill(raw int) int {
+	return resolveRecentFill(raw)
+}
+
 // ExportResolvedItemBaseScore exposes the pre-decay baseScore field for
 // activation-cutoff and band assertions (populated by Task 2.3).
 func ExportResolvedItemBaseScore(item ExportResolvedItem) float32 { return item.baseScore }
