@@ -152,6 +152,10 @@ func ingestQueryTargets(
 			a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
 			errHandler(RunShow(withLog(ctx), a, newOsShowDeps(), stdout))
 		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
+		targ.Targ(func(ctx context.Context, a ShowChunkArgs) {
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
+			errHandler(RunShowChunk(withLog(ctx), a, newOsShowChunkDeps(), stdout))
+		}).Name("show-chunk").Description("Print a chunk's text by its source#anchor id (read-only)"),
 		targ.Targ(func(ctx context.Context, a CheckArgs) {
 			a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
 			errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), stdout))

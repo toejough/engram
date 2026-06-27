@@ -10,6 +10,7 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/toejough/targ"
 
+	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 )
 
@@ -150,8 +151,8 @@ func TestTargets(t *testing.T) {
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
 		// learn (group), update, embed (group), query, ingest, query-chunks,
-		// activate, show, check, migrate-links, resituate, amend, prune
-		g.Expect(targets).To(gomega.HaveLen(13))
+		// activate, show, show-chunk, check, migrate-links, resituate, amend, prune
+		g.Expect(targets).To(gomega.HaveLen(14))
 	})
 
 	t.Run("show parses positional ref through targ", func(t *testing.T) {
@@ -168,6 +169,33 @@ func TestTargets(t *testing.T) {
 		// a comma in the desc would make targ reject the tag ("invalid tag"),
 		// which unit tests constructing ShowArgs directly cannot catch.
 		stderr := executeForTest(t, []string{"engram", "show", "1.note", "--vault", vault})
+
+		g.Expect(stderr).NotTo(gomega.ContainSubstring("invalid tag"))
+		g.Expect(stderr).To(gomega.BeEmpty())
+	})
+
+	t.Run("show-chunk parses positional ref through targ", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		chunksDir := t.TempDir()
+		records := []chunk.Record{
+			{Source: "/s/a.jsonl", Anchor: "turn-1", ContentHash: "sha256:aa", Text: "chunk evidence text"},
+		}
+
+		data, err := chunk.EncodeRecords(records)
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(os.WriteFile(filepath.Join(chunksDir, "idx.jsonl"), data, 0o600)).To(gomega.Succeed())
+
+		// Exercises targ's struct-tag parsing + positional wiring + the os deps
+		// constructor end-to-end (a comma in the desc would make targ reject the
+		// tag), which constructing ShowChunkArgs directly cannot catch.
+		stderr := executeForTest(t, []string{"engram", "show-chunk", "/s/a.jsonl#turn-1", "--chunks-dir", chunksDir})
 
 		g.Expect(stderr).NotTo(gomega.ContainSubstring("invalid tag"))
 		g.Expect(stderr).To(gomega.BeEmpty())
