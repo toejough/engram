@@ -43,3 +43,22 @@ Run **before and after** any edit to a recall/learn/please skill body, and befor
 cost/usage changes. Pair with the recall-cost meter (see `../cumulative/README.md`, the "Recall cost
 meter" metric) so a change is checked on both axes: capability (this gate) and dollars (the meter). Pure verdict logic lives in
 `gate_verdict.py` (unit-tested in `test_gate.py`); `gate.py` is the I/O orchestrator.
+
+## Crowded-vault eval (`crowded_gate.py`)
+
+Tests whether the 4 wins survive a **realistic crowded vault** (not the n=5 single-note toys) — the
+generalization question. The crowd is **variants of the real engram vault** (`crowd.py` — re-slugged
+copies + re-pointed wikilinks, read-only on the live vault; for C5, variant *chunks* before R so R
+stays newest). Two tiers:
+
+- **Tier-1 (free, no LLM):** `python3 crowded_gate.py --tier1-only` — seeds crowds 0→400 into temp
+  vaults and runs the real multi-phrase `engram query` (`retrieval_probe.py`), reporting whether the
+  load-bearing note(s) still surface and at what rank. C5 is recency-invariant (R newest by design)
+  so it skips Tier-1.
+- **Tier-2 (LLM spend):** `python3 crowded_gate.py [--no-heavier]` — runs each warm harness with
+  `--crowd N` and scores applied/honored/composed vs a paired toy (crowd=0) baseline. `--no-heavier`
+  runs a single crowd level (bounds spend); omit it to also stress a 2× heavier level.
+
+Result (2026-06-26): **all 4 wins hold with zero degradation** under a 200-note real-vault crowd —
+see `RESULTS.md`. Bound: real-vault crowd is off-topic to the traps (the realistic case); same-domain
+competitor robustness is untested.

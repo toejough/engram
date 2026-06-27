@@ -9,25 +9,23 @@ ledger (vault notes 99/100) and the `$METER` + trap-gate prerequisites that land
 - **Memory's only adversarially-verified wins are capability on idiosyncratic / un-derivable
   content** — C3 (apply un-guessable conventions), C4-idio (recency supersession), C5 (honor a
   recency-channel standard), C6 (abduction/synthesis). Cost/speed is net-negative on easy builds.
-- Those wins are **measured on n=5 single-note toy vaults** — crowded-vault generalization is
-  **untested** (the ledger critic flagged this as the load-bearing uncertainty).
+- Those wins **generalize to a realistic crowded vault** (tested 2026-06-26: all 4 hold with zero
+  degradation under a 200-note real-vault crowd). Remaining bound: *same-domain competing* notes untested.
 - We now have the guardrails: a **trap regression gate** (catches a capability regression) and a
   **`recall_cost` `$METER`** (makes recall's dollars visible). Baseline smoke = GREEN.
 
 ## Ranked next steps
 
-### #1 — Crowded-vault capability eval (highest value) — IN PROGRESS
-**Do the 4 verified wins survive a realistic, crowded vault with competing notes, or only in n=5
-toys?** Plant the load-bearing note(s) among many semantically-near distractors (varying recency),
-For Tier-1 (free) run the **real multi-phrase `engram query`** — the 10-phrase retrieval call `/recall`
-makes internally (note 72: validate through the real retrieval, not a single bare query); for Tier-2
-run the **real warm harnesses** (which invoke `/recall`). Check both *surfaced* (retrieval precision
-under load) and *applied* (the existing pass bar) vs the toy baseline.
+### #1 — Crowded-vault capability eval (highest value) — DONE 2026-06-26
+**RESULT: the wins generalize — all 4 hold with zero degradation under a 200-note real-vault crowd**
+(C3 25/25, C4i 5/5, C5 5/5, C6 8/8; retrieval rank flat 0→400). Idiosyncratic notes are distinctive,
+so a realistic (off-topic) crowd ranks strictly below them and doesn't degrade application. Bound:
+*same-domain competing* notes remain untested. See `dev/eval/traps/RESULTS.md` + `README.md`.
 
-**Why first:** it is the load-bearing uncertainty. If the value proposition doesn't hold at realistic
-scale, every downstream cost/usage optimization is rearranging deck chairs. Note 72 predicts retrieval
-may be robust (the 10-phrase recall already reaches bridges), so a *confirming* (null) result is a
-real possibility and is itself valuable — the risk it removes is "we never checked."
+**Approach (for the record):** crowd = variants of the real vault (+ links), swept 0→400; Tier-1 ran
+the real multi-phrase `engram query` (free retrieval probe), Tier-2 the real warm harnesses (applied
+check) vs a paired toy baseline. This was *the* load-bearing uncertainty — note 72 predicted retrieval
+would be robust, and it was.
 
 ### #2 — Clean baselines from the new instruments (cheap, high-info)
 Run the trap gate at `--tier full` for the real verified-bar baseline (smoke was n=1), and a clean

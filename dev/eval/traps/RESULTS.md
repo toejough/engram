@@ -94,5 +94,23 @@ measurable at opus strength.
 ## Caveat
 This is a controlled, single-convention-per-task isolation — the cleanest possible recall
 condition (the right note is unambiguous and top-ranked). It proves the mechanism end-to-end
-(note → recall → apply → flip). It does NOT test recall under a crowded vault where many notes
-compete, or where the relevant note is not top-ranked; that is the harder, more realistic question.
+(note → recall → apply → flip).
+
+## Crowded-vault result (2026-06-26)
+The "does it survive a crowded vault?" caveat above is now tested (`crowded_gate.py`; see
+`README.md`). Crowd = variants of the REAL engram vault (+ links), swept 0→400 notes. **All 4 wins
+hold with zero degradation:**
+
+| axis | crowded (n=200) | toy (n=0) | Δ | verdict |
+|---|---|---|---|---|
+| C3 | 25/25 | 25/25 | 0 | GREEN |
+| C4i | 5/5 | 5/5 | 0 | GREEN |
+| C5 | 5/5 | 5/5 | 0 | GREEN |
+| C6 | 8/8 | 8/8 | 0 | GREEN |
+
+- **Retrieval (Tier-1, free):** target rank is flat from 0→400 crowd (C3 r5, C4i r1, C6 r4) —
+  idiosyncratic notes are distinctive, so a realistic crowd ranks strictly below them.
+- **Application (Tier-2, ~$36):** unchanged at the verified bar with the recall payload ~200 notes deep.
+- **Bound (still open):** the real-vault crowd is *off-topic* to the trap tasks (the realistic
+  production case), so this does NOT test *same-domain competing* notes — that adversarial-precision
+  question remains open. Still opus, n=5/axis.

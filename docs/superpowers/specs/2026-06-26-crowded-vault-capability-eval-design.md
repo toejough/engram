@@ -1,6 +1,6 @@
 # Crowded-vault capability eval — design
 
-**Date:** 2026-06-26 · **Status:** approved (brainstorming) — pending spec review · **Flow:** `/please` → brainstorming → (this doc) → writing-plans
+**Date:** 2026-06-26 · **Status:** completed 2026-06-26 — built + run; results in `dev/eval/traps/{RESULTS.md, README.md, crowded_gate.py}` · **Flow:** `/please` → brainstorming → (this doc) → writing-plans
 
 ## Motivation
 
