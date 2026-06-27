@@ -47,6 +47,13 @@ is one form. **Honest caveats:** does NOT increase usage (firing is decided from
 so the win is shaving the tax, not beating baseline. Architectural — brainstorm the split first. Gate hard:
 the body holds the win-nucleus.
 
+**Trigger analysis (2026-06-27) — when should recall fire, cheaply?** See
+`docs/design/2026-06-27-recall-trigger-patterns-and-proposals.md`. Verdict: **not** "recall before tool
+calls" (~147× over-fire) — the wins are a narrow task-type trigger + a **two-speed quick-probe** (the
+execution-cost half of this lever), a free note-negation **re-rank** (#655), a please **reconcile gate**
+(#656), and deterministic **hooks**; ~28% of corrections are a write-side/capture ceiling no trigger
+reaches. 10 proposals to evaluate (corpus is engram-only — does not auto-generalize).
+
 ### dedupe the double ingest sweep  [small compute/time]
 Recall and learn each run `engram ingest --auto`; collapse the redundant pass. Mechanical.
 
