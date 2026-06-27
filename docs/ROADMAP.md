@@ -50,10 +50,17 @@ in the query payload. **Win:** ~15–40s/op, ~3–8 fewer blocking round-trips; 
 delivered earlier).
 
 ### #5 — Cost-cleanup bundle
-The smaller, mostly-mechanical trims: **payload-prune-after-Step-3** (drop the raw payload from build
-context after the requirements list is synthesized — the ~$1/op $ lever), **cut `recentFillChunks`
-200→~25** (non-win-bearing Channel-2 bloat), **dedupe the double ingest sweep**. **Win:** ~$1/op +
-smaller payload; low risk.
+The smaller, mostly-mechanical trims:
+- ✅ **Recent-fill cut — DONE 2026-06-27** (`--recent-fill`, default 200→25). Measured: query payload
+  **−28%** (230→165 KB, 426→252 items, recent 205→25), trap gate **GREEN** (matched set untouched, no
+  capability regression), `targ check-full` clean. The recency channel is now configurable.
+- **payload-prune-after-Step-3** (drop the raw payload from build context after the requirements list
+  is synthesized — the ~$1/op $ lever) — open.
+- **dedupe the double ingest sweep** — open.
+
+> **Note:** the recent-fill cut was the *safe biggest single* payload reducer, done first. It does
+> NOT close **#1** (the matched-set clusters-first/lazy-content restructure) — that remains the next
+> structural win (~40-80s) once we decide the −28% slice isn't enough.
 
 ## Dead ends (measured — do not revisit)
 Payload-size cap *for dollars* (payload is cheap cache_read); whole-op or split **haiku** (−14%, broke
