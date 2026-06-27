@@ -7,6 +7,7 @@ Multi-target by design (C3 and C6 have several premise notes): a break fires if 
 (Gate-A finding A). C5 is omitted — its target surfaces by recency, not cosine, so Tier-1 is
 invariant for it.
 """
+import json
 import os
 import re
 import subprocess
@@ -52,7 +53,6 @@ def _parse_payload(text):
     The YAML payload renders each item's first field as `  - path: <basename>` at a 2-space indent;
     nested fields and the `content: |+` block scalar are at >=4-space indent, so a 2-space `- path:`
     line unambiguously marks an item (content lines never match)."""
-    import json
     try:
         data = json.loads(text)
         if isinstance(data, dict) and "items" in data:
@@ -86,6 +86,8 @@ def probe(vault_path, axis):
     Returns {"targets": {slug: {surfaced, rank}}, "all_surfaced": bool, "worst_rank": int|None}.
     worst_rank is the max rank when every target surfaced, else None (any absent target buries the
     axis). Raises on a non-zero query exit (fail loud)."""
+    if axis not in AXIS_TARGETS:
+        raise ValueError(f"no Tier-1 targets for axis {axis!r} (C5 is recency-invariant)")
     phrases = AXIS_PHRASES[axis]
     targets = AXIS_TARGETS[axis]
     cmd = ["engram", "query"]

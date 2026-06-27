@@ -67,7 +67,7 @@ def main():
     if a.crowd > 0:
         crowd_variants = crowd.make_variants(
             crowd.load_real_notes(crowd.real_vault()), a.crowd, seed=7,
-            vocab_terms=["error", "reasoning", "memory"], recency_frac=0.3)
+            vocab_terms=["error", "reasoning", "memory"])
     jobs = [(c, i) for c in CASES for i in range(a.n)]
     print(f"C6-clean {a.arm}: cases={CASES} n={a.n} = {len(jobs)} trials")
     results = []

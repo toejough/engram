@@ -15,10 +15,24 @@ import math
 import os
 import random
 import re
+import shutil
 import subprocess
 import tempfile
 
 SEED = 7
+
+DEFAULT_VOCAB_FRAC = 0.3   # bias strength when vocab_terms is given but vocab_frac is left at 0.0
+
+
+def _variant_slug(luhmann_or_src, i):
+    """Engram-valid crowd-variant slug for source identifier `luhmann_or_src` at index `i`.
+
+    Real vault notes can carry dotted/uppercase luhmann values (e.g.
+    `39.2026-06-17.Integration-Test`), so the raw `crowd-<luhmann>-<i>` slug violates engram's
+    `--slug [a-z0-9-]+` rule and a real `engram learn` rejects it. Sanitize to lowercase and collapse
+    every other run of disallowed characters to a single hyphen. Used for BOTH the variant slug and
+    its re-pointed link targets so links still match sibling slugs after sanitization."""
+    return re.sub(r"[^a-z0-9-]+", "-", f"crowd-{luhmann_or_src}-{i}".lower()).strip("-")
 
 
 def real_vault():
@@ -115,12 +129,14 @@ def make_variants(notes, n, seed=SEED, vocab_terms=(), vocab_frac=0.0, recency_f
     """Deterministically emit n crowd variants (re-slugged real notes) with links re-pointed to
     sibling variants. Pure — no I/O. Same seed => identical output."""
     rng = random.Random(seed)
+    if vocab_terms and vocab_frac == 0.0:
+        vocab_frac = DEFAULT_VOCAB_FRAC   # an explicit topic but no strength => bias by default
     sources = _ordered_sources(notes, n, rng, vocab_terms, vocab_frac)
 
     variants = []
     for i, source in enumerate(sources):
         variants.append({
-            "slug": f"crowd-{source['luhmann']}-{i}",
+            "slug": _variant_slug(source["luhmann"], i),
             "src_slug": source["slug"],
             "type": source.get("type", "fact"),
             "situation": source.get("situation", ""),
@@ -143,7 +159,7 @@ def make_variants(notes, n, seed=SEED, vocab_terms=(), vocab_frac=0.0, recency_f
             candidates = variants_by_src.get(target_basename)
             if not candidates:
                 continue                                   # target not in the crowd -> drop
-            same_index_slug = f"crowd-{luhmann_by_slug[target_basename]}-{i}"
+            same_index_slug = _variant_slug(luhmann_by_slug[target_basename], i)
             if same_index_slug in slug_set:
                 repointed.append(same_index_slug)
             else:
@@ -191,25 +207,32 @@ def seed_into(vault_path, variants):
 
 def seed_into_chunks(chunks_dir, variants):
     """Seed crowd variant CHUNKS into chunks_dir via `engram ingest --markdown` (C5 only). The
-    caller seeds these BEFORE R so R stays the newest chunk."""
+    caller seeds these BEFORE R so R stays the newest chunk.
+
+    Ingest order is by the variant `newer` flag ascending (False before True) so `newer=True` chunks
+    land most-recently within the crowd — the only place `recency_frac` has a real effect, since
+    chunk recency is by ingest time (`engram learn` cannot stamp a created-date on a vault note)."""
     os.makedirs(chunks_dir, exist_ok=True)
     src_dir = tempfile.mkdtemp(prefix="crowd-chunks-src-")
-    for variant in variants:
-        fields = variant["fields"]
-        if variant["type"] == "feedback":
-            field_text = " ".join([fields.get("behavior", ""), fields.get("impact", ""),
-                                    fields.get("action", "")])
-        else:
-            field_text = " ".join([fields.get("subject", ""), fields.get("predicate", ""),
-                                    fields.get("object", "")])
-        body = f"# {variant['slug']}\n\n{variant['situation']}\n\n{field_text}\n"
-        path = os.path.join(src_dir, f"{variant['slug']}.md")
-        with open(path, "w", encoding="utf-8") as handle:
-            handle.write(body)
-        result = subprocess.run(
-            ["engram", "ingest", "--markdown", path, "--chunks-dir", chunks_dir],
-            capture_output=True, text=True)
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"engram ingest failed for {variant['slug']!r} "
-                f"(exit {result.returncode}): {result.stderr.strip()}")
+    try:
+        for variant in sorted(variants, key=lambda v: v.get("newer", False)):
+            fields = variant["fields"]
+            if variant["type"] == "feedback":
+                field_text = " ".join([fields.get("behavior", ""), fields.get("impact", ""),
+                                        fields.get("action", "")])
+            else:
+                field_text = " ".join([fields.get("subject", ""), fields.get("predicate", ""),
+                                        fields.get("object", "")])
+            body = f"# {variant['slug']}\n\n{variant['situation']}\n\n{field_text}\n"
+            path = os.path.join(src_dir, f"{variant['slug']}.md")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(body)
+            result = subprocess.run(
+                ["engram", "ingest", "--markdown", path, "--chunks-dir", chunks_dir],
+                capture_output=True, text=True)
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"engram ingest failed for {variant['slug']!r} "
+                    f"(exit {result.returncode}): {result.stderr.strip()}")
+    finally:
+        shutil.rmtree(src_dir, ignore_errors=True)

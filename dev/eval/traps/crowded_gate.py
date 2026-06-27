@@ -75,18 +75,9 @@ def _seed_tier1_base(axis, temp):
     if axis == "C3":
         seed_c3.seed(temp)
     elif axis == "C4i":
-        # Seed BOTH the e7 marker note and its superseding note directly (NOT seed_vaults, which
-        # writes to hardcoded VAULTS). Content mirrors c4_idio.seed_vaults.
-        c4_idio._learn(temp, "e7-error-marker",
-                       "every error returned from an exported function in cfgload",
-                       "must be prefixed with the marker token",
-                       'E7: — e.g. fmt.Errorf("E7: reading file: %w", err)',
-                       "cfgload codebase convention")
-        c4_idio._learn(temp, "errcfg-supersedes-e7",
-                       "the E7: error-marker prefix convention",
-                       "is superseded and must no longer be used; replace it with",
-                       'the marker ERR-CFG/ — e.g. fmt.Errorf("ERR-CFG/ reading file: %w", err)',
-                       "cfgload codebase convention update 2026-06")
+        # Seed the warm-XXp base (X marker + superseding X') into the temp vault. seed_into is the
+        # single source of that note content — NOT seed_vaults, which writes to hardcoded VAULTS.
+        c4_idio.seed_into(temp)
     elif axis == "C6":
         # Seed all 4 premise notes (both abduction cases) into one combined probe vault.
         for case in ("abduction-diag", "abduction-badge"):
@@ -108,7 +99,7 @@ def tier1_sweep(axis):
             _seed_tier1_base(axis, temp)
             if n > 0:
                 variants = crowd.make_variants(notes, n, seed=crowd.SEED,
-                                               vocab_terms=AXIS_VOCAB[axis], recency_frac=0.3)
+                                               vocab_terms=AXIS_VOCAB[axis])
                 crowd.seed_into(temp, variants)
             res = retrieval_probe.probe(temp, axis)
             curve.append({"n": n, "all_surfaced": res["all_surfaced"], "worst_rank": res["worst_rank"]})

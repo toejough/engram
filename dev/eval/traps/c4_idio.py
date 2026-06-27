@@ -42,22 +42,39 @@ def _learn(vault, slug, subj, pred, obj, source):
                    env=env, check=True, capture_output=True, text=True)
 
 
-def seed_vaults():
-    for v in VAULTS.values():
-        os.makedirs(v, exist_ok=True)
-    # X — the original marker convention (goes into both warm vaults)
-    for v in (VAULTS["warm-X"], VAULTS["warm-XXp"]):
-        _learn(v, "e7-error-marker",
-               "every error returned from an exported function in cfgload",
-               "must be prefixed with the marker token",
-               'E7: — e.g. fmt.Errorf("E7: reading file: %w", err)',
-               "cfgload codebase convention")
-    # X' — supersedes X (newer; only in the XXp vault)
-    _learn(VAULTS["warm-XXp"], "errcfg-supersedes-e7",
+def _seed_x(vault):
+    """Seed the original E7: marker convention note (X) into vault. Single source of this content."""
+    _learn(vault, "e7-error-marker",
+           "every error returned from an exported function in cfgload",
+           "must be prefixed with the marker token",
+           'E7: — e.g. fmt.Errorf("E7: reading file: %w", err)',
+           "cfgload codebase convention")
+
+
+def _seed_xprime(vault):
+    """Seed the superseding ERR-CFG/ marker note (X') into vault. Single source of this content."""
+    _learn(vault, "errcfg-supersedes-e7",
            "the E7: error-marker prefix convention",
            "is superseded and must no longer be used; replace it with",
            'the marker ERR-CFG/ — e.g. fmt.Errorf("ERR-CFG/ reading file: %w", err)',
            "cfgload codebase convention update 2026-06")
+
+
+def seed_into(vault_path):
+    """Seed the warm-XXp Tier-1 base notes (X marker + its superseding X') into an arbitrary vault.
+
+    Shared by seed_vaults (for VAULTS["warm-XXp"]) and crowded_gate's Tier-1 temp seeding, so the
+    E7/ERR-CFG note content lives in exactly one place."""
+    os.makedirs(vault_path, exist_ok=True)
+    _seed_x(vault_path)
+    _seed_xprime(vault_path)
+
+
+def seed_vaults():
+    for v in VAULTS.values():
+        os.makedirs(v, exist_ok=True)
+    _seed_x(VAULTS["warm-X"])       # X only — the original marker convention
+    seed_into(VAULTS["warm-XXp"])   # X + superseding X' (newer)
 
 
 def _gocode(wd):
@@ -124,7 +141,7 @@ def main():
     if a.crowd > 0:
         variants = crowd.make_variants(
             crowd.load_real_notes(crowd.real_vault()), a.crowd, seed=7,
-            vocab_terms=["error", "cfgload", "marker", "Go"], recency_frac=0.3)
+            vocab_terms=["error", "cfgload", "marker", "Go"])
         crowd.seed_into(VAULTS["warm-XXp"], variants)
         print(f"seeded {len(variants)} crowd variants into {VAULTS['warm-XXp']}")
 

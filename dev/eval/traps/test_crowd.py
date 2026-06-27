@@ -9,9 +9,16 @@ import retrieval_probe as rp
 
 SRC = [{"slug": "77.x", "luhmann": "77", "type": "fact", "situation": "s",
         "fields": {"subject": "http requests in Go", "predicate": "use", "object": "NewRequestWithContext"},
-        "links": ["91.y"]},
+        "links": ["91.y", "39.2026-06-17.integration-test"]},
        {"slug": "91.y", "luhmann": "91", "type": "fact", "situation": "s2",
-        "fields": {"subject": "logging", "predicate": "use", "object": "slog"}, "links": []}]
+        "fields": {"subject": "logging", "predicate": "use", "object": "slog"}, "links": []},
+       # Dotted + uppercase luhmann/basename — mirrors a real vault note (e.g. luhmann
+       # "39.2026-06-17.integration-test-...") that crashed a real `engram learn` run because the
+       # raw slug `crowd-39.2026-06-17.integration-test-N` violates engram's `[a-z0-9-]+` slug rule.
+       {"slug": "39.2026-06-17.integration-test", "luhmann": "39.2026-06-17.Integration-Test",
+        "type": "fact", "situation": "s3",
+        "fields": {"subject": "parsing config files", "predicate": "use", "object": "yaml structs"},
+        "links": []}]
 
 
 def test_make_variants_count_unique_deterministic():
@@ -29,10 +36,24 @@ def test_links_repoint_to_sibling_variants_or_drop():
             assert link in slugs                      # never dangling-outside-crowd
 
 
+def test_variant_slugs_are_engram_valid():
+    import re
+    v = crowd.make_variants(SRC, n=6, seed=7)
+    for x in v:
+        assert re.fullmatch(r'[a-z0-9-]+', x["slug"]), x["slug"]
+        for L in x["links"]:
+            assert re.fullmatch(r'[a-z0-9-]+', L)
+
+
 def test_vocab_knob_biases_toward_matching_notes():
     v = crowd.make_variants(SRC, n=10, seed=7, vocab_terms=["http"], vocab_frac=0.5)
     hits = sum(1 for x in v if "http" in x["fields"].get("subject", "").lower())
     assert hits >= 4
+
+
+def test_vocab_terms_default_activates_bias():
+    v = crowd.make_variants(SRC, n=10, seed=7, vocab_terms=["http"])  # no vocab_frac passed
+    assert sum(1 for x in v if "http" in x["fields"].get("subject", "").lower()) >= 2
 
 
 def test_recency_knob_marks_some_newer():

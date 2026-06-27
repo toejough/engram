@@ -94,7 +94,7 @@ def main():
     if a.crowd > 0:
         variants = crowd.make_variants(
             crowd.load_real_notes(crowd.real_vault()), a.crowd, seed=7,
-            vocab_terms=["http", "error", "test", "color", "Go"], recency_frac=0.3)
+            vocab_terms=["http", "error", "test", "color", "Go"])
         crowd.seed_into(a.vault, variants)
         print(f"seeded {len(variants)} crowd variants into {a.vault}")
 
