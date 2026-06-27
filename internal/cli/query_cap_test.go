@@ -66,10 +66,12 @@ func TestResolveContentBudget_DefaultsAndOverrides(t *testing.T) {
 // negative → 0 (channel off).
 func TestResolveRecentFill_DefaultsAndOverrides(t *testing.T) {
 	t.Parallel()
+
 	g := NewWithT(t)
-	g.Expect(cli.ExportResolveRecentFill(0)).To(Equal(25)) // 0 -> baked default
-	g.Expect(cli.ExportResolveRecentFill(5)).To(Equal(5))  // explicit honored
-	g.Expect(cli.ExportResolveRecentFill(-1)).To(Equal(0)) // negative -> channel off
+
+	g.Expect(cli.ExportResolveRecentFill(0)).To(Equal(cli.ExportDefaultRecentFill), "unset → default")
+	g.Expect(cli.ExportResolveRecentFill(5)).To(Equal(5), "positive → itself")
+	g.Expect(cli.ExportResolveRecentFill(-1)).To(Equal(0), "negative → channel off")
 }
 
 // TestSnippet_CollapsesAndTruncates verifies the snippet algorithm.

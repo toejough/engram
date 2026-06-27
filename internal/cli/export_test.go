@@ -12,6 +12,7 @@ import (
 // Exported constants.
 const (
 	ExportDefaultContentBudget = defaultContentBudget
+	ExportDefaultRecentFill    = defaultRecentFill
 )
 
 // Exported variables.

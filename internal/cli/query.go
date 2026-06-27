@@ -36,7 +36,7 @@ type QueryArgs struct {
 	// RecentFill caps how many newest-by-ingest chunks fill the recency channel
 	// (Channel 2). 0 = baked default (25); negative = channel off. env= lets the
 	// recall sweep shrink the payload without a skill edit.
-	RecentFill int `targ:"flag,name=recent-fill,env=ENGRAM_RECENT_FILL,desc=newest-by-ingest chunks in the recency channel (0=default 25); a smaller payload the agent pages faster"` //nolint:lll // single unbreakable struct-tag string
+	RecentFill int `targ:"flag,name=recent-fill,env=ENGRAM_RECENT_FILL,desc=newest-by-ingest chunks in the recency channel (0=default 25; negative=off); reduces recall payload"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
