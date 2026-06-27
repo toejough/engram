@@ -148,7 +148,11 @@ def test_rank_in_payload_found_and_absent():
 - `RANK_THRESHOLD = 10` (a target ranked worse than top-10 counts as "buried"). `LEVELS = [0,10,30,50,100,200,400]`. `HEAVY_FALLBACK = 200`.
 - `break_point(sweep, rank_threshold=RANK_THRESHOLD) -> int|None` — pure: smallest `n` in `sweep` where `all_surfaced` is False OR `worst_rank > rank_threshold`; `None` if never (→ caller uses `HEAVY_FALLBACK`).
 - `degradation(crowded_axis, toy_axis) -> {"delta": int, "note": str}` — pure: `passed/valid` delta; if `abs(delta)` ≤ 1 (n=5 warm-vs-warm noise) note "within noise — underpowered".
-- `tier1_sweep(axis) -> list[{n,all_surfaced,worst_rank}]` — for each `n` in LEVELS (skip C5): mkdtemp; seed the axis base note(s) (`seed_c3`/`c4_idio.seed_vaults`/`c6` case notes) into it; `crowd.seed_into(temp, make_variants(...,n))`; `retrieval_probe.probe(temp, axis)`; teardown. (C5 returns a fixed `[{n:HEAVY_FALLBACK, note:"recency-invariant"}]`.)
+- `tier1_sweep(axis) -> list[{n,all_surfaced,worst_rank}]` — for each `n` in LEVELS (skip C5): mkdtemp `temp`; seed the axis base note(s) into `temp` (NOT the harnesses' hardcoded vaults):
+  - **C3:** `seed_c3.seed(temp)`.
+  - **C4i (NEW-A):** call `c4_idio._learn(temp, ...)` directly for BOTH the `e7-error-marker` note and the `errcfg-supersedes-e7` note — do **not** call `c4_idio.seed_vaults()` (it takes no path and writes to hardcoded `VAULTS`).
+  - **C6 (NEW-B):** seed **all 4** premise notes (both cases) into the one `temp` via `rr._learn(temp, *note)` for every note in `reasoning_recall_eval.CASES[*]["notes"]` — a single combined probe; `AXIS_TARGETS["C6"]` holds all 4 basenames and a break fires if ANY drops.
+  Then `crowd.seed_into(temp, make_variants(...,n))`; `retrieval_probe.probe(temp, axis)`; teardown. (C5 returns a fixed `[{n:HEAVY_FALLBACK, note:"recency-invariant"}]`.)
 - `main(--tier1-only?)` — Tier-1: `tier1_sweep` each cosine axis → `break_point` → chosen `B` (or HEAVY_FALLBACK). If `--tier1-only`, print the curves + chosen B and exit (free). Tier-2: run each axis warm harness with `--crowd B` and `--crowd <heavier=min(2*B,400)>` (C5: `--crowd 200` only), `gate_verdict.normalize`+`axis_verdict`, compare crowded-warm vs the toy baseline (`gate.py --tier smoke` numbers or re-run crowd=0) and report `beats_cold` (cold pass≈0 for these traps). Emit a labeled table (`axis | break_n | crowd | crowded_pass | toy_pass | delta | verdict`) + `crowded-verdict.json`.
 
 - [ ] **Step 1: failing tests**
