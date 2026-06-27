@@ -19,9 +19,10 @@ ledger (vault notes 99/100) and the `$METER` + trap-gate prerequisites that land
 ### #1 — Crowded-vault capability eval (highest value) — IN PROGRESS
 **Do the 4 verified wins survive a realistic, crowded vault with competing notes, or only in n=5
 toys?** Plant the load-bearing note(s) among many semantically-near distractors (varying recency),
-run the **real `/recall` skill** (multi-phrase — note 72: validate through the real skill, not a bare
-`engram query`), and check both *surfaced* (retrieval precision under load) and *applied* (the
-existing pass bar) vs the toy baseline.
+For Tier-1 (free) run the **real multi-phrase `engram query`** — the 10-phrase retrieval call `/recall`
+makes internally (note 72: validate through the real retrieval, not a single bare query); for Tier-2
+run the **real warm harnesses** (which invoke `/recall`). Check both *surfaced* (retrieval precision
+under load) and *applied* (the existing pass bar) vs the toy baseline.
 
 **Why first:** it is the load-bearing uncertainty. If the value proposition doesn't hold at realistic
 scale, every downstream cost/usage optimization is rearranging deck chairs. Note 72 predicts retrieval
