@@ -10,6 +10,7 @@ import argparse, json, os, shutil, subprocess, sys, tempfile, time
 import concurrent.futures as cf
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import crowd
 import traps as T
 from run import build_cold_cfg, MODELS
 
@@ -82,11 +83,20 @@ def main():
     ap.add_argument("--n", type=int, default=5)
     ap.add_argument("--traps", default="req-with-context,nocolor,t-parallel,nil-guard-split,wrapped-error")
     ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--crowd", type=int, default=0,
+                    help="seed N real-vault variant notes into --vault to crowd the C3 notes")
     a = ap.parse_args()
 
     os.makedirs(os.path.join(ROOT, "ws"), exist_ok=True)
     cfg = os.path.join(ROOT, "warm-cfg")
     build_warm_cfg(cfg)
+
+    if a.crowd > 0:
+        variants = crowd.make_variants(
+            crowd.load_real_notes(crowd.real_vault()), a.crowd, seed=7,
+            vocab_terms=["http", "error", "test", "color", "Go"], recency_frac=0.3)
+        crowd.seed_into(a.vault, variants)
+        print(f"seeded {len(variants)} crowd variants into {a.vault}")
 
     names = a.traps.split(",")
     jobs = [(n, i) for n in names for i in range(a.n)]

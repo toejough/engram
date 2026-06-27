@@ -8,7 +8,10 @@ R is ingested LAST so it is the newest chunk; distractors are unrelated domains 
 hiring, ...) so the build task ("Go timestamp function") cannot cosine-match R — it only reaches
 R through the recent channel.
 """
-import os, shutil, subprocess, sys, tempfile
+import argparse, os, shutil, subprocess, sys, tempfile
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import crowd
 
 ROOT = os.environ.get("TRAPS_ROOT", "/tmp/c5")
 SEED_CHUNKS = os.path.join(ROOT, "chunks")
@@ -53,17 +56,33 @@ def _ingest(path):
     return r.stdout.strip()
 
 
-def main():
+def build_seed(crowd_n=0):
+    """Build the C5 chunk index: distractors (older), optional crowd variant chunks, R (newest).
+
+    Crowd chunks are ingested BEFORE R so R stays the newest chunk and still wins by recency —
+    the crowd competes on cosine in the recent channel without displacing R's recency rank."""
     if os.path.isdir(SEED_CHUNKS):
         shutil.rmtree(SEED_CHUNKS)
     os.makedirs(SEED_CHUNKS, exist_ok=True)
     src = tempfile.mkdtemp(prefix="c5-seed-src-")
-    # Distractors first (older), R last (newest) — recency is by ingest time.
+    # Distractors first (older), crowd next, R last (newest) — recency is by ingest time.
     for name, body in DISTRACTORS.items():
         p = os.path.join(src, name); open(p, "w").write(body); _ingest(p)
+    if crowd_n > 0:
+        variants = crowd.make_variants(
+            crowd.load_real_notes(crowd.real_vault()), crowd_n, seed=7, recency_frac=0.3)
+        crowd.seed_into_chunks(SEED_CHUNKS, variants)
     rp = os.path.join(src, R_NAME); open(rp, "w").write(R_BODY)
     print("R ingest:", _ingest(rp))
-    print(f"seed built at {SEED_CHUNKS} ({len(DISTRACTORS)} distractors + R newest)")
+    print(f"seed built at {SEED_CHUNKS} ({len(DISTRACTORS)} distractors + {crowd_n} crowd + R newest)")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--crowd", type=int, default=0,
+                    help="ingest N real-vault variant chunks before R (R stays newest)")
+    a = ap.parse_args()
+    build_seed(a.crowd)
 
 
 if __name__ == "__main__":

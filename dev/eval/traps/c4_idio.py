@@ -20,6 +20,7 @@ import argparse, glob, json, os, subprocess, sys, tempfile, time
 import concurrent.futures as cf
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import crowd
 from run import build_cold_cfg, MODELS
 from wrun import build_warm_cfg, RECALL_PREFIX, _slug
 
@@ -111,12 +112,21 @@ def main():
     ap.add_argument("--n", type=int, default=5)
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--arms", default="cold,warm-X,warm-XXp")
+    ap.add_argument("--crowd", type=int, default=0,
+                    help="seed N real-vault variant notes into the warm-XXp vault to crowd the supersession note")
     a = ap.parse_args()
 
     os.makedirs(os.path.join(ROOT, "ws"), exist_ok=True)
     cold_cfg = os.path.join(ROOT, "cold-cfg"); build_cold_cfg(cold_cfg)
     warm_cfg = os.path.join(ROOT, "warm-cfg"); build_warm_cfg(warm_cfg)
     seed_vaults()
+
+    if a.crowd > 0:
+        variants = crowd.make_variants(
+            crowd.load_real_notes(crowd.real_vault()), a.crowd, seed=7,
+            vocab_terms=["error", "cfgload", "marker", "Go"], recency_frac=0.3)
+        crowd.seed_into(VAULTS["warm-XXp"], variants)
+        print(f"seeded {len(variants)} crowd variants into {VAULTS['warm-XXp']}")
 
     arms = a.arms.split(",")
     jobs = [(arm, i) for arm in arms for i in range(a.n)]

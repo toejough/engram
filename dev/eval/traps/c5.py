@@ -95,8 +95,13 @@ def main():
     ap.add_argument("--n", type=int, default=5)
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--arms", default="cold,warm")
+    ap.add_argument("--crowd", type=int, default=0,
+                    help="rebuild the seed with N real-vault variant chunks before R (R stays newest)")
     a = ap.parse_args()
 
+    if a.crowd > 0:
+        import seed_c5
+        seed_c5.build_seed(a.crowd)
     if not os.path.isdir(SEED_CHUNKS):
         sys.exit(f"seed chunks missing at {SEED_CHUNKS} — run the C5 seed first")
     os.makedirs(os.path.join(ROOT, "ws"), exist_ok=True)
