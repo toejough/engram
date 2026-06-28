@@ -42,9 +42,12 @@ The floor made a good note *surface*; the open levers make the notes *worth* sur
 The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
 **cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79% for correction-driven), and
 real failure situations are 68% uncovered / 30% partial. **The lever:** derive a note's `situation` handle
-from the **question/failure it answers**, not the cluster topic — route cluster-driven candidates through the
-learn path's question-shaping. Fixes the quality gap at the source and, paired with failure-mining capture,
-closes coverage. Measure with the audit's coverage + path-split method; gate with the trap harness.
+from the **question/failure it answers**, not the cluster topic. **Proposals to evaluate (panel-scored):**
+`docs/design/2026-06-28-question-shaped-crystallization-proposals.md` — recommended first wave (all cheap):
+**#1** question-shaped handles + retroactive `engram resituate` (the confirmed-gap fix), **#8** a
+diagnostic-surfacing probe (settles the open "understand problems" measurement + gates note-shaping), **#3**
+a write-time quality gate. Second wave: #2 capture the reasoning chain (Step-4-as-norm), #7 weaker-model reuse
+(also a *cost* win). Measure with the audit's coverage + path-split method; gate with the trap harness.
 
 ### Better recall *moments* — from the failure-mining analysis  [QUALITY / coverage]
 Mined **failure moments** from a 40-transcript stratified sample (main + subagent, 5 repos) with a
