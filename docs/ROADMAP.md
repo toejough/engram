@@ -90,3 +90,11 @@ lightening the skill *body* to increase firing (firing is set by the `descriptio
   `dev/eval/traps/{RESULTS.md, README.md}`.
 - **Instruments** (2026-06-26) — the `recall_cost` `$METER` (schema v5) + the C3/C4i/C5/C6 trap
   regression gate. These make every lever above safe (regression-caught) and measurable.
+
+## Adjacent direction — learn from failures, not just corrections
+Mine **failure moments** from session AND subagent transcripts (subagents are ingested, and the ingest
+byte-cap was removed 2026-06-27 so full sessions land whole) and run them through the same
+eval/classification as explicit user corrections — the system learns from its own subagents' mistakes,
+at far higher volume. Turn-grained chunking already isolates each failure; the missing piece is a
+**failure-signal classifier**. Design: `docs/design/2026-06-27-mine-failures-as-eval-material.md`. A
+`/please` brainstorm to pin the detector's signals + precision target is the natural first step.
