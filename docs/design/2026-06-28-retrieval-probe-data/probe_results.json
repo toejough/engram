@@ -1,0 +1,860 @@
+{
+ "rows": [
+  {
+   "basename": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Swapping old calculation engine for smarter heuristic in new architecture",
+    "iso_rank": 1,
+    "iso_score": 0.40482667,
+    "iso_total": 23,
+    "real_rank_all": null,
+    "real_total_all": 49,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Keep deterministic machinery when simplifying and redesigning systems",
+    "iso_rank": 1,
+    "iso_score": 0.59190273,
+    "iso_total": 28,
+    "real_rank_all": 1,
+    "real_total_all": 42,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Revising a behavioral guide and requiring evidence that the pre-revision version exhibited the wrong behavior before making the change",
+    "iso_rank": 8,
+    "iso_score": 0.39832884,
+    "iso_total": 30,
+    "real_rank_all": null,
+    "real_total_all": 48,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Skill edits require baseline tests before validating changes",
+    "iso_rank": 1,
+    "iso_score": 0.5014162,
+    "iso_total": 18,
+    "real_rank_all": null,
+    "real_total_all": 44,
+    "real_rank_notes": null
+   }
+  },
+  {
+   "basename": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Altering a sequencing skill that delegates across multiple steps, needing a written design committed first and fresh behavioral evidence after",
+    "iso_rank": 3,
+    "iso_score": 0.4661616,
+    "iso_total": 30,
+    "real_rank_all": null,
+    "real_total_all": 50,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Workflow changes require committed plan doc and fresh agent tests",
+    "iso_rank": 1,
+    "iso_score": 0.6909665,
+    "iso_total": 16,
+    "real_rank_all": 1,
+    "real_total_all": 41,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Comparing test tools that auto-generate varied inputs for code",
+    "iso_rank": 1,
+    "iso_score": 0.5183326,
+    "iso_total": 19,
+    "real_rank_all": null,
+    "real_total_all": 43,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Property-based testing frameworks validate properties across random inputs",
+    "iso_rank": 1,
+    "iso_score": 0.6842983,
+    "iso_total": 23,
+    "real_rank_all": 1,
+    "real_total_all": 38,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Testing whether input changes produce predictable output shifts",
+    "iso_rank": 7,
+    "iso_score": 0.2810719,
+    "iso_total": 10,
+    "real_rank_all": null,
+    "real_total_all": 43,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Metamorphic relations classify how input transforms affect outputs",
+    "iso_rank": 1,
+    "iso_score": 0.5998146,
+    "iso_total": 10,
+    "real_rank_all": 1,
+    "real_total_all": 39,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "34.2026-06-16.working-memory-analog-gap",
+   "abstract": false,
+   "nuanced": {
+    "phrase": "Designing context delivery from archive, separating fresh data tier from historical patterns",
+    "iso_rank": 4,
+    "iso_score": 0.33514673,
+    "iso_total": 14,
+    "real_rank_all": null,
+    "real_total_all": 43,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Design recall payload as explicit working-memory analog",
+    "iso_rank": 17,
+    "iso_score": 0.45315635,
+    "iso_total": 30,
+    "real_rank_all": null,
+    "real_total_all": 49,
+    "real_rank_notes": null
+   }
+  },
+  {
+   "basename": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+   "abstract": false,
+   "nuanced": {
+    "phrase": "Ordering data transformations before structural wrapping to preserve sorted properties",
+    "iso_rank": 2,
+    "iso_score": 0.29440063,
+    "iso_total": 5,
+    "real_rank_all": null,
+    "real_total_all": 43,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "apply recency band to scoredChunk before resolvedItem conversion",
+    "iso_rank": 1,
+    "iso_score": 0.6639272,
+    "iso_total": 11,
+    "real_rank_all": 1,
+    "real_total_all": 42,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+   "abstract": false,
+   "nuanced": {
+    "phrase": "Type checker warns about an unreferenced field before dependent code lands",
+    "iso_rank": 4,
+    "iso_score": 0.29455468,
+    "iso_total": 16,
+    "real_rank_all": null,
+    "real_total_all": 45,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "unused struct fields require consumer not nolint suppression",
+    "iso_rank": 1,
+    "iso_score": 0.62749815,
+    "iso_total": 9,
+    "real_rank_all": 1,
+    "real_total_all": 42,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+   "abstract": false,
+   "nuanced": {
+    "phrase": "Testing dual-output API without completely specifying both return paths",
+    "iso_rank": 4,
+    "iso_score": 0.3255897,
+    "iso_total": 10,
+    "real_rank_all": null,
+    "real_total_all": 41,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "RunQuery chunk integration test needs nil notes in QueryDeps Scan",
+    "iso_rank": 1,
+    "iso_score": 0.79213667,
+    "iso_total": 20,
+    "real_rank_all": 1,
+    "real_total_all": 38,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Formatting a qualified identifier appears in three separate functions",
+    "iso_rank": 1,
+    "iso_score": 0.35100406,
+    "iso_total": 2,
+    "real_rank_all": null,
+    "real_total_all": 36,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "string concatenation across multiple files needs named helper",
+    "iso_rank": 1,
+    "iso_score": 0.44400525,
+    "iso_total": 4,
+    "real_rank_all": null,
+    "real_total_all": 44,
+    "real_rank_notes": null
+   }
+  },
+  {
+   "basename": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "A fresh signal clearly wins over uniformly stale noise in tests",
+    "iso_rank": 5,
+    "iso_score": 0.26106173,
+    "iso_total": 8,
+    "real_rank_all": null,
+    "real_total_all": 47,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "recency eval with recent chunk beats homogeneous old distractors",
+    "iso_rank": 1,
+    "iso_score": 0.8709595,
+    "iso_total": 30,
+    "real_rank_all": 1,
+    "real_total_all": 48,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Testing a ranking parameter evaluation when all noise items have identical age",
+    "iso_rank": 4,
+    "iso_score": 0.31804663,
+    "iso_total": 14,
+    "real_rank_all": null,
+    "real_total_all": 41,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "half-life sweep with uniform age distractors gives no discrimination",
+    "iso_rank": 1,
+    "iso_score": 0.7610318,
+    "iso_total": 13,
+    "real_rank_all": 1,
+    "real_total_all": 45,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+   "abstract": false,
+   "nuanced": {
+    "phrase": "Adding a non-breaking field to a serialized versioned format won't break older readers",
+    "iso_rank": 2,
+    "iso_score": 0.31733012,
+    "iso_total": 8,
+    "real_rank_all": null,
+    "real_total_all": 43,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Sidecar omitempty fields don't require schema version bump",
+    "iso_rank": 1,
+    "iso_score": 0.60303766,
+    "iso_total": 9,
+    "real_rank_all": 1,
+    "real_total_all": 40,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+   "abstract": false,
+   "nuanced": {
+    "phrase": "Static analysis marks a struct member unused because its consuming logic is deferred to a later implementation step",
+    "iso_rank": 1,
+    "iso_score": 0.45951074,
+    "iso_total": 19,
+    "real_rank_all": null,
+    "real_total_all": 43,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Add test accessor in export_test for unexported fields used later",
+    "iso_rank": 1,
+    "iso_score": 0.45056108,
+    "iso_total": 4,
+    "real_rank_all": 1,
+    "real_total_all": 41,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "50.2026-06-17.activate-command-deps-struct-pattern",
+   "abstract": false,
+   "nuanced": {
+    "phrase": "Implementing a new subcommand handler requiring injected I/O dependencies",
+    "iso_rank": 2,
+    "iso_score": 0.41055027,
+    "iso_total": 9,
+    "real_rank_all": null,
+    "real_total_all": 42,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "RunActivate and ActivateDeps must follow the newOsXxxDeps pattern",
+    "iso_rank": 1,
+    "iso_score": 0.44143596,
+    "iso_total": 1,
+    "real_rank_all": 1,
+    "real_total_all": 39,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Cache invalidation check shouldn't trigger when access timestamp in the metadata updates",
+    "iso_rank": 1,
+    "iso_score": 0.4113589,
+    "iso_total": 5,
+    "real_rank_all": 1,
+    "real_total_all": 41,
+    "real_rank_notes": 1
+   },
+   "lexical": {
+    "phrase": "LastUsed must be omitempty and excluded from ContentHash",
+    "iso_rank": 1,
+    "iso_score": 0.48652306,
+    "iso_total": 2,
+    "real_rank_all": 1,
+    "real_total_all": 45,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Tool accepting file paths as arguments needs verification running the actual compiled binary",
+    "iso_rank": 2,
+    "iso_score": 0.5012041,
+    "iso_total": 9,
+    "real_rank_all": null,
+    "real_total_all": 40,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Verify CLI with real installed binary and real arguments from non-data-dir cwd",
+    "iso_rank": 1,
+    "iso_score": 0.6713963,
+    "iso_total": 7,
+    "real_rank_all": 1,
+    "real_total_all": 41,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+   "abstract": false,
+   "nuanced": {
+    "phrase": "Adding a list field to output matching how other result attributes serialize",
+    "iso_rank": 1,
+    "iso_score": 0.33899888,
+    "iso_total": 2,
+    "real_rank_all": null,
+    "real_total_all": 49,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "candidate_l2s follows the activated flag serialization pattern in query",
+    "iso_rank": 1,
+    "iso_score": 0.53846544,
+    "iso_total": 5,
+    "real_rank_all": 1,
+    "real_total_all": 43,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "58.2026-06-19.engram-modernize-linter-slices-backward",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Writing a loop that processes collection elements from end to start in engram Go code",
+    "iso_rank": 1,
+    "iso_score": 0.6740689,
+    "iso_total": 6,
+    "real_rank_all": 1,
+    "real_total_all": 50,
+    "real_rank_notes": 1
+   },
+   "lexical": {
+    "phrase": "Backward iteration over a slice in Go; use slices.Backward idiom instead",
+    "iso_rank": 1,
+    "iso_score": 0.8225468,
+    "iso_total": 7,
+    "real_rank_all": 1,
+    "real_total_all": 44,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "User wants to discard obsolete config and dead-code markers to declutter repository",
+    "iso_rank": 1,
+    "iso_score": 0.49254265,
+    "iso_total": 7,
+    "real_rank_all": 1,
+    "real_total_all": 44,
+    "real_rank_notes": 1
+   },
+   "lexical": {
+    "phrase": "Cleanup asks: lean aggressive, git is safety net, consolidate into single doc",
+    "iso_rank": 1,
+    "iso_score": 0.71073955,
+    "iso_total": 12,
+    "real_rank_all": 1,
+    "real_total_all": 47,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Team designs wrongly because handbook still describes an outdated architectural flow nobody updated",
+    "iso_rank": 3,
+    "iso_score": 0.38511434,
+    "iso_total": 17,
+    "real_rank_all": null,
+    "real_total_all": 46,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "After major refactor, stale docs describing removed paths cause later design misses",
+    "iso_rank": 2,
+    "iso_score": 0.56446177,
+    "iso_total": 28,
+    "real_rank_all": null,
+    "real_total_all": 46,
+    "real_rank_notes": null
+   }
+  },
+  {
+   "basename": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Handbook and diagrams still show the deleted feature, though code is gone",
+    "iso_rank": 1,
+    "iso_score": 0.45017868,
+    "iso_total": 5,
+    "real_rank_all": 1,
+    "real_total_all": 44,
+    "real_rank_notes": 1
+   },
+   "lexical": {
+    "phrase": "Removal isn't done until docs, memory, and diagrams naming the deleted path are updated",
+    "iso_rank": 1,
+    "iso_score": 0.69947726,
+    "iso_total": 7,
+    "real_rank_all": 1,
+    "real_total_all": 43,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "A shared CLI surface is modified and verification scripts that relied on the prior interface signature stop working silently",
+    "iso_rank": 3,
+    "iso_score": 0.3015202,
+    "iso_total": 8,
+    "real_rank_all": null,
+    "real_total_all": 47,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "After removing a cross-cutting API, verify test and eval harnesses still work",
+    "iso_rank": 1,
+    "iso_score": 0.63603985,
+    "iso_total": 20,
+    "real_rank_all": 1,
+    "real_total_all": 45,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "A RAG pipeline collates matching chunks and the consolidated result is treated as if it produced a novel deduction",
+    "iso_rank": null,
+    "iso_score": null,
+    "iso_total": 23,
+    "real_rank_all": null,
+    "real_total_all": 49,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Distinguish aggregation and abstraction from emergent synthesis; combining similar facts isn't new insight",
+    "iso_rank": 1,
+    "iso_score": 0.5880089,
+    "iso_total": 23,
+    "real_rank_all": 1,
+    "real_total_all": 35,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Expected system broken, but measured behavior shows it already works fine",
+    "iso_rank": 2,
+    "iso_score": 0.2530874,
+    "iso_total": 6,
+    "real_rank_all": null,
+    "real_total_all": 49,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "RED baseline contradicts design assumption \u2014 surface measured reality to user",
+    "iso_rank": 1,
+    "iso_score": 0.54205436,
+    "iso_total": 5,
+    "real_rank_all": 1,
+    "real_total_all": 29,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Adding ranking filters before confirming multi-term queries already work",
+    "iso_rank": null,
+    "iso_score": null,
+    "iso_total": 2,
+    "real_rank_all": null,
+    "real_total_all": 46,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Multiphrase recall subsumes graph expansion \u2014 validate retrieval layers first",
+    "iso_rank": 1,
+    "iso_score": 0.6053756,
+    "iso_total": 30,
+    "real_rank_all": null,
+    "real_total_all": 50,
+    "real_rank_notes": null
+   }
+  },
+  {
+   "basename": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Model outputs a conclusion during work, but that doesn't mean it's searchable later",
+    "iso_rank": 1,
+    "iso_score": 0.45863232,
+    "iso_total": 30,
+    "real_rank_all": null,
+    "real_total_all": 51,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "In-session synthesis differs from persisting for future retrieval",
+    "iso_rank": 1,
+    "iso_score": 0.54798806,
+    "iso_total": 30,
+    "real_rank_all": null,
+    "real_total_all": 45,
+    "real_rank_notes": null
+   }
+  },
+  {
+   "basename": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Agent inferred a finding mid-session from stored facts; wondering whether an uncertain output should be written back to the vault at all",
+    "iso_rank": 2,
+    "iso_score": 0.51943886,
+    "iso_total": 30,
+    "real_rank_all": null,
+    "real_total_all": 49,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "Persist synthesis notes as derived and hedged, not for accuracy",
+    "iso_rank": 1,
+    "iso_score": 0.53573614,
+    "iso_total": 30,
+    "real_rank_all": null,
+    "real_total_all": 44,
+    "real_rank_notes": null
+   }
+  },
+  {
+   "basename": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Using cheaper labor for part of a task, unclear where quality work ends",
+    "iso_rank": 2,
+    "iso_score": 0.43074393,
+    "iso_total": 17,
+    "real_rank_all": 2,
+    "real_total_all": 47,
+    "real_rank_notes": 2
+   },
+   "lexical": {
+    "phrase": "Split skill at judgment seam, not bespoke infrastructure",
+    "iso_rank": 2,
+    "iso_score": 0.5043085,
+    "iso_total": 30,
+    "real_rank_all": 2,
+    "real_total_all": 47,
+    "real_rank_notes": 2
+   }
+  },
+  {
+   "basename": "80.2026-06-24.recall-split-not-worth-complexity",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Using two services in sequence to reduce total cost, but delegated work is small",
+    "iso_rank": 1,
+    "iso_score": 0.43969604,
+    "iso_total": 15,
+    "real_rank_all": 1,
+    "real_total_all": 49,
+    "real_rank_notes": 1
+   },
+   "lexical": {
+    "phrase": "Do not split a skill across models unless large share",
+    "iso_rank": 1,
+    "iso_score": 0.62855417,
+    "iso_total": 8,
+    "real_rank_all": 1,
+    "real_total_all": 45,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Diagnosing why a past failure keeps getting suggested, worried the ranking system is wrong",
+    "iso_rank": 8,
+    "iso_score": 0.30763415,
+    "iso_total": 18,
+    "real_rank_all": null,
+    "real_total_all": 48,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "recall miss is structural not retrieval scoring",
+    "iso_rank": 3,
+    "iso_score": 0.552691,
+    "iso_total": 30,
+    "real_rank_all": null,
+    "real_total_all": 51,
+    "real_rank_notes": null
+   }
+  },
+  {
+   "basename": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Conflating efficiency improvement in one stage with total investment across the whole pipeline",
+    "iso_rank": 7,
+    "iso_score": 0.30108318,
+    "iso_total": 15,
+    "real_rank_all": null,
+    "real_total_all": 47,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "separate marginal cost premium from absolute total investment",
+    "iso_rank": 1,
+    "iso_score": 0.33506617,
+    "iso_total": 2,
+    "real_rank_all": 1,
+    "real_total_all": 44,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+   "abstract": false,
+   "nuanced": {
+    "phrase": "Evaluating system behavior at scale without constructing the actual large dataset",
+    "iso_rank": 4,
+    "iso_score": 0.3512387,
+    "iso_total": 30,
+    "real_rank_all": null,
+    "real_total_all": 49,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "stub binary replaces fixture for realistic scale testing",
+    "iso_rank": 1,
+    "iso_score": 0.60981625,
+    "iso_total": 8,
+    "real_rank_all": 1,
+    "real_total_all": 42,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Primary objective neglected in favor of nearby cleanup; strict review cycle might explain",
+    "iso_rank": null,
+    "iso_score": null,
+    "iso_total": 23,
+    "real_rank_all": null,
+    "real_total_all": 48,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "task displacement amplified by aggressive challenge feedback",
+    "iso_rank": 1,
+    "iso_score": 0.44966084,
+    "iso_total": 10,
+    "real_rank_all": 1,
+    "real_total_all": 50,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Five intermediate milestones completed, each defensible, but unsure if the starting objective still matches",
+    "iso_rank": 1,
+    "iso_score": 0.33167183,
+    "iso_total": 10,
+    "real_rank_all": null,
+    "real_total_all": 47,
+    "real_rank_notes": null
+   },
+   "lexical": {
+    "phrase": "re-anchor on goal and revalidate carried-forward work",
+    "iso_rank": 1,
+    "iso_score": 0.56422466,
+    "iso_total": 17,
+    "real_rank_all": 1,
+    "real_total_all": 45,
+    "real_rank_notes": 1
+   }
+  },
+  {
+   "basename": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+   "abstract": true,
+   "nuanced": {
+    "phrase": "Concluding an approach is impossible because it's slow, expensive, and fails unpredictably",
+    "iso_rank": 1,
+    "iso_score": 0.5465506,
+    "iso_total": 29,
+    "real_rank_all": 1,
+    "real_total_all": 49,
+    "real_rank_notes": 1
+   },
+   "lexical": {
+    "phrase": "decompose obstacles into structural versus contingent before asserting",
+    "iso_rank": 7,
+    "iso_score": 0.34367085,
+    "iso_total": 27,
+    "real_rank_all": null,
+    "real_total_all": 50,
+    "real_rank_notes": null
+   }
+  }
+ ],
+ "nuanced": {
+  "isolation_notes": {
+   "recall@1": 0.361,
+   "recall@3": 0.639,
+   "recall@5": 0.806,
+   "recall@10": 0.917,
+   "MRR": 0.541,
+   "median_rank": 2,
+   "miss_rate": 0.083,
+   "n": 36
+  },
+  "realpath_all_items": {
+   "recall@1": 0.167,
+   "recall@3": 0.194,
+   "recall@5": 0.194,
+   "recall@10": 0.194,
+   "MRR": 0.181,
+   "median_rank": 1,
+   "miss_rate": 0.806,
+   "n": 36
+  },
+  "realpath_notes_only": {
+   "recall@1": 0.167,
+   "recall@3": 0.194,
+   "recall@5": 0.194,
+   "recall@10": 0.194,
+   "MRR": 0.181,
+   "median_rank": 1,
+   "miss_rate": 0.806,
+   "n": 36
+  }
+ },
+ "lexical": {
+  "isolation_notes": {
+   "recall@1": 0.861,
+   "recall@3": 0.944,
+   "recall@5": 0.944,
+   "recall@10": 0.972,
+   "MRR": 0.904,
+   "median_rank": 1.0,
+   "miss_rate": 0.0,
+   "n": 36
+  },
+  "realpath_all_items": {
+   "recall@1": 0.722,
+   "recall@3": 0.75,
+   "recall@5": 0.75,
+   "recall@10": 0.75,
+   "MRR": 0.736,
+   "median_rank": 1,
+   "miss_rate": 0.25,
+   "n": 36
+  },
+  "realpath_notes_only": {
+   "recall@1": 0.722,
+   "recall@3": 0.75,
+   "recall@5": 0.75,
+   "recall@10": 0.75,
+   "MRR": 0.736,
+   "median_rank": 1,
+   "miss_rate": 0.25,
+   "n": 36
+  }
+ }
+}

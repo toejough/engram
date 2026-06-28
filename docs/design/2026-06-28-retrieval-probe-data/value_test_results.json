@@ -1,0 +1,552 @@
+[
+ {
+  "basename": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+  "abstract": true,
+  "situation": "Swapping old calculation engine for smarter heuristic in new architecture",
+  "order": [
+   "none",
+   "chunks",
+   "note"
+  ],
+  "scores": {
+   "none": {
+    "s": 2,
+    "o": false
+   },
+   "chunks": {
+    "s": 1,
+    "o": false
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "Plans 1 and 3 both commit to per-population z-score normalization, which is a deterministic mathematical operation that re-hosts the existing cosine machinery without substituting eyeballed grouping or hard tier boundaries. Plan 2 leaves three options on the table \u2014 including note-tiering (always surface top-K notes regardless of cosine score), which is exactly the kind of eyeballed grouping the lesson warns against, and it defers the choice to the user rather than ruling out the failure mode. Plan 3 uniquely earns the only_lesson flag because it explicitly frames its choice in the lesson's own terms (\"re-hosts the deterministic cosine machinery rather than substituting eyeballed grouping\"), language that goes beyond general engineering good practice."
+ },
+ {
+  "basename": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+  "abstract": true,
+  "situation": "Altering a sequencing skill that delegates across multiple steps, needing a written design committed first and fresh behavioral evidence after",
+  "order": [
+   "chunks",
+   "note",
+   "none"
+  ],
+  "scores": {
+   "chunks": {
+    "s": 2,
+    "o": true
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 1,
+    "o": false
+   }
+  },
+  "reasoning": "Plans 1 and 2 both name both hard gates the lesson mandates: committed design doc before any SKILL.md edit, AND fresh-context pressure tests that specifically try to rationalize around the new text \u2014 language that is not derivable from general good practice or the writing-skills TDD cycle alone. Plan 3 gets the committed-design-doc gate right but frames the post-edit evidence requirement as an anti-staleness concern (stale results don't bind new architecture) rather than the lesson's specific demand for a fresh-agent attempting to circumvent the new wording, making it only a partial match."
+ },
+ {
+  "basename": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+  "abstract": true,
+  "situation": "Comparing test tools that auto-generate varied inputs for code",
+  "order": [
+   "note",
+   "none",
+   "chunks"
+  ],
+  "scores": {
+   "note": {
+    "s": 2,
+    "o": false
+   },
+   "none": {
+    "s": 2,
+    "o": false
+   },
+   "chunks": {
+    "s": 2,
+    "o": false
+   }
+  },
+  "reasoning": "All three plans explicitly identify all three differentiators from the lesson \u2014 shrinking approach (integrated vs type-class), stateful/state-machine testing, and framework integration depth \u2014 and structure the comparison around them. None shows knowledge that could only come from this specific lesson, as these are standard axes any PBT-literate practitioner would reach for."
+ },
+ {
+  "basename": "34.2026-06-16.working-memory-analog-gap",
+  "abstract": false,
+  "situation": "Designing context delivery from archive, separating fresh data tier from historical patterns",
+  "order": [
+   "none",
+   "chunks",
+   "note"
+  ],
+  "scores": {
+   "none": {
+    "s": 0,
+    "o": false
+   },
+   "chunks": {
+    "s": 2,
+    "o": true
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "Plans 2 and 3 both explicitly apply the lesson's core insight: they require the fresh tier to combine recency + importance + relevance (not just ingest-time order or cosine similarity alone), and they directly name pure cosine/recency-ordering as structurally unable to distinguish what-just-happened from the full corpus. Plan 1 accepts the existing ingest-time channel (Channel 2) as the \"fresh tier\" without questioning its adequacy, treating the split as already present rather than as structurally insufficient \u2014 exactly the failure the lesson warns about."
+ },
+ {
+  "basename": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+  "abstract": false,
+  "situation": "Ordering data transformations before structural wrapping to preserve sorted properties",
+  "order": [
+   "chunks",
+   "note",
+   "none"
+  ],
+  "scores": {
+   "chunks": {
+    "s": 0,
+    "o": false
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 1,
+    "o": false
+   }
+  },
+  "reasoning": "Plan 2 directly names every element from the lesson \u2014 applyChunkRecency + sortScoredDesc on []scoredChunk before the item-build loop, recentPool as []resolvedItem built pre-conversion, and fillRecencyBand staying on []resolvedItem post-cap \u2014 and sequences them correctly, showing knowledge that could only come from this specific lesson. Plan 3 captures the general \"sort before wrap\" heuristic but is agnostic to the specific recency pipeline types and functions, making it a partial hit at best. Plan 1 addresses an entirely different problem (per-population score normalization for note vs chunk ranking) and never engages the recency re-rank pipeline at all."
+ },
+ {
+  "basename": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+  "abstract": false,
+  "situation": "Type checker warns about an unreferenced field before dependent code lands",
+  "order": [
+   "note",
+   "none",
+   "chunks"
+  ],
+  "scores": {
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 1,
+    "o": false
+   },
+   "chunks": {
+    "s": 1,
+    "o": true
+   }
+  },
+  "reasoning": "Plan 1 directly applies the lesson: it prescribes a minimal consumer (defaultXParams() reading all fields) in the same commit scope, flags the pull-forward as a plan-scope deviation in the commit message, and excludes suppression or deferral \u2014 exactly the lesson's prescription. Plans 2 and 3 each partially apply it: Plan 2 lists a minimal stub as option (a) but also includes \"defer adding the field\" as a valid alternative (which the lesson rejects) and never mentions flagging a plan-scope deviation \u2014 its overall shape is general good practice, not lesson-specific. Plan 3 knows the lesson's content (minimal consumer + deviation flag, citing Note 37) but demotes it to a fallback behind an export_test.go accessor that isn't what the lesson prescribes as the primary fix."
+ },
+ {
+  "basename": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+  "abstract": false,
+  "situation": "Testing dual-output API without completely specifying both return paths",
+  "order": [
+   "none",
+   "chunks",
+   "note"
+  ],
+  "scores": {
+   "none": {
+    "s": 1,
+    "o": false
+   },
+   "chunks": {
+    "s": 1,
+    "o": false
+   },
+   "note": {
+    "s": 0,
+    "o": false
+   }
+  },
+  "reasoning": "Plan 2 most directly addresses the core failure \u2014 step 5 explicitly warns that a partially-specified mock returning (nil, nil) on the untested path can mask bugs, which is the exact failure mode the lesson targets (not completely specifying both return paths). Plan 1 partially covers path isolation at the assertion level (path-exclusive outputs, imptest unexpected-call guard) but stays at the generic test-organization level rather than fixture specification. Plan 3 ignores the lesson entirely \u2014 it is about ReadResult.Partial in transcript.go callers, never touching RunQuery, mergeChunkSpace, axisEmbedder, or the manifest/record.Source constraint that the lesson encodes."
+ },
+ {
+  "basename": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+  "abstract": true,
+  "situation": "Formatting a qualified identifier appears in three separate functions",
+  "order": [
+   "chunks",
+   "note",
+   "none"
+  ],
+  "scores": {
+   "chunks": {
+    "s": 1,
+    "o": false
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 1,
+    "o": false
+   }
+  },
+  "reasoning": "Plans 1 and 3 both apply the general DRY \"extract a helper\" principle to the two production-code inline sites, but treat test-file sites as a secondary watch-out rather than a required fix; Plan 2 is the only one that explicitly identifies the test files (recency_eval_test.go:263, query_test.go:1017) as duplication sites and plans concrete solutions (export shims, string-level chunkID delegate) to route them through the helper \u2014 which is exactly the \"all sites including tests\" requirement the lesson encodes. That test-inclusive, export-shim approach is not a general refactoring instinct, it reflects specific knowledge of the lesson."
+ },
+ {
+  "basename": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+  "abstract": true,
+  "situation": "A fresh signal clearly wins over uniformly stale noise in tests",
+  "order": [
+   "note",
+   "none",
+   "chunks"
+  ],
+  "scores": {
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 0,
+    "o": false
+   },
+   "chunks": {
+    "s": 0,
+    "o": false
+   }
+  },
+  "reasoning": "Plan 1 directly applies the lesson: it requires spread distractor ages (0.5d, 2d, 5d, 15d, 60d), a mid-age probe at 4d whose rank must change across halfLife cells, and explicitly names the \"band-guarantee trap\" \u2014 if the test passes across all halfLife values, the discrimination signal is absent. Plans 2 and 3 address a different problem (note-vs-chunk population ranking) and plant uniformly stale distractors, which is precisely the anti-pattern the lesson warns about."
+ },
+ {
+  "basename": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+  "abstract": true,
+  "situation": "Testing a ranking parameter evaluation when all noise items have identical age",
+  "order": [
+   "none",
+   "chunks",
+   "note"
+  ],
+  "scores": {
+   "none": {
+    "s": 0,
+    "o": false
+   },
+   "chunks": {
+    "s": 0,
+    "o": false
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "Plans 1 and 2 both diagnose the uniform-age degeneracy but then work around it rather than fixing it \u2014 Plan 1 scopes assertions to \"signal above position X\" within the degenerate fixture, and Plan 2 explicitly says \"Do not add a mid-age probe here,\" the direct inverse of the lesson. Plan 3 is the only one that applies the lesson's prescribed fix: spread distractors across realistic age tiers, plant a mid-age probe (4d when windowDays=3) as the discrimination signal, and assert bidirectionally that the chosen hl surfaces the probe while a too-long hl does not \u2014 the exact pattern the lesson encodes."
+ },
+ {
+  "basename": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+  "abstract": false,
+  "situation": "Adding a non-breaking field to a serialized versioned format won't break older readers",
+  "order": [
+   "chunks",
+   "note",
+   "none"
+  ],
+  "scores": {
+   "chunks": {
+    "s": 1,
+    "o": false
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "Plans 2 and 3 fully apply the lesson: both explicitly state no SidecarSchemaVersion bump is needed because UnmarshalSidecar compares a SchemaVersion int against a constant (both stay 1), and both require omitempty plus ContentHash exclusion as the two necessary field properties. Plan 1 treats the version bump as an open concern to investigate (\"check whether SidecarSchemaVersion is bumped\") rather than a known non-requirement, and doesn't know the specific int-vs-constant mechanism \u2014 partial credit only."
+ },
+ {
+  "basename": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+  "abstract": false,
+  "situation": "Static analysis marks a struct member unused because its consuming logic is deferred to a later implementation step",
+  "order": [
+   "note",
+   "none",
+   "chunks"
+  ],
+  "scores": {
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 0,
+    "o": false
+   },
+   "chunks": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "Plans 1 and 3 both correctly apply the lesson: they name the `ExportResolvedItemXxx(item)` accessor pattern in `export_test.go` and explicitly reject `//nolint` \u2014 the exact preference the lesson encodes. Plan 2 does the opposite: it presents `//nolint` with an inline comment as the primary fix when the field must land now, which is precisely the approach the lesson warns against."
+ },
+ {
+  "basename": "50.2026-06-17.activate-command-deps-struct-pattern",
+  "abstract": false,
+  "situation": "Implementing a new subcommand handler requiring injected I/O dependencies",
+  "order": [
+   "none",
+   "chunks",
+   "note"
+  ],
+  "scores": {
+   "none": {
+    "s": 1,
+    "o": false
+   },
+   "chunks": {
+    "s": 1,
+    "o": false
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "Plans 1 and 2 apply correct general DI discipline (read before writing, wire at the edge, TDD) but miss the lesson's specific details: the exact `newOsXxxDeps` naming convention, the precise field set (`Now`/`Read`/`Write`/`LogWarning`), that `logWarningToStderrf` is sourced from `learn.go`, and the vault-lock decision for sidecar writes. Plan 3 explicitly names all four of these \u2014 details that could only come from knowing this specific lesson about the engram codebase's established patterns."
+ },
+ {
+  "basename": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+  "abstract": true,
+  "situation": "Tool accepting file paths as arguments needs verification running the actual compiled binary",
+  "order": [
+   "chunks",
+   "note",
+   "none"
+  ],
+  "scores": {
+   "chunks": {
+    "s": 2,
+    "o": true
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "All three plans fully apply the lesson: each requires installing the real binary via `go install`, running from a cwd that is NOT the data/vault dir, passing real path arguments, and inspecting actual output fields beyond just exit code. The lesson's core failure mode \u2014 path-resolution bugs that only appear when running the real binary from outside the data dir \u2014 is explicitly addressed in all three. Plan 1 most explicitly catalogs each lesson requirement and calls out the \"no-arg no-ops\" failure class; Plan 2 demonstrates lesson knowledge by specifically targeting the default vault-path resolution path (running without `--vault` from `/tmp`); Plan 3 names \"cwd/vault path-resolution bugs that in-memory tests hide\" verbatim, showing direct lesson awareness rather than generic CLI hygiene."
+ },
+ {
+  "basename": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+  "abstract": false,
+  "situation": "Adding a list field to output matching how other result attributes serialize",
+  "order": [
+   "note",
+   "none",
+   "chunks"
+  ],
+  "scores": {
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 0,
+    "o": false
+   },
+   "chunks": {
+    "s": 1,
+    "o": false
+   }
+  },
+  "reasoning": "Plan 1 uniquely applies all five lesson constraints: cluster output struct (not queryItem), activated-flag as the reference pattern (not OutboundLinks), --synthesize-l2 render-path guard, explicit read-only/no-sidecar-writes constraint, and top-K centroid cosine not max-member \u2014 including the \"not max-member\" distinction that could only come from this lesson. Plans 2 and 3 give generic yaml-tag/omitempty guidance but neither addresses the conditional emission guard, the read-only constraint, nor the centroid-vs-max-member ranking, and both reference the wrong struct or wrong reference field as the serialization model."
+ },
+ {
+  "basename": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+  "abstract": true,
+  "situation": "Team designs wrongly because handbook still describes an outdated architectural flow nobody updated",
+  "order": [
+   "none",
+   "chunks",
+   "note"
+  ],
+  "scores": {
+   "none": {
+    "s": 2,
+    "o": true
+   },
+   "chunks": {
+    "s": 1,
+    "o": true
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "Plans 1 and 3 both score 2: Plan 1 explicitly scopes docs and SKILL.md files and invokes the lesson-specific \"docs/memory/glossary/diagrams must all be updated together\" failure mode; Plan 3 explicitly audits all three lesson surfaces \u2014 auto-memory (recall query + memory index check), skills (SKILL.md files), and docs \u2014 and even cites \"doc/memory scrub is part of an architectural removal rule\" verbatim. Plan 2 scores 1 because it references the lesson's language (notes 63/64) but its actual planned audit scope is only five doc surfaces (C1/C2/C3, GLOSSARY, ROADMAP), omitting auto-memory and skills \u2014 exactly the partial scrub the lesson warns against."
+ },
+ {
+  "basename": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+  "abstract": true,
+  "situation": "A shared CLI surface is modified and verification scripts that relied on the prior interface signature stop working silently",
+  "order": [
+   "chunks",
+   "note",
+   "none"
+  ],
+  "scores": {
+   "chunks": {
+    "s": 1,
+    "o": false
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 1,
+    "o": false
+   }
+  },
+  "reasoning": "Plan 2 is the only plan that explicitly treats \"run each verification script's own self-check to green\" (naming validate.py directly) as the completion criterion \u2014 not just finding and fixing callers, but gating done-ness on the harness's own self-check passing. Plans 1 and 3 enumerate callers and fix them (good practice), but both gate completion on `targ check-full` (unit tests/lint), which is necessary but not sufficient per the lesson; neither frames the harness self-check as the canonical green signal before declaring the removal done."
+ },
+ {
+  "basename": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+  "abstract": true,
+  "situation": "Expected system broken, but measured behavior shows it already works fine",
+  "order": [
+   "note",
+   "none",
+   "chunks"
+  ],
+  "scores": {
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 2,
+    "o": true
+   },
+   "chunks": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "All three plans fully apply the lesson: each includes the specific inversion of naive TDD instinct \u2014 \"reframe the spec, not the test\" (Plan 1 Step 5), \"don't backfill a failure case to justify the original assumption\" (Plan 2), and \"never manufacture a failure to match the expectation / do not rig the fixture\" (Plan 3) \u2014 which is lesson-specific knowledge, not general good practice. The minor differences (Plan 1 adds harness-bypass and degraded-build checks from adjacent lessons; Plan 2 explicitly adds a stop-before-implementing gate; Plan 3 adds a close-the-ticket step) are all compatible with the lesson and do not diminish each plan's application of it."
+ },
+ {
+  "basename": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+  "abstract": true,
+  "situation": "Model outputs a conclusion during work, but that doesn't mean it's searchable later",
+  "order": [
+   "none",
+   "chunks",
+   "note"
+  ],
+  "scores": {
+   "none": {
+    "s": 1,
+    "o": false
+   },
+   "chunks": {
+    "s": 1,
+    "o": false
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "Plans 1 and 2 correctly identify the write-side persistence gap and include truth-preserving gates (vault-rot concerns, sound-conclusion criteria), but both validate with a single-session fresh-query check rather than the multi-session laddering A/B the lesson prescribes. Plan 3 explicitly proposes the multi-session A/B (session-1 writes C, session-2 surfaces C unprompted and reaches E it could not reach alone), explicitly rejects one-shot accuracy checks, and frames this as the compounding-lever test \u2014 matching the lesson's core validation methodology exactly."
+ },
+ {
+  "basename": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+  "abstract": true,
+  "situation": "Agent inferred a finding mid-session from stored facts; wondering whether an uncertain output should be written back to the vault at all",
+  "order": [
+   "chunks",
+   "note",
+   "none"
+  ],
+  "scores": {
+   "chunks": {
+    "s": 1,
+    "o": false
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "Plans 2 and 3 both fully apply the lesson: they classify by inference mode with the specific asserted/probable distinction, gate on soundness vs. mere aggregation, and require typed links to every contributing input noting the role it played \u2014 the core \"auditable web\" requirement. Plan 1 covers inference-mode hedging but redirects most of its steps toward tooling verification and never specifies the typed-link-per-contributing-input requirement that is the lesson's central anti-rot mechanism."
+ },
+ {
+  "basename": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+  "abstract": false,
+  "situation": "Evaluating system behavior at scale without constructing the actual large dataset",
+  "order": [
+   "note",
+   "none",
+   "chunks"
+  ],
+  "scores": {
+   "note": {
+    "s": 2,
+    "o": true
+   },
+   "none": {
+    "s": 2,
+    "o": true
+   },
+   "chunks": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "All three plans apply the core lesson \u2014 avoid constructing a large dataset, instead put a stub binary on PATH encoding measured (not assumed) behavior with deterministic lever-keyed responses and call logging, verified against a real run first. The key differentiator is that Plan 1 explicitly names the call log as the instrument that proves the component under test actually ran (not the harness bypassing it), which is the lesson's sharpest specific claim; Plans 2 and 3 include call logging as a feature of the stub but do not elevate the log to instrument status."
+ },
+ {
+  "basename": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+  "abstract": true,
+  "situation": "Five intermediate milestones completed, each defensible, but unsure if the starting objective still matches",
+  "order": [
+   "none",
+   "chunks",
+   "note"
+  ],
+  "scores": {
+   "none": {
+    "s": 1,
+    "o": false
+   },
+   "chunks": {
+    "s": 2,
+    "o": true
+   },
+   "note": {
+    "s": 2,
+    "o": true
+   }
+  },
+  "reasoning": "Plans 2 and 3 both hit the lesson's specific core: explicitly testing FRESH necessity for each milestone against the original goal (not past-plan justification), and naming drift or cost-neutrality plainly before continuing \u2014 Plan 2 uses \"FRESH necessity, not past-plan necessity\" and \"return to the real lever\" directly, Plan 3 uses \"a past 'this might help' is not validation\" almost verbatim. Plan 1 applies the general spirit of re-anchoring and classifying drift, but centers on distinguishing drift *type* (work-wandered vs. premise-was-false) rather than the lesson's specific emphasis on fresh necessity testing for carried-forward work and naming cost-neutral threads plainly."
+ }
+]

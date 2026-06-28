@@ -1,0 +1,362 @@
+[
+ {
+  "basename": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+  "abstract": true,
+  "nuanced_query": "Swapping old calculation engine for smarter heuristic in new architecture",
+  "lexical_query": "Keep deterministic machinery when simplifying and redesigning systems",
+  "why_maps": "Replacing proven rule-based logic with adaptive substitutes risks losing reliability during migration",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+  "abstract": true,
+  "nuanced_query": "Revising a behavioral guide and requiring evidence that the pre-revision version exhibited the wrong behavior before making the change",
+  "lexical_query": "Skill edits require baseline tests before validating changes",
+  "why_maps": "Changed instructions need measured evidence the old behavior was inadequate before trusting improvement",
+  "verdict": "fix",
+  "mapping_valid": true,
+  "low_overlap": false
+ },
+ {
+  "basename": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+  "abstract": true,
+  "nuanced_query": "Altering a sequencing skill that delegates across multiple steps, needing a written design committed first and fresh behavioral evidence after",
+  "lexical_query": "Workflow changes require committed plan doc and fresh agent tests",
+  "why_maps": "Orchestration changes affect downstream behavior; documenting first plus fresh tests catch issues early",
+  "verdict": "fix",
+  "mapping_valid": true,
+  "low_overlap": false
+ },
+ {
+  "basename": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+  "abstract": true,
+  "nuanced_query": "Comparing test tools that auto-generate varied inputs for code",
+  "lexical_query": "Property-based testing frameworks validate properties across random inputs",
+  "why_maps": "Tools that generate random test cases detect properties holding regardless of input shape",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+  "abstract": true,
+  "nuanced_query": "Testing whether input changes produce predictable output shifts",
+  "lexical_query": "Metamorphic relations classify how input transforms affect outputs",
+  "why_maps": "When exact correctness is unverifiable, test that input modifications cause expected output behavior",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "34.2026-06-16.working-memory-analog-gap",
+  "abstract": false,
+  "nuanced_query": "Designing context delivery from archive, separating fresh data tier from historical patterns",
+  "lexical_query": "Design recall payload as explicit working-memory analog",
+  "why_maps": "Recent activity needs different visibility/precedence than indexed archive to mimic memory tiers",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+  "abstract": false,
+  "nuanced_query": "Ordering data transformations before structural wrapping to preserve sorted properties",
+  "lexical_query": "apply recency band to scoredChunk before resolvedItem conversion",
+  "why_maps": "Operations that change data order must precede type transformations that lose that ordering",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+  "abstract": false,
+  "nuanced_query": "Type checker warns about an unreferenced field before dependent code lands",
+  "lexical_query": "unused struct fields require consumer not nolint suppression",
+  "why_maps": "Satisfying lint warnings early with real consumers beats deferred suppression",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+  "abstract": false,
+  "nuanced_query": "Testing dual-output API without completely specifying both return paths",
+  "lexical_query": "RunQuery chunk integration test needs nil notes in QueryDeps Scan",
+  "why_maps": "Incomplete mocking of paired outputs produces false-positive integration tests",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+  "abstract": true,
+  "nuanced_query": "Formatting a qualified identifier appears in three separate functions",
+  "lexical_query": "string concatenation across multiple files needs named helper",
+  "why_maps": "Duplicated formatting logic across callsites obscures intent and invites inconsistency",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+  "abstract": true,
+  "nuanced_query": "A fresh signal clearly wins over uniformly stale noise in tests",
+  "lexical_query": "recency eval with recent chunk beats homogeneous old distractors",
+  "why_maps": "Skewed test distribution masks whether the mechanism itself calibrates the dimension",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+  "abstract": true,
+  "nuanced_query": "Testing a ranking parameter evaluation when all noise items have identical age",
+  "lexical_query": "half-life sweep with uniform age distractors gives no discrimination",
+  "why_maps": "Uniform noise prevents learning the parameter's calibration and sensitivity",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+  "abstract": false,
+  "nuanced_query": "Adding a non-breaking field to a serialized versioned format won't break older readers",
+  "lexical_query": "Sidecar omitempty fields don't require schema version bump",
+  "why_maps": "Non-participating fields don't change the structural contract that version readers enforce",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+  "abstract": false,
+  "nuanced_query": "Static analysis marks a struct member unused because its consuming logic is deferred to a later implementation step",
+  "lexical_query": "Add test accessor in export_test for unexported fields used later",
+  "why_maps": "Test accessor marks field as used, satisfying linter while keeping field unexported",
+  "verdict": "fix",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "50.2026-06-17.activate-command-deps-struct-pattern",
+  "abstract": false,
+  "nuanced_query": "Implementing a new subcommand handler requiring injected I/O dependencies",
+  "lexical_query": "RunActivate and ActivateDeps must follow the newOsXxxDeps pattern",
+  "why_maps": "Consistent naming across command handlers makes the dependency-injection pattern discoverable",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+  "abstract": true,
+  "nuanced_query": "Cache invalidation check shouldn't trigger when access timestamp in the metadata updates",
+  "lexical_query": "LastUsed must be omitempty and excluded from ContentHash",
+  "why_maps": "Staleness detection ignores metadata; only actual content changes should invalidate cache",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+  "abstract": true,
+  "nuanced_query": "Tool accepting file paths as arguments needs verification running the actual compiled binary",
+  "lexical_query": "Verify CLI with real installed binary and real arguments from non-data-dir cwd",
+  "why_maps": "In-memory tests hide CWD and path-resolution bugs only visible in real invocation",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+  "abstract": false,
+  "nuanced_query": "Adding a list field to output matching how other result attributes serialize",
+  "lexical_query": "candidate_l2s follows the activated flag serialization pattern in query",
+  "why_maps": "Consistent serialization patterns across output fields ensure uniform client parsing",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "58.2026-06-19.engram-modernize-linter-slices-backward",
+  "abstract": true,
+  "nuanced_query": "Writing a loop that processes collection elements from end to start in engram Go code",
+  "lexical_query": "Backward iteration over a slice in Go; use slices.Backward idiom instead",
+  "why_maps": "The lesson teaches that the standard library's iteration helper is the right idiom for descending traversal, avoiding manual indexing errors.",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+  "abstract": true,
+  "nuanced_query": "User wants to discard obsolete config and dead-code markers to declutter repository",
+  "lexical_query": "Cleanup asks: lean aggressive, git is safety net, consolidate into single doc",
+  "why_maps": "The lesson teaches that Joe is comfortable with aggressive deletions because version control provides recovery and consolidation helps maintainability.",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+  "abstract": true,
+  "nuanced_query": "Team designs wrongly because handbook still describes an outdated architectural flow nobody updated",
+  "lexical_query": "After major refactor, stale docs describing removed paths cause later design misses",
+  "why_maps": "The lesson teaches that unupdated documentation silently becomes the source of truth, leading to flawed design assumptions downstream.",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+  "abstract": true,
+  "nuanced_query": "Handbook and diagrams still show the deleted feature, though code is gone",
+  "lexical_query": "Removal isn't done until docs, memory, and diagrams naming the deleted path are updated",
+  "why_maps": "The lesson teaches that completion requires all trace removal\u2014not just code deletion, but documentation and all references scrubbed.",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+  "abstract": true,
+  "nuanced_query": "A shared CLI surface is modified and verification scripts that relied on the prior interface signature stop working silently",
+  "lexical_query": "After removing a cross-cutting API, verify test and eval harnesses still work",
+  "why_maps": "The lesson teaches that internal testing infrastructure is a first-class consumer whose contracts must be verified after refactoring.",
+  "verdict": "fix",
+  "mapping_valid": true,
+  "low_overlap": false
+ },
+ {
+  "basename": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+  "abstract": true,
+  "nuanced_query": "A RAG pipeline collates matching chunks and the consolidated result is treated as if it produced a novel deduction",
+  "lexical_query": "Distinguish aggregation and abstraction from emergent synthesis; combining similar facts isn't new insight",
+  "why_maps": "The lesson teaches the critical distinction: mechanical grouping of similar items is aggregation, not genuine novelty or synthesis.",
+  "verdict": "fix",
+  "mapping_valid": true,
+  "low_overlap": false
+ },
+ {
+  "basename": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+  "abstract": true,
+  "nuanced_query": "Expected system broken, but measured behavior shows it already works fine",
+  "lexical_query": "RED baseline contradicts design assumption \u2014 surface measured reality to user",
+  "why_maps": "When measurements contradict what the design said should happen, that's a signal to re-evaluate, not engineer the test.",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+  "abstract": true,
+  "nuanced_query": "Adding ranking filters before confirming multi-term queries already work",
+  "lexical_query": "Multiphrase recall subsumes graph expansion \u2014 validate retrieval layers first",
+  "why_maps": "Many retrieval enhancements are premature optimization; basic multi-phrase search often already solves it.",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+  "abstract": true,
+  "nuanced_query": "Model outputs a conclusion during work, but that doesn't mean it's searchable later",
+  "lexical_query": "In-session synthesis differs from persisting for future retrieval",
+  "why_maps": "The agent producing it once is ephemeral; making it persistent and findable is a different capability.",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+  "abstract": true,
+  "nuanced_query": "Agent inferred a finding mid-session from stored facts; wondering whether an uncertain output should be written back to the vault at all",
+  "lexical_query": "Persist synthesis notes as derived and hedged, not for accuracy",
+  "why_maps": "Persisted conclusions are aids for inspection and context, not ground truth; marking source/confidence makes them safe.",
+  "verdict": "fix",
+  "mapping_valid": true,
+  "low_overlap": false
+ },
+ {
+  "basename": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+  "abstract": true,
+  "nuanced_query": "Using cheaper labor for part of a task, unclear where quality work ends",
+  "lexical_query": "Split skill at judgment seam, not bespoke infrastructure",
+  "why_maps": "The wrong split point creates dependencies and redoes work; the right seam is where judgment ends.",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "80.2026-06-24.recall-split-not-worth-complexity",
+  "abstract": true,
+  "nuanced_query": "Using two services in sequence to reduce total cost, but delegated work is small",
+  "lexical_query": "Do not split a skill across models unless large share",
+  "why_maps": "Most of a skill's cost is usually in one place; splitting adds coordination overhead.",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+  "abstract": true,
+  "nuanced_query": "Diagnosing why a past failure keeps getting suggested, worried the ranking system is wrong",
+  "lexical_query": "recall miss is structural not retrieval scoring",
+  "why_maps": "Re-proposing a known failure is a design/trigger gap, not a search-ranking problem",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+  "abstract": true,
+  "nuanced_query": "Conflating efficiency improvement in one stage with total investment across the whole pipeline",
+  "lexical_query": "separate marginal cost premium from absolute total investment",
+  "why_maps": "Multi-phase cost requires separating per-stage margin from total budget when weighing tradeoffs",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+  "abstract": false,
+  "nuanced_query": "Evaluating system behavior at scale without constructing the actual large dataset",
+  "lexical_query": "stub binary replaces fixture for realistic scale testing",
+  "why_maps": "Scale evals need measured behavior, not real artifacts; mocks reproduce patterns without building",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+  "abstract": true,
+  "nuanced_query": "Primary objective neglected in favor of nearby cleanup; strict review cycle might explain",
+  "lexical_query": "task displacement amplified by aggressive challenge feedback",
+  "why_maps": "Aggressive critical feedback can trigger task-displacement by making agents second-guess the ask",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+  "abstract": true,
+  "nuanced_query": "Five intermediate milestones completed, each defensible, but unsure if the starting objective still matches",
+  "lexical_query": "re-anchor on goal and revalidate carried-forward work",
+  "why_maps": "Intermediate progress can drift from original intent; periodic re-anchoring revalidates carried work",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ },
+ {
+  "basename": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+  "abstract": true,
+  "nuanced_query": "Concluding an approach is impossible because it's slow, expensive, and fails unpredictably",
+  "lexical_query": "decompose obstacles into structural versus contingent before asserting",
+  "why_maps": "Before rejecting as impossible, decompose obstacles to separate hard limits from tuning levers",
+  "verdict": "keep",
+  "mapping_valid": true,
+  "low_overlap": true
+ }
+]
