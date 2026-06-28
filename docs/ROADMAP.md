@@ -98,3 +98,11 @@ eval/classification as explicit user corrections — the system learns from its 
 at far higher volume. Turn-grained chunking already isolates each failure; the missing piece is a
 **failure-signal classifier**. Design: `docs/design/2026-06-27-mine-failures-as-eval-material.md`. A
 `/please` brainstorm to pin the detector's signals + precision target is the natural first step.
+
+## Adjacent direction — prune must preserve memory across source deletion (#659)
+`engram prune` currently orphan-deletes chunks whose **source file is gone** — but the embedded chunk is
+the asset, not the source `.jsonl`. This blocks reclaiming the ~1.3 GiB of restored cross-repo transcripts
+in `~/restic-restore-claude/` (deleting them would lose the recovered imptest/glowsync/targ/traced memory).
+Brainstorm a prune that **decouples chunk lifetime from source-file existence** — never GC valuable chunks
+just because the source vanished (detach/archive vs delete; explicit-purge-only). See **#659**. Once
+fixed, delete the restore dir to reclaim the space.
