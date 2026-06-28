@@ -9,6 +9,10 @@ take the next.
 
 ## Where we are
 
+- **Retrieval quality was the real bug (fixed 2026-06-28).** A probe found engram's embedder is fine
+  (nuanced note recall@5 0.81 in isolation) but the unified ranking **drowned notes under chunks**
+  (real-path 0.19). The **matched-note floor** (`capWithNoteFloor`, commit `33821e64`) closed the gap to
+  **0.83** (the embedder's ceiling), trap gate GREEN. See `docs/design/2026-06-28-retrieval-probe-results.md`.
 - Memory's value is **validated and generalizes**: the 4 capability wins (apply-conventions,
   recency-supersession, honor-standard, abduction) hold with zero degradation under a realistic
   200-note crowded vault (2026-06-26). Value is real on idiosyncratic content; cost/speed is the tax.
@@ -23,7 +27,10 @@ take the next.
 Every recall/learn skill change ships **gated by the trap regression harness**
 (`dev/eval/traps/gate.py`, run before+after) and **measured by the `recall_cost` `$METER`** (cumulative
 harness, schema v5). **Never touch the win-nucleus:** Step-3 conventions-as-requirements directive,
-Step-2.5B recency-weight, Step-2 matched-note retrieval, the frontmatter `description` field.
+Step-2.5B recency-weight, Step-2 matched-note retrieval, the frontmatter `description` field. (The 2026-06-28
+matched-note floor is a *deliberate, gated* change to matched-note retrieval — it RESTORES the nucleus the
+drowning was eroding, trap gate GREEN; see the exception rationale in
+`docs/superpowers/plans/2026-06-28-note-vs-chunk-ranking.md`.)
 
 ## Efficiency levers (ranked by the real axis they move; one at a time)
 
@@ -85,11 +92,26 @@ the build half, rolled back); cutting the 10 query phrases (breadth surfaces the
 lightening the skill *body* to increase firing (firing is set by the `description`, not the body).
 
 ## Done
+- **Matched-note floor** (2026-06-28) — fixed note-vs-chunk drowning: real-path note recall@5 0.22→0.83
+  (the embedder's isolation ceiling), trap gate GREEN. `capWithNoteFloor` reserves up to `noteFloorK=5`
+  per-phrase slots for floor-qualified notes. Probe + value test:
+  `docs/design/2026-06-28-retrieval-probe-results.md` (the probe `score_probe.py` is now a reusable
+  retrieval-regression harness).
 - **Crowded-vault capability eval** (2026-06-26) — the 4 wins generalize to a realistic crowded vault
   (zero degradation @ 200 notes). Bound: *same-domain competing* notes still untested. See
   `dev/eval/traps/{RESULTS.md, README.md}`.
 - **Instruments** (2026-06-26) — the `recall_cost` `$METER` (schema v5) + the C3/C4i/C5/C6 trap
   regression gate. These make every lever above safe (regression-caught) and measurable.
+
+## Adjacent direction — crystallize question-shaped notes (NEXT; audit DONE 2026-06-28)
+The floor surfaces a good note — but the **crystallization audit** (`2026-06-28-crystallization-audit.md`)
+found ~half of **cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79% for
+correction-driven), and real failure situations are 68% uncovered / 30% partial. **Next lever:** derive a
+note's `situation` handle from the **question/failure it answers**, not the cluster topic (route cluster-driven
+candidates through the learn path's question-shaping). Deeper arc: the vaultgraph relational substrate (note
+68 — engram does aggregation, not synthesis). **Also parked:** the chunk-down-weight (drowning-rationale moot
+after the floor; needs its own chunk-quality gauge before shipping); two-channel + per-population normalization
+(ranked ranking follow-ups if the floor proves too blunt).
 
 ## Adjacent direction — learn from failures, not just corrections (ANALYSIS DONE 2026-06-28)
 Mined **failure moments** from a 40-transcript stratified sample (main + subagent, 5 repos) with a

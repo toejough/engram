@@ -77,11 +77,15 @@ call passing each phrase as a separate `--phrase` flag.
 **Channel 1 — Relevance (clustered):** the binary scores both notes and chunks
 against each phrase vector with recency bias (chunk cosine scaled by
 `IngestedAt` time-decay + turn-position; note cosine scaled by `LastUsed` decay),
-takes the top-30 per phrase, unions across all 10 phrases with dedup keeping
-max score, drops items below a **relevance floor** (`matchRelevanceFloor`,
-baseScore < 0.25), and caps the matched set at **~300** (`matchSetCap`, 10×30 per phrase).
-This bounded matched set is the **only clustering input**: one AutoK pass over
-matched notes+chunks (D1 preserved).
+takes the top-30 per phrase — but **reserves up to `noteFloorK` (5) of those slots
+for relevance-qualified notes** (`capWithNoteFloor`) so higher-cosine chunks cannot
+fully evict a note that cleared the floor (without this, notes the embedder ranks
+top-5 in isolation fell out of the unified ranking entirely: real-path note
+recall@5 0.22 vs 0.83 isolation — 2026-06-28). It then unions across all 10
+phrases with dedup keeping max score, drops items below a **relevance floor**
+(`matchRelevanceFloor`, baseScore < 0.25), and caps the matched set at **~300**
+(`matchSetCap`, 10×30 per phrase). This bounded matched set is the **only clustering
+input**: one AutoK pass over matched notes+chunks (D1 preserved).
 Each cluster carries `candidate_l2s: [{path, cosine}]` — the top-5 notes from
 **within that cluster** ranked by centroid cosine (reversed from the earlier
 full-vault nomination of D7). The harness then, **inline and blocking**, reads
@@ -140,7 +144,7 @@ sequenceDiagram
     H->>E: engram query --phrase <p1> ... --phrase <p10>
     E->>V: scan sidecars + bodies for compatible-embed notes + chunk index
     V-->>E: notes, chunks, and vectors
-    Note over E: per phrase — embed; top-30 per phrase (notes+chunks, recency-biased cosine); union across 10 phrases, dedup max score, drop baseScore < 0.25, cap matched set at ~300
+    Note over E: per phrase — embed; top-30 per phrase (notes+chunks, recency-biased cosine), reserving up to noteFloorK=5 slots for floor-qualified notes (capWithNoteFloor); union across 10 phrases, dedup max score, drop baseScore < 0.25, cap matched set at ~300
     Note over E: Channel 1 (Relevance): one AutoK cluster over matched notes+chunks (D1 preserved); per cluster emit candidate_l2s top-5 from within-cluster notes
     Note over E: Channel 2 (Recency): append newest chunks by IngestedAt (recentFillChunks, default 25), deduped vs matched set, tagged recent — NOT in any cluster
     E-->>H: single YAML payload (phrases[], items[matched+recent], clusters[candidate_l2s], budget)

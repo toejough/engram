@@ -113,9 +113,20 @@ else supplies, at little cost.** N=22 (9 note-only), one vault.
 3. **This reframes the ROADMAP.** Crystallized lessons — engram's product — are ~2% of the top slots in real
    recall. No payload-size or procedure-time lever matters as much as making relevant notes visible.
 
-## Proposed first gated experiment — matched-note floor
+## First gated experiment — matched-note floor (SHIPPED 2026-06-28)
 
-The simplest, lowest-risk, directly-measurable fix (one lever, per the roadmap discipline):
+**Result: real-path note recall@5 0.222 → 0.833 — the embedder's isolation ceiling (drowning eliminated).**
+(The 0.222 baseline is the §Result table's 0.19 *re-measured on the current, larger chunk index* just before
+the change — same metric, fair before/after pair; the index grew between the original probe and this build.)
+`capWithNoteFloor` in `mergePhraseIntoUnion` reserves up to `noteFloorK=5` per-phrase slots for notes that
+already clear the relevance floor (commit `33821e64`). Trap gate C3–C6 GREEN (no win regression); payload
+neutral-to-smaller (notes swap for chunks within the existing 30-cap). The crystallization audit
+(`2026-06-28-crystallization-audit.md`) is the follow-up: the floor makes a good note surface, but ~half of
+cluster-driven notes are not question-useful, so **question-shaped crystallization** is the next lever. The
+chunk-down-weight (Track 2) was deferred — the floor saturated the note-recall gauge, so it needs its own
+chunk-quality gauge before it's worth shipping.
+
+The spec as proposed (now realized):
 
 - **Change:** in `engram query`'s merge, after the relevance floor, **reserve slots for the top-K_note notes
   that already cleared the floor** (e.g. K_note=5), so a *relevance-qualified* note is never fully drowned by
