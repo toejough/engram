@@ -42,24 +42,27 @@ majority (CONTENDER ≥ ~3.0 with respects-evidence; CONDITIONAL = gated on anot
 says wait). *serves* = the **primary** goal (full mappings in "Ask → goal coverage" below). Full mechanisms +
 per-proposal eval recipes in the data trail's `proposals_raw.json`.
 
-## Recommendation — a first wave of three, all cheap
+## Recommendation — start with TWO (a fix + a measurement); #3 fast-follows #1
 
 The panel's strongest signal: **angle 4 (shaping notes for diagnosis) is premature until angle 8 *measures*
 whether a diagnostic-surfacing gap even exists** — so the right order leads with measurement + the confirmed
-fix, not with building on an unmeasured assumption. My recommended first wave (all S-effort, all cheap to gauge,
-**independent — run in parallel, not in sequence**; "wave" = priority tier, not a dependency chain). #1 leads
-because it *remediates the measured 40% gap immediately*; #8 runs alongside (non-blocking) to settle the open
-diagnostic question, which is the only thing that gates #4:
+fix, not with building on an unmeasured assumption. **Two genuinely independent first moves, both cheap, run
+in parallel:**
 
-1. **#1 — question-shaped handles + retroactive `resituate`.** The direct fix for the *confirmed* gap (the
-   audit's cluster-driven 40% → target ≥65%), and the #1 ROADMAP lever made concrete. Skill-prose rule + a
-   one-time `engram resituate` pass (the command already rewrites+re-embeds), gated by a 5-note pilot probe.
+1. **#1 — question-shaped handles (skill-only; optional retroactive `resituate`).** The direct fix for the
+   *confirmed* gap (audit's cluster-driven 40% → target ≥65%) and the #1 ROADMAP lever. **The fix is pure
+   recall-SKILL.md prose** — add learn Step-2's "phrase the situation as the future task/failure" rule to
+   recall Step 2.5; that shapes all *future* notes, **zero binary code.** *Optional* one-time cleanup of the
+   ~24 existing topic-shaped notes reuses the **existing** `engram resituate` command (rewrites situation +
+   re-embeds in one shot — needed only because changing the situation text without re-embedding leaves the old
+   vector). Skip or defer the resituate batch and #1 is skill-only; if run, gate it with a 5-note pilot probe.
 2. **#8 — diagnostic-surfacing probe.** A pure *measurement* (reuse `score_probe.py` on a symptom→cause query
    set) that settles the one explicitly-open goal-A question and **gates #4** — if diagnostic notes already
    surface, #4 is moot; if not, that's a big new finding.
-3. **#3 — write-time quality gate.** The *forward-looking* complement to #1's *retroactive* fix: stop new
-   topic-shaped notes at the source. (Overlaps #1's rule — #1 adds the rule, #3 enforces it with a
-   rewrite-or-discard check; ship #1's rule first, add #3 if new-note quality still lags.)
+
+**Fast-follow to #1 (not a parallel third):** **#3 — write-time quality gate** enforces #1's rule with a
+rewrite-or-discard self-check before `engram learn` (also skill-prose). Ship #1's rule first; add #3 only if
+new-note quality still lags. It builds on #1, so it sequences *after*, not alongside.
 
 **Second tier (reason-from-memory / fewer-passes):** **#2** (capture the reasoning *chain*, not just a fact)
 and **#7** (weaker-model reuse — the one proposal that also moves the *cost* track: if a persisted conclusion
