@@ -116,9 +116,10 @@ func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.
 const (
 	chunkMaxChars    = 1500
 	chunkTargetChars = 500
-	// ingestBudgetBytes bounds a single transcript read; generous because
-	// ingestion is offline (no agent context at stake).
-	ingestBudgetBytes = 10 * 1024 * 1024
+	// ingestBudgetBytes bounds a single transcript read; 0 = no cap so the full
+	// transcript is ingested (ingestion is offline — no agent context at stake —
+	// and giant sessions' tails are worth keeping).
+	ingestBudgetBytes = 0
 	jsonlExt          = ".jsonl"
 	manifestName      = "manifest.json"
 )
@@ -147,7 +148,10 @@ func assembleSweepRoots(args IngestArgs, deps IngestDeps) ([]SweepRoot, error) {
 	roots := make([]SweepRoot, 0, len(args.Sweep))
 
 	for _, manual := range args.Sweep {
-		roots = append(roots, SweepRoot{Path: manual, ExcludeDirs: defaultExcludes, SkipHidden: true})
+		roots = append(
+			roots,
+			SweepRoot{Path: manual, ExcludeDirs: defaultExcludes, SkipHidden: true},
+		)
 	}
 
 	if args.Auto {
@@ -187,7 +191,11 @@ func buildChunkIDSet(
 
 		records, decodeErr := chunk.DecodeRecords(data)
 		if decodeErr != nil {
-			return nil, fmt.Errorf("ingest: decoding chunk index %s for id-set: %w", path, decodeErr)
+			return nil, fmt.Errorf(
+				"ingest: decoding chunk index %s for id-set: %w",
+				path,
+				decodeErr,
+			)
 		}
 
 		for _, r := range records {
@@ -210,7 +218,11 @@ func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, tim
 			return nil, time.Time{}, fmt.Errorf("ingest: stripping transcript %s: %w", source, err)
 		}
 
-		return chunk.Transcript(result.Content, chunkTargetChars, chunkMaxChars), result.LastTimestamp, nil
+		return chunk.Transcript(
+			result.Content,
+			chunkTargetChars,
+			chunkMaxChars,
+		), result.LastTimestamp, nil
 	}
 
 	return chunk.Markdown(string(raw), chunkMaxChars), time.Time{}, nil
@@ -325,7 +337,14 @@ func ingestSource(
 	}
 
 	rebuilt, reused, embedded, err := rebuildIndex(
-		ctx, source, chunks, chunksDir, deps, ingestTimeFor(sourceTS, deps), manifestBackfill(manifest))
+		ctx,
+		source,
+		chunks,
+		chunksDir,
+		deps,
+		ingestTimeFor(sourceTS, deps),
+		manifestBackfill(manifest),
+	)
 	if err != nil {
 		return false, err
 	}
@@ -425,7 +444,12 @@ func mergeChunkRecords(
 
 		vector, embedErr := deps.Embedder.Embed(ctx, piece.Text)
 		if embedErr != nil {
-			return nil, 0, 0, fmt.Errorf("ingest: embedding chunk %s/%s: %w", source, piece.Anchor, embedErr)
+			return nil, 0, 0, fmt.Errorf(
+				"ingest: embedding chunk %s/%s: %w",
+				source,
+				piece.Anchor,
+				embedErr,
+			)
 		}
 
 		embedded++

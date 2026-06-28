@@ -69,6 +69,35 @@ func TestJSONLReader_ReadFrom_HandlesUnparseableTimestampAndNonJSON(t *testing.T
 	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
 }
 
+func TestJSONLReader_ReadFrom_NoCapWhenBudgetZero(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lines := []string{
+		`{"type":"user","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"aaaaa"}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:01:00Z","message":{"role":"user","content":"bbbbb"}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:02:00Z","message":{"role":"user","content":"ccccc"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/x.jsonl": []byte(content)},
+	})
+
+	// budgetBytes <= 0 means no cap: the whole transcript is emitted, never partial.
+	result, err := reader.ReadFrom("/x.jsonl", time.Time{}, 0)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Partial).To(BeFalse())
+	g.Expect(result.Content).To(ContainSubstring("aaaaa"))
+	g.Expect(result.Content).To(ContainSubstring("bbbbb"))
+	g.Expect(result.Content).To(ContainSubstring("ccccc"))
+}
+
 func TestJSONLReader_ReadFrom_NullTimestampRowsInheritPrior(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -122,6 +151,32 @@ func TestJSONLReader_ReadFrom_PartialWhenBudgetExceeded(t *testing.T) {
 
 	expected, _ := time.Parse(time.RFC3339, "2026-01-01T00:00:00Z")
 	g.Expect(result.LastTimestamp.Equal(expected)).To(BeTrue())
+}
+
+func TestJSONLReader_SegmentsFrom_NoCapWhenBudgetZero(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lines := []string{
+		`{"type":"user","timestamp":"2026-05-01T10:00:00Z","message":{"content":"first user ask here"}}`,
+		`{"type":"user","timestamp":"2026-05-01T10:05:00Z","message":{"content":"second user ask here"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := transcript.NewJSONLReader(&fakeFileReader{
+		contents: map[string][]byte{"/x.jsonl": []byte(content)},
+	})
+
+	// budgetBytes <= 0 means no cap: every segment survives, never partial.
+	res, err := reader.SegmentsFrom("/x.jsonl", time.Time{}, 0)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(res.Partial).To(BeFalse())
+	g.Expect(res.Segments).To(HaveLen(2))
 }
 
 func TestJSONLReader_SegmentsFrom_PartialWhenBudgetTruncates(t *testing.T) {
@@ -320,7 +375,7 @@ func TestSegmentsFromStripped_ZeroTimestampSkipped(t *testing.T) {
 		"USER: ask with no timestamp", // zero timestamp — should be skipped
 		"USER: ask with timestamp",    // non-zero timestamp — should appear
 	}
-	times := []time.Time{time.Time{}, ts1}
+	times := []time.Time{{}, ts1}
 
 	segs := transcript.SegmentsFromStrippedForTest(stripped, times)
 

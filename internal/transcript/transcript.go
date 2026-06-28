@@ -75,7 +75,11 @@ func (r *JSONLReader) SegmentsFrom(
 	stripped, sourceIdx := sessionctx.StripWithConfigIndexed(keptLines, cfg)
 	strippedTimes := mapTimestampsByIndex(sourceIdx, keptTimes)
 
-	budgetedStripped, budgetedTimes, partial := budgetSegmentLines(stripped, strippedTimes, budgetBytes)
+	budgetedStripped, budgetedTimes, partial := budgetSegmentLines(
+		stripped,
+		strippedTimes,
+		budgetBytes,
+	)
 
 	return SegmentsResult{
 		Segments: segmentsFromStripped(budgetedStripped, budgetedTimes),
@@ -142,8 +146,9 @@ const (
 )
 
 // accumulateWithinBudget walks lines chronologically and emits up to
-// budgetBytes, with a first-row progress guarantee. Returns the
-// emitted content plus the last row's timestamp.
+// budgetBytes (budgetBytes <= 0 means no cap — emit everything), with a
+// first-row progress guarantee. Returns the emitted content plus the
+// last row's timestamp.
 func accumulateWithinBudget(
 	lines []string, times []time.Time, budgetBytes int,
 ) ReadResult {
@@ -155,7 +160,7 @@ func accumulateWithinBudget(
 
 	for i, line := range lines {
 		lineLen := len(line) + 1
-		if bytesUsed > 0 && bytesUsed+lineLen > budgetBytes {
+		if budgetBytes > 0 && bytesUsed > 0 && bytesUsed+lineLen > budgetBytes {
 			partial = true
 
 			break
@@ -180,7 +185,8 @@ func accumulateWithinBudget(
 }
 
 // budgetSegmentLines walks (stripped, times) chronologically and returns the
-// prefix that fits within budgetBytes (counting each line's length + newline,
+// prefix that fits within budgetBytes — budgetBytes <= 0 means no cap
+// (counting each line's length + newline,
 // consistent with accumulateWithinBudget), the parallel timestamps, and whether
 // the budget truncated the scan before the input was exhausted. The first line
 // is always included (progress guarantee, mirroring accumulateWithinBudget) so
@@ -196,7 +202,7 @@ func budgetSegmentLines(
 
 	for i, line := range stripped {
 		lineLen := len(line) + 1
-		if total > 0 && total+lineLen > budgetBytes {
+		if budgetBytes > 0 && total > 0 && total+lineLen > budgetBytes {
 			partial = true
 
 			break
