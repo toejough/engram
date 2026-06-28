@@ -1,11 +1,12 @@
-# Engram roadmap — recall efficiency
+# Engram roadmap — retrieval quality & cost
 
-Driving recall efficiency for **real resource reduction** — actual tokens, dollars, and wall-time. A
-lever counts only if it moves one of those axes. Relocating work off the *perceived* critical path (e.g.
-async `learn`) hides cost without reducing it — **explicitly out of scope**. "Call recall more often" is
-description-gated, not body-gated (note 100), so a lighter body is not a usage lever either. Each lever
-below is tagged with the axis it actually moves; **do one at a time**, ship each gated, measure, then
-take the next.
+Two tracks, in priority order. **Track A — quality** (does the *right knowledge* surface for a search?) now
+leads: the 2026-06-28 note-floor showed quality, not efficiency, was the load-bearing problem — notes were
+nearly invisible in real recall, and fixing that cheaply mattered more than any payload-size cut. **Track B —
+cost** (the token/dollar/wall-time tax) is the original efficiency work, still live but secondary. A lever
+counts only if it moves a real axis (quality measured by the retrieval probe + value test; cost by actual
+tokens/dollars/wall-time — relocating work off the *perceived* path is not a reduction, note 100). **Do one at
+a time, ship each gated, measure, then take the next.**
 
 ## Where we are
 
@@ -32,13 +33,52 @@ matched-note floor is a *deliberate, gated* change to matched-note retrieval —
 drowning was eroding, trap gate GREEN; see the exception rationale in
 `docs/superpowers/plans/2026-06-28-note-vs-chunk-ranking.md`.)
 
-## Efficiency levers (ranked by the real axis they move; one at a time)
+# Track A — Retrieval quality (does the right knowledge surface?)
 
-Each lever is tagged with the axis it **actually** moves. Per note 100: payload **size** is cache_read-cheap
-(it moves TIME/paging, not dollars); the only verified **dollar** lever is pruning the payload out of build
-context after Step 3; the **token+time** lever is shrinking the procedure itself.
+The floor made a good note *surface*; the open levers make the notes *worth* surfacing and fire recall at the
+*right moment*. This is now the highest-value track.
 
-### ← NEXT — payload-prune-after-Step-3  [DOLLARS — the only verified $ lever, ~$1/op]
+### ← NEXT — crystallize question-shaped notes  [QUALITY — the #1 lever]
+The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
+**cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79% for correction-driven), and
+real failure situations are 68% uncovered / 30% partial. **The lever:** derive a note's `situation` handle
+from the **question/failure it answers**, not the cluster topic — route cluster-driven candidates through the
+learn path's question-shaping. Fixes the quality gap at the source and, paired with failure-mining capture,
+closes coverage. Measure with the audit's coverage + path-split method; gate with the trap harness.
+
+### Better recall *moments* — from the failure-mining analysis  [QUALITY / coverage]
+Mined **failure moments** from a 40-transcript stratified sample (main + subagent, 5 repos) with a
+semantic adversarial-auditor detector (haiku; validated == sonnet at single-read size). Result:
+`docs/design/2026-06-28-failure-eval-material.md` (data trail `…-failure-eval-data/`). **137 confirmed
+failures; the shape: 77% UNCOVERED (a decision cue current recall doesn't reach) × 56% APPLICATION
+(rule present, not applied) × 68% SUBTLE (no signal word).** Headline = **candidate new recall moments**: a
+**before-declaring-done** recall checkpoint (~26% of the uncovered set) + a fully-deterministic
+**after-tool-failure-before-retry** PostToolUse hook. ~40% of the corpus is cheaply evalable (tactical
+C3/C5/C6 + a new C7 "source-grounding" axis); ~60% is behavioral (needs a rich-context harness). **Next:**
+prototype one cheap, high-reach moment (the two hooks), gated by the trap harness. Direction note:
+`2026-06-27-mine-failures-as-eval-material.md`.
+
+### Ranking follow-ups — only if the floor proves too blunt  [QUALITY]
+The note-floor (shipped, see Done) reserves up to `noteFloorK=5` per-phrase slots. If it proves blunt (caps
+relevant notes, or promotes a marginal one), the principled successors are **per-population score
+normalization** (z/rank-normalize notes vs chunks before merge) and a **two-channel** split (notes and chunks
+get separate budgets, never compete). **Parked — chunk-down-weight:** down-weighting low-density chunk types
+(turn-1 dispatch prompts) was the original "damp the noise" lever; the floor made its *drowning* rationale
+moot, and it carries a real downside (a dispatch prompt is sometimes the right recall) with no gauge for its
+intended benefit — needs its own chunk-quality gauge before shipping (vault note 121).
+
+### Deeper arc — relational synthesis (note 68)
+Engram does *aggregation* (cosine similarity), not *emergent synthesis* (compositional-join / transitive-chain
+/ analogical-transfer). The substrate for the real thing is the unused `internal/vaultgraph` wikilink graph,
+via graph-expanded retrieval (spreading activation / GraphRAG local search). Long arc, not next.
+
+# Track B — Retrieval cost (the token/dollar/wall-time tax)
+
+The original efficiency work. Per note 100: payload **size** is cache_read-cheap (it moves TIME/paging, not
+dollars); the only verified **dollar** lever is pruning the payload out of build context after Step 3; the
+**token+time** lever is shrinking the procedure itself. Secondary to Track A.
+
+### ← NEXT (cost) — payload-prune-after-Step-3  [DOLLARS — the only verified $ lever, ~$1/op]
 Drop the raw ~97 KB query payload out of the build's *ongoing* context once Step 3 has synthesized the
 requirements list. The real warm-over-cold dollar premium is *carrying* the payload across every
 subsequent build turn — not its size (the bytes are cheap to cache-read once — note 100). The synthesized
@@ -84,7 +124,7 @@ dollars, and total wall-time — it hides cost, it does not cut it. Does not mov
 
 > **Note:** the recent-fill cut was the *safe biggest single* payload reducer, done first. It does
 > NOT close **#1** (the matched-set clusters-first/lazy-content restructure) — that remains the next
-> structural win (~40-80s) once we decide the −28% slice isn't enough.
+> structural cost win (~40-80s) once we decide the −28% slice isn't enough.
 
 ## Dead ends (measured — do not revisit)
 Payload-size cap *for dollars* (payload is cheap cache_read); whole-op or split **haiku** (−14%, broke
@@ -92,9 +132,9 @@ the build half, rolled back); cutting the 10 query phrases (breadth surfaces the
 lightening the skill *body* to increase firing (firing is set by the `description`, not the body).
 
 ## Done
-- **Matched-note floor** (2026-06-28) — fixed note-vs-chunk drowning: real-path note recall@5 0.22→0.83
-  (the embedder's isolation ceiling), trap gate GREEN. `capWithNoteFloor` reserves up to `noteFloorK=5`
-  per-phrase slots for floor-qualified notes. Probe + value test:
+- **Matched-note floor** (2026-06-28) [QUALITY] — fixed note-vs-chunk drowning: real-path note recall@5
+  0.22→0.83 (the embedder's isolation ceiling), trap gate GREEN. `capWithNoteFloor` reserves up to
+  `noteFloorK=5` per-phrase slots for floor-qualified notes. Probe + value test:
   `docs/design/2026-06-28-retrieval-probe-results.md` (the probe `score_probe.py` is now a reusable
   retrieval-regression harness).
 - **Crowded-vault capability eval** (2026-06-26) — the 4 wins generalize to a realistic crowded vault
@@ -103,30 +143,7 @@ lightening the skill *body* to increase firing (firing is set by the `descriptio
 - **Instruments** (2026-06-26) — the `recall_cost` `$METER` (schema v5) + the C3/C4i/C5/C6 trap
   regression gate. These make every lever above safe (regression-caught) and measurable.
 
-## Adjacent direction — crystallize question-shaped notes (NEXT; audit DONE 2026-06-28)
-The floor surfaces a good note — but the **crystallization audit** (`2026-06-28-crystallization-audit.md`)
-found ~half of **cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79% for
-correction-driven), and real failure situations are 68% uncovered / 30% partial. **Next lever:** derive a
-note's `situation` handle from the **question/failure it answers**, not the cluster topic (route cluster-driven
-candidates through the learn path's question-shaping). Deeper arc: the vaultgraph relational substrate (note
-68 — engram does aggregation, not synthesis). **Also parked:** the chunk-down-weight (drowning-rationale moot
-after the floor; needs its own chunk-quality gauge before shipping); two-channel + per-population normalization
-(ranked ranking follow-ups if the floor proves too blunt).
-
-## Adjacent direction — learn from failures, not just corrections (ANALYSIS DONE 2026-06-28)
-Mined **failure moments** from a 40-transcript stratified sample (main + subagent, 5 repos) with a
-semantic adversarial-auditor detector (haiku; validated == sonnet at single-read size). Result:
-`docs/design/2026-06-28-failure-eval-material.md` (data trail `…-failure-eval-data/`). **137 confirmed
-failures; the shape: 77% UNCOVERED (a decision cue current recall doesn't reach) × 56% APPLICATION
-(rule present, not applied) × 68% SUBTLE (no signal word — word-match would miss them).** The headline
-is the **candidate new recall moments**, not new lessons: the highest-value process change is a
-**before-declaring-done** recall checkpoint (~26% of the uncovered set) + a fully-deterministic
-**after-tool-failure-before-retry** PostToolUse hook. ~40% of the corpus is cheaply evalable (tactical
-C3/C5/C6 + a new C7 "source-grounding" axis); ~60% is behavioral (needs a rich-context harness).
-**Next:** pick a candidate new moment to prototype (the two hooks above are the cheapest, highest-reach),
-gated by the trap regression harness. Original direction note: `2026-06-27-mine-failures-as-eval-material.md`.
-
-## Adjacent direction — prune must preserve memory across source deletion (#659)
+## Infrastructure — prune must preserve memory across source deletion (#659)
 `engram prune` currently orphan-deletes chunks whose **source file is gone** — but the embedded chunk is
 the asset, not the source `.jsonl`. This blocks reclaiming the ~1.3 GiB of restored cross-repo transcripts
 in `~/restic-restore-claude/` (deleting them would lose the recovered imptest/glowsync/targ/traced memory).
