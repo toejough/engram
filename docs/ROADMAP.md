@@ -91,13 +91,18 @@ lightening the skill *body* to increase firing (firing is set by the `descriptio
 - **Instruments** (2026-06-26) — the `recall_cost` `$METER` (schema v5) + the C3/C4i/C5/C6 trap
   regression gate. These make every lever above safe (regression-caught) and measurable.
 
-## Adjacent direction — learn from failures, not just corrections
-Mine **failure moments** from session AND subagent transcripts (subagents are ingested, and the ingest
-byte-cap was removed 2026-06-27 so full sessions land whole) and run them through the same
-eval/classification as explicit user corrections — the system learns from its own subagents' mistakes,
-at far higher volume. Turn-grained chunking already isolates each failure; the missing piece is a
-**failure-signal classifier**. Design: `docs/design/2026-06-27-mine-failures-as-eval-material.md`. A
-`/please` brainstorm to pin the detector's signals + precision target is the natural first step.
+## Adjacent direction — learn from failures, not just corrections (ANALYSIS DONE 2026-06-28)
+Mined **failure moments** from a 40-transcript stratified sample (main + subagent, 5 repos) with a
+semantic adversarial-auditor detector (haiku; validated == sonnet at single-read size). Result:
+`docs/design/2026-06-28-failure-eval-material.md` (data trail `…-failure-eval-data/`). **137 confirmed
+failures; the shape: 77% UNCOVERED (a decision cue current recall doesn't reach) × 56% APPLICATION
+(rule present, not applied) × 68% SUBTLE (no signal word — word-match would miss them).** The headline
+is the **candidate new recall moments**, not new lessons: the highest-value process change is a
+**before-declaring-done** recall checkpoint (~26% of the uncovered set) + a fully-deterministic
+**after-tool-failure-before-retry** PostToolUse hook. ~40% of the corpus is cheaply evalable (tactical
+C3/C5/C6 + a new C7 "source-grounding" axis); ~60% is behavioral (needs a rich-context harness).
+**Next:** pick a candidate new moment to prototype (the two hooks above are the cheapest, highest-reach),
+gated by the trap regression harness. Original direction note: `2026-06-27-mine-failures-as-eval-material.md`.
 
 ## Adjacent direction — prune must preserve memory across source deletion (#659)
 `engram prune` currently orphan-deletes chunks whose **source file is gone** — but the embedded chunk is

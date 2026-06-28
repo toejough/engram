@@ -1,5 +1,10 @@
 # Mine failures as eval material — subagent *and* user, one pipeline
 
+> **EXECUTED 2026-06-28** → `2026-06-28-failure-eval-material.md`. The semantic detector replaced the
+> word-match plan below (Joe's steer: catch subtle corrections, not "no" word-matches). 137 confirmed
+> failures from a 40-transcript sample; headline = the **candidate new recall moments** (uncovered cues),
+> not the lessons. This note is kept for the original framing + the mechanism rationale.
+
 > **Direction note (Joe, 2026-06-27).** Not a plan yet — the idea + the mechanism, so it isn't lost.
 > Born from the cross-repo backup-recovery work: while deciding whether to drop subagent transcripts as
 > noise, Joe reframed them as signal — *"anything a subagent did that failed is worth collecting and

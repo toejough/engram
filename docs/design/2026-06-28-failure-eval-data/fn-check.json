@@ -1,0 +1,136 @@
+{
+ "fnChecks": [
+  {
+   "source": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/842c4589-75b4-45e0-b9b8-d09a28c1aa39/subagents/agent-a9ffb3d6b86d464e5.jsonl",
+   "repo": "engram",
+   "role": "subagent",
+   "first_pass_count": 1,
+   "missed_count": 2,
+   "missed": [
+    {
+     "summary": "Agent unilaterally added `| head -80` to the mandated engram query command (turn 4), truncating output mid-stream. Item 8 ends at `kind: chunk` with no content visible. The instruction said to run the exact command given and skim for relevant lessons \u2014 the agent modified the command itself and then declared 'no relevant lessons' without seeing all results.",
+     "subtle": true,
+     "why_first_pass_missed": "The truncation is embedded in the Bash command text and requires noticing that item 8 ends mid-field in the output. The agent's conclusion ('low-score tangential hits') appeared plausible from the visible results, masking the fact that the full result set was never retrieved."
+    },
+    {
+     "summary": "Internal contradiction between the coverage trace and Refutation 1 in turn 10. The coverage trace marks Item 1 ('dynamically evaluates right agent type, model, and effort') as 'Covered... Clean,' then Refutation 1 immediately argues the spec reduces the user's word 'dynamically' to advisory-only guidance with no runtime enforcement \u2014 which is precisely about Item 1's core characteristic. The agent cannot mark Item 1 clean and then raise a refutation about the same item's defining property; the coverage trace should have flagged Item 1 as questionable.",
+     "subtle": true,
+     "why_first_pass_missed": "The contradiction spans two distinct sub-sections of a single long response (coverage trace then refutations). A cheaper pass reads each section locally and does not cross-check the coverage verdict against the refutation list for the same item."
+    }
+   ]
+  },
+  {
+   "source": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/95570838-0d05-483c-95e7-fe004909b499/subagents/agent-aa4372e3b80c5f6db.jsonl",
+   "repo": "engram",
+   "role": "subagent",
+   "first_pass_count": 1,
+   "missed_count": 1,
+   "missed": [
+    {
+     "summary": "Agent labeled commit 9bd191e as '(oldest)' but it is the NEWEST commit on the branch. The `git log --format='%H%n%B' main..HEAD` output puts 9bd191e first \u2014 git log outputs newest-first, so 9bd191e is the HEAD commit (most recent), while f8a4a08 (last entry) is the oldest. The agent's mental model reversed the ordering. The error is confirmed: `git log main..9bd191e` returns exactly one entry \u2014 9bd191e itself \u2014 proving it is HEAD. Calling it 'oldest' would send anyone trying to amend it to the wrong end of the history (they would look for the last commit in the log, which is f8a4a08, rather than the first).",
+     "subtle": true,
+     "why_first_pass_missed": "The scope-finding itself is correct (9bd191e genuinely lacks the repo-required scope), so a cheap pass verifies the finding is valid and moves on. The positional label '(oldest)' is incidental to the correctness of the flag, and would only be caught by someone who cross-referenced the git log order against the agent's description."
+    }
+   ]
+  },
+  {
+   "source": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/e9f66a65-78b5-499f-9f9d-c24b30dd9de6/subagents/agent-a23c74adb63b18b8d.jsonl",
+   "repo": "engram",
+   "role": "subagent",
+   "first_pass_count": 0,
+   "missed_count": 0,
+   "missed": []
+  },
+  {
+   "source": "/Users/joe/restic-restore-claude/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/2e5246e6-84a9-458a-a1db-ba44ac539e37/subagents/agent-a46d223.jsonl",
+   "repo": "targ",
+   "role": "subagent",
+   "first_pass_count": 1,
+   "missed_count": 1,
+   "missed": [
+    {
+     "summary": "Agent asserted '(default from type name)' as the naming mechanism for `targ:\"subcommand\"` fields without verifying it, and the claim is contradicted by evidence in the same file it read. In simple/main.go, the field `RunCmd *RunCmd` carries the explicit tag `subcommand=run`. If the convention were type-name-based (strip 'Cmd' suffix + lowercase: AddCmd\u2192add, RunCmd\u2192run), the explicit override would be redundant. The explicit override being present implies the default is field-name-based ('runcmd'), not type-name-based ('run'). The agent stated an unverified mechanism as fact and missed the contradicting signal sitting in the same struct.",
+     "subtle": true,
+     "why_first_pass_missed": "The actual subcommand names in the output are all correct \u2014 both field-name and type-name conventions produce 'add' for Add *AddCmd \u2014 so the wrong explanation is hidden by coincidental agreement. The first pass focused on the more prominent top-level hierarchy issue and would not look for an explanatory error whose result still matched."
+    }
+   ]
+  },
+  {
+   "source": "/Users/joe/restic-restore-claude/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/5310c1ec-0d8d-490a-b6f9-70f5799dc446/subagents/agent-a91f145.jsonl",
+   "repo": "targ",
+   "role": "subagent",
+   "first_pass_count": 1,
+   "missed_count": 4,
+   "missed": [
+    {
+     "summary": "Step 1 (Check VCS type) is marked 'non-negotiable' by the skill but the agent skipped it entirely. The skill explicitly says to look for a `.jj` directory or check session env info before any git commands, and labels this check 'non-negotiable.' The agent went directly to `git status` (line 3) without ever checking for `.jj` or the VCS type.",
+     "subtle": true,
+     "why_first_pass_missed": "The first pass focused on the missing context file issue and identified that as the lead failure. Auditing each individual step of the skill for procedural compliance \u2014 especially a setup/safety check at the top \u2014 is lower-salience work that a cheaper pass skips once it has found a headline failure."
+    },
+    {
+     "summary": "The state-check commands in step 2 were wrong: `git diff --staged` was never run, and `git diff` was replaced with `git diff --stat` (a summary line count). The skill specifies exactly three commands: `git status`, `git diff --staged`, `git diff`. The agent ran `git status` and `git diff --stat` (a different command), and later ran a per-file truncated `git diff dev/targets.go | head -200`. `git diff --staged` is completely absent from the session.",
+     "subtle": true,
+     "why_first_pass_missed": "A cheaper pass sees 'agent ran diff commands' and considers the state-check satisfied. Distinguishing between `git diff --stat`, `git diff --staged`, and `git diff` requires comparing the exact commands used against the exact commands specified in the skill, which is granular work a cheap auditor skips."
+    },
+    {
+     "summary": "The structured result format does not match the skill's specified template. The skill mandates a plain key-value format (`Status:`, `Summary:`, `Commit hash:`, `Commit message:`, `Files committed:`, `Traceability:`, `Context for next phase:`). The agent produced a markdown section (`## Commit Summary`) with bold keys, bullet points, an additional 'Changes included' section not in the template, and omitted the `Summary:` field entirely.",
+     "subtle": false,
+     "why_first_pass_missed": "The first pass would see that the agent 'produced a structured result' and check whether the required fields were present in spirit. Comparing the exact output format and field list against the skill-specified template requires side-by-side matching that a cheaper pass treats as done once any result block appears."
+    },
+    {
+     "summary": "Two commit message body lines exceed the 72-character wrap limit stated in rule 4. 'Extract hardcoded values into configurable arguments for CoverageCheckArgs' is 74 characters and 'skips in deadcode checking to simplify the logic. Add -run=^$ flag to fuzz' is 74 characters. The agent composed and committed these lines without checking line length.",
+     "subtle": true,
+     "why_first_pass_missed": "Verifying line length requires counting characters in the commit message body. Cheaper auditors read for semantic correctness and skip mechanical character-count checks on the produced artifact."
+    }
+   ]
+  },
+  {
+   "source": "/Users/joe/restic-restore-claude/Users/joe/.claude/projects/-Users-joe-repos-personal-traced/575a2fdd-6045-4618-86f2-d187649e6650/subagents/agent-a8c2914.jsonl",
+   "repo": "traced",
+   "role": "subagent",
+   "first_pass_count": 1,
+   "missed_count": 1,
+   "missed": [
+    {
+     "summary": "Thinking/doing gap: agent stated 'Let me verify no existing tests in the repo are broken' (turn 58/line 58) but then ran `go vet -tags sqlite_fts5 ./internal/treefile/`, which neither executes any tests nor covers the broader repo. `go vet` is static analysis only \u2014 it cannot verify existing tests still pass. The scope `./internal/treefile/` covers only the new package, not the 'existing tests in the repo' the agent said it was checking. The traced project's own CLAUDE.md specifies the test command as `go test ./...` (whole suite). The intended action and the actual action are categorically mismatched on both tool and scope.",
+     "subtle": true,
+     "why_first_pass_missed": "The first pass identified that `go vet` is an inadequate quality-check tool (vs `targ check-full`), but it read the issue only as 'wrong tool for quality verification' and did not cross-reference the agent's own stated intent ('verify no existing tests in the repo are broken') against what the chosen command actually does. Noticing the gap requires reading the prose statement of intent immediately before the tool call, then checking whether the selected command can fulfill that specific stated goal \u2014 a reasoning step that a cheaper pass skips once it has already flagged the `go vet` call as insufficient."
+    }
+   ]
+  },
+  {
+   "source": "/Users/joe/restic-restore-claude/Users/joe/.claude/projects/-Users-joe-repos-personal-traced/575a2fdd-6045-4618-86f2-d187649e6650/subagents/agent-afd34e6.jsonl",
+   "repo": "traced",
+   "role": "subagent",
+   "first_pass_count": 1,
+   "missed_count": 1,
+   "missed": [
+    {
+     "summary": "In entry 22, the agent offered two unverified hypotheses for why the task description was wrong ('file was refactored' or 'report refers to a different file'), when the most plausible one ('file was refactored') was directly verifiable from information the agent already had: git log (entry 21) showed 'feat(005): migrate all test files from testify to gomega' and the still-present function name `TestCompute_MatchesShellCommand` strongly suggested the test once used exec.Command. A single `git show 90a5656 -- internal/hash/hash_test.go` would have confirmed or denied this. The CLAUDE.md rule is 'Verify, don't guess,' but the agent guessed instead.",
+     "subtle": true,
+     "why_first_pass_missed": "The first pass focused on the high-level action failure (no escalation) and accepted the explanatory remarks as reasonable context since the core finding was already correct. Scrutinizing whether end-of-session explanatory hypotheses violated verify-dont-guess requires a second pass that separately evaluates reasoning discipline, not just outcome correctness."
+    }
+   ]
+  },
+  {
+   "source": "/Users/joe/restic-restore-claude/Users/joe/.claude/projects/-Users-joe-repos-personal-imptest/75c2544a-b014-4376-adaf-666d3d16a517/subagents/agent-aeca643.jsonl",
+   "repo": "imptest",
+   "role": "subagent",
+   "first_pass_count": 1,
+   "missed_count": 0,
+   "missed": []
+  },
+  {
+   "source": "/Users/joe/restic-restore-claude/Users/joe/.claude/projects/-Users-joe-repos-personal-traced/935070c7-6048-43ff-8d7c-8cc3aa665a7c.jsonl",
+   "repo": "traced",
+   "role": "main",
+   "first_pass_count": 1,
+   "missed_count": 0,
+   "missed": []
+  }
+ ],
+ "sample_size": 40,
+ "audited": 40,
+ "low_yield": 9,
+ "total_missed": 10
+}
