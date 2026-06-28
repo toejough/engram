@@ -4,17 +4,25 @@
 > executing-plans. Steps use `- [ ]`. Tracks 1–2 are Go/TDD; Track 3 is an analysis (its "tests" are
 > the gauges, not unit tests).
 
-**Goal:** Stop a relevance-qualified crystallized note from being drowned by chunks in `engram query`, and
-audit whether the notes themselves are question-useful — fixing engram's measured retrieval failure
-(real-path note recall@5 = 0.19 vs 0.81 isolation; the de-drowned note is the sole knowledge source ~41% of
-drowned cases).
+**Goal:** Ensure that when a high-relevance crystallized note is the sole source of the knowledge a query
+needs, lower-signal-density items don't bury it — and audit whether the notes themselves are question-useful.
+**Success is the knowledge-delivery gauge moving** (probe real-path note recall@5: 0.19 → toward the 0.81
+isolation ceiling), **NOT "notes outrank chunks"** (that's the tautology Joe corrected). Chunks are the
+*source* the lessons were distilled from — lower signal-density, **not noise**; the fix targets
+density-vs-relevance, never type-vs-type. Context: the lesson-carrying note is the sole knowledge source in
+~41% of drowned cases (`docs/design/2026-06-28-retrieval-probe-results.md`).
 
 **Architecture:** Three independent tracks, sequenced so each gauge stays clean. **Track 1 (floor)** —
-reserve per-phrase slots for floor-clearing notes at the drowning site (`mergePhraseIntoUnion`). **Track 2
-(down-weight)** — a separate, separately-gated unit that reduces the score of low-density chunk types
+reserve per-phrase slots for relevance-qualified notes at the drowning site (`mergePhraseIntoUnion`). **Track
+2 (down-weight)** — a separate, separately-gated unit that reduces the score of low-density chunk types
 (subagent turn-1 dispatch prompts). **Track 3 (audit)** — analysis: are cluster-driven notes question-useful
 vs correction-driven, measured against the 137 failure-mining situations. Tracks 1 and 2 are committed
 separately; Track 3 produces a report.
+
+**Relationship to note 82** (`recall-miss-is-structural-not-retrieval`): note 82 has two facets — (a)
+"crystallized notes are outranked by raw chunks even on a lever-keyed query" (the *ranking* facet — this plan
+fixes it) and (b) "recall fires once... never re-checks a lever invented during synthesis" (the *timing /
+re-entry* facet — recall-before-recommend). This plan addresses (a) only; (b) remains a separate follow-up.
 
 **Tech Stack:** Go (no CGO), `targ` for test/lint/check, the probe harness (`score_probe.py`), the trap gate
 (`dev/eval/traps/gate.py`), the `recall_cost` `$METER`.
@@ -24,12 +32,20 @@ separately; Track 3 produces a report.
 - **Gate every code change with the trap harness AND the probe.** `dev/eval/traps/gate.py` C3–C6 GREEN
   before+after each of Tracks 1 and 2; `score_probe.py` real-path note recall@5 measured before+after (the
   primary gauge); `recall_cost` `$METER` to confirm the payload doesn't balloon. (Standing roadmap rule.)
-- **Justify by knowledge-delivery, not item-rank** (note 119): the floor is warranted because the de-drowned
-  note is the sole knowledge source ~41% of drowned cases; success = the probe gauge moving, not "notes rank
-  higher" tautologically.
-- **Never touch the win-nucleus:** Step-3 conventions directive, Step-2.5B recency-weight, the frontmatter
-  `description`. This is a binary change to the query merge — it alters matched-note retrieval, so the trap
-  gate is mandatory, but it does NOT edit any SKILL.md.
+- **Justify by knowledge-delivery, not item-rank:** the floor is warranted because the value test showed the
+  de-drowned note is the *sole* source of needed knowledge in ~41% of drowned cases while the displaced chunks
+  scored like noise (mean 1.23 ≈ prior 1.14); success = the probe gauge moving, not "notes rank higher"
+  tautologically.
+- **Win-nucleus — deliberate, gated exception (not an omission).** The roadmap names *Step-2 matched-note
+  retrieval* in the win-nucleus ("never touch"). Tracks 1 and 2 DO modify matched-note retrieval (the binary's
+  per-phrase merge + chunk scoring) — stated plainly. This is warranted because (a) the constraint's own safety
+  mechanism is the trap harness, run before+after every code change here; and (b) the measured drowning is
+  *itself* a win-nucleus degradation — the lessons that produce the C3–C6 wins aren't surfacing — so the floor
+  RESTORES the win-nucleus rather than risking it. The C3–C6 gate is the hard backstop: any regression →
+  revert/retune. It edits no SKILL.md and does NOT touch the Step-3 directive, Step-2.5B recency-weight, or the
+  frontmatter `description`.
+- **Gate B** (per the `/please` workflow) = a fresh-context design-fit reviewer dispatched on the refactored
+  diff — not a self-check.
 - **Respect the existing pipeline** (note 36): the floor operates at `matchedSetItem` level (pre
   `scoredChunk→resolvedItem` conversion), so the recency-ordering hazard does not apply. Do NOT reorder the
   scoredChunk→resolvedItem conversion.
@@ -49,8 +65,8 @@ separately; Track 3 produces a report.
 - Test: `internal/cli/query_helpers_test.go` (white-box unit) + the probe harness as the end-to-end gauge.
 
 **Interfaces:**
-- Consumes: `mergePhraseIntoUnion(noteHits []scoredCandidate, chunkHits []scoredChunk, byKey map[string]matchedSetItem)`; `matchRelevanceFloor=0.25`; `matchPhraseLimit=30`.
-- Produces: a `capWithNoteFloor(perPhrase []matchedSetItem, limit, noteFloorK int) []matchedSetItem` helper that keeps the top-`limit` by score but guarantees the top `min(noteFloorK, #notes≥floor)` floor-clearing notes are retained (evicting the lowest-score chunks to make room).
+- Consumes: `mergePhraseIntoUnion(noteHits []scoredCandidate, chunkHits []scoredChunk, byKey map[string]matchedSetItem)`; `matchRelevanceFloor=0.25`; `matchPhraseLimit=30`. (`scoredCandidate` is unexported → add a test type alias `ExportScoredCandidate = scoredCandidate` in `export_test.go`, mirroring the existing `ExportScoredChunk = scoredChunk`.)
+- Produces: `capWithNoteFloor(perPhrase []matchedSetItem, limit, noteFloorK int) []matchedSetItem`. **Formal spec:** a note *qualifies for the floor* iff `item.isChunk == false && item.baseScore >= matchRelevanceFloor` (0.25). Let `Q` = the count of floor-qualifying notes in `perPhrase`, and `reserve = min(noteFloorK, Q)`. The function returns a length-`min(limit, len(perPhrase))` slice that contains the `reserve` highest-score qualifying notes, with the remaining slots filled by the highest-score items overall (chunks or extra notes), evicting the lowest-score chunks to make room. **Edge cases:** `Q == 0` → return the top-`limit` by score unchanged (no notes to protect); `len(perPhrase) <= limit` → return all (nothing evicted); `reserve >= limit` (more qualifying notes than slots) → return the top-`limit` qualifying notes. Pure + deterministic: stable sort, `key` ascending as the score tiebreak (matching the existing `applyFloorAndCap` tiebreak).
 
 - [ ] **Step 1: Baseline gauge.** Run the probe to record the pre-change number:
   `python3 docs/design/2026-06-28-retrieval-probe-data/score_probe.py docs/design/2026-06-28-retrieval-probe-data/probes.json /tmp/probe_before.json` → confirm real-path nuanced note recall@5 ≈ 0.19. Run `python3 dev/eval/traps/gate.py` → record C3–C6 baseline GREEN.
@@ -104,23 +120,49 @@ func TestMergePhraseIntoUnion_FloorKeepsRelevantNoteVsManyChunks(t *testing.T) {
 ### Task 2: Penalize subagent turn-1 dispatch chunks in scoring
 
 **Files:**
-- Modify: `internal/cli/query.go` — `scoreChunkForPhrase` (~545) or a post-score adjustment on `scoredChunk`.
-- Modify: `internal/cli/export_test.go` — accessor if needed.
-- Test: `internal/cli/query_test.go` / `query_helpers_test.go`.
+- Modify: `internal/cli/query_chunks.go` — `scoreChunkForPhrase` (~203, where each chunk's `score` is
+  computed); add a pure helper `applyDensityPenalty(score float32, record chunk.Record) float32`.
+- Modify: `internal/cli/export_test.go` — add `ExportApplyDensityPenalty` accessor.
+- Test: `internal/cli/query_chunks_test.go` (the existing chunk-scoring white-box test file).
 
 **Interfaces:**
-- Consumes: `scoreChunkForPhrase(queryVec, records, now, maxTurnBySrc, recency)`; `chunk.Record{Source, Anchor}`.
-- Produces: a `chunkDensityPenalty` (const, e.g. 0.7) applied to a chunk's `score` (NOT `baseScore` — keep
-  the floor honest) when `record.Anchor == "turn-1"` AND `record.Source` contains `/subagents/` (a dispatch
-  prompt, not the lesson).
+- Consumes: `scoreChunkForPhrase` builds each `scoredChunk{record, score, baseScore}`; `chunk.Record` already
+  exposes `Source` and `Anchor` (both in scope — `scoreChunkForPhrase` reads `maxTurnBySrc[record.Source]` and
+  `parseTurnN(record.Anchor)`).
+- Produces: a const `chunkDensityPenalty = float32(0.7)` and `applyDensityPenalty`, applied to a chunk's
+  **`score`** (NOT `baseScore` — `baseScore` is the raw cosine the relevance floor reads, so the floor stays
+  honest) when the chunk is a low-density dispatch prompt: `record.Anchor == "turn-1"` AND
+  `strings.Contains(record.Source, "/subagents/")`. Modification at the `score` assignment:
 
-- [ ] **Step 1: RED.** Test that a subagent turn-1 chunk and a non-dispatch chunk with equal raw cosine end
-  up with the dispatch chunk ranked lower after scoring.
-- [ ] **Step 2: Verify RED** (`targ test`).
-- [ ] **Step 3: GREEN.** Apply `chunkDensityPenalty` to `score` for the dispatch-prompt pattern only;
-  document the heuristic + that it's score-only (baseScore/floor untouched).
-- [ ] **Step 4: Verify GREEN** (`targ test`).
-- [ ] **Step 5: REFACTOR + Gate B** (`targ check-full`; design-fit reviewer on the diff).
+```go
+// before (~query_chunks.go:203, inside scoreChunkForPhrase per chunk):
+score := baseScore * recencyMultiplier // (existing recency-biased score)
+// after:
+score := applyDensityPenalty(baseScore*recencyMultiplier, record)
+```
+
+- [ ] **Step 1: Write the failing test** in `query_chunks_test.go`:
+
+```go
+func TestApplyDensityPenalty_DownweightsSubagentDispatchChunk(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	const raw = float32(0.60)
+	dispatch := cli.ExportChunkRecord("/p/proj/abc/subagents/agent-x.jsonl", "turn-1") // Source, Anchor
+	lesson := cli.ExportChunkRecord("/p/proj/abc/session.jsonl", "turn-7")
+	g.Expect(cli.ExportApplyDensityPenalty(raw, dispatch)).To(BeNumerically("<", raw)) // RED: no penalty today
+	g.Expect(cli.ExportApplyDensityPenalty(raw, lesson)).To(Equal(raw))                // unaffected
+}
+```
+
+- [ ] **Step 2: Run it — verify RED.** `targ test` → FAIL (`ExportApplyDensityPenalty` returns `raw`
+  unchanged because the helper doesn't exist / is a no-op). Add the export accessor + a no-op helper first if
+  needed to make it compile-then-fail.
+- [ ] **Step 3: GREEN.** Implement `applyDensityPenalty` (multiply by `chunkDensityPenalty` for the
+  dispatch-prompt pattern only; identity otherwise) and wire it into the `score` assignment. Document the
+  heuristic + that it's score-only (baseScore/floor untouched).
+- [ ] **Step 4: Run it — verify GREEN.** `targ test`.
+- [ ] **Step 5: REFACTOR + Gate B** (`targ check-full`; the `/please` design-fit reviewer on the diff).
 - [ ] **Step 6: Gauge + honesty.** Re-run the probe (does note recall@5 improve further, or is it already
   saturated by Track 1?) and `gate.py` (C3–C6 GREEN — a chunk-evidence-dependent axis must NOT regress; if
   any does, the penalty is hurting a needed chunk → reduce/scope it). Re-run `recall_cost`. **Report the
@@ -160,6 +202,15 @@ Floor (Task 1) → its own commit; down-weight (Task 2) → its own commit (or a
 runs in parallel (no code risk). Each code task reads the same three gauges before/after: **probe real-path
 note recall@5** (signal surfaced; ceiling 0.81), **gate.py C3–C6** (no regression), **recall_cost** (payload
 sanity). The remaining gap to 0.81 after Task 1 decides whether Task 2 / the audit's upstream fix are worth it.
+
+## Docs to update after the code lands (Step 5 — Document)
+- `docs/architecture/c1-system-context.md` — the recall-flow merge description (currently "top-30 per phrase
+  (notes+chunks); ... cap matched set at ~300") goes stale; add the note floor: "...reserving up to
+  `noteFloorK` slots for relevance-qualified notes so chunks cannot fully evict them."
+- `docs/ROADMAP.md` — record the floor as the shipped note-vs-chunk-ranking lever with the measured
+  before/after probe number; note Track-2/normalization/two-channel as the ranked follow-ups.
+- `docs/design/2026-06-28-retrieval-probe-results.md` — append the post-floor real-path note recall@5 number
+  (the "first gated experiment" now has a result).
 
 ## Out of scope
 Two-channel restructure; per-population normalization; richer note embeddings; implementing question-shaped
