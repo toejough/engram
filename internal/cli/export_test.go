@@ -97,6 +97,8 @@ type ExportRecencyParams = recencyParams
 // construct test fixtures via ExportNewResolvedItem.
 type ExportResolvedItem = resolvedItem
 
+type ExportScoredCandidate = scoredCandidate
+
 type ExportScoredChunk = scoredChunk
 
 // Exported types.
@@ -246,6 +248,21 @@ func ExportMergeClusterReps(
 	return result
 }
 
+// ExportMergePhraseIntoUnion runs mergePhraseIntoUnion into a fresh union and
+// returns the resulting item keys, so cli_test can assert which notes/chunks
+// survived the per-phrase cap without naming the unexported matchedSetItem.
+func ExportMergePhraseIntoUnion(noteHits []scoredCandidate, chunkHits []scoredChunk) []string {
+	byKey := make(map[string]matchedSetItem)
+	mergePhraseIntoUnion(noteHits, chunkHits, byKey)
+
+	keys := make([]string, 0, len(byKey))
+	for k := range byKey {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
+
 // ExportNewChunkResolvedItem builds a chunk-kind resolvedItem for band tests.
 // notePath mirrors chunkNotePath's "source#anchor" form.
 func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
@@ -349,6 +366,16 @@ func ExportNewRecencyParams(halfLifeDays, tailWeight float64, floor int) recency
 // drive applyProjectFilter without going through the full pipeline.
 func ExportNewResolvedItem(notePath, content string) ExportResolvedItem {
 	return ExportResolvedItem{notePath: notePath, content: content}
+}
+
+// ExportNewScoredCandidate builds a scoredCandidate (note hit) for tests.
+func ExportNewScoredCandidate(notePath string, score, baseScore float32) scoredCandidate {
+	return scoredCandidate{
+		notePath:  notePath,
+		basename:  basenameFromNotePath(notePath),
+		score:     score,
+		baseScore: baseScore,
+	}
 }
 
 // ExportNewScoredChunk builds a scoredChunk for tests.

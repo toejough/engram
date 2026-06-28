@@ -128,7 +128,14 @@ const (
 	matchRelevanceFloor = float32(0.25)
 	// matchSetCap is the hard cap on the union of all per-phrase matched
 	// sets fed to clustering. 10 phrases × matchPhraseLimit = 300 worst-case.
-	matchSetCap              = 300
+	matchSetCap = 300
+	// noteFloorK is the number of per-phrase slots reserved for relevance-
+	// qualified notes so higher-scoring chunks cannot fully evict them. Without
+	// it, a crystallized lesson the embedder ranks top-5 among notes can fall out
+	// of the unified ranking entirely (measured: real-path note recall@5 0.19 vs
+	// 0.81 isolation). The reservation only ever promotes notes that already clear
+	// matchRelevanceFloor, so it never surfaces an irrelevant note.
+	noteFloorK               = 5
 	provenanceClusterRep     = "cluster_rep"
 	provenanceDirect         = "direct"
 	provenanceRankClusterRep = 2
@@ -416,13 +423,7 @@ func applyFloorAndCap(byKey map[string]matchedSetItem) []matchedSetItem {
 		}
 	}
 
-	sort.SliceStable(matched, func(i, j int) bool {
-		if matched[i].score != matched[j].score {
-			return matched[i].score > matched[j].score
-		}
-
-		return matched[i].key < matched[j].key
-	})
+	sortMatchedByScoreDesc(matched)
 
 	if len(matched) > matchSetCap {
 		matched = matched[:matchSetCap]
@@ -628,6 +629,33 @@ func capChunkContent(items []queryItem, budget int) ([]queryItem, int) {
 	return items, snipped
 }
 
+// capWithNoteFloor caps perPhrase to limit items by score, but guarantees up to
+// noteFloorK relevance-qualified notes (non-chunk, baseScore >= matchRelevanceFloor)
+// survive the cap — evicting the lowest-scoring chunks from the kept set to make
+// room. perPhrase is assumed sorted by score desc; the result stays score-desc.
+// When fewer than the cap, or there are no promotable notes below the cut, the
+// top-limit set is returned unchanged.
+func capWithNoteFloor(perPhrase []matchedSetItem, limit, floorK int) []matchedSetItem {
+	if len(perPhrase) <= limit {
+		return perPhrase
+	}
+
+	kept := make([]matchedSetItem, limit)
+	copy(kept, perPhrase[:limit])
+
+	promotable := floorQualifyingNotes(perPhrase[limit:])
+	need := min(floorK-len(floorQualifyingNotes(kept)), len(promotable))
+
+	if need <= 0 {
+		return kept
+	}
+
+	promoteNotesEvictingChunks(kept, promotable, need)
+	sortMatchedByScoreDesc(kept)
+
+	return kept
+}
+
 // chunksConfigured reports whether a chunk index is wired into this run
 // (non-empty chunks dir and a list function available).
 func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
@@ -778,6 +806,26 @@ func eitherAxisCosine(centroid, sit, body []float32) float32 {
 	}
 
 	return sim
+}
+
+// floorQualifyingNotes returns the relevance-qualified notes in items, order
+// preserved (a score-desc input yields highest-score-first promotables).
+func floorQualifyingNotes(items []matchedSetItem) []matchedSetItem {
+	out := make([]matchedSetItem, 0, len(items))
+
+	for _, item := range items {
+		if isFloorQualifyingNote(item) {
+			out = append(out, item)
+		}
+	}
+
+	return out
+}
+
+// isFloorQualifyingNote reports whether a matched-set item is a note that cleared
+// the relevance floor and is therefore eligible for the note-floor reservation.
+func isFloorQualifyingNote(item matchedSetItem) bool {
+	return !item.isChunk && item.baseScore >= matchRelevanceFloor
 }
 
 // itemMatchesProject scans the item's loaded content's frontmatter for a
@@ -1009,13 +1057,9 @@ func mergePhraseIntoUnion(
 		})
 	}
 
-	sort.SliceStable(perPhrase, func(i, j int) bool {
-		return perPhrase[i].score > perPhrase[j].score
-	})
+	sortMatchedByScoreDesc(perPhrase)
 
-	if len(perPhrase) > matchPhraseLimit {
-		perPhrase = perPhrase[:matchPhraseLimit]
-	}
+	perPhrase = capWithNoteFloor(perPhrase, matchPhraseLimit, noteFloorK)
 
 	for _, item := range perPhrase {
 		existing, ok := byKey[item.key]
@@ -1176,6 +1220,19 @@ func pickRepresentative(matchSet matchedSet, memberIndices []int, centroid []flo
 	}
 
 	return best
+}
+
+// promoteNotesEvictingChunks replaces the lowest-scoring chunks in kept (which is
+// score-desc, so iterate from the tail) with the first need promotable notes.
+func promoteNotesEvictingChunks(kept, promotable []matchedSetItem, need int) {
+	promoted := 0
+
+	for i := len(kept) - 1; i >= 0 && promoted < need; i-- {
+		if kept[i].isChunk {
+			kept[i] = promotable[promoted]
+			promoted++
+		}
+	}
 }
 
 // provenanceRankFor maps a provenance role string to its F7 priority.
@@ -1546,6 +1603,17 @@ func snippet(content string) string {
 	}
 
 	return string(runes[:snippetMaxRunes-1]) + "…"
+}
+
+// sortMatchedByScoreDesc sorts items by score desc, key asc as the tiebreak.
+func sortMatchedByScoreDesc(items []matchedSetItem) {
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].score != items[j].score {
+			return items[i].score > items[j].score
+		}
+
+		return items[i].key < items[j].key
+	})
 }
 
 // splitMatchedSet splits the matched set into separate note and chunk slices
