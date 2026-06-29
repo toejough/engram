@@ -154,7 +154,7 @@ supplementary, notes load-bearing — measured 0 chunk fetches in 13/13 realisti
 recalls, with on-target fetch when a chunk is the sole carrier of a needed fact).
 
 ### candidate_l2s
-The `[{path, cosine}]` field on each cluster in the query payload.
+The `[{path, cosine, content}]` field on each cluster in the query payload (content inlined per O2/#657).
 Nominates up to 5 notes from **within that cluster's own note members** for the
 agent's covered/near/absent coverage decision (top-5 by centroid cosine from
 within-cluster notes only — any matched vault note, regardless of legacy `tier:`

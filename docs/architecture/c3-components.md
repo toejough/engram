@@ -135,7 +135,7 @@ confirm + propose deletion.
   shells `engram learn fact|feedback` as a *new process* per candidate.
 - **K6 payload (to stdout → skill):** `items[]` (matched notes+chunks + recency-channel chunks
   tagged `recent`; notes carry full content inline, chunk items path/source-only under `--lazy-chunks`, fetched via `show-chunk`) ∪ `clusters[].members` (paths, from matched set only) ∪
-  `clusters[].candidate_l2s` (`[{path, cosine}]`, top-5 from within-cluster notes) ∪ `budget`.
+  `clusters[].candidate_l2s` (`[{path, cosine, content}]`, top-5 from within-cluster notes) ∪ `budget`.
   No `nearest_l3` field; no `hubs` field; recency-channel items appear in `items[]` but never in
   any cluster's `members[]`. The skill — not the binary — consumes it and may shell `engram amend`
   (covered/near) or `engram learn` (absent) for recall-time lazy synthesis. Activation is

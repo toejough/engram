@@ -28,7 +28,7 @@ OS process; subcommands never call one another in-process.
 
 **Consequences.** The invariant checker gates C2 (everything in C2 is deterministic and testable);
 skills are gated only by RT acceptance tests. INV-S1 (resolved): the skill no longer touches the
-vault directly — recall reads via `engram show` / `engram show-chunk` / the query payload, and `engram amend`
+vault directly — recall reads via `engram show-chunk` / the query payload (notes carry content inline), and `engram amend`
 (`internal/cli/amend.go`) now provides the sync-preserving in-place edit path (rewrites both copies
 + re-embeds), closing the INV-S1 write-half ("no `engram` edit subcommand").
 

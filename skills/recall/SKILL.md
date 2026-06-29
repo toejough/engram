@@ -74,7 +74,7 @@ engram query --lazy-chunks \
 ```
 
 One call; the binary merges ranking server-side. `engram query` always runs the unified D1
-clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path, cosine}]`
+clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path, cosine, content}]`
 per cluster. Do NOT collapse phrases, do NOT run per-phrase calls.
 
 The payload has **two channels**:
@@ -111,7 +111,7 @@ for coverage purposes.)
 ### Step 2.5 — Lazy note synthesis from the clustering (agent-judged)
 
 The query output's `clusters` list contains the unified clustering of matched chunks
-and notes. Each cluster carries `candidate_l2s: [{path, cosine}]` — the top-5 existing notes
+and notes. Each cluster carries `candidate_l2s: [{path, cosine, content}]` — the top-5 existing notes
 ranked from within that cluster's own matched members (NOT the full vault). A note that did not
 match any phrase will never appear as a candidate. A cluster with no note members yields an empty
 `candidate_l2s` list; skip to the next cluster when that happens. **Process every cluster.** For
@@ -119,9 +119,8 @@ each:
 
 **A. Read candidates and members**
 
-Run `engram show <path>` on every entry in `candidate_l2s` (up to K calls, blocking). For
-note-kind cluster members already in the payload's `items[]` list, use their `content` field
-directly — no additional `engram show` call needed on already-surfaced members. For chunk
+`candidate_l2s` entries carry their `content` inline — read it directly; **no `engram show` calls for
+candidates** (the same content is also on the matching `items[]` note member). For chunk
 members, the content is NOT in the payload (chunks carry path/source only under `--lazy-chunks`;
 the cluster's `members` list never carries content) — `engram show-chunk <source#anchor>` to read the
 evidence on-demand. Do not judge coverage before you have read the candidate content.
@@ -273,7 +272,7 @@ note per conclusion; link all of its inputs.
 | Separate query calls per phrase | One call, repeatable `--phrase` flags |
 | You quoted chunks wholesale into the reply | Extract the principle a chunk evidences; paraphrase |
 | You dispatched cluster-synthesis subagents | Gone — Step 2.5 crystallizes inline from the payload's clusters |
-| You judged coverage before reading the candidate content with `engram show` | Read first — cosine alone cannot decide coverage |
+| You judged coverage before reading the candidate content (now inline in `candidate_l2s`) | Read first — cosine alone cannot decide coverage |
 | You applied a cosine threshold to decide covered/near/absent | Coverage is agent-judged from content; cosine only nominates candidates |
 | A candidate matching only the superseded content → you marked it "covered" | Apply the recency weight first; a candidate that misses the conflict is "near" |
 | You wrote two notes (a fact AND a feedback) for one cluster | One representative note per cluster — pick the right kind |

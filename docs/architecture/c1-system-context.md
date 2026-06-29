@@ -86,7 +86,7 @@ phrases with dedup keeping max score, drops items below a **relevance floor**
 (`matchRelevanceFloor`, baseScore < 0.25), and caps the matched set at **~300**
 (`matchSetCap`, 10×30 per phrase). This bounded matched set is the **only clustering
 input**: one AutoK pass over matched notes+chunks (D1 preserved).
-Each cluster carries `candidate_l2s: [{path, cosine}]` — the top-5 notes from
+Each cluster carries `candidate_l2s: [{path, cosine, content}]` — the top-5 notes from
 **within that cluster** ranked by centroid cosine (reversed from the earlier
 full-vault nomination of D7). The harness then, **inline and blocking**, reads
 the cluster's members and candidates and applies an **agent-judged coverage
@@ -151,10 +151,7 @@ sequenceDiagram
 
     Note over H: Step 2.5 — per-cluster coverage synthesis (loop below)
     loop per cluster (blocking inline) — coverage judged from matched clusters only
-        H->>E: engram show <candidate notes> (only those not already in items[])
-        E->>V: read candidate frontmatter + body + members
-        V-->>E: contents
-        E-->>H: candidate + member contents
+        Note over H: read candidate_l2s + note members' content inline from the payload (no engram show)
         opt a needed fact lives only in a chunk (rare — notes are load-bearing)
             H->>E: engram show-chunk <source#anchor> (fetch deferred chunk text under --lazy-chunks)
             E-->>H: chunk text

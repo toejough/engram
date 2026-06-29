@@ -30,7 +30,7 @@ These directly contradict. The agent must apply the recency tiebreaker to pick t
 when deciding the content for the synthesized/updated L2.
 
 `candidate_l2s` for this cluster lists one candidate note. The agent has already run
-`engram show` on that candidate and found it covers only the older "retry up to 3×" stance
+read that candidate's inline content and found it covers only the older "retry up to 3×" stance
 (matching Member A, not Member B). Under the current SKILL.md, that candidate is **near**
 (matches the superseded content only) — the recency-weighted view picks Member B.
 

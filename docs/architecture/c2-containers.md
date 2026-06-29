@@ -72,7 +72,7 @@ skill shells (C1→C2); all judgment stays in C1; C2 only touches C3 (model), C4
 S5 (sessions). Every arrow is one of: (a) skill shells a subcommand, (b) a
 subcommand touches a store/model/stdout — **never** one subcommand calling another in-process.
 The skill layer no longer reads or edits the vault directly: recall reads candidate/member
-content via `engram show` (notes) and `engram show-chunk` (deferred chunk text under `--lazy-chunks`) plus the query payload, and all writes go through `engram amend` /
+content via `engram show-chunk` (deferred chunk text under `--lazy-chunks`) plus the query payload (notes carry content inline), and all writes go through `engram amend` /
 `engram learn` (INV-S1 resolved — see the C1→C2 row above).
 
 ### Flow: recall
@@ -94,10 +94,9 @@ sequenceDiagram
     Note over E: per phrase: top-30 (notes+chunks, recency-biased cosine); union, dedup max score, drop baseScore < 0.25, cap matched set ~300
     Note over E: Channel 1 (Relevance): ONE AutoK cluster over matched notes+chunks (D1 preserved); candidate_l2s = top-5 from within-cluster notes
     Note over E: Channel 2 (Recency): append newest chunks by IngestedAt (recentFillChunks, default 25), deduped vs matched set, tagged recent — NOT in any cluster
-    E-->>Sk: stdout YAML — items[matched+recent], clusters[].candidate_l2s {path, cosine} (top-5 within-cluster), budget (lazy_chunks: true → chunk items path/source-only; notes keep full content)
+    E-->>Sk: stdout YAML — items[matched+recent], clusters[].candidate_l2s {path, cosine, content} (top-5 within-cluster), budget (lazy_chunks: true → chunk items path/source-only; notes keep full content)
     loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only
-        Sk->>E: shell engram show <candidate notes> (only those not already in items[])
-        E-->>Sk: candidate frontmatter + body + members
+        Note over Sk: read candidate_l2s + note members' content inline (no engram show)
         opt a chunk is the sole carrier of a needed fact (rare — notes are load-bearing; measured 0 fetches in 13/13 realistic recalls, on-target fetch when sole-source)
             Sk->>E: shell engram show-chunk <source#anchor> (fetch deferred chunk text under --lazy-chunks)
             E-->>Sk: chunk text
@@ -160,10 +159,9 @@ sequenceDiagram
 
     Sk->>E: shell engram query --lazy-chunks (fresh process)
     E->>V: scan + build matched set (recency-biased cosine per phrase, bounded ~300) + cluster (D1) + recency channel
-    E-->>Sk: payload incl. items[matched+recent], clusters[].candidate_l2s {path, cosine} (top-5 within-cluster notes)
+    E-->>Sk: payload incl. items[matched+recent], clusters[].candidate_l2s {path, cosine, content} (top-5 within-cluster notes)
     loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only
-        Sk->>E: shell engram show <candidate notes> (only those not already in items[])
-        E-->>Sk: candidate frontmatter + body + members
+        Note over Sk: read candidate_l2s + note members' content inline (no engram show)
         Note over Sk: apply recency weight (recent wins on conflict; old-uncontradicted retained); judge coverage
         alt covered (one representative note already says it)
             Sk->>E: shell engram amend --target <note> --activate --relation <note-srcs> --chunk-source <chunk-ids> (link-enrich, no content rewrite)
@@ -181,7 +179,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A["cluster with candidate_l2s (top-5 within-cluster notes)"] --> B["engram show candidates not in items[] — read frontmatter + body + members"]
+    A["cluster with candidate_l2s (top-5 within-cluster notes)"] --> B["candidate content read inline; chunk members via show-chunk"]
     B --> C["apply recency weight: recent wins on conflict; old-uncontradicted retained"]
     C --> D{coverage?}
     D -->|covered| E["engram amend --target note --activate --relation --chunk-source — link-enrich, no content rewrite"]

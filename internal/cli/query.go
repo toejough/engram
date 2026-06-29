@@ -1496,7 +1496,7 @@ func resolvedItemLess(a, b resolvedItem) bool {
 // (top-matchPhraseLimit=30 per phrase), then unions across phrases with dedup,
 // relevance floor on baseScore, and a hard cap at matchSetCap=300. The
 // resulting matched set is clustered exactly once (D1) and emits per-cluster
-// candidate_l2s [{path, cosine}] so the recall skill can judge coverage.
+// candidate_l2s [{path, cosine, content}] so the recall skill can judge coverage.
 func runQuery(
 	ctx context.Context,
 	args QueryArgs,

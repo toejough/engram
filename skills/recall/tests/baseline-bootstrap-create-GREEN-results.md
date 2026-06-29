@@ -9,7 +9,7 @@ Run against the current SKILL.md (agent-judged covered/near/absent + `candidate_
 | 0 | empty | CREATE | `engram learn fact --position top --relation "3|storage build notes" --source "..."` inline, wait | PASS |
 | 1 | empty | CREATE | `engram learn fact --position top --relation "4|atomic writes" --relation "5|fsync notes" --source "..."` inline, wait | PASS |
 | 2 | 0.97 (content in payload) | COVERED → amend --activate | Read content from `items[]` field directly (no `engram show`); judge: covers "FS interface injection" with no material omission; `engram amend --target 6.2026-05-01.filestore-interface.md --activate --chunk-source ...` | PASS |
-| 3 | 0.85, 0.71, 0.58 | COVERED → amend top candidate | `engram show` on all three candidates; top candidate (0.85) covers storage-format principle; `engram amend --target 7.2026-03-15.storage-format.md --activate --chunk-source 8.2026-05-20.format-migration-notes.md` | PASS |
+| 3 | 0.85, 0.71, 0.58 | COVERED → amend top candidate | read all three candidates' inline content; top candidate (0.85) covers storage-format principle; `engram amend --target 7.2026-03-15.storage-format.md --activate --chunk-source 8.2026-05-20.format-migration-notes.md` | PASS |
 
 **Key evidence the agent would produce:**
 

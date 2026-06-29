@@ -1,6 +1,6 @@
 # Baseline scenario — bootstrap: empty candidate_l2s must produce CREATE
 
-The agent-judged model (Step 2.5) nominates existing L2s via `candidate_l2s: [{path, cosine}]`
+The agent-judged model (Step 2.5) nominates existing L2s via `candidate_l2s: [{path, cosine, content}]`
 per cluster. When a vault has **zero L2 notes**, `candidate_l2s` is empty (or absent) for every
 cluster. Per the SKILL.md "Absent" criterion: **no candidate addresses the situation → CREATE**.
 An empty `candidate_l2s` is definitionally the absent case.

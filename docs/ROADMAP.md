@@ -142,11 +142,13 @@ harness-specific hooks.) Proposals to evaluate (corpus is engram-only — does n
 ### dedupe the double ingest sweep  [small compute/time]
 Recall and learn each run `engram ingest --auto`; collapse the redundant pass. Mechanical.
 
-### Parked — inline `candidate_l2` content  [NOT a cost lever]
-Shipping candidate content inline would cut ~3–8 blocking `engram show` round-trips — a *latency* nicety
-only. The bytes are cache_read-cheap and it ships content the agent may not read, so it is
-~token-neutral-or-worse with **no dollar win** (note 100: payload size ≠ dollars). Pursue only if
-round-trip latency itself becomes the complaint.
+### ✅ SHIPPED — inline `candidate_l2` content (O2, #657)  [latency/clarity, not a $ lever]
+Landed 2026-06-29 (commit `e79d8b37`): `candidate_l2s` carry `content` inline so recall Step 2.5 needs no
+per-candidate `engram show`. **Honest scope:** a behavioral check showed the well-behaved agent already
+cross-referenced `items[]` content (no redundant shows), so the real win is **clarity/robustness** — it removes
+the skill's contradictory "show every candidate" instruction + the cross-reference burden + a latent loophole —
+not a measured round-trip cut. Bytes are cache_read-cheap → no $ win (note 100). #657's L2 was already done;
+**L3a (batch ingest sweep — overlaps the "dedupe the double ingest sweep" item below) + O1 (chunk content-budget) remain open under #657.**
 
 ### Removed — async / non-blocking `learn`  [relocation, not a reduction]
 Detaching the closing `/learn` (~61s) would move it off the *perceived* path but spends the same tokens,
