@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -57,8 +58,9 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 			Phrase       string `yaml:"phrase"`
 			Size         int    `yaml:"size"`
 			CandidateL2s []struct {
-				Path   string  `yaml:"path"`
-				Cosine float32 `yaml:"cosine"`
+				Path    string  `yaml:"path"`
+				Cosine  float32 `yaml:"cosine"`
+				Content string  `yaml:"content"`
 			} `yaml:"candidate_l2s"`
 		} `yaml:"clusters"`
 	}
@@ -76,6 +78,20 @@ func TestRunQuery_ChunkClustersCarryCandidateL2s(t *testing.T) {
 
 	g.Expect(parsed.Clusters).NotTo(BeEmpty(), "matched chunks must be clustered deterministically")
 	g.Expect(clustersWithCandidates).To(BeNumerically(">=", 1), "clusters carry candidate_l2s for the bands")
+
+	// O2: candidate_l2s carry the nominated note's content INLINE, so recall
+	// Step 2.5 needs no per-candidate `engram show` round-trip.
+	candidateContentInlined := false
+
+	for _, c := range parsed.Clusters {
+		for _, cand := range c.CandidateL2s {
+			if strings.Contains(cand.Content, "Always run the linter") {
+				candidateContentInlined = true
+			}
+		}
+	}
+
+	g.Expect(candidateContentInlined).To(BeTrue(), "O2: candidate_l2s must carry note content inline")
 }
 
 func TestRunQuery_MergesChunkAndVaultSpace(t *testing.T) {

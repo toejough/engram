@@ -190,9 +190,10 @@ type aggregatedSummary struct {
 // note members of a single cluster — used for per-cluster nearest-note
 // nomination by max(situation,body) cosine against the cluster centroid.
 type candidateNoteIndex struct {
-	paths []string
-	sit   [][]float32
-	body  [][]float32
+	paths   []string
+	content []string
+	sit     [][]float32
+	body    [][]float32
 }
 
 // clusterReport collects the AutoK output for the payload-rendering
@@ -273,8 +274,9 @@ type queryBudget struct {
 // top-K by centroid cosine (K >= candidateNoteK); the recall skill judges
 // coverage — no cosine-band decision happens in the binary.
 type queryCandidateNote struct {
-	Path   string  `yaml:"path"`
-	Cosine float32 `yaml:"cosine"`
+	Path    string  `yaml:"path"`
+	Cosine  float32 `yaml:"cosine"`
+	Content string  `yaml:"content,omitempty"`
 }
 
 // queryCluster is the cluster shape in the payload.
@@ -734,6 +736,7 @@ func clusterNoteIndexFromMembers(matchSet matchedSet, memberIndices []int) candi
 		}
 
 		idx.paths = append(idx.paths, member.notePath)
+		idx.content = append(idx.content, member.content)
 		idx.sit = append(idx.sit, member.sitVec)
 		idx.body = append(idx.body, member.bodyVec)
 	}
@@ -1660,15 +1663,16 @@ func topKCandidateNotes(centroid []float32, idx candidateNoteIndex) []queryCandi
 	}
 
 	type ranked struct {
-		path   string
-		cosine float32
+		path    string
+		content string
+		cosine  float32
 	}
 
 	all := make([]ranked, 0, len(idx.paths))
 
 	for i := range idx.paths {
 		sim := eitherAxisCosine(centroid, idx.sit[i], idx.body[i])
-		all = append(all, ranked{path: idx.paths[i], cosine: sim})
+		all = append(all, ranked{path: idx.paths[i], content: idx.content[i], cosine: sim})
 	}
 
 	sort.SliceStable(all, func(i, j int) bool {
@@ -1683,7 +1687,7 @@ func topKCandidateNotes(centroid []float32, idx candidateNoteIndex) []queryCandi
 
 	out := make([]queryCandidateNote, count)
 	for i := range count {
-		out[i] = queryCandidateNote{Path: all[i].path, Cosine: all[i].cosine}
+		out[i] = queryCandidateNote{Path: all[i].path, Cosine: all[i].cosine, Content: all[i].content}
 	}
 
 	return out
