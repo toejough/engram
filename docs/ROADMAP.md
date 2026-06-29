@@ -42,17 +42,17 @@ Ranking quality is settled (the floor surfaces the right note; diagnostic surfac
 cluster at mid-task decision cues recall never reaches. Fire recall (or a cheap hook) at the *right moment* so
 the knowledge is present when it's needed.
 
-### ← NEXT — better recall *moments* (failure-mining hooks)  [TIMING / coverage]
-Mined **failure moments** from a 40-transcript stratified sample (main + subagent, 5 repos) with a
-semantic adversarial-auditor detector (haiku; validated == sonnet at single-read size). Result:
-`docs/design/2026-06-28-failure-eval-material.md` (data trail `…-failure-eval-data/`). **137 confirmed
-failures; the shape: 77% UNCOVERED (a decision cue current recall doesn't reach) × 56% APPLICATION
-(rule present, not applied) × 68% SUBTLE (no signal word).** Headline = **candidate new recall moments**: a
-**before-declaring-done** recall checkpoint (~26% of the uncovered set) + a fully-deterministic
-**after-tool-failure-before-retry** PostToolUse hook. ~40% of the corpus is cheaply evalable (tactical
-C3/C5/C6 + a new C7 "source-grounding" axis); ~60% is behavioral (needs a rich-context harness). **Next:**
-prototype one cheap, high-reach moment (the two hooks), gated by the trap harness. Direction note:
-`2026-06-27-mine-failures-as-eval-material.md`.
+### ✅ SHIPPED — recall at the decision moments (CLAUDE.md guidance, not hooks)
+The failure-mining (`docs/design/2026-06-28-failure-eval-material.md`) found **77% of failures at mid-task
+moments current recall never reaches** (before-declaring-done ~26%, after-tool-failure, design fork, final
+verdict). Addressed **2026-06-29 via global CLAUDE.md guidance** — *not* hooks (Joe: hooks are harness-specific
+machinery + a mechanical "recall before X" over-fires ~147×; guidance lets the agent choose contextually,
+harness-agnostic). The guidance says **run `/recall` before you proceed** at those cues, with the key wording:
+*recalling is the action, not a substitute self-check*. RED/GREEN/REFACTOR under neutral framing (no
+spotlighting): control **0/5** recalled at the moment, v1 ~3/5 (leaked at declare-done), tightened v2 **5/5**.
+Bound: it's a 5-scenario proxy + ~56% of failures are *application*-class so some residual gap is expected;
+production is the real test. ~60% of the failure corpus is *behavioral* (needs a rich-context harness — out of
+reach of cheap evals). Direction note: `2026-06-27-mine-failures-as-eval-material.md`.
 
 ### Residual — crystallize question-shaped notes  [QUALITY — deflated by the first wave]
 The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
