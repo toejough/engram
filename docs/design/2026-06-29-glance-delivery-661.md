@@ -125,3 +125,28 @@ C6 where note 72 says retrieval is uninformative?). That requires the **LLM Phas
 needs a glance skill-variant cfg + trap-gate-scale runs (~$30–40 at real bars). **Not run in this pass:**
 Phases 2 (apply verdict), 3 (escalation), 4 (cost + firing-ceiling) await a go, since Gate A established #661
 is a multi-phase LLM eval, not free.
+
+## Phase 2 SMOKE results (2026-06-29) — glance apply-verdict: VIABLE (escalate to full bars)
+
+Smoke-tier glance-vs-deep apply, via a `glance` skill-variant cfg (build_warm_cfg + cap phrases to 3 + a
+GLANCE-MODE override that skips the write side 2.5C/2.6/4, keeps 2.5A/2.5B/2.7/Step-3). Real opus runs,
+sonnet judge (HIT/applied = the agent's plan applies the lesson). Data: `…-data/phase2_smoke*`.
+
+| Axis (apply test) | deep | glance | glance cost vs deep |
+|---|---|---|---|
+| **C6** — abduction (synthesis-sensitive; note 72's "retrieval uninformative" axis) | 6/6 HIT | **6/6 HIT** | $2.04 vs $3.07 (**−33%**) |
+| **C3** — Go conventions (most common) | 6/6 applied | **6/6 applied** | $2.34 vs $2.70 (**−13%**) |
+
+(Plus a 1-rep C6 validation batch: glance 2/2 = deep 2/2.)
+
+**Verdict: glance 12/12 = deep 12/12 apply parity — including C6, where dropping deep's coverage-judge
+elaboration was most likely to hurt (it didn't) — at 13–33% lower cost. No kill signal.**
+
+**Honest bounds:** (1) SMOKE scale (C6 ×3 reps, C3 ×2 reps) — a tie here is *not conclusive* at the trap
+gate's real bars (an underpowered tie is "can't distinguish," not "deep's processing is provably optional");
+the triage rule says **escalate to full bars**, not ship. (2) **C5 untested** — it needs the realistic
+recency-depth fixture (does glance minimizing `--recent-fill` drop the recent-channel note?). (3) **Escalation
+(Phase 3) and cost/firing-ceiling (Phase 4) not yet run.** Smoke spend ≈ $11.7 total.
+
+**Next (the conclusive verdict, separate pass):** Phase 2 at real bars incl. C5 (recency-depth fixture) →
+Phase 3 escalation (sparing vs the Phase-4 break-even + capable) → Phase 4 cost + re-derived firing ceiling.

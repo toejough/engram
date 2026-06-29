@@ -1,0 +1,218 @@
+[
+  {
+    "axis": "C6",
+    "case": "abduction-diag",
+    "arm": "deep",
+    "rep": 0,
+    "ok": true,
+    "cost": 0.5045642
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-diag",
+    "arm": "deep",
+    "rep": 1,
+    "ok": true,
+    "cost": 0.4281807
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-diag",
+    "arm": "deep",
+    "rep": 2,
+    "ok": true,
+    "cost": 0.4204237
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-diag",
+    "arm": "glance",
+    "rep": 0,
+    "ok": true,
+    "cost": 0.3362022
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-diag",
+    "arm": "glance",
+    "rep": 1,
+    "ok": true,
+    "cost": 0.3401967
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-diag",
+    "arm": "glance",
+    "rep": 2,
+    "ok": true,
+    "cost": 0.34089220000000003
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-badge",
+    "arm": "deep",
+    "rep": 0,
+    "ok": true,
+    "cost": 0.5326247000000001
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-badge",
+    "arm": "deep",
+    "rep": 1,
+    "ok": true,
+    "cost": 0.6825117
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-badge",
+    "arm": "deep",
+    "rep": 2,
+    "ok": true,
+    "cost": 0.4969262
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-badge",
+    "arm": "glance",
+    "rep": 0,
+    "ok": true,
+    "cost": 0.3457472
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-badge",
+    "arm": "glance",
+    "rep": 1,
+    "ok": true,
+    "cost": 0.33790820000000005
+  },
+  {
+    "axis": "C6",
+    "case": "abduction-badge",
+    "arm": "glance",
+    "rep": 2,
+    "ok": true,
+    "cost": 0.34011270000000005
+  },
+  {
+    "axis": "C3",
+    "case": "req-with-context",
+    "arm": "deep",
+    "rep": 0,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.518646
+  },
+  {
+    "axis": "C3",
+    "case": "req-with-context",
+    "arm": "deep",
+    "rep": 1,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.4536215
+  },
+  {
+    "axis": "C3",
+    "case": "req-with-context",
+    "arm": "glance",
+    "rep": 0,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.39508750000000004
+  },
+  {
+    "axis": "C3",
+    "case": "req-with-context",
+    "arm": "glance",
+    "rep": 1,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.41847
+  },
+  {
+    "axis": "C3",
+    "case": "wrapped-error",
+    "arm": "deep",
+    "rep": 0,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.47111450000000005
+  },
+  {
+    "axis": "C3",
+    "case": "wrapped-error",
+    "arm": "deep",
+    "rep": 1,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.46720299999999987
+  },
+  {
+    "axis": "C3",
+    "case": "wrapped-error",
+    "arm": "glance",
+    "rep": 0,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.3841275
+  },
+  {
+    "axis": "C3",
+    "case": "wrapped-error",
+    "arm": "glance",
+    "rep": 1,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.38360700000000003
+  },
+  {
+    "axis": "C3",
+    "case": "nil-guard-split",
+    "arm": "deep",
+    "rep": 0,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.3900585
+  },
+  {
+    "axis": "C3",
+    "case": "nil-guard-split",
+    "arm": "deep",
+    "rep": 1,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.39863399999999993
+  },
+  {
+    "axis": "C3",
+    "case": "nil-guard-split",
+    "arm": "glance",
+    "rep": 0,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.364567
+  },
+  {
+    "axis": "C3",
+    "case": "nil-guard-split",
+    "arm": "glance",
+    "rep": 1,
+    "ok": true,
+    "verdict": "applied",
+    "recalled": true,
+    "cost": 0.392995
+  }
+]
