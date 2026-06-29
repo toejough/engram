@@ -23,6 +23,29 @@ Memory has two layers retrieved in ONE call: raw chunks (every past conversation
 The binary resolves the vault and chunk index automatically (`$XDG_DATA_HOME/engram/...`;
 `ENGRAM_VAULT_PATH` / `ENGRAM_CHUNKS_DIR` override). **Do not pass `--vault` or `--chunks-dir`.**
 
+## Modes — `glance` vs `deep` (the depth dial)
+
+Recall runs in one of two **modes**, selected by the caller (the mode word is the skill argument; absent → `deep`):
+
+- **`deep` (default).** The full procedure below — all 10 phrases and the write side (Steps 2.5C, 2.6, Step 4).
+  It both *applies* memory to this decision **and** *grows the vault* (crystallizes, links, persists synthesis).
+  Use it when the decision is weighty or irreversible, when you want recall to also learn, or when in doubt.
+- **`glance` (opt-in, cheap — for firing often).** A pass that is **read-only with respect to vault knowledge**
+  (Step 2.7 `activate` still bumps the used-notes recency metadata — that is kept, not a knowledge write). Run
+  Steps 0–3 with **~3 phrases** (not 10) and **keep the read side** — Step 2.5A (read candidates), **Step 2.5B
+  (apply the recency weight)**, Step 2.7 (activate used notes), and the Step 3 synthesis — but **skip the write
+  side**: Step 2.5C (coverage amend/learn), Step 2.6 (cross-cluster linking), Step 4 (synthesis-persist). Glance
+  *applies* memory to this decision; it does **not** grow the vault's knowledge.
+
+**Escalate `glance` → `deep` for recency-channel standards (C5).** Glance reliably *surfaces* a recent-activity
+(Channel 2) item but does **not** elevate it to a requirement — measured: glance honors a recent-channel
+standard **0/5** where deep honors it **4/5** (#661 full-bars). So if your decision turns on **honoring a
+standard that surfaced in the recent-activity channel** (a "use X going forward" / "the new convention is Y"
+item in Channel 2), **switch to `deep`**. Glance is validated as deep-equivalent only for applying conventions
+(C3), recency *supersession within the matched set* (C4i, via 2.5B), and abduction/synthesis (C6).
+
+Everything below is the `deep` procedure; a **[glance: …]** note marks each step that differs under `glance`.
+
 ## The procedure
 
 ### Step 0 — Print your upfront judgement
@@ -45,6 +68,8 @@ Seconds when nothing changed; guarantees the index includes the latest sessions 
 If it errors, say so and continue — retrieval over a slightly-stale index beats no retrieval.
 
 ### Step 1 — Phrase queries from your plan and situation
+
+> **[glance: generate ~3 phrases, not 10 — the measured retrieval floor, #661 Phase 1. Breadth is for crystallization; glance only needs this decision's lesson.]**
 
 Always generate exactly **10** short queryable phrases, one from each of these angles:
 
@@ -70,7 +95,7 @@ results to the top-30 matches per phrase.
 engram query --lazy-chunks \
   --phrase "<phrase 1>" \
   --phrase "<phrase 2>"
-  # ... one --phrase per Step 1 phrase (always 10)
+  # ... one --phrase per Step 1 phrase (deep: 10; glance: ~3)
 ```
 
 One call; the binary merges ranking server-side. `engram query` always runs the unified D1
@@ -133,6 +158,8 @@ different object in a newer item. When conflict is present: **recent wins**. Whe
 treat older and newer evidence as independently valid — do not demote a stable convention merely
 because it lacks a recent instance.
 
+> **[glance: SKIP Step 2.5C — it is the write side. Read 2.5A + apply 2.5B, do not amend/learn — continue to Step 2.7 (activate).]**
+
 **C. Judge coverage against the recency-weighted view — in this order**
 
 | Outcome | Criterion | Action |
@@ -158,6 +185,8 @@ note created or updated by one cluster may be a candidate for another.
 or created (Absent). Step 2.6 needs the post-2.5 vault state these writes produce.
 
 ### Step 2.6 — Cross-cluster linking (the precision gate, agent-judged)
+
+> **[glance: SKIP Step 2.6 — write side.]**
 
 Gate and persist edges *across* clusters. Recall will form cross-cluster edges whether or not you gate
 them — **ungated, it floods** (links a note to property-*mismatched* notes: "needs sweetness" →
@@ -226,6 +255,8 @@ call when you drew on no notes (e.g., payload was empty or Step 2.5 was skipped)
 
 ### Step 3 — Closing synthesis: did the memories change the plan?
 
+> **[glance: before synthesizing, check for a load-bearing Channel 2 (recent-activity) standard. If your decision turns on honoring a recent convention, escalate to `deep` now — glance surfaces Channel 2 items but does not elevate them to requirements (C5, #661).]**
+
 The user sees this. Rules:
 
 - **Open with the count.** One sentence: "Query surfaced N items (K chunks, M notes); crystallized J lessons."
@@ -237,6 +268,8 @@ The user sees this. Rules:
 - **Length:** as long as honesty about the plan requires; if memory was silent on everything, one sentence.
 
 ### Step 4 — Persist the reasoned conclusion (linked to the inputs that produced it)
+
+> **[glance: SKIP Step 4 — write side. Escalate to `deep` if this decision is worth crystallizing.]**
 
 When your closing synthesis reaches a **sound, non-trivial conclusion that no existing note states** —
 something a future session (or a *less capable model* that can't re-derive it) would want, and that you
@@ -290,3 +323,5 @@ note per conclusion; link all of its inputs.
 | You passed `--activate` on a Step 2.6 amend | 2.6 writes an edge, not a coverage mark — `--activate` is Step 2.5's |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
 | You're recommending a prerequisite or better test as the first step, not the asked task | That displacement IS relitigating the settled task — old reasoning isn't new evidence. Do the asked task; displace only on a NEW fact, stated as a reversal |
+| You ran the write side (2.5C/2.6/Step 4) while in `glance` mode | Glance is read-only w.r.t. vault knowledge — skip the write side; switch to `deep` if you need to crystallize |
+| A recency-channel (Channel 2) standard is load-bearing and you stayed in `glance` | Escalate to `deep` — glance surfaces the recent item but won't elevate it to a requirement (C5, #661) |
