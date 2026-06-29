@@ -98,3 +98,30 @@ bars); **and** if Phase-1 buries that axis, Phase-3 escalation recovers it (**no
 trap-gate-scale LLM runs (~$30–40 at real bars) — **#661 is a multi-phase LLM eval, not "mostly free"** (the
 Gate-A correction). After Phase 1, decide spend on the LLM verdict from its result. All results land as
 **labeled tables with units** (standing requirement).
+
+---
+
+## Phase 1 results (2026-06-29) — retrieval SPEND-GATE: GREENLIT
+
+Free retrieval sweep (`engram query`, bundled embedder, real ~3k-chunk index as background; per-target
+rank, K=top-5). Script: `phase1_sweep.py` (+ a per-case C6 split, since `retrieval_probe`'s C6 conflates
+both abduction cases with case-segregated phrases).
+
+| Axis / case (load-bearing notes) | n=1 | n=2 | n=3 | n=5 | n=10 | retrieval cliff |
+|---|---|---|---|---|---|---|
+| **C3** — 5 Go conventions | all top-5 | ✓ | ✓ | ✓ | ✓ | **n=1** |
+| **C4i** — errcfg supersession marker | rank 1 | ✓ | ✓ | ✓ | ✓ | **n=1** |
+| **C6-zephyr** — 2 premises | top-2 | ✓ | ✓ | ✓ | — | **n=1** |
+| **C6-badge** — 2 premises | buried | buried | top-2 | ✓ | — | **n=3** |
+
+**Verdict:** retrieval holds for `glance` at **n≥3** across every trap axis/case. The phrase-count cliff is
+**n=3** (set by the most oblique abduction case), so the glance phrase floor is **~3, not 2** (the sweep names
+it, per the design's instruction not to pre-assert). The "cutting phrases buries un-guessable notes" dead-end
+bites only at n<3. The matched-note floor keeps the seeded notes in top-5 despite the real chunk background.
+
+**Spend-gate decision: GREENLIT.** Retrieval is not the bottleneck at n≥3 → the remaining open question is the
+**apply/elaboration effect** (does dropping 2.5C's coverage-judge cost application? does deep's synthesis lift
+C6 where note 72 says retrieval is uninformative?). That requires the **LLM Phase 2** (the verdict) — which
+needs a glance skill-variant cfg + trap-gate-scale runs (~$30–40 at real bars). **Not run in this pass:**
+Phases 2 (apply verdict), 3 (escalation), 4 (cost + firing-ceiling) await a go, since Gate A established #661
+is a multi-phase LLM eval, not free.
