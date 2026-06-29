@@ -35,8 +35,24 @@ Classify each unit and dispatch accordingly. Aligns with `audit.md`'s Model Leve
 | Complex / nuanced judgment (architecture, cross-cutting refactor, hard debugging) — decompose first, then delegate the pieces | decompose first → delegate the pieces; if irreducible, one focused agent | opus (or sonnet at high effort) | high |
 | Deep thinking (open-ended analysis, design exploration) — delegated so it is not diluted by orchestrator context | `general-purpose`, fresh context | opus | high |
 
-**Resolution:** default to the cheapest tier that can plausibly do the unit; upgrade a tier if the
-cheaper one fails; reserve opus for units that genuinely need it.
+**Route by tier, not model name.** The columns are **capability tiers** (cheap / mid / deep) that map to
+whatever roster is available. The model names above are only the *current* instantiation (cheap=haiku,
+mid=sonnet, deep=opus). When the roster changes (new model, different harness), re-fill the tiers — do **not**
+rewrite the rubric per model. Route on the *needs of the unit* against the *capabilities of the available tiers*.
+
+**Resolution:** default to the cheapest tier that can plausibly do the unit; **upgrade a tier if the cheaper
+one fails**; reserve the deep tier for units that genuinely need it.
+
+**Memory discounts the tier.** Estimate the tier a unit's *intrinsic* difficulty needs — then **drop one tier
+when the unit is memory-backed**: its needed knowledge is recallable (a known convention, a prior decision, a
+crystallized diagnostic or lesson) and the recall-first step surfaces it, so the model *applies* recalled
+knowledge instead of *deriving* it. Memory substitutes for model capability. A unit that *looks* like deep
+judgment but whose answer is recallable → mid tier; a moderate-but-recallable unit → cheap tier. The discount
+is **one tier, floored at the cheap tier**; the upgrade-if-the-cheaper-fails rule self-corrects an
+over-aggressive discount, so apply it optimistically. (Measured 2026-06-28 at the deep→mid boundary: a
+mid-tier model + memory fully matched the deep tier + memory across convention-application,
+recency-supersession, and abduction, while the mid tier *without* memory failed — vault note 135. Other tier
+boundaries are inferred, hence the upgrade safety net.)
 
 ## Two rules every dispatch obeys
 
@@ -56,4 +72,6 @@ cheaper one fails; reserve opus for units that genuinely need it.
 | "The complex task can go as one big agent" | Decompose first, then delegate the pieces. |
 | "The subagent has the prompt, skip its recall" | Recall-first is non-waivable; vault memory is part of the work. |
 | You picked one model for a mixed batch | Classify each unit independently; tiers differ per unit. |
+| You picked a high tier for a unit whose answer is **recallable** (a known convention, prior decision, crystallized lesson) | Discount one tier — memory substitutes for capability; the subagent *applies* recalled knowledge, it doesn't *derive* it. |
+| You hardcoded a model name (haiku/sonnet/opus) as the rule | Route by **tier**; names are just the current roster. A new model re-fills a tier, it doesn't change the rubric. |
 | "Deciding the architecture is thinking, so I'll think it through myself" | Deep thinking is delegated to a fresh-context agent precisely so it can focus. You synthesize its return. |
