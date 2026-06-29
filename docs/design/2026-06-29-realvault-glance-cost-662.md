@@ -81,3 +81,35 @@ Verdict line: BUILD / DON'T-build the split + the relaxation factor + whether th
 - One **densest-case** task; N≥5 controls rep noise, not task-to-task payload variance (the densest-case framing
   makes a marginal verdict generalize). Delivery is **not** re-measured (#661 settled: glance delivers
   C3/C4i/C6, fails C5).
+
+---
+
+## Result (2026-06-29) — BUILD the glance/deep split
+
+Recall-only, glance cfg vs deep cfg, **per-rep fresh copy of the live vault** (~120 notes / ~3.4k chunks),
+N=5, densest-case Go task. **Payload floor met:** the copy's 10-phrase query returned **167 chunk items /
+~120KB** (real scale — deep did the agent-side show-chunk/crystallize loop, 8–12 turns).
+Data: `…-661-data/realvault_cost_results.json` + `realvault_cost.py`.
+
+| arm | wall-time (s, mean[range]) | $ (mean) | turns |
+|---|---|---|---|
+| **deep** | 94 [82–130] | 0.78 | 10 |
+| **glance** | 42 [35–61] | 0.42 | 7 |
+| **Δ / ratio** | **−52s / 2.23×** | **−46%** | −3 |
+
+**Verdict: BUILD.** Glance is **2.23× faster** and **~46% cheaper** per fire on a real vault — and the
+**wall-time** distributions are non-overlapping (every glance run < every deep run), a firmer signal than the barely-
+cleared Δ(52s) > spread(49s) noise check (note 96). The wall-time ratio IS the firing-ceiling relaxation factor
+(note 140): the dial buys ~2.2× firing-headroom. The **$ gap grew with scale** (7% on #661's tiny vault → 46%
+here) — deep's crystallization writes emit output tokens glance skips (as predicted). This **reverses** the
+skeptical prior: #661's 1.2× was a small-vault artifact; the real value is material. Measure-first earned its
+keep — it confirmed the value rather than killing the dial on a misleading number.
+
+**Honest bounds:** deep is **~94s, not the ~190s premise** — so the absolute per-fire saving is a moderate
+~52s, not ~150s (the ~190s may have been a heavier task / pre-`--lazy-chunks`). This is the **densest-case**
+task; lighter tasks save less. The win is **per-fire recall latency/headroom, not end-to-end op cost** (notes
+77/95 — the build loop still dominates end-to-end). The cost-independent **C5 recency-apply fix + #657 O2/L2
+cuts** proceed regardless.
+
+**→ #662 greenlit:** build glance/deep modes (3-phrase glance + skip write-side), land O2/L2, route C5-type
+recency cues to deep (or fix recent-channel apply), trap-gate GREEN before/after.

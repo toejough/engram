@@ -115,16 +115,17 @@ subsequent build turn — not its size (the bytes are cheap to cache-read once �
 requirements survive in context; only the raw payload is dropped. Measure with the `recall_cost` USD-meter
 (unbundles recall $ from build $). Lowest-risk real-dollar win.
 
-### Recall depth dial (was: shrink the recall procedure)  [WALL-TIME, ~190s tax]  ← DESIGNED 2026-06-29 (Item 1 = next step)
+### Recall depth dial (was: shrink the recall procedure)  [WALL-TIME tax]  ← #661 DONE · #662 greenlit (real-vault de-risk: glance 2.2× faster / 46% cheaper per fire)
 The "two-speed" split is now designed: **`docs/design/2026-06-29-recall-depth-dial-design.md`** — a 2-rung
 **glance/deep** dial via a read-vs-write split (glance = retrieve + recency-resolve + apply, no crystallization writes;
 deep = adds crystallization). It attacks **per-fire-cost** (note 109), so frequent firing becomes affordable —
 *relaxing* the over-fire ceiling, not dissolving it (cheap ≠ free), with the **value** gate still holding
-(memory net-negative on non-idiosyncratic work — note 99 / commit f0213f6d). **3 gated items,
-measure → build → ship:** (1, #661) investigate whether `glance` *delivers* the lesson + escalation works
-(cheap, no build; reuses the `recall_cost` $METER + trap gate); (2, #662) build the glance/deep modes + #657's
-safe cuts (O2 binary, L2 skill-side), trap-gated; (3, #663) lower the decision-moment guidance's *cost* bar
-(not its value aim). **Honest caveats:** the win
+(memory net-negative on non-idiosyncratic work — note 99 / commit f0213f6d). **3 gated items, measure → build → ship:** (1, #661 ✅ DONE) `glance` DELIVERS C3/C4i/C6 at the verified
+bars but FAILS C5 (it surfaces the recency item but applies it 0/5 vs deep 4/5 — retrieval ≠ delivery); cost
+de-risked on a **real-scale vault** (glance **2.23× faster / 46% cheaper** per fire; #661's tiny-vault 1.2× was
+a misleading artifact — `2026-06-29-realvault-glance-cost-662.md`). (2, #662 ✅ greenlit) build the glance/deep
+modes + #657's safe cuts (O2 binary, L2 skill-side) + **route C5-type recency cues to deep**, trap-gated.
+(3, #663) lower the decision-moment guidance's *cost* bar (not its value aim). **Honest caveats:** the win
 is shaving the per-fire tax, not beating a cold build; and the skill's *auto-trigger* rate stays
 description-driven and unchanged (note 100) — the deliberate rise in *cue-firing* is Item 3's guidance change,
 affordable because each `glance` fire is cheap. Gate hard: the read-side win-nucleus (incl. Step-2.5B
