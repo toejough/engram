@@ -1,12 +1,14 @@
 # Engram roadmap — retrieval quality & cost
 
-Two tracks, in priority order. **Track A — quality** (does the *right knowledge* surface for a search?) now
-leads: the 2026-06-28 note-floor showed quality, not efficiency, was the load-bearing problem — notes were
-nearly invisible in real recall, and fixing that cheaply mattered more than any payload-size cut. **Track B —
-cost** (the token/dollar/wall-time tax) is the original efficiency work, still live but secondary. A lever
-counts only if it moves a real axis (quality measured by the retrieval probe + value test; cost by actual
-tokens/dollars/wall-time — relocating work off the *perceived* path is not a reduction, note 100). **Do one at
-a time, ship each gated, measure, then take the next.**
+**Retrieval *ranking* quality is largely solved (2026-06-28).** The note-floor fixed the drowning (notes were
+nearly invisible in real recall; they now surface at the embedder's ceiling), and the follow-on probes found
+diagnostic surfacing healthy (recall@5 0.99) and crystallization-quality a smaller lever than the audit
+implied. So the *"is the right note retrievable"* question is answered — yes. The **two live frontiers** are
+now: **Track A — recall *timing / coverage*** (fire recall at the *right moments*, so the surfaced knowledge is
+actually present when a decision is made) and **Track B — cost** (run memory-backed reasoning on *cheaper
+tiers* — the biggest $ lever found). A lever counts only if it moves a real axis (quality by the retrieval
+probe + value test + trap gate; cost by actual tokens/dollars/wall-time — relocating work off the *perceived*
+path is not a reduction, note 100). **Do one at a time, ship each gated, measure, then take the next.**
 
 ## Where we are
 
@@ -33,22 +35,14 @@ matched-note floor is a *deliberate, gated* change to matched-note retrieval —
 drowning was eroding, trap gate GREEN; see the exception rationale in
 `docs/superpowers/plans/2026-06-28-note-vs-chunk-ranking.md`.)
 
-# Track A — Retrieval quality (does the right knowledge surface?)
+# Track A — Recall timing / coverage (is the knowledge present when the decision is made?)
 
-The floor made a good note *surface*; the open levers make the notes *worth* surfacing and fire recall at the
-*right moment*. This is now the highest-value track.
+Ranking quality is settled (the floor surfaces the right note; diagnostic surfacing 0.99). The open lever is
+*timing* — recall fires at coarse moments (task-init, subagent recall-first, the parent brief), but failures
+cluster at mid-task decision cues recall never reaches. Fire recall (or a cheap hook) at the *right moment* so
+the knowledge is present when it's needed.
 
-### crystallize question-shaped notes  [QUALITY — deflated by the first wave; smaller than thought]
-The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
-**cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79%). **But the first wave
-(2026-06-28) deflated this lever** (`…question-shaped-crystallization-proposals.md` §First-wave results):
-diagnostic surfacing is healthy (recall@5 0.99, **#4 dropped**); the prose-rule RED baseline *passed* (fresh
-agents already write question-shaped handles when focused), so the audit's gap is a session-load/old-notes
-artifact. **Residual lever (if pursued):** the deterministic retroactive `engram resituate` to clean up the
-existing topic-shaped handles, then re-audit. Lower priority now — the first wave's real win was **#7
-(weaker-model reuse)**, promoted to Track B's NEXT.
-
-### Better recall *moments* — from the failure-mining analysis  [QUALITY / coverage]
+### ← NEXT — better recall *moments* (failure-mining hooks)  [TIMING / coverage]
 Mined **failure moments** from a 40-transcript stratified sample (main + subagent, 5 repos) with a
 semantic adversarial-auditor detector (haiku; validated == sonnet at single-read size). Result:
 `docs/design/2026-06-28-failure-eval-material.md` (data trail `…-failure-eval-data/`). **137 confirmed
@@ -59,6 +53,16 @@ failures; the shape: 77% UNCOVERED (a decision cue current recall doesn't reach)
 C3/C5/C6 + a new C7 "source-grounding" axis); ~60% is behavioral (needs a rich-context harness). **Next:**
 prototype one cheap, high-reach moment (the two hooks), gated by the trap harness. Direction note:
 `2026-06-27-mine-failures-as-eval-material.md`.
+
+### Residual — crystallize question-shaped notes  [QUALITY — deflated by the first wave]
+The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
+**cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79%). **But the first wave
+(2026-06-28) deflated this lever** (`…question-shaped-crystallization-proposals.md` §First-wave results):
+diagnostic surfacing is healthy (recall@5 0.99, **#4 dropped**); the prose-rule RED baseline *passed* (fresh
+agents already write question-shaped handles when focused), so the audit's gap is a session-load/old-notes
+artifact. **If pursued:** the deterministic retroactive `engram resituate` to clean up the existing
+topic-shaped handles, then re-audit. Low priority — the first wave's real win (#7, weaker-model reuse) is now
+Track B's NEXT.
 
 ### Ranking follow-ups — only if the floor proves too blunt  [QUALITY]
 The note-floor (shipped, see Done) reserves up to `noteFloorK=5` per-phrase slots. If it proves blunt (caps
@@ -133,9 +137,10 @@ dollars, and total wall-time — it hides cost, it does not cut it. Does not mov
 - ✅ **Recent-fill cut — 2026-06-27** (`--recent-fill`, 200→25): payload **−28%** (230→165 KB), trap gate
   GREEN, `targ check-full` clean. Cumulative with lazy-chunks: ~230→97 KB (**~−58%**).
 
-> **Note:** the recent-fill cut was the *safe biggest single* payload reducer, done first. It does
-> NOT close **#1** (the matched-set clusters-first/lazy-content restructure) — that remains the next
-> structural cost win (~40-80s) once we decide the −28% slice isn't enough.
+> **Note:** the recent-fill cut was the *safe biggest single* payload reducer, done first. It does NOT close
+> the **matched-set clusters-first / lazy-content payload restructure** — a remaining structural *time/paging*
+> cost win (~40-80s) if the −28% slice isn't enough. Smaller than the tier-routing $ lever above; pursue only
+> if paging time becomes the complaint.
 
 ## Dead ends (measured — do not revisit)
 Payload-size cap *for dollars* (payload is cheap cache_read); whole-op or split **haiku** (−14%, broke
