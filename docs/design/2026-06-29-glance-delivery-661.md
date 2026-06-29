@@ -150,3 +150,43 @@ recency-depth fixture (does glance minimizing `--recent-fill` drop the recent-ch
 
 **Next (the conclusive verdict, separate pass):** Phase 2 at real bars incl. C5 (recency-depth fixture) →
 Phase 3 escalation (sparing vs the Phase-4 break-even + capable) → Phase 4 cost + re-derived firing ceiling.
+
+## Full-bars verdict (2026-06-29) — glance ships for 3/4 axes; C5 keeps deep; cost is scale-dependent
+
+`gate.py --tier full` (verified bars: C3 5conv×5, C4i ×5, C5 ×5, C6 2×4) on **both** arms, same conditions:
+deep = the repo recall skill; glance = a skill-variant (cap 3 phrases + skip the write side 2.5C/2.6/4; keep
+2.5A read / 2.5B recency-resolve / 2.7 activate / Step-3 apply). GREEN = the axis hits its exact verified bar.
+Data: `…-data/fullbars/{deep,glance}/`.
+
+| Axis (full bars) | deep | glance | glance verdict |
+|---|---|---|---|
+| **C3** — apply un-guessable conventions | 25/25 (GREEN) | **25/25 (GREEN)** | **delivers** |
+| **C4i** — recency supersession (2.5B) | 5/5 (GREEN) | **5/5 (GREEN)** | **delivers** |
+| **C6** — abduction / synthesis | 8/8 (GREEN) | **8/8 (GREEN)** | **delivers** |
+| **C5** — honor a recency-channel standard | surfaced 5/5, **honored 4/5** | surfaced 5/5, **honored 0/5** | **FAILS (apply, not retrieval)** |
+
+**Verdict: ship `glance` as default for C3 / C4i / C6 (full parity at the verified bars); fall back to `deep` for
+C5-type recency-channel standards** (deep is only *relatively* better at 4/5 — recency-channel
+*apply* is hard for both; #662 owns the real fix).
+
+**The C5 failure vindicates the Gate-A correction.** Glance **surfaces** the recency marker R every time
+(5/5 — the recency channel is intact, glance keeps `--recent-fill` at default) but **applies it 0/5** (deep
+4/5). Retrieval held; *delivery* didn't — exactly the `retrieval ⇏ delivery` gap notes 119/72/83 forced into
+the protocol. Treating Phase-1 retrieval as the verdict (as I first framed it) would have shipped a broken C5.
+The lighter glance pass surfaces the recent-channel item but doesn't elevate it to a requirement; deep's
+heavier pass does. **For #662:** either add a glance step that applies recent-channel standards, or scope
+glance to non-recency content and **escalate C5-type cues to deep** (a concrete escalation requirement).
+
+**Cost (Phase 4, recall-only): scale-dependent, and smaller than the premise on eval-scale vaults.**
+On the trap-scale **isolated** vault (5 notes, empty chunk index): glance **30s / $0.28** vs deep **35s /
+$0.30** — only **1.2× faster**, because deep recall is *already cheap* there (nothing to page, little to
+crystallize). The **~190s deep recall** that motivated the dial (notes 91/93) is a **large-vault** phenomenon
+(real ~3k-chunk index: ~95s Step-2 paging + crystallization). So the glance cost win — and the relaxed firing
+ceiling (note 109) — **grows with vault size**: marginal on small vaults, material on large ones (Joe's real
+vault). This run cannot quantify the real-vault saving (note 94: verify what the metric measures — these
+vaults make deep cheap). Gate per-cell op costs did show glance consistently cheaper (e.g. C6 ~$0.33 vs ~$0.47).
+
+**Bounds:** escalation (Phase 3) not separately run — it is the #662 production mechanism, and the C5 finding
+makes "escalate recency-channel cues to deep" a concrete #662 requirement. Deep's C5 4/5 (vs the 5/5 bar) is
+mild flak on a hard honor-task; the glance-vs-deep *contrast* (0/5 vs 4/5) is categorical. Real-vault cost
+saving is a clean follow-up (needs a large isolated vault copy to avoid polluting the live vault).

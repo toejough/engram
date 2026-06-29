@@ -1,0 +1,33 @@
+{
+ "verdict": "RED",
+ "axes": {
+  "C3": {
+   "valid": 25,
+   "contaminated": 0,
+   "passed": 25,
+   "bar": 25,
+   "status": "GREEN"
+  },
+  "C4i": {
+   "valid": 5,
+   "contaminated": 0,
+   "passed": 5,
+   "bar": 5,
+   "status": "GREEN"
+  },
+  "C5": {
+   "valid": 5,
+   "contaminated": 0,
+   "passed": 0,
+   "bar": 5,
+   "status": "RED"
+  },
+  "C6": {
+   "valid": 8,
+   "contaminated": 0,
+   "passed": 8,
+   "bar": 8,
+   "status": "GREEN"
+  }
+ }
+}
