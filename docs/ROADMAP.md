@@ -84,16 +84,17 @@ The original efficiency work. Per note 100: payload **size** is cache_read-cheap
 dollars); the only verified **dollar** lever is pruning the payload out of build context after Step 3; the
 **token+time** lever is shrinking the procedure itself.
 
-### ← NEXT (cost) — route memory-backed reasoning to a cheaper tier  [DOLLARS — the biggest $ lever found]
-**Validated 2026-06-28** (vault note 135; `docs/design/2026-06-28-question-shaped-crystallization-proposals.md`):
-**sonnet + memory fully matches opus + memory** across 3 capability axes (C3 15/15, C4i 3/3, C6 6/6), while
-sonnet *without* memory fails (cold 0/N) — and sonnet is ~25–30% cheaper/trial + a faster tier. *Memory
-democratizes reasoning across model tiers.* So for any task where the needed knowledge is crystallized and
-recalled, a cheaper model suffices. **Lever:** teach the `route` skill to route memory-backed reasoning to a
-cheaper tier. Bound: C5 axis flaked (re-run); a SKILL.md edit → writing-skills TDD applies. Far bigger than
-the payload-$ lever (whole-task model downgrade vs ~$1/op).
+### ✅ SHIPPED — tier-routing: memory discounts the model tier  [DOLLARS — the biggest $ lever found]
+**Validated + shipped 2026-06-28** (route skill, commit `2bf959f4`; vault note 135;
+`docs/design/2026-06-28-question-shaped-crystallization-proposals.md`). The finding — *memory democratizes
+reasoning across model tiers*: sonnet+memory fully matched opus+memory across C3 (15/15), C4i (3/3), C6 (6/6)
+while sonnet *cold* failed — is wired into `route/SKILL.md` **model-agnostically**: route by *tier* (not model
+name; the roster re-fills the tiers), and **drop one tier for memory-backed units** (the model applies recalled
+knowledge vs derives it). RED/GREEN: the router over-provisioned 4/6 memory-backed units to mid; the rule
+discounts. Bound: measured at the deep→mid boundary; other boundaries inferred (the upgrade-if-cheaper-fails
+rule is the safety net); C5 axis flaked (re-run). Whole-task downgrade — far bigger than the payload-$ lever.
 
-### payload-prune-after-Step-3  [DOLLARS — verified $ lever, ~$1/op]
+### ← NEXT (cost) — payload-prune-after-Step-3  [DOLLARS — verified $ lever, ~$1/op]
 Drop the raw ~97 KB query payload out of the build's *ongoing* context once Step 3 has synthesized the
 requirements list. The real warm-over-cold dollar premium is *carrying* the payload across every
 subsequent build turn — not its size (the bytes are cheap to cache-read once — note 100). The synthesized
