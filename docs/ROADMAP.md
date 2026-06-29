@@ -39,20 +39,34 @@ drowning was eroding, trap gate GREEN; see the exception rationale in
 
 Ranking quality is settled (the floor surfaces the right note; diagnostic surfacing 0.99). The open lever is
 *timing* — recall fires at coarse moments (task-init, subagent recall-first, the parent brief), but failures
-cluster at mid-task decision cues recall never reaches. Fire recall (or a cheap hook) at the *right moment* so
+cluster at mid-task decision cues recall never reaches. Fire recall at the *right moment* so
 the knowledge is present when it's needed.
 
 ### ✅ SHIPPED — recall at the decision moments (CLAUDE.md guidance, not hooks)
 The failure-mining (`docs/design/2026-06-28-failure-eval-material.md`) found **77% of failures at mid-task
-moments current recall never reaches** (before-declaring-done ~26%, after-tool-failure, design fork, final
-verdict). Addressed **2026-06-29 via global CLAUDE.md guidance** — *not* hooks (Joe: hooks are harness-specific
-machinery + a mechanical "recall before X" over-fires ~147×; guidance lets the agent choose contextually,
-harness-agnostic). The guidance says **run `/recall` before you proceed** at those cues, with the key wording:
-*recalling is the action, not a substitute self-check*. RED/GREEN/REFACTOR under neutral framing (no
-spotlighting): control **0/5** recalled at the moment, v1 ~3/5 (leaked at declare-done), tightened v2 **5/5**.
-Bound: it's a 5-scenario proxy + ~56% of failures are *application*-class so some residual gap is expected;
-production is the real test. ~60% of the failure corpus is *behavioral* (needs a rich-context harness — out of
-reach of cheap evals). Direction note: `2026-06-27-mine-failures-as-eval-material.md`.
+moments current recall never reaches** (top: before-declaring-done ~26%, after-tool-failure-before-retry,
+before-writing-code/first-edit on a new approach). Addressed **2026-06-29 via global CLAUDE.md guidance** —
+*not* hooks (Joe: hooks are harness-specific + a mechanical "recall before X" over-fires ~147×–380×, fatal at
+~190s/fire; guidance lets the agent choose contextually, harness-agnostic). Three cues — **before declaring
+done**, **after a failure you can't explain** (once, before guessing), **before building a new approach** —
+each gated by a cost-filter ("fire only when you expect a vault-specific gotcha"), scoping firing to
+idiosyncratic unloaded content (the one regime where memory is a clean win — note 99). Key wording: *recalling
+is the action, not a substitute self-check*.
+
+**Gate-A cost/over-fire review hardened it.** The first draft also carried "before a final verdict" (**cut** —
+double-recalls with the please/route reviewers that already recall-first at task-init) and an unscoped "after a
+tool fails / before retrying" (**tightened** to a failure you *can't explain*, *once* — a debug loop would
+otherwise re-fire it per retry). The guidance knowingly trades the mechanical-hook over-fire for an
+agent-judgment bet; the "use a free Stop-hook instead" alternative is out of scope (Joe: no hooks).
+
+**Re-validation: clean RED 0/5 → GREEN 4/5** (headless `claude -p` — fresh process, fictional domains; the
+in-session *subagent* method was invalid, control inherited the treatment — see `…revalidation-data/results.md`).
+The single GREEN non-recall is the cost-filter correctly staying silent on an obvious-infra failure
+(connection-refused → env check) while the *puzzling* failure recalled — the after-failure cue **discriminates,
+not over-fires**. Data: `docs/design/2026-06-29-recall-moments-revalidation-data/`. Bound: small proxy; the
+failures split ~56% *application*-class (lesson present, unapplied — the cue's target) and, on a separate cut,
+~60% *behavioral* (needs a rich-context harness, out of reach of cheap evals). Direction note:
+`docs/design/2026-06-28-failure-eval-material.md`.
 
 ### Residual — crystallize question-shaped notes  [QUALITY — deflated by the first wave]
 The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
@@ -113,9 +127,10 @@ the body holds the win-nucleus.
 **Trigger analysis (2026-06-27) — when should recall fire, cheaply?** See
 `docs/design/2026-06-27-recall-trigger-patterns-and-proposals.md`. Verdict: **not** "recall before tool
 calls" (~147× over-fire) — the wins are a narrow task-type trigger + a **two-speed quick-probe** (the
-execution-cost half of this lever), a free note-negation **re-rank** (#655), a please **reconcile gate**
-(#656), and deterministic **hooks**; ~28% of corrections are a write-side/capture ceiling no trigger
-reaches. 10 proposals to evaluate (corpus is engram-only — does not auto-generalize).
+execution-cost half of this lever), a free note-negation **re-rank** (#655), and a please **reconcile gate**
+(#656); ~28% of corrections are a write-side/capture ceiling no trigger
+reaches. (The analysis also proposed deterministic hooks — since dropped; Joe chose CLAUDE.md guidance over
+harness-specific hooks.) Proposals to evaluate (corpus is engram-only — does not auto-generalize).
 
 ### dedupe the double ingest sweep  [small compute/time]
 Recall and learn each run `engram ingest --auto`; collapse the redundant pass. Mechanical.

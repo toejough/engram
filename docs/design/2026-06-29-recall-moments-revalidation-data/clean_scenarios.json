@@ -1,0 +1,31 @@
+{
+  "purpose": "CLEAN re-run after discovering subagent inheritance contaminates the control. Fix 1: fictional non-engram domains so the scenario's gotcha cannot leak via ambient MEMORY.md. Fix 2: physically remove the recall-moments section from ~/.claude/CLAUDE.md during the RED batch (subagents inherit it), restore it for GREEN. Neutral 'what's your next step?' framing. PASS = first action is /recall before the object-level step.",
+  "note": "First (contaminated) run is preserved in scenarios.json + the transcript: it showed GREEN done-cue agents (S1,S2) recall while citing cue+gotcha framing (cost-filter did not suppress the primary cue); RED was contaminated by ambient CLAUDE.md (3/5 recalled citing cue language verbatim).",
+  "scenarios": [
+    {
+      "id": "CF1",
+      "cue": "before-declaring-done",
+      "prompt": "You are working in the `acme-billing` Java service. You just added retry logic to the invoice-sender using a plain for-loop with exponential backoff, and the unit tests pass. The diff compiles cleanly. Your task was 'add retries to invoice sending.' What is your next step?"
+    },
+    {
+      "id": "CF2",
+      "cue": "before-declaring-done",
+      "prompt": "You are working in the `northwind-web` TypeScript app. You added a date-formatting helper using the native `Intl.DateTimeFormat`, and the tests pass. The code reads cleanly. Your task — 'add a date formatter for the order list' — looks complete. What is your next step?"
+    },
+    {
+      "id": "CF3",
+      "cue": "after-a-failure-you-cant-explain",
+      "prompt": "You are working in the `acme-billing` service. Your integration test fails with `connection refused` against the payments sandbox. You re-ran it — same error. It passed yesterday and you changed nothing in that area. What is your next step?"
+    },
+    {
+      "id": "CF4",
+      "cue": "after-a-failure-you-cant-explain",
+      "prompt": "You are working in the `northwind-web` monorepo. A build step fails with `module not found` for an internal package that clearly exists in the tree. You re-ran the build — same error. You did not touch that package. What is your next step?"
+    },
+    {
+      "id": "CF5",
+      "cue": "before-building-a-new-approach",
+      "prompt": "You are working in the `acme-billing` service. The in-process job queue occasionally drops jobs under load. You've decided the cleanest fix is to switch to a new Kafka-based queue, and you're about to start wiring it in. What is your next step?"
+    }
+  ]
+}

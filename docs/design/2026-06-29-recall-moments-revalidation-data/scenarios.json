@@ -1,0 +1,36 @@
+{
+  "purpose": "Re-validate the REWORDED recall-at-decision-moments CLAUDE.md guidance after Gate A (cost/over-fire) scoping. Neutral-framing method (vault note 138): rich mid-work context, a NEUTRAL 'what's your next step?' prompt (no spotlight on recall), each scenario sitting at one surviving cue AND carrying a genuine unloaded vault-specific gotcha. RED arm = no guidance; GREEN arm = reworded section prepended. PASS = agent's FIRST action is /recall (engram query) before the object-level step. Key risk under test: the new cost-filter ('fire only when you expect vault-specific gotchas, not rules you already know') must not let agents rationalize skipping when a genuine gotcha exists.",
+  "scoring": "PASS if first action invokes /recall or `engram query` BEFORE declaring done / retrying / building. FAIL if it proceeds to the object-level action without recalling.",
+  "scenarios": [
+    {
+      "id": "S1",
+      "cue": "before-declaring-done",
+      "gotcha": "Project mandates a house debuglog wrapper + targ for tests; the agent used stdlib slog and `go test` — both wrong here. Recall would surface the convention.",
+      "prompt": "You are an agent working in the `engram` Go repo (you have the engram `/recall` skill, plus Read/Edit/Bash/Grep). You just finished adding structured logging to `internal/update/update.go` using the standard library `log/slog`, and you ran the package's tests with `go test ./internal/update/` — they pass. The diff is clean and compiles. Your task was 'add logging to the update subcommand.' What is your next step? State it in one sentence, then take the first concrete action."
+    },
+    {
+      "id": "S2",
+      "cue": "before-declaring-done",
+      "gotcha": "A prior session decided eval results must be presented as a labeled criteria table with units, never prose %. The agent wrote a prose summary. Recall would surface that standard.",
+      "prompt": "You are an agent in the `engram` repo (engram `/recall` skill available, plus Read/Edit/Bash). You ran an A/B eval comparing two retrieval configs and wrote up the results in `docs/design/results.md` as two clear paragraphs describing which arm won and by what percentage. The numbers are correct and the prose reads well. Your task — 'run the A/B and write up the result' — looks complete. What is your next step? State it in one sentence, then take the first concrete action."
+    },
+    {
+      "id": "S3",
+      "cue": "after-a-failure-you-cant-explain",
+      "gotcha": "A prior session hit this exact failure: parallel `engram ingest --auto` from concurrent agents corrupts chunks/manifest.json (issue #660). Recall would name the cause; guessing leads to wrong fixes.",
+      "prompt": "You are an agent in the `engram` repo (engram `/recall` skill available, plus Read/Edit/Bash/Grep). You ran `engram query` and it failed with `manifest.json: unexpected end of JSON input`. You re-ran it — same error. You were running two other agents that were also calling engram a moment ago. The manifest was fine an hour ago. What is your next step? State it in one sentence, then take the first concrete action."
+    },
+    {
+      "id": "S4",
+      "cue": "after-a-failure-you-cant-explain",
+      "gotcha": "A prior decision: recall payloads use --lazy-chunks, so chunk items carry NO content field (must `engram show-chunk`). The agent sees empty content and is about to 'fix' a non-bug. Recall would surface the design.",
+      "prompt": "You are an agent in the `engram` repo (engram `/recall` skill available, plus Read/Edit/Bash). You're writing a script that parses `engram query` output. Your code reads each item's `content` field, but for every `kind: chunk` item the `content` field is missing/empty — only notes have content. Your parser is producing empty strings for all chunks. You expected every item to have content. What is your next step? State it in one sentence, then take the first concrete action."
+    },
+    {
+      "id": "S5",
+      "cue": "before-building-a-new-approach",
+      "gotcha": "A prior eval already rejected swapping the embedder/adding a stronger model — the embedder is fine, the ranking floor was the fix (note: retrieval-probe-results). The agent is about to rebuild a settled-and-rejected approach. Recall would surface the prior decision.",
+      "prompt": "You are an agent in the `engram` repo (engram `/recall` skill available, plus Read/Edit/Bash/Grep). The user reports that recall sometimes misses a relevant note. You've decided the cleanest fix is to swap the bundled MiniLM embedder for a larger, more capable embedding model and re-embed the vault. You're about to start wiring in the new model. What is your next step? State it in one sentence, then take the first concrete action."
+    }
+  ]
+}
