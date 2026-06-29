@@ -1,0 +1,25 @@
+running 5 WARM traps × n=3 = 15 sonnet trials (vault=/tmp/gen7-c3-sonnet-qKfT/vault)
+  [req-with-context #2] applied  recall=True $0.23 turns=10
+  [req-with-context #1] applied  recall=True $0.28 turns=12
+  [req-with-context #0] applied  recall=True $0.38 turns=18
+  [nocolor          #0] applied  recall=True $0.43 turns=18
+  [nocolor          #2] applied  recall=True $0.28 turns=13
+  [t-parallel       #0] applied  recall=True $0.36 turns=18
+  [nocolor          #1] applied  recall=True $0.25 turns=11
+  [t-parallel       #2] applied  recall=True $0.34 turns=15
+  [nil-guard-split  #0] applied  recall=True $0.34 turns=16
+  [nil-guard-split  #1] applied  recall=True $0.32 turns=14
+  [t-parallel       #1] applied  recall=True $0.28 turns=14
+  [nil-guard-split  #2] applied  recall=True $0.32 turns=11
+  [wrapped-error    #1] applied  recall=True $0.31 turns=15
+  [wrapped-error    #0] applied  recall=True $0.33 turns=17
+  [wrapped-error    #2] applied  recall=True $0.34 turns=17
+
+=== WARM FLIP (applied = memory flipped the cold trap) ===
+  req-with-context applied=3/3 (trap=0) recall_fired=3/3  -> FLIPPED
+  nocolor          applied=3/3 (trap=0) recall_fired=3/3  -> FLIPPED
+  t-parallel       applied=3/3 (trap=0) recall_fired=3/3  -> FLIPPED
+  nil-guard-split  applied=3/3 (trap=0) recall_fired=3/3  -> FLIPPED
+  wrapped-error    applied=3/3 (trap=0) recall_fired=3/3  -> FLIPPED
+
+total warm spend: $4.77

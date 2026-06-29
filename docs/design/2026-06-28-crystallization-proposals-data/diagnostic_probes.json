@@ -1,0 +1,377 @@
+[
+ {
+  "basename": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+  "symptom_query": "my cost estimate for an eval run was far off from what actually ran",
+  "target": "derive estimates from real per-cell/per-trial costs from a prior result JSON, not model-tier rules of thumb"
+ },
+ {
+  "basename": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+  "symptom_query": "I restructured the payload or optimized the assumed bottleneck but cost or time barely improved",
+  "target": "verify where the bulk actually lives (instrument/measure) before acting on an efficiency lever; assumed location is often wrong"
+ },
+ {
+  "basename": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+  "symptom_query": "I cannot find a targ target to rebuild or install the engram binary",
+  "target": "install with 'go install ./cmd/engram'; there is no 'targ build' target \u2014 targ covers test/lint/check only"
+ },
+ {
+  "basename": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+  "symptom_query": "my lazy or on-demand retrieval shipped but the agent is not fetching deferred content at the right time or at all",
+  "target": "measure the agent's uninstructed natural fetch behavior before shipping: verify it fetches sparing (under break-even) AND can fetch the right item unprompted when it is the sole source"
+ },
+ {
+  "basename": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+  "symptom_query": "I moved a step to async or background processing but total token usage or cost did not decrease",
+  "target": "async/background relocates work off the critical path but does not eliminate it; only work truly removed counts toward a tokens/cost/time reduction"
+ },
+ {
+  "basename": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+  "symptom_query": "I increased how often a recall or gate fires but the failure rate did not drop as much as expected",
+  "target": "classify failures as addressable/capture-ceiling/application first, then derive over-fire at a pinned fire-unit; ceiling failures are unreachable regardless of frequency, and over-fire multiplies cost"
+ },
+ {
+  "basename": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+  "symptom_query": "my corpus mined from session logs is dominated by one project and the patterns I found feel skewed or non-general",
+  "target": "a retained store is silently biased toward the active/recent project (others age out); cross-check with a breadth source the pruning did not touch before generalizing"
+ },
+ {
+  "basename": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+  "symptom_query": "a deterministic batch job or ingest is running far longer than the input volume seems to warrant",
+  "target": "diagnose by measurement: instrument and time each sub-step to find the actual bottleneck; do not guess at the cause"
+ },
+ {
+  "basename": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+  "symptom_query": "my keyword-based detector for user corrections or agent failures in transcripts has low yield or misses obvious cases",
+  "target": "detect semantically \u2014 read and judge each turn in context \u2014 not by keyword; keyword matching false-negatives on paraphrased or implicit corrections"
+ },
+ {
+  "basename": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+  "symptom_query": "I used a cheap model tier for large-scale classification but I am not confident the results are accurate",
+  "target": "validate the cheap tier against a hand-built gold set on a small sample before deploying at volume"
+ },
+ {
+  "basename": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+  "symptom_query": "I am using embedding similarity to detect or classify failures and getting weak or misleading signal",
+  "target": "use LLM reasoning for detection and classification, not embedding retrieval \u2014 embeddings judge similarity, not whether reasoning holds"
+ },
+ {
+  "basename": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+  "symptom_query": "my tests pass for a function returning a struct with a boolean gate field but I may be missing behavioral paths",
+  "target": "test both true and false paths of the binary gate field explicitly, not just the main payload content"
+ },
+ {
+  "basename": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+  "symptom_query": "conclusions I drew during a work session are not surfacing when I search engram later",
+  "target": "raw session chunks and vault notes are separate spaces \u2014 conclusions only become searchable if explicitly written as vault notes via learn"
+ },
+ {
+  "basename": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+  "symptom_query": "I changed which item type ranks higher in retrieval but I am not sure the system actually improved",
+  "target": "evaluate ranking changes by whether the right knowledge reaches the agent unprompted, not by which item-type outranked another"
+ },
+ {
+  "basename": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+  "symptom_query": "after simplifying or redesigning part of my system I lost reliable deterministic behavior that used to work",
+  "target": "re-host existing deterministic machinery in the new design rather than substituting it away during simplification"
+ },
+ {
+  "basename": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+  "symptom_query": "I found files that were deleted outside my own actions and I am about to restore them",
+  "target": "surface what changed and ask the user whether the deletion was intentional before restoring anything"
+ },
+ {
+  "basename": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+  "symptom_query": "I edited a SKILL.md but the agent behavior does not seem to have reliably improved",
+  "target": "skill edits require writing-skills TDD: RED baseline run showing the failure, then edit, then GREEN verification with fresh agent \u2014 no shortcuts"
+ },
+ {
+  "basename": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+  "symptom_query": "the implementation I built from an LLM-generated spec does not match what was actually needed",
+  "target": "run an explicit alignment gate before executing any LLM-generated spec \u2014 trace each requirement against the original ask and resolve gaps first"
+ },
+ {
+  "basename": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+  "symptom_query": "I changed a workflow orchestration skill and it now produces unexpected or broken behavior",
+  "target": "commit a plan doc and run fresh-agent pressure tests before editing any workflow-orchestration skill"
+ },
+ {
+  "basename": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+  "symptom_query": "I am asking the user to approve a plan or design but it is buried in chat and hard to review",
+  "target": "write the full synthesis to a reviewable artifact first with decisions split into user-decided vs agent-proposed, then ask for approval"
+ },
+ {
+  "basename": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+  "symptom_query": "skill I wrote for TDD or review discipline isn't changing how capable models behave",
+  "target": "Capable models already know the discipline \u2014 scope the skill to ENFORCE it (gates, checks, blockers), not teach it"
+ },
+ {
+  "basename": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+  "symptom_query": "user asked for N diverse options to evaluate but I pre-filtered some before delivering",
+  "target": "Always deliver all N requested options with honest per-option ratings; never prune before the user evaluates"
+ },
+ {
+  "basename": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+  "symptom_query": "recency re-ranking has no visible effect on chunk query results after wiring it in",
+  "target": "applyChunkRecency + sortScoredDesc must run on scoredChunk before the resolvedItem conversion step"
+ },
+ {
+  "basename": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+  "symptom_query": "note recency decay multiplier isn't changing which notes rank highest after I wired it in",
+  "target": "Add baseScore float32 to scoredCandidate; apply the multiplier inside rankCandidates before the sort step"
+ },
+ {
+  "basename": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+  "symptom_query": "linter reports struct fields as unused even though they are planned for a later task",
+  "target": "Add a minimal consumer (e.g., a default-return helper) so the linter passes without nolint suppressions"
+ },
+ {
+  "basename": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+  "symptom_query": "RunQuery chunk-only integration test fails or returns unexpected results",
+  "target": "QueryDeps.Scan must return nil notes (not an empty slice or real notes) for the chunk-only path to work correctly"
+ },
+ {
+  "basename": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+  "symptom_query": "adding a sidecar write side-effect to RunQuery causes locking or data-race issues",
+  "target": "Add a Lock (or WriteSidecar-that-locks) field to QueryDeps; skip the sidecar write if nil (dry mode)"
+ },
+ {
+  "basename": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+  "symptom_query": "after lifting a variable from inner to outer scope one of funlen or wsl_v5 always fires no matter what I try",
+  "target": "funlen and wsl_v5 have competing constraints at Go scope boundaries \u2014 the note documents the specific tension that makes both unsatisfiable with a plain var lift"
+ },
+ {
+  "basename": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+  "symptom_query": "recency eval always scores the planted recent chunk perfectly regardless of halfLife or floor settings",
+  "target": "Homogeneous old distractors make the recency band trivially dominant; spread distractor ages across realistic range and add a mid-age probe"
+ },
+ {
+  "basename": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+  "symptom_query": "I need a value from inside an if-block at an outer call site but declaring a var at outer scope breaks wsl_v5 or funlen",
+  "target": "Inline the value expression directly at the outer call site instead of declaring a var in the outer scope"
+ },
+ {
+  "basename": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+  "symptom_query": "my recency half-life eval shows no discrimination between arms even though I planted a recent chunk",
+  "target": "uniform old distractor pool collapses recency signal; spread distractors across realistic age tiers (e.g. 0.5d, 2d, 5d, 15d, 60d)"
+ },
+ {
+  "basename": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+  "symptom_query": "user says my time-based defaults feel wrong or mismatched to how they actually work",
+  "target": "ask the user's actual work cadence/usage rhythm before setting time-based defaults; never assume a timescale"
+ },
+ {
+  "basename": "47.2026-06-17.date-only-parse-noon-arithmetic",
+  "symptom_query": "my age-in-days test assertions fail with unexpected fractional or off-by-one values when parsing YYYY-MM-DD date strings",
+  "target": "time.Parse(\"2006-01-02\") produces midnight UTC; computed age-in-days needs noon arithmetic to avoid fractional-day boundary errors"
+ },
+ {
+  "basename": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+  "symptom_query": "lint fails with unused field error on a struct field I added for a future implementation phase",
+  "target": "add a test accessor or export the field; unexported forward-declared fields must be referenced somewhere to satisfy the linter"
+ },
+ {
+  "basename": "49.2026-06-17.strings-splitseq-go126-modernize",
+  "symptom_query": "linter or modernize tool flags strings.Split used in a range-for loop in a Go 1.24+ project",
+  "target": "replace strings.Split(s, sep) in range-for with strings.SplitSeq(s, sep) on Go 1.24+"
+ },
+ {
+  "basename": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+  "symptom_query": "adding a new time-based field to the sidecar struct causes unnecessary re-embedding on every run",
+  "target": "tag the field omitempty and exclude it from ContentHash; time-varying fields in ContentHash trigger re-embed on every write"
+ },
+ {
+  "basename": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+  "symptom_query": "recency activation gate is incorrectly excluding candidates that should pass the cutoff threshold",
+  "target": "evaluate the cutoff on the base score before applying decay, not on the already-decayed score"
+ },
+ {
+  "basename": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+  "symptom_query": "CLI command passes all unit tests but fails with path or cwd errors when run with real file path arguments",
+  "target": "in-memory path tests and no-arg no-ops hide cwd/vault path-resolution bugs; run the installed binary with real args from a non-data-dir cwd before declaring done"
+ },
+ {
+  "basename": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+  "symptom_query": "output is missing its trailing newline after stripping a trailing section with bytes.Split and bytes.Join",
+  "target": "bytes.Join does not restore the trailing newline that bytes.Split consumed; check and append it explicitly after joining"
+ },
+ {
+  "basename": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+  "symptom_query": "nilaway linter fails on code that indexes into the result of bytes.Split",
+  "target": "add `if lines == nil { return body }` guard immediately after bytes.Split, before any indexing"
+ },
+ {
+  "basename": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+  "symptom_query": "a review gate or reviewer is blocking my change saying it reverses or violates a locked design decision",
+  "target": "verify the specific decision's actual scope against the real code change before accepting the block \u2014 the reversal claim may be out of scope"
+ },
+ {
+  "basename": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+  "symptom_query": "my design or implementation turned out wrong because docs or memory described a mechanism that had already been removed",
+  "target": "after any major removal, scrub all docs, memory notes, and diagrams that name the old path in the same effort \u2014 stale docs silently corrupt downstream designs"
+ },
+ {
+  "basename": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+  "symptom_query": "I am reasoning about or designing against how a system mechanism works without having checked the actual current code",
+  "target": "trace the real call chain from the entry point in the current codebase; docs and memory are hints to verify, not ground truth"
+ },
+ {
+  "basename": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+  "symptom_query": "I finished removing a code path or flag but docs and memory notes still describe it as if it exists",
+  "target": "a removal is not done until every doc, memory note, glossary entry, and diagram naming the old path is updated or deleted in the same effort"
+ },
+ {
+  "basename": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+  "symptom_query": "after removing or renaming a flag or subcommand, test or eval harnesses are broken or behaving unexpectedly",
+  "target": "treat test/eval harnesses like production consumers \u2014 verify them explicitly after any cross-cutting flag/API removal or rename"
+ },
+ {
+  "basename": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+  "symptom_query": "my TDD RED baseline is not failing in the way the design assumed \u2014 it passes or shows a different failure mode",
+  "target": "surface the measured reality to the user with numbers; reframe the spec to match observation \u2014 never engineer the fixture to reproduce the assumed failure mode"
+ },
+ {
+  "basename": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+  "symptom_query": "a reviewer is blocking my change with a claim that seems wrong, overstated, or not supported by what I see in the code",
+  "target": "verify the reviewer's blocking claim against the actual code/runtime the same way you'd verify any other assertion \u2014 treat reviewer claims as untested hypotheses"
+ },
+ {
+  "basename": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+  "symptom_query": "considering adding graph expansion or reranking to improve recall coverage",
+  "target": "Validate any retrieval improvement layer through the recall eval before building it \u2014 don't assume it helps."
+ },
+ {
+  "basename": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+  "symptom_query": "proposing synthesis or multi-hop scaffolding to improve the engram recall flow",
+  "target": "Engram's value is memory content, not reasoning scaffolding \u2014 validate the memory contribution separately from any scaffold's reasoning contribution."
+ },
+ {
+  "basename": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+  "symptom_query": "agent already derives synthesis conclusions in-session so the synthesis feature seems redundant",
+  "target": "In-session reasoning and cross-session persistence are different axes \u2014 an agent can derive a conclusion in-session yet fail to recall it next session; don't conflate them."
+ },
+ {
+  "basename": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+  "symptom_query": "synthesis eval is passing but unclear whether it actually tests real synthesis",
+  "target": "Synthesis eval fixtures must require emergent, non-literal conclusions the agent cannot find verbatim in any single note \u2014 otherwise literal retrieval masquerades as synthesis."
+ },
+ {
+  "basename": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+  "symptom_query": "agent reasoned out conclusions from recalled notes; unsure whether to persist them to vault",
+  "target": "Persist sound reasoned conclusions as synthesis notes (recall Step 4) for inspection \u2014 makes the reasoning chain reviewable cross-session, not accuracy-guaranteed."
+ },
+ {
+  "basename": "77.2026-06-24.recall-not-cost-bottleneck",
+  "symptom_query": "trying to cut memory-augmented agent cost by reducing recall payload size",
+  "target": "Recall payload is not the cost bottleneck; the agent's build/task loop dominates \u2014 target procedure overhead (model tier, fewer steps, async learn), not payload."
+ },
+ {
+  "basename": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+  "symptom_query": "want to delegate recall or retrieval work to a cheaper model to save money",
+  "target": "Split the skill at its judgment seam \u2014 strong host keeps reasoning that needs its context; delegate only large autonomous blocks to a cheaper subskill, not bespoke infra."
+ },
+ {
+  "basename": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+  "symptom_query": "adjusting content-budget in query.go to reduce cost or token usage",
+  "target": "Content-budget default is baked to 15 (0 resolves to 15, negative = unlimited); it was not the cost bottleneck \u2014 the build/task loop dominates."
+ },
+ {
+  "basename": "80.2026-06-24.recall-split-not-worth-complexity",
+  "symptom_query": "planning to split recall skill across strong and cheap models for cost savings",
+  "target": "Do not split a skill across models for cost unless the delegated part is a large, autonomous sub-task \u2014 the added complexity isn't worth it otherwise."
+ },
+ {
+  "basename": "81.2026-06-24.check-lever-not-already-rolled-back",
+  "symptom_query": "have eval results and want to recommend a new optimization lever",
+  "target": "Before recommending any lever post-eval, actively check whether it was already tried and rejected in this session \u2014 re-proposing closed levers is a known failure mode."
+ },
+ {
+  "basename": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+  "symptom_query": "previously-closed approach is being re-proposed as fresh even after running recall",
+  "target": "The miss is structural \u2014 recall doesn't surface the lesson under the re-proposal query because the note isn't stored/triggered under that signal; fix note wording or trigger type, not retrieval tuning."
+ },
+ {
+  "basename": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+  "symptom_query": "agent gives correct answers in recall eval but unclear if recall actually contributed",
+  "target": "Pair the end metric with a diagnostic sub-metric checking whether the disproving note was retrieved/cited \u2014 otherwise retrieval failure and synthesis failure look identical."
+ },
+ {
+  "basename": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+  "symptom_query": "cost and time breakdown across recall phases is confusing or mixing different axes",
+  "target": "Keep time and dollar axes separate and label each; report the marginal premium (why memory costs more than no-memory) separately from absolute phase cost."
+ },
+ {
+  "basename": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+  "symptom_query": "building a simple isolated eval to reproduce the anti-amnesia miss but it keeps passing",
+  "target": "Behavioral lever-recheck misses are emergent from rich multi-session context and are not reproducible in a single-session toy fixture \u2014 the behavioral failure requires realistic session depth."
+ },
+ {
+  "basename": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+  "symptom_query": "my eval fixture is too small to reproduce a note buried among many not surfaced by retrieval",
+  "target": "put a stub binary on PATH that fakes the buried-at-scale condition rather than building a large real fixture"
+ },
+ {
+  "basename": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+  "symptom_query": "I am about to recommend or re-scope something right after the user explicitly told me what to do",
+  "target": "before recommending, reconcile against the most recent explicit user instruction; don't override without flagging the conflict"
+ },
+ {
+  "basename": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+  "symptom_query": "my test prompt for the task-displacement failure is not catching the behavior in isolation",
+  "target": "the 'please' lean instruction amplifies displacement; design anti-sycophantic challenge instructions targeting that specific pathway"
+ },
+ {
+  "basename": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+  "symptom_query": "I wrote an instruction to stop an agent from substituting prerequisite work but it still displaces the original task",
+  "target": "name the exact self-deception in the instruction (e.g. 'substituting more rigorous prep') and require explicit user confirmation before any substitution"
+ },
+ {
+  "basename": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+  "symptom_query": "I have been executing a chain of locally reasonable steps and I am not sure they still serve the original stated goal",
+  "target": "periodically stop and re-anchor: restate the goal, revalidate current plan against it with fresh measurements rather than carrying forward prior conclusions"
+ },
+ {
+  "basename": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+  "symptom_query": "I am optimizing engram recall or learn operation speed but the overall system value is not improving",
+  "target": "engram's net value is in avoiding rebuild waste on idiosyncratic builds, not in recall/learn op speed; focus effort on build-side payoff"
+ },
+ {
+  "basename": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+  "symptom_query": "I concluded that a capability improvement is fundamentally impossible but my reasoning spanned multiple axes at once",
+  "target": "decompose structural vs contingent impossibility per axis before asserting 'cannot'; axes may be independently achievable even when the combined conclusion looks negative"
+ },
+ {
+  "basename": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+  "symptom_query": "the harness shows recall_s around 350s and I am attributing that cost entirely to the recall step",
+  "target": "'recall_s' is round-1 duration (recall + the full paging/build step), not recall alone; actual recall is ~186s and step-2 paging dominates"
+ },
+ {
+  "basename": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+  "symptom_query": "a conclusion I built on a named metric or log field turned out wrong after the fact",
+  "target": "before concluding from any named metric/field/log value, trace the code to verify what it actually captures \u2014 names are hints, not guarantees"
+ },
+ {
+  "basename": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+  "symptom_query": "memory-assisted builds are consistently coming out slower and more expensive than cold baseline builds",
+  "target": "on small easy builds, warm is structurally slower and costlier; memory value only appears on builds with idiosyncratic content that cold opus cannot one-shot"
+ },
+ {
+  "basename": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+  "symptom_query": "I am about to report a positive eval finding that confirms the hoped-for result",
+  "target": "adversarially verify every favorable nuance before reporting \u2014 favorable readings frequently flip under scrutiny; verify first, then report"
+ },
+ {
+  "basename": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+  "symptom_query": "cold opus is solving build traps I expected to require memory and my eval fixtures are not producing the failures I predicted",
+  "target": "cold failure is empirical, not predictable; pilot each gotcha individually to confirm it actually fools cold opus before including it in an eval"
+ },
+ {
+  "basename": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+  "symptom_query": "my cheap reproducible build eval shows memory has no advantage and I am considering concluding memory is not worth it",
+  "target": "cheap isolated build-trap evals structurally cannot demonstrate memory's behavioral value; showing that value requires idiosyncratic rich session context"
+ },
+ {
+  "basename": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+  "symptom_query": "I am not sure which tasks or use cases engram memory measurably improves versus hurts",
+  "target": "memory's measured wins are only on idiosyncratic content (C3 convention traps, C6 abduction); it is neutral-to-negative on standard tasks \u2014 use that as the decision filter"
+ }
+]

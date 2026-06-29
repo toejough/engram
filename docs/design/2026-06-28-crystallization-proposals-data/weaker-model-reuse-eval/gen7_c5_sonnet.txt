@@ -1,0 +1,13 @@
+C5 recency: ['cold', 'warm'] × n=3 = 6 sonnet trials (marker=ZÖRBAX)
+  [cold  #2] built=True surfaced=None honored=False $0.08 turns=4
+  [cold  #0] built=True surfaced=None honored=False $0.07 turns=4
+  [cold  #1] built=True surfaced=None honored=False $0.08 turns=5
+  [warm  #0] built=True surfaced=True honored=False $0.21 turns=11
+  [warm  #1] built=True surfaced=True honored=False $0.24 turns=13
+  [warm  #2] built=True surfaced=True honored=False $0.25 turns=13
+
+=== C5 RESULTS (n=3) ===
+  cold  valid=3/3  C5a surfaced=0/3  C5b honored=0/3
+  warm  valid=3/3  C5a surfaced=3/3  C5b honored=0/3
+
+total spend: $0.94

@@ -1,0 +1,475 @@
+{
+ "rows": [
+  {
+   "bn": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+   "iso": 2,
+   "real_all": 2,
+   "real_notes": 2
+  },
+  {
+   "bn": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+   "iso": 2,
+   "real_all": 2,
+   "real_notes": 2
+  },
+  {
+   "bn": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+   "iso": 2,
+   "real_all": 2,
+   "real_notes": 2
+  },
+  {
+   "bn": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+   "iso": 4,
+   "real_all": 4,
+   "real_notes": 4
+  },
+  {
+   "bn": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+   "iso": 2,
+   "real_all": 2,
+   "real_notes": 2
+  },
+  {
+   "bn": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "47.2026-06-17.date-only-parse-noon-arithmetic",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "49.2026-06-17.strings-splitseq-go126-modernize",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+   "iso": 3,
+   "real_all": 3,
+   "real_notes": 3
+  },
+  {
+   "bn": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+   "iso": 2,
+   "real_all": 2,
+   "real_notes": 2
+  },
+  {
+   "bn": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+   "iso": 2,
+   "real_all": 2,
+   "real_notes": 2
+  },
+  {
+   "bn": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "77.2026-06-24.recall-not-cost-bottleneck",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+   "iso": 14,
+   "real_all": null,
+   "real_notes": null
+  },
+  {
+   "bn": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "80.2026-06-24.recall-split-not-worth-complexity",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "81.2026-06-24.check-lever-not-already-rolled-back",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+   "iso": 2,
+   "real_all": 2,
+   "real_notes": 2
+  },
+  {
+   "bn": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+   "iso": 2,
+   "real_all": 2,
+   "real_notes": 2
+  },
+  {
+   "bn": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+   "iso": 2,
+   "real_all": 2,
+   "real_notes": 2
+  },
+  {
+   "bn": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+   "iso": 2,
+   "real_all": 2,
+   "real_notes": 2
+  },
+  {
+   "bn": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  },
+  {
+   "bn": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+   "iso": 1,
+   "real_all": 1,
+   "real_notes": 1
+  }
+ ],
+ "isolation_notes": {
+  "recall@1": 0.827,
+  "recall@5": 0.987,
+  "recall@10": 0.987,
+  "miss": 0.0,
+  "n": 75
+ },
+ "realpath_all": {
+  "recall@1": 0.827,
+  "recall@5": 0.987,
+  "recall@10": 0.987,
+  "miss": 0.013,
+  "n": 75
+ },
+ "realpath_notes": {
+  "recall@1": 0.827,
+  "recall@5": 0.987,
+  "recall@10": 0.987,
+  "miss": 0.013,
+  "n": 75
+ }
+}

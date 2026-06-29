@@ -1,0 +1,13 @@
+C4-idio supersession: ['cold', 'warm-XXp'] × n=3 = 6 sonnet trials (X=E7: X'=ERR-CFG/)
+  [cold      #1] neither               $0.08 turns=4
+  [cold      #2] neither               $0.08 turns=4
+  [cold      #0] neither               $0.08 turns=4
+  [warm-XXp  #1] supersession_correct  $0.34 turns=16
+  [warm-XXp  #0] supersession_correct  $0.40 turns=19
+  [warm-XXp  #2] supersession_correct  $0.38 turns=18
+
+=== C4-idio RESULTS (n=3) ===
+  cold      valid=3/3  follows_x=0  supersession_correct=0  neither=3  both=0
+  warm-XXp  valid=3/3  follows_x=0  supersession_correct=3  neither=0  both=0
+
+total spend: $1.34

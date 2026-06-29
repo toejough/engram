@@ -23,6 +23,24 @@ side** (note 74: persist validated synthesis; note 76: a persisted conclusion is
 reasoning a synthesis note supports. The audit's *40% → ≥65%* is the share of cluster-driven notes that are
 *question-shaped AND useful* (correction-driven notes hit 79%, the ceiling).
 
+## First-wave results (2026-06-28) — measurement-first paid off
+
+Ran the recommended first wave. The measurements *redirected* the work — two deflations, one strong win:
+
+- **#8 diagnostic-surfacing probe — NO gap.** 75 symptom→cause probes: real-path note recall@5 = **0.99**.
+  Diagnostic retrieval is healthy (77% of notes are already diagnostic-shaped + the floor surfaces them). **#4
+  dropped** (no build needed). Data: `…-data/diagnostic_surfacing_results.json`.
+- **#1 question-shaped prose rule — RED baseline PASSED, not shipped.** A clean micro-test (6 clusters) showed
+  fresh agents already write question-shaped handles **5/6 without the rule**. Per the writing-skills Iron Law
+  (don't author against a passing baseline), the rule wasn't shipped; the audit's 40% gap is a session-load /
+  old-notes artifact, so the lever (if pursued) is the deterministic retroactive `resituate`, not a buried
+  prose rule. Data: `…-data/q-shaped-handle-microtest.json`.
+- **#7 weaker-model reuse — VALIDATED and generalized.** 3-arm eval (opus-warm / sonnet-warm / sonnet-cold):
+  **sonnet + memory fully matches opus + memory** on C3 (15/15), C4i (3/3), C6 (6/6); sonnet *without* memory
+  fails (C4i/C6 cold 0/N); C5 inconclusive (opus baseline flaked, honored 0/3). Sonnet ran ~25–30% cheaper
+  per trial. **Finding: memory democratizes reasoning across model tiers** (vault note 135) — route
+  memory-backed reasoning to a cheaper tier for a cost + fewer-passes win. **Next: wire into the `route` skill.**
+
 ## The set — panel-scored (3 judges: impact / evaluability / evidence-discipline)
 
 | # | proposal | serves | mechanism (1-line) | eval | effort | score | rating |

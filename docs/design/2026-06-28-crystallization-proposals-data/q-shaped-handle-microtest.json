@@ -1,0 +1,74 @@
+{
+ "control": {
+  "q": 5,
+  "n": 6,
+  "items": [
+   {
+    "id": "retry",
+    "q": true,
+    "situation": "a bash command fails with permission denied"
+   },
+   {
+    "id": "wrap",
+    "q": false,
+    "situation": "returning an error from a Go function that delegates to a sub-operation"
+   },
+   {
+    "id": "realbin",
+    "q": true,
+    "situation": "verifying a CLI command that takes path arguments as done"
+   },
+   {
+    "id": "distractors",
+    "q": true,
+    "situation": "designing a retrieval or recency eval with a decay or half-life parameter to tune"
+   },
+   {
+    "id": "mechanism",
+    "q": true,
+    "situation": "when designing features against or reasoning about how engram recall retrieves content"
+   },
+   {
+    "id": "parallel",
+    "q": true,
+    "situation": "parallel subtests share mutable state and produce flaky or racy failures"
+   }
+  ]
+ },
+ "treatment": {
+  "q": 6,
+  "n": 6,
+  "items": [
+   {
+    "id": "retry",
+    "q": true,
+    "situation": "a bash command returns permission denied and the agent is deciding whether to retry the same command"
+   },
+   {
+    "id": "wrap",
+    "q": true,
+    "situation": "returning an error from a Go function that called another \u2014 deciding whether to wrap or pass through bare"
+   },
+   {
+    "id": "realbin",
+    "q": true,
+    "situation": "tests pass for a path-taking CLI command and I am about to declare the feature complete"
+   },
+   {
+    "id": "distractors",
+    "q": true,
+    "situation": "building a retrieval-recency eval or diagnosing why a half-life parameter sweep shows no discrimination between values"
+   },
+   {
+    "id": "mechanism",
+    "q": true,
+    "situation": "tracing engram recall and wondering whether crystallized notes and raw chunks travel separate retrieval paths before being ranked"
+   },
+   {
+    "id": "parallel",
+    "q": true,
+    "situation": "a parallel Go subtest is flaky or data-racing and the tempting fix is to remove t.Parallel()"
+   }
+  ]
+ }
+}

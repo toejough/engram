@@ -38,16 +38,15 @@ drowning was eroding, trap gate GREEN; see the exception rationale in
 The floor made a good note *surface*; the open levers make the notes *worth* surfacing and fire recall at the
 *right moment*. This is now the highest-value track.
 
-### ← NEXT — crystallize question-shaped notes  [QUALITY — the #1 lever]
+### crystallize question-shaped notes  [QUALITY — deflated by the first wave; smaller than thought]
 The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
-**cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79% for correction-driven), and
-real failure situations are 68% uncovered / 30% partial. **The lever:** derive a note's `situation` handle
-from the **question/failure it answers**, not the cluster topic. **Proposals to evaluate (panel-scored):**
-`docs/design/2026-06-28-question-shaped-crystallization-proposals.md` — recommended first wave (all cheap):
-**#1** question-shaped handles + retroactive `engram resituate` (the confirmed-gap fix), **#8** a
-diagnostic-surfacing probe (settles the open "understand problems" measurement + gates note-shaping), **#3**
-a write-time quality gate. Second wave: #2 capture the reasoning chain (Step-4-as-norm), #7 weaker-model reuse
-(also a *cost* win). Measure with the audit's coverage + path-split method; gate with the trap harness.
+**cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79%). **But the first wave
+(2026-06-28) deflated this lever** (`…question-shaped-crystallization-proposals.md` §First-wave results):
+diagnostic surfacing is healthy (recall@5 0.99, **#4 dropped**); the prose-rule RED baseline *passed* (fresh
+agents already write question-shaped handles when focused), so the audit's gap is a session-load/old-notes
+artifact. **Residual lever (if pursued):** the deterministic retroactive `engram resituate` to clean up the
+existing topic-shaped handles, then re-audit. Lower priority now — the first wave's real win was **#7
+(weaker-model reuse)**, promoted to Track B's NEXT.
 
 ### Better recall *moments* — from the failure-mining analysis  [QUALITY / coverage]
 Mined **failure moments** from a 40-transcript stratified sample (main + subagent, 5 repos) with a
@@ -79,9 +78,18 @@ via graph-expanded retrieval (spreading activation / GraphRAG local search). Lon
 
 The original efficiency work. Per note 100: payload **size** is cache_read-cheap (it moves TIME/paging, not
 dollars); the only verified **dollar** lever is pruning the payload out of build context after Step 3; the
-**token+time** lever is shrinking the procedure itself. Secondary to Track A.
+**token+time** lever is shrinking the procedure itself.
 
-### ← NEXT (cost) — payload-prune-after-Step-3  [DOLLARS — the only verified $ lever, ~$1/op]
+### ← NEXT (cost) — route memory-backed reasoning to a cheaper tier  [DOLLARS — the biggest $ lever found]
+**Validated 2026-06-28** (vault note 135; `docs/design/2026-06-28-question-shaped-crystallization-proposals.md`):
+**sonnet + memory fully matches opus + memory** across 3 capability axes (C3 15/15, C4i 3/3, C6 6/6), while
+sonnet *without* memory fails (cold 0/N) — and sonnet is ~25–30% cheaper/trial + a faster tier. *Memory
+democratizes reasoning across model tiers.* So for any task where the needed knowledge is crystallized and
+recalled, a cheaper model suffices. **Lever:** teach the `route` skill to route memory-backed reasoning to a
+cheaper tier. Bound: C5 axis flaked (re-run); a SKILL.md edit → writing-skills TDD applies. Far bigger than
+the payload-$ lever (whole-task model downgrade vs ~$1/op).
+
+### payload-prune-after-Step-3  [DOLLARS — verified $ lever, ~$1/op]
 Drop the raw ~97 KB query payload out of the build's *ongoing* context once Step 3 has synthesized the
 requirements list. The real warm-over-cold dollar premium is *carrying* the payload across every
 subsequent build turn — not its size (the bytes are cheap to cache-read once — note 100). The synthesized
