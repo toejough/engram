@@ -115,14 +115,20 @@ subsequent build turn — not its size (the bytes are cheap to cache-read once �
 requirements survive in context; only the raw payload is dropped. Measure with the `recall_cost` USD-meter
 (unbundles recall $ from build $). Lowest-risk real-dollar win.
 
-### Shrink the recall procedure  [TOKENS + WALL-TIME, ~186s tax]
-Recall is one heavy ~287-line procedure run in full every time. Cut steps and/or route the mechanical
-sub-steps (per-cluster reads, linking) to a cheaper tier to reduce the agent's actual token-spend AND the
-~186s procedure tax. A "two-speed" split — a minimal quick-recall vs the full synthesis/linking machinery —
-is one form. **Honest caveats:** does NOT increase usage (firing is decided from the frontmatter
-*description*, not the body — note 100); and recall wall-time structurally exceeds a cold build (note 92),
-so the win is shaving the tax, not beating baseline. Architectural — brainstorm the split first. Gate hard:
-the body holds the win-nucleus.
+### Recall depth dial (was: shrink the recall procedure)  [WALL-TIME, ~190s tax]  ← DESIGNED 2026-06-29 (Item 1 = next step)
+The "two-speed" split is now designed: **`docs/design/2026-06-29-recall-depth-dial-design.md`** — a 2-rung
+**glance/deep** dial via a read-vs-write split (glance = retrieve + recency-resolve + apply, no crystallization writes;
+deep = adds crystallization). It attacks **per-fire-cost** (note 109), so frequent firing becomes affordable —
+*relaxing* the over-fire ceiling, not dissolving it (cheap ≠ free), with the **value** gate still holding
+(memory net-negative on non-idiosyncratic work — note 99 / commit f0213f6d). **3 gated items,
+measure → build → ship:** (1, #661) investigate whether `glance` *delivers* the lesson + escalation works
+(cheap, no build; reuses the `recall_cost` $METER + trap gate); (2, #662) build the glance/deep modes + #657's
+safe cuts (O2 binary, L2 skill-side), trap-gated; (3, #663) lower the decision-moment guidance's *cost* bar
+(not its value aim). **Honest caveats:** the win
+is shaving the per-fire tax, not beating a cold build; and the skill's *auto-trigger* rate stays
+description-driven and unchanged (note 100) — the deliberate rise in *cue-firing* is Item 3's guidance change,
+affordable because each `glance` fire is cheap. Gate hard: the read-side win-nucleus (incl. Step-2.5B
+recency-resolution) must not regress.
 
 **Trigger analysis (2026-06-27) — when should recall fire, cheaply?** See
 `docs/design/2026-06-27-recall-trigger-patterns-and-proposals.md`. Verdict: **not** "recall before tool

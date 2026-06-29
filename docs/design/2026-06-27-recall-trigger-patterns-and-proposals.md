@@ -359,6 +359,11 @@ cross-repo denominator gap.
 
 ### P7 — Two-speed recall quick-probe (#657) — the enabler
 
+> **Refined + revived 2026-06-29 → `docs/design/2026-06-29-recall-depth-dial-design.md`.** That design generalizes
+> P7 into a 2-rung glance/deep dial and **refines the cut line**: the cut is **read-vs-write** (keep Step-2
+> matched-note retrieval + 2.5B recency-resolution — the win-nucleus — and drop the *write* side), **not**
+> "skip Step-2 paging" as stated below. Glance reduces Step-2 cost via *fewer phrases*, not by skipping it.
+
 | field | value |
 |---|---|
 | problem-pattern | Recall has **no two-speed path** — any fire runs the full **190s** body. That is what makes every recall-firing trigger borderline-to-fatal (the §0.1 bound). A "cheap to decide" trigger still pays 190s to execute. |
