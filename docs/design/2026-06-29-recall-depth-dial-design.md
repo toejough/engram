@@ -125,7 +125,9 @@ moment-classes Item 1 validated**; others keep `deep`. **Pass-bar:** the C3/C4i/
 docs (recall `SKILL.md`, the c1 recall sequence diagram + flowchart, ROADMAP) per the "doc-scrub is part of an
 architectural change" rule.
 
-**Item 3 — GUIDANCE: lower the decision-moment *cost* bar (not the value aim).** Depends on Item 2. Revise the
+**Item 3 — GUIDANCE: lower the decision-moment *cost* bar (not the value aim).** **[2026-06-30 — superseded by
+#663's measurement: the value-gate assumption below was *falsified* (it does not hold on opus); #663 shipped an
+*encourage-firing* reframe instead — see the ROADMAP #663 update + #665.]** Depends on Item 2. Revise the
 shipped `~/.claude/CLAUDE.md` recall guidance: fire a `glance` at the cues *more readily*, because the quick
 rung is cheap. **But the cost-filter is also a value gate** — memory is net-negative on non-idiosyncratic work
 even when cheap (commit `f0213f6d`: warm +182s/+$3.08 on easy builds, beyond noise; note 99). So glance still

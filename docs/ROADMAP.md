@@ -49,8 +49,9 @@ before-writing-code/first-edit on a new approach). Addressed **2026-06-29 via gl
 *not* hooks (Joe: hooks are harness-specific + a mechanical "recall before X" over-fires ~147×–380×, fatal at
 ~190s/fire; guidance lets the agent choose contextually, harness-agnostic). Three cues — **before declaring
 done**, **after a failure you can't explain** (once, before guessing), **before building a new approach** —
-each gated by a cost-filter ("fire only when you expect a vault-specific gotcha"), scoping firing to
-idiosyncratic unloaded content (the one regime where memory is a clean win — note 99). Key wording: *recalling
+each *originally* gated by a cost-filter ("fire only when you expect a vault-specific gotcha"), scoping firing to
+idiosyncratic unloaded content (note 99) — **superseded by the #663 update below** (cues now fire the cheap
+glance rung + encourage firing; the value gate was measured not to hold on opus). Key wording: *recalling
 is the action, not a substitute self-check*.
 
 **Gate-A cost/over-fire review hardened it.** The first draft also carried "before a final verdict" (**cut** —
@@ -67,6 +68,20 @@ not over-fires**. Data: `docs/design/2026-06-29-recall-moments-revalidation-data
 failures split ~56% *application*-class (lesson present, unapplied — the cue's target) and, on a separate cut,
 ~60% *behavioral* (needs a rich-context harness, out of reach of cheap evals). Direction note:
 `docs/design/2026-06-28-failure-eval-material.md`.
+
+**#663 update (2026-06-30) — cues fire the cheap `/recall glance` rung; encourage-firing reframe.** The three
+cues now invoke `/recall glance` (the read-only depth-dial rung, #662), not bare `/recall`. Glance is cheap, so
+the guidance *encourages* firing — **under-recalling is the bigger risk; over-firing is fine and cheap**
+(Joe's framing call). The default `/recall` stays `deep` and **still crystallizes**; only the decision-moment
+cues use glance. **This item was re-measured on opus-4.8[1m] — the real model that runs this guidance; the
+"0/5→4/5" above was a *different* model/run, which is why the numbers differ.** Result: cue-firing 2-3/5 (≥ the
+un-guided 2/5, not regressed), all cue-fires use glance. Two honest findings: (1) the **after-failure cue never
+fired** (0/2 on its two scenarios CF3/CF4, across every variant — opus reaches for direct diagnostics there; a
+cue-*framing* lever, still open); (2) the old cost-filter's **value gate does NOT hold on opus** — it fires
+recall on routine work too (3-5/5 regardless of wording: opus over-classifies trivial work as idiosyncratic, and
+naming routine examples in the guidance made it *worse*, not better). Accepted because over-firing the cheap
+glance rung is low-cost; the deeper value-gate problem is tracked as **#665**. Depth-dial arc (#661→#662→#663)
+complete.
 
 ### Residual — crystallize question-shaped notes  [QUALITY — deflated by the first wave]
 The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
@@ -134,7 +149,9 @@ a misleading artifact — `2026-06-29-realvault-glance-cost-662.md`). (2, #662 �
 modes built (commit `bdb8b0dc`; **deep stays default**, glance is opt-in/read-only/~3-phrases, no crystallization
 writes; #657 O2/L2 confirmed already landed; **C5-type recency cues escalate to deep**) — smoke trap gate GREEN
 (C3/C4i/C5/C6). The deeper C5 recency-*apply* fix (lift both rungs above deep's 4/5) is a separate follow-up.
-(3, #663) lower the decision-moment guidance's *cost* bar (not its value aim). **Honest caveats:** the win
+(3, #663) ✅ SHIPPED 2026-06-30 — cues fire the cheap `/recall glance` rung; **encourage-firing reframe**
+(under-firing is the bigger risk); deep default still crystallizes. The cost-bar/value-gate premise was
+falsified on re-measurement (→ #665); details in the Track-A #663 update. **Honest caveats:** the win
 is shaving the per-fire tax, not beating a cold build; and the skill's *auto-trigger* rate stays
 description-driven and unchanged (note 100) — the deliberate rise in *cue-firing* is Item 3's guidance change,
 affordable because each `glance` fire is cheap. Gate hard: the read-side win-nucleus (incl. Step-2.5B
