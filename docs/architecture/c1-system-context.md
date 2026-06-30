@@ -72,7 +72,10 @@ references cite the entry-point symbol on `main` — grep the symbol, since line
 Operator asks a question that needs prior memory. The harness loads the `recall`
 skill, prints its Step 0 judgement (Ask, Situation, Plan), then phrases exactly
 **10** query strings (one per fixed angle) and issues a single `engram query`
-call passing each phrase as a separate `--phrase` flag.
+call passing each phrase as a separate `--phrase` flag. Recall has two rungs: the default `deep`
+(the full procedure shown here, with crystallization writes) and an opt-in `glance` rung
+(read-only, ~3 phrases, no crystallization writes — cheaper per fire). Glance escalates to `deep`
+for C5 (recency-channel standards). The sequence shown is `deep`.
 
 **Channel 1 — Relevance (clustered):** the binary scores both notes and chunks
 against each phrase vector with recency bias (chunk cosine scaled by
@@ -140,7 +143,7 @@ sequenceDiagram
     participant V as S4 Vault
 
     Op->>H: prompt that may need memory
-    Note over H: print Step 0 (Ask, Situation, Plan), phrase exactly 10 query strings (one per fixed angle)
+    Note over H: print Step 0 (Ask, Situation, Plan), phrase exactly 10 query strings (one per fixed angle) — deep rung; glance phrases ~3
     H->>E: engram query --phrase <p1> ... --phrase <p10>
     E->>V: scan sidecars + bodies for compatible-embed notes + chunk index
     V-->>E: notes, chunks, and vectors

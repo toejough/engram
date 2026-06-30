@@ -106,8 +106,15 @@ apply` fills or updates them in bulk.
 
 ### recall (skill)
 The skill at `skills/recall/SKILL.md`, invoked as `/recall` in a harness or
-self-fired by the agent. Issues `engram query` with exactly 10
-phrases and runs the inline coverage-synthesis loop over the returned clusters.
+self-fired by the agent. Issues `engram query` with 10 phrases (deep mode)
+and runs the inline coverage-synthesis loop over the returned clusters.
+
+### recall modes — `glance` / `deep`
+Recall's two rungs (the depth dial, #662). `deep` (default) = the full procedure, including the
+crystallization writes that grow the vault. `glance` (opt-in) = read-only (no crystallization
+writes): ~3 phrases; *applies* memory to the decision without growing the vault. Glance escalates
+to `deep` for C5 (recency-channel standards) — it surfaces the recent marker but won't elevate it
+to a requirement (#661).
 
 
 ### Step 0 / Step 1 / …

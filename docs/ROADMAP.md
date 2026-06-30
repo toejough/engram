@@ -92,6 +92,13 @@ Engram does *aggregation* (cosine similarity), not *emergent synthesis* (composi
 / analogical-transfer). The substrate for the real thing is the unused `internal/vaultgraph` wikilink graph,
 via graph-expanded retrieval (spreading activation / GraphRAG local search). Long arc, not next.
 
+### Deeper arc — rebuild the skills from behavioral atoms  [ARCHITECTURE — Joe 2026-06-29]
+The skills (recall, learn, please, route) overlap; the underlying *atoms* are distinct behaviors —
+**read-memory, write-memory, route-a-task, orchestrate-a-workflow (reason + adversarial-check)**. Decompose the
+skills into atoms dedicated to each behavior and recompose, **without ending up with N skills that almost all do
+the same thing** (Joe's explicit constraint). The glance/deep read-vs-write split (#662) is a first, small
+instance of the seam this would generalize. Scope/sequence TBD — brainstorm before any build.
+
 # Track B — Retrieval cost (the token/dollar/wall-time tax)
 
 The original efficiency work. Per note 100: payload **size** is cache_read-cheap (it moves TIME/paging, not
@@ -115,7 +122,7 @@ subsequent build turn — not its size (the bytes are cheap to cache-read once �
 requirements survive in context; only the raw payload is dropped. Measure with the `recall_cost` USD-meter
 (unbundles recall $ from build $). Lowest-risk real-dollar win.
 
-### Recall depth dial (was: shrink the recall procedure)  [WALL-TIME tax]  ← #661 DONE · #662 greenlit (real-vault de-risk: glance 2.2× faster / 46% cheaper per fire)
+### Recall depth dial (was: shrink the recall procedure)  [WALL-TIME tax]  ← #661 DONE · #662 ✅ SHIPPED 2026-06-29 (glance/deep modes; 2.23× faster per fire; deep default; C5→deep escalation; trap gate GREEN)
 The "two-speed" split is now designed: **`docs/design/2026-06-29-recall-depth-dial-design.md`** — a 2-rung
 **glance/deep** dial via a read-vs-write split (glance = retrieve + recency-resolve + apply, no crystallization writes;
 deep = adds crystallization). It attacks **per-fire-cost** (note 109), so frequent firing becomes affordable —
@@ -123,8 +130,10 @@ deep = adds crystallization). It attacks **per-fire-cost** (note 109), so freque
 (memory net-negative on non-idiosyncratic work — note 99 / commit f0213f6d). **3 gated items, measure → build → ship:** (1, #661 ✅ DONE) `glance` DELIVERS C3/C4i/C6 at the verified
 bars but FAILS C5 (it surfaces the recency item but applies it 0/5 vs deep 4/5 — retrieval ≠ delivery); cost
 de-risked on a **real-scale vault** (glance **2.23× faster / 46% cheaper** per fire; #661's tiny-vault 1.2× was
-a misleading artifact — `2026-06-29-realvault-glance-cost-662.md`). (2, #662 ✅ greenlit) build the glance/deep
-modes + #657's safe cuts (O2 binary, L2 skill-side) + **route C5-type recency cues to deep**, trap-gated.
+a misleading artifact — `2026-06-29-realvault-glance-cost-662.md`). (2, #662 ✅ SHIPPED 2026-06-29) glance/deep
+modes built (commit `bdb8b0dc`; **deep stays default**, glance is opt-in/read-only/~3-phrases, no crystallization
+writes; #657 O2/L2 confirmed already landed; **C5-type recency cues escalate to deep**) — smoke trap gate GREEN
+(C3/C4i/C5/C6). The deeper C5 recency-*apply* fix (lift both rungs above deep's 4/5) is a separate follow-up.
 (3, #663) lower the decision-moment guidance's *cost* bar (not its value aim). **Honest caveats:** the win
 is shaving the per-fire tax, not beating a cold build; and the skill's *auto-trigger* rate stays
 description-driven and unchanged (note 100) — the deliberate rise in *cue-firing* is Item 3's guidance change,

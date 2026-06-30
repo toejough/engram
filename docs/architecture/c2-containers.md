@@ -85,7 +85,7 @@ sequenceDiagram
     participant Md as C3 model
     participant V as C4 vault
 
-    Note over Sk: Step 0 — print Ask/Situation/Plan; Step 1 — phrase exactly 10 queries (one per fixed angle)
+    Note over Sk: Step 0 — print Ask/Situation/Plan; Step 1 — phrase exactly 10 queries (one per fixed angle) — deep rung; glance phrases ~3
     Sk->>E: shell engram query --lazy-chunks --phrase p1 … --phrase p10 (fresh process)
     E->>V: Scan notes + load model-compatible sidecars + chunk index
     V-->>E: notes, chunks, and vectors
