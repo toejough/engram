@@ -77,7 +77,7 @@ cues use glance. **This item was re-measured on opus-4.8[1m] — the real model 
 "0/5→4/5" above was a *different* model/run, which is why the numbers differ.** Result: cue-firing 2-3/5 (≥ the
 un-guided 2/5, not regressed), all cue-fires use glance. Two honest findings: (1) the **after-failure cue never
 fired** (0/2 on its two scenarios CF3/CF4, across every variant — opus reaches for direct diagnostics there; a
-cue-*framing* lever, still open); (2) the old cost-filter's **value gate does NOT hold on opus** — it fires
+cue-*framing* lever, **rejected 2026-06-30** — plausibly-correct infra-discrimination, not a miss); (2) the old cost-filter's **value gate does NOT hold on opus** — it fires
 recall on routine work too (3-5/5 regardless of wording: opus over-classifies trivial work as idiosyncratic, and
 naming routine examples in the guidance made it *worse*, not better). Accepted because over-firing the cheap
 glance rung is low-cost; the deeper value-gate problem is tracked as **#665**. Depth-dial arc (#661→#662→#663)
