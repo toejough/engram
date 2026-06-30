@@ -31,7 +31,7 @@ type ShowDeps struct {
 // case is a normalization pre-step layered over the basename match, since a
 // bare id is not itself a resolvable wikilink target. Read-only; no writes.
 func RunShow(_ context.Context, args ShowArgs, deps ShowDeps, stdout io.Writer) error {
-	ref := normalizeShowRef(args.Ref)
+	ref := normalizeNoteRef(args.Ref)
 	if ref == "" {
 		return errShowEmptyRef
 	}
@@ -74,24 +74,6 @@ func newOsShowDeps() ShowDeps {
 		},
 		Read: fsys.ReadFile,
 	}
-}
-
-// normalizeShowRef canonicalizes a user-supplied reference to a basename or
-// bare id: trims surrounding whitespace, strips [[ ]] wikilink brackets and an
-// optional |display segment, then drops a trailing .md extension.
-func normalizeShowRef(ref string) string {
-	ref = strings.TrimSpace(ref)
-	ref = strings.TrimPrefix(ref, "[[")
-	ref = strings.TrimSuffix(ref, "]]")
-
-	if pipe := strings.IndexByte(ref, '|'); pipe >= 0 {
-		ref = ref[:pipe]
-	}
-
-	ref = strings.TrimSpace(ref)
-	ref = strings.TrimSuffix(ref, ".md")
-
-	return strings.TrimSpace(ref)
 }
 
 // renderShow writes the note content followed by a clearly-delimited list of

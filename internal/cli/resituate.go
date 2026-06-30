@@ -19,7 +19,7 @@ import (
 // ResituateArgs holds parsed flags for `engram resituate`.
 type ResituateArgs struct {
 	Vault     string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	Note      string `targ:"flag,name=note,required,desc=luhmann id or full basename of the note to resituate (required)"`
+	Note      string `targ:"flag,name=note,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"` //nolint:lll // single unbreakable struct-tag string
 	Situation string `targ:"flag,name=situation,required,desc=the new situation to write into the note (required)"`
 }
 
@@ -85,16 +85,21 @@ var (
 )
 
 // findNote locates the note whose leading luhmann id OR full basename matches
-// target, returning its vault-relative path. Returns errResituateNoteNotFound
-// when nothing matches.
+// target, returning its vault-relative path. The target is normalized first
+// (strips [[wikilink]] brackets, trailing .md) so all accepted ref forms work.
+// The not-found error quotes the caller's original ref, not the normalized one.
+// Returns errResituateNoteNotFound when nothing matches.
 func findNote(notes []vaultgraph.Note, target string) (string, error) {
+	original := target
+	target = normalizeNoteRef(target)
+
 	for _, note := range notes {
 		if note.LuhmannID == target || note.Basename == target {
 			return pathOf(note.Basename), nil
 		}
 	}
 
-	return "", fmt.Errorf("%w: %q", errResituateNoteNotFound, target)
+	return "", fmt.Errorf("%w: %q", errResituateNoteNotFound, original)
 }
 
 // newOsResituateDeps wires RunResituate to the real filesystem + the bundled

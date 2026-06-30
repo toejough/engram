@@ -20,8 +20,8 @@ import (
 // chunk indexes live (like IngestArgs.ChunksDir — path config belongs on Args,
 // not Deps).
 type AmendArgs struct {
-	Vault        string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll // single unbreakable struct-tag string
-	Target       string   `targ:"flag,name=target,required,desc=Luhmann id or basename of the note to amend (required)"`
+	Vault        string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                          //nolint:lll // single unbreakable struct-tag string
+	Target       string   `targ:"flag,name=target,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"` //nolint:lll // single unbreakable struct-tag string
 	Relations    []string `targ:"flag,name=relation,desc=relation <target>|<rationale> for Related to: (repeatable)"`
 	ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk id (source#anchor) merged into sources: (repeatable)"`
 	ChunksDir    string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`

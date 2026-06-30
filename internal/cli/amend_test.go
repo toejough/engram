@@ -802,6 +802,48 @@ func TestRunAmend_RelationMerge_UnresolvedRelation_Errors(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("unresolved relation target")))
 }
 
+// TestRunAmend_ResolvesTargetWithMdSuffix asserts that RunAmend resolves a
+// --target passed as "basename.md" (the form emitted by the recall skill's
+// Step-2.5C amend calls) rather than returning "note not found".
+func TestRunAmend_ResolvesTargetWithMdSuffix(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1.linting"
+
+	noteContent := makeFactNote("ctx", "A", "has", "B", "")
+	writeCalled := false
+
+	deps := cli.AmendDeps{
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1"}}, nil
+		},
+		Read:          func(string) ([]byte, error) { return noteContent, nil },
+		Write:         func(string, []byte) error { writeCalled = true; return nil },
+		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:  "/vault",
+		Target: "1.linting.md", // .md-suffixed form — must resolve to "1.linting"
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(writeCalled).To(BeTrue(), "amend must write the note when target resolves via .md suffix")
+}
+
 func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
 	t.Parallel()
 
