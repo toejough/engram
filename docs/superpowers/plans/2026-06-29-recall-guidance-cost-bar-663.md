@@ -162,3 +162,61 @@ engram amend --target "139" \
 - **Validation correctness:** two headless bars — flip-preserved-with-glance (Step 4) AND value-gate-holds
   (Step 5) — via fresh `claude -p`, control = global-guidance-stripped, never subagents. Rung detected by
   grepping ACTION lines for `glance`.
+
+---
+
+## Re-scope (2026-06-29, post-diagnostic — Joe's call)
+
+**The headless validation falsified the premise.** Measured on **opus-4.8[1m]** (the real model, n=5/arm):
+
+| Arm | Flip (CF1-CF5 fire) | Routine over-fire (R1-R5) | Rung |
+|---|---|---|---|
+| Original guidance | 2/5 | 3-4/5 | deep/unspecified |
+| #663 "fire readily" | 3/5 | 3/5 | glance |
+| _old bars_ | _≥4/5_ | _≤1/5_ | — |
+
+Findings: (1) the old ≥4/5-flip / ≤1/5-routine bars were calibrated on a *different* model (note 139) — on opus
+the **original** misses both too; (2) the routine over-fire is **pre-existing** (opus rationalizes "conventions
+might apply" on trivial work), NOT caused by #663; (3) the cost bar is **not the binding constraint** (cues fire
+at ~the model's ceiling regardless); (4) #663's "fire readily" is non-regressive but rests on a value gate that
+doesn't hold.
+
+**Decision (Joe): TRIM #663.** Bank the one real lever — point the cues at the cheap `/recall glance` rung —
+but DROP "fire readily" (the value gate can't support it) and keep/strengthen the value filter. File the opus
+routine-over-fire as a separate issue.
+
+**Trimmed GREEN content** (REPLACES the Task-1 GREEN block above — original guidance + glance-substitution +
+concrete skip-examples + deep-escalation, NO "fire readily"):
+
+```markdown
+## Recall at the decision moments, not only at the start
+
+engram `/recall` surfaces vault memory you haven't loaded — most valuable right before a wrong call locks in.
+Use the cheap **`/recall glance`** rung (read-only, ~3 phrases) — but fire it only when you expect a
+**vault-specific gotcha**: a prior decision, a hard-won project lesson, a convention that bites. Skip routine,
+non-idiosyncratic work (renames, formatting, log lines, version bumps) — memory doesn't help there. At these
+cues, **run `/recall glance` before you proceed**:
+
+- **Before declaring work done** — **`/recall glance` first** (the action is recalling — not a substitute
+  self-check or re-inspection), then verify; the vault names the gotchas you'd otherwise ship past.
+- **After a failure you can't immediately explain** — **`/recall glance` once before you start guessing** (not on
+  every retry) — a past lesson may name the cause.
+- **Before you start building a new approach** — **`/recall glance` prior decisions and standards first**, while
+  the path is still cheap to change.
+
+Escalate to **`/recall deep`** when the decision is weighty or irreversible, or when `glance` flags a gap it
+can't resolve.
+
+These catch *application* gaps — the lesson existed, just unrecalled at the moment.
+```
+
+**Recalibrated validation** (REPLACES Task-1 Steps 4-5; the old absolute bars are retired as mis-calibrated):
+- **Glance-at-cues:** on CF1-CF5, the fires use `/recall glance` (the rung substitution works). Fire *rate* ~ the
+  original (the model's ceiling — not a pass-bar).
+- **No-worse-on-routine:** on R1-R5, over-fire **≤ the original baseline (3-4/5)** — the trim must not INCREASE
+  routine firing (ideally the concrete skip-examples reduce it). This is the non-regression bar.
+
+**New task — file the value-gate issue:** opus over-fires `/recall` on routine work (3-4/5) regardless of the
+cost-filter wording (it rationalizes idiosyncrasy). Pre-existing; affects original + revised guidance.
+Net-negative is bounded for glance (cheap) but real. File for dedicated work (a guidance/skill experiment to
+make the value gate actually hold).
