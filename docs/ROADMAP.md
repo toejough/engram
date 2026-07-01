@@ -37,15 +37,17 @@ matched-note floor is a *deliberate, gated* change to matched-note retrieval —
 drowning was eroding, trap gate GREEN; see the exception rationale in
 `docs/superpowers/plans/2026-06-28-note-vs-chunk-ranking.md`.)
 
-# Track 0 — Concurrency & write-safety (foundational — do this FIRST)
+# Track 0 — Concurrency & write-safety  ✅ SHIPPED 2026-07-01 (commit `f7f6b389`; #660 + #666 closed)
 
-Split out + prioritized 2026-07-01. Correctness bugs, independent of retrieval quality/cost, that **block**
-the payload-prune production build: the `engram recall` prune spawns many parallel sub-recalls that write the
-vault + chunk index concurrently, so it cannot ship until these are fixed. They also bite **today** — any two
-concurrent `engram ingest`/`amend` runs corrupt state, which is why the `/please` gate reviewers already fall
-back to query-only recall. Root-caused 2026-07-01. The fix pattern is the existing **vault flock**
-(`internal/cli/cli.go:54-79`, today guarding only Luhmann-ID sequencing in `learn`) extended to the unguarded
-sites, plus **atomic temp-rename** writes (one shared helper for manifest / notes / sidecars).
+Split out + prioritized 2026-07-01, then **built and shipped the same day**. Correctness bugs, independent of
+retrieval quality/cost, that **blocked** the payload-prune production build (the `engram recall` prune spawns
+many parallel sub-recalls that write the vault + chunk index concurrently) and bit **today** — any two
+concurrent `engram ingest`/`amend` runs corrupted state. **Fixed:** the existing **vault flock**
+(`internal/cli/cli.go`, previously guarding only Luhmann-ID sequencing in `learn`) was extended to every
+read-modify-write writer — manifest (`ingest`+`prune`, `.manifest.lock`) and vault notes/sidecars
+(`amend`+`resituate`+`activate`, `.luhmann.lock`), acquired only at `Run*` entry points — plus **atomic
+temp-rename** writes at all edges (one shared helper). `targ check-full` green; the bug inventory below is the
+shipped fix list. **Payload-prune production is now unblocked.**
 
 The complete RMW-writer surface (Step-2 code map + Gate-A code-alignment, which caught `prune` + `resituate`):
 
@@ -162,7 +164,7 @@ knowledge vs derives it). RED/GREEN: the router over-provisioned 4/6 memory-back
 discounts. Bound: measured at the deep→mid boundary; other boundaries inferred (the upgrade-if-cheaper-fails
 rule is the safety net); C5 axis flaked (re-run). Whole-task downgrade — far bigger than the payload-$ lever.
 
-### payload-prune-after-Step-3  [DOLLARS — verified $ lever] · premise ✅ SMOKE-VALIDATED 2026-06-30 · production build ⛔ BLOCKED BY Track 0 (concurrency)
+### payload-prune-after-Step-3  [DOLLARS — verified $ lever] · premise ✅ SMOKE-VALIDATED 2026-06-30 · production build ← NEXT (Track 0 shipped — unblocked 2026-07-01)
 Drop the raw ~97 KB query payload out of the build's *ongoing* context once Step 3 has synthesized the
 requirements list. The real warm-over-cold dollar premium is *carrying* the payload across every
 subsequent build turn — not its size (the bytes are cheap to cache-read once — note 100). The synthesized
