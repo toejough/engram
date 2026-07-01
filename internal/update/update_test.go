@@ -259,6 +259,39 @@ func TestPlanSkillCopies_MissingSrc(t *testing.T) {
 	g.Expect(errors.Is(err, update.ErrSkillsSrcMissing)).To(BeTrue())
 }
 
+func TestRun_PlainUpdate_WhenImported_RefreshesGuidance(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.files["/repo/guidance/recall.md"] = []byte("fresh guidance content")
+	fileSystem.dirs["/repo/guidance"] = true
+	// The user already imports the guidance (opted in) — no --with-guidance flag.
+	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte("# joe\n\n@~/.claude/engram/recall.md\n")
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	// Plain update MUST refresh the guidance because it is already imported.
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.GuidanceImported).To(BeTrue())
+	g.Expect(report.Harnesses[0].GuidanceFiles).To(ConsistOf("recall.md"))
+
+	written, ok := fileSystem.written[home+"/.claude/engram/recall.md"]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(written).To(Equal([]byte("fresh guidance content")))
+}
+
 func TestRun_WithGuidance_BothHarnesses_OnlyClaudeGetsGuidance(t *testing.T) {
 	t.Parallel()
 

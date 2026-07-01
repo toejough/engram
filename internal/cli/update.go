@@ -246,7 +246,13 @@ func writeGuidanceHints(buffer *bytes.Buffer, report update.Report) {
 		}
 	}
 
-	if guidanceDeployed && !report.GuidanceImported {
+	if guidanceDeployed {
+		if report.GuidanceImported {
+			fmt.Fprintf(buffer, "guidance refreshed: ~/.claude/engram/recall.md\n")
+
+			return
+		}
+
 		fmt.Fprintf(buffer,
 			"guidance deployed to ~/.claude/engram/recall.md — add"+
 				" '@~/.claude/engram/recall.md' to ~/.claude/CLAUDE.md to activate it"+

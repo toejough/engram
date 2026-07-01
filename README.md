@@ -33,7 +33,7 @@ Requires Go 1.25+ on `PATH`.
    engram update --dry-run       # show what would change
    ```
 
-   `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys `guidance/recall.md` to `~/.claude/engram/recall.md` for CLAUDE.md `@import` (Claude Code; opt-in). Plain `engram update` prints a one-line hint about it.
+   `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys `guidance/recall.md` to `~/.claude/engram/recall.md` for CLAUDE.md `@import` (Claude Code; opt-in). It's a **one-time opt-in** — once your CLAUDE.md imports the file, plain `engram update` keeps it current (like skills). Until then, plain `engram update` prints a one-line hint.
 
 ## Skills
 

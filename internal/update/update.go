@@ -205,9 +205,15 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 		return report, cmdPlanErr
 	}
 
+	claudeMDPath := filepath.Join(home, ".claude", "CLAUDE.md")
+	report.GuidanceImported = detectGuidanceImport(claudeMDPath, home, u.FS)
+
 	var guidanceOps []CopyOp
 
-	if opts.WithGuidance {
+	// Deploy guidance when explicitly requested OR when the user already imports
+	// it. This makes --with-guidance a one-time opt-in: once imported, plain
+	// `engram update` keeps the guidance current on every run (like skills).
+	if opts.WithGuidance || report.GuidanceImported {
 		var guidancePlanErr error
 
 		guidanceOps, guidancePlanErr = planGuidanceCopies(srcGuidance, home, harnesses, u.FS)
@@ -215,9 +221,6 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 			return report, guidancePlanErr
 		}
 	}
-
-	claudeMDPath := filepath.Join(home, ".claude", "CLAUDE.md")
-	report.GuidanceImported = detectGuidanceImport(claudeMDPath, home, u.FS)
 
 	report.Harnesses = u.applyOps(harnesses, home, skillOps, cmdOps, guidanceOps, opts.DryRun)
 
