@@ -9,6 +9,8 @@ actually present when a decision is made) and **Track B — cost** (run memory-b
 tiers* — the biggest $ lever found). A lever counts only if it moves a real axis (quality by the retrieval
 probe + value test + trap gate; cost by actual tokens/dollars/wall-time — relocating work off the *perceived*
 path is not a reduction, note 100). **Do one at a time, ship each gated, measure, then take the next.**
+**Track 0 (concurrency & write-safety) is foundational — it fixes live correctness bugs and blocks the
+payload-prune production build, so it comes before both frontiers (split out + prioritized 2026-07-01).**
 
 ## Where we are
 
@@ -34,6 +36,30 @@ Step-2.5B recency-weight, Step-2 matched-note retrieval, the frontmatter `descri
 matched-note floor is a *deliberate, gated* change to matched-note retrieval — it RESTORES the nucleus the
 drowning was eroding, trap gate GREEN; see the exception rationale in
 `docs/superpowers/plans/2026-06-28-note-vs-chunk-ranking.md`.)
+
+# Track 0 — Concurrency & write-safety (foundational — do this FIRST)
+
+Split out + prioritized 2026-07-01. Correctness bugs, independent of retrieval quality/cost, that **block**
+the payload-prune production build: the `engram recall` prune spawns many parallel sub-recalls that write the
+vault + chunk index concurrently, so it cannot ship until these are fixed. They also bite **today** — any two
+concurrent `engram ingest`/`amend` runs corrupt state, which is why the `/please` gate reviewers already fall
+back to query-only recall. Root-caused 2026-07-01. The fix pattern is the existing **vault flock**
+(`internal/cli/cli.go:54-79`, today guarding only Luhmann-ID sequencing in `learn`) extended to the unguarded
+sites, plus **atomic temp-rename** writes (one shared helper for manifest / notes / sidecars).
+
+- **#660 — manifest lost-update + torn write.** `engram ingest` reads `chunks/manifest.json`
+  (`ingest.go:82`), mutates it in a loop (`:352`), writes it whole back via non-atomic `os.WriteFile`
+  (`:675`). Two concurrent runs lose each other's entries; a torn write corrupts the file. FIX: flock the
+  manifest read-modify-write + atomic temp-rename.
+- **`amend` lost-update (untracked — file an issue).** `RunAmend` reads a note, mutates in memory, writes
+  back (`amend.go:80/95/100`) with **no lock**; two concurrent amends of the same note lose one. FIX: extend
+  the vault flock to amend's read-modify-write.
+- **Sidecar torn write (untracked — file an issue).** `bumpLastUsed` (`activate.go:65-66`) rewrites a
+  `.vec.json` sidecar assuming `os.WriteFile` is atomic (it is not). FIX: atomic temp-rename for sidecar writes.
+- `learn` is **already** flock-safe (`writeLearnUnderLock`, `learn.go:571`) — the precedent to follow.
+
+Plan: `docs/superpowers/plans/2026-07-01-concurrency-write-safety.md` (this `/please`). Gated by `targ check-full`
++ a concurrent-writers regression test.
 
 # Track A — Recall timing / coverage (is the knowledge present when the decision is made?)
 
@@ -130,7 +156,7 @@ knowledge vs derives it). RED/GREEN: the router over-provisioned 4/6 memory-back
 discounts. Bound: measured at the deep→mid boundary; other boundaries inferred (the upgrade-if-cheaper-fails
 rule is the safety net); C5 axis flaked (re-run). Whole-task downgrade — far bigger than the payload-$ lever.
 
-### payload-prune-after-Step-3  [DOLLARS — verified $ lever] · premise ✅ SMOKE-VALIDATED 2026-06-30 · production build ← NEXT
+### payload-prune-after-Step-3  [DOLLARS — verified $ lever] · premise ✅ SMOKE-VALIDATED 2026-06-30 · production build ⛔ BLOCKED BY Track 0 (concurrency)
 Drop the raw ~97 KB query payload out of the build's *ongoing* context once Step 3 has synthesized the
 requirements list. The real warm-over-cold dollar premium is *carrying* the payload across every
 subsequent build turn — not its size (the bytes are cheap to cache-read once — note 100). The synthesized
@@ -144,11 +170,16 @@ round (mechanistic — the payload re-reading as `cache_read`), so the ~$1/op pr
 an underestimate. **Honest bound:** n=1/app, no same-arm noise floor measured → large-consistent-mechanism, not
 noise-floor-proven; a replicate would make it conclusive (not required to proceed).
 
-**← NEXT: the production mechanism (a separate brainstorm→plan→build).** The smoke validated the *isolation
-premise* via a proxy; it did **not** ship a product. The production form is **subagent-isolated recall** (recall
-runs in a subagent, returns only the synthesis to the parent build) — it must re-check the subagent→parent
-return-path fidelity the proxy skipped, and it touches recall's inline crystallization (Steps 2.5C/2.6/Step-4)
-and the please/build resume flow.
+**⛔ Production mechanism — DEFERRED behind Track 0.** The smoke validated the *isolation premise* via a proxy;
+it did **not** ship a product. Design captured 2026-07-01 in
+`docs/superpowers/specs/2026-07-01-engram-recall-subprocess-design.md`: a new **`engram recall`** Go command
+that shells to **`claude -p`** — the caller generates the queries in-context and passes only those; the isolated
+sub-recall runs `engram query` + cluster-judgment + crystallization + Step-3 synthesis behind the subprocess
+boundary and returns **only the synthesis**, so the ~97 KB payload never enters the caller's context, at any
+nesting depth (an Agent-tool subagent can't reach a leaf's own first-step recall — hence the subprocess). It is
+**blocked by Track 0**: the sub-recalls write the vault/manifest in parallel, so concurrency-safety must land
+first. Open forks recorded in the spec (glance inline vs subprocess; sub-recall model/tier; return-path
+fidelity). It also touches recall's inline crystallization (Steps 2.5C/2.6/Step-4).
 
 ### Recall depth dial (was: shrink the recall procedure)  [WALL-TIME tax]  ← #661 DONE · #662 ✅ SHIPPED 2026-06-29 (glance/deep modes; 2.23× faster per fire; deep default; C5→deep escalation; trap gate GREEN)
 The "two-speed" split is now designed: **`docs/design/2026-06-29-recall-depth-dial-design.md`** — a 2-rung
