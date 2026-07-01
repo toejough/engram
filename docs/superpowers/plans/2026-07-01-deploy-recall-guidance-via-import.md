@@ -60,36 +60,53 @@ verify via `go install ./cmd/engram` then `engram update --with-guidance --dry-r
 - `HarnessSpec` gains `GuidanceTargetRel string` — Claude Code = `".claude/engram"`; OpenCode = `""` (skip).
 - Produces `func planGuidanceCopies(srcGuidance string, home string, harnesses []HarnessSpec, fs Filesystem)
   ([]CopyOp, error)` — for each harness with non-empty `GuidanceTargetRel`, plan a `CopyOp` per `*.md` in
-  `srcGuidance` to `<home>/<GuidanceTargetRel>/<basename>`. Mirror `planSkillCopies` (update.go:651). Returns empty
-  (no error) if `srcGuidance` is missing — guidance is optional.
-- `CopyOp` gains a `GuidanceFile string` field (the basename) OR reuse via a new discriminator; follow the
-  `SkillDir`/`CommandFile` precedent (exactly one set).
+  `srcGuidance` to `<home>/<GuidanceTargetRel>/<basename>`. **Mirror `planCommandCopies` (update.go:608)** —
+  `ReadDir` + `mdFilesIn` (top-level `*.md` only, by basename), skip harnesses with empty `GuidanceTargetRel`, and
+  **`return nil, nil` when `srcGuidance` is absent** (guidance is optional). Do NOT mirror `planSkillCopies`
+  (update.go:651) — it recurses and errors via `ErrSkillsSrcMissing`, both wrong here.
+- `CopyOp` gains a `GuidanceFile string` field (the basename), following the `SkillDir`/`CommandFile` discriminator
+  precedent (exactly one set).
 
-- [ ] **Step 1 — RED test.** Add `TestPlanGuidanceCopies_FilesUnderHome` (mirror `TestPlanSkillCopies`, update_test.go:59):
-  seed a fake `guidance/recall.md`, a Claude Code harness spec (GuidanceTargetRel `.claude/engram`) + an OpenCode
-  spec (GuidanceTargetRel ``), assert (a) exactly one CopyOp, (b) Dst = `<home>/.claude/engram/recall.md`, (c) NO op
-  for OpenCode. Also `TestPlanGuidanceCopies_MissingSrc` → empty, no error. Reference `ExportPlanGuidanceCopies`.
+- [ ] **Step 1 — RED test.** Add `TestPlanGuidanceCopies_FilesUnderHome` (a **table test** — guidance is a fixed
+  flat structure, so simpler than `TestPlanSkillCopies_FilesUnderHome_Property`'s `rapid.Check`): seed a fake
+  `guidance/recall.md`, a Claude Code harness spec (GuidanceTargetRel `.claude/engram`) + an OpenCode spec
+  (GuidanceTargetRel ``), assert (a) exactly one CopyOp, (b) Dst = `<home>/.claude/engram/recall.md`, (c) NO op for
+  OpenCode. Also `TestPlanGuidanceCopies_MissingSrc` → **empty, nil error** (contrast `TestPlanSkillCopies_MissingSrc`
+  which asserts `ErrSkillsSrcMissing`). Reference `ExportPlanGuidanceCopies` (add via the `var ExportX = x` pattern
+  in `export_test.go`).
 - [ ] **Step 2 — Run RED.** `targ test` → fails (undefined `planGuidanceCopies`/`ExportPlanGuidanceCopies`).
-- [ ] **Step 3 — GREEN.** Implement `planGuidanceCopies`; add `GuidanceTargetRel` to `HarnessSpec` + the two harness
-  spec literals (grep the `HarnessSpec{` list, ~detectHarnesses/specs); add `CopyOp.GuidanceFile`; export the planner.
+- [ ] **Step 3 — GREEN.** Implement `planGuidanceCopies`; add `GuidanceTargetRel` to `HarnessSpec` + set it on the
+  two literals in **`supportedHarnesses()` (update.go:694)** (Claude Code `.claude/engram`; OpenCode `""`); add
+  `CopyOp.GuidanceFile`; export the planner.
 - [ ] **Step 4 — Run GREEN.** `targ test` → pass.
 - [ ] **Step 5 — Gate B** (design-fit: mirrors planSkillCopies, DRY, OpenCode-skip explicit).
 
 ## Task 3: Gate deploy behind the opt-in `--with-guidance` flag + apply
 
-**Files:** Modify `internal/update/update.go` (`Options`, `Run`, `applyOps`, `HarnessReport`),
-`internal/cli/update.go` (`UpdateArgs` flag + `runUpdate` wiring); Test `internal/update/update_test.go`,
-`internal/cli/update_test.go`.
+**Files:** Modify `internal/update/update.go` (`Options`, `Run`, `applyOps` + `applyForHarness` + new
+`applyGuidanceOps`, `HarnessReport`), `internal/cli/update.go` (`UpdateArgs` flag + `runUpdate` wiring); Test
+`internal/update/update_test.go`, `internal/cli/update_test.go`.
 
 **Interfaces:**
-- `Options` gains `WithGuidance bool`. `Run` calls `planGuidanceCopies` + applies ONLY when `opts.WithGuidance`.
-- `HarnessReport` gains `GuidanceFiles []string`. `applyOps` deploys guidance ops like command ops (RemoveAll +
-  copy; ensure `<home>/.claude/engram/` MkdirAll).
+- `Options` gains `WithGuidance bool`. In `Run`, plan `guidanceOps` via `planGuidanceCopies` ONLY when
+  `opts.WithGuidance` (else `nil`), and pass them to `applyOps`.
+- **Thread `guidanceOps` through the apply path (verified against update.go):** `applyOps` (update.go:274) gains a
+  `guidanceOps []CopyOp` parameter (parallel to `cmdOps`); its `HarnessReport` init (update.go:283) gains
+  `GuidanceRoot: filepath.Join(home, spec.GuidanceTargetRel)`. The `Run` call site becomes
+  `applyOps(harnesses, home, skillOps, cmdOps, guidanceOps, opts.DryRun)`. `applyForHarness` (update.go:233) gains a
+  `guidanceOps` param and, after `applyCmdOps`, calls a new `applyGuidanceOps` that mirrors `applyCmdOps` (RemoveAll +
+  `applyOne` per op — `applyOne` already MkdirAll's the dest dir). Each deployed basename appends to
+  `HarnessReport.GuidanceFiles`.
+- `HarnessReport` gains `GuidanceRoot string` + `GuidanceFiles []string`.
 - `UpdateArgs` gains `WithGuidance bool targ:"flag,name=with-guidance,desc=also deploy engram's recall-firing guidance
-  file for CLAUDE.md @import"`. `runUpdate` maps it to `Options.WithGuidance`.
-- **Decision recorded:** deploy is *opt-in* (a flag) though the file itself is non-invasive (a new file, never edits
-  CLAUDE.md); considered default-on (consistent with skills) but kept opt-in per the user's stated preference — plain
-  `engram update` stays behaviorally unchanged and instead *warns* (Task 4).
+  file for CLAUDE.md @import"`. `runUpdate` maps it to `Options.WithGuidance` (mirrors how `DryRun` is wired at
+  cli/update.go:208; no `targets.go` change — targ reads struct tags).
+- **Flag naming — `--with-guidance`, NOT the user's initial `--with-claude-file`:** the deployable unit is the
+  guidance *file*, and (unlike rejected approach A) engram never edits the user's CLAUDE.md, so "claude-file" would
+  mislead.
+- **Opt-in decision:** deploy is opt-in (a flag) though the file itself is non-invasive (a new file, never edits
+  CLAUDE.md); considered default-on (consistent with skills) but kept opt-in per the user's stated preference —
+  plain `engram update` stays behaviorally unchanged and instead *warns* (Task 4).
 
 - [ ] **Step 1 — RED test.** `TestRun_WithGuidance_DeploysToClaudeEngram`: Updater over a fake FS with a Claude Code
   harness + `guidance/recall.md`; `Run(ctx, Options{WithGuidance:true})` → report lists the guidance file at
@@ -106,10 +123,13 @@ verify via `go install ./cmd/engram` then `engram update --with-guidance --dry-r
 (format the hint); Test both.
 
 **Interfaces:**
-- After planning, read `<home>/.claude/CLAUDE.md` via `fs.ReadFile`; compute `guidanceImported bool` = the file
+- After planning, read `<home>/.claude/CLAUDE.md` via `u.FS.ReadFile`; compute `guidanceImported bool` = the file
   contains a line `@~/.claude/engram/recall.md` (tolerate `~` and the expanded `<home>/.claude/engram/recall.md`
-  form; ignore matches inside fenced code blocks per the import rules). Add `GuidanceImported bool` +
-  `GuidanceDeployed bool` to `HarnessReport` (Claude Code only).
+  form; ignore matches inside fenced code blocks per the import rules; a missing CLAUDE.md → false, no error).
+- Store it as a single **`Report`-level `GuidanceImported bool`** — Claude-Code-specific, so it goes on the top-level
+  `Report`, NOT on `HarnessReport` (avoids Claude-Code fields leaking onto the generic per-harness struct + permanent
+  `false`s for OpenCode). **"Deployed" is DERIVED, not stored** — it is `len(<Claude Code HarnessReport>.GuidanceFiles)
+  > 0` (from Task 3); do NOT add a separate `GuidanceDeployed bool`.
 - CLI formatting: when guidance was deployed but NOT imported → print: `guidance deployed to ~/.claude/engram/recall.md
   — add '@~/.claude/engram/recall.md' to ~/.claude/CLAUDE.md to activate it (Claude Code will ask you to approve the
   import once)`. When plain `engram update` runs (no flag) and guidance is not imported → print a one-line hint:
@@ -135,24 +155,39 @@ test -f ~/.claude/engram/recall.md && echo "guidance deployed OK"
 engram update                             # plain: prints the 'run --with-guidance' hint (until imported)
 ```
 - [ ] **Step 3 — `targ check-full`** green.
+- [ ] **Step 4 — Scope check (note 150).** `git diff --stat` — confirm ONLY the expected paths changed (`guidance/`,
+  `internal/update/`, `internal/cli/`, `docs/`, `README.md`, `CLAUDE.md`). Revert any out-of-scope change
+  (`go.mod`/`go.sum` from a stray `go mod tidy`, repo-wide formatter runs on unrelated files) before committing — a
+  green `check-full` proves validity, NOT scope.
 
 ## Task 6: Docs + close-out (Step 5/6 of /please)
-- [ ] **Doc sweep (Gate C):** README command-surface (`engram update` now has `--with-guidance`), `docs/architecture/`
-  c1/c2/c3 (update deploys a guidance file to `.claude/engram/`; note it's the always-loaded recall-firing guidance),
-  GLOSSARY (add the guidance-file + `@import` activation). Also update `#647` (README/command-surface drift) if this
-  resolves part of it.
+- [ ] **Doc sweep (Gate C) — itemized (per Gate-A docs+ask review; verify each line at edit time, the numbers are hints):**
+  - **`CLAUDE.md`** (project, repo root): add `guidance/` to the Directory Structure block (parallel to `skills/`,
+    `commands/`); note `engram update --with-guidance` deploys it.
+  - **`README.md`:** the `engram update` examples + the command listing — add the `--with-guidance` variant.
+  - **`docs/architecture/c1-system-context.md`:** the R6 edge (~L61) + its diagram label (~L27) + the update-flow
+    sequence loop/report (~L342-346) — extend "skills/commands" to include the opt-in guidance file.
+  - **`docs/architecture/c2-containers.md`:** the update edge label (~L29) + the C2→S6 row (~L53) — add
+    "`--with-guidance` deploys guidance to `.claude/engram/` (Claude Code only; OpenCode deferred, see the follow-up issue)".
+  - **`docs/architecture/c3-components.md`:** the K9 update subgraph (~L43) + K9 catalog row (~L100) — add guidance.
+  - **`docs/GLOSSARY.md`:** extend the `engram update` entry (~L362) with `--with-guidance`; add entries for the
+    **guidance file** (`.claude/engram/recall.md`, the deployed recall-firing guidance) and **`@import` activation**.
+  - Note whether this partially resolves `#647` (README/command-surface drift).
 - [ ] **File a follow-up issue:** OpenCode guidance deploy — validate `AGENTS.md` import support, then wire
   `GuidanceTargetRel`.
 - [ ] **Commit + push (Gate D).** `AI-Used: [claude]`.
-- [ ] **Migration (offer to the user, do NOT auto-edit their CLAUDE.md):** replace the inline "Recall at the decision
-  moments" section in `~/.claude/CLAUDE.md` with the single line `@~/.claude/engram/recall.md`, then
-  `engram update --with-guidance`. This is the user's file — present the exact diff and let them approve.
+- [ ] **Migration — a post-completion OFFER, not a task step that edits the user's file.** After commit, present to
+  the user the exact diff to *their* `~/.claude/CLAUDE.md` (replace the inline "Recall at the decision moments"
+  section with the single line `@~/.claude/engram/recall.md`) and the command `engram update --with-guidance`. Do
+  NOT auto-edit their CLAUDE.md — apply only on their explicit approval.
 
 ## Self-review (writing-plans checklist)
 - **Coverage:** own the file (T1); deploy pass (T2); flag+apply (T3); warn UX (T4); real-binary verify (T5); docs +
   OpenCode follow-up + migration (T6). Validation gate already passed (claude-code-guide) — recorded in Why.
+  **Harness coverage is PARTIAL this iteration** — Claude Code only; OpenCode is a named follow-up issue (its
+  `@import`/`AGENTS.md` support is unverified — don't ship on an unverified feature).
 - **Scope:** Claude Code only (OpenCode deferred, named); guidance extracted verbatim (no wording edit → no
   writing-skills TDD); the file-deploy never edits CLAUDE.md (the rejected A).
-- **DRY:** `planGuidanceCopies` mirrors `planSkillCopies`; `CopyOp.GuidanceFile` follows the SkillDir/CommandFile
-  discriminator precedent.
+- **DRY:** `planGuidanceCopies` mirrors **`planCommandCopies`** (flat `*.md`, nil-if-missing — NOT `planSkillCopies`,
+  which recurses + errors); `CopyOp.GuidanceFile` follows the SkillDir/CommandFile discriminator precedent.
 - **Type consistency:** `GuidanceTargetRel`/`GuidanceFile`/`WithGuidance`/`GuidanceImported` named consistently.
