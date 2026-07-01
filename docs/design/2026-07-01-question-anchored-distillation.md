@@ -32,14 +32,27 @@ rather than the content centroid — was never proposed. It is un-measured/open*
 supports the depth: k-means-on-cosine natively does aggregation-by-similarity and is blind to grouping by *what
 question the evidence answers* — a different axis.
 
+### Why the single-line patch fails (the original proposal)
+
+The rejected first instinct — add one line to recall Step 2.5 telling the agent to pitch the situation at the
+question — is **inert, not just shallow**: the payload carries **no phrase→member association** (stripped at the
+union), so the agent has no data to anchor to, whatever the skill says. It also sits against Step 2.5's explicit
+**one-note-per-cluster** rule and the covered/near/absent coverage judgment, which never reference the questions.
+And pointing the agent at the `learn` skill's phrasing (as the line implied) is doubly inert — the `learn` path has
+no retrieved-phrase context to borrow. **The plumbing that exposes the phrase→member association is the
+load-bearing prerequisite; the skill instruction is worthless without it** — which is why the mechanism below is
+data-flow-first.
+
 ## The challenge this design must honor (base rate)
 
 Every crystallization-**quality** lever to date deflated to **Δ≈0 on delivery** (handle-wording; graph-retrieval;
 the emergent-synthesis step 18/18=18/18; synthesis-note persistence Δ=0 shallow). Note 99: memory's only verified
 value is idiosyncratic **capability**; crystallization quality has never moved a real axis. Note 119: this class
 of change is warranted **only** by a 3-condition blind knowledge-**delivery** test, never by architectural
-rightness. **Therefore the eval is the load-bearing deliverable, and the mechanism is a cheap prototype to feed
-it — not a substrate rebuild on faith.**
+rightness. **But unlike those deflated levers, this one has a *measured prior gap*** — note 120: cluster-driven
+notes 40% question-useful vs correction-driven 79% — so there is a documented delta to close, which is why it earns
+a cheap test rather than outright dismissal. **Therefore the eval is the load-bearing deliverable, and the
+mechanism is a cheap prototype to feed it — not a substrate rebuild on faith.**
 
 ## The mechanism (cheap prototype — skill-level, no k-means change)
 
@@ -47,10 +60,13 @@ Two small changes produce **question-anchored notes** without re-architecting cl
 
 1. **Binary: carry the phrase→item association through to the payload** (modest plumbing).
    - `matchedSetItem` gains `phrases []int` (indices into the phrase list). `mergePhraseIntoUnion` **accumulates**
-     the set of matching phrase indices per item instead of discarding all but the max-score copy.
-   - Thread through `applyFloorAndCap` → `buildMatchedSet` → `matchedMember` → cluster members → payload.
-   - Expose it: each cluster member (and/or each item) lists the phrase indices that retrieved it. Additive
-     field, `omitempty`, no schema break.
+     the union of matching phrase indices per item instead of discarding all but the max-score copy.
+   - Thread it through the FULL path (verified against query.go — the naive path silently drops it at
+     `splitMatchedSet`, query.go:1622, which splits items into notes/chunks). **FOUR structs need the field, not
+     two:** `matchedSetItem` → (via `splitMatchedSet`) `scoredCandidate` (notes) + `scoredChunk` (chunks) → (via
+     `buildMatchedSet` for notes, `addMatchedChunksToMatchedSet` for chunks) → `matchedMember` → payload.
+   - Expose it: each cluster member lists the phrase indices that retrieved it. Additive `[]int` with `omitempty`
+     on the payload structs (queryClusterMember / queryItem) — no schema break.
 
 2. **Skill: distill per question-group, not per content-cluster** (recall Step 2.5, prototype behind the existing
    content-cluster coverage loop).
@@ -60,17 +76,23 @@ Two small changes produce **question-anchored notes** without re-architecting cl
      evidence answers* (the way the `learn` path phrases a correction), distilling from the question-aligned
      subset — not the whole content-cluster's topic.
 
-### The cardinality rule (the hard part Joe flagged)
+### The cardinality rule — both directions (the hard part Joe flagged)
 
-Content-clusters ≈ AutoK-many; the 10 phrases are **correlated** (one situation → overlapping retrieval), so naive
-per-phrase distillation would mint redundant notes. The collapse rule (skill-level, agent-judged):
-- **Group** a cluster's members by shared retrieving-phrase(s).
-- **Collapse** question-groups whose member-sets overlap heavily (high Jaccard) or whose phrases are near-synonyms
-  → one distillation unit per *distinct question-intent*, not per phrase.
-- Net: roughly the same number of distillation units as content-clusters, but each anchored to a **question
-  intent** rather than a content topic. This IS "clustering by question," done in the agent at prototype cost.
-- **LLM-workload guard (Joe's concern):** this must not make the agent work materially harder. The grouping is
-  over a cluster's already-small member set; if it adds meaningful burden or confusion in the RED baseline, that
+Two mismatches between content-clusters and questions, both resolved by making the distillation unit the
+**question-intent, spanning content-clusters** (not per-cluster):
+- **More phrases than intents** (correlated phrases): 10 phrases from one situation retrieve overlapping items.
+  **Collapse** phrase-groups whose member-sets overlap at **Jaccard ≥ 0.75**, or whose phrases embed at **cosine
+  ≥ 0.85** (phrase-level embeddings), into one distinct intent. (Starting thresholds; tune in the prototype.)
+- **Same intent across clusters** (the converse, flagged in Gate A): a single question's evidence often lands in
+  **multiple** content-clusters. So the grouping runs **across all `absent`-verdict clusters' members**, not
+  within one cluster — members sharing a retrieving-phrase (post-collapse) form ONE distillation unit and yield
+  ONE note, even if they came from two clusters. This prevents the per-cluster loop's fragmentation (two notes
+  about the same question-intent).
+- Net: distillation units = distinct question-intents (cross-cluster), each anchored to a question rather than a
+  content topic. This IS "clustering by question," done in the agent at prototype cost. The coverage judgment
+  (covered/near/absent) stays per-content-cluster (it works); only the write side re-groups by intent.
+- **LLM-workload guard (Joe's concern):** the re-grouping is over the small set of `absent`-cluster members; if it
+  adds material burden or confusion in the RED baseline (measured — does the agent stumble on the grouping?), that
   is itself a finding against the lever.
 
 ## The delivery eval (the gate — this is what decides everything)
@@ -78,17 +100,20 @@ per-phrase distillation would mint redundant notes. The collapse rule (skill-lev
 Per note 119, adapted to crystallization quality. The claim under test: **a question-anchored note is retrieved +
 applied better on a FUTURE related question than a topic-anchored one.**
 
-- **Corpus:** N past investigations, each = {the query phrases (questions), the retrieved evidence, a later
-  related question that should reuse the lesson}. Draw from the mined failure/correction corpus + trap fixtures.
+- **Corpus (N ≥ 10):** each entry is a PAIR — {initial query phrases + retrieved evidence} → {a later question,
+  from a *different* investigation, that applies the *same principle to a new domain*}. Draw from the mined
+  failure/correction corpus + trap fixtures. (N is a starting floor; report the power bound.)
 - **Arms:** crystallize each investigation BOTH ways — (A) current per-content-cluster topic-anchored note; (B)
-  prototype per-question-group question-anchored note. Same evidence, same model; differ only in the distillation.
-- **Verdict (blind-judged, per note 119):** on the later question, run recall and judge — does the agent's plan
-  **apply** the lesson? 3 conditions: none / +topic-note / +question-note. Metric = knowledge-**delivery**
-  (retrieved AND applied), NOT "% question-shaped" (the deflated proxy). Detect the *pattern* applied, not the
-  note name (scorer-bias guard, note-scorer-vocabulary-bias).
-- **Pass-bar:** B must beat A on delivery **above the noise floor** (sized from a same-arm contrast). A tie below
-  noise = "can't distinguish," park it (like the prior levers). Gate on a C3–C6 trap regression (no capability
-  loss) + the `recall_cost` $METER (question-grouping must not blow the procedure cost).
+  prototype per-question-intent question-anchored note. Same evidence, same model; differ only in the distillation.
+- **Verdict (blind-judged, per note 119):** on the later question, run recall and judge with an **opus LLM scorer**
+  — does the agent's plan **apply** the lesson's principle *unprompted*, tracking the reasoning not the note name?
+  3 conditions: none / +topic-note / +question-note. Metric = knowledge-**delivery** (retrieved AND applied), NOT
+  "% question-shaped" (the deflated proxy); the scorer detects the *pattern*, never the note name (bias guard).
+- **Pass-bar:** run each arm on the same evidence subset ≥2× to size per-arm variance; take the larger σ; **B must
+  beat A by ≥ 2σ (95%)**. A tie below 2σ = "can't distinguish," park it (like the prior levers). Also gate on a
+  C3–C6 trap regression (no capability loss) + the `recall_cost` $METER (question-grouping must not blow the
+  procedure cost). **RED signal:** if delivery-with-notes == delivery-with-no-notes, the grouping adds no leverage
+  → park.
 
 ## Decision after the eval
 

@@ -117,15 +117,20 @@ naming routine examples in the guidance made it *worse*, not better). Accepted b
 glance rung is low-cost; the deeper value-gate problem is tracked as **#665**. Depth-dial arc (#661→#662→#663)
 complete.
 
-### Residual — crystallize question-shaped notes  [QUALITY — deflated by the first wave]
+### Residual — question-anchored distillation  [QUALITY — handle-wording deflated; clustering/distillation un-measured, in eval]
 The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
 **cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79%). **But the first wave
 (2026-06-28) deflated this lever** (`…question-shaped-crystallization-proposals.md` §First-wave results):
 diagnostic surfacing is healthy (recall@5 0.99, **#4 dropped**); the prose-rule RED baseline *passed* (fresh
 agents already write question-shaped handles when focused), so the audit's gap is a session-load/old-notes
-artifact. **If pursued:** the deterministic retroactive `engram resituate` to clean up the existing
-topic-shaped handles, then re-audit. Low priority — the first wave's real win (#7, weaker-model reuse) is now
-Track B's NEXT.
+artifact. **Reframe (2026-07-01):** the *deflated* lever was the handle-**wording** prose rule (+ the retroactive
+`engram resituate` cleanup) — that stays low-priority/settled. The *un-measured* lever is **question-anchored
+clustering/distillation**: recall clusters the matched set by content centroid and discards the query phrases at
+the union, so notes distill the cluster *topic*, not the *question* investigated (never proposed before). Designed
+2026-07-01 (`docs/design/2026-07-01-question-anchored-distillation.md`) — a cheap skill-level prototype (carry
+phrases through + distill per question-intent, cross-cluster) gated on a note-119 **delivery eval**; binary
+re-clustering only if delivery moves above 2σ. The first wave's real win (#7, weaker-model reuse) shipped as Track
+B tier-routing.
 
 ### Ranking follow-ups — only if the floor proves too blunt  [QUALITY]
 The note-floor (shipped, see Done) reserves up to `noteFloorK=5` per-phrase slots. If it proves blunt (caps
