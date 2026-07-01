@@ -51,7 +51,7 @@ write edge wired into `IngestDeps.WriteFile` (find in `newOsIngestDeps`).
   `t.TempDir()`): (a) writes new content and the file reads back exactly; (b) overwrites existing content
   atomically; (c) leaves **no** leftover `.tmp-*` file in the dir after success (glob the dir); (d) on a
   rename/write failure (inject by pointing at a path whose dir is read-only) the original file is untouched and
-  no temp remains. Assert against `atomicWriteFile` which does not yet exist.
+  no temp remains. Write assertions that call `atomicWriteFile` (which does not yet exist → compile-fail RED).
 - [ ] **Step 2 — Run RED.** `targ test` → fails to compile (undefined `atomicWriteFile`).
 - [ ] **Step 3 — GREEN.** Implement `atomicWriteFile` in `writesafe.go` per the interface. Then replace the
   `os.WriteFile(path, data, perm)` call at each **vault/index** edge listed in Files with
@@ -61,72 +61,102 @@ write edge wired into `IngestDeps.WriteFile` (find in `newOsIngestDeps`).
 - [ ] **Step 5 — REFACTOR + Gate B.** Confirm ONE helper, all edges call it, no duplicated temp-rename logic;
   the helper is the only new `os.CreateTemp`/`os.Rename` site. Hand the diff to Gate B (design-fit).
 
-## Task 2: #660 — flock the ingest manifest read-modify-write
+## Task 2: flock the manifest read-modify-write — `ingest` AND `prune` (#660)
 
 **Files:** Modify `internal/cli/cli.go` (generalize the flock helper), `internal/cli/ingest.go` (add
-`IngestDeps.Lock`, wrap the RMW, wire in `newOsIngestDeps`); Test `internal/cli/ingest_test.go`.
+`IngestDeps.Lock`, wrap the RMW, wire in `newOsIngestDeps`), `internal/cli/prune.go` (add `PruneDeps.Lock`,
+wrap the RMW, wire in `newOsPruneDeps`); Test `internal/cli/ingest_test.go` + `internal/cli/prune_test.go`.
+
+**Both `RunIngest` (`ingest.go:82`→`:108-110`) and `RunPrune` (`prune.go:31`→`:73`) read `chunks/manifest.json`,
+mutate it, and write it whole back with NO lock — the identical #660 lost-update hazard** (a concurrent
+`ingest`+`prune` on the same `chunksDir` drops one side's changes). Both take the same
+`<chunksDir>/.manifest.lock`. (Found by Gate-A code-alignment: the original plan missed `prune`.)
 
 **Interfaces:**
-- Consumes: the generalized flock.
-- Produces: `IngestDeps.Lock func(chunksDir string) (release func(), err error)` wired to flock
-  `<chunksDir>/.manifest.lock`.
+- Produces: `IngestDeps.Lock` and `PruneDeps.Lock`, both `func(chunksDir string) (release func(), err error)`
+  wired to flock `<chunksDir>/.manifest.lock`.
 
 - [ ] **Step 1 — RED test.** Add `TestRunIngest_LocksManifestAroundReadModifyWrite` (plain-closure deps,
-  Gomega): record a call-order slice from closures — `Lock` appends `"lock"`, `ReadFile` appends `"read:"+path`,
-  `WriteFile` appends `"write:"+path`, and the release func appends `"unlock"`. Seed one changed source so a
-  manifest write happens. Assert the order is `lock` → manifest `read` → manifest `write` → `unlock` (lock
-  before the manifest read, unlock after the manifest write). Today `Lock` is never called → RED.
-- [ ] **Step 2 — Run RED.** `targ test` → fails (`IngestDeps` has no `Lock`; order assertion fails).
+  Gomega): record a call-order slice — `Lock`→`"lock"`, `ReadFile`→`"read:"+path`, `WriteFile`→`"write:"+path`,
+  release→`"unlock"`. Seed one changed source. Assert order `lock` → manifest `read` → manifest `write` →
+  `unlock`. Add the mirror `TestRunPrune_LocksManifestAroundReadModifyWrite` (seed a dead source so a manifest
+  write happens). Today `Lock` is never called → RED.
+- [ ] **Step 2 — Run RED.** `targ test` → both fail (`IngestDeps`/`PruneDeps` have no `Lock`).
 - [ ] **Step 3 — GREEN.**
   (a) In `cli.go`, extract `func flockPath(lockPath string) (func(), error)` holding the current
   `OpenFile`+`Flock(LOCK_EX)`+release logic; rewrite `osLearnFS.Lock(vault)` to
-  `return flockPath(filepath.Join(vault, luhmannLockFile))`.
-  (b) Add `Lock func(chunksDir string) (func(), error)` to `IngestDeps`; wire it in `newOsIngestDeps` to
-  `func(dir string) (func(), error) { return flockPath(filepath.Join(dir, manifestLockFile)) }` with a new
-  `const manifestLockFile = ".manifest.lock"`.
-  (c) In `RunIngest`, immediately after `gatherSources` succeeds, acquire the lock and `defer release()`:
-  `release, lockErr := deps.Lock(args.ChunksDir); if lockErr != nil { return fmt.Errorf("ingest: lock: %w",
-  lockErr) }; defer release()`. This serializes the whole manifest RMW (read at :82 → per-source index writes →
-  write at :109) — the safest region.
-- [ ] **Step 4 — Run GREEN.** `targ test` → the order test + full suite pass.
-- [ ] **Step 5 — Concurrent regression test.** Add `TestRunIngest_ConcurrentWritersDoNotLoseEntries` (real
-  flock via `flockPath` on a `t.TempDir()` lockfile; NOT parallel-shared-state — each goroutine gets its own
-  args/source): two goroutines ingest two **distinct** sources concurrently, each closure sleeping ~5ms between
-  read and write to widen the window; assert the final manifest (via a real `readManifest`) contains **both**
-  entries. With the lock GREEN this is deterministic; document that without it the pre-fix code loses one.
-- [ ] **Step 6 — Gate B** on the diff (design-fit: is the flock region minimal + mirroring `learn`?).
+  `return flockPath(filepath.Join(vault, luhmannLockFile))`. Add `const manifestLockFile = ".manifest.lock"`.
+  (b) Add `Lock func(chunksDir string) (func(), error)` to `IngestDeps` and `PruneDeps`; wire both in their
+  `newOs*Deps` to `func(dir string) (func(), error) { return flockPath(filepath.Join(dir, manifestLockFile)) }`.
+  (c) In `RunIngest` (after `gatherSources`) and `RunPrune` (before `readManifest` at `prune.go:31`), acquire
+  the lock and `defer release()` around the whole manifest RMW.
+- [ ] **Step 4 — Run GREEN.** `targ test` → both order tests + full suite pass.
+- [ ] **Step 5 — Concurrent regression test.** Add `TestManifest_ConcurrentWritersDoNotLoseEntries` (real flock
+  via `flockPath` on a `t.TempDir()` lockfile): two goroutines — one ingesting a NEW source, one pruning a dead
+  source — run concurrently on the SAME `chunksDir` (the deliberate shared subject; each goroutine otherwise owns
+  its args), each closure sleeping ~5ms between read and write to widen the window; assert the final manifest
+  RETAINS the ingested entry AND drops only the dead one. Deterministic with the lock; document that the pre-fix
+  code loses the ingest entry.
+- [ ] **Step 6 — Gate B** on the diff (design-fit: minimal region, both writers, mirrors `learn`).
 
-## Task 3: `amend` — flock the read-modify-write, reusing the vault lock
+## Task 3: flock the vault note read-modify-write — `amend` AND `resituate`
 
-**Files:** Modify `internal/cli/amend.go` (add `AmendDeps.Lock`, wrap RMW, wire in `newOsAmendDeps`); Test
-`internal/cli/amend_test.go`.
+**Files:** Modify `internal/cli/amend.go` (add `AmendDeps.Lock`, wrap RMW, wire in `newOsAmendDeps`),
+`internal/cli/resituate.go` (add `ResituateDeps.Lock`, wrap RMW, wire in `newOsResituateDeps`); Test
+`internal/cli/amend_test.go` + `internal/cli/resituate_test.go`.
+
+**Both `RunAmend` (`amend.go:80/95/100`) and `RunResituate` (`resituate.go:55/65/70`) read a note, transform it
+in memory, and write it back (plus a sidecar) with NO lock — the identical lost-update hazard.** Both take the
+SAME `vault/.luhmann.lock` `learn` uses, so amend/resituate/learn serialize against each other on the vault.
+(Found by Gate-A code-alignment: the original plan missed `resituate`.)
 
 **Interfaces:**
-- Produces: `AmendDeps.Lock func(vault string) (release func(), err error)` wired to `vaultFS.Lock` (the SAME
-  `.luhmann.lock` `learn` uses — so `amend` serializes against `learn` and other amends on the vault).
+- Produces: `AmendDeps.Lock` and `ResituateDeps.Lock`, both `func(vault string) (release func(), err error)`
+  wired to `vaultFS.Lock`.
 
-- [ ] **Step 1 — RED test.** Add `TestRunAmend_LocksVaultAroundReadModifyWrite` (plain closures): record
-  order — `Lock`→`"lock"`, `Read`→`"read"`, `Write`→`"write"`, release→`"unlock"`. Seed a note to amend + one
-  `--relation`. Assert `lock` precedes `read` and `unlock` follows `write`. Today `Lock` is never called → RED.
-- [ ] **Step 2 — Run RED.** `targ test` → fails (`AmendDeps` has no `Lock`).
-- [ ] **Step 3 — GREEN.** Add `Lock func(vault string) (func(), error)` to `AmendDeps`; wire `Lock: vaultFS.Lock`
-  in `newOsAmendDeps` (mirror `learn.go:285`). In `RunAmend`, acquire the lock at the top (before `deps.Scan`)
-  and `defer release()`, so the whole `Scan`/`Read`(:80) → `amendContent`(:95) → `Write`(:100) →
-  `reEmbedAndActivate`(:105) region is serialized.
-- [ ] **Step 4 — Run GREEN.** `targ test` → order test + full suite pass.
+- [ ] **Step 1 — RED test.** Add `TestRunAmend_LocksVaultAroundReadModifyWrite` and
+  `TestRunResituate_LocksVaultAroundReadModifyWrite` (plain closures): record order — `Lock`→`"lock"`,
+  `Read`→`"read"`, `Write`→`"write"`, release→`"unlock"`. Seed a note + the relevant flag (amend: `--relation`;
+  resituate: `--situation`). Assert `lock` precedes `read` and `unlock` follows the final `write`. Today `Lock`
+  is never called → RED.
+- [ ] **Step 2 — Run RED.** `targ test` → both fail (`AmendDeps`/`ResituateDeps` have no `Lock`).
+- [ ] **Step 3 — GREEN.** Add `Lock func(vault string) (func(), error)` to `AmendDeps` and `ResituateDeps`;
+  wire `Lock: vaultFS.Lock` in both `newOs*Deps` (mirror `learn.go:285`). In `RunAmend` (before `deps.Scan`) and
+  `RunResituate` (before `deps.Read` at `resituate.go:55`), acquire the lock and `defer release()`, covering the
+  whole read → transform → write (+ sidecar) region.
+- [ ] **Step 4 — Run GREEN.** `targ test` → both order tests + full suite pass.
 - [ ] **Step 5 — Gate B** on the diff.
 
-## Task 4: Sidecar — correct the false-atomicity comment; confirm coverage
+## Task 4: flock `activate`, and correct the false-atomicity comment
 
-**Files:** Modify `internal/cli/activate.go` (the `bumpLastUsed` doc comment).
+**Files:** Modify `internal/cli/activate.go` (add `ActivateDeps.Lock`, wrap the bump loop in `RunActivate`, wire
+in `newOsActivateDeps`; correct the comment); Test `internal/cli/activate_test.go`.
 
-- [ ] **Step 1 — GREEN (doc-only, no behavior).** Task 1 already routed `activate.go:110`'s write through
-  `atomicWriteFile`, so the sidecar torn-write is fixed. Replace the false comment at `activate.go:65-66`
-  ("sidecar writes are atomic per-file") with the truth: writes go through `atomicWriteFile` (temp+rename);
-  the LastUsed bump is idempotent metadata, so a concurrent bump losing a race is benign (worst case one
-  recency stamp is lost, never corruption) — it deliberately stays outside the vault flock to avoid serializing
-  activation. No RED (comment correction on already-passing code — Iron Law: no test-gaming a doc fix).
-- [ ] **Step 2 — Verify.** `targ test` still green (no behavior change).
+`RunActivate` (`activate.go:30`) loops `bumpLastUsed`, which reads a sidecar, sets `LastUsed`, and rewrites the
+WHOLE sidecar (preserving `Vectors`/`ContentHash` from the read). Unlocked, a standalone `activate` that reads a
+sidecar just before a concurrent (now-flocked) `amend`/`resituate` re-embeds it, then writes after, **clobbers
+the freshly-written vectors with stale ones** — a lost update of the embedding, not benign metadata. So
+`activate` must take the SAME `vault/.luhmann.lock`. `ActivateArgs` already carries `Vault` (`activate.go:15`),
+so this is clean. (Found by Gate-A docs-alignment: the C1 flow diagram + my vector-clobber analysis.)
+
+**Deadlock-avoidance invariant (applies to Tasks 2-4):** acquire the flock ONLY at the `Run*` entry point.
+Shared write helpers (`bumpLastUsed`, `writeManifestFile`, `reEmbedAndActivate`, `writeAmendedSidecar`) MUST
+NOT acquire it — `RunAmend` already holds the flock when it calls `reEmbedAndActivate`→`bumpLastUsed`, so a
+helper re-acquiring the same lock on a second fd would self-deadlock (flock is per-open-file-description).
+
+- [ ] **Step 1 — RED test.** Add `TestRunActivate_LocksVaultAroundBumpLoop` (plain closures): record order —
+  `Lock`→`"lock"`, `Read`→`"read"`, `Write`→`"write"`, release→`"unlock"`. Seed one note whose sidecar needs a
+  bump (`LastUsed` != today). Assert `lock` precedes the first `read` and `unlock` follows the last `write`.
+  Today `Lock` is never called → RED.
+- [ ] **Step 2 — Run RED.** `targ test` → fails (`ActivateDeps` has no `Lock`).
+- [ ] **Step 3 — GREEN.** Add `Lock func(vault string) (func(), error)` to `ActivateDeps`; wire
+  `Lock: vaultFS.Lock` in `newOsActivateDeps`. In `RunActivate`, acquire `deps.Lock(args.Vault)` before the
+  loop and `defer release()`; keep `bumpLastUsed` lock-free (per the invariant). Replace the false comment at
+  `activate.go:66-67` ("No lock: sidecar writes are atomic per-file") with the truth: sidecar writes go through
+  `atomicWriteFile` (temp+rename) AND `RunActivate` holds the vault flock, so a concurrent amend/resituate
+  re-embed cannot be clobbered.
+- [ ] **Step 4 — Run GREEN.** `targ test` → order test + full suite pass.
+- [ ] **Step 5 — Gate B** on the diff.
 
 ## Task 5: Verify with the real binary + full check
 
@@ -147,20 +177,31 @@ python3 -c "import json;json.load(open('$C/manifest.json'));print('manifest.json
 fix(cli): make vault + chunk-index writes concurrency-safe (#660)
 
 Atomic temp-rename writes at the vault/index edges + extend the existing
-vault flock to ingest-manifest and amend read-modify-write regions.
-Fixes #660 (concurrent ingest manifest corruption), the amend lost-update,
-and the sidecar torn-write. learn was already flock-safe. Model-asset
+vault flock (previously learn-only) to every read-modify-write writer:
+manifest (ingest + prune) and vault notes/sidecars (amend + resituate +
+activate). Fixes #660 (concurrent-ingest manifest corruption) plus the
+prune/amend/resituate lost-updates and the activate sidecar vector-clobber
+found in Gate A. Flock is acquired only at Run* entry points (shared write
+helpers stay lock-free) to avoid nested-flock self-deadlock. Model-asset
 cache writes (internal/embed) are single-writer and left unchanged.
 
 AI-Used: [claude]
 ```
 
 ## Self-review (writing-plans checklist)
-- **Coverage:** atomic-write helper = Task 1; #660 manifest flock = Task 2; amend flock = Task 3; sidecar =
-  Task 4 (covered by Task 1 + comment fix); real-binary verify = Task 5. Every map-3 finding has a task.
-- **Type consistency:** `Lock func(string)(func(),error)` matches the existing `LearnDeps.Lock` signature
+- **Coverage:** the complete write-safety surface (established via the Step-2 code map + Gate-A code-alignment)
+  is: atomic-write helper for torn writes = Task 1 (all edges); manifest RMW flock = Task 2 (`ingest` +
+  `prune`); vault-note RMW flock = Task 3 (`amend` + `resituate`); vault-sidecar RMW flock = Task 4
+  (`activate`); `learn` already flock-safe. Real-binary verify = Task 5. Every RMW writer in the CLI is covered.
+- **Type consistency:** all `Lock func(string)(func(),error)` match the existing `LearnDeps.Lock` signature
   (`learn.go:66`); `atomicWriteFile(path,data,perm)` mirrors the `os.WriteFile` signature it replaces.
 - **Scope:** vault/index writes only; model-asset cache excluded (named); the payload-prune build stays
-  deferred (separate spec). DRY: one write helper, one `flockPath` helper shared by vault + manifest locks.
+  deferred (separate spec). DRY: one `atomicWriteFile` helper, one `flockPath` helper shared by the vault
+  (`.luhmann.lock`) and manifest (`.manifest.lock`) locks.
+- **Deadlock:** flock only at `Run*` entry points; shared write helpers never acquire (verified no re-entrancy
+  in Gate A).
+- **Issue tracking:** #660 covers the manifest RMW (ingest + prune). The vault-write lost-updates
+  (amend/resituate/activate) are untracked today — a single umbrella issue is filed at completion (Step 6) and
+  closed by this work; the ROADMAP Track-0 entry is updated with the numbers.
 - **Test idiom:** plain inline closures (the `amend_test.go` pattern), order-recording for lock interaction,
-  a real-flock concurrent regression test for #660.
+  a real-flock concurrent regression test for the manifest.

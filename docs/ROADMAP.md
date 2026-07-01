@@ -47,16 +47,22 @@ back to query-only recall. Root-caused 2026-07-01. The fix pattern is the existi
 (`internal/cli/cli.go:54-79`, today guarding only Luhmann-ID sequencing in `learn`) extended to the unguarded
 sites, plus **atomic temp-rename** writes (one shared helper for manifest / notes / sidecars).
 
-- **#660 — manifest lost-update + torn write.** `engram ingest` reads `chunks/manifest.json`
-  (`ingest.go:82`), mutates it in a loop (`:352`), writes it whole back via non-atomic `os.WriteFile`
-  (`:675`). Two concurrent runs lose each other's entries; a torn write corrupts the file. FIX: flock the
-  manifest read-modify-write + atomic temp-rename.
-- **`amend` lost-update (untracked — file an issue).** `RunAmend` reads a note, mutates in memory, writes
-  back (`amend.go:80/95/100`) with **no lock**; two concurrent amends of the same note lose one. FIX: extend
-  the vault flock to amend's read-modify-write.
-- **Sidecar torn write (untracked — file an issue).** `bumpLastUsed` (`activate.go:65-66`) rewrites a
-  `.vec.json` sidecar assuming `os.WriteFile` is atomic (it is not). FIX: atomic temp-rename for sidecar writes.
+The complete RMW-writer surface (Step-2 code map + Gate-A code-alignment, which caught `prune` + `resituate`):
+
+- **#660 — manifest lost-update + torn write (`ingest` AND `prune`).** Both `RunIngest`
+  (`ingest.go:82`→`:108`) and `RunPrune` (`prune.go:31`→`:73`) read `chunks/manifest.json`, mutate it, and
+  write it whole back via non-atomic `os.WriteFile`, with no lock. Two concurrent runs lose each other's
+  entries; a torn write corrupts the file. FIX: flock the manifest RMW (`.manifest.lock`) + atomic temp-rename.
+- **Vault-note lost-update (`amend` AND `resituate`, untracked).** `RunAmend` (`amend.go:80/95/100`) and
+  `RunResituate` (`resituate.go:55/65/70`) do an unlocked note read-modify-write; two concurrent writers on the
+  same note lose one. FIX: extend the vault flock (`.luhmann.lock`) to both.
+- **`activate` sidecar vector-clobber + torn write (untracked).** `bumpLastUsed` (`activate.go:66-67`) rewrites
+  the WHOLE `.vec.json` sidecar unlocked (assuming `os.WriteFile` is atomic — it is not), so it can clobber a
+  concurrent amend/resituate re-embed's vectors with stale ones. FIX: flock `RunActivate` on the vault lock +
+  atomic temp-rename.
 - `learn` is **already** flock-safe (`writeLearnUnderLock`, `learn.go:571`) — the precedent to follow.
+- **Deadlock-avoidance:** flock only at `Run*` entry points; shared write helpers (`bumpLastUsed`,
+  `writeManifestFile`, `reEmbedAndActivate`) stay lock-free (amend already holds the lock when it calls them).
 
 Plan: `docs/superpowers/plans/2026-07-01-concurrency-write-safety.md` (this `/please`). Gated by `targ check-full`
 + a concurrent-writers regression test.
