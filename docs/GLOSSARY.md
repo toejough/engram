@@ -97,8 +97,11 @@ the markdown body). At query time, `bestVector` picks the axis with the
 higher cosine against the query phrase. Also stores `embedding_model_id`,
 `dims`, `content_hash` (sha256 over situation + body text), and
 `last_used` (YYYY-MM-DD date last activated — drives ACT-R-style recency
-decay). Sidecars are written atomically on `engram learn`; `engram embed
-apply` fills or updates them in bulk.
+decay). Note + sidecar writes are atomic (temp-file + rename) and serialized
+under the vault flock (`.luhmann.lock`) across all vault writers — `engram
+learn`, `amend`, `resituate`, and `activate`. Chunk-index writes (the separate
+`manifest.json` + per-source indices) use a different lock, `.manifest.lock`,
+to avoid contention with note writes. `engram embed apply` re-embeds notes in bulk.
 
 ---
 

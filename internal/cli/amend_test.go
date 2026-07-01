@@ -369,6 +369,73 @@ func TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
 	g.Expect(embedCalled).To(BeFalse(), "relation-only change must not trigger re-embed")
 }
 
+// TestRunAmend_LocksVaultAroundReadModifyWrite asserts that RunAmend acquires
+// the vault lock BEFORE reading the note and releases it AFTER writing, so
+// concurrent amend/resituate/learn runs cannot produce lost updates.
+func TestRunAmend_LocksVaultAroundReadModifyWrite(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test"
+
+	noteContent := makeFactNote("ctx", "A", "has", "B", "")
+
+	var order []string
+
+	deps := cli.AmendDeps{
+		Lock: func(string) (func(), error) {
+			order = append(order, "lock")
+
+			return func() { order = append(order, "unlock") }, nil
+		},
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read: func(string) ([]byte, error) {
+			order = append(order, "read")
+
+			return noteContent, nil
+		},
+		Write: func(string, []byte) error {
+			order = append(order, "write")
+
+			return nil
+		},
+		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:  "/vault",
+		Target: "1aa",
+		// relation-only amend: no content change, no embed
+		Relations: []string{basename + "|why"},
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(order).To(ContainElements("lock", "read", "write", "unlock"),
+		"all lock events must be recorded")
+
+	lockIdx := sliceIndex(order, "lock")
+	readIdx := sliceIndex(order, "read")
+	writeIdx := sliceIndex(order, "write")
+	unlockIdx := sliceIndex(order, "unlock")
+
+	g.Expect(lockIdx).To(BeNumerically("<", readIdx), "lock must precede read")
+	g.Expect(readIdx).To(BeNumerically("<", writeIdx), "read must precede write")
+	g.Expect(writeIdx).To(BeNumerically("<", unlockIdx), "write must precede unlock")
+}
+
 func TestRunAmend_MalformedCreated_Errors(t *testing.T) {
 	t.Parallel()
 
@@ -841,7 +908,8 @@ func TestRunAmend_ResolvesTargetWithMdSuffix(t *testing.T) {
 		return
 	}
 
-	g.Expect(writeCalled).To(BeTrue(), "amend must write the note when target resolves via .md suffix")
+	g.Expect(writeCalled).
+		To(BeTrue(), "amend must write the note when target resolves via .md suffix")
 }
 
 func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
@@ -888,7 +956,11 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
 	}
 
 	// write a relation-target note
-	err = os.WriteFile(filepath.Join(dir, relKey+".md"), makeFactNote("r ctx", "X", "is", "Y", ""), 0o600)
+	err = os.WriteFile(
+		filepath.Join(dir, relKey+".md"),
+		makeFactNote("r ctx", "X", "is", "Y", ""),
+		0o600,
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -944,7 +1016,9 @@ func TestRunAmend_UnknownNoteType_Errors(t *testing.T) {
 	const basename = "1aa.2026-01-01.weird.md"
 
 	// a note whose type is neither fact nor feedback
-	noteContent := []byte("---\ntype: episode\nsituation: x\ncreated: 2026-01-01\nsource: test\n---\n\nbody\n")
+	noteContent := []byte(
+		"---\ntype: episode\nsituation: x\ncreated: 2026-01-01\nsource: test\n---\n\nbody\n",
+	)
 
 	deps := cli.AmendDeps{
 		Scan: func(string) ([]vaultgraph.Note, error) {
@@ -987,9 +1061,21 @@ func (s *spyEmbedder) ModelID() string { return "spy" }
 // related section) for amend tests.
 func makeFactNote(situation, subject, predicate, object, relatedSection string) []byte {
 	frontmatter := "---\ntype: fact\ntier: L2\n" +
-		fmt.Sprintf("situation: %s\nsubject: %s\npredicate: %s\nobject: %s\n", situation, subject, predicate, object) +
+		fmt.Sprintf(
+			"situation: %s\nsubject: %s\npredicate: %s\nobject: %s\n",
+			situation,
+			subject,
+			predicate,
+			object,
+		) +
 		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n"
-	formula := fmt.Sprintf("Information learned: when in %s, %s %s %s.\n", situation, subject, predicate, object)
+	formula := fmt.Sprintf(
+		"Information learned: when in %s, %s %s %s.\n",
+		situation,
+		subject,
+		predicate,
+		object,
+	)
 
 	return []byte(frontmatter + formula + "\n" + relatedSection)
 }
@@ -999,7 +1085,13 @@ func makeFactNote(situation, subject, predicate, object, relatedSection string) 
 // existing-sources merge path.
 func makeFeedbackNote(situation, behavior, impact, action, chunkSource string) []byte {
 	frontmatter := "---\ntype: feedback\ntier: L2\n" +
-		fmt.Sprintf("situation: %s\nbehavior: %s\nimpact: %s\naction: %s\n", situation, behavior, impact, action) +
+		fmt.Sprintf(
+			"situation: %s\nbehavior: %s\nimpact: %s\naction: %s\n",
+			situation,
+			behavior,
+			impact,
+			action,
+		) +
 		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n"
 	if chunkSource != "" {
 		frontmatter += fmt.Sprintf("sources:\n  - %s\n", chunkSource)

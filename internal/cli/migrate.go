@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 
 	"github.com/toejough/engram/internal/vaultgraph"
@@ -27,7 +26,12 @@ type MigrateDeps struct {
 // every note's "Related to:" section. Without --apply it reports what would
 // change without writing. Idempotent: an already-migrated link no longer matches
 // a bare id, so re-running is a no-op.
-func RunMigrateLinks(_ context.Context, args MigrateArgs, deps MigrateDeps, stdout io.Writer) error {
+func RunMigrateLinks(
+	_ context.Context,
+	args MigrateArgs,
+	deps MigrateDeps,
+	stdout io.Writer,
+) error {
 	notes, err := deps.Scan(args.VaultPath)
 	if err != nil {
 		return fmt.Errorf("migrate-links: scan: %w", err)
@@ -93,7 +97,7 @@ func newOsMigrateDeps() MigrateDeps {
 		},
 		Read: (&osVaultFS{}).ReadFile,
 		Write: func(path string, data []byte) error {
-			err := os.WriteFile(path, data, perm)
+			err := atomicWriteFile(path, data, perm)
 			if err != nil {
 				return fmt.Errorf("write %s: %w", path, err)
 			}

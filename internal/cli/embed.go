@@ -156,11 +156,12 @@ func (osEmbedFS) Scan(vault string) ([]vaultgraph.Note, error) {
 	return vaultgraph.ScanVault(&osVaultFS{}, vault)
 }
 
-// Write writes data to path via os.WriteFile with 0o600 perms.
+// Write writes data to path with 0o600 perms using atomicWriteFile (temp+rename)
+// so concurrent readers always see either the old or new file, never a torn write.
 func (osEmbedFS) Write(path string, data []byte) error {
 	const sidecarPerm = 0o600
 
-	err := os.WriteFile(path, data, sidecarPerm)
+	err := atomicWriteFile(path, data, sidecarPerm)
 	if err != nil {
 		return fmt.Errorf("write: %w", err)
 	}

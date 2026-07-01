@@ -16,6 +16,10 @@ type PruneArgs struct {
 
 // PruneDeps holds injected dependencies for RunPrune.
 type PruneDeps struct {
+	// Lock acquires an exclusive flock on chunksDir/.manifest.lock and returns a
+	// release func. Wired to flockPath(chunksDir/.manifest.lock) in newOsPruneDeps.
+	// Guards the manifest read-modify-write against concurrent ingest/prune (#660).
+	Lock      func(chunksDir string) (func(), error)
 	ReadFile  func(path string) ([]byte, error)
 	WriteFile func(path string, data []byte) error
 	Exists    func(path string) bool
@@ -26,13 +30,22 @@ type PruneDeps struct {
 // no longer exists has its per-source index file deleted and its manifest entry
 // dropped. Append-only history is preserved for live sources. Zero-LLM.
 func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Writer) error {
+	// Acquire the manifest lock before any read-modify-write on manifest.json
+	// so concurrent ingest/prune runs cannot produce lost updates (#660).
+	release, lockErr := acquireOptionalLock(deps.Lock, args.ChunksDir)
+	if lockErr != nil {
+		return fmt.Errorf("prune: acquiring manifest lock: %w", lockErr)
+	}
+
+	defer release()
+
 	manifest := ingestManifest{}
 
 	data, err := deps.ReadFile(filepath.Join(args.ChunksDir, manifestName))
 	if err != nil {
 		_, _ = fmt.Fprintln(stdout, "prune: no manifest, nothing to prune")
 
-		return nil //nolint:nilerr // absent manifest = empty index, not an error
+		return nil // absent manifest = empty index, not an error
 	}
 
 	err = json.Unmarshal(data, &manifest)
@@ -85,6 +98,7 @@ func newOsPruneDeps() PruneDeps {
 	fs := &osEmbedFS{}
 
 	return PruneDeps{
+		Lock:      osManifestLock,
 		ReadFile:  fs.Read,
 		WriteFile: fs.Write,
 		Exists: func(path string) bool {

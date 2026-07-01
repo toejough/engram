@@ -330,3 +330,75 @@ func TestRunActivateResolvesRelativeNoteAgainstVault(t *testing.T) {
 
 	g.Expect(got.LastUsed).To(Equal("2026-06-17"))
 }
+
+// TestRunActivate_LocksVaultAroundBumpLoop asserts that RunActivate acquires the
+// vault lock BEFORE the first sidecar bump and releases it AFTER the last write,
+// so a concurrent amend/resituate re-embed cannot clobber the freshly-written
+// sidecar vectors with stale ones.
+func TestRunActivate_LocksVaultAroundBumpLoop(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	orig := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@1",
+		Dims:             1,
+		SituationVector:  []float32{0.1},
+		BodyVector:       []float32{0.2},
+		ContentHash:      "sha256:x",
+		LastUsed:         "2025-01-01", // old date → bump will write
+	}
+
+	vault := "/vault"
+	noteName := "1aa.2026-01-01.test.md"
+	sidecarPath := vault + "/1aa.2026-01-01.test.vec.json"
+
+	store := map[string][]byte{sidecarPath: embed.MarshalSidecar(orig)}
+
+	var order []string
+
+	deps := cli.ActivateDeps{
+		Lock: func(string) (func(), error) {
+			order = append(order, "lock")
+
+			return func() { order = append(order, "unlock") }, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC) },
+		Read: func(p string) ([]byte, error) {
+			order = append(order, "read")
+
+			b, ok := store[p]
+			if !ok {
+				return nil, errors.New("not found: " + p)
+			}
+
+			return b, nil
+		},
+		Write: func(p string, b []byte) error {
+			order = append(order, "write")
+			store[p] = b
+
+			return nil
+		},
+		LogWarning: func(string, ...any) {},
+	}
+
+	err := cli.ExportRunActivate(cli.ActivateArgs{Vault: vault, Notes: []string{noteName}}, deps)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(order).To(ContainElements("lock", "read", "write", "unlock"),
+		"all lock events must be recorded")
+
+	lockIdx := sliceIndex(order, "lock")
+	readIdx := sliceIndex(order, "read")
+	writeIdx := sliceIndex(order, "write")
+	unlockIdx := sliceIndex(order, "unlock")
+
+	g.Expect(lockIdx).To(BeNumerically("<", readIdx), "lock must precede first read")
+	g.Expect(readIdx).To(BeNumerically("<", writeIdx), "read must precede write")
+	g.Expect(writeIdx).To(BeNumerically("<", unlockIdx), "last write must precede unlock")
+}

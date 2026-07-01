@@ -53,10 +53,10 @@ The complete RMW-writer surface (Step-2 code map + Gate-A code-alignment, which 
   (`ingest.go:82`→`:108`) and `RunPrune` (`prune.go:31`→`:73`) read `chunks/manifest.json`, mutate it, and
   write it whole back via non-atomic `os.WriteFile`, with no lock. Two concurrent runs lose each other's
   entries; a torn write corrupts the file. FIX: flock the manifest RMW (`.manifest.lock`) + atomic temp-rename.
-- **Vault-note lost-update (`amend` AND `resituate`, untracked).** `RunAmend` (`amend.go:80/95/100`) and
+- **Vault-note lost-update (`amend` AND `resituate`, #666).** `RunAmend` (`amend.go:80/95/100`) and
   `RunResituate` (`resituate.go:55/65/70`) do an unlocked note read-modify-write; two concurrent writers on the
   same note lose one. FIX: extend the vault flock (`.luhmann.lock`) to both.
-- **`activate` sidecar vector-clobber + torn write (untracked).** `bumpLastUsed` (`activate.go:66-67`) rewrites
+- **`activate` sidecar vector-clobber + torn write (#666).** `bumpLastUsed` (`activate.go:66-67`) rewrites
   the WHOLE `.vec.json` sidecar unlocked (assuming `os.WriteFile` is atomic — it is not), so it can clobber a
   concurrent amend/resituate re-embed's vectors with stale ones. FIX: flock `RunActivate` on the vault lock +
   atomic temp-rename.

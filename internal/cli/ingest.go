@@ -36,6 +36,10 @@ type IngestDeps struct {
 	ListSources    func(root SweepRoot) ([]string, error)
 	ReadTranscript func(path string, from time.Time, budget int) (transcript.ReadResult, error)
 	Embedder       embed.Embedder
+	// Lock acquires an exclusive flock on chunksDir/.manifest.lock and returns a
+	// release func. Wired to flockPath(chunksDir/.manifest.lock) in newOsIngestDeps.
+	// Guards the manifest read-modify-write against concurrent ingest/prune (#660).
+	Lock func(chunksDir string) (func(), error)
 	// Now returns the current wall-clock time for IngestedAt stamping. Nil-safe:
 	// callers guard with "if deps.Now != nil" before calling. Wire time.Now in
 	// newOsIngestDeps.
@@ -78,6 +82,15 @@ func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.
 	if err != nil {
 		return err
 	}
+
+	// Acquire the manifest lock before any read-modify-write on manifest.json
+	// so concurrent ingest/prune runs cannot produce lost updates (#660).
+	release, lockErr := acquireOptionalLock(deps.Lock, args.ChunksDir)
+	if lockErr != nil {
+		return fmt.Errorf("ingest: acquiring manifest lock: %w", lockErr)
+	}
+
+	defer release()
 
 	manifest, err := readManifest(args.ChunksDir, deps)
 	if err != nil {
@@ -475,6 +488,7 @@ func newOsIngestDeps() IngestDeps {
 	reader := transcript.NewJSONLReader(&osFileReader{})
 
 	return IngestDeps{
+		Lock:     osManifestLock,
 		ReadFile: fs.Read,
 		WriteFile: func(path string, data []byte) error {
 			const dirPerm = 0o700

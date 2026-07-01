@@ -184,7 +184,7 @@ sequenceDiagram
 
     Note over H: agent calls engram activate on notes actually USED (covered/near candidates and cited notes only)
     H->>E: engram activate --note <path> ... (agent-driven; unused returned notes are NOT activated)
-    E->>V: bump LastUsed on each activated note
+    E->>V: acquire flock, bump LastUsed on each activated note
     Note over H: Step 3 synthesis against the Step 0 plan
     H-->>Op: reply with plan walk (confirmed / adjusted / contradicted / silent)
 ```

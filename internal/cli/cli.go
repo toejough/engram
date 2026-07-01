@@ -13,7 +13,8 @@ import (
 
 // unexported constants.
 const (
-	luhmannLockFile = ".luhmann.lock"
+	luhmannLockFile  = ".luhmann.lock"
+	manifestLockFile = ".manifest.lock"
 )
 
 // unexported variables.
@@ -52,30 +53,7 @@ func (*osLearnFS) ListIDs(vault string) ([]string, error) {
 
 // Lock acquires an exclusive flock on vault/.luhmann.lock; returns a release func.
 func (*osLearnFS) Lock(vault string) (func(), error) {
-	path := filepath.Join(vault, luhmannLockFile)
-
-	const perm = 0o600
-
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, perm) //nolint:gosec // path from caller
-	if err != nil {
-		return nil, fmt.Errorf("open lock: %w", err)
-	}
-
-	fileDescriptor := int(f.Fd())
-
-	flockErr := syscall.Flock(fileDescriptor, syscall.LOCK_EX)
-	if flockErr != nil {
-		_ = f.Close()
-
-		return nil, fmt.Errorf("flock: %w", flockErr)
-	}
-
-	release := func() {
-		_ = syscall.Flock(fileDescriptor, syscall.LOCK_UN)
-		_ = f.Close()
-	}
-
-	return release, nil
+	return flockPath(filepath.Join(vault, luhmannLockFile))
 }
 
 // MkdirAll creates path with any missing parents; no-op when path exists.
@@ -163,12 +141,54 @@ func (*osLearnFS) WriteNew(path string, data []byte) error {
 func (*osLearnFS) WriteSidecar(path string, data []byte) error {
 	const perm = 0o600
 
-	err := os.WriteFile(path, data, perm)
+	err := atomicWriteFile(path, data, perm)
 	if err != nil {
 		return fmt.Errorf("write sidecar: %w", err)
 	}
 
 	return nil
+}
+
+// acquireOptionalLock calls lock(arg) if lock is non-nil and returns (release, nil).
+// When lock is nil it returns a no-op release and nil so callers can always defer
+// the release unconditionally without a nil guard. Used at all Run* entry points
+// to handle an injected-vs-nil lock without adding complexity branches to those
+// already-complex functions.
+func acquireOptionalLock(lock func(string) (func(), error), arg string) (func(), error) {
+	if lock == nil {
+		return func() {}, nil
+	}
+
+	return lock(arg)
+}
+
+// flockPath opens lockPath (O_CREATE|O_RDWR) and acquires an exclusive flock.
+// Returns a release func that unlocks and closes the file. Used by osLearnFS.Lock
+// (vault/.luhmann.lock) and the manifest lock wired into IngestDeps/PruneDeps
+// (chunksDir/.manifest.lock) so all cross-process locking goes through one helper.
+func flockPath(lockPath string) (func(), error) {
+	const perm = 0o600
+
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, perm) //nolint:gosec // path from caller
+	if err != nil {
+		return nil, fmt.Errorf("open lock: %w", err)
+	}
+
+	fileDescriptor := int(f.Fd())
+
+	flockErr := syscall.Flock(fileDescriptor, syscall.LOCK_EX)
+	if flockErr != nil {
+		_ = f.Close()
+
+		return nil, fmt.Errorf("flock: %w", flockErr)
+	}
+
+	release := func() {
+		_ = syscall.Flock(fileDescriptor, syscall.LOCK_UN)
+		_ = f.Close()
+	}
+
+	return release, nil
 }
 
 // listRootNotes reads the flat vault root and collects one string per non-dir
@@ -198,6 +218,21 @@ func listRootNotes(vault string, extract func(name string) (string, bool)) ([]st
 	}
 
 	return out, nil
+}
+
+// osManifestLock ensures dir exists then acquires an exclusive flock on
+// dir/.manifest.lock. Returns a release func. Used by newOsIngestDeps and
+// newOsPruneDeps so the MkdirAll+flock pair lives in exactly one place — fixing
+// the regression where prune's lock skipped MkdirAll and errored on a fresh dir.
+func osManifestLock(dir string) (func(), error) {
+	const dirPerm = 0o700
+
+	err := os.MkdirAll(dir, dirPerm)
+	if err != nil {
+		return nil, fmt.Errorf("creating chunks dir for lock: %w", err)
+	}
+
+	return flockPath(filepath.Join(dir, manifestLockFile))
 }
 
 // pathOf returns the vault-relative path for a note, e.g. "foo.md". The vault

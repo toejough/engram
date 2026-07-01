@@ -208,13 +208,17 @@ func TestRunResituate_IOErrors(t *testing.T) {
 		g := NewWithT(t)
 
 		// Note write succeeds; only the sidecar (.vec.json) write fails.
-		deps := injectedNoteDeps(resituateFactNote, successEmbedder{}, func(path string, _ []byte) error {
-			if strings.HasSuffix(path, ".vec.json") {
-				return errInjectedIO
-			}
+		deps := injectedNoteDeps(
+			resituateFactNote,
+			successEmbedder{},
+			func(path string, _ []byte) error {
+				if strings.HasSuffix(path, ".vec.json") {
+					return errInjectedIO
+				}
 
-			return nil
-		})
+				return nil
+			},
+		)
 
 		err := cli.RunResituate(t.Context(), resituateArgs(), deps, &strings.Builder{})
 		g.Expect(err).To(MatchError(errInjectedIO))
@@ -256,6 +260,82 @@ func TestRunResituate_LocatesByFullBasename(t *testing.T) {
 	}
 
 	g.Expect(string(got)).To(ContainSubstring("situation: " + resituateNewSituation))
+}
+
+// TestRunResituate_LocksVaultAroundReadModifyWrite asserts that RunResituate
+// acquires the vault lock BEFORE reading the note and releases it AFTER
+// writing the sidecar, so concurrent amend/resituate/learn runs do not lose
+// each other's writes.
+func TestRunResituate_LocksVaultAroundReadModifyWrite(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var order []string
+
+	noteName := "9zz.2026-05-10.lock-test"
+	noteContent := `---
+type: fact
+tier: L2
+situation: original situation
+subject: A
+predicate: has
+object: B
+luhmann: "9zz"
+created: "2026-05-10"
+source: test
+---
+
+Information learned: when in original situation, A has B.
+`
+
+	deps := cli.ResituateDeps{
+		Lock: func(string) (func(), error) {
+			order = append(order, "lock")
+
+			return func() { order = append(order, "unlock") }, nil
+		},
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: noteName, LuhmannID: "9zz"}}, nil
+		},
+		Read: func(string) ([]byte, error) {
+			order = append(order, "read")
+
+			return []byte(noteContent), nil
+		},
+		Write: func(string, []byte) error {
+			order = append(order, "write")
+
+			return nil
+		},
+		Embedder: successEmbedder{},
+	}
+
+	args := cli.ResituateArgs{
+		Vault:     "/vault",
+		Note:      "9zz",
+		Situation: "new test situation",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.RunResituate(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(order).To(ContainElements("lock", "read", "write", "unlock"),
+		"all lock events must be recorded")
+
+	lockIdx := sliceIndex(order, "lock")
+	readIdx := sliceIndex(order, "read")
+	writeIdx := sliceIndex(order, "write")
+	unlockIdx := sliceIndex(order, "unlock")
+
+	g.Expect(lockIdx).To(BeNumerically("<", readIdx), "lock must precede read")
+	g.Expect(readIdx).To(BeNumerically("<", writeIdx), "read must precede write")
+	g.Expect(writeIdx).To(BeNumerically("<", unlockIdx), "final write must precede unlock")
 }
 
 // TestRunResituate_NotFound asserts the sentinel error when no note in the
@@ -356,7 +436,11 @@ func feedbackNoteWithCreated(created string) string {
 // injectedNoteDeps returns ResituateDeps whose Scan yields a single note
 // (basename injectedNoteID) and whose Read returns the fixed content for any
 // path. write overrides the Write closure; nil means a no-op success.
-func injectedNoteDeps(content string, emb embed.Embedder, write func(string, []byte) error) cli.ResituateDeps {
+func injectedNoteDeps(
+	content string,
+	emb embed.Embedder,
+	write func(string, []byte) error,
+) cli.ResituateDeps {
 	if write == nil {
 		write = func(string, []byte) error { return nil }
 	}

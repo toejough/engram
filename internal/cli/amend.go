@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -44,6 +43,13 @@ type AmendArgs struct {
 // map[string]bool keyed by "source#anchor". The production wiring in
 // newOsAmendDeps supplies os.ReadDir/os.ReadFile via closures.
 type AmendDeps struct {
+	// Lock acquires an exclusive flock on vault/.luhmann.lock and returns a release
+	// func. Wired to vaultFS.Lock in newOsAmendDeps. Guards the note read-modify-write
+	// against concurrent amend/resituate/learn runs so no writer's changes are lost.
+	// Acquire only at the RunAmend entry point — shared helpers (reEmbedAndActivate,
+	// bumpLastUsed) must NOT re-acquire (RunAmend already holds it, re-acquiring would
+	// self-deadlock on a per-fd flock).
+	Lock          func(vault string) (func(), error)
 	Scan          func(vault string) ([]vaultgraph.Note, error)
 	Read          func(path string) ([]byte, error)
 	Write         func(path string, data []byte) error
@@ -65,6 +71,17 @@ type AmendDeps struct {
 // content fields. Re-embeds only when content changed. --activate bumps
 // LastUsed in the same write.
 func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Writer) error {
+	// Acquire the vault lock before any read-modify-write on the note so
+	// concurrent amend/resituate/learn runs cannot produce lost updates.
+	// Helpers called within (reEmbedAndActivate, bumpLastUsed) must NOT
+	// re-acquire — doing so would self-deadlock on a per-fd flock.
+	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
+	if lockErr != nil {
+		return fmt.Errorf("amend: acquiring vault lock: %w", lockErr)
+	}
+
+	defer release()
+
 	notes, scanErr := deps.Scan(args.Vault)
 	if scanErr != nil {
 		return fmt.Errorf("amend: scan: %w", scanErr)
@@ -209,7 +226,11 @@ func applyFieldOverrides(overrides []fieldOverride) bool {
 // provenance merge, rebuilds the frontmatter, and reassembles with the (already
 // relation-merged) body. contentChanged is true only when a semantic field
 // (situation/subject/predicate/object/behavior/impact/action) changed.
-func applyFieldReplacement(raw []byte, args AmendArgs, body, noteType string) (string, bool, error) {
+func applyFieldReplacement(
+	raw []byte,
+	args AmendArgs,
+	body, noteType string,
+) (string, bool, error) {
 	frontmatter, _ := splitFrontmatter(raw) // already validated upstream
 
 	switch noteType {
@@ -227,7 +248,12 @@ func applyFieldReplacement(raw []byte, args AmendArgs, body, noteType string) (s
 // overrides + provenance merge, and renders. contentChanged is true only when a
 // semantic field actually changed value, so relation-only or provenance-only
 // amends do not trigger a re-embed (D3).
-func applyTypedAmend[T any](frontmatter []byte, args AmendArgs, body string, spec typedAmend[T]) (string, bool, error) {
+func applyTypedAmend[T any](
+	frontmatter []byte,
+	args AmendArgs,
+	body string,
+	spec typedAmend[T],
+) (string, bool, error) {
 	var doc T
 
 	err := yaml.Unmarshal(frontmatter, &doc)
@@ -337,12 +363,13 @@ func newOsAmendDeps() AmendDeps {
 	const perm = 0o600
 
 	return AmendDeps{
+		Lock: (&osLearnFS{}).Lock,
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
 			return vaultgraph.ScanVault(&osVaultFS{}, vault)
 		},
 		Read: (&osVaultFS{}).ReadFile,
 		Write: func(path string, data []byte) error {
-			err := os.WriteFile(path, data, perm)
+			err := atomicWriteFile(path, data, perm)
 			if err != nil {
 				return fmt.Errorf("write %s: %w", path, err)
 			}
@@ -409,7 +436,11 @@ func overrideField(current, incoming string) (string, bool) {
 // warn-and-continue on failure: the note write already succeeded, so a missing
 // sidecar is recoverable later.
 func reEmbedAndActivate(
-	ctx context.Context, args AmendArgs, deps AmendDeps, full, relPath, amended string, contentChanged bool,
+	ctx context.Context,
+	args AmendArgs,
+	deps AmendDeps,
+	full, relPath, amended string,
+	contentChanged bool,
 ) {
 	if contentChanged && deps.Embedder != nil {
 		embedErr := writeAmendedSidecar(ctx, deps, full, amended)
@@ -442,7 +473,12 @@ func relatedTailFromBody(body string) string {
 
 // renderAmendedFact re-renders a fact note from the (possibly updated) doc,
 // rebuilding the body formula only when a semantic field changed.
-func renderAmendedFact(doc factFrontmatterDoc, when time.Time, body string, contentChanged bool) string {
+func renderAmendedFact(
+	doc factFrontmatterDoc,
+	when time.Time,
+	body string,
+	contentChanged bool,
+) string {
 	f := factFields{
 		Situation: doc.Situation, Subject: doc.Subject, Predicate: doc.Predicate,
 		Object: doc.Object, Luhmann: string(doc.Luhmann), Source: doc.Source,
@@ -457,7 +493,12 @@ func renderAmendedFact(doc factFrontmatterDoc, when time.Time, body string, cont
 
 // renderAmendedFeedback re-renders a feedback note from the (possibly updated)
 // doc, rebuilding the body formula only when a semantic field changed.
-func renderAmendedFeedback(doc feedbackFrontmatterDoc, when time.Time, body string, contentChanged bool) string {
+func renderAmendedFeedback(
+	doc feedbackFrontmatterDoc,
+	when time.Time,
+	body string,
+	contentChanged bool,
+) string {
 	f := feedbackFields{
 		Situation: doc.Situation, Behavior: doc.Behavior, Impact: doc.Impact,
 		Action: doc.Action, Luhmann: string(doc.Luhmann), Source: doc.Source,

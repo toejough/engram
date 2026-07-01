@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -25,6 +24,10 @@ type ResituateArgs struct {
 
 // ResituateDeps holds injected dependencies for RunResituate.
 type ResituateDeps struct {
+	// Lock acquires an exclusive flock on vault/.luhmann.lock and returns a release
+	// func. Wired to vaultFS.Lock in newOsResituateDeps. Guards the note
+	// read-modify-write against concurrent amend/resituate/learn runs.
+	Lock     func(vault string) (func(), error)
 	Scan     func(vault string) ([]vaultgraph.Note, error)
 	Read     func(path string) ([]byte, error)
 	Write    func(path string, data []byte) error
@@ -39,7 +42,21 @@ type ResituateDeps struct {
 // copies could only be kept in sync by hand.
 //
 // args.Vault must already be resolved by the caller via resolveVault.
-func RunResituate(ctx context.Context, args ResituateArgs, deps ResituateDeps, stdout io.Writer) error {
+func RunResituate(
+	ctx context.Context,
+	args ResituateArgs,
+	deps ResituateDeps,
+	stdout io.Writer,
+) error {
+	// Acquire the vault lock before any read-modify-write on the note so
+	// concurrent amend/resituate/learn runs cannot produce lost updates.
+	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
+	if lockErr != nil {
+		return fmt.Errorf("resituate: acquiring vault lock: %w", lockErr)
+	}
+
+	defer release()
+
 	notes, scanErr := deps.Scan(args.Vault)
 	if scanErr != nil {
 		return fmt.Errorf("resituate: scan: %w", scanErr)
@@ -108,12 +125,13 @@ func newOsResituateDeps() ResituateDeps {
 	const perm = 0o600
 
 	return ResituateDeps{
+		Lock: (&osLearnFS{}).Lock,
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
 			return vaultgraph.ScanVault(&osVaultFS{}, vault)
 		},
 		Read: (&osVaultFS{}).ReadFile,
 		Write: func(path string, data []byte) error {
-			err := os.WriteFile(path, data, perm)
+			err := atomicWriteFile(path, data, perm)
 			if err != nil {
 				return fmt.Errorf("write %s: %w", path, err)
 			}
@@ -221,7 +239,13 @@ func rerenderFeedback(frontmatter, body []byte, situation string) (string, error
 		Tier:      doc.Tier,
 	}
 
-	return renderFeedbackFrontmatter(fields, when) + renderFeedbackBody(fields, relatedTail(body)), nil
+	return renderFeedbackFrontmatter(
+		fields,
+		when,
+	) + renderFeedbackBody(
+		fields,
+		relatedTail(body),
+	), nil
 }
 
 // resituateContent re-renders raw with situation replaced. For fact and
@@ -270,7 +294,11 @@ func splitFrontmatter(raw []byte) ([]byte, bool) {
 // content_hash tracks exactly what changed. Unlike the learn-time auto-embed,
 // a resituate is an explicit rewrite, so embed and write failures are surfaced
 // rather than warned-and-ignored.
-func writeResituatedSidecar(ctx context.Context, deps ResituateDeps, notePath, content string) error {
+func writeResituatedSidecar(
+	ctx context.Context,
+	deps ResituateDeps,
+	notePath, content string,
+) error {
 	sidecar, embErr := embed.BuildSidecar(ctx, deps.Embedder, []byte(content))
 	if embErr != nil {
 		return fmt.Errorf("resituate: embedding %s: %w", notePath, embErr)

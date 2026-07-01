@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"os"
 	"time"
 
 	"github.com/toejough/engram/internal/chunk"
@@ -115,6 +116,11 @@ func ExportAppendUniqueProvenance(initial []string, roles ...string) []string {
 	return item.provenances
 }
 
+// ExportAtomicWriteFile exposes atomicWriteFile for writesafe tests.
+func ExportAtomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	return atomicWriteFile(path, data, perm)
+}
+
 // ExportBreakRepresentativeTie is a whitebox handle on the tiebreak helper
 // used by cluster representative selection.
 func ExportBreakRepresentativeTie(
@@ -182,6 +188,24 @@ func ExportClearChunkContent(kinds, contents []string) []string {
 	return out
 }
 
+// ExportDoAtomicWrite exposes doAtomicWrite for writesafe tests that need to
+// inject a failing rename to cover the rename-error and defer-cleanup paths.
+func ExportDoAtomicWrite(
+	path string,
+	data []byte,
+	perm os.FileMode,
+	rename func(oldpath, newpath string) error,
+) error {
+	return doAtomicWrite(path, data, perm, rename)
+}
+
+// ExportFlockPath exposes flockPath for the concurrent regression test in
+// ingest_test.go. The test goroutines use the real flock, not an injected one,
+// so they can race on the SAME lock file and prove the locking prevents corruption.
+func ExportFlockPath(lockPath string) (func(), error) {
+	return flockPath(lockPath)
+}
+
 // Exported functions.
 
 // ExportIndexFileName exposes sourceSlug-based index naming so tests can
@@ -191,6 +215,12 @@ func ExportIndexFileName(source string) string { return sourceSlug(source) + ".j
 // ExportLoadPriorRecords exposes loadPriorRecords for ingest unit tests.
 func ExportLoadPriorRecords(indexPath string, deps IngestDeps) map[string]chunk.Record {
 	return loadPriorRecords(indexPath, deps)
+}
+
+// ExportManifestLockFile returns the manifestLockFile constant so the concurrent
+// regression test can compute the lock path without duplicating the constant.
+func ExportManifestLockFile() string {
+	return manifestLockFile
 }
 
 // ExportMergeClusterReps drives mergeClusterReps with plain-data inputs.
@@ -384,7 +414,11 @@ func ExportNewScoredChunk(rec chunk.Record, score float32) scoredChunk {
 }
 
 // ExportNewScoredChunkWithIngestedAt builds a scoredChunk with IngestedAt set for recency tests.
-func ExportNewScoredChunkWithIngestedAt(rec chunk.Record, score float32, ingestedAt time.Time) scoredChunk {
+func ExportNewScoredChunkWithIngestedAt(
+	rec chunk.Record,
+	score float32,
+	ingestedAt time.Time,
+) scoredChunk {
 	rec.IngestedAt = ingestedAt
 
 	return scoredChunk{record: rec, score: score}
@@ -393,6 +427,11 @@ func ExportNewScoredChunkWithIngestedAt(rec chunk.Record, score float32, ingeste
 // ExportNewestChunkItems exposes newestChunkItems with the direct provenance.
 func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 	return newestChunkItems(scored, n, provenanceDirect)
+}
+
+// ExportOsManifestLock exposes osManifestLock for coverage of its MkdirAll-error branch.
+func ExportOsManifestLock(dir string) (func(), error) {
+	return osManifestLock(dir)
 }
 
 // ExportProvenanceRankFor exposes provenanceRankFor for whitebox testing.
