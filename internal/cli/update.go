@@ -18,7 +18,8 @@ import (
 
 // UpdateArgs holds parsed flags for the update subcommand.
 type UpdateArgs struct {
-	DryRun bool `targ:"flag,name=dry-run,desc=print planned actions without executing them"`
+	DryRun       bool `targ:"flag,name=dry-run,desc=print planned actions without executing them"`
+	WithGuidance bool `targ:"flag,name=with-guidance,desc=deploy guidance to .claude/engram/ for CLAUDE.md @import"`
 }
 
 // unexported variables.
@@ -205,7 +206,10 @@ func runUpdate(ctx context.Context, args UpdateArgs, stdout io.Writer) error {
 		Env: &osUpdateEnv{},
 	}
 
-	report, runErr := updater.Run(ctx, update.Options{DryRun: args.DryRun})
+	report, runErr := updater.Run(ctx, update.Options{
+		DryRun:       args.DryRun,
+		WithGuidance: args.WithGuidance,
+	})
 
 	return finishUpdate(stdout, report, runErr)
 }
@@ -227,6 +231,35 @@ func writeCommandRows(buffer *bytes.Buffer, harness update.HarnessReport, home s
 	for _, name := range harness.CommandFiles {
 		dst := filepath.Join(harness.CommandsRoot, name)
 		fmt.Fprintf(buffer, "    commands/%s → %s\n", name, tildify(dst, home))
+	}
+}
+
+func writeGuidanceHints(buffer *bytes.Buffer, report update.Report) {
+	// Derive "deployed" from whether any guidance files were deployed to Claude Code.
+	guidanceDeployed := false
+
+	for _, harness := range report.Harnesses {
+		if harness.Name == update.HarnessClaude && len(harness.GuidanceFiles) > 0 {
+			guidanceDeployed = true
+
+			break
+		}
+	}
+
+	if guidanceDeployed && !report.GuidanceImported {
+		fmt.Fprintf(buffer,
+			"guidance deployed to ~/.claude/engram/recall.md — add"+
+				" '@~/.claude/engram/recall.md' to ~/.claude/CLAUDE.md to activate it"+
+				" (Claude Code will ask you to approve the import once)\n",
+		)
+
+		return
+	}
+
+	if !report.WithGuidance && !report.GuidanceImported {
+		fmt.Fprintf(buffer,
+			"engram ships recall-firing guidance; run 'engram update --with-guidance' to deploy it\n",
+		)
 	}
 }
 
@@ -287,6 +320,8 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	if len(successes) > 0 {
 		fmt.Fprintf(&buffer, "%sinstalled: %s\n", prefix, strings.Join(successes, ", "))
 	}
+
+	writeGuidanceHints(&buffer, report)
 
 	_, err := out.Write(buffer.Bytes())
 	if err != nil {

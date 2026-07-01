@@ -362,7 +362,17 @@ separate executables.
 ### `engram update`
 Installs/refreshes skills and commands into every detected harness, and
 reinstalls the binary via `go install`. `--dry-run` shows the diff
-without writing.
+without writing. `--with-guidance` additionally deploys the recall-firing
+guidance file to `~/.claude/engram/recall.md` (Claude Code only; opt-in).
+OpenCode is deferred — its `AGENTS.md` import support is unverified. Plain
+`engram update` prints a one-line hint about `--with-guidance`.
+
+### guidance file
+`guidance/recall.md` in the engram repo — engram's always-loaded
+recall-firing guidance, deployed to `~/.claude/engram/recall.md` by
+`engram update --with-guidance`. Activated by adding
+`@~/.claude/engram/recall.md` to `~/.claude/CLAUDE.md` (Claude Code
+`@import`; always loaded). Claude Code only; OpenCode deferred.
 
 ### XDG paths
 Engram follows XDG basedir conventions:

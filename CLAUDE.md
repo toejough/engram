@@ -24,6 +24,7 @@ engram/
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
 ├── skills/            # Source for the recall, learn, please, and route skills
 ├── commands/          # Source for OpenCode slash commands
+├── guidance/          # Source for the deployable recall-firing guidance (activated via CLAUDE.md `@import`)
 ├── dev/               # Build tooling (targ definitions, linter configs)
 └── docs/              # Active design docs, research prompts, and C4 architecture diagrams
 ```

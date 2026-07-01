@@ -52,13 +52,15 @@ type Commander interface {
 // CopyOp describes a single source→target file copy planned for a harness.
 // SkillDir is the top-level skill subdir name (e.g. "learn") when the file
 // belongs to a skill, empty otherwise. CommandFile is the basename when the
-// file is a command .md, empty otherwise. Exactly one of these is set.
+// file is a command .md, empty otherwise. GuidanceFile is the basename when
+// the file is a guidance .md, empty otherwise. Exactly one of these is set.
 type CopyOp struct {
-	Harness     Harness
-	Src         string
-	Dst         string
-	SkillDir    string
-	CommandFile string
+	Harness      Harness
+	Src          string
+	Dst          string
+	SkillDir     string
+	CommandFile  string
+	GuidanceFile string
 }
 
 // DirEntry is the subset of fs.DirEntry used by Updater.
@@ -100,13 +102,14 @@ type Harness string
 
 // HarnessReport summarizes one harness install attempt.
 type HarnessReport struct {
-	Name         Harness
-	ProbeRoot    string // home-relative harness root, e.g. ".claude"
-	SkillsRoot   string // absolute skills install dir
-	CommandsRoot string // absolute commands install dir (empty if harness has no commands)
-	SkillDirs    []SkillDirCount
-	CommandFiles []string // basenames of .md files copied
-	Err          error
+	Name          Harness
+	ProbeRoot     string // home-relative harness root, e.g. ".claude"
+	SkillsRoot    string // absolute skills install dir
+	CommandsRoot  string // absolute commands install dir (empty if harness has no commands)
+	SkillDirs     []SkillDirCount
+	CommandFiles  []string // basenames of .md files copied
+	GuidanceFiles []string // basenames of .md files copied into the guidance dir
+	Err           error
 }
 
 // HarnessSpec captures one harness's well-known paths (relative to home).
@@ -115,22 +118,26 @@ type HarnessSpec struct {
 	ProbeRel          string // dir to stat under home (e.g. ".claude")
 	SkillsTargetRel   string // skills install dir under home
 	CommandsTargetRel string // commands install dir under home (empty: skip commands)
+	GuidanceTargetRel string // guidance install dir under home (empty: skip guidance)
 }
 
 // Options controls one Run invocation.
 type Options struct {
-	DryRun bool
+	DryRun       bool
+	WithGuidance bool // deploy guidance/*.md to the harness guidance dir
 }
 
 // Report is the final outcome of Updater.Run, suitable for formatting.
 type Report struct {
-	DryRun        bool
-	Home          string // user home (so the CLI can tildify paths)
-	Source        SourceInfo
-	GoInstall     string // command line invoked (or planned)
-	BinaryPath    string // resolved install location, e.g. /Users/joe/go/bin/engram
-	BinaryVersion string // resolved engram version, empty when unknown
-	Harnesses     []HarnessReport
+	DryRun           bool
+	WithGuidance     bool   // whether --with-guidance was requested
+	Home             string // user home (so the CLI can tildify paths)
+	Source           SourceInfo
+	GoInstall        string // command line invoked (or planned)
+	BinaryPath       string // resolved install location, e.g. /Users/joe/go/bin/engram
+	BinaryVersion    string // resolved engram version, empty when unknown
+	GuidanceImported bool   // true when ~/.claude/CLAUDE.md imports the guidance file
+	Harnesses        []HarnessReport
 }
 
 // SkillDirCount records how many files were copied into one skill dir.
@@ -156,7 +163,7 @@ type Updater struct {
 
 // Run executes (or plans, when DryRun) the update flow.
 func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
-	report := Report{DryRun: opts.DryRun}
+	report := Report{DryRun: opts.DryRun, WithGuidance: opts.WithGuidance}
 
 	home, homeErr := u.Env.UserHomeDir()
 	if homeErr != nil {
@@ -186,6 +193,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 
 	srcSkills := filepath.Join(source.Root, "skills")
 	srcCommands := filepath.Join(source.Root, "commands")
+	srcGuidance := filepath.Join(source.Root, "guidance")
 
 	skillOps, planErr := planSkillCopies(srcSkills, home, harnesses, u.FS)
 	if planErr != nil {
@@ -197,7 +205,21 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 		return report, cmdPlanErr
 	}
 
-	report.Harnesses = u.applyOps(harnesses, home, skillOps, cmdOps, opts.DryRun)
+	var guidanceOps []CopyOp
+
+	if opts.WithGuidance {
+		var guidancePlanErr error
+
+		guidanceOps, guidancePlanErr = planGuidanceCopies(srcGuidance, home, harnesses, u.FS)
+		if guidancePlanErr != nil {
+			return report, guidancePlanErr
+		}
+	}
+
+	claudeMDPath := filepath.Join(home, ".claude", "CLAUDE.md")
+	report.GuidanceImported = detectGuidanceImport(claudeMDPath, home, u.FS)
+
+	report.Harnesses = u.applyOps(harnesses, home, skillOps, cmdOps, guidanceOps, opts.DryRun)
 
 	return report, nil
 }
@@ -233,7 +255,7 @@ func (u *Updater) applyCmdOps(rep *HarnessReport, name Harness, cmdOps []CopyOp,
 func (u *Updater) applyForHarness(
 	rep *HarnessReport,
 	name Harness,
-	skillOps, cmdOps []CopyOp,
+	skillOps, cmdOps, guidanceOps []CopyOp,
 	dryRun bool,
 ) {
 	u.applySkillOps(rep, name, skillOps, dryRun)
@@ -243,6 +265,29 @@ func (u *Updater) applyForHarness(
 	}
 
 	u.applyCmdOps(rep, name, cmdOps, dryRun)
+
+	if rep.Err != nil {
+		return
+	}
+
+	u.applyGuidanceOps(rep, name, guidanceOps, dryRun)
+}
+
+func (u *Updater) applyGuidanceOps(rep *HarnessReport, name Harness, guidanceOps []CopyOp, dryRun bool) {
+	for _, copyOp := range guidanceOps {
+		if copyOp.Harness != name {
+			continue
+		}
+
+		opErr := u.applyCmdOne(copyOp, dryRun)
+		if opErr != nil {
+			rep.Err = opErr
+
+			return
+		}
+
+		rep.GuidanceFiles = append(rep.GuidanceFiles, copyOp.GuidanceFile)
+	}
 }
 
 func (u *Updater) applyOne(copyOp CopyOp, dryRun bool) error {
@@ -274,7 +319,7 @@ func (u *Updater) applyOne(copyOp CopyOp, dryRun bool) error {
 func (u *Updater) applyOps(
 	harnesses []HarnessSpec,
 	home string,
-	skillOps, cmdOps []CopyOp,
+	skillOps, cmdOps, guidanceOps []CopyOp,
 	dryRun bool,
 ) []HarnessReport {
 	reports := make([]HarnessReport, 0, len(harnesses))
@@ -287,7 +332,7 @@ func (u *Updater) applyOps(
 			CommandsRoot: cmdRootFor(spec, home),
 		}
 
-		u.applyForHarness(&rep, spec.Name, skillOps, cmdOps, dryRun)
+		u.applyForHarness(&rep, spec.Name, skillOps, cmdOps, guidanceOps, dryRun)
 		reports = append(reports, rep)
 	}
 
@@ -515,6 +560,41 @@ func describeGoInstall(source SourceInfo) string {
 	return "git clone " + repoCloneURL + " && go install ./cmd/engram/ (LFS-safe; #645)"
 }
 
+// detectGuidanceImport returns true when the Claude Code CLAUDE.md file at
+// claudeMDPath contains an active @import line for the guidance file (either
+// the tilde form or the expanded-home form). Lines inside fenced code blocks
+// are ignored per the @import rules. A missing CLAUDE.md yields false, no error.
+func detectGuidanceImport(claudeMDPath, home string, fileSystem Filesystem) bool {
+	data, readErr := fileSystem.ReadFile(claudeMDPath)
+	if readErr != nil {
+		return false
+	}
+
+	tildeLine := "@~/.claude/engram/recall.md"
+	expandedLine := "@" + filepath.Join(home, ".claude", "engram", "recall.md")
+
+	inFence := false
+
+	for line := range strings.SplitSeq(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inFence = !inFence
+
+			continue
+		}
+
+		if inFence {
+			continue
+		}
+
+		if trimmed == tildeLine || trimmed == expandedLine {
+			return true
+		}
+	}
+
+	return false
+}
+
 // detectHarnesses returns the supported harnesses whose probe path exists
 // under home. Order is stable (matches supportedHarnesses).
 func detectHarnesses(home string, fileSystem Filesystem) ([]HarnessSpec, error) {
@@ -645,6 +725,48 @@ func planCommandCopies(
 	return ops, nil
 }
 
+// planGuidanceCopies enumerates .md files at the top level of srcGuidance
+// and produces one CopyOp per harness that has a non-empty GuidanceTargetRel.
+// Mirrors planCommandCopies: flat *.md only, returns nil, nil when srcGuidance
+// is absent (guidance is optional — contrast planSkillCopies which errors).
+func planGuidanceCopies(
+	srcGuidance, home string,
+	harnesses []HarnessSpec,
+	fileSystem Filesystem,
+) ([]CopyOp, error) {
+	entries, readErr := fileSystem.ReadDir(srcGuidance)
+	if readErr != nil {
+		if isNotExist(readErr) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("read guidance dir %s: %w", srcGuidance, readErr)
+	}
+
+	guidanceFiles := mdFilesIn(entries)
+
+	ops := make([]CopyOp, 0, len(guidanceFiles)*len(harnesses))
+
+	for _, spec := range harnesses {
+		if spec.GuidanceTargetRel == "" {
+			continue
+		}
+
+		dstRoot := filepath.Join(home, spec.GuidanceTargetRel)
+
+		for _, name := range guidanceFiles {
+			ops = append(ops, CopyOp{
+				Harness:      spec.Name,
+				Src:          filepath.Join(srcGuidance, name),
+				Dst:          filepath.Join(dstRoot, name),
+				GuidanceFile: name,
+			})
+		}
+	}
+
+	return ops, nil
+}
+
 // planSkillCopies enumerates every file under srcSkills and produces one
 // CopyOp per file per harness. Files keep their relative path under the
 // harness's SkillsTargetRel.
@@ -694,15 +816,17 @@ func resolveBinaryPath(home string, env Env) string {
 func supportedHarnesses() []HarnessSpec {
 	return []HarnessSpec{
 		{
-			Name:            HarnessClaude,
-			ProbeRel:        ".claude",
-			SkillsTargetRel: filepath.Join(".claude", "skills"),
+			Name:              HarnessClaude,
+			ProbeRel:          ".claude",
+			SkillsTargetRel:   filepath.Join(".claude", "skills"),
+			GuidanceTargetRel: filepath.Join(".claude", "engram"),
 		},
 		{
 			Name:              HarnessOpencode,
 			ProbeRel:          filepath.Join(".config", "opencode"),
 			SkillsTargetRel:   filepath.Join(".config", "opencode", "skills"),
 			CommandsTargetRel: filepath.Join(".config", "opencode", "commands"),
+			// OpenCode @import support unverified — GuidanceTargetRel empty until confirmed.
 		},
 	}
 }

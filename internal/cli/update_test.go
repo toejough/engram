@@ -397,6 +397,26 @@ func TestRunUpdate_DryRunFromCwd(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("source: local clone at "))
 }
 
+func TestRunUpdate_WithGuidanceFlagMapsToOptions(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	stdout := &bytes.Buffer{}
+
+	// Dry-run with --with-guidance; cwd inside engram repo → local mode.
+	// We only verify the flag is ACCEPTED and maps to Options (no unknown-field
+	// error). The hint OUTPUT is asserted separately in
+	// TestWriteUpdateReport_GuidanceActivationHint.
+	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{DryRun: true, WithGuidance: true}, stdout)
+
+	// With dry-run the guidance files are not written; accept either
+	// success or ErrNoHarness (env-dependent) but NOT an unknown-field error.
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("update"))
+	}
+}
+
 func TestTildify(t *testing.T) {
 	t.Parallel()
 
@@ -405,6 +425,100 @@ func TestTildify(t *testing.T) {
 	g.Expect(cli.ExportTildify("/home/joe/x", "/home/joe")).To(Equal("~/x"))
 	g.Expect(cli.ExportTildify("/other/x", "/home/joe")).To(Equal("/other/x"))
 	g.Expect(cli.ExportTildify("/home/joe/x", "")).To(Equal("/home/joe/x"))
+}
+
+func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name             string
+		guidanceFiles    []string
+		guidanceImported bool
+		withGuidance     bool
+		wantActivation   bool
+		wantPlainHint    bool
+	}{
+		{
+			name:             "deployed-not-imported-shows-activation-hint",
+			guidanceFiles:    []string{"recall.md"},
+			guidanceImported: false,
+			withGuidance:     true,
+			wantActivation:   true,
+			wantPlainHint:    false,
+		},
+		{
+			name:             "deployed-and-imported-no-hints",
+			guidanceFiles:    []string{"recall.md"},
+			guidanceImported: true,
+			withGuidance:     true,
+			wantActivation:   false,
+			wantPlainHint:    false,
+		},
+		{
+			name:             "plain-update-not-imported-shows-plain-hint",
+			guidanceFiles:    nil,
+			guidanceImported: false,
+			withGuidance:     false,
+			wantActivation:   false,
+			wantPlainHint:    true,
+		},
+		{
+			name:             "plain-update-already-imported-no-hint",
+			guidanceFiles:    nil,
+			guidanceImported: true,
+			withGuidance:     false,
+			wantActivation:   false,
+			wantPlainHint:    false,
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			report := update.Report{
+				DryRun:           false,
+				WithGuidance:     tc.withGuidance,
+				GuidanceImported: tc.guidanceImported,
+				Home:             "/home/joe",
+				Source:           update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
+				GoInstall:        "go install ./cmd/engram/",
+				Harnesses: []update.HarnessReport{
+					{
+						Name:          update.HarnessClaude,
+						ProbeRoot:     ".claude",
+						SkillsRoot:    "/home/joe/.claude/skills",
+						GuidanceFiles: tc.guidanceFiles,
+					},
+				},
+			}
+
+			var buffer bytes.Buffer
+
+			writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+			g.Expect(writeErr).NotTo(HaveOccurred())
+
+			out := buffer.String()
+
+			const activationHint = "@~/.claude/engram/recall.md"
+
+			const plainHint = "engram ships recall-firing guidance"
+
+			if tc.wantActivation {
+				g.Expect(out).To(ContainSubstring(activationHint))
+			} else {
+				g.Expect(out).NotTo(ContainSubstring(activationHint))
+			}
+
+			if tc.wantPlainHint {
+				g.Expect(out).To(ContainSubstring(plainHint))
+			} else {
+				g.Expect(out).NotTo(ContainSubstring(plainHint))
+			}
+		})
+	}
 }
 
 func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {

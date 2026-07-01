@@ -26,7 +26,7 @@ flowchart TB
     cli -->|"embeds note/query text"| model
     cli -->|"C2→C4: read/write notes+sidecars under flock"| vault
     cli -->|"C2→S5: read transcripts; re-chunk/re-embed changed content only (manifest.json staleness)"| sessions
-    cli -->|"engram update: go install + copy skills"| gotool
+    cli -->|"engram update: go install + copy skills/commands; --with-guidance adds guidance (Claude Code)"| gotool
 
     class agent person
     class skills,cli,model container
@@ -50,7 +50,7 @@ flowchart TB
 | C2 → C3 | C2 embeds note text (on write) and query text (on read) via the bundled model. All notes embed the body — see [L3](c3-components.md) K5. |
 | C2 → C4 | Reads notes+sidecars at query time; writes notes+sidecars atomically (temp-file + rename) under the vault flock (`.luhmann.lock`) — every writer holds it: `learn` (id-compute→write, O_EXCL), `amend`, `resituate`, `activate`. The flock is acquired only at command entry points. The wikilink graph is built from note bodies at query time. |
 | C2 → S5 | `engram ingest --auto` reads Claude `.jsonl`; re-chunks and re-embeds only sources whose mtime/size/hash changed vs the `manifest.json` written to `$XDG_DATA_HOME/engram/chunks`; strips harness noise; byte-capped with continuation signalling. `--auto` additionally skips session-log directories whose slugified project path starts with a non-persistent-workspace prefix (`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-` — slugified forms of `/private/tmp`, `/tmp`, and macOS `$TMPDIR`), preventing eval/test runs from bloating the main chunk index (configurable via the `non_persistent_prefixes` key in `.engram/sweep.json`). Two opt-in levers bypass the skip for deliberate test ingestion: explicit `--sweep <dir>` / `--transcript <file>` / `--markdown <file>` — manual sweep roots carry no prefix exclusion — or an isolated index + vault via `ENGRAM_CHUNKS_DIR` / `ENGRAM_VAULT_PATH`. |
-| C2 → S6 | `engram update` runs `go install`, then copies refreshed skills/commands into each harness root. |
+| C2 → S6 | `engram update` runs `go install`, then copies refreshed skills/commands into each harness root; `--with-guidance` also deploys `guidance/recall.md` to `~/.claude/engram/recall.md` (Claude Code only; opt-in; OpenCode deferred). |
 
 **Cross-level note (L1↔L2 reclassification).** At [L1](c1-system-context.md) the vault is **S4 — an external system** (operator-configurable, on the operator's filesystem, possibly human-edited in Obsidian); on decomposition it reappears here as **C4**, an internal store, because from engram's runtime view it is the data store engram owns and writes. This is an intentional decomposition choice, noted so the L1→L2 mapping is explicit rather than silent. Staleness tracking (`manifest.json` — mtime/size/hash per source) lives in the chunk index directory (`$XDG_DATA_HOME/engram/chunks`), which is part of C2's operational state rather than a separate container.
 

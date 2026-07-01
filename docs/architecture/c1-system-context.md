@@ -24,7 +24,7 @@ flowchart LR
     engram -->|"R3: reads & writes notes + sidecars"| vault
     engram -->|"R4: reads session transcripts; re-chunks only mtime/size/hash-changed sources (manifest.json)"| sessions
     engram -->|"R5: invokes go install / go list for self-update"| gotool
-    engram -->|"R6: writes refreshed skill and command files during engram update"| harness
+    engram -->|"R6: writes refreshed skill/command files during engram update; --with-guidance adds guidance (Claude Code)"| harness
 
     class user person
     class harness,vault,sessions,gotool external
@@ -58,7 +58,7 @@ flowchart LR
 | <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes plus their `.vec.json` embedding sidecars under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code `~/.claude/projects/<slug>/*.jsonl`) for changed sources only |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go list -m -json` and `go install` to self-update |
-| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, copies refreshed `skills/` and `commands/` files into each detected harness's install root (`~/.claude/`, `~/.config/opencode/`) |
+| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, copies refreshed `skills/` and `commands/` files into each detected harness's install root (`~/.claude/`, `~/.config/opencode/`); `--with-guidance` additionally deploys `guidance/recall.md` to `~/.claude/engram/recall.md` (Claude Code only; opt-in; OpenCode deferred) |
 
 ## Key flows
 
@@ -342,8 +342,11 @@ sequenceDiagram
     loop per harness, per skill or command file
         Note over E: write into the harness install root (~/.claude/skills, ~/.claude/commands, OpenCode equivalents)
     end
+    opt --with-guidance (opt-in; Claude Code only)
+        Note over E: write guidance/recall.md → ~/.claude/engram/recall.md
+    end
 
-    E-->>H: per-harness report (skill paths, command paths, errors)
+    E-->>H: per-harness report (skill paths, command paths, guidance path if --with-guidance)
     H-->>Op: rendered report
 ```
 

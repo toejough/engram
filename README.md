@@ -28,11 +28,12 @@ Requires Go 1.25+ on `PATH`.
 2. Copy the skills and commands into every detected harness's user directory:
 
    ```bash
-   engram update            # install / refresh
-   engram update --dry-run  # show what would change
+   engram update                 # install / refresh
+   engram update --with-guidance # also deploy recall-firing guidance to ~/.claude/engram/recall.md (Claude Code; opt-in)
+   engram update --dry-run       # show what would change
    ```
 
-   `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`.
+   `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys `guidance/recall.md` to `~/.claude/engram/recall.md` for CLAUDE.md `@import` (Claude Code; opt-in). Plain `engram update` prints a one-line hint about it.
 
 ## Skills
 
@@ -86,7 +87,7 @@ engram show <ref> [--ref <ref>...]   Print a note (frontmatter + body + outbound
 engram show-chunk <source#anchor> [--chunks-dir <dir>]   Print a chunk's text by its source#anchor id (read-only). Used by /recall with `--lazy-chunks` to fetch a specific chunk's evidence on demand.
 engram amend --target <ref> [--activate] [--relation <target>|<rationale>...] [--chunk-source <source#anchor>...] [--situation/--subject/--predicate/--object | --behavior/--impact/--action ...]   Amend a note in place: merge relations + chunk-source provenance (idempotent), overwrite only supplied content fields, re-embed only on a content change; `--activate` bumps `LastUsed`. The /recall update path: covered link-enriches, near re-synthesizes content.
 engram activate --note <path> [--note <path>...]   Mark note(s) as recently used — bumps `LastUsed` in the sidecar so usefulness keeps useful notes fresh (called by /recall on only the notes the agent actually used). `--note` paths are vault-relative (resolved against the vault root / `ENGRAM_VAULT_PATH`); absolute paths are used as-is.
-engram update                          Refresh binary and harness skills/commands ([--dry-run])
+engram update [--with-guidance]        Refresh binary and harness skills/commands ([--dry-run]); --with-guidance also deploys guidance/recall.md to ~/.claude/engram/recall.md (Claude Code; opt-in; OpenCode deferred)
 ```
 
 ## Semantic search (`engram query`) and the embed-on-write pipeline

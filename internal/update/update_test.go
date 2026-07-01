@@ -1,6 +1,7 @@
 package update_test
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"path/filepath"
@@ -56,6 +57,158 @@ func TestDetectHarnesses_None(t *testing.T) {
 	g.Expect(detected).To(BeEmpty())
 }
 
+func TestGuidanceImportDetection(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name     string
+		content  string
+		wantBool bool
+	}{
+		{
+			name:     "tilde-form-detected",
+			content:  "@~/.claude/engram/recall.md\n",
+			wantBool: true,
+		},
+		{
+			name:     "expanded-form-detected",
+			content:  "@/home/joe/.claude/engram/recall.md\n",
+			wantBool: true,
+		},
+		{
+			name:     "absent-returns-false",
+			content:  "# no import here\n",
+			wantBool: false,
+		},
+		{
+			name:     "inside-code-fence-ignored",
+			content:  "```\n@~/.claude/engram/recall.md\n```\n",
+			wantBool: false,
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newMemFS()
+			fileSystem.files["/home/joe/.claude/CLAUDE.md"] = []byte(tc.content)
+
+			const home = "/home/joe"
+
+			updater := &update.Updater{
+				FS:  fileSystem,
+				Cmd: &fakeCmd{},
+				Env: &fakeEnv{home: home, cwd: "/repo"},
+			}
+
+			fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+			fileSystem.dirs["/repo/skills"] = true
+			fileSystem.dirs[home+"/.claude"] = true
+
+			report, err := updater.Run(context.Background(), update.Options{})
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(report.GuidanceImported).To(Equal(tc.wantBool))
+		})
+	}
+}
+
+func TestGuidanceImportDetection_MissingClaudeMD(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	// No CLAUDE.md → GuidanceImported should be false, no error
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.GuidanceImported).To(BeFalse())
+}
+
+func TestPlanGuidanceCopies_FilesUnderHome(t *testing.T) {
+	t.Parallel()
+
+	harnesses := []update.HarnessSpec{
+		{
+			Name:              update.HarnessClaude,
+			ProbeRel:          ".claude",
+			SkillsTargetRel:   ".claude/skills",
+			GuidanceTargetRel: ".claude/engram",
+		},
+		{
+			Name:              update.HarnessOpencode,
+			ProbeRel:          ".config/opencode",
+			SkillsTargetRel:   ".config/opencode/skills",
+			GuidanceTargetRel: "",
+		},
+	}
+
+	table := []struct {
+		name      string
+		wantCount int
+		wantDst   string
+	}{
+		{
+			name:      "claude-code-gets-op-opencode-skipped",
+			wantCount: 1,
+			wantDst:   "/home/joe/.claude/engram/recall.md",
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newMemFS()
+			fileSystem.files["/src/guidance/recall.md"] = []byte("guidance")
+			fileSystem.dirs["/src/guidance"] = true
+
+			ops, err := update.ExportPlanGuidanceCopies("/src/guidance", "/home/joe", harnesses, fileSystem)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(ops).To(HaveLen(tc.wantCount))
+			g.Expect(ops[0].Dst).To(Equal(tc.wantDst))
+			g.Expect(ops[0].GuidanceFile).To(Equal("recall.md"))
+			g.Expect(ops[0].Harness).To(Equal(update.HarnessClaude))
+		})
+	}
+}
+
+func TestPlanGuidanceCopies_MissingSrc(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	harnesses := []update.HarnessSpec{
+		{
+			Name:              update.HarnessClaude,
+			ProbeRel:          ".claude",
+			SkillsTargetRel:   ".claude/skills",
+			GuidanceTargetRel: ".claude/engram",
+		},
+	}
+
+	ops, err := update.ExportPlanGuidanceCopies("/nonexistent", "/home/joe", harnesses, fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ops).To(BeNil())
+}
+
 func TestPlanSkillCopies_FilesUnderHome_Property(t *testing.T) {
 	t.Parallel()
 
@@ -104,6 +257,137 @@ func TestPlanSkillCopies_MissingSrc(t *testing.T) {
 	_, err := update.ExportPlanSkillCopies("/nonexistent", "/home/joe", harnesses, fileSystem)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, update.ErrSkillsSrcMissing)).To(BeTrue())
+}
+
+func TestRun_WithGuidance_BothHarnesses_OnlyClaudeGetsGuidance(t *testing.T) {
+	t.Parallel()
+
+	// Having both harnesses ensures applyGuidanceOps hits the
+	// "copyOp.Harness != name" continue branch for OpenCode.
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.config/opencode"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.files["/repo/guidance/recall.md"] = []byte("recall guidance")
+	fileSystem.dirs["/repo/guidance"] = true
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(2))
+
+	// Claude Code gets the guidance file.
+	claudeReport := report.Harnesses[0]
+	g.Expect(claudeReport.Name).To(Equal(update.HarnessClaude))
+	g.Expect(claudeReport.GuidanceFiles).To(ConsistOf("recall.md"))
+
+	// OpenCode guidance target is empty → no guidance files.
+	opencodeReport := report.Harnesses[1]
+	g.Expect(opencodeReport.Name).To(Equal(update.HarnessOpencode))
+	g.Expect(opencodeReport.GuidanceFiles).To(BeEmpty())
+}
+
+func TestRun_WithGuidance_DeploysToClaudeEngram(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.files["/repo/guidance/recall.md"] = []byte("recall guidance content")
+	fileSystem.dirs["/repo/guidance"] = true
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+
+	claudeReport := report.Harnesses[0]
+	g.Expect(claudeReport.GuidanceFiles).To(ConsistOf("recall.md"))
+
+	written, ok := fileSystem.written[home+"/.claude/engram/recall.md"]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(written).To(Equal([]byte("recall guidance content")))
+}
+
+func TestRun_WithGuidance_GuidanceCopyError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	base := newMemFS()
+	base.dirs[home+"/.claude"] = true
+	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	base.dirs["/repo/skills"] = true
+	base.files["/repo/guidance/recall.md"] = []byte("recall guidance")
+	base.dirs["/repo/guidance"] = true
+
+	removeErr := errors.New("disk full")
+	fileSystem := &errRemoveFS{
+		memFS:     base,
+		errPath:   home + "/.claude/engram/recall.md",
+		removeErr: removeErr,
+	}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
+	g.Expect(err).NotTo(HaveOccurred()) // error is per-harness, not top-level
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).To(MatchError(ContainSubstring("disk full")))
+	g.Expect(report.Harnesses[0].GuidanceFiles).To(BeEmpty())
+}
+
+func TestRun_WithoutGuidance_SkipsGuidance(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.files["/repo/guidance/recall.md"] = []byte("recall guidance content")
+	fileSystem.dirs["/repo/guidance"] = true
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].GuidanceFiles).To(BeEmpty())
+	g.Expect(fileSystem.written[home+"/.claude/engram/recall.md"]).To(BeNil())
 }
 
 func TestWalkUpForModule_FoundAtStart(t *testing.T) {
@@ -230,6 +514,22 @@ func (*errFS) Stat(_ string) (update.FileInfo, error) {
 
 func (*errFS) WriteFile(_ string, _ []byte, _ fs.FileMode) error {
 	return nil
+}
+
+// errRemoveFS wraps memFS and returns an error for RemoveAll on a specific path.
+type errRemoveFS struct {
+	*memFS
+
+	errPath   string
+	removeErr error
+}
+
+func (e *errRemoveFS) RemoveAll(path string) error {
+	if path == e.errPath {
+		return e.removeErr
+	}
+
+	return e.memFS.RemoveAll(path)
 }
 
 type memEntry struct {
