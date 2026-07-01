@@ -130,12 +130,25 @@ knowledge vs derives it). RED/GREEN: the router over-provisioned 4/6 memory-back
 discounts. Bound: measured at the deep→mid boundary; other boundaries inferred (the upgrade-if-cheaper-fails
 rule is the safety net); C5 axis flaked (re-run). Whole-task downgrade — far bigger than the payload-$ lever.
 
-### ← NEXT (cost) — payload-prune-after-Step-3  [DOLLARS — verified $ lever, ~$1/op]
+### payload-prune-after-Step-3  [DOLLARS — verified $ lever] · premise ✅ SMOKE-VALIDATED 2026-06-30 · production build ← NEXT
 Drop the raw ~97 KB query payload out of the build's *ongoing* context once Step 3 has synthesized the
 requirements list. The real warm-over-cold dollar premium is *carrying* the payload across every
 subsequent build turn — not its size (the bytes are cheap to cache-read once — note 100). The synthesized
-requirements survive in context; only the raw payload is dropped. Measure with the `recall_cost` USD-meter
-(unbundles recall $ from build $). Lowest-risk real-dollar win.
+requirements survive in context; only the raw payload is dropped.
+
+**Smoke (synthesis-injection proxy, `dev/eval/cumulative/smoke_prune.py`, `claude-opus-4-8`, n=3 apps —
+`docs/superpowers/specs/2026-06-30-payload-prune-mechanism-design.md`):** carrying **only the synthesis** cut
+**build_cost ~40% (~$1.6/app; feeds −45%, links −23%, notes −51%)** with **zero capability loss** — identical
+rounds (2/2/2), success (3/3), final convergence + arch 10/10 on every app. The saving shows in *every* build
+round (mechanistic — the payload re-reading as `cache_read`), so the ~$1/op premise (note 95) held, if anything
+an underestimate. **Honest bound:** n=1/app, no same-arm noise floor measured → large-consistent-mechanism, not
+noise-floor-proven; a replicate would make it conclusive (not required to proceed).
+
+**← NEXT: the production mechanism (a separate brainstorm→plan→build).** The smoke validated the *isolation
+premise* via a proxy; it did **not** ship a product. The production form is **subagent-isolated recall** (recall
+runs in a subagent, returns only the synthesis to the parent build) — it must re-check the subagent→parent
+return-path fidelity the proxy skipped, and it touches recall's inline crystallization (Steps 2.5C/2.6/Step-4)
+and the please/build resume flow.
 
 ### Recall depth dial (was: shrink the recall procedure)  [WALL-TIME tax]  ← #661 DONE · #662 ✅ SHIPPED 2026-06-29 (glance/deep modes; 2.23× faster per fire; deep default; C5→deep escalation; trap gate GREEN)
 The "two-speed" split is now designed: **`docs/design/2026-06-29-recall-depth-dial-design.md`** — a 2-rung

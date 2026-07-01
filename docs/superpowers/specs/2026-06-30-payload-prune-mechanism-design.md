@@ -89,11 +89,53 @@ a build takes >2 rounds — note 95: easy 2-round CRUD has zero rebuild waste to
 net-negative there), so the smoke measures the *recoverable* slice on this model/harness, not a universal figure;
 and (1) is a **proxy** for the production form (2) — it validates the isolation premise, not (2)'s return-path.
 
+## Smoke results (2026-06-30) — GREEN (WIN)
+
+Ran the synthesis-injection proxy on **all three** harness apps (the matrix defines exactly these — feeds/8
+checks, links/7, notes/4; "pick the 3 hardest" reduces to "use all 3"), model `claude-opus-4-8`, one recall +
+two builds (A carried, B pruned) per app. Every synthesis was substantial (4375 / 3620 / 3896 chars — the
+hardened `<500`-char abort never tripped), so no arm ran on a strawman. Actual spend **$24.16** (recall $4.51 +
+Arm A $12.26 + Arm B $7.39), ~57 min — matching the ~$20 estimate.
+
+| Metric | Unit | Arm A (carried) | Arm B (pruned) | Δ | vs noise | sub-verdict |
+|---|---|---|---|---|---|---|
+| build_cost (total) | USD | 12.26 | 7.39 | **−4.86 (−40%)** | ≫ $0.50 stand-in | ✓ |
+| rounds_to_converge (total) | rounds | 6 | 6 | +0 | within ±1 | ✓ |
+| success | n/N | 3/3 | 3/3 | 0 | tied | ✓ |
+| **Net win** | — | — | — | — | — | **WIN** |
+
+Per-app (B cheaper every time, identical rounds, identical success, all converged):
+
+| App | checks | build_cost A | build_cost B | Δ | rds A→B | ok A/B |
+|---|---|---|---|---|---|---|
+| feeds | 8 | $4.50 | $2.49 | −$2.01 (−45%) | 2→2 | ✓/✓ |
+| links | 7 | $3.94 | $3.04 | −$0.90 (−23%) | 2→2 | ✓/✓ |
+| notes | 4 | $3.81 | $1.86 | −$1.96 (−51%) | 2→2 | ✓/✓ |
+
+**Verdict: the lever is validated.** Pruning the payload saved **~40% of build_cost (~$1.6/app)** with **zero
+capability regression** — identical rounds (2/2/2), identical success (3/3), same final convergence + arch 10/10
+on every app, so the synthesis fully captured what the build needed (no under-capture, note 107). The premise
+(note 95's ~$1/op) **held — if anything an underestimate** on these apps. The saving is **mechanistic, not
+noise**: the gap shows in *every* build round (e.g. feeds round-2 A $2.35 vs B $1.14), consistent with the ~97 KB
+payload re-reading as `cache_read` each turn — not stochastic variance.
+
+**Honest bound (note 96):** n=1 per app; I did **not** measure an empirical same-arm A-vs-A noise floor, so
+strictly this is *large-consistent-mechanism-explained*, not *noise-floor-validated*. But the effect (−$4.86,
+unanimous 3/3, ~10× a $0.50 stand-in threshold, capability tied) is well beyond plausible per-build variance and
+has a clean causal mechanism — **not** an underpowered tie. A same-arm replicate or higher n would make it
+conclusive; it is not required to justify the next step.
+
+Also observed (does not affect the arms — both share the identical recall): despite the stop-writes instruction,
+2/3 recalls still performed a vault write (notes crystallized 1 note + 1 link-enrich into the **temp** vault copy;
+the live vault was verified untouched). Noted for the production form, where recall's inline crystallization is
+the thing being moved off the build path.
+
 ## What this does NOT do
 
 It validates the lever + isolation premise. If GREEN, the **production mechanism** (subagent-isolated recall, or
 a please/build synthesis-injection) is a **separate** brainstorm→plan→build — it touches recall's inline
-crystallization and the please/build resume flow.
+crystallization and the please/build resume flow. **GREEN reached (above) → that production build is now
+justified**, as its own effort — this smoke is not authorization to ship the proxy (1) inline.
 
 ## Spec self-review
 - **Placeholders:** none — arms, the `recall_synthesis_prompt` fix, measures, tolerances, verdict-gate, and the
